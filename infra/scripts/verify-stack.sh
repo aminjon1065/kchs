@@ -12,6 +12,7 @@
 #   bash infra/scripts/verify-stack.sh                # со сборкой образов
 #   SKIP_BUILD=1 bash infra/scripts/verify-stack.sh   # образы уже собраны (KCHS_IMAGE_TAG)
 #   KEEP=1 bash infra/scripts/verify-stack.sh         # оставить стенд после проверки
+#   KCHS_VERIFY_PERF=1 bash infra/scripts/verify-stack.sh  # и бюджеты p95 API (k6, ~2 мин)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -105,4 +106,14 @@ echo
 echo "$TIMES"
 if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
   printf '### Установка в контейнерах\n\n```\n%s\n```\n' "$TIMES" >> "$GITHUB_STEP_SUMMARY"
+fi
+
+# Бюджеты p95 API (04-verification.md §4) на только что поднятом стенде — через web,
+# как ходит браузер. В CI — ночью и вручную (KCHS_VERIFY_PERF=1), на PR не нужно
+if [[ "${KCHS_VERIFY_PERF:-0}" == 1 ]]; then
+  echo "── Бюджеты API (k6) ──"
+  KCHS_PERF_API="http://host.docker.internal:$WEB_PORT/api/v1" \
+    KCHS_PERF_ADMIN_PASSWORD="$NEW_PASSWORD" \
+    KCHS_PERF_DURATION="${KCHS_PERF_DURATION:-1m}" \
+    bash "$ROOT/infra/perf/run-k6.sh"
 fi

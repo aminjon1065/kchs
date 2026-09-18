@@ -14,6 +14,8 @@ name: Установка в контейнерах
 #   - на PR с меткой `stack` — для изменений Dockerfile, compose, Caddyfile,
 #     окружения и `kchs`;
 #   - вручную (workflow_dispatch) — на любой ветке.
+# Ночью и вручную на поднятом стенде ещё замеряются бюджеты p95 API профилем k6
+# (04-verification.md §4, infra/perf) — пара минут к заданию; таблица — в сводке.
 
 on:
   schedule:
@@ -88,4 +90,5 @@ jobs:
       - name: Установка и проверки
         env:
           SKIP_BUILD: '1'
+          KCHS_VERIFY_PERF: ${{ github.event_name == 'pull_request' && '0' || '1' }}
         run: bash infra/scripts/verify-stack.sh
