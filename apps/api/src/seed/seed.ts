@@ -64,8 +64,8 @@ export async function runSeed(
     UserService.create(tx, ctx, {
       login: options.adminLogin,
       email: `${options.adminLogin}@kchs.local`,
-      lastName: 'Администратор',
-      firstName: 'Системный',
+      lastName: 'Системный',
+      firstName: 'Администратор',
       roleKeys: ['system_admin'],
       password: options.adminPassword,
       mustChangePassword: false,

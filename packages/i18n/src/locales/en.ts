@@ -428,6 +428,7 @@ export const en: DeepPartial<Dictionary> = {
   },
 
   objects: {
+    unavailable: 'The object is unavailable or deleted',
     types: {
       space: 'Space',
       folder: 'Folder',
@@ -606,7 +607,9 @@ export const en: DeepPartial<Dictionary> = {
       unsupported: 'Preview unavailable',
       processing: 'Preparing preview…',
       page: 'Page {page} of {total}',
-      comingSoon: 'PDF and image previews arrive with the processing engine',
+      pages: '{count, plural, one {# page} other {# pages}}',
+      failed: 'Could not build a preview — the file can be downloaded',
+      textTruncated: 'Showing the beginning of the text — download the file for the full version',
     },
     viewMode: { label: 'View', table: 'Table', grid: 'Tiles' },
     checksum: 'Checksum',

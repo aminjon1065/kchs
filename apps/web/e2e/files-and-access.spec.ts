@@ -45,6 +45,9 @@ test.describe('Файлы, доступ и обсуждение', () => {
     await expect(page.getByRole('button', { name: 'Скачать' })).toBeVisible()
     await expect(page.getByText('text/plain')).toBeVisible()
 
+    // Движок извлёк текст — коллега видит содержимое без скачивания (сценарий 3)
+    await expect(page.getByText('Уровень воды: 412 см')).toBeVisible({ timeout: 30_000 })
+
     // Обсуждение в контекст-панели
     await page.getByRole('button', { name: 'Обсуждение' }).click()
     const comment = `Уровень выше критического — нужна проверка ${unique()}`

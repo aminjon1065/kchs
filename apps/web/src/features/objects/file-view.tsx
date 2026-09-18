@@ -24,6 +24,7 @@ import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
 import { ShareDialog } from '~/features/access/share-dialog.js'
+import { FilePreview } from '~/features/files/file-preview.js'
 import { uploadFile } from '~/features/files/upload.js'
 import { http } from '~/shared/api/client.js'
 import { fileQuery, fileVersionsQuery, keys, objectQuery } from '~/shared/api/queries.js'
@@ -173,13 +174,7 @@ export function FileView({ objectId, tabId }: { objectId: string; tabId: string 
         <TabsContent value="overview" className="min-h-0 flex-1 overflow-y-auto bg-canvas p-5">
           <div className="mx-auto flex max-w-[760px] flex-col gap-4">
             <Card>
-              <div className="flex items-center justify-center rounded-md bg-surface-2 py-12">
-                <div className="flex flex-col items-center gap-2 text-center">
-                  <ObjectIcon type="file" className="size-10 text-fg-muted" />
-                  <p className="text-sm text-fg-secondary">{t('files.preview.unsupported')}</p>
-                  <p className="text-xs text-fg-muted">{t('files.preview.comingSoon')}</p>
-                </div>
-              </div>
+              <FilePreview fileId={objectId} />
             </Card>
 
             <Card title={t('objects.properties')}>

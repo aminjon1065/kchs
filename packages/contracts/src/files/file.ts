@@ -158,3 +158,13 @@ export const FileProcessedInput = z.object({
   error: z.string().max(4000).nullable().default(null),
 })
 export type FileProcessedInput = z.infer<typeof FileProcessedInput>
+
+/** Извлечённый текст для просмотрщика текстовых файлов и поиска по содержимому. */
+export const FileText = z.object({
+  status: PreviewStatus,
+  text: z.string().nullable(),
+  lang: z.string().nullable(),
+  /** Текст длиннее отдаваемой части — полный доступен скачиванием. */
+  truncated: z.boolean(),
+})
+export type FileText = z.infer<typeof FileText>

@@ -5,6 +5,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { Download, Link2, LogIn } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useT } from '~/app/i18n.js'
+import { FilePreview } from '~/features/files/file-preview.js'
 import { ApiError, http, setShareToken } from '~/shared/api/client.js'
 
 /**
@@ -144,6 +145,14 @@ export function GuestShareScreen({ token }: { token: string }) {
                 </div>
                 <Badge tone="neutral">{t('access.guest.onlyView')}</Badge>
               </div>
+
+              {file.data && objectId ? (
+                <FilePreview
+                  fileId={objectId}
+                  cacheScope={`share:${token}`}
+                  watermark={opened?.watermark ?? null}
+                />
+              ) : null}
 
               {file.data ? (
                 <div className="flex items-center justify-between rounded-md border border-line bg-surface-2 px-3 py-2.5">

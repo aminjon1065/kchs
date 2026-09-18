@@ -47,6 +47,9 @@ export const keys = {
   trash: ['trash'] as const,
   file: (id: string) => ['file', id] as const,
   fileVersions: (id: string) => ['file', id, 'versions'] as const,
+  // Под ключом объекта: realtime `object.updated` (превью готово) сбрасывает их сам
+  filePreviews: (id: string) => ['object', id, 'previews'] as const,
+  fileText: (id: string) => ['object', id, 'text'] as const,
   users: (params: Record<string, unknown>) => ['users', params] as const,
   orgUnits: ['org', 'units'] as const,
   audit: (params: Record<string, unknown>) => ['admin', 'audit', params] as const,

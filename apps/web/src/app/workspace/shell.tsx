@@ -1,4 +1,4 @@
-import { cn, IconButton, Tooltip, useBreakpoint, useHotkeys } from '@kchs/ui'
+import { cn, IconButton, Tooltip, useBreakpoint, useHotkeys, useToast } from '@kchs/ui'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { PanelLeftOpen, PanelRightOpen } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
@@ -12,7 +12,7 @@ import {
   subscribeRooms,
   unsubscribeRooms,
 } from '~/shared/realtime/client.js'
-import { useT } from '../i18n.js'
+import { t as translate, useT } from '../i18n.js'
 import { CommandPalette } from './command-palette.js'
 import { ContextPanel } from './context-panel.js'
 import { MobileNav } from './mobile-nav.js'
@@ -23,6 +23,7 @@ import { ShortcutsOverlay } from './shortcuts.js'
 import { StatusBar } from './status-bar.js'
 import { subscribeWorkspaceSave, useWorkspace } from './store.js'
 import type { WorkspaceSnapshot } from './types.js'
+import { openFromLocation, subscribeUrlSync } from './url-sync.js'
 
 export function WorkspaceShell() {
   const t = useT()
@@ -49,17 +50,33 @@ export function WorkspaceShell() {
 
   useQuery(meQuery())
 
-  // Восстановление рабочего контекста с сервера («Продолжить»)
+  // Восстановление рабочего контекста с сервера («Продолжить»), затем — вкладка
+  // по адресу, с которым пришёл пользователь (ссылка из уведомления, письма, поиска)
+  const toast = useToast()
+  const toastRef = useRef(toast)
+  toastRef.current = toast
   useEffect(() => {
     let cancelled = false
+    let unsubscribe: (() => void) | null = null
     void http
       .get<{ state: WorkspaceSnapshot | null }>('/me/workspace-state')
       .then((result) => {
         if (!cancelled && result.state) restore(result.state)
       })
       .catch(() => undefined)
+      .then(() =>
+        cancelled
+          ? undefined
+          : openFromLocation(translate, () =>
+              toastRef.current.show({ title: translate('objects.unavailable'), tone: 'warning' }),
+            ),
+      )
+      .finally(() => {
+        if (!cancelled) unsubscribe = subscribeUrlSync()
+      })
     return () => {
       cancelled = true
+      unsubscribe?.()
     }
   }, [restore])
 

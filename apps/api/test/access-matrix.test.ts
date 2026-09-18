@@ -113,7 +113,7 @@ const FIXTURES: Record<string, TypeFixture> = {
       })
       return { id: file.id, title }
     },
-    readPaths: ['/files/:id', '/files/:id/versions', '/files/:id/previews'],
+    readPaths: ['/files/:id', '/files/:id/versions', '/files/:id/previews', '/files/:id/text'],
     exportPaths: ['/files/:id/download'],
     viewerForbidden: (fx, id) => [
       {

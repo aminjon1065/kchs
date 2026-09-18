@@ -2,6 +2,7 @@ import {
   FilePreviews,
   FileProcessedInput,
   FileRecord,
+  FileText,
   FileVersion,
   FolderCreateInput,
   FolderRecord,
@@ -244,6 +245,16 @@ export function registerFilesRoutes(route: RouteRegistrar): void {
     summary: 'Превью текущей версии файла',
     schema: { params: IdParam, response: { 200: FilePreviews } },
     handler: async (request) => FileProcessing.previews(request.params.id),
+  })
+
+  route({
+    method: 'GET',
+    url: '/files/:id/text',
+    auth: { action: 'view' },
+    tags: ['files'],
+    summary: 'Извлечённый текст файла',
+    schema: { params: IdParam, response: { 200: FileText } },
+    handler: async (request) => FileProcessing.text(request.params.id),
   })
 
   route({

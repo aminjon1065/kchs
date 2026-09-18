@@ -1,4 +1,4 @@
-import type { FilePreviews, FileProcessedInput } from '@kchs/contracts'
+import type { FilePreviews, FileProcessedInput, FileText } from '@kchs/contracts'
 import { and, asc, eq, isNotNull, or, sql } from 'drizzle-orm'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { JobService } from '~/kernel/jobs/service.js'
@@ -193,6 +193,31 @@ export const FileProcessing = {
       textStatus: file.textStatus as FilePreviews['textStatus'],
       pages: text?.pages ?? (pagePreviews.length > 0 ? pagePreviews.length : null),
       items,
+    }
+  },
+
+  /** Текст для просмотрщика: первые `limit` символов извлечённого текста. */
+  async text(fileId: string, limit = 200_000): Promise<FileText> {
+    const [file] = await db()
+      .select({ textStatus: files.textStatus })
+      .from(files)
+      .where(eq(files.id, fileId))
+      .limit(1)
+    if (!file) throw errors.notFound('Файл')
+    const [row] = await db()
+      .select({
+        text: sql<string>`left(${fileTexts.text}, ${limit})`,
+        length: sql<number>`length(${fileTexts.text})`,
+        lang: fileTexts.lang,
+      })
+      .from(fileTexts)
+      .where(eq(fileTexts.fileId, fileId))
+      .limit(1)
+    return {
+      status: file.textStatus as FileText['status'],
+      text: row?.text ?? null,
+      lang: row?.lang ?? null,
+      truncated: (row?.length ?? 0) > limit,
     }
   },
 
