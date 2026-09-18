@@ -80,7 +80,10 @@ function toRecord(row: ImportRow): ImportRecord {
 }
 
 /** Поля нового датасета из сопоставления импорта (+ геометрия). */
-function fieldsFromMapping(input: ImportRunInput): DatasetFieldInput[] {
+function fieldsFromMapping(
+  input: ImportRunInput,
+  geometryField: string | null,
+): DatasetFieldInput[] {
   const fields: DatasetFieldInput[] = input.mapping.map((item, index) => ({
     key: item.fieldKey,
     label: item.label,
@@ -95,9 +98,9 @@ function fieldsFromMapping(input: ImportRunInput): DatasetFieldInput[] {
     order: index,
     ...(item.format ? { format: item.format } : {}),
   }))
-  if (input.geometry && input.geometryField) {
+  if (geometryField) {
     fields.push({
-      key: input.geometryField,
+      key: geometryField,
       label: { ru: 'Геометрия', en: 'Geometry' },
       type: 'geometry',
       semantic: 'geometry',
@@ -189,16 +192,25 @@ export const ImportService = {
     const source = await fileSource(input.fileId)
     if (!source) throw errors.notFound('Файл')
 
+    const mapped = new Set(input.mapping.map((item) => item.fieldKey))
     let datasetId: string
     let mode: string
+    // Поле, в которое движок соберёт геометрию; в нормализованном CSV оно последнее
+    let geometryField: string | null = null
     if (input.target.kind === 'new') {
+      if (input.geometry) {
+        geometryField = input.geometryField ?? 'geometry'
+        if (mapped.has(geometryField)) {
+          throw errors.validation(`Поле геометрии «${geometryField}» совпадает с полем столбца`)
+        }
+      }
       datasetId = await DatasetService.create(tx, ctx, {
         name: input.target.name,
         description: input.target.description ?? null,
         spaceId: input.target.spaceId,
         parentId: input.target.parentId ?? null,
         kind: 'table',
-        fields: fieldsFromMapping(input),
+        fields: fieldsFromMapping(input, geometryField),
         primaryKey: input.key,
         timeField: input.mapping.find((item) => item.semantic === 'time')?.fieldKey ?? null,
         territoryField: null,
@@ -219,8 +231,26 @@ export const ImportService = {
           )
         }
       }
-      if ((mode === 'upsert' || mode === 'sync') && storage.primaryKey.length === 0) {
-        throw errors.validation('Обновление по ключу: у датасета нет ключевых полей')
+      if (mode === 'upsert' || mode === 'sync') {
+        if (storage.primaryKey.length === 0) {
+          throw errors.validation('Обновление по ключу: у датасета нет ключевых полей')
+        }
+        const missing = storage.primaryKey.filter((key) => !mapped.has(key))
+        if (missing.length > 0) {
+          throw errors.validation(`Ключевые поля не сопоставлены: ${missing.join(', ')}`)
+        }
+      }
+      if (input.geometry) {
+        const field = input.geometryField
+          ? byKey.get(input.geometryField)
+          : storage.fields.find((item) => item.type === 'geometry')
+        if (field?.type !== 'geometry') {
+          throw errors.validation('В датасете нет поля геометрии')
+        }
+        if (mapped.has(field.key)) {
+          throw errors.validation(`Поле геометрии «${field.key}» уже сопоставлено со столбцом`)
+        }
+        geometryField = field.key
       }
     }
 
@@ -238,7 +268,7 @@ export const ImportService = {
         options: input.options,
         mapping: input.mapping,
         geometry: input.geometry ?? null,
-        geometryField: input.geometryField ?? null,
+        geometryField,
         onError: input.onError,
         output: {
           bucket: buckets.files(),
@@ -260,6 +290,8 @@ export const ImportService = {
         mapping: input.mapping as unknown as Record<string, unknown>[],
         key: input.key,
         onError: input.onError,
+        geometry: (input.geometry as Record<string, unknown> | undefined) ?? null,
+        geometryField,
         stats: { rows: 0, inserted: 0, updated: 0, deleted: 0, errors: 0 },
         jobId,
         createdBy: ctx.kind === 'user' ? ctx.userId : null,
@@ -373,10 +405,7 @@ export const ImportService = {
     const userId = row.createdBy
     const storage = await DatasetService.storage(row.datasetId)
     const mapping = row.mapping as unknown as ImportMappingItem[]
-    const geometryField = storage.fields.find(
-      (field) => field.type === 'geometry' && !mapping.some((item) => item.fieldKey === field.key),
-    )
-    const columns = loadColumns(storage, mapping, geometryField?.key)
+    const columns = loadColumns(storage, mapping, row.geometryField ?? undefined)
     const physical = columns.map((field) => field.physical)
     const keyColumns = storage.primaryKey.map(
       (key) => storage.fields.find((field) => field.key === key)?.physical as string,

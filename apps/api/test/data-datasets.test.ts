@@ -335,6 +335,60 @@ describe('импорт: режимы загрузки', () => {
   })
 })
 
+describe('импорт: геометрия и ключ', () => {
+  it('геометрия из широты и долготы — отдельное поле, EWKT последним столбцом', async () => {
+    const started = await startImport({
+      target: { kind: 'new', name: `Гео ${run}`, spaceId: fx.spaceId },
+      geometry: { kind: 'latlon', lat: 4, lon: 5 },
+      key: ['code'],
+    })
+    expect(started.statusCode, started.body).toBe(200)
+    const datasetId = started.json().datasetId as string
+    const dataset = await call(fx.app, { url: `/datasets/${datasetId}`, as: fx.admin })
+    expect(dataset.json().fields.at(-1)).toMatchObject({ key: 'geometry', type: 'geometry' })
+
+    const done = await normalizeAndLoad(started.json().id, [
+      '2,G-1,Хатлон,1,2026-01-01,SRID=4326;POINT(68.78 38.56)',
+      '3,G-2,Согд,2,2026-01-02,',
+    ])
+    expect(done).toMatchObject({ status: 'succeeded', stats: { inserted: 2 } })
+    const [meta] = await db().execute<{ physical_table: string; physical_column: string }>(
+      sql`SELECT d.physical_table, f.physical_column FROM datasets d
+            JOIN dataset_fields f ON f.dataset_id = d.id AND f.key = 'geometry'
+           WHERE d.id = ${datasetId}`,
+    )
+    const points = await db().execute<{ wkt: string | null }>(
+      sql.raw(
+        `SELECT ST_AsText(${meta?.physical_column}) AS wkt FROM ds."${meta?.physical_table}" ORDER BY _id`,
+      ),
+    )
+    expect(points.map((point) => point.wkt)).toEqual(['POINT(68.78 38.56)', null])
+
+    // Дозагрузка без геометрии: в нормализованном файле её столбца нет
+    const append = await startImport({
+      target: { kind: 'existing', datasetId, mode: 'append' },
+    })
+    expect(append.statusCode, append.body).toBe(200)
+    const appended = await normalizeAndLoad(append.json().id, ['2,G-3,ГБАО,3,2026-01-03'])
+    expect(appended).toMatchObject({ status: 'succeeded', stats: { inserted: 1 } })
+  })
+
+  it('upsert и sync требуют сопоставить все ключевые поля датасета', async () => {
+    const first = await startImport({
+      target: { kind: 'new', name: `Ключ ${run}`, spaceId: fx.spaceId },
+      key: ['code'],
+    })
+    const datasetId = first.json().datasetId as string
+    const withoutKey = await startImport({
+      target: { kind: 'existing', datasetId, mode: 'upsert' },
+      mapping: MAPPING.slice(1),
+      key: ['region'],
+    })
+    expect(withoutKey.statusCode).toBe(400)
+    expect(withoutKey.body).toContain('code')
+  })
+})
+
 describe('импорт: права и внутренний маршрут', () => {
   it('отчёт движка без сервисного токена отклоняется', async () => {
     const started = await startImport({

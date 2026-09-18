@@ -185,6 +185,9 @@ export const imports = pgTable(
     mapping: jsonbArray<Record<string, unknown>>('mapping'),
     key: text('key').array().notNull().default(sql`'{}'::text[]`),
     onError: text('on_error').notNull().default('skip'),
+    /** Как собирается геометрия (ImportGeometry) и в какое поле; без неё — null. */
+    geometry: jsonb('geometry').$type<Record<string, unknown>>(),
+    geometryField: text('geometry_field'),
     stats: jsonbObject<Record<string, number>>('stats'),
     errorSample: jsonbArray<Record<string, unknown>>('error_sample'),
     normalizedKey: text('normalized_key'),
