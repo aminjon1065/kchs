@@ -16,7 +16,9 @@ rmSync(new URL('dist', root), { recursive: true, force: true })
 
 await build({
   absWorkingDir: new URL('.', root).pathname,
-  entryPoints: { main: 'src/main.ts', kchs: 'src/cli/kchs.ts' },
+  // instrument — предзагрузка трасс (`node --import ./dist/instrument.js dist/main.js`):
+  // модуль телеметрии попадает в общий чанк, и флаг «трассы включены» у main тот же
+  entryPoints: { main: 'src/main.ts', kchs: 'src/cli/kchs.ts', instrument: 'src/instrument.ts' },
   outdir: 'dist',
   bundle: true,
   splitting: true,

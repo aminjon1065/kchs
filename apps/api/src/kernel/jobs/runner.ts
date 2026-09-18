@@ -1,7 +1,11 @@
+import { performance } from 'node:perf_hooks'
 import { QUEUE_RUNTIME, type QueueName } from '@kchs/contracts'
+import { SpanKind } from '@opentelemetry/api'
 import { type Job, type Processor, UnrecoverableError, Worker } from 'bullmq'
 import { logger } from '~/shared/logger/index.js'
 import { createRedisConnection } from '~/shared/redis/index.js'
+import { meter } from '~/shared/telemetry/metrics.js'
+import { contextFromMetadata, withSpan } from '~/shared/telemetry/tracing.js'
 import { closeQueues, JobService } from './service.js'
 
 export interface JobHandler {
@@ -43,14 +47,24 @@ export function startWorkers(): void {
     byQueue.set(handler.queue, list)
   }
 
+  // Длительность и исход заданий по очередям (15-admin-operations.md §4)
+  const duration = meter().createHistogram('kchs.job.duration', {
+    unit: 's',
+    description: 'Длительность выполнения задания',
+  })
+
   for (const [queueName, queueHandlers] of byQueue) {
     const concurrency = Math.max(...queueHandlers.map((h) => h.concurrency ?? 4))
-    const processor: Processor = async (job) => {
-      const handler = handlers.get(`${queueName}:${job.name}`)
-      if (!handler) throw new UnrecoverableError(`Нет обработчика для ${queueName}:${job.name}`)
-
+    const run = async (job: Job, handler: JobHandler) => {
       const recordId = await ensureRecord(queueName, job)
       const log = logger().child({ queue: queueName, job: job.name, jobId: recordId })
+      const started = performance.now()
+      const record = (outcome: string) =>
+        duration.record((performance.now() - started) / 1000, {
+          queue: queueName,
+          job: job.name,
+          outcome,
+        })
 
       await JobService.start(recordId)
       try {
@@ -60,11 +74,36 @@ export function startWorkers(): void {
           log,
         })
         await JobService.finish(recordId, result ?? {})
+        record('succeeded')
         return result
       } catch (error) {
-        await JobService.fail(recordId, error, { final: isFinalAttempt(job, error) })
+        const final = isFinalAttempt(job, error)
+        await JobService.fail(recordId, error, { final })
+        record(final ? 'failed' : 'retry')
         throw error
       }
+    }
+
+    const processor: Processor = async (job) => {
+      const handler = handlers.get(`${queueName}:${job.name}`)
+      if (!handler) throw new UnrecoverableError(`Нет обработчика для ${queueName}:${job.name}`)
+      // Задание продолжает трассу запроса, который его поставил (`JobService.schedule`)
+      return withSpan(
+        `job ${queueName} ${job.name}`,
+        {
+          kind: SpanKind.CONSUMER,
+          parent: contextFromMetadata(job.opts.telemetry?.metadata),
+          attributes: {
+            'messaging.system': 'bullmq',
+            'messaging.operation.type': 'process',
+            'messaging.destination.name': queueName,
+            'messaging.message.id': job.id ?? '',
+            'kchs.job.name': job.name,
+            'kchs.job.attempt': job.attemptsMade + 1,
+          },
+        },
+        () => run(job, handler),
+      )
     }
 
     const worker = new Worker(queueName, processor, {

@@ -8,6 +8,7 @@ import { jobs } from '~/shared/db/schema/index.js'
 import { newId } from '~/shared/ids.js'
 import { logger } from '~/shared/logger/index.js'
 import { cacheKeys, createRedisConnection, redis } from '~/shared/redis/index.js'
+import { traceMetadata } from '~/shared/telemetry/tracing.js'
 import { publishEvent } from '../events/publisher.js'
 
 const queues = new Map<QueueName, Queue>()
@@ -29,8 +30,15 @@ export function queue(name: QueueName): Queue {
   return existing
 }
 
-/** Параметры BullMQ, которые можно сохранить в реестре (сериализуемые). */
-export type StoredJobOptions = Pick<JobsOptions, 'delay' | 'attempts' | 'priority' | 'backoff'>
+/**
+ * Параметры BullMQ, которые можно сохранить в реестре (сериализуемые).
+ * `telemetry.metadata` — контекст трассы постановки: задание продолжает трассу
+ * запроса, даже пройдя через outbox (15-admin-operations.md §4).
+ */
+export type StoredJobOptions = Pick<
+  JobsOptions,
+  'delay' | 'attempts' | 'priority' | 'backoff' | 'telemetry'
+>
 
 export interface EnqueueInput {
   queue: QueueName
@@ -71,6 +79,10 @@ export const JobService = {
     }
 
     const id = newId()
+    const trace = traceMetadata()
+    const options: StoredJobOptions = trace
+      ? { ...input.options, telemetry: { metadata: trace } }
+      : (input.options ?? {})
     await tx.insert(jobs).values({
       id,
       queue: input.queue,
@@ -80,7 +92,7 @@ export const JobService = {
       status: 'queued',
       idempotencyKey: input.idempotencyKey ?? null,
       payload: input.data,
-      options: (input.options ?? {}) as Record<string, unknown>,
+      options: options as Record<string, unknown>,
     })
 
     await publishEvent(tx, ctx, {

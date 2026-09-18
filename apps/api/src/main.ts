@@ -10,6 +10,7 @@ import {
 } from './kernel/events/index.js'
 import { registerMaintenanceJobs, scheduleMaintenance } from './kernel/jobs/maintenance.js'
 import { startWorkers, stopWorkers } from './kernel/jobs/runner.js'
+import { registerKernelMetrics } from './kernel/metrics.js'
 import { startRealtime, stopRealtime } from './kernel/realtime/gateway.js'
 import { registerKernelSubscribers } from './kernel/subscribers.js'
 import { AuthService } from './modules/identity/public.js'
@@ -19,12 +20,28 @@ import { closeDb, closeQueryRole } from './shared/db/client.js'
 import { runMigrations } from './shared/db/migrate.js'
 import { logger } from './shared/logger/index.js'
 import { closeRedis } from './shared/redis/index.js'
+import { startMetrics, stopMetrics } from './shared/telemetry/metrics.js'
+import { stopTracing, tracingEnabled, tracingRequested } from './shared/telemetry/tracing.js'
 
 const env = config()
 const log = logger()
 
 async function main(): Promise<void> {
   process.env.TZ = env.TZ
+
+  // Метрики — до создания инструментов в приложении и воркерах (ADR-0045)
+  if (env.METRICS_PORT) {
+    await startMetrics({
+      port: env.METRICS_PORT,
+      host: env.METRICS_HOST,
+      onError: (error) => log.error({ err: error }, 'эндпоинт метрик не запущен'),
+    })
+  }
+  if (tracingRequested() && !tracingEnabled()) {
+    log.warn(
+      'адрес OTLP задан, но трассы выключены: запустите node с --import ./dist/instrument.js',
+    )
+  }
 
   await runMigrations()
   await bootstrapPlatform()
@@ -63,12 +80,17 @@ async function main(): Promise<void> {
     log.info('kchs worker запущен')
   }
 
+  registerKernelMetrics({ queues: runsWorker, realtime: runsApi })
+
   const shutdown = async (signal: string): Promise<void> => {
     log.info({ signal }, 'остановка')
+    // Метрики — первыми: опрос Prometheus не должен заново открывать закрытые очереди
+    await stopMetrics()
     stopDispatcher()
     await stopConsumers()
     await stopWorkers()
     await close?.()
+    await stopTracing()
     await closeRedis()
     await closeQueryRole()
     await closeDb()

@@ -21,6 +21,7 @@ import { errors } from '~/shared/errors.js'
 import { authPlugin } from '~/shared/http/auth-plugin.js'
 import { sendProblem } from '~/shared/http/problem.js'
 import { routeRegistrar } from '~/shared/http/route.js'
+import { telemetryPlugin } from '~/shared/http/telemetry-plugin.js'
 import { logger } from '~/shared/logger/index.js'
 import { redis } from '~/shared/redis/index.js'
 
@@ -52,6 +53,7 @@ export async function buildApp(): Promise<FastifyInstance> {
     })
   })
 
+  await app.register(telemetryPlugin)
   await app.register(sensible)
   await app.register(cookie, { hook: 'onRequest' })
 

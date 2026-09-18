@@ -1,10 +1,14 @@
+import { performance } from 'node:perf_hooks'
 import type { EventEnvelope } from '@kchs/contracts'
+import { type Histogram, SpanKind, trace } from '@opentelemetry/api'
 import { and, eq } from 'drizzle-orm'
 import type { Redis } from 'ioredis'
 import { db } from '~/shared/db/client.js'
 import { eventConsumptions } from '~/shared/db/schema/index.js'
 import { logger } from '~/shared/logger/index.js'
 import { createRedisConnection } from '~/shared/redis/index.js'
+import { meter } from '~/shared/telemetry/metrics.js'
+import { recordError, withSpan } from '~/shared/telemetry/tracing.js'
 import { listSubscribers, matchesType, sendToDlq, streamKey, subscribedDomains } from './bus.js'
 import type { Subscriber } from './types.js'
 
@@ -34,6 +38,8 @@ const CONSUMER_NAME = `c-${process.pid}-${Math.random().toString(36).slice(2, 7)
 
 let stopped = false
 const running = new Set<Promise<void>>()
+/** Длительность и исход обработки события подписчиком (создаётся при запуске). */
+let eventDuration: Histogram | null = null
 
 /** Создаёт consumer group для каждого домена (идемпотентно). */
 async function ensureGroups(
@@ -107,9 +113,44 @@ async function handleEntry(
     return
   }
 
+  // Контекст трассы через outbox не передаётся (конверт — контракт): обработка
+  // события — своя трасса, а с запросом её связывает correlationId = requestId
+  await withSpan(
+    `event ${event.type} ${subscriber.name}`,
+    {
+      kind: SpanKind.CONSUMER,
+      attributes: {
+        'messaging.system': 'redis',
+        'messaging.operation.type': 'process',
+        'messaging.destination.name': stream,
+        'messaging.consumer.group.name': subscriber.name,
+        'messaging.message.id': event.id,
+        'kchs.event.type': event.type,
+        'kchs.correlation_id': event.correlationId ?? '',
+      },
+    },
+    async (span) => {
+      const started = performance.now()
+      const outcome = await processEntry(subscriber, client, stream, entryId, event)
+      span?.setAttribute('kchs.event.outcome', outcome)
+      eventDuration?.record((performance.now() - started) / 1000, {
+        subscriber: subscriber.name,
+        outcome,
+      })
+    },
+  )
+}
+
+async function processEntry(
+  subscriber: Subscriber,
+  client: Redis,
+  stream: string,
+  entryId: string,
+  event: EventEnvelope,
+): Promise<'duplicate' | 'processed' | 'retry' | 'dlq'> {
   if (await alreadyProcessed(subscriber.name, event.id)) {
     await client.xack(stream, subscriber.name, entryId)
-    return
+    return 'duplicate'
   }
 
   try {
@@ -118,19 +159,22 @@ async function handleEntry(
     await subscriber.handle(event)
     await markProcessed(subscriber.name, event.id)
     await client.xack(stream, subscriber.name, entryId)
+    return 'processed'
   } catch (error) {
+    recordError(trace.getActiveSpan(), error)
     const deliveries = await deliveryCount(client, stream, subscriber.name, entryId)
     const max = subscriber.maxAttempts ?? DEFAULT_MAX_ATTEMPTS
     if (deliveries >= max) {
       await sendToDlq(event, subscriber.name, error)
       await client.xack(stream, subscriber.name, entryId)
-    } else {
-      // Запись остаётся неподтверждённой и будет забрана повторно после простоя
-      logger().warn(
-        { err: error, consumer: subscriber.name, eventId: event.id, deliveries },
-        'подписчик вернул ошибку, будет повтор',
-      )
+      return 'dlq'
     }
+    // Запись остаётся неподтверждённой и будет забрана повторно после простоя
+    logger().warn(
+      { err: error, consumer: subscriber.name, eventId: event.id, deliveries },
+      'подписчик вернул ошибку, будет повтор',
+    )
+    return 'retry'
   }
 }
 
@@ -179,6 +223,10 @@ export function startConsumers(overrides: Partial<ConsumerOptions> = {}): void {
 
   const options = { ...DEFAULT_OPTIONS, ...overrides }
   stopped = false
+  eventDuration = meter().createHistogram('kchs.event.duration', {
+    unit: 's',
+    description: 'Обработка события подписчиком',
+  })
   const log = logger().child({ module: 'events' })
   const domains = resolveDomains()
 

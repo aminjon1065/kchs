@@ -225,6 +225,11 @@ export async function revokeRoomAccess(objectId: string): Promise<void> {
   }
 }
 
+/** Открытые подключения этого процесса (метрика, 15-admin-operations.md §4). */
+export function realtimeConnections(): number {
+  return io?.engine.clientsCount ?? 0
+}
+
 export function stopRealtime(): void {
   void io?.close()
   io = null

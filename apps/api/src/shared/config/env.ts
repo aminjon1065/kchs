@@ -27,6 +27,16 @@ const EnvSchema = z.object({
     .transform((v): boolean | string => (v === 'false' ? false : v)),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
   TZ: z.string().default('Asia/Dushanbe'),
+  /**
+   * Порт эндпоинта метрик Prometheus (`/metrics`). Не задан — метрики выключены.
+   * Отдельный порт не публикуется прокси: его читает Prometheus во внутренней сети.
+   * Трассы включает стандартная OTEL_EXPORTER_OTLP_ENDPOINT (ADR-0045).
+   */
+  METRICS_PORT: z.preprocess(
+    (v) => (v === '' ? undefined : v),
+    z.coerce.number().int().min(1).max(65535).optional(),
+  ),
+  METRICS_HOST: z.string().default('127.0.0.1'),
 
   KCHS_BASE_URL: z.url().default('http://localhost:5173'),
   KCHS_API_URL: z.url().default('http://localhost:3000'),

@@ -59,4 +59,5 @@ EXPOSE 3000
 HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=5 \
   CMD curl -fsS http://localhost:3000/health || exit 1
 
-CMD ["node", "dist/main.js"]
+# Предзагрузка трасс OpenTelemetry: без OTEL_EXPORTER_OTLP_ENDPOINT ничего не делает
+CMD ["node", "--import", "./dist/instrument.js", "dist/main.js"]
