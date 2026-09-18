@@ -4,6 +4,8 @@ import type {
   DashboardRecord,
   DatasetPolicies,
   DatasetRecord,
+  DatasetRow,
+  DatasetRowHistoryEntry,
   DatasetVersion,
   FieldProfile,
   ImportRecord,
@@ -21,6 +23,8 @@ export const dataKeys = {
   versions: (id: string) => ['dataset', id, 'versions'] as const,
   imports: (id: string) => ['dataset', id, 'imports'] as const,
   policies: (id: string) => ['dataset', id, 'policies'] as const,
+  row: (id: string, rowId: string) => ['dataset', id, 'row', rowId] as const,
+  rowHistory: (id: string, rowId: string) => ['dataset', id, 'row', rowId, 'history'] as const,
   profile: (id: string, key: string) => ['dataset', id, 'profile', key] as const,
   import: (id: string) => ['import', id] as const,
   chart: (id: string) => ['chart', id] as const,
@@ -48,6 +52,23 @@ export const datasetImportsQuery = (id: string) =>
     queryKey: dataKeys.imports(id),
     queryFn: async () =>
       (await http.get<{ items: ImportRecord[] }>(`/datasets/${id}/imports`)).items,
+  })
+
+/** Строка по `_id` — с политиками пользователя, как в таблице. */
+export const datasetRowQuery = (id: string, rowId: string) =>
+  queryOptions({
+    queryKey: dataKeys.row(id, rowId),
+    queryFn: () => http.get<DatasetRow>(`/datasets/${id}/rows/${rowId}`),
+  })
+
+/** История строки: при ограничениях политики сервер отказывает (403) — без повторов. */
+export const rowHistoryQuery = (id: string, rowId: string) =>
+  queryOptions({
+    queryKey: dataKeys.rowHistory(id, rowId),
+    queryFn: async () =>
+      (await http.get<{ items: DatasetRowHistoryEntry[] }>(`/datasets/${id}/rows/${rowId}/history`))
+        .items,
+    retry: false,
   })
 
 /** Политики строк и столбцов — только для `manage+`. */

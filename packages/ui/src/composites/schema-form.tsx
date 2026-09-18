@@ -607,7 +607,7 @@ export function InlineProperties({
                   </span>
                   {editable ? (
                     <IconButton
-                      label={t('ui.form.edit')}
+                      label={t('ui.form.edit', { name: labelOf(field.label, locale) })}
                       size="sm"
                       className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
                       onClick={() => {

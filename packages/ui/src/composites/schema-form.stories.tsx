@@ -242,7 +242,7 @@ export const PropertyEditing: Story = {
   render: () => <PropertiesDemo />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    const [firstEdit] = canvas.getAllByRole('button', { name: 'Изменить' })
+    const [firstEdit] = canvas.getAllByRole('button', { name: /^Изменить «/ })
     if (firstEdit) await userEvent.click(firstEdit)
     // Контрол правки озвучен названием свойства
     await canvas.findByRole('textbox', { name: 'Краткое описание' })

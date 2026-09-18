@@ -16,7 +16,7 @@ import {
   useDebouncedValue,
 } from '@kchs/ui'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Download, RefreshCw } from 'lucide-react'
+import { Download, Plus, RefreshCw } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
@@ -24,6 +24,7 @@ import { ApiError, http } from '~/shared/api/client.js'
 import { meQuery } from '~/shared/api/queries.js'
 import { ExportDialog } from './export-dialog.js'
 import { dataKeys } from './queries.js'
+import { NewRowDialog, RowCard } from './row-card.js'
 
 /** Строк в странице таблицы: грид просит окна, страницы грузятся по мере прокрутки. */
 const PAGE = 200
@@ -75,6 +76,8 @@ export function DatasetTable({ dataset, canEdit }: { dataset: DatasetRecord; can
   const generation = useRef(0)
   const [reloads, setReloads] = useState(0)
   const [exporting, setExporting] = useState(false)
+  const [openRow, setOpenRow] = useState<string | null>(null)
+  const [creating, setCreating] = useState(false)
   const canExport = me?.capabilities.includes('data.export') ?? false
 
   const columns = useMemo<DataGridColumn[]>(
@@ -225,6 +228,13 @@ export function DatasetTable({ dataset, canEdit }: { dataset: DatasetRecord; can
 
   const writable = canEdit && dataset.settings.editable
 
+  /** Строка изменилась в карточке — таблица, счётчик и версии перечитываются. */
+  const refresh = useCallback(() => {
+    setReloads((value) => value + 1)
+    void client.invalidateQueries({ queryKey: dataKeys.dataset(dataset.id) })
+    void client.invalidateQueries({ queryKey: dataKeys.versions(dataset.id) })
+  }, [client, dataset.id])
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex shrink-0 items-center gap-2 border-b border-line bg-surface px-2.5 py-1.5">
@@ -237,6 +247,16 @@ export function DatasetTable({ dataset, canEdit }: { dataset: DatasetRecord; can
           className="h-7 w-72"
         />
         <div className="ml-auto flex items-center gap-1">
+          {writable ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={<Plus className="size-3.5" />}
+              onClick={() => setCreating(true)}
+            >
+              {t('data.row.add')}
+            </Button>
+          ) : null}
           {canExport ? (
             <Button
               variant="ghost"
@@ -275,6 +295,7 @@ export function DatasetTable({ dataset, canEdit }: { dataset: DatasetRecord; can
         columnState={columnState}
         onColumnStateChange={setColumnState}
         {...(writable ? { onEdit, onAppendRows } : { readOnly: true })}
+        onRowOpen={(row) => setOpenRow(row.id)}
         loading={loading}
         empty={
           <span className="text-sm text-fg-muted">
@@ -288,6 +309,26 @@ export function DatasetTable({ dataset, canEdit }: { dataset: DatasetRecord; can
         locale={locale}
         {...(me?.user.timezone ? { timezone: me.user.timezone } : {})}
       />
+      {openRow ? (
+        <RowCard
+          dataset={dataset}
+          rowId={openRow}
+          canEdit={canEdit}
+          onClose={() => setOpenRow(null)}
+          onChanged={refresh}
+        />
+      ) : null}
+      {creating ? (
+        <NewRowDialog
+          dataset={dataset}
+          onClose={() => setCreating(false)}
+          onCreated={(rowId) => {
+            setCreating(false)
+            refresh()
+            if (rowId) setOpenRow(rowId)
+          }}
+        />
+      ) : null}
       {exporting ? (
         <ExportDialog
           dataset={dataset}

@@ -279,7 +279,7 @@ export const en: DeepPartial<Dictionary> = {
       saving: 'Saving…',
       saved: 'Saved',
       notSet: 'Not set',
-      edit: 'Edit',
+      edit: 'Edit «{name}»',
       summary: '{count, plural, one {Check # field} other {Check # fields}}',
       computed: 'Calculated automatically',
       errors: {
@@ -1092,6 +1092,25 @@ export const en: DeepPartial<Dictionary> = {
       truncated: 'Only the first million rows were exported — narrow the selection with a filter.',
       download: 'Download',
       failed: 'Could not prepare the file',
+    },
+    row: {
+      add: 'Row',
+      title: 'Row {id}',
+      subtitle: 'Row No. {id} · version {ver}',
+      tabs: { fields: 'Fields', history: 'History' },
+      conflict: 'The row was changed by someone else — current values are shown, repeat the edit',
+      remove: 'Delete row',
+      removeTitle: 'Delete the row?',
+      removeBody:
+        'The row disappears from the table. With row history on, its previous values stay in the history.',
+      removed: 'Row deleted',
+      historyEmpty: 'No changes yet',
+      historyOff: 'Row history is turned off for this dataset',
+      system: 'System',
+      version: 'version {ver}',
+      ops: { insert: 'Added', update: 'Changed', delete: 'Deleted' },
+      newTitle: 'New row',
+      created: 'Row added',
     },
     policies: {
       intro:
