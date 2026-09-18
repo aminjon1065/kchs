@@ -21,6 +21,7 @@ import {
   fieldValues,
   type StoredField,
 } from './dataset-service.js'
+import { PolicyService } from './policy-service.js'
 
 const MAX_FIELDS = 500
 const ACTIVE_IMPORTS = ['queued', 'normalizing', 'loading']
@@ -255,6 +256,7 @@ export const SchemaService = {
     if (usage) {
       throw errors.conflict(`Поле используется справочником в датасете «${usage.title}»`)
     }
+    await PolicyService.fieldRemoved(tx, ctx, datasetId, key)
     await tx.delete(datasetFields).where(eq(datasetFields.id, field.id))
     await Physical.dropColumn(tx, locked.table, field.physical)
     if (locked.timeField === key || locked.territoryField === key) {
@@ -296,6 +298,15 @@ export const SchemaService = {
     }
     if (locked.primaryKey.includes(key) && NOT_KEY_TYPES.has(input.type)) {
       throw errors.validation('Поле ключа строки не может получить этот тип')
+    }
+    if (from !== input.type) {
+      await PolicyService.assertTypeChange(
+        tx,
+        ctx,
+        { id: datasetId, table: locked.table, fields: locked.fields },
+        key,
+        input.type,
+      )
     }
     const cast = castExpression(field.physical, from, input.type, precision)
     const report = await Physical.conversionReport(tx, locked.table, cast)

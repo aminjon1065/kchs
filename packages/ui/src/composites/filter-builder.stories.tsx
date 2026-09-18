@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { userEvent, within } from 'storybook/test'
 import { cn } from '../lib/cn.js'
 import { KIND_LABELS } from '../stories/incidents.js'
-import { FilterBuilder, type FilterField } from './filter-builder.js'
+import { FilterBuilder, type FilterField, FilterSummary } from './filter-builder.js'
 
 const meta = {
   title: 'Композиты/Конструктор фильтра',
@@ -105,4 +105,22 @@ export const Advanced: Story = {
     await userEvent.click(canvas.getByRole('button', { name: 'Расширенный режим' }))
     await canvas.findByRole('button', { name: 'Простой режим' })
   },
+}
+
+/** Сводка для списков правил и политик: группы «или» — в скобках, «не» — явно. */
+export const Summary: Story = {
+  name: 'Сводка фильтра только для чтения',
+  render: () => (
+    <ul className="flex max-w-[640px] flex-col gap-2">
+      <li>
+        <FilterSummary fields={FIELDS} value={CONDITIONS} />
+      </li>
+      <li>
+        <FilterSummary fields={FIELDS} value={WITH_GROUP} />
+      </li>
+      <li>
+        <FilterSummary fields={FIELDS} value={{ not: { field: 'confirmed', op: 'is_true' } }} />
+      </li>
+    </ul>
+  ),
 }

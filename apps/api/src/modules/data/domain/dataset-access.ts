@@ -24,10 +24,11 @@ export interface DatasetGrant {
   masked: Set<string>
 }
 
-/** Ключ принципала политики в форме множества принципалов (`type:id`, `everyone`). */
-function principalKey(type: string, id: string): string {
-  return type === 'everyone' ? 'everyone' : `${type}:${id}`
-}
+/**
+ * Ключ принципала политики в форме множества принципалов ядра: `type:id` —
+ * `user:…`, `unit:…`, `space_role:<пространство>:<роль>`, `everyone:*`.
+ */
+const principalKey = (type: string, id: string) => `${type}:${id}`
 
 /**
  * Единый слой доступа к строкам и столбцам датасета (03-access-model.md

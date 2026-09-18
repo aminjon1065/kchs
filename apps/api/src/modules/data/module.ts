@@ -8,15 +8,22 @@ import {
   DashboardDataInput,
   DashboardRecord,
   DashboardUpdateInput,
+  DatasetColumnPolicy,
+  DatasetColumnPolicyInput,
+  DatasetColumnPolicyPatch,
   DatasetCreateInput,
   DatasetFieldConvertInput,
   DatasetFieldConvertReport,
   DatasetFieldInput,
   DatasetFieldPatch,
+  DatasetPolicies,
   DatasetRecord,
   DatasetRow,
   DatasetRowHistoryEntry,
   DatasetRowPatch,
+  DatasetRowPolicy,
+  DatasetRowPolicyInput,
+  DatasetRowPolicyPatch,
   DatasetRowsDelete,
   DatasetRowsInsert,
   DatasetRowsQuery,
@@ -53,6 +60,7 @@ import {
   NORMALIZE_JOB,
   NormalizedReport,
 } from './domain/import-service.js'
+import { PolicyService } from './domain/policy-service.js'
 import { ProfileService } from './domain/profile-service.js'
 import { QueryService } from './domain/query-service.js'
 import { RowService } from './domain/row-service.js'
@@ -62,6 +70,7 @@ import { Physical } from './infra/physical.js'
 const IdParam = z.object({ id: z.uuid() })
 const FieldParams = z.object({ id: z.uuid(), key: z.string().min(1).max(64) })
 const RowParams = z.object({ id: z.uuid(), rowId: z.string().regex(/^\d{1,18}$/) })
+const PolicyParams = z.object({ id: z.uuid(), policyId: z.uuid() })
 
 /** Типы объектов модуля «Данные» (06-analytics-engine.md). */
 export function registerDataObjectTypes(): void {
@@ -338,6 +347,122 @@ export function registerDataRoutes(route: RouteRegistrar): void {
         SchemaService.removeField(tx, request.ctx, request.params.id, request.params.key),
       )
       return DatasetService.get(request.params.id)
+    },
+  })
+
+  route({
+    method: 'GET',
+    url: '/datasets/:id/policies',
+    auth: { action: 'manage' },
+    tags: ['data'],
+    summary: 'Политики строк и столбцов датасета',
+    schema: { params: IdParam, response: { 200: DatasetPolicies } },
+    handler: async (request) => PolicyService.list(request.params.id),
+  })
+
+  route({
+    method: 'POST',
+    url: '/datasets/:id/policies/rows',
+    auth: { action: 'manage' },
+    tags: ['data'],
+    summary: 'Добавить политику строк: кому и какие строки видны',
+    schema: { params: IdParam, body: DatasetRowPolicyInput, response: { 200: DatasetRowPolicy } },
+    handler: async (request) =>
+      db().transaction((tx) =>
+        PolicyService.createRow(tx, request.ctx, request.params.id, request.body),
+      ),
+  })
+
+  route({
+    method: 'PATCH',
+    url: '/datasets/:id/policies/rows/:policyId',
+    auth: { action: 'manage' },
+    tags: ['data'],
+    summary: 'Изменить политику строк',
+    schema: {
+      params: PolicyParams,
+      body: DatasetRowPolicyPatch,
+      response: { 200: DatasetRowPolicy },
+    },
+    handler: async (request) =>
+      db().transaction((tx) =>
+        PolicyService.updateRow(
+          tx,
+          request.ctx,
+          request.params.id,
+          request.params.policyId,
+          request.body,
+        ),
+      ),
+  })
+
+  route({
+    method: 'DELETE',
+    url: '/datasets/:id/policies/rows/:policyId',
+    auth: { action: 'manage' },
+    tags: ['data'],
+    summary: 'Удалить политику строк',
+    schema: { params: PolicyParams, response: { 200: z.object({ ok: z.boolean() }) } },
+    handler: async (request) => {
+      await db().transaction((tx) =>
+        PolicyService.removeRow(tx, request.ctx, request.params.id, request.params.policyId),
+      )
+      return { ok: true }
+    },
+  })
+
+  route({
+    method: 'POST',
+    url: '/datasets/:id/policies/columns',
+    auth: { action: 'manage' },
+    tags: ['data'],
+    summary: 'Добавить политику столбцов: скрыть или замаскировать поля',
+    schema: {
+      params: IdParam,
+      body: DatasetColumnPolicyInput,
+      response: { 200: DatasetColumnPolicy },
+    },
+    handler: async (request) =>
+      db().transaction((tx) =>
+        PolicyService.createColumn(tx, request.ctx, request.params.id, request.body),
+      ),
+  })
+
+  route({
+    method: 'PATCH',
+    url: '/datasets/:id/policies/columns/:policyId',
+    auth: { action: 'manage' },
+    tags: ['data'],
+    summary: 'Изменить политику столбцов',
+    schema: {
+      params: PolicyParams,
+      body: DatasetColumnPolicyPatch,
+      response: { 200: DatasetColumnPolicy },
+    },
+    handler: async (request) =>
+      db().transaction((tx) =>
+        PolicyService.updateColumn(
+          tx,
+          request.ctx,
+          request.params.id,
+          request.params.policyId,
+          request.body,
+        ),
+      ),
+  })
+
+  route({
+    method: 'DELETE',
+    url: '/datasets/:id/policies/columns/:policyId',
+    auth: { action: 'manage' },
+    tags: ['data'],
+    summary: 'Удалить политику столбцов',
+    schema: { params: PolicyParams, response: { 200: z.object({ ok: z.boolean() }) } },
+    handler: async (request) => {
+      await db().transaction((tx) =>
+        PolicyService.removeColumn(tx, request.ctx, request.params.id, request.params.policyId),
+      )
+      return { ok: true }
     },
   })
 

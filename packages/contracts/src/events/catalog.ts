@@ -120,6 +120,11 @@ export const EVENT_PAYLOADS = {
     count: z.number().int(),
   }),
   'dataset.version_created': z.object({ version: z.number().int(), origin: z.string() }),
+  'dataset.policies_changed': z.object({
+    kind: z.enum(['rows', 'columns']),
+    op: z.enum(['created', 'updated', 'deleted']),
+    policyId: Uuid,
+  }),
   'chart.updated': z.object({ changed: z.array(z.string()) }),
   'dashboard.updated': z.object({ changed: z.array(z.string()) }),
 

@@ -1,9 +1,12 @@
 import {
+  type DatasetField,
   FIELD_SEMANTICS,
   type FieldSemantic,
+  type Locale,
   STORED_FIELD_TYPES,
   type StoredFieldType,
 } from '@kchs/contracts'
+import type { FilterField } from '@kchs/ui'
 
 /** Семантики, которые выбирают вручную (справочник и служебная задаются иначе). */
 export const PICKABLE_SEMANTICS = FIELD_SEMANTICS.filter(
@@ -42,4 +45,25 @@ export function defaultSemantic(type: string): FieldSemantic {
     default:
       return 'dimension'
   }
+}
+
+/** Подпись поля на языке интерфейса (запасные — русская подпись и ключ). */
+export const fieldLabel = (field: DatasetField, locale: Locale): string =>
+  field.label[locale] ?? field.label.ru ?? field.key
+
+/** Поля датасета для конструктора фильтра: подписи и варианты выбора на языке интерфейса. */
+export function filterFieldsOf(fields: readonly DatasetField[], locale: Locale): FilterField[] {
+  return fields.map((field) => ({
+    key: field.key,
+    label: fieldLabel(field, locale),
+    type: field.type,
+    ...(field.options
+      ? {
+          options: field.options.map((option) => ({
+            value: option.value,
+            label: option.label[locale] ?? option.label.ru,
+          })),
+        }
+      : {}),
+  }))
 }

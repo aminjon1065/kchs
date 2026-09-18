@@ -283,6 +283,15 @@ const FIXTURES: Record<string, TypeFixture> = {
         url: `/datasets/${id}/fields`,
         payload: { key: 'extra', label: { ru: 'Ещё' }, type: 'text' },
       },
+      { method: 'GET', url: `/datasets/${id}/policies` },
+      {
+        method: 'POST',
+        url: `/datasets/${id}/policies/rows`,
+        payload: {
+          principal: { type: 'everyone', id: '*' },
+          filter: { field: 'code', op: 'eq', value: 'A-1' },
+        },
+      },
       {
         method: 'POST',
         url: '/datasets/imports',

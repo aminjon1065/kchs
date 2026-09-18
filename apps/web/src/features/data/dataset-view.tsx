@@ -28,6 +28,7 @@ import { ShareDialog } from '~/features/access/share-dialog.js'
 import { PresenceAvatars } from '~/features/objects/presence-avatars.js'
 import { http } from '~/shared/api/client.js'
 import { keys, objectQuery } from '~/shared/api/queries.js'
+import { AccessTab } from './access-tab.js'
 import { DatasetTable } from './dataset-table.js'
 import { ImportWizard } from './import-wizard.js'
 import { dataKeys, datasetImportsQuery, datasetQuery, datasetVersionsQuery } from './queries.js'
@@ -178,6 +179,9 @@ export function DatasetView({ objectId, tabId }: { objectId: string; tabId: stri
           </TabsTrigger>
           <TabsTrigger value="versions">{t('data.dataset.tabs.versions')}</TabsTrigger>
           <TabsTrigger value="imports">{t('data.dataset.tabs.imports')}</TabsTrigger>
+          {canManage ? (
+            <TabsTrigger value="access">{t('data.dataset.tabs.access')}</TabsTrigger>
+          ) : null}
         </TabsList>
 
         <TabsContent value="table" className="min-h-0 flex-1">
@@ -189,6 +193,11 @@ export function DatasetView({ objectId, tabId }: { objectId: string; tabId: stri
         <TabsContent value="versions" className="min-h-0 flex-1 overflow-y-auto bg-canvas p-5">
           <VersionsTab datasetId={objectId} current={dataset.currentVersion} />
         </TabsContent>
+        {canManage ? (
+          <TabsContent value="access" className="min-h-0 flex-1 overflow-y-auto bg-canvas p-5">
+            <AccessTab dataset={dataset} />
+          </TabsContent>
+        ) : null}
         <TabsContent value="imports" className="min-h-0 flex-1 overflow-y-auto bg-canvas p-5">
           <ImportsTab datasetId={objectId} />
         </TabsContent>

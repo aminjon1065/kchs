@@ -4,7 +4,7 @@ import {
   FilterNode,
   type QueryResult,
   type QueryResultField,
-  type QuerySpec,
+  QuerySpec,
 } from '@kchs/contracts'
 import {
   type CompiledQuery,
@@ -26,7 +26,7 @@ import { AppError, errors } from '~/shared/errors.js'
 import { logger } from '~/shared/logger/index.js'
 import { redis } from '~/shared/redis/index.js'
 import { DatasetAccess, type DatasetGrant } from './dataset-access.js'
-import { DatasetService } from './dataset-service.js'
+import { DatasetService, type DatasetStorage } from './dataset-service.js'
 
 /** Результат интерактивного запроса живёт в кэше, пока не сменилась версия данных. */
 const CACHE_TTL_SECONDS = 300
@@ -60,6 +60,30 @@ function rowPolicyOf(grant: DatasetGrant): RowPolicy {
   return { kind: 'filter', where: nodes.length === 1 ? (nodes[0] as FilterNode) : { or: nodes } }
 }
 
+/** Источник для компилятора: физическая таблица и поля датасета с заданными политиками. */
+function resolvedFrom(
+  storage: Pick<DatasetStorage, 'id' | 'table' | 'fields' | 'currentVersion'>,
+  rowPolicy: RowPolicy,
+  columnPolicy: ResolvedDataset['columnPolicy'],
+): ResolvedDataset {
+  return {
+    id: storage.id,
+    table: `ds.${storage.table}`,
+    fields: storage.fields.map((field) => ({
+      key: field.key,
+      type: field.type,
+      physical: field.physical,
+      label: field.label,
+      semantic: field.semantic,
+      format: field.format ?? null,
+    })),
+    rowPolicy,
+    columnPolicy,
+    version: storage.currentVersion,
+    systemColumns: true,
+  }
+}
+
 /** Датасет-источник с политиками текущего пользователя (слой DatasetAccess). */
 async function resolveDataset(
   ctx: Ctx,
@@ -68,22 +92,10 @@ async function resolveDataset(
   const grant = await DatasetAccess.resolve(ctx, id)
   const storage = await DatasetService.storage(id)
   return {
-    dataset: {
-      id,
-      table: `ds.${storage.table}`,
-      fields: storage.fields.map((field) => ({
-        key: field.key,
-        type: field.type,
-        physical: field.physical,
-        label: field.label,
-        semantic: field.semantic,
-        format: field.format ?? null,
-      })),
-      rowPolicy: rowPolicyOf(grant),
-      columnPolicy: { hide: [...grant.hidden], mask: [...grant.masked] },
-      version: storage.currentVersion,
-      systemColumns: true,
-    },
+    dataset: resolvedFrom(storage, rowPolicyOf(grant), {
+      hide: [...grant.hidden],
+      mask: [...grant.masked],
+    }),
     schemaVersion: storage.schemaVersion,
   }
 }
@@ -158,6 +170,35 @@ async function recordRun(
       error: input.error?.slice(0, 1000) ?? null,
     })
     .catch((error: unknown) => logger().warn({ err: error }, 'журнал запусков запросов не записан'))
+}
+
+/**
+ * Проверка фильтра политики строк так же, как при чтении: поля датасета (и
+ * скрытые), макросы пользователя, без параметров запроса. Ошибка — 400 с
+ * путём и сообщением компилятора.
+ */
+export function checkRowPolicy(
+  ctx: Ctx,
+  storage: Pick<DatasetStorage, 'id' | 'table' | 'fields' | 'currentVersion'>,
+  filter: FilterNode,
+): void {
+  const spec = QuerySpec.parse({
+    version: 1,
+    source: { kind: 'dataset', id: storage.id },
+    steps: [],
+  })
+  const dataset = resolvedFrom(storage, { kind: 'filter', where: filter }, { hide: [], mask: [] })
+  try {
+    compileQuery(spec, {
+      datasets: new Map([[storage.id, dataset]]),
+      user: compileUser(ctx),
+      now: new Date(),
+      maxRows: 1,
+    })
+  } catch (error) {
+    if (error instanceof QueryCompileError) throw compileError(error)
+    throw error
+  }
 }
 
 /**

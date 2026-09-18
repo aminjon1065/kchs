@@ -193,6 +193,31 @@ export function FilterBuilder({
   )
 }
 
+export interface FilterSummaryProps {
+  fields: FilterField[]
+  value: FilterNode
+  describeValue?: FilterBuilderProps['describeValue']
+  className?: string
+}
+
+/**
+ * Фильтр текстом только для чтения — для списков правил и политик доступа:
+ * «Район равно Хатлон и (Сумма больше 10 или Метки содержит паводок)».
+ */
+export function FilterSummary({ fields, value, describeValue, className }: FilterSummaryProps) {
+  const t = useUiT()
+  const describe = useDescribe(describeValue)
+  const byKey = new Map(fields.map((field) => [field.key, field]))
+  const text = (node: FilterNode, nested: boolean): string => {
+    if ('field' in node) return describe(byKey.get(node.field), node)
+    if ('not' in node) return `${t('ui.filter.not')} (${text(node.not, false)})`
+    const parts = ('and' in node ? node.and : node.or).map((child) => text(child, true))
+    const joined = parts.join(` ${t('and' in node ? 'ui.filter.and' : 'ui.filter.or')} `)
+    return nested && parts.length > 1 ? `(${joined})` : joined
+  }
+  return <span className={cn('min-w-0 text-sm text-fg', className)}>{text(value, false)}</span>
+}
+
 // ─── Чипы ───────────────────────────────────────────────────────────────────
 
 function useDescribe(describeValue: FilterBuilderProps['describeValue']) {

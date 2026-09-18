@@ -21,7 +21,6 @@ import {
   EmptyState,
   Field,
   FilterBuilder,
-  type FilterField,
   IconButton,
   Input,
   ObjectIcon,
@@ -52,7 +51,7 @@ import {
   exploreSpec,
   measureAlias,
 } from './explore-query.js'
-import { NUMERIC_TYPES } from './field-types.js'
+import { filterFieldsOf, NUMERIC_TYPES } from './field-types.js'
 import { datasetQuery } from './queries.js'
 
 const AGGREGATES: Aggregate[] = ['count', 'count_distinct', 'sum', 'avg', 'min', 'max', 'median']
@@ -198,19 +197,7 @@ export function ExploreScreen({
   const update = (patch: Partial<ExploreState>) => setState((current) => ({ ...current, ...patch }))
   const groupable = fields.filter((field) => !NOT_GROUPABLE.has(field.type))
   const numeric = fields.filter((field) => NUMERIC_TYPES.has(field.type))
-  const filterFields: FilterField[] = fields.map((field) => ({
-    key: field.key,
-    label: labelOf(field, locale),
-    type: field.type,
-    ...(field.options
-      ? {
-          options: field.options.map((option) => ({
-            value: option.value,
-            label: option.label[locale] ?? option.label.ru,
-          })),
-        }
-      : {}),
-  }))
+  const filterFields = filterFieldsOf(fields, locale)
   const sortable = [
     ...state.groups.map((group) => group.field),
     ...state.measures.map(measureAlias),
