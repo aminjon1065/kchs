@@ -14,11 +14,23 @@ export async function resetWorkspaceState(request: APIRequestContext): Promise<v
   expect(me.ok(), 'сессия действительна').toBeTruthy()
   const csrfToken = (await me.json()).session.csrfToken as string
 
-  const cleared = await request.put('/api/v1/me/workspace-state', {
-    data: { state: null },
-    headers: { 'x-csrf-token': csrfToken },
-  })
-  expect(cleared.ok(), 'сброс состояния рабочего пространства').toBeTruthy()
+  const clear = async () => {
+    const cleared = await request.put('/api/v1/me/workspace-state', {
+      data: { state: null },
+      headers: { 'x-csrf-token': csrfToken },
+    })
+    expect(cleared.ok(), 'сброс состояния рабочего пространства').toBeTruthy()
+  }
+  await clear()
+
+  // Страница прошлого сценария при закрытии досохраняет вкладки запросом
+  // keepalive — он может прийти уже после сброса. Дожидаемся тишины.
+  for (let attempt = 0; attempt < 6; attempt++) {
+    await new Promise((resolve) => setTimeout(resolve, 150))
+    const current = await request.get('/api/v1/me/workspace-state')
+    if ((await current.json()).state === null) return
+    await clear()
+  }
 }
 
 /** Открывает приложение с чистым рабочим пространством. */
