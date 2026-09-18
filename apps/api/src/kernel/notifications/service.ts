@@ -294,6 +294,7 @@ export async function deliverEmail(ids: number[]): Promise<number> {
       titleKey: notifications.titleKey,
       params: notifications.params,
       objectId: notifications.objectId,
+      actorId: notifications.actorId,
       url: notifications.url,
       aggregateCount: notifications.aggregateCount,
       createdAt: notifications.createdAt,
@@ -325,6 +326,18 @@ export async function deliverEmail(ids: number[]): Promise<number> {
   const summaries = await ObjectService.summaries([
     ...new Set(rows.map((r) => r.objectId).filter((v): v is string => Boolean(v))),
   ])
+  // Имя автора — для «{actor} упомянул вас…»: в параметрах уведомления его нет
+  const actorIds = [...new Set(rows.map((r) => r.actorId).filter((v): v is string => Boolean(v)))]
+  const actors = new Map(
+    actorIds.length > 0
+      ? (
+          await db()
+            .select({ id: users.id, name: users.displayName })
+            .from(users)
+            .where(inArray(users.id, actorIds))
+        ).map((row) => [row.id, row.name])
+      : [],
+  )
 
   let sent = 0
   for (const [, items] of byUser) {
@@ -335,6 +348,7 @@ export async function deliverEmail(ids: number[]): Promise<number> {
     const lines = items.map((row) => {
       const summary = row.objectId ? summaries.get(row.objectId) : null
       const params = {
+        ...(row.actorId && actors.has(row.actorId) ? { actor: actors.get(row.actorId) } : {}),
         ...(row.params as Record<string, string>),
         count: row.aggregateCount,
         title: summary?.title ?? (row.params as { title?: string }).title ?? '',
