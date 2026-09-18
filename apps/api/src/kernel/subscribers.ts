@@ -9,7 +9,7 @@ import { JobService } from './jobs/service.js'
 import { NotificationService } from './notifications/service.js'
 import { objectType } from './objects/registry.js'
 import { emitToRoom, revokeRoomAccess } from './realtime/gateway.js'
-import { hasDescendants, indexObject, removeFromIndex } from './search/index-service.js'
+import { hasAccessDependents, indexObject, removeFromIndex } from './search/index-service.js'
 
 /** Какое поле открытой вкладки устарело после события, не меняющего сам объект. */
 const CHANGED_FIELD: Record<string, string> = {
@@ -35,9 +35,17 @@ export function registerKernelSubscribers(): void {
         return
       }
       await indexObject(event.object.id)
-      // Права и граница наследования у потомков зависят от этого объекта:
-      // их фильтр в индексе пересчитывается заданием, не задерживая шину
-      if (SUBTREE_EVENTS.has(event.type) && (await hasDescendants(event.object.id))) {
+      // Вложение получает читателей объекта-хоста — и теряет их при откреплении
+      if (
+        (event.type === 'object.linked' || event.type === 'object.unlinked') &&
+        event.payload.kind === 'attachment' &&
+        typeof event.payload.targetId === 'string'
+      ) {
+        await indexObject(event.payload.targetId)
+      }
+      // Права потомков и вложений зависят от этого объекта: их фильтр
+      // в индексе пересчитывается заданием, не задерживая шину
+      if (SUBTREE_EVENTS.has(event.type) && (await hasAccessDependents(event.object.id))) {
         await JobService.enqueue(systemCtx('search.subtree'), {
           queue: 'index',
           name: 'search.reindex-subtree',

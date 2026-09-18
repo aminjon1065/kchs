@@ -22,6 +22,7 @@ import { files, objects } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { validServiceToken } from '~/shared/http/service-token.js'
+import { AttachmentsFolder } from './domain/attachments.js'
 import { FileService } from './domain/file-service.js'
 import { FileProcessing } from './domain/processing.js'
 
@@ -132,16 +133,29 @@ export function registerFilesRoutes(route: RouteRegistrar): void {
     },
     handler: async (request) => {
       const { authorize } = await import('~/kernel/access/authorize.js')
-      // Загрузка в пространство требует права на редактирование пространства или папки
-      const target = request.body.folderId ?? request.body.spaceId
-      await authorize(
-        request.ctx,
-        request.body.fileId ? 'upload_version' : 'create_child',
-        request.body.fileId ?? target,
-      )
-      // Вложение меняет объект, к которому прикрепляется: нужен уровень edit на нём
-      if (request.body.attachToObjectId) {
-        await authorize(request.ctx, 'edit', request.body.attachToObjectId)
+      const { attachToObjectId, fileId, folderId, spaceId } = request.body
+      if (attachToObjectId && !fileId && !folderId) {
+        // Вложение меняет объект, к которому прикрепляется: нужен уровень edit на
+        // нём, а файл ляжет в системную папку «Вложения» его пространства
+        await authorize(request.ctx, 'edit', attachToObjectId)
+        const [row] = await db()
+          .select({ spaceId: objects.spaceId })
+          .from(objects)
+          .where(eq(objects.id, attachToObjectId))
+          .limit(1)
+        if (row?.spaceId !== spaceId) {
+          throw errors.validation('Вложение загружается в пространство объекта', [
+            { path: 'spaceId', message: 'mismatch' },
+          ])
+        }
+      } else {
+        // Загрузка в пространство требует права на создание в нём или в папке
+        await authorize(
+          request.ctx,
+          fileId ? 'upload_version' : 'create_child',
+          fileId ?? folderId ?? spaceId,
+        )
+        if (attachToObjectId) await authorize(request.ctx, 'edit', attachToObjectId)
       }
       return FileService.createUploadSession(request.ctx, request.body)
     },
@@ -285,6 +299,23 @@ export function registerFilesRoutes(route: RouteRegistrar): void {
       }
       const { stale } = await FileProcessing.applyResult(request.params.id, request.body)
       return { ok: true, stale }
+    },
+  })
+
+  route({
+    method: 'GET',
+    url: '/files/attachments-folder',
+    auth: 'session',
+    tags: ['files'],
+    summary: 'Системная папка «Вложения» пространства (если уже создана)',
+    schema: {
+      querystring: z.object({ spaceId: z.uuid() }),
+      response: { 200: z.object({ id: z.uuid().nullable() }) },
+    },
+    handler: async (request) => {
+      const { authorize } = await import('~/kernel/access/authorize.js')
+      await authorize(request.ctx, 'view', request.query.spaceId)
+      return { id: await AttachmentsFolder.find(request.query.spaceId) }
     },
   })
 

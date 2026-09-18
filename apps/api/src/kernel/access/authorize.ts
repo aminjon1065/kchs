@@ -14,6 +14,7 @@ import type { Ctx, UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
 import {
   aclEntries,
+  links,
   objectAncestors,
   objects,
   spaceMembers,
@@ -106,6 +107,7 @@ export async function effectiveLevel(
   ctx: UserCtx,
   object: ObjectLike,
   executor: Executor = db(),
+  options: { attachments?: boolean } = {},
 ): Promise<Decision> {
   const reasons: AccessReason[] = []
   let level: Level = 'none'
@@ -161,7 +163,22 @@ export async function effectiveLevel(
     }
   }
 
-  // 7. Атрибутные ограничения — только понижают
+  // 7. Вложение (09-files.md §1): видит тот, кто видит объект, к которому оно
+  // прикреплено; правит — кто правит объект, но не выше edit (делиться и удалять
+  // вложение может только его владелец). Хост проверяется без этого шага —
+  // вложения вложений доступа не передают
+  if (options.attachments !== false) {
+    for (const host of await attachmentHosts(object.id, executor)) {
+      const hostDecision = await effectiveLevel(ctx, host, executor, { attachments: false })
+      if (!hostDecision.allowed) continue
+      const derived: Level =
+        levelValue(hostDecision.level) > levelValue('edit') ? 'edit' : hostDecision.level
+      reasons.push(reason('attachment', derived, { source: host.title }, host.id))
+      level = maxLevel(level, derived)
+    }
+  }
+
+  // 8. Атрибутные ограничения — только понижают
   if (definition?.policy?.cap && level !== 'none') {
     const cap = await definition.policy.cap(ctx, object)
     if (cap && levelValue(cap.level) < levelValue(level)) {
@@ -174,6 +191,32 @@ export async function effectiveLevel(
     return { allowed: false, level, reasons: reasons.length ? reasons : DENIED.reasons }
   return { allowed: true, level, reasons }
 }
+
+/** Объекты, к которым прикреплён данный (связи `attachment`), кроме удалённых. */
+async function attachmentHosts(objectId: string, executor: Executor): Promise<ObjectLike[]> {
+  return executor
+    .select({
+      id: objects.id,
+      type: objects.type,
+      spaceId: objects.spaceId,
+      parentId: objects.parentId,
+      ownerId: objects.ownerId,
+      accessMode: objects.accessMode,
+      archivedAt: objects.archivedAt,
+      deletedAt: objects.deletedAt,
+      meta: objects.meta,
+      title: objects.title,
+    })
+    .from(links)
+    .innerJoin(objects, eq(objects.id, links.sourceId))
+    .where(
+      and(eq(links.targetId, objectId), eq(links.kind, 'attachment'), isNull(objects.deletedAt)),
+    )
+    .limit(MAX_ATTACHMENT_HOSTS)
+}
+
+/** Верхняя граница хостов вложения при проверке — защита от вырожденных графов. */
+const MAX_ATTACHMENT_HOSTS = 50
 
 /** Максимальный уровень из ACL объекта и его предков (с учётом наследования). */
 async function aclLevelFor(

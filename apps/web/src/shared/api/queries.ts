@@ -66,6 +66,7 @@ export const keys = {
   principals: (q: string, types: string) => ['principals', q, types] as const,
   tags: (spaceId: string | null, q: string) => ['tags', spaceId, q] as const,
   roles: ['roles'] as const,
+  attachmentsFolder: (spaceId: string) => ['files', 'attachments-folder', spaceId] as const,
   securityPolicy: ['admin', 'security-policy'] as const,
 }
 
@@ -279,6 +280,16 @@ export const shareLinksQuery = (objectId: string) =>
   queryOptions({
     queryKey: keys.shareLinks(objectId),
     queryFn: () => http.get<ShareLinkList>(`/objects/${objectId}/share-links`),
+  })
+
+/** Системная папка «Вложения» пространства — `null`, пока вложений не было. */
+export const attachmentsFolderQuery = (spaceId: string) =>
+  queryOptions({
+    queryKey: keys.attachmentsFolder(spaceId),
+    queryFn: () =>
+      http.get<{ id: string | null }>('/files/attachments-folder', { query: { spaceId } }),
+    select: (data: { id: string | null }) => data.id,
+    staleTime: 60_000,
   })
 
 export const rolesQuery = () =>

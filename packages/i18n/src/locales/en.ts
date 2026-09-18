@@ -116,6 +116,7 @@ export const en: DeepPartial<Dictionary> = {
       dismiss: 'Dismiss',
     },
     tag: { remove: 'Remove tag', removeNamed: 'Remove tag “{name}”' },
+    dropzone: { label: 'Drop files here or browse' },
     tagInput: {
       label: 'Tags',
       placeholder: 'Add a tag…',
@@ -608,6 +609,13 @@ export const en: DeepPartial<Dictionary> = {
     tabs: { overview: 'Overview' },
     properties: 'Properties',
     archive: { title: 'Archive', archived: 'Archived', hint: 'Read only' },
+    attachments: {
+      drop: 'Drop files to attach',
+      attached: 'Attached: {name}',
+      failed: 'Could not attach {name}',
+      detach: 'Detach',
+      detached: 'Attachment detached',
+    },
     links: {
       title: 'Links',
       empty: 'No links',
@@ -705,6 +713,7 @@ export const en: DeepPartial<Dictionary> = {
       inherited: 'Inherited from “{source}”',
       space_role: 'Member of space “{space}” with role “{role}”',
       type_policy: '{policy}',
+      attachment: 'Attachment of “{source}”',
       share_link: 'Link access',
       delegation: 'Delegation: {user}',
       attribute_cap: 'Limited: {reason}',
@@ -736,6 +745,7 @@ export const en: DeepPartial<Dictionary> = {
   },
   files: {
     title: 'Files',
+    attachmentsFolder: 'Object attachments',
     upload: {
       drop: 'Drop files here',
       browse: 'or choose from your computer',

@@ -115,6 +115,7 @@ export const ru = {
       dismiss: 'Скрыть',
     },
     tag: { remove: 'Убрать тег', removeNamed: 'Убрать тег «{name}»' },
+    dropzone: { label: 'Перетащите файлы сюда или выберите' },
     tagInput: {
       label: 'Теги',
       placeholder: 'Добавить тег…',
@@ -615,6 +616,13 @@ export const ru = {
     tabs: { overview: 'Обзор' },
     properties: 'Свойства',
     archive: { title: 'Архив', archived: 'В архиве', hint: 'Только чтение' },
+    attachments: {
+      drop: 'Перетащите файлы, чтобы прикрепить',
+      attached: 'Прикреплено: {name}',
+      failed: 'Не удалось прикрепить {name}',
+      detach: 'Открепить',
+      detached: 'Вложение откреплено',
+    },
     links: {
       title: 'Связи',
       empty: 'Связей нет',
@@ -713,6 +721,7 @@ export const ru = {
       inherited: 'Наследуется от «{source}»',
       space_role: 'Участник пространства «{space}» с ролью «{role}»',
       type_policy: '{policy}',
+      attachment: 'Вложение объекта «{source}»',
       share_link: 'Доступ по ссылке',
       delegation: 'Замещение: {user}',
       attribute_cap: 'Ограничено: {reason}',
@@ -751,6 +760,7 @@ export const ru = {
 
   files: {
     title: 'Файлы',
+    attachmentsFolder: 'Вложения объектов',
     upload: {
       drop: 'Перетащите файлы сюда',
       browse: 'или выберите на компьютере',

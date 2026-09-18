@@ -6,10 +6,12 @@ import {
   Button,
   cn,
   EmptyState,
+  FileDropzone,
   IconButton,
   KeyValueList,
   ObjectChip,
   ObjectIcon,
+  ProgressBar,
   Skeleton,
   TagInput,
   Textarea,
@@ -29,8 +31,10 @@ import {
   Star,
   Tag as TagIcon,
   Users,
+  X,
 } from 'lucide-react'
 import { useState } from 'react'
+import { uploadFile } from '~/features/files/upload.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import {
   discussionQuery,
@@ -283,8 +287,60 @@ function ObjectTags({ object }: { object: ObjectRecord }) {
 
 function LinksTab({ objectId }: { objectId: string }) {
   const t = useT()
+  const toast = useToast()
+  const client = useQueryClient()
   const openTab = useWorkspace((s) => s.openTab)
   const { data, isLoading } = useQuery(objectLinksQuery(objectId))
+  const { data: object } = useQuery(objectQuery(objectId))
+  const [uploads, setUploads] = useState<Record<string, { name: string; progress: number }>>({})
+
+  // Вложения (09-files.md §1): прикрепляет тот, кто вправе изменять объект
+  const canAttach = Boolean(object?.spaceId && atLeast(object.level, 'edit'))
+
+  const refresh = () => {
+    void client.invalidateQueries({ queryKey: keys.objectLinks(objectId) })
+    void client.invalidateQueries({ queryKey: keys.objectActivity(objectId) })
+  }
+
+  const attach = async (files: File[]) => {
+    const spaceId = object?.spaceId
+    if (!spaceId) return
+    for (const file of files) {
+      const key = `${file.name}:${file.size}:${file.lastModified}`
+      setUploads((current) => ({ ...current, [key]: { name: file.name, progress: 0 } }))
+      try {
+        await uploadFile({
+          file,
+          spaceId,
+          attachToObjectId: objectId,
+          onProgress: (progress) =>
+            setUploads((current) => ({ ...current, [key]: { name: file.name, progress } })),
+        })
+        toast.show({
+          title: t('objects.attachments.attached', { name: file.name }),
+          tone: 'success',
+        })
+      } catch {
+        toast.error(t('objects.attachments.failed', { name: file.name }))
+      } finally {
+        setUploads((current) => {
+          const next = { ...current }
+          delete next[key]
+          return next
+        })
+        refresh()
+      }
+    }
+  }
+
+  const detach = useMutation({
+    mutationFn: (fileId: string) => http.delete(`/objects/${objectId}/links/${fileId}/attachment`),
+    onSuccess: () => {
+      toast.show({ title: t('objects.attachments.detached'), tone: 'success' })
+      refresh()
+    },
+    onError: () => toast.error(t('errors.forbidden')),
+  })
 
   if (isLoading) return <PanelSkeleton />
   type LinkGroup = NonNullable<typeof data>['links']
@@ -294,13 +350,28 @@ function LinksTab({ objectId }: { objectId: string }) {
     list.push(link)
     groups.set(link.kind, list)
   }
-
-  if (groups.size === 0 && !data?.uses.length && !data?.usedBy.length) {
-    return <EmptyState compact icon={<Link2 />} title={t('objects.links.empty')} />
-  }
+  const empty = groups.size === 0 && !data?.uses.length && !data?.usedBy.length
 
   return (
     <div className="flex flex-col gap-4 p-3">
+      {canAttach ? (
+        <div className="flex flex-col gap-1.5">
+          <FileDropzone
+            compact
+            onFiles={(files) => void attach(files)}
+            label={t('objects.attachments.drop')}
+          />
+          {Object.entries(uploads).map(([key, upload]) => (
+            <div key={key} className="flex items-center gap-2">
+              <span className="min-w-0 flex-1 truncate text-2xs text-fg-secondary">
+                {upload.name}
+              </span>
+              <ProgressBar value={upload.progress} className="w-24" />
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {empty ? <EmptyState compact icon={<Link2 />} title={t('objects.links.empty')} /> : null}
       {[...groups.entries()].map(([kind, links]) => (
         <div key={kind}>
           <div className="mb-1.5 text-2xs font-medium uppercase tracking-wide text-fg-muted">
@@ -308,28 +379,38 @@ function LinksTab({ objectId }: { objectId: string }) {
           </div>
           <div className="flex flex-wrap gap-1.5">
             {links.map((link) => (
-              <ObjectChip
-                key={link.id}
-                object={{ ...link.object, accessible: link.object.accessible }}
-                onOpen={(obj) =>
-                  openTab({
-                    kind: 'object',
-                    objectId: obj.id,
-                    objectType: obj.type,
-                    title: obj.title,
-                    mode: 'preview',
-                  })
-                }
-                onOpenInSplit={(obj) =>
-                  openTab({
-                    kind: 'object',
-                    objectId: obj.id,
-                    objectType: obj.type,
-                    title: obj.title,
-                    mode: 'split',
-                  })
-                }
-              />
+              <span key={link.id} className="inline-flex max-w-full items-center gap-0.5">
+                <ObjectChip
+                  object={{ ...link.object, accessible: link.object.accessible }}
+                  onOpen={(obj) =>
+                    openTab({
+                      kind: 'object',
+                      objectId: obj.id,
+                      objectType: obj.type,
+                      title: obj.title,
+                      mode: 'preview',
+                    })
+                  }
+                  onOpenInSplit={(obj) =>
+                    openTab({
+                      kind: 'object',
+                      objectId: obj.id,
+                      objectType: obj.type,
+                      title: obj.title,
+                      mode: 'split',
+                    })
+                  }
+                />
+                {kind === 'attachment' && link.direction === 'outgoing' && canAttach ? (
+                  <IconButton
+                    size="sm"
+                    label={t('objects.attachments.detach')}
+                    onClick={() => detach.mutate(link.object.id)}
+                  >
+                    <X className="size-3.5" />
+                  </IconButton>
+                ) : null}
+              </span>
             ))}
           </div>
         </div>

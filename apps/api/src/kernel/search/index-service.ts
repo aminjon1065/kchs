@@ -1,10 +1,10 @@
 import type { SearchDocument, SearchHit, SearchQuery, SearchResponse } from '@kchs/contracts'
-import { and, asc, eq, gt, inArray } from 'drizzle-orm'
+import { and, asc, eq, gt, inArray, or } from 'drizzle-orm'
 import { type Index, MeiliSearch } from 'meilisearch'
 import { config } from '~/shared/config/index.js'
 import type { UserCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
-import { objectAncestors, objects } from '~/shared/db/schema/index.js'
+import { links, objectAncestors, objects } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { logger } from '~/shared/logger/index.js'
 import { readPrincipalsFor } from '../access/acl-service.js'
@@ -100,14 +100,20 @@ export async function removeFromIndex(objectId: string): Promise<void> {
     .catch(() => undefined)
 }
 
-/** Есть ли у объекта потомки в дереве реестра. */
-export async function hasDescendants(objectId: string): Promise<boolean> {
-  const [row] = await db()
+/** Есть ли объекты, чьи читатели зависят от прав данного: потомки и его вложения. */
+export async function hasAccessDependents(objectId: string): Promise<boolean> {
+  const [descendant] = await db()
     .select({ id: objectAncestors.objectId })
     .from(objectAncestors)
     .where(eq(objectAncestors.ancestorId, objectId))
     .limit(1)
-  return Boolean(row)
+  if (descendant) return true
+  const [attachment] = await db()
+    .select({ id: links.id })
+    .from(links)
+    .where(and(eq(links.sourceId, objectId), eq(links.kind, 'attachment')))
+    .limit(1)
+  return Boolean(attachment)
 }
 
 /**
@@ -132,7 +138,23 @@ export async function reindexSubtree(objectId: string, batchSize = 200): Promise
     total += rows.length
     cursor = rows[rows.length - 1]?.id ?? null
   }
-  return total
+
+  // Вложения объекта и его потомков: их читатели — читатели объектов-хостов
+  const subtree = db()
+    .select({ id: objectAncestors.objectId })
+    .from(objectAncestors)
+    .where(eq(objectAncestors.ancestorId, objectId))
+  const attached = await db()
+    .selectDistinct({ id: links.targetId })
+    .from(links)
+    .where(
+      and(
+        eq(links.kind, 'attachment'),
+        or(eq(links.sourceId, objectId), inArray(links.sourceId, subtree)),
+      ),
+    )
+  await indexObjects(attached.map((row) => row.id))
+  return total + attached.length
 }
 
 /** Полная переиндексация (обслуживание, восстановление после сбоя). */

@@ -24,6 +24,7 @@ import {
 } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
+import { AttachmentsFolder } from './attachments.js'
 import { FileProcessing } from './processing.js'
 
 const SINGLE_PUT_LIMIT = 8 * 1024 * 1024
@@ -164,11 +165,16 @@ export const FileService = {
         return session.fileId
       }
 
+      // Вложение без явной папки — в системную папку «Вложения» пространства
+      const folderId =
+        session.folderId ??
+        (session.attachToObjectId ? await AttachmentsFolder.ensure(tx, ctx, session.spaceId) : null)
+
       const object = await ObjectService.create(tx, ctx, {
         ...(session.plannedFileId ? { id: session.plannedFileId } : {}),
         type: 'file',
         spaceId: session.spaceId,
-        parentId: session.folderId,
+        parentId: folderId,
         title: session.name,
         icon: 'file',
         meta: { size, mime: session.mime },
@@ -176,7 +182,7 @@ export const FileService = {
 
       await tx.insert(files).values({
         id: object.id,
-        folderId: session.folderId,
+        folderId,
         name: session.name,
         mime: session.mime,
         size,

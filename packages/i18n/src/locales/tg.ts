@@ -120,6 +120,7 @@ export const tg: DeepPartial<Dictionary> = {
     password: { show: 'Нишон додани рамз', hide: 'Пинҳон кардани рамз' },
     search: { placeholder: 'Ҷустуҷӯ', clear: 'Тоза кардан' },
     tag: { remove: 'Хориҷ кардани тег', removeNamed: 'Хориҷ кардани теги «{name}»' },
+    dropzone: { label: 'Файлҳоро ба ин ҷо кашед ё интихоб кунед' },
     tagInput: {
       label: 'Тегҳо',
       placeholder: 'Илова кардани тег…',

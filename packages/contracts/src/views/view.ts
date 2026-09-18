@@ -71,7 +71,10 @@ export const ObjectListQuery = z.object({
   lifecycle: z.enum(['active', 'archived', 'trashed', 'any']).default('active'),
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(200).default(50),
-  count: z.coerce.boolean().optional(),
+  // stringbool: z.coerce.boolean превращал строку «false» в true
+  count: z.stringbool().optional(),
+  /** Системные объекты (папка «Вложения») в списки не попадают, пока их не запросили явно. */
+  includeSystem: z.stringbool().optional(),
 })
 export type ObjectListQuery = z.infer<typeof ObjectListQuery>
 

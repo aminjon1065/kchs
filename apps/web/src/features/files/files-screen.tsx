@@ -22,7 +22,7 @@ import {
   useToast,
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronRight, Download, FolderPlus, Share2, Trash2, Upload } from 'lucide-react'
+import { ChevronRight, Download, FolderPlus, Paperclip, Share2, Trash2, Upload } from 'lucide-react'
 import { type DragEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
@@ -30,7 +30,7 @@ import { useWorkspace } from '~/app/workspace/store.js'
 import { ShareDialog } from '~/features/access/share-dialog.js'
 import { uploadFile } from '~/features/files/upload.js'
 import { http } from '~/shared/api/client.js'
-import { spacesQuery } from '~/shared/api/queries.js'
+import { attachmentsFolderQuery, spacesQuery } from '~/shared/api/queries.js'
 import { emptyCollectionState } from '~/shared/collections/collection-state.js'
 import { SavedViewsMenu } from '~/shared/collections/saved-views-menu.js'
 import { useListFields } from '~/shared/collections/use-list-fields.js'
@@ -99,6 +99,13 @@ export function FilesScreen({
   }, [tabId, collection, viewId, setTabState])
 
   const effectiveSpaceId = spaceId ?? orderSpaces(spaces)[0]?.id
+  // Файлы-вложения лежат в системной папке пространства (09-files.md §1): в корне
+  // её нет, вход — отдельной кнопкой; внутри неё новые папки и загрузка не нужны
+  const { data: attachmentsFolderId = null } = useQuery({
+    ...attachmentsFolderQuery(effectiveSpaceId ?? ''),
+    enabled: Boolean(effectiveSpaceId),
+  })
+  const inAttachments = Boolean(attachmentsFolderId && path[0]?.id === attachmentsFolderId)
   const parentId = path[path.length - 1]?.id
   const { fields, sortable } = useListFields(TYPES)
   // Фильтр или поиск ищут по всему пространству, без них — содержимое текущей папки
@@ -283,22 +290,38 @@ export function FilesScreen({
         }
         right={
           <>
-            <Button
-              variant="secondary"
-              size="sm"
-              icon={<FolderPlus className="size-3.5" />}
-              onClick={() => setCreateFolderOpen(true)}
-            >
-              {t('files.folder.create')}
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              icon={<Upload className="size-3.5" />}
-              onClick={() => inputRef.current?.click()}
-            >
-              {t('common.actions.upload')}
-            </Button>
+            {attachmentsFolderId && !inAttachments ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={<Paperclip className="size-3.5" />}
+                onClick={() =>
+                  setPath([{ id: attachmentsFolderId, title: t('files.attachmentsFolder') }])
+                }
+              >
+                {t('files.attachmentsFolder')}
+              </Button>
+            ) : null}
+            {inAttachments ? null : (
+              <>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={<FolderPlus className="size-3.5" />}
+                  onClick={() => setCreateFolderOpen(true)}
+                >
+                  {t('files.folder.create')}
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  icon={<Upload className="size-3.5" />}
+                  onClick={() => inputRef.current?.click()}
+                >
+                  {t('common.actions.upload')}
+                </Button>
+              </>
+            )}
             <input
               ref={inputRef}
               type="file"

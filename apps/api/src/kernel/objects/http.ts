@@ -275,6 +275,7 @@ export function registerObjectRoutes(route: RouteRegistrar): void {
         conditions.push(inArray(objects.type, query.types.split(',').filter(Boolean)))
       }
       if (query.spaceId) conditions.push(eq(objects.spaceId, query.spaceId))
+      if (!query.includeSystem) conditions.push(sql`${objects.meta}->>'system' IS NULL`)
       if (query.parentId === 'root') conditions.push(isNull(objects.parentId))
       else if (query.parentId) conditions.push(eq(objects.parentId, query.parentId))
       if (query.q) {
@@ -469,7 +470,13 @@ export function registerObjectRoutes(route: RouteRegistrar): void {
       response: { 200: z.object({ ok: z.boolean() }) },
     },
     handler: async (request) => {
-      await authorize(request.ctx, 'view', request.body.targetId)
+      // Вложение открывает объект всем читателям хоста — это выдача доступа:
+      // прикрепить существующий объект может только тот, кто вправе им делиться
+      await authorize(
+        request.ctx,
+        request.body.kind === 'attachment' ? 'share' : 'view',
+        request.body.targetId,
+      )
       await db().transaction((tx) =>
         LinkService.link(
           tx,

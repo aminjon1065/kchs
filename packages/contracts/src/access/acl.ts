@@ -36,6 +36,7 @@ export const REASON_KINDS = [
   'inherited',
   'space_role',
   'type_policy',
+  'attachment',
   'share_link',
   'delegation',
   'attribute_cap',

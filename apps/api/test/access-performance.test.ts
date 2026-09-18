@@ -63,6 +63,7 @@ describe('производительность предиката видимос
       `/objects?spaceId=${fx.spaceId}&type=folder&q=${encodeURIComponent('Вложенная 5')}&limit=50`,
       fx.users.viewer,
     )
+    // biome-ignore lint/suspicious/noConsole: замеры времени нужны в журнале прогона
     console.info(
       `видимость, мс: участник ${member.toFixed(1)}, читатель ${viewer.toFixed(1)}, ` +
         `посторонний ${outsider.toFixed(1)}, поиск по названию ${inside.toFixed(1)}`,

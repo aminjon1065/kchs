@@ -12,7 +12,7 @@ import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { actorId } from '~/shared/context.js'
 import { type Database, db, type Executor } from '~/shared/db/client.js'
-import { aclEntries, objects, spaceMembers, users } from '~/shared/db/schema/index.js'
+import { aclEntries, links, objects, spaceMembers, users } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { publishEvent } from '../events/publisher.js'
@@ -347,6 +347,7 @@ export async function explainAccessFor(
 export async function readPrincipalsFor(
   objectId: string,
   database: Database = db(),
+  options: { attachments?: boolean } = {},
 ): Promise<string[]> {
   const object = await loadObject(objectId, database)
   if (!object) return []
@@ -375,6 +376,23 @@ export async function readPrincipalsFor(
   if (object.ownerId) principals.add(`user:${object.ownerId}`)
   if (object.spaceId && boundary === null) {
     principals.add(`space_role:${object.spaceId}:viewer`)
+  }
+
+  // Вложение читают все, кто читает объект, к которому оно прикреплено (как в authorize)
+  if (options.attachments !== false) {
+    const hosts = await database
+      .select({ id: links.sourceId })
+      .from(links)
+      .innerJoin(objects, eq(objects.id, links.sourceId))
+      .where(
+        and(eq(links.targetId, objectId), eq(links.kind, 'attachment'), isNull(objects.deletedAt)),
+      )
+      .limit(50)
+    for (const host of hosts) {
+      for (const key of await readPrincipalsFor(host.id, database, { attachments: false })) {
+        principals.add(key)
+      }
+    }
   }
   return [...principals]
 }
