@@ -48,7 +48,8 @@ test.describe('Данные: импорт файла', () => {
     // Таблица датасета: 4 строки, числа и даты приведены
     const grid = page.getByRole('grid', { name })
     await expect(grid).toBeVisible()
-    await expect(page.getByText('4 строки')).toBeVisible()
+    // Счётчик в подвале таблицы (в шапке датасета — «4 строки · Последний импорт …»)
+    await expect(page.getByText('4 строки', { exact: true })).toBeVisible()
     await expect(grid.getByRole('gridcell', { name: '1 234,5' })).toBeVisible()
     await expect(grid.getByRole('gridcell', { name: '01.03.2026' })).toBeVisible()
   })
