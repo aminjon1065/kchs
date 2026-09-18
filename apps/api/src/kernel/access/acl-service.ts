@@ -36,12 +36,17 @@ export async function grantOwner(tx: Executor, objectId: string, userId: string)
     })
 }
 
-/** Выдача прав. Возвращает diff для события `object.shared`. */
+/**
+ * Выдача прав. Возвращает diff для события `object.shared`. `quiet` — права
+ * выданы как следствие другого действия (исполнитель поручения): уведомления
+ * «с вами поделились» нет, о деле сообщит модуль.
+ */
 export async function grantAccess(
   tx: Executor,
   ctx: Ctx,
   objectId: string,
   grants: AclGrantInput[],
+  options: { quiet?: boolean } = {},
 ): Promise<void> {
   if (grants.length === 0) return
   const object = await loadObject(objectId, tx)
@@ -85,6 +90,7 @@ export async function grantAccess(
       })),
       removed: [],
       changed: [],
+      ...(options.quiet ? { quiet: true } : {}),
     },
   })
   await publishEvent(tx, ctx, {
@@ -335,7 +341,7 @@ export async function listEffectiveAccess(
 /** Принципалы с правом чтения — для фильтра поискового индекса. */
 export async function readPrincipalsFor(
   objectId: string,
-  database: Database = db(),
+  database: Executor = db(),
   options: { attachments?: boolean } = {},
 ): Promise<string[]> {
   const object = await loadObject(objectId, database)

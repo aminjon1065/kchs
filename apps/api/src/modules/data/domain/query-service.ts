@@ -31,6 +31,7 @@ import {
 } from '@kchs/query'
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm'
 import { authorize, requireCapability, visibleObjectsSql } from '~/kernel/access/authorize.js'
+import { systemDataset } from '~/kernel/system-datasets.js'
 import { type TerritoryIndex, territoryIndex } from '~/modules/gis/public.js'
 import type { Ctx } from '~/shared/context.js'
 import { db, queryRoleSql } from '~/shared/db/client.js'
@@ -418,22 +419,30 @@ export const QueryService = {
     ctx: Ctx,
     spec: QuerySpec,
     options: RunOptions = {},
-  ): Promise<{ compiled: CompiledQuery; schemaVersions: string }> {
+  ): Promise<{ compiled: CompiledQuery; schemaVersions: string; cacheable: boolean }> {
     let sources = collectSources(spec)
     const saved = await loadSavedQueries(ctx, sources.queries)
     if (saved.size > 0) sources = collectSources(spec, saved)
     if (sources.sql) throw errors.validation('Сырой SQL выполняется в SQL-лаборатории')
-    if (sources.system.length > 0) {
-      throw errors.validation('Системные датасеты пока недоступны в запросах')
-    }
     const resolved = await Promise.all(sources.datasets.map((id) => resolveDataset(ctx, id)))
     const datasets = new Map(resolved.map((item) => [item.dataset.id, item.dataset]))
+    // Системные датасеты (задачи…) описывает модуль-владелец с правами смотрящего
+    const systemDatasets = new Map(
+      await Promise.all(
+        sources.system.map(async (name) => {
+          const definition = systemDataset(name)
+          if (!definition) throw errors.validation(`Системный датасет «${name}» пока недоступен`)
+          return [name, await definition.resolve(ctx)] as const
+        }),
+      ),
+    )
     const lookups = new Map<string, ReferenceMap>()
     // Вторая попытка — с подписями справочников, о которых сообщил компилятор
     for (let attempt = 0; ; attempt += 1) {
       try {
         const compiled = compileQuery(spec, {
           datasets,
+          systemDatasets,
           queries: saved,
           user: compileUser(ctx),
           params: options.params ?? {},
@@ -448,7 +457,8 @@ export const QueryService = {
           .map((item) => `${item.dataset.id}:${item.schemaVersion}`)
           .sort()
           .join(',')
-        return { compiled, schemaVersions }
+        // У системных датасетов нет версии данных, а права меняются без неё — без кэша
+        return { compiled, schemaVersions, cacheable: sources.system.length === 0 }
       } catch (error) {
         if (error instanceof MissingReferencesError && attempt === 0) {
           for (const request of error.requests) {
@@ -465,14 +475,14 @@ export const QueryService = {
 
   async run(ctx: Ctx, spec: QuerySpec, options: RunOptions = {}): Promise<QueryResult> {
     const started = performance.now()
-    const { compiled, schemaVersions } = await QueryService.compile(ctx, spec, options)
+    const { compiled, schemaVersions, cacheable } = await QueryService.compile(ctx, spec, options)
     const count = options.count ?? false
     const specHash = createHash('sha256')
       .update(`${cacheKeyText(compiled.cacheKeyParts)}|${schemaVersions}|${count}`)
       .digest('hex')
     const cacheKey = `kchs:query:${specHash}`
 
-    const hit = await redis().get(cacheKey)
+    const hit = cacheable ? await redis().get(cacheKey) : null
     if (hit) {
       const result = { ...(JSON.parse(hit) as QueryResult), cached: true }
       const durationMs = performance.now() - started
@@ -527,7 +537,7 @@ export const QueryService = {
       durationMs: performance.now() - started,
       cached: false,
     }
-    await redis().set(cacheKey, JSON.stringify(result), 'EX', CACHE_TTL_SECONDS)
+    if (cacheable) await redis().set(cacheKey, JSON.stringify(result), 'EX', CACHE_TTL_SECONDS)
     await recordRun(ctx, {
       queryId: options.queryId,
       specHash,

@@ -12,6 +12,7 @@ import { directory } from '../directory/port.js'
 import { publishEvent } from '../events/publisher.js'
 import { ObjectService } from '../objects/service.js'
 import { emitToUser } from '../realtime/gateway.js'
+import { inboxActionHandler } from './actions.js'
 
 export interface OpenInboxInput {
   userId: string
@@ -125,19 +126,70 @@ export const InboxService = {
       .where(and(...conditions))
       .returning({ id: inboxItems.id, userId: inboxItems.userId })
 
-    if (affected.length > 0) {
+    // Событие — каждому получателю: закрытие по объекту касается всех его дел
+    for (const item of affected) {
       await publishEvent(tx, ctx, {
         type: 'inbox.resolved',
         object: selector.objectId ? { id: selector.objectId, type: 'object' } : null,
-        payload: {
-          userId: selector.userId ?? '',
-          itemId: affected[0]!.id,
-          outcome,
-        },
+        payload: { userId: item.userId, itemId: item.id, outcome },
       })
-      await invalidateCounts(affected.map((a) => a.userId))
     }
+    if (affected.length > 0) await invalidateCounts(affected.map((a) => a.userId))
     return affected.length
+  },
+
+  /**
+   * Действие над элементом: кнопка Входящих или ответ из Telegram. Исполняет
+   * модуль, открывший элемент (`registerInboxActionHandler`); копия заместителя
+   * действует от имени получателя, пока замещение активно.
+   */
+  async act(
+    ctx: UserCtx,
+    itemId: string,
+    input: {
+      action: string
+      comment?: string | undefined
+      payload?: Record<string, unknown> | undefined
+    },
+  ): Promise<void> {
+    const [row] = await db()
+      .select()
+      .from(inboxItems)
+      .where(and(eq(inboxItems.id, itemId), eq(inboxItems.userId, ctx.userId)))
+      .limit(1)
+    if (!row) throw errors.notFound('Элемент Входящих')
+    if (row.state !== 'open' && row.state !== 'snoozed') {
+      throw errors.conflict('Элемент Входящих уже закрыт')
+    }
+    const kind = row.kind as InboxKind
+    const actions =
+      (row.payload as { actions?: InboxItem['actions'] }).actions ?? defaultActions(kind)
+    const action = actions.find((item) => item.key === input.action)
+    if (!action) throw errors.validation('Нет такого действия у элемента Входящих')
+    const comment = input.comment?.trim()
+    if (action.requiresComment && !comment) throw errors.validation('Нужен комментарий')
+    const handler = inboxActionHandler(kind)
+    if (!handler) throw errors.validation('Это действие выполняется в карточке объекта')
+
+    let actor: UserCtx = ctx
+    if (row.onBehalfOf) {
+      const acting = ctx.principals.actingFor.some((item) => item.userId === row.onBehalfOf)
+      if (!acting) throw errors.forbidden('Замещение закончилось — действие недоступно')
+      actor = { ...ctx, onBehalfOf: row.onBehalfOf }
+    }
+    await handler(actor, {
+      item: {
+        id: row.id,
+        kind,
+        objectId: row.objectId,
+        userId: row.userId,
+        onBehalfOf: row.onBehalfOf,
+        payload: row.payload,
+      },
+      action: action.key,
+      ...(comment ? { comment } : {}),
+      ...(input.payload ? { payload: input.payload } : {}),
+    })
   },
 
   async snooze(ctx: UserCtx, itemId: string, until: string): Promise<void> {

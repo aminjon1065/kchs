@@ -20,6 +20,11 @@ import {
 import { registerGisObjectTypes, registerGisRoutes } from './gis/module.js'
 import { registerIdentityBackground, registerIdentityRoutes } from './identity/module.js'
 import { OrgService, UserService } from './identity/public.js'
+import {
+  registerTasksBackground,
+  registerTasksObjectTypes,
+  registerTasksRoutes,
+} from './tasks/module.js'
 
 /** Хранилища модулей, которые создаются на лету (таблицы датасетов), — к текущему виду. */
 export async function upgradeModuleStorage(): Promise<void> {
@@ -36,6 +41,7 @@ export function registerAllObjectTypes(): void {
   registerFilesObjectTypes()
   registerDataObjectTypes()
   registerGisObjectTypes()
+  registerTasksObjectTypes()
   registerDirectory()
 }
 
@@ -59,6 +65,7 @@ export async function registerModules(app: FastifyInstance, route: RouteRegistra
   registerFilesRoutes(route)
   registerDataRoutes(route)
   registerGisRoutes(route)
+  registerTasksRoutes(route)
   registerAdminRoutes(route)
   app.log.debug('модули зарегистрированы')
 }
@@ -68,6 +75,7 @@ export function registerModulesBackground(): void {
   registerFilesBackground()
   registerIdentityBackground()
   registerDataBackground()
+  registerTasksBackground()
 }
 
 export async function scheduleModuleJobs(): Promise<void> {

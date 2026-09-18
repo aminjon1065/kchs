@@ -736,8 +736,16 @@ export const ru = {
       acknowledge: 'Ознакомлен',
       accept: 'Принять',
       report: 'Отчитаться',
+      acceptResult: 'Принять отчёт',
+      return: 'Вернуть',
       snooze: 'Отложить',
       open: 'Открыть',
+    },
+    tpl: {
+      acceptInstruction: 'Поручение: {title}',
+      reportInstruction: 'Отчитаться по поручению: {title}',
+      returnedInstruction: 'Доработать поручение: {title}',
+      acceptResult: 'Отчёт по поручению: {title}',
     },
     resolved: 'Выполнено',
     dueIn: 'Срок: {date}',
@@ -768,6 +776,12 @@ export const ru = {
       jobFinished: 'Задание завершено: {title}',
       jobFailed: 'Задание не выполнено: {title}',
       announcement: 'Объявление: {title}',
+      taskAssigned: '{actor} поручил вам «{title}»',
+      taskAccepted: '{actor} принял к исполнению «{title}»',
+      taskReported: '{actor} отчитался по «{title}»',
+      taskCompleted: '{actor} принял исполнение «{title}»',
+      taskDone: '{actor} выполнил «{title}»',
+      taskReturned: '{actor} вернул на доработку «{title}»',
     },
   },
 
@@ -788,6 +802,16 @@ export const ru = {
       version_added: '{actor} загрузил версию {number}',
     },
     space: { member_added: '{actor} добавил участника' },
+    task: {
+      assigned: '{actor} назначил исполнителя',
+      accepted: '{actor} принял поручение к исполнению',
+      statusChanged:
+        '{actor} перевёл в статус «{to, select, todo {К выполнению} in_progress {В работе} review {На проверке} done {Готово} cancelled {Отменено} assigned {Назначено} other {{to}}}»',
+      dueChanged: '{actor} изменил срок',
+      reported: '{actor} отчитался об исполнении',
+      completed: '{actor} закрыл задачу',
+      returned: '{actor} вернул на доработку: {comment}',
+    },
   },
 
   objects: {

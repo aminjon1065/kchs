@@ -360,6 +360,42 @@ const FIXTURES: Record<string, TypeFixture> = {
       },
     ],
   },
+
+  task: {
+    create: async (fx, title) => {
+      const response = await call(fx.app, {
+        method: 'POST',
+        url: '/tasks',
+        as: fx.admin,
+        payload: { title, spaceId: fx.spaceId },
+      })
+      expect(response.statusCode, response.body).toBe(200)
+      return { id: response.json().id, title }
+    },
+    readPaths: ['/tasks/:id'],
+    viewerForbidden: (_fx, id) => [
+      { method: 'PATCH', url: `/tasks/${id}`, payload: { title: 'правка читателя' } },
+      { method: 'POST', url: `/tasks/${id}/status`, payload: { status: 'in_progress' } },
+    ],
+  },
+
+  project: {
+    create: async (fx, title) => {
+      const response = await call(fx.app, {
+        method: 'POST',
+        url: '/projects',
+        as: fx.admin,
+        payload: { key: `M${run.toUpperCase().slice(-6)}`, name: title, spaceId: fx.spaceId },
+      })
+      expect(response.statusCode, response.body).toBe(200)
+      return { id: response.json().id, title }
+    },
+    readPaths: ['/projects/:id'],
+    viewerForbidden: (_fx, id) => [
+      { method: 'PATCH', url: `/projects/${id}`, payload: { name: 'правка читателя' } },
+      { method: 'POST', url: '/tasks', payload: { title: 'задача читателя', projectId: id } },
+    ],
+  },
 }
 
 let fx: TestContext

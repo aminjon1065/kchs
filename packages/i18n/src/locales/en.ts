@@ -720,8 +720,16 @@ export const en: DeepPartial<Dictionary> = {
       acknowledge: 'Acknowledge',
       accept: 'Accept',
       report: 'Report',
+      acceptResult: 'Accept report',
+      return: 'Return',
       snooze: 'Snooze',
       open: 'Open',
+    },
+    tpl: {
+      acceptInstruction: 'Assignment: {title}',
+      reportInstruction: 'Report on the assignment: {title}',
+      returnedInstruction: 'Rework the assignment: {title}',
+      acceptResult: 'Report on the assignment: {title}',
     },
     resolved: 'Done',
     dueIn: 'Due: {date}',
@@ -750,6 +758,12 @@ export const en: DeepPartial<Dictionary> = {
       jobFinished: 'Job finished: {title}',
       jobFailed: 'Job failed: {title}',
       announcement: 'Announcement: {title}',
+      taskAssigned: '{actor} assigned “{title}” to you',
+      taskAccepted: '{actor} accepted “{title}”',
+      taskReported: '{actor} reported on “{title}”',
+      taskCompleted: '{actor} accepted the result of “{title}”',
+      taskDone: '{actor} completed “{title}”',
+      taskReturned: '{actor} returned “{title}” for rework',
     },
   },
   activity: {
@@ -769,6 +783,16 @@ export const en: DeepPartial<Dictionary> = {
       version_added: '{actor} uploaded version {number}',
     },
     space: { member_added: '{actor} added a member' },
+    task: {
+      assigned: '{actor} set the assignee',
+      accepted: '{actor} accepted the assignment',
+      statusChanged:
+        '{actor} moved it to «{to, select, todo {To do} in_progress {In progress} review {In review} done {Done} cancelled {Cancelled} assigned {Assigned} other {{to}}}»',
+      dueChanged: '{actor} changed the due date',
+      reported: '{actor} reported on the assignment',
+      completed: '{actor} closed the task',
+      returned: '{actor} returned it for rework: {comment}',
+    },
   },
 
   objects: {

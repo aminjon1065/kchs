@@ -1,4 +1,4 @@
-import { InboxCounts, InboxItem, InboxQuery } from '@kchs/contracts'
+import { InboxActionInput, InboxCounts, InboxItem, InboxQuery } from '@kchs/contracts'
 import { z } from 'zod'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { InboxService } from './service.js'
@@ -27,6 +27,23 @@ export function registerInboxRoutes(route: RouteRegistrar): void {
     summary: 'Счётчики Входящих',
     schema: { response: { 200: InboxCounts } },
     handler: async (request) => InboxService.counts(request.ctx.userId),
+  })
+
+  route({
+    method: 'POST',
+    url: '/inbox/:id/act',
+    auth: 'session',
+    tags: ['inbox'],
+    summary: 'Выполнить действие элемента Входящих (принять, отчитаться, вернуть…)',
+    schema: {
+      params: z.object({ id: z.uuid() }),
+      body: InboxActionInput,
+      response: { 200: z.object({ ok: z.boolean() }) },
+    },
+    handler: async (request) => {
+      await InboxService.act(request.ctx, request.params.id, request.body)
+      return { ok: true }
+    },
   })
 
   route({

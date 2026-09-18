@@ -436,4 +436,15 @@ export function visibleObjectsSql(ctx: Ctx, objectTypeName?: string): SQL {
   return policy ? sql`(${base} OR ${policy})` : base
 }
 
+/**
+ * Принципалы пользователя для фильтров видимости по ключам — как у поиска
+ * (`aclPrincipals`) и системных датасетов; `null` — видит всё (системный
+ * контекст, администратор системы, аудитор), как в `visibleObjectsSql`.
+ */
+export function visibilityPrincipals(ctx: Ctx): string[] | null {
+  if (ctx.kind === 'system') return null
+  if (ctx.isSystemAdmin || ctx.isSecurityAuditor) return null
+  return ctx.principals.keys.filter((key) => !key.startsWith('acting_as:'))
+}
+
 export { atLeast, levelValue, maxLevel }

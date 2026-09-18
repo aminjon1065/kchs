@@ -222,6 +222,8 @@ async function notificationHandler(event: EventEnvelope): Promise<void> {
       break
     }
     case 'object.shared': {
+      // Права выданы как следствие другого действия — о нём сообщает свой модуль
+      if (event.payload.quiet === true) break
       const added = (event.payload.added as Array<{ principal: string }> | undefined) ?? []
       const userIds = added
         .filter((a) => a.principal.startsWith('user:'))

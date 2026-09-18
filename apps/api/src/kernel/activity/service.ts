@@ -26,7 +26,26 @@ const VERB_BY_TYPE: Record<string, { verb: string; key: string }> = {
 
 export async function recordActivity(event: EventEnvelope): Promise<void> {
   const mapping = VERB_BY_TYPE[event.type]
-  if (!mapping || !event.object) return
+  if (!mapping) return
+  await insertActivity(event, mapping)
+}
+
+/**
+ * Запись ленты для события модуля (задачи, документы): подпись выбирает модуль,
+ * ядро денормализует автора и объект так же, как для своих событий.
+ */
+export async function recordModuleActivity(
+  event: EventEnvelope,
+  mapping: { verb: string; key: string },
+): Promise<void> {
+  await insertActivity(event, mapping)
+}
+
+async function insertActivity(
+  event: EventEnvelope,
+  mapping: { verb: string; key: string },
+): Promise<void> {
+  if (!event.object) return
 
   // Имя автора денормализуется в запись: лента читается чаще, чем пишется
   const actorName = event.actor.userId
