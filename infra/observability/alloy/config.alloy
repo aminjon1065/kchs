@@ -61,7 +61,8 @@ loki.source.docker "kchs" {
 }
 
 // pino пишет уровень числом (30 → info, 50 → error). trace_id — метаданные
-// записи, а не метка: у каждой строки свой, а меток должно быть немного
+// записи, а не метка: у каждой строки свой, а меток должно быть немного.
+// Строки не в JSON (postgres, redis…) проходят без метки уровня
 loki.process "pino" {
   stage.json {
     expressions = { level = "level", trace_id = "trace_id" }
@@ -69,7 +70,7 @@ loki.process "pino" {
 
   stage.template {
     source   = "level"
-    template = "{{ if eq .Value \"10\" }}trace{{ else if eq .Value \"20\" }}debug{{ else if eq .Value \"30\" }}info{{ else if eq .Value \"40\" }}warn{{ else if eq .Value \"50\" }}error{{ else if eq .Value \"60\" }}fatal{{ else }}{{ .Value }}{{ end }}"
+    template = "{{ if not .Value }}{{ else if eq .Value \"10\" }}trace{{ else if eq .Value \"20\" }}debug{{ else if eq .Value \"30\" }}info{{ else if eq .Value \"40\" }}warn{{ else if eq .Value \"50\" }}error{{ else if eq .Value \"60\" }}fatal{{ else }}{{ .Value }}{{ end }}"
   }
 
   stage.labels {
