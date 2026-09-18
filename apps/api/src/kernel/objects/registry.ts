@@ -5,6 +5,14 @@ import type { Executor } from '~/shared/db/client.js'
 import type { ActionDefinition, ObjectLike, TypePolicy } from '../access/types.js'
 
 /**
+ * Содержимое документа поиска от модуля. Права (`aclPrincipals`) и теги задаёт
+ * только ядро: модуль, вернувший их, скрыл бы свои объекты от поиска или открыл бы лишним.
+ */
+export type SearchContent = Partial<
+  Omit<SearchDocument, 'id' | 'objectId' | 'aclPrincipals' | 'tags'>
+>
+
+/**
  * Поле списка объектов: как его фильтровать и сортировать в SQL
  * (02-platform-kernel.md §13 — «модули описывают схему фильтруемых полей типа»).
  * Выражение строится над строкой `objects`; поля модуля обычно читают `objects.meta`.
@@ -36,7 +44,7 @@ export interface ObjectTypeDefinition {
   actions: Record<string, ActionDefinition>
   policy?: TypePolicy
   /** Как индексировать объект; `null` — не индексировать. */
-  searchable?: (id: string) => Promise<SearchDocument | null>
+  searchable?: (id: string) => Promise<SearchContent | null>
   /** Поля списков этого типа сверх общих: фильтры и сортировка CollectionView. */
   listFields?: ListFieldDef[]
   /** Дополнение сводки для карточек, пикеров и чипов. */

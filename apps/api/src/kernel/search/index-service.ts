@@ -71,8 +71,6 @@ export async function indexObject(objectId: string): Promise<void> {
   const aclPrincipals = await readPrincipalsFor(objectId)
   const tagNames = await TagService.names(objectId)
   const document: SearchDocument = {
-    id: objectId,
-    objectId,
     parentId: row.parentId,
     type: row.type,
     spaceId: row.spaceId,
@@ -81,8 +79,11 @@ export async function indexObject(objectId: string): Promise<void> {
     ownerId: row.ownerId,
     updatedAt: Math.floor(new Date(row.updatedAt).getTime() / 1000),
     meta: row.meta,
-    aclPrincipals,
     ...custom,
+    // Идентичность, права и теги — только от ядра (см. SearchContent)
+    id: objectId,
+    objectId,
+    aclPrincipals,
     tags: tagNames,
   }
 

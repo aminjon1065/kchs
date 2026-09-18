@@ -362,6 +362,20 @@ for (const [type, fixture] of Object.entries(FIXTURES)) {
         expect(await canJoin(ctx, `object:${target.id}`)).toBe(true)
       })
 
+      it('находит объект в поиске: кто видит объект, тот его и находит', async () => {
+        await indexObject(target.id)
+        const deadline = Date.now() + 10_000
+        let found: string[] = []
+        while (Date.now() < deadline) {
+          found = await searchTitles(fx.users.viewer, target.title)
+          if (found.includes(target.id)) break
+          await new Promise((resolve) => setTimeout(resolve, 100))
+        }
+        // Модуль не может подменить фильтр прав документа (раньше файлы индексировались
+        // с пустым aclPrincipals и находились только администратором)
+        expect(found).toContain(target.id)
+      })
+
       it('не изменяет, не удаляет и не делится — 403', async () => {
         const requests: Request[] = [
           { method: 'PATCH', url: `/objects/${target.id}`, payload: { title: 'правка читателя' } },

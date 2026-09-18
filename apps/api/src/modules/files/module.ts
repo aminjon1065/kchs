@@ -93,18 +93,14 @@ export function registerFilesObjectTypes(): void {
       if (!row) return null
       const text = await FileService.extractedText(id)
       return {
-        id,
-        objectId: id,
         parentId: row.parentId,
         type: 'file',
         spaceId: row.spaceId,
         title: row.name,
         body: (text ?? '').slice(0, 20_000),
-        tags: [],
         ownerId: row.ownerId,
         updatedAt: Math.floor(new Date(row.updatedAt).getTime() / 1000),
         meta: { mime: row.mime },
-        aclPrincipals: [],
       }
     },
   })
