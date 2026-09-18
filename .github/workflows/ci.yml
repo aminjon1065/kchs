@@ -144,14 +144,20 @@ jobs:
         run: pnpm --filter @kchs/web exec playwright install --with-deps chromium
 
       - name: Поднять api и web
-        # Сценарии идут одним администратором быстрее человека — общий лимит выше
+        # Сценарии идут одним администратором быстрее человека — общий лимит выше.
+        # ИИ — поддельный OpenAI-совместимый сервер сценария «Спросить данные» (data-ask.spec.ts)
         env:
           RATE_LIMIT_PER_MINUTE: '20000'
+          AI_PROVIDER: openai-compat
+          OPENAI_COMPAT_URL: http://127.0.0.1:8782/v1
+          AI_MODEL: kchs-e2e
         run: |
           bash infra/scripts/dev-api.sh
           bash infra/scripts/dev-web.sh
 
       - name: Прогон сценариев
+        env:
+          KCHS_E2E_AI_PORT: '8782'
         run: pnpm e2e
 
       # Продакшен-сборка за настоящим Caddy с тем же CSP: ни одного нарушения (ADR-0043)
