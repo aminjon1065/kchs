@@ -29,7 +29,7 @@
 | Домен | События |
 |---|---|
 | object | `object.created`, `object.updated` (changedFields), `object.moved`, `object.archived`, `object.restored`, `object.trashed`, `object.deleted`, `object.shared` (acl diff), `object.linked`, `object.unlinked`, `object.tagged` |
-| identity | `user.created`, `user.updated`, `user.blocked`, `user.login`, `user.login_failed`, `user.logout`, `user.password_changed`, `user.mfa_enabled`, `user.mfa_disabled`, `org.unit_changed`, `org.employment_changed`, `delegation.started`, `delegation.ended`, `session.revoked` |
+| identity | `user.created`, `user.updated`, `user.blocked`, `user.login`, `user.login_failed`, `user.logout`, `user.password_changed`, `user.mfa_enabled`, `user.mfa_disabled`, `user.telegram_linked`, `user.telegram_unlinked` (reason: `user`/`blocked`, ADR-0061), `org.unit_changed`, `org.employment_changed`, `delegation.started`, `delegation.ended`, `session.revoked` |
 | space | `space.created`, `space.member_added`, `space.member_removed`, `space.member_role_changed` |
 | discussion | `message.posted`, `message.edited`, `message.deleted`, `message.reacted`, `mention.created` |
 | data | `source.checked`, `dataset.created`, `dataset.schema_changed`, `dataset.import_started`, `dataset.imported`, `dataset.import_failed`, `dataset.rows_changed` (ids, op), `dataset.version_created`, `dataset.policies_changed` (kind, op), `dataset.rolled_back` (version, target), `chart.updated`, `dashboard.updated`, `query.executed`, `metric.evaluated`, `dashboard.published`, `report.generated`, `form.assigned`, `form.submitted`, `form.reviewed`, `alert.fired`, `quality.evaluated`, `pipeline.run_finished` |
@@ -65,6 +65,6 @@
 - `gis.public.assignTerritory(points)`, `gis.public.getTerritoryTree()`, `gis.public.renderMapSnapshot(mapId, view)`.
 - `files.public.createFromBuffer/Stream(...)`, `files.public.getSignedUrl(fileId, versionId?)`, `files.public.extractText(fileId)`.
 - `comms.public.postSystemMessage(objectId, template, params)`, `meetings.public.createRoom(...)`.
-- `ai.public.complete(task, input, schema)`, `ai.public.embed(texts)`.
+- `ai.public.complete(task, input, schema)`, `ai.public.embed(texts)`. Реализовано (ADR-0061): `AiService.complete(ctx, {feature, system, prompt, schema, …}, accept)` — ответ проверяется схемой, `accept` модуля проверяет его по существу, аудит пишет исход целиком.
 
 Правило: публичный API принимает `ctx: UserCtx | SystemCtx`, не «доверяет» вызывающему и сам проверяет права.
