@@ -44,7 +44,9 @@ test.describe('Теги объекта', () => {
     })
     await page.goto(`/o/${(await other.json()).id}`)
     const otherInput = page.getByRole('combobox', { name: 'Теги' })
-    await otherInput.fill(tag.slice(0, 6))
+    // Префикс с меткой прогона: на общем стенде теги прошлых прогонов начинаются так же,
+    // а подсказок — ограниченное число
+    await otherInput.fill(tag.slice(0, -2))
     await expect(page.getByRole('option', { name: tag, exact: true })).toBeVisible()
     await otherInput.press('Escape')
 
