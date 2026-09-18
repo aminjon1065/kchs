@@ -1,4 +1,5 @@
 import { sql } from 'drizzle-orm'
+import type { FastifyRequest } from 'fastify'
 import { authenticator } from 'otplib'
 import { beforeAll, describe, expect, it } from 'vitest'
 import {
@@ -336,6 +337,38 @@ describe('вход и второй фактор', () => {
   it('TRUST_PROXY=true отклоняется конфигурацией', async () => {
     const { loadEnv } = await import('../src/shared/config/env.js')
     expect(() => loadEnv({ ...process.env, TRUST_PROXY: 'true' })).toThrow('TRUST_PROXY')
+  })
+})
+
+describe('частота входа за NAT организации', () => {
+  it('подбор пароля считается по адресу и логину: коллеги с того же адреса входят', async () => {
+    const { addressKey } = await import('../src/shared/http/rate-limit.js')
+    const from = (ip: string) => ({ ip }) as FastifyRequest
+    const key = addressKey('login', from('10.0.0.1'), ' Ivanov ')
+    expect(addressKey('login', from('10.0.0.1'), 'ivanov')).toBe(key)
+    expect(addressKey('login', from('10.0.0.1'), 'petrov')).not.toBe(key)
+    expect(addressKey('login', from('10.0.0.2'), 'ivanov')).not.toBe(key)
+    expect(addressKey('reset', from('10.0.0.1'), 'ivanov')).not.toBe(key)
+    // В Redis не остаются логины
+    expect(key).not.toContain('ivanov')
+  })
+
+  it('потолок адреса — фиксированное окно, которое истекает', async () => {
+    const { hitRateLimit } = await import('../src/shared/http/rate-limit.js')
+    const { cacheKeys, redis } = await import('../src/shared/redis/index.js')
+    const bucket = `ceiling-${Date.now()}`
+    for (let i = 0; i < 3; i++) {
+      expect((await hitRateLimit(bucket, '10.0.0.1', 3, 60)).allowed).toBe(true)
+    }
+    const denied = await hitRateLimit(bucket, '10.0.0.1', 3, 60)
+    expect(denied.allowed).toBe(false)
+    expect(denied.retryAfter).toBeGreaterThan(0)
+    expect(denied.retryAfter).toBeLessThanOrEqual(60)
+    expect((await hitRateLimit(bucket, '10.0.0.2', 3, 60)).allowed).toBe(true)
+    // Окно не продлевается запросами и не остаётся вечным ключом
+    const ttl = await redis().ttl(cacheKeys.rateLimit(bucket, '10.0.0.1'))
+    expect(ttl).toBeGreaterThan(0)
+    expect(ttl).toBeLessThanOrEqual(60)
   })
 })
 

@@ -65,6 +65,12 @@ const EnvSchema = z.object({
    * Сквозные прогоны e2e ходят одним пользователем быстрее человека — им лимит поднимают.
    */
   RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(10).max(1_000_000).default(600),
+  /**
+   * Потолок попыток входа в минуту с одного адреса — поверх лимита «адрес + логин»
+   * (10 в минуту). Организация за NAT входит с одного адреса: к началу рабочего
+   * дня потолок должен покрывать утренний вход всех сотрудников.
+   */
+  LOGIN_RATE_LIMIT_PER_IP_PER_MINUTE: z.coerce.number().int().min(10).max(100_000).default(300),
   SESSION_ABSOLUTE_DAYS: z.coerce.number().int().min(1).max(365).default(30),
   INTERNAL_SERVICE_TOKEN: z.string().min(16).optional(),
 

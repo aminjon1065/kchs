@@ -279,6 +279,7 @@ export const en: DeepPartial<Dictionary> = {
       failed: 'Invalid login or password',
       locked: 'Account temporarily locked. Try again in {minutes} min',
       blocked: 'Account disabled. Contact your administrator',
+      tooManyAttempts: 'Too many attempts. Try again in {seconds} s',
     },
     mfa: {
       title: 'Confirm sign-in',

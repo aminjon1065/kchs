@@ -458,7 +458,14 @@ describe('гостевые ссылки: частота открытий', () =>
       })
 
     for (let i = 0; i < 20; i++) expect((await open(first)).statusCode).toBe(401)
-    expect((await open(first)).statusCode).toBe(429)
+    const limited = await open(first)
+    expect(limited.statusCode).toBe(429)
+    // Обычная проблема API: код, локализованный заголовок и время ожидания
+    const problem = limited.json()
+    expect(problem.code).toBe('rate_limited')
+    expect(problem.title).toMatch(/Слишком много запросов/)
+    expect(problem.retryAfter).toBeGreaterThan(0)
+    expect(limited.headers['retry-after']).toBeDefined()
     expect((await open(second)).statusCode).toBe(401)
   })
 })

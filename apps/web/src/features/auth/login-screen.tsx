@@ -21,6 +21,14 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
   const [error, setError] = useState<string | null>(null)
   const [resetSent, setResetSent] = useState(false)
 
+  // Лимит частоты — понятным текстом со временем ожидания, а не ответом сервера
+  const failure = (err: unknown, fallback: string) => {
+    if (err instanceof ApiError && err.status === 429) {
+      return t('auth.signIn.tooManyAttempts', { seconds: err.problem.retryAfter ?? 60 })
+    }
+    return err instanceof ApiError ? err.message : fallback
+  }
+
   const signIn = useMutation({
     mutationFn: () =>
       http.post<{ status: string; csrfToken?: string }>(
@@ -37,7 +45,7 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
       if (result.csrfToken) setCsrfToken(result.csrfToken)
       onSignedIn()
     },
-    onError: (err) => setError(err instanceof ApiError ? err.message : t('errors.unknown')),
+    onError: (err) => setError(failure(err, t('errors.unknown'))),
   })
 
   const verifyMfa = useMutation({
@@ -51,12 +59,16 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
       setCsrfToken(result.csrfToken)
       onSignedIn()
     },
-    onError: (err) => setError(err instanceof ApiError ? err.message : t('auth.mfa.invalid')),
+    onError: (err) => setError(failure(err, t('auth.mfa.invalid'))),
   })
 
   const requestReset = useMutation({
     mutationFn: () => http.post('/auth/password-reset', { login }, { anonymous: true }),
-    onSuccess: () => setResetSent(true),
+    onSuccess: () => {
+      setError(null)
+      setResetSent(true)
+    },
+    onError: (err) => setError(failure(err, t('errors.unknown'))),
   })
 
   return (
@@ -196,6 +208,7 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
               }}
             >
               <h2 className="text-md font-semibold text-fg">{t('auth.reset.title')}</h2>
+              {error ? <Callout tone="danger">{error}</Callout> : null}
               {resetSent ? (
                 <Callout tone="success">{t('auth.reset.sent')}</Callout>
               ) : (
@@ -220,6 +233,7 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
                 onClick={() => {
                   setStep('credentials')
                   setResetSent(false)
+                  setError(null)
                 }}
                 className="text-center text-xs text-fg-muted hover:text-fg"
               >

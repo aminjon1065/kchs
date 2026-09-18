@@ -17,6 +17,7 @@ import { buildUserCtx } from '~/kernel/context-builder.js'
 import { AuthService } from '~/modules/identity/domain/auth-service.js'
 import { registerModules } from '~/modules/index.js'
 import { config } from '~/shared/config/index.js'
+import { errors } from '~/shared/errors.js'
 import { authPlugin } from '~/shared/http/auth-plugin.js'
 import { sendProblem } from '~/shared/http/problem.js'
 import { routeRegistrar } from '~/shared/http/route.js'
@@ -85,6 +86,9 @@ export async function buildApp(): Promise<FastifyInstance> {
     nameSpace: env.NODE_ENV === 'test' ? 'kchs-rl-test:' : 'kchs-rl:',
     keyGenerator: (request) =>
       (request as { ctx?: { userId: string } }).ctx?.userId ?? request.ip ?? 'anonymous',
+    // Ответ 429 — обычная проблема API: локализованный заголовок и время ожидания
+    errorResponseBuilder: (_request, context) =>
+      errors.rateLimited(Math.max(1, Math.ceil(context.ttl / 1000))),
   })
 
   await app.register(underPressure, {

@@ -14,7 +14,7 @@ import { z } from 'zod'
 import { SecurityPolicyService } from '~/kernel/settings/security-policy.js'
 import { config } from '~/shared/config/index.js'
 import { errors } from '~/shared/errors.js'
-import { rateLimit } from '~/shared/http/rate-limit.js'
+import { addressKey, enforceAddressCeiling, rateLimit } from '~/shared/http/rate-limit.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { AuthService } from '../domain/auth-service.js'
 import { sendPasswordReset } from '../domain/notify.js'
@@ -31,7 +31,13 @@ export function registerAuthRoutes(route: RouteRegistrar): void {
     auth: 'public',
     tags: ['auth'],
     summary: 'Вход по логину и паролю',
-    rateLimit: rateLimit(10, '1 minute'),
+    // Подбор пароля — по адресу и логину: коллеги за тем же NAT не блокируются
+    // (17-security.md §5); общий потолок адреса — в обработчике
+    rateLimit: {
+      ...rateLimit(10, '1 minute'),
+      keyGenerator: (request) =>
+        addressKey('login', request, (request.body as { login?: string } | undefined)?.login ?? ''),
+    },
     schema: {
       body: LoginInput,
       response: {
@@ -44,6 +50,7 @@ export function registerAuthRoutes(route: RouteRegistrar): void {
       },
     },
     handler: async (request, reply) => {
+      await enforceAddressCeiling('login-ip', request, env.LOGIN_RATE_LIMIT_PER_IP_PER_MINUTE, 60)
       const meta = {
         ip: request.ip ?? null,
         userAgent: (request.headers['user-agent'] as string | undefined) ?? null,
@@ -77,7 +84,11 @@ export function registerAuthRoutes(route: RouteRegistrar): void {
     auth: 'public',
     tags: ['auth'],
     summary: 'Подтверждение второго фактора',
-    rateLimit: rateLimit(10, '1 minute'),
+    // По адресу и вызову входа; сам вызов допускает не больше 5 попыток
+    rateLimit: {
+      ...rateLimit(10, '1 minute'),
+      keyGenerator: (request) => addressKey('mfa', request, request.cookies?.[MFA_COOKIE] ?? ''),
+    },
     schema: {
       body: MfaVerifyInput,
       response: {
@@ -131,9 +142,15 @@ export function registerAuthRoutes(route: RouteRegistrar): void {
     auth: 'public',
     tags: ['auth'],
     summary: 'Запрос восстановления доступа',
-    rateLimit: rateLimit(5, '10 minutes'),
+    // Письма одному адресату — не чаще 5 за 10 минут; с одного адреса — не больше 50
+    rateLimit: {
+      ...rateLimit(5, '10 minutes'),
+      keyGenerator: (request) =>
+        addressKey('reset', request, (request.body as { login?: string } | undefined)?.login ?? ''),
+    },
     schema: { body: PasswordResetRequestInput, response: { 200: z.object({ ok: z.boolean() }) } },
     handler: async (request) => {
+      await enforceAddressCeiling('reset-ip', request, 50, 600)
       const result = await AuthService.requestPasswordReset(request.body.login)
       if (result) await sendPasswordReset(result.userId, result.token)
       // Ответ одинаков вне зависимости от существования учётной записи
@@ -147,7 +164,15 @@ export function registerAuthRoutes(route: RouteRegistrar): void {
     auth: 'public',
     tags: ['auth'],
     summary: 'Установка нового пароля по ссылке',
-    rateLimit: rateLimit(10, '10 minutes'),
+    rateLimit: {
+      ...rateLimit(10, '10 minutes'),
+      keyGenerator: (request) =>
+        addressKey(
+          'reset-confirm',
+          request,
+          (request.body as { token?: string } | undefined)?.token ?? '',
+        ),
+    },
     schema: { body: PasswordResetConfirmInput, response: { 200: z.object({ ok: z.boolean() }) } },
     handler: async (request) => {
       await AuthService.confirmPasswordReset(request.body.token, request.body.newPassword)
