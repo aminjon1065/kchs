@@ -14,7 +14,12 @@ import { registerKernelMetrics } from './kernel/metrics.js'
 import { startRealtime, stopRealtime } from './kernel/realtime/gateway.js'
 import { registerKernelSubscribers } from './kernel/subscribers.js'
 import { AuthService } from './modules/identity/public.js'
-import { registerModulesBackground, scheduleModuleJobs } from './modules/index.js'
+import {
+  registerModulesBackground,
+  scheduleModuleJobs,
+  startModuleServices,
+  stopModuleServices,
+} from './modules/index.js'
 import { config } from './shared/config/index.js'
 import { closeDb, closeQueryRole } from './shared/db/client.js'
 import { runMigrations } from './shared/db/migrate.js'
@@ -72,6 +77,7 @@ async function main(): Promise<void> {
     startWorkers()
     await scheduleMaintenance()
     await scheduleModuleJobs()
+    startModuleServices()
     // Признак жизни для healthcheck контейнера worker (HTTP-сервера у него нет):
     // файл обновляется, пока цикл событий не заблокирован
     const beat = () => writeFile(env.KCHS_HEARTBEAT_FILE, String(Date.now())).catch(() => undefined)
@@ -87,6 +93,7 @@ async function main(): Promise<void> {
     // Метрики — первыми: опрос Prometheus не должен заново открывать закрытые очереди
     await stopMetrics()
     stopDispatcher()
+    await stopModuleServices()
     await stopConsumers()
     await stopWorkers()
     await close?.()

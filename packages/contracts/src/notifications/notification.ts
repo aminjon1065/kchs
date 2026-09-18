@@ -49,6 +49,11 @@ export const NotificationPreference = z.object({
 
 export const NotificationPreferences = z.object({
   items: z.array(NotificationPreference),
+  /**
+   * Режимы по умолчанию для доступных пользователю каналов (ADR-0061): экран
+   * настроек показывает действующий режим, даже если пользователь его не менял.
+   */
+  defaults: z.array(NotificationPreference).default([]),
   quietHours: z
     .object({ from: z.string(), to: z.string(), enabled: z.boolean() })
     .nullable()

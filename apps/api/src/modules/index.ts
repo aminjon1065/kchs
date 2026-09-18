@@ -25,6 +25,12 @@ import {
   registerTasksObjectTypes,
   registerTasksRoutes,
 } from './tasks/module.js'
+import {
+  registerTelegramChannel,
+  registerTelegramRoutes,
+  startTelegramPolling,
+  stopTelegramPolling,
+} from './telegram/module.js'
 
 /** Хранилища модулей, которые создаются на лету (таблицы датасетов), — к текущему виду. */
 export async function upgradeModuleStorage(): Promise<void> {
@@ -43,6 +49,8 @@ export function registerAllObjectTypes(): void {
   registerGisObjectTypes()
   registerTasksObjectTypes()
   registerDirectory()
+  // Каналы уведомлений модулей: ядро доставляет через них в любой роли процесса
+  registerTelegramChannel()
 }
 
 /** Модуль identity предоставляет ядру справочник людей и оргструктуры. */
@@ -66,6 +74,7 @@ export async function registerModules(app: FastifyInstance, route: RouteRegistra
   registerDataRoutes(route)
   registerGisRoutes(route)
   registerTasksRoutes(route)
+  registerTelegramRoutes(route)
   registerAdminRoutes(route)
   app.log.debug('модули зарегистрированы')
 }
@@ -80,4 +89,13 @@ export function registerModulesBackground(): void {
 
 export async function scheduleModuleJobs(): Promise<void> {
   await scheduleFilesJobs()
+}
+
+/** Долгоживущие процессы модулей в роли worker: опрос Telegram-бота (ADR-0061). */
+export function startModuleServices(): void {
+  startTelegramPolling()
+}
+
+export async function stopModuleServices(): Promise<void> {
+  await stopTelegramPolling()
 }

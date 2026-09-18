@@ -767,6 +767,20 @@ export const en: DeepPartial<Dictionary> = {
       taskReturned: '{actor} returned “{title}” for rework',
     },
   },
+  telegram: {
+    welcome:
+      'This is the kchs bot: it sends notifications with a link to the object. To connect your account, open your profile in kchs and click “Connect Telegram”.',
+    linked:
+      'Done: Telegram is connected to the account “{name}”. Notifications will arrive here. To disconnect, send /stop or use your kchs profile.',
+    alreadyLinked: 'This chat is already connected to kchs. Send /stop to turn notifications off.',
+    linkInvalid: 'The link has expired or was already used. Get a new one in your kchs profile.',
+    chatTaken:
+      'This chat is already connected to another kchs account. Send /stop to disconnect it, then open the link again.',
+    stopped: 'Telegram notifications are off. You can connect again in your kchs profile.',
+    notLinked: 'This chat is not connected to kchs. Connect it in your kchs profile.',
+    help: 'The bot sends kchs notifications with a link to the object. /stop turns notifications off.',
+    open: 'Open in kchs',
+  },
   activity: {
     object: {
       created: '{actor} created the object',

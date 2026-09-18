@@ -1,10 +1,11 @@
-import type {
-  DeliveryMode,
-  Locale,
-  Notification,
-  NotificationCategory,
-  NotificationChannel,
-  NotificationPreferences,
+import {
+  type DeliveryMode,
+  type Locale,
+  NOTIFICATION_CATEGORIES,
+  type Notification,
+  type NotificationCategory,
+  type NotificationChannel,
+  type NotificationPreferences,
 } from '@kchs/contracts'
 import { createTranslator } from '@kchs/i18n'
 import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm'
@@ -16,6 +17,12 @@ import { mailConfigured, sendMail } from '~/shared/mail/index.js'
 import { directory } from '../directory/port.js'
 import { ObjectService } from '../objects/service.js'
 import { emitToUser } from '../realtime/gateway.js'
+import {
+  availableChannels,
+  EXTERNAL_CHANNELS,
+  type ExternalChannel,
+  notificationChannel,
+} from './channels.js'
 
 /** Окно агрегации: несколько событий одного объекта сливаются в одно уведомление. */
 const AGGREGATE_WINDOW_MINUTES = 5
@@ -44,12 +51,19 @@ export const NotificationService = {
 
     const aggregateKey =
       input.aggregateKey ?? `${input.category}:${input.objectId ?? 'none'}:${input.titleKey}`
+    // Внешние каналы (Telegram) — только у тех, кому они доступны: привязан аккаунт
+    const external = await availableChannels(recipients)
 
     for (const userId of recipients) {
       // Не уведомляем автора о его же действии
       if (input.actorId && input.actorId === userId) continue
 
-      const modes = await resolveChannels(userId, input.category, input.channels)
+      const modes = await resolveChannels(
+        userId,
+        input.category,
+        input.channels,
+        external.get(userId),
+      )
       const channels = Object.keys(modes) as NotificationChannel[]
       if (channels.length === 0) continue
 
@@ -99,6 +113,20 @@ export const NotificationService = {
           await deliverEmail([row.id])
         } catch (error) {
           logger().error({ err: error, userId }, 'не удалось отправить уведомление почтой')
+        }
+      }
+
+      // Внешние каналы доставляют сразу: дайджеста у них нет, слитые повторы не
+      // отправляются (как и письма) — иначе мессенджер получал бы каждое изменение
+      const immediate = EXTERNAL_CHANNELS.filter((channel) => modes[channel] !== undefined)
+      if (row && immediate.length > 0) {
+        try {
+          await deliverExternal(row.id, immediate)
+        } catch (error) {
+          logger().error(
+            { err: error, userId },
+            'не удалось доставить уведомление во внешний канал',
+          )
         }
       }
     }
@@ -203,6 +231,13 @@ export const NotificationService = {
         channel: row.channel as NotificationChannel,
         mode: row.mode as DeliveryMode,
       })),
+      defaults: NOTIFICATION_CATEGORIES.flatMap((category) =>
+        (['app', 'email', 'telegram'] as const).map((channel) => ({
+          category,
+          channel,
+          mode: DEFAULT_MODES[category]?.[channel] ?? 'off',
+        })),
+      ),
       quietHours: null,
       doNotDisturbUntil: null,
       digestHour: 8,
@@ -229,25 +264,32 @@ export const NotificationService = {
   },
 }
 
-/** Правила по умолчанию (12-calendar-notifications-home.md §2). */
+/**
+ * Правила по умолчанию (12-calendar-notifications-home.md §2): действия и
+ * упоминания — во все каналы, включая Telegram; остальное в Telegram — по выбору.
+ */
 const DEFAULT_MODES: Record<string, Partial<Record<NotificationChannel, DeliveryMode>>> = {
-  inbox: { app: 'immediate', email: 'immediate' },
-  mention: { app: 'immediate', email: 'immediate' },
+  inbox: { app: 'immediate', email: 'immediate', telegram: 'immediate' },
+  mention: { app: 'immediate', email: 'immediate', telegram: 'immediate' },
   discussion: { app: 'immediate', email: 'digest' },
   object: { app: 'immediate', email: 'off' },
   tasks: { app: 'immediate', email: 'digest' },
   documents: { app: 'immediate', email: 'digest' },
   chat: { app: 'immediate', email: 'off' },
-  meetings: { app: 'immediate', email: 'immediate' },
+  meetings: { app: 'immediate', email: 'immediate', telegram: 'immediate' },
   calendar: { app: 'immediate', email: 'digest' },
   data: { app: 'immediate', email: 'digest' },
   system: { app: 'immediate', email: 'digest' },
 }
 
+const isExternal = (channel: NotificationChannel): channel is ExternalChannel =>
+  (EXTERNAL_CHANNELS as readonly string[]).includes(channel)
+
 async function resolveChannels(
   userId: string,
   category: NotificationCategory,
-  requested?: NotificationChannel[],
+  requested: NotificationChannel[] | undefined,
+  available: Set<ExternalChannel> | undefined,
 ): Promise<Partial<Record<NotificationChannel, DeliveryMode>>> {
   const prefs = await db()
     .select()
@@ -264,6 +306,7 @@ async function resolveChannels(
   const candidates = requested ?? (['app', 'email', 'telegram', 'push'] as NotificationChannel[])
 
   for (const channel of candidates) {
+    if (isExternal(channel) && !available?.has(channel)) continue
     const override = prefs.find((p) => p.channel === channel)?.mode as DeliveryMode | undefined
     const mode = override ?? defaults[channel] ?? 'off'
     if (mode !== 'off') result[channel] = mode
@@ -278,6 +321,101 @@ async function localeOf(userId: string): Promise<Locale> {
     .where(eq(users.id, userId))
     .limit(1)
   return (row?.locale as Locale) ?? 'ru'
+}
+
+/** Адрес веб-клиента без завершающей косой черты: к нему дописывается путь `/o/{id}`. */
+const baseUrl = () => config().KCHS_BASE_URL.replace(/\/+$/, '')
+
+/** Поля уведомления, из которых собираются текст и ссылка. */
+interface RenderSource {
+  id: number
+  titleKey: string
+  params: Record<string, unknown>
+  objectId: string | null
+  actorId: string | null
+  url: string | null
+  aggregateCount: number
+  locale: string | null
+}
+
+/**
+ * Текст уведомления на языке получателя и абсолютная ссылка, открывающая
+ * вкладку объекта, — одни для писем и внешних каналов (ADR-0061).
+ */
+async function renderForDelivery(
+  rows: RenderSource[],
+): Promise<Map<number, { text: string; href: string }>> {
+  const base = baseUrl()
+  const summaries = await ObjectService.summaries([
+    ...new Set(rows.map((r) => r.objectId).filter((v): v is string => Boolean(v))),
+  ])
+  // Имя автора — для «{actor} упомянул вас…»: в параметрах уведомления его нет
+  const actorIds = [...new Set(rows.map((r) => r.actorId).filter((v): v is string => Boolean(v)))]
+  const actors = new Map(
+    actorIds.length > 0
+      ? (
+          await db()
+            .select({ id: users.id, name: users.displayName })
+            .from(users)
+            .where(inArray(users.id, actorIds))
+        ).map((row) => [row.id, row.name])
+      : [],
+  )
+
+  const result = new Map<number, { text: string; href: string }>()
+  for (const row of rows) {
+    const t = createTranslator((row.locale as Locale | null) ?? 'ru')
+    const summary = row.objectId ? summaries.get(row.objectId) : null
+    const params = {
+      ...(row.actorId && actors.has(row.actorId) ? { actor: actors.get(row.actorId) } : {}),
+      ...(row.params as Record<string, string>),
+      count: row.aggregateCount,
+      title: summary?.title ?? (row.params as { title?: string }).title ?? '',
+    }
+    const text =
+      row.aggregateCount > 1 ? t('notifications.aggregate', params) : t(row.titleKey, params)
+    result.set(row.id, { text, href: `${base}${row.url ?? summary?.url ?? '/'}` })
+  }
+  return result
+}
+
+/**
+ * Доставка нового уведомления во внешние каналы получателя (Telegram): текст —
+ * на его языке, ссылка открывает вкладку объекта.
+ */
+async function deliverExternal(id: number, channels: ExternalChannel[]): Promise<void> {
+  const [row] = await db()
+    .select({
+      id: notifications.id,
+      userId: notifications.userId,
+      category: notifications.category,
+      titleKey: notifications.titleKey,
+      params: notifications.params,
+      objectId: notifications.objectId,
+      actorId: notifications.actorId,
+      url: notifications.url,
+      aggregateCount: notifications.aggregateCount,
+      locale: users.locale,
+    })
+    .from(notifications)
+    .innerJoin(users, eq(users.id, notifications.userId))
+    .where(eq(notifications.id, id))
+    .limit(1)
+  if (!row) return
+  const rendered = (await renderForDelivery([row])).get(row.id)
+  if (!rendered) return
+  for (const channel of channels) {
+    await notificationChannel(channel)?.deliver([
+      {
+        notificationId: row.id,
+        userId: row.userId,
+        locale: (row.locale as Locale | null) ?? 'ru',
+        category: row.category as NotificationCategory,
+        text: rendered.text,
+        url: rendered.href,
+      },
+    ])
+  }
 }
 
 /**
@@ -322,22 +460,8 @@ export async function deliverEmail(ids: number[]): Promise<number> {
     byUser.set(row.userId, list)
   }
 
-  const base = config().KCHS_BASE_URL
-  const summaries = await ObjectService.summaries([
-    ...new Set(rows.map((r) => r.objectId).filter((v): v is string => Boolean(v))),
-  ])
-  // Имя автора — для «{actor} упомянул вас…»: в параметрах уведомления его нет
-  const actorIds = [...new Set(rows.map((r) => r.actorId).filter((v): v is string => Boolean(v)))]
-  const actors = new Map(
-    actorIds.length > 0
-      ? (
-          await db()
-            .select({ id: users.id, name: users.displayName })
-            .from(users)
-            .where(inArray(users.id, actorIds))
-        ).map((row) => [row.id, row.name])
-      : [],
-  )
+  const base = baseUrl()
+  const rendered = await renderForDelivery(rows)
 
   let sent = 0
   for (const [, items] of byUser) {
@@ -346,16 +470,7 @@ export async function deliverEmail(ids: number[]): Promise<number> {
 
     const t = createTranslator((first.locale as Locale) ?? 'ru')
     const lines = items.map((row) => {
-      const summary = row.objectId ? summaries.get(row.objectId) : null
-      const params = {
-        ...(row.actorId && actors.has(row.actorId) ? { actor: actors.get(row.actorId) } : {}),
-        ...(row.params as Record<string, string>),
-        count: row.aggregateCount,
-        title: summary?.title ?? (row.params as { title?: string }).title ?? '',
-      }
-      const text =
-        row.aggregateCount > 1 ? t('notifications.aggregate', params) : t(row.titleKey, params)
-      const href = `${base}${row.url ?? summary?.url ?? '/'}`
+      const { text, href } = rendered.get(row.id) ?? { text: '', href: base }
       return `<li><a href="${escapeHtml(href)}">${escapeHtml(text)}</a></li>`
     })
 

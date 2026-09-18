@@ -10,6 +10,11 @@ const bool = z
     typeof v === 'boolean' ? v : ['1', 'true', 'yes', 'on'].includes(v.toLowerCase()),
   )
 
+/** Пустое значение (`KEY=` в .env, `${KEY:-}` в compose) — «не задано». */
+const unset = (v: unknown) => (v === '' ? undefined : v)
+const optionalText = z.preprocess(unset, z.string().optional())
+const optionalUrl = z.preprocess(unset, z.url().optional())
+
 const EnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   ROLE: z.enum(['api', 'worker', 'all']).default('all'),
@@ -91,10 +96,39 @@ const EnvSchema = z.object({
   SMTP_URL: z.string().optional(),
   SMTP_FROM: z.string().default('kchs <no-reply@kchs.local>'),
 
-  TELEGRAM_BOT_TOKEN: z.string().optional(),
-  AI_PROVIDER: z.string().optional(),
-  ANTHROPIC_API_KEY: z.string().optional(),
-  OPENAI_COMPAT_URL: z.string().optional(),
+  /**
+   * Telegram-бот (ADR-0061): без токена привязка и канал уведомлений скрыты.
+   * Адрес Bot API меняют для тестов (поддельный сервер) и локального Bot API.
+   */
+  TELEGRAM_BOT_TOKEN: optionalText,
+  TELEGRAM_API_URL: z.preprocess(unset, z.url().default('https://api.telegram.org')),
+  /** Бот читает сообщения долгим опросом в роли worker; `false` — только отправка. */
+  TELEGRAM_POLLING: z.preprocess(unset, bool.default(true)),
+
+  /**
+   * Провайдер ИИ (ADR-0061, 13-search-knowledge-ai.md §3): пусто — функции ИИ
+   * скрыты. `anthropic` — облако Anthropic, `openai-compat` — свой сервер
+   * (vLLM, Ollama) с OpenAI-совместимым API.
+   */
+  AI_PROVIDER: z.preprocess(unset, z.enum(['anthropic', 'openai-compat']).optional()),
+  /** Модель; по умолчанию у Anthropic — `claude-sonnet-5`. */
+  AI_MODEL: optionalText,
+  ANTHROPIC_API_KEY: optionalText,
+  /** Другой адрес Messages API: шлюз организации или поддельный сервер тестов. */
+  ANTHROPIC_BASE_URL: optionalUrl,
+  /** Базовый адрес OpenAI-совместимого API, например `http://llm:8000/v1`. */
+  OPENAI_COMPAT_URL: optionalUrl,
+  OPENAI_COMPAT_API_KEY: optionalText,
+  /** Суточные лимиты на пользователя: запросы к модели и токены (вход + выход). */
+  AI_DAILY_REQUESTS: z.preprocess(unset, z.coerce.number().int().min(0).max(100_000).default(50)),
+  AI_DAILY_TOKENS: z.preprocess(
+    unset,
+    z.coerce.number().int().min(0).max(1_000_000_000).default(300_000),
+  ),
+  AI_TIMEOUT_MS: z.preprocess(
+    unset,
+    z.coerce.number().int().min(1000).max(600_000).default(60_000),
+  ),
 
   LIVEKIT_URL: z.string().optional(),
   LIVEKIT_API_KEY: z.string().optional(),
@@ -109,6 +143,21 @@ const CheckedEnv = EnvSchema.superRefine((env, context) => {
       code: 'custom',
       path: ['DATABASE_QUERY_URL'],
       message: 'в продакшене обязателен: запросы к данным выполняются под ролью kchs_query',
+    })
+  }
+  // Выбранный провайдер ИИ без адреса или ключа — ошибка настройки, а не «ИИ выключен»
+  if (env.AI_PROVIDER === 'anthropic' && !env.ANTHROPIC_API_KEY) {
+    context.addIssue({
+      code: 'custom',
+      path: ['ANTHROPIC_API_KEY'],
+      message: 'нужен при AI_PROVIDER=anthropic',
+    })
+  }
+  if (env.AI_PROVIDER === 'openai-compat' && (!env.OPENAI_COMPAT_URL || !env.AI_MODEL)) {
+    context.addIssue({
+      code: 'custom',
+      path: ['OPENAI_COMPAT_URL'],
+      message: 'при AI_PROVIDER=openai-compat нужны OPENAI_COMPAT_URL и AI_MODEL',
     })
   }
 })
