@@ -15,6 +15,7 @@ import {
   CommandItem,
   CommandSeparator,
   InlineEdit,
+  Stepper,
   Tree,
   type TreeNode,
   VirtualList,
@@ -237,4 +238,36 @@ export const InlineEditingActive: Story = {
     await userEvent.click(canvas.getByRole('button', { name: 'Название' }))
     await canvas.findByRole('textbox', { name: 'Название' })
   },
+}
+
+const IMPORT_STEPS = [
+  { key: 'file', label: 'Файл', description: 'svodka-2026.xlsx' },
+  { key: 'structure', label: 'Структура', description: 'Лист «Сводка», заголовок в строке 2' },
+  { key: 'mapping', label: 'Сопоставление' },
+  { key: 'review', label: 'Проверка и запуск' },
+]
+
+function StepperDemo() {
+  const [current, setCurrent] = useState(2)
+  return (
+    <Stepper
+      aria-label="Шаги импорта"
+      steps={IMPORT_STEPS}
+      current={current}
+      onStepClick={setCurrent}
+    />
+  )
+}
+
+export const Steps: Story = {
+  name: 'Шаги мастера',
+  render: () => (
+    <div className="flex max-w-[760px] flex-col gap-6">
+      <StepperDemo />
+      <Stepper aria-label="Начало" steps={IMPORT_STEPS.slice(0, 3)} current={0} />
+      <div className="max-w-[360px]">
+        <Stepper aria-label="Узкий контейнер" steps={IMPORT_STEPS} current={3} />
+      </div>
+    </div>
+  ),
 }

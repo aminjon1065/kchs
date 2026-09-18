@@ -105,6 +105,7 @@ export const tg: DeepPartial<Dictionary> = {
     density: { comfortable: 'Бароҳат', compact: 'Фишурда' },
   },
   ui: {
+    stepper: { done: 'қадам гузашт', current: 'қадами ҷорӣ', upcoming: 'қадами оянда' },
     loading: 'Боркунӣ',
     empty: 'Холӣ',
     untitled: 'Беном',

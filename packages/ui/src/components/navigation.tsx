@@ -1,7 +1,7 @@
 import * as CollapsiblePrimitive from '@radix-ui/react-collapsible'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { Command as CommandPrimitive } from 'cmdk'
-import { ChevronRight, Search } from 'lucide-react'
+import { Check, ChevronRight, Search } from 'lucide-react'
 import {
   type ComponentPropsWithoutRef,
   type ElementRef,
@@ -432,5 +432,96 @@ export function InlineEdit({
         inputClassName,
       )}
     />
+  )
+}
+
+// ─── Stepper ─────────────────────────────────────────────────────────────────
+
+export interface StepperStep {
+  key: string
+  label: ReactNode
+  /** Короткое пояснение под названием шага. */
+  description?: ReactNode
+}
+
+export interface StepperProps {
+  steps: StepperStep[]
+  /** Индекс текущего шага. */
+  current: number
+  /** Возврат к пройденному шагу; без обработчика шаги не кликабельны. */
+  onStepClick?: (index: number) => void
+  className?: string
+  'aria-label'?: string
+}
+
+/**
+ * Шаги мастера (импорт, создание по шаблону): пройденные отмечены галочкой и
+ * доступны для возврата, текущий — `aria-current="step"`, будущие — приглушены.
+ */
+export function Stepper({ steps, current, onStepClick, className, ...props }: StepperProps) {
+  const t = useUiT()
+  return (
+    <ol
+      aria-label={props['aria-label']}
+      className={cn('@container flex min-w-0 items-center gap-2', className)}
+    >
+      {steps.map((step, index) => {
+        const state = index < current ? 'done' : index === current ? 'current' : 'upcoming'
+        const content = (
+          <>
+            <span
+              className={cn(
+                'flex size-5 shrink-0 items-center justify-center rounded-full text-2xs font-semibold',
+                state === 'done' && 'bg-accent text-accent-fg',
+                state === 'current' && 'bg-accent-subtle text-accent ring-1 ring-accent',
+                state === 'upcoming' && 'border border-line-strong text-fg-muted',
+              )}
+            >
+              {state === 'done' ? <Check className="size-3" aria-hidden /> : index + 1}
+            </span>
+            {/* В узком контейнере подпись остаётся только у текущего шага */}
+            <span className={cn('min-w-0', state !== 'current' && '@max-md:hidden')}>
+              <span
+                className={cn(
+                  'block truncate text-sm',
+                  state === 'current' ? 'font-medium text-fg' : 'text-fg-secondary',
+                )}
+              >
+                {step.label}
+              </span>
+              {step.description ? (
+                <span className="block truncate text-2xs text-fg-muted">{step.description}</span>
+              ) : null}
+            </span>
+            <span className="sr-only">{t(`ui.stepper.${state}`)}</span>
+          </>
+        )
+        return (
+          <li
+            key={step.key}
+            aria-current={state === 'current' ? 'step' : undefined}
+            className={cn('flex min-w-0 items-center gap-2', index < steps.length - 1 && 'flex-1')}
+          >
+            {onStepClick && state === 'done' ? (
+              <button
+                type="button"
+                onClick={() => onStepClick(index)}
+                className="flex min-w-0 items-center gap-2 rounded-sm text-left hover:[&>span>span]:text-fg"
+              >
+                {content}
+              </button>
+            ) : (
+              <span className="flex min-w-0 items-center gap-2">{content}</span>
+            )}
+            {index < steps.length - 1 ? (
+              <span
+                aria-hidden
+                className={cn('h-px min-w-3 flex-1', index < current ? 'bg-accent' : 'bg-line')}
+              />
+            ) : null}
+          </li>
+        )
+      })}
+    </ol>
   )
 }

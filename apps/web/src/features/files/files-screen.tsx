@@ -39,6 +39,7 @@ import {
   describeUserFilterValue,
   renderUserFilterValue,
 } from '~/shared/collections/user-filter-value.js'
+import { orderSpaces } from '~/shared/spaces.js'
 
 const TYPES = ['folder', 'file']
 
@@ -546,16 +547,6 @@ export function FilesScreen({
         }}
       />
     </section>
-  )
-}
-
-const SPACE_ORDER: Record<string, number> = { org: 0, team: 1, unit: 2, personal: 3 }
-
-/** Порядок пространств: общее → команды → подразделения → личное. */
-function orderSpaces(spaces: Space[]): Space[] {
-  return [...spaces].sort(
-    (a, b) =>
-      (SPACE_ORDER[a.kind] ?? 9) - (SPACE_ORDER[b.kind] ?? 9) || a.name.localeCompare(b.name, 'ru'),
   )
 }
 

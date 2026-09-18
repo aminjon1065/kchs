@@ -1,4 +1,6 @@
 import { AdminScreen } from '~/features/admin/admin-screen.js'
+import { DataCatalogScreen } from '~/features/data/data-catalog-screen.js'
+import { DatasetView } from '~/features/data/dataset-view.js'
 import { FilesScreen } from '~/features/files/files-screen.js'
 import { HomeScreen } from '~/features/home/home-screen.js'
 import { InboxScreen } from '~/features/inbox/inbox-screen.js'
@@ -14,7 +16,7 @@ import { registerObjectView, registerScreen } from './workspace/registry.js'
 
 let registered = false
 
-/** Регистрация экранов и представлений объектов фазы 0. */
+/** Регистрация экранов и представлений объектов. */
 export function registerModules(): void {
   if (registered) return
   registered = true
@@ -46,6 +48,18 @@ export function registerModules(): void {
         spaceId={tab.params.spaceId}
         tabId={tab.id}
         savedState={tab.state as Parameters<typeof FilesScreen>[0]['savedState']}
+      />
+    ),
+  })
+  registerScreen({
+    key: 'data',
+    titleKey: 'shell.rail.data',
+    icon: 'dataset',
+    render: (tab) => (
+      <DataCatalogScreen
+        spaceId={tab.params.spaceId}
+        tabId={tab.id}
+        savedState={tab.state as Parameters<typeof DataCatalogScreen>[0]['savedState']}
       />
     ),
   })
@@ -91,5 +105,9 @@ export function registerModules(): void {
     render: (tab) => <FileView objectId={tab.objectId!} tabId={tab.id} />,
   })
   registerObjectView({ type: 'folder', render: (tab) => <FolderView objectId={tab.objectId!} /> })
+  registerObjectView({
+    type: 'dataset',
+    render: (tab) => <DatasetView objectId={tab.objectId!} tabId={tab.id} />,
+  })
   registerObjectView({ type: 'space', render: (tab) => <SpaceScreen spaceId={tab.objectId!} /> })
 }
