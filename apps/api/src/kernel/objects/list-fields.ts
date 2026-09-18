@@ -1,21 +1,9 @@
-import type { FieldType, ListField } from '@kchs/contracts'
-import { type SQL, sql } from 'drizzle-orm'
+import type { ListField } from '@kchs/contracts'
+import { sql } from 'drizzle-orm'
 import { objects } from '~/shared/db/schema/index.js'
-import { objectType } from './registry.js'
+import { type ListFieldDef, objectType } from './registry.js'
 
-/**
- * Поле списка объектов: как его фильтровать и сортировать в SQL
- * (02-platform-kernel.md §13 — «модули описывают схему фильтруемых полей типа»).
- * Выражение строится над строкой `objects`; поля модуля обычно читают `objects.meta`.
- */
-export interface ListFieldDef {
-  key: string
-  labelKey: string
-  type: FieldType
-  sql: SQL
-  sortable?: boolean
-  options?: Array<{ value: string; labelKey: string }>
-}
+export type { ListFieldDef } from './registry.js'
 
 /** Поля, которые есть у любого объекта реестра. */
 export const COMMON_LIST_FIELDS: ListFieldDef[] = [
