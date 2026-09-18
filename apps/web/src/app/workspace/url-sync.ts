@@ -30,6 +30,7 @@ const SCREEN_PATHS: Record<string, ScreenKey> = {
   '/profile': 'profile',
   '/trash': 'trash',
   '/processes': 'jobs',
+  '/explore': 'explore',
 }
 
 export type LocationTarget =

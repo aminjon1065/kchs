@@ -19,7 +19,7 @@ import {
   useToast,
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { History, Share2, Trash2, Upload } from 'lucide-react'
+import { BarChart3, History, Share2, Trash2, Upload } from 'lucide-react'
 import { useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
@@ -52,6 +52,7 @@ export function DatasetView({ objectId, tabId }: { objectId: string; tabId: stri
   const client = useQueryClient()
   const setTabTitle = useWorkspace((s) => s.setTabTitle)
   const closeTab = useWorkspace((s) => s.closeTab)
+  const openTab = useWorkspace((s) => s.openTab)
 
   const [shareOpen, setShareOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
@@ -127,6 +128,22 @@ export function DatasetView({ objectId, tabId }: { objectId: string; tabId: stri
         right={
           <>
             <PresenceAvatars objectId={objectId} />
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={<BarChart3 className="size-3.5" />}
+              onClick={() =>
+                openTab({
+                  kind: 'screen',
+                  screen: 'explore',
+                  title: `${dataset.name} — ${t('data.explore.title')}`,
+                  params: { datasetId: objectId },
+                  mode: 'permanent',
+                })
+              }
+            >
+              {t('data.explore.open')}
+            </Button>
             {canEdit ? (
               <Button
                 variant="secondary"

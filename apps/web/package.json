@@ -15,6 +15,7 @@
     "api:types": "openapi-typescript http://localhost:3000/api/openapi.json -o src/shared/api/openapi.gen.ts"
   },
   "dependencies": {
+    "@kchs/chart-spec": "workspace:*",
     "@kchs/contracts": "workspace:*",
     "@kchs/fields": "workspace:*",
     "@kchs/i18n": "workspace:*",

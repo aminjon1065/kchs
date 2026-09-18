@@ -13,7 +13,7 @@ import {
   useBreakpoint,
 } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
-import { Upload } from 'lucide-react'
+import { LayoutDashboard, Upload } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
@@ -28,10 +28,11 @@ import {
   renderUserFilterValue,
 } from '~/shared/collections/user-filter-value.js'
 import { orderSpaces } from '~/shared/spaces.js'
+import { CreateDashboardDialog } from './dashboard-dialogs.js'
 import { ImportWizard } from './import-wizard.js'
 
-/** Типы каталога «Данные»; графики, дашборды и показатели добавятся с их модулями. */
-const TYPES = ['dataset']
+/** Типы каталога «Данные»; показатели, тетради и отчёты добавятся с их модулями. */
+const TYPES = ['dataset', 'chart', 'dashboard']
 
 /**
  * Каталог «Данные» (03-screens.md §4): объекты данных пространства в
@@ -59,6 +60,7 @@ export function DataCatalogScreen({
   )
   const [viewId, setViewId] = useState<string | null>(savedState?.viewId ?? null)
   const [wizard, setWizard] = useState<{ file: File | null } | null>(null)
+  const [creatingDashboard, setCreatingDashboard] = useState(false)
 
   useEffect(() => {
     if (breakpoint === 'mobile') setCollection((current) => ({ ...current, mode: 'gallery' }))
@@ -89,7 +91,9 @@ export function DataCatalogScreen({
   }
 
   const rowCount = (item: ObjectSummary) =>
-    typeof item.meta.rows === 'number' ? formatNumber(item.meta.rows, {}, { locale }) : '—'
+    item.type === 'dataset' && typeof item.meta.rows === 'number'
+      ? formatNumber(item.meta.rows, {}, { locale })
+      : '—'
 
   const columns: Array<DataTableColumn<ObjectSummary>> = [
     {
@@ -133,15 +137,26 @@ export function DataCatalogScreen({
           </span>
         }
         right={
-          <Button
-            variant="primary"
-            size="sm"
-            icon={<Upload className="size-3.5" />}
-            disabled={!effectiveSpaceId}
-            onClick={() => setWizard({ file: null })}
-          >
-            {t('data.catalog.upload')}
-          </Button>
+          <>
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={<LayoutDashboard className="size-3.5" />}
+              disabled={!effectiveSpaceId}
+              onClick={() => setCreatingDashboard(true)}
+            >
+              {t('data.dashboard.create')}
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              icon={<Upload className="size-3.5" />}
+              disabled={!effectiveSpaceId}
+              onClick={() => setWizard({ file: null })}
+            >
+              {t('data.catalog.upload')}
+            </Button>
+          </>
         }
       />
 
@@ -192,7 +207,9 @@ export function DataCatalogScreen({
               <ObjectIcon type={item.type} className="size-8 text-fg-muted" />
               <span className="line-clamp-2 text-sm text-fg">{item.title}</span>
               <span className="text-2xs text-fg-muted">
-                {t('data.dataset.rows', { count: Number(item.meta.rows ?? 0) })}
+                {item.type === 'dataset'
+                  ? t('data.dataset.rows', { count: Number(item.meta.rows ?? 0) })
+                  : t(`objects.types.${item.type}`)}
               </span>
             </button>
           )}
@@ -229,6 +246,12 @@ export function DataCatalogScreen({
         />
       </div>
 
+      {creatingDashboard && effectiveSpaceId ? (
+        <CreateDashboardDialog
+          spaceId={effectiveSpaceId}
+          onClose={() => setCreatingDashboard(false)}
+        />
+      ) : null}
       {wizard && effectiveSpaceId ? (
         <ImportWizard
           spaceId={effectiveSpaceId}

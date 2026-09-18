@@ -1,6 +1,9 @@
 import { AdminScreen } from '~/features/admin/admin-screen.js'
+import { ChartView } from '~/features/data/chart-view.js'
+import { DashboardView } from '~/features/data/dashboard-view.js'
 import { DataCatalogScreen } from '~/features/data/data-catalog-screen.js'
 import { DatasetView } from '~/features/data/dataset-view.js'
+import { ExploreScreen } from '~/features/data/explore-screen.js'
 import { FilesScreen } from '~/features/files/files-screen.js'
 import { HomeScreen } from '~/features/home/home-screen.js'
 import { InboxScreen } from '~/features/inbox/inbox-screen.js'
@@ -64,6 +67,18 @@ export function registerModules(): void {
     ),
   })
   registerScreen({
+    key: 'explore',
+    titleKey: 'data.explore.title',
+    icon: 'query',
+    render: (tab) => (
+      <ExploreScreen
+        datasetId={tab.params.datasetId ?? ''}
+        tabId={tab.id}
+        savedState={tab.state as Parameters<typeof ExploreScreen>[0]['savedState']}
+      />
+    ),
+  })
+  registerScreen({
     key: 'search',
     titleKey: 'shell.rail.search',
     icon: 'view',
@@ -105,6 +120,14 @@ export function registerModules(): void {
     render: (tab) => <FileView objectId={tab.objectId!} tabId={tab.id} />,
   })
   registerObjectView({ type: 'folder', render: (tab) => <FolderView objectId={tab.objectId!} /> })
+  registerObjectView({
+    type: 'dashboard',
+    render: (tab) => <DashboardView objectId={tab.objectId!} tabId={tab.id} />,
+  })
+  registerObjectView({
+    type: 'chart',
+    render: (tab) => <ChartView objectId={tab.objectId!} tabId={tab.id} />,
+  })
   registerObjectView({
     type: 'dataset',
     render: (tab) => <DatasetView objectId={tab.objectId!} tabId={tab.id} />,

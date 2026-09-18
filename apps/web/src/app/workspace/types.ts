@@ -19,6 +19,7 @@ export type ScreenKey =
   | 'profile'
   | 'trash'
   | 'jobs'
+  | 'explore'
 
 export interface TabState {
   id: string

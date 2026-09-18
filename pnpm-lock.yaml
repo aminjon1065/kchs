@@ -338,6 +338,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@kchs/chart-spec':
+        specifier: workspace:*
+        version: link:../../packages/chart-spec
       '@kchs/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
