@@ -19,7 +19,7 @@ import {
   useToast,
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { BarChart3, History, RotateCcw, Share2, Trash2, Upload } from 'lucide-react'
+import { BarChart3, History, RotateCcw, Share2, Sparkles, Trash2, Upload } from 'lucide-react'
 import { useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
@@ -31,7 +31,13 @@ import { keys, objectQuery } from '~/shared/api/queries.js'
 import { AccessTab } from './access-tab.js'
 import { DatasetTable } from './dataset-table.js'
 import { ImportWizard } from './import-wizard.js'
-import { dataKeys, datasetImportsQuery, datasetQuery, datasetVersionsQuery } from './queries.js'
+import {
+  aiStatusQuery,
+  dataKeys,
+  datasetImportsQuery,
+  datasetQuery,
+  datasetVersionsQuery,
+} from './queries.js'
 import { SchemaTab } from './schema-tab.js'
 
 const IMPORT_TONES: Record<ImportRecord['status'], BadgeProps['tone']> = {
@@ -61,6 +67,7 @@ export function DatasetView({ objectId, tabId }: { objectId: string; tabId: stri
 
   const { data: object } = useQuery(objectQuery(objectId))
   const { data: dataset, isLoading } = useQuery(datasetQuery(objectId))
+  const { data: ai } = useQuery(aiStatusQuery())
 
   const rename = useMutation({
     mutationFn: (title: string) => http.patch(`/objects/${objectId}`, { title }),
@@ -99,6 +106,14 @@ export function DatasetView({ objectId, tabId }: { objectId: string; tabId: stri
   if (!dataset) return <EmptyState title={t('common.states.notFound')} />
 
   const level = object?.level ?? 'view'
+  const openExplore = () =>
+    openTab({
+      kind: 'screen',
+      screen: 'explore',
+      title: `${dataset.name} — ${t('data.explore.title')}`,
+      params: { datasetId: objectId },
+      mode: 'permanent',
+    })
   const canEdit = ['edit', 'manage', 'owner'].includes(level)
   const canManage = ['manage', 'owner'].includes(level)
 
@@ -129,19 +144,22 @@ export function DatasetView({ objectId, tabId }: { objectId: string; tabId: stri
         right={
           <>
             <PresenceAvatars objectId={objectId} />
+            {ai?.enabled ? (
+              // Поле вопроса — вверху «Исследования»: ответ ложится в его конструктор
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<Sparkles className="size-3.5" />}
+                onClick={openExplore}
+              >
+                {t('data.ask.open')}
+              </Button>
+            ) : null}
             <Button
               variant="secondary"
               size="sm"
               icon={<BarChart3 className="size-3.5" />}
-              onClick={() =>
-                openTab({
-                  kind: 'screen',
-                  screen: 'explore',
-                  title: `${dataset.name} — ${t('data.explore.title')}`,
-                  params: { datasetId: objectId },
-                  mode: 'permanent',
-                })
-              }
+              onClick={openExplore}
             >
               {t('data.explore.open')}
             </Button>

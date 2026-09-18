@@ -1,4 +1,5 @@
 import type {
+  AiStatus,
   ChartRecord,
   DashboardData,
   DashboardRecord,
@@ -41,6 +42,14 @@ export const dataKeys = {
   dashboardData: (id: string, filters: Record<string, unknown>) =>
     ['dashboard', id, 'data', filters] as const,
 }
+
+/** ИИ для пользователя: без провайдера или способности `ai.use` поле вопроса скрыто. */
+export const aiStatusQuery = () =>
+  queryOptions({
+    queryKey: ['ai', 'status'] as const,
+    queryFn: () => http.get<AiStatus>('/ai/status'),
+    staleTime: 60_000,
+  })
 
 export const datasetQuery = (id: string) =>
   queryOptions({

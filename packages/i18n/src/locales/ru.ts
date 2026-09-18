@@ -766,6 +766,19 @@ export const ru = {
     doNotDisturb: 'Не беспокоить',
     channel: { app: 'В приложении', email: 'Почта', telegram: 'Telegram', push: 'Push' },
     mode: { immediate: 'Сразу', digest: 'В дайджесте', off: 'Выключено' },
+    category: {
+      inbox: 'Входящие',
+      mention: 'Упоминания',
+      discussion: 'Обсуждения',
+      object: 'Изменения объектов',
+      tasks: 'Задачи и поручения',
+      documents: 'Документы',
+      chat: 'Чаты',
+      meetings: 'Встречи',
+      calendar: 'Календарь',
+      data: 'Данные',
+      system: 'Система',
+    },
     aggregate:
       '{count, plural, one {# изменение} few {# изменения} many {# изменений} other {# изменения}} в «{title}»',
     tpl: {
@@ -1379,6 +1392,27 @@ export const ru = {
       notUsed: 'Показатель пока нигде не используется',
       hiddenObject: 'Нет доступа',
     },
+    ask: {
+      open: 'Спросить данные',
+      label: 'Вопрос к данным',
+      placeholder: 'Например: сколько обращений по районам за 2025 год',
+      submit: 'Спросить',
+      thinking: 'Строю запрос по вопросу…',
+      understood: 'Как понят вопрос',
+      showQuery: 'Показать запрос',
+      hideQuery: 'Скрыть запрос',
+      editHint: 'Запрос можно изменить в панели слева: фильтры, разрезы, меры и сортировка.',
+      usage: 'Сегодня: {used} из {limit} вопросов',
+      errors: {
+        notConfigured: 'ИИ не настроен на этой установке',
+        forbidden: 'Нет права пользоваться ИИ',
+        limit: 'Дневной лимит вопросов к ИИ исчерпан',
+        provider: 'Сервис ИИ недоступен — попробуйте позже',
+        invalid:
+          'Модель построила запрос, который не прошёл проверку, — он не выполнялся. Переформулируйте вопрос.',
+        unanswerable: 'По этому датасету на вопрос не ответить',
+      },
+    },
     explore: {
       title: 'Исследование',
       open: 'Исследовать',
@@ -1986,6 +2020,26 @@ export const ru = {
 
   profile: {
     appearance: 'Внешний вид',
+    telegram: {
+      title: 'Telegram',
+      description:
+        'Уведомления приходят в личный чат с ботом; ссылка в сообщении открывает объект во вкладке.',
+      notLinked: 'Telegram не подключён',
+      linkedAs: 'Подключён: @{username}',
+      linked: 'Подключён',
+      since: 'с {date}',
+      connect: 'Подключить Telegram',
+      openBot: 'Открыть бота',
+      waiting:
+        'Откройте ссылку в Telegram и нажмите «Запустить» (Start). Ссылка действует до {time}.',
+      copyLink: 'Копировать ссылку',
+      copied: 'Ссылка скопирована',
+      unavailable: 'Telegram сейчас недоступен — попробуйте позже',
+      disconnect: 'Отключить',
+      disconnected: 'Telegram отключён',
+      connected: 'Telegram подключён',
+      categories: 'Что присылать в Telegram',
+    },
   },
 
   admin: {

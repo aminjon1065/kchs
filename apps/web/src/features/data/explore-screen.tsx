@@ -1,6 +1,7 @@
 import { suggestChart } from '@kchs/chart-spec'
 import {
   type Aggregate,
+  type AskDataResult,
   type ChartSpec,
   type ChartType,
   type DatasetField,
@@ -39,7 +40,7 @@ import {
   useDebouncedValue,
   useToast,
 } from '@kchs/ui'
-import { keepPreviousData, useMutation, useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Save, X } from 'lucide-react'
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
@@ -48,6 +49,7 @@ import { useWorkspace } from '~/app/workspace/store.js'
 import { optionLabels, useLabelledResult } from '~/features/gis/result-labels.js'
 import { useTerritoryFilterEditor } from '~/features/gis/territory-filter.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { AskBox } from './ask-box.js'
 import { type ExploreState, emptyExplore, exploreSpec } from './explore-query.js'
 import { useFieldOptions } from './field-options.js'
 import { filterFieldsOf, NUMERIC_TYPES } from './field-types.js'
@@ -122,6 +124,7 @@ export function ExploreScreen({
 }) {
   const t = useT()
   const locale = useAppearance((s) => s.locale)
+  const client = useQueryClient()
   const setTabState = useWorkspace((s) => s.setTabState)
   const { data: dataset, isLoading } = useQuery(datasetQuery(datasetId))
 
@@ -208,6 +211,23 @@ export function ExploreScreen({
   if (!dataset) return <EmptyState title={t('common.states.notFound')} />
 
   const update = (patch: Partial<ExploreState>) => setState((current) => ({ ...current, ...patch }))
+
+  /**
+   * Ответ «Спросить данные»: план — в конструктор (его видно и можно править),
+   * результат сервера — в кэш под тем же запросом, чтобы не выполнять его снова.
+   */
+  const applyAnswer = (answer: AskDataResult) => {
+    const next: ExploreState = { datasetId, ...answer.plan }
+    client.setQueryData(['explore', JSON.stringify(exploreSpec(next))], answer.result)
+    setState(next)
+    if (answer.chart === 'table') {
+      setView('table')
+      setChartType(null)
+    } else {
+      setView('chart')
+      setChartType(answer.chart)
+    }
+  }
   const groupable = fields.filter((field) => !NOT_GROUPABLE.has(field.type))
   const numeric = fields.filter((field) => NUMERIC_TYPES.has(field.type))
   const filterFields = filterFieldsOf(fields, locale, fieldOptions)
@@ -437,6 +457,7 @@ export function ExploreScreen({
             </Button>
           }
         />
+        <AskBox datasetId={datasetId} onAnswer={applyAnswer} />
         {result.data?.truncated ? (
           <Callout tone="warning" className="mx-4 mt-3">
             {t('data.explore.truncated', { count: result.data.rows.length })}
