@@ -190,6 +190,46 @@ describe('пространства', () => {
     expect(change.statusCode).toBe(200)
   })
 
+  it('последнего администратора нельзя исключить, разжаловать или пригласить заново ниже', async () => {
+    const space = await call(fx.app, {
+      method: 'POST',
+      url: '/spaces',
+      as: fx.admin,
+      payload: { key: `adm-${Date.now().toString().slice(-8)}`, name: 'Без администратора?' },
+    })
+    expect(space.statusCode).toBe(200)
+    const spaceId = space.json().id as string
+    const adminId = fx.admin.id
+    const members = `/spaces/${spaceId}/members`
+
+    const attempts = [
+      { method: 'DELETE' as const, url: `${members}/${adminId}` },
+      { method: 'PUT' as const, url: `${members}/${adminId}`, payload: { role: 'editor' } },
+      { method: 'POST' as const, url: members, payload: { userId: adminId, role: 'member' } },
+    ]
+    for (const attempt of attempts) {
+      const response = await call(fx.app, { ...attempt, as: fx.admin })
+      expect(response.statusCode, `${attempt.method} ${attempt.url}`).toBe(409)
+    }
+
+    // Со вторым администратором первый может уйти
+    const second = await call(fx.app, {
+      method: 'POST',
+      url: members,
+      as: fx.admin,
+      payload: { userId: fx.users.member.id, role: 'admin' },
+    })
+    expect(second.statusCode).toBe(200)
+    const leave = await call(fx.app, {
+      method: 'DELETE',
+      url: `${members}/${adminId}`,
+      as: fx.admin,
+    })
+    expect(leave.statusCode).toBe(200)
+    const left = await call(fx.app, { url: members, as: fx.users.member })
+    expect(left.json().items.map((m: { userId: string }) => m.userId)).toEqual([fx.users.member.id])
+  })
+
   it('личное пространство создаётся вместе с пользователем', async () => {
     const me = await call(fx.app, { url: '/me', as: fx.users.member })
     expect(me.json().personalSpaceId).toBeTruthy()

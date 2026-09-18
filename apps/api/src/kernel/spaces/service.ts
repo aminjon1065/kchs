@@ -18,6 +18,28 @@ import { publishEvent } from '../events/publisher.js'
 import { ObjectService } from '../objects/service.js'
 
 /**
+ * В пространстве остаётся администратор: иначе приглашать и менять роли
+ * некому, кроме администратора системы. Строки администраторов блокируются —
+ * двое, одновременно разжалующие друг друга, не оставят пространство без них.
+ */
+async function assertAdminRemains(
+  tx: Executor,
+  spaceId: string,
+  userId: string,
+  nextRole: SpaceRole | null,
+): Promise<void> {
+  if (nextRole === 'admin') return
+  const admins = await tx
+    .select({ userId: spaceMembers.userId })
+    .from(spaceMembers)
+    .where(and(eq(spaceMembers.spaceId, spaceId), eq(spaceMembers.role, 'admin')))
+    .for('update')
+  if (admins.length === 1 && admins[0]?.userId === userId) {
+    throw errors.conflict('В пространстве должен остаться администратор')
+  }
+}
+
+/**
  * Пространство — контейнер совместной работы и единица «где это лежит»
  * (02-platform-kernel.md §2). Пространство само является объектом реестра.
  */
@@ -111,6 +133,8 @@ export const SpaceService = {
     userId: string,
     role: SpaceRole,
   ): Promise<void> {
+    // Повторное приглашение меняет роль — и не должно разжаловать последнего администратора
+    await assertAdminRemains(tx, spaceId, userId, role)
     await tx
       .insert(spaceMembers)
       .values({ spaceId, userId, role, addedBy: actorId(ctx) })
@@ -127,6 +151,7 @@ export const SpaceService = {
   },
 
   async removeMember(tx: Executor, ctx: Ctx, spaceId: string, userId: string): Promise<void> {
+    await assertAdminRemains(tx, spaceId, userId, null)
     await tx
       .delete(spaceMembers)
       .where(and(eq(spaceMembers.spaceId, spaceId), eq(spaceMembers.userId, userId)))
@@ -151,6 +176,7 @@ export const SpaceService = {
       .where(and(eq(spaceMembers.spaceId, spaceId), eq(spaceMembers.userId, userId)))
       .limit(1)
     if (!current) throw errors.notFound('Участник пространства')
+    await assertAdminRemains(tx, spaceId, userId, role)
 
     await tx
       .update(spaceMembers)

@@ -22,7 +22,13 @@ import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
 import { FilesScreen } from '~/features/files/files-screen.js'
-import { objectListQuery, spaceMembersQuery, spacesQuery } from '~/shared/api/queries.js'
+import {
+  objectListQuery,
+  objectQuery,
+  spaceMembersQuery,
+  spacesQuery,
+} from '~/shared/api/queries.js'
+import { AddMemberDialog, MemberControls } from './space-members.js'
 
 export function SpaceScreen({ spaceId }: { spaceId: string }) {
   const t = useT()
@@ -33,7 +39,14 @@ export function SpaceScreen({ spaceId }: { spaceId: string }) {
   const { data: spaces = [] } = useQuery(spacesQuery())
   const space = spaces.find((item) => item.id === spaceId)
   const { data: members = [], isLoading: membersLoading } = useQuery(spaceMembersQuery(spaceId))
-  const { data: content, isLoading } = useQuery(objectListQuery({ spaceId, limit: 50 }))
+  const { data: listed, isLoading } = useQuery(objectListQuery({ spaceId, limit: 50 }))
+  // Объект самого пространства тоже принадлежит пространству — в содержимом он лишний
+  const content = listed && { ...listed, items: listed.items.filter((item) => item.id !== spaceId) }
+  // Приглашать может тот, кому объект пространства разрешает действие invite
+  const { data: record } = useQuery(objectQuery(spaceId))
+  // Действия реестра приходят с префиксом типа: `space.invite`
+  const canInvite = record?.allowedActions.includes('space.invite') ?? false
+  const [adding, setAdding] = useState(false)
 
   if (!space) {
     return isLoading ? (
@@ -64,13 +77,21 @@ export function SpaceScreen({ spaceId }: { spaceId: string }) {
               people={members.slice(0, 5).map((m) => ({ name: m.displayName, src: m.avatarUrl }))}
               size="sm"
             />
-            <Button variant="secondary" size="sm" icon={<UserPlus className="size-3.5" />}>
-              {t('spaces.members.add')}
-            </Button>
+            {canInvite ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<UserPlus className="size-3.5" />}
+                onClick={() => setAdding(true)}
+              >
+                {t('spaces.members.add')}
+              </Button>
+            ) : null}
           </>
         }
       />
 
+      <AddMemberDialog spaceId={spaceId} members={members} open={adding} onOpenChange={setAdding} />
       <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col">
         <TabsList className="shrink-0 px-2.5">
           <TabsTrigger value="overview">{t('objects.tabs.overview')}</TabsTrigger>
@@ -161,9 +182,13 @@ export function SpaceScreen({ spaceId }: { spaceId: string }) {
                           {[member.position, member.unitName].filter(Boolean).join(' · ') || '—'}
                         </span>
                       </span>
-                      <Badge tone={member.role === 'admin' ? 'accent' : 'neutral'} size="sm">
-                        {t(`access.spaceRoles.${member.role}`)}
-                      </Badge>
+                      {canInvite ? (
+                        <MemberControls spaceId={spaceId} member={member} />
+                      ) : (
+                        <Badge tone={member.role === 'admin' ? 'accent' : 'neutral'} size="sm">
+                          {t(`access.spaceRoles.${member.role}`)}
+                        </Badge>
+                      )}
                     </li>
                   ))}
                 </ul>
