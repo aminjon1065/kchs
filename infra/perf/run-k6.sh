@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Замер бюджетов производительности API (04-verification.md §4) профилем k6
-# (infra/perf/k6/api-basic.js). k6 запускается в Docker — ставить его не нужно.
+# (infra/perf/k6/<профиль>.js). k6 запускается в Docker — ставить его не нужно.
 #
 #   bash infra/perf/run-k6.sh                  # стенд разработки: api :3000 с демо-данными
+#   KCHS_PERF_PROFILE=data-queries bash infra/perf/run-k6.sh  # запросы к датасету 5 млн строк
 #   KCHS_PERF_API=http://host.docker.internal:8080/api/v1 bash infra/perf/run-k6.sh  # через web
 #   KCHS_PERF_RATE=2 KCHS_PERF_DURATION=30s bash infra/perf/run-k6.sh               # мягче и короче
 #
@@ -15,6 +16,9 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# api-basic — базовые операции; data-queries — запросы к демо-датасету (ADR-0063)
+PROFILE="${KCHS_PERF_PROFILE:-api-basic}"
+[[ -f "$ROOT/infra/perf/k6/$PROFILE.js" ]] || { echo "нет профиля k6: $PROFILE" >&2; exit 2; }
 K6_IMAGE="${K6_IMAGE:-grafana/k6:1.4.0}"
 OUT_DIR="${KCHS_PERF_OUT_DIR:-$(mktemp -d "${TMPDIR:-/tmp}/kchs-perf.XXXXXX")}"
 mkdir -p "$OUT_DIR"
@@ -29,11 +33,12 @@ docker run --rm -i \
   -e KCHS_PERF_API -e KCHS_PERF_ADMIN -e KCHS_PERF_ADMIN_PASSWORD \
   -e KCHS_PERF_USER_PASSWORD -e KCHS_PERF_COOKIE -e KCHS_PERF_USERS \
   -e KCHS_PERF_RATE -e KCHS_PERF_DURATION -e KCHS_PERF_LOGIN_BUDGET_MS \
+  -e KCHS_PERF_DATASET \
   -e KCHS_PERF_OUT=/out/summary.json \
-  "$K6_IMAGE" run --quiet /scripts/api-basic.js | tee "$OUT_DIR/summary.txt" || status=$?
+  "$K6_IMAGE" run --quiet "/scripts/$PROFILE.js" | tee "$OUT_DIR/summary.txt" || status=$?
 
 if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
-  printf '### Бюджеты API (k6)\n\n```\n%s\n```\n' "$(cat "$OUT_DIR/summary.txt")" >> "$GITHUB_STEP_SUMMARY"
+  printf '### Бюджеты API (k6, %s)\n\n```\n%s\n```\n' "$PROFILE" "$(cat "$OUT_DIR/summary.txt")" >> "$GITHUB_STEP_SUMMARY"
 fi
 echo "Отчёт k6: $OUT_DIR/summary.json"
 exit "$status"
