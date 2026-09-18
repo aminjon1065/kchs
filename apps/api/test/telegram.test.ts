@@ -55,6 +55,24 @@ async function say(chatId: number, text: string, options: { type?: 'private' | '
   return telegram.sent().slice(before)
 }
 
+/** События задачи — подписчику уведомлений модуля задач, как воркер. */
+async function deliverTaskEvents(taskId: string): Promise<void> {
+  const { listSubscribers, matchesType } = await import('../src/kernel/events/bus.js')
+  if (!listSubscribers().some((subscriber) => subscriber.name === 'tasks-notifications')) {
+    const { registerTasksBackground } = await import('../src/modules/tasks/module.js')
+    registerTasksBackground()
+  }
+  const rows = await db().execute<{ event: { type: string } }>(
+    sql`SELECT event FROM ops.outbox WHERE event->'object'->>'id' = ${taskId} ORDER BY id`,
+  )
+  for (const { event } of rows) {
+    for (const subscriber of listSubscribers()) {
+      if (subscriber.name !== 'tasks-notifications') continue
+      if (matchesType(subscriber.types, event.type)) await subscriber.handle(event as never)
+    }
+  }
+}
+
 async function outboxTypes(userId: string): Promise<string[]> {
   const rows = await db().execute<{ type: string }>(
     sql`SELECT type FROM ops.outbox WHERE event->'payload'->>'userId' = ${userId} ORDER BY id`,
@@ -172,6 +190,32 @@ describe('Telegram: привязка и уведомления', () => {
     expect(row?.channels).toContain('telegram')
   })
 
+  it('поручение: исполнитель получает назначение в Telegram со ссылкой на задачу (сценарий №6)', async () => {
+    const created = await call(fx.app, {
+      method: 'POST',
+      url: '/tasks',
+      as: fx.admin,
+      payload: {
+        kind: 'instruction',
+        title: `Уточнить сводку по паводку ${Date.now().toString(36)}`,
+        spaceId: fx.spaceId,
+        assigneeId: fx.users.member.id,
+        dueAt: new Date(Date.now() + 86_400_000).toISOString(),
+      },
+    })
+    expect(created.statusCode, created.body).toBe(200)
+    const taskId = created.json().id as string
+
+    const before = telegram.sent().length
+    await deliverTaskEvents(taskId)
+    const sent = telegram.sent().slice(before)
+    expect(sent).toHaveLength(1)
+    expect(sent[0]?.chatId).toBe(MEMBER_CHAT)
+    expect(sent[0]?.text).toContain('Уточнить сводку по паводку')
+    const base = (process.env.KCHS_BASE_URL ?? 'http://localhost:5173').replace(/\/+$/, '')
+    expect(sent[0]?.text).toContain(`${base}/o/${taskId}`)
+  })
+
   it('категории вне правил по умолчанию — только после включения в настройках', async () => {
     const notify = () =>
       NotificationService.notify({
@@ -197,6 +241,12 @@ describe('Telegram: привязка и уведомления', () => {
     })
     expect(prefs.json().defaults).toContainEqual({
       category: 'inbox',
+      channel: 'telegram',
+      mode: 'immediate',
+    })
+    // Поручения — действия: назначение приходит в Telegram без настройки (сценарий №6)
+    expect(prefs.json().defaults).toContainEqual({
+      category: 'tasks',
       channel: 'telegram',
       mode: 'immediate',
     })

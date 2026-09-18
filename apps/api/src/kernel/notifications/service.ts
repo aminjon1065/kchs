@@ -267,13 +267,14 @@ export const NotificationService = {
 /**
  * Правила по умолчанию (12-calendar-notifications-home.md §2): действия и
  * упоминания — во все каналы, включая Telegram; остальное в Telegram — по выбору.
+ * Поручения и задачи — тоже действия: назначение и отчёт приходят в Telegram сразу.
  */
 const DEFAULT_MODES: Record<string, Partial<Record<NotificationChannel, DeliveryMode>>> = {
   inbox: { app: 'immediate', email: 'immediate', telegram: 'immediate' },
   mention: { app: 'immediate', email: 'immediate', telegram: 'immediate' },
   discussion: { app: 'immediate', email: 'digest' },
   object: { app: 'immediate', email: 'off' },
-  tasks: { app: 'immediate', email: 'digest' },
+  tasks: { app: 'immediate', email: 'digest', telegram: 'immediate' },
   documents: { app: 'immediate', email: 'digest' },
   chat: { app: 'immediate', email: 'off' },
   meetings: { app: 'immediate', email: 'immediate', telegram: 'immediate' },
