@@ -1,7 +1,7 @@
 import type { Capability, LangText } from '@kchs/contracts'
 import { eq } from 'drizzle-orm'
 import { ensureSearchIndex } from './kernel/search/index-service.js'
-import { registerAllObjectTypes } from './modules/index.js'
+import { registerAllObjectTypes, upgradeModuleStorage } from './modules/index.js'
 import { db } from './shared/db/client.js'
 import { roleCapabilities, roles } from './shared/db/schema/index.js'
 import { newId } from './shared/ids.js'
@@ -113,6 +113,8 @@ export async function bootstrapPlatform(): Promise<{ roles: number; searchIndex:
         .onConflictDoNothing()
     }
   }
+
+  await upgradeModuleStorage()
 
   const searchIndex = await ensureSearchIndex()
     .then(() => true)

@@ -9,6 +9,7 @@ import {
   registerDataBackground,
   registerDataObjectTypes,
   registerDataRoutes,
+  upgradeDataStorage,
 } from './data/module.js'
 import {
   registerFilesBackground,
@@ -18,6 +19,11 @@ import {
 } from './files/module.js'
 import { registerIdentityBackground, registerIdentityRoutes } from './identity/module.js'
 import { OrgService, UserService } from './identity/public.js'
+
+/** Хранилища модулей, которые создаются на лету (таблицы датасетов), — к текущему виду. */
+export async function upgradeModuleStorage(): Promise<void> {
+  await upgradeDataStorage()
+}
 
 /**
  * Типы объектов регистрируются до старта HTTP — ядро узнаёт о них отсюда.

@@ -62,6 +62,7 @@ import { datasetFields, datasets, objects } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { validServiceToken } from '~/shared/http/service-token.js'
+import { logger } from '~/shared/logger/index.js'
 import { ChartService, runChartSpec } from './domain/chart-service.js'
 import { DashboardService } from './domain/dashboard-service.js'
 import { DatasetAccess } from './domain/dataset-access.js'
@@ -77,6 +78,7 @@ import { MetricService } from './domain/metric-service.js'
 import { PolicyService } from './domain/policy-service.js'
 import { ProfileService } from './domain/profile-service.js'
 import { QueryService } from './domain/query-service.js'
+import { RollbackService } from './domain/rollback-service.js'
 import { RowService } from './domain/row-service.js'
 import { SchemaService } from './domain/schema-service.js'
 import { SqlService } from './domain/sql-service.js'
@@ -86,6 +88,12 @@ const IdParam = z.object({ id: z.uuid() })
 const FieldParams = z.object({ id: z.uuid(), key: z.string().min(1).max(64) })
 const RowParams = z.object({ id: z.uuid(), rowId: z.string().regex(/^\d{1,18}$/) })
 const PolicyParams = z.object({ id: z.uuid(), policyId: z.uuid() })
+
+/** Таблицы датасетов, созданные прежними версиями, — к текущему виду (при старте). */
+export async function upgradeDataStorage(): Promise<void> {
+  const upgraded = await Physical.upgradeHistoryTables()
+  if (upgraded > 0) logger().info({ upgraded }, 'таблицы истории строк дополнены номером версии')
+}
 
 /** Типы объектов модуля «Данные» (06-analytics-engine.md). */
 export function registerDataObjectTypes(): void {
@@ -411,6 +419,20 @@ export function registerDataRoutes(route: RouteRegistrar): void {
       response: { 200: DatasetExportDownload },
     },
     handler: async (request) => ExportService.download(request.ctx, request.params.jobId),
+  })
+
+  route({
+    method: 'POST',
+    url: '/datasets/:id/versions/:number/rollback',
+    auth: { action: 'manage' },
+    tags: ['data'],
+    summary: 'Откатить датасет к прежней версии — новой версией (ADR-0062)',
+    schema: {
+      params: z.object({ id: z.uuid(), number: z.coerce.number().int().min(1) }),
+      response: { 200: DatasetVersion },
+    },
+    handler: async (request) =>
+      RollbackService.rollback(request.ctx, request.params.id, request.params.number),
   })
 
   route({

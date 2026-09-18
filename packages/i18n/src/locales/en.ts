@@ -1459,6 +1459,12 @@ export const en: DeepPartial<Dictionary> = {
           schema: 'Schema change',
         },
         diff: '+{added} · changed {updated} · −{deleted}',
+        rollback: 'Roll back',
+        rollbackTo: 'Roll back to version {number}',
+        rollbackTitle: 'Roll the dataset back to version {number}?',
+        rollbackHint:
+          'Changes after this version are undone by a new version, which can be rolled back too. Replace and sync imports and schema changes block the rollback.',
+        rolledBack: 'Dataset rolled back to version {number}',
       },
       editor: {
         addField: 'Add field',

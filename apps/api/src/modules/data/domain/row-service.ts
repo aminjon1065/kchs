@@ -64,7 +64,7 @@ function textArrayLiteral(values: string[]): string {
 }
 
 /** Значение поля в SQL: параметром с приведением к типу столбца. */
-function valueSql(field: StoredField, value: unknown): SQL {
+export function valueSql(field: StoredField, value: unknown): SQL {
   if (value === null || value === undefined) return sql`NULL`
   const type = field.type as StoredFieldType
   if (type === 'geometry') {
@@ -77,7 +77,7 @@ function valueSql(field: StoredField, value: unknown): SQL {
 }
 
 /** Столбцы строки под ключами полей; геометрия — GeoJSON. */
-function selectList(fields: StoredField[]): SQL {
+export function selectList(fields: StoredField[]): SQL {
   const columns = fields.map((field) =>
     field.type === 'geometry'
       ? sql`extensions.ST_AsGeoJSON(${sql.raw(ident(field.physical))})::json AS ${alias(field.key)}`
@@ -86,7 +86,10 @@ function selectList(fields: StoredField[]): SQL {
   return columns.length > 0 ? sql`, ${sql.join(columns, sql`, `)}` : sql``
 }
 
-function valuesOf(row: Record<string, unknown>, fields: StoredField[]): Record<string, unknown> {
+export function valuesOf(
+  row: Record<string, unknown>,
+  fields: StoredField[],
+): Record<string, unknown> {
   return Object.fromEntries(fields.map((field) => [field.key, jsonOut(row[field.key], field.type)]))
 }
 
@@ -215,20 +218,25 @@ async function rowsChanged(
   return version
 }
 
-async function writeHistory(
+/**
+ * Записи истории строк с номером версии датасета, в которой сделана правка:
+ * по нему откат версии находит, что вернуть (ADR-0062).
+ */
+export async function writeHistory(
   tx: Executor,
-  storage: DatasetStorage,
+  storage: Pick<DatasetStorage, 'id' | 'settings'>,
   entries: Array<{ rowId: string; ver: number; op: 'i' | 'u' | 'd'; data: unknown }>,
   userId: string | null,
+  datasetVersion: number,
 ): Promise<void> {
   if (!storage.settings.trackHistory || entries.length === 0) return
   const history = sql.raw(qualified(historyName(storage.id)))
   await tx.execute(
-    sql`INSERT INTO ${history} (row_id, ver, op, data, changed_by)
+    sql`INSERT INTO ${history} (row_id, ver, op, data, changed_by, dataset_version)
         VALUES ${sql.join(
           entries.map(
             (entry) =>
-              sql`(${entry.rowId}::bigint, ${entry.ver}, ${entry.op}, ${JSON.stringify(entry.data)}::jsonb, ${userId}::uuid)`,
+              sql`(${entry.rowId}::bigint, ${entry.ver}, ${entry.op}, ${JSON.stringify(entry.data)}::jsonb, ${userId}::uuid, ${datasetVersion})`,
           ),
           sql`, `,
         )}`,
@@ -370,6 +378,12 @@ export const RowService = {
         )
         return { _id: row._id, _ver: Number(row._ver), values }
       })
+      const version = await rowsChanged(tx, ctx, {
+        datasetId,
+        op: 'insert',
+        ids: result.map((row) => row._id),
+        delta: result.length,
+      })
       await writeHistory(
         tx,
         storage,
@@ -380,13 +394,8 @@ export const RowService = {
           data: { values: row.values },
         })),
         userId,
+        version,
       )
-      await rowsChanged(tx, ctx, {
-        datasetId,
-        op: 'insert',
-        ids: result.map((row) => row._id),
-        delta: result.length,
-      })
       return result
     })
   },
@@ -466,13 +475,19 @@ export const RowService = {
       const previous = Object.fromEntries(
         changed.map((item) => [item.field.key, currentValues[item.field.key] ?? null]),
       )
+      const version = await rowsChanged(tx, ctx, {
+        datasetId,
+        op: 'update',
+        ids: [rowId],
+        delta: 0,
+      })
       await writeHistory(
         tx,
         storage,
         [{ rowId, ver, op: 'u', data: { values: next, previous } }],
         userId,
+        version,
       )
-      await rowsChanged(tx, ctx, { datasetId, op: 'update', ids: [rowId], delta: 0 })
       return { _id: rowId, _ver: ver, values: { ...currentValues, ...next } }
     })
   },
@@ -523,6 +538,18 @@ export const RowService = {
                WHERE _id = ANY(${idList}::bigint[]) AND _deleted_at IS NULL
            RETURNING _id::text AS _id, _ver ${selectList(fields)}`,
         )
+      } else {
+        removed = await tx.execute<Record<string, unknown>>(
+          sql`DELETE FROM ${table} WHERE _id = ANY(${idList}::bigint[]) RETURNING _id::text AS _id`,
+        )
+      }
+      if (removed.length > 0) {
+        const version = await rowsChanged(tx, ctx, {
+          datasetId,
+          op: 'delete',
+          ids: removed.map((row) => String(row._id)),
+          delta: -removed.length,
+        })
         await writeHistory(
           tx,
           storage,
@@ -533,19 +560,8 @@ export const RowService = {
             data: { values: valuesOf(row, fields) },
           })),
           userId,
+          version,
         )
-      } else {
-        removed = await tx.execute<Record<string, unknown>>(
-          sql`DELETE FROM ${table} WHERE _id = ANY(${idList}::bigint[]) RETURNING _id::text AS _id`,
-        )
-      }
-      if (removed.length > 0) {
-        await rowsChanged(tx, ctx, {
-          datasetId,
-          op: 'delete',
-          ids: removed.map((row) => String(row._id)),
-          delta: -removed.length,
-        })
       }
       return removed.length
     })

@@ -205,7 +205,8 @@ export const Physical = {
         op char(1) NOT NULL,
         data jsonb,
         changed_by uuid,
-        changed_at timestamptz NOT NULL DEFAULT now()
+        changed_at timestamptz NOT NULL DEFAULT now(),
+        dataset_version integer
       )`),
     )
     await tx.execute(
@@ -213,7 +214,37 @@ export const Physical = {
         `CREATE INDEX IF NOT EXISTS ${ident(`${history}_row_idx`)} ON ${qualified(history)} (row_id, id)`,
       ),
     )
+    await tx.execute(
+      sql.raw(
+        `CREATE INDEX IF NOT EXISTS ${ident(`${history}_version_idx`)} ON ${qualified(history)} (dataset_version)`,
+      ),
+    )
     await Physical.revokeQuery(tx, history)
+  },
+
+  /**
+   * Таблицы истории, созданные до отката версий (ADR-0062), получают номер
+   * версии датасета записи. Таблицы истории создаются на лету, поэтому это
+   * проверка при старте, а не миграция схемы; повторный запуск ничего не меняет.
+   */
+  async upgradeHistoryTables(): Promise<number> {
+    const missing = await rawSql()<Array<{ name: string }>>`
+      SELECT c.relname AS name
+        FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+       WHERE n.nspname = 'ds' AND c.relkind = 'r' AND c.relname LIKE 'h\_%'
+         AND NOT EXISTS (
+           SELECT 1 FROM pg_attribute a
+            WHERE a.attrelid = c.oid AND a.attname = 'dataset_version' AND NOT a.attisdropped
+         )`
+    for (const { name } of missing) {
+      await rawSql().unsafe(
+        `ALTER TABLE ${qualified(name)} ADD COLUMN IF NOT EXISTS dataset_version integer`,
+      )
+      await rawSql().unsafe(
+        `CREATE INDEX IF NOT EXISTS ${ident(`${name}_version_idx`)} ON ${qualified(name)} (dataset_version)`,
+      )
+    }
+    return missing.length
   },
 
   /** Чтение таблицы строк для пользовательских запросов и резервной роли. */

@@ -1,4 +1,4 @@
-import type { ImportRecord } from '@kchs/contracts'
+import type { DatasetVersion, ImportRecord } from '@kchs/contracts'
 import { formatNumber, formatRelativeTime } from '@kchs/fields'
 import {
   AlertDialog,
@@ -19,14 +19,14 @@ import {
   useToast,
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { BarChart3, History, Share2, Trash2, Upload } from 'lucide-react'
+import { BarChart3, History, RotateCcw, Share2, Trash2, Upload } from 'lucide-react'
 import { useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
 import { ShareDialog } from '~/features/access/share-dialog.js'
 import { PresenceAvatars } from '~/features/objects/presence-avatars.js'
-import { http } from '~/shared/api/client.js'
+import { ApiError, http } from '~/shared/api/client.js'
 import { keys, objectQuery } from '~/shared/api/queries.js'
 import { AccessTab } from './access-tab.js'
 import { DatasetTable } from './dataset-table.js'
@@ -191,7 +191,11 @@ export function DatasetView({ objectId, tabId }: { objectId: string; tabId: stri
           <SchemaTab dataset={dataset} canManage={canManage} />
         </TabsContent>
         <TabsContent value="versions" className="min-h-0 flex-1 overflow-y-auto bg-canvas p-5">
-          <VersionsTab datasetId={objectId} current={dataset.currentVersion} />
+          <VersionsTab
+            datasetId={objectId}
+            current={dataset.currentVersion}
+            canManage={canManage}
+          />
         </TabsContent>
         {canManage ? (
           <TabsContent value="access" className="min-h-0 flex-1 overflow-y-auto bg-canvas p-5">
@@ -236,10 +240,37 @@ export function DatasetView({ objectId, tabId }: { objectId: string; tabId: stri
   )
 }
 
-function VersionsTab({ datasetId, current }: { datasetId: string; current: number }) {
+/**
+ * Версии датасета; управляющий откатывает к прежней версии (ADR-0062) — новой
+ * версией «Откат». Почему откат невозможен, объясняет сервер.
+ */
+function VersionsTab({
+  datasetId,
+  current,
+  canManage,
+}: {
+  datasetId: string
+  current: number
+  canManage: boolean
+}) {
   const t = useT()
   const locale = useAppearance((s) => s.locale)
+  const toast = useToast()
+  const client = useQueryClient()
+  const [target, setTarget] = useState<number | null>(null)
   const { data: versions = [], isLoading } = useQuery(datasetVersionsQuery(datasetId))
+  const rollback = useMutation({
+    mutationFn: (number: number) =>
+      http.post<DatasetVersion>(`/datasets/${datasetId}/versions/${number}/rollback`),
+    onSuccess: (_version, number) => {
+      toast.show({ title: t('data.dataset.versions.rolledBack', { number }), tone: 'success' })
+      // Строки, счётчики, профиль и история строк — всё под ключом датасета
+      void client.invalidateQueries({ queryKey: dataKeys.dataset(datasetId) })
+    },
+    onError: (failure) =>
+      toast.error(failure instanceof ApiError ? failure.message : t('errors.unknown')),
+    onSettled: () => setTarget(null),
+  })
   if (isLoading) return <Skeleton className="mx-auto h-40 max-w-[760px]" />
   if (versions.length === 0) return <EmptyState title={t('data.dataset.versions.empty')} />
   const number = (value: number) => formatNumber(value, {}, { locale })
@@ -270,10 +301,33 @@ function VersionsTab({ datasetId, current }: { datasetId: string; current: numbe
                   deleted: number(version.diff.deleted),
                 })}
               </span>
+              {canManage && version.number < current ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={<RotateCcw className="size-3.5" />}
+                  aria-label={t('data.dataset.versions.rollbackTo', { number: version.number })}
+                  onClick={() => setTarget(version.number)}
+                >
+                  {t('data.dataset.versions.rollback')}
+                </Button>
+              ) : null}
             </li>
           ))}
         </ul>
       </Card>
+      <AlertDialog
+        open={target !== null}
+        onOpenChange={(open) => !open && !rollback.isPending && setTarget(null)}
+        title={t('data.dataset.versions.rollbackTitle', { number: target ?? 0 })}
+        description={t('data.dataset.versions.rollbackHint')}
+        confirmLabel={t('data.dataset.versions.rollback')}
+        destructive={false}
+        loading={rollback.isPending}
+        onConfirm={() => {
+          if (target !== null) rollback.mutate(target)
+        }}
+      />
     </div>
   )
 }
