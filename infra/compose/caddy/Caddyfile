@@ -3,6 +3,12 @@
 	email {$CADDY_EMAIL:admin@example.org}
 }
 
+# Проверка живости для healthcheck контейнера web: отдельный порт без TLS и
+# редиректов (с доменом основной сайт уводит HTTP на HTTPS). Наружу не публикуется
+:2020 {
+	respond /healthz "ok" 200
+}
+
 {$KCHS_DOMAIN:localhost} {
 	encode zstd gzip
 

@@ -1,6 +1,12 @@
 # kchs — инфраструктура сценария S1 (один сервер).
-# Профили: по умолчанию — данные и сервисы; `media` — LiveKit; `proxy` — Caddy;
-# `observability` — Prometheus/Grafana/Loki; `app` — образы api/worker/web/engine.
+# Профили: по умолчанию — данные и сервисы (postgres, redis, minio, meilisearch,
+# mailpit); `app` — образы api/worker/engine/web; `media` — LiveKit (фаза 4).
+# web — это Caddy со сборкой SPA: он отдаёт статику, проксирует /api и /ws,
+# ставит CSP и выпускает TLS, поэтому отдельного прокси нет.
+#
+# Порты данных и служебных интерфейсов публикуются только на самом сервере
+# (KCHS_BIND, по умолчанию 127.0.0.1); наружу — web и S3 (браузер загружает
+# файлы и получает превью по подписанным ссылкам напрямую из хранилища).
 name: kchs
 
 x-restart: &restart
@@ -12,6 +18,33 @@ x-logging: &logging
     options:
       max-size: "10m"
       max-file: "3"
+
+# Окружение api и worker — одно на оба процесса, чтобы они не расходились
+x-app-env: &app-env
+  NODE_ENV: production
+  TZ: ${TZ:-Asia/Dushanbe}
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  KCHS_BASE_URL: ${KCHS_BASE_URL:-http://localhost:8080}
+  KCHS_API_URL: ${KCHS_API_URL:-http://localhost:8080/api}
+  DATABASE_URL: postgres://kchs_app:${KCHS_APP_PASSWORD}@postgres:5432/${POSTGRES_DB:-kchs}
+  DATABASE_MIGRATOR_URL: postgres://kchs_migrator:${KCHS_MIGRATOR_PASSWORD}@postgres:5432/${POSTGRES_DB:-kchs}
+  DATABASE_QUERY_URL: postgres://kchs_query:${KCHS_QUERY_PASSWORD}@postgres:5432/${POSTGRES_DB:-kchs}
+  REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+  S3_ENDPOINT: http://minio:9000
+  S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:-http://localhost:9000}
+  S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+  S3_SECRET_KEY: ${S3_SECRET_KEY}
+  MEILI_HOST: http://meilisearch:7700
+  MEILI_MASTER_KEY: ${MEILI_MASTER_KEY}
+  KCHS_MASTER_KEY: ${KCHS_MASTER_KEY}
+  INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
+  ENGINE_INTERNAL_URL: http://engine:8000
+  SMTP_URL: ${SMTP_URL_INTERNAL:-smtp://mailpit:1025}
+  SMTP_FROM: ${SMTP_FROM:-kchs <no-reply@kchs.local>}
+  SESSION_IDLE_HOURS: ${SESSION_IDLE_HOURS:-12}
+  RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-600}
+  # Caddy (контейнер web) в частной сети Docker: X-Forwarded-For верим только ему
+  TRUST_PROXY: ${TRUST_PROXY_APP:-uniquelocal}
 
 services:
   postgres:
@@ -59,7 +92,7 @@ services:
       - pgdata:/var/lib/postgresql/data
       - ./postgres/init:/docker-entrypoint-initdb.d:ro
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${KCHS_BIND:-127.0.0.1}:${POSTGRES_PORT:-5432}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d ${POSTGRES_DB:-kchs}"]
       interval: 5s
@@ -83,7 +116,7 @@ services:
     volumes:
       - redisdata:/data
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - "${KCHS_BIND:-127.0.0.1}:${REDIS_PORT:-6379}:6379"
     healthcheck:
       test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep -q PONG"]
       interval: 5s
@@ -103,8 +136,9 @@ services:
     volumes:
       - miniodata:/data
     ports:
+      # S3 — наружу: браузер ходит в хранилище по подписанным ссылкам
       - "${S3_PORT:-9000}:9000"
-      - "${S3_CONSOLE_PORT:-9001}:9001"
+      - "${KCHS_BIND:-127.0.0.1}:${S3_CONSOLE_PORT:-9001}:9001"
     healthcheck:
       test: ["CMD-SHELL", "mc ready local || exit 1"]
       interval: 5s
@@ -144,7 +178,7 @@ services:
     volumes:
       - meilidata:/meili_data
     ports:
-      - "${MEILI_PORT:-7700}:7700"
+      - "${KCHS_BIND:-127.0.0.1}:${MEILI_PORT:-7700}:7700"
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:7700/health || exit 1"]
       interval: 5s
@@ -161,8 +195,8 @@ services:
       MP_SMTP_AUTH_ACCEPT_ANY: "true"
       MP_SMTP_AUTH_ALLOW_INSECURE: "true"
     ports:
-      - "${MAILPIT_SMTP_PORT:-1025}:1025"
-      - "${MAILPIT_UI_PORT:-8025}:8025"
+      - "${KCHS_BIND:-127.0.0.1}:${MAILPIT_SMTP_PORT:-1025}:1025"
+      - "${KCHS_BIND:-127.0.0.1}:${MAILPIT_UI_PORT:-8025}:8025"
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O- http://localhost:8025/readyz || exit 1"]
       interval: 5s
@@ -176,65 +210,43 @@ services:
     build:
       context: ../..
       dockerfile: apps/api/Dockerfile
-    image: kchs/api:0.1.0
+    image: kchs/api:${KCHS_IMAGE_TAG:-0.1.0}
     environment:
-      NODE_ENV: production
+      <<: *app-env
       ROLE: api
       PORT: 3000
-      TZ: ${TZ:-Asia/Dushanbe}
-      LOG_LEVEL: ${LOG_LEVEL:-info}
-      KCHS_BASE_URL: ${KCHS_BASE_URL:-http://localhost}
-      KCHS_API_URL: ${KCHS_API_URL:-http://localhost/api}
-      DATABASE_URL: postgres://kchs_app:${KCHS_APP_PASSWORD}@postgres:5432/${POSTGRES_DB:-kchs}
-      DATABASE_MIGRATOR_URL: postgres://kchs_migrator:${KCHS_MIGRATOR_PASSWORD}@postgres:5432/${POSTGRES_DB:-kchs}
-      DATABASE_QUERY_URL: postgres://kchs_query:${KCHS_QUERY_PASSWORD}@postgres:5432/${POSTGRES_DB:-kchs}
-      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
-      S3_ENDPOINT: http://minio:9000
-      S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:-http://localhost:9000}
-      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
-      S3_SECRET_KEY: ${S3_SECRET_KEY}
-      MEILI_HOST: http://meilisearch:7700
-      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY}
-      KCHS_MASTER_KEY: ${KCHS_MASTER_KEY}
-      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
-      ENGINE_INTERNAL_URL: http://engine:8000
-      SMTP_URL: ${SMTP_URL_INTERNAL:-smtp://mailpit:1025}
-      SMTP_FROM: ${SMTP_FROM:-kchs <no-reply@kchs.local>}
-      # Caddy (контейнеры web/caddy) в частной сети Docker: X-Forwarded-For верим только им
-      TRUST_PROXY: ${TRUST_PROXY:-uniquelocal}
+      # Первый администратор для `docker compose exec api kchs init`
+      KCHS_ADMIN_LOGIN: ${KCHS_ADMIN_LOGIN:-admin}
+      KCHS_ADMIN_EMAIL: ${KCHS_ADMIN_EMAIL:-}
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
       minio: { condition: service_healthy }
+      minio-init: { condition: service_completed_successfully }
       meilisearch: { condition: service_healthy }
-    # Снаружи api доступен только через Caddy; порт открыт лишь на самом сервере
+    # Снаружи api доступен только через web (Caddy); порт открыт лишь на самом сервере
     ports:
       - "127.0.0.1:${API_PORT:-3000}:3000"
 
   worker:
     <<: [*restart, *logging]
     profiles: ["app"]
-    image: kchs/api:0.1.0
-    command: ["node", "dist/main.js"]
+    image: kchs/api:${KCHS_IMAGE_TAG:-0.1.0}
     environment:
-      NODE_ENV: production
+      <<: *app-env
       ROLE: worker
-      TZ: ${TZ:-Asia/Dushanbe}
-      LOG_LEVEL: ${LOG_LEVEL:-info}
-      KCHS_BASE_URL: ${KCHS_BASE_URL:-http://localhost}
-      KCHS_API_URL: ${KCHS_API_URL:-http://localhost/api}
-      DATABASE_URL: postgres://kchs_app:${KCHS_APP_PASSWORD}@postgres:5432/${POSTGRES_DB:-kchs}
-      DATABASE_MIGRATOR_URL: postgres://kchs_migrator:${KCHS_MIGRATOR_PASSWORD}@postgres:5432/${POSTGRES_DB:-kchs}
-      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
-      S3_ENDPOINT: http://minio:9000
-      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
-      S3_SECRET_KEY: ${S3_SECRET_KEY}
-      MEILI_HOST: http://meilisearch:7700
-      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY}
-      KCHS_MASTER_KEY: ${KCHS_MASTER_KEY}
-      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
+    # HTTP-сервера у worker нет: живость — по файлу, который он обновляет раз в 10 с
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - test -f /tmp/kchs-worker.alive && test $$(( $$(date +%s) - $$(stat -c %Y /tmp/kchs-worker.alive) )) -lt 60
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
     depends_on:
-      api: { condition: service_started }
+      # Миграции и системные роли готовит api при старте
+      api: { condition: service_healthy }
 
   engine:
     <<: [*restart, *logging]
@@ -242,7 +254,7 @@ services:
     build:
       context: ../../apps/engine
       dockerfile: Dockerfile
-    image: kchs/engine:0.1.0
+    image: kchs/engine:${KCHS_IMAGE_TAG:-0.1.0}
     environment:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
@@ -250,35 +262,49 @@ services:
       S3_ENDPOINT: http://minio:9000
       S3_ACCESS_KEY: ${S3_ACCESS_KEY}
       S3_SECRET_KEY: ${S3_SECRET_KEY}
+      # Обратные вызовы движка в api: в полном развёртывании — контейнер api;
+      # при разработке (api на хосте) — http://host.docker.internal:3000
       KCHS_API_URL: ${ENGINE_API_URL:-http://api:3000}
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
       redis: { condition: service_healthy }
+      minio: { condition: service_healthy }
     # Внутренний HTTP движка (шаблоны, /health) — только с самого сервера, как у api
     ports:
       - "127.0.0.1:${ENGINE_PORT:-8000}:8000"
 
+  # Вход в систему: Caddy со сборкой SPA (apps/web/Dockerfile) — статика, прокси
+  # /api и /ws, CSP (ADR-0043), TLS. KCHS_DOMAIN=:80 — HTTP без сертификата
+  # (стенд, внутренняя сеть за своим TLS); домен — автоматический HTTPS, тогда
+  # WEB_PORT=80 и WEB_HTTPS_PORT=443
   web:
     <<: [*restart, *logging]
     profiles: ["app"]
     build:
       context: ../..
       dockerfile: apps/web/Dockerfile
-    image: kchs/web:0.1.0
+    image: kchs/web:${KCHS_IMAGE_TAG:-0.1.0}
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddydata:/data
       - caddyconfig:/config
     environment:
-      KCHS_DOMAIN: ${KCHS_DOMAIN:-localhost}
+      KCHS_DOMAIN: ${KCHS_DOMAIN:-:80}
+      CADDY_EMAIL: ${CADDY_EMAIL:-admin@example.org}
       # Origin S3 для CSP: прямые загрузки и превью по подписанным ссылкам (ADR-0043)
       KCHS_STORAGE_ORIGIN: ${KCHS_STORAGE_ORIGIN:-http://localhost:9000}
     ports:
       - "${WEB_PORT:-8080}:80"
+      - "${WEB_HTTPS_PORT:-8443}:443"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:2020/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     depends_on:
-      api: { condition: service_started }
+      api: { condition: service_healthy }
 
   # ── Профиль media: аудио/видео (фаза 4, поднимается заранее) ───────────────
   livekit:
@@ -293,22 +319,6 @@ services:
       - "7881:7881"
       - "3478:3478/udp"
       - "50000-50100:50000-50100/udp"
-
-  # ── Профиль proxy: TLS и маршрутизация ────────────────────────────────────
-  caddy:
-    <<: [*restart, *logging]
-    profiles: ["proxy"]
-    image: caddy:2-alpine
-    volumes:
-      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddydata:/data
-      - caddyconfig:/config
-    ports:
-      - "80:80"
-      - "443:443"
-    environment:
-      KCHS_DOMAIN: ${KCHS_DOMAIN:-localhost}
-      KCHS_STORAGE_ORIGIN: ${KCHS_STORAGE_ORIGIN:-http://localhost:9000}
 
 volumes:
   pgdata:
