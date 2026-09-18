@@ -259,6 +259,7 @@ export const KNOWN_DOMAINS = [
   'dataset',
   'chart',
   'dashboard',
+  'metric',
 ] as const
 
 function resolveDomains(): string[] {

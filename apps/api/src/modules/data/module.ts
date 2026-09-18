@@ -37,6 +37,11 @@ import {
   ImportAnalyzeInput,
   ImportRecord,
   ImportRunInput,
+  MetricCreateInput,
+  MetricRecord,
+  MetricUpdateInput,
+  MetricValue,
+  MetricValueInput,
   type ObjectSummary,
   QueryResult,
   QueryRunInput,
@@ -66,6 +71,7 @@ import {
   NORMALIZE_JOB,
   NormalizedReport,
 } from './domain/import-service.js'
+import { MetricService } from './domain/metric-service.js'
 import { PolicyService } from './domain/policy-service.js'
 import { ProfileService } from './domain/profile-service.js'
 import { QueryService } from './domain/query-service.js'
@@ -162,9 +168,10 @@ export function registerDataObjectTypes(): void {
     },
   })
 
-  // График и дашборд: права на объект не открывают данные — данные плиток и
-  // графиков считаются с политиками смотрящего (03-access-model.md)
-  for (const type of ['chart', 'dashboard'] as const) {
+  // График, дашборд и показатель: права на объект не открывают данные — данные
+  // плиток, графиков и значения показателей считаются с политиками смотрящего
+  // (03-access-model.md)
+  for (const type of ['chart', 'dashboard', 'metric'] as const) {
     registerObjectType({
       type,
       labelKey: `objects.types.${type}`,
@@ -780,6 +787,57 @@ export function registerDataRoutes(route: RouteRegistrar): void {
     summary: 'Данные плиток дашборда одним запросом, с фильтрами дашборда',
     schema: { params: IdParam, body: DashboardDataInput, response: { 200: DashboardData } },
     handler: async (request) => DashboardService.data(request.ctx, request.params.id, request.body),
+  })
+
+  route({
+    method: 'POST',
+    url: '/metrics',
+    auth: 'session',
+    tags: ['data'],
+    summary: 'Создать показатель',
+    schema: { body: MetricCreateInput, response: { 200: z.object({ id: z.uuid() }) } },
+    handler: async (request) => {
+      await authorize(request.ctx, 'create_child', request.body.parentId ?? request.body.spaceId)
+      const id = await db().transaction((tx) => MetricService.create(tx, request.ctx, request.body))
+      return { id }
+    },
+  })
+
+  route({
+    method: 'GET',
+    url: '/metrics/:id',
+    auth: { action: 'view' },
+    tags: ['data'],
+    summary: 'Показатель: определение, цели, пороги',
+    schema: { params: IdParam, response: { 200: MetricRecord } },
+    handler: async (request) => MetricService.get(request.params.id),
+  })
+
+  route({
+    method: 'PATCH',
+    url: '/metrics/:id',
+    auth: { action: 'edit' },
+    tags: ['data'],
+    summary: 'Изменить показатель',
+    schema: { params: IdParam, body: MetricUpdateInput, response: { 200: MetricRecord } },
+    handler: async (request) => {
+      await db().transaction((tx) =>
+        MetricService.update(tx, request.ctx, request.params.id, request.body),
+      )
+      return MetricService.get(request.params.id)
+    },
+  })
+
+  route({
+    method: 'POST',
+    url: '/metrics/:id/value',
+    auth: { action: 'view' },
+    tags: ['data'],
+    summary:
+      'Значение показателя: сравнение, статус порога, история и разрез — с политиками пользователя',
+    schema: { params: IdParam, body: MetricValueInput, response: { 200: MetricValue } },
+    handler: async (request) =>
+      MetricService.evaluate(request.ctx, await MetricService.get(request.params.id), request.body),
   })
 
   route({

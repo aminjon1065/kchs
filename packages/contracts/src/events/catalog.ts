@@ -127,6 +127,7 @@ export const EVENT_PAYLOADS = {
   }),
   'chart.updated': z.object({ changed: z.array(z.string()) }),
   'dashboard.updated': z.object({ changed: z.array(z.string()) }),
+  'metric.updated': z.object({ changed: z.array(z.string()) }),
 
   // ── admin ─────────────────────────────────────────────────────────────────
   'settings.changed': z.object({ scope: z.string(), key: z.string() }),

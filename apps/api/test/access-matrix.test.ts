@@ -231,6 +231,29 @@ const FIXTURES: Record<string, TypeFixture> = {
     ],
   },
 
+  metric: {
+    create: async (fx, title) => {
+      const dataset = await createMatrixDataset(fx, `${title} — данные`)
+      const response = await call(fx.app, {
+        method: 'POST',
+        url: '/metrics',
+        as: fx.admin,
+        payload: {
+          name: title,
+          spaceId: fx.spaceId,
+          datasetId: dataset,
+          definition: { measure: { agg: 'count' }, period: null },
+        },
+      })
+      expect(response.statusCode, response.body).toBe(200)
+      return { id: response.json().id, title }
+    },
+    readPaths: ['/metrics/:id'],
+    viewerForbidden: (_fx, id) => [
+      { method: 'PATCH', url: `/metrics/${id}`, payload: { name: 'правка читателя' } },
+    ],
+  },
+
   dashboard: {
     create: async (fx, title) => {
       const response = await call(fx.app, {

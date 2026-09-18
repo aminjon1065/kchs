@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { LangText, Uuid } from '../common/primitives.js'
 import { ChartSpec } from './chart.js'
+import { MetricComparison, MetricPeriod, MetricValue } from './metric.js'
 import { FieldRef, QueryResult } from './query.js'
 
 /**
@@ -11,6 +12,14 @@ export const DASHBOARD_COLUMNS = 12
 
 export const TILE_KINDS = ['chart', 'metric', 'text', 'heading', 'filter', 'table'] as const
 export const TileKind = z.enum(TILE_KINDS)
+
+/** Плитка-показатель: свой период и сравнение вместо заданных в показателе. */
+export const MetricTileOptions = z.object({
+  /** null — всё время; не задан — период показателя. */
+  period: MetricPeriod.nullable().optional(),
+  comparison: MetricComparison.optional(),
+})
+export type MetricTileOptions = z.infer<typeof MetricTileOptions>
 
 const TileLayout = z.object({
   x: z
@@ -33,6 +42,7 @@ export const DashboardTile = z
     /** …или встроенная спецификация (запрос — внутри `spec.data.query`). */
     spec: ChartSpec.optional(),
     metricId: Uuid.optional(),
+    metric: MetricTileOptions.optional(),
     /** Текст и заголовок — Markdown без HTML. */
     text: z.string().max(5000).optional(),
     /** Привязка глобальных фильтров: id фильтра → поле источника плитки. */
@@ -103,6 +113,8 @@ export const DASHBOARD_TILE_ERRORS = ['no_access', 'failed', 'unsupported'] as c
 export const DashboardTileData = z.object({
   spec: ChartSpec.nullable(),
   result: QueryResult.nullable(),
+  /** Плитка-показатель: значение, сравнение, статус порога, история. */
+  metric: MetricValue.nullable(),
   error: z.enum(DASHBOARD_TILE_ERRORS).nullable(),
   message: z.string().nullable(),
 })

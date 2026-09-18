@@ -21,15 +21,17 @@ import { errors, isAppError } from '~/shared/errors.js'
 import { logger } from '~/shared/logger/index.js'
 import { ChartService, runChartSpec } from './chart-service.js'
 import { applyDashboardFilters } from './dashboard-filters.js'
+import { MetricService } from './metric-service.js'
 
-/** Плитки с данными: график (сохранённый или встроенный) и таблица. */
-const DATA_TILES = new Set(['chart', 'table'])
+/** Плитки с данными: график (сохранённый или встроенный), таблица и показатель. */
+const DATA_TILES = new Set(['chart', 'table', 'metric'])
 
-/** Графики и датасеты плиток — зависимости дашборда («Используется в»). */
+/** Графики, показатели и датасеты плиток — зависимости дашборда («Используется в»). */
 function dependenciesOf(spec: DashboardSpec): string[] {
   const ids = new Set<string>()
   for (const tile of spec.tiles) {
     if (tile.chartId) ids.add(tile.chartId)
+    if (tile.metricId) ids.add(tile.metricId)
     if (tile.spec && 'query' in tile.spec.data) {
       for (const id of collectSources(tile.spec.data.query).datasets) ids.add(id)
     }
@@ -45,6 +47,7 @@ async function assertTiles(ctx: Ctx, spec: DashboardSpec): Promise<void> {
 const emptyTile = (patch: Partial<DashboardTileData>): DashboardTileData => ({
   spec: null,
   result: null,
+  metric: null,
   error: null,
   message: null,
   ...patch,
@@ -145,6 +148,20 @@ export const DashboardService = {
       tiles.map(async (tile): Promise<[string, DashboardTileData]> => {
         let spec: ChartSpec | null = null
         try {
+          if (tile.kind === 'metric') {
+            if (!tile.metricId) return [tile.id, emptyTile({ error: 'unsupported' })]
+            // Права на показатель не открывают данные: значение — с политиками смотрящего
+            await authorize(ctx, 'view', tile.metricId)
+            const metric = await MetricService.get(tile.metricId)
+            const value = await MetricService.tileValue(
+              ctx,
+              metric,
+              tile,
+              dashboard.spec.filters,
+              input.filters,
+            )
+            return [tile.id, emptyTile({ metric: value })]
+          }
           if (tile.chartId) {
             await authorize(ctx, 'view', tile.chartId)
             spec = (await ChartService.get(tile.chartId)).spec

@@ -16,25 +16,34 @@ import type { Ctx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
 import { charts, objects, queries } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
+import { MetricService } from './metric-service.js'
 import { QueryService } from './query-service.js'
 
-/** Датасеты и сохранённый запрос, на которых построен график, — для зависимостей. */
-function sourcesOf(spec: ChartSpec): { datasetIds: string[]; queryId: string | null } {
-  if ('query' in spec.data)
-    return { datasetIds: collectSources(spec.data.query).datasets, queryId: null }
-  if ('queryId' in spec.data) return { datasetIds: [], queryId: spec.data.queryId }
-  return { datasetIds: [], queryId: null }
+interface ChartSources {
+  datasetIds: string[]
+  queryId: string | null
+  metricId: string | null
 }
 
-/** График строится только над данными, которые автор видит. */
-async function assertSources(
-  ctx: Ctx,
-  spec: ChartSpec,
-): Promise<{ datasetIds: string[]; queryId: string | null }> {
-  const sources = sourcesOf(spec)
-  for (const id of [...sources.datasetIds, ...(sources.queryId ? [sources.queryId] : [])]) {
-    await authorize(ctx, 'view', id)
+/** Датасеты, сохранённый запрос или показатель, на которых построен график, — для зависимостей. */
+function sourcesOf(spec: ChartSpec): ChartSources {
+  if ('query' in spec.data) {
+    return { datasetIds: collectSources(spec.data.query).datasets, queryId: null, metricId: null }
   }
+  if ('queryId' in spec.data) return { datasetIds: [], queryId: spec.data.queryId, metricId: null }
+  return { datasetIds: [], queryId: null, metricId: spec.data.metricId }
+}
+
+const dependencyIds = (sources: ChartSources) => [
+  ...sources.datasetIds,
+  ...(sources.queryId ? [sources.queryId] : []),
+  ...(sources.metricId ? [sources.metricId] : []),
+]
+
+/** График строится только над данными, которые автор видит. */
+async function assertSources(ctx: Ctx, spec: ChartSpec): Promise<ChartSources> {
+  const sources = sourcesOf(spec)
+  for (const id of dependencyIds(sources)) await authorize(ctx, 'view', id)
   return sources
 }
 
@@ -63,7 +72,9 @@ export async function runChartSpec(
       queryId: spec.data.queryId,
     })
   }
-  throw errors.validation('График по показателю появится вместе с показателями (P1-E06 S02)')
+  // График по показателю — его история; значение и сравнения — у плитки показателя
+  await authorize(ctx, 'view', spec.data.metricId)
+  return MetricService.seriesResult(ctx, await MetricService.get(spec.data.metricId), transform)
 }
 
 /** Графики — объекты реестра типа `chart` (06-analytics-engine.md §8). */
@@ -83,10 +94,7 @@ export const ChartService = {
       queryId: sources.queryId,
       datasetIds: sources.datasetIds,
     })
-    await LinkService.setDependencies(tx, object.id, [
-      ...sources.datasetIds,
-      ...(sources.queryId ? [sources.queryId] : []),
-    ])
+    await LinkService.setDependencies(tx, object.id, dependencyIds(sources))
     return object.id
   },
 
@@ -124,10 +132,7 @@ export const ChartService = {
           datasetIds: sources.datasetIds,
         })
         .where(eq(charts.id, id))
-      await LinkService.setDependencies(tx, id, [
-        ...sources.datasetIds,
-        ...(sources.queryId ? [sources.queryId] : []),
-      ])
+      await LinkService.setDependencies(tx, id, dependencyIds(sources))
       await ObjectService.update(
         tx,
         ctx,
