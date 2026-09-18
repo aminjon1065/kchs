@@ -376,10 +376,12 @@ def infer_column(index: int, header: str, values: list[Any], profile: Profile) -
         )
         return settle("geometry", "geometry", geometry_valid)
 
-    # Да/нет; столбец только из 0 и 1 — число, если название не подсказывает иное
+    # Да/нет; столбец только из 0 и 1 — число, если название не подсказывает иное.
+    # Смотрим только на значения «да/нет»: счётчик «0, 0, 1, …, 3» (погибшие,
+    # пострадавшие) — это числа, редкие 2 и 3 не делают его логическим с ошибками
     boolean_valid = sum(1 for raw, text in present if _is_boolean(raw, text))
     if enough(boolean_valid):
-        zero_one = all(_is_zero_one(raw, text) for raw, text in present)
+        zero_one = all(_is_zero_one(raw, text) for raw, text in present if _is_boolean(raw, text))
         if not zero_one or hints.boolean:
             return settle("boolean", "category", boolean_valid)
 

@@ -282,6 +282,23 @@ def test_да_нет_и_ноль_один(tmp_path: Path) -> None:
     assert done.rows[3] == ["5", "г", "false", "false", "false", "0"]
 
 
+def test_счётчик_из_нулей_и_единиц_с_редкими_большими_числами_это_целое(
+    tmp_path: Path,
+) -> None:
+    # «Погибшие»: почти всегда 0, иногда 1, редко 2–3 — больше 90 % значений похожи на
+    # «да/нет», но редкие 2 и 3 не должны превращать счётчик в логический столбец с ошибками
+    lines = ["Происшествие;Погибшие;Отмечено"]
+    for index in range(200):
+        deaths = 2 if index % 50 == 0 else 3 if index % 77 == 0 else 1 if index % 9 == 0 else 0
+        lines.append(f"П-{index};{deaths};{'да' if index % 2 else 'нет'}")
+    source = write(tmp_path / "deaths.csv", "\n".join(lines) + "\n")
+    analysis = analyze(source)
+    assert column(analysis, "Погибшие")["type"] == "integer"
+    assert column(analysis, "Погибшие")["invalid"] == 0
+    assert column(analysis, "Отмечено")["type"] == "boolean"
+    assert analysis["warnings"] == []
+
+
 def test_пустые_строки_не_считаются_а_номера_строк_сохраняются(tmp_path: Path) -> None:
     source = write(tmp_path / "gaps.csv", "Район;Число\nА;1\n\nБ;2\n;\nВ;x\nГ;3\n\n\n")
     analysis = analyze(source)
