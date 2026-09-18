@@ -35,6 +35,17 @@ async function openStory(page: Page, id: string, theme: (typeof THEMES)[number])
       : null
   })
   expect(await phase.jsonValue(), `история ${id} отрисована без ошибок`).not.toBe('errored')
+
+  // Фаза после исключения при отрисовке всё равно доходит до completed/finished,
+  // поэтому ошибку ловим по экрану ошибки Storybook: иначе он станет эталоном снимка
+  const failure = await page.evaluate(() => {
+    if (document.body.classList.contains('sb-show-errordisplay')) {
+      return document.getElementById('error-message')?.textContent?.trim() || 'экран ошибки'
+    }
+    const root = document.getElementById('storybook-root')
+    return root && root.childElementCount === 0 ? 'история ничего не отрисовала' : null
+  })
+  expect(failure, `история ${id} отрисована без ошибок`).toBeNull()
   await page.evaluate(() => document.fonts.ready.then(() => undefined))
 }
 

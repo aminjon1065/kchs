@@ -74,6 +74,9 @@ const preview: Preview = {
   },
   initialGlobals: { theme: 'light', density: 'comfortable', locale: 'ru' },
   parameters: {
+    // По умолчанию Storybook 10 глушит исключения play-функций (только console.error),
+    // и упавшая проверка истории выглядела бы успешной — в том числе для визуальных тестов
+    throwPlayFunctionExceptions: true,
     layout: 'padded',
     backgrounds: { disable: true },
     controls: { expanded: true },

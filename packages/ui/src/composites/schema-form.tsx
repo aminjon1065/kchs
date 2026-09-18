@@ -21,6 +21,7 @@ import {
 import { Callout } from '../components/feedback.js'
 import { useUiLocale, useUiT } from '../i18n/ui-locale.js'
 import { cn } from '../lib/cn.js'
+import { fromLocalInput, toLocalInput } from '../lib/datetime-local.js'
 import { Button, IconButton } from '../primitives/button.js'
 import {
   Checkbox,
@@ -106,6 +107,8 @@ export function SchemaForm({
   const [touched, setTouched] = useState(false)
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle')
   const [submitting, setSubmitting] = useState(false)
+  // Раскрытие групп: ключ → открыта; без записи — как задано в схеме
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({})
   const initial = useRef(values)
 
   const fields = useMemo(
@@ -182,6 +185,25 @@ export function SchemaForm({
       : undefined
   }
 
+  /** Ошибка в свёрнутой группе не должна прятаться: такие группы раскрываются. */
+  const revealGroups = (keys: string[]) => {
+    const groupsWithErrors = fields
+      .filter((field) => field.group && keys.includes(field.key))
+      .map((field) => field.group as string)
+    if (groupsWithErrors.length === 0) return
+    setOpenGroups((current) => ({
+      ...current,
+      ...Object.fromEntries(groupsWithErrors.map((key) => [key, true])),
+    }))
+  }
+
+  // Ошибки сервера приходят извне — их группы тоже раскрываются
+  const serverErrorKeys = Object.keys(serverErrors ?? {}).join(',')
+  // biome-ignore lint/correctness/useExhaustiveDependencies: реагируем только на смену набора ошибок
+  useEffect(() => {
+    if (serverErrorKeys) revealGroups(serverErrorKeys.split(','))
+  }, [serverErrorKeys])
+
   const setValue = (key: string, value: unknown) => {
     const next = { ...values, [key]: value }
     onChange(next)
@@ -197,7 +219,10 @@ export function SchemaForm({
     const result = validateValues(fields, values)
     if (!result.ok) {
       setIssues(result.issues)
-      document.getElementById(`${formId}-${result.issues[0]?.path}`)?.focus()
+      revealGroups(result.issues.map((issue) => issue.path))
+      // Поле могло быть в свёрнутой группе: фокус — после отрисовки
+      const first = result.issues[0]?.path
+      requestAnimationFrame(() => document.getElementById(`${formId}-${first}`)?.focus())
       return
     }
     setIssues([])
@@ -270,7 +295,12 @@ export function SchemaForm({
         <Callout tone="danger">{t('ui.form.summary', { count: issueCount })}</Callout>
       ) : null}
       {orderedGroups.map((group) => (
-        <FormGroup key={group.key || 'main'} title={group.label} defaultCollapsed={group.collapsed}>
+        <FormGroup
+          key={group.key || 'main'}
+          title={group.label}
+          open={openGroups[group.key] ?? !group.collapsed}
+          onToggle={(open) => setOpenGroups((current) => ({ ...current, [group.key]: open }))}
+        >
           <div className={cn('grid gap-4', columns === 2 && 'md:grid-cols-2')}>
             {(byGroup.get(group.key) ?? []).map(renderField)}
           </div>
@@ -300,30 +330,31 @@ export function SchemaForm({
 
 function FormGroup({
   title,
-  defaultCollapsed,
+  open,
+  onToggle,
   children,
 }: {
   title: string | null
-  defaultCollapsed: boolean
+  open: boolean
+  onToggle: (open: boolean) => void
   children: ReactNode
 }) {
-  const [collapsed, setCollapsed] = useState(defaultCollapsed)
   if (!title) return <>{children}</>
   return (
     <section className="flex flex-col gap-3">
       <button
         type="button"
-        aria-expanded={!collapsed}
-        onClick={() => setCollapsed((current) => !current)}
+        aria-expanded={open}
+        onClick={() => onToggle(!open)}
         className="flex items-center gap-1.5 text-left text-2xs font-semibold uppercase tracking-wide text-fg-muted hover:text-fg"
       >
         <ChevronDown
-          className={cn('size-3.5 transition-transform', collapsed && '-rotate-90')}
+          className={cn('size-3.5 transition-transform', !open && '-rotate-90')}
           aria-hidden
         />
         {title}
       </button>
-      {collapsed ? null : children}
+      {open ? children : null}
     </section>
   )
 }
@@ -450,7 +481,7 @@ function DefaultControl({
                       : 'text'
       const shown =
         field.type === 'datetime' && typeof value === 'string' && value
-          ? value.slice(0, 16)
+          ? toLocalInput(value)
           : String(value ?? '')
       return (
         <Input
@@ -464,8 +495,7 @@ function DefaultControl({
           step={field.type === 'integer' ? 1 : 'any'}
           onChange={(event) => {
             const raw = event.target.value
-            // datetime-local без зоны → ISO с зоной браузера
-            onChange(field.type === 'datetime' && raw ? new Date(raw).toISOString() : raw)
+            onChange(field.type === 'datetime' && raw ? fromLocalInput(raw) : raw)
           }}
         />
       )
@@ -533,7 +563,14 @@ export function InlineProperties({
         const editable = !readOnly && !field.readOnly && !COMPUTED.has(field.type)
         return (
           <div key={field.key} className="contents">
-            <dt className="pt-1.5 text-xs text-fg-muted">{labelOf(field.label, locale)}</dt>
+            <dt className="pt-1.5 text-xs text-fg-muted">
+              {/* На время правки термин — подпись контрола: без неё поле не озвучено */}
+              {editing === field.key ? (
+                <label htmlFor={id}>{labelOf(field.label, locale)}</label>
+              ) : (
+                labelOf(field.label, locale)
+              )}
+            </dt>
             <dd className="m-0 min-w-0">
               {editing === field.key ? (
                 // biome-ignore lint/a11y/noStaticElementInteractions: Enter/Esc для контрола внутри

@@ -1,4 +1,11 @@
-import { type DragEvent, type KeyboardEvent, type ReactNode, useState } from 'react'
+import {
+  type DragEvent,
+  type KeyboardEvent,
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
 import { useUiT } from '../i18n/ui-locale.js'
 import { cn } from '../lib/cn.js'
 
@@ -44,6 +51,21 @@ export function KanbanBoard<T>({
   const t = useUiT()
   const [dragging, setDragging] = useState<string | null>(null)
   const [over, setOver] = useState<string | null>(null)
+  const rootRef = useRef<HTMLFieldSetElement>(null)
+  // Карточка, перенесённая с клавиатуры: в новой колонке она монтируется заново,
+  // и фокус уходил бы на body — возвращаем его, если пользователь не ушёл сам
+  const refocus = useRef<string | null>(null)
+
+  useEffect(() => {
+    const id = refocus.current
+    if (!id) return
+    const card = rootRef.current?.querySelector<HTMLElement>(`[data-card-id="${CSS.escape(id)}"]`)
+    const active = document.activeElement
+    if (card && card !== active && (active === null || active === document.body)) {
+      card.focus()
+      refocus.current = null
+    }
+  })
 
   const byColumn = new Map<string, T[]>(columns.map((column) => [column.key, []]))
   for (const item of items) byColumn.get(getColumnKey(item))?.push(item)
@@ -70,14 +92,27 @@ export function KanbanBoard<T>({
     const target = columns[index + (event.key === 'ArrowRight' ? 1 : -1)]
     if (target && allowed(item, target.key)) {
       event.preventDefault()
+      refocus.current = getItemId(item)
       onMove?.(item, target.key)
     }
   }
 
   return (
     <fieldset
+      ref={rootRef}
       aria-label={props['aria-label']}
-      className={cn('m-0 flex h-full min-h-0 gap-3 overflow-x-auto border-0 p-3', className)}
+      onFocus={(event) => {
+        // Фокус ушёл на другой элемент доски — перенос больше не ждёт фокуса
+        if ((event.target as HTMLElement).dataset.cardId !== refocus.current) {
+          refocus.current = null
+        }
+      }}
+      // min-w-0: у fieldset по умолчанию min-inline-size: min-content — без этого доска
+      // растягивается по содержимому и не прокручивается по горизонтали
+      className={cn(
+        'm-0 flex h-full min-h-0 min-w-0 gap-3 overflow-x-auto border-0 p-3',
+        className,
+      )}
     >
       {columns.map((column) => {
         const cards = byColumn.get(column.key) ?? []
@@ -116,6 +151,7 @@ export function KanbanBoard<T>({
                     // biome-ignore lint/a11y/useSemanticElements: карточка доски — перетаскиваемый элемент с клавиатурой
                     <div
                       key={id}
+                      data-card-id={id}
                       role="button"
                       tabIndex={0}
                       draggable={Boolean(onMove)}

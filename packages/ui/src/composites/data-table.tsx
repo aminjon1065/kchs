@@ -96,22 +96,25 @@ export function DataTable<T>({
   const [draftWidths, setDraftWidths] = useState<Record<string, number> | null>(null)
   const effectiveWidths = draftWidths ?? widths ?? {}
 
-  const template = useMemo(() => {
+  const { template, rowWidth } = useMemo(() => {
     const parts: string[] = []
-    if (selectable) parts.push(`${SELECT_WIDTH}px`)
+    let minTotal = 0
+    const push = (track: string, min: number) => {
+      parts.push(track)
+      minTotal += min
+    }
+    if (selectable) push(`${SELECT_WIDTH}px`, SELECT_WIDTH)
     columns.forEach((column, index) => {
       const width = effectiveWidths[column.key] ?? column.width
-      // Последний столбец без явной ширины занимает остаток строки
-      parts.push(
-        width
-          ? `${width}px`
-          : index === 0
-            ? `minmax(${column.minWidth ?? 200}px, 1fr)`
-            : `${DEFAULT_WIDTH}px`,
-      )
+      if (width) push(`${width}px`, width)
+      // Первый столбец без явной ширины занимает остаток строки
+      else if (index === 0) push(`minmax(${column.minWidth ?? 200}px, 1fr)`, column.minWidth ?? 200)
+      else push(`${DEFAULT_WIDTH}px`, DEFAULT_WIDTH)
     })
-    if (rowActions) parts.push(`${ACTIONS_WIDTH}px`)
-    return parts.join(' ')
+    if (rowActions) push(`${ACTIONS_WIDTH}px`, ACTIONS_WIDTH)
+    // Каждая строка — отдельная сетка: у всех одна ширина, иначе 1fr первого
+    // столбца считался бы по содержимому строки и столбцы расходились с шапкой
+    return { template: parts.join(' '), rowWidth: `max(100%, ${minTotal}px)` }
   }, [columns, effectiveWidths, selectable, rowActions])
 
   const rowHeight = useRowHeight(scrollRef)
@@ -263,7 +266,7 @@ export function DataTable<T>({
         role="row"
         aria-rowindex={1}
         className="sticky top-0 z-(--z-sticky) grid min-w-full border-b border-line bg-surface-2 text-xs font-medium text-fg-muted"
-        style={{ gridTemplateColumns: template, width: 'max-content' }}
+        style={{ gridTemplateColumns: template, width: rowWidth }}
       >
         {selectable ? (
           <span role="columnheader" className="flex h-8 items-center justify-center">
@@ -364,7 +367,7 @@ export function DataTable<T>({
                   gridTemplateColumns: template,
                   height: rowHeight,
                   transform: `translateY(${item.start}px)`,
-                  width: 'max-content',
+                  width: rowWidth,
                 }}
               >
                 {selectable ? (
