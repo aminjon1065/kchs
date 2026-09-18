@@ -44,7 +44,7 @@ export function unlabelPick(
   labelled: QueryResult,
 ): ChartPick {
   if (original === labelled) return pick
-  const valueOf = (index: number, shown: unknown): unknown => {
+  const sourceValue = (index: number, shown: unknown): unknown => {
     if (shown === null || shown === undefined) return shown
     const row = labelled.rows.findIndex((item) => item[index] === shown)
     return row < 0 ? shown : original.rows[row]?.[index]
@@ -55,8 +55,8 @@ export function unlabelPick(
     return {
       ...condition,
       value: Array.isArray(condition.value)
-        ? condition.value.map((item) => valueOf(index, item))
-        : valueOf(index, condition.value),
+        ? condition.value.map((item) => sourceValue(index, item))
+        : sourceValue(index, condition.value),
     }
   }
   return { ...pick, filters: pick.filters.map(restore) }
