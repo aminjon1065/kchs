@@ -348,7 +348,7 @@ export async function deliverEmail(ids: number[]): Promise<number> {
       const text =
         row.aggregateCount > 1 ? t('notifications.aggregate', params) : t(row.titleKey, params)
       const href = `${base}${row.url ?? summary?.url ?? '/'}`
-      return `<li><a href="${href}">${escapeHtml(text)}</a></li>`
+      return `<li><a href="${escapeHtml(href)}">${escapeHtml(text)}</a></li>`
     })
 
     const subject =
@@ -359,7 +359,7 @@ export async function deliverEmail(ids: number[]): Promise<number> {
     const delivered = await sendMail({
       to: first.email,
       subject,
-      html: `<p>${escapeHtml(first.displayName)},</p><ul>${lines.join('')}</ul><p><a href="${base}">${base}</a></p>`,
+      html: `<p>${escapeHtml(first.displayName)},</p><ul>${lines.join('')}</ul><p><a href="${escapeHtml(base)}">${escapeHtml(base)}</a></p>`,
     })
 
     // Без SMTP письма не уходят — помечать нечего, дайджест повторится позже

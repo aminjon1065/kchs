@@ -111,6 +111,7 @@ export const AUDIT_ACTIONS = {
   loginFailed: 'user.login_failed',
   logout: 'user.logout',
   passwordChanged: 'user.password_changed',
+  passwordResetByAdmin: 'user.password_reset_by_admin',
   mfaEnabled: 'user.mfa_enabled',
   mfaDisabled: 'user.mfa_disabled',
   sessionRevoked: 'session.revoked',

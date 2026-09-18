@@ -34,6 +34,12 @@ import {
 import { errors } from '~/shared/errors.js'
 import { newId, randomCode } from '~/shared/ids.js'
 import { AuthService } from './auth-service.js'
+import {
+  assertCanAssignRoles,
+  assertCanManageUser,
+  assertNotLastSystemAdmin,
+  hasRole,
+} from './role-policy.js'
 
 export const UserService = {
   async create(
@@ -41,6 +47,8 @@ export const UserService = {
     ctx: Ctx,
     input: AdminUserCreateInput,
   ): Promise<{ id: string; temporaryPassword: string | null }> {
+    await assertCanAssignRoles(tx, ctx, input.roleKeys)
+
     const exists = await tx
       .select({ id: users.id })
       .from(users)
@@ -118,6 +126,17 @@ export const UserService = {
     const [current] = await tx.select().from(users).where(eq(users.id, userId)).limit(1)
     if (!current) throw errors.notFound('Пользователь')
 
+    await assertCanManageUser(tx, ctx, userId, {
+      changesRolesOrStatus: patch.roleKeys !== undefined || patch.status !== undefined,
+    })
+    if (patch.roleKeys) await assertCanAssignRoles(tx, ctx, patch.roleKeys)
+    const losesAdmin =
+      (patch.roleKeys !== undefined && !patch.roleKeys.includes('system_admin')) ||
+      (patch.status !== undefined && patch.status !== 'active')
+    if (losesAdmin && (await hasRole(tx, userId, 'system_admin'))) {
+      await assertNotLastSystemAdmin(tx, userId)
+    }
+
     const values: Record<string, unknown> = {}
     if (patch.email !== undefined) values.email = patch.email
     if (patch.phone !== undefined) values.phone = patch.phone
@@ -166,6 +185,12 @@ export const UserService = {
         },
         tx,
       )
+      // Кэш принципалов сбрасывает подписчик ядра: роль действует сразу, а не через TTL
+      await publishEvent(tx, ctx, {
+        type: 'user.roles_changed',
+        object: { id: userId, type: 'user', title: current.displayName },
+        payload: { userId, roles: patch.roleKeys },
+      })
     }
 
     if (patch.unitId !== undefined) {

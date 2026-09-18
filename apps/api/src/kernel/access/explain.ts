@@ -44,5 +44,6 @@ export async function buildUserCtxFor(userId: string): Promise<UserCtx | null> {
     ip: null,
     userAgent: null,
     attributes: user.attributes,
+    mustChangePassword: false,
   }
 }

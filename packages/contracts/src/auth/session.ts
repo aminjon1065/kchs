@@ -88,6 +88,8 @@ export const MeResponse = z.object({
   /** Замещения, которые пользователь выдал. */
   delegatedTo: z.array(ActiveDelegation),
   mfaEnabled: z.boolean(),
+  /** Временный пароль не сменён: оболочка показывает только экран смены пароля. */
+  mustChangePassword: z.boolean().default(false),
   preferences: z.record(z.string(), z.unknown()).default({}),
   session: z.object({
     id: Uuid,

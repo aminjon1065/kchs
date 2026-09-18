@@ -79,6 +79,8 @@ export const mfaFactors = pgTable(
     name: text('name'),
     verifiedAt: tsCol('verified_at'),
     lastUsedAt: tsCol('last_used_at'),
+    /** Шаг TOTP последнего принятого кода: код нельзя предъявить повторно. */
+    lastStep: bigint('last_step', { mode: 'number' }),
     createdAt: createdAt(),
   },
   (t) => [index('mfa_factors_user_idx').on(t.userId)],

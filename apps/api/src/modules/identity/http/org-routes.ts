@@ -14,6 +14,8 @@ import {
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { describePrincipals } from '~/kernel/access/principal-refs.js'
+import { invalidatePrincipalSet } from '~/kernel/access/principal-set.js'
+import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
 import { db } from '~/shared/db/client.js'
 import {
   groups,
@@ -25,8 +27,9 @@ import {
 } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
-import { newId } from '~/shared/ids.js'
+import { newId, randomCode } from '~/shared/ids.js'
 import { AuthService } from '../domain/auth-service.js'
+import { assertCanManageUser } from '../domain/role-policy.js'
 import { GroupService, OrgService, UserService } from '../domain/user-service.js'
 
 export function registerOrgRoutes(route: RouteRegistrar): void {
@@ -161,6 +164,8 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
       await db().transaction((tx) =>
         UserService.patch(tx, request.ctx, request.params.id, request.body),
       )
+      // После коммита: новые роли и статус действуют со следующего запроса
+      await invalidatePrincipalSet(request.params.id)
       return { ok: true }
     },
   })
@@ -176,6 +181,7 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
       response: { 200: z.object({ ok: z.boolean() }) },
     },
     handler: async (request) => {
+      await assertCanManageUser(db(), request.ctx, request.params.id)
       await AuthService.disableMfa(request.ctx, request.params.id)
       return { ok: true }
     },
@@ -192,13 +198,21 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
       response: { 200: z.object({ temporaryPassword: z.string() }) },
     },
     handler: async (request) => {
-      const temporaryPassword = `${Math.random().toString(36).slice(2, 8)}-${Math.random().toString(36).slice(2, 8)}-Kc1`
+      await assertCanManageUser(db(), request.ctx, request.params.id)
+      // Криптостойкий генератор: временный пароль не должен угадываться
+      const temporaryPassword = `${randomCode(4)}-${randomCode(4)}-${randomCode(4)}`
       await AuthService.setPassword(request.params.id, temporaryPassword)
       await db()
         .update(users)
         .set({ mustChangePassword: true })
         .where(eq(users.id, request.params.id))
       await AuthService.revokeAllExcept(request.params.id, null)
+      await audit(request.ctx, {
+        action: AUDIT_ACTIONS.passwordResetByAdmin,
+        objectId: request.params.id,
+        objectType: 'user',
+        severity: 'warning',
+      })
       return { temporaryPassword }
     },
   })

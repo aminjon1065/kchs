@@ -200,13 +200,16 @@ services:
       ENGINE_INTERNAL_URL: http://engine:8000
       SMTP_URL: ${SMTP_URL_INTERNAL:-smtp://mailpit:1025}
       SMTP_FROM: ${SMTP_FROM:-kchs <no-reply@kchs.local>}
+      # Caddy (контейнеры web/caddy) в частной сети Docker: X-Forwarded-For верим только им
+      TRUST_PROXY: ${TRUST_PROXY:-uniquelocal}
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
       minio: { condition: service_healthy }
       meilisearch: { condition: service_healthy }
+    # Снаружи api доступен только через Caddy; порт открыт лишь на самом сервере
     ports:
-      - "${API_PORT:-3000}:3000"
+      - "127.0.0.1:${API_PORT:-3000}:3000"
 
   worker:
     <<: [*restart, *logging]

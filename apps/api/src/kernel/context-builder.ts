@@ -23,6 +23,7 @@ export async function buildUserCtx(
       timezone: users.timezone,
       status: users.status,
       attributes: users.attributes,
+      mustChangePassword: users.mustChangePassword,
     })
     .from(users)
     .where(eq(users.id, session.userId))
@@ -62,5 +63,6 @@ export async function buildUserCtx(
     ip: request.ip ?? null,
     userAgent: (request.headers['user-agent'] as string | undefined) ?? null,
     attributes: user.attributes,
+    mustChangePassword: user.mustChangePassword,
   }
 }

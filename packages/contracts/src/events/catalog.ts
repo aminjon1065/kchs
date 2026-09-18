@@ -42,6 +42,7 @@ export const EVENT_PAYLOADS = {
   'user.password_changed': empty,
   'user.mfa_enabled': z.object({ kind: z.string() }),
   'user.mfa_disabled': z.object({ kind: z.string() }),
+  'user.roles_changed': z.object({ userId: Uuid, roles: z.array(z.string()) }),
   'org.unit_changed': z.object({ unitId: Uuid, change: z.string() }),
   'org.employment_changed': z.object({ userId: Uuid, unitId: Uuid.nullable() }),
   'delegation.started': z.object({ fromUserId: Uuid, toUserId: Uuid, scope: z.string() }),

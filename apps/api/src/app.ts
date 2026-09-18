@@ -28,7 +28,8 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   const app = Fastify({
     loggerInstance: logger() as unknown as FastifyBaseLogger,
-    trustProxy: true,
+    // Адрес клиента берётся из X-Forwarded-For только от доверенного прокси
+    trustProxy: env.TRUST_PROXY,
     bodyLimit: 10 * 1024 * 1024,
     genReqId: () => `req_${Math.random().toString(36).slice(2, 12)}`,
     ajv: { customOptions: { removeAdditional: false } },
@@ -76,6 +77,8 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   await app.register(rateLimit, {
     global: true,
+    // После аутентификации: лимит считается по пользователю, а не по общему IP
+    hook: 'preHandler',
     max: env.NODE_ENV === 'test' ? 1_000_000 : 600,
     timeWindow: '1 minute',
     redis: redis(),

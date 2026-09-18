@@ -116,6 +116,7 @@ export function registerKernelSubscribers(): void {
       'delegation.started',
       'delegation.ended',
       'role.assigned',
+      'user.roles_changed',
     ],
     handle: async (event) => {
       const userId = (event.payload.userId ?? event.payload.toUserId) as string | undefined

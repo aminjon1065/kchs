@@ -4,7 +4,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import fp from 'fastify-plugin'
 import { config } from '../config/index.js'
 import type { UserCtx } from '../context.js'
-import { errors } from '../errors.js'
+import { AppError, errors } from '../errors.js'
 import type { RouteAuth } from './route.js'
 
 declare module 'fastify' {
@@ -13,6 +13,7 @@ declare module 'fastify' {
   }
   interface FastifyContextConfig {
     auth?: RouteAuth
+    allowPendingPasswordChange?: boolean
   }
 }
 
@@ -64,6 +65,11 @@ export const authPlugin = fp<AuthDependencies>(async (app: FastifyInstance, deps
     if (!token && typeof shareToken === 'string' && deps.resolveShareLink) {
       const guestCtx = await deps.resolveShareLink(shareToken)
       if (guestCtx) {
+        // Гость видит один объект и только читает его (ADR-0032): маршруты
+        // сессии, способностей и любые изменения для него не существуют
+        if (!SAFE_METHODS.has(request.method) || typeof auth !== 'object' || !('action' in auth)) {
+          throw errors.notFound()
+        }
         request.ctx = { ...guestCtx, requestId: request.id }
         await applyRoutePolicy(request, auth, deps)
         return
@@ -88,6 +94,13 @@ export const authPlugin = fp<AuthDependencies>(async (app: FastifyInstance, deps
 
     request.ctx = await deps.buildUserCtx(session, request)
     void deps.touchSession(session.sessionId)
+
+    if (
+      request.ctx.mustChangePassword &&
+      !request.routeOptions?.config?.allowPendingPasswordChange
+    ) {
+      throw new AppError('password_change_required', 'Смените временный пароль', 403)
+    }
 
     await applyRoutePolicy(request, auth, deps)
   })

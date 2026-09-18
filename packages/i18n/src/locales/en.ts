@@ -186,6 +186,12 @@ export const en: DeepPartial<Dictionary> = {
       mismatch: 'Passwords do not match',
       changed: 'Password changed',
       current: 'Current password',
+      title: 'Change password',
+      repeat: 'Repeat the new password',
+      temporary: 'Temporary password',
+      mustChangeTitle: 'Set your own password',
+      mustChangeHint:
+        'You signed in with a temporary password. Choose a permanent one to continue.',
       minLengthHint: 'At least 12 characters',
     },
     session: {

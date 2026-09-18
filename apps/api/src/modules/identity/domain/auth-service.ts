@@ -20,6 +20,14 @@ import {
 import { errors } from '~/shared/errors.js'
 import { newId, randomCode, randomToken } from '~/shared/ids.js'
 
+let dummyPasswordHash: string | null = null
+
+/** Хеш-заглушка для неизвестных логинов: время ответа как у существующих. */
+async function dummyHash(): Promise<string> {
+  dummyPasswordHash ??= await hashPassword(`dummy-${randomToken(16)}`)
+  return dummyPasswordHash
+}
+
 const MAX_FAILED_ATTEMPTS = 10
 const LOCK_MINUTES = 15
 const MFA_CHALLENGE_MINUTES = 10
@@ -66,7 +74,14 @@ export const AuthService = {
       )
       .limit(1)
 
-    if (!user) {
+    const [cred] = user
+      ? await db().select().from(credentials).where(eq(credentials.userId, user.id)).limit(1)
+      : []
+
+    if (!user || !cred) {
+      // Хеш считается и для неизвестного логина: по времени ответа не понять,
+      // существует ли учётная запись
+      await verifyPassword(await dummyHash(), password)
       await audit(sys, {
         action: AUDIT_ACTIONS.loginFailed,
         details: { login, reason: 'unknown_user' },
@@ -78,21 +93,26 @@ export const AuthService = {
       throw errors.unauthorized('Неверный логин или пароль')
     }
 
-    const [cred] = await db()
-      .select()
-      .from(credentials)
-      .where(eq(credentials.userId, user.id))
-      .limit(1)
-    if (!cred) throw errors.unauthorized('Неверный логин или пароль')
+    const valid = await verifyPassword(cred.passwordHash, password)
 
     if (cred.lockedUntil && new Date(cred.lockedUntil) > new Date()) {
+      await audit(sys, {
+        action: AUDIT_ACTIONS.loginFailed,
+        actorId: user.id,
+        details: { login, reason: 'locked' },
+        severity: 'notice',
+        ip: meta.ip,
+        userAgent: meta.userAgent,
+      })
+      // О блокировке узнаёт только знающий пароль: иначе блокировка раскрывала бы,
+      // что учётная запись существует
+      if (!valid) throw errors.unauthorized('Неверный логин или пароль')
       const minutes = Math.ceil((new Date(cred.lockedUntil).getTime() - Date.now()) / 60000)
       throw errors.unauthorized(
         `Учётная запись временно заблокирована, повторите через ${minutes} мин`,
       )
     }
 
-    const valid = await verifyPassword(cred.passwordHash, password)
     if (!valid) {
       const attempts = cred.failedAttempts + 1
       const lock = attempts >= MAX_FAILED_ATTEMPTS
@@ -176,7 +196,13 @@ export const AuthService = {
     challengeToken: string,
     code: string,
     meta: RequestMeta,
-  ): Promise<{ sessionToken: string; csrfToken: string; userId: string; expiresAt: string }> {
+  ): Promise<{
+    sessionToken: string
+    csrfToken: string
+    userId: string
+    expiresAt: string
+    mustChangePassword: boolean
+  }> {
     const [challenge] = await db()
       .select()
       .from(mfaChallenges)
@@ -207,9 +233,20 @@ export const AuthService = {
     }
 
     await db().delete(mfaChallenges).where(eq(mfaChallenges.id, challenge.id))
+
+    // Между паролем и кодом учётную запись могли отключить
+    const [user] = await db()
+      .select({ status: users.status, mustChangePassword: users.mustChangePassword })
+      .from(users)
+      .where(eq(users.id, challenge.userId))
+      .limit(1)
+    if (user?.status !== 'active') {
+      throw errors.unauthorized('Учётная запись отключена. Обратитесь к администратору')
+    }
+
     const session = await AuthService.createSession(challenge.userId, meta, true)
     await AuthService.afterLogin(challenge.userId, meta)
-    return session
+    return { ...session, mustChangePassword: user.mustChangePassword }
   },
 
   async verifyTotp(userId: string, code: string): Promise<boolean> {
@@ -217,15 +254,30 @@ export const AuthService = {
       .select()
       .from(mfaFactors)
       .where(and(eq(mfaFactors.userId, userId), eq(mfaFactors.kind, 'totp')))
+    const token = code.replace(/\s/g, '')
     for (const factor of factors) {
       const secret = decryptSecret(factor.secretEnc)
-      if (authenticator.verify({ token: code.replace(/\s/g, ''), secret })) {
-        await db()
-          .update(mfaFactors)
-          .set({ lastUsedAt: sql`now()`, verifiedAt: factor.verifiedAt ?? sql`now()` })
-          .where(eq(mfaFactors.id, factor.id))
-        return true
-      }
+      const delta = authenticator.checkDelta(token, secret)
+      if (delta === null) continue
+      // Шаг TOTP, которому принадлежит код: повтор того же кода отклоняется
+      const step = Math.floor(Date.now() / 1000 / authenticator.allOptions().step) + delta
+      if (factor.lastStep !== null && step <= factor.lastStep) return false
+      const updated = await db()
+        .update(mfaFactors)
+        .set({
+          lastUsedAt: sql`now()`,
+          lastStep: step,
+          verifiedAt: factor.verifiedAt ?? sql`now()`,
+        })
+        .where(
+          and(
+            eq(mfaFactors.id, factor.id),
+            sql`(${mfaFactors.lastStep} is null or ${mfaFactors.lastStep} < ${step})`,
+          ),
+        )
+        .returning({ id: mfaFactors.id })
+      // Параллельный запрос с тем же кодом успел раньше
+      return updated.length > 0
     }
     return false
   },
@@ -518,6 +570,14 @@ export const AuthService = {
       )
       .limit(1)
     if (!row) throw errors.validation('Ссылка недействительна или истекла')
+
+    // Отключённая после запроса учётная запись доступ по ссылке не возвращает
+    const [user] = await db()
+      .select({ status: users.status })
+      .from(users)
+      .where(eq(users.id, row.userId))
+      .limit(1)
+    if (user?.status !== 'active') throw errors.validation('Ссылка недействительна или истекла')
 
     await AuthService.setPassword(row.userId, newPassword)
     await db()

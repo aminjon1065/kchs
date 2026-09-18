@@ -78,7 +78,12 @@ export function registerAuthRoutes(route: RouteRegistrar): void {
     rateLimit: rateLimit(10, '1 minute'),
     schema: {
       body: MfaVerifyInput,
-      response: { 200: z.object({ status: z.literal('ok'), csrfToken: z.string() }) },
+      response: {
+        200: z.object({
+          status: z.enum(['ok', 'password_change_required']),
+          csrfToken: z.string(),
+        }),
+      },
     },
     handler: async (request, reply) => {
       const challengeToken = request.cookies?.[MFA_COOKIE]
@@ -95,7 +100,10 @@ export function registerAuthRoutes(route: RouteRegistrar): void {
       const result = await AuthService.verifyMfa(challengeToken, request.body.code, meta)
       reply.clearCookie(MFA_COOKIE, { path: '/' })
       setSessionCookie(reply, result.sessionToken, result.expiresAt, secure)
-      return { status: 'ok' as const, csrfToken: result.csrfToken }
+      return {
+        status: result.mustChangePassword ? ('password_change_required' as const) : ('ok' as const),
+        csrfToken: result.csrfToken,
+      }
     },
   })
 
@@ -103,6 +111,7 @@ export function registerAuthRoutes(route: RouteRegistrar): void {
     method: 'POST',
     url: '/auth/logout',
     auth: 'session',
+    allowPendingPasswordChange: true,
     tags: ['auth'],
     summary: 'Выход',
     schema: { response: { 200: z.object({ ok: z.boolean() }) } },
@@ -147,6 +156,7 @@ export function registerAuthRoutes(route: RouteRegistrar): void {
     method: 'POST',
     url: '/me/password',
     auth: 'session',
+    allowPendingPasswordChange: true,
     tags: ['auth'],
     summary: 'Смена пароля',
     schema: { body: PasswordChangeInput, response: { 200: z.object({ ok: z.boolean() }) } },

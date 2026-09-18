@@ -47,6 +47,8 @@ export interface RouteDefinition<
   }
   config?: RouteShorthandOptions['config']
   rateLimit?: { max: number; timeWindow: string }
+  /** Маршрут доступен, пока пользователь не сменил временный пароль. */
+  allowPendingPasswordChange?: boolean
   handler: (
     request: FastifyRequest<{
       Params: z.infer<Params>
@@ -93,6 +95,7 @@ export function routeRegistrar(app: FastifyInstance): RouteRegistrar {
         ...definition.config,
         auth: definition.auth,
         ...(definition.rateLimit ? { rateLimit: definition.rateLimit } : {}),
+        ...(definition.allowPendingPasswordChange ? { allowPendingPasswordChange: true } : {}),
       },
       handler: definition.handler as never,
     })

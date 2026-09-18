@@ -2,6 +2,7 @@ import { Spinner } from '@kchs/ui'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { LoginScreen } from '~/features/auth/login-screen.js'
+import { PasswordChangeScreen } from '~/features/auth/password-change-screen.js'
 import { GuestShareScreen } from '~/features/share/guest-screen.js'
 import { ApiError, setCsrfToken, setUnauthorizedHandler } from '~/shared/api/client.js'
 import { meQuery } from '~/shared/api/queries.js'
@@ -69,6 +70,9 @@ export function App() {
       </div>
     )
   }
+
+  // Вход по временному паролю: до смены пароля оболочка недоступна
+  if (me.mustChangePassword) return <PasswordChangeScreen />
 
   return <WorkspaceShell />
 }

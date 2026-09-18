@@ -42,6 +42,11 @@ export interface UserCtx {
   userAgent: string | null
   /** Пользовательские атрибуты для атрибутных ограничений (допуск, территории). */
   attributes: Record<string, unknown>
+  /**
+   * Временный пароль ещё не сменён: доступны только вход/выход, `GET /me`
+   * и смена пароля (17-security.md §2).
+   */
+  mustChangePassword: boolean
 }
 
 /** Контекст фоновых заданий и внутренних вызовов. Всегда логируется. */

@@ -188,7 +188,7 @@ export function ProfileScreen() {
           </div>
         </Card>
 
-        <Card title={t('auth.password.current')}>
+        <Card title={t('auth.password.title')}>
           <form
             className="grid gap-3 sm:grid-cols-2"
             onSubmit={(event) => {

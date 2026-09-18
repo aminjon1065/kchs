@@ -156,8 +156,8 @@ export async function resolveShareLinkCtx(token: string): Promise<UserCtx | null
 
   const row = await liveLinkByToken(token)
   if (!row) return null
-  if (row.passwordHash) return null // нужен пароль: только через openShareLink
-  if (row.maxUses !== null && row.uses > row.maxUses) return null
+  // Пароль или лимит открытий: только через openShareLink — там считаются открытия
+  if (row.passwordHash || row.maxUses !== null) return null
 
   return guestCtx(row.id, row.objectId, row.includeAttachments, token)
 }
@@ -186,5 +186,6 @@ function guestCtx(
     ip: null,
     userAgent: null,
     attributes: {},
+    mustChangePassword: false,
   }
 }

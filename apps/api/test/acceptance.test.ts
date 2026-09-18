@@ -125,11 +125,13 @@ describe('сценарий 1: администратор заводит подр
       ?.trim()
     expect(mfaCookie).toBeTruthy()
 
+    // Код включения уже использован (повтор отклоняется) — берём код следующего шага
+    const nextCode = authenticator.clone({ epoch: Date.now() + 30_000 }).generate(secret)
     const verify = await call(fx.app, {
       method: 'POST',
       url: '/auth/mfa/verify',
       headers: { cookie: mfaCookie ?? '' },
-      payload: { challengeId: first.json().challengeId, code: authenticator.generate(secret) },
+      payload: { challengeId: first.json().challengeId, code: nextCode },
     })
     expect(verify.statusCode).toBe(200)
     expect(verify.json().csrfToken).toBeTruthy()
@@ -152,13 +154,15 @@ describe('сценарий 1: администратор заводит подр
     })
     expect(bad.statusCode).toBeGreaterThanOrEqual(400)
 
-    // Возвращаем пользователя в исходное состояние для других тестов
-    await call(fx.app, {
+    // Возвращаем пользователя в исходное состояние для других тестов:
+    // коды TOTP текущего окна уже использованы — отключаем кодом восстановления
+    const disable = await call(fx.app, {
       method: 'DELETE',
       url: '/me/mfa',
       as: user,
-      payload: { code: authenticator.generate(secret) },
+      payload: { code: enable.json().codes[0] },
     })
+    expect(disable.json().ok).toBe(true)
   })
 })
 

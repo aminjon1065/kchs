@@ -15,6 +15,16 @@ const EnvSchema = z.object({
   ROLE: z.enum(['api', 'worker', 'all']).default('all'),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
   HOST: z.string().default('0.0.0.0'),
+  /**
+   * Каким прокси верить в X-Forwarded-For (адрес клиента для лимитов и аудита).
+   * `true` доверял бы любому клиенту и позволял подменять IP. Значения:
+   * `false` или список адресов/сетей через запятую (`loopback`, `uniquelocal`, CIDR).
+   */
+  TRUST_PROXY: z
+    .string()
+    .default('loopback')
+    .refine((v) => v !== 'true', 'TRUST_PROXY=true небезопасен: укажите адреса прокси')
+    .transform((v): boolean | string => (v === 'false' ? false : v)),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
   TZ: z.string().default('Asia/Dushanbe'),
 
