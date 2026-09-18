@@ -573,9 +573,10 @@ export const RowService = {
       changed_by: string | null
       changed_at: Date | string
     }>(
-      sql`SELECT id::text AS id, ver, op, data, changed_by, changed_at
-            FROM ${sql.raw(qualified(historyName(datasetId)))}
-           WHERE row_id = ${rowId}::bigint ORDER BY id DESC LIMIT 200`,
+      // Порядок — по числовому id: имя `id` в ORDER BY означало бы текстовый псевдоним
+      sql`SELECT h.id::text AS id, h.ver, h.op, h.data, h.changed_by, h.changed_at
+            FROM ${sql.raw(qualified(historyName(datasetId)))} AS h
+           WHERE h.row_id = ${rowId}::bigint ORDER BY h.id DESC LIMIT 200`,
     )
     const refs = await directory().refs([
       ...new Set(rows.map((row) => row.changed_by).filter((id): id is string => id !== null)),
