@@ -1,9 +1,16 @@
 #!/usr/bin/env bash
-# Дымовой прогон ядра kchs через HTTP API
+# Дымовой прогон ядра kchs через HTTP API на демо-данных (kchs seed / pnpm db:seed).
+#   KCHS_SMOKE_BASE          адрес API (по умолчанию api разработки на :3000;
+#                            для установки в контейнерах — http://localhost:8080/api/v1)
+#   KCHS_SMOKE_ADMIN         логин администратора (admin)
+#   KCHS_SMOKE_ADMIN_PASSWORD, KCHS_SMOKE_USER_PASSWORD — пароли демо-данных
 set -uo pipefail
-BASE=http://localhost:3000/api/v1
-JAR=/tmp/kchs-smoke.jar
-rm -f "$JAR"
+BASE="${KCHS_SMOKE_BASE:-http://localhost:3000/api/v1}"
+ADMIN_LOGIN="${KCHS_SMOKE_ADMIN:-admin}"
+ADMIN_PASSWORD="${KCHS_SMOKE_ADMIN_PASSWORD:-Kchs!Start-2026-7q}"
+USER_PASSWORD="${KCHS_SMOKE_USER_PASSWORD:-Kchs!Work-2026-3v}"
+JAR="$(mktemp -t kchs-smoke.XXXXXX)"
+trap 'rm -f "$JAR"' EXIT
 PASS=0; FAIL=0
 
 login() {
@@ -38,7 +45,7 @@ check() { # name expected actual
 jq_() { python3 -c "import sys,json;d=json.load(sys.stdin);print($1)" 2>/dev/null || echo ""; }
 
 echo "── Вход и контекст ───────────────────────────────────"
-login admin 'Kchs!Start-2026-7q'
+login "$ADMIN_LOGIN" "$ADMIN_PASSWORD"
 check "csrf выдан" "yes" "$([ -n "$CSRF" ] && echo yes || echo no)"
 ME=$(req GET /me)
 ADMIN_ID=$(echo "$ME" | jq_ 'd["user"]["id"]')
@@ -100,7 +107,7 @@ check "объяснение доступа: уровень" "edit" "$(echo "$EXP
 check "объяснение доступа: причина" "explicit" "$(echo "$EXPLAIN" | jq_ 'd["reasons"][0]["kind"]')"
 
 echo "── Негативные проверки доступа ───────────────────────"
-login user020 'Kchs!Work-2026-3v'
+login user020 "$USER_PASSWORD"
 check "вход обычного сотрудника" "yes" "$([ -n "$CSRF" ] && echo yes || echo no)"
 check "чужой объект → 404" "404" "$(code GET "/objects/$FOLDER_ID")"
 LIST=$(req GET "/objects?spaceId=$SPACE_ID")
@@ -113,7 +120,7 @@ check "нет способности admin.system" "403" "$(code GET /admin/heal
 
 echo "── Пользователь с выданным доступом ──────────────────"
 GRANTED_LOGIN=$(echo "$USERS" | python3 -c 'import sys,json;print(json.load(sys.stdin)["items"][0]["login"])')
-login "$GRANTED_LOGIN" 'Kchs!Work-2026-3v'
+login "$GRANTED_LOGIN" "$USER_PASSWORD"
 check "видит объект по явному ACL" "200" "$(code GET "/objects/$FOLDER_ID")"
 OBJ2=$(req GET "/objects/$FOLDER_ID")
 check "уровень доступа edit" "edit" "$(echo "$OBJ2" | jq_ 'd["level"]')"
@@ -121,7 +128,7 @@ check "не может делиться (нужен manage)" "403" "$(code POST 
   '{"grants":[{"principal":{"type":"everyone","id":"*"},"level":"view"}]}')"
 
 echo "── Администрирование и здоровье ──────────────────────"
-login admin 'Kchs!Start-2026-7q'
+login "$ADMIN_LOGIN" "$ADMIN_PASSWORD"
 HEALTH=$(req GET /admin/health)
 check "здоровье: postgres" "ok" "$(echo "$HEALTH" | jq_ "[c['status'] for c in d['components'] if c['name']=='postgres'][0]")"
 check "здоровье: redis" "ok" "$(echo "$HEALTH" | jq_ "[c['status'] for c in d['components'] if c['name']=='redis'][0]")"
