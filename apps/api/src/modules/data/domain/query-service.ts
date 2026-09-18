@@ -16,7 +16,7 @@ import {
   type ResolvedDataset,
   type RowPolicy,
 } from '@kchs/query'
-import { eq, inArray } from 'drizzle-orm'
+import { inArray } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
 import type { Ctx } from '~/shared/context.js'
 import { db, queryRoleSql } from '~/shared/db/client.js'
@@ -277,14 +277,4 @@ export const QueryService = {
     })
     return result
   },
-}
-
-/** Спецификация сохранённого запроса — для исполнения по идентификатору. */
-export async function savedQuerySpec(id: string): Promise<QuerySpec | null> {
-  const [row] = await db()
-    .select({ spec: queries.spec })
-    .from(queries)
-    .where(eq(queries.id, id))
-    .limit(1)
-  return (row?.spec as unknown as QuerySpec | undefined) ?? null
 }
