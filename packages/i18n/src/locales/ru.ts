@@ -152,6 +152,60 @@ export const ru = {
       resize: 'Изменить ширину столбца',
       actions: 'Действия',
     },
+    grid: {
+      rowNumber: 'Номер строки',
+      rows: '{count, plural, one {# строка} few {# строки} many {# строк} other {# строки}}',
+      rowsApprox:
+        'около {count, plural, one {# строки} few {# строк} many {# строк} other {# строки}}',
+      rowsOf:
+        '{shown} из {count, plural, one {# строки} few {# строк} many {# строк} other {# строки}}',
+      empty: 'Строк нет',
+      selected: 'Выделено: {count}',
+      selectedRows:
+        '{count, plural, one {Выделена # строка} few {Выделены # строки} many {Выделено # строк} other {Выделено # строки}}',
+      sum: 'Сумма: {value}',
+      avg: 'Среднее: {value}',
+      partial: 'по загруженным строкам',
+      menu: 'Меню столбца «{name}»',
+      sortAsc: 'По возрастанию',
+      sortDesc: 'По убыванию',
+      sortClear: 'Без сортировки',
+      pin: 'Закрепить слева',
+      unpin: 'Открепить',
+      moveLeft: 'Переместить влево',
+      moveRight: 'Переместить вправо',
+      autosize: 'По ширине содержимого',
+      hide: 'Скрыть столбец',
+      filter: 'Фильтр по столбцу',
+      columns: 'Столбцы',
+      columnsTitle: 'Показывать столбцы',
+      showAll: 'Показать все',
+      edit: 'Изменить «{name}»',
+      readOnly: 'Столбец только для чтения',
+      invalid: 'Значение не подходит для поля «{name}»',
+      saving: 'Сохранение…',
+      saveFailed: 'Не сохранено: {message}',
+      notSaved: 'Изменения не сохранены',
+      pasted:
+        '{count, plural, one {Вставлено # значение} few {Вставлено # значения} many {Вставлено # значений} other {Вставлено # значения}}',
+      pasteInvalid:
+        '{count, plural, one {не распознано # значение} few {не распознаны # значения} many {не распознано # значений} other {не распознано # значения}}: {examples}',
+      pasteExample: '«{value}» ({name})',
+      pasteSkipped:
+        '{count, plural, one {# значение пропущено} few {# значения пропущены} many {# значений пропущено} other {# значения пропущено}}: только чтение или строка не загружена',
+      pasteClipped:
+        '{count, plural, one {# значение} few {# значения} many {# значений} other {# значения}} за пределами таблицы',
+      copied:
+        '{count, plural, one {Скопирована # ячейка} few {Скопированы # ячейки} many {Скопировано # ячеек} other {Скопировано # ячейки}}',
+      copyPartial: 'скопированы только загруженные строки',
+      cleared:
+        '{count, plural, one {Очищена # ячейка} few {Очищены # ячейки} many {Очищено # ячеек} other {Очищено # ячейки}}',
+      undone: 'Правка отменена',
+      redone: 'Правка повторена',
+      datePlaceholder: 'дд.мм.гггг',
+      datetimePlaceholder: 'дд.мм.гггг чч:мм',
+      noOptions: 'Нет вариантов',
+    },
     board: { empty: 'Пусто', card: 'Карточка' },
     filter: {
       add: 'Фильтр',

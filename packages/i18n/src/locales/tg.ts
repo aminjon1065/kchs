@@ -155,6 +155,22 @@ export const tg: DeepPartial<Dictionary> = {
         map: 'Харита',
       },
     },
+    grid: {
+      rowNumber: 'Рақами сатр',
+      rows: '{count, plural, other {# сатр}}',
+      rowsOf: '{shown} аз {count, plural, other {# сатр}}',
+      empty: 'Сатр нест',
+      sum: 'Ҳамагӣ: {value}',
+      avg: 'Миёна: {value}',
+      sortAsc: 'Аз хурд ба калон',
+      sortDesc: 'Аз калон ба хурд',
+      sortClear: 'Бе тартиб',
+      hide: 'Пинҳон кардани сутун',
+      filter: 'Филтр аз рӯи сутун',
+      columns: 'Сутунҳо',
+      showAll: 'Ҳамаро нишон додан',
+      saving: 'Нигоҳ дошта мешавад…',
+    },
   },
   auth: {
     signIn: {
