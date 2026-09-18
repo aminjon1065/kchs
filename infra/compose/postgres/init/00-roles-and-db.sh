@@ -6,7 +6,9 @@
 set -euo pipefail
 
 DB="${POSTGRES_DB}"
-TEST_DB="${POSTGRES_DB}_test"
+# Дополнительная тестовая база для параллельного прогона тестов (KCHS_TEST_SLOT):
+# скрипт идемпотентен и запускается повторно — см. apps/api/scripts/test-slot.sh
+TEST_DB="${KCHS_TEST_DB:-${POSTGRES_DB}_test}"
 
 # ── 1. Роли кластера ─────────────────────────────────────────────────────────
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$DB" <<-EOSQL

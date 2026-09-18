@@ -1,16 +1,26 @@
 import type { FastifyInstance, InjectOptions } from 'fastify'
 import { afterAll, beforeAll } from 'vitest'
 
-/** Интеграционные тесты работают с отдельной базой kchs_test. */
+/**
+ * Интеграционные тесты работают с отдельной базой kchs_test. Слот
+ * `KCHS_TEST_SLOT=N` даёт параллельному прогону свою базу `kchs_test_N`, базу
+ * Redis и префикс индекса (база создаётся `scripts/test-slot.sh N`).
+ */
 process.env.KCHS_ENV_FILE =
   process.env.KCHS_ENV_FILE ?? new URL('../../../.env', import.meta.url).pathname
 await import('../src/shared/config/load-env.js')
 
+const slot = Number(process.env.KCHS_TEST_SLOT ?? 0)
+if (!Number.isInteger(slot) || slot < 0 || slot > 14) {
+  throw new Error('KCHS_TEST_SLOT: целое число 0…14')
+}
+const testDb = slot ? `kchs_test_${slot}` : 'kchs_test'
+
 const base = process.env.DATABASE_URL ?? ''
-process.env.DATABASE_URL = base.replace(/\/kchs(\?|$)/, '/kchs_test$1')
+process.env.DATABASE_URL = base.replace(/\/kchs(\?|$)/, `/${testDb}$1`)
 process.env.DATABASE_MIGRATOR_URL = (process.env.DATABASE_MIGRATOR_URL ?? '').replace(
   /\/kchs(\?|$)/,
-  '/kchs_test$1',
+  `/${testDb}$1`,
 )
 process.env.NODE_ENV = 'test'
 process.env.LOG_LEVEL = 'error'
@@ -18,8 +28,8 @@ process.env.ROLE = 'api'
 
 // Redis и поисковый индекс тоже отдельные: тесты не трогают кэши, очереди и
 // индекс работающего стенда разработки
-process.env.REDIS_URL = withRedisDb(process.env.REDIS_URL ?? '', 1)
-process.env.MEILI_INDEX_PREFIX = 'test_'
+process.env.REDIS_URL = withRedisDb(process.env.REDIS_URL ?? '', 1 + slot)
+process.env.MEILI_INDEX_PREFIX = slot ? `test${slot}_` : 'test_'
 
 function withRedisDb(url: string, dbIndex: number): string {
   const parsed = new URL(url)
