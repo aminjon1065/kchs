@@ -29,10 +29,12 @@ import {
   useToast,
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { History, Trash2 } from 'lucide-react'
+import { CheckSquare, History, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
+import { RowTasks } from '~/features/tasks/row-tasks.js'
+import { CreateTaskDialog } from '~/features/tasks/task-dialogs.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { meQuery } from '~/shared/api/queries.js'
 import { fieldLabel } from './field-types.js'
@@ -99,6 +101,8 @@ export function RowCard({
   const { data: me } = useQuery(meQuery())
   const { data: row, error, isLoading, refetch } = useQuery(datasetRowQuery(dataset.id, rowId))
   const [removing, setRemoving] = useState(false)
+  const [tab, setTab] = useState('fields')
+  const [assigning, setAssigning] = useState(false)
   const ctx: ValueContext = { locale, ...(me?.user.timezone ? { timezone: me.user.timezone } : {}) }
   const editable = canEdit && dataset.settings.editable
 
@@ -141,14 +145,25 @@ export function RowCard({
         description={row ? t('data.row.subtitle', { id: rowId, ver: row._ver }) : undefined}
         width="min(560px, 100vw)"
         footer={
-          editable && row ? (
-            <Button
-              variant="ghost"
-              icon={<Trash2 className="size-4" />}
-              onClick={() => setRemoving(true)}
-            >
-              {t('data.row.remove')}
-            </Button>
+          row ? (
+            <>
+              <Button
+                variant="secondary"
+                icon={<CheckSquare className="size-4" />}
+                onClick={() => setAssigning(true)}
+              >
+                {t('tasks.row.create')}
+              </Button>
+              {editable ? (
+                <Button
+                  variant="ghost"
+                  icon={<Trash2 className="size-4" />}
+                  onClick={() => setRemoving(true)}
+                >
+                  {t('data.row.remove')}
+                </Button>
+              ) : null}
+            </>
           ) : undefined
         }
       >
@@ -164,10 +179,11 @@ export function RowCard({
             <Skeleton className="h-6 w-3/5" />
           </div>
         ) : (
-          <Tabs defaultValue="fields" className="flex flex-col gap-3">
+          <Tabs value={tab} onValueChange={setTab} className="flex flex-col gap-3">
             <TabsList>
               <TabsTrigger value="fields">{t('data.row.tabs.fields')}</TabsTrigger>
               <TabsTrigger value="history">{t('data.row.tabs.history')}</TabsTrigger>
+              <TabsTrigger value="tasks">{t('tasks.row.tab')}</TabsTrigger>
             </TabsList>
             <TabsContent value="fields">
               <InlineProperties
@@ -181,8 +197,28 @@ export function RowCard({
             <TabsContent value="history">
               <RowHistory dataset={dataset} rowId={rowId} ctx={ctx} />
             </TabsContent>
+            <TabsContent value="tasks">
+              <RowTasks datasetId={dataset.id} rowId={rowId} />
+            </TabsContent>
           </Tabs>
         )}
+        {assigning && row ? (
+          // Поручение по строке: заголовок строки и связь-источник с ней
+          <CreateTaskDialog
+            draft={{
+              kind: 'instruction',
+              title: title.slice(0, 300),
+              source: {
+                kind: 'dataset_row',
+                datasetId: dataset.id,
+                rowId,
+                label: title.slice(0, 300),
+              },
+            }}
+            onClose={() => setAssigning(false)}
+            onCreated={() => setTab('tasks')}
+          />
+        ) : null}
         <AlertDialog
           open={removing}
           onOpenChange={setRemoving}

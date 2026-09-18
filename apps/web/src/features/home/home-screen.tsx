@@ -30,6 +30,7 @@ import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
 import { useOpenWorkspace } from '~/app/workspace/workspaces-menu.js'
+import { MyTasksWidget } from '~/features/tasks/my-tasks-widget.js'
 import {
   announcementsQuery,
   favoritesQuery,
@@ -85,6 +86,7 @@ export function HomeScreen() {
 
   const render: Record<HomeWidget, () => ReactNode> = {
     inbox: () => <InboxWidget openObject={openObject} openInbox={openInbox} />,
+    tasks: () => <MyTasksWidget />,
     announcements: () => <AnnouncementsWidget />,
     continue: () => <ContinueWidget />,
     recent: () => <RecentWidget openObject={openObject} />,

@@ -13,6 +13,12 @@ describe('виджеты «Мой день»', () => {
     expect(widgetsFor(['pinned', 'inbox'], ['registrar'])).toEqual(['pinned', 'inbox'])
   })
 
+  it('«Мои задачи» — в наборе каждой роли', () => {
+    for (const roles of [['registrar'], ['data_steward'], ['system_admin'], ['employee']]) {
+      expect(presetFor(roles)).toContain('tasks')
+    }
+  })
+
   it('исчезнувшие виджеты и повторы отбрасываются, мусор — набор по роли', () => {
     expect(widgetsFor(['team', 'inbox', 'inbox'], ['employee'])).toEqual(['inbox'])
     expect(widgetsFor(['team'], ['registrar'])).toEqual(presetFor(['registrar']))

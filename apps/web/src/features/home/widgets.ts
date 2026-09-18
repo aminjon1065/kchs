@@ -1,30 +1,44 @@
 /**
  * Виджеты «Мой день» (12-calendar-notifications-home.md §4, P0-E15 S01):
  * пользователь выбирает, что показывать и в каком порядке; пока не выбрал —
- * набор по его роли. «Сегодня», «Задачи», «Показатели» и другие виджеты
- * появятся вместе со своими модулями.
+ * набор по его роли. «Сегодня», «Показатели» и другие виджеты появятся
+ * вместе со своими модулями.
  */
-export const HOME_WIDGETS = ['inbox', 'announcements', 'continue', 'recent', 'pinned'] as const
+export const HOME_WIDGETS = [
+  'inbox',
+  'tasks',
+  'announcements',
+  'continue',
+  'recent',
+  'pinned',
+] as const
 export type HomeWidget = (typeof HOME_WIDGETS)[number]
 
 /** Ключ пользовательской настройки (`PUT /me/preferences`). */
 export const HOME_WIDGETS_PREFERENCE = 'home.widgets'
 
-const DEFAULT_WIDGETS: HomeWidget[] = ['inbox', 'announcements', 'continue', 'recent', 'pinned']
+const DEFAULT_WIDGETS: HomeWidget[] = [
+  'inbox',
+  'tasks',
+  'announcements',
+  'continue',
+  'recent',
+  'pinned',
+]
 
 /** Первое совпадение по порядку: у сотрудника с несколькими ролями — самая «рабочая». */
 const ROLE_PRESETS: ReadonlyArray<{ roles: readonly string[]; widgets: HomeWidget[] }> = [
-  // Делопроизводитель: Входящие первыми (журнал и контроль — фаза 3)
-  { roles: ['registrar'], widgets: ['inbox', 'announcements', 'recent'] },
+  // Делопроизводитель: Входящие и поручения первыми (журнал и контроль — фаза 3)
+  { roles: ['registrar'], widgets: ['inbox', 'tasks', 'announcements', 'recent'] },
   // Аналитик: продолжить работу и закреплённые представления (свежесть данных — фаза 1)
   {
     roles: ['data_steward', 'gis_admin'],
-    widgets: ['continue', 'pinned', 'recent', 'announcements', 'inbox'],
+    widgets: ['continue', 'pinned', 'tasks', 'recent', 'announcements', 'inbox'],
   },
   // Администраторы: объявления, которые они же публикуют, и Входящие
   {
     roles: ['system_admin', 'org_admin', 'security_auditor'],
-    widgets: ['announcements', 'inbox', 'recent', 'continue'],
+    widgets: ['announcements', 'inbox', 'tasks', 'recent', 'continue'],
   },
 ]
 

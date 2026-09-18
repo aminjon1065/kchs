@@ -44,7 +44,7 @@ const PRIMARY: RailItem[] = [
     soon: true,
   },
   { key: 'files', icon: Folder, labelKey: 'shell.rail.files', shortcut: 'G F' },
-  { key: 'tasks', icon: CheckSquare, labelKey: 'shell.rail.tasks', shortcut: 'G T', soon: true },
+  { key: 'tasks', icon: CheckSquare, labelKey: 'shell.rail.tasks', shortcut: 'G T' },
   { key: 'chats', icon: MessageSquare, labelKey: 'shell.rail.chats', shortcut: 'G C', soon: true },
   { key: 'meetings', icon: Video, labelKey: 'shell.rail.meetings', soon: true },
   { key: 'calendar', icon: CalendarDays, labelKey: 'shell.rail.calendar', soon: true },

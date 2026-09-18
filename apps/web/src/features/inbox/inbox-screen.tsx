@@ -4,22 +4,26 @@ import {
   Badge,
   Button,
   cn,
+  Dialog,
+  DialogContent,
   EmptyState,
+  Field,
   ObjectChip,
   ObjectIcon,
   PanelToolbar,
   SegmentedControl,
   Skeleton,
+  Textarea,
   useHotkeys,
   useToast,
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CheckCheck, Clock3, Inbox as InboxIcon, User } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
-import { http } from '~/shared/api/client.js'
+import { ApiError, http } from '~/shared/api/client.js'
 import { inboxCountsQuery, inboxQuery, keys } from '~/shared/api/queries.js'
 
 type Scope = 'all' | 'mine' | 'delegated'
@@ -206,10 +210,42 @@ export function InboxScreen() {
   )
 }
 
+type InboxAction = InboxItem['actions'][number]
+
 function InboxDetail({ item, onSnooze }: { item: InboxItem; onSnooze: () => void }) {
   const t = useT()
   const locale = useAppearance((s) => s.locale)
+  const toast = useToast()
+  const client = useQueryClient()
   const openTab = useWorkspace((s) => s.openTab)
+  const commentId = useId()
+  const [commenting, setCommenting] = useState<InboxAction | null>(null)
+  const [comment, setComment] = useState('')
+
+  // Действие выполняет модуль элемента (POST /inbox/{id}/act): он же закрывает дело
+  const act = useMutation({
+    mutationFn: (input: { action: string; comment?: string }) =>
+      http.post(`/inbox/${item.id}/act`, input),
+    onSuccess: () => {
+      toast.show({ title: t('inbox.resolved'), tone: 'success' })
+      setCommenting(null)
+      setComment('')
+      void client.invalidateQueries({ queryKey: ['inbox'] })
+      void client.invalidateQueries({ queryKey: keys.inboxCounts })
+      if (item.object) void client.invalidateQueries({ queryKey: keys.object(item.object.id) })
+    },
+    onError: (error) =>
+      toast.error(error instanceof ApiError ? error.message : t('errors.unknown')),
+  })
+
+  const run = (action: InboxAction) => {
+    if (!action.requiresComment) {
+      act.mutate({ action: action.key })
+      return
+    }
+    setComment('')
+    setCommenting(action)
+  }
 
   return (
     <article className="mx-auto flex max-w-[760px] flex-col gap-4 p-6">
@@ -250,6 +286,9 @@ function InboxDetail({ item, onSnooze }: { item: InboxItem; onSnooze: () => void
           <Button
             key={action.key}
             variant={index === 0 ? 'primary' : action.variant === 'danger' ? 'danger' : 'secondary'}
+            loading={act.isPending && act.variables?.action === action.key}
+            disabled={act.isPending}
+            onClick={() => run(action)}
           >
             {t(action.labelKey)}
           </Button>
@@ -258,6 +297,41 @@ function InboxDetail({ item, onSnooze }: { item: InboxItem; onSnooze: () => void
           {t('inbox.actions.snooze')}
         </Button>
       </div>
+
+      <Dialog open={commenting !== null} onOpenChange={(open) => !open && setCommenting(null)}>
+        {commenting ? (
+          <DialogContent
+            title={t(commenting.labelKey)}
+            description={item.title}
+            size="md"
+            footer={
+              <>
+                <Button variant="secondary" onClick={() => setCommenting(null)}>
+                  {t('common.actions.cancel')}
+                </Button>
+                <Button
+                  variant="primary"
+                  disabled={!comment.trim()}
+                  loading={act.isPending}
+                  onClick={() => act.mutate({ action: commenting.key, comment: comment.trim() })}
+                >
+                  {t(commenting.labelKey)}
+                </Button>
+              </>
+            }
+          >
+            <Field label={t('inbox.comment')} htmlFor={commentId} required>
+              <Textarea
+                id={commentId}
+                autoFocus
+                rows={5}
+                value={comment}
+                onChange={(event) => setComment(event.target.value)}
+              />
+            </Field>
+          </DialogContent>
+        ) : null}
+      </Dialog>
     </article>
   )
 }
@@ -265,7 +339,7 @@ function InboxDetail({ item, onSnooze }: { item: InboxItem; onSnooze: () => void
 function groupOf(kind: string): string {
   if (['approve', 'sign', 'resolve'].includes(kind)) return 'decide'
   if (kind === 'acknowledge') return 'acknowledge'
-  if (kind.includes('instruction')) return 'instructions'
+  if (kind.includes('instruction') || kind === 'accept_result') return 'instructions'
   if (kind === 'respond_invite') return 'invites'
   return 'data'
 }

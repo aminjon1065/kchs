@@ -19,6 +19,9 @@ import { ProfileScreen } from '~/features/profile/profile-screen.js'
 import { SearchScreen } from '~/features/search/search-screen.js'
 import { SpaceScreen } from '~/features/spaces/space-screen.js'
 import { SpacesScreen } from '~/features/spaces/spaces-screen.js'
+import { ProjectView } from '~/features/tasks/project-view.js'
+import { TaskView } from '~/features/tasks/task-view.js'
+import { TasksScreen, type TasksScreenState } from '~/features/tasks/tasks-screen.js'
 import { registerObjectView, registerScreen } from './workspace/registry.js'
 
 let registered = false
@@ -89,6 +92,12 @@ export function registerModules(): void {
     render: (tab) => <SqlLabScreen tabId={tab.id} savedState={tab.state as SavedSqlLab} />,
   })
   registerScreen({
+    key: 'tasks',
+    titleKey: 'shell.rail.tasks',
+    icon: 'task',
+    render: (tab) => <TasksScreen tabId={tab.id} savedState={tab.state as TasksScreenState} />,
+  })
+  registerScreen({
     key: 'search',
     titleKey: 'shell.rail.search',
     icon: 'view',
@@ -145,6 +154,20 @@ export function registerModules(): void {
   registerObjectView({
     type: 'dataset',
     render: (tab) => <DatasetView objectId={tab.objectId!} tabId={tab.id} />,
+  })
+  registerObjectView({
+    type: 'task',
+    render: (tab) => <TaskView objectId={tab.objectId!} tabId={tab.id} />,
+  })
+  registerObjectView({
+    type: 'project',
+    render: (tab) => (
+      <ProjectView
+        objectId={tab.objectId!}
+        tabId={tab.id}
+        savedState={tab.state as TasksScreenState}
+      />
+    ),
   })
   registerObjectView({ type: 'space', render: (tab) => <SpaceScreen spaceId={tab.objectId!} /> })
   registerScreen({
