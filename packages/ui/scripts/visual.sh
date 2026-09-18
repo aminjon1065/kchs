@@ -5,6 +5,7 @@
 #   pnpm --filter @kchs/ui test:visual                   # сверка со снимками
 #   pnpm --filter @kchs/ui test:visual:update            # обновить снимки
 #   pnpm --filter @kchs/ui test:visual -- -g "Кнопки"    # часть историй
+#   KCHS_PERF=1 pnpm --filter @kchs/ui test:visual grid-perf   # замер прокрутки DataGrid
 set -euo pipefail
 
 UI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -22,5 +23,6 @@ docker run --rm --ipc=host \
   -v "${ROOT}:/repo" \
   -w /repo/packages/ui \
   -e CI="${CI:-}" \
+  -e KCHS_PERF="${KCHS_PERF:-}" \
   "${IMAGE}" \
   node node_modules/@playwright/test/cli.js test "$@"
