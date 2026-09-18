@@ -295,7 +295,7 @@ export function DataGrid({
     const push = (key: string, width: number, pinned: boolean) => {
       const column = byKey.get(key)
       if (!column) return
-      const kind = editorKind(column.type)
+      const kind = editorKind(column)
       out.push({
         key,
         index: out.length,

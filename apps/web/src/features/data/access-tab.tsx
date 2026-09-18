@@ -36,7 +36,9 @@ import {
   PrincipalPicker,
   usePrincipalLabel,
 } from '~/features/access/principal-picker.js'
+import { useTerritoryFilterEditor } from '~/features/gis/territory-filter.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { useFieldOptions } from './field-options.js'
 import { fieldLabel, filterFieldsOf } from './field-types.js'
 import { dataKeys, datasetPoliciesQuery } from './queries.js'
 
@@ -68,7 +70,8 @@ export function AccessTab({ dataset }: { dataset: DatasetRecord }) {
   const { data: policies, isLoading, error, refetch } = useQuery(datasetPoliciesQuery(dataset.id))
   const [editing, setEditing] = useState<Editing | null>(null)
   const [removing, setRemoving] = useState<Removing | null>(null)
-  const fields = filterFieldsOf(dataset.fields, locale)
+  // Политика «только своя область» — поле-территория с выбором единицы справочника
+  const fields = filterFieldsOf(dataset.fields, locale, useFieldOptions(dataset.fields))
   const labels = new Map(dataset.fields.map((field) => [field.key, fieldLabel(field, locale)]))
 
   const remove = useMutation({
@@ -309,6 +312,9 @@ function RowPolicyDialog({
 }) {
   const t = useT()
   const noteId = useId()
+  const territoryEditor = useTerritoryFilterEditor(
+    dataset.fields.some((field) => field.type === 'territory'),
+  )
   const [principal, setPrincipal] = useState<PrincipalRef | null>(policy?.principal ?? null)
   const [filter, setFilter] = useState<FilterNode | null>(policy?.filter ?? null)
   const [note, setNote] = useState(policy?.note ?? '')
@@ -365,7 +371,12 @@ function RowPolicyDialog({
             legend={t('data.policies.rows.filter')}
             hint={t('data.policies.rows.filterHint')}
           >
-            <FilterBuilder fields={fields} value={filter} onChange={setFilter} />
+            <FilterBuilder
+              fields={fields}
+              value={filter}
+              onChange={setFilter}
+              renderValue={territoryEditor}
+            />
           </FieldGroup>
           <Field label={t('data.policies.note')} htmlFor={noteId}>
             <Textarea

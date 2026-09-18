@@ -141,6 +141,29 @@ describe('parseValue', () => {
     })
   })
 
+  it('справочные варианты: территория и поле со справочником — по подписи или значению', () => {
+    const regions = [{ value: 'id-kt', label: { ru: 'Хатлонская область', en: 'Khatlon' } }]
+    expect(parseValue('khatlon', { type: 'territory', options: regions })).toEqual({
+      ok: true,
+      value: 'id-kt',
+    })
+    expect(parseValue('Атлантида', { type: 'territory', options: regions })).toEqual({ ok: false })
+    expect(parseValue('id-kt', { type: 'territory' })).toEqual({ ok: false })
+
+    const kinds = [{ value: 'FL', label: { ru: 'Паводок' } }]
+    expect(parseValue('паводок', { type: 'text', options: kinds })).toEqual({
+      ok: true,
+      value: 'FL',
+    })
+    // Ключа нет среди подписей — текст и есть ключ
+    expect(parseValue('MF', { type: 'text', options: kinds })).toEqual({ ok: true, value: 'MF' })
+    const codes = [{ value: '7', label: { ru: 'Седьмой' } }]
+    expect(parseValue('седьмой', { type: 'integer', options: codes })).toEqual({
+      ok: true,
+      value: 7,
+    })
+  })
+
   it('проценты: доля по умолчанию, проценты при scale=percent', () => {
     expect(parseValue('12,5%', { type: 'percent' })).toEqual({ ok: true, value: 0.125 })
     expect(parseValue('0,25', { type: 'percent' })).toEqual({ ok: true, value: 0.25 })

@@ -42,6 +42,7 @@ import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
+import { useTerritoryFilterEditor } from '~/features/gis/territory-filter.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import {
   type ExploreGroup,
@@ -51,6 +52,7 @@ import {
   exploreSpec,
   measureAlias,
 } from './explore-query.js'
+import { useFieldOptions } from './field-options.js'
 import { filterFieldsOf, NUMERIC_TYPES } from './field-types.js'
 import { datasetQuery } from './queries.js'
 
@@ -148,6 +150,10 @@ export function ExploreScreen({
 
   const fields = dataset?.fields ?? []
   const byKey = useMemo(() => new Map(fields.map((field) => [field.key, field])), [fields])
+  const fieldOptions = useFieldOptions(fields)
+  const territoryEditor = useTerritoryFilterEditor(
+    fields.some((field) => field.type === 'territory'),
+  )
 
   /** Подписи столбцов результата: поля — по схеме, меры — «функция: поле». */
   const columnLabel = useCallback(
@@ -197,7 +203,7 @@ export function ExploreScreen({
   const update = (patch: Partial<ExploreState>) => setState((current) => ({ ...current, ...patch }))
   const groupable = fields.filter((field) => !NOT_GROUPABLE.has(field.type))
   const numeric = fields.filter((field) => NUMERIC_TYPES.has(field.type))
-  const filterFields = filterFieldsOf(fields, locale)
+  const filterFields = filterFieldsOf(fields, locale, fieldOptions)
   const sortable = [
     ...state.groups.map((group) => group.field),
     ...state.measures.map(measureAlias),
@@ -243,6 +249,7 @@ export function ExploreScreen({
             fields={filterFields}
             value={state.filter}
             onChange={(filter) => update({ filter })}
+            renderValue={territoryEditor}
           />
         </Section>
 

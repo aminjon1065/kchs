@@ -21,6 +21,7 @@ export type ScreenKey =
   | 'jobs'
   | 'explore'
   | 'sql'
+  | 'territories'
 
 export interface TabState {
   id: string

@@ -72,7 +72,8 @@ const NUMERIC: FieldType[] = [
   'rollup',
 ]
 const DATE_TYPES: FieldType[] = ['date', 'datetime']
-const CHOICE: FieldType[] = ['select', 'multi_select', 'lookup']
+/** Значение выбирается из вариантов поля (у территории — единицы справочника; `within` — с вложенными). */
+const CHOICE: FieldType[] = ['select', 'multi_select', 'lookup', 'territory']
 
 /** Верхний уровень фильтра — «И» из условий и групп «или» (вложенность 2 уровня). */
 type Item = FilterCondition | { or: FilterNode[] }

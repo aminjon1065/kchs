@@ -204,9 +204,20 @@ export function parseValue(text: string, field: ParseTarget, ctx: ParseContext =
     case 'url':
     case 'email':
     case 'phone':
+      // Поле со справочником: подпись → ключ; иначе текст и есть ключ
+      if (field.options?.length) {
+        return { ok: true, value: matchOption(text, field.options) ?? text.trim() }
+      }
       return { ok: true, value: text.replace(/\r\n?/g, '\n') }
+    case 'territory':
+      // Территория — только из справочных вариантов: код, название или идентификатор
+      return field.options?.length ? ok(matchOption(text, field.options)) : { ok: false }
     case 'integer':
     case 'duration':
+      if (field.options?.length) {
+        const matched = matchOption(text, field.options)
+        if (matched !== null) return { ok: true, value: Number(matched) }
+      }
       return ok(parseInteger(text, locale))
     case 'number':
     case 'decimal':

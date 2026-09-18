@@ -125,6 +125,12 @@ export function CommandPalette({
         run: () => goScreen('spaces', t('spaces.title'), 'space'),
       },
       {
+        id: 'territories',
+        label: t('gis.territories.title'),
+        icon: <ObjectIcon type="territory" />,
+        run: () => goScreen('territories', t('gis.territories.title'), 'territory'),
+      },
+      {
         id: 'trash',
         label: t('objects.trash.title'),
         icon: <Trash2 />,

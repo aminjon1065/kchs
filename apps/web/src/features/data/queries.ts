@@ -7,6 +7,7 @@ import type {
   DatasetRow,
   DatasetRowHistoryEntry,
   DatasetVersion,
+  FieldOption,
   FieldProfile,
   ImportRecord,
   ImportStatus,
@@ -91,6 +92,53 @@ export const datasetPoliciesQuery = (id: string) =>
   queryOptions({
     queryKey: dataKeys.policies(id),
     queryFn: () => http.get<DatasetPolicies>(`/datasets/${id}/policies`),
+  })
+
+/** Больше строк справочника — подписи не подставляются (в ячейках остаются ключи). */
+export const LOOKUP_OPTIONS_LIMIT = 2000
+
+export interface LookupRef {
+  datasetId: string
+  keyField: string
+  labelField: string
+}
+
+/**
+ * Подписи справочника поля: ключ → подпись по строкам, которые видит
+ * пользователь. Справочник недоступен или слишком велик — вариантов нет.
+ */
+export const lookupOptionsQuery = (lookup: LookupRef) =>
+  queryOptions({
+    queryKey: [
+      ...dataKeys.dataset(lookup.datasetId),
+      'lookup',
+      lookup.keyField,
+      lookup.labelField,
+    ] as const,
+    queryFn: async (): Promise<FieldOption[]> => {
+      const fields = [...new Set([lookup.keyField, lookup.labelField])]
+      const result = await http.post<QueryResult>('/queries/run', {
+        spec: {
+          version: 1,
+          source: { kind: 'dataset', id: lookup.datasetId },
+          steps: [
+            { type: 'select', fields },
+            { type: 'limit', limit: LOOKUP_OPTIONS_LIMIT + 1, offset: 0 },
+          ],
+        },
+      })
+      if (result.rows.length > LOOKUP_OPTIONS_LIMIT) return []
+      const keyIndex = result.fields.findIndex((field) => field.name === lookup.keyField)
+      const labelIndex = result.fields.findIndex((field) => field.name === lookup.labelField)
+      return result.rows.flatMap((row) => {
+        const key = row[keyIndex]
+        const label = row[labelIndex]
+        if (key === null || key === undefined || label === null || label === undefined) return []
+        return [{ value: String(key), label: { ru: String(label) } }]
+      })
+    },
+    staleTime: 60_000,
+    retry: false,
   })
 
 export const isJobFinished = (status: JobStatus | undefined): boolean =>

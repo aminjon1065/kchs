@@ -125,6 +125,11 @@ export function formatValue(
 ): string {
   if (value === null || value === undefined || value === '') return ''
   const type = field.type as FieldType
+  // Справочные варианты у территории и поля со справочником: подпись вместо кода
+  if (field.options?.length && type !== 'select' && type !== 'multi_select') {
+    const option = field.options.find((o) => o.value === String(value))
+    if (option) return option.label[ctx.locale ?? DEFAULT_LOCALE] ?? option.label.ru
+  }
   switch (type) {
     case 'integer':
     case 'number':

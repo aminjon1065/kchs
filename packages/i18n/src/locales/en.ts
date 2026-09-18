@@ -1022,6 +1022,33 @@ export const en: DeepPartial<Dictionary> = {
     },
   },
 
+  gis: {
+    territories: {
+      title: 'Territories',
+      search: 'Find a territory',
+      results: 'Territories found',
+      nothingFound: 'Nothing found',
+      empty: 'The territory directory is empty',
+      expand: 'Expand «{name}»',
+      collapse: 'Collapse «{name}»',
+      code: 'Code',
+      level: 'Level',
+      kind: 'Kind',
+      population: 'Population',
+      centroid: 'Centre (latitude, longitude)',
+      area: 'Area, km²',
+      children: 'Includes',
+      noChildren: 'No nested units',
+      noBoundary: 'Boundaries and the map will come with phase 2 geodata.',
+      levels: {
+        country: 'Country',
+        region: 'Region',
+        district: 'District',
+        jamoat: 'Jamoat',
+        settlement: 'Settlement',
+      },
+    },
+  },
   data: {
     fields: { rows: 'Rows' },
     catalog: {

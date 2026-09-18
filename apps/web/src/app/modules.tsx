@@ -7,6 +7,8 @@ import { ExploreScreen } from '~/features/data/explore-screen.js'
 import { MetricView } from '~/features/data/metric-view.js'
 import { type SavedSqlLab, SqlLabScreen } from '~/features/data/sql-lab-screen.js'
 import { FilesScreen } from '~/features/files/files-screen.js'
+import { TerritoriesScreen } from '~/features/gis/territories-screen.js'
+import { TerritoryView } from '~/features/gis/territory-view.js'
 import { HomeScreen } from '~/features/home/home-screen.js'
 import { InboxScreen } from '~/features/inbox/inbox-screen.js'
 import { NotificationsScreen } from '~/features/notifications/notifications-screen.js'
@@ -145,4 +147,14 @@ export function registerModules(): void {
     render: (tab) => <DatasetView objectId={tab.objectId!} tabId={tab.id} />,
   })
   registerObjectView({ type: 'space', render: (tab) => <SpaceScreen spaceId={tab.objectId!} /> })
+  registerScreen({
+    key: 'territories',
+    titleKey: 'gis.territories.title',
+    icon: 'territory',
+    render: () => <TerritoriesScreen />,
+  })
+  registerObjectView({
+    type: 'territory',
+    render: (tab) => <TerritoryView objectId={tab.objectId!} />,
+  })
 }

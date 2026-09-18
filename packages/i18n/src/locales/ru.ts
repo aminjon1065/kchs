@@ -1050,6 +1050,33 @@ export const ru = {
     },
   },
 
+  gis: {
+    territories: {
+      title: 'Территории',
+      search: 'Найти территорию',
+      results: 'Найденные территории',
+      nothingFound: 'Ничего не найдено',
+      empty: 'Справочник территорий пуст',
+      expand: 'Развернуть «{name}»',
+      collapse: 'Свернуть «{name}»',
+      code: 'Код',
+      level: 'Уровень',
+      kind: 'Вид',
+      population: 'Население',
+      centroid: 'Центр (широта, долгота)',
+      area: 'Площадь, км²',
+      children: 'Входят в состав',
+      noChildren: 'Вложенных единиц нет',
+      noBoundary: 'Границы и карта появятся с геоданными фазы 2.',
+      levels: {
+        country: 'Страна',
+        region: 'Регион',
+        district: 'Район',
+        jamoat: 'Джамоат',
+        settlement: 'Населённый пункт',
+      },
+    },
+  },
   data: {
     fields: { rows: 'Строк' },
     catalog: {

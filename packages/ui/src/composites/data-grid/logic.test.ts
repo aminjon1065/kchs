@@ -305,12 +305,31 @@ describe('сводка и значения', () => {
     const ctx = { locale: 'ru' as const }
     expect(displayText({ type: 'Point' }, { type: 'geometry' }, ctx)).toBe('{"type":"Point"}')
     expect(displayText('09:30:00', { type: 'time' }, ctx)).toBe('09:30')
-    expect(editorKind('integer')).toBe('number')
-    expect(editorKind('boolean')).toBe('boolean')
-    expect(editorKind('select')).toBe('select')
-    expect(editorKind('user')).toBeNull()
-    expect(editorKind('geometry')).toBeNull()
-    expect(editorKind('rollup')).toBeNull()
+    expect(editorKind({ type: 'integer' })).toBe('number')
+    expect(editorKind({ type: 'boolean' })).toBe('boolean')
+    expect(editorKind({ type: 'select' })).toBe('select')
+    expect(editorKind({ type: 'user' })).toBeNull()
+    expect(editorKind({ type: 'geometry' })).toBeNull()
+    expect(editorKind({ type: 'rollup' })).toBeNull()
+    expect(editorKind({ type: 'territory' })).toBeNull()
+  })
+
+  it('справочные варианты: подпись вместо значения, выбор из списка, вставка по подписи', () => {
+    const ctx = { locale: 'ru' as const }
+    const region = { value: 'id-kt', label: { ru: 'Хатлонская область', en: 'Khatlon Region' } }
+    const territory = { type: 'territory' as const, options: [region] }
+    expect(displayText('id-kt', territory, ctx)).toBe('Хатлонская область')
+    expect(displayText('id-kt', territory, { locale: 'en' })).toBe('Khatlon Region')
+    expect(displayText('id-unknown', territory, ctx)).toBe('id-unknown')
+    expect(copyText('id-kt', territory, ctx)).toBe('Хатлонская область')
+    expect(editText('id-kt', territory, ctx)).toBe('Хатлонская область')
+    expect(editorKind(territory)).toBe('select')
+
+    // Поле со справочником: ключ — текст, подпись — из справочника
+    const kind = { type: 'text' as const, options: [{ value: 'FL', label: { ru: 'Паводок' } }] }
+    expect(displayText('FL', kind, ctx)).toBe('Паводок')
+    expect(editorKind(kind)).toBe('select')
+    expect(editorKind({ type: 'multi_select', options: kind.options })).toBe('text')
   })
 
   it('неизменённое значение не отправляется', () => {

@@ -1,6 +1,7 @@
 import {
   type DatasetField,
   FIELD_SEMANTICS,
+  type FieldOption,
   type FieldSemantic,
   type Locale,
   STORED_FIELD_TYPES,
@@ -52,18 +53,26 @@ export const fieldLabel = (field: DatasetField, locale: Locale): string =>
   field.label[locale] ?? field.label.ru ?? field.key
 
 /** Поля датасета для конструктора фильтра: подписи и варианты выбора на языке интерфейса. */
-export function filterFieldsOf(fields: readonly DatasetField[], locale: Locale): FilterField[] {
-  return fields.map((field) => ({
-    key: field.key,
-    label: fieldLabel(field, locale),
-    type: field.type,
-    ...(field.options
-      ? {
-          options: field.options.map((option) => ({
-            value: option.value,
-            label: option.label[locale] ?? option.label.ru,
-          })),
-        }
-      : {}),
-  }))
+export function filterFieldsOf(
+  fields: readonly DatasetField[],
+  locale: Locale,
+  /** Справочные варианты полей (территории, справочники) — `useFieldOptions`. */
+  choices: ReadonlyMap<string, readonly FieldOption[]> = new Map(),
+): FilterField[] {
+  return fields.map((field) => {
+    const options = choices.get(field.key) ?? field.options
+    return {
+      key: field.key,
+      label: fieldLabel(field, locale),
+      type: field.type,
+      ...(options
+        ? {
+            options: options.map((option) => ({
+              value: option.value,
+              label: option.label[locale] ?? option.label.ru,
+            })),
+          }
+        : {}),
+    }
+  })
 }

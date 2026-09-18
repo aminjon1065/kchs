@@ -32,6 +32,7 @@ const SCREEN_PATHS: Record<string, ScreenKey> = {
   '/processes': 'jobs',
   '/explore': 'explore',
   '/sql': 'sql',
+  '/territories': 'territories',
 }
 
 export type LocationTarget =

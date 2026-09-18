@@ -44,6 +44,8 @@ export function displayText(value: unknown, column: ValueColumn, ctx: ValueConte
  */
 export function copyText(value: unknown, column: ValueColumn, ctx: ValueContext): string {
   if (value === null || value === undefined) return ''
+  // Справочные варианты — подписью: вставка обратно находит вариант по ней
+  if (column.options?.length) return formatValue(value, column, ctx)
   if (isNumeric(column.type)) {
     const text = String(value)
     return ctx.locale === 'en' ? text : text.replace('.', ',')
@@ -78,11 +80,14 @@ export function sameValue(a: unknown, b: unknown): boolean {
 /** Как править ячейку; null — только чтение (тип без текстового ввода). */
 export type EditorKind = 'text' | 'number' | 'boolean' | 'select'
 
-export function editorKind(type: FieldType): EditorKind | null {
+export function editorKind(column: Pick<ValueColumn, 'type' | 'options'>): EditorKind | null {
+  const { type } = column
   // Вычисляемые поля не правятся
   if (type === 'formula' || type === 'lookup' || type === 'rollup') return null
   if (type === 'boolean') return 'boolean'
   if (type === 'select') return 'select'
+  // Территория и поле со справочником — выбор из вариантов с поиском
+  if (column.options?.length && type !== 'multi_select') return 'select'
   if (isNumeric(type)) return 'number'
   return TEXT_INPUT_TYPES.has(type) ? 'text' : null
 }
@@ -90,7 +95,7 @@ export function editorKind(type: FieldType): EditorKind | null {
 /** Текст значения в поле правки: без разделителей тысяч и с полной точностью. */
 export function editText(value: unknown, column: ValueColumn, ctx: ValueContext): string {
   if (value === null || value === undefined) return ''
-  if (column.type === 'select') return formatValue(value, column, ctx)
+  if (column.type === 'select' || column.options?.length) return formatValue(value, column, ctx)
   return copyText(value, column, ctx)
 }
 

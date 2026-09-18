@@ -23,6 +23,7 @@ import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { meQuery } from '~/shared/api/queries.js'
 import { ExportDialog } from './export-dialog.js'
+import { useFieldOptions } from './field-options.js'
 import { dataKeys } from './queries.js'
 import { NewRowDialog, RowCard } from './row-card.js'
 
@@ -80,17 +81,22 @@ export function DatasetTable({ dataset, canEdit }: { dataset: DatasetRecord; can
   const [creating, setCreating] = useState(false)
   const canExport = me?.capabilities.includes('data.export') ?? false
 
+  // Территории и справочники: подпись вместо значения, выбор при правке (ADR-0057)
+  const fieldOptions = useFieldOptions(dataset.fields)
   const columns = useMemo<DataGridColumn[]>(
     () =>
-      dataset.fields.map((field) => ({
-        key: field.key,
-        label: field.label[locale] ?? field.label.ru ?? field.key,
-        type: field.type,
-        ...(field.format ? { format: field.format } : {}),
-        ...(field.options ? { options: field.options } : {}),
-        editable: canEdit && dataset.settings.editable && !field.readOnly,
-      })),
-    [dataset.fields, dataset.settings.editable, canEdit, locale],
+      dataset.fields.map((field) => {
+        const options = fieldOptions.get(field.key) ?? field.options
+        return {
+          key: field.key,
+          label: field.label[locale] ?? field.label.ru ?? field.key,
+          type: field.type,
+          ...(field.format ? { format: field.format } : {}),
+          ...(options ? { options } : {}),
+          editable: canEdit && dataset.settings.editable && !field.readOnly,
+        }
+      }),
+    [dataset.fields, dataset.settings.editable, canEdit, locale, fieldOptions],
   )
   const [columnState, setColumnState] = useDataGridColumnState(columns)
 

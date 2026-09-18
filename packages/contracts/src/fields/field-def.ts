@@ -58,6 +58,7 @@ export const FieldOption = z.object({
   color: z.string().optional(),
   icon: z.string().optional(),
 })
+export type FieldOption = z.infer<typeof FieldOption>
 
 export const FieldFormat = z.object({
   precision: z.number().int().min(0).max(12).optional(),
