@@ -1,0 +1,366 @@
+import type { Readable } from 'node:stream'
+import { pipeline } from 'node:stream/promises'
+import type { StoredFieldType } from '@kchs/contracts'
+import { sql } from 'drizzle-orm'
+import type { Executor } from '~/shared/db/client.js'
+import { rawSql } from '~/shared/db/client.js'
+import { errors } from '~/shared/errors.js'
+
+/**
+ * Физическое хранение датасетов (05-data-model.md §«Физические таблицы датасетов»).
+ * Единственное место DDL схемы `ds`: таблицы строк `t_*`, истории `h_*`,
+ * staging `s_*` импорта. Имена генерируются здесь из идентификаторов и
+ * счётчиков — пользовательский ввод в текст SQL не попадает (правило 5).
+ *
+ * Права: роль пользовательских запросов `kchs_query` читает только таблицы
+ * строк `t_*`. Права по умолчанию схемы `ds` открывают ей любую новую таблицу
+ * роли приложения, поэтому таблице строк чтение выдаётся явно (не полагаясь на
+ * роль-создателя), а у истории, staging и таблицы замены — явно отзывается:
+ * в истории старые значения, к которым политики столбцов не применяются.
+ */
+
+const IDENT = /^[a-z_][a-z0-9_]{0,62}$/
+
+/** Экранирование имени: только сгенерированные имена, иначе — ошибка программиста. */
+export function ident(name: string): string {
+  if (!IDENT.test(name)) throw errors.internal(`Недопустимое имя в DDL: ${name}`)
+  return `"${name}"`
+}
+
+const compact = (id: string) => id.replaceAll('-', '').toLowerCase()
+
+export const tableName = (datasetId: string) => `t_${compact(datasetId)}`
+export const historyName = (datasetId: string) => `h_${compact(datasetId)}`
+export const stagingName = (importId: string) => `s_${compact(importId)}`
+export const columnName = (n: number) => `c_${n}`
+
+/** `ds."t_…"` — полное имя таблицы в схеме датасетов. */
+export const qualified = (table: string) => `ds.${ident(table)}`
+
+/** Тип поля → тип столбца Postgres (05-data-model.md «Типы полей → столбцы»). */
+export function columnType(type: StoredFieldType, precision?: number): string {
+  switch (type) {
+    case 'text':
+    case 'long_text':
+    case 'select':
+    case 'identifier':
+    case 'url':
+    case 'email':
+    case 'phone':
+      return 'text'
+    case 'integer':
+      return 'bigint'
+    case 'number':
+    case 'percent':
+      return 'double precision'
+    case 'decimal':
+      return precision !== undefined ? `numeric(38, ${Math.min(precision, 12)})` : 'numeric'
+    case 'money':
+      return 'numeric(18, 2)'
+    case 'boolean':
+      return 'boolean'
+    case 'date':
+      return 'date'
+    case 'datetime':
+      return 'timestamptz'
+    case 'time':
+      return 'time'
+    case 'duration':
+      return 'interval'
+    case 'multi_select':
+      return 'text[]'
+    case 'user':
+    case 'unit':
+    case 'territory':
+    case 'object_ref':
+    case 'file':
+      return 'uuid'
+    case 'json':
+      return 'jsonb'
+    case 'geometry':
+      return 'geometry(Geometry, 4326)'
+  }
+}
+
+export interface PhysicalColumn {
+  name: string
+  type: StoredFieldType
+  precision?: number
+  indexed?: boolean
+}
+
+const columnDefs = (columns: PhysicalColumn[]) =>
+  columns.map((column) => `${ident(column.name)} ${columnType(column.type, column.precision)}`)
+
+/** Индекс по столбцу: GIST для геометрии, trigram для текста, B-tree для остального. */
+function indexStatement(table: string, column: PhysicalColumn): string | null {
+  if (column.type === 'geometry') {
+    return `CREATE INDEX ON ${qualified(table)} USING gist (${ident(column.name)})`
+  }
+  if (!column.indexed) return null
+  if (column.type === 'text' || column.type === 'long_text') {
+    return `CREATE INDEX ON ${qualified(table)} USING gin (${ident(column.name)} extensions.gin_trgm_ops)`
+  }
+  return `CREATE INDEX ON ${qualified(table)} (${ident(column.name)})`
+}
+
+export const Physical = {
+  /** Таблица строк и (при trackHistory) таблица истории — в транзакции создания датасета. */
+  async createTable(
+    tx: Executor,
+    datasetId: string,
+    columns: PhysicalColumn[],
+    options: { trackHistory: boolean; keyColumns: string[] },
+  ): Promise<string> {
+    const table = tableName(datasetId)
+    await tx.execute(
+      sql.raw(`CREATE TABLE ${qualified(table)} (
+        _id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+        _ver integer NOT NULL DEFAULT 1,
+        _created_at timestamptz NOT NULL DEFAULT now(),
+        _updated_at timestamptz NOT NULL DEFAULT now(),
+        _created_by uuid,
+        _updated_by uuid,
+        _deleted_at timestamptz,
+        _import_id uuid${columns.length > 0 ? `,\n        ${columnDefs(columns).join(',\n        ')}` : ''}
+      )`),
+    )
+    for (const column of columns) {
+      const statement = indexStatement(table, column)
+      if (statement) await tx.execute(sql.raw(statement))
+    }
+    if (options.keyColumns.length > 0) {
+      // Ключ upsert/sync: полный уникальный индекс, чтобы удалённая строка
+      // «воскресала» при повторной загрузке того же ключа
+      await tx.execute(
+        sql.raw(
+          `CREATE UNIQUE INDEX ON ${qualified(table)} (${options.keyColumns.map(ident).join(', ')})`,
+        ),
+      )
+    }
+    await Physical.grantRead(tx, table)
+    if (options.trackHistory) {
+      await tx.execute(
+        sql.raw(`CREATE TABLE ${qualified(historyName(datasetId))} (
+          id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+          row_id bigint NOT NULL,
+          ver integer NOT NULL,
+          op char(1) NOT NULL,
+          data jsonb,
+          changed_by uuid,
+          changed_at timestamptz NOT NULL DEFAULT now()
+        )`),
+      )
+      await tx.execute(sql.raw(`CREATE INDEX ON ${qualified(historyName(datasetId))} (row_id, id)`))
+      await Physical.revokeQuery(tx, historyName(datasetId))
+    }
+    return table
+  },
+
+  /** Чтение таблицы строк для пользовательских запросов и резервной роли. */
+  async grantRead(tx: Executor, table: string): Promise<void> {
+    await tx.execute(sql.raw(`GRANT SELECT ON ${qualified(table)} TO kchs_query, kchs_readonly`))
+  },
+
+  /** Служебная таблица закрыта для пользовательских запросов (снимает права по умолчанию). */
+  async revokeQuery(executor: Executor, table: string): Promise<void> {
+    await executor.execute(sql.raw(`REVOKE ALL ON ${qualified(table)} FROM kchs_query`))
+  },
+
+  async addColumn(tx: Executor, table: string, column: PhysicalColumn): Promise<void> {
+    await tx.execute(
+      sql.raw(`ALTER TABLE ${qualified(table)} ADD COLUMN ${columnDefs([column])[0]}`),
+    )
+    const statement = indexStatement(table, column)
+    if (statement) await tx.execute(sql.raw(statement))
+  },
+
+  /** Удаление физических таблиц — при окончательном удалении датасета. */
+  async dropTables(tx: Executor, datasetId: string): Promise<void> {
+    await tx.execute(sql.raw(`DROP TABLE IF EXISTS ${qualified(tableName(datasetId))}`))
+    await tx.execute(sql.raw(`DROP TABLE IF EXISTS ${qualified(historyName(datasetId))}`))
+  },
+
+  // ─── Импорт: staging и коммит (ADR-0046) ────────────────────────────────────
+
+  /**
+   * Staging-таблица импорта: номер строки файла и столбцы в порядке
+   * нормализованного CSV. UNLOGGED — это черновик, его не нужно реплицировать.
+   */
+  async createStaging(importId: string, columns: PhysicalColumn[]): Promise<string> {
+    const staging = stagingName(importId)
+    await rawSql().unsafe(
+      `CREATE UNLOGGED TABLE ${qualified(staging)} (_row bigint NOT NULL${
+        columns.length > 0 ? `, ${columnDefs(columns).join(', ')}` : ''
+      })`,
+    )
+    await rawSql().unsafe(`REVOKE ALL ON ${qualified(staging)} FROM kchs_query`)
+    return staging
+  },
+
+  /** Поток нормализованного CSV → `COPY … FROM STDIN (FORMAT csv)`. */
+  async copyIntoStaging(staging: string, columns: string[], source: Readable): Promise<void> {
+    const list = ['_row', ...columns].map(ident).join(', ')
+    const writable = await rawSql()
+      .unsafe(`COPY ${qualified(staging)} (${list}) FROM STDIN (FORMAT csv)`)
+      .writable()
+    await pipeline(source, writable)
+  },
+
+  async dropStaging(importId: string): Promise<void> {
+    await rawSql().unsafe(`DROP TABLE IF EXISTS ${qualified(stagingName(importId))}`)
+  },
+
+  /**
+   * Повторы ключа в staging: остаётся последняя строка файла, прочие — в
+   * отчёт об ошибках. Возвращает номера отброшенных строк.
+   */
+  async dropDuplicateKeys(staging: string, keyColumns: string[]): Promise<number[]> {
+    if (keyColumns.length === 0) return []
+    const keys = keyColumns.map(ident).join(', ')
+    const rows = await rawSql().unsafe<{ _row: string }[]>(
+      `DELETE FROM ${qualified(staging)} s
+        USING (
+          SELECT _row, row_number() OVER (PARTITION BY ${keys} ORDER BY _row DESC) AS n
+            FROM ${qualified(staging)}
+        ) d
+        WHERE s._row = d._row AND d.n > 1
+        RETURNING s._row`,
+    )
+    return rows.map((row) => Number(row._row)).sort((a, b) => a - b)
+  },
+
+  /**
+   * Полная замена (`replace`): новая таблица рядом, строки из staging, индексы и
+   * статистика — вне транзакции коммита; сама подмена имён — быстрая, в ней.
+   */
+  async prepareReplacement(
+    datasetId: string,
+    staging: string,
+    columns: string[],
+    importId: string,
+    userId: string | null,
+  ): Promise<string> {
+    const table = tableName(datasetId)
+    const next = `${table}_n`
+    await rawSql().unsafe(`DROP TABLE IF EXISTS ${qualified(next)}`)
+    await rawSql().unsafe(
+      `CREATE TABLE ${qualified(next)} (LIKE ${qualified(table)} INCLUDING ALL)`,
+    )
+    // До подмены таблица замены — черновик: читать её пользовательским запросам незачем
+    await rawSql().unsafe(`REVOKE ALL ON ${qualified(next)} FROM kchs_query`)
+    const list = columns.map(ident).join(', ')
+    await rawSql().unsafe(
+      `INSERT INTO ${qualified(next)} (${list}${columns.length ? ', ' : ''}_import_id, _created_by, _updated_by)
+       SELECT ${list}${columns.length ? ', ' : ''}$1::uuid, $2::uuid, $2::uuid FROM ${qualified(staging)} ORDER BY _row`,
+      [importId, userId],
+    )
+    await rawSql().unsafe(`ANALYZE ${qualified(next)}`)
+    return next
+  },
+
+  /** Подмена таблиц в транзакции коммита: старая уходит, новая получает имя и права. */
+  async swapReplacement(tx: Executor, datasetId: string): Promise<void> {
+    const table = tableName(datasetId)
+    await tx.execute(sql.raw(`DROP TABLE ${qualified(table)}`))
+    await tx.execute(sql.raw(`ALTER TABLE ${qualified(`${table}_n`)} RENAME TO ${ident(table)}`))
+    await Physical.grantRead(tx, table)
+  },
+
+  async dropReplacement(datasetId: string): Promise<void> {
+    await rawSql().unsafe(`DROP TABLE IF EXISTS ${qualified(`${tableName(datasetId)}_n`)}`)
+  },
+
+  /** `append`: строки staging добавляются к таблице. */
+  async append(
+    tx: Executor,
+    table: string,
+    staging: string,
+    columns: string[],
+    importId: string,
+    userId: string | null,
+  ): Promise<number> {
+    const list = columns.map(ident).join(', ')
+    const result = await tx.execute(
+      sql`INSERT INTO ${sql.raw(qualified(table))} (${sql.raw(list)}, _import_id, _created_by, _updated_by)
+          SELECT ${sql.raw(list)}, ${importId}::uuid, ${userId}::uuid, ${userId}::uuid
+            FROM ${sql.raw(qualified(staging))} ORDER BY _row`,
+    )
+    return result.count ?? 0
+  },
+
+  /**
+   * `upsert` по ключу: новые строки добавляются, изменившиеся обновляются с
+   * ростом `_ver`, удалённые ранее «воскресают». Возвращает счётчики.
+   */
+  async upsert(
+    tx: Executor,
+    table: string,
+    staging: string,
+    columns: string[],
+    keyColumns: string[],
+    importId: string,
+    userId: string | null,
+  ): Promise<{ inserted: number; updated: number }> {
+    const list = columns.map(ident).join(', ')
+    const keys = keyColumns.map(ident).join(', ')
+    const valueColumns = columns.filter((column) => !keyColumns.includes(column))
+    const assignments = valueColumns.map((column) => `${ident(column)} = EXCLUDED.${ident(column)}`)
+    const changed =
+      valueColumns.length > 0
+        ? `(${valueColumns.map((c) => `t.${ident(c)}`).join(', ')}) IS DISTINCT FROM (${valueColumns
+            .map((c) => `EXCLUDED.${ident(c)}`)
+            .join(', ')}) OR t._deleted_at IS NOT NULL`
+        : 't._deleted_at IS NOT NULL'
+    const setList = [
+      ...assignments,
+      '_ver = t._ver + 1',
+      '_updated_at = now()',
+      '_updated_by = EXCLUDED._updated_by',
+      '_deleted_at = NULL',
+      '_import_id = EXCLUDED._import_id',
+    ].join(', ')
+    // Имена — только сгенерированные и проверенные `ident`; значения — параметрами
+    const rows = await tx.execute<{ inserted: boolean }>(
+      sql`INSERT INTO ${sql.raw(qualified(table))} AS t (${sql.raw(list)}, _import_id, _created_by, _updated_by)
+          SELECT ${sql.raw(list)}, ${importId}::uuid, ${userId}::uuid, ${userId}::uuid
+            FROM ${sql.raw(qualified(staging))} ORDER BY _row
+          ON CONFLICT (${sql.raw(keys)}) DO UPDATE SET ${sql.raw(setList)}
+          WHERE ${sql.raw(changed)}
+          RETURNING (xmax = 0) AS inserted`,
+    )
+    let inserted = 0
+    for (const row of rows) if (row.inserted) inserted++
+    return { inserted, updated: rows.length - inserted }
+  },
+
+  /** `sync`: строки, которых нет в файле, помечаются удалёнными. */
+  async markMissingDeleted(
+    tx: Executor,
+    table: string,
+    staging: string,
+    keyColumns: string[],
+    userId: string | null,
+  ): Promise<number> {
+    const match = keyColumns.map((c) => `s.${ident(c)} = t.${ident(c)}`).join(' AND ')
+    const result = await tx.execute(
+      sql`UPDATE ${sql.raw(qualified(table))} t
+             SET _deleted_at = now(), _updated_at = now(), _updated_by = ${userId}::uuid, _ver = t._ver + 1
+           WHERE t._deleted_at IS NULL
+             AND NOT EXISTS (SELECT 1 FROM ${sql.raw(qualified(staging))} s WHERE ${sql.raw(match)})`,
+    )
+    return result.count ?? 0
+  },
+
+  /** Точное число живых строк — после импорта и правок пакетом. */
+  async countRows(tx: Executor, table: string): Promise<number> {
+    const [row] = await tx.execute<{ n: number }>(
+      sql.raw(`SELECT count(*)::bigint AS n FROM ${qualified(table)} WHERE _deleted_at IS NULL`),
+    )
+    return Number(row?.n ?? 0)
+  },
+
+  async analyze(table: string): Promise<void> {
+    await rawSql().unsafe(`ANALYZE ${qualified(table)}`)
+  },
+}

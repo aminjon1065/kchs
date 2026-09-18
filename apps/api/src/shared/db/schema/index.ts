@@ -1,4 +1,5 @@
 export * from './_shared.js'
+export * from './data.js'
 export * from './files.js'
 export * from './identity.js'
 export * from './kernel.js'

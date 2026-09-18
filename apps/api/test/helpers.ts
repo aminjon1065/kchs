@@ -22,6 +22,13 @@ process.env.DATABASE_MIGRATOR_URL = (process.env.DATABASE_MIGRATOR_URL ?? '').re
   /\/kchs(\?|$)/,
   `/${testDb}$1`,
 )
+// Пользовательские запросы к датасетам (роль kchs_query) — в той же тестовой базе
+if (process.env.DATABASE_QUERY_URL) {
+  process.env.DATABASE_QUERY_URL = process.env.DATABASE_QUERY_URL.replace(
+    /\/kchs(\?|$)/,
+    `/${testDb}$1`,
+  )
+}
 process.env.NODE_ENV = 'test'
 process.env.LOG_LEVEL = 'error'
 process.env.ROLE = 'api'

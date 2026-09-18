@@ -256,6 +256,7 @@ export const KNOWN_DOMAINS = [
   'acl',
   'role',
   'announcement',
+  'dataset',
 ] as const
 
 function resolveDomains(): string[] {

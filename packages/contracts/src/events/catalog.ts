@@ -96,6 +96,31 @@ export const EVENT_PAYLOADS = {
   'job.finished': z.object({ jobId: Uuid, durationMs: z.number().int() }),
   'job.failed': z.object({ jobId: Uuid, error: z.string() }),
 
+  // ── dataset (06-analytics-engine.md) ──────────────────────────────────────
+  'dataset.created': z.object({ name: z.string(), fields: z.number().int() }),
+  'dataset.schema_changed': z.object({
+    change: z.enum(['added', 'updated', 'removed', 'type_changed']),
+    fields: z.array(z.string()),
+  }),
+  'dataset.import_started': z.object({ importId: Uuid, mode: z.string() }),
+  'dataset.imported': z.object({
+    importId: Uuid,
+    version: z.number().int(),
+    mode: z.string(),
+    rows: z.number().int(),
+    inserted: z.number().int(),
+    updated: z.number().int(),
+    deleted: z.number().int(),
+    errors: z.number().int(),
+  }),
+  'dataset.import_failed': z.object({ importId: Uuid, reason: z.string() }),
+  'dataset.rows_changed': z.object({
+    op: z.enum(['insert', 'update', 'delete']),
+    ids: z.array(z.string()).max(1000),
+    count: z.number().int(),
+  }),
+  'dataset.version_created': z.object({ version: z.number().int(), origin: z.string() }),
+
   // ── admin ─────────────────────────────────────────────────────────────────
   'settings.changed': z.object({ scope: z.string(), key: z.string() }),
   'acl.changed': z.object({ objectId: Uuid }),

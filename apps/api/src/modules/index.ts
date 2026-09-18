@@ -6,6 +6,11 @@ import { registerKernelRoutes } from '~/kernel/routes.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { registerAdminRoutes } from './admin/module.js'
 import {
+  registerDataBackground,
+  registerDataObjectTypes,
+  registerDataRoutes,
+} from './data/module.js'
+import {
   registerFilesBackground,
   registerFilesObjectTypes,
   registerFilesRoutes,
@@ -22,6 +27,7 @@ export function registerAllObjectTypes(): void {
   if (listObjectTypes().length > 0) return
   registerKernelObjectTypes()
   registerFilesObjectTypes()
+  registerDataObjectTypes()
   registerDirectory()
 }
 
@@ -43,6 +49,7 @@ export async function registerModules(app: FastifyInstance, route: RouteRegistra
   registerKernelRoutes(route)
   registerIdentityRoutes(route)
   registerFilesRoutes(route)
+  registerDataRoutes(route)
   registerAdminRoutes(route)
   app.log.debug('модули зарегистрированы')
 }
@@ -51,6 +58,7 @@ export async function registerModules(app: FastifyInstance, route: RouteRegistra
 export function registerModulesBackground(): void {
   registerFilesBackground()
   registerIdentityBackground()
+  registerDataBackground()
 }
 
 export async function scheduleModuleJobs(): Promise<void> {

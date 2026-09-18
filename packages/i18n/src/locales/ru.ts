@@ -868,6 +868,10 @@ export const ru = {
     },
   },
 
+  data: {
+    fields: { rows: 'Строк' },
+  },
+
   discussion: {
     title: 'Обсуждение',
     empty: 'Обсуждение ещё не начато',

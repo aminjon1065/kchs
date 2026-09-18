@@ -851,6 +851,11 @@ export const en: DeepPartial<Dictionary> = {
       version: 'Version',
     },
   },
+
+  data: {
+    fields: { rows: 'Rows' },
+  },
+
   discussion: {
     title: 'Discussion',
     empty: 'No messages yet',

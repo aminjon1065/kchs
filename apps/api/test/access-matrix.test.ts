@@ -64,6 +64,9 @@ async function createFolder(fx: TestContext, name: string, spaceId = fx.spaceId)
   return response.json().id
 }
 
+/** Файл-источник для попытки импорта читателем (готовится при создании датасета). */
+let datasetSourceFileId = ''
+
 const FIXTURES: Record<string, TypeFixture> = {
   space: {
     create: async (fx, title) => {
@@ -180,6 +183,51 @@ const FIXTURES: Record<string, TypeFixture> = {
           attachments: [],
           mentions: [],
           mentionedObjectIds: [],
+        },
+      },
+    ],
+  },
+
+  dataset: {
+    create: async (fx, title) => {
+      const file = await uploadFile(fx.app, fx.admin, {
+        spaceId: fx.spaceId,
+        name: `${title}.csv`,
+        content: 'code\nA-1\n',
+        mime: 'text/csv',
+      })
+      datasetSourceFileId = file.id
+      const response = await call(fx.app, {
+        method: 'POST',
+        url: '/datasets',
+        as: fx.admin,
+        payload: {
+          name: title,
+          spaceId: fx.spaceId,
+          fields: [{ key: 'code', label: { ru: 'Код' }, type: 'identifier' }],
+          primaryKey: ['code'],
+        },
+      })
+      expect(response.statusCode, response.body).toBe(200)
+      return { id: response.json().id, title }
+    },
+    readPaths: ['/datasets/:id', '/datasets/:id/versions', '/datasets/:id/imports'],
+    viewerForbidden: (_fx, id) => [
+      {
+        method: 'POST',
+        url: '/datasets/imports',
+        payload: {
+          fileId: datasetSourceFileId,
+          target: { kind: 'existing', datasetId: id, mode: 'append' },
+          mapping: [
+            {
+              column: 0,
+              fieldKey: 'code',
+              label: { ru: 'Код' },
+              type: 'identifier',
+              semantic: 'identifier',
+            },
+          ],
         },
       },
     ],

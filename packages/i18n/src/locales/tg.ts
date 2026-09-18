@@ -273,6 +273,9 @@ export const tg: DeepPartial<Dictionary> = {
     kinds: { personal: 'Шахсӣ', unit: 'Воҳид', team: 'Даста', org: 'Умумӣ' },
   },
   files: { title: 'Файлҳо', empty: 'Ҳоло файл нест' },
+  data: {
+    fields: { rows: 'Сатрҳо' },
+  },
   discussion: {
     title: 'Муҳокима',
     placeholder: 'Паём нависед…',
