@@ -5,7 +5,10 @@ import {
   Badge,
   Breadcrumbs,
   Button,
+  type CollectionState,
+  CollectionView,
   cn,
+  type DataTableColumn,
   Dialog,
   DialogContent,
   EmptyState,
@@ -15,49 +18,68 @@ import {
   ObjectIcon,
   PanelToolbar,
   ProgressBar,
-  SearchInput,
-  SegmentedControl,
-  TableSkeleton,
   useBreakpoint,
-  useDebouncedValue,
   useToast,
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import {
-  ChevronRight,
-  Download,
-  FolderPlus,
-  Grid2X2,
-  LayoutList,
-  Share2,
-  Trash2,
-  Upload,
-} from 'lucide-react'
-import { type DragEvent, useCallback, useEffect, useRef, useState } from 'react'
+import { ChevronRight, Download, FolderPlus, Share2, Trash2, Upload } from 'lucide-react'
+import { type DragEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
 import { ShareDialog } from '~/features/access/share-dialog.js'
 import { uploadFile } from '~/features/files/upload.js'
 import { http } from '~/shared/api/client.js'
-import { objectListQuery, spacesQuery } from '~/shared/api/queries.js'
+import { spacesQuery } from '~/shared/api/queries.js'
+import { emptyCollectionState } from '~/shared/collections/collection-state.js'
+import { SavedViewsMenu } from '~/shared/collections/saved-views-menu.js'
+import { useListFields } from '~/shared/collections/use-list-fields.js'
+import { useObjectCollection } from '~/shared/collections/use-object-collection.js'
+import {
+  describeUserFilterValue,
+  renderUserFilterValue,
+} from '~/shared/collections/user-filter-value.js'
 
-type ViewMode = 'table' | 'grid'
+const TYPES = ['folder', 'file']
 
-export function FilesScreen({ spaceId: initialSpaceId }: { spaceId?: string }) {
+/** Категория файла для доски: папки, документы, таблицы, изображения, прочее. */
+type FileCategory = 'folder' | 'document' | 'spreadsheet' | 'image' | 'other'
+
+function categoryOf(item: ObjectSummary): FileCategory {
+  if (item.type === 'folder') return 'folder'
+  const mime = String(item.meta.mime ?? '')
+  if (mime.startsWith('image/')) return 'image'
+  if (/spreadsheet|excel|csv/.test(mime)) return 'spreadsheet'
+  if (/pdf|word|document|text|rtf|presentation/.test(mime)) return 'document'
+  return 'other'
+}
+
+export function FilesScreen({
+  spaceId: initialSpaceId,
+  tabId,
+  savedState,
+}: {
+  spaceId?: string
+  tabId?: string
+  /** Состояние списка из вкладки: переживает перезагрузку («Продолжить»). */
+  savedState?: { collection?: CollectionState; viewId?: string | null }
+}) {
   const t = useT()
   const locale = useAppearance((s) => s.locale)
   const client = useQueryClient()
   const toast = useToast()
   const openTab = useWorkspace((s) => s.openTab)
+  const setTabState = useWorkspace((s) => s.setTabState)
 
   const { data: spaces = [] } = useQuery(spacesQuery())
   const [spaceId, setSpaceId] = useState<string | undefined>(initialSpaceId)
   const [path, setPath] = useState<Array<{ id: string; title: string }>>([])
-  const [mode, setMode] = useState<ViewMode>('table')
   const breakpoint = useBreakpoint()
-  const [search, setSearch] = useState('')
-  const [selected, _setSelected] = useState<Set<string>>(new Set())
+  const [collection, setCollection] = useState<CollectionState>(
+    () => savedState?.collection ?? emptyCollectionState('table'),
+  )
+  const [viewId, setViewId] = useState<string | null>(savedState?.viewId ?? null)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
   const [dragActive, setDragActive] = useState(false)
   const [uploads, setUploads] = useState<Record<string, number>>({})
   const [createFolderOpen, setCreateFolderOpen] = useState(false)
@@ -68,27 +90,33 @@ export function FilesScreen({ spaceId: initialSpaceId }: { spaceId?: string }) {
 
   // На узком экране таблица нечитаема — переключаемся на плитки
   useEffect(() => {
-    if (breakpoint === 'mobile') setMode('grid')
+    if (breakpoint === 'mobile') setCollection((current) => ({ ...current, mode: 'gallery' }))
   }, [breakpoint])
+
+  // Состояние списка — во вкладке: сохраняется на сервере вместе с рабочим пространством
+  useEffect(() => {
+    if (tabId) setTabState(tabId, { collection, viewId })
+  }, [tabId, collection, viewId, setTabState])
 
   const effectiveSpaceId = spaceId ?? orderSpaces(spaces)[0]?.id
   const parentId = path[path.length - 1]?.id
-  const query = useDebouncedValue(search, 250)
-
-  const { data, isLoading } = useQuery({
-    ...objectListQuery({
+  const { fields, sortable } = useListFields(TYPES)
+  // Фильтр или поиск ищут по всему пространству, без них — содержимое текущей папки
+  const searching = Boolean(collection.filter || collection.search.trim())
+  const { rows, total, loading, hasMore, loadMore } = useObjectCollection(
+    {
+      types: TYPES,
       spaceId: effectiveSpaceId,
-      parentId: parentId ?? 'root',
-      types: 'folder,file',
-      q: query || undefined,
-      limit: 200,
-    }),
-    enabled: Boolean(effectiveSpaceId),
-  })
-
-  const items = data?.items ?? []
-  const folders = items.filter((item) => item.type === 'folder')
-  const files = items.filter((item) => item.type === 'file')
+      parentId: searching ? undefined : (parentId ?? 'root'),
+    },
+    // Папки всегда выше файлов: сортировка по умолчанию — от сервера (свежие сверху)
+    collection,
+    Boolean(effectiveSpaceId),
+  )
+  const items = useMemo(
+    () => [...rows.filter((r) => r.type === 'folder'), ...rows.filter((r) => r.type === 'file')],
+    [rows],
+  )
 
   const refresh = useCallback(() => {
     void client.invalidateQueries({ queryKey: ['objects'] })
@@ -162,6 +190,7 @@ export function FilesScreen({ spaceId: initialSpaceId }: { spaceId?: string }) {
   const openObject = (item: ObjectSummary, permanent = false): void => {
     if (item.type === 'folder') {
       setPath((current) => [...current, { id: item.id, title: item.title }])
+      setSelected(new Set())
       return
     }
     openTab({
@@ -172,6 +201,57 @@ export function FilesScreen({ spaceId: initialSpaceId }: { spaceId?: string }) {
       mode: permanent ? 'permanent' : 'preview',
     })
   }
+
+  const columns: Array<DataTableColumn<ObjectSummary>> = [
+    {
+      key: 'title',
+      header: t('files.columns.name'),
+      sortable: sortable.includes('title'),
+      cell: (item) => (
+        <span className="flex min-w-0 items-center gap-2">
+          <ObjectIcon type={item.type} className="size-4 shrink-0 text-fg-muted" />
+          <span className="truncate">{item.title}</span>
+          {item.type === 'folder' ? (
+            <ChevronRight className="size-3.5 shrink-0 text-fg-muted" aria-hidden />
+          ) : null}
+        </span>
+      ),
+    },
+    {
+      key: 'size',
+      header: t('files.columns.size'),
+      width: 112,
+      align: 'end',
+      sortable: sortable.includes('size'),
+      cell: (item) => (
+        <span className="text-xs text-fg-secondary">
+          {typeof item.meta.size === 'number' ? formatFileSize(item.meta.size, { locale }) : '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'updatedAt',
+      header: t('files.columns.modified'),
+      width: 150,
+      sortable: sortable.includes('updatedAt'),
+      cell: (item) => (
+        <span className="text-xs text-fg-secondary">
+          {formatRelativeTime(item.updatedAt, { locale })}
+        </span>
+      ),
+    },
+    {
+      key: 'version',
+      header: t('files.columns.version'),
+      width: 88,
+      cell: (item) =>
+        typeof item.meta.version === 'number' ? (
+          <Badge size="sm">v{item.meta.version}</Badge>
+        ) : (
+          <span className="text-xs text-fg-muted">—</span>
+        ),
+    },
+  ]
 
   return (
     <section
@@ -186,52 +266,23 @@ export function FilesScreen({ spaceId: initialSpaceId }: { spaceId?: string }) {
     >
       <PanelToolbar
         left={
-          <>
-            <Breadcrumbs
-              items={[
-                {
-                  id: 'space',
-                  label:
-                    spaces.find((s) => s.id === effectiveSpaceId)?.name ?? t('shell.rail.files'),
-                  onClick: () => setPath([]),
-                },
-                ...path.map((node, index) => ({
-                  id: node.id,
-                  label: node.title,
-                  onClick: () => setPath((current) => current.slice(0, index + 1)),
-                })),
-              ]}
-            />
-            <SearchInput
-              value={search}
-              onValueChange={setSearch}
-              placeholder={t('common.actions.search')}
-              className="ml-2 h-7 w-56"
-            />
-          </>
+          <Breadcrumbs
+            items={[
+              {
+                id: 'space',
+                label: spaces.find((s) => s.id === effectiveSpaceId)?.name ?? t('shell.rail.files'),
+                onClick: () => setPath([]),
+              },
+              ...path.map((node, index) => ({
+                id: node.id,
+                label: node.title,
+                onClick: () => setPath((current) => current.slice(0, index + 1)),
+              })),
+            ]}
+          />
         }
         right={
           <>
-            <SegmentedControl
-              size="sm"
-              aria-label={t('files.viewMode.label')}
-              value={mode}
-              onValueChange={(next) => setMode(next as ViewMode)}
-              options={[
-                {
-                  value: 'table',
-                  label: '',
-                  icon: <LayoutList className="size-3.5" />,
-                  title: t('files.viewMode.table'),
-                },
-                {
-                  value: 'grid',
-                  label: '',
-                  icon: <Grid2X2 className="size-3.5" />,
-                  title: t('files.viewMode.grid'),
-                },
-              ]}
-            />
             <Button
               variant="secondary"
               size="sm"
@@ -295,136 +346,126 @@ export function FilesScreen({ spaceId: initialSpaceId }: { spaceId?: string }) {
         </div>
       ) : null}
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        {isLoading ? (
-          <TableSkeleton rows={8} columns={4} />
-        ) : items.length === 0 ? (
-          <EmptyState
-            icon={<Upload />}
-            title={t('files.empty')}
-            description={t('files.upload.drop')}
-            action={
-              <Button variant="primary" onClick={() => inputRef.current?.click()}>
-                {t('files.emptyHint')}
-              </Button>
-            }
-          />
-        ) : mode === 'table' ? (
-          <table className="w-full border-separate border-spacing-0 text-sm">
-            <thead className="sticky top-0 z-(--z-sticky) bg-surface-2">
-              <tr className="text-left text-xs text-fg-muted">
-                <th className="h-8 border-b border-line px-3 font-medium">
-                  {t('files.columns.name')}
-                </th>
-                <th className="h-8 w-28 border-b border-line px-3 text-right font-medium">
-                  {t('files.columns.size')}
-                </th>
-                <th className="h-8 w-36 border-b border-line px-3 font-medium">
-                  {t('files.columns.modified')}
-                </th>
-                <th className="h-8 w-20 border-b border-line px-3 font-medium">
-                  {t('files.columns.version')}
-                </th>
-                <th className="h-8 w-20 border-b border-line px-3" />
-              </tr>
-            </thead>
-            <tbody>
-              {[...folders, ...files].map((item) => (
-                <tr
-                  key={item.id}
-                  onClick={() => openObject(item)}
-                  onDoubleClick={() => openObject(item, true)}
-                  className={cn(
-                    'group cursor-pointer',
-                    selected.has(item.id) ? 'bg-accent-subtle' : 'hover:bg-surface-2',
-                  )}
-                >
-                  <td className="h-(--row-h) border-b border-line px-3">
-                    <span className="flex items-center gap-2">
-                      <ObjectIcon type={item.type} className="size-4 shrink-0 text-fg-muted" />
-                      <span className="truncate">{item.title}</span>
-                      {item.type === 'folder' ? (
-                        <ChevronRight className="size-3.5 text-fg-muted" aria-hidden />
-                      ) : null}
-                    </span>
-                  </td>
-                  <td className="tabular border-b border-line px-3 text-right text-xs text-fg-secondary">
-                    {typeof item.meta.size === 'number'
-                      ? formatFileSize(item.meta.size, { locale })
-                      : '—'}
-                  </td>
-                  <td className="border-b border-line px-3 text-xs text-fg-secondary">
-                    {formatRelativeTime(item.updatedAt, { locale })}
-                  </td>
-                  <td className="border-b border-line px-3 text-xs text-fg-secondary">
-                    {typeof item.meta.version === 'number' ? (
-                      <Badge size="sm">v{item.meta.version}</Badge>
-                    ) : (
-                      '—'
-                    )}
-                  </td>
-                  <td className="border-b border-line px-3">
-                    <span className="flex justify-end gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-                      <IconButton
-                        label={t('common.actions.share')}
-                        size="sm"
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          setShareTarget(item)
-                        }}
-                      >
-                        <Share2 className="size-3.5" />
-                      </IconButton>
-                      {item.type === 'file' ? (
-                        <IconButton
-                          label={t('common.actions.download')}
-                          size="sm"
-                          onClick={(event) => {
-                            event.stopPropagation()
-                            void downloadFile(item.id)
-                          }}
-                        >
-                          <Download className="size-3.5" />
-                        </IconButton>
-                      ) : null}
-                      <IconButton
-                        label={t('common.actions.delete')}
-                        size="sm"
-                        variant="danger"
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          setDeleteTarget(item)
-                        }}
-                      >
-                        <Trash2 className="size-3.5" />
-                      </IconButton>
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3 p-4">
-            {[...folders, ...files].map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => openObject(item)}
-                onDoubleClick={() => openObject(item, true)}
-                className="flex flex-col items-start gap-2 rounded-md border border-line bg-surface p-3 text-left transition-colors hover:border-line-strong hover:bg-surface-2"
+      <div className="min-h-0 flex-1">
+        <CollectionView
+          aria-label={t('shell.rail.files')}
+          rows={items}
+          getRowId={(item) => item.id}
+          state={collection}
+          onStateChange={(next) => {
+            setCollection(next)
+            setSelected(new Set())
+          }}
+          fields={fields}
+          sortableFields={sortable}
+          columns={columns}
+          modes={['table', 'gallery', 'board']}
+          total={total}
+          loading={loading}
+          hasMore={hasMore}
+          onLoadMore={loadMore}
+          selection={selected}
+          onSelectionChange={setSelected}
+          bulkActions={
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={<Trash2 className="size-3.5" />}
+              onClick={() => {
+                for (const id of selected) trash.mutate(id)
+                setSelected(new Set())
+              }}
+            >
+              {t('common.actions.delete')}
+            </Button>
+          }
+          onRowClick={(item) => openObject(item)}
+          onRowOpen={(item) => openObject(item, true)}
+          rowActions={(item) => (
+            <>
+              <IconButton
+                label={t('common.actions.share')}
+                size="sm"
+                onClick={() => setShareTarget(item)}
               >
-                <ObjectIcon type={item.type} className="size-8 text-fg-muted" />
-                <span className="line-clamp-2 text-sm text-fg">{item.title}</span>
-                <span className="text-2xs text-fg-muted">
-                  {typeof item.meta.size === 'number'
-                    ? formatFileSize(item.meta.size, { locale })
-                    : t('objects.types.folder')}
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
+                <Share2 className="size-3.5" />
+              </IconButton>
+              {item.type === 'file' ? (
+                <IconButton
+                  label={t('common.actions.download')}
+                  size="sm"
+                  onClick={() => void downloadFile(item.id)}
+                >
+                  <Download className="size-3.5" />
+                </IconButton>
+              ) : null}
+              <IconButton
+                label={t('common.actions.delete')}
+                size="sm"
+                variant="danger"
+                onClick={() => setDeleteTarget(item)}
+              >
+                <Trash2 className="size-3.5" />
+              </IconButton>
+            </>
+          )}
+          renderTile={(item) => (
+            <button
+              type="button"
+              onClick={() => openObject(item)}
+              onDoubleClick={() => openObject(item, true)}
+              className="flex w-full flex-col items-start gap-2 rounded-md border border-line bg-surface p-3 text-left transition-colors hover:border-line-strong hover:bg-surface-2"
+            >
+              <ObjectIcon type={item.type} className="size-8 text-fg-muted" />
+              <span className="line-clamp-2 text-sm text-fg">{item.title}</span>
+              <span className="text-2xs text-fg-muted">
+                {typeof item.meta.size === 'number'
+                  ? formatFileSize(item.meta.size, { locale })
+                  : t('objects.types.folder')}
+              </span>
+            </button>
+          )}
+          board={{
+            columns: (['folder', 'document', 'spreadsheet', 'image', 'other'] as const).map(
+              (key) => ({ key, title: t(`files.categories.${key}`) }),
+            ),
+            getColumnKey: categoryOf,
+            renderCard: (item) => (
+              <span className="flex items-center gap-2">
+                <ObjectIcon type={item.type} className="size-4 shrink-0 text-fg-muted" />
+                <span className="truncate">{item.title}</span>
+              </span>
+            ),
+          }}
+          viewsMenu={
+            <SavedViewsMenu
+              objectType="file"
+              spaceId={effectiveSpaceId}
+              state={collection}
+              activeViewId={viewId}
+              onApply={(id, next) => {
+                setViewId(id)
+                setCollection(next)
+              }}
+            />
+          }
+          renderFilterValue={renderUserFilterValue}
+          describeFilterValue={describeUserFilterValue}
+          empty={
+            <EmptyState
+              icon={<Upload />}
+              title={searching ? t('common.states.nothingFound') : t('files.empty')}
+              description={searching ? undefined : t('files.upload.drop')}
+              action={
+                searching ? undefined : (
+                  <Button variant="primary" onClick={() => inputRef.current?.click()}>
+                    {t('files.emptyHint')}
+                  </Button>
+                )
+              }
+            />
+          }
+        />
       </div>
 
       <Dialog open={createFolderOpen} onOpenChange={setCreateFolderOpen}>

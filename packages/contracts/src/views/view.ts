@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { FilterNode } from '../common/filter.js'
 import { Uuid } from '../common/primitives.js'
 import { SortItem } from '../common/sort.js'
+import { FieldType } from '../fields/field-def.js'
 import { ObjectType } from '../objects/object.js'
 
 /** Режимы CollectionView (02-platform-kernel.md §13). */
@@ -73,3 +74,20 @@ export const ObjectListQuery = z.object({
   count: z.coerce.boolean().optional(),
 })
 export type ObjectListQuery = z.infer<typeof ObjectListQuery>
+
+/**
+ * Поле списка объектов для FilterBuilder и сортировки CollectionView.
+ * Общие поля есть у всех объектов, модули добавляют поля своих типов.
+ */
+export const ListField = z.object({
+  key: z.string(),
+  /** Ключ словаря подписи. */
+  labelKey: z.string(),
+  type: FieldType,
+  sortable: z.boolean().default(false),
+  options: z.array(z.object({ value: z.string(), labelKey: z.string() })).optional(),
+})
+export type ListField = z.infer<typeof ListField>
+
+export const ListFieldsResponse = z.object({ items: z.array(ListField) })
+export type ListFieldsResponse = z.infer<typeof ListFieldsResponse>

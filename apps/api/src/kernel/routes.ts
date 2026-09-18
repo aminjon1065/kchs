@@ -8,6 +8,7 @@ import { registerNotificationRoutes } from './notifications/http.js'
 import { registerObjectRoutes } from './objects/http.js'
 import { registerSearchRoutes } from './search/http.js'
 import { registerSpaceRoutes } from './spaces/http.js'
+import { registerViewRoutes } from './views/http.js'
 
 export function registerKernelRoutes(route: RouteRegistrar): void {
   registerObjectRoutes(route)
@@ -19,4 +20,5 @@ export function registerKernelRoutes(route: RouteRegistrar): void {
   registerInboxRoutes(route)
   registerJobRoutes(route)
   registerInternalJobRoutes(route)
+  registerViewRoutes(route)
 }

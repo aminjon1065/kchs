@@ -10,7 +10,7 @@ import {
   UploadCompleteInput,
   UploadSessionInput,
 } from '@kchs/contracts'
-import { eq, inArray } from 'drizzle-orm'
+import { eq, inArray, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
 import { registerSubscriber } from '~/kernel/events/bus.js'
@@ -46,6 +46,21 @@ export function registerFilesObjectTypes(): void {
     discussable: true,
     linkable: true,
     hasParentTree: true,
+    listFields: [
+      {
+        key: 'size',
+        labelKey: 'common.labels.size',
+        type: 'integer',
+        sql: sql`(${objects.meta}->>'size')::bigint`,
+        sortable: true,
+      },
+      {
+        key: 'mime',
+        labelKey: 'files.fields.format',
+        type: 'text',
+        sql: sql`${objects.meta}->>'mime'`,
+      },
+    ],
     summary: async (ids) => {
       const rows = await db()
         .select({ id: files.id, mime: files.mime, size: files.size, version: files.versionNumber })

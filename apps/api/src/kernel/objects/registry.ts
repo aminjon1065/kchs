@@ -2,6 +2,7 @@ import type { Level, ObjectSummary, ObjectType, SearchDocument } from '@kchs/con
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import type { Executor } from '~/shared/db/client.js'
 import type { ActionDefinition, ObjectLike, TypePolicy } from '../access/types.js'
+import type { ListFieldDef } from './list-fields.js'
 
 /**
  * Описание типа объекта, которое модуль регистрирует при старте
@@ -22,6 +23,8 @@ export interface ObjectTypeDefinition {
   policy?: TypePolicy
   /** Как индексировать объект; `null` — не индексировать. */
   searchable?: (id: string) => Promise<SearchDocument | null>
+  /** Поля списков этого типа сверх общих: фильтры и сортировка CollectionView. */
+  listFields?: ListFieldDef[]
   /** Дополнение сводки для карточек, пикеров и чипов. */
   summary?: (ids: string[]) => Promise<Map<string, Partial<ObjectSummary>>>
   lifecycle?: {

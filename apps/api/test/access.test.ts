@@ -70,6 +70,13 @@ describe('уровни доступа', () => {
     expect(response.json().code).toBe('not_found')
   })
 
+  it('идентификатор не в формате UUID — 404, а не ошибка сервера', async () => {
+    for (const url of ['/objects/not-a-uuid', '/files/../../etc', '/spaces/1 OR 1=1']) {
+      const response = await call(fx.app, { url, as: fx.users.member })
+      expect(response.statusCode, url).toBe(404)
+    }
+  })
+
   it('без сессии — 401', async () => {
     const response = await call(fx.app, { url: `/objects/${folderId}` })
     expect(response.statusCode).toBe(401)

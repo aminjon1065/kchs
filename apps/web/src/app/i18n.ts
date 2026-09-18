@@ -1,4 +1,5 @@
 import { createTranslator, type Locale } from '@kchs/i18n'
+import { useMemo } from 'react'
 import { useAppearance } from './appearance.js'
 
 /**
@@ -7,7 +8,8 @@ import { useAppearance } from './appearance.js'
  */
 export function useT(): (key: string, params?: Record<string, string | number>) => string {
   const locale = useAppearance((s) => s.locale)
-  return createTranslator(locale as Locale)
+  // Один переводчик на язык: стабильная ссылка не сбрасывает мемоизацию компонентов
+  return useMemo(() => createTranslator(locale as Locale), [locale])
 }
 
 export function t(key: string, params?: Record<string, string | number>): string {

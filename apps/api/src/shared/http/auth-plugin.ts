@@ -36,6 +36,7 @@ export interface AuthDependencies {
 }
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 /**
  * Аутентификация и применение политики маршрута.
@@ -123,6 +124,8 @@ async function applyRoutePolicy(
     const params = request.params as Record<string, string> | undefined
     const objectId = params?.[param]
     if (!objectId) throw errors.validation(`В маршруте отсутствует параметр «${param}»`)
+    // Проверка прав идёт до валидации схемы: чужой формат идентификатора — «не найдено»
+    if (!UUID_RE.test(objectId)) throw errors.notFound()
     if (auth.capability) deps.requireCapability(request.ctx, auth.capability)
     await deps.authorizeRoute(request.ctx, auth.action, objectId)
   }

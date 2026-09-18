@@ -139,7 +139,10 @@ const FIXTURES: Record<string, TypeFixture> = {
       })
       return { id: object.id, title }
     },
-    readPaths: [],
+    readPaths: ['/views/:id'],
+    viewerForbidden: (_fx, id) => [
+      { method: 'PATCH', url: `/views/${id}`, payload: { title: 'правка читателя' } },
+    ],
   },
 
   conversation: {

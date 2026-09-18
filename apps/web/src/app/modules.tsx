@@ -41,7 +41,13 @@ export function registerModules(): void {
     key: 'files',
     titleKey: 'shell.rail.files',
     icon: 'folder',
-    render: (tab) => <FilesScreen spaceId={tab.params.spaceId} />,
+    render: (tab) => (
+      <FilesScreen
+        spaceId={tab.params.spaceId}
+        tabId={tab.id}
+        savedState={tab.state as Parameters<typeof FilesScreen>[0]['savedState']}
+      />
+    ),
   })
   registerScreen({
     key: 'search',

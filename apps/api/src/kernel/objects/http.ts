@@ -2,11 +2,14 @@ import {
   BatchGetInput,
   cursorPage,
   LinkCreateInput,
+  ListFieldsResponse,
   levelValue,
   ObjectListQuery,
   ObjectPatchInput,
   ObjectRecord,
   ObjectSummary,
+  ObjectType,
+  SortQuery,
 } from '@kchs/contracts'
 import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm'
 import { z } from 'zod'
@@ -27,6 +30,8 @@ import type { RouteRegistrar } from '~/shared/http/route.js'
 import { authorize, loadObject, visibleObjectsSql } from '../access/authorize.js'
 import { listActivity } from '../activity/service.js'
 import { LinkService } from '../links/service.js'
+import { compileObjectFilter, compileObjectSort, parseFilter } from './filter-sql.js'
+import { describeListFields, listFieldsFor } from './list-fields.js'
 import { allowedActions, objectType } from './registry.js'
 import { hiddenSummary, ObjectService } from './service.js'
 
@@ -232,17 +237,34 @@ export function registerObjectRoutes(route: RouteRegistrar): void {
   // ─── Списки объектов ───────────────────────────────────────────────────────
   route({
     method: 'GET',
+    url: '/objects/fields',
+    auth: 'session',
+    tags: ['objects'],
+    summary: 'Поля списка объектов для фильтров и сортировки',
+    schema: {
+      querystring: z.object({ type: ObjectType.optional(), types: z.string().max(500).optional() }),
+      response: { 200: ListFieldsResponse },
+    },
+    handler: async (request) => ({
+      items: describeListFields(listFieldsFor(requestedTypes(request.query))),
+    }),
+  })
+
+  route({
+    method: 'GET',
     url: '/objects',
     auth: 'session',
     tags: ['objects'],
-    summary: 'Список объектов с учётом видимости',
+    summary: 'Список объектов с учётом видимости, фильтром и сортировкой',
     schema: {
       querystring: ObjectListQuery,
       response: { 200: cursorPage(ObjectSummary) },
     },
     handler: async (request) => {
       const query = request.query
-      const cursor = decodeCursor<{ updatedAt: string; id: string }>(query.cursor)
+      const fields = listFieldsFor(requestedTypes(query))
+      const filter = parseFilter(query.filter)
+      const sort = query.sort ? SortQuery.parse(query.sort) : []
       const conditions = [visibleObjectsSql(request.ctx, query.type)]
 
       if (query.lifecycle === 'active') {
@@ -260,31 +282,59 @@ export function registerObjectRoutes(route: RouteRegistrar): void {
       if (query.spaceId) conditions.push(eq(objects.spaceId, query.spaceId))
       if (query.parentId === 'root') conditions.push(isNull(objects.parentId))
       else if (query.parentId) conditions.push(eq(objects.parentId, query.parentId))
-      if (query.q) conditions.push(sql`${objects.title} ilike ${`%${query.q}%`}`)
-      if (cursor) {
-        conditions.push(
-          sql`(${objects.updatedAt}, ${objects.id}) < (${cursor.updatedAt}, ${cursor.id})`,
-        )
+      if (query.q) {
+        const escaped = query.q.replace(/[\\%_]/g, (ch) => `\\${ch}`)
+        conditions.push(sql`${objects.title} ILIKE ${`%${escaped}%`}`)
+      }
+      if (filter) conditions.push(await compileObjectFilter(filter, fields, request.ctx))
+
+      const total = query.count
+        ? Number(
+            (
+              await db()
+                .select({ count: sql<number>`count(*)::int` })
+                .from(objects)
+                .where(and(...conditions))
+            )[0]?.count ?? 0,
+          )
+        : undefined
+
+      let rows: Array<{ id: string }>
+      let nextCursor: string | null = null
+
+      if (sort.length === 0) {
+        // По умолчанию — свежие сверху, курсор по ключу (updated_at, id)
+        const cursor = decodeCursor<{ updatedAt: string; id: string }>(query.cursor)
+        const keyset = cursor
+          ? [sql`(${objects.updatedAt}, ${objects.id}) < (${cursor.updatedAt}, ${cursor.id})`]
+          : []
+        rows = await db()
+          .select({ id: objects.id, updatedAt: objects.updatedAt })
+          .from(objects)
+          .where(and(...conditions, ...keyset))
+          .orderBy(desc(objects.updatedAt), desc(objects.id))
+          .limit(query.limit + 1)
+        const last = rows[query.limit - 1] as { id: string; updatedAt: string } | undefined
+        if (rows.length > query.limit && last) {
+          nextCursor = encodeCursor({ updatedAt: last.updatedAt, id: last.id })
+        }
+      } else {
+        // Произвольная сортировка — курсор-смещение (списки объектов умеренного размера)
+        const offset = decodeCursor<{ offset: number }>(query.cursor)?.offset ?? 0
+        rows = await db()
+          .select({ id: objects.id })
+          .from(objects)
+          .where(and(...conditions))
+          .orderBy(...compileObjectSort(sort, fields, sql`${objects.id}`))
+          .limit(query.limit + 1)
+          .offset(offset)
+        if (rows.length > query.limit) nextCursor = encodeCursor({ offset: offset + query.limit })
       }
 
-      const rows = await db()
-        .select({ id: objects.id })
-        .from(objects)
-        .where(and(...conditions))
-        .orderBy(desc(objects.updatedAt), desc(objects.id))
-        .limit(query.limit + 1)
-
-      const hasMore = rows.length > query.limit
-      const page = hasMore ? rows.slice(0, query.limit) : rows
+      const page = rows.slice(0, query.limit)
       const summaries = await ObjectService.summaries(page.map((r) => r.id))
       const items = page.map((r) => summaries.get(r.id)).filter(Boolean)
-      const last = items[items.length - 1]
-
-      return {
-        items,
-        nextCursor:
-          hasMore && last ? encodeCursor({ updatedAt: last.updatedAt, id: last.id }) : null,
-      }
+      return { items, nextCursor, ...(total !== undefined ? { total } : {}) }
     },
   })
 
@@ -514,4 +564,9 @@ export async function trimRecentViews(userId: string): Promise<void> {
           WHERE user_id = ${userId}
           ORDER BY viewed_at DESC
           LIMIT ${RECENT_LIMIT})`)
+}
+
+function requestedTypes(query: { type?: string; types?: string }): string[] {
+  if (query.type) return [query.type]
+  return (query.types ?? '').split(',').filter(Boolean)
 }

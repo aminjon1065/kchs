@@ -25,10 +25,10 @@ test.describe('Файлы, доступ и обсуждение', () => {
     await page.getByRole('button', { name: 'Новая папка' }).click()
     await page.getByLabel('Имя папки').fill(folderName)
     await page.getByRole('button', { name: 'Создать' }).click()
-    await expect(page.getByRole('cell', { name: folderName })).toBeVisible()
+    await expect(page.getByRole('gridcell', { name: folderName })).toBeVisible()
 
     // Входим в папку и загружаем файл
-    await page.getByRole('cell', { name: folderName }).click()
+    await page.getByRole('gridcell', { name: folderName }).click()
     await expect(page.getByText(folderName)).toBeVisible()
 
     const filePath = sampleFile(
@@ -36,12 +36,12 @@ test.describe('Файлы, доступ и обсуждение', () => {
       'Сводка по паводковой обстановке\nУровень воды: 412 см\nКритический уровень: 400 см\n',
     )
     await page.locator('input[type="file"]').first().setInputFiles(filePath)
-    await expect(page.getByRole('cell', { name: 'svodka-po-pavodku.txt' })).toBeVisible({
+    await expect(page.getByRole('gridcell', { name: 'svodka-po-pavodku.txt' })).toBeVisible({
       timeout: 20_000,
     })
 
     // Открываем файл во вкладке
-    await page.getByRole('cell', { name: 'svodka-po-pavodku.txt' }).dblclick()
+    await page.getByRole('gridcell', { name: 'svodka-po-pavodku.txt' }).dblclick()
     await expect(page.getByRole('button', { name: 'Скачать' })).toBeVisible()
     await expect(page.getByText('text/plain')).toBeVisible()
 
@@ -65,7 +65,8 @@ test.describe('Файлы, доступ и обсуждение', () => {
 
     await openScreen(page, 'Файлы')
 
-    const firstRow = page.locator('tbody tr').first()
+    // Первая строка данных таблицы (строка 1 — заголовок)
+    const firstRow = page.getByRole('grid').getByRole('row').nth(1)
     await expect(firstRow).toBeVisible()
     await firstRow.hover()
     await firstRow.getByRole('button', { name: 'Поделиться' }).click()
