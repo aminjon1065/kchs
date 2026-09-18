@@ -3,11 +3,12 @@ import { postgresDialect } from './dialect.js'
 import { ExpressionError } from './errors.js'
 import { compileCondition, compileExpression, type ExprEnv } from './expr/compile.js'
 import { ParamBinder } from './params.js'
+import type { LookupRef } from './types.js'
 import { fieldTypeOfValue, type ValueType, valueTypeOfField } from './value-types.js'
 
 export interface ExpressionCheck {
-  /** Поля, доступные выражению (схема датасета или объекта). */
-  fields: ReadonlyArray<{ key: string; type: FieldType }>
+  /** Поля, доступные выражению (схема датасета или объекта); справочник — для lookup_label(). */
+  fields: ReadonlyArray<{ key: string; type: FieldType; lookup?: LookupRef | null }>
   /** `aggregate` — мера или показатель: агрегаты разрешены. */
   mode?: 'row' | 'aggregate'
   /** Поля, допустимые вне агрегатов в режиме `aggregate`. */
@@ -51,7 +52,12 @@ export function checkExpression(source: string, input: ExpressionCheck): Express
       }
       if (!type)
         throw new ExpressionError(`Поле «${name}» вычисляемое — в выражении недоступно`, pos)
-      return { sql: `"${name}"`, type, fieldType: field.type }
+      return {
+        sql: `"${name}"`,
+        type,
+        fieldType: field.type,
+        ...(field.lookup ? { lookup: field.lookup } : {}),
+      }
     },
     resolveParam(name, pos) {
       const type = input.params?.[name]
@@ -68,6 +74,8 @@ export function checkExpression(source: string, input: ExpressionCheck): Express
       }
     },
     userAttr: () => ({ value: null, type: null }),
+    // Справочники при проверке не нужны: важны только типы
+    reference: () => `'{}'::jsonb`,
     timezone: () => '$tz',
     now: () => '$now',
   }

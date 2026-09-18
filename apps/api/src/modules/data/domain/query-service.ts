@@ -2,12 +2,14 @@ import { createHash } from 'node:crypto'
 import {
   type FieldType,
   FilterNode,
+  type Locale,
   type QueryResult,
   type QueryResultField,
   QuerySpec,
   type SqlRunInput,
 } from '@kchs/contracts'
 import {
+  type CompileContext,
   type CompiledQuery,
   type CompiledRawSql,
   type CompileUser,
@@ -15,15 +17,21 @@ import {
   collectSources,
   compileQuery,
   compileRawSql,
+  type LookupRef,
+  MissingReferencesError,
   QueryCompileError,
+  type ReferenceMap,
+  type ReferenceRequest,
   type ResolvedDataset,
   type RowPolicy,
   rawSqlErrorPosition,
   rawSqlTables,
+  referenceKey,
   type SqlDataset,
 } from '@kchs/query'
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm'
 import { authorize, requireCapability, visibleObjectsSql } from '~/kernel/access/authorize.js'
+import { type TerritoryIndex, territoryIndex } from '~/modules/gis/public.js'
 import type { Ctx } from '~/shared/context.js'
 import { db, queryRoleSql } from '~/shared/db/client.js'
 import { pgErrorCode } from '~/shared/db/pg-error.js'
@@ -78,6 +86,8 @@ const PG_MESSAGES: Record<string, string> = {
   '53200': 'Запросу не хватило памяти',
   '54001': 'Запрос слишком сложный',
 }
+/** Строк справочника в подстановке `lookup_label()`; больше — ошибка запроса. */
+const LOOKUP_MAX_ROWS = 10_000
 const NUMERIC = new Set<string>(['integer', 'number', 'decimal', 'money', 'percent'])
 
 export interface RunOptions {
@@ -122,6 +132,7 @@ function resolvedFrom(
       label: field.label,
       semantic: field.semantic,
       format: field.format ?? null,
+      lookup: field.lookup ?? null,
     })),
     rowPolicy,
     columnPolicy,
@@ -156,14 +167,96 @@ function compileUser(ctx: Ctx): CompileUser {
       attributes: {},
     }
   }
-  const territoryIds = ctx.attributes.territoryIds
+  // @my_territories: территории подразделений (ADR-0057) и явный атрибут пользователя
+  const assigned = ctx.attributes.territoryIds
+  const territoryIds = new Set([
+    ...ctx.principals.territoryIds,
+    ...(Array.isArray(assigned) ? assigned.map(String) : []),
+  ])
   return {
     id: ctx.userId,
     unitIds: ctx.principals.unitIds,
-    territoryIds: Array.isArray(territoryIds) ? territoryIds.map(String) : [],
+    territoryIds: [...territoryIds],
     subordinateIds: [],
     attributes: ctx.attributes,
   }
+}
+
+/** Подстановки территориальных функций — из справочника территорий (модуль GIS). */
+function territoryReference(
+  index: TerritoryIndex,
+  request: ReferenceRequest,
+  locale: Locale,
+): ReferenceMap | undefined {
+  switch (request.kind) {
+    case 'territory_level':
+      return { values: index.ancestorMap(request.level, request.key), version: index.version }
+    case 'territory_name':
+      return {
+        values: index.nameMap(request.key, locale),
+        version: `${index.version}:${locale}`,
+      }
+    default:
+      return undefined
+  }
+}
+
+/**
+ * Иерархия территорий и справочные подстановки для компиляции. Подписи
+ * справочников (`lookup_label`) — из `lookups`: их загружает вызывающий, когда
+ * компилятор сообщит, что они нужны.
+ */
+async function referenceContext(
+  ctx: Ctx,
+  lookups: ReadonlyMap<string, ReferenceMap> = new Map(),
+): Promise<Pick<CompileContext, 'territoryDescendants' | 'references'>> {
+  const index = await territoryIndex()
+  return {
+    territoryDescendants: (id) => index.descendants(id),
+    references: (request) =>
+      request.kind === 'lookup_label'
+        ? lookups.get(referenceKey(request))
+        : territoryReference(index, request, ctx.locale),
+  }
+}
+
+/**
+ * Подписи справочника для `lookup_label()`: ключ → подпись по строкам, которые
+ * видит пользователь (политики справочника действуют). Справочник недоступен
+ * пользователю или его поля нет — подписей нет: ни ошибки, ни чужих значений.
+ */
+async function lookupReference(ctx: Ctx, ref: LookupRef): Promise<ReferenceMap> {
+  const fields = [...new Set([ref.keyField, ref.labelField])]
+  const spec = QuerySpec.parse({
+    version: 1,
+    source: { kind: 'dataset', id: ref.datasetId },
+    steps: [{ type: 'select', fields }],
+  })
+  let result: QueryResult
+  try {
+    result = await QueryService.run(ctx, spec, { maxRows: LOOKUP_MAX_ROWS })
+  } catch (error) {
+    if (error instanceof AppError && [400, 403, 404].includes(error.status)) {
+      return { values: {}, version: 'unavailable' }
+    }
+    throw error
+  }
+  if (result.truncated) {
+    throw errors.validation(
+      `В справочнике больше ${LOOKUP_MAX_ROWS} строк — подписи lookup_label() недоступны`,
+    )
+  }
+  const keyIndex = result.fields.findIndex((field) => field.name === ref.keyField)
+  const labelIndex = result.fields.findIndex((field) => field.name === ref.labelField)
+  const values: Record<string, string> = {}
+  for (const row of result.rows) {
+    const key = row[keyIndex]
+    const label = row[labelIndex]
+    if (key === null || key === undefined || label === null || label === undefined) continue
+    values[String(key)] = String(label)
+  }
+  const version = createHash('sha256').update(JSON.stringify(values)).digest('hex').slice(0, 16)
+  return { values, version }
 }
 
 /** Значение результата в JSON по типу поля: числа из bigint/numeric, даты — ISO 8601. */
@@ -289,23 +382,25 @@ function sqlExecutionError(compiled: CompiledRawSql, error: unknown): unknown {
  * скрытые), макросы пользователя, без параметров запроса. Ошибка — 400 с
  * путём и сообщением компилятора.
  */
-export function checkRowPolicy(
+export async function checkRowPolicy(
   ctx: Ctx,
   storage: Pick<DatasetStorage, 'id' | 'table' | 'fields' | 'currentVersion'>,
   filter: FilterNode,
-): void {
+): Promise<void> {
   const spec = QuerySpec.parse({
     version: 1,
     source: { kind: 'dataset', id: storage.id },
     steps: [],
   })
   const dataset = resolvedFrom(storage, { kind: 'filter', where: filter }, { hide: [], mask: [] })
+  const references = await referenceContext(ctx)
   try {
     compileQuery(spec, {
       datasets: new Map([[storage.id, dataset]]),
       user: compileUser(ctx),
       now: new Date(),
       maxRows: 1,
+      ...references,
     })
   } catch (error) {
     if (error instanceof QueryCompileError) throw compileError(error)
@@ -333,26 +428,38 @@ export const QueryService = {
     }
     const resolved = await Promise.all(sources.datasets.map((id) => resolveDataset(ctx, id)))
     const datasets = new Map(resolved.map((item) => [item.dataset.id, item.dataset]))
-    try {
-      const compiled = compileQuery(spec, {
-        datasets,
-        queries: saved,
-        user: compileUser(ctx),
-        params: options.params ?? {},
-        now: new Date(),
-        ...(ctx.kind === 'user' ? { timezone: ctx.timezone } : {}),
-        ...(options.maxRows !== undefined ? { maxRows: options.maxRows } : {}),
-        rowMeta: options.rowMeta ?? false,
-      })
-      // Подписи полей — из схемы, поэтому её версия тоже входит в ключ кэша
-      const schemaVersions = resolved
-        .map((item) => `${item.dataset.id}:${item.schemaVersion}`)
-        .sort()
-        .join(',')
-      return { compiled, schemaVersions }
-    } catch (error) {
-      if (error instanceof QueryCompileError) throw compileError(error)
-      throw error
+    const lookups = new Map<string, ReferenceMap>()
+    // Вторая попытка — с подписями справочников, о которых сообщил компилятор
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        const compiled = compileQuery(spec, {
+          datasets,
+          queries: saved,
+          user: compileUser(ctx),
+          params: options.params ?? {},
+          now: new Date(),
+          ...(ctx.kind === 'user' ? { timezone: ctx.timezone } : {}),
+          ...(options.maxRows !== undefined ? { maxRows: options.maxRows } : {}),
+          rowMeta: options.rowMeta ?? false,
+          ...(await referenceContext(ctx, lookups)),
+        })
+        // Подписи полей — из схемы, поэтому её версия тоже входит в ключ кэша
+        const schemaVersions = resolved
+          .map((item) => `${item.dataset.id}:${item.schemaVersion}`)
+          .sort()
+          .join(',')
+        return { compiled, schemaVersions }
+      } catch (error) {
+        if (error instanceof MissingReferencesError && attempt === 0) {
+          for (const request of error.requests) {
+            if (request.kind !== 'lookup_label') continue
+            lookups.set(referenceKey(request), await lookupReference(ctx, request))
+          }
+          continue
+        }
+        if (error instanceof QueryCompileError) throw compileError(error)
+        throw error
+      }
     }
   },
 
@@ -451,6 +558,8 @@ export const QueryService = {
         now: new Date(),
         ...(ctx.kind === 'user' ? { timezone: ctx.timezone } : {}),
         maxRows: SQL_MAX_ROWS,
+        // Политики строк с «within» по территории — с дочерними, как в QuerySpec
+        ...(await referenceContext(ctx)),
       })
     } catch (error) {
       if (error instanceof QueryCompileError) throw compileError(error)

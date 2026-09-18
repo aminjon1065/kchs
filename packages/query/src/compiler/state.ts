@@ -3,8 +3,9 @@ import { type Dialect, postgresDialect } from '../dialect.js'
 import { fail, type IssuePath } from '../errors.js'
 import type { ExprValue } from '../expr/compile.js'
 import { ParamBinder } from '../params.js'
+import { referenceKey } from '../references.js'
 import { knownTimezone, localDateOf } from '../time.js'
-import type { CompileContext, ResolvedDataset } from '../types.js'
+import type { CompileContext, ReferenceRequest, ResolvedDataset } from '../types.js'
 import type { ValueType } from '../value-types.js'
 
 export const DEFAULT_TIMEZONE = 'Asia/Dushanbe'
@@ -41,6 +42,10 @@ export class CompileState {
   readonly usedUser: Record<string, unknown> = {}
   /** Цепочка сохранённых запросов, которые компилируются сейчас (циклы, глубина). */
   readonly queryStack: string[] = []
+  /** Использованные справочные подстановки: ключ → версия (часть ключа кэша). */
+  readonly usedReferences = new Map<string, string>()
+  /** Подстановки, которых нет в контексте: их загрузит вызывающий. */
+  readonly missingReferences = new Map<string, ReferenceRequest>()
   usesTime = false
   private counters = new Map<string, number>()
 
@@ -83,6 +88,24 @@ export class CompileState {
 
   tz(): string {
     return this.binder.once('timezone', this.timezone, 'text')
+  }
+
+  /**
+   * SQL подстановки jsonb «значение → результат» для справочной функции: один
+   * параметр на запрос. Подстановки нет — она запоминается, а SQL-заглушка не
+   * выполнится: `compileQuery` сообщит, что загрузить (ADR-0057).
+   */
+  reference(request: ReferenceRequest): string {
+    const key = referenceKey(request)
+    const map = this.ctx.references?.(request)
+    if (!map) {
+      this.missingReferences.set(key, request)
+      return `'{}'::jsonb`
+    }
+    this.usedReferences.set(key, map.version)
+    // Строкой с приведением: с типом jsonb драйвер закодировал бы JSON повторно
+    const param = this.binder.once(`reference:${key}`, JSON.stringify(map.values), 'text')
+    return `${param}::jsonb`
   }
 
   now(): string {

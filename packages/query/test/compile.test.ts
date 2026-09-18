@@ -7,8 +7,24 @@ import {
   compileQuery,
   DEFAULT_MAX_ROWS,
   DEFAULT_TIMEOUT_MS,
+  MissingReferencesError,
+  type ReferenceMap,
+  type ReferenceRequest,
+  referenceKey,
 } from '../src/index.js'
-import { ctx, IDS, incidents, NOW, q, src, USER_ID, withDatasets } from './fixtures.js'
+import {
+  ctx,
+  IDS,
+  incidents,
+  NOW,
+  q,
+  src,
+  TERR_DU,
+  TERR_DU_1,
+  TERR_DU_2,
+  USER_ID,
+  withDatasets,
+} from './fixtures.js'
 
 const regionsSource = { kind: 'dataset', id: IDS.regions, alias: 'reg' } as const
 
@@ -183,6 +199,7 @@ describe('ключ кэша', () => {
     expect(parts.timezone).toBe('Asia/Dushanbe')
     expect(parts.maxRows).toBe(DEFAULT_MAX_ROWS)
     expect(parts.rowMeta).toBe(false)
+    expect(parts.references).toEqual([])
   })
 
   it('строка ключа — канонический JSON частей', () => {
@@ -267,6 +284,74 @@ describe('ключ кэша', () => {
     expect(parts.queries).toHaveLength(1)
     expect(parts.queries[0]?.id).toBe(IDS.savedTotals)
     expect(parts.queries[0]?.spec).toContain('"limit":3')
+  })
+})
+
+describe('справочные подстановки (ADR-0057)', () => {
+  const byRegion = q(src(), [
+    {
+      type: 'compute',
+      fields: [{ name: 'region', expr: "territory_level(territory_id, 'region')" }],
+    },
+    { type: 'aggregate', groupBy: [{ field: 'region' }], measures: [{ alias: 'n', agg: 'count' }] },
+  ])
+  const references =
+    (maps: Record<string, ReferenceMap>) =>
+    (request: ReferenceRequest): ReferenceMap | undefined =>
+      maps[referenceKey(request)]
+
+  it('нет подстановки — MissingReferencesError с тем, что загрузить', () => {
+    let error: unknown
+    try {
+      compileQuery(byRegion, ctx())
+    } catch (caught) {
+      error = caught
+    }
+    expect(error).toBeInstanceOf(MissingReferencesError)
+    expect((error as MissingReferencesError).requests).toEqual([
+      { kind: 'territory_level', level: 'region', key: 'id' },
+    ])
+  })
+
+  it('подстановка — один параметр jsonb, версия — в ключе кэша, предок — территория', () => {
+    const values = { [TERR_DU_1]: TERR_DU, [TERR_DU_2]: TERR_DU }
+    const compiled = compileQuery(
+      byRegion,
+      ctx({
+        references: references({ 'territory_level:id:region': { values, version: 'v1' } }),
+      }),
+    )
+    expect(compiled.params.filter((param) => param === JSON.stringify(values))).toHaveLength(1)
+    expect(compiled.cacheKeyParts.references).toEqual([
+      { key: 'territory_level:id:region', version: 'v1' },
+    ])
+    expect(compiled.fields.map((field) => [field.name, field.type])).toEqual([
+      ['region', 'territory'],
+      ['n', 'integer'],
+    ])
+  })
+
+  it('поле со справочником: lookup_label по ссылке поля', () => {
+    const withLookup = {
+      ...incidents,
+      fields: incidents.fields.map((field) =>
+        field.key === 'kind'
+          ? { ...field, lookup: { datasetId: IDS.regions, keyField: 'name', labelField: 'name' } }
+          : field,
+      ),
+    }
+    const spec = q(src(), [
+      { type: 'compute', fields: [{ name: 'kind_label', expr: 'lookup_label(kind)' }] },
+    ])
+    let error: unknown
+    try {
+      compileQuery(spec, ctx(withDatasets(withLookup)))
+    } catch (caught) {
+      error = caught
+    }
+    expect((error as MissingReferencesError).requests).toEqual([
+      { kind: 'lookup_label', datasetId: IDS.regions, keyField: 'name', labelField: 'name' },
+    ])
   })
 })
 

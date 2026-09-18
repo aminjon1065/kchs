@@ -182,7 +182,7 @@ export const PolicyService = {
   ): Promise<DatasetRowPolicy> {
     const storage = await datasetStorage(tx, datasetId)
     await assertBelowLimit(tx, 'rows', datasetId)
-    checkRowPolicy(ctx, storage, input.filter)
+    await checkRowPolicy(ctx, storage, input.filter)
     const [row] = await tx
       .insert(datasetRowPolicies)
       .values({
@@ -209,7 +209,7 @@ export const PolicyService = {
   ): Promise<DatasetRowPolicy> {
     const storage = await datasetStorage(tx, datasetId)
     await rowPolicy(tx, datasetId, policyId)
-    if (patch.filter) checkRowPolicy(ctx, storage, patch.filter)
+    if (patch.filter) await checkRowPolicy(ctx, storage, patch.filter)
     const [row] = await tx
       .update(datasetRowPolicies)
       .set({
@@ -358,7 +358,7 @@ export const PolicyService = {
       const parsed = FilterNode.safeParse(row.filter)
       if (!parsed.success || !filterFields(parsed.data).includes(key)) continue
       try {
-        checkRowPolicy(ctx, changed, parsed.data)
+        await checkRowPolicy(ctx, changed, parsed.data)
       } catch {
         throw errors.conflict(
           'С новым типом поля политика строк станет некорректной — сначала измените политику',

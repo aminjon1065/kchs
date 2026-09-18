@@ -10,6 +10,8 @@ import {
   ParamBinder,
   parseExpression,
   postgresDialect,
+  type ReferenceRequest,
+  referenceKey,
   type ValueType,
 } from '../src/index.js'
 
@@ -64,11 +66,16 @@ const MACROS: Record<string, ExprValue> = {
 
 const ATTRIBUTES: Record<string, unknown> = { level: 3, region: 'DU', codes: ['DU', 'KH'] }
 
+/** Поле «Вид» связано со справочником типов (lookup_label). */
+const KIND_LOOKUP = { datasetId: 'types', keyField: 'code', labelField: 'name' }
+
 interface Options {
   mode?: 'row' | 'aggregate'
   groupKeys?: string[]
   filter?: string
   condition?: boolean
+  /** Окружение без справочных подстановок (например, проверка условия правила). */
+  noReferences?: boolean
 }
 
 function compile(source: string, options: Options = {}) {
@@ -85,7 +92,12 @@ function compile(source: string, options: Options = {}) {
       const found = table?.[name]
       if (!found) throw new ExpressionError(`Нет поля «${name}»`, pos)
       const relation = qualifier === 'reg' ? 'r' : 't'
-      return { sql: `${d.ident(relation)}.${d.ident(name)}`, type: found[0], fieldType: found[1] }
+      return {
+        sql: `${d.ident(relation)}.${d.ident(name)}`,
+        type: found[0],
+        fieldType: found[1],
+        ...(qualifier === null && name === 'kind' ? { lookup: KIND_LOOKUP } : {}),
+      }
     },
     resolveParam(name, pos) {
       const value = PARAMS[name]
@@ -103,6 +115,12 @@ function compile(source: string, options: Options = {}) {
     },
     timezone: () => binder.once('tz', 'Asia/Dushanbe', 'text'),
     now: () => binder.once('now', NOW_ISO, 'timestamptz'),
+    ...(options.noReferences
+      ? {}
+      : {
+          reference: (request: ReferenceRequest) =>
+            binder.once(`ref:${referenceKey(request)}`, referenceKey(request), 'jsonb'),
+        }),
   }
   const compiled = (options.condition ? compileCondition : compileExpression)(source, env)
   return { ...compiled, params: binder.values }
@@ -930,24 +948,66 @@ describe('справочники, пользователь, параметры, 
     ['assignee = @my_unit', '("t"."assignee" = $1::uuid)', 'boolean', [UNITS[0]]],
     ['reported_on = @today', '("t"."reported_on" = $1::date)', 'boolean', ['2026-09-18']],
     ['occurred_at < @now', '("t"."occurred_at" < $1::timestamptz)', 'boolean', [NOW_ISO]],
-  ])
-
-  it.each([
+    // Справочные функции — подстановка jsonb одним параметром (ADR-0057)
     [
-      'lookup_label(kind)',
-      'Функция lookup_label() появится со справочниками и территориями (P1-E07)',
-      0,
+      "territory_level(territory_id, 'region')",
+      '(($1::jsonb ->> ("t"."territory_id")::text)::uuid)',
+      'uuid',
+      ['territory_level:id:region'],
+    ],
+    [
+      "territory_level(code, 'district')",
+      '($1::jsonb ->> "t"."code")',
+      'text',
+      ['territory_level:code:district'],
     ],
     [
       'territory_name(territory_id)',
-      'Функция territory_name() появится со справочниками и территориями (P1-E07)',
-      0,
+      '($1::jsonb ->> ("t"."territory_id")::text)',
+      'text',
+      ['territory_name:id'],
     ],
     [
-      'territory_level(territory_id, 2)',
-      'Функция territory_level() появится со справочниками и территориями (P1-E07)',
-      0,
+      "territory_name(territory_level(territory_id, 'region'))",
+      '($2::jsonb ->> ((($1::jsonb ->> ("t"."territory_id")::text)::uuid))::text)',
+      'text',
+      ['territory_level:id:region', 'territory_name:id'],
     ],
+    [
+      "territory_level(territory_id, 'region') = territory_level(territory_id, 'region')",
+      '((($1::jsonb ->> ("t"."territory_id")::text)::uuid) = (($1::jsonb ->> ("t"."territory_id")::text)::uuid))',
+      'boolean',
+      ['territory_level:id:region'],
+    ],
+    [
+      'lookup_label(kind)',
+      '($1::jsonb ->> ("t"."kind")::text)',
+      'text',
+      ['lookup_label:types:code:name'],
+    ],
+  ])
+
+  it('предок территории — сам территория: подписи и фильтры работают с ним как с полем', () => {
+    expect(compile("territory_level(territory_id, 'country')").fieldType).toBe('territory')
+    expect(compile("territory_level(code, 'country')").fieldType).toBeUndefined()
+  })
+
+  it('без справочных подстановок функции недоступны', () => {
+    expect(failure('territory_name(territory_id)', { noReferences: true }).message).toBe(
+      'Справочные функции в этом выражении недоступны',
+    )
+  })
+
+  it.each([
+    ['lookup_label(title)', 'lookup_label() принимает поле, связанное со справочником', 13],
+    ['lookup_label(reg.name)', 'lookup_label() принимает поле, связанное со справочником', 13],
+    [
+      'territory_name(assignee)',
+      'territory_name() принимает территорию или код территории, а получено: ссылка',
+      15,
+    ],
+    ["territory_level(territory_id, 'state')", 'Уровень территории — строка из списка', 30],
+    ['territory_level(territory_id, 2)', 'Уровень территории — строка из списка', 30],
     ['user_attr(kind)', 'Имя атрибута пишется строкой', 10],
     ['@param:unknown > 1', 'Неизвестный параметр «unknown»', 0],
     ['reported_on = @param:p_bad_date', '«01.02.2026» — не дата', 14],

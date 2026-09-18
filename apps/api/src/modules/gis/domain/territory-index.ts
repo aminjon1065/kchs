@@ -76,6 +76,41 @@ export class TerritoryIndex {
   label(territory: Territory, locale: Locale): string {
     return territory.name[locale] ?? territory.name.ru
   }
+
+  private readonly maps = new Map<string, Readonly<Record<string, string>>>()
+
+  private memo(key: string, build: () => Record<string, string>): Readonly<Record<string, string>> {
+    let map = this.maps.get(key)
+    if (!map) {
+      map = build()
+      this.maps.set(key, map)
+    }
+    return map
+  }
+
+  /**
+   * Подстановка для `territory_level()`: территория (идентификатор или код) →
+   * её предок уровня `level` в том же виде; у кого предка такого уровня нет — нет и ключа.
+   */
+  ancestorMap(level: TerritoryLevel, key: 'id' | 'code'): Readonly<Record<string, string>> {
+    return this.memo(`level:${level}:${key}`, () => {
+      const map: Record<string, string> = {}
+      for (const item of this.items) {
+        const ancestor = this.ancestorAt(item.id, level)
+        if (ancestor) map[item[key]] = ancestor[key]
+      }
+      return map
+    })
+  }
+
+  /** Подстановка для `territory_name()`: идентификатор или код → название на языке. */
+  nameMap(key: 'id' | 'code', locale: Locale): Readonly<Record<string, string>> {
+    return this.memo(`name:${key}:${locale}`, () => {
+      const map: Record<string, string> = {}
+      for (const item of this.items) map[item[key]] = this.label(item, locale)
+      return map
+    })
+  }
 }
 
 let cached: TerritoryIndex | null = null

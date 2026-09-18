@@ -184,6 +184,7 @@ export function datasetRelation(
         semantic: field.semantic ?? semanticOfValue(type),
         label: field.label ?? null,
         format: field.format ?? null,
+        ...(field.lookup ? { lookup: field.lookup } : {}),
       },
       hidden: false,
     })
@@ -261,6 +262,7 @@ function rowPolicySql(
     },
     resolveMacro: (macro, pos) => guard(pos, () => state.macroExpr(macro, path)),
     userAttr: (key) => userAttrValue(state, key),
+    reference: (request) => state.reference(request),
     timezone: () => state.tz(),
     now: () => state.now(),
   }

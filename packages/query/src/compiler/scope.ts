@@ -1,6 +1,7 @@
 import type { FieldFormat, FieldSemantic, FieldType, LangText } from '@kchs/contracts'
 import type { Dialect } from '../dialect.js'
 import { fail, type IssuePath } from '../errors.js'
+import type { LookupRef } from '../types.js'
 import type { ValueType } from '../value-types.js'
 
 /** Описание столбца для результата: тип поля, семантика, подпись, формат. */
@@ -9,6 +10,8 @@ export interface ColumnMeta {
   semantic: FieldSemantic | null
   label: LangText | null
   format: FieldFormat | null
+  /** Справочник поля датасета — для `lookup_label()`. */
+  lookup?: LookupRef | null
 }
 
 export interface Column {

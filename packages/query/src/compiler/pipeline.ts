@@ -324,11 +324,17 @@ class StepCompiler {
         if (own) return own
         const found = findColumn(relation, qualifier, name)
         if ('message' in found) throw new ExpressionError(found.message, pos, found.hint)
-        return { sql: this.col(found, relation), type: found.type, fieldType: found.meta.fieldType }
+        return {
+          sql: this.col(found, relation),
+          type: found.type,
+          fieldType: found.meta.fieldType,
+          ...(found.meta.lookup ? { lookup: found.meta.lookup } : {}),
+        }
       },
       resolveParam: (name, pos) => guard(pos, () => state.paramExpr(name, path)),
       resolveMacro: (name, pos) => guard(pos, () => state.macroExpr(name, path)),
       userAttr: (key) => userAttrValue(state, key),
+      reference: (request) => state.reference(request),
       timezone: () => state.tz(),
       now: () => state.now(),
       ...extra,

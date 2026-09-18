@@ -7,8 +7,16 @@ import type {
   QueryParam,
   QueryResultField,
   QuerySpec,
+  TerritoryLevel,
 } from '@kchs/contracts'
 import type { Dialect } from './dialect.js'
+
+/** Ссылка поля на справочник: значение — ключ строки справочника (`lookup_label`). */
+export interface LookupRef {
+  datasetId: string
+  keyField: string
+  labelField: string
+}
 
 /** Поле датасета, как его видит компилятор: ключ, тип и физический столбец. */
 export interface ResolvedField {
@@ -19,6 +27,23 @@ export interface ResolvedField {
   label?: LangText | null
   semantic?: FieldSemantic | null
   format?: FieldFormat | null
+  lookup?: LookupRef | null
+}
+
+/**
+ * Справочная подстановка функций выражений (ADR-0057): `territory_level`,
+ * `territory_name` (по идентификатору территории или её коду) и `lookup_label`.
+ */
+export type ReferenceRequest =
+  | { kind: 'territory_level'; level: TerritoryLevel; key: 'id' | 'code' }
+  | { kind: 'territory_name'; key: 'id' | 'code' }
+  | ({ kind: 'lookup_label' } & LookupRef)
+
+/** Подстановка «значение текстом → результат» и версия данных, из которых она собрана. */
+export interface ReferenceMap {
+  values: Readonly<Record<string, string>>
+  /** Часть ключа кэша: меняется вместе со справочником (и языком подписей). */
+  version: string
 }
 
 /**
@@ -85,6 +110,11 @@ export interface CompileContext {
   /** Потомки территории (включая её саму) — для `within` с `includeChildren`. */
   territoryDescendants?: (id: string) => readonly string[]
   /**
+   * Справочные подстановки функций выражений. Нет нужной — компиляция завершается
+   * `MissingReferencesError` со списком: вызывающий загружает их и повторяет её.
+   */
+  references?: (request: ReferenceRequest) => ReferenceMap | undefined
+  /**
    * Предел строк интерактивного результата (50 000): компилятор ставит LIMIT на
    * одну строку больше, чтобы вызывающий понял `truncated`. null — без предела.
    */
@@ -107,6 +137,8 @@ export interface CacheKeyParts {
   params: Record<string, unknown>
   /** Значения пользователя (макросы, атрибуты), которые повлияли на запрос. */
   user: Record<string, unknown>
+  /** Справочные подстановки запроса и версии их данных. */
+  references: Array<{ key: string; version: string }>
   /** Момент с точностью до минуты, если запрос зависит от «сейчас»; иначе null. */
   time: string | null
   timezone: string

@@ -1,8 +1,9 @@
-import type { FieldType } from '@kchs/contracts'
+import { type FieldType, TERRITORY_LEVELS, type TerritoryLevel } from '@kchs/contracts'
 import type { DatePart, DateUnit, Dialect, IntervalUnit } from '../dialect.js'
 import { ExpressionError } from '../errors.js'
 import type { ParamBinder } from '../params.js'
 import { validDate } from '../time.js'
+import type { LookupRef, ReferenceRequest } from '../types.js'
 import {
   isOrderable,
   sqlTypeOfValue,
@@ -18,6 +19,8 @@ export interface ExprField {
   sql: string
   type: ValueType
   fieldType?: FieldType
+  /** Справочник поля — для `lookup_label()`. */
+  lookup?: LookupRef
 }
 
 /** Значение параметра или макроса и его тип (null — вывести по значению). */
@@ -41,6 +44,11 @@ export interface ExprEnv {
   resolveParam(name: string, pos: number): ExprValue
   resolveMacro(name: string, pos: number): ExprValue
   userAttr(key: string, pos: number): ExprValue
+  /**
+   * SQL подстановки jsonb «значение → результат» для справочной функции
+   * (`territory_level`, `territory_name`, `lookup_label`); нет — функции недоступны.
+   */
+  reference?(request: ReferenceRequest): string
   /** SQL часового пояса (общий параметр запроса). */
   timezone(): string
   /** SQL момента «сейчас» (общий параметр запроса). */
@@ -59,6 +67,8 @@ interface Typed {
   type: ValueType
   aggregate: boolean
   fieldType?: FieldType
+  /** Ссылка поля на справочник — только у самого поля, не у выражений над ним. */
+  lookup?: LookupRef
   pos: number
   end: number
   /** Строковый/числовой литерал: SQL зависит от целевого типа (дата, ссылка…). */
@@ -302,6 +312,7 @@ class ExprCompiler {
       pos,
       end,
       ...(resolved.fieldType ? { fieldType: resolved.fieldType } : {}),
+      ...(resolved.lookup ? { lookup: resolved.lookup } : {}),
       emit: (target) => this.convert(resolved.sql, resolved.type, target ?? resolved.type),
     }
   }
@@ -952,13 +963,46 @@ class ExprCompiler {
             `ST_SetSRID(ST_MakePoint(${arg(0).emit('number')}, ${arg(1).emit('number')}), 4326)`,
         )
       // ── справочники и пользователь
-      case 'lookup_label':
-      case 'territory_level':
-      case 'territory_name':
-        throw new ExpressionError(
-          `Функция ${name}() появится со справочниками и территориями (P1-E07)`,
-          pos,
-        )
+      case 'territory_level': {
+        arity(2)
+        const key = this.territoryKey(arg(0), name)
+        const level = this.levelLiteral(arg(1))
+        const map = this.reference({ kind: 'territory_level', level, key }, pos)
+        if (key === 'code') {
+          return this.make('text', args, span, () => `(${map} ->> ${arg(0).emit('text')})`)
+        }
+        // Предок — тоже территория: подписи и фильтры работают с ним, как с полем
+        return {
+          ...this.make(
+            'uuid',
+            args,
+            span,
+            () => `((${map} ->> (${arg(0).emit('uuid')})::text)::uuid)`,
+          ),
+          fieldType: 'territory',
+        }
+      }
+      case 'territory_name': {
+        arity(1)
+        const key = this.territoryKey(arg(0), name)
+        const map = this.reference({ kind: 'territory_name', key }, pos)
+        const value = () =>
+          key === 'code' ? arg(0).emit('text') : `(${arg(0).emit('uuid')})::text`
+        return this.make('text', args, span, () => `(${map} ->> ${value()})`)
+      }
+      case 'lookup_label': {
+        arity(1)
+        const field = arg(0)
+        if (!field.lookup) {
+          throw new ExpressionError(
+            'lookup_label() принимает поле, связанное со справочником',
+            field.pos,
+            'Связь поля со справочником задаётся на вкладке «Схема» датасета',
+          )
+        }
+        const map = this.reference({ kind: 'lookup_label', ...field.lookup }, pos)
+        return this.make('text', args, span, () => `(${map} ->> (${field.emit()})::text)`)
+      }
       case 'user_attr': {
         arity(1)
         const key = arg(0)
@@ -1172,6 +1216,37 @@ class ExprCompiler {
       throw new ExpressionError(`${what}: целое число от −10 до 12`, value.pos)
     }
     return number
+  }
+
+  /** Подстановка справочной функции; окружение без справочников — понятная ошибка. */
+  private reference(request: ReferenceRequest, pos: number): string {
+    if (!this.env.reference) {
+      throw new ExpressionError('Справочные функции в этом выражении недоступны', pos)
+    }
+    return this.env.reference(request)
+  }
+
+  /** Аргумент территориальной функции: поле-территория (идентификатор) или код текстом. */
+  private territoryKey(value: Typed, name: string): 'id' | 'code' {
+    if (value.type === 'uuid' && value.fieldType === 'territory') return 'id'
+    if (value.type === 'text') return 'code'
+    throw new ExpressionError(
+      `${name}() принимает территорию или код территории, а получено: ${VALUE_TYPE_LABELS[value.type]}`,
+      value.pos,
+      "Например, territory_level(district, 'region')",
+    )
+  }
+
+  private levelLiteral(value: Typed): TerritoryLevel {
+    const level = value.literal?.kind === 'string' ? String(value.literal.value) : ''
+    if (!(TERRITORY_LEVELS as readonly string[]).includes(level)) {
+      throw new ExpressionError(
+        'Уровень территории — строка из списка',
+        value.pos,
+        `Допустимо: ${TERRITORY_LEVELS.map((item) => `'${item}'`).join(', ')}`,
+      )
+    }
+    return level as TerritoryLevel
   }
 
   private unitLiteral<T extends string>(value: Typed, allowed: readonly T[]): T {

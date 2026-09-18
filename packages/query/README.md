@@ -25,6 +25,7 @@ const compiled = compileQuery(spec, {
   params,                 // значения @param:<name>
   now: new Date(),
   territoryDescendants,   // id → [id, ...потомки] для within с includeChildren
+  references,             // справочные подстановки: territory_level, territory_name, lookup_label
   rowMeta: true,          // таблица датасета: _id и _ver в результате
 })
 
@@ -164,6 +165,17 @@ date_trunc date_add date_diff year quarter month week day dow hour format_date`)
 `st_buffer` м `st_centroid st_x st_y st_point`), `user_attr('ключ')`; агрегаты
 только в мерах сводки (`count count_distinct sum avg min max median
 percentile(x, p) string_agg`), оконные — только шагом `window`.
+
+Справочные функции (ADR-0057): `territory_level(x, 'region')` — предок уровня
+(`country region district jamoat settlement`; сама территория, если уровень её),
+`territory_name(x)` — название на языке пользователя; `x` — поле-территория
+(результат `territory_level` — тоже территория) или код территории текстом
+(результат — код). `lookup_label(поле)` — подпись из справочника, с которым
+связано поле. Значения берутся из подстановки «значение → результат», которую
+вызывающий передаёт в `ctx.references(request)` (jsonb-параметр, роль
+`kchs_query` справочники не читает). Нет подстановки — `compileQuery` бросает
+`MissingReferencesError` со списком `requests`: вызывающий загружает их с правами
+пользователя и компилирует заново; версии подстановок входят в ключ кэша.
 
 Ошибки времени выполнения, которые раскрыли бы данные или ломали запрос,
 заменены пустым значением: `date(строка)`, строка → ссылка, `substr` с

@@ -1,5 +1,6 @@
 import type { QueryResultField, QuerySpec, QueryStep } from '@kchs/contracts'
 import { fail } from '../errors.js'
+import { MissingReferencesError } from '../references.js'
 import type { CacheKeyParts, CompileContext, CompiledQuery } from '../types.js'
 import { compilePipeline, normalizeSpec, orderClause, type Pipeline } from './pipeline.js'
 import { type Column, columnSql, uniqueInternal } from './scope.js'
@@ -26,6 +27,10 @@ export function compileQuery(input: QuerySpec, ctx: CompileContext): CompiledQue
   }
   const state = new CompileState(ctx, spec)
   const pipeline = compilePipeline(state, spec, 'q', [])
+  // Подсчёт — префикс тех же шагов: его подстановки входят в эти
+  if (state.missingReferences.size > 0) {
+    throw new MissingReferencesError([...state.missingReferences.values()])
+  }
   const { sql, fields } = finalSelect(state, pipeline, maxRows)
   const count = countQuery(ctx, spec)
   return {
@@ -134,6 +139,9 @@ export function cacheKey(
     queries,
     params: canonical(state.usedParams) as Record<string, unknown>,
     user: canonical(state.usedUser) as Record<string, unknown>,
+    references: [...state.usedReferences.entries()]
+      .map(([key, version]) => ({ key, version }))
+      .sort((a, b) => a.key.localeCompare(b.key)),
     time: state.usesTime ? state.ctx.now.toISOString().slice(0, 16) : null,
     timezone: state.timezone,
     maxRows,

@@ -1,7 +1,13 @@
 import type { FilterNode, QuerySpec } from '@kchs/contracts'
 import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { type CompileContext, compileQuery, type ResolvedDataset } from '../src/index.js'
+import {
+  type CompileContext,
+  compileQuery,
+  type ReferenceMap,
+  type ReferenceRequest,
+  type ResolvedDataset,
+} from '../src/index.js'
 import { databaseUrl, dataSql, ddlSql, dropSql, testTables } from './db.js'
 import {
   archive,
@@ -13,6 +19,8 @@ import {
   src,
   staff,
   TERR_DU,
+  TERR_DU_1,
+  TERR_DU_2,
   TERR_KH,
   USER_ID,
 } from './fixtures.js'
@@ -207,6 +215,43 @@ describeDb('выполнение на Postgres', () => {
         value: { id: TERR_DU, includeChildren: false },
       }),
     ).toEqual(['ДТП', 'Наводнение'])
+  })
+
+  it('территории: сводка по уровню и подписи — подстановкой, без чтения справочника ролью', async () => {
+    // Регион районов Душанбе — сам Душанбе; Хатлон — регион себе
+    const region = { [TERR_DU]: TERR_DU, [TERR_DU_1]: TERR_DU, [TERR_DU_2]: TERR_DU }
+    const names = { [TERR_DU]: 'Душанбе', [TERR_KH]: 'Хатлон' }
+    const references = (request: ReferenceRequest): ReferenceMap | undefined => {
+      if (request.kind === 'territory_level' && request.key === 'id') {
+        return { values: { ...region, [TERR_KH]: TERR_KH }, version: 't1' }
+      }
+      if (request.kind === 'territory_name') return { values: names, version: 't1:ru' }
+      return undefined
+    }
+    const { rows } = await run(
+      q(src(), [
+        {
+          type: 'compute',
+          fields: [
+            { name: 'region', expr: "territory_level(territory_id, 'region')" },
+            { name: 'region_name', expr: 'territory_name(region)' },
+          ],
+        },
+        {
+          type: 'aggregate',
+          groupBy: [{ field: 'region' }, { field: 'region_name' }],
+          measures: [{ alias: 'n', agg: 'count' }],
+        },
+        { type: 'sort', by: [{ field: 'region_name', dir: 'asc' }] },
+      ]),
+      { references },
+    )
+    // count — bigint строкой; у одной строки территории нет
+    expect(rows).toEqual([
+      { region: TERR_DU, region_name: 'Душанбе', n: '6' },
+      { region: TERR_KH, region_name: 'Хатлон', n: '3' },
+      { region: null, region_name: null, n: '1' },
+    ])
   })
 
   it('геометрия: пересечение, внутри, в радиусе, пустота', async () => {

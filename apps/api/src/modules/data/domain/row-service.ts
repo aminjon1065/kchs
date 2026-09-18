@@ -14,6 +14,7 @@ import { fieldSchema } from '@kchs/fields'
 import { eq, type SQL, sql } from 'drizzle-orm'
 import { directory } from '~/kernel/directory/port.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
+import { type TerritoryIndex, territoryIndex } from '~/modules/gis/public.js'
 import { actorId, type Ctx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
 import { pgErrorCode, UNIQUE_VIOLATION } from '~/shared/db/pg-error.js'
@@ -99,6 +100,22 @@ interface Assignment {
 }
 
 /**
+ * Значение поля-территории: идентификатор из справочника, код или название
+ * (без учёта регистра) → идентификатор; неизвестное или неоднозначное — ошибка поля.
+ */
+function territoryValue(
+  territories: TerritoryIndex,
+  value: string,
+): { id: string } | { message: string } {
+  if (territories.byId.has(value)) return { id: value }
+  const found = territories.resolve(value)
+  if (found === 'ambiguous') {
+    return { message: `Название «${value}» неоднозначно — укажите код территории` }
+  }
+  return found ? { id: found } : { message: `Нет территории «${value}»` }
+}
+
+/**
  * Значения строки из запроса: поле должно существовать и быть видимым,
  * маскируемое и только для чтения не правится, значение — по типу поля.
  */
@@ -107,6 +124,7 @@ function prepare(
   grant: DatasetGrant,
   values: Record<string, unknown>,
   insert: boolean,
+  territories: TerritoryIndex | null,
 ): Assignment[] {
   const byKey = new Map(storage.fields.map((field) => [field.key, field]))
   const issues: Array<{ path: string; message: string; code?: string }> = []
@@ -120,8 +138,16 @@ function prepare(
     if (grant.masked.has(key) || field.readOnly) {
       throw errors.forbidden(`Поле «${key}» недоступно для правки`)
     }
-    const normalized =
+    let normalized =
       typeof raw === 'string' && raw.trim() === '' && !TEXT_TYPES.has(field.type) ? null : raw
+    if (field.type === 'territory' && typeof normalized === 'string' && territories) {
+      const territory = territoryValue(territories, normalized.trim())
+      if ('message' in territory) {
+        issues.push({ path: key, message: territory.message })
+        continue
+      }
+      normalized = territory.id
+    }
     const parsed = fieldSchema(field, false).safeParse(normalized)
     if (!parsed.success) {
       issues.push({
@@ -166,7 +192,11 @@ async function writable(ctx: Ctx, datasetId: string) {
   if (grant.rows.kind !== 'all') {
     throw errors.forbidden('Строки датасета ограничены политикой — править их может управляющий')
   }
-  return { grant, storage }
+  // Справочник территорий — только датасетам с полями-территориями
+  const territories = storage.fields.some((field) => field.type === 'territory')
+    ? await territoryIndex()
+    : null
+  return { grant, storage, territories }
 }
 
 /** Видимые пользователю поля (скрытые политикой не читаются и не возвращаются). */
@@ -321,10 +351,10 @@ export const RowService = {
   },
 
   async insert(ctx: Ctx, datasetId: string, rows: DatasetRowInput[]): Promise<DatasetRow[]> {
-    const { grant, storage } = await writable(ctx, datasetId)
+    const { grant, storage, territories } = await writable(ctx, datasetId)
     const prepared = rows.map((row, index) => {
       try {
-        return prepare(storage, grant, row.values, true)
+        return prepare(storage, grant, row.values, true, territories)
       } catch (error) {
         // Номер строки пакета: вставка из буфера показывает, какую строку исправить
         if (error instanceof AppError && error.code === 'validation_failed' && rows.length > 1) {
@@ -410,8 +440,8 @@ export const RowService = {
     rowId: string,
     patch: DatasetRowPatch,
   ): Promise<DatasetRow> {
-    const { grant, storage } = await writable(ctx, datasetId)
-    const assignments = prepare(storage, grant, patch.values, false)
+    const { grant, storage, territories } = await writable(ctx, datasetId)
+    const assignments = prepare(storage, grant, patch.values, false, territories)
     if (assignments.length === 0) throw errors.validation('Нет значений для правки')
     const fields = visibleFields(storage, grant)
     const table = sql.raw(qualified(storage.table))

@@ -26,6 +26,7 @@ export {
 } from './expr/compile.js'
 export { parseExpression } from './expr/parser.js'
 export { ParamBinder } from './params.js'
+export { MissingReferencesError, referenceKey } from './references.js'
 export { compileRawSql, rawSqlErrorPosition, rawSqlTables } from './sql/compile.js'
 export type {
   CacheKeyParts,
@@ -35,8 +36,11 @@ export type {
   CompiledQuery,
   CompiledRawSql,
   CompileUser,
+  LookupRef,
   RawSqlColumn,
   RawSqlContext,
+  ReferenceMap,
+  ReferenceRequest,
   ResolvedDataset,
   ResolvedField,
   RowPolicy,
