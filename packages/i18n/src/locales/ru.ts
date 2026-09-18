@@ -1122,6 +1122,8 @@ export const ru = {
       children: 'Входят в состав',
       noChildren: 'Вложенных единиц нет',
       noBoundary: 'Границы и карта появятся с геоданными фазы 2.',
+      all: 'Все территории',
+      clear: 'Сбросить территорию',
       levels: {
         country: 'Страна',
         region: 'Регион',
@@ -1440,7 +1442,10 @@ export const ru = {
         min: 'Минимум',
         max: 'Максимум',
         median: 'Медиана',
+        expr: 'Формула',
       },
+      formula: 'Формула меры',
+      formulaPlaceholder: 'sum(поле) / count()',
       measureOf: '{agg}: {field}',
       sort: 'Сортировка',
       sortNone: 'Без сортировки',
@@ -1530,7 +1535,7 @@ export const ru = {
       bindingNone: 'Не фильтровать',
       filterLabel: 'Подпись',
       filterKind: 'Вид',
-      filterKinds: { select: 'Значения', text: 'Текст', period: 'Период' },
+      filterKinds: { select: 'Значения', text: 'Текст', period: 'Период', territory: 'Территория' },
       valuesHint: 'Значения через запятую',
       removeFilter: 'Убрать фильтр',
       periods: {

@@ -6,7 +6,7 @@ import { territoriesQuery } from './queries.js'
 import { TerritoryTree } from './territory-tree.js'
 
 /** Идентификатор территории из значения условия: строка или `{id, includeChildren}`. */
-function selectedOf(value: unknown): string | null {
+export function selectedOf(value: unknown): string | null {
   if (typeof value === 'string' && value) return value
   if (value && typeof value === 'object' && 'id' in value && typeof value.id === 'string') {
     return value.id

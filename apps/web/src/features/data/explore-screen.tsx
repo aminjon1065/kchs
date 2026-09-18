@@ -55,7 +55,16 @@ import { useFieldOptions } from './field-options.js'
 import { filterFieldsOf, NUMERIC_TYPES } from './field-types.js'
 import { datasetQuery } from './queries.js'
 
-const AGGREGATES: Aggregate[] = ['count', 'count_distinct', 'sum', 'avg', 'min', 'max', 'median']
+const AGGREGATES: Aggregate[] = [
+  'count',
+  'count_distinct',
+  'sum',
+  'avg',
+  'min',
+  'max',
+  'median',
+  'expr',
+]
 const CHART_TYPES: ChartType[] = [
   'bar',
   'line',
@@ -162,6 +171,7 @@ export function ExploreScreen({
       if (field) return labelOf(field, locale)
       const measure = state.measures.find((item) => measureAlias(item) === name)
       if (!measure) return name
+      if (measure.agg === 'expr') return measure.name || measure.expr || name
       const agg = t(`data.explore.aggregates.${measure.agg}`)
       const target = measure.field ? byKey.get(measure.field) : undefined
       return target ? t('data.explore.measureOf', { agg, field: labelOf(target, locale) }) : agg
@@ -598,6 +608,7 @@ function MeasureRow({
         onValueChange={(next) => {
           const agg = next as Aggregate
           if (agg === 'count') onChange({ agg })
+          else if (agg === 'expr') onChange({ agg, expr: measure.expr ?? 'count()' })
           else {
             const pool = agg === 'count_distinct' ? fields : numeric
             const field = pool.some((item) => item.key === measure.field)
@@ -612,7 +623,8 @@ function MeasureRow({
         </SelectTrigger>
         <SelectContent>
           {AGGREGATES.filter(
-            (agg) => agg === 'count' || agg === 'count_distinct' || numeric.length > 0,
+            (agg) =>
+              agg === 'count' || agg === 'count_distinct' || agg === 'expr' || numeric.length > 0,
           ).map((agg) => (
             <SelectItem key={agg} value={agg}>
               {t(`data.explore.aggregates.${agg}`)}
@@ -620,7 +632,12 @@ function MeasureRow({
           ))}
         </SelectContent>
       </Select>
-      {targets.length > 0 ? (
+      {measure.agg === 'expr' ? (
+        <FormulaInput
+          value={measure.expr ?? ''}
+          onCommit={(expr) => onChange({ ...measure, expr })}
+        />
+      ) : targets.length > 0 ? (
         <Select
           value={measure.field ?? targets[0]?.key}
           onValueChange={(field) => onChange({ agg: measure.agg, field })}
@@ -648,6 +665,37 @@ function MeasureRow({
         <X className="size-3.5" />
       </IconButton>
     </div>
+  )
+}
+
+/**
+ * Выражение вычисляемой меры над агрегатами (`sum(damage) / count()`): запрос
+ * перестраивается по Enter или при уходе из поля, а не на каждый символ.
+ */
+function FormulaInput({ value, onCommit }: { value: string; onCommit: (expr: string) => void }) {
+  const t = useT()
+  const [text, setText] = useState(value)
+  useEffect(() => setText(value), [value])
+  const commit = () => {
+    const next = text.trim()
+    if (next && next !== value) onCommit(next)
+    else setText(value)
+  }
+  return (
+    <Input
+      mono
+      value={text}
+      onChange={(event) => setText(event.target.value)}
+      onBlur={commit}
+      onKeyDown={(event) => {
+        if (event.key !== 'Enter') return
+        event.preventDefault()
+        commit()
+      }}
+      aria-label={t('data.explore.formula')}
+      placeholder={t('data.explore.formulaPlaceholder')}
+      className="h-7 min-w-0 flex-1"
+    />
   )
 }
 

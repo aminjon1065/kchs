@@ -40,7 +40,26 @@ describe('перекрёстный фильтр из детализации', ()
       label: 'Хатлон',
       filters: [{ field: 'region', op: 'eq' as const, value: 'Хатлон' }],
     }
-    expect(crossFilterFor(spec, tile, filters, pick)).toEqual({ filterId: 'area', value: 'Хатлон' })
+    expect(crossFilterFor(spec, tile, filters, pick)).toEqual({
+      filterId: 'area',
+      value: 'Хатлон',
+      label: 'Хатлон',
+    })
+  })
+
+  it('фильтр «Территория» — выбранная единица со всеми вложенными', () => {
+    const territory = [
+      { id: 'area', kind: 'territory', label: { ru: 'Территория' } },
+    ] as DashboardFilter[]
+    const pick = {
+      label: 'Хатлонская область',
+      filters: [{ field: 'region', op: 'eq' as const, value: 'id-kt' }],
+    }
+    expect(crossFilterFor(spec, tile, territory, pick)).toEqual({
+      filterId: 'area',
+      value: { id: 'id-kt', includeChildren: true },
+      label: 'Хатлонская область',
+    })
   })
 
   it('интервал времени, мера и поле без привязки — фильтра нет', () => {

@@ -37,6 +37,7 @@ import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
 import { ShareDialog } from '~/features/access/share-dialog.js'
+import { TerritorySelect } from '~/features/gis/territory-select.js'
 import { PresenceAvatars } from '~/features/objects/presence-avatars.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { keys, objectListQuery, objectQuery } from '~/shared/api/queries.js'
@@ -386,7 +387,9 @@ function FilterControl({
   useEffect(() => setText(external), [external])
 
   let control: ReactNode
-  if (filter.kind === 'period') {
+  if (filter.kind === 'territory') {
+    control = <TerritorySelect value={value} onChange={onChange} label={label} />
+  } else if (filter.kind === 'period') {
     const current =
       PERIOD_PRESETS.find(
         (preset) => JSON.stringify(periodValue(preset)) === JSON.stringify(value ?? null),
@@ -448,7 +451,7 @@ function AddFilterDialog({
 }) {
   const t = useT()
   const [label, setLabel] = useState('')
-  const [kind, setKind] = useState<'select' | 'text' | 'period'>('select')
+  const [kind, setKind] = useState<'select' | 'text' | 'period' | 'territory'>('select')
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent
@@ -492,7 +495,7 @@ function AddFilterDialog({
               aria-label={t('data.dashboard.filterKind')}
               value={kind}
               onValueChange={setKind}
-              options={(['select', 'text', 'period'] as const).map((value) => ({
+              options={(['select', 'text', 'period', 'territory'] as const).map((value) => ({
                 value,
                 label: t(`data.dashboard.filterKinds.${value}`),
               }))}

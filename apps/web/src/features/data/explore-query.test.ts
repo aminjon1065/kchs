@@ -36,6 +36,27 @@ describe('исследование: QuerySpec из конструктора', ()
     expect(spec.source).toEqual({ kind: 'dataset', id: ID })
   })
 
+  it('вычисляемая мера — выражение над агрегатами с устойчивым латинским именем', () => {
+    const formula = { agg: 'expr' as const, expr: 'sum(amount) / count()', name: 'На случай' }
+    const spec = exploreSpec({
+      ...emptyExplore(ID),
+      groups: [{ field: 'district' }],
+      measures: [formula, { agg: 'count' }],
+    })
+    const alias = measureAlias(formula)
+    expect(alias).toMatch(/^expr_[0-9a-z]+$/)
+    expect(measureAlias({ ...formula })).toBe(alias)
+    expect(measureAlias({ ...formula, expr: 'avg(amount)' })).not.toBe(alias)
+    expect(spec.steps[0]).toEqual({
+      type: 'aggregate',
+      groupBy: [{ field: 'district' }],
+      measures: [
+        { alias, agg: 'expr', expr: 'sum(amount) / count()' },
+        { alias: 'count', agg: 'count' },
+      ],
+    })
+  })
+
   it('без сводки — строки с ограничением, имя меры — латиницей', () => {
     const spec = exploreSpec({ ...emptyExplore(ID), measures: [] })
     expect(spec.steps).toEqual([{ type: 'limit', limit: EXPLORE_RAW_LIMIT, offset: 0 }])

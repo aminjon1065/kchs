@@ -1092,6 +1092,8 @@ export const en: DeepPartial<Dictionary> = {
       children: 'Includes',
       noChildren: 'No nested units',
       noBoundary: 'Boundaries and the map will come with phase 2 geodata.',
+      all: 'All territories',
+      clear: 'Clear territory',
       levels: {
         country: 'Country',
         region: 'Region',
@@ -1410,7 +1412,10 @@ export const en: DeepPartial<Dictionary> = {
         min: 'Minimum',
         max: 'Maximum',
         median: 'Median',
+        expr: 'Formula',
       },
+      formula: 'Measure formula',
+      formulaPlaceholder: 'sum(field) / count()',
       measureOf: '{agg}: {field}',
       sort: 'Sort',
       sortNone: 'No sorting',
@@ -1499,7 +1504,7 @@ export const en: DeepPartial<Dictionary> = {
       bindingNone: 'Do not filter',
       filterLabel: 'Label',
       filterKind: 'Kind',
-      filterKinds: { select: 'Values', text: 'Text', period: 'Period' },
+      filterKinds: { select: 'Values', text: 'Text', period: 'Period', territory: 'Territory' },
       valuesHint: 'Comma-separated values',
       removeFilter: 'Remove filter',
       periods: {

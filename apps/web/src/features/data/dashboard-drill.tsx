@@ -32,14 +32,15 @@ type Aggregate = Extract<
 
 /**
  * Перекрёстный фильтр: выбранный элемент — значение разреза, к полю которого
- * плитка привязана фильтром дашборда. Интервалы времени и меры не подходят.
+ * плитка привязана фильтром дашборда (значения, текст или территория — с
+ * вложенными). Интервалы времени и меры не подходят.
  */
 export function crossFilterFor(
   spec: ChartSpec | null,
   tile: DashboardTile,
   filters: DashboardFilter[],
   pick: ChartPick,
-): { filterId: string; value: string } | null {
+): { filterId: string; value: unknown; label: string } | null {
   const query = spec && 'query' in spec.data ? spec.data.query : null
   if (!query) return null
   const aggregate = query.steps.find((step): step is Aggregate => step.type === 'aggregate')
@@ -54,10 +55,20 @@ export function crossFilterFor(
     const field = group?.field ?? condition.field
     const filter = filters.find(
       (item) =>
-        (item.kind === 'select' || item.kind === 'text') &&
+        (item.kind === 'select' || item.kind === 'text' || item.kind === 'territory') &&
         tile.filterBindings?.[item.id] === field,
     )
-    if (filter) return { filterId: filter.id, value: String(condition.value) }
+    if (filter?.kind === 'territory') {
+      // Значение разреза — идентификатор единицы (unlabelPick), подпись — её название
+      return {
+        filterId: filter.id,
+        value: { id: String(condition.value), includeChildren: true },
+        label: pick.label,
+      }
+    }
+    if (filter) {
+      return { filterId: filter.id, value: String(condition.value), label: String(condition.value) }
+    }
   }
   return null
 }
@@ -84,7 +95,7 @@ export function DrillSheet({
   /** Текущие значения фильтров дашборда. */
   values: Record<string, unknown>
   filters: DashboardFilter[]
-  onFilter: (filterId: string, value: string) => void
+  onFilter: (filterId: string, value: unknown) => void
   onClose: () => void
 }) {
   const t = useT()
@@ -149,7 +160,7 @@ export function DrillSheet({
                   onClose()
                 }}
               >
-                {t('data.dashboard.drill.filterBy', { value: cross.value })}
+                {t('data.dashboard.drill.filterBy', { value: cross.label })}
               </Button>
             ) : null}
             {data ? (

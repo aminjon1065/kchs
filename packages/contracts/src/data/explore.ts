@@ -14,11 +14,20 @@ export const ExploreGroup = z.object({
 })
 export type ExploreGroup = z.infer<typeof ExploreGroup>
 
-export const ExploreMeasure = z.object({
-  agg: Aggregate,
-  /** Без поля — количество строк. */
-  field: z.string().min(1).max(64).optional(),
-})
+export const ExploreMeasure = z
+  .object({
+    agg: Aggregate,
+    /** Без поля — количество строк. */
+    field: z.string().min(1).max(64).optional(),
+    /** Вычисляемая мера (`agg: 'expr'`): выражение над агрегатами — `sum(damage) / count()`. */
+    expr: z.string().trim().min(1).max(2000).optional(),
+    /** Подпись вычисляемой меры в таблице и легенде. */
+    name: z.string().trim().max(120).optional(),
+  })
+  .refine((measure) => measure.agg !== 'expr' || Boolean(measure.expr), {
+    message: 'Для вычисляемой меры нужно выражение',
+    path: ['expr'],
+  })
 export type ExploreMeasure = z.infer<typeof ExploreMeasure>
 
 export const ExplorePlan = z.object({
@@ -34,8 +43,19 @@ export type ExplorePlan = z.infer<typeof ExplorePlan>
 /** Строк без сводки — чтобы «сырое» исследование не тянуло весь датасет. */
 export const EXPLORE_RAW_LIMIT = 1000
 
+/** Короткий устойчивый отпечаток текста (FNV-1a, 32 бита): один и тот же на клиенте и сервере. */
+function fingerprint(text: string): string {
+  let hash = 0x811c9dc5
+  for (let i = 0; i < text.length; i += 1) {
+    hash ^= text.charCodeAt(i)
+    hash = Math.imul(hash, 0x01000193) >>> 0
+  }
+  return hash.toString(36)
+}
+
 /** Имя столбца меры в результате: латиница, как требует алиас QuerySpec. */
 export function measureAlias(measure: ExploreMeasure): string {
+  if (measure.agg === 'expr') return `expr_${fingerprint(measure.expr ?? '')}`
   return measure.field ? `${measure.agg}_${measure.field}` : measure.agg
 }
 
@@ -55,7 +75,8 @@ export function explorePlanSpec(datasetId: string, plan: ExplorePlan): QuerySpec
       measures: [...measures].map(([alias, measure]) => ({
         alias,
         agg: measure.agg,
-        ...(measure.field ? { field: measure.field } : {}),
+        ...(measure.agg === 'expr' ? { expr: measure.expr } : {}),
+        ...(measure.agg !== 'expr' && measure.field ? { field: measure.field } : {}),
       })),
     })
   }
