@@ -8,6 +8,8 @@ import type {
   FieldProfile,
   ImportRecord,
   ImportStatus,
+  JobRecord,
+  JobStatus,
   QueryResult,
 } from '@kchs/contracts'
 import { queryOptions } from '@tanstack/react-query'
@@ -53,6 +55,17 @@ export const datasetPoliciesQuery = (id: string) =>
   queryOptions({
     queryKey: dataKeys.policies(id),
     queryFn: () => http.get<DatasetPolicies>(`/datasets/${id}/policies`),
+  })
+
+export const isJobFinished = (status: JobStatus | undefined): boolean =>
+  status === 'succeeded' || status === 'failed' || status === 'cancelled'
+
+/** Задание экспорта: опрашивается, пока файл не готов. */
+export const exportJobQuery = (jobId: string) =>
+  queryOptions({
+    queryKey: ['job', jobId] as const,
+    queryFn: () => http.get<JobRecord>(`/jobs/${jobId}`),
+    refetchInterval: (query) => (isJobFinished(query.state.data?.status) ? false : 1000),
   })
 
 export const isImportFinished = (status: ImportStatus | undefined): boolean =>

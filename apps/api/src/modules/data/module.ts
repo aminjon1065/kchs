@@ -12,6 +12,9 @@ import {
   DatasetColumnPolicyInput,
   DatasetColumnPolicyPatch,
   DatasetCreateInput,
+  DatasetExportDownload,
+  DatasetExportInput,
+  DatasetExportStarted,
   DatasetFieldConvertInput,
   DatasetFieldConvertReport,
   DatasetFieldInput,
@@ -54,6 +57,7 @@ import { ChartService, runChartSpec } from './domain/chart-service.js'
 import { DashboardService } from './domain/dashboard-service.js'
 import { DatasetAccess } from './domain/dataset-access.js'
 import { DatasetService } from './domain/dataset-service.js'
+import { EXPORT_JOB, type ExportJobData, ExportService } from './domain/export-service.js'
 import {
   ImportService,
   LOAD_JOB,
@@ -348,6 +352,33 @@ export function registerDataRoutes(route: RouteRegistrar): void {
       )
       return DatasetService.get(request.params.id)
     },
+  })
+
+  route({
+    method: 'POST',
+    url: '/datasets/:id/exports',
+    auth: 'session',
+    tags: ['data'],
+    summary: 'Экспорт датасета в CSV, XLSX, JSON или GeoJSON — задание с файлом',
+    schema: {
+      params: IdParam,
+      body: DatasetExportInput,
+      response: { 200: DatasetExportStarted },
+    },
+    handler: async (request) => ExportService.start(request.ctx, request.params.id, request.body),
+  })
+
+  route({
+    method: 'GET',
+    url: '/datasets/exports/:jobId/download',
+    auth: 'session',
+    tags: ['data'],
+    summary: 'Ссылка на файл экспорта — только запросившему',
+    schema: {
+      params: z.object({ jobId: z.uuid() }),
+      response: { 200: DatasetExportDownload },
+    },
+    handler: async (request) => ExportService.download(request.ctx, request.params.jobId),
   })
 
   route({
@@ -755,6 +786,13 @@ export function registerDataBackground(): void {
     name: LOAD_JOB.name,
     concurrency: 2,
     handle: async (job, helpers) => ImportService.load(job.data, helpers.progress),
+  })
+
+  registerJobHandler({
+    queue: EXPORT_JOB.queue,
+    name: EXPORT_JOB.name,
+    concurrency: 2,
+    handle: async (job, helpers) => ExportService.run(job.data as ExportJobData, helpers),
   })
 
   registerSubscriber({

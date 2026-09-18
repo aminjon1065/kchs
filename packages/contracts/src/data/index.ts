@@ -1,6 +1,7 @@
 export * from './chart.js'
 export * from './dashboard.js'
 export * from './dataset.js'
+export * from './export.js'
 export * from './import.js'
 export * from './policy.js'
 export * from './query.js'

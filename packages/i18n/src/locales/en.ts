@@ -1029,6 +1029,29 @@ export const en: DeepPartial<Dictionary> = {
       lookup: 'Lookup',
       system: 'System',
     },
+    export: {
+      action: 'Export',
+      title: 'Export «{name}»',
+      format: 'Format',
+      formats: { csv: 'CSV', xlsx: 'Excel', json: 'JSON', geojson: 'GeoJSON' },
+      formatHints: {
+        csv: 'UTF-8 text separated by commas — opens in any program.',
+        xlsx: 'Excel workbook: formatted numbers and dates, frozen header row.',
+        json: 'An array of records keyed by field — for exchange with other systems.',
+        geojson: 'Features with geometry — for GIS and maps.',
+      },
+      scope: 'What to export',
+      scopeView: 'As in the table: search, sorting and visible columns',
+      scopeAll: 'All rows and all fields',
+      policyNote:
+        'The export respects your access: the dataset row and column policies. The file is kept for 30 days.',
+      start: 'Export',
+      preparing: 'Preparing the file',
+      ready: 'Done: {rows} {count, plural, one {row} other {rows}}.',
+      truncated: 'Only the first million rows were exported — narrow the selection with a filter.',
+      download: 'Download',
+      failed: 'Could not prepare the file',
+    },
     policies: {
       intro:
         'Policies narrow down which rows and fields users below «Manage» can see. The owner and managers see everything.',

@@ -1,5 +1,6 @@
 import type { DatasetRecord, DatasetRow, DatasetRowsQuery, QueryResult } from '@kchs/contracts'
 import {
+  Button,
   Callout,
   DataGrid,
   type DataGridCellChange,
@@ -14,12 +15,13 @@ import {
   useDebouncedValue,
 } from '@kchs/ui'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { RefreshCw } from 'lucide-react'
+import { Download, RefreshCw } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { meQuery } from '~/shared/api/queries.js'
+import { ExportDialog } from './export-dialog.js'
 import { dataKeys } from './queries.js'
 
 /** Строк в странице таблицы: грид просит окна, страницы грузятся по мере прокрутки. */
@@ -71,6 +73,8 @@ export function DatasetTable({ dataset, canEdit }: { dataset: DatasetRecord; can
   // Поколение запроса: ответы прежних сортировки и поиска отбрасываются
   const generation = useRef(0)
   const [reloads, setReloads] = useState(0)
+  const [exporting, setExporting] = useState(false)
+  const canExport = me?.capabilities.includes('data.export') ?? false
 
   const columns = useMemo<DataGridColumn[]>(
     () =>
@@ -210,6 +214,16 @@ export function DatasetTable({ dataset, canEdit }: { dataset: DatasetRecord; can
           className="h-7 w-72"
         />
         <div className="ml-auto flex items-center gap-1">
+          {canExport ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={<Download className="size-3.5" />}
+              onClick={() => setExporting(true)}
+            >
+              {t('data.export.action')}
+            </Button>
+          ) : null}
           <DataGridColumnsButton columns={columns} state={columnState} onChange={setColumnState} />
           <IconButton
             label={t('data.table.refresh')}
@@ -247,6 +261,21 @@ export function DatasetTable({ dataset, canEdit }: { dataset: DatasetRecord; can
         locale={locale}
         {...(me?.user.timezone ? { timezone: me.user.timezone } : {})}
       />
+      {exporting ? (
+        <ExportDialog
+          dataset={dataset}
+          view={{
+            search: debouncedSearch,
+            sort: sort.map((item) => ({ field: item.key, dir: item.dir })),
+            // Закреплённые столбцы — первыми, как в гриде; скрытые не выгружаются
+            fields: [
+              ...columnState.pinned,
+              ...columnState.order.filter((key) => !columnState.pinned.includes(key)),
+            ].filter((key) => !columnState.hidden.includes(key)),
+          }}
+          onClose={() => setExporting(false)}
+        />
+      ) : null}
     </div>
   )
 }

@@ -252,35 +252,43 @@ function toDatasetRow(fields: QueryResultField[], row: unknown[]): DatasetRow {
  * политиками пользователя, правка — с оптимистичной блокировкой по `_ver`,
  * историей в `ds.h_*`, версией и событием в той же транзакции.
  */
+/**
+ * Фильтр таблицы: условия пользователя и быстрый поиск `contains` по видимым
+ * текстовым полям через OR (маскированные ищутся по маске). Общий для таблицы
+ * и экспорта «как в таблице».
+ */
+export function tableFilter(
+  storage: DatasetStorage,
+  grant: DatasetGrant,
+  input: { where?: FilterNode | undefined; search?: string | undefined },
+): FilterNode | null {
+  const conditions: FilterNode[] = input.where ? [input.where] : []
+  const search = input.search?.trim()
+  if (search) {
+    const fields = storage.fields.filter(
+      (field) => SEARCH_TYPES.has(field.type) && !grant.hidden.has(field.key),
+    )
+    if (fields.length > 0) {
+      conditions.push({
+        or: fields.map((field) => ({ field: field.key, op: 'contains' as const, value: search })),
+      })
+    }
+  }
+  if (conditions.length === 0) return null
+  return conditions.length === 1 ? (conditions[0] as FilterNode) : { and: conditions }
+}
+
 export const RowService = {
   /** Страница строк таблицы: фильтр, поиск, сортировка (с `_id` для стабильных страниц). */
   async query(ctx: Ctx, datasetId: string, input: DatasetRowsQuery): Promise<QueryResult> {
     const grant = await DatasetAccess.resolve(ctx, datasetId)
     const storage = await DatasetService.storage(datasetId)
-    const conditions: FilterNode[] = input.where ? [input.where] : []
-    const search = input.search?.trim()
-    if (search) {
-      const fields = storage.fields.filter(
-        (field) => SEARCH_TYPES.has(field.type) && !grant.hidden.has(field.key),
-      )
-      if (fields.length > 0) {
-        conditions.push({
-          or: fields.map((field) => ({ field: field.key, op: 'contains' as const, value: search })),
-        })
-      }
-    }
+    const where = tableFilter(storage, grant, input)
     const spec = QuerySpec.parse({
       version: 1,
       source: { kind: 'dataset', id: datasetId },
       steps: [
-        ...(conditions.length > 0
-          ? [
-              {
-                type: 'filter',
-                where: conditions.length === 1 ? conditions[0] : { and: conditions },
-              },
-            ]
-          : []),
+        ...(where ? [{ type: 'filter', where }] : []),
         {
           type: 'sort',
           by: [...input.sort.filter((item) => item.field !== '_id'), { field: '_id', dir: 'asc' }],

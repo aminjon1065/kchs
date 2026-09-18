@@ -32,6 +32,8 @@ import { DatasetService, type DatasetStorage } from './dataset-service.js'
 const CACHE_TTL_SECONDS = 300
 /** Запрос отменён по `statement_timeout`. */
 const QUERY_CANCELED = '57014'
+/** Строк в пачке курсора потокового чтения. */
+const STREAM_BATCH = 2000
 const NUMERIC = new Set<string>(['integer', 'number', 'decimal', 'money', 'percent'])
 
 export interface RunOptions {
@@ -317,5 +319,30 @@ export const QueryService = {
       cached: false,
     })
     return result
+  },
+
+  /**
+   * Потоковое чтение для заданий (экспорт): курсор пачками в транзакции только
+   * для чтения под `kchs_query`, тот же тайм-аут; сначала — число строк для
+   * прогресса. Кэш результатов не участвует.
+   */
+  async stream<T>(
+    compiled: CompiledQuery,
+    consume: (batches: AsyncIterable<Array<Record<string, unknown>>>, total: number) => Promise<T>,
+    batchSize = STREAM_BATCH,
+  ): Promise<T> {
+    try {
+      const result = await queryRoleSql().begin('read only', async (sql) => {
+        await sql`SELECT set_config('statement_timeout', ${String(compiled.timeoutMs)}, true)`
+        const counted = await sql.unsafe(compiled.countSql, compiled.countParams as never[])
+        const total = Number((counted[0] as { count?: unknown } | undefined)?.count ?? 0)
+        const cursor = sql.unsafe(compiled.sql, compiled.params as never[]).cursor(batchSize)
+        return consume(cursor as AsyncIterable<Array<Record<string, unknown>>>, total)
+      })
+      return result as T
+    } catch (error) {
+      if (pgErrorCode(error) === QUERY_CANCELED) throw errors.queryTimeout()
+      throw error
+    }
   },
 }
