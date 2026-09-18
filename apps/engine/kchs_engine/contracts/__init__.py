@@ -23,3 +23,9 @@ def queue_runtime() -> dict[str, str]:
 
 def engine_queues() -> set[str]:
     return {queue for queue, runtime in queue_runtime().items() if runtime == "engine"}
+
+
+@lru_cache
+def users_import_contract() -> dict[str, Any]:
+    """Столбцы, пределы и коды замечаний импорта пользователей (ADR-0041)."""
+    return _load("users_import.json")

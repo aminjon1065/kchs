@@ -27,10 +27,15 @@ import {
 } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
-import { newId, randomCode } from '~/shared/ids.js'
+import { newId } from '~/shared/ids.js'
 import { AuthService } from '../domain/auth-service.js'
 import { assertCanManageUser } from '../domain/role-policy.js'
-import { GroupService, OrgService, UserService } from '../domain/user-service.js'
+import {
+  GroupService,
+  OrgService,
+  temporaryPasswordFor,
+  UserService,
+} from '../domain/user-service.js'
 
 export function registerOrgRoutes(route: RouteRegistrar): void {
   // ─── Пикеры: люди, группы, подразделения, должности ───────────────────────
@@ -199,9 +204,15 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
     },
     handler: async (request) => {
       await assertCanManageUser(db(), request.ctx, request.params.id)
+      const [target] = await db()
+        .select({ login: users.login })
+        .from(users)
+        .where(eq(users.id, request.params.id))
+        .limit(1)
+      if (!target) throw errors.notFound('Пользователь')
       // Криптостойкий генератор: временный пароль не должен угадываться
-      const temporaryPassword = `${randomCode(4)}-${randomCode(4)}-${randomCode(4)}`
-      await AuthService.setPassword(request.params.id, temporaryPassword)
+      const temporaryPassword = temporaryPasswordFor(target.login)
+      await AuthService.setPassword(request.params.id, temporaryPassword, target.login)
       await db()
         .update(users)
         .set({ mustChangePassword: true })

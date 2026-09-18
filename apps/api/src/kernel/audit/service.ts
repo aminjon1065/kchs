@@ -168,4 +168,6 @@ export const AUDIT_ACTIONS = {
   objectPurged: 'object.purged',
   auditExported: 'audit.exported',
   securityPolicyChanged: 'security.policy_changed',
+  usersImported: 'users.imported',
+  usersImportCredentialsDownloaded: 'users.import_credentials_downloaded',
 } as const

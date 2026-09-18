@@ -13,6 +13,7 @@ from kchs_engine.jobs import JOB_HANDLERS, registered_queues
 # Обработчики регистрируются импортом модулей
 from kchs_engine.jobs import echo as _echo  # noqa: F401
 from kchs_engine.jobs import files as _files  # noqa: F401
+from kchs_engine.jobs import users_import as _users_import  # noqa: F401
 from kchs_engine.logging import log
 
 Processor = Callable[[Job, str], Awaitable[dict[str, Any]]]

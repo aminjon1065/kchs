@@ -256,8 +256,9 @@ services:
       - "host.docker.internal:host-gateway"
     depends_on:
       redis: { condition: service_healthy }
+    # Внутренний HTTP движка (шаблоны, /health) — только с самого сервера, как у api
     ports:
-      - "${ENGINE_PORT:-8000}:8000"
+      - "127.0.0.1:${ENGINE_PORT:-8000}:8000"
 
   web:
     <<: [*restart, *logging]

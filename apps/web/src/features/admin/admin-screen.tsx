@@ -21,6 +21,7 @@ import {
   Building2,
   Database,
   Download,
+  FileSpreadsheet,
   HardDrive,
   ScrollText,
   Search,
@@ -39,6 +40,7 @@ import {
   usersQuery,
 } from '~/shared/api/queries.js'
 import { SecuritySection } from './security-section.js'
+import { UsersImportDialog } from './users-import-dialog.js'
 
 type Section = 'health' | 'users' | 'org' | 'audit' | 'security'
 
@@ -192,17 +194,34 @@ function UsersSection() {
   const t = useT()
   const locale = useAppearance((s) => s.locale)
   const [search, setSearch] = useState('')
+  const [importing, setImporting] = useState(false)
   const query = useDebouncedValue(search, 250)
   const { data, isLoading } = useQuery(usersQuery({ q: query || undefined, limit: 100 }))
+  const { data: me } = useQuery(meQuery())
+  const canManage = me?.capabilities.includes('users.manage') ?? false
 
   return (
     <div className="mx-auto flex max-w-[1100px] flex-col gap-3 p-5">
-      <SearchInput
-        value={search}
-        onValueChange={setSearch}
-        placeholder={t('admin.users.searchPlaceholder')}
-        className="max-w-sm"
-      />
+      <div className="flex items-center gap-2">
+        <SearchInput
+          value={search}
+          onValueChange={setSearch}
+          placeholder={t('admin.users.searchPlaceholder')}
+          className="max-w-sm"
+        />
+        {canManage ? (
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={<FileSpreadsheet className="size-3.5" />}
+            className="ml-auto"
+            onClick={() => setImporting(true)}
+          >
+            {t('admin.users.import')}
+          </Button>
+        ) : null}
+      </div>
+      <UsersImportDialog open={importing} onOpenChange={setImporting} />
       <Card padded={false}>
         {isLoading ? (
           <TableSkeleton rows={8} columns={4} />

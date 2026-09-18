@@ -232,6 +232,22 @@ export const JobService = {
     return row ? toJobRecord(row) : null
   },
 
+  /** Данные, с которыми задание поставлено (для многошаговых операций модулей). */
+  async payload(id: string): Promise<Record<string, unknown> | null> {
+    const [row] = await db()
+      .select({ payload: jobs.payload })
+      .from(jobs)
+      .where(eq(jobs.id, id))
+      .limit(1)
+    return row ? (row.payload as Record<string, unknown>) : null
+  },
+
+  /** Задание по ключу идемпотентности: следующий шаг операции находит предыдущий. */
+  async findByIdempotencyKey(key: string): Promise<JobRecord | null> {
+    const [row] = await db().select().from(jobs).where(eq(jobs.idempotencyKey, key)).limit(1)
+    return row ? toJobRecord(row) : null
+  },
+
   async listForUser(userId: string, limit = 50): Promise<JobRecord[]> {
     const rows = await db()
       .select()

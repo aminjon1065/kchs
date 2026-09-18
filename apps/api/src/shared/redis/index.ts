@@ -58,4 +58,6 @@ export const cacheKeys = {
   presence: (objectId: string) => `kchs:presence:${objectId}`,
   jobProgress: (jobId: string) => `kchs:job:${jobId}`,
   shareGrant: (hash: string) => `kchs:share:grant:${hash}`,
+  /** Временные пароли импорта пользователей до одноразовой выгрузки (ADR-0041). */
+  usersImportCredentials: (importId: string) => `kchs:users-import:${importId}:credentials`,
 } as const

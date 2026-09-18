@@ -28,6 +28,7 @@ import type {
   SpaceMember,
   TagListResponse,
   TagView,
+  UsersImportStatus,
 } from '@kchs/contracts'
 import { type QueryClient, queryOptions } from '@tanstack/react-query'
 import { http } from './client.js'
@@ -60,6 +61,7 @@ export const keys = {
   users: (params: Record<string, unknown>) => ['users', params] as const,
   orgUnits: ['org', 'units'] as const,
   audit: (params: Record<string, unknown>) => ['admin', 'audit', params] as const,
+  usersImport: (importId: string) => ['admin', 'users-import', importId] as const,
   health: ['admin', 'health'] as const,
   jobs: ['jobs'] as const,
   delegations: ['me', 'delegations'] as const,
@@ -246,6 +248,18 @@ export const auditQuery = (params: Record<string, string | number | undefined>) 
       http.get<{ items: AuditEntry[]; nextCursor: string | null }>('/admin/audit', {
         query: params,
       }),
+  })
+
+/** Ход импорта пользователей: опрос раз в секунду, пока импорт не завершён. */
+export const usersImportQuery = (importId: string) =>
+  queryOptions({
+    queryKey: keys.usersImport(importId),
+    queryFn: () => http.get<UsersImportStatus>(`/admin/users/import/${importId}`),
+    enabled: importId.length > 0,
+    refetchInterval: (query) => {
+      const state = query.state.data?.state
+      return state === 'succeeded' || state === 'failed' ? false : 1000
+    },
   })
 
 export const healthQuery = () =>

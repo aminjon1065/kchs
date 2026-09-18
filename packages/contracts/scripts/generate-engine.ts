@@ -6,6 +6,12 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import {
+  USERS_IMPORT_FIELDS,
+  USERS_IMPORT_ISSUE_CODES,
+  USERS_IMPORT_MAX_BYTES,
+  USERS_IMPORT_MAX_ROWS,
+} from '../src/admin/users-import.js'
 import { QUEUE_RUNTIME } from '../src/jobs/job.js'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -23,3 +29,9 @@ function write(name: string, data: unknown): void {
 }
 
 write('queues.json', { queues: QUEUE_RUNTIME })
+write('users_import.json', {
+  fields: USERS_IMPORT_FIELDS,
+  maxRows: USERS_IMPORT_MAX_ROWS,
+  maxBytes: USERS_IMPORT_MAX_BYTES,
+  issueCodes: USERS_IMPORT_ISSUE_CODES,
+})

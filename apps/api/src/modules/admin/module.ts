@@ -9,6 +9,7 @@ import { EngineJobs } from '~/kernel/jobs/engine.js'
 import { JobService } from '~/kernel/jobs/service.js'
 import { searchHealthy } from '~/kernel/search/index-service.js'
 import { storageHealthy } from '~/kernel/storage/s3.js'
+import { csvCell } from '~/shared/csv.js'
 import { db } from '~/shared/db/client.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { redis } from '~/shared/redis/index.js'
@@ -197,12 +198,4 @@ async function check(
   }
 }
 
-/**
- * Ячейка CSV (RFC 4180). Значения, которые табличный редактор принял бы за
- * формулу (=, +, -, @, табуляция), экранируются апострофом — защита от
- * CSV-инъекций при открытии выгрузки в Excel.
- */
-export function csvCell(value: string): string {
-  const safe = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value
-  return /[",\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe
-}
+export { csvCell }

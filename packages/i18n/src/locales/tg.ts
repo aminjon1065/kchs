@@ -274,4 +274,23 @@ export const tg: DeepPartial<Dictionary> = {
   files: { title: 'Файлҳо', empty: 'Ҳоло файл нест' },
   discussion: { title: 'Муҳокима', placeholder: 'Паём нависед…', send: 'Фиристодан' },
   search: { title: 'Ҷустуҷӯ', empty: 'Чизе ёфт нашуд' },
+  admin: {
+    users: { import: 'Воридот аз Excel' },
+    usersImport: {
+      title: 'Воридоти корбарон аз Excel',
+      template: 'Боргирии қолиб',
+      chooseFile: 'Интихоби файли .xlsx',
+      check: 'Санҷидан',
+      states: {
+        parsing: 'Хондани файл…',
+        validating: 'Санҷиши сатрҳо…',
+        importing: 'Эҷоди корбарон…',
+        succeeded: 'Тайёр',
+        failed: 'Воридот иҷро нашуд',
+      },
+      statuses: { ready: 'Тайёр', created: 'Эҷод шуд', exists: 'Аллакай ҳаст', error: 'Хато' },
+      downloadReport: 'Ҳисобот (CSV)',
+      downloadCredentials: 'Боргирии рамзҳо (CSV)',
+    },
+  },
 }

@@ -1,0 +1,181 @@
+{
+  "$comment": "Сгенерировано из packages/contracts командой `pnpm --filter @kchs/contracts gen:engine`. Не редактировать вручную.",
+  "fields": [
+    {
+      "key": "login",
+      "required": true,
+      "headers": {
+        "ru": "Логин",
+        "tg": "Логин",
+        "en": "Login"
+      },
+      "aliases": [
+        "имя пользователя",
+        "username",
+        "user name"
+      ]
+    },
+    {
+      "key": "lastName",
+      "required": true,
+      "headers": {
+        "ru": "Фамилия",
+        "tg": "Насаб",
+        "en": "Last name"
+      },
+      "aliases": [
+        "lastname",
+        "surname"
+      ]
+    },
+    {
+      "key": "firstName",
+      "required": true,
+      "headers": {
+        "ru": "Имя",
+        "tg": "Ном",
+        "en": "First name"
+      },
+      "aliases": [
+        "firstname",
+        "given name"
+      ]
+    },
+    {
+      "key": "middleName",
+      "required": false,
+      "headers": {
+        "ru": "Отчество",
+        "tg": "Номи падар",
+        "en": "Middle name"
+      },
+      "aliases": [
+        "middlename",
+        "patronymic"
+      ]
+    },
+    {
+      "key": "email",
+      "required": false,
+      "headers": {
+        "ru": "Электронная почта",
+        "tg": "Почтаи электронӣ",
+        "en": "Email"
+      },
+      "aliases": [
+        "почта",
+        "e-mail",
+        "эл. почта",
+        "mail"
+      ]
+    },
+    {
+      "key": "phone",
+      "required": false,
+      "headers": {
+        "ru": "Телефон",
+        "tg": "Телефон",
+        "en": "Phone"
+      },
+      "aliases": [
+        "мобильный телефон",
+        "phone number"
+      ]
+    },
+    {
+      "key": "unit",
+      "required": false,
+      "headers": {
+        "ru": "Подразделение (код)",
+        "tg": "Воҳид (рамз)",
+        "en": "Unit (code)"
+      },
+      "aliases": [
+        "подразделение",
+        "код подразделения",
+        "unit",
+        "unit code",
+        "воҳид"
+      ]
+    },
+    {
+      "key": "position",
+      "required": false,
+      "headers": {
+        "ru": "Должность",
+        "tg": "Вазифа",
+        "en": "Position"
+      },
+      "aliases": [
+        "position title",
+        "job title"
+      ]
+    },
+    {
+      "key": "roles",
+      "required": false,
+      "headers": {
+        "ru": "Роли",
+        "tg": "Нақшҳо",
+        "en": "Roles"
+      },
+      "aliases": [
+        "роль",
+        "role"
+      ]
+    },
+    {
+      "key": "locale",
+      "required": false,
+      "headers": {
+        "ru": "Язык",
+        "tg": "Забон",
+        "en": "Language"
+      },
+      "aliases": [
+        "язык интерфейса",
+        "locale"
+      ]
+    },
+    {
+      "key": "timezone",
+      "required": false,
+      "headers": {
+        "ru": "Часовой пояс",
+        "tg": "Минтақаи вақт",
+        "en": "Time zone"
+      },
+      "aliases": [
+        "timezone"
+      ]
+    }
+  ],
+  "maxRows": 5000,
+  "maxBytes": 10485760,
+  "issueCodes": [
+    "unreadable",
+    "no_sheet",
+    "no_header",
+    "missing_columns",
+    "duplicate_column",
+    "too_many_rows",
+    "unknown_column",
+    "required",
+    "invalid_login",
+    "invalid_email",
+    "too_long",
+    "unknown_unit",
+    "ambiguous_unit",
+    "inactive_unit",
+    "unknown_position",
+    "position_without_unit",
+    "unknown_role",
+    "role_forbidden",
+    "invalid_locale",
+    "invalid_timezone",
+    "duplicate_login",
+    "duplicate_email",
+    "email_taken",
+    "create_failed"
+  ]
+}

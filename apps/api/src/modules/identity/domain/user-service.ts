@@ -41,6 +41,19 @@ import {
   hasRole,
 } from './role-policy.js'
 
+/**
+ * Временный пароль `XXXX-XXXX-XXXX` (60 бит). Политика запрещает пароль,
+ * содержащий логин: для коротких логинов случайный пароль изредка его
+ * содержит — такой вариант перевыпускается, иначе создание падало бы наугад.
+ */
+export function temporaryPasswordFor(login: string): string {
+  const needle = login.toLowerCase()
+  for (;;) {
+    const candidate = `${randomCode(4)}-${randomCode(4)}-${randomCode(4)}`
+    if (!candidate.toLowerCase().includes(needle)) return candidate
+  }
+}
+
 export const UserService = {
   async create(
     tx: Executor,
@@ -76,7 +89,7 @@ export const UserService = {
       mustChangePassword: input.mustChangePassword,
     })
 
-    const temporaryPassword = input.password ?? `${randomCode(4)}-${randomCode(4)}-${randomCode(4)}`
+    const temporaryPassword = input.password ?? temporaryPasswordFor(input.login)
     await AuthService.setPassword(id, temporaryPassword, input.login, tx)
     if (input.mustChangePassword) {
       await tx.update(users).set({ mustChangePassword: true }).where(eq(users.id, id))

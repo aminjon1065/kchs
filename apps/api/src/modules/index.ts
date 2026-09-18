@@ -11,7 +11,7 @@ import {
   registerFilesRoutes,
   scheduleFilesJobs,
 } from './files/module.js'
-import { registerIdentityRoutes } from './identity/module.js'
+import { registerIdentityBackground, registerIdentityRoutes } from './identity/module.js'
 import { OrgService, UserService } from './identity/public.js'
 
 /**
@@ -50,6 +50,7 @@ export async function registerModules(app: FastifyInstance, route: RouteRegistra
 /** Подписчики событий и обработчики заданий модулей — только в роли worker. */
 export function registerModulesBackground(): void {
   registerFilesBackground()
+  registerIdentityBackground()
 }
 
 export async function scheduleModuleJobs(): Promise<void> {
