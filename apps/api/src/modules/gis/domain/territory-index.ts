@@ -66,6 +66,17 @@ export class TerritoryIndex {
     return null
   }
 
+  /**
+   * Таблица сопоставления для импорта движком: ключ (`normalizeName` кода,
+   * названия или идентификатора) → идентификатор; `''` — название неоднозначно.
+   */
+  matchTable(): Record<string, string> {
+    const table: Record<string, string> = {}
+    for (const [key, id] of this.keys) table[key] = id ?? ''
+    for (const item of this.items) table[normalizeName(item.id)] = item.id
+    return table
+  }
+
   /** Код или название на любом языке → идентификатор; неоднозначное название — `ambiguous`. */
   resolve(value: string): string | 'ambiguous' | null {
     const found = this.keys.get(normalizeName(value))

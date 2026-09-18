@@ -1683,6 +1683,8 @@ export const en: DeepPartial<Dictionary> = {
         required: 'required value is empty',
         too_long: 'value is too long',
         duplicate_key: 'duplicate key — the last row was kept',
+        unknown_territory: 'no such territory in the directory',
+        ambiguous_territory: 'ambiguous territory name — use the code',
       },
       status: {
         queued: 'Queued',

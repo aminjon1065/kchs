@@ -150,6 +150,7 @@ def normalize(
     options: dict[str, Any] | None = None,
     geometry: dict[str, Any] | None = None,
     geometry_field: str | None = None,
+    territories: dict[str, str] | None = None,
 ) -> Normalized:
     normalized = path.with_name(path.name + ".normalized.csv")
     errors = path.with_name(path.name + ".errors.csv")
@@ -163,6 +164,7 @@ def normalize(
         normalized,
         errors,
         zone="Asia/Dushanbe",
+        territories=territories,
     )
     text = normalized.read_text(encoding="utf-8")
     with errors.open(encoding="utf-8", newline="") as stream:

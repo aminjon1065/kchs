@@ -16,7 +16,7 @@
 import csv
 import math
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta, tzinfo
 from decimal import Decimal, InvalidOperation
@@ -124,6 +124,8 @@ class Context:
     zone: tzinfo
     # "" в JSON — пустая строка; в CSV и Excel пустая ячейка — NULL
     keep_empty: bool
+    # Справочник территорий: ключ сопоставления → идентификатор, "" — неоднозначно (ADR-0057)
+    territories: Mapping[str, str] | None = None
 
 
 Converter = Callable[[Any], str | None]
@@ -170,6 +172,32 @@ def _text_converter(limit: int, keep_empty: bool) -> Converter:
         if len(text) > limit:
             raise CellError("too_long")
         return text
+
+    return convert
+
+
+def territory_key(text: str) -> str:
+    """Ключ сопоставления территории — как `normalizeName` API: регистр, «ё», пробелы."""
+    return " ".join(text.lower().replace("ё", "е").split())
+
+
+def _territory_converter(context: Context) -> Converter:
+    """Код, название на любом языке или идентификатор → идентификатор территории."""
+    table = context.territories
+    if table is None:
+        raise ImportSpecError("для поля-территории не передан справочник территорий")
+    as_text = _text_converter(TEXT_LIMITS["text"], keep_empty=False)
+
+    def convert(raw: Any) -> str | None:
+        text = as_text(raw)
+        if text is None or _is_null(text):
+            return None
+        found = table.get(territory_key(text))
+        if found is None:
+            raise CellError("unknown_territory")
+        if not found:
+            raise CellError("ambiguous_territory")
+        return found
 
     return convert
 
@@ -532,6 +560,8 @@ def converter(item: MappingItem, context: Context) -> Converter:
         return _json_converter(TEXT_LIMITS["json"])
     if kind == "geometry":
         return _geometry_value
+    if kind == "territory":
+        return _territory_converter(context)
     return _text_converter(TEXT_LIMITS.get(kind, TEXT_LIMITS["text"]), context.keep_empty)
 
 
@@ -639,6 +669,7 @@ def normalize_file(
     *,
     zone: str | None = None,
     progress: Callable[[float, int], None] | None = None,
+    territories: Mapping[str, str] | None = None,
 ) -> NormalizeResult:
     """Весь файл → нормализованный CSV и CSV ошибок. ImportFileError — файл не читается."""
     items = [MappingItem.parse(item) for item in mapping]
@@ -651,6 +682,7 @@ def normalize_file(
             date_order=profile.date_order,
             zone=resolve_zone(zone),
             keep_empty=head.format in JSON_FORMATS,
+            territories=territories,
         )
         converters = [
             (item.column, converter(item, context), item.field_key, item.required) for item in items

@@ -48,6 +48,10 @@ async def dataset_normalize(data: dict[str, Any]) -> dict[str, Any]:
     mapping = list(data.get("mapping") or [])
     geometry = data.get("geometry") or None
     geometry_field = data.get("geometryField") or None
+    # Справочник территорий для полей-территорий: ключ сопоставления → идентификатор
+    territories = data.get("territories")
+    if territories is not None and not isinstance(territories, dict):
+        raise PermanentJobError("Неверный справочник территорий в задании импорта")
     output = data["output"]
     output_bucket = str(output["bucket"])
     normalized_key = str(output["normalizedKey"])
@@ -77,6 +81,7 @@ async def dataset_normalize(data: dict[str, Any]) -> dict[str, Any]:
                 errors,
                 zone=settings().TZ,
                 progress=progress.update,
+                territories=territories,
             )
         )
         while not work.done():

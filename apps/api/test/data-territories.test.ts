@@ -1,3 +1,5 @@
+import { PutObjectCommand } from '@aws-sdk/client-s3'
+import { sql } from 'drizzle-orm'
 import { beforeAll, describe, expect, it } from 'vitest'
 import {
   call,
@@ -5,6 +7,7 @@ import {
   setupFixture,
   type TestContext,
   type TestUser,
+  uploadFile,
 } from './helpers.js'
 
 /**
@@ -16,8 +19,11 @@ import {
 registerLifecycle()
 
 const { TerritoryService } = await import('../src/modules/gis/public.js')
+const { ImportService } = await import('../src/modules/data/domain/import-service.js')
+const { s3, buckets } = await import('../src/kernel/storage/s3.js')
 const { systemCtx } = await import('../src/shared/context.js')
 const { db } = await import('../src/shared/db/client.js')
+const token = process.env.INTERNAL_SERVICE_TOKEN ?? ''
 const TERRITORIES = (await import('../src/seed/territories.json', { with: { type: 'json' } }))
   .default
 
@@ -287,5 +293,103 @@ describe('подписи справочника', () => {
     }
     expect(await labels(fx.users.viewer)).toEqual(new Set([null]))
     expect(await labels(fx.admin)).toEqual(new Set(['Секретный паводок', null]))
+  })
+})
+
+describe('импорт поля-территории', () => {
+  it('движок получает таблицу сопоставления; загрузка кладёт идентификаторы', async () => {
+    const file = await uploadFile(fx.app, fx.admin, {
+      spaceId: fx.spaceId,
+      name: `rayony-${run}.csv`,
+      content: 'code,place\n',
+      mime: 'text/csv',
+    })
+    const started = await call(fx.app, {
+      method: 'POST',
+      url: '/datasets/imports',
+      as: fx.admin,
+      payload: {
+        fileId: file.id,
+        target: { kind: 'new', name: `Районы ${run}`, spaceId: fx.spaceId },
+        key: ['code'],
+        mapping: [
+          {
+            column: 0,
+            fieldKey: 'code',
+            label: { ru: 'Код' },
+            type: 'identifier',
+            semantic: 'identifier',
+          },
+          {
+            column: 1,
+            fieldKey: 'place',
+            label: { ru: 'Район' },
+            type: 'territory',
+            semantic: 'territory',
+          },
+        ],
+      },
+    })
+    expect(started.statusCode, started.body).toBe(200)
+    const importId = started.json().id as string
+    const importedId = started.json().datasetId as string
+
+    const [job] = await db().execute<{
+      payload: { territories?: Record<string, string>; output: { normalizedKey: string } }
+    }>(sql`SELECT j.payload FROM jobs j JOIN imports i ON i.job_id = j.id WHERE i.id = ${importId}`)
+    const table = job?.payload.territories ?? {}
+    expect(table['tj-kt-01']).toBe(ids.get('TJ-KT-01'))
+    expect(table.бохтар).toBe(ids.get('TJ-KT-01'))
+    expect(table['khatlon region']).toBe(ids.get('TJ-KT'))
+    expect(table[ids.get('TJ-SU-01') as string]).toBe(ids.get('TJ-SU-01'))
+
+    // Движок: нормализованный файл с идентификаторами (номер строки, поля)
+    const key = job?.payload.output.normalizedKey as string
+    await s3().send(
+      new PutObjectCommand({
+        Bucket: buckets.files(),
+        Key: key,
+        Body: `2,R-1,${ids.get('TJ-KT-01')}\n3,R-2,${ids.get('TJ-SU-01')}\n`,
+        ContentType: 'text/csv',
+      }),
+    )
+    const report = await call(fx.app, {
+      method: 'POST',
+      url: `/internal/data/imports/${importId}/normalized`,
+      payload: {
+        jobRecordId: 'engine-job',
+        rows: 3,
+        errors: 1,
+        normalizedKey: key,
+        errorsKey: `imports/${importId}/errors.csv`,
+        errorSample: [{ row: 4, column: 'place', value: 'Атлантида', reason: 'unknown_territory' }],
+      },
+      headers: { 'x-kchs-service-token': token },
+    })
+    expect(report.statusCode, report.body).toBe(200)
+    if (report.json().loadJobId) await ImportService.load({ importId }, async () => undefined)
+
+    const loaded = await call(fx.app, {
+      method: 'POST',
+      url: '/queries/run',
+      as: fx.admin,
+      payload: {
+        spec: {
+          version: 1,
+          source: { kind: 'dataset', id: importedId },
+          steps: [
+            { type: 'compute', fields: [{ name: 'place_name', expr: 'territory_name(place)' }] },
+            { type: 'sort', by: [{ field: 'code', dir: 'asc' }] },
+          ],
+        },
+      },
+    })
+    expect(loaded.statusCode, loaded.body).toBe(200)
+    expect(records(loaded.json()).map((row) => [row.code, row.place_name])).toEqual([
+      ['R-1', 'Бохтар'],
+      ['R-2', 'Худжанд'],
+    ])
+    const state = await call(fx.app, { url: `/datasets/imports/${importId}`, as: fx.admin })
+    expect(state.json().errorSample[0]).toMatchObject({ reason: 'unknown_territory' })
   })
 })

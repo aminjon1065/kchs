@@ -27,7 +27,8 @@
     "email",
     "phone",
     "json",
-    "geometry"
+    "geometry",
+    "territory"
   ],
   "semantics": [
     "dimension",
@@ -60,7 +61,9 @@
     "invalid_geometry",
     "required",
     "too_long",
-    "duplicate_key"
+    "duplicate_key",
+    "unknown_territory",
+    "ambiguous_territory"
   ],
   "normalizedValueFormats": {
     "integer": "десятичные цифры со знаком",

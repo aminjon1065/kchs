@@ -32,6 +32,8 @@ export const IMPORT_FIELD_TYPES = [
   'phone',
   'json',
   'geometry',
+  // Код или название единицы справочника территорий → её идентификатор (ADR-0057)
+  'territory',
 ] as const satisfies readonly (typeof STORED_FIELD_TYPES)[number][]
 export const ImportFieldType = z.enum(IMPORT_FIELD_TYPES)
 export type ImportFieldType = z.infer<typeof ImportFieldType>
@@ -267,6 +269,8 @@ export const IMPORT_ERROR_CODES = [
   'required',
   'too_long',
   'duplicate_key',
+  'unknown_territory',
+  'ambiguous_territory',
 ] as const
 export const ImportErrorCode = z.enum(IMPORT_ERROR_CODES)
 export type ImportErrorCode = z.infer<typeof ImportErrorCode>

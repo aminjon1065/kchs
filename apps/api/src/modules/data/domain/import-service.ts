@@ -17,6 +17,7 @@ import { publishEvent } from '~/kernel/events/publisher.js'
 import { JobService } from '~/kernel/jobs/service.js'
 import { buckets, deleteObject, s3 } from '~/kernel/storage/s3.js'
 import { fileSource } from '~/modules/files/public.js'
+import { territoryIndex } from '~/modules/gis/public.js'
 import { config } from '~/shared/config/index.js'
 import { type Ctx, systemCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
@@ -256,6 +257,10 @@ export const ImportService = {
 
     const id = newId()
     const prefix = `imports/${id}`
+    // Поле-территория: движок сопоставляет коды и названия по справочнику (ADR-0057)
+    const territories = input.mapping.some((item) => item.type === 'territory')
+      ? (await territoryIndex()).matchTable()
+      : null
     const jobId = await JobService.schedule(tx, ctx, {
       queue: NORMALIZE_JOB.queue,
       name: NORMALIZE_JOB.name,
@@ -269,6 +274,7 @@ export const ImportService = {
         mapping: input.mapping,
         geometry: input.geometry ?? null,
         geometryField,
+        ...(territories ? { territories } : {}),
         onError: input.onError,
         output: {
           bucket: buckets.files(),
