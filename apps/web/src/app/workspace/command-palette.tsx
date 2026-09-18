@@ -14,6 +14,7 @@ import {
   Home,
   Inbox,
   LayoutGrid,
+  LayoutPanelLeft,
   Moon,
   Palette,
   Search,
@@ -23,11 +24,18 @@ import {
   Trash2,
 } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
-import { meQuery, recentQuery, searchQuery, spacesQuery } from '~/shared/api/queries.js'
+import {
+  meQuery,
+  recentQuery,
+  searchQuery,
+  spacesQuery,
+  workspacesQuery,
+} from '~/shared/api/queries.js'
 import { useAppearance } from '../appearance.js'
 import { useT } from '../i18n.js'
 import { useWorkspace } from './store.js'
 import type { ScreenKey } from './types.js'
+import { useOpenWorkspace } from './workspaces-menu.js'
 
 export function CommandPalette({
   open,
@@ -64,6 +72,9 @@ export function CommandPalette({
     },
     [close, openTab, setNavigatorModule],
   )
+
+  const { data: workspaces = [] } = useQuery(workspacesQuery())
+  const openWorkspace = useOpenWorkspace()
 
   const commands = useMemo(() => {
     const items: Array<{
@@ -159,12 +170,22 @@ export function CommandPalette({
           close()
         },
       },
+      // Именованные рабочие пространства открываются одним действием
+      ...workspaces.map((item) => ({
+        id: `workspace-${item.id}`,
+        label: t('shell.workspaces.paletteOpen', { title: item.title }),
+        icon: <LayoutPanelLeft />,
+        run: () => {
+          void openWorkspace(item)
+          close()
+        },
+      })),
     ]
     const normalized = query.trim().toLowerCase()
     return items.filter(
       (item) => !item.hidden && (!normalized || item.label.toLowerCase().includes(normalized)),
     )
-  }, [query, t, me, density, setTheme, setDensity, goScreen, close])
+  }, [query, t, me, density, setTheme, setDensity, goScreen, close, workspaces, openWorkspace])
 
   const spaceMatches = useMemo(() => {
     const normalized = query.trim().toLowerCase()

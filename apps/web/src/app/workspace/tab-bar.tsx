@@ -14,6 +14,7 @@ import { type DragEvent, useRef } from 'react'
 import { useT } from '../i18n.js'
 import { useWorkspace } from './store.js'
 import type { PaneState, TabState } from './types.js'
+import { WorkspacesMenu } from './workspaces-menu.js'
 
 const GROUP_COLORS: Record<string, string> = {
   blue: 'bg-chart-1',
@@ -41,6 +42,8 @@ export function TabBar({
   const splitPane = useWorkspace((s) => s.splitPane)
   const closePane = useWorkspace((s) => s.closePane)
   const panesCount = useWorkspace((s) => s.panes.length)
+  // Меню рабочих пространств — одно на оболочку, в первой панели
+  const firstPane = useWorkspace((s) => s.panes[0]?.id === pane.id)
   const dragTabId = useRef<string | null>(null)
 
   const onDrop = (event: DragEvent): void => {
@@ -102,6 +105,7 @@ export function TabBar({
             <X className="size-3.5" />
           </IconButton>
         ) : null}
+        {firstPane ? <WorkspacesMenu /> : null}
       </div>
     </div>
   )

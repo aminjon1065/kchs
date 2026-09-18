@@ -14,6 +14,7 @@ import type {
   LinkView,
   MeResponse,
   Message,
+  NamedWorkspaceSummary,
   Notification,
   ObjectRecord,
   ObjectSummary,
@@ -66,6 +67,7 @@ export const keys = {
   principals: (q: string, types: string) => ['principals', q, types] as const,
   tags: (spaceId: string | null, q: string) => ['tags', spaceId, q] as const,
   roles: ['roles'] as const,
+  workspaces: ['workspaces'] as const,
   attachmentsFolder: (spaceId: string) => ['files', 'attachments-folder', spaceId] as const,
   securityPolicy: ['admin', 'security-policy'] as const,
 }
@@ -290,6 +292,14 @@ export const attachmentsFolderQuery = (spaceId: string) =>
       http.get<{ id: string | null }>('/files/attachments-folder', { query: { spaceId } }),
     select: (data: { id: string | null }) => data.id,
     staleTime: 60_000,
+  })
+
+export const workspacesQuery = () =>
+  queryOptions({
+    queryKey: keys.workspaces,
+    queryFn: () => http.get<{ items: NamedWorkspaceSummary[] }>('/workspaces'),
+    select: (data: { items: NamedWorkspaceSummary[] }) => data.items,
+    staleTime: 30_000,
   })
 
 export const rolesQuery = () =>

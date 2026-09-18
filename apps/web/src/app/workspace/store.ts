@@ -1,3 +1,4 @@
+import type { WorkspaceLayout } from '@kchs/contracts'
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import { getCsrfToken, http } from '~/shared/api/client.js'
@@ -78,6 +79,12 @@ export interface WorkspaceStore extends WorkspaceSnapshot {
   setNavigatorModule: (module: ScreenKey) => void
   activeTab: () => TabState | null
   restore: (snapshot: WorkspaceSnapshot) => void
+  /** Снимок текущего состояния — для «Вернуть» после открытия рабочего пространства. */
+  snapshot: () => WorkspaceSnapshot
+  /** Раскладка для именованного рабочего пространства: без временных признаков вкладок. */
+  layout: () => WorkspaceLayout
+  /** Открыть именованное рабочее пространство: его вкладки заменяют текущие. */
+  applyLayout: (layout: WorkspaceLayout) => void
   reset: () => void
 }
 
@@ -395,6 +402,74 @@ export const useWorkspace = create<WorkspaceStore>()(
       restore: (snapshot) => {
         if (snapshot?.version !== 1 || !snapshot.panes?.length) return
         set({ ...snapshot, closedStack: [] })
+      },
+
+      snapshot: () => snapshot(),
+
+      layout: () => {
+        const state = get()
+        const tabs = Object.fromEntries(
+          Object.values(state.tabs).map((tab) => [
+            tab.id,
+            {
+              id: tab.id,
+              kind: tab.kind,
+              screen: tab.screen,
+              objectId: tab.objectId,
+              objectType: tab.objectType,
+              title: tab.title,
+              icon: tab.icon,
+              pinned: tab.pinned,
+              group: tab.group ?? null,
+              params: tab.params,
+              state: tab.state,
+            },
+          ]),
+        )
+        return {
+          version: 1,
+          tabs,
+          panes: state.panes.map((pane) => ({
+            id: pane.id,
+            tabIds: pane.tabIds,
+            activeTabId: pane.activeTabId,
+            linkGroup: pane.linkGroup ?? null,
+          })),
+          focusedPaneId: state.focusedPaneId,
+          contextOpen: state.contextOpen,
+          contextTab: state.contextTab,
+        }
+      },
+
+      applyLayout: (layout) => {
+        const tabs: Record<string, TabState> = Object.fromEntries(
+          Object.values(layout.tabs).map((tab) => [
+            tab.id,
+            {
+              id: tab.id,
+              kind: tab.kind,
+              screen: tab.screen as ScreenKey | undefined,
+              objectId: tab.objectId,
+              objectType: tab.objectType,
+              title: tab.title,
+              icon: tab.icon,
+              preview: false,
+              pinned: tab.pinned,
+              dirty: false,
+              group: tab.group ?? null,
+              params: tab.params,
+              state: tab.state,
+            },
+          ]),
+        )
+        set({
+          tabs,
+          panes: layout.panes.map((pane) => ({ ...pane, linkGroup: pane.linkGroup ?? null })),
+          focusedPaneId: layout.focusedPaneId,
+          contextOpen: layout.contextOpen,
+          contextTab: layout.contextTab,
+          closedStack: [],
+        })
       },
 
       reset: () => set({ ...initialSnapshot(), closedStack: [] }),

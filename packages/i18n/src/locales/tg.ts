@@ -163,6 +163,12 @@ export const tg: DeepPartial<Dictionary> = {
     signOut: 'Баромадан',
   },
   shell: {
+    workspaces: {
+      menu: 'Фазоҳои корӣ',
+      saveAs: 'Нигоҳ доштани ҷадвалҳо ҳамчун…',
+      open: 'Кушодан',
+      name: 'Ном',
+    },
     rail: {
       home: 'Рӯзи ман',
       data: 'Маълумот',
