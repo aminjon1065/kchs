@@ -15,40 +15,45 @@ let stopped = false
 /**
  * Диспетчер outbox: забирает неопубликованные записи с `FOR UPDATE SKIP LOCKED`,
  * публикует в Redis Streams, помечает отправленными (02-platform-kernel.md §4).
- * Падение worker между публикацией и отметкой приводит к повтору — подписчики идемпотентны.
+ * Всё — в одной транзакции: блокировки строк держатся до отметки, поэтому
+ * параллельные диспетчеры не публикуют одно и то же. Падение между публикацией
+ * и фиксацией приводит к повтору — подписчики идемпотентны.
  */
 export async function dispatchOnce(): Promise<number> {
-  const client = rawSql()
   const pub = redisPublisher()
 
-  const rows = await client<Array<{ id: number; event: EventEnvelope }>>`
-    SELECT id, event FROM ops.outbox
-     WHERE published_at IS NULL
-     ORDER BY id
-     LIMIT ${BATCH_SIZE}
-     FOR UPDATE SKIP LOCKED`
+  return rawSql().begin(async (tx) => {
+    const rows = await tx<Array<{ id: number; event: EventEnvelope }>>`
+      SELECT id, event FROM ops.outbox
+       WHERE published_at IS NULL
+       ORDER BY id
+       LIMIT ${BATCH_SIZE}
+       FOR UPDATE SKIP LOCKED`
 
-  if (rows.length === 0) return 0
+    if (rows.length === 0) return 0
 
-  const published: number[] = []
-  for (const row of rows) {
-    try {
-      await xaddEvent(pub, row.event)
-      published.push(row.id)
-    } catch (error) {
-      logger().error({ err: error, outboxId: row.id }, 'не удалось опубликовать событие')
-      await client`
-        UPDATE ops.outbox
-           SET attempts = attempts + 1,
-               last_error = ${error instanceof Error ? error.message : String(error)}
-         WHERE id = ${row.id}`
+    const published: number[] = []
+    for (const row of rows) {
+      try {
+        await xaddEvent(pub, row.event)
+        published.push(row.id)
+      } catch (error) {
+        logger().error({ err: error, outboxId: row.id }, 'не удалось опубликовать событие')
+        await tx`
+          UPDATE ops.outbox
+             SET attempts = attempts + 1,
+                 last_error = ${error instanceof Error ? error.message : String(error)}
+           WHERE id = ${row.id}`
+        // Порядок событий важнее пропускной способности: остальные — в следующем проходе
+        break
+      }
     }
-  }
 
-  if (published.length > 0) {
-    await client`UPDATE ops.outbox SET published_at = now() WHERE id IN ${client(published)}`
-  }
-  return published.length
+    if (published.length > 0) {
+      await tx`UPDATE ops.outbox SET published_at = now() WHERE id IN ${tx(published)}`
+    }
+    return published.length
+  })
 }
 
 export function startDispatcher(): void {

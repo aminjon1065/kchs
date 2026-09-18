@@ -16,6 +16,17 @@ process.env.NODE_ENV = 'test'
 process.env.LOG_LEVEL = 'error'
 process.env.ROLE = 'api'
 
+// Redis и поисковый индекс тоже отдельные: тесты не трогают кэши, очереди и
+// индекс работающего стенда разработки
+process.env.REDIS_URL = withRedisDb(process.env.REDIS_URL ?? '', 1)
+process.env.MEILI_INDEX_PREFIX = 'test_'
+
+function withRedisDb(url: string, dbIndex: number): string {
+  const parsed = new URL(url)
+  parsed.pathname = `/${dbIndex}`
+  return parsed.toString()
+}
+
 const { resetConfigCache } = await import('../src/shared/config/env.js')
 resetConfigCache()
 
@@ -70,8 +81,8 @@ export async function bootTestApp(): Promise<FastifyInstance> {
 export async function resetTestData(): Promise<void> {
   await resetData()
   await bootstrapPlatform()
-  const keys = await redis().keys('kchs:*')
-  if (keys.length > 0) await redis().del(...keys)
+  // Отдельная база Redis принадлежит только тестам: кэши, потоки событий, очереди
+  await redis().flushdb()
 }
 
 export async function createUser(

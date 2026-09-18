@@ -1,8 +1,9 @@
 import type { EventEnvelope } from '@kchs/contracts'
-import { eventDomain } from '@kchs/contracts'
+import { EVENT_PAYLOADS, eventDomain, isKnownEventType } from '@kchs/contracts'
 import type { Ctx } from '~/shared/context.js'
 import type { Executor } from '~/shared/db/client.js'
 import { outbox } from '~/shared/db/schema/index.js'
+import { errors } from '~/shared/errors.js'
 import { newEventId } from '~/shared/ids.js'
 import type { EventInput } from './types.js'
 
@@ -43,7 +44,27 @@ export async function publishEvents(
   return envelopes
 }
 
+/**
+ * Тип события обязан быть в каталоге, а полезная нагрузка — соответствовать
+ * его схеме (contracts/events.md): подписчики, вебхуки и движок опираются на неё.
+ */
+function checkedPayload(input: EventInput): Record<string, unknown> {
+  if (!isKnownEventType(input.type)) {
+    throw errors.internal(`Событие «${input.type}» не описано в каталоге событий`)
+  }
+  const parsed = EVENT_PAYLOADS[input.type].safeParse(input.payload ?? {})
+  if (!parsed.success) {
+    const issues = parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ')
+    throw errors.internal(
+      `Полезная нагрузка события «${input.type}» не соответствует схеме: ${issues}`,
+    )
+  }
+  // Схема не срезает дополнительные поля: подписчики модулей могут на них опираться
+  return { ...(input.payload ?? {}), ...(parsed.data as Record<string, unknown>) }
+}
+
 export function buildEnvelope(ctx: Ctx, input: EventInput): EventEnvelope {
+  const payload = checkedPayload(input)
   const isUser = ctx.kind === 'user'
   return {
     id: newEventId(),
@@ -72,7 +93,7 @@ export function buildEnvelope(ctx: Ctx, input: EventInput): EventEnvelope {
           title: input.target.title ?? null,
         }
       : null,
-    payload: input.payload ?? {},
+    payload,
     changedFields: input.changedFields ?? null,
     correlationId: input.correlationId ?? ctx.requestId,
     causationId: input.causationId ?? null,

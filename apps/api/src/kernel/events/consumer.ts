@@ -9,12 +9,31 @@ import { listSubscribers, matchesType, sendToDlq, streamKey, subscribedDomains }
 import type { Subscriber } from './types.js'
 
 const READ_COUNT = 50
-const BLOCK_MS = 2000
 const DEFAULT_MAX_ATTEMPTS = 5
+
+export interface ConsumerOptions {
+  /** Сколько ждать новых событий в одном чтении. */
+  blockMs: number
+  /**
+   * Через сколько простоя неподтверждённое событие считается брошенным
+   * (подписчик упал или процесс умер) и доставляется повторно.
+   */
+  retryIdleMs: number
+  /** Как часто искать брошенные события. */
+  claimIntervalMs: number
+}
+
+const DEFAULT_OPTIONS: ConsumerOptions = {
+  blockMs: 2000,
+  retryIdleMs: 15_000,
+  claimIntervalMs: 5000,
+}
+
+/** Имя потребителя уникально для процесса: чужие брошенные записи забираются XAUTOCLAIM. */
 const CONSUMER_NAME = `c-${process.pid}-${Math.random().toString(36).slice(2, 7)}`
 
-let connection: Redis | null = null
 let stopped = false
+const running = new Set<Promise<void>>()
 
 /** Создаёт consumer group для каждого домена (идемпотентно). */
 async function ensureGroups(
@@ -46,13 +65,34 @@ async function markProcessed(consumer: string, eventId: string): Promise<void> {
   await db().insert(eventConsumptions).values({ consumer, eventId }).onConflictDoNothing()
 }
 
+/** Сколько раз запись уже доставлялась этой группе (включая текущую доставку). */
+async function deliveryCount(
+  client: Redis,
+  stream: string,
+  group: string,
+  entryId: string,
+): Promise<number> {
+  const rows = (await client.xpending(stream, group, entryId, entryId, 1)) as Array<
+    [string, string, number, number]
+  >
+  const row = rows[0]
+  return row ? Number(row[3]) : 1
+}
+
 async function handleEntry(
   subscriber: Subscriber,
   client: Redis,
   stream: string,
   entryId: string,
-  raw: string,
+  fields: string[],
 ): Promise<void> {
+  const idx = fields.indexOf('event')
+  const raw = idx >= 0 ? fields[idx + 1] : undefined
+  if (!raw) {
+    await client.xack(stream, subscriber.name, entryId)
+    return
+  }
+
   let event: EventEnvelope
   try {
     event = JSON.parse(raw) as EventEnvelope
@@ -79,14 +119,13 @@ async function handleEntry(
     await markProcessed(subscriber.name, event.id)
     await client.xack(stream, subscriber.name, entryId)
   } catch (error) {
-    const attempts = await client.xpending(stream, subscriber.name, '-', '+', 1, CONSUMER_NAME)
-    const deliveries =
-      Array.isArray(attempts) && attempts.length > 0 ? Number((attempts[0] as unknown[])[3]) : 1
+    const deliveries = await deliveryCount(client, stream, subscriber.name, entryId)
     const max = subscriber.maxAttempts ?? DEFAULT_MAX_ATTEMPTS
     if (deliveries >= max) {
       await sendToDlq(event, subscriber.name, error)
       await client.xack(stream, subscriber.name, entryId)
     } else {
+      // Запись остаётся неподтверждённой и будет забрана повторно после простоя
       logger().warn(
         { err: error, consumer: subscriber.name, eventId: event.id, deliveries },
         'подписчик вернул ошибку, будет повтор',
@@ -95,61 +134,110 @@ async function handleEntry(
   }
 }
 
+/**
+ * Повторная доставка: записи, которые дольше `retryIdleMs` висят неподтверждёнными
+ * (сбой подписчика, падение процесса), переходят этому потребителю.
+ * XAUTOCLAIM увеличивает счётчик доставок — после `maxAttempts` событие уходит в DLQ.
+ */
+async function reclaimStale(
+  subscriber: Subscriber,
+  client: Redis,
+  stream: string,
+  options: ConsumerOptions,
+): Promise<number> {
+  let cursor = '0-0'
+  let handled = 0
+  do {
+    const reply = (await client.xautoclaim(
+      stream,
+      subscriber.name,
+      CONSUMER_NAME,
+      options.retryIdleMs,
+      cursor,
+      'COUNT',
+      READ_COUNT,
+    )) as [string, Array<[string, string[]] | null>, string[]?]
+    const [next, entries] = reply
+    for (const entry of entries) {
+      if (!entry) continue
+      const [entryId, fields] = entry
+      await handleEntry(subscriber, client, stream, entryId, fields)
+      handled += 1
+    }
+    cursor = next
+  } while (cursor !== '0-0' && !stopped)
+  return handled
+}
+
 /** Запускает потребление событий всеми зарегистрированными подписчиками. */
-export function startConsumers(): void {
+export function startConsumers(overrides: Partial<ConsumerOptions> = {}): void {
   const subscribers = listSubscribers()
   if (subscribers.length === 0) {
     logger().warn('подписчики событий не зарегистрированы')
     return
   }
 
+  const options = { ...DEFAULT_OPTIONS, ...overrides }
   stopped = false
-  connection = createRedisConnection('events')
   const log = logger().child({ module: 'events' })
   const domains = resolveDomains()
 
   for (const subscriber of subscribers) {
-    void runSubscriber(subscriber, domains, log)
+    const task = runSubscriber(subscriber, domains, options, log)
+    running.add(task)
+    void task.finally(() => running.delete(task))
   }
   log.info({ subscribers: subscribers.map((s) => s.name), domains }, 'потребители событий запущены')
 }
 
+/** Домены, на потоки которых подписываются подписчики со звёздочкой. */
+export const KNOWN_DOMAINS = [
+  'object',
+  'user',
+  'org',
+  'delegation',
+  'session',
+  'space',
+  'message',
+  'mention',
+  'file',
+  'notification',
+  'inbox',
+  'job',
+  'settings',
+  'acl',
+  'role',
+  'announcement',
+] as const
+
 function resolveDomains(): string[] {
   const domains = subscribedDomains()
-  if (domains.includes('*')) {
-    return [
-      'object',
-      'user',
-      'org',
-      'delegation',
-      'session',
-      'space',
-      'message',
-      'mention',
-      'file',
-      'notification',
-      'inbox',
-      'job',
-      'settings',
-      'acl',
-      'role',
-      'announcement',
-    ]
-  }
-  return domains
+  return domains.includes('*') ? [...KNOWN_DOMAINS] : domains
 }
 
 async function runSubscriber(
   subscriber: Subscriber,
   domains: string[],
+  options: ConsumerOptions,
   log: ReturnType<typeof logger>,
 ): Promise<void> {
   const client = createRedisConnection(`sub-${subscriber.name}`)
-  await ensureGroups(client, subscriber, domains)
-
   const streams = domains.map(streamKey)
+  let groupsReady = false
+  let lastClaim = 0
+
   while (!stopped) {
     try {
+      if (!groupsReady) {
+        await ensureGroups(client, subscriber, domains)
+        groupsReady = true
+      }
+
+      if (Date.now() - lastClaim >= options.claimIntervalMs) {
+        lastClaim = Date.now()
+        for (const stream of streams) await reclaimStale(subscriber, client, stream, options)
+      }
+
       const response = (await client.xreadgroup(
         'GROUP',
         subscriber.name,
@@ -157,7 +245,7 @@ async function runSubscriber(
         'COUNT',
         READ_COUNT,
         'BLOCK',
-        BLOCK_MS,
+        options.blockMs,
         'STREAMS',
         ...streams,
         ...streams.map(() => '>'),
@@ -167,13 +255,7 @@ async function runSubscriber(
 
       for (const [stream, entries] of response) {
         for (const [entryId, fields] of entries) {
-          const idx = fields.indexOf('event')
-          const raw = idx >= 0 ? fields[idx + 1] : undefined
-          if (!raw) {
-            await client.xack(stream, subscriber.name, entryId)
-            continue
-          }
-          await handleEntry(subscriber, client, stream, entryId, raw)
+          await handleEntry(subscriber, client, stream, entryId, fields)
         }
       }
     } catch (error) {
@@ -182,11 +264,11 @@ async function runSubscriber(
       await new Promise((resolve) => setTimeout(resolve, 1000))
     }
   }
-  await client.quit().catch(() => undefined)
+  client.disconnect()
 }
 
-export function stopConsumers(): void {
+/** Останавливает потребителей и дожидается завершения текущих обработчиков. */
+export async function stopConsumers(): Promise<void> {
   stopped = true
-  void connection?.quit().catch(() => undefined)
-  connection = null
+  await Promise.allSettled([...running])
 }

@@ -43,6 +43,8 @@ const EnvSchema = z.object({
 
   MEILI_HOST: z.string().min(1),
   MEILI_MASTER_KEY: z.string().min(1),
+  /** Префикс имён индексов: интеграционные тесты работают в `test_objects`. */
+  MEILI_INDEX_PREFIX: z.string().default(''),
 
   /** 32 байта base64 — шифрование секретов и TOTP (17-security.md §4). */
   KCHS_MASTER_KEY: z.string().min(16),

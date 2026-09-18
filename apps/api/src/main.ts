@@ -57,7 +57,7 @@ async function main(): Promise<void> {
   const shutdown = async (signal: string): Promise<void> => {
     log.info({ signal }, 'остановка')
     stopDispatcher()
-    stopConsumers()
+    await stopConsumers()
     await stopWorkers()
     await close?.()
     await closeRedis()

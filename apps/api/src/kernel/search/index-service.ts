@@ -9,7 +9,10 @@ import { logger } from '~/shared/logger/index.js'
 import { readPrincipalsFor } from '../access/acl-service.js'
 import { objectType } from '../objects/registry.js'
 
-export const OBJECTS_INDEX = 'objects'
+/** Имя индекса объектов; префикс отделяет, например, тестовый индекс от рабочего. */
+export function objectsIndexName(): string {
+  return `${config().MEILI_INDEX_PREFIX}objects`
+}
 
 let client: MeiliSearch | null = null
 
@@ -22,14 +25,14 @@ export function meili(): MeiliSearch {
 }
 
 export function objectsIndex(): Index<SearchDocument> {
-  return meili().index<SearchDocument>(OBJECTS_INDEX)
+  return meili().index<SearchDocument>(objectsIndexName())
 }
 
 /** Настройка индекса: фильтры по правам и фасетам, ранжирование по свежести. */
 export async function ensureSearchIndex(): Promise<void> {
   const log = logger().child({ module: 'search' })
   try {
-    await meili().createIndex(OBJECTS_INDEX, { primaryKey: 'id' })
+    await meili().createIndex(objectsIndexName(), { primaryKey: 'id' })
   } catch {
     // индекс уже существует
   }
