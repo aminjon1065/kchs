@@ -475,7 +475,10 @@ export const QueryService = {
 
   async run(ctx: Ctx, spec: QuerySpec, options: RunOptions = {}): Promise<QueryResult> {
     const started = performance.now()
-    const { compiled, schemaVersions, cacheable } = await QueryService.compile(ctx, spec, options)
+    const compiledQuery = await QueryService.compile(ctx, spec, options)
+    const { compiled, schemaVersions } = compiledQuery
+    // `options.cache: false` (контракт QuerySpec) — мимо кэша: свежий результат и замеры
+    const cacheable = compiledQuery.cacheable && spec.options?.cache !== false
     const count = options.count ?? false
     const specHash = createHash('sha256')
       .update(`${cacheKeyText(compiled.cacheKeyParts)}|${schemaVersions}|${count}`)

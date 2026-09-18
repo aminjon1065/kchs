@@ -303,6 +303,16 @@ describe('запросы и кэш', () => {
     })
     expect(second.json().cached).toBe(true)
 
+    // `options.cache: false` — мимо кэша (замеры, свежий результат)
+    const fresh = await call(fx.app, {
+      method: 'POST',
+      url: '/queries/run',
+      as: fx.admin,
+      payload: { spec: { ...spec, options: { cache: false } } },
+    })
+    expect(fresh.statusCode, fresh.body).toBe(200)
+    expect(fresh.json().cached).toBe(false)
+
     await call(fx.app, {
       method: 'POST',
       url: `/datasets/${datasetId}/rows`,
