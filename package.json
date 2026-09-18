@@ -1,0 +1,40 @@
+{
+  "name": "kchs",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.4.2",
+  "engines": {
+    "node": ">=22.12.0",
+    "pnpm": ">=10"
+  },
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "test:integration": "turbo run test:integration",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "typecheck": "turbo run typecheck",
+    "deps:check": "pnpm --filter @kchs/api deps:check",
+    "db:generate": "pnpm --filter @kchs/api db:generate",
+    "db:migrate": "pnpm --filter @kchs/api db:migrate",
+    "db:seed": "pnpm --filter @kchs/api db:seed",
+    "db:reset": "pnpm --filter @kchs/api db:reset",
+    "e2e": "pnpm --filter @kchs/web e2e",
+    "openapi:gen": "pnpm --filter @kchs/api openapi:gen",
+    "i18n:check": "pnpm --filter @kchs/i18n check",
+    "storybook": "pnpm --filter @kchs/ui storybook",
+    "infra:up": "docker compose -f infra/compose/docker-compose.yml up -d",
+    "infra:down": "docker compose -f infra/compose/docker-compose.yml down",
+    "infra:logs": "docker compose -f infra/compose/docker-compose.yml logs -f"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.0",
+    "dependency-cruiser": "^17.0.1",
+    "knip": "^5.66.0",
+    "turbo": "^2.6.3",
+    "typescript": "^5.9.3"
+  }
+}

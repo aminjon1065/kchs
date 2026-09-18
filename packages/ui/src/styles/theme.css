@@ -1,0 +1,109 @@
+/* Сгенерировано из tokens.json — не редактировать вручную. */
+/* Отображение токенов kchs в утилиты Tailwind 4. */
+
+@theme inline {
+  /* Цвет: значения берутся из CSS-переменных, поэтому смена темы мгновенна */
+  --color-canvas: var(--bg-canvas);
+  --color-surface: var(--bg-surface);
+  --color-surface-2: var(--bg-surface-2);
+  --color-surface-3: var(--bg-surface-3);
+  --color-overlay: var(--bg-overlay);
+  --color-line: var(--border);
+  --color-line-strong: var(--border-strong);
+  --color-fg: var(--text);
+  --color-fg-secondary: var(--text-secondary);
+  --color-fg-muted: var(--text-muted);
+  --color-fg-inverse: var(--text-inverse);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-subtle: var(--accent-subtle);
+  --color-accent-fg: var(--accent-fg);
+  --color-success: var(--success);
+  --color-success-subtle: var(--success-subtle);
+  --color-warning: var(--warning);
+  --color-warning-subtle: var(--warning-subtle);
+  --color-danger: var(--danger);
+  --color-danger-subtle: var(--danger-subtle);
+  --color-info: var(--info);
+  --color-info-subtle: var(--info-subtle);
+  --color-purple: var(--purple);
+  --color-purple-subtle: var(--purple-subtle);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-chart-6: var(--chart-6);
+  --color-chart-7: var(--chart-7);
+  --color-chart-8: var(--chart-8);
+  --color-chart-9: var(--chart-9);
+  --color-chart-10: var(--chart-10);
+
+  /* Типографика */
+  --font-sans: 'Inter var', Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --text-2xs: 11px;
+  --text-2xs--line-height: 16px;
+  --text-2xs--font-weight: 500;
+  --text-2xs--letter-spacing: 0;
+  --text-xs: 12px;
+  --text-xs--line-height: 16px;
+  --text-xs--font-weight: 400;
+  --text-xs--letter-spacing: 0;
+  --text-sm: 13px;
+  --text-sm--line-height: 20px;
+  --text-sm--font-weight: 400;
+  --text-sm--letter-spacing: 0;
+  --text-base: 14px;
+  --text-base--line-height: 22px;
+  --text-base--font-weight: 400;
+  --text-base--letter-spacing: 0;
+  --text-md: 16px;
+  --text-md--line-height: 24px;
+  --text-md--font-weight: 500;
+  --text-md--letter-spacing: -0.005em;
+  --text-lg: 18px;
+  --text-lg--line-height: 26px;
+  --text-lg--font-weight: 600;
+  --text-lg--letter-spacing: -0.008em;
+  --text-xl: 22px;
+  --text-xl--line-height: 30px;
+  --text-xl--font-weight: 600;
+  --text-xl--letter-spacing: -0.01em;
+  --text-2xl: 28px;
+  --text-2xl--line-height: 36px;
+  --text-2xl--font-weight: 600;
+  --text-2xl--letter-spacing: -0.015em;
+  --text-3xl: 36px;
+  --text-3xl--line-height: 44px;
+  --text-3xl--font-weight: 600;
+  --text-3xl--letter-spacing: -0.02em;
+
+  /* Сетка 4px */
+  --spacing: 4px;
+
+  /* Радиусы */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 9999px;
+
+  /* Тени */
+  --shadow-sm: var(--elevation-sm);
+  --shadow-md: var(--elevation-md);
+  --shadow-lg: var(--elevation-lg);
+
+  /* Движение */
+  --ease-standard: cubic-bezier(.2,0,0,1);
+  --ease-exit: cubic-bezier(.4,0,1,1);
+  --ease-spring: cubic-bezier(.2,1.2,.3,1);
+
+  /* Анимации */
+  --animate-enter: kchs-enter var(--duration-base) var(--ease-standard);
+  --animate-slide-up: kchs-slide-up var(--duration-slow) var(--ease-standard);
+  --animate-slide-right: kchs-slide-right var(--duration-slow) var(--ease-standard);
+  --animate-fade: kchs-fade var(--duration-base) var(--ease-standard);
+  --animate-pulse-soft: kchs-pulse 1.6s ease-in-out infinite;
+  --animate-spin-fast: kchs-spin 0.7s linear infinite;
+}

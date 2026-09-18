@@ -1,0 +1,20 @@
+@import "tailwindcss";
+@import "@kchs/ui/styles.css";
+@import "@kchs/ui/theme.css";
+
+/* Классы дизайн-системы живут в пакете ui — Tailwind должен их видеть */
+@source "../../../../packages/ui/src";
+@source "../";
+
+/* Оболочка занимает всё окно и не прокручивается целиком */
+html,
+body,
+#root {
+  height: 100%;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}

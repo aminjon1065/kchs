@@ -1,0 +1,114 @@
+# Глоссарий и канонические идентификаторы
+
+Термины интерфейса (ru), их таджикские и английские эквиваленты (для локалей) и **канонические идентификаторы в коде** (типы объектов, таблицы, события, i18n-ключи). Исполнитель обязан использовать идентификаторы из этой таблицы; расширения — по той же схеме с обновлением глоссария.
+
+## Типы объектов
+
+| Термин (ru) | tg | en | `object.type` | Таблица |
+|---|---|---|---|---|
+| Пространство | Фазо | Space | `space` | `spaces` |
+| Раздел / Папка | Бахш / Ҷузвдон | Section / Folder | `folder` | `objects` (только реестр) |
+| Представление | Намоиш | View | `view` | `views` |
+| Источник данных | Манбаи маълумот | Data source | `source` | `sources` |
+| Датасет | Маҷмӯи маълумот | Dataset | `dataset` | `datasets` |
+| Поле | Майдон | Field | — | `dataset_fields` |
+| Пайплайн (преобразование) | Табдилдиҳӣ | Pipeline | `pipeline` | `pipelines` |
+| Запрос | Дархост | Query | `query` | `queries` |
+| Показатель | Нишондиҳанда | Metric | `metric` | `metrics` |
+| График | Диаграмма | Chart | `chart` | `charts` |
+| Дашборд | Дашборд | Dashboard | `dashboard` | `dashboards` |
+| Тетрадь | Дафтар | Notebook | `notebook` | `notebooks` |
+| Отчёт | Ҳисобот | Report | `report` | `reports` |
+| Форма сбора | Шакли ҷамъоварӣ | Data collection form | `form` | `forms` |
+| Алерт | Огоҳӣ | Alert | `alert` | `alerts` |
+| Слой | Қабат | Layer | `layer` | `layers` |
+| Карта | Харита | Map | `map` | `maps` |
+| Территория | Ҳудуд | Territory | `territory` | `territories` |
+| Пространственный анализ | Таҳлили фазоӣ | Spatial analysis | `analysis` | `analyses` |
+| Базовая карта | Харитаи асосӣ | Basemap | `basemap` | `basemaps` |
+| Документ | Ҳуҷҷат | Document | `document` | `documents` |
+| Тип документа | Намуди ҳуҷҷат | Document type | `document_type` | `document_types` |
+| Журнал регистрации | Дафтари бақайдгирӣ | Registration journal | `journal` | `journals` |
+| Маршрут | Масир | Route | `route` | `process_definitions` (objectType=document) |
+| Шаблон | Қолаб | Template | `template` | `templates` |
+| Дело (номенклатура) | Парванда | Case file | `case` | `cases` |
+| Корреспондент | Мукотибакунанда | Correspondent | `correspondent` | `correspondents` |
+| Файл | Файл | File | `file` | `files` |
+| Проект | Лоиҳа | Project | `project` | `projects` |
+| Задача | Вазифа | Task | `task` (kind=`task`) | `tasks` |
+| Поручение | Супориш | Instruction | `task` (kind=`instruction`) | `tasks` |
+| Беседа / Чат / Канал | Сӯҳбат / Чат / Канал | Conversation / Chat / Channel | `conversation` | `conversations` |
+| Обсуждение (объекта) | Муҳокима | Discussion | `conversation` (kind=`object`) | `conversations` |
+| Встреча / Звонок | Вохӯрӣ / Занг | Meeting / Call | `meeting` | `meetings` |
+| Запись | Сабт | Recording | `recording` | `recordings` |
+| Протокол | Протокол | Protocol (minutes) | `protocol` | `protocols` |
+| Календарь | Тақвим | Calendar | `calendar` | `calendars` |
+| Событие | Рӯйдод | Event | `event` | `events` |
+| Страница | Саҳифа | Page | `page` | `pages` |
+| Правило | Қоида | Rule | `rule` | `rules` |
+| Интеграция | Интегратсия | Integration | `integration` | `integrations` |
+| Вебхук | Вебхук | Webhook | `webhook` | `webhooks` |
+
+## Термины документооборота
+
+| ru | tg | en | Идентификатор |
+|---|---|---|---|
+| Регистрация | Бақайдгирӣ | Registration | `registration`, событие `document.registered` |
+| Регистрационный номер | Рақами бақайдгирӣ | Registration number | `reg_number` |
+| Согласование | Мувофиқакунӣ | Approval | шаг `approval`, `approvals`, событие `document.approved/rejected` |
+| Замечания | Эродҳо | Remarks | decision `remarks` |
+| Подпись | Имзо | Signature | шаг `sign`, `signatures`, `document.signed` |
+| Резолюция | Резолютсия | Resolution | `resolutions`, `document.resolution_added` |
+| Ответственный исполнитель | Иҷрокунандаи масъул | Responsible executor | `responsible_id`, `assignee_id` |
+| Соисполнитель | Ҳамиҷрокунанда | Co-executor | `co_executors`, `co_assignees` |
+| Контроль / Контролёр | Назорат / Назораткунанда | Control / Controller | `control`, `controller_id` |
+| Исполнение | Иҷро | Execution | статус `on_execution` → `executed` |
+| Ознакомление | Шиносоӣ | Acknowledgment | шаг `acknowledge`, `acknowledgments` |
+| Гриф конфиденциальности | Гурӯҳи махфият | Confidentiality level | `confidentiality`: `public|internal|confidential|secret` |
+| Входящий / Исходящий / Внутренний | Воридотӣ / Содиротӣ / Дохилӣ | Incoming / Outgoing / Internal | `direction` |
+| Номенклатура дел | Номгӯи парвандаҳо | Case nomenclature | `cases.index` |
+| Архив | Бойгонӣ | Archive | статус `archived` |
+| Замещение / Делегирование | Ивазкунӣ | Delegation | `delegations` |
+| Канцелярия / Делопроизводитель | Девонхона / Коргузор | Registry office / Registrar | роль `registrar` |
+
+## Термины аналитики и GIS
+
+| ru | en | Идентификатор |
+|---|---|---|
+| Исследование | Explore | экран `explore`, режим `visual|sql` |
+| Мера / Измерение | Measure / Dimension | семантика `measure` / `dimension` |
+| Сводка (агрегация) | Aggregate | шаг `aggregate` |
+| Справочник | Reference dataset (lookup) | `dataset.kind='reference'`, тип поля `lookup` |
+| Политика строк / столбцов | Row / column policy | `dataset_row_policies`, `dataset_column_policies` |
+| Версия датасета | Dataset version | `dataset_versions` |
+| Происхождение | Lineage | `dependencies` |
+| Хороплет | Choropleth | рендерер `graduated` на полигонах |
+| Атрибутивная таблица | Attribute table | нижняя панель карты |
+| Объект (карты) | Feature | строка датасета с `geom` |
+| Тайл | Tile | `/gis/layers/{id}/tiles/{z}/{x}/{y}.pbf` |
+| Паспорт территории | Territory profile | экран `territory-profile` |
+| Связанные представления | Linked views | `ViewContext` |
+| Показатель | Metric (KPI) | `metrics` |
+
+## Статусы
+
+- Документ: `draft, on_approval, returned, approved, on_signing, signed, registered, on_execution, executed, filed, archived, cancelled`.
+- Задача (по умолчанию): `todo, in_progress, review, done, cancelled`; поручение: `assigned, in_progress, reported, accepted, returned, cancelled`.
+- Процесс: `running, finished, cancelled`; шаг: `pending, active, completed, skipped, overdue`.
+- Встреча: `scheduled, live, ended, cancelled`; запись: `processing, ready, failed`; расшифровка: `queued, processing, ready, failed`.
+- Импорт/задание: `queued, running, succeeded, failed, cancelled`.
+- Элемент Входящих: `open, resolved, dismissed, snoozed`.
+- Объект: активен / `archived_at` / `deleted_at` (корзина).
+
+## Роли (системные) и способности
+
+`system_admin`, `security_auditor`, `org_admin`, `registrar`, `data_steward`, `gis_admin`, `employee`. Способности перечислены в `02-architecture/03-access-model.md`.
+
+## Ключи i18n
+
+Формат `module.screen.element`, например `documents.card.actions.approve`, `data.import.step.mapping.title`, `common.actions.save`. Плюрализация — ICU (`{count, plural, one {…} few {…} many {…}}` для ru/tg).
+
+## Именование в коде
+
+- Типы объектов и события — `snake_case`/`dot.case` как выше; TS-типы — `PascalCase` (`Dataset`, `DocumentVersion`); маршруты — `kebab-case`; пакеты — `@kchs/<name>`; очереди — `kebab-case`.
+- Английские идентификаторы для поручений — `instruction` (не `assignment`, не `order`); для резолюции — `resolution`; для ознакомления — `acknowledgment`; для дела — `case`; для журнала — `journal`; для территории — `territory`; для показателя — `metric`; для тетради — `notebook`; для представления — `view`; для пространства — `space`.

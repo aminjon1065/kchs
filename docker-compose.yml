@@ -1,0 +1,5 @@
+# Тонкая обёртка: реальное описание — infra/compose/docker-compose.yml.
+# Позволяет `docker compose up -d` из корня репозитория.
+include:
+  - path: infra/compose/docker-compose.yml
+    env_file: .env

@@ -1,0 +1,17 @@
+node_modules
+**/node_modules
+**/dist
+**/build
+**/.turbo
+**/coverage
+**/storybook-static
+**/playwright-report
+**/test-results
+**/__pycache__
+**/.venv
+.git
+.env
+.env.*
+!.env.example
+infra/compose/.data
+docs

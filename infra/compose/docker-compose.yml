@@ -1,0 +1,312 @@
+# kchs — инфраструктура сценария S1 (один сервер).
+# Профили: по умолчанию — данные и сервисы; `media` — LiveKit; `proxy` — Caddy;
+# `observability` — Prometheus/Grafana/Loki; `app` — образы api/worker/web/engine.
+name: kchs
+
+x-restart: &restart
+  restart: unless-stopped
+
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+services:
+  postgres:
+    <<: [*restart, *logging]
+    build:
+      context: ./postgres
+    image: kchs/postgres:17-3.5
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:?set POSTGRES_SUPERUSER_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-kchs}
+      KCHS_APP_PASSWORD: ${KCHS_APP_PASSWORD:?set KCHS_APP_PASSWORD}
+      KCHS_MIGRATOR_PASSWORD: ${KCHS_MIGRATOR_PASSWORD:?set KCHS_MIGRATOR_PASSWORD}
+      KCHS_QUERY_PASSWORD: ${KCHS_QUERY_PASSWORD:?set KCHS_QUERY_PASSWORD}
+      KCHS_READONLY_PASSWORD: ${KCHS_READONLY_PASSWORD:-readonly}
+      KCHS_AUDIT_PASSWORD: ${KCHS_AUDIT_PASSWORD:-audit}
+      # Русская сортировка и поиск без учёта регистра
+      POSTGRES_INITDB_ARGS: "--locale=C.UTF-8 --encoding=UTF8"
+      TZ: ${TZ:-Asia/Dushanbe}
+    command:
+      - postgres
+      - -c
+      - max_connections=200
+      - -c
+      - shared_buffers=512MB
+      - -c
+      - effective_cache_size=2GB
+      - -c
+      - work_mem=16MB
+      - -c
+      - maintenance_work_mem=256MB
+      - -c
+      - wal_level=replica
+      - -c
+      - max_wal_size=2GB
+      - -c
+      - random_page_cost=1.1
+      - -c
+      - track_io_timing=on
+      - -c
+      - log_min_duration_statement=500
+      - -c
+      - shared_preload_libraries=pg_stat_statements
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ${POSTGRES_DB:-kchs}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  redis:
+    <<: [*restart, *logging]
+    image: redis:7-alpine
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --appendfsync
+      - everysec
+      - --maxmemory-policy
+      - noeviction
+      - --requirepass
+      - ${REDIS_PASSWORD:?set REDIS_PASSWORD}
+    volumes:
+      - redisdata:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep -q PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+
+  minio:
+    <<: [*restart, *logging]
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:?set S3_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:?set S3_SECRET_KEY}
+      MINIO_BROWSER_REDIRECT_URL: ${MINIO_CONSOLE_URL:-http://localhost:9001}
+    volumes:
+      - miniodata:/data
+    ports:
+      - "${S3_PORT:-9000}:9000"
+      - "${S3_CONSOLE_PORT:-9001}:9001"
+    healthcheck:
+      test: ["CMD-SHELL", "mc ready local || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+
+  minio-init:
+    image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        set -e
+        mc alias set kchs http://minio:9000 "$$S3_ACCESS_KEY" "$$S3_SECRET_KEY"
+        for b in kchs-files kchs-previews kchs-media kchs-exports kchs-tiles; do
+          mc mb --ignore-existing "kchs/$$b"
+        done
+        mc ilm rule add --expire-days 30 kchs/kchs-exports 2>/dev/null || true
+        echo "kchs: бакеты готовы"
+    restart: "no"
+
+  meilisearch:
+    <<: [*restart, *logging]
+    image: getmeili/meilisearch:v1.53
+    environment:
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:?set MEILI_MASTER_KEY}
+      MEILI_ENV: ${MEILI_ENV:-development}
+      MEILI_NO_ANALYTICS: "true"
+      MEILI_EXPERIMENTAL_ENABLE_METRICS: "true"
+    volumes:
+      - meilidata:/meili_data
+    ports:
+      - "${MEILI_PORT:-7700}:7700"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:7700/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+
+  # Почта разработки: SMTP-приёмник с веб-интерфейсом (SMTP_URL=smtp://mailpit:1025)
+  mailpit:
+    <<: [*restart, *logging]
+    image: axllent/mailpit:v1.28
+    environment:
+      MP_MAX_MESSAGES: "5000"
+      MP_SMTP_AUTH_ACCEPT_ANY: "true"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "true"
+    ports:
+      - "${MAILPIT_SMTP_PORT:-1025}:1025"
+      - "${MAILPIT_UI_PORT:-8025}:8025"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:8025/readyz || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # ── Профиль app: образы приложения (полное развёртывание) ─────────────────
+  api:
+    <<: [*restart, *logging]
+    profiles: ["app"]
+    build:
+      context: ../..
+      dockerfile: apps/api/Dockerfile
+    image: kchs/api:0.1.0
+    environment:
+      NODE_ENV: production
+      ROLE: api
+      PORT: 3000
+      TZ: ${TZ:-Asia/Dushanbe}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      KCHS_BASE_URL: ${KCHS_BASE_URL:-http://localhost}
+      KCHS_API_URL: ${KCHS_API_URL:-http://localhost/api}
+      DATABASE_URL: postgres://kchs_app:${KCHS_APP_PASSWORD}@postgres:5432/${POSTGRES_DB:-kchs}
+      DATABASE_MIGRATOR_URL: postgres://kchs_migrator:${KCHS_MIGRATOR_PASSWORD}@postgres:5432/${POSTGRES_DB:-kchs}
+      DATABASE_QUERY_URL: postgres://kchs_query:${KCHS_QUERY_PASSWORD}@postgres:5432/${POSTGRES_DB:-kchs}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      S3_ENDPOINT: http://minio:9000
+      S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:-http://localhost:9000}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+      MEILI_HOST: http://meilisearch:7700
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY}
+      KCHS_MASTER_KEY: ${KCHS_MASTER_KEY}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
+      ENGINE_INTERNAL_URL: http://engine:8000
+      SMTP_URL: ${SMTP_URL_INTERNAL:-smtp://mailpit:1025}
+      SMTP_FROM: ${SMTP_FROM:-kchs <no-reply@kchs.local>}
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      minio: { condition: service_healthy }
+      meilisearch: { condition: service_healthy }
+    ports:
+      - "${API_PORT:-3000}:3000"
+
+  worker:
+    <<: [*restart, *logging]
+    profiles: ["app"]
+    image: kchs/api:0.1.0
+    command: ["node", "dist/main.js"]
+    environment:
+      NODE_ENV: production
+      ROLE: worker
+      TZ: ${TZ:-Asia/Dushanbe}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      KCHS_BASE_URL: ${KCHS_BASE_URL:-http://localhost}
+      KCHS_API_URL: ${KCHS_API_URL:-http://localhost/api}
+      DATABASE_URL: postgres://kchs_app:${KCHS_APP_PASSWORD}@postgres:5432/${POSTGRES_DB:-kchs}
+      DATABASE_MIGRATOR_URL: postgres://kchs_migrator:${KCHS_MIGRATOR_PASSWORD}@postgres:5432/${POSTGRES_DB:-kchs}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+      MEILI_HOST: http://meilisearch:7700
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY}
+      KCHS_MASTER_KEY: ${KCHS_MASTER_KEY}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
+    depends_on:
+      api: { condition: service_started }
+
+  engine:
+    <<: [*restart, *logging]
+    profiles: ["app"]
+    build:
+      context: ../../apps/engine
+      dockerfile: Dockerfile
+    image: kchs/engine:0.1.0
+    environment:
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      DATABASE_URL: postgres://kchs_app:${KCHS_APP_PASSWORD}@postgres:5432/${POSTGRES_DB:-kchs}
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+      KCHS_API_URL: ${ENGINE_API_URL:-http://api:3000}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      redis: { condition: service_healthy }
+    ports:
+      - "${ENGINE_PORT:-8000}:8000"
+
+  web:
+    <<: [*restart, *logging]
+    profiles: ["app"]
+    build:
+      context: ../..
+      dockerfile: apps/web/Dockerfile
+    image: kchs/web:0.1.0
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+      - caddyconfig:/config
+    environment:
+      KCHS_DOMAIN: ${KCHS_DOMAIN:-localhost}
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    depends_on:
+      api: { condition: service_started }
+
+  # ── Профиль media: аудио/видео (фаза 4, поднимается заранее) ───────────────
+  livekit:
+    <<: [*restart, *logging]
+    profiles: ["media"]
+    image: livekit/livekit-server:v1.8
+    command: --config /etc/livekit.yaml
+    volumes:
+      - ./livekit/livekit.yaml:/etc/livekit.yaml:ro
+    ports:
+      - "7880:7880"
+      - "7881:7881"
+      - "3478:3478/udp"
+      - "50000-50100:50000-50100/udp"
+
+  # ── Профиль proxy: TLS и маршрутизация ────────────────────────────────────
+  caddy:
+    <<: [*restart, *logging]
+    profiles: ["proxy"]
+    image: caddy:2-alpine
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+      - caddyconfig:/config
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      KCHS_DOMAIN: ${KCHS_DOMAIN:-localhost}
+
+volumes:
+  pgdata:
+  redisdata:
+  miniodata:
+  meilidata:
+  caddydata:
+  caddyconfig:

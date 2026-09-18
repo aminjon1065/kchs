@@ -1,0 +1,74 @@
+import { AdminScreen } from '~/features/admin/admin-screen.js'
+import { FilesScreen } from '~/features/files/files-screen.js'
+import { HomeScreen } from '~/features/home/home-screen.js'
+import { InboxScreen } from '~/features/inbox/inbox-screen.js'
+import { NotificationsScreen } from '~/features/notifications/notifications-screen.js'
+import { FileView } from '~/features/objects/file-view.js'
+import { FolderView } from '~/features/objects/folder-view.js'
+import { TrashScreen } from '~/features/objects/trash-screen.js'
+import { ProfileScreen } from '~/features/profile/profile-screen.js'
+import { SearchScreen } from '~/features/search/search-screen.js'
+import { SpaceScreen } from '~/features/spaces/space-screen.js'
+import { SpacesScreen } from '~/features/spaces/spaces-screen.js'
+import { registerObjectView, registerScreen } from './workspace/registry.js'
+
+let registered = false
+
+/** Регистрация экранов и представлений объектов фазы 0. */
+export function registerModules(): void {
+  if (registered) return
+  registered = true
+
+  registerScreen({ key: 'home', title: 'Мой день', icon: 'home', render: () => <HomeScreen /> })
+  registerScreen({ key: 'inbox', title: 'Входящие', icon: 'inbox', render: () => <InboxScreen /> })
+  registerScreen({
+    key: 'notifications',
+    title: 'Уведомления',
+    icon: 'notification',
+    render: () => <NotificationsScreen />,
+  })
+  registerScreen({
+    key: 'files',
+    title: 'Файлы',
+    icon: 'folder',
+    render: (tab) => <FilesScreen spaceId={tab.params.spaceId} />,
+  })
+  registerScreen({
+    key: 'search',
+    title: 'Поиск',
+    icon: 'view',
+    render: (tab) => <SearchScreen initialQuery={tab.params.q ?? ''} />,
+  })
+  registerScreen({
+    key: 'spaces',
+    title: 'Пространства',
+    icon: 'space',
+    render: () => <SpacesScreen />,
+  })
+  registerScreen({
+    key: 'space',
+    title: 'Пространство',
+    icon: 'space',
+    render: (tab) => <SpaceScreen spaceId={tab.params.spaceId ?? ''} />,
+  })
+  registerScreen({
+    key: 'admin',
+    title: 'Администрирование',
+    icon: 'role',
+    render: () => <AdminScreen />,
+  })
+  registerScreen({
+    key: 'profile',
+    title: 'Профиль',
+    icon: 'user',
+    render: () => <ProfileScreen />,
+  })
+  registerScreen({ key: 'trash', title: 'Корзина', icon: 'folder', render: () => <TrashScreen /> })
+
+  registerObjectView({
+    type: 'file',
+    render: (tab) => <FileView objectId={tab.objectId!} tabId={tab.id} />,
+  })
+  registerObjectView({ type: 'folder', render: (tab) => <FolderView objectId={tab.objectId!} /> })
+  registerObjectView({ type: 'space', render: (tab) => <SpaceScreen spaceId={tab.objectId!} /> })
+}

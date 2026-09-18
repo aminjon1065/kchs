@@ -1,0 +1,13 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# pnpm 12: явный список пакетов, которым разрешены postinstall-скрипты
+allowBuilds:
+  "@biomejs/biome": true
+  "@tailwindcss/oxide": true
+  esbuild: true
+  sharp: true
+  turbo: true
+  "@node-rs/argon2": true
+  msgpackr-extract: true

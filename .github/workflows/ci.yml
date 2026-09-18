@@ -1,0 +1,199 @@
+name: CI
+
+on:
+  push:
+    branches: [main, 'phase/**']
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'
+  PNPM_VERSION: '12'
+
+jobs:
+  static:
+    name: "Статика: линт, типы, границы"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: '${{ env.PNPM_VERSION }}' }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Линт (Biome)
+        run: pnpm lint
+      - name: Типы
+        run: pnpm typecheck
+      - name: Границы модулей
+        run: pnpm deps:check
+      - name: Полнота словарей i18n
+        run: pnpm i18n:check
+      - name: Контраст токенов (WCAG AA)
+        run: pnpm --filter @kchs/ui contrast
+      - name: Токены соответствуют tokens.json
+        run: |
+          pnpm --filter @kchs/ui tokens
+          git diff --exit-code packages/ui/src/tokens/tokens.css packages/ui/src/styles/theme.css
+
+  unit:
+    name: Unit-тесты
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: '${{ env.PNPM_VERSION }}' }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+
+  integration:
+    name: Интеграционные тесты
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: '${{ env.PNPM_VERSION }}' }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Секреты и инфраструктура
+        run: |
+          bash infra/scripts/generate-secrets.sh
+          docker compose up -d --build --wait
+
+      - name: Миграции и seed
+        run: |
+          pnpm db:migrate
+          pnpm db:seed
+
+      - name: Интеграционные тесты API
+        run: pnpm test:integration
+
+      - name: Логи при сбое
+        if: failure()
+        run: docker compose logs --tail=200
+
+  e2e:
+    name: Сквозные сценарии
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: '${{ env.PNPM_VERSION }}' }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Секреты и инфраструктура
+        run: |
+          bash infra/scripts/generate-secrets.sh
+          docker compose up -d --build --wait
+
+      - name: Миграции и seed
+        run: |
+          pnpm db:migrate
+          pnpm db:seed
+
+      - name: Браузеры Playwright
+        run: pnpm --filter @kchs/web exec playwright install --with-deps chromium
+
+      - name: Поднять api и web
+        run: |
+          bash infra/scripts/dev-api.sh
+          bash infra/scripts/dev-web.sh
+
+      - name: Прогон сценариев
+        run: pnpm e2e
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report
+          retention-days: 7
+
+  build:
+    name: Сборка образов
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: api
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: false
+          tags: kchs/api:ci
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+      - name: web
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: false
+          tags: kchs/web:ci
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
+      - name: engine
+        uses: docker/build-push-action@v6
+        with:
+          context: apps/engine
+          file: apps/engine/Dockerfile
+          push: false
+          tags: kchs/engine:ci
+          cache-from: type=gha,scope=engine
+          cache-to: type=gha,mode=max,scope=engine
+
+  engine-tests:
+    name: Тесты движка
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with: { version: '0.9.7' }
+      - name: Тесты и линт
+        working-directory: apps/engine
+        run: |
+          uv sync --extra dev
+          uv run ruff check .
+          uv run pytest
+
+  security:
+    name: Безопасность
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: '${{ env.PNPM_VERSION }}' }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Уязвимости зависимостей
+        run: pnpm audit --audit-level high
+        continue-on-error: true
+      - name: Trivy (файловая система)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: CRITICAL,HIGH
+          exit-code: '0'
+          format: table

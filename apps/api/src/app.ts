@@ -1,0 +1,144 @@
+import cookie from '@fastify/cookie'
+import cors from '@fastify/cors'
+import helmet from '@fastify/helmet'
+import rateLimit from '@fastify/rate-limit'
+import sensible from '@fastify/sensible'
+import swagger from '@fastify/swagger'
+import underPressure from '@fastify/under-pressure'
+import Fastify, { type FastifyBaseLogger, type FastifyInstance } from 'fastify'
+import {
+  jsonSchemaTransform,
+  serializerCompiler,
+  validatorCompiler,
+} from 'fastify-type-provider-zod'
+import { authorize, requireCapability } from '~/kernel/access/authorize.js'
+import { resolveShareLinkCtx } from '~/kernel/access/share-links.js'
+import { buildUserCtx } from '~/kernel/context-builder.js'
+import { AuthService } from '~/modules/identity/domain/auth-service.js'
+import { registerModules } from '~/modules/index.js'
+import { config } from '~/shared/config/index.js'
+import { authPlugin } from '~/shared/http/auth-plugin.js'
+import { sendProblem } from '~/shared/http/problem.js'
+import { routeRegistrar } from '~/shared/http/route.js'
+import { logger } from '~/shared/logger/index.js'
+import { redis } from '~/shared/redis/index.js'
+
+export async function buildApp(): Promise<FastifyInstance> {
+  const env = config()
+
+  const app = Fastify({
+    loggerInstance: logger() as unknown as FastifyBaseLogger,
+    trustProxy: true,
+    bodyLimit: 10 * 1024 * 1024,
+    genReqId: () => `req_${Math.random().toString(36).slice(2, 12)}`,
+    ajv: { customOptions: { removeAdditional: false } },
+  })
+
+  app.setValidatorCompiler(validatorCompiler)
+  app.setSerializerCompiler(serializerCompiler)
+
+  app.setErrorHandler((error, request, reply) => {
+    sendProblem(request, reply, error)
+  })
+  app.setNotFoundHandler((request, reply) => {
+    reply.status(404).type('application/problem+json').send({
+      type: 'https://kchs.local/problems/not_found',
+      title: 'Не найдено',
+      status: 404,
+      code: 'not_found',
+      instance: request.url,
+    })
+  })
+
+  await app.register(sensible)
+  await app.register(cookie, { hook: 'onRequest' })
+
+  await app.register(helmet, {
+    contentSecurityPolicy: false, // CSP отдаёт прокси для SPA; API возвращает JSON
+    crossOriginResourcePolicy: { policy: 'same-site' },
+    hsts: env.NODE_ENV === 'production' ? { maxAge: 31_536_000, includeSubDomains: true } : false,
+  })
+
+  await app.register(cors, {
+    origin: [env.KCHS_BASE_URL],
+    credentials: true,
+    allowedHeaders: [
+      'content-type',
+      'x-csrf-token',
+      'x-kchs-share-token',
+      'x-kchs-on-behalf-of',
+      'accept-language',
+      'if-match',
+      'idempotency-key',
+    ],
+    exposedHeaders: ['x-kchs-version', 'etag'],
+  })
+
+  await app.register(rateLimit, {
+    global: true,
+    max: env.NODE_ENV === 'test' ? 1_000_000 : 600,
+    timeWindow: '1 minute',
+    redis: redis(),
+    nameSpace: env.NODE_ENV === 'test' ? 'kchs-rl-test:' : 'kchs-rl:',
+    keyGenerator: (request) =>
+      (request as { ctx?: { userId: string } }).ctx?.userId ?? request.ip ?? 'anonymous',
+  })
+
+  await app.register(underPressure, {
+    maxEventLoopDelay: 2000,
+    maxHeapUsedBytes: 1_200_000_000,
+    message: 'Сервис перегружен',
+    retryAfter: 5,
+  })
+
+  await app.register(swagger, {
+    openapi: {
+      openapi: '3.1.0',
+      info: {
+        title: 'kchs API',
+        version: '0.1.0',
+        description:
+          'Корпоративная рабочая платформа: данные, GIS, документы, задачи, коммуникации.',
+      },
+      servers: [{ url: `${env.KCHS_API_URL}/api/v1` }],
+      components: {
+        securitySchemes: {
+          cookieAuth: { type: 'apiKey', in: 'cookie', name: env.SESSION_COOKIE_NAME },
+          bearerAuth: { type: 'http', scheme: 'bearer' },
+        },
+      },
+    },
+    transform: jsonSchemaTransform,
+  })
+
+  await app.register(authPlugin, {
+    resolveSession: (token) => AuthService.resolveSession(token),
+    buildUserCtx,
+    touchSession: (sessionId) => AuthService.touchSession(sessionId),
+    authorizeRoute: async (ctx, action, objectId) => {
+      await authorize(ctx, action, objectId)
+    },
+    requireCapability,
+    resolveShareLink: resolveShareLinkCtx,
+  })
+
+  app.addHook('onSend', async (_request, reply, payload) => {
+    reply.header('x-kchs-version', '0.1.0')
+    return payload
+  })
+
+  // Здоровье — вне /api/v1, без аутентификации
+  app.get('/health', { config: { auth: 'public' } }, async () => ({ status: 'ok' }))
+  app.get('/api/openapi.json', { config: { auth: 'public' } }, async () => app.swagger())
+
+  await app.register(
+    async (instance) => {
+      const route = routeRegistrar(instance)
+      await registerModules(instance, route)
+    },
+    { prefix: '/api/v1' },
+  )
+
+  await app.ready()
+  return app
+}

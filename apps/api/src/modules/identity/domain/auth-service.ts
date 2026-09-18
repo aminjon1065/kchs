@@ -1,0 +1,638 @@
+import { and, eq, gt, isNull, or, sql } from 'drizzle-orm'
+import { authenticator } from 'otplib'
+import { invalidatePrincipalSet } from '~/kernel/access/principal-set.js'
+import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
+import { publishEvent } from '~/kernel/events/publisher.js'
+import { config } from '~/shared/config/index.js'
+import { systemCtx, type UserCtx } from '~/shared/context.js'
+import { checkPasswordPolicy, hashPassword, verifyPassword } from '~/shared/crypto/password.js'
+import { decryptSecret, encryptSecret, hashToken } from '~/shared/crypto/secrets.js'
+import { db, type Executor } from '~/shared/db/client.js'
+import {
+  credentials,
+  mfaChallenges,
+  mfaFactors,
+  passwordResets,
+  recoveryCodes,
+  sessions,
+  users,
+} from '~/shared/db/schema/index.js'
+import { errors } from '~/shared/errors.js'
+import { newId, randomCode, randomToken } from '~/shared/ids.js'
+
+const MAX_FAILED_ATTEMPTS = 10
+const LOCK_MINUTES = 15
+const MFA_CHALLENGE_MINUTES = 10
+const PASSWORD_RESET_MINUTES = 15
+const PASSWORD_HISTORY = 5
+
+authenticator.options = { window: 1, step: 30 }
+
+export interface RequestMeta {
+  ip: string | null
+  userAgent: string | null
+  requestId: string
+}
+
+export type LoginOutcome =
+  | { status: 'ok'; sessionToken: string; csrfToken: string; userId: string; expiresAt: string }
+  | { status: 'mfa_required'; challengeToken: string; challengeId: string; expiresAt: string }
+  | {
+      status: 'password_change_required'
+      sessionToken: string
+      csrfToken: string
+      userId: string
+      expiresAt: string
+    }
+
+export const AuthService = {
+  /** Вход по логину и паролю с блокировкой после серии неудач (17-security.md §2). */
+  async login(login: string, password: string, meta: RequestMeta): Promise<LoginOutcome> {
+    const sys = systemCtx('auth.login', { requestId: meta.requestId })
+    const [user] = await db()
+      .select({
+        id: users.id,
+        login: users.login,
+        status: users.status,
+        displayName: users.displayName,
+        mustChangePassword: users.mustChangePassword,
+      })
+      .from(users)
+      .where(
+        or(
+          sql`lower(${users.login}) = ${login.toLowerCase()}`,
+          sql`lower(${users.email}) = ${login.toLowerCase()}`,
+        ),
+      )
+      .limit(1)
+
+    if (!user) {
+      await audit(sys, {
+        action: AUDIT_ACTIONS.loginFailed,
+        details: { login, reason: 'unknown_user' },
+        severity: 'notice',
+        ip: meta.ip,
+        userAgent: meta.userAgent,
+      })
+      // Сообщение не раскрывает существование учётной записи
+      throw errors.unauthorized('Неверный логин или пароль')
+    }
+
+    const [cred] = await db()
+      .select()
+      .from(credentials)
+      .where(eq(credentials.userId, user.id))
+      .limit(1)
+    if (!cred) throw errors.unauthorized('Неверный логин или пароль')
+
+    if (cred.lockedUntil && new Date(cred.lockedUntil) > new Date()) {
+      const minutes = Math.ceil((new Date(cred.lockedUntil).getTime() - Date.now()) / 60000)
+      throw errors.unauthorized(
+        `Учётная запись временно заблокирована, повторите через ${minutes} мин`,
+      )
+    }
+
+    const valid = await verifyPassword(cred.passwordHash, password)
+    if (!valid) {
+      const attempts = cred.failedAttempts + 1
+      const lock = attempts >= MAX_FAILED_ATTEMPTS
+      await db()
+        .update(credentials)
+        .set({
+          failedAttempts: lock ? 0 : attempts,
+          lockedUntil: lock ? sql`now() + make_interval(mins => ${LOCK_MINUTES})` : null,
+        })
+        .where(eq(credentials.userId, user.id))
+
+      await audit(sys, {
+        action: AUDIT_ACTIONS.loginFailed,
+        actorId: user.id,
+        details: { login, reason: 'bad_password', attempts, locked: lock },
+        severity: lock ? 'warning' : 'notice',
+        ip: meta.ip,
+        userAgent: meta.userAgent,
+      })
+      await db().transaction(async (tx) => {
+        await publishEvent(tx, sys, {
+          type: 'user.login_failed',
+          object: { id: user.id, type: 'user' },
+          payload: { login, reason: 'bad_password' },
+        })
+      })
+      throw errors.unauthorized('Неверный логин или пароль')
+    }
+
+    if (user.status !== 'active') {
+      await audit(sys, {
+        action: AUDIT_ACTIONS.loginFailed,
+        actorId: user.id,
+        details: { reason: `status_${user.status}` },
+        severity: 'warning',
+        ip: meta.ip,
+        userAgent: meta.userAgent,
+      })
+      throw errors.unauthorized('Учётная запись отключена. Обратитесь к администратору')
+    }
+
+    await db()
+      .update(credentials)
+      .set({ failedAttempts: 0, lockedUntil: null })
+      .where(eq(credentials.userId, user.id))
+
+    const factors = await db()
+      .select({ id: mfaFactors.id })
+      .from(mfaFactors)
+      .where(and(eq(mfaFactors.userId, user.id), sql`${mfaFactors.verifiedAt} is not null`))
+
+    if (factors.length > 0) {
+      const challengeToken = randomToken(32)
+      const challengeId = newId()
+      await db()
+        .insert(mfaChallenges)
+        .values({
+          id: challengeId,
+          userId: user.id,
+          tokenHash: hashToken(challengeToken),
+          ip: meta.ip,
+          userAgent: meta.userAgent,
+          expiresAt: new Date(Date.now() + MFA_CHALLENGE_MINUTES * 60_000).toISOString(),
+        })
+      return {
+        status: 'mfa_required',
+        challengeToken,
+        challengeId,
+        expiresAt: new Date(Date.now() + MFA_CHALLENGE_MINUTES * 60_000).toISOString(),
+      }
+    }
+
+    const session = await AuthService.createSession(user.id, meta, false)
+    await AuthService.afterLogin(user.id, meta)
+    return user.mustChangePassword
+      ? { status: 'password_change_required', ...session }
+      : { status: 'ok', ...session }
+  },
+
+  async verifyMfa(
+    challengeToken: string,
+    code: string,
+    meta: RequestMeta,
+  ): Promise<{ sessionToken: string; csrfToken: string; userId: string; expiresAt: string }> {
+    const [challenge] = await db()
+      .select()
+      .from(mfaChallenges)
+      .where(
+        and(
+          eq(mfaChallenges.tokenHash, hashToken(challengeToken)),
+          gt(mfaChallenges.expiresAt, sql`now()`),
+        ),
+      )
+      .limit(1)
+
+    if (!challenge) throw errors.unauthorized('Время подтверждения истекло, войдите заново')
+    if (challenge.attempts >= 5) {
+      await db().delete(mfaChallenges).where(eq(mfaChallenges.id, challenge.id))
+      throw errors.unauthorized('Слишком много попыток, войдите заново')
+    }
+
+    const ok =
+      (await AuthService.verifyTotp(challenge.userId, code)) ||
+      (await AuthService.consumeRecoveryCode(challenge.userId, code))
+
+    if (!ok) {
+      await db()
+        .update(mfaChallenges)
+        .set({ attempts: challenge.attempts + 1 })
+        .where(eq(mfaChallenges.id, challenge.id))
+      throw errors.unauthorized('Неверный код')
+    }
+
+    await db().delete(mfaChallenges).where(eq(mfaChallenges.id, challenge.id))
+    const session = await AuthService.createSession(challenge.userId, meta, true)
+    await AuthService.afterLogin(challenge.userId, meta)
+    return session
+  },
+
+  async verifyTotp(userId: string, code: string): Promise<boolean> {
+    const factors = await db()
+      .select()
+      .from(mfaFactors)
+      .where(and(eq(mfaFactors.userId, userId), eq(mfaFactors.kind, 'totp')))
+    for (const factor of factors) {
+      const secret = decryptSecret(factor.secretEnc)
+      if (authenticator.verify({ token: code.replace(/\s/g, ''), secret })) {
+        await db()
+          .update(mfaFactors)
+          .set({ lastUsedAt: sql`now()`, verifiedAt: factor.verifiedAt ?? sql`now()` })
+          .where(eq(mfaFactors.id, factor.id))
+        return true
+      }
+    }
+    return false
+  },
+
+  async consumeRecoveryCode(userId: string, code: string): Promise<boolean> {
+    const normalized = code.replace(/[\s-]/g, '').toUpperCase()
+    const rows = await db()
+      .select()
+      .from(recoveryCodes)
+      .where(and(eq(recoveryCodes.userId, userId), isNull(recoveryCodes.usedAt)))
+    for (const row of rows) {
+      if (row.codeHash === hashToken(normalized)) {
+        await db()
+          .update(recoveryCodes)
+          .set({ usedAt: sql`now()` })
+          .where(eq(recoveryCodes.id, row.id))
+        return true
+      }
+    }
+    return false
+  },
+
+  async createSession(
+    userId: string,
+    meta: RequestMeta,
+    mfaVerified: boolean,
+  ): Promise<{ sessionToken: string; csrfToken: string; userId: string; expiresAt: string }> {
+    const env = config()
+    const token = randomToken(32)
+    const csrfToken = randomToken(24)
+    const expiresAt = new Date(Date.now() + env.SESSION_ABSOLUTE_DAYS * 86_400_000).toISOString()
+
+    await db()
+      .insert(sessions)
+      .values({
+        id: newId(),
+        userId,
+        tokenHash: hashToken(token),
+        csrfToken,
+        ip: meta.ip,
+        userAgent: meta.userAgent,
+        deviceName: deviceNameFrom(meta.userAgent),
+        mfaVerifiedAt: mfaVerified ? new Date().toISOString() : null,
+        expiresAt,
+      })
+
+    return { sessionToken: token, csrfToken, userId, expiresAt }
+  },
+
+  async afterLogin(userId: string, meta: RequestMeta): Promise<void> {
+    const sys = systemCtx('auth.login', { requestId: meta.requestId, initiatorId: userId })
+    await db().update(users).set({ lastSeenAt: sql`now()` }).where(eq(users.id, userId))
+    await audit(sys, {
+      action: AUDIT_ACTIONS.login,
+      actorId: userId,
+      objectId: userId,
+      objectType: 'user',
+      ip: meta.ip,
+      userAgent: meta.userAgent,
+    })
+    await db().transaction(async (tx) => {
+      await publishEvent(tx, sys, {
+        type: 'user.login',
+        object: { id: userId, type: 'user' },
+        payload: { ip: meta.ip, userAgent: meta.userAgent },
+      })
+    })
+  },
+
+  /** Проверка сессии при каждом запросе; продлевает активность. */
+  async resolveSession(token: string): Promise<{
+    sessionId: string
+    userId: string
+    csrfToken: string
+    expiresAt: string
+    onBehalfOf: string | null
+  } | null> {
+    const env = config()
+    const [row] = await db()
+      .select()
+      .from(sessions)
+      .where(and(eq(sessions.tokenHash, hashToken(token)), isNull(sessions.revokedAt)))
+      .limit(1)
+
+    if (!row) return null
+    if (new Date(row.expiresAt) < new Date()) return null
+
+    const idleLimitMs = env.SESSION_IDLE_HOURS * 3_600_000
+    if (Date.now() - new Date(row.lastActiveAt).getTime() > idleLimitMs) {
+      await db().update(sessions).set({ revokedAt: sql`now()` }).where(eq(sessions.id, row.id))
+      return null
+    }
+
+    return {
+      sessionId: row.id,
+      userId: row.userId,
+      csrfToken: row.csrfToken,
+      expiresAt: row.expiresAt,
+      onBehalfOf: row.onBehalfOf,
+    }
+  },
+
+  async touchSession(sessionId: string): Promise<void> {
+    await db().update(sessions).set({ lastActiveAt: sql`now()` }).where(eq(sessions.id, sessionId))
+  },
+
+  async logout(ctx: UserCtx): Promise<void> {
+    await db().update(sessions).set({ revokedAt: sql`now()` }).where(eq(sessions.id, ctx.sessionId))
+    await audit(ctx, { action: AUDIT_ACTIONS.logout, objectId: ctx.userId, objectType: 'user' })
+    await db().transaction(async (tx) => {
+      await publishEvent(tx, ctx, { type: 'user.logout', object: { id: ctx.userId, type: 'user' } })
+    })
+  },
+
+  async revokeSessions(ctx: UserCtx, sessionIds: string[]): Promise<number> {
+    if (sessionIds.length === 0) return 0
+    const revoked = await db()
+      .update(sessions)
+      .set({ revokedAt: sql`now()` })
+      .where(and(eq(sessions.userId, ctx.userId), sql`${sessions.id} = ANY(${sessionIds})`))
+      .returning({ id: sessions.id })
+    await audit(ctx, {
+      action: AUDIT_ACTIONS.sessionRevoked,
+      details: { count: revoked.length },
+      severity: 'notice',
+    })
+    return revoked.length
+  },
+
+  async revokeAllExcept(userId: string, keepSessionId: string | null): Promise<number> {
+    const revoked = await db()
+      .update(sessions)
+      .set({ revokedAt: sql`now()` })
+      .where(
+        and(
+          eq(sessions.userId, userId),
+          isNull(sessions.revokedAt),
+          keepSessionId ? sql`${sessions.id} <> ${keepSessionId}` : sql`true`,
+        ),
+      )
+      .returning({ id: sessions.id })
+    return revoked.length
+  },
+
+  async listSessions(userId: string, currentSessionId: string) {
+    const rows = await db()
+      .select()
+      .from(sessions)
+      .where(and(eq(sessions.userId, userId), isNull(sessions.revokedAt)))
+      .orderBy(sql`${sessions.lastActiveAt} desc`)
+    return rows.map((row) => ({
+      id: row.id,
+      ip: row.ip,
+      userAgent: row.userAgent,
+      deviceName: row.deviceName,
+      createdAt: row.createdAt,
+      lastActiveAt: row.lastActiveAt,
+      expiresAt: row.expiresAt,
+      current: row.id === currentSessionId,
+    }))
+  },
+
+  // ── Пароль ────────────────────────────────────────────────────────────────
+
+  async changePassword(
+    ctx: UserCtx,
+    currentPassword: string,
+    newPassword: string,
+    revokeOthers: boolean,
+  ): Promise<void> {
+    const [cred] = await db()
+      .select()
+      .from(credentials)
+      .where(eq(credentials.userId, ctx.userId))
+      .limit(1)
+    if (!cred) throw errors.notFound('Учётные данные')
+    if (!(await verifyPassword(cred.passwordHash, currentPassword))) {
+      throw errors.validation('Текущий пароль неверен', [
+        { path: 'currentPassword', message: 'Текущий пароль неверен' },
+      ])
+    }
+    await AuthService.setPassword(ctx.userId, newPassword, ctx.displayName)
+    if (revokeOthers) await AuthService.revokeAllExcept(ctx.userId, ctx.sessionId)
+
+    await audit(ctx, {
+      action: AUDIT_ACTIONS.passwordChanged,
+      objectId: ctx.userId,
+      objectType: 'user',
+      severity: 'notice',
+    })
+    await db().transaction(async (tx) => {
+      await publishEvent(tx, ctx, {
+        type: 'user.password_changed',
+        object: { id: ctx.userId, type: 'user' },
+      })
+    })
+  },
+
+  /** `tx` обязателен, когда пользователь создаётся в той же транзакции. */
+  async setPassword(
+    userId: string,
+    password: string,
+    login?: string,
+    tx: Executor = db(),
+  ): Promise<void> {
+    const policy = checkPasswordPolicy(password, login)
+    if (!policy.ok) {
+      throw errors.validation('Пароль не соответствует политике', [
+        { path: 'newPassword', message: policy.messageKey ?? 'auth.password.tooSimple' },
+      ])
+    }
+
+    const [cred] = await tx
+      .select()
+      .from(credentials)
+      .where(eq(credentials.userId, userId))
+      .limit(1)
+    if (cred) {
+      for (const previous of cred.history.slice(-PASSWORD_HISTORY)) {
+        if (await verifyPassword(previous, password)) {
+          throw errors.validation('Этот пароль уже использовался', [
+            { path: 'newPassword', message: 'auth.password.reused' },
+          ])
+        }
+      }
+    }
+
+    const hash = await hashPassword(password)
+    const history = [...(cred?.history ?? []), cred?.passwordHash]
+      .filter(Boolean)
+      .slice(-PASSWORD_HISTORY) as string[]
+
+    if (cred) {
+      await tx
+        .update(credentials)
+        .set({
+          passwordHash: hash,
+          history,
+          failedAttempts: 0,
+          lockedUntil: null,
+          updatedAt: sql`now()`,
+        })
+        .where(eq(credentials.userId, userId))
+    } else {
+      await tx.insert(credentials).values({ userId, passwordHash: hash, history: [] })
+    }
+
+    await tx
+      .update(users)
+      .set({ passwordChangedAt: sql`now()`, mustChangePassword: false })
+      .where(eq(users.id, userId))
+    await invalidatePrincipalSet(userId)
+  },
+
+  async requestPasswordReset(login: string): Promise<{ token: string; userId: string } | null> {
+    const [user] = await db()
+      .select({ id: users.id, status: users.status })
+      .from(users)
+      .where(
+        or(
+          sql`lower(${users.login}) = ${login.toLowerCase()}`,
+          sql`lower(${users.email}) = ${login.toLowerCase()}`,
+        ),
+      )
+      .limit(1)
+    if (user?.status !== 'active') return null
+
+    const token = randomToken(32)
+    await db()
+      .insert(passwordResets)
+      .values({
+        id: newId(),
+        userId: user.id,
+        tokenHash: hashToken(token),
+        expiresAt: new Date(Date.now() + PASSWORD_RESET_MINUTES * 60_000).toISOString(),
+      })
+    return { token, userId: user.id }
+  },
+
+  async confirmPasswordReset(token: string, newPassword: string): Promise<string> {
+    const [row] = await db()
+      .select()
+      .from(passwordResets)
+      .where(
+        and(
+          eq(passwordResets.tokenHash, hashToken(token)),
+          isNull(passwordResets.usedAt),
+          gt(passwordResets.expiresAt, sql`now()`),
+        ),
+      )
+      .limit(1)
+    if (!row) throw errors.validation('Ссылка недействительна или истекла')
+
+    await AuthService.setPassword(row.userId, newPassword)
+    await db()
+      .update(passwordResets)
+      .set({ usedAt: sql`now()` })
+      .where(eq(passwordResets.id, row.id))
+    await AuthService.revokeAllExcept(row.userId, null)
+    return row.userId
+  },
+
+  // ── MFA ───────────────────────────────────────────────────────────────────
+
+  async startMfaSetup(ctx: UserCtx): Promise<{ secret: string; otpauthUrl: string }> {
+    const secret = authenticator.generateSecret()
+    const issuer = 'kchs'
+    const otpauthUrl = authenticator.keyuri(ctx.displayName || ctx.userId, issuer, secret)
+
+    await db()
+      .delete(mfaFactors)
+      .where(and(eq(mfaFactors.userId, ctx.userId), isNull(mfaFactors.verifiedAt)))
+    await db()
+      .insert(mfaFactors)
+      .values({
+        id: newId(),
+        userId: ctx.userId,
+        kind: 'totp',
+        secretEnc: encryptSecret(secret),
+        name: 'Приложение-аутентификатор',
+      })
+    return { secret, otpauthUrl }
+  },
+
+  async enableMfa(ctx: UserCtx, code: string): Promise<string[]> {
+    const ok = await AuthService.verifyTotp(ctx.userId, code)
+    if (!ok)
+      throw errors.validation('Неверный код', [{ path: 'code', message: 'auth.mfa.invalid' }])
+
+    const codes = Array.from({ length: 10 }, () => `${randomCode(5)}-${randomCode(5)}`)
+    await db().delete(recoveryCodes).where(eq(recoveryCodes.userId, ctx.userId))
+    await db()
+      .insert(recoveryCodes)
+      .values(
+        codes.map((code) => ({
+          id: newId(),
+          userId: ctx.userId,
+          codeHash: hashToken(code.replace('-', '')),
+        })),
+      )
+
+    await audit(ctx, {
+      action: AUDIT_ACTIONS.mfaEnabled,
+      objectId: ctx.userId,
+      objectType: 'user',
+      severity: 'notice',
+    })
+    await db().transaction(async (tx) => {
+      await publishEvent(tx, ctx, {
+        type: 'user.mfa_enabled',
+        object: { id: ctx.userId, type: 'user' },
+        payload: { kind: 'totp' },
+      })
+    })
+    return codes
+  },
+
+  async disableMfa(ctx: UserCtx, userId: string): Promise<void> {
+    await db().delete(mfaFactors).where(eq(mfaFactors.userId, userId))
+    await db().delete(recoveryCodes).where(eq(recoveryCodes.userId, userId))
+    await audit(ctx, {
+      action: AUDIT_ACTIONS.mfaDisabled,
+      objectId: userId,
+      objectType: 'user',
+      severity: 'warning',
+    })
+    await db().transaction(async (tx) => {
+      await publishEvent(tx, ctx, {
+        type: 'user.mfa_disabled',
+        object: { id: userId, type: 'user' },
+        payload: { kind: 'totp' },
+      })
+    })
+  },
+
+  async mfaEnabled(userId: string): Promise<boolean> {
+    const rows = await db()
+      .select({ id: mfaFactors.id })
+      .from(mfaFactors)
+      .where(and(eq(mfaFactors.userId, userId), sql`${mfaFactors.verifiedAt} is not null`))
+      .limit(1)
+    return rows.length > 0
+  },
+}
+
+function deviceNameFrom(userAgent: string | null): string | null {
+  if (!userAgent) return null
+  const ua = userAgent.toLowerCase()
+  const os = ua.includes('windows')
+    ? 'Windows'
+    : ua.includes('mac os')
+      ? 'macOS'
+      : ua.includes('android')
+        ? 'Android'
+        : ua.includes('iphone') || ua.includes('ipad')
+          ? 'iOS'
+          : ua.includes('linux')
+            ? 'Linux'
+            : null
+  const browser = ua.includes('edg/')
+    ? 'Edge'
+    : ua.includes('chrome')
+      ? 'Chrome'
+      : ua.includes('firefox')
+        ? 'Firefox'
+        : ua.includes('safari')
+          ? 'Safari'
+          : null
+  return [browser, os].filter(Boolean).join(' · ') || null
+}

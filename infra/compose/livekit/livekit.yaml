@@ -1,0 +1,15 @@
+# LiveKit SFU (фаза 4). Ключи задаются переменными окружения compose.
+port: 7880
+rtc:
+  tcp_port: 7881
+  port_range_start: 50000
+  port_range_end: 50100
+  use_external_ip: false
+turn:
+  enabled: true
+  udp_port: 3478
+keys:
+  # заполняется из .env при поднятии профиля media
+  devkey: devsecret_change_me_at_least_32_characters
+logging:
+  level: info

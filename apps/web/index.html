@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="description" content="kchs — единая корпоративная рабочая платформа" />
+    <title>kchs</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <script>
+      // Тема применяется до первой отрисовки — без вспышки светлого фона
+      const root = document.documentElement
+      let appearance = {}
+      try {
+        const stored = JSON.parse(localStorage.getItem('kchs.appearance') || '{}')
+        appearance = stored.state || stored
+      } catch {
+        appearance = {}
+      }
+      if (appearance.theme === 'light' || appearance.theme === 'dark') {
+        root.dataset.theme = appearance.theme
+      }
+      if (appearance.density) root.dataset.density = appearance.density
+      if (appearance.fontSize) root.dataset.fontSize = appearance.fontSize
+      if (appearance.locale) root.lang = appearance.locale
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

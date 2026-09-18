@@ -1,0 +1,27 @@
+{
+  "name": "@kchs/i18n",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./locales/*": "./src/locales/*"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "check": "tsx scripts/check-keys.ts",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "i18next": "^25.6.0"
+  },
+  "devDependencies": {
+    "@kchs/config": "workspace:*",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4",
+    "@types/node": "^22.18.9"
+  }
+}
