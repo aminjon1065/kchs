@@ -15,6 +15,7 @@
       "!**/storybook-static",
       "!**/drizzle/**/*.sql",
       "!**/drizzle/meta",
+      "!apps/api/openapi.json",
       "!**/routeTree.gen.ts",
       "!**/*.gen.ts",
       "!apps/engine",
