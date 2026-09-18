@@ -208,7 +208,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(rate(http_server_request_duration_count{job=~\"$job\", http_response_status_code=~\"5..\"}[5m])) / sum(rate(http_server_request_duration_count{job=~\"$job\", http_route!=\"/health\"}[5m]))",
+          "expr": "(sum(rate(http_server_request_duration_count{job=~\"$job\", http_response_status_code=~\"5..\"}[5m])) or vector(0)) / sum(rate(http_server_request_duration_count{job=~\"$job\", http_route!=\"/health\"}[5m]))",
           "refId": "A",
           "instant": false
         }
