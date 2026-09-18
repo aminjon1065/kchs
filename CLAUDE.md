@@ -50,9 +50,10 @@ docker compose --profile observability up -d  # трассы, метрики, ж
 Проверки (как в CI, `.github/workflows/ci.yml`):
 
 ```bash
-pnpm lint && pnpm typecheck && pnpm deps:check
+pnpm lint && pnpm typecheck && pnpm deps:check && pnpm knip
 pnpm i18n:check && pnpm i18n:literals
 pnpm --filter @kchs/ui contrast && pnpm --filter @kchs/ui tokens
+pnpm --filter @kchs/ui test:visual       # снимки историй в двух темах и axe (Docker)
 pnpm --filter @kchs/contracts gen:engine # контракты движка; git diff должен быть пустым
 pnpm test                                # unit
 pnpm test:integration                    # интеграционные (база kchs_test)
