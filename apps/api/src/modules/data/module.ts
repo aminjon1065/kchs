@@ -40,6 +40,8 @@ import {
   type ObjectSummary,
   QueryResult,
   QueryRunInput,
+  SqlRunInput,
+  SqlSchema,
 } from '@kchs/contracts'
 import { eq, inArray, sql } from 'drizzle-orm'
 import { z } from 'zod'
@@ -69,6 +71,7 @@ import { ProfileService } from './domain/profile-service.js'
 import { QueryService } from './domain/query-service.js'
 import { RowService } from './domain/row-service.js'
 import { SchemaService } from './domain/schema-service.js'
+import { SqlService } from './domain/sql-service.js'
 import { Physical } from './infra/physical.js'
 
 const IdParam = z.object({ id: z.uuid() })
@@ -352,6 +355,26 @@ export function registerDataRoutes(route: RouteRegistrar): void {
       )
       return DatasetService.get(request.params.id)
     },
+  })
+
+  route({
+    method: 'GET',
+    url: '/sql/schema',
+    auth: 'session',
+    tags: ['data'],
+    summary: 'SQL-лаборатория: датасеты и поля для подсказок',
+    schema: { response: { 200: SqlSchema } },
+    handler: async (request) => SqlService.schema(request.ctx),
+  })
+
+  route({
+    method: 'POST',
+    url: '/sql/run',
+    auth: 'session',
+    tags: ['data'],
+    summary: 'SQL-лаборатория: выполнить SELECT над датасетами с политиками пользователя',
+    schema: { body: SqlRunInput, response: { 200: QueryResult } },
+    handler: async (request) => QueryService.runSql(request.ctx, request.body),
   })
 
   route({

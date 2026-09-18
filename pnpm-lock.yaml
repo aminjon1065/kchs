@@ -274,6 +274,9 @@ importers:
       ioredis:
         specifier: ^5.8.1
         version: 5.11.1(supports-color@7.2.0)
+      libpg-query:
+        specifier: ^17.7.4
+        version: 17.7.4
       meilisearch:
         specifier: ^0.54.0
         version: 0.54.0

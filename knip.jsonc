@@ -23,8 +23,9 @@
         "scripts/*.mjs"
       ],
       "project": ["src/**/*.ts", "test/**/*.ts", "scripts/*.mjs"],
-      // pino-pretty подключается строкой-транспортом в shared/logger (режим разработки)
-      "ignoreDependencies": ["pino-pretty"]
+      // pino-pretty подключается строкой-транспортом в shared/logger (режим разработки);
+      // libpg-query грузит @kchs/query — зависимость api оставляет её внешней в бандле (.wasm)
+      "ignoreDependencies": ["pino-pretty", "libpg-query"]
     },
     "apps/web": {
       "entry": ["e2e/**/*.ts", "scripts/*.mjs", "public/*.js"],

@@ -95,7 +95,8 @@ export const sqlEditorTheme = EditorView.theme({
 
   // Номера строк
   '.cm-gutters': {
-    backgroundColor: 'transparent',
+    // Непрозрачный: при прокрутке вбок текст не просвечивает под номерами строк
+    backgroundColor: 'var(--sql-editor-bg, var(--bg-surface))',
     color: 'var(--text-muted)',
     border: 'none',
   },

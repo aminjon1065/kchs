@@ -4,6 +4,7 @@ import { DashboardView } from '~/features/data/dashboard-view.js'
 import { DataCatalogScreen } from '~/features/data/data-catalog-screen.js'
 import { DatasetView } from '~/features/data/dataset-view.js'
 import { ExploreScreen } from '~/features/data/explore-screen.js'
+import { type SavedSqlLab, SqlLabScreen } from '~/features/data/sql-lab-screen.js'
 import { FilesScreen } from '~/features/files/files-screen.js'
 import { HomeScreen } from '~/features/home/home-screen.js'
 import { InboxScreen } from '~/features/inbox/inbox-screen.js'
@@ -77,6 +78,12 @@ export function registerModules(): void {
         savedState={tab.state as Parameters<typeof ExploreScreen>[0]['savedState']}
       />
     ),
+  })
+  registerScreen({
+    key: 'sql',
+    titleKey: 'data.sql.title',
+    icon: 'query',
+    render: (tab) => <SqlLabScreen tabId={tab.id} savedState={tab.state as SavedSqlLab} />,
   })
   registerScreen({
     key: 'search',

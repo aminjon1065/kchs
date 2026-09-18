@@ -5,23 +5,29 @@ import {
   type QueryResult,
   type QueryResultField,
   QuerySpec,
+  type SqlRunInput,
 } from '@kchs/contracts'
 import {
   type CompiledQuery,
+  type CompiledRawSql,
   type CompileUser,
   cacheKeyText,
   collectSources,
   compileQuery,
+  compileRawSql,
   QueryCompileError,
   type ResolvedDataset,
   type RowPolicy,
+  rawSqlErrorPosition,
+  rawSqlTables,
+  type SqlDataset,
 } from '@kchs/query'
-import { inArray } from 'drizzle-orm'
-import { authorize } from '~/kernel/access/authorize.js'
+import { and, eq, inArray, isNull, sql } from 'drizzle-orm'
+import { authorize, requireCapability, visibleObjectsSql } from '~/kernel/access/authorize.js'
 import type { Ctx } from '~/shared/context.js'
 import { db, queryRoleSql } from '~/shared/db/client.js'
 import { pgErrorCode } from '~/shared/db/pg-error.js'
-import { queries, queryRuns } from '~/shared/db/schema/index.js'
+import { objects, queries, queryRuns } from '~/shared/db/schema/index.js'
 import { AppError, errors } from '~/shared/errors.js'
 import { logger } from '~/shared/logger/index.js'
 import { redis } from '~/shared/redis/index.js'
@@ -34,6 +40,44 @@ const CACHE_TTL_SECONDS = 300
 const QUERY_CANCELED = '57014'
 /** Строк в пачке курсора потокового чтения. */
 const STREAM_BATCH = 2000
+/** Предел строк результата SQL-лаборатории — как у интерактивных запросов. */
+const SQL_MAX_ROWS = 50_000
+
+/** Столбцы сырого SQL без поля датасета: тип по OID Postgres. */
+const PG_TYPES: Record<number, FieldType> = {
+  16: 'boolean',
+  20: 'integer',
+  21: 'integer',
+  23: 'integer',
+  700: 'number',
+  701: 'number',
+  1700: 'decimal',
+  1082: 'date',
+  1114: 'datetime',
+  1184: 'datetime',
+  1083: 'time',
+  114: 'json',
+  3802: 'json',
+  1009: 'multi_select',
+}
+
+/** Ошибки выполнения по SQLSTATE — понятными словами (06-analytics-engine.md §6). */
+const PG_MESSAGES: Record<string, string> = {
+  '21000': 'Подзапрос вернул больше одной строки',
+  '22003': 'Число вне допустимого диапазона',
+  '22007': 'Некорректная дата или время',
+  '22008': 'Дата или время вне допустимого диапазона',
+  '22012': 'Деление на ноль',
+  '2201E': 'Некорректный аргумент логарифма',
+  '22023': 'Некорректное значение аргумента',
+  '22P02': 'Значение не приводится к нужному типу',
+  '42803': 'Поле должно быть в GROUP BY или внутри агрегата',
+  '42804': 'Несовместимые типы',
+  '42883': 'Нет такой функции или операции для этих типов',
+  '42P18': 'Не удалось определить тип значения',
+  '53200': 'Запросу не хватило памяти',
+  '54001': 'Запрос слишком сложный',
+}
 const NUMERIC = new Set<string>(['integer', 'number', 'decimal', 'money', 'percent'])
 
 export interface RunOptions {
@@ -175,6 +219,72 @@ async function recordRun(
 }
 
 /**
+ * Датасеты по именам таблиц сырого SQL: видимые пользователю, с его политиками.
+ * Два доступных датасета с одним именем — неоднозначность, запрос не выполняется.
+ */
+async function sqlDatasets(ctx: Ctx, names: string[]): Promise<SqlDataset[]> {
+  if (names.length === 0) return []
+  const wanted = [...new Set(names.map((name) => name.toLowerCase()))]
+  const candidates = await db()
+    .select({ id: objects.id, title: objects.title })
+    .from(objects)
+    .where(
+      and(
+        eq(objects.type, 'dataset'),
+        isNull(objects.deletedAt),
+        inArray(sql`lower(${objects.title})`, wanted),
+        visibleObjectsSql(ctx, 'dataset'),
+      ),
+    )
+    .limit(50)
+  const found: SqlDataset[] = []
+  const counts = new Map<string, number>()
+  for (const candidate of candidates) {
+    try {
+      const { dataset } = await resolveDataset(ctx, candidate.id)
+      found.push({ ...dataset, name: candidate.title })
+      const key = candidate.title.toLowerCase()
+      counts.set(key, (counts.get(key) ?? 0) + 1)
+    } catch (error) {
+      if (error instanceof AppError && (error.status === 403 || error.status === 404)) continue
+      throw error
+    }
+  }
+  for (const [name, count] of counts) {
+    if (count > 1) {
+      throw errors.validation(
+        `Несколько доступных датасетов называются «${name}» — переименуйте один из них`,
+      )
+    }
+  }
+  return found
+}
+
+/** Ошибка Postgres при выполнении сырого SQL: понятное сообщение и позиция в тексте пользователя. */
+function sqlExecutionError(compiled: CompiledRawSql, error: unknown): unknown {
+  const code = pgErrorCode(error)
+  if (!code) return error
+  const raw = error as { message?: unknown; position?: unknown }
+  const at = raw.position === undefined ? null : Number(raw.position)
+  const position = at !== null && Number.isFinite(at) ? rawSqlErrorPosition(compiled, at) : null
+  const known = PG_MESSAGES[code]
+  const detail = typeof raw.message === 'string' ? raw.message : ''
+  const message = known ?? (detail ? `Запрос не выполнен: ${detail}` : 'Запрос не выполнен')
+  return new AppError('validation_failed', message, 400, {
+    data: {
+      issues: [
+        {
+          path: ['sql'],
+          message,
+          ...(position !== null ? { position } : {}),
+          ...(known && detail ? { hint: detail } : {}),
+        },
+      ],
+    },
+  })
+}
+
+/**
  * Проверка фильтра политики строк так же, как при чтении: поля датасета (и
  * скрытые), макросы пользователя, без параметров запроса. Ошибка — 400 с
  * путём и сообщением компилятора.
@@ -313,6 +423,108 @@ export const QueryService = {
     await redis().set(cacheKey, JSON.stringify(result), 'EX', CACHE_TTL_SECONDS)
     await recordRun(ctx, {
       queryId: options.queryId,
+      specHash,
+      durationMs: result.durationMs,
+      rowCount: result.rows.length,
+      cached: false,
+    })
+    return result
+  },
+
+  /**
+   * SQL-лаборатория (06-analytics-engine.md §6, ADR-0052): имена таблиц → датасеты
+   * пользователя с политиками, компиляция `compileRawSql` (белые списки,
+   * подзапросы-политики, параметры), выполнение под `kchs_query` в транзакции
+   * только для чтения с тайм-аутом и поясом пользователя, кэш — если запрос
+   * детерминированный. Нужна способность `data.sql`.
+   */
+  async runSql(ctx: Ctx, input: SqlRunInput): Promise<QueryResult> {
+    requireCapability(ctx, 'data.sql')
+    const started = performance.now()
+    let compiled: CompiledRawSql
+    try {
+      const datasets = await sqlDatasets(ctx, await rawSqlTables(input.sql))
+      compiled = await compileRawSql(input.sql, {
+        datasets,
+        user: compileUser(ctx),
+        params: input.params,
+        now: new Date(),
+        ...(ctx.kind === 'user' ? { timezone: ctx.timezone } : {}),
+        maxRows: SQL_MAX_ROWS,
+      })
+    } catch (error) {
+      if (error instanceof QueryCompileError) throw compileError(error)
+      throw error
+    }
+
+    const specHash = createHash('sha256')
+      .update(`sql|${cacheKeyText(compiled.cacheKeyParts)}`)
+      .digest('hex')
+    const cacheKey = `kchs:query:${specHash}`
+    if (compiled.cacheable) {
+      const hit = await redis().get(cacheKey)
+      if (hit) {
+        const result = { ...(JSON.parse(hit) as QueryResult), cached: true }
+        const durationMs = performance.now() - started
+        await recordRun(ctx, { specHash, durationMs, rowCount: result.rows.length, cached: true })
+        return { ...result, durationMs }
+      }
+    }
+
+    let data: unknown[][] & { columns?: Array<{ name: string; type: number }> }
+    try {
+      data = await queryRoleSql().begin('read only', async (sql) => {
+        await sql`SELECT set_config('statement_timeout', ${String(compiled.timeoutMs)}, true),
+                         set_config('TimeZone', ${compiled.timezone}, true)`
+        return sql.unsafe(compiled.sql, compiled.params as never[]).values()
+      })
+    } catch (error) {
+      await recordRun(ctx, {
+        specHash,
+        durationMs: performance.now() - started,
+        rowCount: null,
+        cached: false,
+        error: error instanceof Error ? error.message : String(error),
+      })
+      if (pgErrorCode(error) === QUERY_CANCELED) throw errors.queryTimeout()
+      throw sqlExecutionError(compiled, error)
+    }
+
+    // Поля: прямые ссылки на поля датасета — с подписью и форматом, остальное — по типу Postgres
+    const fields: QueryResultField[] = (data.columns ?? []).map((column, index) => {
+      const field = compiled.fields?.[index]?.field ?? null
+      if (field) {
+        // Геометрия без ST_AsGeoJSON приходит как EWKB — показывается текстом
+        return field.type === 'geometry'
+          ? { ...field, name: column.name, type: 'text' }
+          : { ...field, name: column.name }
+      }
+      return {
+        name: column.name,
+        type: PG_TYPES[column.type] ?? 'text',
+        semantic: null,
+        label: null,
+        format: null,
+      }
+    })
+    let rows = data as unknown[][]
+    const truncated = rows.length > SQL_MAX_ROWS
+    if (truncated) rows = rows.slice(0, SQL_MAX_ROWS)
+    const result: QueryResult = {
+      fields,
+      rows: rows.map((row) =>
+        row.map((value, index) => jsonValue(value, fields[index]?.type ?? 'text')),
+      ),
+      rowCount: truncated ? null : rows.length,
+      approx: false,
+      truncated,
+      durationMs: performance.now() - started,
+      cached: false,
+    }
+    if (compiled.cacheable) {
+      await redis().set(cacheKey, JSON.stringify(result), 'EX', CACHE_TTL_SECONDS)
+    }
+    await recordRun(ctx, {
       specHash,
       durationMs: result.durationMs,
       rowCount: result.rows.length,

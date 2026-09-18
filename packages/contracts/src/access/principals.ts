@@ -70,6 +70,7 @@ export const CAPABILITIES = [
   'documents.journals.manage',
   'data.sources.manage',
   'data.export',
+  'data.sql',
   'gis.basemaps.manage',
   'automation.manage',
   'admin.audit.read',

@@ -13,12 +13,12 @@ import {
   useBreakpoint,
 } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
-import { LayoutDashboard, Upload } from 'lucide-react'
+import { LayoutDashboard, SquareTerminal, Upload } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
-import { spacesQuery } from '~/shared/api/queries.js'
+import { meQuery, spacesQuery } from '~/shared/api/queries.js'
 import { emptyCollectionState } from '~/shared/collections/collection-state.js'
 import { SavedViewsMenu } from '~/shared/collections/saved-views-menu.js'
 import { useListFields } from '~/shared/collections/use-list-fields.js'
@@ -52,6 +52,8 @@ export function DataCatalogScreen({
   const openTab = useWorkspace((s) => s.openTab)
   const setTabState = useWorkspace((s) => s.setTabState)
   const breakpoint = useBreakpoint()
+  const { data: me } = useQuery(meQuery())
+  const canSql = me?.capabilities.includes('data.sql') ?? false
 
   const { data: spaces = [] } = useQuery(spacesQuery())
   const [spaceId, setSpaceId] = useState<string | undefined>(initialSpaceId)
@@ -138,6 +140,23 @@ export function DataCatalogScreen({
         }
         right={
           <>
+            {canSql ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={<SquareTerminal className="size-3.5" />}
+                onClick={() =>
+                  openTab({
+                    kind: 'screen',
+                    screen: 'sql',
+                    title: t('data.sql.title'),
+                    mode: 'permanent',
+                  })
+                }
+              >
+                {t('data.sql.title')}
+              </Button>
+            ) : null}
             <Button
               variant="secondary"
               size="sm"

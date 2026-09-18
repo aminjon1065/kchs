@@ -562,9 +562,7 @@ describe('сырой SQL: понятные ошибки с позицией', ()
   })
 
   it('имя таблицы в форме U&"…" не переписывается — просим обычные кавычки', async () => {
-    const error = await compileError(
-      'SELECT * FROM U&"\\0420\\0435\\0433\\0438\\043e\\043d\\044b"',
-    )
+    const error = await compileError('SELECT * FROM U&"\\0420\\0435\\0433\\0438\\043e\\043d\\044b"')
     expect(error.issues[0]).toMatchObject({
       message: 'Не удалось прочитать имя таблицы: используйте обычные двойные кавычки',
       position: 14,

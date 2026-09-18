@@ -13,6 +13,7 @@ import type {
   JobRecord,
   JobStatus,
   QueryResult,
+  SqlSchema,
 } from '@kchs/contracts'
 import { queryOptions } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
@@ -52,6 +53,14 @@ export const datasetImportsQuery = (id: string) =>
     queryKey: dataKeys.imports(id),
     queryFn: async () =>
       (await http.get<{ items: ImportRecord[] }>(`/datasets/${id}/imports`)).items,
+  })
+
+/** Датасеты и поля для подсказок SQL-лаборатории (способность `data.sql`). */
+export const sqlSchemaQuery = () =>
+  queryOptions({
+    queryKey: ['sql', 'schema'] as const,
+    queryFn: () => http.get<SqlSchema>('/sql/schema'),
+    staleTime: 60_000,
   })
 
 /** Строка по `_id` — с политиками пользователя, как в таблице. */

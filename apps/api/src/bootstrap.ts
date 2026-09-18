@@ -28,6 +28,7 @@ const SYSTEM_ROLES: Array<{
       'documents.journals.manage',
       'data.sources.manage',
       'data.export',
+      'data.sql',
       'gis.basemaps.manage',
       'automation.manage',
       'admin.audit.read',
@@ -61,13 +62,13 @@ const SYSTEM_ROLES: Array<{
     key: 'data_steward',
     name: { ru: 'Ответственный за данные', tg: 'Масъули маълумот', en: 'Data steward' },
     description: 'Источники данных, качество, экспорт',
-    capabilities: ['data.sources.manage', 'data.export', 'spaces.create', 'ai.use'],
+    capabilities: ['data.sources.manage', 'data.export', 'data.sql', 'spaces.create', 'ai.use'],
   },
   {
     key: 'gis_admin',
     name: { ru: 'Администратор ГИС', tg: 'Маъмури ГИС', en: 'GIS administrator' },
     description: 'Базовые карты, слои, пространственные данные',
-    capabilities: ['gis.basemaps.manage', 'data.export', 'spaces.create'],
+    capabilities: ['gis.basemaps.manage', 'data.export', 'data.sql', 'spaces.create'],
   },
   {
     key: 'employee',

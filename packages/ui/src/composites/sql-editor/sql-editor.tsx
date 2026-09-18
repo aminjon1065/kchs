@@ -153,6 +153,13 @@ export const SqlEditor = forwardRef<SqlEditorHandle, SqlEditorProps>(function Sq
   // Колбэки редактора читают актуальные пропсы; редактор создаётся с последними значениями
   const latest = useRef({ value, onChange, onRun, config, completion, list, autoFocus })
   latest.current = { value, onChange, onRun, config, completion, list, autoFocus }
+  /**
+   * Последний текст, отданный через onChange. Проп `value`, равный ему, — эхо
+   * правки пользователя: в документ он не возвращается. Иначе отстающее эхо
+   * при быстром наборе откатывало бы свежий ввод, а откат снова вызывал бы
+   * onChange внутри отрисовки — бесконечный цикл обновлений.
+   */
+  const emitted = useRef<string | null>(null)
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: attempt — повтор загрузки после ошибки
   useEffect(() => {
@@ -180,7 +187,10 @@ export const SqlEditor = forwardRef<SqlEditorHandle, SqlEditorProps>(function Sq
         completion: current.completion,
         diagnostics: current.list,
         nonce: cspNonce(),
-        onChange: (next) => latest.current.onChange?.(next),
+        onChange: (next) => {
+          emitted.current = next
+          latest.current.onChange?.(next)
+        },
         onRun: (text, selection) => {
           const handler = latest.current.onRun
           if (!handler) return false
@@ -203,7 +213,10 @@ export const SqlEditor = forwardRef<SqlEditorHandle, SqlEditorProps>(function Sq
   }, [host, attempt])
 
   // Пропсы → редактор без пересоздания (до загрузки их читает создание редактора)
-  useEffect(() => controller.current?.setValue(value), [value])
+  useEffect(() => {
+    if (value === emitted.current) return
+    controller.current?.setValue(value)
+  }, [value])
   useEffect(() => controller.current?.setConfig(config), [config])
   useEffect(() => controller.current?.setCompletion(completion), [completion])
   useEffect(() => controller.current?.setDiagnostics(list), [list])
@@ -232,6 +245,8 @@ export const SqlEditor = forwardRef<SqlEditorHandle, SqlEditorProps>(function Sq
         '--sql-editor-min-height': `${minHeight}px`,
         '--sql-editor-max-height': `${maxHeight}px`,
       }
+  // Фон номеров строк — как у поля: прокрученный вбок текст уходит под них
+  sizing['--sql-editor-bg'] = readOnly ? 'var(--bg-surface-2)' : 'var(--bg-surface)'
   const style = sizing as CSSProperties
 
   return (

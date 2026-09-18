@@ -20,6 +20,7 @@ export type ScreenKey =
   | 'trash'
   | 'jobs'
   | 'explore'
+  | 'sql'
 
 export interface TabState {
   id: string
