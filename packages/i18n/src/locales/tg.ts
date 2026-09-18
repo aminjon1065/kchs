@@ -104,6 +104,22 @@ export const tg: DeepPartial<Dictionary> = {
     theme: { light: 'Равшан', dark: 'Торик', system: 'Системавӣ' },
     density: { comfortable: 'Бароҳат', compact: 'Фишурда' },
   },
+  ui: {
+    loading: 'Боркунӣ',
+    empty: 'Холӣ',
+    untitled: 'Беном',
+    actions: {
+      close: 'Пӯшидан',
+      cancel: 'Бекор кардан',
+      confirm: 'Тасдиқ',
+      open: 'Кушодан',
+      retry: 'Такрор',
+      dismiss: 'Пинҳон кардан',
+    },
+    noAccess: { title: 'Дастрасӣ нест', request: 'Дархости дастрасӣ' },
+    password: { show: 'Нишон додани рамз', hide: 'Пинҳон кардани рамз' },
+    search: { placeholder: 'Ҷустуҷӯ', clear: 'Тоза кардан' },
+  },
   auth: {
     signIn: {
       title: 'Ворид шудан',
@@ -159,6 +175,14 @@ export const tg: DeepPartial<Dictionary> = {
       discussion: 'Муҳокима',
       activity: 'Фаъолият',
       assistant: 'Ёрдамчӣ',
+    },
+    tabs: { new: 'Варақаи нав' },
+    shortcuts: {
+      goHome: 'Рӯзи ман',
+      goInbox: 'Воридот',
+      goFiles: 'Файлҳо',
+      newTab: 'Варақаи нав',
+      open: 'Кушодан',
     },
   },
   home: { title: 'Рӯзи ман' },

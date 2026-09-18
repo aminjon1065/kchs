@@ -1,5 +1,6 @@
 import type { SessionInfo } from '@kchs/contracts'
 import { formatRelativeTime } from '@kchs/fields'
+import { LOCALE_NAMES, LOCALES, type Locale } from '@kchs/i18n'
 import {
   Avatar,
   Badge,
@@ -73,7 +74,7 @@ export function ProfileScreen() {
   const revokeAll = useMutation({
     mutationFn: () => http.post('/me/sessions/revoke', { all: true }),
     onSuccess: () => {
-      toast.show({ title: 'Другие сессии завершены', tone: 'success' })
+      toast.show({ title: t('auth.session.othersRevoked'), tone: 'success' })
       void client.invalidateQueries({ queryKey: ['me', 'sessions'] })
     },
   })
@@ -117,7 +118,7 @@ export function ProfileScreen() {
           </Button>
         </header>
 
-        <Card title="Внешний вид">
+        <Card title={t('profile.appearance')}>
           <div className="grid gap-4 sm:grid-cols-3">
             <Field label={t('common.labels.theme')}>
               <SegmentedControl
@@ -162,14 +163,10 @@ export function ProfileScreen() {
                 aria-label={t('common.labels.language')}
                 value={locale}
                 onValueChange={(next) => {
-                  appearance.setLocale(next as 'ru' | 'tg' | 'en')
+                  appearance.setLocale(next as Locale)
                   updateProfile.mutate({ locale: next })
                 }}
-                options={[
-                  { value: 'ru', label: 'Рус' },
-                  { value: 'tg', label: 'Тоҷ' },
-                  { value: 'en', label: 'Eng' },
-                ]}
+                options={LOCALES.map((value) => ({ value, label: LOCALE_NAMES[value].short }))}
               />
             </Field>
           </div>
@@ -183,7 +180,7 @@ export function ProfileScreen() {
             />
             <div className="min-w-0 flex-1">
               <p className="text-sm text-fg">
-                {me.mfaEnabled ? t('auth.mfa.enabled') : 'Второй фактор не подключён'}
+                {me.mfaEnabled ? t('auth.mfa.enabled') : t('auth.mfa.disabled')}
               </p>
               <p className="text-xs text-fg-secondary">{t('auth.mfa.setupHint')}</p>
             </div>
@@ -211,7 +208,7 @@ export function ProfileScreen() {
               label={t('auth.reset.newPassword')}
               htmlFor="new-password"
               error={passwordError}
-              hint="Не короче 12 символов"
+              hint={t('auth.password.minLengthHint')}
             >
               <PasswordInput
                 id="new-password"
@@ -248,7 +245,7 @@ export function ProfileScreen() {
                 <Smartphone className="size-4 shrink-0 text-fg-muted" aria-hidden />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm text-fg">
-                    {session.deviceName ?? 'Неизвестное устройство'}
+                    {session.deviceName ?? t('auth.session.unknownDevice')}
                   </span>
                   <span className="block truncate text-xs text-fg-muted">
                     {session.ip ?? '—'} · {formatRelativeTime(session.lastActiveAt, { locale })}

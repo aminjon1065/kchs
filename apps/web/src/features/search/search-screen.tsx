@@ -99,7 +99,7 @@ export function SearchScreen({ initialQuery = '' }: { initialQuery?: string }) {
             <EmptyState
               icon={<SearchIcon />}
               title={t('search.title')}
-              description="Введите запрос — поиск идёт по объектам, доступным вам"
+              description={t('search.startHint')}
             />
           ) : isFetching && !data ? (
             <div className="flex flex-col gap-3 p-4">

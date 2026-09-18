@@ -42,7 +42,7 @@ export function AdminScreen() {
         right={
           <SegmentedControl
             size="sm"
-            aria-label="Раздел"
+            aria-label={t('admin.sectionLabel')}
             value={section}
             onValueChange={(next) => setSection(next as Section)}
             options={[
@@ -125,7 +125,9 @@ function HealthSection() {
                 </Badge>
               </div>
               <div className="tabular text-xs text-fg-muted">
-                {component.latencyMs !== null ? `${component.latencyMs} мс` : '—'}
+                {component.latencyMs !== null
+                  ? t('admin.health.latencyMs', { ms: component.latencyMs })
+                  : '—'}
               </div>
               {component.detail ? <p className="text-xs text-danger">{component.detail}</p> : null}
             </div>
@@ -138,18 +140,20 @@ function HealthSection() {
           label={t('admin.health.outboxPending', { count: data.outbox.pending })}
           value={data.outbox.pending}
         />
-        <StatTile label="Заданий в очереди" value={data.jobs.queued} />
-        <StatTile label="Выполняется" value={data.jobs.running} />
-        <StatTile label="Ошибок за сутки" value={data.jobs.failed} />
+        <StatTile label={t('admin.health.jobsQueued')} value={data.jobs.queued} />
+        <StatTile label={t('admin.health.jobsRunning')} value={data.jobs.running} />
+        <StatTile label={t('admin.health.jobsFailed')} value={data.jobs.failed} />
       </div>
 
-      <Card title="Инсталляция">
+      <Card title={t('admin.health.installation')}>
         <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2 text-sm">
-          <dt className="text-fg-muted">Версия</dt>
+          <dt className="text-fg-muted">{t('admin.health.version')}</dt>
           <dd className="tabular">{data.version}</dd>
-          <dt className="text-fg-muted">Время работы</dt>
-          <dd className="tabular">{Math.floor(data.uptimeSeconds / 60)} мин</dd>
-          <dt className="text-fg-muted">Состояние</dt>
+          <dt className="text-fg-muted">{t('admin.health.uptime')}</dt>
+          <dd className="tabular">
+            {t('admin.health.uptimeMinutes', { minutes: Math.floor(data.uptimeSeconds / 60) })}
+          </dd>
+          <dt className="text-fg-muted">{t('admin.health.state')}</dt>
           <dd>
             <Badge tone={data.status === 'ok' ? 'success' : 'warning'} dot>
               {t(`admin.health.${data.status}`)}
@@ -173,7 +177,7 @@ function UsersSection() {
       <SearchInput
         value={search}
         onValueChange={setSearch}
-        placeholder="Имя, логин или почта"
+        placeholder={t('admin.users.searchPlaceholder')}
         className="max-w-sm"
       />
       <Card padded={false}>
@@ -188,9 +192,9 @@ function UsersSection() {
                 <th className="h-8 px-3 font-medium">{t('common.labels.name')}</th>
                 <th className="h-8 px-3 font-medium">{t('common.labels.login')}</th>
                 <th className="h-8 px-3 font-medium">{t('common.labels.unit')}</th>
-                <th className="h-8 px-3 font-medium">MFA</th>
+                <th className="h-8 px-3 font-medium">{t('admin.users.columns.mfa')}</th>
                 <th className="h-8 px-3 font-medium">{t('common.labels.status')}</th>
-                <th className="h-8 px-3 font-medium">Активность</th>
+                <th className="h-8 px-3 font-medium">{t('admin.users.columns.lastSeen')}</th>
               </tr>
             </thead>
             <tbody>
@@ -204,7 +208,7 @@ function UsersSection() {
                   <td className="px-3">
                     {user.mfaEnabled ? (
                       <Badge tone="success" size="sm">
-                        вкл
+                        {t('admin.users.mfaOn')}
                       </Badge>
                     ) : (
                       <span className="text-xs text-fg-muted">—</span>
@@ -312,7 +316,7 @@ function AuditSection() {
       <SearchInput
         value={action}
         onValueChange={setAction}
-        placeholder="Действие, например user.login"
+        placeholder={t('admin.audit.searchPlaceholder')}
         className="max-w-sm"
       />
       <Card padded={false}>
@@ -324,11 +328,11 @@ function AuditSection() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-line text-left text-xs text-fg-muted">
-                <th className="h-8 px-3 font-medium">Время</th>
+                <th className="h-8 px-3 font-medium">{t('admin.audit.columns.time')}</th>
                 <th className="h-8 px-3 font-medium">{t('admin.audit.filterAction')}</th>
-                <th className="h-8 px-3 font-medium">Объект</th>
-                <th className="h-8 px-3 font-medium">IP</th>
-                <th className="h-8 px-3 font-medium">Важность</th>
+                <th className="h-8 px-3 font-medium">{t('admin.audit.columns.object')}</th>
+                <th className="h-8 px-3 font-medium">{t('admin.audit.columns.ip')}</th>
+                <th className="h-8 px-3 font-medium">{t('admin.audit.columns.severity')}</th>
               </tr>
             </thead>
             <tbody>
@@ -354,7 +358,7 @@ function AuditSection() {
                             : 'neutral'
                       }
                     >
-                      {entry.severity}
+                      {t(`admin.audit.severity.${entry.severity}`)}
                     </Badge>
                   </td>
                 </tr>

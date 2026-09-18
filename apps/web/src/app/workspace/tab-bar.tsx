@@ -58,7 +58,7 @@ export function TabBar({
       onDragOver={(event) => event.preventDefault()}
       onDrop={onDrop}
       role="tablist"
-      aria-label="Вкладки"
+      aria-label={t('shell.tabs.label')}
     >
       <div className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto">
         {pane.tabIds.map((tabId) => {
@@ -83,8 +83,8 @@ export function TabBar({
       </div>
 
       <div className="flex shrink-0 items-center gap-0.5">
-        <Tooltip content={t('shell.tabs.close')} shortcut="mod+t">
-          <IconButton label="Новая вкладка" size="sm" onClick={onOpenPalette}>
+        <Tooltip content={t('shell.tabs.new')} shortcut="mod+t">
+          <IconButton label={t('shell.tabs.new')} size="sm" onClick={onOpenPalette}>
             <Plus className="size-3.5" />
           </IconButton>
         </Tooltip>
@@ -94,7 +94,11 @@ export function TabBar({
           </IconButton>
         </Tooltip>
         {panesCount > 1 ? (
-          <IconButton label="Закрыть панель" size="sm" onClick={() => closePane(pane.id)}>
+          <IconButton
+            label={t('shell.tabs.closePane')}
+            size="sm"
+            onClick={() => closePane(pane.id)}
+          >
             <X className="size-3.5" />
           </IconButton>
         ) : null}
@@ -193,7 +197,7 @@ function TabChip({
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            aria-label="Меню вкладки"
+            aria-label={t('shell.tabs.menu')}
             onClick={(event) => event.stopPropagation()}
             className="absolute inset-0 -z-10"
           />
@@ -216,7 +220,7 @@ function TabChip({
             <button
               key={name}
               type="button"
-              aria-label={`Группа ${name}`}
+              aria-label={t('shell.tabs.group', { color: t(`shell.tabs.colors.${name}`) })}
               onClick={() => setTabGroup(tab.id, tab.group === name ? null : name)}
               className={cn(
                 'size-4 rounded-full ring-offset-1 ring-offset-overlay',

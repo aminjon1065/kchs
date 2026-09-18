@@ -1,4 +1,5 @@
 import type { ProblemDetails } from '@kchs/contracts'
+import { normalizeLocale, translate } from '@kchs/i18n'
 
 const BASE = '/api/v1'
 
@@ -143,7 +144,8 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
   if (!response.ok) {
     const problem = (payload ?? {
       type: 'about:blank',
-      title: 'Ошибка запроса',
+      // Язык интерфейса отражён в <html lang>: клиент API не зависит от оболочки
+      title: translate(normalizeLocale(document.documentElement.lang), 'errors.requestFailed'),
       status: response.status,
       code: 'internal_error',
     }) as ProblemDetails

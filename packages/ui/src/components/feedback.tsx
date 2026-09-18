@@ -9,6 +9,7 @@ import {
   useMemo,
   useState,
 } from 'react'
+import { useUiT } from '../i18n/ui-locale.js'
 import { cn } from '../lib/cn.js'
 import { Button, IconButton } from '../primitives/button.js'
 
@@ -41,8 +42,9 @@ export function TableSkeleton({ rows = 8, columns = 5 }: { rows?: number; column
 }
 
 export function Spinner({ className, label }: { className?: string; label?: string }) {
+  const t = useUiT()
   return (
-    <span role="status" aria-label={label ?? 'Загрузка'} className="inline-flex">
+    <span role="status" aria-label={label ?? t('ui.loading')} className="inline-flex">
       <Loader2 className={cn('size-4 animate-spin-fast text-fg-muted', className)} />
     </span>
   )
@@ -123,6 +125,7 @@ export function Callout({
   className,
   onDismiss,
 }: CalloutProps) {
+  const t = useUiT()
   const Icon = calloutIcons[tone ?? 'info']
   const iconTone = {
     info: 'text-info',
@@ -146,7 +149,7 @@ export function Callout({
         {action ? <div className="mt-2">{action}</div> : null}
       </div>
       {onDismiss ? (
-        <IconButton label="Скрыть" size="sm" onClick={onDismiss}>
+        <IconButton label={t('ui.actions.dismiss')} size="sm" onClick={onDismiss}>
           <X className="size-3.5" />
         </IconButton>
       ) : null}
@@ -196,7 +199,7 @@ export function EmptyState({
 }
 
 export function ErrorState({
-  title = 'Не удалось загрузить',
+  title,
   description,
   onRetry,
   className,
@@ -206,16 +209,17 @@ export function ErrorState({
   onRetry?: () => void
   className?: string
 }) {
+  const t = useUiT()
   return (
     <EmptyState
       className={className}
       icon={<AlertCircle className="text-danger" />}
-      title={title}
+      title={title ?? t('ui.error.loadFailed')}
       description={description}
       action={
         onRetry ? (
           <Button variant="secondary" onClick={onRetry}>
-            Повторить
+            {t('ui.actions.retry')}
           </Button>
         ) : null
       }
@@ -230,16 +234,17 @@ export function NoAccessState({
   onRequest?: () => void
   className?: string
 }) {
+  const t = useUiT()
   return (
     <EmptyState
       className={className}
       icon={<Lock />}
-      title="Нет доступа"
-      description="У вас нет прав на просмотр этого объекта. Можно запросить доступ у владельца."
+      title={t('ui.noAccess.title')}
+      description={t('ui.noAccess.description')}
       action={
         onRequest ? (
           <Button variant="secondary" onClick={onRequest}>
-            Запросить доступ
+            {t('ui.noAccess.request')}
           </Button>
         ) : null
       }
@@ -314,6 +319,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 }
 
 function ToastItem({ toast, onDismiss }: { toast: ToastEntry; onDismiss: (id: string) => void }) {
+  const t = useUiT()
   const duration = toast.duration ?? (toast.action ? 8000 : 5000)
 
   useEffect(() => {
@@ -356,7 +362,7 @@ function ToastItem({ toast, onDismiss }: { toast: ToastEntry; onDismiss: (id: st
           {toast.action.label}
         </Button>
       ) : null}
-      <IconButton label="Закрыть" size="sm" onClick={() => onDismiss(toast.id)}>
+      <IconButton label={t('ui.actions.close')} size="sm" onClick={() => onDismiss(toast.id)}>
         <X className="size-3.5" />
       </IconButton>
     </div>
@@ -365,6 +371,7 @@ function ToastItem({ toast, onDismiss }: { toast: ToastEntry; onDismiss: (id: st
 
 export function useToast(): ToastApi {
   const context = useContext(ToastContext)
+  // i18n-ignore — сообщение для разработчика, не текст интерфейса
   if (!context) throw new Error('useToast должен использоваться внутри ToastProvider')
   return context
 }

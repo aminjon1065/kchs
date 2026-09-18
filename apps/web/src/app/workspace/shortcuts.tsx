@@ -3,44 +3,45 @@ import { useT } from '../i18n.js'
 
 interface ShortcutRow {
   combo: string
+  /** Ключ словаря `shell.shortcuts.*`. */
   labelKey: string
 }
 
 const GROUPS: Array<{ titleKey: string; rows: ShortcutRow[] }> = [
   {
-    titleKey: 'Навигация',
+    titleKey: 'shell.shortcuts.groups.navigation',
     rows: [
-      { combo: 'mod+k', labelKey: 'Палитра команд' },
-      { combo: 'mod+b', labelKey: 'Навигатор' },
-      { combo: 'mod+.', labelKey: 'Контекстная панель' },
-      { combo: 'mod+j', labelKey: 'Нижняя панель' },
-      { combo: 'g h', labelKey: 'Мой день' },
-      { combo: 'g i', labelKey: 'Входящие' },
-      { combo: 'g f', labelKey: 'Файлы' },
+      { combo: 'mod+k', labelKey: 'shell.shortcuts.commandPalette' },
+      { combo: 'mod+b', labelKey: 'shell.shortcuts.navigator' },
+      { combo: 'mod+.', labelKey: 'shell.shortcuts.contextPanel' },
+      { combo: 'mod+j', labelKey: 'shell.shortcuts.bottomPanel' },
+      { combo: 'g h', labelKey: 'shell.shortcuts.goHome' },
+      { combo: 'g i', labelKey: 'shell.shortcuts.goInbox' },
+      { combo: 'g f', labelKey: 'shell.shortcuts.goFiles' },
     ],
   },
   {
-    titleKey: 'Вкладки',
+    titleKey: 'shell.shortcuts.groups.tabs',
     rows: [
-      { combo: 'mod+t', labelKey: 'Новая вкладка' },
-      { combo: 'mod+w', labelKey: 'Закрыть вкладку' },
-      { combo: 'mod+shift+t', labelKey: 'Восстановить закрытую' },
-      { combo: 'mod+\\', labelKey: 'Разделить панель' },
-      { combo: 'mod+1', labelKey: 'Перейти к вкладке 1…9' },
-      { combo: 'ctrl+tab', labelKey: 'Следующая вкладка' },
+      { combo: 'mod+t', labelKey: 'shell.shortcuts.newTab' },
+      { combo: 'mod+w', labelKey: 'shell.shortcuts.closeTab' },
+      { combo: 'mod+shift+t', labelKey: 'shell.shortcuts.reopenTab' },
+      { combo: 'mod+\\', labelKey: 'shell.shortcuts.splitPane' },
+      { combo: 'mod+1', labelKey: 'shell.shortcuts.goToTab' },
+      { combo: 'ctrl+tab', labelKey: 'shell.shortcuts.nextTab' },
     ],
   },
   {
-    titleKey: 'Работа',
+    titleKey: 'shell.shortcuts.groups.work',
     rows: [
-      { combo: 'mod+s', labelKey: 'Сохранить' },
-      { combo: '/', labelKey: 'Поиск в представлении' },
-      { combo: 'j', labelKey: 'Вниз по списку' },
-      { combo: 'k', labelKey: 'Вверх по списку' },
-      { combo: 'enter', labelKey: 'Открыть' },
-      { combo: 'a', labelKey: 'Согласовать (Входящие)' },
-      { combo: 'r', labelKey: 'Отклонить (Входящие)' },
-      { combo: 'shift+?', labelKey: 'Эта шпаргалка' },
+      { combo: 'mod+s', labelKey: 'shell.shortcuts.save' },
+      { combo: '/', labelKey: 'shell.shortcuts.searchInView' },
+      { combo: 'j', labelKey: 'shell.shortcuts.listDown' },
+      { combo: 'k', labelKey: 'shell.shortcuts.listUp' },
+      { combo: 'enter', labelKey: 'shell.shortcuts.open' },
+      { combo: 'a', labelKey: 'shell.shortcuts.approve' },
+      { combo: 'r', labelKey: 'shell.shortcuts.reject' },
+      { combo: 'shift+?', labelKey: 'shell.shortcuts.cheatSheet' },
     ],
   },
 ]
@@ -57,19 +58,19 @@ export function ShortcutsOverlay({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         title={t('shell.status.shortcuts')}
-        description="Сочетания сравниваются по коду клавиши — кириллическая раскладка не мешает"
+        description={t('shell.shortcuts.layoutHint')}
         size="lg"
       >
         <div className="grid gap-6 sm:grid-cols-3">
           {GROUPS.map((group) => (
             <section key={group.titleKey}>
               <h3 className="mb-2 text-2xs font-medium uppercase tracking-wide text-fg-muted">
-                {group.titleKey}
+                {t(group.titleKey)}
               </h3>
               <dl className="flex flex-col gap-1.5">
                 {group.rows.map((row) => (
                   <div key={row.combo} className="flex items-center justify-between gap-3">
-                    <dt className="truncate text-sm text-fg-secondary">{row.labelKey}</dt>
+                    <dt className="truncate text-sm text-fg-secondary">{t(row.labelKey)}</dt>
                     <dd className="shrink-0">
                       <Kbd>{formatShortcut(row.combo)}</Kbd>
                     </dd>

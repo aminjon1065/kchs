@@ -8,14 +8,22 @@ export type Locale = (typeof LOCALES)[number]
 export const DEFAULT_LOCALE: Locale = 'ru'
 export const FALLBACK_LOCALE: Locale = 'ru'
 
+/**
+ * Словари интерфейса: вложенные ключи `module.screen.element`. Их читает
+ * собственный переводчик (`translate.ts`) — один и тот же на сервере
+ * (уведомления, письма) и в клиенте (ADR-0037).
+ */
 export const dictionaries = { ru, tg, en } as const
 
-/** i18next-ресурсы: один namespace `app`, вложенные ключи. */
-export const resources = {
-  ru: { app: ru },
-  tg: { app: tg },
-  en: { app: en },
-} as const
+/**
+ * Самоназвания языков для переключателя. Не переводятся: каждый язык
+ * называет себя сам, чтобы его можно было найти из любого интерфейса.
+ */
+export const LOCALE_NAMES: Record<Locale, { short: string; full: string }> = {
+  ru: { short: 'Рус', full: 'Русский' },
+  tg: { short: 'Тоҷ', full: 'Тоҷикӣ' },
+  en: { short: 'Eng', full: 'English' },
+}
 
 export function isLocale(value: string): value is Locale {
   return (LOCALES as readonly string[]).includes(value)

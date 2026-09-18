@@ -100,6 +100,44 @@ export const ru = {
     density: { comfortable: 'Комфортная', compact: 'Компактная' },
   },
 
+  /** Подписи компонентов дизайн-системы `@kchs/ui` (useUiT). */
+  ui: {
+    loading: 'Загрузка',
+    empty: 'Пусто',
+    untitled: 'Без названия',
+    actions: {
+      close: 'Закрыть',
+      cancel: 'Отмена',
+      confirm: 'Подтвердить',
+      open: 'Открыть',
+      retry: 'Повторить',
+      dismiss: 'Скрыть',
+    },
+    tag: { remove: 'Убрать тег' },
+    breadcrumbs: { label: 'Хлебные крошки' },
+    tree: { collapse: 'Свернуть', expand: 'Развернуть' },
+    command: {
+      label: 'Палитра команд',
+      close: 'Закрыть палитру команд',
+      placeholder: 'Поиск объектов и команд…',
+      searching: 'Ищем…',
+    },
+    error: { loadFailed: 'Не удалось загрузить' },
+    noAccess: {
+      title: 'Нет доступа',
+      description: 'У вас нет прав на просмотр этого объекта. Можно запросить доступ у владельца.',
+      request: 'Запросить доступ',
+    },
+    objectChip: {
+      noAccessHint: 'У вас нет доступа к этому объекту',
+      space: 'Пространство',
+      owner: 'Владелец',
+      openInSplit: 'В разделении',
+    },
+    password: { show: 'Показать пароль', hide: 'Скрыть пароль' },
+    search: { placeholder: 'Поиск', clear: 'Очистить' },
+  },
+
   auth: {
     signIn: {
       title: 'Вход в систему',
@@ -128,6 +166,7 @@ export const ru = {
       enabled: 'Двухфакторная аутентификация включена',
       recoveryTitle: 'Коды восстановления',
       recoveryHint: 'Сохраните коды в надёжном месте. Каждый код действует один раз.',
+      disabled: 'Второй фактор не подключён',
     },
     reset: {
       title: 'Восстановление доступа',
@@ -146,6 +185,7 @@ export const ru = {
       mismatch: 'Пароли не совпадают',
       changed: 'Пароль изменён',
       current: 'Текущий пароль',
+      minLengthHint: 'Не короче 12 символов',
     },
     session: {
       devices: 'Устройства и сессии',
@@ -153,11 +193,14 @@ export const ru = {
       revoke: 'Завершить',
       revokeAll: 'Выйти на всех устройствах',
       expired: 'Сессия истекла, войдите заново',
+      othersRevoked: 'Другие сессии завершены',
+      unknownDevice: 'Неизвестное устройство',
     },
     signOut: 'Выйти',
   },
 
   shell: {
+    loadingWorkspace: 'Загружаем рабочее пространство…',
     rail: {
       home: 'Мой день',
       data: 'Данные',
@@ -198,6 +241,27 @@ export const ru = {
       split: 'Открыть в разделении',
       unsaved: 'Есть несохранённые изменения',
       confirmClose: 'Закрыть вкладку без сохранения?',
+      label: 'Вкладки',
+      new: 'Новая вкладка',
+      closePane: 'Закрыть панель',
+      menu: 'Меню вкладки',
+      group: 'Группа «{color}»',
+      colors: {
+        blue: 'синяя',
+        orange: 'оранжевая',
+        green: 'зелёная',
+        red: 'красная',
+        purple: 'фиолетовая',
+      },
+    },
+    pane: {
+      label: 'Панель',
+      emptyTitle: 'Вкладок нет',
+      emptyHint: 'Откройте объект из навигатора или нажмите ⌘K',
+      unsupportedType: 'Тип объекта пока не поддерживается',
+      unsupportedTypeHint: 'Модуль для «{type}» появится в следующей фазе.',
+      inDevelopment: 'Раздел в разработке',
+      inDevelopmentHint: 'Этот модуль появится в одной из следующих фаз дорожной карты.',
     },
     context: {
       title: 'Контекст',
@@ -207,11 +271,14 @@ export const ru = {
       activity: 'Активность',
       assistant: 'Ассистент',
       collapse: 'Свернуть панель',
+      noObject: 'Нет выбранного объекта',
+      noObjectHint: 'Откройте объект во вкладке — здесь появятся свойства, связи и обсуждение.',
     },
     status: {
       jobs: '{count, plural, one {# задание} few {# задания} many {# заданий} other {# задания}}',
       acting: 'Вы замещаете: {name}',
       shortcuts: 'Горячие клавиши',
+      version: 'Версия платформы',
     },
     palette: {
       placeholder: 'Поиск объектов и команд…',
@@ -221,6 +288,35 @@ export const ru = {
       people: 'Люди',
       noResults: 'Ничего не найдено',
       hint: '↑↓ выбрать · ↵ открыть · ⌘↵ в новой вкладке',
+      hintSelect: 'выбрать',
+      hintOpen: 'открыть',
+      hintNewTab: 'в новой вкладке',
+    },
+    mobile: { navLabel: 'Основная навигация' },
+    shortcuts: {
+      groups: { navigation: 'Навигация', tabs: 'Вкладки', work: 'Работа' },
+      layoutHint: 'Сочетания сравниваются по коду клавиши — кириллическая раскладка не мешает',
+      commandPalette: 'Палитра команд',
+      navigator: 'Навигатор',
+      contextPanel: 'Контекстная панель',
+      bottomPanel: 'Нижняя панель',
+      goHome: 'Мой день',
+      goInbox: 'Входящие',
+      goFiles: 'Файлы',
+      newTab: 'Новая вкладка',
+      closeTab: 'Закрыть вкладку',
+      reopenTab: 'Восстановить закрытую',
+      splitPane: 'Разделить панель',
+      goToTab: 'Перейти к вкладке 1…9',
+      nextTab: 'Следующая вкладка',
+      save: 'Сохранить',
+      searchInView: 'Поиск в представлении',
+      listDown: 'Вниз по списку',
+      listUp: 'Вверх по списку',
+      open: 'Открыть',
+      approve: 'Согласовать (Входящие)',
+      reject: 'Отклонить (Входящие)',
+      cheatSheet: 'Эта шпаргалка',
     },
   },
 
@@ -247,6 +343,13 @@ export const ru = {
     quickActions: 'Быстрые действия',
     emptyInbox: 'Входящие пусты — все действия выполнены',
     emptyToday: 'На сегодня событий нет',
+    actions: { uploadFile: 'Загрузить файл' },
+    inboxAll: 'Все',
+    emptyRecent: 'Пока ничего не открывали',
+    emptyFavorites: 'Избранного пока нет',
+    emptyFavoritesHint: 'Отметьте звёздочкой то, к чему возвращаетесь',
+    phaseAnnouncement:
+      'Фаза 0 платформы: реестр объектов, доступ, обсуждения, файлы, поиск и Входящие. Модули данных, карт и документооборота появятся в следующих фазах дорожной карты.',
   },
 
   inbox: {
@@ -275,6 +378,9 @@ export const ru = {
     resolved: 'Выполнено',
     dueIn: 'Срок: {date}',
     counts: '{count, plural, one {# дело} few {# дела} many {# дел} other {# дела}}',
+    snoozedUntilTomorrow: 'Отложено до завтра',
+    scopeLabel: 'Область',
+    urgent: 'срочно',
   },
 
   notifications: {
@@ -349,7 +455,11 @@ export const ru = {
       deleteForever: 'Удалить навсегда',
       hint: 'Объекты хранятся 30 дней, затем удаляются',
       movedTo: 'Перемещено в корзину',
+      restored: 'Восстановлено',
     },
+    deleteConfirm: 'Удалить «{title}»?',
+    tabs: { overview: 'Обзор' },
+    properties: 'Свойства',
     archive: { title: 'Архив', archived: 'В архиве', hint: 'Только чтение' },
     links: {
       title: 'Связи',
@@ -407,6 +517,10 @@ export const ru = {
       alsoGrantData: 'Также предоставить доступ к используемым данным',
       checkUser: 'Проверить доступ пользователя',
       invited: 'Доступ предоставлен',
+      linkCopied: 'Ссылка скопирована',
+      searchPlaceholder: 'Имя, группа или подразделение',
+      guestLinkHint:
+        'Гостевая ссылка даёт просмотр одного объекта без входа. Создаётся в карточке объекта.',
     },
     levels: {
       none: 'Нет доступа',
@@ -447,11 +561,23 @@ export const ru = {
   spaces: {
     title: 'Пространства',
     kinds: { personal: 'Личное', unit: 'Подразделение', team: 'Команда', org: 'Общее' },
-    create: { title: 'Новое пространство', name: 'Название', key: 'Короткий код', kind: 'Тип' },
+    create: {
+      title: 'Новое пространство',
+      name: 'Название',
+      key: 'Короткий код',
+      kind: 'Тип',
+      created: 'Пространство создано',
+      hint: 'Пространство — место совместной работы: разделы, файлы, обсуждения и права',
+      namePlaceholder: 'Паводок-2026',
+      keyHint: 'Латиница, цифры и дефис — используется в ссылках',
+      descriptionPlaceholder: 'Для чего это пространство',
+    },
     members: { title: 'Участники', add: 'Добавить участника', role: 'Роль', remove: 'Исключить' },
     sections: { title: 'Разделы', create: 'Новый раздел' },
     empty: 'В пространстве пока ничего нет',
     emptyHint: 'Создайте раздел или загрузите файл',
+    unavailable: 'Пространство недоступно',
+    content: 'Содержимое',
   },
 
   files: {
@@ -461,19 +587,36 @@ export const ru = {
       browse: 'или выберите на компьютере',
       uploading: 'Загрузка {name}',
       failed: 'Не удалось загрузить',
+      done: 'Загружен «{name}»',
+      partFailed: 'Часть {part} не загрузилась',
+      httpFailed: 'Загрузка не выполнена: {status}',
+      networkFailed: 'Сеть недоступна',
     },
-    folder: { create: 'Новая папка', name: 'Имя папки', empty: 'Папка пуста' },
+    folder: {
+      create: 'Новая папка',
+      name: 'Имя папки',
+      empty: 'Папка пуста',
+      created: 'Папка создана',
+      createFailed: 'Не удалось создать папку',
+      unavailable: 'Папка недоступна',
+    },
     versions: {
       title: 'Версии',
       current: 'Текущая',
       restore: 'Сделать текущей',
       note: 'Комментарий к версии',
+      upload: 'Новая версия',
+      uploaded: 'Новая версия загружена',
+      number: 'Версия {number}',
     },
     preview: {
       unsupported: 'Предпросмотр недоступен',
       processing: 'Готовим предпросмотр…',
       page: 'Страница {page} из {total}',
+      comingSoon: 'Предпросмотр PDF и изображений появится вместе с движком обработки',
     },
+    viewMode: { label: 'Режим', table: 'Таблица', grid: 'Плитки' },
+    checksum: 'Контрольная сумма',
     empty: 'Файлов пока нет',
     emptyHint: 'Загрузите первый файл',
     columns: {
@@ -502,6 +645,8 @@ export const ru = {
     attach: 'Прикрепить файл',
     unread: 'Непрочитанные',
     typing: '{name} печатает…',
+    systemAuthor: 'Система',
+    sendHint: '⌘↵ — отправить',
     system: {
       created: '{actor} создал объект',
       shared: '{actor} открыл доступ: {principal}',
@@ -522,10 +667,16 @@ export const ru = {
     facets: { type: 'Тип', space: 'Пространство', owner: 'Владелец', updated: 'Изменён' },
     semantic: 'Семантический поиск',
     took: 'за {ms} мс',
+    startHint: 'Введите запрос — поиск идёт по объектам, доступным вам',
+  },
+
+  profile: {
+    appearance: 'Внешний вид',
   },
 
   admin: {
     title: 'Администрирование',
+    sectionLabel: 'Раздел',
     sections: {
       users: 'Пользователи',
       org: 'Оргструктура',
@@ -552,6 +703,9 @@ export const ru = {
         deactivated: 'Отключён',
       },
       tempPassword: 'Временный пароль: {password}',
+      searchPlaceholder: 'Имя, логин или почта',
+      columns: { mfa: 'MFA', lastSeen: 'Активность' },
+      mfaOn: 'вкл',
     },
     org: {
       createUnit: 'Новое подразделение',
@@ -588,12 +742,29 @@ export const ru = {
       filterActor: 'Пользователь',
       filterPeriod: 'Период',
       empty: 'Записей нет',
+      searchPlaceholder: 'Действие, например user.login',
+      columns: { time: 'Время', object: 'Объект', ip: 'IP', severity: 'Важность' },
+      severity: {
+        info: 'Информация',
+        notice: 'Важное',
+        warning: 'Предупреждение',
+        critical: 'Критическое',
+      },
     },
     health: {
       ok: 'Работает',
       degraded: 'С замечаниями',
       down: 'Недоступен',
       outboxPending: 'Неопубликованных событий: {count}',
+      latencyMs: '{ms} мс',
+      jobsQueued: 'Заданий в очереди',
+      jobsRunning: 'Выполняется',
+      jobsFailed: 'Ошибок за сутки',
+      installation: 'Инсталляция',
+      version: 'Версия',
+      uptime: 'Время работы',
+      uptimeMinutes: '{minutes} мин',
+      state: 'Состояние',
     },
   },
 
@@ -616,6 +787,7 @@ export const ru = {
     password_change_required: 'Необходимо сменить пароль',
     network: 'Нет связи с сервером',
     unknown: 'Непредвиденная ошибка',
+    requestFailed: 'Ошибка запроса',
   },
 } as const
 

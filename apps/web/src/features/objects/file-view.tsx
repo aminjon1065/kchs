@@ -95,7 +95,7 @@ export function FileView({ objectId, tabId }: { objectId: string; tabId: string 
   const uploadVersion = async (fileList: FileList | null): Promise<void> => {
     if (!fileList?.[0] || !object?.spaceId) return
     await uploadFile({ file: fileList[0], spaceId: object.spaceId, fileId: objectId })
-    toast.show({ title: 'Новая версия загружена', tone: 'success' })
+    toast.show({ title: t('files.versions.uploaded'), tone: 'success' })
     void client.invalidateQueries({ queryKey: keys.file(objectId) })
     void client.invalidateQueries({ queryKey: keys.fileVersions(objectId) })
   }
@@ -136,7 +136,7 @@ export function FileView({ objectId, tabId }: { objectId: string; tabId: string 
                   icon={<Upload className="size-3.5" />}
                   onClick={() => inputRef.current?.click()}
                 >
-                  Новая версия
+                  {t('files.versions.upload')}
                 </Button>
                 <input
                   ref={inputRef}
@@ -164,7 +164,7 @@ export function FileView({ objectId, tabId }: { objectId: string; tabId: string 
 
       <Tabs defaultValue="overview" className="flex min-h-0 flex-1 flex-col">
         <TabsList className="shrink-0 px-2.5">
-          <TabsTrigger value="overview">Обзор</TabsTrigger>
+          <TabsTrigger value="overview">{t('objects.tabs.overview')}</TabsTrigger>
           <TabsTrigger value="versions" count={versions.length}>
             {t('files.versions.title')}
           </TabsTrigger>
@@ -177,14 +177,12 @@ export function FileView({ objectId, tabId }: { objectId: string; tabId: string 
                 <div className="flex flex-col items-center gap-2 text-center">
                   <ObjectIcon type="file" className="size-10 text-fg-muted" />
                   <p className="text-sm text-fg-secondary">{t('files.preview.unsupported')}</p>
-                  <p className="text-xs text-fg-muted">
-                    Предпросмотр PDF и изображений появится вместе с движком обработки
-                  </p>
+                  <p className="text-xs text-fg-muted">{t('files.preview.comingSoon')}</p>
                 </div>
               </div>
             </Card>
 
-            <Card title="Свойства">
+            <Card title={t('objects.properties')}>
               <KeyValueList
                 items={[
                   {
@@ -214,7 +212,7 @@ export function FileView({ objectId, tabId }: { objectId: string; tabId: string 
                   },
                   {
                     key: 'checksum',
-                    label: 'Контрольная сумма',
+                    label: t('files.checksum'),
                     value: <code className="font-mono text-2xs">{file.checksum ?? '—'}</code>,
                   },
                 ]}
@@ -232,7 +230,7 @@ export function FileView({ objectId, tabId }: { objectId: string; tabId: string 
                     <History className="size-4 shrink-0 text-fg-muted" aria-hidden />
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-2 text-sm text-fg">
-                        Версия {version.number}
+                        {t('files.versions.number', { number: version.number })}
                         {version.number === file.versionNumber ? (
                           <Badge tone="accent" size="sm">
                             {t('files.versions.current')}
@@ -269,7 +267,7 @@ export function FileView({ objectId, tabId }: { objectId: string; tabId: string 
       <AlertDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
-        title={`Удалить «${file.name}»?`}
+        title={t('objects.deleteConfirm', { title: file.name })}
         description={t('objects.trash.hint')}
         confirmLabel={t('common.actions.delete')}
         onConfirm={() => {

@@ -7,6 +7,7 @@ import {
   useId,
   useState,
 } from 'react'
+import { useUiT } from '../i18n/ui-locale.js'
 import { cn } from '../lib/cn.js'
 import { IconButton } from './button.js'
 
@@ -110,6 +111,7 @@ export const PasswordInput = forwardRef<HTMLInputElement, InputProps>(function P
   { className, ...props },
   ref,
 ) {
+  const t = useUiT()
   const [visible, setVisible] = useState(false)
   return (
     <Input
@@ -120,7 +122,7 @@ export const PasswordInput = forwardRef<HTMLInputElement, InputProps>(function P
         <IconButton
           type="button"
           size="sm"
-          label={visible ? 'Скрыть пароль' : 'Показать пароль'}
+          label={visible ? t('ui.password.hide') : t('ui.password.show')}
           onClick={() => setVisible((v) => !v)}
           tabIndex={-1}
         >
@@ -139,16 +141,17 @@ export interface SearchInputProps extends Omit<InputProps, 'prefix' | 'suffix' |
 }
 
 export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(function SearchInput(
-  { value, onValueChange, onClear, placeholder = 'Поиск', ...props },
+  { value, onValueChange, onClear, placeholder, ...props },
   ref,
 ) {
+  const t = useUiT()
   return (
     <Input
       ref={ref}
       type="search"
       role="searchbox"
       value={value}
-      placeholder={placeholder}
+      placeholder={placeholder ?? t('ui.search.placeholder')}
       onChange={(event) => onValueChange(event.target.value)}
       prefix={<Search className="size-4" aria-hidden />}
       suffix={
@@ -156,7 +159,7 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(functi
           <IconButton
             type="button"
             size="sm"
-            label="Очистить"
+            label={t('ui.search.clear')}
             onClick={() => {
               onValueChange('')
               onClear?.()

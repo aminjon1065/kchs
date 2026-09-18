@@ -34,6 +34,8 @@ jobs:
         run: pnpm deps:check
       - name: Полнота словарей i18n
         run: pnpm i18n:check
+      - name: Тексты интерфейса только из словарей
+        run: pnpm i18n:literals
       - name: Контраст токенов (WCAG AA)
         run: pnpm --filter @kchs/ui contrast
       - name: Токены соответствуют tokens.json

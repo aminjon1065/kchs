@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Avatar } from '../components/data-display.js'
+import { useUiT } from '../i18n/ui-locale.js'
 import { ObjectIcon } from '../icons/object-icon.js'
 import { cn } from '../lib/cn.js'
 import { HoverCard, HoverCardContent, HoverCardTrigger } from './hover-card.js'
@@ -39,6 +40,7 @@ export function ObjectChip({
   className,
   details,
 }: ObjectChipProps) {
+  const t = useUiT()
   if (object.accessible === false) {
     return (
       <span
@@ -47,10 +49,10 @@ export function ObjectChip({
           size === 'sm' ? 'h-5 text-2xs' : 'h-6 text-xs',
           className,
         )}
-        title="У вас нет доступа к этому объекту"
+        title={t('ui.objectChip.noAccessHint')}
       >
         <ObjectIcon type="lock" className="size-3.5" />
-        Нет доступа
+        {t('ui.noAccess.title')}
       </span>
     )
   }
@@ -86,13 +88,13 @@ export function ObjectChip({
             <dl className="mt-2 grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1 text-xs">
               {object.spaceName ? (
                 <>
-                  <dt className="text-fg-muted">Пространство</dt>
+                  <dt className="text-fg-muted">{t('ui.objectChip.space')}</dt>
                   <dd className="truncate text-fg-secondary">{object.spaceName}</dd>
                 </>
               ) : null}
               {object.ownerName ? (
                 <>
-                  <dt className="text-fg-muted">Владелец</dt>
+                  <dt className="text-fg-muted">{t('ui.objectChip.owner')}</dt>
                   <dd className="truncate text-fg-secondary">{object.ownerName}</dd>
                 </>
               ) : null}
@@ -109,7 +111,7 @@ export function ObjectChip({
                 onClick={() => onOpen?.(object)}
                 className="h-6 rounded-sm border border-line-strong px-2 text-xs font-medium hover:bg-surface-3"
               >
-                Открыть
+                {t('ui.actions.open')}
               </button>
               {onOpenInSplit ? (
                 <button
@@ -117,7 +119,7 @@ export function ObjectChip({
                   onClick={() => onOpenInSplit(object)}
                   className="h-6 rounded-sm border border-line-strong px-2 text-xs font-medium hover:bg-surface-3"
                 >
-                  В разделении
+                  {t('ui.objectChip.openInSplit')}
                 </button>
               ) : null}
             </div>

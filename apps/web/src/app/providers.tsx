@@ -1,9 +1,12 @@
-import { ToastProvider, TooltipProvider } from '@kchs/ui'
+import { ToastProvider, TooltipProvider, UiLocaleProvider } from '@kchs/ui'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { type ReactNode, useState } from 'react'
 import { ApiError } from '~/shared/api/client.js'
+import { useAppearance } from './appearance.js'
 
 export function Providers({ children }: { children: ReactNode }) {
+  // Подписи дизайн-системы (кнопки «Закрыть», «Отмена»…) — на языке интерфейса
+  const locale = useAppearance((s) => s.locale)
   const [client] = useState(
     () =>
       new QueryClient({
@@ -25,9 +28,11 @@ export function Providers({ children }: { children: ReactNode }) {
 
   return (
     <QueryClientProvider client={client}>
-      <TooltipProvider delayDuration={400} skipDelayDuration={300}>
-        <ToastProvider>{children}</ToastProvider>
-      </TooltipProvider>
+      <UiLocaleProvider locale={locale}>
+        <TooltipProvider delayDuration={400} skipDelayDuration={300}>
+          <ToastProvider>{children}</ToastProvider>
+        </TooltipProvider>
+      </UiLocaleProvider>
     </QueryClientProvider>
   )
 }

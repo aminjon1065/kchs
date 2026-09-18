@@ -41,7 +41,7 @@ export function SpaceScreen({ spaceId }: { spaceId: string }) {
         <Skeleton className="h-8 w-64" />
       </div>
     ) : (
-      <EmptyState title={t('common.states.notFound')} description="Пространство недоступно" />
+      <EmptyState title={t('common.states.notFound')} description={t('spaces.unavailable')} />
     )
   }
 
@@ -73,7 +73,7 @@ export function SpaceScreen({ spaceId }: { spaceId: string }) {
 
       <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col">
         <TabsList className="shrink-0 px-2.5">
-          <TabsTrigger value="overview">Обзор</TabsTrigger>
+          <TabsTrigger value="overview">{t('objects.tabs.overview')}</TabsTrigger>
           <TabsTrigger value="files" count={content?.items.filter((i) => i.type === 'file').length}>
             {t('shell.rail.files')}
           </TabsTrigger>
@@ -90,7 +90,7 @@ export function SpaceScreen({ spaceId }: { spaceId: string }) {
               </Card>
             ) : null}
 
-            <Card title="Содержимое" padded={false}>
+            <Card title={t('spaces.content')} padded={false}>
               {isLoading ? (
                 <div className="flex flex-col gap-2 p-4">
                   {Array.from({ length: 5 }).map((_, index) => (

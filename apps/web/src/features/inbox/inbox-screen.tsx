@@ -50,7 +50,7 @@ export function InboxScreen() {
         until: new Date(Date.now() + 24 * 3600_000).toISOString(),
       }),
     onSuccess: () => {
-      toast.show({ title: 'Отложено до завтра', tone: 'info' })
+      toast.show({ title: t('inbox.snoozedUntilTomorrow'), tone: 'info' })
       void client.invalidateQueries({ queryKey: ['inbox'] })
       void client.invalidateQueries({ queryKey: keys.inboxCounts })
     },
@@ -106,7 +106,7 @@ export function InboxScreen() {
         right={
           <SegmentedControl
             size="sm"
-            aria-label="Область"
+            aria-label={t('inbox.scopeLabel')}
             value={scope}
             onValueChange={(next) => setScope(next as Scope)}
             options={[
@@ -157,7 +157,7 @@ export function InboxScreen() {
                       </span>
                       {item.priority === 'urgent' || item.priority === 'high' ? (
                         <Badge tone="danger" size="sm">
-                          срочно
+                          {t('inbox.urgent')}
                         </Badge>
                       ) : null}
                     </span>

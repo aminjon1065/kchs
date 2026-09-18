@@ -52,7 +52,7 @@ export function MobileNav({ onOpenPalette }: { onOpenPalette: () => void }) {
 
   return (
     <nav
-      aria-label="Основная навигация"
+      aria-label={t('shell.mobile.navLabel')}
       className="flex h-14 shrink-0 items-stretch border-t border-line bg-surface pb-[env(safe-area-inset-bottom,0px)]"
     >
       {items.map((item) => {

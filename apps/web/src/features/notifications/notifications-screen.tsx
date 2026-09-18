@@ -50,7 +50,7 @@ export function NotificationsScreen() {
           <>
             <SegmentedControl
               size="sm"
-              aria-label="Фильтр"
+              aria-label={t('common.actions.filter')}
               value={unreadOnly ? 'unread' : 'all'}
               onValueChange={(next) => setUnreadOnly(next === 'unread')}
               options={[

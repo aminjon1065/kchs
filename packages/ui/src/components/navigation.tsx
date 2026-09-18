@@ -12,6 +12,7 @@ import {
   useRef,
   useState,
 } from 'react'
+import { useUiT } from '../i18n/ui-locale.js'
 import { cn } from '../lib/cn.js'
 import { Kbd } from '../primitives/overlays.js'
 
@@ -79,8 +80,9 @@ export function Tree({
   emptyState,
   level = 0,
 }: TreeProps) {
+  const t = useUiT()
   if (nodes.length === 0 && level === 0) {
-    return <div className="px-2 py-3 text-xs text-fg-muted">{emptyState ?? 'Пусто'}</div>
+    return <div className="px-2 py-3 text-xs text-fg-muted">{emptyState ?? t('ui.empty')}</div>
   }
 
   return (
@@ -115,7 +117,7 @@ export function Tree({
               {expandable ? (
                 <button
                   type="button"
-                  aria-label={expanded ? 'Свернуть' : 'Развернуть'}
+                  aria-label={expanded ? t('ui.tree.collapse') : t('ui.tree.expand')}
                   onClick={(event) => {
                     event.stopPropagation()
                     onToggle(node.id)
@@ -236,7 +238,7 @@ export interface CommandDialogProps {
 export function CommandDialog({
   open,
   onOpenChange,
-  placeholder = 'Поиск объектов и команд…',
+  placeholder,
   value,
   onValueChange,
   firstValue = '',
@@ -244,6 +246,7 @@ export function CommandDialog({
   footer,
   loading,
 }: CommandDialogProps) {
+  const t = useUiT()
   const [selected, setSelected] = useState('')
 
   useEffect(() => {
@@ -256,7 +259,7 @@ export function CommandDialog({
       {/* Подложка — кнопка: закрытие доступно и с клавиатуры */}
       <button
         type="button"
-        aria-label="Закрыть палитру команд"
+        aria-label={t('ui.command.close')}
         onClick={() => onOpenChange(false)}
         className="absolute inset-0 bg-black/30 animate-fade"
       />
@@ -264,7 +267,7 @@ export function CommandDialog({
         className="relative w-[min(680px,calc(100vw-2rem))] overflow-hidden rounded-lg border border-line bg-overlay shadow-lg animate-enter"
         role="dialog"
         aria-modal="true"
-        aria-label="Палитра команд"
+        aria-label={t('ui.command.label')}
       >
         <CommandPrimitive
           shouldFilter={false}
@@ -281,10 +284,12 @@ export function CommandDialog({
               autoFocus
               value={value}
               onValueChange={onValueChange}
-              placeholder={placeholder}
+              placeholder={placeholder ?? t('ui.command.placeholder')}
               className="h-11 flex-1 bg-transparent text-base outline-none placeholder:text-fg-muted"
             />
-            {loading ? <span className="text-2xs text-fg-muted">Ищем…</span> : null}
+            {loading ? (
+              <span className="text-2xs text-fg-muted">{t('ui.command.searching')}</span>
+            ) : null}
             <Kbd>Esc</Kbd>
           </div>
           <CommandPrimitive.List className="max-h-[52vh] overflow-auto p-1.5">
@@ -357,13 +362,14 @@ export interface InlineEditProps {
 export function InlineEdit({
   value,
   onSave,
-  placeholder = 'Без названия',
+  placeholder,
   className,
   inputClassName,
   disabled,
   multiline,
   ...props
 }: InlineEditProps) {
+  const t = useUiT()
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(value)
 
@@ -391,7 +397,7 @@ export function InlineEdit({
           className,
         )}
       >
-        {value || placeholder}
+        {value || (placeholder ?? t('ui.untitled'))}
       </button>
     )
   }

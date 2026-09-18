@@ -7,7 +7,8 @@ import type { ScreenKey, TabState } from './types.js'
  */
 export interface ScreenDefinition {
   key: ScreenKey
-  title: string
+  /** Ключ словаря с названием экрана (`shell.rail.home`), не сам текст. */
+  titleKey: string
   icon: string
   render: (tab: TabState) => ReactNode
   /** Что показывать в навигаторе при активном модуле. */

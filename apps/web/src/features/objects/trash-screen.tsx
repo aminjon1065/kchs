@@ -18,7 +18,7 @@ export function TrashScreen() {
   const restore = useMutation({
     mutationFn: (objectId: string) => http.post(`/objects/${objectId}/restore`),
     onSuccess: () => {
-      toast.show({ title: 'Восстановлено', tone: 'success' })
+      toast.show({ title: t('objects.trash.restored'), tone: 'success' })
       void client.invalidateQueries({ queryKey: ['trash'] })
       void client.invalidateQueries({ queryKey: ['objects'] })
     },

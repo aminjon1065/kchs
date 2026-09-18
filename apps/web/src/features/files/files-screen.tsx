@@ -105,9 +105,9 @@ export function FilesScreen({ spaceId: initialSpaceId }: { spaceId?: string }) {
       setCreateFolderOpen(false)
       setFolderName('')
       refresh()
-      toast.show({ title: 'Папка создана', tone: 'success' })
+      toast.show({ title: t('files.folder.created'), tone: 'success' })
     },
-    onError: () => toast.error('Не удалось создать папку'),
+    onError: () => toast.error(t('files.folder.createFailed')),
   })
 
   const trash = useMutation({
@@ -139,7 +139,7 @@ export function FilesScreen({ spaceId: initialSpaceId }: { spaceId?: string }) {
           folderId: parentId ?? null,
           onProgress: (progress) => setUploads((current) => ({ ...current, [key]: progress })),
         })
-        toast.show({ title: `Загружен «${file.name}»`, tone: 'success' })
+        toast.show({ title: t('files.upload.done', { name: file.name }), tone: 'success' })
       } catch {
         toast.error(t('files.upload.failed'), file.name)
       } finally {
@@ -214,7 +214,7 @@ export function FilesScreen({ spaceId: initialSpaceId }: { spaceId?: string }) {
           <>
             <SegmentedControl
               size="sm"
-              aria-label="Режим"
+              aria-label={t('files.viewMode.label')}
               value={mode}
               onValueChange={(next) => setMode(next as ViewMode)}
               options={[
@@ -222,13 +222,13 @@ export function FilesScreen({ spaceId: initialSpaceId }: { spaceId?: string }) {
                   value: 'table',
                   label: '',
                   icon: <LayoutList className="size-3.5" />,
-                  title: 'Таблица',
+                  title: t('files.viewMode.table'),
                 },
                 {
                   value: 'grid',
                   label: '',
                   icon: <Grid2X2 className="size-3.5" />,
-                  title: 'Плитки',
+                  title: t('files.viewMode.grid'),
                 },
               ]}
             />
@@ -473,7 +473,7 @@ export function FilesScreen({ spaceId: initialSpaceId }: { spaceId?: string }) {
       <AlertDialog
         open={Boolean(deleteTarget)}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
-        title={`Удалить «${deleteTarget?.title ?? ''}»?`}
+        title={t('objects.deleteConfirm', { title: deleteTarget?.title ?? '' })}
         description={t('objects.trash.hint')}
         confirmLabel={t('common.actions.delete')}
         onConfirm={() => {

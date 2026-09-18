@@ -98,7 +98,7 @@ export function CreateSpaceDialog({
         description: description.trim() || null,
       }),
     onSuccess: (result) => {
-      toast.show({ title: 'Пространство создано', tone: 'success' })
+      toast.show({ title: t('spaces.create.created'), tone: 'success' })
       void client.invalidateQueries({ queryKey: keys.spaces })
       openTab({
         kind: 'screen',
@@ -132,7 +132,7 @@ export function CreateSpaceDialog({
     >
       <DialogContent
         title={t('spaces.create.title')}
-        description="Пространство — место совместной работы: разделы, файлы, обсуждения и права"
+        description={t('spaces.create.hint')}
         size="sm"
         footer={
           <>
@@ -161,13 +161,13 @@ export function CreateSpaceDialog({
                 setName(event.target.value)
                 if (!key) setKey('')
               }}
-              placeholder="Паводок-2026"
+              placeholder={t('spaces.create.namePlaceholder')}
             />
           </Field>
           <Field
             label={t('spaces.create.key')}
             htmlFor="space-key"
-            hint="Латиница, цифры и дефис — используется в ссылках"
+            hint={t('spaces.create.keyHint')}
           >
             <Input
               id="space-key"
@@ -193,7 +193,7 @@ export function CreateSpaceDialog({
               id="space-description"
               value={description}
               onChange={(event) => setDescription(event.target.value)}
-              placeholder="Для чего это пространство"
+              placeholder={t('spaces.create.descriptionPlaceholder')}
               className="min-h-[60px]"
             />
           </Field>

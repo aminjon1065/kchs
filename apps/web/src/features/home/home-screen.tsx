@@ -79,7 +79,7 @@ export function HomeScreen() {
                 })
               }
             >
-              Загрузить файл
+              {t('home.actions.uploadFile')}
             </Button>
             <Button
               variant="secondary"
@@ -141,7 +141,7 @@ export function HomeScreen() {
                   })
                 }
               >
-                Все
+                {t('home.inboxAll')}
               </Button>
             }
             padded={false}
@@ -207,7 +207,7 @@ export function HomeScreen() {
                   ))}
                 </div>
               ) : recent.length === 0 ? (
-                <EmptyState compact title="Пока ничего не открывали" />
+                <EmptyState compact title={t('home.emptyRecent')} />
               ) : (
                 <ul className="divide-y divide-line">
                   {recent.slice(0, 6).map((item) => (
@@ -243,8 +243,8 @@ export function HomeScreen() {
               {favorites.length === 0 ? (
                 <EmptyState
                   compact
-                  title="Избранного пока нет"
-                  description="Отметьте звёздочкой то, к чему возвращаетесь"
+                  title={t('home.emptyFavorites')}
+                  description={t('home.emptyFavoritesHint')}
                 />
               ) : (
                 <ul className="divide-y divide-line">
@@ -278,10 +278,7 @@ export function HomeScreen() {
         >
           <div className="flex items-start gap-3 text-sm text-fg-secondary">
             <CalendarClock className="mt-0.5 size-4 shrink-0 text-fg-muted" aria-hidden />
-            <p>
-              Фаза 0 платформы: реестр объектов, доступ, обсуждения, файлы, поиск и Входящие. Модули
-              данных, карт и документооборота появятся в следующих фазах дорожной карты.
-            </p>
+            <p>{t('home.phaseAnnouncement')}</p>
           </div>
         </Card>
       </div>

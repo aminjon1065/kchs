@@ -59,7 +59,7 @@ export function StatusBar({ onShowShortcuts }: { onShowShortcuts: () => void }) 
         {t('shell.status.shortcuts')}
         <kbd className="rounded-xs border border-line bg-surface px-1">?</kbd>
       </button>
-      <Tooltip content="Версия платформы">
+      <Tooltip content={t('shell.status.version')}>
         <span className="tabular">v0.1.0</span>
       </Tooltip>
     </footer>

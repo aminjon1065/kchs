@@ -19,51 +19,66 @@ export function registerModules(): void {
   if (registered) return
   registered = true
 
-  registerScreen({ key: 'home', title: 'Мой день', icon: 'home', render: () => <HomeScreen /> })
-  registerScreen({ key: 'inbox', title: 'Входящие', icon: 'inbox', render: () => <InboxScreen /> })
+  registerScreen({
+    key: 'home',
+    titleKey: 'shell.rail.home',
+    icon: 'home',
+    render: () => <HomeScreen />,
+  })
+  registerScreen({
+    key: 'inbox',
+    titleKey: 'shell.rail.inbox',
+    icon: 'inbox',
+    render: () => <InboxScreen />,
+  })
   registerScreen({
     key: 'notifications',
-    title: 'Уведомления',
+    titleKey: 'shell.rail.notifications',
     icon: 'notification',
     render: () => <NotificationsScreen />,
   })
   registerScreen({
     key: 'files',
-    title: 'Файлы',
+    titleKey: 'shell.rail.files',
     icon: 'folder',
     render: (tab) => <FilesScreen spaceId={tab.params.spaceId} />,
   })
   registerScreen({
     key: 'search',
-    title: 'Поиск',
+    titleKey: 'shell.rail.search',
     icon: 'view',
     render: (tab) => <SearchScreen initialQuery={tab.params.q ?? ''} />,
   })
   registerScreen({
     key: 'spaces',
-    title: 'Пространства',
+    titleKey: 'spaces.title',
     icon: 'space',
     render: () => <SpacesScreen />,
   })
   registerScreen({
     key: 'space',
-    title: 'Пространство',
+    titleKey: 'objects.types.space',
     icon: 'space',
     render: (tab) => <SpaceScreen spaceId={tab.params.spaceId ?? ''} />,
   })
   registerScreen({
     key: 'admin',
-    title: 'Администрирование',
+    titleKey: 'shell.rail.admin',
     icon: 'role',
     render: () => <AdminScreen />,
   })
   registerScreen({
     key: 'profile',
-    title: 'Профиль',
+    titleKey: 'shell.rail.profile',
     icon: 'user',
     render: () => <ProfileScreen />,
   })
-  registerScreen({ key: 'trash', title: 'Корзина', icon: 'folder', render: () => <TrashScreen /> })
+  registerScreen({
+    key: 'trash',
+    titleKey: 'objects.trash.title',
+    icon: 'folder',
+    render: () => <TrashScreen />,
+  })
 
   registerObjectView({
     type: 'file',

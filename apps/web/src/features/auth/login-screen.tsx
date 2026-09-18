@@ -1,3 +1,4 @@
+import { LOCALE_NAMES, LOCALES, type Locale } from '@kchs/i18n'
 import { Button, Callout, cn, Field, Input, PasswordInput, SegmentedControl } from '@kchs/ui'
 import { useMutation } from '@tanstack/react-query'
 import { KeyRound, ShieldCheck } from 'lucide-react'
@@ -233,12 +234,8 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
             size="sm"
             aria-label={t('common.labels.language')}
             value={locale}
-            onValueChange={(next) => setLocale(next as 'ru' | 'tg' | 'en')}
-            options={[
-              { value: 'ru', label: 'Рус' },
-              { value: 'tg', label: 'Тоҷ' },
-              { value: 'en', label: 'Eng' },
-            ]}
+            onValueChange={(next) => setLocale(next as Locale)}
+            options={LOCALES.map((value) => ({ value, label: LOCALE_NAMES[value].short }))}
           />
         </div>
       </div>

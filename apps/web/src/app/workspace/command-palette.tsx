@@ -195,13 +195,13 @@ export function CommandPalette({
         <>
           <span className="flex items-center gap-1">
             <Kbd>↑</Kbd>
-            <Kbd>↓</Kbd> выбрать
+            <Kbd>↓</Kbd> {t('shell.palette.hintSelect')}
           </span>
           <span className="flex items-center gap-1">
-            <Kbd>↵</Kbd> открыть
+            <Kbd>↵</Kbd> {t('shell.palette.hintOpen')}
           </span>
           <span className="flex items-center gap-1">
-            <Kbd>⌘↵</Kbd> в новой вкладке
+            <Kbd>⌘↵</Kbd> {t('shell.palette.hintNewTab')}
           </span>
         </>
       }

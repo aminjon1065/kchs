@@ -6,6 +6,7 @@ import { GuestShareScreen } from '~/features/share/guest-screen.js'
 import { ApiError, setCsrfToken, setUnauthorizedHandler } from '~/shared/api/client.js'
 import { meQuery } from '~/shared/api/queries.js'
 import { initAppearance } from './appearance.js'
+import { useT } from './i18n.js'
 import { registerModules } from './modules.js'
 import { WorkspaceShell } from './workspace/shell.js'
 
@@ -18,6 +19,7 @@ function shareTokenFromUrl(): string | null {
 }
 
 export function App() {
+  const t = useT()
   const client = useQueryClient()
   const [signedOut, setSignedOut] = useState(false)
   const [shareToken] = useState(shareTokenFromUrl)
@@ -62,7 +64,7 @@ export function App() {
       <div className="flex h-full items-center justify-center bg-canvas">
         <div className="flex flex-col items-center gap-3">
           <Spinner className="size-6" />
-          <span className="text-sm text-fg-muted">Загружаем рабочее пространство…</span>
+          <span className="text-sm text-fg-muted">{t('shell.loadingWorkspace')}</span>
         </div>
       </div>
     )

@@ -94,7 +94,7 @@ export function ShareDialog({
 
   const copyLink = async (): Promise<void> => {
     await navigator.clipboard.writeText(`${window.location.origin}/o/${objectId}`)
-    toast.show({ title: 'Ссылка скопирована', tone: 'success' })
+    toast.show({ title: t('access.share.linkCopied'), tone: 'success' })
   }
 
   return (
@@ -125,7 +125,7 @@ export function ShareDialog({
                 <SearchInput
                   value={search}
                   onValueChange={setSearch}
-                  placeholder="Имя, группа или подразделение"
+                  placeholder={t('access.share.searchPlaceholder')}
                 />
                 {query && candidates.length > 0 ? (
                   <ul className="absolute inset-x-0 top-full z-(--z-dropdown) mt-1 max-h-56 overflow-y-auto rounded-md border border-line bg-overlay p-1 shadow-md">
@@ -186,7 +186,7 @@ export function ShareDialog({
                   {principal.title}
                   <button
                     type="button"
-                    aria-label="Убрать"
+                    aria-label={t('common.actions.remove')}
                     onClick={() =>
                       setPending((current) =>
                         current.filter(
@@ -335,9 +335,7 @@ export function ShareDialog({
               {t('access.share.linkSection')}
               <span className="ml-auto text-xs text-fg-muted">{t('access.share.linkOff')}</span>
             </div>
-            <p className="mt-1 text-xs text-fg-muted">
-              Гостевая ссылка даёт просмотр одного объекта без входа. Создаётся в карточке объекта.
-            </p>
+            <p className="mt-1 text-xs text-fg-muted">{t('access.share.guestLinkHint')}</p>
           </div>
         </div>
       </DialogContent>

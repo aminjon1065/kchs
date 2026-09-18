@@ -11,6 +11,7 @@ import {
   type HTMLAttributes,
   type ReactNode,
 } from 'react'
+import { useUiT } from '../i18n/ui-locale.js'
 import { cn } from '../lib/cn.js'
 
 // ─── Badge, Tag, Chip ────────────────────────────────────────────────────────
@@ -86,6 +87,7 @@ export function Tag({
   onRemove?: () => void
   className?: string
 }) {
+  const t = useUiT()
   return (
     <span
       className={cn(
@@ -102,7 +104,7 @@ export function Tag({
           type="button"
           onClick={onRemove}
           className="ml-0.5 text-fg-muted hover:text-fg"
-          aria-label="Убрать тег"
+          aria-label={t('ui.tag.remove')}
         >
           ×
         </button>
@@ -461,8 +463,12 @@ export interface BreadcrumbItem {
 }
 
 export function Breadcrumbs({ items, className }: { items: BreadcrumbItem[]; className?: string }) {
+  const t = useUiT()
   return (
-    <nav aria-label="Хлебные крошки" className={cn('flex min-w-0 items-center gap-1', className)}>
+    <nav
+      aria-label={t('ui.breadcrumbs.label')}
+      className={cn('flex min-w-0 items-center gap-1', className)}
+    >
       {items.map((item, index) => (
         <span key={item.id} className="flex min-w-0 items-center gap-1">
           {index > 0 ? (

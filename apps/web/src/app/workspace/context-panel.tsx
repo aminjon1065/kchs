@@ -107,8 +107,8 @@ export function ContextPanel() {
           <EmptyState
             compact
             icon={<Info />}
-            title="Нет выбранного объекта"
-            description="Откройте объект во вкладке — здесь появятся свойства, связи и обсуждение."
+            title={t('shell.context.noObject')}
+            description={t('shell.context.noObjectHint')}
           />
         ) : contextTab === 'info' ? (
           <InfoTab objectId={objectId} />
@@ -316,14 +316,14 @@ function DiscussionTab({ objectId }: { objectId: string }) {
             {data.items.map((message) => (
               <article key={message.id} className="flex gap-2">
                 <Avatar
-                  name={message.author?.displayName ?? 'Система'}
+                  name={message.author?.displayName ?? t('discussion.systemAuthor')}
                   src={message.author?.avatarUrl}
                   size="sm"
                 />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-baseline gap-2">
                     <span className="truncate text-xs font-medium text-fg">
-                      {message.author?.displayName ?? 'Система'}
+                      {message.author?.displayName ?? t('discussion.systemAuthor')}
                     </span>
                     <time className="shrink-0 text-2xs text-fg-muted" dateTime={message.createdAt}>
                       {formatRelativeTime(message.createdAt, { locale })}
@@ -364,7 +364,7 @@ function DiscussionTab({ objectId }: { objectId: string }) {
           }}
         />
         <div className="mt-1.5 flex items-center justify-between">
-          <span className="text-2xs text-fg-muted">⌘↵ — отправить</span>
+          <span className="text-2xs text-fg-muted">{t('discussion.sendHint')}</span>
           <Button
             type="submit"
             size="sm"

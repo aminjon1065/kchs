@@ -1,6 +1,7 @@
 import { cn, EmptyState, Panel, PanelGroup, ResizeHandle, Skeleton } from '@kchs/ui'
 import { LayoutGrid } from 'lucide-react'
 import { Suspense } from 'react'
+import { useT } from '../i18n.js'
 import { getObjectView, getScreen } from './registry.js'
 import { useWorkspace } from './store.js'
 import { TabBar } from './tab-bar.js'
@@ -45,6 +46,7 @@ function PaneView({
   onFocus: (paneId: string) => void
   onOpenPalette: () => void
 }) {
+  const t = useT()
   const tabs = useWorkspace((s) => s.tabs)
   const activeTab = pane.activeTabId ? tabs[pane.activeTabId] : null
 
@@ -56,7 +58,7 @@ function PaneView({
         'flex min-h-0 min-w-0 flex-1 flex-col bg-surface',
         !focused && 'opacity-[0.99]',
       )}
-      aria-label="Панель"
+      aria-label={t('shell.pane.label')}
     >
       <TabBar pane={pane} focused={focused} onOpenPalette={onOpenPalette} />
       <div className="min-h-0 flex-1 overflow-hidden">
@@ -67,8 +69,8 @@ function PaneView({
         ) : (
           <EmptyState
             icon={<LayoutGrid />}
-            title="Вкладок нет"
-            description="Откройте объект из навигатора или нажмите ⌘K"
+            title={t('shell.pane.emptyTitle')}
+            description={t('shell.pane.emptyHint')}
           />
         )}
       </div>
@@ -77,13 +79,14 @@ function PaneView({
 }
 
 function TabContent({ tab }: { tab: TabState }) {
+  const t = useT()
   if (tab.kind === 'object') {
     const view = getObjectView(tab.objectType ?? '')
     if (view) return <>{view.render(tab)}</>
     return (
       <EmptyState
-        title="Тип объекта пока не поддерживается"
-        description={`Модуль для «${tab.objectType}» появится в следующей фазе.`}
+        title={t('shell.pane.unsupportedType')}
+        description={t('shell.pane.unsupportedTypeHint', { type: tab.objectType ?? '' })}
       />
     )
   }
@@ -92,8 +95,8 @@ function TabContent({ tab }: { tab: TabState }) {
   if (!screen) {
     return (
       <EmptyState
-        title="Раздел в разработке"
-        description="Этот модуль появится в одной из следующих фаз дорожной карты."
+        title={t('shell.pane.inDevelopment')}
+        description={t('shell.pane.inDevelopmentHint')}
       />
     )
   }

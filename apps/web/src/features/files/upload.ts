@@ -1,4 +1,5 @@
 import type { FileRecord, UploadSession } from '@kchs/contracts'
+import { t } from '~/app/i18n.js'
 import { http } from '~/shared/api/client.js'
 
 export interface UploadInput {
@@ -42,7 +43,9 @@ export async function uploadFile(input: UploadInput): Promise<FileRecord> {
         const start = (part.partNumber - 1) * session.partSize
         const chunk = input.file.slice(start, start + part.size)
         const response = await fetch(part.url, { method: 'PUT', body: chunk })
-        if (!response.ok) throw new Error(`Часть ${part.partNumber} не загрузилась`)
+        if (!response.ok) {
+          throw new Error(t('files.upload.partFailed', { part: part.partNumber }))
+        }
         const etag = response.headers.get('etag')?.replace(/"/g, '') ?? ''
         parts.push({ partNumber: part.partNumber, etag })
         uploaded += part.size
@@ -78,8 +81,8 @@ function putWithProgress(
     request.onload = () =>
       request.status >= 200 && request.status < 300
         ? resolve()
-        : reject(new Error(`Загрузка не выполнена: ${request.status}`))
-    request.onerror = () => reject(new Error('Сеть недоступна'))
+        : reject(new Error(t('files.upload.httpFailed', { status: request.status })))
+    request.onerror = () => reject(new Error(t('files.upload.networkFailed')))
     request.send(file)
   })
 }

@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import { getCsrfToken, http } from '~/shared/api/client.js'
+import { t } from '../i18n.js'
 import type {
   ContextTabKey,
   OpenTabInput,
@@ -23,7 +24,7 @@ function homeTab(): TabState {
     id: 'tab_home',
     kind: 'screen',
     screen: 'home',
-    title: 'Мой день',
+    title: t('shell.rail.home'),
     icon: 'home',
     preview: false,
     pinned: true,

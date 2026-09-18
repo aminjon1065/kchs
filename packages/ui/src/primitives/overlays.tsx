@@ -4,6 +4,7 @@ import * as PopoverPrimitive from '@radix-ui/react-popover'
 import * as TooltipPrimitive from '@radix-ui/react-tooltip'
 import { Check, ChevronRight, X } from 'lucide-react'
 import { type ComponentPropsWithoutRef, type ElementRef, forwardRef, type ReactNode } from 'react'
+import { useUiT } from '../i18n/ui-locale.js'
 import { cn } from '../lib/cn.js'
 import { IconButton } from './button.js'
 
@@ -254,6 +255,7 @@ export const DialogContent = forwardRef<
   { className, title, description, size = 'md', footer, hideClose, children, ...props },
   ref,
 ) {
+  const t = useUiT()
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay
@@ -286,7 +288,7 @@ export const DialogContent = forwardRef<
           </div>
           {!hideClose ? (
             <DialogPrimitive.Close asChild>
-              <IconButton label="Закрыть" size="md">
+              <IconButton label={t('ui.actions.close')} size="md">
                 <X className="size-4" />
               </IconButton>
             </DialogPrimitive.Close>
@@ -325,6 +327,7 @@ export const SheetContent = forwardRef<
   { className, title, description, side = 'right', width = '440px', footer, children, ...props },
   ref,
 ) {
+  const t = useUiT()
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay className="fixed inset-0 z-(--z-overlay) bg-black/25 data-[state=open]:animate-fade" />
@@ -355,7 +358,7 @@ export const SheetContent = forwardRef<
             ) : null}
           </div>
           <DialogPrimitive.Close asChild>
-            <IconButton label="Закрыть">
+            <IconButton label={t('ui.actions.close')}>
               <X className="size-4" />
             </IconButton>
           </DialogPrimitive.Close>
@@ -393,12 +396,13 @@ export function AlertDialog({
   title,
   description,
   consequences,
-  confirmLabel = 'Подтвердить',
-  cancelLabel = 'Отмена',
+  confirmLabel,
+  cancelLabel,
   onConfirm,
   destructive = true,
   loading,
 }: AlertDialogProps) {
+  const t = useUiT()
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
@@ -429,7 +433,7 @@ export function AlertDialog({
                 type="button"
                 className="inline-flex h-[var(--control-h)] items-center rounded-sm border border-line-strong bg-surface px-3 text-sm font-medium hover:bg-surface-3"
               >
-                {cancelLabel}
+                {cancelLabel ?? t('ui.actions.cancel')}
               </button>
             </DialogPrimitive.Close>
             <button
@@ -442,7 +446,7 @@ export function AlertDialog({
                 destructive ? 'bg-danger hover:opacity-90' : 'bg-accent hover:bg-accent-hover',
               )}
             >
-              {confirmLabel}
+              {confirmLabel ?? t('ui.actions.confirm')}
             </button>
           </div>
         </DialogPrimitive.Content>

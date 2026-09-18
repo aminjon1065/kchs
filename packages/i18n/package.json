@@ -15,9 +15,6 @@
     "test": "vitest run --passWithNoTests",
     "literals": "tsx scripts/find-literals.ts"
   },
-  "dependencies": {
-    "i18next": "^25.6.0"
-  },
   "devDependencies": {
     "@kchs/config": "workspace:*",
     "tsx": "^4.20.6",
