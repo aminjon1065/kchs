@@ -114,6 +114,23 @@ export function registerKernelSubscribers(): void {
           emitToRoom(`object:${event.object.id}`, 'message.posted', payload)
           break
         }
+        case 'message.edited':
+        case 'message.deleted':
+        case 'message.reacted': {
+          // Правка, удаление и реакции — соседи перечитывают обсуждение
+          const payload = {
+            conversationId: event.payload.conversationId,
+            messageId: event.payload.messageId,
+            objectId: event.object.id,
+          }
+          emitToRoom(
+            `conversation:${event.payload.conversationId as string}`,
+            'message.updated',
+            payload,
+          )
+          emitToRoom(`object:${event.object.id}`, 'message.updated', payload)
+          break
+        }
         case 'acl.changed':
           await revokeRoomAccess(event.object.id)
           break

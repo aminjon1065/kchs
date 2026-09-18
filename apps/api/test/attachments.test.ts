@@ -259,3 +259,59 @@ describe('вложения: доступ через объект', () => {
     ).toBe(404)
   })
 })
+
+describe('вложения в сообщениях обсуждения', () => {
+  /** Файл в личном пространстве администратора: участнику не виден. */
+  async function secretFile(name: string) {
+    const me = (await call(fx.app, { url: '/me', as: fx.admin })).json()
+    return uploadFile(fx.app, fx.admin, {
+      spaceId: me.personalSpaceId,
+      name,
+      content: 'секретное содержимое',
+    })
+  }
+
+  const post = (hostId: string, payload: Record<string, unknown>, as: TestUser = fx.users.member) =>
+    call(fx.app, {
+      method: 'POST',
+      url: `/objects/${hostId}/discussion/messages`,
+      as,
+      payload: { body: { type: 'doc', content: [] }, text: 'смотрите', ...payload },
+    })
+
+  it('чужой файл нельзя «прикрепить» сообщением и так получить к нему доступ', async () => {
+    const host = await createFolder(`Обсуждаемое ${run}`)
+    const secret = await secretFile(`Секрет ${run}.txt`)
+    expect(await status(`/objects/${secret.id}`, fx.users.member)).toBe(404)
+
+    const response = await post(host, { attachments: [{ fileId: secret.id }] })
+    expect(response.statusCode).toBe(404)
+    // Ни сообщения, ни связи: доступ через вложение не появился
+    expect(await status(`/objects/${secret.id}`, fx.users.member)).toBe(404)
+    const links = await call(fx.app, { url: `/objects/${host}/links`, as: fx.admin })
+    expect(JSON.stringify(links.json())).not.toContain(secret.id)
+  })
+
+  it('упоминание невидимого объекта отклоняется — связь не создаётся', async () => {
+    const host = await createFolder(`Упоминания ${run}`)
+    const secret = await secretFile(`Не упоминать ${run}.txt`)
+    const response = await post(host, { mentionedObjectIds: [secret.id] })
+    expect(response.statusCode).toBe(404)
+  })
+
+  it('своё вложение прикрепляется к сообщению — с именем, типом и размером', async () => {
+    const host = await createFolder(`С вложением ${run}`)
+    const file = await attach(host, `Фото ${run}.txt`, fx.users.member)
+    const response = await post(host, { attachments: [{ fileId: file.id }] })
+    expect(response.statusCode).toBe(200)
+
+    const discussion = await call(fx.app, { url: `/objects/${host}/discussion`, as: fx.users.viewer })
+    const message = discussion
+      .json()
+      .items.find((item: { id: string }) => item.id === response.json().id)
+    expect(message.attachments).toEqual([
+      expect.objectContaining({ fileId: file.id, name: `Фото ${run}.txt`, mime: 'text/plain' }),
+    ])
+    expect(message.attachments[0].size).toBeGreaterThan(0)
+  })
+})

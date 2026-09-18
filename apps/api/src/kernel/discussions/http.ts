@@ -158,7 +158,9 @@ export function registerDiscussionRoutes(route: RouteRegistrar): void {
       const messageId = Number(request.params.messageId)
       const conversationId = await conversationOfMessage(messageId)
       await authorize(request.ctx, 'post', conversationId)
-      await DiscussionService.react(request.ctx, messageId, request.body.emoji, request.body.on)
+      await db().transaction((tx) =>
+        DiscussionService.react(tx, request.ctx, messageId, request.body.emoji, request.body.on),
+      )
       return { ok: true }
     },
   })

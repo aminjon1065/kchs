@@ -80,6 +80,11 @@ export function connectRealtime(client: QueryClient, handlers: RealtimeHandlers 
     },
   )
 
+  // Правка, удаление, реакция — перечитать обсуждение объекта
+  socket.on('message.updated', (payload: { objectId?: string }) => {
+    if (payload.objectId) void client.invalidateQueries({ queryKey: ['object', payload.objectId] })
+  })
+
   socket.on('notification.new', () => {
     void client.invalidateQueries({ queryKey: ['notifications'] })
     handlers.onNotification?.()

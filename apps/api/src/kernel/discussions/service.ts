@@ -18,10 +18,62 @@ import {
   reactions,
 } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
+import { authorize } from '../access/authorize.js'
 import { directory } from '../directory/port.js'
 import { publishEvent } from '../events/publisher.js'
 import { LinkService } from '../links/service.js'
 import { ObjectService } from '../objects/service.js'
+
+/**
+ * Вложения сообщения. Вложение открывает файл каждому, кто видит беседу, —
+ * это выдача доступа (ADR-0042), поэтому прикрепить можно только файл, которым
+ * автор вправе делиться, как и через POST /objects/:id/links. Иначе любой
+ * участник обсуждения получал бы доступ к чужому файлу по его идентификатору.
+ * В сообщении хранится снимок имени, типа и размера — для списка без запросов.
+ */
+async function checkedAttachments(
+  tx: Executor,
+  ctx: UserCtx,
+  requested: MessagePostInput['attachments'],
+): Promise<Message['attachments']> {
+  const result: Message['attachments'] = []
+  for (const { fileId } of requested) {
+    await authorize(ctx, 'share', fileId)
+    const [file] = await tx
+      .select({ id: objects.id, type: objects.type, title: objects.title, meta: objects.meta })
+      .from(objects)
+      .where(eq(objects.id, fileId))
+      .limit(1)
+    if (file?.type !== 'file') throw errors.validation('Вложением может быть только файл')
+    const meta = (file.meta ?? {}) as { mime?: string; size?: number }
+    result.push({
+      fileId: file.id,
+      name: file.title,
+      mime: meta.mime ?? 'application/octet-stream',
+      size: meta.size ?? 0,
+    })
+  }
+  return result
+}
+
+/** Объект обсуждения — для событий: подписчик realtime рассылает их в комнату объекта. */
+async function subjectOf(tx: Executor, conversationId: string) {
+  const [row] = await tx
+    .select({
+      id: objects.id,
+      type: objects.type,
+      spaceId: objects.spaceId,
+      title: objects.title,
+    })
+    .from(conversations)
+    .innerJoin(
+      objects,
+      eq(objects.id, sql`coalesce(${conversations.objectId}, ${conversations.id})`),
+    )
+    .where(eq(conversations.id, conversationId))
+    .limit(1)
+  return row ?? null
+}
 
 /**
  * Обсуждения объектов и чаты — одна сущность (02-platform-kernel.md §6).
@@ -85,6 +137,10 @@ export const DiscussionService = {
       .limit(1)
     if (!conversation) throw errors.notFound('Беседа')
 
+    const attachments = await checkedAttachments(tx, ctx, input.attachments)
+    // Упомянуть можно только то, что автор видит: связь `mention` видна в карточке
+    for (const mentionedId of input.mentionedObjectIds) await authorize(ctx, 'view', mentionedId)
+
     const [row] = await tx
       .insert(messages)
       .values({
@@ -96,7 +152,7 @@ export const DiscussionService = {
         text: input.text,
         replyToId: input.replyToId ? Number(input.replyToId) : null,
         threadRootId: input.threadRootId ? Number(input.threadRootId) : null,
-        attachments: input.attachments as unknown as Array<Record<string, unknown>>,
+        attachments: attachments as unknown as Array<Record<string, unknown>>,
         mentions: input.mentions,
         mentionedObjectIds: input.mentionedObjectIds,
       })
@@ -124,7 +180,7 @@ export const DiscussionService = {
 
     // Вложения и упоминания объектов превращаются в связи ядра
     const subjectId = conversation.objectId ?? conversationId
-    for (const attachment of input.attachments) {
+    for (const attachment of attachments) {
       await LinkService.link(tx, ctx, subjectId, attachment.fileId, 'attachment')
     }
     for (const mentionedId of input.mentionedObjectIds) {
@@ -288,6 +344,7 @@ export const DiscussionService = {
 
     await publishEvent(tx, ctx, {
       type: 'message.edited',
+      object: await subjectOf(tx, row.conversationId),
       payload: { conversationId: row.conversationId, messageId: String(messageId) },
     })
   },
@@ -304,27 +361,52 @@ export const DiscussionService = {
       .where(eq(messages.id, messageId))
     await publishEvent(tx, ctx, {
       type: 'message.deleted',
+      object: await subjectOf(tx, row.conversationId),
       payload: { conversationId: row.conversationId, messageId: String(messageId) },
     })
   },
 
-  async react(ctx: UserCtx, messageId: number, emoji: string, on: boolean): Promise<void> {
-    if (on) {
-      await db()
-        .insert(reactions)
-        .values({ messageId, userId: ctx.userId, emoji })
-        .onConflictDoNothing()
-    } else {
-      await db()
-        .delete(reactions)
-        .where(
-          and(
-            eq(reactions.messageId, messageId),
-            eq(reactions.userId, ctx.userId),
-            eq(reactions.emoji, emoji),
-          ),
-        )
-    }
+  /**
+   * Реакция ставится или снимается; событие — только если что-то изменилось,
+   * чтобы соседи по обсуждению увидели её без перезагрузки.
+   */
+  async react(
+    tx: Executor,
+    ctx: UserCtx,
+    messageId: number,
+    emoji: string,
+    on: boolean,
+  ): Promise<void> {
+    const [message] = await tx
+      .select({ conversationId: messages.conversationId, deletedAt: messages.deletedAt })
+      .from(messages)
+      .where(eq(messages.id, messageId))
+      .limit(1)
+    if (!message || message.deletedAt) throw errors.notFound('Сообщение')
+
+    const changed = on
+      ? await tx
+          .insert(reactions)
+          .values({ messageId, userId: ctx.userId, emoji })
+          .onConflictDoNothing()
+          .returning({ messageId: reactions.messageId })
+      : await tx
+          .delete(reactions)
+          .where(
+            and(
+              eq(reactions.messageId, messageId),
+              eq(reactions.userId, ctx.userId),
+              eq(reactions.emoji, emoji),
+            ),
+          )
+          .returning({ messageId: reactions.messageId })
+    if (changed.length === 0) return
+
+    await publishEvent(tx, ctx, {
+      type: 'message.reacted',
+      object: await subjectOf(tx, message.conversationId),
+      payload: { conversationId: message.conversationId, messageId: String(messageId), emoji },
+    })
   },
 
   async markRead(ctx: UserCtx, conversationId: string, messageId: number): Promise<void> {

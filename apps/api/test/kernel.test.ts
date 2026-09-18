@@ -174,6 +174,47 @@ describe('обсуждения', () => {
     })
     expect(response.statusCode).toBe(403)
   })
+
+  it('реакция: ставится и снимается, повтор не шумит, событие несёт объект обсуждения', async () => {
+    const id = await newFolder('С реакциями')
+    const posted = await call(fx.app, {
+      method: 'POST',
+      url: `/objects/${id}/discussion/messages`,
+      as: fx.admin,
+      payload: { body: { type: 'doc', content: [] }, text: 'Готово' },
+    })
+    const messageId = posted.json().id as string
+    const react = (on: boolean, as = fx.users.member) =>
+      call(fx.app, {
+        method: 'PUT',
+        url: `/messages/${messageId}/reactions`,
+        as,
+        payload: { emoji: '👍', on },
+      })
+    const reactionsOf = async (as = fx.admin) =>
+      (await call(fx.app, { url: `/objects/${id}/discussion`, as })).json().items[0].reactions
+
+    expect((await react(true)).statusCode).toBe(200)
+    expect((await react(true)).statusCode).toBe(200)
+    expect(await reactionsOf()).toEqual([
+      { emoji: '👍', count: 1, users: [fx.users.member.id], mine: false },
+    ])
+    expect((await reactionsOf(fx.users.member))[0].mine).toBe(true)
+
+    const { sql } = await import('drizzle-orm')
+    const events = await db().execute<{ object_id: string | null }>(
+      sql`SELECT event->'object'->>'id' AS object_id FROM ops.outbox
+           WHERE type = 'message.reacted' AND event->'payload'->>'messageId' = ${messageId}`,
+    )
+    // Повторная реакция ничего не меняет — события нет
+    expect(events.map((row) => row.object_id)).toEqual([id])
+
+    expect((await react(false)).statusCode).toBe(200)
+    expect(await reactionsOf()).toEqual([])
+
+    // Читатель без права писать реакцию не ставит
+    expect((await react(true, fx.users.viewer)).statusCode).toBe(403)
+  })
 })
 
 describe('пространства', () => {
