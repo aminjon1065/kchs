@@ -1,0 +1,12 @@
+# Дашборды — из репозитория (infra/observability/dashboards), правка в UI не
+# сохраняется: изменения вносятся в JSON и проходят ревью (15-admin-operations.md §4)
+apiVersion: 1
+
+providers:
+  - name: kchs
+    folder: kchs
+    type: file
+    disableDeletion: true
+    allowUiUpdates: false
+    options:
+      path: /etc/grafana/dashboards

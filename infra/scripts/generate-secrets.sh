@@ -43,7 +43,7 @@ b64key() { openssl rand -base64 32; }
 PG_SUPER="$(rnd 32)"; PG_APP="$(rnd 32)"; PG_MIGRATOR="$(rnd 32)"
 PG_QUERY="$(rnd 32)"; PG_READONLY="$(rnd 32)"; PG_AUDIT="$(rnd 32)"
 REDIS_PW="$(rnd 32)"; S3_SECRET="$(rnd 40)"; MEILI_KEY="$(rnd 40)"
-MASTER_KEY="$(b64key)"; INTERNAL_TOKEN="$(rnd 48)"
+MASTER_KEY="$(b64key)"; INTERNAL_TOKEN="$(rnd 48)"; GRAFANA_PW="$(rnd 24)"
 
 mkdir -p "$(dirname "$ENV_FILE")"
 cp "$EXAMPLE" "$ENV_FILE"
@@ -68,6 +68,7 @@ repl S3_SECRET_KEY "$S3_SECRET"
 repl MEILI_MASTER_KEY "$MEILI_KEY"
 repl KCHS_MASTER_KEY "$MASTER_KEY"
 repl INTERNAL_SERVICE_TOKEN "$INTERNAL_TOKEN"
+repl GRAFANA_ADMIN_PASSWORD "$GRAFANA_PW"
 
 # Порты и привязка — из окружения, если заданы
 for key in POSTGRES_PORT REDIS_PORT S3_PORT S3_CONSOLE_PORT MEILI_PORT MAILPIT_SMTP_PORT \

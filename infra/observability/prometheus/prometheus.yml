@@ -1,0 +1,36 @@
+# Prometheus — метрики kchs (15-admin-operations.md §4, ADR-0045). Эндпоинты
+# /metrics api и worker (METRICS_PORT=9464) доступны только во внутренней сети
+# compose: порт не пробрасывается и не проксируется Caddy.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+scrape_configs:
+  # Все экземпляры сервиса (api ×2 в S1) — через DNS compose; сервис не
+  # запущен — целей нет, а не «цель недоступна»
+  - job_name: kchs-api
+    dns_sd_configs:
+      - names: [api]
+        type: A
+        port: 9464
+
+  - job_name: kchs-worker
+    dns_sd_configs:
+      - names: [worker]
+        type: A
+        port: 9464
+
+  # Разработка: api на хосте (pnpm dev c METRICS_PORT=9464). Имя есть только
+  # в Docker Desktop; на сервере Linux оно не разрешается — целей нет
+  - job_name: kchs-dev
+    dns_sd_configs:
+      - names: [host.docker.internal]
+        type: A
+        port: 9464
+
+  - job_name: prometheus
+    static_configs:
+      - targets: [localhost:9090]

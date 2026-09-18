@@ -1,0 +1,90 @@
+// Alloy — агент наблюдаемости kchs (15-admin-operations.md §4, ADR-0045):
+// принимает трассы OpenTelemetry от api/worker и пересылает их в Tempo,
+// собирает журналы контейнеров своего compose-проекта и отправляет в Loki.
+// Заменяет promtail (снят с поддержки) и отдельный коллектор OpenTelemetry.
+
+// ── Трассы: OTLP/HTTP → пакеты → Tempo ────────────────────────────────────────
+otelcol.receiver.otlp "kchs" {
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+
+  output {
+    traces = [otelcol.processor.batch.kchs.input]
+  }
+}
+
+otelcol.processor.batch "kchs" {
+  output {
+    traces = [otelcol.exporter.otlp.tempo.input]
+  }
+}
+
+otelcol.exporter.otlp "tempo" {
+  client {
+    endpoint = "tempo:4317"
+
+    tls {
+      insecure = true
+    }
+  }
+}
+
+// ── Журналы: контейнеры проекта → разбор pino JSON → Loki ─────────────────────
+discovery.docker "kchs" {
+  host = "unix:///var/run/docker.sock"
+
+  filter {
+    name   = "label"
+    values = ["com.docker.compose.project=" + sys.env("KCHS_COMPOSE_PROJECT")]
+  }
+}
+
+discovery.relabel "kchs" {
+  targets = discovery.docker.kchs.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "service"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+    target_label  = "project"
+  }
+}
+
+loki.source.docker "kchs" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.kchs.output
+  forward_to = [loki.process.pino.receiver]
+}
+
+// pino пишет уровень числом (30 → info, 50 → error). trace_id — метаданные
+// записи, а не метка: у каждой строки свой, а меток должно быть немного
+loki.process "pino" {
+  stage.json {
+    expressions = { level = "level", trace_id = "trace_id" }
+  }
+
+  stage.template {
+    source   = "level"
+    template = "{{ if eq .Value \"10\" }}trace{{ else if eq .Value \"20\" }}debug{{ else if eq .Value \"30\" }}info{{ else if eq .Value \"40\" }}warn{{ else if eq .Value \"50\" }}error{{ else if eq .Value \"60\" }}fatal{{ else }}{{ .Value }}{{ end }}"
+  }
+
+  stage.labels {
+    values = { level = "" }
+  }
+
+  stage.structured_metadata {
+    values = { trace_id = "" }
+  }
+
+  forward_to = [loki.write.kchs.receiver]
+}
+
+loki.write "kchs" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

@@ -1,0 +1,64 @@
+# Алерты kchs (15-admin-operations.md §4, 04-verification.md §4–5). Состояние
+# видно в Prometheus (/alerts) и Grafana; доставка (почта, Telegram) —
+# Alertmanager, в S1 пока не подключён (ADR-0045). Имена метрик — как их
+# отдаёт экспортёр OpenTelemetry: без суффикса единицы, счётчики с `_total`.
+groups:
+  - name: kchs
+    rules:
+      - alert: KchsInstanceDown
+        expr: up{job=~"kchs-api|kchs-worker"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.job }} {{ $labels.instance }} не отдаёт метрики"
+
+      - alert: KchsHttpErrorRate
+        expr: |
+          sum by (job) (rate(http_server_request_duration_count{http_response_status_code=~"5.."}[5m]))
+            / sum by (job) (rate(http_server_request_duration_count[5m])) > 0.01
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Ошибки 5xx в {{ $labels.job }} выше 1 %"
+
+      # Бюджет базовых операций (04-verification.md §4); проверки здоровья не в счёт
+      - alert: KchsHttpLatencyBudget
+        expr: |
+          histogram_quantile(0.95,
+            sum by (job, le) (rate(http_server_request_duration_bucket{http_route!="/health"}[5m]))) > 0.2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "p95 API {{ $labels.job }} выше бюджета 200 мс"
+
+      # 04-verification.md §5: «нет неопубликованных старше 1 мин». Outbox общий —
+      # максимум по экземплярам
+      - alert: KchsOutboxStuck
+        expr: max(kchs_outbox_oldest_age) > 60
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Outbox: неопубликованное событие старше минуты"
+
+      - alert: KchsQueueGrowing
+        expr: |
+          sum by (queue) (kchs_queue_jobs{state=~"waiting|prioritized"}) > 0
+            and sum by (queue) (delta(kchs_queue_jobs{state=~"waiting|prioritized"}[15m])) > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Очередь {{ $labels.queue }} растёт дольше 15 минут"
+
+      # Бюджет памяти api (04-verification.md §4): RSS ≤ 1 ГБ в норме
+      - alert: KchsMemoryBudget
+        expr: process_memory_usage{job=~"kchs-api|kchs-worker"} > 1e9
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.instance }}: RSS выше 1 ГБ"

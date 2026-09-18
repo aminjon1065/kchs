@@ -1,6 +1,7 @@
 # kchs — инфраструктура сценария S1 (один сервер).
 # Профили: по умолчанию — данные и сервисы (postgres, redis, minio, meilisearch,
-# mailpit); `app` — образы api/worker/engine/web; `media` — LiveKit (фаза 4).
+# mailpit); `app` — образы api/worker/engine/web; `media` — LiveKit (фаза 4);
+# `observability` — трассы, метрики и журналы (Alloy, Tempo, Loki, Prometheus, Grafana).
 # web — это Caddy со сборкой SPA: он отдаёт статику, проксирует /api и /ws,
 # ставит CSP и выпускает TLS, поэтому отдельного прокси нет.
 #
@@ -46,6 +47,12 @@ x-app-env: &app-env
   LOGIN_RATE_LIMIT_PER_IP_PER_MINUTE: ${LOGIN_RATE_LIMIT_PER_IP_PER_MINUTE:-300}
   # Caddy (контейнер web) в частной сети Docker: X-Forwarded-For верим только ему
   TRUST_PROXY: ${TRUST_PROXY_APP:-uniquelocal}
+  # Метрики Prometheus — отдельный порт во внутренней сети: не пробрасывается и не
+  # проксируется web; трассы — в Alloy профиля observability (http://alloy:4318),
+  # пустой адрес выключает их (ADR-0045)
+  METRICS_PORT: 9464
+  METRICS_HOST: 0.0.0.0
+  OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT_INTERNAL:-}
 
 services:
   postgres:
@@ -321,6 +328,95 @@ services:
       - "3478:3478/udp"
       - "50000-50100:50000-50100/udp"
 
+  # ── Профиль observability: трассы, метрики, журналы (15-admin-operations.md §4,
+  # ADR-0045). Трассы включает OTEL_EXPORTER_OTLP_ENDPOINT_INTERNAL=http://alloy:4318
+  # (api/worker профиля app) или OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+  # (api на хосте). Grafana — http://127.0.0.1:3001, наружу не публикуется.
+  alloy:
+    <<: [*restart, *logging]
+    profiles: ["observability"]
+    image: grafana/alloy:v1.12.0
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    environment:
+      # Журналы собираются только с контейнеров своего проекта
+      KCHS_COMPOSE_PROJECT: ${COMPOSE_PROJECT_NAME:-kchs}
+    volumes:
+      - ../observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      # Журналы контейнеров — через API Docker, только чтение
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - alloydata:/var/lib/alloy/data
+    ports:
+      # OTLP/HTTP для api на хосте; контейнеры пишут в alloy:4318
+      - "${KCHS_BIND:-127.0.0.1}:${OTLP_HTTP_PORT:-4318}:4318"
+    depends_on: [tempo, loki]
+
+  # Tempo и Loki работают от uid 10001, а новый том принадлежит root
+  observability-init:
+    profiles: ["observability"]
+    image: busybox:1.37
+    command: ["chown", "-R", "10001:10001", "/var/tempo", "/loki"]
+    volumes:
+      - tempodata:/var/tempo
+      - lokidata:/loki
+    restart: "no"
+
+  tempo:
+    <<: [*restart, *logging]
+    profiles: ["observability"]
+    image: grafana/tempo:2.9.0
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ../observability/tempo/tempo.yaml:/etc/tempo.yaml:ro
+      - tempodata:/var/tempo
+    depends_on:
+      observability-init: { condition: service_completed_successfully }
+
+  loki:
+    <<: [*restart, *logging]
+    profiles: ["observability"]
+    image: grafana/loki:3.6.0
+    command: ["-config.file=/etc/loki/loki.yaml"]
+    volumes:
+      - ../observability/loki/loki.yaml:/etc/loki/loki.yaml:ro
+      - lokidata:/loki
+    depends_on:
+      observability-init: { condition: service_completed_successfully }
+
+  prometheus:
+    <<: [*restart, *logging]
+    profiles: ["observability"]
+    image: prom/prometheus:v3.9.1
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+    volumes:
+      - ../observability/prometheus:/etc/prometheus:ro
+      - prometheusdata:/prometheus
+
+  grafana:
+    <<: [*restart, *logging]
+    profiles: ["observability"]
+    image: grafana/grafana:12.3.0
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_NEWS_NEWS_FEED_ENABLED: "false"
+    volumes:
+      - ../observability/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ../observability/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ../observability/dashboards:/etc/grafana/dashboards:ro
+      - grafanadata:/var/lib/grafana
+    ports:
+      - "${KCHS_BIND:-127.0.0.1}:${GRAFANA_PORT:-3001}:3000"
+    depends_on: [prometheus, tempo, loki]
+
 volumes:
   pgdata:
   redisdata:
@@ -328,3 +424,8 @@ volumes:
   meilidata:
   caddydata:
   caddyconfig:
+  alloydata:
+  tempodata:
+  lokidata:
+  prometheusdata:
+  grafanadata:
