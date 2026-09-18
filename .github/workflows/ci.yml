@@ -149,11 +149,17 @@ jobs:
       - name: Прогон сценариев
         run: pnpm e2e
 
+      # Продакшен-сборка за настоящим Caddy с тем же CSP: ни одного нарушения (ADR-0043)
+      - name: CSP на продакшен-сборке
+        run: pnpm --filter @kchs/web csp:check
+
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: playwright-report
-          path: apps/web/playwright-report
+          path: |
+            apps/web/playwright-report
+            apps/web/test-results/csp-check
           retention-days: 7
 
   ui-visual:

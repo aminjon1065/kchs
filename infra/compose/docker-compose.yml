@@ -273,6 +273,8 @@ services:
       - caddyconfig:/config
     environment:
       KCHS_DOMAIN: ${KCHS_DOMAIN:-localhost}
+      # Origin S3 для CSP: прямые загрузки и превью по подписанным ссылкам (ADR-0043)
+      KCHS_STORAGE_ORIGIN: ${KCHS_STORAGE_ORIGIN:-http://localhost:9000}
     ports:
       - "${WEB_PORT:-8080}:80"
     depends_on:
@@ -306,6 +308,7 @@ services:
       - "443:443"
     environment:
       KCHS_DOMAIN: ${KCHS_DOMAIN:-localhost}
+      KCHS_STORAGE_ORIGIN: ${KCHS_STORAGE_ORIGIN:-http://localhost:9000}
 
 volumes:
   pgdata:

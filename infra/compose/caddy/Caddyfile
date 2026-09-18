@@ -12,25 +12,45 @@
 		respond 404
 	}
 
-	# API и WebSocket
+	# API и WebSocket (адрес api переопределяется для проверки CSP вне compose)
 	handle /api/* {
-		reverse_proxy api:3000
+		reverse_proxy {$KCHS_API_UPSTREAM:api:3000}
 	}
 	handle /ws/* {
-		reverse_proxy api:3000
+		reverse_proxy {$KCHS_API_UPSTREAM:api:3000}
 	}
 	handle /collab/* {
-		reverse_proxy api:3000
+		reverse_proxy {$KCHS_API_UPSTREAM:api:3000}
 	}
 
-	# Статика SPA
+	# Собранные файлы с хешем в имени — кешируются навсегда
+	handle /assets/* {
+		root * /srv/web
+		header Cache-Control "public, max-age=31536000, immutable"
+		file_server
+	}
+
+	# Статика SPA. index.html — шаблон: в <meta name="csp-nonce"> подставляется
+	# nonce запроса, тот же, что в заголовке CSP (ADR-0043). Такие ответы не
+	# кешируются: страница из кеша несла бы nonce, не совпадающий с новым заголовком
 	handle {
 		root * /srv/web
+		header Cache-Control "no-store"
 		try_files {path} /index.html
+		templates {
+			mime text/html
+		}
 		file_server
 	}
 
 	header {
+		# Строгий CSP (17-security.md §2): скрипты — только свои файлы; стили — свои
+		# файлы и <style> с nonce запроса (их вставляют Radix, react-remove-scroll и
+		# react-resizable-panels во время работы). S3 — прямые загрузки и превью по
+		# подписанным ссылкам (KCHS_STORAGE_ORIGIN — origin S3_PUBLIC_ENDPOINT).
+		# Строку читает проверка apps/web/scripts/csp-check.mjs — меняйте только здесь
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'nonce-{http.request.uuid}'; img-src 'self' data: blob: {$KCHS_STORAGE_ORIGIN}; media-src 'self' blob: {$KCHS_STORAGE_ORIGIN}; font-src 'self'; connect-src 'self' ws://{http.request.hostport} wss://{http.request.hostport} {$KCHS_STORAGE_ORIGIN}; worker-src 'self' blob:; frame-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+		X-Frame-Options "DENY"
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		X-Content-Type-Options "nosniff"
 		Referrer-Policy "strict-origin-when-cross-origin"

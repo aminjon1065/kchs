@@ -341,6 +341,9 @@ importers:
       socket.io-client:
         specifier: ^4.8.1
         version: 4.8.3(supports-color@10.2.2)
+      zod:
+        specifier: ^4.1.12
+        version: 4.6.5
       zustand:
         specifier: ^5.0.8
         version: 5.0.15(@types/react@19.3.0)(react@19.3.0)(use-sync-external-store@1.7.0(react@19.3.0))
@@ -514,6 +517,9 @@ importers:
       cmdk:
         specifier: ^1.1.1
         version: 1.1.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      get-nonce:
+        specifier: ^1.0.1
+        version: 1.0.1
       lucide-react:
         specifier: ^0.545.0
         version: 0.545.0(react@19.3.0)

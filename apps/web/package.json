@@ -11,6 +11,7 @@
     "test": "vitest run --passWithNoTests",
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui",
+    "csp:check": "node scripts/csp-check.mjs",
     "api:types": "openapi-typescript http://localhost:3000/api/openapi.json -o src/shared/api/openapi.gen.ts"
   },
   "dependencies": {
@@ -24,6 +25,7 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "socket.io-client": "^4.8.1",
+    "zod": "^4.1.12",
     "zustand": "^5.0.8"
   },
   "devDependencies": {

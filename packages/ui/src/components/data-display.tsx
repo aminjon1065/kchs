@@ -13,6 +13,7 @@ import {
 } from 'react'
 import { useUiT } from '../i18n/ui-locale.js'
 import { cn } from '../lib/cn.js'
+import { cspNonce } from '../lib/csp-nonce.js'
 
 // ─── Badge, Tag, Chip ────────────────────────────────────────────────────────
 
@@ -462,7 +463,12 @@ export const ScrollArea = forwardRef<
       scrollHideDelay={600}
       {...props}
     >
-      <ScrollAreaPrimitive.Viewport className="size-full rounded-[inherit]" tabIndex={0}>
+      {/* Viewport рисует свой <style> — ему нужен nonce CSP страницы (ADR-0043) */}
+      <ScrollAreaPrimitive.Viewport
+        className="size-full rounded-[inherit]"
+        tabIndex={0}
+        nonce={cspNonce()}
+      >
         {children}
       </ScrollAreaPrimitive.Viewport>
       <ScrollAreaPrimitive.Scrollbar

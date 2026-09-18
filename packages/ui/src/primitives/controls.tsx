@@ -6,6 +6,7 @@ import * as ToggleGroupPrimitive from '@radix-ui/react-toggle-group'
 import { Check, ChevronDown, Minus } from 'lucide-react'
 import { type ComponentPropsWithoutRef, type ElementRef, forwardRef, type ReactNode } from 'react'
 import { cn } from '../lib/cn.js'
+import { cspNonce } from '../lib/csp-nonce.js'
 
 export const Checkbox = forwardRef<
   ElementRef<typeof CheckboxPrimitive.Root>,
@@ -159,7 +160,10 @@ export const SelectContent = forwardRef<
         )}
         {...props}
       >
-        <SelectPrimitive.Viewport className="p-1">{children}</SelectPrimitive.Viewport>
+        {/* Viewport рисует свой <style> — ему нужен nonce CSP страницы (ADR-0043) */}
+        <SelectPrimitive.Viewport className="p-1" nonce={cspNonce()}>
+          {children}
+        </SelectPrimitive.Viewport>
       </SelectPrimitive.Content>
     </SelectPrimitive.Portal>
   )
