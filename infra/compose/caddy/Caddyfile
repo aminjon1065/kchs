@@ -6,6 +6,12 @@
 {$KCHS_DOMAIN:localhost} {
 	encode zstd gzip
 
+	# Внутренние маршруты движка доступны только внутри сети развёртывания
+	# (engine → api:3000 напрямую); снаружи их нет
+	handle /api/v1/internal/* {
+		respond 404
+	}
+
 	# API и WebSocket
 	handle /api/* {
 		reverse_proxy api:3000
