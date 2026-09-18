@@ -4,7 +4,10 @@ import {
   type ChartSpec,
   type ChartType,
   type DatasetField,
+  type ExploreGroup,
+  type ExploreMeasure,
   type LangText,
+  measureAlias,
   type QueryResult,
   TIME_BUCKETS,
   type TimeBucket,
@@ -45,14 +48,7 @@ import { useWorkspace } from '~/app/workspace/store.js'
 import { optionLabels, useLabelledResult } from '~/features/gis/result-labels.js'
 import { useTerritoryFilterEditor } from '~/features/gis/territory-filter.js'
 import { ApiError, http } from '~/shared/api/client.js'
-import {
-  type ExploreGroup,
-  type ExploreMeasure,
-  type ExploreState,
-  emptyExplore,
-  exploreSpec,
-  measureAlias,
-} from './explore-query.js'
+import { type ExploreState, emptyExplore, exploreSpec } from './explore-query.js'
 import { useFieldOptions } from './field-options.js'
 import { filterFieldsOf, NUMERIC_TYPES } from './field-types.js'
 import { datasetQuery } from './queries.js'

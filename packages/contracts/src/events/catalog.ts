@@ -45,6 +45,10 @@ export const EVENT_PAYLOADS = {
   'user.mfa_enabled': z.object({ kind: z.string() }),
   'user.mfa_disabled': z.object({ kind: z.string() }),
   'user.roles_changed': z.object({ userId: Uuid, roles: z.array(z.string()) }),
+  /** Telegram привязан к пользователю (ADR-0061); chat_id в событие не попадает. */
+  'user.telegram_linked': z.object({ userId: Uuid }),
+  /** Привязка снята: самим пользователем или потому что бот заблокирован. */
+  'user.telegram_unlinked': z.object({ userId: Uuid, reason: z.enum(['user', 'blocked']) }),
   'org.unit_changed': z.object({ unitId: Uuid, change: z.string() }),
   'org.employment_changed': z.object({ userId: Uuid, unitId: Uuid.nullable() }),
   'delegation.started': z.object({ fromUserId: Uuid, toUserId: Uuid, scope: z.string() }),

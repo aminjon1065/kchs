@@ -1,5 +1,6 @@
+import { EXPLORE_RAW_LIMIT, measureAlias } from '@kchs/contracts'
 import { describe, expect, it } from 'vitest'
-import { emptyExplore, exploreSpec, measureAlias, RAW_LIMIT } from './explore-query.js'
+import { emptyExplore, exploreSpec } from './explore-query.js'
 
 const ID = '0190f5a0-0000-7000-8000-000000000001'
 
@@ -37,7 +38,7 @@ describe('исследование: QuerySpec из конструктора', ()
 
   it('без сводки — строки с ограничением, имя меры — латиницей', () => {
     const spec = exploreSpec({ ...emptyExplore(ID), measures: [] })
-    expect(spec.steps).toEqual([{ type: 'limit', limit: RAW_LIMIT, offset: 0 }])
+    expect(spec.steps).toEqual([{ type: 'limit', limit: EXPLORE_RAW_LIMIT, offset: 0 }])
     expect(measureAlias({ agg: 'avg', field: 'amount' })).toBe('avg_amount')
   })
 })
