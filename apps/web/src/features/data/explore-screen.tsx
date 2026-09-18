@@ -42,6 +42,7 @@ import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
+import { optionLabels, useLabelledResult } from '~/features/gis/result-labels.js'
 import { useTerritoryFilterEditor } from '~/features/gis/territory-filter.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import {
@@ -169,9 +170,19 @@ export function ExploreScreen({
     [byKey, state.measures, locale, t],
   )
 
+  // Значения территорий и справочников — подписями (ADR-0057)
+  const valueLabels = useMemo(
+    () =>
+      new Map(
+        [...fieldOptions].map(([key, options]) => [key, optionLabels(options, locale)] as const),
+      ),
+    [fieldOptions, locale],
+  )
+  const relabelled = useLabelledResult(result.data, valueLabels)
+
   // Результат с подписями мер — ими пользуются и таблица, и оси графика
   const labelled = useMemo<QueryResult | undefined>(() => {
-    const data = result.data
+    const data = relabelled
     if (!data) return undefined
     return {
       ...data,
@@ -180,7 +191,7 @@ export function ExploreScreen({
         label: field.label ?? { ru: columnLabel(field.name) },
       })),
     }
-  }, [result.data, columnLabel])
+  }, [relabelled, columnLabel])
 
   const chartSpec = useMemo<ChartSpec | null>(() => {
     if (!labelled) return null

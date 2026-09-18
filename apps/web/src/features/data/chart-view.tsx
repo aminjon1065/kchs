@@ -19,6 +19,7 @@ import { useState } from 'react'
 import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
 import { ShareDialog } from '~/features/access/share-dialog.js'
+import { useLabelledResult } from '~/features/gis/result-labels.js'
 import { PresenceAvatars } from '~/features/objects/presence-avatars.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { keys, meQuery, objectQuery } from '~/shared/api/queries.js'
@@ -43,6 +44,8 @@ export function ChartView({ objectId, tabId }: { objectId: string; tabId: string
   const { data: me } = useQuery(meQuery())
   const { data: chart, isLoading } = useQuery(chartQuery(objectId))
   const data = useQuery(chartDataQuery(objectId))
+  // Территории в разрезах — названиями единиц справочника
+  const labelled = useLabelledResult(data.data)
 
   const rename = useMutation({
     mutationFn: (name: string) => http.patch(`/charts/${objectId}`, { name }),
@@ -144,7 +147,7 @@ export function ChartView({ objectId, tabId }: { objectId: string; tabId: string
           ) : data.data ? (
             <Chart
               spec={chart.spec}
-              result={data.data}
+              result={labelled ?? data.data}
               height={520}
               pending={data.isFetching}
               {...(me?.user.timezone ? { timezone: me.user.timezone } : {})}

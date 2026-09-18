@@ -29,6 +29,7 @@ import { ArrowDown, ArrowUp, SlidersHorizontal, Trash2 } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
+import { unlabelPick, useLabelledResult } from '~/features/gis/result-labels.js'
 import { meQuery } from '~/shared/api/queries.js'
 import { metricTileModel, periodText } from './metric-format.js'
 import { chartQuery, datasetQuery, metricQuery } from './queries.js'
@@ -112,6 +113,8 @@ export function TileCard({
   const { data: me } = useQuery(meQuery())
   const [bindings, setBindings] = useState(false)
   const height = Math.min(tile.h, 8)
+  // Территории в разрезах плитки — названиями единиц справочника (ADR-0057)
+  const result = useLabelledResult(data?.result ?? undefined)
 
   let body: ReactNode
   if (tile.kind === 'text' || tile.kind === 'heading') {
@@ -138,15 +141,18 @@ export function TileCard({
         className="h-full border-0 bg-transparent p-0"
       />
     )
-  } else if (data?.spec && data.result) {
+  } else if (data?.spec && data.result && result) {
+    const original = data.result
     body = (
       <Chart
         spec={data.spec}
-        result={data.result}
+        result={result}
         height={height * (large ? TV_ROW : ROW) - 64}
         pending={pending}
         {...(me?.user.timezone ? { timezone: me.user.timezone } : {})}
-        {...(onPick && !editing ? { onElementClick: onPick } : {})}
+        {...(onPick && !editing
+          ? { onElementClick: (pick: ChartPick) => onPick(unlabelPick(pick, original, result)) }
+          : {})}
       />
     )
   } else {
