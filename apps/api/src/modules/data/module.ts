@@ -7,6 +7,7 @@ import {
   DatasetRecord,
   DatasetUpdateInput,
   DatasetVersion,
+  FieldProfile,
   ImportAnalysis,
   ImportAnalyzeInput,
   ImportRecord,
@@ -25,6 +26,7 @@ import { datasetFields, datasets, objects } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { validServiceToken } from '~/shared/http/service-token.js'
+import { DatasetAccess } from './domain/dataset-access.js'
 import { DatasetService } from './domain/dataset-service.js'
 import {
   ImportService,
@@ -32,6 +34,7 @@ import {
   NORMALIZE_JOB,
   NormalizedReport,
 } from './domain/import-service.js'
+import { ProfileService } from './domain/profile-service.js'
 import { SchemaService } from './domain/schema-service.js'
 import { Physical } from './infra/physical.js'
 
@@ -142,11 +145,41 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/datasets/:id',
-    auth: { action: 'view' },
+    auth: 'session',
     tags: ['data'],
     summary: 'Датасет: схема, счётчики, версия',
     schema: { params: IdParam, response: { 200: DatasetRecord } },
-    handler: async (request) => DatasetService.get(request.params.id),
+    handler: async (request) => {
+      const grant = await DatasetAccess.resolve(request.ctx, request.params.id)
+      const record = await DatasetService.get(request.params.id)
+      if (grant.hidden.size === 0) return record
+      // Скрытые политикой поля не видны и в схеме — вместе с ролями ключа и времени
+      const visible = (key: string | null) => (key && !grant.hidden.has(key) ? key : null)
+      return {
+        ...record,
+        fields: record.fields.filter((field) => !grant.hidden.has(field.key)),
+        primaryKey: record.primaryKey.filter((key) => !grant.hidden.has(key)),
+        timeField: visible(record.timeField),
+        territoryField: visible(record.territoryField),
+      }
+    },
+  })
+
+  route({
+    method: 'GET',
+    url: '/datasets/:id/fields/:key/profile',
+    auth: 'session',
+    tags: ['data'],
+    summary: 'Профиль столбца: пустые, различные, диапазон, распределение, частые значения',
+    schema: { params: FieldParams, response: { 200: FieldProfile } },
+    handler: async (request) => {
+      const grant = await DatasetAccess.resolve(request.ctx, request.params.id)
+      const [storage, record] = await Promise.all([
+        DatasetService.storage(request.params.id),
+        DatasetService.get(request.params.id),
+      ])
+      return ProfileService.field(grant, storage, record, request.params.key)
+    },
   })
 
   route({

@@ -1,5 +1,6 @@
 export * from './components/data-display.js'
 export * from './components/feedback.js'
+export * from './components/histogram.js'
 export * from './components/layout.js'
 export * from './components/navigation.js'
 export * from './composites/collection-view.js'

@@ -52,4 +52,7 @@ export const cacheKeys = {
   shareGrant: (hash: string) => `kchs:share:grant:${hash}`,
   /** Временные пароли импорта пользователей до одноразовой выгрузки (ADR-0041). */
   usersImportCredentials: (importId: string) => `kchs:users-import:${importId}:credentials`,
+  /** Профиль столбца датасета: версия данных и схемы входят в ключ. */
+  datasetProfile: (datasetId: string, version: number, schemaVersion: number, field: string) =>
+    `kchs:data:profile:${datasetId}:${version}:${schemaVersion}:${field}`,
 } as const

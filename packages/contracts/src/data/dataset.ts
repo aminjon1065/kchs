@@ -179,6 +179,34 @@ export const DatasetUpdateInput = z.object({
 })
 export type DatasetUpdateInput = z.infer<typeof DatasetUpdateInput>
 
+/**
+ * Профиль столбца (P1-E03 S02): пустые, различные, диапазон, распределение и
+ * частые значения — по выборке для крупных таблиц. Для маскируемого поля — только
+ * счётчики, без значений.
+ */
+export const FieldProfile = z.object({
+  field: z.string(),
+  type: StoredFieldType,
+  /** Версия датасета, по которой посчитан профиль. */
+  version: z.number().int().nonnegative(),
+  /** Строк в профиле: все живые строки или выборка. */
+  rows: z.number().int().nonnegative(),
+  sampled: z.boolean(),
+  empty: z.number().int().nonnegative(),
+  distinct: z.number().int().nonnegative(),
+  masked: z.boolean(),
+  /** Минимум и максимум текстом (числа, даты, время). */
+  min: z.string().nullable(),
+  max: z.string().nullable(),
+  mean: z.number().nullable(),
+  /** Числа, даты и время: равные интервалы значений. */
+  histogram: z.array(z.object({ from: z.string(), to: z.string(), count: z.number().int() })),
+  /** Самые частые значения (для геометрии — типы геометрий). */
+  top: z.array(z.object({ value: z.string(), count: z.number().int() })),
+  computedAt: Timestamp,
+})
+export type FieldProfile = z.infer<typeof FieldProfile>
+
 // ─── Строки ──────────────────────────────────────────────────────────────────
 
 /**

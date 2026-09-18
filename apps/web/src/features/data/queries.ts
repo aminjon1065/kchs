@@ -1,4 +1,10 @@
-import type { DatasetRecord, DatasetVersion, ImportRecord, ImportStatus } from '@kchs/contracts'
+import type {
+  DatasetRecord,
+  DatasetVersion,
+  FieldProfile,
+  ImportRecord,
+  ImportStatus,
+} from '@kchs/contracts'
 import { queryOptions } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
 
@@ -7,6 +13,7 @@ export const dataKeys = {
   dataset: (id: string) => ['dataset', id] as const,
   versions: (id: string) => ['dataset', id, 'versions'] as const,
   imports: (id: string) => ['dataset', id, 'imports'] as const,
+  profile: (id: string, key: string) => ['dataset', id, 'profile', key] as const,
   import: (id: string) => ['import', id] as const,
 }
 
@@ -39,4 +46,13 @@ export const importQuery = (id: string) =>
     queryKey: dataKeys.import(id),
     queryFn: () => http.get<ImportRecord>(`/datasets/imports/${id}`),
     refetchInterval: (query) => (isImportFinished(query.state.data?.status) ? false : 1000),
+  })
+
+/** Профиль столбца: сервер кэширует его по версии, клиент — пока версия та же. */
+export const fieldProfileQuery = (datasetId: string, key: string) =>
+  queryOptions({
+    queryKey: dataKeys.profile(datasetId, key),
+    queryFn: () => http.get<FieldProfile>(`/datasets/${datasetId}/fields/${key}/profile`),
+    staleTime: 60_000,
+    retry: false,
   })
