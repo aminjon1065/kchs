@@ -32,7 +32,7 @@ redis               redis:7 (AOF)
 minio               бакеты создаются init-контейнером
 meilisearch         том индекса
 livekit + egress    UDP 50000-60000, TCP 7881, TURN/TLS 443 (через proxy или отдельный IP)
-prometheus, grafana, loki, promtail, tempo   (профиль `observability`)
+alloy, tempo, loki, prometheus, grafana      (профиль `observability`, ADR-0045)
 onlyoffice          (профиль `office`, опционально)
 titiler, photon     (профили `raster`, `geocoder`, опционально)
 ```
@@ -53,6 +53,37 @@ Helm-чарт `infra/helm/kchs`: Deployments `api` (HPA по CPU/RPS), `worker` 
 - Ошибки: Sentry-совместимый (GlitchTip self-hosted или Sentry) для web и api/engine.
 - Дашборды Grafana из репозитория (`infra/observability/dashboards`), алерты: ошибки > 1 %, p95 > бюджета, очередь растёт > 15 мин, диск > 80 %, бэкап не выполнен, репликация отстаёт.
 - Экран «Здоровье» в администрировании — сводка из тех же метрик.
+
+Как устроено в S1 (ADR-0045):
+
+- **Включение.** `docker compose --profile observability up -d` поднимает Alloy (агент: приём
+  OTLP и журналы контейнеров своего проекта), Tempo, Loki, Prometheus и Grafana
+  (`http://127.0.0.1:3001`, пароль `GRAFANA_ADMIN_PASSWORD`). Метрики api и worker включены в
+  контейнерах всегда (`METRICS_PORT=9464` в `x-app-env`); трассы — адресом коллектора:
+  `OTEL_EXPORTER_OTLP_ENDPOINT_INTERNAL=http://alloy:4318` в `.env` для профиля `app`, для api на
+  хосте — `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318` (и `METRICS_PORT=9464`, чтобы
+  Prometheus опрашивал `host.docker.internal:9464`). Без адреса трассы выключены полностью:
+  SDK не загружается и модули не перехватываются. Доля трасс — `OTEL_TRACES_SAMPLER=
+  parentbased_traceidratio` и `OTEL_TRACES_SAMPLER_ARG`.
+- **Метрики** (`/metrics` на порту 9464, только внутренняя сеть): `http_server_request_duration`
+  по методу, шаблону маршрута и коду; процесс — `process_memory_usage` (RSS),
+  `process_cpu_time_total`, `nodejs_eventloop_delay_p99`, `nodejs_eventloop_utilization`;
+  `kchs_outbox_pending`, `kchs_outbox_oldest_age`; `kchs_queue_jobs{queue,state}`;
+  `kchs_job_duration`, `kchs_event_duration` (по исходу); `kchs_realtime_connections`.
+- **Трассы**: спан запроса по шаблону маршрута с `kchs.request_id` и `enduser.id`, внутри — SQL
+  (параметризованный текст), Redis (имя команды), исходящие HTTP (S3, Meilisearch, движок).
+  Задание — дочерний спан трассы запроса, поставившего его (через outbox и BullMQ). Обработка
+  события подписчиком — своя трасса с `kchs.correlation_id` = `requestId`: поиск в Tempo
+  `{span.kchs.correlation_id = "req_…"}`.
+- **Журналы**: строки pino несут `trace_id`/`span_id`; в Grafana поле `trace_id` открывает
+  трассу, из спана — журналы с тем же `trace_id`.
+- **Дашборд** «kchs — обзор» (`infra/observability/dashboards/kchs-overview.json`): запросы,
+  p95 по маршрутам с линией бюджета, ошибки, память, CPU, цикл событий, outbox, очереди,
+  задания, события, журналы предупреждений. **Алерты** — `infra/observability/prometheus/
+  alerts.yml`; доставка (Alertmanager, почта/Telegram) — следующий шаг.
+- **Бюджеты** (`04-verification.md` §4) — `bash infra/perf/run-k6.sh` на стенде с демо-данными
+  (профиль `infra/perf/k6/api-basic.js`); ночью в CI — в задании «Установка в контейнерах».
+- Пока нет: экспортёров Postgres/Redis/MinIO/Meilisearch, трасс движка, Alertmanager.
 
 ## 5. Резервирование и восстановление
 

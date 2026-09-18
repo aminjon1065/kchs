@@ -49,7 +49,7 @@
 | Telegram | grammY | telegraf | современный, типизированный |
 | Аутентификация | собственная (argon2 via `@node-rs/argon2`, `otplib`, `@simplewebauthn/server`, `openid-client`, `ldapts`) | Keycloak, Auth.js | продукту нужны своя модель пользователей/структуры и UX; Keycloak — лишний сервис; OIDC-клиент даёт SSO |
 | i18n | i18next + ICU (`i18next-icu`), Intl API | FormatJS | распространён; ICU для склонений |
-| Логи/метрики/трассы | pino, OpenTelemetry, Prometheus, Grafana, Loki, Tempo; GlitchTip/Sentry | — | стандарт |
+| Логи/метрики/трассы | pino, OpenTelemetry (SDK трасс и метрик, экспорт OTLP и Prometheus), Grafana Alloy (агент: OTLP и журналы контейнеров), Prometheus, Grafana, Loki, Tempo; GlitchTip/Sentry | promtail (снят с поддержки), отдельный OTel Collector | стандарт; Alloy — один поддерживаемый агент вместо двух (ADR-0045) |
 | Тесты | vitest, testcontainers, supertest, Playwright (e2e), Storybook + Playwright-скриншоты, k6, axe-core; pytest в engine | jest, cypress | скорость и совместимость с Vite |
 | Монорепо/сборка | **pnpm workspaces + Turborepo** | Nx, npm workspaces | простота, кэш задач |
 | Качество кода | **Biome** (lint+format), `dependency-cruiser` (границы), `tsc --noEmit` strict, `knip` (мёртвый код) | ESLint+Prettier | скорость и одна конфигурация; ESLint допустим как альтернатива при необходимости специфичных правил |

@@ -44,6 +44,7 @@ pnpm db:migrate                          # миграции Postgres
 pnpm db:seed                             # демо-данные: admin / SEED_ADMIN_PASSWORD, user001…user060
 pnpm dev                                 # api с worker (ROLE=all, :3000) и web (:5173)
 docker compose up -d --wait engine       # движок (превью, геоформаты, OCR), если нужен
+docker compose --profile observability up -d  # трассы, метрики, журналы; Grafana :3001 (ADR-0045)
 ```
 
 Проверки (как в CI, `.github/workflows/ci.yml`):
@@ -58,6 +59,7 @@ pnpm test:integration                    # интеграционные (баз�
 bash apps/api/scripts/test-slot.sh N && KCHS_TEST_SLOT=N pnpm --filter @kchs/api test:integration  # своя база kchs_test_N (N = 1…14)
 pnpm e2e                                 # Playwright (нужны api и web)
 bash infra/scripts/smoke-api.sh          # дымовой прогон API на демо-данных
+bash infra/perf/run-k6.sh                # бюджеты p95 API (k6 в Docker) на демо-данных
 ```
 
 Установка целиком в контейнерах (профиль `app`, вход через web — Caddy со сборкой SPA, ADR-0044):
