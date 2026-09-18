@@ -101,12 +101,24 @@ const EnvSchema = z.object({
   LIVEKIT_API_SECRET: z.string().optional(),
 })
 
+/** Правила, связывающие несколько переменных. */
+const CheckedEnv = EnvSchema.superRefine((env, context) => {
+  // Запросы пользователей к данным — только под ограниченной ролью (17-security.md §4)
+  if (env.NODE_ENV === 'production' && !env.DATABASE_QUERY_URL) {
+    context.addIssue({
+      code: 'custom',
+      path: ['DATABASE_QUERY_URL'],
+      message: 'в продакшене обязателен: запросы к данным выполняются под ролью kchs_query',
+    })
+  }
+})
+
 export type Env = z.infer<typeof EnvSchema>
 
 let cached: Env | null = null
 
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
-  const parsed = EnvSchema.safeParse(source)
+  const parsed = CheckedEnv.safeParse(source)
   if (!parsed.success) {
     const issues = parsed.error.issues
       .map((i) => `  • ${i.path.join('.') || '(root)'}: ${i.message}`)

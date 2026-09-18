@@ -171,6 +171,21 @@ describe('роли и управление учётными записями', (
     })
     expect(after.statusCode).toBe(403)
   })
+
+  it('поиск принципалов не находит заблокированных — ни по имени, ни по логину', async () => {
+    const blocked = await createUser(fx.app, 'blocked_probe_test', ['employee'])
+    await db().execute(sql`UPDATE users SET status = 'blocked' WHERE id = ${blocked.id}`)
+    const search = (q: string) =>
+      call(fx.app, { url: `/principals/search?q=${q}&types=user`, as: fx.users.member })
+    for (const q of ['blocked_probe', 'blocked_probe_test']) {
+      const found = await search(q)
+      expect(found.statusCode).toBe(200)
+      expect(found.json().items.map((item: { id: string }) => item.id)).not.toContain(blocked.id)
+    }
+    await db().execute(sql`UPDATE users SET status = 'active' WHERE id = ${blocked.id}`)
+    const active = await search('blocked_probe_test')
+    expect(active.json().items.map((item: { id: string }) => item.id)).toContain(blocked.id)
+  })
 })
 
 describe('временный пароль', () => {
@@ -337,6 +352,12 @@ describe('вход и второй фактор', () => {
   it('TRUST_PROXY=true отклоняется конфигурацией', async () => {
     const { loadEnv } = await import('../src/shared/config/env.js')
     expect(() => loadEnv({ ...process.env, TRUST_PROXY: 'true' })).toThrow('TRUST_PROXY')
+  })
+
+  it('в продакшене без роли запросов к данным конфигурация не загружается', async () => {
+    const { loadEnv } = await import('../src/shared/config/env.js')
+    const { DATABASE_QUERY_URL: _unused, ...rest } = process.env
+    expect(() => loadEnv({ ...rest, NODE_ENV: 'production' })).toThrow('DATABASE_QUERY_URL')
   })
 })
 

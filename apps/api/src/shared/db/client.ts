@@ -57,8 +57,14 @@ let queryClient: postgres.Sql | null = null
  */
 export function queryRoleSql(): postgres.Sql {
   if (queryClient) return queryClient
-  const env = config()
-  const url = env.DATABASE_QUERY_URL ?? env.DATABASE_URL
+  // Без отдельной роли запросы пользователей выполнялись бы с правами приложения —
+  // подмены нет ни в одном окружении (17-security.md §4)
+  const url = config().DATABASE_QUERY_URL
+  if (!url) {
+    throw new Error(
+      'DATABASE_QUERY_URL не задан: запросы к данным выполняются только под kchs_query',
+    )
+  }
   queryClient = postgres(url, { max: 8, idle_timeout: 20, prepare: false })
   return queryClient
 }

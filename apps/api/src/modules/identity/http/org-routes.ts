@@ -66,7 +66,8 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
           .where(
             and(
               eq(users.status, 'active'),
-              sql`${users.displayName} ilike ${q} OR ${users.login} ilike ${q}`,
+              // Скобки обязательны: иначе OR обходил бы условие «активен»
+              sql`(${users.displayName} ilike ${q} OR ${users.login} ilike ${q})`,
             ),
           )
           .limit(request.query.limit)
