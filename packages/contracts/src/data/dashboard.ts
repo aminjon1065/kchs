@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { LangText, Uuid } from '../common/primitives.js'
 import { ChartSpec } from './chart.js'
-import { FieldRef } from './query.js'
+import { FieldRef, QueryResult } from './query.js'
 
 /**
  * Дашборд (06-analytics-engine.md §9): сетка 12 колонок, плитки, глобальные
@@ -80,3 +80,35 @@ export const DashboardCreateInput = z.object({
   spec: DashboardSpec.default({ tiles: [], filters: [], refreshInterval: null, theme: 'auto' }),
 })
 export type DashboardCreateInput = z.infer<typeof DashboardCreateInput>
+
+export const DashboardUpdateInput = z.object({
+  name: z.string().trim().min(1).max(200).optional(),
+  spec: DashboardSpec.optional(),
+})
+export type DashboardUpdateInput = z.infer<typeof DashboardUpdateInput>
+
+/** Данные плиток одним запросом: значения глобальных фильтров по их id. */
+export const DashboardDataInput = z.object({
+  filters: z.record(z.string(), z.unknown()).default({}),
+  /** Только эти плитки (обновление одной плитки); без списка — все. */
+  tiles: z.array(z.string()).max(60).optional(),
+})
+export type DashboardDataInput = z.infer<typeof DashboardDataInput>
+
+/**
+ * Данные плитки. `no_access` — нет доступа к графику или его данным: ссылочные
+ * отношения права не наследуют (03-access-model.md), плитка показывает «нет доступа».
+ */
+export const DASHBOARD_TILE_ERRORS = ['no_access', 'failed', 'unsupported'] as const
+export const DashboardTileData = z.object({
+  spec: ChartSpec.nullable(),
+  result: QueryResult.nullable(),
+  error: z.enum(DASHBOARD_TILE_ERRORS).nullable(),
+  message: z.string().nullable(),
+})
+export type DashboardTileData = z.infer<typeof DashboardTileData>
+
+export const DashboardData = z.object({
+  tiles: z.record(z.string(), DashboardTileData),
+})
+export type DashboardData = z.infer<typeof DashboardData>

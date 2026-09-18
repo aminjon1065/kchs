@@ -67,6 +67,22 @@ async function createFolder(fx: TestContext, name: string, spaceId = fx.spaceId)
 /** Файл-источник для попытки импорта читателем (готовится при создании датасета). */
 let datasetSourceFileId = ''
 
+/** Датасет-источник графика в пространстве матрицы. */
+async function createMatrixDataset(fx: TestContext, title: string): Promise<string> {
+  const response = await call(fx.app, {
+    method: 'POST',
+    url: '/datasets',
+    as: fx.admin,
+    payload: {
+      name: title,
+      spaceId: fx.spaceId,
+      fields: [{ key: 'code', label: { ru: 'Код' }, type: 'identifier' }],
+    },
+  })
+  expect(response.statusCode, response.body).toBe(200)
+  return response.json().id
+}
+
 const FIXTURES: Record<string, TypeFixture> = {
   space: {
     create: async (fx, title) => {
@@ -185,6 +201,50 @@ const FIXTURES: Record<string, TypeFixture> = {
           mentionedObjectIds: [],
         },
       },
+    ],
+  },
+
+  chart: {
+    create: async (fx, title) => {
+      const dataset = await createMatrixDataset(fx, `${title} — данные`)
+      const response = await call(fx.app, {
+        method: 'POST',
+        url: '/charts',
+        as: fx.admin,
+        payload: {
+          name: title,
+          spaceId: fx.spaceId,
+          spec: {
+            version: 1,
+            type: 'table',
+            data: { query: { version: 1, source: { kind: 'dataset', id: dataset }, steps: [] } },
+            encoding: {},
+          },
+        },
+      })
+      expect(response.statusCode, response.body).toBe(200)
+      return { id: response.json().id, title }
+    },
+    readPaths: ['/charts/:id'],
+    viewerForbidden: (_fx, id) => [
+      { method: 'PATCH', url: `/charts/${id}`, payload: { name: 'правка читателя' } },
+    ],
+  },
+
+  dashboard: {
+    create: async (fx, title) => {
+      const response = await call(fx.app, {
+        method: 'POST',
+        url: '/dashboards',
+        as: fx.admin,
+        payload: { name: title, spaceId: fx.spaceId },
+      })
+      expect(response.statusCode, response.body).toBe(200)
+      return { id: response.json().id, title }
+    },
+    readPaths: ['/dashboards/:id'],
+    viewerForbidden: (_fx, id) => [
+      { method: 'PATCH', url: `/dashboards/${id}`, payload: { name: 'правка читателя' } },
     ],
   },
 

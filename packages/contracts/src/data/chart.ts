@@ -192,3 +192,15 @@ export const ChartCreateInput = z.object({
   spec: ChartSpec,
 })
 export type ChartCreateInput = z.infer<typeof ChartCreateInput>
+
+export const ChartUpdateInput = z.object({
+  name: z.string().trim().min(1).max(200).optional(),
+  spec: ChartSpec.optional(),
+})
+export type ChartUpdateInput = z.infer<typeof ChartUpdateInput>
+
+/** Данные графика: значения параметров запроса (по умолчанию — из графика). */
+export const ChartDataInput = z.object({
+  params: z.record(z.string(), z.unknown()).default({}),
+})
+export type ChartDataInput = z.infer<typeof ChartDataInput>

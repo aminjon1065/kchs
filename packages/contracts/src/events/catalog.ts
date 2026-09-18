@@ -120,6 +120,8 @@ export const EVENT_PAYLOADS = {
     count: z.number().int(),
   }),
   'dataset.version_created': z.object({ version: z.number().int(), origin: z.string() }),
+  'chart.updated': z.object({ changed: z.array(z.string()) }),
+  'dashboard.updated': z.object({ changed: z.array(z.string()) }),
 
   // ── admin ─────────────────────────────────────────────────────────────────
   'settings.changed': z.object({ scope: z.string(), key: z.string() }),

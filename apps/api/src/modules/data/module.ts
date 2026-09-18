@@ -1,4 +1,13 @@
 import {
+  ChartCreateInput,
+  ChartDataInput,
+  ChartRecord,
+  ChartUpdateInput,
+  DashboardCreateInput,
+  DashboardData,
+  DashboardDataInput,
+  DashboardRecord,
+  DashboardUpdateInput,
   DatasetCreateInput,
   DatasetFieldConvertInput,
   DatasetFieldConvertReport,
@@ -34,6 +43,8 @@ import { datasetFields, datasets, objects } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { validServiceToken } from '~/shared/http/service-token.js'
+import { ChartService, runChartSpec } from './domain/chart-service.js'
+import { DashboardService } from './domain/dashboard-service.js'
 import { DatasetAccess } from './domain/dataset-access.js'
 import { DatasetService } from './domain/dataset-service.js'
 import {
@@ -134,6 +145,54 @@ export function registerDataObjectTypes(): void {
       onDelete: async (tx, _ctx, object) => Physical.dropTables(tx, object.id),
     },
   })
+
+  // График и дашборд: права на объект не открывают данные — данные плиток и
+  // графиков считаются с политиками смотрящего (03-access-model.md)
+  for (const type of ['chart', 'dashboard'] as const) {
+    registerObjectType({
+      type,
+      labelKey: `objects.types.${type}`,
+      icon: type,
+      route: (id) => `/o/${id}`,
+      levels: ['view', 'comment', 'edit', 'manage', 'owner'],
+      actions: {
+        view: { minLevel: 'view' },
+        comment: { minLevel: 'comment' },
+        edit: { minLevel: 'edit' },
+        manage: { minLevel: 'manage' },
+        share: { minLevel: 'manage' },
+        delete: { minLevel: 'manage' },
+      },
+      discussable: true,
+      linkable: true,
+      hasParentTree: true,
+      searchable: async (id) => {
+        const [row] = await db()
+          .select({
+            title: objects.title,
+            subtitle: objects.subtitle,
+            spaceId: objects.spaceId,
+            parentId: objects.parentId,
+            ownerId: objects.ownerId,
+            updatedAt: objects.updatedAt,
+          })
+          .from(objects)
+          .where(eq(objects.id, id))
+          .limit(1)
+        if (!row) return null
+        return {
+          parentId: row.parentId,
+          type,
+          spaceId: row.spaceId,
+          title: row.title,
+          body: row.subtitle ?? '',
+          ownerId: row.ownerId,
+          updatedAt: Math.floor(new Date(row.updatedAt).getTime() / 1000),
+          meta: {},
+        }
+      },
+    })
+  }
 }
 
 export function registerDataRoutes(route: RouteRegistrar): void {
@@ -436,6 +495,112 @@ export function registerDataRoutes(route: RouteRegistrar): void {
       await authorize(request.ctx, 'view', record.datasetId)
       return record
     },
+  })
+
+  route({
+    method: 'POST',
+    url: '/charts',
+    auth: 'session',
+    tags: ['data'],
+    summary: 'Создать график',
+    schema: { body: ChartCreateInput, response: { 200: z.object({ id: z.uuid() }) } },
+    handler: async (request) => {
+      await authorize(request.ctx, 'create_child', request.body.parentId ?? request.body.spaceId)
+      const id = await db().transaction((tx) => ChartService.create(tx, request.ctx, request.body))
+      return { id }
+    },
+  })
+
+  route({
+    method: 'GET',
+    url: '/charts/:id',
+    auth: { action: 'view' },
+    tags: ['data'],
+    summary: 'График: спецификация',
+    schema: { params: IdParam, response: { 200: ChartRecord } },
+    handler: async (request) => ChartService.get(request.params.id),
+  })
+
+  route({
+    method: 'PATCH',
+    url: '/charts/:id',
+    auth: { action: 'edit' },
+    tags: ['data'],
+    summary: 'Изменить график: название, спецификация',
+    schema: { params: IdParam, body: ChartUpdateInput, response: { 200: ChartRecord } },
+    handler: async (request) => {
+      await db().transaction((tx) =>
+        ChartService.update(tx, request.ctx, request.params.id, request.body),
+      )
+      return ChartService.get(request.params.id)
+    },
+  })
+
+  route({
+    method: 'POST',
+    url: '/charts/:id/data',
+    auth: { action: 'view' },
+    tags: ['data'],
+    summary: 'Данные графика — с политиками пользователя',
+    schema: { params: IdParam, body: ChartDataInput, response: { 200: QueryResult } },
+    handler: async (request) => {
+      const chart = await ChartService.get(request.params.id)
+      return runChartSpec(request.ctx, chart.spec, {
+        ...chart.paramsDefaults,
+        ...request.body.params,
+      })
+    },
+  })
+
+  route({
+    method: 'POST',
+    url: '/dashboards',
+    auth: 'session',
+    tags: ['data'],
+    summary: 'Создать дашборд',
+    schema: { body: DashboardCreateInput, response: { 200: z.object({ id: z.uuid() }) } },
+    handler: async (request) => {
+      await authorize(request.ctx, 'create_child', request.body.parentId ?? request.body.spaceId)
+      const id = await db().transaction((tx) =>
+        DashboardService.create(tx, request.ctx, request.body),
+      )
+      return { id }
+    },
+  })
+
+  route({
+    method: 'GET',
+    url: '/dashboards/:id',
+    auth: { action: 'view' },
+    tags: ['data'],
+    summary: 'Дашборд: плитки и фильтры',
+    schema: { params: IdParam, response: { 200: DashboardRecord } },
+    handler: async (request) => DashboardService.get(request.params.id),
+  })
+
+  route({
+    method: 'PATCH',
+    url: '/dashboards/:id',
+    auth: { action: 'edit' },
+    tags: ['data'],
+    summary: 'Изменить дашборд: название, плитки, фильтры',
+    schema: { params: IdParam, body: DashboardUpdateInput, response: { 200: DashboardRecord } },
+    handler: async (request) => {
+      await db().transaction((tx) =>
+        DashboardService.update(tx, request.ctx, request.params.id, request.body),
+      )
+      return DashboardService.get(request.params.id)
+    },
+  })
+
+  route({
+    method: 'POST',
+    url: '/dashboards/:id/data',
+    auth: { action: 'view' },
+    tags: ['data'],
+    summary: 'Данные плиток дашборда одним запросом, с фильтрами дашборда',
+    schema: { params: IdParam, body: DashboardDataInput, response: { 200: DashboardData } },
+    handler: async (request) => DashboardService.data(request.ctx, request.params.id, request.body),
   })
 
   route({
