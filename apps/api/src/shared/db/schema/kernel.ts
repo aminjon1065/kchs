@@ -525,6 +525,10 @@ export const jobs = pgTable(
     error: jsonb('error').$type<Record<string, unknown> | null>(),
     attempts: integer('attempts').notNull().default(0),
     idempotencyKey: text('idempotency_key'),
+    /** Входные данные задания: хранятся до передачи в очередь после коммита. */
+    payload: jsonbObject('payload'),
+    /** Параметры BullMQ (задержка, число попыток). */
+    options: jsonbObject('options'),
     createdAt: createdAt(),
     startedAt: tsCol('started_at'),
     finishedAt: tsCol('finished_at'),

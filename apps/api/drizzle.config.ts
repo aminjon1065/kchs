@@ -14,6 +14,9 @@ export default defineConfig({
     url: process.env.DATABASE_MIGRATOR_URL ?? process.env.DATABASE_URL ?? '',
   },
   casing: 'snake_case',
+  // Ручные миграции 0001–0002 не имеют снимков; новые файлы с меткой времени
+  // сортируются после них, и порядок применения совпадает с порядком создания.
+  migrations: { prefix: 'timestamp' },
   verbose: true,
   strict: true,
 })

@@ -4,6 +4,7 @@ import { usersWithAccess } from './access/acl-service.js'
 import { invalidatePrincipalSet } from './access/principal-set.js'
 import { activitySubscriber } from './activity/service.js'
 import { registerSubscriber } from './events/bus.js'
+import { JobService } from './jobs/service.js'
 import { NotificationService } from './notifications/service.js'
 import { objectType } from './objects/registry.js'
 import { emitToRoom, revokeRoomAccess } from './realtime/gateway.js'
@@ -72,6 +73,15 @@ export function registerKernelSubscribers(): void {
     },
   })
 
+  // Задание попадает в BullMQ только после коммита транзакции, в которой его поставили
+  registerSubscriber({
+    name: 'kernel-jobs',
+    types: ['job.queued'],
+    handle: async (event) => {
+      await JobService.dispatch(event.payload.jobId as string)
+    },
+  })
+
   registerSubscriber({
     name: 'kernel-notifications',
     types: ['message.posted', 'mention.created', 'object.shared', 'job.failed'],
@@ -101,6 +111,10 @@ export function registerKernelSubscribers(): void {
 }
 
 async function notificationHandler(event: EventEnvelope): Promise<void> {
+  if (event.type === 'job.failed') {
+    await notifyJobFailed(event)
+    return
+  }
   if (!event.object) return
   const url = objectType(event.object.type)?.route(event.object.id) ?? `/o/${event.object.id}`
 
@@ -151,19 +165,24 @@ async function notificationHandler(event: EventEnvelope): Promise<void> {
       })
       break
     }
-    case 'job.failed': {
-      if (!event.actor.userId) break
-      await NotificationService.notify({
-        userIds: [event.actor.userId],
-        category: 'system',
-        titleKey: 'notifications.tpl.jobFailed',
-        params: { title: event.object.title ?? '' },
-        objectId: null,
-        url: null,
-      })
-      break
-    }
     default:
       break
   }
+}
+
+/** Инициатор узнаёт, что его задание окончательно не выполнено. */
+async function notifyJobFailed(event: EventEnvelope): Promise<void> {
+  const initiatorId = event.actor.userId
+  if (!initiatorId) return
+  const job = await JobService.get(event.payload.jobId as string)
+  if (!job) return
+  const url = job.objectId ? `/o/${job.objectId}` : '/processes'
+  await NotificationService.notify({
+    userIds: [initiatorId],
+    category: 'system',
+    titleKey: 'notifications.tpl.jobFailed',
+    params: { title: job.name },
+    objectId: job.objectId,
+    url,
+  })
 }

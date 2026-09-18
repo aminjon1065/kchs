@@ -33,8 +33,16 @@ def _make_processor(queue: str) -> Processor:
         try:
             result = await job_handler(job.data)
         except Exception as error:  # noqa: BLE001 — статус задания фиксируется в реестре
-            log.error("job.failed", queue=queue, name=job.name, job_id=record_id, error=str(error))
-            await report_failure(record_id, str(error))
+            final = is_final_attempt(job)
+            log.error(
+                "job.failed",
+                queue=queue,
+                name=job.name,
+                job_id=record_id,
+                error=str(error),
+                final=final,
+            )
+            await report_failure(record_id, str(error), final=final)
             raise
 
         await report_result(record_id, result)
@@ -42,6 +50,12 @@ def _make_processor(queue: str) -> Processor:
         return result
 
     return process
+
+
+def is_final_attempt(job: Job) -> bool:
+    """Последняя ли попытка: после неё BullMQ задание больше не повторит."""
+    attempts = int(getattr(job, "attempts", 1) or 1)
+    return int(job.attemptsMade) + 1 >= attempts
 
 
 async def run_workers(stop: asyncio.Event) -> None:

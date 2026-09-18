@@ -7,7 +7,7 @@ import { sendEmailDigest } from '../notifications/service.js'
 import { expiredTrash, ObjectService } from '../objects/service.js'
 import { reindexAll } from '../search/index-service.js'
 import { registerJobHandler } from './runner.js'
-import { queue } from './service.js'
+import { JobService, pruneFinishedJobs, queue } from './service.js'
 
 /** Регулярные задания обслуживания (02-platform-kernel.md §9). */
 export function registerMaintenanceJobs(): void {
@@ -52,6 +52,20 @@ export function registerMaintenanceJobs(): void {
 
   registerJobHandler({
     queue: 'maintenance',
+    name: 'jobs.redispatch',
+    concurrency: 1,
+    handle: async () => ({ redispatched: await JobService.redispatchStale(60) }),
+  })
+
+  registerJobHandler({
+    queue: 'maintenance',
+    name: 'jobs.prune',
+    concurrency: 1,
+    handle: async () => ({ deleted: await pruneFinishedJobs(30) }),
+  })
+
+  registerJobHandler({
+    queue: 'maintenance',
     name: 'inbox.wake-snoozed',
     concurrency: 1,
     handle: async () => ({ woken: await InboxService.wakeSnoozed() }),
@@ -75,6 +89,16 @@ export async function scheduleMaintenance(): Promise<void> {
     'outbox.prune',
     {},
     { repeat: { pattern: '17 3 * * *' }, jobId: 'cron:outbox.prune' },
+  )
+  await maintenance.add(
+    'jobs.redispatch',
+    {},
+    { repeat: { pattern: '*/2 * * * *' }, jobId: 'cron:jobs.redispatch' },
+  )
+  await maintenance.add(
+    'jobs.prune',
+    {},
+    { repeat: { pattern: '41 3 * * *' }, jobId: 'cron:jobs.prune' },
   )
   await maintenance.add(
     'trash.purge',

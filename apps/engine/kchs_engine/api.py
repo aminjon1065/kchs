@@ -47,5 +47,9 @@ async def report_result(job_id: str, result: dict[str, Any]) -> None:
     await _post(f"/api/v1/internal/jobs/{job_id}/status", {"status": "succeeded", "result": result})
 
 
-async def report_failure(job_id: str, error: str) -> None:
-    await _post(f"/api/v1/internal/jobs/{job_id}/status", {"status": "failed", "error": error})
+async def report_failure(job_id: str, error: str, *, final: bool = True) -> None:
+    """`final=False` — BullMQ ещё повторит задание; реестр вернёт его в очередь."""
+    await _post(
+        f"/api/v1/internal/jobs/{job_id}/status",
+        {"status": "failed", "error": error[:4000], "final": final},
+    )

@@ -18,6 +18,33 @@ export const QUEUES = [
 export const QueueName = z.enum(QUEUES)
 export type QueueName = z.infer<typeof QueueName>
 
+/**
+ * Исполнитель очереди (ADR-0035). BullMQ отдаёт задание любому потребителю
+ * очереди, поэтому у каждой очереди ровно один исполнитель: TypeScript-воркер
+ * (`worker`) или Python-движок (`engine`). Регистрация обработчика в чужой
+ * очереди падает на старте в обоих процессах.
+ */
+export const JobRuntime = z.enum(['worker', 'engine'])
+export type JobRuntime = z.infer<typeof JobRuntime>
+
+export const QUEUE_RUNTIME: Record<QueueName, JobRuntime> = {
+  imports: 'engine',
+  exports: 'worker',
+  transform: 'engine',
+  render: 'engine',
+  media: 'engine',
+  ai: 'engine',
+  index: 'worker',
+  notify: 'worker',
+  automation: 'worker',
+  'process-timers': 'worker',
+  maintenance: 'worker',
+}
+
+export function queuesOf(runtime: JobRuntime): QueueName[] {
+  return QUEUES.filter((queue) => QUEUE_RUNTIME[queue] === runtime)
+}
+
 export const JobStatus = z.enum(['queued', 'running', 'succeeded', 'failed', 'cancelled'])
 export type JobStatus = z.infer<typeof JobStatus>
 

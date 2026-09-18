@@ -40,6 +40,10 @@ jobs:
         run: |
           pnpm --filter @kchs/ui tokens
           git diff --exit-code packages/ui/src/tokens/tokens.css packages/ui/src/styles/theme.css
+      - name: Контракты движка соответствуют packages/contracts
+        run: |
+          pnpm --filter @kchs/contracts gen:engine
+          git diff --exit-code apps/engine/kchs_engine/contracts
 
   unit:
     name: Unit-тесты

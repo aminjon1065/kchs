@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'node:crypto'
 import { z } from 'zod'
 import { config } from '~/shared/config/index.js'
 import { errors } from '~/shared/errors.js'
@@ -24,14 +25,15 @@ export function registerInternalJobRoutes(route: RouteRegistrar): void {
         message: z.string().max(500).nullable().optional(),
         result: z.record(z.string(), z.unknown()).optional(),
         error: z.string().max(4000).optional(),
+        /** Последняя попытка: после неё движок задание не повторит. */
+        final: z.boolean().default(true),
       }),
       response: { 200: z.object({ ok: z.boolean() }) },
     },
     handler: async (request) => {
-      const expected = config().INTERNAL_SERVICE_TOKEN
-      const provided = request.headers['x-kchs-service-token']
-      if (!expected || provided !== expected)
+      if (!validServiceToken(request.headers['x-kchs-service-token'])) {
         throw errors.unauthorized('Недействительный сервисный токен')
+      }
 
       const { id } = request.params
       const body = request.body
@@ -45,10 +47,21 @@ export function registerInternalJobRoutes(route: RouteRegistrar): void {
       } else if (body.status === 'succeeded') {
         await JobService.finish(id, body.result ?? {})
       } else {
-        await JobService.fail(id, new Error(body.error ?? 'задание движка не выполнено'))
+        await JobService.fail(id, new Error(body.error ?? 'задание движка не выполнено'), {
+          final: body.final,
+        })
       }
 
       return { ok: true }
     },
   })
+}
+
+/** Сравнение за постоянное время: по времени ответа токен не подобрать. */
+export function validServiceToken(provided: string | string[] | undefined): boolean {
+  const expected = config().INTERNAL_SERVICE_TOKEN
+  if (!expected || typeof provided !== 'string') return false
+  const a = Buffer.from(provided)
+  const b = Buffer.from(expected)
+  return a.length === b.length && timingSafeEqual(a, b)
 }

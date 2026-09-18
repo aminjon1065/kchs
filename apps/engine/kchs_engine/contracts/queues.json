@@ -1,0 +1,16 @@
+{
+  "$comment": "Сгенерировано из packages/contracts командой `pnpm --filter @kchs/contracts gen:engine`. Не редактировать вручную.",
+  "queues": {
+    "imports": "engine",
+    "exports": "worker",
+    "transform": "engine",
+    "render": "engine",
+    "media": "engine",
+    "ai": "engine",
+    "index": "worker",
+    "notify": "worker",
+    "automation": "worker",
+    "process-timers": "worker",
+    "maintenance": "worker"
+  }
+}
