@@ -12,6 +12,14 @@ import {
   USERS_IMPORT_MAX_BYTES,
   USERS_IMPORT_MAX_ROWS,
 } from '../src/admin/users-import.js'
+import {
+  IMPORT_ERROR_CODES,
+  IMPORT_FIELD_TYPES,
+  IMPORT_FORMATS,
+  IMPORT_LIMITS,
+  NORMALIZED_VALUE_FORMATS,
+} from '../src/data/import.js'
+import { FIELD_SEMANTICS } from '../src/fields/field-def.js'
 import { QUEUE_RUNTIME } from '../src/jobs/job.js'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -34,4 +42,12 @@ write('users_import.json', {
   maxRows: USERS_IMPORT_MAX_ROWS,
   maxBytes: USERS_IMPORT_MAX_BYTES,
   issueCodes: USERS_IMPORT_ISSUE_CODES,
+})
+write('data_import.json', {
+  formats: IMPORT_FORMATS,
+  fieldTypes: IMPORT_FIELD_TYPES,
+  semantics: FIELD_SEMANTICS,
+  limits: IMPORT_LIMITS,
+  errorCodes: IMPORT_ERROR_CODES,
+  normalizedValueFormats: NORMALIZED_VALUE_FORMATS,
 })

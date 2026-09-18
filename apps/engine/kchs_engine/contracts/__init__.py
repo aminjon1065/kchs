@@ -29,3 +29,9 @@ def engine_queues() -> set[str]:
 def users_import_contract() -> dict[str, Any]:
     """Столбцы, пределы и коды замечаний импорта пользователей (ADR-0041)."""
     return _load("users_import.json")
+
+
+@lru_cache
+def data_import_contract() -> dict[str, Any]:
+    """Форматы, типы, пределы и коды ошибок импорта датасетов (ADR-0046)."""
+    return _load("data_import.json")

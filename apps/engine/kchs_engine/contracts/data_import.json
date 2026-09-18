@@ -1,0 +1,79 @@
+{
+  "$comment": "Сгенерировано из packages/contracts командой `pnpm --filter @kchs/contracts gen:engine`. Не редактировать вручную.",
+  "formats": [
+    "csv",
+    "tsv",
+    "xlsx",
+    "xls",
+    "json",
+    "ndjson",
+    "geojson"
+  ],
+  "fieldTypes": [
+    "text",
+    "long_text",
+    "integer",
+    "number",
+    "decimal",
+    "money",
+    "percent",
+    "boolean",
+    "date",
+    "datetime",
+    "time",
+    "select",
+    "identifier",
+    "url",
+    "email",
+    "phone",
+    "json",
+    "geometry"
+  ],
+  "semantics": [
+    "dimension",
+    "measure",
+    "identifier",
+    "time",
+    "geometry",
+    "territory",
+    "category",
+    "text",
+    "lookup",
+    "system"
+  ],
+  "limits": {
+    "analyzeSampleRows": 2000,
+    "previewRows": 50,
+    "samplesPerColumn": 5,
+    "maxColumns": 500,
+    "maxFileBytes": 2147483648,
+    "analyzeTimeoutMs": 15000
+  },
+  "errorCodes": [
+    "invalid_number",
+    "invalid_integer",
+    "invalid_date",
+    "invalid_datetime",
+    "invalid_time",
+    "invalid_boolean",
+    "invalid_json",
+    "invalid_geometry",
+    "required",
+    "too_long",
+    "duplicate_key"
+  ],
+  "normalizedValueFormats": {
+    "integer": "десятичные цифры со знаком",
+    "number": "точка — десятичный разделитель, без разделителей тысяч",
+    "decimal": "как number",
+    "money": "как number",
+    "percent": "доля или проценты — как в столбце (format.scale)",
+    "boolean": "true | false",
+    "date": "YYYY-MM-DD",
+    "datetime": "ISO 8601 со смещением (YYYY-MM-DDTHH:MM:SS+HH:MM)",
+    "time": "HH:MM:SS",
+    "json": "текст JSON",
+    "geometry": "EWKT с SRID=4326",
+    "text": "как есть (без управляющих символов, кроме перевода строки)"
+  }
+}

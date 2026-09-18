@@ -11,6 +11,7 @@
     "notify": "worker",
     "automation": "worker",
     "process-timers": "worker",
-    "maintenance": "worker"
+    "maintenance": "worker",
+    "data": "worker"
   }
 }

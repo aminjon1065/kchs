@@ -14,6 +14,7 @@ export const QUEUES = [
   'automation',
   'process-timers',
   'maintenance',
+  'data',
 ] as const
 export const QueueName = z.enum(QUEUES)
 export type QueueName = z.infer<typeof QueueName>
@@ -39,6 +40,8 @@ export const QUEUE_RUNTIME: Record<QueueName, JobRuntime> = {
   automation: 'worker',
   'process-timers': 'worker',
   maintenance: 'worker',
+  // Загрузка нормализованного импорта в таблицу датасета (ADR-0046)
+  data: 'worker',
 }
 
 export function queuesOf(runtime: JobRuntime): QueueName[] {

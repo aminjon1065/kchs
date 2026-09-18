@@ -125,7 +125,7 @@ interface ObjectTypeDefinition {
 
 ## 9. Задания
 
-BullMQ-очереди: `imports`, `exports`, `transform`, `render`, `media`, `ai`, `index`, `notify`, `automation`, `process-timers`, `maintenance`. Реестр заданий в Postgres (`jobs`: тип, объект, инициатор, статус, прогресс, результат, ошибка, попытки) — для экрана «Процессы» и истории. Правила: идемпотентность по ключу, повторы с экспоненциальной задержкой, тайм-ауты, отмена, прогресс через Redis pub/sub → realtime. У каждой очереди ровно один исполнитель — TypeScript-воркер или Python-движок (через `bullmq` для Python); соответствие задаёт `QUEUE_RUNTIME` в `packages/contracts` (ADR-0035). Задание ставится в транзакции вызывающего кода (запись реестра + событие `job.queued`) и попадает в BullMQ после коммита (ADR-0036).
+BullMQ-очереди: `imports`, `exports`, `transform`, `render`, `media`, `ai`, `index`, `notify`, `automation`, `process-timers`, `maintenance`, `data` (загрузка импорта и операции над таблицами датасетов, ADR-0046). Реестр заданий в Postgres (`jobs`: тип, объект, инициатор, статус, прогресс, результат, ошибка, попытки) — для экрана «Процессы» и истории. Правила: идемпотентность по ключу, повторы с экспоненциальной задержкой, тайм-ауты, отмена, прогресс через Redis pub/sub → realtime. У каждой очереди ровно один исполнитель — TypeScript-воркер или Python-движок (через `bullmq` для Python); соответствие задаёт `QUEUE_RUNTIME` в `packages/contracts` (ADR-0035). Задание ставится в транзакции вызывающего кода (запись реестра + событие `job.queued`) и попадает в BullMQ после коммита (ADR-0036).
 
 ## 10. Движок процессов
 
