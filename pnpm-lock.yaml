@@ -464,6 +464,25 @@ importers:
         specifier: ^3.2.4
         version: 3.2.7(@types/node@22.20.3)(jiti@2.7.0)(lightningcss@1.32.0)(supports-color@7.2.0)(tsx@4.23.13)(yaml@2.9.1)
 
+  packages/query:
+    dependencies:
+      '@kchs/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+    devDependencies:
+      '@kchs/config':
+        specifier: workspace:*
+        version: link:../config
+      postgres:
+        specifier: ^3.4.7
+        version: 3.4.9
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.7(@types/node@22.20.3)(jiti@2.7.0)(lightningcss@1.32.0)(supports-color@10.2.2)(tsx@4.23.13)(yaml@2.9.1)
+
   packages/ui:
     dependencies:
       '@kchs/contracts':

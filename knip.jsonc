@@ -44,6 +44,10 @@
       "entry": ["src/index.ts", "scripts/*.ts"],
       "project": ["src/**/*.ts"]
     },
+    "packages/query": {
+      "entry": ["src/index.ts", "test/**/*.test.ts"],
+      "project": ["src/**/*.ts", "test/**/*.ts"]
+    },
     "packages/ui": {
       "entry": [
         "src/index.ts",
