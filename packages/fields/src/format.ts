@@ -14,6 +14,37 @@ function intlLocale(locale: Locale = DEFAULT_LOCALE): string {
   return INTL_LOCALE[locale] ?? 'ru-RU'
 }
 
+// Создание форматтера Intl на порядок дороже форматирования: таблица на
+// 100 столбцов форматирует тысячи ячеек за кадр, поэтому форматтеры кэшируются
+const numberFormatters = new Map<string, Intl.NumberFormat>()
+const dateFormatters = new Map<string, Intl.DateTimeFormat>()
+
+function numberFormatter(locale: string, options: Intl.NumberFormatOptions): Intl.NumberFormat {
+  const key = `${locale}|${options.style ?? ''}|${options.currency ?? ''}|${String(options.useGrouping)}|${options.minimumFractionDigits ?? ''}|${options.maximumFractionDigits ?? ''}`
+  let formatter = numberFormatters.get(key)
+  if (!formatter) {
+    formatter = new Intl.NumberFormat(locale, options)
+    numberFormatters.set(key, formatter)
+  }
+  return formatter
+}
+
+function dateFormatter(locale: string, withTime: boolean, timeZone?: string): Intl.DateTimeFormat {
+  const key = `${locale}|${withTime ? 'dt' : 'd'}|${timeZone ?? ''}`
+  let formatter = dateFormatters.get(key)
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat(locale, {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      ...(withTime ? { hour: '2-digit', minute: '2-digit' } : {}),
+      timeZone,
+    })
+    dateFormatters.set(key, formatter)
+  }
+  return formatter
+}
+
 export function formatNumber(
   value: number,
   format: FieldFormat = {},
@@ -32,7 +63,7 @@ export function formatNumber(
     options.style = 'currency'
     options.currency = format.currency
   }
-  const out = new Intl.NumberFormat(intlLocale(ctx.locale), options).format(value)
+  const out = numberFormatter(intlLocale(ctx.locale), options).format(value)
   return `${format.prefix ?? ''}${out}${format.suffix ?? ''}`
 }
 
@@ -42,7 +73,7 @@ export function formatPercent(
   ctx: FormatContext = {},
 ): string {
   const normalized = format.scale === 'percent' ? value / 100 : value
-  return new Intl.NumberFormat(intlLocale(ctx.locale), {
+  return numberFormatter(intlLocale(ctx.locale), {
     style: 'percent',
     minimumFractionDigits: format.precision ?? 1,
     maximumFractionDigits: format.precision ?? 1,
@@ -52,25 +83,13 @@ export function formatPercent(
 export function formatDate(value: string | Date, ctx: FormatContext = {}): string {
   const date = typeof value === 'string' ? new Date(value) : value
   if (Number.isNaN(date.getTime())) return ''
-  return new Intl.DateTimeFormat(intlLocale(ctx.locale), {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    timeZone: ctx.timezone,
-  }).format(date)
+  return dateFormatter(intlLocale(ctx.locale), false, ctx.timezone).format(date)
 }
 
 export function formatDateTime(value: string | Date, ctx: FormatContext = {}): string {
   const date = typeof value === 'string' ? new Date(value) : value
   if (Number.isNaN(date.getTime())) return ''
-  return new Intl.DateTimeFormat(intlLocale(ctx.locale), {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: ctx.timezone,
-  }).format(date)
+  return dateFormatter(intlLocale(ctx.locale), true, ctx.timezone).format(date)
 }
 
 /** Длительность в минутах → «1 ч 30 мин». */

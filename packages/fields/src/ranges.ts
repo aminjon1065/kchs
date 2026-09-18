@@ -59,6 +59,22 @@ export function zonedMidnight(year: number, month: number, day: number, timeZone
   return result
 }
 
+/** Местное время в часовом поясе как момент UTC (для разбора «дд.мм.гггг чч:мм»). */
+export function zonedDateTime(
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  minute: number,
+  second: number,
+  timeZone: string,
+): Date {
+  const guess = new Date(Date.UTC(year, month - 1, day, hour, minute, second))
+  let result = new Date(guess.getTime() - offsetMs(guess, timeZone))
+  result = new Date(guess.getTime() - offsetMs(result, timeZone))
+  return result
+}
+
 function addCalendar(
   y: number,
   m: number,
