@@ -3,6 +3,8 @@ import type {
   DashboardCreateInput,
   DashboardData,
   DashboardDataInput,
+  DashboardDrillInput,
+  DashboardDrillResult,
   DashboardRecord,
   DashboardSpec,
   DashboardTileData,
@@ -21,7 +23,9 @@ import { errors, isAppError } from '~/shared/errors.js'
 import { logger } from '~/shared/logger/index.js'
 import { ChartService, runChartSpec } from './chart-service.js'
 import { applyDashboardFilters } from './dashboard-filters.js'
+import { drillSpec } from './drill.js'
 import { MetricService } from './metric-service.js'
+import { QueryService } from './query-service.js'
 
 /** Плитки с данными: график (сохранённый или встроенный), таблица и показатель. */
 const DATA_TILES = new Set(['chart', 'table', 'metric'])
@@ -195,5 +199,36 @@ export const DashboardService = {
       }),
     )
     return { tiles: Object.fromEntries(entries) }
+  },
+
+  /**
+   * Детализация плитки до строк: запрос графика с фильтрами дашборда по
+   * привязкам плитки, выбранный элемент — условия по разрезам (drill.ts);
+   * строки — с политиками смотрящего, как в таблице датасета.
+   */
+  async drill(ctx: Ctx, id: string, input: DashboardDrillInput): Promise<DashboardDrillResult> {
+    const dashboard = await DashboardService.get(id)
+    const tile = dashboard.spec.tiles.find((item) => item.id === input.tileId)
+    if (tile?.kind !== 'chart') throw errors.notFound('Плитка')
+    let spec: ChartSpec
+    if (tile.chartId) {
+      await authorize(ctx, 'view', tile.chartId)
+      spec = (await ChartService.get(tile.chartId)).spec
+    } else if (tile.spec) {
+      spec = tile.spec
+    } else {
+      throw errors.validation('У плитки нет графика')
+    }
+    const query = 'query' in spec.data ? spec.data.query : null
+    if (!query) throw errors.validation('Детализация до строк доступна для графиков по датасету')
+    const filtered = applyDashboardFilters(
+      query,
+      dashboard.spec.filters,
+      tile.filterBindings,
+      input.filters,
+    )
+    const plan = drillSpec(filtered, input.pick, input.limit)
+    const result = await QueryService.run(ctx, plan.spec, { rowMeta: true, count: true })
+    return { datasetId: plan.datasetId, result }
   },
 }

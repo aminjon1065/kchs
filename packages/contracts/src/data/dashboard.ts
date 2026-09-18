@@ -124,3 +124,31 @@ export const DashboardData = z.object({
   tiles: z.record(z.string(), DashboardTileData),
 })
 export type DashboardData = z.infer<typeof DashboardData>
+
+/** Выбранный элемент графика: условие по полю результата (как `ChartPick.filters`). */
+export const DashboardDrillPick = z.object({
+  field: z.string().min(1).max(128),
+  op: z.enum(['eq', 'in', 'not_in', 'between']),
+  value: z.unknown(),
+})
+export type DashboardDrillPick = z.infer<typeof DashboardDrillPick>
+
+/**
+ * Детализация плитки до строк: фильтры дашборда (как у данных плиток) и
+ * выбранный элемент графика; строки — с политиками смотрящего.
+ */
+export const DashboardDrillInput = z.object({
+  tileId: z.string().min(1).max(64),
+  filters: z.record(z.string(), z.unknown()).default({}),
+  pick: z.array(DashboardDrillPick).max(8).default([]),
+  limit: z.number().int().min(1).max(1000).default(200),
+})
+export type DashboardDrillInput = z.infer<typeof DashboardDrillInput>
+
+export const DashboardDrillResult = z.object({
+  /** Датасет строк — «Открыть датасет». */
+  datasetId: Uuid,
+  /** Строки с `_id` и `_ver`, счётчик — всех строк под условиями. */
+  result: QueryResult,
+})
+export type DashboardDrillResult = z.infer<typeof DashboardDrillResult>

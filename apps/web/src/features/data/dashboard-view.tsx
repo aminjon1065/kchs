@@ -1,3 +1,4 @@
+import type { ChartPick } from '@kchs/chart-spec'
 import type {
   DashboardFilter,
   DashboardSpec,
@@ -31,7 +32,7 @@ import {
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Filter, Pencil, Plus, RefreshCw, Share2, Trash2, Tv, X } from 'lucide-react'
-import { type ReactNode, useState } from 'react'
+import { type ReactNode, useEffect, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
@@ -39,6 +40,7 @@ import { ShareDialog } from '~/features/access/share-dialog.js'
 import { PresenceAvatars } from '~/features/objects/presence-avatars.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { keys, objectListQuery, objectQuery } from '~/shared/api/queries.js'
+import { DrillSheet } from './dashboard-drill.js'
 import {
   moveTile,
   nextId,
@@ -74,6 +76,7 @@ export function DashboardView({ objectId, tabId }: { objectId: string; tabId: st
   const [shareOpen, setShareOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [tv, setTv] = useState(false)
+  const [drill, setDrill] = useState<{ tile: DashboardTile; pick: ChartPick } | null>(null)
   const locale = useAppearance((s) => s.locale)
 
   const { data: object } = useQuery(objectQuery(objectId))
@@ -290,12 +293,25 @@ export function DashboardView({ objectId, tabId }: { objectId: string; tabId: st
                 }
                 onMove={(delta) => setTiles(moveTile(tiles, index, delta))}
                 onRemove={() => setTiles(tiles.filter((item) => item.id !== tile.id))}
+                onPick={(pick) => setDrill({ tile, pick })}
               />
             ))}
           </div>
         )}
       </div>
 
+      {drill && !editing ? (
+        <DrillSheet
+          dashboardId={objectId}
+          tile={drill.tile}
+          spec={data.data?.tiles[drill.tile.id]?.spec ?? null}
+          pick={drill.pick}
+          values={values}
+          filters={spec.filters}
+          onFilter={(filterId, value) => setValues({ ...values, [filterId]: value })}
+          onClose={() => setDrill(null)}
+        />
+      ) : null}
       {adding && draft ? (
         <AddTileDialog
           spaceId={dashboard.spaceId}
@@ -364,7 +380,10 @@ function FilterControl({
   const t = useT()
   const locale = useAppearance((s) => s.locale)
   const label = filter.label[locale] ?? filter.label.ru
-  const [text, setText] = useState(Array.isArray(value) ? value.join(', ') : String(value ?? ''))
+  const external = Array.isArray(value) ? value.join(', ') : String(value ?? '')
+  const [text, setText] = useState(external)
+  // Значение, заданное не из поля (перекрёстный фильтр из детализации), — видно в поле
+  useEffect(() => setText(external), [external])
 
   let control: ReactNode
   if (filter.kind === 'period') {

@@ -1379,6 +1379,13 @@ export const ru = {
       failed: 'Не удалось построить график',
     },
     dashboard: {
+      drill: {
+        rows: 'Строки элемента графика',
+        count: '{count, plural, one {# строка} few {# строки} many {# строк} other {# строки}}',
+        countOf: 'Показаны {shown} из {count}',
+        openDataset: 'Открыть датасет',
+        filterBy: 'Фильтр дашборда: «{value}»',
+      },
       create: 'Дашборд',
       createTitle: 'Новый дашборд',
       name: 'Название',

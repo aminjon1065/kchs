@@ -239,6 +239,159 @@ describe('дашборд', () => {
     expect(edit.statusCode).toBe(403)
   })
 
+  it('детализация до строк: элемент графика, фильтр дашборда, политика смотрящего', async () => {
+    const created = await call(fx.app, {
+      method: 'POST',
+      url: '/dashboards',
+      as: fx.admin,
+      payload: {
+        name: `Детализация ${run}`,
+        spaceId: fx.spaceId,
+        spec: {
+          filters: [{ id: 'district', kind: 'select', label: { ru: 'Район' } }],
+          tiles: [
+            {
+              id: 'bars',
+              kind: 'chart',
+              spec: barSpec(datasetId),
+              filterBindings: { district: 'district' },
+              x: 0,
+              y: 0,
+              w: 6,
+              h: 4,
+            },
+          ],
+        },
+      },
+    })
+    expect(created.statusCode, created.body).toBe(200)
+    const dashboardId = created.json().id as string
+    const drill = (payload: Record<string, unknown>, as = fx.admin) =>
+      call(fx.app, { method: 'POST', url: `/dashboards/${dashboardId}/drill`, as, payload })
+
+    const hatlon = await drill({
+      tileId: 'bars',
+      pick: [{ field: 'district', op: 'eq', value: 'Хатлон' }],
+    })
+    expect(hatlon.statusCode, hatlon.body).toBe(200)
+    expect(hatlon.json().datasetId).toBe(datasetId)
+    const result = hatlon.json().result
+    expect(result.rowCount).toBe(2)
+    expect(records(result).map((row) => row.code)).toEqual(['C-0', 'C-1'])
+    expect(result.fields.map((field: { name: string }) => field.name)).toEqual(
+      expect.arrayContaining(['_id', '_ver', 'code', 'district']),
+    )
+
+    // Фильтр дашборда по привязке плитки сужает строки
+    const none = await drill({
+      tileId: 'bars',
+      filters: { district: 'Согд' },
+      pick: [{ field: 'district', op: 'eq', value: 'Хатлон' }],
+    })
+    expect(none.json().result.rowCount).toBe(0)
+    // Политика смотрящего: читателю видны только строки Хатлона
+    const viewer = await drill(
+      { tileId: 'bars', pick: [{ field: 'district', op: 'eq', value: 'Согд' }] },
+      fx.users.viewer,
+    )
+    expect(viewer.statusCode, viewer.body).toBe(200)
+    expect(viewer.json().result.rowCount).toBe(0)
+    expect((await drill({ tileId: 'nope', pick: [] })).statusCode).toBe(404)
+  })
+
+  it('детализация интервала времени — те же строки, что в точке графика', async () => {
+    const created = await call(fx.app, {
+      method: 'POST',
+      url: '/datasets',
+      as: fx.admin,
+      payload: {
+        name: `Во времени ${run}`,
+        spaceId: fx.spaceId,
+        fields: [
+          { key: 'code', label: { ru: 'Код' }, type: 'identifier' },
+          { key: 'at', label: { ru: 'Когда' }, type: 'datetime', semantic: 'time' },
+        ],
+        primaryKey: ['code'],
+      },
+    })
+    expect(created.statusCode, created.body).toBe(200)
+    const timeId = created.json().id as string
+    // 31 марта 22:00 UTC — уже 1 апреля в Душанбе: граница месяца по поясу пользователя
+    const moments = ['2026-03-05T10:00:00Z', '2026-03-31T22:00:00Z', '2026-04-10T10:00:00Z']
+    const inserted = await call(fx.app, {
+      method: 'POST',
+      url: `/datasets/${timeId}/rows`,
+      as: fx.admin,
+      payload: { rows: moments.map((at, index) => ({ values: { code: `T-${index}`, at } })) },
+    })
+    expect(inserted.statusCode, inserted.body).toBe(200)
+    const dashboard = await call(fx.app, {
+      method: 'POST',
+      url: '/dashboards',
+      as: fx.admin,
+      payload: {
+        name: `По месяцам ${run}`,
+        spaceId: fx.spaceId,
+        spec: {
+          tiles: [
+            {
+              id: 'months',
+              kind: 'chart',
+              spec: {
+                version: 1,
+                type: 'line',
+                data: {
+                  query: {
+                    version: 1,
+                    source: { kind: 'dataset', id: timeId },
+                    steps: [
+                      {
+                        type: 'aggregate',
+                        groupBy: [{ field: 'at', bucket: 'month' }],
+                        measures: [{ alias: 'n', agg: 'count' }],
+                      },
+                    ],
+                  },
+                },
+                encoding: {
+                  x: { field: 'at_month', type: 'temporal' },
+                  y: [{ field: 'n', type: 'quantitative' }],
+                },
+              },
+              x: 0,
+              y: 0,
+              w: 6,
+              h: 4,
+            },
+          ],
+        },
+      },
+    })
+    expect(dashboard.statusCode, dashboard.body).toBe(200)
+    const dashboardId = dashboard.json().id as string
+    const data = await call(fx.app, {
+      method: 'POST',
+      url: `/dashboards/${dashboardId}/data`,
+      as: fx.admin,
+      payload: { filters: {} },
+    })
+    const points = records(data.json().tiles.months.result)
+    const april = points.find((point) => String(point.at_month).startsWith('2026-04'))
+    expect(april?.n).toBe(2)
+
+    const drilled = await call(fx.app, {
+      method: 'POST',
+      url: `/dashboards/${dashboardId}/drill`,
+      as: fx.admin,
+      payload: {
+        tileId: 'months',
+        pick: [{ field: 'at_month', op: 'eq', value: april?.at_month }],
+      },
+    })
+    expect(drilled.statusCode, drilled.body).toBe(200)
+    expect(records(drilled.json().result).map((row) => row.code)).toEqual(['T-1', 'T-2'])
+  })
+
   it('плитку на недоступный автору график добавить нельзя', async () => {
     const response = await call(fx.app, {
       method: 'POST',

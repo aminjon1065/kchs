@@ -1349,6 +1349,13 @@ export const en: DeepPartial<Dictionary> = {
       failed: 'Could not build the chart',
     },
     dashboard: {
+      drill: {
+        rows: 'Rows behind the chart element',
+        count: '{count, plural, one {# row} other {# rows}}',
+        countOf: '{shown} of {count} shown',
+        openDataset: 'Open dataset',
+        filterBy: 'Filter dashboard: «{value}»',
+      },
       create: 'Dashboard',
       createTitle: 'New dashboard',
       name: 'Name',

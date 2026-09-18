@@ -6,6 +6,8 @@ import {
   DashboardCreateInput,
   DashboardData,
   DashboardDataInput,
+  DashboardDrillInput,
+  DashboardDrillResult,
   DashboardRecord,
   DashboardUpdateInput,
   DatasetColumnPolicy,
@@ -787,6 +789,21 @@ export function registerDataRoutes(route: RouteRegistrar): void {
     summary: 'Данные плиток дашборда одним запросом, с фильтрами дашборда',
     schema: { params: IdParam, body: DashboardDataInput, response: { 200: DashboardData } },
     handler: async (request) => DashboardService.data(request.ctx, request.params.id, request.body),
+  })
+
+  route({
+    method: 'POST',
+    url: '/dashboards/:id/drill',
+    auth: { action: 'view' },
+    tags: ['data'],
+    summary: 'Детализация плитки до строк: выбранный элемент графика и фильтры дашборда',
+    schema: {
+      params: IdParam,
+      body: DashboardDrillInput,
+      response: { 200: DashboardDrillResult },
+    },
+    handler: async (request) =>
+      DashboardService.drill(request.ctx, request.params.id, request.body),
   })
 
   route({

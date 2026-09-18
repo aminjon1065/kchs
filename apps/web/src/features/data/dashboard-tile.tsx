@@ -1,3 +1,4 @@
+import type { ChartPick } from '@kchs/chart-spec'
 import type {
   DashboardFilter,
   DashboardTile,
@@ -91,6 +92,7 @@ export function TileCard({
   onChange,
   onMove,
   onRemove,
+  onPick,
   large = false,
 }: {
   tile: DashboardTile
@@ -101,6 +103,8 @@ export function TileCard({
   onChange: (tile: DashboardTile) => void
   onMove: (delta: number) => void
   onRemove: () => void
+  /** Щелчок по элементу графика вне режима правки — детализация до строк. */
+  onPick?: (pick: ChartPick) => void
   large?: boolean
 }) {
   const t = useT()
@@ -142,6 +146,7 @@ export function TileCard({
         height={height * (large ? TV_ROW : ROW) - 64}
         pending={pending}
         {...(me?.user.timezone ? { timezone: me.user.timezone } : {})}
+        {...(onPick && !editing ? { onElementClick: onPick } : {})}
       />
     )
   } else {
