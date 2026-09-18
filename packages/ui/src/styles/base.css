@@ -73,7 +73,8 @@
 
 /* Кольцо фокуса — вне слоёв: единое для всех контролов, утилиты его не снимают */
 :focus-visible,
-[data-field]:has(> input:focus-visible) {
+[data-field]:has(> input:focus-visible),
+[data-field]:has([contenteditable]:focus-visible) {
   outline: none;
   box-shadow:
     0 0 0 2px var(--bg-surface),
@@ -92,8 +93,12 @@
   box-shadow: none;
 }
 
-/* Составное поле (префикс, чипы тегов): кольцо на рамке поля, не на внутреннем input */
-[data-field] > input:focus-visible {
+/*
+ * Составное поле (префикс, чипы тегов, редактор кода): кольцо на рамке поля, не на
+ * внутреннем input или области правки — та лежит в прокрутке и кольцо обрезалось бы
+ */
+[data-field] > input:focus-visible,
+[data-field] [contenteditable]:focus-visible {
   box-shadow: none;
 }
 
