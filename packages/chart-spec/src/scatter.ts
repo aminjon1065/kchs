@@ -179,8 +179,6 @@ export function buildScatter(ctx: Ctx, bubble: boolean): Built {
             brushType: 'lineX',
             brushMode: 'single',
             transformable: false,
-            throttleType: 'debounce',
-            throttleDelay: 300,
             brushStyle: {
               color: withAlpha(theme.tokens.accent, 0.12),
               borderColor: withAlpha(theme.tokens.accent, 0.6),
@@ -242,19 +240,13 @@ export function buildScatter(ctx: Ctx, bubble: boolean): Built {
         filters.push({ field: colorCh.field, op: 'eq', value: entry.group.raw })
       return { label: textOf(p) ?? `${xFormat.full(p.x)} · ${yFormat.full(p.y)}`, filters }
     },
-    brush: (selection) => {
-      let lo = Number.POSITIVE_INFINITY
-      let hi = Number.NEGATIVE_INFINITY
-      for (const sel of selection) {
-        const entry = plotted[sel.seriesIndex]
-        for (const i of sel.dataIndex) {
-          const p = entry?.group.points[i]
-          if (!p) continue
-          lo = Math.min(lo, p.x)
-          hi = Math.max(hi, p.x)
-        }
-      }
-      return Number.isFinite(lo) ? { field: x.field, op: 'between', value: [lo, hi] } : null
-    },
+    brush: (range) =>
+      range
+        ? {
+            field: x.field,
+            op: 'between',
+            value: [Math.min(range.from, range.to), Math.max(range.from, range.to)],
+          }
+        : null,
   }
 }

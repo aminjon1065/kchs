@@ -114,7 +114,15 @@ export function buildNumber(ctx: Ctx): { model: NumberTileModel; table: ChartTab
         ? {
             value: target,
             formatted: format(target),
-            progress: target !== 0 ? value / target : 0,
+            // Для «меньше — лучше» цель достигнута, когда значение опустилось до неё
+            progress:
+              ctx.direction === 'lower_better'
+                ? value > 0
+                  ? target / value
+                  : 1
+                : target !== 0
+                  ? value / target
+                  : 0,
             label: t('ui.chart.targetValue', { value: format(target) }),
           }
         : null,
@@ -188,8 +196,8 @@ export function buildGauge(ctx: Ctx): Built {
         max,
         startAngle: 210,
         endAngle: -30,
-        radius: '88%',
-        center: ['50%', '56%'],
+        radius: '92%',
+        center: ['50%', '60%'],
         progress: {
           show: thresholds.length === 0,
           width: 12,
@@ -219,14 +227,15 @@ export function buildGauge(ctx: Ctx): Built {
         splitNumber: 1,
         title: {
           show: true,
-          offsetCenter: [0, '34%'],
+          // Со стрелкой центр занят осью — значение и подпись ниже, между концами дуги
+          offsetCenter: [0, thresholds.length ? '66%' : '36%'],
           color: theme.textSecondary,
           fontSize: 12,
           fontFamily: theme.fontFamily,
         },
         detail: {
           valueAnimation: ctx.animation,
-          offsetCenter: [0, '6%'],
+          offsetCenter: [0, thresholds.length ? '38%' : '2%'],
           color: theme.text,
           fontSize: 28,
           fontWeight: 600,

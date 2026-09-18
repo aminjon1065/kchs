@@ -6,7 +6,7 @@
 export { chartAltText } from './alt-text.js'
 export { compileChart } from './compile.js'
 export type {
-  BrushSelection,
+  BrushRange,
   ChartFilter,
   ChartIssue,
   ChartMeta,

@@ -314,7 +314,6 @@ interface TreeNode {
   raw: unknown
   itemStyle?: { color: string }
   label?: { color: string }
-  upperLabel?: { color: string }
   children?: TreeNode[]
 }
 
@@ -379,7 +378,6 @@ export function buildTreemap(ctx: Ctx): Built {
         raw: group.raw,
         itemStyle: { color: fill },
         label: { color: ink },
-        upperLabel: { color: ink },
         children: [...group.leaves.values()].map((leaf) => ({ ...leaf, label: { color: ink } })),
       })
     }
@@ -391,7 +389,6 @@ export function buildTreemap(ctx: Ctx): Built {
         raw: null,
         itemStyle: { color: theme.other },
         label: { color: ink },
-        upperLabel: { color: ink },
       })
     }
   } else {
@@ -458,8 +455,15 @@ export function buildTreemap(ctx: Ctx): Built {
                   upperLabel: { show: false },
                 },
                 {
+                  // Полоса подписи группы — цвета зазора (поверхности): текст — токеном текста
                   itemStyle: { borderColor: theme.surface, borderWidth: 2, gapWidth: 1 },
-                  upperLabel: { show: true, height: 22, fontSize: 12, fontWeight: 600 },
+                  upperLabel: {
+                    show: true,
+                    height: 22,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: theme.text,
+                  },
                 },
               ],
             }

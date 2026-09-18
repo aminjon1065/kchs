@@ -25,7 +25,7 @@ import {
   shareFormat,
 } from './format.js'
 import type {
-  BrushSelection,
+  BrushRange,
   ChartFilter,
   ChartPick,
   ChartTableModel,
@@ -51,7 +51,7 @@ export interface Built {
   option: EChartsOption
   table: ChartTableModel
   pick: (params: PickParams) => ChartPick | null
-  brush: (selection: readonly BrushSelection[]) => ChartFilter | null
+  brush: (range: BrushRange | null) => ChartFilter | null
 }
 
 interface SeriesDef {
@@ -381,7 +381,12 @@ export function buildCartesian(ctx: Ctx, type: CartesianType): Built {
   const showSymbol =
     options.points === 'always' ||
     (options.points === 'auto' && pointsPerSeries <= 30 && defs.length <= 4)
-  const endLabels = labelsMode !== 'never' && defs.length >= 2 && defs.length <= 4 && type !== 'bar'
+  // Подписи концов — только у линий и областей: у combo конец линии уходит на ось столбцов
+  const endLabels =
+    labelsMode !== 'never' &&
+    defs.length >= 2 &&
+    defs.length <= 4 &&
+    (type === 'line' || type === 'area')
   let sampledFrom = 0
 
   const pushBar = (def: SeriesDef, comparisonSeries: boolean) => {
@@ -433,7 +438,13 @@ export function buildCartesian(ctx: Ctx, type: CartesianType): Built {
           ? '-'
           : {
               value: v,
-              itemStyle: { borderRadius: radius(v, i) },
+              itemStyle: {
+                borderRadius: radius(v, i),
+                // «Прочее» одной серии — приглушённым, это не сущность
+                ...(order[i]?.key === OTHER_KEY && !colorRef && !comparisonSeries
+                  ? { color: theme.other }
+                  : {}),
+              },
               ...(showLabels
                 ? {
                     label: {
@@ -609,6 +620,8 @@ export function buildCartesian(ctx: Ctx, type: CartesianType): Built {
         boundaryGap: defs.some((d) => d.mark === 'bar'),
         grid: axes.x?.grid ?? false,
         name: xName,
+        // Подписи периодов короткие — показываем все, пересечения скрывает hideOverlap
+        allLabels: temporal && bucket !== null,
       },
     )
   } else if (xKind === 'time') {
@@ -797,7 +810,20 @@ export function buildCartesian(ctx: Ctx, type: CartesianType): Built {
     ...baseOption(ctx),
     grid,
     tooltip,
-    ...(legendShown ? { legend: legendOption(ctx, true) } : {}),
+    ...(legendShown
+      ? {
+          legend: {
+            ...legendOption(ctx, true),
+            // Сравнение рисуется под основной серией, а в легенде идёт после неё
+            data: [
+              ...plotted.filter((p) => !p.comparison).map((p) => ({ name: p.def.name })),
+              ...plotted
+                .filter((p) => p.comparison)
+                .map((p) => ({ name: comparedName(p.def), itemStyle: { opacity: 0.45 } })),
+            ],
+          },
+        }
+      : {}),
     xAxis: horizontal ? measureAxes : dimensionAxis,
     yAxis: horizontal ? { ...dimensionAxis } : measureAxes,
     series,
@@ -809,8 +835,9 @@ export function buildCartesian(ctx: Ctx, type: CartesianType): Built {
             brushType: horizontal ? 'lineY' : 'lineX',
             brushMode: 'single',
             transformable: false,
-            throttleType: 'debounce',
-            throttleDelay: 300,
+            // Приглушать вне выделения умеют только столбцы: линии ECharts кистью не
+            // отбирает и приглушил бы целиком
+            seriesIndex: series.flatMap((s, i) => (s.type === 'bar' ? [i] : [])),
             brushStyle: {
               color: withAlpha(theme.tokens.accent, 0.12),
               borderColor: withAlpha(theme.tokens.accent, 0.6),
@@ -896,21 +923,20 @@ export function buildCartesian(ctx: Ctx, type: CartesianType): Built {
     const title = titleAt(p, params.dataIndex)
     return { label: colorCh || defs.length > 1 ? `${title} · ${p.def.name}` : title, filters }
   }
-  const brush = (selection: readonly BrushSelection[]): ChartFilter | null => {
-    const picked = new Map<string, XEntry>()
-    for (const sel of selection) {
-      const p = plotted[sel.seriesIndex]
-      if (!p) continue
-      for (const i of sel.dataIndex) {
-        const key = p.keys[i]
-        const entry = key ? entries.get(key) : undefined
-        if (entry) picked.set(entry.key, entry)
-      }
-    }
-    const list = [...picked.values()]
+  const brush = (range: BrushRange | null): ChartFilter | null => {
+    if (!range) return null
+    const lo = Math.min(range.from, range.to)
+    const hi = Math.max(range.from, range.to)
+    // Категориальная ось — индексы категорий; время и числа — позиции точек.
+    // Достроенные пустые периоды и «Прочее» в фильтр не входят
+    const list = order.filter((e, i) => {
+      if (e.key === OTHER_KEY || !entries.has(e.key)) return false
+      if (xKind === 'category') return i >= Math.round(lo) && i <= Math.round(hi)
+      return e.pos !== null && e.pos >= lo && e.pos <= hi
+    })
     if (list.length === 0) return null
     if (temporal || xKind === 'value') {
-      const sorted = list.sort((a, b) => (a.pos as number) - (b.pos as number))
+      const sorted = [...list].sort((a, b) => (a.pos as number) - (b.pos as number))
       return {
         field: x.field,
         op: 'between',

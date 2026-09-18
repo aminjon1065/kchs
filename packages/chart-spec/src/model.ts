@@ -52,10 +52,15 @@ export interface PickParams {
   data?: unknown
 }
 
-/** Выделение кистью: индексы данных по сериям (событие brushSelected). */
-export interface BrushSelection {
-  seriesIndex: number
-  dataIndex: number[]
+/**
+ * Выделение кистью — диапазон по оси измерения в координатах данных
+ * (`coordRange` области события brushEnd): индексы категорий, настенное время
+ * или числа. По диапазону, а не по отобранным точкам: линии ECharts кистью не
+ * отбираются.
+ */
+export interface BrushRange {
+  from: number
+  to: number
 }
 
 export interface ChartTableColumn {
@@ -111,7 +116,7 @@ export type CompiledChart =
       alt: string
       meta: ChartMeta
       pick: (params: PickParams) => ChartPick | null
-      brush: (selection: readonly BrushSelection[]) => ChartFilter | null
+      brush: (range: BrushRange | null) => ChartFilter | null
     }
   | { kind: 'number'; model: NumberTileModel; table: ChartTableModel; alt: string; meta: ChartMeta }
   | { kind: 'table'; table: ChartTableModel; alt: string; meta: ChartMeta }

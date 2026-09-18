@@ -376,8 +376,21 @@ describe('линии и области', () => {
   it('кисть по времени — диапазон исходных значений', () => {
     const c = echarts(compileChart(monthly({ brush: true }), MONTHLY, THEME))
     expect(c.o.brush.brushType).toBe('lineX')
-    const filter = c.brush([{ seriesIndex: 0, dataIndex: [1, 2, 3] }])
+    const filter = c.brush({ from: Date.UTC(2026, 0, 15), to: Date.UTC(2026, 3, 1) })
     expect(filter).toEqual({ field: 'month', op: 'between', value: ['2026-02-01', '2026-04-01'] })
+    expect(c.brush(null)).toBeNull()
+    expect(c.brush({ from: Date.UTC(2020, 0, 1), to: Date.UTC(2020, 1, 1) })).toBeNull()
+  })
+
+  it('кисть по категориям — индексы категорий, без «Прочего»', () => {
+    const c = echarts(
+      compileChart(byDistrict({}, { limit: 3, other: true, brush: true }), DISTRICTS, THEME),
+    )
+    expect(c.brush({ from: 1, to: 3 })).toEqual({
+      field: 'district',
+      op: 'in',
+      value: ['Вахдат', 'Рашт'],
+    })
   })
 })
 

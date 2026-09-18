@@ -172,7 +172,14 @@ export function valueAxis(
 export function categoryAxis(
   ctx: Ctx,
   labels: readonly string[],
-  options: { horizontal?: boolean; boundaryGap?: boolean; grid?: boolean; name?: string },
+  options: {
+    horizontal?: boolean
+    boundaryGap?: boolean
+    grid?: boolean
+    name?: string
+    /** Все подписи (короткие периоды); иначе ECharts прореживает равномерно. */
+    allLabels?: boolean
+  },
 ): AxisOption {
   const { theme } = ctx
   return {
@@ -187,6 +194,7 @@ export function categoryAxis(
       color: theme.textSecondary,
       fontSize: 12,
       hideOverlap: true,
+      ...(options.allLabels ? { interval: 0 } : {}),
       ...(options.horizontal
         ? { width: 140, overflow: 'truncate' }
         : { width: 96, overflow: 'truncate' }),
