@@ -41,7 +41,7 @@ SPEC = DatasetSpec(
         Column("occurred_at", "Дата и время", "Date and time", "datetime", "time",
                {"dateFormat": "yyyy-MM-dd HH:mm"}, required=True),
         Column("type_code", "Тип", "Type", "text", "category", required=True),
-        Column("territory_code", "Территория", "Territory", "text", "territory", required=True),
+        Column("territory", "Территория", "Territory", "territory", "territory", required=True),
         Column("lat", "Широта", "Latitude", "number", "dimension", {"precision": 5}),
         Column("lon", "Долгота", "Longitude", "number", "dimension", {"precision": 5}),
         Column("damage", "Ущерб, сомони", "Damage, TJS", "money", "measure",
@@ -52,9 +52,9 @@ SPEC = DatasetSpec(
     ),
     key=("code",),
     time_field="occurred_at",
-    territory_field="territory_code",
+    territory_field="territory",
     geometry="latlon",
-    lookups=(Lookup("type_code", "incident_types"), Lookup("territory_code", "territories")),
+    lookups=(Lookup("type_code", "incident_types"),),
 )  # fmt: skip
 
 

@@ -34,8 +34,8 @@ from kchs_engine.demo.world import District, offset, polygon_area_km2
 
 LAT = Column("lat", "Широта", "Latitude", "number", "dimension", {"precision": 5})
 LON = Column("lon", "Долгота", "Longitude", "number", "dimension", {"precision": 5})
-TERRITORY = Column("territory_code", "Территория", "Territory", "text", "territory")
-TERRITORY_LOOKUP = Lookup("territory_code", "territories")
+# Поле-территория (ADR-0057): коды районов импорт сопоставляет со справочником территорий
+TERRITORY = Column("territory", "Территория", "Territory", "territory", "territory")
 
 
 def csv_text(rows: Iterable[Iterable[Any]]) -> str:
@@ -148,9 +148,8 @@ HYDRO_POSTS = DatasetSpec(
         Column("danger_level_cm", "Опасный уровень, см", "Danger level, cm", "integer", "measure"),
     ),
     key=("code",),
-    territory_field="territory_code",
+    territory_field="territory",
     geometry="latlon",
-    lookups=(TERRITORY_LOOKUP,),
 )
 
 WATER_LEVELS = DatasetSpec(
@@ -175,8 +174,8 @@ WATER_LEVELS = DatasetSpec(
     ),
     key=("observed_on", "post_code"),
     time_field="observed_on",
-    territory_field="territory_code",
-    lookups=(Lookup("post_code", "hydro_posts"), TERRITORY_LOOKUP),
+    territory_field="territory",
+    lookups=(Lookup("post_code", "hydro_posts"),),
 )  # fmt: skip
 
 
@@ -316,9 +315,8 @@ PROTECTED_OBJECTS = DatasetSpec(
         Column("condition", "Состояние", "Condition", "text", "category"),
     ),
     key=("code",),
-    territory_field="territory_code",
+    territory_field="territory",
     geometry="features",
-    lookups=(TERRITORY_LOOKUP,),
 )  # fmt: skip
 
 
@@ -438,9 +436,8 @@ RISK_ZONES = DatasetSpec(
     ),
     key=("code",),
     time_field="assessed_on",
-    territory_field="territory_code",
+    territory_field="territory",
     geometry="features",
-    lookups=(TERRITORY_LOOKUP,),
 )  # fmt: skip
 
 # Сейсмичность по регионам, баллов (условно: Согд и Хатлон — 8, остальные — 9)

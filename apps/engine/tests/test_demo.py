@@ -30,7 +30,7 @@ from kchs_engine import storage
 from kchs_engine.config import settings
 from kchs_engine.contracts import data_import_contract
 from kchs_engine.data.analyze import analyze_file, analyze_object
-from kchs_engine.data.normalize import normalize_file
+from kchs_engine.data.normalize import normalize_file, territory_key
 from kchs_engine.data.readers import SAMPLE_BYTES
 from kchs_engine.demo import DATASET_IDS, DATASETS, DEFAULT_SEED, PROFILES, generate
 from kchs_engine.demo.__main__ import main
@@ -63,6 +63,14 @@ def entry(manifest: Manifest, dataset: str) -> dict[str, Any]:
 def read_csv(path: Path) -> list[dict[str, str]]:
     with path.open(encoding="utf-8", newline="") as stream:
         return list(csv.DictReader(stream))
+
+
+def territory_table(folder: Path) -> dict[str, str]:
+    """Коды справочника территорий → условные идентификаторы (как `matchTable` api)."""
+    rows = read_csv(folder / "territories.csv")
+    return {
+        territory_key(row["Код"]): str(uuid.uuid5(uuid.NAMESPACE_URL, row["Код"])) for row in rows
+    }
 
 
 def features(path: Path) -> list[dict[str, Any]]:
@@ -198,7 +206,8 @@ def test_манифест_описывает_файлы_и_загрузку(smal
             assert item[name] is None or item[name] in field_keys
         if item["territoryField"]:
             territory = next(f for f in mapping if f["fieldKey"] == item["territoryField"])
-            assert territory["semantic"] == "territory"
+            # Поле-территория (ADR-0057): импорт сопоставляет коды со справочником территорий
+            assert (territory["type"], territory["semantic"]) == ("territory", "territory")
         geometry = run.get("geometry")
         if geometry is None:
             assert "geometryField" not in run and item["geometryField"] is None
@@ -385,8 +394,8 @@ def test_анализ_импорта_распознаёт_файл(small: tuple[
         assert column["invalid"] == 0, column["name"]
         expected = UPGRADES.get((dataset, field["fieldKey"]), (field["type"], field["semantic"]))
         if field["semantic"] == "territory":
-            # Семантику «территория» анализ не предлагает — её задаёт манифест
-            assert column["type"] == field["type"]
+            # Поле-территорию анализ не предлагает (в файле — коды районов), её задаёт манифест
+            assert (column["type"], field["type"]) == ("text", "territory")
             assert column["semantic"] in ("dimension", "category")
         else:
             assert (column["type"], column["semantic"]) == expected, column["name"]
@@ -403,6 +412,8 @@ def test_нормализация_по_манифесту_без_ошибок(
     run = item["import"]
     path = folder / item["file"]
     normalized, errors = tmp_path / "normalized.csv", tmp_path / "errors.csv"
+    # Таблица сопоставления территорий, как её передаёт api (ADR-0057): код → идентификатор
+    territories = territory_table(folder)
     result = normalize_file(
         path,
         path.name,
@@ -413,6 +424,7 @@ def test_нормализация_по_манифесту_без_ошибок(
         normalized,
         errors,
         zone="Asia/Dushanbe",
+        territories=territories,
     )
     assert (result.rows, result.errors, result.written) == (item["rows"], 0, item["rows"])
     assert errors.read_text(encoding="utf-8") == "row,field,value,code\n"
@@ -421,6 +433,7 @@ def test_нормализация_по_манифесту_без_ошибок(
     assert len(first) == 1 + len(run["mapping"]) + (1 if "geometry" in run else 0)
     if dataset == "incidents":
         assert first[:2] == ["2", "INC-2024-0000001"]
+        assert first[4] in territories.values()
         assert re.fullmatch(r"2024-01-01T\d\d:\d\d:00\+05:00", first[2])
         assert re.fullmatch(r"SRID=4326;POINT\(\d+\.\d+ \d+\.\d+\)", first[-1])
     if dataset == "risk_zones":
@@ -447,9 +460,11 @@ def test_голова_профиля_demo_распознаётся_так_же(t
     for column, field in zip(analysis["columns"], spec.columns, strict=True):
         assert column["invalid"] == 0, column["name"]
         kind, semantic = UPGRADES.get(("incidents", field.key), (field.type, field.semantic))
-        assert column["type"] == kind, column["name"]
-        if field.semantic != "territory":
-            assert column["semantic"] == semantic, column["name"]
+        if field.semantic == "territory":
+            # Коды районов анализ видит текстом; поле-территорию задаёт манифест
+            assert column["type"] == "text", column["name"]
+            continue
+        assert (column["type"], column["semantic"]) == (kind, semantic), column["name"]
 
 
 # ─── Распределения ───────────────────────────────────────────────────────────

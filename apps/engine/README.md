@@ -55,6 +55,11 @@ docker compose exec engine python -m kchs_engine.demo --out s3://kchs-files/seed
 `--only incidents,territories` — только эти наборы, `--incidents N` — число строк
 «Происшествий» вместо профиля (для замеров). Ход и замеры — в stderr.
 
+Сид api (`pnpm db:seed --data=small|demo`, ADR-0063) запускает тот же генератор заданием
+`transform:demo.generate` (`kchs_engine/jobs/demo.py`): файлы и манифест — в бакет файлов под
+`demo/<профиль>-<seed>/`; если там уже лежит манифест того же профиля и seed, задание
+завершается сразу, не генерируя файлы заново.
+
 | Файл | Набор | Строк: small / demo | Ключ | Время | Территория | Геометрия |
 |---|---|---|---|---|---|---|
 | `territories.csv` | Территории (справочник) | 74 | `code` | — | — | центроид (широта/долгота) |
