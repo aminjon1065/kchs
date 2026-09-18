@@ -1,6 +1,7 @@
 import {
   AbortMultipartUploadCommand,
   CompleteMultipartUploadCommand,
+  CopyObjectCommand,
   CreateMultipartUploadCommand,
   DeleteObjectCommand,
   GetObjectCommand,
@@ -172,6 +173,23 @@ export async function abortMultipart(key: string, uploadId: string): Promise<voi
 
 export async function headObject(key: string, bucket?: string) {
   return s3().send(new HeadObjectCommand({ Bucket: bucket ?? buckets.files(), Key: key }))
+}
+
+/** Серверная копия объекта внутри бакета (одним запросом S3 — до 5 ГБ). */
+export async function copyObject(sourceKey: string, targetKey: string, bucket?: string) {
+  const target = bucket ?? buckets.files()
+  const source = sourceKey.split('/').map(encodeURIComponent).join('/')
+  return s3().send(
+    new CopyObjectCommand({ Bucket: target, Key: targetKey, CopySource: `${target}/${source}` }),
+  )
+}
+
+/** Небольшой текстовый объект целиком (манифесты, отчёты движка). */
+export async function readObjectText(key: string, bucket?: string): Promise<string> {
+  const response = await s3().send(
+    new GetObjectCommand({ Bucket: bucket ?? buckets.files(), Key: key }),
+  )
+  return (await response.Body?.transformToString('utf-8')) ?? ''
 }
 
 export async function deleteObject(key: string, bucket?: string): Promise<void> {

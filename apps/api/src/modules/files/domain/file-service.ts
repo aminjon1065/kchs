@@ -6,6 +6,7 @@ import { ObjectService } from '~/kernel/objects/service.js'
 import {
   abortMultipart,
   completeMultipart,
+  copyObject,
   headObject,
   initMultipart,
   signedGetUrl,
@@ -13,7 +14,7 @@ import {
   storageKey,
 } from '~/kernel/storage/s3.js'
 import { UserService } from '~/modules/identity/public.js'
-import type { Ctx, UserCtx } from '~/shared/context.js'
+import { actorId, type Ctx, type UserCtx } from '~/shared/context.js'
 import { type Database, db, type Executor } from '~/shared/db/client.js'
 import {
   files,
@@ -29,6 +30,85 @@ import { FileProcessing } from './processing.js'
 
 const SINGLE_PUT_LIMIT = 8 * 1024 * 1024
 const SESSION_TTL_HOURS = 24
+
+interface NewFileInput {
+  fileId?: string
+  versionId: string
+  spaceId: string
+  folderId: string | null
+  attachToObjectId?: string | null
+  name: string
+  mime: string
+  size: number
+  checksum: string | null
+  storageKey: string
+  note?: string | null
+}
+
+/**
+ * Новый файл в транзакции: объект реестра, запись файла и первая версия,
+ * событие `file.uploaded` и задание превью и текста (09-files.md §2–3).
+ */
+async function createFile(tx: Executor, ctx: Ctx, input: NewFileInput): Promise<string> {
+  // Вложение без явной папки — в системную папку «Вложения» пространства
+  const folderId =
+    input.folderId ??
+    (input.attachToObjectId ? await AttachmentsFolder.ensure(tx, ctx, input.spaceId) : null)
+
+  const object = await ObjectService.create(tx, ctx, {
+    ...(input.fileId ? { id: input.fileId } : {}),
+    type: 'file',
+    spaceId: input.spaceId,
+    parentId: folderId,
+    title: input.name,
+    icon: 'file',
+    meta: { size: input.size, mime: input.mime },
+  })
+
+  await tx.insert(files).values({
+    id: object.id,
+    folderId,
+    name: input.name,
+    mime: input.mime,
+    size: input.size,
+    storageKey: input.storageKey,
+    checksum: input.checksum,
+    currentVersionId: input.versionId,
+    versionNumber: 1,
+    previewStatus: 'queued',
+    textStatus: 'queued',
+  })
+  await tx.insert(fileVersions).values({
+    id: input.versionId,
+    fileId: object.id,
+    number: 1,
+    storageKey: input.storageKey,
+    size: input.size,
+    mime: input.mime,
+    checksum: input.checksum,
+    createdBy: actorId(ctx),
+    note: input.note ?? null,
+  })
+
+  await publishEvent(tx, ctx, {
+    type: 'file.uploaded',
+    object: { id: object.id, type: 'file', spaceId: input.spaceId, title: input.name },
+    payload: { name: input.name, size: input.size, mime: input.mime },
+  })
+  await FileProcessing.schedule(tx, ctx, {
+    fileId: object.id,
+    spaceId: input.spaceId,
+    versionId: input.versionId,
+    storageKey: input.storageKey,
+    mime: input.mime,
+    name: input.name,
+  })
+
+  if (input.attachToObjectId) {
+    await LinkService.link(tx, ctx, input.attachToObjectId, object.id, 'attachment')
+  }
+  return object.id
+}
 
 export const FileService = {
   /** Шаг 1: клиент получает подписанные URL и грузит прямо в S3 (09-files.md §2). */
@@ -165,64 +245,19 @@ export const FileService = {
         return session.fileId
       }
 
-      // Вложение без явной папки — в системную папку «Вложения» пространства
-      const folderId =
-        session.folderId ??
-        (session.attachToObjectId ? await AttachmentsFolder.ensure(tx, ctx, session.spaceId) : null)
-
-      const object = await ObjectService.create(tx, ctx, {
-        ...(session.plannedFileId ? { id: session.plannedFileId } : {}),
-        type: 'file',
+      return createFile(tx, ctx, {
+        ...(session.plannedFileId ? { fileId: session.plannedFileId } : {}),
+        versionId,
         spaceId: session.spaceId,
-        parentId: folderId,
-        title: session.name,
-        icon: 'file',
-        meta: { size, mime: session.mime },
-      })
-
-      await tx.insert(files).values({
-        id: object.id,
-        folderId,
+        folderId: session.folderId,
+        attachToObjectId: session.attachToObjectId,
         name: session.name,
         mime: session.mime,
         size,
-        storageKey: session.storageKey,
         checksum,
-        currentVersionId: versionId,
-        versionNumber: 1,
-        previewStatus: 'queued',
-        textStatus: 'queued',
-      })
-      await tx.insert(fileVersions).values({
-        id: versionId,
-        fileId: object.id,
-        number: 1,
         storageKey: session.storageKey,
-        size,
-        mime: session.mime,
-        checksum,
-        createdBy: ctx.userId,
         note: note ?? null,
       })
-
-      await publishEvent(tx, ctx, {
-        type: 'file.uploaded',
-        object: { id: object.id, type: 'file', spaceId: session.spaceId, title: session.name },
-        payload: { name: session.name, size, mime: session.mime },
-      })
-      await FileProcessing.schedule(tx, ctx, {
-        fileId: object.id,
-        spaceId: session.spaceId,
-        versionId,
-        storageKey: session.storageKey,
-        mime: session.mime,
-        name: session.name,
-      })
-
-      if (session.attachToObjectId) {
-        await LinkService.link(tx, ctx, session.attachToObjectId, object.id, 'attachment')
-      }
-      return object.id
     })
 
     await db()
@@ -230,6 +265,44 @@ export const FileService = {
       .set({ status: 'completed' })
       .where(eq(uploadSessions.id, sessionId))
 
+    const record = await FileService.get(fileId)
+    if (!record) throw errors.internal('Файл создан, но не читается')
+    return record
+  },
+
+  /**
+   * Файл из объекта, который уже лежит в хранилище (демо-данные сида, ADR-0063):
+   * серверная копия под ключом файла пространства, дальше — как подтверждённая
+   * загрузка (объект реестра, версия, событие, превью).
+   */
+  async registerStored(
+    ctx: Ctx,
+    input: {
+      spaceId: string
+      folderId?: string | null
+      name: string
+      mime: string
+      sourceKey: string
+    },
+  ): Promise<FileRecord> {
+    const fileId = newId()
+    const versionId = newId()
+    const key = storageKey(input.spaceId, fileId, versionId, input.name)
+    await copyObject(input.sourceKey, key)
+    const head = await headObject(key)
+    await db().transaction((tx) =>
+      createFile(tx, ctx, {
+        fileId,
+        versionId,
+        spaceId: input.spaceId,
+        folderId: input.folderId ?? null,
+        name: input.name,
+        mime: input.mime,
+        size: head.ContentLength ?? 0,
+        checksum: head.ETag?.replace(/"/g, '') ?? null,
+        storageKey: key,
+      }),
+    )
     const record = await FileService.get(fileId)
     if (!record) throw errors.internal('Файл создан, но не читается')
     return record
