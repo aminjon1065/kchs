@@ -10,7 +10,7 @@ import {
   Tooltip,
 } from '@kchs/ui'
 import { Columns2, Pin, PinOff, Plus, X } from 'lucide-react'
-import { type DragEvent, useRef } from 'react'
+import { type DragEvent, useRef, useState } from 'react'
 import { useT } from '../i18n.js'
 import { useWorkspace } from './store.js'
 import type { PaneState, TabState } from './types.js'
@@ -53,6 +53,7 @@ export function TabBar({
   }
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: приём перетаскиваемой вкладки — удобство для мыши; порядок вкладок с клавиатуры не меняется
     <div
       className={cn(
         'flex h-(--tab-h) shrink-0 items-center gap-0.5 border-b border-line bg-surface-2 pl-1 pr-1',
@@ -60,10 +61,13 @@ export function TabBar({
       )}
       onDragOver={(event) => event.preventDefault()}
       onDrop={onDrop}
-      role="tablist"
-      aria-label={t('shell.tabs.label')}
     >
-      <div className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto">
+      {/* В списке вкладок — только вкладки; действия панели — рядом, вне него */}
+      <div
+        role="tablist"
+        aria-label={t('shell.tabs.label')}
+        className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto"
+      >
         {pane.tabIds.map((tabId) => {
           const tab = tabs[tabId]
           if (!tab) return null
@@ -133,21 +137,19 @@ function TabChip({
   const closeToRight = useWorkspace((s) => s.closeToRight)
   const splitPane = useWorkspace((s) => s.splitPane)
 
+  const [menuOpen, setMenuOpen] = useState(false)
+
   return (
-    <DropdownMenu>
+    <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+      {/* Чип вкладки: сама вкладка — role="tab"; закрыть и меню — мышью рядом с ней,
+          с клавиатуры — ⌘W и клавиша контекстного меню (Shift+F10) */}
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: перетаскивание и закрытие средней кнопкой — удобства для мыши; с клавиатуры — ⌘W и меню вкладки */}
       <div
-        role="tab"
-        aria-selected={active}
-        tabIndex={active ? 0 : -1}
+        role="presentation"
         draggable
         onDragStart={onDragStart}
-        onClick={onActivate}
-        onDoubleClick={onDoubleClick}
         onAuxClick={(event) => {
           if (event.button === 1) onClose()
-        }}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter' || event.key === ' ') onActivate()
         }}
         className={cn(
           'group relative flex h-7 min-w-0 max-w-[220px] cursor-pointer items-center gap-1.5 rounded-sm px-2',
@@ -158,31 +160,51 @@ function TabChip({
           tab.pinned && 'max-w-[150px]',
         )}
       >
-        {tab.group ? (
-          <span
-            aria-hidden
-            className={cn(
-              'h-3 w-0.5 shrink-0 rounded-full',
-              GROUP_COLORS[tab.group] ?? 'bg-accent',
-            )}
+        <div
+          role="tab"
+          aria-selected={active}
+          tabIndex={active ? 0 : -1}
+          onClick={onActivate}
+          onDoubleClick={onDoubleClick}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') onActivate()
+            if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
+              event.preventDefault()
+              setMenuOpen(true)
+            }
+          }}
+          className="flex min-w-0 flex-1 items-center gap-1.5 rounded-xs"
+        >
+          {tab.group ? (
+            <span
+              aria-hidden
+              className={cn(
+                'h-3 w-0.5 shrink-0 rounded-full',
+                GROUP_COLORS[tab.group] ?? 'bg-accent',
+              )}
+            />
+          ) : null}
+          <ObjectIcon
+            type={tab.objectType ?? tab.icon ?? tab.screen ?? 'file'}
+            className="size-3.5 shrink-0 text-fg-muted"
           />
-        ) : null}
-        <ObjectIcon
-          type={tab.objectType ?? tab.icon ?? tab.screen ?? 'file'}
-          className="size-3.5 shrink-0 text-fg-muted"
-        />
-        <span className={cn('min-w-0 flex-1 truncate', tab.preview && 'italic')}>{tab.title}</span>
-        {tab.dirty ? (
-          <span
-            role="img"
-            aria-label={t('shell.tabs.unsaved')}
-            className="size-1.5 shrink-0 rounded-full bg-accent"
-          />
-        ) : null}
+          <span className={cn('min-w-0 flex-1 truncate', tab.preview && 'italic')}>
+            {tab.title}
+          </span>
+          {tab.dirty ? (
+            <span
+              role="img"
+              aria-label={t('shell.tabs.unsaved')}
+              className="size-1.5 shrink-0 rounded-full bg-accent"
+            />
+          ) : null}
+        </div>
         {!tab.pinned ? (
           <button
             type="button"
-            aria-label={t('shell.tabs.close')}
+            tabIndex={-1}
+            aria-hidden
+            title={t('shell.tabs.close')}
             onClick={(event) => {
               event.stopPropagation()
               onClose()
@@ -201,7 +223,9 @@ function TabChip({
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            aria-label={t('shell.tabs.menu')}
+            tabIndex={-1}
+            aria-hidden
+            title={t('shell.tabs.menu')}
             onClick={(event) => event.stopPropagation()}
             className="absolute inset-0 -z-10"
           />

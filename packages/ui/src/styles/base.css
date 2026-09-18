@@ -13,6 +13,11 @@
     box-sizing: border-box;
   }
 
+  /* Поле поиска очищает кнопка SearchInput — нативный крестик браузера лишний */
+  input[type="search"]::-webkit-search-cancel-button {
+    appearance: none;
+  }
+
   html {
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;

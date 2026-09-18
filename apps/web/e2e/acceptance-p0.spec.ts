@@ -205,6 +205,8 @@ test('1. Администратор входит с MFA, создаёт подр
 
   // Роль назначается и позже — «Изменить роли»
   await page.getByPlaceholder('Имя, логин или почта').fill(owner.login)
+  // Поиск применяется с задержкой — ждём, пока в списке останется один сотрудник
+  await expect(page.getByRole('button', { name: /^Действия: / })).toHaveCount(1)
   await page.getByRole('button', { name: `Действия: ${ownerName}` }).click()
   await page.getByRole('menuitem', { name: 'Изменить роли' }).click()
   const rolesDialog = page.getByRole('dialog')
@@ -325,7 +327,9 @@ test('3. PDF 50 МБ в папке: коллега видит превью, уп
         if (!found.ok()) return false
         for (const message of (await found.json()).messages as Array<{ ID: string }>) {
           const full = await author.page.request.get(`${MAILPIT}/api/v1/message/${message.ID}`)
-          if (((await full.json()).HTML as string).includes(`упомянул вас в «${pdfName}»`)) {
+          const html = (await full.json()).HTML as string
+          // С именем автора: шаблон «{actor} упомянул вас…» подставляется целиком
+          if (html.includes(`упомянул вас в «${pdfName}»`) && !html.includes('{actor}')) {
             return true
           }
         }

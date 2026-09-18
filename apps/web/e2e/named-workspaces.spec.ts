@@ -23,9 +23,9 @@ test.describe('Именованные рабочие пространства', 
     await expect(page.getByText(`Рабочее пространство «${name}» сохранено`)).toBeVisible()
 
     // Закрыть «Файлы» — остаётся только «Мой день»
-    const filesTab = page.getByRole('tab', { name: /Файлы/ })
-    await filesTab.hover()
-    await filesTab.getByRole('button', { name: 'Закрыть вкладку' }).click()
+    // Кнопка закрытия — для мыши; с клавиатуры вкладка закрывается ⌘W
+    await page.getByRole('tab', { name: /Файлы/ }).click()
+    await page.keyboard.press('Meta+w')
     await expect(page.getByRole('tab', { name: /Файлы/ })).toHaveCount(0)
 
     // Открыть из меню — вкладки возвращаются, «Вернуть» отменяет

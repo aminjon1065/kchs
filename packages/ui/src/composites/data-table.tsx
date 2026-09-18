@@ -338,7 +338,12 @@ export function DataTable<T>({
       </div>
 
       {rows.length === 0 ? (
-        <div className="py-10">{empty}</div>
+        // Пустое состояние — строка грида с одной ячейкой: в role="grid" только строки
+        <div role="row">
+          <div role="gridcell" aria-colspan={columns.length} className="py-10">
+            {empty}
+          </div>
+        </div>
       ) : (
         <div className="relative" style={{ height: virtualizer.getTotalSize() }}>
           {items.map((item) => {

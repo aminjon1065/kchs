@@ -52,8 +52,9 @@ export async function openScreen(page: Page, query: string): Promise<void> {
   const input = page.getByPlaceholder(/Поиск объектов/)
   await expect(input).toBeVisible()
   await input.fill(query)
-  await page.waitForTimeout(400)
-  await page.keyboard.press('Enter')
+  // Не первый результат, а пункт с названием экрана: на общем стенде копятся объекты
+  // с похожими названиями (личные пространства прогонов)
+  await page.getByRole('option').filter({ hasText: query }).first().click()
   await expect(page.getByRole('dialog', { name: 'Палитра команд' })).toBeHidden()
 }
 
