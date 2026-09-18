@@ -435,3 +435,30 @@ describe('CSRF', () => {
     expect(response.statusCode).toBe(200)
   })
 })
+
+describe('гостевые ссылки: частота открытий', () => {
+  it('лимит считается для каждой ссылки: подбор пароля к одной не блокирует другие', async () => {
+    const folder = await createFolder('Ссылки и лимит')
+    const createLink = async () => {
+      const link = await call(fx.app, {
+        method: 'POST',
+        url: `/objects/${folder}/share-links`,
+        as: fx.admin,
+        payload: { level: 'view', password: 'guest-pass-2026', includeAttachments: false },
+      })
+      return link.json().token as string
+    }
+    const first = await createLink()
+    const second = await createLink()
+    const open = (token: string) =>
+      call(fx.app, {
+        method: 'POST',
+        url: `/share/${token}/open`,
+        payload: { password: 'не тот' },
+      })
+
+    for (let i = 0; i < 20; i++) expect((await open(first)).statusCode).toBe(401)
+    expect((await open(first)).statusCode).toBe(429)
+    expect((await open(second)).statusCode).toBe(401)
+  })
+})

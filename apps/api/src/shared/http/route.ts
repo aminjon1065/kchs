@@ -46,7 +46,12 @@ export interface RouteDefinition<
     response?: Record<number, Reply>
   }
   config?: RouteShorthandOptions['config']
-  rateLimit?: { max: number; timeWindow: string }
+  rateLimit?: {
+    max: number
+    timeWindow: string
+    /** Свой ключ счётчика вместо «пользователь или адрес» (например, адрес + ссылка). */
+    keyGenerator?: (request: FastifyRequest) => string
+  }
   /** Маршрут доступен, пока пользователь не сменил временный пароль. */
   allowPendingPasswordChange?: boolean
   /** Маршрут доступен, пока пользователь не подключил обязательный по политике второй фактор. */

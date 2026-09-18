@@ -12,6 +12,7 @@ import {
 import { z } from 'zod'
 import { config } from '~/shared/config/index.js'
 import { systemCtx } from '~/shared/context.js'
+import { hashToken } from '~/shared/crypto/secrets.js'
 import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
@@ -230,7 +231,14 @@ export function registerAccessRoutes(route: RouteRegistrar): void {
     auth: 'public',
     tags: ['access'],
     summary: 'Открыть объект по гостевой ссылке',
-    rateLimit: { max: 20, timeWindow: '1 minute' },
+    // Подбор пароля ограничивается для каждой ссылки отдельно: общий лимит по
+    // адресу упирался бы в NAT организации, где все гости выходят с одного IP
+    rateLimit: {
+      max: 20,
+      timeWindow: '1 minute',
+      keyGenerator: (request) =>
+        `share-open:${request.ip}:${hashToken((request.params as { token: string }).token).slice(0, 24)}`,
+    },
     schema: {
       params: z.object({ token: z.string().min(8).max(128) }),
       body: ShareLinkOpenInput,
