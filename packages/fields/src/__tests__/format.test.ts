@@ -1,11 +1,13 @@
 import type { FieldDef } from '@kchs/contracts'
 import { describe, expect, it } from 'vitest'
 import {
+  formatCompactNumber,
   formatDate,
   formatDuration,
   formatFileSize,
   formatNumber,
   formatPercent,
+  formatPeriod,
   formatValue,
 } from '../format.js'
 import { needsValue, operatorsFor } from '../operators.js'
@@ -70,6 +72,40 @@ describe('форматирование', () => {
   it('пустое значение — пустая строка', () => {
     expect(formatValue(null, field({}), {})).toBe('')
     expect(formatValue(undefined, field({}), {})).toBe('')
+  })
+
+  it('компактное число: до порога полностью, от порога сокращённо', () => {
+    expect(formatCompactNumber(1284, { locale: 'ru' })).toMatch(/^1.284$/)
+    expect(formatCompactNumber(12_900, { locale: 'ru' })).toMatch(/^12,9.тыс\.$/)
+    expect(formatCompactNumber(4_200_000, { locale: 'en' })).toBe('4.2M')
+    expect(formatCompactNumber(-15_000, { locale: 'en' })).toBe('-15K')
+    expect(formatCompactNumber(15_000, { locale: 'en' }, { format: { suffix: ' t' } })).toBe(
+      '15K t',
+    )
+  })
+
+  it('период по бакету', () => {
+    const ru = { locale: 'ru' as const, timezone: 'UTC' }
+    expect(formatPeriod('2026-01-01', 'year', ru)).toBe('2026')
+    expect(formatPeriod('2026-04-01', 'quarter', ru)).toBe('II кв. 2026')
+    expect(formatPeriod('2026-04-01', 'quarter', ru, { compact: true })).toBe('II кв.')
+    expect(formatPeriod('2026-04-01', 'quarter', { locale: 'en' })).toBe('Q2 2026')
+    expect(formatPeriod('2026-01-01', 'month', ru)).toBe('янв. 2026')
+    expect(formatPeriod('2026-01-01', 'month', ru, { compact: true })).toBe('янв.')
+    expect(formatPeriod('2026-03-12', 'day', ru)).toBe('12.03.2026')
+    expect(formatPeriod('2026-03-12', 'day', ru, { compact: true })).toBe('12.03')
+    expect(formatPeriod('2026-03-12T14:00:00Z', 'hour', ru)).toBe('12.03, 14:00')
+    expect(formatPeriod('2026-03-12T14:00:00Z', 'hour', ru, { compact: true })).toBe('14:00')
+    expect(formatPeriod('2026-03-12T00:00:00Z', 'hour', { locale: 'en', timezone: 'UTC' })).toBe(
+      '03/12, 00:00',
+    )
+  })
+
+  it('календарная дата периода не сдвигается поясом', () => {
+    const ctx = { locale: 'ru' as const, timezone: 'America/Los_Angeles' }
+    expect(formatPeriod('2026-03-12', 'day', ctx)).toBe('12.03.2026')
+    expect(formatPeriod('2026-01-01', 'year', ctx)).toBe('2026')
+    expect(formatPeriod('not a date', 'day', ctx)).toBe('')
   })
 })
 

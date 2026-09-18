@@ -170,3 +170,83 @@ export function formatRelativeTime(value: string | Date, ctx: FormatContext = {}
   }
   return rtf.format(Math.round(diffMs / divisor), unit)
 }
+
+/**
+ * Компактное число для осей графиков и плиток показателей: до порога — полностью
+ * с разделителями разрядов (1 284), от порога — сокращённо (12,9 тыс., 4,2 млн).
+ */
+export function formatCompactNumber(
+  value: number,
+  ctx: FormatContext = {},
+  options: { threshold?: number; format?: FieldFormat } = {},
+): string {
+  const threshold = options.threshold ?? 10_000
+  const format = options.format ?? {}
+  if (Math.abs(value) < threshold) return formatNumber(value, format, ctx)
+  const out = new Intl.NumberFormat(intlLocale(ctx.locale), {
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  }).format(value)
+  return `${format.prefix ?? ''}${out}${format.suffix ?? ''}`
+}
+
+/** Гранулярность периода — бакеты агрегации QuerySpec. */
+export type PeriodBucket = 'year' | 'quarter' | 'month' | 'week' | 'day' | 'hour'
+
+const ROMAN_QUARTERS = ['I', 'II', 'III', 'IV'] as const
+
+/**
+ * Подпись периода по бакету: «2026», «I кв. 2026», «янв. 2026», «12.03.2026».
+ * Дата без времени — календарная (без сдвига поясом), момент времени — в поясе
+ * платформы (`ctx.timezone`). `compact` убирает год у дней, месяцев и
+ * кварталов и дату у часов — для подписей оси, где старший разряд виден рядом.
+ */
+export function formatPeriod(
+  value: string | Date,
+  bucket: PeriodBucket,
+  ctx: FormatContext = {},
+  options: { compact?: boolean } = {},
+): string {
+  const dateOnly = typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
+  const date = typeof value === 'string' ? new Date(value) : value
+  if (Number.isNaN(date.getTime())) return ''
+  const timeZone = dateOnly ? 'UTC' : ctx.timezone
+  const locale = intlLocale(ctx.locale)
+  const part = (opts: Intl.DateTimeFormatOptions, type: Intl.DateTimeFormatPartTypes) =>
+    new Intl.DateTimeFormat(locale, { ...opts, timeZone })
+      .formatToParts(date)
+      .find((p) => p.type === type)?.value ?? ''
+  const year = part({ year: 'numeric' }, 'year')
+
+  switch (bucket) {
+    case 'year':
+      return year
+    case 'quarter': {
+      const quarter = Math.floor((Number(part({ month: 'numeric' }, 'month')) - 1) / 3)
+      if (ctx.locale === 'en')
+        return options.compact ? `Q${quarter + 1}` : `Q${quarter + 1} ${year}`
+      const label = `${ROMAN_QUARTERS[quarter]} кв.`
+      return options.compact ? label : `${label} ${year}`
+    }
+    case 'month': {
+      const month = part({ month: 'short' }, 'month')
+      return options.compact ? month : `${month} ${year}`
+    }
+    case 'week':
+    case 'day':
+      return new Intl.DateTimeFormat(locale, {
+        day: '2-digit',
+        month: '2-digit',
+        ...(options.compact ? {} : { year: 'numeric' }),
+        timeZone,
+      }).format(date)
+    case 'hour':
+      return new Intl.DateTimeFormat(locale, {
+        ...(options.compact ? {} : { day: '2-digit', month: '2-digit' }),
+        hour: '2-digit',
+        minute: '2-digit',
+        hourCycle: 'h23',
+        timeZone,
+      }).format(date)
+  }
+}
