@@ -14,6 +14,13 @@ JobHandler = Callable[[dict[str, Any]], Awaitable[dict[str, Any]]]
 JOB_HANDLERS: dict[str, JobHandler] = {}
 
 
+class PermanentJobError(RuntimeError):
+    """Сбой, который повтор не исправит (файл не читается): задание завершается сразу.
+
+    Текст — причина по-русски, её увидит пользователь.
+    """
+
+
 def handler(queue: str, name: str) -> Callable[[JobHandler], JobHandler]:
     """Регистрирует обработчик задания."""
 

@@ -10,6 +10,8 @@ class Settings(BaseSettings):
 
     NODE_ENV: str = "development"
     LOG_LEVEL: str = "info"
+    # Пояс организации: даты и время без смещения в файлах импорта — в нём
+    TZ: str = "Asia/Dushanbe"
 
     REDIS_URL: str = "redis://localhost:6379"
     DATABASE_URL: str = ""

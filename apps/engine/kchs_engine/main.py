@@ -9,13 +9,17 @@ import tempfile
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Any, Literal
 
+from botocore.exceptions import ClientError
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from kchs_engine import __version__
 from kchs_engine.config import settings
+from kchs_engine.data.analyze import analyze_object
+from kchs_engine.data.readers import ImportFileError
 from kchs_engine.jobs import registered_queues
 from kchs_engine.logging import configure_logging, log
 from kchs_engine.users_import import build_template
@@ -94,3 +98,58 @@ async def users_import_template(
         )
         content = target.read_bytes()
     return Response(content=content, media_type=XLSX_MIME)
+
+
+class ImportOptionsInput(BaseModel):
+    """`ImportOptions` контракта импорта (packages/contracts/src/data/import.ts)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    format: Literal["csv", "tsv", "xlsx", "xls", "json", "ndjson", "geojson"] | None = None
+    encoding: str | None = Field(default=None, max_length=40)
+    delimiter: str | None = Field(default=None, min_length=1, max_length=1)
+    sheet: str | None = Field(default=None, max_length=200)
+    skipRows: int | None = Field(default=None, ge=0, le=1000)  # noqa: N815 — поле контракта
+    headerRows: int | None = Field(default=None, ge=0, le=5)  # noqa: N815 — поле контракта
+    decimal: Literal[".", ","] | None = None
+    thousands: Literal["", " ", ",", ".", "'"] | None = None
+    dateOrder: Literal["dmy", "mdy", "ymd"] | None = None  # noqa: N815 — поле контракта
+
+
+class DataAnalyzeInput(BaseModel):
+    bucket: str = Field(min_length=1, max_length=200)
+    key: str = Field(min_length=1, max_length=1024)
+    fileName: str = Field(default="", max_length=500)  # noqa: N815 — поле контракта api
+    options: ImportOptionsInput = Field(default_factory=ImportOptionsInput)
+
+
+@app.post("/data/analyze")
+async def data_analyze(
+    body: DataAnalyzeInput,
+    x_kchs_service_token: str | None = Header(default=None),
+) -> dict[str, Any]:
+    """Анализ файла импорта датасета по выборке (06-analytics-engine.md §2, ADR-0046).
+
+    Ответ — `ImportAnalysis`; файл, который не читается, — 422 с причиной в `detail`.
+    """
+    require_service_token(x_kchs_service_token)
+    options = body.options.model_dump(exclude_none=True)
+    try:
+        return await analyze_object(body.bucket, body.key, body.fileName, options)
+    except ImportFileError as error:
+        raise HTTPException(status_code=422, detail=_sentence(error.message)) from error
+    except TimeoutError as error:
+        raise HTTPException(
+            status_code=422,
+            detail="Анализ файла не уложился в отведённое время — "
+            "укажите формат, кодировку и лист вручную или уменьшите файл",
+        ) from error
+    except ClientError as error:
+        code = str(error.response.get("Error", {}).get("Code", ""))
+        if code in ("NoSuchKey", "404", "NotFound"):
+            raise HTTPException(status_code=404, detail="Файл не найден в хранилище") from error
+        raise
+
+
+def _sentence(message: str) -> str:
+    return message[:1].upper() + message[1:]

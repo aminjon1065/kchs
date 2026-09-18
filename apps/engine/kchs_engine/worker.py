@@ -5,12 +5,14 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 from bullmq import Job, Worker
+from bullmq.custom_errors import UnrecoverableError
 
 from kchs_engine.api import report_failure, report_result, report_started
 from kchs_engine.config import settings
-from kchs_engine.jobs import JOB_HANDLERS, registered_queues
+from kchs_engine.jobs import JOB_HANDLERS, PermanentJobError, registered_queues
 
 # Обработчики регистрируются импортом модулей
+from kchs_engine.jobs import dataset_import as _dataset_import  # noqa: F401
 from kchs_engine.jobs import echo as _echo  # noqa: F401
 from kchs_engine.jobs import files as _files  # noqa: F401
 from kchs_engine.jobs import users_import as _users_import  # noqa: F401
@@ -35,7 +37,8 @@ def _make_processor(queue: str) -> Processor:
         try:
             result = await job_handler(job.data)
         except Exception as error:  # статус задания фиксируется в реестре
-            final = is_final_attempt(job)
+            permanent = isinstance(error, PermanentJobError)
+            final = permanent or is_final_attempt(job)
             log.error(
                 "job.failed",
                 queue=queue,
@@ -45,6 +48,9 @@ def _make_processor(queue: str) -> Processor:
                 final=final,
             )
             await report_failure(record_id, str(error), final=final)
+            if permanent:
+                # Повтор не поможет (файл не читается): BullMQ не повторяет такие задания
+                raise UnrecoverableError(str(error)) from error
             raise
 
         await report_result(record_id, result)

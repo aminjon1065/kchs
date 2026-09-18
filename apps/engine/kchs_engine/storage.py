@@ -32,6 +32,22 @@ async def object_size(bucket: str, key: str) -> int:
     return int(head["ContentLength"])
 
 
+async def read_range(bucket: str, key: str, length: int) -> bytes:
+    """Первые `length` байт объекта: анализ импорта читает только начало файла."""
+
+    def fetch() -> bytes:
+        response = _client().get_object(Bucket=bucket, Key=key, Range=f"bytes=0-{length - 1}")
+        body = response["Body"]
+        try:
+            return bytes(body.read())
+        finally:
+            body.close()
+
+    if length <= 0:
+        return b""
+    return await asyncio.to_thread(fetch)
+
+
 async def download(bucket: str, key: str, target: Path) -> Path:
     await asyncio.to_thread(_client().download_file, bucket, key, str(target))
     return target

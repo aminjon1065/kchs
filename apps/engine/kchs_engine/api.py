@@ -80,3 +80,8 @@ async def report_file_processed(file_id: str, payload: dict[str, Any]) -> dict[s
 async def report_users_import_parsed(job_id: str, payload: dict[str, Any]) -> dict[str, Any]:
     """Строки файла импорта пользователей; API ставит проверку и создание (ADR-0041)."""
     return await _post_strict(f"/api/v1/internal/users-import/{job_id}/parsed", payload)
+
+
+async def report_dataset_normalized(import_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    """Итог нормализации файла импорта; API ставит воркеру загрузку в датасет (ADR-0046)."""
+    return await _post_strict(f"/api/v1/internal/data/imports/{import_id}/normalized", payload)
