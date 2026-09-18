@@ -1,10 +1,10 @@
 import type { SearchDocument, SearchHit, SearchQuery, SearchResponse } from '@kchs/contracts'
-import { eq, inArray } from 'drizzle-orm'
+import { and, asc, eq, gt, inArray } from 'drizzle-orm'
 import { type Index, MeiliSearch } from 'meilisearch'
 import { config } from '~/shared/config/index.js'
 import type { UserCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
-import { objects } from '~/shared/db/schema/index.js'
+import { objectAncestors, objects } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { logger } from '~/shared/logger/index.js'
 import { readPrincipalsFor } from '../access/acl-service.js'
@@ -97,6 +97,41 @@ export async function removeFromIndex(objectId: string): Promise<void> {
   await objectsIndex()
     .deleteDocument(objectId)
     .catch(() => undefined)
+}
+
+/** Есть ли у объекта потомки в дереве реестра. */
+export async function hasDescendants(objectId: string): Promise<boolean> {
+  const [row] = await db()
+    .select({ id: objectAncestors.objectId })
+    .from(objectAncestors)
+    .where(eq(objectAncestors.ancestorId, objectId))
+    .limit(1)
+  return Boolean(row)
+}
+
+/**
+ * Переиндексация поддерева: читатели потомков зависят от прав предков
+ * (наследование ACL и граница restricted), поэтому изменение доступа или
+ * перенос папки меняет фильтр прав у всего её содержимого.
+ */
+export async function reindexSubtree(objectId: string, batchSize = 200): Promise<number> {
+  await indexObject(objectId)
+  let total = 1
+  let cursor: string | null = null
+  for (;;) {
+    const scope = eq(objectAncestors.ancestorId, objectId)
+    const rows: Array<{ id: string }> = await db()
+      .select({ id: objectAncestors.objectId })
+      .from(objectAncestors)
+      .where(cursor ? and(scope, gt(objectAncestors.objectId, cursor)) : scope)
+      .orderBy(asc(objectAncestors.objectId))
+      .limit(batchSize)
+    if (rows.length === 0) break
+    await indexObjects(rows.map((row) => row.id))
+    total += rows.length
+    cursor = rows[rows.length - 1]?.id ?? null
+  }
+  return total
 }
 
 /** Полная переиндексация (обслуживание, восстановление после сбоя). */

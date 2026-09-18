@@ -14,9 +14,22 @@ import {
  */
 registerLifecycle()
 
+const { readPrincipalsFor, usersWithAccess } = await import('../src/kernel/access/acl-service.js')
+
 let fx: TestContext
 let folderId: string
 let restrictedId: string
+
+async function createFolder(name: string, parentId?: string): Promise<string> {
+  const response = await call(fx.app, {
+    method: 'POST',
+    url: '/folders',
+    as: fx.admin,
+    payload: { name, spaceId: fx.spaceId, ...(parentId ? { parentId } : {}) },
+  })
+  expect(response.statusCode).toBe(200)
+  return response.json().id as string
+}
 
 beforeAll(async () => {
   fx = await setupFixture()
@@ -120,6 +133,115 @@ describe('разрыв наследования', () => {
 
     const closed = await call(fx.app, { url: `/objects/${restrictedId}`, as: fresh })
     expect(closed.statusCode).toBe(404)
+  })
+
+  it('закрытая папка закрывает и своё содержимое: роль в пространстве до него не доходит', async () => {
+    const inner = await createFolder('Внутри закрытой', restrictedId)
+    const newcomer = await createUser(fx.app, 'newcomer_inner_test')
+    await call(fx.app, {
+      method: 'POST',
+      url: `/spaces/${fx.spaceId}/members`,
+      as: fx.admin,
+      payload: { userId: newcomer.id, role: 'editor' },
+    })
+    const fresh = await signIn(fx.app, newcomer.login, newcomer.id)
+
+    expect((await call(fx.app, { url: `/objects/${inner}`, as: fresh })).statusCode).toBe(404)
+    const listed = await call(fx.app, {
+      url: `/objects?parentId=${restrictedId}&types=folder,file`,
+      as: fresh,
+    })
+    expect(listed.json().items.map((item: { id: string }) => item.id)).not.toContain(inner)
+
+    // Участник с явной записью на закрытой папке видит и её содержимое
+    const member = await call(fx.app, { url: `/objects/${inner}`, as: fx.users.member })
+    expect(member.statusCode).toBe(200)
+
+    // Для поиска читатели содержимого — те же, что у закрытой папки
+    expect(new Set(await readPrincipalsFor(inner))).toEqual(
+      new Set(await readPrincipalsFor(restrictedId)),
+    )
+  })
+
+  it('запись выше границы разрыва не открывает содержимое закрытой папки', async () => {
+    const outsider = await createUser(fx.app, 'outsider_above_test')
+    const outer = await createFolder('Внешняя папка')
+    await call(fx.app, {
+      method: 'POST',
+      url: `/objects/${outer}/access`,
+      as: fx.admin,
+      payload: { grants: [{ principal: { type: 'user', id: outsider.id }, level: 'edit' }] },
+    })
+    const closed = await createFolder('Закрыта от внешней', outer)
+    await call(fx.app, {
+      method: 'PUT',
+      url: `/objects/${closed}/access-mode`,
+      as: fx.admin,
+      payload: { mode: 'restricted' },
+    })
+    // Разрыв скопировал запись; владелец снимает её — закрытая папка больше не видна
+    const revoked = await call(fx.app, {
+      method: 'DELETE',
+      url: `/objects/${closed}/access`,
+      as: fx.admin,
+      payload: { principal: { type: 'user', id: outsider.id } },
+    })
+    expect(revoked.statusCode).toBe(200)
+    const inner = await createFolder('Содержимое закрытой', closed)
+
+    expect((await call(fx.app, { url: `/objects/${closed}`, as: outsider })).statusCode).toBe(404)
+    expect((await call(fx.app, { url: `/objects/${inner}`, as: outsider })).statusCode).toBe(404)
+    const listed = await call(fx.app, { url: `/objects?parentId=${closed}`, as: outsider })
+    expect(listed.json().items).toHaveLength(0)
+    // Внешняя папка по-прежнему доступна по явной записи
+    expect((await call(fx.app, { url: `/objects/${outer}`, as: outsider })).statusCode).toBe(200)
+
+    // Разрыв внутри закрытой папки копирует только действовавшие права: снятая
+    // выше запись и роль пространства участника, пришедшего после разрыва, не возвращаются
+    const late = await createUser(fx.app, 'late_member_test')
+    await call(fx.app, {
+      method: 'POST',
+      url: `/spaces/${fx.spaceId}/members`,
+      as: fx.admin,
+      payload: { userId: late.id, role: 'editor' },
+    })
+    const nested = await createFolder('Вложенная закрытая', closed)
+    await call(fx.app, {
+      method: 'PUT',
+      url: `/objects/${nested}/access-mode`,
+      as: fx.admin,
+      payload: { mode: 'restricted' },
+    })
+    expect((await call(fx.app, { url: `/objects/${nested}`, as: outsider })).statusCode).toBe(404)
+    const nestedAccess = await call(fx.app, { url: `/objects/${nested}/access`, as: fx.admin })
+    const principals = nestedAccess
+      .json()
+      .entries.map((entry: { principal: { id: string } }) => entry.principal.id)
+    expect(principals).not.toContain(outsider.id)
+    expect(principals).not.toContain(late.id)
+    // Участник, скопированный при разрыве внешней закрытой папки, сохраняет доступ
+    expect(principals).toContain(fx.users.viewer.id)
+  })
+
+  it('получатели уведомлений — только пользователи с нужным уровнем, без групп', async () => {
+    const outer = await createFolder('Папка с группой')
+    await call(fx.app, {
+      method: 'POST',
+      url: `/objects/${outer}/access`,
+      as: fx.admin,
+      payload: {
+        grants: [
+          { principal: { type: 'unit', id: fx.unitId }, level: 'edit' },
+          { principal: { type: 'user', id: fx.users.stranger.id }, level: 'view' },
+        ],
+      },
+    })
+    const inner = await createFolder('Внутри папки с группой', outer)
+    const editors = await usersWithAccess(inner, 'edit')
+    // Без скобок OR внутри and() тянул запись подразделения и уровень view
+    expect(editors).not.toContain(fx.unitId)
+    expect(editors).not.toContain(fx.users.stranger.id)
+    expect(editors).toContain(fx.admin.id)
   })
 })
 

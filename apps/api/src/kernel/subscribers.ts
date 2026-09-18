@@ -1,4 +1,5 @@
 import type { EventEnvelope } from '@kchs/contracts'
+import { systemCtx } from '~/shared/context.js'
 import { logger } from '~/shared/logger/index.js'
 import { usersWithAccess } from './access/acl-service.js'
 import { invalidatePrincipalSet } from './access/principal-set.js'
@@ -8,7 +9,7 @@ import { JobService } from './jobs/service.js'
 import { NotificationService } from './notifications/service.js'
 import { objectType } from './objects/registry.js'
 import { emitToRoom, revokeRoomAccess } from './realtime/gateway.js'
-import { indexObject, removeFromIndex } from './search/index-service.js'
+import { hasDescendants, indexObject, removeFromIndex } from './search/index-service.js'
 
 /** Какое поле открытой вкладки устарело после события, не меняющего сам объект. */
 const CHANGED_FIELD: Record<string, string> = {
@@ -16,6 +17,9 @@ const CHANGED_FIELD: Record<string, string> = {
   'file.previewed': 'preview',
   'file.text_extracted': 'text',
 }
+
+/** События, после которых меняются читатели всего поддерева объекта. */
+const SUBTREE_EVENTS = new Set(['acl.changed', 'object.shared', 'object.moved'])
 
 /** Подписчики ядра: активность, поиск, realtime, уведомления. */
 export function registerKernelSubscribers(): void {
@@ -31,6 +35,17 @@ export function registerKernelSubscribers(): void {
         return
       }
       await indexObject(event.object.id)
+      // Права и граница наследования у потомков зависят от этого объекта:
+      // их фильтр в индексе пересчитывается заданием, не задерживая шину
+      if (SUBTREE_EVENTS.has(event.type) && (await hasDescendants(event.object.id))) {
+        await JobService.enqueue(systemCtx('search.subtree'), {
+          queue: 'index',
+          name: 'search.reindex-subtree',
+          data: { objectId: event.object.id },
+          objectId: event.object.id,
+          idempotencyKey: `search.reindex-subtree:${event.id}`,
+        })
+      }
     },
   })
 

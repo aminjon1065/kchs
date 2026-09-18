@@ -8,21 +8,15 @@ import {
   type Principal,
   type PrincipalRef,
 } from '@kchs/contracts'
-import { and, eq, inArray, sql } from 'drizzle-orm'
+import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { actorId } from '~/shared/context.js'
 import { type Database, db, type Executor } from '~/shared/db/client.js'
-import {
-  aclEntries,
-  objectAncestors,
-  objects,
-  spaceMembers,
-  users,
-} from '~/shared/db/schema/index.js'
+import { aclEntries, objects, spaceMembers, users } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { publishEvent } from '../events/publisher.js'
-import { effectiveLevel, loadObject } from './authorize.js'
+import { aclScope, effectiveLevel, inheritanceBoundary, loadObject } from './authorize.js'
 import { describePrincipals } from './principal-refs.js'
 
 export async function grantOwner(tx: Executor, objectId: string, userId: string): Promise<void> {
@@ -154,6 +148,10 @@ export async function setAccessMode(
   if (object.accessMode === mode) return
 
   if (mode === 'restricted') {
+    // Копируются только действовавшие права: записи предков до текущей границы
+    // наследования и роли пространства, если разрыва выше нет. Иначе разрыв
+    // вложенной папки выдал бы доступ, закрытый разрывом выше по дереву
+    const boundary = await inheritanceBoundary(object, tx)
     const inherited = await tx
       .select({
         principalType: aclEntries.principalType,
@@ -162,18 +160,21 @@ export async function setAccessMode(
       })
       .from(aclEntries)
       .where(
-        sql`${aclEntries.objectId} IN (
-          SELECT oa.ancestor_id FROM ${objectAncestors} oa WHERE oa.object_id = ${objectId}
-        )`,
+        and(
+          aclScope(objectId, boundary),
+          sql`${aclEntries.objectId} <> ${objectId}`,
+          or(isNull(aclEntries.expiresAt), sql`${aclEntries.expiresAt} > now()`),
+        ),
       )
 
     // Плюс участники пространства с их уровнями по умолчанию
-    const spaceGrants = object.spaceId
-      ? await tx
-          .select({ userId: spaceMembers.userId, role: spaceMembers.role })
-          .from(spaceMembers)
-          .where(eq(spaceMembers.spaceId, object.spaceId))
-      : []
+    const spaceGrants =
+      object.spaceId && boundary === null
+        ? await tx
+            .select({ userId: spaceMembers.userId, role: spaceMembers.role })
+            .from(spaceMembers)
+            .where(eq(spaceMembers.spaceId, object.spaceId))
+        : []
 
     const rows = [
       ...inherited.map((r) => ({
@@ -188,6 +189,7 @@ export async function setAccessMode(
       })),
     ]
 
+    // Ничего не исчезает: у принципала остаётся максимальный из действовавших уровней
     for (const row of rows) {
       await tx
         .insert(aclEntries)
@@ -200,7 +202,10 @@ export async function setAccessMode(
           grantedBy: actorId(ctx),
           note: 'скопировано при разрыве наследования',
         })
-        .onConflictDoNothing()
+        .onConflictDoUpdate({
+          target: [aclEntries.objectId, aclEntries.principalType, aclEntries.principalId],
+          set: { level: sql`greatest(${aclEntries.level}, excluded.level)` },
+        })
     }
   }
 
@@ -236,6 +241,7 @@ export async function listEffectiveAccess(
 ): Promise<EffectiveAccess[]> {
   const object = await loadObject(objectId, database)
   if (!object) throw errors.notFound()
+  const boundary = await inheritanceBoundary(object, database)
 
   const entries = await database
     .select({
@@ -248,12 +254,7 @@ export async function listEffectiveAccess(
     })
     .from(aclEntries)
     .leftJoin(objects, eq(objects.id, aclEntries.objectId))
-    .where(
-      object.accessMode === 'restricted'
-        ? eq(aclEntries.objectId, objectId)
-        : sql`${aclEntries.objectId} = ${objectId} OR ${aclEntries.objectId} IN (
-             SELECT oa.ancestor_id FROM ${objectAncestors} oa WHERE oa.object_id = ${objectId})`,
-    )
+    .where(aclScope(objectId, boundary))
 
   const collected = new Map<
     string,
@@ -283,7 +284,7 @@ export async function listEffectiveAccess(
     }
   }
 
-  if (object.spaceId && object.accessMode !== 'restricted') {
+  if (object.spaceId && boundary === null) {
     const [spaceRow] = await database
       .select({ title: objects.title })
       .from(objects)
@@ -349,6 +350,7 @@ export async function readPrincipalsFor(
 ): Promise<string[]> {
   const object = await loadObject(objectId, database)
   if (!object) return []
+  const boundary = await inheritanceBoundary(object, database)
 
   const entries = await database
     .select({
@@ -358,10 +360,10 @@ export async function readPrincipalsFor(
     })
     .from(aclEntries)
     .where(
-      object.accessMode === 'restricted'
-        ? eq(aclEntries.objectId, objectId)
-        : sql`${aclEntries.objectId} = ${objectId} OR ${aclEntries.objectId} IN (
-             SELECT oa.ancestor_id FROM ${objectAncestors} oa WHERE oa.object_id = ${objectId})`,
+      and(
+        aclScope(objectId, boundary),
+        or(isNull(aclEntries.expiresAt), sql`${aclEntries.expiresAt} > now()`),
+      ),
     )
 
   const principals = new Set<string>()
@@ -371,7 +373,7 @@ export async function readPrincipalsFor(
     }
   }
   if (object.ownerId) principals.add(`user:${object.ownerId}`)
-  if (object.spaceId && object.accessMode !== 'restricted') {
+  if (object.spaceId && boundary === null) {
     principals.add(`space_role:${object.spaceId}:viewer`)
   }
   return [...principals]
@@ -385,7 +387,9 @@ export async function usersWithAccess(
   const database = db()
   const object = await loadObject(objectId, database)
   if (!object) return []
+  const boundary = await inheritanceBoundary(object, database)
 
+  // aclScope уже в скобках: без них OR внутри and() захватывал бы чужие типы и уровни
   const direct = await database
     .select({ principalId: aclEntries.principalId })
     .from(aclEntries)
@@ -393,17 +397,15 @@ export async function usersWithAccess(
       and(
         eq(aclEntries.principalType, 'user'),
         sql`${aclEntries.level} >= ${levelValue(minLevel)}`,
-        object.accessMode === 'restricted'
-          ? eq(aclEntries.objectId, objectId)
-          : sql`${aclEntries.objectId} = ${objectId} OR ${aclEntries.objectId} IN (
-               SELECT oa.ancestor_id FROM ${objectAncestors} oa WHERE oa.object_id = ${objectId})`,
+        aclScope(objectId, boundary),
+        or(isNull(aclEntries.expiresAt), sql`${aclEntries.expiresAt} > now()`),
       ),
     )
 
   const ids = new Set(direct.map((r) => r.principalId))
   if (object.ownerId) ids.add(object.ownerId)
 
-  if (object.spaceId && object.accessMode !== 'restricted') {
+  if (object.spaceId && boundary === null) {
     const members = await database
       .select({ userId: spaceMembers.userId })
       .from(spaceMembers)

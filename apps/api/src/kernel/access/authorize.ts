@@ -69,6 +69,35 @@ export async function loadObject(
 }
 
 /**
+ * Граница наследования (03-access-model.md §Наследование): `0` — объект сам
+ * в режиме `restricted`; `N` — ближайший `restricted`-предок на глубине `N`;
+ * `null` — разрыва в цепочке нет. Разрыв действует на всё поддерево: записи ACL
+ * наследуются только от предков до границы включительно, а роль в пространстве
+ * применяется, только если разрыва нет нигде в цепочке.
+ */
+export async function inheritanceBoundary(
+  object: Pick<ObjectLike, 'id' | 'accessMode'>,
+  executor: Executor = db(),
+): Promise<number | null> {
+  if (object.accessMode === 'restricted') return 0
+  const [row] = await executor
+    .select({ depth: sql<number | null>`min(${objectAncestors.depth})` })
+    .from(objectAncestors)
+    .innerJoin(objects, eq(objects.id, objectAncestors.ancestorId))
+    .where(and(eq(objectAncestors.objectId, object.id), eq(objects.accessMode, 'restricted')))
+  return row?.depth ?? null
+}
+
+/** Записи ACL, действующие для объекта: его собственные и предков до границы наследования. */
+export function aclScope(objectId: string, boundary: number | null): SQL {
+  if (boundary === 0) return sql`(${aclEntries.objectId} = ${objectId})`
+  const depthLimit = boundary === null ? sql`` : sql` AND oa.depth <= ${boundary}`
+  return sql`(${aclEntries.objectId} = ${objectId} OR ${aclEntries.objectId} IN (
+    SELECT oa.ancestor_id FROM ${objectAncestors} oa WHERE oa.object_id = ${objectId}${depthLimit}
+  ))`
+}
+
+/**
  * Определяет эффективный уровень доступа пользователя к объекту.
  * Источники проверяются в порядке 03-access-model.md; берётся максимум,
  * затем применяются атрибутные ограничения (могут только понижать).
@@ -105,15 +134,16 @@ export async function effectiveLevel(
     if (!ctx.shareLink.includeAttachments) return DENIED
   }
 
-  // 4. Явные записи ACL на объекте и его предках
-  const aclLevel = await aclLevelFor(ctx, object, executor)
+  // 4. Явные записи ACL на объекте и его предках до границы наследования
+  const boundary = await inheritanceBoundary(object, executor)
+  const aclLevel = await aclLevelFor(ctx, object, boundary, executor)
   if (aclLevel) {
     reasons.push(aclLevel.reason)
     level = maxLevel(level, aclLevel.level)
   }
 
-  // 5. Роль в пространстве (не применяется к restricted)
-  if (object.accessMode !== 'restricted' && object.spaceId) {
+  // 5. Роль в пространстве — только если разрыва наследования нет во всей цепочке
+  if (boundary === null && object.spaceId) {
     const spaceLevel = await spaceRoleLevel(ctx, object.spaceId, executor)
     if (spaceLevel) {
       reasons.push(spaceLevel.reason)
@@ -149,21 +179,13 @@ export async function effectiveLevel(
 async function aclLevelFor(
   ctx: UserCtx,
   object: ObjectLike,
+  boundary: number | null,
   executor: Executor,
 ): Promise<{ level: Level; reason: AccessReason } | null> {
   const principalPairs = principalPairsOf(ctx)
   if (principalPairs.length === 0) return null
 
-  // При `restricted` наследование разорвано: только записи самого объекта
-  const scopeCondition =
-    object.accessMode === 'restricted'
-      ? eq(aclEntries.objectId, object.id)
-      : or(
-          eq(aclEntries.objectId, object.id),
-          sql`${aclEntries.objectId} IN (
-            SELECT oa.ancestor_id FROM ${objectAncestors} oa WHERE oa.object_id = ${object.id}
-          )`,
-        )
+  const scopeCondition = aclScope(object.id, boundary)
 
   const rows = await executor
     .select({
@@ -344,9 +366,18 @@ export function visibleObjectsSql(ctx: Ctx, objectTypeName?: string): SQL {
       )
     : sql`('none','none')`
 
+  // Граница наследования строки (см. inheritanceBoundary): глубина ближайшего
+  // restricted-предка. Алиасы rb/ra скрывают внутреннюю таблицу objects, поэтому
+  // ${objects.id} в подзапросах ссылается на строку внешнего списка
+  const boundaryDepth = sql`(
+    SELECT min(ra.depth) FROM ${objectAncestors} ra
+      JOIN ${objects} rb ON rb.id = ra.ancestor_id
+     WHERE ra.object_id = ${objects.id} AND rb.access_mode = 'restricted'
+  )`
+
   const spaceIds = Object.keys(ctx.principals.spaceRoles)
   const spaceCondition = spaceIds.length
-    ? sql`(${objects.accessMode} <> 'restricted' AND ${inArray(objects.spaceId, spaceIds)})`
+    ? sql`(${objects.accessMode} <> 'restricted' AND ${boundaryDepth} IS NULL AND ${inArray(objects.spaceId, spaceIds)})`
     : sql`false`
 
   const aclCondition = sql`EXISTS (
@@ -356,7 +387,9 @@ export function visibleObjectsSql(ctx: Ctx, objectTypeName?: string): SQL {
        AND (
          ae.object_id = ${objects.id}
          OR (${objects.accessMode} <> 'restricted' AND ae.object_id IN (
-              SELECT oa.ancestor_id FROM ${objectAncestors} oa WHERE oa.object_id = ${objects.id}
+              SELECT oa.ancestor_id FROM ${objectAncestors} oa
+               WHERE oa.object_id = ${objects.id}
+                 AND oa.depth <= COALESCE(${boundaryDepth}, 2147483647)
             ))
        )
   )`

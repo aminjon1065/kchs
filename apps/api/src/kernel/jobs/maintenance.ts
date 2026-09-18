@@ -5,7 +5,7 @@ import { pruneOutbox } from '../events/dispatcher.js'
 import { InboxService } from '../inbox/service.js'
 import { sendEmailDigest } from '../notifications/service.js'
 import { expiredTrash, ObjectService } from '../objects/service.js'
-import { reindexAll } from '../search/index-service.js'
+import { reindexAll, reindexSubtree } from '../search/index-service.js'
 import { registerJobHandler } from './runner.js'
 import { JobService, pruneFinishedJobs, queue } from './service.js'
 
@@ -17,6 +17,18 @@ export function registerMaintenanceJobs(): void {
     concurrency: 1,
     handle: async (_job, helpers) => {
       const count = await reindexAll()
+      await helpers.progress(1, `переиндексировано объектов: ${count}`)
+      return { count }
+    },
+  })
+
+  registerJobHandler({
+    queue: 'index',
+    name: 'search.reindex-subtree',
+    concurrency: 2,
+    handle: async (job, helpers) => {
+      const objectId = String(job.data.objectId)
+      const count = await reindexSubtree(objectId)
       await helpers.progress(1, `переиндексировано объектов: ${count}`)
       return { count }
     },
