@@ -24,6 +24,13 @@ test.describe('Администрирование', () => {
     // Аудит содержит записи входа
     await page.getByRole('radio', { name: 'Аудит' }).click()
     await expect(page.getByText('user.login').first()).toBeVisible({ timeout: 15_000 })
+
+    // Выгрузка журнала в CSV — потоком с сервера
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByRole('link', { name: 'Экспорт CSV' }).click(),
+    ])
+    expect(download.suggestedFilename()).toMatch(/^kchs-audit-.+\.csv$/)
   })
 
   test('поиск находит объекты и фильтрует по типу', async ({ page, request }) => {

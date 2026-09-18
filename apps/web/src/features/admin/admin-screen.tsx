@@ -1,6 +1,7 @@
 import { formatDateTime, formatRelativeTime } from '@kchs/fields'
 import {
   Badge,
+  Button,
   Card,
   EmptyState,
   PanelToolbar,
@@ -18,6 +19,7 @@ import {
   Activity,
   Building2,
   Database,
+  Download,
   HardDrive,
   ScrollText,
   Search,
@@ -313,12 +315,29 @@ function AuditSection() {
 
   return (
     <div className="mx-auto flex max-w-[1100px] flex-col gap-3 p-5">
-      <SearchInput
-        value={action}
-        onValueChange={setAction}
-        placeholder={t('admin.audit.searchPlaceholder')}
-        className="max-w-sm"
-      />
+      <div className="flex items-center gap-2">
+        <SearchInput
+          value={action}
+          onValueChange={setAction}
+          placeholder={t('admin.audit.searchPlaceholder')}
+          className="max-w-sm"
+        />
+        <Button
+          variant="secondary"
+          size="sm"
+          icon={<Download className="size-3.5" />}
+          className="ml-auto"
+          asChild
+        >
+          {/* Потоковая выгрузка с сервера: cookie-сессия, GET без CSRF */}
+          <a
+            href={`/api/v1/admin/audit/export.csv${query ? `?action=${encodeURIComponent(query)}` : ''}`}
+            download
+          >
+            {t('admin.audit.export')}
+          </a>
+        </Button>
+      </div>
       <Card padded={false}>
         {isLoading ? (
           <TableSkeleton rows={10} columns={4} />

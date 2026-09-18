@@ -64,17 +64,53 @@ export interface AuditQuery {
   cursor?: string
 }
 
-export async function queryAudit(
-  query: AuditQuery,
-): Promise<{ items: AuditEntry[]; nextCursor: string | null }> {
-  const limit = Math.min(query.limit ?? 50, 200)
+function auditConditions(query: AuditQuery): SQL[] {
   const conditions: SQL[] = []
   if (query.actorId) conditions.push(eq(auditLog.actorId, query.actorId))
-  if (query.action) conditions.push(sql`${auditLog.action} like ${`${query.action}%`}`)
+  if (query.action) {
+    const escaped = query.action.replace(/[\\%_]/g, (ch) => `\\${ch}`)
+    conditions.push(sql`${auditLog.action} like ${`${escaped}%`}`)
+  }
   if (query.objectId) conditions.push(eq(auditLog.objectId, query.objectId))
   if (query.severity) conditions.push(eq(auditLog.severity, query.severity))
   if (query.from) conditions.push(gte(auditLog.occurredAt, query.from))
   if (query.to) conditions.push(lte(auditLog.occurredAt, query.to))
+  return conditions
+}
+
+/**
+ * Выгрузка журнала пачками по ключу (без OFFSET): экспорт в CSV для проверок
+ * и SIEM (P0-E15 S02). Не больше `max` записей.
+ */
+export async function* auditBatches(
+  query: AuditQuery,
+  batchSize = 1000,
+  max = 100_000,
+): AsyncGenerator<(typeof auditLog.$inferSelect)[]> {
+  let cursor: number | null = null
+  let sent = 0
+  while (sent < max) {
+    const conditions = auditConditions(query)
+    if (cursor !== null) conditions.push(sql`${auditLog.id} < ${cursor}`)
+    const rows = await db()
+      .select()
+      .from(auditLog)
+      .where(conditions.length ? and(...conditions) : undefined)
+      .orderBy(desc(auditLog.id))
+      .limit(Math.min(batchSize, max - sent))
+    if (rows.length === 0) return
+    yield rows
+    sent += rows.length
+    cursor = rows[rows.length - 1]?.id ?? null
+    if (rows.length < batchSize) return
+  }
+}
+
+export async function queryAudit(
+  query: AuditQuery,
+): Promise<{ items: AuditEntry[]; nextCursor: string | null }> {
+  const limit = Math.min(query.limit ?? 50, 200)
+  const conditions = auditConditions(query)
   if (query.cursor) conditions.push(sql`${auditLog.id} < ${Number(query.cursor)}`)
 
   const rows = await db()
@@ -130,4 +166,5 @@ export const AUDIT_ACTIONS = {
   adminMode: 'admin.mode_entered',
   settingsChanged: 'settings.changed',
   objectPurged: 'object.purged',
+  auditExported: 'audit.exported',
 } as const

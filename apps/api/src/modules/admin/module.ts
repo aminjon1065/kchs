@@ -1,7 +1,9 @@
+import { Readable } from 'node:stream'
 import { AuditEntry, HealthReport } from '@kchs/contracts'
 import { sql } from 'drizzle-orm'
 import { z } from 'zod'
-import { queryAudit } from '~/kernel/audit/service.js'
+import { AUDIT_ACTIONS, audit, auditBatches, queryAudit } from '~/kernel/audit/service.js'
+import { directory } from '~/kernel/directory/port.js'
 import { outboxLag } from '~/kernel/events/dispatcher.js'
 import { EngineJobs } from '~/kernel/jobs/engine.js'
 import { JobService } from '~/kernel/jobs/service.js'
@@ -36,6 +38,78 @@ export function registerAdminRoutes(route: RouteRegistrar): void {
       },
     },
     handler: async (request) => queryAudit(request.query),
+  })
+
+  route({
+    method: 'GET',
+    url: '/admin/audit/export.csv',
+    auth: { capability: 'admin.audit.read' },
+    tags: ['admin'],
+    summary: 'Выгрузка журнала аудита в CSV',
+    schema: {
+      querystring: z.object({
+        actorId: z.uuid().optional(),
+        action: z.string().max(100).optional(),
+        objectId: z.uuid().optional(),
+        severity: z.enum(['info', 'notice', 'warning', 'critical']).optional(),
+        from: z.string().optional(),
+        to: z.string().optional(),
+      }),
+    },
+    handler: async (request, reply) => {
+      const query = request.query
+      await audit(request.ctx, {
+        action: AUDIT_ACTIONS.auditExported,
+        details: { filter: query },
+        severity: 'notice',
+      })
+      const header = [
+        'id',
+        'occurred_at',
+        'actor_id',
+        'actor',
+        'on_behalf_of',
+        'action',
+        'object_type',
+        'object_id',
+        'severity',
+        'ip',
+        'user_agent',
+        'details',
+      ]
+      async function* lines() {
+        // BOM: Excel открывает UTF-8 с кириллицей без мастера импорта
+        yield `\uFEFF${header.join(',')}\r\n`
+        for await (const rows of auditBatches(query)) {
+          const people = await directory().refs([
+            ...new Set(rows.map((r) => r.actorId).filter((v): v is string => Boolean(v))),
+          ])
+          for (const row of rows) {
+            yield `${[
+              String(row.id),
+              row.occurredAt,
+              row.actorId ?? '',
+              row.actorId ? (people.get(row.actorId)?.displayName ?? '') : '',
+              row.onBehalfOf ?? '',
+              row.action,
+              row.objectType ?? '',
+              row.objectId ?? '',
+              row.severity,
+              row.ip ?? '',
+              row.userAgent ?? '',
+              JSON.stringify(row.details ?? {}),
+            ]
+              .map(csvCell)
+              .join(',')}\r\n`
+          }
+        }
+      }
+      const stamp = new Date().toISOString().slice(0, 10)
+      reply
+        .header('content-type', 'text/csv; charset=utf-8')
+        .header('content-disposition', `attachment; filename="kchs-audit-${stamp}.csv"`)
+      return reply.send(Readable.from(lines()))
+    },
   })
 
   route({
@@ -121,4 +195,14 @@ async function check(
       latencyMs: Date.now() - started,
     }
   }
+}
+
+/**
+ * Ячейка CSV (RFC 4180). Значения, которые табличный редактор принял бы за
+ * формулу (=, +, -, @, табуляция), экранируются апострофом — защита от
+ * CSV-инъекций при открытии выгрузки в Excel.
+ */
+export function csvCell(value: string): string {
+  const safe = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value
+  return /[",\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe
 }
