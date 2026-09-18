@@ -44,7 +44,8 @@ export const STORED_FIELD_TYPES = [
   'json',
   'identifier',
 ] as const satisfies readonly FieldType[]
-export type StoredFieldType = (typeof STORED_FIELD_TYPES)[number]
+export const StoredFieldType = z.enum(STORED_FIELD_TYPES)
+export type StoredFieldType = z.infer<typeof StoredFieldType>
 
 /** Поле датасета: определение поля и его идентификатор. Физическое имя столбца наружу не отдаётся. */
 export const DatasetField = FieldDef.extend({ id: Uuid })
@@ -124,17 +125,59 @@ export const DatasetCreateInput = z
   })
 export type DatasetCreateInput = z.infer<typeof DatasetCreateInput>
 
-/** Правка описания поля: подпись, семантика, формат — без изменения хранения. */
+/**
+ * Правка описания поля без изменения хранения (ADR-0047): подпись, семантика,
+ * формат, справочник. Ключ поля неизменен — на него ссылаются запросы и графики.
+ */
 export const DatasetFieldPatch = z.object({
   label: LangText.optional(),
   semantic: FieldDef.shape.semantic.optional(),
   format: FieldDef.shape.format.optional(),
   description: z.string().max(1000).nullable().optional(),
+  unit: z.string().max(32).nullable().optional(),
+  required: z.boolean().optional(),
   indexed: z.boolean().optional(),
   sensitive: z.boolean().optional(),
   order: z.number().int().optional(),
+  /** Варианты поля выбора. */
+  options: FieldDef.shape.options,
+  /** Справочник: значение поля — ключ строки другого датасета, в гриде видна подпись. */
+  lookup: FieldDef.shape.lookup.unwrap().nullable().optional(),
 })
 export type DatasetFieldPatch = z.infer<typeof DatasetFieldPatch>
+
+/** Смена типа поля: пробный прогон с отчётом, затем применение (ADR-0047). */
+export const DatasetFieldConvertInput = z.object({
+  type: StoredFieldType,
+  format: FieldDef.shape.format.optional(),
+  /** Только отчёт — таблица не меняется. */
+  dryRun: z.boolean().default(true),
+  /** Применить, даже если часть значений не приводится: они станут пустыми. */
+  allowLoss: z.boolean().default(false),
+})
+export type DatasetFieldConvertInput = z.infer<typeof DatasetFieldConvertInput>
+
+export const DatasetFieldConvertReport = z.object({
+  /** Непустых значений в живых строках. */
+  total: z.number().int().nonnegative(),
+  /** Из них не приводятся к новому типу. */
+  failed: z.number().int().nonnegative(),
+  sample: z.array(z.object({ rowId: BigIntString, value: z.string() })).max(20),
+  applied: z.boolean(),
+})
+export type DatasetFieldConvertReport = z.infer<typeof DatasetFieldConvertReport>
+
+/** Настройки датасета: описание, ключ строки, поля времени и территории, правка. */
+export const DatasetUpdateInput = z.object({
+  description: z.string().max(2000).nullable().optional(),
+  primaryKey: z.array(z.string()).max(8).optional(),
+  timeField: z.string().nullable().optional(),
+  territoryField: z.string().nullable().optional(),
+  settings: z
+    .object({ editable: z.boolean().optional(), trackHistory: z.boolean().optional() })
+    .optional(),
+})
+export type DatasetUpdateInput = z.infer<typeof DatasetUpdateInput>
 
 // ─── Строки ──────────────────────────────────────────────────────────────────
 

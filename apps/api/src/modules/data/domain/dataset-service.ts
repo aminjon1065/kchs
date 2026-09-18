@@ -79,7 +79,13 @@ function toField(row: FieldRow): StoredField {
   return { ...definition, id: row.id, physical: row.physicalColumn ?? '' }
 }
 
-function fieldValues(datasetId: string, field: DatasetFieldInput, physical: string, order: number) {
+/** Строка таблицы полей для нового поля датасета. */
+export function fieldValues(
+  datasetId: string,
+  field: DatasetFieldInput,
+  physical: string,
+  order: number,
+) {
   const rest = Object.fromEntries(Object.entries(field).filter(([key]) => !PLAIN_KEYS.has(key)))
   return {
     id: newId(),

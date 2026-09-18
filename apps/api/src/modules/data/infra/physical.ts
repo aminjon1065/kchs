@@ -16,7 +16,7 @@ import { errors } from '~/shared/errors.js'
  * строк `t_*`. Права по умолчанию схемы `ds` открывают ей любую новую таблицу
  * роли приложения, поэтому таблице строк чтение выдаётся явно (не полагаясь на
  * роль-создателя), а у истории, staging и таблицы замены — явно отзывается:
- * в истории старые значения, к которым политики столбцов не применяются.
+ * в истории старые значения, к которым политики столбцов не применяются (ADR-0048).
  */
 
 const IDENT = /^[a-z_][a-z0-9_]{0,62}$/
@@ -104,6 +104,57 @@ function indexStatement(table: string, column: PhysicalColumn): string | null {
   return `CREATE INDEX ON ${qualified(table)} (${ident(column.name)})`
 }
 
+/** Типы, хранимые текстом: к ним приводится любое значение. */
+const TEXT_STORED = new Set<StoredFieldType>([
+  'text',
+  'long_text',
+  'select',
+  'identifier',
+  'url',
+  'email',
+  'phone',
+])
+
+/** Приведение столбца: исходное значение текстом и выражение с новым типом. */
+export interface CastExpression {
+  /** Непустое исходное значение текстом (пустые строки — NULL). */
+  source: string
+  /** Значение нового типа; NULL, если исходное не приводится. */
+  expression: string
+}
+
+/**
+ * Приведение столбца к новому типу (ADR-0047) через текст и `pg_input_is_valid`:
+ * значение, которое не приводится, становится NULL — пробный прогон считает
+ * такие значения, применение допускает их потерю только с согласия.
+ */
+export function castExpression(
+  column: string,
+  from: StoredFieldType,
+  to: StoredFieldType,
+  precision?: number,
+): CastExpression {
+  if (from === 'geometry' || to === 'geometry') {
+    throw errors.validation('Геометрию нельзя привести к другому типу, а другой тип — к геометрии')
+  }
+  const c = ident(column)
+  const text = from === 'multi_select' ? `array_to_string(${c}, ', ')` : `${c}::text`
+  const source = `nullif(btrim(${text}), '')`
+  if (TEXT_STORED.has(to)) return { source, expression: text }
+  if (to === 'multi_select') {
+    return {
+      source,
+      expression: `array_remove(regexp_split_to_array(${source}, '\\s*[,;]\\s*'), '')`,
+    }
+  }
+  // Имя типа — из columnType (сгенерировано), точность — число из контракта
+  const target = columnType(to, precision)
+  return {
+    source,
+    expression: `CASE WHEN pg_input_is_valid(${source}, '${target}') THEN ${source}::${target} END`,
+  }
+}
+
 export const Physical = {
   /** Таблица строк и (при trackHistory) таблица истории — в транзакции создания датасета. */
   async createTable(
@@ -139,22 +190,30 @@ export const Physical = {
       )
     }
     await Physical.grantRead(tx, table)
-    if (options.trackHistory) {
-      await tx.execute(
-        sql.raw(`CREATE TABLE ${qualified(historyName(datasetId))} (
-          id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-          row_id bigint NOT NULL,
-          ver integer NOT NULL,
-          op char(1) NOT NULL,
-          data jsonb,
-          changed_by uuid,
-          changed_at timestamptz NOT NULL DEFAULT now()
-        )`),
-      )
-      await tx.execute(sql.raw(`CREATE INDEX ON ${qualified(historyName(datasetId))} (row_id, id)`))
-      await Physical.revokeQuery(tx, historyName(datasetId))
-    }
+    if (options.trackHistory) await Physical.ensureHistory(tx, datasetId)
     return table
+  },
+
+  /** Таблица истории строк `ds.h_*` — при создании датасета или включении истории. */
+  async ensureHistory(tx: Executor, datasetId: string): Promise<void> {
+    const history = historyName(datasetId)
+    await tx.execute(
+      sql.raw(`CREATE TABLE IF NOT EXISTS ${qualified(history)} (
+        id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+        row_id bigint NOT NULL,
+        ver integer NOT NULL,
+        op char(1) NOT NULL,
+        data jsonb,
+        changed_by uuid,
+        changed_at timestamptz NOT NULL DEFAULT now()
+      )`),
+    )
+    await tx.execute(
+      sql.raw(
+        `CREATE INDEX IF NOT EXISTS ${ident(`${history}_row_idx`)} ON ${qualified(history)} (row_id, id)`,
+      ),
+    )
+    await Physical.revokeQuery(tx, history)
   },
 
   /** Чтение таблицы строк для пользовательских запросов и резервной роли. */
@@ -173,6 +232,106 @@ export const Physical = {
     )
     const statement = indexStatement(table, column)
     if (statement) await tx.execute(sql.raw(statement))
+  },
+
+  // ─── Правка схемы (ADR-0047) ──────────────────────────────────────────────
+
+  async dropColumn(tx: Executor, table: string, column: string): Promise<void> {
+    await tx.execute(sql.raw(`ALTER TABLE ${qualified(table)} DROP COLUMN ${ident(column)}`))
+  },
+
+  /** Индекс поля с `indexed` (для геометрии GIST создаётся всегда). */
+  async createColumnIndex(tx: Executor, table: string, column: PhysicalColumn): Promise<void> {
+    const statement = indexStatement(table, { ...column, indexed: true })
+    if (statement) await tx.execute(sql.raw(statement))
+  },
+
+  /**
+   * Одностолбцовые неуникальные индексы столбца. Имена индексов Postgres
+   * выбирает сам (и меняет при подмене таблиц импорта) — ищем их по каталогу.
+   */
+  async dropColumnIndexes(tx: Executor, table: string, column: string): Promise<void> {
+    const rows = await tx.execute<{ name: string }>(
+      sql`SELECT i.relname AS name
+            FROM pg_index x
+            JOIN pg_class i ON i.oid = x.indexrelid
+            JOIN pg_class t ON t.oid = x.indrelid
+            JOIN pg_namespace n ON n.oid = t.relnamespace
+            JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = x.indkey[0]
+           WHERE n.nspname = 'ds' AND t.relname = ${table} AND a.attname = ${column}
+             AND x.indnatts = 1 AND NOT x.indisunique AND NOT x.indisprimary`,
+    )
+    for (const row of rows) await tx.execute(sql.raw(`DROP INDEX ds.${ident(row.name)}`))
+  },
+
+  /** Групп строк с одинаковым ключом (учитываются и удалённые — индекс полный). */
+  async keyDuplicates(tx: Executor, table: string, keyColumns: string[]): Promise<number> {
+    const keys = keyColumns.map(ident).join(', ')
+    const [row] = await tx.execute<{ n: string }>(
+      sql.raw(`SELECT count(*) AS n FROM (
+                 SELECT 1 FROM ${qualified(table)} GROUP BY ${keys} HAVING count(*) > 1
+               ) d`),
+    )
+    return Number(row?.n ?? 0)
+  },
+
+  /** Уникальный индекс ключа строки: прежний снимается, новый строится по ключу. */
+  async replaceKeyIndex(tx: Executor, table: string, keyColumns: string[]): Promise<void> {
+    const rows = await tx.execute<{ name: string }>(
+      sql`SELECT i.relname AS name
+            FROM pg_index x
+            JOIN pg_class i ON i.oid = x.indexrelid
+            JOIN pg_class t ON t.oid = x.indrelid
+            JOIN pg_namespace n ON n.oid = t.relnamespace
+           WHERE n.nspname = 'ds' AND t.relname = ${table}
+             AND x.indisunique AND NOT x.indisprimary`,
+    )
+    for (const row of rows) await tx.execute(sql.raw(`DROP INDEX ds.${ident(row.name)}`))
+    if (keyColumns.length > 0) {
+      await tx.execute(
+        sql.raw(`CREATE UNIQUE INDEX ON ${qualified(table)} (${keyColumns.map(ident).join(', ')})`),
+      )
+    }
+  },
+
+  /** Сколько непустых значений не приводится к новому типу, и примеры. */
+  async conversionReport(
+    tx: Executor,
+    table: string,
+    cast: CastExpression,
+  ): Promise<{ total: number; failed: number; sample: Array<{ rowId: string; value: string }> }> {
+    const [counts] = await tx.execute<{ total: string; failed: string }>(
+      sql.raw(`SELECT count(*) FILTER (WHERE ${cast.source} IS NOT NULL) AS total,
+                      count(*) FILTER (WHERE ${cast.source} IS NOT NULL AND (${cast.expression}) IS NULL) AS failed
+                 FROM ${qualified(table)} WHERE _deleted_at IS NULL`),
+    )
+    const sample = await tx.execute<{ row_id: string; value: string }>(
+      sql.raw(`SELECT _id::text AS row_id, ${cast.source} AS value
+                 FROM ${qualified(table)}
+                WHERE _deleted_at IS NULL AND ${cast.source} IS NOT NULL AND (${cast.expression}) IS NULL
+                ORDER BY _id LIMIT 20`),
+    )
+    return {
+      total: Number(counts?.total ?? 0),
+      failed: Number(counts?.failed ?? 0),
+      sample: sample.map((row) => ({ rowId: row.row_id, value: row.value })),
+    }
+  },
+
+  /** Смена типа столбца одной перезаписью таблицы; неприводимое становится NULL. */
+  async convertColumn(
+    tx: Executor,
+    table: string,
+    column: string,
+    type: StoredFieldType,
+    precision: number | undefined,
+    cast: CastExpression,
+  ): Promise<void> {
+    await tx.execute(
+      sql.raw(
+        `ALTER TABLE ${qualified(table)} ALTER COLUMN ${ident(column)} TYPE ${columnType(type, precision)} USING ${cast.expression}`,
+      ),
+    )
   },
 
   /** Удаление физических таблиц — при окончательном удалении датасета. */

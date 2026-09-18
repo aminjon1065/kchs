@@ -1,6 +1,11 @@
 import {
   DatasetCreateInput,
+  DatasetFieldConvertInput,
+  DatasetFieldConvertReport,
+  DatasetFieldInput,
+  DatasetFieldPatch,
   DatasetRecord,
+  DatasetUpdateInput,
   DatasetVersion,
   ImportAnalysis,
   ImportAnalyzeInput,
@@ -27,9 +32,11 @@ import {
   NORMALIZE_JOB,
   NormalizedReport,
 } from './domain/import-service.js'
+import { SchemaService } from './domain/schema-service.js'
 import { Physical } from './infra/physical.js'
 
 const IdParam = z.object({ id: z.uuid() })
+const FieldParams = z.object({ id: z.uuid(), key: z.string().min(1).max(64) })
 
 /** Типы объектов модуля «Данные» (06-analytics-engine.md). */
 export function registerDataObjectTypes(): void {
@@ -140,6 +147,95 @@ export function registerDataRoutes(route: RouteRegistrar): void {
     summary: 'Датасет: схема, счётчики, версия',
     schema: { params: IdParam, response: { 200: DatasetRecord } },
     handler: async (request) => DatasetService.get(request.params.id),
+  })
+
+  route({
+    method: 'PATCH',
+    url: '/datasets/:id',
+    auth: { action: 'manage' },
+    tags: ['data'],
+    summary: 'Настройки датасета: описание, ключ строки, поля времени и территории',
+    schema: { params: IdParam, body: DatasetUpdateInput, response: { 200: DatasetRecord } },
+    handler: async (request) => {
+      await db().transaction((tx) =>
+        SchemaService.update(tx, request.ctx, request.params.id, request.body),
+      )
+      return DatasetService.get(request.params.id)
+    },
+  })
+
+  route({
+    method: 'POST',
+    url: '/datasets/:id/fields',
+    auth: { action: 'manage' },
+    tags: ['data'],
+    summary: 'Добавить поле',
+    schema: { params: IdParam, body: DatasetFieldInput, response: { 200: DatasetRecord } },
+    handler: async (request) => {
+      await db().transaction((tx) =>
+        SchemaService.addField(tx, request.ctx, request.params.id, request.body),
+      )
+      return DatasetService.get(request.params.id)
+    },
+  })
+
+  route({
+    method: 'PATCH',
+    url: '/datasets/:id/fields/:key',
+    auth: { action: 'manage' },
+    tags: ['data'],
+    summary: 'Изменить описание поля: подпись, семантика, формат, справочник, индекс',
+    schema: { params: FieldParams, body: DatasetFieldPatch, response: { 200: DatasetRecord } },
+    handler: async (request) => {
+      await db().transaction((tx) =>
+        SchemaService.updateField(
+          tx,
+          request.ctx,
+          request.params.id,
+          request.params.key,
+          request.body,
+        ),
+      )
+      return DatasetService.get(request.params.id)
+    },
+  })
+
+  route({
+    method: 'POST',
+    url: '/datasets/:id/fields/:key/convert',
+    auth: { action: 'manage' },
+    tags: ['data'],
+    summary: 'Сменить тип поля: пробный прогон с отчётом или применение',
+    schema: {
+      params: FieldParams,
+      body: DatasetFieldConvertInput,
+      response: { 200: DatasetFieldConvertReport },
+    },
+    handler: async (request) =>
+      db().transaction((tx) =>
+        SchemaService.convertField(
+          tx,
+          request.ctx,
+          request.params.id,
+          request.params.key,
+          request.body,
+        ),
+      ),
+  })
+
+  route({
+    method: 'DELETE',
+    url: '/datasets/:id/fields/:key',
+    auth: { action: 'manage' },
+    tags: ['data'],
+    summary: 'Удалить поле вместе с его данными',
+    schema: { params: FieldParams, response: { 200: DatasetRecord } },
+    handler: async (request) => {
+      await db().transaction((tx) =>
+        SchemaService.removeField(tx, request.ctx, request.params.id, request.params.key),
+      )
+      return DatasetService.get(request.params.id)
+    },
   })
 
   route({
