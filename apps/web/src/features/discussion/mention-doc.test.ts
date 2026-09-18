@@ -62,6 +62,11 @@ describe('composeMessage', () => {
     expect(message?.mentions).toEqual([])
   })
 
+  it('сообщение из одних вложений отправляется, пустое — нет', () => {
+    expect(composeMessage('  ', [], ['f1'])).toMatchObject({ text: '', attachments: ['f1'] })
+    expect(composeMessage('  ', [], [])).toBeNull()
+  })
+
   it('оставшиеся упоминания уходят списком идентификаторов', () => {
     expect(composeMessage('@Иванов Иван, срочно', [ivanov])?.mentions).toEqual(['u1'])
   })

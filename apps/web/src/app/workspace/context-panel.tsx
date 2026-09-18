@@ -32,6 +32,7 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import { type ComposedMessage, MessageComposer } from '~/features/discussion/message-composer.js'
+import { MessageItem } from '~/features/discussion/message-item.js'
 import { uploadFile } from '~/features/files/upload.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import {
@@ -419,24 +420,34 @@ function LinksTab({ objectId }: { objectId: string }) {
 
 function DiscussionTab({ objectId }: { objectId: string }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
   const client = useQueryClient()
   const { data, isLoading } = useQuery(discussionQuery(objectId))
+  const { data: object } = useQuery(objectQuery(objectId))
+  // Писать и реагировать может уровень comment и выше — сервер проверяет сам
+  const canPost = object ? object.level !== 'view' : false
 
   const post = useMutation({
     mutationFn: (message: ComposedMessage) =>
       http.post(`/objects/${objectId}/discussion/messages`, {
         body: message.body,
         text: message.text,
-        attachments: [],
+        attachments: message.attachments.map((fileId) => ({ fileId })),
         mentions: message.mentions,
         mentionedObjectIds: [],
       }),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: keys.discussion(objectId) })
       void client.invalidateQueries({ queryKey: keys.objectActivity(objectId) })
+      void client.invalidateQueries({ queryKey: keys.objectLinks(objectId) })
     },
   })
+
+  // Вложение сообщения — вложение объекта: лежит в папке «Вложения» его пространства
+  const attach = async (file: File) => {
+    if (!object?.spaceId) throw new Error(t('errors.unknown'))
+    const created = await uploadFile({ file, spaceId: object.spaceId, attachToObjectId: objectId })
+    return { id: created.id, name: file.name, size: file.size }
+  }
 
   return (
     <div className="flex h-full flex-col">
@@ -453,41 +464,25 @@ function DiscussionTab({ objectId }: { objectId: string }) {
         ) : (
           <div className="flex flex-col gap-3">
             {data.items.map((message) => (
-              <article key={message.id} className="flex gap-2">
-                <Avatar
-                  name={message.author?.displayName ?? t('discussion.systemAuthor')}
-                  src={message.author?.avatarUrl}
-                  size="sm"
-                />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-baseline gap-2">
-                    <span className="truncate text-xs font-medium text-fg">
-                      {message.author?.displayName ?? t('discussion.systemAuthor')}
-                    </span>
-                    <time className="shrink-0 text-2xs text-fg-muted" dateTime={message.createdAt}>
-                      {formatRelativeTime(message.createdAt, { locale })}
-                    </time>
-                    {message.editedAt ? (
-                      <span className="text-2xs text-fg-muted">{t('discussion.edited')}</span>
-                    ) : null}
-                  </div>
-                  <p className="mt-0.5 whitespace-pre-wrap break-words text-sm text-fg-secondary">
-                    {message.kind === 'system' && message.systemKey
-                      ? t(message.systemKey, message.systemParams as Record<string, string>)
-                      : message.text}
-                  </p>
-                </div>
-              </article>
+              <MessageItem
+                key={message.id}
+                message={message}
+                objectId={objectId}
+                canReact={canPost}
+              />
             ))}
           </div>
         )}
       </div>
 
-      <MessageComposer
-        onSend={(message) => post.mutateAsync(message)}
-        pending={post.isPending}
-        placeholder={t('discussion.placeholderComment')}
-      />
+      {canPost ? (
+        <MessageComposer
+          onSend={(message) => post.mutateAsync(message)}
+          onAttach={attach}
+          pending={post.isPending}
+          placeholder={t('discussion.placeholderComment')}
+        />
+      ) : null}
     </div>
   )
 }

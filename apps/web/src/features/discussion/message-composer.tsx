@@ -1,8 +1,19 @@
 import type { PrincipalRef } from '@kchs/contracts'
-import { Avatar, Button, cn, Field, Textarea, useDebouncedValue } from '@kchs/ui'
+import { formatFileSize } from '@kchs/fields'
+import {
+  Avatar,
+  Button,
+  cn,
+  Field,
+  IconButton,
+  Spinner,
+  Textarea,
+  useDebouncedValue,
+} from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
-import { Send } from 'lucide-react'
+import { Paperclip, Send, X } from 'lucide-react'
 import { type KeyboardEvent, useId, useLayoutEffect, useRef, useState } from 'react'
+import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { ApiError } from '~/shared/api/client.js'
 import { principalsQuery } from '~/shared/api/queries.js'
@@ -10,22 +21,38 @@ import { type ComposedMessage, composeMessage, type Mention, mentionQuery } from
 
 export type { ComposedMessage }
 
+/** Файл, прикреплённый к набираемому сообщению: пока грузится — без id. */
+interface Attached {
+  key: string
+  id: string | null
+  name: string
+  size: number
+}
+
 /**
  * Поле сообщения с упоминаниями (P0-E08 S01): «@» и начало имени открывают
  * список сотрудников; ↑/↓ — выбор, Enter или Tab — вставить, Esc — закрыть.
- * Отправка — кнопкой или ⌘/Ctrl+Enter.
+ * Отправка — кнопкой или ⌘/Ctrl+Enter. Со скрепкой (`onAttach`) к сообщению
+ * прикрепляются файлы — они загружаются сразу, отправляются вместе с текстом.
  */
 export function MessageComposer({
   onSend,
+  onAttach,
   pending,
   placeholder,
 }: {
   /** Отправка; поле очищается, когда промис выполнен. */
   onSend: (message: ComposedMessage) => Promise<unknown>
+  /** Загрузка вложения; возвращает созданный файл. */
+  onAttach?: (file: File) => Promise<{ id: string; name: string; size: number }>
   pending?: boolean
   placeholder: string
 }) {
   const t = useT()
+  const locale = useAppearance((s) => s.locale)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [attached, setAttached] = useState<Attached[]>([])
+  const uploading = attached.some((item) => item.id === null)
   const listId = useId()
   const fieldRef = useRef<HTMLTextAreaElement>(null)
   const [draft, setDraft] = useState('')
@@ -74,9 +101,32 @@ export function MessageComposer({
     field.focus()
   }
 
+  const attach = async (files: FileList | null) => {
+    if (!onAttach || !files) return
+    for (const file of Array.from(files)) {
+      const key = `${file.name}:${file.size}:${file.lastModified}:${Math.random()}`
+      setAttached((list) => [...list, { key, id: null, name: file.name, size: file.size }])
+      try {
+        const created = await onAttach(file)
+        setAttached((list) =>
+          list.map((item) => (item.key === key ? { ...item, id: created.id } : item)),
+        )
+      } catch (err) {
+        setAttached((list) => list.filter((item) => item.key !== key))
+        setError(
+          t('discussion.attachFailed', {
+            name: file.name,
+            reason: err instanceof ApiError ? err.message : t('errors.unknown'),
+          }),
+        )
+      }
+    }
+  }
+
   const send = () => {
-    const message = composeMessage(draft, mentions)
-    if (!message || pending) return
+    const ready = attached.flatMap((item) => (item.id ? [item.id] : []))
+    const message = composeMessage(draft, mentions, ready)
+    if (!message || pending || uploading) return
     const sent = draft
     // Поле очищается, когда сервер принял сообщение: при ошибке текст остаётся.
     // Если за это время начали писать следующее — его не трогаем
@@ -85,6 +135,8 @@ export function MessageComposer({
       () => {
         setDraft((current) => (current === sent ? '' : current))
         setMentions((current) => (draftRef.current === sent ? [] : current))
+        // Отправленные вложения уходят из поля; добавленные за это время — остаются
+        setAttached((list) => list.filter((item) => !item.id || !ready.includes(item.id)))
         setTrigger(null)
       },
       (err: unknown) =>
@@ -183,13 +235,57 @@ export function MessageComposer({
           className="min-h-[60px] text-sm"
         />
       </Field>
-      <div className="mt-1.5 flex items-center justify-between">
-        <span className="text-2xs text-fg-muted">{t('discussion.sendHintMention')}</span>
+      {attached.length > 0 ? (
+        <ul aria-label={t('discussion.attachments')} className="mt-1.5 flex flex-wrap gap-1">
+          {attached.map((item) => (
+            <li
+              key={item.key}
+              className="flex max-w-full items-center gap-1.5 rounded-sm border border-line bg-surface-2 py-0.5 pr-0.5 pl-2 text-xs"
+            >
+              {item.id ? null : <Spinner className="size-3" />}
+              <span className="min-w-0 truncate text-fg">{item.name}</span>
+              <span className="shrink-0 text-fg-muted">
+                {formatFileSize(item.size, { locale })}
+              </span>
+              <IconButton
+                size="sm"
+                label={t('discussion.detach', { name: item.name })}
+                onClick={() => setAttached((list) => list.filter((row) => row.key !== item.key))}
+              >
+                <X className="size-3" />
+              </IconButton>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      <div className="mt-1.5 flex items-center gap-1">
+        {onAttach ? (
+          <>
+            <IconButton
+              size="sm"
+              label={t('discussion.attach')}
+              onClick={() => fileRef.current?.click()}
+            >
+              <Paperclip className="size-3.5" />
+            </IconButton>
+            <input
+              ref={fileRef}
+              type="file"
+              multiple
+              hidden
+              onChange={(event) => {
+                void attach(event.target.files)
+                event.target.value = ''
+              }}
+            />
+          </>
+        ) : null}
+        <span className="flex-1 text-2xs text-fg-muted">{t('discussion.sendHintMention')}</span>
         <Button
           type="submit"
           size="sm"
           variant="primary"
-          disabled={!draft.trim()}
+          disabled={(!draft.trim() && !attached.some((item) => item.id)) || uploading}
           loading={pending}
           icon={<Send className="size-3.5" />}
         >

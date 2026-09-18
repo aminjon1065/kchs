@@ -9,6 +9,8 @@ export interface ComposedMessage {
   text: string
   body: RichBody
   mentions: string[]
+  /** Идентификаторы файлов-вложений (загружены заранее как вложения объекта). */
+  attachments: string[]
 }
 
 /** «@» и начало имени перед курсором — запрос упоминания. */
@@ -52,10 +54,22 @@ export function toDoc(text: string, mentions: Mention[]): RichBody {
   return { type: 'doc', content: [{ type: 'paragraph', content }] }
 }
 
-/** Сообщение к отправке; упоминание, стёртое из текста, не уведомляет. */
-export function composeMessage(draft: string, mentions: Mention[]): ComposedMessage | null {
+/**
+ * Сообщение к отправке; упоминание, стёртое из текста, не уведомляет.
+ * Пустым может быть текст, если есть вложения.
+ */
+export function composeMessage(
+  draft: string,
+  mentions: Mention[],
+  attachments: string[] = [],
+): ComposedMessage | null {
   const text = draft.trim()
-  if (!text) return null
+  if (!text && attachments.length === 0) return null
   const kept = mentions.filter((mention) => text.includes(`@${mention.name}`))
-  return { text, body: toDoc(text, kept), mentions: kept.map((mention) => mention.id) }
+  return {
+    text,
+    body: toDoc(text, kept),
+    mentions: kept.map((mention) => mention.id),
+    attachments,
+  }
 }
