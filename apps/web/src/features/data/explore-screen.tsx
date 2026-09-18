@@ -182,7 +182,7 @@ export function ExploreScreen({
       const target = measure.field ? byKey.get(measure.field) : undefined
       return target ? t('data.explore.measureOf', { agg, field: labelOf(target, locale) }) : agg
     },
-    [byKey, state.measures, locale, t],
+    [byKey, state.groups, state.measures, locale, t],
   )
 
   // Значения территорий и справочников — подписями (ADR-0057)
