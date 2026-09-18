@@ -14,7 +14,8 @@ const HELP = `kchs — служебные команды установки
                    --admin-login <логин>  (или KCHS_ADMIN_LOGIN; по умолчанию admin)
                    --admin-email <почта>  (или KCHS_ADMIN_EMAIL)
   kchs migrate   только миграции базы
-  kchs seed      демо-данные: --profile demo|minimal; --reset --yes сначала удаляет данные
+  kchs seed      демо-данные: --profile demo|minimal; --reset --yes сначала удаляет данные;
+                   --data small|demo — демо-датасеты генератора (нужны api, worker и engine)
   kchs help      эта справка
 
   --verbose      показывать журнал выполнения
@@ -28,6 +29,7 @@ async function run(argv: string[]): Promise<number> {
       'admin-login': { type: 'string' },
       'admin-email': { type: 'string' },
       profile: { type: 'string', default: 'demo' },
+      data: { type: 'string', default: 'none' },
       reset: { type: 'boolean', default: false },
       yes: { type: 'boolean', default: false },
       verbose: { type: 'boolean', default: false },
@@ -59,15 +61,22 @@ async function run(argv: string[]): Promise<number> {
         process.stderr.write('--reset удаляет все данные: подтвердите флагом --yes\n')
         return 2
       }
+      const data = values.data === 'small' || values.data === 'demo' ? values.data : 'none'
       const result = await seedCommand({
         profile: values.profile === 'minimal' ? 'minimal' : 'demo',
         reset: values.reset,
+        data,
       })
       process.stdout.write(
         result.units === 0
           ? 'Демо-данные уже загружены — пропуск\n'
           : `Демо-данные загружены: пользователей ${result.users}, подразделений ${result.units}, пространств ${result.spaces}\n`,
       )
+      if (result.datasets) {
+        process.stdout.write(
+          `Демо-датасеты: ${result.datasets.datasets} (новых ${result.datasets.created}), строк загружено ${result.datasets.rows}\n`,
+        )
+      }
       return 0
     }
     case 'help':

@@ -1,4 +1,5 @@
 import type { Ctx } from '~/shared/context.js'
+import { buckets } from '../storage/s3.js'
 import { JobService } from './service.js'
 
 /**
@@ -12,5 +13,16 @@ export const EngineJobs = {
       queue: 'transform',
       name: 'engine.echo',
       data: { message },
+    }),
+  /**
+   * Файлы демо-данных и manifest.json в хранилище (P1-E10, ADR-0063); готовый
+   * манифест того же профиля и seed движок не генерирует заново.
+   */
+  demoGenerate: (ctx: Ctx, input: { profile: string; seed: number; prefix: string }) =>
+    JobService.enqueue(ctx, {
+      queue: 'transform',
+      name: 'demo.generate',
+      data: { ...input, bucket: buckets.files() },
+      options: { attempts: 1 },
     }),
 } as const

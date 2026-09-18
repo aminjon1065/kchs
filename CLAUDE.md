@@ -44,6 +44,7 @@ pnpm db:migrate                          # миграции Postgres
 pnpm db:seed                             # демо-данные: admin / SEED_ADMIN_PASSWORD, user001…user060
 pnpm dev                                 # api с worker (ROLE=all, :3000) и web (:5173)
 docker compose up -d --wait engine       # движок (превью, геоформаты, OCR), если нужен
+pnpm db:seed --data=small                # + демо-датасеты генератора при запущенных api и engine (demo — 5 млн строк, ADR-0063)
 docker compose --profile observability up -d  # трассы, метрики, журналы; Grafana :3001 (ADR-0045)
 ```
 
