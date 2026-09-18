@@ -24,11 +24,11 @@ import {
 import { errors } from '~/shared/errors.js'
 import { decodeCursor, encodeCursor } from '~/shared/http/pagination.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
-import { authorize, visibleObjectsSql } from '../access/authorize.js'
+import { authorize, loadObject, visibleObjectsSql } from '../access/authorize.js'
 import { listActivity } from '../activity/service.js'
 import { LinkService } from '../links/service.js'
 import { allowedActions, objectType } from './registry.js'
-import { ObjectService } from './service.js'
+import { hiddenSummary, ObjectService } from './service.js'
 
 const IdParam = z.object({ id: z.uuid() })
 const RECENT_LIMIT = 200
@@ -136,7 +136,14 @@ export function registerObjectRoutes(route: RouteRegistrar): void {
 
       await db().transaction(async (tx) => {
         if (patch.parentId !== undefined || patch.spaceId !== undefined) {
-          await authorize(request.ctx, 'move', id)
+          const decision = await authorize(request.ctx, 'move', id)
+          // Перенос кладёт объект в чужой контейнер: нужно право создавать в нём,
+          // иначе можно подбросить объект в пространство, к которому нет доступа
+          const current = await loadObject(id, tx)
+          const destination = patch.parentId ?? patch.spaceId ?? current?.spaceId ?? null
+          if (destination && decision.allowed) {
+            await authorize(request.ctx, 'create_child', destination)
+          }
           await ObjectService.move(tx, request.ctx, id, {
             parentId: patch.parentId,
             spaceId: patch.spaceId,
@@ -216,11 +223,7 @@ export function registerObjectRoutes(route: RouteRegistrar): void {
       const items: unknown[] = []
       for (const [id, summary] of summaries) {
         const decision = await authorize(request.ctx, 'view', id, { soft: true })
-        items.push(
-          decision.allowed
-            ? summary
-            : { ...summary, title: '', subtitle: null, meta: {}, accessible: false },
-        )
+        items.push(decision.allowed ? summary : hiddenSummary(summary))
       }
       return { items }
     },
@@ -402,8 +405,8 @@ export function registerObjectRoutes(route: RouteRegistrar): void {
     handler: async (request) => {
       const [links, uses, usedBy] = await Promise.all([
         LinkService.listFor(request.ctx, request.params.id),
-        LinkService.dependenciesOf(request.params.id),
-        LinkService.dependents(request.params.id),
+        LinkService.dependenciesOf(request.ctx, request.params.id),
+        LinkService.dependents(request.ctx, request.params.id),
       ])
       return { links, uses, usedBy }
     },

@@ -5,6 +5,7 @@ import { config } from '~/shared/config/index.js'
 import type { UserCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { objects } from '~/shared/db/schema/index.js'
+import { errors } from '~/shared/errors.js'
 import { logger } from '~/shared/logger/index.js'
 import { readPrincipalsFor } from '../access/acl-service.js'
 import { objectType } from '../objects/registry.js'
@@ -111,31 +112,38 @@ export async function reindexAll(batchSize = 200): Promise<number> {
   return total
 }
 
+/**
+ * Строковое значение для выражения фильтра Meilisearch. Значения экранируются
+ * всегда, даже прошедшие валидацию: выход из кавычек позволил бы дописать
+ * `) OR (…` и обойти фильтр прав — в Meilisearch AND связывает сильнее OR.
+ */
+export function meiliValue(value: string): string {
+  return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
+}
+
+function anyOf(field: string, values: string[]): string {
+  return `(${values.map((v) => `${field} = ${meiliValue(v)}`).join(' OR ')})`
+}
+
 /** Поиск с фильтром прав: пользователь видит только свои принципалы. */
 export async function search(ctx: UserCtx, query: SearchQuery): Promise<SearchResponse> {
   const started = Date.now()
   const filters: string[] = []
 
   if (!ctx.isSystemAdmin && !ctx.isSecurityAuditor) {
-    const principals = ctx.principals.keys
-      .filter((k) => !k.startsWith('acting_as:'))
-      .map((k) => `aclPrincipals = "${k.replace(/"/g, '')}"`)
-    filters.push(`(${[...principals, `ownerId = "${ctx.userId}"`].join(' OR ')})`)
+    const principals = ctx.principals.keys.filter((k) => !k.startsWith('acting_as:'))
+    filters.push(
+      `(${[...principals.map((k) => `aclPrincipals = ${meiliValue(k)}`), `ownerId = ${meiliValue(ctx.userId)}`].join(' OR ')})`,
+    )
   }
-  if (query.types?.length) {
-    filters.push(`(${query.types.map((t) => `type = "${t}"`).join(' OR ')})`)
-  }
-  if (query.spaceIds?.length) {
-    filters.push(`(${query.spaceIds.map((s) => `spaceId = "${s}"`).join(' OR ')})`)
-  }
-  if (query.ownerIds?.length) {
-    filters.push(`(${query.ownerIds.map((s) => `ownerId = "${s}"`).join(' OR ')})`)
-  }
+  if (query.types?.length) filters.push(anyOf('type', query.types))
+  if (query.spaceIds?.length) filters.push(anyOf('spaceId', query.spaceIds))
+  if (query.ownerIds?.length) filters.push(anyOf('ownerId', query.ownerIds))
   if (query.updatedFrom) {
-    filters.push(`updatedAt >= ${Math.floor(new Date(query.updatedFrom).getTime() / 1000)}`)
+    filters.push(`updatedAt >= ${epochSeconds(query.updatedFrom)}`)
   }
   if (query.updatedTo) {
-    filters.push(`updatedAt <= ${Math.floor(new Date(query.updatedTo).getTime() / 1000)}`)
+    filters.push(`updatedAt <= ${epochSeconds(query.updatedTo)}`)
   }
 
   const result = await objectsIndex().search(query.q, {
@@ -193,6 +201,12 @@ export async function search(ctx: UserCtx, query: SearchQuery): Promise<SearchRe
     })),
     tookMs: Date.now() - started,
   }
+}
+
+function epochSeconds(value: string): number {
+  const ms = new Date(value).getTime()
+  if (Number.isNaN(ms)) throw errors.validation('Некорректная дата в фильтре поиска')
+  return Math.floor(ms / 1000)
 }
 
 export async function searchHealthy(): Promise<boolean> {

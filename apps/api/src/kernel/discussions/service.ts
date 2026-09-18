@@ -37,18 +37,26 @@ export const DiscussionService = {
     if (existing) return existing.id
 
     const [target] = await tx
-      .select({ title: objects.title, spaceId: objects.spaceId, type: objects.type })
+      .select({
+        title: objects.title,
+        spaceId: objects.spaceId,
+        type: objects.type,
+        ownerId: objects.ownerId,
+      })
       .from(objects)
       .where(eq(objects.id, objectId))
       .limit(1)
     if (!target) throw errors.notFound()
 
+    // Беседа объекта — его часть: доступ наследуется от объекта, а владелец
+    // тот же, что у объекта. Первый комментатор не получает прав на обсуждение,
+    // которые пережили бы отзыв его доступа к самому объекту.
     const object = await ObjectService.create(tx, ctx, {
       type: 'conversation',
       spaceId: target.spaceId,
       parentId: objectId,
       title: `Обсуждение: ${target.title}`,
-      ownerId: actorId(ctx),
+      ownerId: target.ownerId,
       meta: { kind: 'object', objectId },
       silent: true,
     })

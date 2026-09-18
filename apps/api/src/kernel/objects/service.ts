@@ -36,6 +36,29 @@ export interface UpdateObjectInput {
 }
 
 /**
+ * Сводка объекта без доступа: чип «Нет доступа» знает только тип и адрес.
+ * Название, пространство, владелец и время изменения не раскрываются
+ * (04-verification.md §2, п. 4).
+ */
+export function hiddenSummary(summary: ObjectSummary): ObjectSummary {
+  return {
+    id: summary.id,
+    type: summary.type,
+    title: '',
+    subtitle: null,
+    icon: summary.icon,
+    spaceId: null,
+    spaceName: null,
+    ownerId: null,
+    updatedAt: new Date(0).toISOString(),
+    lifecycle: 'active',
+    meta: {},
+    url: summary.url,
+    accessible: false,
+  }
+}
+
+/**
  * Реестр объектов — создание любого объекта продукта идёт через этот сервис
  * в той же транзакции, что и запись в таблицу модуля (правило №1 CLAUDE.md).
  */
@@ -43,7 +66,9 @@ export const ObjectService = {
   async create(tx: Executor, ctx: Ctx, input: CreateObjectInput): Promise<ObjectLike> {
     requireObjectType(input.type)
     const id = input.id ?? newId()
-    const owner = input.ownerId ?? actorId(ctx)
+    // `ownerId: null` — объект без личного владельца (например, беседа объекта
+    // наследует доступ от него); не указан — владеет автор
+    const owner = input.ownerId === undefined ? actorId(ctx) : input.ownerId
 
     if (input.parentId) {
       const parent = await loadRow(tx, input.parentId)

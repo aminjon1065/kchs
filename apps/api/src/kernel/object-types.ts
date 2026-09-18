@@ -109,14 +109,15 @@ export function registerKernelObjectTypes(): void {
       )
     },
     policy: {
-      // Участник беседы видит её и может писать
+      // Участник чата видит его и может писать. Беседа объекта (kind = object)
+      // этого не даёт: доступ к обсуждению равен доступу к самому объекту.
       derive: async (ctx, object) => {
         const [row] = await db()
-          .select({ id: conversations.id })
+          .select({ id: conversations.id, kind: conversations.kind })
           .from(conversations)
           .where(eq(conversations.id, object.id))
           .limit(1)
-        if (!row) return []
+        if (!row || row.kind === 'object') return []
         const members = await db().execute<{ user_id: string }>(
           sql`SELECT user_id FROM conversation_members
                WHERE conversation_id = ${object.id} AND user_id = ${ctx.userId}`,

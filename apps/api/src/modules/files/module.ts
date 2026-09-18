@@ -120,6 +120,10 @@ export function registerFilesRoutes(route: RouteRegistrar): void {
         request.body.fileId ? 'upload_version' : 'create_child',
         request.body.fileId ?? target,
       )
+      // Вложение меняет объект, к которому прикрепляется: нужен уровень edit на нём
+      if (request.body.attachToObjectId) {
+        await authorize(request.ctx, 'edit', request.body.attachToObjectId)
+      }
       return FileService.createUploadSession(request.ctx, request.body)
     },
   })

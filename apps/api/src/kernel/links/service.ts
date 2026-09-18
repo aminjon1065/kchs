@@ -8,7 +8,7 @@ import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { authorize } from '../access/authorize.js'
 import { publishEvent } from '../events/publisher.js'
-import { ObjectService } from '../objects/service.js'
+import { hiddenSummary, ObjectService } from '../objects/service.js'
 
 /** Связи объектов (02-platform-kernel.md §3): двунаправленные по чтению. */
 export const LinkService = {
@@ -114,7 +114,7 @@ export const LinkService = {
         id: row.id,
         kind: row.kind as LinkKind,
         direction: row.sourceId === objectId ? 'outgoing' : 'incoming',
-        object: decision.allowed ? summary : hideSummary(summary),
+        object: decision.allowed ? summary : hiddenSummary(summary),
         createdAt: row.createdAt,
         createdBy: row.createdBy,
       })
@@ -140,29 +140,37 @@ export const LinkService = {
   },
 
   /** Объекты, которые сломаются при удалении данного (инвариант №3). */
-  async dependents(objectId: string, database: Database = db()): Promise<ObjectSummary[]> {
+  async dependents(
+    ctx: Ctx,
+    objectId: string,
+    database: Database = db(),
+  ): Promise<ObjectSummary[]> {
     const rows = await database
       .select({ fromId: dependencies.fromId })
       .from(dependencies)
       .innerJoin(objects, eq(objects.id, dependencies.fromId))
       .where(and(eq(dependencies.toId, objectId), sql`${objects.deletedAt} is null`))
-    const summaries = await ObjectService.summaries(
+    return visibleSummaries(
+      ctx,
       rows.map((r) => r.fromId),
       database,
     )
-    return [...summaries.values()]
   },
 
-  async dependenciesOf(objectId: string, database: Database = db()): Promise<ObjectSummary[]> {
+  async dependenciesOf(
+    ctx: Ctx,
+    objectId: string,
+    database: Database = db(),
+  ): Promise<ObjectSummary[]> {
     const rows = await database
       .select({ toId: dependencies.toId })
       .from(dependencies)
       .where(eq(dependencies.fromId, objectId))
-    const summaries = await ObjectService.summaries(
+    return visibleSummaries(
+      ctx,
       rows.map((r) => r.toId),
       database,
     )
-    return [...summaries.values()]
   },
 
   /** Вложения объекта — связи вида `attachment`. */
@@ -187,12 +195,21 @@ export const LinkService = {
   },
 }
 
-function hideSummary(summary: ObjectSummary): ObjectSummary {
-  return {
-    ...summary,
-    title: '',
-    subtitle: null,
-    meta: {},
-    accessible: false,
+/**
+ * Зависимости видны всем, у кого есть доступ к объекту, но сами зависимые
+ * объекты — только тем, кто может их видеть: дашборд не раскрывает названия
+ * недоступных датасетов (03-access-model.md §Наследование).
+ */
+async function visibleSummaries(
+  ctx: Ctx,
+  ids: string[],
+  database: Database,
+): Promise<ObjectSummary[]> {
+  const summaries = await ObjectService.summaries(ids, database)
+  const result: ObjectSummary[] = []
+  for (const [id, summary] of summaries) {
+    const decision = await authorize(ctx, 'view', id, { soft: true })
+    result.push(decision.allowed ? summary : hiddenSummary(summary))
   }
+  return result
 }

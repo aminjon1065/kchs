@@ -1,8 +1,18 @@
-import { type SearchQuery, SearchResponse } from '@kchs/contracts'
+import { ObjectType, SearchResponse, Uuid } from '@kchs/contracts'
 import { z } from 'zod'
 import { rateLimit } from '~/shared/http/rate-limit.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { search } from './index-service.js'
+
+/** Список через запятую, каждый элемент проверяется схемой — `?types=file,folder`. */
+function csv<T extends z.ZodType<unknown, string>>(item: T) {
+  return z
+    .string()
+    .max(4000)
+    .transform((value) => value.split(',').filter(Boolean))
+    .pipe(z.array(item).max(50))
+    .optional()
+}
 
 export function registerSearchRoutes(route: RouteRegistrar): void {
   route({
@@ -15,26 +25,20 @@ export function registerSearchRoutes(route: RouteRegistrar): void {
     schema: {
       querystring: z.object({
         q: z.string().max(500).default(''),
-        types: z.string().optional(),
-        spaceIds: z.string().optional(),
+        types: csv(ObjectType),
+        spaceIds: csv(Uuid),
         limit: z.coerce.number().int().min(1).max(100).default(20),
         offset: z.coerce.number().int().min(0).max(1000).default(0),
       }),
       response: { 200: SearchResponse },
     },
-    handler: async (request) => {
-      const query: SearchQuery = {
+    handler: async (request) =>
+      search(request.ctx, {
         q: request.query.q,
         limit: request.query.limit,
         offset: request.query.offset,
-        ...(request.query.types
-          ? { types: request.query.types.split(',').filter(Boolean) as SearchQuery['types'] }
-          : {}),
-        ...(request.query.spaceIds
-          ? { spaceIds: request.query.spaceIds.split(',').filter(Boolean) }
-          : {}),
-      }
-      return search(request.ctx, query)
-    },
+        ...(request.query.types?.length ? { types: request.query.types } : {}),
+        ...(request.query.spaceIds?.length ? { spaceIds: request.query.spaceIds } : {}),
+      }),
   })
 }

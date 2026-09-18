@@ -214,6 +214,59 @@ export async function setupFixture(): Promise<TestContext> {
   }
 }
 
+/**
+ * Загрузка файла настоящим путём клиента: сессия → PUT по подписанной ссылке
+ * в MinIO → подтверждение (09-files.md §2).
+ */
+export async function uploadFile(
+  instance: FastifyInstance,
+  as: TestUser,
+  input: {
+    spaceId: string
+    folderId?: string | null
+    name: string
+    content: string | Uint8Array
+    mime?: string
+    attachToObjectId?: string
+  },
+): Promise<{ id: string; name: string }> {
+  const body = typeof input.content === 'string' ? Buffer.from(input.content) : input.content
+  const mime = input.mime ?? 'text/plain'
+  const session = await call(instance, {
+    method: 'POST',
+    url: '/files/upload-sessions',
+    as,
+    payload: {
+      name: input.name,
+      size: body.byteLength,
+      mime,
+      spaceId: input.spaceId,
+      folderId: input.folderId ?? null,
+      attachToObjectId: input.attachToObjectId ?? null,
+    },
+  })
+  if (session.statusCode !== 200) {
+    throw new Error(`сессия загрузки: ${session.statusCode} ${session.body}`)
+  }
+  const { uploadId, storageKey, singlePutUrl } = session.json()
+  const put = await fetch(singlePutUrl, {
+    method: 'PUT',
+    body: new Uint8Array(body),
+    headers: { 'content-type': mime },
+  })
+  if (!put.ok) throw new Error(`загрузка в хранилище: ${put.status} ${await put.text()}`)
+  const complete = await call(instance, {
+    method: 'POST',
+    url: `/files/upload-sessions/${uploadId}/complete`,
+    as,
+    payload: { uploadId, storageKey, parts: [] },
+  })
+  if (complete.statusCode !== 200) {
+    throw new Error(`завершение загрузки: ${complete.statusCode} ${complete.body}`)
+  }
+  return { id: complete.json().id, name: input.name }
+}
+
 export function registerLifecycle(): void {
   beforeAll(async () => {
     await bootTestApp()

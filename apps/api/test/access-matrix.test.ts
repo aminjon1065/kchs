@@ -1,0 +1,510 @@
+import { beforeAll, describe, expect, it } from 'vitest'
+import {
+  call,
+  db,
+  redis,
+  registerLifecycle,
+  setupFixture,
+  type TestContext,
+  type TestUser,
+  uploadFile,
+} from './helpers.js'
+
+/**
+ * Обязательные негативные тесты доступа (04-verification.md §2), сгенерированные
+ * из реестра типов: у каждого зарегистрированного типа должна быть фикстура,
+ * иначе тест падает — новый тип нельзя добавить без покрытия.
+ *
+ * Субъекты: посторонний (нет прав) и читатель (view, без edit).
+ */
+registerLifecycle()
+
+const { listObjectTypes } = await import('../src/kernel/objects/registry.js')
+const { ObjectService } = await import('../src/kernel/objects/service.js')
+const { LinkService } = await import('../src/kernel/links/service.js')
+const { SpaceService } = await import('../src/kernel/spaces/service.js')
+const { indexObject } = await import('../src/kernel/search/index-service.js')
+const { canJoin } = await import('../src/kernel/realtime/gateway.js')
+const { buildUserCtx } = await import('../src/kernel/context-builder.js')
+const { systemCtx } = await import('../src/shared/context.js')
+const { views } = await import('../src/shared/db/schema/index.js')
+
+interface Created {
+  id: string
+  title: string
+}
+
+interface Request {
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+  url: string
+  payload?: unknown
+}
+
+interface TypeFixture {
+  /** Создаёт объект типа от имени владельца; читатель получает view, посторонний — ничего. */
+  create: (fx: TestContext, title: string) => Promise<Created>
+  /** Маршруты модуля для чтения объекта; `:id` заменяется идентификатором. */
+  readPaths: string[]
+  /** Скачивание, экспорт, печать. */
+  exportPaths?: string[]
+  /** Действия модуля выше уровня view: читатель получает 403. */
+  viewerForbidden?: (fx: TestContext, id: string) => Request[]
+}
+
+const run = Date.now().toString(36)
+
+async function createFolder(fx: TestContext, name: string, spaceId = fx.spaceId): Promise<string> {
+  const response = await call(fx.app, {
+    method: 'POST',
+    url: '/folders',
+    as: fx.admin,
+    payload: { name, spaceId },
+  })
+  expect(response.statusCode).toBe(200)
+  return response.json().id
+}
+
+const FIXTURES: Record<string, TypeFixture> = {
+  space: {
+    create: async (fx, title) => {
+      const ctx = systemCtx('test')
+      const id = await db().transaction((tx) =>
+        SpaceService.create(tx, ctx, {
+          key: `matrix-${run}`,
+          name: title,
+          kind: 'team',
+          ownerId: fx.admin.id,
+        }),
+      )
+      await db().transaction((tx) =>
+        SpaceService.addMember(tx, ctx, id, fx.users.viewer.id, 'viewer'),
+      )
+      await redis().del(`kchs:principals:${fx.users.viewer.id}`)
+      return { id, title }
+    },
+    readPaths: ['/spaces/:id', '/spaces/:id/members'],
+    viewerForbidden: (fx, id) => [
+      {
+        method: 'POST',
+        url: `/spaces/${id}/members`,
+        payload: { userId: fx.users.stranger.id, role: 'viewer' },
+      },
+    ],
+  },
+
+  folder: {
+    create: async (fx, title) => ({ id: await createFolder(fx, title), title }),
+    readPaths: [],
+    viewerForbidden: (fx, id) => [
+      {
+        method: 'POST',
+        url: '/folders',
+        payload: { name: 'x', spaceId: fx.spaceId, parentId: id },
+      },
+    ],
+  },
+
+  file: {
+    create: async (fx, title) => {
+      const file = await uploadFile(fx.app, fx.admin, {
+        spaceId: fx.spaceId,
+        name: title,
+        content: `Содержимое файла ${title}`,
+      })
+      return { id: file.id, title }
+    },
+    readPaths: ['/files/:id', '/files/:id/versions'],
+    exportPaths: ['/files/:id/download'],
+    viewerForbidden: (fx, id) => [
+      {
+        method: 'POST',
+        url: '/files/upload-sessions',
+        payload: { name: 'v2.txt', size: 1, mime: 'text/plain', spaceId: fx.spaceId, fileId: id },
+      },
+    ],
+  },
+
+  view: {
+    create: async (fx, title) => {
+      const ctx = systemCtx('test', { initiatorId: fx.admin.id })
+      const object = await db().transaction(async (tx) => {
+        const created = await ObjectService.create(tx, ctx, {
+          type: 'view',
+          spaceId: fx.spaceId,
+          title,
+          ownerId: fx.admin.id,
+        })
+        await tx.insert(views).values({ id: created.id, objectType: 'file', definition: {} })
+        return created
+      })
+      return { id: object.id, title }
+    },
+    readPaths: [],
+  },
+
+  conversation: {
+    create: async (fx, title) => {
+      const folderId = await createFolder(fx, title)
+      const posted = await call(fx.app, {
+        method: 'POST',
+        url: `/objects/${folderId}/discussion/messages`,
+        as: fx.admin,
+        payload: {
+          body: { type: 'doc', content: [] },
+          text: 'Сообщение для проверки доступа',
+          attachments: [],
+          mentions: [],
+          mentionedObjectIds: [],
+        },
+      })
+      expect(posted.statusCode).toBe(200)
+      const discussion = await call(fx.app, {
+        url: `/objects/${folderId}/discussion`,
+        as: fx.admin,
+      })
+      const conversation = discussion.json().conversation as { id: string; title?: string }
+      const summary = await ObjectService.summaries([conversation.id])
+      return { id: conversation.id, title: summary.get(conversation.id)?.title ?? title }
+    },
+    readPaths: ['/conversations/:id/messages'],
+    viewerForbidden: (_fx, id) => [
+      {
+        method: 'POST',
+        url: `/conversations/${id}/messages`,
+        payload: {
+          body: { type: 'doc', content: [] },
+          text: 'читатель не пишет',
+          attachments: [],
+          mentions: [],
+          mentionedObjectIds: [],
+        },
+      },
+    ],
+  },
+}
+
+let fx: TestContext
+
+beforeAll(async () => {
+  fx = await setupFixture()
+})
+
+async function userCtx(user: TestUser) {
+  return buildUserCtx({ sessionId: `test-${user.id}`, userId: user.id, onBehalfOf: null }, {
+    id: 'test',
+    ip: null,
+    headers: {},
+  } as never)
+}
+
+async function searchTitles(user: TestUser, q: string): Promise<string[]> {
+  const response = await call(fx.app, { url: `/search?q=${encodeURIComponent(q)}`, as: user })
+  expect(response.statusCode).toBe(200)
+  return (response.json().hits as Array<{ objectId: string }>).map((h) => h.objectId)
+}
+
+describe('матрица доступа по реестру типов', () => {
+  it('у каждого зарегистрированного типа есть фикстура', () => {
+    const missing = listObjectTypes()
+      .map((definition) => definition.type)
+      .filter((type) => !FIXTURES[type])
+    expect(missing).toEqual([])
+  })
+})
+
+for (const [type, fixture] of Object.entries(FIXTURES)) {
+  describe(`тип «${type}»`, () => {
+    let target: Created
+    let hubId: string
+    const path = (template: string) => template.replace(':id', target.id)
+
+    beforeAll(async () => {
+      target = await fixture.create(fx, `Матрица ${type} ${run}`)
+
+      // «Хаб» — объект, который посторонний видит: из него идут связь и зависимость
+      hubId = await createFolder(fx, `Хаб ${type} ${run}`, fx.orgSpaceId)
+      const grant = await call(fx.app, {
+        method: 'POST',
+        url: `/objects/${hubId}/access`,
+        as: fx.admin,
+        payload: {
+          grants: [{ principal: { type: 'user', id: fx.users.stranger.id }, level: 'view' }],
+        },
+      })
+      expect(grant.statusCode).toBe(200)
+      const link = await call(fx.app, {
+        method: 'POST',
+        url: `/objects/${hubId}/links`,
+        as: fx.admin,
+        payload: { targetId: target.id, kind: 'related' },
+      })
+      expect(link.statusCode).toBe(200)
+      await db().transaction((tx) => LinkService.setDependencies(tx, hubId, [target.id]))
+    })
+
+    describe('посторонний', () => {
+      it('прямой URL, маршруты модуля и служебные маршруты объекта — 404', async () => {
+        const urls = [
+          `/objects/${target.id}`,
+          `/objects/${target.id}/activity`,
+          `/objects/${target.id}/discussion`,
+          `/objects/${target.id}/access`,
+          `/objects/${target.id}/links`,
+          ...fixture.readPaths.map(path),
+        ]
+        for (const url of urls) {
+          const response = await call(fx.app, { url, as: fx.users.stranger })
+          expect(response.statusCode, url).toBe(404)
+        }
+      })
+
+      it('изменение, удаление, доступ и избранное — 404, а не 403', async () => {
+        const requests: Request[] = [
+          { method: 'PATCH', url: `/objects/${target.id}`, payload: { title: 'взлом' } },
+          { method: 'DELETE', url: `/objects/${target.id}` },
+          {
+            method: 'POST',
+            url: `/objects/${target.id}/access`,
+            payload: {
+              grants: [{ principal: { type: 'user', id: fx.users.stranger.id }, level: 'owner' }],
+            },
+          },
+          { method: 'PUT', url: `/objects/${target.id}/favorite` },
+        ]
+        for (const request of requests) {
+          const response = await call(fx.app, { ...request, as: fx.users.stranger })
+          expect(response.statusCode, `${request.method} ${request.url}`).toBe(404)
+        }
+      })
+
+      it('списки и пакетная выборка не выдают объект', async () => {
+        const list = await call(fx.app, {
+          url: `/objects?q=${encodeURIComponent(target.title)}&limit=100`,
+          as: fx.users.stranger,
+        })
+        expect(list.statusCode).toBe(200)
+        expect(list.json().items.map((i: { id: string }) => i.id)).not.toContain(target.id)
+
+        const batch = await call(fx.app, {
+          method: 'POST',
+          url: '/objects/batch-get',
+          as: fx.users.stranger,
+          payload: { ids: [target.id] },
+        })
+        expect(batch.statusCode).toBe(200)
+        const item = batch.json().items[0]
+        expect(item.accessible).toBe(false)
+        expect(item.title).toBe('')
+        expect(item.spaceName ?? null).toBeNull()
+        expect(item.ownerId).toBeNull()
+      })
+
+      it('поиск не находит объект, хотя администратор находит', async () => {
+        await indexObject(target.id)
+        const deadline = Date.now() + 10_000
+        let found: string[] = []
+        while (Date.now() < deadline) {
+          found = await searchTitles(fx.admin, target.title)
+          if (found.includes(target.id)) break
+          await new Promise((resolve) => setTimeout(resolve, 100))
+        }
+        expect(found).toContain(target.id)
+        expect(await searchTitles(fx.users.stranger, target.title)).not.toContain(target.id)
+      })
+
+      it('связь и зависимость из доступного объекта — без названия и владельца', async () => {
+        const response = await call(fx.app, {
+          url: `/objects/${hubId}/links`,
+          as: fx.users.stranger,
+        })
+        expect(response.statusCode).toBe(200)
+        const body = response.json() as {
+          links: Array<{ object: Record<string, unknown> }>
+          uses: Array<Record<string, unknown>>
+        }
+        const viaLink = body.links.find((l) => l.object.id === target.id)?.object
+        const viaDependency = body.uses.find((u) => u.id === target.id)
+        for (const summary of [viaLink, viaDependency]) {
+          expect(summary).toBeDefined()
+          expect(summary?.accessible).toBe(false)
+          expect(summary?.title).toBe('')
+          expect(summary?.ownerId).toBeNull()
+          expect(summary?.spaceName ?? null).toBeNull()
+        }
+      })
+
+      it('realtime-комната отклонена', async () => {
+        const ctx = await userCtx(fx.users.stranger)
+        expect(await canJoin(ctx, `object:${target.id}`)).toBe(false)
+      })
+
+      it('скачивание и экспорт — 404', async () => {
+        for (const url of (fixture.exportPaths ?? []).map(path)) {
+          const response = await call(fx.app, { url, as: fx.users.stranger })
+          expect(response.statusCode, url).toBe(404)
+        }
+      })
+    })
+
+    describe('читатель (view без edit)', () => {
+      it('видит объект и маршруты чтения модуля', async () => {
+        for (const url of [`/objects/${target.id}`, ...fixture.readPaths.map(path)]) {
+          const response = await call(fx.app, { url, as: fx.users.viewer })
+          expect(response.statusCode, url).toBe(200)
+        }
+        const ctx = await userCtx(fx.users.viewer)
+        expect(await canJoin(ctx, `object:${target.id}`)).toBe(true)
+      })
+
+      it('не изменяет, не удаляет и не делится — 403', async () => {
+        const requests: Request[] = [
+          { method: 'PATCH', url: `/objects/${target.id}`, payload: { title: 'правка читателя' } },
+          { method: 'DELETE', url: `/objects/${target.id}` },
+          {
+            method: 'POST',
+            url: `/objects/${target.id}/access`,
+            payload: {
+              grants: [{ principal: { type: 'user', id: fx.users.stranger.id }, level: 'view' }],
+            },
+          },
+          ...(fixture.viewerForbidden?.(fx, target.id) ?? []),
+        ]
+        for (const request of requests) {
+          const response = await call(fx.app, { ...request, as: fx.users.viewer })
+          expect(response.statusCode, `${request.method} ${request.url}`).toBe(403)
+        }
+      })
+    })
+  })
+}
+
+describe('сквозные правила доступа', () => {
+  it('после отзыва доступа к объекту его обсуждение недоступно и первому комментатору', async () => {
+    const folderId = await createFolder(fx, `Отзыв ${run}`)
+    const grant = await call(fx.app, {
+      method: 'POST',
+      url: `/objects/${folderId}/access`,
+      as: fx.admin,
+      payload: {
+        grants: [{ principal: { type: 'user', id: fx.users.stranger.id }, level: 'comment' }],
+      },
+    })
+    expect(grant.statusCode).toBe(200)
+
+    const posted = await call(fx.app, {
+      method: 'POST',
+      url: `/objects/${folderId}/discussion/messages`,
+      as: fx.users.stranger,
+      payload: {
+        body: { type: 'doc', content: [] },
+        text: 'Первое сообщение',
+        attachments: [],
+        mentions: [],
+        mentionedObjectIds: [],
+      },
+    })
+    expect(posted.statusCode).toBe(200)
+    const discussion = await call(fx.app, {
+      url: `/objects/${folderId}/discussion`,
+      as: fx.users.stranger,
+    })
+    const conversationId = discussion.json().conversation.id as string
+
+    const revoke = await call(fx.app, {
+      method: 'DELETE',
+      url: `/objects/${folderId}/access`,
+      as: fx.admin,
+      payload: { principal: { type: 'user', id: fx.users.stranger.id } },
+    })
+    expect(revoke.statusCode).toBe(200)
+
+    for (const url of [
+      `/objects/${folderId}/discussion`,
+      `/conversations/${conversationId}/messages`,
+    ]) {
+      const response = await call(fx.app, { url, as: fx.users.stranger })
+      expect(response.statusCode, url).toBe(404)
+    }
+  })
+
+  it('объект нельзя перенести в папку, к которой нет доступа', async () => {
+    const own = await createFolder(fx, `Своя ${run}`)
+    const grant = await call(fx.app, {
+      method: 'POST',
+      url: `/objects/${own}/access`,
+      as: fx.admin,
+      payload: {
+        grants: [{ principal: { type: 'user', id: fx.users.stranger.id }, level: 'manage' }],
+      },
+    })
+    expect(grant.statusCode).toBe(200)
+    const foreign = await createFolder(fx, `Чужая ${run}`, fx.orgSpaceId)
+
+    const moved = await call(fx.app, {
+      method: 'PATCH',
+      url: `/objects/${own}`,
+      as: fx.users.stranger,
+      payload: { parentId: foreign },
+    })
+    expect(moved.statusCode).toBe(404)
+  })
+
+  it('файл нельзя прикрепить к объекту без права edit на него', async () => {
+    const foreign = await createFolder(fx, `Недоступная ${run}`)
+    const personal = await call(fx.app, { url: '/me', as: fx.users.stranger })
+    const personalSpaceId = personal.json().personalSpaceId as string | undefined
+    expect(personalSpaceId).toBeTruthy()
+
+    const session = await call(fx.app, {
+      method: 'POST',
+      url: '/files/upload-sessions',
+      as: fx.users.stranger,
+      payload: {
+        name: 'подброс.txt',
+        size: 3,
+        mime: 'text/plain',
+        spaceId: personalSpaceId,
+        attachToObjectId: foreign,
+      },
+    })
+    expect(session.statusCode).toBe(404)
+  })
+
+  it('комната задания доступна только инициатору', async () => {
+    const { JobService } = await import('../src/kernel/jobs/service.js')
+    const jobId = await JobService.enqueue(systemCtx('test', { initiatorId: fx.users.viewer.id }), {
+      queue: 'maintenance',
+      name: 'test.room',
+      data: {},
+    })
+    expect(await canJoin(await userCtx(fx.users.viewer), `job:${jobId}`)).toBe(true)
+    expect(await canJoin(await userCtx(fx.users.stranger), `job:${jobId}`)).toBe(false)
+    expect(await canJoin(await userCtx(fx.users.stranger), 'object:not-a-uuid')).toBe(false)
+  })
+
+  it('поиск не допускает выход из фильтра прав через параметры', async () => {
+    const secret = await createFolder(fx, `Секрет инъекции ${run}`)
+    await indexObject(secret)
+    const deadline = Date.now() + 10_000
+    while (Date.now() < deadline) {
+      if ((await searchTitles(fx.admin, `Секрет инъекции ${run}`)).includes(secret)) break
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    }
+
+    const injected = await call(fx.app, {
+      url: `/search?q=${encodeURIComponent(`Секрет инъекции ${run}`)}&spaceIds=${encodeURIComponent('x") OR (type EXISTS')}`,
+      as: fx.users.stranger,
+    })
+    expect(injected.statusCode).toBe(400)
+
+    const { search } = await import('../src/kernel/search/index-service.js')
+    const ctx = await userCtx(fx.users.stranger)
+    const direct = await search(ctx, {
+      q: `Секрет инъекции ${run}`,
+      spaceIds: ['x") OR (type EXISTS'],
+      limit: 20,
+      offset: 0,
+    })
+    expect(direct.hits.map((h) => h.objectId)).not.toContain(secret)
+  })
+})

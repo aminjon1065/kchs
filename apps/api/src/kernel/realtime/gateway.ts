@@ -7,8 +7,11 @@ import { logger } from '~/shared/logger/index.js'
 import { cacheKeys, createRedisConnection, redis } from '~/shared/redis/index.js'
 import { authorize } from '../access/authorize.js'
 import { buildUserCtx } from '../context-builder.js'
+import { JobService } from '../jobs/service.js'
 
 let io: SocketServer | null = null
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 interface SocketData {
   ctx: UserCtx
@@ -70,6 +73,8 @@ export function startRealtime(app: FastifyInstance, deps: RealtimeDeps): SocketS
 
   io.on('connection', (socket) => {
     const ctx = (socket.data as SocketData).ctx
+    // Объекты, где сокет отметил присутствие: при отключении убираем только их
+    const viewed = new Set<string>()
     void socket.join(`user:${ctx.userId}`)
     for (const spaceId of Object.keys(ctx.principals.spaceRoles)) {
       void socket.join(`space:${spaceId}`)
@@ -96,6 +101,7 @@ export function startRealtime(app: FastifyInstance, deps: RealtimeDeps): SocketS
     socket.on('presence.view', async (payload: { objectId?: string }) => {
       if (!payload?.objectId) return
       if (!(await canJoin(ctx, `object:${payload.objectId}`))) return
+      viewed.add(payload.objectId)
       await redis().hset(
         cacheKeys.presence(payload.objectId),
         ctx.userId,
@@ -115,7 +121,10 @@ export function startRealtime(app: FastifyInstance, deps: RealtimeDeps): SocketS
 
     socket.on('typing', (payload: { conversationId?: string }) => {
       if (!payload?.conversationId) return
-      socket.to(`conversation:${payload.conversationId}`).emit('typing', {
+      // Писать в комнату может только тот, кого в неё впустили после проверки прав
+      const room = `conversation:${payload.conversationId}`
+      if (!socket.rooms.has(room)) return
+      socket.to(room).emit('typing', {
         conversationId: payload.conversationId,
         userId: ctx.userId,
         displayName: ctx.displayName,
@@ -123,7 +132,7 @@ export function startRealtime(app: FastifyInstance, deps: RealtimeDeps): SocketS
     })
 
     socket.on('disconnect', () => {
-      void cleanupPresence(ctx.userId)
+      void cleanupPresence(ctx.userId, viewed)
     })
   })
 
@@ -143,9 +152,12 @@ export function startRealtime(app: FastifyInstance, deps: RealtimeDeps): SocketS
   return io
 }
 
-async function canJoin(ctx: UserCtx, room: string): Promise<boolean> {
+/** Проверка входа в комнату (16-api-and-events.md §3); экспортирована для тестов доступа. */
+export async function canJoin(ctx: UserCtx, room: string): Promise<boolean> {
   const [kind, id] = room.split(':')
   if (!kind || !id) return false
+  // Идентификаторы комнат — UUID; остальное отклоняем до обращения к базе
+  if (kind !== 'user' && !UUID_RE.test(id)) return false
   switch (kind) {
     case 'user':
       return id === ctx.userId
@@ -156,16 +168,19 @@ async function canJoin(ctx: UserCtx, room: string): Promise<boolean> {
       const decision = await authorize(ctx, 'view', id, { soft: true })
       return decision.allowed
     }
-    case 'job':
-      return true
+    case 'job': {
+      // Прогресс и сообщения задания видит только инициатор (и администратор)
+      if (ctx.isSystemAdmin) return true
+      const job = await JobService.get(id).catch(() => null)
+      return Boolean(job && job.initiatorId === ctx.userId)
+    }
     default:
       return false
   }
 }
 
-async function cleanupPresence(userId: string): Promise<void> {
-  const keys = await redis().keys('kchs:presence:*')
-  for (const key of keys) await redis().hdel(key, userId)
+async function cleanupPresence(userId: string, objectIds: Set<string>): Promise<void> {
+  for (const objectId of objectIds) await redis().hdel(cacheKeys.presence(objectId), userId)
 }
 
 /** Отправка сообщения в комнату — используется подписчиками событий. */
