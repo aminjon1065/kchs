@@ -257,13 +257,15 @@ export const SchemaService = {
     }
     await tx.delete(datasetFields).where(eq(datasetFields.id, field.id))
     await Physical.dropColumn(tx, locked.table, field.physical)
-    await tx
-      .update(datasets)
-      .set({
-        ...(locked.timeField === key ? { timeField: null } : {}),
-        ...(locked.territoryField === key ? { territoryField: null } : {}),
-      })
-      .where(eq(datasets.id, datasetId))
+    if (locked.timeField === key || locked.territoryField === key) {
+      await tx
+        .update(datasets)
+        .set({
+          ...(locked.timeField === key ? { timeField: null } : {}),
+          ...(locked.territoryField === key ? { territoryField: null } : {}),
+        })
+        .where(eq(datasets.id, datasetId))
+    }
     await setFieldCount(tx, datasetId, locked.fields.length - 1)
     await schemaChanged(tx, ctx, {
       datasetId,

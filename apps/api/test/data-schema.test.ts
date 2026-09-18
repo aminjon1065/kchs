@@ -236,6 +236,15 @@ describe('поля: добавление, описание, удаление', (
            WHERE table_schema = 'ds' AND table_name = ${table} AND column_name = ${column.day}`,
     )
     expect(columns).toHaveLength(0)
+
+    // Обычное поле (не время и не территория) — тоже удаляется
+    const plain = await call(fx.app, {
+      method: 'DELETE',
+      url: `/datasets/${id}/fields/amount`,
+      as: fx.admin,
+    })
+    expect(plain.statusCode, plain.body).toBe(200)
+    expect(plain.json().fields.map((field: { key: string }) => field.key)).toEqual(['code'])
   })
 })
 
