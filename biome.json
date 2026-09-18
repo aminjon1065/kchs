@@ -14,6 +14,7 @@
       "!**/.turbo",
       "!**/storybook-static",
       "!**/drizzle/**/*.sql",
+      "!**/drizzle/meta",
       "!**/routeTree.gen.ts",
       "!**/*.gen.ts",
       "!apps/engine",
@@ -22,7 +23,8 @@
       "!apps/web/public",
       "!apps/web/playwright-report",
       "!apps/web/test-results",
-      "!apps/web/e2e/.auth"
+      "!apps/web/e2e/.auth",
+      "!.claude"
     ]
   },
   "formatter": {

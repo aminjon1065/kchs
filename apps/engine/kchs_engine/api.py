@@ -53,3 +53,25 @@ async def report_failure(job_id: str, error: str, *, final: bool = True) -> None
         f"/api/v1/internal/jobs/{job_id}/status",
         {"status": "failed", "error": error[:4000], "final": final},
     )
+
+
+async def _post_strict(path: str, payload: dict[str, Any]) -> dict[str, Any]:
+    """Отчёт, без которого задание не завершено: ошибка api → повтор задания."""
+    config = settings()
+    if not config.INTERNAL_SERVICE_TOKEN:
+        raise RuntimeError("INTERNAL_SERVICE_TOKEN не задан: движок не может сообщить результат")
+    timeout = httpx.Timeout(60.0)
+    async with httpx.AsyncClient(base_url=config.KCHS_API_URL, timeout=timeout) as client:
+        response = await client.post(
+            path,
+            json=payload,
+            headers={"x-kchs-service-token": config.INTERNAL_SERVICE_TOKEN},
+        )
+    if response.status_code >= 400:
+        raise RuntimeError(f"api {path}: {response.status_code} {response.text[:500]}")
+    data: dict[str, Any] = response.json()
+    return data
+
+
+async def report_file_processed(file_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    return await _post_strict(f"/api/v1/internal/files/{file_id}/processed", payload)

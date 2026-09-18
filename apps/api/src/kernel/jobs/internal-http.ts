@@ -1,8 +1,7 @@
-import { timingSafeEqual } from 'node:crypto'
 import { z } from 'zod'
-import { config } from '~/shared/config/index.js'
 import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
+import { validServiceToken } from '~/shared/http/service-token.js'
 import { JobService } from './service.js'
 
 /**
@@ -55,13 +54,4 @@ export function registerInternalJobRoutes(route: RouteRegistrar): void {
       return { ok: true }
     },
   })
-}
-
-/** Сравнение за постоянное время: по времени ответа токен не подобрать. */
-export function validServiceToken(provided: string | string[] | undefined): boolean {
-  const expected = config().INTERNAL_SERVICE_TOKEN
-  if (!expected || typeof provided !== 'string') return false
-  const a = Buffer.from(provided)
-  const b = Buffer.from(expected)
-  return a.length === b.length && timingSafeEqual(a, b)
 }

@@ -12,6 +12,7 @@ from kchs_engine.jobs import JOB_HANDLERS, registered_queues
 
 # Обработчики регистрируются импортом модулей
 from kchs_engine.jobs import echo as _echo  # noqa: F401
+from kchs_engine.jobs import files as _files  # noqa: F401
 from kchs_engine.logging import log
 
 Processor = Callable[[Job, str], Awaitable[dict[str, Any]]]
@@ -32,7 +33,7 @@ def _make_processor(queue: str) -> Processor:
 
         try:
             result = await job_handler(job.data)
-        except Exception as error:  # noqa: BLE001 — статус задания фиксируется в реестре
+        except Exception as error:  # статус задания фиксируется в реестре
             final = is_final_attempt(job)
             log.error(
                 "job.failed",

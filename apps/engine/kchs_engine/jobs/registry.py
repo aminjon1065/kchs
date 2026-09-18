@@ -22,7 +22,9 @@ def handler(queue: str, name: str) -> Callable[[JobHandler], JobHandler]:
         if queue not in engine_queues():
             # BullMQ отдаёт задание любому потребителю очереди: чужая очередь
             # означала бы перехват заданий TypeScript-воркера (ADR-0035)
-            raise ValueError(f"Очередь {queue} исполняет TypeScript-воркер, обработчик {key} недопустим")
+            raise ValueError(
+                f"Очередь {queue} исполняет TypeScript-воркер, обработчик {key} недопустим"
+            )
         if key in JOB_HANDLERS:
             raise ValueError(f"Обработчик задания {key} уже зарегистрирован")
         JOB_HANDLERS[key] = func

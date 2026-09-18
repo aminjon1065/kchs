@@ -1,4 +1,6 @@
 import {
+  FilePreviews,
+  FileProcessedInput,
   FileRecord,
   FileVersion,
   FolderCreateInput,
@@ -10,12 +12,17 @@ import {
 import { eq, inArray } from 'drizzle-orm'
 import { z } from 'zod'
 import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
+import { registerSubscriber } from '~/kernel/events/bus.js'
+import { registerJobHandler } from '~/kernel/jobs/runner.js'
+import { JobService, queue } from '~/kernel/jobs/service.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
 import { db } from '~/shared/db/client.js'
 import { files, objects } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
+import { validServiceToken } from '~/shared/http/service-token.js'
 import { FileService } from './domain/file-service.js'
+import { FileProcessing } from './domain/processing.js'
 
 const IdParam = z.object({ id: z.uuid() })
 
@@ -230,6 +237,36 @@ export function registerFilesRoutes(route: RouteRegistrar): void {
   })
 
   route({
+    method: 'GET',
+    url: '/files/:id/previews',
+    auth: { action: 'view' },
+    tags: ['files'],
+    summary: 'Превью текущей версии файла',
+    schema: { params: IdParam, response: { 200: FilePreviews } },
+    handler: async (request) => FileProcessing.previews(request.params.id),
+  })
+
+  route({
+    method: 'POST',
+    url: '/internal/files/:id/processed',
+    auth: 'public',
+    tags: ['internal'],
+    summary: 'Движок сообщает превью и текст версии файла',
+    schema: {
+      params: IdParam,
+      body: FileProcessedInput,
+      response: { 200: z.object({ ok: z.boolean(), stale: z.boolean() }) },
+    },
+    handler: async (request) => {
+      if (!validServiceToken(request.headers['x-kchs-service-token'])) {
+        throw errors.unauthorized('Недействительный сервисный токен')
+      }
+      const { stale } = await FileProcessing.applyResult(request.params.id, request.body)
+      return { ok: true, stale }
+    },
+  })
+
+  route({
     method: 'POST',
     url: '/folders',
     auth: 'session',
@@ -242,4 +279,36 @@ export function registerFilesRoutes(route: RouteRegistrar): void {
       return db().transaction((tx) => FileService.createFolder(tx, request.ctx, request.body))
     },
   })
+}
+
+/** Фоновая часть модуля: досылка необработанных файлов и реакция на сбой обработки. */
+export function registerFilesBackground(): void {
+  registerJobHandler({
+    queue: 'maintenance',
+    name: 'files.process-pending',
+    concurrency: 1,
+    handle: async () => ({ scheduled: await FileProcessing.schedulePending(100) }),
+  })
+
+  // Окончательный сбой движка: файл не должен навсегда оставаться «в очереди»
+  registerSubscriber({
+    name: 'files-processing-failed',
+    types: ['job.failed'],
+    handle: async (event) => {
+      const job = await JobService.get(event.payload.jobId as string)
+      if (job?.name !== 'file.process' || !job.objectId) return
+      await db()
+        .update(files)
+        .set({ previewStatus: 'failed', textStatus: 'failed' })
+        .where(eq(files.id, job.objectId))
+    },
+  })
+}
+
+export async function scheduleFilesJobs(): Promise<void> {
+  await queue('maintenance').add(
+    'files.process-pending',
+    {},
+    { repeat: { pattern: '*/10 * * * *' }, jobId: 'cron:files.process-pending' },
+  )
 }

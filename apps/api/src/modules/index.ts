@@ -5,7 +5,12 @@ import { listObjectTypes } from '~/kernel/objects/registry.js'
 import { registerKernelRoutes } from '~/kernel/routes.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { registerAdminRoutes } from './admin/module.js'
-import { registerFilesObjectTypes, registerFilesRoutes } from './files/module.js'
+import {
+  registerFilesBackground,
+  registerFilesObjectTypes,
+  registerFilesRoutes,
+  scheduleFilesJobs,
+} from './files/module.js'
 import { registerIdentityRoutes } from './identity/module.js'
 import { OrgService, UserService } from './identity/public.js'
 
@@ -40,4 +45,13 @@ export async function registerModules(app: FastifyInstance, route: RouteRegistra
   registerFilesRoutes(route)
   registerAdminRoutes(route)
   app.log.debug('модули зарегистрированы')
+}
+
+/** Подписчики событий и обработчики заданий модулей — только в роли worker. */
+export function registerModulesBackground(): void {
+  registerFilesBackground()
+}
+
+export async function scheduleModuleJobs(): Promise<void> {
+  await scheduleFilesJobs()
 }

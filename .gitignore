@@ -19,3 +19,5 @@ apps/engine/.ruff_cache/
 infra/compose/.data/
 infra/compose/.env
 seeds/.cache/
+# Рабочие копии и служебные файлы агентов разработки
+.claude/

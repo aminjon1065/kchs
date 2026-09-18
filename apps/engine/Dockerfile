@@ -13,9 +13,9 @@ RUN set -eux; \
         gdal-bin libgdal-dev \
         libgeos-dev libproj-dev \
         ffmpeg \
-        tesseract-ocr tesseract-ocr-rus tesseract-ocr-eng \
+        tesseract-ocr tesseract-ocr-rus tesseract-ocr-eng tesseract-ocr-tgk \
         poppler-utils \
-        libreoffice-core libreoffice-writer libreoffice-calc \
+        libreoffice-core libreoffice-writer libreoffice-calc libreoffice-impress \
         fonts-dejavu fonts-liberation; \
     rm -rf /var/lib/apt/lists/*
 

@@ -29,7 +29,14 @@ export function registerKernelSubscribers(): void {
 
   registerSubscriber({
     name: 'kernel-realtime',
-    types: ['object.*', 'message.*', 'acl.changed', 'inbox.*'],
+    types: [
+      'object.*',
+      'message.*',
+      'acl.changed',
+      'inbox.*',
+      'file.previewed',
+      'file.text_extracted',
+    ],
     handle: async (event) => {
       if (!event.object) return
       switch (event.type) {
@@ -42,6 +49,17 @@ export function registerKernelSubscribers(): void {
             type: event.object.type,
             version: 0,
             changedFields: event.changedFields,
+            actorId: event.actor.userId,
+          })
+          break
+        case 'file.previewed':
+        case 'file.text_extracted':
+          // Открытая вкладка файла перечитывает превью без перезагрузки
+          emitToRoom(`object:${event.object.id}`, 'object.updated', {
+            id: event.object.id,
+            type: event.object.type,
+            version: 0,
+            changedFields: [event.type === 'file.previewed' ? 'preview' : 'text'],
             actorId: event.actor.userId,
           })
           break

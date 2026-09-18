@@ -105,3 +105,56 @@ export const FolderCreateInput = z.object({
   parentId: Uuid.nullable().optional(),
 })
 export type FolderCreateInput = z.infer<typeof FolderCreateInput>
+
+/** Превью страницы или миниатюра, сформированные движком (09-files.md §3). */
+export const FilePreviewKind = z.enum(['thumbnail', 'page', 'web'])
+export type FilePreviewKind = z.infer<typeof FilePreviewKind>
+
+export const FilePreview = z.object({
+  kind: FilePreviewKind,
+  page: z.number().int().nullable(),
+  width: z.number().int().nullable(),
+  height: z.number().int().nullable(),
+  mime: z.string(),
+  /** Подписанная ссылка с коротким сроком жизни. */
+  url: z.string(),
+})
+export type FilePreview = z.infer<typeof FilePreview>
+
+export const FilePreviews = z.object({
+  previewStatus: PreviewStatus,
+  textStatus: PreviewStatus,
+  /** Число страниц документа (PDF и офисные форматы), если известно. */
+  pages: z.number().int().nullable(),
+  items: z.array(FilePreview),
+})
+export type FilePreviews = z.infer<typeof FilePreviews>
+
+/**
+ * Результат обработки версии файла движком: превью уже лежат в бакете превью,
+ * метаданные и текст записывает api (движок не пишет в базу напрямую).
+ */
+export const FileProcessedInput = z.object({
+  versionId: Uuid,
+  previewStatus: z.enum(['ready', 'failed', 'unsupported']),
+  textStatus: z.enum(['ready', 'failed', 'unsupported']),
+  pages: z.number().int().min(0).nullable().default(null),
+  previews: z
+    .array(
+      z.object({
+        kind: FilePreviewKind,
+        page: z.number().int().min(1).nullable().default(null),
+        storageKey: z.string().min(1).max(1024),
+        width: z.number().int().nullable().default(null),
+        height: z.number().int().nullable().default(null),
+        mime: z.string().max(100).default('image/webp'),
+      }),
+    )
+    .max(500)
+    .default([]),
+  /** Извлечённый текст; ограничен, чтобы не раздувать базу и индекс. */
+  text: z.string().max(2_000_000).nullable().default(null),
+  lang: z.string().max(32).nullable().default(null),
+  error: z.string().max(4000).nullable().default(null),
+})
+export type FileProcessedInput = z.infer<typeof FileProcessedInput>

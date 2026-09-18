@@ -24,6 +24,7 @@ import {
 } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
+import { FileProcessing } from './processing.js'
 
 const SINGLE_PUT_LIMIT = 8 * 1024 * 1024
 const SESSION_TTL_HOURS = 24
@@ -47,6 +48,8 @@ export const FileService = {
         spaceId: input.spaceId,
         folderId: input.folderId ?? null,
         fileId: input.fileId ?? null,
+        plannedFileId: fileId,
+        plannedVersionId: versionId,
         attachToObjectId: input.attachToObjectId ?? null,
         name: input.name,
         mime: input.mime,
@@ -95,7 +98,8 @@ export const FileService = {
     const checksum = head.ETag?.replace(/"/g, '') ?? null
 
     const fileId = await db().transaction(async (tx) => {
-      const versionId = newId()
+      // Те же идентификаторы, что в ключе хранения: путь в S3 указывает на объект и версию
+      const versionId = session.plannedVersionId ?? newId()
 
       if (session.fileId) {
         // Новая версия существующего файла
@@ -149,10 +153,19 @@ export const FileService = {
           },
           payload: { versionId, number: existing.versionNumber + 1 },
         })
+        await FileProcessing.schedule(tx, ctx, {
+          fileId: session.fileId,
+          spaceId: session.spaceId,
+          versionId,
+          storageKey: session.storageKey,
+          mime: session.mime,
+          name: existing.name,
+        })
         return session.fileId
       }
 
       const object = await ObjectService.create(tx, ctx, {
+        ...(session.plannedFileId ? { id: session.plannedFileId } : {}),
         type: 'file',
         spaceId: session.spaceId,
         parentId: session.folderId,
@@ -190,6 +203,14 @@ export const FileService = {
         type: 'file.uploaded',
         object: { id: object.id, type: 'file', spaceId: session.spaceId, title: session.name },
         payload: { name: session.name, size, mime: session.mime },
+      })
+      await FileProcessing.schedule(tx, ctx, {
+        fileId: object.id,
+        spaceId: session.spaceId,
+        versionId,
+        storageKey: session.storageKey,
+        mime: session.mime,
+        name: session.name,
       })
 
       if (session.attachToObjectId) {
@@ -352,6 +373,8 @@ export const FileService = {
         size: version.size,
         mime: version.mime,
         checksum: version.checksum,
+        previewStatus: 'queued',
+        textStatus: 'queued',
         updatedAt: sql`now()`,
       })
       .where(eq(files.id, fileId))
@@ -360,6 +383,19 @@ export const FileService = {
       type: 'file.version_added',
       object: { id: fileId, type: 'file', title: file.name },
       payload: { versionId: newVersionId, number: file.versionNumber + 1 },
+    })
+    const [object] = await tx
+      .select({ spaceId: objects.spaceId })
+      .from(objects)
+      .where(eq(objects.id, fileId))
+      .limit(1)
+    await FileProcessing.schedule(tx, ctx, {
+      fileId,
+      spaceId: object?.spaceId ?? null,
+      versionId: newVersionId,
+      storageKey: version.storageKey,
+      mime: version.mime,
+      name: file.name,
     })
   },
 

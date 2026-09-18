@@ -66,6 +66,8 @@ export const filePreviews = pgTable(
     fileId: uuid('file_id')
       .notNull()
       .references(() => files.id, { onDelete: 'cascade' }),
+    /** Версия, из которой построено превью: при новой версии старые заменяются. */
+    versionId: uuid('version_id'),
     kind: text('kind').notNull(),
     page: integer('page'),
     storageKey: text('storage_key').notNull(),
@@ -108,6 +110,9 @@ export const uploadSessions = pgTable(
     spaceId: uuid('space_id').notNull(),
     folderId: uuid('folder_id'),
     fileId: uuid('file_id'),
+    /** Идентификаторы, выданные клиенту при создании сессии: они же в ключе хранения. */
+    plannedFileId: uuid('planned_file_id'),
+    plannedVersionId: uuid('planned_version_id'),
     attachToObjectId: uuid('attach_to_object_id'),
     name: text('name').notNull(),
     mime: text('mime').notNull(),

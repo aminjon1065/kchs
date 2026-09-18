@@ -12,6 +12,7 @@ import { startWorkers, stopWorkers } from './kernel/jobs/runner.js'
 import { startRealtime, stopRealtime } from './kernel/realtime/gateway.js'
 import { registerKernelSubscribers } from './kernel/subscribers.js'
 import { AuthService } from './modules/identity/public.js'
+import { registerModulesBackground, scheduleModuleJobs } from './modules/index.js'
 import { config } from './shared/config/index.js'
 import { closeDb, closeQueryRole } from './shared/db/client.js'
 import { runMigrations } from './shared/db/migrate.js'
@@ -29,6 +30,7 @@ async function main(): Promise<void> {
 
   registerKernelSubscribers()
   registerMaintenanceJobs()
+  registerModulesBackground()
 
   const runsApi = env.ROLE === 'api' || env.ROLE === 'all'
   const runsWorker = env.ROLE === 'worker' || env.ROLE === 'all'
@@ -51,6 +53,7 @@ async function main(): Promise<void> {
     startConsumers()
     startWorkers()
     await scheduleMaintenance()
+    await scheduleModuleJobs()
     log.info('kchs worker запущен')
   }
 
