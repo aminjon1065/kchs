@@ -1060,6 +1060,13 @@ export const en: DeepPartial<Dictionary> = {
       },
       active: 'Active',
       stop: 'End',
+      none: 'No delegations',
+      assign: 'Assign',
+      from: 'From',
+      until: 'Until',
+      note: 'Comment',
+      created: '{name} is now your deputy',
+      stopped: 'Delegation ended',
     },
     audit: {
       export: 'Export CSV',

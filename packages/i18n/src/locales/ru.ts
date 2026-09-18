@@ -1084,6 +1084,13 @@ export const ru = {
       },
       active: 'Действует',
       stop: 'Завершить',
+      none: 'Замещений нет',
+      assign: 'Назначить',
+      from: 'С',
+      until: 'По',
+      note: 'Комментарий',
+      created: '{name} замещает вас',
+      stopped: 'Замещение завершено',
     },
     audit: {
       export: 'Экспорт CSV',

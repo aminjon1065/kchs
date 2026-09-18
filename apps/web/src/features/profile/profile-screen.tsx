@@ -18,7 +18,8 @@ import { useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { ApiError, http, setCsrfToken } from '~/shared/api/client.js'
-import { delegationsQuery, keys, meQuery } from '~/shared/api/queries.js'
+import { keys, meQuery } from '~/shared/api/queries.js'
+import { DelegationCard } from './delegation-card.js'
 import { MfaCard } from './mfa-card.js'
 
 export function ProfileScreen() {
@@ -29,7 +30,6 @@ export function ProfileScreen() {
   const appearance = useAppearance()
 
   const { data: me, isLoading } = useQuery(meQuery())
-  const { data: delegations = [] } = useQuery(delegationsQuery())
   const { data: sessions } = useQuery({
     queryKey: ['me', 'sessions'],
     queryFn: () => http.get<{ items: SessionInfo[] }>('/me/sessions'),
@@ -246,28 +246,7 @@ export function ProfileScreen() {
           </ul>
         </Card>
 
-        {delegations.length > 0 ? (
-          <Card title={t('admin.delegation.title')} padded={false}>
-            <ul className="divide-y divide-line">
-              {delegations.map((delegation) => (
-                <li key={delegation.id} className="flex items-center gap-3 px-4 py-2.5 text-sm">
-                  <Avatar name={delegation.toUser.displayName} size="sm" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate">
-                      {delegation.fromUser.displayName} → {delegation.toUser.displayName}
-                    </span>
-                    <span className="block text-xs text-fg-muted">
-                      {t(`admin.delegation.scopes.${delegation.scope}`)}
-                    </span>
-                  </span>
-                  <Badge tone="warning" size="sm">
-                    {t('admin.delegation.active')}
-                  </Badge>
-                </li>
-              ))}
-            </ul>
-          </Card>
-        ) : null}
+        <DelegationCard />
       </div>
     </div>
   )
