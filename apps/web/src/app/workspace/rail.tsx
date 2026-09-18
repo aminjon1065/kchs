@@ -159,7 +159,7 @@ export function Rail({ onOpenPalette }: { onOpenPalette: () => void }) {
           <button
             type="button"
             onClick={() => open({ key: 'profile', icon: Settings, labelKey: 'shell.rail.profile' })}
-            className="mt-1 rounded-full focus-visible:ring-0"
+            className="mt-1 rounded-full"
             aria-label={me.user.displayName}
           >
             <Avatar name={me.user.displayName} src={me.user.avatarUrl} size="md" />
@@ -210,8 +210,8 @@ function RailButton({
           <span
             className={cn(
               'tabular absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center',
-              'rounded-full px-1 text-2xs font-semibold text-white',
-              badgeTone === 'danger' ? 'bg-danger' : 'bg-accent',
+              'rounded-full px-1 text-2xs font-semibold',
+              badgeTone === 'danger' ? 'bg-danger text-danger-fg' : 'bg-accent text-accent-fg',
             )}
           >
             {badge > 99 ? '99+' : badge}

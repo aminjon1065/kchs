@@ -67,12 +67,24 @@
 }
 
 /* Кольцо фокуса — вне слоёв: единое для всех контролов, утилиты его не снимают */
-:focus-visible {
+:focus-visible,
+[data-field]:has(> input:focus-visible) {
   outline: none;
   box-shadow:
     0 0 0 2px var(--bg-surface),
     0 0 0 4px var(--accent-ring);
-  border-radius: var(--radius-sm);
+}
+
+/* Скругление кольца — в слое base: собственная форма (rounded-full у аватара, переключателя) важнее */
+@layer base {
+  :focus-visible {
+    border-radius: var(--radius-sm);
+  }
+}
+
+/* Составное поле (префикс, чипы тегов): кольцо на рамке поля, не на внутреннем input */
+[data-field] > input:focus-visible {
+  box-shadow: none;
 }
 
 /* Числа в таблицах и показателях — моноширинные цифры, выравнивание вправо */

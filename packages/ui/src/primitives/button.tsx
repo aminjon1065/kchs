@@ -1,4 +1,4 @@
-import { Slot } from '@radix-ui/react-slot'
+import { Slot, Slottable } from '@radix-ui/react-slot'
 import { cva, type VariantProps } from 'class-variance-authority'
 import { Loader2 } from 'lucide-react'
 import { type ButtonHTMLAttributes, forwardRef, type ReactNode } from 'react'
@@ -9,7 +9,6 @@ export const buttonVariants = cva(
     'inline-flex items-center justify-center gap-2 shrink-0 select-none whitespace-nowrap',
     'rounded-sm border font-medium',
     'transition-colors duration-[var(--duration-fast)] ease-standard',
-    'focus-visible:outline-none focus-visible:ring-0',
     'disabled:pointer-events-none disabled:opacity-45',
   ],
   {
@@ -71,7 +70,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       {...props}
     >
       {loading ? <Loader2 aria-hidden className="size-4 animate-spin-fast" /> : icon}
-      {children}
+      {/* asChild: иконки встают внутрь дочернего элемента (ссылки), а не рядом с ним */}
+      {asChild ? <Slottable>{children}</Slottable> : children}
       {iconRight}
     </Component>
   )

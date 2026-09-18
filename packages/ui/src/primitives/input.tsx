@@ -52,6 +52,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
 
   return (
     <div
+      data-field
       className={cn(
         fieldBase,
         'flex h-[var(--control-h)] items-center gap-1.5 px-2.5 focus-within:border-accent',
