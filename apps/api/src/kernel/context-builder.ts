@@ -6,13 +6,14 @@ import { db } from '~/shared/db/client.js'
 import { users } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { getPrincipalSet, loadCapabilities } from './access/principal-set.js'
+import { SecurityPolicyService } from './settings/security-policy.js'
 
 /**
  * Собирает контекст пользователя для запроса: принципалы из кэша,
  * способности из ролей, атрибуты для атрибутных ограничений.
  */
 export async function buildUserCtx(
-  session: { sessionId: string; userId: string; onBehalfOf: string | null },
+  session: { sessionId: string; userId: string; onBehalfOf: string | null; mfaEnrolled: boolean },
   request: FastifyRequest,
 ): Promise<UserCtx> {
   const [user] = await db()
@@ -34,6 +35,7 @@ export async function buildUserCtx(
 
   const principals = await getPrincipalSet(user.id)
   const capabilities = await loadCapabilities(principals.roleKeys)
+  const policy = await SecurityPolicyService.current()
 
   // Режим «от имени»: только в пределах активного замещения (03-access-model.md §Делегирование)
   const header = request.headers['x-kchs-on-behalf-of']
@@ -64,5 +66,7 @@ export async function buildUserCtx(
     userAgent: (request.headers['user-agent'] as string | undefined) ?? null,
     attributes: user.attributes,
     mustChangePassword: user.mustChangePassword,
+    mfaEnrollmentRequired:
+      !session.mfaEnrolled && SecurityPolicyService.requiresMfa(policy, principals.roleKeys),
   }
 }

@@ -49,6 +49,8 @@ export interface RouteDefinition<
   rateLimit?: { max: number; timeWindow: string }
   /** Маршрут доступен, пока пользователь не сменил временный пароль. */
   allowPendingPasswordChange?: boolean
+  /** Маршрут доступен, пока пользователь не подключил обязательный по политике второй фактор. */
+  allowPendingMfaEnrollment?: boolean
   handler: (
     request: FastifyRequest<{
       Params: z.infer<Params>
@@ -96,6 +98,7 @@ export function routeRegistrar(app: FastifyInstance): RouteRegistrar {
         auth: definition.auth,
         ...(definition.rateLimit ? { rateLimit: definition.rateLimit } : {}),
         ...(definition.allowPendingPasswordChange ? { allowPendingPasswordChange: true } : {}),
+        ...(definition.allowPendingMfaEnrollment ? { allowPendingMfaEnrollment: true } : {}),
       },
       handler: definition.handler as never,
     })

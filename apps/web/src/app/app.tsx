@@ -2,10 +2,16 @@ import { Spinner } from '@kchs/ui'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { LoginScreen } from '~/features/auth/login-screen.js'
+import { MfaEnrollmentScreen } from '~/features/auth/mfa-enrollment-screen.js'
 import { PasswordChangeScreen } from '~/features/auth/password-change-screen.js'
 import { GuestShareScreen } from '~/features/share/guest-screen.js'
-import { ApiError, setCsrfToken, setUnauthorizedHandler } from '~/shared/api/client.js'
-import { meQuery } from '~/shared/api/queries.js'
+import {
+  ApiError,
+  setCsrfToken,
+  setSetupRequiredHandler,
+  setUnauthorizedHandler,
+} from '~/shared/api/client.js'
+import { keys, meQuery } from '~/shared/api/queries.js'
 import { initAppearance } from './appearance.js'
 import { useT } from './i18n.js'
 import { registerModules } from './modules.js'
@@ -32,7 +38,11 @@ export function App() {
       setSignedOut(true)
       client.clear()
     })
-    return () => setUnauthorizedHandler(null)
+    setSetupRequiredHandler(() => void client.invalidateQueries({ queryKey: keys.me }))
+    return () => {
+      setUnauthorizedHandler(null)
+      setSetupRequiredHandler(null)
+    }
   }, [client])
 
   const {
@@ -73,6 +83,8 @@ export function App() {
 
   // Вход по временному паролю: до смены пароля оболочка недоступна
   if (me.mustChangePassword) return <PasswordChangeScreen />
+  // Политика требует второй фактор для роли: до подключения оболочка недоступна
+  if (me.mfaEnrollmentRequired) return <MfaEnrollmentScreen />
 
   return <WorkspaceShell />
 }

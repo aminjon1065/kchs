@@ -26,7 +26,33 @@ export interface RealtimeDeps {
     sessionId: string
     userId: string
     onBehalfOf: string | null
+    mfaEnrolled: boolean
   } | null>
+}
+
+class SocketRefused extends Error {
+  constructor(readonly reason: 'unauthorized' | 'setup_required') {
+    super(reason)
+  }
+}
+
+/**
+ * Проверка подключения к шлюзу: сессия из cookie и завершённая настройка входа.
+ * Пока не сменён временный пароль или не подключён обязательный второй фактор,
+ * пользователю доступен только профиль — событий объектов он тоже не получает.
+ */
+export async function authenticateSocket(
+  cookieHeader: string,
+  meta: { id: string; ip: string; headers: Record<string, unknown> },
+  deps: RealtimeDeps,
+): Promise<UserCtx> {
+  const token = parseCookies(cookieHeader)[config().SESSION_COOKIE_NAME]
+  if (!token) throw new SocketRefused('unauthorized')
+  const session = await deps.resolveSession(token)
+  if (!session) throw new SocketRefused('unauthorized')
+  const ctx = await buildUserCtx(session, meta as never)
+  if (ctx.mustChangePassword || ctx.mfaEnrollmentRequired) throw new SocketRefused('setup_required')
+  return ctx
 }
 
 /**
@@ -51,23 +77,15 @@ export function startRealtime(app: FastifyInstance, deps: RealtimeDeps): SocketS
 
   io.use(async (socket, next) => {
     try {
-      const cookies = parseCookies(socket.handshake.headers.cookie ?? '')
-      const token = cookies[env.SESSION_COOKIE_NAME]
-      if (!token) return next(new Error('unauthorized'))
-
-      const session = await deps.resolveSession(token)
-      if (!session) return next(new Error('unauthorized'))
-
-      const ctx = await buildUserCtx(session, {
-        id: socket.id,
-        ip: socket.handshake.address,
-        headers: socket.handshake.headers,
-      } as never)
-      ;(socket.data as SocketData).ctx = ctx
+      ;(socket.data as SocketData).ctx = await authenticateSocket(
+        socket.handshake.headers.cookie ?? '',
+        { id: socket.id, ip: socket.handshake.address, headers: socket.handshake.headers },
+        deps,
+      )
       next()
     } catch (error) {
       log.warn({ err: error }, 'отклонено подключение realtime')
-      next(new Error('unauthorized'))
+      next(new Error(error instanceof SocketRefused ? error.reason : 'unauthorized'))
     }
   })
 

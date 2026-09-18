@@ -18,6 +18,7 @@ export const ERROR_CODES = [
   'service_unavailable',
   'mfa_required',
   'password_change_required',
+  'mfa_enrollment_required',
 ] as const
 
 export const ErrorCode = z.enum(ERROR_CODES)

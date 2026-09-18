@@ -3,6 +3,7 @@ import { authenticator } from 'otplib'
 import { invalidatePrincipalSet } from '~/kernel/access/principal-set.js'
 import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
+import { SecurityPolicyService } from '~/kernel/settings/security-policy.js'
 import { config } from '~/shared/config/index.js'
 import { systemCtx, type UserCtx } from '~/shared/context.js'
 import { checkPasswordPolicy, hashPassword, verifyPassword } from '~/shared/crypto/password.js'
@@ -354,6 +355,8 @@ export const AuthService = {
     csrfToken: string
     expiresAt: string
     onBehalfOf: string | null
+    /** Второй фактор подключён — для проверки политики `requireMfaRoles`. */
+    mfaEnrolled: boolean
   } | null> {
     const env = config()
     const [row] = await db()
@@ -365,7 +368,9 @@ export const AuthService = {
     if (!row) return null
     if (new Date(row.expiresAt) < new Date()) return null
 
-    const idleLimitMs = env.SESSION_IDLE_HOURS * 3_600_000
+    // Простой сессии — из политики безопасности, иначе из конфигурации сервера
+    const policy = await SecurityPolicyService.current()
+    const idleLimitMs = (policy.sessionIdleHours ?? env.SESSION_IDLE_HOURS) * 3_600_000
     if (Date.now() - new Date(row.lastActiveAt).getTime() > idleLimitMs) {
       await db().update(sessions).set({ revokedAt: sql`now()` }).where(eq(sessions.id, row.id))
       return null
@@ -377,6 +382,9 @@ export const AuthService = {
       csrfToken: row.csrfToken,
       expiresAt: row.expiresAt,
       onBehalfOf: row.onBehalfOf,
+      // Отдельным запросом: коррелированный подзапрос в списке select drizzle
+      // выводит без имён таблиц, и условие вырождается в user_id = user_id
+      mfaEnrolled: await AuthService.mfaEnabled(row.userId),
     }
   },
 
@@ -459,7 +467,7 @@ export const AuthService = {
         { path: 'currentPassword', message: 'Текущий пароль неверен' },
       ])
     }
-    await AuthService.setPassword(ctx.userId, newPassword, ctx.displayName)
+    await AuthService.setPassword(ctx.userId, newPassword)
     if (revokeOthers) await AuthService.revokeAllExcept(ctx.userId, ctx.sessionId)
 
     await audit(ctx, {
@@ -476,14 +484,21 @@ export const AuthService = {
     })
   },
 
-  /** `tx` обязателен, когда пользователь создаётся в той же транзакции. */
+  /**
+   * `tx` обязателен, когда пользователь создаётся в той же транзакции.
+   * Логин для проверки «пароль не содержит логин» берётся из учётной записи,
+   * если его не передали (смена пароля, восстановление по ссылке).
+   */
   async setPassword(
     userId: string,
     password: string,
     login?: string,
     tx: Executor = db(),
   ): Promise<void> {
-    const policy = checkPasswordPolicy(password, login)
+    const [owner] = login
+      ? [{ login }]
+      : await tx.select({ login: users.login }).from(users).where(eq(users.id, userId)).limit(1)
+    const policy = checkPasswordPolicy(password, owner?.login)
     if (!policy.ok) {
       throw errors.validation('Пароль не соответствует политике', [
         { path: 'newPassword', message: policy.messageKey ?? 'auth.password.tooSimple' },
@@ -591,7 +606,8 @@ export const AuthService = {
   // ── MFA ───────────────────────────────────────────────────────────────────
 
   async startMfaSetup(ctx: UserCtx): Promise<{ secret: string; otpauthUrl: string }> {
-    const secret = authenticator.generateSecret()
+    // 160 бит: RFC 4226 §4 требует не меньше 128 и рекомендует 160 (у otplib по умолчанию 80)
+    const secret = authenticator.generateSecret(20)
     const issuer = 'kchs'
     const otpauthUrl = authenticator.keyuri(ctx.displayName || ctx.userId, issuer, secret)
 

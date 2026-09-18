@@ -124,3 +124,15 @@ export function translate(locale: Locale, key: string, params: TranslateParams =
 export function hasKey(key: string, locale: Locale = FALLBACK_LOCALE): boolean {
   return lookup(dictionaries[locale], key.split('.')) !== undefined
 }
+
+/** Текст данных на нескольких языках (названия подразделений, ролей, справочников). */
+export interface LocalizedText {
+  ru: string
+  tg?: string
+  en?: string
+}
+
+/** Текст на языке интерфейса; нет перевода — основной язык `ru`. */
+export function localizedText(text: LocalizedText, locale: Locale): string {
+  return text[locale]?.trim() || text.ru
+}

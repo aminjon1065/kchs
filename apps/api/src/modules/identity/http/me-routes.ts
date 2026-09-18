@@ -16,6 +16,7 @@ export function registerMeRoutes(route: RouteRegistrar): void {
     url: '/me',
     auth: 'session',
     allowPendingPasswordChange: true,
+    allowPendingMfaEnrollment: true,
     tags: ['me'],
     summary: 'Профиль, права и контекст текущего пользователя',
     schema: { response: { 200: MeResponse } },
@@ -72,6 +73,7 @@ export function registerMeRoutes(route: RouteRegistrar): void {
         delegatedTo: delegations.filter((d) => d.fromUser.id === ctx.userId),
         mfaEnabled,
         mustChangePassword: ctx.mustChangePassword,
+        mfaEnrollmentRequired: ctx.mfaEnrollmentRequired,
         preferences,
         session: {
           id: ctx.sessionId,

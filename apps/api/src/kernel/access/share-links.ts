@@ -9,6 +9,7 @@ import { shareLinks } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId, randomToken } from '~/shared/ids.js'
 import { cacheKeys, redis } from '~/shared/redis/index.js'
+import { SecurityPolicyService } from '../settings/security-policy.js'
 
 /**
  * Гостевые ссылки (03-access-model.md §Гостевые ссылки):
@@ -20,6 +21,7 @@ export async function createShareLink(
   objectId: string,
   input: ShareLinkInput,
 ): Promise<{ id: string; token: string; url: string }> {
+  await assertShareLinksAllowed()
   const token = randomToken(24)
   const id = newId()
   await tx.insert(shareLinks).values({
@@ -45,6 +47,17 @@ export async function listShareLinks(objectId: string) {
     .select()
     .from(shareLinks)
     .where(and(eq(shareLinks.objectId, objectId), isNull(shareLinks.revokedAt)))
+}
+
+/** Гостевые ссылки разрешены политикой безопасности (17-security.md §2). */
+export async function shareLinksAllowed(): Promise<boolean> {
+  return (await SecurityPolicyService.current()).allowShareLinks
+}
+
+async function assertShareLinksAllowed(): Promise<void> {
+  if (!(await shareLinksAllowed())) {
+    throw errors.policyViolation('Гостевые ссылки отключены политикой безопасности')
+  }
 }
 
 /** Префикс токена доступа, выданного после открытия ссылки. */
@@ -93,6 +106,8 @@ export async function openShareLink(
   token: string,
   password?: string,
 ): Promise<(ShareLinkOpenResult & { linkId: string }) | null> {
+  // Выключение политикой действует и на выданные ссылки: причину гостю не раскрываем
+  if (!(await shareLinksAllowed())) return null
   const row = await liveLinkByToken(token)
   if (!row) return null
   if (row.maxUses !== null && row.uses >= row.maxUses) return null
@@ -146,6 +161,7 @@ function grantTtlSeconds(expiresAt: string | null): number {
  * ссылки без пароля (прямая ссылка из письма).
  */
 export async function resolveShareLinkCtx(token: string): Promise<UserCtx | null> {
+  if (!(await shareLinksAllowed())) return null
   if (token.startsWith(GRANT_PREFIX)) {
     const linkId = await redis().get(cacheKeys.shareGrant(hashToken(token)))
     if (!linkId) return null
@@ -187,5 +203,6 @@ function guestCtx(
     userAgent: null,
     attributes: {},
     mustChangePassword: false,
+    mfaEnrollmentRequired: false,
   }
 }

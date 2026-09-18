@@ -45,5 +45,6 @@ export async function buildUserCtxFor(userId: string): Promise<UserCtx | null> {
     userAgent: null,
     attributes: user.attributes,
     mustChangePassword: false,
+    mfaEnrollmentRequired: false,
   }
 }

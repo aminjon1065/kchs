@@ -6,21 +6,20 @@ import {
   Badge,
   Button,
   Card,
-  cn,
   Field,
   PasswordInput,
   SegmentedControl,
   Skeleton,
-  Switch,
   useToast,
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { LogOut, Monitor, Moon, ShieldCheck, Smartphone, Sun } from 'lucide-react'
+import { LogOut, Monitor, Moon, Smartphone, Sun } from 'lucide-react'
 import { useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { ApiError, http, setCsrfToken } from '~/shared/api/client.js'
 import { delegationsQuery, keys, meQuery } from '~/shared/api/queries.js'
+import { MfaCard } from './mfa-card.js'
 
 export function ProfileScreen() {
   const t = useT()
@@ -172,21 +171,7 @@ export function ProfileScreen() {
           </div>
         </Card>
 
-        <Card title={t('auth.mfa.setupTitle')}>
-          <div className="flex items-center gap-3">
-            <ShieldCheck
-              className={cn('size-5', me.mfaEnabled ? 'text-success' : 'text-fg-muted')}
-              aria-hidden
-            />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm text-fg">
-                {me.mfaEnabled ? t('auth.mfa.enabled') : t('auth.mfa.disabled')}
-              </p>
-              <p className="text-xs text-fg-secondary">{t('auth.mfa.setupHint')}</p>
-            </div>
-            <Switch checked={me.mfaEnabled} disabled aria-label={t('auth.mfa.setupTitle')} />
-          </div>
-        </Card>
+        <MfaCard enabled={me.mfaEnabled} />
 
         <Card title={t('auth.password.title')}>
           <form

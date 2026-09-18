@@ -90,6 +90,8 @@ export const MeResponse = z.object({
   mfaEnabled: z.boolean(),
   /** Временный пароль не сменён: оболочка показывает только экран смены пароля. */
   mustChangePassword: z.boolean().default(false),
+  /** Политика требует второй фактор для роли, а он не подключён: оболочка показывает только подключение MFA. */
+  mfaEnrollmentRequired: z.boolean().default(false),
   preferences: z.record(z.string(), z.unknown()).default({}),
   session: z.object({
     id: Uuid,
@@ -139,14 +141,17 @@ export const MfaSetupResponse = z.object({
   otpauthUrl: z.string(),
   qrSvg: z.string(),
 })
+export type MfaSetupResponse = z.infer<typeof MfaSetupResponse>
 
 export const MfaEnableInput = z.object({
   code: z.string().length(6),
 })
+export type MfaEnableInput = z.infer<typeof MfaEnableInput>
 
 export const RecoveryCodesResponse = z.object({
   codes: z.array(z.string()),
 })
+export type RecoveryCodesResponse = z.infer<typeof RecoveryCodesResponse>
 
 export const PasswordResetRequestInput = z.object({
   login: z.string().min(1).max(200),

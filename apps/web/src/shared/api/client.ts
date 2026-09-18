@@ -97,6 +97,19 @@ export interface RequestOptions {
 type UnauthorizedHandler = () => void
 let onUnauthorized: UnauthorizedHandler | null = null
 
+/**
+ * Незавершённая настройка входа (временный пароль, обязательный второй фактор):
+ * сервер отвечает 403 с кодом — оболочка перечитывает профиль и показывает
+ * нужный экран. Так политика, включённая во время работы, применяется сразу.
+ */
+type SetupRequiredHandler = () => void
+let onSetupRequired: SetupRequiredHandler | null = null
+const SETUP_CODES = new Set(['password_change_required', 'mfa_enrollment_required'])
+
+export function setSetupRequiredHandler(handler: SetupRequiredHandler | null): void {
+  onSetupRequired = handler
+}
+
 export function setUnauthorizedHandler(handler: UnauthorizedHandler | null): void {
   onUnauthorized = handler
 }
@@ -151,6 +164,7 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
     }) as ProblemDetails
 
     if (response.status === 401 && !options.anonymous) onUnauthorized?.()
+    if (response.status === 403 && SETUP_CODES.has(problem.code)) onSetupRequired?.()
     throw new ApiError(problem)
   }
 

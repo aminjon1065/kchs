@@ -11,7 +11,9 @@ import {
 } from '@kchs/contracts'
 import QRCode from 'qrcode'
 import { z } from 'zod'
+import { SecurityPolicyService } from '~/kernel/settings/security-policy.js'
 import { config } from '~/shared/config/index.js'
+import { errors } from '~/shared/errors.js'
 import { rateLimit } from '~/shared/http/rate-limit.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { AuthService } from '../domain/auth-service.js'
@@ -112,6 +114,7 @@ export function registerAuthRoutes(route: RouteRegistrar): void {
     url: '/auth/logout',
     auth: 'session',
     allowPendingPasswordChange: true,
+    allowPendingMfaEnrollment: true,
     tags: ['auth'],
     summary: 'Выход',
     schema: { response: { 200: z.object({ ok: z.boolean() }) } },
@@ -176,16 +179,18 @@ export function registerAuthRoutes(route: RouteRegistrar): void {
     method: 'POST',
     url: '/me/mfa/setup',
     auth: 'session',
+    allowPendingMfaEnrollment: true,
     tags: ['auth'],
     summary: 'Начать подключение TOTP',
     schema: { response: { 200: MfaSetupResponse } },
     handler: async (request) => {
       const { secret, otpauthUrl } = await AuthService.startMfaSetup(request.ctx)
+      // Тёмные модули на белом поле с отступом: камера читает код в любой теме интерфейса
       const qrSvg = await QRCode.toString(otpauthUrl, {
         type: 'svg',
-        margin: 0,
+        margin: 2,
         width: 200,
-        color: { dark: '#17181C', light: '#00000000' },
+        color: { dark: '#000000', light: '#FFFFFF' },
       })
       return { secret, otpauthUrl, qrSvg }
     },
@@ -195,6 +200,7 @@ export function registerAuthRoutes(route: RouteRegistrar): void {
     method: 'POST',
     url: '/me/mfa/enable',
     auth: 'session',
+    allowPendingMfaEnrollment: true,
     tags: ['auth'],
     summary: 'Подтвердить и включить TOTP',
     schema: { body: MfaEnableInput, response: { 200: RecoveryCodesResponse } },
@@ -214,6 +220,12 @@ export function registerAuthRoutes(route: RouteRegistrar): void {
       response: { 200: z.object({ ok: z.boolean() }) },
     },
     handler: async (request) => {
+      const policy = await SecurityPolicyService.current()
+      if (SecurityPolicyService.requiresMfa(policy, request.ctx.roleKeys)) {
+        throw errors.policyViolation(
+          'Политика безопасности требует второй фактор для вашей роли — отключить его нельзя',
+        )
+      }
       const ok =
         (await AuthService.verifyTotp(request.ctx.userId, request.body.code)) ||
         (await AuthService.consumeRecoveryCode(request.ctx.userId, request.body.code))

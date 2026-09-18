@@ -277,6 +277,32 @@ describe('вход и второй фактор', () => {
     expect(JSON.stringify(right.json())).toContain('заблокирована')
   })
 
+  it('новый пароль не может содержать логин — ни при смене, ни при восстановлении', async () => {
+    const user = await createUser(fx.app, 'login_in_password_test', ['employee'])
+    const changed = await call(fx.app, {
+      method: 'POST',
+      url: '/me/password',
+      as: user,
+      payload: {
+        currentPassword: user.password,
+        newPassword: `Login_In_Password_Test-2026!`,
+        revokeOtherSessions: false,
+      },
+    })
+    expect(changed.statusCode).toBe(400)
+    expect(changed.body).toContain('auth.password.containsLogin')
+
+    const { AuthService } = await import('../src/modules/identity/public.js')
+    const request = await AuthService.requestPasswordReset(user.login)
+    const reset = await call(fx.app, {
+      method: 'POST',
+      url: '/auth/password-reset/confirm',
+      payload: { token: request?.token, newPassword: `x-${user.login}-Pass-2026!` },
+    })
+    expect(reset.statusCode).toBe(400)
+    expect(reset.body).toContain('auth.password.containsLogin')
+  })
+
   it('ссылка восстановления не возвращает доступ отключённой учётной записи', async () => {
     const user = await createUser(fx.app, 'reset_blocked_test', ['employee'])
     const { AuthService } = await import('../src/modules/identity/public.js')

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createTranslator, translate } from '../translate.js'
+import { createTranslator, localizedText, translate } from '../translate.js'
 
 describe('плюрализация', () => {
   const t = createTranslator('ru')
@@ -48,5 +48,14 @@ describe('подстановка', () => {
   it('локаль без ключа берёт русский текст', () => {
     const tg = createTranslator('tg')
     expect(tg('common.appName')).toBeTruthy()
+  })
+})
+
+describe('localizedText', () => {
+  it('берёт язык интерфейса, без перевода — русский', () => {
+    const name = { ru: 'Комитет', tg: 'Кумита', en: '' }
+    expect(localizedText(name, 'tg')).toBe('Кумита')
+    expect(localizedText(name, 'en')).toBe('Комитет')
+    expect(localizedText({ ru: 'Отдел' }, 'en')).toBe('Отдел')
   })
 })

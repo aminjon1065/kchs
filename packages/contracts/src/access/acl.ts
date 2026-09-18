@@ -87,6 +87,17 @@ export const ShareLink = z.object({
 })
 export type ShareLink = z.infer<typeof ShareLink>
 
+/** Ссылки объекта. Токен хранится только хешем: адрес показывается один раз — при создании. */
+export const ShareLinkList = z.object({
+  items: z.array(ShareLink),
+  /** Политика безопасности разрешает гостевые ссылки. */
+  allowed: z.boolean(),
+})
+export type ShareLinkList = z.infer<typeof ShareLinkList>
+
+export const ShareLinkCreated = z.object({ id: Uuid, token: z.string(), url: z.string() })
+export type ShareLinkCreated = z.infer<typeof ShareLinkCreated>
+
 export const ShareLinkInput = z.object({
   level: z.literal('view').default('view'),
   password: z.string().min(4).max(128).nullable().optional(),

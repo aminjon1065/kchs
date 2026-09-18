@@ -19,7 +19,9 @@ import type {
   ObjectSummary,
   OrgUnit,
   PrincipalRef,
+  RoleInfo,
   SearchResponse,
+  SecurityPolicy,
   Space,
   SpaceMember,
   TagListResponse,
@@ -61,6 +63,8 @@ export const keys = {
   workspaceState: ['me', 'workspace-state'] as const,
   principals: (q: string, types: string) => ['principals', q, types] as const,
   tags: (spaceId: string | null, q: string) => ['tags', spaceId, q] as const,
+  roles: ['roles'] as const,
+  securityPolicy: ['admin', 'security-policy'] as const,
 }
 
 export const meQuery = () =>
@@ -267,6 +271,20 @@ export const principalsQuery = (q: string, types = 'user,group,unit,position') =
       http.get<{ items: PrincipalRef[] }>('/principals/search', { query: { q, types, limit: 20 } }),
     select: (data: { items: PrincipalRef[] }) => data.items,
     enabled: q.length > 0,
+  })
+
+export const rolesQuery = () =>
+  queryOptions({
+    queryKey: keys.roles,
+    queryFn: () => http.get<{ items: RoleInfo[] }>('/roles'),
+    select: (data: { items: RoleInfo[] }) => data.items,
+    staleTime: 60_000,
+  })
+
+export const securityPolicyQuery = () =>
+  queryOptions({
+    queryKey: keys.securityPolicy,
+    queryFn: () => http.get<SecurityPolicy>('/admin/security-policy'),
   })
 
 /** Подсказки тегов: словарь пространства объекта и общие теги. */

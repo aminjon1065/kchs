@@ -1,4 +1,5 @@
 import { formatDateTime, formatRelativeTime } from '@kchs/fields'
+import { type Locale, type LocalizedText, localizedText } from '@kchs/i18n'
 import {
   Badge,
   Button,
@@ -24,18 +25,28 @@ import {
   ScrollText,
   Search,
   Server,
+  ShieldCheck,
   Users,
 } from 'lucide-react'
 import { useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
-import { auditQuery, healthQuery, orgUnitsQuery, usersQuery } from '~/shared/api/queries.js'
+import {
+  auditQuery,
+  healthQuery,
+  meQuery,
+  orgUnitsQuery,
+  usersQuery,
+} from '~/shared/api/queries.js'
+import { SecuritySection } from './security-section.js'
 
-type Section = 'health' | 'users' | 'org' | 'audit'
+type Section = 'health' | 'users' | 'org' | 'audit' | 'security'
 
 export function AdminScreen() {
   const t = useT()
   const [section, setSection] = useState<Section>('health')
+  const { data: me } = useQuery(meQuery())
+  const canManageSecurity = me?.capabilities.includes('admin.system') ?? false
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -68,6 +79,15 @@ export function AdminScreen() {
                 label: t('admin.sections.audit'),
                 icon: <ScrollText className="size-3.5" />,
               },
+              ...(canManageSecurity
+                ? [
+                    {
+                      value: 'security',
+                      label: t('admin.sections.security'),
+                      icon: <ShieldCheck className="size-3.5" />,
+                    },
+                  ]
+                : []),
             ]}
           />
         }
@@ -77,6 +97,7 @@ export function AdminScreen() {
         {section === 'users' ? <UsersSection /> : null}
         {section === 'org' ? <OrgSection /> : null}
         {section === 'audit' ? <AuditSection /> : null}
+        {section === 'security' && canManageSecurity ? <SecuritySection /> : null}
       </div>
     </div>
   )
@@ -236,11 +257,12 @@ function UsersSection() {
 
 function OrgSection() {
   const t = useT()
+  const locale = useAppearance((s) => s.locale)
   const { data: units = [], isLoading } = useQuery(orgUnitsQuery())
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [selected, setSelected] = useState<string | null>(null)
 
-  const nodes: TreeNode[] = buildTree(units, null, t)
+  const nodes: TreeNode[] = buildTree(units, null, t, locale)
 
   return (
     <div className="mx-auto flex max-w-[900px] flex-col gap-3 p-5">
@@ -278,13 +300,14 @@ function buildTree(
   units: Array<{
     id: string
     parentId: string | null
-    name: { ru: string }
+    name: LocalizedText
     code: string
     employeeCount: number
     head: { displayName: string } | null
   }>,
   parentId: string | null,
   t: (key: string, params?: Record<string, string | number>) => string,
+  locale: Locale,
 ): TreeNode[] {
   return units
     .filter((unit) => unit.parentId === parentId)
@@ -292,7 +315,7 @@ function buildTree(
       id: unit.id,
       label: (
         <span className="flex min-w-0 items-center gap-2">
-          <span className="truncate">{unit.name.ru}</span>
+          <span className="truncate">{localizedText(unit.name, locale)}</span>
           <span className="shrink-0 font-mono text-2xs text-fg-muted">{unit.code}</span>
         </span>
       ),
@@ -302,7 +325,7 @@ function buildTree(
           {t('admin.org.employees', { count: unit.employeeCount })}
         </span>
       ),
-      children: buildTree(units, unit.id, t),
+      children: buildTree(units, unit.id, t, locale),
     }))
 }
 

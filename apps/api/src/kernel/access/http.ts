@@ -3,8 +3,9 @@ import {
   EffectiveAccess,
   Level,
   Principal,
-  ShareLink,
+  ShareLinkCreated,
   ShareLinkInput,
+  ShareLinkList,
   ShareLinkOpenInput,
   ShareLinkOpenResult,
 } from '@kchs/contracts'
@@ -18,7 +19,13 @@ import { AUDIT_ACTIONS, audit } from '../audit/service.js'
 import { grantAccess, listEffectiveAccess, revokeAccess, setAccessMode } from './acl-service.js'
 import { authorize, effectiveLevel, loadObject } from './authorize.js'
 import { buildUserCtxFor } from './explain.js'
-import { createShareLink, listShareLinks, openShareLink, revokeShareLink } from './share-links.js'
+import {
+  createShareLink,
+  listShareLinks,
+  openShareLink,
+  revokeShareLink,
+  shareLinksAllowed,
+} from './share-links.js'
 
 const IdParam = z.object({ id: z.uuid() })
 
@@ -169,10 +176,11 @@ export function registerAccessRoutes(route: RouteRegistrar): void {
     auth: { action: 'share' },
     tags: ['access'],
     summary: 'Ссылки на объект',
-    schema: { params: IdParam, response: { 200: z.object({ items: z.array(ShareLink) }) } },
+    schema: { params: IdParam, response: { 200: ShareLinkList } },
     handler: async (request) => {
       const rows = await listShareLinks(request.params.id)
       return {
+        allowed: await shareLinksAllowed(),
         items: rows.map((row) => ({
           id: row.id,
           objectId: row.objectId,
@@ -200,7 +208,7 @@ export function registerAccessRoutes(route: RouteRegistrar): void {
     schema: {
       params: IdParam,
       body: ShareLinkInput,
-      response: { 200: z.object({ id: z.uuid(), token: z.string(), url: z.string() }) },
+      response: { 200: ShareLinkCreated },
     },
     handler: async (request) => {
       const result = await db().transaction((tx) =>

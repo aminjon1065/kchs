@@ -14,6 +14,7 @@ declare module 'fastify' {
   interface FastifyContextConfig {
     auth?: RouteAuth
     allowPendingPasswordChange?: boolean
+    allowPendingMfaEnrollment?: boolean
   }
 }
 
@@ -24,9 +25,10 @@ export interface AuthDependencies {
     csrfToken: string
     expiresAt: string
     onBehalfOf: string | null
+    mfaEnrolled: boolean
   } | null>
   buildUserCtx: (
-    session: { sessionId: string; userId: string; onBehalfOf: string | null },
+    session: { sessionId: string; userId: string; onBehalfOf: string | null; mfaEnrolled: boolean },
     request: FastifyRequest,
   ) => Promise<UserCtx>
   touchSession: (sessionId: string) => Promise<void>
@@ -96,11 +98,19 @@ export const authPlugin = fp<AuthDependencies>(async (app: FastifyInstance, deps
     request.ctx = await deps.buildUserCtx(session, request)
     void deps.touchSession(session.sessionId)
 
-    if (
-      request.ctx.mustChangePassword &&
-      !request.routeOptions?.config?.allowPendingPasswordChange
-    ) {
-      throw new AppError('password_change_required', 'Смените временный пароль', 403)
+    // Незавершённая настройка входа (17-security.md §2): сначала временный пароль,
+    // затем обязательный второй фактор — маршрут смены пароля не требует MFA
+    const setup = request.routeOptions?.config
+    if (request.ctx.mustChangePassword) {
+      if (!setup?.allowPendingPasswordChange) {
+        throw new AppError('password_change_required', 'Смените временный пароль', 403)
+      }
+    } else if (request.ctx.mfaEnrollmentRequired && !setup?.allowPendingMfaEnrollment) {
+      throw new AppError(
+        'mfa_enrollment_required',
+        'Подключите второй фактор: этого требует политика безопасности для вашей роли',
+        403,
+      )
     }
 
     await applyRoutePolicy(request, auth, deps)

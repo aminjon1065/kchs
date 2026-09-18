@@ -193,11 +193,14 @@ beforeAll(async () => {
 })
 
 async function userCtx(user: TestUser) {
-  return buildUserCtx({ sessionId: `test-${user.id}`, userId: user.id, onBehalfOf: null }, {
-    id: 'test',
-    ip: null,
-    headers: {},
-  } as never)
+  return buildUserCtx(
+    { sessionId: `test-${user.id}`, userId: user.id, onBehalfOf: null, mfaEnrolled: true },
+    {
+      id: 'test',
+      ip: null,
+      headers: {},
+    } as never,
+  )
 }
 
 async function searchTitles(user: TestUser, q: string): Promise<string[]> {

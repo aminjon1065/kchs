@@ -167,4 +167,5 @@ export const AUDIT_ACTIONS = {
   settingsChanged: 'settings.changed',
   objectPurged: 'object.purged',
   auditExported: 'audit.exported',
+  securityPolicyChanged: 'security.policy_changed',
 } as const

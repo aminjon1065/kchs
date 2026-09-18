@@ -38,6 +38,7 @@ const { closeRedis, redis } = await import('../src/shared/redis/index.js')
 const { resetData } = await import('../src/seed/seed.js')
 const { UserService, OrgService } = await import('../src/modules/identity/public.js')
 const { SpaceService } = await import('../src/kernel/spaces/service.js')
+const { SecurityPolicyService } = await import('../src/kernel/settings/security-policy.js')
 const { systemCtx } = await import('../src/shared/context.js')
 
 export interface TestUser {
@@ -80,6 +81,8 @@ export async function bootTestApp(): Promise<FastifyInstance> {
 
 export async function resetTestData(): Promise<void> {
   await resetData()
+  // Политика безопасности кэшируется в процессе — настройки только что удалены
+  SecurityPolicyService.invalidate()
   await bootstrapPlatform()
   // Отдельная база Redis принадлежит только тестам: кэши, потоки событий, очереди
   await redis().flushdb()
