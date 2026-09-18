@@ -1,7 +1,17 @@
 import type { Locale } from '@kchs/i18n'
 import type { Decorator, Preview } from '@storybook/react-vite'
-import { ToastProvider, TooltipProvider, UiLocaleProvider } from '../src/index.js'
+import {
+  readCspNonce,
+  setCspNonce,
+  ToastProvider,
+  TooltipProvider,
+  UiLocaleProvider,
+} from '../src/index.js'
 import './storybook.css'
+
+// Как в приложении (apps/web/src/main.tsx): nonce CSP из <meta name="csp-nonce">.
+// В Storybook его нет — кроме проверки строгого CSP (visual/sql-editor.spec.ts)
+setCspNonce(readCspNonce())
 
 type Theme = 'light' | 'dark'
 type Density = 'comfortable' | 'compact'
