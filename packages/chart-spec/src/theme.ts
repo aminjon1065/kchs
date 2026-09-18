@@ -12,7 +12,7 @@ export type ChartColorToken = (typeof CHART_COLOR_TOKENS)[number]
 export interface ChartTheme {
   mode: 'light' | 'dark'
   fontFamily: string
-  /** Категориальная палитра в фиксированном порядке (ADR-0047), 8 оттенков. */
+  /** Категориальная палитра в фиксированном порядке (ADR-0049), 8 оттенков. */
   categorical: readonly string[]
   /** «Прочее» и приглушённые серии. */
   other: string

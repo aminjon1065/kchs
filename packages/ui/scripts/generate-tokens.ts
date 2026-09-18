@@ -46,7 +46,7 @@ for (const [name, ramp] of Object.entries(tokens.color.sequential)) {
   dark.push(`  --div-red-blue-${index + 1}: ${value};`)
 })
 
-// Палитра графиков (ADR-0047): свои шаги для каждой темы
+// Палитра графиков (ADR-0049): свои шаги для каждой темы
 const viz = tokens.color.viz
 viz.categorical.light.forEach((value, index) => {
   light.push(`  --viz-cat-${index + 1}: ${value};`)
