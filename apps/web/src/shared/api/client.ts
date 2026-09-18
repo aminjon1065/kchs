@@ -55,10 +55,6 @@ export function setShareToken(token: string | null): void {
   shareToken = token
 }
 
-export function getShareToken(): string | null {
-  return shareToken
-}
-
 /** Режим «от имени»: действия записываются с `onBehalfOf` (замещение). */
 let onBehalfOf: string | null = readOnBehalfOf()
 

@@ -13,5 +13,5 @@ export {
   startDispatcher,
   stopDispatcher,
 } from './dispatcher.js'
-export { buildEnvelope, publishEvent, publishEvents } from './publisher.js'
+export { buildEnvelope, publishEvent } from './publisher.js'
 export type { EventHandler, EventInput, Subscriber } from './types.js'

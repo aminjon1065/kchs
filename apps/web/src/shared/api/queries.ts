@@ -33,7 +33,7 @@ import type {
   TagView,
   UsersImportStatus,
 } from '@kchs/contracts'
-import { type QueryClient, queryOptions } from '@tanstack/react-query'
+import { queryOptions } from '@tanstack/react-query'
 import { http } from './client.js'
 
 /** Ключи кэша: `['objectType', id, …]` (01-project-structure.md §apps/web). */
@@ -350,12 +350,6 @@ export const tagSuggestionsQuery = (spaceId: string | null, q: string) =>
     select: (data: TagListResponse): TagView[] => data.items,
     staleTime: 30_000,
   })
-
-/** Инвалидация по realtime-событию `object.updated`. */
-export function invalidateObject(client: QueryClient, objectId: string): void {
-  void client.invalidateQueries({ queryKey: ['object', objectId] })
-  void client.invalidateQueries({ queryKey: ['objects'] })
-}
 
 export type { Level }
 

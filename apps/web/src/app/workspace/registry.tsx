@@ -38,7 +38,3 @@ export function getScreen(key: ScreenKey): ScreenDefinition | undefined {
 export function getObjectView(type: string): ObjectViewDefinition | undefined {
   return objectViews.get(type)
 }
-
-export function listScreens(): ScreenDefinition[] {
-  return [...screens.values()]
-}

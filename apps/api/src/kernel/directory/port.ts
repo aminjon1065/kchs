@@ -34,7 +34,3 @@ export function setDirectoryProvider(next: DirectoryProvider): void {
 export function directory(): DirectoryProvider {
   return provider
 }
-
-export function resetDirectoryProvider(): void {
-  provider = EMPTY
-}

@@ -116,4 +116,3 @@ export function resetConfigCache(): void {
 }
 
 export const isProd = (): boolean => config().NODE_ENV === 'production'
-export const isTest = (): boolean => config().NODE_ENV === 'test'

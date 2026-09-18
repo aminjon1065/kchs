@@ -15,13 +15,9 @@ const candidates = [
   path.resolve(process.cwd(), '../../.env'),
 ].filter(Boolean) as string[]
 
-let loaded: string | null = null
 for (const file of candidates) {
   if (existsSync(file)) {
     process.loadEnvFile(file)
-    loaded = file
     break
   }
 }
-
-export const envFile = loaded

@@ -3,7 +3,6 @@ import { config } from '../config/index.js'
 import { logger } from '../logger/index.js'
 
 let client: Redis | null = null
-let subscriber: Redis | null = null
 let publisher: Redis | null = null
 
 function create(name: string): Redis {
@@ -24,12 +23,6 @@ export function redis(): Redis {
   return client
 }
 
-/** Отдельное соединение для подписки (pub/sub блокирует соединение). */
-export function redisSubscriber(): Redis {
-  if (!subscriber) subscriber = create('sub')
-  return subscriber
-}
-
 export function redisPublisher(): Redis {
   if (!publisher) publisher = create('pub')
   return publisher
@@ -41,9 +34,8 @@ export function createRedisConnection(name: string): Redis {
 }
 
 export async function closeRedis(): Promise<void> {
-  await Promise.allSettled([client?.quit(), subscriber?.quit(), publisher?.quit()])
+  await Promise.allSettled([client?.quit(), publisher?.quit()])
   client = null
-  subscriber = null
   publisher = null
 }
 

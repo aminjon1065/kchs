@@ -90,10 +90,6 @@ export function listObjectTypes(): ObjectTypeDefinition[] {
   return [...registry.values()]
 }
 
-export function clearObjectTypes(): void {
-  registry.clear()
-}
-
 /** Описание действия типа: `dataset.export`, `file.download`. */
 export function actionDefinition(type: string, action: string): ActionDefinition | undefined {
   const definition = registry.get(type)

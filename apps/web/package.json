@@ -20,7 +20,6 @@
     "@kchs/i18n": "workspace:*",
     "@kchs/ui": "workspace:*",
     "@tanstack/react-query": "^5.90.2",
-    "@tanstack/react-router": "^1.132.47",
     "lucide-react": "^0.545.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

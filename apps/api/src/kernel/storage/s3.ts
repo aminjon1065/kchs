@@ -174,31 +174,6 @@ export async function headObject(key: string, bucket?: string) {
   return s3().send(new HeadObjectCommand({ Bucket: bucket ?? buckets.files(), Key: key }))
 }
 
-export async function putObject(
-  key: string,
-  body: Buffer | Uint8Array | string,
-  contentType: string,
-  bucket?: string,
-): Promise<void> {
-  await s3().send(
-    new PutObjectCommand({
-      Bucket: bucket ?? buckets.files(),
-      Key: key,
-      Body: body,
-      ContentType: contentType,
-    }),
-  )
-}
-
-export async function getObjectBuffer(key: string, bucket?: string): Promise<Buffer> {
-  const result = await s3().send(
-    new GetObjectCommand({ Bucket: bucket ?? buckets.files(), Key: key }),
-  )
-  const chunks: Uint8Array[] = []
-  for await (const chunk of result.Body as AsyncIterable<Uint8Array>) chunks.push(chunk)
-  return Buffer.concat(chunks)
-}
-
 export async function deleteObject(key: string, bucket?: string): Promise<void> {
   await s3()
     .send(new DeleteObjectCommand({ Bucket: bucket ?? buckets.files(), Key: key }))

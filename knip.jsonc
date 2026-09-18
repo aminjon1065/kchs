@@ -1,0 +1,63 @@
+{
+  // Мёртвый код в статических проверках (04-verification.md §1, 18-tech-stack.md): `pnpm knip`.
+  // Экспорт, нужный вскоре, помечается JSDoc-тегом `@public` с причиной — knip его не считает.
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "ignoreExportsUsedInFile": true,
+  // `types: ["vite/client"]` общего tsconfig React-пакетов разрешается у потребителей (web, ui)
+  "ignoreUnresolved": ["vite/client"],
+  "workspaces": {
+    ".": {
+      "entry": [],
+      "project": []
+    },
+    "apps/api": {
+      "entry": [
+        "src/main.ts",
+        "src/cli/kchs.ts",
+        "src/openapi-cli.ts",
+        "src/seed/cli.ts",
+        "src/shared/db/migrate-cli.ts",
+        "src/shared/db/reset-cli.ts",
+        "test/**/*.test.ts",
+        "src/**/*.test.ts",
+        "scripts/*.mjs"
+      ],
+      "project": ["src/**/*.ts", "test/**/*.ts", "scripts/*.mjs"],
+      // pino-pretty подключается строкой-транспортом в shared/logger (режим разработки)
+      "ignoreDependencies": ["pino-pretty"]
+    },
+    "apps/web": {
+      "entry": ["e2e/**/*.ts", "scripts/*.mjs", "public/*.js"],
+      "project": ["src/**/*.{ts,tsx}", "e2e/**/*.ts"],
+      // Tailwind v4 подключается из CSS (`@import "tailwindcss"`), knip CSS не разбирает
+      "ignoreDependencies": ["tailwindcss"]
+    },
+    "packages/contracts": {
+      "entry": ["src/index.ts", "scripts/*.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "packages/fields": {
+      "entry": ["src/index.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "packages/i18n": {
+      "entry": ["src/index.ts", "scripts/*.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "packages/ui": {
+      "entry": [
+        "src/index.ts",
+        "scripts/*.ts",
+        "src/**/*.stories.tsx",
+        "visual/*.{ts,mjs}",
+        ".storybook/*.{ts,tsx}"
+      ],
+      "project": ["src/**/*.{ts,tsx}", "visual/**/*.{ts,mjs}"],
+      "ignoreDependencies": ["tailwindcss"]
+    },
+    "packages/config": {
+      "entry": [],
+      "project": []
+    }
+  }
+}

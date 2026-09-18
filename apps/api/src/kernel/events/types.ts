@@ -1,5 +1,4 @@
 import type { EventEnvelope } from '@kchs/contracts'
-import type { Ctx } from '~/shared/context.js'
 
 /** Данные, из которых ядро собирает конверт события. */
 export interface EventInput {
@@ -26,8 +25,4 @@ export interface Subscriber {
   handle: EventHandler
   /** Сколько раз повторять до DLQ. */
   maxAttempts?: number
-}
-
-export interface EventContext {
-  ctx: Ctx
 }

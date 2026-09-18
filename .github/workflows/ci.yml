@@ -32,6 +32,8 @@ jobs:
         run: pnpm typecheck
       - name: Границы модулей
         run: pnpm deps:check
+      - name: Мёртвый код (knip)
+        run: pnpm knip
       - name: Полнота словарей i18n
         run: pnpm i18n:check
       - name: Тексты интерфейса только из словарей

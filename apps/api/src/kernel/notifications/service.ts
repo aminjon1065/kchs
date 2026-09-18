@@ -14,7 +14,6 @@ import { notificationPreferences, notifications, users } from '~/shared/db/schem
 import { logger } from '~/shared/logger/index.js'
 import { mailConfigured, sendMail } from '~/shared/mail/index.js'
 import { directory } from '../directory/port.js'
-import { objectType } from '../objects/registry.js'
 import { ObjectService } from '../objects/service.js'
 import { emitToUser } from '../realtime/gateway.js'
 
@@ -279,11 +278,6 @@ async function localeOf(userId: string): Promise<Locale> {
     .where(eq(users.id, userId))
     .limit(1)
   return (row?.locale as Locale) ?? 'ru'
-}
-
-/** URL объекта для уведомления. */
-export function urlForObject(type: string, id: string): string {
-  return objectType(type)?.route(id) ?? `/o/${id}`
 }
 
 /**

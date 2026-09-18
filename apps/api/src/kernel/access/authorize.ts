@@ -12,14 +12,7 @@ import {
 import { and, eq, inArray, isNull, or, type SQL, sql } from 'drizzle-orm'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import {
-  aclEntries,
-  links,
-  objectAncestors,
-  objects,
-  spaceMembers,
-  spaces,
-} from '~/shared/db/schema/index.js'
+import { aclEntries, links, objectAncestors, objects, spaces } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { actionDefinition, objectType } from '../objects/registry.js'
 import type { AuthorizeOptions, ObjectLike } from './types.js'
@@ -444,12 +437,3 @@ export function visibleObjectsSql(ctx: Ctx, objectTypeName?: string): SQL {
 }
 
 export { atLeast, levelValue, maxLevel }
-
-/** Участники пространства — для сводок и диалога «Поделиться». */
-export async function spaceMemberIds(spaceId: string): Promise<string[]> {
-  const rows = await db()
-    .select({ userId: spaceMembers.userId })
-    .from(spaceMembers)
-    .where(eq(spaceMembers.spaceId, spaceId))
-  return rows.map((r) => r.userId)
-}

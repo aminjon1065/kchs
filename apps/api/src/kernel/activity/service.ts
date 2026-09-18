@@ -1,5 +1,5 @@
 import type { Activity, EventEnvelope } from '@kchs/contracts'
-import { desc, eq, inArray, sql } from 'drizzle-orm'
+import { desc, eq, sql } from 'drizzle-orm'
 import { db } from '~/shared/db/client.js'
 import { activities } from '~/shared/db/schema/index.js'
 import { directory } from '../directory/port.js'
@@ -84,18 +84,6 @@ export async function listActivity(
     items: page.map(toActivity),
     nextCursor: hasMore ? String(page[page.length - 1]?.id) : null,
   }
-}
-
-/** Лента по подписанным объектам — виджет «Активность» на «Мой день». */
-export async function listActivityForObjects(objectIds: string[], limit = 30): Promise<Activity[]> {
-  if (objectIds.length === 0) return []
-  const rows = await db()
-    .select()
-    .from(activities)
-    .where(inArray(activities.objectId, objectIds))
-    .orderBy(desc(activities.id))
-    .limit(limit)
-  return rows.map(toActivity)
 }
 
 function toActivity(row: typeof activities.$inferSelect): Activity {

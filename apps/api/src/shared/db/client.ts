@@ -51,6 +51,10 @@ export async function closeDb(): Promise<void> {
 /** Отдельный пул под ролью kchs_query для пользовательских запросов (фаза 1). */
 let queryClient: postgres.Sql | null = null
 
+/**
+ * @public — пул SQL-песочницы датасетов (P1-E04, 17-security.md §4): пользовательский
+ * SQL выполняется только под ролью kchs_query; закрытие пула уже встроено в main.ts.
+ */
 export function queryRoleSql(): postgres.Sql {
   if (queryClient) return queryClient
   const env = config()

@@ -230,10 +230,6 @@ export function stopRealtime(): void {
   io = null
 }
 
-export function realtimeServer(): SocketServer | null {
-  return io
-}
-
 function parseCookies(header: string): Record<string, string> {
   const result: Record<string, string> = {}
   for (const part of header.split(';')) {

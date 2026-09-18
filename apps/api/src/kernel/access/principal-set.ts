@@ -160,14 +160,3 @@ export async function getPrincipalSet(userId: string): Promise<PrincipalSet> {
 export async function invalidatePrincipalSet(userId: string): Promise<void> {
   await redis().del(cacheKeys.principalSet(userId))
 }
-
-/** Матчинг принципала ACL против множества пользователя. */
-export function hasPrincipal(principals: PrincipalSet, type: string, id: string): boolean {
-  if (type === 'everyone') return true
-  return principals.keys.includes(`${type}:${id}`)
-}
-
-/** Предикат для SQL: массив ключей принципалов в формате `type:id`. */
-export function principalKeysForSql(principals: PrincipalSet): string[] {
-  return principals.keys.filter((k) => !k.startsWith('acting_as:'))
-}

@@ -26,24 +26,6 @@ export async function publishEvent(
   return envelope
 }
 
-export async function publishEvents(
-  tx: Executor,
-  ctx: Ctx,
-  inputs: EventInput[],
-): Promise<EventEnvelope[]> {
-  if (inputs.length === 0) return []
-  const envelopes = inputs.map((input) => buildEnvelope(ctx, input))
-  await tx.insert(outbox).values(
-    envelopes.map((envelope) => ({
-      eventId: envelope.id,
-      type: envelope.type,
-      domain: eventDomain(envelope.type),
-      event: envelope as unknown as Record<string, unknown>,
-    })),
-  )
-  return envelopes
-}
-
 /**
  * Тип события обязан быть в каталоге, а полезная нагрузка — соответствовать
  * его схеме (contracts/events.md): подписчики, вебхуки и движок опираются на неё.

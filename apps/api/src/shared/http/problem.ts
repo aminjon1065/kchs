@@ -4,44 +4,10 @@ import type { FastifyReply, FastifyRequest } from 'fastify'
 import { ResponseSerializationError } from 'fastify-type-provider-zod'
 import { ZodError } from 'zod'
 import { isProd } from '../config/index.js'
-import { AppError, isAppError } from '../errors.js'
+import { isAppError } from '../errors.js'
 import { logger } from '../logger/index.js'
 
 const TYPE_BASE = 'https://kchs.local/problems'
-
-function statusFor(code: ErrorCode): number {
-  switch (code) {
-    case 'validation_failed':
-      return 400
-    case 'unauthorized':
-    case 'mfa_required':
-      return 401
-    case 'forbidden':
-      return 403
-    case 'not_found':
-      return 404
-    case 'conflict':
-      return 409
-    case 'precondition_failed':
-      return 412
-    case 'payload_too_large':
-      return 413
-    case 'unsupported_media_type':
-      return 415
-    case 'policy_violation':
-      return 422
-    case 'dependency_failed':
-      return 424
-    case 'rate_limited':
-      return 429
-    case 'service_unavailable':
-      return 503
-    case 'query_timeout':
-      return 504
-    default:
-      return 500
-  }
-}
 
 export function toProblem(error: unknown, request: FastifyRequest): ProblemDetails {
   const locale = normalizeLocale(request.headers['accept-language'] ?? 'ru')
@@ -142,5 +108,3 @@ export function sendProblem(request: FastifyRequest, reply: FastifyReply, error:
   if (problem.retryAfter) reply.header('retry-after', String(problem.retryAfter))
   reply.status(problem.status).type('application/problem+json').send(problem)
 }
-
-export { AppError, statusFor }

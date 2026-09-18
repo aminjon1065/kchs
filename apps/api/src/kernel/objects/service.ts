@@ -3,7 +3,7 @@ import { and, eq, inArray, isNull, sql } from 'drizzle-orm'
 import type { Ctx } from '~/shared/context.js'
 import { actorId } from '~/shared/context.js'
 import { type Database, db, type Executor } from '~/shared/db/client.js'
-import { objectAncestors, objects } from '~/shared/db/schema/index.js'
+import { objectAncestors, objects, recentViews } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { grantOwner } from '../access/acl-service.js'
@@ -447,6 +447,28 @@ function toObjectLike(row: typeof objects.$inferSelect): ObjectLike {
     meta: row.meta,
     title: row.title,
   }
+}
+
+/** Недавние ограничены этим числом записей на пользователя (P0-E05 S03). */
+export const RECENT_LIMIT = 200
+
+/**
+ * Обслуживание: обрезка недавних до RECENT_LIMIT на пользователя одним запросом.
+ * Просмотр объекта только вставляет запись — лишние удаляет ночное задание,
+ * чтобы не добавлять DELETE к самому частому маршруту API.
+ */
+export async function trimRecentViews(limit = RECENT_LIMIT): Promise<number> {
+  const deleted = await db().execute(sql`
+    DELETE FROM ${recentViews} rv
+     USING (
+       SELECT user_id, object_id,
+              row_number() OVER (PARTITION BY user_id ORDER BY viewed_at DESC) AS position
+         FROM ${recentViews}
+     ) ranked
+     WHERE rv.user_id = ranked.user_id
+       AND rv.object_id = ranked.object_id
+       AND ranked.position > ${limit}`)
+  return deleted.count
 }
 
 /** Объекты корзины, срок хранения которых истёк (обслуживание). */

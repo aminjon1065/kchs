@@ -109,10 +109,6 @@ export function unsubscribeRooms(rooms: string[]): void {
   socket.emit('unsubscribe', { rooms })
 }
 
-export function announcePresence(objectId: string): void {
-  socket?.emit('presence.view', { objectId })
-}
-
 export function disconnectRealtime(): void {
   socket?.disconnect()
   socket = null

@@ -42,8 +42,3 @@ export async function sendMail(message: MailMessage): Promise<boolean> {
   })
   return true
 }
-
-/** Сброс транспорта — для тестов и перечитывания конфигурации. */
-export function resetMailTransport(): void {
-  transporter = null
-}

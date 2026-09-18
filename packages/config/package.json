@@ -4,11 +4,9 @@
   "private": true,
   "type": "module",
   "files": [
-    "tsconfig",
-    "tailwind"
+    "tsconfig"
   ],
   "exports": {
-    "./tsconfig/*": "./tsconfig/*",
-    "./tailwind/preset": "./tailwind/preset.css"
+    "./tsconfig/*": "./tsconfig/*"
   }
 }

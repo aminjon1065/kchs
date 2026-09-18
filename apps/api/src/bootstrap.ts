@@ -1,5 +1,5 @@
 import type { Capability, LangText } from '@kchs/contracts'
-import { eq, sql } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { ensureSearchIndex } from './kernel/search/index-service.js'
 import { registerAllObjectTypes } from './modules/index.js'
 import { db } from './shared/db/client.js'
@@ -122,13 +122,4 @@ export async function bootstrapPlatform(): Promise<{ roles: number; searchIndex:
 
   log.info({ roles: SYSTEM_ROLES.length }, 'платформа инициализирована')
   return { roles: SYSTEM_ROLES.length, searchIndex }
-}
-
-/** Есть ли в системе хотя бы один администратор (для мастера первого запуска). */
-export async function hasAdministrator(): Promise<boolean> {
-  const [row] = await db().execute<{ count: string }>(sql`
-    SELECT count(*)::text AS count
-      FROM user_roles ur JOIN roles r ON r.id = ur.role_id
-     WHERE r.key = 'system_admin'`)
-  return Number(row?.count ?? 0) > 0
 }

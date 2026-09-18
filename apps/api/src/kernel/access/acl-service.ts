@@ -9,14 +9,14 @@ import {
   type PrincipalRef,
 } from '@kchs/contracts'
 import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm'
-import type { Ctx, UserCtx } from '~/shared/context.js'
+import type { Ctx } from '~/shared/context.js'
 import { actorId } from '~/shared/context.js'
 import { type Database, db, type Executor } from '~/shared/db/client.js'
 import { aclEntries, links, objects, spaceMembers, users } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { publishEvent } from '../events/publisher.js'
-import { aclScope, effectiveLevel, inheritanceBoundary, loadObject } from './authorize.js'
+import { aclScope, inheritanceBoundary, loadObject } from './authorize.js'
 import { describePrincipals } from './principal-refs.js'
 
 export async function grantOwner(tx: Executor, objectId: string, userId: string): Promise<void> {
@@ -330,17 +330,6 @@ export async function listEffectiveAccess(
     result.push({ principal: ref, level: value.level, reasons: value.reasons })
   }
   return result.sort((a, b) => levelValue(b.level) - levelValue(a.level))
-}
-
-/** «Проверить доступ пользователя» — Decision.reasons для конкретного человека. */
-export async function explainAccessFor(
-  targetCtx: UserCtx,
-  objectId: string,
-): Promise<{ level: Level; reasons: AccessReason[] }> {
-  const object = await loadObject(objectId)
-  if (!object) throw errors.notFound()
-  const decision = await effectiveLevel(targetCtx, object)
-  return { level: decision.level, reasons: decision.reasons }
 }
 
 /** Принципалы с правом чтения — для фильтра поискового индекса. */

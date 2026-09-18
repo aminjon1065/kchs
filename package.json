@@ -30,11 +30,11 @@
     "infra:up": "docker compose -f infra/compose/docker-compose.yml up -d",
     "infra:down": "docker compose -f infra/compose/docker-compose.yml down",
     "infra:logs": "docker compose -f infra/compose/docker-compose.yml logs -f",
-    "i18n:literals": "pnpm --filter @kchs/i18n literals"
+    "i18n:literals": "pnpm --filter @kchs/i18n literals",
+    "knip": "knip --no-progress"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.0",
-    "dependency-cruiser": "^17.0.1",
     "knip": "^5.66.0",
     "turbo": "^2.6.3",
     "typescript": "^5.9.3"

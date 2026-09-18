@@ -35,7 +35,6 @@ import { allowedActions, objectType } from './registry.js'
 import { hiddenSummary, ObjectService } from './service.js'
 
 const IdParam = z.object({ id: z.uuid() })
-const RECENT_LIMIT = 200
 
 export function registerObjectRoutes(route: RouteRegistrar): void {
   // ─── Карточка объекта ──────────────────────────────────────────────────────
@@ -554,18 +553,6 @@ export function registerObjectRoutes(route: RouteRegistrar): void {
       return { items: [...summaries.values()] }
     },
   })
-}
-
-/** Обслуживание: обрезка списка недавних до 200 записей на пользователя. */
-export async function trimRecentViews(userId: string): Promise<void> {
-  await db().execute(sql`
-    DELETE FROM ${recentViews}
-     WHERE user_id = ${userId}
-       AND object_id NOT IN (
-         SELECT object_id FROM ${recentViews}
-          WHERE user_id = ${userId}
-          ORDER BY viewed_at DESC
-          LIMIT ${RECENT_LIMIT})`)
 }
 
 function requestedTypes(query: { type?: string; types?: string }): string[] {

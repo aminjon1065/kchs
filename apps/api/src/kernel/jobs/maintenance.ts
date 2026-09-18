@@ -4,7 +4,7 @@ import { logger } from '~/shared/logger/index.js'
 import { pruneOutbox } from '../events/dispatcher.js'
 import { InboxService } from '../inbox/service.js'
 import { sendEmailDigest } from '../notifications/service.js'
-import { expiredTrash, ObjectService } from '../objects/service.js'
+import { expiredTrash, ObjectService, trimRecentViews } from '../objects/service.js'
 import { reindexAll, reindexSubtree } from '../search/index-service.js'
 import { registerJobHandler } from './runner.js'
 import { JobService, pruneFinishedJobs, queue } from './service.js'
@@ -82,6 +82,13 @@ export function registerMaintenanceJobs(): void {
     concurrency: 1,
     handle: async () => ({ woken: await InboxService.wakeSnoozed() }),
   })
+
+  registerJobHandler({
+    queue: 'maintenance',
+    name: 'recent.trim',
+    concurrency: 1,
+    handle: async () => ({ deleted: await trimRecentViews() }),
+  })
 }
 
 /** Расписания: повторяемые задания BullMQ. Идемпотентны по ключу. */
@@ -116,6 +123,11 @@ export async function scheduleMaintenance(): Promise<void> {
     'trash.purge',
     {},
     { repeat: { pattern: '23 3 * * *' }, jobId: 'cron:trash.purge' },
+  )
+  await maintenance.add(
+    'recent.trim',
+    {},
+    { repeat: { pattern: '31 3 * * *' }, jobId: 'cron:recent.trim' },
   )
   logger().info('расписания обслуживания зарегистрированы')
 }

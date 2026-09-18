@@ -1,4 +1,4 @@
-import type { Capability, Locale, Principal } from '@kchs/contracts'
+import type { Capability, Locale } from '@kchs/contracts'
 
 /**
  * Множество принципалов пользователя (03-access-model.md).
@@ -66,14 +66,6 @@ export interface SystemCtx {
 
 export type Ctx = UserCtx | SystemCtx
 
-export function isUserCtx(ctx: Ctx): ctx is UserCtx {
-  return ctx.kind === 'user'
-}
-
-export function isSystemCtx(ctx: Ctx): ctx is SystemCtx {
-  return ctx.kind === 'system'
-}
-
 export function actorId(ctx: Ctx): string | null {
   return ctx.kind === 'user' ? ctx.userId : ctx.initiatorId
 }
@@ -94,10 +86,6 @@ export function systemCtx(reason: string, options?: Partial<SystemCtx>): SystemC
  */
 export function isGuest(ctx: Ctx): boolean {
   return ctx.kind === 'user' && ctx.shareLink !== null
-}
-
-export function principalKeyOf(p: Principal): string {
-  return `${p.type}:${p.id}`
 }
 
 export const EMPTY_PRINCIPALS: PrincipalSet = {

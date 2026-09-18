@@ -32,7 +32,7 @@ export default defineConfig({
         // Оболочка отдельно от тяжёлых модулей — бюджет бандла ≤ 400 КБ gz
         manualChunks: {
           react: ['react', 'react-dom'],
-          router: ['@tanstack/react-router', '@tanstack/react-query'],
+          query: ['@tanstack/react-query'],
         },
       },
     },

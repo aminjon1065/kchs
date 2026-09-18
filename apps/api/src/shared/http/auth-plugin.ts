@@ -1,5 +1,3 @@
-import type { Capability, Locale } from '@kchs/contracts'
-import { normalizeLocale } from '@kchs/i18n'
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import fp from 'fastify-plugin'
 import { config } from '../config/index.js'
@@ -139,13 +137,4 @@ async function applyRoutePolicy(
     if (auth.capability) deps.requireCapability(request.ctx, auth.capability)
     await deps.authorizeRoute(request.ctx, auth.action, objectId)
   }
-}
-
-export function localeOf(request: FastifyRequest): Locale {
-  const header = request.headers['accept-language']
-  return normalizeLocale(typeof header === 'string' ? header : 'ru')
-}
-
-export function capabilitiesOf(values: string[]): Set<Capability> {
-  return new Set(values as Capability[])
 }

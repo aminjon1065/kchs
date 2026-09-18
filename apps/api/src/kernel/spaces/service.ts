@@ -20,7 +20,7 @@ import {
   users,
 } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
-import { bumpPrincipalsVersion, invalidatePrincipalSet } from '../access/principal-set.js'
+import { invalidatePrincipalSet } from '../access/principal-set.js'
 import { directory } from '../directory/port.js'
 import { publishEvent } from '../events/publisher.js'
 import { ObjectService } from '../objects/service.js'
@@ -347,8 +347,4 @@ export const SpaceService = {
     const list = await SpaceService.listForUser(ctx, database)
     return list.find((s) => s.id === spaceId) ?? null
   },
-}
-
-export async function invalidateAllPrincipals(): Promise<void> {
-  await bumpPrincipalsVersion()
 }
