@@ -18,58 +18,7 @@ import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { keys } from '~/shared/api/queries.js'
-
-function slugify(value: string): string {
-  const map: Record<string, string> = {
-    а: 'a',
-    б: 'b',
-    в: 'v',
-    г: 'g',
-    д: 'd',
-    е: 'e',
-    ё: 'e',
-    ж: 'zh',
-    з: 'z',
-    и: 'i',
-    й: 'y',
-    к: 'k',
-    л: 'l',
-    м: 'm',
-    н: 'n',
-    о: 'o',
-    п: 'p',
-    р: 'r',
-    с: 's',
-    т: 't',
-    у: 'u',
-    ф: 'f',
-    х: 'h',
-    ц: 'c',
-    ч: 'ch',
-    ш: 'sh',
-    щ: 'sch',
-    ъ: '',
-    ы: 'y',
-    ь: '',
-    э: 'e',
-    ю: 'yu',
-    я: 'ya',
-    ӣ: 'i',
-    ӯ: 'u',
-    ҳ: 'h',
-    ҷ: 'j',
-    қ: 'q',
-    ғ: 'g',
-  }
-  return value
-    .toLowerCase()
-    .split('')
-    .map((char) => map[char] ?? char)
-    .join('')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 32)
-}
+import { toSlug } from '~/shared/keys.js'
 
 export function CreateSpaceDialog({
   open,
@@ -93,7 +42,7 @@ export function CreateSpaceDialog({
     mutationFn: () =>
       http.post<{ id: string }>('/spaces', {
         name: name.trim(),
-        key: key || slugify(name),
+        key: key || toSlug(name),
         kind,
         description: description.trim() || null,
       }),
@@ -171,8 +120,8 @@ export function CreateSpaceDialog({
           >
             <Input
               id="space-key"
-              value={key || slugify(name)}
-              onChange={(event) => setKey(slugify(event.target.value))}
+              value={key || toSlug(name)}
+              onChange={(event) => setKey(toSlug(event.target.value))}
               mono
             />
           </Field>

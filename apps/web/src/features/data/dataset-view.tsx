@@ -1,27 +1,16 @@
-import type { DatasetField, DatasetRecord, ImportRecord, Locale } from '@kchs/contracts'
-import {
-  formatDate,
-  formatDateTime,
-  formatNumber,
-  formatPercent,
-  formatRelativeTime,
-} from '@kchs/fields'
+import type { ImportRecord } from '@kchs/contracts'
+import { formatNumber, formatRelativeTime } from '@kchs/fields'
 import {
   AlertDialog,
   Badge,
   type BadgeProps,
   Button,
-  Callout,
   Card,
-  cn,
   EmptyState,
-  Histogram,
   IconButton,
   InlineEdit,
-  KeyValueList,
   ObjectIcon,
   PanelToolbar,
-  ProgressBar,
   Skeleton,
   Tabs,
   TabsContent,
@@ -31,22 +20,18 @@ import {
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { History, Share2, Trash2, Upload } from 'lucide-react'
-import { type ReactNode, useState } from 'react'
+import { useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
 import { ShareDialog } from '~/features/access/share-dialog.js'
 import { PresenceAvatars } from '~/features/objects/presence-avatars.js'
-import { ApiError, http } from '~/shared/api/client.js'
+import { http } from '~/shared/api/client.js'
 import { keys, objectQuery } from '~/shared/api/queries.js'
+import { DatasetTable } from './dataset-table.js'
 import { ImportWizard } from './import-wizard.js'
-import {
-  dataKeys,
-  datasetImportsQuery,
-  datasetQuery,
-  datasetVersionsQuery,
-  fieldProfileQuery,
-} from './queries.js'
+import { dataKeys, datasetImportsQuery, datasetQuery, datasetVersionsQuery } from './queries.js'
+import { SchemaTab } from './schema-tab.js'
 
 const IMPORT_TONES: Record<ImportRecord['status'], BadgeProps['tone']> = {
   queued: 'neutral',
@@ -168,8 +153,9 @@ export function DatasetView({ objectId, tabId }: { objectId: string; tabId: stri
         }
       />
 
-      <Tabs defaultValue="schema" className="flex min-h-0 flex-1 flex-col">
+      <Tabs defaultValue="table" className="flex min-h-0 flex-1 flex-col">
         <TabsList className="shrink-0 px-2.5">
+          <TabsTrigger value="table">{t('data.dataset.tabs.table')}</TabsTrigger>
           <TabsTrigger value="schema" count={dataset.fields.length}>
             {t('data.dataset.tabs.schema')}
           </TabsTrigger>
@@ -177,8 +163,11 @@ export function DatasetView({ objectId, tabId }: { objectId: string; tabId: stri
           <TabsTrigger value="imports">{t('data.dataset.tabs.imports')}</TabsTrigger>
         </TabsList>
 
+        <TabsContent value="table" className="min-h-0 flex-1">
+          <DatasetTable dataset={dataset} canEdit={canEdit} />
+        </TabsContent>
         <TabsContent value="schema" className="min-h-0 flex-1 overflow-y-auto bg-canvas p-5">
-          <SchemaTab dataset={dataset} />
+          <SchemaTab dataset={dataset} canManage={canManage} />
         </TabsContent>
         <TabsContent value="versions" className="min-h-0 flex-1 overflow-y-auto bg-canvas p-5">
           <VersionsTab datasetId={objectId} current={dataset.currentVersion} />
@@ -219,233 +208,6 @@ export function DatasetView({ objectId, tabId }: { objectId: string; tabId: stri
       ) : null}
     </div>
   )
-}
-
-function SchemaTab({ dataset }: { dataset: DatasetRecord }) {
-  const t = useT()
-  const [selected, setSelected] = useState<string | null>(null)
-  const field = dataset.fields.find((item) => item.key === selected)
-  return (
-    <div className="mx-auto flex max-w-[960px] flex-col gap-4">
-      <Card padded={false}>
-        <div className="overflow-x-auto">
-          <table className="min-w-full border-collapse text-sm">
-            <thead className="bg-surface-2 text-xs text-fg-secondary">
-              <tr>
-                <th scope="col" className="px-4 py-2 text-left font-medium">
-                  {t('data.dataset.schema.field')}
-                </th>
-                <th scope="col" className="px-4 py-2 text-left font-medium">
-                  {t('data.dataset.schema.key')}
-                </th>
-                <th scope="col" className="px-4 py-2 text-left font-medium">
-                  {t('data.dataset.schema.type')}
-                </th>
-                <th scope="col" className="px-4 py-2 text-left font-medium">
-                  {t('data.dataset.schema.semantic')}
-                </th>
-                <th scope="col" className="px-4 py-2 text-left font-medium">
-                  {t('data.dataset.schema.flags')}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {dataset.fields.map((field) => (
-                <tr
-                  key={field.id}
-                  className={cn(
-                    'border-t border-line',
-                    field.key === selected && 'bg-accent-subtle',
-                  )}
-                >
-                  <td className="px-4 py-2">
-                    <button
-                      type="button"
-                      aria-pressed={field.key === selected}
-                      onClick={() => setSelected(field.key)}
-                      className="rounded-xs text-left text-fg hover:text-accent"
-                    >
-                      {field.label.ru ?? field.key}
-                    </button>
-                  </td>
-                  <td className="px-4 py-2 font-mono text-xs text-fg-secondary">{field.key}</td>
-                  <td className="px-4 py-2 text-fg-secondary">{t(`data.types.${field.type}`)}</td>
-                  <td className="px-4 py-2 text-fg-secondary">
-                    {t(`data.semantics.${field.semantic}`)}
-                  </td>
-                  <td className="px-4 py-2">
-                    <span className="flex flex-wrap gap-1">
-                      {dataset.primaryKey.includes(field.key) ? (
-                        <Badge size="sm" tone="accent">
-                          {t('data.dataset.schema.primaryKey')}
-                        </Badge>
-                      ) : null}
-                      {dataset.timeField === field.key ? (
-                        <Badge size="sm">{t('data.dataset.schema.time')}</Badge>
-                      ) : null}
-                      {field.required ? (
-                        <Badge size="sm">{t('data.dataset.schema.required')}</Badge>
-                      ) : null}
-                      {field.indexed ? (
-                        <Badge size="sm" tone="outline">
-                          {t('data.dataset.schema.indexed')}
-                        </Badge>
-                      ) : null}
-                      {field.sensitive ? (
-                        <Badge size="sm" tone="warning">
-                          {t('data.dataset.schema.sensitive')}
-                        </Badge>
-                      ) : null}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-      {field ? (
-        <FieldProfilePanel datasetId={dataset.id} field={field} />
-      ) : (
-        <p className="text-center text-xs text-fg-muted">{t('data.dataset.profile.pick')}</p>
-      )}
-    </div>
-  )
-}
-
-const NUMERIC_TYPES = new Set(['integer', 'number', 'decimal', 'money', 'percent'])
-
-/** Значение профиля текстом по типу поля: числа и даты — в локали пользователя. */
-function profileValue(value: string | null, type: string, locale: Locale): string {
-  if (value === null) return '—'
-  if (NUMERIC_TYPES.has(type)) return formatNumber(Number(value), {}, { locale })
-  if (type === 'date') return formatDate(value, { locale })
-  if (type === 'datetime') return formatDateTime(value, { locale })
-  return value
-}
-
-function FieldProfilePanel({ datasetId, field }: { datasetId: string; field: DatasetField }) {
-  const t = useT()
-  const locale = useAppearance((s) => s.locale)
-  const { data: profile, error, isLoading } = useQuery(fieldProfileQuery(datasetId, field.key))
-  const label = field.label.ru ?? field.key
-  const number = (value: number) => formatNumber(value, {}, { locale })
-
-  let body: ReactNode
-  if (isLoading) {
-    body = <Skeleton className="h-32 w-full" />
-  } else if (error || !profile) {
-    body = (
-      <Callout tone={error instanceof ApiError && error.status === 403 ? 'info' : 'danger'}>
-        {error instanceof ApiError && error.status === 403
-          ? t('data.dataset.profile.restricted')
-          : t('data.dataset.profile.failed')}
-      </Callout>
-    )
-  } else {
-    const filled = profile.rows - profile.empty
-    body = (
-      <div className="flex flex-col gap-4">
-        {profile.masked ? <Callout tone="info">{t('data.dataset.profile.masked')}</Callout> : null}
-        <KeyValueList
-          items={[
-            {
-              key: 'rows',
-              label: t('data.dataset.profile.rows'),
-              value: profile.sampled
-                ? `${number(profile.rows)} · ${t('data.dataset.profile.sampled')}`
-                : number(profile.rows),
-            },
-            {
-              key: 'empty',
-              label: t('data.dataset.profile.empty'),
-              value: `${number(profile.empty)} · ${formatPercent(
-                profile.rows > 0 ? profile.empty / profile.rows : 0,
-                {},
-                { locale },
-              )}`,
-            },
-            ...(profile.type === 'geometry'
-              ? []
-              : [
-                  {
-                    key: 'distinct',
-                    label: t('data.dataset.profile.distinct'),
-                    value: number(profile.distinct),
-                  },
-                ]),
-            ...(profile.min !== null
-              ? [
-                  {
-                    key: 'min',
-                    label: t('data.dataset.profile.min'),
-                    value: profileValue(profile.min, profile.type, locale),
-                  },
-                  {
-                    key: 'max',
-                    label: t('data.dataset.profile.max'),
-                    value: profileValue(profile.max, profile.type, locale),
-                  },
-                ]
-              : []),
-            ...(profile.mean !== null
-              ? [
-                  {
-                    key: 'mean',
-                    label: t('data.dataset.profile.mean'),
-                    value: number(profile.mean),
-                  },
-                ]
-              : []),
-          ]}
-        />
-        {profile.histogram.length > 0 ? (
-          <section
-            aria-label={t('data.dataset.profile.distribution')}
-            className="flex flex-col gap-1"
-          >
-            <h3 className="text-xs font-medium text-fg-secondary">
-              {t('data.dataset.profile.distribution')}
-            </h3>
-            <Histogram
-              values={profile.histogram.map((bin) => bin.count)}
-              label={t('data.dataset.profile.distribution')}
-            />
-            <div className="flex justify-between text-2xs text-fg-muted tabular">
-              <span>{profileValue(profile.histogram[0]?.from ?? null, profile.type, locale)}</span>
-              <span>
-                {profileValue(profile.histogram.at(-1)?.to ?? null, profile.type, locale)}
-              </span>
-            </div>
-          </section>
-        ) : null}
-        {profile.top.length > 0 ? (
-          <section aria-label={t('data.dataset.profile.top')} className="flex flex-col gap-2">
-            <h3 className="text-xs font-medium text-fg-secondary">
-              {t('data.dataset.profile.top')}
-            </h3>
-            <ul className="flex flex-col gap-1.5">
-              {profile.top.map((item) => (
-                <li
-                  key={item.value}
-                  className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3"
-                >
-                  <span className="truncate text-sm text-fg">{item.value}</span>
-                  <span className="tabular text-xs text-fg-secondary">{number(item.count)}</span>
-                  <ProgressBar
-                    value={filled > 0 ? item.count / filled : 0}
-                    className="col-span-2"
-                    label={item.value}
-                  />
-                </li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
-      </div>
-    )
-  }
-  return <Card title={t('data.dataset.profile.title', { field: label })}>{body}</Card>
 }
 
 function VersionsTab({ datasetId, current }: { datasetId: string; current: number }) {

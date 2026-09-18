@@ -129,9 +129,11 @@ export function formatValue(
     case 'integer':
     case 'number':
     case 'decimal':
-    case 'money':
     case 'rollup':
       return formatNumber(Number(value), field.format ?? {}, ctx)
+    case 'money':
+      // Деньги хранятся с копейками (numeric(18,2)) — два знака, если формат не задан
+      return formatNumber(Number(value), { precision: 2, ...field.format }, ctx)
     case 'percent':
       return formatPercent(Number(value), field.format ?? {}, ctx)
     case 'duration':

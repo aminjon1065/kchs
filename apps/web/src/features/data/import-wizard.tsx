@@ -1,6 +1,5 @@
 import {
   type DatasetRecord,
-  FIELD_SEMANTICS,
   type FieldSemantic,
   IMPORT_FIELD_TYPES,
   IMPORT_LIMITS,
@@ -42,6 +41,7 @@ import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
 import { uploadFile } from '~/features/files/upload.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { PICKABLE_SEMANTICS } from './field-types.js'
 import {
   buildRunInput,
   defaultDatasetName,
@@ -63,7 +63,6 @@ const DELIMITERS = [
   { value: '|', key: 'pipe' },
 ] as const
 const ENCODINGS = ['utf-8', 'windows-1251', 'cp866', 'koi8-r', 'utf-16']
-const SEMANTICS = FIELD_SEMANTICS.filter((value) => value !== 'system' && value !== 'lookup')
 const MODES: ImportMode[] = ['append', 'upsert', 'sync', 'replace']
 const SKIP = '__skip'
 
@@ -440,6 +439,7 @@ function StructureStep({
             max={1000}
             value={options.skipRows ?? 0}
             onChange={(event) => set({ skipRows: clampInt(event.target.value, 0, 1000) })}
+            aria-label={t('data.import.structure.skipRows')}
           />
         </Field>
         <Field label={t('data.import.structure.headerRows')}>
@@ -449,6 +449,7 @@ function StructureStep({
             max={5}
             value={options.headerRows ?? 1}
             onChange={(event) => set({ headerRows: clampInt(event.target.value, 0, 5) })}
+            aria-label={t('data.import.structure.headerRows')}
           />
         </Field>
         <ChoiceSelect
@@ -605,7 +606,7 @@ function MappingStep({
     value: type,
     label: t(`data.types.${type}`),
   }))
-  const semanticOptions = SEMANTICS.map((semantic) => ({
+  const semanticOptions = PICKABLE_SEMANTICS.map((semantic) => ({
     value: semantic,
     label: t(`data.semantics.${semantic}`),
   }))
@@ -615,7 +616,11 @@ function MappingStep({
       <div className="grid gap-3 md:grid-cols-2">
         {dataset ? null : (
           <Field label={t('data.import.mapping.datasetName')} required>
-            <Input value={name} onChange={(event) => onNameChange(event.target.value)} />
+            <Input
+              value={name}
+              onChange={(event) => onNameChange(event.target.value)}
+              aria-label={t('data.import.mapping.datasetName')}
+            />
           </Field>
         )}
         {dataset ? (
