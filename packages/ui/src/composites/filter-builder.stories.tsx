@@ -91,7 +91,7 @@ export const EditCondition: Story = {
   name: 'Правка условия',
   render: () => <FilterDemo initial={CONDITIONS} className="h-[320px]" />,
   play: async ({ canvasElement }) => {
-    const [first] = within(canvasElement).getAllByRole('button', { name: 'Изменить условие' })
+    const [first] = within(canvasElement).getAllByRole('button', { name: / — изменить$/ })
     if (first) await userEvent.click(first)
     await within(document.body).findByRole('button', { name: 'Применить' })
   },

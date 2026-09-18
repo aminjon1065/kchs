@@ -144,6 +144,11 @@ theme.push('')
 theme.push('  /* Типографика */')
 theme.push(`  --font-sans: ${tokens.typography.fontFamily.sans};`)
 theme.push(`  --font-mono: ${tokens.typography.fontFamily.mono};`)
+// Функции OpenType семейства: утилита font-* задаёт их вместе со шрифтом — cv11/ss01
+// Inter не включают одноимённые варианты глифов JetBrains Mono, а без calt моно не
+// склеивает != или -> в лигатуры: коды и выражения видны знак в знак
+theme.push(`  --font-sans--font-feature-settings: ${tokens.typography.fontFeatureSettings.sans};`)
+theme.push(`  --font-mono--font-feature-settings: ${tokens.typography.fontFeatureSettings.mono};`)
 for (const [name, scale] of Object.entries(tokens.typography.scale)) {
   const s = scale as { size: string; line: string; weight: number; tracking: string }
   theme.push(`  --text-${name}: ${s.size};`)

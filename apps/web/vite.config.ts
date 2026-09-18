@@ -25,6 +25,8 @@ export default defineConfig({
   build: {
     target: 'es2022',
     sourcemap: true,
+    // Шрифты — всегда отдельные файлы: data:-URI не пропустит CSP font-src 'self'
+    assetsInlineLimit: (file) => (file.endsWith('.woff2') ? false : undefined),
     rollupOptions: {
       output: {
         // Оболочка отдельно от тяжёлых модулей — бюджет бандла ≤ 400 КБ gz

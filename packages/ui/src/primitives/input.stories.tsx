@@ -47,6 +47,20 @@ export const WithAffixes: Story = {
         invalid
         defaultValue="ivanov@"
       />
+      {/* Состояния обёртки берутся из внутреннего поля: без правки поле выглядит как обычное */}
+      <Input
+        aria-label="Почта только для чтения"
+        prefix={<Mail className="size-4" />}
+        readOnly
+        defaultValue="ivanov@kchs.tj"
+      />
+      <Input
+        aria-label="Номер недоступен"
+        prefix={<Hash className="size-4" />}
+        suffix="шт."
+        disabled
+        defaultValue="12"
+      />
     </div>
   ),
 }
@@ -54,15 +68,23 @@ export const WithAffixes: Story = {
 export const Password: Story = {
   name: 'Пароль',
   render: () => (
-    <div className="max-w-[360px]">
+    <div className="flex max-w-[360px] flex-col gap-3">
       <PasswordInput aria-label="Пароль" defaultValue="Kchs!Start-2026" />
+      <PasswordInput aria-label="Пароль недоступен" defaultValue="Kchs!Start-2026" disabled />
     </div>
   ),
 }
 
-function SearchDemo({ initial }: { initial: string }) {
+function SearchDemo({ initial, disabled }: { initial: string; disabled?: boolean }) {
   const [value, setValue] = useState(initial)
-  return <SearchInput aria-label="Поиск" value={value} onValueChange={setValue} />
+  return (
+    <SearchInput
+      aria-label={disabled ? 'Поиск недоступен' : 'Поиск'}
+      value={value}
+      onValueChange={setValue}
+      disabled={disabled}
+    />
+  )
 }
 
 export const Search: Story = {
@@ -71,6 +93,7 @@ export const Search: Story = {
     <div className="flex max-w-[360px] flex-col gap-3">
       <SearchDemo initial="" />
       <SearchDemo initial="паводок" />
+      <SearchDemo initial="сель" disabled />
     </div>
   ),
 }

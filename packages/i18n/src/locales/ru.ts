@@ -154,9 +154,9 @@ export const ru = {
     board: { empty: 'Пусто', card: 'Карточка' },
     filter: {
       add: 'Фильтр',
-      edit: 'Изменить условие',
+      edit: '{condition} — изменить',
       apply: 'Применить',
-      remove: 'Убрать условие',
+      remove: 'Убрать условие «{condition}»',
       clear: 'Сбросить фильтры',
       field: 'Поле',
       operator: 'Условие',

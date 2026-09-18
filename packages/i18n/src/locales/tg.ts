@@ -128,6 +128,10 @@ export const tg: DeepPartial<Dictionary> = {
       suggestions: 'Пешниҳоди тегҳо',
       create: 'Сохтани теги «{name}»',
     },
+    filter: {
+      edit: '{condition} — тағйир додан',
+      remove: 'Хориҷ кардани шарти «{condition}»',
+    },
   },
   auth: {
     signIn: {

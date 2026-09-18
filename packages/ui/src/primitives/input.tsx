@@ -11,13 +11,31 @@ import { useUiT } from '../i18n/ui-locale.js'
 import { cn } from '../lib/cn.js'
 import { IconButton } from './button.js'
 
-const fieldBase = [
+/** Рамка и фон поля — общие для input, textarea и обёртки поля с префиксом. */
+const fieldShell = [
   'w-full rounded-sm border bg-surface text-fg',
-  'border-line-strong placeholder:text-fg-muted',
-  'transition-colors duration-[var(--duration-fast)]',
-  'hover:border-line-strong focus:border-accent',
+  'border-line-strong transition-colors duration-[var(--duration-fast)]',
+  'hover:border-line-strong',
+].join(' ')
+
+/** Состояния самого элемента ввода. */
+const fieldBase = [
+  fieldShell,
+  'placeholder:text-fg-muted focus:border-accent',
   'disabled:cursor-not-allowed disabled:bg-surface-2 disabled:text-fg-muted',
   'read-only:bg-surface-2',
+].join(' ')
+
+/**
+ * Те же состояния у обёртки поля с префиксом или суффиксом — по внутреннему input:
+ * div всегда совпадает с :read-only (поле выглядело бы «только для чтения»),
+ * а :disabled у него не бывает вовсе.
+ */
+const fieldWrapper = [
+  fieldShell,
+  'focus-within:border-accent',
+  'has-[>input:disabled]:cursor-not-allowed has-[>input:disabled]:bg-surface-2 has-[>input:disabled]:text-fg-muted',
+  'has-[>input:read-only]:bg-surface-2',
 ].join(' ')
 
 export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'prefix'> {
@@ -54,9 +72,9 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
     <div
       data-field
       className={cn(
-        fieldBase,
-        'flex h-[var(--control-h)] items-center gap-1.5 px-2.5 focus-within:border-accent',
-        invalid && 'border-danger',
+        fieldWrapper,
+        'flex h-[var(--control-h)] items-center gap-1.5 px-2.5',
+        invalid && 'border-danger focus-within:border-danger',
         className,
       )}
     >
@@ -65,7 +83,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
         ref={ref}
         aria-invalid={invalid || undefined}
         className={cn(
-          'min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-fg-muted',
+          'min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-fg-muted disabled:cursor-not-allowed',
           mono && 'font-mono text-xs',
         )}
         {...props}
@@ -156,7 +174,8 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(functi
       onChange={(event) => onValueChange(event.target.value)}
       prefix={<Search className="size-4" aria-hidden />}
       suffix={
-        value ? (
+        // Недоступное поле и поле только для чтения очистить нельзя
+        value && !props.disabled && !props.readOnly ? (
           <IconButton
             type="button"
             size="sm"

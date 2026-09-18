@@ -156,9 +156,9 @@ export const en: DeepPartial<Dictionary> = {
     board: { empty: 'Empty', card: 'Card' },
     filter: {
       add: 'Filter',
-      edit: 'Edit condition',
+      edit: '{condition} — edit',
       apply: 'Apply',
-      remove: 'Remove condition',
+      remove: 'Remove condition “{condition}”',
       clear: 'Clear filters',
       field: 'Field',
       operator: 'Condition',

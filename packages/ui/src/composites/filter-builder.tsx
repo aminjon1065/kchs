@@ -263,16 +263,18 @@ function ConditionChip({
   const t = useUiT()
   const describe = useDescribe(describeValue)
   const [open, setOpen] = useState(false)
+  const text = describe(byKey.get(condition.field), condition)
   return (
     <span className="inline-flex h-7 items-center rounded-sm border border-accent/40 bg-accent-subtle text-xs text-fg">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
+          {/* Имя кнопки начинается с видимого текста условия: скринридер его озвучивает */}
           <button
             type="button"
-            aria-label={t('ui.filter.edit')}
+            aria-label={t('ui.filter.edit', { condition: text })}
             className="max-w-72 truncate px-2 hover:text-accent"
           >
-            {describe(byKey.get(condition.field), condition)}
+            {text}
           </button>
         </PopoverTrigger>
         <PopoverContent className="w-80">
@@ -290,7 +292,7 @@ function ConditionChip({
       <button
         type="button"
         onClick={onRemove}
-        aria-label={t('ui.filter.remove')}
+        aria-label={t('ui.filter.remove', { condition: text })}
         className="flex h-full items-center border-l border-accent/30 px-1.5 text-fg-muted hover:text-fg"
       >
         <X className="size-3" aria-hidden />
@@ -326,7 +328,7 @@ function GroupChip({
       <button
         type="button"
         onClick={onRemove}
-        aria-label={t('ui.filter.remove')}
+        aria-label={t('ui.filter.remove', { condition: `(${text})` })}
         className="flex h-full items-center border-l border-accent/30 px-1.5 text-fg-muted hover:text-fg"
       >
         <X className="size-3" aria-hidden />

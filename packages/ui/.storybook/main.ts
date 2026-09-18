@@ -12,7 +12,11 @@ const config: StorybookConfig = {
   async viteFinal(viteConfig) {
     const { mergeConfig } = await import('vite')
     const { default: tailwindcss } = await import('@tailwindcss/vite')
-    return mergeConfig(viteConfig, { plugins: [tailwindcss()] })
+    return mergeConfig(viteConfig, {
+      plugins: [tailwindcss()],
+      // Шрифты — отдельными файлами, как в приложении (apps/web/vite.config.ts)
+      build: { assetsInlineLimit: (file: string) => (file.endsWith('.woff2') ? false : undefined) },
+    })
   },
 }
 
