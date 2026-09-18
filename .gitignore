@@ -21,3 +21,6 @@ infra/compose/.env
 seeds/.cache/
 # Рабочие копии и служебные файлы агентов разработки
 .claude/
+
+# Спецификация OpenAPI собирается командой openapi:gen (артефакт CI)
+apps/api/openapi.json
