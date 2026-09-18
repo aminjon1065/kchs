@@ -1,9 +1,17 @@
-import { Space, SpaceCreateInput, SpaceMember, SpaceRole } from '@kchs/contracts'
+import {
+  AdminSpace,
+  Space,
+  SpaceCreateInput,
+  SpaceKind,
+  SpaceMember,
+  SpaceRole,
+} from '@kchs/contracts'
 import { z } from 'zod'
 import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { authorize } from '../access/authorize.js'
+import { AUDIT_ACTIONS, audit } from '../audit/service.js'
 import { SpaceService } from './service.js'
 
 const IdParam = z.object({ id: z.uuid() })
@@ -121,6 +129,59 @@ export function registerSpaceRoutes(route: RouteRegistrar): void {
       await db().transaction((tx) =>
         SpaceService.removeMember(tx, request.ctx, request.params.id, request.params.userId),
       )
+      return { ok: true }
+    },
+  })
+
+  // ─── Консоль администрирования (15-admin-operations.md «Пространства») ─────
+  route({
+    method: 'GET',
+    url: '/admin/spaces',
+    auth: { capability: 'admin.system' },
+    tags: ['spaces'],
+    summary: 'Все пространства организации: состав и администраторы',
+    schema: {
+      querystring: z.object({
+        q: z.string().max(200).optional(),
+        kind: SpaceKind.optional(),
+      }),
+      response: { 200: z.object({ items: z.array(AdminSpace) }) },
+    },
+    handler: async (request) => ({ items: await SpaceService.adminList(request.query) }),
+  })
+
+  route({
+    method: 'POST',
+    url: '/admin/spaces/:id/admins',
+    auth: { capability: 'admin.system' },
+    tags: ['spaces'],
+    summary: 'Назначить администратора пространства (передача, если прежний ушёл)',
+    schema: {
+      params: IdParam,
+      body: z.object({ userId: z.uuid() }),
+      response: { 200: z.object({ ok: z.boolean() }) },
+    },
+    handler: async (request) => {
+      await db().transaction(async (tx) => {
+        await SpaceService.addMember(
+          tx,
+          request.ctx,
+          request.params.id,
+          request.body.userId,
+          'admin',
+        )
+        // Вмешательство администратора системы в чужое пространство — в аудит
+        await audit(
+          request.ctx,
+          {
+            action: AUDIT_ACTIONS.spaceAdminAssigned,
+            objectId: request.params.id,
+            objectType: 'space',
+            details: { userId: request.body.userId },
+          },
+          tx,
+        )
+      })
       return { ok: true }
     },
   })

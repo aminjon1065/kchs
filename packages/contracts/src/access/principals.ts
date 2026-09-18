@@ -89,5 +89,7 @@ export const RoleInfo = z.object({
   name: LangText,
   isSystem: z.boolean(),
   capabilities: z.array(z.string()),
+  /** Активных сотрудников с этой ролью (матрица ролей в консоли). */
+  userCount: z.number().int().nonnegative(),
 })
 export type RoleInfo = z.infer<typeof RoleInfo>

@@ -1,4 +1,11 @@
-import type { Space, SpaceCreateInput, SpaceKind, SpaceMember, SpaceRole } from '@kchs/contracts'
+import type {
+  AdminSpace,
+  Space,
+  SpaceCreateInput,
+  SpaceKind,
+  SpaceMember,
+  SpaceRole,
+} from '@kchs/contracts'
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { actorId } from '~/shared/context.js'
@@ -14,6 +21,7 @@ import {
 } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { bumpPrincipalsVersion, invalidatePrincipalSet } from '../access/principal-set.js'
+import { directory } from '../directory/port.js'
 import { publishEvent } from '../events/publisher.js'
 import { ObjectService } from '../objects/service.js'
 
@@ -238,6 +246,70 @@ export const SpaceService = {
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     }))
+  },
+
+  /**
+   * Все пространства организации для консоли (15-admin-operations.md
+   * «Пространства»): состав и администраторы. Личные — только по запросу:
+   * их столько же, сколько сотрудников.
+   */
+  async adminList(
+    query: { q?: string; kind?: SpaceKind },
+    database: Database = db(),
+  ): Promise<AdminSpace[]> {
+    const conditions = [sql`${objects.deletedAt} is null`]
+    conditions.push(query.kind ? eq(spaces.kind, query.kind) : sql`${spaces.kind} <> 'personal'`)
+    if (query.q) {
+      conditions.push(
+        sql`(${objects.title} ilike ${`%${query.q}%`} OR ${spaces.key} ilike ${`%${query.q}%`})`,
+      )
+    }
+    const rows = await database
+      .select({
+        id: spaces.id,
+        key: spaces.key,
+        kind: spaces.kind,
+        unitId: spaces.unitId,
+        name: objects.title,
+        createdAt: objects.createdAt,
+      })
+      .from(spaces)
+      .innerJoin(objects, eq(objects.id, spaces.id))
+      .where(and(...conditions))
+      .orderBy(objects.title)
+      .limit(500)
+    if (rows.length === 0) return []
+
+    const ids = rows.map((row) => row.id)
+    const memberRows = await database
+      .select({
+        spaceId: spaceMembers.spaceId,
+        userId: spaceMembers.userId,
+        role: spaceMembers.role,
+      })
+      .from(spaceMembers)
+      .where(inArray(spaceMembers.spaceId, ids))
+    const adminIds = [
+      ...new Set(memberRows.filter((row) => row.role === 'admin').map((row) => row.userId)),
+    ]
+    const refs = await directory().refs(adminIds, database)
+
+    return rows.map((row) => {
+      const own = memberRows.filter((member) => member.spaceId === row.id)
+      return {
+        id: row.id,
+        key: row.key,
+        name: row.name,
+        kind: row.kind as SpaceKind,
+        unitId: row.unitId,
+        memberCount: own.length,
+        admins: own
+          .filter((member) => member.role === 'admin')
+          .map((member) => refs.get(member.userId))
+          .filter((ref) => ref !== undefined),
+        createdAt: row.createdAt,
+      }
+    })
   },
 
   async members(spaceId: string, database: Database = db()): Promise<SpaceMember[]> {

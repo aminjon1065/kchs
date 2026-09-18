@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { SpaceRole } from '../access/levels.js'
+import { UserRef } from '../auth/session.js'
 import { Timestamp, Uuid } from '../common/primitives.js'
 
 /** Вид пространства (02-platform-kernel.md §2). */
@@ -58,3 +59,16 @@ export const SpaceMember = z.object({
   addedAt: Timestamp,
 })
 export type SpaceMember = z.infer<typeof SpaceMember>
+
+/** Пространство в консоли администрирования: состав и администраторы. */
+export const AdminSpace = z.object({
+  id: Uuid,
+  key: z.string(),
+  name: z.string(),
+  kind: SpaceKind,
+  unitId: Uuid.nullable(),
+  memberCount: z.number().int(),
+  admins: z.array(UserRef),
+  createdAt: Timestamp,
+})
+export type AdminSpace = z.infer<typeof AdminSpace>

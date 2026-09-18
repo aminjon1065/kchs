@@ -310,6 +310,7 @@ export const UserService = {
     q?: string
     status?: UserStatus
     unitId?: string
+    roleKey?: string
     limit?: number
     cursor?: string
   }): Promise<{ items: AdminUser[]; nextCursor: string | null }> {
@@ -329,6 +330,11 @@ export const UserService = {
     if (query.unitId) {
       conditions.push(
         sql`EXISTS (SELECT 1 FROM ${employments} e WHERE e.user_id = ${users.id} AND e.unit_id = ${query.unitId})`,
+      )
+    }
+    if (query.roleKey) {
+      conditions.push(
+        sql`EXISTS (SELECT 1 FROM ${userRoles} ur JOIN ${roles} r ON r.id = ur.role_id WHERE ur.user_id = ${users.id} AND r.key = ${query.roleKey})`,
       )
     }
 

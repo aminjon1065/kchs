@@ -178,7 +178,7 @@ test('1. Администратор входит с MFA, создаёт подр
 
   // Подразделение
   await openScreen(page, 'Администрирование')
-  await page.getByRole('radio', { name: 'Оргструктура' }).click()
+  await page.getByRole('tab', { name: 'Оргструктура' }).click()
   await page.getByRole('button', { name: 'Новое подразделение' }).click()
   const unitDialog = page.getByRole('dialog')
   await unitDialog.getByLabel('Название (рус.)').fill(unitName)
@@ -188,7 +188,7 @@ test('1. Администратор входит с MFA, создаёт подр
   await expect(page.getByText(unitName)).toBeVisible()
 
   // Сотрудник с ролью, дающей право создавать пространства
-  await page.getByRole('radio', { name: 'Пользователи' }).click()
+  await page.getByRole('tab', { name: 'Пользователи' }).click()
   await page.getByRole('button', { name: 'Новый пользователь' }).click()
   const userDialog = page.getByRole('dialog')
   await userDialog.getByLabel('Фамилия').fill(owner.lastName)
@@ -515,7 +515,7 @@ test('7. Администратор смотрит здоровье и ауди�
   await openScreen(page, 'Администрирование')
   await expect(page.getByText('postgres')).toBeVisible({ timeout: 15_000 })
   await expect(page.getByText('Работает').first()).toBeVisible()
-  await page.getByRole('radio', { name: 'Аудит' }).click()
+  await page.getByRole('tab', { name: 'Аудит' }).click()
   await page.getByPlaceholder('Действие, например user.login').fill('user.mfa_enabled')
   await expect(page.getByText('user.mfa_enabled').first()).toBeVisible({ timeout: 15_000 })
   await context.close()

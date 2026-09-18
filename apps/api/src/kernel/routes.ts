@@ -1,5 +1,6 @@
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { registerAccessRoutes } from './access/http.js'
+import { registerAnnouncementRoutes } from './announcements/http.js'
 import { registerDiscussionRoutes } from './discussions/http.js'
 import { registerInboxRoutes } from './inbox/http.js'
 import { registerJobRoutes } from './jobs/http.js'
@@ -23,4 +24,5 @@ export function registerKernelRoutes(route: RouteRegistrar): void {
   registerInternalJobRoutes(route)
   registerViewRoutes(route)
   registerTagRoutes(route)
+  registerAnnouncementRoutes(route)
 }

@@ -23,6 +23,7 @@ import {
   positions,
   roleCapabilities,
   roles,
+  userRoles,
   users,
 } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
@@ -115,6 +116,8 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
         q: z.string().max(200).optional(),
         status: z.enum(['active', 'invited', 'blocked', 'deactivated']).optional(),
         unitId: z.uuid().optional(),
+        /** Сотрудники с ролью — переход из матрицы ролей. */
+        roleKey: z.string().max(64).optional(),
         limit: z.coerce.number().int().min(1).max(200).default(50),
         cursor: z.string().optional(),
       }),
@@ -385,6 +388,13 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
             rows.map((r) => r.id),
           ),
         )
+      const holders = await db()
+        .select({ roleId: userRoles.roleId, count: sql<number>`count(DISTINCT ${users.id})::int` })
+        .from(userRoles)
+        .innerJoin(users, eq(users.id, userRoles.userId))
+        .where(eq(users.status, 'active'))
+        .groupBy(userRoles.roleId)
+      const counts = new Map(holders.map((row) => [row.roleId, row.count]))
       return {
         items: rows.map((row) => ({
           id: row.id,
@@ -392,6 +402,7 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
           name: row.name,
           isSystem: row.isSystem,
           capabilities: caps.filter((c) => c.roleId === row.id).map((c) => c.capability),
+          userCount: counts.get(row.id) ?? 0,
         })),
       }
     },

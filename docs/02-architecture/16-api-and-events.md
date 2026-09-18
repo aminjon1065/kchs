@@ -44,7 +44,7 @@
 | notifications | `notification.sent`, `inbox.opened`, `inbox.resolved`, `inbox.snoozed` |
 | automation | `rule.triggered`, `rule.executed`, `rule.failed`, `webhook.received`, `webhook.delivered`, `integration.synced`, `integration.failed` |
 | jobs | `job.queued`, `job.started`, `job.progress` (только realtime, не в outbox), `job.finished`, `job.failed` |
-| admin | `settings.changed`, `acl.changed`, `role.assigned`, `backup.completed`, `backup.failed`, `announcement.published` |
+| admin | `settings.changed`, `acl.changed`, `role.assigned`, `backup.completed`, `backup.failed`, `announcement.published`, `announcement.withdrawn` |
 
 Конверт события — `contracts/events.md`. Правило: событие описывает **факт**, а не намерение; полезная нагрузка содержит идентификаторы и минимальный снимок изменённых полей, не полные объекты.
 

@@ -23,7 +23,7 @@ test.describe('Политика безопасности', () => {
       // Администратор отмечает роль в разделе «Безопасность»
       await openWorkspace(page, request)
       await openScreen(page, 'Администрирование')
-      await page.getByRole('radio', { name: 'Безопасность' }).click()
+      await page.getByRole('tab', { name: 'Безопасность' }).click()
       await page.getByRole('checkbox', { name: 'Аудитор безопасности' }).check()
       await page.getByRole('button', { name: 'Сохранить' }).click()
       await expect(page.getByText('Политика безопасности сохранена')).toBeVisible()

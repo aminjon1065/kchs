@@ -13,16 +13,16 @@ test.describe('Администрирование', () => {
     await expect(page.getByText('Работает').first()).toBeVisible()
 
     // Пользователи
-    await page.getByRole('radio', { name: 'Пользователи' }).click()
+    await page.getByRole('tab', { name: 'Пользователи' }).click()
     await expect(page.getByPlaceholder('Имя, логин или почта')).toBeVisible()
     await expect(page.getByText('admin', { exact: true }).first()).toBeVisible()
 
     // Оргструктура
-    await page.getByRole('radio', { name: 'Оргструктура' }).click()
+    await page.getByRole('tab', { name: 'Оргструктура' }).click()
     await expect(page.getByText('Комитет')).toBeVisible()
 
     // Аудит содержит записи входа
-    await page.getByRole('radio', { name: 'Аудит' }).click()
+    await page.getByRole('tab', { name: 'Аудит' }).click()
     await expect(page.getByText('user.login').first()).toBeVisible({ timeout: 15_000 })
 
     // Выгрузка журнала в CSV — потоком с сервера

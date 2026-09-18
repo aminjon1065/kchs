@@ -1,7 +1,10 @@
 import type {
   ActiveDelegation,
   Activity,
+  AdminAnnouncement,
+  AdminSpace,
   AdminUser,
+  Announcement,
   AuditEntry,
   EffectiveAccess,
   FileRecord,
@@ -72,6 +75,9 @@ export const keys = {
   workspaces: ['workspaces'] as const,
   attachmentsFolder: (spaceId: string) => ['files', 'attachments-folder', spaceId] as const,
   securityPolicy: ['admin', 'security-policy'] as const,
+  announcements: ['announcements'] as const,
+  adminAnnouncements: ['admin', 'announcements'] as const,
+  adminSpaces: (params: Record<string, unknown>) => ['admin', 'spaces', params] as const,
 }
 
 export const meQuery = () =>
@@ -227,7 +233,12 @@ export const fileVersionsQuery = (id: string) =>
     select: (data: { items: FileVersion[] }) => data.items,
   })
 
-export const usersQuery = (params: { q?: string; limit?: number; status?: string }) =>
+export const usersQuery = (params: {
+  q?: string
+  limit?: number
+  status?: string
+  roleKey?: string
+}) =>
   queryOptions({
     queryKey: keys.users(params),
     queryFn: () =>
@@ -347,3 +358,27 @@ export function invalidateObject(client: QueryClient, objectId: string): void {
 }
 
 export type { Level }
+
+/** Объявления для «Мой день»: новые подтягиваются без перезагрузки. */
+export const announcementsQuery = () =>
+  queryOptions({
+    queryKey: keys.announcements,
+    queryFn: () => http.get<{ items: Announcement[] }>('/announcements'),
+    select: (data: { items: Announcement[] }) => data.items,
+    staleTime: 60_000,
+    refetchInterval: 5 * 60_000,
+  })
+
+export const adminAnnouncementsQuery = () =>
+  queryOptions({
+    queryKey: keys.adminAnnouncements,
+    queryFn: () => http.get<{ items: AdminAnnouncement[] }>('/admin/announcements'),
+    select: (data: { items: AdminAnnouncement[] }) => data.items,
+  })
+
+export const adminSpacesQuery = (params: { q?: string }) =>
+  queryOptions({
+    queryKey: keys.adminSpaces(params),
+    queryFn: () => http.get<{ items: AdminSpace[] }>('/admin/spaces', { query: params }),
+    select: (data: { items: AdminSpace[] }) => data.items,
+  })

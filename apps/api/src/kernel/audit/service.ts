@@ -170,4 +170,7 @@ export const AUDIT_ACTIONS = {
   securityPolicyChanged: 'security.policy_changed',
   usersImported: 'users.imported',
   usersImportCredentialsDownloaded: 'users.import_credentials_downloaded',
+  announcementPublished: 'announcement.published',
+  announcementWithdrawn: 'announcement.withdrawn',
+  spaceAdminAssigned: 'space.admin_assigned',
 } as const

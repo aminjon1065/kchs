@@ -101,6 +101,7 @@ export const EVENT_PAYLOADS = {
   'acl.changed': z.object({ objectId: Uuid }),
   'role.assigned': z.object({ userId: Uuid, roleKey: z.string() }),
   'announcement.published': z.object({ title: z.string() }),
+  'announcement.withdrawn': z.object({ title: z.string() }),
 } as const satisfies Record<string, z.ZodType>
 
 export type EventType = keyof typeof EVENT_PAYLOADS

@@ -7,13 +7,22 @@ import {
   EmptyState,
   PanelToolbar,
   SearchInput,
-  SegmentedControl,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Skeleton,
   StatTile,
   TableSkeleton,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
   Tree,
   type TreeNode,
   useDebouncedValue,
+  useMediaQuery,
   useToast,
 } from '@kchs/ui'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -24,6 +33,9 @@ import {
   Download,
   FileSpreadsheet,
   HardDrive,
+  KeyRound,
+  LayoutGrid,
+  Megaphone,
   Plus,
   ScrollText,
   Search,
@@ -32,7 +44,7 @@ import {
   UserPlus,
   Users,
 } from 'lucide-react'
-import { useState } from 'react'
+import { type ReactNode, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import {
@@ -41,72 +53,148 @@ import {
   keys,
   meQuery,
   orgUnitsQuery,
+  rolesQuery,
   usersQuery,
 } from '~/shared/api/queries.js'
+import { AnnouncementsSection } from './announcements-section.js'
 import { CreateUnitDialog } from './org-management.js'
+import { RolesSection } from './roles-section.js'
 import { SecuritySection } from './security-section.js'
+import { SpacesSection } from './spaces-section.js'
 import { CreateUserDialog, UserActions } from './user-management.js'
 import { UsersImportDialog } from './users-import-dialog.js'
 
-type Section = 'health' | 'users' | 'org' | 'audit' | 'security'
+type Section =
+  | 'health'
+  | 'users'
+  | 'org'
+  | 'roles'
+  | 'spaces'
+  | 'announcements'
+  | 'audit'
+  | 'security'
 
+/**
+ * Консоль администрирования (15-admin-operations.md §1): разделы — вертикальные
+ * вкладки слева (на узком экране — строкой сверху). Разделы, требующие
+ * `admin.system`, видит только администратор системы; проверяет сервер.
+ */
 export function AdminScreen() {
   const t = useT()
   const [section, setSection] = useState<Section>('health')
+  // Переход из матрицы ролей: «Пользователи» с фильтром по роли
+  const [roleFilter, setRoleFilter] = useState<string | null>(null)
   const { data: me } = useQuery(meQuery())
-  const canManageSecurity = me?.capabilities.includes('admin.system') ?? false
+  const isSystemAdmin = me?.capabilities.includes('admin.system') ?? false
+  const wide = useMediaQuery('(min-width: 768px)')
+
+  const sections: Array<{ value: Section; label: string; icon: ReactNode; visible: boolean }> = [
+    {
+      value: 'health',
+      label: t('admin.sections.health'),
+      icon: <Server className="size-3.5" />,
+      visible: true,
+    },
+    {
+      value: 'users',
+      label: t('admin.sections.users'),
+      icon: <Users className="size-3.5" />,
+      visible: true,
+    },
+    {
+      value: 'org',
+      label: t('admin.sections.org'),
+      icon: <Building2 className="size-3.5" />,
+      visible: true,
+    },
+    {
+      value: 'roles',
+      label: t('admin.sections.roles'),
+      icon: <KeyRound className="size-3.5" />,
+      visible: true,
+    },
+    {
+      value: 'spaces',
+      label: t('admin.sections.spaces'),
+      icon: <LayoutGrid className="size-3.5" />,
+      visible: isSystemAdmin,
+    },
+    {
+      value: 'announcements',
+      label: t('admin.sections.announcements'),
+      icon: <Megaphone className="size-3.5" />,
+      visible: isSystemAdmin,
+    },
+    {
+      value: 'audit',
+      label: t('admin.sections.audit'),
+      icon: <ScrollText className="size-3.5" />,
+      visible: true,
+    },
+    {
+      value: 'security',
+      label: t('admin.sections.security'),
+      icon: <ShieldCheck className="size-3.5" />,
+      visible: isSystemAdmin,
+    },
+  ]
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <PanelToolbar
-        left={<h1 className="text-sm font-semibold text-fg">{t('admin.title')}</h1>}
-        right={
-          <SegmentedControl
-            size="sm"
-            aria-label={t('admin.sectionLabel')}
-            value={section}
-            onValueChange={(next) => setSection(next as Section)}
-            options={[
-              {
-                value: 'health',
-                label: t('admin.sections.health'),
-                icon: <Server className="size-3.5" />,
-              },
-              {
-                value: 'users',
-                label: t('admin.sections.users'),
-                icon: <Users className="size-3.5" />,
-              },
-              {
-                value: 'org',
-                label: t('admin.sections.org'),
-                icon: <Building2 className="size-3.5" />,
-              },
-              {
-                value: 'audit',
-                label: t('admin.sections.audit'),
-                icon: <ScrollText className="size-3.5" />,
-              },
-              ...(canManageSecurity
-                ? [
-                    {
-                      value: 'security',
-                      label: t('admin.sections.security'),
-                      icon: <ShieldCheck className="size-3.5" />,
-                    },
-                  ]
-                : []),
-            ]}
+      <PanelToolbar left={<h1 className="text-sm font-semibold text-fg">{t('admin.title')}</h1>} />
+      <Tabs
+        value={section}
+        onValueChange={(next) => setSection(next as Section)}
+        orientation={wide ? 'vertical' : 'horizontal'}
+        className="flex min-h-0 flex-1 flex-col md:flex-row"
+      >
+        <TabsList
+          aria-label={t('admin.sectionLabel')}
+          className="shrink-0 overflow-x-auto px-2 md:w-56 md:overflow-visible md:border-r md:border-line md:bg-surface md:p-2"
+        >
+          {sections
+            .filter((item) => item.visible)
+            .map((item) => (
+              <TabsTrigger key={item.value} value={item.value}>
+                {item.icon}
+                {item.label}
+              </TabsTrigger>
+            ))}
+        </TabsList>
+        <TabsContent value="health" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
+          <HealthSection />
+        </TabsContent>
+        <TabsContent value="users" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
+          <UsersSection roleKey={roleFilter} onRoleKeyChange={setRoleFilter} />
+        </TabsContent>
+        <TabsContent value="org" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
+          <OrgSection />
+        </TabsContent>
+        <TabsContent value="roles" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
+          <RolesSection
+            onShowHolders={(roleKey) => {
+              setRoleFilter(roleKey)
+              setSection('users')
+            }}
           />
-        }
-      />
-      <div className="min-h-0 flex-1 overflow-y-auto bg-canvas">
-        {section === 'health' ? <HealthSection /> : null}
-        {section === 'users' ? <UsersSection /> : null}
-        {section === 'org' ? <OrgSection /> : null}
-        {section === 'audit' ? <AuditSection /> : null}
-        {section === 'security' && canManageSecurity ? <SecuritySection /> : null}
-      </div>
+        </TabsContent>
+        {isSystemAdmin ? (
+          <>
+            <TabsContent value="spaces" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
+              <SpacesSection />
+            </TabsContent>
+            <TabsContent value="announcements" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
+              <AnnouncementsSection />
+            </TabsContent>
+            <TabsContent value="security" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
+              <SecuritySection />
+            </TabsContent>
+          </>
+        ) : null}
+        <TabsContent value="audit" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
+          <AuditSection />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
@@ -196,7 +284,15 @@ function HealthSection() {
   )
 }
 
-function UsersSection() {
+const ALL_ROLES = '*'
+
+function UsersSection({
+  roleKey,
+  onRoleKeyChange,
+}: {
+  roleKey: string | null
+  onRoleKeyChange: (roleKey: string | null) => void
+}) {
   const t = useT()
   const locale = useAppearance((s) => s.locale)
   const client = useQueryClient()
@@ -205,7 +301,10 @@ function UsersSection() {
   const [importing, setImporting] = useState(false)
   const [creating, setCreating] = useState(false)
   const query = useDebouncedValue(search, 250)
-  const { data, isLoading } = useQuery(usersQuery({ q: query || undefined, limit: 100 }))
+  const { data: roles = [] } = useQuery(rolesQuery())
+  const { data, isLoading } = useQuery(
+    usersQuery({ q: query || undefined, roleKey: roleKey ?? undefined, limit: 100 }),
+  )
   const { data: me } = useQuery(meQuery())
   const canManage = me?.capabilities.includes('users.manage') ?? false
   const refresh = () => void client.invalidateQueries({ queryKey: ['users'] })
@@ -219,6 +318,22 @@ function UsersSection() {
           placeholder={t('admin.users.searchPlaceholder')}
           className="max-w-sm"
         />
+        <Select
+          value={roleKey ?? ALL_ROLES}
+          onValueChange={(next) => onRoleKeyChange(next === ALL_ROLES ? null : next)}
+        >
+          <SelectTrigger aria-label={t('admin.users.roleFilter')} className="w-56">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_ROLES}>{t('admin.users.allRoles')}</SelectItem>
+            {roles.map((role) => (
+              <SelectItem key={role.key} value={role.key}>
+                {localizedText(role.name, locale)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         {canManage ? (
           <div className="ml-auto flex gap-2">
             <Button
