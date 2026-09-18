@@ -4,7 +4,6 @@ import {
   Badge,
   Button,
   Callout,
-  cn,
   Dialog,
   DialogContent,
   Field,
@@ -24,11 +23,12 @@ import {
   useToast,
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Copy, Link2, Lock, ShieldQuestion, Unlink, X } from 'lucide-react'
+import { Copy, Lock, ShieldQuestion, Unlink, X } from 'lucide-react'
 import { useState } from 'react'
 import { useT } from '~/app/i18n.js'
 import { http } from '~/shared/api/client.js'
 import { keys, objectAccessQuery, principalsQuery } from '~/shared/api/queries.js'
+import { ShareLinksSection } from './share-links-section.js'
 
 const LEVELS: Level[] = ['view', 'comment', 'edit', 'manage']
 
@@ -329,14 +329,7 @@ export function ShareDialog({
             )}
           </div>
 
-          <div className={cn('rounded-md border border-line bg-surface-2 p-3')}>
-            <div className="flex items-center gap-2 text-sm text-fg">
-              <Link2 className="size-4 text-fg-muted" aria-hidden />
-              {t('access.share.linkSection')}
-              <span className="ml-auto text-xs text-fg-muted">{t('access.share.linkOff')}</span>
-            </div>
-            <p className="mt-1 text-xs text-fg-muted">{t('access.share.guestLinkHint')}</p>
-          </div>
+          <ShareLinksSection objectId={objectId} />
         </div>
       </DialogContent>
     </Dialog>

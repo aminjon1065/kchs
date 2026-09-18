@@ -22,6 +22,7 @@ import type {
   RoleInfo,
   SearchResponse,
   SecurityPolicy,
+  ShareLinkList,
   Space,
   SpaceMember,
   TagListResponse,
@@ -41,6 +42,7 @@ export const keys = {
   objectLinks: (id: string) => ['object', id, 'links'] as const,
   objectActivity: (id: string) => ['object', id, 'activity'] as const,
   objectAccess: (id: string) => ['object', id, 'access'] as const,
+  shareLinks: (id: string) => ['object', id, 'share-links'] as const,
   discussion: (id: string) => ['object', id, 'discussion'] as const,
   inbox: (params: Record<string, unknown>) => ['inbox', params] as const,
   inboxCounts: ['inbox', 'counts'] as const,
@@ -271,6 +273,12 @@ export const principalsQuery = (q: string, types = 'user,group,unit,position') =
       http.get<{ items: PrincipalRef[] }>('/principals/search', { query: { q, types, limit: 20 } }),
     select: (data: { items: PrincipalRef[] }) => data.items,
     enabled: q.length > 0,
+  })
+
+export const shareLinksQuery = (objectId: string) =>
+  queryOptions({
+    queryKey: keys.shareLinks(objectId),
+    queryFn: () => http.get<ShareLinkList>(`/objects/${objectId}/share-links`),
   })
 
 export const rolesQuery = () =>
