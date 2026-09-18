@@ -1,0 +1,91 @@
+name: Установка в контейнерах
+
+# Критерий фазы 0: «docker compose up + kchs init дают рабочую систему за ≤ 10 минут»
+# (02-roadmap.md). Образы api/web/engine из общего кэша с заданием «Сборка образов»
+# (ci.yml), стек на чистых томах, kchs init, демо-данные, дымовой прогон API через
+# web и браузер: вход, «Мой день», загрузка в S3 и превью от движка. Время каждого
+# шага — в сводке запуска.
+#
+# Не на каждый PR: это самое долгое задание (образ движка ≈ 3 ГБ, сборка образа
+# postgres, весь стек, Chromium), а путь установки меняется редко — поведение
+# приложения на каждом PR проверяют «Сквозные сценарии». Поэтому:
+#   - каждую ночь на main — регрессия установки (например, новая обязательная
+#     переменная окружения, не добавленная в compose) видна не позже чем через сутки;
+#   - на PR с меткой `stack` — для изменений Dockerfile, compose, Caddyfile,
+#     окружения и `kchs`;
+#   - вручную (workflow_dispatch) — на любой ветке.
+
+on:
+  schedule:
+    - cron: '0 1 * * *' # 06:00 по Душанбе
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'
+  PNPM_VERSION: '12'
+
+jobs:
+  stack:
+    name: "docker compose up + kchs init + smoke"
+    # На PR — только с меткой `stack`; добавление других меток прогон не запускает
+    if: >-
+      github.event_name != 'pull_request' ||
+      (contains(github.event.pull_request.labels.*.name, 'stack') &&
+       (github.event.action != 'labeled' || github.event.label.name == 'stack'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      KCHS_IMAGE_TAG: ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: '${{ env.PNPM_VERSION }}' }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # Кэш слоёв общий с заданием «Сборка образов» (ci.yml, те же scope): здесь
+      # только читаем, пишет его сборка на каждый push
+      - uses: docker/setup-buildx-action@v3
+      - name: Образ api
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          load: true
+          tags: kchs/api:ci
+          cache-from: type=gha,scope=api
+      - name: Образ web
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          load: true
+          tags: kchs/web:ci
+          cache-from: type=gha,scope=web
+      - name: Образ движка
+        uses: docker/build-push-action@v6
+        with:
+          context: apps/engine
+          file: apps/engine/Dockerfile
+          load: true
+          tags: kchs/engine:ci
+          cache-from: type=gha,scope=engine
+
+      - name: Браузер Playwright
+        run: pnpm --filter @kchs/web exec playwright install --with-deps chromium
+
+      # Секреты (--mode app) → up --wait → kchs init → kchs seed → смена временного
+      # пароля → smoke-api.sh через web → stack-check.mjs; при сбое — журналы сервисов
+      - name: Установка и проверки
+        env:
+          SKIP_BUILD: '1'
+        run: bash infra/scripts/verify-stack.sh
