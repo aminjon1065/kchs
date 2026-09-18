@@ -7,6 +7,7 @@
     "dev": "tsx watch --clear-screen=false src/main.ts",
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/main.js",
+    "kchs": "tsx src/cli/kchs.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run src",
     "test:integration": "vitest run test",

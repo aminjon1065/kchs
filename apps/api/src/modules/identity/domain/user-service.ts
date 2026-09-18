@@ -400,6 +400,21 @@ export const UserService = {
     }
   },
 
+  /**
+   * Логины активных администраторов системы (как в `assertNotLastSystemAdmin`):
+   * `kchs init` по ним решает, создавать ли первого администратора.
+   */
+  async activeSystemAdminLogins(database: Database = db()): Promise<string[]> {
+    const rows = await database
+      .select({ login: users.login })
+      .from(userRoles)
+      .innerJoin(roles, eq(roles.id, userRoles.roleId))
+      .innerJoin(users, eq(users.id, userRoles.userId))
+      .where(and(eq(roles.key, 'system_admin'), eq(users.status, 'active')))
+      .orderBy(asc(users.createdAt), asc(users.login))
+    return rows.map((row) => row.login)
+  },
+
   async employments(userId: string, database: Database = db()): Promise<Employment[]> {
     const rows = await database
       .select({

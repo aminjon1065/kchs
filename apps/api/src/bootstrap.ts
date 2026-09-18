@@ -81,7 +81,7 @@ const SYSTEM_ROLES: Array<{
  * Идемпотентная инициализация платформы при старте:
  * типы объектов, системные роли, поисковый индекс.
  */
-export async function bootstrapPlatform(): Promise<void> {
+export async function bootstrapPlatform(): Promise<{ roles: number; searchIndex: boolean }> {
   const log = logger().child({ module: 'bootstrap' })
 
   registerAllObjectTypes()
@@ -113,11 +113,15 @@ export async function bootstrapPlatform(): Promise<void> {
     }
   }
 
-  await ensureSearchIndex().catch((error) =>
-    log.warn({ err: error }, 'поисковый индекс недоступен, продолжаю без него'),
-  )
+  const searchIndex = await ensureSearchIndex()
+    .then(() => true)
+    .catch((error) => {
+      log.warn({ err: error }, 'поисковый индекс недоступен, продолжаю без него')
+      return false
+    })
 
   log.info({ roles: SYSTEM_ROLES.length }, 'платформа инициализирована')
+  return { roles: SYSTEM_ROLES.length, searchIndex }
 }
 
 /** Есть ли в системе хотя бы один администратор (для мастера первого запуска). */

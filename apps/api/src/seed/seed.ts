@@ -45,9 +45,16 @@ export async function runSeed(
   const ctx = systemCtx('seed')
   const random = makeRandom(20_260_917)
 
-  const existing = await db().select({ id: users.id }).from(users).limit(1)
-  if (existing.length > 0) {
-    log.warn('данные уже существуют — seed пропущен (используйте db:reset)')
+  // Демо-данные уже загружены — признак: корень демо-оргструктуры. Пустая база
+  // с администратором от `kchs init` данными не считается (06-handoff.md:
+  // установка — `kchs init`, затем seed)
+  const seeded = await db()
+    .select({ id: orgUnits.id })
+    .from(orgUnits)
+    .where(eq(orgUnits.code, ORG_TREE.code))
+    .limit(1)
+  if (seeded.length > 0) {
+    log.warn('демо-данные уже загружены — seed пропущен (используйте db:reset)')
     return { users: 0, units: 0, spaces: 0 }
   }
 
@@ -60,21 +67,32 @@ export async function runSeed(
   }
 
   // ── Администратор ─────────────────────────────────────────────────────────
-  const admin = await db().transaction((tx) =>
-    UserService.create(tx, ctx, {
-      login: options.adminLogin,
-      email: `${options.adminLogin}@kchs.local`,
-      lastName: 'Системный',
-      firstName: 'Администратор',
-      roleKeys: ['system_admin'],
-      password: options.adminPassword,
-      mustChangePassword: false,
-      locale: 'ru',
-      timezone: 'Asia/Dushanbe',
-    }),
-  )
+  // Созданный `kchs init` администратор сохраняется со своим паролем
+  const [existingAdmin] = await db()
+    .select({ id: users.id })
+    .from(users)
+    .where(sql`lower(${users.login}) = ${options.adminLogin.toLowerCase()}`)
+    .limit(1)
+  const admin =
+    existingAdmin ??
+    (await db().transaction((tx) =>
+      UserService.create(tx, ctx, {
+        login: options.adminLogin,
+        email: `${options.adminLogin}@kchs.local`,
+        lastName: 'Системный',
+        firstName: 'Администратор',
+        roleKeys: ['system_admin'],
+        password: options.adminPassword,
+        mustChangePassword: false,
+        locale: 'ru',
+        timezone: 'Asia/Dushanbe',
+      }),
+    ))
   const adminCtx = systemCtx('seed', { initiatorId: admin.id })
-  log.info({ login: options.adminLogin }, 'администратор создан')
+  log.info(
+    { login: options.adminLogin, reused: Boolean(existingAdmin) },
+    existingAdmin ? 'администратор уже есть — используется' : 'администратор создан',
+  )
 
   // ── Оргструктура ──────────────────────────────────────────────────────────
   const unitIds = new Map<string, string>()
