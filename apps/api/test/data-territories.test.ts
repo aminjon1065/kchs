@@ -3,6 +3,8 @@ import { sql } from 'drizzle-orm'
 import { beforeAll, describe, expect, it } from 'vitest'
 import {
   call,
+  createUser,
+  redis,
   registerLifecycle,
   setupFixture,
   type TestContext,
@@ -19,6 +21,7 @@ import {
 registerLifecycle()
 
 const { TerritoryService } = await import('../src/modules/gis/public.js')
+const { SpaceService } = await import('../src/kernel/spaces/service.js')
 const { ImportService } = await import('../src/modules/data/domain/import-service.js')
 const { s3, buckets } = await import('../src/kernel/storage/s3.js')
 const { systemCtx } = await import('../src/shared/context.js')
@@ -223,6 +226,26 @@ describe('территории в запросах', () => {
     // Читатель без подразделения — ничего; владелец (manage+) — всё
     expect(await codes(fx.users.viewer)).toEqual([])
     expect(await codes(fx.admin)).toHaveLength(4)
+
+    // SQL-лаборатория — та же политика, территория подразделения с районами
+    const analyst = await createUser(
+      fx.app,
+      `terr_sql_${run}`,
+      ['employee', 'data_steward'],
+      fx.unitId,
+    )
+    await db().transaction((tx) =>
+      SpaceService.addMember(tx, systemCtx('test'), fx.spaceId, analyst.id, 'viewer'),
+    )
+    await redis().del(`kchs:principals:${analyst.id}`)
+    const lab = await call(fx.app, {
+      method: 'POST',
+      url: '/sql/run',
+      as: analyst,
+      payload: { sql: `SELECT Номер FROM "Происшествия ${run}" ORDER BY Номер`, params: {} },
+    })
+    expect(lab.statusCode, lab.body).toBe(200)
+    expect(lab.json().rows).toEqual([['I-1'], ['I-2']])
 
     const removed = await call(fx.app, {
       method: 'DELETE',
