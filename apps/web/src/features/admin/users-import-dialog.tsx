@@ -122,10 +122,14 @@ export function UsersImportDialog({
   const describe = (item: UsersImportIssue, columns: UsersImportReport['columns']) => {
     const text = t(`admin.usersImport.issues.${item.code}`, item.params)
     if (!item.field) return text
-    const label =
+    // Столбец — как он назван в файле, без пометки обязательности «*»
+    const label = (
       columns[item.field] ??
       USERS_IMPORT_FIELDS.find((spec) => spec.key === item.field)?.headers[locale] ??
       item.field
+    )
+      .replace(/\s*\*\s*$/, '')
+      .trim()
     return `${label}: ${text}`
   }
 
@@ -155,14 +159,16 @@ export function UsersImportDialog({
             >
               {t('admin.usersImport.check')}
             </Button>
-            <Button
-              variant="primary"
-              disabled={!readyToApply || running || start.isPending}
-              loading={start.isPending && start.variables === 'apply'}
-              onClick={() => start.mutate('apply')}
-            >
-              {t('admin.usersImport.apply', { count: report?.counts.ready ?? 0 })}
-            </Button>
+            {readyToApply ? (
+              <Button
+                variant="primary"
+                disabled={running || start.isPending}
+                loading={start.isPending && start.variables === 'apply'}
+                onClick={() => start.mutate('apply')}
+              >
+                {t('admin.usersImport.apply', { count: report.counts.ready })}
+              </Button>
+            ) : null}
           </>
         }
       >

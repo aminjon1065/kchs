@@ -654,10 +654,15 @@ export const UsersImport = {
     const report = status.report
     const t = createTranslator(ctx.locale)
     const describe = (item: UsersImportIssue) => {
+      // Столбец — как он назван в файле, без пометки обязательности «*»
       const field = item.field
-        ? (report.columns[item.field] ??
-          USERS_IMPORT_FIELDS.find((spec) => spec.key === item.field)?.headers[ctx.locale] ??
-          item.field)
+        ? (
+            report.columns[item.field] ??
+            USERS_IMPORT_FIELDS.find((spec) => spec.key === item.field)?.headers[ctx.locale] ??
+            item.field
+          )
+            .replace(/\s*\*\s*$/, '')
+            .trim()
         : ''
       const text = t(`admin.usersImport.issues.${item.code}`, item.params)
       return field ? `${field}: ${text}` : text
