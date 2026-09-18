@@ -28,7 +28,8 @@
     "storybook": "pnpm --filter @kchs/ui storybook",
     "infra:up": "docker compose -f infra/compose/docker-compose.yml up -d",
     "infra:down": "docker compose -f infra/compose/docker-compose.yml down",
-    "infra:logs": "docker compose -f infra/compose/docker-compose.yml logs -f"
+    "infra:logs": "docker compose -f infra/compose/docker-compose.yml logs -f",
+    "i18n:literals": "pnpm --filter @kchs/i18n literals"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.0",

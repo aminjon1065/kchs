@@ -12,7 +12,8 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "check": "tsx scripts/check-keys.ts",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "literals": "tsx scripts/find-literals.ts"
   },
   "dependencies": {
     "i18next": "^25.6.0"
