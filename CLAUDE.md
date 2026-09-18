@@ -32,17 +32,44 @@
 - `docs/adr/NNNN-*.md` — новые решения (шаблон в `docs/adr/README.md`).
 - Вопросы к владельцу продукта складывай в `docs/04-delivery/05-risks-and-open-questions.md`, раздел «Новые вопросы», и продолжай работу с разумным допущением.
 
-## Команды (после создания проекта)
+## Команды
+
+Разработка: инфраструктура в Docker, api/worker и web на хосте.
 
 ```bash
-pnpm install            # зависимости монорепо
-pnpm dev                # api + web + worker в режиме разработки
-pnpm db:migrate         # миграции Postgres
-pnpm db:seed            # демонстрационные данные
-pnpm test               # unit + integration
-pnpm e2e                # Playwright сценарии
-pnpm lint && pnpm typecheck
-docker compose up -d    # инфраструктура (postgres/postgis, redis, meilisearch, minio, livekit)
+bash infra/scripts/generate-secrets.sh   # .env со случайными секретами (один раз; --force — заново)
+pnpm install                             # зависимости монорепо
+docker compose up -d --wait              # postgres/postgis, redis, minio, meilisearch, mailpit
+pnpm db:migrate                          # миграции Postgres
+pnpm db:seed                             # демо-данные: admin / SEED_ADMIN_PASSWORD, user001…user060
+pnpm dev                                 # api с worker (ROLE=all, :3000) и web (:5173)
+docker compose up -d --wait engine       # движок (превью, геоформаты, OCR), если нужен
 ```
 
-Точные скрипты определяются на фазе 0 и фиксируются здесь.
+Проверки (как в CI, `.github/workflows/ci.yml`):
+
+```bash
+pnpm lint && pnpm typecheck && pnpm deps:check
+pnpm i18n:check && pnpm i18n:literals
+pnpm --filter @kchs/ui contrast && pnpm --filter @kchs/ui tokens
+pnpm --filter @kchs/contracts gen:engine # контракты движка; git diff должен быть пустым
+pnpm test                                # unit
+pnpm test:integration                    # интеграционные (база kchs_test)
+bash apps/api/scripts/test-slot.sh N && KCHS_TEST_SLOT=N pnpm --filter @kchs/api test:integration  # своя база kchs_test_N (N = 1…14)
+pnpm e2e                                 # Playwright (нужны api и web)
+bash infra/scripts/smoke-api.sh          # дымовой прогон API на демо-данных
+```
+
+Установка целиком в контейнерах (профиль `app`, вход через web — Caddy со сборкой SPA, ADR-0044):
+
+```bash
+bash infra/scripts/generate-secrets.sh --mode app
+docker compose --profile app up -d --build --wait
+docker compose exec api kchs init --admin-email admin@example.org   # временный пароль — один раз
+docker compose exec api kchs seed                                   # демо-данные, по желанию
+bash infra/scripts/verify-stack.sh       # вся цепочка на отдельном проекте compose с чистыми томами
+```
+
+`kchs` локально — `pnpm kchs init|migrate|seed`. Образ api — бандл esbuild
+(`apps/api/scripts/build.mjs`): новая обязательная переменная окружения api должна попасть
+в `x-app-env` в `infra/compose/docker-compose.yml`.

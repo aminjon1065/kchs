@@ -23,7 +23,7 @@
 Состав `infra/compose/docker-compose.yml`:
 
 ```
-proxy (caddy)       :443 → web (static), /api → api, /ws → api, /collab → api, /livekit → livekit
+web (caddy + SPA)   :80/:443 — TLS, статика, /api → api, /ws → api, /collab → api, CSP; /livekit → livekit (фаза 4) — ADR-0044
 api ×2              ROLE=api
 worker ×1           ROLE=worker
 engine ×1           python; тома для моделей (whisper, bge-m3, tesseract data)
@@ -37,7 +37,7 @@ onlyoffice          (профиль `office`, опционально)
 titiler, photon     (профили `raster`, `geocoder`, опционально)
 ```
 
-Требования S1: 16 vCPU, 64 ГБ RAM, NVMe 1 ТБ (БД) + хранилище файлов по объёму (или внешний S3), ОС Linux, Docker 27+. Установка: `git clone`, `.env` из `.env.example` (секреты генерируются скриптом), `docker compose up -d`, `kchs init` (миграции, первый администратор, базовые справочники, PMTiles-базовая карта — загрузка/генерация).
+Требования S1: 16 vCPU, 64 ГБ RAM, NVMe 1 ТБ (БД) + хранилище файлов по объёму (или внешний S3), ОС Linux, Docker 27+. Установка: `git clone`, `.env` из `.env.example` (секреты генерируются скриптом `infra/scripts/generate-secrets.sh --mode app`), `docker compose --profile app up -d`, `docker compose exec api kchs init` (миграции, первый администратор с временным паролем, базовые справочники; PMTiles-базовая карта — загрузка/генерация, с фазы 2). Порядок и проверка — ADR-0044, `infra/scripts/verify-stack.sh`.
 
 Обновление: `docker compose pull && docker compose up -d` — миграции применяются при старте `api` с advisory lock; обратная совместимость миграций на одну версию назад (blue-green без простоя для S2).
 
