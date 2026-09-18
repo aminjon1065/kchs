@@ -305,7 +305,10 @@ describe('вложения в сообщениях обсуждения', () => 
     const response = await post(host, { attachments: [{ fileId: file.id }] })
     expect(response.statusCode).toBe(200)
 
-    const discussion = await call(fx.app, { url: `/objects/${host}/discussion`, as: fx.users.viewer })
+    const discussion = await call(fx.app, {
+      url: `/objects/${host}/discussion`,
+      as: fx.users.viewer,
+    })
     const message = discussion
       .json()
       .items.find((item: { id: string }) => item.id === response.json().id)
