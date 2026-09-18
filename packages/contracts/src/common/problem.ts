@@ -36,5 +36,10 @@ export const ProblemDetails = z.object({
     .array(z.object({ path: z.string(), message: z.string(), code: z.string().optional() }))
     .optional(),
   retryAfter: z.number().int().optional(),
+  /**
+   * Данные для клиента сверх текста ошибки (ADR-0051): текущее состояние строки
+   * при конфликте версии, проблемы запроса с позицией в выражении.
+   */
+  data: z.record(z.string(), z.unknown()).optional(),
 })
 export type ProblemDetails = z.infer<typeof ProblemDetails>

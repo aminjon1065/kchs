@@ -5,6 +5,12 @@ import {
   DatasetFieldInput,
   DatasetFieldPatch,
   DatasetRecord,
+  DatasetRow,
+  DatasetRowHistoryEntry,
+  DatasetRowPatch,
+  DatasetRowsDelete,
+  DatasetRowsInsert,
+  DatasetRowsQuery,
   DatasetUpdateInput,
   DatasetVersion,
   FieldProfile,
@@ -13,6 +19,8 @@ import {
   ImportRecord,
   ImportRunInput,
   type ObjectSummary,
+  QueryResult,
+  QueryRunInput,
 } from '@kchs/contracts'
 import { eq, inArray, sql } from 'drizzle-orm'
 import { z } from 'zod'
@@ -35,11 +43,14 @@ import {
   NormalizedReport,
 } from './domain/import-service.js'
 import { ProfileService } from './domain/profile-service.js'
+import { QueryService } from './domain/query-service.js'
+import { RowService } from './domain/row-service.js'
 import { SchemaService } from './domain/schema-service.js'
 import { Physical } from './infra/physical.js'
 
 const IdParam = z.object({ id: z.uuid() })
 const FieldParams = z.object({ id: z.uuid(), key: z.string().min(1).max(64) })
+const RowParams = z.object({ id: z.uuid(), rowId: z.string().regex(/^\d{1,18}$/) })
 
 /** Типы объектов модуля «Данные» (06-analytics-engine.md). */
 export function registerDataObjectTypes(): void {
@@ -269,6 +280,96 @@ export function registerDataRoutes(route: RouteRegistrar): void {
       )
       return DatasetService.get(request.params.id)
     },
+  })
+
+  route({
+    method: 'POST',
+    url: '/queries/run',
+    auth: 'session',
+    tags: ['data'],
+    summary: 'Выполнить QuerySpec: источники с политиками пользователя, результат столбцами',
+    schema: { body: QueryRunInput, response: { 200: QueryResult } },
+    handler: async (request) =>
+      QueryService.run(request.ctx, request.body.spec, { params: request.body.params }),
+  })
+
+  route({
+    method: 'POST',
+    url: '/datasets/:id/rows/query',
+    auth: 'session',
+    tags: ['data'],
+    summary: 'Страница строк таблицы датасета: фильтр, поиск, сортировка, счётчик',
+    schema: { params: IdParam, body: DatasetRowsQuery, response: { 200: QueryResult } },
+    handler: async (request) => RowService.query(request.ctx, request.params.id, request.body),
+  })
+
+  route({
+    method: 'POST',
+    url: '/datasets/:id/rows',
+    auth: 'session',
+    tags: ['data'],
+    summary: 'Добавить строки (до 1000)',
+    schema: {
+      params: IdParam,
+      body: DatasetRowsInsert,
+      response: { 200: z.object({ items: z.array(DatasetRow) }) },
+    },
+    handler: async (request) => ({
+      items: await RowService.insert(request.ctx, request.params.id, request.body.rows),
+    }),
+  })
+
+  route({
+    method: 'POST',
+    url: '/datasets/:id/rows/delete',
+    auth: 'session',
+    tags: ['data'],
+    summary: 'Удалить строки (до 1000)',
+    schema: {
+      params: IdParam,
+      body: DatasetRowsDelete,
+      response: { 200: z.object({ deleted: z.number().int() }) },
+    },
+    handler: async (request) => ({
+      deleted: await RowService.remove(request.ctx, request.params.id, request.body.ids),
+    }),
+  })
+
+  route({
+    method: 'GET',
+    url: '/datasets/:id/rows/:rowId',
+    auth: 'session',
+    tags: ['data'],
+    summary: 'Строка датасета',
+    schema: { params: RowParams, response: { 200: DatasetRow } },
+    handler: async (request) =>
+      RowService.get(request.ctx, request.params.id, request.params.rowId),
+  })
+
+  route({
+    method: 'PATCH',
+    url: '/datasets/:id/rows/:rowId',
+    auth: 'session',
+    tags: ['data'],
+    summary: 'Изменить строку; конфликт версии — 409 с текущими значениями',
+    schema: { params: RowParams, body: DatasetRowPatch, response: { 200: DatasetRow } },
+    handler: async (request) =>
+      RowService.update(request.ctx, request.params.id, request.params.rowId, request.body),
+  })
+
+  route({
+    method: 'GET',
+    url: '/datasets/:id/rows/:rowId/history',
+    auth: 'session',
+    tags: ['data'],
+    summary: 'История изменений строки',
+    schema: {
+      params: RowParams,
+      response: { 200: z.object({ items: z.array(DatasetRowHistoryEntry) }) },
+    },
+    handler: async (request) => ({
+      items: await RowService.history(request.ctx, request.params.id, request.params.rowId),
+    }),
   })
 
   route({

@@ -1,7 +1,9 @@
 import { z } from 'zod'
 import { UserRef } from '../auth/session.js'
+import { FilterNode } from '../common/filter.js'
 import { BigIntString, LangText, Timestamp, Uuid } from '../common/primitives.js'
 import { FieldDef, type FieldType } from '../fields/field-def.js'
+import { QuerySortItem } from './query.js'
 
 /**
  * Датасет — единица данных с владельцем, схемой, версиями, правами и историей
@@ -223,6 +225,7 @@ export type DatasetRow = z.infer<typeof DatasetRow>
 export const DatasetRowInput = z.object({
   values: z.record(z.string(), z.unknown()),
 })
+export type DatasetRowInput = z.infer<typeof DatasetRowInput>
 
 /** Правка строки: изменённые значения и версия, которую видел пользователь. */
 export const DatasetRowPatch = z.object({
@@ -230,6 +233,40 @@ export const DatasetRowPatch = z.object({
   ver: z.number().int().positive(),
 })
 export type DatasetRowPatch = z.infer<typeof DatasetRowPatch>
+
+/**
+ * Страница строк для таблицы датасета (ADR-0051): фильтр, сортировка, быстрый
+ * поиск по текстовым полям и смещение; строки — с `_id` и `_ver`, через
+ * компилятор запросов с политиками пользователя.
+ */
+export const DatasetRowsQuery = z.object({
+  where: FilterNode.optional(),
+  sort: z.array(QuerySortItem).max(8).default([]),
+  search: z.string().trim().max(200).optional(),
+  limit: z.number().int().min(1).max(1000).default(200),
+  offset: z.number().int().min(0).default(0),
+  /** Посчитать все строки под фильтром — для «1 245 из 2,3 млн». */
+  count: z.boolean().default(true),
+})
+export type DatasetRowsQuery = z.infer<typeof DatasetRowsQuery>
+
+export const DatasetRowsInsert = z.object({ rows: z.array(DatasetRowInput).min(1).max(1000) })
+export type DatasetRowsInsert = z.infer<typeof DatasetRowsInsert>
+
+export const DatasetRowsDelete = z.object({ ids: z.array(BigIntString).min(1).max(1000) })
+export type DatasetRowsDelete = z.infer<typeof DatasetRowsDelete>
+
+/** Запись истории строки (`ds.h_*`): что стало и что было. */
+export const DatasetRowHistoryEntry = z.object({
+  id: BigIntString,
+  op: z.enum(['insert', 'update', 'delete']),
+  ver: z.number().int().positive(),
+  values: z.record(z.string(), z.unknown()),
+  previous: z.record(z.string(), z.unknown()).nullable(),
+  changedBy: UserRef.nullable(),
+  changedAt: Timestamp,
+})
+export type DatasetRowHistoryEntry = z.infer<typeof DatasetRowHistoryEntry>
 
 /** 409 при правке строки: текущее состояние и поля, изменённые с тех пор другим. */
 export const DatasetRowConflict = z.object({

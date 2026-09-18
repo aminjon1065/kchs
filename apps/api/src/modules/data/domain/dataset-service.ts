@@ -33,6 +33,7 @@ export interface DatasetStorage {
   primaryKey: string[]
   settings: DatasetSettings
   currentVersion: number
+  schemaVersion: number
   spaceId: string
 }
 
@@ -190,6 +191,7 @@ export const DatasetService = {
         primaryKey: datasets.primaryKey,
         settings: datasets.settings,
         currentVersion: datasets.currentVersion,
+        schemaVersion: datasets.schemaVersion,
         spaceId: objects.spaceId,
       })
       .from(datasets)
@@ -209,6 +211,7 @@ export const DatasetService = {
       primaryKey: row.primaryKey,
       settings: DatasetSettings.parse(row.settings ?? {}),
       currentVersion: row.currentVersion,
+      schemaVersion: row.schemaVersion,
       spaceId: row.spaceId,
     }
   },

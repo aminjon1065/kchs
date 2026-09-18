@@ -32,6 +32,7 @@
     "@kchs/contracts": "workspace:*",
     "@kchs/fields": "workspace:*",
     "@kchs/i18n": "workspace:*",
+    "@kchs/query": "workspace:*",
     "@node-rs/argon2": "^2.0.2",
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/exporter-prometheus": "^0.222.0",

@@ -68,6 +68,7 @@ export function toProblem(error: unknown, request: FastifyRequest): ProblemDetai
       ...(typeof error.details?.retryAfter === 'number'
         ? { retryAfter: error.details.retryAfter as number }
         : {}),
+      ...(error.data ? { data: error.data } : {}),
     }
   }
 

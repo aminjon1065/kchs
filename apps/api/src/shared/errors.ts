@@ -9,6 +9,8 @@ export class AppError extends Error {
   readonly status: number
   readonly details?: Record<string, unknown>
   readonly fieldErrors?: Array<{ path: string; message: string; code?: string }>
+  /** Данные, которые уходят клиенту в `data` ответа об ошибке; `details` — только в журнал. */
+  readonly data?: Record<string, unknown>
 
   constructor(
     code: ErrorCode,
@@ -17,6 +19,7 @@ export class AppError extends Error {
     options?: {
       details?: Record<string, unknown>
       fieldErrors?: Array<{ path: string; message: string; code?: string }>
+      data?: Record<string, unknown>
       cause?: unknown
     },
   ) {
@@ -26,6 +29,7 @@ export class AppError extends Error {
     this.status = status
     this.details = options?.details
     this.fieldErrors = options?.fieldErrors
+    this.data = options?.data
   }
 }
 

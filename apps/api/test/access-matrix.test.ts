@@ -215,6 +215,16 @@ const FIXTURES: Record<string, TypeFixture> = {
     viewerForbidden: (_fx, id) => [
       {
         method: 'POST',
+        url: `/datasets/${id}/rows`,
+        payload: { rows: [{ values: { code: 'V-1' } }] },
+      },
+      {
+        method: 'POST',
+        url: `/datasets/${id}/fields`,
+        payload: { key: 'extra', label: { ru: 'Ещё' }, type: 'text' },
+      },
+      {
+        method: 'POST',
         url: '/datasets/imports',
         payload: {
           fileId: datasetSourceFileId,

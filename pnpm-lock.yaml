@@ -217,6 +217,9 @@ importers:
       '@kchs/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
+      '@kchs/query':
+        specifier: workspace:*
+        version: link:../../packages/query
       '@node-rs/argon2':
         specifier: ^2.0.2
         version: 2.2.1
