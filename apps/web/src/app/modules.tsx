@@ -4,6 +4,7 @@ import { DashboardView } from '~/features/data/dashboard-view.js'
 import { DataCatalogScreen } from '~/features/data/data-catalog-screen.js'
 import { DatasetView } from '~/features/data/dataset-view.js'
 import { ExploreScreen } from '~/features/data/explore-screen.js'
+import { MetricView } from '~/features/data/metric-view.js'
 import { type SavedSqlLab, SqlLabScreen } from '~/features/data/sql-lab-screen.js'
 import { FilesScreen } from '~/features/files/files-screen.js'
 import { HomeScreen } from '~/features/home/home-screen.js'
@@ -134,6 +135,10 @@ export function registerModules(): void {
   registerObjectView({
     type: 'chart',
     render: (tab) => <ChartView objectId={tab.objectId!} tabId={tab.id} />,
+  })
+  registerObjectView({
+    type: 'metric',
+    render: (tab) => <MetricView objectId={tab.objectId!} tabId={tab.id} />,
   })
   registerObjectView({
     type: 'dataset',

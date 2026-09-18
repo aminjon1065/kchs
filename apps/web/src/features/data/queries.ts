@@ -12,6 +12,9 @@ import type {
   ImportStatus,
   JobRecord,
   JobStatus,
+  MetricRecord,
+  MetricValue,
+  MetricValueInput,
   QueryResult,
   SqlSchema,
 } from '@kchs/contracts'
@@ -31,6 +34,9 @@ export const dataKeys = {
   chart: (id: string) => ['chart', id] as const,
   chartData: (id: string) => ['chart', id, 'data'] as const,
   dashboard: (id: string) => ['dashboard', id] as const,
+  metric: (id: string) => ['metric', id] as const,
+  metricValue: (id: string, input: Partial<MetricValueInput>) =>
+    ['metric', id, 'value', input] as const,
   dashboardData: (id: string, filters: Record<string, unknown>) =>
     ['dashboard', id, 'data', filters] as const,
 }
@@ -144,4 +150,19 @@ export const dashboardDataQuery = (id: string, filters: Record<string, unknown>)
     queryKey: dataKeys.dashboardData(id, filters),
     queryFn: () => http.post<DashboardData>(`/dashboards/${id}/data`, { filters }),
     placeholderData: (previous) => previous,
+  })
+
+export const metricQuery = (id: string) =>
+  queryOptions({
+    queryKey: dataKeys.metric(id),
+    queryFn: () => http.get<MetricRecord>(`/metrics/${id}`),
+  })
+
+/** Значение показателя — посчитано сервером с политиками пользователя (ADR-0058). */
+export const metricValueQuery = (id: string, input: Partial<MetricValueInput>) =>
+  queryOptions({
+    queryKey: dataKeys.metricValue(id, input),
+    queryFn: () => http.post<MetricValue>(`/metrics/${id}/value`, input),
+    placeholderData: (previous) => previous,
+    retry: false,
   })

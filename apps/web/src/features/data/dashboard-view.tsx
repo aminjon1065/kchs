@@ -2,16 +2,14 @@ import type {
   DashboardFilter,
   DashboardSpec,
   DashboardTile,
-  DashboardTileData,
-  DatasetField,
+  MetricComparison,
+  MetricTileOptions,
 } from '@kchs/contracts'
+import { formatRelativeTime } from '@kchs/fields'
 import {
   AlertDialog,
   Button,
   Callout,
-  Card,
-  Chart,
-  cn,
   Dialog,
   DialogContent,
   EmptyState,
@@ -19,7 +17,6 @@ import {
   IconButton,
   InlineEdit,
   Input,
-  NoAccessState,
   ObjectIcon,
   PanelToolbar,
   SegmentedControl,
@@ -33,18 +30,7 @@ import {
   useToast,
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import {
-  ArrowDown,
-  ArrowUp,
-  Filter,
-  Pencil,
-  Plus,
-  RefreshCw,
-  Share2,
-  SlidersHorizontal,
-  Trash2,
-  X,
-} from 'lucide-react'
+import { Filter, Pencil, Plus, RefreshCw, Share2, Trash2, Tv, X } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
@@ -52,7 +38,7 @@ import { useWorkspace } from '~/app/workspace/store.js'
 import { ShareDialog } from '~/features/access/share-dialog.js'
 import { PresenceAvatars } from '~/features/objects/presence-avatars.js'
 import { ApiError, http } from '~/shared/api/client.js'
-import { keys, meQuery, objectListQuery, objectQuery } from '~/shared/api/queries.js'
+import { keys, objectListQuery, objectQuery } from '~/shared/api/queries.js'
 import {
   moveTile,
   nextId,
@@ -63,46 +49,13 @@ import {
   parseValues,
   periodValue,
 } from './dashboard-layout.js'
-import {
-  chartQuery,
-  dashboardDataQuery,
-  dashboardQuery,
-  dataKeys,
-  datasetQuery,
-} from './queries.js'
+import { TileCard } from './dashboard-tile.js'
+import { DashboardTv } from './dashboard-tv.js'
+import { METRIC_PERIOD_PRESETS, type MetricPeriodPreset, presetPeriod } from './metric-format.js'
+import { dashboardDataQuery, dashboardQuery, dataKeys } from './queries.js'
 
-/** Высота строки сетки дашборда, px (класс auto-rows-[80px]). */
-const ROW = 80
-/** Классы размеров плитки — литералами, чтобы Tailwind их собрал (без встроенных стилей, CSP). */
-const COL_SPAN = [
-  '',
-  'col-span-1',
-  'col-span-2',
-  'col-span-3',
-  'col-span-4',
-  'col-span-5',
-  'col-span-6',
-  'col-span-7',
-  'col-span-8',
-  'col-span-9',
-  'col-span-10',
-  'col-span-11',
-  'col-span-12',
-]
-const ROW_SPAN = [
-  '',
-  'row-span-1',
-  'row-span-2',
-  'row-span-3',
-  'row-span-4',
-  'row-span-5',
-  'row-span-6',
-  'row-span-7',
-  'row-span-8',
-]
-const WIDTHS = [3, 4, 6, 8, 12]
-const HEIGHTS = [2, 3, 4, 5, 6, 8]
-const NONE = '__none'
+const AS_METRIC = '__metric'
+const COMPARISONS: MetricComparison[] = ['none', 'previous_period', 'previous_year', 'target']
 
 /**
  * Дашборд (03-screens.md §8): фильтры сверху и плитки сеткой; в режиме правки —
@@ -120,10 +73,18 @@ export function DashboardView({ objectId, tabId }: { objectId: string; tabId: st
   const [addingFilter, setAddingFilter] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [tv, setTv] = useState(false)
+  const locale = useAppearance((s) => s.locale)
 
   const { data: object } = useQuery(objectQuery(objectId))
   const { data: dashboard, isLoading } = useQuery(dashboardQuery(objectId))
-  const data = useQuery({ ...dashboardDataQuery(objectId, values), enabled: Boolean(dashboard) })
+  const refresh = dashboard?.spec.refreshInterval
+  const data = useQuery({
+    ...dashboardDataQuery(objectId, values),
+    // В TV-режиме данные обновляет он сам
+    enabled: Boolean(dashboard) && !tv,
+    ...(refresh ? { refetchInterval: refresh * 1000 } : {}),
+  })
 
   const rename = useMutation({
     mutationFn: (name: string) => http.patch(`/dashboards/${objectId}`, { name }),
@@ -230,7 +191,23 @@ export function DashboardView({ objectId, tabId }: { objectId: string; tabId: st
             </>
           ) : (
             <>
+              {data.dataUpdatedAt ? (
+                <span className="hidden text-xs text-fg-muted md:inline">
+                  {t('data.dashboard.updated', {
+                    time: formatRelativeTime(new Date(data.dataUpdatedAt), { locale }),
+                  })}
+                </span>
+              ) : null}
               <PresenceAvatars objectId={objectId} />
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={<Tv className="size-3.5" />}
+                disabled={tiles.length === 0}
+                onClick={() => setTv(true)}
+              >
+                {t('data.dashboard.tv.enter')}
+              </Button>
               <IconButton
                 label={t('data.dashboard.refresh')}
                 onClick={() =>
@@ -337,6 +314,16 @@ export function DashboardView({ objectId, tabId }: { objectId: string; tabId: st
           onAdd={(filter) => {
             setDraft({ ...draft, filters: [...draft.filters, filter] })
             setAddingFilter(false)
+          }}
+        />
+      ) : null}
+      {tv ? (
+        <DashboardTv
+          dashboard={dashboard}
+          values={values}
+          onExit={() => {
+            setTv(false)
+            void client.invalidateQueries({ queryKey: ['dashboard', objectId, 'data'] })
           }}
         />
       ) : null}
@@ -500,209 +487,13 @@ function AddFilterDialog({
 
 // ─── Плитки ──────────────────────────────────────────────────────────────────
 
-function TileCard({
-  tile,
-  data,
-  pending,
-  editing,
-  filters,
-  onChange,
-  onMove,
-  onRemove,
-}: {
-  tile: DashboardTile
-  data: DashboardTileData | undefined
-  pending: boolean
-  editing: boolean
-  filters: DashboardFilter[]
-  onChange: (tile: DashboardTile) => void
-  onMove: (delta: number) => void
-  onRemove: () => void
-}) {
-  const t = useT()
-  const { data: me } = useQuery(meQuery())
-  const [bindings, setBindings] = useState(false)
-  const height = Math.min(tile.h, 8)
-
-  let body: ReactNode
-  if (tile.kind === 'text' || tile.kind === 'heading') {
-    body = (
-      <div className="h-full overflow-auto whitespace-pre-wrap text-sm text-fg">{tile.text}</div>
-    )
-  } else if (data?.error === 'no_access') {
-    body = <NoAccessState />
-  } else if (data?.error) {
-    body = <Callout tone="danger">{t('data.dashboard.failed')}</Callout>
-  } else if (data?.spec && data.result) {
-    body = (
-      <Chart
-        spec={data.spec}
-        result={data.result}
-        height={height * ROW - 64}
-        pending={pending}
-        {...(me?.user.timezone ? { timezone: me.user.timezone } : {})}
-      />
-    )
-  } else {
-    body = <Skeleton className="h-full w-full" />
-  }
-
-  return (
-    <Card
-      className={cn(COL_SPAN[tile.w] ?? 'col-span-6', ROW_SPAN[height], 'min-w-0 overflow-hidden')}
-      title={tile.title ?? t(`data.dashboard.tileKinds.${tile.kind === 'text' ? 'text' : 'chart'}`)}
-      action={
-        editing ? (
-          <span className="flex items-center gap-1">
-            <Select
-              value={String(tile.w)}
-              onValueChange={(w) => onChange({ ...tile, w: Number(w) })}
-            >
-              <SelectTrigger aria-label={t('data.dashboard.width')} className="h-6 w-20 text-2xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {WIDTHS.map((w) => (
-                  <SelectItem key={w} value={String(w)}>
-                    {w}/12
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select
-              value={String(tile.h)}
-              onValueChange={(h) => onChange({ ...tile, h: Number(h) })}
-            >
-              <SelectTrigger aria-label={t('data.dashboard.height')} className="h-6 w-14 text-2xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {HEIGHTS.map((h) => (
-                  <SelectItem key={h} value={String(h)}>
-                    {h}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {tile.kind === 'chart' && filters.length > 0 ? (
-              <IconButton
-                label={t('data.dashboard.tileFilters')}
-                size="sm"
-                onClick={() => setBindings(true)}
-              >
-                <SlidersHorizontal className="size-3.5" />
-              </IconButton>
-            ) : null}
-            <IconButton label={t('data.dashboard.moveUp')} size="sm" onClick={() => onMove(-1)}>
-              <ArrowUp className="size-3.5" />
-            </IconButton>
-            <IconButton label={t('data.dashboard.moveDown')} size="sm" onClick={() => onMove(1)}>
-              <ArrowDown className="size-3.5" />
-            </IconButton>
-            <IconButton
-              label={t('data.dashboard.removeTile')}
-              size="sm"
-              variant="danger"
-              onClick={onRemove}
-            >
-              <Trash2 className="size-3.5" />
-            </IconButton>
-          </span>
-        ) : null
-      }
-    >
-      <div className="h-full min-h-0">{body}</div>
-      {bindings ? (
-        <BindingsDialog
-          tile={tile}
-          filters={filters}
-          onClose={() => setBindings(false)}
-          onSave={(filterBindings) => {
-            onChange({ ...tile, filterBindings })
-            setBindings(false)
-          }}
-        />
-      ) : null}
-    </Card>
-  )
-}
-
-/** Поля источника плитки: датасет сохранённого или встроенного графика. */
-function useTileFields(tile: DashboardTile): DatasetField[] {
-  const chart = useQuery({ ...chartQuery(tile.chartId ?? ''), enabled: Boolean(tile.chartId) })
-  const spec = tile.spec ?? chart.data?.spec
-  const source = spec && 'query' in spec.data ? spec.data.query.source : null
-  const datasetId = source?.kind === 'dataset' ? source.id : ''
-  const dataset = useQuery({ ...datasetQuery(datasetId), enabled: Boolean(datasetId) })
-  return dataset.data?.fields ?? []
-}
-
-function BindingsDialog({
-  tile,
-  filters,
-  onClose,
-  onSave,
-}: {
-  tile: DashboardTile
-  filters: DashboardFilter[]
-  onClose: () => void
-  onSave: (bindings: Record<string, string>) => void
-}) {
-  const t = useT()
-  const locale = useAppearance((s) => s.locale)
-  const fields = useTileFields(tile)
-  const [bindings, setBindings] = useState<Record<string, string>>(tile.filterBindings)
-  return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent
-        title={tile.title ?? t('data.dashboard.tileKinds.chart')}
-        size="sm"
-        footer={
-          <>
-            <Button variant="secondary" onClick={onClose}>
-              {t('common.actions.cancel')}
-            </Button>
-            <Button variant="primary" onClick={() => onSave(bindings)}>
-              {t('data.dashboard.done')}
-            </Button>
-          </>
-        }
-      >
-        <div className="flex flex-col gap-3">
-          {filters.map((filter) => {
-            const label = t('data.dashboard.bindings', {
-              filter: filter.label[locale] ?? filter.label.ru,
-            })
-            return (
-              <Field key={filter.id} label={label}>
-                <Select
-                  value={bindings[filter.id] ?? NONE}
-                  onValueChange={(field) =>
-                    setBindings((current) => {
-                      const { [filter.id]: _previous, ...rest } = current
-                      return field === NONE ? rest : { ...rest, [filter.id]: field }
-                    })
-                  }
-                >
-                  <SelectTrigger aria-label={label}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NONE}>{t('data.dashboard.bindingNone')}</SelectItem>
-                    {fields.map((field) => (
-                      <SelectItem key={field.key} value={field.key}>
-                        {field.label[locale] ?? field.label.ru ?? field.key}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-            )
-          })}
-        </div>
-      </DialogContent>
-    </Dialog>
-  )
+type TileKind = 'chart' | 'metric' | 'text'
+const ADDABLE: TileKind[] = ['chart', 'metric', 'text']
+/** Размер новой плитки: график крупнее, показатель — число в строку по четыре. */
+const SIZES: Record<TileKind, { w: number; h: number }> = {
+  chart: { w: 6, h: 4 },
+  metric: { w: 3, h: 2 },
+  text: { w: 6, h: 2 },
 }
 
 function AddTileDialog({
@@ -717,14 +508,56 @@ function AddTileDialog({
   onAdd: (tile: DashboardTile) => void
 }) {
   const t = useT()
-  const [kind, setKind] = useState<'chart' | 'text'>('chart')
-  const [chartId, setChartId] = useState<string | null>(null)
+  const [kind, setKind] = useState<TileKind>('chart')
+  const [sourceId, setSourceId] = useState<string | null>(null)
   const [text, setText] = useState('')
-  const { data: charts } = useQuery(objectListQuery({ spaceId, types: 'chart', limit: 100 }))
-  const items = charts?.items ?? []
-  const chart = items.find((item) => item.id === chartId)
-  const ready = kind === 'chart' ? Boolean(chart) : Boolean(text.trim())
+  const [period, setPeriod] = useState<MetricPeriodPreset | typeof AS_METRIC>(AS_METRIC)
+  const [comparison, setComparison] = useState<MetricComparison | typeof AS_METRIC>(AS_METRIC)
+  const { data: charts } = useQuery({
+    ...objectListQuery({ spaceId, types: 'chart', limit: 100 }),
+    enabled: kind === 'chart',
+  })
+  const { data: metrics } = useQuery({
+    ...objectListQuery({ spaceId, types: 'metric', limit: 100 }),
+    enabled: kind === 'metric',
+  })
+  const items = (kind === 'metric' ? metrics?.items : charts?.items) ?? []
+  const source = items.find((item) => item.id === sourceId)
+  const ready = kind === 'text' ? Boolean(text.trim()) : Boolean(source)
   const bottom = Math.max(0, ...tiles.map((tile) => tile.y + tile.h))
+
+  const metricOptions = (): MetricTileOptions | undefined => {
+    const options: MetricTileOptions = {
+      ...(period !== AS_METRIC ? { period: presetPeriod(period) } : {}),
+      ...(comparison !== AS_METRIC ? { comparison } : {}),
+    }
+    return Object.keys(options).length > 0 ? options : undefined
+  }
+
+  const create = (): DashboardTile => {
+    const base = {
+      id: nextId(
+        't',
+        tiles.map((tile) => tile.id),
+      ),
+      kind,
+      filterBindings: {},
+      x: 0,
+      y: bottom,
+      ...SIZES[kind],
+    }
+    if (kind === 'text') return { ...base, text: text.trim() }
+    if (kind === 'metric' && source) {
+      const options = metricOptions()
+      return {
+        ...base,
+        metricId: source.id,
+        title: source.title,
+        ...(options ? { metric: options } : {}),
+      }
+    }
+    return { ...base, chartId: source?.id, title: source?.title ?? null }
+  }
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -736,27 +569,7 @@ function AddTileDialog({
             <Button variant="secondary" onClick={onClose}>
               {t('common.actions.cancel')}
             </Button>
-            <Button
-              variant="primary"
-              disabled={!ready}
-              onClick={() =>
-                onAdd({
-                  id: nextId(
-                    't',
-                    tiles.map((tile) => tile.id),
-                  ),
-                  kind,
-                  ...(kind === 'chart' && chart
-                    ? { chartId: chart.id, title: chart.title }
-                    : { text: text.trim() }),
-                  filterBindings: {},
-                  x: 0,
-                  y: bottom,
-                  w: 6,
-                  h: kind === 'chart' ? 4 : 2,
-                })
-              }
-            >
+            <Button variant="primary" disabled={!ready} onClick={() => onAdd(create())}>
               {t('common.actions.create')}
             </Button>
           </>
@@ -766,32 +579,16 @@ function AddTileDialog({
           <SegmentedControl
             aria-label={t('data.dashboard.addTileTitle')}
             value={kind}
-            onValueChange={setKind}
-            options={(['chart', 'text'] as const).map((value) => ({
+            onValueChange={(next) => {
+              setKind(next)
+              setSourceId(null)
+            }}
+            options={ADDABLE.map((value) => ({
               value,
               label: t(`data.dashboard.tileKinds.${value}`),
             }))}
           />
-          {kind === 'chart' ? (
-            items.length === 0 ? (
-              <Callout tone="info">{t('data.dashboard.noCharts')}</Callout>
-            ) : (
-              <Field label={t('data.dashboard.pickChart')}>
-                <Select value={chartId ?? undefined} onValueChange={setChartId}>
-                  <SelectTrigger aria-label={t('data.dashboard.pickChart')}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {items.map((item) => (
-                      <SelectItem key={item.id} value={item.id}>
-                        {item.title}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-            )
-          ) : (
+          {kind === 'text' ? (
             <Field label={t('data.dashboard.text')}>
               <Textarea
                 value={text}
@@ -799,7 +596,76 @@ function AddTileDialog({
                 aria-label={t('data.dashboard.text')}
               />
             </Field>
+          ) : items.length === 0 ? (
+            <Callout tone="info">
+              {t(kind === 'metric' ? 'data.dashboard.noMetrics' : 'data.dashboard.noCharts')}
+            </Callout>
+          ) : (
+            <Field
+              label={t(
+                kind === 'metric' ? 'data.dashboard.pickMetric' : 'data.dashboard.pickChart',
+              )}
+            >
+              <Select value={sourceId ?? undefined} onValueChange={setSourceId}>
+                <SelectTrigger
+                  aria-label={t(
+                    kind === 'metric' ? 'data.dashboard.pickMetric' : 'data.dashboard.pickChart',
+                  )}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {items.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {item.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
           )}
+          {kind === 'metric' && source ? (
+            <>
+              <Field label={t('data.dashboard.metricPeriod')}>
+                <Select
+                  value={period}
+                  onValueChange={(next) => setPeriod(next as MetricPeriodPreset | typeof AS_METRIC)}
+                >
+                  <SelectTrigger aria-label={t('data.dashboard.metricPeriod')}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={AS_METRIC}>{t('data.dashboard.asMetric')}</SelectItem>
+                    {METRIC_PERIOD_PRESETS.map((preset) => (
+                      <SelectItem key={preset} value={preset}>
+                        {t(`data.metric.periods.${preset}`)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label={t('data.dashboard.metricComparison')}>
+                <Select
+                  value={comparison}
+                  onValueChange={(next) =>
+                    setComparison(next as MetricComparison | typeof AS_METRIC)
+                  }
+                >
+                  <SelectTrigger aria-label={t('data.dashboard.metricComparison')}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={AS_METRIC}>{t('data.dashboard.asMetric')}</SelectItem>
+                    {COMPARISONS.map((value) => (
+                      <SelectItem key={value} value={value}>
+                        {t(`data.metric.comparisons.${value}`)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            </>
+          ) : null}
         </div>
       </DialogContent>
     </Dialog>

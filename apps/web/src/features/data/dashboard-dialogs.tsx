@@ -91,12 +91,12 @@ export function CreateDashboardDialog({
   )
 }
 
-/** График — плиткой на существующий или новый дашборд пространства. */
+/** График или показатель — плиткой на существующий или новый дашборд пространства. */
 export function AddToDashboardDialog({
-  chart,
+  source,
   onClose,
 }: {
-  chart: { id: string; name: string; spaceId: string }
+  source: { kind: 'chart' | 'metric'; id: string; name: string; spaceId: string }
   onClose: () => void
 }) {
   const t = useT()
@@ -104,7 +104,7 @@ export function AddToDashboardDialog({
   const client = useQueryClient()
   const openTab = useWorkspace((s) => s.openTab)
   const { data: dashboards } = useQuery(
-    objectListQuery({ spaceId: chart.spaceId, types: 'dashboard', limit: 100 }),
+    objectListQuery({ spaceId: source.spaceId, types: 'dashboard', limit: 100 }),
   )
   const [target, setTarget] = useState<string>(NEW)
   const [name, setName] = useState('')
@@ -115,14 +115,14 @@ export function AddToDashboardDialog({
       't',
       tiles.map((tile) => tile.id),
     ),
-    kind: 'chart',
-    chartId: chart.id,
-    title: chart.name,
+    kind: source.kind,
+    ...(source.kind === 'metric' ? { metricId: source.id } : { chartId: source.id }),
+    title: source.name,
     filterBindings: {},
     x: 0,
     y: Math.max(0, ...tiles.map((tile) => tile.y + tile.h)),
-    w: 6,
-    h: 4,
+    // Показатель — число, ему хватит четверти ширины
+    ...(source.kind === 'metric' ? { w: 3, h: 2 } : { w: 6, h: 4 }),
   })
 
   const add = useMutation({
@@ -130,7 +130,7 @@ export function AddToDashboardDialog({
       if (target === NEW) {
         const created = await http.post<{ id: string }>('/dashboards', {
           name: name.trim(),
-          spaceId: chart.spaceId,
+          spaceId: source.spaceId,
           spec: { tiles: [tileFor([])] },
         })
         return { id: created.id, title: name.trim() }

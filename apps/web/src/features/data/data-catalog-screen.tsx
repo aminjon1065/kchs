@@ -13,7 +13,7 @@ import {
   useBreakpoint,
 } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
-import { LayoutDashboard, SquareTerminal, Upload } from 'lucide-react'
+import { Gauge, LayoutDashboard, SquareTerminal, Upload } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
@@ -30,9 +30,10 @@ import {
 import { orderSpaces } from '~/shared/spaces.js'
 import { CreateDashboardDialog } from './dashboard-dialogs.js'
 import { ImportWizard } from './import-wizard.js'
+import { MetricEditor } from './metric-editor.js'
 
-/** Типы каталога «Данные»; показатели, тетради и отчёты добавятся с их модулями. */
-const TYPES = ['dataset', 'chart', 'dashboard']
+/** Типы каталога «Данные»; тетради и отчёты добавятся с их модулями. */
+const TYPES = ['dataset', 'metric', 'chart', 'dashboard']
 
 /**
  * Каталог «Данные» (03-screens.md §4): объекты данных пространства в
@@ -63,6 +64,7 @@ export function DataCatalogScreen({
   const [viewId, setViewId] = useState<string | null>(savedState?.viewId ?? null)
   const [wizard, setWizard] = useState<{ file: File | null } | null>(null)
   const [creatingDashboard, setCreatingDashboard] = useState(false)
+  const [creatingMetric, setCreatingMetric] = useState(false)
 
   useEffect(() => {
     if (breakpoint === 'mobile') setCollection((current) => ({ ...current, mode: 'gallery' }))
@@ -157,6 +159,15 @@ export function DataCatalogScreen({
                 {t('data.sql.title')}
               </Button>
             ) : null}
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={<Gauge className="size-3.5" />}
+              disabled={!effectiveSpaceId}
+              onClick={() => setCreatingMetric(true)}
+            >
+              {t('data.metric.create')}
+            </Button>
             <Button
               variant="secondary"
               size="sm"
@@ -265,6 +276,13 @@ export function DataCatalogScreen({
         />
       </div>
 
+      {creatingMetric && effectiveSpaceId ? (
+        <MetricEditor
+          spaceId={effectiveSpaceId}
+          metric={null}
+          onClose={() => setCreatingMetric(false)}
+        />
+      ) : null}
       {creatingDashboard && effectiveSpaceId ? (
         <CreateDashboardDialog
           spaceId={effectiveSpaceId}

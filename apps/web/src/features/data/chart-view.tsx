@@ -156,7 +156,10 @@ export function ChartView({ objectId, tabId }: { objectId: string; tabId: string
       </div>
 
       {addingToDashboard ? (
-        <AddToDashboardDialog chart={chart} onClose={() => setAddingToDashboard(false)} />
+        <AddToDashboardDialog
+          source={{ kind: 'chart', id: chart.id, name: chart.name, spaceId: chart.spaceId }}
+          onClose={() => setAddingToDashboard(false)}
+        />
       ) : null}
       <ShareDialog
         objectId={objectId}
