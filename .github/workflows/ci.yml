@@ -109,10 +109,25 @@ jobs:
           bash infra/scripts/generate-secrets.sh
           docker compose up -d --build --wait
 
+      # Движок нужен сценариям с превью и текстом файлов: образ тяжёлый
+      # (GDAL, LibreOffice, tesseract), поэтому — из общего кэша с заданием сборки
+      - uses: docker/setup-buildx-action@v3
+      - name: Образ движка
+        uses: docker/build-push-action@v6
+        with:
+          context: apps/engine
+          file: apps/engine/Dockerfile
+          load: true
+          tags: kchs/engine:0.1.0
+          cache-from: type=gha,scope=engine
+
       - name: Миграции и seed
         run: |
           pnpm db:migrate
           pnpm db:seed
+
+      - name: Движок
+        run: docker compose up -d --no-build --wait engine
 
       - name: Браузеры Playwright
         run: pnpm --filter @kchs/web exec playwright install --with-deps chromium
