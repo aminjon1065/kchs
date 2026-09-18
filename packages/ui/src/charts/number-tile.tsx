@@ -19,6 +19,8 @@ const STATUS_DOT: Record<ChartColorToken, string> = {
 
 export interface NumberTileProps {
   model: NumberTileModel
+  /** `lg` — крупные значение и подписи: TV-режим дашборда, экран на стене. */
+  size?: 'md' | 'lg'
   className?: string
   onClick?: () => void
 }
@@ -28,8 +30,9 @@ export interface NumberTileProps {
  * хорошо ли изменение для показателя, плюс стрелка и подпись (не только цвет),
  * цель с прогрессом, отметка порога и искра истории.
  */
-export function NumberTile({ model, className, onClick }: NumberTileProps) {
+export function NumberTile({ model, size = 'md', className, onClick }: NumberTileProps) {
   const t = useUiT()
+  const large = size === 'lg'
   const { delta, target, status } = model
   const tone =
     delta?.good === true
@@ -63,21 +66,34 @@ export function NumberTile({ model, className, onClick }: NumberTileProps) {
     >
       <div className="flex items-center gap-1.5">
         {status ? (
-          <span className={cn('size-2 shrink-0 rounded-full', STATUS_DOT[status])}>
+          <span
+            className={cn('shrink-0 rounded-full', large ? 'size-3' : 'size-2', STATUS_DOT[status])}
+          >
             <span className="sr-only">{t('ui.chart.tile.status')}</span>
           </span>
         ) : null}
-        <span className="truncate text-xs text-fg-secondary">{model.label}</span>
+        <span className={cn('truncate text-fg-secondary', large ? 'text-md' : 'text-xs')}>
+          {model.label}
+        </span>
       </div>
       <div className="flex items-baseline gap-1.5">
-        <span className="tabular text-2xl font-semibold leading-none text-fg">
+        <span
+          // leading-none — после размера: tailwind-merge снимает высоту строки перед text-*
+          className={cn(
+            'tabular font-semibold text-fg',
+            large ? 'text-3xl' : 'text-2xl',
+            'leading-none',
+          )}
+        >
           {model.formatted}
         </span>
-        {model.unit ? <span className="text-xs text-fg-muted">{model.unit}</span> : null}
+        {model.unit ? (
+          <span className={cn('text-fg-muted', large ? 'text-md' : 'text-xs')}>{model.unit}</span>
+        ) : null}
       </div>
       {delta ? (
-        <div className={cn('flex items-center gap-1 text-xs', tone)}>
-          <Arrow className="size-3.5 shrink-0" aria-hidden />
+        <div className={cn('flex items-center gap-1', large ? 'text-base' : 'text-xs', tone)}>
+          <Arrow className={cn('shrink-0', large ? 'size-5' : 'size-3.5')} aria-hidden />
           <span className="tabular">{delta.formatted}</span>
           <span className="truncate text-fg-muted">{delta.label}</span>
         </div>

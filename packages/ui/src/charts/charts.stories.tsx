@@ -21,6 +21,7 @@ import {
   REGIONS,
 } from '../stories/chart-data.js'
 import { Chart } from './chart.js'
+import { NumberTile } from './number-tile.js'
 
 const meta = {
   title: 'Графики/Типы',
@@ -426,6 +427,53 @@ export const Numbers: Story = {
     </div>
   ),
   play: chartsReady,
+}
+
+/** Крупный показатель — TV-режим дашборда: значение, дельта, цель, порог и искра. */
+export const NumberLarge: Story = {
+  name: 'Показатель крупно: TV-режим',
+  render: () => (
+    <div className="grid w-[960px] grid-cols-2 gap-4">
+      <NumberTile
+        size="lg"
+        model={{
+          label: 'Происшествия за месяц',
+          value: 37,
+          formatted: '37',
+          unit: null,
+          delta: {
+            value: -0.08,
+            formatted: '−8,0 %',
+            direction: 'down',
+            good: true,
+            label: 'к прошлому периоду',
+          },
+          target: { value: 40, formatted: '40', progress: 40 / 37, label: 'Цель: 40' },
+          status: 'success',
+          spark: [52, 48, 44, 51, 39, 42, 40, 37],
+        }}
+      />
+      <NumberTile
+        size="lg"
+        model={{
+          label: 'Ущерб',
+          value: 1_250_000,
+          formatted: '1,25 млн',
+          unit: 'сомони',
+          delta: {
+            value: 0.21,
+            formatted: '+21,0 %',
+            direction: 'up',
+            good: false,
+            label: 'к прошлому году',
+          },
+          target: null,
+          status: 'danger',
+          spark: [0.8, 0.9, 1.1, 0.95, 1.2, 1.25],
+        }}
+      />
+    </div>
+  ),
 }
 
 export const Table: Story = {
