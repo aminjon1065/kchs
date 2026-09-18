@@ -230,6 +230,27 @@ export const TabsStory: Story = {
   ),
 }
 
+export const VerticalTabsStory: Story = {
+  name: 'Вкладки вертикальные',
+  render: () => (
+    <Tabs defaultValue="users" orientation="vertical" className="flex max-w-[560px] gap-4">
+      <TabsList aria-label="Разделы" className="w-48 shrink-0">
+        <TabsTrigger value="health">Здоровье</TabsTrigger>
+        <TabsTrigger value="users" count={61}>
+          Пользователи
+        </TabsTrigger>
+        <TabsTrigger value="roles">Роли и способности</TabsTrigger>
+        <TabsTrigger value="audit" disabled>
+          Аудит
+        </TabsTrigger>
+      </TabsList>
+      <TabsContent value="users" className="text-sm text-fg-secondary">
+        Содержимое раздела «Пользователи».
+      </TabsContent>
+    </Tabs>
+  ),
+}
+
 export const Separators: Story = {
   name: 'Разделители',
   render: () => (

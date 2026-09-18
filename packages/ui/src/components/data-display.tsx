@@ -400,7 +400,12 @@ export const TabsList = forwardRef<
   return (
     <TabsPrimitive.List
       ref={ref}
-      className={cn('flex items-center gap-0.5 border-b border-line', className)}
+      className={cn(
+        'flex items-center gap-0.5 border-b border-line',
+        // Вертикальные вкладки — навигация по разделам экрана (консоль администрирования)
+        'data-[orientation=vertical]:flex-col data-[orientation=vertical]:items-stretch data-[orientation=vertical]:border-b-0',
+        className,
+      )}
       {...props}
     />
   )
@@ -420,6 +425,10 @@ export const TabsTrigger = forwardRef<
         'data-[state=active]:text-fg',
         'after:absolute after:inset-x-1 after:-bottom-px after:h-0.5 after:rounded-full',
         'data-[state=active]:after:bg-accent',
+        // Вертикально: строка во всю ширину, подложка у выбранной, метка слева
+        'data-[orientation=vertical]:w-full data-[orientation=vertical]:justify-start data-[orientation=vertical]:rounded-sm',
+        'data-[orientation=vertical]:hover:bg-surface-2 data-[orientation=vertical]:data-[state=active]:bg-surface-2',
+        'data-[orientation=vertical]:after:inset-x-auto data-[orientation=vertical]:after:left-0 data-[orientation=vertical]:after:inset-y-1.5 data-[orientation=vertical]:after:h-auto data-[orientation=vertical]:after:w-0.5',
         className,
       )}
       {...props}

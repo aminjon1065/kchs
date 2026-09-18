@@ -407,7 +407,9 @@ export function AlertDialog({
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className="fixed inset-0 z-(--z-overlay) bg-black/35 data-[state=open]:animate-fade" />
+        {/* Подтверждение прерывает работу — для скринридера это alertdialog (WAI-ARIA) */}
         <DialogPrimitive.Content
+          role="alertdialog"
           className={cn(
             'fixed left-1/2 top-1/2 z-(--z-modal) w-[calc(100vw-2rem)] max-w-[440px]',
             '-translate-x-1/2 -translate-y-1/2 rounded-lg border border-line bg-surface p-4 shadow-lg',
