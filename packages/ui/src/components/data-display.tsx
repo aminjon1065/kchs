@@ -115,13 +115,14 @@ export function Tag({
 
 // ─── Avatar ──────────────────────────────────────────────────────────────────
 
+/** Цвет человека даёт подложка; инициалы — основным цветом текста (контраст AA). */
 const AVATAR_TONES = [
-  'bg-chart-1/15 text-chart-1',
-  'bg-chart-2/15 text-chart-2',
-  'bg-chart-3/15 text-chart-3',
-  'bg-chart-5/15 text-chart-5',
-  'bg-chart-6/15 text-chart-6',
-  'bg-chart-8/15 text-chart-8',
+  'bg-chart-1/20 text-fg',
+  'bg-chart-2/20 text-fg',
+  'bg-chart-3/20 text-fg',
+  'bg-chart-5/20 text-fg',
+  'bg-chart-6/20 text-fg',
+  'bg-chart-8/20 text-fg',
 ]
 
 function initialsOf(name: string): string {
@@ -441,7 +442,7 @@ export const ScrollArea = forwardRef<
       scrollHideDelay={600}
       {...props}
     >
-      <ScrollAreaPrimitive.Viewport className="size-full rounded-[inherit]">
+      <ScrollAreaPrimitive.Viewport className="size-full rounded-[inherit]" tabIndex={0}>
         {children}
       </ScrollAreaPrimitive.Viewport>
       <ScrollAreaPrimitive.Scrollbar

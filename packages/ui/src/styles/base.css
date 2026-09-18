@@ -1,63 +1,72 @@
 /* Базовые стили платформы: типографика, фокус, скроллбары, печать. */
 
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
+/*
+ * Сбросы элементов — в слое base, как preflight Tailwind: утилиты (@layer
+ * utilities) должны их перекрывать. Вне слоя `button { color: inherit }`
+ * побеждал `text-accent-fg`/`text-white` (тёмный текст на синей кнопке,
+ * контраст 3,4:1), а `p { margin: 0 }` — утилиты отступов.
+ */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--bg-canvas);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
+    line-height: var(--leading-sm);
+    /* Табличные цифры и улучшенные формы глифов Inter */
+    font-feature-settings:
+      "tnum" 1,
+      "cv11" 1,
+      "ss01" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Размер шрифта интерфейса — персонализация (03-ui/01-ux-concept.md §8) */
+  [data-font-size="s"] body {
+    font-size: 12px;
+  }
+  [data-font-size="l"] body {
+    font-size: 14px;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  p,
+  figure,
+  blockquote,
+  dl,
+  dd {
+    margin: 0;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+    color: inherit;
+  }
 }
 
-html {
-  -webkit-text-size-adjust: 100%;
-  text-size-adjust: 100%;
-}
-
-body {
-  margin: 0;
-  background: var(--bg-canvas);
-  color: var(--text);
-  font-family: var(--font-sans);
-  font-size: var(--text-sm);
-  line-height: var(--leading-sm);
-  /* Табличные цифры и улучшенные формы глифов Inter */
-  font-feature-settings:
-    "tnum" 1,
-    "cv11" 1,
-    "ss01" 1;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
-}
-
-/* Размер шрифта интерфейса — персонализация (03-ui/01-ux-concept.md §8) */
-[data-font-size="s"] body {
-  font-size: 12px;
-}
-[data-font-size="l"] body {
-  font-size: 14px;
-}
-
-h1,
-h2,
-h3,
-h4,
-h5,
-h6,
-p,
-figure,
-blockquote,
-dl,
-dd {
-  margin: 0;
-}
-
-button,
-input,
-select,
-textarea {
-  font: inherit;
-  color: inherit;
-}
-
+/* Кольцо фокуса — вне слоёв: единое для всех контролов, утилиты его не снимают */
 :focus-visible {
   outline: none;
   box-shadow:

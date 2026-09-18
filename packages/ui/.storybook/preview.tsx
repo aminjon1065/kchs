@@ -1,0 +1,84 @@
+import type { Locale } from '@kchs/i18n'
+import type { Decorator, Preview } from '@storybook/react-vite'
+import { ToastProvider, TooltipProvider, UiLocaleProvider } from '../src/index.js'
+import './storybook.css'
+
+type Theme = 'light' | 'dark'
+type Density = 'comfortable' | 'compact'
+
+/**
+ * Внешний вид задаётся так же, как в приложении (apps/web/src/app/appearance.ts):
+ * атрибуты `data-theme` и `data-density` на <html>, язык — через UiLocaleProvider.
+ */
+const withAppearance: Decorator = (Story, context) => {
+  const theme = (context.globals.theme ?? 'light') as Theme
+  const density = (context.globals.density ?? 'comfortable') as Density
+  const locale = (context.globals.locale ?? 'ru') as Locale
+
+  const root = document.documentElement
+  root.dataset.theme = theme
+  root.dataset.density = density
+  root.lang = locale
+
+  return (
+    <UiLocaleProvider locale={locale}>
+      <TooltipProvider delayDuration={0}>
+        <ToastProvider>
+          <Story />
+        </ToastProvider>
+      </TooltipProvider>
+    </UiLocaleProvider>
+  )
+}
+
+const preview: Preview = {
+  decorators: [withAppearance],
+  globalTypes: {
+    theme: {
+      description: 'Тема',
+      toolbar: {
+        title: 'Тема',
+        icon: 'mirror',
+        items: [
+          { value: 'light', title: 'Светлая' },
+          { value: 'dark', title: 'Тёмная' },
+        ],
+        dynamicTitle: true,
+      },
+    },
+    density: {
+      description: 'Плотность',
+      toolbar: {
+        title: 'Плотность',
+        icon: 'component',
+        items: [
+          { value: 'comfortable', title: 'Комфортная' },
+          { value: 'compact', title: 'Компактная' },
+        ],
+        dynamicTitle: true,
+      },
+    },
+    locale: {
+      description: 'Язык',
+      toolbar: {
+        title: 'Язык',
+        icon: 'globe',
+        items: [
+          { value: 'ru', title: 'Русский' },
+          { value: 'tg', title: 'Тоҷикӣ' },
+          { value: 'en', title: 'English' },
+        ],
+        dynamicTitle: true,
+      },
+    },
+  },
+  initialGlobals: { theme: 'light', density: 'comfortable', locale: 'ru' },
+  parameters: {
+    layout: 'padded',
+    backgrounds: { disable: true },
+    controls: { expanded: true },
+    options: { storySort: { method: 'alphabetical' } },
+  },
+}
+
+export default preview

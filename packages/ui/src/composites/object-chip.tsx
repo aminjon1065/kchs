@@ -99,10 +99,10 @@ export function ObjectChip({
                 </>
               ) : null}
               {details?.map((detail) => (
-                <span key={detail.label} className="contents">
+                <div key={detail.label} className="contents">
                   <dt className="text-fg-muted">{detail.label}</dt>
                   <dd className="truncate text-fg-secondary">{detail.value}</dd>
-                </span>
+                </div>
               ))}
             </dl>
             <div className="mt-2.5 flex gap-1.5">
@@ -152,12 +152,16 @@ export function UserChip({
   return (
     <HoverCard>
       <HoverCardTrigger asChild>
-        <span className={cn('inline-flex min-w-0 items-center gap-1.5', className)}>
+        <button
+          type="button"
+          aria-label={showName ? undefined : user.displayName}
+          className={cn('inline-flex min-w-0 items-center gap-1.5 rounded-sm', className)}
+        >
           <Avatar name={user.displayName} src={user.avatarUrl} size={size} />
           {showName ? (
             <span className="truncate text-xs text-fg-secondary">{user.displayName}</span>
           ) : null}
-        </span>
+        </button>
       </HoverCardTrigger>
       <HoverCardContent className="w-64">
         <div className="flex items-start gap-2.5">

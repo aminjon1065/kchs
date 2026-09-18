@@ -132,6 +132,35 @@ jobs:
           path: apps/web/playwright-report
           retention-days: 7
 
+  ui-visual:
+    name: "Дизайн-система: снимки и доступность"
+    runs-on: ubuntu-latest
+    # Та же среда, что у `pnpm --filter @kchs/ui test:visual` локально: шрифты и
+    # сглаживание совпадают со снимками. Версия образа = версия @playwright/test в packages/ui.
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      options: --ipc=host
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: '${{ env.PNPM_VERSION }}' }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Сборка Storybook
+        run: pnpm --filter @kchs/ui storybook:build
+      - name: Снимки историй в двух темах и axe
+        working-directory: packages/ui
+        run: pnpm exec playwright test
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: ui-visual-report
+          path: packages/ui/playwright-report
+          retention-days: 7
+
   build:
     name: Сборка образов
     runs-on: ubuntu-latest

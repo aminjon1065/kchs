@@ -24,6 +24,7 @@
   --color-warning-subtle: var(--warning-subtle);
   --color-danger: var(--danger);
   --color-danger-subtle: var(--danger-subtle);
+  --color-danger-fg: var(--danger-fg);
   --color-info: var(--info);
   --color-info-subtle: var(--info-subtle);
   --color-purple: var(--purple);

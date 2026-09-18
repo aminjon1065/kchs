@@ -9,8 +9,8 @@ storybook-static/
 .env
 .env.*
 !.env.example
-apps/web/playwright-report/
-apps/web/test-results/
+playwright-report/
+test-results/
 apps/web/e2e/.auth/
 apps/engine/.venv/
 apps/engine/**/__pycache__/

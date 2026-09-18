@@ -128,6 +128,7 @@ const colorMap: Record<string, string> = {
   'warning-subtle': 'warning-subtle',
   danger: 'danger',
   'danger-subtle': 'danger-subtle',
+  'danger-fg': 'danger-fg',
   info: 'info',
   'info-subtle': 'info-subtle',
   purple: 'purple',

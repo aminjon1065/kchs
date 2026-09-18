@@ -21,8 +21,8 @@
       "!packages/ui/src/tokens/tokens.css",
       "!packages/ui/src/styles/theme.css",
       "!apps/web/public",
-      "!apps/web/playwright-report",
-      "!apps/web/test-results",
+      "!**/playwright-report",
+      "!**/test-results",
       "!apps/web/e2e/.auth",
       "!.claude"
     ]

@@ -51,6 +51,8 @@ docker compose --profile app up -d --build
 | `pnpm db:migrate` / `db:seed` / `db:reset` | схема и демонстрационные данные |
 | `pnpm --filter @kchs/ui tokens` | перегенерация CSS-переменных из `tokens.json` |
 | `pnpm --filter @kchs/ui contrast` | проверка контраста WCAG 2.2 AA |
+| `pnpm storybook` | Storybook дизайн-системы на <http://localhost:6006> |
+| `pnpm --filter @kchs/ui test:visual` | снимки историй в двух темах и axe (Docker, образ Playwright); `test:visual:update` — обновить снимки |
 | `bash infra/scripts/smoke-api.sh` | дымовой прогон HTTP API (41 проверка) |
 
 ## Структура

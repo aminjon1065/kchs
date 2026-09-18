@@ -16,7 +16,11 @@
     "typecheck": "tsc --noEmit",
     "tokens": "tsx scripts/generate-tokens.ts",
     "test": "vitest run --passWithNoTests",
-    "contrast": "tsx scripts/check-contrast.ts"
+    "contrast": "tsx scripts/check-contrast.ts",
+    "storybook": "storybook dev --port 6006 --no-open",
+    "storybook:build": "storybook build --output-dir storybook-static --quiet",
+    "test:visual": "bash scripts/visual.sh",
+    "test:visual:update": "bash scripts/visual.sh --update-snapshots"
   },
   "dependencies": {
     "@kchs/contracts": "workspace:*",
@@ -52,15 +56,23 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
     "@kchs/config": "workspace:*",
+    "@playwright/test": "1.63.0",
+    "@storybook/react-vite": "10.6.0",
+    "@tailwindcss/vite": "4.3.3",
+    "@types/node": "^22.18.9",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "5.2.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "storybook": "10.6.0",
+    "tailwindcss": "4.3.3",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
-    "vitest": "^3.2.4",
-    "@types/node": "^22.18.9"
+    "vite": "7.3.6",
+    "vitest": "^3.2.4"
   },
   "files": [
     "src"

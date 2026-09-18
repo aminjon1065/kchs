@@ -190,7 +190,13 @@ export function VirtualList<T>({
   }, [onEndReached, rowHeight])
 
   return (
-    <div ref={parentRef} onScroll={handleScroll} className={cn('h-full overflow-auto', className)}>
+    <div
+      ref={parentRef}
+      onScroll={handleScroll}
+      // biome-ignore lint/a11y/noNoninteractiveTabindex: прокручиваемая область должна получать фокус, иначе список не прокрутить с клавиатуры (WCAG 2.1.1, axe scrollable-region-focusable)
+      tabIndex={0}
+      className={cn('h-full overflow-auto', className)}
+    >
       <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
         {virtualizer.getVirtualItems().map((virtualRow) => {
           const item = items[virtualRow.index]!

@@ -1,0 +1,6 @@
+/* Те же стили, что в приложении (apps/web/src/styles/app.css): токены, база, тема Tailwind */
+@import "tailwindcss";
+@import "../src/styles/index.css";
+@import "../src/styles/theme.css";
+
+@source "../src";

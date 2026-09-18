@@ -441,9 +441,11 @@ export function AlertDialog({
               disabled={loading}
               onClick={() => void onConfirm()}
               className={cn(
-                'inline-flex h-[var(--control-h)] items-center rounded-sm px-3 text-sm font-medium text-white',
+                'inline-flex h-[var(--control-h)] items-center rounded-sm px-3 text-sm font-medium',
                 'disabled:opacity-45',
-                destructive ? 'bg-danger hover:opacity-90' : 'bg-accent hover:bg-accent-hover',
+                destructive
+                  ? 'bg-danger text-danger-fg hover:opacity-90'
+                  : 'bg-accent text-accent-fg hover:bg-accent-hover',
               )}
             >
               {confirmLabel ?? t('ui.actions.confirm')}
