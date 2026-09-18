@@ -14,8 +14,9 @@ import {
   Tree,
   type TreeNode,
   useDebouncedValue,
+  useToast,
 } from '@kchs/ui'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Activity,
   Building2,
@@ -23,10 +24,12 @@ import {
   Download,
   FileSpreadsheet,
   HardDrive,
+  Plus,
   ScrollText,
   Search,
   Server,
   ShieldCheck,
+  UserPlus,
   Users,
 } from 'lucide-react'
 import { useState } from 'react'
@@ -35,11 +38,14 @@ import { useT } from '~/app/i18n.js'
 import {
   auditQuery,
   healthQuery,
+  keys,
   meQuery,
   orgUnitsQuery,
   usersQuery,
 } from '~/shared/api/queries.js'
+import { CreateUnitDialog } from './org-management.js'
 import { SecuritySection } from './security-section.js'
+import { CreateUserDialog, UserActions } from './user-management.js'
 import { UsersImportDialog } from './users-import-dialog.js'
 
 type Section = 'health' | 'users' | 'org' | 'audit' | 'security'
@@ -193,12 +199,16 @@ function HealthSection() {
 function UsersSection() {
   const t = useT()
   const locale = useAppearance((s) => s.locale)
+  const client = useQueryClient()
+  const toast = useToast()
   const [search, setSearch] = useState('')
   const [importing, setImporting] = useState(false)
+  const [creating, setCreating] = useState(false)
   const query = useDebouncedValue(search, 250)
   const { data, isLoading } = useQuery(usersQuery({ q: query || undefined, limit: 100 }))
   const { data: me } = useQuery(meQuery())
   const canManage = me?.capabilities.includes('users.manage') ?? false
+  const refresh = () => void client.invalidateQueries({ queryKey: ['users'] })
 
   return (
     <div className="mx-auto flex max-w-[1100px] flex-col gap-3 p-5">
@@ -210,18 +220,35 @@ function UsersSection() {
           className="max-w-sm"
         />
         {canManage ? (
-          <Button
-            variant="secondary"
-            size="sm"
-            icon={<FileSpreadsheet className="size-3.5" />}
-            className="ml-auto"
-            onClick={() => setImporting(true)}
-          >
-            {t('admin.users.import')}
-          </Button>
+          <div className="ml-auto flex gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={<FileSpreadsheet className="size-3.5" />}
+              onClick={() => setImporting(true)}
+            >
+              {t('admin.users.import')}
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              icon={<UserPlus className="size-3.5" />}
+              onClick={() => setCreating(true)}
+            >
+              {t('admin.users.create')}
+            </Button>
+          </div>
         ) : null}
       </div>
       <UsersImportDialog open={importing} onOpenChange={setImporting} />
+      <CreateUserDialog
+        open={creating}
+        onOpenChange={setCreating}
+        onCreated={() => {
+          toast.show({ title: t('admin.users.createdToast'), tone: 'success' })
+          refresh()
+        }}
+      />
       <Card padded={false}>
         {isLoading ? (
           <TableSkeleton rows={8} columns={4} />
@@ -237,6 +264,11 @@ function UsersSection() {
                 <th className="h-8 px-3 font-medium">{t('admin.users.columns.mfa')}</th>
                 <th className="h-8 px-3 font-medium">{t('common.labels.status')}</th>
                 <th className="h-8 px-3 font-medium">{t('admin.users.columns.lastSeen')}</th>
+                {canManage ? (
+                  <th className="h-8 w-10 px-3 font-medium">
+                    <span className="sr-only">{t('ui.table.actions')}</span>
+                  </th>
+                ) : null}
               </tr>
             </thead>
             <tbody>
@@ -264,6 +296,11 @@ function UsersSection() {
                   <td className="px-3 text-xs text-fg-muted">
                     {user.lastSeenAt ? formatRelativeTime(user.lastSeenAt, { locale }) : '—'}
                   </td>
+                  {canManage ? (
+                    <td className="px-3 text-right">
+                      <UserActions user={user} onChanged={refresh} />
+                    </td>
+                  ) : null}
                 </tr>
               ))}
             </tbody>
@@ -277,15 +314,43 @@ function UsersSection() {
 function OrgSection() {
   const t = useT()
   const locale = useAppearance((s) => s.locale)
+  const client = useQueryClient()
+  const toast = useToast()
   const { data: units = [], isLoading } = useQuery(orgUnitsQuery())
+  const { data: me } = useQuery(meQuery())
+  const canManage = me?.capabilities.includes('org.manage') ?? false
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [selected, setSelected] = useState<string | null>(null)
+  const [creating, setCreating] = useState(false)
 
   const nodes: TreeNode[] = buildTree(units, null, t, locale)
 
   return (
     <div className="mx-auto flex max-w-[900px] flex-col gap-3 p-5">
-      <Card title={t('admin.sections.org')} padded={false}>
+      <CreateUnitDialog
+        open={creating}
+        onOpenChange={setCreating}
+        onCreated={() => {
+          toast.show({ title: t('admin.org.created'), tone: 'success' })
+          void client.invalidateQueries({ queryKey: keys.orgUnits })
+        }}
+      />
+      <Card
+        title={t('admin.sections.org')}
+        padded={false}
+        action={
+          canManage ? (
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={<Plus className="size-3.5" />}
+              onClick={() => setCreating(true)}
+            >
+              {t('admin.org.createUnit')}
+            </Button>
+          ) : null
+        }
+      >
         {isLoading ? (
           <div className="flex flex-col gap-2 p-4">
             {Array.from({ length: 6 }).map((_, index) => (
