@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs'
 import { readdir, readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -9,10 +10,22 @@ import { applyGrants } from './grants.js'
 /** Блокировка, чтобы несколько инстансов api не мигрировали одновременно. */
 const ADVISORY_LOCK_ID = 725_130_001
 
-const MIGRATIONS_DIR = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  '../../../drizzle',
-)
+/**
+ * Каталог SQL-миграций: `KCHS_MIGRATIONS_DIR` или ближайший `drizzle` вверх от
+ * этого файла — так он находится и из исходников, и из бандла `dist/` в образе.
+ * Не найден — ошибка: тихий пропуск запустил бы приложение на пустой базе.
+ */
+export function migrationsDir(): string {
+  const override = process.env.KCHS_MIGRATIONS_DIR
+  if (override) return path.resolve(override)
+  let dir = path.dirname(fileURLToPath(import.meta.url))
+  for (let depth = 0; depth < 8; depth++) {
+    const candidate = path.join(dir, 'drizzle')
+    if (existsSync(path.join(candidate, 'meta'))) return candidate
+    dir = path.dirname(dir)
+  }
+  throw new Error('каталог миграций drizzle не найден: задайте KCHS_MIGRATIONS_DIR')
+}
 
 export interface MigrationResult {
   applied: string[]
@@ -20,7 +33,7 @@ export interface MigrationResult {
 }
 
 async function listMigrationFiles(dir: string): Promise<string[]> {
-  const entries = await readdir(dir).catch(() => [] as string[])
+  const entries = await readdir(dir)
   return entries.filter((f) => f.endsWith('.sql')).sort()
 }
 
@@ -46,12 +59,13 @@ export async function runMigrations(): Promise<MigrationResult> {
     const done = new Set(
       (await sql<{ name: string }[]>`SELECT name FROM public.__migrations`).map((r) => r.name),
     )
-    const files = await listMigrationFiles(MIGRATIONS_DIR)
+    const dir = migrationsDir()
+    const files = await listMigrationFiles(dir)
     const applied: string[] = []
 
     for (const file of files) {
       if (done.has(file)) continue
-      const body = await readFile(path.join(MIGRATIONS_DIR, file), 'utf8')
+      const body = await readFile(path.join(dir, file), 'utf8')
       const hash = contentHash(body)
       log.info({ migration: file }, 'применяю миграцию')
       await sql.begin(async (tx) => {

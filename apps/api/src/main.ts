@@ -1,4 +1,5 @@
 import './shared/config/load-env.js'
+import { writeFile } from 'node:fs/promises'
 import { buildApp } from './app.js'
 import { bootstrapPlatform } from './bootstrap.js'
 import {
@@ -54,6 +55,11 @@ async function main(): Promise<void> {
     startWorkers()
     await scheduleMaintenance()
     await scheduleModuleJobs()
+    // Признак жизни для healthcheck контейнера worker (HTTP-сервера у него нет):
+    // файл обновляется, пока цикл событий не заблокирован
+    const beat = () => writeFile(env.KCHS_HEARTBEAT_FILE, String(Date.now())).catch(() => undefined)
+    await beat()
+    setInterval(() => void beat(), 10_000).unref()
     log.info('kchs worker запущен')
   }
 

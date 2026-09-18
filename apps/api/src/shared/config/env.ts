@@ -73,6 +73,8 @@ const EnvSchema = z.object({
   LOGIN_RATE_LIMIT_PER_IP_PER_MINUTE: z.coerce.number().int().min(10).max(100_000).default(300),
   SESSION_ABSOLUTE_DAYS: z.coerce.number().int().min(1).max(365).default(30),
   INTERNAL_SERVICE_TOKEN: z.string().min(16).optional(),
+  /** Файл-признак жизни worker для healthcheck контейнера (у worker нет HTTP-сервера). */
+  KCHS_HEARTBEAT_FILE: z.string().default('/tmp/kchs-worker.alive'),
 
   ENGINE_INTERNAL_URL: z.string().optional(),
 
