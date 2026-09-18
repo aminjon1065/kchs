@@ -46,6 +46,23 @@ for (const [name, ramp] of Object.entries(tokens.color.sequential)) {
   dark.push(`  --div-red-blue-${index + 1}: ${value};`)
 })
 
+// Палитра графиков (ADR-0047): свои шаги для каждой темы
+const viz = tokens.color.viz
+viz.categorical.light.forEach((value, index) => {
+  light.push(`  --viz-cat-${index + 1}: ${value};`)
+  dark.push(`  --viz-cat-${index + 1}: ${viz.categorical.dark[index]};`)
+})
+light.push(`  --viz-other: ${viz.other.light};`)
+dark.push(`  --viz-other: ${viz.other.dark};`)
+viz.sequential.light.forEach((value, index) => {
+  light.push(`  --viz-seq-${index + 1}: ${value};`)
+  dark.push(`  --viz-seq-${index + 1}: ${viz.sequential.dark[index]};`)
+})
+viz.diverging.light.forEach((value, index) => {
+  light.push(`  --viz-div-${index + 1}: ${value};`)
+  dark.push(`  --viz-div-${index + 1}: ${viz.diverging.dark[index]};`)
+})
+
 for (const [name, value] of Object.entries(tokens.shadow)) {
   const pair = value as Pair
   light.push(`  --elevation-${name}: ${pair.light};`)

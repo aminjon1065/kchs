@@ -121,5 +121,88 @@ for (const theme of ['light', 'dark'] as Theme[]) {
   }
 }
 
+// ─── Палитра графиков (ADR-0047) ─────────────────────────────────────────────
+// Различимость считается, а не оценивается на глаз: расстояние в OKLab (×100)
+// после симуляции протанопии и дейтеранопии (Machado, Oliveira, Fernandes 2009,
+// полная тяжесть). Соседние оттенки — не меньше 8, при обычном зрении — не меньше
+// 15; первые три (графики «все со всеми», например точечные) — все пары.
+// Шаги последовательной шкалы различаются по светлоте OKLab не меньше чем на 0,06.
+
+const CVD: Record<'protan' | 'deutan', number[][]> = {
+  protan: [
+    [0.152286, 1.052583, -0.204868],
+    [0.114503, 0.786281, 0.099216],
+    [-0.003882, -0.048116, 1.051998],
+  ],
+  deutan: [
+    [0.367322, 0.860646, -0.227968],
+    [0.280085, 0.672501, 0.047413],
+    [-0.01182, 0.04294, 0.968881],
+  ],
+}
+
+function linearRgb(hex: string): number[] {
+  const value = hex.replace('#', '')
+  return [0, 2, 4].map((i) => srgb(Number.parseInt(value.slice(i, i + 2), 16)))
+}
+
+function oklab([r, g, b]: number[]): number[] {
+  const l = Math.cbrt(0.4122214708 * r! + 0.5363325363 * g! + 0.0514459929 * b!)
+  const m = Math.cbrt(0.2119034982 * r! + 0.6806995451 * g! + 0.1073969566 * b!)
+  const s = Math.cbrt(0.0883024619 * r! + 0.2817188376 * g! + 0.6299787005 * b!)
+  return [
+    0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s,
+    1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s,
+    0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s,
+  ]
+}
+
+function simulate(hex: string, kind?: keyof typeof CVD): number[] {
+  const rgb = linearRgb(hex)
+  if (!kind) return rgb
+  return CVD[kind].map((row) =>
+    Math.min(1, Math.max(0, row[0]! * rgb[0]! + row[1]! * rgb[1]! + row[2]! * rgb[2]!)),
+  )
+}
+
+function deltaE(a: string, b: string, kind?: keyof typeof CVD): number {
+  const [l1, a1, b1] = oklab(simulate(a, kind))
+  const [l2, a2, b2] = oklab(simulate(b, kind))
+  return 100 * Math.hypot(l1! - l2!, a1! - a2!, b1! - b2!)
+}
+
+const viz = tokens.color.viz
+for (const theme of ['light', 'dark'] as Theme[]) {
+  const palette = viz.categorical[theme]
+  const pairs: Array<[number, number]> = []
+  for (let i = 0; i < palette.length - 1; i += 1) pairs.push([i, i + 1])
+  pairs.push([0, 2])
+  let worstCvd = Number.POSITIVE_INFINITY
+  let worstNormal = Number.POSITIVE_INFINITY
+  let worstPair = ''
+  for (const [i, j] of pairs) {
+    const a = palette[i]!
+    const b = palette[j]!
+    const cvd = Math.min(deltaE(a, b, 'protan'), deltaE(a, b, 'deutan'))
+    if (cvd < worstCvd) worstPair = `${a}/${b}`
+    worstCvd = Math.min(worstCvd, cvd)
+    worstNormal = Math.min(worstNormal, deltaE(a, b))
+  }
+  const ramp = viz.sequential[theme]
+  const lightness = ramp.map((hex) => oklab(linearRgb(hex))[0]!)
+  const minStep = Math.min(...lightness.slice(1).map((l, i) => Math.abs(l - lightness[i]!)))
+  const vizChecks: Array<[string, number, number]> = [
+    [`палитра графиков при цветослепоте (худшая пара ${worstPair}), ΔE`, worstCvd, 8],
+    ['палитра графиков при обычном зрении, ΔE', worstNormal, 15],
+    ['шаги последовательной шкалы по светлоте, ΔL×100', minStep * 100, 6],
+  ]
+  process.stdout.write(`\nГрафики, ${theme === 'light' ? 'светлая' : 'тёмная'} тема\n`)
+  for (const [name, value, min] of vizChecks) {
+    const ok = value >= min
+    if (!ok) failed += 1
+    process.stdout.write(`  ${ok ? '✓' : '✗'} ${name}: ${value.toFixed(1)} (нужно ≥ ${min})\n`)
+  }
+}
+
 process.stdout.write(failed === 0 ? '\nКонтраст в норме\n' : `\nНарушений контраста: ${failed}\n`)
 process.exit(failed === 0 ? 0 : 1)
