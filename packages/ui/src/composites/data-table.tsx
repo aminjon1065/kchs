@@ -13,6 +13,7 @@ import {
   useState,
 } from 'react'
 import { TableSkeleton } from '../components/feedback.js'
+import { useRowHeight } from '../hooks/use-row-height.js'
 import { useUiT } from '../i18n/ui-locale.js'
 import { cn } from '../lib/cn.js'
 import { Checkbox } from '../primitives/controls.js'
@@ -413,24 +414,4 @@ export function DataTable<T>({
       )}
     </div>
   )
-}
-
-/** Высота строки из токена плотности `--row-h`, пересчитывается при смене плотности. */
-function useRowHeight(ref: { current: HTMLElement | null }): number {
-  const [height, setHeight] = useState(36)
-  useEffect(() => {
-    const read = () => {
-      const element = ref.current ?? document.documentElement
-      const value = Number.parseFloat(getComputedStyle(element).getPropertyValue('--row-h'))
-      if (Number.isFinite(value) && value > 0) setHeight(value)
-    }
-    read()
-    const observer = new MutationObserver(read)
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['data-density'],
-    })
-    return () => observer.disconnect()
-  }, [ref])
-  return height
 }
