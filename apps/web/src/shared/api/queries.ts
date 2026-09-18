@@ -22,6 +22,8 @@ import type {
   SearchResponse,
   Space,
   SpaceMember,
+  TagListResponse,
+  TagView,
 } from '@kchs/contracts'
 import { type QueryClient, queryOptions } from '@tanstack/react-query'
 import { http } from './client.js'
@@ -58,6 +60,7 @@ export const keys = {
   delegations: ['me', 'delegations'] as const,
   workspaceState: ['me', 'workspace-state'] as const,
   principals: (q: string, types: string) => ['principals', q, types] as const,
+  tags: (spaceId: string | null, q: string) => ['tags', spaceId, q] as const,
 }
 
 export const meQuery = () =>
@@ -264,6 +267,16 @@ export const principalsQuery = (q: string, types = 'user,group,unit,position') =
       http.get<{ items: PrincipalRef[] }>('/principals/search', { query: { q, types, limit: 20 } }),
     select: (data: { items: PrincipalRef[] }) => data.items,
     enabled: q.length > 0,
+  })
+
+/** Подсказки тегов: словарь пространства объекта и общие теги. */
+export const tagSuggestionsQuery = (spaceId: string | null, q: string) =>
+  queryOptions({
+    queryKey: keys.tags(spaceId, q),
+    queryFn: () =>
+      http.get<TagListResponse>('/tags', { query: { spaceId: spaceId ?? undefined, q } }),
+    select: (data: TagListResponse): TagView[] => data.items,
+    staleTime: 30_000,
   })
 
 /** Инвалидация по realtime-событию `object.updated`. */

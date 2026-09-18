@@ -9,6 +9,7 @@ import { errors } from '~/shared/errors.js'
 import { logger } from '~/shared/logger/index.js'
 import { readPrincipalsFor } from '../access/acl-service.js'
 import { objectType } from '../objects/registry.js'
+import { TagService } from '../tags/service.js'
 
 /** Имя индекса объектов; префикс отделяет, например, тестовый индекс от рабочего. */
 export function objectsIndexName(): string {
@@ -68,6 +69,7 @@ export async function indexObject(objectId: string): Promise<void> {
   }
 
   const aclPrincipals = await readPrincipalsFor(objectId)
+  const tagNames = await TagService.names(objectId)
   const document: SearchDocument = {
     id: objectId,
     objectId,
@@ -76,12 +78,12 @@ export async function indexObject(objectId: string): Promise<void> {
     spaceId: row.spaceId,
     title: row.title,
     body: row.subtitle ?? '',
-    tags: [],
     ownerId: row.ownerId,
     updatedAt: Math.floor(new Date(row.updatedAt).getTime() / 1000),
     meta: row.meta,
     aclPrincipals,
     ...custom,
+    tags: tagNames,
   }
 
   await objectsIndex().addDocuments([document])

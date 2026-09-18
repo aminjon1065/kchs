@@ -10,6 +10,13 @@ import { objectType } from './objects/registry.js'
 import { emitToRoom, revokeRoomAccess } from './realtime/gateway.js'
 import { indexObject, removeFromIndex } from './search/index-service.js'
 
+/** Какое поле открытой вкладки устарело после события, не меняющего сам объект. */
+const CHANGED_FIELD: Record<string, string> = {
+  'object.tagged': 'tags',
+  'file.previewed': 'preview',
+  'file.text_extracted': 'text',
+}
+
 /** Подписчики ядра: активность, поиск, realtime, уведомления. */
 export function registerKernelSubscribers(): void {
   registerSubscriber(activitySubscriber)
@@ -52,14 +59,15 @@ export function registerKernelSubscribers(): void {
             actorId: event.actor.userId,
           })
           break
+        case 'object.tagged':
         case 'file.previewed':
         case 'file.text_extracted':
-          // Открытая вкладка файла перечитывает превью без перезагрузки
+          // Открытая вкладка перечитывает теги или превью без перезагрузки
           emitToRoom(`object:${event.object.id}`, 'object.updated', {
             id: event.object.id,
             type: event.object.type,
             version: 0,
-            changedFields: [event.type === 'file.previewed' ? 'preview' : 'text'],
+            changedFields: [CHANGED_FIELD[event.type] ?? 'meta'],
             actorId: event.actor.userId,
           })
           break

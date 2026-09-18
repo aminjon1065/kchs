@@ -76,6 +76,23 @@ export function StatusBadge({ status, label }: { status: string; label?: ReactNo
   )
 }
 
+/**
+ * Цвет тега — ключ категориальной палитры (`chart-1`…`chart-10`), чтобы тег
+ * одинаково читался в обеих темах. Прочие значения показываются без цвета.
+ */
+const TAG_DOT: Record<string, string> = {
+  'chart-1': 'bg-chart-1',
+  'chart-2': 'bg-chart-2',
+  'chart-3': 'bg-chart-3',
+  'chart-4': 'bg-chart-4',
+  'chart-5': 'bg-chart-5',
+  'chart-6': 'bg-chart-6',
+  'chart-7': 'bg-chart-7',
+  'chart-8': 'bg-chart-8',
+  'chart-9': 'bg-chart-9',
+  'chart-10': 'bg-chart-10',
+}
+
 export function Tag({
   children,
   color,
@@ -88,6 +105,7 @@ export function Tag({
   className?: string
 }) {
   const t = useUiT()
+  const dot = color ? TAG_DOT[color] : undefined
   return (
     <span
       className={cn(
@@ -95,16 +113,18 @@ export function Tag({
         className,
       )}
     >
-      {color ? (
-        <span className="size-1.5 rounded-full" style={{ background: color }} aria-hidden />
-      ) : null}
+      {dot ? <span className={cn('size-1.5 rounded-full', dot)} aria-hidden /> : null}
       {children}
       {onRemove ? (
         <button
           type="button"
           onClick={onRemove}
-          className="ml-0.5 text-fg-muted hover:text-fg"
-          aria-label={t('ui.tag.remove')}
+          className="ml-0.5 rounded-xs text-fg-muted outline-none hover:text-fg focus-visible:ring-2 focus-visible:ring-accent/50"
+          aria-label={
+            typeof children === 'string'
+              ? t('ui.tag.removeNamed', { name: children })
+              : t('ui.tag.remove')
+          }
         >
           ×
         </button>

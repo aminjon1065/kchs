@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { AccessMode } from '../access/acl.js'
 import { Level } from '../access/levels.js'
 import { Timestamp, Uuid } from '../common/primitives.js'
+import { TagView } from './tags.js'
 
 /**
  * Типы объектов реестра — 05-appendix/glossary.md.
@@ -98,7 +99,7 @@ export const ObjectRecord = ObjectSummary.extend({
   deletedAt: Timestamp.nullable(),
   accessMode: AccessMode,
   version: z.number().int(),
-  tags: z.array(z.object({ id: Uuid, name: z.string(), color: z.string().nullable() })).default([]),
+  tags: z.array(TagView).default([]),
   breadcrumbs: z.array(z.object({ id: Uuid, type: ObjectType, title: z.string() })).default([]),
   /** Эффективный уровень доступа текущего пользователя. */
   level: Level,

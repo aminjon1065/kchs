@@ -119,6 +119,14 @@ export const tg: DeepPartial<Dictionary> = {
     noAccess: { title: 'Дастрасӣ нест', request: 'Дархости дастрасӣ' },
     password: { show: 'Нишон додани рамз', hide: 'Пинҳон кардани рамз' },
     search: { placeholder: 'Ҷустуҷӯ', clear: 'Тоза кардан' },
+    tag: { remove: 'Хориҷ кардани тег', removeNamed: 'Хориҷ кардани теги «{name}»' },
+    tagInput: {
+      label: 'Тегҳо',
+      placeholder: 'Илова кардани тег…',
+      none: 'Тег нест',
+      suggestions: 'Пешниҳоди тегҳо',
+      create: 'Сохтани теги «{name}»',
+    },
   },
   auth: {
     signIn: {

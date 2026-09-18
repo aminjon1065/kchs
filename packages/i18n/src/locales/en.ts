@@ -115,7 +115,14 @@ export const en: DeepPartial<Dictionary> = {
       retry: 'Retry',
       dismiss: 'Dismiss',
     },
-    tag: { remove: 'Remove tag' },
+    tag: { remove: 'Remove tag', removeNamed: 'Remove tag “{name}”' },
+    tagInput: {
+      label: 'Tags',
+      placeholder: 'Add a tag…',
+      none: 'No tags',
+      suggestions: 'Tag suggestions',
+      create: 'Create tag “{name}”',
+    },
     breadcrumbs: { label: 'Breadcrumbs' },
     tree: { collapse: 'Collapse', expand: 'Expand' },
     command: {

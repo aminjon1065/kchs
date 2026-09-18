@@ -114,7 +114,14 @@ export const ru = {
       retry: 'Повторить',
       dismiss: 'Скрыть',
     },
-    tag: { remove: 'Убрать тег' },
+    tag: { remove: 'Убрать тег', removeNamed: 'Убрать тег «{name}»' },
+    tagInput: {
+      label: 'Теги',
+      placeholder: 'Добавить тег…',
+      none: 'Нет тегов',
+      suggestions: 'Подсказки тегов',
+      create: 'Создать тег «{name}»',
+    },
     breadcrumbs: { label: 'Хлебные крошки' },
     tree: { collapse: 'Свернуть', expand: 'Развернуть' },
     command: {

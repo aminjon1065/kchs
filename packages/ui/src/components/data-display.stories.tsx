@@ -70,8 +70,8 @@ export const Tags: Story = {
   render: () => (
     <div className="flex flex-wrap items-center gap-2">
       <Tag>паводок</Tag>
-      <Tag color="#2f62e6">приоритет</Tag>
-      <Tag color="#d63b3b" onRemove={() => undefined}>
+      <Tag color="chart-1">приоритет</Tag>
+      <Tag color="chart-4" onRemove={() => undefined}>
         срочно
       </Tag>
       <Tag onRemove={() => undefined}>Хатлонская область</Tag>

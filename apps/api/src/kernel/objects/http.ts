@@ -19,10 +19,8 @@ import {
   favorites,
   objectAncestors,
   objects,
-  objectTags,
   recentViews,
   subscriptions,
-  tags,
 } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { decodeCursor, encodeCursor } from '~/shared/http/pagination.js'
@@ -30,6 +28,7 @@ import type { RouteRegistrar } from '~/shared/http/route.js'
 import { authorize, loadObject, visibleObjectsSql } from '../access/authorize.js'
 import { listActivity } from '../activity/service.js'
 import { LinkService } from '../links/service.js'
+import { TagService } from '../tags/service.js'
 import { compileObjectFilter, compileObjectSort, parseFilter } from './filter-sql.js'
 import { describeListFields, listFieldsFor } from './list-fields.js'
 import { allowedActions, objectType } from './registry.js'
@@ -68,11 +67,7 @@ export function registerObjectRoutes(route: RouteRegistrar): void {
           .innerJoin(objects, eq(objects.id, objectAncestors.ancestorId))
           .where(eq(objectAncestors.objectId, id))
           .orderBy(desc(objectAncestors.depth)),
-        db()
-          .select({ id: tags.id, name: tags.name, color: tags.color })
-          .from(objectTags)
-          .innerJoin(tags, eq(tags.id, objectTags.tagId))
-          .where(eq(objectTags.objectId, id)),
+        TagService.forObject(id),
         personal
           ? db()
               .select({ objectId: favorites.objectId })

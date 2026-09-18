@@ -1,3 +1,4 @@
+import { atLeast, type ObjectRecord, type TagView } from '@kchs/contracts'
 import { formatDateTime, formatRelativeTime } from '@kchs/fields'
 import {
   Avatar,
@@ -10,8 +11,11 @@ import {
   ObjectChip,
   ObjectIcon,
   Skeleton,
+  TagInput,
   Textarea,
   Tooltip,
+  useDebouncedValue,
+  useToast,
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -23,10 +27,11 @@ import {
   MessageSquare,
   Send,
   Star,
+  Tag as TagIcon,
   Users,
 } from 'lucide-react'
 import { useState } from 'react'
-import { http } from '~/shared/api/client.js'
+import { ApiError, http } from '~/shared/api/client.js'
 import {
   discussionQuery,
   keys,
@@ -34,6 +39,7 @@ import {
   objectActivityQuery,
   objectLinksQuery,
   objectQuery,
+  tagSuggestionsQuery,
 } from '~/shared/api/queries.js'
 import { useAppearance } from '../appearance.js'
 import { useT } from '../i18n.js'
@@ -193,6 +199,8 @@ function InfoTab({ objectId }: { objectId: string }) {
         ]}
       />
 
+      <ObjectTags object={object} />
+
       {access?.entries.length ? (
         <div>
           <div className="mb-1.5 flex items-center gap-1.5 text-2xs font-medium uppercase tracking-wide text-fg-muted">
@@ -215,6 +223,60 @@ function InfoTab({ objectId }: { objectId: string }) {
           </div>
         </div>
       ) : null}
+    </div>
+  )
+}
+
+/** Теги объекта: читатель видит, редактор назначает и снимает (02-platform-kernel.md §14). */
+function ObjectTags({ object }: { object: ObjectRecord }) {
+  const t = useT()
+  const toast = useToast()
+  const client = useQueryClient()
+  const [query, setQuery] = useState('')
+  const debounced = useDebouncedValue(query, 150)
+  const editable = atLeast(object.level, 'edit')
+  const { data: suggestions = [] } = useQuery({
+    ...tagSuggestionsQuery(object.spaceId, debounced),
+    enabled: editable,
+  })
+
+  const apply = (items: TagView[]) => {
+    client.setQueryData<ObjectRecord>(keys.object(object.id), (current) =>
+      current ? { ...current, tags: items } : current,
+    )
+    void client.invalidateQueries({ queryKey: ['tags'] })
+  }
+  const failed = (err: unknown) =>
+    toast.error(err instanceof ApiError ? err.message : t('errors.unknown'))
+
+  const add = useMutation({
+    mutationFn: (name: string) =>
+      http.post<{ items: TagView[] }>(`/objects/${object.id}/tags`, { name }),
+    onSuccess: (data) => apply(data.items),
+    onError: failed,
+  })
+  const remove = useMutation({
+    mutationFn: (tagId: string) =>
+      http.delete<{ items: TagView[] }>(`/objects/${object.id}/tags/${tagId}`),
+    onSuccess: (data) => apply(data.items),
+    onError: failed,
+  })
+
+  return (
+    <div>
+      <div className="mb-1.5 flex items-center gap-1.5 text-2xs font-medium uppercase tracking-wide text-fg-muted">
+        <TagIcon className="size-3" aria-hidden />
+        {t('common.labels.tags')}
+      </div>
+      <TagInput
+        value={object.tags}
+        suggestions={suggestions}
+        onQueryChange={setQuery}
+        onAdd={(name) => add.mutate(name)}
+        onRemove={(tag) => remove.mutate(tag.id)}
+        readOnly={!editable}
+        aria-label={t('common.labels.tags')}
+      />
     </div>
   )
 }
