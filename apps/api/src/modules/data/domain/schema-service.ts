@@ -169,9 +169,11 @@ export const SchemaService = {
     key: string,
     patch: DatasetFieldPatch,
   ): Promise<void> {
-    const indexChange = patch.indexed !== undefined
-    const locked = await lockForSchema(tx, datasetId, indexChange)
+    const locked = await lockForSchema(tx, datasetId, false)
     const field = fieldOf(locked.fields, key)
+    // Индекс — DDL: во время импорта его не строим; остальное описание менять можно
+    const indexChange = patch.indexed !== undefined && patch.indexed !== field.indexed
+    if (indexChange) await assertNoActiveImport(tx, datasetId)
 
     if (patch.lookup) {
       // Справочник: пользователь должен видеть его, поля ключа и подписи — существовать
@@ -212,7 +214,7 @@ export const SchemaService = {
       })
       .where(eq(datasetFields.id, field.id))
 
-    if (indexChange && patch.indexed !== field.indexed && field.type !== 'geometry') {
+    if (indexChange && field.type !== 'geometry') {
       if (patch.indexed) {
         await Physical.createColumnIndex(tx, locked.table, {
           name: field.physical,

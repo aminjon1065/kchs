@@ -407,13 +407,20 @@ describe('настройки датасета', () => {
       payload: { type: 'number' },
     })
     expect(blocked.statusCode).toBe(409)
-    // Описание поля во время импорта менять можно
+    // Описание поля во время импорта менять можно — и прежний флаг индекса тоже
     const label = await call(fx.app, {
       method: 'PATCH',
       url: `/datasets/${id}/fields/amount`,
       as: fx.admin,
-      payload: { label: { ru: 'Сумма' } },
+      payload: { label: { ru: 'Сумма' }, indexed: true },
     })
-    expect(label.statusCode).toBe(200)
+    expect(label.statusCode, label.body).toBe(200)
+    const index = await call(fx.app, {
+      method: 'PATCH',
+      url: `/datasets/${id}/fields/amount`,
+      as: fx.admin,
+      payload: { indexed: false },
+    })
+    expect(index.statusCode).toBe(409)
   })
 })
