@@ -82,6 +82,11 @@
   }
 }
 
+/* DataGrid: фокус показывает рамка активной ячейки — кольцо вокруг всей таблицы лишнее */
+[role="grid"][data-cell-focus]:focus-visible {
+  box-shadow: none;
+}
+
 /* Составное поле (префикс, чипы тегов): кольцо на рамке поля, не на внутреннем input */
 [data-field] > input:focus-visible {
   box-shadow: none;

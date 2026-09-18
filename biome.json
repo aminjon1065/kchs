@@ -108,7 +108,10 @@
   },
   "overrides": [
     {
-      "includes": ["packages/ui/src/composites/data-table.tsx"],
+      "includes": [
+        "packages/ui/src/composites/data-table.tsx",
+        "packages/ui/src/composites/data-grid/*.tsx"
+      ],
       "linter": {
         "rules": {
           "a11y": {
