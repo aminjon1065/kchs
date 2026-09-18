@@ -35,7 +35,7 @@ const STATUS_TONES: Record<AnnouncementStatus, 'accent' | 'success' | 'neutral'>
   ended: 'neutral',
 }
 
-export const SEVERITY_TONES: Record<AnnouncementSeverity, 'neutral' | 'warning' | 'danger'> = {
+const SEVERITY_TONES: Record<AnnouncementSeverity, 'neutral' | 'warning' | 'danger'> = {
   info: 'neutral',
   warning: 'warning',
   critical: 'danger',
