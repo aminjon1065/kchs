@@ -36,6 +36,10 @@
       "entry": ["src/index.ts", "scripts/*.ts"],
       "project": ["src/**/*.ts"]
     },
+    "packages/chart-spec": {
+      "entry": ["src/index.ts"],
+      "project": ["src/**/*.ts"]
+    },
     "packages/fields": {
       "entry": ["src/index.ts"],
       "project": ["src/**/*.ts"]

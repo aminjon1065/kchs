@@ -133,6 +133,28 @@ export const tg: DeepPartial<Dictionary> = {
       edit: '{condition} — тағйир додан',
       remove: 'Хориҷ кардани шарти «{condition}»',
     },
+    chart: {
+      dataTable: 'Ҷадвали маълумот',
+      showChart: 'Диаграмма',
+      other: 'Дигар',
+      none: 'Қимат нест',
+      total: 'Ҳамагӣ',
+      share: 'Ҳисса',
+      count: 'Шумора',
+      value: 'Қимат',
+      target: 'Ҳадаф',
+      targetValue: 'Ҳадаф: {value}',
+      empty: 'Барои диаграмма маълумот нест',
+      types: {
+        table: 'Ҷадвал',
+        number: 'Нишондиҳанда',
+        bar: 'Диаграммаи сутунӣ',
+        line: 'Графики хаттӣ',
+        pie: 'Диаграммаи доиравӣ',
+        histogram: 'Гистограмма',
+        map: 'Харита',
+      },
+    },
   },
   auth: {
     signIn: {
