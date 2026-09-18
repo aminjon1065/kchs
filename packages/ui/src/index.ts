@@ -1,3 +1,6 @@
+export { Chart, type ChartProps } from './charts/chart.js'
+export { ChartTable, type ChartTableProps } from './charts/chart-table.js'
+export { NumberTile, type NumberTileProps } from './charts/number-tile.js'
 export * from './components/data-display.js'
 export * from './components/feedback.js'
 export * from './components/histogram.js'

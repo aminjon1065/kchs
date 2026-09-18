@@ -269,6 +269,7 @@ export const ru = {
     },
     chart: {
       dataTable: 'Таблица данных',
+      tableTruncated: 'Показаны {shown} из {total} строк',
       showChart: 'График',
       other: 'Прочее',
       none: 'Нет значения',

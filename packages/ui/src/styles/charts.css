@@ -1,0 +1,51 @@
+/*
+ * Тултип графиков (ADR-0047). Разметку собирает @kchs/chart-spec без встроенных
+ * стилей — строгий CSP (ADR-0043) их запрещает; оформление здесь, цвета — токены.
+ * Контейнер тултипа (фон, рамку, тень) ECharts задаёт сам через CSSOM.
+ */
+.kchs-chart-tip {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 120px;
+  max-width: 280px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text);
+  white-space: normal;
+}
+
+.kchs-chart-tip__title {
+  margin-bottom: 2px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.kchs-chart-tip__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.kchs-chart-tip__marker,
+.kchs-chart-tip__spacer {
+  flex: none;
+  width: 10px;
+  height: 10px;
+}
+
+/* Значение впереди подписи: его ищут глазами первым */
+.kchs-chart-tip__value {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.kchs-chart-tip__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+}

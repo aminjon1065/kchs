@@ -269,6 +269,7 @@ export const en: DeepPartial<Dictionary> = {
     },
     chart: {
       dataTable: 'Data table',
+      tableTruncated: 'Showing {shown} of {total} rows',
       showChart: 'Chart',
       other: 'Other',
       none: 'No value',
