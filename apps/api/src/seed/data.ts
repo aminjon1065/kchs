@@ -4,6 +4,8 @@ export interface SeedUnit {
   code: string
   name: { ru: string; tg?: string; en?: string }
   kind: 'committee' | 'department' | 'division' | 'regional' | 'sector'
+  /** Код территории ответственности (`territories.json`); потомки её наследуют. */
+  territory?: string
   children?: SeedUnit[]
 }
 
@@ -11,6 +13,7 @@ export const ORG_TREE: SeedUnit = {
   code: 'HQ',
   name: { ru: 'Комитет', tg: 'Кумита', en: 'Committee' },
   kind: 'committee',
+  territory: 'TJ',
   children: [
     {
       code: 'UA',
@@ -85,17 +88,25 @@ export const ORG_TREE: SeedUnit = {
           code: 'RG-SUG',
           name: { ru: 'Согдийская область', tg: 'Вилояти Суғд', en: 'Sughd' },
           kind: 'regional',
+          territory: 'TJ-SU',
         },
         {
           code: 'RG-KHA',
           name: { ru: 'Хатлонская область', tg: 'Вилояти Хатлон', en: 'Khatlon' },
           kind: 'regional',
+          territory: 'TJ-KT',
         },
-        { code: 'RG-GBAO', name: { ru: 'ГБАО', tg: 'ВМКБ', en: 'GBAO' }, kind: 'regional' },
+        {
+          code: 'RG-GBAO',
+          name: { ru: 'ГБАО', tg: 'ВМКБ', en: 'GBAO' },
+          kind: 'regional',
+          territory: 'TJ-GB',
+        },
         {
           code: 'RG-DRS',
           name: { ru: 'Районы республиканского подчинения', en: 'RRP' },
           kind: 'regional',
+          territory: 'TJ-RA',
         },
       ],
     },

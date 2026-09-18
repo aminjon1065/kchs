@@ -6,6 +6,7 @@ import {
   LangText,
   OrgUnit,
   OrgUnitInput,
+  OrgUnitPatch,
   Position,
   PrincipalRef,
   RoleInfo,
@@ -266,7 +267,7 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
     summary: 'Изменить подразделение',
     schema: {
       params: z.object({ id: z.uuid() }),
-      body: OrgUnitInput.partial(),
+      body: OrgUnitPatch,
       response: { 200: z.object({ ok: z.boolean() }) },
     },
     handler: async (request) => {

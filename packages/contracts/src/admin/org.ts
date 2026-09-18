@@ -28,11 +28,31 @@ export const OrgUnitInput = z.object({
   name: LangText,
   kind: OrgUnitKind.default('department'),
   headUserId: Uuid.nullable().optional(),
+  /** Территория ответственности: её получают сотрудники подразделения и его потомков (ADR-0057). */
+  territoryId: Uuid.nullable().optional(),
   sort: z.number().int().default(0),
   isActive: z.boolean().default(true),
   createSpace: z.boolean().default(true),
 })
 export type OrgUnitInput = z.infer<typeof OrgUnitInput>
+
+/**
+ * Правка подразделения: только переданные поля. Не `OrgUnitInput.partial()` —
+ * значения по умолчанию сбрасывали бы вид, порядок и активность при любой правке.
+ */
+export const OrgUnitPatch = z
+  .object({
+    parentId: Uuid.nullable(),
+    code: z.string().min(1).max(64),
+    name: LangText,
+    kind: OrgUnitKind,
+    headUserId: Uuid.nullable(),
+    territoryId: Uuid.nullable(),
+    sort: z.number().int(),
+    isActive: z.boolean(),
+  })
+  .partial()
+export type OrgUnitPatch = z.infer<typeof OrgUnitPatch>
 
 export const Position = z.object({
   id: Uuid,

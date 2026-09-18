@@ -12,6 +12,11 @@ export interface PrincipalSet {
   /** Подразделения пользователя и все их предки. */
   unitIds: string[]
   primaryUnitId: string | null
+  /**
+   * Территории ответственности: у своих подразделений — территория подразделения
+   * или ближайшего предка, где она задана (`@my_territories`, ADR-0057).
+   */
+  territoryIds: string[]
   positionIds: string[]
   /** Пространство → роль участника. */
   spaceRoles: Record<string, string>
@@ -94,6 +99,7 @@ export const EMPTY_PRINCIPALS: PrincipalSet = {
   groupIds: [],
   unitIds: [],
   primaryUnitId: null,
+  territoryIds: [],
   positionIds: [],
   spaceRoles: {},
   roleKeys: [],

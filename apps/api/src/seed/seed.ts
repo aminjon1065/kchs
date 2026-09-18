@@ -1,12 +1,13 @@
-import { eq, sql } from 'drizzle-orm'
+import { eq, inArray, sql } from 'drizzle-orm'
 import { grantAccess } from '~/kernel/access/acl-service.js'
 import { bumpPrincipalsVersion } from '~/kernel/access/principal-set.js'
 import { DiscussionService } from '~/kernel/discussions/service.js'
 import { reindexAll } from '~/kernel/search/index-service.js'
 import { SpaceService } from '~/kernel/spaces/service.js'
 import { FileService } from '~/modules/files/domain/file-service.js'
+import { type TerritoryInput, TerritoryService } from '~/modules/gis/public.js'
 import { OrgService, UserService } from '~/modules/identity/public.js'
-import { systemCtx } from '~/shared/context.js'
+import { type SystemCtx, systemCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { orgUnits, positions, spaceMembers, users } from '~/shared/db/schema/index.js'
 import { newId } from '~/shared/ids.js'
@@ -21,6 +22,7 @@ import {
   type SeedUnit,
   SPACES,
 } from './data.js'
+import TERRITORIES from './territories.json' with { type: 'json' }
 
 export interface SeedOptions {
   profile: 'minimal' | 'demo'
@@ -45,6 +47,23 @@ export async function runSeed(
   const ctx = systemCtx('seed')
   const random = makeRandom(20_260_917)
 
+  // ── Территории ────────────────────────────────────────────────────────────
+  // Справочник нужен и чистой установке (профиль minimal); загрузка повторяема:
+  // существующие коды не меняются (seeds/README.md, ADR-0057)
+  const createdTerritories = await db().transaction((tx) =>
+    TerritoryService.load(tx, ctx, TERRITORIES as unknown as TerritoryInput[]),
+  )
+  await TerritoryService.invalidate()
+  const territoryIds = new Map(
+    (await TerritoryService.list()).map((territory) => [territory.code, territory.id]),
+  )
+  log.info(
+    { territories: territoryIds.size, created: createdTerritories },
+    'справочник территорий загружен',
+  )
+  const territoryOf = (unit: SeedUnit) =>
+    unit.territory ? (territoryIds.get(unit.territory) ?? null) : null
+
   // Демо-данные уже загружены — признак: корень демо-оргструктуры. Пустая база
   // с администратором от `kchs init` данными не считается (06-handoff.md:
   // установка — `kchs init`, затем seed)
@@ -54,6 +73,7 @@ export async function runSeed(
     .where(eq(orgUnits.code, ORG_TREE.code))
     .limit(1)
   if (seeded.length > 0) {
+    await linkUnitTerritories(ctx, territoryOf)
     log.warn('демо-данные уже загружены — seed пропущен (используйте db:reset)')
     return { users: 0, units: 0, spaces: 0 }
   }
@@ -103,6 +123,7 @@ export async function runSeed(
         code: unit.code,
         name: { ru: unit.name.ru, tg: unit.name.tg, en: unit.name.en },
         kind: unit.kind,
+        territoryId: territoryOf(unit),
         sort: 0,
         isActive: true,
         createSpace: unit.kind !== 'committee',
@@ -319,6 +340,33 @@ export async function runSeed(
  * Полная очистка данных (db:reset). Схему не трогает.
  * DELETE вместо TRUNCATE: роль kchs_app намеренно не владеет таблицами.
  */
+/**
+ * Демо-оргструктура загружена раньше справочника территорий: подразделениям
+ * `ORG_TREE` без территории она назначается — повторный seed их связывает.
+ */
+async function linkUnitTerritories(
+  ctx: SystemCtx,
+  territoryOf: (unit: SeedUnit) => string | null,
+): Promise<void> {
+  const wanted = new Map<string, string>()
+  const walk = (unit: SeedUnit): void => {
+    const territoryId = territoryOf(unit)
+    if (territoryId) wanted.set(unit.code, territoryId)
+    for (const child of unit.children ?? []) walk(child)
+  }
+  walk(ORG_TREE)
+  if (wanted.size === 0) return
+  const rows = await db()
+    .select({ id: orgUnits.id, code: orgUnits.code, territoryId: orgUnits.territoryId })
+    .from(orgUnits)
+    .where(inArray(orgUnits.code, [...wanted.keys()]))
+  for (const row of rows) {
+    const territoryId = wanted.get(row.code)
+    if (row.territoryId || !territoryId) continue
+    await db().transaction((tx) => OrgService.updateUnit(tx, ctx, row.id, { territoryId }))
+  }
+}
+
 export async function resetData(): Promise<void> {
   const statements = [
     sql`DELETE FROM activities`,

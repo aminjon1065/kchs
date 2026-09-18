@@ -1,0 +1,964 @@
+[
+  {
+    "code": "TJ",
+    "parent": null,
+    "level": "country",
+    "kind": "республика",
+    "name": {
+      "ru": "Республика Таджикистан",
+      "tg": "Ҷумҳурии Тоҷикистон",
+      "en": "Republic of Tajikistan"
+    },
+    "centroid": [71.28, 38.86],
+    "population": 9825000
+  },
+  {
+    "code": "TJ-DU",
+    "parent": "TJ",
+    "level": "region",
+    "kind": "город республиканского подчинения",
+    "name": {
+      "ru": "Душанбе",
+      "tg": "Душанбе",
+      "en": "Dushanbe"
+    },
+    "centroid": [68.78, 38.56],
+    "population": 1240000
+  },
+  {
+    "code": "TJ-GB",
+    "parent": "TJ",
+    "level": "region",
+    "kind": "автономная область",
+    "name": {
+      "ru": "Горно-Бадахшанская автономная область",
+      "tg": "Вилояти Мухтори Кӯҳистони Бадахшон",
+      "en": "Gorno-Badakhshan Autonomous Region"
+    },
+    "centroid": [72.8, 38.1],
+    "population": 225000
+  },
+  {
+    "code": "TJ-KT",
+    "parent": "TJ",
+    "level": "region",
+    "kind": "область",
+    "name": {
+      "ru": "Хатлонская область",
+      "tg": "Вилояти Хатлон",
+      "en": "Khatlon Region"
+    },
+    "centroid": [69.2, 37.8],
+    "population": 3250000
+  },
+  {
+    "code": "TJ-RA",
+    "parent": "TJ",
+    "level": "region",
+    "kind": "районы республиканского подчинения",
+    "name": {
+      "ru": "Районы республиканского подчинения",
+      "tg": "Ноҳияҳои тобеи ҷумҳурӣ",
+      "en": "Districts of Republican Subordination"
+    },
+    "centroid": [69.7, 38.75],
+    "population": 2260000
+  },
+  {
+    "code": "TJ-SU",
+    "parent": "TJ",
+    "level": "region",
+    "kind": "область",
+    "name": {
+      "ru": "Согдийская область",
+      "tg": "Вилояти Суғд",
+      "en": "Sughd Region"
+    },
+    "centroid": [69.2, 39.95],
+    "population": 2850000
+  },
+  {
+    "code": "TJ-DU-01",
+    "parent": "TJ-DU",
+    "level": "district",
+    "kind": "район города",
+    "name": {
+      "ru": "Исмоили Сомони",
+      "tg": "Исмоили Сомонӣ",
+      "en": "Ismoili Somoni"
+    },
+    "centroid": [68.785, 38.595],
+    "population": 220000
+  },
+  {
+    "code": "TJ-DU-02",
+    "parent": "TJ-DU",
+    "level": "district",
+    "kind": "район города",
+    "name": {
+      "ru": "Сино",
+      "tg": "Сино",
+      "en": "Sino"
+    },
+    "centroid": [68.725, 38.575],
+    "population": 400000
+  },
+  {
+    "code": "TJ-DU-03",
+    "parent": "TJ-DU",
+    "level": "district",
+    "kind": "район города",
+    "name": {
+      "ru": "Фирдавси",
+      "tg": "Фирдавсӣ",
+      "en": "Firdavsi"
+    },
+    "centroid": [68.74, 38.54],
+    "population": 330000
+  },
+  {
+    "code": "TJ-DU-04",
+    "parent": "TJ-DU",
+    "level": "district",
+    "kind": "район города",
+    "name": {
+      "ru": "Шохмансур",
+      "tg": "Шоҳмансур",
+      "en": "Shohmansur"
+    },
+    "centroid": [68.83, 38.56],
+    "population": 290000
+  },
+  {
+    "code": "TJ-GB-01",
+    "parent": "TJ-GB",
+    "level": "district",
+    "kind": "город",
+    "name": {
+      "ru": "Хорог",
+      "tg": "Хоруғ",
+      "en": "Khorugh"
+    },
+    "centroid": [71.55, 37.49],
+    "population": 30000
+  },
+  {
+    "code": "TJ-GB-02",
+    "parent": "TJ-GB",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Ванч",
+      "tg": "Ванҷ",
+      "en": "Vanj"
+    },
+    "centroid": [71.45, 38.37],
+    "population": 35000
+  },
+  {
+    "code": "TJ-GB-03",
+    "parent": "TJ-GB",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Дарваз",
+      "tg": "Дарвоз",
+      "en": "Darvoz"
+    },
+    "centroid": [70.79, 38.43],
+    "population": 25000
+  },
+  {
+    "code": "TJ-GB-04",
+    "parent": "TJ-GB",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Ишкашим",
+      "tg": "Ишкошим",
+      "en": "Ishkoshim"
+    },
+    "centroid": [72.0, 36.95],
+    "population": 30000
+  },
+  {
+    "code": "TJ-GB-05",
+    "parent": "TJ-GB",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Мургаб",
+      "tg": "Мурғоб",
+      "en": "Murghob"
+    },
+    "centroid": [73.9, 38.2],
+    "population": 15000
+  },
+  {
+    "code": "TJ-GB-06",
+    "parent": "TJ-GB",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Рошткала",
+      "tg": "Роштқалъа",
+      "en": "Roshtqal'a"
+    },
+    "centroid": [72.05, 37.2],
+    "population": 25000
+  },
+  {
+    "code": "TJ-GB-07",
+    "parent": "TJ-GB",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Рушан",
+      "tg": "Рушон",
+      "en": "Rushon"
+    },
+    "centroid": [72.0, 38.05],
+    "population": 25000
+  },
+  {
+    "code": "TJ-GB-08",
+    "parent": "TJ-GB",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Шугнан",
+      "tg": "Шуғнон",
+      "en": "Shughnon"
+    },
+    "centroid": [72.1, 37.6],
+    "population": 40000
+  },
+  {
+    "code": "TJ-KT-01",
+    "parent": "TJ-KT",
+    "level": "district",
+    "kind": "город",
+    "name": {
+      "ru": "Бохтар",
+      "tg": "Бохтар",
+      "en": "Bokhtar"
+    },
+    "centroid": [68.781, 37.836],
+    "population": 130000
+  },
+  {
+    "code": "TJ-KT-02",
+    "parent": "TJ-KT",
+    "level": "district",
+    "kind": "город",
+    "name": {
+      "ru": "Куляб",
+      "tg": "Кӯлоб",
+      "en": "Kulob"
+    },
+    "centroid": [69.784, 37.914],
+    "population": 230000
+  },
+  {
+    "code": "TJ-KT-03",
+    "parent": "TJ-KT",
+    "level": "district",
+    "kind": "город",
+    "name": {
+      "ru": "Левакант",
+      "tg": "Левакант",
+      "en": "Levakant"
+    },
+    "centroid": [68.93, 37.86],
+    "population": 25000
+  },
+  {
+    "code": "TJ-KT-04",
+    "parent": "TJ-KT",
+    "level": "district",
+    "kind": "город",
+    "name": {
+      "ru": "Нурек",
+      "tg": "Норак",
+      "en": "Norak"
+    },
+    "centroid": [69.325, 38.388],
+    "population": 40000
+  },
+  {
+    "code": "TJ-KT-05",
+    "parent": "TJ-KT",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Абдурахмони Джоми",
+      "tg": "Абдураҳмони Ҷомӣ",
+      "en": "Abdurahmoni Jomi"
+    },
+    "centroid": [68.95, 37.65],
+    "population": 150000
+  },
+  {
+    "code": "TJ-KT-06",
+    "parent": "TJ-KT",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Балджувон",
+      "tg": "Балҷувон",
+      "en": "Baljuvon"
+    },
+    "centroid": [69.67, 38.31],
+    "population": 35000
+  },
+  {
+    "code": "TJ-KT-07",
+    "parent": "TJ-KT",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Вахш",
+      "tg": "Вахш",
+      "en": "Vakhsh"
+    },
+    "centroid": [68.83, 37.71],
+    "population": 200000
+  },
+  {
+    "code": "TJ-KT-08",
+    "parent": "TJ-KT",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Восе",
+      "tg": "Восеъ",
+      "en": "Vose"
+    },
+    "centroid": [69.64, 37.8],
+    "population": 210000
+  },
+  {
+    "code": "TJ-KT-09",
+    "parent": "TJ-KT",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Дангара",
+      "tg": "Данғара",
+      "en": "Danghara"
+    },
+    "centroid": [69.33, 38.1],
+    "population": 170000
+  },
+  {
+    "code": "TJ-KT-10",
+    "parent": "TJ-KT",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Джайхун",
+      "tg": "Ҷайҳун",
+      "en": "Jayhun"
+    },
+    "centroid": [68.9, 37.33],
+    "population": 150000
+  },
+  {
+    "code": "TJ-KT-11",
+    "parent": "TJ-KT",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Джалолиддини Балхи",
+      "tg": "Ҷалолиддини Балхӣ",
+      "en": "Jaloliddini Balkhi"
+    },
+    "centroid": [68.66, 37.59],
+    "population": 190000
+  },
+  {
+    "code": "TJ-KT-12",
+    "parent": "TJ-KT",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Дусти",
+      "tg": "Дӯстӣ",
+      "en": "Dusti"
+    },
+    "centroid": [68.6, 37.45],
+    "population": 110000
+  },
+  {
+    "code": "TJ-KT-13",
+    "parent": "TJ-KT",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Кабодиён",
+      "tg": "Қубодиён",
+      "en": "Qubodiyon"
+    },
+    "centroid": [68.2, 37.41],
+    "population": 180000
+  },
+  {
+    "code": "TJ-KT-14",
+    "parent": "TJ-KT",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Кушониён",
+      "tg": "Кӯшониён",
+      "en": "Kushoniyon"
+    },
+    "centroid": [68.78, 37.95],
+    "population": 200000
+  },
+  {
+    "code": "TJ-KT-15",
+    "parent": "TJ-KT",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Муминабад",
+      "tg": "Мӯъминобод",
+      "en": "Muminobod"
+    },
+    "centroid": [70.03, 38.11],
+    "population": 90000
+  },
+  {
+    "code": "TJ-KT-16",
+    "parent": "TJ-KT",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Носири Хусрав",
+      "tg": "Носири Хусрав",
+      "en": "Nosiri Khusrav"
+    },
+    "centroid": [67.98, 37.07],
+    "population": 50000
+  },
+  {
+    "code": "TJ-KT-17",
+    "parent": "TJ-KT",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Пяндж",
+      "tg": "Панҷ",
+      "en": "Panj"
+    },
+    "centroid": [69.1, 37.24],
+    "population": 120000
+  },
+  {
+    "code": "TJ-KT-18",
+    "parent": "TJ-KT",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Темурмалик",
+      "tg": "Темурмалик",
+      "en": "Temurmalik"
+    },
+    "centroid": [69.95, 38.0],
+    "population": 70000
+  },
+  {
+    "code": "TJ-KT-19",
+    "parent": "TJ-KT",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Фархор",
+      "tg": "Фархор",
+      "en": "Farkhor"
+    },
+    "centroid": [69.4, 37.49],
+    "population": 180000
+  },
+  {
+    "code": "TJ-KT-20",
+    "parent": "TJ-KT",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Хамадони",
+      "tg": "Ҳамадонӣ",
+      "en": "Hamadoni"
+    },
+    "centroid": [69.62, 37.63],
+    "population": 150000
+  },
+  {
+    "code": "TJ-KT-21",
+    "parent": "TJ-KT",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Ховалинг",
+      "tg": "Ховалинг",
+      "en": "Khovaling"
+    },
+    "centroid": [69.97, 38.35],
+    "population": 60000
+  },
+  {
+    "code": "TJ-KT-22",
+    "parent": "TJ-KT",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Хуросон",
+      "tg": "Хуросон",
+      "en": "Khuroson"
+    },
+    "centroid": [68.72, 38.05],
+    "population": 110000
+  },
+  {
+    "code": "TJ-KT-23",
+    "parent": "TJ-KT",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Шамсиддин Шохин",
+      "tg": "Шамсиддини Шоҳин",
+      "en": "Shamsiddini Shohin"
+    },
+    "centroid": [70.04, 37.85],
+    "population": 60000
+  },
+  {
+    "code": "TJ-KT-24",
+    "parent": "TJ-KT",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Шахритус",
+      "tg": "Шаҳритус",
+      "en": "Shahrituz"
+    },
+    "centroid": [68.14, 37.26],
+    "population": 120000
+  },
+  {
+    "code": "TJ-KT-25",
+    "parent": "TJ-KT",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Яван",
+      "tg": "Ёвон",
+      "en": "Yovon"
+    },
+    "centroid": [69.04, 38.31],
+    "population": 220000
+  },
+  {
+    "code": "TJ-RA-01",
+    "parent": "TJ-RA",
+    "level": "district",
+    "kind": "город",
+    "name": {
+      "ru": "Вахдат",
+      "tg": "Ваҳдат",
+      "en": "Vahdat"
+    },
+    "centroid": [69.05, 38.6],
+    "population": 370000
+  },
+  {
+    "code": "TJ-RA-02",
+    "parent": "TJ-RA",
+    "level": "district",
+    "kind": "город",
+    "name": {
+      "ru": "Гиссар",
+      "tg": "Ҳисор",
+      "en": "Hisor"
+    },
+    "centroid": [68.551, 38.526],
+    "population": 310000
+  },
+  {
+    "code": "TJ-RA-03",
+    "parent": "TJ-RA",
+    "level": "district",
+    "kind": "город",
+    "name": {
+      "ru": "Рогун",
+      "tg": "Роғун",
+      "en": "Roghun"
+    },
+    "centroid": [69.77, 38.698],
+    "population": 45000
+  },
+  {
+    "code": "TJ-RA-04",
+    "parent": "TJ-RA",
+    "level": "district",
+    "kind": "город",
+    "name": {
+      "ru": "Турсунзаде",
+      "tg": "Турсунзода",
+      "en": "Tursunzoda"
+    },
+    "centroid": [68.231, 38.511],
+    "population": 300000
+  },
+  {
+    "code": "TJ-RA-05",
+    "parent": "TJ-RA",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Варзоб",
+      "tg": "Варзоб",
+      "en": "Varzob"
+    },
+    "centroid": [68.8, 38.9],
+    "population": 80000
+  },
+  {
+    "code": "TJ-RA-06",
+    "parent": "TJ-RA",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Лахш",
+      "tg": "Лахш",
+      "en": "Lakhsh"
+    },
+    "centroid": [71.2, 39.22],
+    "population": 75000
+  },
+  {
+    "code": "TJ-RA-07",
+    "parent": "TJ-RA",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Нурабад",
+      "tg": "Нуробод",
+      "en": "Nurobod"
+    },
+    "centroid": [70.1, 38.75],
+    "population": 85000
+  },
+  {
+    "code": "TJ-RA-08",
+    "parent": "TJ-RA",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Рашт",
+      "tg": "Рашт",
+      "en": "Rasht"
+    },
+    "centroid": [70.38, 39.02],
+    "population": 140000
+  },
+  {
+    "code": "TJ-RA-09",
+    "parent": "TJ-RA",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Рудаки",
+      "tg": "Рӯдакӣ",
+      "en": "Rudaki"
+    },
+    "centroid": [68.8, 38.4],
+    "population": 550000
+  },
+  {
+    "code": "TJ-RA-10",
+    "parent": "TJ-RA",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Сангвор",
+      "tg": "Сангвор",
+      "en": "Sangvor"
+    },
+    "centroid": [70.49, 38.7],
+    "population": 25000
+  },
+  {
+    "code": "TJ-RA-11",
+    "parent": "TJ-RA",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Таджикабад",
+      "tg": "Тоҷикобод",
+      "en": "Tojikobod"
+    },
+    "centroid": [70.82, 39.12],
+    "population": 50000
+  },
+  {
+    "code": "TJ-RA-12",
+    "parent": "TJ-RA",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Файзабад",
+      "tg": "Файзобод",
+      "en": "Fayzobod"
+    },
+    "centroid": [69.32, 38.56],
+    "population": 110000
+  },
+  {
+    "code": "TJ-RA-13",
+    "parent": "TJ-RA",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Шахринав",
+      "tg": "Шаҳринав",
+      "en": "Shahrinav"
+    },
+    "centroid": [68.33, 38.57],
+    "population": 120000
+  },
+  {
+    "code": "TJ-SU-01",
+    "parent": "TJ-SU",
+    "level": "district",
+    "kind": "город",
+    "name": {
+      "ru": "Худжанд",
+      "tg": "Хуҷанд",
+      "en": "Khujand"
+    },
+    "centroid": [69.622, 40.283],
+    "population": 200000
+  },
+  {
+    "code": "TJ-SU-02",
+    "parent": "TJ-SU",
+    "level": "district",
+    "kind": "город",
+    "name": {
+      "ru": "Бустон",
+      "tg": "Бӯстон",
+      "en": "Buston"
+    },
+    "centroid": [69.69, 40.23],
+    "population": 40000
+  },
+  {
+    "code": "TJ-SU-03",
+    "parent": "TJ-SU",
+    "level": "district",
+    "kind": "город",
+    "name": {
+      "ru": "Гулистон",
+      "tg": "Гулистон",
+      "en": "Guliston"
+    },
+    "centroid": [69.82, 40.27],
+    "population": 50000
+  },
+  {
+    "code": "TJ-SU-04",
+    "parent": "TJ-SU",
+    "level": "district",
+    "kind": "город",
+    "name": {
+      "ru": "Истаравшан",
+      "tg": "Истаравшан",
+      "en": "Istaravshan"
+    },
+    "centroid": [69.0, 39.91],
+    "population": 280000
+  },
+  {
+    "code": "TJ-SU-05",
+    "parent": "TJ-SU",
+    "level": "district",
+    "kind": "город",
+    "name": {
+      "ru": "Истиклол",
+      "tg": "Истиқлол",
+      "en": "Istiqlol"
+    },
+    "centroid": [69.64, 40.57],
+    "population": 20000
+  },
+  {
+    "code": "TJ-SU-06",
+    "parent": "TJ-SU",
+    "level": "district",
+    "kind": "город",
+    "name": {
+      "ru": "Исфара",
+      "tg": "Исфара",
+      "en": "Isfara"
+    },
+    "centroid": [70.63, 40.12],
+    "population": 300000
+  },
+  {
+    "code": "TJ-SU-07",
+    "parent": "TJ-SU",
+    "level": "district",
+    "kind": "город",
+    "name": {
+      "ru": "Канибадам",
+      "tg": "Конибодом",
+      "en": "Konibodom"
+    },
+    "centroid": [70.43, 40.29],
+    "population": 220000
+  },
+  {
+    "code": "TJ-SU-08",
+    "parent": "TJ-SU",
+    "level": "district",
+    "kind": "город",
+    "name": {
+      "ru": "Пенджикент",
+      "tg": "Панҷакент",
+      "en": "Panjakent"
+    },
+    "centroid": [67.7, 39.5],
+    "population": 320000
+  },
+  {
+    "code": "TJ-SU-09",
+    "parent": "TJ-SU",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Айни",
+      "tg": "Айнӣ",
+      "en": "Ayni"
+    },
+    "centroid": [68.54, 39.39],
+    "population": 80000
+  },
+  {
+    "code": "TJ-SU-10",
+    "parent": "TJ-SU",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Ашт",
+      "tg": "Ашт",
+      "en": "Asht"
+    },
+    "centroid": [70.2, 40.7],
+    "population": 190000
+  },
+  {
+    "code": "TJ-SU-11",
+    "parent": "TJ-SU",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Бободжон Гафуров",
+      "tg": "Бобоҷон Ғафуров",
+      "en": "Bobojon Ghafurov"
+    },
+    "centroid": [69.75, 40.15],
+    "population": 400000
+  },
+  {
+    "code": "TJ-SU-12",
+    "parent": "TJ-SU",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Горная Матча",
+      "tg": "Кӯҳистони Мастчоҳ",
+      "en": "Kuhistoni Mastchoh"
+    },
+    "centroid": [69.45, 39.45],
+    "population": 25000
+  },
+  {
+    "code": "TJ-SU-13",
+    "parent": "TJ-SU",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Деваштич",
+      "tg": "Деваштич",
+      "en": "Devashtich"
+    },
+    "centroid": [69.08, 39.72],
+    "population": 170000
+  },
+  {
+    "code": "TJ-SU-14",
+    "parent": "TJ-SU",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Джаббор Расулов",
+      "tg": "Ҷаббор Расулов",
+      "en": "Jabbor Rasulov"
+    },
+    "centroid": [69.45, 40.1],
+    "population": 150000
+  },
+  {
+    "code": "TJ-SU-15",
+    "parent": "TJ-SU",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Зафарабад",
+      "tg": "Зафаробод",
+      "en": "Zafarobod"
+    },
+    "centroid": [68.85, 40.15],
+    "population": 80000
+  },
+  {
+    "code": "TJ-SU-16",
+    "parent": "TJ-SU",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Матча",
+      "tg": "Мастчоҳ",
+      "en": "Mastchoh"
+    },
+    "centroid": [69.05, 40.4],
+    "population": 130000
+  },
+  {
+    "code": "TJ-SU-17",
+    "parent": "TJ-SU",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Спитамен",
+      "tg": "Спитамен",
+      "en": "Spitamen"
+    },
+    "centroid": [69.33, 40.14],
+    "population": 150000
+  },
+  {
+    "code": "TJ-SU-18",
+    "parent": "TJ-SU",
+    "level": "district",
+    "kind": "район",
+    "name": {
+      "ru": "Шахристан",
+      "tg": "Шаҳристон",
+      "en": "Shahriston"
+    },
+    "centroid": [68.82, 39.77],
+    "population": 45000
+  }
+]

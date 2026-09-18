@@ -1,6 +1,7 @@
 export * from './_shared.js'
 export * from './data.js'
 export * from './files.js'
+export * from './gis.js'
 export * from './identity.js'
 export * from './kernel.js'
 export * from './ops.js'

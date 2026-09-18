@@ -17,6 +17,7 @@ import {
   registerFilesRoutes,
   scheduleFilesJobs,
 } from './files/module.js'
+import { registerGisObjectTypes, registerGisRoutes } from './gis/module.js'
 import { registerIdentityBackground, registerIdentityRoutes } from './identity/module.js'
 import { OrgService, UserService } from './identity/public.js'
 
@@ -34,6 +35,7 @@ export function registerAllObjectTypes(): void {
   registerKernelObjectTypes()
   registerFilesObjectTypes()
   registerDataObjectTypes()
+  registerGisObjectTypes()
   registerDirectory()
 }
 
@@ -56,6 +58,7 @@ export async function registerModules(app: FastifyInstance, route: RouteRegistra
   registerIdentityRoutes(route)
   registerFilesRoutes(route)
   registerDataRoutes(route)
+  registerGisRoutes(route)
   registerAdminRoutes(route)
   app.log.debug('модули зарегистрированы')
 }

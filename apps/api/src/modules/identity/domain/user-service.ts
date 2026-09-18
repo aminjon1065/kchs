@@ -6,6 +6,7 @@ import type {
   Locale,
   OrgUnit,
   OrgUnitInput,
+  OrgUnitPatch,
   UserProfile,
   UserRef,
   UserStatus,
@@ -15,6 +16,7 @@ import { bumpPrincipalsVersion, invalidatePrincipalSet } from '~/kernel/access/p
 import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { SpaceService } from '~/kernel/spaces/service.js'
+import { territoryIndex } from '~/modules/gis/public.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { actorId } from '~/shared/context.js'
 import { type Database, db, type Executor } from '~/shared/db/client.js'
@@ -454,8 +456,16 @@ export const UserService = {
 
 // ─── Оргструктура ────────────────────────────────────────────────────────────
 
+/** Территория подразделения — из справочника территорий (модуль GIS). */
+async function assertTerritory(territoryId: string | null | undefined): Promise<void> {
+  if (!territoryId) return
+  if (!(await territoryIndex()).byId.has(territoryId))
+    throw errors.validation('Нет такой территории')
+}
+
 export const OrgService = {
   async createUnit(tx: Executor, ctx: Ctx, input: OrgUnitInput): Promise<string> {
+    await assertTerritory(input.territoryId)
     const id = newId()
     await tx.insert(orgUnits).values({
       id,
@@ -464,6 +474,7 @@ export const OrgService = {
       name: input.name,
       kind: input.kind,
       headUserId: input.headUserId ?? null,
+      territoryId: input.territoryId ?? null,
       sort: input.sort,
       isActive: input.isActive,
     })
@@ -488,20 +499,17 @@ export const OrgService = {
     return id
   },
 
-  async updateUnit(
-    tx: Executor,
-    ctx: Ctx,
-    id: string,
-    patch: Partial<OrgUnitInput>,
-  ): Promise<void> {
+  async updateUnit(tx: Executor, ctx: Ctx, id: string, patch: OrgUnitPatch): Promise<void> {
     const [current] = await tx.select().from(orgUnits).where(eq(orgUnits.id, id)).limit(1)
     if (!current) throw errors.notFound('Подразделение')
+    await assertTerritory(patch.territoryId)
 
     const values: Record<string, unknown> = {}
     if (patch.code !== undefined) values.code = patch.code
     if (patch.name !== undefined) values.name = patch.name
     if (patch.kind !== undefined) values.kind = patch.kind
     if (patch.headUserId !== undefined) values.headUserId = patch.headUserId
+    if (patch.territoryId !== undefined) values.territoryId = patch.territoryId
     if (patch.sort !== undefined) values.sort = patch.sort
     if (patch.isActive !== undefined) values.isActive = patch.isActive
     if (patch.parentId !== undefined) values.parentId = patch.parentId
@@ -513,10 +521,12 @@ export const OrgService = {
         .where(eq(orgUnits.id, id))
     }
 
-    if (patch.parentId !== undefined && patch.parentId !== current.parentId) {
-      await rebuildUnitSubtreeClosure(tx, id, patch.parentId ?? null)
-      await bumpPrincipalsVersion()
-    }
+    const moved = patch.parentId !== undefined && patch.parentId !== current.parentId
+    if (moved) await rebuildUnitSubtreeClosure(tx, id, patch.parentId ?? null)
+    // Территории сотрудников (@my_territories) выводятся из подразделений и их предков
+    const territoryChanged =
+      patch.territoryId !== undefined && patch.territoryId !== current.territoryId
+    if (moved || territoryChanged) await bumpPrincipalsVersion()
 
     await publishEvent(tx, ctx, {
       type: 'org.unit_changed',

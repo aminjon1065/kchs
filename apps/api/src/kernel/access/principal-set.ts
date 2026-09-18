@@ -1,5 +1,5 @@
 import type { Capability } from '@kchs/contracts'
-import { and, eq, gt, inArray, lte, sql } from 'drizzle-orm'
+import { and, eq, gt, inArray, isNotNull, lte, sql } from 'drizzle-orm'
 import type { PrincipalSet } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import {
@@ -7,6 +7,7 @@ import {
   employments,
   groupMembers,
   orgClosure,
+  orgUnits,
   roleCapabilities,
   roles,
   spaceMembers,
@@ -71,6 +72,28 @@ export async function computePrincipalSet(userId: string): Promise<PrincipalSet>
     : []
 
   const unitIds = [...new Set([...directUnitIds, ...ancestorRows.map((r) => r.ancestorId)])]
+
+  // Территории ответственности (@my_territories, ADR-0057): у каждого своего
+  // подразделения — территория его самого или ближайшего предка, где она задана
+  const territoryRows = directUnitIds.length
+    ? await database
+        .select({
+          unitId: orgClosure.unitId,
+          territoryId: orgUnits.territoryId,
+          depth: orgClosure.depth,
+        })
+        .from(orgClosure)
+        .innerJoin(orgUnits, eq(orgUnits.id, orgClosure.ancestorId))
+        .where(and(inArray(orgClosure.unitId, directUnitIds), isNotNull(orgUnits.territoryId)))
+    : []
+  const nearest = new Map<string, { territoryId: string; depth: number }>()
+  for (const row of territoryRows) {
+    const known = nearest.get(row.unitId)
+    if (row.territoryId && (!known || row.depth < known.depth)) {
+      nearest.set(row.unitId, { territoryId: row.territoryId, depth: row.depth })
+    }
+  }
+  const territoryIds = [...new Set([...nearest.values()].map((item) => item.territoryId))]
   const positionIds = [
     ...new Set(employmentRows.map((r) => r.positionId).filter((v): v is string => Boolean(v))),
   ]
@@ -96,6 +119,7 @@ export async function computePrincipalSet(userId: string): Promise<PrincipalSet>
     groupIds,
     unitIds,
     primaryUnitId: employmentRows.find((r) => r.isPrimary)?.unitId ?? directUnitIds[0] ?? null,
+    territoryIds,
     positionIds,
     spaceRoles,
     roleKeys,
@@ -146,7 +170,8 @@ export async function getPrincipalSet(userId: string): Promise<PrincipalSet> {
   if (cached) {
     try {
       const parsed = JSON.parse(cached) as PrincipalSet
-      if (parsed.version === version) return parsed
+      // Кэш прежней версии кода — без территорий: пересчитываем
+      if (parsed.version === version && Array.isArray(parsed.territoryIds)) return parsed
     } catch {
       // повреждённый кэш — пересчитываем
     }

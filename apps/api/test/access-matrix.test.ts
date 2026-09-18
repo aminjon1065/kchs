@@ -27,7 +27,7 @@ const { indexObject } = await import('../src/kernel/search/index-service.js')
 const { canJoin } = await import('../src/kernel/realtime/gateway.js')
 const { buildUserCtx } = await import('../src/kernel/context-builder.js')
 const { systemCtx } = await import('../src/shared/context.js')
-const { views } = await import('../src/shared/db/schema/index.js')
+const { territories, territoryClosure, views } = await import('../src/shared/db/schema/index.js')
 
 interface Created {
   id: string
@@ -269,6 +269,32 @@ const FIXTURES: Record<string, TypeFixture> = {
     viewerForbidden: (_fx, id) => [
       { method: 'PATCH', url: `/dashboards/${id}`, payload: { name: 'правка читателя' } },
     ],
+  },
+
+  // Справочник открыт всем выдачей everyone:*; без неё территория подчиняется
+  // общим правилам ядра, как любой объект, — это и проверяет матрица
+  territory: {
+    create: async (fx, title) => {
+      const id = await db().transaction(async (tx) => {
+        const object = await ObjectService.create(
+          tx,
+          systemCtx('test', { initiatorId: fx.admin.id }),
+          { type: 'territory', spaceId: fx.spaceId, title, meta: {} },
+        )
+        await tx.insert(territories).values({
+          id: object.id,
+          code: `MATRIX-${run}`,
+          level: 'district',
+          name: { ru: title },
+        })
+        await tx
+          .insert(territoryClosure)
+          .values({ territoryId: object.id, ancestorId: object.id, depth: 0 })
+        return object.id
+      })
+      return { id, title }
+    },
+    readPaths: ['/territories/:id'],
   },
 
   dataset: {
