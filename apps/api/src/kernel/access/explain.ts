@@ -48,3 +48,19 @@ export async function buildUserCtxFor(userId: string): Promise<UserCtx | null> {
     mfaEnrollmentRequired: false,
   }
 }
+
+/**
+ * Пользователи из списка, которые видят объект: уведомление об упоминании не
+ * должно раскрывать название объекта тому, у кого к нему нет доступа.
+ */
+export async function usersWhoCanView(objectId: string, userIds: string[]): Promise<string[]> {
+  const { authorize } = await import('./authorize.js')
+  const result: string[] = []
+  for (const userId of [...new Set(userIds)]) {
+    const ctx = await buildUserCtxFor(userId)
+    if (!ctx) continue
+    const decision = await authorize(ctx, 'view', objectId, { soft: true })
+    if (decision.allowed) result.push(userId)
+  }
+  return result
+}

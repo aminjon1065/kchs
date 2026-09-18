@@ -2,6 +2,7 @@ import type { EventEnvelope } from '@kchs/contracts'
 import { systemCtx } from '~/shared/context.js'
 import { logger } from '~/shared/logger/index.js'
 import { usersWithAccess } from './access/acl-service.js'
+import { usersWhoCanView } from './access/explain.js'
 import { invalidatePrincipalSet } from './access/principal-set.js'
 import { activitySubscriber } from './activity/service.js'
 import { registerSubscriber } from './events/bus.js'
@@ -170,7 +171,11 @@ async function notificationHandler(event: EventEnvelope): Promise<void> {
 
   switch (event.type) {
     case 'mention.created': {
-      const userIds = (event.payload.userIds as string[] | undefined) ?? []
+      // Упоминание не раскрывает объект: уведомляем только тех, кто его видит
+      const userIds = await usersWhoCanView(
+        event.object.id,
+        (event.payload.userIds as string[] | undefined) ?? [],
+      )
       await NotificationService.notify({
         userIds,
         category: 'mention',

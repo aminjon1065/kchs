@@ -231,13 +231,21 @@ describe('сценарий 3: файл, обсуждение с упоминан
         body: { type: 'doc', content: [] },
         text: 'Коллега, посмотрите материалы',
         attachments: [],
-        mentions: [fx.users.member.id],
+        mentions: [fx.users.member.id, fx.users.stranger.id],
         mentionedObjectIds: [],
       },
     })
     expect(message.statusCode).toBe(200)
 
     await drainOutbox()
+
+    // Посторонний упомянут, но папку не видит: уведомление раскрыло бы её название
+    const { sql: rawSql } = await import('drizzle-orm')
+    const leaked = await db().execute<{ count: number }>(
+      rawSql`SELECT count(*)::int AS count FROM notifications
+              WHERE user_id = ${fx.users.stranger.id} AND object_id = ${folderId}`,
+    )
+    expect(leaked[0]?.count).toBe(0)
 
     const list = await call(fx.app, { url: '/notifications', as: fx.users.member })
     expect(list.statusCode).toBe(200)
