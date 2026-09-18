@@ -273,7 +273,12 @@ export const tg: DeepPartial<Dictionary> = {
     kinds: { personal: 'Шахсӣ', unit: 'Воҳид', team: 'Даста', org: 'Умумӣ' },
   },
   files: { title: 'Файлҳо', empty: 'Ҳоло файл нест' },
-  discussion: { title: 'Муҳокима', placeholder: 'Паём нависед…', send: 'Фиристодан' },
+  discussion: {
+    title: 'Муҳокима',
+    placeholder: 'Паём нависед…',
+    send: 'Фиристодан',
+    notSent: 'Фиристода нашуд: {reason}',
+  },
   search: { title: 'Ҷустуҷӯ', empty: 'Чизе ёфт нашуд' },
   admin: {
     users: { import: 'Воридот аз Excel' },

@@ -48,12 +48,37 @@ test.describe('Файлы, доступ и обсуждение', () => {
     // Движок извлёк текст — коллега видит содержимое без скачивания (сценарий 3)
     await expect(page.getByText('Уровень воды: 412 см')).toBeVisible({ timeout: 30_000 })
 
-    // Обсуждение в контекст-панели
+    // Обсуждение в контекст-панели: сбой отправки не теряет набранный текст
     await page.getByRole('button', { name: 'Обсуждение' }).click()
     const comment = `Уровень выше критического — нужна проверка ${unique()}`
-    await page.getByPlaceholder('Оставьте комментарий…').fill(comment)
+    const field = page.getByPlaceholder('Оставьте комментарий…')
+    await field.fill(comment)
+    const messages = '**/discussion/messages'
+    await page.route(messages, (route) =>
+      route.request().method() === 'POST'
+        ? route.fulfill({
+            status: 503,
+            contentType: 'application/problem+json',
+            body: JSON.stringify({
+              type: 'about:blank',
+              title: 'Сервис временно недоступен',
+              status: 503,
+              code: 'service_unavailable',
+            }),
+          })
+        : route.fallback(),
+    )
+    await page.getByRole('button', { name: 'Отправить' }).click()
+    // Ошибка — под полем, кнопка «Отправить» остаётся доступной для повтора
+    await expect(page.getByRole('alert').filter({ hasText: 'Не отправлено' })).toHaveText(
+      'Не отправлено: Сервис временно недоступен',
+    )
+    await expect(field).toHaveValue(comment)
+    await page.unroute(messages)
     await page.getByRole('button', { name: 'Отправить' }).click()
     await expect(page.getByText(comment)).toBeVisible({ timeout: 15_000 })
+    await expect(field).toHaveValue('')
+    await expect(page.getByRole('alert').filter({ hasText: 'Не отправлено' })).toHaveCount(0)
 
     // Активность объекта наполнилась
     await page.getByRole('button', { name: 'Активность' }).click()

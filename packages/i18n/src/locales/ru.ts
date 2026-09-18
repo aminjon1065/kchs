@@ -873,7 +873,8 @@ export const ru = {
     unread: 'Непрочитанные',
     typing: '{name} печатает…',
     systemAuthor: 'Система',
-    sendHint: '⌘↵ — отправить',
+    notSent: 'Не отправлено: {reason}',
+    sendHintMention: '@ — упомянуть, ⌘↵ — отправить',
     system: {
       created: '{actor} создал объект',
       shared: '{actor} открыл доступ: {principal}',

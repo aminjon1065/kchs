@@ -856,7 +856,8 @@ export const en: DeepPartial<Dictionary> = {
     unread: 'Unread',
     typing: '{name} is typing…',
     systemAuthor: 'System',
-    sendHint: '⌘↵ to send',
+    notSent: 'Not sent: {reason}',
+    sendHintMention: '@ to mention, ⌘↵ to send',
     system: {
       created: '{actor} created the object',
       shared: '{actor} granted access: {principal}',

@@ -3,7 +3,6 @@ import { formatDateTime, formatRelativeTime } from '@kchs/fields'
 import {
   Avatar,
   Badge,
-  Button,
   cn,
   EmptyState,
   FileDropzone,
@@ -14,7 +13,6 @@ import {
   ProgressBar,
   Skeleton,
   TagInput,
-  Textarea,
   Tooltip,
   useDebouncedValue,
   useToast,
@@ -27,13 +25,13 @@ import {
   Info,
   Link2,
   MessageSquare,
-  Send,
   Star,
   Tag as TagIcon,
   Users,
   X,
 } from 'lucide-react'
 import { useState } from 'react'
+import { type ComposedMessage, MessageComposer } from '~/features/discussion/message-composer.js'
 import { uploadFile } from '~/features/files/upload.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import {
@@ -423,20 +421,18 @@ function DiscussionTab({ objectId }: { objectId: string }) {
   const t = useT()
   const locale = useAppearance((s) => s.locale)
   const client = useQueryClient()
-  const [draft, setDraft] = useState('')
   const { data, isLoading } = useQuery(discussionQuery(objectId))
 
   const post = useMutation({
-    mutationFn: (text: string) =>
+    mutationFn: (message: ComposedMessage) =>
       http.post(`/objects/${objectId}/discussion/messages`, {
-        body: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text }] }] },
-        text,
+        body: message.body,
+        text: message.text,
         attachments: [],
-        mentions: [],
+        mentions: message.mentions,
         mentionedObjectIds: [],
       }),
     onSuccess: () => {
-      setDraft('')
       void client.invalidateQueries({ queryKey: keys.discussion(objectId) })
       void client.invalidateQueries({ queryKey: keys.objectActivity(objectId) })
     },
@@ -487,39 +483,11 @@ function DiscussionTab({ objectId }: { objectId: string }) {
         )}
       </div>
 
-      <form
-        className="shrink-0 border-t border-line bg-surface p-2"
-        onSubmit={(event) => {
-          event.preventDefault()
-          if (draft.trim()) post.mutate(draft.trim())
-        }}
-      >
-        <Textarea
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          placeholder={t('discussion.placeholderComment')}
-          className="min-h-[60px] text-sm"
-          onKeyDown={(event) => {
-            if (event.key === 'Enter' && (event.metaKey || event.ctrlKey) && draft.trim()) {
-              event.preventDefault()
-              post.mutate(draft.trim())
-            }
-          }}
-        />
-        <div className="mt-1.5 flex items-center justify-between">
-          <span className="text-2xs text-fg-muted">{t('discussion.sendHint')}</span>
-          <Button
-            type="submit"
-            size="sm"
-            variant="primary"
-            disabled={!draft.trim()}
-            loading={post.isPending}
-            icon={<Send className="size-3.5" />}
-          >
-            {t('discussion.send')}
-          </Button>
-        </div>
-      </form>
+      <MessageComposer
+        onSend={(message) => post.mutateAsync(message)}
+        pending={post.isPending}
+        placeholder={t('discussion.placeholderComment')}
+      />
     </div>
   )
 }
