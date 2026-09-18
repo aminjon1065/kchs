@@ -13,17 +13,35 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { config } from '~/shared/config/index.js'
 
 let client: S3Client | null = null
+let presigner: S3Client | null = null
 
-export function s3(): S3Client {
-  if (client) return client
+function createClient(endpoint: string): S3Client {
   const env = config()
-  client = new S3Client({
-    endpoint: env.S3_ENDPOINT,
+  return new S3Client({
+    endpoint,
     region: env.S3_REGION,
     forcePathStyle: env.S3_FORCE_PATH_STYLE,
     credentials: { accessKeyId: env.S3_ACCESS_KEY, secretAccessKey: env.S3_SECRET_KEY },
   })
+}
+
+export function s3(): S3Client {
+  client ??= createClient(config().S3_ENDPOINT)
   return client
+}
+
+/**
+ * Клиент для подписанных ссылок браузеру. SigV4 подписывает заголовок Host,
+ * поэтому ссылку нужно подписывать сразу публичным адресом хранилища: замена
+ * адреса после подписи ломала подпись — в контейнерах api ходит в minio:9000,
+ * а браузер в опубликованный порт. Подпись считается локально, без обращения
+ * к публичному адресу.
+ */
+function presignClient(): S3Client {
+  const env = config()
+  if (!env.S3_PUBLIC_ENDPOINT || env.S3_PUBLIC_ENDPOINT === env.S3_ENDPOINT) return s3()
+  presigner ??= createClient(env.S3_PUBLIC_ENDPOINT)
+  return presigner
 }
 
 export const buckets = {
@@ -67,8 +85,7 @@ export async function signedGetUrl(
     Key: key,
     ResponseContentDisposition: disposition,
   })
-  const url = await getSignedUrl(s3(), command, { expiresIn: options.ttl ?? SIGNED_URL_TTL })
-  return rewritePublicEndpoint(url)
+  return getSignedUrl(presignClient(), command, { expiresIn: options.ttl ?? SIGNED_URL_TTL })
 }
 
 export async function signedPutUrl(
@@ -80,8 +97,7 @@ export async function signedPutUrl(
     Key: key,
     ContentType: options.contentType,
   })
-  const url = await getSignedUrl(s3(), command, { expiresIn: options.ttl ?? SIGNED_URL_TTL })
-  return rewritePublicEndpoint(url)
+  return getSignedUrl(presignClient(), command, { expiresIn: options.ttl ?? SIGNED_URL_TTL })
 }
 
 export interface MultipartInit {
@@ -116,10 +132,10 @@ export async function initMultipart(
       UploadId: uploadId,
       PartNumber: partNumber,
     })
-    const url = await getSignedUrl(s3(), command, { expiresIn: 3600 * 6 })
+    const url = await getSignedUrl(presignClient(), command, { expiresIn: 3600 * 6 })
     partUrls.push({
       partNumber,
-      url: rewritePublicEndpoint(url),
+      url,
       size: partNumber === partCount ? size - PART_SIZE * (partCount - 1) : PART_SIZE,
     })
   }
@@ -187,13 +203,6 @@ export async function deleteObject(key: string, bucket?: string): Promise<void> 
   await s3()
     .send(new DeleteObjectCommand({ Bucket: bucket ?? buckets.files(), Key: key }))
     .catch(() => undefined)
-}
-
-/** Внутренний адрес MinIO заменяется публичным для ссылок в браузере. */
-function rewritePublicEndpoint(url: string): string {
-  const env = config()
-  if (!env.S3_PUBLIC_ENDPOINT) return url
-  return url.replace(env.S3_ENDPOINT, env.S3_PUBLIC_ENDPOINT)
 }
 
 export async function storageHealthy(): Promise<boolean> {
