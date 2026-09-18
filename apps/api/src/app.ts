@@ -79,7 +79,7 @@ export async function buildApp(): Promise<FastifyInstance> {
     global: true,
     // После аутентификации: лимит считается по пользователю, а не по общему IP
     hook: 'preHandler',
-    max: env.NODE_ENV === 'test' ? 1_000_000 : 600,
+    max: env.NODE_ENV === 'test' ? 1_000_000 : env.RATE_LIMIT_PER_MINUTE,
     timeWindow: '1 minute',
     redis: redis(),
     nameSpace: env.NODE_ENV === 'test' ? 'kchs-rl-test:' : 'kchs-rl:',

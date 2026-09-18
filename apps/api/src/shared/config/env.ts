@@ -60,6 +60,11 @@ const EnvSchema = z.object({
   KCHS_MASTER_KEY: z.string().min(16),
   SESSION_COOKIE_NAME: z.string().default('kchs_session'),
   SESSION_IDLE_HOURS: z.coerce.number().int().min(1).max(720).default(12),
+  /**
+   * Общий лимит запросов в минуту на пользователя (или адрес до входа), 17-security.md §5.
+   * Сквозные прогоны e2e ходят одним пользователем быстрее человека — им лимит поднимают.
+   */
+  RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(10).max(1_000_000).default(600),
   SESSION_ABSOLUTE_DAYS: z.coerce.number().int().min(1).max(365).default(30),
   INTERNAL_SERVICE_TOKEN: z.string().min(16).optional(),
 

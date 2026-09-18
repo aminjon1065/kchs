@@ -142,6 +142,9 @@ jobs:
         run: pnpm --filter @kchs/web exec playwright install --with-deps chromium
 
       - name: Поднять api и web
+        # Сценарии идут одним администратором быстрее человека — общий лимит выше
+        env:
+          RATE_LIMIT_PER_MINUTE: '20000'
         run: |
           bash infra/scripts/dev-api.sh
           bash infra/scripts/dev-web.sh
