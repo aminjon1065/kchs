@@ -27,6 +27,8 @@ export const EVENT_PAYLOADS = {
     removed: z.array(z.object({ principal: z.string() })).default([]),
     changed: z.array(z.object({ principal: z.string(), level: z.string() })).default([]),
     accessMode: z.string().optional(),
+    /** Права — следствие другого действия (участник поручения): без уведомления. */
+    quiet: z.boolean().optional(),
   }),
   'object.linked': z.object({ kind: z.string(), targetId: Uuid }),
   'object.unlinked': z.object({ kind: z.string(), targetId: Uuid }),
@@ -133,6 +135,32 @@ export const EVENT_PAYLOADS = {
   'chart.updated': z.object({ changed: z.array(z.string()) }),
   'dashboard.updated': z.object({ changed: z.array(z.string()) }),
   'metric.updated': z.object({ changed: z.array(z.string()) }),
+
+  // ── tasks (10-tasks-projects.md, ADR-0060) ─────────────────────────────────
+  'task.created': z.object({ key: z.string(), kind: z.string(), assigneeId: Uuid.nullable() }),
+  'task.assigned': z.object({
+    key: z.string(),
+    assigneeId: Uuid,
+    previousAssigneeId: Uuid.nullable(),
+  }),
+  /** Исполнитель принял поручение к исполнению. */
+  'task.accepted': z.object({ key: z.string() }),
+  'task.status_changed': z.object({
+    key: z.string(),
+    kind: z.string(),
+    from: z.string(),
+    to: z.string(),
+  }),
+  'task.due_changed': z.object({
+    key: z.string(),
+    from: z.string().nullable(),
+    to: z.string().nullable(),
+  }),
+  'task.reported': z.object({ key: z.string() }),
+  /** Автор или контролёр принял отчёт — поручение закрыто. */
+  'task.completed': z.object({ key: z.string() }),
+  'task.returned': z.object({ key: z.string(), comment: z.string() }),
+  'project.created': z.object({ key: z.string(), name: z.string() }),
 
   // ── admin ─────────────────────────────────────────────────────────────────
   'settings.changed': z.object({ scope: z.string(), key: z.string() }),
