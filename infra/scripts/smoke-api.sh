@@ -142,7 +142,9 @@ check "аудит содержит вход" "yes" "$(req GET '/admin/audit?acti
 
 echo "── Оргструктура ──────────────────────────────────────"
 UNITS=$(req GET /org/units)
-check "подразделений 22" "22" "$(echo "$UNITS" | jq_ 'len(d["items"])')"
+# Не меньше 22 из демо-данных: сквозные сценарии на том же стенде добавляют свои
+check "подразделения демо-данных на месте" "yes" \
+  "$(echo "$UNITS" | jq_ "'yes' if len(d['items']) >= 22 else len(d['items'])")"
 check "у комитета есть руководитель" "yes" \
   "$(echo "$UNITS" | jq_ "'yes' if [u for u in d['items'] if u['code']=='HQ'][0]['head'] else 'no'")"
 
