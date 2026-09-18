@@ -1,4 +1,6 @@
 import {
+  AskDataInput,
+  AskDataResult,
   ChartCreateInput,
   ChartDataInput,
   ChartRecord,
@@ -63,6 +65,7 @@ import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { validServiceToken } from '~/shared/http/service-token.js'
 import { logger } from '~/shared/logger/index.js'
+import { AskService } from './domain/ask-service.js'
 import { ChartService, runChartSpec } from './domain/chart-service.js'
 import { DashboardService } from './domain/dashboard-service.js'
 import { DatasetAccess } from './domain/dataset-access.js'
@@ -560,6 +563,18 @@ export function registerDataRoutes(route: RouteRegistrar): void {
     schema: { body: QueryRunInput, response: { 200: QueryResult } },
     handler: async (request) =>
       QueryService.run(request.ctx, request.body.spec, { params: request.body.params }),
+  })
+
+  route({
+    method: 'POST',
+    url: '/datasets/:id/ask',
+    auth: { action: 'view', capability: 'ai.use' },
+    tags: ['data', 'ai'],
+    summary: 'Спросить данные: вопрос → план модели → проверенный запрос и результат',
+    schema: { params: IdParam, body: AskDataInput, response: { 200: AskDataResult } },
+    rateLimit: { max: 20, timeWindow: '1 minute' },
+    handler: async (request) =>
+      AskService.ask(request.ctx, request.params.id, request.body.question),
   })
 
   route({

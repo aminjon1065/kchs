@@ -5,6 +5,7 @@ import { listObjectTypes } from '~/kernel/objects/registry.js'
 import { registerKernelRoutes } from '~/kernel/routes.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { registerAdminRoutes } from './admin/module.js'
+import { registerAiRoutes } from './ai/module.js'
 import {
   registerDataBackground,
   registerDataObjectTypes,
@@ -75,6 +76,7 @@ export async function registerModules(app: FastifyInstance, route: RouteRegistra
   registerGisRoutes(route)
   registerTasksRoutes(route)
   registerTelegramRoutes(route)
+  registerAiRoutes(route)
   registerAdminRoutes(route)
   app.log.debug('модули зарегистрированы')
 }

@@ -2,8 +2,9 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import type { AddressInfo } from 'node:net'
 
 /**
- * Поддельные внешние сервисы для интеграционных тестов: настоящий Telegram
- * не вызывается (ADR-0061). Адрес подставляется через TELEGRAM_API_URL.
+ * Поддельные внешние сервисы для интеграционных тестов: настоящий Telegram и
+ * провайдеры ИИ не вызываются (ADR-0061). Адреса подставляются через
+ * TELEGRAM_API_URL, ANTHROPIC_BASE_URL и OPENAI_COMPAT_URL.
  */
 
 interface Recorded {
@@ -183,5 +184,78 @@ export function telegramMessage(
         ? { entities: [{ type: 'bot_command', offset: 0, length: command[0].length }] }
         : {}),
     },
+  }
+}
+
+// ─── Провайдеры ИИ ───────────────────────────────────────────────────────────
+
+export interface FakeAi {
+  url: string
+  calls: Recorded[]
+  /** Следующие ответы модели по очереди: объект — JSON-ответ, строка — текст как есть. */
+  reply(...answers: Array<Record<string, unknown> | string>): void
+  /** Следующий запрос завершится ошибкой HTTP. */
+  fail(status: number): void
+  close(): Promise<void>
+}
+
+/**
+ * Поддельный провайдер: Anthropic Messages API (`POST /v1/messages`) и
+ * OpenAI-совместимый `POST /v1/chat/completions` — модель «отвечает» заранее
+ * заданным JSON.
+ */
+export async function startFakeAi(): Promise<FakeAi> {
+  const calls: Recorded[] = []
+  const answers: Array<Record<string, unknown> | string> = []
+  const failures: number[] = []
+
+  const server = await listen(async (request, response) => {
+    const body = await readJson(request)
+    const path = (request.url ?? '').split('?')[0] ?? ''
+    calls.push({ method: request.method ?? '', path, headers: request.headers, body })
+    const failure = failures.shift()
+    if (failure) {
+      send(response, failure, {
+        type: 'error',
+        error: { type: 'api_error', message: 'fake failure' },
+      })
+      return
+    }
+    const answer = answers.shift() ?? { answerable: false, reason: 'нет ответа' }
+    const text = typeof answer === 'string' ? answer : JSON.stringify(answer)
+    if (path.endsWith('/messages')) {
+      send(response, 200, {
+        id: `msg_${calls.length}`,
+        type: 'message',
+        role: 'assistant',
+        model: String(body.model ?? 'claude-sonnet-5'),
+        content: [{ type: 'text', text }],
+        stop_reason: 'end_turn',
+        stop_sequence: null,
+        usage: { input_tokens: 1200, output_tokens: 150 },
+      })
+      return
+    }
+    if (path.endsWith('/chat/completions')) {
+      send(response, 200, {
+        id: `chatcmpl_${calls.length}`,
+        object: 'chat.completion',
+        model: String(body.model ?? 'local'),
+        choices: [
+          { index: 0, message: { role: 'assistant', content: text }, finish_reason: 'stop' },
+        ],
+        usage: { prompt_tokens: 900, completion_tokens: 100, total_tokens: 1000 },
+      })
+      return
+    }
+    send(response, 404, { error: 'not found' })
+  })
+
+  return {
+    url: server.url,
+    calls,
+    reply: (...next) => answers.push(...next),
+    fail: (status) => failures.push(status),
+    close: server.close,
   }
 }
