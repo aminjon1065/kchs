@@ -18,6 +18,7 @@ import { ContextPanel } from './context-panel.js'
 import { MobileNav } from './mobile-nav.js'
 import { Navigator } from './navigator.js'
 import { PaneArea } from './pane-area.js'
+import { usePresenceHeartbeat } from './presence.js'
 import { Rail } from './rail.js'
 import { ShortcutsOverlay } from './shortcuts.js'
 import { StatusBar } from './status-bar.js'
@@ -92,6 +93,8 @@ export function WorkspaceShell() {
     })
     return () => disconnectRealtime()
   }, [client])
+
+  usePresenceHeartbeat()
 
   // Комнаты открытых вкладок: изменения объекта приходят в реальном времени
   const openObjectIds = useWorkspace((s) =>

@@ -618,6 +618,7 @@ export const ru = {
 
   objects: {
     unavailable: 'Объект недоступен или удалён',
+    presence: 'Сейчас смотрят: {names}',
     types: {
       space: 'Пространство',
       folder: 'Папка',

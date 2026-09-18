@@ -8,6 +8,16 @@ let socket: Socket | null = null
 let status: RealtimeStatus = 'disconnected'
 const listeners = new Set<() => void>()
 
+/** Кто смотрит объект — по сообщениям `presence` из комнаты `object:{id}`. */
+export interface PresenceUser {
+  id: string
+  displayName: string
+  avatarUrl: string | null
+}
+const NOBODY: PresenceUser[] = []
+const presence = new Map<string, PresenceUser[]>()
+const presenceListeners = new Set<() => void>()
+
 function setStatus(next: RealtimeStatus): void {
   if (status === next) return
   status = next
@@ -96,6 +106,11 @@ export function connectRealtime(client: QueryClient, handlers: RealtimeHandlers 
     handlers.onAclRevoked?.(payload)
   })
 
+  socket.on('presence', (payload: { objectId: string; users: PresenceUser[] }) => {
+    presence.set(payload.objectId, payload.users)
+    for (const listener of presenceListeners) listener()
+  })
+
   return socket
 }
 
@@ -109,9 +124,26 @@ export function unsubscribeRooms(rooms: string[]): void {
   socket.emit('unsubscribe', { rooms })
 }
 
+/** Отметка просмотра видимой вкладки (раз в 30 с) или уход с неё. */
+export function reportPresence(objectId: string, state: 'view' | 'leave'): void {
+  socket?.emit(state === 'view' ? 'presence.view' : 'presence.leave', { objectId })
+}
+
+export function usePresence(objectId: string): PresenceUser[] {
+  return useSyncExternalStore(
+    (listener) => {
+      presenceListeners.add(listener)
+      return () => presenceListeners.delete(listener)
+    },
+    () => presence.get(objectId) ?? NOBODY,
+    () => NOBODY,
+  )
+}
+
 export function disconnectRealtime(): void {
   socket?.disconnect()
   socket = null
+  presence.clear()
   setStatus('disconnected')
 }
 

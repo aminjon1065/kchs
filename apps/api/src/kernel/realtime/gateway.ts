@@ -4,10 +4,11 @@ import { Server as SocketServer } from 'socket.io'
 import { config } from '~/shared/config/index.js'
 import type { UserCtx } from '~/shared/context.js'
 import { logger } from '~/shared/logger/index.js'
-import { cacheKeys, createRedisConnection, redis } from '~/shared/redis/index.js'
+import { createRedisConnection } from '~/shared/redis/index.js'
 import { authorize } from '../access/authorize.js'
 import { buildUserCtx } from '../context-builder.js'
 import { JobService } from '../jobs/service.js'
+import { markLeft, markViewing, type Viewer } from './presence.js'
 
 let io: SocketServer | null = null
 
@@ -120,21 +121,18 @@ export function startRealtime(app: FastifyInstance, deps: RealtimeDeps): SocketS
       if (!payload?.objectId) return
       if (!(await canJoin(ctx, `object:${payload.objectId}`))) return
       viewed.add(payload.objectId)
-      await redis().hset(
-        cacheKeys.presence(payload.objectId),
-        ctx.userId,
-        JSON.stringify({ displayName: ctx.displayName, at: Date.now() }),
-      )
-      await redis().expire(cacheKeys.presence(payload.objectId), 120)
-      const raw = await redis().hgetall(cacheKeys.presence(payload.objectId))
-      io?.to(`object:${payload.objectId}`).emit('presence', {
-        objectId: payload.objectId,
-        users: Object.entries(raw).map(([id, value]) => ({
-          id,
-          displayName: (JSON.parse(value) as { displayName: string }).displayName,
-          avatarUrl: null,
-        })),
+      const users = await markViewing(payload.objectId, {
+        id: ctx.userId,
+        displayName: ctx.displayName,
       })
+      broadcastPresence(payload.objectId, users)
+    })
+
+    // Вкладка закрыта или ушла из вида — соседи видят это сразу, а не через минуту
+    socket.on('presence.leave', async (payload: { objectId?: string }) => {
+      if (!payload?.objectId || !viewed.has(payload.objectId)) return
+      viewed.delete(payload.objectId)
+      broadcastPresence(payload.objectId, await markLeft(payload.objectId, ctx.userId))
     })
 
     socket.on('typing', (payload: { conversationId?: string }) => {
@@ -198,7 +196,11 @@ export async function canJoin(ctx: UserCtx, room: string): Promise<boolean> {
 }
 
 async function cleanupPresence(userId: string, objectIds: Set<string>): Promise<void> {
-  for (const objectId of objectIds) await redis().hdel(cacheKeys.presence(objectId), userId)
+  for (const objectId of objectIds) broadcastPresence(objectId, await markLeft(objectId, userId))
+}
+
+function broadcastPresence(objectId: string, users: Viewer[]): void {
+  io?.to(`object:${objectId}`).emit('presence', { objectId, users })
 }
 
 /** Отправка сообщения в комнату — используется подписчиками событий. */

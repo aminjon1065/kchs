@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest'
-import { call, db, registerLifecycle, setupFixture, type TestContext } from './helpers.js'
+import { call, db, redis, registerLifecycle, setupFixture, type TestContext } from './helpers.js'
 
 registerLifecycle()
 
@@ -311,5 +311,27 @@ describe('делегирование', () => {
       as: fx.admin,
     })
     expect(stop.statusCode).toBe(200)
+  })
+})
+
+describe('присутствие', () => {
+  it('кто смотрит объект: отметка, уход, отметка без подтверждения устаревает', async () => {
+    const { markLeft, markViewing, viewers, PRESENCE_TTL_MS } = await import(
+      '../src/kernel/realtime/presence.js'
+    )
+    const { cacheKeys } = await import('../src/shared/redis/index.js')
+    const objectId = crypto.randomUUID()
+    const t0 = Date.now()
+    await markViewing(objectId, { id: 'anna', displayName: 'Анна' }, t0)
+    const both = await markViewing(objectId, { id: 'bahrom', displayName: 'Бахром' }, t0 + 1000)
+    expect(both.map((viewer) => viewer.id).sort()).toEqual(['anna', 'bahrom'])
+
+    // Анна ушла — соседи видят сразу
+    const left = await markLeft(objectId, 'anna', t0 + 2000)
+    expect(left.map((viewer) => viewer.id)).toEqual(['bahrom'])
+
+    // Бахром закрыл вкладку без прощания: после срока его нет, отметка удалена
+    expect(await viewers(objectId, t0 + 1000 + PRESENCE_TTL_MS + 1)).toEqual([])
+    expect(await redis().hlen(cacheKeys.presence(objectId))).toBe(0)
   })
 })

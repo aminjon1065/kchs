@@ -28,6 +28,7 @@ import { FilePreview } from '~/features/files/file-preview.js'
 import { uploadFile } from '~/features/files/upload.js'
 import { http } from '~/shared/api/client.js'
 import { fileQuery, fileVersionsQuery, keys, objectQuery } from '~/shared/api/queries.js'
+import { PresenceAvatars } from './presence-avatars.js'
 
 export function FileView({ objectId, tabId }: { objectId: string; tabId: string }) {
   const t = useT()
@@ -121,6 +122,7 @@ export function FileView({ objectId, tabId }: { objectId: string; tabId: string 
         }
         right={
           <>
+            <PresenceAvatars objectId={objectId} />
             <Button
               variant="secondary"
               size="sm"

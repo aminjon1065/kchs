@@ -51,7 +51,7 @@
 ## 3. Realtime-протокол (Socket.IO)
 
 - Подключение: `/ws` с cookie-сессией; при неудаче — переподключение с экспоненциальной задержкой; после переподключения клиент повторно подписывается и запрашивает `since=<lastEventId>` для пропущенных `object.updated` по открытым вкладкам.
-- Клиент → сервер: `subscribe {rooms: ['object:…','space:…','conversation:…','job:…']}`, `unsubscribe`, `presence.view {objectId}`, `typing {conversationId}`, `ping`.
+- Клиент → сервер: `subscribe {rooms: ['object:…','space:…','conversation:…','job:…']}`, `unsubscribe`, `presence.view {objectId}` (видимая вкладка — раз в 30 с; отметка без подтверждения дольше 70 с считается ушедшей), `presence.leave {objectId}`, `typing {conversationId}`, `ping`.
 - Сервер → клиент: `object.updated {id, type, version, changedFields, actorId}`, `object.removed {id}`, `message.posted {conversationId, message}`, `message.updated`, `notification.new {notification}`, `inbox.changed {counts}`, `job.progress {jobId, progress, message}`, `job.finished {jobId, status}`, `presence {objectId, users[]}`, `typing {...}`, `call.incoming {meetingId, from}`, `acl.revoked {objectId}` (клиент закрывает вкладку с сообщением).
 - Комнаты объектов проверяются `authorize(view)` при подписке; изменение ACL → пересчёт членов комнаты.
 - Совместное редактирование — `/collab` (Hocuspocus, Yjs); имя документа = `objectId`, аутентификация токеном сессии, права `edit`/`view` (read-only режим).

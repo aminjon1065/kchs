@@ -611,6 +611,7 @@ export const en: DeepPartial<Dictionary> = {
 
   objects: {
     unavailable: 'The object is unavailable or deleted',
+    presence: 'Viewing now: {names}',
     types: {
       space: 'Space',
       folder: 'Folder',
