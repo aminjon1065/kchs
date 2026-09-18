@@ -314,7 +314,20 @@ export const RowService = {
 
   async insert(ctx: Ctx, datasetId: string, rows: DatasetRowInput[]): Promise<DatasetRow[]> {
     const { grant, storage } = await writable(ctx, datasetId)
-    const prepared = rows.map((row) => prepare(storage, grant, row.values, true))
+    const prepared = rows.map((row, index) => {
+      try {
+        return prepare(storage, grant, row.values, true)
+      } catch (error) {
+        // Номер строки пакета: вставка из буфера показывает, какую строку исправить
+        if (error instanceof AppError && error.code === 'validation_failed' && rows.length > 1) {
+          throw new AppError('validation_failed', `Строка ${index + 1}: ${error.message}`, 400, {
+            ...(error.fieldErrors ? { fieldErrors: error.fieldErrors } : {}),
+            data: { row: index },
+          })
+        }
+        throw error
+      }
+    })
     const assigned = new Set(prepared.flatMap((row) => row.map((item) => item.field.key)))
     const fields = storage.fields.filter((field) => assigned.has(field.key))
     const userId = actorId(ctx)

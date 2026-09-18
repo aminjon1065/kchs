@@ -44,6 +44,14 @@ const GROUPS: Array<{ titleKey: string; rows: ShortcutRow[] }> = [
       { combo: 'shift+?', labelKey: 'shell.shortcuts.cheatSheet' },
     ],
   },
+  {
+    titleKey: 'shell.shortcuts.groups.table',
+    rows: [
+      { combo: 'mod+v', labelKey: 'shell.shortcuts.pasteCells' },
+      { combo: 'mod+z', labelKey: 'shell.shortcuts.undoEdit' },
+      { combo: 'mod+shift+z', labelKey: 'shell.shortcuts.redoEdit' },
+    ],
+  },
 ]
 
 export function ShortcutsOverlay({

@@ -39,6 +39,57 @@ function helpers(page: Page, name: string) {
   }
 }
 
+test('DataGrid: добавление строк вставкой — кнопкой, ниже последней строки и с отказом', async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+  const errors: string[] = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  await openStory(page, 'composites-data-grid--append-rows')
+  const { grid, status, cell } = helpers(page, 'Районы')
+  const rows = () => grid.locator('[role="row"][data-row]').count()
+  // История уже добавила две строки: 12 районов + 2
+  await expect(status).toHaveText('Добавлены 2 строки')
+  const before = await grid.getAttribute('aria-rowcount')
+
+  // «Добавить строки» → ⌘V: строки в конец, со столбца активной ячейки
+  await cell(0, 0).click()
+  await page.evaluate(() => navigator.clipboard.writeText('Первый\tСогдийская\nВторой\tХатлонская'))
+  await page.getByRole('button', { name: 'Добавить строки' }).click()
+  await expect(page.getByRole('button', { name: 'Добавить строки' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  await page.keyboard.press('ControlOrMeta+V')
+  await expect(status).toHaveText('Добавлены 2 строки')
+  expect(Number(await grid.getAttribute('aria-rowcount'))).toBe(Number(before) + 2)
+
+  // Нераспознанное значение — ничего не добавляется, причина в подвале
+  await page.evaluate(() => navigator.clipboard.writeText('Третий\tГБАО\tмного'))
+  await page.getByRole('button', { name: 'Добавить строки' }).click()
+  await page.keyboard.press('ControlOrMeta+V')
+  await expect(status).toHaveText(
+    'Строки не добавлены: в строке 1 «много» не подходит для поля «Население»',
+  )
+
+  // Отказ «сервера» — причина в подвале, строк не прибавилось
+  await page.evaluate(() => navigator.clipboard.writeText('\tГБАО'))
+  await page.getByRole('button', { name: 'Добавить строки' }).click()
+  await page.keyboard.press('ControlOrMeta+V')
+  await expect(status).toHaveText('Строки не добавлены: строка 1: не указан район')
+
+  // Esc снимает режим добавления
+  await page.getByRole('button', { name: 'Добавить строки' }).click()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('button', { name: 'Добавить строки' })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  )
+  expect(await rows()).toBeGreaterThan(0)
+  expect(errors).toEqual([])
+})
+
 test('DataGrid: клавиатура, правка, буфер обмена, отмена', async ({ page, context }) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write'])
   const errors: string[] = []

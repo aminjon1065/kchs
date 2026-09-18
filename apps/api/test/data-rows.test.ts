@@ -178,6 +178,19 @@ describe('строки: вставка и чтение', () => {
       payload: { rows: [{ values: { code: 'INC-0001' } }] },
     })
     expect(duplicate.statusCode).toBe(409)
+
+    // Пакет (вставка из буфера): в ошибке — номер строки
+    const batch = await call(fx.app, {
+      method: 'POST',
+      url: `/datasets/${datasetId}/rows`,
+      as: fx.admin,
+      payload: {
+        rows: [{ values: { code: 'B-1' } }, { values: { code: 'B-2', amount: 'много' } }],
+      },
+    })
+    expect(batch.statusCode).toBe(400)
+    expect(batch.json().detail).toMatch(/^Строка 2: /)
+    expect(batch.json().data).toEqual({ row: 1 })
   })
 })
 

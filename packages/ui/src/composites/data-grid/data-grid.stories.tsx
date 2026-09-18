@@ -190,11 +190,14 @@ function applyEdits(
 
 function DistrictsGrid({
   editable = false,
+  appendable = false,
   initialSort = [],
   hidden = [],
   withColumnsButton = false,
 }: {
   editable?: boolean
+  /** Вставка ниже последней строки и «Добавить строки» создают строки. */
+  appendable?: boolean
   initialSort?: DataGridSortItem[]
   hidden?: string[]
   withColumnsButton?: boolean
@@ -213,6 +216,19 @@ function DistrictsGrid({
     const { rows: next, result } = applyEdits(rowsRef.current, changes)
     setRows(next)
     return result
+  }, [])
+  /** «Сервер» добавления: район обязателен. */
+  const onAppendRows = useCallback(async (values: Array<Record<string, unknown>>) => {
+    const missing = values.findIndex((row) => !row.district)
+    if (missing >= 0) {
+      return { rejected: [{ index: missing, message: `строка ${missing + 1}: не указан район` }] }
+    }
+    const start = rowsRef.current.length
+    setRows([
+      ...rowsRef.current,
+      ...values.map((row, index) => ({ id: `n${start + index + 1}`, values: row })),
+    ])
+    return {}
   }, [])
 
   return (
@@ -237,6 +253,7 @@ function DistrictsGrid({
         columnState={columnState}
         onColumnStateChange={setColumnState}
         onEdit={editable ? onEdit : undefined}
+        onAppendRows={appendable ? onAppendRows : undefined}
         // Фильтры ведёт экран (FilterBuilder над таблицей) — в демонстрации пункт меню без действия
         onColumnFilter={() => undefined}
         timezone="Asia/Dushanbe"
@@ -283,6 +300,24 @@ export const EditAndPaste: Story = {
     await waitFor(() =>
       expect(status).toHaveTextContent('Не сохранено: население не может быть отрицательным'),
     )
+  },
+}
+
+export const AppendRows: Story = {
+  name: 'Добавление строк вставкой',
+  render: () => <DistrictsGrid editable appendable />,
+  play: async ({ canvasElement }) => {
+    const grid = gridOf(canvasElement)
+    const status = within(canvasElement).getByRole('status')
+    await userEvent.click(within(canvasElement).getByRole('button', { name: 'Добавить строки' }))
+    await waitFor(() => expect(status).toHaveTextContent('Вставьте скопированные строки'))
+    // Строки из табличного редактора вместе с заголовком: заголовок отбрасывается
+    const data = new DataTransfer()
+    data.setData('text/plain', 'Район\tРегион\r\nНовый\tГБАО\r\nЕщё один\tРРП\r\n')
+    grid.dispatchEvent(
+      new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }),
+    )
+    await waitFor(() => expect(status).toHaveTextContent('Добавлены 2 строки'))
   },
 }
 

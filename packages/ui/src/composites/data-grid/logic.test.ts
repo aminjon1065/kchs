@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseTsv, pasteTargets, toTsv } from './clipboard.js'
+import { parseTsv, pasteTargets, splitAppend, toTsv } from './clipboard.js'
 import { reconcileColumnState } from './column-state.js'
 import { dropChanges, EMPTY_HISTORY, planRedo, planUndo, recordEdit } from './history.js'
 import { type CellOverlay, cellKey, cellValue, settleOverlay, withoutCells } from './overlay.js'
@@ -138,6 +138,25 @@ describe('буфер обмена TSV', () => {
     )
     expect(targets).toEqual([{ row: 99, col: 4, text: '1' }])
     expect(clipped).toBe(3)
+  })
+
+  it('ниже последней строки — новые строки; правее последнего столбца — отбрасывается', () => {
+    const matrix = [
+      ['1', '2'],
+      ['3', '4'],
+      ['5', '6'],
+    ]
+    // Вставка с последней строки: первая строка буфера правит её, остальные — новые
+    const split = splitAppend(matrix, { row: 99, col: 4 }, bounds)
+    expect(split.existing).toEqual([['1', '2']])
+    expect(split.appended).toEqual([['3'], ['5']])
+    expect(split.clipped).toBe(2)
+    // Пустая таблица или режим добавления: всё — новые строки
+    expect(splitAppend(matrix, { row: 100, col: 0 }, bounds)).toEqual({
+      existing: [],
+      appended: matrix,
+      clipped: 0,
+    })
   })
 
   it('одно значение в выделенный диапазон — заполнение', () => {

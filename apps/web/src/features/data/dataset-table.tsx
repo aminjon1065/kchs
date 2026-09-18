@@ -3,6 +3,7 @@ import {
   Button,
   Callout,
   DataGrid,
+  type DataGridAppendResult,
   type DataGridCellChange,
   type DataGridColumn,
   DataGridColumnsButton,
@@ -202,6 +203,28 @@ export function DatasetTable({ dataset, canEdit }: { dataset: DatasetRecord; can
     [client, dataset.id, replaceRow, t],
   )
 
+  /** Вставка ниже последней строки — новые строки одним пакетом (до 1000, как у API). */
+  const onAppendRows = useCallback(
+    async (rows: Array<Record<string, unknown>>): Promise<DataGridAppendResult> => {
+      try {
+        await http.post(`/datasets/${dataset.id}/rows`, {
+          rows: rows.map((values) => ({ values })),
+        })
+      } catch (error) {
+        const index = error instanceof ApiError ? Number(error.problem.data?.row ?? 0) : 0
+        const message = error instanceof ApiError ? error.message : t('errors.unknown')
+        return { rejected: [{ index, message }] }
+      }
+      setReloads((value) => value + 1)
+      void client.invalidateQueries({ queryKey: dataKeys.dataset(dataset.id) })
+      void client.invalidateQueries({ queryKey: dataKeys.versions(dataset.id) })
+      return {}
+    },
+    [client, dataset.id, t],
+  )
+
+  const writable = canEdit && dataset.settings.editable
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex shrink-0 items-center gap-2 border-b border-line bg-surface px-2.5 py-1.5">
@@ -251,11 +274,15 @@ export function DatasetTable({ dataset, canEdit }: { dataset: DatasetRecord; can
         onSortChange={setSort}
         columnState={columnState}
         onColumnStateChange={setColumnState}
-        {...(canEdit && dataset.settings.editable ? { onEdit } : { readOnly: true })}
+        {...(writable ? { onEdit, onAppendRows } : { readOnly: true })}
         loading={loading}
         empty={
           <span className="text-sm text-fg-muted">
-            {debouncedSearch ? t('data.table.nothingFound') : t('data.table.empty')}
+            {debouncedSearch
+              ? t('data.table.nothingFound')
+              : writable
+                ? t('data.table.emptyEditable')
+                : t('data.table.empty')}
           </span>
         }
         locale={locale}

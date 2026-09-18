@@ -188,6 +188,11 @@ export const en: DeepPartial<Dictionary> = {
       pasted: '{count, plural, one {Pasted # value} other {Pasted # values}}',
       pasteInvalid:
         '{count, plural, one {# value not recognized} other {# values not recognized}}: {examples}',
+      appendRows: 'Add rows',
+      appendArmed: 'Paste the copied rows — ⌘V or Ctrl+V. Esc cancels',
+      appended: '{count, plural, one {Added # row} other {Added # rows}}',
+      appendFailed: 'Rows not added: {message}',
+      appendInvalid: 'Rows not added: in row {row} «{value}» does not fit the field «{name}»',
       pasteExample: '“{value}” ({name})',
       pasteSkipped:
         '{count, plural, one {# value skipped} other {# values skipped}}: read-only or row not loaded',
@@ -591,7 +596,7 @@ export const en: DeepPartial<Dictionary> = {
     },
     mobile: { navLabel: 'Main navigation' },
     shortcuts: {
-      groups: { navigation: 'Navigation', tabs: 'Tabs', work: 'Work' },
+      groups: { navigation: 'Navigation', tabs: 'Tabs', work: 'Work', table: 'Table' },
       layoutHint: 'Shortcuts match physical keys, so any keyboard layout works',
       commandPalette: 'Command palette',
       navigator: 'Navigator',
@@ -614,6 +619,9 @@ export const en: DeepPartial<Dictionary> = {
       approve: 'Approve (Inbox)',
       reject: 'Reject (Inbox)',
       cheatSheet: 'This cheat sheet',
+      pasteCells: 'Paste into cells',
+      undoEdit: 'Undo edit',
+      redoEdit: 'Redo edit',
     },
   },
   home: {
@@ -1211,6 +1219,7 @@ export const en: DeepPartial<Dictionary> = {
       loadFailed: 'Could not load rows',
       conflict: 'The row was changed by someone else — showing its current values',
       empty: 'No rows yet',
+      emptyEditable: 'No rows yet. Copy rows in a spreadsheet and paste them here — ⌘V or Ctrl+V',
       nothingFound: 'Nothing found',
     },
     dataset: {

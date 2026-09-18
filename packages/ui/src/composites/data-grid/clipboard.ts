@@ -71,6 +71,26 @@ export interface PasteTarget extends CellPos {
  * Куда вставлять: блок с активной ячейки; одно значение при выделенном
  * диапазоне — во все его ячейки (заполнение). Выходящее за таблицу отбрасывается.
  */
+/**
+ * Вставка с добавлением строк: строки буфера ниже последней строки таблицы
+ * становятся новыми строками; ячейки правее последнего столбца не попадают
+ * никуда и считаются в `clipped`.
+ */
+export function splitAppend(
+  matrix: string[][],
+  start: CellPos,
+  bounds: GridBounds,
+): { existing: string[][]; appended: string[][]; clipped: number } {
+  const first = Math.max(0, bounds.rows - start.row)
+  const width = Math.max(0, bounds.cols - start.col)
+  let clipped = 0
+  const appended = matrix.slice(first).map((cells) => {
+    clipped += Math.max(0, cells.length - width)
+    return cells.slice(0, width)
+  })
+  return { existing: matrix.slice(0, first), appended, clipped }
+}
+
 export function pasteTargets(
   matrix: string[][],
   start: CellPos,

@@ -8,7 +8,7 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Plus } from 'lucide-react'
 import {
   type ClipboardEvent,
   type FocusEvent,
@@ -28,7 +28,7 @@ import { EmptyState, TableSkeleton } from '../../components/feedback.js'
 import { useRowHeight } from '../../hooks/use-row-height.js'
 import { useUiLocale, useUiT } from '../../i18n/ui-locale.js'
 import { cn } from '../../lib/cn.js'
-import { parseTsv, pasteTargets, toTsv } from './clipboard.js'
+import { parseTsv, pasteTargets, splitAppend, toTsv } from './clipboard.js'
 import { reconcileColumnState } from './column-state.js'
 import { type EditorMove, GridEditor } from './grid-editor.js'
 import { GridHeader, type HeaderAction } from './grid-header.js'
@@ -103,6 +103,8 @@ const INITIAL_SIZING: ColumnSizingInfoState = {
 }
 /** Изменений за одну вставку или очистку — больше отправлять пакетом не стоит. */
 const MAX_BATCH = 5_000
+/** Новых строк за одну вставку — столько же принимает вставка строк датасета. */
+const MAX_APPEND = 1_000
 /** Ячеек в сводке по выделению и в копировании за раз. */
 const MAX_SUMMARY_CELLS = 50_000
 const MAX_COPY_CELLS = 200_000
@@ -192,6 +194,7 @@ export function DataGrid({
   columnState,
   onColumnStateChange,
   onEdit,
+  onAppendRows,
   onSelectionChange,
   onRowOpen,
   onRowPreview,
@@ -375,6 +378,8 @@ export function DataGrid({
   const [pending, setPending] = useState(0)
   const [focused, setFocused] = useState(false)
   const [menuKey, setMenuKey] = useState<string | null>(null)
+  /** «Добавить строки»: следующая вставка — новыми строками в конец таблицы. */
+  const [appendArmed, setAppendArmed] = useState(false)
   const overlayRef = useLatest(overlay)
   const historyRef = useLatest(history)
   const dragRef = useRef<'cells' | 'rows' | null>(null)
@@ -634,17 +639,28 @@ export function DataGrid({
     return lines.length > 0 ? { text: toTsv(lines), cells, partial } : null
   }
 
+  /**
+   * Вставка. После «Добавить строки» (`appendArmed`) все строки буфера —
+   * новые строки в конец таблицы, начиная со столбца активной ячейки.
+   */
   const pasteText = (text: string) => {
+    const append = appendArmed && Boolean(onAppendRows)
+    if (appendArmed) setAppendArmed(false)
     const matrix = parseTsv(text)
-    const range = rangeOf(selection)
-    const firstSpan = selection.rows?.[0]
+    const range = append ? null : rangeOf(selection)
+    const firstSpan = append ? undefined : selection.rows?.[0]
     const start = range
       ? { row: range.top, col: range.left }
       : firstSpan
         ? { row: firstSpan[0], col: 0 }
-        : null
+        : onAppendRows
+          ? // Режим добавления или ничего не выделено (пустая таблица) — строки в конец
+            { row: bounds.rows, col: append ? (selection.active?.col ?? 0) : 0 }
+          : null
     if (!start || matrix.length === 0) return
-    const { targets, clipped } = pasteTargets(matrix, start, range, bounds)
+    const split = onAppendRows ? splitAppend(matrix, start, bounds) : null
+    const { targets, clipped } = pasteTargets(split ? split.existing : matrix, start, range, bounds)
+    const added = split ? rowsToAppend(split.appended, start.col) : null
 
     const changes: CellChange[] = []
     const invalid: Array<{ text: string; col: RenderColumn; rowId: string }> = []
@@ -688,7 +704,21 @@ export function DataGrid({
       })
     }
 
-    const parts = [t('ui.grid.pasted', { count: changes.length + unchanged })]
+    if (added?.invalid) {
+      const bad = added.invalid
+      setStatus({
+        tone: 'danger',
+        text: t('ui.grid.appendInvalid', {
+          row: bad.row + 1,
+          value: bad.text,
+          name: bad.col.column.label,
+        }),
+      })
+      return
+    }
+
+    const parts =
+      targets.length > 0 ? [t('ui.grid.pasted', { count: changes.length + unchanged })] : []
     if (invalid.length > 0) {
       const examples = invalid
         .slice(0, 3)
@@ -697,13 +727,69 @@ export function DataGrid({
       parts.push(t('ui.grid.pasteInvalid', { count: invalid.length, examples }))
     }
     if (skipped > 0) parts.push(t('ui.grid.pasteSkipped', { count: skipped }))
-    if (clipped + overflow > 0) parts.push(t('ui.grid.pasteClipped', { count: clipped + overflow }))
+    const outside = clipped + overflow + (split?.clipped ?? 0) + (added?.overflow ?? 0)
+    if (outside > 0) parts.push(t('ui.grid.pasteClipped', { count: outside }))
     const report: GridStatus = {
       tone: invalid.length > 0 || skipped > 0 ? 'danger' : 'info',
       text: parts.join(' · '),
     }
-    if (changes.length === 0) setStatus(report)
-    else void applyChanges(changes, { success: report })
+    void (async () => {
+      if (changes.length > 0) await applyChanges(changes, { success: report })
+      else if (!added?.rows.length) setStatus(report)
+      if (added?.rows.length) await appendRows(added.rows, changes.length > 0 ? null : report.text)
+    })()
+  }
+
+  /**
+   * Строки вставки ниже последней — значения по столбцам, начиная со `startCol`:
+   * пустые и только для чтения пропускаются, строка заголовков отбрасывается.
+   * Первое нераспознанное значение останавливает добавление целиком.
+   */
+  const rowsToAppend = (lines: string[][], startCol: number) => {
+    const columnAt = (offset: number) => layout.columns[startCol + offset]
+    const header = (cells: string[]) =>
+      cells.length > 0 &&
+      cells.every(
+        (text, offset) =>
+          text.trim().toLowerCase() === columnAt(offset)?.column.label.trim().toLowerCase(),
+      )
+    const data = lines.length > 0 && header(lines[0] ?? []) ? lines.slice(1) : lines
+    const rows: Array<Record<string, unknown>> = []
+    for (const [index, cells] of data.slice(0, MAX_APPEND).entries()) {
+      const values: Record<string, unknown> = {}
+      for (const [offset, text] of cells.entries()) {
+        const col = columnAt(offset)
+        if (!col?.editor || text.trim() === '') continue
+        const parsed = parseValue(text, col.column, ctx)
+        if (!parsed.ok) return { rows, overflow: 0, invalid: { row: index, text, col } }
+        values[col.key] = parsed.value
+      }
+      if (Object.keys(values).length > 0) rows.push(values)
+    }
+    const overflow = data.slice(MAX_APPEND).reduce((sum, cells) => sum + cells.length, 0)
+    return { rows, overflow, invalid: null }
+  }
+
+  /** Новые строки — родителю одним пакетом; итог и причина отказа — в подвале. */
+  const appendRows = async (rows: Array<Record<string, unknown>>, report: string | null) => {
+    if (!onAppendRows) return
+    setPending((count) => count + 1)
+    let message: string | null = null
+    try {
+      const rejected = (await onAppendRows(rows))?.rejected ?? []
+      if (rejected.length > 0) message = rejected[0]?.message ?? ''
+    } catch (error) {
+      message = error instanceof Error ? error.message : ''
+    }
+    setPending((count) => count - 1)
+    const text =
+      message === null
+        ? t('ui.grid.appended', { count: rows.length })
+        : t('ui.grid.appendFailed', { message })
+    setStatus({
+      tone: message === null ? 'info' : 'danger',
+      text: report ? `${text} · ${report}` : text,
+    })
   }
 
   const undo = () => {
@@ -1033,6 +1119,7 @@ export function DataGrid({
         return
       }
       case 'Escape':
+        if (appendArmed) setAppendArmed(false)
         if (status || errors.size > 0) {
           setStatus(null)
           setErrors(NO_ERRORS)
@@ -1386,6 +1473,25 @@ export function DataGrid({
             ) : null}
             {summary.partial ? <span className="text-fg-muted">{t('ui.grid.partial')}</span> : null}
           </div>
+        ) : null}
+        {editable && onAppendRows ? (
+          <button
+            type="button"
+            aria-pressed={appendArmed}
+            onClick={() => {
+              const armed = !appendArmed
+              setAppendArmed(armed)
+              setStatus(armed ? { tone: 'info', text: t('ui.grid.appendArmed') } : null)
+              focusGrid()
+            }}
+            className={cn(
+              'flex h-6 shrink-0 items-center gap-1 rounded-xs px-1.5 hover:bg-surface-3 hover:text-fg',
+              appendArmed && 'bg-accent-subtle text-accent',
+            )}
+          >
+            <Plus aria-hidden className="size-3.5" />
+            {t('ui.grid.appendRows')}
+          </button>
         ) : null}
         <div className="flex shrink-0 items-center gap-1.5 text-fg-muted tabular">
           {loading && rowCount > 0 ? (

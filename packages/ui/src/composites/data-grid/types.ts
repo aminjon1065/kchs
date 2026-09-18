@@ -40,6 +40,11 @@ export interface DataGridEditResult {
   rejected?: Array<{ rowId: string; key: string; message: string }>
 }
 
+/** Ответ на добавление строк: строки пакета, которые не приняты, с причиной. */
+export interface DataGridAppendResult {
+  rejected?: Array<{ index: number; message: string }>
+}
+
 /** Раскладка столбцов: порядок, ширины, скрытые и закреплённые слева. */
 export interface DataGridColumnState {
   order: string[]
@@ -93,6 +98,14 @@ export interface DataGridProps {
    * передаёт новую `getRow`.
    */
   onEdit?: (changes: DataGridCellChange[]) => Promise<DataGridEditResult | undefined>
+  /**
+   * Новые строки из вставки ниже последней строки (или в пустую таблицу):
+   * значения уже разобраны по типам столбцов, пустые ячейки пропущены,
+   * строка заголовков из табличного редактора отброшена. Пакет принимается
+   * целиком или отклоняется с причиной; после успеха родитель перечитывает
+   * строки. Без обработчика лишние строки вставки обрезаются.
+   */
+  onAppendRows?: (rows: Array<Record<string, unknown>>) => Promise<DataGridAppendResult | undefined>
   onSelectionChange?: (selection: DataGridSelectionInfo) => void
   /** Открыть карточку: Enter или двойной щелчок по ячейке без правки, по номеру строки. */
   onRowOpen?: (row: DataGridRow, index: number) => void

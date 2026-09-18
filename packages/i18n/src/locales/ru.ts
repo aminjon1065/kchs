@@ -190,6 +190,12 @@ export const ru = {
         '{count, plural, one {Вставлено # значение} few {Вставлено # значения} many {Вставлено # значений} other {Вставлено # значения}}',
       pasteInvalid:
         '{count, plural, one {не распознано # значение} few {не распознаны # значения} many {не распознано # значений} other {не распознано # значения}}: {examples}',
+      appendRows: 'Добавить строки',
+      appendArmed: 'Вставьте скопированные строки — ⌘V или Ctrl+V. Esc — отмена',
+      appended:
+        '{count, plural, one {Добавлена # строка} few {Добавлены # строки} many {Добавлено # строк} other {Добавлено # строки}}',
+      appendFailed: 'Строки не добавлены: {message}',
+      appendInvalid: 'Строки не добавлены: в строке {row} «{value}» не подходит для поля «{name}»',
       pasteExample: '«{value}» ({name})',
       pasteSkipped:
         '{count, plural, one {# значение пропущено} few {# значения пропущены} many {# значений пропущено} other {# значения пропущено}}: только чтение или строка не загружена',
@@ -603,7 +609,7 @@ export const ru = {
     },
     mobile: { navLabel: 'Основная навигация' },
     shortcuts: {
-      groups: { navigation: 'Навигация', tabs: 'Вкладки', work: 'Работа' },
+      groups: { navigation: 'Навигация', tabs: 'Вкладки', work: 'Работа', table: 'Таблица' },
       layoutHint: 'Сочетания сравниваются по коду клавиши — кириллическая раскладка не мешает',
       commandPalette: 'Палитра команд',
       navigator: 'Навигатор',
@@ -626,6 +632,9 @@ export const ru = {
       approve: 'Согласовать (Входящие)',
       reject: 'Отклонить (Входящие)',
       cheatSheet: 'Эта шпаргалка',
+      pasteCells: 'Вставить в ячейки',
+      undoEdit: 'Отменить правку',
+      redoEdit: 'Повторить правку',
     },
   },
 
@@ -1240,6 +1249,8 @@ export const ru = {
       loadFailed: 'Не удалось загрузить строки',
       conflict: 'Строку уже изменили — показаны её текущие значения',
       empty: 'Строк пока нет',
+      emptyEditable:
+        'Строк пока нет. Скопируйте строки в табличном редакторе и вставьте их сюда — ⌘V или Ctrl+V',
       nothingFound: 'Ничего не найдено',
     },
     dataset: {
