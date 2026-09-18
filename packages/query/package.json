@@ -13,7 +13,8 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@kchs/contracts": "workspace:*"
+    "@kchs/contracts": "workspace:*",
+    "libpg-query": "^17.7.4"
   },
   "devDependencies": {
     "@kchs/config": "workspace:*",

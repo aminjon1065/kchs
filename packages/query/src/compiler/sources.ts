@@ -19,7 +19,11 @@ const INLINE_KEY = /^[a-z_][a-z0-9_]*$/i
 const MAX_INLINE_ROWS = 1000
 
 /** Системные столбцы строк датасета, доступные в запросах (не в результате по умолчанию). */
-const SYSTEM_COLUMNS: ReadonlyArray<{ name: string; type: ValueType; fieldType: FieldType }> = [
+export const SYSTEM_COLUMNS: ReadonlyArray<{
+  name: string
+  type: ValueType
+  fieldType: FieldType
+}> = [
   { name: '_id', type: 'number', fieldType: 'integer' },
   { name: '_ver', type: 'number', fieldType: 'integer' },
   { name: '_created_at', type: 'datetime', fieldType: 'datetime' },
@@ -105,21 +109,45 @@ export function datasetSource(
   name: string,
   path: IssuePath,
 ): Relation {
+  const { body, columns, restricted, unavailable } = datasetRelation(state, dataset, alias, path)
+  state.addCte(name, body)
+  const qualifierKey = alias ?? ''
+  return {
+    name,
+    columns,
+    restricted: new Map(restricted.size ? [[qualifierKey, restricted]] : []),
+    unavailable: new Map(unavailable.size ? [[qualifierKey, unavailable]] : []),
+    qualifiers: new Set(alias ? [alias] : []),
+  }
+}
+
+/**
+ * Подзапрос датасета с политиками пользователя — один код для QuerySpec (CTE) и
+ * сырого SQL (подзапрос на месте имени таблицы). `system` — какие системные
+ * столбцы строк выбрать: все (QuerySpec) или только упомянутые в запросе.
+ */
+export function datasetRelation(
+  state: CompileState,
+  dataset: ResolvedDataset,
+  alias: string | null,
+  path: IssuePath,
+  system: 'all' | ReadonlySet<string> = 'all',
+): { body: string; columns: Column[]; restricted: Set<string>; unavailable: Set<string> } {
   state.datasets.set(dataset.id, dataset)
   const d = state.dialect
   const hidden = new Set(dataset.columnPolicy.hide)
   const masked = new Set(dataset.columnPolicy.mask)
-  const qualifierKey = alias ?? ''
   const restricted = new Set<string>()
   const unavailable = new Set<string>()
   const select: string[] = []
   const columns: Column[] = []
   const keys = new Set(dataset.fields.map((field) => field.key))
 
-  const system = dataset.systemColumns !== false
-  if (system) {
+  const hasSystem = dataset.systemColumns !== false
+  if (hasSystem) {
     for (const column of SYSTEM_COLUMNS) {
       if (keys.has(column.name)) continue
+      if (system !== 'all' && !system.has(column.name)) continue
       select.push(d.ident(column.name))
       columns.push({
         name: column.name,
@@ -162,7 +190,7 @@ export function datasetSource(
   }
 
   const where: string[] = []
-  if (system) where.push(`${d.ident('_deleted_at')} IS NULL`)
+  if (hasSystem) where.push(`${d.ident('_deleted_at')} IS NULL`)
   const policy = rowPolicySql(state, dataset, [...path, 'policy'])
   if (policy !== null) where.push(policy)
   const fence = dataset.rowPolicy.kind === 'filter' || dataset.rowPolicy.kind === 'expr'
@@ -172,14 +200,7 @@ export function datasetSource(
     ...(where.length ? [`WHERE ${where.join(' AND ')}`] : []),
     ...(fence ? ['OFFSET 0'] : []),
   ].join('\n')
-  state.addCte(name, body)
-  return {
-    name,
-    columns,
-    restricted: new Map(restricted.size ? [[qualifierKey, restricted]] : []),
-    unavailable: new Map(unavailable.size ? [[qualifierKey, unavailable]] : []),
-    qualifiers: new Set(alias ? [alias] : []),
-  }
+  return { body, columns, restricted, unavailable }
 }
 
 /** Условие политики строк над физическими столбцами (скрытые поля в политике доступны). */

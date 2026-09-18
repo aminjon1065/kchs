@@ -1,0 +1,234 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`сырой SQL: эталоны переписывания > CTE и оконная функция: имена CTE — служебные 1`] = `
+"SELECT * FROM (
+WITH "__kchs_cte_0" AS (SELECT "kind" AS "Вид", count(*) AS n FROM (SELECT "c_1" AS "title", "c_2" AS "kind", "c_3" AS "damage", "c_4" AS "victims", "c_5" AS "occurred_at", "c_6" AS "reported_on", "c_7" AS "territory_id", "c_8" AS "assignee", "c_9" AS "unit_id", "c_10" AS "tags", "c_11" AS "geom", "c_12" AS "is_confirmed", (extract(epoch FROM "c_13") / 60)::double precision AS "response", "c_14" AS "ratio", "c_15" AS "phone", "c_16" AS "start_time", "c_17" AS "meta", "c_19" AS "share", "c_20" AS "code", "c_21" AS "email", "c_22" AS "notes"
+FROM "ds"."t_incidents"
+WHERE "_deleted_at" IS NULL) AS "Происшествия" GROUP BY 1)
+SELECT "Вид", n, rank() OVER (ORDER BY n DESC) FROM "__kchs_cte_0" AS "по_видам"
+) AS "__kchs_sql"
+LIMIT 50001
+-- params: []
+-- fields: Вид:select, n:—, rank:—"
+`;
+
+exports[`сырой SQL: эталоны переписывания > DISTINCT и ORDER BY по имени результата 1`] = `
+"SELECT * FROM (
+SELECT DISTINCT "kind" AS "Вид" FROM (SELECT "c_1" AS "title", "c_2" AS "kind", "c_3" AS "damage", "c_4" AS "victims", "c_5" AS "occurred_at", "c_6" AS "reported_on", "c_7" AS "territory_id", "c_8" AS "assignee", "c_9" AS "unit_id", "c_10" AS "tags", "c_11" AS "geom", "c_12" AS "is_confirmed", (extract(epoch FROM "c_13") / 60)::double precision AS "response", "c_14" AS "ratio", "c_15" AS "phone", "c_16" AS "start_time", "c_17" AS "meta", "c_19" AS "share", "c_20" AS "code", "c_21" AS "email", "c_22" AS "notes"
+FROM "ds"."t_incidents"
+WHERE "_deleted_at" IS NULL) AS "Происшествия" ORDER BY "Вид"
+) AS "__kchs_sql"
+LIMIT 50001
+-- params: []
+-- fields: Вид:select"
+`;
+
+exports[`сырой SQL: эталоны переписывания > EXISTS и IN с подзапросами к датасетам 1`] = `
+"SELECT * FROM (
+SELECT "title" AS "Название" FROM (SELECT "c_1" AS "title", "c_2" AS "kind", "c_3" AS "damage", "c_4" AS "victims", "c_5" AS "occurred_at", "c_6" AS "reported_on", "c_7" AS "territory_id", "c_8" AS "assignee", "c_9" AS "unit_id", "c_10" AS "tags", "c_11" AS "geom", "c_12" AS "is_confirmed", (extract(epoch FROM "c_13") / 60)::double precision AS "response", "c_14" AS "ratio", "c_15" AS "phone", "c_16" AS "start_time", "c_17" AS "meta", "c_19" AS "share", "c_20" AS "code", "c_21" AS "email", "c_22" AS "notes"
+FROM "ds"."t_incidents"
+WHERE "_deleted_at" IS NULL) p
+WHERE EXISTS (SELECT 1 FROM (SELECT "c_1" AS "territory_id", "c_2" AS "name", "c_3" AS "population"
+FROM "ds"."t_regions"
+WHERE "_deleted_at" IS NULL) r WHERE r."territory_id" = p."territory_id" AND r."population" > 500000)
+  AND p."kind" IN (SELECT "kind" AS "Вид" FROM (SELECT "c_1" AS "title", "c_2" AS "kind", "c_3" AS "damage", "c_4" AS "occurred_at", "c_5" AS "reported_on"
+FROM "ds"."t_archive"
+WHERE "_deleted_at" IS NULL) AS "Архив происшествий")
+) AS "__kchs_sql"
+LIMIT 50001
+-- params: []
+-- fields: Название:text"
+`;
+
+exports[`сырой SQL: эталоны переписывания > JSON и PostGIS 1`] = `
+"SELECT * FROM (
+SELECT "meta"->>'level' AS уровень, ST_AsGeoJSON("geom") AS место
+FROM (SELECT "c_1" AS "title", "c_2" AS "kind", "c_3" AS "damage", "c_4" AS "victims", "c_5" AS "occurred_at", "c_6" AS "reported_on", "c_7" AS "territory_id", "c_8" AS "assignee", "c_9" AS "unit_id", "c_10" AS "tags", "c_11" AS "geom", "c_12" AS "is_confirmed", (extract(epoch FROM "c_13") / 60)::double precision AS "response", "c_14" AS "ratio", "c_15" AS "phone", "c_16" AS "start_time", "c_17" AS "meta", "c_19" AS "share", "c_20" AS "code", "c_21" AS "email", "c_22" AS "notes"
+FROM "ds"."t_incidents"
+WHERE "_deleted_at" IS NULL) AS "Происшествия"
+WHERE ST_DWithin("geom"::geography, ST_SetSRID(ST_MakePoint(68.78, 38.56), 4326)::geography, 1000)
+) AS "__kchs_sql"
+LIMIT 50001
+-- params: []
+-- fields: уровень:—, место:—"
+`;
+
+exports[`сырой SQL: эталоны переписывания > LATERAL и unnest списка 1`] = `
+"SELECT * FROM (
+SELECT p."title" AS "Название", метка FROM (SELECT "c_1" AS "title", "c_2" AS "kind", "c_3" AS "damage", "c_4" AS "victims", "c_5" AS "occurred_at", "c_6" AS "reported_on", "c_7" AS "territory_id", "c_8" AS "assignee", "c_9" AS "unit_id", "c_10" AS "tags", "c_11" AS "geom", "c_12" AS "is_confirmed", (extract(epoch FROM "c_13") / 60)::double precision AS "response", "c_14" AS "ratio", "c_15" AS "phone", "c_16" AS "start_time", "c_17" AS "meta", "c_19" AS "share", "c_20" AS "code", "c_21" AS "email", "c_22" AS "notes"
+FROM "ds"."t_incidents"
+WHERE "_deleted_at" IS NULL) p, LATERAL unnest(p."tags") AS метка
+) AS "__kchs_sql"
+LIMIT 50001
+-- params: []
+-- fields: Название:text, метка:—"
+`;
+
+exports[`сырой SQL: эталоны переписывания > ROLLUP и самосоединение 1`] = `
+"SELECT * FROM (
+SELECT a."kind" AS "Вид", b."territory_id" AS "Район", count(*)
+FROM (SELECT "c_1" AS "title", "c_2" AS "kind", "c_3" AS "damage", "c_4" AS "victims", "c_5" AS "occurred_at", "c_6" AS "reported_on", "c_7" AS "territory_id", "c_8" AS "assignee", "c_9" AS "unit_id", "c_10" AS "tags", "c_11" AS "geom", "c_12" AS "is_confirmed", (extract(epoch FROM "c_13") / 60)::double precision AS "response", "c_14" AS "ratio", "c_15" AS "phone", "c_16" AS "start_time", "c_17" AS "meta", "c_19" AS "share", "c_20" AS "code", "c_21" AS "email", "c_22" AS "notes"
+FROM "ds"."t_incidents"
+WHERE "_deleted_at" IS NULL) a JOIN (SELECT "c_1" AS "title", "c_2" AS "kind", "c_3" AS "damage", "c_4" AS "victims", "c_5" AS "occurred_at", "c_6" AS "reported_on", "c_7" AS "territory_id", "c_8" AS "assignee", "c_9" AS "unit_id", "c_10" AS "tags", "c_11" AS "geom", "c_12" AS "is_confirmed", (extract(epoch FROM "c_13") / 60)::double precision AS "response", "c_14" AS "ratio", "c_15" AS "phone", "c_16" AS "start_time", "c_17" AS "meta", "c_19" AS "share", "c_20" AS "code", "c_21" AS "email", "c_22" AS "notes"
+FROM "ds"."t_incidents"
+WHERE "_deleted_at" IS NULL) b ON a."code" = b."code"
+GROUP BY ROLLUP (a."kind", b."territory_id")
+) AS "__kchs_sql"
+LIMIT 50001
+-- params: []
+-- fields: Вид:select, Район:territory, count:—"
+`;
+
+exports[`сырой SQL: эталоны переписывания > VALUES и левое соединение 1`] = `
+"SELECT * FROM (
+SELECT v.kind, v.label, count(p._id) AS n
+FROM (VALUES ('fire', 'Пожар'), ('flood', 'Паводок')) AS v(kind, label)
+LEFT JOIN (SELECT "_id", "c_1" AS "title", "c_2" AS "kind", "c_3" AS "damage", "c_4" AS "victims", "c_5" AS "occurred_at", "c_6" AS "reported_on", "c_7" AS "territory_id", "c_8" AS "assignee", "c_9" AS "unit_id", "c_10" AS "tags", "c_11" AS "geom", "c_12" AS "is_confirmed", (extract(epoch FROM "c_13") / 60)::double precision AS "response", "c_14" AS "ratio", "c_15" AS "phone", "c_16" AS "start_time", "c_17" AS "meta", "c_19" AS "share", "c_20" AS "code", "c_21" AS "email", "c_22" AS "notes"
+FROM "ds"."t_incidents"
+WHERE "_deleted_at" IS NULL) p ON p."kind" = v.kind
+GROUP BY 1, 2
+) AS "__kchs_sql"
+LIMIT 50001
+-- params: []
+-- fields: kind:—, label:—, n:—"
+`;
+
+exports[`сырой SQL: эталоны переписывания > звёздочка: только видимые поля 1`] = `
+"SELECT * FROM (
+SELECT * FROM (SELECT "c_1" AS "territory_id", "c_2" AS "name", "c_3" AS "population"
+FROM "ds"."t_regions"
+WHERE "_deleted_at" IS NULL) AS "Регионы"
+) AS "__kchs_sql"
+LIMIT 50001
+-- params: []
+-- fields: territory_id:territory, name:text, population:integer"
+`;
+
+exports[`сырой SQL: эталоны переписывания > ключи и подписи, имя таблицы без кавычек, алиас 1`] = `
+"SELECT * FROM (
+SELECT p.title, p."damage" AS "Ущерб" FROM (SELECT "_id", "c_1" AS "title", "c_2" AS "kind", "c_3" AS "damage", "c_4" AS "victims", "c_5" AS "occurred_at", "c_6" AS "reported_on", "c_7" AS "territory_id", "c_8" AS "assignee", "c_9" AS "unit_id", "c_10" AS "tags", "c_11" AS "geom", "c_12" AS "is_confirmed", (extract(epoch FROM "c_13") / 60)::double precision AS "response", "c_14" AS "ratio", "c_15" AS "phone", "c_16" AS "start_time", "c_17" AS "meta", "c_19" AS "share", "c_20" AS "code", "c_21" AS "email", "c_22" AS "notes"
+FROM "ds"."t_incidents"
+WHERE "_deleted_at" IS NULL) p WHERE p."kind" = 'fire' ORDER BY p._id
+) AS "__kchs_sql"
+LIMIT 50001
+-- params: []
+-- fields: title:text, Ущерб:money"
+`;
+
+exports[`сырой SQL: эталоны переписывания > объединение двух датасетов 1`] = `
+"SELECT * FROM (
+SELECT "title" AS "Название", "damage" AS "Ущерб" FROM (SELECT "c_1" AS "title", "c_2" AS "kind", "c_3" AS "damage", "c_4" AS "victims", "c_5" AS "occurred_at", "c_6" AS "reported_on", "c_7" AS "territory_id", "c_8" AS "assignee", "c_9" AS "unit_id", "c_10" AS "tags", "c_11" AS "geom", "c_12" AS "is_confirmed", (extract(epoch FROM "c_13") / 60)::double precision AS "response", "c_14" AS "ratio", "c_15" AS "phone", "c_16" AS "start_time", "c_17" AS "meta", "c_19" AS "share", "c_20" AS "code", "c_21" AS "email", "c_22" AS "notes"
+FROM "ds"."t_incidents"
+WHERE "_deleted_at" IS NULL) AS "Происшествия"
+UNION ALL
+SELECT "title" AS "Название", "damage" AS "Ущерб" FROM (SELECT "c_1" AS "title", "c_2" AS "kind", "c_3" AS "damage", "c_4" AS "occurred_at", "c_5" AS "reported_on"
+FROM "ds"."t_archive"
+WHERE "_deleted_at" IS NULL) AS "Архив происшествий"
+ORDER BY 2 DESC
+) AS "__kchs_sql"
+LIMIT 50001
+-- params: []
+-- fields: Название:text, Ущерб:money"
+`;
+
+exports[`сырой SQL: эталоны переписывания > подзапрос-значение, FILTER и WITHIN GROUP 1`] = `
+"SELECT * FROM (
+SELECT count(*) FILTER (WHERE "is_confirmed") AS подтверждено,
+  percentile_cont(0.5) WITHIN GROUP (ORDER BY "damage") AS медиана,
+  (SELECT max("damage") FROM (SELECT "c_1" AS "title", "c_2" AS "kind", "c_3" AS "damage", "c_4" AS "occurred_at", "c_5" AS "reported_on"
+FROM "ds"."t_archive"
+WHERE "_deleted_at" IS NULL) AS "Архив происшествий") AS рекорд
+FROM (SELECT "c_1" AS "title", "c_2" AS "kind", "c_3" AS "damage", "c_4" AS "victims", "c_5" AS "occurred_at", "c_6" AS "reported_on", "c_7" AS "territory_id", "c_8" AS "assignee", "c_9" AS "unit_id", "c_10" AS "tags", "c_11" AS "geom", "c_12" AS "is_confirmed", (extract(epoch FROM "c_13") / 60)::double precision AS "response", "c_14" AS "ratio", "c_15" AS "phone", "c_16" AS "start_time", "c_17" AS "meta", "c_19" AS "share", "c_20" AS "code", "c_21" AS "email", "c_22" AS "notes"
+FROM "ds"."t_incidents"
+WHERE "_deleted_at" IS NULL) AS "Происшествия"
+) AS "__kchs_sql"
+LIMIT 50001
+-- params: []
+-- fields: подтверждено:—, медиана:—, рекорд:—"
+`;
+
+exports[`сырой SQL: эталоны переписывания > подпись поля и название датасета (пример из бэклога) 1`] = `
+"SELECT * FROM (
+SELECT "territory_id" AS "Район", count(*) FROM (SELECT "c_1" AS "title", "c_2" AS "kind", "c_3" AS "damage", "c_4" AS "victims", "c_5" AS "occurred_at", "c_6" AS "reported_on", "c_7" AS "territory_id", "c_8" AS "assignee", "c_9" AS "unit_id", "c_10" AS "tags", "c_11" AS "geom", "c_12" AS "is_confirmed", (extract(epoch FROM "c_13") / 60)::double precision AS "response", "c_14" AS "ratio", "c_15" AS "phone", "c_16" AS "start_time", "c_17" AS "meta", "c_19" AS "share", "c_20" AS "code", "c_21" AS "email", "c_22" AS "notes"
+FROM "ds"."t_incidents"
+WHERE "_deleted_at" IS NULL) AS "Происшествия" GROUP BY 1
+) AS "__kchs_sql"
+LIMIT 50001
+-- params: []
+-- fields: Район:territory, count:—"
+`;
+
+exports[`сырой SQL: эталоны переписывания > политика-выражение и строки в кавычках не трогаются 1`] = `
+"SELECT * FROM (
+SELECT "title" AS "Название" FROM (SELECT "c_1" AS "title", "c_2" AS "kind", "c_3" AS "damage", "c_4" AS "victims", "c_5" AS "occurred_at", "c_6" AS "reported_on", "c_7" AS "territory_id", "c_8" AS "assignee", "c_9" AS "unit_id", "c_10" AS "tags", "c_11" AS "geom", "c_12" AS "is_confirmed", (extract(epoch FROM "c_13") / 60)::double precision AS "response", "c_14" AS "ratio", "c_15" AS "phone", "c_16" AS "start_time", "c_17" AS "meta", "c_19" AS "share", "c_20" AS "code", "c_21" AS "email", "c_22" AS "notes"
+FROM "ds"."t_incidents"
+WHERE "_deleted_at" IS NULL AND ((("c_7" = ANY($1::uuid[])) OR ("c_2" = $2::text)))
+OFFSET 0) AS "Происшествия"
+WHERE "notes" <> '{{не параметр}}' -- {{и это}}
+  AND "code" <> $$"Район"$$
+) AS "__kchs_sql"
+LIMIT 50001
+-- params: [["cccccccc-cccc-4ccc-8ccc-ccccccccccc1"],"fire"]
+-- fields: Название:text"
+`;
+
+exports[`сырой SQL: эталоны переписывания > политики строк и маски — внутри подзапроса 1`] = `
+"SELECT * FROM (
+SELECT "name" AS "ФИО", "salary" AS "Оклад", "phone" AS "Телефон" FROM (SELECT "c_1" AS "name", (CASE WHEN "c_2" IS NULL OR "c_2" = 0 THEN "c_2" ELSE round(("c_2")::numeric, (1 - floor(log(abs(("c_2")::numeric))))::int) END)::numeric AS "salary", (CASE WHEN "c_3" IS NULL THEN NULL WHEN char_length("c_3") >= 8 THEN '***' || right("c_3", 4) ELSE '***' END) AS "phone", "c_4" AS "email", "c_5" AS "hired_on", "c_6" AS "unit_id"
+FROM "ds"."t_staff"
+WHERE "_deleted_at" IS NULL AND ("c_6" = ANY($2::uuid[]))
+OFFSET 0) AS "Сотрудники" WHERE "unit_id" = ($1)
+) AS "__kchs_sql"
+LIMIT 50001
+-- params: ["bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1",["bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1","bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2"]]
+-- fields: ФИО:text, Оклад:money, Телефон:phone"
+`;
+
+exports[`сырой SQL: эталоны переписывания > регистр и подписи на других языках 1`] = `
+"SELECT * FROM (
+select "title" AS "название", "title" AS "Title", "damage" AS "Damage" from (SELECT "c_1" AS "title", "c_2" AS "kind", "c_3" AS "damage", "c_4" AS "victims", "c_5" AS "occurred_at", "c_6" AS "reported_on", "c_7" AS "territory_id", "c_8" AS "assignee", "c_9" AS "unit_id", "c_10" AS "tags", "c_11" AS "geom", "c_12" AS "is_confirmed", (extract(epoch FROM "c_13") / 60)::double precision AS "response", "c_14" AS "ratio", "c_15" AS "phone", "c_16" AS "start_time", "c_17" AS "meta", "c_19" AS "share", "c_20" AS "code", "c_21" AS "email", "c_22" AS "notes"
+FROM "ds"."t_incidents"
+WHERE "_deleted_at" IS NULL) AS "происшествия" where "title" is not null
+) AS "__kchs_sql"
+LIMIT 50001
+-- params: []
+-- fields: название:text, Title:text, Damage:money"
+`;
+
+exports[`сырой SQL: эталоны переписывания > рекурсивный CTE 1`] = `
+"SELECT * FROM (
+WITH RECURSIVE "__kchs_cte_0"(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM "__kchs_cte_0" AS "n" WHERE i < 3) SELECT i FROM "__kchs_cte_0" AS "n"
+) AS "__kchs_sql"
+LIMIT 50001
+-- params: []
+-- fields: i:—"
+`;
+
+exports[`сырой SQL: эталоны переписывания > соединение датасетов и параметр с объявленным типом 1`] = `
+"SELECT * FROM (
+SELECT r."name" AS регион, sum(p."damage") AS ущерб
+FROM (SELECT "c_1" AS "title", "c_2" AS "kind", "c_3" AS "damage", "c_4" AS "victims", "c_5" AS "occurred_at", "c_6" AS "reported_on", "c_7" AS "territory_id", "c_8" AS "assignee", "c_9" AS "unit_id", "c_10" AS "tags", "c_11" AS "geom", "c_12" AS "is_confirmed", (extract(epoch FROM "c_13") / 60)::double precision AS "response", "c_14" AS "ratio", "c_15" AS "phone", "c_16" AS "start_time", "c_17" AS "meta", "c_19" AS "share", "c_20" AS "code", "c_21" AS "email", "c_22" AS "notes"
+FROM "ds"."t_incidents"
+WHERE "_deleted_at" IS NULL) p JOIN (SELECT "c_1" AS "territory_id", "c_2" AS "name", "c_3" AS "population"
+FROM "ds"."t_regions"
+WHERE "_deleted_at" IS NULL) r ON r."territory_id" = p."territory_id"
+WHERE p."occurred_at" >= ($1::date)
+GROUP BY 1
+ORDER BY 2 DESC
+) AS "__kchs_sql"
+LIMIT 50001
+-- params: ["2026-01-01"]
+-- fields: регион:text, ущерб:—"
+`;
+
+exports[`сырой SQL: эталоны переписывания > список-параметр и повтор параметра 1`] = `
+"SELECT * FROM (
+SELECT count(*) FROM (SELECT "c_1" AS "title", "c_2" AS "kind", "c_3" AS "damage", "c_4" AS "victims", "c_5" AS "occurred_at", "c_6" AS "reported_on", "c_7" AS "territory_id", "c_8" AS "assignee", "c_9" AS "unit_id", "c_10" AS "tags", "c_11" AS "geom", "c_12" AS "is_confirmed", (extract(epoch FROM "c_13") / 60)::double precision AS "response", "c_14" AS "ratio", "c_15" AS "phone", "c_16" AS "start_time", "c_17" AS "meta", "c_19" AS "share", "c_20" AS "code", "c_21" AS "email", "c_22" AS "notes"
+FROM "ds"."t_incidents"
+WHERE "_deleted_at" IS NULL) AS "Происшествия"
+WHERE "kind" = ANY(($1::text[])) AND ("victims" >= (NULL::double precision) OR (NULL::double precision) IS NULL)
+) AS "__kchs_sql"
+LIMIT 50001
+-- params: [["fire","flood"]]
+-- fields: count:—"
+`;

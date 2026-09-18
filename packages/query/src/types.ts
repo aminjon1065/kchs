@@ -4,6 +4,7 @@ import type {
   FieldType,
   FilterNode,
   LangText,
+  QueryParam,
   QueryResultField,
   QuerySpec,
 } from '@kchs/contracts'
@@ -123,6 +124,66 @@ export interface CompiledQuery {
   /** Предел, по которому вызывающий определяет `truncated` (строк больше — обрезано). */
   maxRows: number | null
   timeoutMs: number
+  cacheKeyParts: CacheKeyParts
+}
+
+/**
+ * Датасет SQL-лаборатории: как для компилятора плюс «человеческое» имя таблицы.
+ * В запросе пишут `SELECT … FROM "Происшествия"`, а не физическое `ds.t_…`.
+ */
+export interface SqlDataset extends ResolvedDataset {
+  /** Название датасета — имя таблицы в SQL (сравнение точное, затем без учёта регистра). */
+  name: string
+  /** Другие имена таблицы (короткое имя, прежнее название) — по желанию вызывающего. */
+  aliases?: readonly string[]
+}
+
+/** Контекст компиляции сырого SQL: пользователь, параметры, время — как у QuerySpec. */
+export interface RawSqlContext
+  extends Omit<CompileContext, 'datasets' | 'systemDatasets' | 'queries' | 'rowMeta'> {
+  /** Датасеты, доступные пользователю, с его политиками строк и столбцов. */
+  datasets: readonly SqlDataset[]
+  /** Объявления параметров `{{имя}}`: тип, значение по умолчанию, обязательность. */
+  paramDefs?: Readonly<Record<string, QueryParam>>
+}
+
+/** Столбец результата сырого SQL, насколько его можно вывести без выполнения. */
+export interface RawSqlColumn {
+  /** Имя столбца (как его назовёт Postgres); null — известно только после выполнения. */
+  name: string | null
+  /** Описание поля датасета, если столбец — прямая ссылка на него (тип, подпись, формат). */
+  field: QueryResultField | null
+}
+
+/** Участок итогового SQL и его место в исходном тексте (индексы строки JavaScript). */
+export interface SqlSourceSegment {
+  /** Начало участка в `CompiledRawSql.sql`. */
+  at: number
+  /** Начало соответствующего места в исходном тексте. */
+  source: number
+  length: number
+  /** true — текст пользователя без изменений; false — подстановка на месте имени или параметра. */
+  exact: boolean
+}
+
+export interface CompiledRawSql {
+  /** Запрос с подзапросами-политиками вместо имён датасетов и `LIMIT maxRows + 1`. */
+  sql: string
+  params: unknown[]
+  /** Карта участков `sql` → исходный текст — для позиций ошибок Postgres (`rawSqlErrorPosition`). */
+  sourceMap: SqlSourceSegment[]
+  /** Столбцы результата по порядку; null — список известен только после выполнения. */
+  fields: RawSqlColumn[] | null
+  countSql: string
+  countParams: unknown[]
+  maxRows: number | null
+  timeoutMs: number
+  /** Пояс запроса: вызывающий ставит его сеансу (`set_config('TimeZone', …, true)`). */
+  timezone: string
+  /** Датасеты, к которым обращается запрос (идентификаторы). */
+  datasets: string[]
+  /** false — в запросе random() и т. п.: результат не кэшируется. */
+  cacheable: boolean
   cacheKeyParts: CacheKeyParts
 }
 

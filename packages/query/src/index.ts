@@ -1,5 +1,5 @@
 /**
- * @kchs/query — язык выражений и компилятор QuerySpec → SQL
+ * @kchs/query — язык выражений, компилятор QuerySpec → SQL и сырой SQL лаборатории
  * (contracts/query-spec.md, 06-analytics-engine.md §5). Чистый пакет: без
  * базы и сети; вызывающий загружает датасеты с политиками пользователя,
  * компилирует и выполняет SQL под ролью `kchs_query`.
@@ -26,15 +26,21 @@ export {
 } from './expr/compile.js'
 export { parseExpression } from './expr/parser.js'
 export { ParamBinder } from './params.js'
+export { compileRawSql, rawSqlErrorPosition, rawSqlTables } from './sql/compile.js'
 export type {
   CacheKeyParts,
   CollectedSources,
   ColumnPolicy,
   CompileContext,
   CompiledQuery,
+  CompiledRawSql,
   CompileUser,
+  RawSqlColumn,
+  RawSqlContext,
   ResolvedDataset,
   ResolvedField,
   RowPolicy,
+  SqlDataset,
+  SqlSourceSegment,
 } from './types.js'
 export type { ValueType } from './value-types.js'

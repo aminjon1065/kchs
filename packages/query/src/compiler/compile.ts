@@ -108,7 +108,12 @@ function countQuery(ctx: CompileContext, spec: QuerySpec): { sql: string; params
   return { sql, params: state.binder.values }
 }
 
-function cacheKey(state: CompileState, spec: QuerySpec, maxRows: number | null): CacheKeyParts {
+/** Части ключа кэша: спецификация, версии и политики источников, значения контекста. */
+export function cacheKey(
+  state: CompileState,
+  spec: QuerySpec,
+  maxRows: number | null,
+): CacheKeyParts {
   const datasets = [...state.datasets.values()]
     .map((dataset) => ({
       id: dataset.id,

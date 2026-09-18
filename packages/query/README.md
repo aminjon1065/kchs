@@ -1,9 +1,11 @@
 # @kchs/query
 
-Язык выражений и компилятор QuerySpec → SQL (P1-E04 S01–S03;
-`docs/contracts/query-spec.md`, `docs/02-architecture/06-analytics-engine.md` §5).
+Язык выражений, компилятор QuerySpec → SQL (P1-E04 S01–S03;
+`docs/contracts/query-spec.md`, `docs/02-architecture/06-analytics-engine.md` §5)
+и сырой SQL SQL-лаборатории (P1-E04 S04, §6 — раздел «Сырой SQL» ниже).
 Один компилятор обслуживает таблицу датасета, исследование, графики, показатели,
-экспорт и API. Пакет чистый: без базы и сети, зависит только от `@kchs/contracts`.
+экспорт и API. Пакет чистый: без базы и сети, зависит от `@kchs/contracts` и
+разборщика Postgres `libpg-query` (только для сырого SQL).
 Вызывающий (модуль `data` API) загружает датасеты с политиками текущего
 пользователя, компилирует спецификацию и выполняет SQL под ролью `kchs_query`.
 
@@ -54,6 +56,9 @@ API отдаёт как 400/422. Любое другое исключение �
 | `parseExpression` | `(source: string) => Expr` |
 | `compileExpression`, `compileCondition` | `(source: string, env: ExprEnv) => CompiledExpr` — выражение в SQL в своём окружении |
 | `QueryCompileError`, `ExpressionError` | ошибки компиляции и выражения |
+| `compileRawSql` | `(sql: string, ctx: RawSqlContext) => Promise<CompiledRawSql>` — сырой SQL лаборатории |
+| `rawSqlTables` | `(sql: string) => Promise<string[]>` — имена таблиц запроса (кроме CTE) для загрузки датасетов |
+| `rawSqlErrorPosition` | `(compiled: CompiledRawSql, position: number) => number \| null` — позиция ошибки Postgres → место в тексте пользователя |
 | `postgresDialect`, `Dialect`, `ParamBinder` | диалект (DuckDB — фаза 5) и параметры `$n` |
 | `DEFAULT_MAX_ROWS` (50 000), `DEFAULT_TIMEOUT_MS` (30 000), `DEFAULT_TIMEZONE` (`Asia/Dushanbe`) | значения по умолчанию |
 
@@ -103,7 +108,7 @@ API отдаёт как 400/422. Любое другое исключение �
 Другие источники: `inline` — `VALUES` с параметрами (типы по значениям),
 `query` — сохранённый запрос подзапросом (вложенность ≤ 4, циклы — ошибка),
 `system` — `ctx.systemDatasets` (представления, подготовленные вызывающим),
-`sql` — ошибка: сырой SQL идёт через SQL-лабораторию (P1-E04 S04).
+`sql` — ошибка: сырой SQL компилирует `compileRawSql` (раздел «Сырой SQL»).
 
 ## Типы значений
 
@@ -192,6 +197,160 @@ percentile(x, p) string_agg`), оконные — только шагом `windo
 запрос зависит от «сейчас»), пояс, предел строк, режим. Новая версия датасета
 или другая политика — другой ключ (инвалидация по версии, P1-E04 S03).
 
+## Сырой SQL (SQL-лаборатория)
+
+`06-analytics-engine.md` §6, `17-security.md` §4. Пользователь пишет обычный
+SELECT по «человеческим» именам — названиям датасетов и подписям полей:
+
+```sql
+SELECT "Район", count(*) FROM "Происшествия" WHERE "Дата" >= {{с}} GROUP BY 1
+```
+
+Компилятор разбирает текст настоящим разборщиком Postgres, проверяет каждый узел
+дерева по белым спискам и переписывает запрос: имя датасета → подзапрос с
+политиками пользователя (тот же `datasetRelation`, что у QuerySpec: политика
+строк с барьером `OFFSET 0`, маски, без скрытых полей и удалённых строк),
+подписи → ключи, `{{параметр}}` → `$n`. До базы доходит только переписанный
+запрос; любой отказ — `QueryCompileError` с `path: ['sql']`, понятным
+сообщением, `position` (индекс строки запроса) и подсказкой.
+
+### Как вызывать
+
+```ts
+import { compileRawSql, rawSqlErrorPosition, rawSqlTables } from '@kchs/query'
+
+// 1. Какие таблицы упомянуты (без CTE) — загрузить только эти датасеты с политиками
+const names = await rawSqlTables(sql)              // ['Происшествия', 'регионы']
+// 2. Компиляция: датасеты, доступные пользователю, с именами таблиц
+const compiled = await compileRawSql(sql, {
+  datasets,        // SqlDataset[]: ResolvedDataset + name (+ aliases)
+  user, now, timezone, territoryDescendants, maxRows, defaultTimeoutMs,
+  params,          // значения {{…}}
+  paramDefs,       // объявления из QuerySpec.params: тип, default (в т. ч. макрос), required
+})
+// 3. Выполнение — как у QuerySpec, плюс пояс сеанса
+await sql.begin('read only', async (tx) => {
+  await tx.unsafe('SET LOCAL ROLE kchs_query')    // или пул роли kchs_query
+  await tx`SELECT set_config('statement_timeout', ${String(compiled.timeoutMs)}, true)`
+  await tx`SELECT set_config('TimeZone', ${compiled.timezone}, true)`
+  const rows = await tx.unsafe(compiled.sql, compiled.params)
+})
+// 4. Ошибка Postgres при выполнении: error.position (с 1) → место в тексте пользователя
+const at = rawSqlErrorPosition(compiled, Number(error.position))
+```
+
+`rawSqlTables` возвращает имена, как их видит Postgres (без кавычек — латиница в
+нижнем регистре), и уже проверяет запрос; сопоставление с датасетами —
+в `compileRawSql` (выше — только чтобы не грузить политики всех датасетов).
+
+`CompiledRawSql`: `sql` (запрос в обёртке `SELECT * FROM (…) AS "__kchs_sql"
+LIMIT maxRows + 1`), `params`, `countSql`/`countParams`, `maxRows`, `timeoutMs`,
+`timezone`, `datasets` (идентификаторы), `cacheKeyParts` (как у QuerySpec: текст
+запроса, объявления и использованные значения параметров, версии и политики
+датасетов, пользователь, минута — если есть `now()`/`CURRENT_DATE`),
+`cacheable` (false при `random()`, `gen_random_uuid()`), `sourceMap` и `fields`:
+столбцы по порядку — имя (как назовёт Postgres) и описание поля датасета, если
+столбец — прямая ссылка на поле (в том числе через CTE и подзапросы); `null` —
+состав известен только после выполнения (звёздочка над функцией, USING).
+
+### Разборщик
+
+npm-пакет [`libpg-query`](https://github.com/constructive-io/libpg-query-node)
+`^17.7.4` (dist-tag `pg17`, libpg_query 17-6.1.0): грамматика Postgres 17 —
+та же, что у образа базы (`kchs/postgres:17-3.5`), поэтому разборщик и сервер
+видят запрос одинаково. Сборка — только WASM: работает в Node 22 без сборки
+нативного кода и без node-gyp. Модуль загружается динамическим `import()` при
+первом сыром SQL (при импорте он компилирует WASM, остальным путям API не нужен).
+Для бандла API (`apps/api/scripts/build.mjs`) пакет должен оставаться внешним —
+`libpg-query.wasm` ищется рядом с модулем в `node_modules`: при подключении SQL-
+лаборатории добавить `libpg-query` в зависимости `apps/api`.
+
+### Имена
+
+- **Таблица** — название датасета (`SqlDataset.name`) или его `aliases`: сначала
+  точное совпадение, затем без учёта регистра. Правила Postgres: имя без кавычек —
+  латиница в нижнем регистре, кириллица как есть (`FROM Происшествия` работает);
+  с пробелами и знаками — в двойных кавычках; длиннее 63 байт — усекается, как
+  разборщиком. Схемы (`ds.`, `public.`, `pg_catalog.`…) запрещены. Датасет без
+  доступа неотличим от несуществующего.
+- **Поле** — ключ (`damage`) или подпись на любом языке (`"Ущерб"`, `"Damage"`):
+  ключ, затем системный столбец, затем подпись точно, затем без учёта регистра.
+  Подпись заменяется ключом; голое поле в списке выборки сохраняет имя
+  (`"damage" AS "Ущерб"`), в выражениях имя столбца — по ключу (правило Postgres).
+  Подписи работают и через `SELECT *` в CTE и подзапросах (там столбцы — ключи).
+  Одна подпись у нескольких полей — ошибка с перечнем ключей.
+- `SELECT *` — видимые поля; системные `_id`, `_ver`, `_created_at`,
+  `_updated_at`, `_created_by`, `_updated_by` — в подзапросе, только если
+  упомянуты. `_deleted_at`, `_import_id`, `xmin`, `ctid`, `tableoid` недоступны.
+- Скрытое поле (по ключу или подписи, в том числе через CTE) — «Нет доступа к
+  полю»; вычисляемое (`formula`, `lookup`, `rollup`) — пока недоступно;
+  маскированное — только через маску (фильтр и сортировка — по маске).
+- **Имена CTE** переименовываются в служебные `__kchs_cte_N` (со ссылками
+  `"__kchs_cte_0" AS "имя"`): каждая ссылка на таблицу переписывается — на
+  датасет или на служебное имя. Ошибись разбор областей видимости — Postgres не
+  найдёт служебное имя, но не прочитает таблицу мимо политик.
+
+### Параметры
+
+`{{имя}}` (буквы, цифры, `_`; пробелы внутри скобок допустимы) вне строк,
+комментариев и имён в кавычках → `$n`; значения только параметрами, повтор имени —
+тот же `$n`. Объявленный в `paramDefs` тип — приведение (`($1::date)`), `list` —
+массив (`WHERE "Вид" = ANY({{виды}})`), `default` может быть макросом
+(`@my_territories`). Без объявления тип выводит Postgres по месту (сравнение с
+полем, `LIMIT`), списки — по элементам (`text[]`, `uuid[]`, `double precision[]`).
+Незаданный необязательный — `NULL` (условие не снимается, в отличие от
+QuerySpec: пишите `{{x}} IS NULL OR …`), обязательный — ошибка. Позиционные
+`$1` в тексте запрещены.
+
+### Правила
+
+- Один оператор; только `SELECT` — с `WITH` (и `RECURSIVE`), `UNION`/`INTERSECT`/
+  `EXCEPT`, подзапросами, `LATERAL`, `VALUES`, оконными функциями, `GROUPING
+  SETS`/`ROLLUP`/`CUBE`, `DISTINCT ON`, `FILTER`, `WITHIN GROUP`, `FETCH`.
+- Отказ с причиной: `INSERT`/`UPDATE`/`DELETE`/`MERGE` (и в `WITH`), DDL,
+  `TRUNCATE`, `COPY`, `DO`, `CALL`, `SET`/`RESET`/`SHOW`, `EXPLAIN`, `LOCK`,
+  `GRANT`/`REVOKE`, транзакции, `PREPARE`/`EXECUTE`, курсоры, `LISTEN`/`NOTIFY`,
+  `VACUUM`; `SELECT INTO`, `FOR UPDATE`/`SHARE`, `TABLE имя`, `ONLY`,
+  `TABLESAMPLE`, XML, SQL/JSON-конструкции (`JSON_TABLE`, `JSON_VALUE`…),
+  `SEARCH`/`CYCLE`, `OPERATOR(схема.оп)`, служебные `CURRENT_USER`,
+  `SESSION_USER`, `CURRENT_SCHEMA` и т. п. (время — `CURRENT_DATE`… — можно).
+- Каждый узел дерева и каждое его поле — из белого списка (`NODE_FIELDS` в
+  `src/sql/analyze.ts`): неизвестная конструкция новой версии разборщика —
+  отказ, а не пропуск.
+- **Функции** — белый список (`src/sql/allowlist.ts`): агрегаты, оконные,
+  математика, строки (с `unaccent`, `pg_trgm`, полнотекстовым поиском), даты,
+  чтение и сборка JSON, массивы и `generate_series`, PostGIS для чтения и анализа.
+  Имя сравнивается точно (встроенные — в нижнем регистре), схема — только
+  `pg_catalog`. Чёрный список (без учёта регистра) даёт причину «запрещена»:
+  `pg_*` (`pg_sleep*`, `pg_read_*`, `pg_ls_*`, `pg_stat_*`, `pg_advisory*`,
+  `pg_terminate_backend`, `pg_cancel_backend`…), `set_config`, `current_setting`,
+  `dblink*`, `lo_*`, `txid*`, `nextval`/`setval`/`currval`/`lastval`, всё с `xml`
+  (`query_to_xml`…), `ts_stat`, `ts_rewrite`, `has_*`, `to_reg*`, `version`,
+  `postgis_*`, `st_estimatedextent` и др.
+- **Типы в приведениях** — белый список: числа, строки, `bool`, даты и время,
+  `interval`, `uuid`, `json`/`jsonb`/`jsonpath`, `bytea`, `bit`, `tsvector`/
+  `tsquery`, `geometry`/`geography`/`box2d`/`box3d` (с массивами). Запрещены
+  `reg*` (`'pg_sleep'::regproc`, `'…'::regclass` — поиск по каталогу), `xml`,
+  `oid`, составные типы таблиц.
+- **Защита в глубину**: переписанный запрос разбирается снова — один SELECT,
+  таблицы только `ds.t_…` датасетов запроса и служебные CTE, номера параметров в
+  пределах значений; иначе исключение (ошибка программиста), запрос не
+  выполняется. Недопустимые символы (NUL, одиночные суррогаты) и текст длиннее
+  100 000 символов отклоняются до разбора; слишком глубокая вложенность —
+  понятная ошибка.
+
+### Ограничения
+
+- Память выражений ограничивают только `statement_timeout` и ресурсы сервера:
+  `lpad(x, 1e9)`, `string_agg` по `generate_series` и т. п. могут занять до ~1 ГБ
+  на значение. Барьера для политик `all`/`none` нет — как у QuerySpec.
+- Геометрия в результате — как вернёт драйвер (EWKB hex); для GeoJSON —
+  `ST_AsGeoJSON(…)::json`.
+- USING по подписи — ошибка (у имён USING нет позиций для замены), пишите ключ;
+  переименование столбцов датасета в алиасе (`AS p(a, b)`) не поддерживается.
+- Пояс запроса — сеанса: вызывающий ставит `TimeZone` (`compiled.timezone`),
+  иначе даты считаются в поясе базы.
+
 ## Тесты
 
 ```bash
@@ -211,4 +370,15 @@ KCHS_TEST_SLOT=8 pnpm --filter @kchs/query test # и выполнение на P
   подключения роли `kchs_app` в `KCHS_QUERY_TEST_DATABASE_URL` или
   `KCHS_TEST_SLOT=N` (база `kchs_test_N` по `DATABASE_URL` из окружения или
   корневого `.env`; создаётся `bash apps/api/scripts/test-slot.sh N`). Без них
-  набор пропускается. Таблицы `ds.t_qtest_*` создаются и удаляются тестом.
+  набор пропускается. Таблицы `ds.t_qtest_*` создаются и удаляются тестом
+  (схема и данные — `test/db.ts`).
+- `test/raw-sql.test.ts` — сырой SQL без базы: «атакующие» запросы (больше 30,
+  каждый — отказ с ожидаемым сообщением и позицией), эталоны переписывания в
+  `test/__snapshots__`, поля результата, ключ кэша, параметры, ошибки с позицией,
+  карта участков, лексические помощники.
+- `test/raw-sql-execute.test.ts` — сырой SQL на Postgres под `kchs_query`
+  (таблицы `ds.t_rawsql_*`): имена и подписи, политика строк при любых формах
+  обращения (CTE, самосоединение, UNION, подзапрос, барьер `OFFSET 0`), маски и
+  скрытые поля (в том числе в `row_to_json` строки), параметры, пояс, предел
+  строк, позиции ошибок Postgres; `pg_sleep` во всех формах до базы не доходит, а
+  тяжёлый разрешённый запрос обрывает `statement_timeout`.

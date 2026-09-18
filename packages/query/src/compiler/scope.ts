@@ -92,7 +92,7 @@ export function findColumn(
     }
   }
   const names = relation.columns.filter((column) => !column.hidden).map((column) => column.name)
-  const similar = names.filter((candidate) => closeTo(candidate, name)).slice(0, 3)
+  const similar = similarNames(names, name)
   return {
     message: `Нет поля «${shown}»`,
     ...(similar.length ? { hint: `Возможно, имелось в виду: ${similar.join(', ')}` } : {}),
@@ -120,6 +120,11 @@ export function uniqueInternal(
     const candidate = `${base}_${i}`
     if (!taken.has(candidate)) return candidate
   }
+}
+
+/** Похожие имена для подсказки «Возможно, имелось в виду». */
+export function similarNames(candidates: readonly string[], name: string, limit = 3): string[] {
+  return candidates.filter((candidate) => closeTo(candidate, name)).slice(0, limit)
 }
 
 function closeTo(a: string, b: string): boolean {
