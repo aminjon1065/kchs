@@ -53,6 +53,11 @@ function fingerprint(text: string): string {
   return hash.toString(36)
 }
 
+/** Имя столбца разреза в результате: с интервалом — `поле_интервал`, как у компилятора. */
+export function groupAlias(group: ExploreGroup): string {
+  return group.bucket ? `${group.field}_${group.bucket}` : group.field
+}
+
 /** Имя столбца меры в результате: латиница, как требует алиас QuerySpec. */
 export function measureAlias(measure: ExploreMeasure): string {
   if (measure.agg === 'expr') return `expr_${fingerprint(measure.expr ?? '')}`

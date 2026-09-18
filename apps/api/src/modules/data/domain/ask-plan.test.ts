@@ -151,6 +151,18 @@ describe('«Спросить данные»: ответ модели → пла�
     expect(converted.ok && converted.chart).toBe('bar')
   })
 
+  it('сортировка по разрезу с интервалом — по его столбцу «поле_интервал»', () => {
+    const converted = answerToPlan(
+      answer({
+        groups: [{ field: 'day', bucket: 'month' }],
+        measures: [{ agg: 'count', field: null }],
+        sort: { by: 'day', dir: 'asc' },
+      }),
+      FIELDS,
+    )
+    expect(converted.ok && converted.plan.sort).toEqual({ field: 'day_month', dir: 'asc' })
+  })
+
   it('разрез без меры считает строки, неизвестная сортировка отбрасывается', () => {
     const converted = answerToPlan(
       answer({ groups: [{ field: 'district', bucket: null }], sort: { by: 'nope', dir: 'asc' } }),

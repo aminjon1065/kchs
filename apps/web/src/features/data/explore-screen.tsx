@@ -7,6 +7,7 @@ import {
   type DatasetField,
   type ExploreGroup,
   type ExploreMeasure,
+  groupAlias,
   type LangText,
   measureAlias,
   type QueryResult,
@@ -169,6 +170,11 @@ export function ExploreScreen({
     (name: string): string => {
       const field = byKey.get(name)
       if (field) return labelOf(field, locale)
+      const group = state.groups.find((item) => item.bucket && groupAlias(item) === name)
+      const grouped = group ? byKey.get(group.field) : undefined
+      if (group?.bucket && grouped) {
+        return `${labelOf(grouped, locale)} · ${t(`data.explore.buckets.${group.bucket}`)}`
+      }
       const measure = state.measures.find((item) => measureAlias(item) === name)
       if (!measure) return name
       if (measure.agg === 'expr') return measure.name || measure.expr || name
@@ -220,7 +226,16 @@ export function ExploreScreen({
   }
   if (!dataset) return <EmptyState title={t('common.states.notFound')} />
 
-  const update = (patch: Partial<ExploreState>) => setState((current) => ({ ...current, ...patch }))
+  const update = (patch: Partial<ExploreState>) =>
+    setState((current) => {
+      const next = { ...current, ...patch }
+      // Сортировка по столбцу, которого в сводке больше нет (сменились мера или разрез), снимается
+      if (next.sort && (next.groups.length > 0 || next.measures.length > 0)) {
+        const columns = [...next.groups.map(groupAlias), ...next.measures.map(measureAlias)]
+        if (!columns.includes(next.sort.field)) next.sort = null
+      }
+      return next
+    })
 
   /**
    * Ответ «Спросить данные»: план — в конструктор (его видно и можно править),
@@ -241,10 +256,7 @@ export function ExploreScreen({
   const groupable = fields.filter((field) => !NOT_GROUPABLE.has(field.type))
   const numeric = fields.filter((field) => NUMERIC_TYPES.has(field.type))
   const filterFields = filterFieldsOf(fields, locale, fieldOptions)
-  const sortable = [
-    ...state.groups.map((group) => group.field),
-    ...state.measures.map(measureAlias),
-  ]
+  const sortable = [...state.groups.map(groupAlias), ...state.measures.map(measureAlias)]
 
   let body: ReactNode
   if (result.error && !result.data) {

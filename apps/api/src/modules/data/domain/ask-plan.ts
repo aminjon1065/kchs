@@ -7,6 +7,7 @@ import {
   ExplorePlan,
   type FilterCondition,
   type FilterNode,
+  groupAlias,
   measureAlias,
   TIME_BUCKETS,
 } from '@kchs/contracts'
@@ -199,7 +200,10 @@ export function answerToPlan(answer: AskAnswer, fields: readonly DatasetField[])
     const aliases = new Set(measures.map(measureAlias))
     let by: string | null = answer.sort.by
     if (aggregated) {
-      if (!aliases.has(by) && !groups.some((group) => group.field === by)) {
+      // Разрез с интервалом называется `поле_интервал`: модель обычно называет само поле
+      const grouped = groups.find((group) => group.field === by || groupAlias(group) === by)
+      if (grouped) by = groupAlias(grouped)
+      else if (!aliases.has(by)) {
         // Модель назвала поле меры вместо её алиаса: «amount» → «sum_amount»
         const measure = measures.find((item) => item.field === by)
         by = measure ? measureAlias(measure) : null
