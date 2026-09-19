@@ -21,7 +21,6 @@ export type ReminderStage = (typeof REMINDER_STAGES)[number]
 
 /** Напоминания до срока — по порядку наступления. */
 export const BEFORE_DUE_STAGES = ['d3', 'd1', 'today'] as const
-export type BeforeDueStage = (typeof BEFORE_DUE_STAGES)[number]
 
 /** Начало рабочего дня: напоминания и просрочка приходят утром, а не ночью. */
 export const WORKDAY_START_HOUR = 9
