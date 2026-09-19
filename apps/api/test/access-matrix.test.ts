@@ -364,6 +364,29 @@ const FIXTURES: Record<string, TypeFixture> = {
     viewerForbidden: (_fx, id) => [{ method: 'POST', url: `/analyses/${id}/run` }],
   },
 
+  notebook: {
+    create: async (fx, title) => {
+      const response = await call(fx.app, {
+        method: 'POST',
+        url: '/notebooks',
+        as: fx.admin,
+        payload: { name: title, spaceId: fx.spaceId, cells: [{ id: 'intro', kind: 'text' }] },
+      })
+      expect(response.statusCode, response.body).toBe(200)
+      return { id: response.json().id, title }
+    },
+    readPaths: ['/notebooks/:id'],
+    // Правка тела — через /collab (права проверяет сервер совместной правки, collab.test.ts);
+    // ячейки от сервера — тоже только с правом edit
+    viewerForbidden: (_fx, id) => [
+      {
+        method: 'POST',
+        url: `/notebooks/${id}/cells`,
+        payload: { cells: [{ id: 'm1', kind: 'metric' }] },
+      },
+    ],
+  },
+
   // Справочник открыт всем выдачей everyone:*; без неё территория подчиняется
   // общим правилам ядра, как любой объект, — это и проверяет матрица
   territory: {
