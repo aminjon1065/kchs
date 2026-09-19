@@ -17,6 +17,7 @@ import { db, type Executor } from '~/shared/db/client.js'
 import { layers, objects } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { defaultStyle } from './style-fields.js'
+import { viewerGeometry } from './viewer-geometry.js'
 
 /** Строка слоя с объектом реестра — всё, что нужно тайлам и карточке. */
 export interface StoredLayer {
@@ -123,6 +124,10 @@ export const LayerService = {
     const geo = access.allowed
       ? await DatasetGeo.describe(layer.datasetId, layer.geometryField)
       : null
+    // Под политикой строк — рамка и счётчик только своих строк
+    const own = access.allowed
+      ? await viewerGeometry(ctx, layer.datasetId, layer.geometryField)
+      : null
     return {
       id: layer.id,
       name: layer.name,
@@ -136,8 +141,8 @@ export const LayerService = {
       editable: layer.editable,
       moderated: layer.moderated,
       dataAccess: access.allowed,
-      extent: geo?.extent ?? null,
-      featureCount: geo?.rowCount ?? 0,
+      extent: own ? own.extent : (geo?.extent ?? null),
+      featureCount: own ? own.count : (geo?.rowCount ?? 0),
       datasetVersion: geo?.version ?? 0,
       version: layer.version,
       updatedAt: layer.updatedAt,

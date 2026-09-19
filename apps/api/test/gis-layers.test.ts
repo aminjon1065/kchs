@@ -406,6 +406,17 @@ describe('права в тайлах (сценарий 7 фазы 2)', () => {
     const viewer = await tile(layerId, TJ, { as: fx.users.viewer })
     expect(viewer.response.statusCode, viewer.response.body).toBe(200)
     expect(codes(viewer.features)).toEqual(['Бохтар', 'Куляб'])
+    // Карточка слоя: рамка и счётчик только своих строк — где лежат чужие, не раскрывается
+    const own = await call(fx.app, { url: `/gis/layers/${layerId}`, as: fx.users.viewer })
+    expect(own.statusCode, own.body).toBe(200)
+    expect(own.json().featureCount).toBe(2)
+    const [ownWest, ownSouth, ownEast, ownNorth] = own.json().extent as number[]
+    expect(ownWest).toBeCloseTo(68.78, 2)
+    expect(ownSouth).toBeCloseTo(37.83, 2)
+    expect(ownEast).toBeCloseTo(69.78, 2)
+    expect(ownNorth).toBeCloseTo(37.91, 2)
+    const full = await call(fx.app, { url: `/gis/layers/${layerId}`, as: fx.admin })
+    expect((full.json().extent as number[])[3]).toBeCloseTo(40.28, 2)
     // Тайл Худжанда для читателя пуст: строка не видна и геометрия не отдаётся
     const north = await tile(layerId, tileOf(69.62, 40.28, 10), { as: fx.users.viewer })
     expect(north.response.statusCode).toBe(204)
