@@ -462,6 +462,83 @@ async function crawl(browser, storageFile, s3Origin) {
     state,
   )
 
+  // Экраны фазы 3 (ADR-0080, ADR-0081, ADR-0085, ADR-0087): просмотр скана PDF при
+  // регистрации, карточка документа с разделами второй волны и меню печати,
+  // календарь с редактором события, конструктор маршрутов в консоли
+  await step(
+    'документы: скан в просмотре PDF, карточка и меню «Печать»',
+    async () => {
+      await page.goto('/')
+      await page
+        .getByRole('tab', { name: /Мой день/ })
+        .first()
+        .waitFor({ timeout: 20_000 })
+      const scan = await context.newPage()
+      await scan.setContent(`<h1>CSP ${run}</h1><p>Проверка просмотра скана</p>`)
+      const dir = mkdtempSync(path.join(tmpdir(), 'kchs-csp-'))
+      const scanPath = path.join(dir, `скан-${run}.pdf`)
+      await scan.pdf({ path: scanPath, format: 'A4' })
+      await scan.close()
+      await page.getByRole('button', { name: 'Документы', exact: true }).first().click()
+      await page.getByRole('button', { name: 'Зарегистрировать', exact: true }).click()
+      const screen = page.getByRole('region', { name: 'Регистрация входящего' })
+      await screen.locator('input[type="file"]').setInputFiles(scanPath)
+      await screen.getByRole('button', { name: 'Крупнее' }).waitFor({ timeout: 30_000 })
+
+      const types = (await (await page.request.get('/api/v1/document-types')).json()).items ?? []
+      const memo = types.find((item) => item.key === 'memo')
+      if (!memo) throw new Error('нет типа «Служебная записка»')
+      const subject = `CSP записка ${run}`
+      const draft = await api('POST', '/api/v1/documents', { typeId: memo.id, subject })
+      await page.goto(`/o/${draft.id}`)
+      await page.getByRole('heading', { name: subject }).waitFor({ timeout: 20_000 })
+      const sections = page.getByRole('tablist', { name: 'Разделы карточки' })
+      for (const section of [
+        'Файлы и версии',
+        'Маршрут',
+        'Резолюции и поручения',
+        'Связи',
+        'Ознакомление',
+        'История',
+        'Карточка',
+      ]) {
+        await sections.getByRole('tab', { name: new RegExp(`^${section}`) }).click()
+        await page.waitForTimeout(200)
+      }
+      await page.getByRole('button', { name: 'Печать', exact: true }).click()
+      await page.getByRole('menuitem').first().waitFor()
+      await page.keyboard.press('Escape')
+    },
+    state,
+  )
+
+  await step(
+    'календарь: неделя, месяц и редактор события',
+    async () => {
+      await page.getByRole('button', { name: 'Календарь', exact: true }).first().click()
+      await page.getByRole('radio', { name: 'Неделя' }).waitFor({ timeout: 20_000 })
+      await page.getByRole('radio', { name: 'Месяц' }).click()
+      await page.getByRole('button', { name: 'Создать', exact: true }).first().click()
+      await page.getByRole('dialog', { name: 'Новое событие' }).waitFor()
+      await page.keyboard.press('Escape')
+    },
+    state,
+  )
+
+  await step(
+    'конструктор маршрутов: схема и инспектор шага',
+    async () => {
+      await palette('Администрирование')
+      await page.getByRole('tab', { name: 'Маршруты процессов' }).click()
+      await page.getByRole('row').nth(1).click()
+      const card = page.locator('[data-step-key]').first()
+      await card.waitFor({ timeout: 20_000 })
+      await card.click()
+      await page.waitForTimeout(400)
+    },
+    state,
+  )
+
   await step(
     'профиль и подсказки',
     async () => {
