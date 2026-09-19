@@ -5,7 +5,10 @@ import { expect, openWorkspace, test } from './fixtures.js'
 /**
  * Приёмка фазы 2 (04-verification.md §3) — сценарии, которых нет в
  * спецификациях эпиков. Остальные сценарии фазы проверяют:
+ * - №2 (таблица и карта рядом, охват, кисть графика) — gis-linked-views.spec.ts;
  * - №3 (правка, история, откат, модерация) — gis-editing.spec.ts;
+ * - №4 (хороплет «на 1 000 жителей» мастером) — gis-choropleth.spec.ts;
+ * - №5 (паспорт территории) — gis-passport.spec.ts;
  * - №7 (тайлы под политикой строк) — gis-tiles-policy.spec.ts.
  */
 
