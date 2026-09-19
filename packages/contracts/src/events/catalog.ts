@@ -45,6 +45,8 @@ export const EVENT_PAYLOADS = {
   'user.mfa_enabled': z.object({ kind: z.string() }),
   'user.mfa_disabled': z.object({ kind: z.string() }),
   'user.roles_changed': z.object({ userId: Uuid, roles: z.array(z.string()) }),
+  /** Допуск к грифам изменён администратором системы (ADR-0080). */
+  'user.clearance_changed': z.object({ userId: Uuid, from: z.string(), to: z.string() }),
   /** Telegram привязан к пользователю (ADR-0061); chat_id в событие не попадает. */
   'user.telegram_linked': z.object({ userId: Uuid }),
   /** Привязка снята: самим пользователем или потому что бот заблокирован. */
@@ -375,6 +377,50 @@ export const EVENT_PAYLOADS = {
     rows: z.number().int().nullable(),
     error: z.string().nullable(),
   }),
+
+  // ── documents (08-documents.md, ADR-0080) ─────────────────────────────────
+  'document.created': z.object({ typeKey: z.string(), direction: z.string(), status: z.string() }),
+  /** Реквизиты или поля карточки изменены: changed — ключи реквизитов и `fields.<key>`. */
+  'document.updated': z.object({ changed: z.array(z.string()) }),
+  /** Переход жизненного цикла (08-documents.md §3); cause — доменное действие. */
+  'document.status_changed': z.object({ from: z.string(), to: z.string(), cause: z.string() }),
+  'document.registered': z.object({
+    number: z.string(),
+    journalId: Uuid,
+    sequence: z.number().int(),
+    year: z.number().int(),
+    reserved: z.boolean(),
+  }),
+  'document.cancelled': z.object({ from: z.string(), reason: z.string() }),
+  'document.version_added': z.object({
+    versionId: Uuid,
+    number: z.number().int(),
+    mainFileId: Uuid,
+  }),
+  /** PDF-представление версии готово или не построено. */
+  'document.version_pdf_ready': z.object({ versionId: Uuid, status: z.string() }),
+  /** Гриф изменён: доступ пересчитывается (поиск, комнаты, системный датасет). */
+  'document.confidentiality_changed': z.object({ from: z.string(), to: z.string() }),
+  /** Участники документа (ответственный, подписант, контролёр, маршрут, резолюции). */
+  'document.participants_changed': z.object({
+    source: z.string(),
+    added: z.array(Uuid),
+    removed: z.array(Uuid),
+  }),
+  'document_type.created': z.object({ key: z.string(), direction: z.string() }),
+  'document_type.updated': z.object({ key: z.string(), changed: z.array(z.string()) }),
+  'journal.created': z.object({ name: z.string(), format: z.string() }),
+  'journal.updated': z.object({ changed: z.array(z.string()) }),
+  /** Номера зарезервированы для бумажных документов (08-documents.md §5). */
+  'journal.numbers_reserved': z.object({
+    count: z.number().int(),
+    first: z.string(),
+    last: z.string(),
+    year: z.number().int(),
+  }),
+  'journal.reservation_cancelled': z.object({ reservationId: Uuid, number: z.string() }),
+  'correspondent.created': z.object({ kind: z.string(), name: z.string() }),
+  'correspondent.updated': z.object({ changed: z.array(z.string()) }),
 
   // ── admin ─────────────────────────────────────────────────────────────────
   'settings.changed': z.object({ scope: z.string(), key: z.string() }),

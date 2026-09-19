@@ -1,0 +1,6 @@
+export * from './correspondent.js'
+export * from './document.js'
+export * from './document-type.js'
+export * from './journal.js'
+export * from './lifecycle.js'
+export * from './numbering.js'

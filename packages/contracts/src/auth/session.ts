@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { AdminModeState, Confidentiality } from '../access/confidentiality.js'
 import { Capability } from '../access/principals.js'
 import { Locale, Timestamp, Uuid } from '../common/primitives.js'
 
@@ -93,6 +94,10 @@ export const MeResponse = z.object({
   /** Политика требует второй фактор для роли, а он не подключён: оболочка показывает только подключение MFA. */
   mfaEnrollmentRequired: z.boolean().default(false),
   preferences: z.record(z.string(), z.unknown()).default({}),
+  /** Допуск к грифам (ADR-0080): документы строже него не видны. */
+  clearance: Confidentiality.default('internal'),
+  /** Режим администратора текущей сессии (ADR-0080); null — не включён. */
+  adminMode: AdminModeState.nullable().default(null),
   session: z.object({
     id: Uuid,
     expiresAt: Timestamp,

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { Confidentiality } from '../access/confidentiality.js'
 import { UserRef, UserStatus } from '../auth/session.js'
 import { LangText, Timestamp, Uuid } from '../common/primitives.js'
 
@@ -99,6 +100,8 @@ export const AdminUser = z.object({
   units: z.array(z.object({ id: Uuid, name: z.string(), isPrimary: z.boolean() })).default([]),
   positions: z.array(z.object({ id: Uuid, name: z.string() })).default([]),
   roles: z.array(z.string()).default([]),
+  /** Допуск к грифам — только для администратора системы (ADR-0080). */
+  clearance: Confidentiality.optional(),
 })
 export type AdminUser = z.infer<typeof AdminUser>
 

@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { AccessMode } from '../access/acl.js'
+import { Confidentiality } from '../access/confidentiality.js'
 import { Level } from '../access/levels.js'
 import { Timestamp, Uuid } from '../common/primitives.js'
 import { TagView } from './tags.js'
@@ -87,6 +88,11 @@ export const ObjectSummary = z.object({
   url: z.string(),
   /** null — объект недоступен: показываем «Нет доступа» без названия. */
   accessible: z.boolean().default(true),
+  /**
+   * Действующий гриф: свой или самый строгий из объектов, к которым объект
+   * прикреплён (ADR-0080). Уведомления о грифе от «конфиденциально» — без содержания.
+   */
+  confidentiality: Confidentiality.optional(),
 })
 export type ObjectSummary = z.infer<typeof ObjectSummary>
 

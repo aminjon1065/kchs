@@ -17,6 +17,11 @@ export const SearchDocument = z.object({
   meta: z.record(z.string(), z.unknown()).default({}),
   /** Принципалы с правом чтения — фильтр выдачи. */
   aclPrincipals: z.array(z.string()).default([]),
+  /**
+   * Ранг действующего грифа (0 — public … 3 — secret): выдача ограничена
+   * допуском смотрящего (ADR-0080). Задаёт только ядро, как и права.
+   */
+  clearance: z.number().int().min(0).max(3).default(0),
 })
 export type SearchDocument = z.infer<typeof SearchDocument>
 
