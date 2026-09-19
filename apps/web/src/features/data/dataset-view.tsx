@@ -37,6 +37,7 @@ import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
 import { ShareDialog } from '~/features/access/share-dialog.js'
+import { ChoroplethButton } from '~/features/gis/choropleth/choropleth-button.js'
 import { ShowOnMapButton } from '~/features/gis/show-on-map.js'
 import { PresenceAvatars } from '~/features/objects/presence-avatars.js'
 import { ApiError, http } from '~/shared/api/client.js'
@@ -196,6 +197,7 @@ export function DatasetView({ objectId, tabId }: { objectId: string; tabId: stri
                 {t('data.analysis.action')}
               </Button>
             ) : null}
+            <ChoroplethButton dataset={dataset} />
             {canEdit ? (
               <Button
                 variant="secondary"

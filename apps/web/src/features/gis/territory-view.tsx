@@ -1,28 +1,9 @@
-import { useAppearance } from '~/app/appearance.js'
-import { useWorkspace } from '~/app/workspace/store.js'
-import { TerritoryCard } from './territory-card.js'
+import { TerritoryPassport } from './passport/territory-passport.js'
 
-/** Вкладка объекта-территории (`/o/{id}`): карточка, переходы — в новых вкладках. */
+/**
+ * Вкладка объекта-территории (`/o/{id}`) — паспорт территории (03-screens.md §11,
+ * ADR-0077); переходы к предкам, соседям и дочерним единицам — в их вкладки.
+ */
 export function TerritoryView({ objectId }: { objectId: string }) {
-  const locale = useAppearance((s) => s.locale)
-  const openTab = useWorkspace((s) => s.openTab)
-  return (
-    <div className="h-full overflow-y-auto bg-canvas p-5">
-      <div className="mx-auto max-w-[960px]">
-        <TerritoryCard
-          territoryId={objectId}
-          locale={locale}
-          onNavigate={(territory) =>
-            openTab({
-              kind: 'object',
-              objectId: territory.id,
-              objectType: 'territory',
-              title: territory.name[locale] ?? territory.name.ru,
-              mode: 'preview',
-            })
-          }
-        />
-      </div>
-    </div>
-  )
+  return <TerritoryPassport territoryId={objectId} />
 }

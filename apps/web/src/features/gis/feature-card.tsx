@@ -2,13 +2,14 @@ import { type DatasetRecord, type LayerRecord, layerTemplateFields } from '@kchs
 import { formatValue } from '@kchs/fields'
 import { Button, Callout, IconButton, KeyValueList, Skeleton } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
-import { Table2, X } from 'lucide-react'
+import { Landmark, Table2, X } from 'lucide-react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
 import { ApiError } from '~/shared/api/client.js'
 import { datasetQuery } from '../data/queries.js'
-import { layerFeatureQuery } from './queries.js'
+import { layerFeatureQuery, territoriesQuery } from './queries.js'
+import { useOpenPassport } from './territory-link.js'
 
 /** Полей в карточке без настроенной карточки слоя: заголовок и ещё четыре. */
 const DEFAULT_FIELDS = 5
@@ -37,6 +38,17 @@ export function FeatureCard({
   const openTab = useWorkspace((s) => s.openTab)
   const feature = useQuery(layerFeatureQuery(layer.id, rowId))
   const { data: dataset } = useQuery(datasetQuery(layer.datasetId))
+  const openPassport = useOpenPassport()
+  // Территория объекта (поле территории датасета) — переход в её паспорт
+  const territoryField =
+    dataset?.fields.find((field) => field.key === dataset.territoryField) ??
+    dataset?.fields.find((field) => field.type === 'territory')
+  const territoryId = territoryField ? feature.data?.values[territoryField.key] : null
+  const { data: territories = [] } = useQuery({
+    ...territoriesQuery(),
+    enabled: typeof territoryId === 'string',
+  })
+  const territory = territories.find((item) => item.id === territoryId)
 
   const fieldOf = (key: string) => dataset?.fields.find((field) => field.key === key)
   const text = (key: string): string => {
@@ -113,7 +125,17 @@ export function FeatureCard({
             .map((key) => ({ key, label: label(key), value: text(key) }))}
         />
       )}
-      <div className="flex justify-end">
+      <div className="flex flex-wrap justify-end gap-2">
+        {territory ? (
+          <Button
+            size="sm"
+            variant="secondary"
+            icon={<Landmark className="size-3.5" />}
+            onClick={() => openPassport(territory)}
+          >
+            {t('gis.passport.open')}
+          </Button>
+        ) : null}
         <Button
           size="sm"
           variant="secondary"

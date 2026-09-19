@@ -34,6 +34,7 @@ import { FeatureCard } from './feature-card.js'
 import { LayerPanel, type PanelLayer } from './layer-panel.js'
 import { layerSourceId, type RenderEntry, useRenderedLayers } from './layer-render.js'
 import { gisKeys, layerQuery, mapQuery } from './queries.js'
+import { AnalysisTools } from './studio/analysis-tools.js'
 import { AttributeTable } from './studio/attribute-table.js'
 import {
   type FeatureRef,
@@ -467,6 +468,7 @@ export function MapStudio({
                   <EditTools />
                   <TimeTools />
                   <PrintTools />
+                  <AnalysisTools />
                 </div>
               </div>
               <TimeBar />

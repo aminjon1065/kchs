@@ -19,6 +19,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useId, useState } from 'react'
 import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
+import { TerritorySelect } from '~/features/gis/territory-select.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { spacesQuery } from '~/shared/api/queries.js'
 import { orderSpaces } from '~/shared/spaces.js'
@@ -37,6 +38,8 @@ export interface TaskDraft {
   title?: string
   projectId?: string
   source?: TaskSource
+  /** Территория задачи (паспорт территории). */
+  territoryId?: string
 }
 
 function PrioritySelect({ value, onChange }: { value: string; onChange: (value: string) => void }) {
@@ -86,6 +89,7 @@ export function CreateTaskDialog({
   const [due, setDue] = useState('')
   const [priority, setPriority] = useState('3')
   const [projectId, setProjectId] = useState(draft.projectId ?? NO_PROJECT)
+  const [territoryId, setTerritoryId] = useState<string | null>(draft.territoryId ?? null)
   const [description, setDescription] = useState('')
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [failure, setFailure] = useState<string | null>(null)
@@ -104,6 +108,7 @@ export function CreateTaskDialog({
         ...(instruction && controller ? { controllerId: controller.id } : {}),
         ...(due ? { dueAt: dueFromDate(due) } : {}),
         ...(draft.source ? { source: draft.source } : {}),
+        ...(territoryId ? { territoryId } : {}),
       }),
     onSuccess: ({ id }) => {
       const created = title.trim()
@@ -241,6 +246,17 @@ export function CreateTaskDialog({
             </Select>
           </Field>
           <Field
+            label={t('tasks.fields.territory')}
+            hint={draft.source ? t('tasks.create.territoryHint') : undefined}
+            error={fieldErrors.territoryId}
+          >
+            <TerritorySelect
+              value={territoryId ? { id: territoryId } : null}
+              onChange={(value) => setTerritoryId(value?.id ?? null)}
+              label={t('tasks.fields.territory')}
+            />
+          </Field>
+          <Field
             label={t('tasks.fields.description')}
             htmlFor={descriptionId}
             error={fieldErrors.description}
@@ -277,6 +293,7 @@ export function EditTaskDialog({ task, onClose }: { task: TaskRecord; onClose: (
   const [due, setDue] = useState(dateFromDue(task.dueAt))
   const [assignee, setAssignee] = useState<PickedUser | null>(pickedOf(task.assignee))
   const [controller, setController] = useState<PickedUser | null>(pickedOf(task.controller))
+  const [territoryId, setTerritoryId] = useState<string | null>(task.territoryId)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [failure, setFailure] = useState<string | null>(null)
 
@@ -294,6 +311,7 @@ export function EditTaskDialog({ task, onClose }: { task: TaskRecord; onClose: (
     if (instruction && (controller?.id ?? null) !== (task.controller?.id ?? null)) {
       result.controllerId = controller?.id ?? null
     }
+    if (territoryId !== task.territoryId) result.territoryId = territoryId
     return result
   }
 
@@ -385,6 +403,13 @@ export function EditTaskDialog({ task, onClose }: { task: TaskRecord; onClose: (
               <PrioritySelect value={priority} onChange={setPriority} />
             </Field>
           </div>
+          <Field label={t('tasks.fields.territory')} error={fieldErrors.territoryId}>
+            <TerritorySelect
+              value={territoryId ? { id: territoryId } : null}
+              onChange={(value) => setTerritoryId(value?.id ?? null)}
+              label={t('tasks.fields.territory')}
+            />
+          </Field>
           <Field
             label={t('tasks.fields.description')}
             htmlFor={descriptionId}

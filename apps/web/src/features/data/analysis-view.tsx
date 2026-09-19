@@ -26,11 +26,15 @@ import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
 import { ShareDialog } from '~/features/access/share-dialog.js'
+import {
+  ChoroplethMapButton,
+  choroplethParamItems,
+} from '~/features/gis/choropleth/choropleth-summary.js'
 import { territoriesQuery } from '~/features/gis/queries.js'
 import { PresenceAvatars } from '~/features/objects/presence-avatars.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { keys, objectQuery } from '~/shared/api/queries.js'
-import { exportJobQuery } from './queries.js'
+import { datasetQuery, exportJobQuery } from './queries.js'
 
 const ACTIVE = new Set<AnalysisStatus>(['queued', 'running'])
 const STATUS_TONES: Record<AnalysisStatus, BadgeProps['tone']> = {
@@ -143,6 +147,13 @@ export function AnalysisView({ objectId, tabId }: { objectId: string; tabId: str
     retry: false,
   })
   const active = analysis ? ACTIVE.has(analysis.status) : false
+  // Подписи полей хороплета — из схемы источника, если он виден смотрящему
+  const choroplethSource = analysis?.choropleth?.datasetId ?? ''
+  const { data: sourceDataset } = useQuery({
+    ...datasetQuery(choroplethSource),
+    enabled: Boolean(choroplethSource),
+    retry: false,
+  })
   // Прогресс задания виден запустившему; остальным — только состояние анализа
   const { data: job } = useQuery({
     ...exportJobQuery(analysis?.jobId ?? ''),
@@ -229,7 +240,11 @@ export function AnalysisView({ objectId, tabId }: { objectId: string; tabId: str
       value: <TargetValue target={step.target} />,
     })
   }
+  if (analysis.choropleth) {
+    paramItems.push(...choroplethParamItems(analysis.choropleth, sourceDataset, t, locale))
+  }
   for (const [key, label] of Object.entries(PARAM_LABELS)) {
+    if (analysis.choropleth) break
     const value = step?.params?.[key]
     if (value === undefined || value === null) continue
     let shown: ReactNode
@@ -321,11 +336,16 @@ export function AnalysisView({ objectId, tabId }: { objectId: string; tabId: str
                       })}
                     </span>
                   ) : null}
+                  {output && analysis.choropleth && analysis.status === 'succeeded' ? (
+                    <span className="ml-auto">
+                      <ChoroplethMapButton analysis={analysis} />
+                    </span>
+                  ) : null}
                   {output ? (
                     <Button
                       variant="secondary"
                       size="sm"
-                      className="ml-auto"
+                      className={analysis.choropleth ? undefined : 'ml-auto'}
                       onClick={() =>
                         openTab({
                           kind: 'object',

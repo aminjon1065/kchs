@@ -150,7 +150,7 @@ describe('запрос хороплета', () => {
     expect(fields.value?.label).toEqual({ ru: 'Сумма: Вместимость', en: 'Sum: ВМЕСТИМОСТЬ' })
     expect(fields.rate?.label.ru).toBe(`Сумма: Вместимость на ${thousand} жителей`)
     expect(fields.rate?.label.en).toBe('Sum: ВМЕСТИМОСТЬ per 1,000 residents')
-    expect(fields.rate?.format).toEqual({ precision: 2 })
+    expect(fields.rate?.format).toBeNull()
   })
 
   it('нормализация на площадь и формат суммы денег — как у поля', () => {

@@ -217,7 +217,8 @@ export function choroplethQuery(params: ChoroplethParams, fields: DatasetField[]
     }
   }
   if (params.normalize !== 'none') {
-    meta[CHOROPLETH_FIELDS.rate] = { label: rateLabel(params, measure), format: { precision: 2 } }
+    // Точность доли не задана: легенда подбирает её по значениям (ADR-0065)
+    meta[CHOROPLETH_FIELDS.rate] = { label: rateLabel(params, measure), format: null }
   }
 
   return {

@@ -33,6 +33,7 @@ import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
 import { datasetQuery } from '~/features/data/queries.js'
 import { RowCard } from '~/features/data/row-card.js'
+import { TerritoryLink } from '~/features/gis/territory-link.js'
 import { PresenceAvatars } from '~/features/objects/presence-avatars.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { meQuery, objectQuery } from '~/shared/api/queries.js'
@@ -377,6 +378,13 @@ function details(
           {project.key} · {project.name}
         </Button>
       ),
+    })
+  }
+  if (task.territoryId) {
+    items.push({
+      key: 'territory',
+      label: t('tasks.fields.territory'),
+      value: <TerritoryLink id={task.territoryId} />,
     })
   }
   if (task.source) {

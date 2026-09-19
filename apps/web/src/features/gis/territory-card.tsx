@@ -3,6 +3,7 @@ import { formatNumber } from '@kchs/fields'
 import {
   Badge,
   Breadcrumbs,
+  Button,
   Card,
   EmptyState,
   ErrorState,
@@ -11,8 +12,10 @@ import {
   Skeleton,
 } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
+import { Landmark } from 'lucide-react'
 import { useT } from '~/app/i18n.js'
 import { territoryQuery } from './queries.js'
+import { useOpenPassport } from './territory-link.js'
 
 const nameOf = (territory: Territory, locale: Locale) => territory.name[locale] ?? territory.name.ru
 
@@ -31,6 +34,7 @@ export function TerritoryCard({
   onNavigate: (territory: Territory) => void
 }) {
   const t = useT()
+  const openPassport = useOpenPassport()
   const { data: territory, isLoading, error, refetch } = useQuery(territoryQuery(territoryId))
 
   if (isLoading) {
@@ -99,6 +103,15 @@ export function TerritoryCard({
         <ObjectIcon type="territory" className="size-5 text-fg-muted" />
         <h2 className="text-lg font-semibold text-fg">{nameOf(territory, locale)}</h2>
         <Badge size="sm">{t(`gis.territories.levels.${territory.level}`)}</Badge>
+        <Button
+          size="sm"
+          variant="secondary"
+          className="ml-auto"
+          icon={<Landmark className="size-3.5" />}
+          onClick={() => openPassport(territory)}
+        >
+          {t('gis.passport.open')}
+        </Button>
       </div>
       <Card>
         <KeyValueList items={items} />
