@@ -1,6 +1,7 @@
 import { eq, sql } from 'drizzle-orm'
 import { DemoData, type DemoDataResult, type DemoProfile } from '~/modules/data/public.js'
-import { DemoLayers } from '~/modules/gis/public.js'
+// Демо-слои — только для сида: в публичном API модуля gis они замкнули бы цикл data ↔ gis
+import { DemoLayers } from '~/modules/gis/domain/demo-layers.js'
 import { config } from '~/shared/config/index.js'
 import { systemCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'

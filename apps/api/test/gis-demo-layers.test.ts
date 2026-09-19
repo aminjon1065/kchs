@@ -7,7 +7,7 @@ import { call, db, registerLifecycle, setupFixture, type TestContext } from './h
  */
 registerLifecycle()
 
-const { DemoLayers } = await import('../src/modules/gis/public.js')
+const { DemoLayers } = await import('../src/modules/gis/domain/demo-layers.js')
 const { ObjectService } = await import('../src/kernel/objects/service.js')
 const { systemCtx } = await import('../src/shared/context.js')
 
