@@ -54,6 +54,14 @@
     "@radix-ui/react-tooltip": "^1.2.8",
     "@tanstack/react-table": "^8.21.3",
     "@tanstack/react-virtual": "^3.13.12",
+    "@tiptap/core": "3.31.3",
+    "@tiptap/extension-collaboration": "3.31.3",
+    "@tiptap/extension-collaboration-caret": "3.31.3",
+    "@tiptap/extensions": "3.31.3",
+    "@tiptap/pm": "3.31.3",
+    "@tiptap/react": "3.31.3",
+    "@tiptap/starter-kit": "3.31.3",
+    "@tiptap/y-tiptap": "^3.0.9",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
@@ -62,7 +70,8 @@
     "lucide-react": "^0.545.0",
     "maplibre-gl": "^6.10.0",
     "react-resizable-panels": "^3.0.6",
-    "tailwind-merge": "^3.3.1"
+    "tailwind-merge": "^3.3.1",
+    "yjs": "^13.6.32"
   },
   "peerDependencies": {
     "react": "^19.0.0",
@@ -84,7 +93,8 @@
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
     "vite": "7.3.6",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "y-protocols": "^1.0.7"
   },
   "files": [
     "src"

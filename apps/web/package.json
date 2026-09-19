@@ -15,6 +15,7 @@
     "api:types": "openapi-typescript http://localhost:3000/api/openapi.json -o src/shared/api/openapi.gen.ts"
   },
   "dependencies": {
+    "@hocuspocus/provider": "^4.7.0",
     "@kchs/chart-spec": "workspace:*",
     "@kchs/contracts": "workspace:*",
     "@kchs/fields": "workspace:*",
@@ -27,6 +28,8 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "socket.io-client": "^4.8.1",
+    "y-protocols": "^1.0.7",
+    "yjs": "^13.6.32",
     "zod": "^4.1.12",
     "zustand": "^5.0.8"
   },

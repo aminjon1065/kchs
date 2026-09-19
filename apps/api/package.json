@@ -30,6 +30,7 @@
     "@fastify/sensible": "^6.0.3",
     "@fastify/swagger": "^9.5.2",
     "@fastify/under-pressure": "^9.0.3",
+    "@hocuspocus/server": "^4.7.0",
     "@kchs/contracts": "workspace:*",
     "@kchs/fields": "workspace:*",
     "@kchs/i18n": "workspace:*",
@@ -47,6 +48,7 @@
     "@opentelemetry/sdk-trace-node": "^2.11.0",
     "@socket.io/redis-adapter": "^8.3.0",
     "bullmq": "^5.63.0",
+    "crossws": "^0.4.12",
     "drizzle-orm": "^0.44.6",
     "fastify": "^5.6.1",
     "fastify-plugin": "^5.1.0",
@@ -62,9 +64,12 @@
     "qrcode": "^1.5.4",
     "socket.io": "^4.8.1",
     "uuidv7": "^1.0.2",
+    "y-protocols": "^1.0.7",
+    "yjs": "^13.6.32",
     "zod": "^4.1.12"
   },
   "devDependencies": {
+    "@hocuspocus/provider": "^4.7.0",
     "@kchs/config": "workspace:*",
     "@maplibre/maplibre-gl-style-spec": "^26.4.4",
     "@types/node": "^22.18.9",
