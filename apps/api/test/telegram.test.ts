@@ -4,6 +4,7 @@ import {
   FAKE_BOT_USERNAME,
   type FakeTelegram,
   startFakeTelegram,
+  telegramCallback,
   telegramMessage,
 } from './fakes.js'
 import { call, db, registerLifecycle, setupFixture, type TestContext } from './helpers.js'
@@ -214,6 +215,78 @@ describe('Telegram: привязка и уведомления', () => {
     expect(sent[0]?.text).toContain('Уточнить сводку по паводку')
     const base = (process.env.KCHS_BASE_URL ?? 'http://localhost:5173').replace(/\/+$/, '')
     expect(sent[0]?.text).toContain(`${base}/o/${taskId}`)
+  })
+
+  it('кнопки поручения в Telegram: принять, запросить продление, отчитаться текстом (ADR-0082)', async () => {
+    const created = await call(fx.app, {
+      method: 'POST',
+      url: '/tasks',
+      as: fx.admin,
+      payload: {
+        kind: 'instruction',
+        title: `Проверить мосты ${Date.now().toString(36)}`,
+        spaceId: fx.spaceId,
+        assigneeId: fx.users.member.id,
+        dueWorkingDays: 3,
+      },
+    })
+    expect(created.statusCode, created.body).toBe(200)
+    const taskId = created.json().id as string
+    const before = telegram.sent().length
+    await deliverTaskEvents(taskId)
+    const [assigned] = telegram.sent().slice(before)
+    type Keyboard = { inline_keyboard: Array<Array<{ text: string; callback_data?: string }>> }
+    const buttons = (markup: unknown) =>
+      ((markup as Keyboard | undefined)?.inline_keyboard ?? [])
+        .flat()
+        .filter((button) => button.callback_data)
+    const pressable = buttons(assigned?.markup)
+    expect(pressable.map((button) => button.text)).toEqual(['Принять', 'Запросить продление'])
+
+    // «Принять» — сразу, в ответ — кнопки следующего шага
+    const press = async (data: string) => {
+      const count = telegram.sent().length
+      await handleTelegramUpdate(telegramCallback(nextUpdate++, MEMBER_CHAT, data) as never)
+      return telegram.sent().slice(count)
+    }
+    const accepted = await press(pressable[0]?.callback_data ?? '')
+    expect(accepted[0]?.text).toContain('Готово')
+    const next = buttons(accepted[0]?.markup)
+    expect(next.map((button) => button.text)).toEqual(['Отчитаться', 'Запросить продление'])
+    const card = await call(fx.app, { url: `/tasks/${taskId}`, as: fx.users.member })
+    expect(card.json()).toMatchObject({ status: 'in_progress' })
+    expect(telegram.calls.some((recorded) => recorded.method === 'answerCallbackQuery')).toBe(true)
+
+    // «Запросить продление» — бот спрашивает дату и обоснование; непонятное — подсказка
+    const asked = await press(next[1]?.callback_data ?? '')
+    expect(asked[0]?.text).toContain('дату')
+    const wrong = await say(MEMBER_CHAT, 'через неделю')
+    expect(wrong[0]?.text).toContain('ДД.ММ.ГГГГ')
+    const date = new Date(Date.now() + 20 * 86_400_000)
+    const ddmmyyyy = `${String(date.getUTCDate()).padStart(2, '0')}.${String(date.getUTCMonth() + 1).padStart(2, '0')}.${date.getUTCFullYear()}`
+    const extended = await say(MEMBER_CHAT, `${ddmmyyyy} Ждём данные районов`)
+    expect(extended[0]?.text).toContain('Готово')
+    const pending = await call(fx.app, { url: `/tasks/${taskId}`, as: fx.users.member })
+    expect(pending.json().extension).toMatchObject({
+      status: 'pending',
+      reason: 'Ждём данные районов',
+    })
+
+    // «Отчитаться» — текстом ответного сообщения
+    const reportAsked = await press(next[0]?.callback_data ?? '')
+    expect(reportAsked[0]?.text).toContain('отчёт')
+    const reported = await say(MEMBER_CHAT, 'Мосты проверены, повреждений нет')
+    expect(reported[0]?.text).toContain('Готово')
+    const done = await call(fx.app, { url: `/tasks/${taskId}`, as: fx.users.member })
+    expect(done.json()).toMatchObject({
+      status: 'reported',
+      result: { text: 'Мосты проверены, повреждений нет' },
+      // Отчитался — запрос продления снят
+      extension: { status: 'cancelled' },
+    })
+    // Кнопка закрытого дела больше ничего не делает
+    const stale = await press(pressable[0]?.callback_data ?? '')
+    expect(stale).toHaveLength(0)
   })
 
   it('категории вне правил по умолчанию — только после включения в настройках', async () => {

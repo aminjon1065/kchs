@@ -15,6 +15,13 @@ import { ObjectService } from '../objects/service.js'
 import { emitToUser } from '../realtime/gateway.js'
 import { inboxActionHandler } from './actions.js'
 
+/** Действие открытого дела: элемент, его вид, объект и описание кнопки. */
+export type InboxOpenAction = InboxItem['actions'][number] & {
+  itemId: string
+  kind: InboxKind
+  objectId: string | null
+}
+
 export interface OpenInboxInput {
   userId: string
   kind: InboxKind
@@ -239,6 +246,53 @@ export const InboxService = {
       ...(comment ? { comment } : {}),
       ...(input.payload ? { payload: input.payload } : {}),
     })
+  },
+
+  /**
+   * Действия открытых дел пользователя по объекту, которые исполняет модуль, —
+   * кнопки в сообщении внешнего канала (Telegram, ADR-0082): нажатие ведёт в
+   * тот же `act`, что и кнопка Входящих.
+   */
+  async openActions(userId: string, objectId: string): Promise<InboxOpenAction[]> {
+    const rows = await db()
+      .select({ id: inboxItems.id, kind: inboxItems.kind, payload: inboxItems.payload })
+      .from(inboxItems)
+      .where(
+        and(
+          eq(inboxItems.userId, userId),
+          eq(inboxItems.objectId, objectId),
+          eq(inboxItems.state, 'open'),
+        ),
+      )
+      .orderBy(desc(inboxItems.openedAt))
+    return rows.flatMap((row) => {
+      const kind = row.kind as InboxKind
+      if (!inboxActionHandler(kind)) return []
+      const actions =
+        (row.payload as { actions?: InboxItem['actions'] }).actions ?? defaultActions(kind)
+      return actions.map((action) => ({ itemId: row.id, kind, objectId, ...action }))
+    })
+  },
+
+  /** Действие открытого дела пользователя — что оно просит ввести (канал, ADR-0082). */
+  async actionOf(userId: string, itemId: string, key: string): Promise<InboxOpenAction | null> {
+    const [row] = await db()
+      .select({
+        id: inboxItems.id,
+        kind: inboxItems.kind,
+        state: inboxItems.state,
+        objectId: inboxItems.objectId,
+        payload: inboxItems.payload,
+      })
+      .from(inboxItems)
+      .where(and(eq(inboxItems.id, itemId), eq(inboxItems.userId, userId)))
+      .limit(1)
+    if (!row || (row.state !== 'open' && row.state !== 'snoozed')) return null
+    const kind = row.kind as InboxKind
+    const actions =
+      (row.payload as { actions?: InboxItem['actions'] }).actions ?? defaultActions(kind)
+    const action = actions.find((item) => item.key === key)
+    return action ? { itemId: row.id, kind, objectId: row.objectId, ...action } : null
   },
 
   async snooze(ctx: UserCtx, itemId: string, until: string): Promise<void> {

@@ -5,6 +5,19 @@ export type ExternalChannel = Exclude<NotificationChannel, 'app' | 'email'>
 
 export const EXTERNAL_CHANNELS: readonly ExternalChannel[] = ['telegram', 'push']
 
+/**
+ * Кнопка действия дела Входящих в сообщении канала (ADR-0082): нажатие
+ * выполняет `InboxService.act` за получателя; действие с комментарием или
+ * датой канал спрашивает текстом.
+ */
+export interface ChannelAction {
+  itemId: string
+  key: string
+  labelKey: string
+  requiresComment: boolean
+  input?: 'due_date' | undefined
+}
+
 /** Сообщение внешнего канала: текст уже на языке получателя, ссылка — абсолютная. */
 export interface ChannelMessage {
   notificationId: number
@@ -13,6 +26,8 @@ export interface ChannelMessage {
   category: NotificationCategory
   text: string
   url: string
+  /** Действия открытых дел получателя по объекту уведомления. */
+  actions?: ChannelAction[]
 }
 
 /** Файл получателю — отчёт по расписанию (ADR-0078): подпись уже на его языке. */

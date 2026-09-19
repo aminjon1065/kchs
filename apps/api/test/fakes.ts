@@ -152,6 +152,10 @@ export async function startFakeTelegram(): Promise<FakeTelegram> {
       case 'deleteWebhook':
         ok(true)
         return
+      // Ответ на нажатие кнопки (ADR-0082): подсказка во всплывающем сообщении
+      case 'answerCallbackQuery':
+        ok(true)
+        return
       case 'getUpdates': {
         const offset = Number(body.offset ?? 0)
         const ready = queue.filter((update) => Number(update.update_id) >= offset)
@@ -229,6 +233,31 @@ export function telegramMessage(
       ...(command
         ? { entities: [{ type: 'bot_command', offset: 0, length: command[0].length }] }
         : {}),
+    },
+  }
+}
+
+/** Нажатие кнопки под сообщением бота (callback_query) в личном чате. */
+export function telegramCallback(
+  updateId: number,
+  chatId: number,
+  data: string,
+): Record<string, unknown> {
+  const from = { id: chatId, is_bot: false, first_name: 'Тест', language_code: 'ru' }
+  return {
+    update_id: updateId,
+    callback_query: {
+      id: `cb-${updateId}`,
+      from,
+      chat_instance: `chat-${chatId}`,
+      data,
+      message: {
+        message_id: updateId,
+        date: Math.floor(Date.now() / 1000),
+        chat: { id: chatId, type: 'private', first_name: 'Тест' },
+        from: { id: 7000001, is_bot: true, first_name: 'kchs' },
+        text: 'Уведомление',
+      },
     },
   }
 }

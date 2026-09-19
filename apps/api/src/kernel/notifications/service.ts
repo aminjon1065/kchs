@@ -16,6 +16,7 @@ import { logger } from '~/shared/logger/index.js'
 import { mailConfigured, sendMail } from '~/shared/mail/index.js'
 import { redactSummary } from '../access/confidentiality.js'
 import { directory } from '../directory/port.js'
+import { InboxService } from '../inbox/service.js'
 import { ObjectService } from '../objects/service.js'
 import { emitToUser } from '../realtime/gateway.js'
 import {
@@ -414,6 +415,8 @@ async function deliverExternal(id: number, channels: ExternalChannel[]): Promise
   if (!row) return
   const rendered = (await renderForDelivery([row])).get(row.id)
   if (!rendered) return
+  // Кнопки дел получателя по объекту: «Принять», «Отчитаться», «Продлить» (ADR-0082)
+  const actions = row.objectId ? await InboxService.openActions(row.userId, row.objectId) : []
   for (const channel of channels) {
     await notificationChannel(channel)?.deliver([
       {
@@ -423,6 +426,13 @@ async function deliverExternal(id: number, channels: ExternalChannel[]): Promise
         category: row.category as NotificationCategory,
         text: rendered.text,
         url: rendered.href,
+        actions: actions.map((action) => ({
+          itemId: action.itemId,
+          key: action.key,
+          labelKey: action.labelKey,
+          requiresComment: action.requiresComment,
+          input: action.input,
+        })),
       },
     ])
   }

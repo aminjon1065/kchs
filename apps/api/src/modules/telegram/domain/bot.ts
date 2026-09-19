@@ -7,6 +7,7 @@ import { config } from '~/shared/config/index.js'
 import { systemCtx } from '~/shared/context.js'
 import { errors } from '~/shared/errors.js'
 import { logger } from '~/shared/logger/index.js'
+import { actionKeyboard, TelegramActions } from './actions.js'
 import { TelegramLinks } from './links.js'
 
 /** Предел текста сообщения Telegram — 4096 символов; уведомления короче, но с запасом. */
@@ -62,9 +63,10 @@ export async function handleTelegramUpdate(update: Update): Promise<void> {
 export type SendOutcome = 'sent' | 'blocked' | 'failed'
 
 /**
- * Уведомление в личный чат: текст на языке получателя и ссылка на вкладку
- * объекта. Кнопка «Открыть» — только для HTTPS: Telegram не принимает в
- * кнопках адреса вроде `http://localhost`.
+ * Уведомление в личный чат: текст на языке получателя, ссылка на вкладку
+ * объекта и кнопки действий открытых дел получателя по объекту («Принять»,
+ * «Отчитаться», «Продлить» — ADR-0082). Кнопка «Открыть» — только для HTTPS:
+ * Telegram не принимает в кнопках адреса вроде `http://localhost`.
  */
 export async function sendTelegramNotification(
   chatId: number,
@@ -72,12 +74,16 @@ export async function sendTelegramNotification(
 ): Promise<SendOutcome> {
   const t = createTranslator(message.locale)
   const text = `${message.text.slice(0, MAX_TEXT)}\n${message.url}`
+  const keyboard = [
+    ...actionKeyboard(message.actions ?? [], message.locale),
+    ...(message.url.startsWith('https://')
+      ? [[{ text: t('telegram.open'), url: message.url }]]
+      : []),
+  ]
   try {
     await telegramBot().api.sendMessage(chatId, text, {
       link_preview_options: { is_disabled: true },
-      ...(message.url.startsWith('https://')
-        ? { reply_markup: { inline_keyboard: [[{ text: t('telegram.open'), url: message.url }]] } }
-        : {}),
+      ...(keyboard.length > 0 ? { reply_markup: { inline_keyboard: keyboard } } : {}),
     })
     return 'sent'
   } catch (error) {
@@ -196,7 +202,19 @@ function installHandlers(bot: Bot): void {
     await ctx.reply(t('telegram.stopped'))
   })
 
-  // Любое другое сообщение — подсказка: бот только присылает уведомления
+  // Кнопки действий дел Входящих: принять, отчитаться, продлить (ADR-0082)
+  bot.on('callback_query:data', async (ctx) => {
+    const chatId = ctx.chat?.id ?? ctx.callbackQuery.from.id
+    await TelegramActions.press(ctx, chatId, ctx.callbackQuery.data)
+  })
+
+  // Ответ на вопрос бота: текст отчёта, причина, «дата и обоснование»
+  bot.on('message:text', async (ctx, next) => {
+    if (await TelegramActions.reply(ctx, ctx.chat.id, ctx.message.text)) return
+    await next()
+  })
+
+  // Любое другое сообщение — подсказка: бот присылает уведомления с кнопками действий
   bot.on('message', async (ctx) => {
     await ctx.reply(createTranslator(localeOf(ctx))('telegram.help'))
   })
