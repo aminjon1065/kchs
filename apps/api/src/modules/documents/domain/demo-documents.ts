@@ -3,10 +3,11 @@ import { and, eq, inArray, isNotNull, sql } from 'drizzle-orm'
 import { addDays } from '~/kernel/business-calendar/working-days.js'
 import { LinkService } from '~/kernel/links/service.js'
 import { ObjectService } from '~/kernel/objects/service.js'
-import { putObject } from '~/kernel/storage/s3.js'
+import { deleteObject, putObject } from '~/kernel/storage/s3.js'
 import { registerStoredFile } from '~/modules/files/public.js'
 import { type SystemCtx, systemCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
+import { newId } from '~/shared/ids.js'
 import { cases, correspondents, documents, objects } from '~/shared/db/schema/index.js'
 import { logger } from '~/shared/logger/index.js'
 import { CaseService } from './case-service.js'
@@ -311,8 +312,8 @@ export async function seedDemoDocuments(people: DemoDocumentPeople): Promise<Dem
   }
 
   for (const [planYear, count] of [
-    [year - 1, 24],
-    [year, 46],
+    [year - 1, 28],
+    [year, 52],
   ] as const) {
     for (let index = 0; index < count; index++) {
       const share = (index + random() * 0.5) / count
@@ -485,6 +486,7 @@ export async function seedDemoDocuments(people: DemoDocumentPeople): Promise<Dem
     return type
   }
   let scans = 0
+  const batch = newId()
   for (const item of plans) {
     const type = await typeOf(item.typeKey)
     const author = ctxOf(item.authorId)
@@ -529,7 +531,8 @@ export async function seedDemoDocuments(people: DemoDocumentPeople): Promise<Dem
     // Скан входящего письма — вложение и версия документа (правило типа)
     if (item.scan && item.regDate) {
       scans += 1
-      const sourceKey = `demo/documents/scan-${scans}.pdf`
+      // Источник копии — временный ключ прогона: стенды на одном хранилище не мешают друг другу
+      const sourceKey = `demo/documents/${batch}/scan-${scans}.pdf`
       const pdf = demoScanPdf(`Incoming ${item.regDate} #${scans}`)
       await putObject(sourceKey, pdf, { contentType: 'application/pdf', contentLength: pdf.length })
       const file = await registerStoredFile(author, {
@@ -539,6 +542,7 @@ export async function seedDemoDocuments(people: DemoDocumentPeople): Promise<Dem
         mime: 'application/pdf',
         sourceKey,
       })
+      await deleteObject(sourceKey)
       await db().transaction((tx) =>
         DocumentVersionService.add(tx, author, id, {
           mainFileId: file.id,

@@ -5,6 +5,7 @@ import type { Subscriber } from '~/kernel/events/types.js'
 import { InboxService } from '~/kernel/inbox/service.js'
 import { NotificationService } from '~/kernel/notifications/service.js'
 import { emitToRoom } from '~/kernel/realtime/gateway.js'
+import { indexObject } from '~/kernel/search/index-service.js'
 import { systemCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { documents } from '~/shared/db/schema/index.js'
@@ -201,6 +202,17 @@ async function cancelled(event: EventEnvelope): Promise<void> {
   )
 }
 
+/**
+ * Статус, номер, реквизиты и дело документа — в поисковом документе (фильтр
+ * «Поиск в архиве» по `meta.status`, ADR-0086), как и состояние дела, а сводку
+ * реестра модуль пишет «тихо»: индекс обновляют события модуля, иначе статус
+ * в поиске устаревал бы.
+ */
+async function reindex(event: EventEnvelope): Promise<void> {
+  if (event.object?.type !== 'document' && event.object?.type !== 'case') return
+  await indexObject(event.object.id)
+}
+
 /** Документ в корзине — его дела во Входящих больше не ждут действия. */
 async function dismissTrashed(event: EventEnvelope): Promise<void> {
   if (event.object?.type !== 'document') return
@@ -233,4 +245,21 @@ export const documentSubscribers: Subscriber[] = [
   },
   { name: 'documents-viewers', types: ['acl.changed', 'object.moved'], handle: refreshAccess },
   { name: 'documents-trash', types: ['object.trashed'], handle: dismissTrashed },
+  {
+    name: 'documents-search',
+    types: [
+      'document.status_changed',
+      'document.registered',
+      'document.updated',
+      'document.filed',
+      'document.dispatched',
+      'document.files_destroyed',
+      'case.updated',
+      'case.closed',
+      'case.reopened',
+      'case.archived',
+      'case.destroyed',
+    ],
+    handle: reindex,
+  },
 ]
