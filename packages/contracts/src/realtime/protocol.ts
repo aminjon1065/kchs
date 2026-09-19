@@ -26,6 +26,8 @@ export const RT_SERVER_EVENTS = [
   'presence',
   'typing',
   'acl.revoked',
+  /** Календарь пользователя изменился: приглашение, ответ, перенос (ADR-0081). */
+  'calendar.changed',
 ] as const
 export type RtServerEvent = (typeof RT_SERVER_EVENTS)[number]
 
