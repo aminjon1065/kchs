@@ -13,7 +13,7 @@ import { createTranslator } from '@kchs/i18n'
 import { and, eq, inArray, isNull, type SQL, sql } from 'drizzle-orm'
 import { adminModeActive, type Ctx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import { links, objects } from '~/shared/db/schema/index.js'
+import { links, objects, users } from '~/shared/db/schema/index.js'
 import { objectType } from '../objects/registry.js'
 
 /**
@@ -144,6 +144,26 @@ export function clearanceAllowsSql(level: Confidentiality, attributes: SQL): SQL
     sql`, `,
   )
   return sql`(COALESCE(${attributes}->>'clearance', 'internal') IN (${allowed}))`
+}
+
+/**
+ * Из списка — сотрудники, чей допуск открывает гриф (в том же порядке):
+ * исполнители резолюции и получатели ознакомления должны видеть объект.
+ */
+export async function clearedUsers(
+  userIds: readonly string[],
+  level: Confidentiality,
+  executor: Executor = db(),
+): Promise<string[]> {
+  if (userIds.length === 0) return []
+  const cleared = clearanceAllowsSql(level, sql`${users.attributes}`)
+  if (!cleared) return [...userIds]
+  const rows = await executor
+    .select({ id: users.id })
+    .from(users)
+    .where(and(inArray(users.id, [...userIds]), cleared))
+  const allowed = new Set(rows.map((row) => row.id))
+  return userIds.filter((id) => allowed.has(id))
 }
 
 /**

@@ -137,8 +137,38 @@ export interface ProcessStepHandler {
   cancel?: (tx: Executor, ctx: Ctx, input: StepHandlerInput) => Promise<void>
 }
 
+/** Назначенный шага для наблюдателей: состояние решения и кто нажал. */
+export interface ProcessStepEntryInfo {
+  userId: string
+  state: string
+  decidedAt: string | null
+  /** Кто нажал кнопку, если не сам назначенный (заместитель). */
+  actorId: string | null
+}
+
+/** Изменение шага в проходе движка — для наблюдателей ядра. */
+export interface ProcessStepChange {
+  instance: ProcessInstanceInfo
+  step: { id: string; key: string; type: Step['type']; status: string; dueAt: string | null }
+  entries: ProcessStepEntryInfo[]
+  /** Назначенные до прохода; null — шаг активирован в этом проходе. */
+  previous: ProcessStepEntryInfo[] | null
+}
+
+/**
+ * Наблюдатель ядра за шагами маршрутов любого типа объекта (ознакомление,
+ * ADR-0084): получает изменения состава и решений шагов своих типов в той же
+ * транзакции, что и переход, — учёт не расходится с маршрутом.
+ */
+export interface ProcessObserver {
+  name: string
+  stepTypes: ReadonlyArray<Step['type']>
+  stepChanged: (tx: Executor, ctx: Ctx, change: ProcessStepChange) => Promise<void>
+}
+
 const providers = new Map<string, ProcessObjectProvider>()
 const handlers: ProcessStepHandler[] = []
+const observers: ProcessObserver[] = []
 /** События, которых может ждать шаг `wait` (о своём объекте). */
 const waitable = new Set<string>(['object.updated', 'object.linked', 'process.finished'])
 
@@ -194,6 +224,17 @@ export function processStepHandler(
     matches.find((item) => item.objectType === objectType) ??
     matches.find((item) => !item.objectType)
   )
+}
+
+export function registerProcessObserver(observer: ProcessObserver): void {
+  if (observers.some((item) => item.name === observer.name)) {
+    throw new Error(`Наблюдатель маршрутов «${observer.name}» уже зарегистрирован`)
+  }
+  observers.push(observer)
+}
+
+export function processObservers(): readonly ProcessObserver[] {
+  return observers
 }
 
 /**

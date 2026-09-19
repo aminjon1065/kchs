@@ -277,6 +277,7 @@ export const KNOWN_DOMAINS = [
   'document_type',
   'journal',
   'correspondent',
+  'acknowledgment',
 ] as const
 
 function resolveDomains(): string[] {

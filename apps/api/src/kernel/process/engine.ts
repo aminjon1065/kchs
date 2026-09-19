@@ -35,6 +35,7 @@ import {
   type ProcessObjectData,
   type ProcessStepInfo,
   processObjectProvider,
+  processObservers,
   processStepHandler,
   type StepHandlerResult,
 } from './registry.js'
@@ -527,6 +528,8 @@ export class Execution {
       }
     }
 
+    await this.notifyObservers(previous, after)
+
     if (before.status === 'running' && after.status !== 'running') {
       await publishEvent(this.tx, this.ctx, {
         type: 'process.finished',
@@ -558,6 +561,44 @@ export class Execution {
   eventObject() {
     const { object } = this.loaded
     return { id: object.id, type: object.type, spaceId: object.spaceId, title: object.title }
+  }
+
+  /**
+   * Наблюдатели ядра (ознакомление, ADR-0084): шаги их типов, у которых в этом
+   * проходе изменились назначенные, решения или статус.
+   */
+  private async notifyObservers(
+    previous: Map<string, StepRun>,
+    after: InstanceState,
+  ): Promise<void> {
+    const entriesOf = (run: StepRun) =>
+      run.entries.map((entry) => ({
+        userId: entry.userId,
+        state: entry.state,
+        decidedAt: entry.decidedAt,
+        actorId: entry.actorId,
+      }))
+    for (const observer of processObservers()) {
+      for (const run of after.steps) {
+        if (!observer.stepTypes.includes(run.type)) continue
+        const old = previous.get(run.id)
+        const entries = entriesOf(run)
+        const before = old ? entriesOf(old) : null
+        if (
+          before &&
+          old?.status === run.status &&
+          JSON.stringify(before) === JSON.stringify(entries)
+        ) {
+          continue
+        }
+        await observer.stepChanged(this.tx, this.ctx, {
+          instance: this.instanceInfo(),
+          step: { id: run.id, key: run.key, type: run.type, status: run.status, dueAt: run.dueAt },
+          entries,
+          previous: before,
+        })
+      }
+    }
   }
 
   /** Отменённый шаг модуля: модуль снимает свои поручения. */

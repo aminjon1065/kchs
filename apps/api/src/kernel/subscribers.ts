@@ -6,6 +6,7 @@ import { usersWithAccess } from './access/acl-service.js'
 import { redactSummary } from './access/confidentiality.js'
 import { usersWhoCanView } from './access/explain.js'
 import { invalidatePrincipalSet } from './access/principal-set.js'
+import { acknowledgmentSubscribers } from './acknowledgments/subscribers.js'
 import { activitySubscriber } from './activity/service.js'
 import { COLLAB_CHANNEL, collabType } from './collab/registry.js'
 import { registerSubscriber } from './events/bus.js'
@@ -215,6 +216,8 @@ export function registerKernelSubscribers(): void {
 
   // Движок процессов: уведомления, лента, ожидание событий, корзина объекта (ADR-0079)
   for (const subscriber of processSubscribers()) registerSubscriber(subscriber)
+  // Ознакомление (ADR-0084): уведомления о запросах и напоминаниях, обновление вкладки
+  for (const subscriber of acknowledgmentSubscribers) registerSubscriber(subscriber)
 
   logger().info('подписчики ядра зарегистрированы')
 }

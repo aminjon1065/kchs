@@ -1,6 +1,7 @@
 import { systemCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { logger } from '~/shared/logger/index.js'
+import { remindDueAcknowledgments } from '../acknowledgments/index.js'
 import { pruneOutbox } from '../events/dispatcher.js'
 import { InboxService } from '../inbox/service.js'
 import { sendEmailDigest } from '../notifications/service.js'
@@ -89,6 +90,14 @@ export function registerMaintenanceJobs(): void {
     concurrency: 1,
     handle: async () => ({ deleted: await trimRecentViews() }),
   })
+
+  // Ознакомление (ADR-0084): напоминание в день срока и после него
+  registerJobHandler({
+    queue: 'maintenance',
+    name: 'acknowledgments.remind',
+    concurrency: 1,
+    handle: async () => ({ reminded: await remindDueAcknowledgments() }),
+  })
 }
 
 /** Расписания: повторяемые задания BullMQ. Идемпотентны по ключу. */
@@ -128,6 +137,11 @@ export async function scheduleMaintenance(): Promise<void> {
     'recent.trim',
     {},
     { repeat: { pattern: '31 3 * * *' }, jobId: 'cron:recent.trim' },
+  )
+  await maintenance.add(
+    'acknowledgments.remind',
+    {},
+    { repeat: { pattern: '5 9 * * *' }, jobId: 'cron:acknowledgments.remind' },
   )
   logger().info('расписания обслуживания зарегистрированы')
 }

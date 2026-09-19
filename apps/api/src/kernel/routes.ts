@@ -1,5 +1,6 @@
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { registerAccessRoutes } from './access/http.js'
+import { registerAcknowledgmentRoutes } from './acknowledgments/http.js'
 import { registerAnnouncementRoutes } from './announcements/http.js'
 import { registerBusinessCalendarRoutes } from './business-calendar/http.js'
 import { registerDiscussionRoutes } from './discussions/http.js'
@@ -29,4 +30,5 @@ export function registerKernelRoutes(route: RouteRegistrar): void {
   registerAnnouncementRoutes(route)
   registerBusinessCalendarRoutes(route)
   registerProcessRoutes(route)
+  registerAcknowledgmentRoutes(route)
 }

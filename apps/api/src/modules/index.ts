@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify'
+import { registerAcknowledgments } from '~/kernel/acknowledgments/index.js'
 import { setDirectoryProvider } from '~/kernel/directory/port.js'
 import { registerKernelObjectTypes } from '~/kernel/object-types.js'
 import { listObjectTypes } from '~/kernel/objects/registry.js'
@@ -67,6 +68,8 @@ export function registerAllObjectTypes(): void {
   registerKernelObjectTypes()
   // Движок процессов: действия шагов во Входящих — в любой роли процесса
   registerProcessEngine()
+  // Ознакомление (ADR-0084): дела «Ознакомиться» и учёт шагов маршрута
+  registerAcknowledgments()
   registerFilesObjectTypes()
   registerDataObjectTypes()
   registerGisObjectTypes()

@@ -192,4 +192,7 @@ export const AUDIT_ACTIONS = {
   taskExtensionRequested: 'task.extension_requested',
   taskExtensionDecided: 'task.extension_decided',
   taskReassigned: 'task.reassigned',
+  // Резолюции и ознакомление (ADR-0084): резолюция от имени руководителя, отметка с MFA
+  resolutionAdded: 'document.resolution_added',
+  objectAcknowledged: 'object.acknowledged',
 } as const

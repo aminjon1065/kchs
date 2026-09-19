@@ -331,6 +331,90 @@ export const documentSignatures = pgTable(
   ],
 )
 
+/**
+ * Резолюция (05-data-model.md: `resolutions`; 08-documents.md §6, ADR-0084):
+ * запись руководителя по зарегистрированному документу. Поручения создаёт
+ * модуль задач в той же транзакции; их идентификаторы — в `instruction_ids`
+ * (основное и части соисполнителей). Вложенная резолюция — `parent_id`.
+ */
+export const resolutions = pgTable(
+  'resolutions',
+  {
+    id: uuid('id').primaryKey(),
+    documentId: uuid('document_id')
+      .notNull()
+      .references(() => documents.id, { onDelete: 'cascade' }),
+    parentId: uuid('parent_id'),
+    authorId: uuid('author_id')
+      .notNull()
+      .references(() => users.id),
+    /** Внёс делопроизводитель от имени автора; null — сам автор. */
+    enteredBy: uuid('entered_by').references(() => users.id, { onDelete: 'set null' }),
+    text: text('text').notNull(),
+    responsibleId: uuid('responsible_id')
+      .notNull()
+      .references(() => users.id),
+    coExecutors: uuid('co_executors').array().notNull().default(sql`'{}'::uuid[]`),
+    deadline: date('deadline').notNull(),
+    dueWorkingDays: integer('due_working_days'),
+    control: boolean('control').notNull().default(true),
+    controllerId: uuid('controller_id').references(() => users.id, { onDelete: 'set null' }),
+    instructionIds: uuid('instruction_ids').array().notNull().default(sql`'{}'::uuid[]`),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index('resolutions_document_idx').on(t.documentId, t.createdAt),
+    index('resolutions_parent_idx').on(t.parentId),
+  ],
+)
+
+/**
+ * Направление на резолюцию (ADR-0084): кому, кем и когда; закрывается
+ * резолюцией, «не требует исполнения» или переадресацией. Открытое — одно на
+ * документ и сотрудника.
+ */
+export const resolutionRequests = pgTable(
+  'resolution_requests',
+  {
+    id: uuid('id').primaryKey(),
+    documentId: uuid('document_id')
+      .notNull()
+      .references(() => documents.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    requestedBy: uuid('requested_by').references(() => users.id, { onDelete: 'set null' }),
+    requestedAt: tsCol('requested_at').notNull().default(sql`now()`),
+    dueDate: date('due_date'),
+    note: text('note'),
+    /** open | resolved | no_execution | forwarded | cancelled */
+    state: text('state').notNull().default('open'),
+    closedAt: tsCol('closed_at'),
+    comment: text('comment'),
+  },
+  (t) => [
+    index('resolution_requests_document_idx').on(t.documentId, t.requestedAt),
+    uniqueIndex('resolution_requests_open_uq')
+      .on(t.documentId, t.userId)
+      .where(sql`${t.state} = 'open'`),
+  ],
+)
+
+/** Шаблоны резолюций: общие (`owner_id` null — ведёт канцелярия) и личные. */
+export const resolutionTemplates = pgTable(
+  'resolution_templates',
+  {
+    id: uuid('id').primaryKey(),
+    ownerId: uuid('owner_id').references(() => users.id, { onDelete: 'cascade' }),
+    text: text('text').notNull(),
+    dueWorkingDays: integer('due_working_days'),
+    control: boolean('control').notNull().default(true),
+    sort: integer('sort').notNull().default(0),
+    createdAt: createdAt(),
+  },
+  (t) => [index('resolution_templates_owner_idx').on(t.ownerId, t.sort)],
+)
+
 export type DocumentRow = typeof documents.$inferSelect
 export type DocumentTypeRow = typeof documentTypes.$inferSelect
 export type JournalRow = typeof journals.$inferSelect
