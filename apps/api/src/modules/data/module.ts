@@ -92,6 +92,11 @@ import { RowService } from './domain/row-service.js'
 import { SchemaService } from './domain/schema-service.js'
 import { SqlService } from './domain/sql-service.js'
 import { Physical } from './infra/physical.js'
+import {
+  registerNotebookBackground,
+  registerNotebookRoutes,
+  registerNotebookType,
+} from './notebook-module.js'
 
 const IdParam = z.object({ id: z.uuid() })
 const FieldParams = z.object({ id: z.uuid(), key: z.string().min(1).max(64) })
@@ -237,10 +242,12 @@ export function registerDataObjectTypes(): void {
   }
 
   registerAnalysisObjectType()
+  registerNotebookType()
 }
 
 export function registerDataRoutes(route: RouteRegistrar): void {
   registerAnalysisRoutes(route)
+  registerNotebookRoutes(route)
 
   route({
     method: 'POST',
@@ -964,6 +971,7 @@ export function registerDataRoutes(route: RouteRegistrar): void {
 /** Фоновая часть: загрузка импорта воркером и реакция на окончательный сбой заданий. */
 export function registerDataBackground(): void {
   registerAnalysisBackground()
+  registerNotebookBackground()
 
   registerJobHandler({
     queue: LOAD_JOB.queue,

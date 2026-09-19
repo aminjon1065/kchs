@@ -312,3 +312,18 @@ export const analyses = pgTable(
     index('analyses_inputs_idx').using('gin', t.inputDatasetIds),
   ],
 )
+
+/**
+ * Тетрадь — объект реестра типа `notebook` (06-analytics-engine.md §11). Тело
+ * правится совместно в `yjs.documents`; здесь — его JSON-снимок (ADR-0070):
+ * ячейки по порядку и параметры тетради.
+ */
+export const notebooks = pgTable('notebooks', {
+  id: uuid('id')
+    .primaryKey()
+    .references(() => objects.id, { onDelete: 'cascade' }),
+  cells: jsonbArray('cells'),
+  params: jsonbObject('params'),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+})

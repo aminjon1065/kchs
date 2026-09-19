@@ -99,6 +99,13 @@
       "when": 1789800046405,
       "tag": "20260919064046_basemaps",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1789802484506,
+      "tag": "20260919072124_notebooks_collab",
+      "breakpoints": true
     }
   ]
 }

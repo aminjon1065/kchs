@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm'
 import { bigint, customType, index, jsonb, primaryKey, text, uuid } from 'drizzle-orm/pg-core'
 import { createdAt, opsSchema, tsCol, yjsSchema } from './_shared.js'
+import { objects } from './kernel.js'
 
 const bytea = customType<{ data: Buffer; driverData: Buffer }>({ dataType: () => 'bytea' })
 
@@ -41,9 +42,14 @@ export const eventConsumptions = opsSchema.table(
   ],
 )
 
-/** Документы совместного редактирования (Yjs). */
+/**
+ * Документы совместного редактирования (Yjs, ADR-0070): состояние удаляется
+ * вместе с объектом.
+ */
 export const yjsDocuments = yjsSchema.table('documents', {
-  objectId: uuid('object_id').primaryKey(),
+  objectId: uuid('object_id')
+    .primaryKey()
+    .references(() => objects.id, { onDelete: 'cascade' }),
   state: bytea('state').notNull(),
   updatedAt: tsCol('updated_at').notNull().default(sql`now()`),
 })
