@@ -12,10 +12,12 @@ import {
   USERS_IMPORT_MAX_BYTES,
   USERS_IMPORT_MAX_ROWS,
 } from '../src/admin/users-import.js'
+import { DATASET_ENGINE_EXPORT_FORMATS, DATASET_EXPORT_MAX_ROWS } from '../src/data/export.js'
 import {
   IMPORT_ERROR_CODES,
   IMPORT_FIELD_TYPES,
   IMPORT_FORMATS,
+  IMPORT_LAYER_FORMATS,
   IMPORT_LIMITS,
   NORMALIZED_VALUE_FORMATS,
 } from '../src/data/import.js'
@@ -45,9 +47,14 @@ write('users_import.json', {
 })
 write('data_import.json', {
   formats: IMPORT_FORMATS,
+  layerFormats: IMPORT_LAYER_FORMATS,
   fieldTypes: IMPORT_FIELD_TYPES,
   semantics: FIELD_SEMANTICS,
   limits: IMPORT_LIMITS,
   errorCodes: IMPORT_ERROR_CODES,
   normalizedValueFormats: NORMALIZED_VALUE_FORMATS,
+})
+write('data_export.json', {
+  engineFormats: DATASET_ENGINE_EXPORT_FORMATS,
+  maxRows: DATASET_EXPORT_MAX_ROWS,
 })

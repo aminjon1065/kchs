@@ -19,6 +19,20 @@ class GeometryError(ValueError):
     """Геометрия не распознана или некорректна; текст — причина по-русски."""
 
 
+class ReadyGeometry(str):
+    """EWKT в EPSG:4326, уже проверенный и пересчитанный (`crs.GeometryPipeline`)."""
+
+
+class BadGeometry:
+    """Геометрия объекта, которая не загрузится: причина и исходный вид для файла ошибок."""
+
+    __slots__ = ("reason", "text")
+
+    def __init__(self, text: str | None, reason: str) -> None:
+        self.text = text
+        self.reason = reason
+
+
 Coordinate = tuple[str, str]
 
 _TOKEN = re.compile(r"\s*(?:([A-Za-z]+)|([-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?)|([(),]))")

@@ -16,6 +16,7 @@ import codecs
 import csv
 import io
 import json
+import re
 import sys
 from collections import Counter
 from collections.abc import Iterator
@@ -34,6 +35,10 @@ csv.field_size_limit(min(sys.maxsize, 64 * 1024 * 1024))
 DELIMITERS = (";", ",", "\t", "|")
 JSON_FORMATS = frozenset({"json", "ndjson", "geojson"})
 EXCEL_FORMATS = frozenset({"xlsx", "xls"})
+# Геоформаты GDAL со слоями (ADR-0068): читаются только целиком
+FEATURE_FORMATS = frozenset({"shp", "gpkg", "kml", "kmz", "gpx"})
+# Столбцы — ключи или поля объектов: без строк над таблицей и заголовка
+RECORD_FORMATS = JSON_FORMATS | FEATURE_FORMATS
 
 
 class ImportFileError(Exception):
@@ -87,21 +92,65 @@ _EXTENSIONS = {
     ".ndjson": "ndjson",
     ".jsonl": "ndjson",
     ".geojson": "geojson",
+    ".gpkg": "gpkg",
+    ".kml": "kml",
+    ".kmz": "kmz",
+    ".gpx": "gpx",
 }
+# Архив zip по имени, пока содержимое не видно (анализ читает только начало файла)
+_ZIP_EXTENSIONS = {".zip": "shp", ".kmz": "kmz"}
+_SHAPEFILE_MAGIC = b"\x00\x00\x27\x0a"
 
 
-def detect_format(head: bytes, file_name: str, hint: str | None = None) -> str:
-    """Формат по содержимому, затем по расширению: .csv с книгой Excel внутри — всё равно Excel."""
+def detect_format(
+    head: bytes, file_name: str, hint: str | None = None, path: Path | None = None
+) -> str:
+    """Формат по содержимому, затем по расширению: .csv с книгой Excel внутри — всё равно Excel.
+
+    Архив zip — книга Excel, Shapefile или KMZ: по составу архива, если файл
+    виден целиком (`path`), иначе по расширению имени.
+    """
     if hint:
         return hint
+    suffix = Path(file_name).suffix.lower()
     if head.startswith(b"PK\x03\x04"):
+        if path is None:
+            return _ZIP_EXTENSIONS.get(suffix, "xlsx")
+        from kchs_engine.data.vector import zip_format
+
+        try:
+            found = zip_format(path)
+        except ImportFileError:
+            # Повреждённая книга — пусть объяснит читатель Excel
+            if suffix in _ZIP_EXTENSIONS:
+                raise
+            return "xlsx"
+        if found:
+            return found
+        if suffix in _ZIP_EXTENSIONS:
+            raise ImportFileError(
+                "unsupported", "в архиве нет Shapefile (.shp), KML или GeoPackage"
+            )
         return "xlsx"
     if head.startswith(b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"):
         return "xls"
-    suffix = Path(file_name).suffix.lower()
+    if head.startswith(b"SQLite format 3\x00"):
+        return "gpkg"
+    if head.startswith(_SHAPEFILE_MAGIC) or suffix in (".shp", ".dbf", ".shx"):
+        raise ImportFileError(
+            "unsupported",
+            "Shapefile загружается архивом .zip со всеми файлами слоя "
+            "(.shp, .shx, .dbf, .prj и .cpg)",
+        )
     by_name = _EXTENSIONS.get(suffix)
     text = _decode_head(head)
     stripped = text.lstrip()
+    if stripped.startswith("<"):
+        markup = stripped[:4096].lower()
+        if "<kml" in markup:
+            return "kml"
+        if "<gpx" in markup:
+            return "gpx"
     if stripped.startswith("{") or stripped.startswith("["):
         if '"FeatureCollection"' in stripped[:4096] or by_name == "geojson":
             return "geojson"
@@ -218,6 +267,8 @@ class Source:
     """Записи файла с начала: (номер строки как в файле, ячейки)."""
 
     format: str = "csv"
+    # Позиция геометрии объекта в строке (GeoJSON, геоформаты): последняя, служебная ячейка
+    geometry_index: int | None = None
 
     def rows(self) -> Iterator[Row]:
         raise NotImplementedError
@@ -501,8 +552,31 @@ def _iter_array(text: str, start: int, complete: bool) -> Iterator[Located]:
         yield value, position
 
 
-def _records_from_text(text: str, fmt: str, complete: bool) -> tuple[Iterator[Located], list[str]]:
-    """Объекты JSON/GeoJSON из текста (целого или головы файла) и предупреждения."""
+_CRS_CODE = re.compile(r"EPSG:+(\d{4,6})", re.I)
+
+
+def declared_crs(fragment: str) -> tuple[str | None, str | None]:
+    """Система координат из члена «crs» GeoJSON (версии 2008): код EPSG и предупреждение.
+
+    WGS 84 (EPSG:4326, CRS84) — None: пересчёт не нужен.
+    """
+    if "crs84" in fragment.lower():
+        return None, None
+    match = _CRS_CODE.search(fragment)
+    if match:
+        code = f"EPSG:{int(match.group(1))}"
+        return (None if code == "EPSG:4326" else code), None
+    return None, (
+        "В GeoJSON указана система координат, которую не удалось распознать: координаты "
+        "читаются как WGS 84 — при необходимости выберите систему координат"
+    )
+
+
+def _records_from_text(
+    text: str, fmt: str, complete: bool
+) -> tuple[Iterator[Located], list[str], str | None]:
+    """Объекты JSON/GeoJSON из текста (целого или головы файла), предупреждения и
+    система координат, объявленная в GeoJSON."""
     warnings: list[str] = []
     stripped = text.lstrip()
     offset = len(text) - len(stripped)
@@ -512,16 +586,14 @@ def _records_from_text(text: str, fmt: str, complete: bool) -> tuple[Iterator[Lo
         if bracket < 0:
             raise ImportFileError("unreadable", "в GeoJSON нет списка features")
         crs = text.find('"crs"', 0, marker)
+        code = None
         if crs >= 0:
-            declared = text[crs : crs + 200]
-            if "4326" not in declared and "CRS84" not in declared:
-                warnings.append(
-                    "В GeoJSON указана система координат, отличная от WGS 84: "
-                    "геометрия загружается только в EPSG:4326, пересчёт не выполняется"
-                )
-        return _iter_array(text, bracket, complete), warnings
+            code, warning = declared_crs(text[crs : crs + 300])
+            if warning:
+                warnings.append(warning)
+        return _iter_array(text, bracket, complete), warnings, code
     if stripped.startswith("["):
-        return _iter_array(text, offset, complete), warnings
+        return _iter_array(text, offset, complete), warnings, None
     if stripped.startswith("{"):
         # Обёртка {"data": [...]}: берём первый список объектов
         for key in _WRAPPER_KEYS:
@@ -530,13 +602,13 @@ def _records_from_text(text: str, fmt: str, complete: bool) -> tuple[Iterator[Lo
                 bracket = text.find("[", marker)
                 between = text[marker + len(key) + 2 : bracket] if bracket >= 0 else ""
                 if bracket >= 0 and between.strip() in (":", ""):
-                    return _iter_array(text, bracket, complete), warnings
+                    return _iter_array(text, bracket, complete), warnings, None
         try:
             value, end = _DECODER.raw_decode(text, offset)
         except json.JSONDecodeError as error:
             raise ImportFileError("unreadable", "файл не читается как JSON") from error
         if isinstance(value, dict):
-            return iter([(value, end)]), warnings
+            return iter([(value, end)]), warnings, None
     raise ImportFileError("unreadable", "в JSON нет массива объектов")
 
 
@@ -567,7 +639,9 @@ class JsonSource(Source):
         self._text = text
         self._progress = 0.0
         self.columns: list[str] = list(columns or [])
-        self.geometry_index: int | None = len(self.columns) if fmt == "geojson" else None
+        self.geometry_index = len(self.columns) if fmt == "geojson" else None
+        # Система координат из члена «crs» GeoJSON (кроме WGS 84)
+        self.declared_crs: str | None = None
 
     def _load_text(self) -> str:
         if self._text is None:
@@ -588,7 +662,7 @@ class JsonSource(Source):
             yield from self._lines()
             return
         text = self._load_text()
-        records, warnings = _records_from_text(text, self.format, self.whole)
+        records, warnings, self.declared_crs = _records_from_text(text, self.format, self.whole)
         for warning in warnings:
             if warning not in self.warnings:
                 self.warnings.append(warning)
@@ -719,7 +793,17 @@ def open_head(
     head = _read_head(path, 65536)
     if not head:
         raise ImportFileError("empty", "файл пуст")
-    fmt = detect_format(head, file_name, options.get("format"))
+    fmt = detect_format(head, file_name, options.get("format"), path if complete else None)
+    if fmt in FEATURE_FORMATS:
+        if not complete:  # pragma: no cover — анализ скачивает геоформаты целиком
+            raise ImportFileError("unreadable", "геоформат нельзя прочитать по началу файла")
+        from kchs_engine.data.vector import VectorSource
+
+        vector = VectorSource(fmt, path, options)
+        size = path.stat().st_size
+        return Opened(
+            fmt, vector.encoding.shown, None, vector, [], None, vector.warnings, True, size
+        )
     if fmt in EXCEL_FORMATS:
         if not complete:  # pragma: no cover — анализ скачивает книгу целиком
             raise ImportFileError("unreadable", "книгу Excel нельзя прочитать по началу файла")
@@ -763,8 +847,17 @@ def open_full(path: Path, head: Opened) -> Source:
     if head.format in EXCEL_FORMATS:
         # Строки книги читаются заново с первой — те же, что видела голова
         return head.source
+    if head.format in FEATURE_FORMATS:
+        from kchs_engine.data.vector import VectorSource
+
+        if isinstance(head.source, VectorSource):
+            return head.source.reopen()
     encoding = head.encoding or "utf-8"
     if head.format in JSON_FORMATS:
         columns = head.source.columns if isinstance(head.source, JsonSource) else []
-        return JsonSource(head.format, path=path, encoding=encoding, columns=columns)
+        full = JsonSource(head.format, path=path, encoding=encoding, columns=columns)
+        if isinstance(head.source, JsonSource):
+            # Система координат из «crs» — до чтения строк: по ней строится геометрия
+            full.declared_crs = head.source.declared_crs
+        return full
     return DelimitedSource(path, encoding, head.delimiter or ",", head.format)

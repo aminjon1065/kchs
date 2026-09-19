@@ -35,3 +35,9 @@ def users_import_contract() -> dict[str, Any]:
 def data_import_contract() -> dict[str, Any]:
     """Форматы, типы, пределы и коды ошибок импорта датасетов (ADR-0046)."""
     return _load("data_import.json")
+
+
+@lru_cache
+def data_export_contract() -> dict[str, Any]:
+    """Форматы геоэкспорта, которые собирает движок, и предел строк (ADR-0056, ADR-0068)."""
+    return _load("data_export.json")

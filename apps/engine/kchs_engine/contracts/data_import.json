@@ -7,7 +7,19 @@
     "xls",
     "json",
     "ndjson",
-    "geojson"
+    "geojson",
+    "shp",
+    "gpkg",
+    "kml",
+    "kmz",
+    "gpx"
+  ],
+  "layerFormats": [
+    "shp",
+    "gpkg",
+    "kml",
+    "kmz",
+    "gpx"
   ],
   "fieldTypes": [
     "text",
@@ -48,7 +60,8 @@
     "samplesPerColumn": 5,
     "maxColumns": 500,
     "maxFileBytes": 2147483648,
-    "analyzeTimeoutMs": 15000
+    "analyzeTimeoutMs": 15000,
+    "diffSampleRows": 20
   },
   "errorCodes": [
     "invalid_number",

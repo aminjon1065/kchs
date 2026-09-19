@@ -245,8 +245,9 @@ jobs:
         with: { version: '0.9.7' }
       - name: Тесты и линт
         working-directory: apps/engine
+        # Геоформаты и геоэкспорт (ADR-0068): GDAL, PROJ, GEOS и Arrow — из колёс групп gis и data
         run: |
-          uv sync --extra dev
+          uv sync --extra dev --extra data --extra gis
           uv run ruff check .
           uv run pytest
 

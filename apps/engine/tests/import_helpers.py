@@ -26,7 +26,19 @@ ANALYSIS_KEYS = {
     "columns",
     "preview",
     "geometry",
+    "geo",
     "warnings",
+}
+GEO_KEYS = {
+    "crs",
+    "crsName",
+    "crsSource",
+    "geometryType",
+    "layers",
+    "layer",
+    "fixed",
+    "invalid",
+    "bbox",
 }
 COLUMN_KEYS = {"index", "name", "key", "type", "semantic", "emptyShare", "unique", "invalid"}
 FORMAT_KEYS = {"precision", "thousands", "dateFormat", "currency", "scale", "prefix", "suffix"}
@@ -65,6 +77,14 @@ def assert_contract(analysis: dict[str, Any]) -> None:
     if geometry is not None:
         expected = {"latlon": {"lat", "lon"}, "wkt": {"column"}, "geojson": {"column"}}
         assert set(geometry) == {"kind"} | expected.get(geometry["kind"], set())
+    geo = analysis["geo"]
+    if geo is not None:
+        assert set(geo) == GEO_KEYS
+        assert geo["crsSource"] in ("file", "option", "default", "unknown")
+        assert geo["crs"] is None or re.fullmatch(r"EPSG:\d{4,6}", geo["crs"])
+        assert all(set(layer) == {"name", "rows", "geometryType"} for layer in geo["layers"])
+        assert isinstance(geo["fixed"], int) and isinstance(geo["invalid"], int)
+        assert geo["bbox"] is None or len(geo["bbox"]) == 4
 
 
 def analyze(path: Path, options: dict[str, Any] | None = None) -> dict[str, Any]:

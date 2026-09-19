@@ -120,6 +120,15 @@ export const EVENT_PAYLOADS = {
     errors: z.number().int(),
   }),
   'dataset.import_failed': z.object({ importId: Uuid, reason: z.string() }),
+  /** Сводка изменений готова, импорт ждёт публикации (ADR-0068). */
+  'dataset.import_review': z.object({
+    importId: Uuid,
+    added: z.number().int(),
+    changed: z.number().int(),
+    deleted: z.number().int(),
+  }),
+  'dataset.import_published': z.object({ importId: Uuid }),
+  'dataset.import_cancelled': z.object({ importId: Uuid }),
   'dataset.rows_changed': z.object({
     op: z.enum(['insert', 'update', 'delete']),
     ids: z.array(z.string()).max(1000),

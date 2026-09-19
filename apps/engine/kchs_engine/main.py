@@ -18,10 +18,13 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from kchs_engine import __version__
 from kchs_engine.config import settings
+from kchs_engine.contracts import data_export_contract
 from kchs_engine.data.analyze import analyze_object
+from kchs_engine.data.geo_export import ExportField, convert_features
 from kchs_engine.data.readers import ImportFileError
 from kchs_engine.jobs import registered_queues
 from kchs_engine.logging import configure_logging, log
+from kchs_engine.storage import download, upload
 from kchs_engine.users_import import build_template
 from kchs_engine.worker import run_workers
 
@@ -105,7 +108,23 @@ class ImportOptionsInput(BaseModel):
 
     model_config = ConfigDict(extra="ignore")
 
-    format: Literal["csv", "tsv", "xlsx", "xls", "json", "ndjson", "geojson"] | None = None
+    format: (
+        Literal[
+            "csv",
+            "tsv",
+            "xlsx",
+            "xls",
+            "json",
+            "ndjson",
+            "geojson",
+            "shp",
+            "gpkg",
+            "kml",
+            "kmz",
+            "gpx",
+        ]
+        | None
+    ) = None
     encoding: str | None = Field(default=None, max_length=40)
     delimiter: str | None = Field(default=None, min_length=1, max_length=1)
     sheet: str | None = Field(default=None, max_length=200)
@@ -114,6 +133,8 @@ class ImportOptionsInput(BaseModel):
     decimal: Literal[".", ","] | None = None
     thousands: Literal["", " ", ",", ".", "'"] | None = None
     dateOrder: Literal["dmy", "mdy", "ymd"] | None = None  # noqa: N815 — поле контракта
+    layer: str | None = Field(default=None, max_length=200)
+    crs: str | None = Field(default=None, pattern=r"^EPSG:\d{4,6}$")
 
 
 class DataAnalyzeInput(BaseModel):
@@ -153,3 +174,57 @@ async def data_analyze(
 
 def _sentence(message: str) -> str:
     return message[:1].upper() + message[1:]
+
+
+class GeoExportField(BaseModel):
+    name: str = Field(min_length=1, max_length=64)
+    label: str = Field(default="", max_length=300)
+    type: str = Field(min_length=1, max_length=40)
+
+
+class GeoExportInput(BaseModel):
+    """Выгрузка воркера (GeoJSONSeq) → файл геоформата в том же бакете (ADR-0068)."""
+
+    bucket: str = Field(min_length=1, max_length=200)
+    sourceKey: str = Field(min_length=1, max_length=1024)  # noqa: N815 — поле контракта api
+    targetKey: str = Field(min_length=1, max_length=1024)  # noqa: N815 — поле контракта api
+    format: str = Field(min_length=1, max_length=20)
+    layer: str = Field(min_length=1, max_length=200)
+    contentType: str = Field(min_length=1, max_length=200)  # noqa: N815 — поле контракта api
+    fields: list[GeoExportField] = Field(default_factory=list, max_length=500)
+
+
+@app.post("/data/geo-export")
+async def data_geo_export(
+    body: GeoExportInput,
+    x_kchs_service_token: str | None = Header(default=None),
+) -> dict[str, int]:
+    """GeoPackage, Shapefile (zip) или KML из выгрузки задания экспорта (ADR-0056, ADR-0068).
+
+    Права и политики строк и столбцов уже применил воркер; ответ — объекты и размер файла.
+    """
+    require_service_token(x_kchs_service_token)
+    if body.format not in data_export_contract()["engineFormats"]:
+        raise HTTPException(status_code=422, detail=f"Формат {body.format} движок не собирает")
+    fields = [ExportField(item.name, item.label, item.type) for item in body.fields]
+    try:
+        with tempfile.TemporaryDirectory(prefix="kchs-geo-export-") as tmp:
+            folder = Path(tmp)
+            source = await download(body.bucket, body.sourceKey, folder / "source.geojsonl")
+            target = folder / ("export.zip" if body.format == "shp" else f"export.{body.format}")
+            rows = await asyncio.to_thread(
+                convert_features, source, target, body.format, body.layer, fields
+            )
+            size = target.stat().st_size
+            await upload(body.bucket, body.targetKey, target, body.contentType)
+    except ImportFileError as error:
+        raise HTTPException(status_code=422, detail=_sentence(error.message)) from error
+    except ClientError as error:
+        code = str(error.response.get("Error", {}).get("Code", ""))
+        if code in ("NoSuchKey", "404", "NotFound"):
+            raise HTTPException(
+                status_code=404, detail="Выгрузка не найдена в хранилище"
+            ) from error
+        raise
+    log.info("geo_export.done", format=body.format, rows=rows, size=size)
+    return {"rows": rows, "size": size}

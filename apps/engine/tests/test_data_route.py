@@ -6,17 +6,21 @@ api (проверка с настоящим MinIO — tests/test_data_s3.py).
 
 import asyncio
 import shutil
+import zipfile
 from collections.abc import Iterator
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
+import numpy as np
 import pytest
+import shapely
 from botocore.exceptions import ClientError
 from bullmq.custom_errors import UnrecoverableError
 from fastapi.testclient import TestClient
 from import_helpers import assert_contract, parse_copy_csv
 from openpyxl import Workbook
+from pyogrio import raw
 
 from kchs_engine import main, worker
 from kchs_engine.config import settings
@@ -156,6 +160,37 @@ def test_книга_excel_скачивается_целиком(
     assert response.status_code == 200, response.text
     assert response.json()["format"] == "xlsx"
     assert storage.calls == [("range", 1024), ("download", path.stat().st_size)]
+
+
+def test_shapefile_в_архиве_скачивается_целиком(
+    client: TestClient, storage: FakeStorage, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    layer = tmp_path / "posts.shp"
+    raw.write(
+        str(layer),
+        shapely.to_wkb(np.array([shapely.Point(340000, 4270000)] * 30, dtype=object)),
+        [np.array([f"Пост {index}" for index in range(30)], dtype=object)],
+        ["name"],
+        geometry_type="Point",
+        crs="EPSG:32642",
+        driver="ESRI Shapefile",
+    )
+    archive = tmp_path / "posts.zip"
+    with zipfile.ZipFile(archive, "w") as packed:
+        for path in tmp_path.glob("posts.*"):
+            if path.suffix != ".zip":
+                packed.write(path, path.name)
+    storage.objects["uploads/posts.zip"] = archive.read_bytes()
+    monkeypatch.setattr(analyze_module, "SAMPLE_BYTES", 256)
+    response = post(client, "uploads/posts.zip", options={"crs": "EPSG:32642"})
+    assert response.status_code == 200, response.text
+    analysis = response.json()
+    assert_contract(analysis)
+    assert (analysis["format"], analysis["rowEstimate"]) == ("shp", 30)
+    assert analysis["geo"]["crsSource"] == "option"
+    assert storage.calls == [("range", 256), ("download", archive.stat().st_size)]
+    invalid = post(client, "uploads/posts.zip", options={"crs": "UTM42"})
+    assert invalid.status_code == 422
 
 
 def test_ошибки_анализа(

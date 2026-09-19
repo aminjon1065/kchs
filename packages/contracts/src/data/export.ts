@@ -7,10 +7,35 @@ import { QuerySortItem } from './query.js'
  * Экспорт датасета (P1-E03 S04, ADR-0056): задание очереди `exports` читает
  * строки с политиками запросившего на момент выполнения и кладёт файл в
  * хранилище экспортов (срок хранения 30 дней); скачать может только он.
+ * GeoPackage, Shapefile (zip) и KML собирает движок из выгрузки воркера (ADR-0068).
  */
-export const DATASET_EXPORT_FORMATS = ['csv', 'xlsx', 'json', 'geojson'] as const
+export const DATASET_EXPORT_FORMATS = [
+  'csv',
+  'xlsx',
+  'json',
+  'geojson',
+  'gpkg',
+  'shp',
+  'kml',
+] as const
 export const DatasetExportFormat = z.enum(DATASET_EXPORT_FORMATS)
 export type DatasetExportFormat = z.infer<typeof DatasetExportFormat>
+
+/** Форматы, которым нужно поле геометрии. */
+export const DATASET_GEO_EXPORT_FORMATS = [
+  'geojson',
+  'gpkg',
+  'shp',
+  'kml',
+] as const satisfies readonly DatasetExportFormat[]
+
+/** Форматы, которые из выгрузки воркера (GeoJSONSeq) собирает движок GDAL. */
+export const DATASET_ENGINE_EXPORT_FORMATS = [
+  'gpkg',
+  'shp',
+  'kml',
+] as const satisfies readonly DatasetExportFormat[]
+export type DatasetEngineExportFormat = (typeof DATASET_ENGINE_EXPORT_FORMATS)[number]
 
 /** Больше строк экспорт не выгружает — результат помечается `truncated`. */
 export const DATASET_EXPORT_MAX_ROWS = 1_000_000

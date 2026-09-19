@@ -24,12 +24,13 @@ from pathlib import Path
 from typing import Any
 
 from kchs_engine.contracts import data_import_contract
-from kchs_engine.data.geometry import GeometryError, any_to_ewkt, geojson_to_ewkt, point_ewkt
+from kchs_engine.data.crs import GeometryReader
+from kchs_engine.data.geometry import BadGeometry, GeometryError, ReadyGeometry
 from kchs_engine.data.profile import build_profile, sample_rows
 from kchs_engine.data.readers import (
     JSON_FORMATS,
     BrokenLine,
-    JsonSource,
+    ImportFileError,
     Source,
     open_full,
     open_head,
@@ -126,6 +127,8 @@ class Context:
     keep_empty: bool
     # Справочник территорий: ключ сопоставления → идентификатор, "" — неоднозначно (ADR-0057)
     territories: Mapping[str, str] | None = None
+    # Система координат геометрии в столбцах, указанная пользователем (ADR-0068)
+    crs: str | None = None
 
 
 Converter = Callable[[Any], str | None]
@@ -523,22 +526,33 @@ def _json_converter(limit: int) -> Converter:
     return convert
 
 
-def _geometry_value(raw: Any) -> str | None:
-    if raw is None:
-        return None
-    if raw.__class__ is str:
-        text = raw.strip(STRIP_CHARS)
-        if not text or _is_null(text):
+def _geometry_converter(reader: GeometryReader) -> Converter:
+    """Ячейка геометрии → EWKT в EPSG:4326 (с пересчётом из системы координат файла)."""
+
+    def convert(raw: Any) -> str | None:
+        if raw is None:
             return None
-        source: Any = text
-    elif isinstance(raw, dict):
-        source = raw
-    else:
-        raise CellError("invalid_geometry", raw)
-    try:
-        return any_to_ewkt(source) if isinstance(source, str) else geojson_to_ewkt(source)
-    except (GeometryError, ValueError, TypeError, RecursionError) as error:
-        raise CellError("invalid_geometry", raw) from error
+        kind = raw.__class__
+        if kind is ReadyGeometry:
+            # Геометрия объекта геоформата: уже пересчитана и проверена при чтении
+            return str(raw)
+        if kind is BadGeometry:
+            raise CellError("invalid_geometry", raw.text)
+        if kind is str:
+            text = raw.strip(STRIP_CHARS)
+            if not text or _is_null(text):
+                return None
+            source: Any = text
+        elif isinstance(raw, dict):
+            source = raw
+        else:
+            raise CellError("invalid_geometry", raw)
+        try:
+            return reader.value(source)
+        except (GeometryError, ImportFileError, ValueError, TypeError, RecursionError) as error:
+            raise CellError("invalid_geometry", raw) from error
+
+    return convert
 
 
 def converter(item: MappingItem, context: Context) -> Converter:
@@ -559,7 +573,7 @@ def converter(item: MappingItem, context: Context) -> Converter:
     if kind == "json":
         return _json_converter(TEXT_LIMITS["json"])
     if kind == "geometry":
-        return _geometry_value
+        return _geometry_converter(GeometryReader(context.crs))
     if kind == "territory":
         return _territory_converter(context)
     return _text_converter(TEXT_LIMITS.get(kind, TEXT_LIMITS["text"]), context.keep_empty)
@@ -590,10 +604,22 @@ def _blank(raw: Any) -> bool:
     return False
 
 
-def geometry_builder(spec: dict[str, Any], context: Context, source: Source) -> GeometryBuilder:
-    """Геометрия строки по `ImportGeometry`: широта/долгота, WKT, GeoJSON, объект GeoJSON."""
+def geometry_builder(
+    spec: dict[str, Any],
+    context: Context,
+    source: Source,
+    reader: GeometryReader | None = None,
+) -> GeometryBuilder:
+    """Геометрия строки по `ImportGeometry`: широта/долгота, WKT, GeoJSON, объект.
+
+    Система координат — указанная пользователем, иначе объявленная в GeoJSON,
+    иначе WGS 84; геометрии геоформатов источник уже пересчитал сам.
+    """
     kind = spec.get("kind")
     decimal = context.decimal
+    if reader is None:
+        reader = GeometryReader(context.crs or getattr(source, "declared_crs", None))
+    geometry_value = _geometry_converter(reader)
     try:
         if kind == "latlon":
             lat_index, lon_index = int(spec["lat"]), int(spec["lon"])
@@ -615,18 +641,18 @@ def geometry_builder(spec: dict[str, Any], context: Context, source: Source) -> 
             if lat_text is None or lon_text is None:
                 raise CellError("invalid_geometry", shown)
             try:
-                return point_ewkt(lon_text, lat_text)
-            except (GeometryError, ValueError) as error:
+                return reader.point(lon_text, lat_text)
+            except (GeometryError, ImportFileError, ValueError) as error:
                 raise CellError("invalid_geometry", shown) from error
 
         return from_pair
     if kind in ("wkt", "geojson"):
-        return lambda cells: _geometry_value(_cell(cells, column))
+        return lambda cells: geometry_value(_cell(cells, column))
     if kind == "features":
-        position = source.geometry_index if isinstance(source, JsonSource) else None
+        position = source.geometry_index
         if position is None:
             return lambda _cells: None
-        return lambda cells: _geometry_value(_cell(cells, position))
+        return lambda cells: geometry_value(_cell(cells, position))
     raise ImportSpecError(f"неизвестный вид геометрии «{kind}»")
 
 
@@ -683,6 +709,7 @@ def normalize_file(
             zone=resolve_zone(zone),
             keep_empty=head.format in JSON_FORMATS,
             territories=territories,
+            crs=options.get("crs"),
         )
         converters = [
             (item.column, converter(item, context), item.field_key, item.required) for item in items

@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from kchs_engine.contracts import data_import_contract
-from kchs_engine.data.readers import JSON_FORMATS, JsonSource, Opened, Row, Source
+from kchs_engine.data.readers import RECORD_FORMATS, Opened, Row, Source
 from kchs_engine.data.values import (
     cell_text,
     is_blank,
@@ -62,6 +62,8 @@ class Profile:
     text_dates: bool
     notes: list[str] = field(default_factory=list)
     truncated_columns: int = 0
+    # Система координат геометрии в столбцах, указанная пользователем (ADR-0068)
+    crs: str | None = None
 
     @property
     def start(self) -> int:
@@ -394,12 +396,13 @@ def build_profile(opened: Opened, options: dict[str, Any]) -> Profile:
     notes: list[str] = []
     limit = sample_rows()
 
-    if opened.format in JSON_FORMATS:
+    if opened.format in RECORD_FORMATS:
+        # Ключи объектов JSON или поля слоя геоформата; геометрия объекта — не столбец
         source = opened.source
-        names = list(source.columns) if isinstance(source, JsonSource) else []
+        names = [str(name) for name in getattr(source, "columns", [])]
         skip, header = 0, 0
         data_width = max((len(cells) for cells in rows), default=0)
-        if isinstance(source, JsonSource) and source.geometry_index is not None:
+        if source.geometry_index is not None:
             data_width = source.geometry_index
         width = max(len(names), data_width)
         names += [""] * (width - len(names))
@@ -454,4 +457,5 @@ def build_profile(opened: Opened, options: dict[str, Any]) -> Profile:
         text_dates=locale.text_dates,
         notes=notes,
         truncated_columns=truncated,
+        crs=options.get("crs"),
     )

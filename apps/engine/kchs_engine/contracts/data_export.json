@@ -1,0 +1,9 @@
+{
+  "$comment": "Сгенерировано из packages/contracts командой `pnpm --filter @kchs/contracts gen:engine`. Не редактировать вручную.",
+  "engineFormats": [
+    "gpkg",
+    "shp",
+    "kml"
+  ],
+  "maxRows": 1000000
+}

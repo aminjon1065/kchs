@@ -9,6 +9,7 @@ from datetime import date, datetime, time, timedelta
 from pathlib import Path
 
 import pytest
+import shapely
 from import_helpers import analyze, column, mapping_from, normalize
 from openpyxl import Workbook
 
@@ -695,16 +696,19 @@ def test_wkt_в_столбце(tmp_path: Path) -> None:
     )
     analysis = analyze(source)
     shape = column(analysis, "Геометрия")
-    assert (shape["type"], shape["semantic"], shape["invalid"]) == ("geometry", "geometry", 3)
+    assert (shape["type"], shape["semantic"], shape["invalid"]) == ("geometry", "geometry", 2)
     assert analysis["geometry"] == {"kind": "wkt", "column": 2}
     done = normalize(source, mapping_from(analysis))
     geometry = {row[1]: row[3] for row in done.rows}
     assert geometry["2"] == "SRID=4326;LINESTRING(68 38,69 39)"
     assert geometry["4"] == "SRID=4326;POINT(68 38)"
     assert geometry["6"] == "SRID=4326;POINT(68 38)"
+    # EWKT в другой системе координат пересчитывается в WGS 84 (ADR-0068)
+    assert geometry["8"].startswith("SRID=4326;POINT")
+    mercator = shapely.from_wkt(geometry["8"].split(";", 1)[1])
+    assert (mercator.x, mercator.y) == pytest.approx((8.983e-6, 1.797e-5), rel=1e-3)
     assert [(item["row"], item["code"]) for item in done.errors] == [
         ("8", "invalid_geometry"),
-        ("9", "invalid_geometry"),
         ("10", "invalid_geometry"),
     ]
 

@@ -12,17 +12,21 @@ import re
 import tempfile
 from collections import Counter
 from dataclasses import dataclass, field
-from datetime import date, datetime, time, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from pathlib import Path
 from typing import Any
 
 from kchs_engine.contracts import data_import_contract
-from kchs_engine.data.geometry import GEOJSON_GEOMETRY_TYPES, GeometryError, any_to_ewkt
+from kchs_engine.data.crs import GeometryReader, crs_name, geometry_summary, is_geographic
+from kchs_engine.data.geometry import GEOJSON_GEOMETRY_TYPES, GeometryError
 from kchs_engine.data.keys import unique_keys
+from kchs_engine.data.normalize import CellError, Context, geometry_builder
 from kchs_engine.data.profile import Profile, build_profile, sample_rows
 from kchs_engine.data.readers import (
     EXCEL_FORMATS,
+    FEATURE_FORMATS,
     MAX_JSON_BYTES,
+    RECORD_FORMATS,
     SAMPLE_BYTES,
     BrokenLine,
     ImportFileError,
@@ -47,6 +51,7 @@ from kchs_engine.data.values import (
     parse_number,
     parse_time,
 )
+from kchs_engine.data.vector import VectorSource
 from kchs_engine.storage import download, object_size, read_range
 
 # Доля значений выборки, достаточная для типа (остальное — `invalid`)
@@ -190,15 +195,15 @@ def _fraction_digits(raw: Any, text: str, decimal: str) -> int:
     return 0
 
 
-def _is_geometry(raw: Any, text: str) -> bool:
+def _is_geometry(raw: Any, text: str, reader: GeometryReader) -> bool:
     if isinstance(raw, dict):
         if raw.get("type") not in GEOJSON_GEOMETRY_TYPES:
             return False
     elif not isinstance(raw, str):
         return False
     try:
-        any_to_ewkt(raw)
-    except (GeometryError, ValueError, TypeError, RecursionError):
+        reader.value(raw)
+    except (GeometryError, ImportFileError, ValueError, TypeError, RecursionError):
         return False
     return True
 
@@ -365,8 +370,9 @@ def infer_column(index: int, header: str, values: list[Any], profile: Profile) -
         info.invalid = count - valid
         return info
 
-    # Геометрия: WKT/EWKT или GeoJSON-объект геометрии
-    geometry_valid = sum(1 for raw, text in present if _is_geometry(raw, text))
+    # Геометрия: WKT/EWKT или GeoJSON-объект геометрии (в системе координат из параметров)
+    reader = GeometryReader(profile.crs)
+    geometry_valid = sum(1 for raw, text in present if _is_geometry(raw, text, reader))
     if enough(geometry_valid) or (
         geometry_valid and enough(sum(1 for raw, text in present if _looks_geometry(raw, text)))
     ):
@@ -533,42 +539,124 @@ def _within(column: ColumnInfo, limit: float) -> bool:
     return inside >= math.ceil(TYPE_SHARE * len(values))
 
 
-def _suggest_geometry(opened: Opened, columns: list[ColumnInfo]) -> dict[str, Any] | None:
-    if opened.format == "geojson":
+def _coordinate_pair(
+    columns: list[ColumnInfo], degrees: bool
+) -> tuple[ColumnInfo, ColumnInfo] | None:
+    """Столбцы широты (y) и долготы (x): по названию, в градусах — и по диапазону значений."""
+    numeric = [column for column in columns if column.type in ("integer", "number")]
+    lat = next((c for c in numeric if c.hints.lat and (not degrees or _within(c, 90))), None)
+    lon = next(
+        (c for c in numeric if c.hints.lon and c is not lat and (not degrees or _within(c, 180))),
+        None,
+    )
+    return (lat, lon) if lat is not None and lon is not None else None
+
+
+def _suggest_geometry(
+    opened: Opened, columns: list[ColumnInfo], profile: Profile
+) -> dict[str, Any] | None:
+    if opened.format == "geojson" or opened.format in FEATURE_FORMATS:
         return {"kind": "features"}
     for column in columns:
         if column.type == "geometry" and column.geometry_kind:
             return {"kind": column.geometry_kind, "column": column.index}
-    numeric = [column for column in columns if column.type in ("integer", "number")]
-    lat = next((c for c in numeric if c.hints.lat and _within(c, 90)), None)
-    lon = next((c for c in numeric if c.hints.lon and c is not lat and _within(c, 180)), None)
-    if lat is not None and lon is not None:
+    # Координаты в метрах (UTM, Гаусс — Крюгер) — только с указанной системой координат
+    pair = _coordinate_pair(columns, degrees=is_geographic(profile.crs))
+    if pair is not None:
+        lat, lon = pair
         return {"kind": "latlon", "lat": lat.index, "lon": lon.index}
     return None
 
 
-def _features_note(profile: Profile, opened: Opened) -> str | None:
-    """Геометрии объектов GeoJSON, которые не загрузятся."""
+def _metric_pair(columns: list[ColumnInfo]) -> tuple[ColumnInfo, ColumnInfo] | None:
+    """Столбцы x/y, похожие на координаты не в градусах: без системы координат не собрать."""
+    pair = _coordinate_pair(columns, degrees=False)
+    if pair is None or _coordinate_pair(columns, degrees=True) is not None:
+        return None
+    return pair
+
+
+def _geo_info(
+    opened: Opened, profile: Profile, suggestion: dict[str, Any] | None, metric: bool
+) -> dict[str, Any] | None:
+    """`ImportGeoInfo`: система координат, слои и качество геометрий выборки."""
     source = opened.source
-    if not isinstance(source, JsonSource) or source.geometry_index is None:
-        return None
-    position = source.geometry_index
-    invalid = 0
-    for _number, cells in profile.data:
-        geometry = cells[position] if position < len(cells) else None
-        if geometry is None:
-            continue
-        try:
-            any_to_ewkt(geometry)
-        except (GeometryError, ValueError, TypeError, RecursionError):
-            invalid += 1
-    if not invalid:
-        return None
-    return (
-        f"Геометрия {invalid} {plural(invalid, 'объекта', 'объектов', 'объектов')} выборки "
-        "не читается (незамкнутые кольца, координаты вне диапазона) — "
-        "такие строки попадут в файл ошибок"
+    if isinstance(source, VectorSource):
+        pipeline = source.pipeline
+        return {
+            "crs": source.crs.code,
+            "crsName": source.crs.name,
+            "crsSource": source.crs.source,
+            "geometryType": source.declared_type or pipeline.geometry_type(),
+            "layers": [
+                {"name": layer.name, "rows": layer.rows, "geometryType": layer.geometry_type}
+                for layer in source.layers
+            ],
+            "layer": source.layer.name,
+            "fixed": pipeline.fixed,
+            "invalid": pipeline.invalid,
+            "bbox": pipeline.bbox,
+        }
+    info: dict[str, Any] = {
+        "crs": None,
+        "crsName": None,
+        "crsSource": "unknown",
+        "geometryType": None,
+        "layers": [],
+        "layer": None,
+        "fixed": 0,
+        "invalid": 0,
+        "bbox": None,
+    }
+    if suggestion is None:
+        return info if metric else None
+    declared = source.declared_crs if isinstance(source, JsonSource) else None
+    code = profile.crs or declared or "EPSG:4326"
+    info["crs"] = code
+    info["crsName"] = crs_name(code)
+    info["crsSource"] = "option" if profile.crs else ("file" if declared else "default")
+    # Геометрии выборки — тем же построителем, что и при нормализации
+    context = Context(
+        decimal=profile.decimal,
+        date_order=profile.date_order,
+        zone=UTC,
+        keep_empty=opened.format in RECORD_FORMATS,
+        crs=profile.crs,
     )
+    reader = GeometryReader(code)
+    build = geometry_builder(suggestion, context, source, reader)
+    values: list[str] = []
+    for _number, cells in profile.data:
+        try:
+            value = build(cells)
+        except CellError:
+            info["invalid"] += 1
+            continue
+        if value is not None:
+            values.append(value)
+    info["fixed"] = reader.fixed
+    info["geometryType"], info["bbox"] = geometry_summary(values)
+    return info
+
+
+def _geometry_notes(geo: dict[str, Any] | None, opened: Opened) -> list[str]:
+    """Предупреждения о геометриях объектов выборки: исправленных и не читаемых."""
+    if geo is None or (opened.format not in FEATURE_FORMATS and opened.format != "geojson"):
+        return []
+    notes = []
+    fixed, invalid = int(geo["fixed"]), int(geo["invalid"])
+    if fixed:
+        notes.append(
+            f"Геометрия {fixed} {plural(fixed, 'объекта', 'объектов', 'объектов')} выборки "
+            "некорректна (самопересечения, петли) — при загрузке она будет исправлена"
+        )
+    if invalid:
+        notes.append(
+            f"Геометрия {invalid} {plural(invalid, 'объекта', 'объектов', 'объектов')} выборки "
+            "не читается (незамкнутые кольца, координаты вне диапазона) — "
+            "такие строки попадут в файл ошибок"
+        )
+    return notes
 
 
 # ─── Оценка числа строк ──────────────────────────────────────────────────────
@@ -585,6 +673,9 @@ def _data_rows(profile: Profile) -> int:
 def _row_estimate(opened: Opened, profile: Profile, file_size: int) -> tuple[int, bool]:
     """Число строк данных: точное, если голова — весь файл, иначе пропорционально размеру."""
     source = opened.source
+    if isinstance(source, VectorSource):
+        # Число объектов слоя известно из файла
+        return source.layer.rows, False
     if opened.format in EXCEL_FORMATS:
         if profile.exhausted:
             return _data_rows(profile), False
@@ -652,7 +743,7 @@ def _analysis(opened: Opened, options: dict[str, Any], size: int) -> dict[str, A
         values = [cells[index] if index < len(cells) else None for _number, cells in profile.data]
         header = profile.names[index] if index < len(profile.names) else ""
         info = infer_column(index, header, values, profile)
-        if not header and info.present == 0 and opened.format not in ("json", "ndjson", "geojson"):
+        if not header and info.present == 0 and opened.format not in RECORD_FORMATS:
             skipped.append(index + 1)
             continue
         columns.append(info)
@@ -684,9 +775,15 @@ def _analysis(opened: Opened, options: dict[str, Any], size: int) -> dict[str, A
     if broken and opened.format == "ndjson":
         shown = ", ".join(str(number) for number in broken[:5])
         warnings.append(f"Строки не читаются как JSON: {shown} — они попадут в файл ошибок")
-    features = _features_note(profile, opened) if opened.format == "geojson" else None
-    if features:
-        warnings.append(features)
+    suggestion = _suggest_geometry(opened, columns, profile)
+    metric = _metric_pair(columns) if suggestion is None else None
+    if metric is not None:
+        warnings.append(
+            f"Столбцы «{metric[1].name}» и «{metric[0].name}» похожи на координаты не в "
+            "градусах — выберите систему координат, чтобы собрать из них геометрию"
+        )
+    geo = _geo_info(opened, profile, suggestion, metric is not None)
+    warnings.extend(_geometry_notes(geo, opened))
 
     row_estimate, approx = _row_estimate(opened, profile, size)
     preview_rows = int(_limits()["previewRows"])
@@ -709,7 +806,8 @@ def _analysis(opened: Opened, options: dict[str, Any], size: int) -> dict[str, A
         "approx": approx,
         "columns": [column.payload(key) for column, key in zip(columns, keys, strict=True)],
         "preview": preview,
-        "geometry": _suggest_geometry(opened, columns),
+        "geometry": suggestion,
+        "geo": geo,
         "warnings": warnings,
     }
 
@@ -735,8 +833,8 @@ async def _analyze_object(
         complete = size <= SAMPLE_BYTES
         head = await read_range(bucket, key, min(size, SAMPLE_BYTES))
         fmt = detect_format(head[:65536], file_name, options.get("format"))
-        if not complete and fmt in EXCEL_FORMATS:
-            # Книгу Excel (zip) по началу не прочитать — нужна целиком
+        if not complete and (fmt in EXCEL_FORMATS or fmt in FEATURE_FORMATS):
+            # Книгу Excel и геоформаты (zip, GeoPackage, XML) по началу не прочитать
             await download(bucket, key, target)
             complete = True
         else:
