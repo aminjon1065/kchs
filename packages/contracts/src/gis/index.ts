@@ -1,4 +1,5 @@
 export * from './basemap.js'
+export * from './feature-edit.js'
 export * from './geocode.js'
 
 export * from './layer.js'

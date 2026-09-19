@@ -20,6 +20,8 @@ import {
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { authorize } from '~/kernel/access/authorize.js'
+import { registerSubscriber } from '~/kernel/events/bus.js'
+import { registerInboxActionHandler } from '~/kernel/inbox/actions.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
 import { registerSystemDataset } from '~/kernel/system-datasets.js'
 import { db } from '~/shared/db/client.js'
@@ -28,13 +30,16 @@ import { errors } from '~/shared/errors.js'
 import { rateLimit } from '~/shared/http/rate-limit.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { registerBasemapObjectType, registerBasemapRoutes } from './basemaps.js'
+import { FeatureEditService } from './domain/feature-edit-service.js'
 import { FeatureService } from './domain/feature-service.js'
+import { featureSubscribers } from './domain/feature-subscribers.js'
 import { LayerService } from './domain/layer-service.js'
 import { LayerStatsService } from './domain/layer-stats.js'
 import { MapService } from './domain/map-service.js'
 import { TERRITORIES_SYSTEM_DATASET } from './domain/system-dataset.js'
 import { TerritoryService } from './domain/territory-service.js'
 import { TileService } from './domain/tile-service.js'
+import { registerFeatureRoutes } from './http/feature-routes.js'
 import { registerTerritoryRoutes } from './http/territory-routes.js'
 
 const gunzip = promisify(gunzipCallback)
@@ -105,6 +110,14 @@ export function registerGisObjectTypes(): void {
         manage: { minLevel: 'manage' },
         share: { minLevel: 'manage' },
         delete: { minLevel: 'manage' },
+        // Правка объектов слоя (ADR-0076): напрямую и проверка правок — edit,
+        // предложение на проверку модерируемого слоя — comment («предлагать правки»)
+        ...(type === 'layer'
+          ? {
+              edit_features: { minLevel: 'edit' as const },
+              suggest_features: { minLevel: 'comment' as const },
+            }
+          : {}),
       },
       discussable: true,
       linkable: true,
@@ -112,6 +125,19 @@ export function registerGisObjectTypes(): void {
       searchable: (id) => titleSearchable(id, type),
     })
   }
+
+  // Кнопки дела «Проверить правку» во Входящих и в Telegram (ADR-0076)
+  registerInboxActionHandler('review_edit', async (ctx, { item, action, comment }) => {
+    const editId = item.payload.editId
+    if (!item.objectId || typeof editId !== 'string' || !['approve', 'reject'].includes(action)) {
+      throw errors.validation('Нет такого действия')
+    }
+    await FeatureEditService.review(ctx, item.objectId, editId, {
+      decision: action === 'approve' ? 'approve' : 'reject',
+      force: false,
+      ...(comment ? { comment } : {}),
+    })
+  })
 
   registerObjectType({
     type: 'territory',
@@ -159,9 +185,15 @@ export function registerGisObjectTypes(): void {
   registerSystemDataset(TERRITORIES_SYSTEM_DATASET)
 }
 
+/** Подписчики модуля — только в роли worker: уведомления о правках слоёв. */
+export function registerGisBackground(): void {
+  for (const subscriber of featureSubscribers) registerSubscriber(subscriber)
+}
+
 export function registerGisRoutes(route: RouteRegistrar): void {
   registerTerritoryRoutes(route)
   registerBasemapRoutes(route)
+  registerFeatureRoutes(route)
   route({
     method: 'GET',
     url: '/territories',

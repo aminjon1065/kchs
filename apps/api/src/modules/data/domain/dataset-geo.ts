@@ -11,6 +11,16 @@ const CACHE_TTL_SECONDS = 3600
 /** Тип геометрии слоя определяется по выборке строк — таблица может быть большой. */
 const TYPE_SAMPLE = 1000
 const DIMENSION_TYPES: Record<number, LayerGeometryType> = { 0: 'point', 1: 'line', 2: 'polygon' }
+/**
+ * Пустой датасет: тип — из описания поля (слой для рисования с нуля, ADR-0076),
+ * без него — точки.
+ */
+const DECLARED_TYPES: Record<string, LayerGeometryType> = {
+  point: 'point',
+  line: 'line',
+  polygon: 'polygon',
+  any: 'mixed',
+}
 
 export interface DatasetGeometry {
   datasetId: string
@@ -76,8 +86,9 @@ export const DatasetGeo = {
                           LIMIT ${TYPE_SAMPLE}) sample`),
       )
       const types = new Set(dimensions.map((row) => DIMENSION_TYPES[Number(row.dimension)]))
+      const declared = DECLARED_TYPES[field.geometryType ?? 'point'] ?? 'point'
       const geometryType: LayerGeometryType =
-        types.size === 1 ? ([...types][0] ?? 'mixed') : types.size === 0 ? 'point' : 'mixed'
+        types.size === 1 ? ([...types][0] ?? 'mixed') : types.size === 0 ? declared : 'mixed'
       summary = {
         geometryType,
         extent:

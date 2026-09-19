@@ -265,6 +265,7 @@ export const KNOWN_DOMAINS = [
   'project',
   'layer',
   'map',
+  'feature',
   'territory',
   'analysis',
   'basemap',

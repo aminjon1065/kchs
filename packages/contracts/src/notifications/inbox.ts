@@ -18,6 +18,8 @@ export const INBOX_KINDS = [
   'access_request',
   'alert',
   'import_error',
+  /** Правка объектов модерируемого слоя ждёт проверки (ADR-0076). */
+  'review_edit',
 ] as const
 export const InboxKind = z.enum(INBOX_KINDS)
 export type InboxKind = z.infer<typeof InboxKind>

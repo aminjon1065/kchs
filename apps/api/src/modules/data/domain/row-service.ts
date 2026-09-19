@@ -1,4 +1,5 @@
 import {
+  atLeast,
   type DatasetRow,
   type DatasetRowHistoryEntry,
   type DatasetRowInput,
@@ -12,6 +13,7 @@ import {
 } from '@kchs/contracts'
 import { fieldSchema } from '@kchs/fields'
 import { eq, type SQL, sql } from 'drizzle-orm'
+import { authorize } from '~/kernel/access/authorize.js'
 import { directory } from '~/kernel/directory/port.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { type TerritoryIndex, territoryIndex } from '~/modules/gis/public.js'
@@ -199,6 +201,22 @@ async function writable(ctx: Ctx, datasetId: string) {
   return { grant, storage, territories }
 }
 
+/** Может ли пользователь писать строки датасета напрямую и почему нет. */
+export interface RowWriteAccess {
+  /** Видит строки датасета (с его политиками). */
+  view: boolean
+  direct: boolean
+  reason: 'no_data_access' | 'no_rights' | 'dataset_readonly' | 'row_policy' | null
+}
+
+/**
+ * Транзакция вызывающего (правка объекта слоя вместе с событием модуля GIS,
+ * применение принятой правки, ADR-0076) или своя.
+ */
+function inTransaction<T>(outer: Executor | undefined, work: (tx: Executor) => Promise<T>) {
+  return outer ? work(outer) : db().transaction(work)
+}
+
 /** Видимые пользователю поля (скрытые политикой не читаются и не возвращаются). */
 const visibleFields = (storage: DatasetStorage, grant: DatasetGrant) =>
   storage.fields.filter((field) => !grant.hidden.has(field.key) && !grant.masked.has(field.key))
@@ -350,7 +368,63 @@ export const RowService = {
     return toDatasetRow(result.fields, row)
   },
 
-  async insert(ctx: Ctx, datasetId: string, rows: DatasetRowInput[]): Promise<DatasetRow[]> {
+  /**
+   * Правка напрямую (ADR-0051, ADR-0076): право edit, правка включена в
+   * настройках, строки не ограничены политикой — как у записи строк.
+   */
+  async writeAccess(ctx: Ctx, datasetId: string): Promise<RowWriteAccess> {
+    const view = await authorize(ctx, 'view', datasetId, { soft: true })
+    if (!view.allowed) return { view: false, direct: false, reason: 'no_data_access' }
+    const [edit, grant, storage] = await Promise.all([
+      authorize(ctx, 'edit', datasetId, { soft: true }),
+      DatasetAccess.resolve(ctx, datasetId),
+      DatasetService.storage(datasetId),
+    ])
+    const reason: RowWriteAccess['reason'] =
+      !edit.allowed || !atLeast(grant.level, 'edit')
+        ? 'no_rights'
+        : !storage.settings.editable
+          ? 'dataset_readonly'
+          : grant.rows.kind !== 'all'
+            ? 'row_policy'
+            : null
+    return { view: true, direct: reason === null, reason }
+  },
+
+  /**
+   * Значения строки с правами пользователя — те же проверки, что при записи, но
+   * без записи (предложение правки на проверку, ADR-0076): поле видимо и не
+   * маскировано, значение по типу, обязательные — при создании. Результат —
+   * значения в JSON-виде (территория — идентификатором справочника).
+   */
+  async validate(
+    ctx: Ctx,
+    datasetId: string,
+    values: Record<string, unknown>,
+    insert: boolean,
+  ): Promise<Record<string, unknown>> {
+    const grant = await DatasetAccess.resolve(ctx, datasetId)
+    const storage = await DatasetService.storage(datasetId)
+    if (!storage.settings.editable) {
+      throw errors.forbidden('Правка строк отключена в настройках датасета')
+    }
+    const territories = storage.fields.some((field) => field.type === 'territory')
+      ? await territoryIndex()
+      : null
+    return Object.fromEntries(
+      prepare(storage, grant, values, insert, territories).map((item) => [
+        item.field.key,
+        jsonOut(item.value, item.field.type),
+      ]),
+    )
+  },
+
+  async insert(
+    ctx: Ctx,
+    datasetId: string,
+    rows: DatasetRowInput[],
+    outer?: Executor,
+  ): Promise<DatasetRow[]> {
     const { grant, storage, territories } = await writable(ctx, datasetId)
     const prepared = rows.map((row, index) => {
       try {
@@ -372,7 +446,7 @@ export const RowService = {
     const table = sql.raw(qualified(storage.table))
     const columns = fields.map((field) => sql.raw(ident(field.physical)))
 
-    return db().transaction(async (tx) => {
+    return inTransaction(outer, async (tx) => {
       let inserted: Array<{ _id: string; _ver: number }>
       try {
         inserted = await tx.execute<{ _id: string; _ver: number }>(
@@ -439,6 +513,7 @@ export const RowService = {
     datasetId: string,
     rowId: string,
     patch: DatasetRowPatch,
+    outer?: Executor,
   ): Promise<DatasetRow> {
     const { grant, storage, territories } = await writable(ctx, datasetId)
     const assignments = prepare(storage, grant, patch.values, false, territories)
@@ -447,7 +522,7 @@ export const RowService = {
     const table = sql.raw(qualified(storage.table))
     const userId = actorId(ctx)
 
-    return db().transaction(async (tx) => {
+    return inTransaction(outer, async (tx) => {
       const [current] = await tx.execute<Record<string, unknown>>(
         sql`SELECT _id::text AS _id, _ver ${selectList(fields)} FROM ${table}
              WHERE _id = ${rowId}::bigint AND _deleted_at IS NULL FOR UPDATE`,
@@ -549,8 +624,18 @@ export const RowService = {
     )
   },
 
-  /** Удаление: при истории — мягкое (строка остаётся для версий и истории), иначе — окончательное. */
-  async remove(ctx: Ctx, datasetId: string, ids: string[]): Promise<number> {
+  /**
+   * Удаление: при истории — мягкое (строка остаётся для версий и истории), иначе —
+   * окончательное. С `ver` (одна строка, объект на карте) — только той версии,
+   * что видел пользователь: строку изменили — 409 с текущими значениями.
+   */
+  async remove(
+    ctx: Ctx,
+    datasetId: string,
+    ids: string[],
+    outer?: Executor,
+    options: { ver?: number } = {},
+  ): Promise<number> {
     const { grant, storage } = await writable(ctx, datasetId)
     const unique = [...new Set(ids)]
     // Идентификаторы проверены контрактом (цифры) — литерал массива безопасен
@@ -559,7 +644,39 @@ export const RowService = {
     const userId = actorId(ctx)
     const fields = visibleFields(storage, grant)
 
-    return db().transaction(async (tx) => {
+    return inTransaction(outer, async (tx) => {
+      if (options.ver !== undefined) {
+        const [rowId] = unique
+        if (!rowId || unique.length !== 1) throw errors.validation('Версия — для одной строки')
+        const [current] = await tx.execute<Record<string, unknown>>(
+          sql`SELECT _id::text AS _id, _ver ${selectList(fields)} FROM ${table}
+               WHERE _id = ${rowId}::bigint AND _deleted_at IS NULL FOR UPDATE`,
+        )
+        if (!current) throw errors.notFound('Строка')
+        const currentVer = Number(current._ver)
+        if (currentVer !== options.ver) {
+          const currentValues = valuesOf(current, fields)
+          const changedFields = await RowService.changedSince(
+            tx,
+            storage,
+            rowId,
+            options.ver,
+            currentValues,
+            {},
+          )
+          throw new AppError(
+            'conflict',
+            'Строку уже изменили — проверьте её текущие значения',
+            409,
+            {
+              data: {
+                current: { _id: rowId, _ver: currentVer, values: currentValues },
+                changedFields,
+              },
+            },
+          )
+        }
+      }
       let removed: Array<Record<string, unknown>>
       if (storage.settings.trackHistory) {
         removed = await tx.execute<Record<string, unknown>>(

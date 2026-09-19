@@ -192,6 +192,43 @@ export const EVENT_PAYLOADS = {
   'layer.style_changed': z.object({ changed: z.array(z.string()) }),
   'map.updated': z.object({ changed: z.array(z.string()) }),
 
+  // ── gis: правка объектов (07-gis-engine.md §7, ADR-0076) ───────────────────
+  // Объект события — слой; строка датасета — rowId, принятая правка — editId
+  'feature.created': z.object({
+    datasetId: Uuid,
+    rowId: z.string(),
+    editId: z.string().nullable(),
+  }),
+  /** fields — изменённые поля (геометрия — ключом своего поля). */
+  'feature.updated': z.object({
+    datasetId: Uuid,
+    rowId: z.string(),
+    editId: z.string().nullable(),
+    fields: z.array(z.string()),
+  }),
+  'feature.deleted': z.object({
+    datasetId: Uuid,
+    rowId: z.string(),
+    editId: z.string().nullable(),
+  }),
+  /** Правка модерируемого слоя ждёт проверки. */
+  'feature.edit_submitted': z.object({
+    editId: z.string(),
+    op: z.enum(['create', 'update', 'delete']),
+    datasetId: Uuid,
+    rowId: z.string().nullable(),
+    authorId: Uuid.nullable(),
+  }),
+  /** Решение по правке: принята (применена строкой датасета) или отклонена. */
+  'feature.edit_reviewed': z.object({
+    editId: z.string(),
+    op: z.enum(['create', 'update', 'delete']),
+    decision: z.enum(['approved', 'rejected']),
+    datasetId: Uuid,
+    rowId: z.string().nullable(),
+    authorId: Uuid.nullable(),
+  }),
+
   // ── territories (07-gis-engine.md §11, ADR-0067) ──────────────────────────
   /** Граница единицы справочника изменилась: changedFields — geom, centroid, areaKm2. */
   'territory.updated': z.object({ code: z.string() }),

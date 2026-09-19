@@ -18,7 +18,7 @@ import {
   registerFilesRoutes,
   scheduleFilesJobs,
 } from './files/module.js'
-import { registerGisObjectTypes, registerGisRoutes } from './gis/module.js'
+import { registerGisBackground, registerGisObjectTypes, registerGisRoutes } from './gis/module.js'
 import { registerIdentityBackground, registerIdentityRoutes } from './identity/module.js'
 import { OrgService, UserService } from './identity/public.js'
 import {
@@ -86,6 +86,7 @@ export function registerModulesBackground(): void {
   registerFilesBackground()
   registerIdentityBackground()
   registerDataBackground()
+  registerGisBackground()
   registerTasksBackground()
 }
 

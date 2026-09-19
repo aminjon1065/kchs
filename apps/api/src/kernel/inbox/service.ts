@@ -105,12 +105,27 @@ export const InboxService = {
   async resolve(
     tx: Executor,
     ctx: Ctx,
-    selector: { objectId?: string; kind?: InboxKind; processStepId?: string; userId?: string },
+    selector: {
+      objectId?: string
+      kind?: InboxKind
+      processStepId?: string
+      userId?: string
+      /** Одно дело из нескольких у объекта (правка слоя): его ключ и копии заместителей. */
+      dedupeKey?: string
+    },
     outcome: 'resolved' | 'dismissed' = 'resolved',
     resolution?: string,
   ): Promise<number> {
     const conditions = [inArray(inboxItems.state, ['open', 'snoozed'])]
     if (selector.objectId) conditions.push(eq(inboxItems.objectId, selector.objectId))
+    if (selector.dedupeKey) {
+      conditions.push(
+        or(
+          eq(inboxItems.dedupeKey, selector.dedupeKey),
+          sql`starts_with(${inboxItems.dedupeKey}, ${`${selector.dedupeKey}:for:`})`,
+        )!,
+      )
+    }
     if (selector.kind) conditions.push(eq(inboxItems.kind, selector.kind))
     if (selector.processStepId)
       conditions.push(eq(inboxItems.processStepId, selector.processStepId))

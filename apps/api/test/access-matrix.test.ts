@@ -304,11 +304,33 @@ const FIXTURES: Record<string, TypeFixture> = {
       expect(response.statusCode, response.body).toBe(200)
       return { id: response.json().id, title }
     },
-    readPaths: ['/gis/layers/:id', '/gis/layers/:id/features'],
-    exportPaths: ['/gis/layers/:id/tiles/6/44/24.pbf', '/gis/layers/:id/features/1'],
-    viewerForbidden: (_fx, id) => [
-      { method: 'PATCH', url: `/gis/layers/${id}`, payload: { name: 'правка читателя' } },
+    readPaths: [
+      '/gis/layers/:id',
+      '/gis/layers/:id/features',
+      '/gis/layers/:id/editing',
+      '/gis/layers/:id/edits',
     ],
+    exportPaths: ['/gis/layers/:id/tiles/6/44/24.pbf', '/gis/layers/:id/features/1'],
+    viewerForbidden: (_fx, id) => {
+      const geometry = { type: 'Point', coordinates: [69, 38.5] }
+      return [
+        { method: 'PATCH', url: `/gis/layers/${id}`, payload: { name: 'правка читателя' } },
+        // Правка объектов (ADR-0076): напрямую и проверка — edit, предложение — comment
+        { method: 'POST', url: `/gis/layers/${id}/features`, payload: { geometry } },
+        {
+          method: 'PATCH',
+          url: `/gis/layers/${id}/features/1`,
+          payload: { values: {}, geometry, ver: 1 },
+        },
+        { method: 'DELETE', url: `/gis/layers/${id}/features/1?ver=1` },
+        { method: 'POST', url: `/gis/layers/${id}/edits`, payload: { op: 'create', geometry } },
+        {
+          method: 'POST',
+          url: `/gis/layers/${id}/edits/1/review`,
+          payload: { decision: 'approve' },
+        },
+      ]
+    },
   },
 
   map: {
