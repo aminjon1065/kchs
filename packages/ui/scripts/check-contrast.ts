@@ -204,5 +204,64 @@ for (const theme of ['light', 'dark'] as Theme[]) {
   }
 }
 
+// ─── Шкалы карт (ADR-0065) ───────────────────────────────────────────────────
+// Классы хороплета читаются по светлоте: соседние шаги последовательной шкалы
+// различаются по светлоте OKLab не меньше чем на 0,06, и светлота меняется в одну
+// сторону — в светлой теме темнеет к большему значению, в тёмной светлеет. У
+// расходящейся светлота монотонна от нейтрали к каждому полюсу (шаг ≥ 0,08),
+// полюса различимы при протанопии и дейтеранопии (ΔE ≥ 12), а симметричные шаги
+// двух плеч — при обычном зрении (ΔE ≥ 8).
+
+type Ramps = Record<string, { light: string[]; dark: string[] } | string>
+
+function lightnessSteps(ramp: string[]): number[] {
+  const lightness = ramp.map((hex) => oklab(linearRgb(hex))[0]!)
+  return lightness.slice(1).map((l, i) => (l - lightness[i]!) * 100)
+}
+
+function ramps(group: Ramps): Array<[string, { light: string[]; dark: string[] }]> {
+  return Object.entries(group).filter(
+    (entry): entry is [string, { light: string[]; dark: string[] }] => typeof entry[1] !== 'string',
+  )
+}
+
+for (const theme of ['light', 'dark'] as Theme[]) {
+  // Направление «к большему значению»: светлая тема темнеет, тёмная светлеет
+  const toHigh = theme === 'light' ? -1 : 1
+  const mapChecks: Array<[string, number, number]> = []
+  for (const [name, pair] of ramps(tokens.color.sequential as Ramps)) {
+    const steps = lightnessSteps(pair[theme]).map((step) => step * toHigh)
+    mapChecks.push([
+      `шкала ${name}: шаг светлоты к большему значению, ΔL×100`,
+      Math.min(...steps),
+      6,
+    ])
+  }
+  for (const [name, pair] of ramps(tokens.color.diverging as Ramps)) {
+    const ramp = pair[theme]
+    const middle = (ramp.length - 1) / 2
+    // От нейтрали к полюсам светлота уходит в сторону «большего»: в светлой теме темнее
+    const steps = lightnessSteps(ramp).map((step, i) => (i < middle ? -step : step) * toHigh)
+    const poles = Math.min(
+      deltaE(ramp[0]!, ramp.at(-1)!, 'protan'),
+      deltaE(ramp[0]!, ramp.at(-1)!, 'deutan'),
+    )
+    const sides = Math.min(
+      ...Array.from({ length: middle }, (_, i) => deltaE(ramp[i]!, ramp[ramp.length - 1 - i]!)),
+    )
+    mapChecks.push(
+      [`шкала ${name}: шаг светлоты от нейтрали к полюсам, ΔL×100`, Math.min(...steps), 8],
+      [`шкала ${name}: полюса при цветослепоте, ΔE`, poles, 12],
+      [`шкала ${name}: симметричные шаги плеч, ΔE`, sides, 8],
+    )
+  }
+  process.stdout.write(`\nКарты, ${theme === 'light' ? 'светлая' : 'тёмная'} тема\n`)
+  for (const [name, value, min] of mapChecks) {
+    const ok = value >= min
+    if (!ok) failed += 1
+    process.stdout.write(`  ${ok ? '✓' : '✗'} ${name}: ${value.toFixed(1)} (нужно ≥ ${min})\n`)
+  }
+}
+
 process.stdout.write(failed === 0 ? '\nКонтраст в норме\n' : `\nНарушений контраста: ${failed}\n`)
 process.exit(failed === 0 ? 0 : 1)

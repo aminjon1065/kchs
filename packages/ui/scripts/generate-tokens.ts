@@ -35,16 +35,21 @@ tokens.color.categorical.light.forEach((value, index) => {
   light.push(`  --chart-${index + 1}: ${value};`)
   dark.push(`  --chart-${index + 1}: ${tokens.color.categorical.dark[index]};`)
 })
-for (const [name, ramp] of Object.entries(tokens.color.sequential)) {
-  ;(ramp as string[]).forEach((value, index) => {
-    light.push(`  --seq-${name}-${index + 1}: ${value};`)
-    dark.push(`  --seq-${name}-${index + 1}: ${value};`)
-  })
+// Шкалы карт (ADR-0065): свои шаги для каждой темы
+const ramps: Array<[string, Record<string, unknown>]> = [
+  ['seq', tokens.color.sequential],
+  ['div', tokens.color.diverging],
+]
+for (const [prefix, group] of ramps) {
+  for (const [name, value] of Object.entries(group)) {
+    if (name.startsWith('$')) continue
+    const ramp = value as { light: string[]; dark: string[] }
+    ramp.light.forEach((step, index) => {
+      light.push(`  --${prefix}-${name}-${index + 1}: ${step};`)
+      dark.push(`  --${prefix}-${name}-${index + 1}: ${ramp.dark[index]};`)
+    })
+  }
 }
-;(tokens.color.diverging['red-blue'] as string[]).forEach((value, index) => {
-  light.push(`  --div-red-blue-${index + 1}: ${value};`)
-  dark.push(`  --div-red-blue-${index + 1}: ${value};`)
-})
 
 // Палитра графиков (ADR-0049): свои шаги для каждой темы
 const viz = tokens.color.viz
