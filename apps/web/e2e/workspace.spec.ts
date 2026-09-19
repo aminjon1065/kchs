@@ -77,4 +77,46 @@ test.describe('Оболочка рабочего пространства', () =
 
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
   })
+
+  test('две вкладки одного типа не делят состояние: секция и форма карточки', async ({
+    page,
+    request,
+  }) => {
+    // Две служебные записки — вкладки одного представления «Документ»
+    const me = await request.get('/api/v1/me')
+    const headers = { 'x-csrf-token': (await me.json()).session.csrfToken as string }
+    const types = (await (await request.get('/api/v1/document-types')).json()).items as Array<{
+      id: string
+      key: string
+    }>
+    const run = Date.now().toString(36)
+    const [first, second] = [`Первая записка ${run}`, `Вторая записка ${run}`]
+    const ids: string[] = []
+    for (const subject of [first, second]) {
+      const created = await request.post('/api/v1/documents', {
+        headers,
+        data: { typeId: types.find((type) => type.key === 'memo')?.id, subject },
+      })
+      expect(created.ok(), await created.text()).toBeTruthy()
+      ids.push((await created.json()).id as string)
+    }
+
+    await openWorkspace(page, request)
+    await page.goto(`/o/${ids[0]}`)
+    await expect(page.getByRole('heading', { name: first })).toBeVisible({ timeout: 20_000 })
+    await page.getByRole('tab', { name: 'История', exact: true }).click()
+    await page.goto(`/o/${ids[1]}`)
+    await expect(page.getByRole('heading', { name: second })).toBeVisible({ timeout: 20_000 })
+    const sections = page.getByRole('tablist', { name: 'Разделы карточки' })
+    await expect(sections.getByRole('tab', { selected: true })).toHaveText('Карточка')
+
+    // Первая вкладка — на своей секции и со своей карточкой, без чужих правок
+    await page.getByRole('tab', { name: new RegExp(first) }).click()
+    await expect(page.getByRole('heading', { name: first })).toBeVisible()
+    await expect(sections.getByRole('tab', { selected: true })).toHaveText('История')
+    await sections.getByRole('tab', { name: 'Карточка', exact: true }).click()
+    const card = page.getByRole('tabpanel', { name: 'Карточка' })
+    await expect(card.getByRole('textbox', { name: 'Тема' })).toHaveValue(first)
+    await expect(card.getByRole('button', { name: 'Сохранить', exact: true })).toBeDisabled()
+  })
 })

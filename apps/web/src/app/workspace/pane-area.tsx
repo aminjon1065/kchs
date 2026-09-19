@@ -68,7 +68,9 @@ function PaneView({
           <Suspense fallback={<PaneSkeleton />}>
             {/* Связанные представления: группа панели — при нескольких панелях (ADR-0073) */}
             <PaneLinkContext.Provider value={linked ? (pane.linkGroup ?? null) : null}>
-              <TabContent tab={activeTab} />
+              {/* Своё дерево у каждой вкладки: две вкладки одного типа не делят состояние
+                  (секция карточки, несохранённая форма) — оно живёт в состоянии вкладки */}
+              <TabContent key={activeTab.id} tab={activeTab} />
             </PaneLinkContext.Provider>
           </Suspense>
         ) : (
