@@ -21,6 +21,12 @@ import {
   IMPORT_LIMITS,
   NORMALIZED_VALUE_FORMATS,
 } from '../src/data/import.js'
+import {
+  PRINT_MODEL_VERSION,
+  REPORT_CONTENT_TYPES,
+  REPORT_FORMATS,
+  REPORT_PRINT,
+} from '../src/data/report.js'
 import { FIELD_SEMANTICS } from '../src/fields/field-def.js'
 import { QUEUE_RUNTIME } from '../src/jobs/job.js'
 
@@ -57,4 +63,10 @@ write('data_import.json', {
 write('data_export.json', {
   engineFormats: DATASET_ENGINE_EXPORT_FORMATS,
   maxRows: DATASET_EXPORT_MAX_ROWS,
+})
+write('report_render.json', {
+  formats: REPORT_FORMATS,
+  contentTypes: REPORT_CONTENT_TYPES,
+  print: REPORT_PRINT,
+  printModelVersion: PRINT_MODEL_VERSION,
 })

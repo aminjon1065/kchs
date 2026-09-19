@@ -151,6 +151,47 @@ export const EVENT_PAYLOADS = {
   /** Снимок тетради после совместной правки (ADR-0070): что изменилось — ячейки, параметры. */
   'notebook.updated': z.object({ changed: z.array(z.enum(['cells', 'params'])) }),
 
+  // ── reports (06-analytics-engine.md §12, ADR-0078) ─────────────────────────
+  /** Снимок шаблона после совместной правки: блоки, параметры, настройки печати. */
+  'report.updated': z.object({ changed: z.array(z.enum(['blocks', 'params', 'settings'])) }),
+  /** Запуск рендера поставлен: «Сформировать» или расписание (по запуску на получателя). */
+  'report.run_queued': z.object({
+    runId: Uuid,
+    trigger: z.enum(['manual', 'schedule']),
+    runAs: Uuid,
+  }),
+  /** Движок открыл страницу печати: запуск идёт. */
+  'report.run_started': z.object({ runId: Uuid, attempt: z.number().int() }),
+  /** Файлы отчёта готовы в бакете экспортов. */
+  'report.generated': z.object({
+    runId: Uuid,
+    trigger: z.enum(['manual', 'schedule']),
+    runAs: Uuid,
+    formats: z.array(z.string()),
+    pages: z.number().int().nullable(),
+    size: z.number().int(),
+  }),
+  /** Рендер не выполнен; skipped — получатель потерял доступ к отчёту. */
+  'report.run_failed': z.object({
+    runId: Uuid,
+    trigger: z.enum(['manual', 'schedule']),
+    runAs: Uuid,
+    error: z.string(),
+    skipped: z.boolean(),
+  }),
+  /** Расписание рассылки задано, изменено или снято (enabled: false, frequency: null). */
+  'report.schedule_changed': z.object({
+    enabled: z.boolean(),
+    frequency: z.string().nullable(),
+    recipients: z.number().int(),
+  }),
+  /** Отчёт доставлен получателю: итог по каналам (sent, unavailable, failed). */
+  'report.delivered': z.object({
+    runId: Uuid,
+    userId: Uuid,
+    channels: z.record(z.string(), z.string()),
+  }),
+
   // ── gis: базовые карты (07-gis-engine.md §5, ADR-0066) ─────────────────────
   /** Изменились параметры подложки: адрес, ключ, масштабы, сборка (новая версия PMTiles). */
   'basemap.updated': z.object({ changed: z.array(z.string()) }),

@@ -1,0 +1,20 @@
+{
+  "$comment": "Сгенерировано из packages/contracts командой `pnpm --filter @kchs/contracts gen:engine`. Не редактировать вручную.",
+  "formats": [
+    "pdf",
+    "docx"
+  ],
+  "contentTypes": {
+    "pdf": "application/pdf",
+    "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  },
+  "print": {
+    "cookie": "kchs_print",
+    "stateAttribute": "data-print-state",
+    "figureAttribute": "data-print-figure",
+    "modelGlobal": "kchsPrint",
+    "grantTtlMs": 900000,
+    "readyTimeoutMs": 120000
+  },
+  "printModelVersion": 1
+}

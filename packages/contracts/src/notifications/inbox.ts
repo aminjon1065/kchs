@@ -20,6 +20,8 @@ export const INBOX_KINDS = [
   'import_error',
   /** Правка объектов модерируемого слоя ждёт проверки (ADR-0076). */
   'review_edit',
+  /** Отчёт по расписанию готов (ADR-0078): ознакомиться, файл — в истории запусков. */
+  'report',
 ] as const
 export const InboxKind = z.enum(INBOX_KINDS)
 export type InboxKind = z.infer<typeof InboxKind>
