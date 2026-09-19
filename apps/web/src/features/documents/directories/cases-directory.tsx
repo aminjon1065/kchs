@@ -56,6 +56,7 @@ import { useWorkspace } from '~/app/workspace/store.js'
 import { ShareDialog } from '~/features/access/share-dialog.js'
 import { http } from '~/shared/api/client.js'
 import { meQuery, objectListQuery, orgUnitsQuery } from '~/shared/api/queries.js'
+import { PrintMenu } from '../print/print-menu.js'
 import {
   caseQuery,
   casesQuery,
@@ -390,6 +391,7 @@ function CasePanel({ record, onClose }: { record: CaseRecord; onClose: () => voi
         <h2 className="min-w-0 flex-1 truncate text-sm font-semibold text-fg" title={record.title}>
           {record.title}
         </h2>
+        <PrintMenu subjectId={record.id} />
         {record.canManage ? (
           <Button
             variant="ghost"
