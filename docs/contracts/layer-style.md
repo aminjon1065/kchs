@@ -39,5 +39,8 @@
 ## Компиляция
 `packages/map-style`: LayerStyle + схема датасета + тема → массив слоёв MapLibre (`circle`, `symbol`, `line`, `fill`, `fill-extrusion`, `heatmap`) с выражениями `["step"/"match"/"interpolate"]`, source-layer `layer`, фильтры по зуму; кластеризация — серверная (тайлы с `point_count`) или клиентская (GeoJSON-источник `cluster: true`) — выбирается по размеру слоя. Легенда генерируется из тех же классов/категорий; печать использует ту же спецификацию.
 
+## Классы, диапазоны и пресеты
+Границы классов (`graduated`, кроме `manual`) и диапазоны полей размера и веса считает сервер по всем строкам слоя с политиками смотрящего: `POST /gis/layers/{id}/stats` (`LayerStatsInput` → `LayerStats`, ADR-0075); `renderer.breaks` — только ручные границы или кэш. Края классов строит одна функция `classifySummary` (`@kchs/map-style`) у сервера и клиента. «Умные» пресеты по семантике полей — `stylePresets`/`applyStylePreset` там же: категория → `categorized`, мера → `graduated` (у точек ещё `proportional`, `heatmap`), время → `time`.
+
 ## Палитры
 Имена из дизайн-системы: `categorical`, `blue`, `teal`, `orange`, `viridis`, `red-blue`, `brown-teal`, `status`. Классы 3–9. Для тёмной темы — автоматические варианты.
