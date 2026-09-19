@@ -218,9 +218,18 @@ describe('мастер импорта: сопоставление', () => {
     )
     // Для upsert ключ датасета (code) должен быть в файле
     expect(mappingProblems(existingRows, { dataset, name: '', mode: 'upsert' })).toEqual([
-      { code: 'keyRequired' },
+      { code: 'keyNotInFile', keys: ['code'] },
     ])
     expect(mappingProblems(existingRows, { dataset, name: '', mode: 'append' })).toEqual([])
+    // У датасета без ключа режимы по ключу недоступны: ключ задают в схеме, не в мастере
+    const keyless = { ...dataset, primaryKey: [] }
+    expect(mappingProblems(existingRows, { dataset: keyless, name: '', mode: 'sync' })).toEqual([
+      { code: 'datasetKeyMissing' },
+    ])
+    // Новый датасет: ключ отмечают в сопоставлении
+    expect(mappingProblems(rows, { name: 'Сводка', mode: 'upsert' })).toEqual([
+      { code: 'keyRequired' },
+    ])
   })
 
   it('запрос запуска: новый датасет с ключом и геометрией, поле геометрии не совпадает со столбцами', () => {

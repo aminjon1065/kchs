@@ -2959,6 +2959,9 @@ export const en: DeepPartial<Dictionary> = {
           duplicate: 'Key “{key}” is repeated',
           name: 'Enter the dataset name',
           keyRequired: 'This mode needs key columns',
+          datasetKeyMissing:
+            'The dataset has no key: set key fields on the “Schema” tab — without a key only “Append rows” and “Replace all rows” are available',
+          keyNotInFile: 'Dataset key fields ({keys}) must be among the mapped file columns',
           unmapped: 'Choose a field for column “{column}”',
         },
         review: 'Show changes before publishing',

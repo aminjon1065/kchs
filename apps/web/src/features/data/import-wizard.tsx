@@ -709,6 +709,8 @@ function problemText(t: ReturnType<typeof useT>, problem: MappingProblem): strin
       return t('data.import.mapping.errors.duplicate', { key: problem.key })
     case 'unmapped':
       return t('data.import.mapping.errors.unmapped', { column: problem.column })
+    case 'keyNotInFile':
+      return t('data.import.mapping.errors.keyNotInFile', { keys: problem.keys.join(', ') })
     default:
       return t(`data.import.mapping.errors.${problem.code}`)
   }

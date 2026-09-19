@@ -129,6 +129,10 @@ export type MappingProblem =
   | { code: 'duplicate'; key: string }
   | { code: 'name' }
   | { code: 'keyRequired' }
+  /** У существующего датасета нет ключа: режимы по ключу недоступны, ключ задают в схеме. */
+  | { code: 'datasetKeyMissing' }
+  /** Ключевые поля датасета не сопоставлены со столбцами файла. */
+  | { code: 'keyNotInFile'; keys: string[] }
   | { code: 'unmapped'; column: string }
 
 export interface MappingTarget {
@@ -159,11 +163,15 @@ export function mappingProblems(rows: MappingRow[], target: MappingTarget): Mapp
   if (badFormat) problems.push({ code: 'keyFormat' })
 
   if (target.mode === 'upsert' || target.mode === 'sync') {
-    const keyFields = target.dataset
-      ? target.dataset.primaryKey
-      : included.filter((row) => row.key).map((row) => row.fieldKey)
-    if (keyFields.length === 0 || keyFields.some((key) => !seen.has(key))) {
-      problems.push({ code: 'keyRequired' })
+    if (!target.dataset) {
+      // Новый датасет: ключ отмечают в сопоставлении
+      if (!included.some((row) => row.key)) problems.push({ code: 'keyRequired' })
+    } else if (target.dataset.primaryKey.length === 0) {
+      // У датасета ключа нет, а в мастере его не задать — только в схеме датасета
+      problems.push({ code: 'datasetKeyMissing' })
+    } else {
+      const missing = target.dataset.primaryKey.filter((key) => !seen.has(key))
+      if (missing.length > 0) problems.push({ code: 'keyNotInFile', keys: missing })
     }
   }
   return problems
