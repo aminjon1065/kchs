@@ -148,7 +148,11 @@ export function startRealtime(app: FastifyInstance, deps: RealtimeDeps): SocketS
 
     socket.on('presence.view', async (payload: { objectId?: string }) => {
       if (!payload?.objectId) return
-      if (!(await canJoin(ctx, `object:${payload.objectId}`))) return
+      const room = `object:${payload.objectId}`
+      if (!(await canJoin((socket.data as SocketData).ctx, room))) return
+      // Смотрящий — в комнате до рассылки: подписка на комнаты вкладок обрабатывается
+      // параллельно и может закончиться позже, тогда он не узнал бы, кто уже смотрит
+      await socket.join(room)
       viewed.add(payload.objectId)
       const users = await markViewing(payload.objectId, {
         id: ctx.userId,
