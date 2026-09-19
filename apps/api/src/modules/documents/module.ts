@@ -21,6 +21,7 @@ import {
 } from './domain/registry.js'
 import { documentSubscribers } from './domain/subscribers.js'
 import { DOCUMENTS_SYSTEM_DATASET } from './domain/system-dataset.js'
+import { registerDocumentAssistRoutes } from './http/assist-routes.js'
 import { registerDocumentRoutes } from './http/routes.js'
 
 const LEVELS = ['view', 'comment', 'edit', 'manage', 'owner'] as const
@@ -221,4 +222,5 @@ export function registerDocumentsBackground(): void {
 
 export function registerDocumentsRoutes(route: RouteRegistrar): void {
   registerDocumentRoutes(route)
+  registerDocumentAssistRoutes(route)
 }

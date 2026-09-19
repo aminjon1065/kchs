@@ -1,3 +1,4 @@
+export * from './assist.js'
 export * from './correspondent.js'
 export * from './document.js'
 export * from './document-type.js'

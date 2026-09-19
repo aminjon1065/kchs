@@ -134,6 +134,15 @@ const EnvSchema = z.object({
     unset,
     z.coerce.number().int().min(1000).max(600_000).default(60_000),
   ),
+  /**
+   * Строжайший гриф документа, текст которого можно отдать модели (ADR-0088):
+   * по умолчанию «Для служебного пользования»; `confidential` — только для
+   * своего сервера модели в контуре организации.
+   */
+  AI_DOCUMENTS_MAX_CONFIDENTIALITY: z.preprocess(
+    unset,
+    z.enum(['public', 'internal', 'confidential', 'secret']).default('internal'),
+  ),
 
   /**
    * Подписка на внешние ICS-календари из частных сетей (ADR-0081): по умолчанию

@@ -23,6 +23,11 @@ export interface AiTask<T> {
   object?: { id: string; type: string }
   /** Что ещё записать в аудит: только необходимое, без строк данных. */
   details?: Record<string, unknown>
+  /**
+   * Записать ответ модели в аудит (по умолчанию да). Текст документа и его
+   * пересказ в аудит не пишутся: там — только объём ответа (ADR-0088).
+   */
+  auditAnswer?: boolean
 }
 
 function notConfigured(): AppError {
@@ -133,13 +138,17 @@ export const AiService = {
       await record('invalid_output', completion, { issues: issues.slice(0, 5) })
       throw invalidAnswer('Модель ответила не в ожидаемом формате', issues)
     }
+    const answer =
+      task.auditAnswer === false
+        ? { answerChars: completion.text.length }
+        : { answer: checked.data }
     try {
       const value = await accept(checked.data)
-      await record('ok', completion, { answer: checked.data })
+      await record('ok', completion, answer)
       return value
     } catch (error) {
       await record('rejected', completion, {
-        answer: checked.data,
+        ...answer,
         error: isAppError(error) ? error.message : 'internal',
       })
       throw error
