@@ -30,6 +30,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Activity,
   Building2,
+  CalendarDays,
   Database,
   Download,
   FileSpreadsheet,
@@ -61,6 +62,7 @@ import {
 } from '~/shared/api/queries.js'
 import { AnnouncementsSection } from './announcements-section.js'
 import { BasemapsSection } from './basemaps-section.js'
+import { BusinessCalendarSection } from './business-calendar-section.js'
 import { CreateUnitDialog } from './org-management.js'
 import { RolesSection } from './roles-section.js'
 import { SecuritySection } from './security-section.js'
@@ -76,6 +78,7 @@ type Section =
   | 'roles'
   | 'spaces'
   | 'announcements'
+  | 'business-calendar'
   | 'basemaps'
   | 'audit'
   | 'security'
@@ -131,6 +134,12 @@ export function AdminScreen() {
       value: 'announcements',
       label: t('admin.sections.announcements'),
       icon: <Megaphone className="size-3.5" />,
+      visible: isSystemAdmin,
+    },
+    {
+      value: 'business-calendar',
+      label: t('admin.sections.businessCalendar'),
+      icon: <CalendarDays className="size-3.5" />,
       visible: isSystemAdmin,
     },
     {
@@ -205,6 +214,12 @@ export function AdminScreen() {
             </TabsContent>
             <TabsContent value="announcements" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
               <AnnouncementsSection />
+            </TabsContent>
+            <TabsContent
+              value="business-calendar"
+              className="min-h-0 flex-1 overflow-y-auto bg-canvas"
+            >
+              <BusinessCalendarSection />
             </TabsContent>
             <TabsContent value="security" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
               <SecuritySection />
