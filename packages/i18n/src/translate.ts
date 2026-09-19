@@ -57,10 +57,20 @@ function renderPlural(key: string, body: string, params: TranslateParams, locale
   return interpolate(chosen.replace(/#/g, formatted), params, locale)
 }
 
+/** Выбор по значению: `{status, select, done {Готово} other {{status}}}`. */
+function renderSelect(key: string, body: string, params: TranslateParams, locale: Locale): string {
+  const branches = parseBranches(body)
+  const value = params[key]
+  const chosen =
+    (value === undefined ? undefined : branches.get(String(value))) ?? branches.get('other') ?? ''
+  return interpolate(chosen, params, locale)
+}
+
 /**
- * Подстановка `{name}` и ICU-плюрализация `{count, plural, one {…} other {…}}`
- * с учётом вложенных фигурных скобок. Достаточно для серверных текстов
- * (уведомления, письма, Telegram) и для клиента — словарь один и тот же.
+ * Подстановка `{name}`, ICU-плюрализация `{count, plural, one {…} other {…}}` и
+ * выбор `{key, select, a {…} other {…}}` с учётом вложенных фигурных скобок.
+ * Достаточно для серверных текстов (уведомления, письма, Telegram) и для
+ * клиента — словарь один и тот же.
  */
 function interpolate(template: string, params: TranslateParams, locale: Locale): string {
   let out = ''
@@ -82,8 +92,11 @@ function interpolate(template: string, params: TranslateParams, locale: Locale):
 
     const inner = template.slice(open + 1, close)
     const plural = /^(\w+),\s*plural,\s*([\s\S]*)$/.exec(inner)
+    const select = plural ? null : /^(\w+),\s*select,\s*([\s\S]*)$/.exec(inner)
     if (plural) {
       out += renderPlural(plural[1] as string, plural[2] as string, params, locale)
+    } else if (select) {
+      out += renderSelect(select[1] as string, select[2] as string, params, locale)
     } else if (/^\w+$/.test(inner)) {
       const value = params[inner]
       if (value === undefined) out += template.slice(open, close + 1)

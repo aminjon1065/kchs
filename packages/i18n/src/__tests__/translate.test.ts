@@ -28,6 +28,25 @@ describe('плюрализация', () => {
   })
 })
 
+describe('выбор по значению (select)', () => {
+  const t = createTranslator('ru')
+
+  it('ветвь по значению параметра, иначе other', () => {
+    expect(t('activity.task.statusChanged', { actor: 'Иванов', to: 'done' })).toBe(
+      'Иванов перевёл в статус «Готово»',
+    )
+    expect(t('activity.task.statusChanged', { actor: 'Иванов', to: 'paused' })).toBe(
+      'Иванов перевёл в статус «paused»',
+    )
+  })
+
+  it('несколько выборов в одном тексте', () => {
+    expect(
+      t('access.reason.confidentiality', { confidentiality: 'secret', clearance: 'internal' }),
+    ).toBe('Гриф «секретно» выше допуска «для служебного пользования»')
+  })
+})
+
 describe('подстановка', () => {
   const t = createTranslator('ru')
 
