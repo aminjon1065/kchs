@@ -74,6 +74,18 @@ export function toProblem(error: unknown, request: FastifyRequest): ProblemDetai
 
   // Ошибки валидации Fastify
   const fastifyError = error as { statusCode?: number; code?: string; message?: string }
+  // Сброс нагрузки (@fastify/under-pressure, Retry-After уже в ответе): «временно недоступен»,
+  // а не «внутренняя ошибка» — клиент повторит запрос
+  if (fastifyError?.statusCode === 503) {
+    return {
+      type: `${TYPE_BASE}/service_unavailable`,
+      title: t('errors.service_unavailable'),
+      status: 503,
+      detail: fastifyError.message,
+      instance: request.url,
+      code: 'service_unavailable',
+    }
+  }
   if (fastifyError?.statusCode && fastifyError.statusCode < 500) {
     const code: ErrorCode =
       fastifyError.statusCode === 429
