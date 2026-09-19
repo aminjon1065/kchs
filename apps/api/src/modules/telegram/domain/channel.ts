@@ -1,7 +1,7 @@
 import type { NotificationChannelAdapter } from '~/kernel/notifications/channels.js'
 import { systemCtx } from '~/shared/context.js'
 import { logger } from '~/shared/logger/index.js'
-import { sendTelegramNotification, telegramConfigured } from './bot.js'
+import { sendTelegramDocument, sendTelegramNotification, telegramConfigured } from './bot.js'
 import { TelegramLinks } from './links.js'
 
 /**
@@ -30,5 +30,23 @@ export const telegramChannel: NotificationChannelAdapter = {
         )
       }
     }
+  },
+
+  /** Отчёт по расписанию — документом в чат получателя (ADR-0078). */
+  async sendDocument(document) {
+    if (!telegramConfigured()) return 'unavailable'
+    const chatId = (await TelegramLinks.chats([document.userId])).get(document.userId)
+    if (chatId === undefined) return 'unavailable'
+    const outcome = await sendTelegramDocument(chatId, document)
+    if (outcome === 'blocked') {
+      logger().info({ userId: document.userId }, 'Telegram: бот заблокирован, привязка снята')
+      await TelegramLinks.unlink(
+        systemCtx('telegram.blocked', { initiatorId: document.userId }),
+        document.userId,
+        'blocked',
+      )
+      return 'unavailable'
+    }
+    return outcome
   },
 }

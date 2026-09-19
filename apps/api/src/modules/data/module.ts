@@ -411,6 +411,7 @@ export function registerDataRoutes(route: RouteRegistrar): void {
     tags: ['data'],
     summary: 'SQL-лаборатория: выполнить SELECT над датасетами с политиками пользователя',
     schema: { body: SqlRunInput, response: { 200: QueryResult } },
+    readOnly: true,
     handler: async (request) => QueryService.runSql(request.ctx, request.body),
   })
 
@@ -578,6 +579,7 @@ export function registerDataRoutes(route: RouteRegistrar): void {
     tags: ['data'],
     summary: 'Выполнить QuerySpec: источники с политиками пользователя, результат столбцами',
     schema: { body: QueryRunInput, response: { 200: QueryResult } },
+    readOnly: true,
     handler: async (request) =>
       QueryService.run(request.ctx, request.body.spec, { params: request.body.params }),
   })
@@ -822,6 +824,7 @@ export function registerDataRoutes(route: RouteRegistrar): void {
     tags: ['data'],
     summary: 'Данные графика — с политиками пользователя',
     schema: { params: IdParam, body: ChartDataInput, response: { 200: QueryResult } },
+    readOnly: true,
     handler: async (request) => {
       const chart = await ChartService.get(request.params.id)
       return runChartSpec(request.ctx, chart.spec, {
@@ -944,6 +947,7 @@ export function registerDataRoutes(route: RouteRegistrar): void {
     summary:
       'Значение показателя: сравнение, статус порога, история и разрез — с политиками пользователя',
     schema: { params: IdParam, body: MetricValueInput, response: { 200: MetricValue } },
+    readOnly: true,
     handler: async (request) =>
       MetricService.evaluate(request.ctx, await MetricService.get(request.params.id), request.body),
   })

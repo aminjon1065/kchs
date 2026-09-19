@@ -6,12 +6,10 @@ import {
   type NotebookCellKind,
   type NotebookParams,
   NotebookPeriod,
-  type NotebookValueKind,
-  type RichBody,
   WithinValue,
 } from '@kchs/contracts'
 import * as Y from 'yjs'
-import { fragmentToRichBody, richBodyToFragment } from '~/kernel/collab/rich-text.js'
+import { type BlockDocDefinition, insertBlocks, readBlocks } from '~/kernel/collab/block-doc.js'
 
 /**
  * Документ Yjs тетради ↔ JSON (ADR-0071): раскладка — в контракте
@@ -31,31 +29,14 @@ export interface NotebookBody {
   params: NotebookParams
 }
 
-type Layout = Record<string, NotebookValueKind>
-
-function layoutOf(kind: unknown): Layout | null {
-  return typeof kind === 'string' && kind in NOTEBOOK_CELL_LAYOUT
-    ? (NOTEBOOK_CELL_LAYOUT[kind as NotebookCellKind] as Layout)
-    : null
-}
-
-/** Ячейка → `Y.Map` по раскладке её вида. */
-function cellToYMap(cell: NotebookCell): Y.Map<unknown> {
-  const map = new Y.Map<unknown>()
-  const values = cell as unknown as Record<string, unknown>
-  for (const [key, kind] of Object.entries(layoutOf(cell.kind) ?? {})) {
-    const value = values[key]
-    if (kind === 'rich') {
-      const fragment = new Y.XmlFragment()
-      richBodyToFragment((value as RichBody | undefined) ?? { type: 'doc', content: [] }, fragment)
-      map.set(key, fragment)
-    } else if (kind === 'text') {
-      map.set(key, new Y.Text(typeof value === 'string' ? value : ''))
-    } else if (value !== undefined) {
-      map.set(key, value)
-    }
-  }
-  return map
+const CELLS: BlockDocDefinition = {
+  blocks: NOTEBOOK_DOC.cells,
+  order: NOTEBOOK_DOC.order,
+  layoutOf: (kind) =>
+    typeof kind === 'string' && kind in NOTEBOOK_CELL_LAYOUT
+      ? NOTEBOOK_CELL_LAYOUT[kind as NotebookCellKind]
+      : null,
+  max: NOTEBOOK_MAX_CELLS,
 }
 
 /**
@@ -64,16 +45,7 @@ function cellToYMap(cell: NotebookCell): Y.Map<unknown> {
  * одинаковый вход — дать одинаковый документ.
  */
 export function insertCells(doc: Y.Doc, cells: NotebookCell[], index?: number): void {
-  const map = doc.getMap<Y.Map<unknown>>(NOTEBOOK_DOC.cells)
-  const order = doc.getArray<string>(NOTEBOOK_DOC.order)
-  const ids: string[] = []
-  for (const cell of cells) {
-    let id = cell.id
-    for (let n = 2; map.has(id) || ids.includes(id); n++) id = `${cell.id.slice(0, 34)}-${n}`
-    map.set(id, cellToYMap({ ...cell, id }))
-    ids.push(id)
-  }
-  order.insert(Math.min(index ?? order.length, order.length), ids)
+  insertBlocks(doc, CELLS, cells, index)
 }
 
 /** Начальное состояние документа из JSON — детерминированное (см. INITIAL_CLIENT_ID). */
@@ -93,18 +65,10 @@ export function notebookState(body: NotebookBody): Uint8Array {
 
 /** Снимок документа: ячейки по порядку (повтор идентификатора — один раз) и параметры. */
 export function readNotebook(doc: Y.Doc): NotebookBody {
-  const map = doc.getMap<unknown>(NOTEBOOK_DOC.cells)
-  const seen = new Set<string>()
-  const cells: NotebookCell[] = []
-  for (const id of doc.getArray<unknown>(NOTEBOOK_DOC.order).toArray()) {
-    if (typeof id !== 'string' || seen.has(id)) continue
-    seen.add(id)
-    const item = map.get(id)
-    if (!(item instanceof Y.Map)) continue
-    const cell = readCell(item, id)
-    if (cell) cells.push(cell)
-    if (cells.length >= NOTEBOOK_MAX_CELLS) break
-  }
+  const cells = readBlocks(doc, CELLS, (raw) => {
+    const parsed = NotebookCell.safeParse(raw)
+    return parsed.success ? parsed.data : null
+  })
   const params = doc.getMap<unknown>(NOTEBOOK_DOC.params)
   const period = NotebookPeriod.nullable().safeParse(params.get('period') ?? null)
   const territory = WithinValue.nullable().safeParse(params.get('territory') ?? null)
@@ -115,25 +79,4 @@ export function readNotebook(doc: Y.Doc): NotebookBody {
       territory: territory.success ? territory.data : null,
     },
   }
-}
-
-function readCell(item: Y.Map<unknown>, id: string): NotebookCell | null {
-  const layout = layoutOf(item.get('kind'))
-  if (!layout) return null
-  const raw: Record<string, unknown> = {}
-  for (const [key, kind] of Object.entries(layout)) {
-    const value = item.get(key)
-    if (kind === 'rich') {
-      if (value instanceof Y.XmlFragment) raw[key] = fragmentToRichBody(value)
-    } else if (kind === 'text') {
-      if (value instanceof Y.Text) raw[key] = value.toString()
-      else if (typeof value === 'string') raw[key] = value
-    } else if (value !== undefined && !(value instanceof Y.AbstractType)) {
-      raw[key] = value
-    }
-  }
-  // Идентификатор — ключ в карте ячеек: поле ячейки могло разойтись с ним
-  raw.id = id
-  const parsed = NotebookCell.safeParse(raw)
-  return parsed.success ? parsed.data : null
 }

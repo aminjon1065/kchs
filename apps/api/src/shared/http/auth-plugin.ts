@@ -1,3 +1,4 @@
+import { REPORT_PRINT } from '@kchs/contracts'
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import fp from 'fastify-plugin'
 import { config } from '../config/index.js'
@@ -13,6 +14,8 @@ declare module 'fastify' {
     auth?: RouteAuth
     allowPendingPasswordChange?: boolean
     allowPendingMfaEnrollment?: boolean
+    /** POST без изменения данных (запрос к датасету): доступен странице печати. */
+    readOnly?: boolean
   }
 }
 
@@ -33,6 +36,8 @@ export interface AuthDependencies {
   authorizeRoute: (ctx: UserCtx, action: string, objectId: string) => Promise<void>
   requireCapability: (ctx: UserCtx, capability: string) => void
   resolveShareLink?: (token: string) => Promise<UserCtx | null>
+  /** Служебный токен страницы печати (cookie `kchs_print`, ADR-0078). */
+  resolvePrintGrant?: (token: string) => Promise<UserCtx | null>
 }
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
@@ -75,6 +80,25 @@ export const authPlugin = fp<AuthDependencies>(async (app: FastifyInstance, deps
         await applyRoutePolicy(request, auth, deps)
         return
       }
+    }
+
+    // Страница печати в Chromium движка (ADR-0078): cookie служебного токена
+    // вместо сессии, права — того, под кем строится документ, только чтение
+    const printToken = request.cookies?.[REPORT_PRINT.cookie]
+    if (!token && typeof printToken === 'string' && deps.resolvePrintGrant) {
+      const printCtx = await deps.resolvePrintGrant(printToken)
+      if (!printCtx) throw errors.unauthorized('Токен печати недействителен или истёк')
+      // Личные маршруты (профиль, сессия, вход) живут сессией — у печати её нет
+      const personal = /^\/api\/v1\/(me|auth)(\/|$)/.test(request.routeOptions?.url ?? '')
+      if (
+        personal ||
+        (!SAFE_METHODS.has(request.method) && !request.routeOptions?.config?.readOnly)
+      ) {
+        throw errors.forbidden('Страница печати только читает данные')
+      }
+      request.ctx = { ...printCtx, requestId: request.id }
+      await applyRoutePolicy(request, auth, deps)
+      return
     }
 
     if (!token) throw errors.unauthorized()

@@ -15,6 +15,20 @@ export interface ChannelMessage {
   url: string
 }
 
+/** Файл получателю — отчёт по расписанию (ADR-0078): подпись уже на его языке. */
+export interface ChannelDocument {
+  userId: string
+  fileName: string
+  contentType: string
+  content: Buffer
+  caption: string
+  url: string
+  locale: Locale
+}
+
+/** Итог отправки файла: отправлен, канал получателю недоступен, сбой. */
+export type ChannelDocumentOutcome = 'sent' | 'unavailable' | 'failed'
+
 /**
  * Внешний канал уведомлений (ADR-0061): ядро решает, кому, когда и что
  * отправить, модуль — как доставить. Первый такой канал — Telegram.
@@ -24,6 +38,8 @@ export interface NotificationChannelAdapter {
   available(userIds: string[]): Promise<Set<string>>
   /** Доставка; ошибки канала обрабатывает и журналирует сам адаптер. */
   deliver(messages: ChannelMessage[]): Promise<void>
+  /** Файл в канал (бот присылает документ); нет у канала — файлы им не доставляются. */
+  sendDocument?(document: ChannelDocument): Promise<ChannelDocumentOutcome>
 }
 
 const adapters = new Map<ExternalChannel, NotificationChannelAdapter>()

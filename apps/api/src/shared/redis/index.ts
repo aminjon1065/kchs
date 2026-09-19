@@ -50,6 +50,9 @@ export const cacheKeys = {
   presence: (objectId: string) => `kchs:presence:${objectId}`,
   jobProgress: (jobId: string) => `kchs:job:${jobId}`,
   shareGrant: (hash: string) => `kchs:share:grant:${hash}`,
+  /** Служебный токен страницы печати (ADR-0078) и его область — для отзыва. */
+  printGrant: (hash: string) => `kchs:print:grant:${hash}`,
+  printScope: (scope: string) => `kchs:print:scope:${scope}`,
   /** Временные пароли импорта пользователей до одноразовой выгрузки (ADR-0041). */
   usersImportCredentials: (importId: string) => `kchs:users-import:${importId}:credentials`,
   /** Профиль столбца датасета: версия данных и схемы входят в ключ. */

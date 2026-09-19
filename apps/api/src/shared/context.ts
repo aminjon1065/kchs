@@ -42,6 +42,11 @@ export interface UserCtx {
   onBehalfOf: string | null
   /** Гостевой доступ по ссылке: ограничен одним объектом. */
   shareLink: { token: string; objectId: string; includeAttachments: boolean } | null
+  /**
+   * Страница печати в Chromium движка (ADR-0078): служебный токен одного
+   * запуска, права — того, под кем строится документ, только чтение.
+   */
+  print?: { scope: string } | null
   requestId: string
   ip: string | null
   userAgent: string | null

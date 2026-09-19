@@ -56,6 +56,11 @@ export interface RouteDefinition<
   allowPendingPasswordChange?: boolean
   /** Маршрут доступен, пока пользователь не подключил обязательный по политике второй фактор. */
   allowPendingMfaEnrollment?: boolean
+  /**
+   * POST, который не меняет данных (выполнить запрос, посчитать показатель):
+   * доступен странице печати со служебным токеном (ADR-0078).
+   */
+  readOnly?: boolean
   handler: (
     request: FastifyRequest<{
       Params: z.infer<Params>
@@ -104,6 +109,7 @@ export function routeRegistrar(app: FastifyInstance): RouteRegistrar {
         ...(definition.rateLimit ? { rateLimit: definition.rateLimit } : {}),
         ...(definition.allowPendingPasswordChange ? { allowPendingPasswordChange: true } : {}),
         ...(definition.allowPendingMfaEnrollment ? { allowPendingMfaEnrollment: true } : {}),
+        ...(definition.readOnly ? { readOnly: true } : {}),
       },
       handler: definition.handler as never,
     })

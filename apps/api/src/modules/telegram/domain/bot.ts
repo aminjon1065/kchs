@@ -1,8 +1,8 @@
 import { LOCALES, type Locale } from '@kchs/contracts'
 import { createTranslator } from '@kchs/i18n'
-import { Bot, type Context, GrammyError } from 'grammy'
+import { Bot, type Context, GrammyError, InputFile } from 'grammy'
 import type { Update } from 'grammy/types'
-import type { ChannelMessage } from '~/kernel/notifications/channels.js'
+import type { ChannelDocument, ChannelMessage } from '~/kernel/notifications/channels.js'
 import { config } from '~/shared/config/index.js'
 import { systemCtx } from '~/shared/context.js'
 import { errors } from '~/shared/errors.js'
@@ -11,6 +11,8 @@ import { TelegramLinks } from './links.js'
 
 /** Предел текста сообщения Telegram — 4096 символов; уведомления короче, но с запасом. */
 const MAX_TEXT = 3500
+/** Предел подписи к файлу — 1024 символа. */
+const MAX_CAPTION = 900
 
 /** Бот настроен на установке: без токена привязка и канал скрыты. */
 export function telegramConfigured(): boolean {
@@ -82,6 +84,38 @@ export async function sendTelegramNotification(
     // 403: пользователь заблокировал бота или удалил чат — привязка больше не работает
     if (error instanceof GrammyError && error.error_code === 403) return 'blocked'
     logger().warn({ err: safeError(error) }, 'Telegram: уведомление не доставлено')
+    return 'failed'
+  }
+}
+
+/**
+ * Файл в личный чат (отчёт по расписанию, ADR-0078): документ с подписью на
+ * языке получателя и кнопкой «Открыть» для HTTPS-адресов.
+ */
+export async function sendTelegramDocument(
+  chatId: number,
+  document: ChannelDocument,
+): Promise<SendOutcome> {
+  const t = createTranslator(document.locale)
+  try {
+    await telegramBot().api.sendDocument(
+      chatId,
+      new InputFile(document.content, document.fileName),
+      {
+        caption: `${document.caption.slice(0, MAX_CAPTION)}\n${document.url}`,
+        ...(document.url.startsWith('https://')
+          ? {
+              reply_markup: {
+                inline_keyboard: [[{ text: t('telegram.open'), url: document.url }]],
+              },
+            }
+          : {}),
+      },
+    )
+    return 'sent'
+  } catch (error) {
+    if (error instanceof GrammyError && error.error_code === 403) return 'blocked'
+    logger().warn({ err: safeError(error) }, 'Telegram: файл не доставлен')
     return 'failed'
   }
 }

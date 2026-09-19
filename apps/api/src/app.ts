@@ -14,6 +14,7 @@ import {
 import { authorize, requireCapability } from '~/kernel/access/authorize.js'
 import { resolveShareLinkCtx } from '~/kernel/access/share-links.js'
 import { buildUserCtx } from '~/kernel/context-builder.js'
+import { PrintGrants } from '~/kernel/print/grants.js'
 import { AuthService } from '~/modules/identity/domain/auth-service.js'
 import { registerModules } from '~/modules/index.js'
 import { config } from '~/shared/config/index.js'
@@ -129,6 +130,7 @@ export async function buildApp(): Promise<FastifyInstance> {
     },
     requireCapability,
     resolveShareLink: resolveShareLinkCtx,
+    resolvePrintGrant: (token) => PrintGrants.resolve(token),
   })
 
   app.addHook('onSend', async (_request, reply, payload) => {
