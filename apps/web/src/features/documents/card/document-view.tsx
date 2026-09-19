@@ -27,6 +27,7 @@ import { useWorkspace } from '~/app/workspace/store.js'
 import { ShareDialog } from '~/features/access/share-dialog.js'
 import { PresenceAvatars } from '~/features/objects/presence-avatars.js'
 import { ApiError } from '~/shared/api/client.js'
+import { PrintMenu } from '../print/print-menu.js'
 import { documentQuery } from '../queries.js'
 import { CONFIDENTIALITY_TONE, DOCUMENT_STATUS_TONE, errorText } from '../status.js'
 import { AcknowledgmentsTab } from './acknowledgments-tab.js'
@@ -254,6 +255,7 @@ function DocumentHeader() {
                 {t('documents.actions.title')}
               </Button>
             ) : null}
+            <PrintMenu subjectId={document.id} />
             {document.can.share ? (
               <Button
                 variant="ghost"

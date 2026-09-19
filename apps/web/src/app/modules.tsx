@@ -17,6 +17,7 @@ import { DocumentContextSection, DocumentView } from '~/features/documents/card/
 import { CasesDirectory } from '~/features/documents/directories/cases-directory.js'
 import { CorrespondentsDirectory } from '~/features/documents/directories/correspondents-directory.js'
 import { JournalsDirectory } from '~/features/documents/directories/journals-directory.js'
+import { TemplatesDirectory } from '~/features/documents/directories/templates-directory.js'
 import { TypesDirectory } from '~/features/documents/directories/types-directory.js'
 import { DocumentsScreen } from '~/features/documents/documents-screen.js'
 import { FilesScreen } from '~/features/files/files-screen.js'
@@ -342,6 +343,10 @@ export function registerModules(): void {
   registerObjectView({
     type: 'case',
     render: (tab) => <CasesDirectory selectedId={tab.objectId!} />,
+  })
+  registerObjectView({
+    type: 'template',
+    render: (tab) => <TemplatesDirectory selectedId={tab.objectId!} />,
   })
   registerObjectView({
     type: 'layer',

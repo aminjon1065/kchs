@@ -35,6 +35,7 @@ import { useT } from '~/app/i18n.js'
 import { ShareDialog } from '~/features/access/share-dialog.js'
 import { http } from '~/shared/api/client.js'
 import { meQuery } from '~/shared/api/queries.js'
+import { PrintMenu } from '../print/print-menu.js'
 import { documentKeys, journalReservationsQuery, journalsQuery } from '../queries.js'
 import { errorText, localToday } from '../status.js'
 
@@ -196,6 +197,7 @@ function JournalPanel({ journal, onClose }: { journal: JournalRecord; onClose: (
     <div className="flex flex-col gap-4 p-4">
       <div className="flex items-center gap-2">
         <h2 className="min-w-0 flex-1 truncate text-sm font-semibold text-fg">{journal.name}</h2>
+        <PrintMenu subjectId={journal.id} />
         {journal.canManage ? (
           <Button
             variant="ghost"

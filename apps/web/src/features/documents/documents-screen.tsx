@@ -26,6 +26,7 @@ import {
   FileText,
   Inbox,
   LayoutDashboard,
+  LayoutTemplate,
   LibraryBig,
   type LucideIcon,
   Plus,
@@ -53,6 +54,7 @@ import { CreateDocumentDialog } from './create-document-dialog.js'
 import { CasesDirectory } from './directories/cases-directory.js'
 import { CorrespondentsDirectory } from './directories/correspondents-directory.js'
 import { JournalsDirectory } from './directories/journals-directory.js'
+import { TemplatesDirectory } from './directories/templates-directory.js'
 import { TypesDirectory } from './directories/types-directory.js'
 import { documentSummaryQuery, journalsQuery, officeDashboardQuery } from './queries.js'
 import { RegistrationScreen } from './registration/registration-screen.js'
@@ -169,8 +171,8 @@ export interface DocumentsScreenState {
 
 /**
  * Экран «Документы» (03-screens.md §12): навигатор представлений и журналов,
- * CollectionView-таблица, «Зарегистрировать» и «Создать». Параметр вкладки
- * `view` открывает регистрацию и справочники.
+ * CollectionView-таблица, «Зарегистрировать» и «Создать» (по типу или шаблону).
+ * Параметр вкладки `view` открывает регистрацию и справочники.
  */
 export function DocumentsScreen({ tab }: { tab: TabState }) {
   switch (tab.params.view) {
@@ -184,6 +186,8 @@ export function DocumentsScreen({ tab }: { tab: TabState }) {
       return <TypesDirectory selectedId={tab.params.id ?? null} />
     case 'cases':
       return <CasesDirectory selectedId={tab.params.id ?? null} />
+    case 'templates':
+      return <TemplatesDirectory selectedId={tab.params.id ?? null} />
     default:
       return <DocumentsList tabId={tab.id} savedState={tab.state as DocumentsScreenState} />
   }
@@ -488,6 +492,11 @@ function DocumentsList({
             icon={LibraryBig}
             label={t('documents.types.title')}
             onClick={() => openScreen('types', t('documents.types.title'), 'document_type')}
+          />
+          <NavButton
+            icon={LayoutTemplate}
+            label={t('documents.templates.title')}
+            onClick={() => openScreen('templates', t('documents.templates.title'), 'template')}
           />
         </NavGroup>
       </nav>

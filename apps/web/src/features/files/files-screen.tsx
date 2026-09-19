@@ -29,6 +29,7 @@ import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
 import { ShareDialog } from '~/features/access/share-dialog.js'
 import { uploadFile } from '~/features/files/upload.js'
+import { useFileDownload } from '~/features/files/use-file-download.js'
 import { http } from '~/shared/api/client.js'
 import { attachmentsFolderQuery, spacesQuery } from '~/shared/api/queries.js'
 import { emptyCollectionState } from '~/shared/collections/collection-state.js'
@@ -71,6 +72,7 @@ export function FilesScreen({
   const toast = useToast()
   const openTab = useWorkspace((s) => s.openTab)
   const setTabState = useWorkspace((s) => s.setTabState)
+  const download = useFileDownload()
 
   const { data: spaces = [] } = useQuery(spacesQuery())
   const [spaceId, setSpaceId] = useState<string | undefined>(initialSpaceId)
@@ -418,7 +420,7 @@ export function FilesScreen({
                 <IconButton
                   label={t('common.actions.download')}
                   size="sm"
-                  onClick={() => void downloadFile(item.id)}
+                  onClick={() => download.mutate({ fileId: item.id })}
                 >
                   <Download className="size-3.5" />
                 </IconButton>
@@ -548,15 +550,4 @@ export function FilesScreen({
       />
     </section>
   )
-}
-
-async function downloadFile(fileId: string): Promise<void> {
-  const result = await http.get<{ url: string; name: string }>(`/files/${fileId}/download`)
-  const link = document.createElement('a')
-  link.href = result.url
-  link.download = result.name
-  link.rel = 'noopener'
-  document.body.appendChild(link)
-  link.click()
-  link.remove()
 }

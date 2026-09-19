@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle, Maximize2, ZoomIn, ZoomOut } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { useT } from '~/app/i18n.js'
+import { WatermarkLayer } from '~/features/files/watermark-layer.js'
 import { http } from '~/shared/api/client.js'
 import { keys } from '~/shared/api/queries.js'
 
@@ -117,6 +118,9 @@ export function ScanViewer({
                   />
                   {overlay ? (
                     <div className="pointer-events-none absolute inset-0">{overlay(page)}</div>
+                  ) : null}
+                  {data.watermark ? (
+                    <WatermarkLayer lines={data.watermark.lines} tone="danger" />
                   ) : null}
                 </li>
               )

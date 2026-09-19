@@ -15,26 +15,19 @@ import {
   useToast,
 } from '@kchs/ui'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { Download } from 'lucide-react'
+import { Download, GitCompare } from 'lucide-react'
 import { useId, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { uploadFile } from '~/features/files/upload.js'
+import { useFileDownload } from '~/features/files/use-file-download.js'
 import { http } from '~/shared/api/client.js'
+import { CompareDialog } from '../print/compare-dialog.js'
+import { RendersSection } from '../print/renders-section.js'
 import { documentVersionsQuery } from '../queries.js'
 import { ScanViewer } from '../scan-viewer.js'
 import { errorText } from '../status.js'
 import { useDocument } from './document-context.js'
-
-async function download(file: DocumentFileRef): Promise<void> {
-  const result = await http.get<{ url: string; name: string }>(`/files/${file.id}/download`)
-  const link = window.document.createElement('a')
-  link.href = result.url
-  link.download = result.name
-  window.document.body.appendChild(link)
-  link.click()
-  link.remove()
-}
 
 /**
  * Вкладка «Файлы и версии» (03-screens.md §12): PDF-представление выбранной
@@ -49,6 +42,7 @@ export function FilesTab() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const selected = versions.find((version) => version.id === selectedId) ?? versions[0] ?? null
   const shown = selected?.pdfFile ?? selected?.mainFile ?? null
+  const [comparing, setComparing] = useState(false)
 
   return (
     <div className="grid h-full min-h-0 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px]">
@@ -57,7 +51,21 @@ export function FilesTab() {
         className="flex min-h-0 flex-col gap-4 overflow-y-auto p-4"
         aria-label={t('documents.versions.title')}
       >
-        <h2 className="text-sm font-semibold text-fg">{t('documents.versions.title')}</h2>
+        <div className="flex items-center gap-2">
+          <h2 className="min-w-0 flex-1 text-sm font-semibold text-fg">
+            {t('documents.versions.title')}
+          </h2>
+          {versions.length >= 2 ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={<GitCompare className="size-3.5" />}
+              onClick={() => setComparing(true)}
+            >
+              {t('documents.compare.open')}
+            </Button>
+          ) : null}
+        </div>
         {isLoading ? (
           <Skeleton className="h-24 w-full" />
         ) : versions.length === 0 ? (
@@ -78,7 +86,15 @@ export function FilesTab() {
           </ol>
         )}
         {document.can.addVersion ? <NewVersion onDone={refresh} /> : null}
+        <RendersSection document={document} />
       </aside>
+      {comparing ? (
+        <CompareDialog
+          documentId={document.id}
+          versions={versions}
+          onClose={() => setComparing(false)}
+        />
+      ) : null}
     </div>
   )
 }
@@ -97,6 +113,7 @@ function VersionItem({
   locale: 'ru' | 'tg' | 'en'
 }) {
   const t = useT()
+  const download = useFileDownload()
   return (
     <div
       className={cn(
@@ -147,7 +164,7 @@ function VersionItem({
                 <IconButton
                   size="sm"
                   label={t('common.actions.download')}
-                  onClick={() => void download(file)}
+                  onClick={() => download.mutate({ fileId: file.id })}
                 >
                   <Download className="size-3.5" />
                 </IconButton>

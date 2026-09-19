@@ -6,6 +6,7 @@ import type { ReactNode } from 'react'
 import { useT } from '~/app/i18n.js'
 import { http } from '~/shared/api/client.js'
 import { keys } from '~/shared/api/queries.js'
+import { WatermarkLayer } from './watermark-layer.js'
 
 const PENDING = new Set(['queued', 'processing'])
 
@@ -63,10 +64,12 @@ export function FilePreview({
 
   const pages = data.items.filter((item) => item.kind === 'page')
   const web = data.items.find((item) => item.kind === 'web')
+  // Файл с грифом — знак с именем смотрящего (ADR-0085), гостевая ссылка — своя метка
+  const mark = data.watermark?.lines ?? null
 
   if (data.previewStatus === 'ready' && (pages.length > 0 || web)) {
     return (
-      <Frame watermark={watermark}>
+      <Frame watermark={watermark} lines={mark}>
         {web ? (
           <img
             src={web.url}
@@ -109,7 +112,7 @@ export function FilePreview({
 
   if (showText) {
     return (
-      <Frame watermark={watermark}>
+      <Frame watermark={watermark} lines={mark}>
         {text.data?.text ? (
           <div className="flex flex-col gap-2">
             <pre className="max-h-[70vh] overflow-auto whitespace-pre-wrap break-words rounded-md bg-surface p-4 font-mono text-xs text-fg">
@@ -143,19 +146,22 @@ export function FilePreview({
   )
 }
 
-function Frame({ children, watermark }: { children: ReactNode; watermark?: string | null }) {
+function Frame({
+  children,
+  watermark,
+  lines,
+}: {
+  children: ReactNode
+  watermark?: string | null
+  lines?: string[] | null
+}) {
   return (
     <div className="relative overflow-hidden rounded-md bg-surface-2 p-4">
       {children}
-      {watermark ? (
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 flex select-none flex-wrap content-center justify-center gap-x-10 gap-y-16 overflow-hidden text-sm font-medium text-fg/10 -rotate-12"
-        >
-          {Array.from({ length: 24 }, (_, index) => (
-            <span key={index}>{watermark}</span>
-          ))}
-        </div>
+      {lines ? (
+        <WatermarkLayer lines={lines} tone="danger" />
+      ) : watermark ? (
+        <WatermarkLayer lines={[watermark]} />
       ) : null}
     </div>
   )

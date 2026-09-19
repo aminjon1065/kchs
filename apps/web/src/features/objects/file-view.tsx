@@ -26,6 +26,7 @@ import { useWorkspace } from '~/app/workspace/store.js'
 import { ShareDialog } from '~/features/access/share-dialog.js'
 import { FilePreview } from '~/features/files/file-preview.js'
 import { uploadFile } from '~/features/files/upload.js'
+import { useFileDownload } from '~/features/files/use-file-download.js'
 import { http } from '~/shared/api/client.js'
 import { fileQuery, fileVersionsQuery, keys, objectQuery } from '~/shared/api/queries.js'
 import { PresenceAvatars } from './presence-avatars.js'
@@ -34,6 +35,7 @@ export function FileView({ objectId, tabId }: { objectId: string; tabId: string 
   const t = useT()
   const locale = useAppearance((s) => s.locale)
   const toast = useToast()
+  const fileDownload = useFileDownload()
   const client = useQueryClient()
   const setTabTitle = useWorkspace((s) => s.setTabTitle)
   const closeTab = useWorkspace((s) => s.closeTab)
@@ -82,17 +84,8 @@ export function FileView({ objectId, tabId }: { objectId: string; tabId: string 
   }
   if (!file) return <EmptyState title={t('common.states.notFound')} />
 
-  const download = async (versionId?: string): Promise<void> => {
-    const result = await http.get<{ url: string; name: string }>(`/files/${objectId}/download`, {
-      query: { versionId },
-    })
-    const link = document.createElement('a')
-    link.href = result.url
-    link.download = result.name
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
-  }
+  const download = (versionId?: string) =>
+    fileDownload.mutate({ fileId: objectId, ...(versionId ? { versionId } : {}) })
 
   const uploadVersion = async (fileList: FileList | null): Promise<void> => {
     if (!fileList?.[0] || !object?.spaceId) return
@@ -127,7 +120,7 @@ export function FileView({ objectId, tabId }: { objectId: string; tabId: string 
               variant="secondary"
               size="sm"
               icon={<Download className="size-3.5" />}
-              onClick={() => void download()}
+              onClick={() => download()}
             >
               {t('common.actions.download')}
             </Button>
@@ -243,7 +236,7 @@ export function FileView({ objectId, tabId }: { objectId: string; tabId: string 
                     <IconButton
                       label={t('common.actions.download')}
                       size="sm"
-                      onClick={() => void download(version.id)}
+                      onClick={() => download(version.id)}
                     >
                       <Download className="size-3.5" />
                     </IconButton>
