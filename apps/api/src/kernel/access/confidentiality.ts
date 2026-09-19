@@ -55,6 +55,8 @@ export function deniedConfidentiality(ctx: Ctx): Confidentiality[] {
 /**
  * SQL-предикат допуска над строкой `objects`: свой гриф и гриф объектов, к
  * которым объект прикреплён, не строже допуска. null — ограничений нет.
+ * Вложения закрытых хостов — некоррелированный подзапрос: PostgreSQL считает
+ * его один раз (хэш по частичному индексу грифа), а не по разу на строку списка.
  * Алиасы cl/ch скрывают внутреннюю `objects`: `${objects.id}` — строка списка.
  */
 export function clearanceSql(ctx: Ctx): SQL | null {
@@ -64,9 +66,9 @@ export function clearanceSql(ctx: Ctx): SQL | null {
     denied.map((value) => sql`${value}`),
     sql`, `,
   )
-  return sql`(${objects.confidentiality} NOT IN (${list}) AND NOT EXISTS (
-    SELECT 1 FROM ${links} cl JOIN ${objects} ch ON ch.id = cl.source_id
-     WHERE cl.target_id = ${objects.id} AND cl.kind = 'attachment'
+  return sql`(${objects.confidentiality} NOT IN (${list}) AND ${objects.id} NOT IN (
+    SELECT cl.target_id FROM ${links} cl JOIN ${objects} ch ON ch.id = cl.source_id
+     WHERE cl.kind = 'attachment' AND cl.target_id IS NOT NULL
        AND ch.deleted_at IS NULL AND ch.confidentiality IN (${list})
   ))`
 }
