@@ -1,7 +1,12 @@
 import { createHash } from 'node:crypto'
 import { promisify } from 'node:util'
 import { gzip as gzipCallback } from 'node:zlib'
-import { type FieldType, type LayerTileQuery, QuerySpec } from '@kchs/contracts'
+import {
+  type FieldType,
+  type LayerTileQuery,
+  layerStyleTileFields,
+  QuerySpec,
+} from '@kchs/contracts'
 import { cacheKeyText } from '@kchs/query'
 import { DatasetQueries } from '~/modules/data/public.js'
 import type { Ctx } from '~/shared/context.js'
@@ -12,7 +17,6 @@ import { logger } from '~/shared/logger/index.js'
 import { redis } from '~/shared/redis/index.js'
 import { layerConditions } from './layer-filter.js'
 import { LayerService } from './layer-service.js'
-import { styleTileFields } from './style-fields.js'
 
 /** Размер сетки MVT и запас по краю (подписи и символы не обрезаются на стыке тайлов). */
 const EXTENT = 4096
@@ -94,7 +98,7 @@ export const TileService = {
     // Геометрия, скрытая политикой столбцов, — нет и слоя: место объекта тоже данные
     if (!visible.has(layer.geometryField)) throw errors.forbidden()
     // Поля стиля и тайла, видимые смотрящему: скрытое политикой в тайл не попадает
-    const fields = [...new Set([...styleTileFields(style), ...layer.tileFields])].filter(
+    const fields = [...new Set([...layerStyleTileFields(style), ...layer.tileFields])].filter(
       (key) => key !== layer.geometryField && visible.has(key),
     )
     // Охват тайла с запасом по краю — пространственное окно компилятора: рамка

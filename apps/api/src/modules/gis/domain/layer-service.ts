@@ -4,6 +4,7 @@ import {
   type LayerRecord,
   LayerStyle,
   type LayerUpdateInput,
+  layerStyleFields,
 } from '@kchs/contracts'
 import { and, eq, inArray, isNull } from 'drizzle-orm'
 import { authorize, visibleObjectsSql } from '~/kernel/access/authorize.js'
@@ -15,7 +16,7 @@ import type { Ctx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
 import { layers, objects } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
-import { defaultStyle, styleFields } from './style-fields.js'
+import { defaultStyle } from './style-fields.js'
 
 /** Строка слоя с объектом реестра — всё, что нужно тайлам и карточке. */
 export interface StoredLayer {
@@ -43,7 +44,7 @@ async function assertFields(
 ): Promise<void> {
   const record = await datasetRecord(datasetId)
   const keys = new Set(record.fields.map((field) => field.key))
-  for (const key of [...styleFields(style), ...tileFields]) {
+  for (const key of [...layerStyleFields(style), ...tileFields]) {
     if (!keys.has(key) || key === geometryField) {
       throw errors.validation(`В датасете нет поля «${key}»`)
     }

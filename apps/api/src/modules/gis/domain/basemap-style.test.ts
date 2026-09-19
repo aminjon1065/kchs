@@ -155,9 +155,10 @@ describe('палитра подложки — из токенов дизайн-�
     })
   }
 
-  it('реки — sequential.blue[1]; цвета значков спрайтов — из токенов', () => {
-    const blue = (tokens.color.sequential as Record<string, string[]>).blue
-    expect(blue?.[1]).toBe(MAP_COLORS.river)
+  it('реки — sequential.blue (светлая тема)[1]; цвета значков спрайтов — из токенов', () => {
+    // Шкалы карт — свои шаги для каждой темы (ADR-0065); реки рисует светлая подложка
+    const blue = (tokens.color.sequential as unknown as Record<string, { light: string[] }>).blue
+    expect(blue?.light[1]).toBe(MAP_COLORS.river)
     const known = new Set<string>(
       Object.values(TOKEN_COLORS).flatMap((theme) => Object.values(theme) as string[]),
     )

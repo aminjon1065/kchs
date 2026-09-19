@@ -2,6 +2,7 @@ import {
   type LayerFeature,
   type LayerFeatureCollection,
   type LayerFeaturesQuery,
+  layerStyleFields,
   QuerySpec,
 } from '@kchs/contracts'
 import { DatasetQueries } from '~/modules/data/public.js'
@@ -9,7 +10,6 @@ import type { Ctx } from '~/shared/context.js'
 import { errors } from '~/shared/errors.js'
 import { layerConditions, parseBbox } from './layer-filter.js'
 import { LayerService } from './layer-service.js'
-import { styleFields } from './style-fields.js'
 
 type Geometry = Record<string, unknown>
 
@@ -31,7 +31,7 @@ export const FeatureService = {
     const visible = await DatasetQueries.visibleFields(ctx, layer.datasetId)
     if (!visible.has(layer.geometryField)) throw errors.forbidden()
     // Поля стиля, карточки и тайла — чтобы клиент рисовал и подписывал без дозапросов
-    const fields = [...new Set([...styleFields(layer.style), ...layer.tileFields])].filter(
+    const fields = [...new Set([...layerStyleFields(layer.style), ...layer.tileFields])].filter(
       (key) => key !== layer.geometryField && visible.has(key),
     )
     const where = layerConditions(layer, query)

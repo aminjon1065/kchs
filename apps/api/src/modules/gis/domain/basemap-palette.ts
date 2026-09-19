@@ -41,8 +41,8 @@ export const TOKEN_COLORS = {
 export const MAP_COLORS = {
   water: '#D9E4F5',
   building: '#ECECEF',
-  /** `color.sequential.blue[1]` — реки заметнее водоёмов на тонких линиях. */
-  river: '#C6D6FA',
+  /** `color.sequential.blue.light[1]` — реки заметнее водоёмов на тонких линиях. */
+  river: '#C6D5FB',
 } as const
 
 export interface Palette {
