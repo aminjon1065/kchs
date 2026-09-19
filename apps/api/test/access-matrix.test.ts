@@ -27,8 +27,16 @@ const { indexObject } = await import('../src/kernel/search/index-service.js')
 const { canJoin } = await import('../src/kernel/realtime/gateway.js')
 const { buildUserCtx } = await import('../src/kernel/context-builder.js')
 const { systemCtx } = await import('../src/shared/context.js')
-const { basemaps, correspondents, documentTypes, journals, territories, territoryClosure, views } =
-  await import('../src/shared/db/schema/index.js')
+const {
+  basemaps,
+  cases,
+  correspondents,
+  documentTypes,
+  journals,
+  territories,
+  territoryClosure,
+  views,
+} = await import('../src/shared/db/schema/index.js')
 
 interface Created {
   id: string
@@ -623,7 +631,13 @@ const FIXTURES: Record<string, TypeFixture> = {
       expect(grant.statusCode, grant.body).toBe(200)
       return { id, title }
     },
-    readPaths: ['/documents/:id', '/documents/:id/versions'],
+    readPaths: [
+      '/documents/:id',
+      '/documents/:id/versions',
+      '/documents/:id/correspondence',
+      '/documents/:id/dispatches',
+      '/documents/:id/cases',
+    ],
     viewerForbidden: (_fx, id) => [
       { method: 'PATCH', url: `/documents/${id}`, payload: { subject: 'правка читателя' } },
       { method: 'POST', url: `/documents/${id}/register`, payload: {} },
@@ -633,6 +647,41 @@ const FIXTURES: Record<string, TypeFixture> = {
         url: `/documents/${id}/versions`,
         payload: { mainFileId: '01900000-0000-7000-8000-000000000000' },
       },
+      // Отправка и подшивка — делопроизводителю с правом правки (ADR-0086)
+      {
+        method: 'POST',
+        url: `/documents/${id}/dispatches`,
+        payload: { addressee: 'адресат читателя', method: 'post', sentOn: '2026-09-19' },
+      },
+      {
+        method: 'POST',
+        url: `/documents/${id}/file`,
+        payload: { caseId: '01900000-0000-7000-8000-000000000000' },
+      },
+    ],
+  },
+
+  // Дело номенклатуры (ADR-0086): права — по общим правилам ядра, ведение — manage
+  case: {
+    create: async (fx, title) => {
+      const id = await db().transaction(async (tx) => {
+        const object = await ObjectService.create(
+          tx,
+          systemCtx('test', { initiatorId: fx.admin.id }),
+          { type: 'case', spaceId: fx.spaceId, title, meta: {} },
+        )
+        await tx
+          .insert(cases)
+          .values({ id: object.id, index: `M-${run}`, title, year: 2026, retentionYears: 5 })
+        return object.id
+      })
+      return { id, title }
+    },
+    readPaths: ['/cases/:id'],
+    viewerForbidden: (_fx, id) => [
+      { method: 'PATCH', url: `/cases/${id}`, payload: { title: 'правка читателя' } },
+      { method: 'POST', url: `/cases/${id}/close`, payload: {} },
+      { method: 'POST', url: `/cases/${id}/archive`, payload: {} },
     ],
   },
 
