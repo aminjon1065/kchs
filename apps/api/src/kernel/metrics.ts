@@ -1,5 +1,6 @@
 import { QUEUES } from '@kchs/contracts'
 import { meter, metricsEnabled } from '~/shared/telemetry/metrics.js'
+import { collabStats } from './collab/server.js'
 import { outboxLag } from './events/dispatcher.js'
 import { queue } from './jobs/service.js'
 import { realtimeConnections } from './realtime/gateway.js'
@@ -52,5 +53,13 @@ export function registerKernelMetrics(options: { queues: boolean; realtime: bool
       unit: '{connection}',
       description: 'Открытые WebSocket-подключения',
     }).addCallback((result) => result.observe(realtimeConnections()))
+    m.createObservableGauge('kchs.collab.documents', {
+      unit: '{document}',
+      description: 'Открытые документы совместного редактирования',
+    }).addCallback((result) => result.observe(collabStats().documents))
+    m.createObservableGauge('kchs.collab.connections', {
+      unit: '{connection}',
+      description: 'Подключения к документам совместного редактирования',
+    }).addCallback((result) => result.observe(collabStats().connections))
   }
 }

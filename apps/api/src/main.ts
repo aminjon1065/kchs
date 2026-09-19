@@ -2,6 +2,7 @@ import './shared/config/load-env.js'
 import { writeFile } from 'node:fs/promises'
 import { buildApp } from './app.js'
 import { bootstrapPlatform } from './bootstrap.js'
+import { startCollab, stopCollab } from './kernel/collab/server.js'
 import {
   startConsumers,
   startDispatcher,
@@ -63,9 +64,13 @@ async function main(): Promise<void> {
   if (runsApi) {
     const app = await buildApp()
     startRealtime(app, { resolveSession: (token) => AuthService.resolveSession(token) })
+    // Совместное редактирование — тот же HTTP-сервер, путь /collab (ADR-0070)
+    startCollab(app.server, { resolveSession: (token) => AuthService.resolveSession(token) })
     await app.listen({ port: env.PORT, host: env.HOST })
     log.info({ port: env.PORT, role: env.ROLE }, 'kchs api запущен')
     close = async () => {
+      // Незаписанные правки документов — в базу до закрытия сокетов
+      await stopCollab()
       stopRealtime()
       await app.close()
     }

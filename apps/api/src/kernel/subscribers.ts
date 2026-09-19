@@ -1,10 +1,12 @@
 import type { EventEnvelope } from '@kchs/contracts'
 import { systemCtx } from '~/shared/context.js'
 import { logger } from '~/shared/logger/index.js'
+import { redis } from '~/shared/redis/index.js'
 import { usersWithAccess } from './access/acl-service.js'
 import { usersWhoCanView } from './access/explain.js'
 import { invalidatePrincipalSet } from './access/principal-set.js'
 import { activitySubscriber } from './activity/service.js'
+import { COLLAB_CHANNEL, collabType } from './collab/registry.js'
 import { registerSubscriber } from './events/bus.js'
 import { JobService } from './jobs/service.js'
 import { NotificationService } from './notifications/service.js'
@@ -137,6 +139,25 @@ export function registerKernelSubscribers(): void {
         default:
           break
       }
+    },
+  })
+
+  // Совместные документы: подключения перепроверяются сразу, а не при очередной
+  // минутной проверке, — права отозваны, объект в корзине или архиве (ADR-0070)
+  registerSubscriber({
+    name: 'kernel-collab',
+    types: [
+      'acl.changed',
+      'object.shared',
+      'object.moved',
+      'object.archived',
+      'object.restored',
+      'object.trashed',
+      'object.deleted',
+    ],
+    handle: async (event) => {
+      if (!event.object || !collabType(event.object.type)) return
+      await redis().publish(COLLAB_CHANNEL, JSON.stringify({ objectId: event.object.id }))
     },
   })
 
