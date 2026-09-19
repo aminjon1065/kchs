@@ -312,12 +312,12 @@ describe('права: регистрация, журнал, участники',
       payload: { responsibleId: fx.users.viewer.id },
     })
     expect(patched.statusCode, patched.body).toBe(200)
-    expect((await call(fx.app, { url: `/documents/${doc.id}`, as: fx.users.member })).statusCode).toBe(
-      404,
-    )
-    expect((await call(fx.app, { url: `/documents/${doc.id}`, as: fx.users.viewer })).statusCode).toBe(
-      200,
-    )
+    expect(
+      (await call(fx.app, { url: `/documents/${doc.id}`, as: fx.users.member })).statusCode,
+    ).toBe(404)
+    expect(
+      (await call(fx.app, { url: `/documents/${doc.id}`, as: fx.users.viewer })).statusCode,
+    ).toBe(200)
   })
 
   it('гриф: только из допустимых типом и не строже допуска автора', async () => {
@@ -373,7 +373,10 @@ describe('карточка и жизненный цикл', () => {
       payload: { reason: 'Создан по ошибке' },
     })
     expect(cancelled.statusCode, cancelled.body).toBe(200)
-    expect(cancelled.json()).toMatchObject({ status: 'cancelled', cancelReason: 'Создан по ошибке' })
+    expect(cancelled.json()).toMatchObject({
+      status: 'cancelled',
+      cancelReason: 'Создан по ошибке',
+    })
 
     const doc = await incomingReady({ responsibleId: fx.users.member.id })
     expect((await register(registrar, doc.id)).statusCode).toBe(200)

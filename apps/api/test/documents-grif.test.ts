@@ -354,9 +354,9 @@ describe('документ выше допуска не виден даже пр
       }),
     )
     const inbox = await get(cleared, '/inbox?state=open')
-    const item = (inbox.json().items as Array<{ title: string; object: { id: string } | null }>).find(
-      (entry) => entry.object?.id === secretId,
-    )
+    const item = (
+      inbox.json().items as Array<{ title: string; object: { id: string } | null }>
+    ).find((entry) => entry.object?.id === secretId)
     expect(item?.title).not.toContain(subject)
   })
 })

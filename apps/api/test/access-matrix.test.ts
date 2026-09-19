@@ -604,7 +604,9 @@ const FIXTURES: Record<string, TypeFixture> = {
         method: 'POST',
         url: `/objects/${id}/access`,
         as: fx.admin,
-        payload: { grants: [{ principal: { type: 'user', id: fx.users.viewer.id }, level: 'view' }] },
+        payload: {
+          grants: [{ principal: { type: 'user', id: fx.users.viewer.id }, level: 'view' }],
+        },
       })
       expect(grant.statusCode, grant.body).toBe(200)
       return { id, title }
