@@ -1,0 +1,2407 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`compileLayerStyle — снимки особых случаев > время и фильтр слоя на клиенте (GeoJSON) 1`] = `
+"{
+  "layers": [
+    {
+      "id": "objects:point",
+      "source": "objects-geojson",
+      "metadata": {"kchs:layer":"objects","kchs:role":"point"},
+      "type": "circle",
+      "paint": {
+        "circle-color": "#936500",
+        "circle-radius": 4,
+        "circle-opacity": 1,
+        "circle-stroke-color": "#633800",
+        "circle-stroke-width": 1,
+        "circle-stroke-opacity": 1
+      },
+      "filter": [
+        "all",
+        ["match",["to-string",["get","kind"]],["school","police"],true,false],
+        [
+          "all",
+          ["!=",["get","occurred_at"],null],
+          [">=",["to-number",["get","occurred_at"]],1788220800000],
+          ["<",["to-number",["get","occurred_at"]],1788307200000]
+        ]
+      ],
+      "minzoom": 5,
+      "maxzoom": 19
+    }
+  ],
+  "legend": {
+    "show": true,
+    "title": null,
+    "sections": [
+      {
+        "id": "main",
+        "title": null,
+        "items": [
+          {
+            "id": "simple",
+            "label": "Объекты",
+            "swatch": {
+              "kind": "point",
+              "shape": "circle",
+              "color": "#936500",
+              "outline": "#633800",
+              "size": 8,
+              "opacity": 1,
+              "icon": null
+            }
+          }
+        ]
+      }
+    ],
+    "note": null
+  },
+  "images": [],
+  "warnings": [
+    {
+      "code": "filter-unsupported",
+      "path": "filter.and.1",
+      "detail": "is_me: оператор не вычисляется на карте"
+    }
+  ]
+}"
+`;
+
+exports[`compileLayerStyle — снимки особых случаев > категории со значками и размерами, «прочее» не рисуется 1`] = `
+"{
+  "layers": [
+    {
+      "id": "objects:point",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"point"},
+      "type": "symbol",
+      "layout": {
+        "icon-image": [
+          "case",
+          ["==",["get","kind"],null],
+          "kchs-shape-circle",
+          [
+            "match",
+            ["to-string",["get","kind"]],
+            "school",
+            "kchs-icon-school",
+            "hospital",
+            "kchs-icon-hospital",
+            "kchs-shape-circle"
+          ]
+        ],
+        "icon-size": [
+          "case",
+          ["==",["get","kind"],null],
+          0.25,
+          ["match",["to-string",["get","kind"]],"school",0.4375,"hospital",0.25,0.25]
+        ],
+        "icon-allow-overlap": true,
+        "icon-ignore-placement": true
+      },
+      "paint": {
+        "icon-color": [
+          "case",
+          ["==",["get","kind"],null],
+          "#666875",
+          ["match",["to-string",["get","kind"]],"school","#2F62E6","hospital","#CE2B2B","#5B7083"]
+        ],
+        "icon-opacity": 1,
+        "icon-halo-color": [
+          "case",
+          ["==",["get","kind"],null],
+          "#3A3C48",
+          ["match",["to-string",["get","kind"]],"school","#062CAF","hospital","#950000","#304355"]
+        ],
+        "icon-halo-width": 1
+      },
+      "filter": [
+        "any",
+        ["==",["get","kind"],null],
+        ["match",["to-string",["get","kind"]],["school","hospital"],true,false]
+      ]
+    }
+  ],
+  "legend": {
+    "show": true,
+    "title": "Вид",
+    "sections": [
+      {
+        "id": "main",
+        "title": null,
+        "items": [
+          {
+            "id": "category-0",
+            "label": "Школа",
+            "swatch": {
+              "kind": "point",
+              "shape": "icon",
+              "color": "#2F62E6",
+              "outline": "#062CAF",
+              "size": 14,
+              "opacity": 1,
+              "icon": "school"
+            }
+          },
+          {
+            "id": "category-1",
+            "label": "Больница",
+            "swatch": {
+              "kind": "point",
+              "shape": "icon",
+              "color": "#CE2B2B",
+              "outline": "#950000",
+              "size": 8,
+              "opacity": 1,
+              "icon": "hospital"
+            }
+          },
+          {
+            "id": "category-2",
+            "label": "Не указан",
+            "swatch": {
+              "kind": "point",
+              "shape": "circle",
+              "color": "#666875",
+              "outline": "#3A3C48",
+              "size": 8,
+              "opacity": 1,
+              "icon": null
+            }
+          }
+        ]
+      }
+    ],
+    "note": null
+  },
+  "images": [
+    {"id":"kchs-shape-circle","kind":"shape","name":"circle","sdf":true},
+    {"id":"kchs-icon-school","kind":"icon","name":"school","sdf":true},
+    {"id":"kchs-icon-hospital","kind":"icon","name":"hospital","sdf":true}
+  ],
+  "warnings": []
+}"
+`;
+
+exports[`compileLayerStyle — снимки особых случаев > расходящаяся шкала и размер классов на линиях 1`] = `
+"{
+  "layers": [
+    {
+      "id": "objects:line",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"line"},
+      "type": "line",
+      "layout": {"line-cap":"butt","line-join":"round"},
+      "paint": {
+        "line-color": [
+          "case",
+          ["==",["get","ratio"],null],
+          "#5B7083",
+          [
+            "step",
+            ["to-number",["get","ratio"]],
+            "#147684",
+            -0.5,
+            "#81C3C9",
+            -0.1,
+            "#F1F1F3",
+            0.1,
+            "#D7AE76",
+            0.5,
+            "#965719"
+          ]
+        ],
+        "line-width": [
+          "case",
+          ["==",["get","ratio"],null],
+          1.5,
+          ["step",["to-number",["get","ratio"]],1.5,-0.5,2.63,-0.1,3.75,0.1,4.88,0.5,6]
+        ],
+        "line-opacity": 1,
+        "line-dasharray": [2,1]
+      }
+    }
+  ],
+  "legend": {
+    "show": true,
+    "title": "Коэффициент",
+    "sections": [
+      {
+        "id": "main",
+        "title": null,
+        "items": [
+          {
+            "id": "class-1",
+            "label": "-1 – -0,5",
+            "swatch": {"kind":"line","color":"#147684","width":1.5,"dash":[2,1],"opacity":1}
+          },
+          {
+            "id": "class-2",
+            "label": "-0,5 – -0,1",
+            "swatch": {"kind":"line","color":"#81C3C9","width":2.63,"dash":[2,1],"opacity":1}
+          },
+          {
+            "id": "class-3",
+            "label": "-0,1 – 0,1",
+            "swatch": {"kind":"line","color":"#F1F1F3","width":3.75,"dash":[2,1],"opacity":1}
+          },
+          {
+            "id": "class-4",
+            "label": "0,1 – 0,5",
+            "swatch": {"kind":"line","color":"#D7AE76","width":4.88,"dash":[2,1],"opacity":1}
+          },
+          {
+            "id": "class-5",
+            "label": "0,5 – 1",
+            "swatch": {"kind":"line","color":"#965719","width":6,"dash":[2,1],"opacity":1}
+          }
+        ]
+      }
+    ],
+    "note": null
+  },
+  "images": [],
+  "warnings": []
+}"
+`;
+
+exports[`compileLayerStyle — снимки особых случаев > точки с кластерами, фигурой и размером по полю 1`] = `
+"{
+  "layers": [
+    {
+      "id": "objects:point",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"point"},
+      "type": "symbol",
+      "layout": {
+        "icon-image": "kchs-shape-square",
+        "icon-size": [
+          "case",
+          ["==",["get","capacity"],null],
+          0.125,
+          ["interpolate",["linear"],["to-number",["get","capacity"]],20,0.125,1500,0.75]
+        ],
+        "icon-allow-overlap": true,
+        "icon-ignore-placement": true
+      },
+      "paint": {"icon-color":"#2F62E6","icon-opacity":1,"icon-halo-color":"#062CAF","icon-halo-width":1},
+      "filter": ["!",[">",["to-number",["get","point_count"]],1]]
+    },
+    {
+      "id": "objects:cluster",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"cluster"},
+      "type": "circle",
+      "filter": [">",["to-number",["get","point_count"]],1],
+      "paint": {
+        "circle-color": "#2F62E6",
+        "circle-radius": [
+          "interpolate",
+          ["linear"],
+          ["log10",["max",2,["to-number",["get","point_count"]]]],
+          0.30103,
+          8,
+          3.69897,
+          24
+        ],
+        "circle-opacity": 0.9,
+        "circle-stroke-color": "#FFFFFF",
+        "circle-stroke-width": 2,
+        "circle-stroke-opacity": 1
+      }
+    },
+    {
+      "id": "objects:cluster-count",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"cluster-count"},
+      "type": "symbol",
+      "filter": [">",["to-number",["get","point_count"]],1],
+      "layout": {
+        "text-field": [
+          "case",
+          [">=",["to-number",["get","point_count"]],1000000],
+          [
+            "concat",
+            [
+              "number-format",
+              ["/",["to-number",["get","point_count"]],1000000],
+              {"locale":"ru-RU","max-fraction-digits":1}
+            ],
+            " млн"
+          ],
+          [">=",["to-number",["get","point_count"]],10000],
+          [
+            "concat",
+            [
+              "number-format",
+              ["/",["to-number",["get","point_count"]],1000],
+              {"locale":"ru-RU","max-fraction-digits":["literal",0]}
+            ],
+            " тыс."
+          ],
+          [">=",["to-number",["get","point_count"]],1000],
+          [
+            "concat",
+            [
+              "number-format",
+              ["/",["to-number",["get","point_count"]],1000],
+              {"locale":"ru-RU","max-fraction-digits":1}
+            ],
+            " тыс."
+          ],
+          [
+            "number-format",
+            ["to-number",["get","point_count"]],
+            {"locale":"ru-RU","max-fraction-digits":["literal",0]}
+          ]
+        ],
+        "text-font": ["Noto Sans Bold"],
+        "text-size": 11,
+        "text-allow-overlap": true,
+        "text-ignore-placement": true
+      },
+      "paint": {"text-color":"#FFFFFF","text-opacity":1}
+    },
+    {
+      "id": "objects:label",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"label"},
+      "type": "symbol",
+      "minzoom": 12,
+      "layout": {
+        "text-field": [
+          "concat",
+          ["to-string",["get","name"]],
+          " (",
+          [
+            "case",
+            ["==",["get","capacity"],null],
+            "",
+            ["number-format",["to-number",["get","capacity"]],{"locale":"ru-RU"}]
+          ],
+          ")"
+        ],
+        "text-font": ["Noto Sans Regular"],
+        "text-size": 12,
+        "symbol-placement": "point",
+        "text-padding": 2,
+        "text-variable-anchor": ["top","bottom","right","left"],
+        "text-radial-offset": [
+          "case",
+          ["==",["get","capacity"],null],
+          0.333333,
+          ["interpolate",["linear"],["to-number",["get","capacity"]],20,0.333333,1500,1.16667]
+        ],
+        "text-justify": "auto",
+        "symbol-sort-key": ["-",0,["to-number",["get","capacity"]]]
+      },
+      "paint": {
+        "text-color": "#17181C",
+        "text-halo-color": "#FFFFFF",
+        "text-halo-width": 1.5,
+        "text-halo-blur": 0.5,
+        "text-opacity": 1
+      },
+      "filter": ["!",[">",["to-number",["get","point_count"]],1]]
+    }
+  ],
+  "legend": {
+    "show": true,
+    "title": null,
+    "sections": [
+      {
+        "id": "main",
+        "title": null,
+        "items": [
+          {
+            "id": "simple",
+            "label": "Объекты",
+            "swatch": {
+              "kind": "point",
+              "shape": "square",
+              "color": "#2F62E6",
+              "outline": "#062CAF",
+              "size": 10,
+              "opacity": 1,
+              "icon": null
+            }
+          }
+        ]
+      },
+      {
+        "id": "size",
+        "title": "Вместимость",
+        "items": [
+          {
+            "id": "size-by-1",
+            "label": "1 500",
+            "swatch": {
+              "kind": "proportional-circle",
+              "color": "#2F62E6",
+              "outline": "#062CAF",
+              "size": 24,
+              "maxSize": 24,
+              "opacity": 1
+            }
+          },
+          {
+            "id": "size-by-2",
+            "label": "760",
+            "swatch": {
+              "kind": "proportional-circle",
+              "color": "#2F62E6",
+              "outline": "#062CAF",
+              "size": 14,
+              "maxSize": 24,
+              "opacity": 1
+            }
+          },
+          {
+            "id": "size-by-3",
+            "label": "20",
+            "swatch": {
+              "kind": "proportional-circle",
+              "color": "#2F62E6",
+              "outline": "#062CAF",
+              "size": 4,
+              "maxSize": 24,
+              "opacity": 1
+            }
+          }
+        ]
+      },
+      {
+        "id": "cluster",
+        "title": null,
+        "items": [
+          {
+            "id": "cluster",
+            "label": "Скопление объектов",
+            "swatch": {"kind":"cluster","color":"#2F62E6","outline":"#FFFFFF","text":"#FFFFFF","size":32,"count":"25"}
+          }
+        ]
+      }
+    ],
+    "note": null
+  },
+  "images": [{"id":"kchs-shape-square","kind":"shape","name":"square","sdf":true}],
+  "warnings": []
+}"
+`;
+
+exports[`compileLayerStyle — снимки особых случаев > хороплет с нормализацией в тёмной теме 1`] = `
+"{
+  "layers": [
+    {
+      "id": "objects:fill",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"fill"},
+      "type": "fill",
+      "paint": {
+        "fill-color": [
+          "case",
+          [
+            "any",
+            ["==",["get","population"],null],
+            ["==",["get","area_km2"],null],
+            ["==",["to-number",["get","area_km2"]],0]
+          ],
+          "#8497A8",
+          [
+            "step",
+            ["/",["to-number",["get","population"]],["to-number",["get","area_km2"]]],
+            "#440154",
+            12,
+            "#31688E",
+            60,
+            "#35B779",
+            240,
+            "#FDE725"
+          ]
+        ],
+        "fill-opacity": 0.75
+      }
+    },
+    {
+      "id": "objects:outline",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"outline"},
+      "type": "line",
+      "layout": {"line-join":"round"},
+      "paint": {
+        "line-color": [
+          "case",
+          [
+            "any",
+            ["==",["get","population"],null],
+            ["==",["get","area_km2"],null],
+            ["==",["to-number",["get","area_km2"]],0]
+          ],
+          "#AFC3D5",
+          [
+            "step",
+            ["/",["to-number",["get","population"]],["to-number",["get","area_km2"]]],
+            "#6C307E",
+            12,
+            "#5B92BA",
+            60,
+            "#6AE5A4",
+            240,
+            "#FFFC48"
+          ]
+        ],
+        "line-width": 0.5,
+        "line-opacity": 1
+      }
+    },
+    {
+      "id": "objects:label",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"label"},
+      "type": "symbol",
+      "minzoom": 7,
+      "layout": {
+        "text-field": [
+          "case",
+          ["==",["get","population"],null],
+          "",
+          ["number-format",["to-number",["get","population"]],{"locale":"ru-RU"}]
+        ],
+        "text-font": ["Noto Sans Regular"],
+        "text-size": 12,
+        "symbol-placement": "point",
+        "text-padding": 2
+      },
+      "paint": {
+        "text-color": "#ECECEF",
+        "text-halo-color": "#16171A",
+        "text-halo-width": 1.5,
+        "text-halo-blur": 0.5,
+        "text-opacity": 1
+      }
+    }
+  ],
+  "legend": {
+    "show": true,
+    "title": "Население на км²",
+    "sections": [
+      {
+        "id": "main",
+        "title": null,
+        "items": [
+          {
+            "id": "class-1",
+            "label": "1 – 12",
+            "swatch": {"kind":"fill","color":"#440154","opacity":0.75,"outline":"#6C307E","outlineWidth":0.5}
+          },
+          {
+            "id": "class-2",
+            "label": "12 – 60",
+            "swatch": {"kind":"fill","color":"#31688E","opacity":0.75,"outline":"#5B92BA","outlineWidth":0.5}
+          },
+          {
+            "id": "class-3",
+            "label": "60 – 240",
+            "swatch": {"kind":"fill","color":"#35B779","opacity":0.75,"outline":"#6AE5A4","outlineWidth":0.5}
+          },
+          {
+            "id": "class-4",
+            "label": "240 – 1 800",
+            "swatch": {"kind":"fill","color":"#FDE725","opacity":0.75,"outline":"#FFFC48","outlineWidth":0.5}
+          }
+        ]
+      }
+    ],
+    "note": null
+  },
+  "images": [],
+  "warnings": []
+}"
+`;
+
+exports[`compileLayerStyle — снимки слоёв по рендерерам и геометриям > categorized — line 1`] = `
+"{
+  "layers": [
+    {
+      "id": "objects:line",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"line"},
+      "type": "line",
+      "layout": {"line-cap":"round","line-join":"round"},
+      "paint": {
+        "line-color": [
+          "match",
+          ["to-string",["get","kind"]],
+          "school",
+          "#2F62E6",
+          "hospital",
+          "#CE2B2B",
+          "police",
+          "#1C9A62",
+          "#5B7083"
+        ],
+        "line-width": 2,
+        "line-opacity": 1
+      }
+    },
+    {
+      "id": "objects:label",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"label"},
+      "type": "symbol",
+      "minzoom": 9,
+      "layout": {
+        "text-field": ["to-string",["get","name"]],
+        "text-font": ["Noto Sans Regular"],
+        "text-size": 12,
+        "symbol-placement": "line",
+        "text-padding": 2,
+        "text-rotation-alignment": "map",
+        "text-max-angle": 30
+      },
+      "paint": {
+        "text-color": "#17181C",
+        "text-halo-color": "#FFFFFF",
+        "text-halo-width": 1.5,
+        "text-halo-blur": 0.5,
+        "text-opacity": 1
+      }
+    }
+  ],
+  "legend": {
+    "show": true,
+    "title": "Вид",
+    "sections": [
+      {
+        "id": "main",
+        "title": null,
+        "items": [
+          {
+            "id": "category-0",
+            "label": "Школа",
+            "swatch": {"kind":"line","color":"#2F62E6","width":2,"dash":null,"opacity":1}
+          },
+          {
+            "id": "category-1",
+            "label": "Больницы",
+            "swatch": {"kind":"line","color":"#CE2B2B","width":2,"dash":null,"opacity":1}
+          },
+          {
+            "id": "category-2",
+            "label": "Полиция",
+            "swatch": {"kind":"line","color":"#1C9A62","width":2,"dash":null,"opacity":1}
+          },
+          {
+            "id": "other",
+            "label": "Прочее",
+            "swatch": {"kind":"line","color":"#5B7083","width":2,"dash":null,"opacity":1}
+          }
+        ]
+      }
+    ],
+    "note": null
+  },
+  "images": [],
+  "warnings": []
+}"
+`;
+
+exports[`compileLayerStyle — снимки слоёв по рендерерам и геометриям > categorized — point 1`] = `
+"{
+  "layers": [
+    {
+      "id": "objects:point",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"point"},
+      "type": "circle",
+      "paint": {
+        "circle-color": [
+          "match",
+          ["to-string",["get","kind"]],
+          "school",
+          "#2F62E6",
+          "hospital",
+          "#CE2B2B",
+          "police",
+          "#1C9A62",
+          "#5B7083"
+        ],
+        "circle-radius": 4,
+        "circle-opacity": 1,
+        "circle-stroke-color": [
+          "match",
+          ["to-string",["get","kind"]],
+          "school",
+          "#062CAF",
+          "hospital",
+          "#950000",
+          "police",
+          "#006935",
+          "#304355"
+        ],
+        "circle-stroke-width": 1,
+        "circle-stroke-opacity": 1
+      }
+    },
+    {
+      "id": "objects:label",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"label"},
+      "type": "symbol",
+      "minzoom": 9,
+      "layout": {
+        "text-field": ["to-string",["get","name"]],
+        "text-font": ["Noto Sans Regular"],
+        "text-size": 12,
+        "symbol-placement": "point",
+        "text-padding": 2,
+        "text-variable-anchor": ["top","bottom","right","left"],
+        "text-radial-offset": 0.5,
+        "text-justify": "auto"
+      },
+      "paint": {
+        "text-color": "#17181C",
+        "text-halo-color": "#FFFFFF",
+        "text-halo-width": 1.5,
+        "text-halo-blur": 0.5,
+        "text-opacity": 1
+      }
+    }
+  ],
+  "legend": {
+    "show": true,
+    "title": "Вид",
+    "sections": [
+      {
+        "id": "main",
+        "title": null,
+        "items": [
+          {
+            "id": "category-0",
+            "label": "Школа",
+            "swatch": {
+              "kind": "point",
+              "shape": "circle",
+              "color": "#2F62E6",
+              "outline": "#062CAF",
+              "size": 8,
+              "opacity": 1,
+              "icon": null
+            }
+          },
+          {
+            "id": "category-1",
+            "label": "Больницы",
+            "swatch": {
+              "kind": "point",
+              "shape": "circle",
+              "color": "#CE2B2B",
+              "outline": "#950000",
+              "size": 8,
+              "opacity": 1,
+              "icon": null
+            }
+          },
+          {
+            "id": "category-2",
+            "label": "Полиция",
+            "swatch": {
+              "kind": "point",
+              "shape": "circle",
+              "color": "#1C9A62",
+              "outline": "#006935",
+              "size": 8,
+              "opacity": 1,
+              "icon": null
+            }
+          },
+          {
+            "id": "other",
+            "label": "Прочее",
+            "swatch": {
+              "kind": "point",
+              "shape": "circle",
+              "color": "#5B7083",
+              "outline": "#304355",
+              "size": 8,
+              "opacity": 1,
+              "icon": null
+            }
+          }
+        ]
+      }
+    ],
+    "note": null
+  },
+  "images": [],
+  "warnings": []
+}"
+`;
+
+exports[`compileLayerStyle — снимки слоёв по рендерерам и геометриям > categorized — polygon 1`] = `
+"{
+  "layers": [
+    {
+      "id": "objects:fill",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"fill"},
+      "type": "fill",
+      "paint": {
+        "fill-color": [
+          "match",
+          ["to-string",["get","kind"]],
+          "school",
+          "#2F62E6",
+          "hospital",
+          "#CE2B2B",
+          "police",
+          "#1C9A62",
+          "#5B7083"
+        ],
+        "fill-opacity": 0.6
+      }
+    },
+    {
+      "id": "objects:outline",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"outline"},
+      "type": "line",
+      "layout": {"line-join":"round"},
+      "paint": {
+        "line-color": [
+          "match",
+          ["to-string",["get","kind"]],
+          "school",
+          "#062CAF",
+          "hospital",
+          "#950000",
+          "police",
+          "#006935",
+          "#304355"
+        ],
+        "line-width": 1,
+        "line-opacity": 1
+      }
+    },
+    {
+      "id": "objects:label",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"label"},
+      "type": "symbol",
+      "minzoom": 9,
+      "layout": {
+        "text-field": ["to-string",["get","name"]],
+        "text-font": ["Noto Sans Regular"],
+        "text-size": 12,
+        "symbol-placement": "point",
+        "text-padding": 2
+      },
+      "paint": {
+        "text-color": "#17181C",
+        "text-halo-color": "#FFFFFF",
+        "text-halo-width": 1.5,
+        "text-halo-blur": 0.5,
+        "text-opacity": 1
+      }
+    }
+  ],
+  "legend": {
+    "show": true,
+    "title": "Вид",
+    "sections": [
+      {
+        "id": "main",
+        "title": null,
+        "items": [
+          {
+            "id": "category-0",
+            "label": "Школа",
+            "swatch": {"kind":"fill","color":"#2F62E6","opacity":0.6,"outline":"#062CAF","outlineWidth":1}
+          },
+          {
+            "id": "category-1",
+            "label": "Больницы",
+            "swatch": {"kind":"fill","color":"#CE2B2B","opacity":0.6,"outline":"#950000","outlineWidth":1}
+          },
+          {
+            "id": "category-2",
+            "label": "Полиция",
+            "swatch": {"kind":"fill","color":"#1C9A62","opacity":0.6,"outline":"#006935","outlineWidth":1}
+          },
+          {
+            "id": "other",
+            "label": "Прочее",
+            "swatch": {"kind":"fill","color":"#5B7083","opacity":0.6,"outline":"#304355","outlineWidth":1}
+          }
+        ]
+      }
+    ],
+    "note": null
+  },
+  "images": [],
+  "warnings": []
+}"
+`;
+
+exports[`compileLayerStyle — снимки слоёв по рендерерам и геометриям > graduated — line 1`] = `
+"{
+  "layers": [
+    {
+      "id": "objects:line",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"line"},
+      "type": "line",
+      "layout": {"line-cap":"round","line-join":"round"},
+      "paint": {
+        "line-color": [
+          "case",
+          ["==",["get","population"],null],
+          "#5B7083",
+          [
+            "step",
+            ["to-number",["get","population"]],
+            "#E9EFFF",
+            5000,
+            "#B2C7FA",
+            12000,
+            "#759BF5",
+            30000,
+            "#3E6CE0",
+            80000,
+            "#193CA0"
+          ]
+        ],
+        "line-width": 2,
+        "line-opacity": 1
+      }
+    },
+    {
+      "id": "objects:label",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"label"},
+      "type": "symbol",
+      "minzoom": 9,
+      "layout": {
+        "text-field": ["to-string",["get","name"]],
+        "text-font": ["Noto Sans Regular"],
+        "text-size": 12,
+        "symbol-placement": "line",
+        "text-padding": 2,
+        "text-rotation-alignment": "map",
+        "text-max-angle": 30
+      },
+      "paint": {
+        "text-color": "#17181C",
+        "text-halo-color": "#FFFFFF",
+        "text-halo-width": 1.5,
+        "text-halo-blur": 0.5,
+        "text-opacity": 1
+      }
+    }
+  ],
+  "legend": {
+    "show": true,
+    "title": "Население",
+    "sections": [
+      {
+        "id": "main",
+        "title": null,
+        "items": [
+          {
+            "id": "class-1",
+            "label": "1 200 – 5 000",
+            "swatch": {"kind":"line","color":"#E9EFFF","width":2,"dash":null,"opacity":1}
+          },
+          {
+            "id": "class-2",
+            "label": "5 000 – 12 000",
+            "swatch": {"kind":"line","color":"#B2C7FA","width":2,"dash":null,"opacity":1}
+          },
+          {
+            "id": "class-3",
+            "label": "12 000 – 30 000",
+            "swatch": {"kind":"line","color":"#759BF5","width":2,"dash":null,"opacity":1}
+          },
+          {
+            "id": "class-4",
+            "label": "30 000 – 80 000",
+            "swatch": {"kind":"line","color":"#3E6CE0","width":2,"dash":null,"opacity":1}
+          },
+          {
+            "id": "class-5",
+            "label": "80 000 – 250 000",
+            "swatch": {"kind":"line","color":"#193CA0","width":2,"dash":null,"opacity":1}
+          },
+          {
+            "id": "no-data",
+            "label": "Нет данных",
+            "swatch": {"kind":"line","color":"#5B7083","width":2,"dash":null,"opacity":1}
+          }
+        ]
+      }
+    ],
+    "note": null
+  },
+  "images": [],
+  "warnings": []
+}"
+`;
+
+exports[`compileLayerStyle — снимки слоёв по рендерерам и геометриям > graduated — point 1`] = `
+"{
+  "layers": [
+    {
+      "id": "objects:point",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"point"},
+      "type": "circle",
+      "paint": {
+        "circle-color": [
+          "case",
+          ["==",["get","population"],null],
+          "#5B7083",
+          [
+            "step",
+            ["to-number",["get","population"]],
+            "#E9EFFF",
+            5000,
+            "#B2C7FA",
+            12000,
+            "#759BF5",
+            30000,
+            "#3E6CE0",
+            80000,
+            "#193CA0"
+          ]
+        ],
+        "circle-radius": 4,
+        "circle-opacity": 1,
+        "circle-stroke-color": [
+          "case",
+          ["==",["get","population"],null],
+          "#304355",
+          [
+            "step",
+            ["to-number",["get","population"]],
+            "#B5BBCA",
+            5000,
+            "#8195C5",
+            12000,
+            "#486ABF",
+            30000,
+            "#1539AA",
+            80000,
+            "#02006D"
+          ]
+        ],
+        "circle-stroke-width": 1,
+        "circle-stroke-opacity": 1
+      }
+    },
+    {
+      "id": "objects:label",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"label"},
+      "type": "symbol",
+      "minzoom": 9,
+      "layout": {
+        "text-field": ["to-string",["get","name"]],
+        "text-font": ["Noto Sans Regular"],
+        "text-size": 12,
+        "symbol-placement": "point",
+        "text-padding": 2,
+        "text-variable-anchor": ["top","bottom","right","left"],
+        "text-radial-offset": 0.5,
+        "text-justify": "auto"
+      },
+      "paint": {
+        "text-color": "#17181C",
+        "text-halo-color": "#FFFFFF",
+        "text-halo-width": 1.5,
+        "text-halo-blur": 0.5,
+        "text-opacity": 1
+      }
+    }
+  ],
+  "legend": {
+    "show": true,
+    "title": "Население",
+    "sections": [
+      {
+        "id": "main",
+        "title": null,
+        "items": [
+          {
+            "id": "class-1",
+            "label": "1 200 – 5 000",
+            "swatch": {
+              "kind": "point",
+              "shape": "circle",
+              "color": "#E9EFFF",
+              "outline": "#B5BBCA",
+              "size": 8,
+              "opacity": 1,
+              "icon": null
+            }
+          },
+          {
+            "id": "class-2",
+            "label": "5 000 – 12 000",
+            "swatch": {
+              "kind": "point",
+              "shape": "circle",
+              "color": "#B2C7FA",
+              "outline": "#8195C5",
+              "size": 8,
+              "opacity": 1,
+              "icon": null
+            }
+          },
+          {
+            "id": "class-3",
+            "label": "12 000 – 30 000",
+            "swatch": {
+              "kind": "point",
+              "shape": "circle",
+              "color": "#759BF5",
+              "outline": "#486ABF",
+              "size": 8,
+              "opacity": 1,
+              "icon": null
+            }
+          },
+          {
+            "id": "class-4",
+            "label": "30 000 – 80 000",
+            "swatch": {
+              "kind": "point",
+              "shape": "circle",
+              "color": "#3E6CE0",
+              "outline": "#1539AA",
+              "size": 8,
+              "opacity": 1,
+              "icon": null
+            }
+          },
+          {
+            "id": "class-5",
+            "label": "80 000 – 250 000",
+            "swatch": {
+              "kind": "point",
+              "shape": "circle",
+              "color": "#193CA0",
+              "outline": "#02006D",
+              "size": 8,
+              "opacity": 1,
+              "icon": null
+            }
+          },
+          {
+            "id": "no-data",
+            "label": "Нет данных",
+            "swatch": {
+              "kind": "point",
+              "shape": "circle",
+              "color": "#5B7083",
+              "outline": "#304355",
+              "size": 8,
+              "opacity": 1,
+              "icon": null
+            }
+          }
+        ]
+      }
+    ],
+    "note": null
+  },
+  "images": [],
+  "warnings": []
+}"
+`;
+
+exports[`compileLayerStyle — снимки слоёв по рендерерам и геометриям > graduated — polygon 1`] = `
+"{
+  "layers": [
+    {
+      "id": "objects:fill",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"fill"},
+      "type": "fill",
+      "paint": {
+        "fill-color": [
+          "case",
+          ["==",["get","population"],null],
+          "#5B7083",
+          [
+            "step",
+            ["to-number",["get","population"]],
+            "#E9EFFF",
+            5000,
+            "#B2C7FA",
+            12000,
+            "#759BF5",
+            30000,
+            "#3E6CE0",
+            80000,
+            "#193CA0"
+          ]
+        ],
+        "fill-opacity": 0.6
+      }
+    },
+    {
+      "id": "objects:outline",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"outline"},
+      "type": "line",
+      "layout": {"line-join":"round"},
+      "paint": {
+        "line-color": [
+          "case",
+          ["==",["get","population"],null],
+          "#304355",
+          [
+            "step",
+            ["to-number",["get","population"]],
+            "#B5BBCA",
+            5000,
+            "#8195C5",
+            12000,
+            "#486ABF",
+            30000,
+            "#1539AA",
+            80000,
+            "#02006D"
+          ]
+        ],
+        "line-width": 1,
+        "line-opacity": 1
+      }
+    },
+    {
+      "id": "objects:label",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"label"},
+      "type": "symbol",
+      "minzoom": 9,
+      "layout": {
+        "text-field": ["to-string",["get","name"]],
+        "text-font": ["Noto Sans Regular"],
+        "text-size": 12,
+        "symbol-placement": "point",
+        "text-padding": 2
+      },
+      "paint": {
+        "text-color": "#17181C",
+        "text-halo-color": "#FFFFFF",
+        "text-halo-width": 1.5,
+        "text-halo-blur": 0.5,
+        "text-opacity": 1
+      }
+    }
+  ],
+  "legend": {
+    "show": true,
+    "title": "Население",
+    "sections": [
+      {
+        "id": "main",
+        "title": null,
+        "items": [
+          {
+            "id": "class-1",
+            "label": "1 200 – 5 000",
+            "swatch": {"kind":"fill","color":"#E9EFFF","opacity":0.6,"outline":"#B5BBCA","outlineWidth":1}
+          },
+          {
+            "id": "class-2",
+            "label": "5 000 – 12 000",
+            "swatch": {"kind":"fill","color":"#B2C7FA","opacity":0.6,"outline":"#8195C5","outlineWidth":1}
+          },
+          {
+            "id": "class-3",
+            "label": "12 000 – 30 000",
+            "swatch": {"kind":"fill","color":"#759BF5","opacity":0.6,"outline":"#486ABF","outlineWidth":1}
+          },
+          {
+            "id": "class-4",
+            "label": "30 000 – 80 000",
+            "swatch": {"kind":"fill","color":"#3E6CE0","opacity":0.6,"outline":"#1539AA","outlineWidth":1}
+          },
+          {
+            "id": "class-5",
+            "label": "80 000 – 250 000",
+            "swatch": {"kind":"fill","color":"#193CA0","opacity":0.6,"outline":"#02006D","outlineWidth":1}
+          },
+          {
+            "id": "no-data",
+            "label": "Нет данных",
+            "swatch": {"kind":"fill","color":"#5B7083","opacity":0.6,"outline":"#304355","outlineWidth":1}
+          }
+        ]
+      }
+    ],
+    "note": null
+  },
+  "images": [],
+  "warnings": []
+}"
+`;
+
+exports[`compileLayerStyle — снимки слоёв по рендерерам и геометриям > heatmap — line 1`] = `
+"{
+  "layers": [
+    {
+      "id": "objects:line",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"line"},
+      "type": "line",
+      "layout": {"line-cap":"round","line-join":"round"},
+      "paint": {"line-color":"#C4681D","line-width":2,"line-opacity":1}
+    },
+    {
+      "id": "objects:label",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"label"},
+      "type": "symbol",
+      "minzoom": 9,
+      "layout": {
+        "text-field": ["to-string",["get","name"]],
+        "text-font": ["Noto Sans Regular"],
+        "text-size": 12,
+        "symbol-placement": "line",
+        "text-padding": 2,
+        "text-rotation-alignment": "map",
+        "text-max-angle": 30
+      },
+      "paint": {
+        "text-color": "#17181C",
+        "text-halo-color": "#FFFFFF",
+        "text-halo-width": 1.5,
+        "text-halo-blur": 0.5,
+        "text-opacity": 1
+      }
+    }
+  ],
+  "legend": {
+    "show": true,
+    "title": null,
+    "sections": [
+      {
+        "id": "main",
+        "title": null,
+        "items": [
+          {
+            "id": "simple",
+            "label": "Объекты",
+            "swatch": {"kind":"line","color":"#C4681D","width":2,"dash":null,"opacity":1}
+          }
+        ]
+      }
+    ],
+    "note": null
+  },
+  "images": [],
+  "warnings": [
+    {"code":"renderer-geometry","path":"renderer.kind","detail":"тепловая карта — только для точек"}
+  ]
+}"
+`;
+
+exports[`compileLayerStyle — снимки слоёв по рендерерам и геометриям > heatmap — point 1`] = `
+"{
+  "layers": [
+    {
+      "id": "objects:heatmap",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"heatmap"},
+      "type": "heatmap",
+      "paint": {
+        "heatmap-weight": [
+          "case",
+          ["==",["get","severity"],null],
+          0,
+          ["interpolate",["linear"],["to-number",["get","severity"]],1,0,5,1]
+        ],
+        "heatmap-intensity": 1.5,
+        "heatmap-radius": 24,
+        "heatmap-color": [
+          "interpolate",
+          ["linear"],
+          ["heatmap-density"],
+          0,
+          "rgba(253, 239, 224, 0)",
+          0.142857,
+          "#FDEFE0",
+          0.285714,
+          "#F7D3B2",
+          0.428571,
+          "#F3B37F",
+          0.571429,
+          "#EC9249",
+          0.714286,
+          "#DA751D",
+          0.857143,
+          "#AE5B1D",
+          1,
+          "#824115"
+        ],
+        "heatmap-opacity": 1
+      }
+    },
+    {
+      "id": "objects:label",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"label"},
+      "type": "symbol",
+      "minzoom": 9,
+      "layout": {
+        "text-field": ["to-string",["get","name"]],
+        "text-font": ["Noto Sans Regular"],
+        "text-size": 12,
+        "symbol-placement": "point",
+        "text-padding": 2,
+        "text-variable-anchor": ["top","bottom","right","left"],
+        "text-radial-offset": 0.5,
+        "text-justify": "auto"
+      },
+      "paint": {
+        "text-color": "#17181C",
+        "text-halo-color": "#FFFFFF",
+        "text-halo-width": 1.5,
+        "text-halo-blur": 0.5,
+        "text-opacity": 1
+      }
+    }
+  ],
+  "legend": {
+    "show": true,
+    "title": "Плотность",
+    "sections": [
+      {
+        "id": "main",
+        "title": null,
+        "items": [
+          {
+            "id": "density",
+            "label": "Вес — Тяжесть",
+            "swatch": {
+              "kind": "heatmap-gradient",
+              "stops": [
+                {"offset":0,"color":"#FDEFE0"},
+                {"offset":0.166667,"color":"#F7D3B2"},
+                {"offset":0.333333,"color":"#F3B37F"},
+                {"offset":0.5,"color":"#EC9249"},
+                {"offset":0.666667,"color":"#DA751D"},
+                {"offset":0.833333,"color":"#AE5B1D"},
+                {"offset":1,"color":"#824115"}
+              ],
+              "low": "Меньше",
+              "high": "Больше"
+            }
+          }
+        ]
+      }
+    ],
+    "note": null
+  },
+  "images": [],
+  "warnings": []
+}"
+`;
+
+exports[`compileLayerStyle — снимки слоёв по рендерерам и геометриям > heatmap — polygon 1`] = `
+"{
+  "layers": [
+    {
+      "id": "objects:fill",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"fill"},
+      "type": "fill",
+      "paint": {"fill-color":"#C4681D","fill-opacity":0.6}
+    },
+    {
+      "id": "objects:outline",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"outline"},
+      "type": "line",
+      "layout": {"line-join":"round"},
+      "paint": {"line-color":"#8F3800","line-width":1,"line-opacity":1}
+    },
+    {
+      "id": "objects:label",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"label"},
+      "type": "symbol",
+      "minzoom": 9,
+      "layout": {
+        "text-field": ["to-string",["get","name"]],
+        "text-font": ["Noto Sans Regular"],
+        "text-size": 12,
+        "symbol-placement": "point",
+        "text-padding": 2
+      },
+      "paint": {
+        "text-color": "#17181C",
+        "text-halo-color": "#FFFFFF",
+        "text-halo-width": 1.5,
+        "text-halo-blur": 0.5,
+        "text-opacity": 1
+      }
+    }
+  ],
+  "legend": {
+    "show": true,
+    "title": null,
+    "sections": [
+      {
+        "id": "main",
+        "title": null,
+        "items": [
+          {
+            "id": "simple",
+            "label": "Объекты",
+            "swatch": {"kind":"fill","color":"#C4681D","opacity":0.6,"outline":"#8F3800","outlineWidth":1}
+          }
+        ]
+      }
+    ],
+    "note": null
+  },
+  "images": [],
+  "warnings": [
+    {"code":"renderer-geometry","path":"renderer.kind","detail":"тепловая карта — только для точек"}
+  ]
+}"
+`;
+
+exports[`compileLayerStyle — снимки слоёв по рендерерам и геометриям > proportional — line 1`] = `
+"{
+  "layers": [
+    {
+      "id": "objects:line",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"line"},
+      "type": "line",
+      "layout": {"line-cap":"round","line-join":"round"},
+      "paint": {
+        "line-color": "#007A87",
+        "line-width": [
+          "case",
+          ["==",["get","capacity"],null],
+          6,
+          [
+            "interpolate",
+            ["linear"],
+            ["sqrt",["max",["to-number",["get","capacity"]],0]],
+            4.47214,
+            6,
+            38.7298,
+            20
+          ]
+        ],
+        "line-opacity": 1
+      },
+      "filter": ["!=",["get","capacity"],null]
+    },
+    {
+      "id": "objects:label",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"label"},
+      "type": "symbol",
+      "minzoom": 9,
+      "layout": {
+        "text-field": ["to-string",["get","name"]],
+        "text-font": ["Noto Sans Regular"],
+        "text-size": 12,
+        "symbol-placement": "line",
+        "text-padding": 2,
+        "text-rotation-alignment": "map",
+        "text-max-angle": 30
+      },
+      "paint": {
+        "text-color": "#17181C",
+        "text-halo-color": "#FFFFFF",
+        "text-halo-width": 1.5,
+        "text-halo-blur": 0.5,
+        "text-opacity": 1
+      },
+      "filter": ["!=",["get","capacity"],null]
+    }
+  ],
+  "legend": {
+    "show": true,
+    "title": "Вместимость",
+    "sections": [
+      {
+        "id": "main",
+        "title": null,
+        "items": [
+          {
+            "id": "size-1",
+            "label": "1 500",
+            "swatch": {"kind":"line","color":"#007A87","width":20,"dash":null,"opacity":1}
+          },
+          {
+            "id": "size-2",
+            "label": "470",
+            "swatch": {"kind":"line","color":"#007A87","width":13.03,"dash":null,"opacity":1}
+          },
+          {
+            "id": "size-3",
+            "label": "20",
+            "swatch": {"kind":"line","color":"#007A87","width":6,"dash":null,"opacity":1}
+          }
+        ]
+      }
+    ],
+    "note": null
+  },
+  "images": [],
+  "warnings": []
+}"
+`;
+
+exports[`compileLayerStyle — снимки слоёв по рендерерам и геометриям > proportional — point 1`] = `
+"{
+  "layers": [
+    {
+      "id": "objects:point",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"point"},
+      "type": "circle",
+      "paint": {
+        "circle-color": "#007A87",
+        "circle-radius": [
+          "case",
+          ["==",["get","capacity"],null],
+          3,
+          [
+            "interpolate",
+            ["linear"],
+            ["sqrt",["max",["to-number",["get","capacity"]],0]],
+            4.47214,
+            3,
+            38.7298,
+            15
+          ]
+        ],
+        "circle-opacity": 1,
+        "circle-stroke-color": "#004C58",
+        "circle-stroke-width": 1,
+        "circle-stroke-opacity": 1
+      },
+      "filter": ["!=",["get","capacity"],null]
+    },
+    {
+      "id": "objects:label",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"label"},
+      "type": "symbol",
+      "minzoom": 9,
+      "layout": {
+        "text-field": ["to-string",["get","name"]],
+        "text-font": ["Noto Sans Regular"],
+        "text-size": 12,
+        "symbol-placement": "point",
+        "text-padding": 2,
+        "text-variable-anchor": ["top","bottom","right","left"],
+        "text-radial-offset": [
+          "case",
+          ["==",["get","capacity"],null],
+          0.416667,
+          [
+            "interpolate",
+            ["linear"],
+            ["sqrt",["max",["to-number",["get","capacity"]],0]],
+            4.47214,
+            0.416667,
+            38.7298,
+            1.41667
+          ]
+        ],
+        "text-justify": "auto"
+      },
+      "paint": {
+        "text-color": "#17181C",
+        "text-halo-color": "#FFFFFF",
+        "text-halo-width": 1.5,
+        "text-halo-blur": 0.5,
+        "text-opacity": 1
+      },
+      "filter": ["!=",["get","capacity"],null]
+    }
+  ],
+  "legend": {
+    "show": true,
+    "title": "Вместимость",
+    "sections": [
+      {
+        "id": "main",
+        "title": null,
+        "items": [
+          {
+            "id": "size-1",
+            "label": "1 500",
+            "swatch": {
+              "kind": "proportional-circle",
+              "color": "#007A87",
+              "outline": "#004C58",
+              "size": 30,
+              "maxSize": 30,
+              "opacity": 1
+            }
+          },
+          {
+            "id": "size-2",
+            "label": "470",
+            "swatch": {
+              "kind": "proportional-circle",
+              "color": "#007A87",
+              "outline": "#004C58",
+              "size": 18.05,
+              "maxSize": 30,
+              "opacity": 1
+            }
+          },
+          {
+            "id": "size-3",
+            "label": "20",
+            "swatch": {
+              "kind": "proportional-circle",
+              "color": "#007A87",
+              "outline": "#004C58",
+              "size": 6,
+              "maxSize": 30,
+              "opacity": 1
+            }
+          }
+        ]
+      }
+    ],
+    "note": null
+  },
+  "images": [],
+  "warnings": []
+}"
+`;
+
+exports[`compileLayerStyle — снимки слоёв по рендерерам и геометриям > proportional — polygon 1`] = `
+"{
+  "layers": [
+    {
+      "id": "objects:fill",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"fill"},
+      "type": "fill",
+      "paint": {"fill-color":"#007A87","fill-opacity":0.6}
+    },
+    {
+      "id": "objects:outline",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"outline"},
+      "type": "line",
+      "layout": {"line-join":"round"},
+      "paint": {"line-color":"#004C58","line-width":1,"line-opacity":1}
+    },
+    {
+      "id": "objects:label",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"label"},
+      "type": "symbol",
+      "minzoom": 9,
+      "layout": {
+        "text-field": ["to-string",["get","name"]],
+        "text-font": ["Noto Sans Regular"],
+        "text-size": 12,
+        "symbol-placement": "point",
+        "text-padding": 2
+      },
+      "paint": {
+        "text-color": "#17181C",
+        "text-halo-color": "#FFFFFF",
+        "text-halo-width": 1.5,
+        "text-halo-blur": 0.5,
+        "text-opacity": 1
+      }
+    }
+  ],
+  "legend": {
+    "show": true,
+    "title": null,
+    "sections": [
+      {
+        "id": "main",
+        "title": null,
+        "items": [
+          {
+            "id": "simple",
+            "label": "Объекты",
+            "swatch": {"kind":"fill","color":"#007A87","opacity":0.6,"outline":"#004C58","outlineWidth":1}
+          }
+        ]
+      }
+    ],
+    "note": null
+  },
+  "images": [],
+  "warnings": [
+    {
+      "code": "renderer-geometry",
+      "path": "renderer.kind",
+      "detail": "размер по значению — у точек и линий"
+    }
+  ]
+}"
+`;
+
+exports[`compileLayerStyle — снимки слоёв по рендерерам и геометриям > rule — line 1`] = `
+"{
+  "layers": [
+    {
+      "id": "objects:line",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"line"},
+      "type": "line",
+      "layout": {"line-cap":"round","line-join":"round"},
+      "paint": {
+        "line-color": [
+          "case",
+          ["all",["!=",["get","severity"],null],[">=",["to-number",["get","severity"]],4]],
+          "#CE2B2B",
+          [
+            "all",
+            ["==",["get","active"],true],
+            ["match",["to-string",["get","kind"]],["school","hospital"],true,false]
+          ],
+          "#177E50",
+          "#666875"
+        ],
+        "line-width": 2,
+        "line-opacity": 1
+      }
+    },
+    {
+      "id": "objects:label",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"label"},
+      "type": "symbol",
+      "minzoom": 9,
+      "layout": {
+        "text-field": ["to-string",["get","name"]],
+        "text-font": ["Noto Sans Regular"],
+        "text-size": 12,
+        "symbol-placement": "line",
+        "text-padding": 2,
+        "text-rotation-alignment": "map",
+        "text-max-angle": 30
+      },
+      "paint": {
+        "text-color": "#17181C",
+        "text-halo-color": "#FFFFFF",
+        "text-halo-width": 1.5,
+        "text-halo-blur": 0.5,
+        "text-opacity": 1
+      }
+    }
+  ],
+  "legend": {
+    "show": true,
+    "title": null,
+    "sections": [
+      {
+        "id": "main",
+        "title": null,
+        "items": [
+          {
+            "id": "rule-0",
+            "label": "Тяжёлые",
+            "swatch": {"kind":"line","color":"#CE2B2B","width":2,"dash":null,"opacity":1}
+          },
+          {
+            "id": "rule-1",
+            "label": "Правило 2",
+            "swatch": {"kind":"line","color":"#177E50","width":2,"dash":null,"opacity":1}
+          },
+          {
+            "id": "other",
+            "label": "Остальные",
+            "swatch": {"kind":"line","color":"#666875","width":2,"dash":null,"opacity":1}
+          }
+        ]
+      }
+    ],
+    "note": null
+  },
+  "images": [],
+  "warnings": []
+}"
+`;
+
+exports[`compileLayerStyle — снимки слоёв по рендерерам и геометриям > rule — point 1`] = `
+"{
+  "layers": [
+    {
+      "id": "objects:point",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"point"},
+      "type": "circle",
+      "paint": {
+        "circle-color": [
+          "case",
+          ["all",["!=",["get","severity"],null],[">=",["to-number",["get","severity"]],4]],
+          "#CE2B2B",
+          [
+            "all",
+            ["==",["get","active"],true],
+            ["match",["to-string",["get","kind"]],["school","hospital"],true,false]
+          ],
+          "#177E50",
+          "#666875"
+        ],
+        "circle-radius": 4,
+        "circle-opacity": 1,
+        "circle-stroke-color": [
+          "case",
+          ["all",["!=",["get","severity"],null],[">=",["to-number",["get","severity"]],4]],
+          "#950000",
+          [
+            "all",
+            ["==",["get","active"],true],
+            ["match",["to-string",["get","kind"]],["school","hospital"],true,false]
+          ],
+          "#004F25",
+          "#3A3C48"
+        ],
+        "circle-stroke-width": 1,
+        "circle-stroke-opacity": 1
+      }
+    },
+    {
+      "id": "objects:label",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"label"},
+      "type": "symbol",
+      "minzoom": 9,
+      "layout": {
+        "text-field": ["to-string",["get","name"]],
+        "text-font": ["Noto Sans Regular"],
+        "text-size": 12,
+        "symbol-placement": "point",
+        "text-padding": 2,
+        "text-variable-anchor": ["top","bottom","right","left"],
+        "text-radial-offset": 0.5,
+        "text-justify": "auto"
+      },
+      "paint": {
+        "text-color": "#17181C",
+        "text-halo-color": "#FFFFFF",
+        "text-halo-width": 1.5,
+        "text-halo-blur": 0.5,
+        "text-opacity": 1
+      }
+    }
+  ],
+  "legend": {
+    "show": true,
+    "title": null,
+    "sections": [
+      {
+        "id": "main",
+        "title": null,
+        "items": [
+          {
+            "id": "rule-0",
+            "label": "Тяжёлые",
+            "swatch": {
+              "kind": "point",
+              "shape": "circle",
+              "color": "#CE2B2B",
+              "outline": "#950000",
+              "size": 8,
+              "opacity": 1,
+              "icon": null
+            }
+          },
+          {
+            "id": "rule-1",
+            "label": "Правило 2",
+            "swatch": {
+              "kind": "point",
+              "shape": "circle",
+              "color": "#177E50",
+              "outline": "#004F25",
+              "size": 8,
+              "opacity": 1,
+              "icon": null
+            }
+          },
+          {
+            "id": "other",
+            "label": "Остальные",
+            "swatch": {
+              "kind": "point",
+              "shape": "circle",
+              "color": "#666875",
+              "outline": "#3A3C48",
+              "size": 8,
+              "opacity": 1,
+              "icon": null
+            }
+          }
+        ]
+      }
+    ],
+    "note": null
+  },
+  "images": [],
+  "warnings": []
+}"
+`;
+
+exports[`compileLayerStyle — снимки слоёв по рендерерам и геометриям > rule — polygon 1`] = `
+"{
+  "layers": [
+    {
+      "id": "objects:fill",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"fill"},
+      "type": "fill",
+      "paint": {
+        "fill-color": [
+          "case",
+          ["all",["!=",["get","severity"],null],[">=",["to-number",["get","severity"]],4]],
+          "#CE2B2B",
+          [
+            "all",
+            ["==",["get","active"],true],
+            ["match",["to-string",["get","kind"]],["school","hospital"],true,false]
+          ],
+          "#177E50",
+          "#666875"
+        ],
+        "fill-opacity": 0.6
+      }
+    },
+    {
+      "id": "objects:outline",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"outline"},
+      "type": "line",
+      "layout": {"line-join":"round"},
+      "paint": {
+        "line-color": [
+          "case",
+          ["all",["!=",["get","severity"],null],[">=",["to-number",["get","severity"]],4]],
+          "#950000",
+          [
+            "all",
+            ["==",["get","active"],true],
+            ["match",["to-string",["get","kind"]],["school","hospital"],true,false]
+          ],
+          "#004F25",
+          "#3A3C48"
+        ],
+        "line-width": 1,
+        "line-opacity": 1
+      }
+    },
+    {
+      "id": "objects:label",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"label"},
+      "type": "symbol",
+      "minzoom": 9,
+      "layout": {
+        "text-field": ["to-string",["get","name"]],
+        "text-font": ["Noto Sans Regular"],
+        "text-size": 12,
+        "symbol-placement": "point",
+        "text-padding": 2
+      },
+      "paint": {
+        "text-color": "#17181C",
+        "text-halo-color": "#FFFFFF",
+        "text-halo-width": 1.5,
+        "text-halo-blur": 0.5,
+        "text-opacity": 1
+      }
+    }
+  ],
+  "legend": {
+    "show": true,
+    "title": null,
+    "sections": [
+      {
+        "id": "main",
+        "title": null,
+        "items": [
+          {
+            "id": "rule-0",
+            "label": "Тяжёлые",
+            "swatch": {"kind":"fill","color":"#CE2B2B","opacity":0.6,"outline":"#950000","outlineWidth":1}
+          },
+          {
+            "id": "rule-1",
+            "label": "Правило 2",
+            "swatch": {"kind":"fill","color":"#177E50","opacity":0.6,"outline":"#004F25","outlineWidth":1}
+          },
+          {
+            "id": "other",
+            "label": "Остальные",
+            "swatch": {"kind":"fill","color":"#666875","opacity":0.6,"outline":"#3A3C48","outlineWidth":1}
+          }
+        ]
+      }
+    ],
+    "note": null
+  },
+  "images": [],
+  "warnings": []
+}"
+`;
+
+exports[`compileLayerStyle — снимки слоёв по рендерерам и геометриям > simple — line 1`] = `
+"{
+  "layers": [
+    {
+      "id": "objects:line",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"line"},
+      "type": "line",
+      "layout": {"line-cap":"round","line-join":"round"},
+      "paint": {"line-color":"#E8842F","line-width":2,"line-opacity":1}
+    },
+    {
+      "id": "objects:label",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"label"},
+      "type": "symbol",
+      "minzoom": 9,
+      "layout": {
+        "text-field": ["to-string",["get","name"]],
+        "text-font": ["Noto Sans Regular"],
+        "text-size": 12,
+        "symbol-placement": "line",
+        "text-padding": 2,
+        "text-rotation-alignment": "map",
+        "text-max-angle": 30
+      },
+      "paint": {
+        "text-color": "#17181C",
+        "text-halo-color": "#FFFFFF",
+        "text-halo-width": 1.5,
+        "text-halo-blur": 0.5,
+        "text-opacity": 1
+      }
+    }
+  ],
+  "legend": {
+    "show": true,
+    "title": null,
+    "sections": [
+      {
+        "id": "main",
+        "title": null,
+        "items": [
+          {
+            "id": "simple",
+            "label": "Объекты",
+            "swatch": {"kind":"line","color":"#E8842F","width":2,"dash":null,"opacity":1}
+          }
+        ]
+      }
+    ],
+    "note": null
+  },
+  "images": [],
+  "warnings": []
+}"
+`;
+
+exports[`compileLayerStyle — снимки слоёв по рендерерам и геометриям > simple — point 1`] = `
+"{
+  "layers": [
+    {
+      "id": "objects:point",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"point"},
+      "type": "circle",
+      "paint": {
+        "circle-color": "#E8842F",
+        "circle-radius": 4,
+        "circle-opacity": 1,
+        "circle-stroke-color": "#B25200",
+        "circle-stroke-width": 1,
+        "circle-stroke-opacity": 1
+      }
+    },
+    {
+      "id": "objects:label",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"label"},
+      "type": "symbol",
+      "minzoom": 9,
+      "layout": {
+        "text-field": ["to-string",["get","name"]],
+        "text-font": ["Noto Sans Regular"],
+        "text-size": 12,
+        "symbol-placement": "point",
+        "text-padding": 2,
+        "text-variable-anchor": ["top","bottom","right","left"],
+        "text-radial-offset": 0.5,
+        "text-justify": "auto"
+      },
+      "paint": {
+        "text-color": "#17181C",
+        "text-halo-color": "#FFFFFF",
+        "text-halo-width": 1.5,
+        "text-halo-blur": 0.5,
+        "text-opacity": 1
+      }
+    }
+  ],
+  "legend": {
+    "show": true,
+    "title": null,
+    "sections": [
+      {
+        "id": "main",
+        "title": null,
+        "items": [
+          {
+            "id": "simple",
+            "label": "Объекты",
+            "swatch": {
+              "kind": "point",
+              "shape": "circle",
+              "color": "#E8842F",
+              "outline": "#B25200",
+              "size": 8,
+              "opacity": 1,
+              "icon": null
+            }
+          }
+        ]
+      }
+    ],
+    "note": null
+  },
+  "images": [],
+  "warnings": []
+}"
+`;
+
+exports[`compileLayerStyle — снимки слоёв по рендерерам и геометриям > simple — polygon 1`] = `
+"{
+  "layers": [
+    {
+      "id": "objects:fill",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"fill"},
+      "type": "fill",
+      "paint": {"fill-color":"#E8842F","fill-opacity":0.6}
+    },
+    {
+      "id": "objects:outline",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"outline"},
+      "type": "line",
+      "layout": {"line-join":"round"},
+      "paint": {"line-color":"#B25200","line-width":1,"line-opacity":1}
+    },
+    {
+      "id": "objects:label",
+      "source": "objects-tiles",
+      "source-layer": "layer",
+      "metadata": {"kchs:layer":"objects","kchs:role":"label"},
+      "type": "symbol",
+      "minzoom": 9,
+      "layout": {
+        "text-field": ["to-string",["get","name"]],
+        "text-font": ["Noto Sans Regular"],
+        "text-size": 12,
+        "symbol-placement": "point",
+        "text-padding": 2
+      },
+      "paint": {
+        "text-color": "#17181C",
+        "text-halo-color": "#FFFFFF",
+        "text-halo-width": 1.5,
+        "text-halo-blur": 0.5,
+        "text-opacity": 1
+      }
+    }
+  ],
+  "legend": {
+    "show": true,
+    "title": null,
+    "sections": [
+      {
+        "id": "main",
+        "title": null,
+        "items": [
+          {
+            "id": "simple",
+            "label": "Объекты",
+            "swatch": {"kind":"fill","color":"#E8842F","opacity":0.6,"outline":"#B25200","outlineWidth":1}
+          }
+        ]
+      }
+    ],
+    "note": null
+  },
+  "images": [],
+  "warnings": []
+}"
+`;

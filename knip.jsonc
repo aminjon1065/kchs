@@ -41,6 +41,10 @@
       "entry": ["src/index.ts"],
       "project": ["src/**/*.ts"]
     },
+    "packages/map-style": {
+      "entry": ["src/index.ts"],
+      "project": ["src/**/*.ts"]
+    },
     "packages/fields": {
       "entry": ["src/index.ts"],
       "project": ["src/**/*.ts"]

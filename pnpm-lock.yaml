@@ -510,6 +510,31 @@ importers:
         specifier: ^3.2.4
         version: 3.2.7(@types/node@22.20.3)(jiti@2.7.0)(lightningcss@1.32.0)(supports-color@7.2.0)(tsx@4.23.13)(yaml@2.9.1)
 
+  packages/map-style:
+    dependencies:
+      '@kchs/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@kchs/fields':
+        specifier: workspace:*
+        version: link:../fields
+      '@kchs/i18n':
+        specifier: workspace:*
+        version: link:../i18n
+      '@maplibre/maplibre-gl-style-spec':
+        specifier: ^26.4.4
+        version: 26.4.4
+    devDependencies:
+      '@kchs/config':
+        specifier: workspace:*
+        version: link:../config
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.7(@types/node@22.20.3)(jiti@2.7.0)(lightningcss@1.32.0)(supports-color@10.2.2)(tsx@4.23.13)(yaml@2.9.1)
+
   packages/query:
     dependencies:
       '@kchs/contracts':
@@ -570,6 +595,9 @@ importers:
       '@kchs/i18n':
         specifier: workspace:*
         version: link:../i18n
+      '@kchs/map-style':
+        specifier: workspace:*
+        version: link:../map-style
       '@lezer/highlight':
         specifier: ^1.2.3
         version: 1.2.3

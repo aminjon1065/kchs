@@ -155,6 +155,12 @@ export const tg: DeepPartial<Dictionary> = {
         map: 'Харита',
       },
     },
+    map: {
+      legend: {
+        other: 'Дигар',
+        none: 'Қимат нест',
+      },
+    },
     grid: {
       rowNumber: 'Рақами сатр',
       rows: '{count, plural, other {# сатр}}',
