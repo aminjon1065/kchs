@@ -211,7 +211,9 @@ export function useRenderedLayers(
         tiles: [
           layerTileUrl(layer, {
             filter: options.filters?.[layer.id] ?? null,
-            time: options.time,
+            // Интервал — только слоям со временем (у рабочей копии — её поле времени):
+            // у остальных адрес тайлов не меняется
+            time: style.time ? options.time : null,
             preview: tilePreviewOf(layer.style, entry.style),
           }),
         ],
