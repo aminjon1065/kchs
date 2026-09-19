@@ -418,8 +418,9 @@ async function seedAdminCtx(adminLogin: string): Promise<SystemCtx> {
 
 /**
  * Канцелярия демо-мира (ADR-0086): показатели и дашборд «Канцелярия» в
- * пространстве «Общее» и около двухсот демо-документов с номенклатурой дел —
- * идемпотентно, в том числе на заполненной раньше базе.
+ * пространстве «Общее», около двухсот демо-документов с номенклатурой дел,
+ * маршруты и резолюции в работе — идемпотентно, в том числе на заполненной
+ * раньше базе.
  */
 async function seedOffice(ctx: SystemCtx): Promise<void> {
   const log = logger().child({ module: 'seed' })
@@ -434,8 +435,12 @@ async function seedOffice(ctx: SystemCtx): Promise<void> {
     )
     log.info(office, 'показатели и дашборд «Канцелярия» заведены')
   }
-  const summary = await DocumentsSeed.seedDemoDocuments(await demoDocumentPeople())
+  const people = await demoDocumentPeople()
+  const summary = await DocumentsSeed.seedDemoDocuments(people)
   log.info(summary, summary.skipped ? 'демо-документы уже есть' : 'демо-документы созданы')
+  // Маршруты и резолюции поверх демо-документов: согласования и поручения в работе
+  const workflow = await DocumentsSeed.seedDemoWorkflow(people)
+  log.info(workflow, workflow.skipped ? 'демо-маршруты уже есть' : 'демо-маршруты созданы')
 }
 
 /** Люди демо-мира для документов: делопроизводители, руководители, исполнители. */

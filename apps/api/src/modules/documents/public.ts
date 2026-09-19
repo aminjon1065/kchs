@@ -13,6 +13,7 @@ import type { DocumentRegisterInput, DocumentStatus } from '@kchs/contracts'
 import type { Ctx } from '~/shared/context.js'
 import type { Executor } from '~/shared/db/client.js'
 import { seedDemoDocuments } from './domain/demo-documents.js'
+import { seedDemoWorkflow } from './domain/demo-workflow.js'
 import { DocumentService } from './domain/document-service.js'
 import { applyTransition, type TransitionInput } from './domain/lifecycle.js'
 import { ensureOfficeDashboard } from './domain/office-dashboard.js'
@@ -94,9 +95,15 @@ export const DocumentsPublic = {
 
 /**
  * Стартовые журналы, типы и (демо) корреспонденты — `kchs init` и `db:seed`;
- * показатели и дашборд «Канцелярия» и демо-документы — `db:seed` (ADR-0086).
+ * показатели и дашборд «Канцелярия», демо-документы с маршрутами и
+ * резолюциями — `db:seed` (ADR-0086).
  */
-export const DocumentsSeed = { ensureStarterSet, ensureOfficeDashboard, seedDemoDocuments }
+export const DocumentsSeed = {
+  ensureStarterSet,
+  ensureOfficeDashboard,
+  seedDemoDocuments,
+  seedDemoWorkflow,
+}
 
 /** @public — типы печатной формы для модулей, добавляющих свои формы (ADR-0085) */
 export type {

@@ -125,7 +125,7 @@ const NOMENCLATURE = [
 ] as const
 
 /** Одностраничный PDF-«скан» (латиница: без встроенного шрифта). */
-function demoScanPdf(label: string): Buffer {
+export function demoScanPdf(label: string): Buffer {
   const ascii = [...label]
     .filter((ch) => ch.charCodeAt(0) >= 32 && ch.charCodeAt(0) < 127)
     .join('')
