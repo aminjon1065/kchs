@@ -196,11 +196,13 @@ describe('перезапуск worker посреди маршрута', () => {
       name: SWEEP_JOB,
       data: {},
     })
+    // Получатели эскалации уведомляются по очереди — ждём обоих
     await until(
-      () => notified(people.boss.id, doc, 'notifications.tpl.processEscalation'),
-      'эскалация руководителю не ответившего',
+      async () =>
+        (await notified(people.boss.id, doc, 'notifications.tpl.processEscalation')) &&
+        (await notified(people.author.id, doc, 'notifications.tpl.processEscalation')),
+      'эскалация руководителю не ответившего и автору',
     )
-    expect(await notified(people.author.id, doc, 'notifications.tpl.processEscalation')).toBe(true)
     expect(await notified(people.a3.id, doc, 'notifications.tpl.processOverdue')).toBe(true)
     expect(await notified(people.a3.id, doc, 'notifications.tpl.processDueSoon')).toBe(true)
     // Ответивший до просрочки о ней не уведомлён
