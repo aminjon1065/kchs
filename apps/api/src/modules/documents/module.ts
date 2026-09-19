@@ -2,6 +2,7 @@ import type { ObjectSummary } from '@kchs/contracts'
 import { eq, inArray } from 'drizzle-orm'
 import { registerSubscriber } from '~/kernel/events/bus.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
+import { withProcessParticipants } from '~/kernel/process/index.js'
 import { registerSystemDataset } from '~/kernel/system-datasets.js'
 import { db } from '~/shared/db/client.js'
 import {
@@ -19,9 +20,11 @@ import {
   documentSearchContent,
   documentSummaries,
 } from './domain/registry.js'
+import { registerDocumentProcess } from './domain/routes/provider.js'
 import { documentSubscribers } from './domain/subscribers.js'
 import { DOCUMENTS_SYSTEM_DATASET } from './domain/system-dataset.js'
 import { registerDocumentAssistRoutes } from './http/assist-routes.js'
+import { registerDocumentProcessRoutes } from './http/process-routes.js'
 import { registerDocumentRoutes } from './http/routes.js'
 
 const LEVELS = ['view', 'comment', 'edit', 'manage', 'owner'] as const
@@ -57,6 +60,9 @@ export function registerDocumentsObjectTypes(): void {
     linkable: true,
     hasParentTree: false,
     moduleManaged: true,
+    // Участник шага маршрута видит документ (и заместитель — через замещаемого);
+    // пока шаг идёт — ещё и обсуждает: вопрос автору до решения (ADR-0083)
+    policy: withProcessParticipants(undefined, { afterStep: 'view', activeLevel: 'comment' }),
     listFields: DOCUMENT_LIST_FIELDS,
     summary: documentSummaries,
     searchable: documentSearchContent,
@@ -213,6 +219,8 @@ export function registerDocumentsObjectTypes(): void {
   })
 
   registerSystemDataset(DOCUMENTS_SYSTEM_DATASET)
+  // Маршруты документов на движке процессов: хуки статусов и шаг регистрации
+  registerDocumentProcess()
 }
 
 /** Подписчики модуля — только в роли worker. */
@@ -223,4 +231,5 @@ export function registerDocumentsBackground(): void {
 export function registerDocumentsRoutes(route: RouteRegistrar): void {
   registerDocumentRoutes(route)
   registerDocumentAssistRoutes(route)
+  registerDocumentProcessRoutes(route)
 }

@@ -22,11 +22,15 @@ export const DOCUMENT_STATUSES = [
 export const DocumentStatus = z.enum(DOCUMENT_STATUSES)
 export type DocumentStatus = z.infer<typeof DocumentStatus>
 
-/** Допустимые переходы — диаграмма 08-documents.md §3 ребро в ребро. */
+/**
+ * Допустимые переходы — диаграмма 08-documents.md §3 ребро в ребро. Маршрут без
+ * этапа согласования начинается с подписи (`draft|returned → on_signing`),
+ * возвращённый документ можно аннулировать (`returned → cancelled`) — ADR-0083.
+ */
 export const DOCUMENT_TRANSITIONS: Record<DocumentStatus, readonly DocumentStatus[]> = {
-  draft: ['on_approval', 'registered', 'cancelled'],
+  draft: ['on_approval', 'on_signing', 'registered', 'cancelled'],
   on_approval: ['returned', 'approved'],
-  returned: ['on_approval'],
+  returned: ['on_approval', 'on_signing', 'cancelled'],
   approved: ['on_signing'],
   on_signing: ['returned', 'signed'],
   signed: ['registered'],

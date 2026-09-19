@@ -15,7 +15,7 @@ import {
 } from 'drizzle-orm/pg-core'
 import { createdAt, jsonbObject, type LangTextValue, tsCol } from './_shared.js'
 import { orgUnits, users } from './identity.js'
-import { objects } from './kernel.js'
+import { objects, processSteps } from './kernel.js'
 
 /**
  * Документооборот (05-data-model.md §Документы, 08-documents.md, ADR-0080).
@@ -274,6 +274,60 @@ export const documentParticipants = pgTable(
   (t) => [
     primaryKey({ columns: [t.documentId, t.userId, t.role, t.source] }),
     index('document_participants_user_idx').on(t.userId),
+  ],
+)
+
+/**
+ * Версия, отправленная шагу маршрута (08-documents.md §4, ADR-0083): активация
+ * согласования или подписи замораживает текущую версию документа; линия
+ * маршрута и лист согласования показывают, какую версию одобрили и подписали.
+ */
+export const documentStepVersions = pgTable(
+  'document_step_versions',
+  {
+    stepId: uuid('step_id')
+      .primaryKey()
+      .references(() => processSteps.id, { onDelete: 'cascade' }),
+    documentId: uuid('document_id')
+      .notNull()
+      .references(() => documents.id, { onDelete: 'cascade' }),
+    versionId: uuid('version_id')
+      .notNull()
+      .references(() => documentVersions.id, { onDelete: 'cascade' }),
+    createdAt: createdAt(),
+  },
+  (t) => [index('document_step_versions_document_idx').on(t.documentId)],
+)
+
+/**
+ * Простая электронная подпись (08-documents.md §9, ADR-0083): хэш подписанной
+ * версии, подписант (чья очередь на шаге), кто нажал (заместитель), сессия и
+ * подтверждение вторым фактором. Хэш версии считает движок: пока его нет,
+ * подпись ждёт хэш (`hash IS NULL`) и получает его с отчётом движка.
+ */
+export const documentSignatures = pgTable(
+  'document_signatures',
+  {
+    id: uuid('id').primaryKey(),
+    documentId: uuid('document_id')
+      .notNull()
+      .references(() => documents.id, { onDelete: 'cascade' }),
+    versionId: uuid('version_id').references(() => documentVersions.id, { onDelete: 'set null' }),
+    stepId: uuid('step_id').references(() => processSteps.id, { onDelete: 'set null' }),
+    signerId: uuid('signer_id')
+      .notNull()
+      .references(() => users.id),
+    actorId: uuid('actor_id').references(() => users.id, { onDelete: 'set null' }),
+    sessionId: text('session_id'),
+    hash: text('hash'),
+    /** simple — простая ЭП; qualified — порт SignatureProvider (открытый вопрос). */
+    kind: text('kind').notNull().default('simple'),
+    mfa: boolean('mfa').notNull().default(false),
+    signedAt: tsCol('signed_at').notNull().default(sql`now()`),
+  },
+  (t) => [
+    index('document_signatures_document_idx').on(t.documentId),
+    index('document_signatures_version_idx').on(t.versionId),
   ],
 )
 

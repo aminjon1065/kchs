@@ -18,7 +18,7 @@ import {
   withinClearance,
 } from '@kchs/contracts'
 import { and, eq, sql } from 'drizzle-orm'
-import { authorize, visibleObjectsSql } from '~/kernel/access/authorize.js'
+import { authorize, hasCapability, visibleObjectsSql } from '~/kernel/access/authorize.js'
 import { clearanceOf } from '~/kernel/access/confidentiality.js'
 import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
 import { BusinessCalendar } from '~/kernel/business-calendar/service.js'
@@ -27,9 +27,10 @@ import { publishEvent } from '~/kernel/events/publisher.js'
 import { InboxService } from '~/kernel/inbox/service.js'
 import { allowedActions } from '~/kernel/objects/registry.js'
 import { ObjectService } from '~/kernel/objects/service.js'
+import { ProcessDefinitions, ProcessService } from '~/kernel/process/index.js'
 import { territoryIndex } from '~/modules/gis/public.js'
 import { OrgService } from '~/modules/identity/public.js'
-import { actorId, type Ctx, type UserCtx } from '~/shared/context.js'
+import { actorId, type Ctx, systemCtx, type UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
 import { documents, journals, objects, registrations } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
@@ -39,6 +40,7 @@ import { CorrespondentService } from './correspondent-service.js'
 import { JournalService, todayLocal } from './journal-service.js'
 import { applyTransition } from './lifecycle.js'
 import { CARD_LEVELS, DocumentParticipants, refreshViewers } from './participants.js'
+import { activeRoute, ROUTE_ACTIVE_STATUSES, routeBlocker } from './routes/state.js'
 import { documentsSpaceId } from './space.js'
 import { type DocumentTypeRow, DocumentTypeService } from './type-service.js'
 import { DocumentVersionService } from './version-service.js'
@@ -312,24 +314,40 @@ export const DocumentService = {
   async record(ctx: UserCtx, row: Row, level: Level): Promise<DocumentRecord> {
     const type = await DocumentTypeService.load(db(), row.typeId)
     if (!type) throw errors.notFound('Тип документа')
-    const [people, correspondents, units, registration, currentVersion, versionCount] =
-      await Promise.all([
-        directory().refs(
-          [row.authorId, row.responsibleId, row.signerId, row.controllerId].filter(
-            (v): v is string => !!v,
-          ),
+    const [
+      people,
+      correspondents,
+      units,
+      registration,
+      currentVersion,
+      versionCount,
+      route,
+      routes,
+    ] = await Promise.all([
+      directory().refs(
+        [row.authorId, row.responsibleId, row.signerId, row.controllerId].filter(
+          (v): v is string => !!v,
         ),
-        CorrespondentService.names(db(), row.correspondentId ? [row.correspondentId] : []),
-        OrgService.briefs(row.unitId ? [row.unitId] : []),
-        DocumentService.registration(row.id),
-        DocumentVersionService.record(db(), row.currentVersionId),
-        DocumentVersionService.count(db(), row.id),
-      ])
+      ),
+      CorrespondentService.names(db(), row.correspondentId ? [row.correspondentId] : []),
+      OrgService.briefs(row.unitId ? [row.unitId] : []),
+      DocumentService.registration(row.id),
+      DocumentVersionService.record(db(), row.currentVersionId),
+      DocumentVersionService.count(db(), row.id),
+      activeRoute(db(), row.id),
+      ProcessDefinitions.published(db(), 'document'),
+    ])
     const person = (id: string | null): UserRef | null => (id ? (people.get(id) ?? null) : null)
     const status = row.status as DocumentStatus
     const closed = isDocumentClosed(status)
     const allowed = new Set(allowedActions('document', level, ctx, levelValue))
     const canEdit = allowed.has('document.edit') && !closed
+    const blocker = routeBlocker({
+      canEdit,
+      status,
+      running: route !== null,
+      hasVersion: currentVersion !== null,
+    })
     const unit = row.unitId ? units.get(row.unitId) : undefined
     return {
       id: row.id,
@@ -370,6 +388,7 @@ export const DocumentService = {
       versionCount,
       cancelReason: row.cancelReason,
       cancelledAt: row.cancelledAt,
+      route,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       version: row.version,
@@ -377,11 +396,14 @@ export const DocumentService = {
         edit: canEdit,
         register: allowed.has('document.register') && canTransition(status, 'registered'),
         cancel:
-          (status === 'draft' && allowed.has('document.cancel')) ||
+          ((status === 'draft' || status === 'returned') && allowed.has('document.cancel')) ||
           (status === 'registered' && allowed.has('document.cancel_registered')),
-        addVersion: allowed.has('document.add_version') && !closed,
+        // На согласовании и подписи версия заморожена: новая — после возврата
+        addVersion:
+          allowed.has('document.add_version') && !closed && !ROUTE_ACTIVE_STATUSES.includes(status),
         changeConfidentiality: canEdit,
         share: allowed.has('document.share'),
+        startRoute: routes.length > 0 && (blocker === null || blocker === 'no_version'),
       },
     }
   },
@@ -521,8 +543,17 @@ export const DocumentService = {
     ctx: Ctx,
     id: string,
     input: DocumentRegisterInput,
+    options: { viaRoute?: boolean } = {},
   ): Promise<string> {
-    await authorize(ctx, 'register', id)
+    if (options.viaRoute && ctx.kind === 'user') {
+      // Регистратор шага маршрута: назначение проверил движок, право правки документа
+      // ему не нужно — достаточно способности и права регистрировать в журнале
+      if (!hasCapability(ctx, 'documents.register')) {
+        throw errors.forbidden('Требуется способность', { capability: 'documents.register' })
+      }
+    } else {
+      await authorize(ctx, 'register', id)
+    }
     const row = await loadRow(tx, id, true)
     if (!row) throw errors.notFound('Документ')
     const status = row.status as DocumentStatus
@@ -652,6 +683,15 @@ export const DocumentService = {
     await authorize(ctx, status === 'registered' ? 'cancel_registered' : 'cancel', id)
     if (!canTransition(status, 'cancelled')) {
       throw errors.conflict('Документ в этом статусе не аннулируется', { status })
+    }
+    // Возвращённый документ ждёт доработки по маршруту: аннулирование его отзывает
+    const system = systemCtx('documents.cancel', { initiatorId: actorId(ctx) })
+    for (const route of await ProcessService.running(tx, id)) {
+      await ProcessService.cancel(tx, system, {
+        instanceId: route.instanceId,
+        reason: input.reason,
+        outcome: 'withdrawn',
+      })
     }
     await tx.update(documents).set({ cancelReason: input.reason }).where(eq(documents.id, id))
     await applyTransition(tx, ctx, id, { to: 'cancelled', cause: 'cancel' })

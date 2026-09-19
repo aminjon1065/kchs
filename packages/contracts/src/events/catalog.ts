@@ -512,6 +512,18 @@ export const EVENT_PAYLOADS = {
   'document.version_pdf_ready': z.object({ versionId: Uuid, status: z.string() }),
   /** Гриф изменён: доступ пересчитывается (поиск, комнаты, системный датасет). */
   'document.confidentiality_changed': z.object({ from: z.string(), to: z.string() }),
+  /**
+   * Простая электронная подпись (08-documents.md §9, ADR-0083): хэш подписанной
+   * версии (null — движок ещё считает), подписант — чья очередь на шаге.
+   */
+  'document.signed': z.object({
+    signatureId: Uuid,
+    versionId: Uuid.nullable(),
+    signerId: Uuid,
+    stepId: Uuid,
+    hash: z.string().nullable(),
+    mfa: z.boolean(),
+  }),
   /** Участники документа (ответственный, подписант, контролёр, маршрут, резолюции). */
   'document.participants_changed': z.object({
     source: z.string(),

@@ -25,6 +25,8 @@ import { documents, documentVersions, objects } from '~/shared/db/schema/index.j
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { logger } from '~/shared/logger/index.js'
+import { DocumentSignatures } from './routes/signatures.js'
+import { ROUTE_ACTIVE_STATUSES } from './routes/state.js'
 
 /** Задание движка: хэш основного файла и, если нужно, PDF-представление (ADR-0080). */
 export const PDF_JOB = { queue: 'render', name: 'document.pdf' } as const
@@ -152,6 +154,12 @@ export const DocumentVersionService = {
     if (isDocumentClosed(doc.status as DocumentStatus)) {
       throw errors.conflict('Документ закрыт — новую версию не добавить')
     }
+    // Согласующие и подписанты решают по замороженной версии (08-documents.md §4)
+    if (ROUTE_ACTIVE_STATUSES.includes(doc.status as DocumentStatus)) {
+      throw errors.conflict('Документ на согласовании — новая версия после возврата', {
+        reason: 'route_active',
+      })
+    }
     if (!doc.spaceId) throw errors.internal('Документ вне пространства')
 
     const fileIds = [input.mainFileId, ...input.attachmentIds]
@@ -260,7 +268,11 @@ export const DocumentVersionService = {
       if (!row?.spaceId) return { stale: true }
 
       const values: Record<string, unknown> = {}
-      if (input.sha256) values.hash = input.sha256
+      if (input.sha256) {
+        values.hash = input.sha256
+        // Подписи, поставленные до расчёта хэша, получают его (ADR-0083)
+        await DocumentSignatures.fillHash(tx, versionId, input.sha256)
+      }
       let status: PdfStatus | null = null
       if (row.pdfStatus === 'pending') {
         if (input.status === 'ready' && input.storageKey && input.pdfFileId && input.pdfVersionId) {

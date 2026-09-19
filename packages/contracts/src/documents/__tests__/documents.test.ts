@@ -59,6 +59,11 @@ describe('жизненный цикл документа', () => {
   it('граф — диаграмма 08-documents.md §3', () => {
     expect(canTransition('draft', 'registered')).toBe(true)
     expect(canTransition('draft', 'cancelled')).toBe(true)
+    // Маршрут без согласования — сразу на подпись; возвращённый — аннулируется (ADR-0083)
+    expect(canTransition('draft', 'on_signing')).toBe(true)
+    expect(canTransition('returned', 'on_signing')).toBe(true)
+    expect(canTransition('returned', 'cancelled')).toBe(true)
+    expect(canTransition('approved', 'registered')).toBe(false)
     expect(canTransition('signed', 'registered')).toBe(true)
     expect(canTransition('registered', 'cancelled')).toBe(true)
     expect(canTransition('registered', 'draft')).toBe(false)

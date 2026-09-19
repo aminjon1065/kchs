@@ -5,6 +5,7 @@ import { DateOnly, LangText, Timestamp, Uuid } from '../common/primitives.js'
 import { CorrespondentRef } from './correspondent.js'
 import { DocumentCardSchema, DocumentDirection, DocumentTypeSettings } from './document-type.js'
 import { DocumentStatus } from './lifecycle.js'
+import { DocumentRouteBrief } from './route.js'
 
 /** Контроль исполнения (04-domain-model.md): не на контроле, на контроле, снят с контроля. */
 export const DOCUMENT_CONTROLS = ['none', 'on', 'done'] as const
@@ -88,6 +89,8 @@ export const DocumentPermissions = z.object({
   addVersion: z.boolean(),
   changeConfidentiality: z.boolean(),
   share: z.boolean(),
+  /** Отправить на согласование или подпись по маршруту (ADR-0083). */
+  startRoute: z.boolean(),
 })
 export type DocumentPermissions = z.infer<typeof DocumentPermissions>
 
@@ -136,6 +139,8 @@ export const DocumentRecord = z.object({
   versionCount: z.number().int(),
   cancelReason: z.string().nullable(),
   cancelledAt: Timestamp.nullable(),
+  /** Идущий маршрут: текущие шаги и кто ждёт решения (ADR-0083). */
+  route: DocumentRouteBrief.nullable(),
   createdAt: Timestamp,
   updatedAt: Timestamp,
   version: z.number().int(),

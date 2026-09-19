@@ -10,6 +10,7 @@ import { db } from '~/shared/db/client.js'
 import { correspondents, documentTypes, journals } from '~/shared/db/schema/index.js'
 import { CorrespondentService } from './correspondent-service.js'
 import { JournalService } from './journal-service.js'
+import { ensureStarterRoutes } from './routes/starter-routes.js'
 import { DocumentTypeService } from './type-service.js'
 
 interface StarterJournal {
@@ -197,19 +198,21 @@ export interface StarterSetSummary {
   journals: number
   types: number
   correspondents: number
+  /** Стартовые маршруты согласования (ADR-0083). */
+  routes: number
 }
 
 /**
- * Стартовый набор документооборота (08-documents.md §2, §5): журналы и типы —
- * идемпотентно (по названию журнала и ключу типа; существующие не меняются —
- * справочник редактируемый), в `kchs init` и `db:seed`. Корреспонденты —
- * только демо-миру.
+ * Стартовый набор документооборота (08-documents.md §2, §4, §5): журналы, типы
+ * и маршруты согласования — идемпотентно (по названию журнала, ключу типа и
+ * ключу маршрута; существующие не меняются — справочник редактируемый), в
+ * `kchs init` и `db:seed`. Корреспонденты — только демо-миру.
  */
 export async function ensureStarterSet(
   ctx: Ctx,
   options: { unitId?: string | null; demo?: boolean } = {},
 ): Promise<StarterSetSummary> {
-  const summary: StarterSetSummary = { journals: 0, types: 0, correspondents: 0 }
+  const summary: StarterSetSummary = { journals: 0, types: 0, correspondents: 0, routes: 0 }
   const journalIds = new Map<string, string>()
   for (const journal of JOURNALS) {
     const [existing] = await db()
@@ -270,6 +273,9 @@ export async function ensureStarterSet(
     )
     summary.types += 1
   }
+
+  // Маршруты — после типов: тип получает маршрут по умолчанию
+  summary.routes = await ensureStarterRoutes(ctx)
 
   if (options.demo) {
     for (const item of DEMO_CORRESPONDENTS) {
