@@ -13,6 +13,7 @@ import { useUiT } from '../i18n/ui-locale.js'
 import { cn } from '../lib/cn.js'
 import { IconButton } from '../primitives/button.js'
 import { rasterizeMapImage } from './map-icons.js'
+import { tilesOnlyChange } from './map-sources.js'
 
 type Runtime = typeof import('./map-runtime.js')
 let runtime: Promise<Runtime> | null = null
@@ -336,7 +337,25 @@ export function MapCanvas({
       const wantedLayers = new Map(layers.map((layer) => [dataId(layer.id), layer]))
       const changedSources = new Set<string>()
       for (const [id, json] of wantedSources) {
-        if (map.getSource(id) && state.sources.get(id) !== json) changedSources.add(id)
+        const existing = map.getSource(id)
+        const previous = state.sources.get(id)
+        if (!existing || previous === json) continue
+        // Сменился только адрес тайлов (время, фильтр): источник перечитывает тайлы,
+        // прежние видны до прихода новых — слои не снимаются, кадры не мигают. Пока
+        // тайлы источника грузятся, MapLibre перечитал бы их по старому адресу —
+        // тогда источник пересоздаётся
+        const tiles = tilesOnlyChange(previous, json)
+        if (
+          tiles &&
+          'setTiles' in existing &&
+          typeof existing.setTiles === 'function' &&
+          map.isSourceLoaded(id)
+        ) {
+          existing.setTiles(tiles)
+          state.sources.set(id, json)
+          continue
+        }
+        changedSources.add(id)
       }
       // Лишние и изменённые слои, слои изменённых источников — снять
       for (const layer of map.getStyle().layers) {

@@ -165,22 +165,35 @@ export function renderMapIcon(name: string, color: string, size: number) {
 }
 
 /** Разметка SVG значка: рендер в отсоединённый узел — без react-dom/server в чанке карты. */
-function iconSvg(Icon: LucideIcon): string {
+function iconSvg(Icon: LucideIcon, color = '#000'): string {
   const host = document.createElement('div')
   const root = createRoot(host)
-  flushSync(() => root.render(<Icon size={24} color="#000" strokeWidth={STROKE} />))
+  flushSync(() => root.render(<Icon size={24} color={color} strokeWidth={STROKE} />))
   const svg = host.innerHTML
   root.unmount()
   return svg
 }
 
+async function iconImage(Icon: LucideIcon, color: string): Promise<HTMLImageElement> {
+  const image = new Image()
+  image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(iconSvg(Icon, color))}`
+  await image.decode()
+  return image
+}
+
+/**
+ * Значок карты картинкой нужного цвета — для холста печатной легенды (тот же
+ * глиф, что на карте); неизвестное имя — null.
+ */
+export async function mapIconImage(name: string, color: string): Promise<HTMLImageElement | null> {
+  const Icon = MAP_ICONS[name]
+  return Icon ? iconImage(Icon, color) : null
+}
+
 async function drawIcon(context: CanvasRenderingContext2D, name: string, box: number, at: number) {
   const Icon = MAP_ICONS[name]
   if (!Icon) return false
-  const image = new Image()
-  image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(iconSvg(Icon))}`
-  await image.decode()
-  context.drawImage(image, at, at, box, box)
+  context.drawImage(await iconImage(Icon, '#000'), at, at, box, box)
   return true
 }
 
