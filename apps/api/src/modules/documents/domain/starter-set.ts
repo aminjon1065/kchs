@@ -5,12 +5,18 @@ import type {
   LangText,
 } from '@kchs/contracts'
 import { eq } from 'drizzle-orm'
+import { putObject } from '~/kernel/storage/s3.js'
+import { fileStorageKey, registerGeneratedFile } from '~/modules/files/public.js'
 import type { Ctx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { correspondents, documentTypes, journals } from '~/shared/db/schema/index.js'
+import { newId } from '~/shared/ids.js'
 import { CorrespondentService } from './correspondent-service.js'
 import { JournalService } from './journal-service.js'
 import { ensureStarterRoutes } from './routes/starter-routes.js'
+import { documentsSpaceId } from './space.js'
+import { outgoingLetterDocx, STARTER_PLACEHOLDERS } from './starter-template.js'
+import { DOCX_MIME, DocumentTemplateService } from './template-service.js'
 import { DocumentTypeService } from './type-service.js'
 
 interface StarterJournal {
@@ -197,22 +203,78 @@ const DEMO_CORRESPONDENTS: Array<{ name: string; shortName: string; kind: 'organ
 export interface StarterSetSummary {
   journals: number
   types: number
+  templates: number
   correspondents: number
   /** Стартовые маршруты согласования (ADR-0083). */
   routes: number
 }
 
+/** Стартовый шаблон (ADR-0085): бланк исходящего письма — редактируемый справочник. */
+const STARTER_TEMPLATE = {
+  name: 'Исходящее письмо — бланк',
+  typeKey: 'outgoing_letter',
+  fileName: 'Исходящее письмо.docx',
+  description:
+    'Бланк письма: организация, адресат, номер и дата, тема, текст, приложения, подпись, исполнитель',
+}
+
+/** Шаблон с файлом DOCX: файл — вложение шаблона, плейсхолдеры известны заранее. */
+async function ensureStarterTemplate(ctx: Ctx): Promise<number> {
+  if (await DocumentTemplateService.byName(db(), STARTER_TEMPLATE.name)) return 0
+  const type = await DocumentTypeService.byKey(db(), STARTER_TEMPLATE.typeKey)
+  const spaceId = await documentsSpaceId(db())
+  const fileId = newId()
+  const versionId = newId()
+  const data = outgoingLetterDocx()
+  const storageKey = fileStorageKey(spaceId, fileId, versionId, 'outgoing-letter.docx')
+  await putObject(storageKey, data, { contentType: DOCX_MIME, contentLength: data.length })
+  await db().transaction(async (tx) => {
+    const id = await DocumentTemplateService.create(tx, ctx, {
+      name: STARTER_TEMPLATE.name,
+      description: STARTER_TEMPLATE.description,
+      typeId: type?.id ?? null,
+      defaults: {},
+    })
+    await registerGeneratedFile(tx, ctx, {
+      fileId,
+      versionId,
+      spaceId,
+      name: STARTER_TEMPLATE.fileName,
+      mime: DOCX_MIME,
+      size: data.length,
+      storageKey,
+      checksum: null,
+      attachToObjectId: id,
+    })
+    await DocumentTemplateService.setFile(
+      tx,
+      ctx,
+      id,
+      { fileId },
+      { placeholders: STARTER_PLACEHOLDERS },
+    )
+  })
+  return 1
+}
+
 /**
- * Стартовый набор документооборота (08-documents.md §2, §4, §5): журналы, типы
- * и маршруты согласования — идемпотентно (по названию журнала, ключу типа и
- * ключу маршрута; существующие не меняются — справочник редактируемый), в
+ * Стартовый набор документооборота (08-documents.md §2, §4, §5, §8): журналы,
+ * типы, маршруты согласования и бланк исходящего письма — идемпотентно (по
+ * названию журнала, ключу типа, ключу маршрута и названию шаблона; существующие
+ * не меняются — справочник редактируемый), в
  * `kchs init` и `db:seed`. Корреспонденты — только демо-миру.
  */
 export async function ensureStarterSet(
   ctx: Ctx,
   options: { unitId?: string | null; demo?: boolean } = {},
 ): Promise<StarterSetSummary> {
-  const summary: StarterSetSummary = { journals: 0, types: 0, correspondents: 0, routes: 0 }
+  const summary: StarterSetSummary = {
+    journals: 0,
+    types: 0,
+    routes: 0,
+    templates: 0,
+    correspondents: 0,
+  }
   const journalIds = new Map<string, string>()
   for (const journal of JOURNALS) {
     const [existing] = await db()
@@ -281,6 +343,7 @@ export async function ensureStarterSet(
 
   // Маршруты — после типов: тип получает маршрут по умолчанию
   summary.routes = await ensureStarterRoutes(ctx)
+  summary.templates = await ensureStarterTemplate(ctx)
 
   if (options.demo) {
     for (const item of DEMO_CORRESPONDENTS) {

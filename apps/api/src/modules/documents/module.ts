@@ -15,6 +15,7 @@ import {
   documentTypes,
   journals,
   objects,
+  templates,
 } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
@@ -23,19 +24,23 @@ import { CaseService } from './domain/case-service.js'
 import { documentControlProjection } from './domain/control-projection.js'
 import { onDocumentRegistered } from './domain/document-service.js'
 import { capabilityPolicy, documentPolicy } from './domain/policies.js'
+import { registerBuiltinPrintForms } from './domain/print/forms/index.js'
 import {
   CASE_LIST_FIELDS,
   DOCUMENT_LIST_FIELDS,
   documentSearchContent,
   documentSummaries,
 } from './domain/registry.js'
+import { renderSubscribers } from './domain/render-subscribers.js'
 import { ResolutionService } from './domain/resolution-service.js'
 import { registerDocumentProcess } from './domain/routes/provider.js'
 import { documentSubscribers } from './domain/subscribers.js'
 import { DOCUMENTS_SYSTEM_DATASET } from './domain/system-dataset.js'
 import { registerDocumentAssistRoutes } from './http/assist-routes.js'
 import { registerDocumentProcessRoutes } from './http/process-routes.js'
+import { registerRenderRoutes } from './http/render-routes.js'
 import { registerDocumentRoutes } from './http/routes.js'
+import { registerTemplateRoutes } from './http/template-routes.js'
 
 const LEVELS = ['view', 'comment', 'edit', 'manage', 'owner'] as const
 
@@ -291,7 +296,46 @@ export function registerDocumentsObjectTypes(): void {
     },
   })
 
+  // Шаблон документа DOCX (08-documents.md §8, ADR-0085) — справочник, как типы
+  registerObjectType({
+    type: 'template',
+    labelKey: 'objects.types.template',
+    icon: 'template',
+    route: (id) => `/o/${id}`,
+    levels: [...LEVELS],
+    actions: {
+      view: { minLevel: 'view' },
+      /** Файл шаблона загружается вложением шаблона. */
+      edit: { minLevel: 'edit' },
+      manage: { minLevel: 'manage' },
+      share: { minLevel: 'manage' },
+      delete: { minLevel: 'owner' },
+    },
+    discussable: false,
+    linkable: true,
+    hasParentTree: false,
+    moduleManaged: true,
+    policy: capabilityPolicy(
+      ['documents.journals.manage'],
+      'manage',
+      'Ведение справочников документооборота',
+    ),
+    summary: async (ids) => {
+      const rows = await db()
+        .select({ id: templates.id, kind: templates.kind, typeId: templates.documentTypeId })
+        .from(templates)
+        .where(inArray(templates.id, ids))
+      return new Map(
+        rows.map((row) => [
+          row.id,
+          { meta: { kind: row.kind, typeId: row.typeId } } as Partial<ObjectSummary>,
+        ]),
+      )
+    },
+  })
+
   registerSystemDataset(DOCUMENTS_SYSTEM_DATASET)
+  registerBuiltinPrintForms()
   // Маршруты документов на движке процессов: хуки статусов и шаг регистрации
   registerDocumentProcess()
   // Резолюции и ознакомление (ADR-0084): продолжение регистрации, дела Входящих, календарь
@@ -304,10 +348,13 @@ export function registerDocumentsObjectTypes(): void {
 /** Подписчики модуля — только в роли worker. */
 export function registerDocumentsBackground(): void {
   for (const subscriber of documentSubscribers) registerSubscriber(subscriber)
+  for (const subscriber of renderSubscribers) registerSubscriber(subscriber)
 }
 
 export function registerDocumentsRoutes(route: RouteRegistrar): void {
   registerDocumentRoutes(route)
   registerDocumentAssistRoutes(route)
   registerDocumentProcessRoutes(route)
+  registerRenderRoutes(route)
+  registerTemplateRoutes(route)
 }

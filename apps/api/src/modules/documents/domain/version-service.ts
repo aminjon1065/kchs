@@ -169,7 +169,7 @@ export const DocumentVersionService = {
       ])
     }
     // Файлы версии — вложения этого документа: их права выводятся из документа
-    const attached = new Set(await LinkService.attachments(documentId))
+    const attached = new Set(await LinkService.attachments(documentId, tx))
     const missing = fileIds.filter((id) => !attached.has(id))
     if (missing.length > 0) {
       throw errors.validation('Файл версии не прикреплён к документу', [

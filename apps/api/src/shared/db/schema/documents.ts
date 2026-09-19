@@ -510,6 +510,91 @@ export const documentDispatches = pgTable(
   ],
 )
 
+/**
+ * Шаблон документа — объект реестра `template` (05-data-model.md, 08-documents.md
+ * §8, ADR-0085): файл DOCX — вложение шаблона; плейсхолдеры — по разбору движком.
+ */
+export const templates = pgTable(
+  'templates',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .references(() => objects.id, { onDelete: 'cascade' }),
+    /** Вид шаблона: пока только `docx` (docxtpl). */
+    kind: text('kind').notNull().default('docx'),
+    name: text('name').notNull(),
+    description: text('description'),
+    /** Тип документа шаблона; без типа — шаблон подходит любому. */
+    documentTypeId: uuid('document_type_id').references(() => documentTypes.id, {
+      onDelete: 'set null',
+    }),
+    fileId: uuid('file_id').references(() => objects.id, { onDelete: 'set null' }),
+    /** Карточка по умолчанию: тема, краткое содержание, поля типа. */
+    defaults: jsonbObject('defaults'),
+    placeholders: text('placeholders').array().notNull().default(sql`'{}'::text[]`),
+    unknownPlaceholders: text('unknown_placeholders').array().notNull().default(sql`'{}'::text[]`),
+    /** none — файла нет, pending — разбирается, ready, failed. */
+    inspectStatus: text('inspect_status').notNull().default('none'),
+    inspectError: text('inspect_error'),
+    isActive: boolean('is_active').notNull().default(true),
+  },
+  (t) => [
+    index('templates_document_type_idx').on(t.documentTypeId),
+    check('templates_kind_check', sql`${t.kind} in ('docx')`),
+  ],
+)
+
+/**
+ * Рендеры модуля документов (ADR-0085): печатные формы и штампы, заполнение и
+ * разбор шаблонов, копии с водяным знаком. Строка — заказ задания движка:
+ * движок берёт план по её идентификатору, api проверяет права в момент рендера.
+ */
+export const documentRenders = pgTable(
+  'document_renders',
+  {
+    id: uuid('id').primaryKey(),
+    /** print | fill | inspect | watermark */
+    kind: text('kind').notNull(),
+    /** Документ, журнал, шаблон или файл, к которому относится рендер. */
+    subjectId: uuid('subject_id')
+      .notNull()
+      .references(() => objects.id, { onDelete: 'cascade' }),
+    /** Ключ печатной формы; у заполнения — шаблон, у копии — исходный файл. */
+    formKey: text('form_key'),
+    params: jsonbObject('params'),
+    /** queued | running | ready | failed */
+    status: text('status').notNull().default('queued'),
+    requestedBy: uuid('requested_by').references(() => users.id, { onDelete: 'set null' }),
+    /** Заранее выданные идентификаторы файла и ключ результата. */
+    target: jsonbObject<Record<string, string>>('target'),
+    /** Файл реестра с результатом (печатная форма, заполненный шаблон). */
+    fileId: uuid('file_id').references(() => objects.id, { onDelete: 'set null' }),
+    pages: integer('pages'),
+    size: integer('size'),
+    error: text('error'),
+    attempts: smallint('attempts').notNull().default(0),
+    /** Идемпотентность: штамп — один на регистрацию и версию. */
+    dedupeKey: text('dedupe_key'),
+    createdAt: createdAt(),
+    startedAt: tsCol('started_at'),
+    finishedAt: tsCol('finished_at'),
+  },
+  (t) => [
+    index('document_renders_subject_idx').on(t.subjectId, t.createdAt.desc()),
+    uniqueIndex('document_renders_dedupe_uq')
+      .on(t.dedupeKey)
+      .where(sql`${t.dedupeKey} is not null`),
+    check(
+      'document_renders_kind_check',
+      sql`${t.kind} in ('print', 'fill', 'inspect', 'watermark')`,
+    ),
+    check(
+      'document_renders_status_check',
+      sql`${t.status} in ('queued', 'running', 'ready', 'failed')`,
+    ),
+  ],
+)
+
 export type DocumentRow = typeof documents.$inferSelect
 export type DocumentTypeRow = typeof documentTypes.$inferSelect
 export type JournalRow = typeof journals.$inferSelect

@@ -15,7 +15,10 @@ export const registerStoredFile: typeof FileService.registerStored = (ctx, input
 export const registerGeneratedFile: typeof FileService.registerGenerated = (tx, ctx, input) =>
   FileService.registerGenerated(tx, ctx, input)
 
-/** Извлечённый текст текущей версии (текстовый слой или OCR) — для ИИ документов (ADR-0088). */
+/**
+ * Извлечённый текст текущей версии (текстовый слой или OCR): ИИ документов
+ * (ADR-0088) и сравнение версий (ADR-0085).
+ */
 export const fileText: typeof FileProcessing.text = (fileId, limit) =>
   FileProcessing.text(fileId, limit)
 
@@ -31,3 +34,6 @@ export const fileBriefs: typeof FileService.briefs = (fileIds, database) =>
   FileService.briefs(fileIds, database)
 
 export { buckets as fileBuckets, storageKey as fileStorageKey } from '~/kernel/storage/s3.js'
+
+/** Водяной знак файлов с грифом от «конфиденциально» (ADR-0085). */
+export { watermarkLevel, watermarkLines } from './domain/watermark.js'

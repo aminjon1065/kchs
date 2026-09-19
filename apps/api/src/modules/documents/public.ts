@@ -17,6 +17,8 @@ import { DocumentService } from './domain/document-service.js'
 import { applyTransition, type TransitionInput } from './domain/lifecycle.js'
 import { ensureOfficeDashboard } from './domain/office-dashboard.js'
 import { DocumentParticipants, type ParticipantEntry } from './domain/participants.js'
+import { html, multiline, overlayPage } from './domain/print/html.js'
+import { registerPrintForm } from './domain/print/registry.js'
 import { ensureStarterSet } from './domain/starter-set.js'
 
 /** @public — люди демо-мира для демо-документов сида (ADR-0086) */
@@ -95,3 +97,18 @@ export const DocumentsPublic = {
  * показатели и дашборд «Канцелярия» и демо-документы — `db:seed` (ADR-0086).
  */
 export const DocumentsSeed = { ensureStarterSet, ensureOfficeDashboard, seedDemoDocuments }
+
+/** @public — типы печатной формы для модулей, добавляющих свои формы (ADR-0085) */
+export type {
+  PrintBuild,
+  PrintContext,
+  PrintFormDefinition,
+  PrintSubject,
+} from './domain/print/registry.js'
+
+/**
+ * Печатные формы (ADR-0085): форма — ключ, подпись, тип объекта и `build` с
+ * правами печатающего; разметка — только через `html` (экранирование).
+ * @public — листы согласования, подписи и ознакомления, опись дела
+ */
+export const DocumentsPrint = { register: registerPrintForm, html, multiline, overlayPage }

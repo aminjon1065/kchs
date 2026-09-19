@@ -173,8 +173,8 @@ export const LinkService = {
     )
   },
 
-  /** Вложения объекта — связи вида `attachment`. */
-  async attachments(objectId: string, database: Database = db()): Promise<string[]> {
+  /** Вложения объекта — связи вида `attachment`; в транзакции — с её незафиксированными. */
+  async attachments(objectId: string, database: Executor = db()): Promise<string[]> {
     const rows = await database
       .select({ targetId: links.targetId })
       .from(links)

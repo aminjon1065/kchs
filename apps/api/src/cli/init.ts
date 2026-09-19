@@ -25,8 +25,8 @@ export interface InitSummary {
   calendar: Array<{ year: number; added: number }>
   /** Реестр базовых карт: «без подложки» и сборки PMTiles из хранилища (ADR-0066). */
   basemaps: BasemapSyncSummary
-  /** Стартовые журналы, типы и маршруты документов (08-documents.md §2, ADR-0080, ADR-0083). */
-  documents: { journals: number; types: number; routes: number }
+  /** Стартовые журналы, типы, маршруты и шаблоны документов (08-documents.md §2, ADR-0080, ADR-0083, ADR-0085). */
+  documents: { journals: number; types: number; routes: number; templates: number }
   admin: {
     login: string
     created: boolean
@@ -86,7 +86,12 @@ export async function runInit(options: InitOptions): Promise<InitSummary> {
     searchIndex,
     calendar,
     basemaps,
-    documents: { journals: documents.journals, types: documents.types, routes: documents.routes },
+    documents: {
+      journals: documents.journals,
+      types: documents.types,
+      routes: documents.routes,
+      templates: documents.templates,
+    },
     admin: {
       login: created ? admin.login : (existing[0] ?? admin.login),
       created,
@@ -116,7 +121,7 @@ export function formatInitSummary(summary: InitSummary): string {
     '    Иди Рамазон, Иди Қурбон и переносы выходных объявляет Правительство — они вносятся отдельно.',
   )
   lines.push(
-    `  Документооборот: журналов добавлено ${summary.documents.journals}, типов документов — ${summary.documents.types}, маршрутов — ${summary.documents.routes}`,
+    `  Документооборот: журналов добавлено ${summary.documents.journals}, типов документов — ${summary.documents.types}, маршрутов — ${summary.documents.routes}, шаблонов — ${summary.documents.templates}`,
   )
   lines.push(`  Базовая карта по умолчанию: ${summary.basemaps.defaultName ?? '—'}`)
   if (summary.basemaps.defaultKind === 'none') {

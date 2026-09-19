@@ -194,6 +194,10 @@ export const AUDIT_ACTIONS = {
   processReassigned: 'process.reassigned',
   processCancelled: 'process.cancelled',
   processDefinitionPublished: 'process.definition_published',
+  /** Печатная форма объекта с грифом от «конфиденциально» (ADR-0085). */
+  documentPrinted: 'document.printed',
+  /** Копия файла с грифом под водяным знаком (ADR-0085). */
+  documentFileExported: 'document.file_exported',
   // Поручения (ADR-0082): продление срока и переназначение исполнителя
   taskExtensionRequested: 'task.extension_requested',
   taskExtensionDecided: 'task.extension_decided',

@@ -193,6 +193,7 @@ export const FileProcessing = {
       textStatus: file.textStatus as FilePreviews['textStatus'],
       pages: text?.pages ?? (pagePreviews.length > 0 ? pagePreviews.length : null),
       items,
+      watermark: null,
     }
   },
 

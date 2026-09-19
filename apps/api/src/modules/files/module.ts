@@ -20,12 +20,13 @@ import { registerObjectType } from '~/kernel/objects/registry.js'
 import { buckets, deleteObject } from '~/kernel/storage/s3.js'
 import { db } from '~/shared/db/client.js'
 import { files, objects } from '~/shared/db/schema/index.js'
-import { errors } from '~/shared/errors.js'
+import { AppError, errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { validServiceToken } from '~/shared/http/service-token.js'
 import { AttachmentsFolder } from './domain/attachments.js'
 import { FileService } from './domain/file-service.js'
 import { FileProcessing } from './domain/processing.js'
+import { originalAllowed, watermarkLevel, watermarkLines } from './domain/watermark.js'
 
 const IdParam = z.object({ id: z.uuid() })
 
@@ -248,6 +249,17 @@ export function registerFilesRoutes(route: RouteRegistrar): void {
       response: { 200: z.object({ url: z.string(), name: z.string() }) },
     },
     handler: async (request) => {
+      // Гриф от «конфиденциально»: исходник — только в режиме администратора,
+      // остальным — копия с водяным знаком (ADR-0085)
+      const level = await watermarkLevel(request.params.id)
+      if (level && !originalAllowed(request.ctx)) {
+        throw new AppError(
+          'forbidden',
+          'Файл с грифом скачивается только копией с водяным знаком',
+          403,
+          { data: { reason: 'watermark_required', confidentiality: level } },
+        )
+      }
       const result = await FileService.downloadUrl(
         request.params.id,
         request.query.versionId,
@@ -257,7 +269,11 @@ export function registerFilesRoutes(route: RouteRegistrar): void {
         action: AUDIT_ACTIONS.fileDownloaded,
         objectId: request.params.id,
         objectType: 'file',
-        details: { versionId: request.query.versionId ?? null },
+        ...(level ? { severity: 'warning' as const } : {}),
+        details: {
+          versionId: request.query.versionId ?? null,
+          ...(level ? { confidentiality: level, original: true } : {}),
+        },
       })
       return result
     },
@@ -270,7 +286,14 @@ export function registerFilesRoutes(route: RouteRegistrar): void {
     tags: ['files'],
     summary: 'Превью текущей версии файла',
     schema: { params: IdParam, response: { 200: FilePreviews } },
-    handler: async (request) => FileProcessing.previews(request.params.id),
+    handler: async (request) => {
+      const previews = await FileProcessing.previews(request.params.id)
+      // Просмотрщик рисует водяной знак поверх страниц файла с грифом (ADR-0085)
+      const level = await watermarkLevel(request.params.id)
+      return level
+        ? { ...previews, watermark: { lines: watermarkLines(request.ctx, level) } }
+        : previews
+    },
   })
 
   route({
