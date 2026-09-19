@@ -154,7 +154,12 @@ beforeAll(async () => {
 })
 
 afterAll(async () => {
-  configure({ TELEGRAM_BOT_TOKEN: undefined, TELEGRAM_API_URL: undefined })
+  // Окружение процесса общее для файлов тестов: опрос возвращается к умолчанию
+  configure({
+    TELEGRAM_BOT_TOKEN: undefined,
+    TELEGRAM_API_URL: undefined,
+    TELEGRAM_POLLING: undefined,
+  })
   await telegram?.close()
 })
 

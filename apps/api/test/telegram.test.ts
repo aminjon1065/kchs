@@ -135,7 +135,12 @@ describe('Telegram без токена бота', () => {
 
 describe('Telegram: привязка и уведомления', () => {
   beforeAll(() => {
-    configure({ TELEGRAM_BOT_TOKEN: telegram.token, TELEGRAM_API_URL: telegram.url })
+    // Опрос включён по умолчанию, даже если другой файл тестов выключал его
+    configure({
+      TELEGRAM_BOT_TOKEN: telegram.token,
+      TELEGRAM_API_URL: telegram.url,
+      TELEGRAM_POLLING: undefined,
+    })
   })
 
   it('одноразовая ссылка привязывает личный чат к пользователю', async () => {
@@ -500,6 +505,9 @@ describe('Telegram: привязка и уведомления', () => {
       { timeout: 10_000, interval: 200 },
     )
     await stopTelegramPolling()
-    expect(telegram.calls.some((recorded) => recorded.method === 'getUpdates')).toBe(true)
+    const polls = telegram.calls.filter((recorded) => recorded.method === 'getUpdates')
+    expect(polls.length).toBeGreaterThan(0)
+    // Опрос получает и нажатия кнопок дел Входящих (ответ на приглашение)
+    expect(polls[0]?.body.allowed_updates).toEqual(['message', 'callback_query'])
   })
 })

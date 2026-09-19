@@ -62,7 +62,8 @@ async function lead(): Promise<void> {
   loop = connect(bot)
     .then(() =>
       bot.start({
-        allowed_updates: ['message'],
+        // Сообщения (привязка, /stop) и нажатия кнопок дел Входящих (ADR-0081)
+        allowed_updates: ['message', 'callback_query'],
         onStart: (info) => logger().info({ bot: info.username }, 'Telegram: опрос запущен'),
       }),
     )
