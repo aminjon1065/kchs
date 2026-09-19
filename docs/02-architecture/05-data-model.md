@@ -250,9 +250,21 @@ recordings(id pk → objects, meeting_id, file_id, duration_s, status, transcrip
 transcripts(id, recording_id, language, segments jsonb, summary jsonb, model, created_at)
 protocols(id pk → objects, meeting_id, status, document_id)   protocol_items(id, protocol_id, kind, text, assignee_id, due_at, task_id, "order")
 
-calendars(id pk → objects, kind, owner_id, color, timezone)
-events(id pk → objects, calendar_id, starts_at, ends_at, all_day, rrule, exdates, location, meeting_id, visibility, reminders jsonb, linked_object_ids uuid[])
-event_attendees(event_id, user_id, status text, optional bool)   event_instances (материализация повторов на 2 года вперёд для быстрых выборок)
+calendars(id pk → objects, kind personal|team|project|resource|subscription, owner_id null, color, timezone, description,
+          system_key unique (personal:<user>, space:<space>, project:<project>), project_id, resource jsonb {kind, location, capacity},
+          source_enc bytea, source_host, sync_status, synced_at, sync_error, settings jsonb)   -- ADR-0081
+events(id pk → objects, calendar_id, organizer_id, starts_at, ends_at, all_day, start_date, end_date (исключительно), timezone,
+       rrule, exdates jsonb, overrides jsonb (правки экземпляров по recurrence_id), materialized_until, location, description,
+       meeting_id, visibility public|busy|private, transparency opaque|transparent, reminders jsonb, linked_object_ids uuid[],
+       color, uid, sequence, source local|import|subscription, series_id)   uq(calendar_id, uid)
+event_attendees(event_id, user_id, role organizer|attendee, optional bool, status needs_action|accepted|tentative|declined,
+                comment, proposal jsonb, responded_at, reminders jsonb null)   pk(event_id, user_id)
+event_resources(event_id, resource_id → calendars, status)   pk(event_id, resource_id)
+event_instances(id bigint, event_id, calendar_id, recurrence_id, starts_at, ends_at, all_day, start_date, end_date, overridden)
+  -- материализация повторов на 2 года вперёд: uq(event_id, recurrence_id), gist(tstzrange(starts_at, ends_at))
+event_reminders(id bigint, event_id, user_id, recurrence_id, starts_at, minutes, channels text[], fire_at, sent_at)
+  -- очередь напоминаний ближайших суток: uq(event_id, user_id, recurrence_id, starts_at, minutes), idx(fire_at) where sent_at is null
+calendar_feeds(id, calendar_id, user_id, token_hash unique, created_at, last_used_at, revoked_at)   -- ссылки ICS-подписки
 
 pages(id pk → objects, status, template_key, owners uuid[], review_due_at, ack_required bool, current_version int)
 page_versions(id, page_id, number, body jsonb, created_by, created_at, summary)
