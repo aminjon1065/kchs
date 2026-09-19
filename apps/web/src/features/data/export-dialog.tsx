@@ -1,5 +1,6 @@
 import {
   DATASET_EXPORT_FORMATS,
+  DATASET_GEO_EXPORT_FORMATS,
   type DatasetExportDownload,
   type DatasetExportFormat,
   type DatasetExportInput,
@@ -35,6 +36,10 @@ export interface TableView {
 
 type Scope = 'view' | 'all'
 
+const GEO_FORMATS = new Set<DatasetExportFormat>(DATASET_GEO_EXPORT_FORMATS)
+/** Табличные форматы — первым рядом, геоформаты (нужно поле геометрии) — вторым. */
+const TABLE_FORMATS = DATASET_EXPORT_FORMATS.filter((format) => !GEO_FORMATS.has(format))
+
 function errorText(error: unknown, fallback: string): string {
   return error instanceof ApiError ? error.message : fallback
 }
@@ -66,7 +71,6 @@ export function ExportDialog({
   const t = useT()
   const locale = useAppearance((s) => s.locale)
   const hasGeometry = dataset.fields.some((field) => field.type === 'geometry')
-  const formats = DATASET_EXPORT_FORMATS.filter((format) => format !== 'geojson' || hasGeometry)
   const [format, setFormat] = useState<DatasetExportFormat>('xlsx')
   const [scope, setScope] = useState<Scope>('view')
   const [jobId, setJobId] = useState<string | null>(null)
@@ -144,15 +148,28 @@ export function ExportDialog({
         <div className="flex flex-col gap-4">
           {failure ? <Callout tone="danger">{failure}</Callout> : null}
           <Group legend={t('data.export.format')} hint={t(`data.export.formatHints.${format}`)}>
-            <SegmentedControl
-              value={format}
-              onValueChange={choose(setFormat)}
-              options={formats.map((value) => ({
-                value,
-                label: t(`data.export.formats.${value}`),
-              }))}
-              aria-label={t('data.export.format')}
-            />
+            <div className="flex flex-col items-start gap-1.5">
+              <SegmentedControl
+                value={format}
+                onValueChange={choose(setFormat)}
+                options={TABLE_FORMATS.map((value) => ({
+                  value,
+                  label: t(`data.export.formats.${value}`),
+                }))}
+                aria-label={t('data.export.tableFormats')}
+              />
+              {hasGeometry ? (
+                <SegmentedControl
+                  value={format}
+                  onValueChange={choose(setFormat)}
+                  options={DATASET_GEO_EXPORT_FORMATS.map((value) => ({
+                    value,
+                    label: t(`data.export.formats.${value}`),
+                  }))}
+                  aria-label={t('data.export.geoFormats')}
+                />
+              ) : null}
+            </div>
           </Group>
           <Group legend={t('data.export.scope')}>
             <RadioGroup

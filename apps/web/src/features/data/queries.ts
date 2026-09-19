@@ -20,6 +20,7 @@ import type {
   QueryResult,
   SqlSchema,
 } from '@kchs/contracts'
+import { IMPORT_FINAL_STATUSES } from '@kchs/contracts'
 import { queryOptions } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
 
@@ -69,6 +70,11 @@ export const datasetImportsQuery = (id: string) =>
     queryKey: dataKeys.imports(id),
     queryFn: async () =>
       (await http.get<{ items: ImportRecord[] }>(`/datasets/${id}/imports`)).items,
+    // Идущий импорт (например, опубликованный после сводки изменений) — до его завершения
+    refetchInterval: (query) =>
+      query.state.data?.some((item) => !isImportFinished(item.status) && item.status !== 'review')
+        ? 2000
+        : false,
   })
 
 /** Датасеты и поля для подсказок SQL-лаборатории (способность `data.sql`). */
@@ -161,15 +167,23 @@ export const exportJobQuery = (jobId: string) =>
     refetchInterval: (query) => (isJobFinished(query.state.data?.status) ? false : 1000),
   })
 
-export const isImportFinished = (status: ImportStatus | undefined): boolean =>
-  status === 'succeeded' || status === 'failed'
+const FINAL_IMPORT_STATUSES = new Set<string>(IMPORT_FINAL_STATUSES)
 
-/** Состояние импорта: опрашивается, пока импорт не завершится. */
+export const isImportFinished = (status: ImportStatus | undefined): boolean =>
+  status !== undefined && FINAL_IMPORT_STATUSES.has(status)
+
+/**
+ * Состояние импорта: опрашивается, пока импорт идёт сам; сводка изменений
+ * (`review`) ждёт решения пользователя — опрос возобновляется после публикации.
+ */
 export const importQuery = (id: string) =>
   queryOptions({
     queryKey: dataKeys.import(id),
     queryFn: () => http.get<ImportRecord>(`/datasets/imports/${id}`),
-    refetchInterval: (query) => (isImportFinished(query.state.data?.status) ? false : 1000),
+    refetchInterval: (query) => {
+      const status = query.state.data?.status
+      return isImportFinished(status) || status === 'review' ? false : 1000
+    },
   })
 
 /** Профиль столбца: сервер кэширует его по версии, клиент — пока версия та же. */

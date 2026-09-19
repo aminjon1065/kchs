@@ -1,7 +1,9 @@
 import {
   type DatasetRecord,
   type FieldSemantic,
+  IMPORT_CRS_PRESETS,
   IMPORT_FIELD_TYPES,
+  IMPORT_LAYER_FORMATS,
   IMPORT_LIMITS,
   type ImportAnalysis,
   type ImportFieldType,
@@ -49,13 +51,20 @@ import {
   type MappingProblem,
   type MappingRow,
   mappingProblems,
+  needsCrs,
   optionsFrom,
   rowsFrom,
+  supportsReview,
 } from './import-mapping.js'
+import { ImportChanges } from './import-review.js'
 import { dataKeys, importQuery, isImportFinished } from './queries.js'
 
 const STEPS = ['file', 'structure', 'mapping', 'review'] as const
-const ACCEPT = '.csv,.tsv,.txt,.xlsx,.xls,.json,.ndjson,.geojson'
+const ACCEPT = '.csv,.tsv,.txt,.xlsx,.xls,.json,.ndjson,.geojson,.zip,.gpkg,.kml,.kmz,.gpx'
+/** Форматы без строк заголовка: столбцы — ключи объектов или поля слоя. */
+const RECORD_FORMATS = new Set<string>(['json', 'ndjson', 'geojson', ...IMPORT_LAYER_FORMATS])
+const CRS_OTHER = '__other'
+const CRS_CODE = /^EPSG:\d{4,6}$/
 const DELIMITERS = [
   { value: ',', key: 'comma' },
   { value: ';', key: 'semicolon' },
@@ -95,6 +104,7 @@ export function ImportWizard({ onClose, spaceId, initialFile, dataset }: ImportW
   const [name, setName] = useState('')
   const [mode, setMode] = useState<ImportMode>(dataset ? 'append' : 'replace')
   const [useGeometry, setUseGeometry] = useState(true)
+  const [review, setReview] = useState(true)
   const [onError, setOnError] = useState<'skip' | 'stop'>('skip')
   const [importId, setImportId] = useState<string | null>(null)
 
@@ -152,6 +162,7 @@ export function ImportWizard({ onClose, spaceId, initialFile, dataset }: ImportW
           target: { dataset, name, mode, spaceId },
           geometry: useGeometry ? analysis.geometry : null,
           onError,
+          review,
         }),
       )
     },
@@ -173,10 +184,12 @@ export function ImportWizard({ onClose, spaceId, initialFile, dataset }: ImportW
     ? t('data.import.titleInto', { name: dataset.name })
     : t('data.import.title')
 
+  // Геометрия в метрах без системы координат не загрузится — сначала выбрать систему
   const canNext =
     (step === 0 && Boolean(analysis)) ||
-    (step === 1 && Boolean(analysis) && !analyze.isPending) ||
+    (step === 1 && Boolean(analysis) && !analyze.isPending && !(analysis && needsCrs(analysis))) ||
     (step === 2 && problems.length === 0)
+  const reviewing = review && supportsReview({ dataset, mode })
 
   const footer = importId ? null : (
     <>
@@ -199,7 +212,7 @@ export function ImportWizard({ onClose, spaceId, initialFile, dataset }: ImportW
           disabled={problems.length > 0}
           onClick={() => start.mutate()}
         >
-          {t('data.import.review.start')}
+          {t(reviewing ? 'data.import.review.startReview' : 'data.import.review.start')}
         </Button>
       )}
     </>
@@ -211,6 +224,7 @@ export function ImportWizard({ onClose, spaceId, initialFile, dataset }: ImportW
         {importId ? (
           <ImportProgress
             importId={importId}
+            dataset={dataset}
             onOpen={(datasetId) => {
               openTab({
                 kind: 'object',
@@ -269,6 +283,8 @@ export function ImportWizard({ onClose, spaceId, initialFile, dataset }: ImportW
                 onModeChange={setMode}
                 useGeometry={useGeometry}
                 onUseGeometryChange={setUseGeometry}
+                review={review}
+                onReviewChange={setReview}
                 problems={problems}
               />
             ) : null}
@@ -280,6 +296,7 @@ export function ImportWizard({ onClose, spaceId, initialFile, dataset }: ImportW
                 dataset={dataset}
                 name={name}
                 mode={mode}
+                review={reviewing}
                 onError={onError}
                 onOnErrorChange={setOnError}
               />
@@ -383,6 +400,10 @@ function StructureStep({
   const set = (patch: Partial<ImportOptions>) => onOptionsChange({ ...options, ...patch })
   const isText = ['csv', 'tsv'].includes(analysis.format)
   const isBook = ['xlsx', 'xls'].includes(analysis.format)
+  // Кодировку выбирают у текстовых файлов и у Shapefile (атрибуты DBF)
+  const hasEncoding = isText || analysis.format === 'shp'
+  const isRecords = RECORD_FORMATS.has(analysis.format)
+  const geo = analysis.geo
   const changed = JSON.stringify(options) !== JSON.stringify(optionsFrom(analysis))
   const encodings = [...new Set([...ENCODINGS, ...(analysis.encoding ? [analysis.encoding] : [])])]
   const rowsLabel = t(
@@ -399,9 +420,52 @@ function StructureStep({
         <span>{rowsLabel}</span>
         <span aria-hidden>·</span>
         <span>{t('data.import.structure.columns', { count: analysis.columns.length })}</span>
+        {geo && analysis.geometry ? (
+          <>
+            <span aria-hidden>·</span>
+            <span>
+              {t('data.import.structure.geometry', {
+                type: t(`data.import.geometryTypes.${geometryTypeKey(geo.geometryType)}`),
+              })}
+            </span>
+          </>
+        ) : null}
+        {geo?.bbox ? (
+          <>
+            <span aria-hidden>·</span>
+            <span className="tabular">
+              {t('data.import.structure.extent', {
+                west: formatNumber(geo.bbox[0] ?? 0, { precision: 3 }, { locale }),
+                south: formatNumber(geo.bbox[1] ?? 0, { precision: 3 }, { locale }),
+                east: formatNumber(geo.bbox[2] ?? 0, { precision: 3 }, { locale }),
+                north: formatNumber(geo.bbox[3] ?? 0, { precision: 3 }, { locale }),
+              })}
+            </span>
+          </>
+        ) : null}
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        {geo && geo.layers.length > 1 ? (
+          <ChoiceSelect
+            label={t('data.import.structure.layer')}
+            value={options.layer ?? geo.layer ?? undefined}
+            onChange={(layer) => set({ layer })}
+            options={geo.layers.map((layer) => ({
+              value: layer.name,
+              label: `${layer.name} (${formatNumber(layer.rows, {}, { locale })})`,
+            }))}
+          />
+        ) : null}
+        {geo ? (
+          <CrsChoice
+            value={options.crs ?? geo.crs ?? undefined}
+            detected={geo.crs}
+            detectedName={geo.crsName}
+            source={geo.crsSource}
+            onChange={(crs) => set({ crs })}
+          />
+        ) : null}
         {isBook && analysis.sheets.length > 0 ? (
           <ChoiceSelect
             label={t('data.import.structure.sheet')}
@@ -413,45 +477,49 @@ function StructureStep({
             }))}
           />
         ) : null}
-        {isText ? (
-          <>
-            <ChoiceSelect
-              label={t('data.import.structure.encoding')}
-              value={options.encoding}
-              onChange={(encoding) => set({ encoding })}
-              options={encodings.map((value) => ({ value, label: value.toUpperCase() }))}
-            />
-            <ChoiceSelect
-              label={t('data.import.structure.delimiter')}
-              value={options.delimiter}
-              onChange={(delimiter) => set({ delimiter })}
-              options={DELIMITERS.map((item) => ({
-                value: item.value,
-                label: t(`data.import.structure.delimiters.${item.key}`),
-              }))}
-            />
-          </>
+        {hasEncoding ? (
+          <ChoiceSelect
+            label={t('data.import.structure.encoding')}
+            value={options.encoding}
+            onChange={(encoding) => set({ encoding })}
+            options={encodings.map((value) => ({ value, label: value.toUpperCase() }))}
+          />
         ) : null}
-        <Field label={t('data.import.structure.skipRows')}>
-          <Input
-            type="number"
-            min={0}
-            max={1000}
-            value={options.skipRows ?? 0}
-            onChange={(event) => set({ skipRows: clampInt(event.target.value, 0, 1000) })}
-            aria-label={t('data.import.structure.skipRows')}
+        {isText ? (
+          <ChoiceSelect
+            label={t('data.import.structure.delimiter')}
+            value={options.delimiter}
+            onChange={(delimiter) => set({ delimiter })}
+            options={DELIMITERS.map((item) => ({
+              value: item.value,
+              label: t(`data.import.structure.delimiters.${item.key}`),
+            }))}
           />
-        </Field>
-        <Field label={t('data.import.structure.headerRows')}>
-          <Input
-            type="number"
-            min={0}
-            max={5}
-            value={options.headerRows ?? 1}
-            onChange={(event) => set({ headerRows: clampInt(event.target.value, 0, 5) })}
-            aria-label={t('data.import.structure.headerRows')}
-          />
-        </Field>
+        ) : null}
+        {isRecords ? null : (
+          <>
+            <Field label={t('data.import.structure.skipRows')}>
+              <Input
+                type="number"
+                min={0}
+                max={1000}
+                value={options.skipRows ?? 0}
+                onChange={(event) => set({ skipRows: clampInt(event.target.value, 0, 1000) })}
+                aria-label={t('data.import.structure.skipRows')}
+              />
+            </Field>
+            <Field label={t('data.import.structure.headerRows')}>
+              <Input
+                type="number"
+                min={0}
+                max={5}
+                value={options.headerRows ?? 1}
+                onChange={(event) => set({ headerRows: clampInt(event.target.value, 0, 5) })}
+                aria-label={t('data.import.structure.headerRows')}
+              />
+            </Field>
+          </>
+        )}
         <ChoiceSelect
           label={t('data.import.structure.decimal')}
           value={options.decimal}
@@ -478,6 +546,10 @@ function StructureStep({
             {t('data.import.structure.apply')}
           </Button>
         </div>
+      ) : null}
+
+      {needsCrs(analysis) ? (
+        <Callout tone="danger">{t('data.import.structure.crsRequired')}</Callout>
       ) : null}
 
       {analysis.warnings.length > 0 ? (
@@ -526,6 +598,99 @@ function StructureStep({
           </table>
         </div>
       </section>
+    </div>
+  )
+}
+
+/** Ключ названия типа геометрии: известные типы — по имени, разные и прочие — «разные». */
+function geometryTypeKey(type: string | null): string {
+  const known = [
+    'Point',
+    'MultiPoint',
+    'LineString',
+    'MultiLineString',
+    'Polygon',
+    'MultiPolygon',
+    'GeometryCollection',
+  ]
+  return type && known.includes(type) ? type : 'mixed'
+}
+
+/**
+ * Система координат исходных данных: частые системы, определённая в файле и
+ * «другая» по коду EPSG. Выбор применяется повторным анализом («Применить»).
+ */
+function CrsChoice({
+  value,
+  detected,
+  detectedName,
+  source,
+  onChange,
+}: {
+  value: string | undefined
+  detected: string | null
+  detectedName: string | null
+  source: NonNullable<ImportAnalysis['geo']>['crsSource']
+  onChange: (crs: string) => void
+}) {
+  const t = useT()
+  const presets: string[] = [...IMPORT_CRS_PRESETS]
+  const [custom, setCustom] = useState(
+    value !== undefined && !presets.includes(value) && value !== detected,
+  )
+  const [code, setCode] = useState(custom ? (value ?? '') : '')
+  const label = `${t('data.import.structure.crs')} · ${t(`data.import.structure.crsSources.${source}`)}`
+  const presetLabel = (crs: string) =>
+    (presets as string[]).includes(crs)
+      ? t(`data.import.structure.crsPresets.${crs.replace('EPSG:', 'epsg')}`)
+      : detectedName
+        ? `${detectedName} (${crs})`
+        : crs
+  const known = detected && !presets.includes(detected) ? [detected, ...presets] : presets
+  return (
+    <div className="col-span-2 flex flex-col gap-2">
+      <Field label={label}>
+        <Select
+          value={custom ? CRS_OTHER : value}
+          onValueChange={(next) => {
+            if (next === CRS_OTHER) {
+              setCustom(true)
+              return
+            }
+            setCustom(false)
+            onChange(next)
+          }}
+        >
+          <SelectTrigger aria-label={t('data.import.structure.crs')}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {known.map((crs) => (
+              <SelectItem key={crs} value={crs}>
+                {presetLabel(crs)}
+              </SelectItem>
+            ))}
+            <SelectItem value={CRS_OTHER}>{t('data.import.structure.crsPresets.other')}</SelectItem>
+          </SelectContent>
+        </Select>
+      </Field>
+      {custom ? (
+        <Field
+          label={t('data.import.structure.crsCode')}
+          hint={t('data.import.structure.crsCodeHint')}
+        >
+          <Input
+            mono
+            value={code}
+            onChange={(event) => {
+              const next = event.target.value.trim().toUpperCase()
+              setCode(next)
+              if (CRS_CODE.test(next)) onChange(next)
+            }}
+            aria-label={t('data.import.structure.crsCode')}
+          />
+        </Field>
+      ) : null}
     </div>
   )
 }
@@ -579,6 +744,8 @@ function MappingStep({
   onModeChange,
   useGeometry,
   onUseGeometryChange,
+  review,
+  onReviewChange,
   problems,
 }: {
   analysis: ImportAnalysis
@@ -591,6 +758,8 @@ function MappingStep({
   onModeChange: (mode: ImportMode) => void
   useGeometry: boolean
   onUseGeometryChange: (value: boolean) => void
+  review: boolean
+  onReviewChange: (value: boolean) => void
   problems: MappingProblem[]
 }) {
   const t = useT()
@@ -638,6 +807,16 @@ function MappingStep({
 
       {geometry ? (
         <Switch checked={useGeometry} onCheckedChange={onUseGeometryChange} label={geometry} />
+      ) : null}
+      {supportsReview({ dataset, mode }) ? (
+        <div className="flex flex-col gap-1">
+          <Switch
+            checked={review}
+            onCheckedChange={onReviewChange}
+            label={t('data.import.mapping.review')}
+          />
+          <p className="text-xs text-fg-muted">{t('data.import.mapping.reviewHint')}</p>
+        </div>
       ) : null}
 
       <div className="overflow-auto rounded-md border border-line">
@@ -858,6 +1037,7 @@ function ReviewStep({
   dataset,
   name,
   mode,
+  review,
   onError,
   onOnErrorChange,
 }: {
@@ -867,6 +1047,7 @@ function ReviewStep({
   dataset?: DatasetRecord
   name: string
   mode: ImportMode
+  review: boolean
   onError: 'skip' | 'stop'
   onOnErrorChange: (value: 'skip' | 'stop') => void
 }) {
@@ -908,6 +1089,29 @@ function ReviewStep({
             label: t('data.import.review.key'),
             value: key.length > 0 ? key.join(', ') : t('data.import.review.noKey'),
           },
+          ...(analysis.geo?.layer
+            ? [{ key: 'layer', label: t('data.import.review.layer'), value: analysis.geo.layer }]
+            : []),
+          ...(analysis.geo?.crs && analysis.geometry
+            ? [
+                {
+                  key: 'crs',
+                  label: t('data.import.review.crs'),
+                  value: analysis.geo.crsName
+                    ? `${analysis.geo.crsName} (${analysis.geo.crs})`
+                    : analysis.geo.crs,
+                },
+              ]
+            : []),
+          ...(review
+            ? [
+                {
+                  key: 'changes',
+                  label: t('data.import.review.changes'),
+                  value: t('data.import.review.changesReview'),
+                },
+              ]
+            : []),
         ]}
       />
 
@@ -944,11 +1148,14 @@ function ReviewStep({
 
 function ImportProgress({
   importId,
+  dataset,
   onOpen,
   onClose,
   onFinished,
 }: {
   importId: string
+  /** Существующий датасет: подписи полей и версия для сводки изменений. */
+  dataset?: DatasetRecord
   onOpen: (datasetId: string) => void
   onClose: () => void
   onFinished: (record: ImportRecord) => void
@@ -976,7 +1183,26 @@ function ImportProgress({
 
   const number = (value: number) => formatNumber(value, {}, { locale })
   let body: ReactNode
-  if (!finished) {
+  if (record.status === 'review') {
+    body = (
+      <ImportChanges
+        record={record}
+        fields={dataset?.fields}
+        currentVersion={dataset?.currentVersion}
+      />
+    )
+  } else if (record.status === 'cancelled') {
+    body = (
+      <div className="flex flex-col gap-4">
+        <Callout tone="neutral">{t('data.import.progress.cancelled')}</Callout>
+        <div className="flex justify-end">
+          <Button variant="secondary" onClick={onClose}>
+            {t('data.import.progress.close')}
+          </Button>
+        </div>
+      </div>
+    )
+  } else if (!finished) {
     body = (
       <div className="flex flex-col items-center gap-3 py-10 text-center">
         <Spinner />

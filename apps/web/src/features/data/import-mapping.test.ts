@@ -5,6 +5,7 @@ import {
   defaultDatasetName,
   geometryFieldKey,
   mappingProblems,
+  needsCrs,
   optionsFrom,
   rowsFrom,
 } from './import-mapping.js'
@@ -49,6 +50,7 @@ const analysis = (patch: Partial<ImportAnalysis> = {}): ImportAnalysis => ({
   ],
   preview: [],
   geometry: null,
+  geo: null,
   warnings: [],
   ...patch,
 })
@@ -131,6 +133,35 @@ describe('мастер импорта: сопоставление', () => {
     expect(optionsFrom(analysis({ thousands: '\u00a0' })).thousands).toBeUndefined()
   })
 
+  it('геоформат: слой и выбранная система координат читаются так же при нормализации', () => {
+    const geo = {
+      crs: 'EPSG:32642',
+      crsName: 'WGS 84 / UTM zone 42N',
+      crsSource: 'option' as const,
+      geometryType: 'Point',
+      layers: [
+        { name: 'pvr', rows: 3, geometryType: 'Point' },
+        { name: 'roads', rows: 1, geometryType: 'LineString' },
+      ],
+      layer: 'pvr',
+      fixed: 0,
+      invalid: 0,
+      bbox: [67.1, 38.5, 67.2, 38.6],
+    }
+    const shp = analysis({ format: 'shp', geometry: { kind: 'features' }, geo })
+    expect(optionsFrom(shp)).toMatchObject({ format: 'shp', layer: 'pvr', crs: 'EPSG:32642' })
+    expect(needsCrs(shp)).toBe(false)
+    // Система координат из файла не передаётся: движок прочтёт её сам
+    expect(optionsFrom(analysis({ geo: { ...geo, crsSource: 'file' } })).crs).toBeUndefined()
+
+    const unknown = { ...geo, crs: null, crsName: null, crsSource: 'unknown' as const }
+    expect(
+      needsCrs(analysis({ format: 'shp', geometry: { kind: 'features' }, geo: unknown })),
+    ).toBe(true)
+    // x/y в метрах без собранной геометрии: можно загрузить и без неё
+    expect(needsCrs(analysis({ geo: unknown }))).toBe(false)
+  })
+
   it('новый датасет: предложения движка, полностью пустой столбец не загружается', () => {
     const rows = rowsFrom(analysis())
     expect(rows.map((row) => [row.fieldKey, row.type, row.include])).toEqual([
@@ -211,6 +242,8 @@ describe('мастер импорта: сопоставление', () => {
     expect(input.key).toEqual(['kod'])
     expect(input.mapping.map((item) => item.fieldKey)).toEqual(['kod', 'geometry', 'ushcherb'])
     expect(input.geometryField).toBe('geometry_2')
+    // Предпросмотр изменений — только при обновлении существующего датасета по ключу
+    expect(input.review).toBe(false)
   })
 
   it('запрос запуска: существующий датасет — его ключ и его поле геометрии', () => {
@@ -227,11 +260,23 @@ describe('мастер импорта: сопоставление', () => {
       target: { dataset, name: '', mode: 'upsert', spaceId: dataset.spaceId },
       geometry: { kind: 'wkt', column: 2 },
       onError: 'stop',
+      review: true,
     })
     expect(input.target).toEqual({ kind: 'existing', datasetId: dataset.id, mode: 'upsert' })
     expect(input.key).toEqual(['code'])
     expect(input.geometryField).toBe('location')
     expect(input.onError).toBe('stop')
+    expect(input.review).toBe(true)
+    const append = buildRunInput({
+      fileId: '0190f5a0-0000-7000-8000-00000000000f',
+      options: {},
+      rows,
+      target: { dataset, name: '', mode: 'append', spaceId: dataset.spaceId },
+      geometry: null,
+      onError: 'skip',
+      review: true,
+    })
+    expect(append.review).toBe(false)
   })
 
   it('имя датасета по умолчанию — имя файла без расширения', () => {

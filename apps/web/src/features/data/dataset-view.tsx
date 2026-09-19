@@ -1,4 +1,4 @@
-import type { DatasetVersion, ImportRecord } from '@kchs/contracts'
+import type { DatasetRecord, DatasetVersion, ImportRecord } from '@kchs/contracts'
 import { formatNumber, formatRelativeTime } from '@kchs/fields'
 import {
   AlertDialog,
@@ -11,7 +11,10 @@ import {
   InlineEdit,
   ObjectIcon,
   PanelToolbar,
+  Sheet,
+  SheetContent,
   Skeleton,
+  Spinner,
   Tabs,
   TabsContent,
   TabsList,
@@ -30,6 +33,7 @@ import { ApiError, http } from '~/shared/api/client.js'
 import { keys, objectQuery } from '~/shared/api/queries.js'
 import { AccessTab } from './access-tab.js'
 import { DatasetTable } from './dataset-table.js'
+import { ImportChanges } from './import-review.js'
 import { ImportWizard } from './import-wizard.js'
 import {
   aiStatusQuery,
@@ -37,15 +41,19 @@ import {
   datasetImportsQuery,
   datasetQuery,
   datasetVersionsQuery,
+  importQuery,
 } from './queries.js'
 import { SchemaTab } from './schema-tab.js'
 
 const IMPORT_TONES: Record<ImportRecord['status'], BadgeProps['tone']> = {
   queued: 'neutral',
   normalizing: 'accent',
+  comparing: 'accent',
+  review: 'warning',
   loading: 'accent',
   succeeded: 'success',
   failed: 'danger',
+  cancelled: 'neutral',
 }
 
 /**
@@ -221,7 +229,7 @@ export function DatasetView({ objectId, tabId }: { objectId: string; tabId: stri
           </TabsContent>
         ) : null}
         <TabsContent value="imports" className="min-h-0 flex-1 overflow-y-auto bg-canvas p-5">
-          <ImportsTab datasetId={objectId} />
+          <ImportsTab dataset={dataset} canEdit={canEdit} />
         </TabsContent>
       </Tabs>
 
@@ -350,10 +358,12 @@ function VersionsTab({
   )
 }
 
-function ImportsTab({ datasetId }: { datasetId: string }) {
+function ImportsTab({ dataset, canEdit }: { dataset: DatasetRecord; canEdit: boolean }) {
   const t = useT()
   const locale = useAppearance((s) => s.locale)
-  const { data: imports = [], isLoading } = useQuery(datasetImportsQuery(datasetId))
+  const client = useQueryClient()
+  const [reviewing, setReviewing] = useState<string | null>(null)
+  const { data: imports = [], isLoading } = useQuery(datasetImportsQuery(dataset.id))
   if (isLoading) return <Skeleton className="mx-auto h-40 max-w-[760px]" />
   if (imports.length === 0) return <EmptyState title={t('data.dataset.imports.empty')} />
   const number = (value: number) => formatNumber(value, {}, { locale })
@@ -385,10 +395,57 @@ function ImportsTab({ datasetId }: { datasetId: string }) {
                   })}
                 </span>
               </span>
+              {item.status === 'review' && canEdit ? (
+                <Button variant="secondary" size="sm" onClick={() => setReviewing(item.id)}>
+                  {t('data.import.changes.open')}
+                </Button>
+              ) : null}
             </li>
           ))}
         </ul>
       </Card>
+      {reviewing ? (
+        <Sheet open onOpenChange={(open) => !open && setReviewing(null)}>
+          <SheetContent title={t('data.import.changes.title')} width="min(860px, 100vw)">
+            <ReviewSheet
+              importId={reviewing}
+              dataset={dataset}
+              onDone={() => {
+                setReviewing(null)
+                void client.invalidateQueries({ queryKey: dataKeys.dataset(dataset.id) })
+              }}
+            />
+          </SheetContent>
+        </Sheet>
+      ) : null}
     </div>
+  )
+}
+
+/** Сводка изменений импорта, ждущего публикации (ADR-0068). */
+function ReviewSheet({
+  importId,
+  dataset,
+  onDone,
+}: {
+  importId: string
+  dataset: DatasetRecord
+  onDone: () => void
+}) {
+  const { data: record } = useQuery(importQuery(importId))
+  if (!record) {
+    return (
+      <div className="flex justify-center py-12">
+        <Spinner />
+      </div>
+    )
+  }
+  return (
+    <ImportChanges
+      record={record}
+      fields={dataset.fields}
+      currentVersion={dataset.currentVersion}
+      onDone={onDone}
+    />
   )
 }

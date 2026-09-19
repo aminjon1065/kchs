@@ -49,7 +49,20 @@ export function optionsFrom(analysis: ImportAnalysis): ImportOptions {
       ? { thousands: analysis.thousands as NonNullable<ImportOptions['thousands']> }
       : {}),
     ...(analysis.dateOrder ? { dateOrder: analysis.dateOrder } : {}),
+    // Слой и система координат, выбранные при анализе, нормализация читает так же
+    ...(analysis.geo?.layer && analysis.geo.layers.length > 0 ? { layer: analysis.geo.layer } : {}),
+    ...(analysis.geo?.crsSource === 'option' && analysis.geo.crs ? { crs: analysis.geo.crs } : {}),
   }
+}
+
+/** Геометрия файла есть, а система координат не определена — без выбора она не загрузится. */
+export function needsCrs(analysis: ImportAnalysis): boolean {
+  return analysis.geometry !== null && analysis.geo?.crsSource === 'unknown'
+}
+
+/** Предпросмотр изменений (ADR-0068) — при обновлении существующего датасета по ключу. */
+export function supportsReview(target: { dataset?: DatasetRecord; mode: ImportMode }): boolean {
+  return Boolean(target.dataset) && (target.mode === 'upsert' || target.mode === 'sync')
 }
 
 const normalize = (value: string) => value.trim().toLowerCase()
@@ -172,6 +185,8 @@ export function buildRunInput(input: {
   target: MappingTarget & { spaceId: string }
   geometry: ImportAnalysis['geometry']
   onError: 'skip' | 'stop'
+  /** Показать изменения перед публикацией (только upsert и sync). */
+  review?: boolean
 }): ImportRunInput {
   const included = input.rows.filter((row) => row.include)
   const { dataset } = input.target
@@ -205,5 +220,6 @@ export function buildRunInput(input: {
     ...(geometry && geometryField ? { geometry, geometryField } : {}),
     key,
     onError: input.onError,
+    review: Boolean(input.review) && supportsReview(input.target),
   }
 }
