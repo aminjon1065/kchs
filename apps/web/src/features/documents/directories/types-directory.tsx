@@ -4,6 +4,8 @@ import {
   type DocumentTypeRecord,
   type DocumentTypeSettings,
   type DocumentTypeUpdateInput,
+  RESOLUTION_ROUTES,
+  type ResolutionRoute,
 } from '@kchs/contracts'
 import {
   Badge,
@@ -29,7 +31,11 @@ import { FileCog, X } from 'lucide-react'
 import { useId, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
+import { pickedOf } from '~/features/tasks/task-status.js'
+import { type PickedUser, UserPicker } from '~/features/tasks/user-picker.js'
 import { http } from '~/shared/api/client.js'
+import { orgUnitsQuery } from '~/shared/api/queries.js'
+import { PrincipalsPicker } from '../principals-picker.js'
 import { documentKeys, documentTypesQuery, journalsQuery } from '../queries.js'
 import { errorText } from '../status.js'
 
@@ -128,6 +134,8 @@ interface TypeForm {
   fallback: Confidentiality
   settings: DocumentTypeSettings
   deadlineDays: string
+  /** Срок ознакомления в рабочих днях — строкой поля ввода (ADR-0084). */
+  ackDays: string
   retention: string
   active: boolean
 }
@@ -143,6 +151,7 @@ const formOf = (type: DocumentTypeRecord): TypeForm => ({
   settings: type.settings,
   deadlineDays:
     type.settings.defaultDeadlineDays === null ? '' : String(type.settings.defaultDeadlineDays),
+  ackDays: type.settings.ackDueWorkingDays === null ? '' : String(type.settings.ackDueWorkingDays),
   retention: type.retentionYears === null ? '' : String(type.retentionYears),
   active: type.isActive,
 })
@@ -154,7 +163,12 @@ function TypePanel({ type, onClose }: { type: DocumentTypeRecord; onClose: () =>
   const client = useQueryClient()
   const formId = useId()
   const { data: journals = [] } = useQuery(journalsQuery())
+  const { data: units = [] } = useQuery(orgUnitsQuery())
   const editable = type.canManage
+  // Получатель направления на резолюцию: имя — из записи типа, после выбора — из пикера
+  const [resolutionUser, setResolutionUser] = useState<PickedUser | null>(() =>
+    pickedOf(type.resolutionUser),
+  )
   const [form, setForm] = useState<TypeForm>(() => formOf(type))
   const set = (patch: Partial<TypeForm>) => setForm((current) => ({ ...current, ...patch }))
   const dirty = JSON.stringify(form) !== JSON.stringify(formOf(type))
@@ -171,11 +185,17 @@ function TypePanel({ type, onClose }: { type: DocumentTypeRecord; onClose: () =>
   }
 
   const days = form.deadlineDays.trim() === '' ? null : Number(form.deadlineDays)
+  const ackDays = form.ackDays.trim() === '' ? null : Number(form.ackDays)
   const years = form.retention.trim() === '' ? null : Number(form.retention)
   const invalid =
     !form.nameRu.trim() ||
     (days !== null && (!Number.isInteger(days) || days < 1 || days > 365)) ||
-    (years !== null && (!Number.isInteger(years) || years < 0 || years > 100))
+    (ackDays !== null && (!Number.isInteger(ackDays) || ackDays < 1 || ackDays > 60)) ||
+    (years !== null && (!Number.isInteger(years) || years < 0 || years > 100)) ||
+    (form.settings.resolutionBy === 'user' && !form.settings.resolutionUserId)
+  const setSettings = (patch: Partial<DocumentTypeSettings>) =>
+    set({ settings: { ...form.settings, ...patch } })
+  const unitNames = new Map(units.map((unit) => [unit.id, unit.name[locale] ?? unit.name.ru]))
 
   const save = useMutation({
     mutationFn: () => {
@@ -192,7 +212,7 @@ function TypePanel({ type, onClose }: { type: DocumentTypeRecord; onClose: () =>
         confidentialityAllowed: form.allowed,
         defaultConfidentiality: form.fallback,
         retentionYears: years,
-        settings: { ...form.settings, defaultDeadlineDays: days },
+        settings: { ...form.settings, defaultDeadlineDays: days, ackDueWorkingDays: ackDays },
         isActive: form.active,
       }
       return http.patch(`/document-types/${type.id}`, body)
@@ -300,6 +320,72 @@ function TypePanel({ type, onClose }: { type: DocumentTypeRecord; onClose: () =>
           />
         ))}
       </fieldset>
+      {form.settings.allowResolutions ? (
+        <Field label={t('documents.types.settings.resolutionBy')}>
+          <Select
+            value={form.settings.resolutionBy}
+            onValueChange={(next) => setSettings({ resolutionBy: next as ResolutionRoute })}
+            disabled={!editable}
+          >
+            <SelectTrigger aria-label={t('documents.types.settings.resolutionBy')}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {RESOLUTION_ROUTES.map((route) => (
+                <SelectItem key={route} value={route}>
+                  {t(`documents.types.resolutionRoutes.${route}`)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+      ) : null}
+      {form.settings.allowResolutions && form.settings.resolutionBy === 'user' ? (
+        <Field label={t('documents.types.settings.resolutionUser')} required>
+          <UserPicker
+            value={resolutionUser}
+            onChange={(user) => {
+              setResolutionUser(user)
+              setSettings({ resolutionUserId: user?.id ?? null })
+            }}
+            label={t('documents.types.settings.resolutionUser')}
+          />
+        </Field>
+      ) : null}
+      {form.settings.ackOnRegister ? (
+        <Field
+          label={t('documents.types.settings.ackUnits')}
+          hint={t('documents.types.settings.ackUnitsHint')}
+        >
+          <PrincipalsPicker
+            types="unit"
+            label={t('documents.types.settings.ackUnits')}
+            value={form.settings.ackUnitIds.map((id) => ({
+              type: 'unit' as const,
+              id,
+              title: unitNames.get(id) ?? id,
+            }))}
+            onChange={(next) => setSettings({ ackUnitIds: next.map((item) => item.id) })}
+          />
+        </Field>
+      ) : null}
+      <Field label={t('documents.types.settings.ackDueWorkingDays')} htmlFor={`${formId}-ack-days`}>
+        <Input
+          id={`${formId}-ack-days`}
+          type="number"
+          min={1}
+          max={60}
+          value={form.ackDays}
+          disabled={!editable}
+          onChange={(event) => set({ ackDays: event.target.value })}
+        />
+      </Field>
+      <Switch
+        label={t('documents.types.settings.ackRequireMfa')}
+        checked={form.settings.ackRequireMfa}
+        disabled={!editable}
+        onCheckedChange={(checked) => setSettings({ ackRequireMfa: checked })}
+      />
       <Field label={t('documents.types.settings.defaultDeadlineDays')} htmlFor={`${formId}-days`}>
         <Input
           id={`${formId}-days`}

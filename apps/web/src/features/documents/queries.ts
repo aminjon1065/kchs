@@ -2,6 +2,7 @@ import type {
   CorrespondentList,
   CorrespondentRecord,
   DocumentRecord,
+  DocumentResolutions,
   DocumentRouteOptions,
   DocumentRouteStepVersions,
   DocumentSignatureList,
@@ -10,6 +11,8 @@ import type {
   DocumentVersionList,
   JournalRecord,
   JournalReservationList,
+  ObjectAcknowledgments,
+  ResolutionTemplate,
 } from '@kchs/contracts'
 import { queryOptions } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
@@ -31,6 +34,9 @@ export const documentKeys = {
   routes: (id: string) => ['object', id, 'document-routes'] as const,
   routeVersions: (id: string) => ['object', id, 'route-versions'] as const,
   signatures: (id: string) => ['object', id, 'signatures'] as const,
+  resolutions: (id: string) => ['object', id, 'resolutions'] as const,
+  acknowledgments: (id: string) => ['object', id, 'acknowledgments'] as const,
+  resolutionTemplates: ['documents', 'resolution-templates'] as const,
 }
 
 export const documentQuery = (id: string) =>
@@ -120,4 +126,26 @@ export const documentSignaturesQuery = (id: string) =>
     queryKey: documentKeys.signatures(id),
     queryFn: async () =>
       (await http.get<DocumentSignatureList>(`/documents/${id}/signatures`)).items,
+  })
+
+/** Резолюции документа, направления на резолюцию и права смотрящего (ADR-0084). */
+export const resolutionsQuery = (id: string) =>
+  queryOptions({
+    queryKey: documentKeys.resolutions(id),
+    queryFn: () => http.get<DocumentResolutions>(`/documents/${id}/resolutions`),
+  })
+
+/** Ознакомление с объектом — механизм ядра (ADR-0084). */
+export const acknowledgmentsQuery = (id: string) =>
+  queryOptions({
+    queryKey: documentKeys.acknowledgments(id),
+    queryFn: () => http.get<ObjectAcknowledgments>(`/objects/${id}/acknowledgments`),
+  })
+
+export const resolutionTemplatesQuery = () =>
+  queryOptions({
+    queryKey: documentKeys.resolutionTemplates,
+    queryFn: async () =>
+      (await http.get<{ items: ResolutionTemplate[] }>('/resolution-templates')).items,
+    staleTime: 5 * 60_000,
   })

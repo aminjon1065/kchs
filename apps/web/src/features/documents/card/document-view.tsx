@@ -22,6 +22,7 @@ import { PanelRightOpen, Share2 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
+import { useObjectActions } from '~/app/workspace/object-actions.js'
 import { useWorkspace } from '~/app/workspace/store.js'
 import { ShareDialog } from '~/features/access/share-dialog.js'
 import { PresenceAvatars } from '~/features/objects/presence-avatars.js'
@@ -47,6 +48,9 @@ import { DocumentStepActions, useAwaitsMe } from './step-actions.js'
 interface DocumentTabState {
   section?: DocumentSection
 }
+
+/** Действие дела Входящих с формой в карточке — на какой вкладке его форма (ADR-0084). */
+const ACTION_SECTIONS: Partial<Record<string, DocumentSection>> = { resolve: 'resolutions' }
 
 /**
  * Карточка документа (03-screens.md §12, 08-documents.md §15): шапка — тип,
@@ -75,6 +79,12 @@ export function DocumentView({
     if (document) setTabTitle(tabId, titleOf(document, t('documents.draft')))
   }, [document, tabId, setTabTitle, t])
   const openSection = useCallback((next: DocumentSection) => setSection(next), [])
+  // Намерение из Входящих: вкладка с формой; саму форму открывает её слот
+  const pendingAction = useObjectActions((s) => s.pending[objectId] ?? null)
+  useEffect(() => {
+    const target = pendingAction ? ACTION_SECTIONS[pendingAction] : undefined
+    if (target) setSection(target)
+  }, [pendingAction])
 
   if (isLoading) {
     return (

@@ -23,6 +23,7 @@ import { CheckCheck, Clock3, Inbox as InboxIcon, User } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
+import { useObjectActions } from '~/app/workspace/object-actions.js'
 import { useWorkspace } from '~/app/workspace/store.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { inboxCountsQuery, inboxQuery, keys } from '~/shared/api/queries.js'
@@ -219,6 +220,7 @@ function InboxDetail({ item, onSnooze }: { item: InboxItem; onSnooze: () => void
   const toast = useToast()
   const client = useQueryClient()
   const openTab = useWorkspace((s) => s.openTab)
+  const requestObjectAction = useObjectActions((s) => s.request)
   const commentId = useId()
   const codeId = useId()
   const dateId = useId()
@@ -246,6 +248,18 @@ function InboxDetail({ item, onSnooze }: { item: InboxItem; onSnooze: () => void
   })
 
   const run = (action: InboxAction) => {
+    // Форма в карточке объекта (резолюция, ADR-0084): открыть объект с намерением
+    if (action.openObject && item.object) {
+      requestObjectAction(item.object.id, action.key)
+      openTab({
+        kind: 'object',
+        objectId: item.object.id,
+        objectType: item.object.type,
+        title: item.object.title,
+        mode: 'permanent',
+      })
+      return
+    }
     if (!action.requiresComment && !action.requiresSecondFactor && !action.input) {
       act.mutate({ action: action.key })
       return
