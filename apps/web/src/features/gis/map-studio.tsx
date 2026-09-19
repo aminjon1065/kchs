@@ -42,6 +42,7 @@ import {
   StudioProvider,
 } from './studio/context.js'
 import { CursorCoordinates } from './studio/cursor-coordinates.js'
+import { AddMapToDashboard } from './studio/dashboard-button.js'
 import { EditTools } from './studio/edit-tools.js'
 import { NavigationTools } from './studio/navigation-tools.js'
 import { PrintTools } from './studio/print-tools.js'
@@ -354,6 +355,7 @@ export function MapStudio({
               <IconButton label={t('gis.map.showAll')} onClick={showAll}>
                 <Scan className="size-4" />
               </IconButton>
+              <AddMapToDashboard />
               {canEdit && (dirty || camera) ? (
                 <Button
                   size="sm"

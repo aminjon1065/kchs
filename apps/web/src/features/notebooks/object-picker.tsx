@@ -6,8 +6,8 @@ import { objectListQuery } from '~/shared/api/queries.js'
 const NONE = '__none'
 
 /**
- * Источник ячейки — датасет, график или показатель из доступных пользователю
- * (сначала — пространство тетради). Объект из чужого пространства, уже
+ * Источник ячейки — датасет, график, показатель, карта или слой из доступных
+ * пользователю (сначала — пространство тетради). Объект из чужого пространства, уже
  * выбранный соавтором, остаётся в списке под своим именем.
  */
 export function ObjectPicker({
@@ -19,7 +19,7 @@ export function ObjectPicker({
   spaceId,
   disabled,
 }: {
-  type: 'dataset' | 'chart' | 'metric'
+  type: 'dataset' | 'chart' | 'metric' | 'map' | 'layer'
   value: string | null
   onChange: (id: string) => void
   label: string

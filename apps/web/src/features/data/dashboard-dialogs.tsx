@@ -91,12 +91,12 @@ export function CreateDashboardDialog({
   )
 }
 
-/** График или показатель — плиткой на существующий или новый дашборд пространства. */
+/** График, показатель или карта — плиткой на существующий или новый дашборд пространства. */
 export function AddToDashboardDialog({
   source,
   onClose,
 }: {
-  source: { kind: 'chart' | 'metric'; id: string; name: string; spaceId: string }
+  source: { kind: 'chart' | 'metric' | 'map'; id: string; name: string; spaceId: string }
   onClose: () => void
 }) {
   const t = useT()
@@ -116,13 +116,21 @@ export function AddToDashboardDialog({
       tiles.map((tile) => tile.id),
     ),
     kind: source.kind,
-    ...(source.kind === 'metric' ? { metricId: source.id } : { chartId: source.id }),
+    ...(source.kind === 'metric'
+      ? { metricId: source.id }
+      : source.kind === 'map'
+        ? { mapId: source.id, map: { camera: null, bindings: {} } }
+        : { chartId: source.id }),
     title: source.name,
     filterBindings: {},
     x: 0,
     y: Math.max(0, ...tiles.map((tile) => tile.y + tile.h)),
-    // Показатель — число, ему хватит четверти ширины
-    ...(source.kind === 'metric' ? { w: 3, h: 2 } : { w: 6, h: 4 }),
+    // Показатель — число, ему хватит четверти ширины; карте — половина и повыше
+    ...(source.kind === 'metric'
+      ? { w: 3, h: 2 }
+      : source.kind === 'map'
+        ? { w: 6, h: 5 }
+        : { w: 6, h: 4 }),
   })
 
   const add = useMutation({

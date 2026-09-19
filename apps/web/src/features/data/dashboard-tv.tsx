@@ -6,6 +6,7 @@ import { X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
+import { MapSlotsProvider } from '~/features/gis/map-slots.js'
 import { meQuery } from '~/shared/api/queries.js'
 import { orderedTiles, PERIOD_PRESETS, periodValue } from './dashboard-layout.js'
 import { TileCard } from './dashboard-tile.js'
@@ -125,22 +126,25 @@ export function DashboardTv({
         </IconButton>
       </header>
       <div className="min-h-0 flex-1 overflow-auto p-6">
-        <div className="grid auto-rows-[112px] grid-cols-12 gap-4">
-          {orderedTiles(dashboard.spec.tiles).map((tile) => (
-            <TileCard
-              key={tile.id}
-              tile={tile}
-              data={data.data?.tiles[tile.id]}
-              pending={data.isFetching}
-              editing={false}
-              filters={dashboard.spec.filters}
-              onChange={noop}
-              onMove={noop}
-              onRemove={noop}
-              large
-            />
-          ))}
-        </div>
+        <MapSlotsProvider>
+          <div className="grid auto-rows-[112px] grid-cols-12 gap-4">
+            {orderedTiles(dashboard.spec.tiles).map((tile) => (
+              <TileCard
+                key={tile.id}
+                tile={tile}
+                data={data.data?.tiles[tile.id]}
+                pending={data.isFetching}
+                editing={false}
+                filters={dashboard.spec.filters}
+                values={values}
+                onChange={noop}
+                onMove={noop}
+                onRemove={noop}
+                large
+              />
+            ))}
+          </div>
+        </MapSlotsProvider>
       </div>
     </div>
   )

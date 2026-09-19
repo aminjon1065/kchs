@@ -31,6 +31,7 @@ import { http } from '~/shared/api/client.js'
 import { keys, meQuery, objectQuery } from '~/shared/api/queries.js'
 import { notebookKeys } from './cell-run.js'
 import { useCollabDocument } from './collab.js'
+import { MapCell } from './map-cell.js'
 import {
   type NotebookContextValue,
   NotebookProvider,
@@ -56,10 +57,10 @@ import {
 import { iconOf, NotebookOutline } from './notebook-outline.js'
 import { NotebookParamsBar } from './notebook-params.js'
 import { AiCell, QueryCell } from './query-cell.js'
-import { ChartCell, MapCell, MetricCell } from './source-cells.js'
+import { ChartCell, MetricCell } from './source-cells.js'
 
 /** Виды ячеек, которые добавляются из меню; карта — позже (ADR-0071). */
-const ADDABLE: NotebookCellKind[] = ['text', 'query', 'ai', 'chart', 'metric']
+const ADDABLE: NotebookCellKind[] = ['text', 'query', 'ai', 'chart', 'metric', 'map']
 
 /**
  * Тетрадь (03-screens.md §9, ADR-0071): документ с ячейками — совместный
@@ -518,7 +519,7 @@ function CellBody({ cell, id, kind }: { cell: CellMap; id: string; kind: Noteboo
     case 'metric':
       return <MetricCell cell={cell} cellId={id} />
     case 'map':
-      return <MapCell />
+      return <MapCell cell={cell} />
   }
 }
 

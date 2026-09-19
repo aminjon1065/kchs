@@ -31,6 +31,7 @@ import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { unlabelPick, useLabelledResult } from '~/features/gis/result-labels.js'
 import { meQuery } from '~/shared/api/queries.js'
+import { DashboardMapTile, MapBindingsDialog } from './dashboard-map-tile.js'
 import { metricTileModel, periodText } from './metric-format.js'
 import { chartQuery, datasetQuery, metricQuery } from './queries.js'
 
@@ -68,7 +69,8 @@ const WIDTHS = [3, 4, 6, 8, 12]
 const HEIGHTS = [2, 3, 4, 5, 6, 8]
 const NONE = '__none'
 /** Плитки с привязкой к фильтрам дашборда. */
-const BINDABLE = new Set(['chart', 'metric'])
+const BINDABLE = new Set(['chart', 'metric', 'map'])
+const NO_VALUES: Readonly<Record<string, unknown>> = {}
 
 function tileTitle(
   tile: DashboardTile,
@@ -77,12 +79,13 @@ function tileTitle(
 ) {
   if (tile.title) return tile.title
   if (tile.kind === 'metric') return data?.metric?.name ?? t('data.dashboard.tileKinds.metric')
+  if (tile.kind === 'map') return t('data.dashboard.tileKinds.map')
   return t(`data.dashboard.tileKinds.${tile.kind === 'text' ? 'text' : 'chart'}`)
 }
 
 /**
- * Плитка дашборда: график, показатель или текст; в режиме правки — размер,
- * порядок и привязка фильтров. `large` — TV-режим: крупнее и без правки.
+ * Плитка дашборда: график, показатель, карта или текст; в режиме правки —
+ * размер, порядок и привязка фильтров. `large` — TV-режим: крупнее и без правки.
  */
 export function TileCard({
   tile,
@@ -90,6 +93,7 @@ export function TileCard({
   pending,
   editing,
   filters,
+  values = NO_VALUES,
   onChange,
   onMove,
   onRemove,
@@ -101,6 +105,8 @@ export function TileCard({
   pending: boolean
   editing: boolean
   filters: DashboardFilter[]
+  /** Значения фильтров дашборда — плитке-карте для условий тайлов. */
+  values?: Readonly<Record<string, unknown>>
   onChange: (tile: DashboardTile) => void
   onMove: (delta: number) => void
   onRemove: () => void
@@ -117,7 +123,17 @@ export function TileCard({
   const result = useLabelledResult(data?.result ?? undefined)
 
   let body: ReactNode
-  if (tile.kind === 'text' || tile.kind === 'heading') {
+  if (tile.kind === 'map') {
+    body = (
+      <DashboardMapTile
+        tile={tile}
+        filters={filters}
+        values={values}
+        editing={editing}
+        onChange={onChange}
+      />
+    )
+  } else if (tile.kind === 'text' || tile.kind === 'heading') {
     body = (
       <div
         className={cn(
@@ -162,6 +178,8 @@ export function TileCard({
   return (
     <Card
       className={cn(COL_SPAN[tile.w] ?? 'col-span-6', ROW_SPAN[height], 'min-w-0 overflow-hidden')}
+      // Карта — во всю плитку, без полей карточки
+      padded={tile.kind !== 'map'}
       title={tileTitle(tile, data, t)}
       action={
         editing ? (
@@ -225,7 +243,17 @@ export function TileCard({
       }
     >
       <div className="h-full min-h-0">{body}</div>
-      {bindings ? (
+      {bindings && tile.kind === 'map' ? (
+        <MapBindingsDialog
+          tile={tile}
+          filters={filters}
+          onClose={() => setBindings(false)}
+          onSave={(next) => {
+            onChange({ ...tile, map: { camera: tile.map?.camera ?? null, bindings: next } })
+            setBindings(false)
+          }}
+        />
+      ) : bindings ? (
         <BindingsDialog
           tile={tile}
           filters={filters}

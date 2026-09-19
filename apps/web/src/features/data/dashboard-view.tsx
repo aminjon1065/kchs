@@ -37,6 +37,7 @@ import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
 import { ShareDialog } from '~/features/access/share-dialog.js'
+import { MapSlotsProvider } from '~/features/gis/map-slots.js'
 import { TerritorySelect } from '~/features/gis/territory-select.js'
 import { PresenceAvatars } from '~/features/objects/presence-avatars.js'
 import { ApiError, http } from '~/shared/api/client.js'
@@ -280,24 +281,28 @@ export function DashboardView({ objectId, tabId }: { objectId: string; tabId: st
             description={canEdit ? t('data.dashboard.emptyHint') : undefined}
           />
         ) : (
-          <div className="grid auto-rows-[80px] grid-cols-12 gap-3">
-            {tiles.map((tile, index) => (
-              <TileCard
-                key={tile.id}
-                tile={tile}
-                data={data.data?.tiles[tile.id]}
-                pending={data.isFetching}
-                editing={editing}
-                filters={spec.filters}
-                onChange={(next) =>
-                  setTiles(tiles.map((item) => (item.id === tile.id ? next : item)))
-                }
-                onMove={(delta) => setTiles(moveTile(tiles, index, delta))}
-                onRemove={() => setTiles(tiles.filter((item) => item.id !== tile.id))}
-                onPick={(pick) => setDrill({ tile, pick })}
-              />
-            ))}
-          </div>
+          // Живых карт — только в видимых плитках и не больше четырёх; под TV-режимом — ни одной
+          <MapSlotsProvider paused={tv}>
+            <div className="grid auto-rows-[80px] grid-cols-12 gap-3">
+              {tiles.map((tile, index) => (
+                <TileCard
+                  key={tile.id}
+                  tile={tile}
+                  data={data.data?.tiles[tile.id]}
+                  pending={data.isFetching}
+                  editing={editing}
+                  filters={spec.filters}
+                  values={values}
+                  onChange={(next) =>
+                    setTiles(tiles.map((item) => (item.id === tile.id ? next : item)))
+                  }
+                  onMove={(delta) => setTiles(moveTile(tiles, index, delta))}
+                  onRemove={() => setTiles(tiles.filter((item) => item.id !== tile.id))}
+                  onPick={(pick) => setDrill({ tile, pick })}
+                />
+              ))}
+            </div>
+          </MapSlotsProvider>
         )}
       </div>
 
@@ -509,13 +514,24 @@ function AddFilterDialog({
 
 // ─── Плитки ──────────────────────────────────────────────────────────────────
 
-type TileKind = 'chart' | 'metric' | 'text'
-const ADDABLE: TileKind[] = ['chart', 'metric', 'text']
+type TileKind = 'chart' | 'metric' | 'map' | 'text'
+const ADDABLE: TileKind[] = ['chart', 'metric', 'map', 'text']
 /** Размер новой плитки: график крупнее, показатель — число в строку по четыре. */
 const SIZES: Record<TileKind, { w: number; h: number }> = {
   chart: { w: 6, h: 4 },
   metric: { w: 3, h: 2 },
+  map: { w: 6, h: 5 },
   text: { w: 6, h: 2 },
+}
+const PICK_LABEL: Record<Exclude<TileKind, 'text'>, string> = {
+  chart: 'data.dashboard.pickChart',
+  metric: 'data.dashboard.pickMetric',
+  map: 'data.dashboard.map.pick',
+}
+const NONE_LABEL: Record<Exclude<TileKind, 'text'>, string> = {
+  chart: 'data.dashboard.noCharts',
+  metric: 'data.dashboard.noMetrics',
+  map: 'data.dashboard.map.none',
 }
 
 function AddTileDialog({
@@ -543,7 +559,12 @@ function AddTileDialog({
     ...objectListQuery({ spaceId, types: 'metric', limit: 100 }),
     enabled: kind === 'metric',
   })
-  const items = (kind === 'metric' ? metrics?.items : charts?.items) ?? []
+  const { data: maps } = useQuery({
+    ...objectListQuery({ spaceId, types: 'map', limit: 100 }),
+    enabled: kind === 'map',
+  })
+  const items =
+    (kind === 'metric' ? metrics?.items : kind === 'map' ? maps?.items : charts?.items) ?? []
   const source = items.find((item) => item.id === sourceId)
   const ready = kind === 'text' ? Boolean(text.trim()) : Boolean(source)
   const bottom = Math.max(0, ...tiles.map((tile) => tile.y + tile.h))
@@ -569,6 +590,14 @@ function AddTileDialog({
       ...SIZES[kind],
     }
     if (kind === 'text') return { ...base, text: text.trim() }
+    if (kind === 'map' && source) {
+      return {
+        ...base,
+        mapId: source.id,
+        map: { camera: null, bindings: {} },
+        title: source.title,
+      }
+    }
     if (kind === 'metric' && source) {
       const options = metricOptions()
       return {
@@ -619,21 +648,11 @@ function AddTileDialog({
               />
             </Field>
           ) : items.length === 0 ? (
-            <Callout tone="info">
-              {t(kind === 'metric' ? 'data.dashboard.noMetrics' : 'data.dashboard.noCharts')}
-            </Callout>
+            <Callout tone="info">{t(NONE_LABEL[kind])}</Callout>
           ) : (
-            <Field
-              label={t(
-                kind === 'metric' ? 'data.dashboard.pickMetric' : 'data.dashboard.pickChart',
-              )}
-            >
+            <Field label={t(PICK_LABEL[kind])}>
               <Select value={sourceId ?? undefined} onValueChange={setSourceId}>
-                <SelectTrigger
-                  aria-label={t(
-                    kind === 'metric' ? 'data.dashboard.pickMetric' : 'data.dashboard.pickChart',
-                  )}
-                >
+                <SelectTrigger aria-label={t(PICK_LABEL[kind])}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

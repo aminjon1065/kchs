@@ -6,7 +6,7 @@ import type {
   QueryResult,
 } from '@kchs/contracts'
 import { notebookParamFields } from '@kchs/contracts'
-import { Callout, Chart, NumberTile } from '@kchs/ui'
+import { Chart, NumberTile } from '@kchs/ui'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
@@ -191,10 +191,4 @@ export function MetricCell({ cell, cellId }: { cell: CellMap; cellId: string }) 
       )}
     </div>
   )
-}
-
-/** Ячейка карты — точка расширения: карты в тетрадях появятся позже (ADR-0071). */
-export function MapCell() {
-  const t = useT()
-  return <Callout tone="info">{t('data.notebook.map.soon')}</Callout>
 }
