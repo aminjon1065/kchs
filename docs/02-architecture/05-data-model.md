@@ -208,6 +208,15 @@ registrations(id, document_id, journal_id, number text, sequence int, year int, 
 document_participants(document_id, user_id, role text, source text, level smallint, created_at)
   pk(document_id, user_id, role, source)   -- участие → тихие записи ACL (ADR-0080)
 -- представление ds.sys_documents — системный датасет «Документы» (роль kchs_query)
+-- Реализовано во второй волне (ADR-0083): решения согласования — строки движка процессов
+-- (process_steps.assignees, process_step_actions); здесь — что модуль знает сверх них
+document_step_versions(step_id pk → process_steps, document_id, version_id, created_at)
+  idx: (document_id)   -- версия, замороженная для шага согласования или подписи
+document_signatures(id, document_id, version_id null, step_id null → process_steps, signer_id, actor_id null,
+                    session_id text, hash text null, kind text, mfa bool, signed_at)
+  idx: (document_id), (version_id)   -- простая ЭП; hash null — движок ещё считает хэш версии
+-- проект (08-documents.md §4, §9): approvals — заменены строками движка процессов (ADR-0083);
+-- signatures.certificate, sheet_file_id — квалифицированная подпись и лист подписи (печатные формы)
 approvals(id, document_id, version_id, step_id, approver_id, on_behalf_of, decision text, comment, remarks_file_id, decided_at)
 signatures(id, document_id, version_id, signer_id, on_behalf_of, kind text, hash text, signed_at, certificate jsonb, sheet_file_id)
 resolutions(id, document_id, author_id, text, responsible_id, co_executors uuid[], deadline date, control bool, controller_id, parent_id, created_at)
