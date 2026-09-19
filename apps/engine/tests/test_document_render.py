@@ -371,13 +371,11 @@ def _pixel(pdf: Path, x_ratio: float, y_ratio: float, workdir: Path) -> tuple[in
 
 @browser
 @pytest.mark.skipif(shutil.which("pdftoppm") is None, reason="нет poppler")
-def test_stamp_overlay_keeps_page_visible(tmp_path: Path, fake_io: dict[str, Any]) -> None:
+async def test_stamp_overlay_keeps_page_visible(tmp_path: Path, fake_io: dict[str, Any]) -> None:
     """Наложение прозрачно вне штампа: лист под ним виден, штамп — в правом нижнем углу."""
+    from kchs_engine.render import report
+
     green = "<html><body style='margin:0;background:#00ff00'>&nbsp;</body></html>"
-    source_pdf, _ = asyncio.run(
-        documents.render_html({"html": green, "orientation": "portrait", "labels": {}}, tmp_path)
-    )
-    fake_io["objects"][("files", "scan")] = source_pdf.read_bytes()
     stamp = (
         "<html><body style='margin:0;background:transparent'>"
         "<div style='position:absolute;right:14mm;bottom:12mm;width:50mm;height:20mm;"
@@ -394,7 +392,15 @@ def test_stamp_overlay_keeps_page_visible(tmp_path: Path, fake_io: dict[str, Any
         "html": stamp,
         "pages": "first",
     }
-    result, pages = asyncio.run(documents.render_overlay(plan, tmp_path))
+    # Один цикл событий на весь сценарий: браузер движка — одиночка процесса
+    try:
+        source_pdf, _ = await documents.render_html(
+            {"html": green, "orientation": "portrait", "labels": {}}, tmp_path
+        )
+        fake_io["objects"][("files", "scan")] = source_pdf.read_bytes()
+        result, pages = await documents.render_overlay(plan, tmp_path)
+    finally:
+        await report.close_browser()
     assert pages >= 1
     top_left = _pixel(result, 0.3, 0.3, tmp_path)
     assert top_left[1] > 200 and top_left[2] < 60, top_left
@@ -405,10 +411,12 @@ def test_stamp_overlay_keeps_page_visible(tmp_path: Path, fake_io: dict[str, Any
 
 
 @browser
-def test_html_form_blocks_network(tmp_path: Path) -> None:
+async def test_html_form_blocks_network(tmp_path: Path) -> None:
+    from kchs_engine.render import report
+
     page = "<html><body><h1>Карточка</h1><img src='http://127.0.0.1:9/leak.png'></body></html>"
-    path, pages = asyncio.run(
-        documents.render_html(
+    try:
+        path, pages = await documents.render_html(
             {
                 "html": page,
                 "orientation": "portrait",
@@ -417,6 +425,7 @@ def test_html_form_blocks_network(tmp_path: Path) -> None:
             },
             tmp_path,
         )
-    )
+    finally:
+        await report.close_browser()
     assert path.read_bytes().startswith(b"%PDF")
     assert pages == 1
