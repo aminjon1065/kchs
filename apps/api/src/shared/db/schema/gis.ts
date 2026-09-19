@@ -1,6 +1,7 @@
 import {
   type AnyPgColumn,
   bigint,
+  boolean,
   customType,
   doublePrecision,
   index,
@@ -74,3 +75,40 @@ export const territoryClosure = pgTable(
     index('territory_closure_ancestor_idx').on(t.ancestorId),
   ],
 )
+
+/**
+ * Слой — объект реестра `layer` (07-gis-engine.md §1–4, ADR-0064): представление
+ * датасета на карте. Стиль, подписи, карточка, фильтр и зумы — в `style`
+ * (контракт LayerStyle); `tile_fields` — поля тайла сверх нужных стилю.
+ */
+export const layers = pgTable(
+  'layers',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .references(() => objects.id, { onDelete: 'cascade' }),
+    // Без внешнего ключа, как у графиков: слой удалённого датасета остаётся
+    // объектом реестра и открывается с «нет доступа к данным»
+    datasetId: uuid('dataset_id').notNull(),
+    geometryField: text('geometry_field').notNull(),
+    geometryType: text('geometry_type').notNull(),
+    style: jsonb('style').$type<Record<string, unknown>>().notNull(),
+    tileFields: text('tile_fields').array().notNull().default([]),
+    editable: boolean('editable').notNull().default(false),
+    moderated: boolean('moderated').notNull().default(false),
+    settings: jsonbObject('settings'),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index('layers_dataset_idx').on(t.datasetId)],
+)
+
+/** Карта — объект реестра `map`: композиция слоёв, вид, закладки, время (MapSpec). */
+export const maps = pgTable('maps', {
+  id: uuid('id')
+    .primaryKey()
+    .references(() => objects.id, { onDelete: 'cascade' }),
+  spec: jsonb('spec').$type<Record<string, unknown>>().notNull(),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+})

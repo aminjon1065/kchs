@@ -166,6 +166,15 @@ export const EVENT_PAYLOADS = {
   'task.returned': z.object({ key: z.string(), comment: z.string() }),
   'project.created': z.object({ key: z.string(), name: z.string() }),
 
+  // ── gis (07-gis-engine.md, ADR-0064) ───────────────────────────────────────
+  'layer.published': z.object({
+    datasetId: Uuid,
+    geometryType: z.enum(['point', 'line', 'polygon', 'mixed']),
+  }),
+  /** Стиль, поля тайла или режим правки слоя: версия слоя сменилась — тайлы заново. */
+  'layer.style_changed': z.object({ changed: z.array(z.string()) }),
+  'map.updated': z.object({ changed: z.array(z.string()) }),
+
   // ── admin ─────────────────────────────────────────────────────────────────
   'settings.changed': z.object({ scope: z.string(), key: z.string() }),
   'acl.changed': z.object({ objectId: Uuid }),

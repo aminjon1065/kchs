@@ -42,7 +42,12 @@ export const LayerRecord = z.object({
   editable: z.boolean(),
   /** Правки не редакторов ждут проверки владельца слоя (07-gis-engine.md §7). */
   moderated: z.boolean(),
-  /** Экстент строк датасета (без политик смотрящего) — null, если геометрий нет. */
+  /**
+   * Смотрящий видит данные датасета. Права на слой данных не открывают: без
+   * доступа к датасету слой в студии — «нет доступа», тайлы не запрашиваются.
+   */
+  dataAccess: z.boolean(),
+  /** Экстент строк датасета (без политик строк) — null, если геометрий нет или нет доступа. */
   extent: Bbox.nullable(),
   featureCount: z.number().int().nonnegative(),
   /** Версия данных датасета — часть адреса тайлов (кэш по версии). */
@@ -88,6 +93,27 @@ export const LayerTileQuery = z.object({
   t: z.string().max(80).optional(),
 })
 export type LayerTileQuery = z.infer<typeof LayerTileQuery>
+
+/** Лимит GeoJSON-объектов слоя: крупные слои читаются тайлами (07-gis-engine.md §3). */
+export const LAYER_FEATURES_LIMIT = 5000
+
+/** Объекты слоя в охвате — мелкие слои и режим правки. */
+export const LayerFeaturesQuery = LayerTileQuery.extend({
+  /** Охват «запад,юг,восток,север» в WGS 84; без него — весь слой. */
+  bbox: z
+    .string()
+    .max(200)
+    .regex(/^-?\d+(\.\d+)?(,-?\d+(\.\d+)?){3}$/)
+    .optional(),
+  limit: z.coerce.number().int().min(1).max(LAYER_FEATURES_LIMIT).default(LAYER_FEATURES_LIMIT),
+})
+export type LayerFeaturesQuery = z.infer<typeof LayerFeaturesQuery>
+
+/** Слои датасета, видимые смотрящему, — «Показать на карте». */
+export const LayerList = z.object({
+  items: z.array(z.object({ id: Uuid, name: z.string() })),
+})
+export type LayerList = z.infer<typeof LayerList>
 
 /** Объект слоя для карточки: все видимые смотрящему поля строки и геометрия GeoJSON. */
 export const LayerFeature = z.object({

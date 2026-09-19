@@ -83,6 +83,25 @@ async function createMatrixDataset(fx: TestContext, title: string): Promise<stri
   return response.json().id
 }
 
+/** Датасет с геометрией — источник слоя в пространстве матрицы. */
+async function createMatrixGeoDataset(fx: TestContext, title: string): Promise<string> {
+  const response = await call(fx.app, {
+    method: 'POST',
+    url: '/datasets',
+    as: fx.admin,
+    payload: {
+      name: title,
+      spaceId: fx.spaceId,
+      fields: [
+        { key: 'code', label: { ru: 'Код' }, type: 'identifier' },
+        { key: 'place', label: { ru: 'Место' }, type: 'geometry' },
+      ],
+    },
+  })
+  expect(response.statusCode, response.body).toBe(200)
+  return response.json().id
+}
+
 const FIXTURES: Record<string, TypeFixture> = {
   space: {
     create: async (fx, title) => {
@@ -268,6 +287,42 @@ const FIXTURES: Record<string, TypeFixture> = {
     readPaths: ['/dashboards/:id'],
     viewerForbidden: (_fx, id) => [
       { method: 'PATCH', url: `/dashboards/${id}`, payload: { name: 'правка читателя' } },
+    ],
+  },
+
+  layer: {
+    create: async (fx, title) => {
+      const dataset = await createMatrixGeoDataset(fx, `${title} — данные`)
+      const response = await call(fx.app, {
+        method: 'POST',
+        url: '/gis/layers',
+        as: fx.admin,
+        payload: { name: title, spaceId: fx.spaceId, datasetId: dataset },
+      })
+      expect(response.statusCode, response.body).toBe(200)
+      return { id: response.json().id, title }
+    },
+    readPaths: ['/gis/layers/:id', '/gis/layers/:id/features'],
+    exportPaths: ['/gis/layers/:id/tiles/6/44/24.pbf', '/gis/layers/:id/features/1'],
+    viewerForbidden: (_fx, id) => [
+      { method: 'PATCH', url: `/gis/layers/${id}`, payload: { name: 'правка читателя' } },
+    ],
+  },
+
+  map: {
+    create: async (fx, title) => {
+      const response = await call(fx.app, {
+        method: 'POST',
+        url: '/gis/maps',
+        as: fx.admin,
+        payload: { name: title, spaceId: fx.spaceId },
+      })
+      expect(response.statusCode, response.body).toBe(200)
+      return { id: response.json().id, title }
+    },
+    readPaths: ['/gis/maps/:id'],
+    viewerForbidden: (_fx, id) => [
+      { method: 'PATCH', url: `/gis/maps/${id}`, payload: { name: 'правка читателя' } },
     ],
   },
 

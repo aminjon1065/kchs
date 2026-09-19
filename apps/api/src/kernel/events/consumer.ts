@@ -262,6 +262,8 @@ export const KNOWN_DOMAINS = [
   'metric',
   'task',
   'project',
+  'layer',
+  'map',
 ] as const
 
 function resolveDomains(): string[] {
