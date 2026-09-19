@@ -271,9 +271,12 @@ export const DatasetService = {
           visibleObjectsSql(ctx, 'dataset'),
         ),
       )
-      .orderBy(asc(objects.title))
+      // В выборку — самые свежие по изменению: при большом числе датасетов по
+      // алфавиту выпадали бы новые; показ — по алфавиту
+      .orderBy(desc(objects.updatedAt))
       .limit(limit)
-    return Promise.all(rows.map((row) => DatasetService.get(row.id)))
+    const records = await Promise.all(rows.map((row) => DatasetService.get(row.id)))
+    return records.sort((a, b) => a.name.localeCompare(b.name, 'ru'))
   },
 
   async versions(id: string, database: Database = db()): Promise<DatasetVersion[]> {
