@@ -1,5 +1,6 @@
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import type { APIRequestContext } from '@playwright/test'
 import { expect, openWorkspace, test } from './fixtures.js'
 
 /**
@@ -10,6 +11,8 @@ import { expect, openWorkspace, test } from './fixtures.js'
  * - №4 (хороплет «на 1 000 жителей» мастером) — gis-choropleth.spec.ts;
  * - №5 (паспорт территории) — gis-passport.spec.ts;
  * - №7 (тайлы под политикой строк) — gis-tiles-policy.spec.ts.
+ * Сценарий E продуктового описания (обновление слоя объектов) идёт следом за
+ * №1 — на его датасете, слое и дашборде, поэтому тесты последовательные.
  */
 
 const FILES = path.join(path.dirname(fileURLToPath(import.meta.url)), 'files')
@@ -24,6 +27,17 @@ const PVR = [
   ['Палаточный лагерь «Рудаки»', 'Палаточный лагерь'],
 ] as const
 const KINDS = ['Школа', 'Спортзал', 'Палаточный лагерь']
+
+/** Что сценарий №1 оставляет сценарию E: датасет ПВР, его слой и дашборд с картой. */
+let imported: { name: string; datasetId: string; layerId: string; dashboardId: string } | null =
+  null
+
+async function csrf(request: APIRequestContext): Promise<Record<string, string>> {
+  const me = await request.get('/api/v1/me')
+  return { 'x-csrf-token': (await me.json()).session.csrfToken as string }
+}
+
+test.describe.configure({ mode: 'serial' })
 
 test.describe('Приёмка фазы 2', () => {
   test('№1: Shapefile (cp1251, EPSG:32642) → слой → стиль по категориям, подписи, легенда → карта → плитка дашборда', async ({
@@ -51,6 +65,8 @@ test.describe('Приёмка фазы 2', () => {
     await wizard.getByRole('button', { name: 'Далее' }).click()
 
     await wizard.getByRole('textbox', { name: 'Название датасета' }).fill(name)
+    // Ключ — название ПВР: по нему сверяются следующие выгрузки (сценарий E)
+    await wizard.getByRole('checkbox', { name: 'Ключ: name' }).check()
     await wizard.getByRole('button', { name: 'Далее' }).click()
     await wizard.getByRole('button', { name: 'Запустить импорт' }).click()
     await expect(wizard.getByText('Импорт завершён')).toBeVisible({ timeout: 90_000 })
@@ -158,5 +174,131 @@ test.describe('Приёмка фазы 2', () => {
     const dashboardId = dashboards.find((item) => item.title === `Дашборд ${name}`)?.id
     const dashboard = await (await request.get(`/api/v1/dashboards/${dashboardId}`)).json()
     expect(dashboard.spec.tiles).toEqual([expect.objectContaining({ kind: 'map', mapId })])
+    imported = {
+      name,
+      datasetId: record.datasetId as string,
+      layerId: layerId as string,
+      dashboardId: dashboardId as string,
+    }
+  })
+
+  test('E: обновление слоя — повторный импорт Shapefile, изменения перед публикацией, версии, дашборд и карта', async ({
+    page,
+    request,
+  }) => {
+    test.setTimeout(240_000)
+    if (!imported) throw new Error('сценарий №1 не создал слой ПВР')
+    const { name, datasetId, layerId, dashboardId } = imported
+    const headers = await csrf(request)
+
+    // На дашборде — плитка «Вместимость ПВР по районам»: сумма вместимости по районам
+    const current = await (await request.get(`/api/v1/dashboards/${dashboardId}`)).json()
+    const capacityTile = {
+      id: 'capacity',
+      kind: 'table',
+      title: 'Вместимость ПВР по районам',
+      spec: {
+        version: 1,
+        type: 'table',
+        data: {
+          query: {
+            version: 1,
+            source: { kind: 'dataset', id: datasetId },
+            steps: [
+              {
+                type: 'aggregate',
+                groupBy: [{ field: 'district' }],
+                measures: [{ alias: 'capacity', agg: 'sum', field: 'capacity' }],
+              },
+              { type: 'sort', by: [{ field: 'district', dir: 'asc' }] },
+            ],
+          },
+        },
+        encoding: {},
+      },
+      x: 6,
+      y: 0,
+      w: 6,
+      h: 6,
+    }
+    const patched = await request.patch(`/api/v1/dashboards/${dashboardId}`, {
+      headers,
+      data: { spec: { ...current.spec, tiles: [...current.spec.tiles, capacityTile] } },
+    })
+    expect(patched.ok(), await patched.text()).toBeTruthy()
+    await openWorkspace(page, request)
+    await page.goto(`/o/${dashboardId}`)
+    const capacity = page.getByRole('table').filter({ hasText: 'Вахдат' })
+    await expect(capacity).toBeVisible({ timeout: 20_000 })
+    await expect(capacity.getByRole('row', { name: /Душанбе\s+410/ })).toBeVisible()
+    await expect(capacity.getByRole('row', { name: /Вахдат\s+150/ })).toBeVisible()
+
+    // Повторный импорт в датасет слоя: синхронизация по ключу «name» с проверкой изменений
+    const before = await (await request.get(`/api/v1/gis/layers/${layerId}`)).json()
+    await page.goto(`/o/${datasetId}`)
+    await page.getByRole('button', { name: 'Импорт', exact: true }).click()
+    const wizard = page.getByRole('dialog', { name: `Импорт в «${name}»` })
+    await wizard.locator('input[type="file"]').setInputFiles(path.join(FILES, 'pvr-utm42-v2.zip'))
+    await expect(wizard.getByText('SHP', { exact: true })).toBeVisible({ timeout: 60_000 })
+    await expect(wizard.getByRole('cell', { name: 'ПВР «Лицей № 1»' })).toBeVisible()
+    await wizard.getByRole('button', { name: 'Далее' }).click()
+    await wizard.getByRole('combobox', { name: 'Режим загрузки' }).click()
+    await page
+      .getByRole('option', { name: 'Синхронизировать по ключу (отсутствующие — удалить)' })
+      .click()
+    // Ключ — из схемы датасета (задан при первом импорте), поля сопоставлены по ключам
+    await expect(
+      wizard.getByRole('switch', { name: 'Показать изменения перед публикацией' }),
+    ).toBeChecked()
+    await wizard.getByRole('button', { name: 'Далее' }).click()
+    await wizard.getByRole('button', { name: 'Сравнить с датасетом' }).click()
+
+    // Изменения перед публикацией: добавится лицей, изменится школа № 5, удалится спортзал
+    const changes = wizard.getByRole('region', { name: 'Изменения перед публикацией' })
+    await expect(changes).toBeVisible({ timeout: 90_000 })
+    for (const [label, count] of [
+      ['Добавится', '1'],
+      ['Изменится', '1'],
+      ['Удалится', '1'],
+      ['Без изменений', '4'],
+    ] as const) {
+      await expect(changes.getByText(label, { exact: true }).locator('..')).toContainText(count)
+    }
+    await page.screenshot({ path: 'test-results/acceptance-p2-e-changes.png' })
+    await changes.getByRole('button', { name: 'Опубликовать' }).click()
+    await expect(wizard.getByText('Импорт завершён')).toBeVisible({ timeout: 90_000 })
+    await expect(wizard.getByText(/Добавлено 1 · обновлено 1 · удалено 1/)).toBeVisible()
+    await wizard.getByRole('button', { name: 'Открыть датасет' }).click()
+
+    // История версий: импорт — новая версия с теми же изменениями; слой читает её
+    await page.getByRole('tab', { name: 'Версии' }).click()
+    await expect(page.getByText('+1 · изменено 1 · −1')).toBeVisible()
+    const after = await (await request.get(`/api/v1/gis/layers/${layerId}`)).json()
+    expect(after.datasetVersion).toBeGreaterThan(before.datasetVersion)
+    expect(after.featureCount).toBe(6)
+
+    // Дашборд пересчитан: у Душанбе — лицей и новая вместимость школы, Вахдата нет
+    await page.goto(`/o/${dashboardId}`)
+    const updated = page.getByRole('table').filter({ hasText: 'Гиссар' })
+    await expect(updated.getByRole('row', { name: /Душанбе\s+530/ })).toBeVisible({
+      timeout: 20_000,
+    })
+    await expect(updated.getByText('Вахдат')).toHaveCount(0)
+    // Карта района на дашборде дорисована: подложка и тайлы слоя загружены
+    const tileMap = page
+      .locator('[data-map-state]')
+      .filter({ has: page.getByRole('region', { name, exact: true }) })
+    await expect(tileMap).toHaveAttribute('data-map-state', 'idle', { timeout: 30_000 })
+    await page.screenshot({ path: 'test-results/acceptance-p2-e-dashboard.png' })
+
+    // Карта района: лицей на месте, закрытого спортзала нет
+    const features = await (
+      await request.get(`/api/v1/gis/layers/${layerId}/features?bbox=68.6,38.4,69,38.7`)
+    ).json()
+    const names = (features.features as Array<{ properties: { name?: string } }>).map(
+      (feature) => feature.properties.name,
+    )
+    expect(names).toContain('ПВР «Лицей № 1»')
+    expect(names).not.toContain('Спортзал «Вахдат»')
   })
 })
