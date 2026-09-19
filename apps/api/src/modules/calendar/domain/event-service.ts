@@ -16,7 +16,7 @@ import {
 } from '@kchs/contracts'
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import { grantAccess, revokeAccess, setAccessMode } from '~/kernel/access/acl-service.js'
-import { authorize } from '~/kernel/access/authorize.js'
+import { authorize, loadObject } from '~/kernel/access/authorize.js'
 import { directory } from '~/kernel/directory/port.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import type { EventInput } from '~/kernel/events/types.js'
@@ -506,7 +506,8 @@ async function writableCalendar(
   const id = calendarId ?? (await CalendarService.ensurePersonal(tx, ctx, principalUser(ctx)))
   const calendar = await loadCalendar(tx, id)
   if (!calendar) throw errors.notFound('Календарь')
-  await authorize(ctx, 'create_event', id)
+  // Объект — из транзакции: личный календарь мог быть создан только что
+  await authorize(ctx, 'create_event', (await loadObject(id, tx)) ?? id)
   if (calendar.kind === 'resource' || calendar.kind === 'subscription') {
     validation('calendarId', 'В этот календарь нельзя добавлять события')
   }
