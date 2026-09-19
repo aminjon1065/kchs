@@ -421,7 +421,7 @@ export const TabsTrigger = forwardRef<
     <TabsPrimitive.Trigger
       ref={ref}
       className={cn(
-        'relative inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-t-sm px-2.5 text-sm font-medium',
+        'relative inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-t-sm px-2.5 text-sm font-medium [&_svg]:shrink-0',
         'text-fg-secondary transition-colors duration-[var(--duration-fast)]',
         'hover:text-fg',
         'data-[state=active]:text-fg',
