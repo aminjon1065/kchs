@@ -481,3 +481,43 @@ describe('администратор системы и аудитор', () => {
     expect(exit?.total).toBe(1)
   })
 })
+
+describe('вторая волна: маршрут, резолюции, ознакомление, печать, переписка, ИИ', () => {
+  it('участник без допуска не получает ни одной поверхности конфиденциального документа', async () => {
+    // Ответственный документа — сотрудник без допуска: участие права не даёт
+    const member = fx.users.member
+    const surfaces = [
+      `/documents/${secretId}/resolutions`,
+      `/processes?objectId=${secretId}`,
+      `/documents/${secretId}/routes`,
+      `/documents/${secretId}/route-versions`,
+      `/documents/${secretId}/signatures`,
+      `/objects/${secretId}/acknowledgments`,
+      `/documents/print-forms?subjectId=${secretId}`,
+      `/documents/${secretId}/correspondence`,
+      `/documents/${secretId}/dispatches`,
+      `/documents/${secretId}/cases`,
+      `/documents/${secretId}/assist`,
+    ]
+    for (const url of surfaces) {
+      const response = await get(member, url)
+      expect([403, 404], `${url}: ${response.statusCode}`).toContain(response.statusCode)
+      expect(response.body, url).not.toContain(subject)
+    }
+    const actions: Array<[string, Record<string, unknown>]> = [
+      [`/documents/${secretId}/resolutions`, { text: 'К исполнению', responsibleId: member.id }],
+      [`/documents/${secretId}/acknowledgments`, { userIds: [member.id] }],
+      [`/documents/${secretId}/reply`, {}],
+      [`/documents/${secretId}/assist/summary`, {}],
+      ['/documents/prints', { subjectId: secretId, form: 'registration_card' }],
+    ]
+    for (const [url, payload] of actions) {
+      const response = await call(fx.app, { method: 'POST', url, as: member, payload })
+      expect([400, 403, 404], `${url}: ${response.statusCode}`).toContain(response.statusCode)
+      expect(response.body, url).not.toContain(subject)
+    }
+    // Тот же набор с допуском — поверхности доступны (проверка, что отказ — от грифа)
+    expect((await get(cleared, `/documents/${secretId}/resolutions`)).statusCode).toBe(200)
+    expect((await get(cleared, `/objects/${secretId}/acknowledgments`)).statusCode).toBe(200)
+  })
+})
