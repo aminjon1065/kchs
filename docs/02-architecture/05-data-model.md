@@ -219,8 +219,15 @@ document_signatures(id, document_id, version_id null, step_id null → process_s
 -- signatures.certificate, sheet_file_id — квалифицированная подпись и лист подписи (печатные формы)
 approvals(id, document_id, version_id, step_id, approver_id, on_behalf_of, decision text, comment, remarks_file_id, decided_at)
 signatures(id, document_id, version_id, signer_id, on_behalf_of, kind text, hash text, signed_at, certificate jsonb, sheet_file_id)
-resolutions(id, document_id, author_id, text, responsible_id, co_executors uuid[], deadline date, control bool, controller_id, parent_id, created_at)
-acknowledgments(id, object_id, user_id, required_at, acknowledged_at, source text)   -- общая для документов и страниц
+resolutions(id, document_id, parent_id, author_id, entered_by, text, responsible_id, co_executors uuid[], deadline date,
+            due_working_days int, control bool, controller_id, instruction_ids uuid[], created_at)   -- реализовано (ADR-0084)
+resolution_requests(id, document_id, user_id, requested_by, requested_at, due_date, note, state text, closed_at, comment)
+  unique(document_id, user_id) where state = 'open'   -- направление на резолюцию (ADR-0084)
+resolution_templates(id, owner_id null, text, due_working_days, control bool, sort, created_at)   -- null — общий шаблон
+acknowledgment_requests(id, object_id, source text, process_step_id null, requested_by, requested_at, due_at,
+                        require_second_factor bool, note, cancelled_at)   -- ядро, общая для документов и страниц (ADR-0084)
+acknowledgments(id, request_id, object_id, user_id, source text, required_at, due_at, acknowledged_at, actor_id,
+                second_factor bool, cancelled_at, reminded_at, reminders int)   unique(request_id, user_id)
 cases(id pk → objects, index text, title, year int, retention text, unit_id, status, closed_at)
 correspondents(id pk → objects, kind text, name text, details jsonb, contacts jsonb, external_id)   -- реализовано (ADR-0080)
 templates(id pk → objects, kind text, file_id, mapping jsonb, document_type_id null)
