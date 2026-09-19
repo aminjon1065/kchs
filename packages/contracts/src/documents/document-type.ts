@@ -9,9 +9,18 @@ export const DocumentDirection = z.enum(DOCUMENT_DIRECTIONS)
 export type DocumentDirection = z.infer<typeof DocumentDirection>
 
 /**
+ * Кому направлять документ на резолюцию после регистрации (ADR-0084):
+ * `unit_head` — руководителю подразделения документа (без него — ближайшему
+ * вышестоящему), `user` — выбранному сотруднику, `none` — вручную.
+ */
+export const RESOLUTION_ROUTES = ['none', 'unit_head', 'user'] as const
+export const ResolutionRoute = z.enum(RESOLUTION_ROUTES)
+export type ResolutionRoute = z.infer<typeof ResolutionRoute>
+
+/**
  * Правила типа (08-documents.md §2): обязателен скан, разрешены резолюции,
- * ознакомление при регистрации, автоконтроль сроков. Резолюции и ознакомление
- * исполняет вторая волна — здесь только настройки.
+ * ознакомление при регистрации, автоконтроль сроков; направление на резолюцию
+ * и ознакомление (ADR-0084).
  */
 export const DocumentTypeSettings = z.object({
   requireScan: z.boolean().default(false),
@@ -21,6 +30,16 @@ export const DocumentTypeSettings = z.object({
   autoControl: z.boolean().default(false),
   /** Срок по умолчанию — через N рабочих дней от регистрации (null — не задаётся). */
   defaultDeadlineDays: z.number().int().min(1).max(365).nullable().default(null),
+  /** Направление на резолюцию после регистрации. */
+  resolutionBy: ResolutionRoute.default('none'),
+  /** Получатель направления при `resolutionBy: user`. */
+  resolutionUserId: Uuid.nullable().default(null),
+  /** Кого знакомить при регистрации: подразделения; пусто — подразделение документа. */
+  ackUnitIds: z.array(Uuid).max(20).default([]),
+  /** Срок ознакомления в рабочих днях от запроса (null — без срока). */
+  ackDueWorkingDays: z.number().int().min(1).max(60).nullable().default(null),
+  /** Отметка об ознакомлении подтверждается кодом второго фактора. */
+  ackRequireMfa: z.boolean().default(false),
 })
 export type DocumentTypeSettings = z.infer<typeof DocumentTypeSettings>
 
@@ -88,6 +107,11 @@ export const DocumentTypeCreateInput = z.object({
     ackOnRegister: false,
     autoControl: false,
     defaultDeadlineDays: null,
+    resolutionBy: 'none',
+    resolutionUserId: null,
+    ackUnitIds: [],
+    ackDueWorkingDays: null,
+    ackRequireMfa: false,
   }),
 })
 export type DocumentTypeCreateInput = z.infer<typeof DocumentTypeCreateInput>

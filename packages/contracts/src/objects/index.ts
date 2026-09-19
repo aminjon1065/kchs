@@ -1,3 +1,4 @@
+export * from './acknowledgment.js'
 export * from './activity.js'
 export * from './links.js'
 export * from './object.js'

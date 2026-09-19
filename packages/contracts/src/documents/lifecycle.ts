@@ -49,7 +49,8 @@ export function canTransition(from: DocumentStatus, to: DocumentStatus): boolean
 /**
  * Причина перехода: какое доменное действие его выполнило. `process` —
  * движок процессов по маршруту (вторая волна), `resolution` — резолюция
- * с поручениями, `execution` — закрыты все поручения.
+ * с поручениями, `execution` — закрыты все поручения, `no_execution` —
+ * «не требует исполнения» (ADR-0084).
  */
 export const DOCUMENT_TRANSITION_CAUSES = [
   'register',
@@ -57,6 +58,7 @@ export const DOCUMENT_TRANSITION_CAUSES = [
   'process',
   'resolution',
   'execution',
+  'no_execution',
   'filing',
   'archive',
 ] as const

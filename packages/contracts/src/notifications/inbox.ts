@@ -54,6 +54,12 @@ export const InboxAction = z.object({
   input: InboxActionInputKind.optional(),
   /** Действие подтверждается кодом второго фактора (`payload.code`), подпись с MFA (ADR-0079). */
   requiresSecondFactor: z.boolean().optional(),
+  /**
+   * Действие выполняется в карточке объекта (форма резолюции, ADR-0084):
+   * Входящие открывают объект и передают ему ключ действия; кнопкой в
+   * Telegram такое действие не показывается.
+   */
+  openObject: z.boolean().optional(),
 })
 export type InboxAction = z.infer<typeof InboxAction>
 

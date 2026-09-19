@@ -530,6 +530,24 @@ export const EVENT_PAYLOADS = {
     added: z.array(Uuid),
     removed: z.array(Uuid),
   }),
+  /** Документ направлен на резолюцию: правилом типа после регистрации или вручную (ADR-0084). */
+  'document.resolution_requested': z.object({
+    requestId: Uuid,
+    userId: Uuid,
+    auto: z.boolean(),
+    forwardedFrom: Uuid.nullable().default(null),
+  }),
+  /** Резолюция наложена; её поручения созданы в той же транзакции (ADR-0084). */
+  'document.resolution_added': z.object({
+    resolutionId: Uuid,
+    parentId: Uuid.nullable(),
+    authorId: Uuid,
+    responsibleId: Uuid,
+    coExecutorIds: z.array(Uuid),
+    controllerId: Uuid.nullable(),
+    dueDate: z.string(),
+    instructionIds: z.array(Uuid),
+  }),
   'document_type.created': z.object({ key: z.string(), direction: z.string() }),
   'document_type.updated': z.object({ key: z.string(), changed: z.array(z.string()) }),
   'journal.created': z.object({ name: z.string(), format: z.string() }),
@@ -544,6 +562,26 @@ export const EVENT_PAYLOADS = {
   'journal.reservation_cancelled': z.object({ reservationId: Uuid, number: z.string() }),
   'correspondent.created': z.object({ kind: z.string(), name: z.string() }),
   'correspondent.updated': z.object({ changed: z.array(z.string()) }),
+
+  // ── acknowledgments (08-documents.md §10, ADR-0084) ───────────────────────
+  // Объект события — объект, с которым знакомят (документ, страница базы знаний)
+  /** Запрос ознакомления: вручную, правилом типа при регистрации или шагом маршрута. */
+  'acknowledgment.requested': z.object({
+    requestId: Uuid,
+    source: z.string(),
+    userIds: z.array(Uuid),
+    dueAt: z.string().nullable(),
+  }),
+  /** Сотрудник ознакомился; actor события — кто отметил (заместитель — от имени). */
+  'acknowledgment.acknowledged': z.object({
+    userId: Uuid,
+    requestIds: z.array(Uuid),
+    secondFactor: z.boolean(),
+  }),
+  /** Запрос снят (шаг маршрута отменён, сотрудник снят с шага). */
+  'acknowledgment.cancelled': z.object({ requestId: Uuid, userIds: z.array(Uuid) }),
+  /** Напоминание не ознакомившимся: вручную или в день срока. */
+  'acknowledgment.reminded': z.object({ userIds: z.array(Uuid), auto: z.boolean() }),
 
   // ── admin ─────────────────────────────────────────────────────────────────
   'settings.changed': z.object({ scope: z.string(), key: z.string() }),
