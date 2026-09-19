@@ -39,6 +39,7 @@ import { registerJobHandler } from '~/kernel/jobs/runner.js'
 import { queue } from '~/kernel/jobs/service.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
 import { registerSystemDataset } from '~/kernel/system-datasets.js'
+import { registerCalendarProjection } from '~/modules/calendar/public.js'
 import { systemCtx, type UserCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { objects, projects, tasks } from '~/shared/db/schema/index.js'
@@ -52,6 +53,7 @@ import { ProjectService } from './domain/project-service.js'
 import { TASKS_SYSTEM_DATASET } from './domain/system-dataset.js'
 import { dueFromDate } from './domain/task-due.js'
 import { taskPolicy } from './domain/task-policy.js'
+import { taskDueProjection } from './domain/task-projection.js'
 import { TaskReminders } from './domain/task-reminders.js'
 import { TaskService } from './domain/task-service.js'
 import { TaskSettingsService } from './domain/task-settings.js'
@@ -200,6 +202,8 @@ export function registerTasksObjectTypes(): void {
 
   registerSystemDataset(TASKS_SYSTEM_DATASET)
   registerSystemDataset(INSTRUCTIONS_SYSTEM_DATASET)
+  // Сроки задач и поручений — проекция календаря (календарь модуль задач не импортирует)
+  registerCalendarProjection(taskDueProjection)
 
   // Кнопки поручения во Входящих (и в Telegram) исполняет модуль задач
   registerInboxActionHandler(

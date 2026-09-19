@@ -709,6 +709,27 @@ export const TaskService = {
     return { open: row?.open ?? 0, overdue: row?.overdue ?? 0, closed: row?.closed ?? 0 }
   },
 
+  /**
+   * Сроки для календаря (проекция `tasks.due`, ADR-0081): задачи и поручения,
+   * где я исполнитель, соисполнитель, автор или контролёр, со сроком в
+   * диапазоне — среди видимых мне.
+   */
+  async dueBetween(ctx: UserCtx, from: Date, to: Date): Promise<TaskRow[]> {
+    const me = ctx.onBehalfOf ?? ctx.userId
+    return selectTasks(db())
+      .where(
+        and(
+          sql`${objects.deletedAt} IS NULL`,
+          visibleObjectsSql(ctx, 'task'),
+          sql`(${tasks.assigneeId} = ${me} OR ${me} = ANY(${tasks.coAssignees})
+            OR ${tasks.authorId} = ${me} OR ${tasks.controllerId} = ${me})`,
+          sql`${tasks.dueAt} >= ${from.toISOString()} AND ${tasks.dueAt} < ${to.toISOString()}`,
+        ),
+      )
+      .orderBy(tasks.dueAt)
+      .limit(500)
+  },
+
   /** Сводка «Мои задачи»: открытые, просроченные, на сегодня, ждут моей приёмки, в срок. */
   async summary(ctx: UserCtx): Promise<TaskSummary> {
     const me = ctx.onBehalfOf ?? ctx.userId
