@@ -22,6 +22,16 @@ export { UiLocaleProvider, useUiLocale, useUiT } from './i18n/ui-locale.js'
 export * from './icons/object-icon.js'
 export { cn } from './lib/cn.js'
 export { cspNonce, readCspNonce, setCspNonce } from './lib/csp-nonce.js'
+export {
+  MapCanvas,
+  type MapCanvasProps,
+  type MapClickEvent,
+  type MapFeatureHit,
+  type MapLayerSpecification,
+  type MapLibreModule,
+  type MapSourceSpecification,
+} from './maps/map-canvas.js'
+export { MAP_ICONS, renderMapIcon } from './maps/map-icons.js'
 export { MapLegend, type MapLegendProps } from './maps/map-legend.js'
 export { readMapTheme, useMapTheme } from './maps/map-theme.js'
 export * from './primitives/button.js'

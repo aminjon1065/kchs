@@ -1,0 +1,46 @@
+/*
+ * Элементы MapLibre в оформлении дизайн-системы (ADR-0072): атрибуция подложки
+ * обязательна (OpenStreetMap, OpenMapTiles) — видна компактной кнопкой «i»,
+ * масштабная линейка — в цветах текста. Цвета — только токены.
+ */
+.kchs-map .maplibregl-canvas:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.kchs-map .maplibregl-ctrl-attrib,
+.kchs-map .maplibregl-ctrl-attrib.maplibregl-compact {
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font: 11px / 16px var(--font-sans);
+  border: 1px solid var(--border);
+}
+
+.kchs-map .maplibregl-ctrl-attrib a {
+  color: var(--text-secondary);
+}
+
+.kchs-map .maplibregl-ctrl-attrib-button {
+  background-color: var(--bg-surface);
+}
+
+.kchs-map .maplibregl-ctrl-scale {
+  background: color-mix(in srgb, var(--bg-surface) 80%, transparent);
+  border-color: var(--text-secondary);
+  color: var(--text-secondary);
+  font: 11px / 14px var(--font-sans);
+}
+
+.kchs-map .maplibregl-ctrl-group {
+  background: var(--bg-surface);
+  box-shadow: none;
+  border: 1px solid var(--border);
+}
+
+.kchs-map .maplibregl-popup-content {
+  background: var(--bg-surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0;
+}
