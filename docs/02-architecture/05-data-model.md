@@ -121,7 +121,8 @@ imports(id, dataset_id, file_id, status, options jsonb, mapping jsonb, stats jso
 pipelines(id pk → objects, definition jsonb, schedule text, last_run_at, status)   pipeline_runs(id, pipeline_id, job_id, status, stats, started_at, finished_at)
 queries(id pk → objects, mode text, spec jsonb, sql text, params_schema jsonb, dataset_ids uuid[], compiled_hash text)
 query_runs(id bigint, query_id null, user_id, spec_hash, sql_hash, duration_ms, row_count, cached bool, error text, at)
-metrics(id pk → objects, dataset_id, definition jsonb, unit, format jsonb, direction text, targets jsonb, thresholds jsonb)
+metrics(id pk → objects, dataset_id null, system_source text null, definition jsonb, unit, format jsonb, direction text, targets jsonb, thresholds jsonb)
+  -- ровно одно из dataset_id и system_source: показатель над системным датасетом (instructions.*, ADR-0082)
 charts(id pk → objects, query_id null, inline_spec jsonb, chart jsonb, params_defaults jsonb)
 dashboards(id pk → objects, layout jsonb, tiles jsonb, filters jsonb, refresh_interval int, theme text, settings jsonb)
 notebooks(id pk → objects, cells jsonb, params jsonb)      -- тело также в yjs.documents для совместной работы
@@ -228,6 +229,18 @@ tasks(id pk → objects, kind text, key text unique, project_id, parent_id, stat
       author_id, controller_id, start_at, due_at, completed_at, accepted_at, requires_acceptance bool, result jsonb,
       source jsonb, estimate_minutes, labels text[], territory_id, fields jsonb, recurrence jsonb, "order" double precision)
   idx: (assignee_id, status, due_at), (project_id, status), gin(co_assignees), (source->>'object_id'), (territory_id)  -- territory_id — ADR-0077
+  -- поручения в полном режиме (ADR-0082): due_working_days smallint (срок задан рабочими днями), original_due_at,
+  -- due_set_at (когда установлен действующий срок), extensions smallint (согласованных продлений), unit_id (подразделение
+  -- исполнителя для контроля), viewers text[] (кто видит, включая unit_head:<id> руководителей исполнителя)
+  -- idx: (parent_id), (unit_id), (due_at) where kind='instruction' and status not in ('accepted','cancelled')
+task_due_changes(id bigint identity, task_id, from_due, to_due, working_days, reason text, comment, actor_id, on_behalf_of,
+                 extension_id, created_at)   -- история сроков: set | edit | return | extension | parent
+task_extensions(id, task_id, status text, from_due, requested_due, requested_working_days, reason, requested_by,
+                requested_on_behalf_of, created_at, decided_by, decided_on_behalf_of, decided_at, decision_comment, approved_due)
+  unique(task_id) where status = 'pending'   -- запрос продления: pending | approved | rejected | cancelled
+task_reminders(task_id, stage text, due_at, skipped bool, created_at)  pk(task_id, stage, due_at)
+  -- отправленные этапы d3 | d1 | today | overdue | escalated: идемпотентность напоминаний
+ds.sys_instructions — представление системного датасета «Поручения» с состоянием контроля (ADR-0082)
 task_dependencies(task_id, depends_on_id, kind)  checklists(id, task_id, items jsonb)  time_entries(id, task_id, user_id, minutes, day, note)
 task_counters(scope text, year int, last_seq int)
 
