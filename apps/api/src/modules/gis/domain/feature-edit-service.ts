@@ -408,7 +408,12 @@ export const FeatureEditService = {
     const all = query.scope === 'all' && access.canReview
     const conditions: SQL[] = [eq(featureEdits.layerId, layer.id)]
     if (query.status) conditions.push(eq(featureEdits.status, query.status))
-    if (!all) conditions.push(eq(featureEdits.authorId, actorId(ctx) ?? ''))
+    if (!all) {
+      // Свои правки; без пользователя (системный контекст) своих правок нет
+      const authorId = actorId(ctx)
+      if (!authorId) return []
+      conditions.push(eq(featureEdits.authorId, authorId))
+    }
     const rows = await db()
       .select()
       .from(featureEdits)
