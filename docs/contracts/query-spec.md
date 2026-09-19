@@ -33,7 +33,7 @@
 ```
 
 ### Источники
-`{"kind": "dataset", "id"}`, `{"kind": "query", "id"}` (сохранённый запрос как подзапрос), `{"kind": "system", "name": "tasks|documents|meetings|events"}` (системные датасеты), `{"kind": "inline", "rows": [...]}` (небольшие константы), `{"kind": "sql", "sql": "..."}` (только для режима SQL и внутри доверенных объектов).
+`{"kind": "dataset", "id"}`, `{"kind": "query", "id"}` (сохранённый запрос как подзапрос), `{"kind": "system", "name": "tasks|documents|meetings|events|territories"}` (системные датасеты; `territories` — справочник территорий с границами, ADR-0069), `{"kind": "inline", "rows": [...]}` (небольшие константы), `{"kind": "sql", "sql": "..."}` (только для режима SQL и внутри доверенных объектов).
 
 ### Шаги
 | type | Поля |
@@ -48,9 +48,37 @@
 | `select` | `fields[]` (сузить/переименовать) |
 | `pivot` | `rows[]`, `columns`, `measure` (ограниченно; иначе клиент) |
 | `union` | `source`, `mode: all|distinct` |
-| `spatial` | `op: buffer|intersects|within|dwithin|nearest|centroid|area|length|assign_territory|spatial_join|grid|hexgrid|dissolve|clip`, `params`, `target?` (датасет/слой/геометрия) |
+| `spatial` | `op: buffer|intersects|within|dwithin|nearest|centroid|area|length|assign_territory|spatial_join|grid|hexgrid|dissolve|clip`, `params`, `target?` (датасет/запрос/территории/геометрия; слой — позже) — см. «Шаг spatial» |
 | `unnest` | `field` (массивы) |
 | `sample` | `n` или `fraction` (для предпросмотров) |
+
+### Шаг spatial
+
+Метрические величины считаются по `geography` в WGS 84: расстояния и размеры — метры, площадь — км², длина — км. Поле геометрии — `params.field` или единственное поле геометрии; числа можно задать параметром `@param:имя`. Неизвестный параметр операции — ошибка с путём (ADR-0069).
+
+| op | params | цель | результат |
+|---|---|---|---|
+| `buffer` | `distance` (м) или `distanceField` (числовое поле, м) | — | геометрия заменяется зоной вокруг неё |
+| `centroid` | `inside?` — точка на поверхности | — | геометрия заменяется точкой |
+| `area`, `length` | `as?` (`area_km2`, `length_km`) | — | + поле, км² или км |
+| `intersects`, `within` | `negate?` | нужна | отбор строк по отношению к цели |
+| `dwithin` | `distance` (м), `negate?` | нужна | отбор строк в радиусе от цели |
+| `nearest` | `limit?` (1–100), `maxDistance?` (м), `fields?` (поля цели), `as?` (`distance_m`) | нужна | + поля ближайших объектов цели, расстояние, `nearest_rank` при `limit > 1`; для цели-геометрии — только расстояние |
+| `assign_territory` | `level`, `as?` (`<уровень>_id`) | — | + поле-территория уровня, покрывающая объект |
+| `spatial_join` | `predicate?` (`intersects|contains|within|dwithin`), `distance?` (м, для `dwithin`), `measures?` | датасет, запрос или территории | + меры по связанным объектам цели |
+| `grid`, `hexgrid` | `size` (м, от 10), `measures?` | — | непустые ячейки: `cell` (`i:j`), граница, меры |
+| `dissolve` | `by?` (поля), `measures?` | — | группы: поля `by`, объединённая геометрия, меры |
+| `clip` | — | нужна | часть геометрии внутри цели той же размерности |
+
+`measures` — `[{alias, agg: count|count_distinct|sum|avg|min|max, field?}]`, по умолчанию — `[{"alias": "count", "agg": "count"}]`. Имя добавляемого поля по умолчанию при совпадении с полем данных получает номер (`area_km2_2`); явное `as` совпадать с полем не может.
+
+Цель (`target`): `{"kind": "dataset"|"query", "id", "alias"?, "field"?, "filter"?}` — с политиками смотрящего, как источник соединения (`filter` — в формате фильтра над полями цели); `{"kind": "system", "name"}`; `{"kind": "territory", "id"|"ids"|"level"}` — справочник территорий с границами; `{"kind": "geometry", "geometry"}` или геометрия GeoJSON без обёртки.
+
+```json
+{"type": "spatial", "op": "spatial_join",
+ "params": {"measures": [{"alias": "incidents", "agg": "count"}, {"alias": "damage", "agg": "sum", "field": "inc.damage"}]},
+ "target": {"kind": "dataset", "id": "01J...inc", "alias": "inc", "filter": {"field": "kind", "op": "eq", "value": "fire"}}}
+```
 
 ### Правила компиляции
 - Ссылки на поля — `alias.field` или `field` (уникальное); физические имена подставляет компилятор.

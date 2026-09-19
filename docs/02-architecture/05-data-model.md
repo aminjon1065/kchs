@@ -163,7 +163,7 @@ basemaps(id pk → objects, kind text, url text, style jsonb, attribution, min_z
 territories(id pk → objects, code text unique, parent_id, level text, name jsonb, geom geometry(MultiPolygon,4326), centroid geometry(Point,4326), area_km2, attributes jsonb, dataset_row_id bigint)
   idx: gist(geom), (parent_id), (level)
 territory_closure(territory_id, ancestor_id, depth)
-analyses(id pk → objects, kind text, params jsonb, input_dataset_ids uuid[], output_dataset_id, status, job_id)
+analyses(id pk → objects, kind text, params jsonb, input_dataset_ids uuid[], output_dataset_id, status, job_id, row_count, error, last_run_at)  -- ADR-0069
 map_annotations(id, map_id, user_id null, geom geometry, style jsonb, note, created_at)
 feature_edits(id bigint, layer_id, row_id, op text, before jsonb, after jsonb, geom_before, geom_after, author_id, status text, reviewed_by, at)
 tile_cache — в Redis (ключ layer:version:filterhash:z/x/y, TTL) и/или на диске; для S2 — Varnish/nginx cache перед API
