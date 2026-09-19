@@ -4,6 +4,7 @@ import { db } from '~/shared/db/client.js'
 import { activities } from '~/shared/db/schema/index.js'
 import { directory } from '../directory/port.js'
 import type { Subscriber } from '../events/types.js'
+import { objectType } from '../objects/registry.js'
 
 /**
  * Лента активности строится из событий (02-platform-kernel.md §5).
@@ -27,6 +28,11 @@ const VERB_BY_TYPE: Record<string, { verb: string; key: string }> = {
 export async function recordActivity(event: EventEnvelope): Promise<void> {
   const mapping = VERB_BY_TYPE[event.type]
   if (!mapping) return
+  // Поля типа под управлением модуля меняет модуль и сам пишет ленту («изменил
+  // карточку»); общая запись «изменил title» её бы дублировала
+  if (event.type === 'object.updated' && event.object) {
+    if (objectType(event.object.type)?.moduleManaged) return
+  }
   await insertActivity(event, mapping)
 }
 
