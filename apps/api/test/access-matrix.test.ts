@@ -326,6 +326,42 @@ const FIXTURES: Record<string, TypeFixture> = {
     ],
   },
 
+  // Анализ без запуска: карточка — маршрут чтения, перезапуск — право правки (ADR-0069)
+  analysis: {
+    create: async (fx, title) => {
+      const dataset = await call(fx.app, {
+        method: 'POST',
+        url: '/datasets',
+        as: fx.admin,
+        payload: {
+          name: `${title} — данные`,
+          spaceId: fx.spaceId,
+          fields: [{ key: 'place', label: { ru: 'Место' }, type: 'geometry' }],
+        },
+      })
+      expect(dataset.statusCode, dataset.body).toBe(200)
+      const response = await call(fx.app, {
+        method: 'POST',
+        url: '/analyses',
+        as: fx.admin,
+        payload: {
+          name: title,
+          spaceId: fx.spaceId,
+          run: false,
+          query: {
+            version: 1,
+            source: { kind: 'dataset', id: dataset.json().id },
+            steps: [{ type: 'spatial', op: 'buffer', params: { distance: 100 } }],
+          },
+        },
+      })
+      expect(response.statusCode, response.body).toBe(200)
+      return { id: response.json().id, title }
+    },
+    readPaths: ['/analyses/:id'],
+    viewerForbidden: (_fx, id) => [{ method: 'POST', url: `/analyses/${id}/run` }],
+  },
+
   // Справочник открыт всем выдачей everyone:*; без неё территория подчиняется
   // общим правилам ядра, как любой объект, — это и проверяет матрица
   territory: {

@@ -212,6 +212,7 @@ async function schedule(tx: Executor, ctx: Ctx, id: string, object: ObjectRow): 
 /**
  * Датасет-результат прежнего запуска, в который можно записать новый результат:
  * существует, не в корзине, схема та же, у запустившего есть право правки.
+ * Чужой результат (права правки нет) не перезаписывается — запустивший получит свой.
  */
 async function reusableOutput(
   tx: Executor,
@@ -228,15 +229,8 @@ async function reusableOutput(
   if (!object || object.deletedAt) return null
   const storage = await DatasetService.storage(outputId, tx)
   if (!sameSchema(storage, fields)) return null
-  try {
-    await authorize(ctx, 'edit', outputId)
-  } catch (error) {
-    if (error instanceof AppError) {
-      throw new UnrecoverableError('Нет права заменить строки датасета-результата')
-    }
-    throw error
-  }
-  return storage
+  const decision = await authorize(ctx, 'edit', outputId, { soft: true })
+  return decision.allowed ? storage : null
 }
 
 /**
@@ -371,17 +365,23 @@ export const AnalysisService = {
         } catch (error) {
           permanent(error)
         }
-        const datasetId = await DatasetService.create(tx, ctx, {
-          name: params.outputName,
-          description: `Результат анализа «${object.title}»`,
-          spaceId: object.spaceId as string,
-          parentId: object.parentId,
-          kind: 'table',
-          fields: fields.map((field) => field.input),
-          primaryKey: [],
-          // Снимок результата: строки заменяет перезапуск, история не нужна
-          settings: { editable: false, trackHistory: false },
-        })
+        const datasetId = await DatasetService.create(
+          tx,
+          ctx,
+          {
+            name: params.outputName,
+            description: `Результат анализа «${object.title}»`,
+            spaceId: object.spaceId as string,
+            parentId: object.parentId,
+            kind: 'table',
+            fields: fields.map((field) => field.input),
+            primaryKey: [],
+            // Снимок результата: строки заменяет перезапуск, история не нужна
+            settings: { editable: false, trackHistory: false },
+          },
+          // Строки — с правами запустившего: результат закрыт, пока он им не поделится
+          { accessMode: 'restricted' },
+        )
         storage = await DatasetService.storage(datasetId, tx)
       }
       const target = storage

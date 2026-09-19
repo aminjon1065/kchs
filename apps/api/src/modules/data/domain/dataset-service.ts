@@ -116,7 +116,13 @@ export function fieldValues(
  * реестра, метаданные, физическая таблица `ds.t_*`, первая версия и событие.
  */
 export const DatasetService = {
-  async create(tx: Executor, ctx: Ctx, input: DatasetCreateInput): Promise<string> {
+  /** `accessMode: restricted` — без наследования прав пространства (результат анализа). */
+  async create(
+    tx: Executor,
+    ctx: Ctx,
+    input: DatasetCreateInput,
+    options: { accessMode?: 'inherit' | 'restricted' } = {},
+  ): Promise<string> {
     const object = await ObjectService.create(tx, ctx, {
       type: 'dataset',
       spaceId: input.spaceId,
@@ -124,6 +130,7 @@ export const DatasetService = {
       title: input.name,
       subtitle: input.description ?? null,
       meta: { rows: 0, fields: input.fields.length, kind: input.kind },
+      ...(options.accessMode ? { accessMode: options.accessMode } : {}),
     })
     const id = object.id
     const settings: DatasetSettings = {

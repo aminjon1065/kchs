@@ -136,6 +136,12 @@ export function AnalysisView({ objectId, tabId }: { objectId: string; tabId: str
 
   const { data: object } = useQuery(objectQuery(objectId))
   const { data: analysis, isLoading } = useQuery(analysisQuery(objectId))
+  // Датасет-результат закрыт по умолчанию: открыть его может тот, кому он виден
+  const { data: output } = useQuery({
+    ...objectQuery(analysis?.outputDatasetId ?? ''),
+    enabled: Boolean(analysis?.outputDatasetId),
+    retry: false,
+  })
   const active = analysis ? ACTIVE.has(analysis.status) : false
   // Прогресс задания виден запустившему; остальным — только состояние анализа
   const { data: job } = useQuery({
@@ -315,22 +321,24 @@ export function AnalysisView({ objectId, tabId }: { objectId: string; tabId: str
                       })}
                     </span>
                   ) : null}
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    className="ml-auto"
-                    onClick={() =>
-                      openTab({
-                        kind: 'object',
-                        objectId: analysis.outputDatasetId as string,
-                        objectType: 'dataset',
-                        title: analysis.outputName,
-                        mode: 'permanent',
-                      })
-                    }
-                  >
-                    {t('data.analysis.openResult')}
-                  </Button>
+                  {output ? (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="ml-auto"
+                      onClick={() =>
+                        openTab({
+                          kind: 'object',
+                          objectId: output.id,
+                          objectType: 'dataset',
+                          title: output.title,
+                          mode: 'permanent',
+                        })
+                      }
+                    >
+                      {t('data.analysis.openResult')}
+                    </Button>
+                  ) : null}
                 </div>
               ) : active ? null : (
                 <p className="text-sm text-fg-muted">{t('data.analysis.noResult')}</p>

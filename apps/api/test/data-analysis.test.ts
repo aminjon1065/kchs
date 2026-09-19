@@ -381,6 +381,34 @@ describe('объект «анализ»', () => {
     expect(versions[0].diff).toEqual({ added: 5, updated: 0, deleted: 3 })
   })
 
+  it('результат закрыт; чужой результат не перезаписывается — у запустившего свой датасет', async () => {
+    const member = fx.users.member
+    // Участник пространства видит анализ, но не датасет-результат аналитика
+    expect((await call(fx.app, { url: `/analyses/${analysisId}`, as: member })).statusCode).toBe(
+      200,
+    )
+    expect((await call(fx.app, { url: `/datasets/${outputId}`, as: member })).statusCode).toBe(404)
+
+    const started = await call(fx.app, {
+      method: 'POST',
+      url: `/analyses/${analysisId}/run`,
+      as: member,
+    })
+    expect(started.statusCode, started.body).toBe(200)
+    const result = await runJob(started.json().jobId)
+    // Строки — с правами участника: политики строк у источника заданы, своей у него нет
+    expect(result).toMatchObject({ rows: 0, created: true })
+    expect(result.datasetId).not.toBe(outputId)
+    const card = (await call(fx.app, { url: `/analyses/${analysisId}`, as: member })).json()
+    expect(card.outputDatasetId).toBe(result.datasetId)
+
+    // Датасет аналитика не тронут: версий по-прежнему три
+    const versions = (
+      await call(fx.app, { url: `/datasets/${outputId}/versions`, as: analyst })
+    ).json().items
+    expect(versions).toHaveLength(3)
+  })
+
   it('пространственное соединение: меры по объектам цели с её политиками', async () => {
     const restored = await call(fx.app, {
       method: 'PATCH',

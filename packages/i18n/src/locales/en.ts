@@ -1246,7 +1246,8 @@ export const en: DeepPartial<Dictionary> = {
       anyLevel: 'Not selected',
       noTargetGeometry: 'The target dataset has no geometry field',
       outputName: 'Result dataset name',
-      outputHint: 'The result is written to a new dataset in the same space',
+      outputHint:
+        'The result is written to a new dataset in the same space; only you can see it until you share it',
       policyNote:
         'A job runs the analysis with your data access at run time: the row and column policies of the source and the target apply.',
       start: 'Run',
@@ -1261,7 +1262,7 @@ export const en: DeepPartial<Dictionary> = {
       rerun: 'Run again',
       rerunStarted: 'The analysis has been restarted',
       rerunHint:
-        'A new run replaces the rows of the result dataset with a new version if its fields have not changed; otherwise the result goes to a new dataset.',
+        'A new run replaces the rows of the result dataset with a new version if its fields have not changed and it can be edited; otherwise the result goes to a new dataset of the person who ran it.',
       parameters: 'Parameters',
       source: 'Source',
       territories: 'Territory directory',
