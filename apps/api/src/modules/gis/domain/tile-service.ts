@@ -15,7 +15,7 @@ import { pgErrorCode } from '~/shared/db/pg-error.js'
 import { errors } from '~/shared/errors.js'
 import { logger } from '~/shared/logger/index.js'
 import { redis } from '~/shared/redis/index.js'
-import { layerConditions } from './layer-filter.js'
+import { layerConditions, tilePreview } from './layer-filter.js'
 import { LayerService } from './layer-service.js'
 
 /** Размер сетки MVT и запас по краю (подписи и символы не обрезаются на стыке тайлов). */
@@ -83,6 +83,10 @@ export const TileService = {
     if (x >= limit || y >= limit) throw errors.validation('Тайл вне сетки масштаба')
     const layer = await LayerService.load(layerId)
     const style = layer.style
+    // Рабочая копия стиля из редактора: её поля, фильтр, кластеры и масштабы (ADR-0075)
+    const preview = tilePreview(query.p)
+    const minZoom = preview?.minZoom ?? style.minZoom
+    const maxZoom = preview?.maxZoom ?? style.maxZoom
     const empty = (etag: string): TileResult => ({
       body: null,
       etag,
@@ -90,7 +94,7 @@ export const TileService = {
       timedOut: false,
       sqlMs: null,
     })
-    if (z < Math.floor(style.minZoom) || z > Math.ceil(style.maxZoom)) {
+    if (z < Math.floor(minZoom) || z > Math.ceil(maxZoom)) {
       return empty(`"z-${layer.version}"`)
     }
 
@@ -98,7 +102,8 @@ export const TileService = {
     // Геометрия, скрытая политикой столбцов, — нет и слоя: место объекта тоже данные
     if (!visible.has(layer.geometryField)) throw errors.forbidden()
     // Поля стиля и тайла, видимые смотрящему: скрытое политикой в тайл не попадает
-    const fields = [...new Set([...layerStyleTileFields(style), ...layer.tileFields])].filter(
+    const styleFields = preview ? preview.fields : layerStyleTileFields(style)
+    const fields = [...new Set([...styleFields, ...layer.tileFields])].filter(
       (key) => key !== layer.geometryField && visible.has(key),
     )
     // Охват тайла с запасом по краю — пространственное окно компилятора: рамка
@@ -108,7 +113,7 @@ export const TileService = {
     const [west, south, east, north] = tileBounds(z, x, y)
     const padX = ((east - west) * BUFFER) / EXTENT
     const padY = ((north - south) * BUFFER) / EXTENT
-    const where = layerConditions(layer, query)
+    const where = layerConditions(layer, query, preview)
     const spec = QuerySpec.parse({
       version: 1,
       source: { kind: 'dataset', id: layer.datasetId },
@@ -134,13 +139,16 @@ export const TileService = {
       },
     })
 
+    const clustering = preview ? preview.cluster : style.cluster
     const cluster =
-      style.geometry === 'point' && style.cluster?.enabled && z <= style.cluster.maxZoom
-        ? style.cluster
+      style.geometry === 'point' && clustering?.enabled && z <= clustering.maxZoom
+        ? clustering
         : null
+    // Кластеры предпросмотра — не в спецификации запроса, поэтому в ключе отдельно
+    const previewKey = preview ? `|p:${JSON.stringify(cluster)}` : ''
     const hash = createHash('sha256')
       .update(
-        `${cacheKeyText(compiled.cacheKeyParts)}|${schemaVersions}|${layer.version}|${z}/${x}/${y}`,
+        `${cacheKeyText(compiled.cacheKeyParts)}|${schemaVersions}|${layer.version}|${z}/${x}/${y}${previewKey}`,
       )
       .digest('hex')
     const key = `kchs:tile:${layerId}:${hash}`

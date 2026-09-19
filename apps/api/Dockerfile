@@ -14,6 +14,7 @@ COPY packages/config/package.json packages/config/
 COPY packages/contracts/package.json packages/contracts/
 COPY packages/fields/package.json packages/fields/
 COPY packages/i18n/package.json packages/i18n/
+COPY packages/map-style/package.json packages/map-style/
 COPY apps/api/package.json apps/api/
 
 FROM manifests AS deps

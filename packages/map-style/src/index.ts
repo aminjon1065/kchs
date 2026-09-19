@@ -1,4 +1,4 @@
-export { classify } from './classify.js'
+export { classify, classifySummary, type ValueSummary } from './classify.js'
 export { compileLayerStyle, type LayerRole } from './compile.js'
 export { DEFAULT_FONTS, MAP_IMAGE_SIZE } from './context.js'
 export { CLUSTER_COUNT_FIELD, styleTileFields } from './fields.js'
@@ -24,3 +24,18 @@ export {
   type StyleWarningCode,
 } from './model.js'
 export { deriveOutline, paletteColors, resolveColor } from './palette.js'
+export {
+  applyStylePreset,
+  CATEGORY_COLORS,
+  type CategoryValue,
+  categoriesFor,
+  defaultRenderer,
+  type FieldRole,
+  fieldFits,
+  fieldsFor,
+  type PresetField,
+  type RendererOptions,
+  type StylePreset,
+  type StylePresetKind,
+  stylePresets,
+} from './presets.js'

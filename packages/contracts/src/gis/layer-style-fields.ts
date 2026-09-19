@@ -1,4 +1,5 @@
 import type { FilterNode } from '../common/filter.js'
+import type { LayerTilePreview } from './layer.js'
 import type { LayerStyle } from './layer-style.js'
 
 /**
@@ -76,4 +77,20 @@ export function layerStyleFields(style: LayerStyle): string[] {
   }
   fields.delete(LAYER_CLUSTER_COUNT_FIELD)
   return [...fields]
+}
+
+/**
+ * Что стиль меняет в тайле: поля, фильтр слоя, кластеры, масштабы, время.
+ * Рабочая копия стиля с другим набором передаётся тайлам как предпросмотр `p`
+ * (ADR-0075); одинаковый набор — тайлы сохранённого стиля.
+ */
+export function layerTilePreview(style: LayerStyle): LayerTilePreview {
+  return {
+    fields: layerStyleTileFields(style),
+    filter: style.filter,
+    cluster: style.cluster,
+    minZoom: style.minZoom,
+    maxZoom: style.maxZoom,
+    time: style.time,
+  }
 }

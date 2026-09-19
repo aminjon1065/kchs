@@ -7,6 +7,25 @@ const JENKS_SAMPLE = 2000
 const round = (value: number): number => Number(value.toPrecision(12))
 
 /**
+ * Сводка значений поля: то, что сервер считает агрегатами по всем строкам слоя с
+ * политиками смотрящего (ADR-0075), — или всё, что знает клиент о выборке.
+ */
+export interface ValueSummary {
+  min: number
+  max: number
+  /** Среднее и стандартное отклонение (генеральное) — метод `stddev`. */
+  mean?: number | null
+  stddev?: number | null
+  /** Наименьшее положительное значение — метод `log`; null — положительных нет. */
+  minPositive?: number | null
+  /**
+   * Значения для методов по рангам (`quantile`, `jenks`): все значения поля или
+   * выборка крупного слоя. Порядок не важен.
+   */
+  sample?: Iterable<number> | null
+}
+
+/**
  * Границы классов по методу из `LayerStyle` (07-gis-engine.md §4):
  * `equal` — равные интервалы, `quantile` — квантили (линейная интерполяция,
  * как R-7), `jenks` — естественные границы Фишера — Дженкса (минимум суммы
@@ -27,47 +46,92 @@ export function classify(
   classes: number,
   options: { breaks?: readonly number[] | null } = {},
 ): number[] {
-  if (method === 'manual') {
-    const breaks = [...(options.breaks ?? [])]
-      .filter(Number.isFinite)
-      .map(round)
-      .sort((a, b) => a - b)
-    if (breaks.length < 2) return dedupe(breaks)
-    const min = breaks[0] as number
-    const max = breaks.at(-1) as number
-    const inner = dedupe(breaks.slice(1, -1)).filter((b) => b > min && b <= max)
-    return [min, ...inner, max]
-  }
+  if (method === 'manual') return manualEdges(options.breaks)
   const sorted = Float64Array.from(
     [...values].filter((v): v is number => typeof v === 'number' && Number.isFinite(v)),
   ).sort()
   const n = sorted.length
   if (n === 0) return []
-  const min = sorted[0] as number
-  const max = sorted[n - 1] as number
+  const summary: ValueSummary = {
+    min: sorted[0] as number,
+    max: sorted[n - 1] as number,
+    sample: sorted,
+  }
+  if (method === 'log') summary.minPositive = sorted.find((v) => v > 0) ?? null
+  if (method === 'stddev') Object.assign(summary, moments(sorted))
+  return classifySummary(summary, method, classes)
+}
+
+/**
+ * Границы классов по сводке значений — те же формулы, что у `classify`: сервер
+ * считает минимум, максимум, моменты и выборку по всем строкам слоя, а края
+ * классов строит этот же код (ADR-0075). Нет сводки нужного метода (моментов
+ * для `stddev`, выборки для `quantile` и `jenks`) — равные интервалы.
+ */
+export function classifySummary(
+  summary: ValueSummary,
+  method: ClassificationMethod,
+  classes: number,
+  options: { breaks?: readonly number[] | null } = {},
+): number[] {
+  if (method === 'manual') return manualEdges(options.breaks)
+  const { min, max } = summary
+  if (!Number.isFinite(min) || !Number.isFinite(max) || min > max) return []
   if (min === max) return [round(min), round(max)]
   const k = Math.max(1, Math.min(9, Math.floor(classes)))
+  const ranked = (): Float64Array | null => {
+    if (!summary.sample) return null
+    const sorted = Float64Array.from(
+      [...summary.sample].filter((v) => typeof v === 'number' && Number.isFinite(v)),
+    ).sort()
+    return sorted.length > 0 ? sorted : null
+  }
   let inner: number[]
   switch (method) {
     case 'equal':
       inner = equalBreaks(min, max, k)
       break
-    case 'quantile':
-      inner = Array.from({ length: k - 1 }, (_, i) => quantile(sorted, (i + 1) / k))
+    case 'quantile': {
+      const sorted = ranked()
+      inner = sorted
+        ? Array.from({ length: k - 1 }, (_, i) => quantile(sorted, (i + 1) / k))
+        : equalBreaks(min, max, k)
       break
-    case 'jenks':
-      inner = jenksBreaks(sample(sorted, JENKS_SAMPLE), k)
+    }
+    case 'jenks': {
+      const sorted = ranked()
+      inner = sorted ? jenksBreaks(sample(sorted, JENKS_SAMPLE), k) : equalBreaks(min, max, k)
       break
+    }
     case 'log':
-      inner = logBreaks(sorted, k)
+      inner = logBreaks(min, max, summary.minPositive ?? null, k)
       break
     case 'stddev':
-      inner = stddevBreaks(sorted, k)
+      inner =
+        summary.mean === null ||
+        summary.mean === undefined ||
+        summary.stddev === null ||
+        summary.stddev === undefined
+          ? equalBreaks(min, max, k)
+          : stddevBreaks(summary.mean, summary.stddev, k)
       break
   }
   // Верхний класс из одного значения (граница = максимум) сохраняется: [.., 20, 20]
   const breaks = dedupe(inner.map(round).filter((b) => b > min && b <= max))
   return [round(min), ...breaks, round(max)]
+}
+
+/** Ручные границы: сортировка, повторы и нечисла отбрасываются. */
+function manualEdges(input: readonly number[] | null | undefined): number[] {
+  const breaks = [...(input ?? [])]
+    .filter(Number.isFinite)
+    .map(round)
+    .sort((a, b) => a - b)
+  if (breaks.length < 2) return dedupe(breaks)
+  const min = breaks[0] as number
+  const max = breaks.at(-1) as number
+  const inner = dedupe(breaks.slice(1, -1)).filter((b) => b > min && b <= max)
+  return [min, ...inner, max]
 }
 
 function dedupe(sorted: number[]): number[] {
@@ -146,28 +210,28 @@ function jenksBreaks(data: Float64Array, k: number): number[] {
 }
 
 /** Равные интервалы по log10 положительных значений; неположительные — в первом классе. */
-function logBreaks(sorted: Float64Array, k: number): number[] {
-  const positive = sorted.find((v) => v > 0)
-  const max = sorted[sorted.length - 1] as number
-  if (positive === undefined || positive === max) {
-    return equalBreaks(sorted[0] as number, max, k)
-  }
+function logBreaks(min: number, max: number, positive: number | null, k: number): number[] {
+  if (positive === null || positive === max) return equalBreaks(min, max, k)
   const lo = Math.log10(positive)
   const hi = Math.log10(max)
   return Array.from({ length: k - 1 }, (_, i) => 10 ** (lo + ((hi - lo) * (i + 1)) / k))
 }
 
-/**
- * Шаг в одно стандартное отклонение (генеральное): при нечётном числе классов
- * средний класс — среднее ± 0,5σ, при чётном среднее — граница.
- */
-function stddevBreaks(sorted: Float64Array, k: number): number[] {
+/** Среднее и стандартное отклонение (генеральное) отсортированных значений. */
+function moments(sorted: Float64Array): { mean: number; stddev: number } {
   const n = sorted.length
   let mean = 0
   for (const v of sorted) mean += v / n
   let squares = 0
   for (const v of sorted) squares += (v - mean) ** 2
-  const sd = Math.sqrt(squares / n)
-  if (sd === 0) return []
+  return { mean, stddev: Math.sqrt(squares / n) }
+}
+
+/**
+ * Шаг в одно стандартное отклонение: при нечётном числе классов средний класс —
+ * среднее ± 0,5σ, при чётном среднее — граница.
+ */
+function stddevBreaks(mean: number, sd: number, k: number): number[] {
+  if (!(sd > 0)) return []
   return Array.from({ length: k - 1 }, (_, i) => mean + (i + 1 - k / 2) * sd)
 }

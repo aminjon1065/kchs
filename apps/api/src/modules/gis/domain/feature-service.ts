@@ -8,7 +8,7 @@ import {
 import { DatasetQueries } from '~/modules/data/public.js'
 import type { Ctx } from '~/shared/context.js'
 import { errors } from '~/shared/errors.js'
-import { layerConditions, parseBbox } from './layer-filter.js'
+import { layerConditions, parseBbox, tilePreview } from './layer-filter.js'
 import { LayerService } from './layer-service.js'
 
 type Geometry = Record<string, unknown>
@@ -30,11 +30,17 @@ export const FeatureService = {
     const layer = await LayerService.load(layerId)
     const visible = await DatasetQueries.visibleFields(ctx, layer.datasetId)
     if (!visible.has(layer.geometryField)) throw errors.forbidden()
-    // Поля стиля, карточки и тайла — чтобы клиент рисовал и подписывал без дозапросов
-    const fields = [...new Set([...layerStyleFields(layer.style), ...layer.tileFields])].filter(
-      (key) => key !== layer.geometryField && visible.has(key),
-    )
-    const where = layerConditions(layer, query)
+    // Поля стиля, карточки и тайла — чтобы клиент рисовал и подписывал без дозапросов;
+    // у предпросмотра рабочей копии стиля — ещё и её поля (ADR-0075)
+    const preview = tilePreview(query.p)
+    const fields = [
+      ...new Set([
+        ...layerStyleFields(layer.style),
+        ...(preview?.fields ?? []),
+        ...layer.tileFields,
+      ]),
+    ].filter((key) => key !== layer.geometryField && visible.has(key))
+    const where = layerConditions(layer, query, preview)
     const spec = QuerySpec.parse({
       version: 1,
       source: { kind: 'dataset', id: layer.datasetId },

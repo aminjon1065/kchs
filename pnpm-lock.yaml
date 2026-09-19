@@ -223,6 +223,9 @@ importers:
       '@kchs/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
+      '@kchs/map-style':
+        specifier: workspace:*
+        version: link:../../packages/map-style
       '@kchs/query':
         specifier: workspace:*
         version: link:../../packages/query

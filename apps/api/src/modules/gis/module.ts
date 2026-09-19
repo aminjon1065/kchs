@@ -7,6 +7,8 @@ import {
   LayerFeaturesQuery,
   LayerList,
   LayerRecord,
+  LayerStats,
+  LayerStatsInput,
   LayerTileQuery,
   LayerUpdateInput,
   MapCreateInput,
@@ -28,6 +30,7 @@ import type { RouteRegistrar } from '~/shared/http/route.js'
 import { registerBasemapObjectType, registerBasemapRoutes } from './basemaps.js'
 import { FeatureService } from './domain/feature-service.js'
 import { LayerService } from './domain/layer-service.js'
+import { LayerStatsService } from './domain/layer-stats.js'
 import { MapService } from './domain/map-service.js'
 import { TERRITORIES_SYSTEM_DATASET } from './domain/system-dataset.js'
 import { TerritoryService } from './domain/territory-service.js'
@@ -235,6 +238,19 @@ export function registerGisRoutes(route: RouteRegistrar): void {
       )
       return LayerService.get(request.ctx, request.params.id)
     },
+  })
+
+  route({
+    method: 'POST',
+    url: '/gis/layers/:id/stats',
+    auth: { action: 'view' },
+    tags: ['gis'],
+    summary: 'Статистика поля слоя: диапазон и границы классов по строкам смотрящего',
+    description:
+      'Агрегаты по всем строкам слоя с политиками пользователя; квантили и естественные границы крупного слоя — по выборке (ADR-0075).',
+    schema: { params: IdParam, body: LayerStatsInput, response: { 200: LayerStats } },
+    handler: async (request) =>
+      LayerStatsService.stats(request.ctx, request.params.id, request.body),
   })
 
   route({

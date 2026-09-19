@@ -94,8 +94,27 @@ export const LayerTileQuery = z.object({
   f: z.string().max(8000).optional(),
   /** Интервал времени `from/to` в ISO 8601 для слоя со временем. */
   t: z.string().max(80).optional(),
+  /** Предпросмотр рабочей копии стиля: `LayerTilePreview` в JSON, закодированный в base64url. */
+  p: z.string().max(8000).optional(),
 })
 export type LayerTileQuery = z.infer<typeof LayerTileQuery>
+
+/**
+ * Предпросмотр рабочей копии стиля (редактор стиля, ADR-0075): то, что стиль
+ * меняет в тайле и объектах слоя, — поля, фильтр слоя, кластеры, масштабы и
+ * время. Передаётся как `p`; сохранённый стиль не меняется, строки и поля — с
+ * политиками смотрящего, как у любого тайла.
+ */
+export const LayerTilePreview = z.object({
+  /** Поля стиля в тайле (`layerStyleTileFields` рабочей копии). */
+  fields: z.array(FieldKey).max(32).default([]),
+  filter: LayerStyle.shape.filter,
+  cluster: LayerStyle.shape.cluster,
+  minZoom: LayerStyle.shape.minZoom,
+  maxZoom: LayerStyle.shape.maxZoom,
+  time: LayerStyle.shape.time,
+})
+export type LayerTilePreview = z.infer<typeof LayerTilePreview>
 
 /** Лимит GeoJSON-объектов слоя: крупные слои читаются тайлами (07-gis-engine.md §3). */
 export const LAYER_FEATURES_LIMIT = 5000
