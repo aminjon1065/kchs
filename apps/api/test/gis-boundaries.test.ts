@@ -1,3 +1,4 @@
+import { gunzipSync } from 'node:zlib'
 import { sql } from 'drizzle-orm'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { call, db, redis, registerLifecycle, setupFixture, type TestContext } from './helpers.js'
@@ -253,6 +254,15 @@ describe('границы территорий', () => {
     expect(districts.keys).toEqual(expect.arrayContaining(['id', 'code', 'level', 'name']))
     expect(districts.values).toEqual(expect.arrayContaining(['TJ-DU-02', 'Sino', 'district']))
     expect(layers[0]?.values).toEqual(expect.arrayContaining(['TJ-DU', 'Dushanbe']))
+
+    // В кэше тайл сжат: браузеру — gzip, остальным — как есть
+    const compressed = await call(fx.app, {
+      url,
+      as: fx.users.stranger,
+      headers: { 'accept-encoding': 'gzip, deflate' },
+    })
+    expect(compressed.headers['content-encoding']).toBe('gzip')
+    expect(gunzipSync(raw(compressed)).equals(raw(tile))).toBe(true)
 
     const etag = tile.headers.etag as string
     const cached = await redis().keys('kchs:gis:territory-tile:*')

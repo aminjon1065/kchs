@@ -1,10 +1,14 @@
 import { createHash } from 'node:crypto'
+import { promisify } from 'node:util'
+import { gzip as gzipCallback } from 'node:zlib'
 import { type Locale, TERRITORY_LEVELS, type TerritoryLevel } from '@kchs/contracts'
 import { sql } from 'drizzle-orm'
 import { db } from '~/shared/db/client.js'
 import { objects, territories } from '~/shared/db/schema/index.js'
 import { redis } from '~/shared/redis/index.js'
 import { simplifyTolerance, TerritoryService } from './territory-service.js'
+
+const gzip = promisify(gzipCallback)
 
 const EXTENT = 4096
 const BUFFER = 64
@@ -75,14 +79,15 @@ export const TerritoryTiles = {
     return { key, etag }
   },
 
-  /** Тайл MVT; пустой буфер — в тайле ничего нет. */
+  /** Тайл MVT, сжатый gzip, — так он и лежит в кэше; пустой буфер — в тайле ничего нет. */
   async render(request: TerritoryTileRequest, key: string): Promise<Buffer> {
     const cached = await redis().getBuffer(key)
     if (cached) return cached
     const layers: Buffer[] = []
     for (const level of request.levels) layers.push(await layerTile(request, level))
     const tile = Buffer.concat(layers)
-    await redis().set(key, tile, 'EX', CACHE_TTL_SECONDS)
-    return tile
+    const body = tile.length > 0 ? await gzip(tile) : tile
+    await redis().set(key, body, 'EX', CACHE_TTL_SECONDS)
+    return body
   },
 }

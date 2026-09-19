@@ -1,3 +1,5 @@
+import { promisify } from 'node:util'
+import { gunzip as gunzipCallback } from 'node:zlib'
 import {
   GeocodeQuery,
   GeocodeResponse,
@@ -9,10 +11,13 @@ import {
 } from '@kchs/contracts'
 import { z } from 'zod'
 import { errors } from '~/shared/errors.js'
+import { rateLimit } from '~/shared/http/rate-limit.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { Geocoder } from '../domain/geocoder.js'
 import { TerritoryService } from '../domain/territory-service.js'
 import { TerritoryTiles, tileLevels } from '../domain/territory-tiles.js'
+
+const gunzip = promisify(gunzipCallback)
 
 const IdParam = z.object({ id: z.uuid() })
 const TileParams = z.object({
@@ -20,8 +25,8 @@ const TileParams = z.object({
   x: z.coerce.number().int().min(0),
   y: z.coerce.number().int().min(0),
 })
-// Карта запрашивает тайлы пачками — десятки на каждый сдвиг и зум
-const TILE_RATE_LIMIT = { max: 3000, timeWindow: '1 minute' }
+// Карта запрашивает тайлы пачками — десятки на каждый сдвиг и зум: свой счётчик частоты
+const TILES_PER_MINUTE = 12_000
 
 /**
  * Границы и геокодирование справочника территорий (P2-E04, ADR-0067). Справочник
@@ -50,7 +55,7 @@ export function registerTerritoryRoutes(route: RouteRegistrar): void {
     tags: ['gis'],
     summary: 'Векторные тайлы границ: слой MVT на уровень, у объекта id, code, level, name',
     schema: { params: TileParams, querystring: TerritoryTileQuery },
-    rateLimit: TILE_RATE_LIMIT,
+    rateLimit: rateLimit(TILES_PER_MINUTE, '1 minute'),
     handler: async (request, reply) => {
       if (request.ctx.shareLink) throw errors.forbidden()
       const { z: zoom, x, y } = request.params
@@ -65,10 +70,15 @@ export function registerTerritoryRoutes(route: RouteRegistrar): void {
       const { key, etag } = await TerritoryTiles.tag(tile)
       reply.header('etag', etag).header('cache-control', 'private, max-age=60')
       if (request.headers['if-none-match'] === etag) return reply.code(304).send()
-      const data = await TerritoryTiles.render(tile, key)
-      if (data.length === 0) return reply.code(204).send()
+      const body = await TerritoryTiles.render(tile, key)
+      if (body.length === 0) return reply.code(204).send()
       reply.header('content-type', 'application/vnd.mapbox-vector-tile')
-      return reply.send(data)
+      // Тайл в кэше сжат: браузеры принимают gzip, остальным — как есть
+      if (/\bgzip\b/.test(String(request.headers['accept-encoding'] ?? ''))) {
+        reply.header('content-encoding', 'gzip').header('vary', 'accept-encoding')
+        return reply.send(body)
+      }
+      return reply.send(await gunzip(body))
     },
   })
 
