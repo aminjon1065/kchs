@@ -385,6 +385,45 @@ export const DefinitionService = {
   },
 
   /**
+   * Опубликованные маршруты типа объекта — последние версии по ключам: модуль
+   * предлагает их при запуске из карточки (ADR-0083).
+   */
+  async publishedFor(
+    executor: Executor,
+    type: string,
+  ): Promise<Array<{ id: string; key: string; version: number; definition: ProcessDefinition }>> {
+    const rows = await executor
+      .select()
+      .from(processDefinitions)
+      .where(
+        and(eq(processDefinitions.objectType, type), isNotNull(processDefinitions.publishedAt)),
+      )
+      .orderBy(processDefinitions.key, desc(processDefinitions.version))
+    const latest = new Map<string, DefinitionRow>()
+    for (const row of rows) if (!latest.has(row.key)) latest.set(row.key, row)
+    return [...latest.values()].map((row) => ({
+      id: row.id,
+      key: row.key,
+      version: row.version,
+      definition: ProcessDefinitionSchema.parse(row.definition),
+    }))
+  },
+
+  /**
+   * Стартовый маршрут модуля (`kchs init`, `db:seed`): создаётся и публикуется,
+   * только если ключа ещё нет — маршруты, изменённые администратором, сид не
+   * трогает. `true` — маршрут создан.
+   */
+  async ensurePublished(tx: Executor, ctx: Ctx, raw: unknown): Promise<boolean> {
+    const def = parsed(raw)
+    const existing = await rowsOf(tx, def.key)
+    if (existing.length > 0) return false
+    await DefinitionService.create(tx, ctx, def)
+    await DefinitionService.publish(tx, ctx, def.key)
+    return true
+  },
+
+  /**
    * Предпросмотр «кто будет назначен» на примере объекта: условия запуска,
    * назначенные каждого шага и проблемы выражений, сроки, если шаг начнётся
    * сейчас. Назначенные `previous_step.assignees` известны только при исполнении.

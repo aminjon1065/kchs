@@ -1,4 +1,4 @@
-import { and, eq, sql } from 'drizzle-orm'
+import { and, eq, isNull, sql } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { Subscriber } from '../src/kernel/events/types.js'
 import { call, db, registerLifecycle, setupFixture, type TestContext } from './helpers.js'
@@ -92,6 +92,21 @@ async function notified(userId: string, objectId: string, titleKey: string): Pro
       and(
         eq(schema.notifications.userId, userId),
         eq(schema.notifications.objectId, objectId),
+        eq(schema.notifications.titleKey, titleKey),
+      ),
+    )
+  return rows.length > 0
+}
+
+/** Уведомление без содержания: объекта в нём нет (получатель объект не видит). */
+async function notifiedHidden(userId: string, titleKey: string): Promise<boolean> {
+  const rows = await db()
+    .select({ id: schema.notifications.id })
+    .from(schema.notifications)
+    .where(
+      and(
+        eq(schema.notifications.userId, userId),
+        isNull(schema.notifications.objectId),
         eq(schema.notifications.titleKey, titleKey),
       ),
     )
@@ -196,13 +211,15 @@ describe('перезапуск worker посреди маршрута', () => {
       name: SWEEP_JOB,
       data: {},
     })
-    // Получатели эскалации уведомляются по очереди — ждём обоих
+    // Получатели эскалации уведомляются по очереди — ждём обоих. Руководитель
+    // не ответившего объект не видит: ему — без названия и ссылки (ADR-0083)
     await until(
       async () =>
-        (await notified(people.boss.id, doc, 'notifications.tpl.processEscalation')) &&
+        (await notifiedHidden(people.boss.id, 'notifications.tpl.processEscalationHidden')) &&
         (await notified(people.author.id, doc, 'notifications.tpl.processEscalation')),
       'эскалация руководителю не ответившего и автору',
     )
+    expect(await notified(people.boss.id, doc, 'notifications.tpl.processEscalation')).toBe(false)
     expect(await notified(people.a3.id, doc, 'notifications.tpl.processOverdue')).toBe(true)
     expect(await notified(people.a3.id, doc, 'notifications.tpl.processDueSoon')).toBe(true)
     // Ответивший до просрочки о ней не уведомлён

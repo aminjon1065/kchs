@@ -16,6 +16,10 @@
  * О завершении маршрута модуль узнаёт хуком `onFinished` в той же транзакции
  * или событием `process.finished` через шину.
  */
+import type { ProcessDefinition, ProcessPreview, ProcessPreviewInput } from '@kchs/process'
+import type { Ctx, UserCtx } from '~/shared/context.js'
+import type { Executor } from '~/shared/db/client.js'
+import { DefinitionService } from './definitions.js'
 import { registerProcessInboxActions } from './inbox.js'
 
 export {
@@ -37,6 +41,24 @@ export {
   type StepHandlerResult,
 } from './registry.js'
 export { type ActInput, ProcessService, type StartProcessInput } from './service.js'
+export { type ActiveRoute, ProcessView } from './view.js'
+
+/**
+ * Определения маршрутов для модулей (ADR-0083): опубликованные маршруты типа —
+ * для запуска из карточки, предпросмотр назначений на объекте без способности
+ * `processes.manage` (права проверяет модуль), стартовые маршруты сида.
+ */
+export const ProcessDefinitions = {
+  published: (
+    executor: Executor,
+    objectType: string,
+  ): Promise<Array<{ id: string; key: string; version: number; definition: ProcessDefinition }>> =>
+    DefinitionService.publishedFor(executor, objectType),
+  preview: (ctx: UserCtx, input: ProcessPreviewInput): Promise<ProcessPreview> =>
+    DefinitionService.preview(ctx, input),
+  ensure: (tx: Executor, ctx: Ctx, definition: unknown): Promise<boolean> =>
+    DefinitionService.ensurePublished(tx, ctx, definition),
+}
 
 /** Действия шагов во Входящих — при старте в любой роли процесса (HTTP исполняет кнопки). */
 export function registerProcessEngine(): void {

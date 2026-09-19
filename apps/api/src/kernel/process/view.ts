@@ -1,5 +1,6 @@
-import type { UserRef } from '@kchs/contracts'
+import type { LangText, UserRef } from '@kchs/contracts'
 import {
+  applyConditions,
   availableActions,
   DECISIONS_BY_TYPE,
   type ProcessAction,
@@ -7,19 +8,38 @@ import {
   type ProcessInstanceSummary,
   type ProcessInstanceView,
   type ProcessStepView,
+  type StepEntry,
   type StepRun,
 } from '@kchs/process'
-import { asc, desc, eq, inArray } from 'drizzle-orm'
+import { and, asc, desc, eq, inArray } from 'drizzle-orm'
 import type { UserCtx } from '~/shared/context.js'
-import { db } from '~/shared/db/client.js'
+import { db, type Executor } from '~/shared/db/client.js'
 import {
   processDefinitions,
   processInstances,
   processStepActions,
+  processSteps,
 } from '~/shared/db/schema/index.js'
 import { authorize, hasCapability } from '../access/authorize.js'
 import { directory } from '../directory/port.js'
 import { loadInstance, readContext } from './store.js'
+
+/** Идущий маршрут объекта: текущие шаги решения и кто ждёт — для шапки карточки. */
+export interface ActiveRoute {
+  instanceId: string
+  definitionKey: string
+  name: LangText
+  round: number
+  steps: Array<{
+    id: string
+    key: string
+    type: string
+    name: LangText | null
+    dueAt: string | null
+    overdue: boolean
+    pending: UserRef[]
+  }>
+}
 
 /**
  * Чтение для экрана маршрута (ADR-0079): маршруты объекта и линия шагов с
@@ -39,6 +59,67 @@ async function refsOf(ids: Iterable<string | null | undefined>): Promise<Map<str
 }
 
 export const ProcessView = {
+  /**
+   * Идущие маршруты объекта с текущими шагами решения (ADR-0083): модуль
+   * показывает их в карточке. Права проверяет вызывающий.
+   */
+  async active(executor: Executor, objectId: string): Promise<ActiveRoute[]> {
+    const instances = await executor
+      .select({
+        id: processInstances.id,
+        definitionKey: processInstances.definitionKey,
+        context: processInstances.context,
+        definition: processDefinitions.definition,
+      })
+      .from(processInstances)
+      .innerJoin(processDefinitions, eq(processDefinitions.id, processInstances.definitionId))
+      .where(and(eq(processInstances.objectId, objectId), eq(processInstances.status, 'running')))
+      .orderBy(asc(processInstances.startedAt))
+    if (instances.length === 0) return []
+    const steps = await executor
+      .select()
+      .from(processSteps)
+      .where(
+        and(
+          inArray(
+            processSteps.instanceId,
+            instances.map((row) => row.id),
+          ),
+          eq(processSteps.status, 'active'),
+        ),
+      )
+      .orderBy(asc(processSteps.sequence))
+    const decision = steps.filter((row) => Boolean(DECISIONS_BY_TYPE[row.kind as StepRun['type']]))
+    const pendingOf = (row: (typeof steps)[number]) =>
+      (row.assignees as unknown as StepEntry[])
+        .filter((entry) => entry.state === 'pending')
+        .map((entry) => entry.userId)
+    const refs = await refsOf(decision.flatMap(pendingOf))
+    const now = Date.now()
+    return instances.map((instance) => {
+      const context = readContext(instance.context)
+      const base = ProcessDefinition.parse(instance.definition)
+      const def = applyConditions(base, context.conditions)
+      return {
+        instanceId: instance.id,
+        definitionKey: instance.definitionKey,
+        name: base.name,
+        round: context.round,
+        steps: decision
+          .filter((row) => row.instanceId === instance.id)
+          .map((row) => ({
+            id: row.id,
+            key: row.stepKey,
+            type: row.kind,
+            name: def.steps[row.stepKey]?.name ?? null,
+            dueAt: row.dueAt,
+            overdue: Boolean(row.dueAt) && Date.parse(row.dueAt ?? '') < now,
+            pending: pendingOf(row).map((id) => refs.get(id) ?? missing(id)),
+          })),
+      }
+    })
+  },
+
   async listForObject(ctx: UserCtx, objectId: string): Promise<ProcessInstanceSummary[]> {
     await authorize(ctx, 'view', objectId)
     const rows = await db()

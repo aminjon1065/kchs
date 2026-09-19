@@ -4,6 +4,7 @@ import { and, eq } from 'drizzle-orm'
 import { systemCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { processInstances, processSteps } from '~/shared/db/schema/index.js'
+import { usersWhoCanView } from '../access/explain.js'
 import { recordModuleActivity } from '../activity/service.js'
 import { directory } from '../directory/port.js'
 import type { Subscriber } from '../events/types.js'
@@ -47,6 +48,30 @@ async function initiatorOf(instanceId: string): Promise<string | null> {
   return row?.startedBy ?? null
 }
 
+/**
+ * Получатели, которые объект не видят (руководитель просрочившего при
+ * эскалации, адресат шага `notify`), получают уведомление без содержания:
+ * без названия и ссылки на объект, только кто не ответил (ADR-0083).
+ */
+async function splitByAccess(
+  objectId: string,
+  userIds: string[],
+): Promise<{ visible: string[]; hidden: string[] }> {
+  const unique = [...new Set(userIds)]
+  if (unique.length === 0) return { visible: [], hidden: [] }
+  const visible = new Set(await usersWhoCanView(objectId, unique))
+  return {
+    visible: unique.filter((id) => visible.has(id)),
+    hidden: unique.filter((id) => !visible.has(id)),
+  }
+}
+
+async function namesOf(userIds: string[]): Promise<string> {
+  if (userIds.length === 0) return '—'
+  const refs = await directory().refs(userIds)
+  return userIds.map((id) => refs.get(id)?.displayName ?? '—').join(', ')
+}
+
 async function notify(event: EventEnvelope): Promise<void> {
   if (!event.object) return
   const payload = event.payload as Record<string, unknown>
@@ -64,14 +89,25 @@ async function notify(event: EventEnvelope): Promise<void> {
       const assignees = ids(payload.assignees)
       if (kind === 'notify') {
         const template = typeof payload.template === 'string' ? payload.template : null
+        const { visible, hidden } = await splitByAccess(event.object.id, assignees)
         await NotificationService.notify({
           ...base,
-          userIds: assignees,
+          userIds: visible,
           category: 'object',
           titleKey: template
             ? `processes.templates.${template}`
             : 'notifications.tpl.processNotify',
           aggregateKey: `process:${String(payload.stepId)}`,
+        })
+        await NotificationService.notify({
+          userIds: hidden,
+          actorId: event.actor.userId,
+          objectId: null,
+          url: null,
+          params: {},
+          category: 'object',
+          titleKey: 'notifications.tpl.processNotifyHidden',
+          aggregateKey: `process:${String(payload.stepId)}:hidden`,
         })
         break
       }
@@ -129,14 +165,27 @@ async function notify(event: EventEnvelope): Promise<void> {
         titleKey: 'notifications.tpl.processOverdue',
         aggregateKey: `process:${String(payload.stepId)}:overdue`,
       })
-      await NotificationService.notify({
-        ...base,
-        actorId: null,
-        userIds: ids(payload.escalateTo),
-        category: 'inbox',
-        titleKey: 'notifications.tpl.processEscalation',
-        aggregateKey: `process:${String(payload.stepId)}:escalation`,
-      })
+      {
+        const { visible, hidden } = await splitByAccess(event.object.id, ids(payload.escalateTo))
+        await NotificationService.notify({
+          ...base,
+          actorId: null,
+          userIds: visible,
+          category: 'inbox',
+          titleKey: 'notifications.tpl.processEscalation',
+          aggregateKey: `process:${String(payload.stepId)}:escalation`,
+        })
+        await NotificationService.notify({
+          userIds: hidden,
+          actorId: null,
+          objectId: null,
+          url: null,
+          params: { people: await namesOf(ids(payload.userIds)) },
+          category: 'inbox',
+          titleKey: 'notifications.tpl.processEscalationHidden',
+          aggregateKey: `process:${String(payload.stepId)}:escalation`,
+        })
+      }
       break
     case 'process.step_decided': {
       const titleKey = DECIDED[String(payload.decision)]

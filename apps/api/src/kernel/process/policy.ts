@@ -14,18 +14,21 @@ import type { ObjectLike, TypePolicy } from '../access/types.js'
  *
  * Участник — назначенный шага (кроме получателей уведомлений), заместитель —
  * через замещаемого. `afterStep: 'view'` — право остаётся после шага (лист
- * согласования), `'none'` — только пока шаг идёт.
+ * согласования), `'none'` — только пока шаг идёт. `activeLevel: 'comment'` —
+ * назначенный идущего шага ещё и обсуждает объект (вопрос автору до решения,
+ * ADR-0083); после шага — просмотр.
  */
 export interface ProcessParticipantOptions {
   afterStep?: 'view' | 'none'
+  activeLevel?: 'view' | 'comment'
 }
 
-const REASON: AccessReason = {
+const reasonOf = (level: Level): AccessReason => ({
   kind: 'type_policy',
-  level: 'view',
+  level,
   messageKey: 'access.reason.process_step',
   params: {},
-}
+})
 
 /** Условие «пользователь — назначенный шага» по GIN-индексу `assignees`. */
 function assigneeOf(userIds: readonly string[]): SQL {
@@ -49,10 +52,11 @@ function people(ctx: UserCtx): string[] {
 export function processParticipantPolicy(
   options: ProcessParticipantOptions = {},
 ): Required<Pick<TypePolicy, 'derive' | 'visibleSql' | 'principals'>> {
+  const activeLevel: Level = options.activeLevel ?? 'view'
   return {
     derive: async (ctx, object) => {
-      const [row] = await db()
-        .select({ id: processSteps.id })
+      const rows = await db()
+        .select({ status: processSteps.status })
         .from(processSteps)
         .innerJoin(processInstances, eq(processInstances.id, processSteps.instanceId))
         .where(
@@ -62,8 +66,10 @@ export function processParticipantPolicy(
             assigneeOf(people(ctx)),
           ),
         )
-        .limit(1)
-      return row ? [{ level: 'view' as Level, reason: REASON }] : []
+        .limit(50)
+      if (rows.length === 0) return []
+      const level: Level = rows.some((row) => row.status === 'active') ? activeLevel : 'view'
+      return [{ level, reason: reasonOf(level) }]
     },
     visibleSql: (ctx) =>
       sql`${objects.id} IN (

@@ -1040,12 +1040,15 @@ export const ru = {
       processRegister: 'Зарегистрируйте «{title}»',
       processRevise: 'Доработайте «{title}» и отправьте повторно',
       processNotify: 'Маршрут «{title}»: уведомление',
+      processNotifyHidden: 'Уведомление маршрута по объекту, который вам недоступен',
       processUnassigned:
         'Маршрут «{title}»: у шага нет назначенных — обратитесь к администратору маршрутов',
       processDueSoon: 'Завтра срок: «{title}»',
       processDueToday: 'Сегодня срок: «{title}»',
       processOverdue: 'Просрочено: «{title}»',
       processEscalation: 'Просрочен шаг маршрута «{title}»',
+      processEscalationHidden:
+        'Просрочен шаг маршрута: не ответили {people}. Сам объект вам недоступен',
       processRejected: '{actor} отклонил «{title}»',
       processRemarks: '{actor} дал замечания к «{title}»',
       processRefused: '{actor} отказал в подписи «{title}»',

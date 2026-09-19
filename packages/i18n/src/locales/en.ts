@@ -1021,12 +1021,15 @@ export const en: DeepPartial<Dictionary> = {
       processRegister: 'Please register “{title}”',
       processRevise: 'Revise “{title}” and resubmit',
       processNotify: 'Route of “{title}”: notification',
+      processNotifyHidden: 'Route notification about an object that is not available to you',
       processUnassigned:
         'Route of “{title}”: a step has no assignees — contact the route administrator',
       processDueSoon: 'Due tomorrow: “{title}”',
       processDueToday: 'Due today: “{title}”',
       processOverdue: 'Overdue: “{title}”',
       processEscalation: 'A route step of “{title}” is overdue',
+      processEscalationHidden:
+        'A route step is overdue: no response from {people}. The object itself is not available to you',
       processRejected: '{actor} rejected “{title}”',
       processRemarks: '{actor} left remarks on “{title}”',
       processRefused: '{actor} refused to sign “{title}”',
