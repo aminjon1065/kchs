@@ -22,6 +22,10 @@ export const INBOX_KINDS = [
   'review_edit',
   /** Отчёт по расписанию готов (ADR-0078): ознакомиться, файл — в истории запусков. */
   'report',
+  /** Шаг маршрута `register`: зарегистрировать объект в журнале (ADR-0079). */
+  'register',
+  /** Шаг маршрута `return`: доработать и отправить повторно или отозвать (ADR-0079). */
+  'revise',
 ] as const
 export const InboxKind = z.enum(INBOX_KINDS)
 export type InboxKind = z.infer<typeof InboxKind>
@@ -57,6 +61,8 @@ export const InboxItem = z.object({
         labelKey: z.string(),
         variant: z.enum(['primary', 'secondary', 'danger', 'ghost']).default('secondary'),
         requiresComment: z.boolean().default(false),
+        /** Действие подтверждается кодом второго фактора (`payload.code`), подпись с MFA. */
+        requiresSecondFactor: z.boolean().optional(),
       }),
     )
     .default([]),

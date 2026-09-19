@@ -68,6 +68,8 @@ export const CAPABILITIES = [
   'roles.manage',
   'documents.register',
   'documents.journals.manage',
+  /** Маршруты процессов: определения, публикация, переназначение и отмена (ADR-0079). */
+  'processes.manage',
   'data.sources.manage',
   'data.export',
   'data.sql',
