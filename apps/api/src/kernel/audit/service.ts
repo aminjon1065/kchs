@@ -172,5 +172,6 @@ export const AUDIT_ACTIONS = {
   usersImportCredentialsDownloaded: 'users.import_credentials_downloaded',
   announcementPublished: 'announcement.published',
   announcementWithdrawn: 'announcement.withdrawn',
+  businessCalendarChanged: 'business_calendar.changed',
   spaceAdminAssigned: 'space.admin_assigned',
 } as const

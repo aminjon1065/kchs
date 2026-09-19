@@ -295,6 +295,12 @@ export const EVENT_PAYLOADS = {
 
   // ── admin ─────────────────────────────────────────────────────────────────
   'settings.changed': z.object({ scope: z.string(), key: z.string() }),
+  /** День производственного календаря изменён или удалён (`kind: null`). */
+  'settings.business_calendar_changed': z.object({
+    country: z.string(),
+    day: z.string(),
+    kind: z.string().nullable(),
+  }),
   'acl.changed': z.object({ objectId: Uuid }),
   'role.assigned': z.object({ userId: Uuid, roleKey: z.string() }),
   'announcement.published': z.object({ title: z.string() }),
