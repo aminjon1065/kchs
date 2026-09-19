@@ -74,6 +74,24 @@ async function deliverTaskEvents(taskId: string): Promise<void> {
   }
 }
 
+/** События встречи — подписчику уведомлений календаря, как воркер. */
+async function deliverCalendarEvents(eventId: string): Promise<void> {
+  const { listSubscribers, matchesType } = await import('../src/kernel/events/bus.js')
+  if (!listSubscribers().some((subscriber) => subscriber.name === 'calendar-notifications')) {
+    const { registerCalendarBackground } = await import('../src/modules/calendar/module.js')
+    registerCalendarBackground()
+  }
+  const rows = await db().execute<{ event: { type: string } }>(
+    sql`SELECT event FROM ops.outbox WHERE event->'object'->>'id' = ${eventId} ORDER BY id`,
+  )
+  for (const { event } of rows) {
+    for (const subscriber of listSubscribers()) {
+      if (subscriber.name !== 'calendar-notifications') continue
+      if (matchesType(subscriber.types, event.type)) await subscriber.handle(event as never)
+    }
+  }
+}
+
 async function outboxTypes(userId: string): Promise<string[]> {
   const rows = await db().execute<{ type: string }>(
     sql`SELECT type FROM ops.outbox WHERE event->'payload'->>'userId' = ${userId} ORDER BY id`,
@@ -287,6 +305,72 @@ describe('Telegram: привязка и уведомления', () => {
     // Кнопка закрытого дела больше ничего не делает
     const stale = await press(pressable[0]?.callback_data ?? '')
     expect(stale).toHaveLength(0)
+  })
+
+  it('приглашение на встречу: ответ кнопкой «Да» из Telegram закрывает дело Входящих (ADR-0081)', async () => {
+    const startsAt = new Date(Date.now() + 2 * 86_400_000)
+    startsAt.setUTCHours(5, 0, 0, 0)
+    const created = await call(fx.app, {
+      method: 'POST',
+      url: '/events',
+      as: fx.admin,
+      payload: {
+        title: `Совещание по паводку ${Date.now().toString(36)}`,
+        startsAt: startsAt.toISOString(),
+        endsAt: new Date(startsAt.getTime() + 3_600_000).toISOString(),
+        attendees: [{ userId: fx.users.member.id }],
+      },
+    })
+    expect(created.statusCode, created.body).toBe(200)
+    const eventId = created.json().id as string
+
+    const before = telegram.sent().length
+    await deliverCalendarEvents(eventId)
+    const sent = telegram.sent().slice(before)
+    expect(sent).toHaveLength(1)
+    expect(sent[0]?.chatId).toBe(MEMBER_CHAT)
+    expect(sent[0]?.text).toContain('приглашает: «Совещание по паводку')
+    type Keyboard = { inline_keyboard: Array<Array<{ text: string; callback_data?: string }>> }
+    const buttons = ((sent[0]?.markup as Keyboard | undefined)?.inline_keyboard ?? [])
+      .flat()
+      .filter((button) => button.callback_data)
+    expect(buttons.map((button) => button.text)).toEqual(['Да', 'Возможно', 'Нет'])
+    for (const button of buttons) expect(button.callback_data).toMatch(/^a:[0-9a-f-]{36}:\w+$/)
+
+    // Нажатие: ответы бота и подсказка во всплывающем сообщении
+    const press = async (chatId: number, data: string) => {
+      const count = telegram.calls.length
+      await handleTelegramUpdate(telegramCallback(nextUpdate++, chatId, data) as never)
+      const calls = telegram.calls.slice(count)
+      const popup = calls.find((recorded) => recorded.method === 'answerCallbackQuery')
+      return {
+        popup: (popup?.body as { text?: string } | undefined)?.text ?? null,
+        replies: calls
+          .filter((recorded) => recorded.method === 'sendMessage')
+          .map((recorded) => (recorded.body as { text?: string }).text ?? ''),
+      }
+    }
+
+    // Чужой чат ответить не может
+    const stranger = await press(MEMBER_CHAT + 7, buttons[0]?.callback_data ?? '')
+    expect(stranger.popup).toContain('не подключён')
+
+    const answered = await press(MEMBER_CHAT, buttons[0]?.callback_data ?? '')
+    expect(answered.replies[0]).toContain('Готово')
+    const record = await call(fx.app, { url: `/events/${eventId}`, as: fx.users.member })
+    expect(record.json().myStatus).toBe('accepted')
+    const [item] = await db().execute<{ state: string }>(
+      sql`SELECT state FROM inbox_items
+           WHERE user_id = ${fx.users.member.id} AND dedupe_key = ${`event:${eventId}:invite`}`,
+    )
+    expect(item?.state).toBe('resolved')
+
+    // Повторное нажатие — дело уже закрыто, ответ не меняется
+    const again = await press(MEMBER_CHAT, buttons[2]?.callback_data ?? '')
+    expect(again.popup).toContain('уже закрыто')
+    expect(again.replies).toHaveLength(0)
+    const unchanged = await call(fx.app, { url: `/events/${eventId}`, as: fx.users.member })
+    expect(unchanged.json().myStatus).toBe('accepted')
   })
 
   it('категории вне правил по умолчанию — только после включения в настройках', async () => {
