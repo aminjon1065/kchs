@@ -326,9 +326,9 @@ describe('номенклатура дел, подшивка и архив', () =
     const blocked = await post(registrar, `/documents/${onControl.id}/file`, { caseId: target.id })
     expect(blocked.statusCode).toBe(409)
     const memo = await draft(registrar, 'memo')
-    expect((await post(registrar, `/documents/${memo.id}/file`, { caseId: target.id })).statusCode).toBe(
-      409,
-    )
+    expect(
+      (await post(registrar, `/documents/${memo.id}/file`, { caseId: target.id })).statusCode,
+    ).toBe(409)
 
     const filed = await post(registrar, `/documents/${incoming.id}/file`, { caseId: target.id })
     expect(filed.statusCode, filed.body).toBe(200)
@@ -351,9 +351,9 @@ describe('номенклатура дел, подшивка и архив', () =
     expect(closed.statusCode, closed.body).toBe(200)
     expect(closed.json()).toMatchObject({ status: 'closed', canFile: false })
     const late = await registeredIncoming()
-    expect((await post(registrar, `/documents/${late.id}/file`, { caseId: target.id })).statusCode).toBe(
-      409,
-    )
+    expect(
+      (await post(registrar, `/documents/${late.id}/file`, { caseId: target.id })).statusCode,
+    ).toBe(409)
     // Вернуть в работу и снова закрыть
     expect((await post(registrar, `/cases/${target.id}/reopen`)).json().status).toBe('open')
     expect((await post(registrar, `/cases/${target.id}/close`)).json().status).toBe('closed')
@@ -387,9 +387,9 @@ describe('номенклатура дел, подшивка и архив', () =
       registrar,
       `/search?q=${encodeURIComponent(`паводковой ${run}`)}&statuses=registered`,
     )
-    expect((live.json().hits as Array<{ objectId: string }>).map((hit) => hit.objectId)).not.toContain(
-      incoming.id,
-    )
+    expect(
+      (live.json().hits as Array<{ objectId: string }>).map((hit) => hit.objectId),
+    ).not.toContain(incoming.id)
   })
 
   it('закрытие дел года: закрываются открытые дела, которые ведёт пользователь', async () => {
@@ -418,9 +418,9 @@ describe('номенклатура дел, подшивка и архив', () =
     expect(scanId).not.toBe('')
     for (const item of [old, fresh]) {
       const doc = item === old ? incoming : await registeredIncoming()
-      expect((await post(registrar, `/documents/${doc.id}/file`, { caseId: item.id })).statusCode).toBe(
-        200,
-      )
+      expect(
+        (await post(registrar, `/documents/${doc.id}/file`, { caseId: item.id })).statusCode,
+      ).toBe(200)
       await post(registrar, `/cases/${item.id}/close`)
       await post(registrar, `/cases/${item.id}/archive`)
     }
@@ -488,7 +488,11 @@ describe('номенклатура дел, подшивка и архив', () =
     const busy = await createCase(registrar, { index: `31-${run}` })
     const doc = await registeredIncoming()
     await post(registrar, `/documents/${doc.id}/file`, { caseId: busy.id })
-    const refused = await call(fx.app, { method: 'DELETE', url: `/objects/${busy.id}`, as: fx.admin })
+    const refused = await call(fx.app, {
+      method: 'DELETE',
+      url: `/objects/${busy.id}`,
+      as: fx.admin,
+    })
     expect(refused.statusCode).toBe(409)
   })
 })
@@ -508,7 +512,10 @@ describe('канцелярия и демо-данные', () => {
     expect(office.json().dashboardId).toBe(first.dashboardId)
     const data = await post(fx.admin, `/dashboards/${first.dashboardId}/data`, { filters: {} })
     expect(data.statusCode, data.body).toBe(200)
-    const tiles = data.json().tiles as Record<string, { error: string | null; message: string | null }>
+    const tiles = data.json().tiles as Record<
+      string,
+      { error: string | null; message: string | null }
+    >
     for (const [id, tile] of Object.entries(tiles)) {
       expect({ id, error: tile.error, message: tile.message }).toEqual({
         id,

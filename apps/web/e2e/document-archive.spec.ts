@@ -29,7 +29,9 @@ test.describe('Документы: переписка, дела и архив', 
 
     // Скан письма — настоящий PDF со страницей текста
     const scanPage = await page.context().newPage()
-    await scanPage.setContent(`<h1>Министерство финансов</h1><p>Исх. № 14-${run}</p><p>${subject}</p>`)
+    await scanPage.setContent(
+      `<h1>Министерство финансов</h1><p>Исх. № 14-${run}</p><p>${subject}</p>`,
+    )
     const dir = mkdtempSync(path.join(tmpdir(), 'kchs-e2e-'))
     const scanPath = path.join(dir, `письмо-${run}.pdf`)
     await scanPage.pdf({ path: scanPath, format: 'A4' })
