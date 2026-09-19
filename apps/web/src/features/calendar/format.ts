@@ -53,6 +53,8 @@ export function useCalendarFormat(): CalendarFormat {
     const weekdayShort = fmt({ weekday: 'short' })
     const full = fmt({ weekday: 'long', day: 'numeric', month: 'long' })
     const monthYear = fmt({ month: 'long', year: 'numeric' })
+    // «21–27 сентября 2026 г.», «28 сентября – 4 октября 2026 г.» — короче двух дат
+    const period = fmt({ day: 'numeric', month: 'long', year: 'numeric' })
     const time = (instant: number) => clockText(wallOf(instant, timezone).minute)
     const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)
     const format: CalendarFormat = {
@@ -69,7 +71,9 @@ export function useCalendarFormat(): CalendarFormat {
         if (mode === 'day') return capitalize(full.format(at(anchor)))
         const first = days[0] ?? anchor
         const last = days[days.length - 1] ?? anchor
-        return `${dayMonth.format(at(first))} — ${dayMonthYear.format(at(last))}`
+        return typeof period.formatRange === 'function'
+          ? period.formatRange(at(first), at(last))
+          : `${dayMonth.format(at(first))} — ${dayMonthYear.format(at(last))}`
       },
       when: (input) => {
         if (input.allDay && input.startDate) {
