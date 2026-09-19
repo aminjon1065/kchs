@@ -111,4 +111,16 @@ describe('classify — границы классов', () => {
     expect(classify([null, undefined], 'equal', 5)).toEqual([])
     expect(classify([7, 7, 7], 'jenks', 5)).toEqual([7, 7])
   })
+
+  it('естественные границы при повторах: классов не больше различных значений', () => {
+    // Хороплет районов без объектов: много нулей и классов не меньше, чем значений
+    expect(classify([0, 0, 0, 0, 5], 'jenks', 5)).toEqual([0, 5, 5])
+    expect(classify([0, 0, 0, 0, 0.0123], 'jenks', 9)).toEqual([0, 0.0123, 0.0123])
+    expect(classify([1, 1, 1, 1, 2], 'jenks', 7)).toEqual([1, 2, 2])
+    const values = [0, 0, 0, 0, 0, 1, 1, 2, 3, 3, 3, 8]
+    for (const k of [2, 3, 4, 5, 9]) {
+      const found = classify(values, 'jenks', k)
+      expect(withinVariance(values, found)).toBeCloseTo(bruteForceJenks(values, Math.min(k, 5)), 9)
+    }
+  })
 })

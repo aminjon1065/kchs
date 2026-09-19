@@ -172,10 +172,10 @@ function jenksBreaks(data: Float64Array, k: number): number[] {
   // lower[l][j] — номер (с 1) первого значения последнего из j классов для первых l значений
   const lower = new Int32Array((n + 1) * width)
   const cost = new Float64Array((n + 1) * width).fill(Number.POSITIVE_INFINITY)
-  for (let j = 1; j <= classes; j += 1) {
-    lower[width + j] = 1
-    cost[width + j] = 0
-  }
+  // Одно значение — только один класс: состояния «классов больше, чем значений»
+  // недостижимы (бесконечная цена), иначе при равных значениях путь назад уходил за начало
+  lower[width + 1] = 1
+  cost[width + 1] = 0
   for (let l = 2; l <= n; l += 1) {
     let sum = 0
     let sumSquares = 0
