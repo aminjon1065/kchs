@@ -41,7 +41,7 @@
 | meetings | `meeting.scheduled`, `meeting.started`, `meeting.participant_joined`, `meeting.ended`, `recording.ready`, `transcript.ready`, `protocol.drafted`, `protocol.confirmed`, `protocol.registered`, `call.incoming` |
 | calendar | `event.created`, `event.updated`, `event.cancelled`, `event.invited`, `event.responded`, `event.reminder` |
 | knowledge | `page.published`, `page.updated`, `page.review_due`, `page.ack_required`, `page.acknowledged` |
-| process | `process.started`, `process.step_activated`, `process.step_completed`, `process.step_overdue`, `process.finished` |
+| process | `process.started`, `process.step_activated` (assignees, dueAt), `process.step_decided` (decision, userId — чья очередь; актор — кто нажал, onBehalfOf), `process.step_completed` (outcome), `process.step_assignees_changed` (added, removed, reason: added/delegated/reassigned), `process.step_due_soon` (when: before/due_day), `process.step_overdue` (userIds, escalateTo), `process.finished` (status, outcome), `process.definition_changed` (draft_saved/draft_discarded/published) — ADR-0079 |
 | notifications | `notification.sent`, `inbox.opened`, `inbox.resolved`, `inbox.snoozed` |
 | automation | `rule.triggered`, `rule.executed`, `rule.failed`, `webhook.received`, `webhook.delivered`, `integration.synced`, `integration.failed` |
 | jobs | `job.queued`, `job.started`, `job.progress` (только realtime, не в outbox), `job.finished`, `job.failed` |
@@ -67,5 +67,10 @@
 - `files.public.createFromBuffer/Stream(...)`, `files.public.getSignedUrl(fileId, versionId?)`, `files.public.extractText(fileId)`.
 - `comms.public.postSystemMessage(objectId, template, params)`, `meetings.public.createRoom(...)`.
 - `ai.public.complete(task, input, schema)`, `ai.public.embed(texts)`. Реализовано (ADR-0061): `AiService.complete(ctx, {feature, system, prompt, schema, …}, accept)` — ответ проверяется схемой, `accept` модуля проверяет его по существу, аудит пишет исход целиком.
+- Движок процессов (ядро, `kernel/process`, ADR-0079): `ProcessService.start(tx, ctx, {objectId, definitionKey|definitionId, variables, assignees})` в транзакции модуля, `ProcessService.completeStep(tx, ctx, {stepId, outcome, result})` — шаг `task`/`call` модуля выполнен, `ProcessService.running(tx, objectId)`; `registerProcessObjectProvider({objectType, load, setField?, canStart?, onStepActivated?, onDecision?, onStepCompleted?, onFinished?})`, `registerProcessStepHandler({type: register|task|call, objectType?, action?, execute, cancel?})`, `registerProcessWaitEvent(type)`, `withProcessParticipants(policy, {afterStep})` для политики типа.
+
+HTTP API движка процессов (контракты — `@kchs/process`, ADR-0079):
+- `GET|POST /process-definitions`, `GET /process-definitions/{key}`, `GET /process-definitions/{key}/versions/{version}`, `PUT|DELETE /process-definitions/{key}/draft`, `POST /process-definitions/{key}/publish`, `POST /process-definitions/validate`, `POST /process-definitions/preview` — способность `processes.manage`; ошибки проверки — 400 с `data.issues` (путь, код, сообщение, важность).
+- `POST /processes` — запуск, если поставщик типа объекта разрешает (`canStart`); `GET /processes?objectId=` — маршруты объекта; `GET /processes/{id}` — линия шагов (назначенные с решениями, сроки, просрочка, действия с комментариями и файлами), определение экземпляра, действия смотрящего (`myActions`), `canCancel`; `POST /processes/{id}/cancel`; `POST /processes/{id}/steps/{stepId}/act` (`action`, `comment`, `fileIds`, `code`), `…/assignees` (добавить согласующего), `…/delegate` (передать шаг), `…/reassign` (администратор маршрутов). Маршрут видит тот, кто видит объект; не участнику шага, не видящему объект, — 404.
 
 Правило: публичный API принимает `ctx: UserCtx | SystemCtx`, не «доверяет» вызывающему и сам проверяет права.

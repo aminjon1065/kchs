@@ -58,9 +58,16 @@ subscriptions(user_id, object_id, level text, source text)
 jobs(id uuid, queue text, name text, object_id, initiator_id, status text, progress numeric, message text,
      result jsonb, error jsonb, attempts int, created_at, started_at, finished_at, idempotency_key unique null)
 
-process_definitions(id, key text, version int, object_type text, definition jsonb, published_at, created_by)  unique(key, version)
-process_instances(id, definition_id, object_id, status text, context jsonb, started_by, started_at, finished_at, outcome text)
-process_steps(id, instance_id, step_key, kind text, status text, assignees jsonb, due_at, started_at, completed_at, result jsonb, sequence int)
+process_definitions(id, key text, version int, object_type text, definition jsonb, published_at, created_by, created_at,
+                    updated_by, updated_at)  unique(key, version), unique(key) where published_at is null  -- черновик один
+process_instances(id, definition_id, definition_key text, object_id, status text, context jsonb, started_by, started_at,
+                  finished_at, outcome text, updated_at)  unique(object_id, definition_key) where status = 'running'
+  -- context: variables, chosen (выбор инициатора), conditions (применённые условия запуска), round, seq, reapproval
+process_steps(id, instance_id, step_key, kind text, status text, assignees jsonb, resolved bool, due_at, started_at,
+              completed_at, outcome text, result jsonb, sequence int, round int, parent_id, branch int, prev_id,
+              timers jsonb, next_timer_at, wait_event text, updated_at)
+  idx: (next_timer_at) where active, (wait_event) where active, gin(assignees jsonb_path_ops)
+  -- assignees: [{userId, source, state, decidedAt, actorId, addedBy, delegatedFrom, delegatedTo}] (ADR-0079)
 process_step_actions(id, step_id, actor_id, on_behalf_of, action text, comment, payload jsonb, at)
 
 views(id pk → objects, object_type text, definition jsonb)   -- filters, sort, group, columns, mode
