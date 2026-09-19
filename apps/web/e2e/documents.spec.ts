@@ -105,4 +105,52 @@ test.describe('Документы', () => {
       context.getByRole('button', { name: 'Зарегистрировать', exact: true }),
     ).toHaveCount(0)
   })
+
+  test('консоль: допуск сотрудника к грифам и режим администратора', async ({ page, request }) => {
+    test.setTimeout(90_000)
+    const me = await request.get('/api/v1/me')
+    const headers = { 'x-csrf-token': (await me.json()).session.csrfToken as string }
+    const users = await request.get('/api/v1/users?q=user002')
+    const employee = (
+      (await users.json()).items as Array<{ id: string; login: string; displayName: string }>
+    ).find((user) => user.login === 'user002')
+    expect(employee).toBeTruthy()
+
+    await openWorkspace(page, request)
+    await page.goto('/admin')
+    await page.getByRole('tab', { name: 'Пользователи' }).click()
+    await page.getByPlaceholder('Имя, логин или почта').fill('user002')
+    // Список перерисовывается после поиска — ждём отфильтрованную строку
+    await expect(page.getByRole('row', { name: /user001/ })).toHaveCount(0)
+    const row = page.getByRole('row', { name: /user002/ })
+    await row.getByRole('button', { name: `Действия: ${employee?.displayName}` }).click()
+    await page.getByRole('menuitem', { name: 'Допуск к грифам' }).click()
+    const dialog = page.getByRole('dialog', { name: `Допуск: ${employee?.displayName}` })
+    await dialog.getByRole('combobox', { name: 'Допуск' }).click()
+    await page.getByRole('option', { name: 'Конфиденциально' }).click()
+    await dialog.getByRole('textbox', { name: 'Основание' }).fill('Приказ о допуске № 15')
+    await dialog.getByRole('button', { name: 'Сохранить', exact: true }).click()
+    await expect(page.getByText('Допуск изменён')).toBeVisible()
+    await expect(row.getByText('Конфиденциально', { exact: true })).toBeVisible()
+
+    // Режим администратора: обоснование, полоса в оболочке, выход
+    await page.getByRole('tab', { name: 'Безопасность' }).click()
+    await page.getByRole('button', { name: 'Войти в режим администратора' }).click()
+    const enter = page.getByRole('dialog', { name: 'Войти в режим администратора' })
+    await enter
+      .getByRole('textbox', { name: 'Обоснование' })
+      .fill('Проверка журнала по запросу № 7')
+    await enter.getByRole('button', { name: 'Войти в режим', exact: true }).click()
+    const banner = page.getByRole('status').filter({ hasText: 'Режим администратора до' })
+    await expect(banner).toBeVisible()
+    await banner.getByRole('button', { name: 'Выйти из режима' }).click()
+    await expect(banner).toHaveCount(0)
+
+    // Допуск — обратно по умолчанию: сценарии не зависят друг от друга
+    const reset = await request.put(`/api/v1/users/${employee?.id}/clearance`, {
+      headers,
+      data: { clearance: 'internal', reason: 'Возврат после проверки e2e' },
+    })
+    expect(reset.ok(), await reset.text()).toBeTruthy()
+  })
 })
