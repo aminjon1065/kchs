@@ -3,11 +3,12 @@
  * пользователь выбирает, что показывать и в каком порядке; пока не выбрал —
  * набор по его роли. «Выданные мной» и «Команда» — поручения на контроле и
  * подчинённые руководителя (ADR-0082; «Команда» не показывается тому, у кого
- * нет подчинённых). «Сегодня», «Показатели» и другие виджеты появятся вместе
- * со своими модулями.
+ * нет подчинённых), «Сегодня» — встречи и сроки дня (ADR-0081). «Показатели» и
+ * другие виджеты появятся вместе со своими модулями.
  */
 export const HOME_WIDGETS = [
   'inbox',
+  'today',
   'tasks',
   'assigned',
   'team',
@@ -23,6 +24,7 @@ export const HOME_WIDGETS_PREFERENCE = 'home.widgets'
 
 const DEFAULT_WIDGETS: HomeWidget[] = [
   'inbox',
+  'today',
   'tasks',
   'assigned',
   'team',
@@ -34,17 +36,20 @@ const DEFAULT_WIDGETS: HomeWidget[] = [
 
 /** Первое совпадение по порядку: у сотрудника с несколькими ролями — самая «рабочая». */
 const ROLE_PRESETS: ReadonlyArray<{ roles: readonly string[]; widgets: HomeWidget[] }> = [
-  // Делопроизводитель: Входящие, поручения и выданные на контроль (журнал — с документами)
-  { roles: ['registrar'], widgets: ['inbox', 'tasks', 'assigned', 'announcements', 'recent'] },
+  // Делопроизводитель: Входящие, «Сегодня», поручения и выданные на контроль
+  {
+    roles: ['registrar'],
+    widgets: ['inbox', 'today', 'tasks', 'assigned', 'announcements', 'recent'],
+  },
   // Аналитик: продолжить работу и закреплённые представления (свежесть данных — фаза 1)
   {
     roles: ['data_steward', 'gis_admin'],
-    widgets: ['continue', 'pinned', 'tasks', 'recent', 'announcements', 'inbox'],
+    widgets: ['continue', 'pinned', 'today', 'tasks', 'recent', 'announcements', 'inbox'],
   },
   // Администраторы: объявления, которые они же публикуют, и Входящие
   {
     roles: ['system_admin', 'org_admin', 'security_auditor'],
-    widgets: ['announcements', 'inbox', 'tasks', 'recent', 'continue'],
+    widgets: ['announcements', 'inbox', 'today', 'tasks', 'recent', 'continue'],
   },
 ]
 
