@@ -66,7 +66,7 @@ test.describe('GIS: карта-студия', () => {
     const add = page.getByRole('dialog', { name: 'Добавить слой на карту' })
     await add.getByLabel('Найти датасет').fill(datasetName)
     await add.getByRole('button', { name: datasetName }).click()
-    await expect(add.getByText(`Новый слой «${datasetName}» со стилем по умолчанию`)).toBeVisible()
+    await expect(add.getByText(`Новый слой «${datasetName}»`)).toBeVisible()
     const tile = page.waitForResponse(
       (response) =>
         /\/gis\/layers\/[^/]+\/tiles\//.test(response.url()) && response.status() === 200,

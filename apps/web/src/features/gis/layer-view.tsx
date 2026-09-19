@@ -1,4 +1,4 @@
-import type { Bbox, MapCamera } from '@kchs/contracts'
+import type { Bbox, LayerStyle, MapCamera } from '@kchs/contracts'
 import { formatNumber } from '@kchs/fields'
 import {
   AlertDialog,
@@ -21,7 +21,7 @@ import {
   useToast,
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Map as MapIcon, Scan, Share2, Table2, Trash2 } from 'lucide-react'
+import { Map as MapIcon, Palette, Scan, Share2, Table2, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
@@ -34,6 +34,7 @@ import { registerPmtilesProtocol, useBasemapStyle } from './basemaps.js'
 import { FeatureCard } from './feature-card.js'
 import { layerSourceId, useRenderedLayers } from './layer-render.js'
 import { gisKeys, layerQuery } from './queries.js'
+import { LayerStylePanel } from './style-editor/style-editor.js'
 
 /** Вид по умолчанию до загрузки экстента — Таджикистан (как у новой карты). */
 const DEFAULT_CAMERA: MapCamera = { center: [69, 38.6], zoom: 6, bearing: 0, pitch: 0 }
@@ -67,10 +68,16 @@ export function LayerView({
   const [picked, setPicked] = useState<{ rowId: string; point: [number, number] } | null>(null)
   const [shareOpen, setShareOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  // Редактор стиля: рабочая копия рисуется вместо сохранённого стиля (ADR-0075)
+  const [styleOpen, setStyleOpen] = useState(false)
+  const [draft, setDraft] = useState<LayerStyle | null>(null)
 
   const { data: object } = useQuery(objectQuery(objectId))
   const { data: layer, isLoading, error } = useQuery(layerQuery(objectId))
-  const rendered = useRenderedLayers(layer ? [{ layer, visible: true, opacity: 1 }] : [], theme)
+  const rendered = useRenderedLayers(
+    layer ? [{ layer, visible: true, opacity: 1, style: draft }] : [],
+    theme,
+  )
   const basemap = useBasemapStyle(null, theme?.mode ?? 'light')
 
   useEffect(() => {
@@ -188,6 +195,16 @@ export function LayerView({
           <>
             <PresenceAvatars objectId={objectId} />
             <Button
+              variant={styleOpen ? 'subtle' : 'secondary'}
+              size="sm"
+              icon={<Palette className="size-3.5" />}
+              aria-pressed={styleOpen}
+              disabled={!layer.dataAccess}
+              onClick={() => setStyleOpen((open) => !open)}
+            >
+              {t('gis.map.style')}
+            </Button>
+            <Button
               variant="secondary"
               size="sm"
               icon={<MapIcon className="size-3.5" />}
@@ -219,7 +236,13 @@ export function LayerView({
         }
       />
       {layer.dataAccess ? (
-        <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[280px_minmax(0,1fr)]">
+        <div
+          className={
+            styleOpen
+              ? 'grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[280px_minmax(0,1fr)] lg:grid-cols-[280px_minmax(0,1fr)_340px]'
+              : 'grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[280px_minmax(0,1fr)]'
+          }
+        >
           <aside className="hidden min-h-0 flex-col gap-3 overflow-y-auto border-r border-line bg-surface-2 p-3 md:flex">
             {legend?.show ? (
               <div className="rounded-md border border-line bg-surface p-3">
@@ -302,13 +325,24 @@ export function LayerView({
               >
                 <FeatureCard
                   key={picked.rowId}
-                  layer={layer}
+                  layer={draft ? { ...layer, style: draft } : layer}
                   rowId={picked.rowId}
                   onClose={() => setPicked(null)}
                 />
               </div>
             ) : null}
           </MapCanvas>
+          {styleOpen ? (
+            <aside className="hidden min-h-0 flex-col border-l border-line lg:flex">
+              <LayerStylePanel
+                layer={layer}
+                draft={draft}
+                onDraft={setDraft}
+                warnings={warnings}
+                onClose={() => setStyleOpen(false)}
+              />
+            </aside>
+          ) : null}
         </div>
       ) : (
         <NoAccessState />

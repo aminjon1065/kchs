@@ -1,4 +1,4 @@
-import type { Bbox, FilterNode, LayerRecord, MapCamera, MapSpec } from '@kchs/contracts'
+import type { Bbox, FilterNode, LayerRecord, LayerStyle, MapCamera, MapSpec } from '@kchs/contracts'
 import {
   AlertDialog,
   Button,
@@ -117,6 +117,7 @@ export function MapStudio({
   const [panel, setPanel] = useState<StudioContextValue['panel']>(null)
   const [attributesOpen, setAttributesOpen] = useState(false)
   const [layerFilters, setLayerFilters] = useState<Record<string, FilterNode>>({})
+  const [styleDrafts, setStyleDrafts] = useState<Record<string, LayerStyle>>({})
   const [instance, setInstance] = useState<MapInstance | null>(null)
   const [adding, setAdding] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
@@ -148,7 +149,16 @@ export function MapStudio({
     }
   })
   const entries: RenderEntry[] = panelLayers.flatMap(({ entry, layer }) =>
-    layer ? [{ layer, visible: entry.visible, opacity: entry.opacity }] : [],
+    layer
+      ? [
+          {
+            layer,
+            visible: entry.visible,
+            opacity: entry.opacity,
+            style: styleDrafts[layer.id] ?? null,
+          },
+        ]
+      : [],
   )
   const time = current?.time ? `${current.time.from}/${current.time.to}` : null
   const rendered = useRenderedLayers(entries, theme, { filters: layerFilters, time })
@@ -259,7 +269,11 @@ export function MapStudio({
     )
     if (bbox) setFit({ bbox, key: Date.now() })
   }
-  const pickedLayer = picked ? layerById.get(picked.layerId) : undefined
+  const pickedSaved = picked ? layerById.get(picked.layerId) : undefined
+  // Карточка — по рабочей копии стиля, если его сейчас правят (настройка карточки)
+  const pickedDraft = pickedSaved ? styleDrafts[pickedSaved.id] : undefined
+  const pickedLayer =
+    pickedSaved && pickedDraft ? { ...pickedSaved, style: pickedDraft } : pickedSaved
 
   const studio: StudioContextValue = {
     mapId: objectId,
@@ -288,6 +302,16 @@ export function MapStudio({
       setLayerFilters((previous) => {
         const next = { ...previous }
         if (filter) next[layerId] = filter
+        else delete next[layerId]
+        return next
+      }),
+    legends: rendered.legends,
+    warnings: rendered.warnings,
+    styleDrafts,
+    setStyleDraft: (layerId, style) =>
+      setStyleDrafts((previous) => {
+        const next = { ...previous }
+        if (style) next[layerId] = style
         else delete next[layerId]
         return next
       }),

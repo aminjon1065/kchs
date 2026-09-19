@@ -36,6 +36,16 @@ export {
 } from './maps/map-canvas.js'
 export { MAP_ICONS, renderMapIcon } from './maps/map-icons.js'
 export { MapLegend, type MapLegendProps } from './maps/map-legend.js'
+export {
+  MapColorPicker,
+  type MapColorPickerProps,
+  MapIconPicker,
+  type MapIconPickerProps,
+  MapPalettePicker,
+  type MapPalettePickerProps,
+  PaletteRamp,
+  useMapColorLabel,
+} from './maps/map-style-controls.js'
 export { readMapTheme, useMapTheme } from './maps/map-theme.js'
 export * from './primitives/button.js'
 export * from './primitives/controls.js'

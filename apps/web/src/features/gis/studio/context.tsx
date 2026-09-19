@@ -1,4 +1,5 @@
-import type { Bbox, FilterNode, LayerRecord, MapCamera, MapSpec } from '@kchs/contracts'
+import type { Bbox, FilterNode, LayerRecord, LayerStyle, MapCamera, MapSpec } from '@kchs/contracts'
+import type { LegendModel, StyleWarning } from '@kchs/map-style'
 import type { MapInstance } from '@kchs/ui'
 import { createContext, useContext } from 'react'
 import type { PanelLayer } from '../layer-panel.js'
@@ -46,6 +47,15 @@ export interface StudioContextValue {
    */
   layerFilters: Readonly<Record<string, FilterNode>>
   setLayerFilter: (layerId: string, filter: FilterNode | null) => void
+  /** Легенды и замечания компилятора стилей по слоям — как нарисовано сейчас. */
+  legends: ReadonlyMap<string, LegendModel>
+  warnings: ReadonlyMap<string, readonly StyleWarning[]>
+  /**
+   * Рабочие копии стилей из редактора стиля (ADR-0075): рисуются вместо
+   * сохранённых, в карту не сохраняются; стиль сохраняет слой.
+   */
+  styleDrafts: Readonly<Record<string, LayerStyle>>
+  setStyleDraft: (layerId: string, style: LayerStyle | null) => void
 }
 
 const StudioContext = createContext<StudioContextValue | null>(null)

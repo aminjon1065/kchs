@@ -2,13 +2,13 @@ import type {
   DatasetRecord,
   FilterNode,
   LayerRecord,
+  LayerStats,
   LayerStyle,
+  LayerTilePreview,
   Locale,
-  QueryResult,
 } from '@kchs/contracts'
 import {
   type CompiledLayerStyle,
-  classify,
   compileLayerStyle,
   type FieldDomain,
   type LegendModel,
@@ -21,17 +21,28 @@ import type {
   MapLayerSpecification as LayerSpecification,
   MapSourceSpecification as SourceSpecification,
 } from '@kchs/ui'
-import { useQueries } from '@tanstack/react-query'
+import { queryOptions, useQueries, useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { http } from '~/shared/api/client.js'
 import { datasetQuery } from '../data/queries.js'
+import {
+  base64urlJson,
+  type StatsRequest,
+  statsRequests,
+  tilePreviewOf,
+} from './style-editor/model.js'
 
 /** Слой карты к отрисовке: запись слоя, видимость и прозрачность на этой карте. */
 export interface RenderEntry {
   layer: LayerRecord
   visible: boolean
   opacity: number
+  /**
+   * Рабочая копия стиля из редактора (ADR-0075): рисуется вместо сохранённого,
+   * тайлы — с предпросмотром `p`, если она меняет поля, фильтр или кластеры.
+   */
+  style?: LayerStyle | null
 }
 
 export interface RenderedLayers {
@@ -47,8 +58,6 @@ export interface RenderedLayers {
   sourceOf: (layerId: string) => string
 }
 
-/** Выборка значений для классов и диапазонов: крупные слои — первые строки. */
-const SAMPLE_ROWS = 5000
 /** Слои, объекты которых выбираются щелчком (кластер — приближение к нему). */
 const CLICKABLE = new Set(['fill', 'line', 'point', 'cluster'])
 /** Тайлы крупнее не запрашиваются — дальше MapLibre растягивает z16. */
@@ -56,83 +65,63 @@ const TILE_MAX_ZOOM = 16
 
 export const layerSourceId = (layerId: string) => `layer-${layerId}`
 
-/** Числовые поля стиля, которым нужны границы классов или диапазон значений. */
-function statsFields(style: LayerStyle): { breaks: string[] | null; domains: string[] } {
-  const renderer = style.renderer
-  const domains = new Set<string>()
-  let breaks: string[] | null = null
-  if (renderer.kind === 'graduated' && renderer.method !== 'manual') {
-    breaks = renderer.normalizeBy ? [renderer.field, renderer.normalizeBy] : [renderer.field]
+/**
+ * Статистика поля слоя с сервера (ADR-0075): агрегаты по всем строкам слоя с
+ * политиками смотрящего; ключ — версия данных и запрос (поле, метод, фильтр).
+ */
+export const layerStatsQuery = (layer: LayerRecord, request: StatsRequest) =>
+  queryOptions({
+    queryKey: ['layer', layer.id, 'stats', layer.datasetVersion, request] as const,
+    queryFn: () => http.post<LayerStats>(`/gis/layers/${layer.id}/stats`, request),
+    staleTime: 5 * 60_000,
+    retry: false,
+    // Смена метода или числа классов — прежние границы того же поля, пока не пришли
+    // новые: легенда не мигает «классы появятся»; другое поле или слой — без них
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[1] === layer.id &&
+      (previousQuery.queryKey[4] as StatsRequest | undefined)?.field === request.field
+        ? previous
+        : undefined,
+  })
+
+/** Статистика поля слоя для формы стиля; без запроса (ручные границы) — не запрашивается. */
+export function useLayerFieldStats(layer: LayerRecord, request: StatsRequest | null) {
+  const fallback: StatsRequest = {
+    field: '',
+    normalizeBy: null,
+    method: null,
+    classes: 5,
+    filter: null,
   }
-  if (renderer.kind === 'proportional') domains.add(renderer.field)
-  if (renderer.kind === 'heatmap' && renderer.weightField) domains.add(renderer.weightField)
-  if (style.geometry === 'point' && style.point.sizeBy) domains.add(style.point.sizeBy.field)
-  return { breaks, domains: [...domains] }
+  return useQuery({ ...layerStatsQuery(layer, request ?? fallback), enabled: request !== null })
 }
 
-interface LayerStats {
+interface LayerStatsView {
   breaks: number[] | null
   domains: Record<string, FieldDomain>
 }
 
-/** Границы классов и диапазоны по выборке строк слоя — с политиками смотрящего. */
-async function loadStats(layer: LayerRecord): Promise<LayerStats> {
-  const need = statsFields(layer.style)
-  const fields = [...new Set([...(need.breaks ?? []), ...need.domains])]
-  if (fields.length === 0) return { breaks: null, domains: {} }
-  const steps: unknown[] = []
-  if (layer.style.filter) steps.push({ type: 'filter', where: layer.style.filter })
-  steps.push({ type: 'select', fields }, { type: 'limit', limit: SAMPLE_ROWS })
-  const result = await http.post<QueryResult>('/queries/run', {
-    spec: { version: 1, source: { kind: 'dataset', id: layer.datasetId }, steps },
-  })
-  const column = (key: string) => {
-    const index = result.fields.findIndex((field) => field.name === key)
-    return result.rows.map((row) => {
-      const value = row[index]
-      return typeof value === 'number' ? value : value === null ? null : Number(value)
-    })
-  }
-  const domains: Record<string, FieldDomain> = {}
-  for (const key of need.domains) {
-    const values = column(key).filter((value): value is number => Number.isFinite(value))
-    if (values.length === 0) continue
-    domains[key] = {
-      min: Math.min(...values),
-      max: Math.max(...values),
-      nulls: column(key).length - values.length,
-    }
-  }
-  let breaks: number[] | null = null
-  const renderer = layer.style.renderer
-  if (need.breaks && renderer.kind === 'graduated') {
-    const values = column(renderer.field)
-    const by = renderer.normalizeBy ? column(renderer.normalizeBy) : null
-    const series = by
-      ? values.map((value, index) => {
-          const divisor = by[index]
-          return value === null || !divisor ? null : value / divisor
-        })
-      : values
-    breaks = classify(series, renderer.method, renderer.classes)
-  }
-  return { breaks, domains }
-}
+const domainOf = (stats: LayerStats): FieldDomain | null =>
+  stats.min === null || stats.max === null
+    ? null
+    : { min: stats.min, max: stats.max, nulls: stats.nulls }
 
-/** Адрес тайлов слоя: версия данных и слоя — в адресе (кэш браузера), фильтр и время — условия. */
+/**
+ * Адрес тайлов слоя: версия данных и слоя — в адресе (кэш браузера), фильтр и
+ * время — условия, предпросмотр — рабочая копия стиля из редактора.
+ */
 export function layerTileUrl(
   layer: LayerRecord,
-  options: { filter?: FilterNode | null; time?: string | null } = {},
+  options: {
+    filter?: FilterNode | null
+    time?: string | null
+    preview?: LayerTilePreview | null
+  } = {},
 ): string {
   const query = new URLSearchParams({ v: String(layer.datasetVersion), lv: String(layer.version) })
-  if (options.filter) {
-    const json = JSON.stringify(options.filter)
-    const bytes = new TextEncoder().encode(json)
-    let binary = ''
-    for (const byte of bytes) binary += String.fromCharCode(byte)
-    query.set('f', btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, ''))
-  }
+  if (options.filter) query.set('f', base64urlJson(options.filter))
   if (options.time) query.set('t', options.time)
+  if (options.preview) query.set('p', base64urlJson(options.preview))
   // Шаблон {z}/{x}/{y} — без кодирования фигурных скобок
   return `${window.location.origin}/api/v1/gis/layers/${layer.id}/tiles/{z}/{x}/{y}.pbf?${query}`
 }
@@ -167,15 +156,8 @@ export function useRenderedLayers(
   const datasets = useQueries({
     queries: drawn.map((entry) => datasetQuery(entry.layer.datasetId)),
   })
-  const stats = useQueries({
-    queries: drawn.map((entry) => ({
-      queryKey: ['layer', entry.layer.id, 'stats', entry.layer.version, entry.layer.datasetVersion],
-      queryFn: () => loadStats(entry.layer),
-      staleTime: 5 * 60_000,
-    })),
-  })
+  const stats = useLayerStats(drawn)
   const datasetVersions = datasets.map((query) => query.dataUpdatedAt).join(',')
-  const statsVersions = stats.map((query) => query.dataUpdatedAt).join(',')
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: результаты запросов — по отметкам обновления
   return useMemo(() => {
@@ -198,12 +180,13 @@ export function useRenderedLayers(
     }
     drawn.forEach((entry, index) => {
       const { layer } = entry
+      const style = entry.style ?? layer.style
       const source = layerSourceId(layer.id)
-      const layerStats = stats[index]?.data
+      const layerStats = stats.views[index]
       let compiled: CompiledLayerStyle
       try {
         compiled = compileLayerStyle(
-          { ...layer.style, opacity: layer.style.opacity * entry.opacity },
+          { ...style, opacity: style.opacity * entry.opacity },
           {
             id: layer.id,
             source,
@@ -226,7 +209,11 @@ export function useRenderedLayers(
       sources[source] = {
         type: 'vector',
         tiles: [
-          layerTileUrl(layer, { filter: options.filters?.[layer.id] ?? null, time: options.time }),
+          layerTileUrl(layer, {
+            filter: options.filters?.[layer.id] ?? null,
+            time: options.time,
+            preview: tilePreviewOf(layer.style, entry.style),
+          }),
         ],
         minzoom: 0,
         maxzoom: TILE_MAX_ZOOM,
@@ -249,13 +236,53 @@ export function useRenderedLayers(
     }
   }, [
     drawn
-      .map((entry) => `${entry.layer.id}:${entry.layer.version}:${entry.visible}:${entry.opacity}`)
+      .map(
+        (entry) =>
+          `${entry.layer.id}:${entry.layer.version}:${entry.visible}:${entry.opacity}:${
+            entry.style ? JSON.stringify(entry.style) : ''
+          }`,
+      )
       .join('|'),
     theme,
     locale,
     datasetVersions,
-    statsVersions,
+    stats.version,
     JSON.stringify(options.filters ?? {}),
     options.time,
   ])
+}
+
+/**
+ * Границы классов и диапазоны полей для стилей слоёв — статистика сервера по
+ * всем строкам каждого слоя (с фильтром рабочей копии стиля). Пока границы не
+ * пришли, компилятор рисует слой одним цветом и пишет в легенде «классы появятся».
+ */
+export function useLayerStats(entries: readonly RenderEntry[]): {
+  views: LayerStatsView[]
+  /** Отметка обновления — зависимость мемоизации у вызывающего. */
+  version: string
+} {
+  const plan = entries.map((entry) => statsRequests(entry.style ?? entry.layer.style))
+  const requests = plan.flatMap((need, index) => {
+    const layer = entries[index]?.layer as LayerRecord
+    return [
+      ...(need.breaks ? [{ index, layer, request: need.breaks, breaks: true }] : []),
+      ...need.domains.map((request) => ({ index, layer, request, breaks: false })),
+    ]
+  })
+  const results = useQueries({
+    queries: requests.map((item) => layerStatsQuery(item.layer, item.request)),
+  })
+  const views: LayerStatsView[] = entries.map(() => ({ breaks: null, domains: {} }))
+  requests.forEach((item, i) => {
+    const data = results[i]?.data
+    const view = views[item.index]
+    if (!data || !view) return
+    const domain = domainOf(data)
+    // Диапазон поля градуированного стиля — для «Нет данных» в легенде
+    if (domain) view.domains[item.request.field] = domain
+    if (item.breaks) view.breaks = data.breaks
+  })
+  // Отметка — сами границы и диапазоны: и новые данные, и прежние на время запроса
+  return { views, version: JSON.stringify(views) }
 }
