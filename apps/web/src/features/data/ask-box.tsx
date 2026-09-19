@@ -7,8 +7,8 @@ import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { aiStatusQuery } from './queries.js'
 
-/** Ошибка «Спросить данные» — по причине из ответа API, понятными словами. */
-function askError(
+/** Ошибка «Спросить данные» — по причине из ответа API, понятными словами (и в ИИ-ячейке тетради). */
+export function askError(
   error: unknown,
   t: ReturnType<typeof useT>,
 ): { title: string; detail: string | null } {

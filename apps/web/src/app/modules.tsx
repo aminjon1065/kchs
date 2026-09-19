@@ -1,3 +1,5 @@
+import { Skeleton } from '@kchs/ui'
+import { lazy, Suspense } from 'react'
 import { AdminScreen } from '~/features/admin/admin-screen.js'
 import { AnalysisView } from '~/features/data/analysis-view.js'
 import { ChartView } from '~/features/data/chart-view.js'
@@ -27,6 +29,9 @@ import { ProjectView } from '~/features/tasks/project-view.js'
 import { TaskView } from '~/features/tasks/task-view.js'
 import { TasksScreen, type TasksScreenState } from '~/features/tasks/tasks-screen.js'
 import { registerObjectView, registerScreen } from './workspace/registry.js'
+
+/** Тетрадь — отдельным чанком: Tiptap, Yjs и клиент совместной правки не в оболочке. */
+const NotebookView = lazy(() => import('~/features/notebooks/notebook-view.js'))
 
 let registered = false
 
@@ -150,6 +155,21 @@ export function registerModules(): void {
   registerObjectView({
     type: 'chart',
     render: (tab) => <ChartView objectId={tab.objectId!} tabId={tab.id} />,
+  })
+  registerObjectView({
+    type: 'notebook',
+    render: (tab) => (
+      <Suspense
+        fallback={
+          <div className="flex flex-col gap-3 p-6">
+            <Skeleton className="h-7 w-72" />
+            <Skeleton className="h-64 w-full" />
+          </div>
+        }
+      >
+        <NotebookView objectId={tab.objectId!} tabId={tab.id} />
+      </Suspense>
+    ),
   })
   registerObjectView({
     type: 'metric',

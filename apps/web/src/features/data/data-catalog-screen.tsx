@@ -13,11 +13,12 @@ import {
   useBreakpoint,
 } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
-import { Gauge, LayoutDashboard, SquareTerminal, Upload } from 'lucide-react'
+import { Gauge, LayoutDashboard, NotebookPen, SquareTerminal, Upload } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
+import { CreateNotebookDialog } from '~/features/notebooks/create-notebook-dialog.js'
 import { meQuery, spacesQuery } from '~/shared/api/queries.js'
 import { emptyCollectionState } from '~/shared/collections/collection-state.js'
 import { SavedViewsMenu } from '~/shared/collections/saved-views-menu.js'
@@ -32,8 +33,8 @@ import { CreateDashboardDialog } from './dashboard-dialogs.js'
 import { ImportWizard } from './import-wizard.js'
 import { MetricEditor } from './metric-editor.js'
 
-/** Типы каталога «Данные»; тетради и отчёты добавятся с их модулями. */
-const TYPES = ['dataset', 'metric', 'chart', 'dashboard']
+/** Типы каталога «Данные»; отчёты добавятся со своим модулем. */
+const TYPES = ['dataset', 'metric', 'chart', 'dashboard', 'notebook']
 
 /**
  * Каталог «Данные» (03-screens.md §4): объекты данных пространства в
@@ -65,6 +66,7 @@ export function DataCatalogScreen({
   const [wizard, setWizard] = useState<{ file: File | null } | null>(null)
   const [creatingDashboard, setCreatingDashboard] = useState(false)
   const [creatingMetric, setCreatingMetric] = useState(false)
+  const [creatingNotebook, setCreatingNotebook] = useState(false)
 
   useEffect(() => {
     if (breakpoint === 'mobile') setCollection((current) => ({ ...current, mode: 'gallery' }))
@@ -178,6 +180,15 @@ export function DataCatalogScreen({
               {t('data.dashboard.create')}
             </Button>
             <Button
+              variant="secondary"
+              size="sm"
+              icon={<NotebookPen className="size-3.5" />}
+              disabled={!effectiveSpaceId}
+              onClick={() => setCreatingNotebook(true)}
+            >
+              {t('data.notebook.create')}
+            </Button>
+            <Button
               variant="primary"
               size="sm"
               icon={<Upload className="size-3.5" />}
@@ -287,6 +298,12 @@ export function DataCatalogScreen({
         <CreateDashboardDialog
           spaceId={effectiveSpaceId}
           onClose={() => setCreatingDashboard(false)}
+        />
+      ) : null}
+      {creatingNotebook && effectiveSpaceId ? (
+        <CreateNotebookDialog
+          spaceId={effectiveSpaceId}
+          onClose={() => setCreatingNotebook(false)}
         />
       ) : null}
       {wizard && effectiveSpaceId ? (
