@@ -382,8 +382,16 @@ export const EVENT_PAYLOADS = {
   'document.created': z.object({ typeKey: z.string(), direction: z.string(), status: z.string() }),
   /** Реквизиты или поля карточки изменены: changed — ключи реквизитов и `fields.<key>`. */
   'document.updated': z.object({ changed: z.array(z.string()) }),
-  /** Переход жизненного цикла (08-documents.md §3); cause — доменное действие. */
-  'document.status_changed': z.object({ from: z.string(), to: z.string(), cause: z.string() }),
+  /**
+   * Переход жизненного цикла (08-documents.md §3); cause — доменное действие,
+   * source — экземпляр процесса или резолюция, вызвавшие переход (вторая волна).
+   */
+  'document.status_changed': z.object({
+    from: z.string(),
+    to: z.string(),
+    cause: z.string(),
+    source: z.object({ kind: z.string(), id: z.string() }).optional(),
+  }),
   'document.registered': z.object({
     number: z.string(),
     journalId: Uuid,
