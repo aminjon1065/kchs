@@ -140,7 +140,13 @@ beforeAll(async () => {
 describe('справочники стартового набора', () => {
   it('журналы и типы — идемпотентно; типы видит каждый, журналы — делопроизводители', async () => {
     const again = await DocumentsSeed.ensureStarterSet(systemCtx('test'), { demo: true })
-    expect(again).toEqual({ journals: 0, types: 0, correspondents: 0, routes: 0 })
+    expect(again).toEqual({
+      journals: 0,
+      types: 0,
+      routes: 0,
+      templates: 0,
+      correspondents: 0,
+    })
     expect(types.size).toBe(11)
 
     const employeeTypes = await call(fx.app, { url: '/document-types', as: fx.users.member })

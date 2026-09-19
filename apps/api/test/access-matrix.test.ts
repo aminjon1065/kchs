@@ -33,6 +33,7 @@ const {
   correspondents,
   documentTypes,
   journals,
+  templates,
   territories,
   territoryClosure,
   views,
@@ -733,6 +734,31 @@ const FIXTURES: Record<string, TypeFixture> = {
         method: 'POST',
         url: `/journals/${id}/reservations`,
         payload: { count: 1, note: 'резерв читателя' },
+      },
+    ],
+  },
+
+  // Шаблон документа (ADR-0085) — справочник, как тип документа
+  template: {
+    create: async (fx, title) => {
+      const id = await db().transaction(async (tx) => {
+        const object = await ObjectService.create(
+          tx,
+          systemCtx('test', { initiatorId: fx.admin.id }),
+          { type: 'template', spaceId: fx.spaceId, title, meta: {} },
+        )
+        await tx.insert(templates).values({ id: object.id, name: title })
+        return object.id
+      })
+      return { id, title }
+    },
+    readPaths: ['/document-templates/:id'],
+    viewerForbidden: (_fx, id) => [
+      { method: 'PATCH', url: `/document-templates/${id}`, payload: { name: 'правка читателя' } },
+      {
+        method: 'POST',
+        url: `/document-templates/${id}/file`,
+        payload: { fileId: '01900000-0000-7000-8000-000000000000' },
       },
     ],
   },
