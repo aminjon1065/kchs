@@ -91,10 +91,17 @@ export const InboxService = {
     await publishEvent(tx, ctx, {
       type: 'inbox.opened',
       object: input.objectId ? { id: input.objectId, type: 'object' } : null,
-      payload: { userId: input.userId, kind: input.kind, itemId: id },
+      payload: {
+        userId: input.userId,
+        kind: input.kind,
+        itemId: id,
+        ...(deputies.length > 0 ? { alsoFor: deputies } : {}),
+      },
     })
 
-    await invalidateCounts([input.userId, ...deputies])
+    // Пересчёт — после коммита (подписчик kernel-inbox-counts): в транзакции нового дела
+    // ещё не видно другим соединениям, пересчёт здесь закешировал бы прежнее число
+    await dropCounts([input.userId, ...deputies])
     return id
   },
 
@@ -149,7 +156,8 @@ export const InboxService = {
         payload: { userId: item.userId, itemId: item.id, outcome },
       })
     }
-    if (affected.length > 0) await invalidateCounts(affected.map((a) => a.userId))
+    // Пересчёт — после коммита, по событиям inbox.resolved (подписчик kernel-inbox-counts)
+    if (affected.length > 0) await dropCounts(affected.map((a) => a.userId))
     return affected.length
   },
 
@@ -448,7 +456,14 @@ async function activeDeputies(tx: Executor, userId: string, kind: InboxKind): Pr
   return rows.map((r) => r.toUserId)
 }
 
-async function invalidateCounts(userIds: string[]): Promise<void> {
+/** Сбросить кэш счётчиков без пересчёта — внутри транзакции, до коммита. */
+async function dropCounts(userIds: string[]): Promise<void> {
+  const keys = [...new Set(userIds)].map((userId) => cacheKeys.inboxCounts(userId))
+  if (keys.length > 0) await redis().del(...keys)
+}
+
+/** Пересчитать счётчики и отправить в realtime — вне транзакции или после коммита. */
+export async function invalidateCounts(userIds: string[]): Promise<void> {
   for (const userId of [...new Set(userIds)]) {
     await redis().del(cacheKeys.inboxCounts(userId))
     const counts = await InboxService.counts(userId)

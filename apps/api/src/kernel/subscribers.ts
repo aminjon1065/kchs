@@ -8,6 +8,7 @@ import { invalidatePrincipalSet } from './access/principal-set.js'
 import { activitySubscriber } from './activity/service.js'
 import { COLLAB_CHANNEL, collabType } from './collab/registry.js'
 import { registerSubscriber } from './events/bus.js'
+import { invalidateCounts } from './inbox/service.js'
 import { JobService } from './jobs/service.js'
 import { NotificationService } from './notifications/service.js'
 import { objectType } from './objects/registry.js'
@@ -159,6 +160,19 @@ export function registerKernelSubscribers(): void {
     handle: async (event) => {
       if (!event.object || !collabType(event.object.type)) return
       await redis().publish(COLLAB_CHANNEL, JSON.stringify({ objectId: event.object.id }))
+    },
+  })
+
+  // Счётчики Входящих — после коммита: в транзакции открытия и закрытия дела его ещё
+  // не видно другим соединениям
+  registerSubscriber({
+    name: 'kernel-inbox-counts',
+    types: ['inbox.opened', 'inbox.resolved'],
+    handle: async (event) => {
+      const alsoFor = Array.isArray(event.payload.alsoFor)
+        ? (event.payload.alsoFor as string[])
+        : []
+      await invalidateCounts([event.payload.userId as string, ...alsoFor])
     },
   })
 

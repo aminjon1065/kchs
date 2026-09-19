@@ -92,7 +92,13 @@ export const EVENT_PAYLOADS = {
     category: z.string(),
     channels: z.array(z.string()),
   }),
-  'inbox.opened': z.object({ userId: Uuid, kind: z.string(), itemId: Uuid }),
+  /** `alsoFor` — заместители, получившие копию дела. */
+  'inbox.opened': z.object({
+    userId: Uuid,
+    kind: z.string(),
+    itemId: Uuid,
+    alsoFor: z.array(Uuid).optional(),
+  }),
   'inbox.resolved': z.object({ userId: Uuid, itemId: Uuid, outcome: z.string() }),
   'inbox.snoozed': z.object({ userId: Uuid, itemId: Uuid, until: z.string() }),
 

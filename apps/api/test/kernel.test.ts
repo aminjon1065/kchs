@@ -284,6 +284,44 @@ describe('Входящие и уведомления', () => {
     expect(counts.json().total).toBe(0)
   })
 
+  it('счётчик Входящих видит новое дело: пересчёт после коммита, а не в транзакции', async () => {
+    const { InboxService } = await import('../src/kernel/inbox/service.js')
+    const { systemCtx } = await import('../src/shared/context.js')
+    const { listSubscribers } = await import('../src/kernel/events/bus.js')
+    // Подписчики ядра регистрирует композиционный корень, а не приложение тестов
+    if (listSubscribers().length === 0) {
+      const { registerKernelSubscribers } = await import('../src/kernel/subscribers.js')
+      registerKernelSubscribers()
+    }
+    // Счётчик уже в кэше — как у открытого клиента
+    const before = (await call(fx.app, { url: '/inbox/counts', as: fx.users.viewer })).json()
+      .total as number
+    const itemId = await db().transaction((tx) =>
+      InboxService.open(tx, systemCtx('test'), {
+        userId: fx.users.viewer.id,
+        kind: 'acknowledge',
+        titleKey: 'notifications.tpl.inboxAssigned',
+        dedupeKey: `counts-after-commit:${Date.now()}`,
+      }),
+    )
+    // Прежде пересчёт внутри транзакции кешировал число без нового дела на минуту
+    const after = await call(fx.app, { url: '/inbox/counts', as: fx.users.viewer })
+    expect(after.json().total).toBe(before + 1)
+
+    // Подписчик события после коммита пересчитывает и отправляет верное число
+    const subscriber = listSubscribers().find((item) => item.name === 'kernel-inbox-counts')
+    expect(subscriber).toBeTruthy()
+    await redis().del(`kchs:inbox:counts:${fx.users.viewer.id}`)
+    await subscriber?.handle({
+      type: 'inbox.opened',
+      payload: { userId: fx.users.viewer.id, kind: 'acknowledge', itemId },
+    } as never)
+    const cached = JSON.parse(
+      (await redis().get(`kchs:inbox:counts:${fx.users.viewer.id}`)) ?? '{}',
+    )
+    expect(cached.total).toBe(before + 1)
+  })
+
   it('центр уведомлений отвечает', async () => {
     const response = await call(fx.app, { url: '/notifications', as: fx.users.member })
     expect(response.statusCode).toBe(200)
