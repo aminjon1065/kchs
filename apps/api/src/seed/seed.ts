@@ -9,6 +9,7 @@ import { FileService } from '~/modules/files/domain/file-service.js'
 import { BasemapService, type TerritoryInput, TerritoryService } from '~/modules/gis/public.js'
 import { OrgService, UserService } from '~/modules/identity/public.js'
 import { ensureControlMetrics } from '~/modules/tasks/domain/control-metrics.js'
+import { seedDemoInstructions } from '~/modules/tasks/domain/demo-instructions.js'
 import { type SystemCtx, systemCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { orgUnits, positions, spaceMembers, users } from '~/shared/db/schema/index.js'
@@ -311,6 +312,24 @@ export async function runSeed(
   // Показатели контроля исполнения над системным датасетом «Поручения» (ADR-0082)
   const metrics = await db().transaction((tx) => ensureControlMetrics(tx, adminCtx, orgSpaceId))
   log.info({ metrics: metrics.length }, 'показатели контроля поручений заведены')
+
+  // Демо-поручения (ADR-0082): руководитель — сотрудникам своего подразделения, а
+  // если их нет — руководителям вложенных; все состояния контроля исполнения
+  const HEAD_POSITIONS = new Set(['chairman', 'head_dept', 'head_div'])
+  const heads = created.filter((user) => HEAD_POSITIONS.has(user.positionKey))
+  const teams = heads.map((head) => {
+    const direct = created.filter((user) => user.unitCode === head.unitCode && user.id !== head.id)
+    const nested = heads.filter(
+      (user) =>
+        user.id !== head.id &&
+        (head.unitCode === ORG_TREE.code
+          ? !user.unitCode.includes('-')
+          : user.unitCode.startsWith(`${head.unitCode}-`)),
+    )
+    return { headId: head.id, memberIds: (direct.length > 0 ? direct : nested).map((u) => u.id) }
+  })
+  const instructions = await seedDemoInstructions(teams)
+  log.info({ instructions }, 'демо-поручения созданы')
 
   // ── Разделы и демонстрационное содержимое ─────────────────────────────────
   await db().transaction(async (tx) => {

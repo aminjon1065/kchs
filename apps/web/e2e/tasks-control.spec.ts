@@ -163,6 +163,7 @@ test.describe('Поручения: полный режим и контроль �
     expect(report.ok(), await report.text()).toBeTruthy()
     const rows = (await report.json()).rows as Array<{
       unitName: string | null
+      unitPath: string[]
       counts: { overdue: number; dueToday: number; onTrack: number }
     }>
     expect(rows).toHaveLength(1)
@@ -174,9 +175,9 @@ test.describe('Поручения: полный режим и контроль �
     await page.goto('/control')
     const matrix = page.getByRole('table', { name: 'Подразделения × состояния' })
     await expect(matrix).toBeVisible()
-    await expect(
-      matrix.getByRole('rowheader', { name: new RegExp(escapeRegExp(unit)) }),
-    ).toBeVisible()
+    // Строка — подразделение и его путь в оргструктуре
+    const rowName = [unit, (rows[0]?.unitPath ?? []).join(' › ')].filter(Boolean).join(' ')
+    await expect(matrix.getByRole('rowheader', { name: rowName, exact: true })).toBeVisible()
 
     // Число «Просрочено» в строке подразделения — список просроченных поручений
     await matrix
