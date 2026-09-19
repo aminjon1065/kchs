@@ -141,8 +141,18 @@ test.describe('Приёмка фазы 2', () => {
       timeout: 20_000,
     })
     await page.getByRole('button', { name: 'Показать всё' }).click()
-    await page.getByRole('button', { name: 'Сохранить карту' }).click()
-    await expect(page.getByText('Карта сохранена')).toBeVisible()
+    // Карта создана с видом просмотра слоя (охват уже подогнан): если «Показать всё»
+    // вид не сдвинуло, сохранять нечего и кнопки нет — вид проверяется через API ниже
+    const save = page.getByRole('button', { name: 'Сохранить карту' })
+    if (
+      await save.waitFor({ state: 'visible', timeout: 5_000 }).then(
+        () => true,
+        () => false,
+      )
+    ) {
+      await save.click()
+      await expect(page.getByText('Карта сохранена')).toBeVisible()
+    }
     const maps = (await (await request.get('/api/v1/objects?types=map&limit=100')).json())
       .items as Array<{ id: string; title: string }>
     const mapId = maps.find((item) => item.title === name)?.id
