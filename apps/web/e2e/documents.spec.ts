@@ -26,6 +26,20 @@ test.describe('Документы', () => {
     await scanPage.pdf({ path: scanPath, format: 'A4' })
     await scanPage.close()
 
+    // Корреспондент — из демо-сида; на стенде без него (только `kchs init`) — заводится здесь
+    const found = await request.get(`/api/v1/correspondents?q=${encodeURIComponent('Минфин')}`)
+    if (((await found.json()).items ?? []).length === 0) {
+      const me = await request.get('/api/v1/me')
+      const created = await request.post('/api/v1/correspondents', {
+        headers: { 'x-csrf-token': (await me.json()).session.csrfToken as string },
+        data: {
+          name: 'Министерство финансов Республики Таджикистан',
+          details: { shortName: 'Минфин' },
+        },
+      })
+      expect(created.ok(), await created.text()).toBeTruthy()
+    }
+
     await openWorkspace(page, request)
     await page.getByRole('button', { name: 'Документы', exact: true }).click()
     await expect(page.getByRole('tab', { name: /Документы/ })).toBeVisible()

@@ -39,8 +39,9 @@ test.describe('Именованные рабочие пространства', 
     // Одно действие из палитры команд
     await page.keyboard.press('Meta+k')
     await page.getByPlaceholder(/Поиск объектов/).fill(`Рабочее пространство: ${name}`)
-    await page.waitForTimeout(300)
-    await page.keyboard.press('Enter')
+    // Пункт — когда результаты палитры пришли: Enter по таймеру под нагрузкой
+    // выбирал то, что успело загрузиться
+    await page.getByRole('option').filter({ hasText: name }).first().click()
     await expect(page.getByRole('tab', { name: /Файлы/ })).toBeVisible()
 
     // Уборка
