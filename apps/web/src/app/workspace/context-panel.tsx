@@ -70,6 +70,9 @@ export function ContextPanel() {
   const pane = panes.find((p) => p.id === focusedPaneId) ?? panes[0]
   const activeTab = pane?.activeTabId ? tabs[pane.activeTabId] : null
   const objectId = activeTab?.kind === 'object' ? activeTab.objectId : undefined
+  const assistant = activeTab?.objectType
+    ? getObjectView(activeTab.objectType)?.assistantSection
+    : undefined
 
   return (
     <aside
@@ -79,7 +82,7 @@ export function ContextPanel() {
       <div className="flex h-10 shrink-0 items-center gap-0.5 border-b border-line px-1.5">
         {TABS.map((item) => {
           const Icon = item.icon
-          const disabled = item.key === 'assistant'
+          const disabled = item.key === 'assistant' && !assistant
           return (
             <Tooltip key={item.key} content={t(item.labelKey)} delay={250}>
               <button
@@ -128,6 +131,12 @@ export function ContextPanel() {
           <DiscussionTab objectId={objectId} />
         ) : contextTab === 'activity' ? (
           <ActivityTab objectId={objectId} />
+        ) : contextTab === 'assistant' ? (
+          assistant ? (
+            assistant(objectId)
+          ) : (
+            <EmptyState compact icon={<Bot />} title={t('shell.context.assistantUnavailable')} />
+          )
         ) : null}
       </div>
     </aside>

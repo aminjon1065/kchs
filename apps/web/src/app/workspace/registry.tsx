@@ -23,6 +23,12 @@ export interface ObjectViewDefinition {
    * действия шага документа (03-screens.md §12). Рисуется над общими сведениями.
    */
   contextSection?: (objectId: string) => ReactNode
+  /**
+   * Вкладка «Ассистент» контекст-панели (13-search-knowledge-ai.md §5): действия
+   * ИИ над объектом — для документа краткое содержание и черновик ответа
+   * (ADR-0088). Без неё вкладка недоступна.
+   */
+  assistantSection?: (objectId: string) => ReactNode
 }
 
 const screens = new Map<ScreenKey, ScreenDefinition>()

@@ -12,6 +12,7 @@ import { DatasetView } from '~/features/data/dataset-view.js'
 import { ExploreScreen } from '~/features/data/explore-screen.js'
 import { MetricView } from '~/features/data/metric-view.js'
 import { type SavedSqlLab, SqlLabScreen } from '~/features/data/sql-lab-screen.js'
+import { DocumentAssistant } from '~/features/documents/assist/document-assistant.js'
 import { DocumentContextSection, DocumentView } from '~/features/documents/card/document-view.js'
 import { CorrespondentsDirectory } from '~/features/documents/directories/correspondents-directory.js'
 import { JournalsDirectory } from '~/features/documents/directories/journals-directory.js'
@@ -317,6 +318,7 @@ export function registerModules(): void {
       />
     ),
     contextSection: (objectId) => <DocumentContextSection objectId={objectId} />,
+    assistantSection: (objectId) => <DocumentAssistant documentId={objectId} />,
   })
   registerObjectView({
     type: 'journal',
