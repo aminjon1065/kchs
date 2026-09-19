@@ -99,7 +99,10 @@ export function DueInput({
           required={required}
           hint={
             preview && days !== null
-              ? t('tasks.due.preview', { date: formatDate(preview.date, { locale }) })
+              ? // Календарная дата срока: полдень этого дня по местным часам — та же дата в любом поясе
+                t('tasks.due.preview', {
+                  date: formatDate(`${preview.date}T12:00:00`, { locale }),
+                })
               : t('tasks.due.workingDaysHint')
           }
         >

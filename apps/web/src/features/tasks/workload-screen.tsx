@@ -43,6 +43,9 @@ function addDays(day: string, days: number): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
 }
 
+/** Календарный день `ГГГГ-ММ-ДД` — полдень по местным часам: та же дата в любом поясе. */
+const dayOf = (day: string) => `${day}T12:00:00`
+
 /** Насыщенность ячейки по числу дел на неделе: без цвета, обычная, заметная, перегрузка. */
 function loadTone(count: number): string {
   if (count === 0) return 'text-fg-muted'
@@ -109,7 +112,7 @@ export function WorkloadScreen({
 
   const drillLabel = (value: Drill) =>
     value.kind === 'week'
-      ? t('tasks.workload.week', { date: formatDate(value.week, { locale }) })
+      ? t('tasks.workload.week', { date: formatDate(dayOf(value.week), { locale }) })
       : t(`tasks.workload.${value.kind}`)
 
   const cellButton = (person: WorkloadPerson, next: Drill, count: number, tone: string) => (
@@ -213,7 +216,7 @@ export function WorkloadScreen({
                       </th>
                       {data.weeks.map((week) => (
                         <th key={week} scope="col" className="px-2 py-2 text-center font-medium">
-                          {formatDate(week, { locale })}
+                          {formatDate(dayOf(week), { locale })}
                         </th>
                       ))}
                       <th scope="col" className="px-2 py-2 text-center font-medium">

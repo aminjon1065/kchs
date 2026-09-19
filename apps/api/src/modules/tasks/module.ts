@@ -331,6 +331,7 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
       querystring: ControlExportQuery.extend({
         view: z.enum(['matrix', 'list']).default('matrix'),
         bucket: ControlListQuery.shape.bucket,
+        row: ControlListQuery.shape.row,
       }),
     },
     handler: async (request, reply) => {

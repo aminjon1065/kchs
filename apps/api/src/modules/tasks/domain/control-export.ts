@@ -1,5 +1,5 @@
 import type { Writable } from 'node:stream'
-import type { ControlBucket, ControlQuery, Locale } from '@kchs/contracts'
+import type { ControlBucket, ControlListQuery, ControlQuery, Locale } from '@kchs/contracts'
 import { createTranslator } from '@kchs/i18n'
 import { type ExportColumn, writeTable } from '~/modules/data/public.js'
 import type { UserCtx } from '~/shared/context.js'
@@ -8,6 +8,8 @@ import { ControlService } from './control-service.js'
 export interface ControlExportInput extends ControlQuery {
   view: 'matrix' | 'list'
   bucket: ControlBucket
+  /** Строка матрицы списка: подразделение или `none`; без неё — все подразделения. */
+  row?: string | undefined
   format: 'csv' | 'xlsx'
 }
 
@@ -25,7 +27,7 @@ export async function controlExport(
   out: Writable,
 ): Promise<void> {
   const t = createTranslator(ctx.locale as Locale)
-  const { view, bucket, format, ...query } = input
+  const { view, bucket, row, format, ...query } = input
   const options = (columns: ExportColumn[]) => ({
     columns,
     timezone: ctx.timezone,
@@ -57,7 +59,12 @@ export async function controlExport(
     return
   }
 
-  const list = await ControlService.list(ctx, { ...query, bucket, limit: LIST_LIMIT })
+  const list = await ControlService.list(ctx, {
+    ...query,
+    bucket,
+    ...(row ? { row: row as ControlListQuery['row'] } : {}),
+    limit: LIST_LIMIT,
+  })
   const columns: ExportColumn[] = [
     { name: 'key', label: t('tasks.fields.key'), type: 'text' },
     { name: 'title', label: t('tasks.fields.title'), type: 'text' },

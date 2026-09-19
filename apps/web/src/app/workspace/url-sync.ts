@@ -33,6 +33,9 @@ const SCREEN_PATHS: Record<string, ScreenKey> = {
   '/explore': 'explore',
   '/sql': 'sql',
   '/territories': 'territories',
+  // Контроль исполнения и нагрузка (ADR-0082)
+  '/control': 'control',
+  '/workload': 'workload',
 }
 
 export type LocationTarget =

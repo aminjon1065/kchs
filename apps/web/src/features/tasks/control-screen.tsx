@@ -87,6 +87,16 @@ const STATE_BADGE: Record<
   done_late: 'warning',
 }
 
+/** Потоковая выгрузка с сервера: GET с cookie-сессией, файл отдаёт `content-disposition`. */
+function download(url: string): void {
+  const link = document.createElement('a')
+  link.href = url
+  link.download = ''
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+}
+
 const pad = (value: number) => String(value).padStart(2, '0')
 const iso = (date: Date) =>
   `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
@@ -245,7 +255,8 @@ export function ControlScreen({
           ...query,
           format,
           view,
-          ...(view === 'list' ? { bucket: drill.bucket } : {}),
+          // Список — тот, что на экране: состояние и строка матрицы
+          ...(view === 'list' ? { bucket: drill.bucket, row: drill.row ?? undefined } : {}),
         }),
       ).map(([key, value]) => [key, String(value)]),
     )
@@ -299,11 +310,8 @@ export function ControlScreen({
                     ['csv', 'list', 'exportListCsv'],
                   ] as const
                 ).map(([format, view, label]) => (
-                  <DropdownMenuItem key={label} asChild>
-                    {/* Потоковая выгрузка с сервера: cookie-сессия, GET без CSRF */}
-                    <a href={exportUrl(format, view)} download>
-                      {t(`tasks.control.${label}`)}
-                    </a>
+                  <DropdownMenuItem key={label} onSelect={() => download(exportUrl(format, view))}>
+                    {t(`tasks.control.${label}`)}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
@@ -558,7 +566,13 @@ function Matrix({
       </Card>
     )
   }
-  const cell = (row: string | null, bucket: ControlBucket, value: number, total = false) => {
+  const cell = (
+    row: string | null,
+    unit: string,
+    bucket: ControlBucket,
+    value: number,
+    total = false,
+  ) => {
     const active = drill.row === row && drill.bucket === bucket
     return (
       <td key={bucket} className="px-2 py-1 text-right">
@@ -566,6 +580,12 @@ function Matrix({
           <button
             type="button"
             aria-pressed={active}
+            // Число само по себе ничего не говорит: в имени — состояние и подразделение
+            aria-label={t('tasks.control.cellLabel', {
+              bucket: t(`tasks.control.buckets.${bucket}`),
+              unit,
+              count: value,
+            })}
             onClick={() => onSelect(row, bucket)}
             className={cn(
               'tabular rounded-xs px-1.5 py-0.5 text-sm underline-offset-2 hover:underline',
@@ -614,7 +634,13 @@ function Matrix({
                     ) : null}
                   </th>
                   {COLUMNS.map((column) =>
-                    cell(key, column.bucket, row.counts[column.count], column.bucket === 'total'),
+                    cell(
+                      key,
+                      row.unitName ?? t('tasks.control.noUnit'),
+                      column.bucket,
+                      row.counts[column.count],
+                      column.bucket === 'total',
+                    ),
                   )}
                 </tr>
               )
@@ -625,7 +651,15 @@ function Matrix({
               <th scope="row" className="px-3 py-2 text-left font-semibold text-fg">
                 {t('tasks.control.totals')}
               </th>
-              {COLUMNS.map((column) => cell(null, column.bucket, data.totals[column.count], true))}
+              {COLUMNS.map((column) =>
+                cell(
+                  null,
+                  t('tasks.control.listAll'),
+                  column.bucket,
+                  data.totals[column.count],
+                  true,
+                ),
+              )}
             </tr>
           </tfoot>
         </table>

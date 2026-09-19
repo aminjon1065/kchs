@@ -3951,6 +3951,7 @@ export const en: DeepPartial<Dictionary> = {
       noUnit: 'No unit',
       totals: 'Total',
       listTitle: '{bucket}: {unit}',
+      cellLabel: '{bucket}, {unit}: {count}',
       listAll: 'all units',
       listCount: '{count, plural, one {# assignment} other {# assignments}}',
       listEmpty: 'No assignments',

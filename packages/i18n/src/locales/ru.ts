@@ -4003,6 +4003,7 @@ export const ru = {
       noUnit: 'Без подразделения',
       totals: 'Итого',
       listTitle: '{bucket}: {unit}',
+      cellLabel: '{bucket}, {unit}: {count}',
       listAll: 'все подразделения',
       listCount:
         '{count, plural, one {# поручение} few {# поручения} many {# поручений} other {# поручения}}',

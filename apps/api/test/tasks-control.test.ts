@@ -971,6 +971,21 @@ describe('экран «Контроль», нагрузка и «Мой день
     })
     expect(xlsx.statusCode).toBe(200)
     expect(xlsx.headers['content-type']).toContain('spreadsheetml')
+
+    // Список — тот, что на экране: ячейка строки подразделения, а не весь столбец
+    const key = (await call(fx.app, { url: `/tasks/${overdueId}`, as: head })).json().key
+    const row = await call(fx.app, {
+      url: `/tasks/control/export?format=csv&view=list&bucket=overdue&row=${unitDiv}`,
+      as: head,
+    })
+    expect(row.statusCode, row.body).toBe(200)
+    expect(row.body).toContain(key)
+    const otherRow = await call(fx.app, {
+      url: `/tasks/control/export?format=csv&view=list&bucket=overdue&row=${unitOther}`,
+      as: head,
+    })
+    expect(otherRow.statusCode, otherRow.body).toBe(200)
+    expect(otherRow.body).not.toContain(key)
   })
 
   it('показатели контроля — обычные показатели над системным датасетом «Поручения»', async () => {
