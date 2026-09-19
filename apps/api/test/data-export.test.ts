@@ -1,5 +1,8 @@
+import { createServer, type Server } from 'node:http'
+import type { AddressInfo } from 'node:net'
+import { GetObjectCommand, HeadObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
 import { sql } from 'drizzle-orm'
-import { beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   call,
   createUser,
@@ -22,6 +25,8 @@ const { ExportService } = await import('../src/modules/data/domain/export-servic
 const { JobService } = await import('../src/kernel/jobs/service.js')
 const { SpaceService } = await import('../src/kernel/spaces/service.js')
 const { systemCtx } = await import('../src/shared/context.js')
+const { resetConfigCache } = await import('../src/shared/config/env.js')
+const { s3, buckets } = await import('../src/kernel/storage/s3.js')
 
 let fx: TestContext
 let analyst: TestUser
@@ -155,6 +160,8 @@ describe('экспорт с политиками', () => {
     expect(text).not.toContain('Согд')
     expect(text).not.toContain('+99290000')
     expect(text).toContain('***')
+    // Геометрия в CSV — WKT: такой столбец импорт узнаёт снова (ADR-0068)
+    expect(text).toContain('POINT (68.78 37.83)')
 
     const audit = await db().execute<{ details: Record<string, unknown> }>(
       sql`SELECT details FROM audit_log WHERE action = 'dataset.exported' AND object_id = ${datasetId}`,
@@ -267,5 +274,115 @@ describe('права на экспорт', () => {
       SpaceService.addMember(tx, systemCtx('test'), fx.spaceId, analyst.id, 'viewer'),
     )
     await redis().del(`kchs:principals:${analyst.id}`)
+  })
+})
+
+describe('геоэкспорт через движок (ADR-0068)', () => {
+  let engine: Server
+  let received: {
+    bucket: string
+    sourceKey: string
+    targetKey: string
+    format: string
+    layer: string
+    contentType: string
+    fields: Array<{ name: string; label: string; type: string }>
+  } | null = null
+  let features: Array<{ geometry: unknown; properties: Record<string, unknown> }> = []
+  let replyStatus = 200
+  const previousUrl = process.env.ENGINE_INTERNAL_URL
+
+  beforeAll(async () => {
+    // Движок: читает выгрузку воркера и кладёт файл формата по ключу результата
+    engine = createServer((request, response) => {
+      const chunks: Buffer[] = []
+      request.on('data', (chunk: Buffer) => chunks.push(chunk))
+      request.on('end', async () => {
+        const body = JSON.parse(Buffer.concat(chunks).toString('utf8'))
+        received = body
+        const object = await s3().send(
+          new GetObjectCommand({ Bucket: body.bucket, Key: body.sourceKey }),
+        )
+        const text = (await object.Body?.transformToString('utf-8')) ?? ''
+        features = text
+          .trim()
+          .split('\n')
+          .map((line) => JSON.parse(line))
+        if (replyStatus === 200) {
+          await s3().send(
+            new PutObjectCommand({
+              Bucket: body.bucket,
+              Key: body.targetKey,
+              Body: 'SQLite format 3 (файл движка)',
+              ContentType: body.contentType,
+            }),
+          )
+        }
+        response.statusCode = replyStatus
+        response.setHeader('content-type', 'application/json')
+        response.end(
+          JSON.stringify(
+            replyStatus === 200 ? { rows: features.length, size: 40 } : { detail: 'Сбой GDAL' },
+          ),
+        )
+      })
+    })
+    await new Promise<void>((resolve) => engine.listen(0, '127.0.0.1', resolve))
+    process.env.ENGINE_INTERNAL_URL = `http://127.0.0.1:${(engine.address() as AddressInfo).port}`
+    resetConfigCache()
+  })
+
+  afterAll(async () => {
+    process.env.ENGINE_INTERNAL_URL = previousUrl
+    resetConfigCache()
+    await new Promise((resolve) => engine.close(resolve))
+  })
+
+  it('GeoPackage: строки с политиками выгружает воркер, файл собирает движок', async () => {
+    const started = await startExport({ format: 'gpkg' })
+    expect(started.statusCode, started.body).toBe(200)
+    const result = await runJob(started.json().jobId)
+    expect(result).toMatchObject({ format: 'gpkg', rows: 2, size: 40, truncated: false })
+    expect(result.fileName.endsWith('.gpkg')).toBe(true)
+    expect(received).toMatchObject({
+      bucket: buckets.exports(),
+      format: 'gpkg',
+      layer: `Экспорт ${run}`,
+      contentType: 'application/geopackage+sqlite3',
+      targetKey: result.key,
+    })
+    // Скрытого поля нет, геометрия — не свойство
+    expect(received?.fields.map((field) => field.name)).toEqual(['code', 'district', 'phone'])
+    expect(features).toHaveLength(2)
+    expect(features.every((feature) => feature.properties.district === 'Хатлон')).toBe(true)
+    expect(features.map((feature) => feature.geometry)).toContainEqual({
+      type: 'Point',
+      coordinates: [68.78, 37.83],
+    })
+    expect(JSON.stringify(features)).not.toContain('+99290000')
+    // Выгрузка для движка удалена; файл — у запросившего
+    await expect(
+      s3().send(
+        new HeadObjectCommand({ Bucket: buckets.exports(), Key: received?.sourceKey ?? '' }),
+      ),
+    ).rejects.toThrow()
+    const { text } = await download(started.json().jobId)
+    expect(text.startsWith('SQLite format 3')).toBe(true)
+  })
+
+  it('Shapefile — архив zip; без геометрии — 400; ошибка данных движка — без повтора', async () => {
+    const shp = await startExport({ format: 'shp' })
+    const result = await runJob(shp.json().jobId)
+    expect(result.fileName.endsWith('.shp.zip')).toBe(true)
+    expect(received?.contentType).toBe('application/zip')
+
+    expect((await startExport({ format: 'shp', fields: ['code'] })).statusCode).toBe(400)
+    replyStatus = 422
+    const started = await startExport({ format: 'kml' })
+    await expect(runJob(started.json().jobId)).rejects.toMatchObject({
+      name: 'UnrecoverableError',
+      message: 'Сбой GDAL',
+    })
+    replyStatus = 200
   })
 })

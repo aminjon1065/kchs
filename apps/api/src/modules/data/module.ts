@@ -72,6 +72,7 @@ import { DatasetAccess } from './domain/dataset-access.js'
 import { DatasetService } from './domain/dataset-service.js'
 import { EXPORT_JOB, type ExportJobData, ExportService } from './domain/export-service.js'
 import {
+  COMPARE_JOB,
   ImportService,
   LOAD_JOB,
   NORMALIZE_JOB,
@@ -671,9 +672,11 @@ export function registerDataRoutes(route: RouteRegistrar): void {
     url: '/datasets/:id/imports',
     auth: { action: 'view' },
     tags: ['data'],
-    summary: 'Импорты датасета',
+    summary: 'Импорты датасета (сводки изменений — без примеров)',
     schema: { params: IdParam, response: { 200: z.object({ items: z.array(ImportRecord) }) } },
-    handler: async (request) => ({ items: await ImportService.list(request.params.id) }),
+    handler: async (request) => ({
+      items: (await ImportService.list(request.params.id)).map(ImportService.withoutSamples),
+    }),
   })
 
   route({
@@ -713,12 +716,47 @@ export function registerDataRoutes(route: RouteRegistrar): void {
     url: '/datasets/imports/:id',
     auth: 'session',
     tags: ['data'],
-    summary: 'Состояние импорта',
+    summary: 'Состояние импорта; сводка изменений — с политиками пользователя (ADR-0068)',
     schema: { params: IdParam, response: { 200: ImportRecord } },
     handler: async (request) => {
       const record = await ImportService.get(request.params.id)
-      await authorize(request.ctx, 'view', record.datasetId)
-      return record
+      const grant = await DatasetAccess.resolve(request.ctx, record.datasetId, 'view')
+      const canImport = (await authorize(request.ctx, 'import', record.datasetId, { soft: true }))
+        .allowed
+      const { primaryKey } = await DatasetService.storage(record.datasetId)
+      return ImportService.visible(record, grant, canImport, primaryKey)
+    },
+  })
+
+  route({
+    method: 'POST',
+    url: '/datasets/imports/:id/publish',
+    auth: 'session',
+    tags: ['data'],
+    summary: 'Опубликовать импорт после предпросмотра изменений: загрузка в датасет',
+    schema: { params: IdParam, response: { 200: ImportRecord } },
+    handler: async (request) => {
+      const record = await ImportService.get(request.params.id)
+      await authorize(request.ctx, 'import', record.datasetId)
+      return ImportService.withoutSamples(
+        await ImportService.publish(request.ctx, request.params.id),
+      )
+    },
+  })
+
+  route({
+    method: 'POST',
+    url: '/datasets/imports/:id/cancel',
+    auth: 'session',
+    tags: ['data'],
+    summary: 'Отменить импорт после предпросмотра изменений: датасет не меняется',
+    schema: { params: IdParam, response: { 200: ImportRecord } },
+    handler: async (request) => {
+      const record = await ImportService.get(request.params.id)
+      await authorize(request.ctx, 'import', record.datasetId)
+      return ImportService.withoutSamples(
+        await ImportService.cancel(request.ctx, request.params.id),
+      )
     },
   })
 
@@ -924,6 +962,13 @@ export function registerDataBackground(): void {
   })
 
   registerJobHandler({
+    queue: COMPARE_JOB.queue,
+    name: COMPARE_JOB.name,
+    concurrency: 2,
+    handle: async (job, helpers) => ImportService.compare(job.data, helpers.progress),
+  })
+
+  registerJobHandler({
     queue: EXPORT_JOB.queue,
     name: EXPORT_JOB.name,
     concurrency: 2,
@@ -936,9 +981,9 @@ export function registerDataBackground(): void {
     handle: async (event) => {
       const job = await JobService.get(event.payload.jobId as string)
       if (!job) return
-      const isImportJob =
-        (job.queue === NORMALIZE_JOB.queue && job.name === NORMALIZE_JOB.name) ||
-        (job.queue === LOAD_JOB.queue && job.name === LOAD_JOB.name)
+      const isImportJob = [NORMALIZE_JOB, COMPARE_JOB, LOAD_JOB].some(
+        (kind) => job.queue === kind.queue && job.name === kind.name,
+      )
       if (!isImportJob) return
       const payload = (await JobService.payload(job.id)) as { importId?: string } | null
       if (!payload?.importId) return

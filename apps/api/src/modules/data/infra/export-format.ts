@@ -1,6 +1,6 @@
 import { once } from 'node:events'
 import type { Writable } from 'node:stream'
-import type { DatasetExportFormat, FieldType } from '@kchs/contracts'
+import type { DatasetEngineExportFormat, DatasetExportFormat, FieldType } from '@kchs/contracts'
 import { CSV_BOM } from '~/shared/csv.js'
 import { ZipWriter } from './zip.js'
 
@@ -20,9 +20,16 @@ export interface ExportFormatOptions {
   timezone: string
   /** Лист XLSX. */
   sheetName: string
-  /** Поле геометрии для GeoJSON. */
+  /** Поле геометрии для GeoJSON и выгрузки для движка. */
   geometry?: string
 }
+
+/**
+ * Что пишет воркер: форматы экспорта, кроме собираемых движком, и `geojsonseq` —
+ * объекты GeoJSON построчно (RFC 8142), из которых движок собирает GeoPackage,
+ * Shapefile и KML (ADR-0068).
+ */
+export type WrittenFormat = Exclude<DatasetExportFormat, DatasetEngineExportFormat> | 'geojsonseq'
 
 const NUMERIC = new Set<string>(['integer', 'number', 'decimal', 'money', 'percent', 'duration'])
 const EXCEL_EPOCH = Date.UTC(1899, 11, 30)
@@ -109,6 +116,56 @@ function asNumber(value: unknown): number | null {
   return Number.isFinite(number) ? number : null
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+
+function wktPosition(value: unknown): string {
+  const [x, y] = Array.isArray(value) ? value : []
+  return `${Number(x)} ${Number(y)}`
+}
+
+function wktPath(value: unknown): string {
+  return `(${(Array.isArray(value) ? value : []).map(wktPosition).join(', ')})`
+}
+
+function wktRings(value: unknown): string {
+  return `(${(Array.isArray(value) ? value : []).map(wktPath).join(', ')})`
+}
+
+/**
+ * Геометрия GeoJSON (так её отдаёт запрос) → WKT для CSV и XLSX
+ * (07-gis-engine.md §8): такой столбец импорт узнаёт снова.
+ */
+export function geometryWkt(value: unknown): string | null {
+  if (!isRecord(value) || typeof value.type !== 'string') return null
+  const coordinates = Array.isArray(value.coordinates) ? value.coordinates : []
+  const kind = value.type
+  if (kind === 'GeometryCollection') {
+    const members = Array.isArray(value.geometries) ? value.geometries : []
+    const parts = members.map(geometryWkt).filter((part): part is string => part !== null)
+    return parts.length > 0
+      ? `GEOMETRYCOLLECTION (${parts.join(', ')})`
+      : 'GEOMETRYCOLLECTION EMPTY'
+  }
+  const name = kind.toUpperCase()
+  if (coordinates.length === 0) return `${name} EMPTY`
+  switch (kind) {
+    case 'Point':
+      return `POINT (${wktPosition(coordinates)})`
+    case 'MultiPoint':
+      return `MULTIPOINT (${coordinates.map((point) => `(${wktPosition(point)})`).join(', ')})`
+    case 'LineString':
+      return `LINESTRING ${wktPath(coordinates)}`
+    case 'MultiLineString':
+    case 'Polygon':
+      return `${name} ${wktRings(coordinates)}`
+    case 'MultiPolygon':
+      return `MULTIPOLYGON (${coordinates.map(wktRings).join(', ')})`
+    default:
+      return null
+  }
+}
+
 /** Текст значения для CSV и XLSX: списки — через запятую, объекты — JSON. */
 function text(value: unknown): string {
   if (typeof value === 'string') return value
@@ -129,6 +186,7 @@ function csvValue(value: unknown, type: FieldType, timezone: string): string {
     return instant ? localIso(instant, timezone) : text(value)
   }
   if (NUMERIC.has(type)) return String(value)
+  if (type === 'geometry') return geometryWkt(value) ?? text(value)
   return text(value)
 }
 
@@ -198,24 +256,41 @@ async function writeJson(out: Output, batches: RowBatches, options: ExportFormat
   await out.write(first ? ']\n' : '\n]\n')
 }
 
-async function writeGeoJson(out: Output, batches: RowBatches, options: ExportFormatOptions) {
+/** Объекты GeoJSON строк пачки: свойства по ключам полей, кроме геометрии. */
+function features(
+  batch: ReadonlyArray<Record<string, unknown>>,
+  options: ExportFormatOptions,
+): string[] {
   const geometry = options.geometry
-  if (!geometry) throw new Error('Для GeoJSON нужно поле геометрии')
+  if (!geometry) throw new Error('Для геоформата нужно поле геометрии')
   const properties = options.columns.filter((column) => column.name !== geometry)
+  return batch.map((row) => {
+    const props: Record<string, unknown> = {}
+    for (const column of properties) props[column.name] = jsonValue(row[column.name], column.type)
+    return JSON.stringify({ type: 'Feature', geometry: row[geometry] ?? null, properties: props })
+  })
+}
+
+async function writeGeoJson(out: Output, batches: RowBatches, options: ExportFormatOptions) {
   await out.write('{"type":"FeatureCollection","features":[')
   let first = true
   for await (const batch of batches) {
     let chunk = ''
-    for (const row of batch) {
-      const props: Record<string, unknown> = {}
-      for (const column of properties) props[column.name] = jsonValue(row[column.name], column.type)
-      const feature = { type: 'Feature', geometry: row[geometry] ?? null, properties: props }
-      chunk += `${first ? '\n' : ',\n'}${JSON.stringify(feature)}`
+    for (const feature of features(batch, options)) {
+      chunk += `${first ? '\n' : ',\n'}${feature}`
       first = false
     }
     await out.write(chunk)
   }
   await out.write(first ? ']}\n' : '\n]}\n')
+}
+
+/** GeoJSONSeq без разделителя RS: объект на строку — выгрузка для движка. */
+async function writeGeoJsonSeq(out: Output, batches: RowBatches, options: ExportFormatOptions) {
+  for await (const batch of batches) {
+    const lines = features(batch, options)
+    if (lines.length > 0) await out.write(`${lines.join('\n')}\n`)
+  }
 }
 
 // ─── XLSX ────────────────────────────────────────────────────────────────────
@@ -323,6 +398,7 @@ function xlsxCell(ref: string, value: unknown, type: FieldType, timezone: string
     const { wall } = wallClock(instant, timezone)
     return numberCell(ref, (wall - EXCEL_EPOCH) / DAY_MS, STYLE.datetime)
   }
+  if (type === 'geometry') return stringCell(ref, geometryWkt(value) ?? text(value))
   if (type === 'time' && typeof value === 'string') {
     const [hours = 0, minutes = 0, seconds = 0] = value.split(':').map(Number)
     const fraction = (hours * 3600 + minutes * 60 + seconds) / 86_400
@@ -418,7 +494,7 @@ export async function* limitBatches(
 
 /** Выгрузка строк в поток в выбранном формате; поток закрывает вызывающий. */
 export async function writeExport(
-  format: DatasetExportFormat,
+  format: WrittenFormat,
   out: Writable,
   batches: RowBatches,
   options: ExportFormatOptions,
@@ -427,5 +503,6 @@ export async function writeExport(
   const output = new Output(out)
   if (format === 'csv') return writeCsv(output, batches, options)
   if (format === 'json') return writeJson(output, batches, options)
+  if (format === 'geojsonseq') return writeGeoJsonSeq(output, batches, options)
   return writeGeoJson(output, batches, options)
 }

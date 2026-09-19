@@ -78,7 +78,8 @@ const POLL_MS = 1000
 /** Задание генерации не взято за это время — движок, скорее всего, не запущен. */
 const PICKUP_MS = 60_000
 const TIMEOUTS: Record<DemoProfile, number> = { small: 10 * 60_000, demo: 60 * 60_000 }
-const FINISHED = new Set(['succeeded', 'failed'])
+/** Импорт сам больше не продвинется: завершён, отменён или ждёт публикации (ADR-0068). */
+const FINISHED = new Set(['succeeded', 'failed', 'cancelled', 'review'])
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 

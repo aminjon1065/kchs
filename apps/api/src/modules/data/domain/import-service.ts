@@ -2,9 +2,11 @@ import type { Readable } from 'node:stream'
 import { GetObjectCommand } from '@aws-sdk/client-s3'
 import {
   type DatasetFieldInput,
+  IMPORT_FINAL_STATUSES,
   IMPORT_LIMITS,
   ImportAnalysis,
   type ImportAnalyzeInput,
+  type ImportDiff,
   type ImportMappingItem,
   type ImportRecord,
   type ImportRunInput,
@@ -18,19 +20,21 @@ import { JobService } from '~/kernel/jobs/service.js'
 import { buckets, deleteObject, s3 } from '~/kernel/storage/s3.js'
 import { fileSource } from '~/modules/files/public.js'
 import { territoryIndex } from '~/modules/gis/public.js'
-import { config } from '~/shared/config/index.js'
 import { type Ctx, systemCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
 import { datasets, imports, objects } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { logger } from '~/shared/logger/index.js'
+import { postEngine } from '../infra/engine.js'
 import { Physical } from '../infra/physical.js'
+import type { DatasetGrant } from './dataset-access.js'
 import { DatasetService, type DatasetStorage, defaultSemantic } from './dataset-service.js'
 
-/** Задания импорта (ADR-0046). */
+/** Задания импорта (ADR-0046); сравнение с датасетом перед публикацией — ADR-0068. */
 export const NORMALIZE_JOB = { queue: 'imports', name: 'dataset.normalize' } as const
 export const LOAD_JOB = { queue: 'data', name: 'dataset.load' } as const
+export const COMPARE_JOB = { queue: 'data', name: 'dataset.compare' } as const
 
 const ERROR_SAMPLE_LIMIT = 50
 
@@ -75,8 +79,68 @@ function toRecord(row: ImportRow): ImportRecord {
     jobId: row.jobId,
     version: row.version,
     message: row.message,
+    review: row.review,
+    diff: (row.diff as ImportDiff | null) ?? null,
     createdAt: row.createdAt,
     finishedAt: row.finishedAt,
+  }
+}
+
+/** Физические столбцы файла для staging и сравнения: поля сопоставления и геометрия. */
+function stagingColumns(storage: DatasetStorage, row: ImportRow) {
+  return loadColumns(
+    storage,
+    row.mapping as unknown as ImportMappingItem[],
+    row.geometryField ?? undefined,
+  )
+}
+
+/** Staging-таблица импорта из нормализованного файла; повторы ключа — отброшены. */
+async function fillStaging(
+  row: ImportRow,
+  storage: DatasetStorage,
+  keyColumns: string[],
+): Promise<{ staging: string; duplicates: number[] }> {
+  const columns = stagingColumns(storage, row)
+  await Physical.dropStaging(row.id)
+  const staging = await Physical.createStaging(
+    row.id,
+    columns.map((field) => ({
+      name: field.physical,
+      type: field.type as StoredFieldType,
+      precision: field.format?.precision,
+    })),
+  )
+  const object = await s3().send(
+    new GetObjectCommand({ Bucket: buckets.files(), Key: row.normalizedKey as string }),
+  )
+  await Physical.copyIntoStaging(
+    staging,
+    columns.map((field) => field.physical),
+    object.Body as Readable,
+  )
+  const duplicates = await Physical.dropDuplicateKeys(staging, keyColumns)
+  return { staging, duplicates }
+}
+
+/** Физические столбцы ключа датасета. */
+function keyColumnsOf(storage: DatasetStorage): string[] {
+  return storage.primaryKey.map(
+    (key) => storage.fields.find((field) => field.key === key)?.physical as string,
+  )
+}
+
+async function objectMeta(tx: Executor, datasetId: string) {
+  const [meta] = await tx
+    .select({ spaceId: objects.spaceId, title: objects.title })
+    .from(objects)
+    .where(eq(objects.id, datasetId))
+    .limit(1)
+  return {
+    id: datasetId,
+    type: 'dataset' as const,
+    spaceId: meta?.spaceId ?? null,
+    title: meta?.title,
   }
 }
 
@@ -134,40 +198,6 @@ function loadColumns(
 
 const LoadPayload = z.object({ importId: z.uuid() })
 
-async function engineAnalyze(body: unknown): Promise<unknown> {
-  const env = config()
-  if (!env.ENGINE_INTERNAL_URL || !env.INTERNAL_SERVICE_TOKEN) {
-    throw errors.unavailable('Движок недоступен: не заданы ENGINE_INTERNAL_URL и сервисный токен')
-  }
-  let response: Response
-  try {
-    response = await fetch(`${env.ENGINE_INTERNAL_URL}/data/analyze`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-kchs-service-token': env.INTERNAL_SERVICE_TOKEN,
-      },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(IMPORT_LIMITS.analyzeTimeoutMs + 5_000),
-    })
-  } catch (error) {
-    throw errors.dependencyFailed('Движок не ответил', {
-      reason: error instanceof Error ? error.message : String(error),
-    })
-  }
-  if (response.status === 422) {
-    // Движок не смог прочитать файл: это ошибка данных, а не сбой
-    const detail = (await response.json().catch(() => ({}))) as { detail?: unknown }
-    throw errors.validation(
-      typeof detail.detail === 'string' ? detail.detail : 'Файл не удалось прочитать',
-    )
-  }
-  if (!response.ok) {
-    throw errors.dependencyFailed('Движок не разобрал файл', { status: response.status })
-  }
-  return response.json()
-}
-
 /**
  * Импорт файла в датасет (06-analytics-engine.md §2, ADR-0046): анализ —
  * синхронно в движке; выполнение — нормализация в движке, загрузка воркером.
@@ -179,12 +209,16 @@ export const ImportService = {
     if (source.size > IMPORT_LIMITS.maxFileBytes) {
       throw errors.payloadTooLarge('Файл больше 2 ГБ')
     }
-    const result = await engineAnalyze({
-      bucket: source.bucket,
-      key: source.storageKey,
-      fileName: source.name,
-      options: input.options,
-    })
+    const result = await postEngine(
+      '/data/analyze',
+      {
+        bucket: source.bucket,
+        key: source.storageKey,
+        fileName: source.name,
+        options: input.options,
+      },
+      IMPORT_LIMITS.analyzeTimeoutMs + 5_000,
+    )
     return ImportAnalysis.parse(result)
   },
 
@@ -300,22 +334,13 @@ export const ImportService = {
         geometryField,
         stats: { rows: 0, inserted: 0, updated: 0, deleted: 0, errors: 0 },
         jobId,
+        review: input.review,
         createdBy: ctx.kind === 'user' ? ctx.userId : null,
       })
       .returning()
-    const [object] = await tx
-      .select({ spaceId: objects.spaceId, title: objects.title })
-      .from(objects)
-      .where(eq(objects.id, datasetId))
-      .limit(1)
     await publishEvent(tx, ctx, {
       type: 'dataset.import_started',
-      object: {
-        id: datasetId,
-        type: 'dataset',
-        spaceId: object?.spaceId ?? null,
-        title: object?.title,
-      },
+      object: await objectMeta(tx, datasetId),
       payload: { importId: id, mode },
     })
     return toRecord(row as ImportRow)
@@ -338,8 +363,9 @@ export const ImportService = {
   },
 
   /**
-   * Итог нормализации от движка → задание загрузки. Повтор отчёта (движок
-   * повторил задание) даёт то же задание: ключ идемпотентности — импорт.
+   * Итог нормализации от движка → задание загрузки (с предпросмотром —
+   * сравнения). Повтор отчёта (движок повторил задание) даёт то же задание:
+   * ключ идемпотентности — импорт.
    */
   async acceptNormalized(importId: string, report: NormalizedReport): Promise<string | null> {
     return db().transaction(async (tx) => {
@@ -350,7 +376,7 @@ export const ImportService = {
         .limit(1)
         .for('update')
       if (!row) throw errors.notFound('Импорт')
-      if (row.status !== 'normalizing' && row.status !== 'loading') {
+      if (!['normalizing', 'comparing', 'loading'].includes(row.status)) {
         throw errors.conflict('Импорт уже завершён')
       }
       const stats = {
@@ -378,13 +404,24 @@ export const ImportService = {
       await tx
         .update(imports)
         .set({
-          status: 'loading',
+          status: row.review ? 'comparing' : 'loading',
           stats,
           errorSample: report.errorSample,
           errorsKey: report.errorsKey,
           normalizedKey: report.normalizedKey,
         })
         .where(eq(imports.id, importId))
+      if (row.review) {
+        // Предпросмотр: сначала сравнение с датасетом, загрузка — после публикации
+        return JobService.schedule(tx, ctx, {
+          queue: COMPARE_JOB.queue,
+          name: COMPARE_JOB.name,
+          objectId: row.datasetId,
+          idempotencyKey: `dataset.compare:${importId}`,
+          data: { importId },
+          options: { attempts: 3, backoff: { type: 'exponential', delay: 5000 } },
+        })
+      }
       return JobService.schedule(tx, ctx, {
         queue: LOAD_JOB.queue,
         name: LOAD_JOB.name,
@@ -396,6 +433,199 @@ export const ImportService = {
     })
   },
 
+  /**
+   * Задание воркера (ADR-0068): файл сравнивается с датасетом по ключу так же,
+   * как его применил бы `upsert`/`sync`; сводка с примерами сохраняется, и импорт
+   * ждёт публикации. Нормализованный файл остаётся — его загрузит публикация.
+   */
+  async compare(
+    data: unknown,
+    progress: (value: number, message?: string) => Promise<void>,
+  ): Promise<Record<string, unknown>> {
+    const { importId } = LoadPayload.parse(data)
+    const [row] = await db().select().from(imports).where(eq(imports.id, importId)).limit(1)
+    if (!row) throw errors.notFound('Импорт')
+    if (row.status !== 'comparing') return { skipped: true }
+    if (!row.normalizedKey) throw errors.conflict('Нормализованный файл ещё не готов')
+
+    const storage = await DatasetService.storage(row.datasetId)
+    const keyColumns = keyColumnsOf(storage)
+    try {
+      const { staging, duplicates } = await fillStaging(row, storage, keyColumns)
+      await progress(0.6, 'Файл загружен во временную таблицу')
+      const counts = await Physical.importDiff({
+        table: storage.table,
+        staging,
+        columns: stagingColumns(storage, row).map((field) => ({
+          physical: field.physical,
+          key: field.key,
+          type: field.type as StoredFieldType,
+        })),
+        keyColumns,
+        sync: row.mode === 'sync',
+        sampleRows: IMPORT_LIMITS.diffSampleRows,
+      })
+      const [dataset] = await db()
+        .select({ version: datasets.currentVersion })
+        .from(datasets)
+        .where(eq(datasets.id, row.datasetId))
+        .limit(1)
+      const diff: ImportDiff = {
+        baseVersion: dataset?.version ?? 0,
+        added: counts.added,
+        changed: counts.changed,
+        deleted: counts.deleted,
+        unchanged: counts.unchanged,
+        duplicates: duplicates.length,
+        samples: counts.samples,
+      }
+      const ctx = systemCtx('dataset-import', { initiatorId: row.createdBy })
+      await db().transaction(async (tx) => {
+        const [updated] = await tx
+          .update(imports)
+          .set({ status: 'review', diff: diff as unknown as Record<string, unknown> })
+          .where(and(eq(imports.id, importId), eq(imports.status, 'comparing')))
+          .returning({ id: imports.id })
+        if (!updated) return
+        await publishEvent(tx, ctx, {
+          type: 'dataset.import_review',
+          object: await objectMeta(tx, row.datasetId),
+          payload: {
+            importId,
+            added: diff.added,
+            changed: diff.changed,
+            deleted: diff.deleted,
+          },
+        })
+      })
+      return { added: diff.added, changed: diff.changed, deleted: diff.deleted }
+    } catch (error) {
+      logger().error({ err: error, importId }, 'сравнение импорта с датасетом не выполнено')
+      throw error
+    } finally {
+      await Physical.dropStaging(importId).catch(() => undefined)
+    }
+  },
+
+  /** Публикация после предпросмотра: загрузка в датасет обычным заданием (ADR-0068). */
+  async publish(ctx: Ctx, importId: string): Promise<ImportRecord> {
+    const row = await db().transaction(async (tx) => {
+      const [current] = await tx
+        .select()
+        .from(imports)
+        .where(eq(imports.id, importId))
+        .limit(1)
+        .for('update')
+      if (!current) throw errors.notFound('Импорт')
+      if (current.status !== 'review') {
+        throw errors.conflict('Импорт не ждёт публикации')
+      }
+      await JobService.schedule(tx, ctx, {
+        queue: LOAD_JOB.queue,
+        name: LOAD_JOB.name,
+        objectId: current.datasetId,
+        idempotencyKey: `dataset.load:${importId}`,
+        data: { importId },
+        options: { attempts: 3, backoff: { type: 'exponential', delay: 5000 } },
+      })
+      const [updated] = await tx
+        .update(imports)
+        .set({ status: 'loading' })
+        .where(eq(imports.id, importId))
+        .returning()
+      await publishEvent(tx, ctx, {
+        type: 'dataset.import_published',
+        object: await objectMeta(tx, current.datasetId),
+        payload: { importId },
+      })
+      return updated as ImportRow
+    })
+    return toRecord(row)
+  },
+
+  /** Отмена после предпросмотра: датасет не меняется, нормализованный файл удаляется. */
+  async cancel(ctx: Ctx, importId: string): Promise<ImportRecord> {
+    const row = await db().transaction(async (tx) => {
+      const [updated] = await tx
+        .update(imports)
+        .set({ status: 'cancelled', finishedAt: sql`now()` })
+        .where(and(eq(imports.id, importId), eq(imports.status, 'review')))
+        .returning()
+      if (!updated) {
+        const [exists] = await tx
+          .select({ id: imports.id })
+          .from(imports)
+          .where(eq(imports.id, importId))
+          .limit(1)
+        if (!exists) throw errors.notFound('Импорт')
+        throw errors.conflict('Импорт не ждёт публикации')
+      }
+      await publishEvent(tx, ctx, {
+        type: 'dataset.import_cancelled',
+        object: await objectMeta(tx, updated.datasetId),
+        payload: { importId },
+      })
+      return updated
+    })
+    if (row.normalizedKey) {
+      await deleteObject(row.normalizedKey, buckets.files()).catch(() => undefined)
+    }
+    return toRecord(row)
+  },
+
+  /**
+   * Импорт глазами пользователя: примеры изменений — только тем, кто вправе
+   * загружать в датасет и видит все его строки; скрытые поля убираются,
+   * маскируемые — без значений, как и значения ключа, если его поле скрыто или
+   * маскируется (политики столбцов, ADR-0055).
+   */
+  visible(
+    record: ImportRecord,
+    grant: DatasetGrant,
+    canImport: boolean,
+    keyFields: string[],
+  ): ImportRecord {
+    if (!record.diff) return record
+    const samples = record.diff.samples
+    if (!canImport || (!grant.unrestricted && grant.rows.kind !== 'all')) {
+      return {
+        ...record,
+        diff: { ...record.diff, samples: { added: [], changed: [], deleted: [] } },
+      }
+    }
+    if (grant.hidden.size === 0 && grant.masked.size === 0) return record
+    const keyHidden = keyFields.some((key) => grant.hidden.has(key) || grant.masked.has(key))
+    const clean = (rows: ImportDiff['samples']['added']) =>
+      rows.map((row) => ({
+        ...row,
+        key: keyHidden ? row.key.map(() => null) : row.key,
+        changes: row.changes
+          .filter((change) => !grant.hidden.has(change.field))
+          .map((change) =>
+            grant.masked.has(change.field)
+              ? { field: change.field, before: null, after: null, masked: true }
+              : change,
+          ),
+      }))
+    return {
+      ...record,
+      diff: {
+        ...record.diff,
+        samples: {
+          added: clean(samples.added),
+          changed: clean(samples.changed),
+          deleted: clean(samples.deleted),
+        },
+      },
+    }
+  },
+
+  /** Список импортов — без примеров изменений (их показывает запись импорта). */
+  withoutSamples(record: ImportRecord): ImportRecord {
+    if (!record.diff) return record
+    return { ...record, diff: { ...record.diff, samples: { added: [], changed: [], deleted: [] } } }
+  },
+
   /** Задание воркера: нормализованный CSV → staging → таблица датасета, версия, событие. */
   async load(
     data: unknown,
@@ -404,18 +634,15 @@ export const ImportService = {
     const { importId } = LoadPayload.parse(data)
     const [row] = await db().select().from(imports).where(eq(imports.id, importId)).limit(1)
     if (!row) throw errors.notFound('Импорт')
-    if (row.status === 'succeeded') return { skipped: true }
+    // Завершённый, отменённый или ждущий публикации импорт загрузка не трогает
+    if (row.status !== 'loading') return { skipped: true }
     if (!row.normalizedKey) throw errors.conflict('Нормализованный файл ещё не готов')
 
     const ctx = systemCtx('dataset-import', { initiatorId: row.createdBy })
     const userId = row.createdBy
     const storage = await DatasetService.storage(row.datasetId)
-    const mapping = row.mapping as unknown as ImportMappingItem[]
-    const columns = loadColumns(storage, mapping, row.geometryField ?? undefined)
-    const physical = columns.map((field) => field.physical)
-    const keyColumns = storage.primaryKey.map(
-      (key) => storage.fields.find((field) => field.key === key)?.physical as string,
-    )
+    const physical = stagingColumns(storage, row).map((field) => field.physical)
+    const keyColumns = keyColumnsOf(storage)
     // Для diff версии при полной замене: сколько строк было до неё
     const [before] = await db()
       .select({ rows: datasets.rowCount })
@@ -425,22 +652,9 @@ export const ImportService = {
 
     let replacement = false
     try {
-      await Physical.dropStaging(importId)
-      const staging = await Physical.createStaging(
-        importId,
-        columns.map((field) => ({
-          name: field.physical,
-          type: field.type as StoredFieldType,
-          precision: field.format?.precision,
-        })),
-      )
-      const object = await s3().send(
-        new GetObjectCommand({ Bucket: buckets.files(), Key: row.normalizedKey }),
-      )
-      await Physical.copyIntoStaging(staging, physical, object.Body as Readable)
+      const { staging, duplicates } = await fillStaging(row, storage, keyColumns)
       await progress(0.6, 'Файл загружен во временную таблицу')
 
-      const duplicates = await Physical.dropDuplicateKeys(staging, keyColumns)
       const counts = { inserted: 0, updated: 0, deleted: 0 }
       if (row.mode === 'replace') {
         await Physical.prepareReplacement(row.datasetId, staging, physical, importId, userId)
@@ -518,19 +732,9 @@ export const ImportService = {
             finishedAt: sql`now()`,
           })
           .where(eq(imports.id, importId))
-        const [meta] = await tx
-          .select({ spaceId: objects.spaceId, title: objects.title })
-          .from(objects)
-          .where(eq(objects.id, row.datasetId))
-          .limit(1)
         await publishEvent(tx, ctx, {
           type: 'dataset.imported',
-          object: {
-            id: row.datasetId,
-            type: 'dataset',
-            spaceId: meta?.spaceId ?? null,
-            title: meta?.title,
-          },
+          object: await objectMeta(tx, row.datasetId),
           payload: {
             importId,
             version: number,
@@ -563,8 +767,10 @@ export const ImportService = {
       const [row] = await tx
         .update(imports)
         .set({ status: 'failed', message: reason.slice(0, 1000), finishedAt: sql`now()` })
-        // Завершённый импорт не перетирается запоздалым сбоем повтора
-        .where(and(eq(imports.id, importId), notInArray(imports.status, ['succeeded', 'failed'])))
+        // Завершённый или отменённый импорт не перетирается запоздалым сбоем повтора
+        .where(
+          and(eq(imports.id, importId), notInArray(imports.status, [...IMPORT_FINAL_STATUSES])),
+        )
         .returning()
       if (!row) return
       await publishFailed(
@@ -585,14 +791,9 @@ async function publishFailed(
   importId: string,
   reason: string,
 ): Promise<void> {
-  const [meta] = await tx
-    .select({ spaceId: objects.spaceId, title: objects.title })
-    .from(objects)
-    .where(eq(objects.id, datasetId))
-    .limit(1)
   await publishEvent(tx, ctx, {
     type: 'dataset.import_failed',
-    object: { id: datasetId, type: 'dataset', spaceId: meta?.spaceId ?? null, title: meta?.title },
+    object: await objectMeta(tx, datasetId),
     payload: { importId, reason: reason.slice(0, 500) },
   })
 }

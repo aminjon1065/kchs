@@ -196,6 +196,10 @@ export const imports = pgTable(
     jobId: uuid('job_id'),
     version: integer('version'),
     message: text('message'),
+    /** Предпросмотр изменений: после разбора импорт ждёт публикации (ADR-0068). */
+    review: boolean('review').notNull().default(false),
+    /** Сводка изменений по ключу (ImportDiff) — с состояния `review`. */
+    diff: jsonb('diff').$type<Record<string, unknown>>(),
     createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
     createdAt: createdAt(),
     finishedAt: tsCol('finished_at'),

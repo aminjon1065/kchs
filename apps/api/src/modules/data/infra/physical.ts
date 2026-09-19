@@ -155,6 +155,88 @@ export function castExpression(
   }
 }
 
+/** Столбец сравнения импорта с таблицей: физическое имя, ключ поля и тип. */
+export interface DiffColumn {
+  physical: string
+  key: string
+  type: StoredFieldType
+}
+
+/** Пример изменения: значения ключа, номер строки файла, поля «было → стало». */
+export interface ImportDiffSample {
+  key: (string | null)[]
+  row: number | null
+  changes: Array<{ field: string; before: string | null; after: string | null }>
+  restored?: boolean
+}
+
+export interface ImportDiffCounts {
+  added: number
+  changed: number
+  unchanged: number
+  deleted: number
+  samples: { added: ImportDiffSample[]; changed: ImportDiffSample[]; deleted: ImportDiffSample[] }
+}
+
+/** Длина значения в примере изменения. */
+const DIFF_TEXT_CHARS = 200
+/** Полей в примере добавляемой или удаляемой строки. */
+const DIFF_SAMPLE_FIELDS = 6
+
+interface DiffSampleRow {
+  row: string | null
+  keys: (string | null)[]
+  before: (string | null)[] | null
+  after: (string | null)[] | null
+  distinct: boolean[] | null
+  restored: boolean
+}
+
+/** Значение столбца текстом для примера: геометрия — WKT, остальное — как в Postgres. */
+function diffText(alias: string, column: DiffColumn): string {
+  const value = `${alias}.${ident(column.physical)}`
+  return column.type === 'geometry'
+    ? `left(extensions.ST_AsText(${value}), ${DIFF_TEXT_CHARS})`
+    : `left(${value}::text, ${DIFF_TEXT_CHARS})`
+}
+
+function diffSample(
+  row: DiffSampleRow,
+  fields: string[],
+  kind: 'added' | 'changed' | 'deleted',
+): ImportDiffSample {
+  const before = row.before ?? []
+  const after = row.after ?? []
+  let changes: ImportDiffSample['changes']
+  if (kind === 'changed') {
+    const distinct = row.distinct ?? []
+    changes = fields.flatMap((field, index) =>
+      distinct[index]
+        ? [{ field, before: before[index] ?? null, after: after[index] ?? null }]
+        : [],
+    )
+  } else {
+    const values = kind === 'added' ? after : before
+    changes = fields
+      .flatMap((field, index) => {
+        const value = values[index] ?? null
+        if (value === null) return []
+        return [
+          kind === 'added'
+            ? { field, before: null, after: value }
+            : { field, before: value, after: null },
+        ]
+      })
+      .slice(0, DIFF_SAMPLE_FIELDS)
+  }
+  return {
+    key: row.keys,
+    row: row.row === null ? null : Number(row.row),
+    changes,
+    ...(row.restored ? { restored: true } : {}),
+  }
+}
+
 export const Physical = {
   /** Таблица строк и (при trackHistory) таблица истории — в транзакции создания датасета. */
   async createTable(
@@ -540,6 +622,95 @@ export const Physical = {
              AND NOT EXISTS (SELECT 1 FROM ${sql.raw(qualified(staging))} s WHERE ${sql.raw(match)})`,
     )
     return result.count ?? 0
+  },
+
+  /**
+   * Сводка изменений перед публикацией (ADR-0068): строки staging против
+   * таблицы по ключу — так же, как их применил бы `upsert` (изменена строка,
+   * если отличается хоть одно значение или она была удалена), и строки, которые
+   * `sync` пометил бы удалёнными. Примеры — значения текстом, до `sampleRows` на вид.
+   */
+  async importDiff(input: {
+    table: string
+    staging: string
+    columns: DiffColumn[]
+    keyColumns: string[]
+    sync: boolean
+    sampleRows: number
+  }): Promise<ImportDiffCounts> {
+    const { table, staging, columns, keyColumns, sampleRows } = input
+    const t = qualified(table)
+    const s = qualified(staging)
+    const match = keyColumns.map((c) => `s.${ident(c)} = t.${ident(c)}`).join(' AND ')
+    const values = columns.filter((column) => !keyColumns.includes(column.physical))
+    const changed =
+      values.length > 0
+        ? `((${values.map((c) => `t.${ident(c.physical)}`).join(', ')}) IS DISTINCT FROM (${values
+            .map((c) => `s.${ident(c.physical)}`)
+            .join(', ')}) OR t._deleted_at IS NOT NULL)`
+        : 't._deleted_at IS NOT NULL'
+    const keyText = (alias: string) =>
+      `ARRAY[${keyColumns.map((c) => `left(${alias}.${ident(c)}::text, ${DIFF_TEXT_CHARS})`).join(', ')}]::text[]`
+    const valueText = (alias: string) =>
+      values.length > 0
+        ? `ARRAY[${values.map((c) => diffText(alias, c)).join(', ')}]::text[]`
+        : `'{}'::text[]`
+    const distinct =
+      values.length > 0
+        ? `ARRAY[${values.map((c) => `t.${ident(c.physical)} IS DISTINCT FROM s.${ident(c.physical)}`).join(', ')}]::boolean[]`
+        : `'{}'::boolean[]`
+
+    // Имена — только сгенерированные и проверенные `ident`; число примеров — параметром
+    const [counts] = await rawSql().unsafe<{ added: string; changed: string; unchanged: string }[]>(
+      `SELECT count(*) FILTER (WHERE t._id IS NULL) AS added,
+              count(*) FILTER (WHERE t._id IS NOT NULL AND ${changed}) AS changed,
+              count(*) FILTER (WHERE t._id IS NOT NULL AND NOT ${changed}) AS unchanged
+         FROM ${s} s LEFT JOIN ${t} t ON ${match}`,
+    )
+    const missing = `t._deleted_at IS NULL AND NOT EXISTS (SELECT 1 FROM ${s} s WHERE ${match})`
+    let deleted = 0
+    if (input.sync) {
+      const [row] = await rawSql().unsafe<{ n: string }[]>(
+        `SELECT count(*) AS n FROM ${t} t WHERE ${missing}`,
+      )
+      deleted = Number(row?.n ?? 0)
+    }
+
+    const added = await rawSql().unsafe<DiffSampleRow[]>(
+      `SELECT s._row AS row, ${keyText('s')} AS keys, NULL::text[] AS before,
+              ${valueText('s')} AS after, NULL::boolean[] AS distinct, false AS restored
+         FROM ${s} s LEFT JOIN ${t} t ON ${match}
+        WHERE t._id IS NULL ORDER BY s._row LIMIT $1`,
+      [sampleRows],
+    )
+    const updated = await rawSql().unsafe<DiffSampleRow[]>(
+      `SELECT s._row AS row, ${keyText('s')} AS keys, ${valueText('t')} AS before,
+              ${valueText('s')} AS after, ${distinct} AS distinct,
+              t._deleted_at IS NOT NULL AS restored
+         FROM ${s} s JOIN ${t} t ON ${match}
+        WHERE ${changed} ORDER BY s._row LIMIT $1`,
+      [sampleRows],
+    )
+    const removed = input.sync
+      ? await rawSql().unsafe<DiffSampleRow[]>(
+          `SELECT NULL::bigint AS row, ${keyText('t')} AS keys, ${valueText('t')} AS before,
+                  NULL::text[] AS after, NULL::boolean[] AS distinct, false AS restored
+             FROM ${t} t WHERE ${missing} ORDER BY t._id LIMIT $1`,
+          [sampleRows],
+        )
+      : []
+    const keys = values.map((column) => column.key)
+    return {
+      added: Number(counts?.added ?? 0),
+      changed: Number(counts?.changed ?? 0),
+      unchanged: Number(counts?.unchanged ?? 0),
+      deleted,
+      samples: {
+        added: added.map((row) => diffSample(row, keys, 'added')),
+        changed: updated.map((row) => diffSample(row, keys, 'changed')),
+        deleted: removed.map((row) => diffSample(row, keys, 'deleted')),
+      },
+    }
   },
 
   /** Точное число живых строк — после импорта и правок пакетом. */

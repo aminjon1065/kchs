@@ -5,7 +5,10 @@ import { join } from 'node:path'
 import { finished } from 'node:stream/promises'
 import { PutObjectCommand } from '@aws-sdk/client-s3'
 import {
+  DATASET_ENGINE_EXPORT_FORMATS,
   DATASET_EXPORT_MAX_ROWS,
+  DATASET_GEO_EXPORT_FORMATS,
+  type DatasetEngineExportFormat,
   type DatasetExportDownload,
   type DatasetExportFormat,
   type DatasetExportInput,
@@ -17,18 +20,28 @@ import {
 } from '@kchs/contracts'
 import type { CompiledQuery } from '@kchs/query'
 import { UnrecoverableError } from 'bullmq'
+import { z } from 'zod'
 import { authorize } from '~/kernel/access/authorize.js'
 import { buildUserCtxFor } from '~/kernel/access/explain.js'
 import { audit } from '~/kernel/audit/service.js'
 import { JobService } from '~/kernel/jobs/service.js'
-import { buckets, headObject, s3, safeName, signedGetUrl } from '~/kernel/storage/s3.js'
+import {
+  buckets,
+  deleteObject,
+  headObject,
+  s3,
+  safeName,
+  signedGetUrl,
+} from '~/kernel/storage/s3.js'
 import type { Ctx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { AppError, errors } from '~/shared/errors.js'
+import { postEngine } from '../infra/engine.js'
 import {
   type ExportColumn,
   limitBatches,
   type RowLimit,
+  type WrittenFormat,
   writeExport,
 } from '../infra/export-format.js'
 import { DatasetAccess } from './dataset-access.js'
@@ -48,6 +61,9 @@ const EXTENSIONS: Record<DatasetExportFormat, string> = {
   xlsx: 'xlsx',
   json: 'json',
   geojson: 'geojson',
+  gpkg: 'gpkg',
+  shp: 'shp.zip',
+  kml: 'kml',
 }
 
 const CONTENT_TYPES: Record<DatasetExportFormat, string> = {
@@ -55,6 +71,58 @@ const CONTENT_TYPES: Record<DatasetExportFormat, string> = {
   xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   json: 'application/json',
   geojson: 'application/geo+json',
+  gpkg: 'application/geopackage+sqlite3',
+  shp: 'application/zip',
+  kml: 'application/vnd.google-earth.kml+xml',
+}
+
+const GEO_FORMATS = new Set<DatasetExportFormat>(DATASET_GEO_EXPORT_FORMATS)
+const ENGINE_FORMATS = new Set<DatasetExportFormat>(DATASET_ENGINE_EXPORT_FORMATS)
+const isEngineFormat = (format: DatasetExportFormat): format is DatasetEngineExportFormat =>
+  ENGINE_FORMATS.has(format)
+
+/** Ответ движка на сборку геоформата. */
+const GeoExportReply = z.object({ rows: z.number().int(), size: z.number().int().nonnegative() })
+
+/**
+ * GeoPackage, Shapefile и KML собирает движок (ADR-0068): воркер кладёт рядом с
+ * результатом выгрузку строк с политиками (GeoJSONSeq), движок пишет файл
+ * формата по ключу результата; выгрузка удаляется. Ошибка данных — без повтора.
+ */
+async function convertOnEngine(input: {
+  sourceKey: string
+  targetKey: string
+  format: DatasetEngineExportFormat
+  layer: string
+  columns: ExportColumn[]
+}): Promise<number> {
+  try {
+    const reply = GeoExportReply.parse(
+      await postEngine(
+        '/data/geo-export',
+        {
+          bucket: buckets.exports(),
+          sourceKey: input.sourceKey,
+          targetKey: input.targetKey,
+          format: input.format,
+          layer: input.layer,
+          contentType: CONTENT_TYPES[input.format],
+          fields: input.columns.map((column) => ({
+            name: column.name,
+            label: column.label,
+            type: column.type,
+          })),
+        },
+        EXPORT_TIMEOUT_MS,
+      ),
+    )
+    return reply.size
+  } catch (error) {
+    if (error instanceof AppError && error.code === 'validation_failed') {
+      throw new UnrecoverableError(error.message)
+    }
+    throw error
+  }
 }
 
 /** Данные задания: спецификация и поля фиксируются при постановке, права — при выполнении. */
@@ -140,8 +208,8 @@ export const ExportService = {
       maxRows: DATASET_EXPORT_MAX_ROWS,
     })
     const columns = exportColumns(compiled.fields, input.fields ?? null, ctx.locale)
-    if (input.format === 'geojson' && !columns.some((column) => column.type === 'geometry')) {
-      throw errors.validation('Для GeoJSON нужно поле геометрии')
+    if (GEO_FORMATS.has(input.format) && !columns.some((column) => column.type === 'geometry')) {
+      throw errors.validation(`Для ${input.format.toUpperCase()} нужно поле геометрии`)
     }
     const data: ExportJobData = {
       datasetId,
@@ -183,9 +251,12 @@ export const ExportService = {
       permanent(error)
     }
     const geometry = columns.find((column) => column.type === 'geometry')?.name
-    if (data.format === 'geojson' && !geometry) {
-      throw new UnrecoverableError('Для GeoJSON нужно поле геометрии')
+    if (GEO_FORMATS.has(data.format) && !geometry) {
+      throw new UnrecoverableError(`Для ${data.format.toUpperCase()} нужно поле геометрии`)
     }
+    const engine = isEngineFormat(data.format)
+    // Геоформаты GDAL воркер выгружает построчным GeoJSON — файл собирает движок
+    const output: WrittenFormat = isEngineFormat(data.format) ? 'geojsonseq' : data.format
 
     const dir = await mkdtemp(join(tmpdir(), 'kchs-export-'))
     const path = join(dir, 'export')
@@ -200,7 +271,7 @@ export const ExportService = {
           reported = rows
           await helpers.progress(expected > 0 ? Math.min(rows / expected, 0.99) : 0)
         })
-        await writeExport(data.format, out, batches, {
+        await writeExport(output, out, batches, {
           columns,
           timezone: ctx.timezone,
           sheetName: data.sheetName,
@@ -209,17 +280,33 @@ export const ExportService = {
       })
       out.end()
       await finished(out)
-      const { size } = await stat(path)
-      const key = `datasets/${data.datasetId}/${helpers.recordId}/${safeName(data.fileName)}`
+      const written = (await stat(path)).size
+      const folder = `datasets/${data.datasetId}/${helpers.recordId}`
+      const key = `${folder}/${safeName(data.fileName)}`
+      const uploadKey = engine ? `${folder}/source.geojsonl` : key
       await s3().send(
         new PutObjectCommand({
           Bucket: buckets.exports(),
-          Key: key,
+          Key: uploadKey,
           Body: createReadStream(path),
-          ContentLength: size,
-          ContentType: CONTENT_TYPES[data.format],
+          ContentLength: written,
+          ContentType: engine ? 'application/geo+json-seq' : CONTENT_TYPES[data.format],
         }),
       )
+      let size = written
+      if (isEngineFormat(data.format)) {
+        try {
+          size = await convertOnEngine({
+            sourceKey: uploadKey,
+            targetKey: key,
+            format: data.format,
+            layer: data.sheetName,
+            columns: columns.filter((column) => column.name !== geometry),
+          })
+        } finally {
+          await deleteObject(uploadKey, buckets.exports()).catch(() => undefined)
+        }
+      }
       await audit(ctx, {
         action: 'dataset.exported',
         objectId: data.datasetId,
