@@ -212,21 +212,34 @@ describe('печатные формы', () => {
     const draft = await createDocument(registrar, 'incoming_letter')
     const forms = (await get(registrar, `/documents/print-forms?subjectId=${draft.id}`)).json()
       .items as Array<{ key: string; available: boolean; reasonKey: string | null }>
+    // Формы типа и листы маршрута и ознакомления — последние у любого документа
     expect(forms.map((form) => form.key).sort()).toEqual([
+      'acknowledgment_sheet',
+      'approval_sheet',
       'registration_card',
       'registration_stamp',
+      'signature_sheet',
     ])
     expect(forms.find((form) => form.key === 'registration_stamp')).toMatchObject({
       available: false,
       reasonKey: 'documents.print.reasons.notRegistered',
     })
+    expect(forms.find((form) => form.key === 'approval_sheet')).toMatchObject({
+      available: false,
+      reasonKey: 'documents.print.reasons.noRoute',
+    })
 
-    // Исходящее: лист согласования — ключ типа без формы, реестр отправки — форма журнала
+    // Исходящее: только листы, пока без данных; реестр отправки — форма журнала
     const outgoing = await createDocument(registrar, 'outgoing_letter')
     const outgoingForms = (
       await get(registrar, `/documents/print-forms?subjectId=${outgoing.id}`)
-    ).json().items as Array<{ key: string }>
-    expect(outgoingForms).toEqual([])
+    ).json().items as Array<{ key: string; available: boolean }>
+    expect(outgoingForms.map((form) => form.key).sort()).toEqual([
+      'acknowledgment_sheet',
+      'approval_sheet',
+      'signature_sheet',
+    ])
+    expect(outgoingForms.every((form) => !form.available)).toBe(true)
     const journalForms = (
       await get(registrar, `/documents/print-forms?subjectId=${journals.get('Исходящие')}`)
     ).json().items as Array<{ key: string; params: string[] }>
