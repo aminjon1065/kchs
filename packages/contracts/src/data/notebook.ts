@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { type FilterNode, RelativeRange, WithinValue } from '../common/filter.js'
 import { DateOnly, Timestamp, Uuid } from '../common/primitives.js'
 import { RichBody } from '../discussions/message.js'
+import { MapCamera } from '../gis/map.js'
 import { ChartType } from './chart.js'
 import { ExplorePlan } from './explore.js'
 import type { QuerySpec } from './query.js'
@@ -14,10 +15,7 @@ import { SQL_MAX_LENGTH } from './sql.js'
  * JSON-снимок для поиска, экспорта и создания тетради через API.
  */
 
-/**
- * Виды ячеек. `map` — точка расширения: ячейка карты появится с картами в
- * тетрадях, пока она только сохраняется и показывается заглушкой.
- */
+/** Виды ячеек. `map` — сохранённая карта или слой со своим видом (ADR-0074). */
 export const NOTEBOOK_CELL_KINDS = ['text', 'query', 'chart', 'metric', 'ai', 'map'] as const
 export const NotebookCellKind = z.enum(NOTEBOOK_CELL_KINDS)
 export type NotebookCellKind = z.infer<typeof NotebookCellKind>
@@ -109,10 +107,19 @@ export const NotebookMetricCell = z.object({
   bindings: NotebookBindings.default({}),
 })
 
+/**
+ * Ячейка карты (ADR-0074): сохранённая карта или один слой на подложке по
+ * умолчанию; вид ячейки — свой. Параметры тетради уходят тайлам слоёв условием
+ * по полям их датасетов (территория — поле территории, период — поле времени слоя).
+ */
 export const NotebookMapCell = z.object({
   ...base,
   kind: z.literal('map'),
   mapId: Uuid.nullable().default(null),
+  /** Слой вместо карты; задан один из двух. */
+  layerId: Uuid.nullable().default(null),
+  /** Вид ячейки; null — вид карты или охват слоя. */
+  camera: MapCamera.nullable().default(null),
 })
 
 export const NotebookCell = z.discriminatedUnion('kind', [
@@ -197,7 +204,7 @@ export const NOTEBOOK_CELL_LAYOUT = {
   ai: { ...COMMON_LAYOUT, ...QUERY_LAYOUT, question: 'json', answer: 'json' },
   chart: { ...COMMON_LAYOUT, chartId: 'json', bindings: 'json' },
   metric: { ...COMMON_LAYOUT, metricId: 'json', bindings: 'json' },
-  map: { ...COMMON_LAYOUT, mapId: 'json' },
+  map: { ...COMMON_LAYOUT, mapId: 'json', layerId: 'json', camera: 'json' },
 } as const satisfies Record<NotebookCellKind, Record<string, NotebookValueKind>>
 
 // ─── Параметры → запрос ──────────────────────────────────────────────────────

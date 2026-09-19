@@ -27,7 +27,7 @@ import { insertCells, type NotebookBody, notebookState, readNotebook } from './n
 /** Текста тетради в поисковом индексе — не больше (как у датасета). */
 const SEARCH_BODY_LIMIT = 20_000
 
-/** Датасеты, графики и показатели ячеек — зависимости тетради («Используется в»). */
+/** Датасеты, графики, показатели, карты и слои ячеек — зависимости тетради («Используется в»). */
 function dependenciesOf(cells: NotebookCell[]): string[] {
   const ids = new Set<string>()
   for (const cell of cells) {
@@ -35,6 +35,7 @@ function dependenciesOf(cells: NotebookCell[]): string[] {
     if (cell.kind === 'chart' && cell.chartId) ids.add(cell.chartId)
     if (cell.kind === 'metric' && cell.metricId) ids.add(cell.metricId)
     if (cell.kind === 'map' && cell.mapId) ids.add(cell.mapId)
+    if (cell.kind === 'map' && cell.layerId) ids.add(cell.layerId)
   }
   return [...ids]
 }

@@ -27,15 +27,19 @@ import { drillSpec } from './drill.js'
 import { MetricService } from './metric-service.js'
 import { QueryService } from './query-service.js'
 
-/** Плитки с данными: график (сохранённый или встроенный), таблица и показатель. */
+/**
+ * Плитки с данными: график (сохранённый или встроенный), таблица и показатель.
+ * Плитка-карта читает тайлы слоёв сама — с условиями фильтров дашборда (ADR-0074).
+ */
 const DATA_TILES = new Set(['chart', 'table', 'metric'])
 
-/** Графики, показатели и датасеты плиток — зависимости дашборда («Используется в»). */
+/** Графики, показатели, карты и датасеты плиток — зависимости дашборда («Используется в»). */
 function dependenciesOf(spec: DashboardSpec): string[] {
   const ids = new Set<string>()
   for (const tile of spec.tiles) {
     if (tile.chartId) ids.add(tile.chartId)
     if (tile.metricId) ids.add(tile.metricId)
+    if (tile.mapId) ids.add(tile.mapId)
     if (tile.spec && 'query' in tile.spec.data) {
       for (const id of collectSources(tile.spec.data.query).datasets) ids.add(id)
     }

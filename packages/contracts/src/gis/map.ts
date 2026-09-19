@@ -33,6 +33,27 @@ export const MapBookmark = z.object({
 })
 export type MapBookmark = z.infer<typeof MapBookmark>
 
+/** Режимы и шаги шкалы времени — те же, что у времени стиля слоя (`LayerStyle.time`). */
+export const MAP_TIME_MODES = ['instant', 'range', 'cumulative'] as const
+export type MapTimeMode = (typeof MAP_TIME_MODES)[number]
+export const MAP_TIME_STEPS = ['hour', 'day', 'week', 'month', 'year'] as const
+export type MapTimeStep = (typeof MAP_TIME_STEPS)[number]
+
+/**
+ * Время на карте (07-gis-engine.md §12, ADR-0074): интервал `from`–`to`
+ * включительно — уходит тайлам слоёв со временем параметром `t=from/to`. Шаг
+ * от суток — даты `ГГГГ-ММ-ДД`, часы — местное время пояса пользователя без
+ * смещения (`ГГГГ-ММ-ДДTчч:мм:сс.ммм`), как понимает их компилятор запросов.
+ * Режим и шаг шкалы — вместе с картой; не заданы — как у первого слоя со временем.
+ */
+export const MapTime = z.object({
+  from: z.string().max(40),
+  to: z.string().max(40),
+  mode: z.enum(MAP_TIME_MODES).optional(),
+  step: z.enum(MAP_TIME_STEPS).optional(),
+})
+export type MapTime = z.infer<typeof MapTime>
+
 export const MapSpec = z.object({
   /** Базовая карта из реестра; null — по умолчанию установки. */
   basemapId: Uuid.nullable().default(null),
@@ -40,11 +61,8 @@ export const MapSpec = z.object({
   /** Порядок — снизу вверх: последний рисуется поверх. */
   layers: z.array(MapLayerEntry).max(50).default([]),
   bookmarks: z.array(MapBookmark).max(100).default([]),
-  /** Время на карте: интервал для слоёв со временем. */
-  time: z
-    .object({ from: z.string().max(40), to: z.string().max(40) })
-    .nullable()
-    .default(null),
+  /** Время на карте: интервал для слоёв со временем; null — время не ограничено. */
+  time: MapTime.nullable().default(null),
 })
 export type MapSpec = z.infer<typeof MapSpec>
 export type MapSpecInput = z.input<typeof MapSpec>
