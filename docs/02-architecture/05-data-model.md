@@ -159,7 +159,8 @@ CREATE TABLE ds.h_<sid> (id bigint, row_id bigint, ver int, op char(1), data jso
 layers(id pk → objects, dataset_id, style jsonb, popup_template jsonb, label jsonb, min_zoom, max_zoom, filter jsonb,
        editable bool, moderated bool, tile_fields text[], legend jsonb, settings jsonb)
 maps(id pk → objects, basemap_id, view jsonb, layers jsonb, widgets jsonb, bookmarks jsonb, filters_binding jsonb, time jsonb)
-basemaps(id pk → objects, kind text, url text, style jsonb, attribution, min_zoom, max_zoom, is_default)
+basemaps(id pk → objects, key text unique null, kind text, url text, style jsonb, attribution, min_zoom, max_zoom, is_default,
+         secret_enc bytea null)                    -- key и secret_enc — ADR-0066; одна is_default
 territories(id pk → objects, code text unique, parent_id, level text, name jsonb, geom geometry(MultiPolygon,4326), centroid geometry(Point,4326), area_km2, attributes jsonb, dataset_row_id bigint)
   idx: gist(geom), (parent_id), (level)
 territory_closure(territory_id, ancestor_id, depth)
