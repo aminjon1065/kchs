@@ -22,7 +22,16 @@ import {
   useToast,
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { BarChart3, History, RotateCcw, Share2, Sparkles, Trash2, Upload } from 'lucide-react'
+import {
+  BarChart3,
+  History,
+  Radar,
+  RotateCcw,
+  Share2,
+  Sparkles,
+  Trash2,
+  Upload,
+} from 'lucide-react'
 import { useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
@@ -32,6 +41,7 @@ import { PresenceAvatars } from '~/features/objects/presence-avatars.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { keys, objectQuery } from '~/shared/api/queries.js'
 import { AccessTab } from './access-tab.js'
+import { AnalysisDialog } from './analysis-dialog.js'
 import { DatasetTable } from './dataset-table.js'
 import { ImportChanges } from './import-review.js'
 import { ImportWizard } from './import-wizard.js'
@@ -72,6 +82,7 @@ export function DatasetView({ objectId, tabId }: { objectId: string; tabId: stri
   const [shareOpen, setShareOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
+  const [analysisOpen, setAnalysisOpen] = useState(false)
 
   const { data: object } = useQuery(objectQuery(objectId))
   const { data: dataset, isLoading } = useQuery(datasetQuery(objectId))
@@ -124,6 +135,8 @@ export function DatasetView({ objectId, tabId }: { objectId: string; tabId: stri
     })
   const canEdit = ['edit', 'manage', 'owner'].includes(level)
   const canManage = ['manage', 'owner'].includes(level)
+  // Пространственный анализ — для датасета с геометрией (результат — новый датасет)
+  const hasGeometry = dataset.fields.some((field) => field.type === 'geometry')
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -171,6 +184,16 @@ export function DatasetView({ objectId, tabId }: { objectId: string; tabId: stri
             >
               {t('data.explore.open')}
             </Button>
+            {hasGeometry ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<Radar className="size-3.5" />}
+                onClick={() => setAnalysisOpen(true)}
+              >
+                {t('data.analysis.action')}
+              </Button>
+            ) : null}
             {canEdit ? (
               <Button
                 variant="secondary"
@@ -250,6 +273,9 @@ export function DatasetView({ objectId, tabId }: { objectId: string; tabId: stri
           setDeleteOpen(false)
         }}
       />
+      {analysisOpen ? (
+        <AnalysisDialog dataset={dataset} onClose={() => setAnalysisOpen(false)} />
+      ) : null}
       {importOpen ? (
         <ImportWizard
           spaceId={dataset.spaceId}

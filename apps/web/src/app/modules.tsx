@@ -1,4 +1,5 @@
 import { AdminScreen } from '~/features/admin/admin-screen.js'
+import { AnalysisView } from '~/features/data/analysis-view.js'
 import { ChartView } from '~/features/data/chart-view.js'
 import { DashboardView } from '~/features/data/dashboard-view.js'
 import { DataCatalogScreen } from '~/features/data/data-catalog-screen.js'
@@ -154,6 +155,10 @@ export function registerModules(): void {
   registerObjectView({
     type: 'dataset',
     render: (tab) => <DatasetView objectId={tab.objectId!} tabId={tab.id} />,
+  })
+  registerObjectView({
+    type: 'analysis',
+    render: (tab) => <AnalysisView objectId={tab.objectId!} tabId={tab.id} />,
   })
   registerObjectView({
     type: 'task',
