@@ -148,6 +148,8 @@ export const EVENT_PAYLOADS = {
   'chart.updated': z.object({ changed: z.array(z.string()) }),
   'dashboard.updated': z.object({ changed: z.array(z.string()) }),
   'metric.updated': z.object({ changed: z.array(z.string()) }),
+  /** Снимок тетради после совместной правки (ADR-0070): что изменилось — ячейки, параметры. */
+  'notebook.updated': z.object({ changed: z.array(z.enum(['cells', 'params'])) }),
 
   // ── gis: базовые карты (07-gis-engine.md §5, ADR-0066) ─────────────────────
   /** Изменились параметры подложки: адрес, ключ, масштабы, сборка (новая версия PMTiles). */
