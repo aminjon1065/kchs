@@ -15,6 +15,10 @@ import {
   type DataTableColumn,
   Dialog,
   DialogContent,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
   EmptyState,
   Field,
   IconButton,
@@ -33,8 +37,18 @@ import {
   useDebouncedValue,
   useToast,
 } from '@kchs/ui'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Archive, Briefcase, FileX, Lock, LockOpen, Plus, Share2, X } from 'lucide-react'
+import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  Archive,
+  Briefcase,
+  FileX,
+  Lock,
+  LockOpen,
+  MoreHorizontal,
+  Plus,
+  Share2,
+  X,
+} from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
@@ -60,6 +74,17 @@ const CASE_STATUS_TONE: Record<CaseStatus, string> = {
 }
 
 const ALL = 'all'
+
+/**
+ * Перечитать дела после изменения: незавершённый запрос списка отменяется —
+ * иначе первый запрос, начатый до изменения, вернул бы устаревший список, а
+ * повторного не было бы (у списка ещё нет данных — TanStack Query ждёт его).
+ */
+async function refreshCases(client: QueryClient, id?: string): Promise<void> {
+  await client.cancelQueries({ queryKey: [...documentKeys.all, 'cases'] })
+  await client.invalidateQueries({ queryKey: documentKeys.all })
+  if (id) await client.invalidateQueries({ queryKey: ['object', id] })
+}
 
 /** Дело можно выделить к уничтожению: в архиве и срок хранения истёк. */
 export function destroyable(record: CaseRecord, today: string): boolean {
@@ -109,49 +134,48 @@ export function CasesDirectory({ selectedId }: { selectedId: string | null }) {
       ...(q ? { q } : {}),
     }),
   )
-  const current = items.find((item) => item.id === selected) ?? null
+  const listed = items.find((item) => item.id === selected)
+  const { data: fetched } = useQuery({
+    ...caseQuery(selected ?? ''),
+    enabled: Boolean(selected) && !isLoading && !listed,
+  })
+  const current = listed ?? (fetched?.id === selected ? fetched : null)
   const years = [currentYear + 1, currentYear, currentYear - 1, currentYear - 2, currentYear - 5]
 
   const closeYear = useMutation({
     mutationFn: () => http.post<{ closed: number }>('/cases/close-year', { year: Number(year) }),
-    onSuccess: ({ closed }) => {
+    onSuccess: async ({ closed }) => {
       toast.show({ title: t('documents.cases.closeYear.done', { count: closed }), tone: 'success' })
       setClosingYear(false)
-      void client.invalidateQueries({ queryKey: documentKeys.all })
+      await refreshCases(client)
     },
     onError: (error) => toast.error(errorText(error, t('errors.unknown'))),
   })
 
+  // Ключевые столбцы — слева: в узкой области рядом с панелью дела таблица прокручивается вбок
   const columns: Array<DataTableColumn<CaseRecord>> = [
     {
       key: 'index',
       header: t('documents.cases.fields.index'),
-      width: 110,
+      width: 100,
       cell: (item) => <span className="font-mono text-xs tabular">{item.index}</span>,
     },
     {
       key: 'title',
       header: t('documents.cases.fields.title'),
-      minWidth: 220,
+      minWidth: 200,
       cell: (item) => <span className="truncate">{item.title}</span>,
     },
     {
-      key: 'year',
-      header: t('documents.cases.fields.year'),
-      width: 80,
-      cell: (item) => <span className="tabular">{item.year}</span>,
-    },
-    {
-      key: 'unit',
-      header: t('documents.fields.unit'),
-      width: 170,
-      cell: (item) => item.unit?.name ?? <span className="text-fg-muted">—</span>,
-    },
-    {
-      key: 'retention',
-      header: t('documents.cases.fields.retention'),
-      width: 130,
-      cell: (item) => <RetentionText record={item} />,
+      key: 'status',
+      header: t('documents.cases.fields.status'),
+      width: 120,
+      cell: (item) => (
+        <StatusBadge
+          status={CASE_STATUS_TONE[item.status]}
+          label={t(`documents.cases.statuses.${item.status}`)}
+        />
+      ),
     },
     {
       key: 'documents',
@@ -161,79 +185,56 @@ export function CasesDirectory({ selectedId }: { selectedId: string | null }) {
       cell: (item) => <span className="tabular">{item.documentCount}</span>,
     },
     {
-      key: 'status',
-      header: t('documents.cases.fields.status'),
-      width: 130,
-      cell: (item) => (
-        <StatusBadge
-          status={CASE_STATUS_TONE[item.status]}
-          label={t(`documents.cases.statuses.${item.status}`)}
-        />
-      ),
+      key: 'year',
+      header: t('documents.cases.fields.year'),
+      width: 72,
+      cell: (item) => <span className="tabular">{item.year}</span>,
+    },
+    {
+      key: 'retention',
+      header: t('documents.cases.fields.retention'),
+      width: 120,
+      cell: (item) => <RetentionText record={item} />,
+    },
+    {
+      key: 'unit',
+      header: t('documents.fields.unit'),
+      width: 160,
+      cell: (item) => item.unit?.name ?? <span className="text-fg-muted">—</span>,
     },
   ]
 
   return (
     <section aria-label={t('documents.cases.title')} className="flex h-full min-h-0 flex-col">
       <PanelToolbar
-        left={
-          <>
-            <h1 className="text-sm font-semibold text-fg">{t('documents.cases.title')}</h1>
-            <Select value={year} onValueChange={setYear}>
-              <SelectTrigger aria-label={t('documents.cases.fields.year')} className="w-32">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL}>{t('documents.cases.allYears')}</SelectItem>
-                {years.map((value) => (
-                  <SelectItem key={value} value={String(value)}>
-                    {value}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger aria-label={t('documents.cases.fields.status')} className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL}>{t('documents.cases.allStatuses')}</SelectItem>
-                {(['open', 'closed', 'archived', 'destroyed'] as const).map((value) => (
-                  <SelectItem key={value} value={value}>
-                    {t(`documents.cases.statuses.${value}`)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <SearchInput
-              value={search}
-              onValueChange={setSearch}
-              placeholder={t('documents.cases.search')}
-              className="w-56"
-            />
-          </>
-        }
+        left={<h1 className="text-sm font-semibold text-fg">{t('documents.cases.title')}</h1>}
         right={
           canManage ? (
             <>
-              <Button
-                variant="ghost"
-                size="sm"
-                icon={<FileX className="size-3.5" />}
-                onClick={() => setDestroying(true)}
-              >
-                {t('documents.cases.destruction.open')}
-              </Button>
-              {year !== ALL ? (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  icon={<Lock className="size-3.5" />}
-                  onClick={() => setClosingYear(true)}
-                >
-                  {t('documents.cases.closeYear.action', { year })}
-                </Button>
-              ) : null}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" icon={<MoreHorizontal className="size-3.5" />}>
+                    {t('documents.cases.more')}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {year !== ALL ? (
+                    <DropdownMenuItem
+                      icon={<Lock className="size-3.5" />}
+                      onSelect={() => setClosingYear(true)}
+                    >
+                      {t('documents.cases.closeYear.action', { year })}
+                    </DropdownMenuItem>
+                  ) : null}
+                  <DropdownMenuItem
+                    icon={<FileX className="size-3.5" />}
+                    danger
+                    onSelect={() => setDestroying(true)}
+                  >
+                    {t('documents.cases.destruction.open')}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button
                 variant="primary"
                 size="sm"
@@ -246,6 +247,40 @@ export function CasesDirectory({ selectedId }: { selectedId: string | null }) {
           ) : null
         }
       />
+      <div className="flex flex-wrap items-center gap-2 border-b border-line px-3 py-2">
+        <Select value={year} onValueChange={setYear}>
+          <SelectTrigger aria-label={t('documents.cases.fields.year')} className="w-32">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>{t('documents.cases.allYears')}</SelectItem>
+            {years.map((value) => (
+              <SelectItem key={value} value={String(value)}>
+                {value}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={status} onValueChange={setStatus}>
+          <SelectTrigger aria-label={t('documents.cases.fields.status')} className="w-40">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>{t('documents.cases.allStatuses')}</SelectItem>
+            {(['open', 'closed', 'archived', 'destroyed'] as const).map((value) => (
+              <SelectItem key={value} value={value}>
+                {t(`documents.cases.statuses.${value}`)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <SearchInput
+          value={search}
+          onValueChange={setSearch}
+          placeholder={t('documents.cases.search')}
+          className="w-56"
+        />
+      </div>
       <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_440px]">
         <div className="min-h-0">
           {!isLoading && items.length === 0 ? (
@@ -320,27 +355,27 @@ function CasePanel({ record, onClose }: { record: CaseRecord; onClose: () => voi
   const editable = record.canManage && record.status !== 'destroyed'
   const dirty = title.trim() !== record.title || note.trim() !== (record.note ?? '')
 
-  const refresh = () => void client.invalidateQueries({ queryKey: documentKeys.all })
+  const refresh = () => refreshCases(client, record.id)
   const save = useMutation({
     mutationFn: () =>
       http.patch<CaseRecord>(`/cases/${record.id}`, {
         title: title.trim(),
         note: note.trim() || null,
       }),
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.show({ title: t('documents.cases.saved'), tone: 'success' })
-      refresh()
+      await refresh()
     },
     onError: (error) => toast.error(errorText(error, t('errors.unknown'))),
   })
   const act = useMutation({
     mutationFn: (action: 'close' | 'reopen' | 'archive') =>
       http.post<CaseRecord>(`/cases/${record.id}/${action}`, {}),
-    onSuccess: (_result, action) => {
+    onSuccess: async (_result, action) => {
       toast.show({ title: t(`documents.cases.done.${action}`), tone: 'success' })
       setConfirm(null)
-      refresh()
-      void client.invalidateQueries({ queryKey: ['objects'] })
+      await refresh()
+      await client.invalidateQueries({ queryKey: ['objects'] })
     },
     onError: (error) => toast.error(errorText(error, t('errors.unknown'))),
   })
@@ -394,7 +429,7 @@ function CasePanel({ record, onClose }: { record: CaseRecord; onClose: () => voi
             label: t('documents.cases.fields.destroyableFrom'),
             value: record.destroyableFrom
               ? formatDate(record.destroyableFrom, { locale })
-              : t('documents.cases.permanent'),
+              : t('documents.cases.never'),
           },
           {
             key: 'documents',
@@ -619,8 +654,8 @@ function CreateCaseDialog({
         retentionYears: permanent ? null : retentionYears,
         documentTypeIds: typeIds,
       }),
-    onSuccess: (record) => {
-      void client.invalidateQueries({ queryKey: documentKeys.all })
+    onSuccess: async (record) => {
+      await refreshCases(client)
       onCreated(record.id)
       onClose()
     },
@@ -765,12 +800,12 @@ function DestructionDialog({ onClose }: { onClose: () => void }) {
         caseIds: chosen,
         basis: basis.trim(),
       }),
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.show({ title: t('documents.cases.destruction.done'), tone: 'success' })
       setConfirming(false)
       setChosen([])
       setBasis('')
-      void client.invalidateQueries({ queryKey: documentKeys.all })
+      await refreshCases(client)
     },
     onError: (error) => {
       setConfirming(false)
