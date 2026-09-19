@@ -27,7 +27,9 @@ const { indexObject } = await import('../src/kernel/search/index-service.js')
 const { canJoin } = await import('../src/kernel/realtime/gateway.js')
 const { buildUserCtx } = await import('../src/kernel/context-builder.js')
 const { systemCtx } = await import('../src/shared/context.js')
-const { territories, territoryClosure, views } = await import('../src/shared/db/schema/index.js')
+const { basemaps, territories, territoryClosure, views } = await import(
+  '../src/shared/db/schema/index.js'
+)
 
 interface Created {
   id: string
@@ -386,6 +388,29 @@ const FIXTURES: Record<string, TypeFixture> = {
       return { id, title }
     },
     readPaths: ['/territories/:id'],
+  },
+
+  // Подложки установки глобальны (ACL everyone:view, ADR-0066); матрице — объект в
+  // пространстве теста: права идут от роли в пространстве, как у любого объекта
+  basemap: {
+    create: async (fx, title) => {
+      const id = await db().transaction(async (tx) => {
+        const object = await ObjectService.create(
+          tx,
+          systemCtx('test', { initiatorId: fx.admin.id }),
+          { type: 'basemap', spaceId: fx.spaceId, title, meta: {} },
+        )
+        await tx.insert(basemaps).values({ id: object.id, key: `matrix-${run}`, kind: 'none' })
+        return object.id
+      })
+      return { id, title }
+    },
+    readPaths: ['/gis/basemaps/:id', '/gis/basemaps/:id/style.json'],
+    viewerForbidden: (_fx, id) => [
+      { method: 'PATCH', url: `/gis/basemaps/${id}`, payload: { name: 'правка читателя' } },
+      { method: 'POST', url: `/gis/basemaps/${id}/default` },
+      { method: 'DELETE', url: `/gis/basemaps/${id}` },
+    ],
   },
 
   dataset: {

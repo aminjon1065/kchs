@@ -35,6 +35,7 @@ import {
   HardDrive,
   KeyRound,
   LayoutGrid,
+  Map as MapIcon,
   Megaphone,
   Plus,
   ScrollText,
@@ -57,6 +58,7 @@ import {
   usersQuery,
 } from '~/shared/api/queries.js'
 import { AnnouncementsSection } from './announcements-section.js'
+import { BasemapsSection } from './basemaps-section.js'
 import { CreateUnitDialog } from './org-management.js'
 import { RolesSection } from './roles-section.js'
 import { SecuritySection } from './security-section.js'
@@ -71,6 +73,7 @@ type Section =
   | 'roles'
   | 'spaces'
   | 'announcements'
+  | 'basemaps'
   | 'audit'
   | 'security'
 
@@ -86,6 +89,7 @@ export function AdminScreen() {
   const [roleFilter, setRoleFilter] = useState<string | null>(null)
   const { data: me } = useQuery(meQuery())
   const isSystemAdmin = me?.capabilities.includes('admin.system') ?? false
+  const canManageBasemaps = me?.capabilities.includes('gis.basemaps.manage') ?? false
   const wide = useMediaQuery('(min-width: 768px)')
 
   const sections: Array<{ value: Section; label: string; icon: ReactNode; visible: boolean }> = [
@@ -124,6 +128,12 @@ export function AdminScreen() {
       label: t('admin.sections.announcements'),
       icon: <Megaphone className="size-3.5" />,
       visible: isSystemAdmin,
+    },
+    {
+      value: 'basemaps',
+      label: t('admin.sections.basemaps'),
+      icon: <MapIcon className="size-3.5" />,
+      visible: canManageBasemaps,
     },
     {
       value: 'audit',
@@ -190,6 +200,11 @@ export function AdminScreen() {
               <SecuritySection />
             </TabsContent>
           </>
+        ) : null}
+        {canManageBasemaps ? (
+          <TabsContent value="basemaps" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
+            <BasemapsSection />
+          </TabsContent>
         ) : null}
         <TabsContent value="audit" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
           <AuditSection />

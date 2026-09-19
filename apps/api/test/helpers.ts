@@ -37,6 +37,8 @@ process.env.ROLE = 'api'
 // индекс работающего стенда разработки
 process.env.REDIS_URL = withRedisDb(process.env.REDIS_URL ?? '', 1 + slot)
 process.env.MEILI_INDEX_PREFIX = slot ? `test${slot}_` : 'test_'
+// Базовые карты стенда (PMTiles, шрифты) лежат в общем бакете тайлов — тестам свой каталог
+process.env.BASEMAPS_PREFIX = slot ? `test${slot}/basemaps` : 'test/basemaps'
 
 function withRedisDb(url: string, dbIndex: number): string {
   const parsed = new URL(url)

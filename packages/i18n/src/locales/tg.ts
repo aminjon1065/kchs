@@ -304,6 +304,7 @@ export const tg: DeepPartial<Dictionary> = {
       map: 'Харита',
       layer: 'Қабат',
       territory: 'Ҳудуд',
+      basemap: 'Харитаи асосӣ',
       document: 'Ҳуҷҷат',
       task: 'Вазифа',
       project: 'Лоиҳа',

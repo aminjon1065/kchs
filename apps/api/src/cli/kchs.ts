@@ -6,6 +6,7 @@ import { seedCommand } from '~/seed/command.js'
 import { closeDb, closeQueryRole } from '~/shared/db/client.js'
 import { runMigrations } from '~/shared/db/migrate.js'
 import { closeRedis } from '~/shared/redis/index.js'
+import { formatSyncSummary, runBasemapsSync, runBasemapsUpload } from './basemaps.js'
 import { formatInitSummary, runInit } from './init.js'
 
 const HELP = `kchs — служебные команды установки
@@ -16,6 +17,11 @@ const HELP = `kchs — служебные команды установки
   kchs migrate   только миграции базы
   kchs seed      демо-данные: --profile demo|minimal; --reset --yes сначала удаляет данные;
                    --data small|demo — демо-датасеты генератора (нужны api, worker и engine)
+  kchs basemaps upload <каталог> [--key <ключ>] [--no-register]
+                 сборка infra/basemaps/build-pmtiles.sh → хранилище (шрифты, спрайты,
+                   PMTiles, манифест), затем регистрация в реестре базовых карт
+  kchs basemaps sync
+                 реестр базовых карт по манифестам в хранилище и подложка по умолчанию
   kchs help      эта справка
 
   --verbose      показывать журнал выполнения
@@ -32,6 +38,8 @@ async function run(argv: string[]): Promise<number> {
       data: { type: 'string', default: 'none' },
       reset: { type: 'boolean', default: false },
       yes: { type: 'boolean', default: false },
+      key: { type: 'string' },
+      'no-register': { type: 'boolean', default: false },
       verbose: { type: 'boolean', default: false },
       help: { type: 'boolean', short: 'h', default: false },
     },
@@ -78,6 +86,27 @@ async function run(argv: string[]): Promise<number> {
         )
       }
       return 0
+    }
+    case 'basemaps': {
+      const action = positionals[1]
+      if (action === 'upload' && positionals[2]) {
+        const { upload, sync } = await runBasemapsUpload(positionals[2], {
+          key: values.key,
+          register: !values['no-register'],
+          log: (line) => process.stdout.write(`  ${line}\n`),
+        })
+        process.stdout.write(
+          `Базовые карты загружены: ${upload.builds.map((build) => `${build.key} ${build.version}`).join(', ') || 'сборок нет'}\n`,
+        )
+        if (sync) process.stdout.write(formatSyncSummary(sync))
+        return 0
+      }
+      if (action === 'sync') {
+        process.stdout.write(`Реестр базовых карт\n${formatSyncSummary(await runBasemapsSync())}`)
+        return 0
+      }
+      process.stderr.write(`kchs basemaps upload <каталог> | sync\n\n${HELP}`)
+      return 2
     }
     case 'help':
       process.stdout.write(HELP)

@@ -5,7 +5,7 @@ import { DiscussionService } from '~/kernel/discussions/service.js'
 import { reindexAll } from '~/kernel/search/index-service.js'
 import { SpaceService } from '~/kernel/spaces/service.js'
 import { FileService } from '~/modules/files/domain/file-service.js'
-import { type TerritoryInput, TerritoryService } from '~/modules/gis/public.js'
+import { BasemapService, type TerritoryInput, TerritoryService } from '~/modules/gis/public.js'
 import { OrgService, UserService } from '~/modules/identity/public.js'
 import { type SystemCtx, systemCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
@@ -69,6 +69,15 @@ export async function runSeed(
   log.info({ territories: territoryIds.size, ...loaded }, 'справочник территорий загружен')
   const territoryOf = (unit: SeedUnit) =>
     unit.territory ? (territoryIds.get(unit.territory) ?? null) : null
+
+  // ── Базовые карты ─────────────────────────────────────────────────────────
+  // Векторная подложка по умолчанию, если сборка PMTiles загружена в хранилище,
+  // иначе — «без подложки» (ADR-0066); повторный запуск ничего не меняет
+  const basemaps = await BasemapService.sync(ctx)
+  log.info(
+    { created: basemaps.created, updated: basemaps.updated, default: basemaps.defaultName },
+    'реестр базовых карт синхронизирован',
+  )
 
   // Демо-данные уже загружены — признак: корень демо-оргструктуры. Пустая база
   // с администратором от `kchs init` данными не считается (06-handoff.md:

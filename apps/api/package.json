@@ -66,6 +66,7 @@
   },
   "devDependencies": {
     "@kchs/config": "workspace:*",
+    "@maplibre/maplibre-gl-style-spec": "^26.4.4",
     "@types/node": "^22.18.9",
     "@types/nodemailer": "^7.0.4",
     "@types/qrcode": "^1.5.5",

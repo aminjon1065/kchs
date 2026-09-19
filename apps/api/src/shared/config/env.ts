@@ -62,6 +62,11 @@ const EnvSchema = z.object({
   S3_BUCKET_MEDIA: z.string().default('kchs-media'),
   S3_BUCKET_EXPORTS: z.string().default('kchs-exports'),
   S3_BUCKET_TILES: z.string().default('kchs-tiles'),
+  /** Каталог базовых карт в бакете тайлов (ADR-0066); интеграционные тесты работают в своём. */
+  BASEMAPS_PREFIX: z
+    .string()
+    .regex(/^[a-z0-9][a-z0-9_-]*(\/[a-z0-9][a-z0-9_-]*)*$/)
+    .default('basemaps'),
   S3_FORCE_PATH_STYLE: bool.default(true),
   /** Публичный адрес хранилища для подписанных ссылок в браузере. */
   S3_PUBLIC_ENDPOINT: z.string().optional(),

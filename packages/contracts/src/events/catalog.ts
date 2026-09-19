@@ -149,6 +149,12 @@ export const EVENT_PAYLOADS = {
   'dashboard.updated': z.object({ changed: z.array(z.string()) }),
   'metric.updated': z.object({ changed: z.array(z.string()) }),
 
+  // ── gis: базовые карты (07-gis-engine.md §5, ADR-0066) ─────────────────────
+  /** Изменились параметры подложки: адрес, ключ, масштабы, сборка (новая версия PMTiles). */
+  'basemap.updated': z.object({ changed: z.array(z.string()) }),
+  /** Подложка по умолчанию установки сменилась. */
+  'basemap.default_changed': z.object({ previousId: Uuid.nullable() }),
+
   // ── tasks (10-tasks-projects.md, ADR-0060) ─────────────────────────────────
   'task.created': z.object({ key: z.string(), kind: z.string(), assigneeId: Uuid.nullable() }),
   'task.assigned': z.object({

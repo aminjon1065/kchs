@@ -1,6 +1,7 @@
 import { AdminUserCreateInput } from '@kchs/contracts'
 import { bootstrapPlatform } from '~/bootstrap.js'
 import { seedFixedHolidays } from '~/kernel/business-calendar/service.js'
+import { BasemapService, type BasemapSyncSummary } from '~/modules/gis/public.js'
 import { UserService } from '~/modules/identity/public.js'
 import { config } from '~/shared/config/index.js'
 import { systemCtx } from '~/shared/context.js'
@@ -21,6 +22,8 @@ export interface InitSummary {
   roles: number
   searchIndex: boolean
   calendar: Array<{ year: number; added: number }>
+  /** Реестр базовых карт: «без подложки» и сборки PMTiles из хранилища (ADR-0066). */
+  basemaps: BasemapSyncSummary
   admin: {
     login: string
     created: boolean
@@ -38,8 +41,8 @@ const AdminInput = AdminUserCreateInput.pick({ login: true, email: true })
  * `kchs init` — первичная настройка установки (15-admin-operations.md,
  * 06-handoff.md): миграции, системные роли и поисковый индекс, базовые
  * справочники (производственный календарь РТ на текущий и следующий год),
- * первый администратор. Идемпотентна: повторный запуск ничего не ломает и
- * администратора не пересоздаёт.
+ * реестр базовых карт, первый администратор. Идемпотентна: повторный запуск
+ * ничего не ломает и администратора не пересоздаёт.
  */
 export async function runInit(options: InitOptions): Promise<InitSummary> {
   const admin = AdminInput.parse({ login: options.adminLogin, email: options.adminEmail ?? null })
@@ -49,6 +52,7 @@ export async function runInit(options: InitOptions): Promise<InitSummary> {
 
   const year = (options.now ?? new Date()).getFullYear()
   const calendar = await db().transaction((tx) => seedFixedHolidays(tx, [year, year + 1]))
+  const basemaps = await BasemapService.sync(systemCtx('kchs-init'))
 
   const existing = await UserService.activeSystemAdminLogins()
 
@@ -77,6 +81,7 @@ export async function runInit(options: InitOptions): Promise<InitSummary> {
     roles,
     searchIndex,
     calendar,
+    basemaps,
     admin: {
       login: created ? admin.login : (existing[0] ?? admin.login),
       created,
@@ -105,6 +110,12 @@ export function formatInitSummary(summary: InitSummary): string {
       .join('; ')}`,
     '    Иди Рамазон, Иди Қурбон и переносы выходных объявляет Правительство — они вносятся отдельно.',
   )
+  lines.push(`  Базовая карта по умолчанию: ${summary.basemaps.defaultName ?? '—'}`)
+  if (summary.basemaps.defaultKind === 'none') {
+    lines.push(
+      '    Векторной подложки нет: infra/basemaps/build-pmtiles.sh (15-admin-operations.md §5).',
+    )
+  }
   if (summary.admin.created) {
     lines.push(
       `  Администратор: ${summary.admin.login} — создан`,

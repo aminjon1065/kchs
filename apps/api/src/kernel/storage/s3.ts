@@ -1,11 +1,14 @@
+import type { Readable } from 'node:stream'
 import {
   AbortMultipartUploadCommand,
   CompleteMultipartUploadCommand,
   CopyObjectCommand,
   CreateMultipartUploadCommand,
   DeleteObjectCommand,
+  DeleteObjectsCommand,
   GetObjectCommand,
   HeadObjectCommand,
+  ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
   UploadPartCommand,
@@ -190,6 +193,97 @@ export async function readObjectText(key: string, bucket?: string): Promise<stri
     new GetObjectCommand({ Bucket: bucket ?? buckets.files(), Key: key }),
   )
   return (await response.Body?.transformToString('utf-8')) ?? ''
+}
+
+/**
+ * Объект потоком — целиком или диапазоном байтов (`bytes=a-b`): ответ клиенту
+ * без буферизации в памяти (PMTiles, 07-gis-engine.md §5).
+ */
+export async function getObjectStream(
+  key: string,
+  options: { bucket?: string; range?: string } = {},
+): Promise<{
+  body: Readable
+  contentLength: number | null
+  contentRange: string | null
+  contentType: string | null
+  etag: string | null
+}> {
+  const response = await s3().send(
+    new GetObjectCommand({
+      Bucket: options.bucket ?? buckets.files(),
+      Key: key,
+      Range: options.range,
+    }),
+  )
+  return {
+    body: response.Body as Readable,
+    contentLength: response.ContentLength ?? null,
+    contentRange: response.ContentRange ?? null,
+    contentType: response.ContentType ?? null,
+    etag: response.ETag ?? null,
+  }
+}
+
+/** Запись объекта одним запросом (до 5 ГБ): буфер или поток файла. */
+export async function putObject(
+  key: string,
+  body: Buffer | Readable,
+  options: { bucket?: string; contentType?: string; contentLength?: number } = {},
+): Promise<void> {
+  await s3().send(
+    new PutObjectCommand({
+      Bucket: options.bucket ?? buckets.files(),
+      Key: key,
+      Body: body,
+      ContentType: options.contentType,
+      ContentLength: options.contentLength,
+    }),
+  )
+}
+
+/** Объекты с префиксом — постранично, целиком (каталоги сборок и кэшей, не пользовательские файлы). */
+export async function listObjects(
+  prefix: string,
+  bucket?: string,
+): Promise<Array<{ key: string; size: number; etag: string | null }>> {
+  const items: Array<{ key: string; size: number; etag: string | null }> = []
+  let token: string | undefined
+  do {
+    const page = await s3().send(
+      new ListObjectsV2Command({
+        Bucket: bucket ?? buckets.files(),
+        Prefix: prefix,
+        ContinuationToken: token,
+      }),
+    )
+    for (const item of page.Contents ?? []) {
+      if (item.Key) items.push({ key: item.Key, size: item.Size ?? 0, etag: item.ETag ?? null })
+    }
+    token = page.IsTruncated ? page.NextContinuationToken : undefined
+  } while (token)
+  return items
+}
+
+/** Удаляет все объекты с префиксом (пачками по 1000); возвращает их число. */
+export async function deletePrefix(prefix: string, bucket?: string): Promise<number> {
+  const target = bucket ?? buckets.files()
+  const keys = (await listObjects(prefix, target)).map((item) => item.key)
+  for (let start = 0; start < keys.length; start += 1000) {
+    await s3().send(
+      new DeleteObjectsCommand({
+        Bucket: target,
+        Delete: { Objects: keys.slice(start, start + 1000).map((Key) => ({ Key })), Quiet: true },
+      }),
+    )
+  }
+  return keys.length
+}
+
+/** Ошибка S3 «нет такого объекта» (GET — NoSuchKey, HEAD — NotFound). */
+export function isMissingObject(error: unknown): boolean {
+  const name = (error as { name?: string }).name
+  return name === 'NoSuchKey' || name === 'NotFound'
 }
 
 export async function deleteObject(key: string, bucket?: string): Promise<void> {
