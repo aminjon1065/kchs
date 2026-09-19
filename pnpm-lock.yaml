@@ -580,6 +580,28 @@ importers:
         specifier: ^3.2.4
         version: 3.2.7(@types/node@22.20.3)(jiti@2.7.0)(lightningcss@1.32.0)(supports-color@10.2.2)(tsx@4.23.13)(yaml@2.9.1)
 
+  packages/process:
+    dependencies:
+      '@kchs/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@kchs/query':
+        specifier: workspace:*
+        version: link:../query
+      zod:
+        specifier: ^4.1.12
+        version: 4.6.5
+    devDependencies:
+      '@kchs/config':
+        specifier: workspace:*
+        version: link:../config
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.7(@types/node@22.20.3)(jiti@2.7.0)(lightningcss@1.32.0)(supports-color@10.2.2)(tsx@4.23.13)(yaml@2.9.1)
+
   packages/query:
     dependencies:
       '@kchs/contracts':

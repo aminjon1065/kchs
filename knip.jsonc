@@ -54,6 +54,10 @@
       "project": ["src/**/*.ts"]
     },
     "packages/query": {
+      "entry": ["src/index.ts", "src/expr/index.ts", "test/**/*.test.ts"],
+      "project": ["src/**/*.ts", "test/**/*.ts"]
+    },
+    "packages/process": {
       "entry": ["src/index.ts", "test/**/*.test.ts"],
       "project": ["src/**/*.ts", "test/**/*.ts"]
     },
