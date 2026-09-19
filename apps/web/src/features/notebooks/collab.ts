@@ -13,8 +13,21 @@ import { getCsrfToken } from '~/shared/api/client.js'
 
 let socket: HocuspocusProviderWebsocket | null = null
 let users = 0
+let idle: ReturnType<typeof setTimeout> | null = null
+
+/**
+ * Последний документ закрыт — сокет закрывается не сразу: переход между
+ * вкладками с документами (тетрадь → отчёт) отпускает сокет и берёт его в том
+ * же такте. Закрытый, но ещё не закрывшийся сокет `connect()` не переоткрывает
+ * (для него статус всё ещё «подключён»), и новый документ ждал бы вечно.
+ */
+const IDLE_CLOSE_MS = 1000
 
 function acquireSocket(): HocuspocusProviderWebsocket {
+  if (idle) {
+    clearTimeout(idle)
+    idle = null
+  }
   if (!socket) {
     const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws'
     socket = new HocuspocusProviderWebsocket({
@@ -29,7 +42,14 @@ function acquireSocket(): HocuspocusProviderWebsocket {
 
 function releaseSocket(): void {
   users = Math.max(0, users - 1)
-  if (users === 0) socket?.disconnect()
+  if (users > 0 || idle) return
+  idle = setTimeout(() => {
+    idle = null
+    if (users > 0 || !socket) return
+    // Закрываемый сокет больше не используется: следующий документ откроет новый
+    socket.destroy()
+    socket = null
+  }, IDLE_CLOSE_MS)
 }
 
 /**
