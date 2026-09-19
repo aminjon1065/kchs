@@ -103,6 +103,7 @@ if [[ "$MODE" == app ]]; then
   # WEB_PORT=80, WEB_HTTPS_PORT=443 (и S3 по HTTPS — см. README)
   set_kv KCHS_DOMAIN ":80"
   set_kv ENGINE_API_URL "http://api:3000"
+  set_kv ENGINE_WEB_URL "http://web"
 fi
 
 echo "Создан $ENV_FILE (режим 600, $MODE). Секреты сгенерированы."

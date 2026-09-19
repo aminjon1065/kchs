@@ -13,6 +13,13 @@ def test_handler_registered() -> None:
     assert "transform" in registered_queues()
 
 
+def test_report_render_handler_registered() -> None:
+    # Рендер отчётов — очередь render движка (ADR-0035, ADR-0078)
+    import kchs_engine.render.report  # noqa: F401
+
+    assert "render:report.render" in JOB_HANDLERS
+
+
 def test_queue_ownership_matches_contracts() -> None:
     from kchs_engine.contracts import engine_queues, queue_runtime
 

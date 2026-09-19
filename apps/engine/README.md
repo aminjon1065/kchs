@@ -29,6 +29,29 @@ uv run ruff check .
   /api/v1/internal/data/imports/{importId}/normalized`. Нечитаемый файл — окончательный
   сбой задания без повторов.
 
+## Рендер отчётов (ADR-0078)
+
+Задание `render:report.render` (`kchs_engine/render/report.py`): план рендера и служебный токен
+страницы печати — `POST /api/v1/internal/reports/runs/{runId}/start`; Chromium (Playwright) с
+cookie `kchs_print` открывает `KCHS_WEB_URL + /print/report/{runId}`, ждёт
+`<html data-print-state="ready">`, печатает PDF (A4, колонтитулы, номера страниц) и собирает DOCX
+(docxtpl, `render/docx_report.py`) по модели `window.kchsPrint` со снимками графиков и карт;
+файлы — в бакет экспортов, итог — `POST /api/v1/internal/reports/runs/{runId}/rendered`.
+Договорённости страницы и движка — `contracts/report_render.json`.
+
+- `KCHS_WEB_URL` — адрес веба для Chromium (compose: `ENGINE_WEB_URL`, в профиле app — `http://web`,
+  при разработке — `http://host.docker.internal:5173`);
+- `ENGINE_RENDER_CONCURRENCY` — страниц печати одновременно (2), `ENGINE_RENDER_TIMEOUT_S` —
+  предел одного рендера (240 с);
+- Chromium — в образе (`playwright install --only-shell chromium`, `PLAYWRIGHT_BROWSERS_PATH`);
+  локально — `uv run playwright install chromium`.
+
+```bash
+uv sync --extra dev --extra render
+uv run pytest tests/test_report_docx.py   # DOCX по модели страницы печати
+uv run pytest -m browser                  # печать в Chromium (поддельная страница печати)
+```
+
 Долгие и внешние проверки в CI не запускаются:
 
 ```bash

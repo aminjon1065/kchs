@@ -41,3 +41,9 @@ def data_import_contract() -> dict[str, Any]:
 def data_export_contract() -> dict[str, Any]:
     """Форматы геоэкспорта, которые собирает движок, и предел строк (ADR-0056, ADR-0068)."""
     return _load("data_export.json")
+
+
+@lru_cache
+def report_render_contract() -> dict[str, Any]:
+    """Форматы, cookie токена печати и признаки готовности страницы отчёта (ADR-0078)."""
+    return _load("report_render.json")

@@ -32,6 +32,12 @@ gis = [
     "shapely>=2.1",
     "pyproj>=3.7",
 ]
+# Печать отчётов (ADR-0022, ADR-0078): страница печати веба в Chromium → PDF;
+# DOCX — docxtpl (python-docx) с картинками графиков и карт со страницы печати
+render = [
+    "playwright>=1.55",
+    "docxtpl>=0.20",
+]
 dev = [
     "pytest>=8.4",
     "pytest-asyncio>=1.2",
@@ -58,9 +64,10 @@ pythonpath = ["."]
 markers = [
     "slow: долгие проверки производительности (запуск: pytest -m slow -s)",
     "s3: проверки с MinIO разработки (запуск: KCHS_TEST_S3=1 pytest -m s3)",
+    "browser: печать в Chromium (образ движка или `playwright install chromium`; pytest -m browser)",
 ]
-# По умолчанию (и в CI) — без долгих проверок и без внешнего хранилища
-addopts = "-m 'not slow and not s3'"
+# По умолчанию (и в CI) — без долгих проверок, внешнего хранилища и браузера
+addopts = "-m 'not slow and not s3 and not browser'"
 
 [build-system]
 requires = ["hatchling"]

@@ -30,6 +30,13 @@ class Settings(BaseSettings):
     ENGINE_PORT: int = 8000
     ENGINE_CONCURRENCY: int = 4
 
+    # Печать отчётов (ADR-0078): адрес веба, который открывает Chromium движка
+    # (страница `/print/report/<запуск>`), и сколько страниц печатается сразу
+    KCHS_WEB_URL: str = "http://localhost:5173"
+    ENGINE_RENDER_CONCURRENCY: int = 2
+    # Предел одного рендера, с: загрузка, готовность страницы, PDF и DOCX
+    ENGINE_RENDER_TIMEOUT_S: int = 240
+
 
 @lru_cache
 def settings() -> Settings:

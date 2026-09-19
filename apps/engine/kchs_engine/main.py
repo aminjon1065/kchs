@@ -24,6 +24,7 @@ from kchs_engine.data.geo_export import ExportField, convert_features
 from kchs_engine.data.readers import ImportFileError
 from kchs_engine.jobs import registered_queues
 from kchs_engine.logging import configure_logging, log
+from kchs_engine.render.report import close_browser
 from kchs_engine.storage import download, upload
 from kchs_engine.users_import import build_template
 from kchs_engine.worker import run_workers
@@ -40,6 +41,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     finally:
         stop.set()
         await task
+        await close_browser()
         log.info("engine.stopped")
 
 

@@ -286,6 +286,9 @@ services:
       # при разработке (api на хосте) — http://host.docker.internal:3000
       KCHS_API_URL: ${ENGINE_API_URL:-http://api:3000}
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
+      # Веб для страницы печати отчётов в Chromium движка (ADR-0078): в полном
+      # развёртывании — контейнер web; при разработке — http://host.docker.internal:5173
+      KCHS_WEB_URL: ${ENGINE_WEB_URL:-http://web}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:

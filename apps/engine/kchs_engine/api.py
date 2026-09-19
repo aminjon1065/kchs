@@ -85,3 +85,16 @@ async def report_users_import_parsed(job_id: str, payload: dict[str, Any]) -> di
 async def report_dataset_normalized(import_id: str, payload: dict[str, Any]) -> dict[str, Any]:
     """Итог нормализации файла импорта; API ставит воркеру загрузку в датасет (ADR-0046)."""
     return await _post_strict(f"/api/v1/internal/data/imports/{import_id}/normalized", payload)
+
+
+async def report_render_start(run_id: str) -> dict[str, Any]:
+    """Служебный токен страницы печати и параметры рендера отчёта (ADR-0078).
+
+    Номер попытки api считает сам: повтор BullMQ приходит тем же запросом.
+    """
+    return await _post_strict(f"/api/v1/internal/reports/runs/{run_id}/start", {})
+
+
+async def report_rendered(run_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    """Файлы отчёта в бакете экспортов: api отмечает запуск и рассылает (ADR-0078)."""
+    return await _post_strict(f"/api/v1/internal/reports/runs/{run_id}/rendered", payload)

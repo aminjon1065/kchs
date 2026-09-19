@@ -25,14 +25,22 @@ FROM system AS deps
 COPY --from=ghcr.io/astral-sh/uv:0.9.7 /uv /usr/local/bin/uv
 WORKDIR /app
 COPY pyproject.toml ./
-RUN uv venv /opt/venv && VIRTUAL_ENV=/opt/venv uv pip install --no-cache -e '.[data,gis,dev]'
+RUN uv venv /opt/venv && VIRTUAL_ENV=/opt/venv uv pip install --no-cache -e '.[data,gis,render,dev]'
 
 # ── Итоговый образ ───────────────────────────────────────────────────────────
 FROM system AS runtime
 
 COPY --from=deps /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH" \
-    VIRTUAL_ENV=/opt/venv
+    VIRTUAL_ENV=/opt/venv \
+    PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright
+
+# Chromium печати отчётов (ADR-0022, ADR-0078): безголовая сборка той версии, что
+# ждёт пакет playwright, и её системные библиотеки. Каталог — общий, не в $HOME:
+# ставит root, запускает пользователь kchs
+RUN playwright install --with-deps --only-shell chromium \
+ && chmod -R a+rX /opt/ms-playwright \
+ && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 COPY . .
