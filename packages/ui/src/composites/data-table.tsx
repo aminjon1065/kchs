@@ -50,6 +50,12 @@ export interface DataTableProps<T> {
   onRowClick?: (row: T) => void
   onRowOpen?: (row: T) => void
   rowActions?: (row: T) => ReactNode
+  /**
+   * Строка, которую показать: новая — прокрутка к ней и активная строка
+   * (выделение пришло извне, например щелчок по объекту на карте). Строка,
+   * которой ещё нет, показывается, когда загрузится.
+   */
+  revealId?: string | null
   onEndReached?: () => void
   loading?: boolean
   empty?: ReactNode
@@ -82,6 +88,7 @@ export function DataTable<T>({
   onRowClick,
   onRowOpen,
   rowActions,
+  revealId,
   onEndReached,
   loading,
   empty,
@@ -136,6 +143,21 @@ export function DataTable<T>({
   useEffect(() => {
     if (onEndReached && rows.length > 0 && lastIndex >= rows.length - 8) onEndReached()
   }, [lastIndex, rows.length, onEndReached])
+
+  // Показ строки извне: один раз на значение — подгрузка страниц не дёргает прокрутку
+  const revealed = useRef<string | null>(null)
+  useEffect(() => {
+    if (!revealId) {
+      revealed.current = null
+      return
+    }
+    if (revealed.current === revealId) return
+    const index = rows.findIndex((row) => getRowId(row) === revealId)
+    if (index < 0) return
+    revealed.current = revealId
+    setActive(index)
+    virtualizer.scrollToIndex(index, { align: 'auto' })
+  }, [revealId, rows, getRowId, virtualizer])
 
   const toggle = useCallback(
     (id: string) => {

@@ -169,6 +169,8 @@ export function MapCanvas({
   const latest = useRef({ onCameraChange, onFeatureClick, interactiveLayerIds, camera })
   latest.current = { onCameraChange, onFeatureClick, interactiveLayerIds, camera }
   const registered = useRef(new Set<string>())
+  const selected = useRef(selection)
+  selected.current = selection
   // Что уже применено к карте: MapLibre нормализует спецификации, поэтому
   // сравнение идёт с последним применённым, а не со стилем карты
   const applied = useRef({ sources: new Map<string, string>(), layers: new Map<string, string>() })
@@ -407,6 +409,15 @@ export function MapCanvas({
           'source' in layer && typeof layer.source === 'string' ? dataId(layer.source) : undefined
         map.addLayer({ ...layer, id, ...(source ? { source } : {}) } as LayerSpecification, before)
         state.layers.set(id, JSON.stringify(layer))
+      }
+      // Новый источник (сменился фильтр или время) — без состояния объектов: выделение заново
+      for (const item of selected.current) {
+        const source = dataId(item.source)
+        if (!map.getSource(source)) continue
+        map.setFeatureState(
+          { source, sourceLayer: item.sourceLayer, id: item.id },
+          { selected: true },
+        )
       }
       setSynced(true)
     }

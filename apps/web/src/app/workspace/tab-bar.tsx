@@ -12,6 +12,7 @@ import {
 import { Columns2, Pin, PinOff, Plus, X } from 'lucide-react'
 import { type DragEvent, useRef, useState } from 'react'
 import { useT } from '../i18n.js'
+import { PaneLinkMenu } from './pane-link-menu.js'
 import { useWorkspace } from './store.js'
 import type { PaneState, TabState } from './types.js'
 import { WorkspacesMenu } from './workspaces-menu.js'
@@ -100,6 +101,7 @@ export function TabBar({
             <Columns2 className="size-3.5" />
           </IconButton>
         </Tooltip>
+        {panesCount > 1 ? <PaneLinkMenu pane={pane} /> : null}
         {panesCount > 1 ? (
           <IconButton
             label={t('shell.tabs.closePane')}

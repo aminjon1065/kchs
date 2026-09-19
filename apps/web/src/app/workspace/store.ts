@@ -11,6 +11,7 @@ import type {
   TabState,
   WorkspaceSnapshot,
 } from './types.js'
+import { freeLinkGroup } from './view-context.js'
 
 const MAX_CLOSED = 20
 const MAX_PANES = 4
@@ -71,6 +72,8 @@ export interface WorkspaceStore extends WorkspaceSnapshot {
   moveTabToPane: (tabId: string, paneId: string, index?: number) => void
   splitPane: (tabId?: string) => void
   closePane: (paneId: string) => void
+  /** Группа связанных представлений панели (ViewContext, ADR-0073); null — без связи. */
+  setPaneLinkGroup: (paneId: string, group: string | null) => void
   focusPane: (paneId: string) => void
   toggleNavigator: (open?: boolean) => void
   toggleContext: (open?: boolean) => void
@@ -141,7 +144,7 @@ export const useWorkspace = create<WorkspaceStore>()(
         }
 
         if (mode === 'split') {
-          const created = createPane(state.panes, tab.id)
+          const created = createPane(state.panes, tab.id, state.focusedPaneId)
           set({
             tabs: { ...state.tabs, [tab.id]: tab },
             panes: created.panes,
@@ -349,7 +352,7 @@ export const useWorkspace = create<WorkspaceStore>()(
           // Единственная вкладка: дублируем её в новую панель
           const source = state.tabs[sourceTabId]!
           const clone: TabState = { ...source, id: newId('tab'), preview: false }
-          const created = createPane(state.panes, clone.id)
+          const created = createPane(state.panes, clone.id, sourcePane.id)
           set({
             tabs: { ...state.tabs, [clone.id]: clone },
             panes: created.panes,
@@ -358,7 +361,7 @@ export const useWorkspace = create<WorkspaceStore>()(
           return
         }
 
-        const created = createPane(state.panes, sourceTabId)
+        const created = createPane(state.panes, sourceTabId, sourcePane?.id ?? state.focusedPaneId)
         const panes = created.panes.map((pane) =>
           pane.id !== created.paneId && pane.tabIds.includes(sourceTabId)
             ? {
@@ -384,6 +387,13 @@ export const useWorkspace = create<WorkspaceStore>()(
         const panes = state.panes.filter((p) => p.id !== paneId)
         set({ tabs, panes, focusedPaneId: panes[0]!.id })
       },
+
+      setPaneLinkGroup: (paneId, group) =>
+        set((state) => ({
+          panes: state.panes.map((pane) =>
+            pane.id === paneId ? { ...pane, linkGroup: group } : pane,
+          ),
+        })),
 
       focusPane: (paneId) => set({ focusedPaneId: paneId }),
 
@@ -492,10 +502,27 @@ export const useWorkspace = create<WorkspaceStore>()(
   ),
 )
 
-function createPane(panes: PaneState[], tabId: string): { panes: PaneState[]; paneId: string } {
+/**
+ * Новая панель рядом с исходной — связанное представление (ADR-0073): она входит
+ * в группу связи исходной панели, а у несвязанной обе получают свободную группу.
+ */
+function createPane(
+  panes: PaneState[],
+  tabId: string,
+  sourcePaneId: string,
+): { panes: PaneState[]; paneId: string } {
   const paneId = newId('pane')
+  const source = panes.find((pane) => pane.id === sourcePaneId)
+  const group = source
+    ? (source.linkGroup ?? freeLinkGroup(panes.map((pane) => pane.linkGroup)))
+    : null
   return {
-    panes: [...panes, { id: paneId, tabIds: [tabId], activeTabId: tabId }],
+    panes: [
+      ...panes.map((pane) =>
+        pane === source && !pane.linkGroup ? { ...pane, linkGroup: group } : pane,
+      ),
+      { id: paneId, tabIds: [tabId], activeTabId: tabId, linkGroup: group },
+    ],
     paneId,
   }
 }

@@ -44,10 +44,8 @@ import {
 } from '../edit/geometry.js'
 import { useEditLayersOnTop, useGhostOverlay } from '../edit/ghost-overlay.js'
 import { SnapIndex } from '../edit/snap.js'
-import { useStudio } from './context.js'
+import { EDIT_TOOL, useStudio } from './context.js'
 
-/** Инструмент карты, которому принадлежат щелчки, пока идёт правка. */
-const EDIT_TOOL = 'edit'
 /** Привязка — с масштаба улиц: мельче вершины соседних объектов неразличимы. */
 const SNAP_MIN_ZOOM = 12
 /** Допуск привязки, px. */
@@ -327,7 +325,7 @@ export function EditTools() {
       }
       useSession.getState().start(next.id)
       studio.setActiveLayerId(next.id)
-      studio.setMapTool(EDIT_TOOL)
+      studio.setTool(EDIT_TOOL)
       studio.openPanel('edit', next.id)
     } catch {
       toast.error(t('errors.unknown'))
@@ -336,7 +334,7 @@ export function EditTools() {
 
   const stop = () => {
     useSession.getState().stop()
-    studio.setMapTool(null)
+    studio.setTool(null)
     if (studio.panel?.kind === 'edit') studio.closePanel()
     studio.setSelection([])
   }

@@ -33,6 +33,14 @@ export interface StudioContextValue {
   /** Выделенные объекты: подсвечены на карте, отмечены в атрибутивной таблице. */
   selection: readonly FeatureRef[]
   setSelection: (refs: FeatureRef[]) => void
+  /**
+   * Инструмент, который сам обрабатывает щелчки по карте: инструменты навигации
+   * (`select`, `identify`, `measure-line`, `measure-area`) или правка объектов
+   * (`EDIT_TOOL`); null — обычный режим: щелчок выделяет объект и открывает его
+   * карточку. Инструмент один: включённый сменяет прежний.
+   */
+  tool: string | null
+  setTool: (tool: string | null) => void
   /** Слой, с которым работают таблица, стиль и правка. */
   activeLayerId: string | null
   setActiveLayerId: (layerId: string | null) => void
@@ -56,13 +64,10 @@ export interface StudioContextValue {
    */
   styleDrafts: Readonly<Record<string, LayerStyle>>
   setStyleDraft: (layerId: string, style: LayerStyle | null) => void
-  /**
-   * Инструмент, которому принадлежат щелчки по карте (правка объектов,
-   * измерение…): пока он задан, щелчок не открывает карточку объекта.
-   */
-  mapTool: string | null
-  setMapTool: (tool: string | null) => void
 }
+
+/** Инструмент правки объектов (ADR-0076): щелчки по карте принадлежат рисованию. */
+export const EDIT_TOOL = 'edit'
 
 const StudioContext = createContext<StudioContextValue | null>(null)
 

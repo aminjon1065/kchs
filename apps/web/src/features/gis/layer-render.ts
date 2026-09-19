@@ -26,6 +26,7 @@ import { useMemo } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { http } from '~/shared/api/client.js'
 import { datasetQuery } from '../data/queries.js'
+import { selectionLayers } from './studio/selection-layers.js'
 import {
   base64urlJson,
   type StatsRequest,
@@ -226,6 +227,8 @@ export function useRenderedLayers(
         const role = (spec.metadata as Record<string, unknown> | undefined)?.['kchs:role']
         if (typeof role === 'string' && CLICKABLE.has(role)) interactive.push(spec.id)
       }
+      // Подсветка выделенных объектов — по feature-state (ADR-0073)
+      layers.push(...selectionLayers(layer, source, theme))
     })
     return {
       sources,

@@ -6,6 +6,7 @@ import { getObjectView, getScreen } from './registry.js'
 import { useWorkspace } from './store.js'
 import { TabBar } from './tab-bar.js'
 import type { PaneState, TabState } from './types.js'
+import { PaneLinkContext } from './view-context.js'
 
 export function PaneArea({ onOpenPalette }: { onOpenPalette: () => void }) {
   const panes = useWorkspace((s) => s.panes)
@@ -48,6 +49,7 @@ function PaneView({
 }) {
   const t = useT()
   const tabs = useWorkspace((s) => s.tabs)
+  const linked = useWorkspace((s) => s.panes.length > 1)
   const activeTab = pane.activeTabId ? tabs[pane.activeTabId] : null
 
   return (
@@ -64,7 +66,10 @@ function PaneView({
       <div className="min-h-0 flex-1 overflow-hidden">
         {activeTab ? (
           <Suspense fallback={<PaneSkeleton />}>
-            <TabContent tab={activeTab} />
+            {/* Связанные представления: группа панели — при нескольких панелях (ADR-0073) */}
+            <PaneLinkContext.Provider value={linked ? (pane.linkGroup ?? null) : null}>
+              <TabContent tab={activeTab} />
+            </PaneLinkContext.Provider>
           </Suspense>
         ) : (
           <EmptyState

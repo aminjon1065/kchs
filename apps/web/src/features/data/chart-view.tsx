@@ -1,3 +1,4 @@
+import type { ChartFilter } from '@kchs/chart-spec'
 import {
   AlertDialog,
   Badge,
@@ -14,17 +15,20 @@ import {
   useToast,
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { LayoutDashboard, RefreshCw, Share2, Trash2 } from 'lucide-react'
+import { LayoutDashboard, Link2, RefreshCw, Share2, Trash2 } from 'lucide-react'
 import { useState } from 'react'
+import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
+import { useLinkSource, usePaneLinkGroup, useViewContext } from '~/app/workspace/view-context.js'
 import { ShareDialog } from '~/features/access/share-dialog.js'
 import { useLabelledResult } from '~/features/gis/result-labels.js'
 import { PresenceAvatars } from '~/features/objects/presence-avatars.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { keys, meQuery, objectQuery } from '~/shared/api/queries.js'
+import { brushFilter, brushLabel } from './brush-filter.js'
 import { AddToDashboardDialog } from './dashboard-dialogs.js'
-import { chartDataQuery, chartQuery, dataKeys } from './queries.js'
+import { chartDataQuery, chartQuery, dataKeys, datasetQuery } from './queries.js'
 
 /**
  * График (06-analytics-engine.md §8): спецификация объекта и данные, посчитанные
@@ -46,6 +50,19 @@ export function ChartView({ objectId, tabId }: { objectId: string; tabId: string
   const data = useQuery(chartDataQuery(objectId))
   // Территории в разрезах — названиями единиц справочника
   const labelled = useLabelledResult(data.data)
+  const locale = useAppearance((s) => s.locale)
+
+  // Связанные представления (ADR-0073): кисть графика по датасету — фильтр
+  // соседних панелей группы (карта, таблица датасета)
+  const group = usePaneLinkGroup()
+  const source = useLinkSource(group)
+  const query = chart && 'query' in chart.spec.data ? chart.spec.data.query : null
+  const datasetId = query?.source.kind === 'dataset' ? query.source.id : null
+  const { data: dataset } = useQuery({
+    ...datasetQuery(datasetId ?? ''),
+    enabled: Boolean(group && datasetId),
+  })
+  const linkable = Boolean(group && dataset)
 
   const rename = useMutation({
     mutationFn: (name: string) => http.patch(`/charts/${objectId}`, { name }),
@@ -145,13 +162,53 @@ export function ChartView({ objectId, tabId }: { objectId: string; tabId: string
           ) : data.error ? (
             <Callout tone="danger">{t('data.chart.failed')}</Callout>
           ) : data.data ? (
-            <Chart
-              spec={chart.spec}
-              result={labelled ?? data.data}
-              height={520}
-              pending={data.isFetching}
-              {...(me?.user.timezone ? { timezone: me.user.timezone } : {})}
-            />
+            <>
+              {linkable ? (
+                <p className="mb-2 flex items-center gap-1.5 text-xs text-fg-muted">
+                  <Link2 className="size-3.5 text-accent" aria-hidden />
+                  {t('data.chart.linkedBrush')}
+                </p>
+              ) : null}
+              <Chart
+                spec={
+                  linkable
+                    ? { ...chart.spec, options: { ...chart.spec.options, brush: true } }
+                    : chart.spec
+                }
+                result={labelled ?? data.data}
+                height={520}
+                pending={data.isFetching}
+                {...(me?.user.timezone ? { timezone: me.user.timezone } : {})}
+                {...(linkable && group && dataset
+                  ? {
+                      onBrush: (picked: ChartFilter | null) => {
+                        const store = useViewContext.getState()
+                        const where = picked
+                          ? brushFilter(chart.spec, picked, dataset.fields)
+                          : null
+                        if (!where) {
+                          store.filter(group, dataset.id, null, source)
+                          return
+                        }
+                        const field =
+                          'field' in where
+                            ? where.field
+                            : 'and' in where && where.and[0] && 'field' in where.and[0]
+                              ? where.and[0].field
+                              : ''
+                        const def = dataset.fields.find((item) => item.key === field)
+                        const name = def ? (def.label[locale] ?? def.label.ru) : chart.name
+                        store.filter(
+                          group,
+                          dataset.id,
+                          { where, label: brushLabel(where, name, locale) },
+                          source,
+                        )
+                      },
+                    }
+                  : {})}
+              />
+            </>
           ) : (
             <Skeleton className="h-[520px] w-full" />
           )}

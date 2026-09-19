@@ -45,6 +45,7 @@ import {
 import { CursorCoordinates } from './studio/cursor-coordinates.js'
 import { AddMapToDashboard } from './studio/dashboard-button.js'
 import { EditTools } from './studio/edit-tools.js'
+import { StudioLinks } from './studio/linked-views.js'
 import { NavigationTools } from './studio/navigation-tools.js'
 import { PrintTools } from './studio/print-tools.js'
 import { StudioSidePanel } from './studio/side-panel.js'
@@ -115,12 +116,12 @@ export function MapStudio({
   const [fit, setFit] = useState<{ bbox: Bbox; key: number } | null>(null)
   const [picked, setPicked] = useState<Picked | null>(null)
   const [selection, setSelection] = useState<FeatureRef[]>([])
+  const [tool, setTool] = useState<string | null>(null)
   const [activeLayerId, setActiveLayerId] = useState<string | null>(null)
   const [panel, setPanel] = useState<StudioContextValue['panel']>(null)
   const [attributesOpen, setAttributesOpen] = useState(false)
   const [layerFilters, setLayerFilters] = useState<Record<string, FilterNode>>({})
   const [styleDrafts, setStyleDrafts] = useState<Record<string, LayerStyle>>({})
-  const [mapTool, setMapTool] = useState<string | null>(null)
   const [instance, setInstance] = useState<MapInstance | null>(null)
   const [adding, setAdding] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
@@ -233,8 +234,8 @@ export function MapStudio({
   })
 
   const onFeatureClick = (event: MapClickEvent) => {
-    // Щелчки забрал инструмент карты (правка, измерение) — без карточки объекта
-    if (mapTool) return
+    // Щелчок принадлежит активному инструменту (рамка, измерение, правка объектов)
+    if (tool) return
     const hit = event.features[0]
     if (!hit) {
       setPicked(null)
@@ -294,6 +295,11 @@ export function MapStudio({
     fitBounds: (bbox) => setFit({ bbox, key: Date.now() }),
     selection,
     setSelection,
+    tool,
+    setTool: (next) => {
+      setTool(next)
+      if (next) setPicked(null)
+    },
     activeLayerId,
     setActiveLayerId,
     panel,
@@ -320,11 +326,6 @@ export function MapStudio({
         else delete next[layerId]
         return next
       }),
-    mapTool,
-    setMapTool: (tool) => {
-      setMapTool(tool)
-      if (tool) setPicked(null)
-    },
   }
 
   return (
@@ -473,6 +474,7 @@ export function MapStudio({
               </div>
               <TimeBar />
               <CursorCoordinates />
+              <StudioLinks />
               {picked && pickedLayer ? (
                 <div
                   className="absolute z-20"

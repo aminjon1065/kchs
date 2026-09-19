@@ -1,4 +1,10 @@
-import type { DatasetRecord, DatasetRow, DatasetRowsQuery, QueryResult } from '@kchs/contracts'
+import type {
+  DatasetRecord,
+  DatasetRow,
+  DatasetRowsQuery,
+  FilterNode,
+  QueryResult,
+} from '@kchs/contracts'
 import {
   Button,
   Callout,
@@ -9,17 +15,26 @@ import {
   DataGridColumnsButton,
   type DataGridEditResult,
   type DataGridRow,
+  type DataGridSelectionInfo,
   type DataGridSortItem,
   IconButton,
   SearchInput,
+  Switch,
   useDataGridColumnState,
   useDebouncedValue,
 } from '@kchs/ui'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Download, Plus, RefreshCw } from 'lucide-react'
+import { Download, Link2, Plus, RefreshCw, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
+import {
+  idsOfSpans,
+  useLinkedDataset,
+  useLinkSource,
+  usePaneLinkGroup,
+  useViewContext,
+} from '~/app/workspace/view-context.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { meQuery } from '~/shared/api/queries.js'
 import { ExportDialog } from './export-dialog.js'
@@ -81,6 +96,31 @@ export function DatasetTable({ dataset, canEdit }: { dataset: DatasetRecord; can
   const [creating, setCreating] = useState(false)
   const canExport = me?.capabilities.includes('data.export') ?? false
 
+  // Связанные представления (ADR-0073): фильтр и охват соседних панелей сужают
+  // таблицу, выделение строк уходит к ним (карта подсвечивает объекты)
+  const group = usePaneLinkGroup()
+  const source = useLinkSource(group)
+  const linked = useLinkedDataset(group, dataset.id)
+  const linkedFilter = linked.filter && linked.filter.source !== source ? linked.filter : null
+  const linkedExtent = linked.extent && linked.extent.source !== source ? linked.extent : null
+  const linkedSelection =
+    linked.selection && linked.selection.source !== source && linked.selection.ids.length > 0
+      ? linked.selection
+      : null
+  const [inExtent, setInExtent] = useState(false)
+  const [onlyLinked, setOnlyLinked] = useState(false)
+  const conditions: FilterNode[] = [
+    ...(linkedFilter ? [linkedFilter.where] : []),
+    ...(onlyLinked && linkedSelection
+      ? [{ field: '_id', op: 'in' as const, value: linkedSelection.ids.map(Number) }]
+      : []),
+  ]
+  const where = conditions.length > 1 ? { and: conditions } : conditions[0]
+  const whereKey = where ? JSON.stringify(where) : ''
+  const bbox =
+    inExtent && linkedExtent ? { field: linkedExtent.field, bbox: linkedExtent.bbox } : null
+  const bboxKey = bbox ? JSON.stringify(bbox) : ''
+
   // Территории и справочники: подпись вместо значения, выбор при правке (ADR-0057)
   const fieldOptions = useFieldOptions(dataset.fields)
   const columns = useMemo<DataGridColumn[]>(
@@ -104,6 +144,8 @@ export function DatasetTable({ dataset, canEdit }: { dataset: DatasetRecord; can
     async (page: number, current: number) => {
       requested.current.add(page)
       const body: DatasetRowsQuery = {
+        ...(whereKey ? { where: JSON.parse(whereKey) as FilterNode } : {}),
+        ...(bboxKey ? { bbox: JSON.parse(bboxKey) as NonNullable<DatasetRowsQuery['bbox']> } : {}),
         sort: sort.map((item) => ({ field: item.key, dir: item.dir })),
         ...(debouncedSearch ? { search: debouncedSearch } : {}),
         limit: PAGE,
@@ -126,7 +168,7 @@ export function DatasetTable({ dataset, canEdit }: { dataset: DatasetRecord; can
         if (page === 0 && current === generation.current) setLoading(false)
       }
     },
-    [dataset.id, sort, debouncedSearch, t],
+    [dataset.id, sort, debouncedSearch, whereKey, bboxKey, t],
   )
 
   // Новые сортировка, поиск или «Обновить» — таблица читается заново с первой страницы
@@ -143,6 +185,18 @@ export function DatasetTable({ dataset, canEdit }: { dataset: DatasetRecord; can
   const getRow = useCallback(
     (index: number) => pages.get(Math.floor(index / PAGE))?.[index % PAGE],
     [pages],
+  )
+
+  // Выделенные строки (и строка активной ячейки) — соседним панелям группы
+  const rowAt = useRef(getRow)
+  rowAt.current = getRow
+  const onSelectionChange = useCallback(
+    (info: DataGridSelectionInfo) => {
+      if (!group) return
+      const ids = idsOfSpans(info.rowSpans, (index) => rowAt.current(index)?.id)
+      useViewContext.getState().select(group, dataset.id, ids, source)
+    },
+    [group, dataset.id, source],
   )
 
   const onVisibleRangeChange = useCallback(
@@ -283,6 +337,55 @@ export function DatasetTable({ dataset, canEdit }: { dataset: DatasetRecord; can
           </IconButton>
         </div>
       </div>
+      {group && (linkedExtent || linkedSelection || linkedFilter) ? (
+        <section
+          aria-label={t('data.table.linked.title')}
+          className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 border-b border-line bg-surface-2 px-2.5 py-1"
+        >
+          <span className="flex items-center gap-1.5 whitespace-nowrap text-xs font-medium text-fg-secondary">
+            <Link2 className="size-3.5 shrink-0 text-accent" aria-hidden />
+            {t('data.table.linked.title')}
+          </span>
+          {linkedExtent ? (
+            <Switch
+              checked={inExtent}
+              onCheckedChange={(checked) => setInExtent(checked)}
+              label={
+                <span className="whitespace-nowrap text-xs text-fg-secondary">
+                  {t('data.table.linked.inExtent')}
+                </span>
+              }
+            />
+          ) : null}
+          {linkedSelection ? (
+            <Switch
+              checked={onlyLinked}
+              onCheckedChange={(checked) => setOnlyLinked(checked)}
+              label={
+                <span className="whitespace-nowrap text-xs text-fg-secondary">
+                  {t('data.table.linked.onlySelected', { count: linkedSelection.ids.length })}
+                </span>
+              }
+            />
+          ) : null}
+          {linkedFilter ? (
+            <span className="flex min-w-0 max-w-96 items-center gap-1 rounded-sm border border-line bg-surface py-0.5 pl-1.5 pr-0.5 text-xs text-fg-secondary">
+              <span className="truncate">
+                {t('data.table.linked.filter', { label: linkedFilter.label })}
+              </span>
+              <IconButton
+                label={t('data.table.linked.clearFilter')}
+                size="sm"
+                onClick={() =>
+                  useViewContext.getState().filter(group, dataset.id, null, source, true)
+                }
+              >
+                <X className="size-3" aria-hidden />
+              </IconButton>
+            </span>
+          ) : null}
+        </section>
+      ) : null}
       {failure ? (
         <Callout tone="danger" className="m-2.5">
           {failure}
@@ -301,6 +404,7 @@ export function DatasetTable({ dataset, canEdit }: { dataset: DatasetRecord; can
         columnState={columnState}
         onColumnStateChange={setColumnState}
         {...(writable ? { onEdit, onAppendRows } : { readOnly: true })}
+        onSelectionChange={onSelectionChange}
         onRowOpen={(row) => setOpenRow(row.id)}
         loading={loading}
         empty={
