@@ -22,6 +22,7 @@ import { authorize, hasCapability, visibleObjectsSql } from '~/kernel/access/aut
 import { clearanceOf } from '~/kernel/access/confidentiality.js'
 import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
 import { BusinessCalendar } from '~/kernel/business-calendar/service.js'
+import { startOfLocalDay } from '~/kernel/business-calendar/working-days.js'
 import { directory } from '~/kernel/directory/port.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { InboxService } from '~/kernel/inbox/service.js'
@@ -30,12 +31,20 @@ import { ObjectService } from '~/kernel/objects/service.js'
 import { ProcessDefinitions, ProcessService } from '~/kernel/process/index.js'
 import { territoryIndex } from '~/modules/gis/public.js'
 import { OrgService } from '~/modules/identity/public.js'
+import { config } from '~/shared/config/index.js'
 import { actorId, type Ctx, systemCtx, type UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import { documents, journals, objects, registrations } from '~/shared/db/schema/index.js'
+import {
+  documentDispatches,
+  documents,
+  journals,
+  objects,
+  registrations,
+} from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { assertRequisites, validateCardFields } from './card.js'
+import { CaseService, canFile } from './case-service.js'
 import { CorrespondentService } from './correspondent-service.js'
 import { JournalService, todayLocal } from './journal-service.js'
 import { applyTransition } from './lifecycle.js'
@@ -72,6 +81,9 @@ const COLUMNS = {
   unitId: documents.unitId,
   cancelledAt: documents.cancelledAt,
   cancelReason: documents.cancelReason,
+  caseId: documents.caseId,
+  filedAt: documents.filedAt,
+  filesDestroyedAt: documents.filesDestroyedAt,
   spaceId: objects.spaceId,
   ownerId: objects.ownerId,
   title: objects.title,
@@ -92,6 +104,9 @@ async function loadRow(executor: Executor, id: string, lock = false) {
 }
 
 type Row = NonNullable<Awaited<ReturnType<typeof loadRow>>>
+
+/** На какие документы можно ответить исходящим (ADR-0086). */
+const REPLYABLE: readonly DocumentStatus[] = ['registered', 'on_execution', 'executed']
 
 /** Просрочен: срок прошёл, документ не исполнен и не выбыл. */
 export function isOverdue(
@@ -336,6 +351,8 @@ export const DocumentService = {
       versionCount,
       route,
       routes,
+      caseRefs,
+      dispatches,
     ] = await Promise.all([
       directory().refs(
         [row.authorId, row.responsibleId, row.signerId, row.controllerId].filter(
@@ -349,6 +366,11 @@ export const DocumentService = {
       DocumentVersionService.count(db(), row.id),
       activeRoute(db(), row.id),
       ProcessDefinitions.published(db(), 'document'),
+      CaseService.refs(db(), row.caseId ? [row.caseId] : []),
+      db()
+        .select({ total: sql<number>`count(*)::int` })
+        .from(documentDispatches)
+        .where(eq(documentDispatches.documentId, row.id)),
     ])
     const person = (id: string | null): UserRef | null => (id ? (people.get(id) ?? null) : null)
     const status = row.status as DocumentStatus
@@ -402,6 +424,10 @@ export const DocumentService = {
       cancelReason: row.cancelReason,
       cancelledAt: row.cancelledAt,
       route,
+      case: row.caseId ? (caseRefs.get(row.caseId) ?? null) : null,
+      filedAt: row.filedAt,
+      dispatchCount: dispatches[0]?.total ?? 0,
+      filesDestroyedAt: row.filesDestroyedAt,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       version: row.version,
@@ -413,12 +439,26 @@ export const DocumentService = {
         cancel:
           ((status === 'draft' || status === 'returned') && allowed.has('document.cancel')) ||
           (status === 'registered' && allowed.has('document.cancel_registered')),
-        // На согласовании и подписи версия заморожена: новая — после возврата
+        // На согласовании и подписи версия заморожена: новая — после возврата;
+        // после уничтожения файлов по акту версий нет
         addVersion:
-          allowed.has('document.add_version') && !closed && !ROUTE_ACTIVE_STATUSES.includes(status),
+          allowed.has('document.add_version') &&
+          !closed &&
+          !ROUTE_ACTIVE_STATUSES.includes(status) &&
+          !row.filesDestroyedAt,
         changeConfidentiality: canEdit,
         share: allowed.has('document.share'),
         startRoute: routes.length > 0 && (blocker === null || blocker === 'no_version'),
+        reply:
+          allowed.has('document.reply') &&
+          type.direction === 'incoming' &&
+          REPLYABLE.includes(status),
+        dispatch:
+          allowed.has('document.dispatch') &&
+          type.direction === 'outgoing' &&
+          (status === 'registered' || status === 'executed'),
+        file: allowed.has('document.file') && canFile(status, row.control),
+        link: allowed.has('document.edit'),
       },
     }
   },
@@ -558,7 +598,11 @@ export const DocumentService = {
     ctx: Ctx,
     id: string,
     input: DocumentRegisterInput,
-    options: { viaRoute?: boolean } = {},
+    /**
+     * `viaRoute` — регистрирует шаг маршрута (ADR-0083); `date` — дата регистрации
+     * задним числом: только перенос бумажного архива и демо-данные сида (ADR-0086).
+     */
+    options: { viaRoute?: boolean; date?: string } = {},
   ): Promise<string> {
     if (options.viaRoute && ctx.kind === 'user') {
       // Регистратор шага маршрута: назначение проверил движок, право правки документа
@@ -614,7 +658,7 @@ export const DocumentService = {
       }
     }
 
-    const date = todayLocal()
+    const date = options.date ?? todayLocal()
     const issued = await JournalService.issue(tx, journal, {
       date,
       format: type.numbering.format,
@@ -631,6 +675,14 @@ export const DocumentService = {
       year: issued.year,
       reserved: issued.reservationId !== null,
       registeredBy: actorId(ctx),
+      // Задним числом — утро дня регистрации по часам организации
+      ...(options.date
+        ? {
+            registeredAt: new Date(
+              startOfLocalDay(options.date, config().TZ).getTime() + 9 * 3_600_000,
+            ).toISOString(),
+          }
+        : {}),
     })
 
     const deadline =
@@ -773,26 +825,36 @@ export const DocumentService = {
     await InboxService.resolve(tx, ctx, { objectId: id }, 'dismissed')
   },
 
-  /** Счётчики навигатора: мои, на контроле, просроченные, черновики. */
+  /**
+   * Счётчики навигатора: мои, на согласовании, на контроле, просроченные (все
+   * и на контроле), черновики, исходящие к отправке.
+   */
   async summary(ctx: UserCtx): Promise<DocumentSummary> {
     const me = ctx.userId
     const today = todayLocal()
     const open = sql`${documents.status} NOT IN ('executed', 'filed', 'archived', 'cancelled')`
+    const approval = sql`${documents.status} IN ('on_approval', 'returned', 'approved', 'on_signing', 'signed')`
     const [row] = await db()
       .select({
         mine: sql<number>`count(*) FILTER (WHERE ${open} AND (${documents.responsibleId} = ${me} OR ${documents.authorId} = ${me} OR ${documents.signerId} = ${me} OR ${documents.controllerId} = ${me}))::int`,
+        approval: sql<number>`count(*) FILTER (WHERE ${approval} AND (${documents.authorId} = ${me} OR ${documents.responsibleId} = ${me}))::int`,
         onControl: sql<number>`count(*) FILTER (WHERE ${open} AND ${documents.control} = 'on')::int`,
         overdue: sql<number>`count(*) FILTER (WHERE ${open} AND ${documents.deadline} < ${today}::date)::int`,
+        controlOverdue: sql<number>`count(*) FILTER (WHERE ${open} AND ${documents.control} = 'on' AND ${documents.deadline} < ${today}::date)::int`,
         drafts: sql<number>`count(*) FILTER (WHERE ${documents.status} = 'draft' AND ${documents.authorId} = ${me})::int`,
+        toDispatch: sql<number>`count(*) FILTER (WHERE ${documents.status} = 'registered' AND ${objects.meta}->>'direction' = 'outgoing')::int`,
       })
       .from(documents)
       .innerJoin(objects, eq(objects.id, documents.id))
       .where(and(visibleObjectsSql(ctx, 'document'), sql`${objects.deletedAt} IS NULL`))
     return {
       mine: row?.mine ?? 0,
+      approval: row?.approval ?? 0,
       onControl: row?.onControl ?? 0,
       overdue: row?.overdue ?? 0,
+      controlOverdue: row?.controlOverdue ?? 0,
       drafts: row?.drafts ?? 0,
+      toDispatch: row?.toDispatch ?? 0,
     }
   },
 }

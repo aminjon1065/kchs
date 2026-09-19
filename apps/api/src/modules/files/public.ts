@@ -19,6 +19,13 @@ export const registerGeneratedFile: typeof FileService.registerGenerated = (tx, 
 export const fileText: typeof FileProcessing.text = (fileId, limit) =>
   FileProcessing.text(fileId, limit)
 
+/**
+ * Окончательное уничтожение файлов с содержимым в транзакции вызывающего — акт
+ * о выделении документов к уничтожению (ADR-0086). Права проверяет вызывающий.
+ */
+export const destroyFiles: typeof FileService.destroy = (tx, ctx, fileIds) =>
+  FileService.destroy(tx, ctx, fileIds)
+
 /** Имя, тип, размер и ключ хранения файлов — для карточек других модулей. */
 export const fileBriefs: typeof FileService.briefs = (fileIds, database) =>
   FileService.briefs(fileIds, database)

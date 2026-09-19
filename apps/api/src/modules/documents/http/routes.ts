@@ -1,16 +1,30 @@
 import {
   AcknowledgmentRequestInput,
   AcknowledgmentRequestResult,
+  CaseCloseYearInput,
+  CaseCreateInput,
+  CaseList,
+  CaseListQuery,
+  CaseRecord,
+  CaseSuggestions,
+  CaseUpdateInput,
+  CorrespondenceChain,
   CorrespondentInput,
   CorrespondentList,
   CorrespondentListQuery,
   CorrespondentRecord,
   CorrespondentUpdateInput,
+  DestructionActInput,
+  DestructionActList,
   DocumentCancelInput,
   DocumentCreateInput,
+  DocumentDispatchInput,
+  DocumentDispatchList,
+  DocumentFileInput,
   DocumentPdfResult,
   DocumentRecord,
   DocumentRegisterInput,
+  DocumentReplyInput,
   DocumentResolutions,
   DocumentSummary,
   DocumentTypeCreateInput,
@@ -40,9 +54,12 @@ import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { validServiceToken } from '~/shared/http/service-token.js'
 import { DocumentAcknowledgments } from '../domain/acknowledgment-service.js'
+import { CaseService } from '../domain/case-service.js'
+import { Correspondence } from '../domain/correspondence-service.js'
 import { CorrespondentService } from '../domain/correspondent-service.js'
 import { DocumentService } from '../domain/document-service.js'
 import { JournalService } from '../domain/journal-service.js'
+import { officeDashboardId } from '../domain/office-dashboard.js'
 import { ResolutionService } from '../domain/resolution-service.js'
 import { ResolutionTemplates } from '../domain/resolution-templates.js'
 import { DocumentTypeService } from '../domain/type-service.js'
@@ -66,6 +83,16 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
     summary: 'Счётчики навигатора: мои, на контроле, просроченные, черновики',
     schema: { response: { 200: DocumentSummary } },
     handler: async (request) => DocumentService.summary(request.ctx),
+  })
+
+  route({
+    method: 'GET',
+    url: '/documents/office',
+    auth: 'session',
+    tags: ['documents'],
+    summary: 'Дашборд «Канцелярия», если он заведён и виден пользователю',
+    schema: { response: { 200: z.object({ dashboardId: z.uuid().nullable() }) } },
+    handler: async (request) => ({ dashboardId: await officeDashboardId(request.ctx) }),
   })
 
   route({
@@ -344,6 +371,195 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
     handler: async (request) => {
       await db().transaction((tx) => ResolutionTemplates.remove(tx, request.ctx, request.params.id))
       return { ok: true }
+    },
+  })
+
+  // ─── Переписка и дела (ADR-0086) ──────────────────────────────────────────
+  route({
+    method: 'POST',
+    url: '/documents/:id/reply',
+    auth: 'session',
+    tags: ['documents'],
+    summary: 'Ответить на входящий: исходящий черновик со связью «в ответ на»',
+    schema: {
+      params: IdParam,
+      body: DocumentReplyInput,
+      response: { 200: z.object({ id: z.uuid() }) },
+    },
+    handler: async (request) => {
+      const id = await db().transaction((tx) =>
+        Correspondence.reply(tx, request.ctx, request.params.id, request.body),
+      )
+      return { id }
+    },
+  })
+
+  route({
+    method: 'GET',
+    url: '/documents/:id/correspondence',
+    auth: 'session',
+    tags: ['documents'],
+    summary: 'Цепочка переписки по связям «в ответ на»',
+    schema: { params: IdParam, response: { 200: CorrespondenceChain } },
+    handler: async (request) => Correspondence.chain(request.ctx, request.params.id),
+  })
+
+  route({
+    method: 'GET',
+    url: '/documents/:id/dispatches',
+    auth: 'session',
+    tags: ['documents'],
+    summary: 'Отметки об отправке исходящего',
+    schema: { params: IdParam, response: { 200: DocumentDispatchList } },
+    handler: async (request) => ({
+      items: await Correspondence.dispatches(request.ctx, request.params.id),
+    }),
+  })
+
+  route({
+    method: 'POST',
+    url: '/documents/:id/dispatches',
+    auth: 'session',
+    tags: ['documents'],
+    summary: 'Отметить отправку исходящего; первая отправка исполняет документ',
+    schema: { params: IdParam, body: DocumentDispatchInput, response: { 200: DocumentRecord } },
+    handler: async (request) => {
+      await db().transaction((tx) =>
+        Correspondence.dispatch(tx, request.ctx, request.params.id, request.body),
+      )
+      return DocumentService.get(request.ctx, request.params.id)
+    },
+  })
+
+  route({
+    method: 'GET',
+    url: '/documents/:id/cases',
+    auth: 'session',
+    tags: ['documents'],
+    summary: 'Открытые дела для подшивки документа — подходящие по типу и подразделению',
+    schema: { params: IdParam, response: { 200: CaseSuggestions } },
+    handler: async (request) => CaseService.suggest(request.ctx, request.params.id),
+  })
+
+  route({
+    method: 'POST',
+    url: '/documents/:id/file',
+    auth: 'session',
+    tags: ['documents'],
+    summary: 'Подшить исполненный документ в дело',
+    schema: { params: IdParam, body: DocumentFileInput, response: { 200: DocumentRecord } },
+    handler: async (request) => {
+      await db().transaction((tx) =>
+        CaseService.fileDocument(tx, request.ctx, request.params.id, request.body.caseId),
+      )
+      return DocumentService.get(request.ctx, request.params.id)
+    },
+  })
+
+  route({
+    method: 'GET',
+    url: '/cases',
+    auth: 'session',
+    tags: ['documents'],
+    summary: 'Номенклатура дел: дела по годам, состоянию, подразделению',
+    schema: { querystring: CaseListQuery, response: { 200: CaseList } },
+    handler: async (request) => ({ items: await CaseService.list(request.ctx, request.query) }),
+  })
+
+  route({
+    method: 'GET',
+    url: '/cases/:id',
+    auth: 'session',
+    tags: ['documents'],
+    summary: 'Дело номенклатуры',
+    schema: { params: IdParam, response: { 200: CaseRecord } },
+    handler: async (request) => CaseService.get(request.ctx, request.params.id),
+  })
+
+  route({
+    method: 'POST',
+    url: '/cases',
+    auth: { capability: 'documents.journals.manage' },
+    tags: ['documents'],
+    summary: 'Завести дело номенклатуры',
+    schema: { body: CaseCreateInput, response: { 200: CaseRecord } },
+    handler: async (request) => {
+      const id = await db().transaction((tx) => CaseService.create(tx, request.ctx, request.body))
+      return CaseService.get(request.ctx, id)
+    },
+  })
+
+  route({
+    method: 'PATCH',
+    url: '/cases/:id',
+    auth: 'session',
+    tags: ['documents'],
+    summary: 'Изменить дело номенклатуры',
+    schema: { params: IdParam, body: CaseUpdateInput, response: { 200: CaseRecord } },
+    handler: async (request) => {
+      await db().transaction((tx) =>
+        CaseService.update(tx, request.ctx, request.params.id, request.body),
+      )
+      return CaseService.get(request.ctx, request.params.id)
+    },
+  })
+
+  for (const action of ['close', 'reopen', 'archive'] as const) {
+    route({
+      method: 'POST',
+      url: `/cases/:id/${action}`,
+      auth: 'session',
+      tags: ['documents'],
+      summary:
+        action === 'close'
+          ? 'Закрыть дело'
+          : action === 'reopen'
+            ? 'Вернуть закрытое дело в работу'
+            : 'Передать закрытое дело в архив вместе с документами',
+      schema: { params: IdParam, response: { 200: CaseRecord } },
+      handler: async (request) => {
+        await db().transaction(async (tx) => {
+          await CaseService[action](tx, request.ctx, request.params.id)
+        })
+        return CaseService.get(request.ctx, request.params.id)
+      },
+    })
+  }
+
+  route({
+    method: 'POST',
+    url: '/cases/close-year',
+    auth: { capability: 'documents.journals.manage' },
+    tags: ['documents'],
+    summary: 'Закрыть открытые дела года',
+    schema: { body: CaseCloseYearInput, response: { 200: z.object({ closed: z.number() }) } },
+    handler: async (request) => ({
+      closed: await db().transaction((tx) =>
+        CaseService.closeYear(tx, request.ctx, request.body.year),
+      ),
+    }),
+  })
+
+  route({
+    method: 'GET',
+    url: '/cases/destruction-acts',
+    auth: { capability: 'documents.journals.manage' },
+    tags: ['documents'],
+    summary: 'Акты о выделении дел к уничтожению',
+    schema: { response: { 200: DestructionActList } },
+    handler: async (request) => ({ items: await CaseService.acts(request.ctx) }),
+  })
+
+  route({
+    method: 'POST',
+    url: '/cases/destruction-acts',
+    auth: { capability: 'documents.journals.manage' },
+    tags: ['documents'],
+    summary: 'Акт о выделении к уничтожению: файлы дел удаляются, карточки остаются',
+    schema: { body: DestructionActInput, response: { 200: z.object({ id: z.uuid() }) } },
+    handler: async (request) => {
+      const id = await db().transaction((tx) => CaseService.destroy(tx, request.ctx, request.body))
+      return { id }
     },
   })
 

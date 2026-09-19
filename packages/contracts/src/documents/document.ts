@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { Confidentiality } from '../access/confidentiality.js'
 import { UserRef } from '../auth/session.js'
 import { DateOnly, LangText, Timestamp, Uuid } from '../common/primitives.js'
+import { CaseRef } from './case.js'
 import { CorrespondentRef } from './correspondent.js'
 import { DocumentCardSchema, DocumentDirection, DocumentTypeSettings } from './document-type.js'
 import { DocumentStatus } from './lifecycle.js'
@@ -91,6 +92,14 @@ export const DocumentPermissions = z.object({
   share: z.boolean(),
   /** Отправить на согласование или подпись по маршруту (ADR-0083). */
   startRoute: z.boolean(),
+  /** Ответить исходящим (ADR-0086): зарегистрированный входящий. */
+  reply: z.boolean(),
+  /** Отметить отправку исходящего — делопроизводитель (ADR-0086). */
+  dispatch: z.boolean(),
+  /** Подшить исполненный документ в дело — делопроизводитель (ADR-0086). */
+  file: z.boolean(),
+  /** Связывать с другими документами — право правки, и у закрытого документа (ADR-0086). */
+  link: z.boolean(),
 })
 export type DocumentPermissions = z.infer<typeof DocumentPermissions>
 
@@ -141,6 +150,13 @@ export const DocumentRecord = z.object({
   cancelledAt: Timestamp.nullable(),
   /** Идущий маршрут: текущие шаги и кто ждёт решения (ADR-0083). */
   route: DocumentRouteBrief.nullable(),
+  /** Дело номенклатуры, в которое подшит документ (ADR-0086). */
+  case: CaseRef.nullable(),
+  filedAt: Timestamp.nullable(),
+  /** Отметок об отправке исходящего. */
+  dispatchCount: z.number().int(),
+  /** Файлы уничтожены по акту: карточка осталась описью. */
+  filesDestroyedAt: Timestamp.nullable(),
   createdAt: Timestamp,
   updatedAt: Timestamp,
   version: z.number().int(),
@@ -231,6 +247,12 @@ export const DocumentSummary = z.object({
   onControl: z.number().int(),
   overdue: z.number().int(),
   drafts: z.number().int(),
+  /** Мои документы на согласовании и подписи (ADR-0086). */
+  approval: z.number().int(),
+  /** Просроченные среди документов на контроле. */
+  controlOverdue: z.number().int(),
+  /** Зарегистрированные исходящие без отметки об отправке. */
+  toDispatch: z.number().int(),
 })
 export type DocumentSummary = z.infer<typeof DocumentSummary>
 

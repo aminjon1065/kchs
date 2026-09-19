@@ -8,7 +8,7 @@ import {
   type DocumentExtraction,
   type DocumentRecord,
   type DocumentReplyDraft,
-  type DocumentReplyInput,
+  type DocumentReplyDraftInput,
   type DocumentSummaryDraft,
   type Locale,
 } from '@kchs/contracts'
@@ -339,7 +339,11 @@ export const DocumentAssistService = {
    * Черновик ответа на входящее: тема и текст письма от имени организации по
    * указаниям пользователя; дальше — исходящий по шаблону (ADR-0085, ADR-0086).
    */
-  async reply(ctx: UserCtx, id: string, input: DocumentReplyInput): Promise<DocumentReplyDraft> {
+  async reply(
+    ctx: UserCtx,
+    id: string,
+    input: DocumentReplyDraftInput,
+  ): Promise<DocumentReplyDraft> {
     const { doc, text, truncated } = await source(ctx, id, 'view')
     const requisites = [
       doc.correspondent ? `Отправитель: ${doc.correspondent.name}.` : null,

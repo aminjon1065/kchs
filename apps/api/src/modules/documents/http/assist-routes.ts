@@ -2,7 +2,7 @@ import {
   DocumentAssistStatus,
   DocumentExtraction,
   DocumentReplyDraft,
-  DocumentReplyInput,
+  DocumentReplyDraftInput,
   DocumentSummaryDraft,
 } from '@kchs/contracts'
 import { z } from 'zod'
@@ -56,7 +56,11 @@ export function registerDocumentAssistRoutes(route: RouteRegistrar): void {
     tags: ['documents'],
     summary: 'Черновик ответа на входящее',
     readOnly: true,
-    schema: { params: IdParam, body: DocumentReplyInput, response: { 200: DocumentReplyDraft } },
+    schema: {
+      params: IdParam,
+      body: DocumentReplyDraftInput,
+      response: { 200: DocumentReplyDraft },
+    },
     handler: async (request) =>
       DocumentAssistService.reply(request.ctx, request.params.id, request.body),
   })

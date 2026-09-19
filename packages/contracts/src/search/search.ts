@@ -45,6 +45,11 @@ export const SearchQuery = z.object({
   types: z.array(ObjectType).optional(),
   spaceIds: z.array(Uuid).optional(),
   ownerIds: z.array(Uuid).optional(),
+  /**
+   * Статус объекта в его модуле (`meta.status`): поиск в архиве документов —
+   * общий поиск с фильтром статуса (08-documents.md §12, ADR-0086).
+   */
+  statuses: z.array(z.string().min(1).max(40)).max(20).optional(),
   updatedFrom: z.string().optional(),
   updatedTo: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),

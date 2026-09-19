@@ -1,6 +1,7 @@
 import type { FileRecord, FolderRecord, UploadSessionInput } from '@kchs/contracts'
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import { publishEvent } from '~/kernel/events/publisher.js'
+import { JobService } from '~/kernel/jobs/service.js'
 import { LinkService } from '~/kernel/links/service.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import {
@@ -17,6 +18,7 @@ import { UserService } from '~/modules/identity/public.js'
 import { actorId, type Ctx, type UserCtx } from '~/shared/context.js'
 import { type Database, db, type Executor } from '~/shared/db/client.js'
 import {
+  filePreviews,
   files,
   fileTexts,
   fileVersions,
@@ -280,6 +282,8 @@ export const FileService = {
     input: {
       spaceId: string
       folderId?: string | null
+      /** Вложение объекта (скан демо-документа): права — от объекта-хоста. */
+      attachToObjectId?: string | null
       name: string
       mime: string
       sourceKey: string
@@ -296,6 +300,7 @@ export const FileService = {
         versionId,
         spaceId: input.spaceId,
         folderId: input.folderId ?? null,
+        attachToObjectId: input.attachToObjectId ?? null,
         name: input.name,
         mime: input.mime,
         size: head.ContentLength ?? 0,
@@ -340,6 +345,47 @@ export const FileService = {
       checksum: input.checksum,
       storageKey: input.storageKey,
     })
+  },
+
+  /**
+   * Уничтожение файлов вместе с содержимым (акт о выделении к уничтожению,
+   * ADR-0086): объекты реестра удаляются окончательно в транзакции вызывающего
+   * (версии, превью, текст, ссылки — каскадом), а байты всех версий и превью
+   * удаляет из хранилища задание, поставленное в той же транзакции: откат
+   * ничего не удалит, а сбой после коммита не оставит содержимое навсегда.
+   */
+  async destroy(tx: Executor, ctx: Ctx, fileIds: string[]): Promise<number> {
+    const ids = [...new Set(fileIds)]
+    if (ids.length === 0) return 0
+    const present = await tx
+      .select({ id: files.id, storageKey: files.storageKey })
+      .from(files)
+      .where(inArray(files.id, ids))
+    if (present.length === 0) return 0
+    const found = present.map((row) => row.id)
+    const [versions, previews] = await Promise.all([
+      tx
+        .select({ storageKey: fileVersions.storageKey })
+        .from(fileVersions)
+        .where(inArray(fileVersions.fileId, found)),
+      tx
+        .select({ storageKey: filePreviews.storageKey })
+        .from(filePreviews)
+        .where(inArray(filePreviews.fileId, found)),
+    ])
+    const stored = [
+      ...new Set([
+        ...present.map((row) => row.storageKey),
+        ...versions.map((row) => row.storageKey),
+      ]),
+    ]
+    for (const id of found) await ObjectService.purge(tx, ctx, id)
+    await JobService.schedule(tx, ctx, {
+      queue: 'maintenance',
+      name: 'files.delete-stored',
+      data: { files: stored, previews: [...new Set(previews.map((row) => row.storageKey))] },
+    })
+    return found.length
   },
 
   /** Краткие сведения о файлах для карточек других модулей: имя, тип, размер, сумма. */

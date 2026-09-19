@@ -133,6 +133,67 @@ export const correspondents = pgTable(
   ],
 )
 
+/**
+ * Дело номенклатуры — объект реестра `case` (08-documents.md §12, ADR-0086):
+ * индекс и заголовок по номенклатуре, год, подразделение, срок хранения.
+ * Документ подшивается в дело (`documents.case_id`), права на документы дело
+ * не меняет: документ остаётся под своим журналом.
+ */
+export const cases = pgTable(
+  'cases',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .references(() => objects.id, { onDelete: 'cascade' }),
+    index: text('index').notNull(),
+    title: text('title').notNull(),
+    year: integer('year').notNull(),
+    unitId: uuid('unit_id').references(() => orgUnits.id, { onDelete: 'set null' }),
+    /** Срок хранения, лет; null — постоянно. */
+    retentionYears: integer('retention_years'),
+    /** Статья перечня, отметка ЭПК. */
+    retentionNote: text('retention_note'),
+    documentTypeIds: uuid('document_type_ids').array().notNull().default(sql`'{}'::uuid[]`),
+    /** open | closed | archived | destroyed */
+    status: text('status').notNull().default('open'),
+    note: text('note'),
+    closedAt: tsCol('closed_at'),
+    closedBy: uuid('closed_by').references(() => users.id, { onDelete: 'set null' }),
+    archivedAt: tsCol('archived_at'),
+    archivedBy: uuid('archived_by').references(() => users.id, { onDelete: 'set null' }),
+    destroyedAt: tsCol('destroyed_at'),
+    destructionActId: uuid('destruction_act_id'),
+  },
+  (t) => [
+    uniqueIndex('cases_year_index_uq').on(t.year, sql`lower(${t.index})`),
+    index('cases_unit_idx').on(t.unitId, t.year),
+    index('cases_status_idx').on(t.status, t.year),
+    check('cases_status_check', sql`${t.status} in ('open', 'closed', 'archived', 'destroyed')`),
+  ],
+)
+
+/**
+ * Акт о выделении к уничтожению (ADR-0086): запись операции над делами, как
+ * регистрация и резерв номеров у журнала; печатная форма — реестр форм.
+ */
+export const caseDestructionActs = pgTable(
+  'case_destruction_acts',
+  {
+    id: uuid('id').primaryKey(),
+    number: text('number').notNull(),
+    year: integer('year').notNull(),
+    sequence: integer('sequence').notNull(),
+    actDate: date('act_date').notNull(),
+    basis: text('basis').notNull(),
+    caseIds: uuid('case_ids').array().notNull(),
+    documentCount: integer('document_count').notNull().default(0),
+    fileCount: integer('file_count').notNull().default(0),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex('case_destruction_acts_seq_uq').on(t.year, t.sequence)],
+)
+
 /** Документ — объект реестра `document`. */
 export const documents = pgTable(
   'documents',
@@ -167,8 +228,12 @@ export const documents = pgTable(
     /** Поля карточки типа (`cardSchema`). */
     fields: jsonbObject('fields'),
     currentVersionId: uuid('current_version_id'),
-    /** Дело номенклатуры — вторая волна (08-documents.md §12). */
-    caseId: uuid('case_id'),
+    /** Дело номенклатуры (08-documents.md §12, ADR-0086). */
+    caseId: uuid('case_id').references(() => cases.id, { onDelete: 'set null' }),
+    filedAt: tsCol('filed_at'),
+    filedBy: uuid('filed_by').references(() => users.id, { onDelete: 'set null' }),
+    /** Файлы версий уничтожены по акту — карточка осталась описью (ADR-0086). */
+    filesDestroyedAt: tsCol('files_destroyed_at'),
     territoryId: uuid('territory_id'),
     unitId: uuid('unit_id').references(() => orgUnits.id, { onDelete: 'set null' }),
     executedAt: tsCol('executed_at'),
@@ -188,6 +253,7 @@ export const documents = pgTable(
     index('documents_responsible_idx').on(t.responsibleId, t.deadline),
     index('documents_controller_idx').on(t.controllerId),
     index('documents_correspondent_idx').on(t.correspondentId),
+    index('documents_case_idx').on(t.caseId),
     index('documents_fields_idx').using('gin', t.fields),
     check(
       'documents_confidentiality_check',
@@ -415,6 +481,36 @@ export const resolutionTemplates = pgTable(
   (t) => [index('resolution_templates_owner_idx').on(t.ownerId, t.sort)],
 )
 
+/**
+ * Отметка об отправке исходящего (08-documents.md §5, ADR-0086): кому, каким
+ * способом, когда; строки — реестр отправки. Первая отправка переводит
+ * зарегистрированный исходящий в «Исполнен».
+ */
+export const documentDispatches = pgTable(
+  'document_dispatches',
+  {
+    id: uuid('id').primaryKey(),
+    documentId: uuid('document_id')
+      .notNull()
+      .references(() => documents.id, { onDelete: 'cascade' }),
+    correspondentId: uuid('correspondent_id').references(() => correspondents.id, {
+      onDelete: 'set null',
+    }),
+    addressee: text('addressee'),
+    method: text('method').notNull(),
+    sentOn: date('sent_on').notNull(),
+    tracking: text('tracking'),
+    note: text('note'),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index('document_dispatches_document_idx').on(t.documentId),
+    index('document_dispatches_sent_idx').on(t.sentOn),
+  ],
+)
+
 export type DocumentRow = typeof documents.$inferSelect
 export type DocumentTypeRow = typeof documentTypes.$inferSelect
 export type JournalRow = typeof journals.$inferSelect
+export type CaseRow = typeof cases.$inferSelect

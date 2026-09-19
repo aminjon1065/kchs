@@ -582,6 +582,44 @@ export const EVENT_PAYLOADS = {
   'acknowledgment.cancelled': z.object({ requestId: Uuid, userIds: z.array(Uuid) }),
   /** Напоминание не ознакомившимся: вручную или в день срока. */
   'acknowledgment.reminded': z.object({ userIds: z.array(Uuid), auto: z.boolean() }),
+  // ── documents: дела, архив, отправка (08-documents.md §5, §12, ADR-0086) ────
+  /** Документ подшит в дело номенклатуры. */
+  'document.filed': z.object({
+    caseId: Uuid,
+    index: z.string(),
+    caseTitle: z.string(),
+    year: z.number().int(),
+  }),
+  /** Отметка об отправке исходящего; `first` — первая (документ исполнен). */
+  'document.dispatched': z.object({
+    dispatchId: Uuid,
+    method: z.string(),
+    sentOn: z.string(),
+    addressee: z.string(),
+    first: z.boolean(),
+  }),
+  /** Файлы документа уничтожены по акту: карточка осталась описью. */
+  'document.files_destroyed': z.object({
+    actId: Uuid,
+    number: z.string(),
+    files: z.number().int(),
+  }),
+  'case.created': z.object({ index: z.string(), year: z.number().int() }),
+  'case.updated': z.object({ changed: z.array(z.string()) }),
+  'case.closed': z.object({
+    index: z.string(),
+    year: z.number().int(),
+    documents: z.number().int(),
+  }),
+  'case.reopened': z.object({ index: z.string(), year: z.number().int() }),
+  /** Дело передано в архив вместе с документами. */
+  'case.archived': z.object({
+    index: z.string(),
+    year: z.number().int(),
+    documents: z.number().int(),
+  }),
+  /** Дело уничтожено по акту о выделении к уничтожению. */
+  'case.destroyed': z.object({ actId: Uuid, number: z.string(), documents: z.number().int() }),
 
   // ── admin ─────────────────────────────────────────────────────────────────
   'settings.changed': z.object({ scope: z.string(), key: z.string() }),

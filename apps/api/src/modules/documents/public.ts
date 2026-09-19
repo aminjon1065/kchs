@@ -12,11 +12,15 @@
 import type { DocumentRegisterInput, DocumentStatus } from '@kchs/contracts'
 import type { Ctx } from '~/shared/context.js'
 import type { Executor } from '~/shared/db/client.js'
+import { seedDemoDocuments } from './domain/demo-documents.js'
 import { DocumentService } from './domain/document-service.js'
 import { applyTransition, type TransitionInput } from './domain/lifecycle.js'
+import { ensureOfficeDashboard } from './domain/office-dashboard.js'
 import { DocumentParticipants, type ParticipantEntry } from './domain/participants.js'
 import { ensureStarterSet } from './domain/starter-set.js'
 
+/** @public — люди демо-мира для демо-документов сида (ADR-0086) */
+export type { DemoDocumentPeople, DemoPerson } from './domain/demo-documents.js'
 /** @public — вход перехода жизненного цикла для движка процессов (вторая волна) */
 export type { TransitionInput } from './domain/lifecycle.js'
 /** @public — типы точек расширения для движка процессов и резолюций (вторая волна) */
@@ -86,5 +90,8 @@ export const DocumentsPublic = {
   },
 }
 
-/** Стартовые журналы, типы и (демо) корреспонденты — `kchs init` и `db:seed`. */
-export const DocumentsSeed = { ensureStarterSet }
+/**
+ * Стартовые журналы, типы и (демо) корреспонденты — `kchs init` и `db:seed`;
+ * показатели и дашборд «Канцелярия» и демо-документы — `db:seed` (ADR-0086).
+ */
+export const DocumentsSeed = { ensureStarterSet, ensureOfficeDashboard, seedDemoDocuments }

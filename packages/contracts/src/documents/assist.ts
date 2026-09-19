@@ -82,11 +82,11 @@ export const DocumentSummaryDraft = z.object({
 })
 export type DocumentSummaryDraft = z.infer<typeof DocumentSummaryDraft>
 
-export const DocumentReplyInput = z.object({
+export const DocumentReplyDraftInput = z.object({
   /** Что сказать в ответе: «согласны, срок — до 1 октября». */
   instructions: z.string().trim().max(2000).optional(),
 })
-export type DocumentReplyInput = z.infer<typeof DocumentReplyInput>
+export type DocumentReplyDraftInput = z.infer<typeof DocumentReplyDraftInput>
 
 export const DocumentReplyDraft = z.object({
   subject: z.string(),

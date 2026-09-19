@@ -4,7 +4,7 @@ import { bumpPrincipalsVersion } from '~/kernel/access/principal-set.js'
 import { DiscussionService } from '~/kernel/discussions/service.js'
 import { reindexAll } from '~/kernel/search/index-service.js'
 import { SpaceService } from '~/kernel/spaces/service.js'
-import { DocumentsSeed } from '~/modules/documents/public.js'
+import { type DemoDocumentPeople, DocumentsSeed } from '~/modules/documents/public.js'
 import { FileService } from '~/modules/files/domain/file-service.js'
 import { BasemapService, type TerritoryInput, TerritoryService } from '~/modules/gis/public.js'
 import { OrgService, UserService } from '~/modules/identity/public.js'
@@ -12,7 +12,16 @@ import { ensureControlMetrics } from '~/modules/tasks/domain/control-metrics.js'
 import { seedDemoInstructions } from '~/modules/tasks/domain/demo-instructions.js'
 import { type SystemCtx, systemCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
-import { orgUnits, positions, spaceMembers, users } from '~/shared/db/schema/index.js'
+import {
+  employments,
+  orgUnits,
+  positions,
+  roles,
+  spaceMembers,
+  spaces,
+  userRoles,
+  users,
+} from '~/shared/db/schema/index.js'
 import { newId } from '~/shared/ids.js'
 import { logger } from '~/shared/logger/index.js'
 import {
@@ -94,6 +103,8 @@ export async function runSeed(
     await linkUnitTerritories(ctx, territoryOf)
     // Справочники документооборота дозагружаются и на заполненной базе
     await seedDocuments(ctx, options.profile === 'demo')
+    // Канцелярия и демо-документы (ADR-0086) — тоже: они появились позже демо-мира
+    if (options.profile === 'demo') await seedOffice(await seedAdminCtx(options.adminLogin))
     log.warn('демо-данные уже загружены — seed пропущен (используйте db:reset)')
     return { users: 0, units: 0, spaces: 0 }
   }
@@ -363,6 +374,7 @@ export async function runSeed(
   })
 
   await seedDocuments(adminCtx, true)
+  await seedOffice(adminCtx)
   await bumpPrincipalsVersion()
 
   // Объекты созданы без запущенного worker — индексируем явно
@@ -392,6 +404,73 @@ async function seedDocuments(ctx: SystemCtx, demo: boolean): Promise<void> {
     .limit(1)
   const summary = await DocumentsSeed.ensureStarterSet(ctx, { unitId: registry?.id ?? null, demo })
   logger().child({ module: 'seed' }).info(summary, 'справочники документооборота загружены')
+}
+
+/** Контекст сида от имени администратора демо-стенда (для повторного запуска). */
+async function seedAdminCtx(adminLogin: string): Promise<SystemCtx> {
+  const [admin] = await db()
+    .select({ id: users.id })
+    .from(users)
+    .where(sql`lower(${users.login}) = ${adminLogin.toLowerCase()}`)
+    .limit(1)
+  return systemCtx('seed', { initiatorId: admin?.id ?? null })
+}
+
+/**
+ * Канцелярия демо-мира (ADR-0086): показатели и дашборд «Канцелярия» в
+ * пространстве «Общее» и около двухсот демо-документов с номенклатурой дел —
+ * идемпотентно, в том числе на заполненной раньше базе.
+ */
+async function seedOffice(ctx: SystemCtx): Promise<void> {
+  const log = logger().child({ module: 'seed' })
+  const [org] = await db()
+    .select({ id: spaces.id })
+    .from(spaces)
+    .where(eq(spaces.key, 'org'))
+    .limit(1)
+  if (org) {
+    const office = await db().transaction((tx) =>
+      DocumentsSeed.ensureOfficeDashboard(tx, ctx, org.id),
+    )
+    log.info(office, 'показатели и дашборд «Канцелярия» заведены')
+  }
+  const summary = await DocumentsSeed.seedDemoDocuments(await demoDocumentPeople())
+  log.info(summary, summary.skipped ? 'демо-документы уже есть' : 'демо-документы созданы')
+}
+
+/** Люди демо-мира для документов: делопроизводители, руководители, исполнители. */
+async function demoDocumentPeople(): Promise<DemoDocumentPeople> {
+  const rows = await db().execute<{
+    id: string
+    unit_id: string | null
+    unit_code: string | null
+    is_head: boolean
+    registrar: boolean
+  }>(sql`
+    SELECT u.id, e.unit_id, ou.code AS unit_code,
+           coalesce(ou.head_user_id = u.id, false) AS is_head,
+           EXISTS (SELECT 1 FROM ${userRoles} ur JOIN ${roles} r ON r.id = ur.role_id
+                    WHERE ur.user_id = u.id AND r.key = 'registrar') AS registrar
+      FROM ${users} u
+      LEFT JOIN ${employments} e ON e.user_id = u.id AND e.is_primary
+      LEFT JOIN ${orgUnits} ou ON ou.id = e.unit_id
+     WHERE u.status = 'active' AND u.login LIKE 'user%'
+     ORDER BY u.login`)
+  const person = (row: { id: string; unit_id: string | null }) => ({
+    id: row.id,
+    unitId: row.unit_id,
+  })
+  const [office] = await db()
+    .select({ id: orgUnits.id })
+    .from(orgUnits)
+    .where(eq(orgUnits.code, 'UD-CANC'))
+    .limit(1)
+  return {
+    registrars: rows.filter((row) => row.registrar).map(person),
+    heads: rows.filter((row) => row.is_head).map(person),
+    staff: rows.filter((row) => !row.is_head && !row.registrar).map(person),
+    officeUnitId: office?.id ?? null,
+  }
 }
 
 /**

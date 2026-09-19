@@ -19,10 +19,12 @@ import {
 import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { DocumentAcknowledgments } from './domain/acknowledgment-service.js'
+import { CaseService } from './domain/case-service.js'
 import { documentControlProjection } from './domain/control-projection.js'
 import { onDocumentRegistered } from './domain/document-service.js'
 import { capabilityPolicy, documentPolicy } from './domain/policies.js'
 import {
+  CASE_LIST_FIELDS,
   DOCUMENT_LIST_FIELDS,
   documentSearchContent,
   documentSummaries,
@@ -85,6 +87,12 @@ export function registerDocumentsObjectTypes(): void {
       cancel_registered: { minLevel: 'edit', capability: 'documents.register' },
       /** Отправить на ознакомление и напомнить (ADR-0084) — правом правки. */
       request_acknowledgment: { minLevel: 'edit', allowArchived: true },
+      /** Ответ исходящим на входящий — тот, кто видит входящий (ADR-0086). */
+      reply: { minLevel: 'view' },
+      /** Отметка об отправке исходящего — делопроизводитель (ADR-0086). */
+      dispatch: { minLevel: 'edit', capability: 'documents.register' },
+      /** Подшивка исполненного документа в дело — делопроизводитель (ADR-0086). */
+      file: { minLevel: 'edit', capability: 'documents.register' },
       manage: { minLevel: 'manage' },
       share: { minLevel: 'manage' },
       delete: { minLevel: 'owner' },
@@ -249,6 +257,37 @@ export function registerDocumentsObjectTypes(): void {
         updatedAt: Math.floor(new Date(row.updatedAt).getTime() / 1000),
         meta: { kind: row.kind },
       }
+    },
+  })
+
+  registerObjectType({
+    type: 'case',
+    labelKey: 'objects.types.case',
+    icon: 'case',
+    route: (id) => `/o/${id}`,
+    levels: [...LEVELS],
+    actions: {
+      view: { minLevel: 'view' },
+      /** Подшивать документы в дело — делопроизводитель дела (ADR-0086). */
+      file_in: { minLevel: 'edit', capability: 'documents.register' },
+      manage: { minLevel: 'manage' },
+      share: { minLevel: 'manage' },
+      /** Удалить можно пустое открытое дело (ошибочная запись номенклатуры). */
+      delete: { minLevel: 'manage' },
+    },
+    discussable: false,
+    linkable: true,
+    hasParentTree: false,
+    moduleManaged: true,
+    // Номенклатуру ведут владельцы «вести журналы»; подшивают — записи ACL дела
+    policy: capabilityPolicy(['documents.journals.manage'], 'manage', 'Ведение номенклатуры дел'),
+    listFields: CASE_LIST_FIELDS,
+    lifecycle: {
+      beforeTrash: async (tx, _ctx, object) => CaseService.assertDeletable(tx, object.id),
+      // Архив дела — своё действие «Передать в архив» с документами, не общий архив
+      beforeArchive: async () => {
+        throw errors.conflict('Дело передаётся в архив действием «Передать в архив»')
+      },
     },
   })
 

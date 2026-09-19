@@ -3,6 +3,7 @@
  * (01-overview.md §Как модули взаимодействуют).
  */
 import type {
+  DashboardCreateInput,
   DatasetRecord,
   DatasetRow,
   DatasetRowPatch,
@@ -15,9 +16,11 @@ import type {
   QuerySpec,
 } from '@kchs/contracts'
 import type { CompiledQuery } from '@kchs/query'
+import { ObjectService } from '~/kernel/objects/service.js'
 import type { Ctx } from '~/shared/context.js'
 import type { Executor } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
+import { DashboardService } from './domain/dashboard-service.js'
 import { DatasetAccess } from './domain/dataset-access.js'
 import { DatasetService } from './domain/dataset-service.js'
 import { type MetricEvaluation, MetricService } from './domain/metric-service.js'
@@ -68,6 +71,32 @@ export const Metrics = {
   ): Promise<string> => MetricService.create(tx, ctx, input, options),
   value: (ctx: Ctx, metric: MetricRecord, evaluation: MetricEvaluation): Promise<MetricValue> =>
     MetricService.evaluate(ctx, metric, evaluation),
+}
+
+/**
+ * Дашборд, который заводит модуль (канцелярия над системным датасетом
+ * «Документы», ADR-0086): `systemKey` в сводке объекта — по нему модуль находит
+ * свой дашборд и не заводит его повторно.
+ */
+export const Dashboards = {
+  create: async (
+    tx: Executor,
+    ctx: Ctx,
+    input: DashboardCreateInput,
+    options: { systemKey?: string } = {},
+  ): Promise<string> => {
+    const id = await DashboardService.create(tx, ctx, input)
+    if (options.systemKey) {
+      await ObjectService.update(
+        tx,
+        ctx,
+        id,
+        { meta: { systemKey: options.systemKey }, mergeMeta: true },
+        { silent: true },
+      )
+    }
+    return id
+  },
 }
 
 /** Снимок тетради — «Экспорт в отчёт» (P2-E05 S03); право `view` проверяет вызывающий. */

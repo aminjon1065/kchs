@@ -17,6 +17,7 @@ import { registerSubscriber } from '~/kernel/events/bus.js'
 import { registerJobHandler } from '~/kernel/jobs/runner.js'
 import { JobService, queue } from '~/kernel/jobs/service.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
+import { buckets, deleteObject } from '~/kernel/storage/s3.js'
 import { db } from '~/shared/db/client.js'
 import { files, objects } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
@@ -341,6 +342,23 @@ export function registerFilesBackground(): void {
     name: 'files.process-pending',
     concurrency: 1,
     handle: async () => ({ scheduled: await FileProcessing.schedulePending(100) }),
+  })
+
+  // Содержимое уничтоженных файлов (ADR-0086): удаление ключа идемпотентно,
+  // повтор задания после сбоя удаляет оставшееся
+  registerJobHandler({
+    queue: 'maintenance',
+    name: 'files.delete-stored',
+    concurrency: 1,
+    handle: async (job) => {
+      const keys = (value: unknown) =>
+        Array.isArray(value) ? value.filter((key): key is string => typeof key === 'string') : []
+      const stored = keys(job.data.files)
+      const previews = keys(job.data.previews)
+      for (const key of stored) await deleteObject(key, buckets.files())
+      for (const key of previews) await deleteObject(key, buckets.previews())
+      return { deleted: stored.length + previews.length }
+    },
   })
 
   // Окончательный сбой движка: файл не должен навсегда оставаться «в очереди»

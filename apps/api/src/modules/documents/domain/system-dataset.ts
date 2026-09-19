@@ -80,6 +80,22 @@ const FIELDS: ResolvedField[] = [
   }),
   field('created_at', 'datetime', 'time', { ru: 'Создан', tg: 'Сохта шуд', en: 'Created' }),
   field('confidentiality', 'select', 'category', { ru: 'Гриф', tg: 'Гриф', en: 'Classification' }),
+  // Канцелярия (ADR-0086): закрытость, доля просрочки на контроле, дело, архив, отправка
+  field('closed', 'boolean', 'category', { ru: 'Закрыт', tg: 'Пӯшида', en: 'Closed' }),
+  field('overdue_score', 'integer', 'measure', {
+    ru: 'Просрочка на контроле, %',
+    en: 'Overdue on control, %',
+  }),
+  field('case_id', 'object_ref', 'dimension', { ru: 'Дело', tg: 'Парванда', en: 'Case' }),
+  field('case_index', 'identifier', 'category', {
+    ru: 'Индекс дела',
+    tg: 'Индекси парванда',
+    en: 'Case index',
+  }),
+  field('case_title', 'text', 'category', { ru: 'Заголовок дела', en: 'Case title' }),
+  field('filed_at', 'datetime', 'time', { ru: 'Подшит в дело', en: 'Filed' }),
+  field('archived_at', 'datetime', 'time', { ru: 'Сдан в архив', en: 'Archived' }),
+  field('sent_on', 'date', 'time', { ru: 'Отправлен', tg: 'Фиристода шуд', en: 'Sent on' }),
   // Служебные столбцы политики строк — скрыты от смотрящего
   field('grif_rank', 'integer', 'system', { ru: 'Ранг грифа', en: 'Classification rank' }),
   field('viewers', 'multi_select', 'system', { ru: 'Видят', en: 'Viewers' }),
@@ -121,4 +137,6 @@ export async function resolveDocumentsDataset(ctx: Ctx): Promise<ResolvedDataset
 export const DOCUMENTS_SYSTEM_DATASET: SystemDatasetDefinition = {
   name: 'documents',
   resolve: resolveDocumentsDataset,
+  // Показатели канцелярии считают объём по дате регистрации (ADR-0086)
+  timeField: 'reg_date',
 }

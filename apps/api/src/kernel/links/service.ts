@@ -1,5 +1,5 @@
 import type { LinkKind, LinkView, ObjectSummary } from '@kchs/contracts'
-import { and, eq, or, sql } from 'drizzle-orm'
+import { and, eq, inArray, or, sql } from 'drizzle-orm'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { actorId } from '~/shared/context.js'
 import { type Database, db, type Executor } from '~/shared/db/client.js'
@@ -180,6 +180,28 @@ export const LinkService = {
       .from(links)
       .where(and(eq(links.sourceId, objectId), eq(links.kind, 'attachment')))
     return rows.map((r) => r.targetId)
+  },
+
+  /**
+   * Рёбра связей одного вида у объектов — в обе стороны: модуль обходит по ним
+   * цепочки (переписка документов по `reply_to`, ADR-0086). Права на концы
+   * проверяет вызывающий.
+   */
+  async edges(
+    objectIds: string[],
+    kind: LinkKind,
+    database: Database = db(),
+  ): Promise<Array<{ sourceId: string; targetId: string }>> {
+    if (objectIds.length === 0) return []
+    return database
+      .select({ sourceId: links.sourceId, targetId: links.targetId })
+      .from(links)
+      .where(
+        and(
+          eq(links.kind, kind),
+          or(inArray(links.sourceId, objectIds), inArray(links.targetId, objectIds)),
+        ),
+      )
   },
 
   async objectsLinkedTo(

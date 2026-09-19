@@ -55,6 +55,8 @@ export async function ensureSearchIndex(): Promise<void> {
       'updatedAt',
       'parentId',
       'clearance',
+      // Статус объекта в модуле: поиск в архиве документов (ADR-0086)
+      'meta.status',
     ],
     sortableAttributes: ['updatedAt'],
     displayedAttributes: ['*'],
@@ -221,6 +223,7 @@ export async function search(ctx: UserCtx, query: SearchQuery): Promise<SearchRe
   if (query.types?.length) filters.push(anyOf('type', query.types))
   if (query.spaceIds?.length) filters.push(anyOf('spaceId', query.spaceIds))
   if (query.ownerIds?.length) filters.push(anyOf('ownerId', query.ownerIds))
+  if (query.statuses?.length) filters.push(anyOf('meta.status', query.statuses))
   if (query.updatedFrom) {
     filters.push(`updatedAt >= ${epochSeconds(query.updatedFrom)}`)
   }
@@ -237,7 +240,7 @@ export async function search(ctx: UserCtx, query: SearchQuery): Promise<SearchRe
     attributesToHighlight: ['title', 'body'],
     highlightPreTag: '<mark>',
     highlightPostTag: '</mark>',
-    facets: ['type', 'spaceId'],
+    facets: ['type', 'spaceId', 'meta.status'],
   })
 
   const spaceIds = [...new Set(result.hits.map((h) => h.spaceId).filter(Boolean))] as string[]

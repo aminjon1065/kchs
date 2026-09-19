@@ -1,4 +1,5 @@
 import {
+  CASE_STATUSES,
   CONFIDENTIALITY_LEVELS,
   DOCUMENT_CONTROLS,
   DOCUMENT_DIRECTIONS,
@@ -9,7 +10,15 @@ import { eq, inArray, sql } from 'drizzle-orm'
 import { directory } from '~/kernel/directory/port.js'
 import type { ListFieldDef, SearchContent } from '~/kernel/objects/registry.js'
 import { db } from '~/shared/db/client.js'
-import { documents, documentTypes, journals, objects } from '~/shared/db/schema/index.js'
+import {
+  cases,
+  documentDispatches,
+  documents,
+  documentTypes,
+  journals,
+  links,
+  objects,
+} from '~/shared/db/schema/index.js'
 import { CorrespondentService } from './correspondent-service.js'
 import { isOverdue } from './document-service.js'
 import { todayLocal } from './journal-service.js'
@@ -118,6 +127,58 @@ export const DOCUMENT_LIST_FIELDS: ListFieldDef[] = [
     type: 'boolean',
     sql: sql`(${objects.meta}->>'closed')::boolean`,
   },
+  // Дела и переписка (ADR-0086). Подзапросы ссылаются на внешнюю строку
+  // буквально: поля используются только в условиях, не в списке select
+  { key: 'caseId', labelKey: 'documents.fields.case', type: 'object_ref', sql: meta('caseId') },
+  {
+    key: 'dispatched',
+    labelKey: 'documents.fields.dispatched',
+    type: 'boolean',
+    sql: sql`EXISTS (SELECT 1 FROM ${documentDispatches} dd WHERE dd.document_id = "objects"."id")`,
+  },
+  {
+    key: 'answered',
+    labelKey: 'documents.fields.answered',
+    type: 'boolean',
+    sql: sql`EXISTS (SELECT 1 FROM ${links} l JOIN ${documentDispatches} dd ON dd.document_id = l.source_id
+      WHERE l.target_id = "objects"."id" AND l.kind = 'reply_to')`,
+  },
+  {
+    key: 'replyTo',
+    labelKey: 'documents.fields.replyTo',
+    type: 'object_ref',
+    sql: sql`(SELECT l.target_id::text FROM ${links} l
+      WHERE l.source_id = "objects"."id" AND l.kind = 'reply_to' LIMIT 1)`,
+  },
+]
+
+/** Поля списка дел номенклатуры (ADR-0086): сводные поля реестра. */
+export const CASE_LIST_FIELDS: ListFieldDef[] = [
+  {
+    key: 'status',
+    labelKey: 'documents.cases.fields.status',
+    type: 'select',
+    sql: meta('status'),
+    options: CASE_STATUSES.map((value) => ({
+      value,
+      labelKey: `documents.cases.statuses.${value}`,
+    })),
+  },
+  {
+    key: 'year',
+    labelKey: 'documents.cases.fields.year',
+    type: 'integer',
+    sql: sql`(${objects.meta}->>'year')::int`,
+    sortable: true,
+  },
+  {
+    key: 'index',
+    labelKey: 'documents.cases.fields.index',
+    type: 'text',
+    sql: meta('index'),
+    sortable: true,
+  },
+  { key: 'unitId', labelKey: 'documents.fields.unit', type: 'unit', sql: meta('unitId') },
 ]
 
 /**
@@ -147,10 +208,13 @@ export async function documentSummaries(
       deadline: documents.deadline,
       control: documents.control,
       unitId: documents.unitId,
+      caseId: documents.caseId,
+      caseIndex: cases.index,
     })
     .from(documents)
     .innerJoin(documentTypes, eq(documentTypes.id, documents.typeId))
     .leftJoin(journals, eq(journals.id, documents.journalId))
+    .leftJoin(cases, eq(cases.id, documents.caseId))
     .where(inArray(documents.id, ids))
   const [correspondents, people] = await Promise.all([
     CorrespondentService.names(db(), [

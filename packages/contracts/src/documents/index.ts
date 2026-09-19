@@ -1,4 +1,6 @@
 export * from './assist.js'
+export * from './case.js'
+export * from './correspondence.js'
 export * from './correspondent.js'
 export * from './document.js'
 export * from './document-type.js'

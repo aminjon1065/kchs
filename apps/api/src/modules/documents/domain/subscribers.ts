@@ -30,15 +30,30 @@ const ACTIVITY: Record<string, { verb: string; key: string }> = {
     verb: 'resolution_added',
     key: 'activity.document.resolutionAdded',
   },
+  // Дела и переписка (ADR-0086)
+  'document.filed': { verb: 'filed', key: 'activity.document.filed' },
+  'document.dispatched': { verb: 'dispatched', key: 'activity.document.dispatched' },
+  'document.files_destroyed': {
+    verb: 'files_destroyed',
+    key: 'activity.document.filesDestroyed',
+  },
+  'case.created': { verb: 'created', key: 'activity.case.created' },
+  'case.updated': { verb: 'updated', key: 'activity.case.updated' },
+  'case.closed': { verb: 'closed', key: 'activity.case.closed' },
+  'case.reopened': { verb: 'reopened', key: 'activity.case.reopened' },
+  'case.archived': { verb: 'archived', key: 'activity.case.archived' },
+  'case.destroyed': { verb: 'destroyed', key: 'activity.case.destroyed' },
 }
+
+/** Переходы, у которых своя запись ленты: регистрация, аннулирование, подшивка, отправка. */
+const OWN_ENTRY_CAUSES = new Set(['register', 'cancel', 'filing', 'dispatch'])
 
 async function activity(event: EventEnvelope): Promise<void> {
   const mapping = ACTIVITY[event.type]
   if (!mapping || !event.object) return
-  // Регистрация и аннулирование пишут свои записи — переход статуса по ним не дублируем
   if (
     event.type === 'document.status_changed' &&
-    (event.payload.cause === 'register' || event.payload.cause === 'cancel')
+    OWN_ENTRY_CAUSES.has(String(event.payload.cause))
   ) {
     return
   }
@@ -122,16 +137,31 @@ async function notify(event: EventEnvelope): Promise<void> {
   }
 }
 
-/** Открытые вкладки документа перечитывают карточку (ключи `['object', id, …]`). */
+/**
+ * Открытые вкладки документа и дела перечитывают карточку (ключи
+ * `['object', id, …]`); связь «в ответ на» — вкладку второго документа тоже.
+ */
 function refreshTabs(event: EventEnvelope): void {
   if (!event.object) return
-  emitToRoom(`object:${event.object.id}`, 'object.updated', {
-    id: event.object.id,
-    type: 'document',
-    version: 0,
-    changedFields: ['document'],
-    actorId: event.actor.userId,
-  })
+  const notify = (id: string, type: string) =>
+    emitToRoom(`object:${id}`, 'object.updated', {
+      id,
+      type,
+      version: 0,
+      changedFields: [type],
+      actorId: event.actor.userId,
+    })
+  if (event.type === 'object.linked' || event.type === 'object.unlinked') {
+    if (event.object.type !== 'document' || event.payload.kind !== 'reply_to') return
+    notify(event.object.id, 'document')
+    if (typeof event.payload.targetId === 'string') notify(event.payload.targetId, 'document')
+    return
+  }
+  notify(event.object.id, event.object.type === 'case' ? 'case' : 'document')
+  // Подшивка меняет число документов дела — вкладка дела тоже перечитывается
+  if (event.type === 'document.filed' && typeof event.payload.caseId === 'string') {
+    notify(event.payload.caseId, 'case')
+  }
 }
 
 /**
@@ -195,10 +225,10 @@ export const documentSubscribers: Subscriber[] = [
   },
   { name: 'documents-execution', types: ['task.source_closed'], handle: executed },
   { name: 'documents-resolution-requests', types: ['document.cancelled'], handle: cancelled },
-  { name: 'documents-activity', types: ['document.*'], handle: activity },
+  { name: 'documents-activity', types: ['document.*', 'case.*'], handle: activity },
   {
     name: 'documents-realtime',
-    types: ['document.*'],
+    types: ['document.*', 'case.*', 'object.linked', 'object.unlinked'],
     handle: async (event) => refreshTabs(event),
   },
   { name: 'documents-viewers', types: ['acl.changed', 'object.moved'], handle: refreshAccess },

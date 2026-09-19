@@ -173,6 +173,12 @@ export const AUDIT_ACTIONS = {
   documentCancelled: 'document.cancelled',
   documentConfidentialityChanged: 'document.confidentiality_changed',
   journalNumbersReserved: 'journal.numbers_reserved',
+  // Дела и архив (ADR-0086): подшивка, закрытие, передача в архив, уничтожение по акту
+  documentFiled: 'document.filed',
+  documentDispatched: 'document.dispatched',
+  caseClosed: 'case.closed',
+  caseArchived: 'case.archived',
+  caseDestroyed: 'case.destroyed',
   settingsChanged: 'settings.changed',
   objectPurged: 'object.purged',
   auditExported: 'audit.exported',

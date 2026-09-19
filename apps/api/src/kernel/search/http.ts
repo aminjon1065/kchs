@@ -27,6 +27,7 @@ export function registerSearchRoutes(route: RouteRegistrar): void {
         q: z.string().max(500).default(''),
         types: csv(ObjectType),
         spaceIds: csv(Uuid),
+        statuses: csv(z.string().min(1).max(40)),
         limit: z.coerce.number().int().min(1).max(100).default(20),
         offset: z.coerce.number().int().min(0).max(1000).default(0),
       }),
@@ -39,6 +40,7 @@ export function registerSearchRoutes(route: RouteRegistrar): void {
         offset: request.query.offset,
         ...(request.query.types?.length ? { types: request.query.types } : {}),
         ...(request.query.spaceIds?.length ? { spaceIds: request.query.spaceIds } : {}),
+        ...(request.query.statuses?.length ? { statuses: request.query.statuses } : {}),
       }),
   })
 }
