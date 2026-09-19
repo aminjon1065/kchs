@@ -4,6 +4,7 @@
 #
 #   bash infra/perf/run-k6.sh                  # стенд разработки: api :3000 с демо-данными
 #   KCHS_PERF_PROFILE=data-queries bash infra/perf/run-k6.sh  # запросы к датасету 5 млн строк
+#   KCHS_PERF_PROFILE=gis-tiles bash infra/perf/run-k6.sh     # векторные тайлы слоя (ADR-0064)
 #   KCHS_PERF_API=http://host.docker.internal:8080/api/v1 bash infra/perf/run-k6.sh  # через web
 #   KCHS_PERF_RATE=2 KCHS_PERF_DURATION=30s bash infra/perf/run-k6.sh               # мягче и короче
 #
@@ -16,7 +17,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-# api-basic — базовые операции; data-queries — запросы к демо-датасету (ADR-0063)
+# api-basic — базовые операции; data-queries — запросы к демо-датасету (ADR-0063);
+# gis-tiles — тайлы слоя на демо-датасете (ADR-0064)
 PROFILE="${KCHS_PERF_PROFILE:-api-basic}"
 [[ -f "$ROOT/infra/perf/k6/$PROFILE.js" ]] || { echo "нет профиля k6: $PROFILE" >&2; exit 2; }
 K6_IMAGE="${K6_IMAGE:-grafana/k6:1.4.0}"
