@@ -93,6 +93,17 @@ docker compose exec engine python -m kchs_engine.demo --out s3://kchs-files/seed
   ледниковых, влажные и сухие годы, паводковые волны; расход по кривой расходов; признак
   «выше опасного уровня» (≈ 3 % суток).
 
+Справочник территорий API (ADR-0057, ADR-0067) — файлы сида в `apps/api/src/seed/`, их строят
+команды движка (из `apps/engine`, затем `pnpm exec biome format --write <файл>`):
+
+- `settlements.json` — 772 кишлака демо-мира уровня «населённый пункт» (код `<район>-NN`,
+  английское название — транслитерация): `python -m kchs_engine.demo.settlements --out
+  ../api/src/seed/settlements.json`; совпадение с генератором — `tests/test_settlements.py`;
+- `territory-boundaries.json` — границы 68 районов из geoBoundaries (OpenStreetMap, ODbL 1.0):
+  `python -m kchs_engine.demo.boundaries --out ../api/src/seed/territory-boundaries.json`
+  (нужен shapely — extra `gis`, есть в образе; исходники скачиваются по закреплённой сборке);
+  покрытие без щелей и наложений проверяет `tests/test_territory_boundaries.py`.
+
 `manifest.json` (формат `kchs-demo/1`) — рядом с файлами, пишется последним: наборы в порядке
 загрузки (справочники раньше таблиц). Для каждого набора — название, вид (`table` или
 `reference`), описание, файл, формат, число строк, размер, SHA-256, ключ, поля времени и

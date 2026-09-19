@@ -1,0 +1,9266 @@
+[
+  {
+    "code": "TJ-GB-01-01",
+    "parent": "TJ-GB-01",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чорбог",
+      "tg": "Чорбог",
+      "en": "Chorbog"
+    },
+    "centroid": [71.57498, 37.51432]
+  },
+  {
+    "code": "TJ-GB-01-02",
+    "parent": "TJ-GB-01",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сиёхкух",
+      "tg": "Сиёхкух",
+      "en": "Siyokhkukh"
+    },
+    "centroid": [71.5204, 37.49193]
+  },
+  {
+    "code": "TJ-GB-01-03",
+    "parent": "TJ-GB-01",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Кушкак",
+      "tg": "Кушкак",
+      "en": "Kushkak"
+    },
+    "centroid": [71.56976, 37.47005]
+  },
+  {
+    "code": "TJ-GB-01-04",
+    "parent": "TJ-GB-01",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сафедоб",
+      "tg": "Сафедоб",
+      "en": "Safedob"
+    },
+    "centroid": [71.567, 37.46394]
+  },
+  {
+    "code": "TJ-GB-01-05",
+    "parent": "TJ-GB-01",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Калъаи Нав",
+      "tg": "Калъаи Нав",
+      "en": "Kal'ai Nav"
+    },
+    "centroid": [71.55477, 37.47329]
+  },
+  {
+    "code": "TJ-GB-02-01",
+    "parent": "TJ-GB-02",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Хасанобод",
+      "tg": "Хасанобод",
+      "en": "Khasanobod"
+    },
+    "centroid": [71.6271, 38.23786]
+  },
+  {
+    "code": "TJ-GB-02-02",
+    "parent": "TJ-GB-02",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Ором",
+      "tg": "Ором",
+      "en": "Orom"
+    },
+    "centroid": [71.55323, 38.58089]
+  },
+  {
+    "code": "TJ-GB-02-03",
+    "parent": "TJ-GB-02",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Навдонак",
+      "tg": "Навдонак",
+      "en": "Navdonak"
+    },
+    "centroid": [71.42191, 38.57232]
+  },
+  {
+    "code": "TJ-GB-02-04",
+    "parent": "TJ-GB-02",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Кунчи Боло",
+      "tg": "Кунчи Боло",
+      "en": "Kunchi Bolo"
+    },
+    "centroid": [71.27954, 38.38978]
+  },
+  {
+    "code": "TJ-GB-02-05",
+    "parent": "TJ-GB-02",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чорбог",
+      "tg": "Чорбог",
+      "en": "Chorbog"
+    },
+    "centroid": [71.5579, 38.27134]
+  },
+  {
+    "code": "TJ-GB-02-06",
+    "parent": "TJ-GB-02",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обиравшан",
+      "tg": "Обиравшан",
+      "en": "Obiravshan"
+    },
+    "centroid": [71.73647, 38.35056]
+  },
+  {
+    "code": "TJ-GB-02-07",
+    "parent": "TJ-GB-02",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Пушти Бог",
+      "tg": "Пушти Бог",
+      "en": "Pushti Bog"
+    },
+    "centroid": [71.50145, 38.16158]
+  },
+  {
+    "code": "TJ-GB-02-08",
+    "parent": "TJ-GB-02",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сарчашма",
+      "tg": "Сарчашма",
+      "en": "Sarchashma"
+    },
+    "centroid": [71.27538, 38.4495]
+  },
+  {
+    "code": "TJ-GB-02-09",
+    "parent": "TJ-GB-02",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сангистон",
+      "tg": "Сангистон",
+      "en": "Sangiston"
+    },
+    "centroid": [71.41972, 38.20165]
+  },
+  {
+    "code": "TJ-GB-03-01",
+    "parent": "TJ-GB-03",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Бодомзор",
+      "tg": "Бодомзор",
+      "en": "Bodomzor"
+    },
+    "centroid": [70.76681, 38.56247]
+  },
+  {
+    "code": "TJ-GB-03-02",
+    "parent": "TJ-GB-03",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Дахана",
+      "tg": "Дахана",
+      "en": "Dakhana"
+    },
+    "centroid": [70.78302, 38.61475]
+  },
+  {
+    "code": "TJ-GB-03-03",
+    "parent": "TJ-GB-03",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Бустонобод",
+      "tg": "Бустонобод",
+      "en": "Bustonobod"
+    },
+    "centroid": [71.02254, 38.45411]
+  },
+  {
+    "code": "TJ-GB-03-04",
+    "parent": "TJ-GB-03",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Гулобод",
+      "tg": "Гулобод",
+      "en": "Gulobod"
+    },
+    "centroid": [71.00774, 38.39461]
+  },
+  {
+    "code": "TJ-GB-03-05",
+    "parent": "TJ-GB-03",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обиборик",
+      "tg": "Обиборик",
+      "en": "Obiborik"
+    },
+    "centroid": [70.70166, 38.59321]
+  },
+  {
+    "code": "TJ-GB-03-06",
+    "parent": "TJ-GB-03",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обиравшан",
+      "tg": "Обиравшан",
+      "en": "Obiravshan"
+    },
+    "centroid": [70.93667, 38.24304]
+  },
+  {
+    "code": "TJ-GB-03-07",
+    "parent": "TJ-GB-03",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Тагоб",
+      "tg": "Тагоб",
+      "en": "Tagob"
+    },
+    "centroid": [70.65831, 38.26183]
+  },
+  {
+    "code": "TJ-GB-03-08",
+    "parent": "TJ-GB-03",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Кунчи Боло",
+      "tg": "Кунчи Боло",
+      "en": "Kunchi Bolo"
+    },
+    "centroid": [70.70172, 38.57368]
+  },
+  {
+    "code": "TJ-GB-03-09",
+    "parent": "TJ-GB-03",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Нуристон",
+      "tg": "Нуристон",
+      "en": "Nuriston"
+    },
+    "centroid": [70.88772, 38.45245]
+  },
+  {
+    "code": "TJ-GB-04-01",
+    "parent": "TJ-GB-04",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Себистон",
+      "tg": "Себистон",
+      "en": "Sebiston"
+    },
+    "centroid": [71.85862, 37.12559]
+  },
+  {
+    "code": "TJ-GB-04-02",
+    "parent": "TJ-GB-04",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Зарнисор",
+      "tg": "Зарнисор",
+      "en": "Zarnisor"
+    },
+    "centroid": [72.11112, 37.02826]
+  },
+  {
+    "code": "TJ-GB-04-03",
+    "parent": "TJ-GB-04",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Навруз",
+      "tg": "Навруз",
+      "en": "Navruz"
+    },
+    "centroid": [71.97279, 37.06474]
+  },
+  {
+    "code": "TJ-GB-04-04",
+    "parent": "TJ-GB-04",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Навдонак",
+      "tg": "Навдонак",
+      "en": "Navdonak"
+    },
+    "centroid": [71.84289, 37.05028]
+  },
+  {
+    "code": "TJ-GB-04-05",
+    "parent": "TJ-GB-04",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обиборик",
+      "tg": "Обиборик",
+      "en": "Obiborik"
+    },
+    "centroid": [72.12097, 37.13721]
+  },
+  {
+    "code": "TJ-GB-04-06",
+    "parent": "TJ-GB-04",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чинор",
+      "tg": "Чинор",
+      "en": "Chinor"
+    },
+    "centroid": [72.18328, 36.81726]
+  },
+  {
+    "code": "TJ-GB-04-07",
+    "parent": "TJ-GB-04",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сомон",
+      "tg": "Сомон",
+      "en": "Somon"
+    },
+    "centroid": [72.13462, 36.7336]
+  },
+  {
+    "code": "TJ-GB-04-08",
+    "parent": "TJ-GB-04",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Гулшан",
+      "tg": "Гулшан",
+      "en": "Gulshan"
+    },
+    "centroid": [72.22314, 36.92104]
+  },
+  {
+    "code": "TJ-GB-04-09",
+    "parent": "TJ-GB-04",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Тутзор",
+      "tg": "Тутзор",
+      "en": "Tutzor"
+    },
+    "centroid": [72.00315, 37.15858]
+  },
+  {
+    "code": "TJ-GB-05-01",
+    "parent": "TJ-GB-05",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сари Осиё",
+      "tg": "Сари Осиё",
+      "en": "Sari Osiyo"
+    },
+    "centroid": [73.12504, 38.08054]
+  },
+  {
+    "code": "TJ-GB-05-02",
+    "parent": "TJ-GB-05",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Шуробод",
+      "tg": "Шуробод",
+      "en": "Shurobod"
+    },
+    "centroid": [73.57188, 38.20853]
+  },
+  {
+    "code": "TJ-GB-05-03",
+    "parent": "TJ-GB-05",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чинорзор",
+      "tg": "Чинорзор",
+      "en": "Chinorzor"
+    },
+    "centroid": [73.39774, 38.69822]
+  },
+  {
+    "code": "TJ-GB-05-04",
+    "parent": "TJ-GB-05",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Калъаи Нав",
+      "tg": "Калъаи Нав",
+      "en": "Kal'ai Nav"
+    },
+    "centroid": [73.96578, 37.86169]
+  },
+  {
+    "code": "TJ-GB-05-05",
+    "parent": "TJ-GB-05",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чашмасор",
+      "tg": "Чашмасор",
+      "en": "Chashmasor"
+    },
+    "centroid": [73.59041, 38.7551]
+  },
+  {
+    "code": "TJ-GB-05-06",
+    "parent": "TJ-GB-05",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Равшан",
+      "tg": "Равшан",
+      "en": "Ravshan"
+    },
+    "centroid": [73.7687, 38.65875]
+  },
+  {
+    "code": "TJ-GB-05-07",
+    "parent": "TJ-GB-05",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чинор",
+      "tg": "Чинор",
+      "en": "Chinor"
+    },
+    "centroid": [74.34041, 38.41221]
+  },
+  {
+    "code": "TJ-GB-06-01",
+    "parent": "TJ-GB-06",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обшорон",
+      "tg": "Обшорон",
+      "en": "Obshoron"
+    },
+    "centroid": [72.19383, 37.02144]
+  },
+  {
+    "code": "TJ-GB-06-02",
+    "parent": "TJ-GB-06",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Тагоб",
+      "tg": "Тагоб",
+      "en": "Tagob"
+    },
+    "centroid": [72.21456, 37.19444]
+  },
+  {
+    "code": "TJ-GB-06-03",
+    "parent": "TJ-GB-06",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обиравшан",
+      "tg": "Обиравшан",
+      "en": "Obiravshan"
+    },
+    "centroid": [71.78422, 37.12428]
+  },
+  {
+    "code": "TJ-GB-06-04",
+    "parent": "TJ-GB-06",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Янгиобод",
+      "tg": "Янгиобод",
+      "en": "Yangiobod"
+    },
+    "centroid": [72.13656, 37.2426]
+  },
+  {
+    "code": "TJ-GB-06-05",
+    "parent": "TJ-GB-06",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Пахтаобод",
+      "tg": "Пахтаобод",
+      "en": "Pakhtaobod"
+    },
+    "centroid": [72.09443, 36.98337]
+  },
+  {
+    "code": "TJ-GB-06-06",
+    "parent": "TJ-GB-06",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чашмасор",
+      "tg": "Чашмасор",
+      "en": "Chashmasor"
+    },
+    "centroid": [71.78665, 37.08815]
+  },
+  {
+    "code": "TJ-GB-06-07",
+    "parent": "TJ-GB-06",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чорсу",
+      "tg": "Чорсу",
+      "en": "Chorsu"
+    },
+    "centroid": [72.04884, 37.35024]
+  },
+  {
+    "code": "TJ-GB-06-08",
+    "parent": "TJ-GB-06",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Бодомзор",
+      "tg": "Бодомзор",
+      "en": "Bodomzor"
+    },
+    "centroid": [71.76383, 37.15854]
+  },
+  {
+    "code": "TJ-GB-06-09",
+    "parent": "TJ-GB-06",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сафедоб",
+      "tg": "Сафедоб",
+      "en": "Safedob"
+    },
+    "centroid": [72.19806, 37.19007]
+  },
+  {
+    "code": "TJ-GB-07-01",
+    "parent": "TJ-GB-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Пушти Бог",
+      "tg": "Пушти Бог",
+      "en": "Pushti Bog"
+    },
+    "centroid": [71.89645, 38.04871]
+  },
+  {
+    "code": "TJ-GB-07-02",
+    "parent": "TJ-GB-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Кунчи Боло",
+      "tg": "Кунчи Боло",
+      "en": "Kunchi Bolo"
+    },
+    "centroid": [72.02334, 38.18753]
+  },
+  {
+    "code": "TJ-GB-07-03",
+    "parent": "TJ-GB-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сомон",
+      "tg": "Сомон",
+      "en": "Somon"
+    },
+    "centroid": [72.29919, 38.1299]
+  },
+  {
+    "code": "TJ-GB-07-04",
+    "parent": "TJ-GB-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чорбог",
+      "tg": "Чорбог",
+      "en": "Chorbog"
+    },
+    "centroid": [71.89733, 38.04429]
+  },
+  {
+    "code": "TJ-GB-07-05",
+    "parent": "TJ-GB-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сарчашма",
+      "tg": "Сарчашма",
+      "en": "Sarchashma"
+    },
+    "centroid": [71.86818, 37.86058]
+  },
+  {
+    "code": "TJ-GB-07-06",
+    "parent": "TJ-GB-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Гулшан",
+      "tg": "Гулшан",
+      "en": "Gulshan"
+    },
+    "centroid": [72.14232, 37.95553]
+  },
+  {
+    "code": "TJ-GB-07-07",
+    "parent": "TJ-GB-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обиравшан",
+      "tg": "Обиравшан",
+      "en": "Obiravshan"
+    },
+    "centroid": [72.19809, 37.85228]
+  },
+  {
+    "code": "TJ-GB-07-08",
+    "parent": "TJ-GB-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Тутзор",
+      "tg": "Тутзор",
+      "en": "Tutzor"
+    },
+    "centroid": [71.91393, 38.05306]
+  },
+  {
+    "code": "TJ-GB-07-09",
+    "parent": "TJ-GB-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обшорон",
+      "tg": "Обшорон",
+      "en": "Obshoron"
+    },
+    "centroid": [71.7483, 38.15839]
+  },
+  {
+    "code": "TJ-GB-08-01",
+    "parent": "TJ-GB-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Хасанобод",
+      "tg": "Хасанобод",
+      "en": "Khasanobod"
+    },
+    "centroid": [72.06107, 37.57266]
+  },
+  {
+    "code": "TJ-GB-08-02",
+    "parent": "TJ-GB-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сарчашма",
+      "tg": "Сарчашма",
+      "en": "Sarchashma"
+    },
+    "centroid": [72.32007, 37.43744]
+  },
+  {
+    "code": "TJ-GB-08-03",
+    "parent": "TJ-GB-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Янгиобод",
+      "tg": "Янгиобод",
+      "en": "Yangiobod"
+    },
+    "centroid": [72.16862, 37.53624]
+  },
+  {
+    "code": "TJ-GB-08-04",
+    "parent": "TJ-GB-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Мазор",
+      "tg": "Мазор",
+      "en": "Mazor"
+    },
+    "centroid": [72.25118, 37.8132]
+  },
+  {
+    "code": "TJ-GB-08-05",
+    "parent": "TJ-GB-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Кунчи Боло",
+      "tg": "Кунчи Боло",
+      "en": "Kunchi Bolo"
+    },
+    "centroid": [71.83189, 37.64368]
+  },
+  {
+    "code": "TJ-GB-08-06",
+    "parent": "TJ-GB-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Ватан",
+      "tg": "Ватан",
+      "en": "Vatan"
+    },
+    "centroid": [72.37655, 37.77057]
+  },
+  {
+    "code": "TJ-GB-08-07",
+    "parent": "TJ-GB-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Навруз",
+      "tg": "Навруз",
+      "en": "Navruz"
+    },
+    "centroid": [71.92705, 37.817]
+  },
+  {
+    "code": "TJ-GB-08-08",
+    "parent": "TJ-GB-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Навобод",
+      "tg": "Навобод",
+      "en": "Navobod"
+    },
+    "centroid": [72.24742, 37.63342]
+  },
+  {
+    "code": "TJ-GB-08-09",
+    "parent": "TJ-GB-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обшорон",
+      "tg": "Обшорон",
+      "en": "Obshoron"
+    },
+    "centroid": [72.30602, 37.45527]
+  },
+  {
+    "code": "TJ-GB-08-10",
+    "parent": "TJ-GB-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обиравшан",
+      "tg": "Обиравшан",
+      "en": "Obiravshan"
+    },
+    "centroid": [72.26237, 37.42404]
+  },
+  {
+    "code": "TJ-KT-01-01",
+    "parent": "TJ-KT-01",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Дехибаланд",
+      "tg": "Дехибаланд",
+      "en": "Dekhibaland"
+    },
+    "centroid": [68.78533, 37.79616]
+  },
+  {
+    "code": "TJ-KT-01-02",
+    "parent": "TJ-KT-01",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обиборик",
+      "tg": "Обиборик",
+      "en": "Obiborik"
+    },
+    "centroid": [68.77511, 37.79258]
+  },
+  {
+    "code": "TJ-KT-01-03",
+    "parent": "TJ-KT-01",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чинор",
+      "tg": "Чинор",
+      "en": "Chinor"
+    },
+    "centroid": [68.78212, 37.87065]
+  },
+  {
+    "code": "TJ-KT-01-04",
+    "parent": "TJ-KT-01",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Калъаи Нав",
+      "tg": "Калъаи Нав",
+      "en": "Kal'ai Nav"
+    },
+    "centroid": [68.79976, 37.82563]
+  },
+  {
+    "code": "TJ-KT-01-05",
+    "parent": "TJ-KT-01",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Ором",
+      "tg": "Ором",
+      "en": "Orom"
+    },
+    "centroid": [68.80859, 37.80821]
+  },
+  {
+    "code": "TJ-KT-01-06",
+    "parent": "TJ-KT-01",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Бустонобод",
+      "tg": "Бустонобод",
+      "en": "Bustonobod"
+    },
+    "centroid": [68.77147, 37.88162]
+  },
+  {
+    "code": "TJ-KT-01-07",
+    "parent": "TJ-KT-01",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сангистон",
+      "tg": "Сангистон",
+      "en": "Sangiston"
+    },
+    "centroid": [68.7347, 37.81382]
+  },
+  {
+    "code": "TJ-KT-01-08",
+    "parent": "TJ-KT-01",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сомон",
+      "tg": "Сомон",
+      "en": "Somon"
+    },
+    "centroid": [68.80463, 37.87489]
+  },
+  {
+    "code": "TJ-KT-02-01",
+    "parent": "TJ-KT-02",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Бустонобод",
+      "tg": "Бустонобод",
+      "en": "Bustonobod"
+    },
+    "centroid": [69.76941, 37.97269]
+  },
+  {
+    "code": "TJ-KT-02-02",
+    "parent": "TJ-KT-02",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Лолазор",
+      "tg": "Лолазор",
+      "en": "Lolazor"
+    },
+    "centroid": [69.81516, 37.84759]
+  },
+  {
+    "code": "TJ-KT-02-03",
+    "parent": "TJ-KT-02",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Равшан",
+      "tg": "Равшан",
+      "en": "Ravshan"
+    },
+    "centroid": [69.84059, 37.95472]
+  },
+  {
+    "code": "TJ-KT-02-04",
+    "parent": "TJ-KT-02",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сиёхкух",
+      "tg": "Сиёхкух",
+      "en": "Siyokhkukh"
+    },
+    "centroid": [69.78047, 37.88278]
+  },
+  {
+    "code": "TJ-KT-02-05",
+    "parent": "TJ-KT-02",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Ватан",
+      "tg": "Ватан",
+      "en": "Vatan"
+    },
+    "centroid": [69.84069, 37.95858]
+  },
+  {
+    "code": "TJ-KT-02-06",
+    "parent": "TJ-KT-02",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Шуробод",
+      "tg": "Шуробод",
+      "en": "Shurobod"
+    },
+    "centroid": [69.72132, 37.85908]
+  },
+  {
+    "code": "TJ-KT-02-07",
+    "parent": "TJ-KT-02",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обиборик",
+      "tg": "Обиборик",
+      "en": "Obiborik"
+    },
+    "centroid": [69.81811, 37.87415]
+  },
+  {
+    "code": "TJ-KT-02-08",
+    "parent": "TJ-KT-02",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Тутзор",
+      "tg": "Тутзор",
+      "en": "Tutzor"
+    },
+    "centroid": [69.76613, 37.88229]
+  },
+  {
+    "code": "TJ-KT-02-09",
+    "parent": "TJ-KT-02",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Ором",
+      "tg": "Ором",
+      "en": "Orom"
+    },
+    "centroid": [69.7571, 37.98351]
+  },
+  {
+    "code": "TJ-KT-02-10",
+    "parent": "TJ-KT-02",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Работ",
+      "tg": "Работ",
+      "en": "Rabot"
+    },
+    "centroid": [69.76355, 37.90059]
+  },
+  {
+    "code": "TJ-KT-02-11",
+    "parent": "TJ-KT-02",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Бахористон",
+      "tg": "Бахористон",
+      "en": "Bakhoriston"
+    },
+    "centroid": [69.83703, 37.98171]
+  },
+  {
+    "code": "TJ-KT-03-01",
+    "parent": "TJ-KT-03",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Мехнатобод",
+      "tg": "Мехнатобод",
+      "en": "Mekhnatobod"
+    },
+    "centroid": [68.92263, 37.86488]
+  },
+  {
+    "code": "TJ-KT-03-02",
+    "parent": "TJ-KT-03",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Себистон",
+      "tg": "Себистон",
+      "en": "Sebiston"
+    },
+    "centroid": [68.92505, 37.87569]
+  },
+  {
+    "code": "TJ-KT-03-03",
+    "parent": "TJ-KT-03",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Работ",
+      "tg": "Работ",
+      "en": "Rabot"
+    },
+    "centroid": [68.96792, 37.86812]
+  },
+  {
+    "code": "TJ-KT-03-04",
+    "parent": "TJ-KT-03",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Навобод",
+      "tg": "Навобод",
+      "en": "Navobod"
+    },
+    "centroid": [68.97006, 37.87037]
+  },
+  {
+    "code": "TJ-KT-03-05",
+    "parent": "TJ-KT-03",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Ватан",
+      "tg": "Ватан",
+      "en": "Vatan"
+    },
+    "centroid": [68.94199, 37.82608]
+  },
+  {
+    "code": "TJ-KT-04-01",
+    "parent": "TJ-KT-04",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Пахтаобод",
+      "tg": "Пахтаобод",
+      "en": "Pakhtaobod"
+    },
+    "centroid": [69.28983, 38.36425]
+  },
+  {
+    "code": "TJ-KT-04-02",
+    "parent": "TJ-KT-04",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Навдонак",
+      "tg": "Навдонак",
+      "en": "Navdonak"
+    },
+    "centroid": [69.2412, 38.41328]
+  },
+  {
+    "code": "TJ-KT-04-03",
+    "parent": "TJ-KT-04",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чорбог",
+      "tg": "Чорбог",
+      "en": "Chorbog"
+    },
+    "centroid": [69.30713, 38.31331]
+  },
+  {
+    "code": "TJ-KT-04-04",
+    "parent": "TJ-KT-04",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Себистон",
+      "tg": "Себистон",
+      "en": "Sebiston"
+    },
+    "centroid": [69.26391, 38.41754]
+  },
+  {
+    "code": "TJ-KT-04-05",
+    "parent": "TJ-KT-04",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Тагоб",
+      "tg": "Тагоб",
+      "en": "Tagob"
+    },
+    "centroid": [69.24758, 38.42049]
+  },
+  {
+    "code": "TJ-KT-04-06",
+    "parent": "TJ-KT-04",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Работ",
+      "tg": "Работ",
+      "en": "Rabot"
+    },
+    "centroid": [69.30021, 38.36311]
+  },
+  {
+    "code": "TJ-KT-05-01",
+    "parent": "TJ-KT-05",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Работ",
+      "tg": "Работ",
+      "en": "Rabot"
+    },
+    "centroid": [68.99217, 37.60172]
+  },
+  {
+    "code": "TJ-KT-05-02",
+    "parent": "TJ-KT-05",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чукурак",
+      "tg": "Чукурак",
+      "en": "Chukurak"
+    },
+    "centroid": [68.89318, 37.70603]
+  },
+  {
+    "code": "TJ-KT-05-03",
+    "parent": "TJ-KT-05",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сари Осиё",
+      "tg": "Сари Осиё",
+      "en": "Sari Osiyo"
+    },
+    "centroid": [69.0659, 37.64832]
+  },
+  {
+    "code": "TJ-KT-05-04",
+    "parent": "TJ-KT-05",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Бодомзор",
+      "tg": "Бодомзор",
+      "en": "Bodomzor"
+    },
+    "centroid": [68.92024, 37.59855]
+  },
+  {
+    "code": "TJ-KT-05-05",
+    "parent": "TJ-KT-05",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сарчашма",
+      "tg": "Сарчашма",
+      "en": "Sarchashma"
+    },
+    "centroid": [68.94954, 37.59726]
+  },
+  {
+    "code": "TJ-KT-05-06",
+    "parent": "TJ-KT-05",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Нурафшон",
+      "tg": "Нурафшон",
+      "en": "Nurafshon"
+    },
+    "centroid": [69.02104, 37.724]
+  },
+  {
+    "code": "TJ-KT-05-07",
+    "parent": "TJ-KT-05",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Янгиобод",
+      "tg": "Янгиобод",
+      "en": "Yangiobod"
+    },
+    "centroid": [68.87084, 37.59955]
+  },
+  {
+    "code": "TJ-KT-05-08",
+    "parent": "TJ-KT-05",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сафедоб",
+      "tg": "Сафедоб",
+      "en": "Safedob"
+    },
+    "centroid": [68.99911, 37.59614]
+  },
+  {
+    "code": "TJ-KT-05-09",
+    "parent": "TJ-KT-05",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Калъаи Нав",
+      "tg": "Калъаи Нав",
+      "en": "Kal'ai Nav"
+    },
+    "centroid": [69.04409, 37.66253]
+  },
+  {
+    "code": "TJ-KT-05-10",
+    "parent": "TJ-KT-05",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Навдонак",
+      "tg": "Навдонак",
+      "en": "Navdonak"
+    },
+    "centroid": [69.02836, 37.65048]
+  },
+  {
+    "code": "TJ-KT-05-11",
+    "parent": "TJ-KT-05",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Ватан",
+      "tg": "Ватан",
+      "en": "Vatan"
+    },
+    "centroid": [69.02098, 37.61966]
+  },
+  {
+    "code": "TJ-KT-05-12",
+    "parent": "TJ-KT-05",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сомон",
+      "tg": "Сомон",
+      "en": "Somon"
+    },
+    "centroid": [69.04322, 37.62355]
+  },
+  {
+    "code": "TJ-KT-05-13",
+    "parent": "TJ-KT-05",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чинор",
+      "tg": "Чинор",
+      "en": "Chinor"
+    },
+    "centroid": [69.01677, 37.63611]
+  },
+  {
+    "code": "TJ-KT-05-14",
+    "parent": "TJ-KT-05",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Шуробод",
+      "tg": "Шуробод",
+      "en": "Shurobod"
+    },
+    "centroid": [69.0395, 37.6378]
+  },
+  {
+    "code": "TJ-KT-05-15",
+    "parent": "TJ-KT-05",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Пушти Бог",
+      "tg": "Пушти Бог",
+      "en": "Pushti Bog"
+    },
+    "centroid": [69.04064, 37.64736]
+  },
+  {
+    "code": "TJ-KT-06-01",
+    "parent": "TJ-KT-06",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Гулобод",
+      "tg": "Гулобод",
+      "en": "Gulobod"
+    },
+    "centroid": [69.80417, 38.34761]
+  },
+  {
+    "code": "TJ-KT-06-02",
+    "parent": "TJ-KT-06",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Олимобод",
+      "tg": "Олимобод",
+      "en": "Olimobod"
+    },
+    "centroid": [69.50353, 38.29419]
+  },
+  {
+    "code": "TJ-KT-06-03",
+    "parent": "TJ-KT-06",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Кунчи Боло",
+      "tg": "Кунчи Боло",
+      "en": "Kunchi Bolo"
+    },
+    "centroid": [69.52378, 38.28143]
+  },
+  {
+    "code": "TJ-KT-06-04",
+    "parent": "TJ-KT-06",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Мехнатобод",
+      "tg": "Мехнатобод",
+      "en": "Mekhnatobod"
+    },
+    "centroid": [69.5431, 38.29778]
+  },
+  {
+    "code": "TJ-KT-06-05",
+    "parent": "TJ-KT-06",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Бодомзор",
+      "tg": "Бодомзор",
+      "en": "Bodomzor"
+    },
+    "centroid": [69.53772, 38.33694]
+  },
+  {
+    "code": "TJ-KT-06-06",
+    "parent": "TJ-KT-06",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чорбог",
+      "tg": "Чорбог",
+      "en": "Chorbog"
+    },
+    "centroid": [69.61318, 38.31949]
+  },
+  {
+    "code": "TJ-KT-06-07",
+    "parent": "TJ-KT-06",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Хасанобод",
+      "tg": "Хасанобод",
+      "en": "Khasanobod"
+    },
+    "centroid": [69.69451, 38.21612]
+  },
+  {
+    "code": "TJ-KT-06-08",
+    "parent": "TJ-KT-06",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Дехибаланд",
+      "tg": "Дехибаланд",
+      "en": "Dekhibaland"
+    },
+    "centroid": [69.77054, 38.39556]
+  },
+  {
+    "code": "TJ-KT-06-09",
+    "parent": "TJ-KT-06",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Нуристон",
+      "tg": "Нуристон",
+      "en": "Nuriston"
+    },
+    "centroid": [69.56919, 38.39972]
+  },
+  {
+    "code": "TJ-KT-07-01",
+    "parent": "TJ-KT-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чинор",
+      "tg": "Чинор",
+      "en": "Chinor"
+    },
+    "centroid": [68.79235, 37.75041]
+  },
+  {
+    "code": "TJ-KT-07-02",
+    "parent": "TJ-KT-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Лолазор",
+      "tg": "Лолазор",
+      "en": "Lolazor"
+    },
+    "centroid": [68.82215, 37.64395]
+  },
+  {
+    "code": "TJ-KT-07-03",
+    "parent": "TJ-KT-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Гулшан",
+      "tg": "Гулшан",
+      "en": "Gulshan"
+    },
+    "centroid": [68.7682, 37.64108]
+  },
+  {
+    "code": "TJ-KT-07-04",
+    "parent": "TJ-KT-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Ором",
+      "tg": "Ором",
+      "en": "Orom"
+    },
+    "centroid": [68.83543, 37.62018]
+  },
+  {
+    "code": "TJ-KT-07-05",
+    "parent": "TJ-KT-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Нурафшон",
+      "tg": "Нурафшон",
+      "en": "Nurafshon"
+    },
+    "centroid": [68.73058, 37.76829]
+  },
+  {
+    "code": "TJ-KT-07-06",
+    "parent": "TJ-KT-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Кунчи Боло",
+      "tg": "Кунчи Боло",
+      "en": "Kunchi Bolo"
+    },
+    "centroid": [68.69565, 37.68838]
+  },
+  {
+    "code": "TJ-KT-07-07",
+    "parent": "TJ-KT-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Калъаи Нав",
+      "tg": "Калъаи Нав",
+      "en": "Kal'ai Nav"
+    },
+    "centroid": [68.87114, 37.6415]
+  },
+  {
+    "code": "TJ-KT-07-08",
+    "parent": "TJ-KT-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чинорзор",
+      "tg": "Чинорзор",
+      "en": "Chinorzor"
+    },
+    "centroid": [68.89697, 37.77775]
+  },
+  {
+    "code": "TJ-KT-07-09",
+    "parent": "TJ-KT-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чашмасор",
+      "tg": "Чашмасор",
+      "en": "Chashmasor"
+    },
+    "centroid": [68.90038, 37.61777]
+  },
+  {
+    "code": "TJ-KT-07-10",
+    "parent": "TJ-KT-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Саидобод",
+      "tg": "Саидобод",
+      "en": "Saidobod"
+    },
+    "centroid": [68.94337, 37.72214]
+  },
+  {
+    "code": "TJ-KT-07-11",
+    "parent": "TJ-KT-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Себистон",
+      "tg": "Себистон",
+      "en": "Sebiston"
+    },
+    "centroid": [68.76611, 37.6229]
+  },
+  {
+    "code": "TJ-KT-07-12",
+    "parent": "TJ-KT-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Навобод",
+      "tg": "Навобод",
+      "en": "Navobod"
+    },
+    "centroid": [68.76322, 37.6135]
+  },
+  {
+    "code": "TJ-KT-07-13",
+    "parent": "TJ-KT-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Бахористон",
+      "tg": "Бахористон",
+      "en": "Bakhoriston"
+    },
+    "centroid": [68.75696, 37.67239]
+  },
+  {
+    "code": "TJ-KT-07-14",
+    "parent": "TJ-KT-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Бустонобод",
+      "tg": "Бустонобод",
+      "en": "Bustonobod"
+    },
+    "centroid": [68.92579, 37.73351]
+  },
+  {
+    "code": "TJ-KT-07-15",
+    "parent": "TJ-KT-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Кушкак",
+      "tg": "Кушкак",
+      "en": "Kushkak"
+    },
+    "centroid": [68.77214, 37.70804]
+  },
+  {
+    "code": "TJ-KT-07-16",
+    "parent": "TJ-KT-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Навруз",
+      "tg": "Навруз",
+      "en": "Navruz"
+    },
+    "centroid": [68.77212, 37.78289]
+  },
+  {
+    "code": "TJ-KT-07-17",
+    "parent": "TJ-KT-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Пахтаобод",
+      "tg": "Пахтаобод",
+      "en": "Pakhtaobod"
+    },
+    "centroid": [68.7511, 37.79906]
+  },
+  {
+    "code": "TJ-KT-08-01",
+    "parent": "TJ-KT-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Гулобод",
+      "tg": "Гулобод",
+      "en": "Gulobod"
+    },
+    "centroid": [69.54816, 37.75067]
+  },
+  {
+    "code": "TJ-KT-08-02",
+    "parent": "TJ-KT-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Работ",
+      "tg": "Работ",
+      "en": "Rabot"
+    },
+    "centroid": [69.66695, 37.69822]
+  },
+  {
+    "code": "TJ-KT-08-03",
+    "parent": "TJ-KT-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Бодомзор",
+      "tg": "Бодомзор",
+      "en": "Bodomzor"
+    },
+    "centroid": [69.68937, 37.71308]
+  },
+  {
+    "code": "TJ-KT-08-04",
+    "parent": "TJ-KT-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обшорон",
+      "tg": "Обшорон",
+      "en": "Obshoron"
+    },
+    "centroid": [69.6194, 37.90778]
+  },
+  {
+    "code": "TJ-KT-08-05",
+    "parent": "TJ-KT-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Тагоб",
+      "tg": "Тагоб",
+      "en": "Tagob"
+    },
+    "centroid": [69.5222, 37.80128]
+  },
+  {
+    "code": "TJ-KT-08-06",
+    "parent": "TJ-KT-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Мехнатобод",
+      "tg": "Мехнатобод",
+      "en": "Mekhnatobod"
+    },
+    "centroid": [69.55095, 37.80886]
+  },
+  {
+    "code": "TJ-KT-08-07",
+    "parent": "TJ-KT-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Тутзор",
+      "tg": "Тутзор",
+      "en": "Tutzor"
+    },
+    "centroid": [69.57586, 37.80538]
+  },
+  {
+    "code": "TJ-KT-08-08",
+    "parent": "TJ-KT-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Шуробод",
+      "tg": "Шуробод",
+      "en": "Shurobod"
+    },
+    "centroid": [69.59208, 37.76735]
+  },
+  {
+    "code": "TJ-KT-08-09",
+    "parent": "TJ-KT-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чорбог",
+      "tg": "Чорбог",
+      "en": "Chorbog"
+    },
+    "centroid": [69.63545, 37.72838]
+  },
+  {
+    "code": "TJ-KT-08-10",
+    "parent": "TJ-KT-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чинорзор",
+      "tg": "Чинорзор",
+      "en": "Chinorzor"
+    },
+    "centroid": [69.64598, 37.78371]
+  },
+  {
+    "code": "TJ-KT-08-11",
+    "parent": "TJ-KT-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Ором",
+      "tg": "Ором",
+      "en": "Orom"
+    },
+    "centroid": [69.60441, 37.83312]
+  },
+  {
+    "code": "TJ-KT-08-12",
+    "parent": "TJ-KT-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сарчашма",
+      "tg": "Сарчашма",
+      "en": "Sarchashma"
+    },
+    "centroid": [69.53043, 37.79828]
+  },
+  {
+    "code": "TJ-KT-08-13",
+    "parent": "TJ-KT-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Саидобод",
+      "tg": "Саидобод",
+      "en": "Saidobod"
+    },
+    "centroid": [69.71861, 37.7668]
+  },
+  {
+    "code": "TJ-KT-08-14",
+    "parent": "TJ-KT-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сари Осиё",
+      "tg": "Сари Осиё",
+      "en": "Sari Osiyo"
+    },
+    "centroid": [69.67765, 37.70525]
+  },
+  {
+    "code": "TJ-KT-08-15",
+    "parent": "TJ-KT-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Лангар",
+      "tg": "Лангар",
+      "en": "Langar"
+    },
+    "centroid": [69.61558, 37.80047]
+  },
+  {
+    "code": "TJ-KT-08-16",
+    "parent": "TJ-KT-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Зарнисор",
+      "tg": "Зарнисор",
+      "en": "Zarnisor"
+    },
+    "centroid": [69.57253, 37.83826]
+  },
+  {
+    "code": "TJ-KT-08-17",
+    "parent": "TJ-KT-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Кунчи Боло",
+      "tg": "Кунчи Боло",
+      "en": "Kunchi Bolo"
+    },
+    "centroid": [69.59894, 37.73395]
+  },
+  {
+    "code": "TJ-KT-09-01",
+    "parent": "TJ-KT-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Навдонак",
+      "tg": "Навдонак",
+      "en": "Navdonak"
+    },
+    "centroid": [69.29097, 38.22597]
+  },
+  {
+    "code": "TJ-KT-09-02",
+    "parent": "TJ-KT-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Пахтаобод",
+      "tg": "Пахтаобод",
+      "en": "Pakhtaobod"
+    },
+    "centroid": [69.16476, 38.09206]
+  },
+  {
+    "code": "TJ-KT-09-03",
+    "parent": "TJ-KT-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Янгиобод",
+      "tg": "Янгиобод",
+      "en": "Yangiobod"
+    },
+    "centroid": [69.45907, 38.13191]
+  },
+  {
+    "code": "TJ-KT-09-04",
+    "parent": "TJ-KT-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Бустонобод",
+      "tg": "Бустонобод",
+      "en": "Bustonobod"
+    },
+    "centroid": [69.45474, 38.18715]
+  },
+  {
+    "code": "TJ-KT-09-05",
+    "parent": "TJ-KT-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обшорон",
+      "tg": "Обшорон",
+      "en": "Obshoron"
+    },
+    "centroid": [69.29068, 38.07259]
+  },
+  {
+    "code": "TJ-KT-09-06",
+    "parent": "TJ-KT-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Мазор",
+      "tg": "Мазор",
+      "en": "Mazor"
+    },
+    "centroid": [69.42326, 38.1272]
+  },
+  {
+    "code": "TJ-KT-09-07",
+    "parent": "TJ-KT-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чинорзор",
+      "tg": "Чинорзор",
+      "en": "Chinorzor"
+    },
+    "centroid": [69.29473, 37.99853]
+  },
+  {
+    "code": "TJ-KT-09-08",
+    "parent": "TJ-KT-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сангистон",
+      "tg": "Сангистон",
+      "en": "Sangiston"
+    },
+    "centroid": [69.27489, 38.10612]
+  },
+  {
+    "code": "TJ-KT-09-09",
+    "parent": "TJ-KT-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Мехнатобод",
+      "tg": "Мехнатобод",
+      "en": "Mekhnatobod"
+    },
+    "centroid": [69.18894, 38.05903]
+  },
+  {
+    "code": "TJ-KT-09-10",
+    "parent": "TJ-KT-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Ватан",
+      "tg": "Ватан",
+      "en": "Vatan"
+    },
+    "centroid": [69.22187, 38.0571]
+  },
+  {
+    "code": "TJ-KT-09-11",
+    "parent": "TJ-KT-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Гулобод",
+      "tg": "Гулобод",
+      "en": "Gulobod"
+    },
+    "centroid": [69.35945, 38.00577]
+  },
+  {
+    "code": "TJ-KT-09-12",
+    "parent": "TJ-KT-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Нурафшон",
+      "tg": "Нурафшон",
+      "en": "Nurafshon"
+    },
+    "centroid": [69.26333, 38.02982]
+  },
+  {
+    "code": "TJ-KT-09-13",
+    "parent": "TJ-KT-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обиборик",
+      "tg": "Обиборик",
+      "en": "Obiborik"
+    },
+    "centroid": [69.19984, 38.05086]
+  },
+  {
+    "code": "TJ-KT-09-14",
+    "parent": "TJ-KT-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Зарнисор",
+      "tg": "Зарнисор",
+      "en": "Zarnisor"
+    },
+    "centroid": [69.22535, 38.03041]
+  },
+  {
+    "code": "TJ-KT-09-15",
+    "parent": "TJ-KT-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Дехнав",
+      "tg": "Дехнав",
+      "en": "Dekhnav"
+    },
+    "centroid": [69.35925, 38.15585]
+  },
+  {
+    "code": "TJ-KT-09-16",
+    "parent": "TJ-KT-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чашмасор",
+      "tg": "Чашмасор",
+      "en": "Chashmasor"
+    },
+    "centroid": [69.35693, 38.03576]
+  },
+  {
+    "code": "TJ-KT-10-01",
+    "parent": "TJ-KT-10",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Дахана",
+      "tg": "Дахана",
+      "en": "Dakhana"
+    },
+    "centroid": [69.0108, 37.29903]
+  },
+  {
+    "code": "TJ-KT-10-02",
+    "parent": "TJ-KT-10",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чукурак",
+      "tg": "Чукурак",
+      "en": "Chukurak"
+    },
+    "centroid": [68.93593, 37.40805]
+  },
+  {
+    "code": "TJ-KT-10-03",
+    "parent": "TJ-KT-10",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сиёхкух",
+      "tg": "Сиёхкух",
+      "en": "Siyokhkukh"
+    },
+    "centroid": [68.88016, 37.32242]
+  },
+  {
+    "code": "TJ-KT-10-04",
+    "parent": "TJ-KT-10",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чорбог",
+      "tg": "Чорбог",
+      "en": "Chorbog"
+    },
+    "centroid": [68.86017, 37.43536]
+  },
+  {
+    "code": "TJ-KT-10-05",
+    "parent": "TJ-KT-10",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Тутзор",
+      "tg": "Тутзор",
+      "en": "Tutzor"
+    },
+    "centroid": [69.0353, 37.40172]
+  },
+  {
+    "code": "TJ-KT-10-06",
+    "parent": "TJ-KT-10",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обиравшан",
+      "tg": "Обиравшан",
+      "en": "Obiravshan"
+    },
+    "centroid": [69.03547, 37.32796]
+  },
+  {
+    "code": "TJ-KT-10-07",
+    "parent": "TJ-KT-10",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Нурафшон",
+      "tg": "Нурафшон",
+      "en": "Nurafshon"
+    },
+    "centroid": [68.76481, 37.27005]
+  },
+  {
+    "code": "TJ-KT-10-08",
+    "parent": "TJ-KT-10",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Пушти Бог",
+      "tg": "Пушти Бог",
+      "en": "Pushti Bog"
+    },
+    "centroid": [68.82876, 37.23977]
+  },
+  {
+    "code": "TJ-KT-10-09",
+    "parent": "TJ-KT-10",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Бустонобод",
+      "tg": "Бустонобод",
+      "en": "Bustonobod"
+    },
+    "centroid": [68.78097, 37.3614]
+  },
+  {
+    "code": "TJ-KT-10-10",
+    "parent": "TJ-KT-10",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Ором",
+      "tg": "Ором",
+      "en": "Orom"
+    },
+    "centroid": [68.98997, 37.24458]
+  },
+  {
+    "code": "TJ-KT-10-11",
+    "parent": "TJ-KT-10",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Навобод",
+      "tg": "Навобод",
+      "en": "Navobod"
+    },
+    "centroid": [68.90451, 37.38415]
+  },
+  {
+    "code": "TJ-KT-10-12",
+    "parent": "TJ-KT-10",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сомон",
+      "tg": "Сомон",
+      "en": "Somon"
+    },
+    "centroid": [68.93617, 37.27218]
+  },
+  {
+    "code": "TJ-KT-10-13",
+    "parent": "TJ-KT-10",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Зарнисор",
+      "tg": "Зарнисор",
+      "en": "Zarnisor"
+    },
+    "centroid": [68.85079, 37.37922]
+  },
+  {
+    "code": "TJ-KT-10-14",
+    "parent": "TJ-KT-10",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Кунчи Боло",
+      "tg": "Кунчи Боло",
+      "en": "Kunchi Bolo"
+    },
+    "centroid": [68.92916, 37.3877]
+  },
+  {
+    "code": "TJ-KT-10-15",
+    "parent": "TJ-KT-10",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Навдонак",
+      "tg": "Навдонак",
+      "en": "Navdonak"
+    },
+    "centroid": [68.90834, 37.30057]
+  },
+  {
+    "code": "TJ-KT-11-01",
+    "parent": "TJ-KT-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обиборик",
+      "tg": "Обиборик",
+      "en": "Obiborik"
+    },
+    "centroid": [68.77128, 37.59301]
+  },
+  {
+    "code": "TJ-KT-11-02",
+    "parent": "TJ-KT-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Нуристон",
+      "tg": "Нуристон",
+      "en": "Nuriston"
+    },
+    "centroid": [68.75581, 37.56218]
+  },
+  {
+    "code": "TJ-KT-11-03",
+    "parent": "TJ-KT-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сари Осиё",
+      "tg": "Сари Осиё",
+      "en": "Sari Osiyo"
+    },
+    "centroid": [68.60489, 37.67057]
+  },
+  {
+    "code": "TJ-KT-11-04",
+    "parent": "TJ-KT-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Бустонобод",
+      "tg": "Бустонобод",
+      "en": "Bustonobod"
+    },
+    "centroid": [68.59911, 37.50164]
+  },
+  {
+    "code": "TJ-KT-11-05",
+    "parent": "TJ-KT-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Пахтаобод",
+      "tg": "Пахтаобод",
+      "en": "Pakhtaobod"
+    },
+    "centroid": [68.56151, 37.65226]
+  },
+  {
+    "code": "TJ-KT-11-06",
+    "parent": "TJ-KT-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Тагоб",
+      "tg": "Тагоб",
+      "en": "Tagob"
+    },
+    "centroid": [68.56052, 37.65482]
+  },
+  {
+    "code": "TJ-KT-11-07",
+    "parent": "TJ-KT-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Хасанобод",
+      "tg": "Хасанобод",
+      "en": "Khasanobod"
+    },
+    "centroid": [68.74172, 37.68115]
+  },
+  {
+    "code": "TJ-KT-11-08",
+    "parent": "TJ-KT-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Гулобод",
+      "tg": "Гулобод",
+      "en": "Gulobod"
+    },
+    "centroid": [68.72068, 37.67671]
+  },
+  {
+    "code": "TJ-KT-11-09",
+    "parent": "TJ-KT-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чашмасор",
+      "tg": "Чашмасор",
+      "en": "Chashmasor"
+    },
+    "centroid": [68.73297, 37.63635]
+  },
+  {
+    "code": "TJ-KT-11-10",
+    "parent": "TJ-KT-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Ором",
+      "tg": "Ором",
+      "en": "Orom"
+    },
+    "centroid": [68.74161, 37.62526]
+  },
+  {
+    "code": "TJ-KT-11-11",
+    "parent": "TJ-KT-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сиёхкух",
+      "tg": "Сиёхкух",
+      "en": "Siyokhkukh"
+    },
+    "centroid": [68.54835, 37.53521]
+  },
+  {
+    "code": "TJ-KT-11-12",
+    "parent": "TJ-KT-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чорсу",
+      "tg": "Чорсу",
+      "en": "Chorsu"
+    },
+    "centroid": [68.61599, 37.52437]
+  },
+  {
+    "code": "TJ-KT-11-13",
+    "parent": "TJ-KT-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обиравшан",
+      "tg": "Обиравшан",
+      "en": "Obiravshan"
+    },
+    "centroid": [68.58865, 37.58157]
+  },
+  {
+    "code": "TJ-KT-11-14",
+    "parent": "TJ-KT-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Калъача",
+      "tg": "Калъача",
+      "en": "Kal'acha"
+    },
+    "centroid": [68.66418, 37.4807]
+  },
+  {
+    "code": "TJ-KT-11-15",
+    "parent": "TJ-KT-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Кунчи Боло",
+      "tg": "Кунчи Боло",
+      "en": "Kunchi Bolo"
+    },
+    "centroid": [68.59271, 37.499]
+  },
+  {
+    "code": "TJ-KT-11-16",
+    "parent": "TJ-KT-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сафедоб",
+      "tg": "Сафедоб",
+      "en": "Safedob"
+    },
+    "centroid": [68.66981, 37.48456]
+  },
+  {
+    "code": "TJ-KT-12-01",
+    "parent": "TJ-KT-12",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Пахтаобод",
+      "tg": "Пахтаобод",
+      "en": "Pakhtaobod"
+    },
+    "centroid": [68.50077, 37.42557]
+  },
+  {
+    "code": "TJ-KT-12-02",
+    "parent": "TJ-KT-12",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чинорзор",
+      "tg": "Чинорзор",
+      "en": "Chinorzor"
+    },
+    "centroid": [68.50902, 37.37612]
+  },
+  {
+    "code": "TJ-KT-12-03",
+    "parent": "TJ-KT-12",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Кушкак",
+      "tg": "Кушкак",
+      "en": "Kushkak"
+    },
+    "centroid": [68.5675, 37.36006]
+  },
+  {
+    "code": "TJ-KT-12-04",
+    "parent": "TJ-KT-12",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Шуробод",
+      "tg": "Шуробод",
+      "en": "Shurobod"
+    },
+    "centroid": [68.73944, 37.43777]
+  },
+  {
+    "code": "TJ-KT-12-05",
+    "parent": "TJ-KT-12",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чукурак",
+      "tg": "Чукурак",
+      "en": "Chukurak"
+    },
+    "centroid": [68.69999, 37.38614]
+  },
+  {
+    "code": "TJ-KT-12-06",
+    "parent": "TJ-KT-12",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Нурафшон",
+      "tg": "Нурафшон",
+      "en": "Nurafshon"
+    },
+    "centroid": [68.54231, 37.55034]
+  },
+  {
+    "code": "TJ-KT-12-07",
+    "parent": "TJ-KT-12",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Бахористон",
+      "tg": "Бахористон",
+      "en": "Bakhoriston"
+    },
+    "centroid": [68.52367, 37.51658]
+  },
+  {
+    "code": "TJ-KT-12-08",
+    "parent": "TJ-KT-12",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Мехнатобод",
+      "tg": "Мехнатобод",
+      "en": "Mekhnatobod"
+    },
+    "centroid": [68.68893, 37.42647]
+  },
+  {
+    "code": "TJ-KT-12-09",
+    "parent": "TJ-KT-12",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Дехнав",
+      "tg": "Дехнав",
+      "en": "Dekhnav"
+    },
+    "centroid": [68.66524, 37.48463]
+  },
+  {
+    "code": "TJ-KT-12-10",
+    "parent": "TJ-KT-12",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Лолазор",
+      "tg": "Лолазор",
+      "en": "Lolazor"
+    },
+    "centroid": [68.54835, 37.48335]
+  },
+  {
+    "code": "TJ-KT-12-11",
+    "parent": "TJ-KT-12",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Работ",
+      "tg": "Работ",
+      "en": "Rabot"
+    },
+    "centroid": [68.57655, 37.47717]
+  },
+  {
+    "code": "TJ-KT-12-12",
+    "parent": "TJ-KT-12",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Саидобод",
+      "tg": "Саидобод",
+      "en": "Saidobod"
+    },
+    "centroid": [68.60013, 37.43948]
+  },
+  {
+    "code": "TJ-KT-12-13",
+    "parent": "TJ-KT-12",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Пушти Бог",
+      "tg": "Пушти Бог",
+      "en": "Pushti Bog"
+    },
+    "centroid": [68.62251, 37.52737]
+  },
+  {
+    "code": "TJ-KT-13-01",
+    "parent": "TJ-KT-13",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Хасанобод",
+      "tg": "Хасанобод",
+      "en": "Khasanobod"
+    },
+    "centroid": [68.18684, 37.29726]
+  },
+  {
+    "code": "TJ-KT-13-02",
+    "parent": "TJ-KT-13",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чукурак",
+      "tg": "Чукурак",
+      "en": "Chukurak"
+    },
+    "centroid": [68.20372, 37.39934]
+  },
+  {
+    "code": "TJ-KT-13-03",
+    "parent": "TJ-KT-13",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чашмасор",
+      "tg": "Чашмасор",
+      "en": "Chashmasor"
+    },
+    "centroid": [68.11117, 37.48654]
+  },
+  {
+    "code": "TJ-KT-13-04",
+    "parent": "TJ-KT-13",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обшорон",
+      "tg": "Обшорон",
+      "en": "Obshoron"
+    },
+    "centroid": [68.33746, 37.35128]
+  },
+  {
+    "code": "TJ-KT-13-05",
+    "parent": "TJ-KT-13",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Гулшан",
+      "tg": "Гулшан",
+      "en": "Gulshan"
+    },
+    "centroid": [68.26732, 37.38386]
+  },
+  {
+    "code": "TJ-KT-13-06",
+    "parent": "TJ-KT-13",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Калъаи Нав",
+      "tg": "Калъаи Нав",
+      "en": "Kal'ai Nav"
+    },
+    "centroid": [68.34574, 37.38653]
+  },
+  {
+    "code": "TJ-KT-13-07",
+    "parent": "TJ-KT-13",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Мазор",
+      "tg": "Мазор",
+      "en": "Mazor"
+    },
+    "centroid": [68.09542, 37.33082]
+  },
+  {
+    "code": "TJ-KT-13-08",
+    "parent": "TJ-KT-13",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Мехнатобод",
+      "tg": "Мехнатобод",
+      "en": "Mekhnatobod"
+    },
+    "centroid": [68.20705, 37.40629]
+  },
+  {
+    "code": "TJ-KT-13-09",
+    "parent": "TJ-KT-13",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Бодомзор",
+      "tg": "Бодомзор",
+      "en": "Bodomzor"
+    },
+    "centroid": [68.18401, 37.52643]
+  },
+  {
+    "code": "TJ-KT-13-10",
+    "parent": "TJ-KT-13",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Дехнав",
+      "tg": "Дехнав",
+      "en": "Dekhnav"
+    },
+    "centroid": [68.16464, 37.30033]
+  },
+  {
+    "code": "TJ-KT-13-11",
+    "parent": "TJ-KT-13",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Дехибаланд",
+      "tg": "Дехибаланд",
+      "en": "Dekhibaland"
+    },
+    "centroid": [68.27036, 37.50431]
+  },
+  {
+    "code": "TJ-KT-13-12",
+    "parent": "TJ-KT-13",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Пушти Бог",
+      "tg": "Пушти Бог",
+      "en": "Pushti Bog"
+    },
+    "centroid": [68.35478, 37.43508]
+  },
+  {
+    "code": "TJ-KT-13-13",
+    "parent": "TJ-KT-13",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Саидобод",
+      "tg": "Саидобод",
+      "en": "Saidobod"
+    },
+    "centroid": [68.05235, 37.38976]
+  },
+  {
+    "code": "TJ-KT-13-14",
+    "parent": "TJ-KT-13",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сафедоб",
+      "tg": "Сафедоб",
+      "en": "Safedob"
+    },
+    "centroid": [68.0964, 37.4101]
+  },
+  {
+    "code": "TJ-KT-13-15",
+    "parent": "TJ-KT-13",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Шуробод",
+      "tg": "Шуробод",
+      "en": "Shurobod"
+    },
+    "centroid": [68.20722, 37.36368]
+  },
+  {
+    "code": "TJ-KT-13-16",
+    "parent": "TJ-KT-13",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Работ",
+      "tg": "Работ",
+      "en": "Rabot"
+    },
+    "centroid": [68.11324, 37.34788]
+  },
+  {
+    "code": "TJ-KT-14-01",
+    "parent": "TJ-KT-14",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Бодомзор",
+      "tg": "Бодомзор",
+      "en": "Bodomzor"
+    },
+    "centroid": [68.75669, 37.91152]
+  },
+  {
+    "code": "TJ-KT-14-02",
+    "parent": "TJ-KT-14",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чорсу",
+      "tg": "Чорсу",
+      "en": "Chorsu"
+    },
+    "centroid": [68.79484, 37.92838]
+  },
+  {
+    "code": "TJ-KT-14-03",
+    "parent": "TJ-KT-14",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Себистон",
+      "tg": "Себистон",
+      "en": "Sebiston"
+    },
+    "centroid": [68.72207, 38.02273]
+  },
+  {
+    "code": "TJ-KT-14-04",
+    "parent": "TJ-KT-14",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Дехнав",
+      "tg": "Дехнав",
+      "en": "Dekhnav"
+    },
+    "centroid": [68.74608, 37.90911]
+  },
+  {
+    "code": "TJ-KT-14-05",
+    "parent": "TJ-KT-14",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Лангар",
+      "tg": "Лангар",
+      "en": "Langar"
+    },
+    "centroid": [68.80236, 37.8898]
+  },
+  {
+    "code": "TJ-KT-14-06",
+    "parent": "TJ-KT-14",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Олимобод",
+      "tg": "Олимобод",
+      "en": "Olimobod"
+    },
+    "centroid": [68.75286, 37.90954]
+  },
+  {
+    "code": "TJ-KT-14-07",
+    "parent": "TJ-KT-14",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сарчашма",
+      "tg": "Сарчашма",
+      "en": "Sarchashma"
+    },
+    "centroid": [68.75195, 37.88115]
+  },
+  {
+    "code": "TJ-KT-14-08",
+    "parent": "TJ-KT-14",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Калъача",
+      "tg": "Калъача",
+      "en": "Kal'acha"
+    },
+    "centroid": [68.84299, 37.91067]
+  },
+  {
+    "code": "TJ-KT-14-09",
+    "parent": "TJ-KT-14",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Тутзор",
+      "tg": "Тутзор",
+      "en": "Tutzor"
+    },
+    "centroid": [68.80218, 37.95262]
+  },
+  {
+    "code": "TJ-KT-14-10",
+    "parent": "TJ-KT-14",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Работ",
+      "tg": "Работ",
+      "en": "Rabot"
+    },
+    "centroid": [68.86644, 37.91032]
+  },
+  {
+    "code": "TJ-KT-14-11",
+    "parent": "TJ-KT-14",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Гулшан",
+      "tg": "Гулшан",
+      "en": "Gulshan"
+    },
+    "centroid": [68.7694, 37.90707]
+  },
+  {
+    "code": "TJ-KT-14-12",
+    "parent": "TJ-KT-14",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обиравшан",
+      "tg": "Обиравшан",
+      "en": "Obiravshan"
+    },
+    "centroid": [68.78707, 38.02016]
+  },
+  {
+    "code": "TJ-KT-14-13",
+    "parent": "TJ-KT-14",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Дахана",
+      "tg": "Дахана",
+      "en": "Dakhana"
+    },
+    "centroid": [68.77036, 37.86649]
+  },
+  {
+    "code": "TJ-KT-14-14",
+    "parent": "TJ-KT-14",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чинорзор",
+      "tg": "Чинорзор",
+      "en": "Chinorzor"
+    },
+    "centroid": [68.77158, 38.04111]
+  },
+  {
+    "code": "TJ-KT-14-15",
+    "parent": "TJ-KT-14",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Бахористон",
+      "tg": "Бахористон",
+      "en": "Bakhoriston"
+    },
+    "centroid": [68.73719, 37.88201]
+  },
+  {
+    "code": "TJ-KT-14-16",
+    "parent": "TJ-KT-14",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Зарнисор",
+      "tg": "Зарнисор",
+      "en": "Zarnisor"
+    },
+    "centroid": [68.72308, 37.87953]
+  },
+  {
+    "code": "TJ-KT-14-17",
+    "parent": "TJ-KT-14",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чашмасор",
+      "tg": "Чашмасор",
+      "en": "Chashmasor"
+    },
+    "centroid": [68.79624, 37.91681]
+  },
+  {
+    "code": "TJ-KT-15-01",
+    "parent": "TJ-KT-15",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чорбог",
+      "tg": "Чорбог",
+      "en": "Chorbog"
+    },
+    "centroid": [70.00058, 38.15933]
+  },
+  {
+    "code": "TJ-KT-15-02",
+    "parent": "TJ-KT-15",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Бодомзор",
+      "tg": "Бодомзор",
+      "en": "Bodomzor"
+    },
+    "centroid": [70.07194, 38.19135]
+  },
+  {
+    "code": "TJ-KT-15-03",
+    "parent": "TJ-KT-15",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обиборик",
+      "tg": "Обиборик",
+      "en": "Obiborik"
+    },
+    "centroid": [69.94007, 38.02011]
+  },
+  {
+    "code": "TJ-KT-15-04",
+    "parent": "TJ-KT-15",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Олимобод",
+      "tg": "Олимобод",
+      "en": "Olimobod"
+    },
+    "centroid": [69.9379, 38.00669]
+  },
+  {
+    "code": "TJ-KT-15-05",
+    "parent": "TJ-KT-15",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сомон",
+      "tg": "Сомон",
+      "en": "Somon"
+    },
+    "centroid": [69.9166, 38.19976]
+  },
+  {
+    "code": "TJ-KT-15-06",
+    "parent": "TJ-KT-15",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Гулшан",
+      "tg": "Гулшан",
+      "en": "Gulshan"
+    },
+    "centroid": [69.98682, 38.17073]
+  },
+  {
+    "code": "TJ-KT-15-07",
+    "parent": "TJ-KT-15",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Зарнисор",
+      "tg": "Зарнисор",
+      "en": "Zarnisor"
+    },
+    "centroid": [70.11762, 38.19538]
+  },
+  {
+    "code": "TJ-KT-15-08",
+    "parent": "TJ-KT-15",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чукурак",
+      "tg": "Чукурак",
+      "en": "Chukurak"
+    },
+    "centroid": [69.90021, 38.11608]
+  },
+  {
+    "code": "TJ-KT-15-09",
+    "parent": "TJ-KT-15",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Пахтаобод",
+      "tg": "Пахтаобод",
+      "en": "Pakhtaobod"
+    },
+    "centroid": [69.95779, 38.11658]
+  },
+  {
+    "code": "TJ-KT-15-10",
+    "parent": "TJ-KT-15",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Бахористон",
+      "tg": "Бахористон",
+      "en": "Bakhoriston"
+    },
+    "centroid": [70.16562, 38.08326]
+  },
+  {
+    "code": "TJ-KT-15-11",
+    "parent": "TJ-KT-15",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Нуристон",
+      "tg": "Нуристон",
+      "en": "Nuriston"
+    },
+    "centroid": [70.10851, 38.15911]
+  },
+  {
+    "code": "TJ-KT-15-12",
+    "parent": "TJ-KT-15",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Навобод",
+      "tg": "Навобод",
+      "en": "Navobod"
+    },
+    "centroid": [70.04957, 38.04198]
+  },
+  {
+    "code": "TJ-KT-15-13",
+    "parent": "TJ-KT-15",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сиёхкух",
+      "tg": "Сиёхкух",
+      "en": "Siyokhkukh"
+    },
+    "centroid": [70.00589, 38.08635]
+  },
+  {
+    "code": "TJ-KT-16-01",
+    "parent": "TJ-KT-16",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Бахористон",
+      "tg": "Бахористон",
+      "en": "Bakhoriston"
+    },
+    "centroid": [68.05147, 37.04414]
+  },
+  {
+    "code": "TJ-KT-16-02",
+    "parent": "TJ-KT-16",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чинорзор",
+      "tg": "Чинорзор",
+      "en": "Chinorzor"
+    },
+    "centroid": [67.98117, 37.15363]
+  },
+  {
+    "code": "TJ-KT-16-03",
+    "parent": "TJ-KT-16",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Тутзор",
+      "tg": "Тутзор",
+      "en": "Tutzor"
+    },
+    "centroid": [67.88795, 37.03489]
+  },
+  {
+    "code": "TJ-KT-16-04",
+    "parent": "TJ-KT-16",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Олимобод",
+      "tg": "Олимобод",
+      "en": "Olimobod"
+    },
+    "centroid": [68.09867, 37.12757]
+  },
+  {
+    "code": "TJ-KT-16-05",
+    "parent": "TJ-KT-16",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Себистон",
+      "tg": "Себистон",
+      "en": "Sebiston"
+    },
+    "centroid": [68.08024, 37.01915]
+  },
+  {
+    "code": "TJ-KT-16-06",
+    "parent": "TJ-KT-16",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Ватан",
+      "tg": "Ватан",
+      "en": "Vatan"
+    },
+    "centroid": [68.04657, 37.11536]
+  },
+  {
+    "code": "TJ-KT-16-07",
+    "parent": "TJ-KT-16",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Мехнатобод",
+      "tg": "Мехнатобод",
+      "en": "Mekhnatobod"
+    },
+    "centroid": [68.05719, 36.99608]
+  },
+  {
+    "code": "TJ-KT-16-08",
+    "parent": "TJ-KT-16",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Ором",
+      "tg": "Ором",
+      "en": "Orom"
+    },
+    "centroid": [67.96746, 37.17885]
+  },
+  {
+    "code": "TJ-KT-16-09",
+    "parent": "TJ-KT-16",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Тагоб",
+      "tg": "Тагоб",
+      "en": "Tagob"
+    },
+    "centroid": [68.02165, 37.15125]
+  },
+  {
+    "code": "TJ-KT-16-10",
+    "parent": "TJ-KT-16",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Гулобод",
+      "tg": "Гулобод",
+      "en": "Gulobod"
+    },
+    "centroid": [67.98682, 37.14386]
+  },
+  {
+    "code": "TJ-KT-17-01",
+    "parent": "TJ-KT-17",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чукурак",
+      "tg": "Чукурак",
+      "en": "Chukurak"
+    },
+    "centroid": [69.19804, 37.17531]
+  },
+  {
+    "code": "TJ-KT-17-02",
+    "parent": "TJ-KT-17",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Работ",
+      "tg": "Работ",
+      "en": "Rabot"
+    },
+    "centroid": [69.1451, 37.31449]
+  },
+  {
+    "code": "TJ-KT-17-03",
+    "parent": "TJ-KT-17",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Кушкак",
+      "tg": "Кушкак",
+      "en": "Kushkak"
+    },
+    "centroid": [69.0808, 37.32981]
+  },
+  {
+    "code": "TJ-KT-17-04",
+    "parent": "TJ-KT-17",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Бахористон",
+      "tg": "Бахористон",
+      "en": "Bakhoriston"
+    },
+    "centroid": [69.12681, 37.1451]
+  },
+  {
+    "code": "TJ-KT-17-05",
+    "parent": "TJ-KT-17",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Олимобод",
+      "tg": "Олимобод",
+      "en": "Olimobod"
+    },
+    "centroid": [69.12677, 37.27632]
+  },
+  {
+    "code": "TJ-KT-17-06",
+    "parent": "TJ-KT-17",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Ватан",
+      "tg": "Ватан",
+      "en": "Vatan"
+    },
+    "centroid": [69.00138, 37.2789]
+  },
+  {
+    "code": "TJ-KT-17-07",
+    "parent": "TJ-KT-17",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сомон",
+      "tg": "Сомон",
+      "en": "Somon"
+    },
+    "centroid": [69.11956, 37.32825]
+  },
+  {
+    "code": "TJ-KT-17-08",
+    "parent": "TJ-KT-17",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сиёхкух",
+      "tg": "Сиёхкух",
+      "en": "Siyokhkukh"
+    },
+    "centroid": [69.20407, 37.20191]
+  },
+  {
+    "code": "TJ-KT-17-09",
+    "parent": "TJ-KT-17",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чорбог",
+      "tg": "Чорбог",
+      "en": "Chorbog"
+    },
+    "centroid": [69.04857, 37.25402]
+  },
+  {
+    "code": "TJ-KT-17-10",
+    "parent": "TJ-KT-17",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чинорзор",
+      "tg": "Чинорзор",
+      "en": "Chinorzor"
+    },
+    "centroid": [68.98572, 37.21473]
+  },
+  {
+    "code": "TJ-KT-17-11",
+    "parent": "TJ-KT-17",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Навдонак",
+      "tg": "Навдонак",
+      "en": "Navdonak"
+    },
+    "centroid": [69.033, 37.18312]
+  },
+  {
+    "code": "TJ-KT-17-12",
+    "parent": "TJ-KT-17",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Шарора",
+      "tg": "Шарора",
+      "en": "Sharora"
+    },
+    "centroid": [68.98346, 37.21119]
+  },
+  {
+    "code": "TJ-KT-17-13",
+    "parent": "TJ-KT-17",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Дехнав",
+      "tg": "Дехнав",
+      "en": "Dekhnav"
+    },
+    "centroid": [69.1559, 37.27769]
+  },
+  {
+    "code": "TJ-KT-17-14",
+    "parent": "TJ-KT-17",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сангистон",
+      "tg": "Сангистон",
+      "en": "Sangiston"
+    },
+    "centroid": [68.99831, 37.23936]
+  },
+  {
+    "code": "TJ-KT-18-01",
+    "parent": "TJ-KT-18",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Пушти Бог",
+      "tg": "Пушти Бог",
+      "en": "Pushti Bog"
+    },
+    "centroid": [69.88959, 38.05729]
+  },
+  {
+    "code": "TJ-KT-18-02",
+    "parent": "TJ-KT-18",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Дехибаланд",
+      "tg": "Дехибаланд",
+      "en": "Dekhibaland"
+    },
+    "centroid": [69.98044, 38.04435]
+  },
+  {
+    "code": "TJ-KT-18-03",
+    "parent": "TJ-KT-18",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сари Осиё",
+      "tg": "Сари Осиё",
+      "en": "Sari Osiyo"
+    },
+    "centroid": [70.03705, 37.98838]
+  },
+  {
+    "code": "TJ-KT-18-04",
+    "parent": "TJ-KT-18",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Себистон",
+      "tg": "Себистон",
+      "en": "Sebiston"
+    },
+    "centroid": [70.04599, 38.04449]
+  },
+  {
+    "code": "TJ-KT-18-05",
+    "parent": "TJ-KT-18",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обиборик",
+      "tg": "Обиборик",
+      "en": "Obiborik"
+    },
+    "centroid": [69.89274, 37.94791]
+  },
+  {
+    "code": "TJ-KT-18-06",
+    "parent": "TJ-KT-18",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Кушкак",
+      "tg": "Кушкак",
+      "en": "Kushkak"
+    },
+    "centroid": [69.9077, 38.07922]
+  },
+  {
+    "code": "TJ-KT-18-07",
+    "parent": "TJ-KT-18",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Янгиобод",
+      "tg": "Янгиобод",
+      "en": "Yangiobod"
+    },
+    "centroid": [69.89794, 37.99882]
+  },
+  {
+    "code": "TJ-KT-18-08",
+    "parent": "TJ-KT-18",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Олимобод",
+      "tg": "Олимобод",
+      "en": "Olimobod"
+    },
+    "centroid": [69.81793, 38.01554]
+  },
+  {
+    "code": "TJ-KT-18-09",
+    "parent": "TJ-KT-18",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Дахана",
+      "tg": "Дахана",
+      "en": "Dakhana"
+    },
+    "centroid": [69.9421, 38.06343]
+  },
+  {
+    "code": "TJ-KT-18-10",
+    "parent": "TJ-KT-18",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Хасанобод",
+      "tg": "Хасанобод",
+      "en": "Khasanobod"
+    },
+    "centroid": [70.0095, 37.97271]
+  },
+  {
+    "code": "TJ-KT-18-11",
+    "parent": "TJ-KT-18",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Мазор",
+      "tg": "Мазор",
+      "en": "Mazor"
+    },
+    "centroid": [69.94425, 37.98554]
+  },
+  {
+    "code": "TJ-KT-18-12",
+    "parent": "TJ-KT-18",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Шарора",
+      "tg": "Шарора",
+      "en": "Sharora"
+    },
+    "centroid": [70.01847, 37.91631]
+  },
+  {
+    "code": "TJ-KT-19-01",
+    "parent": "TJ-KT-19",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Бахористон",
+      "tg": "Бахористон",
+      "en": "Bakhoriston"
+    },
+    "centroid": [69.32085, 37.49836]
+  },
+  {
+    "code": "TJ-KT-19-02",
+    "parent": "TJ-KT-19",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Олимобод",
+      "tg": "Олимобод",
+      "en": "Olimobod"
+    },
+    "centroid": [69.28987, 37.50814]
+  },
+  {
+    "code": "TJ-KT-19-03",
+    "parent": "TJ-KT-19",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чукурак",
+      "tg": "Чукурак",
+      "en": "Chukurak"
+    },
+    "centroid": [69.3814, 37.42174]
+  },
+  {
+    "code": "TJ-KT-19-04",
+    "parent": "TJ-KT-19",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сангистон",
+      "tg": "Сангистон",
+      "en": "Sangiston"
+    },
+    "centroid": [69.50701, 37.51336]
+  },
+  {
+    "code": "TJ-KT-19-05",
+    "parent": "TJ-KT-19",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Нурафшон",
+      "tg": "Нурафшон",
+      "en": "Nurafshon"
+    },
+    "centroid": [69.37163, 37.45031]
+  },
+  {
+    "code": "TJ-KT-19-06",
+    "parent": "TJ-KT-19",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Дахана",
+      "tg": "Дахана",
+      "en": "Dakhana"
+    },
+    "centroid": [69.39578, 37.4987]
+  },
+  {
+    "code": "TJ-KT-19-07",
+    "parent": "TJ-KT-19",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Ором",
+      "tg": "Ором",
+      "en": "Orom"
+    },
+    "centroid": [69.37834, 37.56681]
+  },
+  {
+    "code": "TJ-KT-19-08",
+    "parent": "TJ-KT-19",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Кунчи Боло",
+      "tg": "Кунчи Боло",
+      "en": "Kunchi Bolo"
+    },
+    "centroid": [69.44893, 37.5582]
+  },
+  {
+    "code": "TJ-KT-19-09",
+    "parent": "TJ-KT-19",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Себистон",
+      "tg": "Себистон",
+      "en": "Sebiston"
+    },
+    "centroid": [69.33873, 37.58329]
+  },
+  {
+    "code": "TJ-KT-19-10",
+    "parent": "TJ-KT-19",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Мазор",
+      "tg": "Мазор",
+      "en": "Mazor"
+    },
+    "centroid": [69.45903, 37.41842]
+  },
+  {
+    "code": "TJ-KT-19-11",
+    "parent": "TJ-KT-19",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Зарнисор",
+      "tg": "Зарнисор",
+      "en": "Zarnisor"
+    },
+    "centroid": [69.29213, 37.50269]
+  },
+  {
+    "code": "TJ-KT-19-12",
+    "parent": "TJ-KT-19",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Тутзор",
+      "tg": "Тутзор",
+      "en": "Tutzor"
+    },
+    "centroid": [69.50349, 37.4156]
+  },
+  {
+    "code": "TJ-KT-19-13",
+    "parent": "TJ-KT-19",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Нуристон",
+      "tg": "Нуристон",
+      "en": "Nuriston"
+    },
+    "centroid": [69.39444, 37.51555]
+  },
+  {
+    "code": "TJ-KT-19-14",
+    "parent": "TJ-KT-19",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чинор",
+      "tg": "Чинор",
+      "en": "Chinor"
+    },
+    "centroid": [69.41897, 37.52927]
+  },
+  {
+    "code": "TJ-KT-19-15",
+    "parent": "TJ-KT-19",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Калъаи Нав",
+      "tg": "Калъаи Нав",
+      "en": "Kal'ai Nav"
+    },
+    "centroid": [69.48962, 37.40978]
+  },
+  {
+    "code": "TJ-KT-19-16",
+    "parent": "TJ-KT-19",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Калъача",
+      "tg": "Калъача",
+      "en": "Kal'acha"
+    },
+    "centroid": [69.43587, 37.38841]
+  },
+  {
+    "code": "TJ-KT-20-01",
+    "parent": "TJ-KT-20",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Бустонобод",
+      "tg": "Бустонобод",
+      "en": "Bustonobod"
+    },
+    "centroid": [69.71283, 37.66708]
+  },
+  {
+    "code": "TJ-KT-20-02",
+    "parent": "TJ-KT-20",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Калъача",
+      "tg": "Калъача",
+      "en": "Kal'acha"
+    },
+    "centroid": [69.54849, 37.63637]
+  },
+  {
+    "code": "TJ-KT-20-03",
+    "parent": "TJ-KT-20",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Мехнатобод",
+      "tg": "Мехнатобод",
+      "en": "Mekhnatobod"
+    },
+    "centroid": [69.49997, 37.64697]
+  },
+  {
+    "code": "TJ-KT-20-04",
+    "parent": "TJ-KT-20",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Гулшан",
+      "tg": "Гулшан",
+      "en": "Gulshan"
+    },
+    "centroid": [69.64161, 37.69166]
+  },
+  {
+    "code": "TJ-KT-20-05",
+    "parent": "TJ-KT-20",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Дехибаланд",
+      "tg": "Дехибаланд",
+      "en": "Dekhibaland"
+    },
+    "centroid": [69.70372, 37.6857]
+  },
+  {
+    "code": "TJ-KT-20-06",
+    "parent": "TJ-KT-20",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Калъаи Нав",
+      "tg": "Калъаи Нав",
+      "en": "Kal'ai Nav"
+    },
+    "centroid": [69.71169, 37.60321]
+  },
+  {
+    "code": "TJ-KT-20-07",
+    "parent": "TJ-KT-20",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Дахана",
+      "tg": "Дахана",
+      "en": "Dakhana"
+    },
+    "centroid": [69.69448, 37.64606]
+  },
+  {
+    "code": "TJ-KT-20-08",
+    "parent": "TJ-KT-20",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Зарнисор",
+      "tg": "Зарнисор",
+      "en": "Zarnisor"
+    },
+    "centroid": [69.66777, 37.56096]
+  },
+  {
+    "code": "TJ-KT-20-09",
+    "parent": "TJ-KT-20",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Олимобод",
+      "tg": "Олимобод",
+      "en": "Olimobod"
+    },
+    "centroid": [69.60568, 37.61678]
+  },
+  {
+    "code": "TJ-KT-20-10",
+    "parent": "TJ-KT-20",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Лолазор",
+      "tg": "Лолазор",
+      "en": "Lolazor"
+    },
+    "centroid": [69.6192, 37.69644]
+  },
+  {
+    "code": "TJ-KT-20-11",
+    "parent": "TJ-KT-20",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Навдонак",
+      "tg": "Навдонак",
+      "en": "Navdonak"
+    },
+    "centroid": [69.57079, 37.71126]
+  },
+  {
+    "code": "TJ-KT-20-12",
+    "parent": "TJ-KT-20",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Работ",
+      "tg": "Работ",
+      "en": "Rabot"
+    },
+    "centroid": [69.69624, 37.67171]
+  },
+  {
+    "code": "TJ-KT-20-13",
+    "parent": "TJ-KT-20",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Навобод",
+      "tg": "Навобод",
+      "en": "Navobod"
+    },
+    "centroid": [69.59902, 37.66761]
+  },
+  {
+    "code": "TJ-KT-20-14",
+    "parent": "TJ-KT-20",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Ватан",
+      "tg": "Ватан",
+      "en": "Vatan"
+    },
+    "centroid": [69.51943, 37.66611]
+  },
+  {
+    "code": "TJ-KT-20-15",
+    "parent": "TJ-KT-20",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сарчашма",
+      "tg": "Сарчашма",
+      "en": "Sarchashma"
+    },
+    "centroid": [69.66613, 37.67779]
+  },
+  {
+    "code": "TJ-KT-21-01",
+    "parent": "TJ-KT-21",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Дехибаланд",
+      "tg": "Дехибаланд",
+      "en": "Dekhibaland"
+    },
+    "centroid": [70.04429, 38.46488]
+  },
+  {
+    "code": "TJ-KT-21-02",
+    "parent": "TJ-KT-21",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Нурафшон",
+      "tg": "Нурафшон",
+      "en": "Nurafshon"
+    },
+    "centroid": [69.82032, 38.37975]
+  },
+  {
+    "code": "TJ-KT-21-03",
+    "parent": "TJ-KT-21",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Навобод",
+      "tg": "Навобод",
+      "en": "Navobod"
+    },
+    "centroid": [70.07213, 38.38746]
+  },
+  {
+    "code": "TJ-KT-21-04",
+    "parent": "TJ-KT-21",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Навдонак",
+      "tg": "Навдонак",
+      "en": "Navdonak"
+    },
+    "centroid": [69.91767, 38.33121]
+  },
+  {
+    "code": "TJ-KT-21-05",
+    "parent": "TJ-KT-21",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Кунчи Боло",
+      "tg": "Кунчи Боло",
+      "en": "Kunchi Bolo"
+    },
+    "centroid": [69.96723, 38.24407]
+  },
+  {
+    "code": "TJ-KT-21-06",
+    "parent": "TJ-KT-21",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Дахана",
+      "tg": "Дахана",
+      "en": "Dakhana"
+    },
+    "centroid": [69.99238, 38.42536]
+  },
+  {
+    "code": "TJ-KT-21-07",
+    "parent": "TJ-KT-21",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сарчашма",
+      "tg": "Сарчашма",
+      "en": "Sarchashma"
+    },
+    "centroid": [69.89131, 38.41197]
+  },
+  {
+    "code": "TJ-KT-21-08",
+    "parent": "TJ-KT-21",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сафедоб",
+      "tg": "Сафедоб",
+      "en": "Safedob"
+    },
+    "centroid": [70.04347, 38.32253]
+  },
+  {
+    "code": "TJ-KT-21-09",
+    "parent": "TJ-KT-21",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Равшан",
+      "tg": "Равшан",
+      "en": "Ravshan"
+    },
+    "centroid": [69.9539, 38.32649]
+  },
+  {
+    "code": "TJ-KT-21-10",
+    "parent": "TJ-KT-21",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Хасанобод",
+      "tg": "Хасанобод",
+      "en": "Khasanobod"
+    },
+    "centroid": [70.08988, 38.42955]
+  },
+  {
+    "code": "TJ-KT-21-11",
+    "parent": "TJ-KT-21",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Кушкак",
+      "tg": "Кушкак",
+      "en": "Kushkak"
+    },
+    "centroid": [70.09091, 38.36309]
+  },
+  {
+    "code": "TJ-KT-22-01",
+    "parent": "TJ-KT-22",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Тагоб",
+      "tg": "Тагоб",
+      "en": "Tagob"
+    },
+    "centroid": [68.81143, 38.05489]
+  },
+  {
+    "code": "TJ-KT-22-02",
+    "parent": "TJ-KT-22",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Лангар",
+      "tg": "Лангар",
+      "en": "Langar"
+    },
+    "centroid": [68.77386, 38.04596]
+  },
+  {
+    "code": "TJ-KT-22-03",
+    "parent": "TJ-KT-22",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Нуристон",
+      "tg": "Нуристон",
+      "en": "Nuriston"
+    },
+    "centroid": [68.6376, 38.06793]
+  },
+  {
+    "code": "TJ-KT-22-04",
+    "parent": "TJ-KT-22",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обшорон",
+      "tg": "Обшорон",
+      "en": "Obshoron"
+    },
+    "centroid": [68.71429, 37.94652]
+  },
+  {
+    "code": "TJ-KT-22-05",
+    "parent": "TJ-KT-22",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Равшан",
+      "tg": "Равшан",
+      "en": "Ravshan"
+    },
+    "centroid": [68.67431, 38.13538]
+  },
+  {
+    "code": "TJ-KT-22-06",
+    "parent": "TJ-KT-22",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Бустонобод",
+      "tg": "Бустонобод",
+      "en": "Bustonobod"
+    },
+    "centroid": [68.61759, 38.10737]
+  },
+  {
+    "code": "TJ-KT-22-07",
+    "parent": "TJ-KT-22",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Кушкак",
+      "tg": "Кушкак",
+      "en": "Kushkak"
+    },
+    "centroid": [68.69883, 37.9419]
+  },
+  {
+    "code": "TJ-KT-22-08",
+    "parent": "TJ-KT-22",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Янгиобод",
+      "tg": "Янгиобод",
+      "en": "Yangiobod"
+    },
+    "centroid": [68.78561, 38.02633]
+  },
+  {
+    "code": "TJ-KT-22-09",
+    "parent": "TJ-KT-22",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Работ",
+      "tg": "Работ",
+      "en": "Rabot"
+    },
+    "centroid": [68.77154, 38.05616]
+  },
+  {
+    "code": "TJ-KT-22-10",
+    "parent": "TJ-KT-22",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Ватан",
+      "tg": "Ватан",
+      "en": "Vatan"
+    },
+    "centroid": [68.66742, 38.03708]
+  },
+  {
+    "code": "TJ-KT-22-11",
+    "parent": "TJ-KT-22",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Саидобод",
+      "tg": "Саидобод",
+      "en": "Saidobod"
+    },
+    "centroid": [68.80506, 38.13685]
+  },
+  {
+    "code": "TJ-KT-22-12",
+    "parent": "TJ-KT-22",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сарчашма",
+      "tg": "Сарчашма",
+      "en": "Sarchashma"
+    },
+    "centroid": [68.66246, 38.1389]
+  },
+  {
+    "code": "TJ-KT-22-13",
+    "parent": "TJ-KT-22",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Гулобод",
+      "tg": "Гулобод",
+      "en": "Gulobod"
+    },
+    "centroid": [68.6, 38.08469]
+  },
+  {
+    "code": "TJ-KT-23-01",
+    "parent": "TJ-KT-23",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сафедоб",
+      "tg": "Сафедоб",
+      "en": "Safedob"
+    },
+    "centroid": [70.09422, 37.9031]
+  },
+  {
+    "code": "TJ-KT-23-02",
+    "parent": "TJ-KT-23",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Бустонобод",
+      "tg": "Бустонобод",
+      "en": "Bustonobod"
+    },
+    "centroid": [69.90743, 37.76817]
+  },
+  {
+    "code": "TJ-KT-23-03",
+    "parent": "TJ-KT-23",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Равшан",
+      "tg": "Равшан",
+      "en": "Ravshan"
+    },
+    "centroid": [70.18703, 37.92568]
+  },
+  {
+    "code": "TJ-KT-23-04",
+    "parent": "TJ-KT-23",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Зарнисор",
+      "tg": "Зарнисор",
+      "en": "Zarnisor"
+    },
+    "centroid": [70.20319, 37.7951]
+  },
+  {
+    "code": "TJ-KT-23-05",
+    "parent": "TJ-KT-23",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Себистон",
+      "tg": "Себистон",
+      "en": "Sebiston"
+    },
+    "centroid": [70.15658, 37.75082]
+  },
+  {
+    "code": "TJ-KT-23-06",
+    "parent": "TJ-KT-23",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Ором",
+      "tg": "Ором",
+      "en": "Orom"
+    },
+    "centroid": [70.14775, 37.85446]
+  },
+  {
+    "code": "TJ-KT-23-07",
+    "parent": "TJ-KT-23",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Шуробод",
+      "tg": "Шуробод",
+      "en": "Shurobod"
+    },
+    "centroid": [70.13098, 37.78834]
+  },
+  {
+    "code": "TJ-KT-23-08",
+    "parent": "TJ-KT-23",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чорбог",
+      "tg": "Чорбог",
+      "en": "Chorbog"
+    },
+    "centroid": [70.08803, 37.87493]
+  },
+  {
+    "code": "TJ-KT-23-09",
+    "parent": "TJ-KT-23",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Навдонак",
+      "tg": "Навдонак",
+      "en": "Navdonak"
+    },
+    "centroid": [69.96723, 37.72622]
+  },
+  {
+    "code": "TJ-KT-23-10",
+    "parent": "TJ-KT-23",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Шарора",
+      "tg": "Шарора",
+      "en": "Sharora"
+    },
+    "centroid": [69.97912, 37.81168]
+  },
+  {
+    "code": "TJ-KT-23-11",
+    "parent": "TJ-KT-23",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чашмасор",
+      "tg": "Чашмасор",
+      "en": "Chashmasor"
+    },
+    "centroid": [70.046, 37.78871]
+  },
+  {
+    "code": "TJ-KT-24-01",
+    "parent": "TJ-KT-24",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Навобод",
+      "tg": "Навобод",
+      "en": "Navobod"
+    },
+    "centroid": [68.13145, 37.34985]
+  },
+  {
+    "code": "TJ-KT-24-02",
+    "parent": "TJ-KT-24",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Ватан",
+      "tg": "Ватан",
+      "en": "Vatan"
+    },
+    "centroid": [68.10841, 37.35585]
+  },
+  {
+    "code": "TJ-KT-24-03",
+    "parent": "TJ-KT-24",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чинор",
+      "tg": "Чинор",
+      "en": "Chinor"
+    },
+    "centroid": [68.1828, 37.19317]
+  },
+  {
+    "code": "TJ-KT-24-04",
+    "parent": "TJ-KT-24",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Навдонак",
+      "tg": "Навдонак",
+      "en": "Navdonak"
+    },
+    "centroid": [68.06095, 37.18417]
+  },
+  {
+    "code": "TJ-KT-24-05",
+    "parent": "TJ-KT-24",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чинорзор",
+      "tg": "Чинорзор",
+      "en": "Chinorzor"
+    },
+    "centroid": [68.22563, 37.2935]
+  },
+  {
+    "code": "TJ-KT-24-06",
+    "parent": "TJ-KT-24",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сари Осиё",
+      "tg": "Сари Осиё",
+      "en": "Sari Osiyo"
+    },
+    "centroid": [68.16696, 37.23034]
+  },
+  {
+    "code": "TJ-KT-24-07",
+    "parent": "TJ-KT-24",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Себистон",
+      "tg": "Себистон",
+      "en": "Sebiston"
+    },
+    "centroid": [68.0509, 37.24709]
+  },
+  {
+    "code": "TJ-KT-24-08",
+    "parent": "TJ-KT-24",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Мазор",
+      "tg": "Мазор",
+      "en": "Mazor"
+    },
+    "centroid": [68.09822, 37.17995]
+  },
+  {
+    "code": "TJ-KT-24-09",
+    "parent": "TJ-KT-24",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Тутзор",
+      "tg": "Тутзор",
+      "en": "Tutzor"
+    },
+    "centroid": [68.25278, 37.3198]
+  },
+  {
+    "code": "TJ-KT-24-10",
+    "parent": "TJ-KT-24",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Зарнисор",
+      "tg": "Зарнисор",
+      "en": "Zarnisor"
+    },
+    "centroid": [68.12503, 37.23768]
+  },
+  {
+    "code": "TJ-KT-24-11",
+    "parent": "TJ-KT-24",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Гулобод",
+      "tg": "Гулобод",
+      "en": "Gulobod"
+    },
+    "centroid": [68.12767, 37.27711]
+  },
+  {
+    "code": "TJ-KT-24-12",
+    "parent": "TJ-KT-24",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Хасанобод",
+      "tg": "Хасанобод",
+      "en": "Khasanobod"
+    },
+    "centroid": [68.20117, 37.27317]
+  },
+  {
+    "code": "TJ-KT-24-13",
+    "parent": "TJ-KT-24",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Бустонобод",
+      "tg": "Бустонобод",
+      "en": "Bustonobod"
+    },
+    "centroid": [68.07005, 37.17607]
+  },
+  {
+    "code": "TJ-KT-24-14",
+    "parent": "TJ-KT-24",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Пушти Бог",
+      "tg": "Пушти Бог",
+      "en": "Pushti Bog"
+    },
+    "centroid": [68.2433, 37.23712]
+  },
+  {
+    "code": "TJ-KT-25-01",
+    "parent": "TJ-KT-25",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чашмасор",
+      "tg": "Чашмасор",
+      "en": "Chashmasor"
+    },
+    "centroid": [69.12901, 38.28189]
+  },
+  {
+    "code": "TJ-KT-25-02",
+    "parent": "TJ-KT-25",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Нуристон",
+      "tg": "Нуристон",
+      "en": "Nuriston"
+    },
+    "centroid": [69.10905, 38.2365]
+  },
+  {
+    "code": "TJ-KT-25-03",
+    "parent": "TJ-KT-25",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Кунчи Боло",
+      "tg": "Кунчи Боло",
+      "en": "Kunchi Bolo"
+    },
+    "centroid": [68.95548, 38.32178]
+  },
+  {
+    "code": "TJ-KT-25-04",
+    "parent": "TJ-KT-25",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обиравшан",
+      "tg": "Обиравшан",
+      "en": "Obiravshan"
+    },
+    "centroid": [68.95828, 38.23535]
+  },
+  {
+    "code": "TJ-KT-25-05",
+    "parent": "TJ-KT-25",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Навруз",
+      "tg": "Навруз",
+      "en": "Navruz"
+    },
+    "centroid": [68.97942, 38.39297]
+  },
+  {
+    "code": "TJ-KT-25-06",
+    "parent": "TJ-KT-25",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Дахана",
+      "tg": "Дахана",
+      "en": "Dakhana"
+    },
+    "centroid": [68.96985, 38.40923]
+  },
+  {
+    "code": "TJ-KT-25-07",
+    "parent": "TJ-KT-25",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чукурак",
+      "tg": "Чукурак",
+      "en": "Chukurak"
+    },
+    "centroid": [69.06354, 38.40531]
+  },
+  {
+    "code": "TJ-KT-25-08",
+    "parent": "TJ-KT-25",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Бустонобод",
+      "tg": "Бустонобод",
+      "en": "Bustonobod"
+    },
+    "centroid": [69.04247, 38.43285]
+  },
+  {
+    "code": "TJ-KT-25-09",
+    "parent": "TJ-KT-25",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Пахтаобод",
+      "tg": "Пахтаобод",
+      "en": "Pakhtaobod"
+    },
+    "centroid": [68.95792, 38.25379]
+  },
+  {
+    "code": "TJ-KT-25-10",
+    "parent": "TJ-KT-25",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Кушкак",
+      "tg": "Кушкак",
+      "en": "Kushkak"
+    },
+    "centroid": [68.93, 38.37939]
+  },
+  {
+    "code": "TJ-KT-25-11",
+    "parent": "TJ-KT-25",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Гулобод",
+      "tg": "Гулобод",
+      "en": "Gulobod"
+    },
+    "centroid": [69.06381, 38.29057]
+  },
+  {
+    "code": "TJ-KT-25-12",
+    "parent": "TJ-KT-25",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сиёхкух",
+      "tg": "Сиёхкух",
+      "en": "Siyokhkukh"
+    },
+    "centroid": [68.95686, 38.29248]
+  },
+  {
+    "code": "TJ-KT-25-13",
+    "parent": "TJ-KT-25",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обиборик",
+      "tg": "Обиборик",
+      "en": "Obiborik"
+    },
+    "centroid": [69.11219, 38.19708]
+  },
+  {
+    "code": "TJ-KT-25-14",
+    "parent": "TJ-KT-25",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чорсу",
+      "tg": "Чорсу",
+      "en": "Chorsu"
+    },
+    "centroid": [69.16915, 38.2541]
+  },
+  {
+    "code": "TJ-KT-25-15",
+    "parent": "TJ-KT-25",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Навобод",
+      "tg": "Навобод",
+      "en": "Navobod"
+    },
+    "centroid": [69.19604, 38.2691]
+  },
+  {
+    "code": "TJ-KT-25-16",
+    "parent": "TJ-KT-25",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Хасанобод",
+      "tg": "Хасанобод",
+      "en": "Khasanobod"
+    },
+    "centroid": [69.11197, 38.2981]
+  },
+  {
+    "code": "TJ-KT-25-17",
+    "parent": "TJ-KT-25",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чинорзор",
+      "tg": "Чинорзор",
+      "en": "Chinorzor"
+    },
+    "centroid": [69.0725, 38.26591]
+  },
+  {
+    "code": "TJ-RA-01-01",
+    "parent": "TJ-RA-01",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чинор",
+      "tg": "Чинор",
+      "en": "Chinor"
+    },
+    "centroid": [69.12944, 38.62424]
+  },
+  {
+    "code": "TJ-RA-01-02",
+    "parent": "TJ-RA-01",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обиравшан",
+      "tg": "Обиравшан",
+      "en": "Obiravshan"
+    },
+    "centroid": [69.09291, 38.73623]
+  },
+  {
+    "code": "TJ-RA-01-03",
+    "parent": "TJ-RA-01",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чинорзор",
+      "tg": "Чинорзор",
+      "en": "Chinorzor"
+    },
+    "centroid": [68.93657, 38.47979]
+  },
+  {
+    "code": "TJ-RA-01-04",
+    "parent": "TJ-RA-01",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Себистон",
+      "tg": "Себистон",
+      "en": "Sebiston"
+    },
+    "centroid": [68.99501, 38.65217]
+  },
+  {
+    "code": "TJ-RA-01-05",
+    "parent": "TJ-RA-01",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сиёхкух",
+      "tg": "Сиёхкух",
+      "en": "Siyokhkukh"
+    },
+    "centroid": [68.98485, 38.50926]
+  },
+  {
+    "code": "TJ-RA-01-06",
+    "parent": "TJ-RA-01",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Равшан",
+      "tg": "Равшан",
+      "en": "Ravshan"
+    },
+    "centroid": [68.97649, 38.71511]
+  },
+  {
+    "code": "TJ-RA-01-07",
+    "parent": "TJ-RA-01",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Дахана",
+      "tg": "Дахана",
+      "en": "Dakhana"
+    },
+    "centroid": [69.07586, 38.55962]
+  },
+  {
+    "code": "TJ-RA-01-08",
+    "parent": "TJ-RA-01",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Олимобод",
+      "tg": "Олимобод",
+      "en": "Olimobod"
+    },
+    "centroid": [68.9647, 38.45491]
+  },
+  {
+    "code": "TJ-RA-01-09",
+    "parent": "TJ-RA-01",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Мазор",
+      "tg": "Мазор",
+      "en": "Mazor"
+    },
+    "centroid": [68.95671, 38.6844]
+  },
+  {
+    "code": "TJ-RA-01-10",
+    "parent": "TJ-RA-01",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Калъача",
+      "tg": "Калъача",
+      "en": "Kal'acha"
+    },
+    "centroid": [69.16944, 38.58779]
+  },
+  {
+    "code": "TJ-RA-01-11",
+    "parent": "TJ-RA-01",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Гулшан",
+      "tg": "Гулшан",
+      "en": "Gulshan"
+    },
+    "centroid": [68.89541, 38.66694]
+  },
+  {
+    "code": "TJ-RA-01-12",
+    "parent": "TJ-RA-01",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Тагоб",
+      "tg": "Тагоб",
+      "en": "Tagob"
+    },
+    "centroid": [68.98845, 38.70268]
+  },
+  {
+    "code": "TJ-RA-01-13",
+    "parent": "TJ-RA-01",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чорсу",
+      "tg": "Чорсу",
+      "en": "Chorsu"
+    },
+    "centroid": [69.08018, 38.48497]
+  },
+  {
+    "code": "TJ-RA-02-01",
+    "parent": "TJ-RA-02",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Калъаи Нав",
+      "tg": "Калъаи Нав",
+      "en": "Kal'ai Nav"
+    },
+    "centroid": [68.51183, 38.48998]
+  },
+  {
+    "code": "TJ-RA-02-02",
+    "parent": "TJ-RA-02",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Ором",
+      "tg": "Ором",
+      "en": "Orom"
+    },
+    "centroid": [68.57911, 38.61885]
+  },
+  {
+    "code": "TJ-RA-02-03",
+    "parent": "TJ-RA-02",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обиборик",
+      "tg": "Обиборик",
+      "en": "Obiborik"
+    },
+    "centroid": [68.56652, 38.61621]
+  },
+  {
+    "code": "TJ-RA-02-04",
+    "parent": "TJ-RA-02",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Нуристон",
+      "tg": "Нуристон",
+      "en": "Nuriston"
+    },
+    "centroid": [68.63778, 38.49792]
+  },
+  {
+    "code": "TJ-RA-02-05",
+    "parent": "TJ-RA-02",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Шарора",
+      "tg": "Шарора",
+      "en": "Sharora"
+    },
+    "centroid": [68.67896, 38.46825]
+  },
+  {
+    "code": "TJ-RA-02-06",
+    "parent": "TJ-RA-02",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чинор",
+      "tg": "Чинор",
+      "en": "Chinor"
+    },
+    "centroid": [68.48321, 38.56587]
+  },
+  {
+    "code": "TJ-RA-02-07",
+    "parent": "TJ-RA-02",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Мазор",
+      "tg": "Мазор",
+      "en": "Mazor"
+    },
+    "centroid": [68.54217, 38.56235]
+  },
+  {
+    "code": "TJ-RA-02-08",
+    "parent": "TJ-RA-02",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сиёхкух",
+      "tg": "Сиёхкух",
+      "en": "Siyokhkukh"
+    },
+    "centroid": [68.61616, 38.48425]
+  },
+  {
+    "code": "TJ-RA-02-09",
+    "parent": "TJ-RA-02",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Работ",
+      "tg": "Работ",
+      "en": "Rabot"
+    },
+    "centroid": [68.4605, 38.50518]
+  },
+  {
+    "code": "TJ-RA-02-10",
+    "parent": "TJ-RA-02",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Лолазор",
+      "tg": "Лолазор",
+      "en": "Lolazor"
+    },
+    "centroid": [68.51623, 38.63137]
+  },
+  {
+    "code": "TJ-RA-02-11",
+    "parent": "TJ-RA-02",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Навобод",
+      "tg": "Навобод",
+      "en": "Navobod"
+    },
+    "centroid": [68.65978, 38.51597]
+  },
+  {
+    "code": "TJ-RA-02-12",
+    "parent": "TJ-RA-02",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Навдонак",
+      "tg": "Навдонак",
+      "en": "Navdonak"
+    },
+    "centroid": [68.56755, 38.55037]
+  },
+  {
+    "code": "TJ-RA-03-01",
+    "parent": "TJ-RA-03",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Хасанобод",
+      "tg": "Хасанобод",
+      "en": "Khasanobod"
+    },
+    "centroid": [69.80418, 38.78137]
+  },
+  {
+    "code": "TJ-RA-03-02",
+    "parent": "TJ-RA-03",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сафедоб",
+      "tg": "Сафедоб",
+      "en": "Safedob"
+    },
+    "centroid": [69.69879, 38.73146]
+  },
+  {
+    "code": "TJ-RA-03-03",
+    "parent": "TJ-RA-03",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Дехибаланд",
+      "tg": "Дехибаланд",
+      "en": "Dekhibaland"
+    },
+    "centroid": [69.90799, 38.64362]
+  },
+  {
+    "code": "TJ-RA-03-04",
+    "parent": "TJ-RA-03",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Равшан",
+      "tg": "Равшан",
+      "en": "Ravshan"
+    },
+    "centroid": [69.68522, 38.71953]
+  },
+  {
+    "code": "TJ-RA-03-05",
+    "parent": "TJ-RA-03",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Ором",
+      "tg": "Ором",
+      "en": "Orom"
+    },
+    "centroid": [69.7749, 38.73016]
+  },
+  {
+    "code": "TJ-RA-03-06",
+    "parent": "TJ-RA-03",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Мехнатобод",
+      "tg": "Мехнатобод",
+      "en": "Mekhnatobod"
+    },
+    "centroid": [69.90204, 38.66353]
+  },
+  {
+    "code": "TJ-RA-04-01",
+    "parent": "TJ-RA-04",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Работ",
+      "tg": "Работ",
+      "en": "Rabot"
+    },
+    "centroid": [68.28377, 38.52049]
+  },
+  {
+    "code": "TJ-RA-04-02",
+    "parent": "TJ-RA-04",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Нуристон",
+      "tg": "Нуристон",
+      "en": "Nuriston"
+    },
+    "centroid": [68.22315, 38.4908]
+  },
+  {
+    "code": "TJ-RA-04-03",
+    "parent": "TJ-RA-04",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обиборик",
+      "tg": "Обиборик",
+      "en": "Obiborik"
+    },
+    "centroid": [68.26523, 38.52441]
+  },
+  {
+    "code": "TJ-RA-04-04",
+    "parent": "TJ-RA-04",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Бодомзор",
+      "tg": "Бодомзор",
+      "en": "Bodomzor"
+    },
+    "centroid": [68.07716, 38.50876]
+  },
+  {
+    "code": "TJ-RA-04-05",
+    "parent": "TJ-RA-04",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Янгиобод",
+      "tg": "Янгиобод",
+      "en": "Yangiobod"
+    },
+    "centroid": [68.35368, 38.57923]
+  },
+  {
+    "code": "TJ-RA-04-06",
+    "parent": "TJ-RA-04",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Себистон",
+      "tg": "Себистон",
+      "en": "Sebiston"
+    },
+    "centroid": [68.23955, 38.50384]
+  },
+  {
+    "code": "TJ-RA-04-07",
+    "parent": "TJ-RA-04",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сангистон",
+      "tg": "Сангистон",
+      "en": "Sangiston"
+    },
+    "centroid": [68.28301, 38.44704]
+  },
+  {
+    "code": "TJ-RA-04-08",
+    "parent": "TJ-RA-04",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Ором",
+      "tg": "Ором",
+      "en": "Orom"
+    },
+    "centroid": [68.09692, 38.5184]
+  },
+  {
+    "code": "TJ-RA-04-09",
+    "parent": "TJ-RA-04",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Кунчи Боло",
+      "tg": "Кунчи Боло",
+      "en": "Kunchi Bolo"
+    },
+    "centroid": [68.33857, 38.43927]
+  },
+  {
+    "code": "TJ-RA-04-10",
+    "parent": "TJ-RA-04",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Дахана",
+      "tg": "Дахана",
+      "en": "Dakhana"
+    },
+    "centroid": [68.106, 38.48397]
+  },
+  {
+    "code": "TJ-RA-04-11",
+    "parent": "TJ-RA-04",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Навдонак",
+      "tg": "Навдонак",
+      "en": "Navdonak"
+    },
+    "centroid": [68.18121, 38.45431]
+  },
+  {
+    "code": "TJ-RA-04-12",
+    "parent": "TJ-RA-04",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Шарора",
+      "tg": "Шарора",
+      "en": "Sharora"
+    },
+    "centroid": [68.37193, 38.47075]
+  },
+  {
+    "code": "TJ-RA-05-01",
+    "parent": "TJ-RA-05",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сари Осиё",
+      "tg": "Сари Осиё",
+      "en": "Sari Osiyo"
+    },
+    "centroid": [68.82399, 38.9538]
+  },
+  {
+    "code": "TJ-RA-05-02",
+    "parent": "TJ-RA-05",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чашмасор",
+      "tg": "Чашмасор",
+      "en": "Chashmasor"
+    },
+    "centroid": [68.75041, 38.87187]
+  },
+  {
+    "code": "TJ-RA-05-03",
+    "parent": "TJ-RA-05",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Шуробод",
+      "tg": "Шуробод",
+      "en": "Shurobod"
+    },
+    "centroid": [68.84228, 39.05803]
+  },
+  {
+    "code": "TJ-RA-05-04",
+    "parent": "TJ-RA-05",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сиёхкух",
+      "tg": "Сиёхкух",
+      "en": "Siyokhkukh"
+    },
+    "centroid": [68.66967, 39.0147]
+  },
+  {
+    "code": "TJ-RA-05-05",
+    "parent": "TJ-RA-05",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сомон",
+      "tg": "Сомон",
+      "en": "Somon"
+    },
+    "centroid": [68.89458, 38.8655]
+  },
+  {
+    "code": "TJ-RA-05-06",
+    "parent": "TJ-RA-05",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Тагоб",
+      "tg": "Тагоб",
+      "en": "Tagob"
+    },
+    "centroid": [68.75157, 38.96446]
+  },
+  {
+    "code": "TJ-RA-05-07",
+    "parent": "TJ-RA-05",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Нурафшон",
+      "tg": "Нурафшон",
+      "en": "Nurafshon"
+    },
+    "centroid": [68.92519, 38.79419]
+  },
+  {
+    "code": "TJ-RA-05-08",
+    "parent": "TJ-RA-05",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чинор",
+      "tg": "Чинор",
+      "en": "Chinor"
+    },
+    "centroid": [68.7694, 38.98485]
+  },
+  {
+    "code": "TJ-RA-05-09",
+    "parent": "TJ-RA-05",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обиборик",
+      "tg": "Обиборик",
+      "en": "Obiborik"
+    },
+    "centroid": [68.92608, 38.87552]
+  },
+  {
+    "code": "TJ-RA-05-10",
+    "parent": "TJ-RA-05",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Пахтаобод",
+      "tg": "Пахтаобод",
+      "en": "Pakhtaobod"
+    },
+    "centroid": [68.88726, 38.83235]
+  },
+  {
+    "code": "TJ-RA-05-11",
+    "parent": "TJ-RA-05",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Тутзор",
+      "tg": "Тутзор",
+      "en": "Tutzor"
+    },
+    "centroid": [68.85018, 38.81162]
+  },
+  {
+    "code": "TJ-RA-05-12",
+    "parent": "TJ-RA-05",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Калъаи Нав",
+      "tg": "Калъаи Нав",
+      "en": "Kal'ai Nav"
+    },
+    "centroid": [68.67761, 38.77757]
+  },
+  {
+    "code": "TJ-RA-06-01",
+    "parent": "TJ-RA-06",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Бустонобод",
+      "tg": "Бустонобод",
+      "en": "Bustonobod"
+    },
+    "centroid": [71.03392, 39.26208]
+  },
+  {
+    "code": "TJ-RA-06-02",
+    "parent": "TJ-RA-06",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обиравшан",
+      "tg": "Обиравшан",
+      "en": "Obiravshan"
+    },
+    "centroid": [71.31792, 39.22343]
+  },
+  {
+    "code": "TJ-RA-06-03",
+    "parent": "TJ-RA-06",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Навобод",
+      "tg": "Навобод",
+      "en": "Navobod"
+    },
+    "centroid": [71.18681, 39.13704]
+  },
+  {
+    "code": "TJ-RA-06-04",
+    "parent": "TJ-RA-06",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Шуробод",
+      "tg": "Шуробод",
+      "en": "Shurobod"
+    },
+    "centroid": [71.28195, 39.20936]
+  },
+  {
+    "code": "TJ-RA-06-05",
+    "parent": "TJ-RA-06",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Кунчи Боло",
+      "tg": "Кунчи Боло",
+      "en": "Kunchi Bolo"
+    },
+    "centroid": [70.97638, 39.1704]
+  },
+  {
+    "code": "TJ-RA-06-06",
+    "parent": "TJ-RA-06",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Шарора",
+      "tg": "Шарора",
+      "en": "Sharora"
+    },
+    "centroid": [71.16953, 39.35058]
+  },
+  {
+    "code": "TJ-RA-06-07",
+    "parent": "TJ-RA-06",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Янгиобод",
+      "tg": "Янгиобод",
+      "en": "Yangiobod"
+    },
+    "centroid": [71.30437, 39.11044]
+  },
+  {
+    "code": "TJ-RA-06-08",
+    "parent": "TJ-RA-06",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чорбог",
+      "tg": "Чорбог",
+      "en": "Chorbog"
+    },
+    "centroid": [71.07901, 39.18915]
+  },
+  {
+    "code": "TJ-RA-06-09",
+    "parent": "TJ-RA-06",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Бахористон",
+      "tg": "Бахористон",
+      "en": "Bakhoriston"
+    },
+    "centroid": [71.06318, 39.24383]
+  },
+  {
+    "code": "TJ-RA-06-10",
+    "parent": "TJ-RA-06",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Кушкак",
+      "tg": "Кушкак",
+      "en": "Kushkak"
+    },
+    "centroid": [71.38638, 39.26511]
+  },
+  {
+    "code": "TJ-RA-06-11",
+    "parent": "TJ-RA-06",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Дехибаланд",
+      "tg": "Дехибаланд",
+      "en": "Dekhibaland"
+    },
+    "centroid": [71.33884, 39.26766]
+  },
+  {
+    "code": "TJ-RA-06-12",
+    "parent": "TJ-RA-06",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чинор",
+      "tg": "Чинор",
+      "en": "Chinor"
+    },
+    "centroid": [71.25311, 39.08697]
+  },
+  {
+    "code": "TJ-RA-07-01",
+    "parent": "TJ-RA-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Лолазор",
+      "tg": "Лолазор",
+      "en": "Lolazor"
+    },
+    "centroid": [70.22452, 38.86449]
+  },
+  {
+    "code": "TJ-RA-07-02",
+    "parent": "TJ-RA-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Нурафшон",
+      "tg": "Нурафшон",
+      "en": "Nurafshon"
+    },
+    "centroid": [70.26215, 38.7892]
+  },
+  {
+    "code": "TJ-RA-07-03",
+    "parent": "TJ-RA-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Кушкак",
+      "tg": "Кушкак",
+      "en": "Kushkak"
+    },
+    "centroid": [70.18218, 38.88466]
+  },
+  {
+    "code": "TJ-RA-07-04",
+    "parent": "TJ-RA-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обиборик",
+      "tg": "Обиборик",
+      "en": "Obiborik"
+    },
+    "centroid": [70.1095, 38.87248]
+  },
+  {
+    "code": "TJ-RA-07-05",
+    "parent": "TJ-RA-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Навруз",
+      "tg": "Навруз",
+      "en": "Navruz"
+    },
+    "centroid": [70.27034, 38.80544]
+  },
+  {
+    "code": "TJ-RA-07-06",
+    "parent": "TJ-RA-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Гулобод",
+      "tg": "Гулобод",
+      "en": "Gulobod"
+    },
+    "centroid": [70.02862, 38.88633]
+  },
+  {
+    "code": "TJ-RA-07-07",
+    "parent": "TJ-RA-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сари Осиё",
+      "tg": "Сари Осиё",
+      "en": "Sari Osiyo"
+    },
+    "centroid": [70.02459, 38.78981]
+  },
+  {
+    "code": "TJ-RA-07-08",
+    "parent": "TJ-RA-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Бустонобод",
+      "tg": "Бустонобод",
+      "en": "Bustonobod"
+    },
+    "centroid": [70.22372, 38.69538]
+  },
+  {
+    "code": "TJ-RA-07-09",
+    "parent": "TJ-RA-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Олимобод",
+      "tg": "Олимобод",
+      "en": "Olimobod"
+    },
+    "centroid": [70.27518, 38.7584]
+  },
+  {
+    "code": "TJ-RA-07-10",
+    "parent": "TJ-RA-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Пушти Бог",
+      "tg": "Пушти Бог",
+      "en": "Pushti Bog"
+    },
+    "centroid": [70.09301, 38.66301]
+  },
+  {
+    "code": "TJ-RA-07-11",
+    "parent": "TJ-RA-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Пахтаобод",
+      "tg": "Пахтаобод",
+      "en": "Pakhtaobod"
+    },
+    "centroid": [69.95266, 38.65019]
+  },
+  {
+    "code": "TJ-RA-07-12",
+    "parent": "TJ-RA-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Янгиобод",
+      "tg": "Янгиобод",
+      "en": "Yangiobod"
+    },
+    "centroid": [70.02952, 38.6831]
+  },
+  {
+    "code": "TJ-RA-08-01",
+    "parent": "TJ-RA-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Саидобод",
+      "tg": "Саидобод",
+      "en": "Saidobod"
+    },
+    "centroid": [70.62821, 39.02468]
+  },
+  {
+    "code": "TJ-RA-08-02",
+    "parent": "TJ-RA-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Олимобод",
+      "tg": "Олимобод",
+      "en": "Olimobod"
+    },
+    "centroid": [70.36882, 39.06222]
+  },
+  {
+    "code": "TJ-RA-08-03",
+    "parent": "TJ-RA-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сиёхкух",
+      "tg": "Сиёхкух",
+      "en": "Siyokhkukh"
+    },
+    "centroid": [70.19216, 39.07115]
+  },
+  {
+    "code": "TJ-RA-08-04",
+    "parent": "TJ-RA-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Ором",
+      "tg": "Ором",
+      "en": "Orom"
+    },
+    "centroid": [70.14005, 39.04756]
+  },
+  {
+    "code": "TJ-RA-08-05",
+    "parent": "TJ-RA-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Дехибаланд",
+      "tg": "Дехибаланд",
+      "en": "Dekhibaland"
+    },
+    "centroid": [70.13788, 38.95449]
+  },
+  {
+    "code": "TJ-RA-08-06",
+    "parent": "TJ-RA-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чинорзор",
+      "tg": "Чинорзор",
+      "en": "Chinorzor"
+    },
+    "centroid": [70.2006, 39.01044]
+  },
+  {
+    "code": "TJ-RA-08-07",
+    "parent": "TJ-RA-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Навобод",
+      "tg": "Навобод",
+      "en": "Navobod"
+    },
+    "centroid": [70.40342, 38.88274]
+  },
+  {
+    "code": "TJ-RA-08-08",
+    "parent": "TJ-RA-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Гулшан",
+      "tg": "Гулшан",
+      "en": "Gulshan"
+    },
+    "centroid": [70.47744, 39.16245]
+  },
+  {
+    "code": "TJ-RA-08-09",
+    "parent": "TJ-RA-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Дахана",
+      "tg": "Дахана",
+      "en": "Dakhana"
+    },
+    "centroid": [70.37772, 38.96261]
+  },
+  {
+    "code": "TJ-RA-08-10",
+    "parent": "TJ-RA-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Тутзор",
+      "tg": "Тутзор",
+      "en": "Tutzor"
+    },
+    "centroid": [70.39558, 39.06324]
+  },
+  {
+    "code": "TJ-RA-08-11",
+    "parent": "TJ-RA-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Бустонобод",
+      "tg": "Бустонобод",
+      "en": "Bustonobod"
+    },
+    "centroid": [70.52633, 39.16187]
+  },
+  {
+    "code": "TJ-RA-08-12",
+    "parent": "TJ-RA-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сарчашма",
+      "tg": "Сарчашма",
+      "en": "Sarchashma"
+    },
+    "centroid": [70.30579, 39.07363]
+  },
+  {
+    "code": "TJ-RA-08-13",
+    "parent": "TJ-RA-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Шуробод",
+      "tg": "Шуробод",
+      "en": "Shurobod"
+    },
+    "centroid": [70.42076, 39.09169]
+  },
+  {
+    "code": "TJ-RA-08-14",
+    "parent": "TJ-RA-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Нуристон",
+      "tg": "Нуристон",
+      "en": "Nuriston"
+    },
+    "centroid": [70.58147, 39.00598]
+  },
+  {
+    "code": "TJ-RA-08-15",
+    "parent": "TJ-RA-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чукурак",
+      "tg": "Чукурак",
+      "en": "Chukurak"
+    },
+    "centroid": [70.51022, 38.88622]
+  },
+  {
+    "code": "TJ-RA-09-01",
+    "parent": "TJ-RA-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Пушти Бог",
+      "tg": "Пушти Бог",
+      "en": "Pushti Bog"
+    },
+    "centroid": [68.94729, 38.35323]
+  },
+  {
+    "code": "TJ-RA-09-02",
+    "parent": "TJ-RA-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Зарнисор",
+      "tg": "Зарнисор",
+      "en": "Zarnisor"
+    },
+    "centroid": [68.77805, 38.45517]
+  },
+  {
+    "code": "TJ-RA-09-03",
+    "parent": "TJ-RA-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Гулобод",
+      "tg": "Гулобод",
+      "en": "Gulobod"
+    },
+    "centroid": [68.64259, 38.31439]
+  },
+  {
+    "code": "TJ-RA-09-04",
+    "parent": "TJ-RA-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Калъаи Нав",
+      "tg": "Калъаи Нав",
+      "en": "Kal'ai Nav"
+    },
+    "centroid": [68.7587, 38.36516]
+  },
+  {
+    "code": "TJ-RA-09-05",
+    "parent": "TJ-RA-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чинор",
+      "tg": "Чинор",
+      "en": "Chinor"
+    },
+    "centroid": [68.92787, 38.44601]
+  },
+  {
+    "code": "TJ-RA-09-06",
+    "parent": "TJ-RA-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Равшан",
+      "tg": "Равшан",
+      "en": "Ravshan"
+    },
+    "centroid": [68.99225, 38.44392]
+  },
+  {
+    "code": "TJ-RA-09-07",
+    "parent": "TJ-RA-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Мазор",
+      "tg": "Мазор",
+      "en": "Mazor"
+    },
+    "centroid": [68.61444, 38.38168]
+  },
+  {
+    "code": "TJ-RA-09-08",
+    "parent": "TJ-RA-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Нурафшон",
+      "tg": "Нурафшон",
+      "en": "Nurafshon"
+    },
+    "centroid": [68.80624, 38.42882]
+  },
+  {
+    "code": "TJ-RA-09-09",
+    "parent": "TJ-RA-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чинорзор",
+      "tg": "Чинорзор",
+      "en": "Chinorzor"
+    },
+    "centroid": [68.82076, 38.31574]
+  },
+  {
+    "code": "TJ-RA-09-10",
+    "parent": "TJ-RA-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Навдонак",
+      "tg": "Навдонак",
+      "en": "Navdonak"
+    },
+    "centroid": [68.80152, 38.24654]
+  },
+  {
+    "code": "TJ-RA-09-11",
+    "parent": "TJ-RA-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Дахана",
+      "tg": "Дахана",
+      "en": "Dakhana"
+    },
+    "centroid": [68.85387, 38.46011]
+  },
+  {
+    "code": "TJ-RA-09-12",
+    "parent": "TJ-RA-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обиравшан",
+      "tg": "Обиравшан",
+      "en": "Obiravshan"
+    },
+    "centroid": [68.77007, 38.51912]
+  },
+  {
+    "code": "TJ-RA-09-13",
+    "parent": "TJ-RA-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Янгиобод",
+      "tg": "Янгиобод",
+      "en": "Yangiobod"
+    },
+    "centroid": [68.67462, 38.31025]
+  },
+  {
+    "code": "TJ-RA-09-14",
+    "parent": "TJ-RA-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Хасанобод",
+      "tg": "Хасанобод",
+      "en": "Khasanobod"
+    },
+    "centroid": [69.02096, 38.36696]
+  },
+  {
+    "code": "TJ-RA-09-15",
+    "parent": "TJ-RA-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Дехнав",
+      "tg": "Дехнав",
+      "en": "Dekhnav"
+    },
+    "centroid": [68.91005, 38.53993]
+  },
+  {
+    "code": "TJ-RA-09-16",
+    "parent": "TJ-RA-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Пахтаобод",
+      "tg": "Пахтаобод",
+      "en": "Pakhtaobod"
+    },
+    "centroid": [68.82821, 38.36056]
+  },
+  {
+    "code": "TJ-RA-09-17",
+    "parent": "TJ-RA-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Бодомзор",
+      "tg": "Бодомзор",
+      "en": "Bodomzor"
+    },
+    "centroid": [68.99283, 38.4422]
+  },
+  {
+    "code": "TJ-RA-09-18",
+    "parent": "TJ-RA-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Себистон",
+      "tg": "Себистон",
+      "en": "Sebiston"
+    },
+    "centroid": [68.66114, 38.34261]
+  },
+  {
+    "code": "TJ-RA-09-19",
+    "parent": "TJ-RA-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Калъача",
+      "tg": "Калъача",
+      "en": "Kal'acha"
+    },
+    "centroid": [68.85347, 38.35506]
+  },
+  {
+    "code": "TJ-RA-09-20",
+    "parent": "TJ-RA-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Работ",
+      "tg": "Работ",
+      "en": "Rabot"
+    },
+    "centroid": [68.73055, 38.29219]
+  },
+  {
+    "code": "TJ-RA-09-21",
+    "parent": "TJ-RA-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Мехнатобод",
+      "tg": "Мехнатобод",
+      "en": "Mekhnatobod"
+    },
+    "centroid": [68.8189, 38.32895]
+  },
+  {
+    "code": "TJ-RA-09-22",
+    "parent": "TJ-RA-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Тагоб",
+      "tg": "Тагоб",
+      "en": "Tagob"
+    },
+    "centroid": [68.71742, 38.5107]
+  },
+  {
+    "code": "TJ-RA-09-23",
+    "parent": "TJ-RA-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Ором",
+      "tg": "Ором",
+      "en": "Orom"
+    },
+    "centroid": [68.91523, 38.36627]
+  },
+  {
+    "code": "TJ-RA-09-24",
+    "parent": "TJ-RA-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Саидобод",
+      "tg": "Саидобод",
+      "en": "Saidobod"
+    },
+    "centroid": [68.65446, 38.28467]
+  },
+  {
+    "code": "TJ-RA-09-25",
+    "parent": "TJ-RA-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сиёхкух",
+      "tg": "Сиёхкух",
+      "en": "Siyokhkukh"
+    },
+    "centroid": [68.66063, 38.31746]
+  },
+  {
+    "code": "TJ-RA-10-01",
+    "parent": "TJ-RA-10",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Работ",
+      "tg": "Работ",
+      "en": "Rabot"
+    },
+    "centroid": [70.28547, 38.54074]
+  },
+  {
+    "code": "TJ-RA-10-02",
+    "parent": "TJ-RA-10",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чорбог",
+      "tg": "Чорбог",
+      "en": "Chorbog"
+    },
+    "centroid": [70.66989, 38.55381]
+  },
+  {
+    "code": "TJ-RA-10-03",
+    "parent": "TJ-RA-10",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Гулобод",
+      "tg": "Гулобод",
+      "en": "Gulobod"
+    },
+    "centroid": [70.30115, 38.69552]
+  },
+  {
+    "code": "TJ-RA-10-04",
+    "parent": "TJ-RA-10",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Себистон",
+      "tg": "Себистон",
+      "en": "Sebiston"
+    },
+    "centroid": [70.47442, 38.73054]
+  },
+  {
+    "code": "TJ-RA-10-05",
+    "parent": "TJ-RA-10",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Лолазор",
+      "tg": "Лолазор",
+      "en": "Lolazor"
+    },
+    "centroid": [70.32945, 38.76839]
+  },
+  {
+    "code": "TJ-RA-10-06",
+    "parent": "TJ-RA-10",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сангистон",
+      "tg": "Сангистон",
+      "en": "Sangiston"
+    },
+    "centroid": [70.50201, 38.85606]
+  },
+  {
+    "code": "TJ-RA-10-07",
+    "parent": "TJ-RA-10",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Гулшан",
+      "tg": "Гулшан",
+      "en": "Gulshan"
+    },
+    "centroid": [70.41345, 38.56533]
+  },
+  {
+    "code": "TJ-RA-10-08",
+    "parent": "TJ-RA-10",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Зарнисор",
+      "tg": "Зарнисор",
+      "en": "Zarnisor"
+    },
+    "centroid": [70.6959, 38.77355]
+  },
+  {
+    "code": "TJ-RA-10-09",
+    "parent": "TJ-RA-10",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Равшан",
+      "tg": "Равшан",
+      "en": "Ravshan"
+    },
+    "centroid": [70.25018, 38.71432]
+  },
+  {
+    "code": "TJ-RA-11-01",
+    "parent": "TJ-RA-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Калъача",
+      "tg": "Калъача",
+      "en": "Kal'acha"
+    },
+    "centroid": [70.82662, 39.21731]
+  },
+  {
+    "code": "TJ-RA-11-02",
+    "parent": "TJ-RA-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обиборик",
+      "tg": "Обиборик",
+      "en": "Obiborik"
+    },
+    "centroid": [70.87441, 39.17438]
+  },
+  {
+    "code": "TJ-RA-11-03",
+    "parent": "TJ-RA-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сиёхкух",
+      "tg": "Сиёхкух",
+      "en": "Siyokhkukh"
+    },
+    "centroid": [70.71303, 39.05385]
+  },
+  {
+    "code": "TJ-RA-11-04",
+    "parent": "TJ-RA-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сафедоб",
+      "tg": "Сафедоб",
+      "en": "Safedob"
+    },
+    "centroid": [70.73243, 39.07064]
+  },
+  {
+    "code": "TJ-RA-11-05",
+    "parent": "TJ-RA-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Мехнатобод",
+      "tg": "Мехнатобод",
+      "en": "Mekhnatobod"
+    },
+    "centroid": [70.82181, 39.23087]
+  },
+  {
+    "code": "TJ-RA-11-06",
+    "parent": "TJ-RA-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Лолазор",
+      "tg": "Лолазор",
+      "en": "Lolazor"
+    },
+    "centroid": [70.70156, 39.18794]
+  },
+  {
+    "code": "TJ-RA-11-07",
+    "parent": "TJ-RA-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Дехибаланд",
+      "tg": "Дехибаланд",
+      "en": "Dekhibaland"
+    },
+    "centroid": [70.84134, 39.11269]
+  },
+  {
+    "code": "TJ-RA-11-08",
+    "parent": "TJ-RA-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Нуристон",
+      "tg": "Нуристон",
+      "en": "Nuriston"
+    },
+    "centroid": [70.90714, 39.11609]
+  },
+  {
+    "code": "TJ-RA-11-09",
+    "parent": "TJ-RA-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Навдонак",
+      "tg": "Навдонак",
+      "en": "Navdonak"
+    },
+    "centroid": [70.92674, 39.20219]
+  },
+  {
+    "code": "TJ-RA-11-10",
+    "parent": "TJ-RA-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Олимобод",
+      "tg": "Олимобод",
+      "en": "Olimobod"
+    },
+    "centroid": [70.95945, 39.14297]
+  },
+  {
+    "code": "TJ-RA-12-01",
+    "parent": "TJ-RA-12",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Нуристон",
+      "tg": "Нуристон",
+      "en": "Nuriston"
+    },
+    "centroid": [69.18697, 38.50736]
+  },
+  {
+    "code": "TJ-RA-12-02",
+    "parent": "TJ-RA-12",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обиравшан",
+      "tg": "Обиравшан",
+      "en": "Obiravshan"
+    },
+    "centroid": [69.25302, 38.44313]
+  },
+  {
+    "code": "TJ-RA-12-03",
+    "parent": "TJ-RA-12",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чашмасор",
+      "tg": "Чашмасор",
+      "en": "Chashmasor"
+    },
+    "centroid": [69.44268, 38.56466]
+  },
+  {
+    "code": "TJ-RA-12-04",
+    "parent": "TJ-RA-12",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Нурафшон",
+      "tg": "Нурафшон",
+      "en": "Nurafshon"
+    },
+    "centroid": [69.18764, 38.47345]
+  },
+  {
+    "code": "TJ-RA-12-05",
+    "parent": "TJ-RA-12",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Кушкак",
+      "tg": "Кушкак",
+      "en": "Kushkak"
+    },
+    "centroid": [69.33072, 38.55908]
+  },
+  {
+    "code": "TJ-RA-12-06",
+    "parent": "TJ-RA-12",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Бахористон",
+      "tg": "Бахористон",
+      "en": "Bakhoriston"
+    },
+    "centroid": [69.30179, 38.43462]
+  },
+  {
+    "code": "TJ-RA-12-07",
+    "parent": "TJ-RA-12",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Работ",
+      "tg": "Работ",
+      "en": "Rabot"
+    },
+    "centroid": [69.42262, 38.54629]
+  },
+  {
+    "code": "TJ-RA-12-08",
+    "parent": "TJ-RA-12",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сангистон",
+      "tg": "Сангистон",
+      "en": "Sangiston"
+    },
+    "centroid": [69.44832, 38.58545]
+  },
+  {
+    "code": "TJ-RA-12-09",
+    "parent": "TJ-RA-12",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Хасанобод",
+      "tg": "Хасанобод",
+      "en": "Khasanobod"
+    },
+    "centroid": [69.38952, 38.68254]
+  },
+  {
+    "code": "TJ-RA-12-10",
+    "parent": "TJ-RA-12",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Ором",
+      "tg": "Ором",
+      "en": "Orom"
+    },
+    "centroid": [69.42761, 38.5437]
+  },
+  {
+    "code": "TJ-RA-12-11",
+    "parent": "TJ-RA-12",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чорсу",
+      "tg": "Чорсу",
+      "en": "Chorsu"
+    },
+    "centroid": [69.26403, 38.59565]
+  },
+  {
+    "code": "TJ-RA-12-12",
+    "parent": "TJ-RA-12",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сари Осиё",
+      "tg": "Сари Осиё",
+      "en": "Sari Osiyo"
+    },
+    "centroid": [69.46743, 38.51442]
+  },
+  {
+    "code": "TJ-RA-12-13",
+    "parent": "TJ-RA-12",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Калъаи Нав",
+      "tg": "Калъаи Нав",
+      "en": "Kal'ai Nav"
+    },
+    "centroid": [69.41329, 38.5836]
+  },
+  {
+    "code": "TJ-RA-13-01",
+    "parent": "TJ-RA-13",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обшорон",
+      "tg": "Обшорон",
+      "en": "Obshoron"
+    },
+    "centroid": [68.36461, 38.57615]
+  },
+  {
+    "code": "TJ-RA-13-02",
+    "parent": "TJ-RA-13",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Зарнисор",
+      "tg": "Зарнисор",
+      "en": "Zarnisor"
+    },
+    "centroid": [68.23605, 38.53879]
+  },
+  {
+    "code": "TJ-RA-13-03",
+    "parent": "TJ-RA-13",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Ором",
+      "tg": "Ором",
+      "en": "Orom"
+    },
+    "centroid": [68.27486, 38.63126]
+  },
+  {
+    "code": "TJ-RA-13-04",
+    "parent": "TJ-RA-13",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Хасанобод",
+      "tg": "Хасанобод",
+      "en": "Khasanobod"
+    },
+    "centroid": [68.25448, 38.55964]
+  },
+  {
+    "code": "TJ-RA-13-05",
+    "parent": "TJ-RA-13",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Шарора",
+      "tg": "Шарора",
+      "en": "Sharora"
+    },
+    "centroid": [68.34028, 38.59554]
+  },
+  {
+    "code": "TJ-RA-13-06",
+    "parent": "TJ-RA-13",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Работ",
+      "tg": "Работ",
+      "en": "Rabot"
+    },
+    "centroid": [68.42555, 38.59908]
+  },
+  {
+    "code": "TJ-RA-13-07",
+    "parent": "TJ-RA-13",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сиёхкух",
+      "tg": "Сиёхкух",
+      "en": "Siyokhkukh"
+    },
+    "centroid": [68.22547, 38.57121]
+  },
+  {
+    "code": "TJ-RA-13-08",
+    "parent": "TJ-RA-13",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чинор",
+      "tg": "Чинор",
+      "en": "Chinor"
+    },
+    "centroid": [68.38346, 38.63502]
+  },
+  {
+    "code": "TJ-RA-13-09",
+    "parent": "TJ-RA-13",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сари Осиё",
+      "tg": "Сари Осиё",
+      "en": "Sari Osiyo"
+    },
+    "centroid": [68.41569, 38.62879]
+  },
+  {
+    "code": "TJ-RA-13-10",
+    "parent": "TJ-RA-13",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чашмасор",
+      "tg": "Чашмасор",
+      "en": "Chashmasor"
+    },
+    "centroid": [68.20642, 38.56893]
+  },
+  {
+    "code": "TJ-RA-13-11",
+    "parent": "TJ-RA-13",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сангистон",
+      "tg": "Сангистон",
+      "en": "Sangiston"
+    },
+    "centroid": [68.45065, 38.56009]
+  },
+  {
+    "code": "TJ-RA-13-12",
+    "parent": "TJ-RA-13",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Шуробод",
+      "tg": "Шуробод",
+      "en": "Shurobod"
+    },
+    "centroid": [68.23077, 38.54189]
+  },
+  {
+    "code": "TJ-RA-13-13",
+    "parent": "TJ-RA-13",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Пушти Бог",
+      "tg": "Пушти Бог",
+      "en": "Pushti Bog"
+    },
+    "centroid": [68.34335, 38.61676]
+  },
+  {
+    "code": "TJ-RA-13-14",
+    "parent": "TJ-RA-13",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Мехнатобод",
+      "tg": "Мехнатобод",
+      "en": "Mekhnatobod"
+    },
+    "centroid": [68.26084, 38.61943]
+  },
+  {
+    "code": "TJ-SU-01-01",
+    "parent": "TJ-SU-01",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сари Осиё",
+      "tg": "Сари Осиё",
+      "en": "Sari Osiyo"
+    },
+    "centroid": [69.59391, 40.30359]
+  },
+  {
+    "code": "TJ-SU-01-02",
+    "parent": "TJ-SU-01",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Шуробод",
+      "tg": "Шуробод",
+      "en": "Shurobod"
+    },
+    "centroid": [69.56946, 40.30685]
+  },
+  {
+    "code": "TJ-SU-01-03",
+    "parent": "TJ-SU-01",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Дехибаланд",
+      "tg": "Дехибаланд",
+      "en": "Dekhibaland"
+    },
+    "centroid": [69.64285, 40.29343]
+  },
+  {
+    "code": "TJ-SU-01-04",
+    "parent": "TJ-SU-01",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чукурак",
+      "tg": "Чукурак",
+      "en": "Chukurak"
+    },
+    "centroid": [69.66773, 40.30888]
+  },
+  {
+    "code": "TJ-SU-01-05",
+    "parent": "TJ-SU-01",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Работ",
+      "tg": "Работ",
+      "en": "Rabot"
+    },
+    "centroid": [69.6259, 40.28863]
+  },
+  {
+    "code": "TJ-SU-01-06",
+    "parent": "TJ-SU-01",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Бустонобод",
+      "tg": "Бустонобод",
+      "en": "Bustonobod"
+    },
+    "centroid": [69.6779, 40.26494]
+  },
+  {
+    "code": "TJ-SU-01-07",
+    "parent": "TJ-SU-01",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Тутзор",
+      "tg": "Тутзор",
+      "en": "Tutzor"
+    },
+    "centroid": [69.59687, 40.30015]
+  },
+  {
+    "code": "TJ-SU-01-08",
+    "parent": "TJ-SU-01",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обиборик",
+      "tg": "Обиборик",
+      "en": "Obiborik"
+    },
+    "centroid": [69.64522, 40.32013]
+  },
+  {
+    "code": "TJ-SU-01-09",
+    "parent": "TJ-SU-01",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сафедоб",
+      "tg": "Сафедоб",
+      "en": "Safedob"
+    },
+    "centroid": [69.56086, 40.28848]
+  },
+  {
+    "code": "TJ-SU-01-10",
+    "parent": "TJ-SU-01",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Гулшан",
+      "tg": "Гулшан",
+      "en": "Gulshan"
+    },
+    "centroid": [69.59852, 40.24887]
+  },
+  {
+    "code": "TJ-SU-02-01",
+    "parent": "TJ-SU-02",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Шуробод",
+      "tg": "Шуробод",
+      "en": "Shurobod"
+    },
+    "centroid": [69.70355, 40.25255]
+  },
+  {
+    "code": "TJ-SU-02-02",
+    "parent": "TJ-SU-02",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сари Осиё",
+      "tg": "Сари Осиё",
+      "en": "Sari Osiyo"
+    },
+    "centroid": [69.72318, 40.23115]
+  },
+  {
+    "code": "TJ-SU-02-03",
+    "parent": "TJ-SU-02",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Навобод",
+      "tg": "Навобод",
+      "en": "Navobod"
+    },
+    "centroid": [69.68103, 40.2103]
+  },
+  {
+    "code": "TJ-SU-02-04",
+    "parent": "TJ-SU-02",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Хасанобод",
+      "tg": "Хасанобод",
+      "en": "Khasanobod"
+    },
+    "centroid": [69.66481, 40.23216]
+  },
+  {
+    "code": "TJ-SU-02-05",
+    "parent": "TJ-SU-02",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сангистон",
+      "tg": "Сангистон",
+      "en": "Sangiston"
+    },
+    "centroid": [69.68111, 40.23327]
+  },
+  {
+    "code": "TJ-SU-02-06",
+    "parent": "TJ-SU-02",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сарчашма",
+      "tg": "Сарчашма",
+      "en": "Sarchashma"
+    },
+    "centroid": [69.72045, 40.21697]
+  },
+  {
+    "code": "TJ-SU-03-01",
+    "parent": "TJ-SU-03",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Мехнатобод",
+      "tg": "Мехнатобод",
+      "en": "Mekhnatobod"
+    },
+    "centroid": [69.81765, 40.25447]
+  },
+  {
+    "code": "TJ-SU-03-02",
+    "parent": "TJ-SU-03",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Нуристон",
+      "tg": "Нуристон",
+      "en": "Nuriston"
+    },
+    "centroid": [69.78082, 40.23427]
+  },
+  {
+    "code": "TJ-SU-03-03",
+    "parent": "TJ-SU-03",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Шарора",
+      "tg": "Шарора",
+      "en": "Sharora"
+    },
+    "centroid": [69.8245, 40.26987]
+  },
+  {
+    "code": "TJ-SU-03-04",
+    "parent": "TJ-SU-03",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Дехибаланд",
+      "tg": "Дехибаланд",
+      "en": "Dekhibaland"
+    },
+    "centroid": [69.86669, 40.27207]
+  },
+  {
+    "code": "TJ-SU-03-05",
+    "parent": "TJ-SU-03",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чорсу",
+      "tg": "Чорсу",
+      "en": "Chorsu"
+    },
+    "centroid": [69.80332, 40.28139]
+  },
+  {
+    "code": "TJ-SU-03-06",
+    "parent": "TJ-SU-03",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Пахтаобод",
+      "tg": "Пахтаобод",
+      "en": "Pakhtaobod"
+    },
+    "centroid": [69.83586, 40.25452]
+  },
+  {
+    "code": "TJ-SU-04-01",
+    "parent": "TJ-SU-04",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Пахтаобод",
+      "tg": "Пахтаобод",
+      "en": "Pakhtaobod"
+    },
+    "centroid": [68.91061, 39.98815]
+  },
+  {
+    "code": "TJ-SU-04-02",
+    "parent": "TJ-SU-04",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Янгиобод",
+      "tg": "Янгиобод",
+      "en": "Yangiobod"
+    },
+    "centroid": [69.10139, 39.83812]
+  },
+  {
+    "code": "TJ-SU-04-03",
+    "parent": "TJ-SU-04",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сангистон",
+      "tg": "Сангистон",
+      "en": "Sangiston"
+    },
+    "centroid": [69.07137, 40.01902]
+  },
+  {
+    "code": "TJ-SU-04-04",
+    "parent": "TJ-SU-04",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чашмасор",
+      "tg": "Чашмасор",
+      "en": "Chashmasor"
+    },
+    "centroid": [68.93483, 39.87904]
+  },
+  {
+    "code": "TJ-SU-04-05",
+    "parent": "TJ-SU-04",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Бахористон",
+      "tg": "Бахористон",
+      "en": "Bakhoriston"
+    },
+    "centroid": [68.93363, 39.84966]
+  },
+  {
+    "code": "TJ-SU-04-06",
+    "parent": "TJ-SU-04",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обиравшан",
+      "tg": "Обиравшан",
+      "en": "Obiravshan"
+    },
+    "centroid": [68.87461, 39.8542]
+  },
+  {
+    "code": "TJ-SU-04-07",
+    "parent": "TJ-SU-04",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Ором",
+      "tg": "Ором",
+      "en": "Orom"
+    },
+    "centroid": [68.87403, 39.85168]
+  },
+  {
+    "code": "TJ-SU-04-08",
+    "parent": "TJ-SU-04",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чинор",
+      "tg": "Чинор",
+      "en": "Chinor"
+    },
+    "centroid": [69.07108, 40.00336]
+  },
+  {
+    "code": "TJ-SU-04-09",
+    "parent": "TJ-SU-04",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Шуробод",
+      "tg": "Шуробод",
+      "en": "Shurobod"
+    },
+    "centroid": [68.86465, 39.85155]
+  },
+  {
+    "code": "TJ-SU-04-10",
+    "parent": "TJ-SU-04",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сафедоб",
+      "tg": "Сафедоб",
+      "en": "Safedob"
+    },
+    "centroid": [69.07047, 39.80252]
+  },
+  {
+    "code": "TJ-SU-04-11",
+    "parent": "TJ-SU-04",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Нурафшон",
+      "tg": "Нурафшон",
+      "en": "Nurafshon"
+    },
+    "centroid": [69.02184, 40.04712]
+  },
+  {
+    "code": "TJ-SU-05-01",
+    "parent": "TJ-SU-05",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Бодомзор",
+      "tg": "Бодомзор",
+      "en": "Bodomzor"
+    },
+    "centroid": [69.62505, 40.56152]
+  },
+  {
+    "code": "TJ-SU-05-02",
+    "parent": "TJ-SU-05",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обиборик",
+      "tg": "Обиборик",
+      "en": "Obiborik"
+    },
+    "centroid": [69.64521, 40.58898]
+  },
+  {
+    "code": "TJ-SU-05-03",
+    "parent": "TJ-SU-05",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чорбог",
+      "tg": "Чорбог",
+      "en": "Chorbog"
+    },
+    "centroid": [69.62432, 40.53295]
+  },
+  {
+    "code": "TJ-SU-05-04",
+    "parent": "TJ-SU-05",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Гулобод",
+      "tg": "Гулобод",
+      "en": "Gulobod"
+    },
+    "centroid": [69.63512, 40.59792]
+  },
+  {
+    "code": "TJ-SU-05-05",
+    "parent": "TJ-SU-05",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Саидобод",
+      "tg": "Саидобод",
+      "en": "Saidobod"
+    },
+    "centroid": [69.6435, 40.5582]
+  },
+  {
+    "code": "TJ-SU-06-01",
+    "parent": "TJ-SU-06",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Янгиобод",
+      "tg": "Янгиобод",
+      "en": "Yangiobod"
+    },
+    "centroid": [70.59383, 40.2039]
+  },
+  {
+    "code": "TJ-SU-06-02",
+    "parent": "TJ-SU-06",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Гулобод",
+      "tg": "Гулобод",
+      "en": "Gulobod"
+    },
+    "centroid": [70.55973, 40.12402]
+  },
+  {
+    "code": "TJ-SU-06-03",
+    "parent": "TJ-SU-06",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чукурак",
+      "tg": "Чукурак",
+      "en": "Chukurak"
+    },
+    "centroid": [70.50341, 40.02019]
+  },
+  {
+    "code": "TJ-SU-06-04",
+    "parent": "TJ-SU-06",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Гулшан",
+      "tg": "Гулшан",
+      "en": "Gulshan"
+    },
+    "centroid": [70.6388, 40.08661]
+  },
+  {
+    "code": "TJ-SU-06-05",
+    "parent": "TJ-SU-06",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Равшан",
+      "tg": "Равшан",
+      "en": "Ravshan"
+    },
+    "centroid": [70.50226, 40.15803]
+  },
+  {
+    "code": "TJ-SU-06-06",
+    "parent": "TJ-SU-06",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Навдонак",
+      "tg": "Навдонак",
+      "en": "Navdonak"
+    },
+    "centroid": [70.71137, 40.23373]
+  },
+  {
+    "code": "TJ-SU-06-07",
+    "parent": "TJ-SU-06",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чорсу",
+      "tg": "Чорсу",
+      "en": "Chorsu"
+    },
+    "centroid": [70.65886, 40.25418]
+  },
+  {
+    "code": "TJ-SU-06-08",
+    "parent": "TJ-SU-06",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Шуробод",
+      "tg": "Шуробод",
+      "en": "Shurobod"
+    },
+    "centroid": [70.45028, 40.07649]
+  },
+  {
+    "code": "TJ-SU-06-09",
+    "parent": "TJ-SU-06",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Кушкак",
+      "tg": "Кушкак",
+      "en": "Kushkak"
+    },
+    "centroid": [70.48951, 40.11232]
+  },
+  {
+    "code": "TJ-SU-06-10",
+    "parent": "TJ-SU-06",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обшорон",
+      "tg": "Обшорон",
+      "en": "Obshoron"
+    },
+    "centroid": [70.73012, 40.00344]
+  },
+  {
+    "code": "TJ-SU-06-11",
+    "parent": "TJ-SU-06",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Лолазор",
+      "tg": "Лолазор",
+      "en": "Lolazor"
+    },
+    "centroid": [70.64944, 40.23515]
+  },
+  {
+    "code": "TJ-SU-06-12",
+    "parent": "TJ-SU-06",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Калъаи Нав",
+      "tg": "Калъаи Нав",
+      "en": "Kal'ai Nav"
+    },
+    "centroid": [70.68109, 40.09499]
+  },
+  {
+    "code": "TJ-SU-07-01",
+    "parent": "TJ-SU-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сомон",
+      "tg": "Сомон",
+      "en": "Somon"
+    },
+    "centroid": [70.35131, 40.19586]
+  },
+  {
+    "code": "TJ-SU-07-02",
+    "parent": "TJ-SU-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Бустонобод",
+      "tg": "Бустонобод",
+      "en": "Bustonobod"
+    },
+    "centroid": [70.44143, 40.25511]
+  },
+  {
+    "code": "TJ-SU-07-03",
+    "parent": "TJ-SU-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Тагоб",
+      "tg": "Тагоб",
+      "en": "Tagob"
+    },
+    "centroid": [70.42028, 40.21639]
+  },
+  {
+    "code": "TJ-SU-07-04",
+    "parent": "TJ-SU-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Зарнисор",
+      "tg": "Зарнисор",
+      "en": "Zarnisor"
+    },
+    "centroid": [70.41418, 40.19411]
+  },
+  {
+    "code": "TJ-SU-07-05",
+    "parent": "TJ-SU-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чашмасор",
+      "tg": "Чашмасор",
+      "en": "Chashmasor"
+    },
+    "centroid": [70.52339, 40.26176]
+  },
+  {
+    "code": "TJ-SU-07-06",
+    "parent": "TJ-SU-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Шарора",
+      "tg": "Шарора",
+      "en": "Sharora"
+    },
+    "centroid": [70.41725, 40.34131]
+  },
+  {
+    "code": "TJ-SU-07-07",
+    "parent": "TJ-SU-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обшорон",
+      "tg": "Обшорон",
+      "en": "Obshoron"
+    },
+    "centroid": [70.35849, 40.36315]
+  },
+  {
+    "code": "TJ-SU-07-08",
+    "parent": "TJ-SU-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Дехибаланд",
+      "tg": "Дехибаланд",
+      "en": "Dekhibaland"
+    },
+    "centroid": [70.47658, 40.32659]
+  },
+  {
+    "code": "TJ-SU-07-09",
+    "parent": "TJ-SU-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Янгиобод",
+      "tg": "Янгиобод",
+      "en": "Yangiobod"
+    },
+    "centroid": [70.50379, 40.34913]
+  },
+  {
+    "code": "TJ-SU-07-10",
+    "parent": "TJ-SU-07",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Хасанобод",
+      "tg": "Хасанобод",
+      "en": "Khasanobod"
+    },
+    "centroid": [70.53962, 40.24761]
+  },
+  {
+    "code": "TJ-SU-08-01",
+    "parent": "TJ-SU-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Себистон",
+      "tg": "Себистон",
+      "en": "Sebiston"
+    },
+    "centroid": [67.76303, 39.51693]
+  },
+  {
+    "code": "TJ-SU-08-02",
+    "parent": "TJ-SU-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чинорзор",
+      "tg": "Чинорзор",
+      "en": "Chinorzor"
+    },
+    "centroid": [67.65763, 39.36062]
+  },
+  {
+    "code": "TJ-SU-08-03",
+    "parent": "TJ-SU-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Дахана",
+      "tg": "Дахана",
+      "en": "Dakhana"
+    },
+    "centroid": [67.88287, 39.43295]
+  },
+  {
+    "code": "TJ-SU-08-04",
+    "parent": "TJ-SU-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Навобод",
+      "tg": "Навобод",
+      "en": "Navobod"
+    },
+    "centroid": [67.64248, 39.33433]
+  },
+  {
+    "code": "TJ-SU-08-05",
+    "parent": "TJ-SU-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Навруз",
+      "tg": "Навруз",
+      "en": "Navruz"
+    },
+    "centroid": [67.61579, 39.32516]
+  },
+  {
+    "code": "TJ-SU-08-06",
+    "parent": "TJ-SU-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Калъаи Нав",
+      "tg": "Калъаи Нав",
+      "en": "Kal'ai Nav"
+    },
+    "centroid": [67.70129, 39.61344]
+  },
+  {
+    "code": "TJ-SU-08-07",
+    "parent": "TJ-SU-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Равшан",
+      "tg": "Равшан",
+      "en": "Ravshan"
+    },
+    "centroid": [67.50967, 39.44564]
+  },
+  {
+    "code": "TJ-SU-08-08",
+    "parent": "TJ-SU-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Ватан",
+      "tg": "Ватан",
+      "en": "Vatan"
+    },
+    "centroid": [67.60632, 39.45121]
+  },
+  {
+    "code": "TJ-SU-08-09",
+    "parent": "TJ-SU-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Гулобод",
+      "tg": "Гулобод",
+      "en": "Gulobod"
+    },
+    "centroid": [67.66278, 39.42886]
+  },
+  {
+    "code": "TJ-SU-08-10",
+    "parent": "TJ-SU-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Кунчи Боло",
+      "tg": "Кунчи Боло",
+      "en": "Kunchi Bolo"
+    },
+    "centroid": [67.5039, 39.50606]
+  },
+  {
+    "code": "TJ-SU-08-11",
+    "parent": "TJ-SU-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сомон",
+      "tg": "Сомон",
+      "en": "Somon"
+    },
+    "centroid": [67.57551, 39.33344]
+  },
+  {
+    "code": "TJ-SU-08-12",
+    "parent": "TJ-SU-08",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Работ",
+      "tg": "Работ",
+      "en": "Rabot"
+    },
+    "centroid": [67.63081, 39.39633]
+  },
+  {
+    "code": "TJ-SU-09-01",
+    "parent": "TJ-SU-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Пушти Бог",
+      "tg": "Пушти Бог",
+      "en": "Pushti Bog"
+    },
+    "centroid": [68.61267, 39.36488]
+  },
+  {
+    "code": "TJ-SU-09-02",
+    "parent": "TJ-SU-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Зарнисор",
+      "tg": "Зарнисор",
+      "en": "Zarnisor"
+    },
+    "centroid": [68.33856, 39.48468]
+  },
+  {
+    "code": "TJ-SU-09-03",
+    "parent": "TJ-SU-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Тагоб",
+      "tg": "Тагоб",
+      "en": "Tagob"
+    },
+    "centroid": [68.38345, 39.28647]
+  },
+  {
+    "code": "TJ-SU-09-04",
+    "parent": "TJ-SU-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Нуристон",
+      "tg": "Нуристон",
+      "en": "Nuriston"
+    },
+    "centroid": [68.23519, 39.43071]
+  },
+  {
+    "code": "TJ-SU-09-05",
+    "parent": "TJ-SU-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Бустонобод",
+      "tg": "Бустонобод",
+      "en": "Bustonobod"
+    },
+    "centroid": [68.8072, 39.39459]
+  },
+  {
+    "code": "TJ-SU-09-06",
+    "parent": "TJ-SU-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чорбог",
+      "tg": "Чорбог",
+      "en": "Chorbog"
+    },
+    "centroid": [68.64835, 39.4581]
+  },
+  {
+    "code": "TJ-SU-09-07",
+    "parent": "TJ-SU-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Лолазор",
+      "tg": "Лолазор",
+      "en": "Lolazor"
+    },
+    "centroid": [68.38676, 39.51876]
+  },
+  {
+    "code": "TJ-SU-09-08",
+    "parent": "TJ-SU-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Кушкак",
+      "tg": "Кушкак",
+      "en": "Kushkak"
+    },
+    "centroid": [68.71781, 39.35463]
+  },
+  {
+    "code": "TJ-SU-09-09",
+    "parent": "TJ-SU-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Олимобод",
+      "tg": "Олимобод",
+      "en": "Olimobod"
+    },
+    "centroid": [68.26148, 39.49044]
+  },
+  {
+    "code": "TJ-SU-09-10",
+    "parent": "TJ-SU-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Мазор",
+      "tg": "Мазор",
+      "en": "Mazor"
+    },
+    "centroid": [68.77443, 39.231]
+  },
+  {
+    "code": "TJ-SU-09-11",
+    "parent": "TJ-SU-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обиравшан",
+      "tg": "Обиравшан",
+      "en": "Obiravshan"
+    },
+    "centroid": [68.71319, 39.37085]
+  },
+  {
+    "code": "TJ-SU-09-12",
+    "parent": "TJ-SU-09",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Калъача",
+      "tg": "Калъача",
+      "en": "Kal'acha"
+    },
+    "centroid": [68.53054, 39.60127]
+  },
+  {
+    "code": "TJ-SU-10-01",
+    "parent": "TJ-SU-10",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Равшан",
+      "tg": "Равшан",
+      "en": "Ravshan"
+    },
+    "centroid": [69.97972, 40.70572]
+  },
+  {
+    "code": "TJ-SU-10-02",
+    "parent": "TJ-SU-10",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чорбог",
+      "tg": "Чорбог",
+      "en": "Chorbog"
+    },
+    "centroid": [70.03831, 40.66496]
+  },
+  {
+    "code": "TJ-SU-10-03",
+    "parent": "TJ-SU-10",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Лолазор",
+      "tg": "Лолазор",
+      "en": "Lolazor"
+    },
+    "centroid": [70.00368, 40.73411]
+  },
+  {
+    "code": "TJ-SU-10-04",
+    "parent": "TJ-SU-10",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Дахана",
+      "tg": "Дахана",
+      "en": "Dakhana"
+    },
+    "centroid": [70.37444, 40.70924]
+  },
+  {
+    "code": "TJ-SU-10-05",
+    "parent": "TJ-SU-10",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чорсу",
+      "tg": "Чорсу",
+      "en": "Chorsu"
+    },
+    "centroid": [70.16085, 40.59828]
+  },
+  {
+    "code": "TJ-SU-10-06",
+    "parent": "TJ-SU-10",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Шуробод",
+      "tg": "Шуробод",
+      "en": "Shurobod"
+    },
+    "centroid": [70.32028, 40.59585]
+  },
+  {
+    "code": "TJ-SU-10-07",
+    "parent": "TJ-SU-10",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Гулобод",
+      "tg": "Гулобод",
+      "en": "Gulobod"
+    },
+    "centroid": [70.14667, 40.81289]
+  },
+  {
+    "code": "TJ-SU-10-08",
+    "parent": "TJ-SU-10",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чинор",
+      "tg": "Чинор",
+      "en": "Chinor"
+    },
+    "centroid": [70.05029, 40.80655]
+  },
+  {
+    "code": "TJ-SU-10-09",
+    "parent": "TJ-SU-10",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Дехибаланд",
+      "tg": "Дехибаланд",
+      "en": "Dekhibaland"
+    },
+    "centroid": [70.20613, 40.64093]
+  },
+  {
+    "code": "TJ-SU-10-10",
+    "parent": "TJ-SU-10",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Ватан",
+      "tg": "Ватан",
+      "en": "Vatan"
+    },
+    "centroid": [70.08283, 40.58403]
+  },
+  {
+    "code": "TJ-SU-10-11",
+    "parent": "TJ-SU-10",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Хасанобод",
+      "tg": "Хасанобод",
+      "en": "Khasanobod"
+    },
+    "centroid": [70.25112, 40.7803]
+  },
+  {
+    "code": "TJ-SU-10-12",
+    "parent": "TJ-SU-10",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Пахтаобод",
+      "tg": "Пахтаобод",
+      "en": "Pakhtaobod"
+    },
+    "centroid": [70.32378, 40.75527]
+  },
+  {
+    "code": "TJ-SU-10-13",
+    "parent": "TJ-SU-10",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Шарора",
+      "tg": "Шарора",
+      "en": "Sharora"
+    },
+    "centroid": [70.1993, 40.64892]
+  },
+  {
+    "code": "TJ-SU-10-14",
+    "parent": "TJ-SU-10",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Нуристон",
+      "tg": "Нуристон",
+      "en": "Nuriston"
+    },
+    "centroid": [70.30827, 40.70794]
+  },
+  {
+    "code": "TJ-SU-10-15",
+    "parent": "TJ-SU-10",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сомон",
+      "tg": "Сомон",
+      "en": "Somon"
+    },
+    "centroid": [70.36904, 40.73414]
+  },
+  {
+    "code": "TJ-SU-10-16",
+    "parent": "TJ-SU-10",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обиравшан",
+      "tg": "Обиравшан",
+      "en": "Obiravshan"
+    },
+    "centroid": [70.13385, 40.555]
+  },
+  {
+    "code": "TJ-SU-11-01",
+    "parent": "TJ-SU-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Мазор",
+      "tg": "Мазор",
+      "en": "Mazor"
+    },
+    "centroid": [69.80008, 40.17546]
+  },
+  {
+    "code": "TJ-SU-11-02",
+    "parent": "TJ-SU-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Нуристон",
+      "tg": "Нуристон",
+      "en": "Nuriston"
+    },
+    "centroid": [69.83917, 40.19858]
+  },
+  {
+    "code": "TJ-SU-11-03",
+    "parent": "TJ-SU-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Лолазор",
+      "tg": "Лолазор",
+      "en": "Lolazor"
+    },
+    "centroid": [69.77638, 40.23332]
+  },
+  {
+    "code": "TJ-SU-11-04",
+    "parent": "TJ-SU-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Гулшан",
+      "tg": "Гулшан",
+      "en": "Gulshan"
+    },
+    "centroid": [69.7887, 40.04086]
+  },
+  {
+    "code": "TJ-SU-11-05",
+    "parent": "TJ-SU-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Мехнатобод",
+      "tg": "Мехнатобод",
+      "en": "Mekhnatobod"
+    },
+    "centroid": [69.69449, 40.2136]
+  },
+  {
+    "code": "TJ-SU-11-06",
+    "parent": "TJ-SU-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сарчашма",
+      "tg": "Сарчашма",
+      "en": "Sarchashma"
+    },
+    "centroid": [69.76914, 40.14683]
+  },
+  {
+    "code": "TJ-SU-11-07",
+    "parent": "TJ-SU-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Тагоб",
+      "tg": "Тагоб",
+      "en": "Tagob"
+    },
+    "centroid": [69.77681, 40.1954]
+  },
+  {
+    "code": "TJ-SU-11-08",
+    "parent": "TJ-SU-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Янгиобод",
+      "tg": "Янгиобод",
+      "en": "Yangiobod"
+    },
+    "centroid": [69.88018, 40.13604]
+  },
+  {
+    "code": "TJ-SU-11-09",
+    "parent": "TJ-SU-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Кушкак",
+      "tg": "Кушкак",
+      "en": "Kushkak"
+    },
+    "centroid": [69.75408, 40.08348]
+  },
+  {
+    "code": "TJ-SU-11-10",
+    "parent": "TJ-SU-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чинорзор",
+      "tg": "Чинорзор",
+      "en": "Chinorzor"
+    },
+    "centroid": [69.74164, 40.20798]
+  },
+  {
+    "code": "TJ-SU-11-11",
+    "parent": "TJ-SU-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Дехнав",
+      "tg": "Дехнав",
+      "en": "Dekhnav"
+    },
+    "centroid": [69.80158, 40.11823]
+  },
+  {
+    "code": "TJ-SU-11-12",
+    "parent": "TJ-SU-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Дехибаланд",
+      "tg": "Дехибаланд",
+      "en": "Dekhibaland"
+    },
+    "centroid": [69.84186, 40.0665]
+  },
+  {
+    "code": "TJ-SU-11-13",
+    "parent": "TJ-SU-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Пушти Бог",
+      "tg": "Пушти Бог",
+      "en": "Pushti Bog"
+    },
+    "centroid": [69.80348, 40.04918]
+  },
+  {
+    "code": "TJ-SU-11-14",
+    "parent": "TJ-SU-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Кунчи Боло",
+      "tg": "Кунчи Боло",
+      "en": "Kunchi Bolo"
+    },
+    "centroid": [69.74704, 40.26812]
+  },
+  {
+    "code": "TJ-SU-11-15",
+    "parent": "TJ-SU-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Калъача",
+      "tg": "Калъача",
+      "en": "Kal'acha"
+    },
+    "centroid": [69.63956, 40.15479]
+  },
+  {
+    "code": "TJ-SU-11-16",
+    "parent": "TJ-SU-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Дахана",
+      "tg": "Дахана",
+      "en": "Dakhana"
+    },
+    "centroid": [69.76334, 40.17439]
+  },
+  {
+    "code": "TJ-SU-11-17",
+    "parent": "TJ-SU-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чашмасор",
+      "tg": "Чашмасор",
+      "en": "Chashmasor"
+    },
+    "centroid": [69.64276, 40.10906]
+  },
+  {
+    "code": "TJ-SU-11-18",
+    "parent": "TJ-SU-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обиборик",
+      "tg": "Обиборик",
+      "en": "Obiborik"
+    },
+    "centroid": [69.86114, 40.12383]
+  },
+  {
+    "code": "TJ-SU-11-19",
+    "parent": "TJ-SU-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Шарора",
+      "tg": "Шарора",
+      "en": "Sharora"
+    },
+    "centroid": [69.70378, 40.13061]
+  },
+  {
+    "code": "TJ-SU-11-20",
+    "parent": "TJ-SU-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чукурак",
+      "tg": "Чукурак",
+      "en": "Chukurak"
+    },
+    "centroid": [69.72029, 40.16189]
+  },
+  {
+    "code": "TJ-SU-11-21",
+    "parent": "TJ-SU-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обшорон",
+      "tg": "Обшорон",
+      "en": "Obshoron"
+    },
+    "centroid": [69.66799, 40.20563]
+  },
+  {
+    "code": "TJ-SU-11-22",
+    "parent": "TJ-SU-11",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чинор",
+      "tg": "Чинор",
+      "en": "Chinor"
+    },
+    "centroid": [69.72501, 40.26613]
+  },
+  {
+    "code": "TJ-SU-12-01",
+    "parent": "TJ-SU-12",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Работ",
+      "tg": "Работ",
+      "en": "Rabot"
+    },
+    "centroid": [69.21899, 39.45092]
+  },
+  {
+    "code": "TJ-SU-12-02",
+    "parent": "TJ-SU-12",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чашмасор",
+      "tg": "Чашмасор",
+      "en": "Chashmasor"
+    },
+    "centroid": [69.51135, 39.24353]
+  },
+  {
+    "code": "TJ-SU-12-03",
+    "parent": "TJ-SU-12",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сарчашма",
+      "tg": "Сарчашма",
+      "en": "Sarchashma"
+    },
+    "centroid": [69.63764, 39.29657]
+  },
+  {
+    "code": "TJ-SU-12-04",
+    "parent": "TJ-SU-12",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Себистон",
+      "tg": "Себистон",
+      "en": "Sebiston"
+    },
+    "centroid": [69.58215, 39.44409]
+  },
+  {
+    "code": "TJ-SU-12-05",
+    "parent": "TJ-SU-12",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Навруз",
+      "tg": "Навруз",
+      "en": "Navruz"
+    },
+    "centroid": [69.72175, 39.53771]
+  },
+  {
+    "code": "TJ-SU-12-06",
+    "parent": "TJ-SU-12",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Гулобод",
+      "tg": "Гулобод",
+      "en": "Gulobod"
+    },
+    "centroid": [69.69823, 39.59376]
+  },
+  {
+    "code": "TJ-SU-12-07",
+    "parent": "TJ-SU-12",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Нуристон",
+      "tg": "Нуристон",
+      "en": "Nuriston"
+    },
+    "centroid": [69.55489, 39.47834]
+  },
+  {
+    "code": "TJ-SU-12-08",
+    "parent": "TJ-SU-12",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сафедоб",
+      "tg": "Сафедоб",
+      "en": "Safedob"
+    },
+    "centroid": [69.6309, 39.26583]
+  },
+  {
+    "code": "TJ-SU-12-09",
+    "parent": "TJ-SU-12",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Ватан",
+      "tg": "Ватан",
+      "en": "Vatan"
+    },
+    "centroid": [69.61211, 39.26663]
+  },
+  {
+    "code": "TJ-SU-13-01",
+    "parent": "TJ-SU-13",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Кушкак",
+      "tg": "Кушкак",
+      "en": "Kushkak"
+    },
+    "centroid": [69.17964, 39.66504]
+  },
+  {
+    "code": "TJ-SU-13-02",
+    "parent": "TJ-SU-13",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Саидобод",
+      "tg": "Саидобод",
+      "en": "Saidobod"
+    },
+    "centroid": [68.92224, 39.7973]
+  },
+  {
+    "code": "TJ-SU-13-03",
+    "parent": "TJ-SU-13",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Лангар",
+      "tg": "Лангар",
+      "en": "Langar"
+    },
+    "centroid": [69.18333, 39.74605]
+  },
+  {
+    "code": "TJ-SU-13-04",
+    "parent": "TJ-SU-13",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Ватан",
+      "tg": "Ватан",
+      "en": "Vatan"
+    },
+    "centroid": [69.21178, 39.66078]
+  },
+  {
+    "code": "TJ-SU-13-05",
+    "parent": "TJ-SU-13",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Шарора",
+      "tg": "Шарора",
+      "en": "Sharora"
+    },
+    "centroid": [69.07922, 39.76042]
+  },
+  {
+    "code": "TJ-SU-13-06",
+    "parent": "TJ-SU-13",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Пахтаобод",
+      "tg": "Пахтаобод",
+      "en": "Pakhtaobod"
+    },
+    "centroid": [68.94409, 39.75328]
+  },
+  {
+    "code": "TJ-SU-13-07",
+    "parent": "TJ-SU-13",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сарчашма",
+      "tg": "Сарчашма",
+      "en": "Sarchashma"
+    },
+    "centroid": [69.11705, 39.60378]
+  },
+  {
+    "code": "TJ-SU-13-08",
+    "parent": "TJ-SU-13",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Кунчи Боло",
+      "tg": "Кунчи Боло",
+      "en": "Kunchi Bolo"
+    },
+    "centroid": [68.99436, 39.59097]
+  },
+  {
+    "code": "TJ-SU-13-09",
+    "parent": "TJ-SU-13",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Янгиобод",
+      "tg": "Янгиобод",
+      "en": "Yangiobod"
+    },
+    "centroid": [69.0867, 39.62414]
+  },
+  {
+    "code": "TJ-SU-13-10",
+    "parent": "TJ-SU-13",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Зарнисор",
+      "tg": "Зарнисор",
+      "en": "Zarnisor"
+    },
+    "centroid": [69.18481, 39.66574]
+  },
+  {
+    "code": "TJ-SU-13-11",
+    "parent": "TJ-SU-13",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Хасанобод",
+      "tg": "Хасанобод",
+      "en": "Khasanobod"
+    },
+    "centroid": [69.05379, 39.83181]
+  },
+  {
+    "code": "TJ-SU-13-12",
+    "parent": "TJ-SU-13",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чорбог",
+      "tg": "Чорбог",
+      "en": "Chorbog"
+    },
+    "centroid": [68.91634, 39.7423]
+  },
+  {
+    "code": "TJ-SU-13-13",
+    "parent": "TJ-SU-13",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Бодомзор",
+      "tg": "Бодомзор",
+      "en": "Bodomzor"
+    },
+    "centroid": [68.95362, 39.67636]
+  },
+  {
+    "code": "TJ-SU-13-14",
+    "parent": "TJ-SU-13",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Нурафшон",
+      "tg": "Нурафшон",
+      "en": "Nurafshon"
+    },
+    "centroid": [69.00348, 39.66144]
+  },
+  {
+    "code": "TJ-SU-13-15",
+    "parent": "TJ-SU-13",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чорсу",
+      "tg": "Чорсу",
+      "en": "Chorsu"
+    },
+    "centroid": [69.06261, 39.75505]
+  },
+  {
+    "code": "TJ-SU-13-16",
+    "parent": "TJ-SU-13",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Тутзор",
+      "tg": "Тутзор",
+      "en": "Tutzor"
+    },
+    "centroid": [68.97383, 39.60817]
+  },
+  {
+    "code": "TJ-SU-14-01",
+    "parent": "TJ-SU-14",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чукурак",
+      "tg": "Чукурак",
+      "en": "Chukurak"
+    },
+    "centroid": [69.44921, 40.1122]
+  },
+  {
+    "code": "TJ-SU-14-02",
+    "parent": "TJ-SU-14",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Саидобод",
+      "tg": "Саидобод",
+      "en": "Saidobod"
+    },
+    "centroid": [69.43412, 40.18175]
+  },
+  {
+    "code": "TJ-SU-14-03",
+    "parent": "TJ-SU-14",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Олимобод",
+      "tg": "Олимобод",
+      "en": "Olimobod"
+    },
+    "centroid": [69.44041, 40.0275]
+  },
+  {
+    "code": "TJ-SU-14-04",
+    "parent": "TJ-SU-14",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Кушкак",
+      "tg": "Кушкак",
+      "en": "Kushkak"
+    },
+    "centroid": [69.55786, 40.08208]
+  },
+  {
+    "code": "TJ-SU-14-05",
+    "parent": "TJ-SU-14",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чорбог",
+      "tg": "Чорбог",
+      "en": "Chorbog"
+    },
+    "centroid": [69.53767, 40.07031]
+  },
+  {
+    "code": "TJ-SU-14-06",
+    "parent": "TJ-SU-14",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чинорзор",
+      "tg": "Чинорзор",
+      "en": "Chinorzor"
+    },
+    "centroid": [69.46616, 40.09889]
+  },
+  {
+    "code": "TJ-SU-14-07",
+    "parent": "TJ-SU-14",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Себистон",
+      "tg": "Себистон",
+      "en": "Sebiston"
+    },
+    "centroid": [69.34702, 40.1211]
+  },
+  {
+    "code": "TJ-SU-14-08",
+    "parent": "TJ-SU-14",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Шуробод",
+      "tg": "Шуробод",
+      "en": "Shurobod"
+    },
+    "centroid": [69.37714, 40.02802]
+  },
+  {
+    "code": "TJ-SU-14-09",
+    "parent": "TJ-SU-14",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Янгиобод",
+      "tg": "Янгиобод",
+      "en": "Yangiobod"
+    },
+    "centroid": [69.41143, 40.04739]
+  },
+  {
+    "code": "TJ-SU-14-10",
+    "parent": "TJ-SU-14",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Хасанобод",
+      "tg": "Хасанобод",
+      "en": "Khasanobod"
+    },
+    "centroid": [69.45128, 40.11948]
+  },
+  {
+    "code": "TJ-SU-14-11",
+    "parent": "TJ-SU-14",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Калъача",
+      "tg": "Калъача",
+      "en": "Kal'acha"
+    },
+    "centroid": [69.43166, 40.17672]
+  },
+  {
+    "code": "TJ-SU-14-12",
+    "parent": "TJ-SU-14",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Калъаи Нав",
+      "tg": "Калъаи Нав",
+      "en": "Kal'ai Nav"
+    },
+    "centroid": [69.35825, 40.06374]
+  },
+  {
+    "code": "TJ-SU-14-13",
+    "parent": "TJ-SU-14",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Шарора",
+      "tg": "Шарора",
+      "en": "Sharora"
+    },
+    "centroid": [69.40804, 40.18422]
+  },
+  {
+    "code": "TJ-SU-14-14",
+    "parent": "TJ-SU-14",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Ватан",
+      "tg": "Ватан",
+      "en": "Vatan"
+    },
+    "centroid": [69.53934, 40.10432]
+  },
+  {
+    "code": "TJ-SU-14-15",
+    "parent": "TJ-SU-14",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сафедоб",
+      "tg": "Сафедоб",
+      "en": "Safedob"
+    },
+    "centroid": [69.44179, 40.04778]
+  },
+  {
+    "code": "TJ-SU-15-01",
+    "parent": "TJ-SU-15",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Навобод",
+      "tg": "Навобод",
+      "en": "Navobod"
+    },
+    "centroid": [68.98996, 40.10574]
+  },
+  {
+    "code": "TJ-SU-15-02",
+    "parent": "TJ-SU-15",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сиёхкух",
+      "tg": "Сиёхкух",
+      "en": "Siyokhkukh"
+    },
+    "centroid": [68.77385, 40.04885]
+  },
+  {
+    "code": "TJ-SU-15-03",
+    "parent": "TJ-SU-15",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сари Осиё",
+      "tg": "Сари Осиё",
+      "en": "Sari Osiyo"
+    },
+    "centroid": [68.78718, 40.10051]
+  },
+  {
+    "code": "TJ-SU-15-04",
+    "parent": "TJ-SU-15",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Олимобод",
+      "tg": "Олимобод",
+      "en": "Olimobod"
+    },
+    "centroid": [68.88747, 40.2523]
+  },
+  {
+    "code": "TJ-SU-15-05",
+    "parent": "TJ-SU-15",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чорбог",
+      "tg": "Чорбог",
+      "en": "Chorbog"
+    },
+    "centroid": [68.85101, 40.07109]
+  },
+  {
+    "code": "TJ-SU-15-06",
+    "parent": "TJ-SU-15",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сарчашма",
+      "tg": "Сарчашма",
+      "en": "Sarchashma"
+    },
+    "centroid": [68.75026, 40.11149]
+  },
+  {
+    "code": "TJ-SU-15-07",
+    "parent": "TJ-SU-15",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Гулобод",
+      "tg": "Гулобод",
+      "en": "Gulobod"
+    },
+    "centroid": [68.80498, 40.23869]
+  },
+  {
+    "code": "TJ-SU-15-08",
+    "parent": "TJ-SU-15",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сангистон",
+      "tg": "Сангистон",
+      "en": "Sangiston"
+    },
+    "centroid": [68.73985, 40.14832]
+  },
+  {
+    "code": "TJ-SU-15-09",
+    "parent": "TJ-SU-15",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Навдонак",
+      "tg": "Навдонак",
+      "en": "Navdonak"
+    },
+    "centroid": [68.8158, 40.15305]
+  },
+  {
+    "code": "TJ-SU-15-10",
+    "parent": "TJ-SU-15",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Дехибаланд",
+      "tg": "Дехибаланд",
+      "en": "Dekhibaland"
+    },
+    "centroid": [68.92541, 40.14525]
+  },
+  {
+    "code": "TJ-SU-15-11",
+    "parent": "TJ-SU-15",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Бустонобод",
+      "tg": "Бустонобод",
+      "en": "Bustonobod"
+    },
+    "centroid": [68.91223, 40.18905]
+  },
+  {
+    "code": "TJ-SU-15-12",
+    "parent": "TJ-SU-15",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чукурак",
+      "tg": "Чукурак",
+      "en": "Chukurak"
+    },
+    "centroid": [68.93276, 40.13143]
+  },
+  {
+    "code": "TJ-SU-16-01",
+    "parent": "TJ-SU-16",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Кушкак",
+      "tg": "Кушкак",
+      "en": "Kushkak"
+    },
+    "centroid": [68.99502, 40.32316]
+  },
+  {
+    "code": "TJ-SU-16-02",
+    "parent": "TJ-SU-16",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обшорон",
+      "tg": "Обшорон",
+      "en": "Obshoron"
+    },
+    "centroid": [69.05015, 40.51844]
+  },
+  {
+    "code": "TJ-SU-16-03",
+    "parent": "TJ-SU-16",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Нурафшон",
+      "tg": "Нурафшон",
+      "en": "Nurafshon"
+    },
+    "centroid": [69.13928, 40.356]
+  },
+  {
+    "code": "TJ-SU-16-04",
+    "parent": "TJ-SU-16",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Зарнисор",
+      "tg": "Зарнисор",
+      "en": "Zarnisor"
+    },
+    "centroid": [69.09543, 40.48822]
+  },
+  {
+    "code": "TJ-SU-16-05",
+    "parent": "TJ-SU-16",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Ором",
+      "tg": "Ором",
+      "en": "Orom"
+    },
+    "centroid": [68.90719, 40.4215]
+  },
+  {
+    "code": "TJ-SU-16-06",
+    "parent": "TJ-SU-16",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Янгиобод",
+      "tg": "Янгиобод",
+      "en": "Yangiobod"
+    },
+    "centroid": [69.12212, 40.46637]
+  },
+  {
+    "code": "TJ-SU-16-07",
+    "parent": "TJ-SU-16",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Олимобод",
+      "tg": "Олимобод",
+      "en": "Olimobod"
+    },
+    "centroid": [68.9437, 40.44676]
+  },
+  {
+    "code": "TJ-SU-16-08",
+    "parent": "TJ-SU-16",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сарчашма",
+      "tg": "Сарчашма",
+      "en": "Sarchashma"
+    },
+    "centroid": [68.97194, 40.42889]
+  },
+  {
+    "code": "TJ-SU-16-09",
+    "parent": "TJ-SU-16",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Бодомзор",
+      "tg": "Бодомзор",
+      "en": "Bodomzor"
+    },
+    "centroid": [69.1439, 40.33088]
+  },
+  {
+    "code": "TJ-SU-16-10",
+    "parent": "TJ-SU-16",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Навруз",
+      "tg": "Навруз",
+      "en": "Navruz"
+    },
+    "centroid": [69.11709, 40.5065]
+  },
+  {
+    "code": "TJ-SU-16-11",
+    "parent": "TJ-SU-16",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Шарора",
+      "tg": "Шарора",
+      "en": "Sharora"
+    },
+    "centroid": [69.05161, 40.43326]
+  },
+  {
+    "code": "TJ-SU-16-12",
+    "parent": "TJ-SU-16",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Дехнав",
+      "tg": "Дехнав",
+      "en": "Dekhnav"
+    },
+    "centroid": [69.1316, 40.46127]
+  },
+  {
+    "code": "TJ-SU-16-13",
+    "parent": "TJ-SU-16",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обиборик",
+      "tg": "Обиборик",
+      "en": "Obiborik"
+    },
+    "centroid": [69.06437, 40.32904]
+  },
+  {
+    "code": "TJ-SU-16-14",
+    "parent": "TJ-SU-16",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сомон",
+      "tg": "Сомон",
+      "en": "Somon"
+    },
+    "centroid": [69.09323, 40.42115]
+  },
+  {
+    "code": "TJ-SU-17-01",
+    "parent": "TJ-SU-17",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Бустонобод",
+      "tg": "Бустонобод",
+      "en": "Bustonobod"
+    },
+    "centroid": [69.37666, 40.0726]
+  },
+  {
+    "code": "TJ-SU-17-02",
+    "parent": "TJ-SU-17",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Зарнисор",
+      "tg": "Зарнисор",
+      "en": "Zarnisor"
+    },
+    "centroid": [69.38056, 40.11095]
+  },
+  {
+    "code": "TJ-SU-17-03",
+    "parent": "TJ-SU-17",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Лолазор",
+      "tg": "Лолазор",
+      "en": "Lolazor"
+    },
+    "centroid": [69.31407, 40.07168]
+  },
+  {
+    "code": "TJ-SU-17-04",
+    "parent": "TJ-SU-17",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Дахана",
+      "tg": "Дахана",
+      "en": "Dakhana"
+    },
+    "centroid": [69.30429, 40.1418]
+  },
+  {
+    "code": "TJ-SU-17-05",
+    "parent": "TJ-SU-17",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Навобод",
+      "tg": "Навобод",
+      "en": "Navobod"
+    },
+    "centroid": [69.31142, 40.10946]
+  },
+  {
+    "code": "TJ-SU-17-06",
+    "parent": "TJ-SU-17",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Пушти Бог",
+      "tg": "Пушти Бог",
+      "en": "Pushti Bog"
+    },
+    "centroid": [69.21908, 40.18258]
+  },
+  {
+    "code": "TJ-SU-17-07",
+    "parent": "TJ-SU-17",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Обиборик",
+      "tg": "Обиборик",
+      "en": "Obiborik"
+    },
+    "centroid": [69.27935, 40.13042]
+  },
+  {
+    "code": "TJ-SU-17-08",
+    "parent": "TJ-SU-17",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Гулшан",
+      "tg": "Гулшан",
+      "en": "Gulshan"
+    },
+    "centroid": [69.35522, 40.08458]
+  },
+  {
+    "code": "TJ-SU-17-09",
+    "parent": "TJ-SU-17",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Навруз",
+      "tg": "Навруз",
+      "en": "Navruz"
+    },
+    "centroid": [69.21439, 40.1153]
+  },
+  {
+    "code": "TJ-SU-17-10",
+    "parent": "TJ-SU-17",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Ором",
+      "tg": "Ором",
+      "en": "Orom"
+    },
+    "centroid": [69.21949, 40.14944]
+  },
+  {
+    "code": "TJ-SU-17-11",
+    "parent": "TJ-SU-17",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Ватан",
+      "tg": "Ватан",
+      "en": "Vatan"
+    },
+    "centroid": [69.25568, 40.11266]
+  },
+  {
+    "code": "TJ-SU-17-12",
+    "parent": "TJ-SU-17",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Саидобод",
+      "tg": "Саидобод",
+      "en": "Saidobod"
+    },
+    "centroid": [69.26, 40.10368]
+  },
+  {
+    "code": "TJ-SU-17-13",
+    "parent": "TJ-SU-17",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Лангар",
+      "tg": "Лангар",
+      "en": "Langar"
+    },
+    "centroid": [69.41226, 40.17801]
+  },
+  {
+    "code": "TJ-SU-17-14",
+    "parent": "TJ-SU-17",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Калъача",
+      "tg": "Калъача",
+      "en": "Kal'acha"
+    },
+    "centroid": [69.28307, 40.16386]
+  },
+  {
+    "code": "TJ-SU-17-15",
+    "parent": "TJ-SU-17",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Сомон",
+      "tg": "Сомон",
+      "en": "Somon"
+    },
+    "centroid": [69.27458, 40.07096]
+  },
+  {
+    "code": "TJ-SU-18-01",
+    "parent": "TJ-SU-18",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Янгиобод",
+      "tg": "Янгиобод",
+      "en": "Yangiobod"
+    },
+    "centroid": [68.83636, 39.71263]
+  },
+  {
+    "code": "TJ-SU-18-02",
+    "parent": "TJ-SU-18",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Тутзор",
+      "tg": "Тутзор",
+      "en": "Tutzor"
+    },
+    "centroid": [68.83268, 39.68607]
+  },
+  {
+    "code": "TJ-SU-18-03",
+    "parent": "TJ-SU-18",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Навдонак",
+      "tg": "Навдонак",
+      "en": "Navdonak"
+    },
+    "centroid": [68.98372, 39.71841]
+  },
+  {
+    "code": "TJ-SU-18-04",
+    "parent": "TJ-SU-18",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Нурафшон",
+      "tg": "Нурафшон",
+      "en": "Nurafshon"
+    },
+    "centroid": [68.65156, 39.79553]
+  },
+  {
+    "code": "TJ-SU-18-05",
+    "parent": "TJ-SU-18",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Нуристон",
+      "tg": "Нуристон",
+      "en": "Nuriston"
+    },
+    "centroid": [68.73589, 39.81257]
+  },
+  {
+    "code": "TJ-SU-18-06",
+    "parent": "TJ-SU-18",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Чорсу",
+      "tg": "Чорсу",
+      "en": "Chorsu"
+    },
+    "centroid": [68.79719, 39.83028]
+  },
+  {
+    "code": "TJ-SU-18-07",
+    "parent": "TJ-SU-18",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Кушкак",
+      "tg": "Кушкак",
+      "en": "Kushkak"
+    },
+    "centroid": [68.88247, 39.69165]
+  },
+  {
+    "code": "TJ-SU-18-08",
+    "parent": "TJ-SU-18",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Навобод",
+      "tg": "Навобод",
+      "en": "Navobod"
+    },
+    "centroid": [68.81825, 39.83936]
+  },
+  {
+    "code": "TJ-SU-18-09",
+    "parent": "TJ-SU-18",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Хасанобод",
+      "tg": "Хасанобод",
+      "en": "Khasanobod"
+    },
+    "centroid": [68.92452, 39.70066]
+  },
+  {
+    "code": "TJ-SU-18-10",
+    "parent": "TJ-SU-18",
+    "level": "settlement",
+    "kind": "кишлак",
+    "name": {
+      "ru": "Дехнав",
+      "tg": "Дехнав",
+      "en": "Dekhnav"
+    },
+    "centroid": [68.78195, 39.6491]
+  }
+]
