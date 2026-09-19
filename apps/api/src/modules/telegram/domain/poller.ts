@@ -59,11 +59,13 @@ async function lead(): Promise<void> {
 
   const bot = telegramBot()
   active = bot
-  loop = bot
-    .start({
-      allowed_updates: ['message'],
-      onStart: (info) => logger().info({ bot: info.username }, 'Telegram: опрос запущен'),
-    })
+  loop = connect(bot)
+    .then(() =>
+      bot.start({
+        allowed_updates: ['message'],
+        onStart: (info) => logger().info({ bot: info.username }, 'Telegram: опрос запущен'),
+      }),
+    )
     .catch((error: unknown) => {
       pausedUntil = Date.now() + FAILURE_PAUSE_MS
       logger().error({ err: safeError(error) }, 'Telegram: опрос остановлен ошибкой')
@@ -73,6 +75,16 @@ async function lead(): Promise<void> {
       active = null
       await release()
     })
+}
+
+/**
+ * Знакомство с Bot API (`getMe`) без встроенных повторов grammy: недоступный
+ * API они повторяют молча, удваивая паузу до 20 минут. Здесь сбой уходит в
+ * журнал и в паузу `FAILURE_PAUSE_MS` — опрос возобновится через минуту после
+ * появления связи.
+ */
+async function connect(bot: Bot): Promise<void> {
+  if (!bot.isInited()) bot.botInfo = await bot.api.getMe()
 }
 
 async function stopActive(): Promise<void> {
