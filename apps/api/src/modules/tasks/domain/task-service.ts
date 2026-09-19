@@ -1,4 +1,5 @@
 import {
+  type Confidentiality,
   type Level,
   type TaskCancelInput,
   type TaskCreateInput,
@@ -191,6 +192,11 @@ function storedSource(source: TaskSource | undefined): TaskSourceValue | null {
 export interface CreateOptions {
   /** Автор поручения, если создаёт не он сам (резолюция, протокол, правило, ADR-0082). */
   authorId?: string
+  /**
+   * Гриф поручения (ADR-0084): поручение по резолюции конфиденциального
+   * документа закрыто тем же грифом — уведомления о нём без содержания.
+   */
+  confidentiality?: Confidentiality
 }
 
 /**
@@ -256,6 +262,7 @@ export const TaskService = {
       sourceObjectId: sourceId,
       territoryId,
       parentTaskId: null,
+      ...(options.confidentiality ? { confidentiality: options.confidentiality } : {}),
     }
     return insertTask(tx, ctx, spec)
   },

@@ -1,4 +1,4 @@
-import type { TaskKind, TaskStatus } from '@kchs/contracts'
+import type { Confidentiality, TaskKind, TaskStatus } from '@kchs/contracts'
 import { and, eq, inArray, notInArray, sql } from 'drizzle-orm'
 import { primaryUnitOf } from '~/kernel/access/principal-set.js'
 import { LinkService } from '~/kernel/links/service.js'
@@ -36,6 +36,8 @@ export interface TaskSpec {
   territoryId: string | null
   /** Основное поручение, если это часть соисполнителя. */
   parentTaskId: string | null
+  /** Гриф: поручение по резолюции конфиденциального документа (ADR-0084). */
+  confidentiality?: Confidentiality
 }
 
 /**
@@ -56,6 +58,7 @@ export async function insertTask(tx: Executor, ctx: Ctx, spec: TaskSpec): Promis
     subtitle: key,
     ownerId: spec.authorId,
     accessMode: spec.accessMode,
+    ...(spec.confidentiality ? { confidentiality: spec.confidentiality } : {}),
     meta: metaOf({
       key,
       kind: spec.kind,

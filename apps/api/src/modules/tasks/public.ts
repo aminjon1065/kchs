@@ -5,11 +5,17 @@
  * документа, протоколу, объекту (ADR-0082). Права — у вызываемых служб:
  * источник должен быть виден `ctx`, видимость списков — предикат ядра.
  */
-import { TaskCreateInput, type TaskListItem, type TaskPriority } from '@kchs/contracts'
-import { and, eq } from 'drizzle-orm'
+import {
+  type Confidentiality,
+  TaskCreateInput,
+  type TaskListItem,
+  type TaskPriority,
+} from '@kchs/contracts'
+import { and, eq, inArray, sql } from 'drizzle-orm'
 import type { Ctx } from '~/shared/context.js'
-import type { Executor } from '~/shared/db/client.js'
-import { tasks } from '~/shared/db/schema/index.js'
+import { db, type Executor } from '~/shared/db/client.js'
+import { objects, tasks } from '~/shared/db/schema/index.js'
+import { CLOSED } from './domain/task-core.js'
 import { TaskService } from './domain/task-service.js'
 import { type InstructionSourceStatus, sourceStatus } from './domain/task-source.js'
 
@@ -51,6 +57,8 @@ export interface InstructionInput {
   /** Пространство; по умолчанию — пространство источника. */
   spaceId?: string
   territoryId?: string
+  /** Гриф поручения и частей — гриф источника (резолюция конфиденциального документа). */
+  confidentiality?: Confidentiality
 }
 
 export interface CreatedInstruction {
@@ -86,12 +94,10 @@ export const Instructions = {
       ...(input.spaceId ? { spaceId: input.spaceId } : {}),
       ...(input.territoryId ? { territoryId: input.territoryId } : {}),
     })
-    const id = await TaskService.create(
-      tx,
-      ctx,
-      parsed,
-      input.authorId ? { authorId: input.authorId } : {},
-    )
+    const id = await TaskService.create(tx, ctx, parsed, {
+      ...(input.authorId ? { authorId: input.authorId } : {}),
+      ...(input.confidentiality ? { confidentiality: input.confidentiality } : {}),
+    })
     const rows = await tx
       .select({
         id: tasks.id,
@@ -121,4 +127,24 @@ export const Instructions = {
   /** Поручения источника, видимые `ctx`, — вкладка «Резолюции и поручения». */
   bySource: (ctx: Ctx, sourceObjectId: string): Promise<TaskListItem[]> =>
     TaskService.bySource(ctx, sourceObjectId),
+
+  /**
+   * Сколько поручений из списка (резолюции — основное и части) всего и сколько
+   * ещё открыто — без содержания, в том числе невидимых смотрящему (ADR-0084).
+   */
+  async progress(
+    ids: readonly string[],
+    executor: Executor = db(),
+  ): Promise<{ total: number; open: number }> {
+    if (ids.length === 0) return { total: 0, open: 0 }
+    const rows = await executor
+      .select({ status: tasks.status })
+      .from(tasks)
+      .innerJoin(objects, eq(objects.id, tasks.id))
+      .where(and(inArray(tasks.id, [...ids]), sql`${objects.deletedAt} IS NULL`))
+    return {
+      total: rows.length,
+      open: rows.filter((row) => !(CLOSED as readonly string[]).includes(row.status)).length,
+    }
+  },
 }
