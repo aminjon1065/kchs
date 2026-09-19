@@ -1,6 +1,6 @@
 import type { FieldType, QuerySource } from '@kchs/contracts'
 import type { CompileContext, ResolvedDataset } from '../src/index.js'
-import { ctx, dataset, IDS, incidents, regions } from './fixtures.js'
+import { ctx, dataset, incidents, regions } from './fixtures.js'
 
 /** Датасеты пространственных операций: зоны (полигоны), больницы (точки), дороги (линии). */
 export const SPATIAL_IDS = {
@@ -80,12 +80,6 @@ export function spatialContext(
 export const zonesSource = (alias?: string): QuerySource => ({
   kind: 'dataset',
   id: SPATIAL_IDS.zones,
-  ...(alias ? { alias } : {}),
-})
-
-export const incidentsSource = (alias?: string): QuerySource => ({
-  kind: 'dataset',
-  id: IDS.incidents,
   ...(alias ? { alias } : {}),
 })
 

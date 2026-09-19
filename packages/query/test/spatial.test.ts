@@ -209,10 +209,7 @@ describe('шаг spatial: SQL', () => {
 
   it('имя по умолчанию занято полем данных — с номером', () => {
     const compiled = compile(q(zonesSource(), [spatial('area'), spatial('area')]))
-    expect(compiled.fields.map((field) => field.name).slice(-2)).toEqual([
-      'area_km2',
-      'area_km2_2',
-    ])
+    expect(compiled.fields.map((field) => field.name).slice(-2)).toEqual(['area_km2', 'area_km2_2'])
   })
 
   it('поля результата: подписи и типы добавленных полей', () => {
