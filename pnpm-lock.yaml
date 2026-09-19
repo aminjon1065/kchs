@@ -398,6 +398,9 @@ importers:
       '@kchs/map-style':
         specifier: workspace:*
         version: link:../../packages/map-style
+      '@kchs/process':
+        specifier: workspace:*
+        version: link:../../packages/process
       '@kchs/ui':
         specifier: workspace:*
         version: link:../../packages/ui

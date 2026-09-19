@@ -26,6 +26,8 @@ export type ScreenKey =
   | 'control'
   /** Нагрузка: люди × недели (ADR-0082). */
   | 'workload'
+  /** Конструктор маршрута процесса (ADR-0087): параметр `key`. */
+  | 'process-designer'
 
 export interface TabState {
   id: string

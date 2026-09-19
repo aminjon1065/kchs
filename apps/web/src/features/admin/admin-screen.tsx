@@ -40,6 +40,7 @@ import {
   Map as MapIcon,
   Megaphone,
   Plus,
+  Route,
   ScrollText,
   Search,
   Server,
@@ -51,6 +52,7 @@ import {
 import { type ReactNode, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
+import { ProcessesSection } from '~/features/processes/processes-section.js'
 import {
   auditQuery,
   healthQuery,
@@ -83,6 +85,7 @@ type Section =
   | 'audit'
   | 'security'
   | 'tasks'
+  | 'processes'
 
 /**
  * Консоль администрирования (15-admin-operations.md §1): разделы — вертикальные
@@ -97,6 +100,7 @@ export function AdminScreen() {
   const { data: me } = useQuery(meQuery())
   const isSystemAdmin = me?.capabilities.includes('admin.system') ?? false
   const canManageBasemaps = me?.capabilities.includes('gis.basemaps.manage') ?? false
+  const canManageProcesses = me?.capabilities.includes('processes.manage') ?? false
   const wide = useMediaQuery('(min-width: 768px)')
 
   const sections: Array<{ value: Section; label: string; icon: ReactNode; visible: boolean }> = [
@@ -166,6 +170,12 @@ export function AdminScreen() {
       icon: <Workflow className="size-3.5" />,
       visible: isSystemAdmin,
     },
+    {
+      value: 'processes',
+      label: t('admin.sections.processes'),
+      icon: <Route className="size-3.5" />,
+      visible: canManageProcesses,
+    },
   ]
 
   return (
@@ -232,6 +242,11 @@ export function AdminScreen() {
         {canManageBasemaps ? (
           <TabsContent value="basemaps" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
             <BasemapsSection />
+          </TabsContent>
+        ) : null}
+        {canManageProcesses ? (
+          <TabsContent value="processes" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
+            <ProcessesSection />
           </TabsContent>
         ) : null}
         <TabsContent value="audit" className="min-h-0 flex-1 overflow-y-auto bg-canvas">

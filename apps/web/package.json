@@ -21,6 +21,7 @@
     "@kchs/fields": "workspace:*",
     "@kchs/i18n": "workspace:*",
     "@kchs/map-style": "workspace:*",
+    "@kchs/process": "workspace:*",
     "@kchs/ui": "workspace:*",
     "@tanstack/react-query": "^5.90.2",
     "@turf/area": "^7.4.0",

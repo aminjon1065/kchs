@@ -44,6 +44,8 @@ import { registerObjectView, registerScreen } from './workspace/registry.js'
 const NotebookView = lazy(() => import('~/features/notebooks/notebook-view.js'))
 /** Отчёт — тоже отдельным чанком: тот же совместный документ, что у тетради (ADR-0078). */
 const ReportView = lazy(() => import('~/features/reports/report-view.js'))
+/** Конструктор маршрутов — отдельным чанком: нужен только администратору маршрутов (ADR-0087). */
+const ProcessDesigner = lazy(() => import('~/features/processes/designer/designer-screen.js'))
 
 let registered = false
 
@@ -177,6 +179,23 @@ export function registerModules(): void {
     titleKey: 'shell.rail.profile',
     icon: 'user',
     render: () => <ProfileScreen />,
+  })
+  registerScreen({
+    key: 'process-designer',
+    titleKey: 'processDesigner.screenTitle',
+    icon: 'route',
+    render: (tab) => (
+      <Suspense
+        fallback={
+          <div className="flex flex-col gap-3 p-6">
+            <Skeleton className="h-7 w-72" />
+            <Skeleton className="h-64 w-full" />
+          </div>
+        }
+      >
+        <ProcessDesigner definitionKey={tab.params.key ?? ''} tabId={tab.id} />
+      </Suspense>
+    ),
   })
   registerScreen({
     key: 'trash',
