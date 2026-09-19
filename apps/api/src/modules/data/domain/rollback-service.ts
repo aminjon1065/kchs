@@ -38,6 +38,7 @@ function blockReason(origin: string, mode: string | undefined): string {
     return 'история строк этой версии не сохранена (правка при выключенной истории)'
   }
   if (origin === 'schema') return 'между версиями менялась схема датасета'
+  if (origin === 'analysis') return 'анализ заменяет строки целиком — перезапустите его'
   if (origin === 'import') {
     const name = mode ? (IMPORT_MODES[mode] ?? mode) : 'неизвестный'
     return `импорт в режиме «${name}» не хранит прежних значений — повторите импорт нужного файла`

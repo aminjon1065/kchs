@@ -19,6 +19,7 @@ import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { authorize } from '~/kernel/access/authorize.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
+import { registerSystemDataset } from '~/kernel/system-datasets.js'
 import { db } from '~/shared/db/client.js'
 import { objects, territories } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
@@ -27,6 +28,7 @@ import type { RouteRegistrar } from '~/shared/http/route.js'
 import { FeatureService } from './domain/feature-service.js'
 import { LayerService } from './domain/layer-service.js'
 import { MapService } from './domain/map-service.js'
+import { TERRITORIES_SYSTEM_DATASET } from './domain/system-dataset.js'
 import { TerritoryService } from './domain/territory-service.js'
 import { TileService } from './domain/tile-service.js'
 import { registerTerritoryRoutes } from './http/territory-routes.js'
@@ -144,6 +146,9 @@ export function registerGisObjectTypes(): void {
       }
     },
   })
+
+  // Справочник с границами — источник запросов и цель шага spatial (ADR-0069)
+  registerSystemDataset(TERRITORIES_SYSTEM_DATASET)
 }
 
 export function registerGisRoutes(route: RouteRegistrar): void {

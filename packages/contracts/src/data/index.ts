@@ -1,3 +1,4 @@
+export * from './analysis.js'
 export * from './ask.js'
 export * from './chart.js'
 export * from './dashboard.js'

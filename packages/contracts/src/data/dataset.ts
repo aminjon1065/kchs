@@ -277,7 +277,15 @@ export type DatasetRowConflict = z.infer<typeof DatasetRowConflict>
 
 // ─── Версии ──────────────────────────────────────────────────────────────────
 
-export const DATASET_VERSION_ORIGINS = ['create', 'import', 'edit', 'rollback', 'schema'] as const
+/** `analysis` — строки заменены результатом пространственного анализа (ADR-0069). */
+export const DATASET_VERSION_ORIGINS = [
+  'create',
+  'import',
+  'edit',
+  'rollback',
+  'schema',
+  'analysis',
+] as const
 export const DatasetVersionOrigin = z.enum(DATASET_VERSION_ORIGINS)
 
 export const DatasetVersion = z.object({

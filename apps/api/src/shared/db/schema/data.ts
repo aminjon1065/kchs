@@ -279,3 +279,36 @@ export const dashboards = pgTable('dashboards', {
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 })
+
+/**
+ * Пространственный анализ — объект реестра типа `analysis` (07-gis-engine.md §10,
+ * ADR-0069): воспроизводимые параметры (запрос с шагом `spatial`), источники,
+ * датасет-результат и состояние последнего запуска.
+ */
+export const analyses = pgTable(
+  'analyses',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .references(() => objects.id, { onDelete: 'cascade' }),
+    /** Операция последнего шага `spatial`. */
+    kind: text('kind').notNull(),
+    /** `{ query, outputName }` — всё, что нужно для повторного запуска. */
+    params: jsonbObject('params'),
+    inputDatasetIds: uuid('input_dataset_ids').array().notNull().default(sql`'{}'::uuid[]`),
+    outputDatasetId: uuid('output_dataset_id').references(() => datasets.id, {
+      onDelete: 'set null',
+    }),
+    status: text('status').notNull().default('draft'),
+    jobId: uuid('job_id'),
+    rowCount: bigint('row_count', { mode: 'number' }),
+    error: text('error'),
+    lastRunAt: tsCol('last_run_at'),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index('analyses_output_idx').on(t.outputDatasetId),
+    index('analyses_inputs_idx').using('gin', t.inputDatasetIds),
+  ],
+)

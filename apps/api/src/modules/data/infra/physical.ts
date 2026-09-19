@@ -237,6 +237,23 @@ function diffSample(
   }
 }
 
+/** Тип столбца записи `jsonb_to_recordset` для значения результата запроса. */
+function recordType(column: PhysicalColumn): string {
+  if (column.type === 'geometry') return 'jsonb'
+  if (column.type === 'duration') return 'double precision'
+  return columnType(column.type, column.precision)
+}
+
+/** Значение столбца таблицы из записи: GeoJSON → геометрия, минуты → интервал. */
+function recordValue(column: PhysicalColumn): string {
+  const value = `r.${ident(column.name)}`
+  if (column.type === 'geometry') {
+    return `extensions.ST_SetSRID(extensions.ST_GeomFromGeoJSON(${value}::text), 4326)`
+  }
+  if (column.type === 'duration') return `make_interval(secs => ${value} * 60)`
+  return value
+}
+
 export const Physical = {
   /** Таблица строк и (при trackHistory) таблица истории — в транзакции создания датасета. */
   async createTable(
@@ -711,6 +728,39 @@ export const Physical = {
         deleted: removed.map((row) => diffSample(row, keys, 'deleted')),
       },
     }
+  },
+
+  // ─── Результат анализа (ADR-0069) ──────────────────────────────────────────
+
+  /**
+   * Пачка строк результата запроса → таблица датасета: одна пачка — один
+   * параметр JSON (`jsonb_to_recordset`). Геометрия приходит GeoJSON,
+   * длительность — числом минут (так её отдаёт компилятор запросов).
+   */
+  async insertJson(
+    tx: Executor,
+    table: string,
+    columns: PhysicalColumn[],
+    rows: Array<Record<string, unknown>>,
+    userId: string | null,
+  ): Promise<number> {
+    if (rows.length === 0) return 0
+    if (columns.length === 0) throw errors.internal('Нет столбцов для строк результата')
+    const list = columns.map((column) => ident(column.name)).join(', ')
+    const record = columns.map((column) => `${ident(column.name)} ${recordType(column)}`)
+    const values = columns.map((column) => recordValue(column)).join(', ')
+    const result = await tx.execute(
+      sql`INSERT INTO ${sql.raw(qualified(table))} (${sql.raw(list)}, _created_by, _updated_by)
+          SELECT ${sql.raw(values)}, ${userId}::uuid, ${userId}::uuid
+            FROM jsonb_to_recordset(${JSON.stringify(rows)}::jsonb) AS r(${sql.raw(record.join(', '))})`,
+    )
+    return result.count ?? rows.length
+  },
+
+  /** Все строки таблицы — перед заменой результатом анализа (истории у таблицы нет). */
+  async clearRows(tx: Executor, table: string): Promise<number> {
+    const result = await tx.execute(sql.raw(`DELETE FROM ${qualified(table)}`))
+    return result.count ?? 0
   },
 
   /** Точное число живых строк — после импорта и правок пакетом. */

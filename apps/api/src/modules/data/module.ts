@@ -65,6 +65,11 @@ import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { validServiceToken } from '~/shared/http/service-token.js'
 import { logger } from '~/shared/logger/index.js'
+import {
+  registerAnalysisBackground,
+  registerAnalysisObjectType,
+  registerAnalysisRoutes,
+} from './analysis-module.js'
 import { AskService } from './domain/ask-service.js'
 import { ChartService, runChartSpec } from './domain/chart-service.js'
 import { DashboardService } from './domain/dashboard-service.js'
@@ -230,9 +235,13 @@ export function registerDataObjectTypes(): void {
       },
     })
   }
+
+  registerAnalysisObjectType()
 }
 
 export function registerDataRoutes(route: RouteRegistrar): void {
+  registerAnalysisRoutes(route)
+
   route({
     method: 'POST',
     url: '/datasets',
@@ -954,6 +963,8 @@ export function registerDataRoutes(route: RouteRegistrar): void {
 
 /** Фоновая часть: загрузка импорта воркером и реакция на окончательный сбой заданий. */
 export function registerDataBackground(): void {
+  registerAnalysisBackground()
+
   registerJobHandler({
     queue: LOAD_JOB.queue,
     name: LOAD_JOB.name,

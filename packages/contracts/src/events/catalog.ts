@@ -188,6 +188,19 @@ export const EVENT_PAYLOADS = {
   /** Граница единицы справочника изменилась: changedFields — geom, centroid, areaKm2. */
   'territory.updated': z.object({ code: z.string() }),
 
+  // ── gis: пространственный анализ (07-gis-engine.md §10, ADR-0069) ──────────
+  'analysis.created': z.object({ kind: z.string(), datasetIds: z.array(Uuid) }),
+  /** Запуск поставлен в очередь (создание с запуском или перезапуск). */
+  'analysis.queued': z.object({ jobId: Uuid }),
+  'analysis.started': z.object({ jobId: Uuid }),
+  'analysis.finished': z.object({
+    jobId: Uuid,
+    status: z.enum(['succeeded', 'failed']),
+    datasetId: Uuid.nullable(),
+    rows: z.number().int().nullable(),
+    error: z.string().nullable(),
+  }),
+
   // ── admin ─────────────────────────────────────────────────────────────────
   'settings.changed': z.object({ scope: z.string(), key: z.string() }),
   'acl.changed': z.object({ objectId: Uuid }),
