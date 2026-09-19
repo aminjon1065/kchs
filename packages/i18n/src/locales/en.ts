@@ -3993,6 +3993,16 @@ export const en: DeepPartial<Dictionary> = {
       afterDays: 'Working days after the due date',
       afterDaysHint: '0 — together with the overdue notice',
       saved: 'Assignment settings saved',
+      metrics: 'Execution control metrics',
+      metricsHint:
+        'Regular metrics over the “Assignments” system dataset: Control screen tiles, dashboards and thresholds. Access follows the space.',
+      metricOverdue: 'Overdue assignments',
+      metricOnTimeRate: 'Assignments done on time',
+      metricMissing: 'Not set up',
+      metricsSpace: 'Space',
+      metricsSpacePick: 'Choose a space',
+      metricsCreate: 'Set up metrics',
+      metricsCreated: 'Control metrics set up',
     },
   },
 

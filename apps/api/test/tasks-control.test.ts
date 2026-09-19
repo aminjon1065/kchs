@@ -988,6 +988,39 @@ describe('экран «Контроль», нагрузка и «Мой день
     expect(otherRow.body).not.toContain(key)
   })
 
+  it('консоль: показатели контроля заводятся в выбранном пространстве один раз', async () => {
+    const before = await call(fx.app, { url: '/admin/tasks/metrics', as: fx.admin })
+    expect(before.statusCode, before.body).toBe(200)
+    expect(before.json().items.map((item: { id: string | null }) => item.id)).toEqual([null, null])
+
+    const forbidden = await call(fx.app, {
+      method: 'POST',
+      url: '/admin/tasks/metrics',
+      as: head,
+      payload: { spaceId: fx.orgSpaceId },
+    })
+    expect(forbidden.statusCode).toBe(403)
+
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const created = await call(fx.app, {
+        method: 'POST',
+        url: '/admin/tasks/metrics',
+        as: fx.admin,
+        payload: { spaceId: fx.orgSpaceId },
+      })
+      expect(created.statusCode, created.body).toBe(200)
+      expect(created.json().items).toEqual([
+        expect.objectContaining({ key: 'instructions.overdue', spaceId: fx.orgSpaceId }),
+        expect.objectContaining({ key: 'instructions.on_time_rate', spaceId: fx.orgSpaceId }),
+      ])
+    }
+    const [{ count }] = (await db().execute<{ count: number }>(
+      sql`SELECT count(*)::int AS count FROM objects WHERE type = 'metric'
+           AND meta->>'systemKey' LIKE 'instructions.%' AND deleted_at IS NULL`,
+    )) as unknown as [{ count: number }]
+    expect(count).toBe(2)
+  })
+
   it('показатели контроля — обычные показатели над системным датасетом «Поручения»', async () => {
     const ctx = systemCtx('test', { initiatorId: fx.admin.id })
     await db().transaction((tx) => ensureControlMetrics(tx, ctx, fx.orgSpaceId))

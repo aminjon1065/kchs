@@ -1,6 +1,7 @@
 import type {
   ControlList,
   ControlListQuery,
+  ControlMetricsState,
   ControlQuery,
   ControlReport,
   IssuedSummary,
@@ -32,6 +33,7 @@ export const taskKeys = {
   issued: ['tasks', 'issued'] as const,
   team: ['tasks', 'team'] as const,
   settings: ['tasks', 'settings'] as const,
+  metrics: ['tasks', 'metrics'] as const,
   task: (id: string) => ['object', id, 'task'] as const,
   projects: (spaceId?: string) => ['projects', spaceId ?? 'all'] as const,
   project: (id: string) => ['object', id, 'project'] as const,
@@ -112,6 +114,13 @@ export const taskSettingsQuery = () =>
   queryOptions({
     queryKey: taskKeys.settings,
     queryFn: () => http.get<TaskSettings>('/tasks/settings'),
+  })
+
+/** Показатели контроля на установке — консоль, раздел «Поручения». */
+export const controlMetricsQuery = () =>
+  queryOptions({
+    queryKey: taskKeys.metrics,
+    queryFn: () => http.get<ControlMetricsState>('/admin/tasks/metrics'),
   })
 
 export const projectsQuery = (spaceId?: string) =>

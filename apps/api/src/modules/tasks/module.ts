@@ -3,6 +3,8 @@ import {
   ControlExportQuery,
   ControlList,
   ControlListQuery,
+  ControlMetricsSetupInput,
+  ControlMetricsState,
   ControlQuery,
   ControlReport,
   IssuedSummary,
@@ -30,19 +32,20 @@ import {
 } from '@kchs/contracts'
 import { eq, sql } from 'drizzle-orm'
 import { z } from 'zod'
-import { authorize } from '~/kernel/access/authorize.js'
+import { authorize, loadObject } from '~/kernel/access/authorize.js'
 import { registerSubscriber } from '~/kernel/events/bus.js'
 import { registerInboxActionHandler } from '~/kernel/inbox/actions.js'
 import { registerJobHandler } from '~/kernel/jobs/runner.js'
 import { queue } from '~/kernel/jobs/service.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
 import { registerSystemDataset } from '~/kernel/system-datasets.js'
-import type { UserCtx } from '~/shared/context.js'
+import { systemCtx, type UserCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { objects, projects, tasks } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { controlExport } from './domain/control-export.js'
+import { controlMetricsState, ensureControlMetrics } from './domain/control-metrics.js'
 import { ControlService } from './domain/control-service.js'
 import { INSTRUCTIONS_SYSTEM_DATASET } from './domain/instructions-dataset.js'
 import { ProjectService } from './domain/project-service.js'
@@ -401,6 +404,33 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
     schema: { body: TaskSettings, response: { 200: TaskSettings } },
     handler: async (request) =>
       db().transaction((tx) => TaskSettingsService.update(tx, request.ctx, request.body)),
+  })
+
+  route({
+    method: 'GET',
+    url: '/admin/tasks/metrics',
+    auth: { capability: 'admin.system' },
+    tags: ['tasks'],
+    summary: 'Показатели контроля исполнения: заведены ли и в каком пространстве',
+    schema: { response: { 200: ControlMetricsState } },
+    handler: async () => controlMetricsState(),
+  })
+
+  route({
+    method: 'POST',
+    url: '/admin/tasks/metrics',
+    auth: { capability: 'admin.system' },
+    tags: ['tasks'],
+    summary: 'Завести показатели контроля исполнения в пространстве (чистая установка)',
+    schema: { body: ControlMetricsSetupInput, response: { 200: ControlMetricsState } },
+    handler: async (request) => {
+      const space = await loadObject(request.body.spaceId)
+      if (space?.type !== 'space') throw errors.notFound('Пространство')
+      // Показатели заводит платформа от имени администратора — как сид демо-данных
+      const ctx = systemCtx('tasks.metrics', { initiatorId: request.ctx.userId })
+      await db().transaction((tx) => ensureControlMetrics(tx, ctx, request.body.spaceId))
+      return controlMetricsState()
+    },
   })
 
   route({

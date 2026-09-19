@@ -225,3 +225,23 @@ export type TaskEscalationSettings = z.infer<typeof TaskEscalationSettings>
 
 export const TaskSettings = z.object({ escalation: TaskEscalationSettings })
 export type TaskSettings = z.infer<typeof TaskSettings>
+
+/**
+ * Показатели контроля на установке (консоль, раздел «Поручения»): заведены ли
+ * `instructions.*` и где. Сид демо-данных заводит их сам; чистой установке —
+ * `POST /admin/tasks/metrics` в выбранном пространстве (ADR-0082).
+ */
+export const ControlMetricsState = z.object({
+  items: z.array(
+    z.object({
+      key: ControlMetricKey,
+      id: Uuid.nullable(),
+      name: z.string().nullable(),
+      spaceId: Uuid.nullable(),
+    }),
+  ),
+})
+export type ControlMetricsState = z.infer<typeof ControlMetricsState>
+
+export const ControlMetricsSetupInput = z.object({ spaceId: Uuid })
+export type ControlMetricsSetupInput = z.infer<typeof ControlMetricsSetupInput>

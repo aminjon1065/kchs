@@ -1,8 +1,8 @@
-import { type ControlMetricKey, MetricCreateInput } from '@kchs/contracts'
+import { type ControlMetricKey, type ControlMetricsState, MetricCreateInput } from '@kchs/contracts'
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import { Metrics } from '~/modules/data/public.js'
 import type { Ctx } from '~/shared/context.js'
-import type { Executor } from '~/shared/db/client.js'
+import { db, type Executor } from '~/shared/db/client.js'
 import { objects } from '~/shared/db/schema/index.js'
 
 /** Только основные поручения: части соисполнителей считаются вместе с ними. */
@@ -57,8 +57,40 @@ const DEFINITIONS: Record<ControlMetricKey, Record<string, unknown>> = {
   },
 }
 
+const KEYS = Object.keys(DEFINITIONS) as ControlMetricKey[]
+
+/** Заведённые показатели контроля (не в корзине) — по ключу `meta.systemKey`. */
+async function existingMetrics(executor: Executor) {
+  return executor
+    .select({
+      id: objects.id,
+      name: objects.title,
+      spaceId: objects.spaceId,
+      key: sql<ControlMetricKey>`${objects.meta}->>'systemKey'`,
+    })
+    .from(objects)
+    .where(
+      and(
+        eq(objects.type, 'metric'),
+        sql`${objects.deletedAt} IS NULL`,
+        inArray(sql`${objects.meta}->>'systemKey'`, KEYS),
+      ),
+    )
+}
+
+/** Заведены ли показатели контроля и где — для консоли (ADR-0082). */
+export async function controlMetricsState(executor: Executor = db()): Promise<ControlMetricsState> {
+  const byKey = new Map((await existingMetrics(executor)).map((row) => [row.key, row]))
+  return {
+    items: KEYS.map((key) => {
+      const row = byKey.get(key)
+      return { key, id: row?.id ?? null, name: row?.name ?? null, spaceId: row?.spaceId ?? null }
+    }),
+  }
+}
+
 /**
- * Завести показатели контроля в пространстве (seed, установка): уже заведённые
+ * Завести показатели контроля в пространстве (seed, консоль): уже заведённые
  * по ключу `systemKey` не повторяются.
  */
 export async function ensureControlMetrics(
@@ -66,18 +98,10 @@ export async function ensureControlMetrics(
   ctx: Ctx,
   spaceId: string,
 ): Promise<string[]> {
-  const keys = Object.keys(DEFINITIONS) as ControlMetricKey[]
-  const existing = await tx
-    .select({ key: sql<string>`${objects.meta}->>'systemKey'` })
-    .from(objects)
-    .where(
-      and(
-        eq(objects.type, 'metric'),
-        sql`${objects.deletedAt} IS NULL`,
-        inArray(sql`${objects.meta}->>'systemKey'`, keys),
-      ),
-    )
-  const have = new Set(existing.map((row) => row.key))
+  const keys = KEYS
+  // Два одновременных запуска не заводят показатели дважды
+  await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext('tasks:control-metrics'))`)
+  const have = new Set((await existingMetrics(tx)).map((row) => row.key))
   const created: string[] = []
   for (const key of keys) {
     if (have.has(key)) continue
