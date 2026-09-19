@@ -39,7 +39,7 @@
 | `manage` | + менять права (кроме владельца), переносить, архивировать, настраивать |
 | `owner` | всё, включая удаление и передачу владения; ровно один владелец |
 
-Модули объявляют **действия** с минимальным уровнем и, при необходимости, способностью: `dataset.export → view + cap:data.export`, `document.register → cap:documents.register`, `document.sign → назначен подписантом текущего шага`, `layer.edit_features → edit`, `map.publish → manage`.
+Модули объявляют **действия** с минимальным уровнем и, при необходимости, способностью: `dataset.export → view + cap:data.export`, `document.register → cap:documents.register`, `document.sign → назначен подписантом текущего шага`, `layer.edit_features → edit`, `layer.suggest_features → comment` (предложение правки модерируемого слоя, ADR-0076), `map.publish → manage`.
 
 ## Источники прав (в порядке проверки)
 

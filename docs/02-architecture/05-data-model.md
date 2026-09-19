@@ -166,7 +166,9 @@ territories(id pk → objects, code text unique, parent_id, level text, name jso
 territory_closure(territory_id, ancestor_id, depth)
 analyses(id pk → objects, kind text, params jsonb, input_dataset_ids uuid[], output_dataset_id, status, job_id, row_count, error, last_run_at)  -- ADR-0069
 map_annotations(id, map_id, user_id null, geom geometry, style jsonb, note, created_at)
-feature_edits(id bigint, layer_id, row_id, op text, before jsonb, after jsonb, geom_before, geom_after, author_id, status text, reviewed_by, at)
+feature_edits(id bigint identity, layer_id → layers, dataset_id, row_id bigint null, op text, values jsonb, geometry jsonb null,
+              base_ver int null, note text, status text, author_id, reviewer_id, comment text, created_at, reviewed_at)
+  idx: (layer_id, status, created_at desc), (author_id, created_at desc)   -- предложения правок модерируемых слоёв, ADR-0076
 tile_cache — в Redis (ключ layer:version:filterhash:z/x/y, TTL) и/или на диске; для S2 — Varnish/nginx cache перед API
 ```
 
