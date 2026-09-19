@@ -939,6 +939,9 @@ export const ru = {
       extend: 'Запросить продление',
       approveExtension: 'Согласовать продление',
       rejectExtension: 'Отказать',
+      acceptInvite: 'Да',
+      tentative: 'Возможно',
+      decline: 'Нет',
     },
     tpl: {
       acceptInstruction: 'Поручение: {title}',
@@ -950,6 +953,7 @@ export const ru = {
       reviewFeatureUpdate: 'Правка объекта слоя «{title}» ждёт проверки',
       reviewFeatureDelete: 'Удаление объекта слоя «{title}» ждёт проверки',
       resolveDocument: 'Резолюция по документу: {title}',
+      respondInvite: 'Приглашение: {title}, {when}',
     },
     resolved: 'Выполнено',
     dueIn: 'Срок: {date}',
@@ -1040,6 +1044,18 @@ export const ru = {
       documentRegistered: 'Зарегистрирован документ «{title}»',
       documentAssigned: 'Вы назначены участником документа «{title}»',
       documentCancelled: '{actor} аннулировал «{title}»',
+      eventInvited: '{actor} приглашает: «{title}», {when}',
+      eventUninvited: '{actor} исключил вас из участников «{title}»',
+      eventRescheduled: '{actor} перенёс «{title}» на {when}',
+      eventChanged: '{actor} изменил место встречи «{title}»',
+      eventCancelled: '{actor} отменил «{title}»',
+      eventOccurrenceCancelled: '{actor} отменил «{title}», {when}',
+      eventAccepted: '{actor} примет участие в «{title}»',
+      eventTentative: '{actor}, возможно, примет участие в «{title}»',
+      eventDeclined: '{actor} отказался от участия в «{title}»',
+      eventProposed: '{actor} предлагает другое время для «{title}»',
+      eventReminder: 'Напоминание: «{title}», {when}',
+      eventStarting: 'Начинается: «{title}», {when}',
     },
   },
 
@@ -1131,6 +1147,14 @@ export const ru = {
       versionAdded: '{actor} добавил версию {number}',
       confidentialityChanged: '{actor} изменил гриф',
     },
+    event: {
+      updated: '{actor} изменил событие',
+      cancelled: '{actor} отменил событие',
+      invited: '{actor} пригласил участников',
+      accepted: '{actor} принял приглашение',
+      tentative: '{actor} ответил «возможно»',
+      declined: '{actor} отклонил приглашение',
+    },
   },
 
   objects: {
@@ -1160,6 +1184,8 @@ export const ru = {
       task: 'Задача',
       project: 'Проект',
       meeting: 'Встреча',
+      calendar: 'Календарь',
+      event: 'Событие',
       page: 'Страница',
     },
     trash: {
@@ -4067,6 +4093,14 @@ export const ru = {
       acknowledge: 'Ознакомиться: {title}',
       register: 'Зарегистрировать: {title}',
       revise: 'Доработать и отправить повторно: {title}',
+    },
+  },
+
+  /** Календарь (12-calendar-notifications-home.md §1, ADR-0081). */
+  calendar: {
+    busy: 'Занято',
+    projections: {
+      tasksDue: 'Сроки задач и поручений',
     },
   },
 

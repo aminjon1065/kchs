@@ -68,6 +68,18 @@ async function createFolder(fx: TestContext, name: string, spaceId = fx.spaceId)
 /** Файл-источник для попытки импорта читателем (готовится при создании датасета). */
 let datasetSourceFileId = ''
 
+/** Командный календарь в пространстве матрицы: читатель видит его по роли пространства. */
+async function createMatrixCalendar(fx: TestContext, title: string): Promise<string> {
+  const response = await call(fx.app, {
+    method: 'POST',
+    url: '/calendars',
+    as: fx.admin,
+    payload: { kind: 'team', title, spaceId: fx.spaceId },
+  })
+  expect(response.statusCode, response.body).toBe(200)
+  return response.json().id
+}
+
 /** Датасет-источник графика в пространстве матрицы. */
 async function createMatrixDataset(fx: TestContext, title: string): Promise<string> {
   const response = await call(fx.app, {
@@ -712,6 +724,55 @@ const FIXTURES: Record<string, TypeFixture> = {
       { method: 'POST', url: '/tasks', payload: { title: 'задача читателя', projectId: id } },
     ],
   },
+
+  // Календарь пространства: права — от ролей пространства, как у любого объекта (ADR-0081)
+  calendar: {
+    create: async (fx, title) => ({ id: await createMatrixCalendar(fx, title), title }),
+    readPaths: ['/calendars/:id', '/calendars/:id/feeds'],
+    viewerForbidden: (_fx, id) => [
+      { method: 'PATCH', url: `/calendars/${id}`, payload: { color: 'red' } },
+      {
+        method: 'POST',
+        url: '/events',
+        payload: {
+          calendarId: id,
+          title: 'событие читателя',
+          startsAt: '2031-05-05T05:00:00Z',
+          endsAt: '2031-05-05T06:00:00Z',
+        },
+      },
+      {
+        method: 'POST',
+        url: `/calendars/${id}/import`,
+        payload: { ics: 'BEGIN:VCALENDAR\r\nEND:VCALENDAR' },
+      },
+    ],
+  },
+
+  // Открытое событие наследует доступ календаря; «личное» — отдельной проверкой ниже
+  event: {
+    create: async (fx, title) => {
+      const calendarId = await createMatrixCalendar(fx, `${title} — календарь`)
+      const response = await call(fx.app, {
+        method: 'POST',
+        url: '/events',
+        as: fx.admin,
+        payload: {
+          calendarId,
+          title,
+          startsAt: '2031-05-06T05:00:00Z',
+          endsAt: '2031-05-06T06:00:00Z',
+        },
+      })
+      expect(response.statusCode, response.body).toBe(200)
+      return { id: response.json().id, title }
+    },
+    readPaths: ['/events/:id'],
+    viewerForbidden: (_fx, id) => [
+      { method: 'PATCH', url: `/events/${id}`, payload: { title: 'правка читателя' } },
+      { method: 'POST', url: `/events/${id}/cancel`, payload: { scope: 'series' } },
+    ],
+  },
 }
 
 let fx: TestContext
@@ -1028,6 +1089,81 @@ describe('сквозные правила доступа', () => {
     expect(await canJoin(await userCtx(fx.users.viewer), `job:${jobId}`)).toBe(true)
     expect(await canJoin(await userCtx(fx.users.stranger), `job:${jobId}`)).toBe(false)
     expect(await canJoin(await userCtx(fx.users.stranger), 'object:not-a-uuid')).toBe(false)
+  })
+
+  it('чужое личное событие: не видно в списке, поиске, ICS и подборе времени — только «занято»', async () => {
+    const calendarId = await createMatrixCalendar(fx, `Личное матрицы ${run}`)
+    const title = `Личное событие ${run}`
+    const created = await call(fx.app, {
+      method: 'POST',
+      url: '/events',
+      as: fx.admin,
+      payload: {
+        calendarId,
+        title,
+        startsAt: '2031-05-07T05:00:00Z',
+        endsAt: '2031-05-07T06:00:00Z',
+        visibility: 'private',
+      },
+    })
+    expect(created.statusCode, created.body).toBe(200)
+    const eventId = created.json().id as string
+
+    // Прямой адрес и маршрут модуля — 404: читатель видит календарь, но не событие
+    for (const url of [`/objects/${eventId}`, `/events/${eventId}`]) {
+      const response = await call(fx.app, { url, as: fx.users.viewer })
+      expect(response.statusCode, url).toBe(404)
+    }
+    // Список объектов и пакетная выборка — без названия
+    const list = await call(fx.app, {
+      url: `/objects?q=${encodeURIComponent(title)}&limit=100`,
+      as: fx.users.viewer,
+    })
+    expect(list.json().items.map((item: { id: string }) => item.id)).not.toContain(eventId)
+    // Календарь — «занято» без названия и идентификатора
+    const range = await call(fx.app, {
+      url: `/calendar/range?from=2031-05-07T00:00:00Z&to=2031-05-08T00:00:00Z&calendarIds=${calendarId}`,
+      as: fx.users.viewer,
+    })
+    expect(range.statusCode, range.body).toBe(200)
+    const busy = (range.json().items as Array<{ busy: boolean; eventId: string | null }>)[0]
+    expect(busy?.busy).toBe(true)
+    expect(busy?.eventId).toBeNull()
+    expect(range.body).not.toContain(title)
+    // Поиск: администратор находит, читатель — нет
+    await indexObject(eventId)
+    const deadline = Date.now() + 10_000
+    while (Date.now() < deadline && !(await searchTitles(fx.admin, title)).includes(eventId)) {
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    }
+    expect(await searchTitles(fx.admin, title)).toContain(eventId)
+    expect(await searchTitles(fx.users.viewer, title)).not.toContain(eventId)
+    // Подбор времени — интервал без названия
+    const freeBusy = await call(fx.app, {
+      url: `/calendar/free-busy?from=2031-05-07T00:00:00Z&to=2031-05-08T00:00:00Z&userIds=${fx.admin.id}`,
+      as: fx.users.viewer,
+    })
+    expect(freeBusy.statusCode, freeBusy.body).toBe(200)
+    expect(freeBusy.json().people[0].busy[0].title).toBeNull()
+    expect(freeBusy.body).not.toContain(title)
+    // ICS-подписка читателя на календарь — «Занято»
+    const feed = await call(fx.app, {
+      method: 'POST',
+      url: `/calendars/${calendarId}/feeds`,
+      as: fx.users.viewer,
+    })
+    expect(feed.statusCode, feed.body).toBe(200)
+    const ics = await call(fx.app, { url: new URL(feed.json().url as string).pathname })
+    expect(ics.statusCode).toBe(200)
+    expect(ics.body).toContain('CLASS:PRIVATE')
+    expect(ics.body).not.toContain(title)
+    // Посторонний не выпускает ленту чужого календаря
+    const foreign = await call(fx.app, {
+      method: 'POST',
+      url: `/calendars/${calendarId}/feeds`,
+      as: fx.users.stranger,
+    })
+    expect(foreign.statusCode).toBe(404)
   })
 
   it('поиск не допускает выход из фильтра прав через параметры', async () => {

@@ -9,6 +9,12 @@ import type { RouteRegistrar } from '~/shared/http/route.js'
 import { registerAdminRoutes } from './admin/module.js'
 import { registerAiRoutes } from './ai/module.js'
 import {
+  registerCalendarBackground,
+  registerCalendarObjectTypes,
+  registerCalendarRoutes,
+  scheduleCalendarJobs,
+} from './calendar/module.js'
+import {
   registerDataBackground,
   registerDataObjectTypes,
   registerDataRoutes,
@@ -67,6 +73,7 @@ export function registerAllObjectTypes(): void {
   registerReportsObjectTypes()
   registerTasksObjectTypes()
   registerDocumentsObjectTypes()
+  registerCalendarObjectTypes()
   registerDirectory()
   // Каналы уведомлений модулей: ядро доставляет через них в любой роли процесса
   registerTelegramChannel()
@@ -106,6 +113,7 @@ export async function registerModules(app: FastifyInstance, route: RouteRegistra
   registerReportsRoutes(route)
   registerTasksRoutes(route)
   registerDocumentsRoutes(route)
+  registerCalendarRoutes(route)
   registerTelegramRoutes(route)
   registerAiRoutes(route)
   registerAdminRoutes(route)
@@ -121,12 +129,14 @@ export function registerModulesBackground(): void {
   registerReportsBackground()
   registerTasksBackground()
   registerDocumentsBackground()
+  registerCalendarBackground()
 }
 
 export async function scheduleModuleJobs(): Promise<void> {
   await scheduleFilesJobs()
   await scheduleReportsJobs()
   await scheduleTasksJobs()
+  await scheduleCalendarJobs()
 }
 
 /** Долгоживущие процессы модулей в роли worker: опрос Telegram-бота (ADR-0061). */

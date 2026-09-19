@@ -923,6 +923,9 @@ export const en: DeepPartial<Dictionary> = {
       extend: 'Request an extension',
       approveExtension: 'Approve the extension',
       rejectExtension: 'Decline',
+      acceptInvite: 'Yes',
+      tentative: 'Maybe',
+      decline: 'No',
     },
     tpl: {
       acceptInstruction: 'Assignment: {title}',
@@ -934,6 +937,7 @@ export const en: DeepPartial<Dictionary> = {
       reviewFeatureUpdate: 'A feature edit of layer “{title}” awaits review',
       reviewFeatureDelete: 'A feature deletion in layer “{title}” awaits review',
       resolveDocument: 'Resolution on document: {title}',
+      respondInvite: 'Invitation: {title}, {when}',
     },
     resolved: 'Done',
     dueIn: 'Due: {date}',
@@ -1021,6 +1025,18 @@ export const en: DeepPartial<Dictionary> = {
       documentRegistered: 'Document “{title}” registered',
       documentAssigned: 'You are a participant of document “{title}”',
       documentCancelled: '{actor} cancelled “{title}”',
+      eventInvited: '{actor} invites you: “{title}”, {when}',
+      eventUninvited: '{actor} removed you from “{title}”',
+      eventRescheduled: '{actor} moved “{title}” to {when}',
+      eventChanged: '{actor} changed the location of “{title}”',
+      eventCancelled: '{actor} cancelled “{title}”',
+      eventOccurrenceCancelled: '{actor} cancelled “{title}”, {when}',
+      eventAccepted: '{actor} will attend “{title}”',
+      eventTentative: '{actor} might attend “{title}”',
+      eventDeclined: '{actor} declined “{title}”',
+      eventProposed: '{actor} proposed another time for “{title}”',
+      eventReminder: 'Reminder: “{title}”, {when}',
+      eventStarting: 'Starting: “{title}”, {when}',
     },
   },
   telegram: {
@@ -1109,6 +1125,14 @@ export const en: DeepPartial<Dictionary> = {
       versionAdded: '{actor} added version {number}',
       confidentialityChanged: '{actor} changed the classification',
     },
+    event: {
+      updated: '{actor} changed the event',
+      cancelled: '{actor} cancelled the event',
+      invited: '{actor} invited attendees',
+      accepted: '{actor} accepted the invitation',
+      tentative: '{actor} replied “maybe”',
+      declined: '{actor} declined the invitation',
+    },
   },
 
   objects: {
@@ -1138,6 +1162,8 @@ export const en: DeepPartial<Dictionary> = {
       task: 'Task',
       project: 'Project',
       meeting: 'Meeting',
+      calendar: 'Calendar',
+      event: 'Event',
       page: 'Page',
     },
     trash: {
@@ -4013,6 +4039,13 @@ export const en: DeepPartial<Dictionary> = {
       acknowledge: 'Acknowledge: {title}',
       register: 'Register: {title}',
       revise: 'Revise and resubmit: {title}',
+    },
+  },
+
+  calendar: {
+    busy: 'Busy',
+    projections: {
+      tasksDue: 'Task and instruction deadlines',
     },
   },
 
