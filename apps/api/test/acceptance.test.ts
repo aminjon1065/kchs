@@ -254,6 +254,9 @@ describe('сценарий 3: файл, обсуждение с упоминан
       .items.find((item: { category: string }) => item.category === 'mention')
     expect(mention).toBeTruthy()
     expect(mention.title).toContain('упомянул')
+    // Имя автора подставлено в заголовок, а не осталось «{actor}»
+    expect(mention.title).not.toContain('{actor}')
+    expect(mention.title).toContain(mention.actor.displayName)
 
     // Канал e-mail выбран по умолчанию для категории mention
     const { sql } = await import('drizzle-orm')

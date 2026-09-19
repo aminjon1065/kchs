@@ -165,7 +165,10 @@ export const NotificationService = {
     return {
       items: page.map((row) => {
         const summary = row.objectId ? (summaries.get(row.objectId) ?? null) : null
+        const actor = row.actorId ? (actors.get(row.actorId) ?? null) : null
         const params = {
+          // Имя автора — для «{actor} упомянул вас…», как при доставке почтой и в Telegram
+          ...(actor ? { actor: actor.displayName } : {}),
           ...(row.params as Record<string, string>),
           count: row.aggregateCount,
           title: summary?.title ?? (row.params as { title?: string }).title ?? '',
@@ -177,7 +180,7 @@ export const NotificationService = {
             row.aggregateCount > 1 ? t('notifications.aggregate', params) : t(row.titleKey, params),
           body: null,
           object: summary,
-          actor: row.actorId ? (actors.get(row.actorId) ?? null) : null,
+          actor,
           url: row.url ?? summary?.url ?? null,
           aggregateCount: row.aggregateCount,
           readAt: row.readAt,
