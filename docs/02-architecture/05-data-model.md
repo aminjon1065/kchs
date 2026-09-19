@@ -238,7 +238,14 @@ document_dispatches(id, document_id, correspondent_id null, addressee text null,
 -- documents (ADR-0086): case_id → cases, filed_at, filed_by, files_destroyed_at; ds.sys_documents: closed, overdue_score,
 --   case_id, case_index, case_title, filed_at, archived_at, sent_on
 correspondents(id pk → objects, kind text, name text, details jsonb, contacts jsonb, external_id)   -- реализовано (ADR-0080)
-templates(id pk → objects, kind text, file_id, mapping jsonb, document_type_id null)
+-- Реализовано в фазе 3, вторая волна (ADR-0085): mapping — плейсхолдеры по разбору движком
+templates(id pk → objects, kind text ('docx'), name, description, document_type_id null, file_id null,
+          defaults jsonb {subject, summary, fields}, placeholders text[], unknown_placeholders text[],
+          inspect_status text (none|pending|ready|failed), inspect_error, is_active)
+document_renders(id, kind text (print|fill|inspect|watermark), subject_id → objects, form_key, params jsonb,
+                 status text (queued|running|ready|failed), requested_by, target jsonb, file_id null → objects,
+                 pages, size, error, attempts, dedupe_key unique null, created_at, started_at, finished_at)
+  idx: (subject_id, created_at desc)   -- печатные формы, штампы, заполнение и разбор шаблонов, копии со знаком
 ```
 
 ## Файлы, задачи, коммуникации, встречи, календарь, знания, автоматизация
