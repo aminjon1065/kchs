@@ -79,31 +79,6 @@ function attributionOf(style: BasemapStyle | null): string[] {
 const denied = (error: unknown) =>
   error instanceof ApiError && (error.status === 403 || error.status === 404)
 
-/** Адрес API в стиле подложки: `[pmtiles://]схема://хост/api/v1/…`. */
-const API_URL = /^(pmtiles:\/\/)?https?:\/\/[^/]+(\/api\/v1\/)/
-
-/**
- * Адреса API в стиле подложки — к origin страницы. Сервер строит их от
- * `KCHS_BASE_URL`, а Chromium движка открывает страницу печати по внутреннему
- * адресу веба (ADR-0078): чужой origin CSP не пропустит, а cookie токена печати
- * к нему не уйдёт. В браузере пользователя адреса совпадают — ничего не меняется.
- */
-export function rebaseApiUrls<T>(value: T, origin: string): T {
-  if (typeof value === 'string') {
-    return value.replace(
-      API_URL,
-      (_match, protocol: string | undefined, path: string) => `${protocol ?? ''}${origin}${path}`,
-    ) as T
-  }
-  if (Array.isArray(value)) return value.map((item) => rebaseApiUrls(item, origin)) as T
-  if (value && typeof value === 'object') {
-    return Object.fromEntries(
-      Object.entries(value).map(([key, item]) => [key, rebaseApiUrls(item, origin)]),
-    ) as T
-  }
-  return value
-}
-
 /**
  * Карта блока отчёта (ADR-0078): сохранённая карта (подложка, слои, вид) или
  * один слой на подложке по умолчанию. Слои и данные — с правами смотрящего:
@@ -142,11 +117,9 @@ export function useReportMap(block: ReportMapSource, theme: MapTheme | null): Re
   const rendered = useRenderedLayers(entries, theme, {
     time: map.data?.spec.time ? `${map.data.spec.time.from}/${map.data.spec.time.to}` : null,
   })
+  // Адреса API в стиле уже перенесены на origin страницы печати (`rebaseApiUrls`)
   const basemap = useBasemapStyle(map.data?.spec.basemapId ?? null, theme?.mode ?? 'light')
-  const basemapStyle = useMemo(
-    () => (basemap.style ? rebaseApiUrls(basemap.style, window.location.origin) : null),
-    [basemap.style],
-  )
+  const basemapStyle = basemap.style
 
   const missing = useMap ? !block.mapId : !block.layerId
   const layerDenied = !useMap && layers[0]?.error ? denied(layers[0].error) : false

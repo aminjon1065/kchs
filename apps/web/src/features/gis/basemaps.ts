@@ -7,7 +7,8 @@ import { http } from '~/shared/api/client.js'
 /**
  * Базовые карты (07-gis-engine.md §5, ADR-0066): реестр установки и стиль
  * MapLibre темы. Стиль собирает API — с абсолютными адресами архива PMTiles,
- * растровых тайлов, шрифтов и спрайтов; клиенту остаётся протокол `pmtiles://`.
+ * растровых тайлов, шрифтов и спрайтов; клиенту остаётся протокол `pmtiles://`
+ * и перенос адресов API на origin страницы (`rebaseApiUrls`).
  */
 
 export const basemapKeys = {
@@ -27,6 +28,32 @@ export const basemapsQuery = () =>
 /** Стиль MapLibre (спецификация v8) — как отдал сервер, для `map.setStyle`. */
 export type BasemapStyle = Record<string, unknown>
 
+/** Адрес API в стиле подложки: `[pmtiles://]схема://хост/api/v1/…`. */
+const API_URL = /^(pmtiles:\/\/)?https?:\/\/[^/]+(\/api\/v1\/)/
+
+/**
+ * Адреса API в стиле подложки — к origin страницы. Сервер строит их от
+ * `KCHS_BASE_URL`, а страницу открывают и по другим адресам: внутреннее имя или
+ * IP установки, веб для движка печати (ADR-0078). Чужой origin не пропустит CSP
+ * (`connect-src 'self'`), и cookie сессии к нему не уйдёт — подложка не
+ * загрузилась бы. Совпадают адреса — ничего не меняется.
+ */
+export function rebaseApiUrls<T>(value: T, origin: string): T {
+  if (typeof value === 'string') {
+    return value.replace(
+      API_URL,
+      (_match, protocol: string | undefined, path: string) => `${protocol ?? ''}${origin}${path}`,
+    ) as T
+  }
+  if (Array.isArray(value)) return value.map((item) => rebaseApiUrls(item, origin)) as T
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, rebaseApiUrls(item, origin)]),
+    ) as T
+  }
+  return value
+}
+
 /** Версия подложки — в ключе: правка адреса или новая сборка дают новый стиль. */
 const basemapStyleQuery = (
   basemap: Pick<Basemap, 'id' | 'version'>,
@@ -35,8 +62,13 @@ const basemapStyleQuery = (
 ) =>
   queryOptions({
     queryKey: basemapKeys.style(basemap.id, basemap.version, theme, lang),
-    queryFn: () =>
-      http.get<BasemapStyle>(`/gis/basemaps/${basemap.id}/style.json`, { query: { theme, lang } }),
+    queryFn: async () =>
+      rebaseApiUrls(
+        await http.get<BasemapStyle>(`/gis/basemaps/${basemap.id}/style.json`, {
+          query: { theme, lang },
+        }),
+        window.location.origin,
+      ),
     staleTime: Number.POSITIVE_INFINITY,
   })
 

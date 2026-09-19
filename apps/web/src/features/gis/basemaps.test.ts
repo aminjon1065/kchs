@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { rebaseApiUrls } from './report-map.js'
+import { rebaseApiUrls } from './basemaps.js'
 
 describe('rebaseApiUrls', () => {
-  it('адреса API стиля подложки — к origin страницы печати, остальное без изменений', () => {
+  it('адреса API стиля подложки — к origin страницы, остальное без изменений', () => {
     const style = {
       version: 8,
       glyphs: 'http://localhost:5173/api/v1/gis/basemaps/fonts/{fontstack}/{range}.pbf',
