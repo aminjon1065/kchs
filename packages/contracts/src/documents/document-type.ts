@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { Confidentiality } from '../access/confidentiality.js'
+import { UserRef } from '../auth/session.js'
 import { LangText, Timestamp, Uuid } from '../common/primitives.js'
 import { FieldDef } from '../fields/field-def.js'
 
@@ -81,6 +82,8 @@ export const DocumentTypeRecord = z.object({
   isActive: z.boolean(),
   /** Журнал по умолчанию — название для карточки типа. */
   journalName: z.string().nullable(),
+  /** Кому направлять на резолюцию при `resolutionBy: user` — для формы типа. */
+  resolutionUser: UserRef.nullable(),
   canManage: z.boolean(),
   createdAt: Timestamp,
   updatedAt: Timestamp,

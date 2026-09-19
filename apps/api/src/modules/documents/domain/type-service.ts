@@ -13,6 +13,7 @@ import {
 import { and, asc, eq, inArray, sql } from 'drizzle-orm'
 import { grantAccess } from '~/kernel/access/acl-service.js'
 import { authorize, requireCapability, visibleObjectsSql } from '~/kernel/access/authorize.js'
+import { directory } from '~/kernel/directory/port.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
@@ -135,6 +136,17 @@ function assertConfidentiality(allowed: Confidentiality[], fallback: Confidentia
   }
 }
 
+/** Правило направления на резолюцию: выбранный сотрудник — действующий (ADR-0084). */
+async function assertSettings(settings: Partial<DocumentTypeSettings>): Promise<void> {
+  if (settings.resolutionBy !== 'user') return
+  const userId = settings.resolutionUserId
+  if (!userId || (await directory().activeUsers([userId])).length === 0) {
+    throw errors.validation('Выберите действующего сотрудника для резолюций', [
+      { path: 'settings.resolutionUserId', message: 'required' },
+    ])
+  }
+}
+
 async function assertJournal(executor: Executor, journalId: string | null): Promise<void> {
   if (!journalId) return
   const [row] = await executor
@@ -207,12 +219,17 @@ export const DocumentTypeService = {
           ).map((row) => [row.id, row.name]),
         )
       : new Map<string, string>()
+    const people = await directory().refs([
+      ...new Set(rows.flatMap((row) => row.settings.resolutionUserId ?? [])),
+    ])
     const result: DocumentTypeRecord[] = []
     for (const row of rows) {
       const decision = await authorize(ctx, 'manage', row.id, { soft: true })
+      const resolutionUserId = row.settings.resolutionUserId
       result.push({
         ...row,
         journalName: row.numbering.journalId ? (names.get(row.numbering.journalId) ?? null) : null,
+        resolutionUser: resolutionUserId ? (people.get(resolutionUserId) ?? null) : null,
         canManage: decision.allowed,
       })
     }
@@ -225,6 +242,7 @@ export const DocumentTypeService = {
     assertCardSchema(input.cardSchema)
     assertConfidentiality(input.confidentialityAllowed, input.defaultConfidentiality)
     await assertJournal(tx, input.numbering.journalId)
+    await assertSettings(input.settings)
     const [taken] = await tx
       .select({ id: documentTypes.id })
       .from(documentTypes)
@@ -281,6 +299,7 @@ export const DocumentTypeService = {
     assertConfidentiality(allowed, fallback)
     if (patch.cardSchema) assertCardSchema(patch.cardSchema)
     if (patch.numbering) await assertJournal(tx, patch.numbering.journalId)
+    if (patch.settings) await assertSettings({ ...current.settings, ...patch.settings })
 
     const values: Record<string, unknown> = {}
     const changed: string[] = []
