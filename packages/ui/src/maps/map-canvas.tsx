@@ -335,18 +335,31 @@ export function MapCanvas({
         Object.entries(sources).map(([id, source]) => [dataId(id), JSON.stringify(source)]),
       )
       const wantedLayers = new Map(layers.map((layer) => [dataId(layer.id), layer]))
+      // Источники слоёв, которые добавляются заново (новые или изменённые): такой
+      // источник MapLibre до конца кадра приостанавливает и потом лишь перекладывает
+      // прежние тайлы — новый адрес из `setTiles` он бы не загрузил
+      const relaidSources = new Set<string>()
+      for (const layer of layers) {
+        const id = dataId(layer.id)
+        if (map.getLayer(id) && state.layers.get(id) === JSON.stringify(layer)) continue
+        if ('source' in layer && typeof layer.source === 'string') {
+          relaidSources.add(dataId(layer.source))
+        }
+      }
       const changedSources = new Set<string>()
       for (const [id, json] of wantedSources) {
         const existing = map.getSource(id)
         const previous = state.sources.get(id)
         if (!existing || previous === json) continue
-        // Сменился только адрес тайлов (время, фильтр): источник перечитывает тайлы,
-        // прежние видны до прихода новых — слои не снимаются, кадры не мигают. Пока
-        // тайлы источника грузятся, MapLibre перечитал бы их по старому адресу —
-        // тогда источник пересоздаётся
+        // Сменился только адрес тайлов (время, фильтр), слои те же: источник
+        // перечитывает тайлы, прежние видны до прихода новых — кадры не мигают.
+        // Пока тайлы источника грузятся, MapLibre перечитал бы их по старому
+        // адресу, а слои источника добавляются заново (стиль сменил поля тайлов) —
+        // новых не загрузил бы: тогда источник пересоздаётся
         const tiles = tilesOnlyChange(previous, json)
         if (
           tiles &&
+          !relaidSources.has(id) &&
           'setTiles' in existing &&
           typeof existing.setTiles === 'function' &&
           map.isSourceLoaded(id)
