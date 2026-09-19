@@ -103,8 +103,9 @@ SELECT
   (s.state = 'overdue') AS overdue,
   CASE WHEN s.state IN ('done_on_time', 'done_late') AND i.due_at IS NOT NULL
        THEN s.state = 'done_on_time' END AS on_time,
+  -- 100 или 0: среднее по принятым — доля исполненных в срок в процентах
   CASE WHEN s.state IN ('done_on_time', 'done_late') AND i.due_at IS NOT NULL
-       THEN CASE WHEN s.state = 'done_on_time' THEN 1 ELSE 0 END END AS on_time_score,
+       THEN CASE WHEN s.state = 'done_on_time' THEN 100 ELSE 0 END END AS on_time_score,
   CASE WHEN s.state IN ('overdue', 'done_late')
        THEN ceil(extract(epoch FROM (COALESCE(i.fact_at, now()) - i.due_at)) / 86400)::integer
   END AS days_late,

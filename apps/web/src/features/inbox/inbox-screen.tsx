@@ -373,7 +373,8 @@ function InboxDetail({ item, onSnooze }: { item: InboxItem; onSnooze: () => void
                 </Field>
               ) : null}
               <Field
-                label={t('inbox.comment')}
+                // Новый срок просят с обоснованием — так и подписано поле
+                label={t(needsDate ? 'inbox.justification' : 'inbox.comment')}
                 htmlFor={commentId}
                 required={commenting.requiresComment}
               >

@@ -1012,6 +1012,27 @@ describe('экран «Контроль», нагрузка и «Мой день
     expect(value.json().value).toBeGreaterThanOrEqual(1)
     const metric = await call(fx.app, { url: `/metrics/${overdueMetric.id}`, as: fx.admin })
     expect(metric.json()).toMatchObject({ datasetId: null, systemSource: 'instructions' })
+
+    // Доля в срок — в процентах: все принятые в этом месяце поручения исполнены в срок
+    const rateMetric = report.metrics.find(
+      (item: { key: string }) => item.key === 'instructions.on_time_rate',
+    )
+    const rate = await call(fx.app, {
+      method: 'POST',
+      url: `/metrics/${rateMetric.id}/value`,
+      as: fx.admin,
+      payload: {},
+    })
+    expect(rate.statusCode, rate.body).toBe(200)
+    expect(rate.json().value).toBe(100)
+
+    // Схема системного датасета — подписи показателя; служебный столбец прав скрыт
+    const schema = await call(fx.app, { url: '/system-datasets/instructions', as: head })
+    expect(schema.statusCode, schema.body).toBe(200)
+    const fields = schema.json().fields as Array<{ key: string; label: { ru: string } }>
+    expect(schema.json().timeField).toBe('due_at')
+    expect(fields.find((field) => field.key === 'unit')?.label.ru).toBe('Подразделение исполнителя')
+    expect(fields.some((field) => field.key === 'viewers')).toBe(false)
   })
 
   it('нагрузка: подчинённые × недели; «Выданные мной» и «Команда»', async () => {

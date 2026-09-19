@@ -69,6 +69,9 @@ const COLUMNS: Array<{ bucket: ControlBucket; count: keyof ControlCounts }> = [
   { bucket: 'total', count: 'total' },
 ]
 
+/** Плитки итогов: столько в ряд, сколько помещается с целой подписью. */
+const TILE_GRID = 'grid grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))] gap-3'
+
 /** Тон числа ячейки: просрочка и опоздание заметны сразу. */
 const BUCKET_TONE: Partial<Record<ControlBucket, string>> = {
   overdue: 'text-danger',
@@ -425,7 +428,7 @@ export function ControlScreen({
       <div className="min-h-0 flex-1 overflow-y-auto bg-canvas">
         <div className="mx-auto flex max-w-[1400px] flex-col gap-4 p-4">
           {report.isLoading || !data ? (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
+            <div className={TILE_GRID}>
               {Array.from({ length: 8 }).map((_, index) => (
                 <Skeleton key={index} className="h-20 w-full" />
               ))}
@@ -442,7 +445,7 @@ export function ControlScreen({
               <Matrix data={data} t={t} drill={drill} onSelect={select} />
             </>
           )}
-          <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+          <div className="flex flex-col gap-4">
             <Card
               title={t('tasks.control.listTitle', {
                 bucket: t(`tasks.control.buckets.${drill.bucket}`),
@@ -482,7 +485,7 @@ function Totals({
 }) {
   const totals = data.totals
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
+    <div className={TILE_GRID}>
       <StatTile
         label={t('tasks.control.total')}
         value={totals.total}

@@ -947,6 +947,7 @@ export const en: DeepPartial<Dictionary> = {
     dueDate: 'New due date',
     requestedDue: 'Requested due date: {date}',
     reason: 'Reason: {reason}',
+    justification: 'Reason',
   },
   notifications: {
     title: 'Notifications',
@@ -3767,8 +3768,6 @@ export const en: DeepPartial<Dictionary> = {
       report: 'When done, report: the report goes to the author for acceptance',
       accept: 'The assignee reported: accept the report or return it for rework',
       waitAccept: 'The report is awaiting the author’s acceptance',
-      decideExtension: 'The assignee asks for an extension: approve or decline',
-      extensionPending: 'The extension request awaits the author’s decision',
       partsOpen:
         'Co-assignee parts are still open ({count}): you can report once all are accepted or cancelled',
     },

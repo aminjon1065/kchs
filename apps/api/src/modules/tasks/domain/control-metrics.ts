@@ -46,12 +46,13 @@ const DEFINITIONS: Record<ControlMetricKey, Record<string, unknown>> = {
       period: { unit: 'month', from: 0, to: 0 },
       comparison: 'previous_period',
     },
+    // Значение — проценты (среднее `on_time_score` 100/0), пороги — тоже
     format: { precision: 0, scale: 'percent' },
     direction: 'up',
     thresholds: [
       { value: 0, status: 'danger' },
-      { value: 0.8, status: 'warning' },
-      { value: 0.95, status: 'success' },
+      { value: 80, status: 'warning' },
+      { value: 95, status: 'success' },
     ],
   },
 }

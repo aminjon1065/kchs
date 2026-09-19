@@ -1,6 +1,6 @@
 import type { Locale, TaskRecord } from '@kchs/contracts'
 import { formatDate, formatDateTime } from '@kchs/fields'
-import { Badge, Button, ObjectChip, ObjectIcon, StatusBadge, UserChip } from '@kchs/ui'
+import { Badge, Button, cn, ObjectChip, ObjectIcon, StatusBadge, UserChip } from '@kchs/ui'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
@@ -21,10 +21,11 @@ export function PartsSection({ task }: { task: TaskRecord }) {
       <p className="mb-2 text-xs text-fg-muted">{t('tasks.parts.hint')}</p>
       <ul aria-label={t('tasks.parts.title')} className="divide-y divide-line">
         {task.parts.map((part) => (
-          <li key={part.id} className="flex flex-wrap items-center gap-3 py-2">
+          <li key={part.id} className="flex items-center gap-3 py-2">
             <Button
               variant="link"
               size="sm"
+              className="shrink-0"
               onClick={() =>
                 openTab({
                   kind: 'object',
@@ -37,13 +38,17 @@ export function PartsSection({ task }: { task: TaskRecord }) {
             >
               {part.key}
             </Button>
-            {part.assignee ? <UserChip user={part.assignee} /> : null}
+            <span className="flex min-w-0 flex-1">
+              {part.assignee ? <UserChip user={part.assignee} className="max-w-full" /> : null}
+            </span>
             <StatusBadge
               status={STATUS_TONE_KEY[part.status]}
               label={t(`tasks.statuses.${part.status}`)}
             />
             {part.dueAt ? (
-              <span className={part.overdue ? 'text-xs text-danger' : 'text-xs text-fg-muted'}>
+              <span
+                className={cn('shrink-0 text-xs', part.overdue ? 'text-danger' : 'text-fg-muted')}
+              >
                 {formatDate(part.dueAt, { locale })}
               </span>
             ) : null}

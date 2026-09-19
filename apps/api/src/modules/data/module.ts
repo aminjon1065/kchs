@@ -51,6 +51,8 @@ import {
   QueryRunInput,
   SqlRunInput,
   SqlSchema,
+  SYSTEM_DATASETS,
+  SystemDatasetSchema,
 } from '@kchs/contracts'
 import { eq, inArray, sql } from 'drizzle-orm'
 import { z } from 'zod'
@@ -91,6 +93,7 @@ import { RollbackService } from './domain/rollback-service.js'
 import { RowService } from './domain/row-service.js'
 import { SchemaService } from './domain/schema-service.js'
 import { SqlService } from './domain/sql-service.js'
+import { systemDatasetSchema } from './domain/system-schema.js'
 import { Physical } from './infra/physical.js'
 import {
   registerNotebookBackground,
@@ -898,6 +901,19 @@ export function registerDataRoutes(route: RouteRegistrar): void {
     },
     handler: async (request) =>
       DashboardService.drill(request.ctx, request.params.id, request.body),
+  })
+
+  route({
+    method: 'GET',
+    url: '/system-datasets/:name',
+    auth: 'session',
+    tags: ['data'],
+    summary: 'Схема системного датасета: поля для подписей показателей (ADR-0082)',
+    schema: {
+      params: z.object({ name: z.enum(SYSTEM_DATASETS) }),
+      response: { 200: SystemDatasetSchema },
+    },
+    handler: async (request) => systemDatasetSchema(request.ctx, request.params.name),
   })
 
   route({

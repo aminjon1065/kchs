@@ -19,6 +19,7 @@ import type {
   MetricValueInput,
   QueryResult,
   SqlSchema,
+  SystemDatasetSchema,
 } from '@kchs/contracts'
 import { IMPORT_FINAL_STATUSES } from '@kchs/contracts'
 import { queryOptions } from '@tanstack/react-query'
@@ -56,6 +57,14 @@ export const datasetQuery = (id: string) =>
   queryOptions({
     queryKey: dataKeys.dataset(id),
     queryFn: () => http.get<DatasetRecord>(`/datasets/${id}`),
+  })
+
+/** Схема системного датасета — подписи полей показателя над ним (ADR-0082). */
+export const systemDatasetQuery = (name: string) =>
+  queryOptions({
+    queryKey: ['system-dataset', name] as const,
+    queryFn: () => http.get<SystemDatasetSchema>(`/system-datasets/${name}`),
+    staleTime: 5 * 60_000,
   })
 
 export const datasetVersionsQuery = (id: string) =>

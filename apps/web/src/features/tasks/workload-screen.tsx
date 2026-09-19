@@ -8,7 +8,6 @@ import {
   DataTable,
   type DataTableColumn,
   EmptyState,
-  Field,
   PanelToolbar,
   Select,
   SelectContent,
@@ -150,42 +149,41 @@ export function WorkloadScreen({
           </>
         }
         right={
-          <div className="flex items-end gap-2">
-            <Field label={t('tasks.control.filters.unit')}>
-              <Select
-                value={unitId}
-                onValueChange={(next) => {
-                  setUnitId(next)
-                  setDrill(null)
-                }}
-              >
-                <SelectTrigger aria-label={t('tasks.control.filters.unit')} className="h-7 w-60">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={MINE}>{t('tasks.workload.mine')}</SelectItem>
-                  {unitOptions.map((unit) => (
-                    <SelectItem key={unit.id} value={unit.id}>
-                      {(unit.name as Record<string, string | undefined>)[locale] ?? unit.name.ru}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field label={t('tasks.workload.weeks')}>
-              <Select value={String(weeks)} onValueChange={(next) => setWeeks(Number(next))}>
-                <SelectTrigger aria-label={t('tasks.workload.weeks')} className="h-7 w-24">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {WEEK_OPTIONS.map((option) => (
-                    <SelectItem key={option} value={String(option)}>
-                      {option}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
+          <div className="flex items-center gap-2">
+            <Select
+              value={unitId}
+              onValueChange={(next) => {
+                setUnitId(next)
+                setDrill(null)
+              }}
+            >
+              <SelectTrigger aria-label={t('tasks.control.filters.unit')} className="h-7 w-60">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={MINE}>{t('tasks.workload.mine')}</SelectItem>
+                {unitOptions.map((unit) => (
+                  <SelectItem key={unit.id} value={unit.id}>
+                    {(unit.name as Record<string, string | undefined>)[locale] ?? unit.name.ru}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <span className="text-xs text-fg-muted" aria-hidden>
+              {t('tasks.workload.weeks')}
+            </span>
+            <Select value={String(weeks)} onValueChange={(next) => setWeeks(Number(next))}>
+              <SelectTrigger aria-label={t('tasks.workload.weeks')} className="h-7 w-20">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {WEEK_OPTIONS.map((option) => (
+                  <SelectItem key={option} value={String(option)}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         }
       />

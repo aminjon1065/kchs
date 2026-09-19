@@ -1,4 +1,5 @@
 import {
+  type FieldFormat,
   type FilterNode,
   METRIC_AGGREGATES,
   METRIC_COMPARISONS,
@@ -58,6 +59,16 @@ const ANY_UNIT = '__any'
 const CUSTOM = 'custom'
 /** Разрезом не бывают геометрия и JSON. */
 const NOT_DIMENSION = new Set(['geometry', 'json'])
+
+/**
+ * Формат после правки: редактор задаёт только точность, остальное (шкала
+ * процента, префикс, суффикс) сохраняется — показатели модулей задают их кодом.
+ */
+function formatOf(current: FieldFormat | null, precision: string): FieldFormat | null {
+  const { precision: _previous, ...rest } = current ?? {}
+  const next: FieldFormat = precision === '' ? rest : { ...rest, precision: Number(precision) }
+  return Object.keys(next).length > 0 ? next : null
+}
 
 interface TargetDraft {
   value: string
@@ -230,7 +241,7 @@ export function MetricEditor({
           comparison: draft.comparison,
         },
         unit: draft.unit.trim() || null,
-        format: draft.precision === '' ? null : { precision: Number(draft.precision) },
+        format: formatOf(metric?.format ?? null, draft.precision),
         direction: draft.direction,
         targets: draft.targets.map((target) => ({
           value: Number(target.value),

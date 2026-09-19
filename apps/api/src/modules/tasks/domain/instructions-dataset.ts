@@ -84,11 +84,12 @@ const FIELDS: ResolvedField[] = [
     tg: 'Сари вақт иҷро шуд',
     en: 'Done on time',
   }),
+  // 100 или 0 у принятого поручения со сроком: среднее — доля в срок в процентах
   field(
     'on_time_score',
     'integer',
     'measure',
-    { ru: 'Исполнено в срок (1/0)', tg: 'Сари вақт (1/0)', en: 'On time (1/0)' },
+    { ru: 'Исполнено в срок, %', tg: 'Сари вақт иҷро шуд, %', en: 'Done on time, %' },
     { precision: 0 },
   ),
   field('days_late', 'integer', 'measure', {

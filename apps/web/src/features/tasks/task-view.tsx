@@ -398,26 +398,25 @@ export function TaskView({ objectId, tabId }: { objectId: string; tabId: string 
 const isClosedStatus = (status: TaskRecord['status']) =>
   status === 'accepted' || status === 'done' || status === 'cancelled'
 
-/** Подсказка «что дальше» для смотрящего: его ход в процессе поручения. */
+/**
+ * Подсказка «что дальше» для смотрящего: его ход в процессе поручения. Запрос
+ * продления показывает своя плашка с кнопкой решения — здесь он не повторяется.
+ */
 function NextStep({ task }: { task: TaskRecord }) {
   const t = useT()
-  if (task.kind !== 'instruction') return null
+  if (task.kind !== 'instruction' || task.can.decideExtension) return null
   const openParts = task.parts.filter((part) => !isClosedStatus(part.status)).length
-  const key = task.can.decideExtension
-    ? 'decideExtension'
-    : task.can.start
-      ? 'start'
-      : task.can.report && openParts > 0
-        ? 'partsOpen'
-        : task.can.report
-          ? 'report'
-          : task.can.accept
-            ? 'accept'
-            : task.extension?.status === 'pending'
-              ? 'extensionPending'
-              : task.status === 'reported'
-                ? 'waitAccept'
-                : null
+  const key = task.can.start
+    ? 'start'
+    : task.can.report && openParts > 0
+      ? 'partsOpen'
+      : task.can.report
+        ? 'report'
+        : task.can.accept
+          ? 'accept'
+          : task.status === 'reported'
+            ? 'waitAccept'
+            : null
   if (!key) return null
   return <Callout tone="info">{t(`tasks.next.${key}`, { count: openParts })}</Callout>
 }
@@ -444,7 +443,7 @@ function details(
     {
       key: 'assignee',
       label: t('tasks.fields.assignee'),
-      value: task.assignee ? <UserChip user={task.assignee} /> : '—',
+      value: task.assignee ? <UserChip user={task.assignee} className="max-w-full" /> : '—',
     },
   ]
   if (task.coAssignees.length > 0) {
@@ -464,14 +463,14 @@ function details(
     items.push({
       key: 'controller',
       label: t('tasks.fields.controller'),
-      value: task.controller ? <UserChip user={task.controller} /> : '—',
+      value: task.controller ? <UserChip user={task.controller} className="max-w-full" /> : '—',
     })
   }
   items.push(
     {
       key: 'author',
       label: t('tasks.fields.author'),
-      value: task.author ? <UserChip user={task.author} /> : '—',
+      value: task.author ? <UserChip user={task.author} className="max-w-full" /> : '—',
     },
     {
       key: 'due',
@@ -481,7 +480,7 @@ function details(
         <span className={task.overdue ? 'text-danger' : undefined}>
           {formatDate(task.dueAt, { locale: ctx.locale })}
           {task.dueWorkingDays !== null ? (
-            <span className="ml-1.5 text-xs text-fg-muted">
+            <span className="ml-1.5 whitespace-nowrap text-xs text-fg-muted">
               {t('tasks.due.workingDaysShort', { count: task.dueWorkingDays })}
             </span>
           ) : null}

@@ -40,7 +40,7 @@ function TaskLine({ item, onOpen }: { item: TaskListItem; onOpen: () => void }) 
         <span className="flex items-center gap-2 text-xs text-fg-muted">
           {item.assignee ? <span className="truncate">{item.assignee.displayName}</span> : null}
           {item.dueAt ? (
-            <span className={cn(item.overdue && 'text-danger')}>
+            <span className={cn('whitespace-nowrap', item.overdue && 'text-danger')}>
               {t('inbox.dueIn', { date: formatDate(item.dueAt, { locale }) })}
             </span>
           ) : null}
@@ -137,7 +137,7 @@ export function IssuedWidget() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-3 gap-3 border-b border-line px-4 py-3 sm:grid-cols-6">
+          <div className="grid grid-cols-3 gap-3 border-b border-line px-4 py-3">
             <Counter label={t('home.issued.assigned')} value={data.assigned} />
             <Counter label={t('home.issued.inProgress')} value={data.inProgress + data.returned} />
             <Counter label={t('home.issued.reported')} value={data.reported} tone="text-accent" />

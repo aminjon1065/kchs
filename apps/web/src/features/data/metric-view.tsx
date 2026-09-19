@@ -1,5 +1,6 @@
 import {
   ChartSpec,
+  type FieldType,
   METRIC_COMPARISONS,
   type MetricComparison,
   type MetricPeriod,
@@ -7,6 +8,7 @@ import {
   type MetricValue,
   type ObjectSummary,
   type QueryResult,
+  type UserRef,
 } from '@kchs/contracts'
 import {
   AlertDialog,
@@ -16,6 +18,7 @@ import {
   Card,
   Chart,
   EmptyState,
+  type FilterField,
   FilterSummary,
   IconButton,
   InlineEdit,
@@ -32,7 +35,7 @@ import {
   Skeleton,
   useToast,
 } from '@kchs/ui'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { LayoutDashboard, Pencil, RefreshCw, Share2, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
@@ -41,9 +44,15 @@ import { useWorkspace } from '~/app/workspace/store.js'
 import { ShareDialog } from '~/features/access/share-dialog.js'
 import { PresenceAvatars } from '~/features/objects/presence-avatars.js'
 import { ApiError, http } from '~/shared/api/client.js'
-import { keys, meQuery, objectLinksQuery, objectQuery } from '~/shared/api/queries.js'
+import {
+  keys,
+  meQuery,
+  objectLinksQuery,
+  objectQuery,
+  orgUnitsQuery,
+} from '~/shared/api/queries.js'
 import { AddToDashboardDialog } from './dashboard-dialogs.js'
-import { fieldLabel, filterFieldsOf } from './field-types.js'
+import { filterFieldsOf } from './field-types.js'
 import { MetricEditor } from './metric-editor.js'
 import {
   formatMetricNumber,
@@ -54,7 +63,13 @@ import {
   periodText,
   presetPeriod,
 } from './metric-format.js'
-import { dataKeys, datasetQuery, metricQuery, metricValueQuery } from './queries.js'
+import {
+  dataKeys,
+  datasetQuery,
+  metricQuery,
+  metricValueQuery,
+  systemDatasetQuery,
+} from './queries.js'
 
 const CUSTOM = 'custom'
 /** Агрегаты, у которых история — столбцы (количество и суммы складываются). */
@@ -349,6 +364,66 @@ export function MetricView({ objectId, tabId }: { objectId: string; tabId: strin
   )
 }
 
+/**
+ * Поля источника показателя — датасета или системного датасета (ADR-0082):
+ * подписи мер, условий, разрезов и поля времени на языке интерфейса.
+ */
+function useSourceFields(metric: MetricRecord) {
+  const locale = useAppearance((s) => s.locale)
+  const { data: dataset } = useQuery({
+    ...datasetQuery(metric.datasetId ?? ''),
+    enabled: Boolean(metric.datasetId),
+  })
+  const { data: system } = useQuery({
+    ...systemDatasetQuery(metric.systemSource ?? ''),
+    enabled: Boolean(metric.systemSource),
+  })
+  const fields: FilterField[] = dataset
+    ? filterFieldsOf(dataset.fields, locale)
+    : (system?.fields ?? []).map((field) => ({
+        key: field.key,
+        label: field.label[locale] ?? field.label.ru ?? field.key,
+        type: field.type,
+      }))
+  const label = (key: string | null | undefined) => {
+    if (!key) return null
+    return fields.find((item) => item.key === key)?.label ?? key
+  }
+  return {
+    dataset,
+    fields,
+    label,
+    timeField: dataset?.timeField ?? system?.timeField ?? null,
+  }
+}
+
+/**
+ * Подписи значений разреза-ссылки: подразделение — по оргструктуре, сотрудник —
+ * по карточке (не больше первых 50 строк разреза); остальное — как есть.
+ */
+function useValueLabels(type: FieldType | undefined, values: string[]) {
+  const locale = useAppearance((s) => s.locale)
+  const { data: units } = useQuery({ ...orgUnitsQuery(), enabled: type === 'unit' })
+  const people = type === 'user' ? values.filter(Boolean).slice(0, 50) : []
+  const users = useQueries({
+    queries: people.map((id) => ({
+      queryKey: ['user-ref', id] as const,
+      queryFn: () => http.get<UserRef>(`/users/${id}`),
+      staleTime: 5 * 60_000,
+    })),
+  })
+  return (value: string): string => {
+    if (type === 'unit') {
+      const unit = units?.find((item) => item.id === value)
+      return unit
+        ? ((unit.name as Record<string, string | undefined>)[locale] ?? unit.name.ru)
+        : value
+    }
+    if (type === 'user') return users[people.indexOf(value)]?.data?.displayName ?? value
+    return value
+  }
+}
+
 /** Разрез значения по одному из допустимых полей: верхние значения и база сравнения. */
 function BreakdownCard({
   metric,
@@ -362,17 +437,15 @@ function BreakdownCard({
   const t = useT()
   const locale = useAppearance((s) => s.locale)
   const [dimension, setDimension] = useState(metric.definition.dimensions[0] ?? '')
-  const { data: dataset } = useQuery({
-    ...datasetQuery(metric.datasetId ?? ''),
-    enabled: Boolean(metric.datasetId),
-  })
+  const source = useSourceFields(metric)
   const { data, isLoading } = useQuery(
     metricValueQuery(metric.id, { period, comparison, dimensions: [dimension], series: false }),
   )
-  const label = (key: string) => {
-    const field = dataset?.fields.find((item) => item.key === key)
-    return field ? fieldLabel(field, locale) : key
-  }
+  const label = (key: string) => source.label(key) ?? key
+  const valueLabel = useValueLabels(
+    source.fields.find((field) => field.key === dimension)?.type,
+    (data?.breakdown ?? []).map((row) => String(row.values[dimension] ?? '')),
+  )
   const format = (value: number | null) =>
     value === null ? t('data.metric.none') : formatMetricNumber(value, metric.format, locale)
   const withBase = comparison === 'previous_period' || comparison === 'previous_year'
@@ -421,7 +494,9 @@ function BreakdownCard({
                 const key = String(row.values[dimension] ?? '')
                 return (
                   <tr key={key} className="border-t border-line">
-                    <td className="px-4 py-1.5 text-fg">{key || t('data.metric.empty')}</td>
+                    <td className="px-4 py-1.5 text-fg">
+                      {key ? valueLabel(key) : t('data.metric.empty')}
+                    </td>
                     <td className="tabular px-4 py-1.5 text-right text-fg">{format(row.value)}</td>
                     {withBase ? (
                       <td className="tabular px-4 py-1.5 text-right text-fg-secondary">
@@ -444,17 +519,8 @@ function DefinitionCard({ metric }: { metric: MetricRecord }) {
   const t = useT()
   const locale = useAppearance((s) => s.locale)
   const openTab = useWorkspace((s) => s.openTab)
-  const { data: dataset } = useQuery({
-    ...datasetQuery(metric.datasetId ?? ''),
-    enabled: Boolean(metric.datasetId),
-  })
+  const { dataset, fields, label, timeField } = useSourceFields(metric)
   const { definition } = metric
-  const fields = dataset?.fields ?? []
-  const label = (key: string | null | undefined) => {
-    if (!key) return null
-    const field = fields.find((item) => item.key === key)
-    return field ? fieldLabel(field, locale) : key
-  }
   const measure =
     definition.measure.agg === 'expr'
       ? definition.measure.expr
@@ -501,19 +567,14 @@ function DefinitionCard({ metric }: { metric: MetricRecord }) {
                 {
                   key: 'filter',
                   label: t('data.metric.filter'),
-                  value: (
-                    <FilterSummary
-                      fields={filterFieldsOf(fields, locale)}
-                      value={definition.filter}
-                    />
-                  ),
+                  value: <FilterSummary fields={fields} value={definition.filter} />,
                 },
               ]
             : []),
           {
             key: 'time',
             label: t('data.metric.timeField'),
-            value: label(definition.timeField ?? dataset?.timeField) ?? t('data.metric.noTime'),
+            value: label(definition.timeField ?? timeField) ?? t('data.metric.noTime'),
           },
           ...(definition.dimensions.length > 0
             ? [

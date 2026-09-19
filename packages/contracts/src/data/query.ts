@@ -36,6 +36,25 @@ export const SYSTEM_DATASETS = [
   'territories',
 ] as const
 
+/**
+ * Схема системного датасета для смотрящего (`GET /system-datasets/{name}`):
+ * поля без служебных и скрытых — подписи разрезов, условий и поля времени
+ * показателя над системным датасетом (ADR-0082).
+ */
+export const SystemDatasetSchema = z.object({
+  name: z.enum(SYSTEM_DATASETS),
+  timeField: z.string().nullable(),
+  fields: z.array(
+    z.object({
+      key: z.string(),
+      label: LangText,
+      type: FieldType,
+      semantic: FieldSemantic.nullable(),
+    }),
+  ),
+})
+export type SystemDatasetSchema = z.infer<typeof SystemDatasetSchema>
+
 export const QuerySource = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('dataset'), id: Uuid, alias: QueryAlias.optional() }),
   /** Сохранённый запрос как подзапрос. */
