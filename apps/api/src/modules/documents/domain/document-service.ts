@@ -230,6 +230,19 @@ async function emit(
   })
 }
 
+/** Продолжение регистрации в той же транзакции (направление на резолюцию, ознакомление). */
+type RegisteredHook = (tx: Executor, ctx: Ctx, documentId: string) => Promise<void>
+const registeredHooks: RegisteredHook[] = []
+
+/**
+ * Что делать после регистрации — в её транзакции (ADR-0084): направить на
+ * резолюцию и на ознакомление по правилам типа. Части модуля подключаются при
+ * старте — без цикла зависимостей со службой документов.
+ */
+export function onDocumentRegistered(hook: RegisteredHook): void {
+  if (!registeredHooks.includes(hook)) registeredHooks.push(hook)
+}
+
 /**
  * Документы (08-documents.md, P3-E02 S01/S03/S06/S11, ADR-0080). Черновик по
  * типу, карточка с проверкой по схеме типа, реквизиты, гриф; статусы меняют
@@ -673,7 +686,48 @@ export const DocumentService = {
       tx,
     )
     await refreshViewers(tx, id)
+    for (const hook of registeredHooks) await hook(tx, ctx, id)
     return issued.number
+  },
+
+  /**
+   * Контроль исполнения по резолюции (ADR-0084): контроль, срок и контролёр
+   * карточки меняются без права правки — его проверила резолюция; снятие с
+   * контроля — при исполнении документа.
+   */
+  async applyExecutionControl(
+    tx: Executor,
+    ctx: Ctx,
+    id: string,
+    patch: { control?: DocumentControl; deadline?: string | null; controllerId?: string | null },
+  ): Promise<void> {
+    const row = await loadRow(tx, id, true)
+    if (!row) throw errors.notFound('Документ')
+    const type = await DocumentTypeService.load(tx, row.typeId)
+    if (!type) throw errors.notFound('Тип документа')
+    const next = {
+      control: patch.control ?? row.control,
+      deadline: patch.deadline === undefined ? row.deadline : patch.deadline,
+      controllerId: patch.controllerId === undefined ? row.controllerId : patch.controllerId,
+    }
+    const changed = (Object.keys(next) as Array<keyof typeof next>).filter(
+      (key) => next[key] !== row[key],
+    )
+    if (changed.length === 0) return
+    await tx.update(documents).set(next).where(eq(documents.id, id))
+    await ObjectService.update(
+      tx,
+      ctx,
+      id,
+      { meta: metaOf({ ...row, ...next, type }), mergeMeta: true },
+      { silent: true },
+    )
+    if (changed.includes('controllerId')) {
+      await DocumentParticipants.sync(tx, ctx, id, 'card', cardParticipants({ ...row, ...next }))
+    }
+    await emit(tx, ctx, { id, spaceId: row.spaceId, title: row.title }, 'document.updated', {
+      changed,
+    })
   },
 
   /**

@@ -1,9 +1,13 @@
 import type { ObjectSummary } from '@kchs/contracts'
 import { eq, inArray } from 'drizzle-orm'
 import { registerSubscriber } from '~/kernel/events/bus.js'
+import { registerInboxActionHandler } from '~/kernel/inbox/actions.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
 import { withProcessParticipants } from '~/kernel/process/index.js'
 import { registerSystemDataset } from '~/kernel/system-datasets.js'
+import { registerCalendarProjection } from '~/modules/calendar/public.js'
+import type { Ctx } from '~/shared/context.js'
+import type { Executor } from '~/shared/db/client.js'
 import { db } from '~/shared/db/client.js'
 import {
   correspondents,
@@ -14,12 +18,16 @@ import {
 } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
-import { capabilityPolicy } from './domain/policies.js'
+import { DocumentAcknowledgments } from './domain/acknowledgment-service.js'
+import { documentControlProjection } from './domain/control-projection.js'
+import { onDocumentRegistered } from './domain/document-service.js'
+import { capabilityPolicy, documentPolicy } from './domain/policies.js'
 import {
   DOCUMENT_LIST_FIELDS,
   documentSearchContent,
   documentSummaries,
 } from './domain/registry.js'
+import { ResolutionService } from './domain/resolution-service.js'
 import { registerDocumentProcess } from './domain/routes/provider.js'
 import { documentSubscribers } from './domain/subscribers.js'
 import { DOCUMENTS_SYSTEM_DATASET } from './domain/system-dataset.js'
@@ -28,6 +36,29 @@ import { registerDocumentProcessRoutes } from './http/process-routes.js'
 import { registerDocumentRoutes } from './http/routes.js'
 
 const LEVELS = ['view', 'comment', 'edit', 'manage', 'owner'] as const
+
+/** После регистрации — на резолюцию по правилу типа (ADR-0084). */
+async function requestResolution(tx: Executor, ctx: Ctx, documentId: string): Promise<void> {
+  await ResolutionService.requestByTypeRule(tx, ctx, documentId)
+}
+
+/**
+ * Дела `resolve` (ADR-0084): «Не требует исполнения» — сразу; «Наложить
+ * резолюцию» выполняется формой в карточке (действие `openObject`).
+ */
+function registerResolutionInboxActions(): void {
+  registerInboxActionHandler('resolve', async (ctx, { item, action, comment }) => {
+    if (!item.objectId) throw errors.validation('Нет такого действия')
+    const documentId = item.objectId
+    if (action === 'no_execution') {
+      await db().transaction((tx) =>
+        ResolutionService.noExecution(tx, ctx, documentId, { comment: comment ?? null }),
+      )
+      return
+    }
+    throw errors.validation('Резолюция накладывается в карточке документа')
+  })
+}
 
 /**
  * Типы `document`, `document_type`, `journal`, `correspondent` и системный
@@ -52,6 +83,8 @@ export function registerDocumentsObjectTypes(): void {
       cancel: { minLevel: 'edit' },
       /** Аннулирование зарегистрированного — ещё и способностью делопроизводителя. */
       cancel_registered: { minLevel: 'edit', capability: 'documents.register' },
+      /** Отправить на ознакомление и напомнить (ADR-0084) — правом правки. */
+      request_acknowledgment: { minLevel: 'edit', allowArchived: true },
       manage: { minLevel: 'manage' },
       share: { minLevel: 'manage' },
       delete: { minLevel: 'owner' },
@@ -61,8 +94,9 @@ export function registerDocumentsObjectTypes(): void {
     hasParentTree: false,
     moduleManaged: true,
     // Участник шага маршрута видит документ (и заместитель — через замещаемого);
-    // пока шаг идёт — ещё и обсуждает: вопрос автору до решения (ADR-0083)
-    policy: withProcessParticipants(undefined, { afterStep: 'view', activeLevel: 'comment' }),
+    // пока шаг идёт — ещё и обсуждает: вопрос автору до решения (ADR-0083).
+    // Заместитель «от имени» — на уровне участия замещаемого (ADR-0084)
+    policy: withProcessParticipants(documentPolicy, { afterStep: 'view', activeLevel: 'comment' }),
     listFields: DOCUMENT_LIST_FIELDS,
     summary: documentSummaries,
     searchable: documentSearchContent,
@@ -221,6 +255,11 @@ export function registerDocumentsObjectTypes(): void {
   registerSystemDataset(DOCUMENTS_SYSTEM_DATASET)
   // Маршруты документов на движке процессов: хуки статусов и шаг регистрации
   registerDocumentProcess()
+  // Резолюции и ознакомление (ADR-0084): продолжение регистрации, дела Входящих, календарь
+  onDocumentRegistered(requestResolution)
+  onDocumentRegistered(DocumentAcknowledgments.onRegistered)
+  registerResolutionInboxActions()
+  registerCalendarProjection(documentControlProjection)
 }
 
 /** Подписчики модуля — только в роли worker. */

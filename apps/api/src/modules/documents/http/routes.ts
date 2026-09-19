@@ -1,4 +1,6 @@
 import {
+  AcknowledgmentRequestInput,
+  AcknowledgmentRequestResult,
   CorrespondentInput,
   CorrespondentList,
   CorrespondentListQuery,
@@ -9,6 +11,7 @@ import {
   DocumentPdfResult,
   DocumentRecord,
   DocumentRegisterInput,
+  DocumentResolutions,
   DocumentSummary,
   DocumentTypeCreateInput,
   DocumentTypeRecord,
@@ -24,15 +27,24 @@ import {
   JournalReservationState,
   JournalReserveInput,
   JournalUpdateInput,
+  NoExecutionInput,
+  ResolutionInput,
+  ResolutionRequestInput,
+  ResolutionTemplate,
+  ResolutionTemplateInput,
+  ResolutionTemplateUpdateInput,
 } from '@kchs/contracts'
 import { z } from 'zod'
 import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { validServiceToken } from '~/shared/http/service-token.js'
+import { DocumentAcknowledgments } from '../domain/acknowledgment-service.js'
 import { CorrespondentService } from '../domain/correspondent-service.js'
 import { DocumentService } from '../domain/document-service.js'
 import { JournalService } from '../domain/journal-service.js'
+import { ResolutionService } from '../domain/resolution-service.js'
+import { ResolutionTemplates } from '../domain/resolution-templates.js'
 import { DocumentTypeService } from '../domain/type-service.js'
 import { DocumentVersionService } from '../domain/version-service.js'
 
@@ -176,6 +188,162 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
       }
       const { stale } = await DocumentVersionService.applyPdfResult(request.params.id, request.body)
       return { ok: true, stale }
+    },
+  })
+
+  // ─── Резолюции и исполнение (ADR-0084) ────────────────────────────────────
+  route({
+    method: 'GET',
+    url: '/documents/:id/resolutions',
+    auth: 'session',
+    tags: ['documents'],
+    summary: 'Резолюции документа деревом, направления на резолюцию, права смотрящего',
+    schema: { params: IdParam, response: { 200: DocumentResolutions } },
+    handler: async (request) => ResolutionService.list(request.ctx, request.params.id),
+  })
+
+  route({
+    method: 'POST',
+    url: '/documents/:id/resolutions',
+    auth: 'session',
+    tags: ['documents'],
+    summary: 'Наложить резолюцию: поручения ответственному и соисполнителям в той же транзакции',
+    schema: { params: IdParam, body: ResolutionInput, response: { 200: DocumentResolutions } },
+    handler: async (request) => {
+      await db().transaction((tx) =>
+        ResolutionService.create(tx, request.ctx, request.params.id, request.body),
+      )
+      return ResolutionService.list(request.ctx, request.params.id)
+    },
+  })
+
+  route({
+    method: 'POST',
+    url: '/documents/:id/resolution-requests',
+    auth: 'session',
+    tags: ['documents'],
+    summary: 'Направить документ на резолюцию (или переадресовать)',
+    schema: {
+      params: IdParam,
+      body: ResolutionRequestInput,
+      response: { 200: DocumentResolutions },
+    },
+    handler: async (request) => {
+      await db().transaction((tx) =>
+        ResolutionService.request(tx, request.ctx, request.params.id, request.body),
+      )
+      return ResolutionService.list(request.ctx, request.params.id)
+    },
+  })
+
+  route({
+    method: 'DELETE',
+    url: '/documents/:id/resolution-requests/:requestId',
+    auth: 'session',
+    tags: ['documents'],
+    summary: 'Снять направление на резолюцию',
+    schema: {
+      params: z.object({ id: z.uuid(), requestId: z.uuid() }),
+      response: { 200: DocumentResolutions },
+    },
+    handler: async (request) => {
+      await db().transaction((tx) =>
+        ResolutionService.cancelRequest(
+          tx,
+          request.ctx,
+          request.params.id,
+          request.params.requestId,
+        ),
+      )
+      return ResolutionService.list(request.ctx, request.params.id)
+    },
+  })
+
+  route({
+    method: 'POST',
+    url: '/documents/:id/no-execution',
+    auth: 'session',
+    tags: ['documents'],
+    summary: '«Не требует исполнения»: зарегистрированный документ исполнен без поручений',
+    schema: { params: IdParam, body: NoExecutionInput, response: { 200: DocumentRecord } },
+    handler: async (request) => {
+      await db().transaction((tx) =>
+        ResolutionService.noExecution(tx, request.ctx, request.params.id, request.body),
+      )
+      return DocumentService.get(request.ctx, request.params.id)
+    },
+  })
+
+  route({
+    method: 'POST',
+    url: '/documents/:id/acknowledgments',
+    auth: 'session',
+    tags: ['documents'],
+    summary: 'Отправить на ознакомление: сотрудники, подразделения, группы',
+    schema: {
+      params: IdParam,
+      body: AcknowledgmentRequestInput,
+      response: { 200: AcknowledgmentRequestResult },
+    },
+    handler: async (request) =>
+      db().transaction((tx) =>
+        DocumentAcknowledgments.request(tx, request.ctx, request.params.id, request.body),
+      ),
+  })
+
+  route({
+    method: 'GET',
+    url: '/resolution-templates',
+    auth: 'session',
+    tags: ['documents'],
+    summary: 'Шаблоны резолюций: общие и личные',
+    schema: { response: { 200: z.object({ items: z.array(ResolutionTemplate) }) } },
+    handler: async (request) => ({ items: await ResolutionTemplates.list(request.ctx) }),
+  })
+
+  route({
+    method: 'POST',
+    url: '/resolution-templates',
+    auth: 'session',
+    tags: ['documents'],
+    summary: 'Новый шаблон резолюции (общий — канцелярия)',
+    schema: {
+      body: ResolutionTemplateInput,
+      response: { 200: z.object({ items: z.array(ResolutionTemplate) }) },
+    },
+    handler: async (request) => {
+      await db().transaction((tx) => ResolutionTemplates.create(tx, request.ctx, request.body))
+      return { items: await ResolutionTemplates.list(request.ctx) }
+    },
+  })
+
+  route({
+    method: 'PATCH',
+    url: '/resolution-templates/:id',
+    auth: 'session',
+    tags: ['documents'],
+    summary: 'Изменить шаблон резолюции',
+    schema: {
+      params: IdParam,
+      body: ResolutionTemplateUpdateInput,
+      response: { 200: ResolutionTemplate },
+    },
+    handler: async (request) =>
+      db().transaction((tx) =>
+        ResolutionTemplates.update(tx, request.ctx, request.params.id, request.body),
+      ),
+  })
+
+  route({
+    method: 'DELETE',
+    url: '/resolution-templates/:id',
+    auth: 'session',
+    tags: ['documents'],
+    summary: 'Удалить шаблон резолюции',
+    schema: { params: IdParam, response: { 200: Ok } },
+    handler: async (request) => {
+      await db().transaction((tx) => ResolutionTemplates.remove(tx, request.ctx, request.params.id))
+      return { ok: true }
     },
   })
 

@@ -9,6 +9,7 @@ import { systemCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { documents } from '~/shared/db/schema/index.js'
 import { refreshJournalViewers, refreshViewers } from './participants.js'
+import { ResolutionService } from './resolution-service.js'
 
 /** Лента документа (вкладка «История»): создание пишет ядро (`object.created`). */
 const ACTIVITY: Record<string, { verb: string; key: string }> = {
@@ -20,6 +21,14 @@ const ACTIVITY: Record<string, { verb: string; key: string }> = {
   'document.confidentiality_changed': {
     verb: 'confidentiality_changed',
     key: 'activity.document.confidentialityChanged',
+  },
+  'document.resolution_requested': {
+    verb: 'resolution_requested',
+    key: 'activity.document.resolutionRequested',
+  },
+  'document.resolution_added': {
+    verb: 'resolution_added',
+    key: 'activity.document.resolutionAdded',
   },
 }
 
@@ -79,8 +88,10 @@ async function notify(event: EventEnvelope): Promise<void> {
       })
       break
     case 'document.participants_changed': {
-      // Черновик — ещё дело автора; назначения по нему придут при регистрации
-      if (doc.status === 'draft') break
+      // Черновик — ещё дело автора; назначения по нему придут при регистрации.
+      // Участники резолюций, направлений и ознакомления узнают о своём деле из
+      // Входящих и поручений — здесь только реквизиты карточки (ADR-0084)
+      if (doc.status === 'draft' || event.payload.source !== 'card') break
       const added = (event.payload.added as string[] | undefined) ?? []
       await NotificationService.notify({
         ...base,
@@ -94,6 +105,16 @@ async function notify(event: EventEnvelope): Promise<void> {
         ...base,
         userIds: people(doc.responsibleId, doc.controllerId, doc.authorId),
         titleKey: 'notifications.tpl.documentCancelled',
+      })
+      break
+    // Направление на резолюцию — действие: категория Входящих, в Telegram сразу
+    case 'document.resolution_requested':
+      await NotificationService.notify({
+        ...base,
+        category: 'inbox',
+        userIds: people(event.payload.userId as string | undefined),
+        titleKey: 'notifications.tpl.resolutionRequested',
+        aggregateKey: `resolve:${event.object.id}`,
       })
       break
     default:
@@ -126,6 +147,30 @@ async function refreshAccess(event: EventEnvelope): Promise<void> {
   if (event.object.type === 'journal') await refreshJournalViewers(db(), event.object.id)
 }
 
+/**
+ * Исполнение (08-documents.md §6, ADR-0084): последнее поручение документа
+ * принято или отменено — документ на исполнении становится «Исполнен».
+ */
+async function executed(event: EventEnvelope): Promise<void> {
+  if (event.object?.type !== 'document') return
+  const documentId = event.object.id
+  const resolutionIds = Array.isArray(event.payload.resolutionIds)
+    ? (event.payload.resolutionIds as string[])
+    : []
+  await db().transaction((tx) =>
+    ResolutionService.executed(tx, systemCtx('documents.execution'), documentId, resolutionIds),
+  )
+}
+
+/** Аннулированный документ — направления на резолюцию снимаются. */
+async function cancelled(event: EventEnvelope): Promise<void> {
+  if (!event.object) return
+  const documentId = event.object.id
+  await db().transaction((tx) =>
+    ResolutionService.documentCancelled(tx, systemCtx('documents.cancelled'), documentId),
+  )
+}
+
 /** Документ в корзине — его дела во Входящих больше не ждут действия. */
 async function dismissTrashed(event: EventEnvelope): Promise<void> {
   if (event.object?.type !== 'document') return
@@ -140,9 +185,16 @@ async function dismissTrashed(event: EventEnvelope): Promise<void> {
 export const documentSubscribers: Subscriber[] = [
   {
     name: 'documents-notifications',
-    types: ['document.registered', 'document.participants_changed', 'document.cancelled'],
+    types: [
+      'document.registered',
+      'document.participants_changed',
+      'document.cancelled',
+      'document.resolution_requested',
+    ],
     handle: notify,
   },
+  { name: 'documents-execution', types: ['task.source_closed'], handle: executed },
+  { name: 'documents-resolution-requests', types: ['document.cancelled'], handle: cancelled },
   { name: 'documents-activity', types: ['document.*'], handle: activity },
   {
     name: 'documents-realtime',
