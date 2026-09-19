@@ -14,6 +14,7 @@ import {
 import { useUiT } from '../i18n/ui-locale.js'
 import { cn } from '../lib/cn.js'
 import { cspNonce } from '../lib/csp-nonce.js'
+import { type PersonTone, personTone } from '../lib/person-tone.js'
 
 // ─── Badge, Tag, Chip ────────────────────────────────────────────────────────
 
@@ -136,15 +137,18 @@ export function Tag({
 
 // ─── Avatar ──────────────────────────────────────────────────────────────────
 
-/** Цвет человека даёт подложка; инициалы — основным цветом текста (контраст AA). */
-const AVATAR_TONES = [
-  'bg-chart-1/20 text-fg',
-  'bg-chart-2/20 text-fg',
-  'bg-chart-3/20 text-fg',
-  'bg-chart-5/20 text-fg',
-  'bg-chart-6/20 text-fg',
-  'bg-chart-8/20 text-fg',
-]
+/**
+ * Цвет человека даёт подложка; инициалы — основным цветом текста (контраст AA).
+ * Классы — литералами, чтобы Tailwind их собрал; оттенок — `personTone`.
+ */
+const AVATAR_TONES: Record<PersonTone, string> = {
+  1: 'bg-chart-1/20 text-fg',
+  2: 'bg-chart-2/20 text-fg',
+  3: 'bg-chart-3/20 text-fg',
+  5: 'bg-chart-5/20 text-fg',
+  6: 'bg-chart-6/20 text-fg',
+  8: 'bg-chart-8/20 text-fg',
+}
 
 function initialsOf(name: string): string {
   const parts = name.trim().split(/\s+/).slice(0, 2)
@@ -152,9 +156,7 @@ function initialsOf(name: string): string {
 }
 
 function toneFor(name: string): string {
-  let hash = 0
-  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0
-  return AVATAR_TONES[hash % AVATAR_TONES.length]!
+  return AVATAR_TONES[personTone(name)]
 }
 
 const avatarSizes = {

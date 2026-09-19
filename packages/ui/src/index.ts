@@ -14,6 +14,7 @@ export * from './composites/filter-builder.js'
 export * from './composites/hover-card.js'
 export * from './composites/kanban-board.js'
 export * from './composites/object-chip.js'
+export * from './composites/rich-text-editor/index.js'
 export * from './composites/schema-form.js'
 export * from './composites/sql-editor/index.js'
 export * from './composites/tag-input.js'
@@ -22,6 +23,7 @@ export { UiLocaleProvider, useUiLocale, useUiT } from './i18n/ui-locale.js'
 export * from './icons/object-icon.js'
 export { cn } from './lib/cn.js'
 export { cspNonce, readCspNonce, setCspNonce } from './lib/csp-nonce.js'
+export { type PersonTone, personTone } from './lib/person-tone.js'
 export {
   MapCanvas,
   type MapCanvasProps,

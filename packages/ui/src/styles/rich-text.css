@@ -1,0 +1,236 @@
+/*
+ * RichTextEditor (Tiptap, ADR-0018): типографика текста и курсоры соавторов.
+ * Tiptap не вставляет свои стили (injectCSS: false), курсоры и выделения
+ * собираются классами и data-атрибутами — строгий CSP (ADR-0043) запрещает
+ * встроенные стили. Цвета — токены: соавтор окрашен оттенком палитры графиков.
+ */
+
+.kchs-rich-text__content {
+  /* Кольцу фокуса — зазор вокруг текста; отрицательные поля держат текст по краю соседей */
+  margin: calc(var(--spacing) * -1) calc(var(--spacing) * -1.5);
+  border-radius: var(--radius-xs);
+  padding: calc(var(--spacing) * 1) calc(var(--spacing) * 1.5);
+  min-height: calc(var(--spacing) * 8);
+  outline: none;
+  color: var(--text);
+  font-size: var(--text-base);
+  line-height: var(--text-base--line-height);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0;
+}
+
+.kchs-rich-text__content > * + * {
+  margin-top: calc(var(--spacing) * 2);
+}
+
+.kchs-rich-text__content h1 {
+  font-size: var(--text-xl);
+  line-height: var(--text-xl--line-height);
+  font-weight: var(--text-xl--font-weight);
+  letter-spacing: var(--text-xl--letter-spacing);
+}
+
+.kchs-rich-text__content h2 {
+  font-size: var(--text-lg);
+  line-height: var(--text-lg--line-height);
+  font-weight: var(--text-lg--font-weight);
+  letter-spacing: var(--text-lg--letter-spacing);
+}
+
+.kchs-rich-text__content h3 {
+  font-size: var(--text-md);
+  line-height: var(--text-md--line-height);
+  font-weight: 600;
+}
+
+.kchs-rich-text__content * + h1,
+.kchs-rich-text__content * + h2,
+.kchs-rich-text__content * + h3 {
+  margin-top: calc(var(--spacing) * 4);
+}
+
+.kchs-rich-text__content ul,
+.kchs-rich-text__content ol {
+  margin: 0;
+  padding-left: calc(var(--spacing) * 6);
+}
+
+.kchs-rich-text__content ul {
+  list-style: disc;
+}
+
+.kchs-rich-text__content ol {
+  list-style: decimal;
+}
+
+.kchs-rich-text__content li + li,
+.kchs-rich-text__content li > * + * {
+  margin-top: calc(var(--spacing) * 1);
+}
+
+.kchs-rich-text__content blockquote {
+  border-left: 3px solid var(--border-strong);
+  padding-left: calc(var(--spacing) * 3);
+  color: var(--text-secondary);
+}
+
+.kchs-rich-text__content code {
+  border-radius: var(--radius-xs);
+  background: var(--bg-surface-3);
+  padding: 1px calc(var(--spacing) * 1);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+}
+
+.kchs-rich-text__content pre {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface-2);
+  padding: calc(var(--spacing) * 2) calc(var(--spacing) * 3);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: var(--text-sm--line-height);
+  white-space: pre;
+}
+
+.kchs-rich-text__content pre code {
+  background: none;
+  padding: 0;
+  font-size: inherit;
+}
+
+.kchs-rich-text__content a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.kchs-rich-text__content hr {
+  margin: calc(var(--spacing) * 4) 0;
+  border: none;
+  border-top: 1px solid var(--border);
+}
+
+.kchs-rich-text__content hr.ProseMirror-selectednode {
+  border-top-color: var(--accent);
+}
+
+/* Пустой редактор — подсказка (Placeholder: класс и data-атрибут у абзаца) */
+.kchs-rich-text__content p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+/* Курсор между блоками (gapcursor) и при перетаскивании (dropcursor) */
+.kchs-rich-text__content .ProseMirror-gapcursor {
+  position: relative;
+  display: none;
+  pointer-events: none;
+}
+
+.kchs-rich-text__content .ProseMirror-gapcursor::after {
+  content: "";
+  position: absolute;
+  top: -2px;
+  display: block;
+  width: 20px;
+  border-top: 1px solid var(--text);
+  animation: kchs-gapcursor 1.1s steps(2, start) infinite;
+}
+
+.kchs-rich-text__content.ProseMirror-focused .ProseMirror-gapcursor {
+  display: block;
+}
+
+@keyframes kchs-gapcursor {
+  to {
+    visibility: hidden;
+  }
+}
+
+.kchs-rich-text__dropcursor {
+  background: var(--accent);
+}
+
+.kchs-rich-text__content .ProseMirror-hideselection *::selection {
+  background: transparent;
+}
+
+.kchs-rich-text__content .ProseMirror-hideselection {
+  caret-color: transparent;
+}
+
+/* ─── Соавторы ─────────────────────────────────────────────────────────── */
+
+.kchs-caret,
+.kchs-caret-selection {
+  --kchs-caret-color: var(--chart-1);
+}
+
+.kchs-caret {
+  position: relative;
+  margin-right: -1px;
+  margin-left: -1px;
+  border-right: 1px solid var(--kchs-caret-color);
+  border-left: 1px solid var(--kchs-caret-color);
+  word-break: normal;
+  pointer-events: none;
+}
+
+.kchs-caret__label {
+  position: absolute;
+  bottom: 100%;
+  left: -1px;
+  border-radius: var(--radius-xs) var(--radius-xs) var(--radius-xs) 0;
+  background: color-mix(in oklab, var(--kchs-caret-color) 22%, var(--bg-surface));
+  box-shadow: inset 2px 0 0 var(--kchs-caret-color);
+  padding: 0 calc(var(--spacing) * 1.5) 0 calc(var(--spacing) * 1.5 + 2px);
+  color: var(--text);
+  font-size: var(--text-2xs);
+  line-height: var(--text-2xs--line-height);
+  font-weight: 600;
+  font-style: normal;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.kchs-caret-selection {
+  background: color-mix(in oklab, var(--kchs-caret-color) 24%, transparent);
+}
+
+.kchs-caret[data-tone="1"],
+.kchs-caret-selection[data-tone="1"] {
+  --kchs-caret-color: var(--chart-1);
+}
+
+.kchs-caret[data-tone="2"],
+.kchs-caret-selection[data-tone="2"] {
+  --kchs-caret-color: var(--chart-2);
+}
+
+.kchs-caret[data-tone="3"],
+.kchs-caret-selection[data-tone="3"] {
+  --kchs-caret-color: var(--chart-3);
+}
+
+.kchs-caret[data-tone="5"],
+.kchs-caret-selection[data-tone="5"] {
+  --kchs-caret-color: var(--chart-5);
+}
+
+.kchs-caret[data-tone="6"],
+.kchs-caret-selection[data-tone="6"] {
+  --kchs-caret-color: var(--chart-6);
+}
+
+.kchs-caret[data-tone="8"],
+.kchs-caret-selection[data-tone="8"] {
+  --kchs-caret-color: var(--chart-8);
+}
