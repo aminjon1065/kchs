@@ -896,6 +896,10 @@ export const en: DeepPartial<Dictionary> = {
       return: 'Return',
       snooze: 'Snooze',
       open: 'Open',
+      refuse: 'Refuse to sign',
+      register: 'Register',
+      resubmit: 'Resubmit',
+      withdraw: 'Withdraw',
     },
     tpl: {
       acceptInstruction: 'Assignment: {title}',
@@ -913,6 +917,8 @@ export const en: DeepPartial<Dictionary> = {
     scopeLabel: 'Scope',
     urgent: 'urgent',
     comment: 'Comment',
+    code: 'Confirmation code',
+    codeHint: 'Six-digit code from your authenticator app',
   },
   notifications: {
     title: 'Notifications',
@@ -956,6 +962,24 @@ export const en: DeepPartial<Dictionary> = {
       featureEditSubmitted: '{actor} suggested a feature edit in layer “{title}”',
       featureEditApproved: '{actor} accepted your edit of layer “{title}”',
       featureEditRejected: '{actor} rejected your edit of layer “{title}”',
+      processApprove: 'Please approve “{title}”',
+      processSign: 'Please sign “{title}”',
+      processAcknowledge: 'Please acknowledge “{title}”',
+      processRegister: 'Please register “{title}”',
+      processRevise: 'Revise “{title}” and resubmit',
+      processNotify: 'Route of “{title}”: notification',
+      processUnassigned:
+        'Route of “{title}”: a step has no assignees — contact the route administrator',
+      processDueSoon: 'Due tomorrow: “{title}”',
+      processDueToday: 'Due today: “{title}”',
+      processOverdue: 'Overdue: “{title}”',
+      processEscalation: 'A route step of “{title}” is overdue',
+      processRejected: '{actor} rejected “{title}”',
+      processRemarks: '{actor} left remarks on “{title}”',
+      processRefused: '{actor} refused to sign “{title}”',
+      processFinished: 'The route of “{title}” is complete',
+      processFinishedRejected: 'The route of “{title}” ended with a rejection',
+      processCancelled: 'The route of “{title}” was cancelled',
     },
   },
   telegram: {
@@ -998,6 +1022,27 @@ export const en: DeepPartial<Dictionary> = {
       reported: '{actor} reported on the assignment',
       completed: '{actor} closed the task',
       returned: '{actor} returned it for rework: {comment}',
+    },
+    process: {
+      started: '{actor} started the route “{name}”',
+      decided: {
+        approve: '{actor} approved',
+        remarks: '{actor} left remarks',
+        reject: '{actor} rejected',
+        sign: '{actor} signed',
+        refuse: '{actor} refused to sign',
+        acknowledge: '{actor} acknowledged',
+        register: '{actor} registered it',
+        resubmit: '{actor} resubmitted it for approval',
+        withdraw: '{actor} withdrew it from the route',
+      },
+      assignees: {
+        added: '{actor} added an approver',
+        delegated: '{actor} handed over their route step',
+        reassigned: '{actor} reassigned a route step',
+      },
+      finished: 'The route is complete',
+      cancelled: 'The route was cancelled',
     },
   },
 
@@ -1149,6 +1194,7 @@ export const en: DeepPartial<Dictionary> = {
       delegation: 'Delegation: {user}',
       attribute_cap: 'Limited: {reason}',
       denied: 'Access not granted',
+      process_step: 'Route participant',
     },
     picker: {
       placeholder: 'Person, unit, group or position',
@@ -3375,6 +3421,16 @@ export const en: DeepPartial<Dictionary> = {
     },
   },
 
+  processes: {
+    inbox: {
+      approve: 'Approve: {title}',
+      sign: 'Sign: {title}',
+      acknowledge: 'Acknowledge: {title}',
+      register: 'Register: {title}',
+      revise: 'Revise and resubmit: {title}',
+    },
+  },
+
   discussion: {
     title: 'Discussion',
     empty: 'No messages yet',
@@ -3528,6 +3584,7 @@ export const en: DeepPartial<Dictionary> = {
       rolesManage: 'Manage roles',
       documentsRegister: 'Register documents',
       documentsJournalsManage: 'Manage journals',
+      processesManage: 'Process routes',
       dataSourcesManage: 'Data sources',
       dataExport: 'Export data',
       dataSql: 'SQL lab',

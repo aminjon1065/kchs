@@ -912,6 +912,10 @@ export const ru = {
       return: 'Вернуть',
       snooze: 'Отложить',
       open: 'Открыть',
+      refuse: 'Отказать в подписи',
+      register: 'Зарегистрировать',
+      resubmit: 'Отправить повторно',
+      withdraw: 'Отозвать',
     },
     tpl: {
       acceptInstruction: 'Поручение: {title}',
@@ -929,6 +933,8 @@ export const ru = {
     scopeLabel: 'Область',
     urgent: 'срочно',
     comment: 'Комментарий',
+    code: 'Код подтверждения',
+    codeHint: 'Шестизначный код из приложения-аутентификатора',
   },
 
   notifications: {
@@ -974,6 +980,24 @@ export const ru = {
       featureEditSubmitted: '{actor} предложил правку объекта слоя «{title}»',
       featureEditApproved: '{actor} принял вашу правку слоя «{title}»',
       featureEditRejected: '{actor} отклонил вашу правку слоя «{title}»',
+      processApprove: 'Согласуйте «{title}»',
+      processSign: 'Подпишите «{title}»',
+      processAcknowledge: 'Ознакомьтесь с «{title}»',
+      processRegister: 'Зарегистрируйте «{title}»',
+      processRevise: 'Доработайте «{title}» и отправьте повторно',
+      processNotify: 'Маршрут «{title}»: уведомление',
+      processUnassigned:
+        'Маршрут «{title}»: у шага нет назначенных — обратитесь к администратору маршрутов',
+      processDueSoon: 'Завтра срок: «{title}»',
+      processDueToday: 'Сегодня срок: «{title}»',
+      processOverdue: 'Просрочено: «{title}»',
+      processEscalation: 'Просрочен шаг маршрута «{title}»',
+      processRejected: '{actor} отклонил «{title}»',
+      processRemarks: '{actor} дал замечания к «{title}»',
+      processRefused: '{actor} отказал в подписи «{title}»',
+      processFinished: 'Маршрут «{title}» завершён',
+      processFinishedRejected: 'Маршрут «{title}» завершён отклонением',
+      processCancelled: 'Маршрут «{title}» отменён',
     },
   },
 
@@ -1019,6 +1043,27 @@ export const ru = {
       reported: '{actor} отчитался об исполнении',
       completed: '{actor} закрыл задачу',
       returned: '{actor} вернул на доработку: {comment}',
+    },
+    process: {
+      started: '{actor} запустил маршрут «{name}»',
+      decided: {
+        approve: '{actor} согласовал',
+        remarks: '{actor} дал замечания',
+        reject: '{actor} отклонил',
+        sign: '{actor} подписал',
+        refuse: '{actor} отказал в подписи',
+        acknowledge: '{actor} ознакомился',
+        register: '{actor} зарегистрировал',
+        resubmit: '{actor} отправил на повторное согласование',
+        withdraw: '{actor} отозвал с маршрута',
+      },
+      assignees: {
+        added: '{actor} добавил согласующего',
+        delegated: '{actor} передал свой шаг маршрута',
+        reassigned: '{actor} переназначил шаг маршрута',
+      },
+      finished: 'Маршрут завершён',
+      cancelled: 'Маршрут отменён',
     },
   },
 
@@ -1171,6 +1216,7 @@ export const ru = {
       delegation: 'Замещение: {user}',
       attribute_cap: 'Ограничено: {reason}',
       denied: 'Доступ не предоставлен',
+      process_step: 'Участник маршрута',
     },
     picker: {
       placeholder: 'Сотрудник, подразделение, группа или должность',
@@ -3418,6 +3464,16 @@ export const ru = {
     },
   },
 
+  processes: {
+    inbox: {
+      approve: 'Согласовать: {title}',
+      sign: 'Подписать: {title}',
+      acknowledge: 'Ознакомиться: {title}',
+      register: 'Зарегистрировать: {title}',
+      revise: 'Доработать и отправить повторно: {title}',
+    },
+  },
+
   discussion: {
     title: 'Обсуждение',
     empty: 'Обсуждение ещё не начато',
@@ -3577,6 +3633,7 @@ export const ru = {
       rolesManage: 'Управление ролями',
       documentsRegister: 'Регистрация документов',
       documentsJournalsManage: 'Ведение журналов',
+      processesManage: 'Маршруты процессов',
       dataSourcesManage: 'Источники данных',
       dataExport: 'Выгрузка данных',
       dataSql: 'SQL-лаборатория',
