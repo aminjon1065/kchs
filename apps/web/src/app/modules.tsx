@@ -8,6 +8,9 @@ import { ExploreScreen } from '~/features/data/explore-screen.js'
 import { MetricView } from '~/features/data/metric-view.js'
 import { type SavedSqlLab, SqlLabScreen } from '~/features/data/sql-lab-screen.js'
 import { FilesScreen } from '~/features/files/files-screen.js'
+import { LayerView } from '~/features/gis/layer-view.js'
+import { MapStudio, type MapTabState } from '~/features/gis/map-studio.js'
+import { MapsScreen } from '~/features/gis/maps-screen.js'
 import { TerritoriesScreen } from '~/features/gis/territories-screen.js'
 import { TerritoryView } from '~/features/gis/territory-view.js'
 import { HomeScreen } from '~/features/home/home-screen.js'
@@ -184,5 +187,32 @@ export function registerModules(): void {
   registerObjectView({
     type: 'territory',
     render: (tab) => <TerritoryView objectId={tab.objectId!} />,
+  })
+  registerScreen({
+    key: 'maps',
+    titleKey: 'shell.rail.maps',
+    icon: 'map',
+    render: (tab) => (
+      <MapsScreen
+        tabId={tab.id}
+        savedState={tab.state as Parameters<typeof MapsScreen>[0]['savedState']}
+      />
+    ),
+  })
+  registerObjectView({
+    type: 'map',
+    render: (tab) => (
+      <MapStudio objectId={tab.objectId!} tabId={tab.id} savedState={tab.state as MapTabState} />
+    ),
+  })
+  registerObjectView({
+    type: 'layer',
+    render: (tab) => (
+      <LayerView
+        objectId={tab.objectId!}
+        tabId={tab.id}
+        savedState={tab.state as Parameters<typeof LayerView>[0]['savedState']}
+      />
+    ),
   })
 }

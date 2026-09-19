@@ -35,7 +35,7 @@ interface RailItem {
 const PRIMARY: RailItem[] = [
   { key: 'home', icon: Home, labelKey: 'shell.rail.home', shortcut: 'G H' },
   { key: 'data', icon: Database, labelKey: 'shell.rail.data', shortcut: 'G D' },
-  { key: 'maps', icon: MapIcon, labelKey: 'shell.rail.maps', shortcut: 'G M', soon: true },
+  { key: 'maps', icon: MapIcon, labelKey: 'shell.rail.maps', shortcut: 'G M' },
   {
     key: 'documents',
     icon: FileText,

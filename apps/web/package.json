@@ -19,6 +19,7 @@
     "@kchs/contracts": "workspace:*",
     "@kchs/fields": "workspace:*",
     "@kchs/i18n": "workspace:*",
+    "@kchs/map-style": "workspace:*",
     "@kchs/ui": "workspace:*",
     "@tanstack/react-query": "^5.90.2",
     "lucide-react": "^0.545.0",
