@@ -394,7 +394,9 @@ export const DocumentService = {
       version: row.version,
       can: {
         edit: canEdit,
-        register: allowed.has('document.register') && canTransition(status, 'registered'),
+        // Идущий маршрут регистрирует сам — шагом `register`
+        register:
+          allowed.has('document.register') && canTransition(status, 'registered') && route === null,
         cancel:
           ((status === 'draft' || status === 'returned') && allowed.has('document.cancel')) ||
           (status === 'registered' && allowed.has('document.cancel_registered')),
@@ -559,6 +561,10 @@ export const DocumentService = {
     const status = row.status as DocumentStatus
     if (!canTransition(status, 'registered')) {
       throw errors.conflict('Документ в этом статусе не регистрируется', { status })
+    }
+    // Документ на маршруте регистрирует шаг `register` маршрута, а не карточка
+    if (!options.viaRoute && (await ProcessService.running(tx, id)).length > 0) {
+      throw errors.conflict('Документ регистрируется по маршруту', { reason: 'route_running' })
     }
     const type = await DocumentTypeService.load(tx, row.typeId)
     if (!type) throw errors.notFound('Тип документа')

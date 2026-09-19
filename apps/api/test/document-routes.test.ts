@@ -374,6 +374,16 @@ describe('маршрут исходящего письма (сценарий ф�
     expect(signed.statusCode, signed.body).toBe(200)
     card = await getDocument(people.author, doc.id)
     expect(card.status).toBe('signed')
+    // Подписанный документ на маршруте регистрирует шаг маршрута, а не карточка
+    const manual = await call(fx.app, {
+      method: 'POST',
+      url: `/documents/${doc.id}/register`,
+      as: fx.admin,
+      payload: {},
+    })
+    expect(manual.statusCode).toBe(409)
+    expect(manual.json().detail).toContain('по маршруту')
+    expect((await getDocument(fx.admin, doc.id)).can.register).toBe(false)
 
     // Подпись: версия 2, код подтверждён; хэш ждёт отчёта движка
     let signatures = await call(fx.app, {
