@@ -1,5 +1,6 @@
 import { eq, sql } from 'drizzle-orm'
 import { DemoData, type DemoDataResult, type DemoProfile } from '~/modules/data/public.js'
+import { DemoLayers } from '~/modules/gis/public.js'
 import { config } from '~/shared/config/index.js'
 import { systemCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
@@ -24,7 +25,8 @@ async function engineReady(): Promise<boolean> {
 }
 
 /**
- * Демо-датасеты фазы 1 (P1-E10, ADR-0063): генератор движка → файлы → импорт.
+ * Демо-датасеты фазы 1 (P1-E10, ADR-0063): генератор движка → файлы → импорт;
+ * поверх них — демо-слои и карта фазы 2 (P2-E06).
  * Нужен запущенный стек — api (внутренние маршруты движка), worker (загрузка) и
  * engine; поэтому по умолчанию сид их не грузит, а включает флаг `--data`.
  */
@@ -59,5 +61,8 @@ export async function seedDemoData(
     log: (message, details) => log.info(details ?? {}, message),
   })
   log.info({ profile, ...result }, 'демо-датасеты загружены')
+  // Слои над демо-датасетами и карта «Оперативная обстановка» (P2-E06)
+  const map = await DemoLayers.seed(ctx, space.id)
+  log.info(map, 'демо-слои и карта готовы')
   return result
 }
