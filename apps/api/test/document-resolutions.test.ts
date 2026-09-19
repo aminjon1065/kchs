@@ -515,6 +515,31 @@ describe('кто и как накладывает резолюцию', () => {
     const [open] = await inboxOf(head, other, 'resolve')
     await json(head, `/inbox/${open.id}/act`, 'POST', { action: 'resolve' }, 400)
   })
+
+  it('документ исполнен без решения второго получателя — его направление снято', async () => {
+    const id = await registeredIncoming()
+    // Второе направление — руководителю управления; резолюцию накладывает он
+    await json(registrar, `/documents/${id}/resolution-requests`, 'POST', { userId: chief.id })
+    const view = await json(chief, `/documents/${id}/resolutions`, 'POST', {
+      text: 'Исполнить в срок',
+      responsibleId: exec3.id,
+      coExecutorIds: [],
+      dueWorkingDays: 3,
+    })
+    const [task] = view.items[0].instructions as Json[]
+    // Документ на исполнении: руководитель отдела ещё может дать свою резолюцию
+    expect(await inboxOf(head, id, 'resolve')).toHaveLength(1)
+    await complete(task.id, exec3, chief)
+    await deliver(id, 'documents-execution')
+    expect((await json(registrar, `/documents/${id}`)).status).toBe('executed')
+
+    await deliver(id, 'documents-resolution-requests')
+    const after = await json(registrar, `/documents/${id}/resolutions`)
+    const states = new Map(after.requests.map((item: Json) => [item.user.id, item.state]))
+    expect(states.get(chief.id)).toBe('resolved')
+    expect(states.get(head.id)).toBe('cancelled')
+    expect(await inboxOf(head, id, 'resolve')).toHaveLength(0)
+  })
 })
 
 describe('шаблоны резолюций', () => {

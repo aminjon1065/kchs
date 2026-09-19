@@ -1,4 +1,4 @@
-import type { EventEnvelope } from '@kchs/contracts'
+import { type DocumentStatus, type EventEnvelope, isDocumentClosed } from '@kchs/contracts'
 import { eq } from 'drizzle-orm'
 import { recordModuleActivity } from '~/kernel/activity/service.js'
 import type { Subscriber } from '~/kernel/events/types.js'
@@ -193,12 +193,22 @@ async function executed(event: EventEnvelope): Promise<void> {
   )
 }
 
-/** Аннулированный документ — направления на резолюцию снимаются. */
-async function cancelled(event: EventEnvelope): Promise<void> {
+/**
+ * Документ аннулирован или закрыт другим путём (исполнен без решения
+ * получателя, подшит «не требует исполнения», передан в архив) — открытые
+ * направления на резолюцию снимаются.
+ */
+async function closed(event: EventEnvelope): Promise<void> {
   if (!event.object) return
+  if (
+    event.type === 'document.status_changed' &&
+    !isDocumentClosed(event.payload.to as DocumentStatus)
+  ) {
+    return
+  }
   const documentId = event.object.id
   await db().transaction((tx) =>
-    ResolutionService.documentCancelled(tx, systemCtx('documents.cancelled'), documentId),
+    ResolutionService.documentClosed(tx, systemCtx('documents.closed'), documentId),
   )
 }
 
@@ -236,7 +246,11 @@ export const documentSubscribers: Subscriber[] = [
     handle: notify,
   },
   { name: 'documents-execution', types: ['task.source_closed'], handle: executed },
-  { name: 'documents-resolution-requests', types: ['document.cancelled'], handle: cancelled },
+  {
+    name: 'documents-resolution-requests',
+    types: ['document.cancelled', 'document.status_changed'],
+    handle: closed,
+  },
   { name: 'documents-activity', types: ['document.*', 'case.*'], handle: activity },
   {
     name: 'documents-realtime',

@@ -587,8 +587,12 @@ export const ResolutionService = {
     return true
   },
 
-  /** Документ аннулирован — направления снимаются. */
-  async documentCancelled(tx: Executor, ctx: Ctx, documentId: string) {
+  /**
+   * Документ аннулирован или закрыт (исполнен, подшит, в архиве) — открытые
+   * направления снимаются: резолюцию на него уже не наложить, а дело Входящих
+   * получателя вело бы в тупик.
+   */
+  async documentClosed(tx: Executor, ctx: Ctx, documentId: string) {
     await closeRequests(tx, ctx, documentId, { state: 'cancelled' })
   },
 
