@@ -18,8 +18,10 @@
 ```sql
 objects(id uuid pk, type text, space_id uuid, parent_id uuid null, title text, subtitle text, icon text,
         owner_id uuid, created_by uuid, created_at, updated_at, archived_at, deleted_at,
-        access_mode text default 'inherit', meta jsonb default '{}', search_version bigint, version int)
-  idx: (space_id, type, deleted_at), (parent_id), (owner_id), (type, updated_at desc), gin(meta jsonb_path_ops), trgm(title)
+        access_mode text default 'inherit', meta jsonb default '{}', search_version bigint, version int,
+        confidentiality text default 'public')   -- гриф: public|internal|confidential|secret (ADR-0080)
+  idx: (space_id, type, deleted_at), (parent_id), (owner_id), (type, updated_at desc), gin(meta jsonb_path_ops), trgm(title),
+       (confidentiality) where confidentiality <> 'public'
 
 object_ancestors(object_id, ancestor_id, depth)  pk(object_id, ancestor_id)  idx(ancestor_id)
 
@@ -83,11 +85,13 @@ yjs.documents(object_id pk, state bytea, updated_at)
 ```sql
 users(id, login unique, email unique, phone, display_name, first_name, last_name, middle_name, locale, timezone,
       avatar_file_id, status, attributes jsonb, password_changed_at, last_seen_at, created_at, updated_at)
+  -- attributes.clearance — допуск к грифам, по умолчанию internal (ADR-0080)
 credentials(user_id pk, password_hash text, algo text, failed_attempts, locked_until)
 mfa_factors(id, user_id, kind text, secret_enc bytea, name, verified_at, last_used_at)
 recovery_codes(user_id, code_hash, used_at)
 webauthn_credentials(id, user_id, public_key, counter, transports, name)
-sessions(id, user_id, token_hash unique, ip, user_agent, device_name, created_at, last_active_at, expires_at, revoked_at, on_behalf_of null)
+sessions(id, user_id, token_hash unique, ip, user_agent, device_name, created_at, last_active_at, expires_at, revoked_at, on_behalf_of null,
+         admin_mode_until null, admin_mode_reason null)   -- режим администратора (ADR-0080)
 password_resets(id, user_id, token_hash, expires_at, used_at)
 org_units(id, parent_id, code, name jsonb, kind, head_user_id, deputy_user_ids uuid[], territory_id, sort, external_id, is_active)
 org_closure(unit_id, ancestor_id, depth)
@@ -182,21 +186,33 @@ tile_cache — в Redis (ключ layer:version:filterhash:z/x/y, TTL) и/или
 ## Документы
 
 ```sql
-document_types(id pk → objects, key, direction text, card_schema jsonb, numbering jsonb, default_route_id, retention_years, confidentiality_allowed text[], print_forms jsonb, settings jsonb)
-journals(id pk → objects, name, type_ids uuid[], format text, reset text, unit_id null, is_active)
-journal_counters(journal_id, year int, last_seq int)  pk(journal_id, year)
+-- Реализовано в фазе 3, первая волна (ADR-0080)
+document_types(id pk → objects, key text unique, name jsonb, direction text, card_schema jsonb, numbering jsonb {journalId, format},
+               default_route_key text null, retention_years, confidentiality_allowed text[], default_confidentiality text,
+               print_forms text[], settings jsonb, is_active)
+journals(id pk → objects, name, prefix text, format text, reset text, unit_id null, type_ids uuid[], is_active)
+journal_counters(journal_id, year int, last_seq int)  pk(journal_id, year)   -- year = 0 при сбросе «никогда»
+journal_reservations(id, journal_id, year, sequence, number text, note, state text, reserved_by, reserved_at, document_id, used_at)
+  unique(journal_id, year, sequence)   -- резерв номеров для бумажных документов
 documents(id pk → objects, type_id, status text, reg_number text, reg_date date, journal_id, subject text, summary text,
-          correspondent_id, external_number, external_date, author_id, responsible_id, signer_id, deadline date,
-          control text, controller_id, confidentiality text, fields jsonb, current_version_id, case_id, territory_id, executed_at, archived_at)
-  idx: (type_id, status), (reg_number), (journal_id, reg_date desc), (responsible_id, deadline), gin(fields)
-document_versions(id, document_id, number int, main_file_id, pdf_file_id, attachments jsonb, created_by, created_at, note, hash text, is_final)
-registrations(id, document_id, journal_id, number text, sequence int, year int, registered_by, registered_at)  unique(journal_id, year, sequence)
+          correspondent_id, external_number, external_date, received_date date, delivery_method text,
+          author_id, responsible_id, signer_id, deadline date, control text, controller_id, confidentiality text, fields jsonb,
+          current_version_id, case_id, territory_id, unit_id, executed_at, archived_at, cancelled_at, cancel_reason,
+          viewers text[])   -- viewers — принципалы для системного датасета «Документы», как у tasks (ADR-0060)
+  idx: (type_id, status), (reg_number), (journal_id, reg_date desc), (responsible_id, deadline), (controller_id), (correspondent_id), gin(fields)
+document_versions(id, document_id, number int, main_file_id, pdf_file_id, pdf_status text, attachments jsonb, created_by, created_at,
+                  note, hash text, is_final)  unique(document_id, number)
+registrations(id, document_id, journal_id, number text, sequence int, year int, reserved bool, registered_by, registered_at)
+  unique(journal_id, year, sequence)
+document_participants(document_id, user_id, role text, source text, level smallint, created_at)
+  pk(document_id, user_id, role, source)   -- участие → тихие записи ACL (ADR-0080)
+-- представление ds.sys_documents — системный датасет «Документы» (роль kchs_query)
 approvals(id, document_id, version_id, step_id, approver_id, on_behalf_of, decision text, comment, remarks_file_id, decided_at)
 signatures(id, document_id, version_id, signer_id, on_behalf_of, kind text, hash text, signed_at, certificate jsonb, sheet_file_id)
 resolutions(id, document_id, author_id, text, responsible_id, co_executors uuid[], deadline date, control bool, controller_id, parent_id, created_at)
 acknowledgments(id, object_id, user_id, required_at, acknowledged_at, source text)   -- общая для документов и страниц
 cases(id pk → objects, index text, title, year int, retention text, unit_id, status, closed_at)
-correspondents(id pk → objects, kind text, name text, details jsonb, contacts jsonb, external_id)
+correspondents(id pk → objects, kind text, name text, details jsonb, contacts jsonb, external_id)   -- реализовано (ADR-0080)
 templates(id pk → objects, kind text, file_id, mapping jsonb, document_type_id null)
 ```
 
