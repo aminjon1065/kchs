@@ -11,6 +11,7 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import {
   Bell,
+  ClipboardCheck,
   Home,
   Inbox,
   LayoutGrid,
@@ -22,6 +23,7 @@ import {
   Shield,
   Sun,
   Trash2,
+  Users,
 } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import {
@@ -123,6 +125,18 @@ export function CommandPalette({
         label: t('spaces.title'),
         icon: <LayoutGrid />,
         run: () => goScreen('spaces', t('spaces.title'), 'space'),
+      },
+      {
+        id: 'control',
+        label: t('tasks.control.title'),
+        icon: <ClipboardCheck />,
+        run: () => goScreen('control', t('tasks.control.title'), 'task'),
+      },
+      {
+        id: 'workload',
+        label: t('tasks.workload.title'),
+        icon: <Users />,
+        run: () => goScreen('workload', t('tasks.workload.title'), 'user'),
       },
       {
         id: 'territories',

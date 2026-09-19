@@ -30,9 +30,11 @@ import { ProfileScreen } from '~/features/profile/profile-screen.js'
 import { SearchScreen } from '~/features/search/search-screen.js'
 import { SpaceScreen } from '~/features/spaces/space-screen.js'
 import { SpacesScreen } from '~/features/spaces/spaces-screen.js'
+import { ControlScreen, type ControlScreenState } from '~/features/tasks/control-screen.js'
 import { ProjectView } from '~/features/tasks/project-view.js'
 import { TaskView } from '~/features/tasks/task-view.js'
 import { TasksScreen, type TasksScreenState } from '~/features/tasks/tasks-screen.js'
+import { WorkloadScreen, type WorkloadScreenState } from '~/features/tasks/workload-screen.js'
 import { registerObjectView, registerScreen } from './workspace/registry.js'
 
 /** Тетрадь — отдельным чанком: Tiptap, Yjs и клиент совместной правки не в оболочке. */
@@ -112,6 +114,20 @@ export function registerModules(): void {
     titleKey: 'shell.rail.tasks',
     icon: 'task',
     render: (tab) => <TasksScreen tabId={tab.id} savedState={tab.state as TasksScreenState} />,
+  })
+  registerScreen({
+    key: 'control',
+    titleKey: 'tasks.control.title',
+    icon: 'task',
+    render: (tab) => <ControlScreen tabId={tab.id} savedState={tab.state as ControlScreenState} />,
+  })
+  registerScreen({
+    key: 'workload',
+    titleKey: 'tasks.workload.title',
+    icon: 'user',
+    render: (tab) => (
+      <WorkloadScreen tabId={tab.id} savedState={tab.state as WorkloadScreenState} />
+    ),
   })
   registerScreen({
     key: 'search',

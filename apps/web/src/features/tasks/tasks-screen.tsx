@@ -31,7 +31,15 @@ import {
   useToast,
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CheckSquare, FolderKanban, LayoutList, Plus, SquareKanban } from 'lucide-react'
+import {
+  CheckSquare,
+  ClipboardCheck,
+  FolderKanban,
+  LayoutList,
+  Plus,
+  SquareKanban,
+  Users,
+} from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
@@ -50,7 +58,7 @@ type Mode = 'list' | 'board'
 type State = TaskListQuery['state']
 
 const ALL_PROJECTS = '__all'
-const SCOPES: TaskScope[] = ['mine', 'assigned_by_me', 'controlled', 'all']
+const SCOPES: TaskScope[] = ['mine', 'assigned_by_me', 'controlled', 'team', 'all']
 
 export interface TasksScreenState {
   scope?: TaskScope
@@ -189,6 +197,11 @@ export function TasksScreen({
             </Badge>
           ) : null}
           <span className="truncate">{item.title}</span>
+          {item.extensions > 0 ? (
+            <Badge tone="warning" size="sm">
+              {t('tasks.extended')}
+            </Badge>
+          ) : null}
         </span>
       ),
     },
@@ -253,14 +266,48 @@ export function TasksScreen({
         right={
           <>
             {fixedProjectId ? null : (
-              <Button
-                variant="ghost"
-                size="sm"
-                icon={<FolderKanban className="size-3.5" />}
-                onClick={() => setCreatingProject(true)}
-              >
-                {t('tasks.projects.create')}
-              </Button>
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={<ClipboardCheck className="size-3.5" />}
+                  onClick={() =>
+                    openTab({
+                      kind: 'screen',
+                      screen: 'control',
+                      title: t('tasks.control.title'),
+                      icon: 'task',
+                      mode: 'permanent',
+                    })
+                  }
+                >
+                  {t('tasks.control.open')}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={<Users className="size-3.5" />}
+                  onClick={() =>
+                    openTab({
+                      kind: 'screen',
+                      screen: 'workload',
+                      title: t('tasks.workload.title'),
+                      icon: 'user',
+                      mode: 'permanent',
+                    })
+                  }
+                >
+                  {t('tasks.workload.title')}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={<FolderKanban className="size-3.5" />}
+                  onClick={() => setCreatingProject(true)}
+                >
+                  {t('tasks.projects.create')}
+                </Button>
+              </>
             )}
             <Button
               variant="secondary"

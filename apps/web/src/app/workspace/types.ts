@@ -22,6 +22,10 @@ export type ScreenKey =
   | 'explore'
   | 'sql'
   | 'territories'
+  /** Контроль исполнения поручений (ADR-0082). */
+  | 'control'
+  /** Нагрузка: люди × недели (ADR-0082). */
+  | 'workload'
 
 export interface TabState {
   id: string

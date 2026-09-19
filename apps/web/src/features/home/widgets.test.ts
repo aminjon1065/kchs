@@ -13,6 +13,11 @@ describe('виджеты «Мой день»', () => {
     expect(widgetsFor(['pinned', 'inbox'], ['registrar'])).toEqual(['pinned', 'inbox'])
   })
 
+  it('«Выданные мной» и «Команда» — в наборе по умолчанию (ADR-0082)', () => {
+    expect(presetFor(['employee'])).toEqual(expect.arrayContaining(['assigned', 'team']))
+    expect(presetFor(['registrar'])).toContain('assigned')
+  })
+
   it('«Мои задачи» — в наборе каждой роли', () => {
     for (const roles of [['registrar'], ['data_steward'], ['system_admin'], ['employee']]) {
       expect(presetFor(roles)).toContain('tasks')
@@ -20,8 +25,8 @@ describe('виджеты «Мой день»', () => {
   })
 
   it('исчезнувшие виджеты и повторы отбрасываются, мусор — набор по роли', () => {
-    expect(widgetsFor(['team', 'inbox', 'inbox'], ['employee'])).toEqual(['inbox'])
-    expect(widgetsFor(['team'], ['registrar'])).toEqual(presetFor(['registrar']))
+    expect(widgetsFor(['weather', 'inbox', 'inbox'], ['employee'])).toEqual(['inbox'])
+    expect(widgetsFor(['weather'], ['registrar'])).toEqual(presetFor(['registrar']))
     expect(widgetsFor('inbox', ['registrar'])).toEqual(presetFor(['registrar']))
     expect(widgetsFor(undefined, ['employee'])).toEqual(presetFor(['employee']))
   })

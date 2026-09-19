@@ -1,11 +1,25 @@
-import type { TaskRecord, TaskSource, TaskUpdateInput } from '@kchs/contracts'
+import type {
+  SearchHit,
+  TaskExtensionDecisionInput,
+  TaskRecord,
+  TaskSource,
+  TaskUpdateInput,
+} from '@kchs/contracts'
+import { formatDate, formatDateTime } from '@kchs/fields'
 import {
   Button,
   Callout,
   Dialog,
   DialogContent,
   Field,
+  FileDropzone,
+  IconButton,
   Input,
+  ObjectIcon,
+  ProgressBar,
+  RadioGroup,
+  RadioItem,
+  SearchInput,
   SegmentedControl,
   Select,
   SelectContent,
@@ -13,20 +27,25 @@ import {
   SelectTrigger,
   SelectValue,
   Textarea,
+  useDebouncedValue,
   useToast,
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { X } from 'lucide-react'
 import { useId, useState } from 'react'
+import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
+import { uploadFile } from '~/features/files/upload.js'
 import { TerritorySelect } from '~/features/gis/territory-select.js'
 import { ApiError, http } from '~/shared/api/client.js'
-import { spacesQuery } from '~/shared/api/queries.js'
+import { searchQuery, spacesQuery } from '~/shared/api/queries.js'
 import { orderSpaces } from '~/shared/spaces.js'
+import { DueInput, type DueValue, dueFields, emptyDue, hasDue } from './due-input.js'
 import { projectsQuery, taskKeys } from './queries.js'
 import { errorText, useTaskInvalidation } from './task-actions.js'
-import { dateFromDue, dueFromDate, PRIORITIES, pickedOf } from './task-status.js'
-import { type PickedUser, UserPicker } from './user-picker.js'
+import { dateFromDue, PRIORITIES, pickedOf } from './task-status.js'
+import { type PickedUser, UserPicker, UsersPicker } from './user-picker.js'
 
 const NO_PROJECT = '__none'
 
@@ -62,8 +81,8 @@ function PrioritySelect({ value, onChange }: { value: string; onChange: (value: 
 
 /**
  * Новая задача или поручение (10-tasks-projects.md §1): у поручения обязательны
- * исполнитель и срок; из карточки строки датасета — с заголовком строки и
- * связью с ней. Созданную задачу можно открыть из уведомления.
+ * исполнитель и срок — датой или рабочими днями, соисполнители получают свои
+ * части; из карточки строки датасета — с заголовком строки и связью с ней.
  */
 export function CreateTaskDialog({
   draft = {},
@@ -80,13 +99,13 @@ export function CreateTaskDialog({
   const invalidate = useTaskInvalidation()
   const openTab = useWorkspace((s) => s.openTab)
   const titleId = useId()
-  const dueId = useId()
   const descriptionId = useId()
   const [kind, setKind] = useState<CreatableKind>(draft.kind ?? 'task')
   const [title, setTitle] = useState(draft.title ?? '')
   const [assignee, setAssignee] = useState<PickedUser | null>(null)
+  const [coAssignees, setCoAssignees] = useState<PickedUser[]>([])
   const [controller, setController] = useState<PickedUser | null>(null)
-  const [due, setDue] = useState('')
+  const [due, setDue] = useState<DueValue>(emptyDue())
   const [priority, setPriority] = useState('3')
   const [projectId, setProjectId] = useState(draft.projectId ?? NO_PROJECT)
   const [territoryId, setTerritoryId] = useState<string | null>(draft.territoryId ?? null)
@@ -105,8 +124,11 @@ export function CreateTaskDialog({
         ...(description.trim() ? { description: description.trim() } : {}),
         ...(projectId !== NO_PROJECT ? { projectId } : {}),
         ...(assignee ? { assigneeId: assignee.id } : {}),
+        ...(instruction && coAssignees.length > 0
+          ? { coAssigneeIds: coAssignees.map((user) => user.id) }
+          : {}),
         ...(instruction && controller ? { controllerId: controller.id } : {}),
-        ...(due ? { dueAt: dueFromDate(due) } : {}),
+        ...dueFields(due),
         ...(draft.source ? { source: draft.source } : {}),
         ...(territoryId ? { territoryId } : {}),
       }),
@@ -137,7 +159,7 @@ export function CreateTaskDialog({
     },
   })
 
-  const ready = title.trim().length > 0 && (!instruction || (assignee !== null && due !== ''))
+  const ready = title.trim().length > 0 && (!instruction || (assignee !== null && hasDue(due)))
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent
@@ -204,32 +226,38 @@ export function CreateTaskDialog({
             />
           </Field>
           {instruction ? (
-            <Field label={t('tasks.fields.controller')} error={fieldErrors.controllerId}>
-              <UserPicker
-                value={controller}
-                onChange={setController}
-                label={t('tasks.fields.controller')}
-              />
-            </Field>
+            <>
+              <Field
+                label={t('tasks.fields.coAssignees')}
+                hint={t('tasks.create.coAssigneesHint')}
+                error={fieldErrors.coAssigneeIds}
+              >
+                <UsersPicker
+                  value={coAssignees}
+                  onChange={setCoAssignees}
+                  label={t('tasks.fields.coAssignees')}
+                  exclude={assignee ? [assignee.id] : []}
+                />
+              </Field>
+              <Field label={t('tasks.fields.controller')} error={fieldErrors.controllerId}>
+                <UserPicker
+                  value={controller}
+                  onChange={setController}
+                  label={t('tasks.fields.controller')}
+                />
+              </Field>
+            </>
           ) : null}
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field
-              label={t('tasks.fields.due')}
-              htmlFor={dueId}
-              error={fieldErrors.dueAt}
-              required={instruction}
-            >
-              <Input
-                id={dueId}
-                type="date"
-                value={due}
-                onChange={(event) => setDue(event.target.value)}
-              />
-            </Field>
-            <Field label={t('tasks.fields.priority')}>
-              <PrioritySelect value={priority} onChange={setPriority} />
-            </Field>
-          </div>
+          <DueInput
+            value={due}
+            onChange={setDue}
+            label={t('tasks.fields.due')}
+            required={instruction}
+            error={fieldErrors.dueAt ?? fieldErrors.dueWorkingDays}
+          />
+          <Field label={t('tasks.fields.priority')}>
+            <PrioritySelect value={priority} onChange={setPriority} />
+          </Field>
           <Field label={t('tasks.fields.project')}>
             <Select value={projectId} onValueChange={setProjectId}>
               <SelectTrigger aria-label={t('tasks.fields.project')}>
@@ -275,8 +303,9 @@ export function CreateTaskDialog({
 }
 
 /**
- * Правка задачи: название, описание, приоритет, срок и участники. Смена
- * исполнителя поручения возвращает его в «Назначено» — новому исполнителю.
+ * Правка задачи: название, описание, приоритет, срок (с основанием — в историю
+ * сроков) и участники. Смена исполнителя поручения возвращает его в
+ * «Назначено» — новому исполнителю; новые соисполнители получают части.
  */
 export function EditTaskDialog({ task, onClose }: { task: TaskRecord; onClose: () => void }) {
   const t = useT()
@@ -284,19 +313,29 @@ export function EditTaskDialog({ task, onClose }: { task: TaskRecord; onClose: (
   const client = useQueryClient()
   const invalidate = useTaskInvalidation()
   const titleId = useId()
-  const dueId = useId()
   const descriptionId = useId()
+  const dueCommentId = useId()
   const instruction = task.kind === 'instruction'
+  // Часть соисполнителя: состав участников задаёт основное поручение
+  const part = task.parent !== null
   const [title, setTitle] = useState(task.title)
   const [description, setDescription] = useState(task.description ?? '')
   const [priority, setPriority] = useState(String(task.priority))
-  const [due, setDue] = useState(dateFromDue(task.dueAt))
+  const [due, setDue] = useState<DueValue>(emptyDue(dateFromDue(task.dueAt)))
+  const [dueComment, setDueComment] = useState('')
   const [assignee, setAssignee] = useState<PickedUser | null>(pickedOf(task.assignee))
+  const [coAssignees, setCoAssignees] = useState<PickedUser[]>(
+    task.coAssignees.flatMap((user) => {
+      const picked = pickedOf(user)
+      return picked ? [picked] : []
+    }),
+  )
   const [controller, setController] = useState<PickedUser | null>(pickedOf(task.controller))
   const [territoryId, setTerritoryId] = useState<string | null>(task.territoryId)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [failure, setFailure] = useState<string | null>(null)
 
+  const dueChanged = due.mode === 'working' ? hasDue(due) : due.date !== dateFromDue(task.dueAt)
   const patch = (): TaskUpdateInput => {
     const result: TaskUpdateInput = {}
     if (title.trim() !== task.title) result.title = title.trim()
@@ -304,9 +343,19 @@ export function EditTaskDialog({ task, onClose }: { task: TaskRecord; onClose: (
       result.description = description.trim() || null
     }
     if (Number(priority) !== task.priority) result.priority = Number(priority)
-    if (due !== dateFromDue(task.dueAt)) result.dueAt = due ? dueFromDate(due) : null
+    if (dueChanged) {
+      const fields = dueFields(due)
+      if (fields.dueWorkingDays !== undefined) result.dueWorkingDays = fields.dueWorkingDays
+      else result.dueAt = fields.dueAt ?? null
+      if (dueComment.trim()) result.dueComment = dueComment.trim()
+    }
     if ((assignee?.id ?? null) !== (task.assignee?.id ?? null)) {
       result.assigneeId = assignee?.id ?? null
+    }
+    const coIds = coAssignees.map((user) => user.id)
+    const before = task.coAssignees.map((user) => user.id)
+    if (coIds.length !== before.length || coIds.some((id) => !before.includes(id))) {
+      result.coAssigneeIds = coIds
     }
     if (instruction && (controller?.id ?? null) !== (task.controller?.id ?? null)) {
       result.controllerId = controller?.id ?? null
@@ -331,7 +380,7 @@ export function EditTaskDialog({ task, onClose }: { task: TaskRecord; onClose: (
 
   const ready =
     title.trim().length > 0 &&
-    (!instruction || (assignee !== null && due !== '')) &&
+    (!instruction || (assignee !== null && hasDue(due))) &&
     Object.keys(patch()).length > 0
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -376,7 +425,21 @@ export function EditTaskDialog({ task, onClose }: { task: TaskRecord; onClose: (
               label={t('tasks.fields.assignee')}
             />
           </Field>
-          {instruction ? (
+          {instruction && !part ? (
+            <Field
+              label={t('tasks.fields.coAssignees')}
+              hint={t('tasks.create.coAssigneesHint')}
+              error={fieldErrors.coAssigneeIds}
+            >
+              <UsersPicker
+                value={coAssignees}
+                onChange={setCoAssignees}
+                label={t('tasks.fields.coAssignees')}
+                exclude={assignee ? [assignee.id] : []}
+              />
+            </Field>
+          ) : null}
+          {instruction && !part ? (
             <Field label={t('tasks.fields.controller')} error={fieldErrors.controllerId}>
               <UserPicker
                 value={controller}
@@ -385,24 +448,25 @@ export function EditTaskDialog({ task, onClose }: { task: TaskRecord; onClose: (
               />
             </Field>
           ) : null}
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field
-              label={t('tasks.fields.due')}
-              htmlFor={dueId}
-              error={fieldErrors.dueAt}
-              required={instruction}
-            >
+          <DueInput
+            value={due}
+            onChange={setDue}
+            label={t('tasks.fields.due')}
+            required={instruction}
+            error={fieldErrors.dueAt ?? fieldErrors.dueWorkingDays}
+          />
+          {dueChanged && task.dueAt ? (
+            <Field label={t('tasks.due.comment')} htmlFor={dueCommentId}>
               <Input
-                id={dueId}
-                type="date"
-                value={due}
-                onChange={(event) => setDue(event.target.value)}
+                id={dueCommentId}
+                value={dueComment}
+                onChange={(event) => setDueComment(event.target.value)}
               />
             </Field>
-            <Field label={t('tasks.fields.priority')}>
-              <PrioritySelect value={priority} onChange={setPriority} />
-            </Field>
-          </div>
+          ) : null}
+          <Field label={t('tasks.fields.priority')}>
+            <PrioritySelect value={priority} onChange={setPriority} />
+          </Field>
           <Field label={t('tasks.fields.territory')} error={fieldErrors.territoryId}>
             <TerritorySelect
               value={territoryId ? { id: territoryId } : null}
@@ -428,12 +492,23 @@ export function EditTaskDialog({ task, onClose }: { task: TaskRecord; onClose: (
   )
 }
 
-/** Отчёт исполнителя: текст обязателен, поручение уходит автору на приёмку. */
+/** Объект отчёта в форме: вложение (загружено к поручению) или найденный объект. */
+interface ReportObject {
+  id: string
+  type: string
+  title: string
+}
+
+/**
+ * Отчёт исполнителя (10-tasks-projects.md §4): текст обязателен; файлы
+ * загружаются вложениями поручения, подготовленные объекты (документ, отчёт)
+ * находятся поиском — всё уходит автору на приёмку вместе с текстом.
+ */
 export function ReportDialog({
   task,
   onClose,
 }: {
-  task: { id: string; key: string; title: string }
+  task: { id: string; key: string; title: string; spaceId: string | null }
   onClose: () => void
 }) {
   const t = useT()
@@ -442,10 +517,51 @@ export function ReportDialog({
   const invalidate = useTaskInvalidation()
   const textId = useId()
   const [text, setText] = useState('')
+  const [objects, setObjects] = useState<ReportObject[]>([])
+  const [uploads, setUploads] = useState<Record<string, { name: string; progress: number }>>({})
+  const [search, setSearch] = useState('')
+  const q = useDebouncedValue(search.trim(), 250)
+  const { data: found } = useQuery(searchQuery({ q, limit: 6 }))
   const [failure, setFailure] = useState<string | null>(null)
+  const uploading = Object.keys(uploads).length > 0
+
+  const add = (object: ReportObject) =>
+    setObjects((current) =>
+      current.some((item) => item.id === object.id) ? current : [...current, object],
+    )
+
+  const attach = async (files: File[]) => {
+    if (!task.spaceId) return
+    for (const file of files) {
+      const key = `${file.name}:${file.size}:${file.lastModified}`
+      setUploads((current) => ({ ...current, [key]: { name: file.name, progress: 0 } }))
+      try {
+        const created = await uploadFile({
+          file,
+          spaceId: task.spaceId,
+          attachToObjectId: task.id,
+          onProgress: (progress) =>
+            setUploads((current) => ({ ...current, [key]: { name: file.name, progress } })),
+        })
+        add({ id: created.id, type: 'file', title: file.name })
+      } catch {
+        toast.error(t('objects.attachments.failed', { name: file.name }))
+      } finally {
+        setUploads((current) => {
+          const next = { ...current }
+          delete next[key]
+          return next
+        })
+      }
+    }
+  }
 
   const report = useMutation({
-    mutationFn: () => http.post<TaskRecord>(`/tasks/${task.id}/report`, { text: text.trim() }),
+    mutationFn: () =>
+      http.post<TaskRecord>(`/tasks/${task.id}/report`, {
+        text: text.trim(),
+        objectIds: objects.map((object) => object.id),
+      }),
     onSuccess: (record) => {
       client.setQueryData(taskKeys.task(task.id), record)
       toast.show({ title: t('tasks.report.sent'), tone: 'success' })
@@ -455,6 +571,10 @@ export function ReportDialog({
     onError: (error) => setFailure(errorText(error, t('errors.unknown'))),
   })
 
+  const candidates = (found?.hits ?? []).filter(
+    (hit: SearchHit) =>
+      hit.objectId !== task.id && !objects.some((item) => item.id === hit.objectId),
+  )
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent
@@ -468,7 +588,7 @@ export function ReportDialog({
             </Button>
             <Button
               variant="primary"
-              disabled={!text.trim()}
+              disabled={!text.trim() || uploading}
               loading={report.isPending}
               onClick={() => report.mutate()}
             >
@@ -489,6 +609,69 @@ export function ReportDialog({
               onChange={(event) => setText(event.target.value)}
             />
           </Field>
+          <Field label={t('tasks.report.objects')} hint={t('tasks.report.objectsHint')}>
+            <div className="flex flex-col gap-2">
+              {objects.length > 0 ? (
+                <ul aria-label={t('tasks.report.objects')} className="flex flex-col gap-1">
+                  {objects.map((object) => (
+                    <li
+                      key={object.id}
+                      className="flex items-center gap-2 rounded-md border border-line bg-surface px-2.5 py-1.5 text-sm"
+                    >
+                      <ObjectIcon type={object.type} className="size-4 shrink-0 text-fg-muted" />
+                      <span className="min-w-0 flex-1 truncate">{object.title}</span>
+                      <IconButton
+                        size="sm"
+                        label={t('common.actions.remove')}
+                        onClick={() =>
+                          setObjects((current) => current.filter((item) => item.id !== object.id))
+                        }
+                      >
+                        <X className="size-3.5" />
+                      </IconButton>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              {Object.entries(uploads).map(([key, upload]) => (
+                <div key={key} className="flex flex-col gap-1 text-xs text-fg-muted">
+                  <span>{upload.name}</span>
+                  <ProgressBar value={upload.progress} />
+                </div>
+              ))}
+              {task.spaceId ? (
+                <FileDropzone compact onFiles={(files) => void attach(files)} />
+              ) : null}
+              <SearchInput
+                value={search}
+                onValueChange={setSearch}
+                placeholder={t('tasks.report.findObject')}
+                aria-label={t('tasks.report.findObject')}
+              />
+              {q && candidates.length > 0 ? (
+                <ul
+                  aria-label={t('tasks.report.findObject')}
+                  className="max-h-40 overflow-y-auto rounded-md border border-line p-1"
+                >
+                  {candidates.map((hit) => (
+                    <li key={hit.objectId}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          add({ id: hit.objectId, type: hit.type, title: hit.title })
+                          setSearch('')
+                        }}
+                        className="flex w-full items-center gap-2 rounded-xs px-2 py-1.5 text-left text-sm hover:bg-surface-3"
+                      >
+                        <ObjectIcon type={hit.type} className="size-4 shrink-0 text-fg-muted" />
+                        <span className="min-w-0 flex-1 truncate">{hit.title}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          </Field>
         </div>
       </DialogContent>
     </Dialog>
@@ -502,16 +685,17 @@ export function ReturnDialog({ task, onClose }: { task: TaskRecord; onClose: () 
   const client = useQueryClient()
   const invalidate = useTaskInvalidation()
   const commentId = useId()
-  const dueId = useId()
   const [comment, setComment] = useState('')
-  const [due, setDue] = useState(dateFromDue(task.dueAt))
+  const [due, setDue] = useState<DueValue>(emptyDue(dateFromDue(task.dueAt)))
   const [failure, setFailure] = useState<string | null>(null)
+  const dueChanged =
+    due.mode === 'working' ? hasDue(due) : due.date !== '' && due.date !== dateFromDue(task.dueAt)
 
   const send = useMutation({
     mutationFn: () =>
       http.post<TaskRecord>(`/tasks/${task.id}/return`, {
         comment: comment.trim(),
-        ...(due && due !== dateFromDue(task.dueAt) ? { dueAt: dueFromDate(due) } : {}),
+        ...(dueChanged ? dueFields(due) : {}),
       }),
     onSuccess: (record) => {
       client.setQueryData(taskKeys.task(task.id), record)
@@ -555,12 +739,297 @@ export function ReturnDialog({ task, onClose }: { task: TaskRecord; onClose: () 
               onChange={(event) => setComment(event.target.value)}
             />
           </Field>
-          <Field label={t('tasks.return.newDue')} htmlFor={dueId}>
-            <Input
-              id={dueId}
-              type="date"
+          <DueInput value={due} onChange={setDue} label={t('tasks.return.newDue')} />
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+/**
+ * Запрос продления (10-tasks-projects.md §4, ADR-0082): желаемый срок —
+ * датой или рабочими днями — и обоснование; решает автор поручения.
+ */
+export function ExtensionRequestDialog({
+  task,
+  onClose,
+}: {
+  task: TaskRecord
+  onClose: () => void
+}) {
+  const t = useT()
+  const toast = useToast()
+  const client = useQueryClient()
+  const invalidate = useTaskInvalidation()
+  const reasonId = useId()
+  const [due, setDue] = useState<DueValue>(emptyDue())
+  const [reason, setReason] = useState('')
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [failure, setFailure] = useState<string | null>(null)
+
+  const send = useMutation({
+    mutationFn: () =>
+      http.post<TaskRecord>(`/tasks/${task.id}/extension`, {
+        ...dueFields(due),
+        reason: reason.trim(),
+      }),
+    onSuccess: (record) => {
+      client.setQueryData(taskKeys.task(task.id), record)
+      toast.show({ title: t('tasks.done.extensionRequested'), tone: 'success' })
+      invalidate(task.id)
+      onClose()
+    },
+    onError: (error) => {
+      setFieldErrors(error instanceof ApiError ? error.fieldErrors() : {})
+      setFailure(errorText(error, t('errors.unknown')))
+    },
+  })
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent
+        title={t('tasks.extension.title')}
+        description={`${task.key} · ${task.title}`}
+        size="md"
+        footer={
+          <>
+            <Button variant="secondary" onClick={onClose}>
+              {t('common.actions.cancel')}
+            </Button>
+            <Button
+              variant="primary"
+              disabled={!hasDue(due) || !reason.trim()}
+              loading={send.isPending}
+              onClick={() => send.mutate()}
+            >
+              {t('tasks.actions.requestExtension')}
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-3">
+          {failure ? <Callout tone="danger">{failure}</Callout> : null}
+          <DueInput
+            value={due}
+            onChange={setDue}
+            label={t('tasks.extension.dueLabel')}
+            required
+            error={fieldErrors.dueAt ?? fieldErrors.dueWorkingDays}
+          />
+          <Field label={t('tasks.extension.reason')} htmlFor={reasonId} required>
+            <Textarea
+              id={reasonId}
+              rows={4}
+              value={reason}
+              placeholder={t('tasks.extension.reasonPlaceholder')}
+              onChange={(event) => setReason(event.target.value)}
+            />
+          </Field>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+type Decision = 'approve' | 'other' | 'reject'
+
+/**
+ * Решение по продлению: согласовать запрошенный срок, согласовать другой или
+ * отказать с причиной — решение попадает в историю сроков и аудит.
+ */
+export function ExtensionDecisionDialog({
+  task,
+  onClose,
+}: {
+  task: TaskRecord
+  onClose: () => void
+}) {
+  const t = useT()
+  const locale = useAppearance((s) => s.locale)
+  const toast = useToast()
+  const client = useQueryClient()
+  const invalidate = useTaskInvalidation()
+  const commentId = useId()
+  const [decision, setDecision] = useState<Decision>('approve')
+  const [due, setDue] = useState<DueValue>(emptyDue())
+  const [comment, setComment] = useState('')
+  const [failure, setFailure] = useState<string | null>(null)
+  const request = task.extension
+
+  const decide = useMutation({
+    mutationFn: () => {
+      const body: TaskExtensionDecisionInput =
+        decision === 'reject'
+          ? { decision: 'reject', comment: comment.trim() }
+          : {
+              decision: 'approve',
+              ...(decision === 'other' ? dueFields(due) : {}),
+              ...(comment.trim() ? { comment: comment.trim() } : {}),
+            }
+      return http.post<TaskRecord>(`/tasks/${task.id}/extension/decide`, body)
+    },
+    onSuccess: (record) => {
+      client.setQueryData(taskKeys.task(task.id), record)
+      toast.show({
+        title: t(
+          decision === 'reject' ? 'tasks.done.extensionRejected' : 'tasks.done.extensionApproved',
+        ),
+        tone: 'success',
+      })
+      invalidate(task.id)
+      onClose()
+    },
+    onError: (error) => setFailure(errorText(error, t('errors.unknown'))),
+  })
+
+  const ready =
+    decision === 'reject' ? comment.trim().length > 0 : decision === 'other' ? hasDue(due) : true
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent
+        title={t('tasks.extension.decideTitle', { key: task.key })}
+        description={task.title}
+        size="md"
+        footer={
+          <>
+            <Button variant="secondary" onClick={onClose}>
+              {t('common.actions.cancel')}
+            </Button>
+            <Button
+              variant={decision === 'reject' ? 'danger' : 'primary'}
+              disabled={!ready}
+              loading={decide.isPending}
+              onClick={() => decide.mutate()}
+            >
+              {t(decision === 'reject' ? 'tasks.extension.reject' : 'tasks.extension.approve')}
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-3">
+          {failure ? <Callout tone="danger">{failure}</Callout> : null}
+          {request ? (
+            <Callout
+              tone="info"
+              title={t('tasks.extension.pending', {
+                date: formatDate(request.requestedDueAt, { locale }),
+              })}
+            >
+              <span className="block whitespace-pre-line">{request.reason}</span>
+              <span className="mt-1 block text-xs text-fg-muted">
+                {t('tasks.extension.requestedBy', {
+                  name: request.requestedBy?.displayName ?? '—',
+                  date: formatDateTime(request.requestedAt, { locale }),
+                })}
+              </span>
+            </Callout>
+          ) : null}
+          <RadioGroup
+            value={decision}
+            onValueChange={(next) => setDecision(next as Decision)}
+            aria-label={t('tasks.extension.decision')}
+            className="flex flex-col gap-2"
+          >
+            <RadioItem value="approve" label={t('tasks.extension.approveRequested')} />
+            <RadioItem value="other" label={t('tasks.extension.approveOther')} />
+            <RadioItem value="reject" label={t('tasks.extension.reject')} />
+          </RadioGroup>
+          {decision === 'other' ? (
+            <DueInput
               value={due}
-              onChange={(event) => setDue(event.target.value)}
+              onChange={setDue}
+              label={t('tasks.extension.otherDue')}
+              required
+            />
+          ) : null}
+          <Field
+            label={t(
+              decision === 'reject' ? 'tasks.extension.rejectReason' : 'tasks.extension.comment',
+            )}
+            htmlFor={commentId}
+            required={decision === 'reject'}
+          >
+            <Textarea
+              id={commentId}
+              rows={3}
+              value={comment}
+              onChange={(event) => setComment(event.target.value)}
+            />
+          </Field>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+/** Переназначение исполнителя автором или контролёром (10-tasks-projects.md §4). */
+export function ReassignDialog({ task, onClose }: { task: TaskRecord; onClose: () => void }) {
+  const t = useT()
+  const toast = useToast()
+  const client = useQueryClient()
+  const invalidate = useTaskInvalidation()
+  const commentId = useId()
+  const [assignee, setAssignee] = useState<PickedUser | null>(null)
+  const [comment, setComment] = useState('')
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [failure, setFailure] = useState<string | null>(null)
+
+  const send = useMutation({
+    mutationFn: () =>
+      http.post<TaskRecord>(`/tasks/${task.id}/reassign`, {
+        assigneeId: assignee?.id,
+        ...(comment.trim() ? { comment: comment.trim() } : {}),
+      }),
+    onSuccess: (record) => {
+      client.setQueryData(taskKeys.task(task.id), record)
+      toast.show({ title: t('tasks.done.reassign'), tone: 'success' })
+      invalidate(task.id)
+      onClose()
+    },
+    onError: (error) => {
+      setFieldErrors(error instanceof ApiError ? error.fieldErrors() : {})
+      setFailure(errorText(error, t('errors.unknown')))
+    },
+  })
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent
+        title={t('tasks.reassign.title', { key: task.key })}
+        description={task.title}
+        size="md"
+        footer={
+          <>
+            <Button variant="secondary" onClick={onClose}>
+              {t('common.actions.cancel')}
+            </Button>
+            <Button
+              variant="primary"
+              disabled={!assignee || assignee.id === task.assignee?.id}
+              loading={send.isPending}
+              onClick={() => send.mutate()}
+            >
+              {t('tasks.actions.reassign')}
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-3">
+          {failure ? <Callout tone="danger">{failure}</Callout> : null}
+          <p className="text-sm text-fg-secondary">{t('tasks.reassign.hint')}</p>
+          <Field label={t('tasks.reassign.assignee')} error={fieldErrors.assigneeId} required>
+            <UserPicker
+              value={assignee}
+              onChange={setAssignee}
+              label={t('tasks.reassign.assignee')}
+            />
+          </Field>
+          <Field label={t('tasks.reassign.comment')} htmlFor={commentId}>
+            <Textarea
+              id={commentId}
+              rows={3}
+              value={comment}
+              onChange={(event) => setComment(event.target.value)}
             />
           </Field>
         </div>

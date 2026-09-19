@@ -9,6 +9,9 @@ const can = (transitions: TaskStatus[]): TaskPermissions => ({
   accept: false,
   return: false,
   cancel: false,
+  requestExtension: false,
+  decideExtension: false,
+  reassign: false,
   transitions,
 })
 

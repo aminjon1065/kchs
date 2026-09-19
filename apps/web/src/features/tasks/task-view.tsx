@@ -26,7 +26,17 @@ import {
   useToast,
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Ban, Check, CornerUpLeft, Pencil, Play, Send } from 'lucide-react'
+import {
+  Ban,
+  CalendarClock,
+  Check,
+  CornerUpLeft,
+  Gavel,
+  Pencil,
+  Play,
+  Send,
+  UserRoundCog,
+} from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
@@ -39,10 +49,27 @@ import { ApiError, http } from '~/shared/api/client.js'
 import { meQuery, objectQuery } from '~/shared/api/queries.js'
 import { taskKeys, taskQuery } from './queries.js'
 import { errorText, postTaskStep, type TaskStep, useTaskInvalidation } from './task-actions.js'
-import { EditTaskDialog, ReportDialog, ReturnDialog } from './task-dialogs.js'
+import {
+  EditTaskDialog,
+  ExtensionDecisionDialog,
+  ExtensionRequestDialog,
+  ReassignDialog,
+  ReportDialog,
+  ReturnDialog,
+} from './task-dialogs.js'
+import { DueHistorySection, PartsSection, ResultObjects } from './task-sections.js'
 import { STATUS_TONE_KEY } from './task-status.js'
 
-type Dialog = 'edit' | 'report' | 'return' | 'cancel' | 'row' | null
+type Dialog =
+  | 'edit'
+  | 'report'
+  | 'return'
+  | 'cancel'
+  | 'row'
+  | 'extend'
+  | 'decide'
+  | 'reassign'
+  | null
 
 /**
  * Карточка задачи или поручения (10-tasks-projects.md §5): кнопки по правам
@@ -135,6 +162,11 @@ export function TaskView({ objectId, tabId }: { objectId: string; tabId: string 
                 {t('common.time.overdue')}
               </Badge>
             ) : null}
+            {task.extensions > 0 ? (
+              <Badge tone="warning" size="sm">
+                {t('tasks.extended')}
+              </Badge>
+            ) : null}
           </>
         }
         right={
@@ -182,6 +214,36 @@ export function TaskView({ objectId, tabId }: { objectId: string; tabId: string 
                 {t('tasks.actions.return')}
               </Button>
             ) : null}
+            {task.can.decideExtension ? (
+              <Button
+                variant="primary"
+                size="sm"
+                icon={<Gavel className="size-3.5" />}
+                onClick={() => setDialog('decide')}
+              >
+                {t('tasks.actions.decideExtension')}
+              </Button>
+            ) : null}
+            {task.can.requestExtension ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<CalendarClock className="size-3.5" />}
+                onClick={() => setDialog('extend')}
+              >
+                {t('tasks.actions.requestExtension')}
+              </Button>
+            ) : null}
+            {task.can.reassign ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<UserRoundCog className="size-3.5" />}
+                onClick={() => setDialog('reassign')}
+              >
+                {t('tasks.actions.reassign')}
+              </Button>
+            ) : null}
             {!instruction && task.can.transitions.length > 0 ? (
               <Select
                 value={task.status}
@@ -224,6 +286,28 @@ export function TaskView({ objectId, tabId }: { objectId: string; tabId: string 
         <div className="mx-auto grid max-w-[1100px] items-start gap-5 p-6 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div className="flex min-w-0 flex-col gap-4">
             <NextStep task={task} />
+            {task.extension?.status === 'pending' ? (
+              <Callout
+                tone="warning"
+                title={t('tasks.extension.pending', {
+                  date: formatDate(task.extension.requestedDueAt, { locale }),
+                })}
+              >
+                <span className="block whitespace-pre-line">{task.extension.reason}</span>
+                <span className="mt-1 block text-xs text-fg-muted">
+                  {t('tasks.extension.requestedBy', {
+                    name: task.extension.requestedBy?.displayName ?? '—',
+                    date: formatDateTime(task.extension.requestedAt, ctx),
+                  })}
+                </span>
+              </Callout>
+            ) : task.extension?.status === 'rejected' && !isClosedStatus(task.status) ? (
+              <Callout tone="info" title={t('tasks.extension.rejectedTitle')}>
+                <span className="block whitespace-pre-line">
+                  {task.extension.decisionComment ?? ''}
+                </span>
+              </Callout>
+            ) : null}
             {task.status === 'returned' && task.returnComment ? (
               <Callout tone="warning" title={t('tasks.view.returnComment')}>
                 <span className="whitespace-pre-line">{task.returnComment}</span>
@@ -243,6 +327,7 @@ export function TaskView({ objectId, tabId }: { objectId: string; tabId: string 
               <section className="rounded-lg border border-line bg-surface p-4">
                 <h2 className="mb-2 text-sm font-semibold text-fg">{t('tasks.view.result')}</h2>
                 <p className="whitespace-pre-line text-sm text-fg">{task.result.text}</p>
+                <ResultObjects task={task} />
                 <p className="mt-2 text-xs text-fg-muted">
                   {t('tasks.view.reportedBy', {
                     name: task.result.reportedBy?.displayName ?? '—',
@@ -251,6 +336,8 @@ export function TaskView({ objectId, tabId }: { objectId: string; tabId: string 
                 </p>
               </section>
             ) : null}
+            <PartsSection task={task} />
+            <DueHistorySection task={task} ctx={ctx} />
           </div>
 
           <aside className="rounded-lg border border-line bg-surface p-4">
@@ -258,6 +345,14 @@ export function TaskView({ objectId, tabId }: { objectId: string; tabId: string 
               items={details(task, ctx, t, {
                 openProject,
                 openRow: () => setDialog('row'),
+                openTask: (id, title) =>
+                  openTab({
+                    kind: 'object',
+                    objectId: id,
+                    objectType: 'task',
+                    title,
+                    mode: 'permanent',
+                  }),
               })}
             />
           </aside>
@@ -267,6 +362,15 @@ export function TaskView({ objectId, tabId }: { objectId: string; tabId: string 
       {dialog === 'edit' ? <EditTaskDialog task={task} onClose={() => setDialog(null)} /> : null}
       {dialog === 'report' ? <ReportDialog task={task} onClose={() => setDialog(null)} /> : null}
       {dialog === 'return' ? <ReturnDialog task={task} onClose={() => setDialog(null)} /> : null}
+      {dialog === 'extend' ? (
+        <ExtensionRequestDialog task={task} onClose={() => setDialog(null)} />
+      ) : null}
+      {dialog === 'decide' ? (
+        <ExtensionDecisionDialog task={task} onClose={() => setDialog(null)} />
+      ) : null}
+      {dialog === 'reassign' ? (
+        <ReassignDialog task={task} onClose={() => setDialog(null)} />
+      ) : null}
       {dialog === 'row' && task.source?.kind === 'dataset_row' ? (
         <SourceRow
           datasetId={task.source.datasetId}
@@ -291,21 +395,31 @@ export function TaskView({ objectId, tabId }: { objectId: string; tabId: string 
   )
 }
 
+const isClosedStatus = (status: TaskRecord['status']) =>
+  status === 'accepted' || status === 'done' || status === 'cancelled'
+
 /** Подсказка «что дальше» для смотрящего: его ход в процессе поручения. */
 function NextStep({ task }: { task: TaskRecord }) {
   const t = useT()
   if (task.kind !== 'instruction') return null
-  const key = task.can.start
-    ? 'start'
-    : task.can.report
-      ? 'report'
-      : task.can.accept
-        ? 'accept'
-        : task.status === 'reported'
-          ? 'waitAccept'
-          : null
+  const openParts = task.parts.filter((part) => !isClosedStatus(part.status)).length
+  const key = task.can.decideExtension
+    ? 'decideExtension'
+    : task.can.start
+      ? 'start'
+      : task.can.report && openParts > 0
+        ? 'partsOpen'
+        : task.can.report
+          ? 'report'
+          : task.can.accept
+            ? 'accept'
+            : task.extension?.status === 'pending'
+              ? 'extensionPending'
+              : task.status === 'reported'
+                ? 'waitAccept'
+                : null
   if (!key) return null
-  return <Callout tone="info">{t(`tasks.next.${key}`)}</Callout>
+  return <Callout tone="info">{t(`tasks.next.${key}`, { count: openParts })}</Callout>
 }
 
 type Translate = ReturnType<typeof useT>
@@ -314,7 +428,11 @@ function details(
   task: TaskRecord,
   ctx: { locale: Locale; timezone?: string },
   t: Translate,
-  actions: { openProject: () => void; openRow: () => void },
+  actions: {
+    openProject: () => void
+    openRow: () => void
+    openTask: (id: string, title: string) => void
+  },
 ): KeyValueItem[] {
   const items: KeyValueItem[] = [
     { key: 'kind', label: t('tasks.fields.kind'), value: t(`tasks.kinds.${task.kind}`) },
@@ -362,12 +480,36 @@ function details(
         // Срок — день по часам пользователя: так его выбирают в поле даты
         <span className={task.overdue ? 'text-danger' : undefined}>
           {formatDate(task.dueAt, { locale: ctx.locale })}
+          {task.dueWorkingDays !== null ? (
+            <span className="ml-1.5 text-xs text-fg-muted">
+              {t('tasks.due.workingDaysShort', { count: task.dueWorkingDays })}
+            </span>
+          ) : null}
         </span>
       ) : (
         '—'
       ),
     },
   )
+  if (task.originalDueAt && task.dueAt && task.originalDueAt !== task.dueAt) {
+    items.push({
+      key: 'originalDue',
+      label: t('tasks.fields.originalDue'),
+      value: formatDate(task.originalDueAt, { locale: ctx.locale }),
+    })
+  }
+  if (task.parent) {
+    const parent = task.parent
+    items.push({
+      key: 'parent',
+      label: t('tasks.fields.parent'),
+      value: (
+        <Button variant="link" size="sm" onClick={() => actions.openTask(parent.id, parent.title)}>
+          {parent.key} · {parent.title}
+        </Button>
+      ),
+    })
+  }
   if (task.project) {
     const project = task.project
     items.push({

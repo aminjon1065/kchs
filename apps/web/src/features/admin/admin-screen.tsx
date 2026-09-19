@@ -45,6 +45,7 @@ import {
   ShieldCheck,
   UserPlus,
   Users,
+  Workflow,
 } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
@@ -64,6 +65,7 @@ import { CreateUnitDialog } from './org-management.js'
 import { RolesSection } from './roles-section.js'
 import { SecuritySection } from './security-section.js'
 import { SpacesSection } from './spaces-section.js'
+import { TasksSection } from './tasks-section.js'
 import { CreateUserDialog, UserActions } from './user-management.js'
 import { UsersImportDialog } from './users-import-dialog.js'
 
@@ -77,6 +79,7 @@ type Section =
   | 'basemaps'
   | 'audit'
   | 'security'
+  | 'tasks'
 
 /**
  * Консоль администрирования (15-admin-operations.md §1): разделы — вертикальные
@@ -148,6 +151,12 @@ export function AdminScreen() {
       icon: <ShieldCheck className="size-3.5" />,
       visible: isSystemAdmin,
     },
+    {
+      value: 'tasks',
+      label: t('admin.sections.tasks'),
+      icon: <Workflow className="size-3.5" />,
+      visible: isSystemAdmin,
+    },
   ]
 
   return (
@@ -199,6 +208,9 @@ export function AdminScreen() {
             </TabsContent>
             <TabsContent value="security" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
               <SecuritySection />
+            </TabsContent>
+            <TabsContent value="tasks" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
+              <TasksSection />
             </TabsContent>
           </>
         ) : null}

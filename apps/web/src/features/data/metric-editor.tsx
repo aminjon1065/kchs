@@ -192,6 +192,9 @@ export function MetricEditor({
     ...datasetQuery(draft.datasetId ?? ''),
     enabled: Boolean(draft.datasetId),
   })
+  // Показатель над системным датасетом (ADR-0082): определение задаёт модуль,
+  // здесь правятся название, формат, цели и пороги
+  const systemSource = metric?.systemSource ?? null
   const fields = dataset?.fields ?? []
   const numeric = fields.filter((field) => NUMERIC_TYPES.has(field.type))
   const temporal = fields.filter((field) => field.type === 'date' || field.type === 'datetime')
@@ -203,7 +206,7 @@ export function MetricEditor({
 
   const valid =
     draft.name.trim() !== '' &&
-    draft.datasetId !== null &&
+    (draft.datasetId !== null || systemSource !== null) &&
     (draft.agg === 'expr' ? draft.expr.trim() !== '' : !needsField || draft.field !== null) &&
     draft.targets.every((target) => isNumber(target.value)) &&
     draft.thresholds.every((threshold) => isNumber(threshold.value))
@@ -213,7 +216,7 @@ export function MetricEditor({
       const body: Omit<MetricCreateInput, 'spaceId'> = {
         name: draft.name.trim(),
         description: draft.description.trim() || null,
-        datasetId: draft.datasetId ?? '',
+        ...(systemSource ? {} : { datasetId: draft.datasetId ?? '' }),
         definition: {
           measure:
             draft.agg === 'expr'
@@ -301,23 +304,39 @@ export function MetricEditor({
               />
             </Field>
             <Field label={t('data.metric.dataset')}>
-              <Select
-                value={draft.datasetId ?? undefined}
-                onValueChange={(datasetId) =>
-                  update({ datasetId, field: null, filter: null, timeField: null, dimensions: [] })
-                }
-              >
-                <SelectTrigger aria-label={t('data.metric.dataset')}>
-                  <SelectValue placeholder={t('data.metric.pickDataset')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {(datasets?.items ?? []).map((item) => (
-                    <SelectItem key={item.id} value={item.id}>
-                      {item.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {systemSource ? (
+                <Input
+                  readOnly
+                  aria-label={t('data.metric.dataset')}
+                  value={t('data.metric.systemSource', {
+                    name: t(`data.systemDatasets.${systemSource}`),
+                  })}
+                />
+              ) : (
+                <Select
+                  value={draft.datasetId ?? undefined}
+                  onValueChange={(datasetId) =>
+                    update({
+                      datasetId,
+                      field: null,
+                      filter: null,
+                      timeField: null,
+                      dimensions: [],
+                    })
+                  }
+                >
+                  <SelectTrigger aria-label={t('data.metric.dataset')}>
+                    <SelectValue placeholder={t('data.metric.pickDataset')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(datasets?.items ?? []).map((item) => (
+                      <SelectItem key={item.id} value={item.id}>
+                        {item.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </Field>
           </div>
           <Field label={t('data.metric.description')} htmlFor={ids.description}>

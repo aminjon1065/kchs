@@ -1,5 +1,5 @@
 import type { InboxItem } from '@kchs/contracts'
-import { formatDateTime, formatRelativeTime } from '@kchs/fields'
+import { formatDate, formatDateTime, formatRelativeTime } from '@kchs/fields'
 import {
   Badge,
   Button,
@@ -221,19 +221,22 @@ function InboxDetail({ item, onSnooze }: { item: InboxItem; onSnooze: () => void
   const openTab = useWorkspace((s) => s.openTab)
   const commentId = useId()
   const codeId = useId()
+  const dateId = useId()
   const [commenting, setCommenting] = useState<InboxAction | null>(null)
   const [comment, setComment] = useState('')
   const [code, setCode] = useState('')
+  const [date, setDate] = useState('')
 
   // Действие выполняет модуль элемента (POST /inbox/{id}/act): он же закрывает дело
   const act = useMutation({
-    mutationFn: (input: { action: string; comment?: string; payload?: { code: string } }) =>
+    mutationFn: (input: { action: string; comment?: string; payload?: Record<string, unknown> }) =>
       http.post(`/inbox/${item.id}/act`, input),
     onSuccess: () => {
       toast.show({ title: t('inbox.resolved'), tone: 'success' })
       setCommenting(null)
       setComment('')
       setCode('')
+      setDate('')
       void client.invalidateQueries({ queryKey: ['inbox'] })
       void client.invalidateQueries({ queryKey: keys.inboxCounts })
       if (item.object) void client.invalidateQueries({ queryKey: keys.object(item.object.id) })
@@ -243,25 +246,38 @@ function InboxDetail({ item, onSnooze }: { item: InboxItem; onSnooze: () => void
   })
 
   const run = (action: InboxAction) => {
-    if (!action.requiresComment && !action.requiresSecondFactor) {
+    if (!action.requiresComment && !action.requiresSecondFactor && !action.input) {
       act.mutate({ action: action.key })
       return
     }
     setComment('')
     setCode('')
+    setDate('')
     setCommenting(action)
   }
+  // Запрос продления: запрошенный срок и обоснование — в деле автора (ADR-0082)
+  const requestedDueAt =
+    typeof item.payload.requestedDueAt === 'string' ? item.payload.requestedDueAt : null
+  const reason = typeof item.payload.reason === 'string' ? item.payload.reason : null
+  const needsDate = commenting?.input === 'due_date'
 
-  // Подпись с подтверждением: код второго фактора уходит вместе с действием
-  const submit = (action: InboxAction) =>
+  // Код второго фактора (подпись с MFA, ADR-0079) и новый срок (продление, ADR-0082)
+  // уходят вместе с действием
+  const submit = (action: InboxAction) => {
+    const payload = {
+      ...(action.requiresSecondFactor ? { code: code.trim() } : {}),
+      ...(action.input === 'due_date' ? { dueDate: date } : {}),
+    }
     act.mutate({
       action: action.key,
       ...(comment.trim() ? { comment: comment.trim() } : {}),
-      ...(action.requiresSecondFactor ? { payload: { code: code.trim() } } : {}),
+      ...(Object.keys(payload).length > 0 ? { payload } : {}),
     })
+  }
   const ready = (action: InboxAction) =>
     (!action.requiresComment || Boolean(comment.trim())) &&
-    (!action.requiresSecondFactor || Boolean(code.trim()))
+    (!action.requiresSecondFactor || Boolean(code.trim())) &&
+    (action.input !== 'due_date' || Boolean(date))
 
   return (
     <article className="mx-auto flex max-w-[760px] flex-col gap-4 p-6">
@@ -296,6 +312,14 @@ function InboxDetail({ item, onSnooze }: { item: InboxItem; onSnooze: () => void
       </header>
 
       {item.body ? <p className="text-sm text-fg-secondary">{item.body}</p> : null}
+      {requestedDueAt ? (
+        <div className="flex flex-col gap-1 text-sm text-fg-secondary">
+          <span>{t('inbox.requestedDue', { date: formatDate(requestedDueAt, { locale }) })}</span>
+          {reason ? (
+            <span className="whitespace-pre-line">{t('inbox.reason', { reason })}</span>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="flex flex-wrap items-center gap-2 border-t border-line pt-4">
         {item.actions.map((action, index) => (
@@ -336,31 +360,46 @@ function InboxDetail({ item, onSnooze }: { item: InboxItem; onSnooze: () => void
               </>
             }
           >
-            {commenting.requiresComment ? (
-              <Field label={t('inbox.comment')} htmlFor={commentId} required>
+            <div className="flex flex-col gap-3">
+              {needsDate ? (
+                <Field label={t('inbox.dueDate')} htmlFor={dateId} required>
+                  <Input
+                    id={dateId}
+                    type="date"
+                    autoFocus
+                    value={date}
+                    onChange={(event) => setDate(event.target.value)}
+                  />
+                </Field>
+              ) : null}
+              <Field
+                label={t('inbox.comment')}
+                htmlFor={commentId}
+                required={commenting.requiresComment}
+              >
                 <Textarea
                   id={commentId}
-                  autoFocus
+                  autoFocus={!needsDate && !commenting.requiresSecondFactor}
                   rows={5}
                   value={comment}
                   onChange={(event) => setComment(event.target.value)}
                 />
               </Field>
-            ) : null}
-            {commenting.requiresSecondFactor ? (
-              <Field label={t('inbox.code')} htmlFor={codeId} hint={t('inbox.codeHint')} required>
-                <Input
-                  id={codeId}
-                  autoFocus={!commenting.requiresComment}
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  maxLength={24}
-                  value={code}
-                  onChange={(event) => setCode(event.target.value)}
-                  mono
-                />
-              </Field>
-            ) : null}
+              {commenting.requiresSecondFactor ? (
+                <Field label={t('inbox.code')} htmlFor={codeId} hint={t('inbox.codeHint')} required>
+                  <Input
+                    id={codeId}
+                    autoFocus={!needsDate}
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={24}
+                    value={code}
+                    onChange={(event) => setCode(event.target.value)}
+                    mono
+                  />
+                </Field>
+              ) : null}
+            </div>
           </DialogContent>
         ) : null}
       </Dialog>
@@ -371,7 +410,9 @@ function InboxDetail({ item, onSnooze }: { item: InboxItem; onSnooze: () => void
 function groupOf(kind: string): string {
   if (['approve', 'sign', 'resolve', 'register', 'revise'].includes(kind)) return 'decide'
   if (kind === 'acknowledge') return 'acknowledge'
-  if (kind.includes('instruction') || kind === 'accept_result') return 'instructions'
+  if (kind.includes('instruction') || kind === 'accept_result' || kind === 'extend_due') {
+    return 'instructions'
+  }
   if (kind === 'respond_invite') return 'invites'
   return 'data'
 }

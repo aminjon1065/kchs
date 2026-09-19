@@ -30,7 +30,9 @@ import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
 import { useOpenWorkspace } from '~/app/workspace/workspaces-menu.js'
+import { IssuedWidget, TeamWidget } from '~/features/tasks/home-widgets.js'
 import { MyTasksWidget } from '~/features/tasks/my-tasks-widget.js'
+import { teamQuery } from '~/features/tasks/queries.js'
 import {
   announcementsQuery,
   favoritesQuery,
@@ -60,6 +62,9 @@ export function HomeScreen() {
   const { data: counts } = useQuery(inboxCountsQuery())
   const roles = me?.roles ?? []
   const widgets = widgetsFor(me?.preferences[HOME_WIDGETS_PREFERENCE], roles)
+  // «Команда» — только руководителям: у кого нет подчинённых, виджет не занимает место
+  const { data: team } = useQuery({ ...teamQuery(), enabled: widgets.includes('team') })
+  const shown = widgets.filter((widget) => widget !== 'team' || team?.manager === true)
 
   const hour = new Date().getHours()
   const greetingKey =
@@ -87,6 +92,8 @@ export function HomeScreen() {
   const render: Record<HomeWidget, () => ReactNode> = {
     inbox: () => <InboxWidget openObject={openObject} openInbox={openInbox} />,
     tasks: () => <MyTasksWidget />,
+    assigned: () => <IssuedWidget />,
+    team: () => <TeamWidget />,
     announcements: () => <AnnouncementsWidget />,
     continue: () => <ContinueWidget />,
     recent: () => <RecentWidget openObject={openObject} />,
@@ -157,7 +164,7 @@ export function HomeScreen() {
           <StatTile label={t('admin.delegation.title')} value={counts?.delegated ?? 0} />
         </div>
 
-        {widgets.length === 0 ? (
+        {shown.length === 0 ? (
           <EmptyState
             title={t('home.noWidgets')}
             action={
@@ -168,7 +175,7 @@ export function HomeScreen() {
           />
         ) : (
           <div className="grid items-start gap-4 lg:grid-cols-2">
-            {widgets.map((widget) => (
+            {shown.map((widget) => (
               <div key={widget}>{render[widget]()}</div>
             ))}
           </div>

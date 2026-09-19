@@ -30,6 +30,58 @@ function UserLine({ user }: { user: PickedUser }) {
   )
 }
 
+/**
+ * Выбор нескольких сотрудников (соисполнители поручения): выбранные — списком
+ * с кнопкой «убрать», добавление — тем же поиском, что у одного сотрудника.
+ */
+export function UsersPicker({
+  value,
+  onChange,
+  label,
+  exclude = [],
+}: {
+  value: PickedUser[]
+  onChange: (users: PickedUser[]) => void
+  label: string
+  /** Кого нельзя добавить (исполнитель поручения). */
+  exclude?: readonly string[]
+}) {
+  const t = useT()
+  return (
+    <div className="flex flex-col gap-1.5">
+      {value.length > 0 ? (
+        <ul aria-label={label} className="flex flex-col gap-1">
+          {value.map((user) => (
+            <li
+              key={user.id}
+              className="flex items-center gap-2 rounded-md border border-line bg-surface px-2.5 py-1.5"
+            >
+              <UserLine user={user} />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onChange(value.filter((item) => item.id !== user.id))}
+              >
+                {t('common.actions.remove')}
+              </Button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      <UserPicker
+        value={null}
+        label={t('tasks.create.addCoAssignee')}
+        onChange={(user) => {
+          if (!user || exclude.includes(user.id) || value.some((item) => item.id === user.id)) {
+            return
+          }
+          onChange([...value, user])
+        }}
+      />
+    </div>
+  )
+}
+
 /** Выбор одного сотрудника поиском по имени и логину (исполнитель, контролёр). */
 export function UserPicker({
   value,

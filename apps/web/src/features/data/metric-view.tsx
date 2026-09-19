@@ -362,7 +362,10 @@ function BreakdownCard({
   const t = useT()
   const locale = useAppearance((s) => s.locale)
   const [dimension, setDimension] = useState(metric.definition.dimensions[0] ?? '')
-  const { data: dataset } = useQuery(datasetQuery(metric.datasetId))
+  const { data: dataset } = useQuery({
+    ...datasetQuery(metric.datasetId ?? ''),
+    enabled: Boolean(metric.datasetId),
+  })
   const { data, isLoading } = useQuery(
     metricValueQuery(metric.id, { period, comparison, dimensions: [dimension], series: false }),
   )
@@ -441,7 +444,10 @@ function DefinitionCard({ metric }: { metric: MetricRecord }) {
   const t = useT()
   const locale = useAppearance((s) => s.locale)
   const openTab = useWorkspace((s) => s.openTab)
-  const { data: dataset } = useQuery(datasetQuery(metric.datasetId))
+  const { data: dataset } = useQuery({
+    ...datasetQuery(metric.datasetId ?? ''),
+    enabled: Boolean(metric.datasetId),
+  })
   const { definition } = metric
   const fields = dataset?.fields ?? []
   const label = (key: string | null | undefined) => {
@@ -465,7 +471,11 @@ function DefinitionCard({ metric }: { metric: MetricRecord }) {
           {
             key: 'dataset',
             label: t('data.metric.dataset'),
-            value: dataset ? (
+            value: metric.systemSource ? (
+              t('data.metric.systemSource', {
+                name: t(`data.systemDatasets.${metric.systemSource}`),
+              })
+            ) : dataset ? (
               <button
                 type="button"
                 className="text-left text-accent hover:underline"
