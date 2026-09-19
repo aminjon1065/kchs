@@ -52,6 +52,16 @@ async function listen(
   }
 }
 
+/** Текстовые поля тела multipart/form-data (файл Bot API шлёт так, а не JSON). */
+function multipartFields(raw: string): Record<string, string> {
+  const fields: Record<string, string> = {}
+  const pattern = /name="([^"]+)"\r\n\r\n([^\r]*)\r\n/g
+  for (let match = pattern.exec(raw); match; match = pattern.exec(raw)) {
+    fields[match[1] as string] = match[2] as string
+  }
+  return fields
+}
+
 // ─── Telegram Bot API ────────────────────────────────────────────────────────
 
 export const FAKE_BOT_USERNAME = 'kchs_test_bot'
@@ -62,6 +72,8 @@ export interface FakeTelegram {
   calls: Recorded[]
   /** Отправленные ботом сообщения: чат и текст. */
   sent(): Array<{ chatId: number; text: string; markup: unknown }>
+  /** Файлы, отправленные ботом (sendDocument, multipart): чат, имя, подпись, PDF ли это. */
+  documents(): Array<{ chatId: number; fileName: string; caption: string; pdf: boolean }>
   /** Чат «заблокировал бота»: sendMessage отвечает 403. */
   block(chatId: number): void
   /** Обновление для долгого опроса (getUpdates). */
@@ -117,6 +129,26 @@ export async function startFakeTelegram(): Promise<FakeTelegram> {
         })
         return
       }
+      case 'sendDocument': {
+        const fields = multipartFields(String(body.raw ?? ''))
+        const chatId = Number(fields.chat_id ?? body.chat_id)
+        if (blocked.has(chatId)) {
+          send(response, 403, {
+            ok: false,
+            error_code: 403,
+            description: 'Forbidden: bot was blocked by the user',
+          })
+          return
+        }
+        messageId += 1
+        ok({
+          message_id: messageId,
+          date: Math.floor(Date.now() / 1000),
+          chat: { id: chatId, type: 'private' },
+          document: { file_id: `file-${messageId}`, file_unique_id: `u-${messageId}` },
+        })
+        return
+      }
       case 'deleteWebhook':
         ok(true)
         return
@@ -141,6 +173,20 @@ export async function startFakeTelegram(): Promise<FakeTelegram> {
     url: server.url,
     token,
     calls,
+    documents: () =>
+      calls
+        .filter((call) => call.method === 'sendDocument')
+        .map((call) => {
+          const raw = String(call.body.raw ?? '')
+          const fields = multipartFields(raw)
+          return {
+            chatId: Number(fields.chat_id),
+            // grammy пишет имя файла без кавычек: `filename=<имя>\r\n`
+            fileName: /filename=([^\r]*)\r\n/.exec(raw)?.[1] ?? '',
+            caption: fields.caption ?? '',
+            pdf: raw.includes('%PDF-'),
+          }
+        }),
     sent: () =>
       calls
         .filter((call) => call.method === 'sendMessage')

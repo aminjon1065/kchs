@@ -22,6 +22,12 @@ import { registerGisBackground, registerGisObjectTypes, registerGisRoutes } from
 import { registerIdentityBackground, registerIdentityRoutes } from './identity/module.js'
 import { OrgService, UserService } from './identity/public.js'
 import {
+  registerReportsBackground,
+  registerReportsObjectTypes,
+  registerReportsRoutes,
+  scheduleReportsJobs,
+} from './reports/module.js'
+import {
   registerTasksBackground,
   registerTasksObjectTypes,
   registerTasksRoutes,
@@ -48,6 +54,7 @@ export function registerAllObjectTypes(): void {
   registerFilesObjectTypes()
   registerDataObjectTypes()
   registerGisObjectTypes()
+  registerReportsObjectTypes()
   registerTasksObjectTypes()
   registerDirectory()
   // Каналы уведомлений модулей: ядро доставляет через них в любой роли процесса
@@ -74,6 +81,7 @@ export async function registerModules(app: FastifyInstance, route: RouteRegistra
   registerFilesRoutes(route)
   registerDataRoutes(route)
   registerGisRoutes(route)
+  registerReportsRoutes(route)
   registerTasksRoutes(route)
   registerTelegramRoutes(route)
   registerAiRoutes(route)
@@ -87,11 +95,13 @@ export function registerModulesBackground(): void {
   registerIdentityBackground()
   registerDataBackground()
   registerGisBackground()
+  registerReportsBackground()
   registerTasksBackground()
 }
 
 export async function scheduleModuleJobs(): Promise<void> {
   await scheduleFilesJobs()
+  await scheduleReportsJobs()
 }
 
 /** Долгоживущие процессы модулей в роли worker: опрос Telegram-бота (ADR-0061). */

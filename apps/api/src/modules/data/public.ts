@@ -9,6 +9,7 @@ import type {
   FieldType,
   MetricRecord,
   MetricValue,
+  NotebookRecord,
   QueryResult,
   QuerySpec,
 } from '@kchs/contracts'
@@ -19,6 +20,7 @@ import { errors } from '~/shared/errors.js'
 import { DatasetAccess } from './domain/dataset-access.js'
 import { DatasetService } from './domain/dataset-service.js'
 import { type MetricEvaluation, MetricService } from './domain/metric-service.js'
+import { NotebookService } from './domain/notebook-service.js'
 import { QueryService, type RunOptions } from './domain/query-service.js'
 import { RowService, type RowWriteAccess } from './domain/row-service.js'
 
@@ -49,6 +51,9 @@ export const Metrics = {
   value: (ctx: Ctx, metric: MetricRecord, evaluation: MetricEvaluation): Promise<MetricValue> =>
     MetricService.evaluate(ctx, metric, evaluation),
 }
+
+/** Снимок тетради — «Экспорт в отчёт» (P2-E05 S03); право `view` проверяет вызывающий. */
+export const notebookRecord = (id: string): Promise<NotebookRecord> => NotebookService.get(id)
 
 /**
  * Запрос к датасетам с правами и политиками смотрящего: компиляция для обёртки

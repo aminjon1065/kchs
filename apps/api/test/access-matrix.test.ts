@@ -409,6 +409,43 @@ const FIXTURES: Record<string, TypeFixture> = {
     ],
   },
 
+  report: {
+    create: async (fx, title) => {
+      const response = await call(fx.app, {
+        method: 'POST',
+        url: '/reports',
+        as: fx.admin,
+        payload: {
+          name: title,
+          spaceId: fx.spaceId,
+          blocks: [
+            { id: 'intro', kind: 'text' },
+            { id: 'brk', kind: 'page_break' },
+          ],
+        },
+      })
+      expect(response.statusCode, response.body).toBe(200)
+      return { id: response.json().id, title }
+    },
+    readPaths: ['/reports/:id', '/reports/:id/runs', '/reports/:id/schedule', '/print/reports/:id'],
+    // Шаблон правится через /collab; рассылку задаёт только управляющий отчётом.
+    // «Сформировать» читателю доступно — под его правами (ADR-0078)
+    viewerForbidden: (fx, id) => [
+      {
+        method: 'PUT',
+        url: `/reports/${id}/schedule`,
+        payload: {
+          frequency: 'daily',
+          timezone: 'Asia/Dushanbe',
+          recipients: [fx.users.viewer.id],
+          channels: ['inbox'],
+        },
+      },
+      { method: 'DELETE', url: `/reports/${id}/schedule` },
+      { method: 'POST', url: `/reports/${id}/schedule/run` },
+    ],
+  },
+
   // Справочник открыт всем выдачей everyone:*; без неё территория подчиняется
   // общим правилам ядра, как любой объект, — это и проверяет матрица
   territory: {

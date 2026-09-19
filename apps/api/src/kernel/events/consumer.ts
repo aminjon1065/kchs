@@ -261,6 +261,7 @@ export const KNOWN_DOMAINS = [
   'dashboard',
   'metric',
   'notebook',
+  'report',
   'task',
   'project',
   'layer',
