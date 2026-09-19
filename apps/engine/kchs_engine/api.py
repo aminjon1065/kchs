@@ -103,3 +103,13 @@ async def report_render_start(run_id: str) -> dict[str, Any]:
 async def report_rendered(run_id: str, payload: dict[str, Any]) -> dict[str, Any]:
     """Файлы отчёта в бакете экспортов: api отмечает запуск и рассылает (ADR-0078)."""
     return await _post_strict(f"/api/v1/internal/reports/runs/{run_id}/rendered", payload)
+
+
+async def document_render_start(render_id: str) -> dict[str, Any]:
+    """План рендера модуля документов с правами заказчика на этот момент (ADR-0085)."""
+    return await _post_strict(f"/api/v1/internal/documents/renders/{render_id}/start", {})
+
+
+async def document_render_done(render_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    """Результат рендера: файл под выданным ключом, плейсхолдеры шаблона или причина сбоя."""
+    return await _post_strict(f"/api/v1/internal/documents/renders/{render_id}/done", payload)

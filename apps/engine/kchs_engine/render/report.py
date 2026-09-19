@@ -66,7 +66,7 @@ _browser_lock = asyncio.Lock()
 _slots: asyncio.Semaphore | None = None
 
 
-def _render_slots() -> asyncio.Semaphore:
+def render_slots() -> asyncio.Semaphore:
     """Страниц печати одновременно: Chromium тяжёлый, остальные ждут."""
     global _slots
     if _slots is None:
@@ -162,7 +162,7 @@ async def render_report(plan: dict[str, Any], workdir: Path) -> RenderOutput:
     formats = [item["format"] for item in plan["files"]]
     timings: dict[str, int] = {}
 
-    async with _render_slots():
+    async with render_slots():
         browser = await shared_browser()
         context = await browser.new_context(
             viewport={"width": content_width_px(orientation), "height": 1100},

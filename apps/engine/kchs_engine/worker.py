@@ -19,6 +19,7 @@ from kchs_engine.jobs import echo as _echo  # noqa: F401
 from kchs_engine.jobs import files as _files  # noqa: F401
 from kchs_engine.jobs import users_import as _users_import  # noqa: F401
 from kchs_engine.logging import log
+from kchs_engine.render import documents as _documents_render  # noqa: F401
 from kchs_engine.render import report as _report  # noqa: F401
 
 Processor = Callable[[Job, str], Awaitable[dict[str, Any]]]

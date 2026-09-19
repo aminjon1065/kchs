@@ -47,3 +47,9 @@ def data_export_contract() -> dict[str, Any]:
 def report_render_contract() -> dict[str, Any]:
     """Форматы, cookie токена печати и признаки готовности страницы отчёта (ADR-0078)."""
     return _load("report_render.json")
+
+
+@lru_cache
+def document_render_contract() -> dict[str, Any]:
+    """Виды рендеров модуля документов и пределы исходника и шаблона (ADR-0085)."""
+    return _load("document_render.json")
