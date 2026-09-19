@@ -1,0 +1,11 @@
+/*
+ * Календарь: штриховка «возможно» и занятости «под вопросом» — поверх заливки
+ * события, цвет — токен текста с прозрачностью (обе темы).
+ */
+.kchs-calendar-hatch {
+  background-image: repeating-linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--text) 10%, transparent) 0 4px,
+    transparent 4px 8px
+  );
+}
