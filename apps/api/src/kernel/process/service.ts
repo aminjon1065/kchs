@@ -280,6 +280,7 @@ export const ProcessService = {
   async start(tx: Executor, ctx: Ctx, input: StartProcessInput): Promise<{ instanceId: string }> {
     const object = await loadObject(input.objectId, tx)
     if (!object || object.deletedAt) throw errors.notFound()
+    if (object.archivedAt) throw errors.conflict('Объект в архиве: маршрут не запускается')
     const definition = await DefinitionService.published(tx, {
       key: input.definitionKey,
       id: input.definitionId,

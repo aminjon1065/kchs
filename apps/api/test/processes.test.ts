@@ -1,7 +1,14 @@
 import { and, eq, sql } from 'drizzle-orm'
 import { authenticator } from 'otplib'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { call, db, registerLifecycle, setupFixture, type TestContext } from './helpers.js'
+import {
+  call,
+  db,
+  registerLifecycle,
+  setupFixture,
+  type TestContext,
+  uploadFile,
+} from './helpers.js'
 import {
   actInbox,
   activeStep,
@@ -36,6 +43,8 @@ const { ObjectService } = await import('../src/kernel/objects/service.js')
 const { ProcessService } = await import('../src/kernel/process/service.js')
 const { systemCtx } = await import('../src/shared/context.js')
 const schema = await import('../src/shared/db/schema/index.js')
+const { GroupService } = await import('../src/modules/identity/public.js')
+const { newId } = await import('../src/shared/ids.js')
 
 let fx: TestContext
 let people: ProcessPeople
@@ -907,5 +916,189 @@ describe('исполнение', () => {
       module.readPrincipalsFor(doc),
     )
     expect(principals).toContain(`user:${people.a1.id}`)
+  })
+
+  it('назначения по оргструктуре: подразделение, группа, роли в пространстве и без ограничения', async () => {
+    // Роль «юрист»: ограниченная тестовым пространством — у a1, без ограничения — у a2
+    const legal = newId()
+    await db()
+      .insert(schema.roles)
+      .values({ id: legal, key: `legal_${run}`, name: { ru: 'Юрист' } })
+    await db()
+      .insert(schema.userRoles)
+      .values([
+        { userId: people.a1.id, roleId: legal, spaceId: fx.spaceId },
+        { userId: people.a2.id, roleId: legal, spaceId: null },
+      ])
+    const group = await db().transaction((tx) => GroupService.create(tx, `Юристы ${run}`))
+    await db().transaction((tx) =>
+      GroupService.setMembers(tx, group, [people.a3.id, people.deputy.id]),
+    )
+    const definition = {
+      version: 1,
+      key: `org_${run}`,
+      objectType: TEST_TYPE(),
+      name: { ru: 'Оргструктура' },
+      start: 'unit',
+      steps: {
+        unit: { type: 'acknowledge', assignees: [`unit:${fx.unitId}`], next: 'group' },
+        group: { type: 'approval', assignees: [`group:${group}`], next: 'space' },
+        space: { type: 'approval', assignees: ['role_in_space:editor'], next: 'legal' },
+        legal: { type: 'approval', assignees: [`role_in_space:legal_${run}`], next: 'any' },
+        any: { type: 'approval', assignees: [`role:legal_${run}`], next: 'end' },
+        end: { type: 'end' },
+      },
+    }
+    const preview = async (objectId: string) => {
+      const response = await call(fx.app, {
+        method: 'POST',
+        url: '/process-definitions/preview',
+        as: fx.admin,
+        payload: { definition, objectId },
+      })
+      expect(response.statusCode, response.body).toBe(200)
+      return Object.fromEntries(
+        response
+          .json()
+          .steps.map((step: { key: string; assignees: Array<{ user: { id: string } }> }) => [
+            step.key,
+            step.assignees.map((item) => item.user.id).sort(),
+          ]),
+      ) as Record<string, string[]>
+    }
+    const inSpace = await createDocument(fx, people.author, `Оргструктура ${run}`)
+    const byKey = await preview(inSpace)
+    // Подразделение — со всеми сотрудниками (глава, согласующие, подписант, заместитель, автор)
+    expect(byKey.unit).toEqual(
+      [
+        people.author.id,
+        people.boss.id,
+        people.a1.id,
+        people.a2.id,
+        people.a3.id,
+        people.signer.id,
+        people.deputy.id,
+      ].sort(),
+    )
+    expect(byKey.group).toEqual([people.a3.id, people.deputy.id].sort())
+    // Роль участника пространства — «не ниже»: редактор и администратор пространства
+    expect(byKey.space).toEqual([fx.admin.id, people.author.id].sort())
+    expect(byKey.legal).toEqual([people.a1.id])
+    expect(byKey.any).toEqual([people.a1.id, people.a2.id].sort())
+
+    // Объект в другом пространстве: юриста пространства нет — юрист без ограничения
+    const other = await db().transaction((tx) =>
+      ObjectService.create(tx, systemCtx('test', { initiatorId: people.author.id }), {
+        type: TEST_TYPE() as never,
+        spaceId: fx.orgSpaceId,
+        title: `Другое пространство ${run}`,
+        ownerId: people.author.id,
+      }),
+    )
+    const outside = await preview(other.id)
+    expect(outside.legal).toEqual([people.a2.id])
+    expect(outside.any).toEqual([people.a2.id])
+  })
+
+  it('замечания с файлом: файл — вложение документа, решение — в обсуждении; чужой файл — нельзя', async () => {
+    const key = `files_${run}`
+    await publishDefinition(fx, documentRoute(key))
+    const doc = await createDocument(fx, people.author, `Замечания с файлом ${run}`)
+    const instanceId = await startProcess(fx, people.author, {
+      objectId: doc,
+      definitionKey: key,
+      variables: { reviewers: [people.a1.id, people.a2.id], signer: people.signer.id },
+    })
+    const review = activeStep(await route(fx, people.author, instanceId), 'review')
+    const personal = async (user: typeof people.a1) =>
+      (await call(fx.app, { url: '/me', as: user })).json().personalSpaceId as string
+    const own = await uploadFile(fx.app, people.a1, {
+      spaceId: await personal(people.a1),
+      name: `правки-${run}.txt`,
+      content: 'Правки к пункту 3',
+    })
+    const foreign = await uploadFile(fx.app, people.a2, {
+      spaceId: await personal(people.a2),
+      name: `чужой-${run}.txt`,
+      content: 'не для вложения',
+    })
+    // Чужой файл приложить нельзя — решение не принято
+    const denied = await call(fx.app, {
+      method: 'POST',
+      url: `/processes/${instanceId}/steps/${review.id}/act`,
+      as: people.a1,
+      payload: { action: 'remarks', fileIds: [foreign.id] },
+    })
+    expect(denied.statusCode).toBe(404)
+    const accepted = await call(fx.app, {
+      method: 'POST',
+      url: `/processes/${instanceId}/steps/${review.id}/act`,
+      as: people.a1,
+      payload: { action: 'remarks', fileIds: [own.id] },
+    })
+    expect(accepted.statusCode, accepted.body).toBe(200)
+    // Автор видит файл замечаний как вложение документа
+    expect((await call(fx.app, { url: `/objects/${own.id}`, as: people.author })).statusCode).toBe(
+      200,
+    )
+    const view = await route(fx, people.author, instanceId)
+    const step = view.steps.find((item: { id: string }) => item.id === review.id)
+    expect(step.actions).toEqual([
+      expect.objectContaining({ action: 'remarks', comment: null, fileIds: [own.id] }),
+    ])
+    const [message] = await db().execute<{ kind: string; attachments: Array<{ fileId: string }> }>(
+      sql`SELECT m.kind, m.attachments FROM messages m JOIN conversations c ON c.id = m.conversation_id
+           WHERE c.object_id = ${doc}`,
+    )
+    expect(message?.kind).toBe('decision')
+    expect(message?.attachments.map((item) => item.fileId)).toEqual([own.id])
+  })
+
+  it('«от имени» через API: только в пределах области замещения', async () => {
+    const key = `scope_${run}`
+    await publishDefinition(fx, documentRoute(key))
+    const delegate = async (scope: string) =>
+      (
+        await call(fx.app, {
+          method: 'POST',
+          url: '/me/delegations',
+          as: people.a3,
+          payload: {
+            toUserId: people.signer.id,
+            scope,
+            startsAt: new Date(Date.now() - 60_000).toISOString(),
+            endsAt: new Date(Date.now() + 86_400_000).toISOString(),
+          },
+        })
+      ).json().id as string
+    const narrow = await delegate('instructions')
+    const doc = await createDocument(fx, people.author, `Область замещения ${run}`)
+    const instanceId = await startProcess(fx, people.author, {
+      objectId: doc,
+      definitionKey: key,
+      variables: { reviewers: [people.a3.id], signer: people.boss.id },
+    })
+    const review = activeStep(await route(fx, people.author, instanceId), 'review')
+    const act = () =>
+      call(fx.app, {
+        method: 'POST',
+        url: `/processes/${instanceId}/steps/${review.id}/act`,
+        as: people.signer,
+        headers: { 'x-kchs-on-behalf-of': people.a3.id },
+        payload: { action: 'approve' },
+      })
+    // Поручения — не согласования: замещение на шаг не распространяется
+    expect((await act()).statusCode).toBe(403)
+    await call(fx.app, { method: 'DELETE', url: `/me/delegations/${narrow}`, as: people.a3 })
+    await delegate('approvals')
+    const ok = await act()
+    expect(ok.statusCode, ok.body).toBe(200)
+    const view = await route(fx, people.author, instanceId)
+    const decided = view.steps.find((item: { id: string }) => item.id === review.id)
+    expect(decided.assignees[0]).toMatchObject({
+      user: { id: people.a3.id },
+      state: 'approved',
+      actor: { id: people.signer.id },
+    })
   })
 })
