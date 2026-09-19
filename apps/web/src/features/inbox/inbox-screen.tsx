@@ -8,6 +8,7 @@ import {
   DialogContent,
   EmptyState,
   Field,
+  Input,
   ObjectChip,
   ObjectIcon,
   PanelToolbar,
@@ -219,17 +220,20 @@ function InboxDetail({ item, onSnooze }: { item: InboxItem; onSnooze: () => void
   const client = useQueryClient()
   const openTab = useWorkspace((s) => s.openTab)
   const commentId = useId()
+  const codeId = useId()
   const [commenting, setCommenting] = useState<InboxAction | null>(null)
   const [comment, setComment] = useState('')
+  const [code, setCode] = useState('')
 
   // Действие выполняет модуль элемента (POST /inbox/{id}/act): он же закрывает дело
   const act = useMutation({
-    mutationFn: (input: { action: string; comment?: string }) =>
+    mutationFn: (input: { action: string; comment?: string; payload?: { code: string } }) =>
       http.post(`/inbox/${item.id}/act`, input),
     onSuccess: () => {
       toast.show({ title: t('inbox.resolved'), tone: 'success' })
       setCommenting(null)
       setComment('')
+      setCode('')
       void client.invalidateQueries({ queryKey: ['inbox'] })
       void client.invalidateQueries({ queryKey: keys.inboxCounts })
       if (item.object) void client.invalidateQueries({ queryKey: keys.object(item.object.id) })
@@ -239,13 +243,25 @@ function InboxDetail({ item, onSnooze }: { item: InboxItem; onSnooze: () => void
   })
 
   const run = (action: InboxAction) => {
-    if (!action.requiresComment) {
+    if (!action.requiresComment && !action.requiresSecondFactor) {
       act.mutate({ action: action.key })
       return
     }
     setComment('')
+    setCode('')
     setCommenting(action)
   }
+
+  // Подпись с подтверждением: код второго фактора уходит вместе с действием
+  const submit = (action: InboxAction) =>
+    act.mutate({
+      action: action.key,
+      ...(comment.trim() ? { comment: comment.trim() } : {}),
+      ...(action.requiresSecondFactor ? { payload: { code: code.trim() } } : {}),
+    })
+  const ready = (action: InboxAction) =>
+    (!action.requiresComment || Boolean(comment.trim())) &&
+    (!action.requiresSecondFactor || Boolean(code.trim()))
 
   return (
     <article className="mx-auto flex max-w-[760px] flex-col gap-4 p-6">
@@ -311,24 +327,40 @@ function InboxDetail({ item, onSnooze }: { item: InboxItem; onSnooze: () => void
                 </Button>
                 <Button
                   variant="primary"
-                  disabled={!comment.trim()}
+                  disabled={!ready(commenting)}
                   loading={act.isPending}
-                  onClick={() => act.mutate({ action: commenting.key, comment: comment.trim() })}
+                  onClick={() => submit(commenting)}
                 >
                   {t(commenting.labelKey)}
                 </Button>
               </>
             }
           >
-            <Field label={t('inbox.comment')} htmlFor={commentId} required>
-              <Textarea
-                id={commentId}
-                autoFocus
-                rows={5}
-                value={comment}
-                onChange={(event) => setComment(event.target.value)}
-              />
-            </Field>
+            {commenting.requiresComment ? (
+              <Field label={t('inbox.comment')} htmlFor={commentId} required>
+                <Textarea
+                  id={commentId}
+                  autoFocus
+                  rows={5}
+                  value={comment}
+                  onChange={(event) => setComment(event.target.value)}
+                />
+              </Field>
+            ) : null}
+            {commenting.requiresSecondFactor ? (
+              <Field label={t('inbox.code')} htmlFor={codeId} hint={t('inbox.codeHint')} required>
+                <Input
+                  id={codeId}
+                  autoFocus={!commenting.requiresComment}
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={24}
+                  value={code}
+                  onChange={(event) => setCode(event.target.value)}
+                  mono
+                />
+              </Field>
+            ) : null}
           </DialogContent>
         ) : null}
       </Dialog>
@@ -337,7 +369,7 @@ function InboxDetail({ item, onSnooze }: { item: InboxItem; onSnooze: () => void
 }
 
 function groupOf(kind: string): string {
-  if (['approve', 'sign', 'resolve'].includes(kind)) return 'decide'
+  if (['approve', 'sign', 'resolve', 'register', 'revise'].includes(kind)) return 'decide'
   if (kind === 'acknowledge') return 'acknowledge'
   if (kind.includes('instruction') || kind === 'accept_result') return 'instructions'
   if (kind === 'respond_invite') return 'invites'

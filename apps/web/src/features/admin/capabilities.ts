@@ -13,7 +13,10 @@ export const CAPABILITY_GROUPS: ReadonlyArray<{
     key: 'org',
     capabilities: ['users.manage', 'org.manage', 'groups.manage', 'roles.manage', 'spaces.create'],
   },
-  { key: 'documents', capabilities: ['documents.register', 'documents.journals.manage'] },
+  {
+    key: 'documents',
+    capabilities: ['documents.register', 'documents.journals.manage', 'processes.manage'],
+  },
   {
     key: 'data',
     capabilities: ['data.sources.manage', 'data.export', 'data.sql', 'gis.basemaps.manage'],
