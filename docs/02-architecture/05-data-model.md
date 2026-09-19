@@ -228,7 +228,15 @@ acknowledgment_requests(id, object_id, source text, process_step_id null, reques
                         require_second_factor bool, note, cancelled_at)   -- ядро, общая для документов и страниц (ADR-0084)
 acknowledgments(id, request_id, object_id, user_id, source text, required_at, due_at, acknowledged_at, actor_id,
                 second_factor bool, cancelled_at, reminded_at, reminders int)   unique(request_id, user_id)
-cases(id pk → objects, index text, title, year int, retention text, unit_id, status, closed_at)
+cases(id pk → objects, index text, title, year int, unit_id, retention_years int null, retention_note text, document_type_ids uuid[],
+      status text, note, closed_at, closed_by, archived_at, archived_by, destroyed_at, destruction_act_id)
+  unique(year, lower(index))   -- реализовано (ADR-0086): open | closed | archived | destroyed
+case_destruction_acts(id, number text, year int, sequence int, act_date date, basis text, case_ids uuid[], document_count,
+                      file_count, created_by, created_at)  unique(year, sequence)   -- акт о выделении к уничтожению (ADR-0086)
+document_dispatches(id, document_id, correspondent_id null, addressee text null, method text, sent_on date, tracking text,
+                    note text, created_by, created_at)   -- реестр отправки исходящих (ADR-0086)
+-- documents (ADR-0086): case_id → cases, filed_at, filed_by, files_destroyed_at; ds.sys_documents: closed, overdue_score,
+--   case_id, case_index, case_title, filed_at, archived_at, sent_on
 correspondents(id pk → objects, kind text, name text, details jsonb, contacts jsonb, external_id)   -- реализовано (ADR-0080)
 templates(id pk → objects, kind text, file_id, mapping jsonb, document_type_id null)
 ```
