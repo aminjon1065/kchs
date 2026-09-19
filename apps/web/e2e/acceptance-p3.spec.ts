@@ -162,7 +162,7 @@ test.beforeAll(async () => {
   // Организация → управление (заместитель) → отдел исполнителя
   const organization = await unit({
     code: `PR-${run}`,
-    name: { ru: `Комитет приёмки ${run}` },
+    name: { ru: `Служба приёмки ${run}` },
     kind: 'department',
     createSpace: false,
   })
@@ -276,6 +276,8 @@ test('сценарий B: входящее → резолюция → поруч
   await registrar.getByRole('button', { name: 'Документы', exact: true }).click()
   await registrar.getByRole('button', { name: 'Зарегистрировать', exact: true }).click()
   const screen = registrar.getByRole('region', { name: 'Регистрация входящего' })
+  // Критерий фазы: регистрация со скана — не дольше 2 минут (02-roadmap.md)
+  const registrationStarted = Date.now()
   await screen.locator('input[type="file"]').setInputFiles(scanPath)
   await expect(screen.getByRole('button', { name: 'Крупнее' })).toBeVisible({ timeout: 20_000 })
   await screen.getByRole('textbox', { name: 'Тема' }).fill(subject)
@@ -288,6 +290,7 @@ test('сценарий B: входящее → резолюция → поруч
   await screen.getByRole('button', { name: 'Зарегистрировать', exact: true }).click()
   const registered = registrar.getByText(/Зарегистрирован № ВХ-\d{4}\/\d{2}/)
   await expect(registered).toBeVisible({ timeout: 15_000 })
+  expect(Date.now() - registrationStarted).toBeLessThan(120_000)
   const incomingNumber = ((await registered.textContent()) ?? '').replace(/^.*№\s*/, '').trim()
   await registrar.getByRole('tab', { name: new RegExp(incomingNumber) }).click()
   await expect(registrar).toHaveURL(/\/o\/[0-9a-f-]{36}$/)

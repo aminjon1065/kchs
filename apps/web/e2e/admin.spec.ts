@@ -19,7 +19,7 @@ test.describe('Администрирование', () => {
 
     // Оргструктура
     await page.getByRole('tab', { name: 'Оргструктура' }).click()
-    await expect(page.getByText('Комитет')).toBeVisible()
+    await expect(page.getByText('Комитет', { exact: true }).first()).toBeVisible()
 
     // Аудит содержит записи входа
     await page.getByRole('tab', { name: 'Аудит' }).click()
