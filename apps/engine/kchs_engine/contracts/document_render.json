@@ -1,0 +1,25 @@
+{
+  "$comment": "Сгенерировано из packages/contracts командой `pnpm --filter @kchs/contracts gen:engine`. Не редактировать вручную.",
+  "kinds": [
+    "print",
+    "fill",
+    "inspect",
+    "watermark"
+  ],
+  "planKinds": [
+    "html",
+    "overlay",
+    "docx",
+    "inspect"
+  ],
+  "orientations": [
+    "portrait",
+    "landscape"
+  ],
+  "overlayPages": [
+    "first",
+    "all"
+  ],
+  "maxSourceBytes": 268435456,
+  "maxTemplateBytes": 20971520
+}

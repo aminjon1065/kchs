@@ -121,12 +121,24 @@ export const FilePreview = z.object({
 })
 export type FilePreview = z.infer<typeof FilePreview>
 
+/**
+ * Водяной знак просмотра (08-documents.md §13, ADR-0085): файл с грифом от
+ * «конфиденциально» просмотрщик показывает под знаком с именем смотрящего и
+ * временем; скачивание — только копией со знаком.
+ */
+export const FileWatermark = z.object({
+  /** Строки знака: гриф, кто смотрит, когда. */
+  lines: z.array(z.string()).min(1).max(4),
+})
+export type FileWatermark = z.infer<typeof FileWatermark>
+
 export const FilePreviews = z.object({
   previewStatus: PreviewStatus,
   textStatus: PreviewStatus,
   /** Число страниц документа (PDF и офисные форматы), если известно. */
   pages: z.number().int().nullable(),
   items: z.array(FilePreview),
+  watermark: FileWatermark.nullable().default(null),
 })
 export type FilePreviews = z.infer<typeof FilePreviews>
 

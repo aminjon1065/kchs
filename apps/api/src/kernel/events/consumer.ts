@@ -275,6 +275,7 @@ export const KNOWN_DOMAINS = [
   'process',
   'document',
   'document_type',
+  'template',
   'journal',
   'correspondent',
   'acknowledgment',

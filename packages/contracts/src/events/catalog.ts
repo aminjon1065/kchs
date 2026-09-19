@@ -562,6 +562,26 @@ export const EVENT_PAYLOADS = {
   'journal.reservation_cancelled': z.object({ reservationId: Uuid, number: z.string() }),
   'correspondent.created': z.object({ kind: z.string(), name: z.string() }),
   'correspondent.updated': z.object({ changed: z.array(z.string()) }),
+  /**
+   * Рендер модуля документов заказан или завершён (ADR-0085): печатная форма,
+   * штамп, заполнение и разбор шаблона, копия с водяным знаком. Объект —
+   * документ, журнал, шаблон или файл, к которому относится рендер.
+   */
+  'document.render_queued': z.object({
+    renderId: Uuid,
+    kind: z.string(),
+    form: z.string().nullable(),
+  }),
+  'document.render_finished': z.object({
+    renderId: Uuid,
+    kind: z.string(),
+    form: z.string().nullable(),
+    status: z.string(),
+    fileId: Uuid.nullable(),
+  }),
+  /** Шаблон документа (объект `template`): создан, изменён, заменён файл. */
+  'template.created': z.object({ name: z.string(), typeKey: z.string().nullable() }),
+  'template.updated': z.object({ changed: z.array(z.string()) }),
 
   // ── acknowledgments (08-documents.md §10, ADR-0084) ───────────────────────
   // Объект события — объект, с которым знакомят (документ, страница базы знаний)

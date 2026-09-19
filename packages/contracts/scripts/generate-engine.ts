@@ -27,6 +27,14 @@ import {
   REPORT_FORMATS,
   REPORT_PRINT,
 } from '../src/data/report.js'
+import {
+  DOCUMENT_RENDER_KINDS,
+  DOCUMENT_RENDER_MAX_SOURCE_BYTES,
+  DOCUMENT_RENDER_PLAN_KINDS,
+  DOCUMENT_TEMPLATE_MAX_BYTES,
+  RENDER_ORIENTATIONS,
+  RENDER_OVERLAY_PAGES,
+} from '../src/documents/print.js'
 import { FIELD_SEMANTICS } from '../src/fields/field-def.js'
 import { QUEUE_RUNTIME } from '../src/jobs/job.js'
 
@@ -69,4 +77,12 @@ write('report_render.json', {
   contentTypes: REPORT_CONTENT_TYPES,
   print: REPORT_PRINT,
   printModelVersion: PRINT_MODEL_VERSION,
+})
+write('document_render.json', {
+  kinds: DOCUMENT_RENDER_KINDS,
+  planKinds: DOCUMENT_RENDER_PLAN_KINDS,
+  orientations: RENDER_ORIENTATIONS,
+  overlayPages: RENDER_OVERLAY_PAGES,
+  maxSourceBytes: DOCUMENT_RENDER_MAX_SOURCE_BYTES,
+  maxTemplateBytes: DOCUMENT_TEMPLATE_MAX_BYTES,
 })
