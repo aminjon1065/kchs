@@ -27,6 +27,12 @@ export type Expr = Span &
     | { kind: 'boolean'; value: boolean }
     | { kind: 'null' }
     | { kind: 'field'; qualifier: string | null; name: string }
+    /**
+     * Составная ссылка из трёх и более частей: `object.fields.amount`. Нужна
+     * выражениям над данными в памяти (условия маршрутов, правила автоматизации);
+     * компилятор запросов её не принимает — у столбца не больше одного псевдонима.
+     */
+    | { kind: 'path'; segments: string[] }
     | { kind: 'param'; name: string }
     | { kind: 'macro'; name: string }
     | { kind: 'unary'; op: '-' | '+' | 'not'; operand: Expr }

@@ -173,6 +173,12 @@ class ExprCompiler {
         return this.literal('null', null, 'null', expr)
       case 'field':
         return this.field(expr.qualifier, expr.name, expr.pos, expr.end)
+      case 'path':
+        throw new ExpressionError(
+          `Составная ссылка «${expr.segments.join('.')}» в запросе недоступна`,
+          expr.pos,
+          'Поле пишется как «поле» или «псевдоним.поле»',
+        )
       case 'param':
         return this.value(this.env.resolveParam(expr.name, expr.pos), expr, `@param:${expr.name}`)
       case 'macro':

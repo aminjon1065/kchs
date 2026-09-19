@@ -223,23 +223,35 @@ class Parser {
     }
   }
 
-  /** Поле: `name`, `"имя с пробелами"`, `alias.name`, `alias."имя"`. */
+  /**
+   * Поле: `name`, `"имя с пробелами"`, `alias.name`, `alias."имя"`; три части и
+   * больше (`object.fields.amount`) — составная ссылка `path`.
+   */
   private fieldFrom(first: Token): Expr {
-    if (this.peek().kind === 'dot') {
+    if (this.peek().kind !== 'dot') {
+      return { kind: 'field', qualifier: null, name: first.text, pos: first.pos, end: first.end }
+    }
+    const segments = [first.text]
+    let end = first.end
+    while (this.peek().kind === 'dot') {
       this.next()
-      const second = this.next()
-      if (second.kind !== 'ident' && second.kind !== 'quoted') {
-        throw new ExpressionError(`После «${first.text}.» ожидается имя поля`, second.pos)
+      const part = this.next()
+      if (part.kind !== 'ident' && part.kind !== 'quoted') {
+        throw new ExpressionError(`После «${segments.join('.')}.» ожидается имя поля`, part.pos)
       }
+      segments.push(part.text)
+      end = part.end
+    }
+    if (segments.length === 2) {
       return {
         kind: 'field',
-        qualifier: first.text,
-        name: second.text,
+        qualifier: segments[0] as string,
+        name: segments[1] as string,
         pos: first.pos,
-        end: second.end,
+        end,
       }
     }
-    return { kind: 'field', qualifier: null, name: first.text, pos: first.pos, end: first.end }
+    return { kind: 'path', segments, pos: first.pos, end }
   }
 
   private call(nameToken: Token): Expr {
