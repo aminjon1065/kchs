@@ -1,10 +1,12 @@
 import { z } from 'zod'
-import { LangText, Uuid } from '../common/primitives.js'
+import { LangText, Locale, Uuid } from '../common/primitives.js'
+import { Bbox } from './layer.js'
 
 /**
  * Территории — сквозной справочник административного деления (07-gis-engine.md
  * §11, ADR-0057): объект реестра типа `territory`, иерархия с замыканием.
- * Уровни — от страны до населённого пункта; фаза 1 загружает страну, регионы и районы.
+ * Уровни — от страны до населённого пункта; границы районов, регионов и страны и
+ * населённые пункты демо-профиля — с фазы 2 (ADR-0067).
  */
 export const TERRITORY_LEVELS = ['country', 'region', 'district', 'jamoat', 'settlement'] as const
 export const TerritoryLevel = z.enum(TERRITORY_LEVELS)
@@ -36,5 +38,41 @@ export const TerritoryDetail = Territory.extend({
   attributes: z.record(z.string(), z.unknown()),
   areaKm2: z.number().nullable(),
   hasGeometry: z.boolean(),
+  /** Экстент границы; у единицы без границы (населённый пункт) — null. */
+  bbox: Bbox.nullable(),
 })
 export type TerritoryDetail = z.infer<typeof TerritoryDetail>
+
+export const TerritoryGeometryQuery = z.object({
+  /** Зум карты: граница упрощается до пикселя; без зума — полная точность. */
+  zoom: z.coerce.number().int().min(0).max(22).optional(),
+})
+export type TerritoryGeometryQuery = z.infer<typeof TerritoryGeometryQuery>
+
+/** Граница территории — GeoJSON Feature с MultiPolygon в WGS 84. */
+export const TerritoryFeature = z.object({
+  type: z.literal('Feature'),
+  id: Uuid,
+  bbox: Bbox,
+  properties: z.object({ code: z.string(), level: TerritoryLevel, name: LangText }),
+  geometry: z.record(z.string(), z.unknown()),
+})
+export type TerritoryFeature = z.infer<typeof TerritoryFeature>
+
+const LEVEL_LIST = new RegExp(
+  `^(${TERRITORY_LEVELS.join('|')})(,(${TERRITORY_LEVELS.join('|')}))*$`,
+)
+
+/**
+ * Векторные тайлы границ: слой MVT на каждый уровень (имя слоя — уровень), у объекта
+ * `id`, `code`, `level`, `name`; населённые пункты — точки. Без `level` — уровни по зуму.
+ * `id` — свойство-строка (идентификатор объекта MVT — только целое): для feature-state
+ * MapLibre источнику нужен `promoteId: 'id'`.
+ */
+export const TerritoryTileQuery = z.object({
+  /** Уровни через запятую: `region,district`. */
+  level: z.string().max(80).regex(LEVEL_LIST).optional(),
+  /** Язык названий; по умолчанию — язык пользователя. */
+  lang: Locale.optional(),
+})
+export type TerritoryTileQuery = z.infer<typeof TerritoryTileQuery>

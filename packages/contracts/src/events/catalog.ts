@@ -175,6 +175,10 @@ export const EVENT_PAYLOADS = {
   'layer.style_changed': z.object({ changed: z.array(z.string()) }),
   'map.updated': z.object({ changed: z.array(z.string()) }),
 
+  // ── territories (07-gis-engine.md §11, ADR-0067) ──────────────────────────
+  /** Граница единицы справочника изменилась: changedFields — geom, centroid, areaKm2. */
+  'territory.updated': z.object({ code: z.string() }),
+
   // ── admin ─────────────────────────────────────────────────────────────────
   'settings.changed': z.object({ scope: z.string(), key: z.string() }),
   'acl.changed': z.object({ objectId: Uuid }),
