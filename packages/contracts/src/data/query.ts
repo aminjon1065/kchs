@@ -24,9 +24,17 @@ export const Expression = z.string().min(1).max(4000)
 
 /**
  * Системные датасеты — представления модулей в схеме `ds` с правами смотрящего
- * (ADR-0060); `territories` — справочник территорий с границами (ADR-0069).
+ * (ADR-0060); `territories` — справочник территорий с границами (ADR-0069);
+ * `instructions` — поручения с состоянием контроля исполнения (ADR-0082).
  */
-export const SYSTEM_DATASETS = ['tasks', 'documents', 'meetings', 'events', 'territories'] as const
+export const SYSTEM_DATASETS = [
+  'tasks',
+  'instructions',
+  'documents',
+  'meetings',
+  'events',
+  'territories',
+] as const
 
 export const QuerySource = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('dataset'), id: Uuid, alias: QueryAlias.optional() }),

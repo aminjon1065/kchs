@@ -7,6 +7,7 @@ import type {
   DatasetRow,
   DatasetRowPatch,
   FieldType,
+  MetricCreateInput,
   MetricRecord,
   MetricValue,
   NotebookRecord,
@@ -32,6 +33,12 @@ export {
   type DemoDataResult,
   type DemoProfile,
 } from './domain/demo-data.js'
+/**
+ * Выгрузка таблицы в CSV или XLSX тем же кодом, что экспорт датасета (ADR-0056):
+ * столбцы с типами, строки пачками, даты — по часам запросившего. Нужна отчётам
+ * модулей (контроль исполнения, ADR-0082).
+ */
+export { type ExportColumn, writeExport as writeTable } from './infra/export-format.js'
 
 /** Описание датасета: схема полей, ключ, версии (без физических имён). */
 export const datasetRecord = (id: string): Promise<DatasetRecord> => DatasetService.get(id)
@@ -48,6 +55,17 @@ export const DatasetCatalog = {
  */
 export const Metrics = {
   get: (id: string): Promise<MetricRecord> => MetricService.get(id),
+  /**
+   * Показатель, который заводит модуль (контроль исполнения над системным
+   * датасетом «Поручения», ADR-0082): `systemKey` в сводке объекта — по нему
+   * модуль находит свой показатель.
+   */
+  create: (
+    tx: Executor,
+    ctx: Ctx,
+    input: MetricCreateInput,
+    options: { systemKey?: string } = {},
+  ): Promise<string> => MetricService.create(tx, ctx, input, options),
   value: (ctx: Ctx, metric: MetricRecord, evaluation: MetricEvaluation): Promise<MetricValue> =>
     MetricService.evaluate(ctx, metric, evaluation),
 }

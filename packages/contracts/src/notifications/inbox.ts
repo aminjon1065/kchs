@@ -26,6 +26,8 @@ export const INBOX_KINDS = [
   'register',
   /** Шаг маршрута `return`: доработать и отправить повторно или отозвать (ADR-0079). */
   'revise',
+  /** Исполнитель просит продлить срок поручения: согласовать или отказать (ADR-0082). */
+  'extend_due',
 ] as const
 export const InboxKind = z.enum(INBOX_KINDS)
 export type InboxKind = z.infer<typeof InboxKind>
@@ -34,6 +36,26 @@ export const InboxState = z.enum(['open', 'resolved', 'dismissed', 'snoozed'])
 export type InboxState = z.infer<typeof InboxState>
 
 export const InboxPriority = z.enum(['low', 'normal', 'high', 'urgent'])
+
+/**
+ * Что действие просит, кроме комментария: `due_date` — дату (запрос продления,
+ * ADR-0082), она приходит в `payload.dueDate` (`ГГГГ-ММ-ДД`).
+ */
+export const INBOX_ACTION_INPUTS = ['due_date'] as const
+export const InboxActionInputKind = z.enum(INBOX_ACTION_INPUTS)
+export type InboxActionInputKind = z.infer<typeof InboxActionInputKind>
+
+/** Действие элемента Входящих: ключ, подпись, вид кнопки, что нужно ввести. */
+export const InboxAction = z.object({
+  key: z.string(),
+  labelKey: z.string(),
+  variant: z.enum(['primary', 'secondary', 'danger', 'ghost']).default('secondary'),
+  requiresComment: z.boolean().default(false),
+  input: InboxActionInputKind.optional(),
+  /** Действие подтверждается кодом второго фактора (`payload.code`), подпись с MFA (ADR-0079). */
+  requiresSecondFactor: z.boolean().optional(),
+})
+export type InboxAction = z.infer<typeof InboxAction>
 
 export const InboxItem = z.object({
   id: Uuid,
@@ -54,18 +76,7 @@ export const InboxItem = z.object({
   snoozedUntil: Timestamp.nullable(),
   payload: z.record(z.string(), z.unknown()).default({}),
   /** Доступные действия: ключ, подпись, вид кнопки. */
-  actions: z
-    .array(
-      z.object({
-        key: z.string(),
-        labelKey: z.string(),
-        variant: z.enum(['primary', 'secondary', 'danger', 'ghost']).default('secondary'),
-        requiresComment: z.boolean().default(false),
-        /** Действие подтверждается кодом второго фактора (`payload.code`), подпись с MFA. */
-        requiresSecondFactor: z.boolean().optional(),
-      }),
-    )
-    .default([]),
+  actions: z.array(InboxAction).default([]),
 })
 export type InboxItem = z.infer<typeof InboxItem>
 

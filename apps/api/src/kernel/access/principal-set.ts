@@ -1,7 +1,7 @@
 import type { Capability } from '@kchs/contracts'
 import { and, eq, gt, inArray, isNotNull, lte, sql } from 'drizzle-orm'
 import type { PrincipalSet } from '~/shared/context.js'
-import { db } from '~/shared/db/client.js'
+import { db, type Executor } from '~/shared/db/client.js'
 import {
   delegations,
   employments,
@@ -25,7 +25,7 @@ const CACHE_TTL_SECONDS = 300
 export async function computePrincipalSet(userId: string): Promise<PrincipalSet> {
   const database = db()
 
-  const [groupRows, employmentRows, spaceRows, roleRows, delegationRows, version] =
+  const [groupRows, employmentRows, spaceRows, roleRows, delegationRows, headedRows, version] =
     await Promise.all([
       database
         .select({ groupId: groupMembers.groupId })
@@ -59,6 +59,8 @@ export async function computePrincipalSet(userId: string): Promise<PrincipalSet>
             gt(delegations.endsAt, sql`now()`),
           ),
         ),
+      // Возглавляемые подразделения: руководитель видит поручения подчинённых
+      database.select({ id: orgUnits.id }).from(orgUnits).where(eq(orgUnits.headUserId, userId)),
       principalsVersion(),
     ])
 
@@ -101,6 +103,7 @@ export async function computePrincipalSet(userId: string): Promise<PrincipalSet>
   const roleKeys = roleRows.map((r) => r.key)
   const spaceRoles: Record<string, string> = {}
   for (const row of spaceRows) spaceRoles[row.spaceId] = row.role
+  const headedUnitIds = headedRows.map((row) => row.id)
 
   const keys = [
     `user:${userId}`,
@@ -111,6 +114,9 @@ export async function computePrincipalSet(userId: string): Promise<PrincipalSet>
     ...roleKeys.map((key) => `role:${key}`),
     ...spaceRows.flatMap((row) => spaceRoleKeys(row.spaceId, row.role)),
     ...delegationRows.map((row) => `acting_as:${row.fromUserId}`),
+    // Руководитель подразделения: видит то, что политика типа открывает главам
+    // подразделений исполнителя (поручения подчинённых, ADR-0082)
+    ...headedUnitIds.map((id) => `${UNIT_HEAD_PRINCIPAL}:${id}`),
   ]
 
   return {
@@ -124,8 +130,46 @@ export async function computePrincipalSet(userId: string): Promise<PrincipalSet>
     spaceRoles,
     roleKeys,
     actingFor: delegationRows.map((row) => ({ userId: row.fromUserId, scope: row.scope })),
+    headedUnitIds,
     version,
   }
+}
+
+/**
+ * Принципал «глава подразделения» (`unit_head:<id>`): руководитель подразделения и
+ * — через цепочку подразделений сотрудника — всех вложенных (03-access-model.md,
+ * `subordinates(user)`). Политика типа добавляет такие принципалы объекту, а
+ * руководитель получает свои при входе.
+ */
+export const UNIT_HEAD_PRINCIPAL = 'unit_head'
+
+/**
+ * Главы подразделений сотрудника: его подразделения и все их предки. Кому из
+ * руководителей виден объект, если политика типа открывает его «руководителям
+ * исполнителя».
+ */
+export async function unitHeadPrincipalsOf(
+  userId: string,
+  executor: Executor = db(),
+): Promise<string[]> {
+  const rows = await executor
+    .selectDistinct({ ancestorId: orgClosure.ancestorId })
+    .from(employments)
+    .innerJoin(orgClosure, eq(orgClosure.unitId, employments.unitId))
+    .where(and(eq(employments.userId, userId), sql`${employments.endsAt} is null`))
+  return rows.map((row) => `${UNIT_HEAD_PRINCIPAL}:${row.ancestorId}`).sort()
+}
+
+/** Основное подразделение сотрудника (действующее место работы). */
+export async function primaryUnitOf(
+  userId: string,
+  executor: Executor = db(),
+): Promise<string | null> {
+  const rows = await executor
+    .select({ unitId: employments.unitId, isPrimary: employments.isPrimary })
+    .from(employments)
+    .where(and(eq(employments.userId, userId), sql`${employments.endsAt} is null`))
+  return rows.find((row) => row.isPrimary)?.unitId ?? rows[0]?.unitId ?? null
 }
 
 /**
@@ -170,8 +214,14 @@ export async function getPrincipalSet(userId: string): Promise<PrincipalSet> {
   if (cached) {
     try {
       const parsed = JSON.parse(cached) as PrincipalSet
-      // Кэш прежней версии кода — без территорий: пересчитываем
-      if (parsed.version === version && Array.isArray(parsed.territoryIds)) return parsed
+      // Кэш прежней версии кода — без территорий или глав подразделений: пересчитываем
+      if (
+        parsed.version === version &&
+        Array.isArray(parsed.territoryIds) &&
+        Array.isArray(parsed.headedUnitIds)
+      ) {
+        return parsed
+      }
     } catch {
       // повреждённый кэш — пересчитываем
     }

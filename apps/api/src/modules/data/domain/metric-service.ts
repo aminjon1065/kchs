@@ -1,7 +1,6 @@
 import {
   type DashboardFilter,
   type DashboardTile,
-  type DatasetRecord,
   type FilterNode,
   type MetricComparison,
   type MetricCreateInput,
@@ -25,6 +24,7 @@ import { authorize } from '~/kernel/access/authorize.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { LinkService } from '~/kernel/links/service.js'
 import { ObjectService } from '~/kernel/objects/service.js'
+import { systemDataset } from '~/kernel/system-datasets.js'
 import { config } from '~/shared/config/index.js'
 import type { Ctx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
@@ -79,7 +79,40 @@ export interface MetricEvaluation {
   series?: boolean | undefined
 }
 
-type MetricSource = Pick<MetricRecord, 'datasetId' | 'definition'>
+type MetricSource = Pick<MetricRecord, 'datasetId' | 'systemSource' | 'definition'>
+
+/** Схема источника показателя: поля с типами и поле времени по умолчанию. */
+interface SourceSchema {
+  fields: ReadonlyArray<{ key: string; type: string }>
+  timeField: string | null
+}
+
+/** Источник запросов показателя: датасет или системный датасет (ADR-0082). */
+function querySource(source: MetricSource) {
+  if (source.systemSource) return { kind: 'system', name: source.systemSource } as const
+  if (!source.datasetId) throw errors.validation('У показателя нет источника данных')
+  return { kind: 'dataset', id: source.datasetId } as const
+}
+
+/**
+ * Схема источника: у датасета — его поля, у системного датасета — поля
+ * представления с правами смотрящего (скрытые политикой столбцов — без них).
+ */
+async function schemaOf(ctx: Ctx, source: MetricSource): Promise<SourceSchema> {
+  if (source.systemSource) {
+    const definition = systemDataset(source.systemSource)
+    if (!definition)
+      throw errors.validation(`Системный датасет «${source.systemSource}» недоступен`)
+    const resolved = await definition.resolve(ctx)
+    const hidden = new Set(resolved.columnPolicy.hide)
+    return {
+      fields: resolved.fields.filter((field) => !hidden.has(field.key)),
+      timeField: definition.timeField ?? null,
+    }
+  }
+  if (!source.datasetId) throw errors.validation('У показателя нет источника данных')
+  return DatasetService.get(source.datasetId)
+}
 
 const and = (nodes: FilterNode[]): FilterNode | null =>
   nodes.length === 0 ? null : nodes.length === 1 ? (nodes[0] as FilterNode) : { and: nodes }
@@ -94,7 +127,7 @@ function measureOf(measure: MetricMeasure, alias: string, filter?: FilterNode | 
   }
 }
 
-function timeFieldIn(dataset: DatasetRecord, definition: MetricDefinition): TimeField | null {
+function timeFieldIn(dataset: SourceSchema, definition: MetricDefinition): TimeField | null {
   const key = definition.timeField ?? dataset.timeField
   if (!key) return null
   const field = dataset.fields.find((item) => item.key === key)
@@ -104,8 +137,8 @@ function timeFieldIn(dataset: DatasetRecord, definition: MetricDefinition): Time
   return { key, type: field.type }
 }
 
-async function timeFieldOf(source: MetricSource): Promise<TimeField | null> {
-  return timeFieldIn(await DatasetService.get(source.datasetId), source.definition)
+async function timeFieldOf(ctx: Ctx, source: MetricSource): Promise<TimeField | null> {
+  return timeFieldIn(await schemaOf(ctx, source), source.definition)
 }
 
 /** Условие «в окне» над полем времени: для дат — целые дни, для моментов — в поясе. */
@@ -206,7 +239,7 @@ function plan(
   const totals = (groupBy: string[]) =>
     QuerySpec.parse({
       version: 1,
-      source: { kind: 'dataset', id: source.datasetId },
+      source: querySource(source),
       steps: [
         ...(where ? [{ type: 'filter', where }] : []),
         {
@@ -260,7 +293,7 @@ function plan(
       keys,
       spec: QuerySpec.parse({
         version: 1,
-        source: { kind: 'dataset', id: source.datasetId },
+        source: querySource(source),
         steps: [
           { type: 'filter', where: and([...scope, within(time, window, timezone)]) },
           {
@@ -300,8 +333,8 @@ function periodOfFilter(value: unknown): MetricPeriod | null {
 
 /** Определение показателя проверяется компилятором с правами автора — сохранить можно только то, что посчитается. */
 async function validate(ctx: Ctx, source: MetricSource): Promise<void> {
-  await authorize(ctx, 'view', source.datasetId)
-  const dataset = await DatasetService.get(source.datasetId)
+  if (source.datasetId) await authorize(ctx, 'view', source.datasetId)
+  const dataset = await schemaOf(ctx, source)
   const time = timeFieldIn(dataset, source.definition)
   const keys = new Set(dataset.fields.map((field) => field.key))
   for (const dimension of source.definition.dimensions) {
@@ -323,7 +356,9 @@ function toRecord(
   row: typeof metrics.$inferSelect,
   object: typeof objects.$inferSelect,
 ): MetricRecord {
-  if (!object.spaceId || !row.datasetId) throw errors.notFound('Показатель')
+  if (!object.spaceId || (!row.datasetId && !row.systemSource)) {
+    throw errors.notFound('Показатель')
+  }
   return {
     id: row.id,
     name: object.title,
@@ -331,6 +366,7 @@ function toRecord(
     spaceId: object.spaceId,
     parentId: object.parentId,
     datasetId: row.datasetId,
+    systemSource: (row.systemSource as MetricRecord['systemSource']) ?? null,
     definition: row.definition as unknown as MetricDefinition,
     unit: row.unit,
     format: (row.format as MetricRecord['format']) ?? null,
@@ -346,19 +382,35 @@ function toRecord(
  * идут через QueryService с политиками строк и столбцов смотрящего.
  */
 export const MetricService = {
-  async create(tx: Executor, ctx: Ctx, input: MetricCreateInput): Promise<string> {
-    await validate(ctx, input)
+  async create(
+    tx: Executor,
+    ctx: Ctx,
+    input: MetricCreateInput,
+    options: { systemKey?: string } = {},
+  ): Promise<string> {
+    const source: MetricSource = {
+      datasetId: input.datasetId ?? null,
+      systemSource: input.systemSource ?? null,
+      definition: input.definition,
+    }
+    await validate(ctx, source)
     const object = await ObjectService.create(tx, ctx, {
       type: 'metric',
       spaceId: input.spaceId,
       parentId: input.parentId ?? null,
       title: input.name,
       subtitle: input.description?.trim() || null,
-      meta: { unit: input.unit ?? null, direction: input.direction },
+      meta: {
+        unit: input.unit ?? null,
+        direction: input.direction,
+        // Показатель, который ищет модуль (контроль исполнения, ADR-0082)
+        ...(options.systemKey ? { systemKey: options.systemKey } : {}),
+      },
     })
     await tx.insert(metrics).values({
       id: object.id,
-      datasetId: input.datasetId,
+      datasetId: source.datasetId,
+      systemSource: source.systemSource,
       definition: input.definition as unknown as Record<string, unknown>,
       unit: input.unit?.trim() || null,
       format: input.format ?? null,
@@ -366,7 +418,7 @@ export const MetricService = {
       targets: input.targets,
       thresholds: input.thresholds,
     })
-    await LinkService.setDependencies(tx, object.id, [input.datasetId])
+    await LinkService.setDependencies(tx, object.id, source.datasetId ? [source.datasetId] : [])
     return object.id
   },
 
@@ -392,13 +444,15 @@ export const MetricService = {
       if (input.name !== undefined) changed.push('name')
       if (input.description !== undefined) changed.push('description')
     }
-    const next = {
+    // Датасет вместо системного источника — показатель переходит на датасет
+    const next: MetricSource = {
       datasetId: input.datasetId ?? current.datasetId,
+      systemSource: input.datasetId ? null : current.systemSource,
       definition: input.definition ?? current.definition,
     }
     if (input.datasetId !== undefined || input.definition !== undefined) await validate(ctx, next)
     const data = {
-      ...(input.datasetId !== undefined ? { datasetId: input.datasetId } : {}),
+      ...(input.datasetId !== undefined ? { datasetId: input.datasetId, systemSource: null } : {}),
       ...(input.definition !== undefined
         ? { definition: input.definition as unknown as Record<string, unknown> }
         : {}),
@@ -451,7 +505,7 @@ export const MetricService = {
     evaluation: MetricEvaluation = {},
   ): Promise<MetricValue> {
     const timezone = timezoneOf(ctx)
-    const time = await timeFieldOf(metric)
+    const time = await timeFieldOf(ctx, metric)
     const planned = plan(metric, time, evaluation, timezone, new Date())
     const zero = ZERO_WHEN_EMPTY.has(metric.definition.measure.agg)
     const orZero = (value: number | null) => (value === null && zero ? 0 : value)
@@ -529,7 +583,7 @@ export const MetricService = {
     filters: DashboardFilter[],
     values: Record<string, unknown>,
   ): Promise<MetricValue> {
-    const time = await timeFieldOf(metric)
+    const time = await timeFieldOf(ctx, metric)
     let period = tile.metric?.period
     const conditions: FilterNode[] = []
     for (const filter of filters) {
@@ -556,7 +610,7 @@ export const MetricService = {
     metric: MetricRecord,
     transform: (query: QuerySpec) => QuerySpec = (query) => query,
   ): Promise<QueryResult> {
-    const time = await timeFieldOf(metric)
+    const time = await timeFieldOf(ctx, metric)
     if (!time) throw errors.validation('У показателя нет поля времени — истории нет')
     const planned = plan(metric, time, {}, timezoneOf(ctx), new Date())
     if (!planned.series) throw errors.validation('У показателя нет истории')

@@ -581,7 +581,9 @@ export const OrgService = {
     // Территории сотрудников (@my_territories) выводятся из подразделений и их предков
     const territoryChanged =
       patch.territoryId !== undefined && patch.territoryId !== current.territoryId
-    if (moved || territoryChanged) await bumpPrincipalsVersion()
+    // Глава подразделения получает принципал `unit_head:<id>`: поручения подчинённых (ADR-0082)
+    const headChanged = patch.headUserId !== undefined && patch.headUserId !== current.headUserId
+    if (moved || territoryChanged || headChanged) await bumpPrincipalsVersion()
 
     await publishEvent(tx, ctx, {
       type: 'org.unit_changed',
@@ -713,6 +715,23 @@ export const OrgService = {
       .where(eq(orgUnits.id, unitId))
       .limit(1)
     return unit?.headUserId ?? null
+  },
+
+  /** Действующие сотрудники подразделений — для нагрузки отдела (ADR-0082). */
+  async members(unitIds: string[], database: Database = db()): Promise<string[]> {
+    if (unitIds.length === 0) return []
+    const rows = await database
+      .selectDistinct({ userId: employments.userId })
+      .from(employments)
+      .innerJoin(users, eq(users.id, employments.userId))
+      .where(
+        and(
+          inArray(employments.unitId, unitIds),
+          isNull(employments.endsAt),
+          eq(users.status, 'active'),
+        ),
+      )
+    return rows.map((row) => row.userId)
   },
 }
 

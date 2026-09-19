@@ -8,6 +8,7 @@ import { DocumentsSeed } from '~/modules/documents/public.js'
 import { FileService } from '~/modules/files/domain/file-service.js'
 import { BasemapService, type TerritoryInput, TerritoryService } from '~/modules/gis/public.js'
 import { OrgService, UserService } from '~/modules/identity/public.js'
+import { ensureControlMetrics } from '~/modules/tasks/domain/control-metrics.js'
 import { type SystemCtx, systemCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { orgUnits, positions, spaceMembers, users } from '~/shared/db/schema/index.js'
@@ -306,6 +307,10 @@ export async function runSeed(
     .onConflictDoNothing()
 
   log.info({ spaces: spaceIds.size }, 'пространства созданы')
+
+  // Показатели контроля исполнения над системным датасетом «Поручения» (ADR-0082)
+  const metrics = await db().transaction((tx) => ensureControlMetrics(tx, adminCtx, orgSpaceId))
+  log.info({ metrics: metrics.length }, 'показатели контроля поручений заведены')
 
   // ── Разделы и демонстрационное содержимое ─────────────────────────────────
   await db().transaction(async (tx) => {

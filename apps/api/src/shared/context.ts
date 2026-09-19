@@ -5,7 +5,10 @@ import type { AdminModeState, Capability, Confidentiality, Locale } from '@kchs/
  * Ключи в форме `type:id`; вычисляется при входе, кэшируется в Redis.
  */
 export interface PrincipalSet {
-  /** Ключи `user:…`, `group:…`, `unit:…`, `position:…`, `space:<id>:<role>`, `role:…`, `everyone`. */
+  /**
+   * Ключи `user:…`, `group:…`, `unit:…`, `position:…`, `space:<id>:<role>`, `role:…`,
+   * `everyone`, `acting_as:…` (замещение) и `unit_head:…` (возглавляемые подразделения).
+   */
   keys: string[]
   userId: string
   groupIds: string[]
@@ -23,6 +26,8 @@ export interface PrincipalSet {
   roleKeys: string[]
   /** Активные замещения: пользователи, от имени которых можно действовать. */
   actingFor: Array<{ userId: string; scope: string }>
+  /** Подразделения, которые пользователь возглавляет (ключи `unit_head:<id>`). */
+  headedUnitIds: string[]
   version: number
 }
 
@@ -129,5 +134,6 @@ export const EMPTY_PRINCIPALS: PrincipalSet = {
   spaceRoles: {},
   roleKeys: [],
   actingFor: [],
+  headedUnitIds: [],
   version: 0,
 }

@@ -14,6 +14,8 @@ export interface SystemDatasetDefinition {
   name: SystemDatasetName
   /** Источник для компилятора с правами пользователя запроса. */
   resolve: (ctx: Ctx) => Promise<ResolvedDataset>
+  /** Поле времени по умолчанию — для показателей над системным датасетом (ADR-0082). */
+  timeField?: string
 }
 
 const registry = new Map<string, SystemDatasetDefinition>()

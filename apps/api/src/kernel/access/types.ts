@@ -42,9 +42,10 @@ export interface TypePolicy {
    */
   cap?: (ctx: UserCtx, object: ObjectLike) => Promise<{ level: Level; reason: AccessReason } | null>
   /**
-   * Принципалы, которым политика даёт просмотр (`user:<id>`), — для фильтра
-   * поискового индекса и системных датасетов: так производное право видно не
-   * только `authorize`, но и поиску (ADR-0079, участники шагов маршрута).
+   * Принципалы, которым политика открывает объект на просмотр (`user:<id>` —
+   * участникам шагов маршрута, ADR-0079; `unit_head:<id>` — руководителям
+   * исполнителя поручения, ADR-0082). Ядро добавляет их к читателям объекта:
+   * фильтр поиска и системные датасеты видят то же, что `derive` и `visibleSql`.
    */
   principals?: (object: ObjectLike, executor: Executor) => Promise<string[]>
 }

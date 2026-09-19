@@ -212,6 +212,8 @@ export const EVENT_PAYLOADS = {
     key: z.string(),
     assigneeId: Uuid,
     previousAssigneeId: Uuid.nullable(),
+    /** Основание переназначения (автором или контролёром, ADR-0082). */
+    comment: z.string().nullable().optional(),
   }),
   /** Исполнитель принял поручение к исполнению. */
   'task.accepted': z.object({ key: z.string() }),
@@ -235,6 +237,51 @@ export const EVENT_PAYLOADS = {
     key: z.string(),
     from: Uuid.nullable(),
     to: Uuid.nullable(),
+  }),
+  // Поручения в полном режиме (ADR-0082)
+  /** Исполнитель просит продлить срок: решение — за автором. */
+  'task.extension_requested': z.object({
+    key: z.string(),
+    extensionId: Uuid,
+    from: z.string().nullable(),
+    to: z.string(),
+    reason: z.string(),
+  }),
+  /** Автор согласовал продление (новый срок — `to`) или отказал. */
+  'task.extension_decided': z.object({
+    key: z.string(),
+    extensionId: Uuid,
+    decision: z.enum(['approved', 'rejected']),
+    from: z.string().nullable(),
+    to: z.string().nullable(),
+  }),
+  /** Напоминание о сроке: за 3 и за 1 рабочий день, в день срока. */
+  'task.due_soon': z.object({
+    key: z.string(),
+    stage: z.enum(['d3', 'd1', 'today']),
+    dueAt: z.string(),
+    workingDaysLeft: z.number().int(),
+  }),
+  /** Срок прошёл, поручение не закрыто. */
+  'task.overdue': z.object({ key: z.string(), dueAt: z.string() }),
+  /** Просрочка передана руководителю исполнителя. */
+  'task.escalated': z.object({
+    key: z.string(),
+    dueAt: z.string(),
+    managerId: Uuid,
+    afterWorkingDays: z.number().int(),
+  }),
+  /**
+   * Все поручения источника (документа, объекта) закрыты — приняты или отменены:
+   * документ может перейти в «Исполнен» (08-documents.md §6).
+   */
+  'task.source_closed': z.object({
+    sourceObjectId: Uuid,
+    sourceKind: z.string(),
+    resolutionIds: z.array(Uuid),
+    total: z.number().int(),
+    accepted: z.number().int(),
+    cancelled: z.number().int(),
   }),
   'project.created': z.object({ key: z.string(), name: z.string() }),
 

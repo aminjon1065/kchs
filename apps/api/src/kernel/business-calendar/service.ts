@@ -202,6 +202,16 @@ export const BusinessCalendar = {
     return shiftWorkingDays(from, n, kindOf)
   },
 
+  /**
+   * Исключения календаря на промежуток дат одной загрузкой — для пачки сроков
+   * (напоминания и эскалации поручений): дальше рабочие дни считают чистые
+   * функции `working-days.ts` без обращений к базе.
+   */
+  async dayKinds(from: string, to: string, options: CalendarOptions = {}): Promise<DayKindOf> {
+    const country = options.country ?? DEFAULT_COUNTRY
+    return kindsFor(country, from, to, options.executor ?? db())
+  },
+
   /** Рабочих дней в `(from, to]` (со знаком минус, если `to` раньше). */
   async workingDaysBetween(
     from: string,

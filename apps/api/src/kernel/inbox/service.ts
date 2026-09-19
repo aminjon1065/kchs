@@ -163,6 +163,30 @@ export const InboxService = {
   },
 
   /**
+   * Новый срок открытых дел объекта (продление поручения, ADR-0082): элементы и
+   * копии заместителей показывают действующий срок, счётчики «просрочено»
+   * пересчитываются.
+   */
+  async setDue(
+    tx: Executor,
+    selector: { objectId: string; kind?: InboxKind },
+    dueAt: string | null,
+  ): Promise<number> {
+    const conditions = [
+      inArray(inboxItems.state, ['open', 'snoozed']),
+      eq(inboxItems.objectId, selector.objectId),
+    ]
+    if (selector.kind) conditions.push(eq(inboxItems.kind, selector.kind))
+    const affected = await tx
+      .update(inboxItems)
+      .set({ dueAt })
+      .where(and(...conditions))
+      .returning({ userId: inboxItems.userId })
+    if (affected.length > 0) await invalidateCounts(affected.map((item) => item.userId))
+    return affected.length
+  },
+
+  /**
    * Действие над элементом: кнопка Входящих или ответ из Telegram. Исполняет
    * модуль, открывший элемент (`registerInboxActionHandler`); копия заместителя
    * действует от имени получателя, пока замещение активно.
@@ -436,6 +460,7 @@ const SCOPE_BY_KIND: Record<string, string[]> = {
   accept_instruction: ['all', 'instructions'],
   report_instruction: ['all', 'instructions'],
   accept_result: ['all', 'instructions'],
+  extend_due: ['all', 'instructions'],
   respond_invite: ['all', 'meetings'],
   review_protocol: ['all', 'meetings'],
 }

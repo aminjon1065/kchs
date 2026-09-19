@@ -38,6 +38,7 @@ import {
   registerTasksBackground,
   registerTasksObjectTypes,
   registerTasksRoutes,
+  scheduleTasksJobs,
 } from './tasks/module.js'
 import {
   registerTelegramChannel,
@@ -125,6 +126,7 @@ export function registerModulesBackground(): void {
 export async function scheduleModuleJobs(): Promise<void> {
   await scheduleFilesJobs()
   await scheduleReportsJobs()
+  await scheduleTasksJobs()
 }
 
 /** Долгоживущие процессы модулей в роли worker: опрос Telegram-бота (ADR-0061). */

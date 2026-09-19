@@ -305,6 +305,8 @@ async function linkedMetrics(ctx: Ctx, territoryId: string): Promise<PassportMet
     if (!allowed.allowed) continue
     try {
       const metric = await Metrics.get(id)
+      // Показатель над системным датасетом поля территории не имеет (ADR-0082)
+      if (!metric.datasetId) continue
       const dataset = await datasetRecord(metric.datasetId)
       if (!dataset.territoryField) continue
       const value = await Metrics.value(ctx, metric, {

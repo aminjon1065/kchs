@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { FilterNode } from '../common/filter.js'
 import { DateOnly, Timestamp, Uuid } from '../common/primitives.js'
 import { FieldFormat } from '../fields/field-def.js'
-import { Expression, FieldRef } from './query.js'
+import { Expression, FieldRef, SYSTEM_DATASETS } from './query.js'
 
 /**
  * Показатель (06-analytics-engine.md §7, ADR-0058) — именованная мера над
@@ -125,7 +125,13 @@ export const MetricRecord = z.object({
   description: z.string().nullable(),
   spaceId: Uuid,
   parentId: Uuid.nullable(),
-  datasetId: Uuid,
+  /** Датасет показателя; null — показатель над системным датасетом. */
+  datasetId: Uuid.nullable(),
+  /**
+   * Системный датасет-источник (`instructions`, `tasks`…): права смотрящего
+   * применяет сам системный датасет (ADR-0060, ADR-0082).
+   */
+  systemSource: z.enum(SYSTEM_DATASETS).nullable(),
   definition: MetricDefinition,
   unit: z.string().nullable(),
   format: FieldFormat.nullable(),
@@ -135,19 +141,25 @@ export const MetricRecord = z.object({
 })
 export type MetricRecord = z.infer<typeof MetricRecord>
 
-export const MetricCreateInput = z.object({
-  name: Name,
-  description: Description.nullish(),
-  spaceId: Uuid,
-  parentId: Uuid.nullable().optional(),
-  datasetId: Uuid,
-  definition: MetricDefinition,
-  unit: Unit.nullish(),
-  format: FieldFormat.nullish(),
-  direction: MetricDirection.default('up'),
-  targets: z.array(MetricTarget).max(10).default([]),
-  thresholds: z.array(MetricThreshold).max(10).default([]),
-})
+export const MetricCreateInput = z
+  .object({
+    name: Name,
+    description: Description.nullish(),
+    spaceId: Uuid,
+    parentId: Uuid.nullable().optional(),
+    datasetId: Uuid.optional(),
+    systemSource: z.enum(SYSTEM_DATASETS).optional(),
+    definition: MetricDefinition,
+    unit: Unit.nullish(),
+    format: FieldFormat.nullish(),
+    direction: MetricDirection.default('up'),
+    targets: z.array(MetricTarget).max(10).default([]),
+    thresholds: z.array(MetricThreshold).max(10).default([]),
+  })
+  .refine((input) => (input.datasetId === undefined) !== (input.systemSource === undefined), {
+    message: 'Источник показателя — датасет или системный датасет',
+    path: ['datasetId'],
+  })
 export type MetricCreateInput = z.infer<typeof MetricCreateInput>
 
 export const MetricUpdateInput = z

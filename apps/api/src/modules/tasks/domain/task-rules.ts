@@ -18,6 +18,8 @@ export interface TaskFacts {
   controllerId: string | null
   /** Статусы рабочего процесса проекта (для обычной задачи). */
   workflow?: readonly TaskStatus[]
+  /** Запрос продления ждёт решения автора. */
+  pendingExtension?: boolean
 }
 
 /** Кто действует: пользователь и, при замещении, тот, от чьего имени. */
@@ -56,6 +58,26 @@ const canFrom = (action: InstructionAction, status: TaskStatus): boolean =>
   (INSTRUCTION_ACTIONS[action].from as readonly TaskStatus[]).includes(status)
 
 /**
+ * Действия поручения без смены статуса (ADR-0082): запрос продления — пока
+ * исполнитель работает (не отчитался); переназначение — до отчёта.
+ */
+export const INSTRUCTION_OPEN_STATUSES: readonly TaskStatus[] = [
+  'assigned',
+  'in_progress',
+  'returned',
+]
+
+/**
+ * Кто решает по продлению: автор поручения; нет автора (учётная запись
+ * удалена) — контролёр.
+ */
+export function extensionDecider(
+  facts: Pick<TaskFacts, 'authorId' | 'controllerId'>,
+): string | null {
+  return facts.authorId ?? facts.controllerId
+}
+
+/**
  * Права на задачу (10-tasks-projects.md §1, §4). Поручение: исполнитель
  * принимает и отчитывается, автор или контролёр принимает отчёт или
  * возвращает, отменяет и правит — только автор; закрыть поручение
@@ -74,6 +96,9 @@ export function permissionsFor(facts: TaskFacts, actor: TaskActor, level: Level)
       accept: false,
       return: false,
       cancel: canEdit && facts.status !== 'cancelled',
+      requestExtension: false,
+      decideExtension: false,
+      reassign: false,
       transitions: canEdit ? workflow.filter((status) => status !== facts.status) : [],
     }
   }
@@ -83,6 +108,9 @@ export function permissionsFor(facts: TaskFacts, actor: TaskActor, level: Level)
   const assignee = roles.has('assignee')
   const reviewer = author || roles.has('controller')
   const status = facts.status
+  const open = INSTRUCTION_OPEN_STATUSES.includes(status)
+  const decider = extensionDecider(facts)
+  const ids = new Set([actor.userId, ...(actor.onBehalfOf ? [actor.onBehalfOf] : [])])
   const permissions: TaskPermissions = {
     edit: author && canEdit && !isClosed(status),
     start: assignee && canFrom('start', status),
@@ -90,6 +118,10 @@ export function permissionsFor(facts: TaskFacts, actor: TaskActor, level: Level)
     accept: reviewer && canFrom('accept', status),
     return: reviewer && canFrom('return', status),
     cancel: author && canFrom('cancel', status),
+    requestExtension: assignee && open && !facts.pendingExtension,
+    decideExtension:
+      Boolean(facts.pendingExtension) && open && decider !== null && ids.has(decider),
+    reassign: reviewer && canEdit && open,
     transitions: [],
   }
   const byAction: Array<[InstructionAction, boolean]> = [
@@ -113,7 +145,18 @@ export function initialStatus(kind: TaskKind, workflow?: readonly TaskStatus[]):
   return workflow?.[0] ?? 'todo'
 }
 
-/** Просрочена: срок прошёл, а задача не закрыта. */
-export function isOverdue(status: TaskStatus, dueAt: string | null, now = new Date()): boolean {
-  return Boolean(dueAt) && !isClosed(status) && new Date(dueAt as string).getTime() < now.getTime()
+/**
+ * Просрочена: срок прошёл, а задача не закрыта. Отчёт поручения, сданный до
+ * срока и ждущий приёмки, — не просрочка: исполнитель успел (ADR-0082).
+ */
+export function isOverdue(
+  status: TaskStatus,
+  dueAt: string | null,
+  now = new Date(),
+  reportedAt: string | null = null,
+): boolean {
+  if (!dueAt || isClosed(status)) return false
+  const due = new Date(dueAt).getTime()
+  const fact = status === 'reported' && reportedAt ? new Date(reportedAt).getTime() : now.getTime()
+  return fact > due
 }

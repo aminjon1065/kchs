@@ -245,6 +245,8 @@ export const metrics = pgTable('metrics', {
     .primaryKey()
     .references(() => objects.id, { onDelete: 'cascade' }),
   datasetId: uuid('dataset_id').references(() => datasets.id, { onDelete: 'set null' }),
+  /** Системный датасет-источник (`instructions`…) вместо датасета (ADR-0082). */
+  systemSource: text('system_source'),
   definition: jsonbObject('definition'),
   unit: text('unit'),
   format: jsonb('format').$type<Record<string, unknown> | null>(),

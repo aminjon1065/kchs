@@ -374,7 +374,8 @@ export async function readPrincipalsFor(
   if (object.spaceId && boundary === null) {
     principals.add(`space_role:${object.spaceId}:viewer`)
   }
-  // Производные права политики типа (участники шагов маршрута)
+  // Производные права политики типа: участники шагов маршрута (ADR-0079),
+  // руководители исполнителя поручения (ADR-0082)
   const policy = objectType(object.type)?.policy
   if (policy?.principals) {
     for (const key of await policy.principals(object, database)) principals.add(key)

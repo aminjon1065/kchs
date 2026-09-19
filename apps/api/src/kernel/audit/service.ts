@@ -188,4 +188,8 @@ export const AUDIT_ACTIONS = {
   processReassigned: 'process.reassigned',
   processCancelled: 'process.cancelled',
   processDefinitionPublished: 'process.definition_published',
+  // Поручения (ADR-0082): продление срока и переназначение исполнителя
+  taskExtensionRequested: 'task.extension_requested',
+  taskExtensionDecided: 'task.extension_decided',
+  taskReassigned: 'task.reassigned',
 } as const
