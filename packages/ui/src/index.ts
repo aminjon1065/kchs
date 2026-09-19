@@ -36,6 +36,7 @@ export {
 } from './maps/map-canvas.js'
 export { MAP_ICONS, mapIconImage, renderMapIcon } from './maps/map-icons.js'
 export { MapLegend, type MapLegendProps } from './maps/map-legend.js'
+export { type MapSnapshot, type MapSnapshotOptions, snapshotMap } from './maps/map-snapshot.js'
 export {
   MapColorPicker,
   type MapColorPickerProps,
@@ -46,7 +47,6 @@ export {
   PaletteRamp,
   useMapColorLabel,
 } from './maps/map-style-controls.js'
-export { type MapSnapshot, type MapSnapshotOptions, snapshotMap } from './maps/map-snapshot.js'
 export { readMapTheme, useMapTheme } from './maps/map-theme.js'
 export * from './primitives/button.js'
 export * from './primitives/controls.js'
