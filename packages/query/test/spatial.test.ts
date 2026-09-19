@@ -207,6 +207,14 @@ describe('шаг spatial: SQL', () => {
     expect(compiled.sql).not.toContain('ORDER BY "q')
   })
 
+  it('имя по умолчанию занято полем данных — с номером', () => {
+    const compiled = compile(q(zonesSource(), [spatial('area'), spatial('area')]))
+    expect(compiled.fields.map((field) => field.name).slice(-2)).toEqual([
+      'area_km2',
+      'area_km2_2',
+    ])
+  })
+
   it('поля результата: подписи и типы добавленных полей', () => {
     const compiled = compile(
       q(src(), [
@@ -380,7 +388,7 @@ describe('шаг spatial: ошибки', () => {
     ],
     [
       'добавляемое поле уже есть',
-      q(zonesSource(), [spatial('area'), spatial('area')]),
+      q(zonesSource(), [spatial('area'), spatial('area', { as: 'area_km2' })]),
       { path: ['steps', 1, 'params', 'as'], message: 'Поле «area_km2» уже есть' },
     ],
     [

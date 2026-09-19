@@ -300,16 +300,27 @@ class SpatialCompiler {
     return geometryColumn(this.rel, this.params.string('field'), this.params.at('field'), 'данных')
   }
 
-  /** Имя добавляемого поля: `params.as` или имя по умолчанию; не должно совпадать с полем. */
+  /**
+   * Имя добавляемого поля: `params.as` (занятое — ошибка) или имя по умолчанию,
+   * при совпадении с полем данных — с номером (`area_km2_2`).
+   */
   private outputName(fallback: string): string {
-    const value = this.params.string('as') ?? fallback
+    const names = new Set(
+      this.rel.columns.filter((column) => !column.hidden).map((column) => column.name),
+    )
+    const value = this.params.string('as')
+    if (value === undefined) {
+      let name = fallback
+      for (let n = 2; names.has(name); n++) name = `${fallback}_${n}`
+      return name
+    }
     if (!NAME.test(value) || value.length > 64) {
       fail(
         this.params.at('as'),
         'Имя поля — латиница в нижнем регистре, цифры и подчёркивание (до 64 символов)',
       )
     }
-    if (this.rel.columns.some((column) => !column.hidden && column.name === value)) {
+    if (names.has(value)) {
       fail(this.params.at('as'), `Поле «${value}» уже есть`, {
         hint: 'Задайте другое имя в params.as',
       })
