@@ -22,7 +22,9 @@ import {
   type SeedUnit,
   SPACES,
 } from './data.js'
+import SETTLEMENTS from './settlements.json' with { type: 'json' }
 import TERRITORIES from './territories.json' with { type: 'json' }
+import BOUNDARIES from './territory-boundaries.json' with { type: 'json' }
 
 export interface SeedOptions {
   profile: 'minimal' | 'demo'
@@ -48,19 +50,23 @@ export async function runSeed(
   const random = makeRandom(20_260_917)
 
   // ── Территории ────────────────────────────────────────────────────────────
-  // Справочник нужен и чистой установке (профиль minimal); загрузка повторяема:
-  // существующие коды не меняются (seeds/README.md, ADR-0057)
-  const createdTerritories = await db().transaction((tx) =>
-    TerritoryService.load(tx, ctx, TERRITORIES as unknown as TerritoryInput[]),
-  )
+  // Справочник и границы нужны и чистой установке (профиль minimal); загрузка
+  // повторяема: существующие коды не меняются, те же границы не перезаписываются
+  // (seeds/README.md, ADR-0057, ADR-0067). Кишлаки демо-мира синтетические —
+  // только в профиле demo
+  const loaded = await db().transaction(async (tx) => ({
+    created: await TerritoryService.load(tx, ctx, TERRITORIES as unknown as TerritoryInput[]),
+    settlements:
+      options.profile === 'demo'
+        ? await TerritoryService.load(tx, ctx, SETTLEMENTS as unknown as TerritoryInput[])
+        : 0,
+    boundaries: await TerritoryService.loadBoundaries(tx, ctx, BOUNDARIES),
+  }))
   await TerritoryService.invalidate()
   const territoryIds = new Map(
     (await TerritoryService.list()).map((territory) => [territory.code, territory.id]),
   )
-  log.info(
-    { territories: territoryIds.size, created: createdTerritories },
-    'справочник территорий загружен',
-  )
+  log.info({ territories: territoryIds.size, ...loaded }, 'справочник территорий загружен')
   const territoryOf = (unit: SeedUnit) =>
     unit.territory ? (territoryIds.get(unit.territory) ?? null) : null
 

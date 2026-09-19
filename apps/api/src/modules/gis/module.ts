@@ -29,6 +29,7 @@ import { LayerService } from './domain/layer-service.js'
 import { MapService } from './domain/map-service.js'
 import { TerritoryService } from './domain/territory-service.js'
 import { TileService } from './domain/tile-service.js'
+import { registerTerritoryRoutes } from './http/territory-routes.js'
 
 const gunzip = promisify(gunzipCallback)
 
@@ -146,6 +147,7 @@ export function registerGisObjectTypes(): void {
 }
 
 export function registerGisRoutes(route: RouteRegistrar): void {
+  registerTerritoryRoutes(route)
   route({
     method: 'GET',
     url: '/territories',

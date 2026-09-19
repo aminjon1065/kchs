@@ -1,13 +1,17 @@
+import { createHash } from 'node:crypto'
 import {
+  type Bbox,
   type LangText,
   type Territory,
   type TerritoryDetail,
+  type TerritoryFeature,
   TerritoryLevel,
   type TerritoryLevel as TerritoryLevelValue,
 } from '@kchs/contracts'
-import { and, asc, eq, isNull, sql } from 'drizzle-orm'
+import { and, asc, eq, inArray, isNull, type SQL, sql } from 'drizzle-orm'
 import { grantAccess } from '~/kernel/access/acl-service.js'
 import { authorize } from '~/kernel/access/authorize.js'
+import { publishEvent } from '~/kernel/events/publisher.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import type { Ctx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
@@ -29,10 +33,48 @@ export interface TerritoryInput {
   population?: number | null
 }
 
+/** Граница единицы для загрузки (seed, в будущем — импорт границ). */
+export interface TerritoryBoundaryInput {
+  code: string
+  /** Способ построения: `osm`, `circle`, `voronoi`… — в атрибуты единицы. */
+  method: string
+  /** GeoJSON Polygon или MultiPolygon в WGS 84. */
+  geometry: { type: string; coordinates: unknown }
+}
+
+/** Происхождение границы в `attributes.boundary`: хэш сверяется при повторной загрузке. */
+interface BoundaryAttribute {
+  source: string
+  method: string
+  hash: string
+}
+
 /** Номер версии справочника: процессы сверяют с ним свои кэши. */
 const VERSION_KEY = 'kchs:territories:version'
 
 const LEVEL_ORDER = new Map(TerritoryLevel.options.map((level, index) => [level, index]))
+
+/** Граница из хранения или ввода — валидный MultiPolygon WGS 84, внешние кольца против часовой. */
+const validBoundary = (geometry: SQL) =>
+  sql`ST_ForcePolygonCCW(ST_Multi(ST_CollectionExtract(ST_MakeValid(ST_SetSRID(${geometry}, 4326)), 3)))`
+
+/** Экстент границы: [запад, юг, восток, север] или null. */
+const bboxColumn = sql<Bbox | null>`CASE WHEN ${territories.geom} IS NULL THEN NULL
+  ELSE json_build_array(ST_XMin(${territories.geom}), ST_YMin(${territories.geom}),
+    ST_XMax(${territories.geom}), ST_YMax(${territories.geom})) END`
+
+/**
+ * Допуск упрощения границы для зума — пиксель тайла 512 px в градусах; мельче сетки
+ * хранения границ (1e-4°, ADR-0067) не упрощаем.
+ */
+export function simplifyTolerance(zoom: number): number {
+  const tolerance = 360 / (512 * 2 ** zoom)
+  return tolerance < 1e-4 ? 0 : tolerance
+}
+
+function hashOf(value: unknown): string {
+  return createHash('sha256').update(JSON.stringify(value)).digest('hex').slice(0, 32)
+}
 
 const columns = {
   id: territories.id,
@@ -141,6 +183,120 @@ export const TerritoryService = {
   },
 
   /**
+   * Границы (ADR-0067): заданные единицы получают свою границу, их предки без своей —
+   * объединение границ детей (регион — районов, страна — регионов). Центроид — точка
+   * внутри границы: прежний центр, если он внутри, иначе `ST_PointOnSurface`; площадь —
+   * по сфероиду. Повтор с теми же границами ничего не меняет: сверяется хэш источника.
+   * Каждая изменённая единица публикует `territory.updated`; возвращает их число.
+   */
+  async loadBoundaries(
+    tx: Executor,
+    ctx: Ctx,
+    input: { source: string; units: TerritoryBoundaryInput[] },
+  ): Promise<number> {
+    const rows = await tx
+      .select({
+        id: territories.id,
+        code: territories.code,
+        parentId: territories.parentId,
+        level: territories.level,
+        name: territories.name,
+        boundary: sql<BoundaryAttribute | null>`${territories.attributes} -> 'boundary'`,
+      })
+      .from(territories)
+      .innerJoin(objects, eq(objects.id, territories.id))
+      .where(isNull(objects.deletedAt))
+    const byCode = new Map(rows.map((row) => [row.code, row]))
+    // Хэш границы каждой единицы — с учётом загруженных сейчас
+    const hashes = new Map<string, string>()
+    for (const row of rows) if (row.boundary) hashes.set(row.id, row.boundary.hash)
+    const changed: typeof rows = []
+
+    const store = async (
+      row: (typeof rows)[number],
+      geometry: SQL,
+      boundary: BoundaryAttribute,
+    ) => {
+      await tx
+        .update(territories)
+        .set({
+          geom: validBoundary(geometry),
+          attributes: sql`${territories.attributes} || jsonb_build_object('boundary', ${JSON.stringify(boundary)}::jsonb)`,
+          updatedAt: sql`now()`,
+        })
+        .where(eq(territories.id, row.id))
+      hashes.set(row.id, boundary.hash)
+      changed.push(row)
+    }
+
+    for (const unit of input.units) {
+      const row = byCode.get(unit.code)
+      if (!row) throw errors.validation(`Нет территории «${unit.code}» для границы`)
+      const hash = hashOf(unit.geometry)
+      if (row.boundary?.hash === hash) continue
+      await store(row, sql`ST_GeomFromGeoJSON(${JSON.stringify(unit.geometry)})`, {
+        source: input.source,
+        method: unit.method,
+        hash,
+      })
+    }
+
+    // Предки без своей границы — от мелких уровней к крупным: регион раньше страны
+    const explicit = new Set(input.units.map((unit) => unit.code))
+    const children = new Map<string, typeof rows>()
+    for (const row of rows) {
+      if (row.parentId) children.set(row.parentId, [...(children.get(row.parentId) ?? []), row])
+    }
+    const depth = (level: string) => LEVEL_ORDER.get(TerritoryLevel.parse(level)) ?? 0
+    const parents = rows
+      .filter((row) => !explicit.has(row.code) && children.has(row.id))
+      .sort((a, b) => depth(b.level) - depth(a.level))
+    for (const parent of parents) {
+      const parts = (children.get(parent.id) ?? [])
+        .filter((child) => hashes.has(child.id))
+        .map((child) => `${child.code}:${hashes.get(child.id)}`)
+        .sort()
+      if (parts.length === 0) continue
+      const hash = hashOf(parts)
+      if (parent.boundary?.hash === hash) continue
+      const union = sql`(SELECT ST_Union(c.geom) FROM ${territories} c
+        JOIN ${objects} o ON o.id = c.id AND o.deleted_at IS NULL
+        WHERE c.parent_id = ${parent.id} AND c.geom IS NOT NULL)`
+      await store(parent, union, { source: input.source, method: 'union', hash })
+    }
+    if (changed.length === 0) return 0
+
+    const ids = changed.map((row) => row.id)
+    const empty = await tx
+      .select({ code: territories.code })
+      .from(territories)
+      .where(and(inArray(territories.id, ids), sql`ST_IsEmpty(${territories.geom})`))
+    if (empty.length > 0) {
+      throw errors.validation(
+        `Пустая граница у территорий: ${empty.map((row) => row.code).join(', ')}`,
+      )
+    }
+    await tx
+      .update(territories)
+      .set({
+        centroid: sql`CASE WHEN ${territories.centroid} IS NOT NULL
+          AND ST_Covers(${territories.geom}, ${territories.centroid}) THEN ${territories.centroid}
+          ELSE ST_PointOnSurface(${territories.geom}) END`,
+        areaKm2: sql`ST_Area(${territories.geom}::geography) / 1e6`,
+      })
+      .where(inArray(territories.id, ids))
+    for (const row of changed) {
+      await publishEvent(tx, ctx, {
+        type: 'territory.updated',
+        object: { id: row.id, type: 'territory', spaceId: null, title: row.name.ru },
+        payload: { code: row.code },
+        changedFields: ['geom', 'centroid', 'areaKm2'],
+      })
+    }
+    return changed.length
+  },
+
+  /**
    * Справочник изменился — кэши процессов перечитают его при следующем обращении.
    * Версия — случайная метка, а не счётчик: после очистки Redis счётчик мог бы
    * совпасть с версией устаревшего кэша.
@@ -173,6 +329,7 @@ export const TerritoryService = {
         attributes: territories.attributes,
         areaKm2: territories.areaKm2,
         hasGeometry: sql<boolean>`${territories.geom} IS NOT NULL`,
+        bbox: bboxColumn,
       })
       .from(territories)
       .where(eq(territories.id, id))
@@ -192,7 +349,7 @@ export const TerritoryService = {
         .where(and(eq(territories.parentId, id), isNull(objects.deletedAt)))
         .orderBy(asc(territories.code)),
     ])
-    const { attributes, areaKm2, hasGeometry, ...base } = row
+    const { attributes, areaKm2, hasGeometry, bbox, ...base } = row
     return {
       ...toTerritory(base as Row),
       path: path.map((item) => toTerritory(item as Row)),
@@ -200,6 +357,45 @@ export const TerritoryService = {
       attributes,
       areaKm2,
       hasGeometry,
+      bbox,
+    }
+  },
+
+  /**
+   * Граница GeoJSON Feature (07-gis-engine.md §11: карта паспорта территории). С зумом —
+   * упрощена до пикселя и с точностью координат под него; без границы — 404.
+   */
+  async feature(ctx: Ctx, id: string, zoom?: number): Promise<TerritoryFeature> {
+    await authorize(ctx, 'view', id)
+    const tolerance = zoom === undefined ? 0 : simplifyTolerance(zoom)
+    // Знаков после запятой — на порядок точнее пикселя, не больше шести (≈ 0,1 м)
+    const digits =
+      zoom === undefined
+        ? 6
+        : Math.min(6, Math.max(3, Math.ceil(-Math.log10(360 / (512 * 2 ** zoom))) + 1))
+    const shape =
+      tolerance > 0
+        ? sql`ST_SimplifyPreserveTopology(${territories.geom}, ${tolerance})`
+        : sql`${territories.geom}`
+    const [row] = await db()
+      .select({
+        code: territories.code,
+        level: territories.level,
+        name: territories.name,
+        bbox: bboxColumn,
+        geometry: sql<Record<string, unknown> | null>`ST_AsGeoJSON(${shape}, ${digits})::json`,
+      })
+      .from(territories)
+      .where(eq(territories.id, id))
+      .limit(1)
+    if (!row) throw errors.notFound('Территория')
+    if (!row.geometry || !row.bbox) throw errors.notFound('Граница территории')
+    return {
+      type: 'Feature',
+      id,
+      bbox: row.bbox,
+      properties: { code: row.code, level: TerritoryLevel.parse(row.level), name: row.name },
+      geometry: row.geometry,
     }
   },
 }

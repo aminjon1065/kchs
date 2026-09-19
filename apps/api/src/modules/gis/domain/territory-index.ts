@@ -1,5 +1,8 @@
-import type { Locale, Territory, TerritoryLevel } from '@kchs/contracts'
+import { type Locale, TERRITORY_LEVELS, type Territory, type TerritoryLevel } from '@kchs/contracts'
 import { TerritoryService } from './territory-service.js'
+
+const LEVEL_RANK = new Map(TERRITORY_LEVELS.map((level, index) => [level, index]))
+const levelRank = (level: TerritoryLevel) => LEVEL_RANK.get(level) ?? TERRITORY_LEVELS.length
 
 /** Название для сопоставления: без регистра, «ё» как «е», пробелы схлопнуты. */
 export function normalizeName(value: string): string {
@@ -31,16 +34,24 @@ export class TerritoryIndex {
         this.children.set(item.parentId, list)
       }
     }
-    // Коды точнее названий: код никогда не уступает одноимённому названию
-    for (const item of items) {
+    // Название принадлежит единице крупнейшего уровня, где оно встречается: одноимённый
+    // кишлак не делает неоднозначным район, а два одноимённых района — неоднозначны
+    const levelOfKey = new Map<string, number>()
+    const byLevel = [...items].sort((a, b) => levelRank(a.level) - levelRank(b.level))
+    for (const item of byLevel) {
       for (const name of [item.name.ru, item.name.tg, item.name.en]) {
         if (!name) continue
         const key = normalizeName(name)
         const found = this.keys.get(key)
-        if (found === undefined) this.keys.set(key, item.id)
-        else if (found !== item.id) this.keys.set(key, null)
+        if (found === undefined) {
+          this.keys.set(key, item.id)
+          levelOfKey.set(key, levelRank(item.level))
+        } else if (found !== item.id && levelOfKey.get(key) === levelRank(item.level)) {
+          this.keys.set(key, null)
+        }
       }
     }
+    // Коды точнее названий: код никогда не уступает одноимённому названию
     for (const item of items) this.keys.set(normalizeName(item.code), item.id)
   }
 
@@ -54,6 +65,17 @@ export class TerritoryIndex {
       stack.push(...(this.children.get(current) ?? []))
     }
     return result
+  }
+
+  /** Предки от корня до родителя — путь для подписи и уточнений. */
+  ancestors(id: string): Territory[] {
+    const path: Territory[] = []
+    let current = this.byId.get(id)
+    while (current?.parentId) {
+      current = this.byId.get(current.parentId)
+      if (current) path.unshift(current)
+    }
+    return path
   }
 
   /** Предок заданного уровня (сама территория, если её уровень такой); нет — null. */
