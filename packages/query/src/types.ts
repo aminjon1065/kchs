@@ -93,6 +93,13 @@ export interface CompileUser {
   unitMemberIds?: readonly string[]
 }
 
+/** Рамка WGS 84 [запад, юг, восток, север] на поле геометрии датасета. */
+export interface SpatialWindow {
+  datasetId: string
+  field: string
+  bbox: readonly [number, number, number, number]
+}
+
 export interface CompileContext {
   /** Датасеты по идентификатору: источник, соединения, объединения. */
   datasets: ReadonlyMap<string, ResolvedDataset>
@@ -121,6 +128,19 @@ export interface CompileContext {
   maxRows?: number | null
   /** Режим таблицы датасета: без агрегации в результат добавляются `_id` и `_ver`. */
   rowMeta?: boolean
+  /**
+   * Геометрия в результате: GeoJSON (по умолчанию — клиенту) или как есть — для
+   * обёртки вызывающим (векторные тайлы `ST_AsMVT`, ADR-0064).
+   */
+  geometryOutput?: 'geojson' | 'raw'
+  /**
+   * Пространственное окно вызывающего (тайлы и объекты слоя в охвате, ADR-0064):
+   * пересечение рамок `&&` на поле геометрии датасета — в базовом подзапросе
+   * вместе с политикой строк, до барьера `OFFSET 0`, чтобы работал индекс GIST.
+   * Только значения сервера: рамка из чисел и видимое поле геометрии; условия
+   * пользователя по-прежнему вычисляются после политики.
+   */
+  spatialWindow?: SpatialWindow
   /** Тайм-аут по умолчанию, мс (если в спецификации не задан). */
   defaultTimeoutMs?: number
   dialect?: Dialect
@@ -144,6 +164,10 @@ export interface CacheKeyParts {
   timezone: string
   maxRows: number | null
   rowMeta: boolean
+  /** Есть, только если геометрия отдаётся как есть: иначе ключи прежних версий не меняются. */
+  geometryOutput?: 'raw'
+  /** Пространственное окно вызывающего — есть, только если задано. */
+  spatialWindow?: { datasetId: string; field: string; bbox: number[] }
 }
 
 export interface CompiledQuery {

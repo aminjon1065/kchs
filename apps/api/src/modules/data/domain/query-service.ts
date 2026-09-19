@@ -27,6 +27,7 @@ import {
   rawSqlErrorPosition,
   rawSqlTables,
   referenceKey,
+  type SpatialWindow,
   type SqlDataset,
 } from '@kchs/query'
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm'
@@ -101,6 +102,10 @@ export interface RunOptions {
   maxRows?: number | null
   /** Сохранённый запрос — для журнала запусков. */
   queryId?: string | null
+  /** Геометрия как есть, а не GeoJSON: обёртка вызывающим (тайлы, ADR-0064). */
+  geometryOutput?: 'geojson' | 'raw'
+  /** Рамка на поле геометрии — рядом с политикой строк, по индексу GIST (ADR-0064). */
+  spatialWindow?: SpatialWindow
 }
 
 /**
@@ -450,6 +455,8 @@ export const QueryService = {
           ...(ctx.kind === 'user' ? { timezone: ctx.timezone } : {}),
           ...(options.maxRows !== undefined ? { maxRows: options.maxRows } : {}),
           rowMeta: options.rowMeta ?? false,
+          ...(options.geometryOutput ? { geometryOutput: options.geometryOutput } : {}),
+          ...(options.spatialWindow ? { spatialWindow: options.spatialWindow } : {}),
           ...(await referenceContext(ctx, lookups)),
         })
         // Подписи полей — из схемы, поэтому её версия тоже входит в ключ кэша

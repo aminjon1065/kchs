@@ -81,9 +81,11 @@ function finalSelect(
     const repeated = (repeats.get(column.name) ?? 0) > 1
     push(column, repeated && column.qualifier ? `${column.qualifier}.${column.name}` : column.name)
   }
+  const rawGeometry = state.ctx.geometryOutput === 'raw'
   const select = out.map(({ column, name }) => {
     const sql = columnSql(d, relation, column)
-    return `${column.type === 'geometry' ? d.geoJson(sql) : sql} AS ${d.ident(name)}`
+    const value = column.type === 'geometry' && !rawGeometry ? d.geoJson(sql) : sql
+    return `${value} AS ${d.ident(name)}`
   })
   const order = orderClause(state, relation, pipeline.ordering)
   const sql = [
@@ -146,6 +148,16 @@ export function cacheKey(
     timezone: state.timezone,
     maxRows,
     rowMeta: state.ctx.rowMeta === true,
+    ...(state.ctx.geometryOutput === 'raw' ? { geometryOutput: 'raw' as const } : {}),
+    ...(state.ctx.spatialWindow
+      ? {
+          spatialWindow: {
+            datasetId: state.ctx.spatialWindow.datasetId,
+            field: state.ctx.spatialWindow.field,
+            bbox: [...state.ctx.spatialWindow.bbox],
+          },
+        }
+      : {}),
   }
 }
 

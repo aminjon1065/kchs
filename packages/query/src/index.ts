@@ -44,6 +44,7 @@ export type {
   ResolvedDataset,
   ResolvedField,
   RowPolicy,
+  SpatialWindow,
   SqlDataset,
   SqlSourceSegment,
 } from './types.js'

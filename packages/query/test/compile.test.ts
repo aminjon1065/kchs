@@ -93,6 +93,96 @@ describe('результат компиляции', () => {
     expect(compileQuery(q(src()), ctx({ maxRows: null })).maxRows).toBeNull()
   })
 
+  it('геометрия — GeoJSON по умолчанию, как есть — для тайлов; режим входит в ключ кэша', () => {
+    const spec = q(src(), [{ type: 'select', fields: ['geom'] }])
+    const json = compileQuery(spec, ctx())
+    expect(json.sql).toMatch(/ST_AsGeoJSON\(/)
+    expect(json.cacheKeyParts).not.toHaveProperty('geometryOutput')
+    const raw = compileQuery(spec, ctx({ geometryOutput: 'raw' }))
+    expect(raw.sql).not.toMatch(/ST_AsGeoJSON\(/)
+    expect(raw.cacheKeyParts.geometryOutput).toBe('raw')
+  })
+
+  it('пространственное окно: рамка рядом с политикой строк, до барьера; в ключе кэша', () => {
+    const window = {
+      datasetId: IDS.incidents,
+      field: 'geom',
+      bbox: [68, 37, 70, 39] as const,
+    }
+    const spec = q(src(), [
+      { type: 'filter', where: { field: 'kind', op: 'eq', value: 'fire' } },
+      { type: 'select', fields: ['geom', 'kind'] },
+    ])
+    const restricted = {
+      ...incidents,
+      rowPolicy: {
+        kind: 'filter' as const,
+        where: { field: 'title', op: 'eq' as const, value: 'DU' },
+      },
+    }
+    const compiled = compileQuery(
+      spec,
+      ctx({ ...withDatasets(restricted), spatialWindow: window, geometryOutput: 'raw' }),
+    )
+    // Базовый подзапрос: удалённые, политика, окно — и только потом барьер
+    const base = /"q0" AS \(([\s\S]*?)\n\)/.exec(compiled.sql)?.[1] ?? ''
+    expect(base).toMatch(
+      / && ST_MakeEnvelope\(\$\d+::float8, \$\d+::float8, \$\d+::float8, \$\d+::float8, 4326\)/,
+    )
+    expect(base.indexOf('ST_MakeEnvelope')).toBeLessThan(base.indexOf('OFFSET 0'))
+    // Условие пользователя — после барьера, не в базовом подзапросе
+    expect(base).not.toMatch(/fire|"kind" =/)
+    expect(compiled.params).toEqual(expect.arrayContaining([68, 37, 70, 39]))
+    expect(compiled.cacheKeyParts.spatialWindow).toEqual({
+      datasetId: IDS.incidents,
+      field: 'geom',
+      bbox: [68, 37, 70, 39],
+    })
+    // Без окна ключ прежний, другое окно — другой ключ
+    const plain = compileQuery(spec, ctx({ ...withDatasets(restricted), geometryOutput: 'raw' }))
+    expect(plain.cacheKeyParts).not.toHaveProperty('spatialWindow')
+    const other = compileQuery(
+      spec,
+      ctx({
+        ...withDatasets(restricted),
+        spatialWindow: { ...window, bbox: [70, 37, 72, 39] },
+        geometryOutput: 'raw',
+      }),
+    )
+    expect(cacheKeyText(other.cacheKeyParts)).not.toBe(cacheKeyText(compiled.cacheKeyParts))
+
+    // Окно другого датасета не трогает этот; маскированная геометрия — ничего в окне
+    const foreign = compileQuery(
+      spec,
+      ctx({ spatialWindow: { ...window, datasetId: IDS.regions } }),
+    )
+    expect(foreign.sql).not.toMatch(/ST_MakeEnvelope/)
+    const masked = compileQuery(
+      spec,
+      ctx({
+        ...withDatasets({ ...incidents, columnPolicy: { hide: [], mask: ['geom'] } }),
+        spatialWindow: window,
+      }),
+    )
+    expect(masked.sql).toMatch(/IS NULL AND FALSE/)
+    // Скрытое поле и не геометрия — ошибка компиляции
+    expect(() =>
+      compileQuery(
+        q(src(), [{ type: 'select', fields: ['kind'] }]),
+        ctx({
+          ...withDatasets({ ...incidents, columnPolicy: { hide: ['geom'], mask: [] } }),
+          spatialWindow: window,
+        }),
+      ),
+    ).toThrow(/нет видимого поля геометрии/)
+    expect(() => compileQuery(spec, ctx({ spatialWindow: { ...window, field: 'kind' } }))).toThrow(
+      /нет видимого поля геометрии/,
+    )
+    expect(() =>
+      compileQuery(spec, ctx({ spatialWindow: { ...window, bbox: [70, 37, 68, 39] } })),
+    ).toThrow(/рамка/)
+  })
+
   it('поля результата: подпись, формат, семантика из схемы', () => {
     const withMeta = {
       ...incidents,

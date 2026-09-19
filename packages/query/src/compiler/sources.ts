@@ -1,7 +1,7 @@
 import type { FieldType } from '@kchs/contracts'
 import { atPath, ExpressionError, fail, type IssuePath, QueryCompileError } from '../errors.js'
 import { compileCondition, type ExprEnv } from '../expr/compile.js'
-import type { ResolvedDataset, ResolvedField } from '../types.js'
+import type { ResolvedDataset, ResolvedField, SpatialWindow } from '../types.js'
 import {
   fieldTypeOfValue,
   semanticOfValue,
@@ -194,6 +194,10 @@ export function datasetRelation(
   if (hasSystem) where.push(`${d.ident('_deleted_at')} IS NULL`)
   const policy = rowPolicySql(state, dataset, [...path, 'policy'])
   if (policy !== null) where.push(policy)
+  const window = state.ctx.spatialWindow
+  if (window && window.datasetId === dataset.id) {
+    where.push(spatialWindowSql(state, dataset, window, [...path, 'spatialWindow']))
+  }
   const fence = dataset.rowPolicy.kind === 'filter' || dataset.rowPolicy.kind === 'expr'
   const body = [
     `SELECT ${select.length ? select.join(', ') : 'NULL AS "_empty"'}`,
@@ -202,6 +206,30 @@ export function datasetRelation(
     ...(fence ? ['OFFSET 0'] : []),
   ].join('\n')
   return { body, columns, restricted, unavailable }
+}
+
+/**
+ * Пространственное окно вызывающего (ADR-0064): рамка на физическом столбце
+ * геометрии рядом с политикой строк — индекс GIST работает и под политикой.
+ * Маскированная геометрия не видна пользователю — в окно не попадает ничего.
+ */
+function spatialWindowSql(
+  state: CompileState,
+  dataset: ResolvedDataset,
+  window: SpatialWindow,
+  path: IssuePath,
+): string {
+  const field = dataset.fields.find((item) => item.key === window.field)
+  if (field?.type !== 'geometry' || dataset.columnPolicy.hide.includes(window.field)) {
+    fail(path, `Пространственное окно: нет видимого поля геометрии «${window.field}»`)
+  }
+  const [west, south, east, north] = window.bbox
+  if (![west, south, east, north].every(Number.isFinite) || west > east || south > north) {
+    fail(path, 'Пространственное окно: ожидается рамка «запад, юг, восток, север»')
+  }
+  if (dataset.columnPolicy.mask.includes(window.field)) return 'FALSE'
+  const box = [west, south, east, north].map((value) => state.binder.add(value, 'float8'))
+  return `${physicalSql(state, field)} && ST_MakeEnvelope(${box.join(', ')}, 4326)`
 }
 
 /** Условие политики строк над физическими столбцами (скрытые поля в политике доступны). */
