@@ -40,6 +40,12 @@ export interface NotifyInput {
   /** Ключ агрегации; по умолчанию — категория + объект. */
   aggregateKey?: string | null
   channels?: NotificationChannel[]
+  /**
+   * Срочное (напоминание о встрече, ADR-0081): запрошенные каналы доставляются
+   * сразу, без дайджеста и без режимов по умолчанию; канал снимает только явное
+   * «выключено» пользователя в этой категории.
+   */
+  urgent?: boolean
 }
 
 export const NotificationService = {
@@ -65,6 +71,7 @@ export const NotificationService = {
         input.category,
         input.channels,
         external.get(userId),
+        input.urgent ?? false,
       )
       const channels = Object.keys(modes) as NotificationChannel[]
       if (channels.length === 0) continue
@@ -298,6 +305,7 @@ async function resolveChannels(
   category: NotificationCategory,
   requested: NotificationChannel[] | undefined,
   available: Set<ExternalChannel> | undefined,
+  urgent = false,
 ): Promise<Partial<Record<NotificationChannel, DeliveryMode>>> {
   const prefs = await db()
     .select()
@@ -316,6 +324,11 @@ async function resolveChannels(
   for (const channel of candidates) {
     if (isExternal(channel) && !available?.has(channel)) continue
     const override = prefs.find((p) => p.channel === channel)?.mode as DeliveryMode | undefined
+    if (urgent && requested) {
+      // Пользователь сам выбрал канал напоминания: доставка сразу, если канал не выключен
+      if (override !== 'off') result[channel] = 'immediate'
+      continue
+    }
     const mode = override ?? defaults[channel] ?? 'off'
     if (mode !== 'off') result[channel] = mode
   }

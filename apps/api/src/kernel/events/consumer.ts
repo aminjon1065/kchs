@@ -264,6 +264,8 @@ export const KNOWN_DOMAINS = [
   'report',
   'task',
   'project',
+  'calendar',
+  'event',
   'layer',
   'map',
   'feature',

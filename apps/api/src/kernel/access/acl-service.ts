@@ -143,19 +143,22 @@ export async function revokeAccess(
 /**
  * Разрыв или восстановление наследования (03-access-model.md §Наследование).
  * При разрыве текущие эффективные записи копируются явно — чтобы ничего
- * не «исчезло» неожиданно.
+ * не «исчезло» неожиданно. `copyInherited: false` — модуль сам ведёт права
+ * участников и закрывает объект от наследуемых (личное событие календаря,
+ * ADR-0081): копировать их было бы раскрытием.
  */
 export async function setAccessMode(
   tx: Executor,
   ctx: Ctx,
   objectId: string,
   mode: 'inherit' | 'restricted',
+  options: { copyInherited?: boolean } = {},
 ): Promise<void> {
   const object = await loadObject(objectId, tx)
   if (!object) throw errors.notFound()
   if (object.accessMode === mode) return
 
-  if (mode === 'restricted') {
+  if (mode === 'restricted' && options.copyInherited !== false) {
     // Копируются только действовавшие права: записи предков до текущей границы
     // наследования и роли пространства, если разрыва выше нет. Иначе разрыв
     // вложенной папки выдал бы доступ, закрытый разрывом выше по дереву
