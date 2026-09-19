@@ -77,6 +77,11 @@ async def report_file_processed(file_id: str, payload: dict[str, Any]) -> dict[s
     return await _post_strict(f"/api/v1/internal/files/{file_id}/processed", payload)
 
 
+async def report_document_pdf(version_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    """Хэш версии документа и её PDF-представление; файл реестра создаёт api (ADR-0080)."""
+    return await _post_strict(f"/api/v1/internal/documents/versions/{version_id}/pdf", payload)
+
+
 async def report_users_import_parsed(job_id: str, payload: dict[str, Any]) -> dict[str, Any]:
     """Строки файла импорта пользователей; API ставит проверку и создание (ADR-0041)."""
     return await _post_strict(f"/api/v1/internal/users-import/{job_id}/parsed", payload)
