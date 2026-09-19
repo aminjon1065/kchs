@@ -129,7 +129,9 @@ const sameCamera = (a: MapCamera, b: MapCamera) =>
  * Карта дизайн-системы (07-gis-engine.md §6, ADR-0072): MapLibre GL с подложкой
  * из реестра, слоями данных от компилятора стилей `@kchs/map-style`, SDF-значками
  * и элементами управления дизайн-системы. Атрибуция подложки видна всегда —
- * этого требуют лицензии OpenStreetMap и OpenMapTiles.
+ * этого требуют лицензии OpenStreetMap и OpenMapTiles. Атрибут `data-map-state`
+ * (`loading` | `idle` | `failed`) — готовность кадра для печати, снимков и тестов:
+ * `idle` — тайлы загружены и нарисованы, переходы закончены.
  */
 export function MapCanvas({
   basemapStyle,
@@ -157,6 +159,12 @@ export function MapCanvas({
   const [styleReady, setStyleReady] = useState(0)
   const styleLoaded = useRef(false)
   const [failed, setFailed] = useState(false)
+  // Готовность кадра для печати и снимков: `idle` MapLibre (тайлы загружены и
+  // нарисованы) после того, как слои данных текущих пропсов добавлены на карту
+  const [ready, setReady] = useState(false)
+  const [synced, setSynced] = useState(false)
+  // Подложка, уже поставленная на карту: карта создаётся с пустым стилем (null)
+  const appliedBasemap = useRef<MapCanvasProps['basemapStyle']>(null)
   const latest = useRef({ onCameraChange, onFeatureClick, interactiveLayerIds, camera })
   latest.current = { onCameraChange, onFeatureClick, interactiveLayerIds, camera }
   const registered = useRef(new Set<string>())
@@ -251,6 +259,9 @@ export function MapCanvas({
         if (kind !== 'shape' && kind !== 'icon') return
         void addImage(instance, { id, kind, name: rest.join('-'), sdf: true }, registered.current)
       })
+      instance.on('idle', () => setReady(true))
+      instance.on('dataloading', () => setReady(false))
+      instance.on('movestart', () => setReady(false))
       instance.on('style.load', () => {
         styleLoaded.current = true
         setStyleReady((n) => n + 1)
@@ -272,12 +283,14 @@ export function MapCanvas({
       registered.current.clear()
       applied.current.sources.clear()
       applied.current.layers.clear()
+      appliedBasemap.current = null
     }
   }, [])
 
   // ─── Подложка ──────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!map) return
+    if (!map || appliedBasemap.current === basemapStyle) return
+    appliedBasemap.current = basemapStyle
     const element = container.current
     const background = element
       ? getComputedStyle(element).getPropertyValue('--bg-canvas').trim() || '#fff'
@@ -307,6 +320,7 @@ export function MapCanvas({
   useEffect(() => {
     if (!map || !styleLoaded.current) return
     let cancelled = false
+    setSynced(false)
     const sync = async () => {
       const ratio = window.devicePixelRatio || 1
       await Promise.all(
@@ -362,6 +376,7 @@ export function MapCanvas({
         map.addLayer({ ...layer, id, ...(source ? { source } : {}) } as LayerSpecification, before)
         state.layers.set(id, JSON.stringify(layer))
       }
+      setSynced(true)
     }
     void sync()
     return () => {
@@ -422,7 +437,10 @@ export function MapCanvas({
   }, [map, fitBounds])
 
   return (
-    <div className={cn('kchs-map relative isolate min-h-0 overflow-hidden bg-canvas', className)}>
+    <div
+      className={cn('kchs-map relative isolate min-h-0 overflow-hidden bg-canvas', className)}
+      data-map-state={failed ? 'failed' : ready && synced ? 'idle' : 'loading'}
+    >
       {/* MapLibre ставит контейнеру `position: relative` — размер задаёт обёртка */}
       <div className="absolute inset-0">
         <section
