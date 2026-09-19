@@ -23,6 +23,9 @@ function loadRuntime(): Promise<Runtime> {
   return runtime
 }
 
+/** Экземпляр карты MapLibre — для инструментов поверх неё (измерение, рисование, печать). */
+export type MapInstance = MapLibreMap
+
 /** Модуль MapLibre — для регистрации протоколов (`addProtocol`) до создания карты. */
 export type MapLibreModule = Runtime['maplibregl']
 

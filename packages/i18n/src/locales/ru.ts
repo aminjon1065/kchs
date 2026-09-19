@@ -1170,6 +1170,8 @@ export const ru = {
       toggleLayer: 'Показывать слой «{name}»',
       zoomToLayer: 'Показать слой целиком',
       layerMenu: 'Действия со слоем «{name}»',
+      attributes: 'Атрибуты',
+      style: 'Стиль',
       openLayer: 'Открыть слой',
       opacity: 'Прозрачность',
       moveUp: 'Выше',

@@ -29,6 +29,7 @@ export {
   type MapCanvasProps,
   type MapClickEvent,
   type MapFeatureHit,
+  type MapInstance,
   type MapLayerSpecification,
   type MapLibreModule,
   type MapSourceSpecification,

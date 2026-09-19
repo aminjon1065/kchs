@@ -155,7 +155,12 @@ const styleFieldsOf = (dataset: DatasetRecord | undefined): StyleField[] =>
 export function useRenderedLayers(
   entries: readonly RenderEntry[],
   theme: MapTheme | null,
-  options: { filter?: FilterNode | null; time?: string | null } = {},
+  options: {
+    /** Условия тайлов по слоям (связанные представления, дашборд): FilterNode по полям датасета. */
+    filters?: Readonly<Record<string, FilterNode>>
+    /** Интервал времени `from/to` для слоёв со временем. */
+    time?: string | null
+  } = {},
 ): RenderedLayers {
   const locale = useAppearance((s) => s.locale) as Locale
   const drawn = entries.filter((entry) => entry.layer.dataAccess)
@@ -220,7 +225,9 @@ export function useRenderedLayers(
       if (!entry.visible) return
       sources[source] = {
         type: 'vector',
-        tiles: [layerTileUrl(layer, options)],
+        tiles: [
+          layerTileUrl(layer, { filter: options.filters?.[layer.id] ?? null, time: options.time }),
+        ],
         minzoom: 0,
         maxzoom: TILE_MAX_ZOOM,
       }
@@ -248,7 +255,7 @@ export function useRenderedLayers(
     locale,
     datasetVersions,
     statsVersions,
-    options.filter,
+    JSON.stringify(options.filters ?? {}),
     options.time,
   ])
 }

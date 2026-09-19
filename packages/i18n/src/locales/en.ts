@@ -1140,6 +1140,8 @@ export const en: DeepPartial<Dictionary> = {
       toggleLayer: 'Show layer “{name}”',
       zoomToLayer: 'Zoom to layer',
       layerMenu: 'Actions for layer “{name}”',
+      attributes: 'Attributes',
+      style: 'Style',
       openLayer: 'Open layer',
       opacity: 'Opacity',
       moveUp: 'Move up',

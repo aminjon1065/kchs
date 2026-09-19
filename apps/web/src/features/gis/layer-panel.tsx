@@ -23,8 +23,10 @@ import {
   ExternalLink,
   Layers,
   MoreHorizontal,
+  Palette,
   Plus,
   Scan,
+  Table2,
   Trash2,
 } from 'lucide-react'
 import { useT } from '~/app/i18n.js'
@@ -46,6 +48,10 @@ export interface LayerPanelProps {
   onRemove: (layerId: string) => void
   onZoom: (layerId: string) => void
   onOpenLayer: (layerId: string) => void
+  /** Правая панель стиля слоя (редактор стиля). */
+  onStyle: (layerId: string) => void
+  /** Нижняя панель: атрибутивная таблица слоя. */
+  onAttributes: (layerId: string) => void
   onAdd: () => void
 }
 
@@ -66,6 +72,8 @@ export function LayerPanel({
   onRemove,
   onZoom,
   onOpenLayer,
+  onStyle,
+  onAttributes,
   onAdd,
 }: LayerPanelProps) {
   const t = useT()
@@ -133,6 +141,20 @@ export function LayerPanel({
                         onSelect={() => onZoom(entry.layerId)}
                       >
                         {t('gis.map.zoomToLayer')}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        disabled={!layer || noData}
+                        icon={<Table2 className="size-4" />}
+                        onSelect={() => onAttributes(entry.layerId)}
+                      >
+                        {t('gis.map.attributes')}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        disabled={!layer}
+                        icon={<Palette className="size-4" />}
+                        onSelect={() => onStyle(entry.layerId)}
+                      >
+                        {t('gis.map.style')}
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         disabled={!layer}
