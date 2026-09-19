@@ -90,6 +90,11 @@ export function connectRealtime(client: QueryClient, handlers: RealtimeHandlers 
     handlers.onNotification?.()
   })
 
+  // Приглашение, ответ участника, перенос встречи — сетка и «Сегодня» (ADR-0081)
+  socket.on('calendar.changed', () => {
+    void client.invalidateQueries({ queryKey: ['calendar'] })
+  })
+
   socket.on('inbox.changed', (payload: { counts: { total: number; overdue: number } }) => {
     void client.invalidateQueries({ queryKey: ['inbox'] })
     handlers.onInboxChanged?.(payload)

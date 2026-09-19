@@ -1,6 +1,9 @@
 import { Skeleton } from '@kchs/ui'
 import { lazy, Suspense } from 'react'
 import { AdminScreen } from '~/features/admin/admin-screen.js'
+import { CalendarScreen, type CalendarScreenState } from '~/features/calendar/calendar-screen.js'
+import { CalendarView } from '~/features/calendar/calendar-view.js'
+import { EventView } from '~/features/calendar/event-view.js'
 import { AnalysisView } from '~/features/data/analysis-view.js'
 import { ChartView } from '~/features/data/chart-view.js'
 import { DashboardView } from '~/features/data/dashboard-view.js'
@@ -128,6 +131,22 @@ export function registerModules(): void {
     render: (tab) => (
       <WorkloadScreen tabId={tab.id} savedState={tab.state as WorkloadScreenState} />
     ),
+  })
+  registerScreen({
+    key: 'calendar',
+    titleKey: 'shell.rail.calendar',
+    icon: 'calendar',
+    render: (tab) => (
+      <CalendarScreen tabId={tab.id} savedState={tab.state as CalendarScreenState} />
+    ),
+  })
+  registerObjectView({
+    type: 'calendar',
+    render: (tab) => <CalendarView objectId={tab.objectId!} tabId={tab.id} />,
+  })
+  registerObjectView({
+    type: 'event',
+    render: (tab) => <EventView objectId={tab.objectId!} tabId={tab.id} />,
   })
   registerScreen({
     key: 'search',

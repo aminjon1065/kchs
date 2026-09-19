@@ -11,6 +11,8 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import {
   Bell,
+  CalendarDays,
+  CalendarPlus,
   ClipboardCheck,
   Home,
   Inbox,
@@ -26,6 +28,8 @@ import {
   Users,
 } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
+import { useCalendarUi } from '~/features/calendar/calendar-store.js'
+import { useQuickEvent } from '~/features/calendar/quick-create.js'
 import {
   meQuery,
   recentQuery,
@@ -77,6 +81,9 @@ export function CommandPalette({
 
   const { data: workspaces = [] } = useQuery(workspacesQuery())
   const openWorkspace = useOpenWorkspace()
+  // «Встреча завтра в 10 с Ивановым» — событие из палитры (ADR-0081)
+  const quickEvent = useQuickEvent(query)
+  const openDraft = useCalendarUi((s) => s.openDraft)
 
   const commands = useMemo(() => {
     const items: Array<{
@@ -107,6 +114,21 @@ export function CommandPalette({
         icon: <ObjectIcon type="folder" />,
         shortcut: 'G F',
         run: () => goScreen('files', t('shell.rail.files'), 'folder'),
+      },
+      {
+        id: 'calendar',
+        label: t('shell.rail.calendar'),
+        icon: <CalendarDays />,
+        run: () => goScreen('calendar', t('shell.rail.calendar'), 'calendar'),
+      },
+      {
+        id: 'new-event',
+        label: t('calendar.quick.newEvent'),
+        icon: <CalendarPlus />,
+        run: () => {
+          openDraft({})
+          goScreen('calendar', t('shell.rail.calendar'), 'calendar')
+        },
       },
       {
         id: 'notifications',
@@ -205,7 +227,19 @@ export function CommandPalette({
     return items.filter(
       (item) => !item.hidden && (!normalized || item.label.toLowerCase().includes(normalized)),
     )
-  }, [query, t, me, density, setTheme, setDensity, goScreen, close, workspaces, openWorkspace])
+  }, [
+    query,
+    t,
+    me,
+    density,
+    setTheme,
+    setDensity,
+    goScreen,
+    close,
+    workspaces,
+    openWorkspace,
+    openDraft,
+  ])
 
   const spaceMatches = useMemo(() => {
     const normalized = query.trim().toLowerCase()
@@ -215,6 +249,7 @@ export function CommandPalette({
 
   // Порядок элементов определяет, что выделено по умолчанию
   const firstValue =
+    (quickEvent ? 'quick-event' : '') ||
     (!query && recent[0] ? `recent-${recent[0].id}` : '') ||
     (results?.hits[0] ? `hit-${results.hits[0].objectId}` : '') ||
     (spaceMatches[0] ? `space-${spaceMatches[0].id}` : '') ||
@@ -247,6 +282,23 @@ export function CommandPalette({
         </>
       }
     >
+      {quickEvent ? (
+        <CommandGroup>
+          <CommandGroupHeading>{t('calendar.quick.group')}</CommandGroupHeading>
+          <CommandItem
+            value="quick-event"
+            icon={<CalendarPlus />}
+            hint={quickEvent.hint}
+            onSelect={() => {
+              quickEvent.run()
+              close()
+            }}
+          >
+            {quickEvent.label}
+          </CommandItem>
+        </CommandGroup>
+      ) : null}
+
       {!query && recent.length > 0 ? (
         <CommandGroup>
           <CommandGroupHeading>{t('shell.palette.recent')}</CommandGroupHeading>
