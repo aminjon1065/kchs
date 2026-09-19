@@ -1,8 +1,10 @@
 import {
+  DocumentCardSchema,
   type DocumentStatus,
   type DocumentUpdateInput,
   parseConfidentiality,
 } from '@kchs/contracts'
+import type { ProcessFieldHint } from '@kchs/process'
 import { and, eq, or } from 'drizzle-orm'
 import { directory } from '~/kernel/directory/port.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
@@ -18,6 +20,7 @@ import { db, type Executor } from '~/shared/db/client.js'
 import {
   documentStepVersions,
   documents,
+  documentTypes,
   documentVersions,
   journals,
   objects,
@@ -99,6 +102,51 @@ async function load(executor: Executor, documentId: string) {
       confidentiality: row.confidentiality,
     },
   }
+}
+
+/** Реквизиты документа для конструктора маршрутов: люди — для `field:`, прочее — для условий. */
+const REQUISITE_HINTS: ProcessFieldHint[] = [
+  { path: 'subject', label: { ru: 'Тема', en: 'Subject' }, type: 'text' },
+  { path: 'author', label: { ru: 'Автор', en: 'Author' }, type: 'user' },
+  {
+    path: 'responsible',
+    label: { ru: 'Ответственный', en: 'Responsible' },
+    type: 'user',
+  },
+  { path: 'signer', label: { ru: 'Подписант', en: 'Signer' }, type: 'user' },
+  {
+    path: 'controller',
+    label: { ru: 'Контролёр', en: 'Controller' },
+    type: 'user',
+  },
+  {
+    path: 'correspondent',
+    label: { ru: 'Корреспондент', en: 'Correspondent' },
+    type: 'reference',
+  },
+  { path: 'deadline', label: { ru: 'Срок', en: 'Deadline' }, type: 'date' },
+  { path: 'unit', label: { ru: 'Подразделение', en: 'Unit' }, type: 'unit' },
+]
+
+/**
+ * Поля для конструктора маршрутов (ADR-0087): реквизиты и поля карточек всех
+ * активных типов — ключ встречается в нескольких типах одной подписью.
+ */
+async function fieldHints(executor: Executor): Promise<ProcessFieldHint[]> {
+  const rows = await executor
+    .select({ cardSchema: documentTypes.cardSchema })
+    .from(documentTypes)
+    .where(eq(documentTypes.isActive, true))
+  const hints = new Map(REQUISITE_HINTS.map((hint) => [hint.path, hint]))
+  for (const row of rows) {
+    const parsed = DocumentCardSchema.safeParse(row.cardSchema)
+    if (!parsed.success) continue
+    for (const field of parsed.data.fields) {
+      if (hints.has(field.key)) continue
+      hints.set(field.key, { path: field.key, label: field.label, type: field.type })
+    }
+  }
+  return [...hints.values()]
 }
 
 /** Заморозка: текущая версия уходит шагу согласования или подписи окончательной. */
@@ -283,6 +331,7 @@ export function registerDocumentProcess(): void {
   registerProcessObjectProvider({
     objectType: DOCUMENT_OBJECT_TYPE,
     load,
+    fieldHints,
     setField: async (tx, ctx, documentId, field, value) => {
       const path = field.startsWith('fields.') ? field.slice('fields.'.length) : field
       const requisite = SETTABLE[path]
