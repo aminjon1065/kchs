@@ -7,6 +7,8 @@ import {
   ReverseGeocodeResponse,
   TerritoryFeature,
   TerritoryGeometryQuery,
+  TerritoryPassport,
+  TerritoryPassportQuery,
   TerritoryTileQuery,
 } from '@kchs/contracts'
 import { z } from 'zod'
@@ -14,6 +16,7 @@ import { errors } from '~/shared/errors.js'
 import { rateLimit } from '~/shared/http/rate-limit.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { Geocoder } from '../domain/geocoder.js'
+import { PassportService } from '../domain/passport-service.js'
 import { TerritoryService } from '../domain/territory-service.js'
 import { TerritoryTiles, tileLevels } from '../domain/territory-tiles.js'
 
@@ -46,6 +49,25 @@ export function registerTerritoryRoutes(route: RouteRegistrar): void {
     },
     handler: async (request) =>
       TerritoryService.feature(request.ctx, request.params.id, request.query.zoom),
+  })
+
+  route({
+    method: 'GET',
+    url: '/gis/territories/:id/passport',
+    auth: 'session',
+    tags: ['gis'],
+    summary: 'Паспорт территории: показатели датасетов, привязанные показатели, поручения',
+    description:
+      'Строки и суммы мер датасетов с полем территории (с вложенными единицами) за период и предыдущий период, по месяцам и по дочерним единицам; показатели со связью about_territory; задачи с территорией — всё с правами и политиками смотрящего (ADR-0077).',
+    schema: {
+      params: IdParam,
+      querystring: TerritoryPassportQuery,
+      response: { 200: TerritoryPassport },
+    },
+    handler: async (request) => {
+      if (request.ctx.shareLink) throw errors.forbidden()
+      return PassportService.get(request.ctx, request.params.id, request.query.period)
+    },
   })
 
   route({

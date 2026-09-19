@@ -181,6 +181,12 @@ export const EVENT_PAYLOADS = {
   /** Автор или контролёр принял отчёт — поручение закрыто. */
   'task.completed': z.object({ key: z.string() }),
   'task.returned': z.object({ key: z.string(), comment: z.string() }),
+  /** Территория задачи изменилась (паспорт территории, ADR-0077). */
+  'task.territory_changed': z.object({
+    key: z.string(),
+    from: Uuid.nullable(),
+    to: Uuid.nullable(),
+  }),
   'project.created': z.object({ key: z.string(), name: z.string() }),
 
   // ── gis (07-gis-engine.md, ADR-0064) ───────────────────────────────────────

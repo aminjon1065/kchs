@@ -9,7 +9,8 @@ import type {
   StoredFieldType,
 } from '@kchs/contracts'
 import { DatasetSettings, FieldDef } from '@kchs/contracts'
-import { asc, desc, eq, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, isNotNull, isNull, sql } from 'drizzle-orm'
+import { visibleObjectsSql } from '~/kernel/access/authorize.js'
 import { directory } from '~/kernel/directory/port.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { ObjectService } from '~/kernel/objects/service.js'
@@ -251,6 +252,28 @@ export const DatasetService = {
       createdAt: row.object.createdAt,
       updatedAt: row.object.updatedAt,
     }
+  },
+
+  /**
+   * Датасеты с полем территории, видимые пользователю, — по названию (паспорт
+   * территории, ADR-0077). Строки в них читаются потом с политиками смотрящего.
+   */
+  async withTerritory(ctx: Ctx, limit: number): Promise<DatasetRecord[]> {
+    const rows = await db()
+      .select({ id: datasets.id })
+      .from(datasets)
+      .innerJoin(objects, eq(objects.id, datasets.id))
+      .where(
+        and(
+          isNotNull(datasets.territoryField),
+          isNull(objects.deletedAt),
+          isNull(objects.archivedAt),
+          visibleObjectsSql(ctx, 'dataset'),
+        ),
+      )
+      .orderBy(asc(objects.title))
+      .limit(limit)
+    return Promise.all(rows.map((row) => DatasetService.get(row.id)))
   },
 
   async versions(id: string, database: Database = db()): Promise<DatasetVersion[]> {

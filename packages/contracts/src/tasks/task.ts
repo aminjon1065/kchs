@@ -146,6 +146,11 @@ export const TaskRecord = z.object({
   returnComment: z.string().nullable(),
   source: TaskSource.nullable(),
   labels: z.array(z.string()),
+  /**
+   * Территория, к которой относится задача (паспорт территории, ADR-0077); из
+   * строки датасета — значение её поля территории.
+   */
+  territoryId: Uuid.nullable(),
   /** Срок прошёл, а задача не закрыта. */
   overdue: z.boolean(),
   createdAt: Timestamp,
@@ -185,6 +190,8 @@ export const TaskCreateInput = z
     priority: TaskPriority.default(3),
     labels: Labels.default([]),
     source: TaskSource.optional(),
+    /** По умолчанию — территория строки-источника, если у датасета есть поле территории. */
+    territoryId: Uuid.optional(),
   })
   .superRefine((input, context) => {
     if (input.kind !== 'instruction') return
@@ -211,6 +218,7 @@ export const TaskUpdateInput = z
     coAssigneeIds: z.array(Uuid).max(20),
     controllerId: Uuid.nullable(),
     labels: Labels,
+    territoryId: Uuid.nullable(),
   })
   .partial()
 export type TaskUpdateInput = z.infer<typeof TaskUpdateInput>
@@ -243,6 +251,8 @@ export const TaskListQuery = z.object({
   kind: TaskKind.optional(),
   state: z.enum(['open', 'closed', 'all']).default('open'),
   q: z.string().trim().max(200).optional(),
+  /** Задачи территории и вложенных в неё единиц (паспорт территории). */
+  territoryId: Uuid.optional(),
   limit: z.coerce.number().int().min(1).max(500).default(200),
 })
 export type TaskListQuery = z.infer<typeof TaskListQuery>

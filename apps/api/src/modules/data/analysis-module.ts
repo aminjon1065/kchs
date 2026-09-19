@@ -1,4 +1,10 @@
-import { AnalysisCreateInput, AnalysisRecord, AnalysisRunStarted } from '@kchs/contracts'
+import {
+  AnalysisCreateInput,
+  AnalysisPreviewInput,
+  AnalysisRecord,
+  AnalysisRunStarted,
+  QueryResult,
+} from '@kchs/contracts'
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { authorize } from '~/kernel/access/authorize.js'
@@ -77,6 +83,18 @@ export function registerAnalysisRoutes(route: RouteRegistrar): void {
       const id = await AnalysisService.create(request.ctx, request.body)
       return AnalysisService.get(id)
     },
+  })
+
+  route({
+    method: 'POST',
+    url: '/analyses/preview',
+    auth: 'session',
+    tags: ['data'],
+    summary: 'Предпросмотр анализа: результат запроса на выборке, без сохранения',
+    description:
+      'Запрос анализа или параметры хороплета (ADR-0077) — интерактивно, с политиками смотрящего; до 2 000 строк.',
+    schema: { body: AnalysisPreviewInput, response: { 200: QueryResult } },
+    handler: async (request) => AnalysisService.preview(request.ctx, request.body),
   })
 
   route({

@@ -102,6 +102,7 @@ export const SPATIAL_OPS = [
   'dissolve',
   'clip',
 ] as const
+export type SpatialOp = (typeof SPATIAL_OPS)[number]
 
 const FilterStep = z.object({ type: z.literal('filter'), where: FilterNode })
 

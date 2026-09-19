@@ -81,6 +81,11 @@ export const tasks = pgTable(
     returnComment: text('return_comment'),
     source: jsonb('source').$type<TaskSourceValue | null>(),
     labels: text('labels').array().notNull().default(sql`'{}'::text[]`),
+    /**
+     * Территория задачи (ADR-0077): единица справочника модуля GIS, без внешнего
+     * ключа — модули не связаны таблицами, как `org_units.territory_id`.
+     */
+    territoryId: uuid('territory_id'),
     fields: jsonbObject('fields'),
     order: doublePrecision('order').notNull().default(0),
     /**
@@ -98,6 +103,7 @@ export const tasks = pgTable(
     index('tasks_project_idx').on(t.projectId, t.status),
     index('tasks_co_assignees_idx').using('gin', t.coAssignees),
     index('tasks_source_idx').on(sql`(${t.source}->>'datasetId')`),
+    index('tasks_territory_idx').on(t.territoryId),
   ],
 )
 

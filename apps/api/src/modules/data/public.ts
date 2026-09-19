@@ -7,6 +7,8 @@ import type {
   DatasetRow,
   DatasetRowPatch,
   FieldType,
+  MetricRecord,
+  MetricValue,
   QueryResult,
   QuerySpec,
 } from '@kchs/contracts'
@@ -16,6 +18,7 @@ import type { Executor } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { DatasetAccess } from './domain/dataset-access.js'
 import { DatasetService } from './domain/dataset-service.js'
+import { type MetricEvaluation, MetricService } from './domain/metric-service.js'
 import { QueryService, type RunOptions } from './domain/query-service.js'
 import { RowService, type RowWriteAccess } from './domain/row-service.js'
 
@@ -30,6 +33,22 @@ export {
 
 /** Описание датасета: схема полей, ключ, версии (без физических имён). */
 export const datasetRecord = (id: string): Promise<DatasetRecord> => DatasetService.get(id)
+
+/** Каталог датасетов для других модулей: с полем территории (паспорт, ADR-0077). */
+export const DatasetCatalog = {
+  withTerritory: (ctx: Ctx, limit = 50): Promise<DatasetRecord[]> =>
+    DatasetService.withTerritory(ctx, limit),
+}
+
+/**
+ * Показатели (ADR-0058): значение — тем же путём кода, что у дашборда и карточки,
+ * с политиками смотрящего. Право видеть сам показатель проверяет вызывающий.
+ */
+export const Metrics = {
+  get: (id: string): Promise<MetricRecord> => MetricService.get(id),
+  value: (ctx: Ctx, metric: MetricRecord, evaluation: MetricEvaluation): Promise<MetricValue> =>
+    MetricService.evaluate(ctx, metric, evaluation),
+}
 
 /**
  * Запрос к датасетам с правами и политиками смотрящего: компиляция для обёртки

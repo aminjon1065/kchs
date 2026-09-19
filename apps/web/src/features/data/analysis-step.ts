@@ -1,7 +1,7 @@
-import type { AnalysisKind, QueryStep, TerritoryLevel } from '@kchs/contracts'
+import type { QueryStep, SpatialOp, TerritoryLevel } from '@kchs/contracts'
 
 /** Операции с целью: отбор по отношению к цели, ближайший, соединение, вырезание. */
-export const TARGET_OPS = new Set<AnalysisKind>([
+export const TARGET_OPS = new Set<SpatialOp>([
   'intersects',
   'within',
   'dwithin',
@@ -11,7 +11,7 @@ export const TARGET_OPS = new Set<AnalysisKind>([
 ])
 
 /** Отбор, который можно обратить: «не пересекает», «не в радиусе». */
-export const NEGATABLE = new Set<AnalysisKind>(['intersects', 'within', 'dwithin'])
+export const NEGATABLE = new Set<SpatialOp>(['intersects', 'within', 'dwithin'])
 
 export type AnalysisTarget =
   | { kind: 'dataset'; id: string | null; hasGeometry: boolean }
@@ -19,7 +19,7 @@ export type AnalysisTarget =
 
 /** Значения формы запуска анализа (поля ввода — строками, как их набрал пользователь). */
 export interface AnalysisForm {
-  op: AnalysisKind
+  op: SpatialOp
   /** Поле геометрии — если их в датасете несколько. */
   field: string | null
   distance: string

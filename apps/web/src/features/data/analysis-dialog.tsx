@@ -1,8 +1,8 @@
 import {
-  type AnalysisKind,
   type AnalysisRecord,
   type DatasetRecord,
   SPATIAL_OPS,
+  type SpatialOp,
   TERRITORY_LEVELS,
   type TerritoryLevel,
 } from '@kchs/contracts'
@@ -59,7 +59,7 @@ export function AnalysisDialog({
   const geometries = dataset.fields.filter((field) => field.type === 'geometry')
   const attributes = dataset.fields.filter((field) => field.type !== 'geometry')
 
-  const [op, setOp] = useState<AnalysisKind>('buffer')
+  const [op, setOp] = useState<SpatialOp>('buffer')
   const [field, setField] = useState(geometries[0]?.key ?? '')
   const [distance, setDistance] = useState('500')
   const [size, setSize] = useState('1000')
@@ -184,7 +184,7 @@ export function AnalysisDialog({
             <Select
               value={op}
               onValueChange={(value) => {
-                setOp(value as AnalysisKind)
+                setOp(value as SpatialOp)
                 setFailure(null)
               }}
             >

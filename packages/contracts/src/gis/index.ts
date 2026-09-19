@@ -1,4 +1,5 @@
 export * from './basemap.js'
+export * from './choropleth.js'
 export * from './feature-edit.js'
 export * from './geocode.js'
 
@@ -7,4 +8,5 @@ export * from './layer-stats.js'
 export * from './layer-style.js'
 export * from './layer-style-fields.js'
 export * from './map.js'
+export * from './passport.js'
 export * from './territory.js'

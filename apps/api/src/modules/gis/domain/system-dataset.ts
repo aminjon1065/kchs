@@ -14,7 +14,8 @@ const field = (
  * Поля представления `ds.sys_territories` (миграция gis_analysis, ADR-0069):
  * справочник территорий с границами — источник запросов и цель шага `spatial`
  * (присвоение территории, отбор по территориям). Компилятор опирается на поля
- * `id`, `code`, `level`, `geom`.
+ * `id`, `code`, `level`, `geom`; население — основа нормализации хороплетов
+ * (миграция territories_population, ADR-0077).
  */
 const FIELDS: ResolvedField[] = [
   field('id', 'territory', 'territory', { ru: 'Территория', en: 'Territory' }),
@@ -26,6 +27,7 @@ const FIELDS: ResolvedField[] = [
   field('name_en', 'text', 'text', { ru: 'Название (English)', en: 'Name (English)' }),
   field('geom', 'geometry', 'geometry', { ru: 'Граница', en: 'Boundary' }),
   field('area_km2', 'number', 'measure', { ru: 'Площадь, км²', en: 'Area, km²' }),
+  field('population', 'integer', 'measure', { ru: 'Население', en: 'Population' }),
 ]
 
 /**

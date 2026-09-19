@@ -24,10 +24,12 @@ import type { EventInput } from '~/kernel/events/types.js'
 import { LinkService } from '~/kernel/links/service.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import { SpaceService } from '~/kernel/spaces/service.js'
+import { DatasetQueries, datasetRecord } from '~/modules/data/public.js'
+import { territoryIndex } from '~/modules/gis/public.js'
 import { actorId, type Ctx, type UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
 import { objects, projects, tasks } from '~/shared/db/schema/index.js'
-import { errors } from '~/shared/errors.js'
+import { AppError, errors } from '~/shared/errors.js'
 import {
   approximateLevel,
   participantsOf,
@@ -67,6 +69,7 @@ const COLUMNS = {
   returnComment: tasks.returnComment,
   source: tasks.source,
   labels: tasks.labels,
+  territoryId: tasks.territoryId,
   title: objects.title,
   spaceId: objects.spaceId,
   ownerId: objects.ownerId,
@@ -189,6 +192,7 @@ function listItemOf(
     startedAt: row.startedAt,
     completedAt: row.completedAt,
     labels: row.labels,
+    territoryId: row.territoryId,
     overdue: isOverdue(status, row.dueAt),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -295,6 +299,37 @@ function sourceObjectId(source: TaskSource | undefined): string | null {
   return source.kind === 'dataset_row' ? source.datasetId : source.objectId
 }
 
+/** Территория задачи — единица справочника; неизвестная — ошибка поля. */
+async function assertTerritory(id: string): Promise<string> {
+  const index = await territoryIndex()
+  if (!index.byId.has(id)) {
+    throw errors.validation('Нет такой территории', [
+      { path: 'territoryId', message: 'Нет такой территории' },
+    ])
+  }
+  return id
+}
+
+/**
+ * Территория строки-источника (ADR-0077): значение поля территории датасета,
+ * прочитанное с политиками автора. Нет поля, строка скрыта или значение не из
+ * справочника — задача без территории.
+ */
+async function territoryOfRow(ctx: Ctx, source: TaskSource | undefined): Promise<string | null> {
+  if (source?.kind !== 'dataset_row') return null
+  const dataset = await datasetRecord(source.datasetId)
+  if (!dataset.territoryField) return null
+  try {
+    const row = await DatasetQueries.row(ctx, source.datasetId, source.rowId)
+    const value = row.values[dataset.territoryField]
+    if (typeof value !== 'string') return null
+    return (await territoryIndex()).byId.has(value) ? value : null
+  } catch (error) {
+    if (error instanceof AppError && [403, 404].includes(error.status)) return null
+    throw error
+  }
+}
+
 /**
  * Задачи и поручения (10-tasks-projects.md, ADR-0060): одна сущность, разные
  * правила. Создание — объект реестра, строка задачи, права участников, связь
@@ -329,6 +364,9 @@ export const TaskService = {
     }
     await assertPeople(participantsOf(participants))
 
+    const territoryId = input.territoryId
+      ? await assertTerritory(input.territoryId)
+      : await territoryOfRow(ctx, input.source)
     const spaceId = project?.spaceId ?? (await spaceFor(tx, ctx, input, source, authorId))
     const status = initialStatus(kind, project?.workflow)
     const key = await nextTaskKey(tx, { kind, project })
@@ -363,6 +401,7 @@ export const TaskService = {
       description: input.description?.trim() || null,
       source: storedSource,
       labels: [...new Set(input.labels)],
+      territoryId,
       requiresAcceptance: kind === 'instruction',
       startedAt: kind === 'task' && status === 'in_progress' ? sql`now()` : null,
     })
@@ -442,6 +481,12 @@ export const TaskService = {
 
     const reassigned = assigneeId !== row.assigneeId
     const dueChanged = dueAt !== row.dueAt
+    const territoryId =
+      patch.territoryId === undefined
+        ? row.territoryId
+        : patch.territoryId === null
+          ? null
+          : await assertTerritory(patch.territoryId)
     // Новый исполнитель поручения заново принимает его к исполнению
     const restart = instruction && reassigned
     await tx
@@ -456,6 +501,7 @@ export const TaskService = {
         coAssignees,
         controllerId,
         dueAt,
+        territoryId,
         ...(restart ? { status: 'assigned', startedAt: null } : {}),
       })
       .where(eq(tasks.id, id))
@@ -492,6 +538,13 @@ export const TaskService = {
     }
     if (dueChanged) {
       await emit(tx, ctx, view, 'task.due_changed', { key: row.key, from: row.dueAt, to: dueAt })
+    }
+    if (territoryId !== row.territoryId) {
+      await emit(tx, ctx, view, 'task.territory_changed', {
+        key: row.key,
+        from: row.territoryId,
+        to: territoryId,
+      })
     }
     if (restart) {
       if (row.status !== 'assigned') {
@@ -660,6 +713,11 @@ export const TaskService = {
       conditions.push(eq(tasks.controllerId, me))
     }
     if (query.projectId) conditions.push(eq(tasks.projectId, query.projectId))
+    if (query.territoryId) {
+      // Территория с вложенными: поручения района видны и в паспорте региона
+      const ids = (await territoryIndex()).descendants(query.territoryId)
+      conditions.push(inArray(tasks.territoryId, ids))
+    }
     if (query.kind) conditions.push(eq(tasks.kind, query.kind))
     if (query.state === 'open') conditions.push(notInArray(tasks.status, CLOSED))
     if (query.state === 'closed') conditions.push(inArray(tasks.status, CLOSED))
@@ -722,6 +780,34 @@ export const TaskService = {
       items: rows.map((row) => listItemOf(row, people, null, approximateLevel(ctx, row), actor)),
       total: rows.length,
     }
+  },
+
+  /**
+   * Задачи и поручения территорий (паспорт территории, ADR-0077): открытые,
+   * просроченные и закрытые — среди видимых смотрящему.
+   */
+  async territoryCounts(
+    ctx: Ctx,
+    territoryIds: string[],
+  ): Promise<{ open: number; overdue: number; closed: number }> {
+    if (territoryIds.length === 0) return { open: 0, overdue: 0, closed: 0 }
+    const open = notInArray(tasks.status, CLOSED)
+    const [row] = await db()
+      .select({
+        open: sql<number>`count(*) filter (where ${open})::int`,
+        overdue: sql<number>`count(*) filter (where ${open} and ${tasks.dueAt} < now())::int`,
+        closed: sql<number>`count(*) filter (where ${inArray(tasks.status, CLOSED)})::int`,
+      })
+      .from(tasks)
+      .innerJoin(objects, eq(objects.id, tasks.id))
+      .where(
+        and(
+          sql`${objects.deletedAt} IS NULL`,
+          visibleObjectsSql(ctx, 'task'),
+          inArray(tasks.territoryId, territoryIds),
+        ),
+      )
+    return { open: row?.open ?? 0, overdue: row?.overdue ?? 0, closed: row?.closed ?? 0 }
   },
 
   /** Сводка «Мои задачи»: открытые, просроченные, на сегодня, ждут моей приёмки, в срок. */

@@ -1,11 +1,15 @@
 import {
   ANALYSIS_MAX_ROWS,
+  ANALYSIS_PREVIEW_ROWS,
   type AnalysisCreateInput,
   type AnalysisKind,
+  type AnalysisPreviewInput,
   type AnalysisRecord,
   type AnalysisRunResult,
   type AnalysisStatus,
+  ChoroplethParams,
   DatasetFieldInput,
+  type QueryResult,
   type QueryResultField,
   QuerySpec,
   STORED_FIELD_TYPES,
@@ -25,6 +29,7 @@ import { db, type Executor } from '~/shared/db/client.js'
 import { analyses, objects } from '~/shared/db/schema/index.js'
 import { AppError, errors } from '~/shared/errors.js'
 import { Physical, type PhysicalColumn } from '../infra/physical.js'
+import { type ChoroplethFieldMeta, choroplethQuery } from './choropleth.js'
 import { DatasetService, type DatasetStorage, defaultSemantic } from './dataset-service.js'
 import { QueryService } from './query-service.js'
 
@@ -43,10 +48,26 @@ export interface AnalysisJobData {
   analysisId: string
 }
 
-/** Воспроизводимые параметры анализа (`analyses.params`). */
+/** Подписи и форматы полей результата по ключу (хороплет, ADR-0077). */
+type FieldMeta = Record<string, ChoroplethFieldMeta>
+
+/**
+ * Воспроизводимые параметры анализа (`analyses.params`): запрос, название
+ * результата; у хороплета — ещё его параметры и подписи полей результата.
+ */
 interface AnalysisParams {
   query: QuerySpec
   outputName: string
+  choropleth?: ChoroplethParams
+  fields?: FieldMeta
+}
+
+/** Запрос анализа, его вид и подписи полей — из запроса или параметров хороплета. */
+interface PreparedAnalysis {
+  query: QuerySpec
+  kind: AnalysisKind
+  choropleth: ChoroplethParams | null
+  fields: FieldMeta | null
 }
 
 type AnalysisRow = typeof analyses.$inferSelect
@@ -69,7 +90,22 @@ function jobSpec(query: QuerySpec): QuerySpec {
 
 function paramsOf(row: AnalysisRow): AnalysisParams {
   const params = row.params as Partial<AnalysisParams>
-  return { query: QuerySpec.parse(params.query), outputName: String(params.outputName ?? '') }
+  const choropleth = params.choropleth ? ChoroplethParams.safeParse(params.choropleth) : null
+  return {
+    query: QuerySpec.parse(params.query),
+    outputName: String(params.outputName ?? ''),
+    ...(choropleth?.success ? { choropleth: choropleth.data } : {}),
+    ...(params.fields ? { fields: params.fields } : {}),
+  }
+}
+
+/** Подписи и форматы полей результата запроса — из параметров анализа (хороплет). */
+function withMeta(fields: QueryResultField[], meta: FieldMeta | null | undefined) {
+  if (!meta) return fields
+  return fields.map((field) => {
+    const own = meta[field.name]
+    return own ? { ...field, label: own.label, format: own.format ?? field.format } : field
+  })
 }
 
 /** Ключ поля результата: snake_case латиницей, уникальный в датасете. */
@@ -147,6 +183,7 @@ function toRecord(row: AnalysisRow, object: ObjectRow & { createdAt: string; upd
     parentId: object.parentId,
     kind: row.kind as AnalysisKind,
     query: params.query,
+    choropleth: params.choropleth ?? null,
     outputName: params.outputName,
     inputDatasetIds: row.inputDatasetIds,
     outputDatasetId: row.outputDatasetId,
@@ -243,17 +280,52 @@ async function reusableOutput(
  * `derives_from` и связь «Источник» датасета с анализом.
  */
 export const AnalysisService = {
-  /** Проверка запроса анализа с правами пользователя: вид и источники. */
-  async validate(ctx: Ctx, query: QuerySpec): Promise<{ kind: AnalysisKind; datasets: string[] }> {
-    const kind = kindOf(query)
+  /**
+   * Запрос анализа: заданный или построенный по параметрам хороплета — с правом
+   * видеть датасет-источник и по его схеме (ADR-0077).
+   */
+  async prepare(
+    ctx: Ctx,
+    input: { query?: QuerySpec | undefined; choropleth?: ChoroplethParams | undefined },
+  ): Promise<PreparedAnalysis> {
+    if (input.choropleth) {
+      await authorize(ctx, 'view', input.choropleth.datasetId)
+      const dataset = await DatasetService.get(input.choropleth.datasetId)
+      const built = choroplethQuery(input.choropleth, dataset.fields)
+      return {
+        query: built.query,
+        kind: 'choropleth',
+        choropleth: input.choropleth,
+        fields: built.fields,
+      }
+    }
+    if (!input.query) throw errors.validation('Нужен запрос анализа или параметры хороплета')
+    return { query: input.query, kind: kindOf(input.query), choropleth: null, fields: null }
+  },
+
+  /** Проверка запроса анализа компилятором с правами пользователя; источники. */
+  async validate(ctx: Ctx, query: QuerySpec): Promise<{ datasets: string[] }> {
     await QueryService.compile(ctx, jobSpec(query), { maxRows: 1 })
-    return { kind, datasets: collectSources(query).datasets }
+    return { datasets: collectSources(query).datasets }
+  },
+
+  /**
+   * Предпросмотр результата (07-gis-engine.md §10): запрос анализа интерактивно,
+   * с правами и политиками смотрящего, до `ANALYSIS_PREVIEW_ROWS` строк; поля — с
+   * подписями результата. Ничего не сохраняет.
+   */
+  async preview(ctx: Ctx, input: AnalysisPreviewInput): Promise<QueryResult> {
+    const prepared = await AnalysisService.prepare(ctx, input)
+    const result = await QueryService.run(ctx, prepared.query, { maxRows: ANALYSIS_PREVIEW_ROWS })
+    return { ...result, fields: withMeta(result.fields, prepared.fields) }
   },
 
   async create(ctx: Ctx, input: AnalysisCreateInput): Promise<string> {
     if (ctx.kind !== 'user') throw errors.forbidden('Анализ создаёт пользователь')
-    const { kind, datasets } = await AnalysisService.validate(ctx, input.query)
-    const saved = collectSources(input.query).queries
+    const prepared = await AnalysisService.prepare(ctx, input)
+    const { kind, query } = prepared
+    const { datasets } = await AnalysisService.validate(ctx, query)
+    const saved = collectSources(query).queries
     const outputName = input.outputName ?? input.name
     return db().transaction(async (tx) => {
       const object = await ObjectService.create(tx, ctx, {
@@ -263,7 +335,12 @@ export const AnalysisService = {
         title: input.name,
         meta: { kind },
       })
-      const params: AnalysisParams = { query: input.query, outputName }
+      const params: AnalysisParams = {
+        query,
+        outputName,
+        ...(prepared.choropleth ? { choropleth: prepared.choropleth } : {}),
+        ...(prepared.fields ? { fields: prepared.fields } : {}),
+      }
       await tx.insert(analyses).values({
         id: object.id,
         kind,
@@ -339,7 +416,7 @@ export const AnalysisService = {
     }
     const { row, object } = analysis
     const params = paramsOf(row)
-    const fields = outputFields(compiled.fields)
+    const fields = outputFields(withMeta(compiled.fields, params.fields))
 
     await db().transaction(async (tx) => {
       await tx
