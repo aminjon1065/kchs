@@ -32,6 +32,8 @@ import { registerObjectView, registerScreen } from './workspace/registry.js'
 
 /** Тетрадь — отдельным чанком: Tiptap, Yjs и клиент совместной правки не в оболочке. */
 const NotebookView = lazy(() => import('~/features/notebooks/notebook-view.js'))
+/** Отчёт — тоже отдельным чанком: тот же совместный документ, что у тетради (ADR-0078). */
+const ReportView = lazy(() => import('~/features/reports/report-view.js'))
 
 let registered = false
 
@@ -168,6 +170,21 @@ export function registerModules(): void {
         }
       >
         <NotebookView objectId={tab.objectId!} tabId={tab.id} />
+      </Suspense>
+    ),
+  })
+  registerObjectView({
+    type: 'report',
+    render: (tab) => (
+      <Suspense
+        fallback={
+          <div className="flex flex-col gap-3 p-6">
+            <Skeleton className="h-7 w-72" />
+            <Skeleton className="h-64 w-full" />
+          </div>
+        }
+      >
+        <ReportView objectId={tab.objectId!} tabId={tab.id} />
       </Suspense>
     ),
   })

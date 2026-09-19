@@ -18,3 +18,12 @@ body,
   flex-direction: column;
   overflow: hidden;
 }
+
+/* Страница печати отчёта (/print/*, ADR-0078): документ длиннее окна — страница
+   прокручивается и печатается целиком, без рамок оболочки */
+html[data-print] body,
+html[data-print] #root {
+  height: auto;
+  display: block;
+  overflow: visible;
+}

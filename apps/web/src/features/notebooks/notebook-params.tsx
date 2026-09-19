@@ -22,10 +22,12 @@ function presetOf(period: NotebookParams['period']): PeriodPreset | typeof CUSTO
 
 /**
  * Параметры тетради (03-screens.md §9): период и территория над ячейками —
- * общие для всех соавторов и всех ячеек (ADR-0071).
+ * общие для всех соавторов и всех ячеек (ADR-0071). Та же панель у отчёта —
+ * со своей подписью (ADR-0078).
  */
-export function NotebookParamsBar() {
+export function NotebookParamsBar({ label }: { label?: string } = {}) {
   const t = useT()
+  const title = label ?? t('data.notebook.params.label')
   const { doc, params, readOnly } = useNotebook()
   const preset = presetOf(params.period)
   const set = (key: keyof NotebookParams, value: unknown) =>
@@ -37,9 +39,9 @@ export function NotebookParamsBar() {
       disabled={readOnly}
       className="m-0 flex shrink-0 flex-wrap items-center gap-3 border-0 border-b border-line bg-surface-2 px-4 py-2"
     >
-      <legend className="sr-only">{t('data.notebook.params.label')}</legend>
+      <legend className="sr-only">{title}</legend>
       <span aria-hidden className="text-2xs font-medium tracking-wide text-fg-muted uppercase">
-        {t('data.notebook.params.label')}
+        {title}
       </span>
       <Select
         value={preset}

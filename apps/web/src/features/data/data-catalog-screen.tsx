@@ -13,12 +13,20 @@ import {
   useBreakpoint,
 } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
-import { Gauge, LayoutDashboard, NotebookPen, SquareTerminal, Upload } from 'lucide-react'
+import {
+  FileSpreadsheet,
+  Gauge,
+  LayoutDashboard,
+  NotebookPen,
+  SquareTerminal,
+  Upload,
+} from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
 import { CreateNotebookDialog } from '~/features/notebooks/create-notebook-dialog.js'
+import { CreateReportDialog } from '~/features/reports/create-report-dialog.js'
 import { meQuery, spacesQuery } from '~/shared/api/queries.js'
 import { emptyCollectionState } from '~/shared/collections/collection-state.js'
 import { SavedViewsMenu } from '~/shared/collections/saved-views-menu.js'
@@ -33,8 +41,8 @@ import { CreateDashboardDialog } from './dashboard-dialogs.js'
 import { ImportWizard } from './import-wizard.js'
 import { MetricEditor } from './metric-editor.js'
 
-/** Типы каталога «Данные»; отчёты добавятся со своим модулем. */
-const TYPES = ['dataset', 'metric', 'chart', 'dashboard', 'notebook']
+/** Типы каталога «Данные». */
+const TYPES = ['dataset', 'metric', 'chart', 'dashboard', 'notebook', 'report']
 
 /**
  * Каталог «Данные» (03-screens.md §4): объекты данных пространства в
@@ -67,6 +75,7 @@ export function DataCatalogScreen({
   const [creatingDashboard, setCreatingDashboard] = useState(false)
   const [creatingMetric, setCreatingMetric] = useState(false)
   const [creatingNotebook, setCreatingNotebook] = useState(false)
+  const [creatingReport, setCreatingReport] = useState(false)
 
   useEffect(() => {
     if (breakpoint === 'mobile') setCollection((current) => ({ ...current, mode: 'gallery' }))
@@ -189,6 +198,15 @@ export function DataCatalogScreen({
               {t('data.notebook.create')}
             </Button>
             <Button
+              variant="secondary"
+              size="sm"
+              icon={<FileSpreadsheet className="size-3.5" />}
+              disabled={!effectiveSpaceId}
+              onClick={() => setCreatingReport(true)}
+            >
+              {t('data.report.create')}
+            </Button>
+            <Button
               variant="primary"
               size="sm"
               icon={<Upload className="size-3.5" />}
@@ -305,6 +323,9 @@ export function DataCatalogScreen({
           spaceId={effectiveSpaceId}
           onClose={() => setCreatingNotebook(false)}
         />
+      ) : null}
+      {creatingReport && effectiveSpaceId ? (
+        <CreateReportDialog spaceId={effectiveSpaceId} onClose={() => setCreatingReport(false)} />
       ) : null}
       {wizard && effectiveSpaceId ? (
         <ImportWizard

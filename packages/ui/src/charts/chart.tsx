@@ -305,7 +305,8 @@ export function Chart({
             <Button
               variant="ghost"
               size="sm"
-              className="shrink-0"
+              // Переключатель вида — экранный: на печати и в отчёте его нет
+              className="shrink-0 print:hidden"
               icon={
                 showTable ? <BarChart3 className="size-3.5" /> : <Table2 className="size-3.5" />
               }

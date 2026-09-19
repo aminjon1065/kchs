@@ -1,9 +1,10 @@
 import { Spinner } from '@kchs/ui'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { LoginScreen } from '~/features/auth/login-screen.js'
 import { MfaEnrollmentScreen } from '~/features/auth/mfa-enrollment-screen.js'
 import { PasswordChangeScreen } from '~/features/auth/password-change-screen.js'
+import { printTargetFromPath } from '~/features/reports/print/print-target.js'
 import { GuestShareScreen } from '~/features/share/guest-screen.js'
 import {
   ApiError,
@@ -19,6 +20,9 @@ import { WorkspaceShell } from './workspace/shell.js'
 
 registerModules()
 
+/** Страница печати отчёта — отдельным чанком: оболочке она не нужна (ADR-0078). */
+const PrintScreen = lazy(() => import('~/features/reports/print/print-screen.js'))
+
 /** Гостевая ссылка обслуживается вне рабочего пространства: `/s/<токен>`. */
 function shareTokenFromUrl(): string | null {
   const match = /^\/s\/([A-Za-z0-9_-]{8,128})$/.exec(window.location.pathname)
@@ -30,6 +34,8 @@ export function App() {
   const client = useQueryClient()
   const [signedOut, setSignedOut] = useState(false)
   const [shareToken] = useState(shareTokenFromUrl)
+  // Печать (03-screens.md §21): вне оболочки, без входа — у движка токен печати
+  const [printTarget] = useState(() => printTargetFromPath(window.location.pathname))
 
   useEffect(() => {
     initAppearance()
@@ -50,7 +56,7 @@ export function App() {
     isLoading,
     isError,
     error,
-  } = useQuery({ ...meQuery(), enabled: !signedOut && !shareToken })
+  } = useQuery({ ...meQuery(), enabled: !signedOut && !shareToken && !printTarget })
 
   // Токен CSRF восстанавливается из /me: сессия переживает перезагрузку вкладки
   useEffect(() => {
@@ -58,6 +64,13 @@ export function App() {
   }, [me])
 
   if (shareToken) return <GuestShareScreen token={shareToken} />
+  if (printTarget) {
+    return (
+      <Suspense fallback={null}>
+        <PrintScreen target={printTarget} />
+      </Suspense>
+    )
+  }
 
   if (signedOut || (isError && error instanceof ApiError && error.status === 401)) {
     return (

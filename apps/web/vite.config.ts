@@ -13,6 +13,9 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
+    // Chromium движка печатает отчёты со страницы `/print/*` из своего контейнера:
+    // при разработке веб для него — host.docker.internal (ADR-0078)
+    allowedHosts: ['host.docker.internal'],
     watch: {
       ignored: ['**/node_modules/**', '**/dist/**', '**/.turbo/**', '**/drizzle/**'],
     },

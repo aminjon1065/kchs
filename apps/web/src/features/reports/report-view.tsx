@@ -1,9 +1,11 @@
-import type { NotebookCellKind } from '@kchs/contracts'
+import type { ReportBlockKind, ReportFormat, ReportSettings } from '@kchs/contracts'
+import { REPORT_FORMATS } from '@kchs/contracts'
 import {
   AlertDialog,
   AvatarGroup,
   Badge,
   Button,
+  Checkbox,
   cn,
   DropdownMenu,
   DropdownMenuContent,
@@ -12,11 +14,14 @@ import {
   EmptyState,
   IconButton,
   InlineEdit,
+  Input,
   ObjectIcon,
   PanelToolbar,
   personTone,
   RichTextEditor,
+  SegmentedControl,
   Skeleton,
+  Switch,
   Tooltip,
   useToast,
 } from '@kchs/ui'
@@ -24,36 +29,32 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowDown,
   ArrowUp,
+  CalendarClock,
   Copy,
-  FileSpreadsheet,
+  Eye,
+  FileOutput,
   Lock,
-  Play,
+  PanelRight,
   Plus,
-  RefreshCw,
   Share2,
   Trash2,
 } from 'lucide-react'
-import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
+import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import * as Y from 'yjs'
 import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
 import { ShareDialog } from '~/features/access/share-dialog.js'
-import { ApiError, http } from '~/shared/api/client.js'
-import { keys, meQuery, objectQuery } from '~/shared/api/queries.js'
-import { notebookKeys } from './cell-run.js'
-import { useCollabDocument } from './collab.js'
-import { MapCell } from './map-cell.js'
+import { useCollabDocument } from '~/features/notebooks/collab.js'
 import {
   type NotebookContextValue,
   NotebookProvider,
   useNotebook,
   usePeers,
-} from './notebook-context.js'
+} from '~/features/notebooks/notebook-context.js'
 import {
   type CellMap,
   cellIds,
   cellsOf,
-  createCell,
   duplicateCell,
   insertCell,
   moveCell,
@@ -64,30 +65,49 @@ import {
   useCellValue,
   useYChanges,
   writeCell,
-} from './notebook-doc.js'
-import { iconOf, NotebookOutline } from './notebook-outline.js'
-import { NotebookParamsBar } from './notebook-params.js'
-import { AiCell, QueryCell } from './query-cell.js'
-import { ChartCell, MetricCell } from './source-cells.js'
+} from '~/features/notebooks/notebook-doc.js'
+import { NotebookParamsBar } from '~/features/notebooks/notebook-params.js'
+import { ApiError, http } from '~/shared/api/client.js'
+import { keys, meQuery, objectQuery } from '~/shared/api/queries.js'
+import { reportPreviewPath } from './print/print-target.js'
+import { reportKeys } from './queries.js'
+import { ChartBlock, MapBlock, MetricsBlock, PageBreakBlock, QueryBlock } from './report-blocks.js'
+import { createBlock, readSettings, settingsOf, writeSettings } from './report-doc.js'
+import { ReportRunsPanel } from './report-runs.js'
+import { ReportScheduleDialog } from './schedule-dialog.js'
 
-/** Виды ячеек, которые добавляются из меню; карта — позже (ADR-0071). */
-const ADDABLE: NotebookCellKind[] = ['text', 'query', 'ai', 'chart', 'metric', 'map']
+const ADDABLE: ReportBlockKind[] = ['text', 'query', 'chart', 'metrics', 'map', 'page_break']
+
+const ICONS: Record<ReportBlockKind, string> = {
+  text: 'page',
+  query: 'query',
+  chart: 'chart',
+  metrics: 'metric',
+  map: 'map',
+  page_break: 'template',
+}
+
+interface ReportContextValue {
+  reportId: string
+  settings: ReportSettings
+}
 
 /**
- * Тетрадь (03-screens.md §9, ADR-0071): документ с ячейками — совместный
- * целиком. Слева оглавление, сверху параметры, ячейка при фокусе показывает
- * панель (тип, выполнить, переставить, дублировать, удалить), курсоры и
- * присутствие соавторов — в тексте и на ячейках.
+ * Отчёт (06-analytics-engine.md §12, P2-E05 S03, ADR-0078): шаблон — документ
+ * из блоков, совместный целиком (как тетрадь, ADR-0070/0071); параметры и
+ * настройки печати сверху, история запусков справа, «Сформировать» — PDF/DOCX
+ * движком под правами нажавшего, «Рассылка» — расписание и получатели.
  */
-export default function NotebookView({ objectId, tabId }: { objectId: string; tabId: string }) {
+export default function ReportView({ objectId, tabId }: { objectId: string; tabId: string }) {
   const t = useT()
   const toast = useToast()
   const client = useQueryClient()
   const setTabTitle = useWorkspace((s) => s.setTabTitle)
   const closeTab = useWorkspace((s) => s.closeTab)
-  const openTab = useWorkspace((s) => s.openTab)
   const [shareOpen, setShareOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [scheduleOpen, setScheduleOpen] = useState(false)
+  const [runsOpen, setRunsOpen] = useState(true)
   const { data: object, isLoading } = useQuery(objectQuery(objectId))
   const { data: me } = useQuery(meQuery())
   const collab = useCollabDocument(objectId)
@@ -115,20 +135,12 @@ export default function NotebookView({ objectId, tabId }: { objectId: string; ta
       closeTab(tabId)
     },
   })
-
-  // «Экспорт в отчёт» (P2-E05 S03): ячейки снимка → блоки нового отчёта рядом с тетрадью
-  const toReport = useMutation({
-    mutationFn: () => http.post<{ id: string }>('/reports/from-notebook', { notebookId: objectId }),
-    onSuccess: ({ id }) => {
-      toast.show({ title: t('data.report.exported'), tone: 'success' })
-      void client.invalidateQueries({ queryKey: ['objects'] })
-      openTab({
-        kind: 'object',
-        objectId: id,
-        objectType: 'report',
-        title: object?.title ?? t('objects.types.report'),
-        mode: 'permanent',
-      })
+  const render = useMutation({
+    mutationFn: (formats: ReportFormat[]) => http.post(`/reports/${objectId}/runs`, { formats }),
+    onSuccess: () => {
+      toast.show({ title: t('data.report.run.started'), tone: 'info' })
+      setRunsOpen(true)
+      void client.invalidateQueries({ queryKey: reportKeys.runs(objectId) })
     },
     onError: (error) =>
       toast.error(error instanceof ApiError ? error.message : t('errors.unknown')),
@@ -137,7 +149,6 @@ export default function NotebookView({ objectId, tabId }: { objectId: string; ta
   const name = me?.user.displayName ?? ''
   const user = useMemo(() => ({ name, tone: personTone(name) }), [name])
   const awareness = collab?.awareness
-  // Присутствие на уровне тетради: кто открыл документ и в какой он ячейке
   useEffect(() => {
     if (awareness && name) awareness.setLocalStateField('user', user)
   }, [awareness, name, user])
@@ -146,12 +157,11 @@ export default function NotebookView({ objectId, tabId }: { objectId: string; ta
     return (
       <EmptyState
         icon={<Lock />}
-        title={t('data.notebook.denied.title')}
+        title={t('data.report.denied')}
         description={t(`data.notebook.denied.${reasonKey(collab?.reason ?? null)}`)}
       />
     )
   }
-  // До первой синхронизации документ пуст — показывать его рано
   if (!object || !collab?.synced || !me) {
     return (
       <div
@@ -169,7 +179,7 @@ export default function NotebookView({ objectId, tabId }: { objectId: string; ta
   const canManage = object.level === 'manage' || object.level === 'owner'
 
   return (
-    <NotebookScreen
+    <ReportScreen
       notebookId={objectId}
       spaceId={object.spaceId}
       doc={collab.doc}
@@ -178,11 +188,12 @@ export default function NotebookView({ objectId, tabId }: { objectId: string; ta
       user={user}
       timezone={me.user.timezone}
       canSql={me.capabilities.includes('data.sql')}
-      toolbar={
+      runsOpen={runsOpen}
+      toolbar={(settings) => (
         <PanelToolbar
           left={
             <>
-              <ObjectIcon type="notebook" className="size-4 shrink-0 text-fg-muted" />
+              <ObjectIcon type="report" className="size-4 shrink-0 text-fg-muted" />
               <InlineEdit
                 value={object.title}
                 disabled={collab.readOnly}
@@ -201,25 +212,36 @@ export default function NotebookView({ objectId, tabId }: { objectId: string; ta
             <>
               <Peers />
               <Button
-                variant="secondary"
+                variant="ghost"
                 size="sm"
-                icon={<RefreshCw className="size-3.5" />}
-                onClick={() => {
-                  void client.invalidateQueries({ queryKey: notebookKeys.all(objectId) })
-                  toast.show({ title: t('data.notebook.recalcStarted'), tone: 'info' })
-                }}
+                icon={<Eye className="size-3.5" />}
+                onClick={() => window.open(reportPreviewPath(objectId), '_blank', 'noopener')}
               >
-                {t('data.notebook.recalc')}
+                {t('data.report.preview')}
               </Button>
               <Button
                 variant="secondary"
                 size="sm"
-                icon={<FileSpreadsheet className="size-3.5" />}
-                loading={toReport.isPending}
-                onClick={() => toReport.mutate()}
+                icon={<CalendarClock className="size-3.5" />}
+                onClick={() => setScheduleOpen(true)}
               >
-                {t('data.report.fromNotebook')}
+                {t('data.report.schedule.open')}
               </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                icon={<FileOutput className="size-3.5" />}
+                loading={render.isPending}
+                onClick={() => render.mutate(settings.formats)}
+              >
+                {t('data.report.run.button')}
+              </Button>
+              <IconButton
+                label={t(runsOpen ? 'data.report.runs.hide' : 'data.report.runs.show')}
+                onClick={() => setRunsOpen((open) => !open)}
+              >
+                <PanelRight className="size-4" />
+              </IconButton>
               <IconButton label={t('common.actions.share')} onClick={() => setShareOpen(true)}>
                 <Share2 className="size-4" />
               </IconButton>
@@ -235,13 +257,20 @@ export default function NotebookView({ objectId, tabId }: { objectId: string; ta
             </>
           }
         />
-      }
+      )}
     >
       <ShareDialog
         objectId={objectId}
         title={object.title}
         open={shareOpen}
         onOpenChange={setShareOpen}
+      />
+      <ReportScheduleDialog
+        reportId={objectId}
+        open={scheduleOpen}
+        onOpenChange={setScheduleOpen}
+        canManage={canManage}
+        timezone={me.user.timezone}
       />
       <AlertDialog
         open={deleteOpen}
@@ -254,7 +283,7 @@ export default function NotebookView({ objectId, tabId }: { objectId: string; ta
           setDeleteOpen(false)
         }}
       />
-    </NotebookScreen>
+    </ReportScreen>
   )
 }
 
@@ -262,56 +291,139 @@ function reasonKey(reason: string | null): 'unauthorized' | 'setup_required' | '
   return reason === 'unauthorized' || reason === 'setup_required' ? reason : 'not_found'
 }
 
-/**
- * Тетрадь с открытым документом: параметры и порядок ячеек читаются из него и
- * перерисовываются вместе с правками соавторов.
- */
-function NotebookScreen({
+/** Отчёт с открытым документом: параметры, настройки и порядок блоков — из него. */
+function ReportScreen({
   toolbar,
   children,
+  runsOpen,
   ...props
-}: Omit<NotebookContextValue, 'params'> & { toolbar: ReactNode; children: ReactNode }) {
+}: Omit<NotebookContextValue, 'params'> & {
+  toolbar: (settings: ReportSettings) => ReactNode
+  children: ReactNode
+  runsOpen: boolean
+}) {
+  const t = useT()
   const { notebookId, spaceId, doc, awareness, readOnly, user, timezone, canSql } = props
   const paramsVersion = useYChanges(paramsOf(doc) as unknown as Y.AbstractType<unknown>, true)
+  const settingsVersion = useYChanges(settingsOf(doc) as unknown as Y.AbstractType<unknown>, true)
   const orderVersion = useYChanges(orderOf(doc) as unknown as Y.AbstractType<unknown>)
   const cellsVersion = useYChanges(cellsOf(doc) as unknown as Y.AbstractType<unknown>)
   // biome-ignore lint/correctness/useExhaustiveDependencies: версия документа — сигнал пересчёта
   const params = useMemo(() => readParams(doc), [doc, paramsVersion])
+  // biome-ignore lint/correctness/useExhaustiveDependencies: версия документа — сигнал пересчёта
+  const settings = useMemo(() => readSettings(doc), [doc, settingsVersion])
   // biome-ignore lint/correctness/useExhaustiveDependencies: версии документа — сигнал пересчёта
   const ids = useMemo(() => cellIds(doc), [doc, orderVersion, cellsVersion])
   const context = useMemo<NotebookContextValue>(
     () => ({ notebookId, spaceId, doc, awareness, readOnly, params, user, timezone, canSql }),
     [notebookId, spaceId, doc, awareness, readOnly, params, user, timezone, canSql],
   )
-
-  const jump = useCallback((cellId: string) => {
-    const element = document.getElementById(`notebook-cell-${cellId}`)
-    element?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    element?.focus({ preventScroll: true })
-  }, [])
+  const report = useMemo<ReportContextValue>(
+    () => ({ reportId: notebookId, settings }),
+    [notebookId, settings],
+  )
 
   return (
     <NotebookProvider value={context}>
       <div className="flex h-full min-h-0 flex-col">
-        {toolbar}
-        <NotebookParamsBar />
+        {toolbar(settings)}
+        <NotebookParamsBar label={t('data.report.params')} />
+        <SettingsBar report={report} />
         <div className="flex min-h-0 flex-1">
-          <aside className="hidden w-60 shrink-0 overflow-y-auto border-r border-line bg-surface-2 md:block">
-            <NotebookOutline onJump={jump} />
-          </aside>
           <div className="min-h-0 flex-1 overflow-y-auto bg-canvas">
-            <div className="mx-auto flex max-w-[960px] flex-col gap-5 px-6 py-6">
-              {ids.length === 0 ? <EmptyNotebook /> : null}
+            <div
+              className={cn(
+                'mx-auto flex flex-col gap-5 px-6 py-6',
+                settings.orientation === 'landscape' ? 'max-w-[1120px]' : 'max-w-[820px]',
+              )}
+            >
+              {ids.length === 0 ? <EmptyReport /> : null}
               {ids.map((id, index) => (
-                <CellFrame key={id} id={id} index={index} count={ids.length} />
+                <BlockFrame key={id} id={id} index={index} count={ids.length} />
               ))}
-              {readOnly ? null : <AddCell index={ids.length} />}
+              {readOnly ? null : <AddBlock index={ids.length} />}
             </div>
           </div>
+          {runsOpen ? (
+            <aside className="hidden w-72 shrink-0 border-l border-line bg-surface md:flex md:flex-col">
+              <ReportRunsPanel reportId={notebookId} />
+            </aside>
+          ) : null}
         </div>
       </div>
       {children}
     </NotebookProvider>
+  )
+}
+
+/** Настройки печати: ориентация, колонтитулы, титульный лист, форматы «Сформировать». */
+function SettingsBar({ report }: { report: ReportContextValue }) {
+  const t = useT()
+  const { doc, readOnly } = useNotebook()
+  const { settings } = report
+  const [header, setHeader] = useState(settings.header)
+  const [footer, setFooter] = useState(settings.footer)
+  useEffect(() => setHeader(settings.header), [settings.header])
+  useEffect(() => setFooter(settings.footer), [settings.footer])
+  return (
+    <fieldset
+      disabled={readOnly}
+      className="m-0 flex shrink-0 flex-wrap items-center gap-3 border-0 border-b border-line bg-surface-2 px-4 py-2"
+    >
+      <legend className="sr-only">{t('data.report.settings.label')}</legend>
+      <span aria-hidden className="text-2xs font-medium tracking-wide text-fg-muted uppercase">
+        {t('data.report.settings.label')}
+      </span>
+      <SegmentedControl
+        size="sm"
+        aria-label={t('data.report.settings.orientation')}
+        value={settings.orientation}
+        onValueChange={(next) => !readOnly && writeSettings(doc, { orientation: next })}
+        options={[
+          { value: 'portrait', label: t('data.report.settings.portrait') },
+          { value: 'landscape', label: t('data.report.settings.landscape') },
+        ]}
+      />
+      <Input
+        aria-label={t('data.report.settings.header')}
+        placeholder={t('data.report.settings.headerPlaceholder')}
+        value={header}
+        maxLength={200}
+        className="h-7 w-52 text-xs"
+        onChange={(event) => setHeader(event.target.value)}
+        onBlur={() => header !== settings.header && writeSettings(doc, { header })}
+      />
+      <Input
+        aria-label={t('data.report.settings.footer')}
+        placeholder={t('data.report.settings.footerPlaceholder')}
+        value={footer}
+        maxLength={200}
+        className="h-7 w-52 text-xs"
+        onChange={(event) => setFooter(event.target.value)}
+        onBlur={() => footer !== settings.footer && writeSettings(doc, { footer })}
+      />
+      <Switch
+        checked={settings.titlePage}
+        onCheckedChange={(next) => writeSettings(doc, { titlePage: next })}
+        label={t('data.report.settings.titlePage')}
+      />
+      <fieldset className="m-0 flex items-center gap-3 border-0 p-0">
+        <legend className="sr-only">{t('data.report.settings.formats')}</legend>
+        {REPORT_FORMATS.map((format) => (
+          <Checkbox
+            key={format}
+            checked={settings.formats.includes(format)}
+            onCheckedChange={(next) => {
+              const formats = next
+                ? [...new Set([...settings.formats, format])]
+                : settings.formats.filter((item) => item !== format)
+              if (formats.length > 0) writeSettings(doc, { formats })
+            }}
+            label={format.toUpperCase()}
+          />
+        ))}
+      </fieldset>
+    </fieldset>
   )
 }
 
@@ -343,7 +455,6 @@ function SyncBadge({
   )
 }
 
-/** Соавторы, открывшие тетрадь: аватары тех же цветов, что их курсоры. */
 function Peers() {
   const t = useT()
   const { awareness } = useNotebook()
@@ -361,33 +472,32 @@ function Peers() {
   )
 }
 
-function EmptyNotebook() {
+function EmptyReport() {
   const t = useT()
   const { readOnly } = useNotebook()
   return (
     <EmptyState
       compact
-      icon={<ObjectIcon type="notebook" />}
-      title={t('data.notebook.empty.title')}
-      description={readOnly ? undefined : t('data.notebook.empty.hint')}
+      icon={<ObjectIcon type="report" />}
+      title={t('data.report.empty.title')}
+      description={readOnly ? undefined : t('data.report.empty.hint')}
     />
   )
 }
 
-/** Меню «+ ячейка»: вид ячейки — на позицию `index`. */
-function AddCell({ index, compact = false }: { index: number; compact?: boolean }) {
+/** Меню «+ блок»: вид блока — на позицию `index`. */
+function AddBlock({ index, compact = false }: { index: number; compact?: boolean }) {
   const t = useT()
   const toast = useToast()
   const { doc } = useNotebook()
-  const add = (kind: NotebookCellKind) => {
-    const cell = createCell(kind)
-    if (!insertCell(doc, cell, index)) {
-      toast.show({ title: t('data.notebook.tooManyCells'), tone: 'warning' })
+  const add = (kind: ReportBlockKind) => {
+    const block = createBlock(kind)
+    if (!insertCell(doc, block, index)) {
+      toast.show({ title: t('data.report.tooManyBlocks'), tone: 'warning' })
       return
     }
-    // Новая ячейка — в фокус, когда появится в разметке
     window.setTimeout(() => {
-      const element = document.getElementById(`notebook-cell-${cell.id}`)
+      const element = document.getElementById(`report-block-${block.id}`)
       element?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
       const target =
         element?.querySelector<HTMLElement>('[contenteditable="true"], input, button') ?? element
@@ -398,7 +508,7 @@ function AddCell({ index, compact = false }: { index: number; compact?: boolean 
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         {compact ? (
-          <IconButton label={t('data.notebook.insertHere')} size="sm" variant="secondary">
+          <IconButton label={t('data.report.insertHere')} size="sm" variant="secondary">
             <Plus className="size-3.5" />
           </IconButton>
         ) : (
@@ -408,15 +518,15 @@ function AddCell({ index, compact = false }: { index: number; compact?: boolean 
             icon={<Plus className="size-3.5" />}
             className="self-start"
           >
-            {t('data.notebook.addCell')}
+            {t('data.report.addBlock')}
           </Button>
         )}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
         {ADDABLE.map((kind) => (
           <DropdownMenuItem key={kind} onSelect={() => add(kind)}>
-            <ObjectIcon type={iconOf(kind)} className="size-4 text-fg-muted" />
-            {t(`data.notebook.kinds.${kind}`)}
+            <ObjectIcon type={ICONS[kind]} className="size-4 text-fg-muted" />
+            {t(`data.report.kinds.${kind}`)}
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>
@@ -424,26 +534,20 @@ function AddCell({ index, compact = false }: { index: number; compact?: boolean 
   )
 }
 
-/**
- * Рамка ячейки: панель ячейки при фокусе или наведении, соавторы в ячейке,
- * подпись (кроме текста), содержимое по виду. Фокус в ячейке — в присутствии:
- * соавторы видят, кто где работает.
- */
-function CellFrame({ id, index, count }: { id: string; index: number; count: number }) {
+/** Рамка блока: панель при фокусе, соавторы в блоке, подпись и содержимое по виду. */
+function BlockFrame({ id, index, count }: { id: string; index: number; count: number }) {
   const t = useT()
-  const client = useQueryClient()
-  const { doc, awareness, readOnly, notebookId } = useNotebook()
+  const { doc, awareness, readOnly } = useNotebook()
   const cell = cellsOf(doc).get(id) as CellMap
-  const kind = (useCellValue<NotebookCellKind>(cell, 'kind') ?? 'text') as NotebookCellKind
+  const kind = (useCellValue<ReportBlockKind>(cell, 'kind') ?? 'text') as ReportBlockKind
   const title = useCellValue<string | null>(cell, 'title') ?? null
   const peers = usePeers(awareness).filter((peer) => peer.cell === id)
-  const kindLabel = t(`data.notebook.kinds.${kind}`)
-  const label = t('data.notebook.cell.label', { kind: kindLabel, n: index + 1 })
+  const kindLabel = t(`data.report.kinds.${kind}`)
 
   return (
     <section
-      id={`notebook-cell-${id}`}
-      aria-label={label}
+      id={`report-block-${id}`}
+      aria-label={t('data.report.blockLabel', { kind: kindLabel, n: index + 1 })}
       tabIndex={-1}
       className={cn(
         'group relative rounded-md border border-line bg-surface px-4 pt-5 pb-4',
@@ -466,7 +570,6 @@ function CellFrame({ id, index, count }: { id: string; index: number; count: num
           </span>
         </div>
       ) : null}
-
       <div
         className={cn(
           'absolute -top-3.5 right-3 flex items-center gap-0.5 rounded-sm border border-line bg-surface p-0.5 shadow-sm',
@@ -474,22 +577,9 @@ function CellFrame({ id, index, count }: { id: string; index: number; count: num
         )}
       >
         <span className="flex items-center gap-1 px-1.5 text-2xs font-medium text-fg-secondary">
-          <ObjectIcon type={iconOf(kind)} className="size-3.5 text-fg-muted" />
+          <ObjectIcon type={ICONS[kind]} className="size-3.5 text-fg-muted" />
           {kindLabel}
         </span>
-        {kind !== 'text' && kind !== 'map' ? (
-          <IconButton
-            label={t('data.notebook.cell.run')}
-            size="sm"
-            onClick={() =>
-              void client.invalidateQueries({
-                queryKey: [...notebookKeys.all(notebookId), 'cell', id],
-              })
-            }
-          >
-            <Play className="size-3.5" />
-          </IconButton>
-        ) : null}
         {readOnly ? null : (
           <>
             <IconButton
@@ -516,19 +606,18 @@ function CellFrame({ id, index, count }: { id: string; index: number; count: num
               <Copy className="size-3.5" />
             </IconButton>
             <IconButton
-              label={t('data.notebook.cell.remove')}
+              label={t('data.report.removeBlock')}
               size="sm"
               variant="danger"
               onClick={() => removeCell(doc, id)}
             >
               <Trash2 className="size-3.5" />
             </IconButton>
-            <AddCell index={index + 1} compact />
+            <AddBlock index={index + 1} compact />
           </>
         )}
       </div>
-
-      {kind === 'text' ? null : (
+      {kind === 'text' || kind === 'page_break' ? null : (
         <div className="mb-3 flex items-center gap-2">
           <InlineEdit
             value={title ?? ''}
@@ -536,42 +625,42 @@ function CellFrame({ id, index, count }: { id: string; index: number; count: num
             disabled={readOnly}
             onSave={(next) => writeCell(cell, { title: next.slice(0, 200) })}
             className="text-sm font-semibold text-fg"
-            aria-label={t('data.notebook.cell.title')}
+            aria-label={t('data.report.blockTitle')}
           />
         </div>
       )}
-      <CellBody cell={cell} id={id} kind={kind} />
+      <BlockBody cell={cell} id={id} kind={kind} />
     </section>
   )
 }
 
-function CellBody({ cell, id, kind }: { cell: CellMap; id: string; kind: NotebookCellKind }) {
+function BlockBody({ cell, id, kind }: { cell: CellMap; id: string; kind: ReportBlockKind }) {
   switch (kind) {
     case 'text':
-      return <TextCell cell={cell} />
+      return <TextBlock cell={cell} />
     case 'query':
-      return <QueryCell cell={cell} cellId={id} />
-    case 'ai':
-      return <AiCell cell={cell} cellId={id} />
+      return <QueryBlock cell={cell} id={id} />
     case 'chart':
-      return <ChartCell cell={cell} cellId={id} />
-    case 'metric':
-      return <MetricCell cell={cell} cellId={id} />
+      return <ChartBlock cell={cell} id={id} />
+    case 'metrics':
+      return <MetricsBlock cell={cell} />
     case 'map':
-      return <MapCell cell={cell} />
+      return <MapBlock cell={cell} />
+    case 'page_break':
+      return <PageBreakBlock />
   }
 }
 
-/** Текстовая ячейка: RichTextEditor над фрагментом ячейки — курсоры соавторов в тексте. */
-function TextCell({ cell }: { cell: CellMap }) {
+/** Текст: RichTextEditor над фрагментом блока — курсоры соавторов в тексте. */
+function TextBlock({ cell }: { cell: CellMap }) {
   const t = useT()
   const { awareness, readOnly, user } = useNotebook()
   const body = cell.get('body')
   if (!(body instanceof Y.XmlFragment)) return null
   return (
     <RichTextEditor
-      aria-label={t('data.notebook.kinds.text')}
-      placeholder={t('data.notebook.text.placeholder')}
+      aria-label={t('data.report.kinds.text')}
+      placeholder={t('data.report.textPlaceholder')}
       toolbar="focus"
       editable={!readOnly}
       collaboration={{ fragment: body, awareness, user }}
