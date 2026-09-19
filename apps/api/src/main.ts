@@ -12,6 +12,7 @@ import {
 import { registerMaintenanceJobs, scheduleMaintenance } from './kernel/jobs/maintenance.js'
 import { startWorkers, stopWorkers } from './kernel/jobs/runner.js'
 import { registerKernelMetrics } from './kernel/metrics.js'
+import { registerProcessJobs, scheduleProcessTimers } from './kernel/process/timers.js'
 import { startRealtime, stopRealtime } from './kernel/realtime/gateway.js'
 import { registerKernelSubscribers } from './kernel/subscribers.js'
 import { AuthService } from './modules/identity/public.js'
@@ -54,6 +55,7 @@ async function main(): Promise<void> {
 
   registerKernelSubscribers()
   registerMaintenanceJobs()
+  registerProcessJobs()
   registerModulesBackground()
 
   const runsApi = env.ROLE === 'api' || env.ROLE === 'all'
@@ -81,6 +83,7 @@ async function main(): Promise<void> {
     startConsumers()
     startWorkers()
     await scheduleMaintenance()
+    await scheduleProcessTimers()
     await scheduleModuleJobs()
     startModuleServices()
     // Признак жизни для healthcheck контейнера worker (HTTP-сервера у него нет):

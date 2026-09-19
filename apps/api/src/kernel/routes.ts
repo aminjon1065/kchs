@@ -8,6 +8,7 @@ import { registerJobRoutes } from './jobs/http.js'
 import { registerInternalJobRoutes } from './jobs/internal-http.js'
 import { registerNotificationRoutes } from './notifications/http.js'
 import { registerObjectRoutes } from './objects/http.js'
+import { registerProcessRoutes } from './process/http.js'
 import { registerSearchRoutes } from './search/http.js'
 import { registerSpaceRoutes } from './spaces/http.js'
 import { registerTagRoutes } from './tags/http.js'
@@ -27,4 +28,5 @@ export function registerKernelRoutes(route: RouteRegistrar): void {
   registerTagRoutes(route)
   registerAnnouncementRoutes(route)
   registerBusinessCalendarRoutes(route)
+  registerProcessRoutes(route)
 }

@@ -174,4 +174,9 @@ export const AUDIT_ACTIONS = {
   announcementWithdrawn: 'announcement.withdrawn',
   businessCalendarChanged: 'business_calendar.changed',
   spaceAdminAssigned: 'space.admin_assigned',
+  /** Решение шага маршрута: кто, от чьего имени, подтверждение вторым фактором (ADR-0079). */
+  processDecision: 'process.decision',
+  processReassigned: 'process.reassigned',
+  processCancelled: 'process.cancelled',
+  processDefinitionPublished: 'process.definition_published',
 } as const

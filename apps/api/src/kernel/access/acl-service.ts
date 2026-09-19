@@ -16,6 +16,7 @@ import { aclEntries, links, objects, spaceMembers, users } from '~/shared/db/sch
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { publishEvent } from '../events/publisher.js'
+import { objectType } from '../objects/registry.js'
 import { aclScope, inheritanceBoundary, loadObject } from './authorize.js'
 import { describePrincipals } from './principal-refs.js'
 
@@ -371,6 +372,11 @@ export async function readPrincipalsFor(
   if (object.ownerId) principals.add(`user:${object.ownerId}`)
   if (object.spaceId && boundary === null) {
     principals.add(`space_role:${object.spaceId}:viewer`)
+  }
+  // Производные права политики типа (участники шагов маршрута)
+  const policy = objectType(object.type)?.policy
+  if (policy?.principals) {
+    for (const key of await policy.principals(object, database)) principals.add(key)
   }
 
   // Вложение читают все, кто читает объект, к которому оно прикреплено (как в authorize)

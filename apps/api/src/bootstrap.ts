@@ -26,6 +26,7 @@ const SYSTEM_ROLES: Array<{
       'roles.manage',
       'documents.register',
       'documents.journals.manage',
+      'processes.manage',
       'data.sources.manage',
       'data.export',
       'data.sql',

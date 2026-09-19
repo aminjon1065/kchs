@@ -11,6 +11,7 @@ import { registerSubscriber } from './events/bus.js'
 import { JobService } from './jobs/service.js'
 import { NotificationService } from './notifications/service.js'
 import { objectType } from './objects/registry.js'
+import { processSubscribers } from './process/subscribers.js'
 import { emitToRoom, revokeRoomAccess } from './realtime/gateway.js'
 import { hasAccessDependents, indexObject, removeFromIndex } from './search/index-service.js'
 
@@ -195,6 +196,9 @@ export function registerKernelSubscribers(): void {
       if (fromUserId) await invalidatePrincipalSet(fromUserId)
     },
   })
+
+  // Движок процессов: уведомления, лента, ожидание событий, корзина объекта (ADR-0079)
+  for (const subscriber of processSubscribers()) registerSubscriber(subscriber)
 
   logger().info('подписчики ядра зарегистрированы')
 }

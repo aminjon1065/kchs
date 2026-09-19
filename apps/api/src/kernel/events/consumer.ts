@@ -270,6 +270,7 @@ export const KNOWN_DOMAINS = [
   'territory',
   'analysis',
   'basemap',
+  'process',
 ] as const
 
 function resolveDomains(): string[] {

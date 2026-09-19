@@ -2,7 +2,9 @@ import type { FastifyInstance } from 'fastify'
 import { setDirectoryProvider } from '~/kernel/directory/port.js'
 import { registerKernelObjectTypes } from '~/kernel/object-types.js'
 import { listObjectTypes } from '~/kernel/objects/registry.js'
+import { registerProcessEngine } from '~/kernel/process/index.js'
 import { registerKernelRoutes } from '~/kernel/routes.js'
+import { setSecondFactorProvider } from '~/kernel/second-factor/port.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { registerAdminRoutes } from './admin/module.js'
 import { registerAiRoutes } from './ai/module.js'
@@ -20,7 +22,7 @@ import {
 } from './files/module.js'
 import { registerGisBackground, registerGisObjectTypes, registerGisRoutes } from './gis/module.js'
 import { registerIdentityBackground, registerIdentityRoutes } from './identity/module.js'
-import { OrgService, UserService } from './identity/public.js'
+import { AuthService, DirectoryQueries, OrgService, UserService } from './identity/public.js'
 import {
   registerReportsBackground,
   registerReportsObjectTypes,
@@ -51,6 +53,8 @@ export async function upgradeModuleStorage(): Promise<void> {
 export function registerAllObjectTypes(): void {
   if (listObjectTypes().length > 0) return
   registerKernelObjectTypes()
+  // Движок процессов: действия шагов во Входящих — в любой роли процесса
+  registerProcessEngine()
   registerFilesObjectTypes()
   registerDataObjectTypes()
   registerGisObjectTypes()
@@ -61,7 +65,7 @@ export function registerAllObjectTypes(): void {
   registerTelegramChannel()
 }
 
-/** Модуль identity предоставляет ядру справочник людей и оргструктуры. */
+/** Модуль identity предоставляет ядру справочник людей и оргструктуры и проверку второго фактора. */
 function registerDirectory(): void {
   setDirectoryProvider({
     refs: (userIds, database) => UserService.refs(userIds, database),
@@ -72,6 +76,17 @@ function registerDirectory(): void {
     manager: (userId) => OrgService.manager(userId),
     subordinates: (userId) => OrgService.subordinates(userId),
     unitHead: (unitId) => OrgService.unitHead(unitId),
+    primaryUnit: (userId) => DirectoryQueries.primaryUnit(userId),
+    unitMembers: (unitId) => DirectoryQueries.unitMembers(unitId),
+    unitByCode: (code) => DirectoryQueries.unitByCode(code),
+    groupMembers: (groupId) => DirectoryQueries.groupMembers(groupId),
+    usersWithRole: (roleKey, options) => DirectoryQueries.usersWithRole(roleKey, options),
+    activeUsers: (userIds) => DirectoryQueries.activeUsers(userIds),
+  })
+  // Подтверждение подписи вторым фактором (ADR-0079): только TOTP, без резервных кодов
+  setSecondFactorProvider({
+    enrolled: (userId) => AuthService.mfaEnabled(userId),
+    verify: (userId, code) => AuthService.verifyTotp(userId, code),
   })
 }
 

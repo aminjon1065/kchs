@@ -1,6 +1,7 @@
 import type { AccessReason, Capability, Decision, Level } from '@kchs/contracts'
 import type { SQL } from 'drizzle-orm'
 import type { UserCtx } from '~/shared/context.js'
+import type { Executor } from '~/shared/db/client.js'
 
 export type { AccessReason, Decision, Level }
 
@@ -38,6 +39,12 @@ export interface TypePolicy {
    * (гриф конфиденциальности, территории пользователя).
    */
   cap?: (ctx: UserCtx, object: ObjectLike) => Promise<{ level: Level; reason: AccessReason } | null>
+  /**
+   * Принципалы, которым политика даёт просмотр (`user:<id>`), — для фильтра
+   * поискового индекса и системных датасетов: так производное право видно не
+   * только `authorize`, но и поиску (ADR-0079, участники шагов маршрута).
+   */
+  principals?: (object: ObjectLike, executor: Executor) => Promise<string[]>
 }
 
 export interface ActionDefinition {

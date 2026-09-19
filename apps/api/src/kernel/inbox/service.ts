@@ -197,6 +197,7 @@ export const InboxService = {
         id: row.id,
         kind,
         objectId: row.objectId,
+        processStepId: row.processStepId,
         userId: row.userId,
         onBehalfOf: row.onBehalfOf,
         payload: row.payload,
@@ -415,11 +416,18 @@ const SCOPE_BY_KIND: Record<string, string[]> = {
   sign: ['all', 'approvals', 'documents'],
   resolve: ['all', 'documents'],
   acknowledge: ['all', 'documents'],
+  register: ['all', 'documents'],
+  revise: ['all', 'documents'],
   accept_instruction: ['all', 'instructions'],
   report_instruction: ['all', 'instructions'],
   accept_result: ['all', 'instructions'],
   respond_invite: ['all', 'meetings'],
   review_protocol: ['all', 'meetings'],
+}
+
+/** Замещение с областью `scope` распространяется на дела вида `kind`. */
+export function delegationCovers(kind: InboxKind, scope: string): boolean {
+  return (SCOPE_BY_KIND[kind] ?? ['all']).includes(scope)
 }
 
 async function activeDeputies(tx: Executor, userId: string, kind: InboxKind): Promise<string[]> {

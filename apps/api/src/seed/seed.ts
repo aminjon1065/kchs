@@ -389,6 +389,8 @@ export async function resetData(): Promise<void> {
     sql`DELETE FROM inbox_items`,
     sql`DELETE FROM jobs`,
     sql`DELETE FROM objects`,
+    // Экземпляры маршрутов удалены вместе с объектами — определения свободны
+    sql`DELETE FROM process_definitions`,
     sql`DELETE FROM employments`,
     sql`DELETE FROM user_roles`,
     sql`DELETE FROM group_members`,

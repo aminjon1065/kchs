@@ -6,6 +6,8 @@ export interface InboxActionItem {
   id: string
   kind: InboxKind
   objectId: string | null
+  /** Шаг маршрута, который открыл элемент (ADR-0079). */
+  processStepId: string | null
   userId: string
   /** Копия заместителю: действие выполняется от имени этого пользователя. */
   onBehalfOf: string | null
