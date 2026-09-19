@@ -18,6 +18,11 @@ export interface ScreenDefinition {
 export interface ObjectViewDefinition {
   type: string
   render: (tab: TabState) => ReactNode
+  /**
+   * Секция вкладки «Сведения» контекст-панели для объекта этого типа — например,
+   * действия шага документа (03-screens.md §12). Рисуется над общими сведениями.
+   */
+  contextSection?: (objectId: string) => ReactNode
 }
 
 const screens = new Map<ScreenKey, ScreenDefinition>()

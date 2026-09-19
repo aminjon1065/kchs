@@ -7,6 +7,7 @@ import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { keys, rolesQuery, securityPolicyQuery } from '~/shared/api/queries.js'
+import { AdminModeCard } from './admin-mode.js'
 
 /**
  * Политика безопасности (17-security.md §2): обязательный второй фактор по
@@ -54,6 +55,7 @@ export function SecuritySection() {
 
   return (
     <div className="mx-auto flex max-w-[760px] flex-col gap-4 p-5">
+      <AdminModeCard />
       <Card title={t('admin.security.mfaTitle')}>
         <p className="text-xs text-fg-secondary">{t('admin.security.mfaHint')}</p>
         <div className="mt-3 grid gap-2 sm:grid-cols-2">

@@ -1,4 +1,10 @@
-import type { AdminUser, OrgUnit } from '@kchs/contracts'
+import {
+  type AdminUser,
+  CONFIDENTIALITY_LEVELS,
+  type Confidentiality,
+  DEFAULT_CLEARANCE,
+  type OrgUnit,
+} from '@kchs/contracts'
 import { localizedText } from '@kchs/i18n'
 import {
   AlertDialog,
@@ -20,15 +26,25 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Textarea,
   useToast,
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Ban, Copy, KeyRound, MoreHorizontal, ShieldCheck, ShieldOff, UserCog } from 'lucide-react'
+import {
+  Ban,
+  Copy,
+  KeyRound,
+  LockKeyhole,
+  MoreHorizontal,
+  ShieldCheck,
+  ShieldOff,
+  UserCog,
+} from 'lucide-react'
 import { useId, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
-import { orgUnitsQuery, rolesQuery } from '~/shared/api/queries.js'
+import { meQuery, orgUnitsQuery, rolesQuery } from '~/shared/api/queries.js'
 
 const NO_UNIT = '__none__'
 
@@ -304,6 +320,9 @@ export function UserActions({ user, onChanged }: { user: AdminUser; onChanged: (
   const [confirm, setConfirm] = useState<'password' | 'mfa' | null>(null)
   const [password, setPassword] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [clearanceOpen, setClearanceOpen] = useState(false)
+  const { data: me } = useQuery(meQuery())
+  const canSetClearance = me?.capabilities.includes('admin.system') ?? false
 
   const failed = (err: unknown) => toast.error(problemMessage(err, t('errors.unknown')))
 
@@ -397,6 +416,14 @@ export function UserActions({ user, onChanged }: { user: AdminUser; onChanged: (
               {t('admin.users.resetMfa')}
             </DropdownMenuItem>
           ) : null}
+          {canSetClearance ? (
+            <DropdownMenuItem
+              icon={<LockKeyhole className="size-4" />}
+              onSelect={() => setClearanceOpen(true)}
+            >
+              {t('access.clearance.action')}
+            </DropdownMenuItem>
+          ) : null}
           <DropdownMenuSeparator />
           {user.status === 'blocked' ? (
             <DropdownMenuItem
@@ -461,6 +488,16 @@ export function UserActions({ user, onChanged }: { user: AdminUser; onChanged: (
         loading={resetMfa.isPending}
         onConfirm={() => resetMfa.mutate()}
       />
+      {clearanceOpen ? (
+        <ClearanceDialog
+          user={user}
+          onClose={() => setClearanceOpen(false)}
+          onSaved={() => {
+            setClearanceOpen(false)
+            onChanged()
+          }}
+        />
+      ) : null}
       <Dialog open={password !== null} onOpenChange={(next) => !next && setPassword(null)}>
         <DialogContent
           title={t('admin.users.newPasswordTitle', { name: user.displayName })}
@@ -475,5 +512,95 @@ export function UserActions({ user, onChanged }: { user: AdminUser; onChanged: (
         </DialogContent>
       </Dialog>
     </>
+  )
+}
+
+/**
+ * Допуск сотрудника к грифам (ADR-0080): документы строже допуска ему не видны
+ * нигде, какие бы права ни были выданы. Смена — с основанием, в аудит.
+ */
+function ClearanceDialog({
+  user,
+  onClose,
+  onSaved,
+}: {
+  user: AdminUser
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const t = useT()
+  const toast = useToast()
+  const reasonId = useId()
+  const [clearance, setClearance] = useState<Confidentiality>(user.clearance ?? DEFAULT_CLEARANCE)
+  const [reason, setReason] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const save = useMutation({
+    mutationFn: () => http.put(`/users/${user.id}/clearance`, { clearance, reason: reason.trim() }),
+    onSuccess: () => {
+      toast.show({ title: t('access.clearance.saved'), tone: 'success' })
+      onSaved()
+    },
+    onError: (err) => setError(problemMessage(err, t('errors.unknown'))),
+  })
+  return (
+    <Dialog open onOpenChange={(next) => !next && onClose()}>
+      <DialogContent
+        title={t('access.clearance.title', { name: user.displayName })}
+        description={t('access.clearance.hint')}
+        size="sm"
+        footer={
+          <>
+            <Button variant="ghost" onClick={onClose}>
+              {t('common.actions.cancel')}
+            </Button>
+            <Button
+              variant="primary"
+              disabled={
+                reason.trim().length < 3 || clearance === (user.clearance ?? DEFAULT_CLEARANCE)
+              }
+              loading={save.isPending}
+              onClick={() => save.mutate()}
+            >
+              {t('common.actions.save')}
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-3">
+          {error ? <Callout tone="danger">{error}</Callout> : null}
+          <Field label={t('access.clearance.label')}>
+            <Select
+              value={clearance}
+              onValueChange={(next) => setClearance(next as Confidentiality)}
+            >
+              <SelectTrigger aria-label={t('access.clearance.label')}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CONFIDENTIALITY_LEVELS.map((level) => (
+                  <SelectItem key={level} value={level}>
+                    {t(`access.confidentiality.${level}`)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field
+            label={t('access.clearance.reason')}
+            htmlFor={reasonId}
+            hint={t('access.clearance.reasonHint')}
+            required
+          >
+            <Textarea
+              id={reasonId}
+              rows={2}
+              maxLength={500}
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+            />
+          </Field>
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }

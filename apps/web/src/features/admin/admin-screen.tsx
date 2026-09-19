@@ -1,3 +1,4 @@
+import { DEFAULT_CLEARANCE } from '@kchs/contracts'
 import { formatDateTime, formatRelativeTime } from '@kchs/fields'
 import { type Locale, type LocalizedText, localizedText } from '@kchs/i18n'
 import {
@@ -322,6 +323,7 @@ function UsersSection({
   )
   const { data: me } = useQuery(meQuery())
   const canManage = me?.capabilities.includes('users.manage') ?? false
+  const isSystemAdmin = me?.capabilities.includes('admin.system') ?? false
   const refresh = () => void client.invalidateQueries({ queryKey: ['users'] })
 
   return (
@@ -392,6 +394,9 @@ function UsersSection({
                 <th className="h-8 px-3 font-medium">{t('common.labels.login')}</th>
                 <th className="h-8 px-3 font-medium">{t('common.labels.unit')}</th>
                 <th className="h-8 px-3 font-medium">{t('admin.users.columns.mfa')}</th>
+                {isSystemAdmin ? (
+                  <th className="h-8 px-3 font-medium">{t('access.clearance.label')}</th>
+                ) : null}
                 <th className="h-8 px-3 font-medium">{t('common.labels.status')}</th>
                 <th className="h-8 px-3 font-medium">{t('admin.users.columns.lastSeen')}</th>
                 {canManage ? (
@@ -418,6 +423,16 @@ function UsersSection({
                       <span className="text-xs text-fg-muted">—</span>
                     )}
                   </td>
+                  {isSystemAdmin ? (
+                    <td className="px-3">
+                      <Badge
+                        size="sm"
+                        title={t(`access.confidentiality.${user.clearance ?? DEFAULT_CLEARANCE}`)}
+                      >
+                        {t(`access.confidentialityShort.${user.clearance ?? DEFAULT_CLEARANCE}`)}
+                      </Badge>
+                    </td>
+                  ) : null}
                   <td className="px-3">
                     <Badge tone={user.status === 'active' ? 'success' : 'neutral'} size="sm" dot>
                       {t(`admin.users.status.${user.status}`)}

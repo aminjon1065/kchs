@@ -9,6 +9,11 @@ import { DatasetView } from '~/features/data/dataset-view.js'
 import { ExploreScreen } from '~/features/data/explore-screen.js'
 import { MetricView } from '~/features/data/metric-view.js'
 import { type SavedSqlLab, SqlLabScreen } from '~/features/data/sql-lab-screen.js'
+import { DocumentContextSection, DocumentView } from '~/features/documents/card/document-view.js'
+import { CorrespondentsDirectory } from '~/features/documents/directories/correspondents-directory.js'
+import { JournalsDirectory } from '~/features/documents/directories/journals-directory.js'
+import { TypesDirectory } from '~/features/documents/directories/types-directory.js'
+import { DocumentsScreen } from '~/features/documents/documents-screen.js'
 import { FilesScreen } from '~/features/files/files-screen.js'
 import { LayerView } from '~/features/gis/layer-view.js'
 import { MapStudio, type MapTabState } from '~/features/gis/map-studio.js'
@@ -241,6 +246,35 @@ export function registerModules(): void {
     render: (tab) => (
       <MapStudio objectId={tab.objectId!} tabId={tab.id} savedState={tab.state as MapTabState} />
     ),
+  })
+  registerScreen({
+    key: 'documents',
+    titleKey: 'shell.rail.documents',
+    icon: 'document',
+    render: (tab) => <DocumentsScreen tab={tab} />,
+  })
+  registerObjectView({
+    type: 'document',
+    render: (tab) => (
+      <DocumentView
+        objectId={tab.objectId!}
+        tabId={tab.id}
+        savedState={tab.state as Parameters<typeof DocumentView>[0]['savedState']}
+      />
+    ),
+    contextSection: (objectId) => <DocumentContextSection objectId={objectId} />,
+  })
+  registerObjectView({
+    type: 'journal',
+    render: (tab) => <JournalsDirectory selectedId={tab.objectId!} />,
+  })
+  registerObjectView({
+    type: 'correspondent',
+    render: (tab) => <CorrespondentsDirectory selectedId={tab.objectId!} />,
+  })
+  registerObjectView({
+    type: 'document_type',
+    render: (tab) => <TypesDirectory selectedId={tab.objectId!} />,
   })
   registerObjectView({
     type: 'layer',

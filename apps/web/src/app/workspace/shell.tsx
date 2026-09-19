@@ -2,6 +2,7 @@ import { cn, IconButton, Tooltip, useBreakpoint, useHotkeys, useToast } from '@k
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { PanelLeftOpen, PanelRightOpen } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { AdminModeBanner } from '~/features/admin/admin-mode.js'
 import { ActingBanner } from '~/features/delegation/acting-banner.js'
 import { CreateSpaceDialog } from '~/features/spaces/create-space-dialog.js'
 import { http } from '~/shared/api/client.js'
@@ -179,6 +180,7 @@ export function WorkspaceShell() {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <ActingBanner />
+      <AdminModeBanner />
       <div className="flex min-h-0 flex-1">
         {isMobile ? null : <Rail onOpenPalette={() => setPaletteOpen(true)} />}
 

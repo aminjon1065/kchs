@@ -46,6 +46,7 @@ import {
 } from '~/shared/api/queries.js'
 import { useAppearance } from '../appearance.js'
 import { useT } from '../i18n.js'
+import { getObjectView } from './registry.js'
 import { useWorkspace } from './store.js'
 import type { ContextTabKey } from './types.js'
 
@@ -156,6 +157,7 @@ function InfoTab({ objectId }: { objectId: string }) {
 
   return (
     <div className="flex flex-col gap-4 p-3">
+      {getObjectView(object.type)?.contextSection?.(objectId)}
       <div className="flex items-start gap-2.5">
         <ObjectIcon type={object.type} className="mt-0.5 size-5 shrink-0 text-fg-muted" />
         <div className="min-w-0 flex-1">
