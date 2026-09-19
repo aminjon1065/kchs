@@ -116,7 +116,13 @@ test.describe('Приёмка фазы 3 — календарь (сценари�
     await expect(popover.getByText('По рабочим дням (пн–пт)')).toBeVisible()
     await expect(popover.getByText(colleague.displayName)).toBeVisible()
     await expect(popover.getByText('Ждёт ответа')).toBeVisible()
-    await page.keyboard.press('Escape')
+    // «Подробнее» — событие во вкладке: карточка, правка, обсуждение в правой панели
+    await popover.getByRole('button', { name: 'Подробнее' }).click()
+    const eventTab = page.getByRole('tab', { name: new RegExp(meeting) })
+    await expect(eventTab).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Изменить', exact: true }).first()).toBeVisible()
+    await expect(page.getByText('По рабочим дням (пн–пт)').first()).toBeVisible()
+    await page.getByRole('tab', { name: /Календарь/ }).click()
 
     // Участник: приглашение во Входящих — «Да»
     const context = await browser.newContext({ baseURL: BASE, storageState: EMPLOYEE_STATE })
@@ -259,5 +265,13 @@ test.describe('Приёмка фазы 3 — календарь (сценари�
     expect((await anonymous.get(url)).status()).toBe(404)
     await anonymous.dispose()
     await page.screenshot({ path: 'test-results/calendar-p3-5-feed.png' })
+    await page.keyboard.press('Escape')
+
+    // Календарь во вкладке: вид, ближайшие события, «Показать в календаре»
+    await page.getByRole('button', { name: 'Действия с календарём «Мой календарь»' }).click()
+    await page.getByRole('menuitem', { name: 'Открыть' }).click()
+    await expect(page.getByRole('tab', { name: /Мой календарь/ })).toBeVisible()
+    await expect(page.getByText('Ближайшие две недели')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Показать в календаре' })).toBeVisible()
   })
 })
