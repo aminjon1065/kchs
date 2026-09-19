@@ -136,7 +136,8 @@ export function MeasureTool() {
     }
   }, [map, mode, setTool])
 
-  const drawn = done || !hover ? points : [...points, hover]
+  // Ломаная с «резинкой» до курсора, пока измерение не завершено
+  const drawn = useMemo(() => (done || !hover ? points : [...points, hover]), [done, hover, points])
   const data = useMemo<OverlayData>(() => {
     if (!mode || drawn.length === 0) return EMPTY_OVERLAY
     const features: OverlayData['features'] = points.map((point) => ({
@@ -215,7 +216,7 @@ export function MeasureTool() {
   return createPortal(
     <section
       aria-label={mode === 'area' ? t('gis.measure.area') : t('gis.measure.distance')}
-      className="absolute bottom-8 left-1/2 z-20 flex w-[min(28rem,calc(100%-2rem))] -translate-x-1/2 flex-col gap-1.5 rounded-lg border border-line bg-surface px-3 py-2 font-sans shadow-md"
+      className="absolute bottom-16 left-1/2 z-20 flex w-[min(28rem,calc(100%-2rem))] -translate-x-1/2 flex-col gap-1.5 rounded-lg border border-line bg-surface px-3 py-2 font-sans shadow-md"
     >
       <div className="flex items-center gap-2">
         <Icon className="size-4 shrink-0 text-accent" aria-hidden />

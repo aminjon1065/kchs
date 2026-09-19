@@ -130,7 +130,7 @@ function SelectPanel({
   return createPortal(
     <section
       aria-label={t('gis.tools.select')}
-      className="absolute bottom-8 left-1/2 z-20 flex w-[min(30rem,calc(100%-2rem))] -translate-x-1/2 flex-col gap-1.5 rounded-lg border border-line bg-surface px-3 py-2 font-sans shadow-md"
+      className="absolute bottom-16 left-1/2 z-20 flex w-[min(30rem,calc(100%-2rem))] -translate-x-1/2 flex-col gap-1.5 rounded-lg border border-line bg-surface px-3 py-2 font-sans shadow-md"
     >
       <p className="text-xs text-fg-muted">{t('gis.tools.selectHelp')}</p>
       <div className="flex flex-wrap justify-end gap-1.5">
