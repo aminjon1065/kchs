@@ -133,6 +133,49 @@ function documentRoute(key: string, extra: Record<string, unknown> = {}) {
 }
 
 describe('определения маршрутов', () => {
+  it('справочник конструктора: типы с поставщиком и полями, события ожидания, исполнители шагов (ADR-0087)', async () => {
+    const denied = await call(fx.app, { url: '/process-catalog', as: people.author })
+    expect(denied.statusCode).toBe(403)
+    const response = await call(fx.app, { url: '/process-catalog', as: fx.admin })
+    expect(response.statusCode, response.body).toBe(200)
+    const catalog = response.json()
+    expect(catalog.objectTypes).toEqual(
+      expect.arrayContaining([
+        {
+          type: TEST_TYPE(),
+          canStart: true,
+          fields: [
+            { path: 'amount', label: { ru: 'Сумма', en: 'Amount' }, type: 'money' },
+            { path: 'signer', label: { ru: 'Подписант', en: 'Signer' }, type: 'user' },
+          ],
+        },
+      ]),
+    )
+    expect(catalog.waitEvents).toEqual(
+      expect.arrayContaining(['object.updated', 'process.finished']),
+    )
+    expect(catalog.handlers).toEqual(
+      expect.arrayContaining([
+        { type: 'register', objectType: TEST_TYPE(), action: null },
+        { type: 'task', objectType: null, action: null },
+        { type: 'call', objectType: null, action: 'test.dispatch' },
+      ]),
+    )
+
+    // Назначенные в конструкторе — именами: ключи принципалов раскрываются, мусор пропускается
+    const keys = [`user:${people.boss.id}`, `unit:${fx.unitId}`, 'role:registrar', 'user:42', 'x']
+    const described = await call(fx.app, {
+      url: `/principals/describe?keys=${encodeURIComponent(keys.join(','))}`,
+      as: fx.admin,
+    })
+    expect(described.statusCode, described.body).toBe(200)
+    const items = described.json().items as Array<{ type: string; id: string; title: string }>
+    expect(items.map((item) => `${item.type}:${item.id}`).sort()).toEqual(
+      [`unit:${fx.unitId}`, `user:${people.boss.id}`].sort(),
+    )
+    expect(items.every((item) => item.title.length > 0)).toBe(true)
+  })
+
   it('черновик, проверка, публикация; новая версия не трогает идущий экземпляр', async () => {
     const key = `defs_${run}`
     const bad = await call(fx.app, {

@@ -109,6 +109,10 @@ export function registerTestModule(): void {
         props: { typeKey: 'letter' },
       }
     },
+    fieldHints: async () => [
+      { path: 'amount', label: { ru: 'Сумма', en: 'Amount' }, type: 'money' },
+      { path: 'signer', label: { ru: 'Подписант', en: 'Signer' }, type: 'user' },
+    ],
     setField: async (tx, ctx, objectId, field, value) => {
       await ObjectService.update(tx, ctx, objectId, { meta: { [field]: value }, mergeMeta: true })
     },

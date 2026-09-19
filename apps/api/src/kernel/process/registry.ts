@@ -1,4 +1,4 @@
-import type { Step } from '@kchs/process'
+import type { ProcessFieldHint, Step } from '@kchs/process'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import type { Executor } from '~/shared/db/client.js'
 
@@ -67,6 +67,11 @@ export interface ProcessObjectProvider {
   objectType: string
   /** Данные объекта; `null` — объекта нет. */
   load: (executor: Executor, objectId: string) => Promise<ProcessObjectData | null>
+  /**
+   * Поля объекта для конструктора маршрутов (ADR-0087): подсказки `field:<путь>`
+   * и `object.fields.<ключ>`; у документа — поля карточек всех типов.
+   */
+  fieldHints?: (executor: Executor) => Promise<ProcessFieldHint[]>
   /** Шаг `set`: изменить поле объекта. */
   setField?: (
     tx: Executor,
@@ -148,6 +153,11 @@ export function processObjectProvider(objectType: string): ProcessObjectProvider
   return providers.get(objectType)
 }
 
+/** Все поставщики — справочник конструктора маршрутов. */
+export function processObjectProviders(): ProcessObjectProvider[] {
+  return [...providers.values()]
+}
+
 export function registerProcessStepHandler(handler: ProcessStepHandler): void {
   if (handler.type === 'call' && !handler.action) {
     throw new Error('Исполнитель шага call регистрируется с действием (action)')
@@ -164,6 +174,11 @@ export function registerProcessStepHandler(handler: ProcessStepHandler): void {
     )
   }
   handlers.push(handler)
+}
+
+/** Зарегистрированные исполнители шагов — справочник конструктора маршрутов. */
+export function processStepHandlers(): ReadonlyArray<ProcessStepHandler> {
+  return handlers
 }
 
 /** Исполнитель шага: сначала для типа объекта, затем общий. */

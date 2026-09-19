@@ -61,6 +61,40 @@ export const ProcessDefinitionDetails = z.object({
 })
 export type ProcessDefinitionDetails = z.infer<typeof ProcessDefinitionDetails>
 
+/** Поле объекта для `field:<путь>` и `object.fields.<ключ>` — подсказка конструктора. */
+export const ProcessFieldHint = z.object({
+  path: z.string(),
+  label: LangText,
+  /** Тип поля карточки (`user`, `money`, `date`…), если известен. */
+  type: z.string().nullable(),
+})
+export type ProcessFieldHint = z.infer<typeof ProcessFieldHint>
+
+/**
+ * Справочник конструктора маршрутов (ADR-0087): типы объектов с поставщиком
+ * данных (поля для назначений и условий), события для шага `wait`, исполнители
+ * шагов модулей (`register`, `task`, `call`).
+ */
+export const ProcessCatalog = z.object({
+  objectTypes: z.array(
+    z.object({
+      type: z.string(),
+      fields: z.array(ProcessFieldHint),
+      /** Маршрут объекта можно запустить общим API (иначе — только модуль). */
+      canStart: z.boolean(),
+    }),
+  ),
+  waitEvents: z.array(z.string()),
+  handlers: z.array(
+    z.object({
+      type: z.enum(['register', 'task', 'call']),
+      objectType: z.string().nullable(),
+      action: z.string().nullable(),
+    }),
+  ),
+})
+export type ProcessCatalog = z.infer<typeof ProcessCatalog>
+
 /** Черновик: форма определения проверяется при сохранении, смысл — при публикации. */
 export const ProcessDraftInput = z.object({ definition: z.unknown() })
 export type ProcessDraftInput = z.infer<typeof ProcessDraftInput>

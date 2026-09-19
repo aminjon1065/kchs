@@ -113,6 +113,38 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
 
   route({
     method: 'GET',
+    url: '/principals/describe',
+    auth: 'session',
+    tags: ['org'],
+    summary: 'Названия принципалов по ключам `user:<id>`, `unit:<id>`… (конструктор маршрутов)',
+    readOnly: true,
+    schema: {
+      querystring: z.object({ keys: z.string().max(8000).default('') }),
+      response: { 200: z.object({ items: z.array(PrincipalRef) }) },
+    },
+    handler: async (request) => {
+      // Только именованные принципалы: «все» и роли пространства пикер подписывает сам
+      const named = new Set(['user', 'group', 'unit', 'position'])
+      const principals = request.query.keys
+        .split(',')
+        .map((key) => key.trim())
+        .filter(Boolean)
+        .slice(0, 100)
+        .flatMap((key) => {
+          const index = key.indexOf(':')
+          const type = key.slice(0, index)
+          const id = key.slice(index + 1)
+          return index > 0 && named.has(type) && z.uuid().safeParse(id).success
+            ? [{ type, id }]
+            : []
+        })
+      const refs = await describePrincipals(principals as never)
+      return { items: [...refs.values()] }
+    },
+  })
+
+  route({
+    method: 'GET',
     url: '/users',
     auth: 'session',
     tags: ['org'],

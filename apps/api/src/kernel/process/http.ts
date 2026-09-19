@@ -2,6 +2,7 @@ import {
   ProcessActInput,
   ProcessAssigneeInput,
   ProcessCancelInput,
+  ProcessCatalog,
   ProcessDefinitionDetails,
   ProcessDefinitionSummary,
   ProcessDefinitionVersion,
@@ -22,7 +23,12 @@ import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { authorize, loadObject } from '../access/authorize.js'
 import { DefinitionService } from './definitions.js'
-import { processObjectProvider } from './registry.js'
+import {
+  processObjectProvider,
+  processObjectProviders,
+  processStepHandlers,
+  waitableEvents,
+} from './registry.js'
 import { ProcessService } from './service.js'
 import { instanceIdOfStep } from './store.js'
 import { ProcessView } from './view.js'
@@ -51,6 +57,30 @@ export function registerProcessRoutes(route: RouteRegistrar): void {
     summary: 'Маршруты процессов: версии, черновики, идущие экземпляры',
     schema: { response: { 200: z.object({ items: z.array(ProcessDefinitionSummary) }) } },
     handler: async () => ({ items: await DefinitionService.list() }),
+  })
+
+  route({
+    method: 'GET',
+    url: '/process-catalog',
+    auth: MANAGE,
+    tags: ['processes'],
+    summary: 'Справочник конструктора маршрутов: типы объектов, поля, события, исполнители шагов',
+    schema: { response: { 200: ProcessCatalog } },
+    handler: async () => ({
+      objectTypes: await Promise.all(
+        processObjectProviders().map(async (provider) => ({
+          type: provider.objectType,
+          fields: (await provider.fieldHints?.(db())) ?? [],
+          canStart: Boolean(provider.canStart),
+        })),
+      ),
+      waitEvents: [...waitableEvents()].sort(),
+      handlers: processStepHandlers().map((handler) => ({
+        type: handler.type,
+        objectType: handler.objectType ?? null,
+        action: handler.action ?? null,
+      })),
+    }),
   })
 
   route({
