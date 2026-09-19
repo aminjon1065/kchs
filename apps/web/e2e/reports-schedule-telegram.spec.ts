@@ -13,6 +13,8 @@ const ENABLED = process.env.KCHS_E2E_REPORTS === '1' && PORT > 0
 const TOKEN = '7000001:fake-token-for-e2e'
 const CHAT_ID = 424_242
 
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
 interface Call {
   method: string
   body: Buffer
@@ -231,9 +233,18 @@ test.describe('Отчёты: экспорт из тетради и рассыл�
     await dialog.getByRole('radio', { name: 'Ежедневно' }).click()
     await dialog.getByLabel('Время').fill(at)
     await expect(dialog.getByLabel('Часовой пояс')).toHaveValue('Asia/Dushanbe')
-    await dialog.getByRole('searchbox', { name: 'Добавить получателя' }).fill('Администратор')
+    // Получатель — сам администратор по имени: на общем стенде «Администраторов» много
+    // (их создают прогоны приёмки фазы 0), а Telegram привязан только у него
+    const me = (await (await request.get('/api/v1/me')).json()).user as {
+      id: string
+      displayName: string
+    }
+    await dialog.getByRole('searchbox', { name: 'Добавить получателя' }).fill(me.displayName)
+    // Кнопка результата — аватар с инициалами, имя и подпись: имя ищется подстрокой,
+    // а что выбран именно он, проверяют получатели сохранённого расписания
     await dialog
-      .getByRole('button', { name: /Администратор/ })
+      .getByRole('list', { name: 'Добавить получателя' })
+      .getByRole('button', { name: new RegExp(escapeRegExp(me.displayName)) })
       .first()
       .click()
     await dialog.getByRole('checkbox', { name: 'Telegram' }).click()
@@ -243,6 +254,7 @@ test.describe('Отчёты: экспорт из тетради и рассыл�
       .schedule
     expect(schedule.pattern).toBe(`${Number(at.slice(3))} ${Number(at.slice(0, 2))} * * *`)
     expect(schedule.channels).toEqual(['inbox', 'telegram'])
+    expect(schedule.recipients).toEqual([me.id])
 
     // Планировщик срабатывает в назначенную минуту — бот присылает PDF
     await expect

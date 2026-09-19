@@ -7,7 +7,15 @@ import {
   type Page,
   request as playwrightRequest,
 } from '@playwright/test'
-import { ADMIN_STATE, EMPLOYEE_STATE, expect, openScreen, test, totp } from './fixtures.js'
+import {
+  ADMIN_STATE,
+  EMPLOYEE_STATE,
+  expect,
+  openScreen,
+  resetWorkspaceState,
+  test,
+  totp,
+} from './fixtures.js'
 
 /**
  * Приёмка фазы 0 (04-verification.md §3) — сценарии 1–7 подряд, через интерфейс.
@@ -288,6 +296,8 @@ test('3. PDF 50 МБ в папке: коллега видит превью, уп
 
   // Коллега: превью от движка и комментарий с упоминанием
   const colleague = await browser.newContext({ baseURL: BASE, storageState: EMPLOYEE_STATE })
+  // Сотрудник общий для спецификаций: свёрнутые другими прогонами панели прячут «Обсуждение»
+  await resetWorkspaceState(colleague.request)
   const colleaguePage = await colleague.newPage()
   await colleaguePage.goto(`/o/${fileId}`)
   await expect(colleaguePage.getByRole('img', { name: /Страница 1/ })).toBeVisible({
@@ -477,6 +487,7 @@ test('6. Замещение: заместитель действует «от и
 
   // Заместитель: баннер, режим «от имени», скачивание файла владельца
   const deputy = await browser.newContext({ baseURL: BASE, storageState: EMPLOYEE_STATE })
+  await resetWorkspaceState(deputy.request)
   const deputyPage = await deputy.newPage()
   const deputyId = (await (await deputyPage.request.get('/api/v1/me')).json()).user.id as string
   await deputyPage.goto(`/o/${fileId}`)
