@@ -1,6 +1,13 @@
 import type {
+  CaseList,
+  CaseListQuery,
+  CaseRecord,
+  CaseSuggestions,
+  CorrespondenceChain,
   CorrespondentList,
   CorrespondentRecord,
+  DestructionActList,
+  DocumentDispatchList,
   DocumentRecord,
   DocumentResolutions,
   DocumentRouteOptions,
@@ -37,6 +44,14 @@ export const documentKeys = {
   resolutions: (id: string) => ['object', id, 'resolutions'] as const,
   acknowledgments: (id: string) => ['object', id, 'acknowledgments'] as const,
   resolutionTemplates: ['documents', 'resolution-templates'] as const,
+  // Дела и переписка (ADR-0086)
+  cases: (query: CaseListQuery) => ['documents', 'cases', query] as const,
+  case: (id: string) => ['object', id, 'case'] as const,
+  caseSuggestions: (id: string) => ['object', id, 'case-suggestions'] as const,
+  dispatches: (id: string) => ['object', id, 'dispatches'] as const,
+  correspondence: (id: string) => ['object', id, 'correspondence'] as const,
+  destructionActs: ['documents', 'destruction-acts'] as const,
+  office: ['documents', 'office'] as const,
 }
 
 export const documentQuery = (id: string) =>
@@ -147,5 +162,60 @@ export const resolutionTemplatesQuery = () =>
     queryKey: documentKeys.resolutionTemplates,
     queryFn: async () =>
       (await http.get<{ items: ResolutionTemplate[] }>('/resolution-templates')).items,
+    staleTime: 5 * 60_000,
+  })
+
+export const casesQuery = (query: CaseListQuery = {}) =>
+  queryOptions({
+    queryKey: documentKeys.cases(query),
+    queryFn: async () =>
+      (
+        await http.get<CaseList>('/cases', {
+          query: {
+            year: query.year,
+            status: query.status,
+            unitId: query.unitId,
+            q: query.q || undefined,
+          },
+        })
+      ).items,
+  })
+
+export const caseQuery = (id: string) =>
+  queryOptions({
+    queryKey: documentKeys.case(id),
+    queryFn: () => http.get<CaseRecord>(`/cases/${id}`),
+  })
+
+export const caseSuggestionsQuery = (documentId: string) =>
+  queryOptions({
+    queryKey: documentKeys.caseSuggestions(documentId),
+    queryFn: () => http.get<CaseSuggestions>(`/documents/${documentId}/cases`),
+  })
+
+export const dispatchesQuery = (documentId: string) =>
+  queryOptions({
+    queryKey: documentKeys.dispatches(documentId),
+    queryFn: async () =>
+      (await http.get<DocumentDispatchList>(`/documents/${documentId}/dispatches`)).items,
+  })
+
+export const correspondenceQuery = (documentId: string) =>
+  queryOptions({
+    queryKey: documentKeys.correspondence(documentId),
+    queryFn: () => http.get<CorrespondenceChain>(`/documents/${documentId}/correspondence`),
+  })
+
+export const destructionActsQuery = () =>
+  queryOptions({
+    queryKey: documentKeys.destructionActs,
+    queryFn: async () => (await http.get<DestructionActList>('/cases/destruction-acts')).items,
+  })
+
+/** Дашборд «Канцелярия», если он заведён и виден пользователю (ADR-0086). */
+export const officeDashboardQuery = () =>
+  queryOptions({
+    queryKey: documentKeys.office,
+    queryFn: () => http.get<{ dashboardId: string | null }>('/documents/office'),
     staleTime: 5 * 60_000,
   })

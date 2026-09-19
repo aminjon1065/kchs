@@ -10,6 +10,7 @@ import { meQuery } from '~/shared/api/queries.js'
 import { documentKeys } from '../queries.js'
 import { errorText, fieldErrors } from '../status.js'
 import { useDocument } from './document-context.js'
+import { DocumentOfficeSection } from './office-section.js'
 import { type CardValue, cardPayload, cardValueOf, RequisitesForm } from './requisites-form.js'
 
 /**
@@ -93,6 +94,7 @@ export function CardTab() {
           ) : null}
         </section>
       ) : null}
+      <DocumentOfficeSection />
 
       <section className="rounded-lg border border-line bg-surface p-4">
         <RequisitesForm

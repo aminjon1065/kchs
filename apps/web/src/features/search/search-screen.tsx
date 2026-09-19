@@ -1,3 +1,4 @@
+import { DOCUMENT_STATUSES } from '@kchs/contracts'
 import { formatRelativeTime } from '@kchs/fields'
 import {
   Badge,
@@ -17,20 +18,49 @@ import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
 import { searchQuery } from '~/shared/api/queries.js'
 
-export function SearchScreen({ initialQuery = '' }: { initialQuery?: string }) {
+/**
+ * Поиск по объектам с правами (02-platform-kernel.md §8): фасет типов, а для
+ * документов — фасет статуса: поиск в архиве — тот же поиск с фильтром
+ * статусов «В деле» и «В архиве» (08-documents.md §12, ADR-0086).
+ */
+export function SearchScreen({
+  initialQuery = '',
+  initialTypes = [],
+  initialStatuses = [],
+}: {
+  initialQuery?: string
+  initialTypes?: string[]
+  initialStatuses?: string[]
+}) {
   const t = useT()
   const locale = useAppearance((s) => s.locale)
   const openTab = useWorkspace((s) => s.openTab)
 
   const [value, setValue] = useState(initialQuery)
-  const [types, setTypes] = useState<string[]>([])
+  const [types, setTypes] = useState<string[]>(initialTypes)
+  const [statuses, setStatuses] = useState<string[]>(initialStatuses)
   const query = useDebouncedValue(value, 250)
+  // Статусы — у документов: фасет показывается, когда выбран только тип «Документ»
+  const documentsOnly = types.length === 1 && types[0] === 'document'
+  const activeStatuses = documentsOnly ? statuses : []
 
   const { data, isFetching } = useQuery(
-    searchQuery({ q: query, types: types.join(',') || undefined, limit: 50 }),
+    searchQuery({
+      q: query,
+      types: types.join(',') || undefined,
+      statuses: activeStatuses.join(',') || undefined,
+      limit: 50,
+    }),
   )
 
   const typeFacet = data?.facets.find((facet) => facet.field === 'type')
+  const statusFacet = data?.facets.find((facet) => facet.field === 'meta.status')
+  const statusValues = documentsOnly
+    ? DOCUMENT_STATUSES.map((status) => ({
+        value: status,
+        count: statusFacet?.values.find((item) => item.value === status)?.count ?? 0,
+      })).filter((item) => item.count > 0 || statuses.includes(item.value))
+    : []
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -92,6 +122,41 @@ export function SearchScreen({ initialQuery = '' }: { initialQuery?: string }) {
           ) : (
             <p className="text-xs text-fg-muted">—</p>
           )}
+          {statusValues.length > 0 ? (
+            <>
+              <h2 className="mb-2 mt-4 text-2xs font-medium uppercase tracking-wide text-fg-muted">
+                {t('search.facets.status')}
+              </h2>
+              <ul className="flex flex-col gap-0.5">
+                {statusValues.map((facet) => (
+                  <li key={facet.value}>
+                    <button
+                      type="button"
+                      aria-pressed={statuses.includes(facet.value)}
+                      onClick={() =>
+                        setStatuses((current) =>
+                          current.includes(facet.value)
+                            ? current.filter((item) => item !== facet.value)
+                            : [...current, facet.value],
+                        )
+                      }
+                      className={cn(
+                        'flex w-full items-center gap-2 rounded-sm px-1.5 py-1 text-sm',
+                        statuses.includes(facet.value)
+                          ? 'bg-accent-subtle text-accent'
+                          : 'text-fg-secondary hover:bg-surface-3 hover:text-fg',
+                      )}
+                    >
+                      <span className="min-w-0 flex-1 truncate text-left">
+                        {t(`documents.statuses.${facet.value}`)}
+                      </span>
+                      <span className="tabular text-2xs text-fg-muted">{facet.count}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
         </aside>
 
         <div className="min-h-0 overflow-y-auto">

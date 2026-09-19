@@ -14,18 +14,25 @@ import {
 } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import {
+  AlarmClock,
   AlertTriangle,
   Archive,
   BookOpen,
+  Briefcase,
   Building2,
   CheckSquare,
   FilePen,
+  FileSignature,
   FileText,
   Inbox,
+  LayoutDashboard,
   LibraryBig,
   type LucideIcon,
   Plus,
+  Search as SearchIcon,
+  Send,
   Stamp,
+  UserCheck,
   UserRound,
 } from 'lucide-react'
 import { type ReactNode, useEffect, useState } from 'react'
@@ -43,50 +50,97 @@ import {
   renderUserFilterValue,
 } from '~/shared/collections/user-filter-value.js'
 import { CreateDocumentDialog } from './create-document-dialog.js'
+import { CasesDirectory } from './directories/cases-directory.js'
 import { CorrespondentsDirectory } from './directories/correspondents-directory.js'
 import { JournalsDirectory } from './directories/journals-directory.js'
 import { TypesDirectory } from './directories/types-directory.js'
-import { documentSummaryQuery, journalsQuery } from './queries.js'
+import { documentSummaryQuery, journalsQuery, officeDashboardQuery } from './queries.js'
 import { RegistrationScreen } from './registration/registration-screen.js'
-import { CONFIDENTIALITY_TONE, DOCUMENT_STATUS_TONE } from './status.js'
+import { CONFIDENTIALITY_TONE, DOCUMENT_STATUS_TONE, localToday } from './status.js'
 
 const TYPES = ['document']
 
-/** Встроенные представления навигатора (03-screens.md §12). */
-const PRESETS = ['all', 'mine', 'control', 'overdue', 'drafts', 'archive'] as const
+/**
+ * Встроенные представления навигатора (03-screens.md §12, ADR-0086): мои, на
+ * согласовании у меня, мои на контроле, все на контроле, просроченные на
+ * контроле, просроченные, к отправке, журнал входящих текущего года,
+ * черновики, архив.
+ */
+const PRESETS = [
+  'all',
+  'mine',
+  'approval',
+  'myControl',
+  'control',
+  'controlOverdue',
+  'overdue',
+  'toDispatch',
+  'incomingYear',
+  'drafts',
+  'archive',
+] as const
 type Preset = (typeof PRESETS)[number]
 
 const PRESET_ICONS: Record<Preset, LucideIcon> = {
   all: Inbox,
   mine: UserRound,
+  approval: FileSignature,
+  myControl: UserCheck,
   control: CheckSquare,
+  controlOverdue: AlarmClock,
   overdue: AlertTriangle,
+  toDispatch: Send,
+  incomingYear: BookOpen,
   drafts: FilePen,
   archive: Archive,
 }
 
 const OPEN: FilterNode = { field: 'closed', op: 'is_false' }
+const ON_CONTROL: FilterNode = { field: 'control', op: 'in', value: ['on'] }
+const OVERDUE: FilterNode = { field: 'deadline', op: 'before', value: '@today' }
+/** Статусы маршрута до регистрации: согласование и подпись. */
+const APPROVAL_STATUSES = ['on_approval', 'returned', 'approved', 'on_signing', 'signed']
+const anyMe = (...fields: string[]): FilterNode => ({
+  or: fields.map((field) => ({ field, op: 'is_me' })),
+})
 
 /** Фильтр представления — поверх фильтра пользователя, в сохранённые не попадает. */
-function presetFilter(preset: Preset, journalId: string | null): FilterNode | null {
+function presetFilter(preset: Preset, journalId: string | null, year: number): FilterNode | null {
   if (journalId) return { field: 'journalId', op: 'in', value: [journalId] }
   switch (preset) {
     case 'mine':
+      return { and: [OPEN, anyMe('responsibleId', 'authorId', 'signerId', 'controllerId')] }
+    case 'approval':
+      // Участники маршрута — источник прав `route:*`; в карточке — автор, ответственный, подписант
       return {
         and: [
-          OPEN,
-          {
-            or: ['responsibleId', 'authorId', 'signerId', 'controllerId'].map((field) => ({
-              field,
-              op: 'is_me',
-            })),
-          },
+          { field: 'status', op: 'in', value: APPROVAL_STATUSES },
+          anyMe('authorId', 'responsibleId', 'signerId'),
         ],
       }
+    case 'myControl':
+      return { and: [OPEN, ON_CONTROL, anyMe('controllerId', 'responsibleId')] }
     case 'control':
-      return { and: [OPEN, { field: 'control', op: 'in', value: ['on'] }] }
+      return { and: [OPEN, ON_CONTROL] }
+    case 'controlOverdue':
+      return { and: [OPEN, ON_CONTROL, OVERDUE] }
     case 'overdue':
-      return { and: [OPEN, { field: 'deadline', op: 'before', value: '@today' }] }
+      return { and: [OPEN, OVERDUE] }
+    case 'toDispatch':
+      return {
+        and: [
+          { field: 'direction', op: 'in', value: ['outgoing'] },
+          { field: 'status', op: 'in', value: ['registered'] },
+          { field: 'dispatched', op: 'is_false' },
+        ],
+      }
+    case 'incomingYear':
+      return {
+        and: [
+          { field: 'direction', op: 'in', value: ['incoming'] },
+          { field: 'regDate', op: 'between', value: [`${year}-01-01`, `${year}-12-31`] },
+        ],
+      }
     case 'drafts':
       return {
         and: [
@@ -95,7 +149,6 @@ function presetFilter(preset: Preset, journalId: string | null): FilterNode | nu
         ],
       }
     case 'archive':
-      // Дела и архив — вторая волна (08-documents.md §12): представление уже есть
       return { field: 'status', op: 'in', value: ['filed', 'archived'] }
     default:
       return null
@@ -129,6 +182,8 @@ export function DocumentsScreen({ tab }: { tab: TabState }) {
       return <CorrespondentsDirectory selectedId={tab.params.id ?? null} />
     case 'types':
       return <TypesDirectory selectedId={tab.params.id ?? null} />
+    case 'cases':
+      return <CasesDirectory selectedId={tab.params.id ?? null} />
     default:
       return <DocumentsList tabId={tab.id} savedState={tab.state as DocumentsScreenState} />
   }
@@ -148,6 +203,8 @@ function DocumentsList({
   const { data: me } = useQuery(meQuery())
   const { data: summary } = useQuery(documentSummaryQuery())
   const { data: journals = [] } = useQuery(journalsQuery())
+  const { data: office } = useQuery(officeDashboardQuery())
+  const year = Number(localToday().slice(0, 4))
   const [preset, setPreset] = useState<Preset>(savedState?.preset ?? 'all')
   const [journalId, setJournalId] = useState<string | null>(savedState?.journalId ?? null)
   const [collection, setCollection] = useState<CollectionState>(
@@ -163,7 +220,7 @@ function DocumentsList({
   const { fields, sortable } = useListFields(TYPES)
   const effective: CollectionState = {
     ...collection,
-    filter: combine(presetFilter(preset, journalId), collection.filter),
+    filter: combine(presetFilter(preset, journalId, year), collection.filter),
   }
   const { rows, total, loading, hasMore, loadMore } = useObjectCollection(
     { types: TYPES },
@@ -304,6 +361,15 @@ function DocumentsList({
         ) : null,
     },
     {
+      key: 'case',
+      header: t('documents.fields.case'),
+      width: 110,
+      cell: (item) =>
+        typeof meta(item).caseIndex === 'string' ? (
+          <span className="font-mono text-xs tabular">{String(meta(item).caseIndex)}</span>
+        ) : null,
+    },
+    {
       key: 'confidentiality',
       header: t('access.confidentiality.label'),
       width: 130,
@@ -322,10 +388,25 @@ function DocumentsList({
 
   const counts: Partial<Record<Preset, number>> = {
     mine: summary?.mine,
+    approval: summary?.approval,
     control: summary?.onControl,
+    controlOverdue: summary?.controlOverdue,
     overdue: summary?.overdue,
+    toDispatch: summary?.toDispatch,
     drafts: summary?.drafts,
   }
+  const danger = (key: Preset) =>
+    (key === 'overdue' && (summary?.overdue ?? 0) > 0) ||
+    (key === 'controlOverdue' && (summary?.controlOverdue ?? 0) > 0)
+  const openArchiveSearch = () =>
+    openTab({
+      kind: 'screen',
+      screen: 'search',
+      title: t('documents.navigator.archiveSearch'),
+      icon: 'view',
+      params: { types: 'document', statuses: 'filed,archived' },
+      mode: 'permanent',
+    })
 
   return (
     <section aria-label={t('documents.title')} className="flex h-full min-h-0">
@@ -338,9 +419,9 @@ function DocumentsList({
             <NavButton
               key={key}
               icon={PRESET_ICONS[key]}
-              label={t(`documents.navigator.presets.${key}`)}
+              label={t(`documents.navigator.presets.${key}`, { year })}
               count={counts[key]}
-              danger={key === 'overdue' && (summary?.overdue ?? 0) > 0}
+              danger={danger(key)}
               active={!journalId && preset === key}
               onClick={() => {
                 setJournalId(null)
@@ -348,6 +429,33 @@ function DocumentsList({
               }}
             />
           ))}
+        </NavGroup>
+        <NavGroup title={t('documents.navigator.office')}>
+          <NavButton
+            icon={Briefcase}
+            label={t('documents.cases.title')}
+            onClick={() => openScreen('cases', t('documents.cases.title'), 'case')}
+          />
+          <NavButton
+            icon={SearchIcon}
+            label={t('documents.navigator.archiveSearch')}
+            onClick={openArchiveSearch}
+          />
+          {office?.dashboardId ? (
+            <NavButton
+              icon={LayoutDashboard}
+              label={t('documents.navigator.dashboard')}
+              onClick={() =>
+                openTab({
+                  kind: 'object',
+                  objectId: office.dashboardId ?? '',
+                  objectType: 'dashboard',
+                  title: t('documents.navigator.dashboard'),
+                  mode: 'permanent',
+                })
+              }
+            />
+          ) : null}
         </NavGroup>
         {journals.length > 0 ? (
           <NavGroup title={t('documents.navigator.journals')}>

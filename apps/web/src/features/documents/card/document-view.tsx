@@ -40,6 +40,7 @@ import {
 import { FilesTab } from './files-tab.js'
 import { HistoryTab } from './history-tab.js'
 import { LinksTab } from './links-tab.js'
+import { DocumentOfficeActions } from './office-actions.js'
 import { ResolutionsTab } from './resolutions-tab.js'
 import { DocumentRouteIndicator, RouteTab } from './route-tab.js'
 import { DocumentStepActions, useAwaitsMe } from './step-actions.js'
@@ -167,9 +168,15 @@ function DocumentHeader() {
   const { document } = useDocument()
   const awaitsMe = useAwaitsMe(document)
   // Действия шага живут в контекст-панели; когда она скрыта или на другой вкладке — кнопка к ним
-  const actionsHidden =
-    (document.can.register || document.can.cancel || document.can.startRoute || awaitsMe) &&
-    (!contextOpen || contextTab !== 'info')
+  const hasActions =
+    document.can.register ||
+    document.can.cancel ||
+    document.can.startRoute ||
+    awaitsMe ||
+    document.can.reply ||
+    document.can.dispatch ||
+    document.can.file
+  const actionsHidden = hasActions && (!contextOpen || contextTab !== 'info')
   const typeName = document.type.name[locale] ?? document.type.name.ru
   return (
     <>
@@ -280,6 +287,7 @@ export function DocumentContextSection({ objectId }: { objectId: string }) {
   return (
     <DocumentProvider document={document} tabId={null}>
       <DocumentStepActions />
+      <DocumentOfficeActions />
     </DocumentProvider>
   )
 }

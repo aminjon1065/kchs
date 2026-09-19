@@ -194,7 +194,12 @@ export const notificationsQuery = (unreadOnly = false) =>
       ),
   })
 
-export const searchQuery = (params: { q: string; types?: string; limit?: number }) =>
+export const searchQuery = (params: {
+  q: string
+  types?: string
+  statuses?: string
+  limit?: number
+}) =>
   queryOptions({
     queryKey: keys.search(params),
     queryFn: () => http.get<SearchResponse>('/search', { query: params }),

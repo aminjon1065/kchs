@@ -14,6 +14,7 @@ import { MetricView } from '~/features/data/metric-view.js'
 import { type SavedSqlLab, SqlLabScreen } from '~/features/data/sql-lab-screen.js'
 import { DocumentAssistant } from '~/features/documents/assist/document-assistant.js'
 import { DocumentContextSection, DocumentView } from '~/features/documents/card/document-view.js'
+import { CasesDirectory } from '~/features/documents/directories/cases-directory.js'
 import { CorrespondentsDirectory } from '~/features/documents/directories/correspondents-directory.js'
 import { JournalsDirectory } from '~/features/documents/directories/journals-directory.js'
 import { TypesDirectory } from '~/features/documents/directories/types-directory.js'
@@ -155,7 +156,13 @@ export function registerModules(): void {
     key: 'search',
     titleKey: 'shell.rail.search',
     icon: 'view',
-    render: (tab) => <SearchScreen initialQuery={tab.params.q ?? ''} />,
+    render: (tab) => (
+      <SearchScreen
+        initialQuery={tab.params.q ?? ''}
+        initialTypes={tab.params.types?.split(',').filter(Boolean) ?? []}
+        initialStatuses={tab.params.statuses?.split(',').filter(Boolean) ?? []}
+      />
+    ),
   })
   registerScreen({
     key: 'spaces',
@@ -331,6 +338,10 @@ export function registerModules(): void {
   registerObjectView({
     type: 'document_type',
     render: (tab) => <TypesDirectory selectedId={tab.objectId!} />,
+  })
+  registerObjectView({
+    type: 'case',
+    render: (tab) => <CasesDirectory selectedId={tab.objectId!} />,
   })
   registerObjectView({
     type: 'layer',
