@@ -335,7 +335,11 @@ export function tableFilter(
 }
 
 export const RowService = {
-  /** Страница строк таблицы: фильтр, поиск, сортировка (с `_id` для стабильных страниц). */
+  /**
+   * Страница строк таблицы: фильтр, поиск, сортировка (с `_id` для стабильных
+   * страниц). Охват карты — пространственное окно компилятора (ADR-0064, ADR-0073):
+   * рамка рядом с политикой строк, по индексу GIST; скрытое поле геометрии — 400.
+   */
   async query(ctx: Ctx, datasetId: string, input: DatasetRowsQuery): Promise<QueryResult> {
     const grant = await DatasetAccess.resolve(ctx, datasetId)
     const storage = await DatasetService.storage(datasetId)
@@ -352,7 +356,14 @@ export const RowService = {
         { type: 'limit', limit: input.limit, offset: input.offset },
       ],
     })
-    return QueryService.run(ctx, spec, { rowMeta: true, count: input.count, maxRows: null })
+    return QueryService.run(ctx, spec, {
+      rowMeta: true,
+      count: input.count,
+      maxRows: null,
+      ...(input.bbox
+        ? { spatialWindow: { datasetId, field: input.bbox.field, bbox: input.bbox.bbox } }
+        : {}),
+    })
   },
 
   /** Строка по `_id` — с политиками пользователя (как в таблице). */

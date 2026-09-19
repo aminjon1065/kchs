@@ -3,6 +3,7 @@ import { UserRef } from '../auth/session.js'
 import { FilterNode } from '../common/filter.js'
 import { BigIntString, LangText, Timestamp, Uuid } from '../common/primitives.js'
 import { FieldDef, type FieldType } from '../fields/field-def.js'
+import { Bbox } from '../gis/layer.js'
 import { QuerySortItem } from './query.js'
 
 /**
@@ -241,6 +242,21 @@ export type DatasetRowPatch = z.infer<typeof DatasetRowPatch>
  */
 export const DatasetRowsQuery = z.object({
   where: FilterNode.optional(),
+  /**
+   * Охват карты (атрибутивная таблица слоя, связанные представления, ADR-0073):
+   * строки, рамка геометрии которых пересекает охват, — пространственное окно
+   * компилятора рядом с политикой строк, по индексу GIST (ADR-0064).
+   */
+  bbox: z
+    .object({
+      field: z
+        .string()
+        .min(1)
+        .max(64)
+        .regex(/^[a-z_][a-z0-9_]*$/),
+      bbox: Bbox,
+    })
+    .optional(),
   sort: z.array(QuerySortItem).max(8).default([]),
   search: z.string().trim().max(200).optional(),
   limit: z.number().int().min(1).max(1000).default(200),
