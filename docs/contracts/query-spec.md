@@ -33,7 +33,7 @@
 ```
 
 ### Источники
-`{"kind": "dataset", "id"}`, `{"kind": "query", "id"}` (сохранённый запрос как подзапрос), `{"kind": "system", "name": "tasks|documents|meetings|events|territories"}` (системные датасеты; `territories` — справочник территорий с границами, ADR-0069), `{"kind": "inline", "rows": [...]}` (небольшие константы), `{"kind": "sql", "sql": "..."}` (только для режима SQL и внутри доверенных объектов).
+`{"kind": "dataset", "id"}`, `{"kind": "query", "id"}` (сохранённый запрос как подзапрос), `{"kind": "system", "name": "tasks|documents|meetings|events|territories"}` (системные датасеты; `territories` — справочник территорий с границами, ADR-0069, и населением, ADR-0077), `{"kind": "inline", "rows": [...]}` (небольшие константы), `{"kind": "sql", "sql": "..."}` (только для режима SQL и внутри доверенных объектов).
 
 ### Шаги
 | type | Поля |

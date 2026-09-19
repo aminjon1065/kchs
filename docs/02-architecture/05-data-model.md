@@ -164,7 +164,7 @@ basemaps(id pk → objects, key text unique null, kind text, url text, style jso
 territories(id pk → objects, code text unique, parent_id, level text, name jsonb, geom geometry(MultiPolygon,4326), centroid geometry(Point,4326), area_km2, attributes jsonb, dataset_row_id bigint)
   idx: gist(geom), (parent_id), (level)
 territory_closure(territory_id, ancestor_id, depth)
-analyses(id pk → objects, kind text, params jsonb, input_dataset_ids uuid[], output_dataset_id, status, job_id, row_count, error, last_run_at)  -- ADR-0069
+analyses(id pk → objects, kind text, params jsonb, input_dataset_ids uuid[], output_dataset_id, status, job_id, row_count, error, last_run_at)  -- ADR-0069; kind choropleth — ADR-0077
 map_annotations(id, map_id, user_id null, geom geometry, style jsonb, note, created_at)
 feature_edits(id bigint identity, layer_id → layers, dataset_id, row_id bigint null, op text, values jsonb, geometry jsonb null,
               base_ver int null, note text, status text, author_id, reviewer_id, comment text, created_at, reviewed_at)
@@ -203,8 +203,8 @@ file_texts(file_id pk, text, lang, extracted_at)   file_shares(id, file_id, toke
 projects(id pk → objects, key text unique, lead_id, status, starts_at, ends_at, workflow jsonb, custom_fields jsonb, board_settings jsonb)
 tasks(id pk → objects, kind text, key text unique, project_id, parent_id, status text, priority smallint, assignee_id, co_assignees uuid[],
       author_id, controller_id, start_at, due_at, completed_at, accepted_at, requires_acceptance bool, result jsonb,
-      source jsonb, estimate_minutes, labels text[], fields jsonb, recurrence jsonb, "order" double precision)
-  idx: (assignee_id, status, due_at), (project_id, status), gin(co_assignees), (source->>'object_id')
+      source jsonb, estimate_minutes, labels text[], territory_id, fields jsonb, recurrence jsonb, "order" double precision)
+  idx: (assignee_id, status, due_at), (project_id, status), gin(co_assignees), (source->>'object_id'), (territory_id)  -- territory_id — ADR-0077
 task_dependencies(task_id, depends_on_id, kind)  checklists(id, task_id, items jsonb)  time_entries(id, task_id, user_id, minutes, day, note)
 task_counters(scope text, year int, last_seq int)
 
