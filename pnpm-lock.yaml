@@ -407,6 +407,12 @@ importers:
       socket.io-client:
         specifier: ^4.8.1
         version: 4.8.3(supports-color@10.2.2)
+      terra-draw:
+        specifier: ^1.34.0
+        version: 1.34.0
+      terra-draw-maplibre-gl-adapter:
+        specifier: ^1.4.1
+        version: 1.4.1(maplibre-gl@6.10.0)(terra-draw@1.34.0)
       y-protocols:
         specifier: ^1.0.7
         version: 1.0.7(yjs@13.6.32)
@@ -5084,6 +5090,15 @@ packages:
     resolution: {integrity: sha512-uxc/zpqFg6x7C8vOE7lh6Lbda8eEL9zmVm/PLeTPBRhh1xCgdWaQ+J1CUieGpIfm2HdtsUpRv+HshiasBMcc6A==}
     engines: {node: '>=6'}
 
+  terra-draw-maplibre-gl-adapter@1.4.1:
+    resolution: {integrity: sha512-qZ/bc9bVPnyt0keLVTofV8xiTPkdkbO6RzqrfNLe9zH/edW5PsjvJw97m1EksPZeXNJtFxsVbhi12cPaoNiWfg==}
+    peerDependencies:
+      maplibre-gl: '>=4'
+      terra-draw: ^1.0.0
+
+  terra-draw@1.34.0:
+    resolution: {integrity: sha512-xU2PixFL6SvcyCFvqAoOFj0pB4Az9wSe5SN9fN5e/Xx4FogOhireLPflo2+3Luy5JgJkI6bnxMOGvOjVREZttQ==}
+
   thirty-two@1.0.2:
     resolution: {integrity: sha512-OEI0IWCe+Dw46019YLl6V10Us5bi574EvlJEOcAkB29IzQ/mYD1A6RyNHLjZPiHCmuodxvgF6U+vZO1L15lxVA==}
     engines: {node: '>=0.2.6'}
@@ -9614,6 +9629,13 @@ snapshots:
   tailwindcss@4.3.3: {}
 
   tapable@2.3.3: {}
+
+  terra-draw-maplibre-gl-adapter@1.4.1(maplibre-gl@6.10.0)(terra-draw@1.34.0):
+    dependencies:
+      maplibre-gl: 6.10.0
+      terra-draw: 1.34.0
+
+  terra-draw@1.34.0: {}
 
   thirty-two@1.0.2: {}
 

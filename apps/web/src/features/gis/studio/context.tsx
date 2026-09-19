@@ -56,6 +56,12 @@ export interface StudioContextValue {
    */
   styleDrafts: Readonly<Record<string, LayerStyle>>
   setStyleDraft: (layerId: string, style: LayerStyle | null) => void
+  /**
+   * Инструмент, которому принадлежат щелчки по карте (правка объектов,
+   * измерение…): пока он задан, щелчок не открывает карточку объекта.
+   */
+  mapTool: string | null
+  setMapTool: (tool: string | null) => void
 }
 
 const StudioContext = createContext<StudioContextValue | null>(null)

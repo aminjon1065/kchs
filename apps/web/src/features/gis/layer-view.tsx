@@ -31,6 +31,7 @@ import { PresenceAvatars } from '~/features/objects/presence-avatars.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { keys, objectQuery } from '~/shared/api/queries.js'
 import { registerPmtilesProtocol, useBasemapStyle } from './basemaps.js'
+import { LayerEditSettings } from './edit/layer-edit-settings.js'
 import { FeatureCard } from './feature-card.js'
 import { layerSourceId, useRenderedLayers } from './layer-render.js'
 import { gisKeys, layerQuery } from './queries.js'
@@ -289,6 +290,8 @@ export function LayerView({
                 {t('gis.layer.styleWarnings', { n: warnings.length })}
               </Callout>
             ) : null}
+            {/* Правка объектов на карте и модерация (ADR-0076) — редактору слоя */}
+            {canEdit ? <LayerEditSettings layer={layer} /> : null}
           </aside>
           <MapCanvas
             className="min-h-[320px]"

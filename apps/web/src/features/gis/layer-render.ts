@@ -237,12 +237,13 @@ export function useRenderedLayers(
       sourceOf: layerSourceId,
     }
   }, [
+    // Версия данных — в адресе тайлов: правка объекта (ADR-0076) перерисовывает слой
     drawn
       .map(
         (entry) =>
-          `${entry.layer.id}:${entry.layer.version}:${entry.visible}:${entry.opacity}:${
-            entry.style ? JSON.stringify(entry.style) : ''
-          }`,
+          `${entry.layer.id}:${entry.layer.version}:${entry.layer.datasetVersion}:${entry.visible}:${
+            entry.opacity
+          }:${entry.style ? JSON.stringify(entry.style) : ''}`,
       )
       .join('|'),
     theme,

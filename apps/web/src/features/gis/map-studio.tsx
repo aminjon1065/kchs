@@ -119,6 +119,7 @@ export function MapStudio({
   const [attributesOpen, setAttributesOpen] = useState(false)
   const [layerFilters, setLayerFilters] = useState<Record<string, FilterNode>>({})
   const [styleDrafts, setStyleDrafts] = useState<Record<string, LayerStyle>>({})
+  const [mapTool, setMapTool] = useState<string | null>(null)
   const [instance, setInstance] = useState<MapInstance | null>(null)
   const [adding, setAdding] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
@@ -231,6 +232,8 @@ export function MapStudio({
   })
 
   const onFeatureClick = (event: MapClickEvent) => {
+    // Щелчки забрал инструмент карты (правка, измерение) — без карточки объекта
+    if (mapTool) return
     const hit = event.features[0]
     if (!hit) {
       setPicked(null)
@@ -316,6 +319,11 @@ export function MapStudio({
         else delete next[layerId]
         return next
       }),
+    mapTool,
+    setMapTool: (tool) => {
+      setMapTool(tool)
+      if (tool) setPicked(null)
+    },
   }
 
   return (
