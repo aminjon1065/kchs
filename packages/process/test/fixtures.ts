@@ -168,9 +168,11 @@ export function fakeDirectory(org: FakeOrg): AssigneeDirectory & { calls: string
         .map((role) => role.userId),
     usersWithRoleInSpace: async (key, spaceId) => {
       const members = spaceId ? org.spaceRoles?.[spaceId] : undefined
-      if (members && ['viewer', 'member', 'editor', 'admin'].includes(key)) {
-        return Object.entries(members)
-          .filter(([, role]) => role === key)
+      const order = ['viewer', 'member', 'editor', 'admin']
+      if (order.includes(key)) {
+        // роль участника пространства — «не ниже», как у принципала space_role
+        return Object.entries(members ?? {})
+          .filter(([, role]) => order.indexOf(role) >= order.indexOf(key))
           .map(([userId]) => userId)
       }
       const scoped = (org.roles ?? []).filter(

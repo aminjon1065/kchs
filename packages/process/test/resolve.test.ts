@@ -86,8 +86,9 @@ describe('резолвер назначений', () => {
     ['role:registrar', [u('reg'), u('regA')]],
     // роль в пространстве: своя, иначе — без ограничения
     ['role_in_space:legal', [u('lawyrA')]],
-    // роль участника пространства
-    ['role_in_space:editor', [u('peer')]],
+    // роль участника пространства — не ниже указанной
+    ['role_in_space:editor', [u('author'), u('peer')]],
+    ['role_in_space:admin', [u('author')]],
   ])('%s', async (expression, expected) => {
     expect(await users(expression)).toEqual(expected)
   })
