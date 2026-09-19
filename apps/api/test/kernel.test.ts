@@ -322,6 +322,40 @@ describe('Входящие и уведомления', () => {
     expect(cached.total).toBe(before + 1)
   })
 
+  it('действия для внешних каналов — без подтверждения вторым фактором', async () => {
+    const { InboxService } = await import('../src/kernel/inbox/service.js')
+    const { systemCtx } = await import('../src/shared/context.js')
+    const objectId = fx.spaceId
+    await db().transaction((tx) =>
+      InboxService.open(tx, systemCtx('test'), {
+        userId: fx.users.viewer.id,
+        kind: 'sign',
+        objectId,
+        titleKey: 'notifications.tpl.inboxAssigned',
+        dedupeKey: `second-factor:${Date.now()}`,
+        actions: [
+          {
+            key: 'sign',
+            labelKey: 'inbox.actions.sign',
+            variant: 'primary',
+            requiresComment: false,
+            requiresSecondFactor: true,
+          },
+          {
+            key: 'refuse',
+            labelKey: 'inbox.actions.refuse',
+            variant: 'danger',
+            requiresComment: true,
+          },
+        ],
+      }),
+    )
+    const actions = await InboxService.openActions(fx.users.viewer.id, objectId)
+    const keys = actions.filter((action) => action.kind === 'sign').map((action) => action.key)
+    // «Подписать» с кодом — только в приложении; «Отказать» доступно и в Telegram
+    expect(keys).toEqual(['refuse'])
+  })
+
   it('центр уведомлений отвечает', async () => {
     const response = await call(fx.app, { url: '/notifications', as: fx.users.member })
     expect(response.statusCode).toBe(200)

@@ -270,7 +270,11 @@ export const InboxService = {
       if (!inboxActionHandler(kind)) return []
       const actions =
         (row.payload as { actions?: InboxItem['actions'] }).actions ?? defaultActions(kind)
-      return actions.map((action) => ({ itemId: row.id, kind, objectId, ...action }))
+      // Действия с кодом второго фактора (подпись с MFA, ADR-0079) — только в
+      // приложении: во внешнем канале кода не ввести
+      return actions
+        .filter((action) => !action.requiresSecondFactor)
+        .map((action) => ({ itemId: row.id, kind, objectId, ...action }))
     })
   },
 
