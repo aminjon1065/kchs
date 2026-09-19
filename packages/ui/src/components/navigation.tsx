@@ -254,10 +254,20 @@ export function CommandDialog({
 }: CommandDialogProps) {
   const t = useUiT()
   const [selected, setSelected] = useState('')
+  const listRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setSelected('')
   }, [])
+
+  // Выделенный элемент пропал из списка (запрос изменился, а выделение осталось
+  // от наведения мыши на прежний список) — выделение возвращается к первому,
+  // иначе Enter не на чем сработать
+  useEffect(() => {
+    if (!selected || !listRef.current) return
+    const items = listRef.current.querySelectorAll('[cmdk-item]')
+    if (![...items].some((item) => item.getAttribute('data-value') === selected)) setSelected('')
+  })
 
   if (!open) return null
   return (
@@ -298,7 +308,7 @@ export function CommandDialog({
             ) : null}
             <Kbd>Esc</Kbd>
           </div>
-          <CommandPrimitive.List className="max-h-[52vh] overflow-auto p-1.5">
+          <CommandPrimitive.List ref={listRef} className="max-h-[52vh] overflow-auto p-1.5">
             {children}
           </CommandPrimitive.List>
         </CommandPrimitive>
