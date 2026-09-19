@@ -657,20 +657,25 @@ class ConditionCompiler {
   }
 
   private geometry(value: unknown, path: IssuePath): string {
-    let geometry = value
-    if (isRecord(geometry) && geometry.type === 'Feature') geometry = geometry.geometry
-    if (
-      !isRecord(geometry) ||
-      typeof geometry.type !== 'string' ||
-      !GEOMETRY_TYPES.has(geometry.type) ||
-      (geometry.type === 'GeometryCollection'
-        ? !Array.isArray(geometry.geometries)
-        : !Array.isArray(geometry.coordinates))
-    ) {
-      return fail(path, 'Ожидалась геометрия GeoJSON')
-    }
-    return this.state.dialect.geomFromGeoJson(this.param(JSON.stringify(geometry), 'text'))
+    return geometryLiteral(this.state, value, path)
   }
+}
+
+/** Геометрия GeoJSON (объект геометрии или Feature) → SQL с параметром, SRID 4326. */
+export function geometryLiteral(state: CompileState, value: unknown, path: IssuePath): string {
+  let geometry = value
+  if (isRecord(geometry) && geometry.type === 'Feature') geometry = geometry.geometry
+  if (
+    !isRecord(geometry) ||
+    typeof geometry.type !== 'string' ||
+    !GEOMETRY_TYPES.has(geometry.type) ||
+    (geometry.type === 'GeometryCollection'
+      ? !Array.isArray(geometry.geometries)
+      : !Array.isArray(geometry.coordinates))
+  ) {
+    return fail(path, 'Ожидалась геометрия GeoJSON')
+  }
+  return state.dialect.geomFromGeoJson(state.binder.add(JSON.stringify(geometry), 'text'))
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

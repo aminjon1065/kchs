@@ -1,0 +1,502 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`шаг spatial: SQL > ближайшие больницы: кандидаты по KNN, порядок по geography 1`] = `
+"WITH
+"q0" AS (
+  SELECT "_id", "_ver", "_created_at", "_updated_at", "_created_by", "_updated_by", "c_1" AS "title", "c_2" AS "kind", "c_3" AS "damage", "c_4" AS "victims", "c_5" AS "occurred_at", "c_6" AS "reported_on", "c_7" AS "territory_id", "c_8" AS "assignee", "c_9" AS "unit_id", "c_10" AS "tags", "c_11" AS "geom", "c_12" AS "is_confirmed", (extract(epoch FROM "c_13") / 60)::double precision AS "response", "c_14" AS "ratio", "c_15" AS "phone", "c_16" AS "start_time", "c_17" AS "meta", "c_19" AS "share", "c_20" AS "code", "c_21" AS "email", "c_22" AS "notes"
+  FROM "ds"."t_incidents"
+  WHERE "_deleted_at" IS NULL
+),
+"j0" AS (
+  SELECT "_id", "_ver", "_created_at", "_updated_at", "_created_by", "_updated_by", "c_1" AS "name", "c_2" AS "beds", "c_3" AS "geom"
+  FROM "ds"."t_hospitals"
+  WHERE "_deleted_at" IS NULL
+),
+"q1" AS (
+  SELECT "q0".*, "n"."name", "n"."beds", "n"."distance_m", "n"."nearest_rank"
+  FROM "q0"
+  LEFT JOIN LATERAL (
+    SELECT "c".*, row_number() OVER (ORDER BY "c"."distance_m") AS "nearest_rank"
+    FROM (
+      SELECT "j0"."name" AS "name", "j0"."beds" AS "beds", ST_Distance("q0"."geom"::geography, "j0"."geom"::geography) AS "distance_m"
+      FROM "j0"
+      WHERE "q0"."geom" IS NOT NULL AND "j0"."geom" IS NOT NULL AND ST_DWithin("q0"."geom"::geography, "j0"."geom"::geography, $1::double precision)
+      ORDER BY "j0"."geom" <-> "q0"."geom"
+      LIMIT 16
+    ) AS "c"
+    ORDER BY "c"."distance_m"
+    LIMIT 3
+  ) AS "n" ON TRUE
+)
+SELECT "q1"."title" AS "title", "q1"."kind" AS "kind", "q1"."damage" AS "damage", "q1"."victims" AS "victims", "q1"."occurred_at" AS "occurred_at", "q1"."reported_on" AS "reported_on", "q1"."territory_id" AS "territory_id", "q1"."assignee" AS "assignee", "q1"."unit_id" AS "unit_id", "q1"."tags" AS "tags", ST_AsGeoJSON("q1"."geom")::json AS "geom", "q1"."is_confirmed" AS "is_confirmed", "q1"."response" AS "response", "q1"."ratio" AS "ratio", "q1"."phone" AS "phone", "q1"."start_time" AS "start_time", "q1"."meta" AS "meta", "q1"."share" AS "share", "q1"."code" AS "code", "q1"."email" AS "email", "q1"."notes" AS "notes", "q1"."name" AS "name", "q1"."beds" AS "beds", "q1"."distance_m" AS "distance_m", "q1"."nearest_rank" AS "nearest_rank"
+FROM "q1"
+LIMIT 50001
+-- params: [50000]
+-- fields: title:text, kind:select, damage:money, victims:integer, occurred_at:datetime, reported_on:date, territory_id:territory, assignee:user, unit_id:unit, tags:multi_select, geom:geometry, is_confirmed:boolean, response:duration, ratio:number, phone:phone, start_time:time, meta:json, share:percent, code:identifier, email:email, notes:long_text, name:text, beds:integer, distance_m:number, nearest_rank:integer
+-- count: SELECT count(*) AS "count" FROM "q1""
+`;
+
+exports[`шаг spatial: SQL > буфер на заданное расстояние 1`] = `
+"WITH
+"q0" AS (
+  SELECT "_id", "_ver", "_created_at", "_updated_at", "_created_by", "_updated_by", "c_1" AS "title", "c_2" AS "kind", "c_3" AS "damage", "c_4" AS "victims", "c_5" AS "occurred_at", "c_6" AS "reported_on", "c_7" AS "territory_id", "c_8" AS "assignee", "c_9" AS "unit_id", "c_10" AS "tags", "c_11" AS "geom", "c_12" AS "is_confirmed", (extract(epoch FROM "c_13") / 60)::double precision AS "response", "c_14" AS "ratio", "c_15" AS "phone", "c_16" AS "start_time", "c_17" AS "meta", "c_19" AS "share", "c_20" AS "code", "c_21" AS "email", "c_22" AS "notes"
+  FROM "ds"."t_incidents"
+  WHERE "_deleted_at" IS NULL
+),
+"q1" AS (
+  SELECT "q0"."_id", "q0"."_ver", "q0"."_created_at", "q0"."_updated_at", "q0"."_created_by", "q0"."_updated_by", "q0"."title", "q0"."kind", "q0"."damage", "q0"."victims", "q0"."occurred_at", "q0"."reported_on", "q0"."territory_id", "q0"."assignee", "q0"."unit_id", "q0"."tags", ST_Buffer("q0"."geom"::geography, $1::double precision)::geometry AS "geom", "q0"."is_confirmed", "q0"."response", "q0"."ratio", "q0"."phone", "q0"."start_time", "q0"."meta", "q0"."share", "q0"."code", "q0"."email", "q0"."notes"
+  FROM "q0"
+)
+SELECT "q1"."title" AS "title", "q1"."kind" AS "kind", "q1"."damage" AS "damage", "q1"."victims" AS "victims", "q1"."occurred_at" AS "occurred_at", "q1"."reported_on" AS "reported_on", "q1"."territory_id" AS "territory_id", "q1"."assignee" AS "assignee", "q1"."unit_id" AS "unit_id", "q1"."tags" AS "tags", ST_AsGeoJSON("q1"."geom")::json AS "geom", "q1"."is_confirmed" AS "is_confirmed", "q1"."response" AS "response", "q1"."ratio" AS "ratio", "q1"."phone" AS "phone", "q1"."start_time" AS "start_time", "q1"."meta" AS "meta", "q1"."share" AS "share", "q1"."code" AS "code", "q1"."email" AS "email", "q1"."notes" AS "notes"
+FROM "q1"
+LIMIT 50001
+-- params: [500]
+-- fields: title:text, kind:select, damage:money, victims:integer, occurred_at:datetime, reported_on:date, territory_id:territory, assignee:user, unit_id:unit, tags:multi_select, geom:geometry, is_confirmed:boolean, response:duration, ratio:number, phone:phone, start_time:time, meta:json, share:percent, code:identifier, email:email, notes:long_text
+-- count: SELECT count(*) AS "count" FROM "q1""
+`;
+
+exports[`шаг spatial: SQL > буфер по полю с метрами и параметр запроса 1`] = `
+"WITH
+"q0" AS (
+  SELECT "_id", "_ver", "_created_at", "_updated_at", "_created_by", "_updated_by", "c_1" AS "title", "c_2" AS "kind", "c_3" AS "damage", "c_4" AS "victims", "c_5" AS "occurred_at", "c_6" AS "reported_on", "c_7" AS "territory_id", "c_8" AS "assignee", "c_9" AS "unit_id", "c_10" AS "tags", "c_11" AS "geom", "c_12" AS "is_confirmed", (extract(epoch FROM "c_13") / 60)::double precision AS "response", "c_14" AS "ratio", "c_15" AS "phone", "c_16" AS "start_time", "c_17" AS "meta", "c_19" AS "share", "c_20" AS "code", "c_21" AS "email", "c_22" AS "notes"
+  FROM "ds"."t_incidents"
+  WHERE "_deleted_at" IS NULL
+),
+"q1" AS (
+  SELECT "q0"."_id", "q0"."_ver", "q0"."_created_at", "q0"."_updated_at", "q0"."_created_by", "q0"."_updated_by", "q0"."title", "q0"."kind", "q0"."damage", "q0"."victims", "q0"."occurred_at", "q0"."reported_on", "q0"."territory_id", "q0"."assignee", "q0"."unit_id", "q0"."tags", ST_Buffer("q0"."geom"::geography, ("q0"."victims")::double precision)::geometry AS "geom", "q0"."is_confirmed", "q0"."response", "q0"."ratio", "q0"."phone", "q0"."start_time", "q0"."meta", "q0"."share", "q0"."code", "q0"."email", "q0"."notes"
+  FROM "q0"
+),
+"q2" AS (
+  SELECT "q1"."_id", "q1"."_ver", "q1"."_created_at", "q1"."_updated_at", "q1"."_created_by", "q1"."_updated_by", "q1"."title", "q1"."kind", "q1"."damage", "q1"."victims", "q1"."occurred_at", "q1"."reported_on", "q1"."territory_id", "q1"."assignee", "q1"."unit_id", "q1"."tags", ST_Buffer("q1"."geom"::geography, $1::double precision)::geometry AS "geom", "q1"."is_confirmed", "q1"."response", "q1"."ratio", "q1"."phone", "q1"."start_time", "q1"."meta", "q1"."share", "q1"."code", "q1"."email", "q1"."notes"
+  FROM "q1"
+)
+SELECT "q2"."title" AS "title", "q2"."kind" AS "kind", "q2"."damage" AS "damage", "q2"."victims" AS "victims", "q2"."occurred_at" AS "occurred_at", "q2"."reported_on" AS "reported_on", "q2"."territory_id" AS "territory_id", "q2"."assignee" AS "assignee", "q2"."unit_id" AS "unit_id", "q2"."tags" AS "tags", ST_AsGeoJSON("q2"."geom")::json AS "geom", "q2"."is_confirmed" AS "is_confirmed", "q2"."response" AS "response", "q2"."ratio" AS "ratio", "q2"."phone" AS "phone", "q2"."start_time" AS "start_time", "q2"."meta" AS "meta", "q2"."share" AS "share", "q2"."code" AS "code", "q2"."email" AS "email", "q2"."notes" AS "notes"
+FROM "q2"
+LIMIT 50001
+-- params: [250]
+-- fields: title:text, kind:select, damage:money, victims:integer, occurred_at:datetime, reported_on:date, territory_id:territory, assignee:user, unit_id:unit, tags:multi_select, geom:geometry, is_confirmed:boolean, response:duration, ratio:number, phone:phone, start_time:time, meta:json, share:percent, code:identifier, email:email, notes:long_text
+-- count: SELECT count(*) AS "count" FROM "q2""
+`;
+
+exports[`шаг spatial: SQL > внутри территории (с поиском по идентификатору) 1`] = `
+"WITH
+"q0" AS (
+  SELECT "_id", "_ver", "_created_at", "_updated_at", "_created_by", "_updated_by", "c_1" AS "title", "c_2" AS "kind", "c_3" AS "damage", "c_4" AS "victims", "c_5" AS "occurred_at", "c_6" AS "reported_on", "c_7" AS "territory_id", "c_8" AS "assignee", "c_9" AS "unit_id", "c_10" AS "tags", "c_11" AS "geom", "c_12" AS "is_confirmed", (extract(epoch FROM "c_13") / 60)::double precision AS "response", "c_14" AS "ratio", "c_15" AS "phone", "c_16" AS "start_time", "c_17" AS "meta", "c_19" AS "share", "c_20" AS "code", "c_21" AS "email", "c_22" AS "notes"
+  FROM "ds"."t_incidents"
+  WHERE "_deleted_at" IS NULL
+),
+"j0" AS (
+  SELECT "id" AS "id", "code" AS "code", "level" AS "level", "parent_id" AS "parent_id", "name" AS "name", "geom" AS "geom", "area_km2" AS "area_km2"
+  FROM "ds"."sys_territories"
+),
+"j1" AS (
+  SELECT *
+  FROM "j0"
+  WHERE ("j0"."id" = ANY($1::uuid[]))
+),
+"q1" AS (
+  SELECT *
+  FROM "q0"
+  WHERE EXISTS (SELECT 1 FROM "j1" WHERE ST_Within("q0"."geom", "j1"."geom"))
+)
+SELECT "q1"."title" AS "title", "q1"."kind" AS "kind", "q1"."damage" AS "damage", "q1"."victims" AS "victims", "q1"."occurred_at" AS "occurred_at", "q1"."reported_on" AS "reported_on", "q1"."territory_id" AS "territory_id", "q1"."assignee" AS "assignee", "q1"."unit_id" AS "unit_id", "q1"."tags" AS "tags", ST_AsGeoJSON("q1"."geom")::json AS "geom", "q1"."is_confirmed" AS "is_confirmed", "q1"."response" AS "response", "q1"."ratio" AS "ratio", "q1"."phone" AS "phone", "q1"."start_time" AS "start_time", "q1"."meta" AS "meta", "q1"."share" AS "share", "q1"."code" AS "code", "q1"."email" AS "email", "q1"."notes" AS "notes"
+FROM "q1"
+LIMIT 50001
+-- params: [["cccccccc-cccc-4ccc-8ccc-ccccccccccc1"]]
+-- fields: title:text, kind:select, damage:money, victims:integer, occurred_at:datetime, reported_on:date, territory_id:territory, assignee:user, unit_id:unit, tags:multi_select, geom:geometry, is_confirmed:boolean, response:duration, ratio:number, phone:phone, start_time:time, meta:json, share:percent, code:identifier, email:email, notes:long_text
+-- count: SELECT count(*) AS "count" FROM "q1""
+`;
+
+exports[`шаг spatial: SQL > вырезание по территориям уровня 1`] = `
+"WITH
+"q0" AS (
+  SELECT "_id", "_ver", "_created_at", "_updated_at", "_created_by", "_updated_by", "c_1" AS "name", "c_2" AS "kind", "c_3" AS "geom"
+  FROM "ds"."t_zones"
+  WHERE "_deleted_at" IS NULL
+),
+"j0" AS (
+  SELECT "id" AS "id", "code" AS "code", "level" AS "level", "parent_id" AS "parent_id", "name" AS "name", "geom" AS "geom", "area_km2" AS "area_km2"
+  FROM "ds"."sys_territories"
+),
+"j1" AS (
+  SELECT *
+  FROM "j0"
+  WHERE ("j0"."level" = $1::text)
+),
+"q1" AS (
+  SELECT ST_Union("j1"."geom") AS "clip"
+  FROM "j1"
+  WHERE "j1"."geom" IS NOT NULL
+),
+"q2" AS (
+  SELECT "q0"."_id", "q0"."_ver", "q0"."_created_at", "q0"."_updated_at", "q0"."_created_by", "q0"."_updated_by", "q0"."name", "q0"."kind", ST_CollectionExtract(ST_Intersection("q0"."geom", "m"."clip"), ST_Dimension("q0"."geom") + 1) AS "geom"
+  FROM "q0"
+  CROSS JOIN "q1" AS "m"
+  WHERE ST_Intersects("q0"."geom", "m"."clip")
+),
+"q3" AS (
+  SELECT *
+  FROM "q2"
+  WHERE NOT ST_IsEmpty("q2"."geom")
+)
+SELECT "q3"."name" AS "name", "q3"."kind" AS "kind", ST_AsGeoJSON("q3"."geom")::json AS "geom"
+FROM "q3"
+LIMIT 50001
+-- params: ["region"]
+-- fields: name:text, kind:select, geom:geometry
+-- count: SELECT count(*) AS "count" FROM "q3""
+`;
+
+exports[`шаг spatial: SQL > квадратная сетка: число объектов 1`] = `
+"WITH
+"q0" AS (
+  SELECT "_id", "_ver", "_created_at", "_updated_at", "_created_by", "_updated_by", "c_1" AS "title", "c_2" AS "kind", "c_3" AS "damage", "c_4" AS "victims", "c_5" AS "occurred_at", "c_6" AS "reported_on", "c_7" AS "territory_id", "c_8" AS "assignee", "c_9" AS "unit_id", "c_10" AS "tags", "c_11" AS "geom", "c_12" AS "is_confirmed", (extract(epoch FROM "c_13") / 60)::double precision AS "response", "c_14" AS "ratio", "c_15" AS "phone", "c_16" AS "start_time", "c_17" AS "meta", "c_19" AS "share", "c_20" AS "code", "c_21" AS "email", "c_22" AS "notes"
+  FROM "ds"."t_incidents"
+  WHERE "_deleted_at" IS NULL
+),
+"q1" AS (
+  SELECT (CASE WHEN ST_Y("c") < 0 THEN 32700 ELSE 32600 END
+    + LEAST(60, GREATEST(1, floor((ST_X("c") + 180) / 6)::int + 1)))::int AS "srid"
+  FROM (SELECT ST_Centroid(ST_Extent("q0"."geom")::geometry) AS "c" FROM "q0") AS "e"
+),
+"q2" AS (
+  SELECT "h"."i" AS "i", "h"."j" AS "j", count(*) AS "count"
+  FROM "q0"
+  CROSS JOIN "q1" AS "z"
+  CROSS JOIN LATERAL ST_SquareGrid($1::double precision, ST_Transform("q0"."geom", "z"."srid")) AS "h"
+  WHERE "q0"."geom" IS NOT NULL AND NOT ST_IsEmpty("q0"."geom") AND ST_Intersects("h"."geom", ST_Transform("q0"."geom", "z"."srid"))
+  GROUP BY 1, 2
+),
+"q3" AS (
+  SELECT concat("q2"."i", ':', "q2"."j") AS "cell", ST_Transform(ST_SetSRID(ST_Square($1::double precision, "q2"."i", "q2"."j"), "z"."srid"), 4326) AS "geom", "q2"."count"
+  FROM "q2"
+  CROSS JOIN "q1" AS "z"
+)
+SELECT "q3"."cell" AS "cell", ST_AsGeoJSON("q3"."geom")::json AS "geom", "q3"."count" AS "count"
+FROM "q3"
+LIMIT 50001
+-- params: [10000]
+-- fields: cell:identifier, geom:geometry, count:integer
+-- count: SELECT count(*) AS "count" FROM "q3""
+`;
+
+exports[`шаг spatial: SQL > не в радиусе больниц цели с условием 1`] = `
+"WITH
+"q0" AS (
+  SELECT "_id", "_ver", "_created_at", "_updated_at", "_created_by", "_updated_by", "c_1" AS "title", "c_2" AS "kind", "c_3" AS "damage", "c_4" AS "victims", "c_5" AS "occurred_at", "c_6" AS "reported_on", "c_7" AS "territory_id", "c_8" AS "assignee", "c_9" AS "unit_id", "c_10" AS "tags", "c_11" AS "geom", "c_12" AS "is_confirmed", (extract(epoch FROM "c_13") / 60)::double precision AS "response", "c_14" AS "ratio", "c_15" AS "phone", "c_16" AS "start_time", "c_17" AS "meta", "c_19" AS "share", "c_20" AS "code", "c_21" AS "email", "c_22" AS "notes"
+  FROM "ds"."t_incidents"
+  WHERE "_deleted_at" IS NULL
+),
+"j0" AS (
+  SELECT "_id", "_ver", "_created_at", "_updated_at", "_created_by", "_updated_by", "c_1" AS "name", "c_2" AS "beds", "c_3" AS "geom"
+  FROM "ds"."t_hospitals"
+  WHERE "_deleted_at" IS NULL
+),
+"j1" AS (
+  SELECT *
+  FROM "j0"
+  WHERE ("j0"."beds" >= $2::bigint)
+),
+"q1" AS (
+  SELECT *
+  FROM "q0"
+  WHERE "q0"."geom" IS NOT NULL AND NOT EXISTS (SELECT 1 FROM "j1" WHERE ST_DWithin("q0"."geom"::geography, "j1"."geom"::geography, $1::double precision))
+)
+SELECT "q1"."title" AS "title", "q1"."kind" AS "kind", "q1"."damage" AS "damage", "q1"."victims" AS "victims", "q1"."occurred_at" AS "occurred_at", "q1"."reported_on" AS "reported_on", "q1"."territory_id" AS "territory_id", "q1"."assignee" AS "assignee", "q1"."unit_id" AS "unit_id", "q1"."tags" AS "tags", ST_AsGeoJSON("q1"."geom")::json AS "geom", "q1"."is_confirmed" AS "is_confirmed", "q1"."response" AS "response", "q1"."ratio" AS "ratio", "q1"."phone" AS "phone", "q1"."start_time" AS "start_time", "q1"."meta" AS "meta", "q1"."share" AS "share", "q1"."code" AS "code", "q1"."email" AS "email", "q1"."notes" AS "notes"
+FROM "q1"
+LIMIT 50001
+-- params: [2000,50]
+-- fields: title:text, kind:select, damage:money, victims:integer, occurred_at:datetime, reported_on:date, territory_id:territory, assignee:user, unit_id:unit, tags:multi_select, geom:geometry, is_confirmed:boolean, response:duration, ratio:number, phone:phone, start_time:time, meta:json, share:percent, code:identifier, email:email, notes:long_text
+-- count: SELECT count(*) AS "count" FROM "q1""
+`;
+
+exports[`шаг spatial: SQL > пересечение с геометрией GeoJSON 1`] = `
+"WITH
+"q0" AS (
+  SELECT "_id", "_ver", "_created_at", "_updated_at", "_created_by", "_updated_by", "c_1" AS "title", "c_2" AS "kind", "c_3" AS "damage", "c_4" AS "victims", "c_5" AS "occurred_at", "c_6" AS "reported_on", "c_7" AS "territory_id", "c_8" AS "assignee", "c_9" AS "unit_id", "c_10" AS "tags", "c_11" AS "geom", "c_12" AS "is_confirmed", (extract(epoch FROM "c_13") / 60)::double precision AS "response", "c_14" AS "ratio", "c_15" AS "phone", "c_16" AS "start_time", "c_17" AS "meta", "c_19" AS "share", "c_20" AS "code", "c_21" AS "email", "c_22" AS "notes"
+  FROM "ds"."t_incidents"
+  WHERE "_deleted_at" IS NULL
+),
+"q1" AS (
+  SELECT *
+  FROM "q0"
+  WHERE ST_Intersects("q0"."geom", ST_SetSRID(ST_GeomFromGeoJSON($1::text), 4326))
+)
+SELECT "q1"."title" AS "title", "q1"."kind" AS "kind", "q1"."damage" AS "damage", "q1"."victims" AS "victims", "q1"."occurred_at" AS "occurred_at", "q1"."reported_on" AS "reported_on", "q1"."territory_id" AS "territory_id", "q1"."assignee" AS "assignee", "q1"."unit_id" AS "unit_id", "q1"."tags" AS "tags", ST_AsGeoJSON("q1"."geom")::json AS "geom", "q1"."is_confirmed" AS "is_confirmed", "q1"."response" AS "response", "q1"."ratio" AS "ratio", "q1"."phone" AS "phone", "q1"."start_time" AS "start_time", "q1"."meta" AS "meta", "q1"."share" AS "share", "q1"."code" AS "code", "q1"."email" AS "email", "q1"."notes" AS "notes"
+FROM "q1"
+LIMIT 50001
+-- params: ["{\\"type\\":\\"Polygon\\",\\"coordinates\\":[[[68.7,38.5],[68.9,38.5],[68.9,38.6],[68.7,38.6],[68.7,38.5]]]}"]
+-- fields: title:text, kind:select, damage:money, victims:integer, occurred_at:datetime, reported_on:date, territory_id:territory, assignee:user, unit_id:unit, tags:multi_select, geom:geometry, is_confirmed:boolean, response:duration, ratio:number, phone:phone, start_time:time, meta:json, share:percent, code:identifier, email:email, notes:long_text
+-- count: SELECT count(*) AS "count" FROM "q1""
+`;
+
+exports[`шаг spatial: SQL > площадь и длина — новыми полями 1`] = `
+"WITH
+"q0" AS (
+  SELECT "_id", "_ver", "_created_at", "_updated_at", "_created_by", "_updated_by", "c_1" AS "name", "c_2" AS "kind", "c_3" AS "geom"
+  FROM "ds"."t_zones"
+  WHERE "_deleted_at" IS NULL
+),
+"q1" AS (
+  SELECT "q0".*, (ST_Area("q0"."geom"::geography) / 1000000.0) AS "area_km2"
+  FROM "q0"
+),
+"q2" AS (
+  SELECT "q1".*, (ST_Length("q1"."geom"::geography) / 1000.0) AS "perimeter_km"
+  FROM "q1"
+)
+SELECT "q2"."name" AS "name", "q2"."kind" AS "kind", ST_AsGeoJSON("q2"."geom")::json AS "geom", "q2"."area_km2" AS "area_km2", "q2"."perimeter_km" AS "perimeter_km"
+FROM "q2"
+LIMIT 50001
+-- params: []
+-- fields: name:text, kind:select, geom:geometry, area_km2:number, perimeter_km:number
+-- count: SELECT count(*) AS "count" FROM "q2""
+`;
+
+exports[`шаг spatial: SQL > присвоение района 1`] = `
+"WITH
+"q0" AS (
+  SELECT "_id", "_ver", "_created_at", "_updated_at", "_created_by", "_updated_by", "c_1" AS "title", "c_2" AS "kind", "c_3" AS "damage", "c_4" AS "victims", "c_5" AS "occurred_at", "c_6" AS "reported_on", "c_7" AS "territory_id", "c_8" AS "assignee", "c_9" AS "unit_id", "c_10" AS "tags", "c_11" AS "geom", "c_12" AS "is_confirmed", (extract(epoch FROM "c_13") / 60)::double precision AS "response", "c_14" AS "ratio", "c_15" AS "phone", "c_16" AS "start_time", "c_17" AS "meta", "c_19" AS "share", "c_20" AS "code", "c_21" AS "email", "c_22" AS "notes"
+  FROM "ds"."t_incidents"
+  WHERE "_deleted_at" IS NULL
+),
+"j0" AS (
+  SELECT "id" AS "id", "code" AS "code", "level" AS "level", "parent_id" AS "parent_id", "name" AS "name", "geom" AS "geom", "area_km2" AS "area_km2"
+  FROM "ds"."sys_territories"
+),
+"q1" AS (
+  SELECT "q0".*, (
+    SELECT "j0"."id"
+    FROM "j0"
+    WHERE "j0"."level" = $1::text
+      AND ST_Intersects("j0"."geom", ST_PointOnSurface("q0"."geom"))
+    ORDER BY "j0"."code"
+    LIMIT 1
+  ) AS "terr"
+  FROM "q0"
+)
+SELECT "q1"."title" AS "title", "q1"."kind" AS "kind", "q1"."damage" AS "damage", "q1"."victims" AS "victims", "q1"."occurred_at" AS "occurred_at", "q1"."reported_on" AS "reported_on", "q1"."territory_id" AS "territory_id", "q1"."assignee" AS "assignee", "q1"."unit_id" AS "unit_id", "q1"."tags" AS "tags", ST_AsGeoJSON("q1"."geom")::json AS "geom", "q1"."is_confirmed" AS "is_confirmed", "q1"."response" AS "response", "q1"."ratio" AS "ratio", "q1"."phone" AS "phone", "q1"."start_time" AS "start_time", "q1"."meta" AS "meta", "q1"."share" AS "share", "q1"."code" AS "code", "q1"."email" AS "email", "q1"."notes" AS "notes", "q1"."terr" AS "terr"
+FROM "q1"
+LIMIT 50001
+-- params: ["district"]
+-- fields: title:text, kind:select, damage:money, victims:integer, occurred_at:datetime, reported_on:date, territory_id:territory, assignee:user, unit_id:unit, tags:multi_select, geom:geometry, is_confirmed:boolean, response:duration, ratio:number, phone:phone, start_time:time, meta:json, share:percent, code:identifier, email:email, notes:long_text, terr:territory
+-- count: SELECT count(*) AS "count" FROM "q1""
+`;
+
+exports[`шаг spatial: SQL > пространственное соединение в радиусе 1`] = `
+"WITH
+"q0" AS (
+  SELECT "_id", "_ver", "_created_at", "_updated_at", "_created_by", "_updated_by", "c_1" AS "name", "c_2" AS "beds", "c_3" AS "geom"
+  FROM "ds"."t_hospitals"
+  WHERE "_deleted_at" IS NULL
+),
+"j0" AS (
+  SELECT "_id", "_ver", "_created_at", "_updated_at", "_created_by", "_updated_by", "c_1" AS "title", "c_2" AS "kind", "c_3" AS "damage", "c_4" AS "victims", "c_5" AS "occurred_at", "c_6" AS "reported_on", "c_7" AS "territory_id", "c_8" AS "assignee", "c_9" AS "unit_id", "c_10" AS "tags", "c_11" AS "geom", "c_12" AS "is_confirmed", (extract(epoch FROM "c_13") / 60)::double precision AS "response", "c_14" AS "ratio", "c_15" AS "phone", "c_16" AS "start_time", "c_17" AS "meta", "c_19" AS "share", "c_20" AS "code", "c_21" AS "email", "c_22" AS "notes"
+  FROM "ds"."t_incidents"
+  WHERE "_deleted_at" IS NULL
+),
+"q1" AS (
+  SELECT "q0".*, "s"."count"
+  FROM "q0"
+  LEFT JOIN LATERAL (
+    SELECT count(*) AS "count"
+    FROM "j0"
+    WHERE ST_DWithin("q0"."geom"::geography, "j0"."geom"::geography, $1::double precision)
+  ) AS "s" ON TRUE
+)
+SELECT "q1"."name" AS "name", "q1"."beds" AS "beds", ST_AsGeoJSON("q1"."geom")::json AS "geom", "q1"."count" AS "count"
+FROM "q1"
+LIMIT 50001
+-- params: [3000]
+-- fields: name:text, beds:integer, geom:geometry, count:integer
+-- count: SELECT count(*) AS "count" FROM "q1""
+`;
+
+exports[`шаг spatial: SQL > пространственное соединение: число и сумма по объектам цели 1`] = `
+"WITH
+"q0" AS (
+  SELECT "_id", "_ver", "_created_at", "_updated_at", "_created_by", "_updated_by", "c_1" AS "name", "c_2" AS "kind", "c_3" AS "geom"
+  FROM "ds"."t_zones"
+  WHERE "_deleted_at" IS NULL
+),
+"j0" AS (
+  SELECT "_id", "_ver", "_created_at", "_updated_at", "_created_by", "_updated_by", "c_1" AS "title", "c_2" AS "kind", "c_3" AS "damage", "c_4" AS "victims", "c_5" AS "occurred_at", "c_6" AS "reported_on", "c_7" AS "territory_id", "c_8" AS "assignee", "c_9" AS "unit_id", "c_10" AS "tags", "c_11" AS "geom", "c_12" AS "is_confirmed", (extract(epoch FROM "c_13") / 60)::double precision AS "response", "c_14" AS "ratio", "c_15" AS "phone", "c_16" AS "start_time", "c_17" AS "meta", "c_19" AS "share", "c_20" AS "code", "c_21" AS "email", "c_22" AS "notes"
+  FROM "ds"."t_incidents"
+  WHERE "_deleted_at" IS NULL
+),
+"q1" AS (
+  SELECT "q0".*, "s"."incidents", "s"."damage", "s"."last_at"
+  FROM "q0"
+  LEFT JOIN LATERAL (
+    SELECT count(*) AS "incidents", sum("j0"."damage") AS "damage", max("j0"."occurred_at") AS "last_at"
+    FROM "j0"
+    WHERE ST_Intersects("q0"."geom", "j0"."geom")
+  ) AS "s" ON TRUE
+)
+SELECT "q1"."name" AS "name", "q1"."kind" AS "kind", ST_AsGeoJSON("q1"."geom")::json AS "geom", "q1"."incidents" AS "incidents", "q1"."damage" AS "damage", "q1"."last_at" AS "last_at"
+FROM "q1"
+LIMIT 50001
+-- params: []
+-- fields: name:text, kind:select, geom:geometry, incidents:integer, damage:money, last_at:datetime
+-- count: SELECT count(*) AS "count" FROM "q1""
+`;
+
+exports[`шаг spatial: SQL > расстояние до точки 1`] = `
+"WITH
+"q0" AS (
+  SELECT "_id", "_ver", "_created_at", "_updated_at", "_created_by", "_updated_by", "c_1" AS "title", "c_2" AS "kind", "c_3" AS "damage", "c_4" AS "victims", "c_5" AS "occurred_at", "c_6" AS "reported_on", "c_7" AS "territory_id", "c_8" AS "assignee", "c_9" AS "unit_id", "c_10" AS "tags", "c_11" AS "geom", "c_12" AS "is_confirmed", (extract(epoch FROM "c_13") / 60)::double precision AS "response", "c_14" AS "ratio", "c_15" AS "phone", "c_16" AS "start_time", "c_17" AS "meta", "c_19" AS "share", "c_20" AS "code", "c_21" AS "email", "c_22" AS "notes"
+  FROM "ds"."t_incidents"
+  WHERE "_deleted_at" IS NULL
+),
+"q1" AS (
+  SELECT "q0".*, ST_Distance("q0"."geom"::geography, ST_SetSRID(ST_GeomFromGeoJSON($1::text), 4326)::geography) AS "to_center_m"
+  FROM "q0"
+)
+SELECT "q1"."title" AS "title", "q1"."kind" AS "kind", "q1"."damage" AS "damage", "q1"."victims" AS "victims", "q1"."occurred_at" AS "occurred_at", "q1"."reported_on" AS "reported_on", "q1"."territory_id" AS "territory_id", "q1"."assignee" AS "assignee", "q1"."unit_id" AS "unit_id", "q1"."tags" AS "tags", ST_AsGeoJSON("q1"."geom")::json AS "geom", "q1"."is_confirmed" AS "is_confirmed", "q1"."response" AS "response", "q1"."ratio" AS "ratio", "q1"."phone" AS "phone", "q1"."start_time" AS "start_time", "q1"."meta" AS "meta", "q1"."share" AS "share", "q1"."code" AS "code", "q1"."email" AS "email", "q1"."notes" AS "notes", "q1"."to_center_m" AS "to_center_m"
+FROM "q1"
+LIMIT 50001
+-- params: ["{\\"type\\":\\"Point\\",\\"coordinates\\":[68.78,38.56]}"]
+-- fields: title:text, kind:select, damage:money, victims:integer, occurred_at:datetime, reported_on:date, territory_id:territory, assignee:user, unit_id:unit, tags:multi_select, geom:geometry, is_confirmed:boolean, response:duration, ratio:number, phone:phone, start_time:time, meta:json, share:percent, code:identifier, email:email, notes:long_text, to_center_m:number
+-- count: SELECT count(*) AS "count" FROM "q1""
+`;
+
+exports[`шаг spatial: SQL > растворение по полю 1`] = `
+"WITH
+"q0" AS (
+  SELECT "_id", "_ver", "_created_at", "_updated_at", "_created_by", "_updated_by", "c_1" AS "name", "c_2" AS "kind", "c_3" AS "geom"
+  FROM "ds"."t_zones"
+  WHERE "_deleted_at" IS NULL
+),
+"q1" AS (
+  SELECT "q0"."kind" AS "kind", ST_Multi(ST_Union("q0"."geom")) AS "geom", count(*) AS "zones"
+  FROM "q0"
+  WHERE "q0"."geom" IS NOT NULL
+  GROUP BY 1
+)
+SELECT "q1"."kind" AS "kind", ST_AsGeoJSON("q1"."geom")::json AS "geom", "q1"."zones" AS "zones"
+FROM "q1"
+LIMIT 50001
+-- params: []
+-- fields: kind:select, geom:geometry, zones:integer
+-- count: SELECT count(*) AS "count" FROM "q1""
+`;
+
+exports[`шаг spatial: SQL > справочник территорий как источник 1`] = `
+"WITH
+"q0" AS (
+  SELECT "id" AS "id", "code" AS "code", "level" AS "level", "parent_id" AS "parent_id", "name" AS "name", "geom" AS "geom", "area_km2" AS "area_km2"
+  FROM "ds"."sys_territories"
+),
+"q1" AS (
+  SELECT *
+  FROM "q0"
+  WHERE ("q0"."level" = $1::text)
+),
+"j0" AS (
+  SELECT "_id", "_ver", "_created_at", "_updated_at", "_created_by", "_updated_by", "c_1" AS "title", "c_2" AS "kind", "c_3" AS "damage", "c_4" AS "victims", "c_5" AS "occurred_at", "c_6" AS "reported_on", "c_7" AS "territory_id", "c_8" AS "assignee", "c_9" AS "unit_id", "c_10" AS "tags", "c_11" AS "geom", "c_12" AS "is_confirmed", (extract(epoch FROM "c_13") / 60)::double precision AS "response", "c_14" AS "ratio", "c_15" AS "phone", "c_16" AS "start_time", "c_17" AS "meta", "c_19" AS "share", "c_20" AS "code", "c_21" AS "email", "c_22" AS "notes"
+  FROM "ds"."t_incidents"
+  WHERE "_deleted_at" IS NULL
+),
+"q2" AS (
+  SELECT "q1".*, "s"."count"
+  FROM "q1"
+  LEFT JOIN LATERAL (
+    SELECT count(*) AS "count"
+    FROM "j0"
+    WHERE ST_Intersects("q1"."geom", "j0"."geom")
+  ) AS "s" ON TRUE
+)
+SELECT "q2"."id" AS "id", "q2"."code" AS "code", "q2"."level" AS "level", "q2"."parent_id" AS "parent_id", "q2"."name" AS "name", ST_AsGeoJSON("q2"."geom")::json AS "geom", "q2"."area_km2" AS "area_km2", "q2"."count" AS "count"
+FROM "q2"
+LIMIT 50001
+-- params: ["district"]
+-- fields: id:territory, code:identifier, level:select, parent_id:territory, name:text, geom:geometry, area_km2:number, count:integer
+-- count: SELECT count(*) AS "count" FROM "q2""
+`;
+
+exports[`шаг spatial: SQL > центроид и точка на поверхности 1`] = `
+"WITH
+"q0" AS (
+  SELECT "_id", "_ver", "_created_at", "_updated_at", "_created_by", "_updated_by", "c_1" AS "name", "c_2" AS "kind", "c_3" AS "geom"
+  FROM "ds"."t_zones"
+  WHERE "_deleted_at" IS NULL
+),
+"q1" AS (
+  SELECT "q0"."_id", "q0"."_ver", "q0"."_created_at", "q0"."_updated_at", "q0"."_created_by", "q0"."_updated_by", "q0"."name", "q0"."kind", ST_PointOnSurface("q0"."geom") AS "geom"
+  FROM "q0"
+)
+SELECT "q1"."name" AS "name", "q1"."kind" AS "kind", ST_AsGeoJSON("q1"."geom")::json AS "geom"
+FROM "q1"
+LIMIT 50001
+-- params: []
+-- fields: name:text, kind:select, geom:geometry
+-- count: SELECT count(*) AS "count" FROM "q1""
+`;
+
+exports[`шаг spatial: SQL > цепочка: фильтр, буфер, площадь, сортировка и лимит 1`] = `
+"WITH
+"q0" AS (
+  SELECT "_id", "_ver", "_created_at", "_updated_at", "_created_by", "_updated_by", "c_1" AS "title", "c_2" AS "kind", "c_3" AS "damage", "c_4" AS "victims", "c_5" AS "occurred_at", "c_6" AS "reported_on", "c_7" AS "territory_id", "c_8" AS "assignee", "c_9" AS "unit_id", "c_10" AS "tags", "c_11" AS "geom", "c_12" AS "is_confirmed", (extract(epoch FROM "c_13") / 60)::double precision AS "response", "c_14" AS "ratio", "c_15" AS "phone", "c_16" AS "start_time", "c_17" AS "meta", "c_19" AS "share", "c_20" AS "code", "c_21" AS "email", "c_22" AS "notes"
+  FROM "ds"."t_incidents"
+  WHERE "_deleted_at" IS NULL
+),
+"q1" AS (
+  SELECT *
+  FROM "q0"
+  WHERE ("q0"."kind" = $1::text)
+),
+"q2" AS (
+  SELECT "q1"."_id", "q1"."_ver", "q1"."_created_at", "q1"."_updated_at", "q1"."_created_by", "q1"."_updated_by", "q1"."title", "q1"."kind", "q1"."damage", "q1"."victims", "q1"."occurred_at", "q1"."reported_on", "q1"."territory_id", "q1"."assignee", "q1"."unit_id", "q1"."tags", ST_Buffer("q1"."geom"::geography, $2::double precision)::geometry AS "geom", "q1"."is_confirmed", "q1"."response", "q1"."ratio", "q1"."phone", "q1"."start_time", "q1"."meta", "q1"."share", "q1"."code", "q1"."email", "q1"."notes"
+  FROM "q1"
+),
+"q3" AS (
+  SELECT "q2".*, (ST_Area("q2"."geom"::geography) / 1000000.0) AS "area_km2"
+  FROM "q2"
+),
+"q4" AS (
+  SELECT *
+  FROM "q3"
+  ORDER BY "q3"."damage" DESC
+  LIMIT 10
+)
+SELECT "q4"."title" AS "title", "q4"."kind" AS "kind", "q4"."damage" AS "damage", "q4"."victims" AS "victims", "q4"."occurred_at" AS "occurred_at", "q4"."reported_on" AS "reported_on", "q4"."territory_id" AS "territory_id", "q4"."assignee" AS "assignee", "q4"."unit_id" AS "unit_id", "q4"."tags" AS "tags", ST_AsGeoJSON("q4"."geom")::json AS "geom", "q4"."is_confirmed" AS "is_confirmed", "q4"."response" AS "response", "q4"."ratio" AS "ratio", "q4"."phone" AS "phone", "q4"."start_time" AS "start_time", "q4"."meta" AS "meta", "q4"."share" AS "share", "q4"."code" AS "code", "q4"."email" AS "email", "q4"."notes" AS "notes", "q4"."area_km2" AS "area_km2"
+FROM "q4"
+ORDER BY "q4"."damage" DESC
+LIMIT 50001
+-- params: ["fire",1000]
+-- fields: title:text, kind:select, damage:money, victims:integer, occurred_at:datetime, reported_on:date, territory_id:territory, assignee:user, unit_id:unit, tags:multi_select, geom:geometry, is_confirmed:boolean, response:duration, ratio:number, phone:phone, start_time:time, meta:json, share:percent, code:identifier, email:email, notes:long_text, area_km2:number
+-- count: SELECT count(*) AS "count" FROM "q3""
+`;
+
+exports[`шаг spatial: SQL > шестиугольники с мерами 1`] = `
+"WITH
+"q0" AS (
+  SELECT "_id", "_ver", "_created_at", "_updated_at", "_created_by", "_updated_by", "c_1" AS "title", "c_2" AS "kind", "c_3" AS "damage", "c_4" AS "victims", "c_5" AS "occurred_at", "c_6" AS "reported_on", "c_7" AS "territory_id", "c_8" AS "assignee", "c_9" AS "unit_id", "c_10" AS "tags", "c_11" AS "geom", "c_12" AS "is_confirmed", (extract(epoch FROM "c_13") / 60)::double precision AS "response", "c_14" AS "ratio", "c_15" AS "phone", "c_16" AS "start_time", "c_17" AS "meta", "c_19" AS "share", "c_20" AS "code", "c_21" AS "email", "c_22" AS "notes"
+  FROM "ds"."t_incidents"
+  WHERE "_deleted_at" IS NULL
+),
+"q1" AS (
+  SELECT (CASE WHEN ST_Y("c") < 0 THEN 32700 ELSE 32600 END
+    + LEAST(60, GREATEST(1, floor((ST_X("c") + 180) / 6)::int + 1)))::int AS "srid"
+  FROM (SELECT ST_Centroid(ST_Extent("q0"."geom")::geometry) AS "c" FROM "q0") AS "e"
+),
+"q2" AS (
+  SELECT "h"."i" AS "i", "h"."j" AS "j", count(*) AS "n", avg("q0"."damage") AS "damage"
+  FROM "q0"
+  CROSS JOIN "q1" AS "z"
+  CROSS JOIN LATERAL ST_HexagonGrid($1::double precision, ST_Transform("q0"."geom", "z"."srid")) AS "h"
+  WHERE "q0"."geom" IS NOT NULL AND NOT ST_IsEmpty("q0"."geom") AND ST_Intersects("h"."geom", ST_Transform("q0"."geom", "z"."srid"))
+  GROUP BY 1, 2
+),
+"q3" AS (
+  SELECT concat("q2"."i", ':', "q2"."j") AS "cell", ST_Transform(ST_SetSRID(ST_Hexagon($1::double precision, "q2"."i", "q2"."j"), "z"."srid"), 4326) AS "geom", "q2"."n", "q2"."damage"
+  FROM "q2"
+  CROSS JOIN "q1" AS "z"
+)
+SELECT "q3"."cell" AS "cell", ST_AsGeoJSON("q3"."geom")::json AS "geom", "q3"."n" AS "n", "q3"."damage" AS "damage"
+FROM "q3"
+LIMIT 50001
+-- params: [5000]
+-- fields: cell:identifier, geom:geometry, n:integer, damage:money
+-- count: SELECT count(*) AS "count" FROM "q3""
+`;

@@ -1,10 +1,11 @@
 import type { QuerySource, QuerySpec } from '@kchs/contracts'
+import { spatialSources } from './compiler/spatial.js'
 import type { CollectedSources } from './types.js'
 
 const MAX_DEPTH = 4
 
 /**
- * Источники спецификации (основной, соединения, объединения), которые
+ * Источники спецификации (основной, соединения, объединения, цели шага spatial), которые
  * вызывающий загружает с политиками до компиляции. Сохранённые запросы из
  * `queries` обходятся рекурсивно; не загруженные — только перечисляются.
  */
@@ -20,6 +21,8 @@ export function collectSources(
     const sources: QuerySource[] = [current.source]
     for (const step of current.steps ?? []) {
       if (step.type === 'join' || step.type === 'union') sources.push(step.source)
+      // Цели пространственных операций: датасеты, запросы, справочник территорий
+      if (step.type === 'spatial') sources.push(...spatialSources(step))
     }
     for (const source of sources) {
       switch (source.kind) {

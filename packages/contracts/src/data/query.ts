@@ -22,7 +22,11 @@ export const FieldRef = z.string().min(1).max(160)
 /** Выражение на языке выражений платформы (contracts/query-spec.md §Язык выражений). */
 export const Expression = z.string().min(1).max(4000)
 
-export const SYSTEM_DATASETS = ['tasks', 'documents', 'meetings', 'events'] as const
+/**
+ * Системные датасеты — представления модулей в схеме `ds` с правами смотрящего
+ * (ADR-0060); `territories` — справочник территорий с границами (ADR-0069).
+ */
+export const SYSTEM_DATASETS = ['tasks', 'documents', 'meetings', 'events', 'territories'] as const
 
 export const QuerySource = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('dataset'), id: Uuid, alias: QueryAlias.optional() }),
@@ -186,6 +190,10 @@ const UnionStep = z.object({
   mode: z.enum(['all', 'distinct']).default('all'),
 })
 
+/**
+ * Пространственная операция (07-gis-engine.md §10, ADR-0069): параметры и цель
+ * проверяет компилятор — у каждой операции свой набор (contracts/query-spec.md).
+ */
 const SpatialStep = z.object({
   type: z.literal('spatial'),
   op: z.enum(SPATIAL_OPS),

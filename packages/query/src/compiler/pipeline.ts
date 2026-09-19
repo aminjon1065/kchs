@@ -29,6 +29,7 @@ import {
   uniqueInternal,
 } from './scope.js'
 import { datasetSource, guard, inlineSource, userAttrValue } from './sources.js'
+import { compileSpatial, type SpatialHost } from './spatial.js'
 import type { CompileState } from './state.js'
 
 export interface Ordering {
@@ -279,12 +280,30 @@ class StepCompiler {
         })
         break
       case 'spatial':
-        fail([...path, 'type'], 'Шаг «spatial» не поддерживается в фазе 1', {
-          hint: 'Пространственные условия доступны в фильтре: intersects, within, dwithin',
-        })
+        compileSpatial(this.spatialHost(), step, path)
         break
       default:
         fail([...path, 'type'], `Неизвестный шаг «${String((step as { type: unknown }).type)}»`)
+    }
+  }
+
+  /** Конвейер для шага spatial: цели — источники соединения (CTE j…) с политиками. */
+  private spatialHost(): SpatialHost {
+    const pipeline = this.pipeline
+    return {
+      state: this.state,
+      get relation() {
+        return pipeline.relation
+      },
+      update: (relation, restructured) => {
+        pipeline.relation = relation
+        if (restructured) {
+          pipeline.ordering = []
+          pipeline.aggregated = true
+        }
+      },
+      nextName: () => this.state.nextName(this.prefix),
+      source: (source, path) => compileSource(this.state, source, 'j', path),
     }
   }
 

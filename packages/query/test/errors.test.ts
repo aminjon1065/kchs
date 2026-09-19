@@ -120,9 +120,12 @@ describe('источники', () => {
 describe('шаги', () => {
   check([
     [
-      'spatial не поддерживается',
+      'spatial: у буфера нет расстояния (остальное — spatial.test.ts)',
       q(src(), [{ type: 'spatial', op: 'buffer', params: {} }]),
-      { path: ['steps', 0, 'type'], message: 'Шаг «spatial» не поддерживается в фазе 1' },
+      {
+        path: ['steps', 0, 'params'],
+        message: 'Для буфера нужно расстояние: distance (метры) или distanceField',
+      },
     ],
     [
       'pivot не поддерживается',
