@@ -97,7 +97,14 @@ export function RegisterDialog({
         <div className="flex flex-col gap-3">
           {failure ? <Callout tone="danger">{failure}</Callout> : null}
           <Field label={t('documents.fields.journal')}>
-            <Select value={journalId} onValueChange={setJournalId}>
+            <Select
+              value={journalId}
+              onValueChange={(next) => {
+                // Резерв — номер конкретного журнала: при смене журнала — новый номер
+                setJournalId(next)
+                setReservationId(NO_RESERVATION)
+              }}
+            >
               <SelectTrigger aria-label={t('documents.fields.journal')}>
                 <SelectValue placeholder={t('documents.placeholders.choose')} />
               </SelectTrigger>
@@ -189,7 +196,9 @@ export function CancelDialog({
         }
       >
         <div className="flex flex-col gap-3">
-          <p className="text-sm text-fg-secondary">{t('documents.cancel.hint')}</p>
+          <p className="text-sm text-fg-secondary">
+            {document.regNumber ? t('documents.cancel.hint') : t('documents.cancel.hintDraft')}
+          </p>
           {failure ? <Callout tone="danger">{failure}</Callout> : null}
           <Field label={t('documents.cancel.reason')} htmlFor={reasonId} required>
             <Textarea

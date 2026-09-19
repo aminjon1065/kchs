@@ -1409,6 +1409,8 @@ export const en: DeepPartial<Dictionary> = {
     cancel: {
       title: 'Cancel document',
       hint: 'The document stays in the journal marked as cancelled; its number is never issued again.',
+      hintDraft:
+        'The draft will be cancelled: it stays in the list marked as cancelled and can be moved to the trash.',
       reason: 'Reason',
       done: 'Document cancelled',
       cancelled: 'Document cancelled',
