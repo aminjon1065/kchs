@@ -65,7 +65,10 @@ async function main(): Promise<void> {
 
   if (runsApi) {
     const app = await buildApp()
-    startRealtime(app, { resolveSession: (token) => AuthService.resolveSession(token) })
+    startRealtime(app, {
+      resolveSession: (token) => AuthService.resolveSession(token),
+      accessAttributesOf: (session) => AuthService.accessAttributesOf(session),
+    })
     // Совместное редактирование — тот же HTTP-сервер, путь /collab (ADR-0070)
     startCollab(app.server, { resolveSession: (token) => AuthService.resolveSession(token) })
     await app.listen({ port: env.PORT, host: env.HOST })

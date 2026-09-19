@@ -1,20 +1,26 @@
 import {
   type AccessReason,
   atLeast,
+  type Confidentiality,
   type Decision,
   type Level,
   levelFromValue,
   levelValue,
   maxLevel,
+  parseConfidentiality,
   SPACE_ROLE_DEFAULT_LEVEL,
   type SpaceRole,
+  strictest,
+  withinClearance,
 } from '@kchs/contracts'
 import { and, eq, inArray, isNull, or, type SQL, sql } from 'drizzle-orm'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
 import { aclEntries, links, objectAncestors, objects, spaces } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
+import { AUDIT_ACTIONS, audit } from '../audit/service.js'
 import { actionDefinition, objectType } from '../objects/registry.js'
+import { adminModeActive, clearanceOf, clearanceSql } from './confidentiality.js'
 import type { AuthorizeOptions, ObjectLike } from './types.js'
 
 const DENIED: Decision = {
@@ -55,11 +61,14 @@ export async function loadObject(
       deletedAt: objects.deletedAt,
       meta: objects.meta,
       title: objects.title,
+      confidentiality: objects.confidentiality,
     })
     .from(objects)
     .where(eq(objects.id, id))
     .limit(1)
-  return row ?? null
+  return row
+    ? { ...row, confidentiality: parseConfidentiality(row.confidentiality, 'public') }
+    : null
 }
 
 /**
@@ -104,6 +113,21 @@ export async function effectiveLevel(
 ): Promise<Decision> {
   const reasons: AccessReason[] = []
   let level: Level = 'none'
+
+  // 0. Гриф — атрибутное ограничение ядра (ADR-0080): объект, как и вложение
+  // объекта с грифом, строже допуска недоступен независимо от остальных
+  // источников — даже владельцу, ACL и администратору вне режима администратора
+  const hosts = options.attachments === false ? [] : await attachmentHosts(object.id, executor)
+  const grif = strictest(object.confidentiality, ...hosts.map((host) => host.confidentiality))
+  const clearance = clearanceOf(ctx)
+  if (clearance && !withinClearance(grif, clearance)) {
+    return {
+      allowed: false,
+      level: 'none',
+      reasons: [grifReason(grif, clearance)],
+    }
+  }
+  const viaAdminMode = !clearance && adminModeActive(ctx) && !withinClearance(grif, ctx.clearance)
 
   // 1. Системная роль
   if (ctx.isSystemAdmin) {
@@ -161,7 +185,7 @@ export async function effectiveLevel(
   // вложение может только его владелец). Хост проверяется без этого шага —
   // вложения вложений доступа не передают
   if (options.attachments !== false) {
-    for (const host of await attachmentHosts(object.id, executor)) {
+    for (const host of hosts) {
       const hostDecision = await effectiveLevel(ctx, host, executor, { attachments: false })
       if (!hostDecision.allowed) continue
       const derived: Level =
@@ -182,7 +206,37 @@ export async function effectiveLevel(
 
   if (level === 'none')
     return { allowed: false, level, reasons: reasons.length ? reasons : DENIED.reasons }
+  if (viaAdminMode) {
+    reasons.push({
+      kind: 'attribute_cap',
+      level,
+      messageKey: 'access.reason.admin_mode',
+      params: { confidentiality: grif },
+      sourceObjectId: null,
+    })
+  }
   return { allowed: true, level, reasons }
+}
+
+/** Причина отказа по грифу — для «Объяснить доступ» и аудита попытки. */
+function grifReason(grif: Confidentiality, clearance: Confidentiality): AccessReason {
+  return {
+    kind: 'attribute_cap',
+    level: 'none',
+    messageKey: 'access.reason.confidentiality',
+    params: { confidentiality: grif, clearance },
+    sourceObjectId: null,
+  }
+}
+
+/** Решение принято по грифу: отказ выше допуска или доступ в режиме администратора. */
+function grifDecision(decision: Decision): AccessReason | undefined {
+  return decision.reasons.find(
+    (item) =>
+      item.kind === 'attribute_cap' &&
+      (item.messageKey === 'access.reason.confidentiality' ||
+        item.messageKey === 'access.reason.admin_mode'),
+  )
 }
 
 /** Объекты, к которым прикреплён данный (связи `attachment`), кроме удалённых. */
@@ -199,6 +253,7 @@ async function attachmentHosts(objectId: string, executor: Executor): Promise<Ob
       deletedAt: objects.deletedAt,
       meta: objects.meta,
       title: objects.title,
+      confidentiality: objects.confidentiality,
     })
     .from(links)
     .innerJoin(objects, eq(objects.id, links.sourceId))
@@ -206,6 +261,12 @@ async function attachmentHosts(objectId: string, executor: Executor): Promise<Ob
       and(eq(links.targetId, objectId), eq(links.kind, 'attachment'), isNull(objects.deletedAt)),
     )
     .limit(MAX_ATTACHMENT_HOSTS)
+    .then((rows) =>
+      rows.map((row) => ({
+        ...row,
+        confidentiality: parseConfidentiality(row.confidentiality, 'public'),
+      })),
+    )
 }
 
 /** Верхняя граница хостов вложения при проверке — защита от вырожденных графов. */
@@ -324,12 +385,17 @@ export async function authorize(
   }
 
   const decision = await effectiveLevel(ctx, object)
+  const grif = grifDecision(decision)
 
   // Нет даже просмотра — существование объекта не раскрываем
   if (!atLeast(decision.level, 'view')) {
     if (options.soft) return decision
+    // Попытка открыть объект с грифом выше допуска — в аудит (08-documents.md §13)
+    if (grif) await auditGrif(ctx, object, action, 'denied', grif)
     throw errors.notFound()
   }
+  // Доступ к грифу выше допуска в режиме администратора — каждый раз в аудит
+  if (grif && !options.soft) await auditGrif(ctx, object, action, 'admin_mode', grif)
 
   const definition = actionDefinition(object.type, action)
   const required: Level = definition?.minLevel ?? inferRequiredLevel(action)
@@ -359,6 +425,28 @@ export async function authorize(
   }
 
   return { ...decision, allowed: true }
+}
+
+async function auditGrif(
+  ctx: UserCtx,
+  object: ObjectLike,
+  action: string,
+  outcome: 'denied' | 'admin_mode',
+  reason: AccessReason,
+): Promise<void> {
+  await audit(ctx, {
+    action: AUDIT_ACTIONS.confidentialAccess,
+    objectId: object.id,
+    objectType: object.type,
+    severity: outcome === 'denied' ? 'warning' : 'notice',
+    details: {
+      outcome,
+      action,
+      confidentiality: reason.params.confidentiality ?? null,
+      clearance: ctx.clearance,
+      ...(outcome === 'admin_mode' ? { adminModeReason: ctx.adminMode?.reason ?? null } : {}),
+    },
+  })
 }
 
 /** Соглашение об именах действий, если тип не объявил их явно. */
@@ -392,7 +480,9 @@ export function hasCapability(ctx: Ctx, capability: string): boolean {
  */
 export function visibleObjectsSql(ctx: Ctx, objectTypeName?: string): SQL {
   if (ctx.kind === 'system') return sql`true`
-  if (ctx.isSystemAdmin || ctx.isSecurityAuditor) return sql`true`
+  // Гриф выше допуска скрыт от всех, включая администратора вне режима (ADR-0080)
+  const clearance = clearanceSql(ctx)
+  if (ctx.isSystemAdmin || ctx.isSecurityAuditor) return clearance ?? sql`true`
 
   const pairs = principalPairsOf(ctx)
   const tuples = pairs.length
@@ -433,7 +523,8 @@ export function visibleObjectsSql(ctx: Ctx, objectTypeName?: string): SQL {
   const base = sql`(${eq(objects.ownerId, ctx.userId)} OR ${spaceCondition} OR ${aclCondition})`
 
   const policy = objectTypeName ? objectType(objectTypeName)?.policy?.visibleSql?.(ctx) : null
-  return policy ? sql`(${base} OR ${policy})` : base
+  const visible = policy ? sql`(${base} OR ${policy})` : base
+  return clearance ? sql`(${visible} AND ${clearance})` : visible
 }
 
 /**

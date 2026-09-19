@@ -1,15 +1,17 @@
-import type {
-  AdminUser,
-  AdminUserCreateInput,
-  AdminUserPatchInput,
-  Employment,
-  Locale,
-  OrgUnit,
-  OrgUnitInput,
-  OrgUnitPatch,
-  UserProfile,
-  UserRef,
-  UserStatus,
+import {
+  type AdminUser,
+  type AdminUserCreateInput,
+  type AdminUserPatchInput,
+  type ClearanceInput,
+  type Employment,
+  type Locale,
+  type OrgUnit,
+  type OrgUnitInput,
+  type OrgUnitPatch,
+  parseConfidentiality,
+  type UserProfile,
+  type UserRef,
+  type UserStatus,
 } from '@kchs/contracts'
 import { and, asc, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm'
 import { bumpPrincipalsVersion, invalidatePrincipalSet } from '~/kernel/access/principal-set.js'
@@ -25,6 +27,7 @@ import {
   employments,
   groupMembers,
   groups,
+  type LangTextValue,
   mfaFactors,
   orgClosure,
   orgUnits,
@@ -315,6 +318,8 @@ export const UserService = {
     roleKey?: string
     limit?: number
     cursor?: string
+    /** Допуск к грифам показывается только администратору системы (ADR-0080). */
+    withClearance?: boolean
   }): Promise<{ items: AdminUser[]; nextCursor: string | null }> {
     const limit = Math.min(query.limit ?? 50, 200)
     const conditions = []
@@ -403,9 +408,59 @@ export const UserService = {
           .filter((e) => e.userId === row.id && e.positionId)
           .map((e) => ({ id: e.positionId!, name: e.positionName?.ru ?? '' })),
         roles: roleRows.filter((r) => r.userId === row.id).map((r) => r.key),
+        ...(query.withClearance
+          ? { clearance: parseConfidentiality(row.attributes.clearance) }
+          : {}),
       })),
       nextCursor: hasMore ? (page[page.length - 1]?.id ?? null) : null,
     }
+  },
+
+  /**
+   * Допуск к грифам (ADR-0080) — атрибут `clearance` учётной записи. Меняет
+   * администратор системы с обоснованием: событие и аудит; контекст запроса
+   * читает атрибут заново, открытые сокеты перепроверяет вызывающий маршрут.
+   */
+  async setClearance(
+    tx: Executor,
+    ctx: UserCtx,
+    userId: string,
+    input: ClearanceInput,
+  ): Promise<{ from: string; to: string }> {
+    const [row] = await tx
+      .select({ attributes: users.attributes, displayName: users.displayName })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1)
+      .for('update')
+    if (!row) throw errors.notFound('Пользователь')
+    const from = parseConfidentiality(row.attributes.clearance)
+    const to = input.clearance
+    if (from === to) return { from, to }
+    await tx
+      .update(users)
+      .set({
+        attributes: sql`jsonb_set(${users.attributes}, '{clearance}', to_jsonb(${to}::text))`,
+        updatedAt: sql`now()`,
+      })
+      .where(eq(users.id, userId))
+    await publishEvent(tx, ctx, {
+      type: 'user.clearance_changed',
+      object: { id: userId, type: 'user', title: row.displayName },
+      payload: { userId, from, to },
+    })
+    await audit(
+      ctx,
+      {
+        action: AUDIT_ACTIONS.clearanceChanged,
+        objectId: userId,
+        objectType: 'user',
+        severity: 'warning',
+        details: { from, to, reason: input.reason },
+      },
+      tx,
+    )
+    return { from, to }
   },
 
   /**
@@ -581,6 +636,19 @@ export const OrgService = {
       childCount: childCount.get(row.id) ?? 0,
       spaceId: row.spaceId,
     }))
+  },
+
+  /** Код и название подразделений — индекс `{unit.code}` номеров документов, подписи. */
+  async briefs(
+    unitIds: string[],
+    database: Database = db(),
+  ): Promise<Map<string, { id: string; code: string; name: LangTextValue }>> {
+    if (unitIds.length === 0) return new Map()
+    const rows = await database
+      .select({ id: orgUnits.id, code: orgUnits.code, name: orgUnits.name })
+      .from(orgUnits)
+      .where(inArray(orgUnits.id, unitIds))
+    return new Map(rows.map((row) => [row.id, row]))
   },
 
   /** Руководитель пользователя: глава основного подразделения, иначе — родительского. */

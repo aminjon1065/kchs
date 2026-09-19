@@ -1,7 +1,8 @@
-import { MeResponse, ProfileUpdateInput } from '@kchs/contracts'
+import { AdminModeInput, AdminModeState, MeResponse, ProfileUpdateInput } from '@kchs/contracts'
 import { and, eq, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { invalidatePrincipalSet } from '~/kernel/access/principal-set.js'
+import { recheckUserRooms } from '~/kernel/realtime/gateway.js'
 import { SETTING_KEYS, SettingsService } from '~/kernel/settings/service.js'
 import { db } from '~/shared/db/client.js'
 import { employments, orgUnits, positions, spaces, users } from '~/shared/db/schema/index.js'
@@ -75,6 +76,8 @@ export function registerMeRoutes(route: RouteRegistrar): void {
         mustChangePassword: ctx.mustChangePassword,
         mfaEnrollmentRequired: ctx.mfaEnrollmentRequired,
         preferences,
+        clearance: ctx.clearance,
+        adminMode: ctx.adminMode,
         session: {
           id: ctx.sessionId,
           expiresAt: sessionRow?.expiresAt ?? new Date().toISOString(),
@@ -194,6 +197,35 @@ export function registerMeRoutes(route: RouteRegistrar): void {
               { silent: true },
             ),
       )
+      return { ok: true }
+    },
+  })
+
+  // ─── Режим администратора (ADR-0080) ───────────────────────────────────────
+  route({
+    method: 'POST',
+    url: '/me/admin-mode',
+    auth: { capability: 'admin.system' },
+    tags: ['me'],
+    summary: 'Войти в режим администратора: доступ к объектам с грифом с обоснованием',
+    schema: { body: AdminModeInput, response: { 200: AdminModeState } },
+    handler: async (request) => {
+      const state = await AuthService.enterAdminMode(request.ctx, request.body)
+      return state
+    },
+  })
+
+  route({
+    method: 'DELETE',
+    url: '/me/admin-mode',
+    auth: { capability: 'admin.system' },
+    tags: ['me'],
+    summary: 'Выйти из режима администратора',
+    schema: { response: { 200: z.object({ ok: z.boolean() }) } },
+    handler: async (request) => {
+      await AuthService.exitAdminMode(request.ctx)
+      // Открытые комнаты объектов с грифом закрываются сразу, а не по сроку режима
+      await recheckUserRooms(request.ctx.userId)
       return { ok: true }
     },
   })

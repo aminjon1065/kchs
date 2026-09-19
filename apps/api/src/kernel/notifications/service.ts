@@ -14,6 +14,7 @@ import { type Database, db } from '~/shared/db/client.js'
 import { notificationPreferences, notifications, users } from '~/shared/db/schema/index.js'
 import { logger } from '~/shared/logger/index.js'
 import { mailConfigured, sendMail } from '~/shared/mail/index.js'
+import { redactSummary } from '../access/confidentiality.js'
 import { directory } from '../directory/port.js'
 import { ObjectService } from '../objects/service.js'
 import { emitToUser } from '../realtime/gateway.js'
@@ -164,7 +165,9 @@ export const NotificationService = {
 
     return {
       items: page.map((row) => {
-        const summary = row.objectId ? (summaries.get(row.objectId) ?? null) : null
+        // Объект с грифом от «конфиденциально» — без содержания (08-documents.md §13)
+        const found = row.objectId ? summaries.get(row.objectId) : undefined
+        const summary = found ? redactSummary(found, locale) : null
         const actor = row.actorId ? (actors.get(row.actorId) ?? null) : null
         const params = {
           // Имя автора — для «{actor} упомянул вас…», как при доставке почтой и в Telegram
@@ -368,8 +371,11 @@ async function renderForDelivery(
 
   const result = new Map<number, { text: string; href: string }>()
   for (const row of rows) {
-    const t = createTranslator((row.locale as Locale | null) ?? 'ru')
-    const summary = row.objectId ? summaries.get(row.objectId) : null
+    const locale = (row.locale as Locale | null) ?? 'ru'
+    const t = createTranslator(locale)
+    // Письма и Telegram по объекту с грифом — только «Документ № …» (08-documents.md §13)
+    const found = row.objectId ? summaries.get(row.objectId) : undefined
+    const summary = found ? redactSummary(found, locale) : null
     const params = {
       ...(row.actorId && actors.has(row.actorId) ? { actor: actors.get(row.actorId) } : {}),
       ...(row.params as Record<string, string>),

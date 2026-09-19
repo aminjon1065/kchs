@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm'
 import {
   bigint,
   boolean,
+  check,
   date,
   doublePrecision,
   index,
@@ -44,9 +45,21 @@ export const objects = pgTable(
     meta: jsonbObject('meta'),
     searchVersion: bigint('search_version', { mode: 'number' }).notNull().default(0),
     version: integer('version').notNull().default(1),
+    /**
+     * Гриф объекта (ADR-0080): атрибутное ограничение ядра — выше допуска
+     * пользователя объект недоступен независимо от прав. Задаёт модуль типа.
+     */
+    confidentiality: text('confidentiality').notNull().default('public'),
   },
   (t) => [
     index('objects_space_type_idx').on(t.spaceId, t.type, t.deletedAt),
+    index('objects_confidential_idx')
+      .on(t.confidentiality)
+      .where(sql`${t.confidentiality} <> 'public'`),
+    check(
+      'objects_confidentiality_check',
+      sql`${t.confidentiality} in ('public', 'internal', 'confidential', 'secret')`,
+    ),
     index('objects_parent_idx').on(t.parentId),
     index('objects_owner_idx').on(t.ownerId),
     index('objects_type_updated_idx').on(t.type, t.updatedAt.desc()),

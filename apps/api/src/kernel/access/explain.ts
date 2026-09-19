@@ -1,4 +1,4 @@
-import type { Locale } from '@kchs/contracts'
+import { type Locale, parseConfidentiality } from '@kchs/contracts'
 import { eq } from 'drizzle-orm'
 import type { UserCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
@@ -44,6 +44,8 @@ export async function buildUserCtxFor(userId: string): Promise<UserCtx | null> {
     ip: null,
     userAgent: null,
     attributes: user.attributes,
+    clearance: parseConfidentiality(user.attributes.clearance),
+    adminMode: null,
     mustChangePassword: false,
     mfaEnrollmentRequired: false,
   }

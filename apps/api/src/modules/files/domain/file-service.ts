@@ -1,5 +1,5 @@
 import type { FileRecord, FolderRecord, UploadSessionInput } from '@kchs/contracts'
-import { and, eq, sql } from 'drizzle-orm'
+import { and, eq, inArray, sql } from 'drizzle-orm'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { LinkService } from '~/kernel/links/service.js'
 import { ObjectService } from '~/kernel/objects/service.js'
@@ -306,6 +306,74 @@ export const FileService = {
     const record = await FileService.get(fileId)
     if (!record) throw errors.internal('Файл создан, но не читается')
     return record
+  },
+
+  /**
+   * Файл, который другой модуль уже положил в хранилище под ключом этого файла
+   * (PDF-представление версии документа от движка): объект реестра, версия,
+   * превью и, при необходимости, связь-вложение — в транзакции вызывающего.
+   */
+  async registerGenerated(
+    tx: Executor,
+    ctx: Ctx,
+    input: {
+      fileId: string
+      versionId: string
+      spaceId: string
+      name: string
+      mime: string
+      size: number
+      storageKey: string
+      checksum: string | null
+      attachToObjectId?: string | null
+    },
+  ): Promise<string> {
+    return createFile(tx, ctx, {
+      fileId: input.fileId,
+      versionId: input.versionId,
+      spaceId: input.spaceId,
+      folderId: null,
+      attachToObjectId: input.attachToObjectId ?? null,
+      name: input.name,
+      mime: input.mime,
+      size: input.size,
+      checksum: input.checksum,
+      storageKey: input.storageKey,
+    })
+  },
+
+  /** Краткие сведения о файлах для карточек других модулей: имя, тип, размер, сумма. */
+  async briefs(
+    fileIds: string[],
+    database: Executor = db(),
+  ): Promise<
+    Map<
+      string,
+      {
+        id: string
+        name: string
+        mime: string
+        size: number
+        checksum: string | null
+        currentVersionId: string | null
+        storageKey: string
+      }
+    >
+  > {
+    if (fileIds.length === 0) return new Map()
+    const rows = await database
+      .select({
+        id: files.id,
+        name: files.name,
+        mime: files.mime,
+        size: files.size,
+        checksum: files.checksum,
+        currentVersionId: files.currentVersionId,
+        storageKey: files.storageKey,
+      })
+      .from(files)
+      .where(inArray(files.id, fileIds))
+    return new Map(rows.map((row) => [row.id, row]))
   },
 
   async abortUpload(ctx: UserCtx, sessionId: string): Promise<void> {

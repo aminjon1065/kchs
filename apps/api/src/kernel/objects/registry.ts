@@ -9,7 +9,7 @@ import type { ActionDefinition, ObjectLike, TypePolicy } from '../access/types.j
  * только ядро: модуль, вернувший их, скрыл бы свои объекты от поиска или открыл бы лишним.
  */
 export type SearchContent = Partial<
-  Omit<SearchDocument, 'id' | 'objectId' | 'aclPrincipals' | 'tags'>
+  Omit<SearchDocument, 'id' | 'objectId' | 'aclPrincipals' | 'tags' | 'clearance'>
 >
 
 /**
@@ -50,6 +50,13 @@ export interface ObjectTypeDefinition {
   /** Дополнение сводки для карточек, пикеров и чипов. */
   summary?: (ids: string[]) => Promise<Map<string, Partial<ObjectSummary>>>
   lifecycle?: {
+    /**
+     * Перед переносом в корзину: модуль может запретить удаление, бросив
+     * ошибку (зарегистрированный документ не удаляется — только аннулируется).
+     */
+    beforeTrash?: (tx: Executor, ctx: Ctx, object: ObjectLike) => Promise<void>
+    /** Перед архивированием: модуль может запретить общий архив (у документа — своё «в дело»). */
+    beforeArchive?: (tx: Executor, ctx: Ctx, object: ObjectLike) => Promise<void>
     onArchive?: (tx: Executor, ctx: Ctx, object: ObjectLike) => Promise<void>
     onRestore?: (tx: Executor, ctx: Ctx, object: ObjectLike) => Promise<void>
     onDelete?: (tx: Executor, ctx: Ctx, object: ObjectLike) => Promise<void>
@@ -63,6 +70,12 @@ export interface ObjectTypeDefinition {
   discussable: boolean
   linkable: boolean
   hasParentTree: boolean
+  /**
+   * Название, подзаголовок, значок и meta ведёт модуль (карточка документа):
+   * общий `PATCH /objects/{id}` их не меняет, иначе реестр разошёлся бы с
+   * таблицей модуля. Перенос по дереву по-прежнему через ядро.
+   */
+  moduleManaged?: boolean
   /** Тип создаётся только ядром/системой (например, `conversation`). */
   internal?: boolean
 }

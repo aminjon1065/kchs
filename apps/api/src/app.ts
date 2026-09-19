@@ -11,6 +11,7 @@ import {
   serializerCompiler,
   validatorCompiler,
 } from 'fastify-type-provider-zod'
+import { auditAdminModeRequest } from '~/kernel/access/admin-mode.js'
 import { authorize, requireCapability } from '~/kernel/access/authorize.js'
 import { resolveShareLinkCtx } from '~/kernel/access/share-links.js'
 import { buildUserCtx } from '~/kernel/context-builder.js'
@@ -136,6 +137,11 @@ export async function buildApp(): Promise<FastifyInstance> {
   app.addHook('onSend', async (_request, reply, payload) => {
     reply.header('x-kchs-version', '0.1.0')
     return payload
+  })
+
+  // Режим администратора (ADR-0080): каждое действие в режиме — в аудит
+  app.addHook('onResponse', async (request, reply) => {
+    await auditAdminModeRequest(request, reply.statusCode)
   })
 
   // Здоровье — вне /api/v1, без аутентификации

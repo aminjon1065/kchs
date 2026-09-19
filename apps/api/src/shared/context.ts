@@ -1,4 +1,4 @@
-import type { Capability, Locale } from '@kchs/contracts'
+import type { AdminModeState, Capability, Confidentiality, Locale } from '@kchs/contracts'
 
 /**
  * Множество принципалов пользователя (03-access-model.md).
@@ -53,6 +53,16 @@ export interface UserCtx {
   /** Пользовательские атрибуты для атрибутных ограничений (допуск, территории). */
   attributes: Record<string, unknown>
   /**
+   * Допуск к грифам (атрибут `clearance`, ADR-0080): объекты строже него
+   * недоступны независимо от прав. Гость по ссылке — только `public`.
+   */
+  clearance: Confidentiality
+  /**
+   * Режим администратора сессии (ADR-0080): администратор системы видит
+   * объекты с грифом выше допуска, пока срок не вышел; всё — в аудит.
+   */
+  adminMode: AdminModeState | null
+  /**
    * Временный пароль ещё не сменён: доступны только вход/выход, `GET /me`
    * и смена пароля (17-security.md §2).
    */
@@ -75,6 +85,16 @@ export interface SystemCtx {
 }
 
 export type Ctx = UserCtx | SystemCtx
+
+/** Режим администратора действует: администратор системы, срок не вышел. */
+export function adminModeActive(ctx: Ctx): boolean {
+  return (
+    ctx.kind === 'user' &&
+    ctx.isSystemAdmin &&
+    ctx.adminMode !== null &&
+    new Date(ctx.adminMode.until).getTime() > Date.now()
+  )
+}
 
 export function actorId(ctx: Ctx): string | null {
   return ctx.kind === 'user' ? ctx.userId : ctx.initiatorId

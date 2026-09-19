@@ -1,4 +1,10 @@
-import type { SearchDocument, SearchHit, SearchQuery, SearchResponse } from '@kchs/contracts'
+import {
+  confidentialityRank,
+  type SearchDocument,
+  type SearchHit,
+  type SearchQuery,
+  type SearchResponse,
+} from '@kchs/contracts'
 import { and, asc, eq, gt, inArray, or } from 'drizzle-orm'
 import { type Index, MeiliSearch } from 'meilisearch'
 import { config } from '~/shared/config/index.js'
@@ -8,6 +14,7 @@ import { links, objectAncestors, objects } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { logger } from '~/shared/logger/index.js'
 import { readPrincipalsFor } from '../access/acl-service.js'
+import { clearanceLimit, effectiveConfidentiality } from '../access/confidentiality.js'
 import { objectType } from '../objects/registry.js'
 import { TagService } from '../tags/service.js'
 
@@ -40,7 +47,15 @@ export async function ensureSearchIndex(): Promise<void> {
   }
   await objectsIndex().updateSettings({
     searchableAttributes: ['title', 'body', 'tags'],
-    filterableAttributes: ['type', 'spaceId', 'ownerId', 'aclPrincipals', 'updatedAt', 'parentId'],
+    filterableAttributes: [
+      'type',
+      'spaceId',
+      'ownerId',
+      'aclPrincipals',
+      'updatedAt',
+      'parentId',
+      'clearance',
+    ],
     sortableAttributes: ['updatedAt'],
     displayedAttributes: ['*'],
     rankingRules: ['words', 'typo', 'proximity', 'attribute', 'sort', 'exactness'],
@@ -69,6 +84,8 @@ export async function indexObject(objectId: string): Promise<void> {
   }
 
   const aclPrincipals = await readPrincipalsFor(objectId)
+  // Гриф — свой или объекта, к которому прикреплено (ADR-0080): выдачу режет допуск
+  const clearance = confidentialityRank(await effectiveConfidentiality(objectId))
   const tagNames = await TagService.names(objectId)
   const document: SearchDocument = {
     parentId: row.parentId,
@@ -84,6 +101,7 @@ export async function indexObject(objectId: string): Promise<void> {
     id: objectId,
     objectId,
     aclPrincipals,
+    clearance,
     tags: tagNames,
   }
 
@@ -196,6 +214,10 @@ export async function search(ctx: UserCtx, query: SearchQuery): Promise<SearchRe
       `(${[...principals.map((k) => `aclPrincipals = ${meiliValue(k)}`), `ownerId = ${meiliValue(ctx.userId)}`].join(' OR ')})`,
     )
   }
+  // Гриф выше допуска не находится никем — и администратором вне режима (ADR-0080).
+  // Документы, проиндексированные до появления грифов, ранга не имеют — они общие
+  const limit = clearanceLimit(ctx)
+  if (limit !== null) filters.push(`(clearance NOT EXISTS OR clearance <= ${limit})`)
   if (query.types?.length) filters.push(anyOf('type', query.types))
   if (query.spaceIds?.length) filters.push(anyOf('spaceId', query.spaceIds))
   if (query.ownerIds?.length) filters.push(anyOf('ownerId', query.ownerIds))

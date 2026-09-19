@@ -1,3 +1,9 @@
+import {
+  type AdminModeInput,
+  type AdminModeState,
+  type Confidentiality,
+  parseConfidentiality,
+} from '@kchs/contracts'
 import { and, eq, gt, isNull, or, sql } from 'drizzle-orm'
 import { authenticator } from 'otplib'
 import { invalidatePrincipalSet } from '~/kernel/access/principal-set.js'
@@ -357,6 +363,8 @@ export const AuthService = {
     onBehalfOf: string | null
     /** Второй фактор подключён — для проверки политики `requireMfaRoles`. */
     mfaEnrolled: boolean
+    /** Режим администратора сессии (ADR-0080), если он включён и не истёк. */
+    adminMode: { reason: string; until: string } | null
   } | null> {
     const env = config()
     const [row] = await db()
@@ -385,6 +393,73 @@ export const AuthService = {
       // Отдельным запросом: коррелированный подзапрос в списке select drizzle
       // выводит без имён таблиц, и условие вырождается в user_id = user_id
       mfaEnrolled: await AuthService.mfaEnabled(row.userId),
+      adminMode:
+        row.adminModeUntil && new Date(row.adminModeUntil).getTime() > Date.now()
+          ? { reason: row.adminModeReason ?? '', until: row.adminModeUntil }
+          : null,
+    }
+  },
+
+  /**
+   * Режим администратора (ADR-0080): администратор системы с обоснованием на
+   * ограниченное время видит объекты с грифом выше допуска. Живёт в сессии:
+   * другой браузер или новый вход — без режима. Вход — в аудит.
+   */
+  async enterAdminMode(ctx: UserCtx, input: AdminModeInput): Promise<AdminModeState> {
+    const until = new Date(Date.now() + input.minutes * 60_000).toISOString()
+    await db()
+      .update(sessions)
+      .set({ adminModeUntil: until, adminModeReason: input.reason })
+      .where(and(eq(sessions.id, ctx.sessionId), eq(sessions.userId, ctx.userId)))
+    await audit(ctx, {
+      action: AUDIT_ACTIONS.adminMode,
+      objectId: ctx.userId,
+      objectType: 'user',
+      severity: 'warning',
+      details: { reason: input.reason, minutes: input.minutes, until },
+    })
+    return { reason: input.reason, until }
+  },
+
+  async exitAdminMode(ctx: UserCtx): Promise<void> {
+    const [row] = await db()
+      .update(sessions)
+      .set({ adminModeUntil: null, adminModeReason: null })
+      .where(and(eq(sessions.id, ctx.sessionId), eq(sessions.userId, ctx.userId)))
+      .returning({ id: sessions.id })
+    if (!row) return
+    await audit(ctx, {
+      action: AUDIT_ACTIONS.adminModeExited,
+      objectId: ctx.userId,
+      objectType: 'user',
+      severity: 'notice',
+      details: { reason: ctx.adminMode?.reason ?? null },
+    })
+  },
+
+  /** Допуск пользователя и режим администратора сессии — для контекста сокета. */
+  async accessAttributesOf(session: {
+    sessionId: string
+    userId: string
+  }): Promise<{ clearance: Confidentiality; adminMode: AdminModeState | null }> {
+    const [[user], [row]] = await Promise.all([
+      db()
+        .select({ attributes: users.attributes })
+        .from(users)
+        .where(eq(users.id, session.userId))
+        .limit(1),
+      db()
+        .select({ until: sessions.adminModeUntil, reason: sessions.adminModeReason })
+        .from(sessions)
+        .where(and(eq(sessions.id, session.sessionId), isNull(sessions.revokedAt)))
+        .limit(1),
+    ])
+    return {
+      clearance: parseConfidentiality(user?.attributes.clearance),
+      adminMode:
+        row?.until && new Date(row.until).getTime() > Date.now()
+          ? { reason: row.reason ?? '', until: row.until }
+          : null,
     }
   },
 

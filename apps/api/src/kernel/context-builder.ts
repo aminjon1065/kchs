@@ -1,4 +1,4 @@
-import type { Locale } from '@kchs/contracts'
+import { type AdminModeState, type Locale, parseConfidentiality } from '@kchs/contracts'
 import { eq } from 'drizzle-orm'
 import type { FastifyRequest } from 'fastify'
 import type { UserCtx } from '~/shared/context.js'
@@ -13,7 +13,14 @@ import { SecurityPolicyService } from './settings/security-policy.js'
  * способности из ролей, атрибуты для атрибутных ограничений.
  */
 export async function buildUserCtx(
-  session: { sessionId: string; userId: string; onBehalfOf: string | null; mfaEnrolled: boolean },
+  session: {
+    sessionId: string
+    userId: string
+    onBehalfOf: string | null
+    mfaEnrolled: boolean
+    /** Режим администратора сессии (ADR-0080); истёкший не передаётся. */
+    adminMode?: AdminModeState | null
+  },
   request: FastifyRequest,
 ): Promise<UserCtx> {
   const [user] = await db()
@@ -47,6 +54,12 @@ export async function buildUserCtx(
     onBehalfOf = header
   }
 
+  const isSystemAdmin = principals.roleKeys.includes('system_admin')
+  const adminMode =
+    isSystemAdmin && session.adminMode && new Date(session.adminMode.until).getTime() > Date.now()
+      ? session.adminMode
+      : null
+
   return {
     kind: 'user',
     userId: user.id,
@@ -57,7 +70,7 @@ export async function buildUserCtx(
     principals,
     capabilities,
     roleKeys: principals.roleKeys,
-    isSystemAdmin: principals.roleKeys.includes('system_admin'),
+    isSystemAdmin,
     isSecurityAuditor: principals.roleKeys.includes('security_auditor'),
     onBehalfOf,
     shareLink: null,
@@ -65,6 +78,8 @@ export async function buildUserCtx(
     ip: request.ip ?? null,
     userAgent: (request.headers['user-agent'] as string | undefined) ?? null,
     attributes: user.attributes,
+    clearance: parseConfidentiality(user.attributes.clearance),
+    adminMode,
     mustChangePassword: user.mustChangePassword,
     mfaEnrollmentRequired:
       !session.mfaEnrolled && SecurityPolicyService.requiresMfa(policy, principals.roleKeys),

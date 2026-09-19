@@ -1,4 +1,9 @@
-import type { ObjectSummary, ObjectType } from '@kchs/contracts'
+import {
+  type Confidentiality,
+  type ObjectSummary,
+  type ObjectType,
+  parseConfidentiality,
+} from '@kchs/contracts'
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm'
 import type { Ctx } from '~/shared/context.js'
 import { actorId } from '~/shared/context.js'
@@ -7,6 +12,7 @@ import { objectAncestors, objects, recentViews } from '~/shared/db/schema/index.
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { grantOwner } from '../access/acl-service.js'
+import { effectiveConfidentialityMany } from '../access/confidentiality.js'
 import type { ObjectLike } from '../access/types.js'
 import { publishEvent } from '../events/publisher.js'
 import { objectType, requireObjectType } from './registry.js'
@@ -22,6 +28,8 @@ export interface CreateObjectInput {
   ownerId?: string | null
   accessMode?: 'inherit' | 'restricted'
   meta?: Record<string, unknown>
+  /** Гриф объекта (ADR-0080); по умолчанию `public` — без ограничения. */
+  confidentiality?: Confidentiality
   /** Не публиковать `object.created` (используется при создании беседы объекта). */
   silent?: boolean
 }
@@ -93,6 +101,7 @@ export const ObjectService = {
         createdBy: actorId(ctx),
         accessMode: input.accessMode ?? 'inherit',
         meta: input.meta ?? {},
+        confidentiality: input.confidentiality ?? 'public',
       })
       .returning()
 
@@ -180,6 +189,7 @@ export const ObjectService = {
     ctx: Ctx,
     id: string,
     target: { parentId?: string | null; spaceId?: string },
+    options: { silent?: boolean } = {},
   ): Promise<ObjectLike> {
     const current = await loadRow(tx, id)
     if (!current || current.deletedAt) throw errors.notFound()
@@ -225,15 +235,19 @@ export const ObjectService = {
     const row = await loadRow(tx, id)
     if (!row) throw errors.notFound()
 
+    // Тихий перенос — следствие доменного действия (документ ложится в журнал
+    // при регистрации): о нём сообщает модуль, а права пересчитывает acl.changed
     await publishEvent(tx, ctx, {
-      type: 'object.moved',
+      type: options.silent ? 'acl.changed' : 'object.moved',
       object: { id, type: row.type, spaceId: row.spaceId, title: row.title },
-      payload: {
-        fromParentId: current.parentId,
-        toParentId: newParentId,
-        fromSpaceId: current.spaceId,
-        toSpaceId: newSpaceId,
-      },
+      payload: options.silent
+        ? { objectId: id }
+        : {
+            fromParentId: current.parentId,
+            toParentId: newParentId,
+            fromSpaceId: current.spaceId,
+            toSpaceId: newSpaceId,
+          },
     })
 
     const definition = objectType(row.type)
@@ -245,10 +259,45 @@ export const ObjectService = {
     return toObjectLike(row)
   },
 
+  /**
+   * Смена грифа (ADR-0080) — это смена доступа: событие `acl.changed`
+   * пересчитывает поиск (с вложениями), комнаты realtime и системные датасеты.
+   */
+  async setConfidentiality(
+    tx: Executor,
+    ctx: Ctx,
+    id: string,
+    confidentiality: Confidentiality,
+  ): Promise<void> {
+    const current = await loadRow(tx, id)
+    if (!current || current.deletedAt) throw errors.notFound()
+    if (current.confidentiality === confidentiality) return
+    const [row] = await tx
+      .update(objects)
+      .set({
+        confidentiality,
+        updatedAt: sql`now()`,
+        version: sql`${objects.version} + 1`,
+        searchVersion: sql`${objects.searchVersion} + 1`,
+      })
+      .where(eq(objects.id, id))
+      .returning()
+    if (!row) throw errors.notFound()
+    const object = { id, type: row.type, spaceId: row.spaceId, title: row.title }
+    await publishEvent(tx, ctx, {
+      type: 'object.updated',
+      object,
+      payload: { title: row.title },
+      changedFields: ['confidentiality'],
+    })
+    await publishEvent(tx, ctx, { type: 'acl.changed', object, payload: { objectId: id } })
+  },
+
   async archive(tx: Executor, ctx: Ctx, id: string): Promise<void> {
     const row = await loadRow(tx, id)
     if (!row || row.deletedAt) throw errors.notFound()
     if (row.archivedAt) return
+    await objectType(row.type)?.lifecycle?.beforeArchive?.(tx, ctx, toObjectLike(row))
 
     await tx.execute(sql`
       UPDATE ${objects} SET archived_at = now(), updated_at = now(), search_version = search_version + 1
@@ -284,6 +333,7 @@ export const ObjectService = {
     const row = await loadRow(tx, id)
     if (!row) throw errors.notFound()
     if (row.deletedAt) return
+    await objectType(row.type)?.lifecycle?.beforeTrash?.(tx, ctx, toObjectLike(row))
 
     await tx.execute(sql`
       UPDATE ${objects} SET deleted_at = now(), updated_at = now(), search_version = search_version + 1
@@ -361,6 +411,10 @@ export const ObjectService = {
         )
       : new Map<string, string>()
 
+    // Действующий гриф (свой или объекта-хоста вложения): уведомления и Входящие
+    // по объекту от «конфиденциально» показывают его без содержания (ADR-0080)
+    const grifs = await effectiveConfidentialityMany(rows, executor)
+
     const result = new Map<string, ObjectSummary>()
     for (const row of rows) {
       const definition = objectType(row.type)
@@ -378,6 +432,7 @@ export const ObjectService = {
         meta: row.meta,
         url: definition?.route(row.id) ?? `/o/${row.id}`,
         accessible: true,
+        confidentiality: grifs.get(row.id) ?? 'public',
         ...enrichment.get(row.id),
       })
     }
@@ -446,6 +501,7 @@ function toObjectLike(row: typeof objects.$inferSelect): ObjectLike {
     deletedAt: row.deletedAt,
     meta: row.meta,
     title: row.title,
+    confidentiality: parseConfidentiality(row.confidentiality, 'public'),
   }
 }
 

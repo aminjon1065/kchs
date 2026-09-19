@@ -1,4 +1,10 @@
-import { levelValue, type ShareLinkInput, type ShareLinkOpenResult } from '@kchs/contracts'
+import {
+  GUEST_CLEARANCE,
+  levelValue,
+  type ShareLinkInput,
+  type ShareLinkOpenResult,
+  withinClearance,
+} from '@kchs/contracts'
 import { and, eq, gt, isNull, or, sql } from 'drizzle-orm'
 import { config } from '~/shared/config/index.js'
 import { EMPTY_PRINCIPALS, type UserCtx } from '~/shared/context.js'
@@ -10,6 +16,7 @@ import { errors } from '~/shared/errors.js'
 import { newId, randomToken } from '~/shared/ids.js'
 import { cacheKeys, redis } from '~/shared/redis/index.js'
 import { SecurityPolicyService } from '../settings/security-policy.js'
+import { effectiveConfidentiality } from './confidentiality.js'
 
 /**
  * Гостевые ссылки (03-access-model.md §Гостевые ссылки):
@@ -22,6 +29,12 @@ export async function createShareLink(
   input: ShareLinkInput,
 ): Promise<{ id: string; token: string; url: string }> {
   await assertShareLinksAllowed()
+  // Гость видит только общедоступное: ссылка на объект с грифом не откроется (ADR-0080)
+  if (!withinClearance(await effectiveConfidentiality(objectId, tx), GUEST_CLEARANCE)) {
+    throw errors.policyViolation('Гостевая ссылка на объект с грифом недоступна', {
+      reason: 'confidential_object',
+    })
+  }
   const token = randomToken(24)
   const id = newId()
   await tx.insert(shareLinks).values({
@@ -202,6 +215,9 @@ function guestCtx(
     ip: null,
     userAgent: null,
     attributes: {},
+    // Гость видит только общедоступное: служебное и конфиденциальное — нет (ADR-0080)
+    clearance: GUEST_CLEARANCE,
+    adminMode: null,
     mustChangePassword: false,
     mfaEnrollmentRequired: false,
   }

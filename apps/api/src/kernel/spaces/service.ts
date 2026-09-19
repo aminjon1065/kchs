@@ -8,7 +8,7 @@ import type {
 } from '@kchs/contracts'
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import type { Ctx, UserCtx } from '~/shared/context.js'
-import { actorId } from '~/shared/context.js'
+import { actorId, systemCtx } from '~/shared/context.js'
 import { type Database, db, type Executor } from '~/shared/db/client.js'
 import {
   employments,
@@ -108,6 +108,31 @@ export const SpaceService = {
     })
 
     return object.id
+  },
+
+  /**
+   * Системное пространство модуля (документооборот, ADR-0080): без владельца и
+   * участников, в списках пространств пользователей не появляется; объекты в
+   * нём видны только по их собственным правам. Создаётся один раз.
+   */
+  async ensureSystem(
+    tx: Executor,
+    input: { key: string; name: string; description?: string | null },
+  ): Promise<string> {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`space:system:${input.key}`}))`)
+    const [existing] = await tx
+      .select({ id: spaces.id })
+      .from(spaces)
+      .where(eq(spaces.key, input.key))
+      .limit(1)
+    if (existing) return existing.id
+    return SpaceService.create(tx, systemCtx(`space.system:${input.key}`), {
+      key: input.key,
+      name: input.name,
+      kind: 'team',
+      description: input.description ?? null,
+      settings: { defaultVisibility: 'private', system: input.key } as never,
+    })
   },
 
   /** Личное пространство создаётся автоматически вместе с пользователем. */

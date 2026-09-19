@@ -1,4 +1,4 @@
-import { REPORT_PRINT } from '@kchs/contracts'
+import { type AdminModeState, REPORT_PRINT } from '@kchs/contracts'
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import fp from 'fastify-plugin'
 import { config } from '../config/index.js'
@@ -27,9 +27,16 @@ export interface AuthDependencies {
     expiresAt: string
     onBehalfOf: string | null
     mfaEnrolled: boolean
+    adminMode?: AdminModeState | null
   } | null>
   buildUserCtx: (
-    session: { sessionId: string; userId: string; onBehalfOf: string | null; mfaEnrolled: boolean },
+    session: {
+      sessionId: string
+      userId: string
+      onBehalfOf: string | null
+      mfaEnrolled: boolean
+      adminMode?: AdminModeState | null
+    },
     request: FastifyRequest,
   ) => Promise<UserCtx>
   touchSession: (sessionId: string) => Promise<void>

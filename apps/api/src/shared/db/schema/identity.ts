@@ -131,6 +131,12 @@ export const sessions = pgTable(
     deviceName: text('device_name'),
     /** Сессия действует «от имени» другого пользователя (режим замещения). */
     onBehalfOf: uuid('on_behalf_of'),
+    /**
+     * Режим администратора (ADR-0080): до этого времени администратор системы
+     * видит объекты с грифом выше допуска; обоснование — в аудите и здесь.
+     */
+    adminModeUntil: tsCol('admin_mode_until'),
+    adminModeReason: text('admin_mode_reason'),
     mfaVerifiedAt: tsCol('mfa_verified_at'),
     createdAt: createdAt(),
     lastActiveAt: tsCol('last_active_at').notNull().default(sql`now()`),

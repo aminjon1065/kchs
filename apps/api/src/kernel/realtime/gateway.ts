@@ -1,3 +1,4 @@
+import type { AdminModeState, Confidentiality } from '@kchs/contracts'
 import { createAdapter } from '@socket.io/redis-adapter'
 import type { FastifyInstance } from 'fastify'
 import { Server as SocketServer } from 'socket.io'
@@ -29,6 +30,31 @@ export interface RealtimeDeps {
     onBehalfOf: string | null
     mfaEnrolled: boolean
   } | null>
+  /**
+   * Допуск и режим администратора (ADR-0080): контекст сокета — снимок на
+   * момент подключения, поэтому они перечитываются при подписке на комнаты и
+   * при их смене (выход из режима, новый допуск).
+   */
+  accessAttributesOf?: (session: {
+    sessionId: string
+    userId: string
+  }) => Promise<{ clearance: Confidentiality; adminMode: AdminModeState | null }>
+}
+
+let realtimeDeps: RealtimeDeps | null = null
+
+/** Контекст сокета с актуальными допуском и режимом администратора. */
+async function withFreshAccess(ctx: UserCtx): Promise<UserCtx> {
+  if (!realtimeDeps?.accessAttributesOf) return ctx
+  const fresh = await realtimeDeps.accessAttributesOf({
+    sessionId: ctx.sessionId,
+    userId: ctx.userId,
+  })
+  return {
+    ...ctx,
+    clearance: fresh.clearance,
+    adminMode: ctx.isSystemAdmin ? fresh.adminMode : null,
+  }
 }
 
 class SocketRefused extends Error {
@@ -64,6 +90,7 @@ export async function authenticateSocket(
 export function startRealtime(app: FastifyInstance, deps: RealtimeDeps): SocketServer {
   const env = config()
   const log = logger().child({ module: 'realtime' })
+  realtimeDeps = deps
 
   io = new SocketServer(app.server, {
     path: '/ws',
@@ -102,8 +129,10 @@ export function startRealtime(app: FastifyInstance, deps: RealtimeDeps): SocketS
     socket.on('subscribe', async (payload: { rooms?: string[] }, ack?: (r: unknown) => void) => {
       const granted: string[] = []
       const denied: string[] = []
+      const current = await withFreshAccess((socket.data as SocketData).ctx)
+      ;(socket.data as SocketData).ctx = current
       for (const room of payload?.rooms ?? []) {
-        if (await canJoin(ctx, room)) {
+        if (await canJoin(current, room)) {
           await socket.join(room)
           granted.push(room)
         } else {
@@ -227,6 +256,24 @@ export async function revokeRoomAccess(objectId: string): Promise<void> {
   }
 }
 
+/**
+ * Перепроверка комнат объектов пользователя: режим администратора выключен,
+ * допуск понижен (ADR-0080) — комнаты объектов с грифом выше допуска закрываются.
+ */
+export async function recheckUserRooms(userId: string): Promise<void> {
+  if (!io) return
+  const sockets = await io.in(`user:${userId}`).fetchSockets()
+  for (const socket of sockets) {
+    const ctx = await withFreshAccess((socket.data as SocketData).ctx)
+    for (const room of socket.rooms) {
+      if (!room.startsWith('object:') && !room.startsWith('conversation:')) continue
+      if (await canJoin(ctx, room)) continue
+      socket.emit('acl.revoked', { objectId: room.slice(room.indexOf(':') + 1) })
+      socket.leave(room)
+    }
+  }
+}
+
 /** Открытые подключения этого процесса (метрика, 15-admin-operations.md §4). */
 export function realtimeConnections(): number {
   return io?.engine.clientsCount ?? 0
@@ -235,6 +282,7 @@ export function realtimeConnections(): number {
 export function stopRealtime(): void {
   void io?.close()
   io = null
+  realtimeDeps = null
 }
 
 function parseCookies(header: string): Record<string, string> {

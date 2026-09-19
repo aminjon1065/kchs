@@ -3,6 +3,7 @@ import { systemCtx } from '~/shared/context.js'
 import { logger } from '~/shared/logger/index.js'
 import { redis } from '~/shared/redis/index.js'
 import { usersWithAccess } from './access/acl-service.js'
+import { redactSummary } from './access/confidentiality.js'
 import { usersWhoCanView } from './access/explain.js'
 import { invalidatePrincipalSet } from './access/principal-set.js'
 import { activitySubscriber } from './activity/service.js'
@@ -12,6 +13,7 @@ import { invalidateCounts } from './inbox/service.js'
 import { JobService } from './jobs/service.js'
 import { NotificationService } from './notifications/service.js'
 import { objectType } from './objects/registry.js'
+import { ObjectService } from './objects/service.js'
 import { processSubscribers } from './process/subscribers.js'
 import { emitToRoom, revokeRoomAccess } from './realtime/gateway.js'
 import { hasAccessDependents, indexObject, removeFromIndex } from './search/index-service.js'
@@ -224,6 +226,9 @@ async function notificationHandler(event: EventEnvelope): Promise<void> {
   }
   if (!event.object) return
   const url = objectType(event.object.type)?.route(event.object.id) ?? `/o/${event.object.id}`
+  // Название в параметрах — запасное (объект удалён); с грифом — без содержания
+  const summary = (await ObjectService.summaries([event.object.id])).get(event.object.id)
+  const title = summary ? redactSummary(summary, 'ru').title : (event.object.title ?? '')
 
   switch (event.type) {
     case 'mention.created': {
@@ -236,7 +241,7 @@ async function notificationHandler(event: EventEnvelope): Promise<void> {
         userIds,
         category: 'mention',
         titleKey: 'notifications.tpl.mention',
-        params: { title: event.object.title ?? '' },
+        params: { title },
         objectId: event.object.id,
         actorId: event.actor.userId,
         url,
@@ -253,7 +258,7 @@ async function notificationHandler(event: EventEnvelope): Promise<void> {
         userIds: recipients,
         category: 'discussion',
         titleKey: 'notifications.tpl.messagePosted',
-        params: { title: event.object.title ?? '' },
+        params: { title },
         objectId: event.object.id,
         actorId: event.actor.userId,
         url,
@@ -271,7 +276,7 @@ async function notificationHandler(event: EventEnvelope): Promise<void> {
         userIds,
         category: 'object',
         titleKey: 'notifications.tpl.objectShared',
-        params: { title: event.object.title ?? '' },
+        params: { title },
         objectId: event.object.id,
         actorId: event.actor.userId,
         url,

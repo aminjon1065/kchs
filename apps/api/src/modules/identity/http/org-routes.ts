@@ -2,6 +2,8 @@ import {
   AdminUser,
   AdminUserCreateInput,
   AdminUserPatchInput,
+  ClearanceInput,
+  Confidentiality,
   Group,
   LangText,
   OrgUnit,
@@ -14,9 +16,11 @@ import {
 } from '@kchs/contracts'
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import { z } from 'zod'
+import { hasCapability } from '~/kernel/access/authorize.js'
 import { describePrincipals } from '~/kernel/access/principal-refs.js'
 import { invalidatePrincipalSet } from '~/kernel/access/principal-set.js'
 import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
+import { recheckUserRooms } from '~/kernel/realtime/gateway.js'
 import { db } from '~/shared/db/client.js'
 import {
   groups,
@@ -127,7 +131,32 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
         200: z.object({ items: z.array(AdminUser), nextCursor: z.string().nullable() }),
       },
     },
-    handler: async (request) => UserService.list(request.query),
+    handler: async (request) =>
+      UserService.list({
+        ...request.query,
+        withClearance: hasCapability(request.ctx, 'admin.system'),
+      }),
+  })
+
+  route({
+    method: 'PUT',
+    url: '/users/:id/clearance',
+    auth: { capability: 'admin.system' },
+    tags: ['org'],
+    summary: 'Допуск сотрудника к грифам (ADR-0080)',
+    schema: {
+      params: z.object({ id: z.uuid() }),
+      body: ClearanceInput,
+      response: { 200: z.object({ clearance: Confidentiality }) },
+    },
+    handler: async (request) => {
+      const { to } = await db().transaction((tx) =>
+        UserService.setClearance(tx, request.ctx, request.params.id, request.body),
+      )
+      // Комнаты realtime документов, закрытых новым допуском, — сразу
+      await recheckUserRooms(request.params.id)
+      return { clearance: to as Confidentiality }
+    },
   })
 
   route({

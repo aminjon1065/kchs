@@ -18,6 +18,7 @@ import { newId } from '~/shared/ids.js'
 import { publishEvent } from '../events/publisher.js'
 import { objectType } from '../objects/registry.js'
 import { aclScope, inheritanceBoundary, loadObject } from './authorize.js'
+import { clearanceAllowsSql, effectiveConfidentiality } from './confidentiality.js'
 import { describePrincipals } from './principal-refs.js'
 
 export async function grantOwner(tx: Executor, objectId: string, userId: string): Promise<void> {
@@ -432,10 +433,18 @@ export async function usersWithAccess(
     for (const m of members) ids.add(m.userId)
   }
 
+  if (ids.size === 0) return []
+  // Получатель без допуска к грифу объекта о нём не узнаёт (ADR-0080)
+  const cleared = clearanceAllowsSql(
+    await effectiveConfidentiality(objectId, database),
+    sql`${users.attributes}`,
+  )
   const existing = await database
     .select({ id: users.id })
     .from(users)
-    .where(and(inArray(users.id, [...ids]), eq(users.status, 'active')))
+    .where(
+      and(inArray(users.id, [...ids]), eq(users.status, 'active'), ...(cleared ? [cleared] : [])),
+    )
   return existing.map((r) => r.id)
 }
 

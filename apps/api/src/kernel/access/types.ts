@@ -1,4 +1,4 @@
-import type { AccessReason, Capability, Decision, Level } from '@kchs/contracts'
+import type { AccessReason, Capability, Confidentiality, Decision, Level } from '@kchs/contracts'
 import type { SQL } from 'drizzle-orm'
 import type { UserCtx } from '~/shared/context.js'
 import type { Executor } from '~/shared/db/client.js'
@@ -17,6 +17,8 @@ export interface ObjectLike {
   deletedAt: string | null
   meta: Record<string, unknown>
   title: string
+  /** Свой гриф объекта (ADR-0080); вложению добавляется гриф объектов-хостов. */
+  confidentiality: Confidentiality
 }
 
 /**

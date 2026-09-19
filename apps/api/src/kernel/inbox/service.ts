@@ -8,6 +8,7 @@ import { delegations, inboxItems, users } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { cacheKeys, redis } from '~/shared/redis/index.js'
+import { redactSummary } from '../access/confidentiality.js'
 import { directory } from '../directory/port.js'
 import { publishEvent } from '../events/publisher.js'
 import { ObjectService } from '../objects/service.js'
@@ -275,7 +276,13 @@ export const InboxService = {
     const objectIds = [
       ...new Set(page.map((r) => r.objectId).filter((v): v is string => Boolean(v))),
     ]
-    const summaries = await ObjectService.summaries(objectIds)
+    // Дело по объекту с грифом от «конфиденциально» — без содержания (08-documents.md §13)
+    const summaries = new Map(
+      [...(await ObjectService.summaries(objectIds))].map(([id, summary]) => [
+        id,
+        redactSummary(summary, ctx.locale as Locale),
+      ]),
+    )
     const userIds = [
       ...new Set(
         page.flatMap((r) => [r.actorId, r.onBehalfOf]).filter((v): v is string => Boolean(v)),

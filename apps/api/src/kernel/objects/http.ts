@@ -26,6 +26,7 @@ import { errors } from '~/shared/errors.js'
 import { decodeCursor, encodeCursor } from '~/shared/http/pagination.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { authorize, loadObject, visibleObjectsSql } from '../access/authorize.js'
+import { clearanceSql } from '../access/confidentiality.js'
 import { listActivity } from '../activity/service.js'
 import { LinkService } from '../links/service.js'
 import { TagService } from '../tags/service.js'
@@ -132,6 +133,14 @@ export function registerObjectRoutes(route: RouteRegistrar): void {
       const expectedVersion = request.headers['if-match']
         ? Number(String(request.headers['if-match']).replace(/"/g, ''))
         : undefined
+
+      // Название, сводные поля и место в дереве такого типа ведёт его модуль
+      // (карточка документа, журнал регистрации): общий PATCH их не меняет
+      if (objectType((await loadObject(id))?.type ?? '')?.moduleManaged) {
+        throw errors.validation('Объект меняется в своей карточке', [
+          { path: 'title', message: 'module_managed' },
+        ])
+      }
 
       await db().transaction(async (tx) => {
         if (patch.parentId !== undefined || patch.spaceId !== undefined) {
@@ -342,10 +351,13 @@ export function registerObjectRoutes(route: RouteRegistrar): void {
     summary: 'Избранные объекты',
     schema: { response: { 200: z.object({ items: z.array(ObjectSummary) }) } },
     handler: async (request) => {
+      // Гриф мог стать строже допуска после добавления в избранное (ADR-0080)
+      const clearance = clearanceSql(request.ctx)
       const rows = await db()
         .select({ objectId: favorites.objectId })
         .from(favorites)
-        .where(eq(favorites.userId, request.ctx.userId))
+        .innerJoin(objects, eq(objects.id, favorites.objectId))
+        .where(and(eq(favorites.userId, request.ctx.userId), ...(clearance ? [clearance] : [])))
         .orderBy(favorites.sort)
       const summaries = await ObjectService.summaries(rows.map((r) => r.objectId))
       return { items: [...summaries.values()] }
@@ -396,11 +408,18 @@ export function registerObjectRoutes(route: RouteRegistrar): void {
       response: { 200: z.object({ items: z.array(ObjectSummary) }) },
     },
     handler: async (request) => {
+      const clearance = clearanceSql(request.ctx)
       const rows = await db()
         .select({ objectId: recentViews.objectId })
         .from(recentViews)
         .innerJoin(objects, eq(objects.id, recentViews.objectId))
-        .where(and(eq(recentViews.userId, request.ctx.userId), isNull(objects.deletedAt)))
+        .where(
+          and(
+            eq(recentViews.userId, request.ctx.userId),
+            isNull(objects.deletedAt),
+            ...(clearance ? [clearance] : []),
+          ),
+        )
         .orderBy(desc(recentViews.viewedAt))
         .limit(request.query.limit)
       const summaries = await ObjectService.summaries(rows.map((r) => r.objectId))

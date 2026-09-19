@@ -164,6 +164,15 @@ export const AUDIT_ACTIONS = {
   shareLinkOpened: 'share_link.opened',
   confidentialAccess: 'document.confidential_access',
   adminMode: 'admin.mode_entered',
+  /** Режим администратора завершён досрочно (ADR-0080). */
+  adminModeExited: 'admin.mode_exited',
+  /** Любое действие в режиме администратора (ADR-0080). */
+  adminModeAction: 'admin.mode_action',
+  clearanceChanged: 'user.clearance_changed',
+  documentRegistered: 'document.registered',
+  documentCancelled: 'document.cancelled',
+  documentConfidentialityChanged: 'document.confidentiality_changed',
+  journalNumbersReserved: 'journal.numbers_reserved',
   settingsChanged: 'settings.changed',
   objectPurged: 'object.purged',
   auditExported: 'audit.exported',
