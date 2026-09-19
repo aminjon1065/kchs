@@ -129,6 +129,15 @@ async function signIn(file) {
   if (!response.ok()) {
     throw new Error(`вход администратора: ${response.status()} ${await response.text()}`)
   }
+  // Рабочая область — с чистого листа, как у e2e: вкладки и разделение панелей
+  // прошлых прогонов меняют исход шагов
+  const me = await context.get('/api/v1/me')
+  const csrf = (await me.json()).session.csrfToken
+  const cleared = await context.put('/api/v1/me/workspace-state', {
+    data: { state: null },
+    headers: { 'x-csrf-token': csrf },
+  })
+  if (!cleared.ok()) throw new Error(`сброс рабочей области: ${cleared.status()}`)
   await context.storageState({ path: file })
   await context.dispose()
 }
@@ -326,8 +335,13 @@ async function crawl(browser, storageFile, s3Origin) {
         .waitFor({ timeout: 20_000 })
       await page.keyboard.press('Meta+\\')
       const handle = page.locator('[data-panel-resize-handle-id]').first()
-      await handle.waitFor()
-      const box = await handle.boundingBox()
+      await handle.waitFor({ state: 'visible' })
+      // Новая панель перерисовывается (связь с исходной) — граница успокаивается не сразу
+      let box = null
+      for (let attempt = 0; attempt < 10 && !box; attempt++) {
+        box = await handle.boundingBox()
+        if (!box) await page.waitForTimeout(200)
+      }
       if (!box) throw new Error('нет границы панелей')
       // Перетаскивание включает глобальный курсор — react-resizable-panels вставляет <style>
       await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
@@ -343,9 +357,107 @@ async function crawl(browser, storageFile, s3Origin) {
     async () => {
       await palette('Администрирование')
       for (const section of ['Пользователи', 'Оргструктура', 'Аудит', 'Безопасность']) {
-        await page.getByRole('radio', { name: section }).click()
+        // Разделы консоли — вкладки (TabsList «Разделы администрирования»)
+        await page.getByRole('tab', { name: section }).click()
         await page.waitForTimeout(300)
       }
+    },
+    state,
+  )
+
+  // Экраны фазы 2 (ADR-0072, ADR-0070, ADR-0078): карта MapLibre с воркером и
+  // тайлами, совместная правка тетради по WebSocket, предпросмотр печати отчёта.
+  // Данные — по API в пространстве администратора: в CI демо-слоёв нет
+  const run = Date.now().toString(36)
+  const api = async (method, url, data) => {
+    const me = await page.request.get('/api/v1/me')
+    const csrf = (await me.json()).session.csrfToken
+    const response = await page.request.fetch(url, {
+      method,
+      data,
+      headers: { 'x-csrf-token': csrf },
+    })
+    if (!response.ok()) {
+      throw new Error(`${method} ${url}: ${response.status()} ${await response.text()}`)
+    }
+    return response.json()
+  }
+  let gis = null
+  await step(
+    'карта: MapLibre, воркер, подложка и векторные тайлы',
+    async () => {
+      const spaces = (await (await page.request.get('/api/v1/spaces')).json()).items ?? []
+      const spaceId = (spaces.find((item) => item.kind === 'team') ?? spaces[0])?.id
+      if (!spaceId) throw new Error('нет пространства для данных карты')
+      const dataset = await api('POST', '/api/v1/datasets', {
+        name: `CSP точки ${run}`,
+        spaceId,
+        fields: [
+          { key: 'name', label: { ru: 'Название' }, type: 'text' },
+          { key: 'place', label: { ru: 'Место' }, type: 'geometry' },
+        ],
+      })
+      await api('POST', `/api/v1/datasets/${dataset.id}/rows`, {
+        rows: [
+          { values: { name: 'Душанбе', place: { type: 'Point', coordinates: [68.78, 38.56] } } },
+        ],
+      })
+      const layer = await api('POST', '/api/v1/gis/layers', {
+        name: `CSP слой ${run}`,
+        spaceId,
+        datasetId: dataset.id,
+      })
+      const map = await api('POST', '/api/v1/gis/maps', {
+        name: `CSP карта ${run}`,
+        spaceId,
+        spec: { layers: [{ layerId: layer.id }], camera: { center: [68.78, 38.56], zoom: 10 } },
+      })
+      gis = { spaceId, mapId: map.id }
+      await page.goto(`/o/${map.id}`)
+      // idle — стиль, воркер и тайлы загружены и нарисованы; failed — карта не поднялась
+      await page.locator('[data-map-state="idle"]').first().waitFor({ timeout: 45_000 })
+    },
+    state,
+  )
+
+  await step(
+    'тетрадь: совместная правка по WebSocket',
+    async () => {
+      if (!gis) throw new Error('нет пространства предыдущего шага')
+      const notebook = await api('POST', '/api/v1/notebooks', {
+        name: `CSP тетрадь ${run}`,
+        spaceId: gis.spaceId,
+        cells: [
+          { id: 'intro', kind: 'text', body: { type: 'doc', content: [{ type: 'paragraph' }] } },
+        ],
+      })
+      await page.goto(`/o/${notebook.id}`)
+      await page.getByText('Все изменения сохранены').waitFor({ timeout: 20_000 })
+    },
+    state,
+  )
+
+  await step(
+    'предпросмотр печати отчёта с картой',
+    async () => {
+      if (!gis) throw new Error('нет карты предыдущего шага')
+      const report = await api('POST', '/api/v1/reports', {
+        name: `CSP отчёт ${run}`,
+        spaceId: gis.spaceId,
+        blocks: [
+          {
+            id: 'title',
+            kind: 'text',
+            body: {
+              type: 'doc',
+              content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Проверка CSP' }] }],
+            },
+          },
+          { id: 'map', kind: 'map', mapId: gis.mapId },
+        ],
+      })
+      await page.goto(`/print/report-preview/${report.id}`)
+      await page.locator('html[data-print-state="ready"]').waitFor({ timeout: 60_000 })
     },
     state,
   )
