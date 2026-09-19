@@ -1,6 +1,7 @@
 import { AdminUserCreateInput } from '@kchs/contracts'
 import { bootstrapPlatform } from '~/bootstrap.js'
 import { seedFixedHolidays } from '~/kernel/business-calendar/service.js'
+import { DocumentsSeed } from '~/modules/documents/public.js'
 import { BasemapService, type BasemapSyncSummary } from '~/modules/gis/public.js'
 import { UserService } from '~/modules/identity/public.js'
 import { config } from '~/shared/config/index.js'
@@ -24,6 +25,8 @@ export interface InitSummary {
   calendar: Array<{ year: number; added: number }>
   /** Реестр базовых карт: «без подложки» и сборки PMTiles из хранилища (ADR-0066). */
   basemaps: BasemapSyncSummary
+  /** Стартовые журналы и типы документов (08-documents.md §2, ADR-0080). */
+  documents: { journals: number; types: number }
   admin: {
     login: string
     created: boolean
@@ -53,6 +56,7 @@ export async function runInit(options: InitOptions): Promise<InitSummary> {
   const year = (options.now ?? new Date()).getFullYear()
   const calendar = await db().transaction((tx) => seedFixedHolidays(tx, [year, year + 1]))
   const basemaps = await BasemapService.sync(systemCtx('kchs-init'))
+  const documents = await DocumentsSeed.ensureStarterSet(systemCtx('kchs-init'))
 
   const existing = await UserService.activeSystemAdminLogins()
 
@@ -82,6 +86,7 @@ export async function runInit(options: InitOptions): Promise<InitSummary> {
     searchIndex,
     calendar,
     basemaps,
+    documents: { journals: documents.journals, types: documents.types },
     admin: {
       login: created ? admin.login : (existing[0] ?? admin.login),
       created,
@@ -109,6 +114,9 @@ export function formatInitSummary(summary: InitSummary): string {
       .map((entry) => `${entry.year} — добавлено праздничных дней: ${entry.added}`)
       .join('; ')}`,
     '    Иди Рамазон, Иди Қурбон и переносы выходных объявляет Правительство — они вносятся отдельно.',
+  )
+  lines.push(
+    `  Документооборот: журналов добавлено ${summary.documents.journals}, типов документов — ${summary.documents.types}`,
   )
   lines.push(`  Базовая карта по умолчанию: ${summary.basemaps.defaultName ?? '—'}`)
   if (summary.basemaps.defaultKind === 'none') {

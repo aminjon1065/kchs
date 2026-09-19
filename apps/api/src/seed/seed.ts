@@ -4,6 +4,7 @@ import { bumpPrincipalsVersion } from '~/kernel/access/principal-set.js'
 import { DiscussionService } from '~/kernel/discussions/service.js'
 import { reindexAll } from '~/kernel/search/index-service.js'
 import { SpaceService } from '~/kernel/spaces/service.js'
+import { DocumentsSeed } from '~/modules/documents/public.js'
 import { FileService } from '~/modules/files/domain/file-service.js'
 import { BasemapService, type TerritoryInput, TerritoryService } from '~/modules/gis/public.js'
 import { OrgService, UserService } from '~/modules/identity/public.js'
@@ -89,6 +90,8 @@ export async function runSeed(
     .limit(1)
   if (seeded.length > 0) {
     await linkUnitTerritories(ctx, territoryOf)
+    // Справочники документооборота дозагружаются и на заполненной базе
+    await seedDocuments(ctx, options.profile === 'demo')
     log.warn('демо-данные уже загружены — seed пропущен (используйте db:reset)')
     return { users: 0, units: 0, spaces: 0 }
   }
@@ -151,6 +154,7 @@ export async function runSeed(
   log.info({ units: unitIds.size }, 'оргструктура создана')
 
   if (options.profile === 'minimal') {
+    await seedDocuments(adminCtx, false)
     await bumpPrincipalsVersion()
     return { users: 1, units: unitIds.size, spaces: 0 }
   }
@@ -334,6 +338,7 @@ export async function runSeed(
     }
   })
 
+  await seedDocuments(adminCtx, true)
   await bumpPrincipalsVersion()
 
   // Объекты созданы без запущенного worker — индексируем явно
@@ -349,6 +354,20 @@ export async function runSeed(
 
   log.info({ users: Number(count), units: unitIds.size, spaces: spaceIds.size }, 'seed завершён')
   return { users: Number(count), units: unitIds.size, spaces: spaceIds.size }
+}
+
+/**
+ * Стартовые журналы и типы документов (08-documents.md §2, §5) — идемпотентно;
+ * журналы ведёт канцелярия демо-оргструктуры, корреспонденты — демо-миру.
+ */
+async function seedDocuments(ctx: SystemCtx, demo: boolean): Promise<void> {
+  const [registry] = await db()
+    .select({ id: orgUnits.id })
+    .from(orgUnits)
+    .where(eq(orgUnits.code, 'UD-CANC'))
+    .limit(1)
+  const summary = await DocumentsSeed.ensureStarterSet(ctx, { unitId: registry?.id ?? null, demo })
+  logger().child({ module: 'seed' }).info(summary, 'справочники документооборота загружены')
 }
 
 /**
@@ -388,6 +407,8 @@ export async function resetData(): Promise<void> {
     sql`DELETE FROM notifications`,
     sql`DELETE FROM inbox_items`,
     sql`DELETE FROM jobs`,
+    // Документы — до реестра: регистрации держат журналы и типы (FK без каскада)
+    sql`DELETE FROM documents`,
     sql`DELETE FROM objects`,
     // Экземпляры маршрутов удалены вместе с объектами — определения свободны
     sql`DELETE FROM process_definitions`,

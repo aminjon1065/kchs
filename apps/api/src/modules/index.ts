@@ -15,6 +15,11 @@ import {
   upgradeDataStorage,
 } from './data/module.js'
 import {
+  registerDocumentsBackground,
+  registerDocumentsObjectTypes,
+  registerDocumentsRoutes,
+} from './documents/module.js'
+import {
   registerFilesBackground,
   registerFilesObjectTypes,
   registerFilesRoutes,
@@ -60,6 +65,7 @@ export function registerAllObjectTypes(): void {
   registerGisObjectTypes()
   registerReportsObjectTypes()
   registerTasksObjectTypes()
+  registerDocumentsObjectTypes()
   registerDirectory()
   // Каналы уведомлений модулей: ядро доставляет через них в любой роли процесса
   registerTelegramChannel()
@@ -98,6 +104,7 @@ export async function registerModules(app: FastifyInstance, route: RouteRegistra
   registerGisRoutes(route)
   registerReportsRoutes(route)
   registerTasksRoutes(route)
+  registerDocumentsRoutes(route)
   registerTelegramRoutes(route)
   registerAiRoutes(route)
   registerAdminRoutes(route)
@@ -112,6 +119,7 @@ export function registerModulesBackground(): void {
   registerGisBackground()
   registerReportsBackground()
   registerTasksBackground()
+  registerDocumentsBackground()
 }
 
 export async function scheduleModuleJobs(): Promise<void> {

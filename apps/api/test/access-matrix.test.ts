@@ -27,9 +27,8 @@ const { indexObject } = await import('../src/kernel/search/index-service.js')
 const { canJoin } = await import('../src/kernel/realtime/gateway.js')
 const { buildUserCtx } = await import('../src/kernel/context-builder.js')
 const { systemCtx } = await import('../src/shared/context.js')
-const { basemaps, territories, territoryClosure, views } = await import(
-  '../src/shared/db/schema/index.js'
-)
+const { basemaps, correspondents, documentTypes, journals, territories, territoryClosure, views } =
+  await import('../src/shared/db/schema/index.js')
 
 interface Created {
   id: string
@@ -574,6 +573,123 @@ const FIXTURES: Record<string, TypeFixture> = {
     viewerForbidden: (_fx, id) => [
       { method: 'PATCH', url: `/tasks/${id}`, payload: { title: 'правка читателя' } },
       { method: 'POST', url: `/tasks/${id}/status`, payload: { status: 'in_progress' } },
+    ],
+  },
+
+  // Документ живёт в системном пространстве документооборота без участников:
+  // читатель получает view явной записью, как любой участник документа
+  document: {
+    create: async (fx, title) => {
+      const types = await call(fx.app, { url: '/document-types', as: fx.admin })
+      let typeId = (types.json().items as Array<{ id: string }>)[0]?.id
+      if (!typeId) {
+        const created = await call(fx.app, {
+          method: 'POST',
+          url: '/document-types',
+          as: fx.admin,
+          payload: { key: `matrix_${run}`, name: { ru: 'Матрица' }, direction: 'internal' },
+        })
+        expect(created.statusCode, created.body).toBe(200)
+        typeId = created.json().id as string
+      }
+      const response = await call(fx.app, {
+        method: 'POST',
+        url: '/documents',
+        as: fx.admin,
+        payload: { typeId, subject: title },
+      })
+      expect(response.statusCode, response.body).toBe(200)
+      const id = response.json().id as string
+      const grant = await call(fx.app, {
+        method: 'POST',
+        url: `/objects/${id}/access`,
+        as: fx.admin,
+        payload: { grants: [{ principal: { type: 'user', id: fx.users.viewer.id }, level: 'view' }] },
+      })
+      expect(grant.statusCode, grant.body).toBe(200)
+      return { id, title }
+    },
+    readPaths: ['/documents/:id', '/documents/:id/versions'],
+    viewerForbidden: (_fx, id) => [
+      { method: 'PATCH', url: `/documents/${id}`, payload: { subject: 'правка читателя' } },
+      { method: 'POST', url: `/documents/${id}/register`, payload: {} },
+      { method: 'POST', url: `/documents/${id}/cancel`, payload: { reason: 'аннулирую чужое' } },
+      {
+        method: 'POST',
+        url: `/documents/${id}/versions`,
+        payload: { mainFileId: '01900000-0000-7000-8000-000000000000' },
+      },
+    ],
+  },
+
+  // Справочники документооборота открыты всем выдачей everyone:*; в матрице — объекты
+  // в пространстве теста: права по общим правилам ядра, как у территорий
+  document_type: {
+    create: async (fx, title) => {
+      const id = await db().transaction(async (tx) => {
+        const object = await ObjectService.create(
+          tx,
+          systemCtx('test', { initiatorId: fx.admin.id }),
+          { type: 'document_type', spaceId: fx.spaceId, title, meta: {} },
+        )
+        await tx.insert(documentTypes).values({
+          id: object.id,
+          key: `matrix_type_${run}`,
+          name: { ru: title },
+          direction: 'internal',
+        })
+        return object.id
+      })
+      return { id, title }
+    },
+    readPaths: ['/document-types/:id'],
+    viewerForbidden: (_fx, id) => [
+      { method: 'PATCH', url: `/document-types/${id}`, payload: { name: { ru: 'правка' } } },
+    ],
+  },
+
+  journal: {
+    create: async (fx, title) => {
+      const id = await db().transaction(async (tx) => {
+        const object = await ObjectService.create(
+          tx,
+          systemCtx('test', { initiatorId: fx.admin.id }),
+          { type: 'journal', spaceId: fx.spaceId, title, meta: {} },
+        )
+        await tx
+          .insert(journals)
+          .values({ id: object.id, name: title, prefix: 'М', format: '{prefix}-{seq}' })
+        return object.id
+      })
+      return { id, title }
+    },
+    readPaths: ['/journals/:id', '/journals/:id/reservations'],
+    viewerForbidden: (_fx, id) => [
+      { method: 'PATCH', url: `/journals/${id}`, payload: { name: 'правка читателя' } },
+      {
+        method: 'POST',
+        url: `/journals/${id}/reservations`,
+        payload: { count: 1, note: 'резерв читателя' },
+      },
+    ],
+  },
+
+  correspondent: {
+    create: async (fx, title) => {
+      const id = await db().transaction(async (tx) => {
+        const object = await ObjectService.create(
+          tx,
+          systemCtx('test', { initiatorId: fx.admin.id }),
+          { type: 'correspondent', spaceId: fx.spaceId, title, meta: {} },
+        )
+        await tx.insert(correspondents).values({ id: object.id, name: title })
+        return object.id
+      })
+      return { id, title }
+    },
+    readPaths: ['/correspondents/:id'],
+    viewerForbidden: (_fx, id) => [
+      { method: 'PATCH', url: `/correspondents/${id}`, payload: { name: 'правка читателя' } },
     ],
   },
 
