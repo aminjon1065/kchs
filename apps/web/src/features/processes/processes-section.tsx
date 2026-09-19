@@ -27,7 +27,7 @@ import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { blankDefinition, type Definition, insertAfter } from './model.js'
-import { processCatalogQuery, processDefinitionsQuery, processKeys } from './queries.js'
+import { definitionKeys, processCatalogQuery, processDefinitionsQuery } from './queries.js'
 
 /** Кириллица → латиница для подсказки ключа маршрута. */
 const TRANSLIT: Record<string, string> = {
@@ -262,7 +262,7 @@ function CreateDialog({
       }),
     onSuccess: () => {
       toast.show({ title: t('processDesigner.create.created'), tone: 'success' })
-      void client.invalidateQueries({ queryKey: processKeys.all })
+      void client.invalidateQueries({ queryKey: definitionKeys.all })
       onCreated(effectiveKey, name.trim())
       setName('')
       setKey('')

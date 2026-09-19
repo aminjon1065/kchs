@@ -2,6 +2,9 @@ import type {
   CorrespondentList,
   CorrespondentRecord,
   DocumentRecord,
+  DocumentRouteOptions,
+  DocumentRouteStepVersions,
+  DocumentSignatureList,
   DocumentSummary,
   DocumentTypeRecord,
   DocumentVersionList,
@@ -25,6 +28,9 @@ export const documentKeys = {
   reservations: (journalId: string) => ['object', journalId, 'reservations'] as const,
   correspondents: (q: string) => ['documents', 'correspondents', q] as const,
   correspondent: (id: string) => ['object', id, 'correspondent'] as const,
+  routes: (id: string) => ['object', id, 'document-routes'] as const,
+  routeVersions: (id: string) => ['object', id, 'route-versions'] as const,
+  signatures: (id: string) => ['object', id, 'signatures'] as const,
 }
 
 export const documentQuery = (id: string) =>
@@ -88,4 +94,30 @@ export const correspondentQuery = (id: string) =>
   queryOptions({
     queryKey: documentKeys.correspondent(id),
     queryFn: () => http.get<CorrespondentRecord>(`/correspondents/${id}`),
+  })
+
+/** Маршруты, по которым можно отправить документ (ADR-0083). */
+export const documentRoutesQuery = (id: string) =>
+  queryOptions({
+    queryKey: documentKeys.routes(id),
+    queryFn: () => http.get<DocumentRouteOptions>(`/documents/${id}/routes`),
+  })
+
+/** Какую версию видел каждый шаг согласования и подписи. */
+export const documentRouteVersionsQuery = (id: string) =>
+  queryOptions({
+    queryKey: documentKeys.routeVersions(id),
+    queryFn: async () =>
+      new Map(
+        (await http.get<DocumentRouteStepVersions>(`/documents/${id}/route-versions`)).items.map(
+          (item) => [item.stepId, item.versionNumber] as const,
+        ),
+      ),
+  })
+
+export const documentSignaturesQuery = (id: string) =>
+  queryOptions({
+    queryKey: documentKeys.signatures(id),
+    queryFn: async () =>
+      (await http.get<DocumentSignatureList>(`/documents/${id}/signatures`)).items,
   })

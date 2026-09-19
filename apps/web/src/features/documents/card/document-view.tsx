@@ -40,8 +40,8 @@ import { FilesTab } from './files-tab.js'
 import { HistoryTab } from './history-tab.js'
 import { LinksTab } from './links-tab.js'
 import { ResolutionsTab } from './resolutions-tab.js'
-import { RouteTab } from './route-tab.js'
-import { DocumentStepActions } from './step-actions.js'
+import { DocumentRouteIndicator, RouteTab } from './route-tab.js'
+import { DocumentStepActions, useAwaitsMe } from './step-actions.js'
 
 /** Состояние вкладки оболочки: открытая секция карточки. */
 interface DocumentTabState {
@@ -155,9 +155,11 @@ function DocumentHeader() {
   const setContextTab = useWorkspace((s) => s.setContextTab)
   const [shareOpen, setShareOpen] = useState(false)
   const { document } = useDocument()
+  const awaitsMe = useAwaitsMe(document)
   // Действия шага живут в контекст-панели; когда она скрыта или на другой вкладке — кнопка к ним
   const actionsHidden =
-    (document.can.register || document.can.cancel) && (!contextOpen || contextTab !== 'info')
+    (document.can.register || document.can.cancel || document.can.startRoute || awaitsMe) &&
+    (!contextOpen || contextTab !== 'info')
   const typeName = document.type.name[locale] ?? document.type.name.ru
   return (
     <>
@@ -194,6 +196,7 @@ function DocumentHeader() {
         }
         right={
           <>
+            <DocumentRouteIndicator />
             {document.deadline ? (
               <span
                 className={document.overdue ? 'text-xs text-danger' : 'text-xs text-fg-secondary'}

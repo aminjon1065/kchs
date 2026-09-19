@@ -36,10 +36,10 @@ import { rolesQuery } from '~/shared/api/queries.js'
 import { allAssigneeExpressions, principalKeysOf } from '../assignees.js'
 import type { Definition } from '../model.js'
 import {
+  definitionKeys,
   principalRefsQuery,
   processCatalogQuery,
   processDefinitionQuery,
-  processKeys,
 } from '../queries.js'
 import { type DesignerContextValue, DesignerProvider, type Selection } from './context.js'
 import { FlowView } from './flow-view.js'
@@ -150,7 +150,7 @@ function Designer({ details, tabId }: { details: ProcessDefinitionDetails; tabId
   }, [definition])
 
   const refresh = useCallback(async () => {
-    await client.invalidateQueries({ queryKey: processKeys.all })
+    await client.invalidateQueries({ queryKey: definitionKeys.all })
   }, [client])
 
   const adopt = (saved: ProcessDefinitionVersion) => {

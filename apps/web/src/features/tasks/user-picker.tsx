@@ -38,11 +38,14 @@ export function UsersPicker({
   value,
   onChange,
   label,
+  addLabel,
   exclude = [],
 }: {
   value: PickedUser[]
   onChange: (users: PickedUser[]) => void
   label: string
+  /** Подпись поиска «добавить» (по умолчанию — соисполнитель поручения). */
+  addLabel?: string
   /** Кого нельзя добавить (исполнитель поручения). */
   exclude?: readonly string[]
 }) {
@@ -70,7 +73,7 @@ export function UsersPicker({
       ) : null}
       <UserPicker
         value={null}
-        label={t('tasks.create.addCoAssignee')}
+        label={addLabel ?? t('tasks.create.addCoAssignee')}
         onChange={(user) => {
           if (!user || exclude.includes(user.id) || value.some((item) => item.id === user.id)) {
             return
