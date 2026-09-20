@@ -178,6 +178,8 @@ export function RegistrationScreen() {
     value,
     onChange: setValue,
     activeField,
+    typeId: type?.id ?? '',
+    onTypeChange: setTypeId,
   }
 
   if (isLoading) {

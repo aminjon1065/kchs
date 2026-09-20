@@ -5322,6 +5322,7 @@ export const en: DeepPartial<Dictionary> = {
       applyType: 'Apply the kind',
       typeApplied: 'Document kind changed',
       typeUnknown: 'None of the configured kinds matched — pick one yourself.',
+      typeCurrent: 'This kind is already selected',
       journal: 'Registration journal: {name}',
       similar: 'Similar documents',
       summaryTitle: 'Summary',

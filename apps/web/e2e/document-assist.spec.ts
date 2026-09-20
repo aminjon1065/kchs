@@ -37,6 +37,7 @@ test.describe('ИИ в документах', () => {
         quote: 'Министерство финансов',
       },
     },
+    document_kind: { key: 'incoming_letter', confidence: 0.88, quote: 'Министерство финансов' },
     document_summary: { summary },
     document_reply: {
       subject: `О паводковой обстановке — ответ ${run}`,
@@ -120,6 +121,12 @@ test.describe('ИИ в документах', () => {
     // Текст скана извлечён — помощник предлагает заполнить карточку
     const fill = screen.getByRole('button', { name: 'Заполнить по скану' })
     await expect(fill).toBeVisible({ timeout: 60_000 })
+
+    // Вид документа по скану (ADR-0126): предложение с уверенностью; в демо-наборе
+    // мастер и так открыт на «Входящем письме» — помощник это подтверждает
+    await screen.getByRole('button', { name: 'Определить вид' }).click()
+    await expect(screen.getByText('уверенно · 88%')).toBeVisible({ timeout: 20_000 })
+    await expect(screen.getByText('Этот вид уже выбран')).toBeVisible()
     await fill.click()
     const suggestions = screen.getByRole('list', { name: 'Предложения ИИ' })
     await expect(suggestions).toContainText(subject)

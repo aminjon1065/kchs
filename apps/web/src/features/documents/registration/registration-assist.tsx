@@ -1,4 +1,5 @@
 import type {
+  DocumentClassification,
   DocumentExtractedField,
   DocumentExtraction,
   DocumentRecord,
@@ -31,6 +32,9 @@ export interface RegistrationAssistProps {
   onChange: (value: CardValue) => void
   /** Ключ реквизита или поля карточки в фокусе (`subject`, `fields.pages`). */
   activeField: string | null
+  /** Выбранный вид документа и его смена: предложение ИИ применяет человек (ADR-0126). */
+  typeId: string
+  onTypeChange: (typeId: string) => void
 }
 
 /** Реквизиты карточки, которые заполняет помощник, — строкой формы. */
@@ -82,6 +86,8 @@ export function RegistrationAssist({
   value,
   onChange,
   activeField,
+  typeId,
+  onTypeChange,
 }: RegistrationAssistProps): ReactNode {
   const t = useT()
   const toast = useToast()
@@ -95,6 +101,14 @@ export function RegistrationAssist({
     queryKey: ['object', documentId ?? '', 'document-assist-card'],
     queryFn: () => http.get<DocumentRecord>(`/documents/${documentId}`),
     enabled,
+  })
+  // Вид документа по тексту скана (ADR-0126): ключ из заведённых в установке
+  const [kind, setKind] = useState<DocumentClassification | null>(null)
+  const classify = useMutation({
+    mutationFn: () => http.post<DocumentClassification>(`/documents/${documentId}/assist/classify`),
+    onSuccess: (data) => setKind(data),
+    onError: (error) =>
+      toast.error(error instanceof ApiError ? error.message : t('errors.unknown')),
   })
   const extract = useMutation({
     mutationFn: () => http.post<DocumentExtraction>(`/documents/${documentId}/assist/extract`),
@@ -158,6 +172,70 @@ export function RegistrationAssist({
     >
       <div className="flex flex-col gap-3">
         <p className="text-xs text-fg-muted">{t('documentAssist.registration.hint')}</p>
+
+        <div className="flex flex-col gap-1.5 rounded-md border border-line bg-surface p-2.5">
+          <span className="flex items-center justify-between gap-2">
+            <span className="text-xs font-medium text-fg">
+              {t('documentAssist.panel.classifyTitle')}
+            </span>
+            <Button
+              size="sm"
+              variant="ghost"
+              loading={classify.isPending}
+              onClick={() => classify.mutate()}
+            >
+              {t('documentAssist.panel.classify')}
+            </Button>
+          </span>
+          {kind?.type ? (
+            <>
+              <span className="flex flex-wrap items-center gap-2 text-sm text-fg">
+                {kind.type.name}
+                <Badge size="sm" tone={confidenceTone(kind.type.confidence)}>
+                  {t(`documentAssist.confidence.${confidenceTone(kind.type.confidence)}`, {
+                    percent: Math.round(kind.type.confidence * 100),
+                  })}
+                </Badge>
+              </span>
+              {kind.type.journal ? (
+                <span className="text-xs text-fg-secondary">
+                  {t('documentAssist.panel.journal', { name: kind.type.journal.name })}
+                </span>
+              ) : null}
+              {kind.type.quote ? <q className="text-xs text-fg-muted">{kind.type.quote}</q> : null}
+              {kind.type.id === typeId ? (
+                <span className="flex items-center gap-1 text-xs text-success">
+                  <Check className="size-3.5" />
+                  {t('documentAssist.panel.typeCurrent')}
+                </span>
+              ) : (
+                <span>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => kind.type && onTypeChange(kind.type.id)}
+                  >
+                    {t('documentAssist.panel.applyType')}
+                  </Button>
+                </span>
+              )}
+            </>
+          ) : kind ? (
+            <span className="text-xs text-fg-muted">{t('documentAssist.panel.typeUnknown')}</span>
+          ) : (
+            <span className="text-xs text-fg-muted">{t('documentAssist.panel.classifyHint')}</span>
+          )}
+          {kind && kind.similar.length > 0 ? (
+            <ul aria-label={t('documentAssist.panel.similar')} className="flex flex-col gap-0.5">
+              {kind.similar.map((item) => (
+                <li key={item.objectId} className="truncate text-xs text-fg-secondary">
+                  {item.number ? `№ ${item.number} · ` : ''}
+                  {item.title}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
         {result && result.fields.length === 0 && !correspondent ? (
           <p className="text-sm text-fg-secondary">{t('documentAssist.registration.nothing')}</p>
         ) : null}
