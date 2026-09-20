@@ -5893,6 +5893,7 @@ export const ru = {
   },
 
   search: {
+    similar: 'Похожие',
     title: 'Поиск',
     placeholder: 'Что ищем?',
     results:

@@ -115,7 +115,13 @@ async function bboxes(ids: string[]): Promise<Map<string, Bbox>> {
 /** Опечатки — через поисковый индекс ядра; он недоступен — результатов просто меньше. */
 async function fuzzyIds(ctx: UserCtx, q: string, limit: number): Promise<string[]> {
   try {
-    const result = await search(ctx, { q, types: ['territory'], limit, offset: 0 })
+    const result = await search(ctx, {
+      q,
+      types: ['territory'],
+      limit,
+      offset: 0,
+      mode: 'words',
+    })
     return result.hits.map((hit) => hit.objectId)
   } catch (error) {
     logger().debug({ err: error }, 'геокодер: поисковый индекс недоступен')

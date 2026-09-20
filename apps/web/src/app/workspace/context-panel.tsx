@@ -1,4 +1,4 @@
-import { atLeast, type ObjectRecord, type TagView } from '@kchs/contracts'
+import { atLeast, type ObjectRecord, type SimilarObjects, type TagView } from '@kchs/contracts'
 import { formatDateTime, formatRelativeTime } from '@kchs/fields'
 import {
   Avatar,
@@ -25,6 +25,7 @@ import {
   Info,
   Link2,
   MessageSquare,
+  Sparkles,
   Star,
   Tag as TagIcon,
   Users,
@@ -215,6 +216,8 @@ function InfoTab({ objectId }: { objectId: string }) {
 
       <ObjectTags object={object} />
 
+      <SimilarObjectsSection objectId={objectId} />
+
       {access?.entries.length ? (
         <div>
           <div className="mb-1.5 flex items-center gap-1.5 text-2xs font-medium uppercase tracking-wide text-fg-muted">
@@ -237,6 +240,58 @@ function InfoTab({ objectId }: { objectId: string }) {
           </div>
         </div>
       ) : null}
+    </div>
+  )
+}
+
+/**
+ * Похожие по смыслу объекты (ADR-0099): выдача ограничена правами смотрящего.
+ * Без настроенной модели векторов раздел не показывается.
+ */
+function SimilarObjectsSection({ objectId }: { objectId: string }) {
+  const t = useT()
+  const openTab = useWorkspace((s) => s.openTab)
+  const { data } = useQuery({
+    queryKey: ['object', objectId, 'similar'],
+    queryFn: () =>
+      http.get<SimilarObjects>(`/objects/${objectId}/similar`, { query: { limit: 6 } }),
+    staleTime: 5 * 60_000,
+  })
+  if (!data?.enabled || data.items.length === 0) return null
+
+  return (
+    <div>
+      <div className="mb-1.5 flex items-center gap-1.5 text-2xs font-medium uppercase tracking-wide text-fg-muted">
+        <Sparkles className="size-3" aria-hidden />
+        {t('search.similar')}
+      </div>
+      <ul className="flex flex-col gap-1" aria-label={t('search.similar')}>
+        {data.items.map((hit) => (
+          <li key={hit.objectId}>
+            <button
+              type="button"
+              className="flex w-full items-start gap-2 rounded-sm px-1 py-1 text-left hover:bg-surface-2"
+              onClick={() =>
+                openTab({
+                  kind: 'object',
+                  objectId: hit.objectId,
+                  objectType: hit.type,
+                  title: hit.title,
+                  mode: 'preview',
+                })
+              }
+            >
+              <ObjectIcon type={hit.type} className="mt-0.5 size-3.5 shrink-0 text-fg-muted" />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-xs text-fg">{hit.title}</span>
+                {hit.snippet ? (
+                  <span className="line-clamp-2 text-2xs text-fg-muted">{hit.snippet}</span>
+                ) : null}
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }

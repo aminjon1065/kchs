@@ -46,6 +46,11 @@ render = [
 media = [
     "faster-whisper>=1.2",
 ]
+# Векторы для поиска по смыслу (ADR-0099): ONNX-сборка `bge-m3` через fastembed —
+# без torch, работает на процессоре. Без `ENGINE_EMBEDDING_MODEL` пакет не грузится.
+ai = [
+    "fastembed>=0.7",
+]
 dev = [
     "pytest>=8.4",
     "pytest-asyncio>=1.2",

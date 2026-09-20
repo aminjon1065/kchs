@@ -18,6 +18,7 @@ import { ObjectService } from './objects/service.js'
 import { processSubscribers } from './process/subscribers.js'
 import { emitToRoom, revokeRoomAccess } from './realtime/gateway.js'
 import { hasAccessDependents, indexObject, removeFromIndex } from './search/index-service.js'
+import { dropEmbeddings, semanticEnabled } from './search/semantic.js'
 
 /** Какое поле открытой вкладки устарело после события, не меняющего сам объект. */
 const CHANGED_FIELD: Record<string, string> = {
@@ -40,9 +41,20 @@ export function registerKernelSubscribers(): void {
       if (!event.object) return
       if (event.type === 'object.deleted' || event.type === 'object.trashed') {
         await removeFromIndex(event.object.id)
+        await dropEmbeddings(event.object.id)
         return
       }
       await indexObject(event.object.id)
+      // Векторы считает движок — не задерживаем шину, ставим задание (ADR-0099)
+      if (semanticEnabled()) {
+        await JobService.enqueue(systemCtx('search.semantic'), {
+          queue: 'index',
+          name: 'search.embed',
+          data: { objectId: event.object.id },
+          objectId: event.object.id,
+          idempotencyKey: `search.embed:${event.id}`,
+        })
+      }
       // Вложение получает читателей объекта-хоста — и теряет их при откреплении
       if (
         (event.type === 'object.linked' || event.type === 'object.unlinked') &&

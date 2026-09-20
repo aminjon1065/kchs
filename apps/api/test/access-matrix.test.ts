@@ -1378,6 +1378,7 @@ describe('сквозные правила доступа', () => {
       spaceIds: ['x") OR (type EXISTS'],
       limit: 20,
       offset: 0,
+      mode: 'words' as const,
     })
     expect(direct.hits.map((h) => h.objectId)).not.toContain(secret)
   })

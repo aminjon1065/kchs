@@ -5812,6 +5812,7 @@ export const en: DeepPartial<Dictionary> = {
     },
   },
   search: {
+    similar: 'Similar',
     title: 'Search',
     placeholder: 'What are you looking for?',
     results: '{count, plural, =0 {nothing found} one {# result} other {# results}}',

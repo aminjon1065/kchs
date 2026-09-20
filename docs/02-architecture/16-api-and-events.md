@@ -5,7 +5,7 @@
 ## 1. Соглашения REST API
 
 - База: `/api/v1`. JSON, UTF-8. Все маршруты типизированы zod-схемами в `packages/contracts`, из которых генерируются OpenAPI (`/api/openapi.json`) и типизированный клиент для внешних потребителей; веб-клиент использует те же zod-типы напрямую (ADR-0030).
-- Ресурсы: множественное число, kebab-case: `/datasets/{id}/fields`, `/documents/{id}/versions`, `/gis/layers/{id}/tiles/{z}/{x}/{y}.pbf`. Универсальные: `/objects/{id}` (сводка, права, связи, активность), `/objects:batch-get`, `/search`, `/inbox`, `/notifications`, `/me`, `/me/workspace-state`.
+- Ресурсы: множественное число, kebab-case: `/datasets/{id}/fields`, `/documents/{id}/versions`, `/gis/layers/{id}/tiles/{z}/{x}/{y}.pbf`. Универсальные: `/objects/{id}` (сводка, права, связи, активность), `/objects:batch-get`, `/search` (параметр `mode=hybrid|words` — со смыслом или только словами, ADR-0099), `/objects/{id}/similar` (похожие по смыслу), `/inbox`, `/notifications`, `/me`, `/me/workspace-state`.
 - Действия, не укладывающиеся в CRUD: `POST /documents/{id}:submit`, `:approve`, `:register`, `POST /datasets/{id}:import`, `POST /queries:run`. Двоеточие — единый стиль для действий. Фактически модули используют подресурс действия (`POST /tasks/{id}/accept`, `POST /documents/{id}/register`, `POST /documents/{id}/cancel`) — так маршруты описываются схемой Fastify без экранирования двоеточия.
 - Идентификаторы: UUID v7; строки датасетов — `bigint` в строке.
 - Пагинация: курсорная (`?cursor=&limit=`), ответ `{items, nextCursor, total?}`; `total` — только по запросу `&count=true` (может быть приблизительным для датасетов, флаг `approx`).

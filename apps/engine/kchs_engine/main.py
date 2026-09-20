@@ -17,6 +17,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from kchs_engine import __version__
+from kchs_engine.ai.embed import embed, embeddings_enabled
 from kchs_engine.config import settings
 from kchs_engine.contracts import data_export_contract
 from kchs_engine.data.analyze import analyze_object
@@ -230,3 +231,33 @@ async def data_geo_export(
         raise
     log.info("geo_export.done", format=body.format, rows=rows, size=size)
     return {"rows": rows, "size": size}
+
+
+class EmbedInput(BaseModel):
+    """Тексты для векторизации: запрос поиска или куски объекта (ADR-0099)."""
+
+    texts: list[str] = Field(min_length=1, max_length=64)
+
+
+@app.post("/ai/embed")
+async def ai_embed(
+    body: EmbedInput,
+    x_kchs_service_token: str | None = Header(default=None),
+) -> dict[str, Any]:
+    """Векторы текстов для поиска по смыслу.
+
+    Без настроенной модели — 503: api переходит на словесный поиск и не считает
+    это сбоем установки.
+    """
+    require_service_token(x_kchs_service_token)
+    if not embeddings_enabled():
+        raise HTTPException(status_code=503, detail="Модель векторов не настроена")
+    timeout = settings().ENGINE_EMBEDDING_TIMEOUT_S
+    try:
+        result = await asyncio.wait_for(asyncio.to_thread(embed, body.texts), timeout=timeout)
+    except TimeoutError as error:
+        raise HTTPException(
+            status_code=504, detail=f"Векторы не посчитались за {timeout} с"
+        ) from error
+    log.info("embed.done", texts=len(body.texts), dim=result.dim)
+    return result.as_payload()

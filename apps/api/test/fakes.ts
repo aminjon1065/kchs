@@ -334,3 +334,73 @@ export async function startFakeAi(): Promise<FakeAi> {
     close: server.close,
   }
 }
+
+/**
+ * Поддельный движок векторов (ADR-0099): отвечает на `POST /ai/embed`
+ * детерминированными векторами — близость определяется общими словами, как у
+ * настоящей модели, но без её веса и загрузки.
+ */
+export interface FakeEmbeddings {
+  url: string
+  calls: Recorded[]
+  /** Следующий вызов вернёт «модель не настроена». */
+  disable: () => void
+  enable: () => void
+  close: () => Promise<void>
+}
+
+const EMBED_DIM = 1024
+
+/** Вектор по словам текста: одинаковые слова дают близкие направления. */
+function wordVector(text: string): number[] {
+  const vector = new Array<number>(EMBED_DIM).fill(0)
+  const words = text.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []
+  for (const word of words) {
+    let hash = 2166136261
+    for (const char of word) {
+      hash ^= char.codePointAt(0) ?? 0
+      hash = Math.imul(hash, 16777619) >>> 0
+    }
+    const slot = hash % EMBED_DIM
+    vector[slot] = (vector[slot] ?? 0) + 1
+  }
+  const length = Math.hypot(...vector) || 1
+  return vector.map((value) => value / length)
+}
+
+export async function startFakeEmbeddings(): Promise<FakeEmbeddings> {
+  const calls: Recorded[] = []
+  let enabled = true
+
+  const server = await listen(async (request, response) => {
+    const path = new URL(request.url ?? '/', 'http://fake').pathname
+    const body = await readJson(request)
+    calls.push({ method: request.method ?? 'GET', path, headers: request.headers, body })
+    if (path !== '/ai/embed') {
+      send(response, 404, { detail: 'not found' })
+      return
+    }
+    if (!enabled) {
+      send(response, 503, { detail: 'Модель векторов не настроена' })
+      return
+    }
+    const texts = (body.texts as string[] | undefined) ?? []
+    send(response, 200, {
+      model: 'fake-bge-m3',
+      dim: EMBED_DIM,
+      vectors: texts.map((text) => wordVector(text)),
+    })
+  })
+
+  return {
+    url: server.url,
+    calls,
+    disable: () => {
+      enabled = false
+    },
+    enable: () => {
+      enabled = true
+    },
+    close: server.close,
+  }
+}

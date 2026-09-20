@@ -25,7 +25,7 @@ FROM system AS deps
 COPY --from=ghcr.io/astral-sh/uv:0.9.7 /uv /usr/local/bin/uv
 WORKDIR /app
 COPY pyproject.toml ./
-RUN uv venv /opt/venv && VIRTUAL_ENV=/opt/venv uv pip install --no-cache -e '.[data,gis,render,media,dev]'
+RUN uv venv /opt/venv && VIRTUAL_ENV=/opt/venv uv pip install --no-cache -e '.[data,gis,render,media,ai,dev]'
 
 # ── Итоговый образ ───────────────────────────────────────────────────────────
 FROM system AS runtime

@@ -54,6 +54,11 @@ export const SearchQuery = z.object({
   updatedTo: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   offset: z.coerce.number().int().min(0).max(1000).default(0),
+  /**
+   * `hybrid` — слова и смысл вместе (по умолчанию, ADR-0099); `words` — только
+   * словесный поиск. Без настроенной модели векторов режимы совпадают.
+   */
+  mode: z.enum(['hybrid', 'words']).default('hybrid'),
 })
 export type SearchQuery = z.infer<typeof SearchQuery>
 
@@ -65,8 +70,23 @@ export const SearchFacet = z.object({
 export const SearchResponse = z.object({
   hits: z.array(SearchHit),
   total: z.number().int(),
+  /** В выдаче участвовал поиск по смыслу (модель векторов настроена). */
+  semantic: z.boolean().default(false),
   estimated: z.boolean().default(true),
   facets: z.array(SearchFacet).default([]),
   tookMs: z.number().int(),
 })
 export type SearchResponse = z.infer<typeof SearchResponse>
+
+/** Похожие объекты (ADR-0099): ближайшие по смыслу к данному. */
+export const SimilarQuery = z.object({
+  limit: z.coerce.number().int().min(1).max(20).default(6),
+})
+export type SimilarQuery = z.infer<typeof SimilarQuery>
+
+export const SimilarObjects = z.object({
+  items: z.array(SearchHit),
+  /** Семантика выключена: модель векторов не настроена в этой установке. */
+  enabled: z.boolean(),
+})
+export type SimilarObjects = z.infer<typeof SimilarObjects>

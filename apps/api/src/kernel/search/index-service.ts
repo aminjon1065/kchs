@@ -5,7 +5,7 @@ import {
   type SearchQuery,
   type SearchResponse,
 } from '@kchs/contracts'
-import { and, asc, eq, gt, inArray, or } from 'drizzle-orm'
+import { and, asc, eq, gt, gte, inArray, lte, or, sql } from 'drizzle-orm'
 import { type Index, MeiliSearch } from 'meilisearch'
 import { config } from '~/shared/config/index.js'
 import type { UserCtx } from '~/shared/context.js'
@@ -17,6 +17,7 @@ import { readPrincipalsFor } from '../access/acl-service.js'
 import { clearanceLimit, effectiveConfidentiality } from '../access/confidentiality.js'
 import { objectType } from '../objects/registry.js'
 import { TagService } from '../tags/service.js'
+import { type SemanticHit, semanticEnabled, semanticSearch, similarObjects } from './semantic.js'
 
 /** Имя индекса объектов; префикс отделяет, например, тестовый индекс от рабочего. */
 export function objectsIndexName(): string {
@@ -273,9 +274,18 @@ export async function search(ctx: UserCtx, query: SearchQuery): Promise<SearchRe
     }
   })
 
+  // Смысл поверх слов (ADR-0099): списки сливаются рангами (RRF), поэтому
+  // точное совпадение слов не тонет, а близкий по смыслу текст находится
+  const semanticHits =
+    query.mode === 'hybrid' && query.offset === 0 && query.q.trim().length >= 3
+      ? await semanticSearch(ctx, query.q, query.limit)
+      : []
+  const merged = semanticHits.length > 0 ? await fuse(ctx, hits, semanticHits, query) : hits
+
   return {
-    hits,
-    total: result.estimatedTotalHits ?? hits.length,
+    hits: merged,
+    total: Math.max(result.estimatedTotalHits ?? hits.length, merged.length),
+    semantic: semanticHits.length > 0,
     estimated: true,
     facets: Object.entries(result.facetDistribution ?? {}).map(([field, values]) => ({
       field,
@@ -302,3 +312,112 @@ export async function searchHealthy(): Promise<boolean> {
     return false
   }
 }
+
+/** Ранговое слияние двух списков (RRF): чем выше в любом, тем выше в общем. */
+const RRF_K = 60
+
+async function fuse(
+  ctx: UserCtx,
+  words: SearchHit[],
+  meaning: SemanticHit[],
+  query: SearchQuery,
+): Promise<SearchHit[]> {
+  const scores = new Map<string, number>()
+  words.forEach((hit, index) => {
+    scores.set(hit.objectId, (scores.get(hit.objectId) ?? 0) + 1 / (RRF_K + index + 1))
+  })
+  meaning.forEach((hit, index) => {
+    scores.set(hit.objectId, (scores.get(hit.objectId) ?? 0) + 1 / (RRF_K + index + 1))
+  })
+
+  const known = new Map(words.map((hit) => [hit.objectId, hit]))
+  const missing = meaning.filter((hit) => !known.has(hit.objectId)).map((hit) => hit.objectId)
+  const snippets = new Map(meaning.map((hit) => [hit.objectId, hit.text]))
+  for (const hit of await hitsForObjects(ctx, missing, query)) {
+    known.set(hit.objectId, { ...hit, snippet: snippets.get(hit.objectId) ?? hit.snippet })
+  }
+
+  return [...known.values()]
+    .sort((a, b) => (scores.get(b.objectId) ?? 0) - (scores.get(a.objectId) ?? 0))
+    .slice(0, query.limit)
+}
+
+/**
+ * Карточки объектов, найденных только по смыслу. Фильтры запроса применяются
+ * здесь же: в векторном индексе их нет, а выдача обязана им подчиняться.
+ */
+async function hitsForObjects(
+  _ctx: UserCtx,
+  objectIds: string[],
+  query: SearchQuery,
+): Promise<SearchHit[]> {
+  if (objectIds.length === 0) return []
+  const conditions = [inArray(objects.id, objectIds), sql`${objects.deletedAt} is null`]
+  if (query.types?.length) conditions.push(inArray(objects.type, query.types))
+  if (query.spaceIds?.length) conditions.push(inArray(objects.spaceId, query.spaceIds))
+  if (query.ownerIds?.length) conditions.push(inArray(objects.ownerId, query.ownerIds))
+  if (query.statuses?.length) {
+    conditions.push(sql`${objects.meta}->>'status' in ${query.statuses}`)
+  }
+  if (query.updatedFrom) conditions.push(gte(objects.updatedAt, query.updatedFrom))
+  if (query.updatedTo) conditions.push(lte(objects.updatedAt, query.updatedTo))
+
+  const rows = await db()
+    .select({
+      id: objects.id,
+      type: objects.type,
+      title: objects.title,
+      subtitle: objects.subtitle,
+      spaceId: objects.spaceId,
+      updatedAt: objects.updatedAt,
+      meta: objects.meta,
+    })
+    .from(objects)
+    .where(and(...conditions))
+
+  const spaceIds = [...new Set(rows.map((row) => row.spaceId).filter(Boolean))] as string[]
+  const spaceTitles = spaceIds.length
+    ? new Map(
+        (
+          await db()
+            .select({ id: objects.id, title: objects.title })
+            .from(objects)
+            .where(inArray(objects.id, spaceIds))
+        ).map((row) => [row.id, row.title]),
+      )
+    : new Map<string, string>()
+
+  return rows.map((row) => {
+    const definition = objectType(row.type)
+    return {
+      objectId: row.id,
+      type: row.type as SearchHit['type'],
+      title: row.title,
+      snippet: row.subtitle ?? null,
+      spaceId: row.spaceId,
+      spaceName: row.spaceId ? (spaceTitles.get(row.spaceId) ?? null) : null,
+      icon: definition?.icon ?? null,
+      url: definition?.route(row.id) ?? `/o/${row.id}`,
+      updatedAt: row.updatedAt,
+      meta: row.meta,
+    }
+  })
+}
+
+/** Похожие объекты для контекстной панели (ADR-0099). */
+export async function similar(ctx: UserCtx, objectId: string, limit: number): Promise<SearchHit[]> {
+  const hits = await similarObjects(ctx, objectId, limit)
+  if (hits.length === 0) return []
+  const cards = await hitsForObjects(
+    ctx,
+    hits.map((hit) => hit.objectId),
+    { q: '', limit, offset: 0, mode: 'words' } as SearchQuery,
+  )
+  const order = new Map(hits.map((hit, index) => [hit.objectId, index]))
+  const snippets = new Map(hits.map((hit) => [hit.objectId, hit.text]))
+  return cards
+    .map((card) => ({ ...card, snippet: snippets.get(card.objectId) ?? card.snippet }))
+    .sort((a, b) => (order.get(a.objectId) ?? 0) - (order.get(b.objectId) ?? 0))
+}
+
+export { semanticEnabled }

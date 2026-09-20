@@ -7,6 +7,7 @@ import { InboxService } from '../inbox/service.js'
 import { sendEmailDigest } from '../notifications/service.js'
 import { expiredTrash, ObjectService, trimRecentViews } from '../objects/service.js'
 import { reindexAll, reindexSubtree } from '../search/index-service.js'
+import { indexEmbeddings } from '../search/semantic.js'
 import { registerJobHandler } from './runner.js'
 import { JobService, pruneFinishedJobs, queue } from './service.js'
 
@@ -33,6 +34,14 @@ export function registerMaintenanceJobs(): void {
       await helpers.progress(1, `переиндексировано объектов: ${count}`)
       return { count }
     },
+  })
+
+  registerJobHandler({
+    queue: 'index',
+    name: 'search.embed',
+    // Модель векторов держит один процесс движка: очередь не забиваем
+    concurrency: 2,
+    handle: async (job) => ({ chunks: await indexEmbeddings(String(job.data.objectId)) }),
   })
 
   registerJobHandler({
