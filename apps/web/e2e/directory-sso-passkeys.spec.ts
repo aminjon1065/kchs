@@ -1,4 +1,4 @@
-import { EMPLOYEE_STATE, expect, openScreen, openWorkspace, test } from './fixtures.js'
+import { ACCOUNTS, expect, openScreen, openWorkspace, test } from './fixtures.js'
 
 const BASE = 'http://localhost:5173'
 
@@ -86,7 +86,9 @@ test.describe('Каталог, единый вход и ключи входа', 
   test('ключ входа: сотрудник добавляет ключ в профиле и входит по нему без пароля', async ({
     browser,
   }) => {
-    const context = await browser.newContext({ baseURL: BASE, storageState: EMPLOYEE_STATE })
+    // Своя сессия, не общая: в сценарии есть выход, а общей сессией
+    // сотрудника пользуются остальные проверки прогона
+    const context = await browser.newContext({ baseURL: BASE, storageState: undefined })
     const page = await context.newPage()
 
     // Виртуальное устройство Chromium: ключ с подтверждением личности,
@@ -108,6 +110,9 @@ test.describe('Каталог, единый вход и ключи входа', 
     // фактором и следующие прогоны не войдут под сотрудником
     try {
       await page.goto('/')
+      await page.getByLabel('Логин или почта').fill(ACCOUNTS.employee.login)
+      await page.getByLabel('Пароль', { exact: true }).fill(ACCOUNTS.employee.password)
+      await page.getByRole('button', { name: 'Войти', exact: true }).click()
       await expect(page.getByRole('tab', { name: /Мой день/ })).toBeVisible({ timeout: 20_000 })
       await page.goto('/profile')
 

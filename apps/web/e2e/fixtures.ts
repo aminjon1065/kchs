@@ -2,6 +2,7 @@ import { createHmac } from 'node:crypto'
 import { type APIRequestContext, test as base, expect, type Page } from '@playwright/test'
 import { ACCOUNTS } from './global-setup.js'
 
+export { ACCOUNTS }
 export const ADMIN_STATE = ACCOUNTS.admin.file
 export const EMPLOYEE_STATE = ACCOUNTS.employee.file
 
