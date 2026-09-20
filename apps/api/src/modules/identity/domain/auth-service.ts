@@ -23,9 +23,12 @@ import {
   recoveryCodes,
   sessions,
   users,
+  webauthnCredentials,
 } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId, randomCode, randomToken } from '~/shared/ids.js'
+import { AuthProviders } from './auth-providers.js'
+import { entryDisabled, LdapClient } from './ldap-client.js'
 
 let dummyPasswordHash: string | null = null
 
@@ -49,9 +52,18 @@ export interface RequestMeta {
   requestId: string
 }
 
+/** Чем можно подтвердить второй фактор в этом вызове входа (ADR-0098). */
+export type SecondFactorMethod = 'totp' | 'recovery_code' | 'passkey'
+
 export type LoginOutcome =
   | { status: 'ok'; sessionToken: string; csrfToken: string; userId: string; expiresAt: string }
-  | { status: 'mfa_required'; challengeToken: string; challengeId: string; expiresAt: string }
+  | {
+      status: 'mfa_required'
+      challengeToken: string
+      challengeId: string
+      expiresAt: string
+      methods: SecondFactorMethod[]
+    }
   | {
       status: 'password_change_required'
       sessionToken: string
@@ -71,6 +83,8 @@ export const AuthService = {
         status: users.status,
         displayName: users.displayName,
         mustChangePassword: users.mustChangePassword,
+        authSource: users.authSource,
+        directoryDn: users.directoryDn,
       })
       .from(users)
       .where(
@@ -100,7 +114,13 @@ export const AuthService = {
       throw errors.unauthorized('Неверный логин или пароль')
     }
 
-    const valid = await verifyPassword(cred.passwordHash, password)
+    // Учётная запись каталога проверяет пароль привязкой в каталоге (ADR-0098);
+    // локального пароля у неё нет. Блокировка, аудит и политика сессий —
+    // те же самые: путь входа ниже общий
+    const valid =
+      user.authSource === 'ldap'
+        ? await verifyDirectoryPassword(user.login, user.directoryDn, password)
+        : await verifyPassword(cred.passwordHash, password)
 
     if (cred.lockedUntil && new Date(cred.lockedUntil) > new Date()) {
       await audit(sys, {
@@ -166,12 +186,9 @@ export const AuthService = {
       .set({ failedAttempts: 0, lockedUntil: null })
       .where(eq(credentials.userId, user.id))
 
-    const factors = await db()
-      .select({ id: mfaFactors.id })
-      .from(mfaFactors)
-      .where(and(eq(mfaFactors.userId, user.id), sql`${mfaFactors.verifiedAt} is not null`))
+    const methods = await AuthService.secondFactorMethods(user.id)
 
-    if (factors.length > 0) {
+    if (methods.length > 0) {
       const challengeToken = randomToken(32)
       const challengeId = newId()
       await db()
@@ -189,6 +206,7 @@ export const AuthService = {
         challengeToken,
         challengeId,
         expiresAt: new Date(Date.now() + MFA_CHALLENGE_MINUTES * 60_000).toISOString(),
+        methods,
       }
     }
 
@@ -752,14 +770,61 @@ export const AuthService = {
     })
   },
 
+  /**
+   * Подключён ли второй фактор. Ключ входа (passkey) считается наравне с TOTP
+   * (ADR-0098): подтверждение на устройстве — такой же второй фактор.
+   */
   async mfaEnabled(userId: string): Promise<boolean> {
-    const rows = await db()
-      .select({ id: mfaFactors.id })
-      .from(mfaFactors)
-      .where(and(eq(mfaFactors.userId, userId), sql`${mfaFactors.verifiedAt} is not null`))
-      .limit(1)
-    return rows.length > 0
+    return (await AuthService.secondFactorMethods(userId)).length > 0
   },
+
+  /**
+   * Чем пользователь может подтвердить второй фактор. Один запрос: он идёт на
+   * каждом обращении к API (проверка сессии), и лишний обход базы там заметен.
+   */
+  async secondFactorMethods(userId: string): Promise<SecondFactorMethod[]> {
+    const rows = await db().execute<{ totp: boolean; passkey: boolean }>(sql`
+      SELECT
+        EXISTS (
+          SELECT 1 FROM ${mfaFactors}
+           WHERE ${mfaFactors.userId} = ${userId} AND ${mfaFactors.verifiedAt} IS NOT NULL
+        ) AS totp,
+        EXISTS (
+          SELECT 1 FROM ${webauthnCredentials} WHERE ${webauthnCredentials.userId} = ${userId}
+        ) AS passkey`)
+    const row = rows[0]
+    const methods: SecondFactorMethod[] = []
+    if (row?.totp) methods.push('totp', 'recovery_code')
+    if (row?.passkey) methods.push('passkey')
+    return methods
+  },
+}
+
+/**
+ * Проверка пароля в каталоге (ADR-0098): запись ищется заново, отключённая в
+ * каталоге не пускается, и только затем выполняется привязка под её DN.
+ * Любая ошибка каталога — отказ во входе, а не пропуск проверки.
+ */
+async function verifyDirectoryPassword(
+  login: string,
+  knownDn: string | null,
+  password: string,
+): Promise<boolean> {
+  try {
+    const { enabled, settings, bindPassword } = await AuthProviders.directory()
+    if (!enabled || !settings.allowPasswordLogin) return false
+
+    const entry = await LdapClient.findUser(settings, bindPassword, login)
+    // Запись пропала из каталога — вход по паролю каталога больше не работает
+    if (!entry) return false
+    if (entryDisabled(entry, settings.attributes.disabled)) return false
+
+    const dn = entry.dn || knownDn
+    if (!dn) return false
+    return await LdapClient.bindAs(settings, dn, password)
+  } catch {
+    return false
+  }
 }
 
 function deviceNameFrom(userAgent: string | null): string | null {

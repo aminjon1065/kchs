@@ -205,4 +205,13 @@ export const AUDIT_ACTIONS = {
   // Резолюции и ознакомление (ADR-0084): резолюция от имени руководителя, отметка с MFA
   resolutionAdded: 'document.resolution_added',
   objectAcknowledged: 'object.acknowledged',
+  // Каталог, единый вход и ключи входа (ADR-0098)
+  /** Настройка поставщика входа изменена; секрет в журнал не попадает. */
+  authProviderChanged: 'auth.provider_changed',
+  /** Прогон синхронизации каталога завершён. */
+  directorySynced: 'directory.synced',
+  /** Вход через каталог или IdP — отдельно от входа по локальному паролю. */
+  loginExternal: 'user.login_external',
+  passkeyAdded: 'user.passkey_added',
+  passkeyRemoved: 'user.passkey_removed',
 } as const

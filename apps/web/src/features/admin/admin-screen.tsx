@@ -31,6 +31,7 @@ import {
   Activity,
   Building2,
   CalendarDays,
+  Contact,
   Database,
   Download,
   FileSpreadsheet,
@@ -45,6 +46,7 @@ import {
   Search,
   Server,
   ShieldCheck,
+  Shuffle,
   UserPlus,
   Users,
   Workflow,
@@ -65,10 +67,12 @@ import {
 import { AnnouncementsSection } from './announcements-section.js'
 import { BasemapsSection } from './basemaps-section.js'
 import { BusinessCalendarSection } from './business-calendar-section.js'
+import { DirectorySection } from './directory-section.js'
 import { CreateUnitDialog } from './org-management.js'
 import { RolesSection } from './roles-section.js'
 import { SecuritySection } from './security-section.js'
 import { SpacesSection } from './spaces-section.js'
+import { SsoSection } from './sso-section.js'
 import { TasksSection } from './tasks-section.js'
 import { CreateUserDialog, UserActions } from './user-management.js'
 import { UsersImportDialog } from './users-import-dialog.js'
@@ -84,6 +88,8 @@ type Section =
   | 'basemaps'
   | 'audit'
   | 'security'
+  | 'directory'
+  | 'sso'
   | 'tasks'
   | 'processes'
 
@@ -165,6 +171,18 @@ export function AdminScreen() {
       visible: isSystemAdmin,
     },
     {
+      value: 'directory',
+      label: t('admin.sections.directory'),
+      icon: <Contact className="size-3.5" />,
+      visible: isSystemAdmin,
+    },
+    {
+      value: 'sso',
+      label: t('admin.sections.sso'),
+      icon: <Shuffle className="size-3.5" />,
+      visible: isSystemAdmin,
+    },
+    {
       value: 'tasks',
       label: t('admin.sections.tasks'),
       icon: <Workflow className="size-3.5" />,
@@ -233,6 +251,12 @@ export function AdminScreen() {
             </TabsContent>
             <TabsContent value="security" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
               <SecuritySection />
+            </TabsContent>
+            <TabsContent value="directory" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
+              <DirectorySection />
+            </TabsContent>
+            <TabsContent value="sso" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
+              <SsoSection />
             </TabsContent>
             <TabsContent value="tasks" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
               <TasksSection />

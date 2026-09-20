@@ -21,6 +21,7 @@ import { ApiError, http, setCsrfToken } from '~/shared/api/client.js'
 import { keys, meQuery } from '~/shared/api/queries.js'
 import { DelegationCard } from './delegation-card.js'
 import { MfaCard } from './mfa-card.js'
+import { PasskeysCard } from './passkeys-card.js'
 import { PushCard } from './push-card.js'
 import { TelegramCard } from './telegram-card.js'
 
@@ -65,10 +66,13 @@ export function ProfileScreen() {
   })
 
   const signOut = useMutation({
-    mutationFn: () => http.post('/auth/logout'),
-    onSuccess: () => {
+    mutationFn: () => http.post<{ endSessionUrl: string | null }>('/auth/logout'),
+    onSuccess: (result) => {
       setCsrfToken(null)
-      window.location.reload()
+      // Выход из корпоративного IdP, если он настроен (ADR-0098): иначе
+      // следующий вход через него пройдёт молча, без спроса
+      if (result.endSessionUrl) window.location.assign(result.endSessionUrl)
+      else window.location.reload()
     },
   })
 
@@ -174,6 +178,8 @@ export function ProfileScreen() {
         </Card>
 
         <MfaCard enabled={me.mfaEnabled} />
+
+        <PasskeysCard />
 
         <TelegramCard />
 

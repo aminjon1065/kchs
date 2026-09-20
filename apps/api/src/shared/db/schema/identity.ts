@@ -40,6 +40,17 @@ export const users = pgTable(
       .$type<Record<string, unknown>>()
       .notNull()
       .default(sql`'{}'::jsonb`),
+    /**
+     * Чем проверяется пароль при входе (ADR-0098): `local` — хэш в `credentials`,
+     * `ldap` — bind в каталоге. Учётная запись каталога локального пароля не имеет.
+     */
+    authSource: text('auth_source').notNull().default('local'),
+    /** Устойчивый идентификатор записи в каталоге (objectGUID / entryUUID). */
+    directoryId: text('directory_id'),
+    /** Различающееся имя записи каталога: по нему выполняется bind при входе. */
+    directoryDn: text('directory_dn'),
+    /** Когда запись последний раз подтверждена синхронизацией каталога. */
+    directorySyncedAt: tsCol('directory_synced_at'),
     mustChangePassword: boolean('must_change_password').notNull().default(false),
     passwordChangedAt: tsCol('password_changed_at'),
     lastSeenAt: tsCol('last_seen_at'),
@@ -111,10 +122,40 @@ export const webauthnCredentials = pgTable(
     counter: bigint('counter', { mode: 'number' }).notNull().default(0),
     transports: text('transports').array(),
     name: text('name'),
+    /**
+     * Ключ подтверждает личность (PIN, отпечаток) — ADR-0098: только такой
+     * годится как самостоятельный вход и закрывает требование второго фактора.
+     */
+    userVerified: boolean('user_verified').notNull().default(false),
+    /** Ключ синхронизируется между устройствами (облачный passkey). */
+    backedUp: boolean('backed_up').notNull().default(false),
+    aaguid: text('aaguid'),
     createdAt: createdAt(),
     lastUsedAt: tsCol('last_used_at'),
   },
   (t) => [index('webauthn_user_idx').on(t.userId)],
+)
+
+/**
+ * Незавершённая проверка ключа входа (ADR-0098). Вызов одноразовый: строка
+ * удаляется при первой проверке, поэтому повтор ответа браузера не проходит.
+ * `userId` пуст для входа по ключу без логина (discoverable credential),
+ * `challengeId` — для второго фактора поверх вызова входа.
+ */
+export const webauthnChallenges = pgTable(
+  'webauthn_challenges',
+  {
+    id: uuid('id').primaryKey(),
+    /** `register` — добавление ключа, `login` — вход, `mfa` — второй фактор. */
+    purpose: text('purpose').notNull(),
+    userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
+    challenge: text('challenge').notNull().unique(),
+    /** Вызов входа, к которому привязан второй фактор (`mfa_challenges.id`). */
+    mfaChallengeId: uuid('mfa_challenge_id'),
+    expiresAt: tsCol('expires_at').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index('webauthn_challenges_expires_idx').on(t.expiresAt)],
 )
 
 export const sessions = pgTable(
@@ -366,6 +407,63 @@ export const ssoIdentities = pgTable(
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex('sso_identities_provider_subject_key').on(t.provider, t.subject)],
+)
+
+/**
+ * Поставщики входа: каталог LDAP/AD и единый вход OIDC (ADR-0098).
+ * По одной строке на вид — установка обслуживает одну организацию (ADR-0020).
+ * Секрет (пароль учётной записи чтения, секрет клиента) шифруется мастер-ключом
+ * и наружу не возвращается.
+ */
+export const authProviders = pgTable('auth_providers', {
+  kind: text('kind').primaryKey(),
+  enabled: boolean('enabled').notNull().default(false),
+  config: jsonb('config').$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+  secretEnc: bytea('secret_enc'),
+  updatedBy: uuid('updated_by'),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+})
+
+/** Журнал синхронизаций каталога и предпросмотров «что изменится» (ADR-0098). */
+export const directorySyncs = pgTable(
+  'directory_syncs',
+  {
+    id: uuid('id').primaryKey(),
+    /** `preview` — ничего не записано; `manual`/`scheduled` — прогон. */
+    mode: text('mode').notNull(),
+    status: text('status').notNull().default('running'),
+    stats: jsonb('stats').$type<Record<string, number>>().notNull().default(sql`'{}'::jsonb`),
+    /** Список изменений: планируемых для предпросмотра, выполненных для прогона. */
+    changes: jsonb('changes').$type<unknown[]>().notNull().default(sql`'[]'::jsonb`),
+    error: text('error'),
+    initiatorId: uuid('initiator_id'),
+    startedAt: tsCol('started_at').notNull().default(sql`now()`),
+    finishedAt: tsCol('finished_at'),
+  },
+  (t) => [index('directory_syncs_started_idx').on(t.startedAt)],
+)
+
+/**
+ * Незавершённый вход через IdP (ADR-0098): `state` хранится хэшем (как токен
+ * сессии), `nonce` сверяется с id_token, проверочный код PKCE зашифрован.
+ * Строка одноразовая и живёт минуты — чужой `state` не подойдёт.
+ */
+export const ssoAuthRequests = pgTable(
+  'sso_auth_requests',
+  {
+    id: uuid('id').primaryKey(),
+    provider: text('provider').notNull(),
+    stateHash: text('state_hash').notNull().unique(),
+    nonce: text('nonce').notNull(),
+    codeVerifierEnc: bytea('code_verifier_enc').notNull(),
+    ip: text('ip'),
+    userAgent: text('user_agent'),
+    expiresAt: tsCol('expires_at').notNull(),
+    usedAt: tsCol('used_at'),
+    createdAt: createdAt(),
+  },
+  (t) => [index('sso_auth_requests_expires_idx').on(t.expiresAt)],
 )
 
 export const apiTokens = pgTable(

@@ -290,6 +290,9 @@ export const KNOWN_DOMAINS = [
   'chat',
   // База знаний (13-search-knowledge-ai.md §2, ADR-0095)
   'page',
+  // Поставщики входа и синхронизация каталога (ADR-0098)
+  'integration',
+  'directory',
 ] as const
 
 function resolveDomains(): string[] {
