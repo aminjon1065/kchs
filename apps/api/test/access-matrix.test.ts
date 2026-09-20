@@ -848,6 +848,32 @@ const FIXTURES: Record<string, TypeFixture> = {
       { method: 'POST', url: `/events/${id}/cancel`, payload: { scope: 'series' } },
     ],
   },
+  // Встреча живёт в системном пространстве встреч без участников (ADR-0089):
+  // читатель получает view явной записью, как приглашённый участник
+  meeting: {
+    create: async (fx, title) => {
+      const response = await call(fx.app, {
+        method: 'POST',
+        url: '/meetings',
+        as: fx.admin,
+        payload: { title, participantIds: [] },
+      })
+      expect(response.statusCode, response.body).toBe(200)
+      const id = response.json().id as string
+      const grant = await call(fx.app, {
+        method: 'POST',
+        url: `/objects/${id}/access`,
+        as: fx.admin,
+        payload: {
+          grants: [{ principal: { type: 'user', id: fx.users.viewer.id }, level: 'view' }],
+        },
+      })
+      expect(grant.statusCode, grant.body).toBe(200)
+      return { id, title }
+    },
+    readPaths: ['/meetings/:id'],
+    viewerForbidden: (_fx, id) => [{ method: 'POST', url: `/meetings/${id}/end` }],
+  },
 }
 
 let fx: TestContext

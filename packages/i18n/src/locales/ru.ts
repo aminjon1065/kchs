@@ -5315,6 +5315,8 @@ export const ru = {
       repeat: 'Повтор',
       calendar: 'Календарь',
       location: 'Место',
+      onlineMeeting: 'Онлайн-встреча',
+      onlineMeetingHint: 'Участники смогут войти в комнату из карточки события и из Входящих',
       resources: 'Ресурсы',
       addResource: 'Забронировать ресурс',
       removeResource: 'Убрать ресурс «{name}»',

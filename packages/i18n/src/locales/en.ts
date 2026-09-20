@@ -5252,6 +5252,8 @@ export const en: DeepPartial<Dictionary> = {
       repeat: 'Repeat',
       calendar: 'Calendar',
       location: 'Location',
+      onlineMeeting: 'Online meeting',
+      onlineMeetingHint: 'Participants can join the room from the event card and from the inbox',
       resources: 'Resources',
       addResource: 'Book a resource',
       removeResource: 'Remove resource “{name}”',

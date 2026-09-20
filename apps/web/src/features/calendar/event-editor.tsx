@@ -6,6 +6,7 @@ import {
   type EventRecord,
   type EventShowAs,
   type EventVisibility,
+  type MeetingsStatus,
   type PrincipalRef,
   type Reminder,
   type ReminderChannel,
@@ -90,6 +91,8 @@ interface FormState {
   reminders: Reminder[]
   color: CalendarColor | null
   description: string
+  /** Онлайн-встреча: для события поднимается комната медиасервера (ADR-0089). */
+  onlineMeeting: boolean
 }
 
 /** Подпись напоминания: «в начале», «за 15 мин», «за 2 ч», «за 1 дн.». */
@@ -131,6 +134,13 @@ export function EventEditor({
   const { data: me } = useQuery(meQuery())
   const { data: calendars = [] } = useQuery(calendarsQuery({ scope: 'mine' }))
   const { data: settings } = useQuery(calendarSettingsQuery())
+  // Без медиасервера онлайн-встречи не поднимаются — переключателя нет (ADR-0089)
+  const { data: meetings } = useQuery({
+    queryKey: ['meetings', 'status'],
+    queryFn: () => http.get<MeetingsStatus>('/meetings/status'),
+    staleTime: 5 * 60_000,
+  })
+  const meetingsEnabled = meetings?.enabled ?? false
   const resources = calendars.filter((calendar) => calendar.kind === 'resource')
   const writable = editableCalendars(calendars)
   const personal = calendars.find((calendar) => calendar.mine)
@@ -512,6 +522,18 @@ export function EventEditor({
             </Field>
           </div>
 
+          {/* Онлайн-встреча (ADR-0089): комната поднимается вместе с событием */}
+          {meetingsEnabled ? (
+            <div className="flex flex-col gap-1">
+              <Switch
+                checked={form.onlineMeeting}
+                onCheckedChange={(onlineMeeting) => update({ onlineMeeting })}
+                label={t('calendar.event.onlineMeeting')}
+              />
+              <p className="text-xs text-fg-muted">{t('calendar.event.onlineMeetingHint')}</p>
+            </div>
+          ) : null}
+
           <Field label={t('calendar.event.resources')}>
             <div className="flex flex-col gap-1.5">
               {form.resourceIds.length > 0 ? (
@@ -691,6 +713,7 @@ function initialForm(target: EditorTarget, tz: string): FormState {
     reminders: [],
     color: null,
     description: '',
+    onlineMeeting: false,
   }
   if (target.mode === 'create') {
     const draft = target.draft
@@ -759,6 +782,7 @@ function initialForm(target: EditorTarget, tz: string): FormState {
       })),
     visibility: record.visibility,
     showAs: record.showAs,
+    onlineMeeting: record.meetingId !== null,
     reminders: record.reminders,
     color: record.color,
     description: record.description ?? '',
@@ -807,6 +831,7 @@ function payloadOf(
     reminders: form.reminders,
     attendees: form.attendees.map((item) => ({ userId: item.id, optional: item.optional })),
     resourceIds: form.resourceIds,
+    onlineMeeting: form.onlineMeeting,
   }
 }
 
