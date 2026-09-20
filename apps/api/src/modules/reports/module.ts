@@ -32,6 +32,7 @@ import { ReportDelivery } from './domain/delivery.js'
 import { ReportService } from './domain/report-service.js'
 import { REPORT_RENDER_JOB, ReportRuns } from './domain/run-service.js'
 import { REPORT_SCHEDULE_JOB, ReportSchedules } from './domain/schedule-service.js'
+import { ReportToDocument } from './domain/to-document.js'
 
 const IdParam = z.object({ id: z.uuid() })
 const RunParam = z.object({ runId: z.uuid() })
@@ -143,6 +144,24 @@ export function registerReportsRoutes(route: RouteRegistrar): void {
     rateLimit: { max: 20, timeWindow: '1 minute' },
     handler: async (request) =>
       ReportRuns.start(request.ctx, request.params.id, request.body ?? {}),
+  })
+
+  route({
+    method: 'POST',
+    url: '/reports/:id/document',
+    auth: { action: 'view' },
+    tags: ['reports'],
+    summary: 'Отчёт исходящим документом: файл последнего прогона — первой версией',
+    description:
+      'Дальше документ идёт обычным маршрутом: согласование, подпись, регистрация, рассылка.',
+    rateLimit: { max: 10, timeWindow: '1 minute' },
+    schema: {
+      params: IdParam,
+      body: z.object({ typeId: z.uuid(), subject: z.string().trim().max(500).optional() }),
+      response: { 200: z.object({ documentId: z.uuid() }) },
+    },
+    handler: async (request) =>
+      ReportToDocument.create(request.ctx, request.params.id, request.body),
   })
 
   route({

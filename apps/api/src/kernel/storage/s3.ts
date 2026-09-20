@@ -280,11 +280,17 @@ export async function headObject(key: string, bucket?: string) {
 }
 
 /** Серверная копия объекта внутри бакета (одним запросом S3 — до 5 ГБ). */
-export async function copyObject(sourceKey: string, targetKey: string, bucket?: string) {
+export async function copyObject(
+  sourceKey: string,
+  targetKey: string,
+  bucket?: string,
+  sourceBucket?: string,
+) {
   const target = bucket ?? buckets.files()
+  const from = sourceBucket ?? target
   const source = sourceKey.split('/').map(encodeURIComponent).join('/')
   return s3().send(
-    new CopyObjectCommand({ Bucket: target, Key: targetKey, CopySource: `${target}/${source}` }),
+    new CopyObjectCommand({ Bucket: target, Key: targetKey, CopySource: `${from}/${source}` }),
   )
 }
 

@@ -4009,6 +4009,14 @@ export const en: DeepPartial<Dictionary> = {
         downloadFile: 'Download {name}',
       },
       channels: { inbox: 'Inbox', email: 'Email', telegram: 'Telegram' },
+      toDocument: {
+        open: 'To a document',
+        title: 'Report as an outgoing document',
+        hint: 'The file of the last build becomes the first version: then approval, signature, registration and delivery.',
+        pickType: 'Choose an outgoing kind',
+        create: 'Create the document',
+        created: 'Document created from the report',
+      },
       schedule: {
         open: 'Distribution',
         title: 'Schedule and distribution',

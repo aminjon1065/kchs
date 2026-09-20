@@ -27,6 +27,7 @@ import { html, multiline, overlayPage } from './domain/print/html.js'
 import { registerPrintForm } from './domain/print/registry.js'
 import { ensureStarterSet } from './domain/starter-set.js'
 import { DocumentTypeService } from './domain/type-service.js'
+import { DocumentVersionService } from './domain/version-service.js'
 
 /** @public — люди демо-мира для демо-документов сида (ADR-0086) */
 export type { DemoDocumentPeople, DemoPerson } from './domain/demo-documents.js'
@@ -77,6 +78,22 @@ export const DocumentsPublic = {
    * Регистрация шагом маршрута `register` (номер из журнала типа или резерва).
    * @public — движок процессов второй волны
    */
+  /**
+   * Версия документа из готового файла реестра (ADR-0127): отчёт, ставший
+   * исходящим, кладёт свой файл первой версией. Права проверяет сам сервис.
+   */
+  addVersion: (
+    tx: Executor,
+    ctx: Ctx,
+    documentId: string,
+    input: { mainFileId: string; note?: string | null },
+  ): Promise<string> =>
+    DocumentVersionService.add(tx, ctx, documentId, {
+      mainFileId: input.mainFileId,
+      attachmentIds: [],
+      note: input.note ?? null,
+    }),
+
   register: (
     tx: Executor,
     ctx: Ctx,

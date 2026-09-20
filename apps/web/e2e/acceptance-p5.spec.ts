@@ -195,3 +195,72 @@ test.describe('Приёмка фазы 5: сценарий A — от показ
     }
   })
 })
+
+/**
+ * Сценарий C «Ежемесячный отчёт руководству» — звено фазы 5: готовый отчёт
+ * становится исходящим документом (ADR-0127), и дальше им занимается обычная
+ * канцелярия. Расписание источников, показатели и дашборд приняты в фазах 1–2,
+ * согласование и подпись — в фазе 3.
+ */
+test.describe('Приёмка фазы 5: сценарий C — отчёт руководству', () => {
+  test('построенный отчёт становится исходящим документом с файлом первой версией', async ({
+    page,
+    request,
+  }) => {
+    test.setTimeout(180_000)
+    const run = Date.now().toString(36)
+    const me = await (await request.get('/api/v1/me')).json()
+    const headers = { 'x-csrf-token': me.session.csrfToken as string }
+    const reportName = `Сводка за месяц ${run}`
+
+    const spaces = (await (await request.get('/api/v1/spaces')).json()).items as Array<{
+      id: string
+      kind: string
+    }>
+    const spaceId = (spaces.find((item) => item.kind === 'team') ?? spaces[0])?.id
+
+    // Отчёт из шаблона и его построение — обычным путём фазы 2
+    const report = await request.post('/api/v1/reports', {
+      headers,
+      data: { name: reportName, spaceId },
+    })
+    expect(report.ok(), await report.text()).toBeTruthy()
+    const reportId = (await report.json()).id as string
+
+    try {
+      const started = await request.post(`/api/v1/reports/${reportId}/runs`, {
+        headers,
+        data: { formats: ['pdf'] },
+      })
+      expect(started.ok(), await started.text()).toBeTruthy()
+      await expect
+        .poll(
+          async () => {
+            const runs = await request.get(`/api/v1/reports/${reportId}/runs`)
+            const items = (await runs.json()).items as Array<{ status: string }>
+            return items[0]?.status ?? 'queued'
+          },
+          { timeout: 120_000, message: 'отчёт построен движком' },
+        )
+        .toBe('succeeded')
+
+      // Отчёт → исходящий документ: вид выбирается в диалоге
+      await openWorkspace(page, request)
+      await page.goto(`/o/${reportId}`)
+      await page.getByRole('button', { name: 'В документ' }).click()
+      const dialog = page.getByRole('dialog', { name: 'Отчёт исходящим документом' })
+      await expect(dialog).toBeVisible()
+      await dialog.getByRole('combobox', { name: 'Выберите вид исходящего' }).click()
+      await page.getByRole('option').first().click()
+      await dialog.getByRole('button', { name: 'Создать документ' }).click()
+      await expect(page.getByText('Документ создан из отчёта')).toBeVisible({ timeout: 30_000 })
+
+      // Документ открылся своей вкладкой рядом с отчётом — обе зовутся одинаково
+      await expect(page.getByRole('tab', { name: new RegExp(reportName) })).toHaveCount(2)
+      await page.getByRole('tab', { name: 'Версии' }).click()
+      await expect(page.getByText(/\.pdf/).first()).toBeVisible({ timeout: 20_000 })
+    } finally {
+      await request.delete(`/api/v1/objects/${reportId}`, { headers })
+    }
+  })
+})

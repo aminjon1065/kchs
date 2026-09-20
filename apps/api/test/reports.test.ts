@@ -505,6 +505,50 @@ describe('запуск и печать', () => {
     ).toBe(true)
   })
 
+  it('отчёт исходящим документом: файл прогона — первой версией (ADR-0127)', async () => {
+    const { DocumentsSeed } = await import('../src/modules/documents/public.js')
+    const { systemCtx } = await import('../src/shared/context.js')
+    await DocumentsSeed.ensureStarterSet(systemCtx('test'), { demo: false })
+    const types = await call(fx.app, { url: '/document-types', as: fx.admin })
+    const outgoing = (types.json().items as Array<{ id: string; direction: string }>).find(
+      (item) => item.direction === 'outgoing',
+    )
+    expect(outgoing, 'в установке есть исходящий вид документа').toBeTruthy()
+
+    const created = await call(fx.app, {
+      method: 'POST',
+      url: `/reports/${reportId}/document`,
+      as: fx.admin,
+      payload: { typeId: outgoing?.id },
+    })
+    expect(created.statusCode, created.body).toBe(200)
+    const documentId = created.json().documentId as string
+
+    // Первая версия документа — файл отчёта, и он открывается
+    const versions = await call(fx.app, {
+      url: `/documents/${documentId}/versions`,
+      as: fx.admin,
+    })
+    expect(versions.statusCode, versions.body).toBe(200)
+    const version = (versions.json().items as Array<Record<string, never>>)[0]
+    expect(version, 'версия создана').toBeTruthy()
+
+    // Отчёт, который ещё не строился, документом не станет
+    const fresh = await call(fx.app, {
+      method: 'POST',
+      url: '/reports',
+      as: fx.admin,
+      payload: { name: 'Пустой отчёт', spaceId: fx.spaceId },
+    })
+    const empty = await call(fx.app, {
+      method: 'POST',
+      url: `/reports/${fresh.json().id}/document`,
+      as: fx.admin,
+      payload: { typeId: outgoing?.id },
+    })
+    expect(empty.statusCode).toBe(409)
+  })
+
   it('сбой задания: запуск failed, событие, токен отозван', async () => {
     const started = await call(fx.app, {
       method: 'POST',

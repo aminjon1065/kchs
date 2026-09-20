@@ -1,5 +1,6 @@
 import type { ReportBlockKind, ReportFormat, ReportSettings } from '@kchs/contracts'
 import { REPORT_FORMATS } from '@kchs/contracts'
+import { localizedText } from '@kchs/i18n'
 import {
   AlertDialog,
   AvatarGroup,
@@ -7,11 +8,14 @@ import {
   Button,
   Checkbox,
   cn,
+  Dialog,
+  DialogContent,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
   EmptyState,
+  Field,
   IconButton,
   InlineEdit,
   Input,
@@ -20,6 +24,11 @@ import {
   personTone,
   RichTextEditor,
   SegmentedControl,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Skeleton,
   Switch,
   Tooltip,
@@ -33,6 +42,7 @@ import {
   Copy,
   Eye,
   FileOutput,
+  FileText,
   Lock,
   PanelRight,
   Plus,
@@ -41,9 +51,11 @@ import {
 } from 'lucide-react'
 import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import * as Y from 'yjs'
+import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
 import { ShareDialog } from '~/features/access/share-dialog.js'
+import { documentTypesQuery } from '~/features/documents/queries.js'
 import { useCollabDocument } from '~/features/notebooks/collab.js'
 import {
   type NotebookContextValue,
@@ -107,6 +119,7 @@ export default function ReportView({ objectId, tabId }: { objectId: string; tabI
   const [shareOpen, setShareOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [scheduleOpen, setScheduleOpen] = useState(false)
+  const [toDocumentOpen, setToDocumentOpen] = useState(false)
   const [runsOpen, setRunsOpen] = useState(true)
   const { data: object, isLoading } = useQuery(objectQuery(objectId))
   const { data: me } = useQuery(meQuery())
@@ -228,6 +241,14 @@ export default function ReportView({ objectId, tabId }: { objectId: string; tabI
                 {t('data.report.schedule.open')}
               </Button>
               <Button
+                variant="secondary"
+                size="sm"
+                icon={<FileText className="size-3.5" />}
+                onClick={() => setToDocumentOpen(true)}
+              >
+                {t('data.report.toDocument.open')}
+              </Button>
+              <Button
                 variant="primary"
                 size="sm"
                 icon={<FileOutput className="size-3.5" />}
@@ -272,6 +293,12 @@ export default function ReportView({ objectId, tabId }: { objectId: string; tabI
         canManage={canManage}
         timezone={me.user.timezone}
       />
+      <ReportToDocumentDialog
+        reportId={objectId}
+        reportName={object.title}
+        open={toDocumentOpen}
+        onOpenChange={setToDocumentOpen}
+      />
       <AlertDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
@@ -284,6 +311,85 @@ export default function ReportView({ objectId, tabId }: { objectId: string; tabI
         }}
       />
     </ReportScreen>
+  )
+}
+
+/**
+ * Отчёт исходящим документом (ADR-0127): выбирается вид исходящего, файл
+ * последнего прогона ложится первой версией, и дальше документ идёт обычным
+ * маршрутом — согласование, подпись, регистрация, рассылка.
+ */
+function ReportToDocumentDialog({
+  reportId,
+  reportName,
+  open,
+  onOpenChange,
+}: {
+  reportId: string
+  reportName: string
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
+  const t = useT()
+  const toast = useToast()
+  const locale = useAppearance((s) => s.locale)
+  const openTab = useWorkspace((s) => s.openTab)
+  const [typeId, setTypeId] = useState('')
+  const { data: types = [] } = useQuery({ ...documentTypesQuery(), enabled: open })
+  const outgoing = types.filter((type) => type.direction === 'outgoing')
+
+  const create = useMutation({
+    mutationFn: () =>
+      http.post<{ documentId: string }>(`/reports/${reportId}/document`, { typeId }),
+    onSuccess: ({ documentId }) => {
+      onOpenChange(false)
+      toast.show({ title: t('data.report.toDocument.created'), tone: 'success' })
+      openTab({
+        kind: 'object',
+        objectId: documentId,
+        objectType: 'document',
+        title: reportName,
+        mode: 'permanent',
+      })
+    },
+    onError: (error) =>
+      toast.error(error instanceof ApiError ? error.message : t('errors.unknown')),
+  })
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent title={t('data.report.toDocument.title')}>
+        <div className="flex flex-col gap-3">
+          <p className="text-xs text-fg-secondary">{t('data.report.toDocument.hint')}</p>
+          <Field label={t('data.report.toDocument.pickType')}>
+            <Select value={typeId} onValueChange={setTypeId}>
+              <SelectTrigger aria-label={t('data.report.toDocument.pickType')}>
+                <SelectValue placeholder={t('data.report.toDocument.pickType')} />
+              </SelectTrigger>
+              <SelectContent>
+                {outgoing.map((type) => (
+                  <SelectItem key={type.id} value={type.id}>
+                    {localizedText(type.name, locale)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => onOpenChange(false)}>
+              {t('common.actions.cancel')}
+            </Button>
+            <Button
+              disabled={!typeId || create.isPending}
+              loading={create.isPending}
+              onClick={() => create.mutate()}
+            >
+              {t('data.report.toDocument.create')}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 
