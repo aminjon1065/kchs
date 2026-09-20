@@ -72,6 +72,10 @@ x-app-env: &app-env
   LIVEKIT_URL: ${LIVEKIT_URL:-}
   LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-}
   LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:-}
+  # Запись встреч (ADR-0092): Egress кладёт файл в хранилище сам и сообщает о
+  # готовности вебхуком — оба адреса видны из его сети, а не из браузера
+  S3_EGRESS_ENDPOINT: ${S3_EGRESS_ENDPOINT:-http://minio:9000}
+  LIVEKIT_WEBHOOK_URL: ${LIVEKIT_WEBHOOK_URL:-http://api:3000/api/v1/meetings/webhooks/livekit}
 
 services:
   postgres:
@@ -296,6 +300,12 @@ services:
       # Веб для страницы печати отчётов в Chromium движка (ADR-0078): в полном
       # развёртывании — контейнер web; при разработке — http://host.docker.internal:5173
       KCHS_WEB_URL: ${ENGINE_WEB_URL:-http://web}
+      # Расшифровка записей встреч (ADR-0092): пустая модель — функция выключена,
+      # api получает «недоступно». Веса скачиваются при первом задании
+      ENGINE_TRANSCRIBE_MODEL: ${ENGINE_TRANSCRIBE_MODEL:-}
+      ENGINE_TRANSCRIBE_DEVICE: ${ENGINE_TRANSCRIBE_DEVICE:-cpu}
+      ENGINE_TRANSCRIBE_COMPUTE: ${ENGINE_TRANSCRIBE_COMPUTE:-int8}
+      ENGINE_TRANSCRIBE_LANGUAGE: ${ENGINE_TRANSCRIBE_LANGUAGE:-}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -346,6 +356,11 @@ services:
     command: --config /etc/livekit.yaml
     environment:
       LIVEKIT_KEYS: "${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}"
+      # Задания записи медиасервер передаёт Egress через Redis — тот же, что у
+      # api; без него запись недоступна (ADR-0092). Ключами конфигурации это не
+      # задать: файл монтируется как есть, а подстановки в нём нет
+      REDIS_HOST: redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
     volumes:
       - ./livekit/livekit.yaml:/etc/livekit.yaml:ro
     ports:
@@ -358,6 +373,31 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+
+  # Запись встреч (ADR-0092): Egress забирает задания из Redis, сводит комнату
+  # в mp4 и кладёт файл прямо в бакет файлов под ключ, выданный api. О
+  # готовности он сообщает вебхуком с подписью ключом установки.
+  livekit-egress:
+    <<: [*restart, *logging]
+    profiles: ["media"]
+    image: livekit/egress:v1.9
+    environment:
+      EGRESS_CONFIG_BODY: |
+        redis:
+          address: redis:6379
+          password: ${REDIS_PASSWORD}
+        api_key: ${LIVEKIT_API_KEY}
+        api_secret: ${LIVEKIT_API_SECRET}
+        ws_url: ws://livekit:7880
+        insecure: true
+        log_level: info
+    # Chromium записи комнаты нужен разделяемый сегмент памяти
+    shm_size: 1gb
+    # Сетевые пространства имён Chromium: без этого запись падает на старте
+    cap_add:
+      - SYS_ADMIN
+    depends_on:
+      redis: { condition: service_healthy }
 
   # ── Профиль observability: трассы, метрики, журналы (15-admin-operations.md §4,
   # ADR-0045). Трассы включает OTEL_EXPORTER_OTLP_ENDPOINT_INTERNAL=http://alloy:4318

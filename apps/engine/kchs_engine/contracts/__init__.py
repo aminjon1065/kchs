@@ -50,6 +50,12 @@ def report_render_contract() -> dict[str, Any]:
 
 
 @lru_cache
+def media_transcribe_contract() -> dict[str, Any]:
+    """Задание расшифровки записи встречи: языки и предел сегментов (ADR-0092)."""
+    return _load("media_transcribe.json")
+
+
+@lru_cache
 def document_render_contract() -> dict[str, Any]:
     """Виды рендеров модуля документов и пределы исходника и шаблона (ADR-0085)."""
     return _load("document_render.json")

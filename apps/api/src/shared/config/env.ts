@@ -160,6 +160,12 @@ const EnvSchema = z.object({
    * (так в установке целиком в контейнерах).
    */
   S3_EGRESS_ENDPOINT: z.string().optional(),
+  /**
+   * Куда медиасервер сообщает о готовности записи (ADR-0092). Пусто — адрес
+   * считается от `KCHS_API_URL`; в разработке api на хосте, поэтому из
+   * контейнера Egress нужен `http://host.docker.internal:3000/api/v1/…`.
+   */
+  LIVEKIT_WEBHOOK_URL: z.string().optional(),
 })
 
 /** Правила, связывающие несколько переменных. */

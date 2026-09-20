@@ -41,6 +41,11 @@ render = [
     "docxtpl>=0.20",
     "pypdf>=6.0",
 ]
+# Расшифровка записей встреч (ADR-0092): CTranslate2-сборка Whisper, звук
+# извлекает ffmpeg из образа. Без `ENGINE_TRANSCRIBE_MODEL` пакет не грузится.
+media = [
+    "faster-whisper>=1.2",
+]
 dev = [
     "pytest>=8.4",
     "pytest-asyncio>=1.2",

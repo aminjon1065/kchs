@@ -48,6 +48,9 @@ export const TRANSCRIPT_MAX_SEGMENTS = 20_000
 /** Формат записи: composite-дорожка комнаты одним файлом. */
 export const RECORDING_MIME = 'video/mp4'
 
+/** Задание расшифровки: очередь движка и имя обработчика (ADR-0035). */
+export const TRANSCRIBE_JOB = { queue: 'media', name: 'media.transcribe' } as const
+
 export const RecordingPermissions = z.object({
   /** Остановить запись: способность `meetings.record` и право вести встречу. */
   stop: z.boolean(),

@@ -37,6 +37,12 @@ import {
 } from '../src/documents/print.js'
 import { FIELD_SEMANTICS } from '../src/fields/field-def.js'
 import { QUEUE_RUNTIME } from '../src/jobs/job.js'
+import {
+  RECORDING_MIME,
+  TRANSCRIBE_JOB,
+  TRANSCRIPT_LANGUAGES,
+  TRANSCRIPT_MAX_SEGMENTS,
+} from '../src/meetings/recording.js'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const outDir = path.resolve(here, '../../../apps/engine/kchs_engine/contracts')
@@ -77,6 +83,12 @@ write('report_render.json', {
   contentTypes: REPORT_CONTENT_TYPES,
   print: REPORT_PRINT,
   printModelVersion: PRINT_MODEL_VERSION,
+})
+write('media_transcribe.json', {
+  job: TRANSCRIBE_JOB,
+  languages: TRANSCRIPT_LANGUAGES,
+  maxSegments: TRANSCRIPT_MAX_SEGMENTS,
+  recordingMime: RECORDING_MIME,
 })
 write('document_render.json', {
   kinds: DOCUMENT_RENDER_KINDS,

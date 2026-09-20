@@ -1,5 +1,5 @@
 import type { RecordingRecord, RecordingStatus, TranscriptStatus, UserRef } from '@kchs/contracts'
-import { RECORDING_MIME } from '@kchs/contracts'
+import { RECORDING_MIME, TRANSCRIBE_JOB } from '@kchs/contracts'
 import { and, desc, eq, inArray, sql } from 'drizzle-orm'
 import type { WebhookEvent } from 'livekit-server-sdk'
 import { authorize, hasCapability } from '~/kernel/access/authorize.js'
@@ -16,14 +16,16 @@ import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { logger } from '~/shared/logger/index.js'
 import { mediaConfig } from './livekit.js'
-import { fileResultOf, startRoomRecording, stopRoomRecording } from './recording-egress.js'
+import {
+  egressInfo,
+  fileResultOf,
+  startRoomRecording,
+  stopRoomRecording,
+} from './recording-egress.js'
 import { meetingsSpaceId } from './space.js'
 
 /** Способность вести запись встречи (11-communications-meetings.md §3). */
 export const RECORD_CAPABILITY = 'meetings.record'
-
-/** Очередь и имя задания расшифровки — исполняет движок (ADR-0035). */
-export const TRANSCRIBE_JOB = { queue: 'media', name: 'media.transcribe' } as const
 
 const log = () => logger().child({ module: 'meetings' })
 
@@ -152,6 +154,27 @@ async function finishEgress(
   })
 }
 
+/** Сколько ждать вебхука, прежде чем спросить медиасервер самим, с. */
+const WEBHOOK_GRACE_SECONDS = 60
+
+/**
+ * Запись «докладывается» дольше разумного — вебхук не дошёл (сеть, адрес).
+ * Тогда состояние задания спрашивается у медиасервера напрямую: «докладывается»
+ * не должно остаться навсегда.
+ */
+async function reconcile(row: RecordingRow): Promise<RecordingRow | null> {
+  if (row.status !== 'processing' || !row.egressId || !mediaConfig()) return null
+  const since = row.endedAt ? Date.now() - Date.parse(row.endedAt) : 0
+  if (since < WEBHOOK_GRACE_SECONDS * 1000) return null
+  const info = await egressInfo(row.egressId)
+  if (!info) return null
+  if (info.status === 3) await RecordingService.markReady(row.id, fileResultOf(info))
+  else if (info.status === 4 || info.status === 5) {
+    await RecordingService.markFailed(row.id, info.error || 'медиасервер не сохранил запись')
+  } else return null
+  return loadRecording(db(), row.id)
+}
+
 /** Право включать и выключать запись: способность плюс право вести встречу. */
 async function assertCanRecord(ctx: UserCtx, meetingId: string): Promise<void> {
   await authorize(ctx, 'end', meetingId)
@@ -257,8 +280,9 @@ export const RecordingService = {
 
   async get(ctx: UserCtx, recordingId: string): Promise<RecordingRecord> {
     await authorize(ctx, 'view', recordingId)
-    const row = await loadRecording(db(), recordingId)
+    let row = await loadRecording(db(), recordingId)
     if (!row) throw errors.notFound('Запись')
+    row = (await reconcile(row)) ?? row
     const canStop = hasCapability(ctx, RECORD_CAPABILITY)
       ? (await authorize(ctx, 'end', row.meetingId, { soft: true })).allowed
       : false
@@ -275,7 +299,7 @@ export const RecordingService = {
       ? (await authorize(ctx, 'end', meetingId, { soft: true })).allowed
       : false
     const items: RecordingRecord[] = []
-    for (const row of rows) items.push(await toRecord(row, { canStop }))
+    for (const row of rows) items.push(await toRecord((await reconcile(row)) ?? row, { canStop }))
     return items
   },
 
@@ -332,7 +356,7 @@ export const RecordingService = {
     if (event.event !== 'egress_ended') return { handled: false }
 
     // EGRESS_COMPLETE — файл на месте; остальное (FAILED, ABORTED, LIMIT_REACHED) — сбой
-    const file = fileResultOf(event)
+    const file = fileResultOf(info)
     if (info.status === 3 && (file.storageKey || row.storageKey)) {
       await RecordingService.markReady(row.id, file)
     } else {

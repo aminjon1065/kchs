@@ -1,8 +1,10 @@
 import {
   EgressClient,
+  type EgressInfo,
   EncodedFileOutput,
   EncodedFileType,
   S3Upload,
+  WebhookConfig,
   type WebhookEvent,
   WebhookReceiver,
 } from 'livekit-server-sdk'
@@ -61,15 +63,44 @@ function fileOutput(storageKey: string): EncodedFileOutput {
   })
 }
 
+/**
+ * Куда медиасервер сообщит о готовности. Адрес задаётся установкой: из сети
+ * медиасервера api виден не по тому адресу, что из браузера. Пусто — считаем
+ * от адреса api; тогда webhook работает только внутри одной сети.
+ */
+function webhookUrl(): string {
+  const env = config()
+  const explicit = env.LIVEKIT_WEBHOOK_URL?.trim()
+  if (explicit) return explicit
+  return `${env.KCHS_API_URL.replace(/\/$/, '')}/v1/meetings/webhooks/livekit`
+}
+
 /** Начать запись комнаты одной дорожкой (сетка говорящих, mp4). */
 export async function startRoomRecording(
   roomName: string,
   storageKey: string,
 ): Promise<StartedEgress> {
+  const media = requireMedia()
   const info = await egressClient().startRoomCompositeEgress(roomName, fileOutput(storageKey), {
     layout: 'grid',
+    // Подписывается тем же ключом установки, которым проверяется вебхук
+    webhooks: [new WebhookConfig({ url: webhookUrl(), signingKey: media.apiKey })],
   })
   return { egressId: info.egressId }
+}
+
+/**
+ * Состояние задания записи у медиасервера — запасной путь, если вебхук не
+ * дошёл: «докладывается» не должно оставаться навсегда.
+ */
+export async function egressInfo(egressId: string): Promise<EgressInfo | null> {
+  try {
+    const [info] = await egressClient().listEgress({ egressId })
+    return info ?? null
+  } catch (error) {
+    logger().child({ module: 'meetings' }).warn({ err: error, egressId }, 'запись не опрошена')
+    return null
+  }
 }
 
 /**
@@ -106,8 +137,8 @@ export interface EgressFileResult {
   durationSeconds: number | null
 }
 
-export function fileResultOf(event: WebhookEvent): EgressFileResult {
-  const file = event.egressInfo?.fileResults?.[0]
+export function fileResultOf(info: EgressInfo | undefined): EgressFileResult {
+  const file = info?.fileResults?.[0]
   if (!file) return { storageKey: null, sizeBytes: null, durationSeconds: null }
   const duration = Number(file.duration ?? 0n)
   return {

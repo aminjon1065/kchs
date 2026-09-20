@@ -1,0 +1,14 @@
+{
+  "$comment": "Сгенерировано из packages/contracts командой `pnpm --filter @kchs/contracts gen:engine`. Не редактировать вручную.",
+  "job": {
+    "queue": "media",
+    "name": "media.transcribe"
+  },
+  "languages": [
+    "ru",
+    "tg",
+    "en"
+  ],
+  "maxSegments": 20000,
+  "recordingMime": "video/mp4"
+}
