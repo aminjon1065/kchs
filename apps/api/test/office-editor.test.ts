@@ -254,4 +254,35 @@ describe('офисный редактор', () => {
     expect(response.statusCode, response.body).toBe(403)
     expect(response.json().data?.reason).toBe('office_confidential')
   })
+
+  it('гриф, поднятый при открытой сессии, закрывает и страницу, и содержимое', async () => {
+    // Сессия живёт 12 часов, а гриф ставят позже открытия. Проверка только при
+    // открытии оставляла бы исходник доступным по уже выданному пропуску
+    const file = await uploadFile(fx.app, fx.admin, {
+      spaceId: fx.spaceId,
+      name: `Справка ${Date.now().toString(36)}.docx`,
+      content: Buffer.from('PK\u0003\u0004справка'),
+      mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    })
+    const opened = await call(fx.app, {
+      method: 'POST',
+      url: `/files/${file.id}/office-session`,
+      as: fx.admin,
+    })
+    expect(opened.statusCode, opened.body).toBe(200)
+    const id = opened.json<SessionBody>().id
+    const ticket = officeTicket(id, 'content', SECRET, 60_000)
+    expect((await call(fx.app, { url: `/internal/office/${id}/content?t=${ticket}` })).statusCode) //
+      .toBe(200)
+
+    await db()
+      .update(objects)
+      .set({ confidentiality: 'confidential' })
+      .where(eq(objects.id, file.id))
+
+    const content = await call(fx.app, { url: `/internal/office/${id}/content?t=${ticket}` })
+    expect(content.statusCode).toBe(404)
+    const page = await call(fx.app, { url: `/api/v1/office/editor/${id}`, as: fx.admin })
+    expect(page.statusCode).toBe(404)
+  })
 })

@@ -159,6 +159,11 @@ export const OfficeService = {
     const session = await OfficeService.session(sessionId)
     if (!session) throw errors.notFound('Сессия редактирования')
 
+    // Гриф проверяется не только при открытии: сессия живёт 12 часов, а гриф
+    // могли поднять за это время — тогда исходник перестаёт уходить наружу
+    // сразу, а не после закрытия сессии (08-documents.md §13, ADR-0112)
+    if (await watermarkLevel(session.fileId)) throw errors.notFound('Файл')
+
     const [row] = await db()
       .select({ name: files.name, mime: files.mime, storageKey: files.storageKey })
       .from(files)
