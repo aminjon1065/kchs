@@ -8,6 +8,7 @@ import { registerObjectType } from '~/kernel/objects/registry.js'
 import { declareSchedule } from '~/kernel/schedules/index.js'
 import { db } from '~/shared/db/client.js'
 import { alerts, objects } from '~/shared/db/schema/index.js'
+import { errors } from '~/shared/errors.js'
 import { AlertJobs } from './domain/alert-jobs.js'
 import { alertSubscribers } from './domain/alert-subscribers.js'
 
@@ -83,13 +84,13 @@ export function registerAlertObjectTypes(): void {
     },
   })
 
-  // «Разобрался» закрывает дело: само срабатывание остаётся в истории алерта
+  // «Разобрался» закрывает дело: само срабатывание остаётся в истории алерта.
+  // Ключ дедупликации обязателен: без него закрылись бы все дела получателя
   registerInboxActionHandler('alert', async (ctx, { item }) => {
+    const eventId = item.payload.eventId
+    if (typeof eventId !== 'string') throw errors.validation('В деле нет срабатывания')
     await db().transaction((tx) =>
-      InboxService.resolve(tx, ctx, {
-        userId: item.userId,
-        dedupeKey: item.payload.eventId ? `alert:${String(item.payload.eventId)}` : undefined,
-      }),
+      InboxService.resolve(tx, ctx, { userId: item.userId, dedupeKey: `alert:${eventId}` }),
     )
   })
 }
