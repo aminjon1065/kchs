@@ -49,6 +49,8 @@ const NotebookView = lazy(() => import('~/features/notebooks/notebook-view.js'))
 const ReportView = lazy(() => import('~/features/reports/report-view.js'))
 /** Конструктор маршрутов — отдельным чанком: нужен только администратору маршрутов (ADR-0087). */
 const ProcessDesigner = lazy(() => import('~/features/processes/designer/designer-screen.js'))
+/** Запись встречи — отдельным чанком: плеер и расшифровка нужны не всем (ADR-0092). */
+const RecordingView = lazy(() => import('~/features/meetings/recording/recording-view.js'))
 
 let registered = false
 
@@ -152,6 +154,21 @@ export function registerModules(): void {
   registerObjectView({
     type: 'event',
     render: (tab) => <EventView objectId={tab.objectId!} tabId={tab.id} />,
+  })
+  registerObjectView({
+    type: 'recording',
+    render: (tab) => (
+      <Suspense
+        fallback={
+          <div className="flex flex-col gap-3 p-6">
+            <Skeleton className="h-7 w-72" />
+            <Skeleton className="h-64 w-full" />
+          </div>
+        }
+      >
+        <RecordingView objectId={tab.objectId!} tabId={tab.id} />
+      </Suspense>
+    ),
   })
   registerScreen({
     key: 'search',
