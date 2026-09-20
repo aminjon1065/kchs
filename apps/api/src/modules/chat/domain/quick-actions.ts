@@ -1,10 +1,9 @@
 import type { ChatForwardInput, ChatTaskInput, RichBody } from '@kchs/contracts'
-import { eq, inArray } from 'drizzle-orm'
+import { and, eq, inArray, sql } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
 import { DiscussionService } from '~/kernel/discussions/service.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { LinkService } from '~/kernel/links/service.js'
-import { SpaceService } from '~/kernel/spaces/service.js'
 import { startCall } from '~/modules/meetings/public.js'
 import { Instructions } from '~/modules/tasks/public.js'
 import type { UserCtx } from '~/shared/context.js'
@@ -63,7 +62,14 @@ async function taskSpaceId(
     .where(eq(spaces.id, conversationSpaceId))
     .limit(1)
   if (space?.key !== CHATS_SPACE_KEY) return undefined
-  return SpaceService.ensurePersonal(tx, ctx, ctx.userId, '')
+  // Личное пространство уже есть у каждого: создавать его здесь нельзя —
+  // `authorize` читает объект вне транзакции и не увидел бы новую запись
+  const [personal] = await tx
+    .select({ id: spaces.id })
+    .from(spaces)
+    .where(and(eq(spaces.kind, 'personal'), sql`${spaces.settings}->>'ownerId' = ${ctx.userId}`))
+    .limit(1)
+  return personal?.id
 }
 
 /**
@@ -99,8 +105,9 @@ export const QuickActions = {
       ...(spaceId ? { spaceId } : {}),
     })
 
-    // Цитата остаётся в беседе: системное сообщение со ссылкой на поручение
-    await DiscussionService.post(
+    // Цитата остаётся в беседе сообщением-действием. Упоминанием поручение не
+    // оформляется: `authorize` читает объект вне транзакции и не увидел бы его
+    const trace = await DiscussionService.post(
       tx,
       ctx,
       message.conversationId,
@@ -109,12 +116,16 @@ export const QuickActions = {
         text: `${created.key}: ${input.title}`,
         attachments: [],
         mentions: [],
-        mentionedObjectIds: [created.id],
+        mentionedObjectIds: [],
         replyToId: String(messageId),
         threadRootId: null,
       },
       'action',
     )
+    await tx
+      .update(messages)
+      .set({ meta: { taskId: created.id, taskKey: created.key } })
+      .where(eq(messages.id, trace))
     return { taskId: created.id, key: created.key }
   },
 
@@ -141,9 +152,10 @@ export const QuickActions = {
       conversationId,
       participantIds: participantIds.length > 0 ? participantIds : [ctx.userId],
     })
-    // След в ленте — сообщение-действие с чипом встречи: свой текст интерфейс
-    // подставляет по виду сообщения, сервер подписей не сочиняет
-    await DiscussionService.post(
+    // След в ленте — сообщение-действие с идентификатором встречи в `meta`:
+    // свой текст интерфейс подставляет по виду сообщения, сервер подписей не
+    // сочиняет, а упоминание встречи в этой же транзакции ещё не проверяемо
+    const trace = await DiscussionService.post(
       tx,
       ctx,
       conversationId,
@@ -152,10 +164,11 @@ export const QuickActions = {
         text: '',
         attachments: [],
         mentions: [],
-        mentionedObjectIds: [meetingId],
+        mentionedObjectIds: [],
       },
       'action',
     )
+    await tx.update(messages).set({ meta: { meetingId } }).where(eq(messages.id, trace))
     return meetingId
   },
 

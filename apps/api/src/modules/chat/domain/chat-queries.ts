@@ -60,12 +60,13 @@ async function rows(
                    SELECT 1 FROM messages mine
                     WHERE mine.conversation_id = c.id AND mine.author_id = ${me})))`
 
-  // Точка отсчёта непрочитанного: отметка прочтения, иначе вступление в беседу,
-  // иначе собственное последнее сообщение (обсуждение объекта без отметок)
+  // Точка отсчёта непрочитанного: отметка прочтения, иначе вступление в беседу
+  // (`conversation_members.created_at`), иначе собственное последнее сообщение —
+  // обсуждение объекта, где отметок ещё нет
   const unreadFrom = sql`CASE
       WHEN cm.last_read_message_id IS NOT NULL THEN unread.id > cm.last_read_message_id
       ELSE unread.created_at > coalesce(
-             cm.joined_at,
+             cm.created_at,
              (SELECT max(m3.created_at) FROM messages m3
                WHERE m3.conversation_id = c.id AND m3.author_id = ${me}),
              '-infinity'::timestamptz)
@@ -146,6 +147,9 @@ async function toItems(ctx: UserCtx, found: ListRow[]): Promise<ChatListItem[]> 
     if (row.lm_author_id) userIds.add(row.lm_author_id)
   }
   const refs = await directory().refs([...userIds])
+  // `execute` отдаёт время драйвера (Date), а не строку типа-обёртки схемы
+  const iso = (value: unknown): string | null =>
+    value === null || value === undefined ? null : new Date(value as string).toISOString()
 
   return found.map((row) => {
     const peer = row.kind === 'direct' && row.peer_id ? (refs.get(row.peer_id) ?? null) : null
@@ -173,10 +177,10 @@ async function toItems(ctx: UserCtx, found: ListRow[]): Promise<ChatListItem[]> 
             text: row.lm_text ?? '',
             author: row.lm_author_id ? (refs.get(row.lm_author_id) ?? null) : null,
             systemKey: row.lm_system_key,
-            createdAt: row.lm_created_at ?? new Date().toISOString(),
+            createdAt: iso(row.lm_created_at) ?? new Date().toISOString(),
           }
         : null,
-      lastMessageAt: row.last_message_at,
+      lastMessageAt: iso(row.last_message_at),
       unreadCount: Number(row.unread_count ?? 0),
       unreadMentions: Number(row.unread_mentions ?? 0),
       firstUnreadMessageId: row.first_unread,

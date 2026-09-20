@@ -131,23 +131,26 @@ export const PresenceService = {
   async update(ctx: UserCtx, input: PresenceUpdateInput): Promise<PresenceState> {
     const userId = ctx.userId
     const before = await PresenceService.get(userId, ctx.timezone)
-    const patch: Record<string, unknown> = { updatedAt: sql`now()`, lastSeenAt: sql`now()` }
-    if (input.status) {
-      patch.status = input.status
-      patch.statusUntil =
-        input.untilMinutes && input.untilMinutes > 0
-          ? sql`now() + make_interval(mins => ${input.untilMinutes})`
-          : null
+    // Срок статуса считаем здесь: значение одинаково и для вставки, и для обновления
+    const until =
+      input.untilMinutes && input.untilMinutes > 0
+        ? new Date(Date.now() + input.untilMinutes * 60_000).toISOString()
+        : null
+    const patch = {
+      updatedAt: new Date().toISOString(),
+      lastSeenAt: new Date().toISOString(),
+      ...(input.status ? { status: input.status, statusUntil: until } : {}),
+      ...(input.quietHours ? { quietHours: input.quietHours } : {}),
     }
-    if (input.quietHours) patch.quietHours = input.quietHours
 
     await db()
       .insert(userPresence)
       .values({
         userId,
         status: input.status ?? 'online',
+        statusUntil: until,
         ...(input.quietHours ? { quietHours: input.quietHours } : {}),
-        lastSeenAt: sql`now()`,
+        lastSeenAt: new Date().toISOString(),
       })
       .onConflictDoUpdate({ target: userPresence.userId, set: patch })
 

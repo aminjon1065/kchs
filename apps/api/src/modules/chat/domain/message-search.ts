@@ -4,7 +4,7 @@ import type {
   ChatSearchResponse,
   ConversationKind,
 } from '@kchs/contracts'
-import { and, desc, eq, isNull, sql } from 'drizzle-orm'
+import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
 import { directory } from '~/kernel/directory/port.js'
 import { meili, meiliValue } from '~/kernel/search/index-service.js'
@@ -179,7 +179,7 @@ export const MessageSearch = {
       .select({ id: conversations.id, kind: conversations.kind, title: objects.title })
       .from(conversations)
       .innerJoin(objects, eq(objects.id, conversations.id))
-      .where(sql`${conversations.id} = ANY(${conversationIds}::uuid[])`)
+      .where(inArray(conversations.id, conversationIds))
     const byId = new Map(titles.map((row) => [row.id, row]))
     const refs = await directory().refs([
       ...new Set(found.map((item) => item.authorId).filter((id): id is string => Boolean(id))),
