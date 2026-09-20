@@ -19,7 +19,7 @@ import { buckets, deleteObject } from '~/kernel/storage/s3.js'
 import { type Ctx, systemCtx, type UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
 import { datasetColumnarCopies, datasets, objects } from '~/shared/db/schema/index.js'
-import { errors } from '~/shared/errors.js'
+import { AppError, errors } from '~/shared/errors.js'
 import { logger } from '~/shared/logger/index.js'
 import { postEngine } from '../infra/engine.js'
 import { DatasetService, type DatasetStorage } from './dataset-service.js'
@@ -399,8 +399,9 @@ export const ColumnarService = {
     sources: ColumnarSource[],
     options: { count?: boolean } = {},
   ): Promise<{ rows: unknown[][]; columns: string[]; rowCount: number | null }> {
-    const reply = EngineReply.parse(
-      await postEngine(
+    let raw: unknown
+    try {
+      raw = await postEngine(
         '/data/columnar/query',
         {
           sql: compiled.sql,
@@ -412,8 +413,14 @@ export const ColumnarService = {
           timeoutMs: compiled.timeoutMs,
         },
         compiled.timeoutMs + ENGINE_MARGIN_MS,
-      ),
-    )
+      )
+    } catch (error) {
+      // Движок прервал запрос по тайм-ауту — это «слишком долго», а не сбой движка
+      const status = (error as AppError | undefined)?.details?.status
+      if (error instanceof AppError && status === 504) throw errors.queryTimeout()
+      throw error
+    }
+    const reply = EngineReply.parse(raw)
     return {
       rows: reply.rows as unknown[][],
       columns: reply.columns,

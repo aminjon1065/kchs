@@ -323,9 +323,17 @@ def _run(con: Any, sql: str, params: list[Any]) -> tuple[list[str], list[list[An
 
 
 def _query(payload: dict[str, Any], files: dict[str, Path]) -> dict[str, Any]:
+    import duckdb
+
     con = _connect(files)
     timeout_s = max(1, int(payload.get("timeoutMs") or 30_000) / 1000)
-    timer = threading.Timer(timeout_s, con.interrupt)
+    interrupted = threading.Event()
+
+    def stop() -> None:
+        interrupted.set()
+        con.interrupt()
+
+    timer = threading.Timer(timeout_s, stop)
     timer.start()
     try:
         names, rows = _run(con, str(payload["sql"]), list(payload.get("params") or []))
@@ -335,6 +343,11 @@ def _query(payload: dict[str, Any], files: dict[str, Path]) -> dict[str, Any]:
             _, counted = _run(con, str(count_sql), list(payload.get("countParams") or []))
             first = counted[0][0] if counted and counted[0] else None
             total = 0 if first is None else int(first)
+    except duckdb.Error as error:
+        # Прерванный по тайм-ауту запрос — не ошибка данных: api скажет «слишком долго»
+        if interrupted.is_set():
+            raise TimeoutError(f"запрос не уложился в {timeout_s:.0f} с") from error
+        raise
     finally:
         timer.cancel()
         con.close()

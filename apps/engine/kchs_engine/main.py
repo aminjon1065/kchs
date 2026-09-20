@@ -269,6 +269,10 @@ async def data_columnar_query(
         return await columnar_query(body.model_dump())
     except ColumnarError as error:
         raise HTTPException(status_code=422, detail=_sentence(str(error))) from error
+    except TimeoutError as error:
+        raise HTTPException(
+            status_code=504, detail="Запрос по колоночной копии выполнялся слишком долго"
+        ) from error
     except ClientError as error:
         code = str(error.response.get("Error", {}).get("Code", ""))
         if code in ("NoSuchKey", "404", "NotFound"):
