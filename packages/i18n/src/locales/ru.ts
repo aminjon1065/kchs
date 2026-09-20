@@ -127,6 +127,8 @@ export const ru = {
     breadcrumbs: { label: 'Хлебные крошки' },
     calendar: {
       allDay: 'Весь день',
+      allDayLess: 'свернуть',
+      allDayMore: 'ещё {count}',
       createAllDay: 'Новое событие на весь день: {day}',
       more: 'ещё {count}',
       previousMonth: 'Предыдущий месяц',

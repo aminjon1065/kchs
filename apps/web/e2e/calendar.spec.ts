@@ -1,5 +1,12 @@
 import { type APIRequestContext, request as playwrightRequest } from '@playwright/test'
-import { EMPLOYEE_STATE, expect, openWorkspace, resetWorkspaceState, test } from './fixtures.js'
+import {
+  ADMIN_STATE,
+  EMPLOYEE_STATE,
+  expect,
+  openWorkspace,
+  resetWorkspaceState,
+  test,
+} from './fixtures.js'
 
 /**
  * Приёмка фазы 3, сценарий №5 (04-verification.md §3, ADR-0081): встреча с
@@ -43,6 +50,20 @@ const monday = nextMonday()
 let meetingId = ''
 
 test.describe('Приёмка фазы 3 — календарь (сценарий №5)', () => {
+  // Серия убирается за собой: иначе в этот час копятся встречи прошлых прогонов
+  test.afterAll(async () => {
+    if (!meetingId) return
+    const api = await playwrightRequest.newContext({ baseURL: BASE, storageState: ADMIN_STATE })
+    const me = await api.get('/api/v1/me')
+    if (me.ok()) {
+      await api.post(`/api/v1/events/${meetingId}/cancel`, {
+        headers: { 'x-csrf-token': (await me.json()).session.csrfToken as string },
+        data: { scope: 'series', comment: 'уборка сценария' },
+      })
+    }
+    await api.dispose()
+  })
+
   test('встреча с повтором в сетке, приглашение во Входящих, ответ участника', async ({
     page,
     request,
@@ -107,22 +128,17 @@ test.describe('Приёмка фазы 3 — календарь (сценари�
     meetingId = occurrences[0]?.eventId ?? ''
     expect(meetingId).toBeTruthy()
 
-    // Поповер: детали, участник ещё не ответил
-    await page
-      .getByRole('button', { name: new RegExp(meeting) })
-      .first()
-      .click()
-    const popover = page.getByRole('dialog').filter({ hasText: meeting })
-    await expect(popover.getByText('По рабочим дням (пн–пт)')).toBeVisible()
-    await expect(popover.getByText(colleague.displayName)).toBeVisible()
-    await expect(popover.getByText('Ждёт ответа')).toBeVisible()
-    // «Подробнее» — событие во вкладке: карточка, правка, обсуждение в правой панели
-    await popover.getByRole('button', { name: 'Подробнее' }).click()
+    // Карточка события: повтор, участник и его ответ. В этот час на общем
+    // стенде наложены десятки встреч прошлых прогонов — полоска шириной в
+    // пиксель не «успокаивается», поэтому событие открывается по ссылке
+    // объекта, а сетка уже проверена числом повторений выше
+    await page.goto(`/o/${meetingId}`)
     const eventTab = page.getByRole('tab', { name: new RegExp(meeting) })
-    await expect(eventTab).toBeVisible()
+    await expect(eventTab).toBeVisible({ timeout: 20_000 })
     await expect(page.getByRole('button', { name: 'Изменить', exact: true }).first()).toBeVisible()
     await expect(page.getByText('По рабочим дням (пн–пт)').first()).toBeVisible()
-    await page.getByRole('tab', { name: /Календарь/ }).click()
+    await expect(page.getByText(colleague.displayName).first()).toBeVisible()
+    await expect(page.getByText('Ждёт ответа').first()).toBeVisible()
 
     // Участник: приглашение во Входящих — «Да»
     const context = await browser.newContext({ baseURL: BASE, storageState: EMPLOYEE_STATE })

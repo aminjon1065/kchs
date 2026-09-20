@@ -128,6 +128,8 @@ export const en: DeepPartial<Dictionary> = {
     breadcrumbs: { label: 'Breadcrumbs' },
     calendar: {
       allDay: 'All day',
+      allDayLess: 'collapse',
+      allDayMore: '{count} more',
       createAllDay: 'New all-day event: {day}',
       more: '{count} more',
       previousMonth: 'Previous month',

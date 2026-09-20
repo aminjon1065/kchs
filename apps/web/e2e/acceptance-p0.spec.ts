@@ -133,8 +133,11 @@ async function resetWorkspace(page: Page): Promise<void> {
 }
 
 async function signIn(page: Page, login: string, password: string): Promise<void> {
-  await page.goto('/')
-  await page.getByLabel('Логин или почта').fill(login)
+  const field = page.getByLabel('Логин или почта')
+  // После выхода страница перезагружается сама (ADR-0098): переход отсюда
+  // прервал бы её загрузку, поэтому идём на адрес, только если формы нет
+  if (!(await field.isVisible().catch(() => false))) await page.goto('/')
+  await field.fill(login)
   await page.getByLabel('Пароль', { exact: true }).fill(password)
   await page.getByRole('button', { name: 'Войти', exact: true }).click()
 }
@@ -178,6 +181,7 @@ test('1. Администратор входит с MFA, создаёт подр
 
   // Выход и вход уже с кодом (следующий шаг TOTP — повтор того же кода запрещён)
   await page.getByRole('button', { name: 'Выйти' }).first().click()
+  await expect(page.getByLabel('Логин или почта')).toBeVisible({ timeout: 20_000 })
   await signIn(page, admin.login, admin.password)
   await expect(page.getByText('Подтверждение входа')).toBeVisible()
   await page.getByLabel('Код', { exact: true }).fill(await nextCode())

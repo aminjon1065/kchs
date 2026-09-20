@@ -18,6 +18,8 @@ const DAY_MINUTES = 24 * 60
 const DRAG_THRESHOLD_PX = 4
 /** Строка полосы «весь день»: плашка 24 px — минимальная цель нажатия (WCAG 2.5.8). */
 const ALL_DAY_ROW_PX = 28
+/** Сколько рядов «весь день» видно без раскрытия: иначе сетка уезжает вниз. */
+const ALL_DAY_ROWS_VISIBLE = 3
 
 export interface TimeGridDay {
   /** Ключ дня (`ГГГГ-ММ-ДД`). */
@@ -223,6 +225,14 @@ export function TimeGrid({
     [visibleAllDay],
   )
   const allDayRows = Math.max(1, ...[...rows.values()].map((row) => row + 1))
+  const [allDayExpanded, setAllDayExpanded] = useState(false)
+  // Сроков на день бывает много (проекции задач и документов): показываем
+  // первые ряды, остальное — по кнопке, иначе сетка часов уходит с экрана
+  const shownAllDayRows = allDayExpanded ? allDayRows : Math.min(allDayRows, ALL_DAY_ROWS_VISIBLE)
+  const hiddenAllDay = visibleAllDay.filter(
+    (item) => (rows.get(item.key) ?? 0) >= shownAllDayRows,
+  ).length
+  const allDayToggle = hiddenAllDay > 0 || allDayExpanded
 
   /** Колонка и минута под указателем. */
   const pointAt = (clientX: number, clientY: number) => {
@@ -466,7 +476,10 @@ export function TimeGrid({
         <div className="flex w-14 shrink-0 items-start justify-end px-1.5 pt-1 text-2xs text-fg-muted">
           {t('ui.calendar.allDay')}
         </div>
-        <div className="relative flex-1" style={{ height: allDayRows * ALL_DAY_ROW_PX + 4 }}>
+        <div
+          className="relative flex-1"
+          style={{ height: shownAllDayRows * ALL_DAY_ROW_PX + 4 + (allDayToggle ? 16 : 0) }}
+        >
           <div
             className="absolute inset-0 grid"
             style={{ gridTemplateColumns: `repeat(${count}, minmax(0, 1fr))` }}
@@ -484,6 +497,7 @@ export function TimeGrid({
           </div>
           {visibleAllDay.map((item) => {
             const row = rows.get(item.key) ?? 0
+            if (row >= shownAllDayRows) return null
             return (
               <button
                 key={item.key}
@@ -506,6 +520,17 @@ export function TimeGrid({
               </button>
             )
           })}
+          {allDayToggle ? (
+            <button
+              type="button"
+              className="absolute bottom-0 right-1 rounded-xs px-1.5 text-2xs text-fg-secondary hover:bg-surface-3"
+              onClick={() => setAllDayExpanded((current) => !current)}
+            >
+              {allDayExpanded
+                ? t('ui.calendar.allDayLess')
+                : t('ui.calendar.allDayMore', { count: hiddenAllDay })}
+            </button>
+          ) : null}
         </div>
       </div>
 
