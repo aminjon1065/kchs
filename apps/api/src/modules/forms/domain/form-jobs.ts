@@ -240,7 +240,8 @@ async function fire(
         payload: { ...base, dueAt: row.dueAt, managerId },
       })
     } else {
-      // Напоминание — то же дело Входящих: срок уже в нём, повтор не нужен
+      // Напоминание: дело Входящих уже открыто (повтор — не дубль), событие
+      // добавляет к нему уведомление
       await FormInbox.submit(
         tx,
         ctx,
@@ -248,6 +249,11 @@ async function fire(
         { id: row.id, periodKey: row.periodKey, dueAt: row.dueAt },
         subject,
       )
+      await publishEvent(tx, ctx, {
+        type: 'form.due_soon',
+        object,
+        payload: { ...base, dueAt: row.dueAt },
+      })
     }
     count += 1
   }

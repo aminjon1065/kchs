@@ -1044,6 +1044,7 @@ export const ru = {
       jobFailed: 'Задание не выполнено: {title}',
       ruleFailed: 'Правило «{title}» не выполнено: {error}',
       formReturned: 'Сводка «{title}» за {period} возвращена на доработку',
+      formDueSoon: 'Сегодня срок сводки «{title}» за {period}',
       formAccepted: 'Сводка «{title}» за {period} принята',
       formOverdue: 'Сводка «{title}» за {period} не сдана в срок',
       formEscalated: 'Просрочена сводка «{title}» за {period}',
@@ -7153,6 +7154,7 @@ export const ru = {
     allSpaces: 'Все пространства',
     dataset: 'Датасет',
     datasetHint: 'Схема формы — подмножество полей этого датасета',
+    datasetEmpty: 'У этого датасета нет полей, которые можно спрашивать формой',
     empty: { title: 'Форм пока нет', description: 'Форма собирает сводки в датасет по расписанию' },
     columns: {
       name: 'Форма',

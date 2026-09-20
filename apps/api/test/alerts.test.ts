@@ -1,5 +1,6 @@
+import { sql } from 'drizzle-orm'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { call, registerLifecycle, setupFixture, type TestContext } from './helpers.js'
+import { call, db, registerLifecycle, setupFixture, type TestContext } from './helpers.js'
 
 /**
  * Алерты на показатели (P5-E03, ADR-0104): условие проверяется значением
@@ -135,6 +136,12 @@ describe('алерты на показатели', () => {
     })
     expect(history.json().items).toHaveLength(1)
     expect(history.json().items[0].message).toContain('155')
+
+    // Событие в outbox — его ловят уведомления, Входящие и правила автоматизации
+    const events = await db().execute<{ type: string }>(
+      sql`SELECT type FROM ops.outbox WHERE type = 'alert.fired' ORDER BY id DESC LIMIT 5`,
+    )
+    expect(events.length).toBeGreaterThan(0)
 
     const second = await check(alertId, false)
     expect(second.json().fired).toBe(0)

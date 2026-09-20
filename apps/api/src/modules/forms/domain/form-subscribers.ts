@@ -29,7 +29,7 @@ const subjectOf = (payload: FormEventPayload): FormSubject | null =>
 export const formSubscribers: Subscriber[] = [
   {
     name: 'forms-notify',
-    types: ['form.returned', 'form.accepted', 'form.overdue', 'form.escalated'],
+    types: ['form.returned', 'form.accepted', 'form.due_soon', 'form.overdue', 'form.escalated'],
     handle: async (event) => {
       const object = event.object
       if (!object) return
@@ -61,7 +61,9 @@ export const formSubscribers: Subscriber[] = [
           ? 'notifications.tpl.formReturned'
           : event.type === 'form.accepted'
             ? 'notifications.tpl.formAccepted'
-            : 'notifications.tpl.formOverdue'
+            : event.type === 'form.due_soon'
+              ? 'notifications.tpl.formDueSoon'
+              : 'notifications.tpl.formOverdue'
       await NotificationService.notify({
         userIds: [...recipients],
         category: 'data',

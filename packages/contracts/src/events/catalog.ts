@@ -824,6 +824,14 @@ export const EVENT_PAYLOADS = {
     authorId: Uuid.nullable().default(null),
     comment: z.string(),
   }),
+  /** Срок сдачи близок: назначенному напоминают. */
+  'form.due_soon': z.object({
+    submissionId: Uuid,
+    periodKey: z.string(),
+    subjectKind: z.string(),
+    subjectId: Uuid,
+    dueAt: Timestamp,
+  }),
   /** Срок сдачи прошёл, сводки нет. */
   'form.overdue': z.object({
     submissionId: Uuid,

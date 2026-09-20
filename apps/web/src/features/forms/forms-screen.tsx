@@ -262,15 +262,19 @@ function CreateFormDialog({
     enabled: datasetId.length > 0,
   })
 
+  /** Поля датасета, которые форма может спрашивать: без геометрии и только для чтения. */
+  const usable = (dataset?.fields ?? []).filter(
+    (field) => field.type !== 'geometry' && !field.readOnly,
+  )
+
   const create = useMutation({
     mutationFn: () => {
-      const fields = (dataset?.fields ?? [])
-        .filter((field) => field.type !== 'geometry' && !field.readOnly)
+      const fields = usable
         .slice(0, 12)
         .map((field) => ({ key: field.key, required: false, hint: null }))
       const definition: FormDefinition = {
         datasetId,
-        fields: fields.length > 0 ? fields : [{ key: '', required: false, hint: null }],
+        fields,
         auto: { unit: null, period: null, author: null, submittedAt: null },
         schedule: {
           periodicity,
@@ -304,7 +308,12 @@ function CreateFormDialog({
         footer={
           <Button
             variant="primary"
-            disabled={name.trim().length === 0 || spaceId.length === 0 || datasetId.length === 0}
+            disabled={
+              name.trim().length === 0 ||
+              spaceId.length === 0 ||
+              datasetId.length === 0 ||
+              usable.length === 0
+            }
             loading={create.isPending}
             onClick={() => create.mutate()}
           >
@@ -335,7 +344,15 @@ function CreateFormDialog({
               </SelectContent>
             </Select>
           </Field>
-          <Field label={t('forms.dataset')} required hint={t('forms.datasetHint')}>
+          <Field
+            label={t('forms.dataset')}
+            required
+            hint={
+              datasetId.length > 0 && dataset && usable.length === 0
+                ? t('forms.datasetEmpty')
+                : t('forms.datasetHint')
+            }
+          >
             <Select value={datasetId} onValueChange={setDatasetId}>
               <SelectTrigger aria-label={t('forms.dataset')}>
                 <SelectValue />

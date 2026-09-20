@@ -75,7 +75,7 @@ API модуля «Данные» с записью строк (ADR-0076).
    бессмысленно. Идемпотентность — уникальная отметка `form_reminders`.
 9. **События вместо рассылок из доменного кода**: `form.created`, `form.updated`,
    `form.enabled`, `form.disabled`, `form.assigned`, `form.submitted`,
-   `form.accepted`, `form.returned`, `form.overdue`, `form.escalated`. Уведомления
+   `form.accepted`, `form.returned`, `form.due_soon`, `form.overdue`, `form.escalated`. Уведомления
    и правила автоматизации — подписчики. `16-api-and-events.md` перечислял
    `form.reviewed`; он разделён на `form.accepted` и `form.returned`, чтобы
    подписчику не приходилось разбирать полезную нагрузку ради решения.

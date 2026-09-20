@@ -1026,6 +1026,7 @@ export const en: DeepPartial<Dictionary> = {
       jobFailed: 'Job failed: {title}',
       ruleFailed: 'Rule “{title}” failed: {error}',
       formReturned: 'Report “{title}” for {period} was returned',
+      formDueSoon: 'Report “{title}” for {period} is due today',
       formAccepted: 'Report “{title}” for {period} was accepted',
       formOverdue: 'Report “{title}” for {period} is overdue',
       formEscalated: 'Overdue report “{title}” for {period}',
@@ -7056,6 +7057,7 @@ export const en: DeepPartial<Dictionary> = {
     allSpaces: 'All spaces',
     dataset: 'Dataset',
     datasetHint: 'The form schema is a subset of this dataset’s fields',
+    datasetEmpty: 'This dataset has no fields a form could ask for',
     empty: {
       title: 'No forms yet',
       description: 'A form collects reports into a dataset on a schedule',
