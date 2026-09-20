@@ -37,7 +37,7 @@
 | Домен | События |
 |---|---|
 | object | `object.created`, `object.updated` (changedFields), `object.moved`, `object.archived`, `object.restored`, `object.trashed`, `object.deleted`, `object.shared` (acl diff), `object.linked`, `object.unlinked`, `object.tagged` |
-| identity | `user.created`, `user.updated`, `user.blocked`, `user.login`, `user.login_failed`, `user.logout`, `user.password_changed`, `user.mfa_enabled`, `user.mfa_disabled`, `user.telegram_linked`, `user.telegram_unlinked` (reason: `user`/`blocked`, ADR-0061), `user.clearance_changed` (userId, from, to; основание — в аудите, ADR-0080), `org.unit_changed`, `org.employment_changed`, `delegation.started`, `delegation.ended`, `session.revoked` |
+| identity | `user.created`, `user.updated`, `user.blocked`, `user.login`, `user.login_failed`, `user.logout`, `user.password_changed`, `user.mfa_enabled`, `user.mfa_disabled`, `user.telegram_linked`, `user.telegram_unlinked` (reason: `user`/`blocked`, ADR-0061), `user.clearance_changed` (userId, from, to; основание — в аудите, ADR-0080), `org.unit_changed`, `org.employment_changed`, `delegation.started`, `delegation.ended`, `session.revoked`. Каталог, единый вход и ключи входа (ADR-0098): `user.passkey_added` (userId, name), `user.passkey_removed` (userId, name), `user.identity_linked` (userId, provider) |
 | space | `space.created`, `space.member_added`, `space.member_removed`, `space.member_role_changed` |
 | discussion | `message.posted`, `message.edited`, `message.deleted`, `message.reacted`, `mention.created` |
 | data | `source.checked`, `dataset.created`, `dataset.schema_changed`, `dataset.import_started`, `dataset.import_review`, `dataset.import_published`, `dataset.import_cancelled`, `dataset.imported`, `dataset.import_failed`, `dataset.rows_changed` (ids, op), `dataset.version_created`, `dataset.policies_changed` (kind, op), `dataset.rolled_back` (version, target), `chart.updated`, `dashboard.updated`, `notebook.updated` (changed: cells/params, ADR-0071), `query.executed`, `metric.evaluated`, `dashboard.published`, `report.updated` (changed: blocks/params/settings), `report.run_queued`, `report.run_started`, `report.generated`, `report.run_failed` (skipped), `report.schedule_changed`, `report.delivered` (каналы, ADR-0078), `form.assigned`, `form.submitted`, `form.reviewed`, `alert.fired`, `quality.evaluated`, `pipeline.run_finished` |
@@ -53,7 +53,8 @@
 | notifications | `notification.sent`, `inbox.opened`, `inbox.resolved`, `inbox.snoozed` |
 | automation | `rule.triggered`, `rule.executed`, `rule.failed`, `webhook.received`, `webhook.delivered`, `integration.synced`, `integration.failed` |
 | jobs | `job.queued`, `job.started`, `job.progress` (только realtime, не в outbox), `job.finished`, `job.failed` |
-| admin | `settings.changed`, `acl.changed`, `role.assigned`, `backup.completed`, `backup.failed`, `announcement.published`, `announcement.withdrawn` |
+| admin | `settings.changed`, `acl.changed`, `role.assigned`, `backup.completed`, `backup.failed`, `announcement.published`, `announcement.withdrawn`, `integration.configured` (kind, enabled — ADR-0098) |
+| directory | `directory.synced` (runId, mode, status, created, updated, blocked — ADR-0098) |
 
 Конверт события — `contracts/events.md`. Правило: событие описывает **факт**, а не намерение; полезная нагрузка содержит идентификаторы и минимальный снимок изменённых полей, не полные объекты.
 
