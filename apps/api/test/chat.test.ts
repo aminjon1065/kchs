@@ -541,6 +541,7 @@ describe('присутствие и статусы', () => {
     expect(seen.statusCode, seen.body).toBe(200)
     expect(seen.json().items[0]).toMatchObject({ userId: alice.id, status: 'dnd' })
 
+    // Выбранный статус вернулся, но тихие часы продолжают держать «не беспокоить»
     const back = await call(fx.app, {
       method: 'PUT',
       url: '/me/presence',
@@ -552,5 +553,14 @@ describe('присутствие и статусы', () => {
     // организации действующий статус законно равен «не беспокоить» —
     // раньше тест падал ровно в эти часы (в том числе на ночном прогоне CI)
     expect(back.json().chosen).toBe('online')
+
+    // Снятые тихие часы возвращают и действующий статус — независимо от времени суток
+    const quiet = await call(fx.app, {
+      method: 'PUT',
+      url: '/me/presence',
+      as: alice,
+      payload: { status: 'online', quietHours: { enabled: false, from: '22:00', to: '07:00' } },
+    })
+    expect(quiet.json()).toMatchObject({ status: 'online', chosen: 'online' })
   })
 })

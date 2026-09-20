@@ -4,9 +4,11 @@
  *
  *  - `KnowledgeSemantics.setSource` — подключение источника поиска по смыслу
  *    (эмбеддинги, pgvector): без него база знаний ищет только словами;
- *  - `KnowledgeSeed.ensureDefaultSections` — разделы по умолчанию (`db:seed`).
+ *  - `KnowledgeSeed.ensureDefaultSections` — разделы по умолчанию (`db:seed`);
+ *  - `KnowledgeSeed.ensureUserGuide` — краткое руководство пользователя
+ *    страницами базы знаний (`db:seed`, P5-E07).
  */
-import { ensureDefaultSections } from './domain/page-seed.js'
+import { ensureDefaultSections, ensureUserGuide } from './domain/page-seed.js'
 import { type SemanticSource, setSemanticSource } from './domain/semantic-port.js'
 
 /** @public — типы источника поиска по смыслу (ADR-0095) */
@@ -22,5 +24,5 @@ export const KnowledgeSemantics = {
   setSource: (source: SemanticSource | null): void => setSemanticSource(source),
 }
 
-/** @public — разделы базы знаний по умолчанию для `db:seed` */
-export const KnowledgeSeed = { ensureDefaultSections }
+/** @public — разделы базы знаний и краткое руководство для `db:seed` */
+export const KnowledgeSeed = { ensureDefaultSections, ensureUserGuide }

@@ -4185,6 +4185,7 @@ export const en: DeepPartial<Dictionary> = {
         schema: 'Schema',
         versions: 'Versions',
         imports: 'Imports',
+        quality: 'Quality',
         access: 'Access',
       },
       schema: {
