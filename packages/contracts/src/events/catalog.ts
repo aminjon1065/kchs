@@ -743,6 +743,28 @@ export const EVENT_PAYLOADS = {
   /** Дело уничтожено по акту о выделении к уничтожению. */
   'case.destroyed': z.object({ actId: Uuid, number: z.string(), documents: z.number().int() }),
 
+  // ── автоматизация: правила и входящие вызовы (ADR-0096) ────────────────────
+  'rule.created': z.object({ key: z.string(), triggerKind: z.string() }),
+  'rule.updated': z.object({ key: z.string(), changed: z.array(z.string()).default([]) }),
+  'rule.enabled': z.object({ key: z.string() }),
+  'rule.disabled': z.object({ key: z.string() }),
+  /** Запуск правила окончательно не выполнен: владелец получает уведомление. */
+  'rule.run_failed': z.object({
+    runId: Uuid,
+    ruleId: Uuid,
+    error: z.string(),
+    actionIndex: z.number().int().nullable().default(null),
+  }),
+  /**
+   * Входящий вызов интеграции или правила: полезная нагрузка не разбирается,
+   * к ней обращаются условия правил (`event.payload.body.*`).
+   */
+  'webhook.received': z.object({
+    hookKey: z.string(),
+    source: z.string(),
+    body: z.unknown().optional(),
+  }),
+
   // ── admin ─────────────────────────────────────────────────────────────────
   'settings.changed': z.object({ scope: z.string(), key: z.string() }),
   /** День производственного календаря изменён или удалён (`kind: null`). */

@@ -1,4 +1,5 @@
 export * from './_shared.js'
+export * from './automation.js'
 export * from './calendar.js'
 export * from './chat.js'
 export * from './data.js'

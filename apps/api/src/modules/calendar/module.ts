@@ -4,8 +4,9 @@ import { authorize } from '~/kernel/access/authorize.js'
 import { registerSubscriber } from '~/kernel/events/bus.js'
 import { registerInboxActionHandler } from '~/kernel/inbox/actions.js'
 import { registerJobHandler } from '~/kernel/jobs/runner.js'
-import { JobService, queue } from '~/kernel/jobs/service.js'
+import { JobService } from '~/kernel/jobs/service.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
+import { declareSchedule } from '~/kernel/schedules/index.js'
 import { SpaceService } from '~/kernel/spaces/service.js'
 import { systemCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
@@ -219,26 +220,30 @@ export function registerCalendarBackground(): void {
  * появления модуля (при старте воркера, идемпотентно).
  */
 export async function scheduleCalendarJobs(): Promise<void> {
-  await queue('notify').add(
-    'calendar.reminders',
-    {},
-    { repeat: { pattern: '* * * * *' }, jobId: 'cron:calendar.reminders' },
-  )
-  await queue('maintenance').add(
-    'calendar.plan',
-    {},
-    { repeat: { pattern: '7 * * * *' }, jobId: 'cron:calendar.plan' },
-  )
-  await queue('maintenance').add(
-    'calendar.horizon',
-    {},
-    { repeat: { pattern: '37 2 * * *' }, jobId: 'cron:calendar.horizon' },
-  )
-  await queue('automation').add(
-    'calendar.subscriptions',
-    {},
-    { repeat: { pattern: '*/30 * * * *' }, jobId: 'cron:calendar.subscriptions' },
-  )
+  declareSchedule({
+    queue: 'notify',
+    name: 'calendar.reminders',
+    pattern: '* * * * *',
+    labelKey: 'schedules.jobs.calendarReminders',
+  })
+  declareSchedule({
+    queue: 'maintenance',
+    name: 'calendar.plan',
+    pattern: '7 * * * *',
+    labelKey: 'schedules.jobs.calendarPlan',
+  })
+  declareSchedule({
+    queue: 'maintenance',
+    name: 'calendar.horizon',
+    pattern: '37 2 * * *',
+    labelKey: 'schedules.jobs.calendarHorizon',
+  })
+  declareSchedule({
+    queue: 'automation',
+    name: 'calendar.subscriptions',
+    pattern: '*/30 * * * *',
+    labelKey: 'schedules.jobs.calendarSubscriptions',
+  })
   await ensureUnitCalendars()
 }
 

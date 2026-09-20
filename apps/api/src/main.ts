@@ -14,6 +14,7 @@ import { startWorkers, stopWorkers } from './kernel/jobs/runner.js'
 import { registerKernelMetrics } from './kernel/metrics.js'
 import { registerProcessJobs, scheduleProcessTimers } from './kernel/process/timers.js'
 import { startRealtime, stopRealtime } from './kernel/realtime/gateway.js'
+import { syncSchedules } from './kernel/schedules/index.js'
 import { registerKernelSubscribers } from './kernel/subscribers.js'
 import { AuthService } from './modules/identity/public.js'
 import {
@@ -85,9 +86,12 @@ async function main(): Promise<void> {
     startDispatcher()
     startConsumers()
     startWorkers()
-    await scheduleMaintenance()
-    await scheduleProcessTimers()
+    // Регулярные задания объявляются в едином планировщике и ставятся одним
+    // проходом: экран «Расписания» видит их все (ADR-0096)
+    scheduleMaintenance()
+    scheduleProcessTimers()
     await scheduleModuleJobs()
+    await syncSchedules()
     startModuleServices()
     // Признак жизни для healthcheck контейнера worker (HTTP-сервера у него нет):
     // файл обновляется, пока цикл событий не заблокирован

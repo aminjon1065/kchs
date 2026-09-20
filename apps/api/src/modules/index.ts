@@ -150,9 +150,9 @@ export function registerModulesBackground(): void {
 }
 
 export async function scheduleModuleJobs(): Promise<void> {
-  await scheduleFilesJobs()
+  scheduleFilesJobs()
+  scheduleTasksJobs()
   await scheduleReportsJobs()
-  await scheduleTasksJobs()
   await scheduleCalendarJobs()
   await scheduleChatJobs()
 }
