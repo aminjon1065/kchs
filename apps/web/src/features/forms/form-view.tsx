@@ -14,7 +14,8 @@ import { formQuery } from './queries.js'
 export function FormView({ objectId }: { objectId: string }) {
   const t = useT()
   const { data: form, isLoading, error, refetch } = useQuery(formQuery(objectId))
-  const [tab, setTab] = useState<string>('fill')
+  // Вкладка по умолчанию — заполнение назначенному, контроль сдачи остальным
+  const [tab, setTab] = useState<string | null>(null)
 
   if (isLoading) {
     return (
@@ -25,6 +26,7 @@ export function FormView({ objectId }: { objectId: string }) {
     )
   }
   if (error || !form) return <ErrorState onRetry={() => void refetch()} />
+  const active = tab ?? (form.canSubmit ? 'fill' : 'control')
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-canvas">
@@ -41,7 +43,7 @@ export function FormView({ objectId }: { objectId: string }) {
         ) : null}
       </div>
 
-      <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col">
+      <Tabs value={active} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col">
         <TabsList className="shrink-0 px-2.5">
           <TabsTrigger value="fill">{t('forms.tabs.fill')}</TabsTrigger>
           <TabsTrigger value="control">{t('forms.tabs.control')}</TabsTrigger>
