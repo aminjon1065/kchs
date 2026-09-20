@@ -28,6 +28,7 @@ export const API_SCOPE_RESOURCES = [
   'search',
   'jobs',
   'integrations',
+  'automation',
 ] as const
 export const ApiScopeResource = z.enum(API_SCOPE_RESOURCES)
 export type ApiScopeResource = z.infer<typeof ApiScopeResource>
@@ -74,6 +75,8 @@ export const API_SCOPES = [
   'read:jobs',
   'read:integrations',
   'write:integrations',
+  'read:automation',
+  'write:automation',
 ] as const
 export const ApiScope = z.enum(API_SCOPES)
 export type ApiScope = z.infer<typeof ApiScope>

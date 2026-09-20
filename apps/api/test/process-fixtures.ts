@@ -20,7 +20,7 @@ const { objects } = await import('../src/shared/db/schema/index.js')
  * проверяют тип по перечню контрактов, поэтому берётся первый тип перечня, ещё
  * не занятый модулями (типы будущих фаз).
  */
-const CANDIDATES = ['protocol', 'recording', 'meeting', 'webhook', 'integration', 'rule']
+const CANDIDATES = ['pipeline', 'form', 'alert', 'basemap', 'correspondent', 'source']
 let testType = ''
 
 export function TEST_TYPE(): string {
