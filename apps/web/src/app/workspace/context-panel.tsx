@@ -1,4 +1,10 @@
-import { atLeast, type ObjectRecord, type SimilarObjects, type TagView } from '@kchs/contracts'
+import {
+  atLeast,
+  type ObjectLineage,
+  type ObjectRecord,
+  type SimilarObjects,
+  type TagView,
+} from '@kchs/contracts'
 import { formatDateTime, formatRelativeTime } from '@kchs/fields'
 import {
   Avatar,
@@ -486,6 +492,69 @@ function LinksTab({ objectId }: { objectId: string }) {
           </div>
         </div>
       ))}
+
+      <LineageSection objectId={objectId} />
+    </div>
+  )
+}
+
+/**
+ * Происхождение и влияние (ADR-0102): откуда объект берёт данные и кто берёт
+ * их у него. Недоступные смотрящему узлы в граф не попадают.
+ */
+function LineageSection({ objectId }: { objectId: string }) {
+  const t = useT()
+  const openTab = useWorkspace((s) => s.openTab)
+  const { data } = useQuery({
+    queryKey: ['object', objectId, 'lineage'],
+    queryFn: () => http.get<ObjectLineage>(`/objects/${objectId}/lineage`, { query: { depth: 3 } }),
+    staleTime: 60_000,
+  })
+  const sources = (data?.nodes ?? []).filter((node) => node.depth < 0)
+  const consumers = (data?.nodes ?? []).filter((node) => node.depth > 0)
+  if (sources.length === 0 && consumers.length === 0) return null
+
+  const list = (nodes: typeof sources, labelKey: string) =>
+    nodes.length === 0 ? null : (
+      <div>
+        <div className="mb-1.5 text-2xs font-medium uppercase tracking-wide text-fg-muted">
+          {t(labelKey)}
+        </div>
+        <ul className="flex flex-col gap-1" aria-label={t(labelKey)}>
+          {[...nodes]
+            .sort((a, b) => Math.abs(a.depth) - Math.abs(b.depth))
+            .map((node) => (
+              <li key={node.objectId}>
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 rounded-sm px-1 py-1 text-left hover:bg-surface-2"
+                  onClick={() =>
+                    openTab({
+                      kind: 'object',
+                      objectId: node.objectId,
+                      objectType: node.type,
+                      title: node.title,
+                      mode: 'preview',
+                    })
+                  }
+                >
+                  <ObjectIcon type={node.type} className="size-3.5 shrink-0 text-fg-muted" />
+                  <span className="min-w-0 flex-1 truncate text-xs text-fg">{node.title}</span>
+                  <span className="text-2xs text-fg-muted">{Math.abs(node.depth)}</span>
+                </button>
+              </li>
+            ))}
+        </ul>
+      </div>
+    )
+
+  return (
+    <div className="flex flex-col gap-3">
+      {list(sources, 'objects.lineage.sources')}
+      {list(consumers, 'objects.lineage.consumers')}
+      {data?.truncated ? (
+        <p className="text-2xs text-fg-muted">{t('objects.lineage.truncated')}</p>
+      ) : null}
     </div>
   )
 }

@@ -1178,6 +1178,11 @@ export const en: DeepPartial<Dictionary> = {
   },
 
   objects: {
+    lineage: {
+      sources: 'Where the data comes from',
+      consumers: 'Where it is used',
+      truncated: 'Nearest links shown — the chain continues further',
+    },
     unavailable: 'The object is unavailable or deleted',
     presence: 'Viewing now: {names}',
     types: {

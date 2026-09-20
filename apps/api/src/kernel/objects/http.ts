@@ -1,9 +1,11 @@
 import {
   BatchGetInput,
   cursorPage,
+  LineageQuery,
   LinkCreateInput,
   ListFieldsResponse,
   levelValue,
+  ObjectLineage,
   ObjectListQuery,
   ObjectPatchInput,
   ObjectRecord,
@@ -28,6 +30,7 @@ import type { RouteRegistrar } from '~/shared/http/route.js'
 import { authorize, loadObject, visibleObjectsSql } from '../access/authorize.js'
 import { clearanceSql } from '../access/confidentiality.js'
 import { listActivity } from '../activity/service.js'
+import { lineageOf } from '../links/lineage.js'
 import { LinkService } from '../links/service.js'
 import { TagService } from '../tags/service.js'
 import { compileObjectFilter, compileObjectSort, parseFilter } from './filter-sql.js'
@@ -459,6 +462,16 @@ export function registerObjectRoutes(route: RouteRegistrar): void {
   })
 
   // ─── Связи и активность ────────────────────────────────────────────────────
+  route({
+    method: 'GET',
+    url: '/objects/:id/lineage',
+    auth: { action: 'view' },
+    tags: ['objects'],
+    summary: 'Происхождение и влияние: граф зависимостей вокруг объекта (ADR-0102)',
+    schema: { params: IdParam, querystring: LineageQuery, response: { 200: ObjectLineage } },
+    handler: async (request) => lineageOf(request.ctx, request.params.id, request.query.depth),
+  })
+
   route({
     method: 'GET',
     url: '/objects/:id/links',

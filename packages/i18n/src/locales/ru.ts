@@ -1200,6 +1200,11 @@ export const ru = {
   },
 
   objects: {
+    lineage: {
+      sources: 'Откуда данные',
+      consumers: 'Где используется',
+      truncated: 'Показаны ближайшие связи — дальше цепочка продолжается',
+    },
     unavailable: 'Объект недоступен или удалён',
     presence: 'Сейчас смотрят: {names}',
     types: {
