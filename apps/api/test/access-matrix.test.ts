@@ -336,6 +336,72 @@ const FIXTURES: Record<string, TypeFixture> = {
     ],
   },
 
+  form: {
+    create: async (fx, title) => {
+      const dataset = await createMatrixDataset(fx, `${title} — данные`)
+      const response = await call(fx.app, {
+        method: 'POST',
+        url: '/forms',
+        as: fx.admin,
+        payload: {
+          name: title,
+          spaceId: fx.spaceId,
+          definition: {
+            datasetId: dataset,
+            fields: [{ key: 'code', required: false }],
+            schedule: { periodicity: 'monthly' },
+          },
+        },
+      })
+      expect(response.statusCode, response.body).toBe(200)
+      return { id: response.json().id, title }
+    },
+    readPaths: ['/forms/:id', '/forms/:id/schema', '/forms/:id/control'],
+    viewerForbidden: (_fx, id) => [
+      { method: 'POST', url: `/forms/${id}/enabled`, payload: { enabled: true } },
+      { method: 'PUT', url: `/forms/${id}`, payload: { name: 'правка читателя' } },
+    ],
+  },
+
+  alert: {
+    create: async (fx, title) => {
+      const dataset = await createMatrixDataset(fx, `${title} — данные`)
+      const metric = await call(fx.app, {
+        method: 'POST',
+        url: '/metrics',
+        as: fx.admin,
+        payload: {
+          name: `${title} — показатель`,
+          spaceId: fx.spaceId,
+          datasetId: dataset,
+          definition: { measure: { agg: 'count' }, period: null },
+        },
+      })
+      expect(metric.statusCode, metric.body).toBe(200)
+      const response = await call(fx.app, {
+        method: 'POST',
+        url: '/alerts',
+        as: fx.admin,
+        payload: {
+          name: title,
+          spaceId: fx.spaceId,
+          definition: {
+            metricId: metric.json().id,
+            condition: { kind: 'threshold', op: 'gt', value: 0 },
+            schedule: { cron: '0 9 * * *', timezone: 'Asia/Dushanbe' },
+          },
+        },
+      })
+      expect(response.statusCode, response.body).toBe(200)
+      return { id: response.json().id, title }
+    },
+    readPaths: ['/alerts/:id'],
+    viewerForbidden: (_fx, id) => [
+      { method: 'POST', url: `/alerts/${id}/enabled`, payload: { enabled: true } },
+      { method: 'POST', url: `/alerts/${id}/check`, payload: { dryRun: true } },
+    ],
+  },
+
   dashboard: {
     create: async (fx, title) => {
       const response = await call(fx.app, {

@@ -36,6 +36,9 @@ const SCREEN_PATHS: Record<string, ScreenKey> = {
   // Контроль исполнения и нагрузка (ADR-0082)
   '/control': 'control',
   '/workload': 'workload',
+  // Формы сбора данных (ADR-0103) и алерты (ADR-0104)
+  '/forms': 'forms',
+  '/alerts': 'alerts',
 }
 
 export type LocationTarget =

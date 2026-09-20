@@ -1,0 +1,455 @@
+import type {
+  FormReviewInput,
+  FormSubject,
+  FormSubmission,
+  FormSubmissionStatus,
+} from '@kchs/contracts'
+import { and, eq, inArray, sql } from 'drizzle-orm'
+import { authorize } from '~/kernel/access/authorize.js'
+import { buildUserCtxFor } from '~/kernel/access/explain.js'
+import { BusinessCalendar } from '~/kernel/business-calendar/service.js'
+import { directory } from '~/kernel/directory/port.js'
+import { publishEvent } from '~/kernel/events/publisher.js'
+import { DatasetQueries, DatasetRows, datasetRecord } from '~/modules/data/public.js'
+import { OrgService } from '~/modules/identity/public.js'
+import { config } from '~/shared/config/index.js'
+import type { UserCtx } from '~/shared/context.js'
+import { db, type Executor } from '~/shared/db/client.js'
+import { formSubmissions } from '~/shared/db/schema/index.js'
+import { errors } from '~/shared/errors.js'
+import { newId } from '~/shared/ids.js'
+import { FormInbox } from './form-inbox.js'
+import { type FormRow, FormService, objectRef, subjectsFor } from './form-service.js'
+import { dueAtOf, type FormPeriod, recentPeriods, today } from './periods.js'
+import { subjectKey, subjectNames } from './subject-names.js'
+
+/**
+ * Отправки формы (06-analytics-engine.md §13, ADR-0103): сводка одного
+ * назначенного за один период. Сдача — запись строки датасета через публичный
+ * API модуля «Данные» с `_import_id` отправки; чужих таблиц форма не трогает.
+ */
+
+export interface SubmissionRow {
+  id: string
+  formId: string
+  periodKey: string
+  periodStart: string
+  periodEnd: string
+  dueAt: string | null
+  subjectKind: string
+  subjectId: string
+  status: string
+  values: Record<string, unknown>
+  rowId: string | null
+  authorId: string | null
+  submittedAt: string | null
+  reviewerId: string | null
+  reviewedAt: string | null
+  comment: string | null
+  updatedAt: string
+}
+
+const OPEN_STATUSES: FormSubmissionStatus[] = ['draft', 'returned']
+
+/** Период по ключу: отправка открывается только на существующий период. */
+export async function periodByKey(form: FormRow, periodKey: string): Promise<FormPeriod> {
+  const schedule = form.definition.schedule
+  if (schedule.periodicity === 'once') {
+    if (periodKey !== 'once') throw errors.validation('У разовой формы один период')
+    const start = schedule.startsOn ?? (schedule.dueOn as string)
+    return { key: 'once', start, end: schedule.dueOn ?? start }
+  }
+  const known = recentPeriods(today(config().TZ), schedule, 60).find(
+    (period) => period.key === periodKey,
+  )
+  if (known) return known
+  throw errors.validation('Такого периода у формы нет')
+}
+
+/** Момент срока периода по производственному календарю. */
+async function dueFor(form: FormRow, period: FormPeriod): Promise<Date> {
+  const kindOf = await BusinessCalendar.dayKinds(period.end, period.end)
+  return dueAtOf(period, form.definition.schedule, config().TZ, kindOf)
+}
+
+async function loadSubmission(executor: Executor, id: string): Promise<SubmissionRow> {
+  const [row] = await executor.select().from(formSubmissions).where(eq(formSubmissions.id, id))
+  if (!row) throw errors.notFound('Отправка')
+  return row as SubmissionRow
+}
+
+/** Может ли пользователь сдавать за это назначение. */
+function maySubmit(ctx: UserCtx, form: FormRow, subject: FormSubject): boolean {
+  return subjectsFor(ctx, form).some((item) => item.kind === subject.kind && item.id === subject.id)
+}
+
+async function view(
+  ctx: UserCtx,
+  form: FormRow,
+  row: SubmissionRow,
+  canManage: boolean,
+): Promise<FormSubmission> {
+  const subject = { kind: row.subjectKind, id: row.subjectId } as FormSubject
+  const names = await subjectNames([subject])
+  return {
+    id: row.id,
+    formId: row.formId,
+    formName: form.title,
+    periodKey: row.periodKey,
+    periodStart: row.periodStart,
+    periodEnd: row.periodEnd,
+    dueAt: row.dueAt,
+    subject,
+    subjectName: names.get(subjectKey(subject)) ?? null,
+    status: row.status as FormSubmissionStatus,
+    values: row.values,
+    rowId: row.rowId,
+    authorId: row.authorId,
+    submittedAt: row.submittedAt,
+    reviewerId: row.reviewerId,
+    reviewedAt: row.reviewedAt,
+    comment: row.comment,
+    canSubmit:
+      OPEN_STATUSES.includes(row.status as FormSubmissionStatus) && maySubmit(ctx, form, subject),
+    canReview: row.status === 'submitted' && (canManage || form.reviewers.includes(ctx.userId)),
+    updatedAt: row.updatedAt,
+  }
+}
+
+/** Контекст записи строк: права служебного пользователя формы (ADR-0103). */
+async function writerCtx(form: FormRow): Promise<UserCtx> {
+  const userId = form.runAs ?? form.ownerId
+  const ctx = userId ? await buildUserCtxFor(userId) : null
+  if (!ctx) throw errors.validation('Служебный пользователь формы недоступен')
+  return ctx
+}
+
+/** Значения авто-полей по их типу в датасете. */
+async function autoValues(
+  form: FormRow,
+  row: SubmissionRow,
+  authorId: string,
+): Promise<Record<string, unknown>> {
+  const auto = form.definition.auto
+  if (!auto.unit && !auto.period && !auto.author && !auto.submittedAt) return {}
+  const dataset = await datasetRecord(form.datasetId)
+  const typeOf = (key: string) => dataset.fields.find((field) => field.key === key)?.type
+  const out: Record<string, unknown> = {}
+
+  if (auto.unit) {
+    const unitId =
+      row.subjectKind === 'unit' ? row.subjectId : await directory().primaryUnit(authorId)
+    if (unitId) {
+      if (typeOf(auto.unit) === 'unit') out[auto.unit] = unitId
+      else {
+        const briefs = await OrgService.briefs([unitId])
+        out[auto.unit] = briefs.get(unitId)?.name.ru ?? unitId
+      }
+    }
+  }
+  if (auto.period) {
+    const type = typeOf(auto.period)
+    out[auto.period] = type === 'date' || type === 'datetime' ? row.periodStart : row.periodKey
+  }
+  if (auto.author) {
+    out[auto.author] =
+      typeOf(auto.author) === 'user' ? authorId : await directory().displayName(authorId)
+  }
+  if (auto.submittedAt) {
+    const now = new Date()
+    out[auto.submittedAt] =
+      typeOf(auto.submittedAt) === 'date' ? now.toISOString().slice(0, 10) : now.toISOString()
+  }
+  return out
+}
+
+export const SubmissionService = {
+  /** Отправка периода: существующая или новый черновик. */
+  async open(
+    ctx: UserCtx,
+    formId: string,
+    input: { periodKey: string; subject: FormSubject },
+  ): Promise<FormSubmission> {
+    await authorize(ctx, 'view', formId)
+    const form = await FormService.require(db(), formId)
+    const manage = await authorize(ctx, 'manage', formId, { soft: true })
+    if (!manage.allowed && !maySubmit(ctx, form, input.subject)) {
+      throw errors.forbidden('Сдавать сводку за это подразделение может только назначенный')
+    }
+    const assigned = form.definition.assignments.some(
+      (item) => item.kind === input.subject.kind && item.id === input.subject.id,
+    )
+    if (!assigned) throw errors.validation('Это назначение форме не задано')
+
+    const period = await periodByKey(form, input.periodKey)
+    const dueAt = await dueFor(form, period)
+    const id = newId()
+    await db()
+      .insert(formSubmissions)
+      .values({
+        id,
+        formId,
+        periodKey: period.key,
+        periodStart: period.start,
+        periodEnd: period.end,
+        dueAt: dueAt.toISOString(),
+        subjectKind: input.subject.kind,
+        subjectId: input.subject.id,
+        status: 'draft',
+        values: {},
+      })
+      .onConflictDoNothing()
+    const [row] = await db()
+      .select()
+      .from(formSubmissions)
+      .where(
+        and(
+          eq(formSubmissions.formId, formId),
+          eq(formSubmissions.periodKey, period.key),
+          eq(formSubmissions.subjectKind, input.subject.kind),
+          eq(formSubmissions.subjectId, input.subject.id),
+        ),
+      )
+      .limit(1)
+    if (!row) throw errors.internal('Отправка не создана')
+    return view(ctx, form, row as SubmissionRow, manage.allowed)
+  },
+
+  async get(ctx: UserCtx, submissionId: string): Promise<FormSubmission> {
+    const row = await loadSubmission(db(), submissionId)
+    await authorize(ctx, 'view', row.formId)
+    const form = await FormService.require(db(), row.formId)
+    const manage = await authorize(ctx, 'manage', row.formId, { soft: true })
+    return view(ctx, form, row, manage.allowed)
+  },
+
+  /** Черновик: значения сохраняются без записи в датасет. */
+  async save(
+    ctx: UserCtx,
+    submissionId: string,
+    values: Record<string, unknown>,
+  ): Promise<FormSubmission> {
+    const row = await loadSubmission(db(), submissionId)
+    await authorize(ctx, 'view', row.formId)
+    const form = await FormService.require(db(), row.formId)
+    if (!maySubmit(ctx, form, { kind: row.subjectKind, id: row.subjectId } as FormSubject)) {
+      throw errors.forbidden('Заполнять сводку может только назначенный')
+    }
+    if (!OPEN_STATUSES.includes(row.status as FormSubmissionStatus)) {
+      throw errors.conflict('Сводка уже сдана')
+    }
+    await db()
+      .update(formSubmissions)
+      .set({ values, authorId: ctx.userId, updatedAt: sql`now()` })
+      .where(eq(formSubmissions.id, submissionId))
+    return SubmissionService.get(ctx, submissionId)
+  },
+
+  /**
+   * Сдача: значения проверяются и пишутся строкой датасета с `_import_id`
+   * отправки. Повторная сдача после возврата правит ту же строку.
+   */
+  async submit(
+    ctx: UserCtx,
+    submissionId: string,
+    values: Record<string, unknown>,
+  ): Promise<FormSubmission> {
+    const current = await loadSubmission(db(), submissionId)
+    await authorize(ctx, 'view', current.formId)
+    const form = await FormService.require(db(), current.formId)
+    const subject = { kind: current.subjectKind, id: current.subjectId } as FormSubject
+    if (!maySubmit(ctx, form, subject)) {
+      throw errors.forbidden('Сдавать сводку может только назначенный')
+    }
+    if (!OPEN_STATUSES.includes(current.status as FormSubmissionStatus)) {
+      throw errors.conflict('Сводка уже сдана')
+    }
+    for (const field of form.definition.fields) {
+      const value = values[field.key]
+      if (field.required && (value === undefined || value === null || value === '')) {
+        throw errors.validation(`Поле «${field.key}» обязательно`)
+      }
+    }
+    const writer = await writerCtx(form)
+    const auto = await autoValues(form, { ...current, values }, ctx.userId)
+    const payload = {
+      ...pick(
+        values,
+        form.definition.fields.map((item) => item.key),
+      ),
+      ...auto,
+    }
+    const resubmitted = current.status === 'returned' && current.rowId !== null
+
+    const result = await db().transaction(async (tx) => {
+      const [locked] = await tx
+        .select({ status: formSubmissions.status, rowId: formSubmissions.rowId })
+        .from(formSubmissions)
+        .where(eq(formSubmissions.id, submissionId))
+        .for('update')
+      if (!locked || !OPEN_STATUSES.includes(locked.status as FormSubmissionStatus)) {
+        throw errors.conflict('Сводка уже сдана')
+      }
+      let rowId = locked.rowId
+      if (rowId) {
+        const existing = await DatasetQueries.row(writer, form.datasetId, rowId)
+        const updated = await DatasetRows.update(
+          tx,
+          writer,
+          form.datasetId,
+          rowId,
+          { ver: existing._ver, values: payload },
+          { importId: submissionId },
+        )
+        rowId = updated._id
+      } else {
+        const inserted = await DatasetRows.insert(tx, writer, form.datasetId, payload, {
+          importId: submissionId,
+        })
+        rowId = inserted._id
+      }
+      const review = form.definition.review.enabled
+      await tx
+        .update(formSubmissions)
+        .set({
+          values,
+          rowId,
+          status: review ? 'submitted' : 'accepted',
+          authorId: ctx.userId,
+          submittedAt: sql`now()`,
+          ...(review ? {} : { reviewedAt: sql`now()`, reviewerId: null }),
+          comment: null,
+          updatedAt: sql`now()`,
+        })
+        .where(eq(formSubmissions.id, submissionId))
+      const object = await objectRef(tx, form.id)
+      await publishEvent(tx, ctx, {
+        type: 'form.submitted',
+        object,
+        payload: {
+          submissionId,
+          periodKey: current.periodKey,
+          subjectKind: subject.kind,
+          subjectId: subject.id,
+          rowId,
+          resubmitted,
+        },
+      })
+      await FormInbox.closeSubmit(tx, ctx, submissionId)
+      if (review) {
+        await FormInbox.review(
+          tx,
+          ctx,
+          form,
+          { id: submissionId, periodKey: current.periodKey, dueAt: current.dueAt },
+          subject,
+        )
+      } else {
+        await publishEvent(tx, ctx, {
+          type: 'form.accepted',
+          object,
+          payload: {
+            submissionId,
+            periodKey: current.periodKey,
+            subjectKind: subject.kind,
+            subjectId: subject.id,
+            authorId: ctx.userId,
+          },
+        })
+      }
+      return rowId
+    })
+    if (!result) throw errors.internal('Строка не записана')
+    return SubmissionService.get(ctx, submissionId)
+  },
+
+  /** Приёмка: принять или вернуть с комментарием. */
+  async review(
+    ctx: UserCtx,
+    submissionId: string,
+    input: FormReviewInput,
+  ): Promise<FormSubmission> {
+    const current = await loadSubmission(db(), submissionId)
+    const form = await FormService.require(db(), current.formId)
+    const manage = await authorize(ctx, 'manage', current.formId, { soft: true })
+    if (!manage.allowed && !form.reviewers.includes(ctx.userId)) {
+      await authorize(ctx, 'manage', current.formId)
+    }
+    if (current.status !== 'submitted') throw errors.conflict('Сводка не на приёмке')
+    if (input.decision === 'return' && !input.comment?.trim()) {
+      throw errors.validation('Возврат сводки требует комментария')
+    }
+    const subject = { kind: current.subjectKind, id: current.subjectId } as FormSubject
+
+    await db().transaction(async (tx) => {
+      await tx
+        .update(formSubmissions)
+        .set({
+          status: input.decision === 'accept' ? 'accepted' : 'returned',
+          reviewerId: ctx.userId,
+          reviewedAt: sql`now()`,
+          comment: input.comment?.trim() || null,
+          updatedAt: sql`now()`,
+        })
+        .where(eq(formSubmissions.id, submissionId))
+      const object = await objectRef(tx, form.id)
+      await FormInbox.closeReview(tx, ctx, submissionId)
+      if (input.decision === 'accept') {
+        await publishEvent(tx, ctx, {
+          type: 'form.accepted',
+          object,
+          payload: {
+            submissionId,
+            periodKey: current.periodKey,
+            subjectKind: subject.kind,
+            subjectId: subject.id,
+            authorId: current.authorId,
+          },
+        })
+      } else {
+        await publishEvent(tx, ctx, {
+          type: 'form.returned',
+          object,
+          payload: {
+            submissionId,
+            periodKey: current.periodKey,
+            subjectKind: subject.kind,
+            subjectId: subject.id,
+            authorId: current.authorId,
+            comment: input.comment?.trim() ?? '',
+          },
+        })
+        await FormInbox.submit(
+          tx,
+          ctx,
+          form,
+          { id: submissionId, periodKey: current.periodKey, dueAt: current.dueAt },
+          subject,
+        )
+      }
+    })
+    return SubmissionService.get(ctx, submissionId)
+  },
+}
+
+/** Только ключи схемы формы: лишние значения в датасет не попадают. */
+function pick(values: Record<string, unknown>, keys: readonly string[]): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  for (const key of keys) if (key in values) out[key] = values[key]
+  return out
+}
+
+/** Отправки формы за набор периодов — для матрицы контроля. */
+export async function submissionsOf(
+  formId: string,
+  periodKeys: readonly string[],
+): Promise<SubmissionRow[]> {
+  if (periodKeys.length === 0) return []
+  const rows = await db()
+    .select()
+    .from(formSubmissions)
+    .where(
+      and(eq(formSubmissions.formId, formId), inArray(formSubmissions.periodKey, [...periodKeys])),
+    )
+  return rows as SubmissionRow[]
+}

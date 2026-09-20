@@ -299,7 +299,9 @@ export const KNOWN_DOMAINS = [
   'config',
   // Правила автоматизации и входящие вызовы (ADR-0096)
   'rule',
-  'webhook',
+  // Формы сбора данных (ADR-0103) и алерты на показатели (ADR-0104)
+  'form',
+  'alert',
 ] as const
 
 function resolveDomains(): string[] {

@@ -47,6 +47,8 @@ export const OPENAPI_TAGS = [
   { name: 'ai', description: 'Интеллектуальные функции; токенам API недоступны' },
   { name: 'integrations', description: 'Интеграции, исходящие и входящие вебхуки' },
   { name: 'automation', description: 'Правила автоматизации и расписания' },
+  { name: 'forms', description: 'Формы сбора данных: заполнение и контроль сдачи' },
+  { name: 'alerts', description: 'Алерты на показатели: условия, проверка, история' },
   { name: 'admin', description: 'Администрирование: аудит, здоровье, токены, конфигурация' },
   {
     name: 'internal',

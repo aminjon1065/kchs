@@ -210,6 +210,14 @@ export interface RowWriteAccess {
 }
 
 /**
+ * Происхождение записи: `_import_id` строки. Отправка формы сбора данных
+ * (ADR-0103) помечает им свои строки — по нему видно, какая сдача их создала.
+ */
+export interface RowWriteOptions {
+  importId?: string | undefined
+}
+
+/**
  * Транзакция вызывающего (правка объекта слоя вместе с событием модуля GIS,
  * применение принятой правки, ADR-0076) или своя.
  */
@@ -435,6 +443,7 @@ export const RowService = {
     datasetId: string,
     rows: DatasetRowInput[],
     outer?: Executor,
+    options: RowWriteOptions = {},
   ): Promise<DatasetRow[]> {
     const { grant, storage, territories } = await writable(ctx, datasetId)
     const prepared = rows.map((row, index) => {
@@ -461,7 +470,15 @@ export const RowService = {
       let inserted: Array<{ _id: string; _ver: number }>
       try {
         inserted = await tx.execute<{ _id: string; _ver: number }>(
-          sql`INSERT INTO ${table} (${sql.join([...columns, sql`_created_by`, sql`_updated_by`], sql`, `)})
+          sql`INSERT INTO ${table} (${sql.join(
+            [
+              ...columns,
+              sql`_created_by`,
+              sql`_updated_by`,
+              ...(options.importId ? [sql`_import_id`] : []),
+            ],
+            sql`, `,
+          )})
               VALUES ${sql.join(
                 prepared.map((row) => {
                   const byKey = new Map(row.map((item) => [item.field.key, item.value]))
@@ -470,6 +487,7 @@ export const RowService = {
                       ...fields.map((field) => valueSql(field, byKey.get(field.key) ?? null)),
                       sql`${userId}::uuid`,
                       sql`${userId}::uuid`,
+                      ...(options.importId ? [sql`${options.importId}::uuid`] : []),
                     ],
                     sql`, `,
                   )})`
@@ -525,6 +543,7 @@ export const RowService = {
     rowId: string,
     patch: DatasetRowPatch,
     outer?: Executor,
+    options: RowWriteOptions = {},
   ): Promise<DatasetRow> {
     const { grant, storage, territories } = await writable(ctx, datasetId)
     const assignments = prepare(storage, grant, patch.values, false, territories)
@@ -574,7 +593,9 @@ export const RowService = {
                        sql`${sql.raw(ident(item.field.physical))} = ${valueSql(item.field, item.value)}`,
                    ),
                    sql`, `,
-                 )}, _ver = _ver + 1, _updated_at = now(), _updated_by = ${userId}::uuid
+                 )}, _ver = _ver + 1, _updated_at = now(), _updated_by = ${userId}::uuid${
+                   options.importId ? sql`, _import_id = ${options.importId}::uuid` : sql``
+                 }
                WHERE _id = ${rowId}::bigint
            RETURNING _ver`,
         )

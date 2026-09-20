@@ -27,7 +27,7 @@ import { DatasetService } from './domain/dataset-service.js'
 import { type MetricEvaluation, MetricService } from './domain/metric-service.js'
 import { NotebookService } from './domain/notebook-service.js'
 import { QueryService, type RunOptions } from './domain/query-service.js'
-import { RowService, type RowWriteAccess } from './domain/row-service.js'
+import { RowService, type RowWriteAccess, type RowWriteOptions } from './domain/row-service.js'
 
 export { DatasetGeo, type DatasetGeometry } from './domain/dataset-geo.js'
 export {
@@ -134,7 +134,7 @@ export const DatasetQueries = {
   },
 }
 
-export type { RowWriteAccess }
+export type { RowWriteAccess, RowWriteOptions }
 
 /**
  * Запись строк для других модулей (правка объектов слоя, ADR-0076): те же права,
@@ -157,8 +157,9 @@ export const DatasetRows = {
     ctx: Ctx,
     datasetId: string,
     values: Record<string, unknown>,
+    options: RowWriteOptions = {},
   ): Promise<DatasetRow> => {
-    const [row] = await RowService.insert(ctx, datasetId, [{ values }], tx)
+    const [row] = await RowService.insert(ctx, datasetId, [{ values }], tx, options)
     if (!row) throw errors.internal('Строка не добавлена')
     return row
   },
@@ -169,7 +170,8 @@ export const DatasetRows = {
     datasetId: string,
     rowId: string,
     patch: DatasetRowPatch,
-  ): Promise<DatasetRow> => RowService.update(ctx, datasetId, rowId, patch, tx),
+    options: RowWriteOptions = {},
+  ): Promise<DatasetRow> => RowService.update(ctx, datasetId, rowId, patch, tx, options),
   /** Удаление строки той версии, что видел пользователь. */
   remove: (tx: Executor, ctx: Ctx, datasetId: string, rowId: string, ver: number) =>
     RowService.remove(ctx, datasetId, [rowId], tx, { ver }),

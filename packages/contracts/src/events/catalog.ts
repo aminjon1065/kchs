@@ -785,6 +785,92 @@ export const EVENT_PAYLOADS = {
   /** Дело уничтожено по акту о выделении к уничтожению. */
   'case.destroyed': z.object({ actId: Uuid, number: z.string(), documents: z.number().int() }),
 
+  // ── формы сбора данных (06-analytics-engine.md §13, ADR-0103) ─────────────
+  'form.created': z.object({ datasetId: Uuid, periodicity: z.string() }),
+  'form.updated': z.object({ changed: z.array(z.string()).default([]) }),
+  'form.enabled': z.object({ assignments: z.number().int().nonnegative() }),
+  'form.disabled': empty,
+  /** Период открыт назначенному: у него появилось дело «Сдать сводку». */
+  'form.assigned': z.object({
+    submissionId: Uuid,
+    periodKey: z.string(),
+    subjectKind: z.string(),
+    subjectId: Uuid,
+    dueAt: Timestamp.nullable().default(null),
+  }),
+  /** Сводка сдана: строка датасета записана отправкой. */
+  'form.submitted': z.object({
+    submissionId: Uuid,
+    periodKey: z.string(),
+    subjectKind: z.string(),
+    subjectId: Uuid,
+    rowId: z.string().nullable().default(null),
+    resubmitted: z.boolean().default(false),
+  }),
+  /** Сводка принята ответственным. */
+  'form.accepted': z.object({
+    submissionId: Uuid,
+    periodKey: z.string(),
+    subjectKind: z.string(),
+    subjectId: Uuid,
+    authorId: Uuid.nullable().default(null),
+  }),
+  /** Сводка возвращена на доработку с комментарием. */
+  'form.returned': z.object({
+    submissionId: Uuid,
+    periodKey: z.string(),
+    subjectKind: z.string(),
+    subjectId: Uuid,
+    authorId: Uuid.nullable().default(null),
+    comment: z.string(),
+  }),
+  /** Срок сдачи близок: назначенному напоминают. */
+  'form.due_soon': z.object({
+    submissionId: Uuid,
+    periodKey: z.string(),
+    subjectKind: z.string(),
+    subjectId: Uuid,
+    dueAt: Timestamp,
+  }),
+  /** Срок сдачи прошёл, сводки нет. */
+  'form.overdue': z.object({
+    submissionId: Uuid,
+    periodKey: z.string(),
+    subjectKind: z.string(),
+    subjectId: Uuid,
+    dueAt: Timestamp,
+  }),
+  /** Просрочка передана руководителю назначенного. */
+  'form.escalated': z.object({
+    submissionId: Uuid,
+    periodKey: z.string(),
+    subjectKind: z.string(),
+    subjectId: Uuid,
+    dueAt: Timestamp,
+    managerId: Uuid,
+  }),
+
+  // ── алерты на показатели (06-analytics-engine.md §14, ADR-0104) ───────────
+  'alert.created': z.object({ metricId: Uuid, condition: z.string() }),
+  'alert.updated': z.object({ changed: z.array(z.string()).default([]) }),
+  'alert.enabled': z.object({ cron: z.string() }),
+  'alert.disabled': empty,
+  /** Условие выполнено: уведомления, Входящие и правила автоматизации. */
+  'alert.fired': z.object({
+    alertId: Uuid,
+    eventId: Uuid,
+    metricId: Uuid,
+    metricName: z.string(),
+    condition: z.string(),
+    /** Ключ разреза; пустая строка — показатель целиком. */
+    groupKey: z.string().default(''),
+    groupLabel: z.string().default(''),
+    value: z.number().nullable().default(null),
+    base: z.number().nullable().default(null),
+    score: z.number().nullable().default(null),
+    message: z.string(),
+  }),
+
   // ── автоматизация: правила и входящие вызовы (ADR-0096) ────────────────────
   'rule.created': z.object({ key: z.string(), triggerKind: z.string() }),
   'rule.updated': z.object({ key: z.string(), changed: z.array(z.string()).default([]) }),
