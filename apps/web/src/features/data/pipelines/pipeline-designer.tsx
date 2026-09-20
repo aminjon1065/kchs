@@ -94,6 +94,8 @@ export default function PipelineDesigner({ pipelineId }: { pipelineId: string })
     mutationFn: (definition: PipelineDefinition) => pipelineApi.validate(definition),
     onSuccess: (result) =>
       setIssue(result.ok ? null : { stepId: result.stepId, message: result.message ?? '' }),
+    // Незаполненный шаг сервер не принимает: показываем причину и не даём сохранить
+    onError: (err) => setIssue({ stepId: null, message: problemMessage(err, t('errors.unknown')) }),
   })
 
   const runPreview = useMutation({

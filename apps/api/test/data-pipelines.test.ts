@@ -142,6 +142,74 @@ describe('пайплайн: определение, проверка, предп
     expect(response.json().stepId).toBe('bad-step')
   })
 
+  it('геокодирование и приведение типа компилируются', async () => {
+    const response = await call(fx.app, {
+      method: 'POST',
+      url: '/pipelines/validate',
+      as: analyst,
+      payload: {
+        definition: definition(
+          [
+            { id: 's1', type: 'cast', casts: [{ field: 'amount', to: 'text' }] },
+            {
+              id: 's2',
+              type: 'geocode',
+              field: 'code',
+              match: 'code',
+              as: 'territory_id',
+              pointAs: 'territory_point',
+            },
+          ],
+          'Свод',
+        ),
+      },
+    })
+    expect(response.statusCode, response.body).toBe(200)
+    expect(response.json().ok, response.body).toBe(true)
+    const names = response.json().fields.map((field: { name: string }) => field.name)
+    expect(names).toContain('territory_id')
+    expect(names).toContain('territory_point')
+  })
+
+  it('простые шаги компилируются: разбор, склейка, заполнение, дубликаты, столбцы в строки', async () => {
+    const validate = async (steps: unknown[]) => {
+      const response = await call(fx.app, {
+        method: 'POST',
+        url: '/pipelines/validate',
+        as: analyst,
+        payload: { definition: definition(steps, 'Свод') },
+      })
+      expect(response.statusCode, response.body).toBe(200)
+      expect(response.json().ok, response.body).toBe(true)
+      return response.json().fields.map((field: { name: string }) => field.name) as string[]
+    }
+
+    expect(
+      await validate([
+        { id: 's1', type: 'split', field: 'note', separator: ' ', into: ['part1'], drop: false },
+        { id: 's2', type: 'merge_columns', fields: ['code', 'kind'], into: 'label' },
+        { id: 's3', type: 'fill', field: 'note', with: { kind: 'value', value: 'нет' } },
+      ]),
+    ).toEqual(expect.arrayContaining(['part1', 'label', 'note']))
+
+    expect(await validate([{ id: 'd1', type: 'dedupe', by: ['kind'], keep: 'first' }])).toEqual(
+      expect.arrayContaining(['kind', 'code', 'amount']),
+    )
+
+    expect(
+      await validate([
+        {
+          id: 'u1',
+          type: 'unpivot',
+          keep: ['code'],
+          fields: ['kind', 'note'],
+          nameField: 'metric',
+          valueField: 'value',
+        },
+      ]),
+    ).toEqual(['code', 'metric', 'value'])
+  })
+
   it('предпросмотр обрезает цепочку по шагу', async () => {
     const response = await call(fx.app, {
       method: 'POST',
@@ -163,6 +231,36 @@ describe('пайплайн: определение, проверка, предп
     const result = response.json()
     expect(result.rows).toHaveLength(2)
     expect(result.fields.map((field: { name: string }) => field.name)).toContain('note')
+  })
+
+  it('столбцы в строки выполняются, а не только компилируются', async () => {
+    const response = await call(fx.app, {
+      method: 'POST',
+      url: '/pipelines/preview',
+      as: analyst,
+      payload: {
+        definition: definition(
+          [
+            {
+              id: 'u1',
+              type: 'unpivot',
+              keep: ['code'],
+              fields: ['kind', 'note'],
+              nameField: 'metric',
+              valueField: 'value',
+            },
+          ],
+          'Свод',
+        ),
+        limit: 50,
+      },
+    })
+    expect(response.statusCode, response.body).toBe(200)
+    const result = response.json() as { fields: Array<{ name: string }>; rows: unknown[][] }
+    expect(result.fields.map((field) => field.name)).toEqual(['code', 'metric', 'value'])
+    // Три строки × два поля
+    expect(result.rows).toHaveLength(6)
+    expect(result.rows.map((row) => row[1])).toEqual(expect.arrayContaining(['kind', 'note']))
   })
 })
 
