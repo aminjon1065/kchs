@@ -234,6 +234,11 @@ describe('звонок из беседы', () => {
   })
 
   it('список встреч: мои и идущие', async () => {
+    // Ограничение приходит строкой запроса — контракт приводит его к числу
+    const limited = await call(fx.app, { url: '/meetings?scope=mine&limit=5', as: organizer })
+    expect(limited.statusCode, limited.body).toBe(200)
+    expect((limited.json().items as Json[]).length).toBeLessThanOrEqual(5)
+
     const mine = await call(fx.app, { url: '/meetings?scope=mine', as: organizer })
     expect(mine.statusCode, mine.body).toBe(200)
     const titles = (mine.json().items as Json[]).map((item) => item.title)
