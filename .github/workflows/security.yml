@@ -1,0 +1,167 @@
+name: "Безопасность: образы и ZAP"
+
+# Две проверки из чек-листа фазы (04-verification.md §6, 17-security.md §8),
+# которым нужна собранная установка, а не исходники:
+#
+#   * Trivy по образам api, web и engine — уязвимости базовых слоёв и системных
+#     пакетов, которых нет в lockfile. Порог — HIGH и CRITICAL с исправлением.
+#   * ZAP baseline против поднятой установки за Caddy. Именно там живут
+#     настоящие заголовки (CSP с nonce, X-Frame-Options, HSTS, Permissions-
+#     Policy, ADR-0043): на стенде разработки их ставит не приложение, и прогон
+#     по нему показывал бы отсутствие того, что в установке есть.
+#
+# Почему не на каждый PR: подъём установки с чистыми томами и сборка образа
+# движка (≈ 3 ГБ) занимают около получаса — столько же, сколько «Установка в
+# контейнерах» (stack.yml), и по той же причине. Поверхность приложения на
+# каждом PR закрывают «Сквозные сценарии» (в них `csp:check` — продакшен-CSP за
+# настоящим Caddy) и негативные интеграционные тесты доступа. Поэтому:
+#   - каждую ночь на main — регрессия видна не позже чем через сутки;
+#   - на PR с меткой `security` — когда правятся заголовки, периметр, образы;
+#   - вручную (workflow_dispatch) — на любой ветке.
+#
+# Зависимости (`pnpm audit`) и Trivy по файловой системе — в задании
+# «Безопасность» ci.yml, на каждом PR: они быстрые.
+
+on:
+  schedule:
+    - cron: '30 1 * * *' # 06:30 по Душанбе, после «Установки в контейнерах»
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'
+  PNPM_VERSION: '12'
+
+jobs:
+  images:
+    name: Trivy по образам
+    if: >-
+      github.event_name != 'pull_request' ||
+      (contains(github.event.pull_request.labels.*.name, 'security') &&
+       (github.event.action != 'labeled' || github.event.label.name == 'security'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: api
+            context: .
+            file: apps/api/Dockerfile
+          - name: web
+            context: .
+            file: apps/web/Dockerfile
+          - name: engine
+            context: apps/engine
+            file: apps/engine/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      # Кэш слоёв общий с заданием «Сборка образов» (ci.yml, те же scope)
+      - name: Образ ${{ matrix.name }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
+          load: true
+          tags: kchs/${{ matrix.name }}:security
+          cache-from: type=gha,scope=${{ matrix.name }}
+      # ignore-unfixed: уязвимость без выпущенного исправления сборку не ломает —
+      # чинить её нечем; она видна в отчёте и ждёт обновления базового образа
+      - name: Trivy ${{ matrix.name }}
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: kchs/${{ matrix.name }}:security
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: '1'
+          format: table
+
+  zap:
+    name: ZAP baseline на установке
+    if: >-
+      github.event_name != 'pull_request' ||
+      (contains(github.event.pull_request.labels.*.name, 'security') &&
+       (github.event.action != 'labeled' || github.event.label.name == 'security'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      KCHS_IMAGE_TAG: security
+      KCHS_VERIFY_PROJECT: kchs-zap
+      WEB_PORT: '58080'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: '${{ env.PNPM_VERSION }}' }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - uses: docker/setup-buildx-action@v3
+      - name: Образ api
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          load: true
+          tags: kchs/api:security
+          cache-from: type=gha,scope=api
+      - name: Образ web
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          load: true
+          tags: kchs/web:security
+          cache-from: type=gha,scope=web
+      - name: Образ движка
+        uses: docker/build-push-action@v6
+        with:
+          context: apps/engine
+          file: apps/engine/Dockerfile
+          load: true
+          tags: kchs/engine:security
+          cache-from: type=gha,scope=engine
+
+      # verify-stack.sh заканчивается браузерной проверкой (stack-check.mjs)
+      - name: Браузер Playwright
+        run: pnpm --filter @kchs/web exec playwright install --with-deps chromium
+
+      # KEEP=1 оставляет установку поднятой: её и сканируем. Бюджеты k6 здесь не
+      # нужны — их замеряет stack.yml
+      - name: Установка с чистыми томами
+        env:
+          SKIP_BUILD: '1'
+          KEEP: '1'
+          KCHS_VERIFY_PERF: '0'
+          KCHS_VERIFY_ENV_FILE: ${{ runner.temp }}/verify.env
+        run: bash infra/scripts/verify-stack.sh
+
+      - name: ZAP baseline
+        env:
+          KCHS_ZAP_OUT_DIR: ${{ runner.temp }}/zap
+          KCHS_ZAP_TARGETS: >-
+            http://host.docker.internal:58080
+            http://host.docker.internal:58080/api/docs
+        run: bash infra/security/zap-baseline.sh
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: zap-baseline
+          path: ${{ runner.temp }}/zap
+          retention-days: 30
+
+      - name: Убрать установку
+        if: always()
+        run: |
+          docker compose -p kchs-zap --env-file "${{ runner.temp }}/verify.env" \
+            -f infra/compose/docker-compose.yml --profile app \
+            down -v --remove-orphans || true

@@ -45,7 +45,7 @@ import {
   removeStaleArchives,
 } from './basemap-storage.js'
 import { basemapStyle, type StyleContent } from './basemap-style.js'
-import { fetchRasterTile } from './raster-fetch.js'
+import { fetchRasterTile, RASTER_CONTENT_TYPES } from './raster-fetch.js'
 import { serviceTileUrl } from './service-url.js'
 
 const MANAGE = 'gis.basemaps.manage'
@@ -589,7 +589,12 @@ export const BasemapService = {
       const cached = await getObjectStream(cacheKey, { bucket: buckets.tiles() })
       const chunks: Buffer[] = []
       for await (const chunk of cached.body) chunks.push(chunk as Buffer)
-      return { body: Buffer.concat(chunks), contentType: cached.contentType ?? 'image/png' }
+      // Кэш мог заполниться до того, как перечень типов стал точным (ADR-0123)
+      const stored = cached.contentType ?? 'image/png'
+      return {
+        body: Buffer.concat(chunks),
+        contentType: RASTER_CONTENT_TYPES.includes(stored) ? stored : 'image/png',
+      }
     } catch (error) {
       if (!isMissingObject(error)) {
         logger().warn({ err: error, basemapId: id }, 'кэш растровой подложки недоступен')

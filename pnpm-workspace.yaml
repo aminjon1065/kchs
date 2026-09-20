@@ -11,3 +11,24 @@ allowBuilds:
   turbo: true
   "@node-rs/argon2": true
   msgpackr-extract: true
+
+# Разобранные уязвимости зависимостей. `pnpm audit --audit-level high` ломает
+# сборку (17-security.md §5, ADR-0121), поэтому каждая строка здесь — разбор, а
+# не тишина: почему в kchs уязвимый путь недостижим. Срок пересмотра и план
+# обновления — вопрос N80 в docs/04-delivery/05-risks-and-open-questions.md.
+auditConfig:
+  ignoreGhsas:
+    # drizzle-orm < 0.45.2: `sql.identifier()` и `.as()` не экранируют кавычку в
+    # имени. В kchs их нет: имена в динамическом SQL идут через `quoteIdent`
+    # (packages/query) и белый список `IDENT` (внешние базы).
+    - GHSA-gpj5-g38j-94v9
+    # image-size <= 2.0.2 (deck.gl → loaders.gl → texture-compressor): сжатые
+    # текстуры glTF мы не грузим, этот код в сборку web не попадает.
+    - GHSA-w3rx-r6r6-pgpr
+    - GHSA-5p2g-fcmc-qvqq
+    # nodemailer <= 9.0.0: параметр `raw` обходит запрет чтения файлов. Мы его не
+    # передаём — письма собираются шаблонами уведомлений.
+    - GHSA-p6gq-j5cr-w38f
+    # nodemailer < 9.1.0: квадратичный разбор списка адресов. Адреса приходят из
+    # собственного справочника; входящие письма разбирает mailparser.
+    - GHSA-2x7j-588g-ccc2

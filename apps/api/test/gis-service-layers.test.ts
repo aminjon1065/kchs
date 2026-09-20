@@ -1,4 +1,6 @@
-import { beforeAll, describe, expect, it } from 'vitest'
+import { createServer, type Server } from 'node:http'
+import type { AddressInfo } from 'node:net'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { call, registerLifecycle, setupFixture, type TestContext } from './helpers.js'
 
 /**
@@ -181,5 +183,82 @@ describe('базовая карта WMS', () => {
       },
     })
     expect(created.statusCode).toBe(400)
+  })
+})
+
+/**
+ * Прокси тайлов отдаёт ответ чужой службы со своего происхождения, поэтому тип
+ * содержимого — вопрос безопасности, а не удобства: `image/svg+xml` браузер
+ * исполняет, и такой «тайл» стал бы хранимым XSS на домене установки
+ * (17-security.md §5).
+ */
+describe('прокси тайлов: тип содержимого чужой службы', () => {
+  let upstream: Server
+  let upstreamBase = ''
+  let respond: { type: string; body: Buffer } = { type: 'image/png', body: Buffer.alloc(0) }
+
+  beforeAll(async () => {
+    upstream = createServer((_request, response) => {
+      response.statusCode = 200
+      response.setHeader('content-type', respond.type)
+      response.end(respond.body)
+    })
+    await new Promise<void>((resolve) => upstream.listen(0, '127.0.0.1', resolve))
+    upstreamBase = `http://127.0.0.1:${(upstream.address() as AddressInfo).port}`
+  })
+
+  afterAll(async () => {
+    await new Promise<void>((resolve) => upstream.close(() => resolve()))
+  })
+
+  async function createXyz(name: string): Promise<string> {
+    const created = await call(fx.app, {
+      method: 'POST',
+      url: '/gis/service-layers',
+      as: fx.admin,
+      payload: {
+        name,
+        kind: 'xyz',
+        url: `${upstreamBase}/{z}/{x}/{y}.png`,
+        params: { kind: 'xyz' },
+      },
+    })
+    expect(created.statusCode, created.body).toBe(200)
+    return created.json().id as string
+  }
+
+  it('растровый тайл проходит и отдаётся своим типом', async () => {
+    const id = await createXyz(`Тайлы PNG ${run}`)
+    respond = { type: 'image/png; charset=binary', body: Buffer.from([0x89, 0x50, 0x4e, 0x47]) }
+    const tile = await call(fx.app, {
+      url: `/gis/service-layers/${id}/tiles/1/0/0`,
+      as: fx.users.member,
+    })
+    expect(tile.statusCode, tile.body).toBe(200)
+    expect(tile.headers['content-type']).toBe('image/png')
+  })
+
+  it('SVG вместо тайла не отдаётся: исполняемый документ с нашего домена', async () => {
+    const id = await createXyz(`Тайлы SVG ${run}`)
+    respond = {
+      type: 'image/svg+xml',
+      body: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'),
+    }
+    const tile = await call(fx.app, {
+      url: `/gis/service-layers/${id}/tiles/1/0/0`,
+      as: fx.users.member,
+    })
+    expect(tile.statusCode).toBe(424)
+    expect(tile.body).not.toContain('<svg')
+  })
+
+  it('HTML-страница ошибки службы тайлом не притворится', async () => {
+    const id = await createXyz(`Тайлы HTML ${run}`)
+    respond = { type: 'text/html', body: Buffer.from('<h1>Ошибка</h1>') }
+    const tile = await call(fx.app, {
+      url: `/gis/service-layers/${id}/tiles/1/0/0`,
+      as: fx.users.member,
+    })
+    expect(tile.statusCode).toBe(424)
   })
 })

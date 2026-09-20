@@ -5,7 +5,7 @@ import { ResponseSerializationError } from 'fastify-type-provider-zod'
 import { ZodError } from 'zod'
 import { isProd } from '../config/index.js'
 import { isAppError } from '../errors.js'
-import { logger } from '../logger/index.js'
+import { logger, redactUrl } from '../logger/index.js'
 
 const TYPE_BASE = 'https://kchs.local/problems'
 
@@ -17,7 +17,7 @@ export function toProblem(error: unknown, request: FastifyRequest): ProblemDetai
   if (error instanceof ResponseSerializationError) {
     logger().error(
       {
-        url: request.url,
+        url: redactUrl(request.url),
         method: request.method,
         issues: error.cause?.issues?.map((i) => ({
           path: i.path.join('.'),
@@ -36,7 +36,7 @@ export function toProblem(error: unknown, request: FastifyRequest): ProblemDetai
         : `Ответ не соответствует схеме: ${error.cause?.issues
             ?.map((i) => `${i.path.join('.')}: ${i.message}`)
             .join('; ')}`,
-      instance: request.url,
+      instance: redactUrl(request.url),
       code: 'internal_error',
     }
   }
@@ -47,7 +47,7 @@ export function toProblem(error: unknown, request: FastifyRequest): ProblemDetai
       title: t('errors.validation_failed'),
       status: 400,
       code: 'validation_failed',
-      instance: request.url,
+      instance: redactUrl(request.url),
       errors: error.issues.map((issue) => ({
         path: issue.path.join('.'),
         message: issue.message,
@@ -62,7 +62,7 @@ export function toProblem(error: unknown, request: FastifyRequest): ProblemDetai
       title: t(`errors.${error.code}`),
       status: error.status,
       detail: error.message,
-      instance: request.url,
+      instance: redactUrl(request.url),
       code: error.code,
       ...(error.fieldErrors ? { errors: error.fieldErrors } : {}),
       ...(typeof error.details?.retryAfter === 'number'
@@ -82,7 +82,7 @@ export function toProblem(error: unknown, request: FastifyRequest): ProblemDetai
       title: t('errors.service_unavailable'),
       status: 503,
       detail: fastifyError.message,
-      instance: request.url,
+      instance: redactUrl(request.url),
       code: 'service_unavailable',
     }
   }
@@ -100,18 +100,18 @@ export function toProblem(error: unknown, request: FastifyRequest): ProblemDetai
       title: t(`errors.${code}`),
       status: fastifyError.statusCode,
       detail: fastifyError.message,
-      instance: request.url,
+      instance: redactUrl(request.url),
       code,
     }
   }
 
-  logger().error({ err: error, url: request.url }, 'необработанная ошибка')
+  logger().error({ err: error, url: redactUrl(request.url) }, 'необработанная ошибка')
   return {
     type: `${TYPE_BASE}/internal_error`,
     title: t('errors.internal_error'),
     status: 500,
     detail: isProd() ? undefined : ((error as Error)?.message ?? String(error)),
-    instance: request.url,
+    instance: redactUrl(request.url),
     code: 'internal_error',
   }
 }

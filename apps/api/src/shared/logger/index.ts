@@ -1,6 +1,7 @@
 import { type Logger, pino } from 'pino'
 import { config } from '../config/index.js'
 import { routeDiagnostics, traceLogFields, tracingEnabled } from '../telemetry/tracing.js'
+import { redactUrl } from './redact-url.js'
 
 /** Поля, которые никогда не попадают в логи (17-security.md §4). */
 const REDACT = [
@@ -20,6 +21,24 @@ const REDACT = [
   'KCHS_MASTER_KEY',
 ]
 
+/**
+ * Адрес запроса Fastify пишет в каждую строку «incoming request». Свой
+ * сериализатор (он перекрывает стандартный: fastify/lib/logger-factory.js
+ * отдаёт приоритет сериализаторам переданного экземпляра pino) вычищает из
+ * него секрет в пути и строку запроса — см. `redact-url.ts`.
+ */
+const requestSerializer = (request: {
+  method?: string
+  url?: string
+  host?: string
+  ip?: string
+}) => ({
+  method: request.method,
+  url: typeof request.url === 'string' ? redactUrl(request.url) : request.url,
+  host: request.host,
+  remoteAddress: request.ip,
+})
+
 let cached: Logger | null = null
 
 export function logger(): Logger {
@@ -29,6 +48,7 @@ export function logger(): Logger {
   cached = pino({
     level: env.LOG_LEVEL,
     redact: { paths: REDACT, censor: '[скрыто]' },
+    serializers: { req: requestSerializer },
     base: { role: env.ROLE },
     // Корреляция с трассами: по trace_id строка лога находит свою трассу в Tempo
     mixin: tracing ? traceLogFields : undefined,
@@ -46,3 +66,4 @@ export function logger(): Logger {
 }
 
 export type { Logger }
+export { redactUrl }

@@ -25,7 +25,7 @@ import { objects, serviceLayers } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { redis } from '~/shared/redis/index.js'
-import { fetchExternal } from './raster-fetch.js'
+import { fetchExternal, RASTER_CONTENT_TYPES } from './raster-fetch.js'
 import { serviceTileUrl } from './service-url.js'
 
 /**
@@ -377,7 +377,9 @@ export const ServiceLayerService = {
     const cacheKey = `kchs:service-layer:${id}:${tag(row)}:${z}/${x}/${y}`
     const cached = await redis().getBuffer(cacheKey)
     if (cached) {
-      const contentType = (await redis().get(`${cacheKey}:ct`)) ?? 'image/png'
+      const stored = (await redis().get(`${cacheKey}:ct`)) ?? 'image/png'
+      // Кэш мог заполниться до того, как перечень типов стал точным
+      const contentType = RASTER_CONTENT_TYPES.includes(stored) ? stored : 'image/png'
       return { body: cached, contentType }
     }
     const target = serviceTileUrl(
@@ -394,7 +396,7 @@ export const ServiceLayerService = {
     )
     const tile = await fetchExternal(target, {
       accept: 'image/*',
-      expect: 'image/',
+      expect: RASTER_CONTENT_TYPES,
       maxBytes: 5 * 1024 * 1024,
       what: 'растровая служба',
     })

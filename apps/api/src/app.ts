@@ -27,7 +27,7 @@ import { authPlugin } from '~/shared/http/auth-plugin.js'
 import { sendProblem } from '~/shared/http/problem.js'
 import { routeRegistrar } from '~/shared/http/route.js'
 import { telemetryPlugin } from '~/shared/http/telemetry-plugin.js'
-import { logger } from '~/shared/logger/index.js'
+import { logger, redactUrl } from '~/shared/logger/index.js'
 import { redis } from '~/shared/redis/index.js'
 
 export async function buildApp(): Promise<FastifyInstance> {
@@ -49,13 +49,16 @@ export async function buildApp(): Promise<FastifyInstance> {
     sendProblem(request, reply, error)
   })
   app.setNotFoundHandler((request, reply) => {
-    reply.status(404).type('application/problem+json').send({
-      type: 'https://kchs.local/problems/not_found',
-      title: 'Не найдено',
-      status: 404,
-      code: 'not_found',
-      instance: request.url,
-    })
+    reply
+      .status(404)
+      .type('application/problem+json')
+      .send({
+        type: 'https://kchs.local/problems/not_found',
+        title: 'Не найдено',
+        status: 404,
+        code: 'not_found',
+        instance: redactUrl(request.url),
+      })
   })
 
   await app.register(telemetryPlugin)

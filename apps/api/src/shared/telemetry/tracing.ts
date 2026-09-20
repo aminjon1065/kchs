@@ -15,6 +15,8 @@ import {
   trace,
 } from '@opentelemetry/api'
 import type { SpanProcessor } from '@opentelemetry/sdk-trace-node'
+// Напрямую из модуля, а не из logger/index.js: тот сам зависит от трасс
+import { redactUrl } from '../logger/redact-url.js'
 
 /**
  * Трассы OpenTelemetry (15-admin-operations.md §4, ADR-0045): запрос → SQL →
@@ -280,9 +282,10 @@ function databaseName(): string {
 
 /**
  * Персональные данные в трассы не попадают (17-security.md §4): строка запроса
- * (поиск, токены ссылок) и адрес клиента вычищаются перед экспортом.
+ * (поиск, токены ссылок), секрет в пути (гостевая ссылка, входящий вебхук) и
+ * адрес клиента вычищаются перед экспортом.
  */
-const QUERY_ATTRIBUTES = ['http.target', 'http.url', 'url.full']
+const QUERY_ATTRIBUTES = ['http.target', 'http.url', 'url.full', 'url.path']
 const HIDDEN_ATTRIBUTES = ['url.query', 'http.client_ip', 'client.address', 'user_agent.original']
 
 const redactingProcessor: SpanProcessor = {
@@ -290,8 +293,9 @@ const redactingProcessor: SpanProcessor = {
   onEnding: (span) => {
     for (const key of QUERY_ATTRIBUTES) {
       const value = span.attributes[key]
-      if (typeof value === 'string' && value.includes('?')) {
-        span.setAttribute(key, value.slice(0, value.indexOf('?')))
+      if (typeof value === 'string') {
+        const safe = redactUrl(value)
+        if (safe !== value) span.setAttribute(key, safe)
       }
     }
     for (const key of HIDDEN_ATTRIBUTES) {

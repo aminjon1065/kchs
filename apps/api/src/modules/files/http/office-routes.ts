@@ -13,6 +13,7 @@ import type { RouteRegistrar } from '~/shared/http/route.js'
 import { officeConfig, officeDocumentType, signJwt } from '../domain/office.js'
 import { officeEditorConfig, renderOfficePage } from '../domain/office-page.js'
 import { OfficeService, officeUrls } from '../domain/office-service.js'
+import { watermarkLevel } from '../domain/watermark.js'
 
 const IdParam = z.object({ id: z.uuid() })
 const Ticket = z.object({ t: z.string().min(8).max(200) })
@@ -107,6 +108,8 @@ export function registerOfficePages(app: FastifyInstance): void {
 
       // Адрес страницы правом не является: права проверяются здесь заново
       await authorize(request.ctx, 'view', session.fileId)
+      // И гриф тоже: он мог подняться после открытия сессии (ADR-0112)
+      if (await watermarkLevel(session.fileId)) throw errors.notFound('Файл')
       const canEdit = (await authorize(request.ctx, 'edit', session.fileId, { soft: true })).allowed
 
       const [file] = await db()

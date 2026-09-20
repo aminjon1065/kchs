@@ -159,6 +159,11 @@ export const OfficeService = {
     const session = await OfficeService.session(sessionId)
     if (!session) throw errors.notFound('Сессия редактирования')
 
+    // Гриф проверяется не только при открытии: сессия живёт 12 часов, а гриф
+    // могли поднять за это время — тогда исходник перестаёт уходить наружу
+    // сразу, а не после закрытия сессии (08-documents.md §13, ADR-0112)
+    if (await watermarkLevel(session.fileId)) throw errors.notFound('Файл')
+
     const [row] = await db()
       .select({ name: files.name, mime: files.mime, storageKey: files.storageKey })
       .from(files)
@@ -419,7 +424,10 @@ async function download(url: string): Promise<Buffer> {
   try {
     const response = await fetch(rewriteHost(url, office?.internalUrl ?? null), {
       signal: controller.signal,
-      redirect: 'follow',
+      // Происхождение закреплено за сервером документов (`rewriteHost`), и
+      // перенаправление увело бы запрос с него куда угодно внутри сети —
+      // ровно то, от чего закрепление и защищает
+      redirect: 'manual',
     })
     if (!response.ok) throw new Error(`ответ ${response.status}`)
     if (Number(response.headers.get('content-length') ?? 0) > MAX_SAVE_BYTES) {

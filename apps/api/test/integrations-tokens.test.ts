@@ -273,4 +273,31 @@ describe('служебная учётная запись', () => {
     })
     expect(hidden.statusCode).toBe(404)
   })
+
+  it('блокировка владельца закрывает его токен: увольнение выключает и машину', async () => {
+    // Токен живёт дольше сессии, и сотрудник уходит вместе с ним. Отдельно
+    // отзывать токены уволенного никто не вспомнит (17-security.md §2)
+    const leaving = await createUser(fx.app, `leaving_${Date.now().toString(36)}`, ['employee'])
+    const issued = await call(fx.app, {
+      method: 'POST',
+      url: '/me/api-tokens',
+      as: fx.admin,
+      payload: { name: 'Служебная при увольнении', scopes: ['read:objects'], userId: leaving.id },
+    })
+    expect(issued.statusCode, issued.body).toBe(200)
+    const secret = issued.json().secret as string
+    const before = await call(fx.app, { url: '/objects/batch-get', headers: withToken(secret) })
+    expect(before.statusCode).not.toBe(401)
+
+    const blocked = await call(fx.app, {
+      method: 'PATCH',
+      url: `/users/${leaving.id}`,
+      as: fx.admin,
+      payload: { status: 'blocked' },
+    })
+    expect(blocked.statusCode, blocked.body).toBe(200)
+
+    const after = await call(fx.app, { url: '/objects/batch-get', headers: withToken(secret) })
+    expect(after.statusCode).toBe(401)
+  })
 })

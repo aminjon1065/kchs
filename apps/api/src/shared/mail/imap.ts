@@ -13,6 +13,9 @@ import { logger } from '../logger/index.js'
  * интеграций, а модули друг друга не читают.
  */
 
+/** Сколько байт писем набирается за один прогон: всё лежит в памяти процесса. */
+const MAX_BATCH_BYTES = 128 * 1024 * 1024
+
 export interface FetchedLetter {
   uid: number
   uidValidity: string | null
@@ -66,6 +69,7 @@ export const imapMailbox: MailboxPort = {
       const box = imap.mailbox
       const uidValidity = box && typeof box !== 'boolean' ? String(box.uidValidity ?? '') : null
       const letters: FetchedLetter[] = []
+      let bytes = 0
       // Берём непрочитанные: прочитанные письма ящика — уже разобранные или
       // просмотренные человеком, и трогать их повторно не нужно
       for await (const message of imap.fetch({ seen: false }, { uid: true, source: true })) {
@@ -75,7 +79,11 @@ export const imapMailbox: MailboxPort = {
           uidValidity: uidValidity || null,
           source: Buffer.from(message.source),
         })
-        if (letters.length >= limit) break
+        bytes += message.source.length
+        // Пачка ограничена не только числом писем, но и объёмом: письмо целиком
+        // лежит в памяти, и `batchSize` тяжёлых писем её бы исчерпали. Остаток
+        // ящика достаётся следующему прогону — непрочитанным ничего не теряется
+        if (letters.length >= limit || bytes >= MAX_BATCH_BYTES) break
       }
       return letters
     })

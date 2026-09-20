@@ -264,14 +264,19 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # Порог — high и critical: такая находка ломает сборку (17-security.md §5,
+      # ADR-0121). Разобранные и неприменимые к kchs — списком с объяснением в
+      # `auditConfig.ignoreGhsas` (pnpm-workspace.yaml), а не тишиной флага.
       - name: Уязвимости зависимостей
         run: pnpm audit --audit-level high
-        continue-on-error: true
       - name: Trivy (файловая система)
         uses: aquasecurity/trivy-action@0.28.0
         with:
           scan-type: fs
           scan-ref: .
           severity: CRITICAL,HIGH
-          exit-code: '0'
+          ignore-unfixed: true
+          exit-code: '1'
           format: table
+      # Образы api/web/engine и ZAP baseline — в «Безопасность: образы и ZAP»
+      # (security.yml): им нужна собранная установка, это минуты, а не секунды

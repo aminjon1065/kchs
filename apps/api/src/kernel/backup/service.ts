@@ -4,7 +4,7 @@ import { PassThrough } from 'node:stream'
 import { desc, eq, sql } from 'drizzle-orm'
 import { config } from '~/shared/config/index.js'
 import type { Ctx } from '~/shared/context.js'
-import { actorId } from '~/shared/context.js'
+import { actorId, systemCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { backups } from '~/shared/db/schema/index.js'
 import { logger } from '~/shared/logger/index.js'
@@ -107,6 +107,9 @@ export const BackupService = {
     const id = randomUUID()
     const key = `pg/${new Date().toISOString().slice(0, 19).replaceAll(':', '-')}-${id}.dump`
     const requestedBy = ctx ? actorId(ctx) : null
+    // Копия по расписанию идёт без человека, но в аудите она нужна так же:
+    // иначе «копий не делалось» и «расписание выключили» выглядят одинаково
+    const auditCtx = ctx ?? systemCtx('backup.run')
     await db().insert(backups).values({ id, status: 'running', key, requestedBy })
 
     try {
@@ -115,13 +118,11 @@ export const BackupService = {
         .update(backups)
         .set({ status: 'done', finishedAt: sql`now()`, sizeBytes })
         .where(eq(backups.id, id))
-      if (ctx) {
-        await audit(ctx, {
-          action: AUDIT_ACTIONS.backupCreated,
-          severity: 'notice',
-          details: { backupId: id, sizeBytes },
-        })
-      }
+      await audit(auditCtx, {
+        action: AUDIT_ACTIONS.backupCreated,
+        severity: 'notice',
+        details: { backupId: id, sizeBytes, scheduled: ctx === null },
+      })
       await this.prune()
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
@@ -130,6 +131,13 @@ export const BackupService = {
         .update(backups)
         .set({ status: 'failed', finishedAt: sql`now()`, error: message.slice(0, 2000) })
         .where(eq(backups.id, id))
+      // Несделанная копия — событие безопасности: серия отказов означает, что
+      // восстанавливать будет нечего, и заметить это должен мониторинг аудита
+      await audit(auditCtx, {
+        action: AUDIT_ACTIONS.backupFailed,
+        severity: 'warning',
+        details: { backupId: id, scheduled: ctx === null, reason: message.slice(0, 500) },
+      })
       await deleteObject(key, buckets.backups()).catch(() => undefined)
     }
 

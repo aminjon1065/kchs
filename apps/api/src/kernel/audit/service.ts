@@ -183,8 +183,10 @@ export const AUDIT_ACTIONS = {
   objectPurged: 'object.purged',
   auditExported: 'audit.exported',
   securityPolicyChanged: 'security.policy_changed',
-  /** Резервная копия базы сделана вручную (15-admin-operations.md §5). */
+  /** Резервная копия базы сделана — вручную или по расписанию (15-admin-operations.md §5). */
   backupCreated: 'backup.created',
+  /** Копия не сделана: серия таких записей означает, что восстанавливать нечего. */
+  backupFailed: 'backup.failed',
   /** Копия отмечена проверенной восстановлением. */
   backupVerified: 'backup.verified',
   /** Брендирование установки изменено (15-admin-operations.md §1). */

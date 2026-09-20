@@ -74,6 +74,46 @@ describe('резервные копии', () => {
     expect((trail.json().items as unknown[]).length).toBeGreaterThan(0)
   })
 
+  it('копия по расписанию тоже идёт в аудит: иначе её пропажу не заметить', async () => {
+    // Задание `backup.run` работает без человека (ctx = null). Раньше такая
+    // копия не оставляла записи в аудите — и «копий не делалось» было не
+    // отличить от «расписание выключили» (17-security.md §6)
+    const { BackupService } = await import('../src/kernel/backup/service.js')
+    const record = await BackupService.run(null)
+
+    const action = hasPgDump ? 'backup.created' : 'backup.failed'
+    const trail = await call(fx.app, { url: `/admin/audit?action=${action}`, as: fx.admin })
+    expect(trail.statusCode, trail.body).toBe(200)
+    const items = trail.json().items as { details?: Record<string, unknown> }[]
+    const entry = items.find((item) => item.details?.backupId === record.id)
+    expect(entry, `нет записи аудита ${action} для ${record.id}`).toBeTruthy()
+    expect(entry?.details?.scheduled).toBe(true)
+  })
+
+  it('несделанная копия — предупреждение в аудите, а не только строка прогона', async () => {
+    // Отказ получается тем же способом, что на машине без клиента PostgreSQL:
+    // `pg_dump` не находится. Наружу ошибка не летит (иначе задание ушло бы в
+    // повтор и било по базе), но в аудите она обязана быть — серия таких
+    // записей означает, что восстанавливать будет нечего
+    const path = process.env.PATH
+    process.env.PATH = '/kchs-no-such-dir'
+    let response: Awaited<ReturnType<typeof call>>
+    try {
+      response = await call(fx.app, { method: 'POST', url: '/admin/backups', as: fx.admin })
+    } finally {
+      process.env.PATH = path
+    }
+    expect(response.statusCode, response.body).toBe(200)
+    const record = response.json()
+    expect(record.status).toBe('failed')
+
+    const trail = await call(fx.app, { url: '/admin/audit?action=backup.failed', as: fx.admin })
+    const items = trail.json().items as { severity?: string; details?: Record<string, unknown> }[]
+    const entry = items.find((item) => item.details?.backupId === record.id)
+    expect(entry, `нет записи аудита backup.failed для ${record.id}`).toBeTruthy()
+    expect(entry?.severity).toBe('warning')
+  })
+
   it('отметка на несуществующей копии — «не найдено»', async () => {
     const response = await call(fx.app, {
       method: 'POST',
