@@ -1,0 +1,200 @@
+{{- $fullname := include "kchs.fullname" . -}}
+{{- $auto := .Values.worker.autoscaling -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullname }}-worker
+  labels:
+    {{- include "kchs.componentLabels" (dict "ctx" . "component" "worker") | nindent 4 }}
+spec:
+  {{- if eq $auto.mode "off" }}
+  replicas: {{ .Values.worker.replicas }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "kchs.selectorLabels" (dict "ctx" . "component" "worker") | nindent 6 }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        {{- include "kchs.componentLabels" (dict "ctx" . "component" "worker") | nindent 8 }}
+      annotations:
+        checksum/env: {{ include (print $.Template.BasePath "/configmap-env.yaml") . | sha256sum }}
+        {{- with .Values.worker.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- include "kchs.imagePullSecrets" . | nindent 6 }}
+      serviceAccountName: {{ include "kchs.serviceAccountName" . }}
+      automountServiceAccountToken: false
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      # Длинные задания (импорт, рассылка, сборка колоночной копии) должны
+      # успеть завершиться до остановки пода
+      terminationGracePeriodSeconds: {{ .Values.worker.terminationGracePeriodSeconds }}
+      {{- if .Values.waitForDependencies.enabled }}
+      initContainers:
+        {{- include "kchs.waitForPostgres" (dict "ctx" .) | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: worker
+          image: {{ include "kchs.image" (dict "ctx" . "image" .Values.api.image) }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "kchs.configMapName" . }}
+          env:
+            - name: ROLE
+              value: worker
+            - name: KCHS_HEARTBEAT_FILE
+              value: {{ .Values.worker.heartbeatFile | quote }}
+            {{- include "kchs.appEnv" (dict "ctx" .) | nindent 12 }}
+            {{- with .Values.worker.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: metrics
+              containerPort: {{ .Values.observability.metricsPort }}
+          # HTTP-сервера у воркера нет: живость — по файлу, который он
+          # обновляет раз в 10 с (ADR-0044), как в healthcheck compose
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -ec
+                - test -f {{ .Values.worker.heartbeatFile }} && test $(( $(date +%s) - $(stat -c %Y {{ .Values.worker.heartbeatFile }}) )) -lt {{ .Values.worker.heartbeatMaxAgeSeconds }}
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -ec
+                - test -f {{ .Values.worker.heartbeatFile }} && test $(( $(date +%s) - $(stat -c %Y {{ .Values.worker.heartbeatFile }}) )) -lt {{ .Values.worker.heartbeatMaxAgeSeconds }}
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.worker.resources | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      {{- with .Values.worker.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.worker.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.worker.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.worker.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+{{/* Служба без адреса: нужна Prometheus Operator, чтобы опрашивать метрики воркеров */}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullname }}-worker
+  labels:
+    {{- include "kchs.componentLabels" (dict "ctx" . "component" "worker") | nindent 4 }}
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: metrics
+      port: {{ .Values.observability.metricsPort }}
+      targetPort: metrics
+  selector:
+    {{- include "kchs.selectorLabels" (dict "ctx" . "component" "worker") | nindent 4 }}
+{{- if eq $auto.mode "cpu" }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ $fullname }}-worker
+  labels:
+    {{- include "kchs.componentLabels" (dict "ctx" . "component" "worker") | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ $fullname }}-worker
+  minReplicas: {{ $auto.minReplicas }}
+  maxReplicas: {{ $auto.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ $auto.targetCPUUtilizationPercentage }}
+{{- end }}
+{{- if eq $auto.mode "keda" }}
+---
+{{/*
+Глубина очередей — не ресурс пода, обычным HPA её не выразить: нужна внешняя
+метрика. KEDA берёт её из Prometheus (метрика ядра kchs_queue_jobs, ADR-0045) и
+сам создаёт HPA с external-метрикой. Без KEDA в кластере ставьте mode: cpu
+(грубее: процессор растёт не от глубины очереди, а от работы) — ADR-0118.
+*/}}
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ $fullname }}-worker
+  labels:
+    {{- include "kchs.componentLabels" (dict "ctx" . "component" "worker") | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ $fullname }}-worker
+  # minReplicaCount ≥ 1: метрику очередей отдаёт сам воркер, и на нуле реплик
+  # её неоткуда взять
+  minReplicaCount: {{ max 1 (int $auto.minReplicas) }}
+  maxReplicaCount: {{ $auto.maxReplicas }}
+  pollingInterval: {{ $auto.keda.pollingInterval }}
+  cooldownPeriod: {{ $auto.keda.cooldownPeriod }}
+  triggers:
+    {{- if $auto.keda.triggers }}
+    {{- toYaml $auto.keda.triggers | nindent 4 }}
+    {{- else }}
+    - type: prometheus
+      metadata:
+        serverAddress: {{ $auto.keda.prometheusAddress | quote }}
+        metricName: kchs_queue_jobs_waiting
+        query: {{ printf "sum(kchs_queue_jobs{queue=~\"%s\",state=~\"waiting|prioritized\"})" (include "kchs.workerQueues" .) | quote }}
+        threshold: {{ $auto.keda.jobsPerReplica | quote }}
+    {{- end }}
+{{- end }}
+{{- if .Values.worker.podDisruptionBudget.enabled }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $fullname }}-worker
+  labels:
+    {{- include "kchs.componentLabels" (dict "ctx" . "component" "worker") | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.worker.podDisruptionBudget.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "kchs.selectorLabels" (dict "ctx" . "component" "worker") | nindent 6 }}
+{{- end }}

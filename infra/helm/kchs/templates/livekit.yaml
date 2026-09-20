@@ -1,0 +1,189 @@
+{{- if .Values.livekit.embedded.enabled }}
+{{/*
+Медиасервер встреч (ADR-0089) в кластере.
+
+Диапазон портов UDP (50000–50100 в compose S1) сервисом Kubernetes не
+выражается: у Service перечисляются порты по одному. Поэтому в кластере
+LiveKit сводит весь медиатрафик в один порт (`rtc.udp_port`) — его и публикует
+отдельный Service типа LoadBalancer, мимо Ingress (ADR-0118). Сигнальный
+канал (WebSocket) идёт обычным HTTPS через Ingress.
+
+externalTrafficPolicy: Local сохраняет исходный адрес клиента — иначе
+медиасервер видит адрес узла и подбирает кандидатов ICE неверно.
+*/}}
+{{- $fullname := include "kchs.fullname" . -}}
+{{- $lk := .Values.livekit.embedded -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $fullname }}-livekit
+  labels:
+    {{- include "kchs.componentLabels" (dict "ctx" . "component" "livekit") | nindent 4 }}
+data:
+  livekit.yaml: |
+    port: 7880
+    rtc:
+      tcp_port: {{ $lk.tcpPort }}
+      udp_port: {{ $lk.udpMuxPort }}
+      use_external_ip: true
+    turn:
+      enabled: {{ $lk.turn.enabled }}
+      udp_port: {{ $lk.turn.udpPort }}
+    logging:
+      level: {{ .Values.logLevel }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullname }}-livekit
+  labels:
+    {{- include "kchs.componentLabels" (dict "ctx" . "component" "livekit") | nindent 4 }}
+spec:
+  replicas: {{ $lk.replicas }}
+  selector:
+    matchLabels:
+      {{- include "kchs.selectorLabels" (dict "ctx" . "component" "livekit") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "kchs.componentLabels" (dict "ctx" . "component" "livekit") | nindent 8 }}
+      annotations:
+        checksum/config: {{ toYaml $lk | sha256sum }}
+    spec:
+      {{- include "kchs.imagePullSecrets" . | nindent 6 }}
+      automountServiceAccountToken: false
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: livekit
+          image: {{ include "kchs.image" (dict "ctx" . "image" $lk.image) }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          args: ["--config", "/etc/livekit.yaml"]
+          env:
+            # Ключ и секрет — те же, по которым api выпускает токены комнат
+            - name: LIVEKIT_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kchs.secretName" . }}
+                  key: LIVEKIT_API_KEY
+            - name: LIVEKIT_API_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kchs.secretName" . }}
+                  key: LIVEKIT_API_SECRET
+            - name: LIVEKIT_KEYS
+              value: "$(LIVEKIT_API_KEY): $(LIVEKIT_API_SECRET)"
+            # Задания записи Egress забирает из того же Redis (ADR-0092)
+            - name: REDIS_HOST
+              value: {{ printf "%s:%d" (include "kchs.redis.host" .) (int .Values.redis.port) | quote }}
+            {{- if not .Values.redis.urlFromSecret }}
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kchs.secretName" . }}
+                  key: REDIS_PASSWORD
+            {{- end }}
+          ports:
+            - name: signal
+              containerPort: 7880
+            - name: rtc-tcp
+              containerPort: {{ $lk.tcpPort }}
+            - name: rtc-udp
+              containerPort: {{ $lk.udpMuxPort }}
+              protocol: UDP
+            {{- if $lk.turn.enabled }}
+            - name: turn-udp
+              containerPort: {{ $lk.turn.udpPort }}
+              protocol: UDP
+            {{- end }}
+          readinessProbe:
+            httpGet:
+              path: /
+              port: signal
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: signal
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            failureThreshold: 5
+          resources:
+            {{- toYaml $lk.resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/livekit.yaml
+              subPath: livekit.yaml
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: {{ $fullname }}-livekit
+      {{- with $lk.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $lk.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $lk.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullname }}-livekit
+  labels:
+    {{- include "kchs.componentLabels" (dict "ctx" . "component" "livekit") | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: signal
+      port: 7880
+      targetPort: signal
+  selector:
+    {{- include "kchs.selectorLabels" (dict "ctx" . "component" "livekit") | nindent 4 }}
+---
+{{/* Отдельная публикация медиатрафика: UDP (и TCP-запасной путь) мимо Ingress */}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullname }}-livekit-rtc
+  labels:
+    {{- include "kchs.componentLabels" (dict "ctx" . "component" "livekit") | nindent 4 }}
+  {{- with $lk.udpService.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ $lk.udpService.type }}
+  {{- with $lk.udpService.loadBalancerIP }}
+  loadBalancerIP: {{ . | quote }}
+  {{- end }}
+  {{- if eq $lk.udpService.type "LoadBalancer" }}
+  externalTrafficPolicy: {{ $lk.udpService.externalTrafficPolicy }}
+  {{- end }}
+  ports:
+    - name: rtc-udp
+      port: {{ $lk.udpMuxPort }}
+      targetPort: rtc-udp
+      protocol: UDP
+    - name: rtc-tcp
+      port: {{ $lk.tcpPort }}
+      targetPort: rtc-tcp
+      protocol: TCP
+    {{- if $lk.turn.enabled }}
+    - name: turn-udp
+      port: {{ $lk.turn.udpPort }}
+      targetPort: turn-udp
+      protocol: UDP
+    {{- end }}
+  selector:
+    {{- include "kchs.selectorLabels" (dict "ctx" . "component" "livekit") | nindent 4 }}
+{{- end }}

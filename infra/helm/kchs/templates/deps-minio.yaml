@@ -1,0 +1,175 @@
+{{- if .Values.s3.embedded.enabled }}
+{{/*
+Встроенный MinIO — только для тестового кластера (ADR-0118): один узел.
+Промышленная установка берёт внешний S3 или ставит распределённый MinIO
+(4+ узла) своим чартом, а адрес указывает в s3.endpoint / s3.publicEndpoint.
+Бакеты создаёт задание, как minio-init в compose.
+*/}}
+{{- $fullname := include "kchs.fullname" . -}}
+{{- $minio := .Values.s3.embedded -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullname }}-minio
+  labels:
+    {{- include "kchs.componentLabels" (dict "ctx" . "component" "minio") | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: s3
+      port: 9000
+      targetPort: s3
+    - name: console
+      port: 9001
+      targetPort: console
+  selector:
+    {{- include "kchs.selectorLabels" (dict "ctx" . "component" "minio") | nindent 4 }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $fullname }}-minio
+  labels:
+    {{- include "kchs.componentLabels" (dict "ctx" . "component" "minio") | nindent 4 }}
+spec:
+  serviceName: {{ $fullname }}-minio
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "kchs.selectorLabels" (dict "ctx" . "component" "minio") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "kchs.componentLabels" (dict "ctx" . "component" "minio") | nindent 8 }}
+    spec:
+      {{- include "kchs.imagePullSecrets" . | nindent 6 }}
+      automountServiceAccountToken: false
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: minio
+          image: {{ include "kchs.image" (dict "ctx" . "image" $minio.image) }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          args: ["server", "/data", "--console-address", ":9001"]
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kchs.secretName" . }}
+                  key: S3_ACCESS_KEY
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kchs.secretName" . }}
+                  key: S3_SECRET_KEY
+            {{- with .Values.s3.publicEndpoint }}
+            - name: MINIO_SERVER_URL
+              value: {{ . | quote }}
+            {{- end }}
+          ports:
+            - name: s3
+              containerPort: 9000
+            - name: console
+              containerPort: 9001
+          readinessProbe:
+            httpGet:
+              path: /minio/health/ready
+              port: s3
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 10
+          livenessProbe:
+            httpGet:
+              path: /minio/health/live
+              port: s3
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            failureThreshold: 5
+          resources:
+            {{- toYaml $minio.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        {{- if not $minio.persistence.enabled }}
+        - name: data
+          emptyDir: {}
+        {{- end }}
+      {{- with $minio.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $minio.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $minio.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  {{- if $minio.persistence.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- with $minio.persistence.storageClassName }}
+        storageClassName: {{ . | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ $minio.persistence.size }}
+  {{- end }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  # Имя с ревизией: набор бакетов может пополниться с новой версией
+  name: {{ printf "%s-minio-init-%d" $fullname .Release.Revision }}
+  labels:
+    {{- include "kchs.componentLabels" (dict "ctx" . "component" "minio-init") | nindent 4 }}
+spec:
+  backoffLimit: 6
+  template:
+    metadata:
+      labels:
+        {{- include "kchs.componentLabels" (dict "ctx" . "component" "minio-init") | nindent 8 }}
+    spec:
+      restartPolicy: Never
+      {{- include "kchs.imagePullSecrets" . | nindent 6 }}
+      automountServiceAccountToken: false
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: mc
+          image: {{ include "kchs.image" (dict "ctx" . "image" $minio.initImage) }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              until mc alias set kchs "$S3_INTERNAL_ENDPOINT" "$S3_ACCESS_KEY" "$S3_SECRET_KEY"; do
+                echo "жду minio"; sleep 3
+              done
+              for b in {{ join " " (values .Values.s3.buckets) }}; do
+                mc mb --ignore-existing "kchs/$b"
+              done
+              mc ilm rule add --expire-days 30 "kchs/{{ .Values.s3.buckets.exports }}" 2>/dev/null || true
+              echo "kchs: бакеты готовы"
+          env:
+            - name: S3_INTERNAL_ENDPOINT
+              value: {{ printf "http://%s-minio:9000" $fullname | quote }}
+            - name: MC_CONFIG_DIR
+              value: /tmp/mc
+            {{- include "kchs.s3Env" (dict "ctx" .) | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+{{- end }}

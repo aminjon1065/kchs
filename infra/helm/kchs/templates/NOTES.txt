@@ -1,0 +1,42 @@
+kchs {{ .Chart.AppVersion }} — релиз {{ .Release.Name }} в пространстве имён {{ .Release.Namespace }}.
+
+Вход: {{ include "kchs.baseUrl" . }}
+
+Состояние выката:
+  kubectl -n {{ .Release.Namespace }} rollout status deploy/{{ include "kchs.fullname" . }}-api
+  kubectl -n {{ .Release.Namespace }} get pods -l app.kubernetes.io/instance={{ .Release.Name }}
+{{ if .Values.migrations.enabled }}
+Миграции:
+  kubectl -n {{ .Release.Namespace }} logs -l app.kubernetes.io/component=migrate --tail=100
+{{- end }}
+{{- if .Values.init.enabled }}
+
+Первый администратор ({{ .Values.init.adminLogin }}) создан заданием `kchs init`.
+Временный пароль — в журнале задания, он печатается один раз:
+  kubectl -n {{ .Release.Namespace }} logs job/{{ include "kchs.fullname" . }}-init
+{{- else }}
+
+Первая установка: создайте администратора одной командой —
+  kubectl -n {{ .Release.Namespace }} run kchs-init --rm -it --restart=Never \
+    --image={{ include "kchs.image" (dict "ctx" . "image" .Values.api.image) }} \
+    --overrides='{"spec":{"containers":[{"name":"kchs-init","image":"{{ include "kchs.image" (dict "ctx" . "image" .Values.api.image) }}","command":["kchs","init"],"envFrom":[{"configMapRef":{"name":"{{ include "kchs.configMapName" . }}"}}]}]}}'
+  — либо `init.enabled=true` в значениях.
+{{- end }}
+{{- if eq .Values.worker.autoscaling.mode "keda" }}
+
+Масштабирование worker — по глубине очередей через KEDA: в кластере должен быть
+установлен KEDA (CRD keda.sh/v1alpha1) и доступен Prometheus
+{{ .Values.worker.autoscaling.keda.prometheusAddress }}. Без KEDA задайте
+worker.autoscaling.mode=cpu.
+{{- end }}
+{{- if not .Values.observability.otlpEndpoint }}
+
+Трассы выключены: задайте observability.otlpEndpoint (адрес коллектора OTLP/HTTP).
+Метрики Prometheus работают всегда — порт {{ .Values.observability.metricsPort }}.
+{{- end }}
+{{- if .Values.postgres.embedded.enabled }}
+
+ВНИМАНИЕ: включён встроенный Postgres. Он годится для тестового кластера, но не
+для промышленной установки: один экземпляр, без репликации, пула и непрерывного
+архива WAL (15-admin-operations.md §3, §5).
+{{- end }}

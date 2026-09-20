@@ -1,0 +1,522 @@
+# Значения чарта kchs (сценарий S2, 15-admin-operations.md §3, ADR-0118).
+#
+# Два пути развёртывания данных покрываются одними и теми же значениями:
+#   • внешние управляемые службы (промышленная установка) — адреса в
+#     postgres/redis/s3/meilisearch, пароли в Secret (secrets.existingSecret);
+#   • встроенные зависимости (тестовый кластер) — *.embedded.enabled=true,
+#     те же образы, что в compose S1.
+#
+# Паролей и ключей здесь нет и быть не должно: чарт либо берёт готовый Secret
+# (secrets.existingSecret), либо создаёт свой из secrets.values, которые задаёт
+# администратор (`--set-file`, `--values` вне репозитория, внешний менеджер).
+
+global:
+  # Свой реестр образов для закрытого контура: kchs/api → registry.example.org/kchs/api
+  imageRegistry: ""
+  imagePullSecrets: []
+
+nameOverride: ""
+fullnameOverride: ""
+commonLabels: {}
+imagePullSecrets: []
+
+image:
+  # Общий тег образов api/worker/web/engine — версия установки
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+# Публичный адрес установки. Пусто — собирается из ingress.host и ingress.tls
+baseUrl: ""
+
+# Часовой пояс организации и уровень журналов (как в compose S1)
+timezone: Asia/Dushanbe
+logLevel: info
+
+# ── Секреты ────────────────────────────────────────────────────────────────
+# Ключи: POSTGRES_APP_PASSWORD, POSTGRES_MIGRATOR_PASSWORD, POSTGRES_QUERY_PASSWORD
+# (или DATABASE_URL, DATABASE_MIGRATOR_URL, DATABASE_QUERY_URL при
+# postgres.urlsFromSecret), REDIS_PASSWORD (или REDIS_URL), S3_ACCESS_KEY,
+# S3_SECRET_KEY, MEILI_MASTER_KEY, KCHS_MASTER_KEY, INTERNAL_SERVICE_TOKEN.
+secrets:
+  # Секрет внешнего менеджера (Vault Secrets Operator, External Secrets,
+  # SealedSecrets): чарт свой Secret не создаёт и берёт ключи из этого
+  existingSecret: ""
+  # Значения для Secret чарта. Задаются только вне репозитория:
+  #   helm upgrade --install kchs infra/helm/kchs -f /secure/kchs-secrets.yaml
+  values: {}
+  # Необязательные ключи: подставляются в api/worker, если есть в секрете.
+  # Переменная → ключ секрета; отсутствующий ключ просто не попадает в под
+  optionalKeys:
+    SMTP_URL: SMTP_URL
+    ONLYOFFICE_JWT_SECRET: ONLYOFFICE_JWT_SECRET
+    LIVEKIT_API_KEY: LIVEKIT_API_KEY
+    LIVEKIT_API_SECRET: LIVEKIT_API_SECRET
+    PUSH_VAPID_PUBLIC_KEY: PUSH_VAPID_PUBLIC_KEY
+    PUSH_VAPID_PRIVATE_KEY: PUSH_VAPID_PRIVATE_KEY
+    TELEGRAM_BOT_TOKEN: TELEGRAM_BOT_TOKEN
+    ANTHROPIC_API_KEY: ANTHROPIC_API_KEY
+    OPENAI_COMPAT_API_KEY: OPENAI_COMPAT_API_KEY
+
+# ── Postgres ───────────────────────────────────────────────────────────────
+postgres:
+  # Управляемый кластер (CloudNativePG, Patroni, облако). Адрес — сервис/имя хоста;
+  # для пула ставьте PgBouncer и указывайте его адрес
+  host: ""
+  port: 5432
+  database: kchs
+  # Роли создаёт бутстрап кластера (infra/compose/postgres/init/00-roles-and-db.sh);
+  # у управляемого кластера их создаёт администратор БД теми же именами
+  users:
+    app: kchs_app
+    migrator: kchs_migrator
+    query: kchs_query
+  # disable | require | verify-full; пусто — параметр не добавляется
+  sslMode: ""
+  # true — в секрете лежат готовые DSN (DATABASE_URL, DATABASE_MIGRATOR_URL,
+  # DATABASE_QUERY_URL). Нужно, если в пароле есть @ : / ? # % или в строке
+  # подключения нужны свои параметры (сертификаты, пул)
+  urlsFromSecret: false
+  embedded:
+    # Встроенный Postgres — только для тестового кластера: один под, без
+    # репликации и непрерывного архива WAL
+    enabled: false
+    image:
+      repository: kchs/postgres
+      # Образ собирается из infra/compose/postgres (PostGIS 3.5 + pgvector)
+      tag: "17-3.5"
+    # Суперпользователь: бутстрап-скрипт образа создаёт роли kchs_* из секрета
+    superuserSecretKey: POSTGRES_SUPERUSER_PASSWORD
+    persistence:
+      enabled: true
+      size: 20Gi
+      storageClassName: ""
+    resources:
+      requests: { cpu: 500m, memory: 1Gi }
+      limits: { memory: 4Gi }
+    # Параметры сервера (как в compose, но скромнее по памяти)
+    parameters:
+      max_connections: "200"
+      shared_buffers: 512MB
+      effective_cache_size: 2GB
+      work_mem: 16MB
+      maintenance_work_mem: 256MB
+      max_wal_size: 2GB
+      random_page_cost: "1.1"
+      track_io_timing: "on"
+      log_min_duration_statement: "500"
+      shared_preload_libraries: pg_stat_statements
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+
+# ── Redis ──────────────────────────────────────────────────────────────────
+redis:
+  host: ""
+  port: 6379
+  tls: false
+  urlFromSecret: false
+  embedded:
+    enabled: false
+    image:
+      repository: redis
+      tag: 7-alpine
+    persistence:
+      enabled: true
+      size: 8Gi
+      storageClassName: ""
+    resources:
+      requests: { cpu: 100m, memory: 256Mi }
+      limits: { memory: 1Gi }
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+
+# ── Объектное хранилище ────────────────────────────────────────────────────
+s3:
+  # Адрес изнутри кластера (сервис MinIO, шлюз облака)
+  endpoint: ""
+  # Адрес, по которому хранилище видит браузер: по нему подписываются ссылки
+  # (ADR-0044) и он попадает в CSP страницы (KCHS_STORAGE_ORIGIN)
+  publicEndpoint: ""
+  region: us-east-1
+  forcePathStyle: true
+  buckets:
+    files: kchs-files
+    previews: kchs-previews
+    media: kchs-media
+    exports: kchs-exports
+    tiles: kchs-tiles
+    backups: kchs-backups
+    columnar: kchs-columnar
+  embedded:
+    # Встроенный MinIO — один под; распределённый MinIO ставится своим чартом
+    enabled: false
+    image:
+      repository: quay.io/minio/minio
+      tag: RELEASE.2025-09-07T16-13-09Z
+    initImage:
+      repository: quay.io/minio/mc
+      tag: RELEASE.2025-08-13T08-35-41Z
+    persistence:
+      enabled: true
+      size: 50Gi
+      storageClassName: ""
+    resources:
+      requests: { cpu: 200m, memory: 512Mi }
+      limits: { memory: 2Gi }
+    # Публикация хранилища наружу: браузер ходит в него напрямую
+    ingress:
+      enabled: false
+      className: ""
+      annotations: {}
+      host: ""
+      tls:
+        enabled: true
+        secretName: ""
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+
+# ── Поисковый индекс ───────────────────────────────────────────────────────
+meilisearch:
+  host: ""
+  indexPrefix: ""
+  embedded:
+    enabled: false
+    image:
+      repository: getmeili/meilisearch
+      tag: v1.53
+    environment: production
+    persistence:
+      enabled: true
+      size: 20Gi
+      storageClassName: ""
+    resources:
+      requests: { cpu: 200m, memory: 512Mi }
+      limits: { memory: 2Gi }
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+
+# ── api ────────────────────────────────────────────────────────────────────
+api:
+  image:
+    repository: kchs/api
+    tag: ""
+  replicas: 2
+  service:
+    port: 3000
+    annotations: {}
+  # Каким прокси верить в X-Forwarded-For: контроллер Ingress живёт в частной
+  # сети кластера (17-security.md §5)
+  trustProxy: uniquelocal
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    # Пусто — метрика памяти в HPA не участвует
+    targetMemoryUtilizationPercentage: null
+    behavior: {}
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+  resources:
+    requests: { cpu: 500m, memory: 512Mi }
+    # Бюджет 04-verification.md §4: ≤ 1 ГБ RSS на экземпляр
+    limits: { memory: 1Gi }
+  # Старт включает миграции и бутстрап платформы: проверке готовности нужен запас
+  startupProbe:
+    periodSeconds: 5
+    failureThreshold: 60
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  topologySpreadConstraints: []
+  extraEnv: []
+
+# ── worker ─────────────────────────────────────────────────────────────────
+worker:
+  replicas: 2
+  autoscaling:
+    # off — фиксированное число реплик; cpu — HPA по процессору;
+    # keda — по глубине очередей (нужен KEDA в кластере, ADR-0118)
+    mode: keda
+    minReplicas: 2
+    maxReplicas: 8
+    targetCPUUtilizationPercentage: 70
+    keda:
+      pollingInterval: 30
+      cooldownPeriod: 300
+      # Адрес Prometheus, который собирает метрики api и worker (ADR-0045)
+      prometheusAddress: ""
+      # Сколько ожидающих заданий на реплику считается нормой
+      jobsPerReplica: 50
+      # Пусто — все очереди воркера (QUEUE_RUNTIME, packages/contracts)
+      queues: []
+      # Непустой список полностью заменяет собранный триггер (Redis, свой запрос)
+      triggers: []
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+  resources:
+    requests: { cpu: 500m, memory: 512Mi }
+    limits: { memory: 2Gi }
+  # Признак жизни воркера — файл, который он обновляет раз в 10 с (ADR-0044)
+  heartbeatFile: /tmp/kchs-worker.alive
+  heartbeatMaxAgeSeconds: 60
+  # Долгие задания (импорт, рассылка) должны успеть завершиться
+  terminationGracePeriodSeconds: 120
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  topologySpreadConstraints: []
+  extraEnv: []
+
+# ── engine (Python: превью, геоформаты, OCR, отчёты, колоночный tier) ──────
+engine:
+  enabled: true
+  image:
+    repository: kchs/engine
+    tag: ""
+  replicas: 1
+  service:
+    port: 8000
+  autoscaling:
+    mode: "off"
+    minReplicas: 1
+    maxReplicas: 6
+    targetCPUUtilizationPercentage: 70
+    keda:
+      pollingInterval: 30
+      cooldownPeriod: 300
+      prometheusAddress: ""
+      jobsPerReplica: 5
+      queues: []
+      triggers: []
+  resources:
+    requests: { cpu: 1, memory: 1Gi }
+    limits: { memory: 4Gi }
+  concurrency: 4
+  # Расшифровка встреч (ADR-0092) и векторы поиска по смыслу (ADR-0099):
+  # пустая модель — функция выключена
+  transcribe:
+    model: ""
+    device: cpu
+    compute: int8
+    language: ""
+  embedding:
+    model: ""
+  # Колоночный tier (ADR-0109): кэш Parquet и пределы DuckDB
+  columnar:
+    cacheMb: 4096
+    threads: 4
+    memoryMb: 2048
+    # Кэш на диске узла: пусто — временный каталог внутри пода
+    persistence:
+      enabled: false
+      size: 20Gi
+      storageClassName: ""
+      mountPath: /var/cache/kchs-columnar
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  topologySpreadConstraints: []
+  extraEnv: []
+
+# ── web (Caddy со сборкой SPA: статика, прокси /api, /ws, /collab, CSP) ────
+web:
+  image:
+    repository: kchs/web
+    tag: ""
+  replicas: 2
+  service:
+    port: 8080
+    annotations: {}
+  # В кластере TLS снимает Ingress, Caddy слушает обычный HTTP на 8080
+  # (порт ≥ 1024: контейнер работает не от root). Значение — только «:порт»:
+  # из него берётся и containerPort. Домен здесь включил бы автоматический TLS
+  # самого Caddy, а сертификат в кластере выпускает Ingress
+  listen: ":8080"
+  # Медиасервер в CSP страницы: браузер ходит к нему напрямую (ADR-0089)
+  mediaOrigin: ""
+  # Свой Caddyfile вместо встроенного в образ (infra/compose/caddy/Caddyfile)
+  caddyfile: ""
+  autoscaling:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 6
+    targetCPUUtilizationPercentage: 70
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+  resources:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { memory: 256Mi }
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  topologySpreadConstraints: []
+  extraEnv: []
+
+# ── Вход ───────────────────────────────────────────────────────────────────
+ingress:
+  enabled: true
+  className: ""
+  annotations: {}
+  host: ""
+  # Дополнительные имена установки (старый домен, внутреннее имя)
+  extraHosts: []
+  pathType: Prefix
+  tls:
+    enabled: true
+    # Пусто — <fullname>-tls; сертификат выпускает cert-manager по аннотациям
+    secretName: ""
+
+# ── Миграции и первичная настройка ─────────────────────────────────────────
+migrations:
+  enabled: true
+  # true — задание идёт хуком Helm до выката (pre-install, pre-upgrade).
+  # При встроенном Postgres хук отключается автоматически: службы зависимостей
+  # создаются вместе с релизом, то есть позже хука
+  hook: true
+  backoffLimit: 2
+  activeDeadlineSeconds: 1800
+  resources:
+    requests: { cpu: 200m, memory: 256Mi }
+    limits: { memory: 1Gi }
+
+init:
+  # `kchs init` первой установки: системные роли, календарь, первый
+  # администратор с временным паролем. Пароль печатается в журнал задания —
+  # включайте осознанно и смотрите пароль в `kubectl logs`
+  enabled: false
+  adminLogin: admin
+  adminEmail: ""
+
+# Разовые и регулярные работы CLI `kchs`. Регулярное обслуживание платформы
+# (очистка, партиции, дайджесты, резервные копии) делает планировщик внутри
+# worker (ADR-0096, ADR-0117) — сюда добавляют только то, чего там нет
+cronJobs: []
+#  - name: report-health
+#    schedule: "0 3 * * 1"
+#    args: ["help"]
+#    concurrencyPolicy: Forbid
+
+# Ожидание зависимостей перед стартом (initContainer с pg_isready)
+waitForDependencies:
+  enabled: true
+  retries: 60
+  intervalSeconds: 5
+  resources:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { memory: 128Mi }
+
+# ── Наблюдаемость (ADR-0045) ───────────────────────────────────────────────
+observability:
+  metricsPort: 9464
+  # Адрес коллектора OTLP/HTTP (Alloy, OpenTelemetry Collector). Пусто — трассы
+  # выключены полностью: SDK не загружается
+  otlpEndpoint: ""
+  tracesSamplerArg: ""
+  serviceMonitor:
+    # Требует Prometheus Operator (CRD monitoring.coreos.com/v1)
+    enabled: false
+    interval: 15s
+    labels: {}
+
+# ── Прикладные настройки (те же переменные, что в x-app-env compose) ───────
+app:
+  sessionIdleHours: 12
+  rateLimitPerMinute: 600
+  loginRateLimitPerIpPerMinute: 300
+  apiTokenRateLimitPerMinute: 600
+  webhookRetryWindowHours: 24
+  webhooksAllowPrivateAddresses: false
+  calendarFeedsAllowPrivate: false
+  smtpFrom: "kchs <no-reply@kchs.local>"
+  pushContact: ""
+  telegram:
+    apiUrl: ""
+    polling: true
+  ai:
+    provider: ""
+    model: ""
+    anthropicBaseUrl: ""
+    openaiCompatUrl: ""
+    dailyRequests: ""
+    dailyTokens: ""
+    documentsMaxConfidentiality: ""
+  office:
+    # Сервер документов ONLYOFFICE (ADR-0112): пусто — редактор выключен
+    url: ""
+    internalUrl: ""
+
+# ── Медиасервер встреч (ADR-0089) ──────────────────────────────────────────
+livekit:
+  # Внешний адрес медиасервера для браузера (wss://…). Задаётся и при
+  # embedded.enabled: узел объявляет клиентам именно его
+  url: ""
+  embedded:
+    enabled: false
+    image:
+      repository: livekit/livekit-server
+      tag: v1.8
+    replicas: 1
+    resources:
+      requests: { cpu: 500m, memory: 512Mi }
+      limits: { memory: 2Gi }
+    # В кластере диапазон портов UDP не выразить сервисом: LiveKit сводит
+    # весь медиатрафик в один порт (rtc.udp_port) — его и публикуем
+    udpMuxPort: 7882
+    tcpPort: 7881
+    turn:
+      enabled: true
+      udpPort: 3478
+    # Отдельная публикация UDP: Service типа LoadBalancer только для медиа
+    udpService:
+      type: LoadBalancer
+      annotations: {}
+      loadBalancerIP: ""
+      externalTrafficPolicy: Local
+    # Сигнальный канал (WebSocket) — обычный Ingress по HTTPS
+    ingress:
+      enabled: false
+      className: ""
+      annotations: {}
+      host: ""
+      tls:
+        enabled: true
+        secretName: ""
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+
+# ── Безопасность подов ─────────────────────────────────────────────────────
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  capabilities:
+    drop: ["ALL"]
+
+# Переменные окружения, общие для api, worker и заданий CLI
+extraEnv: []
+# Свои манифесты рядом с релизом (NetworkPolicy, ExternalSecret, PrometheusRule)
+extraManifests: []

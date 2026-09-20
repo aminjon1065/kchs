@@ -47,6 +47,51 @@ titiler, photon     (профили `raster`, `geocoder`, опционально
 
 Helm-чарт `infra/helm/kchs`: Deployments `api` (HPA по CPU/RPS), `worker` (по глубине очередей, KEDA), `engine` (по очередям; GPU-node pool опционально для whisper/эмбеддингов), `web` (nginx). Данные: PostgreSQL через оператор (CloudNativePG/Patroni) с репликой и PgBouncer, Redis Sentinel/оператор, MinIO distributed (4+ узла) или внешний S3, Meilisearch (одиночный с PVC; репликация — перестроением), LiveKit multi-node с Redis. Ingress с TLS, отдельный сервис для UDP LiveKit. Кэш тайлов — nginx/Varnish перед API или Martin. Secrets — внешний менеджер (Vault/SealedSecrets).
 
+Реализовано (P5-E07, ADR-0118). Краткая инструкция — `infra/helm/README.md`, все значения с
+пояснениями — `infra/helm/kchs/values.yaml`.
+
+- **Состав релиза.** `api` (Deployment, Service, HPA по CPU, PDB), `worker` (Deployment,
+  headless Service для метрик, `ScaledObject` KEDA, PDB), `engine` (Deployment, Service,
+  HPA или KEDA; кэш колоночного tier — эфемерный том), `web` (Deployment, Service, PDB) —
+  тот же Caddy со сборкой SPA, что в S1: TLS снимает Ingress, Caddy слушает :8080 и
+  проксирует `/api`, `/ws`, `/collab` в сервис api. Конфигурация Caddy переехала в образ
+  (`apps/web/Dockerfile`), в кластере web настраивается только окружением; в compose её
+  по-прежнему перекрывает том с тем же файлом.
+- **Миграции.** Задание `kchs migrate` хуком `pre-install,pre-upgrade`: `helm upgrade --wait`
+  не катит новые поды, пока схема не обновлена. При встроенном Postgres хук отключается
+  автоматически (службы зависимостей создаются вместе с релизом, то есть позже хука) —
+  задание идёт обычным ресурсом и ждёт базу в `initContainer` с `pg_isready`. Страховка та
+  же, что в S1: api применяет миграции и сам при старте под advisory lock (ADR-0044).
+  Разовое `kchs init` — задание `post-install` при `init.enabled=true`; регулярные работы
+  добавляются списком `cronJobs` (штатное обслуживание ведёт планировщик в worker, ADR-0096).
+- **Данные.** Значения покрывают оба пути. Промышленный — адреса управляемых служб
+  (`postgres.host`, `redis.host`, `s3.endpoint`, `meilisearch.host`). Тестовый кластер —
+  `*.embedded.enabled=true`: Postgres, Redis, MinIO и Meilisearch поднимаются манифестами
+  чарта теми же образами, что в compose (в том числе `kchs/postgres` с PostGIS, pgvector и
+  бутстрапом ролей `kchs_app` / `kchs_migrator` / `kchs_query`). Это режим стенда: один
+  экземпляр, без репликации, пула и архива WAL.
+- **Секреты.** Значений по умолчанию у паролей нет — чарт без них не рендерится (это
+  проверяет CI). Либо `secrets.existingSecret` (Vault Secrets Operator, External Secrets,
+  SealedSecrets), либо `Secret` чарта из файла значений вне репозитория; он помечен
+  `helm.sh/resource-policy: keep`, иначе удаление релиза унесло бы `KCHS_MASTER_KEY`.
+  Строки подключения собираются из адреса и пароля подстановкой `$(ПЕРЕМЕННАЯ)` kubelet;
+  для сложных DSN — `postgres.urlsFromSecret` и `redis.urlFromSecret`.
+- **Проверки живости.** api и движок — `GET /health` (у api ещё `startupProbe` с запасом на
+  миграции), web — `/healthz` на внутреннем :2020, worker — файл-признак жизни, который он
+  обновляет раз в 10 с (HTTP-сервера у него нет), как в healthcheck compose.
+- **Масштабирование.** api — HPA по CPU. worker и движок — `ScaledObject` KEDA с запросом к
+  Prometheus по метрике ядра `kchs_queue_jobs{queue,state}` (§4): глубина очереди не ресурс
+  пода, и обычным HPA её не выразить. Значит, в кластере нужны KEDA и Prometheus, собирающий
+  метрики api/worker (`observability.serviceMonitor.enabled` для Prometheus Operator). Без
+  KEDA — `worker.autoscaling.mode=cpu`, но это грубее: процессор растёт от работы, а не от
+  длины очереди.
+- **Медиасервер.** Диапазон портов UDP (50000–50100 в S1) сервисом Kubernetes не выражается,
+  поэтому в кластере LiveKit сводит медиатрафик в один порт (`rtc.udp_port`) и публикует его
+  отдельным `Service` типа `LoadBalancer` с `externalTrafficPolicy: Local` мимо Ingress;
+  сигнальный канал — обычный HTTPS через свой Ingress.
+- Чего в чарте нет: наблюдаемости (в кластере это отдельные релизы), pgBackRest, ONLYOFFICE и
+  Egress записи встреч — они ставятся своими чартами и сообщаются адресами и секретами.
+
 ## 4. Наблюдаемость
 
 - Метрики (OpenTelemetry → Prometheus): HTTP (RPS, латентность по маршрутам, ошибки), очереди (глубина, длительность, ошибки), запросы датасетов (p95, тайм-ауты, кэш-хиты), тайлы, WebSocket-подключения, LiveKit, БД (pg_exporter), Redis, MinIO, Meilisearch.

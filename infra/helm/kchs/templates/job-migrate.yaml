@@ -1,0 +1,78 @@
+{{- if .Values.migrations.enabled }}
+{{/*
+Миграции до выката (`kchs migrate`, ADR-0044). api применяет их и сам при
+старте под advisory lock, но отдельное задание даёт явный и наблюдаемый шаг:
+`helm upgrade --wait` не начнёт катить новые поды, пока схема не обновлена.
+
+Хук Helm работает, когда база уже есть (внешний управляемый Postgres). При
+встроенном Postgres хук невозможен: службы зависимостей создаются вместе с
+релизом, то есть позже pre-install — тогда задание идёт обычным ресурсом с
+ожиданием Postgres в initContainer.
+*/}}
+{{- $useHook := and .Values.migrations.hook (not .Values.postgres.embedded.enabled) -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  {{- if $useHook }}
+  name: {{ include "kchs.fullname" . }}-migrate
+  {{- else }}
+  # Имя с ревизией: задание Job неизменяемо, и на upgrade нужен новый объект
+  name: {{ printf "%s-migrate-%d" (include "kchs.fullname" .) .Release.Revision }}
+  {{- end }}
+  labels:
+    {{- include "kchs.componentLabels" (dict "ctx" . "component" "migrate") | nindent 4 }}
+  annotations:
+    {{- if $useHook }}
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-10"
+    helm.sh/hook-delete-policy: before-hook-creation
+    {{- end }}
+spec:
+  backoffLimit: {{ .Values.migrations.backoffLimit }}
+  activeDeadlineSeconds: {{ .Values.migrations.activeDeadlineSeconds }}
+  template:
+    metadata:
+      labels:
+        {{- include "kchs.componentLabels" (dict "ctx" . "component" "migrate") | nindent 8 }}
+    spec:
+      restartPolicy: Never
+      {{- include "kchs.imagePullSecrets" . | nindent 6 }}
+      serviceAccountName: {{ include "kchs.serviceAccountName" . }}
+      automountServiceAccountToken: false
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- if .Values.waitForDependencies.enabled }}
+      initContainers:
+        {{- include "kchs.waitForPostgres" (dict "ctx" .) | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: migrate
+          image: {{ include "kchs.image" (dict "ctx" . "image" .Values.api.image) }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          command: ["kchs", "migrate"]
+          envFrom:
+            - configMapRef:
+                name: {{ include "kchs.configMapName" . }}
+          env:
+            - name: ROLE
+              value: worker
+            {{- include "kchs.appEnv" (dict "ctx" .) | nindent 12 }}
+          resources:
+            {{- toYaml .Values.migrations.resources | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      {{- with .Values.api.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.api.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

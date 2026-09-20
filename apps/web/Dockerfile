@@ -22,3 +22,7 @@ RUN pnpm --filter @kchs/web exec vite build
 
 FROM caddy:2-alpine AS runtime
 COPY --from=build /repo/apps/web/dist /srv/web
+# Конфигурация Caddy — в образе: в compose её перекрывает том с тем же файлом,
+# в Kubernetes чарт (infra/helm/kchs) настраивает web только переменными
+# окружения — KCHS_DOMAIN, KCHS_API_UPSTREAM, KCHS_STORAGE_ORIGIN (ADR-0118)
+COPY infra/compose/caddy/Caddyfile /etc/caddy/Caddyfile

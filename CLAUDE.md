@@ -63,6 +63,14 @@ bash apps/api/scripts/test-slot.sh N && KCHS_TEST_SLOT=N pnpm --filter @kchs/api
 pnpm e2e                                 # Playwright (нужны api и web)
 bash infra/scripts/smoke-api.sh          # дымовой прогон API на демо-данных
 bash infra/perf/run-k6.sh                # бюджеты p95 API (k6 в Docker) на демо-данных
+helm lint infra/helm/kchs -f infra/helm/kchs/ci/external-values.yaml  # чарт S2 (ADR-0118)
+```
+
+Кластер S2 (ADR-0118, `infra/helm/README.md`) и нагрузка его масштаба (ADR-0119):
+
+```bash
+helm upgrade --install kchs infra/helm/kchs -f infra/helm/kchs/ci/embedded-values.yaml --wait
+KCHS_PERF_API=https://kchs.example.org/api/v1 KCHS_PERF_PROFILE=s2-mixed bash infra/perf/run-k6.sh
 ```
 
 Установка целиком в контейнерах (профиль `app`, вход через web — Caddy со сборкой SPA, ADR-0044):

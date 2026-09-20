@@ -1,0 +1,63 @@
+{{- if .Values.init.enabled }}
+{{/*
+`kchs init` первой установки (ADR-0044): миграции, системные роли, индекс
+поиска, производственный календарь, первый администратор с временным паролем.
+Повторный запуск ничего не ломает — администратор не создаётся заново.
+Временный пароль печатается в журнал задания:
+  kubectl logs job/<релиз>-init
+*/}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "kchs.fullname" . }}-init
+  labels:
+    {{- include "kchs.componentLabels" (dict "ctx" . "component" "init") | nindent 4 }}
+  annotations:
+    helm.sh/hook: post-install
+    helm.sh/hook-weight: "10"
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  backoffLimit: 2
+  activeDeadlineSeconds: 900
+  template:
+    metadata:
+      labels:
+        {{- include "kchs.componentLabels" (dict "ctx" . "component" "init") | nindent 8 }}
+    spec:
+      restartPolicy: Never
+      {{- include "kchs.imagePullSecrets" . | nindent 6 }}
+      serviceAccountName: {{ include "kchs.serviceAccountName" . }}
+      automountServiceAccountToken: false
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- if .Values.waitForDependencies.enabled }}
+      initContainers:
+        {{- include "kchs.waitForPostgres" (dict "ctx" .) | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: init
+          image: {{ include "kchs.image" (dict "ctx" . "image" .Values.api.image) }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          command: ["kchs", "init"]
+          envFrom:
+            - configMapRef:
+                name: {{ include "kchs.configMapName" . }}
+          env:
+            - name: ROLE
+              value: worker
+            - name: KCHS_ADMIN_LOGIN
+              value: {{ .Values.init.adminLogin | quote }}
+            - name: KCHS_ADMIN_EMAIL
+              value: {{ .Values.init.adminEmail | quote }}
+            {{- include "kchs.appEnv" (dict "ctx" .) | nindent 12 }}
+          resources:
+            {{- toYaml .Values.migrations.resources | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+{{- end }}

@@ -1,0 +1,184 @@
+{{- $fullname := include "kchs.fullname" . -}}
+{{- if .Values.web.caddyfile }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $fullname }}-web
+  labels:
+    {{- include "kchs.componentLabels" (dict "ctx" . "component" "web") | nindent 4 }}
+data:
+  Caddyfile: |
+    {{- .Values.web.caddyfile | nindent 4 }}
+---
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullname }}-web
+  labels:
+    {{- include "kchs.componentLabels" (dict "ctx" . "component" "web") | nindent 4 }}
+spec:
+  {{- if not .Values.web.autoscaling.enabled }}
+  replicas: {{ .Values.web.replicas }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "kchs.selectorLabels" (dict "ctx" . "component" "web") | nindent 6 }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        {{- include "kchs.componentLabels" (dict "ctx" . "component" "web") | nindent 8 }}
+      annotations:
+        {{- if .Values.web.caddyfile }}
+        checksum/caddyfile: {{ .Values.web.caddyfile | sha256sum }}
+        {{- end }}
+        {{- with .Values.web.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- include "kchs.imagePullSecrets" . | nindent 6 }}
+      serviceAccountName: {{ include "kchs.serviceAccountName" . }}
+      automountServiceAccountToken: false
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: web
+          image: {{ include "kchs.image" (dict "ctx" . "image" .Values.web.image) }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          env:
+            # TLS снимает Ingress, поэтому Caddy слушает обычный HTTP на порту
+            # ≥ 1024: контейнер работает не от root и :80 занять не может
+            - name: KCHS_DOMAIN
+              value: {{ .Values.web.listen | quote }}
+            # Адрес api для прокси /api, /ws и /collab
+            - name: KCHS_API_UPSTREAM
+              value: {{ printf "%s-api:%d" $fullname (int .Values.api.service.port) | quote }}
+            # Origin хранилища и медиасервера в CSP страницы (ADR-0043, ADR-0089)
+            - name: KCHS_STORAGE_ORIGIN
+              value: {{ default (include "kchs.s3.endpoint" .) .Values.s3.publicEndpoint | quote }}
+            - name: KCHS_MEDIA_ORIGIN
+              value: {{ .Values.web.mediaOrigin | quote }}
+            {{- with .Values.web.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ trimPrefix ":" .Values.web.listen | int }}
+            - name: healthz
+              containerPort: 2020
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: healthz
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: healthz
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 5
+          resources:
+            {{- toYaml .Values.web.resources | nindent 12 }}
+          volumeMounts:
+            # Caddy пишет своё состояние в /data и /config (XDG_* в образе)
+            - name: caddy-data
+              mountPath: /data
+            - name: caddy-config
+              mountPath: /config
+            {{- if .Values.web.caddyfile }}
+            - name: caddyfile
+              mountPath: /etc/caddy/Caddyfile
+              subPath: Caddyfile
+              readOnly: true
+            {{- end }}
+      volumes:
+        - name: caddy-data
+          emptyDir: {}
+        - name: caddy-config
+          emptyDir: {}
+        {{- if .Values.web.caddyfile }}
+        - name: caddyfile
+          configMap:
+            name: {{ $fullname }}-web
+        {{- end }}
+      {{- with .Values.web.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.web.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.web.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.web.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullname }}-web
+  labels:
+    {{- include "kchs.componentLabels" (dict "ctx" . "component" "web") | nindent 4 }}
+  {{- with .Values.web.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: {{ .Values.web.service.port }}
+      targetPort: http
+  selector:
+    {{- include "kchs.selectorLabels" (dict "ctx" . "component" "web") | nindent 4 }}
+{{- if .Values.web.autoscaling.enabled }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ $fullname }}-web
+  labels:
+    {{- include "kchs.componentLabels" (dict "ctx" . "component" "web") | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ $fullname }}-web
+  minReplicas: {{ .Values.web.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.web.autoscaling.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.web.autoscaling.targetCPUUtilizationPercentage }}
+{{- end }}
+{{- if .Values.web.podDisruptionBudget.enabled }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $fullname }}-web
+  labels:
+    {{- include "kchs.componentLabels" (dict "ctx" . "component" "web") | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.web.podDisruptionBudget.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "kchs.selectorLabels" (dict "ctx" . "component" "web") | nindent 6 }}
+{{- end }}
