@@ -235,6 +235,8 @@ async function notificationHandler(event: EventEnvelope): Promise<void> {
 
   switch (event.type) {
     case 'mention.created': {
+      // Сообщения чатов уведомляет их модуль: свои категории `chat.*` и статусы
+      if (event.object.type === 'conversation') break
       // Упоминание не раскрывает объект: уведомляем только тех, кто его видит
       const userIds = await usersWhoCanView(
         event.object.id,
@@ -252,6 +254,7 @@ async function notificationHandler(event: EventEnvelope): Promise<void> {
       break
     }
     case 'message.posted': {
+      if (event.object.type === 'conversation') break
       // Уведомляем подписчиков объекта, кроме упомянутых (им придёт mention)
       const mentioned = new Set((event.payload.mentions as string[] | undefined) ?? [])
       const recipients = (await usersWithAccess(event.object.id, 'view')).filter(

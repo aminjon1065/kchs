@@ -282,6 +282,7 @@ export const KNOWN_DOMAINS = [
   'case',
   'meeting',
   'call',
+  'chat',
 ] as const
 
 function resolveDomains(): string[] {

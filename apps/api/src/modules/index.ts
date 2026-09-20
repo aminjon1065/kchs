@@ -15,6 +15,7 @@ import {
   registerCalendarRoutes,
   scheduleCalendarJobs,
 } from './calendar/module.js'
+import { registerChatBackground, registerChatRoutes, scheduleChatJobs } from './chat/module.js'
 import {
   registerDataBackground,
   registerDataObjectTypes,
@@ -123,6 +124,7 @@ export async function registerModules(app: FastifyInstance, route: RouteRegistra
   registerCalendarRoutes(route)
   registerMeetingsRoutes(route)
   registerPushRoutes(route)
+  registerChatRoutes(route)
   registerTelegramRoutes(route)
   registerAiRoutes(route)
   registerAdminRoutes(route)
@@ -139,6 +141,7 @@ export function registerModulesBackground(): void {
   registerTasksBackground()
   registerDocumentsBackground()
   registerCalendarBackground()
+  registerChatBackground()
 }
 
 export async function scheduleModuleJobs(): Promise<void> {
@@ -146,6 +149,7 @@ export async function scheduleModuleJobs(): Promise<void> {
   await scheduleReportsJobs()
   await scheduleTasksJobs()
   await scheduleCalendarJobs()
+  await scheduleChatJobs()
 }
 
 /** Долгоживущие процессы модулей в роли worker: опрос Telegram-бота (ADR-0061). */

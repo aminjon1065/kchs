@@ -40,6 +40,8 @@ export function MessageComposer({
   onAttach,
   pending,
   placeholder,
+  initialValue,
+  onValueChange,
 }: {
   /** Отправка; поле очищается, когда промис выполнен. */
   onSend: (message: ComposedMessage) => Promise<unknown>
@@ -47,6 +49,10 @@ export function MessageComposer({
   onAttach?: (file: File) => Promise<{ id: string; name: string; size: number }>
   pending?: boolean
   placeholder: string
+  /** Начальный текст — восстановленный черновик беседы (ADR-0090). */
+  initialValue?: string
+  /** Изменение текста — чтобы вызывающий сохранил черновик. */
+  onValueChange?: (text: string) => void
 }) {
   const t = useT()
   const locale = useAppearance((s) => s.locale)
@@ -55,7 +61,7 @@ export function MessageComposer({
   const uploading = attached.some((item) => item.id === null)
   const listId = useId()
   const fieldRef = useRef<HTMLTextAreaElement>(null)
-  const [draft, setDraft] = useState('')
+  const [draft, setDraft] = useState(initialValue ?? '')
   const draftRef = useRef(draft)
   draftRef.current = draft
   // Ошибка отправки — под полем, как у формы: всплывающее сообщение
@@ -133,7 +139,11 @@ export function MessageComposer({
     setError(null)
     onSend(message).then(
       () => {
-        setDraft((current) => (current === sent ? '' : current))
+        setDraft((current) => {
+          if (current !== sent) return current
+          onValueChange?.('')
+          return ''
+        })
         setMentions((current) => (draftRef.current === sent ? [] : current))
         // Отправленные вложения уходят из поля; добавленные за это время — остаются
         setAttached((list) => list.filter((item) => !item.id || !ready.includes(item.id)))
@@ -226,6 +236,7 @@ export function MessageComposer({
           aria-activedescendant={open ? `${listId}-${active}` : undefined}
           onChange={(event) => {
             setDraft(event.target.value)
+            onValueChange?.(event.target.value)
             setError(null)
             detect(event.target.value, event.target.selectionStart)
           }}
