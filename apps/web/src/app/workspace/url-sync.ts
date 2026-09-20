@@ -36,6 +36,9 @@ const SCREEN_PATHS: Record<string, ScreenKey> = {
   // Контроль исполнения и нагрузка (ADR-0082)
   '/control': 'control',
   '/workload': 'workload',
+  // Редактор офисного файла (ADR-0112): файл — в параметре `id`, не в пути,
+  // иначе адрес вкладки читался бы как обычная карточка объекта
+  '/office': 'office-editor',
 }
 
 export type LocationTarget =

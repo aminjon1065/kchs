@@ -18,13 +18,14 @@ import {
   useToast,
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Download, History, Share2, Trash2, Upload } from 'lucide-react'
+import { Download, History, PenLine, Share2, Trash2, Upload } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
 import { ShareDialog } from '~/features/access/share-dialog.js'
 import { FilePreview } from '~/features/files/file-preview.js'
+import { useOfficeAvailable, useOpenOfficeEditor } from '~/features/files/office.js'
 import { uploadFile } from '~/features/files/upload.js'
 import { useFileDownload } from '~/features/files/use-file-download.js'
 import { http } from '~/shared/api/client.js'
@@ -47,6 +48,10 @@ export function FileView({ objectId, tabId }: { objectId: string; tabId: string 
   const { data: object } = useQuery(objectQuery(objectId))
   const { data: file, isLoading } = useQuery(fileQuery(objectId))
   const { data: versions = [] } = useQuery(fileVersionsQuery(objectId))
+  // Совместное редактирование офисных файлов (ADR-0112): читателю — просмотр,
+  // редактору — правка; режим определяет сервер по правам на файл
+  const officeAvailable = useOfficeAvailable(file?.name)
+  const openOffice = useOpenOfficeEditor()
 
   const rename = useMutation({
     mutationFn: (title: string) => http.patch(`/objects/${objectId}`, { title }),
@@ -116,8 +121,18 @@ export function FileView({ objectId, tabId }: { objectId: string; tabId: string 
         right={
           <>
             <PresenceAvatars objectId={objectId} />
+            {officeAvailable ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<PenLine className="size-3.5" />}
+                onClick={() => openOffice({ id: objectId, name: file.name })}
+              >
+                {t('files.office.open')}
+              </Button>
+            ) : null}
             <Button
-              variant="secondary"
+              variant={officeAvailable ? 'ghost' : 'secondary'}
               size="sm"
               icon={<Download className="size-3.5" />}
               onClick={() => download()}

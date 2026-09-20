@@ -300,6 +300,8 @@ export const KNOWN_DOMAINS = [
   // Правила автоматизации и входящие вызовы (ADR-0096)
   'rule',
   'webhook',
+  // Почта канцелярии: очередь «Из почты» (ADR-0113)
+  'mail',
 ] as const
 
 function resolveDomains(): string[] {

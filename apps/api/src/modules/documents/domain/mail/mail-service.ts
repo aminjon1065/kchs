@@ -12,7 +12,7 @@ import type {
   MailPollResult,
 } from '@kchs/contracts'
 import { and, count, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm'
-import { authorize, requireCapability } from '~/kernel/access/authorize.js'
+import { authorize, loadObject, requireCapability } from '~/kernel/access/authorize.js'
 import { buildUserCtxFor } from '~/kernel/access/explain.js'
 import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
 import { directory } from '~/kernel/directory/port.js'
@@ -37,6 +37,7 @@ import { type FetchedLetter, mailboxPort, readMailbox } from '~/shared/mail/imap
 import { DocumentService } from '../document-service.js'
 import { documentsSpaceId } from '../space.js'
 import { DocumentTypeService } from '../type-service.js'
+import { DocumentVersionService } from '../version-service.js'
 import {
   letterRejection,
   messageKeyOf,
@@ -267,8 +268,10 @@ export const MailIntake = {
     if (row.status === 'registered') {
       throw errors.conflict('Письмо уже зарегистрировано документом')
     }
-    // Черновик удаляет тот, кто отклоняет: право на удаление проверит ядро
-    if (row.documentId) await authorize(ctx, 'delete', row.documentId)
+    // Черновик удаляет тот, кто отклоняет: право на удаление проверит ядро.
+    // Повторное отклонение (правка причины) черновика уже не застаёт
+    const draft = row.documentId ? await aliveDocument(row.documentId) : null
+    if (draft) await authorize(ctx, 'delete', draft)
 
     await db().transaction(async (tx) => {
       await tx
@@ -280,7 +283,7 @@ export const MailIntake = {
           decidedAt: sql`now()`,
         })
         .where(eq(mailMessages.id, id))
-      if (row.documentId) await ObjectService.trash(tx, ctx, row.documentId)
+      if (draft) await ObjectService.trash(tx, ctx, draft.id)
       await publishEvent(tx, ctx, {
         type: 'mail.rejected',
         ...(row.documentId ? { object: { id: row.documentId, type: 'document' } } : {}),
@@ -438,8 +441,9 @@ async function createDraft(
     })
   }
 
+  let created: string | null = null
   try {
-    await db().transaction(async (tx) => {
+    created = await db().transaction(async (tx) => {
       const documentId = await DocumentService.create(tx, ctx, {
         typeId: type.id,
         subject: subjectOf(letter),
@@ -463,7 +467,6 @@ async function createDraft(
           attachToObjectId: documentId,
         })
       }
-
       const [row] = await tx
         .insert(mailMessages)
         .values({
@@ -499,6 +502,7 @@ async function createDraft(
           attachments: planned.length,
         },
       })
+      return documentId
     })
   } catch (error) {
     // Транзакция не прошла: байты вложений остались бы в хранилище сиротами
@@ -507,6 +511,37 @@ async function createDraft(
     }
     throw error
   }
+
+  // Вложения письма играют роль скана при обычной регистрации: первое
+  // становится основным файлом версии, остальные — приложениями. Без версии
+  // входящее не зарегистрировать («приложите скан документа»).
+  // Отдельной транзакцией: `add` проверяет права на документе, а документа из
+  // незавершённой транзакции другое соединение ещё не видит
+  const [main, ...rest] = planned
+  if (main && created) {
+    const documentId = created
+    await db()
+      .transaction((tx) =>
+        DocumentVersionService.add(tx, ctx, documentId, {
+          mainFileId: main.fileId,
+          attachmentIds: rest.map((item) => item.fileId),
+          note: `Из письма ${letter.fromEmail}`.slice(0, 1000),
+        }),
+      )
+      .catch((error: unknown) => {
+        // Черновик и вложения на месте — версию делопроизводитель соберёт сам
+        logger().warn(
+          { documentId, error: String(error) },
+          'почта: версия из вложений письма не создана',
+        )
+      })
+  }
+}
+
+/** Черновик письма, если он ещё жив: удалённый повторно не трогаем. */
+async function aliveDocument(documentId: string) {
+  const object = await loadObject(documentId)
+  return object && !object.deletedAt ? object : null
 }
 
 /** Корреспондент по адресу отправителя; не нашёлся — предложим завести. */

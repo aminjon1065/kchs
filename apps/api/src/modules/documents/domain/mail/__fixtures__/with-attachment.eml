@@ -1,0 +1,31 @@
+Message-ID: <donesenie-77@region.example.tj>
+Date: Fri, 18 Sep 2026 08:05:00 +0500
+From: =?UTF-8?B?0KXRg9C60YPQvNCw0YIg0KXQsNGC0LvQvtC90YHQutC+0Lkg0L7QsdC70LDRgdGC0Lg=?= <hukumat@region.example.tj>
+To: office@kchs.example.tj
+Subject: =?UTF-8?B?0JTQvtC90LXRgdC10L3QuNC1INC+INC/0LDQstC+0LTQutC1?=
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="BOUND1"
+
+--BOUND1
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: base64
+
+PGh0bWw+PGJvZHk+PHA+0J3QsNC/0YDQsNCy0LvRj9C10LwgPGI+0LTQvtC90LXRgdC10L3QuNC1
+PC9iPiDQviDQv9Cw0LLQvtC00LrQtS48L3A+PHA+0J/RgNC40LvQvtC20LXQvdC40LU6IDEg0YTQ
+sNC50LsuPC9wPjwvYm9keT48L2h0bWw+
+--BOUND1
+Content-Type: application/pdf; name="=?UTF-8?B?0JTQvtC90LXRgdC10L3QuNC1IOKEljc3LnBkZg==?="
+Content-Disposition: attachment; filename="=?UTF-8?B?0JTQvtC90LXRgdC10L3QuNC1IOKEljc3LnBkZg==?="
+Content-Transfer-Encoding: base64
+
+JVBERi0xLjQKJeLjz9MKMSAwIG9iajw8L1R5cGUvQ2F0YWxvZz4+ZW5kb2JqCnRyYWlsZXI8PC9S
+b290IDEgMCBSPj4KJSVFT0YK
+--BOUND1
+Content-Type: image/png
+Content-Disposition: inline; filename="signature.png"
+Content-ID: <sig@region>
+Content-Transfer-Encoding: base64
+
+iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9
+awAAAABJRU5ErkJggg==
+--BOUND1--

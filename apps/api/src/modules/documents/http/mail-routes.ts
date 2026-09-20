@@ -57,14 +57,14 @@ export function registerMailRoutes(route: RouteRegistrar): void {
     tags: ['documents'],
     summary: 'Получить почту сейчас, не дожидаясь расписания',
     schema: {
-      body: z.object({ integrationId: z.uuid().optional() }).default({}),
+      querystring: z.object({ integrationId: z.uuid().optional() }),
       response: { 200: MailPollReport },
     },
     rateLimit: { max: 10, timeWindow: '1 minute' },
     handler: async (request) =>
       MailIntake.poll({
         force: true,
-        ...(request.body.integrationId ? { integrationId: request.body.integrationId } : {}),
+        ...(request.query.integrationId ? { integrationId: request.query.integrationId } : {}),
       }),
   })
 }
