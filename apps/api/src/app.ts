@@ -95,12 +95,17 @@ export async function buildApp(): Promise<FastifyInstance> {
       errors.rateLimited(Math.max(1, Math.ceil(context.ttl / 1000))),
   })
 
-  await app.register(underPressure, {
-    maxEventLoopDelay: 2000,
-    maxHeapUsedBytes: 1_200_000_000,
-    message: 'Сервис перегружен',
-    retryAfter: 5,
-  })
+  // Защита от перегрузки: 503, пока сервис не разгребёт очередь. В тестах
+  // выключена — десятки файлов в одном процессе сами задерживают цикл событий,
+  // и тогда 503 приходит вместо ответа, который проверяет тест
+  if (env.NODE_ENV !== 'test') {
+    await app.register(underPressure, {
+      maxEventLoopDelay: 2000,
+      maxHeapUsedBytes: 1_200_000_000,
+      message: 'Сервис перегружен',
+      retryAfter: 5,
+    })
+  }
 
   await app.register(swagger, {
     openapi: {
