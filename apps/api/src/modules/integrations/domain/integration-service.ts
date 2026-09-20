@@ -99,6 +99,41 @@ export const Integrations = {
     return present(found.row, found.title)
   },
 
+  /**
+   * Включённые интеграции одного вида с расшифрованными секретами — для
+   * модуля, который их обслуживает (почта канцелярии, ADR-0113). Секреты
+   * наружу через API по-прежнему не отдаются: это внутренний вызов.
+   */
+  async enabledOfKind(kind: string): Promise<
+    Array<{
+      id: string
+      key: string
+      kind: string
+      name: string
+      config: Record<string, unknown>
+      secrets: Record<string, string>
+      lastSyncAt: string | null
+    }>
+  > {
+    const rows = await db()
+      .select({ row: integrations, title: objects.title })
+      .from(integrations)
+      .innerJoin(objects, eq(objects.id, integrations.id))
+      .where(
+        sql`${objects.deletedAt} is null and ${integrations.kind} = ${kind} and ${integrations.enabled}`,
+      )
+      .orderBy(integrations.key)
+    return rows.map(({ row, title }) => ({
+      id: row.id,
+      key: row.key,
+      kind: row.kind,
+      name: title,
+      config: row.config,
+      secrets: readSecrets(row),
+      lastSyncAt: row.lastSyncAt,
+    }))
+  },
+
   /** Интеграция по стабильному ключу — для пакета конфигурации. */
   async byKey(key: string): Promise<{ row: IntegrationRow; title: string } | null> {
     const [found] = await db()

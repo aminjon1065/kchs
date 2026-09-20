@@ -15,10 +15,15 @@ import {
   useToast,
 } from '@kchs/ui'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { Download, GitCompare } from 'lucide-react'
+import { Download, GitCompare, PenLine } from 'lucide-react'
 import { useId, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
+import {
+  officeEditable,
+  useOfficeConfigured,
+  useOpenOfficeEditor,
+} from '~/features/files/office.js'
 import { uploadFile } from '~/features/files/upload.js'
 import { useFileDownload } from '~/features/files/use-file-download.js'
 import { http } from '~/shared/api/client.js'
@@ -114,6 +119,10 @@ function VersionItem({
 }) {
   const t = useT()
   const download = useFileDownload()
+  // Основной файл версии — обычно DOCX: его правят в редакторе, и правка
+  // ложится новой версией самого файла (ADR-0112)
+  const openOffice = useOpenOfficeEditor()
+  const officeReady = useOfficeConfigured()
   return (
     <div
       className={cn(
@@ -160,6 +169,17 @@ function VersionItem({
                 {file.name}
               </span>
               <span className="shrink-0 tabular text-fg-muted">{formatFileSize(file.size)}</span>
+              {officeReady && officeEditable(file) ? (
+                <Tooltip content={t('files.office.open')}>
+                  <IconButton
+                    size="sm"
+                    label={t('files.office.open')}
+                    onClick={() => openOffice({ id: file.id, name: file.name })}
+                  >
+                    <PenLine className="size-3.5" />
+                  </IconButton>
+                </Tooltip>
+              ) : null}
               <Tooltip content={t('common.actions.download')}>
                 <IconButton
                   size="sm"

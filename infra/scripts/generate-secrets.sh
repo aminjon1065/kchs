@@ -56,6 +56,8 @@ REDIS_PW="$(rnd 32)"; S3_SECRET="$(rnd 40)"; MEILI_KEY="$(rnd 40)"
 MASTER_KEY="$(b64key)"; INTERNAL_TOKEN="$(rnd 48)"; GRAFANA_PW="$(rnd 24)"
 # Медиасервер встреч (ADR-0089): ключ и секрет — пара для токенов комнат
 LIVEKIT_KEY="$(rnd 16)"; LIVEKIT_SECRET="$(rnd 48)"
+# Сервер документов ONLYOFFICE (ADR-0112): общий секрет подписи в обе стороны
+ONLYOFFICE_SECRET="$(rnd 48)"
 vapid_keys
 
 mkdir -p "$(dirname "$ENV_FILE")"
@@ -84,13 +86,14 @@ repl INTERNAL_SERVICE_TOKEN "$INTERNAL_TOKEN"
 repl GRAFANA_ADMIN_PASSWORD "$GRAFANA_PW"
 repl LIVEKIT_API_KEY "$LIVEKIT_KEY"
 repl LIVEKIT_API_SECRET "$LIVEKIT_SECRET"
+repl ONLYOFFICE_JWT_SECRET "$ONLYOFFICE_SECRET"
 repl PUSH_VAPID_PUBLIC_KEY "$VAPID_PUBLIC"
 repl PUSH_VAPID_PRIVATE_KEY "$VAPID_PRIVATE"
 
 # Порты и привязка — из окружения, если заданы
 for key in POSTGRES_PORT REDIS_PORT S3_PORT S3_CONSOLE_PORT MEILI_PORT MAILPIT_SMTP_PORT \
-  MAILPIT_UI_PORT API_PORT ENGINE_PORT WEB_PORT WEB_HTTPS_PORT LIVEKIT_PORT KCHS_BIND \
-  KCHS_IMAGE_TAG; do
+  MAILPIT_UI_PORT API_PORT ENGINE_PORT WEB_PORT WEB_HTTPS_PORT LIVEKIT_PORT ONLYOFFICE_PORT \
+  KCHS_BIND KCHS_IMAGE_TAG; do
   if [[ -n "${!key:-}" ]]; then set_kv "$key" "${!key}"; fi
 done
 
@@ -114,6 +117,8 @@ set_kv MINIO_CONSOLE_URL "http://localhost:${S3_CONSOLE_PORT:-9001}"
 set_kv LIVEKIT_URL "ws://localhost:${LIVEKIT_PORT:-7880}"
 # Тот же адрес в CSP собранного веба: браузер подключается к комнате напрямую
 set_kv KCHS_MEDIA_ORIGIN "ws://localhost:${LIVEKIT_PORT:-7880}"
+# Сервер документов: браузер грузит с него редактор (профиль office)
+set_kv ONLYOFFICE_URL "http://localhost:${ONLYOFFICE_PORT:-8082}"
 
 if [[ "$MODE" == app ]]; then
   WEB="${WEB_PORT:-8080}"
@@ -126,6 +131,10 @@ if [[ "$MODE" == app ]]; then
   set_kv KCHS_DOMAIN ":80"
   set_kv ENGINE_API_URL "http://api:3000"
   set_kv ENGINE_WEB_URL "http://web"
+  # Сервер документов живёт в сети развёртывания: api ходит к нему по имени,
+  # а он в api — тоже по имени
+  set_kv ONLYOFFICE_INTERNAL_URL "http://onlyoffice"
+  set_kv ONLYOFFICE_CALLBACK_URL "http://api:3000"
 fi
 
 echo "Создан $ENV_FILE (режим 600, $MODE). Секреты сгенерированы."

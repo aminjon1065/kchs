@@ -114,6 +114,26 @@ const EnvSchema = z.object({
 
   ENGINE_INTERNAL_URL: z.string().optional(),
 
+  /**
+   * Сервер документов ONLYOFFICE (09-files.md §7, ADR-0112): адрес, по которому
+   * его загружает браузер. Пусто — совместное редактирование выключено, и
+   * кнопка «Открыть в редакторе» не показывается.
+   */
+  ONLYOFFICE_URL: optionalUrl,
+  /**
+   * Адрес сервера документов изнутри развёртывания — для проверки живости.
+   * Пусто — тот же, что у браузера (так на стенде разработчика).
+   */
+  ONLYOFFICE_INTERNAL_URL: optionalUrl,
+  /**
+   * Адрес api, каким его видит сервер документов: по нему он забирает файл и
+   * возвращает правку. В установке целиком в контейнерах — `http://api:3000`,
+   * при разработке (api на хосте) — `http://host.docker.internal:3000`.
+   */
+  ONLYOFFICE_CALLBACK_URL: optionalUrl,
+  /** Общий секрет подписи запросов к серверу документов и его колбэков. */
+  ONLYOFFICE_JWT_SECRET: optionalText,
+
   SMTP_URL: z.string().optional(),
   SMTP_FROM: z.string().default('kchs <no-reply@kchs.local>'),
 

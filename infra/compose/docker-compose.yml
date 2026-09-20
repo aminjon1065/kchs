@@ -1,7 +1,8 @@
 # kchs — инфраструктура сценария S1 (один сервер).
 # Профили: по умолчанию — данные и сервисы (postgres, redis, minio, meilisearch,
 # mailpit); `app` — образы api/worker/engine/web; `media` — LiveKit (фаза 4);
-# `observability` — трассы, метрики и журналы (Alloy, Tempo, Loki, Prometheus, Grafana).
+# `office` — сервер документов ONLYOFFICE (фаза 5); `observability` — трассы,
+# метрики и журналы (Alloy, Tempo, Loki, Prometheus, Grafana).
 # web — это Caddy со сборкой SPA: он отдаёт статику, проксирует /api и /ws,
 # ставит CSP и выпускает TLS, поэтому отдельного прокси нет.
 #
@@ -70,6 +71,14 @@ x-app-env: &app-env
   AI_DAILY_REQUESTS: ${AI_DAILY_REQUESTS:-}
   AI_DAILY_TOKENS: ${AI_DAILY_TOKENS:-}
   AI_DOCUMENTS_MAX_CONFIDENTIALITY: ${AI_DOCUMENTS_MAX_CONFIDENTIALITY:-}
+  # Совместное редактирование офисных файлов (ADR-0112): пустой адрес сервера
+  # документов или пустой секрет — редактор выключен, кнопки нет. Адрес для
+  # браузера публикуется профилем `office`; api ходит к нему за живостью по
+  # внутреннему адресу, а сам сервер документов ходит в api за файлом
+  ONLYOFFICE_URL: ${ONLYOFFICE_URL:-}
+  ONLYOFFICE_INTERNAL_URL: ${ONLYOFFICE_INTERNAL_URL:-http://onlyoffice}
+  ONLYOFFICE_CALLBACK_URL: ${ONLYOFFICE_CALLBACK_URL:-http://api:3000}
+  ONLYOFFICE_JWT_SECRET: ${ONLYOFFICE_JWT_SECRET:-}
   # Подписки ICS на адреса внутренней сети (ADR-0081): пусто — запрещены
   CALENDAR_FEEDS_ALLOW_PRIVATE: ${CALENDAR_FEEDS_ALLOW_PRIVATE:-}
   # Push-уведомления браузера (ADR-0094): пустые ключи — push выключен
@@ -356,6 +365,37 @@ services:
     depends_on:
       api: { condition: service_healthy }
 
+  # ── Профиль office: совместное редактирование офисных файлов (ADR-0112) ────
+  # Сервер документов ONLYOFFICE: браузер грузит с него редактор, а он сам ходит
+  # в api за содержимым версии и возвращает правку колбэком. Оба направления
+  # подписаны общим секретом ONLYOFFICE_JWT_SECRET; без него редактор выключен.
+  # Поднимается отдельно: docker compose --profile office up -d onlyoffice
+  onlyoffice:
+    <<: [*restart, *logging]
+    profiles: ["office"]
+    image: onlyoffice/documentserver:9.4
+    environment:
+      JWT_ENABLED: "true"
+      JWT_SECRET: ${ONLYOFFICE_JWT_SECRET:-}
+      JWT_HEADER: Authorization
+      # api живёт в частной сети (api:3000, host.docker.internal): своя защита
+      # сервера документов от частных адресов иначе не пустила бы его к файлу
+      ALLOW_PRIVATE_IP_ADDRESS: "true"
+      ALLOW_META_IP_ADDRESS: "false"
+      USE_UNAUTHORIZED_STORAGE: "false"
+    volumes:
+      - onlyofficedata:/var/www/onlyoffice/Data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "${KCHS_BIND:-127.0.0.1}:${ONLYOFFICE_PORT:-8082}:80"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost/healthcheck | grep -q true"]
+      interval: 10s
+      timeout: 5s
+      retries: 40
+      start_period: 60s
+
   # ── Профиль media: аудио/видео встреч (ADR-0089) ───────────────────────────
   # Ключ и секрет — из .env (generate-secrets.sh); api выпускает по ним токены
   # комнат, браузер подключается к :7880 напрямую.
@@ -513,3 +553,4 @@ volumes:
   lokidata:
   prometheusdata:
   grafanadata:
+  onlyofficedata:

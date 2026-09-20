@@ -23,6 +23,7 @@ import { TemplatesDirectory } from '~/features/documents/directories/templates-d
 import { TypesDirectory } from '~/features/documents/directories/types-directory.js'
 import { DocumentsScreen } from '~/features/documents/documents-screen.js'
 import { FilesScreen } from '~/features/files/files-screen.js'
+import { OfficeEditorScreen } from '~/features/files/office-editor.js'
 import { LayerView } from '~/features/gis/layer-view.js'
 import { MapStudio, type MapTabState } from '~/features/gis/map-studio.js'
 import { MapsScreen } from '~/features/gis/maps-screen.js'
@@ -303,6 +304,12 @@ export function registerModules(): void {
         <RuleDesigner ruleId={tab.params.id ?? ''} />
       </Suspense>
     ),
+  })
+  registerScreen({
+    key: 'office-editor',
+    titleKey: 'files.office.title',
+    icon: 'file',
+    render: (tab) => <OfficeEditorScreen fileId={tab.params.id ?? ''} tabId={tab.id} />,
   })
   registerScreen({
     key: 'trash',

@@ -302,6 +302,8 @@ export const KNOWN_DOMAINS = [
   // Формы сбора данных (ADR-0103) и алерты на показатели (ADR-0104)
   'form',
   'alert',
+  // Почта канцелярии: очередь «Из почты» (ADR-0113)
+  'mail',
 ] as const
 
 function resolveDomains(): string[] {

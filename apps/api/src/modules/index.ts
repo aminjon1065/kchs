@@ -43,10 +43,12 @@ import {
   registerDocumentsBackground,
   registerDocumentsObjectTypes,
   registerDocumentsRoutes,
+  scheduleDocumentsJobs,
 } from './documents/module.js'
 import {
   registerFilesBackground,
   registerFilesObjectTypes,
+  registerFilesPages,
   registerFilesRoutes,
   scheduleFilesJobs,
 } from './files/module.js'
@@ -184,6 +186,8 @@ export async function registerModules(app: FastifyInstance, route: RouteRegistra
   registerFormRoutes(route)
   registerAlertRoutes(route)
   registerAdminRoutes(route)
+  // Страницы модулей вне контракта API: редактор офисных файлов (ADR-0112)
+  registerFilesPages(app)
   app.log.debug('модули зарегистрированы')
 }
 
@@ -209,6 +213,7 @@ export function registerModulesBackground(): void {
 export async function scheduleModuleJobs(): Promise<void> {
   scheduleFilesJobs()
   scheduleTasksJobs()
+  scheduleDocumentsJobs()
   await scheduleReportsJobs()
   await scheduleCalendarJobs()
   await scheduleChatJobs()

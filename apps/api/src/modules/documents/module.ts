@@ -2,8 +2,10 @@ import type { ObjectSummary } from '@kchs/contracts'
 import { eq, inArray } from 'drizzle-orm'
 import { registerSubscriber } from '~/kernel/events/bus.js'
 import { registerInboxActionHandler } from '~/kernel/inbox/actions.js'
+import { registerJobHandler } from '~/kernel/jobs/runner.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
 import { withProcessParticipants } from '~/kernel/process/index.js'
+import { declareSchedule } from '~/kernel/schedules/index.js'
 import { registerSystemDataset } from '~/kernel/system-datasets.js'
 import { registerCalendarProjection } from '~/modules/calendar/public.js'
 import type { Ctx } from '~/shared/context.js'
@@ -23,6 +25,7 @@ import { DocumentAcknowledgments } from './domain/acknowledgment-service.js'
 import { CaseService } from './domain/case-service.js'
 import { documentControlProjection } from './domain/control-projection.js'
 import { onDocumentRegistered } from './domain/document-service.js'
+import { MailIntake } from './domain/mail/mail-service.js'
 import { capabilityPolicy, documentPolicy } from './domain/policies.js'
 import { registerBuiltinPrintForms } from './domain/print/forms/index.js'
 import {
@@ -37,6 +40,7 @@ import { registerDocumentProcess } from './domain/routes/provider.js'
 import { documentSubscribers } from './domain/subscribers.js'
 import { DOCUMENTS_SYSTEM_DATASET } from './domain/system-dataset.js'
 import { registerDocumentAssistRoutes } from './http/assist-routes.js'
+import { registerMailRoutes } from './http/mail-routes.js'
 import { registerDocumentProcessRoutes } from './http/process-routes.js'
 import { registerRenderRoutes } from './http/render-routes.js'
 import { registerDocumentRoutes } from './http/routes.js'
@@ -345,10 +349,21 @@ export function registerDocumentsObjectTypes(): void {
   registerCalendarProjection(documentControlProjection)
 }
 
+const MAIL_POLL_JOB = 'documents.mail-poll'
+
 /** Подписчики модуля — только в роли worker. */
 export function registerDocumentsBackground(): void {
   for (const subscriber of documentSubscribers) registerSubscriber(subscriber)
   for (const subscriber of renderSubscribers) registerSubscriber(subscriber)
+  registerJobHandler({
+    queue: 'maintenance',
+    name: MAIL_POLL_JOB,
+    concurrency: 1,
+    handle: async () => {
+      const report = await MailIntake.poll()
+      return { ...report.result, mailboxes: report.mailboxes, errors: report.errors.length }
+    },
+  })
 }
 
 export function registerDocumentsRoutes(route: RouteRegistrar): void {
@@ -357,4 +372,20 @@ export function registerDocumentsRoutes(route: RouteRegistrar): void {
   registerDocumentProcessRoutes(route)
   registerRenderRoutes(route)
   registerTemplateRoutes(route)
+  // Очередь «Из почты» (ADR-0113)
+  registerMailRoutes(route)
+}
+
+/**
+ * Опрос ящиков канцелярии (ADR-0113). Расписание одно на установку и тикает
+ * раз в пять минут; свой период (`pollMinutes`) у каждого ящика проверяется
+ * внутри задания — второго планировщика для этого не нужно (ADR-0096).
+ */
+export function scheduleDocumentsJobs(): void {
+  declareSchedule({
+    queue: 'maintenance',
+    name: MAIL_POLL_JOB,
+    pattern: '*/5 * * * *',
+    labelKey: 'schedules.jobs.documentsMailPoll',
+  })
 }

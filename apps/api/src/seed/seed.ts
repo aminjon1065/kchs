@@ -534,6 +534,8 @@ export async function resetData(): Promise<void> {
     sql`DELETE FROM notifications`,
     sql`DELETE FROM inbox_items`,
     sql`DELETE FROM jobs`,
+    // Очередь «Из почты» (ADR-0113): записи писем живут дольше своих черновиков
+    sql`DELETE FROM mail_messages`,
     // Документы — до реестра: регистрации держат журналы и типы (FK без каскада)
     sql`DELETE FROM documents`,
     // Акты об уничтожении — записи операций, не объекты: номер акта — порядковый в году

@@ -29,6 +29,7 @@ import {
   LayoutTemplate,
   LibraryBig,
   type LucideIcon,
+  Mail,
   Plus,
   Search as SearchIcon,
   Send,
@@ -56,6 +57,7 @@ import { CorrespondentsDirectory } from './directories/correspondents-directory.
 import { JournalsDirectory } from './directories/journals-directory.js'
 import { TemplatesDirectory } from './directories/templates-directory.js'
 import { TypesDirectory } from './directories/types-directory.js'
+import { MailScreen } from './mail/mail-screen.js'
 import { documentSummaryQuery, journalsQuery, officeDashboardQuery } from './queries.js'
 import { RegistrationScreen } from './registration/registration-screen.js'
 import { CONFIDENTIALITY_TONE, DOCUMENT_STATUS_TONE, localToday } from './status.js'
@@ -188,6 +190,8 @@ export function DocumentsScreen({ tab }: { tab: TabState }) {
       return <CasesDirectory selectedId={tab.params.id ?? null} />
     case 'templates':
       return <TemplatesDirectory selectedId={tab.params.id ?? null} />
+    case 'mail':
+      return <MailScreen />
     default:
       return <DocumentsList tabId={tab.id} savedState={tab.state as DocumentsScreenState} />
   }
@@ -435,6 +439,13 @@ function DocumentsList({
           ))}
         </NavGroup>
         <NavGroup title={t('documents.navigator.office')}>
+          {canRegister ? (
+            <NavButton
+              icon={Mail}
+              label={t('documents.mail.title')}
+              onClick={() => openScreen('mail', t('documents.mail.title'), 'document')}
+            />
+          ) : null}
           <NavButton
             icon={Briefcase}
             label={t('documents.cases.title')}
