@@ -2,6 +2,7 @@ import { lookup } from 'node:dns/promises'
 import { isIP } from 'node:net'
 import { config } from '~/shared/config/index.js'
 import type { IntegrationRow } from '~/shared/db/schema/index.js'
+import { checkMailbox } from '~/shared/mail/imap.js'
 
 /** Сколько ждём ответа при проверке связи и при доставке вебхука. */
 export const OUTBOUND_TIMEOUT_MS = 10_000
@@ -70,14 +71,17 @@ export async function checkOutboundUrl(raw: string): Promise<UrlCheck> {
 
 /**
  * Проверка соединения интеграции. Для `http` — запрос по адресу из
- * конфигурации; остальные виды пока сообщают, чего не хватает: сами механизмы
- * (IMAP, LDAP, OIDC) появляются в P5-E04.
+ * конфигурации, для `imap` — вход в ящик канцелярии (ADR-0113); остальные
+ * виды сообщают, чего не хватает в конфигурации.
  */
 export async function checkIntegration(
   row: IntegrationRow,
   secrets: Record<string, string>,
 ): Promise<{ ok: boolean; message: string }> {
   if (!row.enabled) return { ok: false, message: 'Интеграция выключена' }
+
+  // Ящик канцелярии: настоящий вход по IMAP — открывается ли папка
+  if (row.kind === 'imap') return checkMailbox(row.config, secrets)
 
   if (row.kind === 'http') {
     const url = typeof row.config.url === 'string' ? row.config.url : ''

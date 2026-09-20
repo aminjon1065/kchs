@@ -130,5 +130,42 @@ export const uploadSessions = pgTable(
   (t) => [index('upload_sessions_user_idx').on(t.userId, t.status)],
 )
 
+/**
+ * Сессия совместного редактирования офисного файла (09-files.md §7, ADR-0112).
+ * Ключ документа `doc_key` привязан к версии файла: как только появляется новая
+ * версия, ключ другой — сервер документов забирает содержимое заново, а не
+ * отдаёт свою копию. Строка живёт, пока редактор открыт, и закрывается
+ * колбэком, новым сохранением или обслуживанием.
+ */
+export const officeSessions = pgTable(
+  'office_sessions',
+  {
+    id: uuid('id').primaryKey(),
+    fileId: uuid('file_id')
+      .notNull()
+      .references(() => files.id, { onDelete: 'cascade' }),
+    /** Версия, на которой открыт редактор; по ней виден конфликт при сохранении. */
+    versionId: uuid('version_id'),
+    /** Ключ документа для сервера редактора: уникален на версию файла. */
+    docKey: text('doc_key').notNull().unique(),
+    spaceId: uuid('space_id'),
+    /** Кто открыл сессию первым: его правами файл отдаётся серверу редактора. */
+    openedBy: uuid('opened_by').references(() => users.id, { onDelete: 'set null' }),
+    /** `open` | `saving` | `saved` | `closed` | `failed`. */
+    status: text('status').notNull().default('open'),
+    /** Версия, созданная сохранением из редактора. */
+    savedVersionId: uuid('saved_version_id'),
+    /** Сохранение пришло на версию, которая уже не текущая (ADR-0112). */
+    conflict: boolean('conflict').notNull().default(false),
+    error: text('error'),
+    lastCallbackAt: tsCol('last_callback_at'),
+    expiresAt: tsCol('expires_at').notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index('office_sessions_file_idx').on(t.fileId, t.status)],
+)
+
 export type FileRow = typeof files.$inferSelect
 export type FileVersionRow = typeof fileVersions.$inferSelect
+export type OfficeSessionRow = typeof officeSessions.$inferSelect

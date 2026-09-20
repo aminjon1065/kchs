@@ -112,6 +112,91 @@ async function createFile(tx: Executor, ctx: Ctx, input: NewFileInput): Promise<
   return object.id
 }
 
+interface NewVersionInput {
+  fileId: string
+  versionId: string
+  spaceId: string | null
+  storageKey: string
+  size: number
+  mime: string
+  checksum: string | null
+  note?: string | null
+}
+
+/**
+ * Новая версия существующего файла в транзакции вызывающего: запись версии,
+ * текущая версия файла, событие `file.version_added` и задания превью и текста.
+ * Одна дорога для загрузки из браузера и для сохранения из офисного редактора
+ * (ADR-0112) — активность и уведомления у них одинаковые.
+ */
+async function appendVersion(
+  tx: Executor,
+  ctx: Ctx,
+  input: NewVersionInput,
+): Promise<{ number: number }> {
+  const [existing] = await tx
+    .select()
+    .from(files)
+    .where(eq(files.id, input.fileId))
+    .limit(1)
+    .for('update')
+  if (!existing) throw errors.notFound('Файл')
+  const number = existing.versionNumber + 1
+
+  await tx.insert(fileVersions).values({
+    id: input.versionId,
+    fileId: input.fileId,
+    number,
+    storageKey: input.storageKey,
+    size: input.size,
+    mime: input.mime,
+    checksum: input.checksum,
+    createdBy: actorId(ctx),
+    note: input.note ?? null,
+  })
+  await tx
+    .update(files)
+    .set({
+      currentVersionId: input.versionId,
+      versionNumber: number,
+      storageKey: input.storageKey,
+      size: input.size,
+      mime: input.mime,
+      checksum: input.checksum,
+      previewStatus: 'queued',
+      textStatus: 'queued',
+      updatedAt: sql`now()`,
+    })
+    .where(eq(files.id, input.fileId))
+
+  await ObjectService.update(
+    tx,
+    ctx,
+    input.fileId,
+    { meta: { size: input.size, mime: input.mime } },
+    { silent: true },
+  )
+  await publishEvent(tx, ctx, {
+    type: 'file.version_added',
+    object: {
+      id: input.fileId,
+      type: 'file',
+      spaceId: input.spaceId,
+      title: existing.name,
+    },
+    payload: { versionId: input.versionId, number },
+  })
+  await FileProcessing.schedule(tx, ctx, {
+    fileId: input.fileId,
+    spaceId: input.spaceId,
+    versionId: input.versionId,
+    storageKey: input.storageKey,
+    mime: input.mime,
+    name: existing.name,
+  })
+  return { number }
+}
+
 export const FileService = {
   /** Шаг 1: клиент получает подписанные URL и грузит прямо в S3 (09-files.md §2). */
   async createUploadSession(ctx: UserCtx, input: UploadSessionInput) {
@@ -186,63 +271,15 @@ export const FileService = {
 
       if (session.fileId) {
         // Новая версия существующего файла
-        const [existing] = await tx
-          .select()
-          .from(files)
-          .where(eq(files.id, session.fileId))
-          .limit(1)
-        if (!existing) throw errors.notFound('Файл')
-
-        await tx.insert(fileVersions).values({
-          id: versionId,
+        await appendVersion(tx, ctx, {
           fileId: session.fileId,
-          number: existing.versionNumber + 1,
+          versionId,
+          spaceId: session.spaceId,
           storageKey: session.storageKey,
           size,
           mime: session.mime,
           checksum,
-          createdBy: ctx.userId,
           note: note ?? null,
-        })
-        await tx
-          .update(files)
-          .set({
-            currentVersionId: versionId,
-            versionNumber: existing.versionNumber + 1,
-            storageKey: session.storageKey,
-            size,
-            mime: session.mime,
-            checksum,
-            previewStatus: 'queued',
-            textStatus: 'queued',
-            updatedAt: sql`now()`,
-          })
-          .where(eq(files.id, session.fileId))
-
-        await ObjectService.update(
-          tx,
-          ctx,
-          session.fileId,
-          { meta: { size, mime: session.mime } },
-          { silent: true },
-        )
-        await publishEvent(tx, ctx, {
-          type: 'file.version_added',
-          object: {
-            id: session.fileId,
-            type: 'file',
-            spaceId: session.spaceId,
-            title: existing.name,
-          },
-          payload: { versionId, number: existing.versionNumber + 1 },
-        })
-        await FileProcessing.schedule(tx, ctx, {
-          fileId: session.fileId,
-          spaceId: session.spaceId,
-          versionId,
-          storageKey: session.storageKey,
-          mime: session.mime,
-          name: existing.name,
         })
         return session.fileId
       }
@@ -345,6 +382,29 @@ export const FileService = {
       checksum: input.checksum,
       storageKey: input.storageKey,
     })
+  },
+
+  /**
+   * Новая версия файла, содержимое которой уже лежит в хранилище под ключом
+   * этой версии: сохранение из офисного редактора (ADR-0112). Дальше всё как у
+   * обычной загрузки — событие, активность, уведомления, превью и текст.
+   * Права проверяет вызывающий.
+   */
+  async addStoredVersion(
+    tx: Executor,
+    ctx: Ctx,
+    input: {
+      fileId: string
+      versionId: string
+      spaceId: string | null
+      storageKey: string
+      size: number
+      mime: string
+      checksum?: string | null
+      note?: string | null
+    },
+  ): Promise<{ number: number }> {
+    return appendVersion(tx, ctx, { ...input, checksum: input.checksum ?? null })
   },
 
   /**

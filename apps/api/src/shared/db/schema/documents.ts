@@ -595,7 +595,60 @@ export const documentRenders = pgTable(
   ],
 )
 
+/**
+ * Письмо из ящика канцелярии (08-documents.md §5, ADR-0113). Объектом реестра
+ * письмо не становится — им становится черновик входящего, который из письма
+ * заводится; здесь остаётся запись очереди «Из почты»: что пришло, во что
+ * превратилось и почему не превратилось. Дедупликация — уникальный ключ
+ * (ящик, `Message-ID`): одно письмо регистрируется один раз.
+ */
+export const mailMessages = pgTable(
+  'mail_messages',
+  {
+    id: uuid('id').primaryKey(),
+    /** Ящик, из которого письмо забрано; интеграцию могли удалить — история остаётся. */
+    integrationId: uuid('integration_id'),
+    /** `Message-ID` письма или суррогат `uid:<uidvalidity>:<uid>`, если заголовка нет. */
+    messageKey: text('message_key').notNull(),
+    /** UID письма в папке — по нему помечаем разобранное. */
+    uid: integer('uid'),
+    uidValidity: text('uid_validity'),
+    fromEmail: text('from_email').notNull().default(''),
+    fromName: text('from_name'),
+    toEmail: text('to_email'),
+    subject: text('subject').notNull().default(''),
+    /** Текст письма: то же, что попало в «суть» карточки черновика. */
+    body: text('body').notNull().default(''),
+    /** Заголовки, нужные для цепочки переписки: `inReplyTo`, `references`. */
+    headers: jsonbObject('headers'),
+    sentAt: tsCol('sent_at'),
+    receivedAt: tsCol('received_at').notNull().default(sql`now()`),
+    status: text('status').notNull().default('draft'),
+    documentId: uuid('document_id').references(() => objects.id, { onDelete: 'set null' }),
+    correspondentId: uuid('correspondent_id').references(() => objects.id, {
+      onDelete: 'set null',
+    }),
+    /** Файлы-вложения письма, прикреплённые к черновику. */
+    attachmentIds: uuid('attachment_ids').array().notNull().default(sql`'{}'::uuid[]`),
+    error: text('error'),
+    rejectReason: text('reject_reason'),
+    decidedBy: uuid('decided_by').references(() => users.id, { onDelete: 'set null' }),
+    decidedAt: tsCol('decided_at'),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex('mail_messages_key_uq').on(t.integrationId, t.messageKey),
+    index('mail_messages_status_idx').on(t.status, t.receivedAt.desc()),
+    index('mail_messages_document_idx').on(t.documentId),
+    check(
+      'mail_messages_status_check',
+      sql`${t.status} in ('draft', 'registered', 'rejected', 'failed')`,
+    ),
+  ],
+)
+
 export type DocumentRow = typeof documents.$inferSelect
 export type DocumentTypeRow = typeof documentTypes.$inferSelect
 export type JournalRow = typeof journals.$inferSelect
 export type CaseRow = typeof cases.$inferSelect
+export type MailMessageRow = typeof mailMessages.$inferSelect

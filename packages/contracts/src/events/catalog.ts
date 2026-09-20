@@ -881,6 +881,23 @@ export const EVENT_PAYLOADS = {
     /** Подпись отправителя из заголовка, если он её прислал. */
     signature: z.string().nullable().default(null),
   }),
+  // ── почта канцелярии: регистрация входящих из ящика (ADR-0113) ────────────
+  /**
+   * Письмо разобрано и стало черновиком входящего. Объект события — черновик
+   * (если он завёлся); письмо само по себе объектом реестра не становится.
+   */
+  'mail.received': z.object({
+    messageId: Uuid,
+    integrationId: Uuid.nullable().default(null),
+    documentId: Uuid.nullable().default(null),
+    from: z.string(),
+    subject: z.string(),
+    attachments: z.number().int().nonnegative().default(0),
+  }),
+  /** Делопроизводитель отклонил письмо: документа не будет, причина записана. */
+  'mail.rejected': z.object({ messageId: Uuid, reason: z.string() }),
+  /** Письмо не разобралось: оно помечено в очереди «Из почты», а не потеряно. */
+  'mail.failed': z.object({ messageId: Uuid, error: z.string() }),
   /** Пакет конфигурации выгружен. */
   'config.exported': z.object({
     sections: z.array(z.string()),

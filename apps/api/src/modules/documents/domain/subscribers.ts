@@ -9,6 +9,7 @@ import { indexObject } from '~/kernel/search/index-service.js'
 import { systemCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { documents } from '~/shared/db/schema/index.js'
+import { MailIntake } from './mail/mail-service.js'
 import { refreshJournalViewers, refreshViewers } from './participants.js'
 import { ResolutionService } from './resolution-service.js'
 
@@ -234,6 +235,13 @@ async function dismissTrashed(event: EventEnvelope): Promise<void> {
   )
 }
 
+/** Черновик из письма зарегистрирован: письмо больше не ждёт решения. */
+async function mailRegistered(event: EventEnvelope): Promise<void> {
+  const documentId = event.object?.id
+  if (!documentId) return
+  await db().transaction((tx) => MailIntake.markRegistered(tx, documentId))
+}
+
 export const documentSubscribers: Subscriber[] = [
   {
     name: 'documents-notifications',
@@ -259,6 +267,9 @@ export const documentSubscribers: Subscriber[] = [
   },
   { name: 'documents-viewers', types: ['acl.changed', 'object.moved'], handle: refreshAccess },
   { name: 'documents-trash', types: ['object.trashed'], handle: dismissTrashed },
+  // Очередь «Из почты» (ADR-0113): письмо уходит из неё, когда его черновик
+  // зарегистрирован — очередь узнаёт об этом из события, а не опросом
+  { name: 'documents-mail-queue', types: ['document.registered'], handle: mailRegistered },
   {
     name: 'documents-search',
     types: [

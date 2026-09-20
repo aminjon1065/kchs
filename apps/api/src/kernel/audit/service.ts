@@ -234,4 +234,8 @@ export const AUDIT_ACTIONS = {
   webhookReceived: 'webhook.received',
   configExported: 'config.exported',
   configImported: 'config.imported',
+  /** Файл открыт в офисном редакторе: содержимое ушло на сервер документов (ADR-0112). */
+  officeOpened: 'file.office_opened',
+  /** Письмо из ящика канцелярии отклонено делопроизводителем (ADR-0113). */
+  mailRejected: 'mail.rejected',
 } as const

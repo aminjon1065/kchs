@@ -11,6 +11,7 @@ import {
   UploadSessionInput,
 } from '@kchs/contracts'
 import { eq, inArray, sql } from 'drizzle-orm'
+import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
 import { registerSubscriber } from '~/kernel/events/bus.js'
@@ -26,8 +27,10 @@ import type { RouteRegistrar } from '~/shared/http/route.js'
 import { validServiceToken } from '~/shared/http/service-token.js'
 import { AttachmentsFolder } from './domain/attachments.js'
 import { FileService } from './domain/file-service.js'
+import { OfficeService } from './domain/office-service.js'
 import { FileProcessing } from './domain/processing.js'
 import { originalAllowed, watermarkLevel, watermarkLines } from './domain/watermark.js'
+import { registerOfficePages, registerOfficeRoutes } from './http/office-routes.js'
 
 const IdParam = z.object({ id: z.uuid() })
 
@@ -357,6 +360,18 @@ export function registerFilesRoutes(route: RouteRegistrar): void {
       return db().transaction((tx) => FileService.createFolder(tx, request.ctx, request.body))
     },
   })
+
+  // Совместное редактирование офисных файлов (ADR-0112)
+  registerOfficeRoutes(route)
+}
+
+/**
+ * Страница офисного редактора: не операция API, а документ для кадра рабочей
+ * области, со своей политикой CSP (ADR-0112). Поэтому регистрируется прямо на
+ * экземпляре и в спецификацию публичного API не попадает.
+ */
+export function registerFilesPages(app: FastifyInstance): void {
+  registerOfficePages(app)
 }
 
 /** Фоновая часть модуля: досылка необработанных файлов и реакция на сбой обработки. */
@@ -366,6 +381,14 @@ export function registerFilesBackground(): void {
     name: 'files.process-pending',
     concurrency: 1,
     handle: async () => ({ scheduled: await FileProcessing.schedulePending(100) }),
+  })
+
+  // Сессии редактора, о которых сервер документов больше не сообщает (ADR-0112)
+  registerJobHandler({
+    queue: 'maintenance',
+    name: 'files.close-office-sessions',
+    concurrency: 1,
+    handle: async () => ({ closed: await OfficeService.closeStale() }),
   })
 
   // Содержимое уничтоженных файлов (ADR-0086): удаление ключа идемпотентно,
@@ -406,5 +429,11 @@ export function scheduleFilesJobs(): void {
     name: 'files.process-pending',
     pattern: '*/10 * * * *',
     labelKey: 'schedules.jobs.filesProcessPending',
+  })
+  declareSchedule({
+    queue: 'maintenance',
+    name: 'files.close-office-sessions',
+    pattern: '17 * * * *',
+    labelKey: 'schedules.jobs.filesCloseOfficeSessions',
   })
 }
