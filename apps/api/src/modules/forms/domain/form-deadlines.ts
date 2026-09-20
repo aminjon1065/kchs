@@ -39,10 +39,18 @@ export function stageMoments(
     new Date(startOfLocalDay(day, timezone).getTime() + MORNING_HOUR * HOUR_MS)
   const escalationDay = shiftWorkingDays(dueDate, Math.max(escalation.afterWorkingDays, 0), kindOf)
   const escalated = new Date(Math.max(morning(escalationDay).getTime(), dueAt.getTime() + 1))
+  const dueDayMorning = morning(dueDate)
   return {
     dueDate,
-    // Срок раньше утра (сводка к 08:00) — напоминание не опережает сам срок
-    due_soon: new Date(Math.min(morning(dueDate).getTime(), dueAt.getTime() - 1)),
+    /**
+     * Напоминание — утром того дня, когда наступает срок. Если срок раньше
+     * начала рабочего дня («сводка к 08:00»), напоминать в этот день поздно:
+     * оно уходит утром предыдущего рабочего дня.
+     */
+    due_soon:
+      dueAt.getTime() > dueDayMorning.getTime()
+        ? dueDayMorning
+        : morning(shiftWorkingDays(dueDate, -1, kindOf)),
     overdue: dueAt,
     escalated,
   }
