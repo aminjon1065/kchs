@@ -1001,7 +1001,11 @@ export const ru = {
       object: 'Изменения объектов',
       tasks: 'Задачи и поручения',
       documents: 'Документы',
-      chat: 'Чаты',
+      chat: {
+        direct: 'Личные сообщения',
+        mention: 'Упоминания в чатах',
+        channel: 'Каналы и группы',
+      },
       meetings: 'Встречи',
       calendar: 'Календарь',
       data: 'Данные',
@@ -1012,6 +1016,9 @@ export const ru = {
     tpl: {
       mention: '{actor} упомянул вас в «{title}»',
       messagePosted: '{actor} написал в «{title}»',
+      chatDirect: '{actor}: {preview}',
+      chatChannel: '{actor} в «{title}»: {preview}',
+      chatMention: '{actor} упомянул вас в «{title}»: {preview}',
       objectUpdated: '{actor} изменил «{title}»',
       objectShared: '{actor} открыл вам доступ к «{title}»',
       inboxAssigned: 'Вам назначено: {title}',

@@ -5,7 +5,7 @@
  * чат добавит сюда своей веткой). Сам модуль встреч в чужие таблицы не ходит:
  * событие и беседа приходят идентификаторами.
  */
-import type { Ctx } from '~/shared/context.js'
+import type { Ctx, UserCtx } from '~/shared/context.js'
 import type { Executor } from '~/shared/db/client.js'
 import { MeetingService } from './domain/meeting-service.js'
 
@@ -41,6 +41,22 @@ export const setMeetingParticipants: typeof MeetingService.setParticipants = (
   meetingId,
   userIds,
 ) => MeetingService.setParticipants(tx, ctx, meetingId, userIds)
+
+/**
+ * Звонок из беседы (11-communications-meetings.md §1, ADR-0090): чат зовёт
+ * встречи, встречи о чате не знают. Участники получают входящий звонок
+ * событием `call.incoming`; беседа передаётся идентификатором.
+ */
+export const startCall = (
+  tx: Executor,
+  ctx: UserCtx,
+  input: { title: string; conversationId: string; participantIds: readonly string[] },
+): Promise<string> =>
+  MeetingService.startCall(tx, ctx, {
+    title: input.title,
+    conversationId: input.conversationId,
+    participantIds: [...input.participantIds],
+  })
 
 /** Событие отменено или удалено — встреча закрывается. */
 export const endMeeting = (

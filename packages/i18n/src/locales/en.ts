@@ -984,7 +984,11 @@ export const en: DeepPartial<Dictionary> = {
       object: 'Object changes',
       tasks: 'Tasks and assignments',
       documents: 'Documents',
-      chat: 'Chats',
+      chat: {
+        direct: 'Direct messages',
+        mention: 'Chat mentions',
+        channel: 'Channels and groups',
+      },
       meetings: 'Meetings',
       calendar: 'Calendar',
       data: 'Data',
@@ -994,6 +998,9 @@ export const en: DeepPartial<Dictionary> = {
     tpl: {
       mention: '{actor} mentioned you in “{title}”',
       messagePosted: '{actor} wrote in “{title}”',
+      chatDirect: '{actor}: {preview}',
+      chatChannel: '{actor} in “{title}”: {preview}',
+      chatMention: '{actor} mentioned you in “{title}”: {preview}',
       objectUpdated: '{actor} updated “{title}”',
       objectShared: '{actor} shared “{title}” with you',
       inboxAssigned: 'Assigned to you: {title}',
