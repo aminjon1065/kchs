@@ -45,6 +45,8 @@ const EnvSchema = z.object({
 
   KCHS_BASE_URL: z.url().default('http://localhost:5173'),
   KCHS_API_URL: z.url().default('http://localhost:3000'),
+  /** Сколько ждать ответа на исходящий вызов правила автоматизации (ADR-0096). */
+  KCHS_RULE_WEBHOOK_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60_000).default(10_000),
 
   DATABASE_URL: z.string().min(1),
   DATABASE_MIGRATOR_URL: z.string().min(1).optional(),

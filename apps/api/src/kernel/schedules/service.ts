@@ -2,7 +2,7 @@ import type { QueueName, ScheduleRecord, ScheduleRun } from '@kchs/contracts'
 import cronParser from 'cron-parser'
 import { desc, eq, sql } from 'drizzle-orm'
 import { config } from '~/shared/config/index.js'
-import type { Ctx, UserCtx } from '~/shared/context.js'
+import type { UserCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { jobs, schedules } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
@@ -254,6 +254,3 @@ export const ScheduleService = {
     }))
   },
 }
-
-/** Служебный контекст обслуживания расписаний. */
-export type ScheduleCtx = Ctx

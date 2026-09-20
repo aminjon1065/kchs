@@ -10,6 +10,7 @@ export {
   dispatchOnce,
   outboxLag,
   pruneOutbox,
+  recentEvents,
   startDispatcher,
   stopDispatcher,
 } from './dispatcher.js'

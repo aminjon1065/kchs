@@ -26,6 +26,7 @@ import { DocumentParticipants, type ParticipantEntry } from './domain/participan
 import { html, multiline, overlayPage } from './domain/print/html.js'
 import { registerPrintForm } from './domain/print/registry.js'
 import { ensureStarterSet } from './domain/starter-set.js'
+import { DocumentTypeService } from './domain/type-service.js'
 
 /** @public — люди демо-мира для демо-документов сида (ADR-0086) */
 export type { DemoDocumentPeople, DemoPerson } from './domain/demo-documents.js'
@@ -82,6 +83,14 @@ export const DocumentsPublic = {
     documentId: string,
     input: DocumentRegisterInput = {},
   ): Promise<string> => DocumentService.register(tx, ctx, documentId, input),
+
+  /**
+   * Идентификатор типа документа по ключу: правило создаёт документ по типу
+   * из своего определения (`create_document`).
+   * @public — правила автоматизации (ADR-0096)
+   */
+  typeIdByKey: async (executor: Executor, key: string): Promise<string | null> =>
+    (await DocumentTypeService.byKey(executor, key))?.id ?? null,
 
   /**
    * Реквизиты документа без проверки прав — для кода, который уже проверил

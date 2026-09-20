@@ -47,8 +47,3 @@ export function listSchedules(): ScheduleDefinition[] {
 export function scheduleDefinition(key: string): ScheduleDefinition | undefined {
   return declared.get(key)
 }
-
-/** Только для тестов: реестр собирается заново при каждом старте процесса. */
-export function clearSchedules(): void {
-  declared.clear()
-}

@@ -10,6 +10,12 @@ import type { RouteRegistrar } from '~/shared/http/route.js'
 import { registerAdminRoutes } from './admin/module.js'
 import { registerAiRoutes } from './ai/module.js'
 import {
+  registerAutomationBackground,
+  registerAutomationObjectTypes,
+  registerAutomationRoutes,
+  scheduleAutomationJobs,
+} from './automation/module.js'
+import {
   registerCalendarBackground,
   registerCalendarObjectTypes,
   registerCalendarRoutes,
@@ -85,6 +91,8 @@ export function registerAllObjectTypes(): void {
   registerDocumentsObjectTypes()
   registerCalendarObjectTypes()
   registerMeetingsObjectTypes()
+  // Правила автоматизации (ADR-0096): тип `rule` — объект реестра
+  registerAutomationObjectTypes()
   registerDirectory()
   // Каналы уведомлений модулей: ядро доставляет через них в любой роли процесса
   registerTelegramChannel()
@@ -131,6 +139,7 @@ export async function registerModules(app: FastifyInstance, route: RouteRegistra
   registerChatRoutes(route)
   registerTelegramRoutes(route)
   registerAiRoutes(route)
+  registerAutomationRoutes(route)
   registerAdminRoutes(route)
   app.log.debug('модули зарегистрированы')
 }
@@ -147,6 +156,7 @@ export function registerModulesBackground(): void {
   registerCalendarBackground()
   registerChatBackground()
   registerMeetingsBackground()
+  registerAutomationBackground()
 }
 
 export async function scheduleModuleJobs(): Promise<void> {
@@ -155,6 +165,7 @@ export async function scheduleModuleJobs(): Promise<void> {
   await scheduleReportsJobs()
   await scheduleCalendarJobs()
   await scheduleChatJobs()
+  await scheduleAutomationJobs()
 }
 
 /** Долгоживущие процессы модулей в роли worker: опрос Telegram-бота (ADR-0061). */

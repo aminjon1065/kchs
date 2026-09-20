@@ -1,6 +1,7 @@
 import type { EventEnvelope } from '@kchs/contracts'
-import { sql } from 'drizzle-orm'
+import { desc, eq, like, sql } from 'drizzle-orm'
 import { db, rawSql } from '~/shared/db/client.js'
+import { outbox } from '~/shared/db/schema/index.js'
 import { logger } from '~/shared/logger/index.js'
 import { redisPublisher } from '~/shared/redis/index.js'
 import { xaddEvent } from './bus.js'
@@ -107,4 +108,20 @@ export async function pruneOutbox(olderThanHours = 72): Promise<number> {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+/**
+ * Последние события заданного типа из outbox — тестовый прогон правил
+ * («что бы произошло», ADR-0096). Журнал хранится ограниченное время
+ * (`outbox.prune`), поэтому это окно последних суток, а не вся история.
+ */
+export async function recentEvents(pattern: string, limit: number): Promise<EventEnvelope[]> {
+  const prefix = pattern.endsWith('*') ? pattern.slice(0, -1) : null
+  const rows = await db()
+    .select({ event: outbox.event })
+    .from(outbox)
+    .where(prefix ? like(outbox.type, `${prefix}%`) : eq(outbox.type, pattern))
+    .orderBy(desc(outbox.id))
+    .limit(Math.min(limit, 100))
+  return rows.map((row) => row.event as unknown as EventEnvelope)
 }

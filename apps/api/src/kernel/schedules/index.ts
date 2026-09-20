@@ -6,7 +6,6 @@
  */
 export { registerScheduleRoutes } from './http.js'
 export {
-  clearSchedules,
   declareSchedule,
   listSchedules,
   type ScheduleDefinition,

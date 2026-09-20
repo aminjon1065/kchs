@@ -10,6 +10,9 @@ import {
   TaskCreateInput,
   type TaskListItem,
   type TaskPriority,
+  TaskReassignInput,
+  type TaskStatus,
+  TaskUpdateInput,
 } from '@kchs/contracts'
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import type { Ctx } from '~/shared/context.js'
@@ -147,4 +150,19 @@ export const Instructions = {
       open: rows.filter((row) => !(CLOSED as readonly string[]).includes(row.status)).length,
     }
   },
+}
+
+/**
+ * Точечные действия над задачей для правил автоматизации (ADR-0096): смена
+ * статуса, переназначение и контролёр. Права проверяет вызывающий —
+ * `authorize` на объекте задачи; переходы статусов проверяет сама служба.
+ * @public — правила автоматизации (действия `set_status`, `assign`)
+ */
+export const Tasks = {
+  setStatus: (tx: Executor, ctx: Ctx, taskId: string, status: TaskStatus): Promise<void> =>
+    TaskService.setStatus(tx, ctx, taskId, status),
+  reassign: (tx: Executor, ctx: Ctx, taskId: string, input: TaskReassignInput): Promise<void> =>
+    TaskService.reassign(tx, ctx, taskId, TaskReassignInput.parse(input)),
+  setController: (tx: Executor, ctx: Ctx, taskId: string, userId: string): Promise<void> =>
+    TaskService.update(tx, ctx, taskId, TaskUpdateInput.parse({ controllerId: userId })),
 }

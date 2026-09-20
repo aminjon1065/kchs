@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { Json, LangText, Slug, Timestamp, Uuid } from '../common/primitives.js'
+import { Json, LangText, Slug, Uuid } from '../common/primitives.js'
 import { ObjectType } from '../objects/object.js'
 
 /**
@@ -272,7 +272,11 @@ export const AiTaskAction = z.object({
 
 export const WaitAction = z.object({
   type: z.literal('wait'),
-  minutes: z.number().int().min(1).max(60 * 24 * 30),
+  minutes: z
+    .number()
+    .int()
+    .min(1)
+    .max(60 * 24 * 30),
 })
 
 export const StopAction = z.object({
