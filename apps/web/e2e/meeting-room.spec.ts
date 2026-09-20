@@ -4,6 +4,16 @@ import { EMPLOYEE_STATE, expect, test } from './fixtures.js'
 /**
  * Медиасервер (профиль `media` в compose) и ключи у api: без них сценарий
  * пропускается — `KCHS_E2E_MEETINGS=1` включает его.
+ *
+ * Браузеру на хосте нужен медиасервер с достижимым адресом узла: в compose он
+ * объявляет адрес контейнера, и на macOS с Docker Desktop поток не доходит
+ * (вопрос N23). Для прогона поднимается узел с `node_ip: 127.0.0.1`:
+ *
+ *   docker run -d --name kchs-livekit-dev -p 7890:7880 -p 50200-50250:50200-50250/udp \
+ *     -e LIVEKIT_KEYS="devkey: <секрет>" \
+ *     -e LIVEKIT_CONFIG="port: 7880
+ *   rtc: {tcp_port: 7882, port_range_start: 50200, port_range_end: 50250, node_ip: 127.0.0.1}" \
+ *     livekit/livekit-server:v1.8
  */
 const ENABLED = process.env.KCHS_E2E_MEETINGS === '1'
 

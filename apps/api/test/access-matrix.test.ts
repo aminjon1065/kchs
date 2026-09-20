@@ -848,6 +848,39 @@ const FIXTURES: Record<string, TypeFixture> = {
       { method: 'POST', url: `/events/${id}/cancel`, payload: { scope: 'series' } },
     ],
   },
+
+  meeting: {
+    create: async (fx, title) => {
+      const response = await call(fx.app, {
+        method: 'POST',
+        url: '/meetings',
+        as: fx.admin,
+        payload: { title, participantIds: [] },
+      })
+      expect(response.statusCode, response.body).toBe(200)
+      const id = response.json().id as string
+      // Встреча живёт в системном пространстве: роль в нём доступа не даёт,
+      // читателю его выдают явно (ADR-0089)
+      const grant = await call(fx.app, {
+        method: 'POST',
+        url: `/objects/${id}/access`,
+        as: fx.admin,
+        payload: {
+          grants: [{ principal: { type: 'user', id: fx.users.viewer.id }, level: 'view' }],
+        },
+      })
+      expect(grant.statusCode, grant.body).toBe(200)
+      return { id, title }
+    },
+    readPaths: ['/meetings/:id'],
+    viewerForbidden: (_fx, id) => [
+      // Вход в комнату — уровень «комментарий», ведение встречи и ссылка — «управление»
+      { method: 'POST', url: `/meetings/${id}/join` },
+      { method: 'POST', url: `/meetings/${id}/end` },
+      { method: 'POST', url: `/meetings/${id}/guest-link`, payload: { ttlMinutes: 60 } },
+      { method: 'GET', url: `/meetings/${id}/knocks` },
+    ],
+  },
 }
 
 let fx: TestContext
