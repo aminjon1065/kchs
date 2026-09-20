@@ -139,4 +139,6 @@ export const SETTING_KEYS = {
   trashRetentionDays: 'trash.retentionDays',
   /** Колоночный tier: включён и порог строк (ADR-0109). */
   columnarTier: 'data.columnarTier',
+  /** Отрисовка больших слоёв карты: deck.gl и порог объектов (ADR-0110). */
+  gisRender: 'gis.render',
 } as const

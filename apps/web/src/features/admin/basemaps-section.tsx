@@ -1,4 +1,4 @@
-import type { Basemap, BasemapKind } from '@kchs/contracts'
+import type { Basemap, BasemapKind, GisRenderSettings } from '@kchs/contracts'
 import { formatFileSize, formatNumber } from '@kchs/fields'
 import {
   AlertDialog,
@@ -25,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
   Skeleton,
+  Switch,
   useToast,
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -33,6 +34,7 @@ import { useId, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { basemapKeys, basemapsQuery } from '~/features/gis/basemaps.js'
+import { gisKeys, gisRenderSettingsQuery } from '~/features/gis/queries.js'
 import { ApiError, http } from '~/shared/api/client.js'
 
 const KIND_TONES: Record<BasemapKind, 'accent' | 'neutral' | 'purple'> = {
@@ -53,6 +55,86 @@ function problemMessage(err: unknown, fallback: string): string {
  * добавляет администратор ГИС; ключ сервера после сохранения не показывается.
  * Предпросмотр — в карте-студии.
  */
+/**
+ * Отрисовка больших слоёв (ADR-0110): с какого числа объектов карта-студия
+ * отдаёт слой deck.gl. Настройка установки; ведёт её тот же администратор,
+ * что и базовые карты.
+ */
+function RenderSettingsCard() {
+  const t = useT()
+  const toast = useToast()
+  const client = useQueryClient()
+  const thresholdId = useId()
+  const { data } = useQuery(gisRenderSettingsQuery())
+  const [draft, setDraft] = useState<GisRenderSettings | null>(null)
+
+  const save = useMutation({
+    mutationFn: (next: GisRenderSettings) =>
+      http.put<GisRenderSettings>('/admin/gis/render-settings', next),
+    onSuccess: () => {
+      setDraft(null)
+      void client.invalidateQueries({ queryKey: gisKeys.renderSettings })
+      toast.show({ title: t('admin.basemaps.render.saved'), tone: 'success' })
+    },
+    onError: (err) => toast.error(problemMessage(err, t('errors.unknown'))),
+  })
+
+  if (!data) return <Skeleton className="h-28 w-full" />
+  const value = draft ?? data
+  return (
+    <Card
+      title={t('admin.basemaps.render.title')}
+      role="group"
+      aria-label={t('admin.basemaps.render.title')}
+    >
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm text-fg">{t('admin.basemaps.render.enabled')}</p>
+            <p className="text-xs text-fg-secondary">{t('admin.basemaps.render.enabledHint')}</p>
+          </div>
+          <Switch
+            checked={value.deckEnabled}
+            onCheckedChange={(next) => setDraft({ ...value, deckEnabled: next })}
+            aria-label={t('admin.basemaps.render.enabled')}
+          />
+        </div>
+        <Field
+          label={t('admin.basemaps.render.threshold')}
+          hint={t('admin.basemaps.render.thresholdHint')}
+          htmlFor={thresholdId}
+        >
+          <Input
+            id={thresholdId}
+            type="number"
+            min={1000}
+            step={1000}
+            className="w-40"
+            disabled={!value.deckEnabled}
+            value={String(value.deckThreshold)}
+            onChange={(event) =>
+              setDraft({
+                ...value,
+                deckThreshold: Math.max(1000, Number(event.target.value) || 1000),
+              })
+            }
+          />
+        </Field>
+        <div>
+          <Button
+            variant="primary"
+            disabled={!draft}
+            loading={save.isPending}
+            onClick={() => draft && save.mutate(draft)}
+          >
+            {t('common.actions.save')}
+          </Button>
+        </div>
+      </div>
+    </Card>
+  )
+}
+
 export function BasemapsSection() {
   const t = useT()
   const locale = useAppearance((s) => s.locale)
@@ -207,6 +289,7 @@ export function BasemapsSection() {
           </ul>
         )}
       </Card>
+      <RenderSettingsCard />
       <BasemapDialog
         basemap={editing}
         onOpenChange={(open) => (open ? undefined : setEditing(null))}

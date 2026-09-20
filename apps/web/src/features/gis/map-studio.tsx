@@ -33,7 +33,7 @@ import { basemapsQuery, registerPmtilesProtocol, useBasemapStyle } from './basem
 import { FeatureCard } from './feature-card.js'
 import { LayerPanel, type PanelLayer } from './layer-panel.js'
 import { layerSourceId, type RenderEntry, useRenderedLayers } from './layer-render.js'
-import { gisKeys, layerQuery, mapQuery } from './queries.js'
+import { gisKeys, gisRenderSettingsQuery, layerQuery, mapQuery } from './queries.js'
 import { AnalysisTools } from './studio/analysis-tools.js'
 import { AttributeTable } from './studio/attribute-table.js'
 import {
@@ -44,6 +44,8 @@ import {
 } from './studio/context.js'
 import { CursorCoordinates } from './studio/cursor-coordinates.js'
 import { AddMapToDashboard } from './studio/dashboard-button.js'
+import { useDeckOverlay, useDeckSupport } from './studio/deck-overlay.js'
+import { deckSelectionColor } from './studio/deck-roles.js'
 import { EditTools } from './studio/edit-tools.js'
 import { StudioLinks } from './studio/linked-views.js'
 import { NavigationTools } from './studio/navigation-tools.js'
@@ -165,7 +167,22 @@ export function MapStudio({
       : [],
   )
   const time = current?.time ? `${current.time.from}/${current.time.to}` : null
-  const rendered = useRenderedLayers(entries, theme, { filters: layerFilters, time })
+  // Большие слои рисует deck.gl (ADR-0110): порог — настройка установки, пакет
+  // грузится по требованию; пока он не готов (или не загрузился) рисует MapLibre
+  const { data: renderSettings } = useQuery(gisRenderSettingsQuery())
+  const deckThreshold = renderSettings?.deckEnabled ? renderSettings.deckThreshold : null
+  const [deckBroken, setDeckBroken] = useState(false)
+  const deckNeeded =
+    deckThreshold !== null &&
+    !deckBroken &&
+    entries.some((entry) => entry.visible && entry.layer.featureCount >= deckThreshold)
+  const deckStatus = useDeckSupport(deckNeeded)
+  const deckActive = deckStatus === 'ready' && !deckBroken
+  const rendered = useRenderedLayers(entries, theme, {
+    filters: layerFilters,
+    time,
+    deckThreshold: deckActive ? deckThreshold : null,
+  })
   const basemap = useBasemapStyle(current?.basemapId ?? null, theme?.mode ?? 'light')
   const { data: basemaps = [] } = useQuery(basemapsQuery())
 
@@ -233,11 +250,25 @@ export function MapStudio({
     },
   })
 
+  const pickDeck = useDeckOverlay(instance, rendered.deck, deckActive && rendered.deck.length > 0, {
+    selection,
+    selectedColor: deckSelectionColor(theme),
+    onFailed: () => setDeckBroken(true),
+  })
+
   const onFeatureClick = (event: MapClickEvent) => {
     // Щелчок принадлежит активному инструменту (рамка, измерение, правка объектов)
     if (tool) return
     const hit = event.features[0]
     if (!hit) {
+      // Слоёв MapLibre под щелчком нет — спрашиваем deck.gl (ADR-0110)
+      const fromDeck = pickDeck(event.point)
+      if (fromDeck) {
+        setPicked({ ...fromDeck, point: event.point })
+        setSelection([fromDeck])
+        setActiveLayerId(fromDeck.layerId)
+        return
+      }
       setPicked(null)
       setSelection([])
       return
@@ -442,7 +473,8 @@ export function MapStudio({
               onAdd={() => setAdding(true)}
             />
           </aside>
-          <div className="flex min-w-0 flex-1 flex-col">
+          {/* `data-deck-layers` — сколько слоёв рисует deck.gl: видно в e2e и в отладке */}
+          <div className="flex min-w-0 flex-1 flex-col" data-deck-layers={rendered.deck.length}>
             <MapCanvas
               className="min-h-[320px] flex-1"
               basemapStyle={basemap.style}

@@ -4,6 +4,8 @@ import {
   BasemapList,
   BasemapStyleQuery,
   BasemapUpdateInput,
+  GisRenderSettings,
+  GisRenderSettingsPatch,
 } from '@kchs/contracts'
 import { z } from 'zod'
 import { registerObjectType } from '~/kernel/objects/registry.js'
@@ -12,6 +14,7 @@ import { rateLimit } from '~/shared/http/rate-limit.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { BasemapService } from './domain/basemap-service.js'
 import { readGlyphs, readSprite } from './domain/basemap-storage.js'
+import { GisRenderSettingsService } from './domain/render-settings.js'
 
 const MANAGE = 'gis.basemaps.manage'
 /** Карта запрашивает диапазоны архива и тайлы пачками — лимит как у тайлов слоёв. */
@@ -61,6 +64,26 @@ export function registerBasemapObjectType(): void {
 }
 
 export function registerBasemapRoutes(route: RouteRegistrar): void {
+  route({
+    method: 'GET',
+    url: '/gis/render-settings',
+    auth: 'session',
+    tags: ['gis'],
+    summary: 'Отрисовка больших слоёв: порог deck.gl в карте-студии (ADR-0110)',
+    schema: { response: { 200: GisRenderSettings } },
+    handler: async () => GisRenderSettingsService.current(),
+  })
+
+  route({
+    method: 'PUT',
+    url: '/admin/gis/render-settings',
+    auth: { capability: MANAGE },
+    tags: ['gis'],
+    summary: 'Изменить порог отрисовки больших слоёв',
+    schema: { body: GisRenderSettingsPatch, response: { 200: GisRenderSettings } },
+    handler: async (request) => GisRenderSettingsService.update(request.ctx, request.body),
+  })
+
   route({
     method: 'GET',
     url: '/gis/basemaps',

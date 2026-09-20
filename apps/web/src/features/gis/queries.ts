@@ -1,5 +1,6 @@
 import type {
   FieldOption,
+  GisRenderSettings,
   LayerFeature,
   LayerList,
   LayerRecord,
@@ -19,7 +20,16 @@ export const gisKeys = {
   datasetLayers: (datasetId: string) => ['layers', 'dataset', datasetId] as const,
   map: (id: string) => ['map', id] as const,
   feature: (layerId: string, rowId: string) => ['layer', layerId, 'feature', rowId] as const,
+  renderSettings: ['gis', 'render-settings'] as const,
 }
+
+/** Порог deck.gl в карте-студии (ADR-0110): настройка установки, меняется редко. */
+export const gisRenderSettingsQuery = () =>
+  queryOptions({
+    queryKey: gisKeys.renderSettings,
+    queryFn: () => http.get<GisRenderSettings>('/gis/render-settings'),
+    staleTime: 5 * 60_000,
+  })
 
 /** Слой: стиль, поля тайла, экстент и версия данных (ADR-0064). */
 export const layerQuery = (id: string) =>

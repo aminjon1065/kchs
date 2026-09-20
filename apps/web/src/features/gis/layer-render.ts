@@ -26,6 +26,8 @@ import { useMemo } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { http } from '~/shared/api/client.js'
 import { datasetQuery } from '../data/queries.js'
+import type { DeckEntry } from './studio/deck-overlay.js'
+import { deckDrawable } from './studio/deck-roles.js'
 import { selectionLayers } from './studio/selection-layers.js'
 import {
   base64urlJson,
@@ -57,6 +59,8 @@ export interface RenderedLayers {
   interactive: string[]
   /** Источник MapLibre слоя — для выделения объектов (`feature-state`). */
   sourceOf: (layerId: string) => string
+  /** Слои, отданные deck.gl (ADR-0110): их MapLibre не рисует. */
+  deck: DeckEntry[]
 }
 
 /** Слои, объекты которых выбираются щелчком (кластер — приближение к нему). */
@@ -150,6 +154,11 @@ export function useRenderedLayers(
     filters?: Readonly<Record<string, FilterNode>>
     /** Интервал времени `from/to` для слоёв со временем. */
     time?: string | null
+    /**
+     * Порог числа объектов, с которого слой рисует deck.gl (ADR-0110).
+     * null — deck.gl выключен или недоступен: всё рисует MapLibre.
+     */
+    deckThreshold?: number | null
   } = {},
 ): RenderedLayers {
   const locale = useAppearance((s) => s.locale) as Locale
@@ -168,6 +177,7 @@ export function useRenderedLayers(
     const legends = new Map<string, LegendModel>()
     const warnings = new Map<string, StyleWarning[]>()
     const interactive: string[] = []
+    const deck: DeckEntry[] = []
     if (!theme) {
       return {
         sources,
@@ -177,6 +187,7 @@ export function useRenderedLayers(
         warnings,
         interactive,
         sourceOf: layerSourceId,
+        deck,
       }
     }
     drawn.forEach((entry, index) => {
@@ -207,17 +218,32 @@ export function useRenderedLayers(
       legends.set(layer.id, compiled.legend)
       warnings.set(layer.id, compiled.warnings)
       if (!entry.visible) return
+      const tiles = layerTileUrl(layer, {
+        filter: options.filters?.[layer.id] ?? null,
+        // Интервал — только слоям со временем (у рабочей копии — её поле времени):
+        // у остальных адрес тайлов не меняется
+        time: style.time ? options.time : null,
+        preview: tilePreviewOf(layer.style, entry.style),
+      })
+      // Большой набор рисует deck.gl по тем же тайлам (ADR-0110)
+      const threshold = options.deckThreshold
+      if (
+        threshold !== null &&
+        threshold !== undefined &&
+        layer.featureCount >= threshold &&
+        deckDrawable(compiled.layers)
+      ) {
+        deck.push({
+          layerId: layer.id,
+          tileUrl: tiles,
+          style: compiled.layers,
+          maxZoom: TILE_MAX_ZOOM,
+        })
+        return
+      }
       sources[source] = {
         type: 'vector',
-        tiles: [
-          layerTileUrl(layer, {
-            filter: options.filters?.[layer.id] ?? null,
-            // Интервал — только слоям со временем (у рабочей копии — её поле времени):
-            // у остальных адрес тайлов не меняется
-            time: style.time ? options.time : null,
-            preview: tilePreviewOf(layer.style, entry.style),
-          }),
-        ],
+        tiles: [tiles],
         minzoom: 0,
         maxzoom: TILE_MAX_ZOOM,
       }
@@ -238,6 +264,7 @@ export function useRenderedLayers(
       warnings,
       interactive,
       sourceOf: layerSourceId,
+      deck,
     }
   }, [
     // Версия данных — в адресе тайлов: правка объекта (ADR-0076) перерисовывает слой
@@ -255,6 +282,7 @@ export function useRenderedLayers(
     stats.version,
     JSON.stringify(options.filters ?? {}),
     options.time,
+    options.deckThreshold,
   ])
 }
 

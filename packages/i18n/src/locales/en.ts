@@ -6517,6 +6517,15 @@ export const en: DeepPartial<Dictionary> = {
       noteEn: 'Label (English)',
     },
     basemaps: {
+      render: {
+        title: 'Rendering of large layers',
+        enabled: 'Accelerated rendering (deck.gl)',
+        enabledHint:
+          'Layers with many features are drawn on the GPU from the same tiles; without browser support the map works as before',
+        threshold: 'Feature threshold',
+        thresholdHint: 'How many features a layer needs before accelerated rendering kicks in',
+        saved: 'Rendering settings saved',
+      },
       hint: 'Map backgrounds of this installation. The vector one comes from the PMTiles build; raster XYZ basemaps are added here and their server key stays on the server.',
       addRaster: 'Add raster',
       add: 'Add',
