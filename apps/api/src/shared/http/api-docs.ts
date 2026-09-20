@@ -27,7 +27,10 @@ export const OPENAPI_TAGS = [
   { name: 'files', description: 'Файлы, папки, версии, превью' },
   { name: 'reports', description: 'Отчёты и их выпуски' },
   { name: 'calendar', description: 'Календари, события, приглашения' },
-  { name: 'business-calendar', description: 'Производственный календарь: рабочие и праздничные дни' },
+  {
+    name: 'business-calendar',
+    description: 'Производственный календарь: рабочие и праздничные дни',
+  },
   { name: 'meetings', description: 'Встречи, комнаты, записи, протоколы' },
   { name: 'chat', description: 'Беседы и сообщения' },
   { name: 'discussions', description: 'Обсуждение объекта' },
