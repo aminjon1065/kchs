@@ -33,7 +33,15 @@ export function deckDrawable(layers: readonly MapLayerSpecification[]): boolean 
   if (layers.some((layer) => MAPLIBRE_ONLY_ROLES.has(roleOf(layer)))) return false
   if (!layers.some((layer) => SUPPORTED_ROLES.has(roleOf(layer)))) return false
   // Значки и фигуры точек рисует symbol-слой — deck.gl о них не знает
-  return !layers.some((layer) => roleOf(layer) === 'point' && layer.type === 'symbol')
+  if (layers.some((layer) => roleOf(layer) === 'point' && layer.type === 'symbol')) return false
+  // Стиль «по правилам» даёт по слою на правило со своим условием; deck.gl
+  // рисует слой одной краской, поэтому такие стили остаются у MapLibre
+  const perRole = new Map<string, number>()
+  for (const layer of layers) {
+    const role = roleOf(layer)
+    if (SUPPORTED_ROLES.has(role)) perRole.set(role, (perRole.get(role) ?? 0) + 1)
+  }
+  return [...perRole.values()].every((count) => count === 1)
 }
 
 /** Цвет выделения deck.gl — тот же акцент темы, что у слоёв подсветки MapLibre. */
