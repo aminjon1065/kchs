@@ -1,9 +1,10 @@
 import { type LookupAddress, lookup } from 'node:dns'
 import { request as httpRequest, type IncomingMessage } from 'node:http'
 import { request as httpsRequest } from 'node:https'
-import { BlockList, isIP, type LookupFunction } from 'node:net'
+import { isIP, type LookupFunction } from 'node:net'
 import { config } from '~/shared/config/index.js'
 import { errors, isAppError } from '~/shared/errors.js'
+import { deniedAddress as deniedNetAddress } from '~/shared/net/private-address.js'
 
 /**
  * Запрос тайла у растрового сервера для прокси подложки (ADR-0066). Адрес задаёт
@@ -18,27 +19,16 @@ import { errors, isAppError } from '~/shared/errors.js'
 const TIMEOUT_MS = 10_000
 const MAX_BYTES = 5 * 1024 * 1024
 
-const denied = new BlockList()
-denied.addSubnet('0.0.0.0', 8, 'ipv4')
-denied.addSubnet('127.0.0.0', 8, 'ipv4')
-denied.addSubnet('169.254.0.0', 16, 'ipv4')
-denied.addSubnet('224.0.0.0', 3, 'ipv4')
-denied.addAddress('::', 'ipv6')
-denied.addAddress('::1', 'ipv6')
-denied.addSubnet('fe80::', 10, 'ipv6')
-denied.addSubnet('ff00::', 8, 'ipv6')
-
 /** Сервер тайлов интеграционных тестов слушает loopback — только в тестовой среде. */
 const loopbackAllowed = () => config().NODE_ENV === 'test'
 
-/** Адрес закрыт для прокси; IPv4 в IPv6 (`::ffff:a.b.c.d`) проверяется как IPv4. */
+/**
+ * Адрес закрыт для прокси. Перечень служебных сетей — один на платформу
+ * (`shared/net/private-address.ts`, ADR-0108): вторая копия успела разойтись с
+ * первой по обработке loopback, а расхождение в таком списке — это дыра.
+ */
 export function deniedAddress(address: string): boolean {
-  const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/i.exec(address)
-  const ip = mapped?.[1] ?? address
-  const family = isIP(ip)
-  if (family === 0) return true
-  if ((ip === '::1' || ip.startsWith('127.')) && loopbackAllowed()) return false
-  return denied.check(ip, family === 4 ? 'ipv4' : 'ipv6')
+  return deniedNetAddress(address, loopbackAllowed())
 }
 
 class DeniedAddressError extends Error {
@@ -68,14 +58,39 @@ export interface RasterTile {
   contentType: string
 }
 
+/**
+ * Типы, которые прокси готов отдать браузером со своего origin. `image/` целиком
+ * сюда не годится: `image/svg+xml` — исполняемый документ, и чужая служба (или
+ * тот, кто завёл её адрес) получила бы через наш прокси хранимый XSS на домене
+ * установки. Растровые форматы браузер только рисует.
+ */
+export const RASTER_CONTENT_TYPES: readonly string[] = [
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+  'image/gif',
+  'image/avif',
+  'image/tiff',
+  'image/bmp',
+]
+
 export interface FetchOptions {
   /** Заголовок `accept` запроса. */
   accept: string
-  /** Требуемое начало `content-type` ответа: `image/` у тайла, `` — любой. */
-  expect: string
+  /**
+   * Требуемый `content-type` ответа: список — точный перечень допустимых типов
+   * (тайл), строка — требуемое начало (`` — любой).
+   */
+  expect: string | readonly string[]
   maxBytes: number
   /** Имя службы в сообщениях об ошибке. */
   what: string
+}
+
+/** Тип ответа допустим: точный перечень или требуемое начало. */
+function typeAllowed(contentType: string, expect: string | readonly string[]): boolean {
+  const media = contentType.split(';')[0]?.trim().toLowerCase() ?? ''
+  return Array.isArray(expect) ? expect.includes(media) : media.startsWith(expect as string)
 }
 
 /**
@@ -130,7 +145,7 @@ export async function fetchExternal(
     return null
   }
   const contentType = String(response.headers['content-type'] ?? '')
-  if (status !== 200 || (options.expect && !contentType.startsWith(options.expect))) {
+  if (status !== 200 || (options.expect.length > 0 && !typeAllowed(contentType, options.expect))) {
     response.resume()
     throw errors.dependencyFailed(`${options.what} вернул неожиданный ответ`, {
       status,
@@ -162,7 +177,8 @@ export async function fetchExternal(
   }
   return {
     body: Buffer.concat(chunks),
-    contentType: contentType.split(';')[0]?.trim() ?? contentType,
+    // Наружу уходит проверенный тип, а не строка чужой службы целиком
+    contentType: contentType.split(';')[0]?.trim().toLowerCase() ?? contentType,
   }
 }
 
@@ -170,7 +186,7 @@ export async function fetchExternal(
 export async function fetchRasterTile(target: string): Promise<RasterTile | null> {
   return fetchExternal(target, {
     accept: 'image/*',
-    expect: 'image/',
+    expect: RASTER_CONTENT_TYPES,
     maxBytes: MAX_BYTES,
     what: 'растровый сервер',
   })
