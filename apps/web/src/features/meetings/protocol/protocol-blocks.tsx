@@ -3,6 +3,7 @@ import {
   Badge,
   type BadgeProps,
   Button,
+  Field,
   IconButton,
   Input,
   RichTextEditor,
@@ -85,15 +86,19 @@ function InstructionFields({ block }: { block: CellMap }) {
 
   return (
     <div className="grid gap-2 sm:grid-cols-3">
-      {person(assigneeId, 'assigneeId')}
-      {person(controllerId, 'controllerId')}
-      <Input
-        type="date"
-        value={dueAt ?? ''}
-        readOnly={readOnly || Boolean(taskId)}
-        aria-label={t('meetings.protocol.due')}
-        onChange={(event) => block.set('dueAt', event.target.value || null)}
-      />
+      <Field label={t('meetings.protocol.assignee')}>{person(assigneeId, 'assigneeId')}</Field>
+      <Field label={t('meetings.protocol.controller')}>
+        {person(controllerId, 'controllerId')}
+      </Field>
+      <Field label={t('meetings.protocol.due')}>
+        <Input
+          type="date"
+          value={dueAt ?? ''}
+          readOnly={readOnly || Boolean(taskId)}
+          aria-label={t('meetings.protocol.due')}
+          onChange={(event) => block.set('dueAt', event.target.value || null)}
+        />
+      </Field>
     </div>
   )
 }
