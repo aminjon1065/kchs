@@ -11,6 +11,9 @@ import { hitRateLimit } from '~/shared/http/rate-limit.js'
 import { ApiTokens } from './api-tokens.js'
 import { requiredScope } from './scopes.js'
 
+/** Сколько недействительных токенов в минуту принимается с одного адреса. */
+const BAD_TOKEN_ATTEMPTS_PER_MINUTE = 60
+
 /**
  * Аутентификация токеном публичного API (14-automation-integrations.md §3,
  * ADR-0097). Правила:
@@ -31,6 +34,16 @@ export async function authenticateApiToken(
 ): Promise<UserCtx> {
   const token = await ApiTokens.resolve(secret)
   if (!token) {
+    // Недействительный токен отклоняется до общего лимита запросов (тот считает
+    // по пользователю и работает уже после аутентификации), поэтому подбор и
+    // поток записей в аудит ограничиваются здесь — по адресу клиента
+    const attempts = await hitRateLimit(
+      'api-token-bad',
+      request.ip ?? 'anonymous',
+      BAD_TOKEN_ATTEMPTS_PER_MINUTE,
+      60,
+    )
+    if (!attempts.allowed) throw errors.rateLimited(attempts.retryAfter)
     await audit(systemCtx('api-token'), {
       action: AUDIT_ACTIONS.apiTokenRejected,
       severity: 'warning',
