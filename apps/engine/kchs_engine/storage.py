@@ -49,7 +49,13 @@ async def read_range(bucket: str, key: str, length: int) -> bytes:
 
 
 async def download(bucket: str, key: str, target: Path) -> Path:
-    await asyncio.to_thread(_client().download_file, bucket, key, str(target))
+    await asyncio.to_thread(download_sync, bucket, key, target)
+    return target
+
+
+def download_sync(bucket: str, key: str, target: Path) -> Path:
+    """Скачивание из уже выделенного потока (кэш колоночных копий, ADR-0109)."""
+    _client().download_file(bucket, key, str(target))
     return target
 
 

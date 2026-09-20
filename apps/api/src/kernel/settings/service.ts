@@ -137,4 +137,6 @@ export const SETTING_KEYS = {
   notificationDigestHour: 'notifications.digestHour',
   notificationQuietHours: 'notifications.quietHours',
   trashRetentionDays: 'trash.retentionDays',
+  /** Колоночный tier: включён и порог строк (ADR-0109). */
+  columnarTier: 'data.columnarTier',
 } as const

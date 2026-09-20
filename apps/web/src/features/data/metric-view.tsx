@@ -88,6 +88,7 @@ function historyResult(value: MetricValue): QueryResult {
     truncated: false,
     durationMs: 0,
     cached: false,
+    executedOn: 'postgres',
   }
 }
 

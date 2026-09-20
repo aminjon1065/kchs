@@ -184,6 +184,10 @@ export const EVENT_PAYLOADS = {
     status: z.enum(['unknown', 'ok', 'warning', 'failed']),
     failed: z.number().int(),
   }),
+  /** Сборка колоночной копии поставлена (ADR-0109). */
+  'dataset.columnar_build_started': z.object({ version: z.number().int() }),
+  /** Колоночная копия собрана: версия данных и число строк в копии. */
+  'dataset.columnar_built': z.object({ version: z.number().int(), rows: z.number().int() }),
   'dataset.rolled_back': z.object({
     version: z.number().int(),
     target: z.number().int(),

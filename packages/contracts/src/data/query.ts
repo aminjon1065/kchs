@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { FilterNode } from '../common/filter.js'
 import { LangText, Uuid } from '../common/primitives.js'
 import { FieldFormat, FieldSemantic, FieldType } from '../fields/field-def.js'
+import { QueryExecutor, QueryExecutorChoice } from './columnar.js'
 
 /**
  * QuerySpec v1 — contracts/query-spec.md. Декларативный запрос: источник и
@@ -280,6 +281,12 @@ export const QueryOptions = z.object({
   timeoutMs: z.number().int().min(100).max(600_000).optional(),
   cache: z.boolean().default(true),
   approxCount: z.boolean().default(true),
+  /**
+   * Исполнитель запроса (ADR-0109): `auto` — по размеру датасета и виду
+   * запроса, `postgres` — всегда основное хранилище, `columnar` — колоночная
+   * копия, когда она годится. По умолчанию — `auto`.
+   */
+  executor: QueryExecutorChoice.optional(),
 })
 
 export const QuerySpec = z.object({
@@ -313,6 +320,8 @@ export const QueryResult = z.object({
   truncated: z.boolean(),
   durationMs: z.number().nonnegative(),
   cached: z.boolean(),
+  /** Где считался запрос — показывается пользователю рядом с результатом. */
+  executedOn: QueryExecutor.default('postgres'),
   /** Сгенерированный SQL — только со способностью data.sql. */
   sql: z.string().optional(),
 })

@@ -830,6 +830,7 @@ function Dynamics({ data, t }: { data: ControlReport; t: Translate }) {
     truncated: false,
     durationMs: 0,
     cached: false,
+    executedOn: 'postgres',
   }
   return <Chart spec={spec} result={result} height={280} />
 }

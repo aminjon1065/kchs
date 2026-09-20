@@ -51,7 +51,7 @@ function physicalSql(state: CompileState, field: ResolvedField): string {
     throw new Error(`Недопустимое физическое имя столбца: ${field.physical}`)
   }
   const column = state.dialect.ident(field.physical)
-  if (field.type === 'duration') return `(extract(epoch FROM ${column}) / 60)::double precision`
+  if (field.type === 'duration') return state.dialect.durationMinutes(column)
   return column
 }
 
@@ -61,10 +61,11 @@ function physicalSql(state: CompileState, field: ResolvedField): string {
  * по маске, а не по исходным данным.
  */
 function maskSql(state: CompileState, field: ResolvedField, sql: string): string {
+  const d = state.dialect
   switch (field.type) {
     case 'identifier':
     case 'phone':
-      return `(CASE WHEN ${sql} IS NULL THEN NULL WHEN char_length(${sql}) >= 8 THEN '***' || right(${sql}, 4) ELSE '***' END)`
+      return `(CASE WHEN ${sql} IS NULL THEN NULL WHEN ${d.charLength(sql)} >= 8 THEN '***' || right(${sql}, 4) ELSE '***' END)`
     case 'email':
       return `(CASE WHEN ${sql} IS NULL THEN NULL ELSE '***@' || split_part(${sql}, '@', 2) END)`
     case 'text':
@@ -75,24 +76,25 @@ function maskSql(state: CompileState, field: ResolvedField, sql: string): string
     case 'integer':
     case 'decimal':
     case 'money':
-      return `(CASE WHEN ${sql} IS NULL OR ${sql} = 0 THEN ${sql} ELSE ${roundSignificant(sql)} END)::${sqlTypeOfField(field.type)}`
+      return d.cast(
+        `(CASE WHEN ${sql} IS NULL OR ${sql} = 0 THEN ${sql} ELSE ${d.roundSignificant(sql)} END)`,
+        sqlTypeOfField(field.type),
+      )
     case 'number':
     case 'percent':
     case 'duration':
-      return `(CASE WHEN ${sql} IS NULL OR ${sql} = 0 THEN ${sql} WHEN ${sql}::text IN ('NaN', 'Infinity', '-Infinity') THEN NULL ELSE ${roundSignificant(sql)} END)::double precision`
+      return d.cast(
+        `(CASE WHEN ${sql} IS NULL OR ${sql} = 0 THEN ${sql} WHEN ${d.notFinite(sql)} THEN NULL ELSE ${d.roundSignificant(sql)} END)`,
+        'double precision',
+      )
     case 'date':
-      return `date_trunc('year', ${sql})::date`
+      return d.dateTrunc('year', sql, 'date', () => state.tz())
     case 'datetime':
-      return `date_trunc('year', ${sql}, ${state.tz()})`
+      return d.dateTrunc('year', sql, 'datetime', () => state.tz())
     default:
       // Логическое, время, ссылки, геометрия, JSON, списки — значение не показывается
-      return `NULL::${sqlTypeOfField(field.type)}`
+      return d.cast('NULL', sqlTypeOfField(field.type))
   }
-}
-
-/** Округление до двух значащих цифр: 123 456 → 120 000, 0,01234 → 0,012. */
-function roundSignificant(sql: string): string {
-  return `round((${sql})::numeric, (1 - floor(log(abs((${sql})::numeric))))::int)`
 }
 
 /**
@@ -198,12 +200,13 @@ export function datasetRelation(
   if (window && window.datasetId === dataset.id) {
     where.push(spatialWindowSql(state, dataset, window, [...path, 'spatialWindow']))
   }
-  const fence = dataset.rowPolicy.kind === 'filter' || dataset.rowPolicy.kind === 'expr'
+  const fenced = dataset.rowPolicy.kind === 'filter' || dataset.rowPolicy.kind === 'expr'
+  const fence = fenced ? d.fence() : null
   const body = [
     `SELECT ${select.length ? select.join(', ') : 'NULL AS "_empty"'}`,
     `FROM ${d.table(dataset.table)}`,
     ...(where.length ? [`WHERE ${where.join(' AND ')}`] : []),
-    ...(fence ? ['OFFSET 0'] : []),
+    ...(fence ? [fence] : []),
   ].join('\n')
   return { body, columns, restricted, unavailable }
 }

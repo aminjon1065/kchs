@@ -12,6 +12,7 @@ from kchs_engine.config import settings
 from kchs_engine.jobs import JOB_HANDLERS, PermanentJobError, registered_queues
 
 # Обработчики регистрируются импортом модулей
+from kchs_engine.jobs import columnar as _columnar  # noqa: F401
 from kchs_engine.jobs import dataset_import as _dataset_import  # noqa: F401
 from kchs_engine.jobs import demo as _demo  # noqa: F401
 from kchs_engine.jobs import documents as _documents  # noqa: F401

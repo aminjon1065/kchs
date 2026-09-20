@@ -54,6 +54,7 @@ export const buckets = {
   media: () => config().S3_BUCKET_MEDIA,
   exports: () => config().S3_BUCKET_EXPORTS,
   tiles: () => config().S3_BUCKET_TILES,
+  columnar: () => config().S3_BUCKET_COLUMNAR,
 }
 
 /** Ключ хранения: spaces/{spaceId}/files/{fileId}/{versionId}/{safeName} (09-files.md §2). */
