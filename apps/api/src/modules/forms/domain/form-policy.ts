@@ -1,7 +1,6 @@
 import type { AccessReason, Level } from '@kchs/contracts'
 import { arrayContains, arrayOverlaps, eq, type SQL, sql } from 'drizzle-orm'
 import type { TypePolicy } from '~/kernel/access/types.js'
-import type { UserCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { forms, objects } from '~/shared/db/schema/index.js'
 
@@ -74,14 +73,4 @@ export const formPolicy: TypePolicy = {
     return sql`${objects.id} IN (SELECT ${forms.id} FROM ${forms}
       WHERE ${sql.join(conditions, sql` OR `)})`
   },
-}
-
-/** Назначен ли пользователь на эту форму (сам или через подразделение). */
-export function isAssignee(
-  ctx: UserCtx,
-  row: { assignedUnits: string[]; assignedUsers: string[] },
-): boolean {
-  if (row.assignedUsers.includes(ctx.userId)) return true
-  const units = new Set(ctx.principals.unitIds)
-  return row.assignedUnits.some((id) => units.has(id))
 }

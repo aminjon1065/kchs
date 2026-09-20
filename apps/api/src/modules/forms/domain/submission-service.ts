@@ -15,12 +15,12 @@ import { OrgService } from '~/modules/identity/public.js'
 import { config } from '~/shared/config/index.js'
 import type { UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import { formSubmissions, forms } from '~/shared/db/schema/index.js'
+import { formSubmissions } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { FormInbox } from './form-inbox.js'
 import { type FormRow, FormService, objectRef, subjectsFor } from './form-service.js'
-import { dueAtOf, type FormPeriod, periodOf, recentPeriods, today } from './periods.js'
+import { dueAtOf, type FormPeriod, recentPeriods, today } from './periods.js'
 import { subjectKey, subjectNames } from './subject-names.js'
 
 /**
@@ -80,9 +80,7 @@ async function loadSubmission(executor: Executor, id: string): Promise<Submissio
 
 /** Может ли пользователь сдавать за это назначение. */
 function maySubmit(ctx: UserCtx, form: FormRow, subject: FormSubject): boolean {
-  return subjectsFor(ctx, form).some(
-    (item) => item.kind === subject.kind && item.id === subject.id,
-  )
+  return subjectsFor(ctx, form).some((item) => item.kind === subject.kind && item.id === subject.id)
 }
 
 async function view(
@@ -113,8 +111,7 @@ async function view(
     comment: row.comment,
     canSubmit:
       OPEN_STATUSES.includes(row.status as FormSubmissionStatus) && maySubmit(ctx, form, subject),
-    canReview:
-      row.status === 'submitted' && (canManage || form.reviewers.includes(ctx.userId)),
+    canReview: row.status === 'submitted' && (canManage || form.reviewers.includes(ctx.userId)),
     updatedAt: row.updatedAt,
   }
 }
@@ -152,8 +149,7 @@ async function autoValues(
   }
   if (auto.period) {
     const type = typeOf(auto.period)
-    out[auto.period] =
-      type === 'date' || type === 'datetime' ? row.periodStart : row.periodKey
+    out[auto.period] = type === 'date' || type === 'datetime' ? row.periodStart : row.periodKey
   }
   if (auto.author) {
     out[auto.author] =
@@ -276,7 +272,13 @@ export const SubmissionService = {
     }
     const writer = await writerCtx(form)
     const auto = await autoValues(form, { ...current, values }, ctx.userId)
-    const payload = { ...pick(values, form.definition.fields.map((item) => item.key)), ...auto }
+    const payload = {
+      ...pick(
+        values,
+        form.definition.fields.map((item) => item.key),
+      ),
+      ...auto,
+    }
     const resubmitted = current.status === 'returned' && current.rowId !== null
 
     const result = await db().transaction(async (tx) => {
@@ -431,10 +433,7 @@ export const SubmissionService = {
 }
 
 /** Только ключи схемы формы: лишние значения в датасет не попадают. */
-function pick(
-  values: Record<string, unknown>,
-  keys: readonly string[],
-): Record<string, unknown> {
+function pick(values: Record<string, unknown>, keys: readonly string[]): Record<string, unknown> {
   const out: Record<string, unknown> = {}
   for (const key of keys) if (key in values) out[key] = values[key]
   return out
@@ -456,26 +455,4 @@ export async function submissionsOf(
       ),
     )
   return rows as SubmissionRow[]
-}
-
-/** Период, за который сдают прямо сейчас (последний закрытый или текущий). */
-export function currentPeriod(form: FormRow, at = new Date()): FormPeriod {
-  const schedule = form.definition.schedule
-  if (schedule.periodicity === 'once') {
-    const start = schedule.startsOn ?? (schedule.dueOn as string)
-    return { key: 'once', start, end: schedule.dueOn ?? start }
-  }
-  return periodOf(today(config().TZ, at), schedule.periodicity)
-}
-
-/** Форма отправки по её идентификатору — для действий Входящих. */
-export async function formOfSubmission(submissionId: string): Promise<FormRow> {
-  const [row] = await db()
-    .select({ formId: formSubmissions.formId })
-    .from(formSubmissions)
-    .innerJoin(forms, eq(forms.id, formSubmissions.formId))
-    .where(eq(formSubmissions.id, submissionId))
-    .limit(1)
-  if (!row) throw errors.notFound('Отправка')
-  return FormService.require(db(), row.formId)
 }

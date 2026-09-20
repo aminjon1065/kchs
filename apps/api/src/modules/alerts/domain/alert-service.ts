@@ -193,7 +193,13 @@ export const AlertService = {
         updatedAt: sql`now()`,
       })
       .where(eq(alerts.id, id))
-    await ObjectService.update(tx, ctx, id, { meta: { enabled }, mergeMeta: true }, { silent: true })
+    await ObjectService.update(
+      tx,
+      ctx,
+      id,
+      { meta: { enabled }, mergeMeta: true },
+      { silent: true },
+    )
     await publishEvent(tx, ctx, {
       type: enabled ? 'alert.enabled' : 'alert.disabled',
       object: await objectRef(tx, id),

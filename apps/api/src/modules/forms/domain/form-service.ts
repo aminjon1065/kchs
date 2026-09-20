@@ -226,7 +226,13 @@ export const FormService = {
       throw errors.validation('У формы нет назначений — сдавать сводку некому')
     }
     await tx.update(forms).set({ enabled, updatedAt: sql`now()` }).where(eq(forms.id, id))
-    await ObjectService.update(tx, ctx, id, { meta: { enabled }, mergeMeta: true }, { silent: true })
+    await ObjectService.update(
+      tx,
+      ctx,
+      id,
+      { meta: { enabled }, mergeMeta: true },
+      { silent: true },
+    )
     await publishEvent(tx, ctx, {
       type: enabled ? 'form.enabled' : 'form.disabled',
       object: await objectRef(tx, id),

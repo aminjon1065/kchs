@@ -82,11 +82,7 @@ export function previousPeriod(period: FormPeriod, periodicity: FormPeriodicity)
  * Последние `count` периодов, закончившихся не позже `today` включительно с
  * текущим, — от нового к старому. Периоды раньше `startsOn` не возвращаются.
  */
-export function recentPeriods(
-  today: string,
-  schedule: FormSchedule,
-  count: number,
-): FormPeriod[] {
+export function recentPeriods(today: string, schedule: FormSchedule, count: number): FormPeriod[] {
   if (schedule.periodicity === 'once') {
     const start = schedule.startsOn ?? today
     const end = schedule.dueOn ?? start
@@ -106,11 +102,7 @@ export function recentPeriods(
  * Периоды, у которых уже наступил срок сдачи, — их и контролирует задание.
  * Текущий, ещё идущий период в список не попадает.
  */
-export function closedPeriods(
-  today: string,
-  schedule: FormSchedule,
-  count: number,
-): FormPeriod[] {
+export function closedPeriods(today: string, schedule: FormSchedule, count: number): FormPeriod[] {
   return recentPeriods(today, schedule, count + 1).filter((period) => period.end < today)
 }
 
@@ -151,18 +143,4 @@ export function calendarSpan(periods: readonly FormPeriod[]): { from: string; to
 /** Сегодняшний день в поясе установки. */
 export function today(timezone: string, now = new Date()): string {
   return localDate(now, timezone)
-}
-
-/** Подпись периода для матрицы: `19.09`, `нед. 38`, `09.2026`. */
-export function periodLabel(period: FormPeriod, periodicity: FormPeriodicity): string {
-  switch (periodicity) {
-    case 'daily':
-      return `${period.start.slice(8, 10)}.${period.start.slice(5, 7)}`
-    case 'weekly':
-      return period.key.slice(5)
-    case 'monthly':
-      return `${period.key.slice(5, 7)}.${period.key.slice(0, 4)}`
-    case 'once':
-      return period.end
-  }
 }

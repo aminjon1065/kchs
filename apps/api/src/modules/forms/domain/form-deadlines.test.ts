@@ -28,10 +28,22 @@ describe('этапы контроля сдачи', () => {
   })
 
   it('до срока отправляется напоминание, после — просрочка', () => {
-    const before = planStages({ dueAt: due, done: none }, new Date(due.getTime() - 60_000), TZ, plainCalendar, escalation)
+    const before = planStages(
+      { dueAt: due, done: none },
+      new Date(due.getTime() - 60_000),
+      TZ,
+      plainCalendar,
+      escalation,
+    )
     expect(before.fire).toEqual(['due_soon'])
 
-    const after = planStages({ dueAt: due, done: none }, new Date(due.getTime() + 60_000), TZ, plainCalendar, escalation)
+    const after = planStages(
+      { dueAt: due, done: none },
+      new Date(due.getTime() + 60_000),
+      TZ,
+      plainCalendar,
+      escalation,
+    )
     expect(after.fire).toEqual(['overdue'])
     // Напоминание уже бессмысленно: этап отмечается без отправки
     expect(after.skip).toEqual(['due_soon'])

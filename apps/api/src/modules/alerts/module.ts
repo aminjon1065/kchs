@@ -86,9 +86,10 @@ export function registerAlertObjectTypes(): void {
   // «Разобрался» закрывает дело: само срабатывание остаётся в истории алерта
   registerInboxActionHandler('alert', async (ctx, { item }) => {
     await db().transaction((tx) =>
-      InboxService.resolve(tx, ctx, { userId: item.userId, dedupeKey: item.payload.eventId
-        ? `alert:${String(item.payload.eventId)}`
-        : undefined }),
+      InboxService.resolve(tx, ctx, {
+        userId: item.userId,
+        dedupeKey: item.payload.eventId ? `alert:${String(item.payload.eventId)}` : undefined,
+      }),
     )
   })
 }

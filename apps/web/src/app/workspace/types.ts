@@ -30,6 +30,10 @@ export type ScreenKey =
   | 'process-designer'
   /** Конструктор правила автоматизации (ADR-0096): параметр `id`. */
   | 'rule-designer'
+  /** Формы сбора данных и контроль сдачи (ADR-0103). */
+  | 'forms'
+  /** Алерты на показатели (ADR-0104). */
+  | 'alerts'
 
 export interface TabState {
   id: string

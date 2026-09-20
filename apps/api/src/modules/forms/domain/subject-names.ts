@@ -6,9 +6,7 @@ import { OrgService } from '~/modules/identity/public.js'
  * Подписи назначений для матрицы контроля и авто-полей: название подразделения
  * и имя сотрудника берутся у модуля «Идентификация» через его публичный API.
  */
-export async function subjectNames(
-  subjects: readonly FormSubject[],
-): Promise<Map<string, string>> {
+export async function subjectNames(subjects: readonly FormSubject[]): Promise<Map<string, string>> {
   const units = subjects.filter((item) => item.kind === 'unit').map((item) => item.id)
   const users = subjects.filter((item) => item.kind === 'user').map((item) => item.id)
   const out = new Map<string, string>()

@@ -46,6 +46,30 @@ import { TasksScreen, type TasksScreenState } from '~/features/tasks/tasks-scree
 import { WorkloadScreen, type WorkloadScreenState } from '~/features/tasks/workload-screen.js'
 import { registerObjectView, registerScreen } from './workspace/registry.js'
 
+/** Формы сбора данных и алерты (ADR-0103, ADR-0104) — отдельным чанком. */
+const FormsScreen = lazy(() =>
+  import('~/features/forms/forms-screen.js').then((module) => ({ default: module.FormsScreen })),
+)
+const FormView = lazy(() =>
+  import('~/features/forms/form-view.js').then((module) => ({ default: module.FormView })),
+)
+const AlertsScreen = lazy(() =>
+  import('~/features/alerts/alerts-screen.js').then((module) => ({ default: module.AlertsScreen })),
+)
+const AlertView = lazy(() =>
+  import('~/features/alerts/alert-view.js').then((module) => ({ default: module.AlertView })),
+)
+
+/** Заглушка ленивого экрана: та же, что у конструкторов. */
+function LazyFallback() {
+  return (
+    <div className="flex flex-col gap-3 p-6">
+      <Skeleton className="h-7 w-72" />
+      <Skeleton className="h-64 w-full" />
+    </div>
+  )
+}
+
 /** Тетрадь — отдельным чанком: Tiptap, Yjs и клиент совместной правки не в оболочке. */
 const NotebookView = lazy(() => import('~/features/notebooks/notebook-view.js'))
 /** Отчёт — тоже отдельным чанком: тот же совместный документ, что у тетради (ADR-0078). */
@@ -357,6 +381,42 @@ export function registerModules(): void {
   registerObjectView({
     type: 'metric',
     render: (tab) => <MetricView objectId={tab.objectId!} tabId={tab.id} />,
+  })
+  registerScreen({
+    key: 'forms',
+    titleKey: 'forms.title',
+    icon: 'form',
+    render: () => (
+      <Suspense fallback={<LazyFallback />}>
+        <FormsScreen />
+      </Suspense>
+    ),
+  })
+  registerObjectView({
+    type: 'form',
+    render: (tab) => (
+      <Suspense fallback={<LazyFallback />}>
+        <FormView objectId={tab.objectId!} />
+      </Suspense>
+    ),
+  })
+  registerScreen({
+    key: 'alerts',
+    titleKey: 'alerts.title',
+    icon: 'alert',
+    render: () => (
+      <Suspense fallback={<LazyFallback />}>
+        <AlertsScreen />
+      </Suspense>
+    ),
+  })
+  registerObjectView({
+    type: 'alert',
+    render: (tab) => (
+      <Suspense fallback={<LazyFallback />}>
+        <AlertView objectId={tab.objectId!} />
+      </Suspense>
+    ),
   })
   registerObjectView({
     type: 'dataset',

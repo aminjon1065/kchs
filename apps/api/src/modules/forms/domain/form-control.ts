@@ -15,7 +15,7 @@ import { config } from '~/shared/config/index.js'
 import type { UserCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { forms, objects } from '~/shared/db/schema/index.js'
-import { FormService, type FormRow, subjectsFor } from './form-service.js'
+import { type FormRow, FormService, subjectsFor } from './form-service.js'
 import { calendarSpan, dueAtOf, type FormPeriod, recentPeriods, today } from './periods.js'
 import { subjectKey, subjectNames } from './subject-names.js'
 import { submissionsOf } from './submission-service.js'
@@ -52,14 +52,14 @@ export const FormControlService = {
     const periods = recentPeriods(today(config().TZ), form.definition.schedule, query.periods)
     const [due, submissions, names] = await Promise.all([
       dueDates(form, periods),
-      submissionsOf(formId, periods.map((period) => period.key)),
+      submissionsOf(
+        formId,
+        periods.map((period) => period.key),
+      ),
       subjectNames(subjects),
     ])
     const byCell = new Map(
-      submissions.map((row) => [
-        `${row.subjectKind}:${row.subjectId}|${row.periodKey}`,
-        row,
-      ]),
+      submissions.map((row) => [`${row.subjectKind}:${row.subjectId}|${row.periodKey}`, row]),
     )
     const now = Date.now()
     const totals = { expected: 0, accepted: 0, submitted: 0, overdue: 0 }
@@ -72,10 +72,7 @@ export const FormControlService = {
         const dueAt = row?.dueAt ?? due.get(period.key) ?? null
         const state = (row?.status ?? 'missing') as FormCellState
         const overdue =
-          state !== 'accepted' &&
-          state !== 'submitted' &&
-          dueAt !== null &&
-          Date.parse(dueAt) < now
+          state !== 'accepted' && state !== 'submitted' && dueAt !== null && Date.parse(dueAt) < now
         totals.expected += 1
         if (state === 'accepted') totals.accepted += 1
         if (state === 'submitted') totals.submitted += 1
@@ -125,7 +122,10 @@ export const FormControlService = {
       const periods = recentPeriods(today(config().TZ), form.definition.schedule, 6)
       const [due, submissions, names] = await Promise.all([
         dueDates(form, periods),
-        submissionsOf(id, periods.map((period) => period.key)),
+        submissionsOf(
+          id,
+          periods.map((period) => period.key),
+        ),
         subjectNames(own as FormSubject[]),
       ])
       for (const subject of own as FormSubject[]) {

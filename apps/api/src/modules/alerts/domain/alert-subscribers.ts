@@ -53,7 +53,7 @@ export const alertSubscribers: Subscriber[] = [
         await NotificationService.notify({
           userIds: people,
           category: 'data',
-          titleKey: 'notifications.alert.fired',
+          titleKey: 'notifications.tpl.alertFired',
           params,
           objectId: object.id,
           url: `/o/${object.id}`,

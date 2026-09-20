@@ -52,9 +52,7 @@ export const alertEvents = pgTable(
     metricId: uuid('metric_id')
       .notNull()
       .references(() => metrics.id, { onDelete: 'cascade' }),
-    firedAt: tsCol('fired_at')
-      .notNull()
-      .default(sql`now()`),
+    firedAt: tsCol('fired_at').notNull().default(sql`now()`),
     /** Ключ разреза; пустая строка — показатель целиком. */
     groupKey: text('group_key').notNull().default(''),
     groupLabel: text('group_label').notNull().default(''),

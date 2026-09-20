@@ -44,7 +44,7 @@ export const formSubscribers: Subscriber[] = [
         await NotificationService.notify({
           userIds: [payload.managerId],
           category: 'data',
-          titleKey: 'notifications.form.escalated',
+          titleKey: 'notifications.tpl.formEscalated',
           params,
           objectId: object.id,
           url,
@@ -61,10 +61,10 @@ export const formSubscribers: Subscriber[] = [
       if (recipients.size === 0) return
       const titleKey =
         event.type === 'form.returned'
-          ? 'notifications.form.returned'
+          ? 'notifications.tpl.formReturned'
           : event.type === 'form.accepted'
-            ? 'notifications.form.accepted'
-            : 'notifications.form.overdue'
+            ? 'notifications.tpl.formAccepted'
+            : 'notifications.tpl.formOverdue'
       await NotificationService.notify({
         userIds: [...recipients],
         category: 'data',

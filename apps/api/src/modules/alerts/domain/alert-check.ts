@@ -8,7 +8,7 @@ import type {
   MetricRecord,
   MetricValue,
 } from '@kchs/contracts'
-import { and, desc, eq, sql } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
 import { buildUserCtxFor } from '~/kernel/access/explain.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
@@ -86,7 +86,8 @@ function evaluate(
   input: { value: number | null; base: number | null; series: SeriesPoint[] },
 ): { fired: boolean; score: number | null; base: number | null; reason: string | null } {
   if (condition.kind === 'threshold') {
-    if (input.value === null) return { fired: false, score: null, base: null, reason: 'нет значения' }
+    if (input.value === null)
+      return { fired: false, score: null, base: null, reason: 'нет значения' }
     return {
       fired: compare(input.value, condition.op, condition.value),
       score: input.value,
@@ -343,14 +344,4 @@ export const AlertCheck = {
       fired: toFire.length,
     }
   },
-}
-
-/** Последние срабатывания алерта — для карточки. */
-export async function recentEvents(alertId: string, limit: number) {
-  return db()
-    .select()
-    .from(alertEvents)
-    .where(and(eq(alertEvents.alertId, alertId)))
-    .orderBy(desc(alertEvents.firedAt))
-    .limit(limit)
 }

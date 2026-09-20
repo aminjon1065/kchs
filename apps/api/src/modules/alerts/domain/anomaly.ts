@@ -58,7 +58,10 @@ export interface AnomalyResult {
  * основе только сопоставимые точки: те же дни недели или те же числа месяца —
  * иначе понедельник вечно выглядел бы аномалией после выходных.
  */
-export function anomaly(series: readonly SeriesPoint[], condition: AlertAnomalyCondition): AnomalyResult {
+export function anomaly(
+  series: readonly SeriesPoint[],
+  condition: AlertAnomalyCondition,
+): AnomalyResult {
   const known = series.filter((point) => point.value !== null)
   const last = known[known.length - 1]
   if (!last || last.value === null) {
@@ -82,8 +85,7 @@ export function anomaly(series: readonly SeriesPoint[], condition: AlertAnomalyC
   }
   const values = baseline.map((point) => point.value as number)
   const mean = values.reduce((sum, item) => sum + item, 0) / values.length
-  const variance =
-    values.reduce((sum, item) => sum + (item - mean) ** 2, 0) / (values.length - 1)
+  const variance = values.reduce((sum, item) => sum + (item - mean) ** 2, 0) / (values.length - 1)
   const sd = Math.sqrt(variance)
   if (!Number.isFinite(sd) || sd === 0) {
     return { score: null, value: last.value, mean, reason: 'история без разброса' }

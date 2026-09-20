@@ -1,4 +1,5 @@
 import {
+  type AlertEvent,
   ChartSpec,
   type FieldType,
   METRIC_COMPARISONS,
@@ -42,6 +43,7 @@ import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
 import { ShareDialog } from '~/features/access/share-dialog.js'
+import { alertEventsQuery } from '~/features/alerts/queries.js'
 import { PresenceAvatars } from '~/features/objects/presence-avatars.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import {
@@ -91,7 +93,31 @@ function historyResult(value: MetricValue): QueryResult {
   }
 }
 
-function historySpec(metric: MetricRecord): ChartSpec {
+/** Отметок срабатываний на графике — не больше: иначе за ними не видно линии. */
+const MAX_MARKS = 5
+
+/**
+ * Срабатывания алертов на истории показателя (ADR-0104): отметка ставится на
+ * той точке истории, в которую попал момент срабатывания.
+ */
+function alertMarks(
+  series: MetricValue['series'],
+  events: AlertEvent[],
+): Array<{ x: string; text: string }> {
+  const periods = series.map((point) => point.period)
+  const marks = new Map<string, string>()
+  for (const event of events) {
+    const day = event.firedAt.slice(0, 10)
+    const bucket = [...periods].reverse().find((period) => period <= day)
+    if (bucket) marks.set(bucket, event.message)
+  }
+  return [...marks].slice(-MAX_MARKS).map(([x, text]) => ({ x, text }))
+}
+
+function historySpec(
+  metric: MetricRecord,
+  annotations: Array<{ x: string; text: string }> = [],
+): ChartSpec {
   return ChartSpec.parse({
     version: 1,
     type: ADDITIVE.has(metric.definition.measure.agg) ? 'bar' : 'line',
@@ -107,7 +133,7 @@ function historySpec(metric: MetricRecord): ChartSpec {
         },
       ],
     },
-    options: { legend: { show: false, position: 'bottom' } },
+    options: { legend: { show: false, position: 'bottom' }, annotations },
   })
 }
 
@@ -133,6 +159,8 @@ export function MetricView({ objectId, tabId }: { objectId: string; tabId: strin
   const { data: object } = useQuery(objectQuery(objectId))
   const { data: me } = useQuery(meQuery())
   const { data: metric, isLoading } = useQuery(metricQuery(objectId))
+  // Срабатывания алертов — отметками на истории показателя (ADR-0104)
+  const { data: alertEvents } = useQuery(alertEventsQuery({ metricId: objectId, limit: 30 }))
   const value = useQuery({
     ...metricValueQuery(objectId, {
       ...(period !== undefined ? { period } : {}),
@@ -305,7 +333,7 @@ export function MetricView({ objectId, tabId }: { objectId: string; tabId: strin
               <Card title={t('data.metric.history')}>
                 {current.series.length > 1 ? (
                   <Chart
-                    spec={historySpec(metric)}
+                    spec={historySpec(metric, alertMarks(current.series, alertEvents?.items ?? []))}
                     result={historyResult(current)}
                     height={220}
                     pending={value.isFetching}

@@ -33,19 +33,10 @@ export const forms = pgTable(
      * Денормализовано из определения и назначений: политика типа (видимость
      * назначенным и ответственным) и списки читают массивы, а не JSON.
      */
-    assignedUnits: uuid('assigned_units')
-      .array()
-      .notNull()
-      .default(sql`'{}'::uuid[]`),
-    assignedUsers: uuid('assigned_users')
-      .array()
-      .notNull()
-      .default(sql`'{}'::uuid[]`),
+    assignedUnits: uuid('assigned_units').array().notNull().default(sql`'{}'::uuid[]`),
+    assignedUsers: uuid('assigned_users').array().notNull().default(sql`'{}'::uuid[]`),
     /** Ответственные за приёмку: выражения назначений, разобранные в людей. */
-    reviewers: uuid('reviewers')
-      .array()
-      .notNull()
-      .default(sql`'{}'::uuid[]`),
+    reviewers: uuid('reviewers').array().notNull().default(sql`'{}'::uuid[]`),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
