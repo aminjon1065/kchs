@@ -27,10 +27,20 @@ export interface ParsedLetter {
   inReplyTo: string | null
   references: string[]
   attachments: LetterAttachment[]
+  /** Вложения, отброшенные пределами: их число видно в очереди «Из почты». */
+  skippedAttachments: number
 }
 
 const MAX_BODY_CHARS = 100_000
 const MAX_ATTACHMENT_NAME = 200
+/**
+ * Пределы вложений (17-security.md §5: «ограничение размеров»). Письмо приходит
+ * снаружи и кладётся в хранилище целиком, поэтому пределы нужны здесь, а не
+ * только у формы загрузки: без них одно письмо занимает память процесса и бакет.
+ */
+export const MAX_ATTACHMENT_BYTES = 64 * 1024 * 1024
+export const MAX_ATTACHMENTS_BYTES = 128 * 1024 * 1024
+export const MAX_ATTACHMENTS = 50
 
 /** Уголки `<…>` у идентификаторов писем — часть формата, а не значения. */
 function unwrap(value: string | null | undefined): string {
@@ -89,6 +99,28 @@ export async function parseLetter(source: Buffer): Promise<ParsedLetter> {
       ? [mail.references]
       : []
 
+  const candidates = mail.attachments
+    // Встроенные картинки подписи — не приложения к документу
+    .filter((item) => item.contentDisposition !== 'inline' || !item.cid)
+    .map((item, index) => ({
+      name: attachmentName(item.filename, index),
+      mime: item.contentType || 'application/octet-stream',
+      content: Buffer.from(item.content),
+    }))
+
+  // Слишком большое и лишнее отбрасывается, письмо при этом регистрируется:
+  // терять входящее из-за раздутого вложения хуже, чем принять его без файла —
+  // оригинал остаётся в ящике, а счётчик отброшенного виден в очереди
+  const attachments: LetterAttachment[] = []
+  let total = 0
+  for (const item of candidates) {
+    if (attachments.length >= MAX_ATTACHMENTS) break
+    if (item.content.length > MAX_ATTACHMENT_BYTES) continue
+    if (total + item.content.length > MAX_ATTACHMENTS_BYTES) continue
+    total += item.content.length
+    attachments.push(item)
+  }
+
   return {
     messageId: unwrap(mail.messageId),
     fromEmail: (from?.address ?? '').toLowerCase(),
@@ -99,14 +131,8 @@ export async function parseLetter(source: Buffer): Promise<ParsedLetter> {
     sentAt: mail.date ? mail.date.toISOString() : null,
     inReplyTo: unwrap(mail.inReplyTo) || null,
     references: references.map(unwrap).filter(Boolean),
-    attachments: mail.attachments
-      // Встроенные картинки подписи — не приложения к документу
-      .filter((item) => item.contentDisposition !== 'inline' || !item.cid)
-      .map((item, index) => ({
-        name: attachmentName(item.filename, index),
-        mime: item.contentType || 'application/octet-stream',
-        content: Buffer.from(item.content),
-      })),
+    attachments,
+    skippedAttachments: candidates.length - attachments.length,
   }
 }
 

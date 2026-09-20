@@ -7,6 +7,8 @@ import {
   attachmentName,
   htmlToText,
   letterRejection,
+  MAX_ATTACHMENT_BYTES,
+  MAX_ATTACHMENTS,
   messageKeyOf,
   parseLetter,
   subjectOf,
@@ -105,6 +107,60 @@ describe('имя вложения', () => {
     expect(attachmentName('../../etc/passwd', 0)).toBe('.._.._etc_passwd')
     expect(attachmentName('акт\u0007.pdf', 0)).toBe('акт.pdf')
     expect(attachmentName(undefined, 2)).toBe('Вложение 3')
+  })
+})
+
+/**
+ * Письмо приходит снаружи и кладётся в хранилище целиком, поэтому пределы нужны
+ * здесь, а не только у формы загрузки (17-security.md §5). Письмо при этом не
+ * теряется: оно регистрируется без отброшенных файлов, а оригинал остаётся в
+ * ящике.
+ */
+describe('пределы вложений', () => {
+  const build = (parts: { name: string; size: number }[]) =>
+    Buffer.from(
+      [
+        'From: Отправитель <sender@example.org>',
+        'To: office@kchs.example.tj',
+        'Subject: Тяжёлое письмо',
+        'Message-ID: <heavy@example.org>',
+        'MIME-Version: 1.0',
+        'Content-Type: multipart/mixed; boundary="b"',
+        '',
+        'Текст',
+        ...parts.flatMap((part) => [
+          '--b',
+          'Content-Type: application/octet-stream',
+          `Content-Disposition: attachment; filename="${part.name}"`,
+          '',
+          'x'.repeat(part.size),
+          '',
+        ]),
+        '--b--',
+        '',
+      ].join('\r\n'),
+    )
+
+  it('слишком большое вложение отбрасывается, письмо остаётся с остальными', async () => {
+    const parsed = await parseLetter(
+      build([
+        { name: 'огромное.bin', size: MAX_ATTACHMENT_BYTES + 1 },
+        { name: 'акт.pdf', size: 16 },
+      ]),
+    )
+    expect(parsed.attachments.map((item) => item.name)).toEqual(['акт.pdf'])
+    expect(parsed.skippedAttachments).toBe(1)
+    expect(parsed.subject).toBe('Тяжёлое письмо')
+  })
+
+  it('число вложений ограничено', async () => {
+    const parts = Array.from({ length: MAX_ATTACHMENTS + 3 }, (_, index) => ({
+      name: `файл-${index}.bin`,
+      size: 8,
+    }))
+    const parsed = await parseLetter(build(parts))
+    expect(parsed.attachments).toHaveLength(MAX_ATTACHMENTS)
+    expect(parsed.skippedAttachments).toBe(3)
   })
 })
 
