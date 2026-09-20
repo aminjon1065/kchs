@@ -3353,6 +3353,18 @@ export const en: DeepPartial<Dictionary> = {
         warning: 'Has remarks',
         failed: 'Has violations',
       },
+      params: {
+        min: 'At least',
+        max: 'At most',
+        pattern: 'Pattern',
+        values: 'Allowed values',
+        valuesHint: 'Comma separated',
+        datasetId: 'Reference dataset (id)',
+        datasetIdHint: 'Identifier of the reference dataset',
+        datasetField: 'Reference field',
+        maxAgeHours: 'Not older than, h',
+        maxDropPercent: 'Row drop, %',
+      },
       severities: { error: 'Violation', warning: 'Remark' },
       kinds: {
         not_null: 'Value is required',

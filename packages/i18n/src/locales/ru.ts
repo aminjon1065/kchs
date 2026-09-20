@@ -3408,6 +3408,18 @@ export const ru = {
         warning: 'Есть замечания',
         failed: 'Есть нарушения',
       },
+      params: {
+        min: 'Не меньше',
+        max: 'Не больше',
+        pattern: 'Выражение',
+        values: 'Допустимые значения',
+        valuesHint: 'Через запятую',
+        datasetId: 'Справочник (идентификатор)',
+        datasetIdHint: 'Идентификатор датасета-справочника',
+        datasetField: 'Поле справочника',
+        maxAgeHours: 'Не старше, ч',
+        maxDropPercent: 'Падение строк, %',
+      },
       severities: { error: 'Нарушение', warning: 'Замечание' },
       kinds: {
         not_null: 'Значение обязательно',

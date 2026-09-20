@@ -196,6 +196,19 @@ export function QualityTab({ dataset }: { dataset: DatasetRecord }) {
                   ]}
                 />
 
+                <RuleParams
+                  rule={rule}
+                  fields={dataset.fields}
+                  disabled={!canManage}
+                  onChange={(params) =>
+                    setRules((current) =>
+                      current.map((item, position) =>
+                        position === index ? { ...item, params } : item,
+                      ),
+                    )
+                  }
+                />
+
                 <div className="flex min-w-0 flex-1 items-center gap-2">
                   {result ? (
                     <Badge tone={result.status === 'ok' ? 'success' : TONE[data.status]} size="sm">
@@ -255,6 +268,128 @@ export function QualityTab({ dataset }: { dataset: DatasetRecord }) {
 }
 
 /** Выпадающий список дизайн-системы: значение, подпись и блокировка. */
+/**
+ * Параметры правила: у каждого вида свои (ADR-0101). Без них правило
+ * сохранялось, но проверка падала — половина видов была недоступна.
+ */
+function RuleParams({
+  rule,
+  fields,
+  disabled,
+  onChange,
+}: {
+  rule: QualityRule
+  fields: ReadonlyArray<{ key: string; label: { ru: string } }>
+  disabled: boolean
+  onChange: (params: QualityRule['params']) => void
+}) {
+  const t = useT()
+  const params = rule.params ?? {}
+  const number = (value: string) => (value.trim() === '' ? undefined : Number(value))
+
+  if (rule.kind === 'range') {
+    return (
+      <>
+        <Field label={t('data.quality.params.min')} className="w-28">
+          <Input
+            type="number"
+            value={params.min ?? ''}
+            readOnly={disabled}
+            onChange={(event) => onChange({ ...params, min: number(event.target.value) })}
+          />
+        </Field>
+        <Field label={t('data.quality.params.max')} className="w-28">
+          <Input
+            type="number"
+            value={params.max ?? ''}
+            readOnly={disabled}
+            onChange={(event) => onChange({ ...params, max: number(event.target.value) })}
+          />
+        </Field>
+      </>
+    )
+  }
+  if (rule.kind === 'regex') {
+    return (
+      <Field label={t('data.quality.params.pattern')} className="w-56">
+        <Input
+          value={params.pattern ?? ''}
+          readOnly={disabled}
+          placeholder="^[0-9]{4}$"
+          onChange={(event) => onChange({ ...params, pattern: event.target.value })}
+        />
+      </Field>
+    )
+  }
+  if (rule.kind === 'in_set') {
+    return (
+      <Field label={t('data.quality.params.values')} className="w-56">
+        <Input
+          value={(params.values ?? []).join(', ')}
+          readOnly={disabled}
+          placeholder={t('data.quality.params.valuesHint')}
+          onChange={(event) =>
+            onChange({
+              ...params,
+              values: event.target.value
+                .split(',')
+                .map((value) => value.trim())
+                .filter(Boolean),
+            })
+          }
+        />
+      </Field>
+    )
+  }
+  if (rule.kind === 'referential') {
+    return (
+      <>
+        <Field label={t('data.quality.params.datasetId')} className="w-56">
+          <Input
+            value={params.datasetId ?? ''}
+            readOnly={disabled}
+            placeholder={t('data.quality.params.datasetIdHint')}
+            onChange={(event) => onChange({ ...params, datasetId: event.target.value })}
+          />
+        </Field>
+        <Field label={t('data.quality.params.datasetField')} className="w-40">
+          <Input
+            value={params.datasetField ?? ''}
+            readOnly={disabled}
+            onChange={(event) => onChange({ ...params, datasetField: event.target.value })}
+          />
+        </Field>
+      </>
+    )
+  }
+  if (rule.kind === 'freshness') {
+    return (
+      <Field label={t('data.quality.params.maxAgeHours')} className="w-36">
+        <Input
+          type="number"
+          value={params.maxAgeHours ?? ''}
+          readOnly={disabled}
+          onChange={(event) => onChange({ ...params, maxAgeHours: number(event.target.value) })}
+        />
+      </Field>
+    )
+  }
+  if (rule.kind === 'row_count_delta') {
+    return (
+      <Field label={t('data.quality.params.maxDropPercent')} className="w-36">
+        <Input
+          type="number"
+          value={params.maxDropPercent ?? ''}
+          readOnly={disabled}
+          onChange={(event) => onChange({ ...params, maxDropPercent: number(event.target.value) })}
+        />
+      </Field>
+    )
+  }
+  // `not_null`, `unique`, `geometry_valid` настроек не требуют
+  return null
+}
+
 function Choice({
   label,
   value,
