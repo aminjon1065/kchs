@@ -18,6 +18,7 @@ import {
   Shield,
   Video,
 } from 'lucide-react'
+import { chatListQuery } from '~/features/chat/queries.js'
 import { inboxCountsQuery, meQuery, notificationsQuery } from '~/shared/api/queries.js'
 import { useT } from '../i18n.js'
 import { useWorkspace } from './store.js'
@@ -52,6 +53,8 @@ export function Rail({ onOpenPalette }: { onOpenPalette: () => void }) {
 
   const { data: me } = useQuery(meQuery())
   const { data: counts } = useQuery(inboxCountsQuery())
+  // Непрочитанные сообщения — значок на кнопке «Чаты» (ADR-0090)
+  const { data: chats } = useQuery(chatListQuery('all'))
   const { data: notifications } = useQuery(notificationsQuery(true))
 
   const isAdmin = me?.capabilities.includes('admin.system') ?? false
@@ -97,6 +100,7 @@ export function Rail({ onOpenPalette }: { onOpenPalette: () => void }) {
             item={item}
             active={navigatorModule === item.key}
             label={t(item.labelKey)}
+            {...(item.key === 'chats' && chats?.totalUnread ? { badge: chats.totalUnread } : {})}
             onClick={() => open(item)}
           />
         ))}
