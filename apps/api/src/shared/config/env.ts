@@ -159,6 +159,18 @@ const EnvSchema = z.object({
   LIVEKIT_URL: z.string().optional(),
   LIVEKIT_API_KEY: z.string().optional(),
   LIVEKIT_API_SECRET: z.string().optional(),
+  /**
+   * Адрес хранилища для записи встреч (ADR-0092): Egress кладёт файл сам, и из
+   * его контейнера `localhost` — это он сам. Пусто — тот же адрес, что у api
+   * (так в установке целиком в контейнерах).
+   */
+  S3_EGRESS_ENDPOINT: z.string().optional(),
+  /**
+   * Куда медиасервер сообщает о готовности записи (ADR-0092). Пусто — адрес
+   * считается от `KCHS_API_URL`; в разработке api на хосте, поэтому из
+   * контейнера Egress нужен `http://host.docker.internal:3000/api/v1/…`.
+   */
+  LIVEKIT_WEBHOOK_URL: z.string().optional(),
 })
 
 /** Правила, связывающие несколько переменных. */

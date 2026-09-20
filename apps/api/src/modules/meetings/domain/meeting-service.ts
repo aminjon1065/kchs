@@ -25,11 +25,11 @@ import {
   roomNameFor,
   roomToken,
 } from './livekit.js'
+import { RECORD_CAPABILITY, RecordingService } from './recording-service.js'
 import { meetingsSpaceId } from './space.js'
 import { clearKnocks } from './waiting-room.js'
 
-/** Способность вести запись встречи (11-communications-meetings.md §3). */
-export const RECORD_CAPABILITY = 'meetings.record'
+export { RECORD_CAPABILITY }
 
 export interface MeetingRow {
   id: string
@@ -150,9 +150,10 @@ async function toRecord(
   executor: Executor = db(),
 ): Promise<MeetingRecord> {
   const participants = await participantsOf(executor, row.id)
-  const [manage, end] = await Promise.all([
+  const [manage, end, recording] = await Promise.all([
     authorize(ctx, 'manage', row.id, { soft: true }),
     authorize(ctx, 'end', row.id, { soft: true }),
+    RecordingService.liveFor(row.id, executor),
   ])
   const live = row.status === 'planned' || row.status === 'live'
   return {
@@ -178,6 +179,8 @@ async function toRecord(
       end: end.allowed && live,
       record: end.allowed && hasCapability(ctx, RECORD_CAPABILITY),
     },
+    // Индикатор записи — всем участникам, а не только тому, кто её включил
+    recording,
     createdAt: row.createdAt,
   }
 }
@@ -421,6 +424,8 @@ export const MeetingService = {
     if (row.status === 'ended' || row.status === 'cancelled') return
     const status = reason === 'cancelled' && row.status === 'planned' ? 'cancelled' : 'ended'
     await tx.update(meetings).set({ status, endedAt: sql`now()` }).where(eq(meetings.id, id))
+    // Идущая запись останавливается вместе со встречей (ADR-0092)
+    await RecordingService.stopActive(tx, ctx, id)
     // Оставшиеся в комнате выходят вместе со встречей: иначе подписчики
     // присутствия навсегда оставят человека «на встрече» (ADR-0090)
     const stillIn = await tx

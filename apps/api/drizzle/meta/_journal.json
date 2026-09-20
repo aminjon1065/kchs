@@ -218,6 +218,13 @@
       "when": 1789884709527,
       "tag": "20260920061149_chat",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1789885610933,
+      "tag": "20260920062650_meeting_recordings",
+      "breakpoints": true
     }
   ]
 }

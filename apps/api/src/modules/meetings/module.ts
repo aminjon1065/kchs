@@ -2,19 +2,24 @@ import type { ObjectSummary } from '@kchs/contracts'
 import { inArray } from 'drizzle-orm'
 import { registerObjectType } from '~/kernel/objects/registry.js'
 import { db } from '~/shared/db/client.js'
-import { meetings } from '~/shared/db/schema/index.js'
+import { meetings, recordings } from '~/shared/db/schema/index.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { registerMeetingsGuestRoutes } from './http/guest-routes.js'
+import { registerMeetingRecordingRoutes } from './http/recording-routes.js'
 import { registerMeetingsRoomRoutes } from './http/room-routes.js'
 import { registerMeetingsRoutes as registerCoreRoutes } from './http.js'
 
 export { registerMeetingsBackground } from './domain/meeting-subscribers.js'
 
-/** Маршруты встреч: ядро модуля, гостевой вход и комната ожидания (ADR-0091). */
+/**
+ * Маршруты встреч: ядро модуля, гостевой вход и комната ожидания (ADR-0091),
+ * запись и расшифровка (ADR-0092).
+ */
 export function registerMeetingsRoutes(route: RouteRegistrar): void {
   registerCoreRoutes(route)
   registerMeetingsGuestRoutes(route)
   registerMeetingsRoomRoutes(route)
+  registerMeetingRecordingRoutes(route)
 }
 
 /**
@@ -62,6 +67,53 @@ export function registerMeetingsObjectTypes(): void {
           row.id,
           {
             meta: { kind: row.kind, status: row.status, startsAt: row.startsAt },
+          } as Partial<ObjectSummary>,
+        ]),
+      )
+    },
+  })
+
+  /**
+   * Тип `recording` (11-communications-meetings.md §3, ADR-0092): запись —
+   * ребёнок своей встречи, поэтому её видит тот, кто видит встречу, а
+   * посторонний получает 404. Сам файл записи — вложение этого объекта.
+   */
+  registerObjectType({
+    type: 'recording',
+    labelKey: 'objects.types.recording',
+    icon: 'recording',
+    route: (id) => `/o/${id}`,
+    levels: ['view', 'comment', 'edit', 'manage', 'owner'],
+    actions: {
+      view: { minLevel: 'view' },
+      comment: { minLevel: 'comment' },
+      edit: { minLevel: 'edit' },
+      share: { minLevel: 'manage' },
+      delete: { minLevel: 'owner' },
+    },
+    discussable: true,
+    linkable: true,
+    hasParentTree: false,
+    moduleManaged: true,
+    summary: async (ids) => {
+      const rows = await db()
+        .select({
+          id: recordings.id,
+          status: recordings.status,
+          durationS: recordings.durationS,
+          transcriptStatus: recordings.transcriptStatus,
+        })
+        .from(recordings)
+        .where(inArray(recordings.id, ids))
+      return new Map(
+        rows.map((row) => [
+          row.id,
+          {
+            meta: {
+              status: row.status,
+              durationS: row.durationS,
+              transcriptStatus: row.transcriptStatus,
+            },
           } as Partial<ObjectSummary>,
         ]),
       )

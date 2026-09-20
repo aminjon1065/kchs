@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 import {
   call,
   db,
@@ -17,6 +17,21 @@ import {
  *
  * Субъекты: посторонний (нет прав) и читатель (view, без edit).
  */
+// Встречи и запись (ADR-0089, ADR-0092): фикстуры типов `meeting` и `recording`
+// требуют настроенного медиасервера; сам Egress подменён — в матрице проверяются
+// права, а не медиасервер
+vi.mock('../src/modules/meetings/domain/recording-egress.js', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../src/modules/meetings/domain/recording-egress.js')>()
+  let started = 0
+  return {
+    ...actual,
+    startRoomRecording: async () => ({ egressId: `EG_matrix_${++started}` }),
+    stopRoomRecording: async () => undefined,
+    egressInfo: async () => null,
+  }
+})
+
 registerLifecycle()
 
 const { listObjectTypes } = await import('../src/kernel/objects/registry.js')
@@ -27,6 +42,7 @@ const { indexObject } = await import('../src/kernel/search/index-service.js')
 const { canJoin } = await import('../src/kernel/realtime/gateway.js')
 const { buildUserCtx } = await import('../src/kernel/context-builder.js')
 const { systemCtx } = await import('../src/shared/context.js')
+const { resetConfigCache } = await import('../src/shared/config/index.js')
 const {
   basemaps,
   cases,
@@ -871,20 +887,50 @@ const FIXTURES: Record<string, TypeFixture> = {
       expect(grant.statusCode, grant.body).toBe(200)
       return { id, title }
     },
-    readPaths: ['/meetings/:id'],
+    readPaths: ['/meetings/:id', '/meetings/:id/recordings'],
     viewerForbidden: (_fx, id) => [
-      // Вход в комнату — уровень «комментарий», ведение встречи и ссылка — «управление»
+      // Вход в комнату — уровень «комментарий»; ведение встречи, ссылка гостя,
+      // заявки и запись — «управление»
       { method: 'POST', url: `/meetings/${id}/join` },
       { method: 'POST', url: `/meetings/${id}/end` },
       { method: 'POST', url: `/meetings/${id}/guest-link`, payload: { ttlMinutes: 60 } },
       { method: 'GET', url: `/meetings/${id}/knocks` },
+      { method: 'POST', url: `/meetings/${id}/recording/start` },
     ],
+  },
+
+  recording: {
+    create: async (fx, title) => {
+      const meeting = await call(fx.app, {
+        method: 'POST',
+        url: '/meetings',
+        as: fx.admin,
+        payload: { title, participantIds: [fx.users.viewer.id] },
+      })
+      expect(meeting.statusCode, meeting.body).toBe(200)
+      const started = await call(fx.app, {
+        method: 'POST',
+        url: `/meetings/${meeting.json().id}/recording/start`,
+        as: fx.admin,
+      })
+      expect(started.statusCode, started.body).toBe(200)
+      // Название записи совпадает с названием встречи — по нему её ищут
+      return { id: started.json().id, title }
+    },
+    readPaths: ['/recordings/:id', '/recordings/:id/transcript'],
+    viewerForbidden: (_fx, id) => [{ method: 'POST', url: `/recordings/${id}/stop` }],
   },
 }
 
 let fx: TestContext
 
 beforeAll(async () => {
+  // Ключи медиасервера — как в установке со встречами: иначе типы `meeting` и
+  // `recording` завести нечем (ADR-0089, ADR-0092)
+  process.env.LIVEKIT_URL = 'ws://127.0.0.1:7880'
+  process.env.LIVEKIT_API_KEY = 'matrix_key'
+  process.env.LIVEKIT_API_SECRET = 'matrix_secret_at_least_32_characters_long'
+  resetConfigCache()
   fx = await setupFixture()
 })
 

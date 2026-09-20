@@ -82,6 +82,12 @@ async def report_document_pdf(version_id: str, payload: dict[str, Any]) -> dict[
     return await _post_strict(f"/api/v1/internal/documents/versions/{version_id}/pdf", payload)
 
 
+async def report_transcript(recording_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    """Сегменты расшифровки записи встречи; хранит их модуль встреч (ADR-0092)."""
+    path = f"/api/v1/internal/meetings/recordings/{recording_id}/transcript"
+    return await _post_strict(path, payload)
+
+
 async def report_users_import_parsed(job_id: str, payload: dict[str, Any]) -> dict[str, Any]:
     """Строки файла импорта пользователей; API ставит проверку и создание (ADR-0041)."""
     return await _post_strict(f"/api/v1/internal/users-import/{job_id}/parsed", payload)

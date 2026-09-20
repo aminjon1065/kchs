@@ -17,6 +17,7 @@ from kchs_engine.jobs import demo as _demo  # noqa: F401
 from kchs_engine.jobs import documents as _documents  # noqa: F401
 from kchs_engine.jobs import echo as _echo  # noqa: F401
 from kchs_engine.jobs import files as _files  # noqa: F401
+from kchs_engine.jobs import media as _media  # noqa: F401
 from kchs_engine.jobs import users_import as _users_import  # noqa: F401
 from kchs_engine.logging import log
 from kchs_engine.render import documents as _documents_render  # noqa: F401

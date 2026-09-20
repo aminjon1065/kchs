@@ -30,6 +30,18 @@ class Settings(BaseSettings):
     ENGINE_PORT: int = 8000
     ENGINE_CONCURRENCY: int = 4
 
+    # Расшифровка записей встреч (ADR-0092): faster-whisper. Пустая модель —
+    # функция выключена, api получает «недоступно» и не ждёт расшифровку.
+    # Имя модели: `small`, `medium`, `large-v3` или путь к каталогу CTranslate2.
+    ENGINE_TRANSCRIBE_MODEL: str = ""
+    ENGINE_TRANSCRIBE_DEVICE: str = "cpu"
+    # int8 — вчетверо меньше памяти при близком качестве на процессоре
+    ENGINE_TRANSCRIBE_COMPUTE: str = "int8"
+    # Пусто — язык определяется по первым секундам записи (ru/tg/en)
+    ENGINE_TRANSCRIBE_LANGUAGE: str = ""
+    # Предел одной расшифровки, с: длинная встреча не занимает воркер навсегда
+    ENGINE_TRANSCRIBE_TIMEOUT_S: int = 7200
+
     # Печать отчётов (ADR-0078): адрес веба, который открывает Chromium движка
     # (страница `/print/report/<запуск>`), и сколько страниц печатается сразу
     KCHS_WEB_URL: str = "http://localhost:5173"

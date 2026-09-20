@@ -1,5 +1,5 @@
-import { index, pgTable, primaryKey, text, uuid } from 'drizzle-orm/pg-core'
-import { createdAt, jsonbObject, tsCol, updatedAt } from './_shared.js'
+import { bigint, index, integer, pgTable, primaryKey, text, uuid } from 'drizzle-orm/pg-core'
+import { createdAt, jsonbArray, jsonbObject, tsCol, updatedAt } from './_shared.js'
 import { users } from './identity.js'
 import { objects } from './kernel.js'
 
@@ -61,4 +61,69 @@ export const meetingParticipants = pgTable(
     primaryKey({ columns: [t.meetingId, t.userId] }),
     index('meeting_participants_user_idx').on(t.userId),
   ],
+)
+
+/**
+ * Запись встречи (05-data-model.md §Коммуникации, ADR-0092): объект реестра
+ * `recording` — ребёнок встречи, поэтому её видит тот, кто видит встречу.
+ * Медиафайл — обычный файл реестра (`file_id`), прикреплённый к записи;
+ * `egress_id` и `storage_key` — координаты задания медиасервера и его файла.
+ */
+export const recordings = pgTable(
+  'recordings',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .references(() => objects.id, { onDelete: 'cascade' }),
+    meetingId: uuid('meeting_id')
+      .notNull()
+      .references(() => meetings.id, { onDelete: 'cascade' }),
+    /** `starting` → `active` → `processing` → `ready`; `failed` — сбой медиасервера. */
+    status: text('status').notNull().default('starting'),
+    /** Задание Egress: по нему находится запись, когда приходит вебхук. */
+    egressId: text('egress_id').unique(),
+    /** Ключ файла в бакете файлов — выдаётся заранее, туда пишет медиасервер. */
+    storageKey: text('storage_key').notNull(),
+    /** Файл реестра с записью — появляется, когда медиасервер её доложил. */
+    fileId: uuid('file_id'),
+    durationS: integer('duration_s'),
+    sizeBytes: bigint('size_bytes', { mode: 'number' }),
+    /** `off` | `queued` | `running` | `ready` | `unavailable` | `failed`. */
+    transcriptStatus: text('transcript_status').notNull().default('off'),
+    error: text('error'),
+    startedBy: uuid('started_by').references(() => users.id, { onDelete: 'set null' }),
+    startedAt: tsCol('started_at'),
+    endedAt: tsCol('ended_at'),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index('recordings_meeting_idx').on(t.meetingId, t.createdAt),
+    index('recordings_status_idx').on(t.status),
+  ],
+)
+
+/**
+ * Расшифровка записи: сегменты с таймкодами (и спикерами, если диаризация
+ * доступна) — клик по фразе перематывает плеер. `summary` заполнит черновик
+ * протокола следующей историей.
+ */
+export const transcripts = pgTable(
+  'transcripts',
+  {
+    id: uuid('id').primaryKey(),
+    recordingId: uuid('recording_id')
+      .notNull()
+      .unique()
+      .references(() => recordings.id, { onDelete: 'cascade' }),
+    language: text('language'),
+    model: text('model'),
+    durationS: integer('duration_s'),
+    segments: jsonbArray<{ start: number; end: number; text: string; speaker: string | null }>(
+      'segments',
+    ),
+    summary: jsonbObject('summary'),
+    createdAt: createdAt(),
+  },
+  (t) => [index('transcripts_recording_idx').on(t.recordingId)],
 )
