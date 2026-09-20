@@ -24,6 +24,7 @@ import {
   DatasetFieldInput,
   DatasetFieldPatch,
   DatasetPolicies,
+  DatasetQuality,
   DatasetRecord,
   DatasetRow,
   DatasetRowHistoryEntry,
@@ -47,6 +48,7 @@ import {
   MetricValue,
   MetricValueInput,
   type ObjectSummary,
+  QualityRulesInput,
   QueryResult,
   QueryRunInput,
   SqlRunInput,
@@ -61,6 +63,7 @@ import { registerSubscriber } from '~/kernel/events/bus.js'
 import { registerJobHandler } from '~/kernel/jobs/runner.js'
 import { JobService } from '~/kernel/jobs/service.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
+import { systemCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { datasetFields, datasets, objects } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
@@ -88,6 +91,7 @@ import {
 import { MetricService } from './domain/metric-service.js'
 import { PolicyService } from './domain/policy-service.js'
 import { ProfileService } from './domain/profile-service.js'
+import { QualityService } from './domain/quality-service.js'
 import { QueryService } from './domain/query-service.js'
 import { RollbackService } from './domain/rollback-service.js'
 import { RowService } from './domain/row-service.js'
@@ -266,6 +270,39 @@ export function registerDataRoutes(route: RouteRegistrar): void {
       )
       return { id }
     },
+  })
+
+  route({
+    method: 'GET',
+    url: '/datasets/:id/quality',
+    auth: 'session',
+    tags: ['data'],
+    summary: 'Качество данных: правила и последняя проверка (ADR-0101)',
+    schema: { params: IdParam, response: { 200: DatasetQuality } },
+    handler: async (request) => QualityService.get(request.ctx, request.params.id),
+  })
+
+  route({
+    method: 'PUT',
+    url: '/datasets/:id/quality/rules',
+    auth: 'session',
+    tags: ['data'],
+    summary: 'Правила качества датасета: замена набора (уровень manage)',
+    schema: { params: IdParam, body: QualityRulesInput, response: { 200: DatasetQuality } },
+    handler: async (request) => {
+      await QualityService.setRules(request.ctx, request.params.id, request.body.rules)
+      return QualityService.get(request.ctx, request.params.id)
+    },
+  })
+
+  route({
+    method: 'POST',
+    url: '/datasets/:id/quality/run',
+    auth: 'session',
+    tags: ['data'],
+    summary: 'Проверить качество сейчас',
+    schema: { params: IdParam, response: { 200: DatasetQuality } },
+    handler: async (request) => QualityService.run(request.ctx, request.params.id),
   })
 
   route({
@@ -1012,6 +1049,30 @@ export function registerDataBackground(): void {
     name: EXPORT_JOB.name,
     concurrency: 2,
     handle: async (job, helpers) => ExportService.run(job.data as ExportJobData, helpers),
+  })
+
+  registerJobHandler({
+    queue: 'index',
+    name: 'data.quality-check',
+    concurrency: 2,
+    handle: async (job) => ({ status: await QualityService.check(String(job.data.datasetId)) }),
+  })
+
+  // Новая версия — повод проверить качество (ADR-0101): считаем заданием,
+  // чтобы шина событий не ждала запросов по всей таблице
+  registerSubscriber({
+    name: 'data-quality',
+    types: ['dataset.version_created'],
+    handle: async (event) => {
+      if (!event.object) return
+      await JobService.enqueue(systemCtx('data.quality'), {
+        queue: 'index',
+        name: 'data.quality-check',
+        data: { datasetId: event.object.id },
+        objectId: event.object.id,
+        idempotencyKey: `data.quality-check:${event.id}`,
+      })
+    },
   })
 
   registerSubscriber({

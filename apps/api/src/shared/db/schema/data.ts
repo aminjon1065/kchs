@@ -388,3 +388,43 @@ export const reportRuns = pgTable(
     index('report_runs_run_as_idx').on(t.runAs, t.createdAt),
   ],
 )
+
+/**
+ * Правила качества датасета (06-analytics-engine.md §15, ADR-0101): ожидания
+ * от данных, которые проверяются при каждой новой версии.
+ */
+export const datasetQualityRules = pgTable(
+  'dataset_quality_rules',
+  {
+    id: uuid('id').primaryKey(),
+    datasetId: uuid('dataset_id')
+      .notNull()
+      .references(() => datasets.id, { onDelete: 'cascade' }),
+    key: text('key').notNull(),
+    kind: text('kind').notNull(),
+    /** Поле датасета; у правила на число строк поля нет. */
+    field: text('field'),
+    params: jsonbObject('params'),
+    severity: text('severity').notNull().default('error'),
+    enabled: boolean('enabled').notNull().default(true),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex('dataset_quality_rules_key_uq').on(t.datasetId, t.key)],
+)
+
+/** Итог проверки качества на версии датасета: последний виден в карточке. */
+export const datasetQualityRuns = pgTable(
+  'dataset_quality_runs',
+  {
+    id: uuid('id').primaryKey(),
+    datasetId: uuid('dataset_id')
+      .notNull()
+      .references(() => datasets.id, { onDelete: 'cascade' }),
+    version: integer('version').notNull(),
+    status: text('status').notNull(),
+    results: jsonbArray('results'),
+    checkedAt: createdAt(),
+  },
+  (t) => [index('dataset_quality_runs_idx').on(t.datasetId, t.checkedAt)],
+)

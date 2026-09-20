@@ -1523,6 +1523,7 @@ export const en: DeepPartial<Dictionary> = {
     card: {
       sections: 'Card sections',
       tabs: {
+        quality: 'Quality',
         card: 'Card',
         files: 'Files and versions',
         route: 'Route',
@@ -3103,6 +3104,39 @@ export const en: DeepPartial<Dictionary> = {
     },
   },
   data: {
+    quality: {
+      rules: 'Quality rules',
+      addRule: 'Add a rule',
+      key: 'Key',
+      kind: 'Kind',
+      field: 'Field',
+      severity: 'Severity',
+      run: 'Check now',
+      saved: 'Rules saved',
+      empty: 'No quality rules yet',
+      emptyHint: 'Describe what you expect from the data — checks run on every new version',
+      checkedAt: 'Checked {when}, version {version}',
+      ruleOk: 'Holds',
+      ruleFailed: 'Does not hold',
+      statuses: {
+        unknown: 'Not checked',
+        ok: 'Quality is fine',
+        warning: 'Has remarks',
+        failed: 'Has violations',
+      },
+      severities: { error: 'Violation', warning: 'Remark' },
+      kinds: {
+        not_null: 'Value is required',
+        unique: 'Values do not repeat',
+        range: 'Number within range',
+        regex: 'Matches a pattern',
+        in_set: 'Value from a set',
+        referential: 'Exists in the reference',
+        geometry_valid: 'Geometry is valid',
+        freshness: 'Data is fresh',
+        row_count_delta: 'Row count did not drop',
+      },
+    },
     fields: { rows: 'Rows' },
     systemDatasets: {
       tasks: 'Tasks',

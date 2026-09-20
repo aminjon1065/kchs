@@ -47,6 +47,7 @@ import { AnalysisDialog } from './analysis-dialog.js'
 import { DatasetTable } from './dataset-table.js'
 import { ImportChanges } from './import-review.js'
 import { ImportWizard } from './import-wizard.js'
+import { QualityTab } from './quality-tab.js'
 import {
   aiStatusQuery,
   dataKeys,
@@ -232,6 +233,7 @@ export function DatasetView({ objectId, tabId }: { objectId: string; tabId: stri
           </TabsTrigger>
           <TabsTrigger value="versions">{t('data.dataset.tabs.versions')}</TabsTrigger>
           <TabsTrigger value="imports">{t('data.dataset.tabs.imports')}</TabsTrigger>
+          <TabsTrigger value="quality">{t('data.dataset.tabs.quality')}</TabsTrigger>
           {canManage ? (
             <TabsTrigger value="access">{t('data.dataset.tabs.access')}</TabsTrigger>
           ) : null}
@@ -257,6 +259,9 @@ export function DatasetView({ objectId, tabId }: { objectId: string; tabId: stri
         ) : null}
         <TabsContent value="imports" className="min-h-0 flex-1 overflow-y-auto bg-canvas p-5">
           <ImportsTab dataset={dataset} canEdit={canEdit} />
+        </TabsContent>
+        <TabsContent value="quality" className="min-h-0 flex-1 overflow-y-auto bg-canvas p-5">
+          <QualityTab dataset={dataset} />
         </TabsContent>
       </Tabs>
 

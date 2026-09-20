@@ -1553,6 +1553,7 @@ export const ru = {
     card: {
       sections: 'Разделы карточки',
       tabs: {
+        quality: 'Качество',
         card: 'Карточка',
         files: 'Файлы и версии',
         route: 'Маршрут',
@@ -3147,6 +3148,39 @@ export const ru = {
     },
   },
   data: {
+    quality: {
+      rules: 'Правила качества',
+      addRule: 'Добавить правило',
+      key: 'Ключ',
+      kind: 'Вид',
+      field: 'Поле',
+      severity: 'Важность',
+      run: 'Проверить сейчас',
+      saved: 'Правила сохранены',
+      empty: 'Правил качества нет',
+      emptyHint: 'Опишите ожидания от данных — проверка пойдёт при каждой новой версии',
+      checkedAt: 'Проверено {when}, версия {version}',
+      ruleOk: 'Выполняется',
+      ruleFailed: 'Не выполняется',
+      statuses: {
+        unknown: 'Не проверялось',
+        ok: 'Качество в норме',
+        warning: 'Есть замечания',
+        failed: 'Есть нарушения',
+      },
+      severities: { error: 'Нарушение', warning: 'Замечание' },
+      kinds: {
+        not_null: 'Значение обязательно',
+        unique: 'Значения не повторяются',
+        range: 'Число в диапазоне',
+        regex: 'Соответствие шаблону',
+        in_set: 'Значение из набора',
+        referential: 'Есть в справочнике',
+        geometry_valid: 'Геометрия корректна',
+        freshness: 'Данные свежие',
+        row_count_delta: 'Строк не стало меньше',
+      },
+    },
     fields: { rows: 'Строк' },
     systemDatasets: {
       tasks: 'Задачи',

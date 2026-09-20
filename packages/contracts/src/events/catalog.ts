@@ -171,6 +171,14 @@ export const EVENT_PAYLOADS = {
     count: z.number().int(),
   }),
   'dataset.version_created': z.object({ version: z.number().int(), origin: z.string() }),
+  /** Правила качества датасета изменены (ADR-0101). */
+  'dataset.quality_rules_changed': z.object({ rules: z.number().int() }),
+  /** Проверка качества прошла: статус версии и сколько правил не выполнилось. */
+  'dataset.quality_checked': z.object({
+    version: z.number().int(),
+    status: z.enum(['unknown', 'ok', 'warning', 'failed']),
+    failed: z.number().int(),
+  }),
   'dataset.rolled_back': z.object({
     version: z.number().int(),
     target: z.number().int(),
