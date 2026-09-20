@@ -110,6 +110,9 @@ export interface MeetingRoomApi {
 export function useMeetingRoom(options: MeetingRoomOptions): MeetingRoomApi {
   const { join, refreshToken, onSignal, startWithVideo = false } = options
   const roomRef = useRef<Room | null>(null)
+  /** Токен подключённой комнаты: по нему эффект узнаёт «ту же» комнату. */
+  const tokenRef = useRef<string | null>(null)
+  const closeTimer = useRef<number | null>(null)
   const signalRef = useRef(onSignal)
   signalRef.current = onSignal
 
@@ -128,13 +131,37 @@ export function useMeetingRoom(options: MeetingRoomOptions): MeetingRoomApi {
 
   const refresh = useCallback(() => bump((value) => value + 1), [])
 
-  // Подключение: комната пересоздаётся на каждый токен — переподключение с
-  // новым токеном не тянет за собой состояние прежнего
+  /**
+   * Отключение откладывается: в строгом режиме React эффект выполняется
+   * дважды, а второй вход той же личностью заставляет медиасервер «переезжать»
+   * и рвёт публикацию дорожек. Пауза даёт повторному проходу вернуть комнату.
+   */
+  const closeLater = useCallback(() => {
+    closeTimer.current = window.setTimeout(() => {
+      closeTimer.current = null
+      const room = roomRef.current
+      roomRef.current = null
+      tokenRef.current = null
+      room?.removeAllListeners()
+      void room?.disconnect()
+    }, 300)
+  }, [])
+
+  // Подключение: комната создаётся один раз на токен — новый токен (гость,
+  // переподключение) поднимает новую, состояние прежней с собой не тянет
   useEffect(() => {
     if (!token?.token || !token.url) return
-    let cancelled = false
+    if (closeTimer.current !== null) {
+      window.clearTimeout(closeTimer.current)
+      closeTimer.current = null
+    }
+    if (roomRef.current && tokenRef.current === token.token) return closeLater
+
     const room = new Room({ adaptiveStream: true, dynacast: true })
     roomRef.current = room
+    tokenRef.current = token.token
+    /** Комната ещё наша: иначе её сменили новым токеном или закрыли. */
+    const current = () => roomRef.current === room
 
     const onQuality = () => refresh()
     const onData = (payload: Uint8Array, participant?: RemoteParticipant) => {
@@ -184,11 +211,9 @@ export function useMeetingRoom(options: MeetingRoomOptions): MeetingRoomApi {
     room.on(RoomEvent.ConnectionQualityChanged, onQuality)
     room.on(RoomEvent.DataReceived, onData)
     room.on(RoomEvent.MediaDevicesChanged, () => void loadDevices())
-    room.on(RoomEvent.Reconnecting, () => setState('reconnecting'))
-    room.on(RoomEvent.Reconnected, () => setState('connected'))
-    room.on(RoomEvent.Disconnected, () => {
-      if (!cancelled) setState('disconnected')
-    })
+    room.on(RoomEvent.Reconnecting, () => current() && setState('reconnecting'))
+    room.on(RoomEvent.Reconnected, () => current() && setState('connected'))
+    room.on(RoomEvent.Disconnected, () => current() && setState('disconnected'))
 
     const loadDevices = async (): Promise<void> => {
       try {
@@ -197,7 +222,7 @@ export function useMeetingRoom(options: MeetingRoomOptions): MeetingRoomApi {
           Room.getLocalDevices('videoinput'),
           Room.getLocalDevices('audiooutput'),
         ])
-        if (!cancelled) setDevices({ audioinput, videoinput, audiooutput })
+        if (current()) setDevices({ audioinput, videoinput, audiooutput })
       } catch {
         // список устройств недоступен без разрешения — не мешает входу
       }
@@ -208,29 +233,32 @@ export function useMeetingRoom(options: MeetingRoomOptions): MeetingRoomApi {
     void (async () => {
       try {
         await room.connect(token.url, token.token)
-        if (cancelled) return
+        if (!current()) return
         setState('connected')
-        // Микрофон включается сразу, камера — по желанию: так вход тише
-        await room.localParticipant.setMicrophoneEnabled(true).catch(() => undefined)
+        // Микрофон включается сразу, камера — по желанию: так вход тише.
+        // Публикация не ждётся: при плохой сети она может тянуться долго, а
+        // комната должна быть видна сразу — состояние обновят события дорожек
+        void room.localParticipant
+          .setMicrophoneEnabled(true)
+          .then(refresh)
+          .catch(() => undefined)
         if (startWithVideo) {
-          await room.localParticipant.setCameraEnabled(true).catch(() => undefined)
+          void room.localParticipant
+            .setCameraEnabled(true)
+            .then(refresh)
+            .catch(() => undefined)
         }
         await loadDevices()
         refresh()
       } catch (cause) {
-        if (cancelled) return
+        if (!current()) return
         setState('error')
         setError(cause instanceof Error ? cause.message : String(cause))
       }
     })()
 
-    return () => {
-      cancelled = true
-      room.removeAllListeners()
-      void room.disconnect()
-      if (roomRef.current === room) roomRef.current = null
-    }
-  }, [token, refresh, startWithVideo])
+    return closeLater
+  }, [token, refresh, startWithVideo, closeLater])
 
   const publish = useCallback((signal: MeetingSignal) => {
     const room = roomRef.current

@@ -181,7 +181,8 @@ export function MeetingRoom({
         layout={layout}
         onLayout={setLayout}
         panel={guest ? 'none' : panel}
-        onPanel={guest ? () => undefined : setPanel}
+        onPanel={setPanel}
+        canPanels={!guest}
         canShowToAll={!guest}
         onShowToAll={() => setShowOpen(true)}
         canEnd={Boolean(onEnd) && Boolean(meeting?.can.end)}

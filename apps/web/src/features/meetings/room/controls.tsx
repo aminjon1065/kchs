@@ -46,6 +46,7 @@ export function RoomControls({
   onLayout,
   panel,
   onPanel,
+  canPanels,
   canShowToAll,
   onShowToAll,
   canEnd,
@@ -57,6 +58,8 @@ export function RoomControls({
   onLayout: (next: RoomLayout) => void
   panel: SidePanel
   onPanel: (next: SidePanel) => void
+  /** Участники и чат встречи — только своим: у гостя доступа к ним нет. */
+  canPanels: boolean
   canShowToAll: boolean
   onShowToAll: () => void
   canEnd: boolean
@@ -172,22 +175,25 @@ export function RoomControls({
         <Columns2 className="size-4" />
       </LayoutButton>
 
-      <div className="mx-1 h-6 w-px bg-line" aria-hidden />
-
-      <LayoutButton
-        active={panel === 'people'}
-        label={t('meetings.room.people')}
-        onClick={() => onPanel(panel === 'people' ? 'none' : 'people')}
-      >
-        <Users className="size-4" />
-      </LayoutButton>
-      <LayoutButton
-        active={panel === 'chat'}
-        label={t('meetings.room.chat')}
-        onClick={() => onPanel(panel === 'chat' ? 'none' : 'chat')}
-      >
-        <MessageSquare className="size-4" />
-      </LayoutButton>
+      {canPanels ? (
+        <>
+          <div className="mx-1 h-6 w-px bg-line" aria-hidden />
+          <LayoutButton
+            active={panel === 'people'}
+            label={t('meetings.room.people')}
+            onClick={() => onPanel(panel === 'people' ? 'none' : 'people')}
+          >
+            <Users className="size-4" />
+          </LayoutButton>
+          <LayoutButton
+            active={panel === 'chat'}
+            label={t('meetings.room.chat')}
+            onClick={() => onPanel(panel === 'chat' ? 'none' : 'chat')}
+          >
+            <MessageSquare className="size-4" />
+          </LayoutButton>
+        </>
+      ) : null}
 
       <div className="ml-auto flex items-center gap-2">
         {canEnd ? (
