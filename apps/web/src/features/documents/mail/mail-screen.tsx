@@ -339,7 +339,7 @@ function MailDetail({ item }: { item: MailMessageRecord }) {
             },
             {
               key: 'correspondent',
-              label: t('documents.correspondents.one'),
+              label: t('documents.fields.correspondent'),
               value: item.correspondent ? (
                 item.correspondent.name
               ) : (

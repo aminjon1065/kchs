@@ -4236,6 +4236,7 @@ export const ru = {
         schema: 'Схема',
         versions: 'Версии',
         imports: 'Импорты',
+        quality: 'Качество',
         access: 'Доступ',
       },
       schema: {
