@@ -1,0 +1,82 @@
+import type { FormEscalation } from '@kchs/contracts'
+import {
+  type DayKindOf,
+  localDate,
+  shiftWorkingDays,
+  startOfLocalDay,
+} from '~/kernel/business-calendar/working-days.js'
+
+/**
+ * Этапы контроля сдачи (06-analytics-engine.md §13, ADR-0103) — чистые функции.
+ * Напоминание приходит утром дня срока, просрочка — по его наступлении,
+ * эскалация руководителю — через заданное число рабочих дней после срока.
+ * Правило то же, что у поручений (ADR-0082), но этапов три: сводку сдают
+ * коротким циклом, и «за 3 дня» для ежедневной формы бессмысленно.
+ */
+
+export const FORM_STAGES = ['due_soon', 'overdue', 'escalated'] as const
+export type FormStage = (typeof FORM_STAGES)[number]
+
+/** Утро дня: напоминания приходят к началу рабочего дня, а не ночью. */
+const MORNING_HOUR = 9
+const HOUR_MS = 3_600_000
+
+export interface StageMoments {
+  dueDate: string
+  due_soon: Date
+  overdue: Date
+  escalated: Date
+}
+
+export function stageMoments(
+  dueAt: Date,
+  timezone: string,
+  kindOf: DayKindOf,
+  escalation: FormEscalation,
+): StageMoments {
+  const dueDate = localDate(dueAt, timezone)
+  const morning = (day: string) =>
+    new Date(startOfLocalDay(day, timezone).getTime() + MORNING_HOUR * HOUR_MS)
+  const escalationDay = shiftWorkingDays(dueDate, Math.max(escalation.afterWorkingDays, 0), kindOf)
+  const escalated = new Date(Math.max(morning(escalationDay).getTime(), dueAt.getTime() + 1))
+  return {
+    dueDate,
+    // Срок раньше утра (сводка к 08:00) — напоминание не опережает сам срок
+    due_soon: new Date(Math.min(morning(dueDate).getTime(), dueAt.getTime() - 1)),
+    overdue: dueAt,
+    escalated,
+  }
+}
+
+export interface StagePlan {
+  fire: FormStage[]
+  /** Наступившие, но устаревшие этапы: отмечаются без отправки. */
+  skip: FormStage[]
+}
+
+/**
+ * Что отправить сейчас. Напоминание до срока не шлётся, если срок уже прошёл:
+  * воркер мог стоять, и «сдайте сегодня» после просрочки только путает.
+ */
+export function planStages(
+  facts: { dueAt: Date; done: ReadonlySet<FormStage> },
+  now: Date,
+  timezone: string,
+  kindOf: DayKindOf,
+  escalation: FormEscalation,
+): StagePlan {
+  const moments = stageMoments(facts.dueAt, timezone, kindOf, escalation)
+  const at = now.getTime()
+  const fire: FormStage[] = []
+  const skip: FormStage[] = []
+
+  if (!facts.done.has('due_soon') && at >= moments.due_soon.getTime()) {
+    if (at < moments.overdue.getTime()) fire.push('due_soon')
+    else skip.push('due_soon')
+  }
+  if (!facts.done.has('overdue') && at >= moments.overdue.getTime()) fire.push('overdue')
+  if (escalation.enabled && !facts.done.has('escalated') && at >= moments.escalated.getTime()) {
+    fire.push('escalated')
+  }
+  return { fire, skip }
+}

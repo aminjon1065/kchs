@@ -30,6 +30,8 @@ export const INBOX_KINDS = [
   'extend_due',
   /** Подошёл срок пересмотра страницы базы знаний: проверить и опубликовать (ADR-0095). */
   'review_page',
+  /** Сводка формы сдана: принять или вернуть с комментарием (ADR-0103). */
+  'review_form',
 ] as const
 export const InboxKind = z.enum(INBOX_KINDS)
 export type InboxKind = z.infer<typeof InboxKind>

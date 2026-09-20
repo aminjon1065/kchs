@@ -10,6 +10,12 @@ import type { RouteRegistrar } from '~/shared/http/route.js'
 import { registerAdminRoutes } from './admin/module.js'
 import { registerAiRoutes } from './ai/module.js'
 import {
+  registerAlertObjectTypes,
+  registerAlertRoutes,
+  registerAlertsBackground,
+  scheduleAlertJobs,
+} from './alerts/module.js'
+import {
   registerAutomationBackground,
   registerAutomationObjectTypes,
   registerAutomationRoutes,
@@ -39,6 +45,12 @@ import {
   registerFilesRoutes,
   scheduleFilesJobs,
 } from './files/module.js'
+import {
+  registerFormObjectTypes,
+  registerFormRoutes,
+  registerFormsBackground,
+  scheduleFormsJobs,
+} from './forms/module.js'
 import { registerGisBackground, registerGisObjectTypes, registerGisRoutes } from './gis/module.js'
 import { registerIdentityBackground, registerIdentityRoutes } from './identity/module.js'
 import { AuthService, DirectoryQueries, OrgService, UserService } from './identity/public.js'
@@ -109,6 +121,9 @@ export function registerAllObjectTypes(): void {
   registerIntegrationsObjectTypes()
   // Правила автоматизации (ADR-0096): тип `rule` — объект реестра
   registerAutomationObjectTypes()
+  // Формы сбора данных (ADR-0103) и алерты на показатели (ADR-0104)
+  registerFormObjectTypes()
+  registerAlertObjectTypes()
   registerDirectory()
   // Каналы уведомлений модулей: ядро доставляет через них в любой роли процесса
   registerTelegramChannel()
@@ -158,6 +173,8 @@ export async function registerModules(app: FastifyInstance, route: RouteRegistra
   registerIntegrationsRoutes(route)
   registerAiRoutes(route)
   registerAutomationRoutes(route)
+  registerFormRoutes(route)
+  registerAlertRoutes(route)
   registerAdminRoutes(route)
   app.log.debug('модули зарегистрированы')
 }
@@ -177,6 +194,8 @@ export function registerModulesBackground(): void {
   registerKnowledgeBackground()
   registerIntegrationsBackground()
   registerAutomationBackground()
+  registerFormsBackground()
+  registerAlertsBackground()
 }
 
 export async function scheduleModuleJobs(): Promise<void> {
@@ -188,6 +207,8 @@ export async function scheduleModuleJobs(): Promise<void> {
   await scheduleKnowledgeJobs()
   await scheduleIntegrationsJobs()
   await scheduleAutomationJobs()
+  scheduleFormsJobs()
+  scheduleAlertJobs()
 }
 
 /** Долгоживущие процессы модулей в роли worker: опрос Telegram-бота (ADR-0061). */
