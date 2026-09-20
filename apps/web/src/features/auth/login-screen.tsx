@@ -19,11 +19,16 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
   const locale = useAppearance((s) => s.locale)
   const setLocale = useAppearance((s) => s.setLocale)
 
+  // Провайдер вернул отказ (`?sso=denied`, ADR-0098) — говорим об этом сразу
+  const deniedBySso =
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('sso') === 'denied'
+
   const [step, setStep] = useState<Step>('credentials')
   const [login, setLogin] = useState('')
   const [password, setPassword] = useState('')
   const [code, setCode] = useState('')
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(deniedBySso ? t('auth.signIn.ssoDenied') : null)
   const [resetSent, setResetSent] = useState(false)
   const [factors, setFactors] = useState<Factor[]>(['totp'])
 

@@ -1,5 +1,4 @@
 import {
-  DirectorySettings,
   DirectorySettingsInput,
   DirectoryState,
   DirectorySyncRun,
@@ -114,16 +113,6 @@ export function registerDirectoryRoutes(route: RouteRegistrar): void {
       response: { 200: z.object({ items: z.array(DirectorySyncRun) }) },
     },
     handler: async (request) => ({ items: await DirectorySync.history(request.query.limit) }),
-  })
-
-  route({
-    method: 'GET',
-    url: '/admin/directory/defaults',
-    auth: { capability: 'admin.system' },
-    tags: ['admin'],
-    summary: 'Значения настройки каталога по умолчанию',
-    schema: { response: { 200: DirectorySettings } },
-    handler: async () => DirectorySettings.parse({}),
   })
 }
 

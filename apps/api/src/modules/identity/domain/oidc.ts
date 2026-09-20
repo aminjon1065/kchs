@@ -7,7 +7,13 @@ import { config } from '~/shared/config/index.js'
 import { systemCtx } from '~/shared/context.js'
 import { decryptSecret, encryptSecret, hashToken } from '~/shared/crypto/secrets.js'
 import { db } from '~/shared/db/client.js'
-import { roles, ssoAuthRequests, ssoIdentities, users } from '~/shared/db/schema/index.js'
+import {
+  roles,
+  ssoAuthRequests,
+  ssoIdentities,
+  userRoles,
+  users,
+} from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId, randomToken } from '~/shared/ids.js'
 import { AuthProviders, OIDC_PROVIDER } from './auth-providers.js'
@@ -286,14 +292,10 @@ async function resolveUser(
 
   if (identity) {
     await assertActive(identity.userId, meta)
-    if (roleKeys.length > 0) {
-      await db().transaction((tx) =>
-        UserService.patch(tx, sys, identity.userId, {
-          ...(email ? { email } : {}),
-          roleKeys,
-        }),
-      )
-    }
+    // Правка — только при настоящем изменении: иначе каждый вход писал бы в
+    // аудит смену ролей и публиковал событие обновления пользователя
+    const patch = await changedFields(identity.userId, { email, roleKeys })
+    if (patch) await db().transaction((tx) => UserService.patch(tx, sys, identity.userId, patch))
     return identity.userId
   }
 
@@ -345,6 +347,36 @@ async function resolveUser(
   })
   await link(id, subject, claims, sys)
   return id
+}
+
+/**
+ * Что действительно меняется у уже связанного сотрудника: почта и набор ролей.
+ * Ничего не изменилось — `null`, и запись в базу не идёт.
+ */
+async function changedFields(
+  userId: string,
+  next: { email: string | null; roleKeys: string[] },
+): Promise<{ email?: string; roleKeys?: string[] } | null> {
+  const [current] = await db()
+    .select({ email: users.email })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1)
+  const currentRoles = (
+    await db()
+      .select({ key: roles.key })
+      .from(userRoles)
+      .innerJoin(roles, eq(roles.id, userRoles.roleId))
+      .where(eq(userRoles.userId, userId))
+  ).map((row) => row.key)
+
+  const patch: { email?: string; roleKeys?: string[] } = {}
+  if (next.email && next.email !== current?.email) patch.email = next.email
+  const wanted = [...next.roleKeys].sort()
+  if (wanted.length > 0 && wanted.join(',') !== [...currentRoles].sort().join(',')) {
+    patch.roleKeys = next.roleKeys
+  }
+  return Object.keys(patch).length > 0 ? patch : null
 }
 
 async function link(
