@@ -34,8 +34,10 @@ export function OfficeEditorScreen({ fileId, tabId }: { fileId: string; tabId: s
     queryKey: ['files', 'office', 'session', fileId],
     queryFn: () => openOfficeSession(fileId),
     retry: false,
-    // Сессия живёт часами, но вкладку открывают заново — тогда и спрашиваем
-    staleTime: Number.POSITIVE_INFINITY,
+    // Сессия привязана к версии файла: за закрытой вкладкой версия могла
+    // смениться, поэтому при каждом открытии спрашиваем заново, а не из кэша
+    staleTime: 0,
+    gcTime: 0,
     refetchOnWindowFocus: false,
   })
 
@@ -96,7 +98,7 @@ export function OfficeEditorScreen({ fileId, tabId }: { fileId: string; tabId: s
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <section aria-label={t('files.office.title')} className="flex h-full min-h-0 flex-col">
       <PanelToolbar
         left={
           <>
@@ -129,6 +131,6 @@ export function OfficeEditorScreen({ fileId, tabId }: { fileId: string; tabId: s
           className="min-h-0 w-full flex-1 border-0 bg-canvas"
         />
       )}
-    </div>
+    </section>
   )
 }

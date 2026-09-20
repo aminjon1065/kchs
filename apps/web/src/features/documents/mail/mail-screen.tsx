@@ -88,7 +88,7 @@ export function MailScreen() {
   })
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <section aria-label={t('documents.mail.title')} className="flex h-full min-h-0 flex-col">
       <PanelToolbar
         left={
           <>
@@ -182,7 +182,7 @@ export function MailScreen() {
           )}
         </div>
       </div>
-    </div>
+    </section>
   )
 }
 

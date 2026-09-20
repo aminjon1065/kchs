@@ -3,6 +3,7 @@ import {
   type Integration,
   type IntegrationCheckResult,
   type IntegrationKind,
+  type IntegrationSync,
   type Webhook,
   type WebhookStatus,
 } from '@kchs/contracts'
@@ -24,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
   Skeleton,
+  Switch,
   Textarea,
   useToast,
 } from '@kchs/ui'
@@ -46,6 +48,43 @@ const STATUS_TONES: Record<Integration['status'], 'success' | 'danger' | 'neutra
   unknown: 'neutral',
   disabled: 'neutral',
 }
+
+/**
+ * Заготовки конфигурации по виду службы: администратор правит готовые поля, а
+ * не вспоминает их имена. Ящик канцелярии (ADR-0113) — самый подробный случай.
+ */
+const CONFIG_TEMPLATES: Partial<Record<IntegrationKind, Record<string, unknown>>> = {
+  http: { url: 'https://' },
+  imap: {
+    host: 'imap.example.org',
+    port: 993,
+    secure: true,
+    user: 'office@example.org',
+    folder: 'INBOX',
+    pollMinutes: 10,
+    batchSize: 25,
+    markSeen: true,
+    runAsUserId: '00000000-0000-0000-0000-000000000000',
+    documentTypeKey: 'incoming_letter',
+    journalId: null,
+    filters: {
+      fromContains: [],
+      fromExcludes: ['noreply', 'no-reply'],
+      subjectContains: [],
+      requireAttachment: false,
+    },
+  },
+}
+
+const SECRET_TEMPLATES: Partial<Record<IntegrationKind, Record<string, string>>> = {
+  imap: { password: '' },
+  http: { token: '' },
+}
+
+const templateFor = (
+  templates: Partial<Record<IntegrationKind, Record<string, unknown>>>,
+  kind: IntegrationKind,
+): string => JSON.stringify(templates[kind] ?? {}, null, 2)
 
 const HOOK_TONES: Record<WebhookStatus, 'success' | 'warning' | 'danger'> = {
   active: 'success',
@@ -76,6 +115,7 @@ function IntegrationsList() {
   const locale = useAppearance((s) => s.locale)
   const { data: items = [], isLoading } = useQuery(integrationsQuery())
   const [creating, setCreating] = useState(false)
+  const [editing, setEditing] = useState<Integration | null>(null)
   const [inbound, setInbound] = useState<{ url: string } | null>(null)
 
   const refresh = () => void client.invalidateQueries({ queryKey: keys.integrations })
@@ -169,9 +209,14 @@ function IntegrationsList() {
                   {t('admin.integrations.check')}
                 </Button>
                 {item.source === 'object' ? (
-                  <Button variant="ghost" size="sm" onClick={() => issueInbound.mutate(item.id)}>
-                    {t('admin.integrations.inbound')}
-                  </Button>
+                  <>
+                    <Button variant="ghost" size="sm" onClick={() => setEditing(item)}>
+                      {t('admin.integrations.edit')}
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => issueInbound.mutate(item.id)}>
+                      {t('admin.integrations.inbound')}
+                    </Button>
+                  </>
                 ) : null}
               </div>
             </li>
@@ -188,6 +233,18 @@ function IntegrationsList() {
           refresh()
         }}
       />
+
+      {editing ? (
+        <EditIntegrationDialog
+          integration={editing}
+          onClose={() => setEditing(null)}
+          onSaved={() => {
+            setEditing(null)
+            toast.show({ title: t('admin.integrations.saved'), tone: 'success' })
+            refresh()
+          }}
+        />
+      ) : null}
 
       <Dialog
         open={inbound !== null}
@@ -226,18 +283,30 @@ function CreateIntegrationDialog({
   const [key, setKey] = useState('')
   const [name, setName] = useState('')
   const [kind, setKind] = useState<IntegrationKind>('http')
-  const [config, setConfig] = useState('{\n  "url": "https://"\n}')
+  const [config, setConfig] = useState(() => templateFor(CONFIG_TEMPLATES, 'http'))
+  const [secrets, setSecrets] = useState(() => templateFor(SECRET_TEMPLATES, 'http'))
   const [error, setError] = useState<string | null>(null)
+
+  const chooseKind = (next: IntegrationKind) => {
+    setKind(next)
+    setConfig(templateFor(CONFIG_TEMPLATES, next))
+    setSecrets(templateFor(SECRET_TEMPLATES, next))
+  }
 
   const create = useMutation({
     mutationFn: () => {
-      let parsed: Record<string, unknown> = {}
-      try {
-        parsed = JSON.parse(config) as Record<string, unknown>
-      } catch {
-        throw new Error(t('admin.integrations.badJson'))
-      }
-      return http.post<Integration>('/integrations', { key, kind, name, config: parsed })
+      const parsed = parseJson(config, t('admin.integrations.badJson'))
+      const parsedSecrets = parseJson(secrets, t('admin.integrations.badJson')) as Record<
+        string,
+        string
+      >
+      return http.post<Integration>('/integrations', {
+        key,
+        kind,
+        name,
+        config: parsed,
+        secrets: parsedSecrets,
+      })
     },
     onSuccess: () => {
       setKey('')
@@ -289,7 +358,7 @@ function CreateIntegrationDialog({
             <Input value={name} onChange={(event) => setName(event.target.value)} maxLength={160} />
           </Field>
           <Field label={t('admin.integrations.fields.kind')}>
-            <Select value={kind} onValueChange={(next) => setKind(next as IntegrationKind)}>
+            <Select value={kind} onValueChange={(next) => chooseKind(next as IntegrationKind)}>
               <SelectTrigger aria-label={t('admin.integrations.fields.kind')}>
                 <SelectValue />
               </SelectTrigger>
@@ -304,11 +373,182 @@ function CreateIntegrationDialog({
           </Field>
           <Field
             label={t('admin.integrations.fields.config')}
-            hint={t('admin.integrations.configHint')}
+            hint={
+              kind === 'imap'
+                ? t('admin.integrations.mailboxHint')
+                : t('admin.integrations.configHint')
+            }
           >
-            <Textarea value={config} onChange={(event) => setConfig(event.target.value)} rows={5} />
+            <Textarea
+              value={config}
+              onChange={(event) => setConfig(event.target.value)}
+              rows={kind === 'imap' ? 12 : 5}
+            />
+          </Field>
+          <Field
+            label={t('admin.integrations.fields.secrets')}
+            hint={t('admin.integrations.secretsHint')}
+          >
+            <Textarea
+              value={secrets}
+              onChange={(event) => setSecrets(event.target.value)}
+              rows={3}
+            />
           </Field>
         </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+/** Разбор JSON из поля формы: пустое — пустой объект, ломаное — понятная ошибка. */
+function parseJson(raw: string, message: string): Record<string, unknown> {
+  const text = raw.trim()
+  if (text.length === 0) return {}
+  try {
+    const parsed = JSON.parse(text) as unknown
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      throw new Error(message)
+    }
+    return parsed as Record<string, unknown>
+  } catch {
+    throw new Error(message)
+  }
+}
+
+/**
+ * Настройка заведённой интеграции: конфигурация, секреты (пишутся, но не
+ * читаются), включение и журнал синхронизаций. Через неё настраивается ящик
+ * канцелярии (ADR-0113): папка, период опроса, тип документа, правила отбора.
+ */
+function EditIntegrationDialog({
+  integration,
+  onClose,
+  onSaved,
+}: {
+  integration: Integration
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const t = useT()
+  const locale = useAppearance((s) => s.locale)
+  const formId = useId()
+  const [config, setConfig] = useState(() => JSON.stringify(integration.config, null, 2))
+  const [secrets, setSecrets] = useState('')
+  const [enabled, setEnabled] = useState(integration.enabled)
+  const [error, setError] = useState<string | null>(null)
+
+  const { data: syncs = [] } = useQuery({
+    queryKey: [...keys.integrations, integration.id, 'syncs'],
+    queryFn: () =>
+      http
+        .get<{ items: IntegrationSync[] }>(`/integrations/${integration.id}/syncs`, {
+          query: { limit: 10 },
+        })
+        .then((result) => result.items),
+  })
+
+  const save = useMutation({
+    mutationFn: () => {
+      const parsed = parseJson(config, t('admin.integrations.badJson'))
+      const parsedSecrets = parseJson(secrets, t('admin.integrations.badJson')) as Record<
+        string,
+        string
+      >
+      return http.patch<Integration>(`/integrations/${integration.id}`, {
+        config: parsed,
+        enabled,
+        ...(Object.keys(parsedSecrets).length > 0 ? { secrets: parsedSecrets } : {}),
+      })
+    },
+    onSuccess: () => onSaved(),
+    onError: (err) =>
+      setError(
+        err instanceof ApiError ? err.message : (err as Error).message || t('errors.unknown'),
+      ),
+  })
+
+  return (
+    <Dialog open onOpenChange={(next) => (next ? undefined : onClose())}>
+      <DialogContent
+        title={t('admin.integrations.editTitle', { name: integration.name })}
+        size="lg"
+        footer={
+          <>
+            <Button variant="ghost" onClick={onClose}>
+              {t('common.actions.cancel')}
+            </Button>
+            <Button variant="primary" type="submit" form={formId} loading={save.isPending}>
+              {t('common.actions.save')}
+            </Button>
+          </>
+        }
+      >
+        <form
+          id={formId}
+          className="flex flex-col gap-3"
+          onSubmit={(event) => {
+            event.preventDefault()
+            save.mutate()
+          }}
+        >
+          {error ? <Callout tone="danger">{error}</Callout> : null}
+          <Switch
+            checked={enabled}
+            onCheckedChange={setEnabled}
+            label={t('admin.integrations.enabled')}
+          />
+          <Field
+            label={t('admin.integrations.fields.config')}
+            hint={
+              integration.kind === 'imap'
+                ? t('admin.integrations.mailboxHint')
+                : t('admin.integrations.configHint')
+            }
+          >
+            <Textarea
+              value={config}
+              onChange={(event) => setConfig(event.target.value)}
+              rows={integration.kind === 'imap' ? 14 : 8}
+            />
+          </Field>
+          <Field
+            label={t('admin.integrations.fields.secrets')}
+            hint={t('admin.integrations.secretsHint')}
+          >
+            <Textarea
+              value={secrets}
+              onChange={(event) => setSecrets(event.target.value)}
+              rows={3}
+              placeholder={'{"password": "…"}'}
+            />
+          </Field>
+        </form>
+
+        <section className="mt-4" aria-label={t('admin.integrations.syncs')}>
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-fg-muted">
+            {t('admin.integrations.syncs')}
+          </h3>
+          {syncs.length === 0 ? (
+            <p className="mt-2 text-sm text-fg-muted">{t('admin.integrations.syncsEmpty')}</p>
+          ) : (
+            <ul className="mt-2 divide-y divide-line">
+              {syncs.map((sync) => (
+                <li key={sync.id} className="flex items-start gap-2 py-1.5 text-xs">
+                  <Badge size="sm" tone={sync.status === 'ok' ? 'success' : 'danger'}>
+                    {t(`admin.integrations.statuses.${sync.status === 'ok' ? 'ok' : 'error'}`)}
+                  </Badge>
+                  <span className="shrink-0 text-fg-muted">
+                    {formatDateTime(sync.startedAt, { locale })}
+                  </span>
+                  <span className="min-w-0 flex-1 text-fg-secondary">
+                    {sync.message ?? JSON.stringify(sync.stats)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </DialogContent>
     </Dialog>
   )

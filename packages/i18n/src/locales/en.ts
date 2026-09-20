@@ -6386,11 +6386,23 @@ export const en: DeepPartial<Dictionary> = {
       badJson: 'The configuration is not JSON',
       keyHint: 'A stable key for moving between installations',
       configHint: 'JSON without secrets: addresses, names, schedule',
+      secretsHint:
+        'JSON with secrets: values are stored encrypted and never returned. Leave empty to keep the current ones',
+      edit: 'Configure',
+      editTitle: 'Configuring “{name}”',
+      saved: 'Settings saved',
+      enabled: 'Enabled',
+      syncs: 'Synchronisation log',
+      syncsEmpty: 'No synchronisations yet',
+      mailboxHint:
+        'Office mailbox: address and credentials, folder, poll interval, document type and selection rules. The password goes to secrets under the key password',
       fields: {
         key: 'Key',
         name: 'Name',
         kind: 'Kind',
         config: 'Configuration',
+        secrets: 'Secrets',
+        description: 'Description',
       },
       statuses: {
         ok: 'Working',
