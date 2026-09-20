@@ -4,6 +4,7 @@ import { AdminScreen } from '~/features/admin/admin-screen.js'
 import { CalendarScreen, type CalendarScreenState } from '~/features/calendar/calendar-screen.js'
 import { CalendarView } from '~/features/calendar/calendar-view.js'
 import { EventView } from '~/features/calendar/event-view.js'
+import { ChatsScreen, type ChatsScreenState } from '~/features/chat/chats-screen.js'
 import { AnalysisView } from '~/features/data/analysis-view.js'
 import { ChartView } from '~/features/data/chart-view.js'
 import { DashboardView } from '~/features/data/dashboard-view.js'
@@ -135,6 +136,18 @@ export function registerModules(): void {
     icon: 'user',
     render: (tab) => (
       <WorkloadScreen tabId={tab.id} savedState={tab.state as WorkloadScreenState} />
+    ),
+  })
+  registerScreen({
+    key: 'chats',
+    titleKey: 'shell.rail.chats',
+    icon: 'conversation',
+    render: (tab) => (
+      <ChatsScreen
+        tabId={tab.id}
+        savedState={tab.state as ChatsScreenState}
+        initialConversationId={tab.params.conversation}
+      />
     ),
   })
   registerScreen({

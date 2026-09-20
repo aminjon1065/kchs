@@ -1,5 +1,5 @@
 import type { ChatCreateInput, ChatMember, ChatMemberRole, ChatPrivacy } from '@kchs/contracts'
-import { and, eq, inArray, sql } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 import { grantAccess, revokeAccess } from '~/kernel/access/acl-service.js'
 import { authorize } from '~/kernel/access/authorize.js'
 import { directory } from '~/kernel/directory/port.js'
@@ -437,14 +437,4 @@ export const ChatService = {
        LIMIT ${limit}`)
     return rows.map((row) => row.id)
   },
-}
-
-/** Существующие беседы по системным ключам — догоняющий проход воркера. */
-export async function channelsBySystemKeys(keys: string[]): Promise<Set<string>> {
-  if (keys.length === 0) return new Set()
-  const rows = await db()
-    .select({ systemKey: chatConversations.systemKey })
-    .from(chatConversations)
-    .where(inArray(chatConversations.systemKey, keys))
-  return new Set(rows.map((row) => row.systemKey).filter((key): key is string => Boolean(key)))
 }

@@ -526,7 +526,11 @@ describe('присутствие и статусы', () => {
       method: 'PUT',
       url: '/me/presence',
       as: alice,
-      payload: { status: 'dnd', untilMinutes: 60, quietHours: { enabled: true, from: '22:00', to: '07:00' } },
+      payload: {
+        status: 'dnd',
+        untilMinutes: 60,
+        quietHours: { enabled: true, from: '22:00', to: '07:00' },
+      },
     })
     expect(updated.statusCode, updated.body).toBe(200)
     expect(updated.json()).toMatchObject({ status: 'dnd', chosen: 'dnd' })
