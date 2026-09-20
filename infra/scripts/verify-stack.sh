@@ -12,13 +12,16 @@
 #   bash infra/scripts/verify-stack.sh                # со сборкой образов
 #   SKIP_BUILD=1 bash infra/scripts/verify-stack.sh   # образы уже собраны (KCHS_IMAGE_TAG)
 #   KEEP=1 bash infra/scripts/verify-stack.sh         # оставить стенд после проверки
+#   KCHS_VERIFY_ENV_FILE=/путь/verify.env             # окружение стенда по известному пути
 #   KCHS_VERIFY_PERF=1 bash infra/scripts/verify-stack.sh  # и бюджеты p95 API (k6, ~2 мин)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 PROJECT="${KCHS_VERIFY_PROJECT:-kchs-verify}"
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/kchs-verify.XXXXXX")"
-ENV_FILE="$WORK/verify.env"
+# Известный путь нужен, когда стенд остаётся поднятым (KEEP=1) и его убирает
+# следующий шаг — например, сканирование ZAP (infra/security/zap-baseline.sh)
+ENV_FILE="${KCHS_VERIFY_ENV_FILE:-$WORK/verify.env}"
 
 export POSTGRES_PORT="${POSTGRES_PORT:-55432}" REDIS_PORT="${REDIS_PORT:-56379}"
 export S3_PORT="${S3_PORT:-59000}" S3_CONSOLE_PORT="${S3_CONSOLE_PORT:-59001}"
