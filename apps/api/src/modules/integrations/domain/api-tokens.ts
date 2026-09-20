@@ -178,10 +178,16 @@ export const ApiTokens = {
    * хранится и в журналы не попадает.
    */
   async resolve(secret: string): Promise<ApiTokenRow | null> {
-    const parts = secret.split('_')
-    if (parts.length !== 3 || parts[0] !== TOKEN_PREFIX) return null
-    const [, prefix, tail] = parts
-    if (!prefix || !tail || prefix.length !== LOOKUP_BYTES * 2) return null
+    // Хвост — base64url и сам содержит «_»: разбираем ровно два разделителя,
+    // а не `split('_')`
+    const head = `${TOKEN_PREFIX}_`
+    if (!secret.startsWith(head)) return null
+    const rest = secret.slice(head.length)
+    const separator = rest.indexOf('_')
+    if (separator !== LOOKUP_BYTES * 2) return null
+    const prefix = rest.slice(0, separator)
+    const tail = rest.slice(separator + 1)
+    if (tail.length < 32 || !/^[0-9a-f]+$/.test(prefix)) return null
 
     const [row] = await db().select().from(apiTokens).where(eq(apiTokens.prefix, prefix)).limit(1)
     if (!row) return null

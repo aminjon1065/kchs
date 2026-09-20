@@ -1,5 +1,6 @@
 import { API_SCOPES, ApiToken, ApiTokenCreated, ApiTokenCreateInput } from '@kchs/contracts'
 import { z } from 'zod'
+import { rateLimit } from '~/shared/http/rate-limit.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { ApiTokens } from '../domain/api-tokens.js'
 
@@ -36,7 +37,7 @@ export function registerApiTokenRoutes(route: RouteRegistrar): void {
     tags: ['me'],
     summary: 'Выпустить токен API: значение показывается один раз',
     schema: { body: ApiTokenCreateInput, response: { 200: ApiTokenCreated } },
-    rateLimit: { max: 10, timeWindow: '1 minute' },
+    rateLimit: rateLimit(10, '1 minute'),
     handler: async (request) => ApiTokens.issue(request.ctx, request.body),
   })
 

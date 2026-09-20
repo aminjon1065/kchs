@@ -272,6 +272,40 @@ export type DatasetRowsInsert = z.infer<typeof DatasetRowsInsert>
 export const DatasetRowsDelete = z.object({ ids: z.array(BigIntString).min(1).max(1000) })
 export type DatasetRowsDelete = z.infer<typeof DatasetRowsDelete>
 
+/**
+ * Массовая правка строк одним запросом (14-automation-integrations.md §3,
+ * ADR-0097): вставка, изменение и удаление в одной транзакции. Большая пачка
+ * выполняется заданием — ответ `202` с `jobId`.
+ */
+export const DatasetRowsBatch = z.object({
+  insert: z.array(DatasetRowInput).max(10_000).default([]),
+  update: z
+    .array(
+      z.object({
+        id: BigIntString,
+        values: z.record(z.string(), z.unknown()),
+        ver: z.number().int().positive().optional(),
+      }),
+    )
+    .max(10_000)
+    .default([]),
+  delete: z.array(BigIntString).max(10_000).default([]),
+  /** Выполнить заданием, даже если пачка небольшая. */
+  async: z.boolean().default(false),
+})
+export type DatasetRowsBatch = z.infer<typeof DatasetRowsBatch>
+
+export const DatasetRowsBatchResult = z.object({
+  inserted: z.number().int().nonnegative(),
+  updated: z.number().int().nonnegative(),
+  deleted: z.number().int().nonnegative(),
+})
+export type DatasetRowsBatchResult = z.infer<typeof DatasetRowsBatchResult>
+
+/** Пачка принята заданием: состояние — `GET /jobs/{jobId}`. */
+export const DatasetRowsBatchQueued = z.object({ jobId: Uuid })
+export type DatasetRowsBatchQueued = z.infer<typeof DatasetRowsBatchQueued>
+
 /** Запись истории строки (`ds.h_*`): что стало и что было. */
 export const DatasetRowHistoryEntry = z.object({
   id: BigIntString,

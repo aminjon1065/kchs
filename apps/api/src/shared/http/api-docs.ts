@@ -27,6 +27,7 @@ export const OPENAPI_TAGS = [
   { name: 'files', description: 'Файлы, папки, версии, превью' },
   { name: 'reports', description: 'Отчёты и их выпуски' },
   { name: 'calendar', description: 'Календари, события, приглашения' },
+  { name: 'business-calendar', description: 'Производственный календарь: рабочие и праздничные дни' },
   { name: 'meetings', description: 'Встречи, комнаты, записи, протоколы' },
   { name: 'chat', description: 'Беседы и сообщения' },
   { name: 'discussions', description: 'Обсуждение объекта' },
@@ -37,8 +38,17 @@ export const OPENAPI_TAGS = [
   { name: 'jobs', description: 'Задания: состояние длительных операций' },
   { name: 'views', description: 'Сохранённые представления списков' },
   { name: 'tags', description: 'Метки' },
+  { name: 'acknowledgments', description: 'Ознакомление с документами и страницами' },
+  { name: 'announcements', description: 'Объявления установки' },
+  { name: 'ai', description: 'Интеллектуальные функции; токенам API недоступны' },
   { name: 'integrations', description: 'Интеграции, исходящие и входящие вебхуки' },
   { name: 'admin', description: 'Администрирование: аудит, здоровье, токены, конфигурация' },
+  {
+    name: 'internal',
+    description:
+      'Служебные маршруты движка: доступны только внутри сети развёртывания, ' +
+      'снаружи прокси отвечает 404',
+  },
 ] as const
 
 interface Operation {

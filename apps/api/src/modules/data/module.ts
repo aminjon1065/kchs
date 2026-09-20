@@ -31,6 +31,9 @@ import {
   DatasetRowPolicy,
   DatasetRowPolicyInput,
   DatasetRowPolicyPatch,
+  DatasetRowsBatch,
+  DatasetRowsBatchQueued,
+  DatasetRowsBatchResult,
   DatasetRowsDelete,
   DatasetRowsInsert,
   DatasetRowsQuery,
@@ -91,6 +94,14 @@ import { ProfileService } from './domain/profile-service.js'
 import { QueryService } from './domain/query-service.js'
 import { RollbackService } from './domain/rollback-service.js'
 import { RowService } from './domain/row-service.js'
+import {
+  applyRowsBatch,
+  BATCH_INLINE_LIMIT,
+  batchSize,
+  queueRowsBatch,
+  ROWS_BATCH_JOB,
+  runQueuedRowsBatch,
+} from './domain/rows-batch.js'
 import { SchemaService } from './domain/schema-service.js'
 import { SqlService } from './domain/sql-service.js'
 import { systemDatasetSchema } from './domain/system-schema.js'
@@ -627,6 +638,31 @@ export function registerDataRoutes(route: RouteRegistrar): void {
 
   route({
     method: 'POST',
+    url: '/datasets/:id/rows/batch',
+    auth: 'session',
+    tags: ['data'],
+    summary: 'Массовая правка строк: вставка, изменение и удаление одним запросом',
+    description:
+      'Пачка применяется целиком или не применяется вовсе. Больше 500 операций ' +
+      'или `async: true` — ответ 202 с `jobId`, состояние — `GET /jobs/{jobId}`.',
+    schema: {
+      params: IdParam,
+      body: DatasetRowsBatch,
+      response: { 200: DatasetRowsBatchResult, 202: DatasetRowsBatchQueued },
+    },
+    handler: async (request, reply) => {
+      const input = request.body
+      if (input.async || batchSize(input) > BATCH_INLINE_LIMIT) {
+        const jobId = await queueRowsBatch(request.ctx, request.params.id, input)
+        reply.code(202)
+        return { jobId }
+      }
+      return applyRowsBatch(request.ctx, request.params.id, input)
+    },
+  })
+
+  route({
+    method: 'POST',
     url: '/datasets/:id/rows/delete',
     auth: 'session',
     tags: ['data'],
@@ -992,6 +1028,16 @@ export function registerDataRoutes(route: RouteRegistrar): void {
 export function registerDataBackground(): void {
   registerAnalysisBackground()
   registerNotebookBackground()
+
+  registerJobHandler({
+    queue: ROWS_BATCH_JOB.queue,
+    name: ROWS_BATCH_JOB.name,
+    concurrency: 2,
+    handle: async (job) =>
+      runQueuedRowsBatch(
+        job.data as { datasetId: string; initiatorId: string; input: DatasetRowsBatch },
+      ),
+  })
 
   registerJobHandler({
     queue: LOAD_JOB.queue,

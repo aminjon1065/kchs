@@ -1,4 +1,4 @@
-import type { ApiScope, ApiScopeResource } from '@kchs/contracts'
+import { API_SCOPES, type ApiScope, type ApiScopeResource } from '@kchs/contracts'
 
 /**
  * Какая область нужна маршруту (ADR-0097).
@@ -76,5 +76,10 @@ export function requiredScope(input: {
   if (!resource) return { scope: null }
 
   const reads = input.method === 'GET' || input.method === 'HEAD' || input.readOnly === true
-  return { scope: `${reads ? 'read' : 'write'}:${resource}` as ApiScope }
+  const scope = `${reads ? 'read' : 'write'}:${resource}`
+  // Ресурсы только для чтения (поиск, задания) не имеют области записи:
+  // изменяющий маршрут такого ресурса токенам недоступен вовсе
+  return { scope: KNOWN.has(scope) ? (scope as ApiScope) : null }
 }
+
+const KNOWN = new Set<string>(API_SCOPES)

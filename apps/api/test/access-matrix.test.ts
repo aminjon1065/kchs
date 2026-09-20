@@ -966,7 +966,12 @@ const FIXTURES: Record<string, TypeFixture> = {
         method: 'POST',
         url: '/integrations',
         as: fx.admin,
-        payload: { key: `matrix-int-${run}`, kind: 'http', name: title, config: { url: 'https://example.org/api' } },
+        payload: {
+          key: `matrix-int-${run}`,
+          kind: 'http',
+          name: title,
+          config: { url: 'https://example.org/api' },
+        },
       })
       expect(response.statusCode, response.body).toBe(200)
       const id = response.json().id as string

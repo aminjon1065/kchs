@@ -167,19 +167,23 @@ export async function buildApp(): Promise<FastifyInstance> {
     await auditAdminModeRequest(request, reply.statusCode)
   })
 
+  // Служебные маршруты вне /api/v1: в спецификацию публичного API не входят —
+  // её база `/api/v1`, и запись о них вводила бы интеграции в заблуждение
+  const service = { schema: { hide: true }, config: { auth: 'public' as const } }
+
   // Здоровье — вне /api/v1, без аутентификации
-  app.get('/health', { config: { auth: 'public' } }, async () => ({ status: 'ok' }))
-  app.get('/api/openapi.json', { config: { auth: 'public' } }, async () => app.swagger())
+  app.get('/health', service, async () => ({ status: 'ok' }))
+  app.get('/api/openapi.json', service, async () => app.swagger())
 
   // Публичная документация API (14-automation-integrations.md §3, ADR-0097):
   // серверная страница без скриптов — CSP установки разрешает только свои файлы
-  app.get('/api/docs', { config: { auth: 'public' } }, async (_request, reply) =>
+  app.get('/api/docs', service, async (_request, reply) =>
     reply
       .type('text/html; charset=utf-8')
       .header('cache-control', 'no-store')
       .send(renderApiDocs(app.swagger() as unknown as Record<string, unknown>)),
   )
-  app.get('/api/docs/style.css', { config: { auth: 'public' } }, async (_request, reply) =>
+  app.get('/api/docs/style.css', service, async (_request, reply) =>
     reply.type('text/css; charset=utf-8').send(API_DOCS_STYLE),
   )
 
