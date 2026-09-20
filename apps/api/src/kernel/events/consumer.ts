@@ -280,6 +280,11 @@ export const KNOWN_DOMAINS = [
   'correspondent',
   'acknowledgment',
   'case',
+  // Встречи и звонки (ADR-0089), запись и расшифровка (ADR-0092)
+  'meeting',
+  'call',
+  'recording',
+  'transcript',
 ] as const
 
 function resolveDomains(): string[] {
