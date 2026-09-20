@@ -1,4 +1,4 @@
-import { EMPLOYEE_STATE, expect, test } from './fixtures.js'
+import { EMPLOYEE_STATE, expect, openInboxItem, test } from './fixtures.js'
 
 const EMPLOYEE_LOGIN = 'user001'
 
@@ -71,11 +71,9 @@ test.describe('Задачи: поручение из строки датасет
     const executor = await assignee.newPage()
     await executor.goto('/inbox')
     const executorInbox = executor.getByRole('list', { name: 'Входящие' })
-    await executorInbox.getByRole('option', { name: new RegExp(`Поручение: ${title}`) }).click()
+    await openInboxItem(executor, new RegExp(`Поручение: ${title}`))
     await executor.getByRole('button', { name: 'Принять', exact: true }).click()
-    await executorInbox
-      .getByRole('option', { name: new RegExp(`Отчитаться по поручению: ${title}`) })
-      .click()
+    await openInboxItem(executor, new RegExp(`Отчитаться по поручению: ${title}`))
     await executor.getByRole('button', { name: 'Отчитаться', exact: true }).click()
     const report = executor.getByRole('dialog', { name: 'Отчитаться' })
     await report
@@ -87,9 +85,7 @@ test.describe('Задачи: поручение из строки датасет
     // Руководитель принимает отчёт
     await page.goto('/inbox')
     const authorInbox = page.getByRole('list', { name: 'Входящие' })
-    await authorInbox
-      .getByRole('option', { name: new RegExp(`Отчёт по поручению: ${title}`) })
-      .click()
+    await openInboxItem(page, new RegExp(`Отчёт по поручению: ${title}`))
     await page.getByRole('button', { name: 'Принять отчёт', exact: true }).click()
     await expect(authorInbox.getByRole('option', { name: new RegExp(title) })).toHaveCount(0)
 

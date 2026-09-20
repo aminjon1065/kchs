@@ -65,6 +65,25 @@ export async function openScreen(page: Page, query: string): Promise<void> {
   await expect(page.getByRole('dialog', { name: 'Палитра команд' })).toBeHidden()
 }
 
+/**
+ * Дело во Входящих: список отдаётся страницами, а на общем стенде дел накопились
+ * сотни — нужное ищется с подгрузкой «Показать ещё», а не только на первой странице.
+ */
+export async function openInboxItem(page: Page, name: RegExp): Promise<void> {
+  const inbox = page.getByRole('list', { name: 'Входящие' })
+  const item = inbox.getByRole('option', { name }).first()
+  await expect(inbox.getByRole('option').first()).toBeVisible({ timeout: 20_000 })
+  const more = page.getByRole('button', { name: 'Показать ещё' })
+  for (let attempt = 0; attempt < 15; attempt += 1) {
+    if ((await item.count()) > 0) break
+    if (!(await more.isVisible().catch(() => false))) break
+    const before = await inbox.getByRole('option').count()
+    await more.click()
+    await expect.poll(() => inbox.getByRole('option').count()).toBeGreaterThan(before)
+  }
+  await item.click()
+}
+
 /** Код TOTP (RFC 6238: SHA-1, 30 с, 6 цифр) — как у приложения-аутентификатора. */
 export function totp(secret: string, at = Date.now()): string {
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'

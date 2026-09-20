@@ -1,5 +1,5 @@
 import { type APIRequestContext, type Page, request as playwrightRequest } from '@playwright/test'
-import { EMPLOYEE_STATE, expect, resetWorkspaceState, test } from './fixtures.js'
+import { EMPLOYEE_STATE, expect, openInboxItem, resetWorkspaceState, test } from './fixtures.js'
 import { ACCOUNTS } from './global-setup.js'
 
 const MANAGER_LOGIN = 'user001'
@@ -127,24 +127,6 @@ type Json = any
  * Ознакомление: делопроизводитель отправляет документ сотруднику, тот
  * отмечает «Ознакомлен» в карточке.
  */
-/**
- * Дело во Входящих: у занятого руководителя их больше страницы, поэтому
- * список догружается кнопкой «Показать ещё», пока нужное не покажется.
- */
-async function openInboxItem(page: Page, name: RegExp): Promise<void> {
-  const inbox = page.getByRole('list', { name: 'Входящие' })
-  const item = inbox.getByRole('option', { name }).first()
-  await expect(inbox.getByRole('option').first()).toBeVisible({ timeout: 20_000 })
-  const more = page.getByRole('button', { name: 'Показать ещё' })
-  for (let attempt = 0; attempt < 15; attempt += 1) {
-    if ((await item.count()) > 0) break
-    if (!(await more.isVisible().catch(() => false))) break
-    const before = await inbox.getByRole('option').count()
-    await more.click()
-    await expect.poll(() => inbox.getByRole('option').count()).toBeGreaterThan(before)
-  }
-  await item.click()
-}
 
 test.describe('Документы: резолюции, исполнение, ознакомление', () => {
   test('резолюция из Входящих → поручения → исполнение → документ «Исполнен»', async ({
