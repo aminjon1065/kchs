@@ -1,4 +1,9 @@
-import type { FormCellState, FormControlCell, FormRecord } from '@kchs/contracts'
+import {
+  FORM_CELL_STATES,
+  type FormCellState,
+  type FormControlCell,
+  type FormRecord,
+} from '@kchs/contracts'
 import {
   Badge,
   Button,
@@ -17,6 +22,7 @@ import { ClipboardCheck } from 'lucide-react'
 import { useState } from 'react'
 import { useT } from '~/app/i18n.js'
 import { formControlQuery } from './queries.js'
+import { SubmissionPanel } from './submission-panel.js'
 
 /**
  * Контроль сдачи (ADR-0103): матрица «назначения × периоды». Ячейка —
@@ -42,6 +48,7 @@ const SHORT: Record<FormCellState, string> = {
 export function FormControlTab({ form }: { form: FormRecord }) {
   const t = useT()
   const [periods, setPeriods] = useState('8')
+  const [state, setState] = useState<'all' | FormCellState>('all')
   const [selected, setSelected] = useState<FormControlCell | null>(null)
   const { data, isLoading } = useQuery(formControlQuery(form.id, Number(periods)))
 
@@ -56,6 +63,11 @@ export function FormControlTab({ form }: { form: FormRecord }) {
     )
   }
 
+  const rows =
+    state === 'all'
+      ? data.rows
+      : data.rows.filter((row) => row.cells.some((cell) => cell.state === state))
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -65,8 +77,21 @@ export function FormControlTab({ form }: { form: FormRecord }) {
           {t('forms.control.submitted', { count: data.totals.submitted })}
         </Badge>
         <Badge tone="danger">{t('forms.control.overdue', { count: data.totals.overdue })}</Badge>
+        <Select value={state} onValueChange={(value) => setState(value as 'all' | FormCellState)}>
+          <SelectTrigger aria-label={t('forms.control.state')} className="ml-auto w-44">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t('forms.control.allStates')}</SelectItem>
+            {FORM_CELL_STATES.map((value) => (
+              <SelectItem key={value} value={value}>
+                {t(`forms.states.${value}`)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Select value={periods} onValueChange={setPeriods}>
-          <SelectTrigger aria-label={t('forms.control.periods')} className="ml-auto w-40">
+          <SelectTrigger aria-label={t('forms.control.periods')} className="w-40">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -95,7 +120,7 @@ export function FormControlTab({ form }: { form: FormRecord }) {
               </tr>
             </thead>
             <tbody>
-              {data.rows.map((row) => (
+              {rows.map((row) => (
                 <tr
                   key={`${row.subject.kind}:${row.subject.id}`}
                   className="border-b border-line last:border-0 hover:bg-surface-2"
@@ -133,7 +158,13 @@ export function FormControlTab({ form }: { form: FormRecord }) {
         </div>
       </Card>
 
-      {selected ? (
+      {selected?.submissionId ? (
+        <SubmissionPanel
+          form={form}
+          submissionId={selected.submissionId}
+          onClose={() => setSelected(null)}
+        />
+      ) : selected ? (
         <div className="flex flex-wrap items-center gap-2 rounded-md border border-line bg-surface px-3 py-2">
           <span className="text-sm">{selected.periodKey}</span>
           <Badge tone={selected.overdue ? 'danger' : 'neutral'} size="sm">

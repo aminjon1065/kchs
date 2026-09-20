@@ -23,6 +23,7 @@ export const formKeys = {
   form: (id: string) => ['forms', 'form', id] as const,
   schema: (id: string) => ['forms', 'schema', id] as const,
   control: (id: string, periods: number) => ['forms', 'control', id, periods] as const,
+  submission: (id: string) => ['forms', 'submission', id] as const,
 }
 
 export const formsQuery = (query: Partial<FormListQuery> = {}) =>
@@ -58,6 +59,13 @@ export const formControlQuery = (id: string, periods: number) =>
       http.get<FormControl>(`/forms/${id}/control`, {
         query: { periods } satisfies Partial<FormControlQuery>,
       }),
+    enabled: id.length > 0,
+  })
+
+export const formSubmissionQuery = (id: string) =>
+  queryOptions({
+    queryKey: formKeys.submission(id),
+    queryFn: () => http.get<FormSubmission>(`/forms/submissions/${id}`),
     enabled: id.length > 0,
   })
 

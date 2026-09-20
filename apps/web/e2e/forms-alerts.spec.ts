@@ -81,10 +81,13 @@ test.describe('Данные: формы сбора и алерты', () => {
     await page.getByRole('button', { name: 'Сдать сводку' }).click()
     await expect(page.getByText('Сводка сдана')).toBeVisible()
 
-    // Контроль сдачи: матрица показывает принятую сводку
+    // Контроль сдачи: матрица показывает принятую сводку, ячейка ведёт к отправке
     await page.getByRole('tab', { name: 'Контроль сдачи' }).click()
     await expect(page.getByRole('table', { name: 'Матрица сдачи' })).toBeVisible()
-    await expect(page.getByRole('button', { name: /Принята/ })).toBeVisible()
+    const cell = page.getByRole('button', { name: /Принята/ })
+    await expect(cell).toBeVisible()
+    await cell.click()
+    await expect(page.getByText('Людей')).toBeVisible()
 
     // Уборка
     await request.delete(`/api/v1/objects/${formId}`, { headers })

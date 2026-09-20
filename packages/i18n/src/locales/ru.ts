@@ -7217,6 +7217,8 @@ export const ru = {
       matrix: 'Матрица сдачи',
       subject: 'Назначение',
       periods: 'Глубина',
+      state: 'Состояние',
+      allStates: 'Любое состояние',
       lastPeriods: 'Последние {count}',
       expected: 'Ожидается: {count}',
       accepted: 'Принято: {count}',

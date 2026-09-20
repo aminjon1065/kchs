@@ -7117,6 +7117,8 @@ export const en: DeepPartial<Dictionary> = {
       matrix: 'Submission matrix',
       subject: 'Assignment',
       periods: 'Depth',
+      state: 'State',
+      allStates: 'Any state',
       lastPeriods: 'Last {count}',
       expected: 'Expected: {count}',
       accepted: 'Accepted: {count}',
