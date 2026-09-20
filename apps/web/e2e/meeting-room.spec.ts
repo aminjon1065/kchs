@@ -117,7 +117,7 @@ test.describe('Встречи: комната и звонки', () => {
     await expect(page.getByTestId('meeting-tile')).toHaveCount(3, { timeout: 30_000 })
 
     // 4. «Показать всем»: объект открывается вкладкой у другого участника
-    await showToAll(page, colleaguePage, meetingId, request, csrf)
+    await showToAll(page, colleaguePage, meetingId, request, csrf, run)
 
     await leaveRoom(colleaguePage)
     await leaveRoom(guestPage)
@@ -162,12 +162,14 @@ async function showToAll(
   meetingId: string,
   request: APIRequestContext,
   csrf: string,
+  run: string,
 ): Promise<void> {
   const spaces = await (await request.get('/api/v1/spaces')).json()
   const spaceId = (spaces.items as Array<{ id: string }>)[0]?.id as string
   expect(spaceId, 'пространство для связанного объекта').toBeTruthy()
+  const name = `Показ e2e ${run}`
   const folder = await request.post('/api/v1/folders', {
-    data: { name: `Показ e2e ${Date.now().toString(36)}`, spaceId },
+    data: { name, spaceId },
     headers: { 'x-csrf-token': csrf },
   })
   expect(folder.ok(), await folder.text()).toBeTruthy()
@@ -181,8 +183,9 @@ async function showToAll(
   await organizer.getByTestId('meeting-show').click()
   const dialog = organizer.getByRole('dialog', { name: 'Показать всем' })
   await expect(dialog).toBeVisible()
-  await dialog.getByRole('button', { name: /Показ e2e/ }).click()
-  await expect(colleague.getByRole('tab', { name: /Показ e2e/ })).toBeVisible({ timeout: 20_000 })
+  await dialog.getByRole('button', { name }).click()
+  // Вкладка открывается в фоне: у собеседника она появляется рядом с комнатой
+  await expect(colleague.getByRole('tab', { name }).first()).toBeVisible({ timeout: 20_000 })
 }
 
 async function leaveRoom(page: Page): Promise<void> {
