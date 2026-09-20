@@ -242,6 +242,7 @@ export function ExploreScreen({
               ms: formatNumber(Math.round(result.data.durationMs), {}, { locale }),
             })}
             {result.data.cached ? ` · ${t('data.explore.cached')}` : ''}
+            {result.data.executedOn === 'columnar' ? ` · ${t('data.columnar.executedOn')}` : ''}
             {result.isFetching ? <Spinner className="size-3" /> : null}
           </div>
         ) : null}

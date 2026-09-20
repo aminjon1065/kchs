@@ -1,6 +1,7 @@
 import type {
   AiStatus,
   ChartRecord,
+  ColumnarCopy,
   DashboardData,
   DashboardRecord,
   DatasetPolicies,
@@ -31,6 +32,7 @@ export const dataKeys = {
   versions: (id: string) => ['dataset', id, 'versions'] as const,
   imports: (id: string) => ['dataset', id, 'imports'] as const,
   policies: (id: string) => ['dataset', id, 'policies'] as const,
+  columnar: (id: string) => ['dataset', id, 'columnar'] as const,
   row: (id: string, rowId: string) => ['dataset', id, 'row', rowId] as const,
   rowHistory: (id: string, rowId: string) => ['dataset', id, 'row', rowId, 'history'] as const,
   profile: (id: string, key: string) => ['dataset', id, 'profile', key] as const,
@@ -65,6 +67,13 @@ export const systemDatasetQuery = (name: string) =>
     queryKey: ['system-dataset', name] as const,
     queryFn: () => http.get<SystemDatasetSchema>(`/system-datasets/${name}`),
     staleTime: 5 * 60_000,
+  })
+
+/** Колоночная копия датасета (ADR-0109): состояние и метаданные. */
+export const columnarCopyQuery = (id: string) =>
+  queryOptions({
+    queryKey: dataKeys.columnar(id),
+    queryFn: () => http.get<ColumnarCopy>(`/datasets/${id}/columnar`),
   })
 
 export const datasetVersionsQuery = (id: string) =>

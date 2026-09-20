@@ -492,6 +492,7 @@ export function CellResult({
             ms: formatNumber(Math.round(raw.durationMs), {}, { locale }),
           })}
           {raw.cached ? ` · ${t('data.explore.cached')}` : ''}
+          {raw.executedOn === 'columnar' ? ` · ${t('data.columnar.executedOn')}` : ''}
           {pending ? <Spinner className="size-3" /> : null}
         </p>
       ) : null}
