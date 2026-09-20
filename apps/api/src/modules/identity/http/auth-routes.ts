@@ -18,12 +18,12 @@ import { addressKey, enforceAddressCeiling, rateLimit } from '~/shared/http/rate
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { AuthService } from '../domain/auth-service.js'
 import { sendPasswordReset } from '../domain/notify.js'
-
-const MFA_COOKIE = 'kchs_mfa'
+import { SsoService } from '../domain/oidc.js'
+import { PasskeyService } from '../domain/passkeys.js'
+import { MFA_COOKIE, setMfaCookie, setSessionCookie } from './session-cookie.js'
 
 export function registerAuthRoutes(route: RouteRegistrar): void {
   const env = config()
-  const secure = env.NODE_ENV === 'production'
 
   route({
     method: 'POST',
@@ -46,6 +46,8 @@ export function registerAuthRoutes(route: RouteRegistrar): void {
           csrfToken: z.string().optional(),
           challengeId: z.string().optional(),
           expiresAt: z.string().optional(),
+          /** Чем подтвердить второй фактор: код приложения, код восстановления, ключ. */
+          methods: z.array(z.enum(['totp', 'recovery_code', 'passkey'])).optional(),
         }),
       },
     },
@@ -59,21 +61,16 @@ export function registerAuthRoutes(route: RouteRegistrar): void {
       const result = await AuthService.login(request.body.login, request.body.password, meta)
 
       if (result.status === 'mfa_required') {
-        reply.setCookie(MFA_COOKIE, result.challengeToken, {
-          httpOnly: true,
-          secure,
-          sameSite: 'lax',
-          path: '/',
-          maxAge: 600,
-        })
+        setMfaCookie(reply, result.challengeToken)
         return {
           status: 'mfa_required',
           challengeId: result.challengeId,
           expiresAt: result.expiresAt,
+          methods: result.methods,
         }
       }
 
-      setSessionCookie(reply, result.sessionToken, result.expiresAt, secure)
+      setSessionCookie(reply, result.sessionToken, result.expiresAt)
       return { status: result.status, csrfToken: result.csrfToken, expiresAt: result.expiresAt }
     },
   })
@@ -112,7 +109,7 @@ export function registerAuthRoutes(route: RouteRegistrar): void {
       }
       const result = await AuthService.verifyMfa(challengeToken, request.body.code, meta)
       reply.clearCookie(MFA_COOKIE, { path: '/' })
-      setSessionCookie(reply, result.sessionToken, result.expiresAt, secure)
+      setSessionCookie(reply, result.sessionToken, result.expiresAt)
       return {
         status: result.mustChangePassword ? ('password_change_required' as const) : ('ok' as const),
         csrfToken: result.csrfToken,
@@ -128,11 +125,19 @@ export function registerAuthRoutes(route: RouteRegistrar): void {
     allowPendingMfaEnrollment: true,
     tags: ['auth'],
     summary: 'Выход',
-    schema: { response: { 200: z.object({ ok: z.boolean() }) } },
+    schema: {
+      response: {
+        200: z.object({
+          ok: z.boolean(),
+          /** Куда отправить браузер, чтобы завершить и сессию IdP (ADR-0098). */
+          endSessionUrl: z.url().nullable().default(null),
+        }),
+      },
+    },
     handler: async (request, reply) => {
       await AuthService.logout(request.ctx)
       reply.clearCookie(env.SESSION_COOKIE_NAME, { path: '/' })
-      return { ok: true }
+      return { ok: true, endSessionUrl: await SsoService.endSessionUrl() }
     },
   })
 
@@ -246,7 +251,12 @@ export function registerAuthRoutes(route: RouteRegistrar): void {
     },
     handler: async (request) => {
       const policy = await SecurityPolicyService.current()
-      if (SecurityPolicyService.requiresMfa(policy, request.ctx.roleKeys)) {
+      // Ключ входа — такой же второй фактор (ADR-0098): если он есть, код
+      // приложения можно отключить, требование политики остаётся закрытым
+      if (
+        SecurityPolicyService.requiresMfa(policy, request.ctx.roleKeys) &&
+        !(await PasskeyService.hasKeys(request.ctx.userId))
+      ) {
         throw errors.policyViolation(
           'Политика безопасности требует второй фактор для вашей роли — отключить его нельзя',
         )
@@ -289,20 +299,5 @@ export function registerAuthRoutes(route: RouteRegistrar): void {
         : await AuthService.revokeSessions(request.ctx, request.body.sessionIds ?? [])
       return { revoked }
     },
-  })
-}
-
-function setSessionCookie(
-  reply: { setCookie: (name: string, value: string, options: Record<string, unknown>) => unknown },
-  token: string,
-  expiresAt: string,
-  secure: boolean,
-): void {
-  reply.setCookie(config().SESSION_COOKIE_NAME, token, {
-    httpOnly: true,
-    secure,
-    sameSite: 'lax',
-    path: '/',
-    expires: new Date(expiresAt),
   })
 }

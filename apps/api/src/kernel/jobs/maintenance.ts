@@ -143,5 +143,11 @@ export async function scheduleMaintenance(): Promise<void> {
     {},
     { repeat: { pattern: '5 9 * * *' }, jobId: 'cron:acknowledgments.remind' },
   )
+  // Каталог LDAP/AD (ADR-0098): задание проверяет интервал настройки само
+  await maintenance.add(
+    'directory.sync',
+    {},
+    { repeat: { pattern: '7 * * * *' }, jobId: 'cron:directory.sync' },
+  )
   logger().info('расписания обслуживания зарегистрированы')
 }

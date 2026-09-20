@@ -288,6 +288,9 @@ export const KNOWN_DOMAINS = [
   'transcript',
   'protocol',
   'chat',
+  // Поставщики входа и синхронизация каталога (ADR-0098)
+  'integration',
+  'directory',
 ] as const
 
 function resolveDomains(): string[] {

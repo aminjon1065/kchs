@@ -51,6 +51,11 @@ export const EVENT_PAYLOADS = {
   'user.telegram_linked': z.object({ userId: Uuid }),
   /** Привязка снята: самим пользователем или потому что бот заблокирован. */
   'user.telegram_unlinked': z.object({ userId: Uuid, reason: z.enum(['user', 'blocked']) }),
+  /** Ключ входа (passkey) добавлен или отозван (ADR-0098); сам ключ в событие не попадает. */
+  'user.passkey_added': z.object({ userId: Uuid, name: z.string() }),
+  'user.passkey_removed': z.object({ userId: Uuid, name: z.string() }),
+  /** Учётная запись связана с внешним поставщиком входа (OIDC или каталог). */
+  'user.identity_linked': z.object({ userId: Uuid, provider: z.string() }),
   'org.unit_changed': z.object({ unitId: Uuid, change: z.string() }),
   'org.employment_changed': z.object({ userId: Uuid, unitId: Uuid.nullable() }),
   'delegation.started': z.object({ fromUserId: Uuid, toUserId: Uuid, scope: z.string() }),
@@ -753,6 +758,17 @@ export const EVENT_PAYLOADS = {
   }),
   'acl.changed': z.object({ objectId: Uuid }),
   'role.assigned': z.object({ userId: Uuid, roleKey: z.string() }),
+  /** Настройка поставщика входа изменена (каталог, единый вход) — ADR-0098. */
+  'integration.configured': z.object({ kind: z.string(), enabled: z.boolean() }),
+  /** Прогон синхронизации каталога завершён. */
+  'directory.synced': z.object({
+    runId: Uuid,
+    mode: z.string(),
+    status: z.string(),
+    created: z.number().int().nonnegative(),
+    updated: z.number().int().nonnegative(),
+    blocked: z.number().int().nonnegative(),
+  }),
   'announcement.published': z.object({ title: z.string() }),
   'announcement.withdrawn': z.object({ title: z.string() }),
 } as const satisfies Record<string, z.ZodType>
