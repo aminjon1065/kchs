@@ -304,7 +304,11 @@ function CreateIntegrationDialog({
           </Field>
           <Field
             label={t('admin.integrations.fields.config')}
-            hint={t('admin.integrations.configHint')}
+            hint={
+              kind === 'postgres' || kind === 'mysql'
+                ? t('admin.integrations.configDatabaseHint')
+                : t('admin.integrations.configHint')
+            }
           >
             <Textarea value={config} onChange={(event) => setConfig(event.target.value)} rows={5} />
           </Field>

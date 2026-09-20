@@ -6452,6 +6452,8 @@ export const en: DeepPartial<Dictionary> = {
         'Copy the URL now: the secret in it is never shown again. A request to it publishes an event but grants no rights.',
       badJson: 'The configuration is not JSON',
       keyHint: 'A stable key for moving between installations',
+      configDatabaseHint:
+        'Database connection: {"host":"db.example.org","port":5432,"database":"kchs","user":"reader","schema":"public","ssl":true}. The password goes to secrets under the `password` key.',
       configHint: 'JSON without secrets: addresses, names, schedule',
       fields: {
         key: 'Key',
@@ -6474,6 +6476,8 @@ export const en: DeepPartial<Dictionary> = {
         http: 'HTTP service',
         s3: 'S3 storage',
         sftp: 'SFTP',
+        postgres: 'PostgreSQL database',
+        mysql: 'MySQL / MariaDB database',
         custom: 'Custom',
       },
     },

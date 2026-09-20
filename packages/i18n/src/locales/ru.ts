@@ -6552,6 +6552,8 @@ export const ru = {
         'Скопируйте адрес сейчас: секрет в нём больше не показывается. Запрос по этому адресу публикует событие, но прав ни на что не даёт.',
       badJson: 'Конфигурация — не JSON',
       keyHint: 'Стабильный ключ для переноса между контурами',
+      configDatabaseHint:
+        'Подключение к базе: {"host":"db.example.org","port":5432,"database":"kchs","user":"reader","schema":"public","ssl":true}. Пароль — в секретах, ключ `password`.',
       configHint: 'JSON без секретов: адреса, имена, расписание',
       fields: {
         key: 'Ключ',
@@ -6574,6 +6576,8 @@ export const ru = {
         http: 'HTTP-сервис',
         s3: 'Хранилище S3',
         sftp: 'SFTP',
+        postgres: 'База PostgreSQL',
+        mysql: 'База MySQL / MariaDB',
         custom: 'Своя',
       },
     },
