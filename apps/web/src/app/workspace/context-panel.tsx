@@ -9,6 +9,7 @@ import { formatDateTime, formatRelativeTime } from '@kchs/fields'
 import {
   Avatar,
   Badge,
+  Button,
   cn,
   EmptyState,
   FileDropzone,
@@ -559,13 +560,23 @@ function LineageSection({ objectId }: { objectId: string }) {
   )
 }
 
+/**
+ * Обсуждение объекта; с якорем (`discussionAnchor`) — комментарии к фрагменту:
+ * у страницы базы знаний это блок (ADR-0095). Новый комментарий получает тот
+ * же якорь, кнопка «Ко всему объекту» его снимает.
+ */
 function DiscussionTab({ objectId }: { objectId: string }) {
   const t = useT()
   const client = useQueryClient()
+  const anchor = useWorkspace((s) => s.discussionAnchor)
+  const setContextTab = useWorkspace((s) => s.setContextTab)
   const { data, isLoading } = useQuery(discussionQuery(objectId))
   const { data: object } = useQuery(objectQuery(objectId))
   // Писать и реагировать может уровень comment и выше — сервер проверяет сам
   const canPost = object ? object.level !== 'view' : false
+  const items = anchor
+    ? (data?.items ?? []).filter((message) => message.anchor === anchor)
+    : (data?.items ?? [])
 
   const post = useMutation({
     mutationFn: (message: ComposedMessage) =>
@@ -575,6 +586,7 @@ function DiscussionTab({ objectId }: { objectId: string }) {
         attachments: message.attachments.map((fileId) => ({ fileId })),
         mentions: message.mentions,
         mentionedObjectIds: [],
+        anchor,
       }),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: keys.discussion(objectId) })
@@ -592,19 +604,28 @@ function DiscussionTab({ objectId }: { objectId: string }) {
 
   return (
     <div className="flex h-full flex-col">
+      {anchor ? (
+        <div className="flex items-center gap-2 border-line border-b px-3 py-2">
+          <span className="text-2xs text-fg-muted">{t('discussion.anchored')}</span>
+          <div className="flex-1" />
+          <Button size="sm" variant="ghost" onClick={() => setContextTab('discussion', null)}>
+            {t('discussion.wholeObject')}
+          </Button>
+        </div>
+      ) : null}
       <div className="min-h-0 flex-1 overflow-y-auto p-3">
         {isLoading ? (
           <PanelSkeleton />
-        ) : !data?.items.length ? (
+        ) : items.length === 0 ? (
           <EmptyState
             compact
             icon={<MessageSquare />}
-            title={t('discussion.empty')}
+            title={t(anchor ? 'discussion.anchorEmpty' : 'discussion.empty')}
             description={t('discussion.emptyHint')}
           />
         ) : (
           <div className="flex flex-col gap-3">
-            {data.items.map((message) => (
+            {items.map((message) => (
               <MessageItem
                 key={message.id}
                 message={message}

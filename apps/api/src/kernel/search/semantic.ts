@@ -203,7 +203,7 @@ async function nearest(
   ctx: Ctx,
   vector: number[],
   limit: number,
-  excludeObjectId?: string,
+  options: { excludeObjectId?: string; types?: readonly string[] } = {},
 ): Promise<SemanticHit[]> {
   const literal = sql.raw(`'[${vector.join(',')}]'::extensions.vector`)
   const rows = await db()
@@ -218,7 +218,10 @@ async function nearest(
       and(
         sql`${objects.deletedAt} is null`,
         visibleObjectsSql(ctx),
-        excludeObjectId ? sql`${embeddings.objectId} <> ${excludeObjectId}` : sql`true`,
+        options.excludeObjectId
+          ? sql`${embeddings.objectId} <> ${options.excludeObjectId}`
+          : sql`true`,
+        options.types?.length ? inArray(objects.type, [...options.types]) : sql`true`,
       ),
     )
     .orderBy(sql`${embeddings.embedding} <=> ${literal}`)
@@ -236,13 +239,18 @@ async function nearest(
 }
 
 /** Поиск по смыслу: пустой ответ, если семантика выключена. */
-export async function semanticSearch(ctx: Ctx, query: string, limit = 20): Promise<SemanticHit[]> {
+export async function semanticSearch(
+  ctx: Ctx,
+  query: string,
+  limit = 20,
+  options: { types?: readonly string[] } = {},
+): Promise<SemanticHit[]> {
   const trimmed = query.trim()
   if (!trimmed || !semanticEnabled()) return []
   const embedded = await embedTexts([trimmed])
   const vector = embedded?.vectors[0]
   if (!vector) return []
-  return nearest(ctx, vector, limit)
+  return nearest(ctx, vector, limit, options)
 }
 
 /** Похожие объекты: по векторам самого объекта, сам он из выдачи исключён. */
@@ -258,5 +266,72 @@ export async function similarObjects(
     .where(and(eq(embeddings.objectId, objectId), eq(embeddings.chunkNo, 0)))
     .limit(1)
   if (!row) return []
-  return nearest(ctx, row.embedding, limit, objectId)
+  return nearest(ctx, row.embedding, limit, { excludeObjectId: objectId })
+}
+
+/**
+ * Векторы по готовым кускам: модуль, который знает структуру объекта (база
+ * знаний режет страницу по блокам), передаёт их сам — тогда цитата совпадает
+ * с фрагментом, который видит человек.
+ */
+export async function indexChunks(
+  objectId: string,
+  chunks: ReadonlyArray<{ text: string }>,
+): Promise<number> {
+  if (!semanticEnabled()) return 0
+  const texts = chunks
+    .map((chunk) => chunk.text.trim())
+    .filter(Boolean)
+    .slice(0, MAX_CHUNKS)
+  if (texts.length === 0) {
+    await dropEmbeddings(objectId)
+    return 0
+  }
+
+  const existing = await db()
+    .select({ chunkNo: embeddings.chunkNo, hash: embeddings.hash })
+    .from(embeddings)
+    .where(eq(embeddings.objectId, objectId))
+  const known = new Map(existing.map((row) => [row.chunkNo, row.hash]))
+  const stale = texts
+    .map((text, index) => ({ index, text, hash: hashOf(text) }))
+    .filter((item) => known.get(item.index) !== item.hash)
+  const embedded = await embedTexts(stale.map((item) => item.text))
+  if (!embedded) return 0
+
+  await db().transaction(async (tx) => {
+    for (const [position, item] of stale.entries()) {
+      const vector = embedded.vectors[position]
+      if (!vector) continue
+      await tx
+        .insert(embeddings)
+        .values({
+          objectId,
+          chunkNo: item.index,
+          text: item.text,
+          embedding: vector,
+          model: embedded.model,
+          hash: item.hash,
+          indexedAt: sql`now()`,
+        })
+        .onConflictDoUpdate({
+          target: [embeddings.objectId, embeddings.chunkNo],
+          set: {
+            text: item.text,
+            embedding: vector,
+            model: embedded.model,
+            hash: item.hash,
+            indexedAt: sql`now()`,
+            updatedAt: sql`now()`,
+          },
+        })
+    }
+    const extra = [...known.keys()].filter((chunkNo) => chunkNo >= texts.length)
+    if (extra.length > 0) {
+      await tx
+        .delete(embeddings)
+        .where(and(eq(embeddings.objectId, objectId), inArray(embeddings.chunkNo, extra)))
+    }
+  })
+  return stale.length
 }

@@ -76,6 +76,15 @@ async function subjectOf(tx: Executor, conversationId: string) {
 }
 
 /**
+ * Якорь сообщения на фрагмент объекта: его смысл знает тип объекта (у страницы
+ * базы знаний — идентификатор блока, ADR-0095); ядро только хранит и отдаёт.
+ */
+function anchorOf(meta: Record<string, unknown> | null): string | null {
+  const value = meta?.anchor
+  return typeof value === 'string' && value ? value : null
+}
+
+/**
  * Обсуждения объектов и чаты — одна сущность (02-platform-kernel.md §6).
  * Беседа объекта создаётся лениво при первом сообщении.
  */
@@ -155,6 +164,8 @@ export const DiscussionService = {
         attachments: attachments as unknown as Array<Record<string, unknown>>,
         mentions: input.mentions,
         mentionedObjectIds: input.mentionedObjectIds,
+        // Якорь на фрагмент объекта — сводное поле сообщения (ADR-0095)
+        ...(input.anchor ? { meta: { anchor: input.anchor } } : {}),
       })
       .returning({ id: messages.id })
 
@@ -311,6 +322,7 @@ export const DiscussionService = {
           attachments: row.attachments as Message['attachments'],
           mentions: row.mentions,
           mentionedObjectIds: row.mentionedObjectIds,
+          anchor: anchorOf(row.meta),
           reactions: [...grouped.entries()].map(([emoji, value]) => ({
             emoji,
             count: value.users.length,

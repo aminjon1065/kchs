@@ -28,6 +28,8 @@ export const INBOX_KINDS = [
   'revise',
   /** Исполнитель просит продлить срок поручения: согласовать или отказать (ADR-0082). */
   'extend_due',
+  /** Подошёл срок пересмотра страницы базы знаний: проверить и опубликовать (ADR-0095). */
+  'review_page',
 ] as const
 export const InboxKind = z.enum(INBOX_KINDS)
 export type InboxKind = z.infer<typeof InboxKind>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { diffText, tokenize } from './diff.js'
+import { diffText, tokenize } from './text-diff.js'
 
 /** Текст «было» и «стало» из сегментов сравнения. */
 function sides(segments: Array<{ op: string; text: string }>) {

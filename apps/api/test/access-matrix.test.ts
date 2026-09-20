@@ -932,6 +932,33 @@ const FIXTURES: Record<string, TypeFixture> = {
     viewerForbidden: (_fx, id) => [{ method: 'POST', url: `/recordings/${id}/stop` }],
   },
 
+  page: {
+    create: async (fx, title) => {
+      const response = await call(fx.app, {
+        method: 'POST',
+        url: '/pages',
+        as: fx.admin,
+        payload: { title, spaceId: fx.spaceId, template: 'instruction' },
+      })
+      expect(response.statusCode, response.body).toBe(200)
+      return { id: response.json().id, title }
+    },
+    readPaths: ['/pages/:id', '/pages/:id/versions', '/pages/:id/versions/compare'],
+    // Правка тела — через /collab (права проверяет сервер совместной правки);
+    // блоки от сервера, публикация, версии, пересмотр и ознакомление — выше view
+    viewerForbidden: (_fx, id) => [
+      {
+        method: 'POST',
+        url: `/pages/${id}/blocks`,
+        payload: { blocks: [{ id: 'b1', kind: 'text' }] },
+      },
+      { method: 'POST', url: `/pages/${id}/publish`, payload: {} },
+      { method: 'POST', url: `/pages/${id}/versions`, payload: {} },
+      { method: 'PATCH', url: `/pages/${id}`, payload: { reviewAt: null } },
+      { method: 'POST', url: `/pages/${id}/acknowledgments`, payload: { userIds: [] } },
+    ],
+  },
+
   protocol: {
     create: async (fx, title) => {
       const meetingId = await createMatrixMeeting(fx, `${title} — встреча`)

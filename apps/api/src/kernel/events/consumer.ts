@@ -288,6 +288,8 @@ export const KNOWN_DOMAINS = [
   'transcript',
   'protocol',
   'chat',
+  // База знаний (13-search-knowledge-ai.md §2, ADR-0095)
+  'page',
 ] as const
 
 function resolveDomains(): string[] {

@@ -8,6 +8,7 @@ import { type DemoDocumentPeople, DocumentsSeed } from '~/modules/documents/publ
 import { FileService } from '~/modules/files/domain/file-service.js'
 import { BasemapService, type TerritoryInput, TerritoryService } from '~/modules/gis/public.js'
 import { OrgService, UserService } from '~/modules/identity/public.js'
+import { KnowledgeSeed } from '~/modules/knowledge/public.js'
 import { ensureControlMetrics } from '~/modules/tasks/domain/control-metrics.js'
 import { seedDemoInstructions } from '~/modules/tasks/domain/demo-instructions.js'
 import { type SystemCtx, systemCtx } from '~/shared/context.js'
@@ -105,6 +106,8 @@ export async function runSeed(
     await seedDocuments(ctx, options.profile === 'demo')
     // Канцелярия и демо-документы (ADR-0086) — тоже: они появились позже демо-мира
     if (options.profile === 'demo') await seedOffice(await seedAdminCtx(options.adminLogin))
+    // Разделы базы знаний (ADR-0095) появились ещё позже
+    await seedKnowledge(ctx)
     log.warn('демо-данные уже загружены — seed пропущен (используйте db:reset)')
     return { users: 0, units: 0, spaces: 0 }
   }
@@ -375,6 +378,7 @@ export async function runSeed(
 
   await seedDocuments(adminCtx, true)
   await seedOffice(adminCtx)
+  await seedKnowledge(ctx)
   await bumpPrincipalsVersion()
 
   // Объекты созданы без запущенного worker — индексируем явно
@@ -390,6 +394,21 @@ export async function runSeed(
 
   log.info({ users: Number(count), units: unitIds.size, spaces: spaceIds.size }, 'seed завершён')
   return { users: Number(count), units: unitIds.size, spaces: spaceIds.size }
+}
+
+/**
+ * Разделы базы знаний по умолчанию (13-search-knowledge-ai.md §2, ADR-0095) —
+ * в пространстве «Общее», идемпотентно: раздел с таким названием не дублируется.
+ */
+async function seedKnowledge(ctx: SystemCtx): Promise<void> {
+  const [org] = await db()
+    .select({ id: spaces.id })
+    .from(spaces)
+    .where(eq(spaces.key, 'org'))
+    .limit(1)
+  if (!org) return
+  const created = await KnowledgeSeed.ensureDefaultSections(ctx, org.id)
+  logger().child({ module: 'seed' }).info({ created }, 'разделы базы знаний заведены')
 }
 
 /**

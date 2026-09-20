@@ -2,6 +2,7 @@ import { Avatar, cn, Tooltip } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import {
   Bell,
+  BookOpen,
   Bot,
   CalendarDays,
   CheckSquare,
@@ -42,6 +43,7 @@ const PRIMARY: RailItem[] = [
   { key: 'tasks', icon: CheckSquare, labelKey: 'shell.rail.tasks', shortcut: 'G T' },
   { key: 'chats', icon: MessageSquare, labelKey: 'shell.rail.chats', shortcut: 'G C' },
   { key: 'meetings', icon: Video, labelKey: 'shell.rail.meetings' },
+  { key: 'knowledge', icon: BookOpen, labelKey: 'shell.rail.knowledge' },
   { key: 'calendar', icon: CalendarDays, labelKey: 'shell.rail.calendar' },
 ]
 
