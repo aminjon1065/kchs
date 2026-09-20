@@ -130,6 +130,10 @@ jobs:
           tags: kchs/engine:security
           cache-from: type=gha,scope=engine
 
+      # verify-stack.sh заканчивается браузерной проверкой (stack-check.mjs)
+      - name: Браузер Playwright
+        run: pnpm --filter @kchs/web exec playwright install --with-deps chromium
+
       # KEEP=1 оставляет установку поднятой: её и сканируем. Бюджеты k6 здесь не
       # нужны — их замеряет stack.yml
       - name: Установка с чистыми томами

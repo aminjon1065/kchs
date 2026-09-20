@@ -46,6 +46,7 @@ index=0
 for target in $TARGETS; do
   index=$((index + 1))
   name="scan-$index"
+  step=0
   echo "── ZAP baseline: $target (профиль $PROFILE) ──"
   # host.docker.internal — адрес хоста из контейнера (в Linux его даёт host-gateway)
   docker run --rm \
@@ -57,7 +58,9 @@ for target in $TARGETS; do
     -m "$SPIDER_MINUTES" \
     -T "$START_MINUTES" \
     -r "$name.html" -J "$name.json" -w "$name.md" \
-    2>&1 | tee "$OUT_DIR/$name.txt" || status=$?
+    2>&1 | tee "$OUT_DIR/$name.txt" || step=$?
+  # Худший исход по всем целям: удачная вторая цель не отменяет замечаний первой
+  if ((step > status)); then status=$step; fi
 done
 
 if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then

@@ -424,7 +424,10 @@ async function download(url: string): Promise<Buffer> {
   try {
     const response = await fetch(rewriteHost(url, office?.internalUrl ?? null), {
       signal: controller.signal,
-      redirect: 'follow',
+      // Происхождение закреплено за сервером документов (`rewriteHost`), и
+      // перенаправление увело бы запрос с него куда угодно внутри сети —
+      // ровно то, от чего закрепление и защищает
+      redirect: 'manual',
     })
     if (!response.ok) throw new Error(`ответ ${response.status}`)
     if (Number(response.headers.get('content-length') ?? 0) > MAX_SAVE_BYTES) {
