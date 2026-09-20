@@ -1057,6 +1057,7 @@ export const en: DeepPartial<Dictionary> = {
       eventProposed: '{actor} proposed another time for “{title}”',
       eventReminder: 'Reminder: “{title}”, {when}',
       eventStarting: 'Starting: “{title}”, {when}',
+      callIncoming: '{actor} is calling: “{title}”',
     },
   },
   telegram: {

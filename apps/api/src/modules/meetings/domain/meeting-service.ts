@@ -26,6 +26,7 @@ import {
   roomToken,
 } from './livekit.js'
 import { meetingsSpaceId } from './space.js'
+import { clearKnocks } from './waiting-room.js'
 
 /** Способность вести запись встречи (11-communications-meetings.md §3). */
 export const RECORD_CAPABILITY = 'meetings.record'
@@ -435,6 +436,26 @@ export const MeetingService = {
     // Комната закрывается после записи в базе: недоступный медиасервер не
     // оставит встречу «идущей»
     await closeRoom(row.roomName)
+    // Ждать больше нечего: заявки гостей уходят вместе со встречей (ADR-0091)
+    await clearKnocks(id)
+  },
+
+  /**
+   * Входящий звонок отклонён приглашённым (ADR-0091): звонящий узнаёт об этом
+   * событием, сама встреча продолжает существовать — другие могут войти.
+   */
+  async decline(tx: Executor, ctx: UserCtx, id: string): Promise<void> {
+    const row = await load(tx, id)
+    if (!row) throw errors.notFound('Встреча')
+    await publishEvent(tx, ctx, {
+      type: 'call.declined',
+      object: { id, type: 'meeting', spaceId: null, title: row.title },
+      payload: {
+        meetingId: id,
+        userId: ctx.onBehalfOf ?? ctx.userId,
+        callerId: row.organizerId,
+      },
+    })
   },
 
   /** Токен гостя по ссылке — без прав на объекты, только комната (ADR-0089). */

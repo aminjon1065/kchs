@@ -3,8 +3,19 @@ import { inArray } from 'drizzle-orm'
 import { registerObjectType } from '~/kernel/objects/registry.js'
 import { db } from '~/shared/db/client.js'
 import { meetings } from '~/shared/db/schema/index.js'
+import type { RouteRegistrar } from '~/shared/http/route.js'
+import { registerMeetingsGuestRoutes } from './http/guest-routes.js'
+import { registerMeetingsRoomRoutes } from './http/room-routes.js'
+import { registerMeetingsRoutes as registerCoreRoutes } from './http.js'
 
-export { registerMeetingsRoutes } from './http.js'
+export { registerMeetingsBackground } from './domain/meeting-subscribers.js'
+
+/** Маршруты встреч: ядро модуля, гостевой вход и комната ожидания (ADR-0091). */
+export function registerMeetingsRoutes(route: RouteRegistrar): void {
+  registerCoreRoutes(route)
+  registerMeetingsGuestRoutes(route)
+  registerMeetingsRoomRoutes(route)
+}
 
 /**
  * Тип `meeting` (11-communications-meetings.md §3, ADR-0089) — при старте в

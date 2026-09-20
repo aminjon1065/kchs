@@ -114,3 +114,85 @@ export const MeetingsStatus = z.object({
   url: z.string().nullable(),
 })
 export type MeetingsStatus = z.infer<typeof MeetingsStatus>
+
+/**
+ * Комната ожидания и гости по ссылке (ADR-0091). Ссылка — подписанный токен с
+ * ограниченным сроком: пользователем системы гость не становится и доступа к
+ * объектам не получает; всё, что ему видно, — название встречи и комната.
+ */
+export const MeetingGuestLinkInput = z.object({
+  /** Срок ссылки в минутах: от четверти часа до суток. */
+  ttlMinutes: z.number().int().min(15).max(1440).default(240),
+})
+export type MeetingGuestLinkInput = z.infer<typeof MeetingGuestLinkInput>
+
+export const MeetingGuestLink = z.object({
+  url: z.string(),
+  expiresAt: Timestamp,
+})
+export type MeetingGuestLink = z.infer<typeof MeetingGuestLink>
+
+/** Что гость узнаёт по ссылке до входа: только название и состояние встречи. */
+export const MeetingGuestPreview = z.object({
+  title: z.string(),
+  status: MeetingStatus,
+  /** Медиасервер настроен: иначе входить некуда. */
+  enabled: z.boolean(),
+})
+export type MeetingGuestPreview = z.infer<typeof MeetingGuestPreview>
+
+export const MeetingGuestJoinInput = z.object({
+  name: z.string().trim().min(2).max(80),
+  /** Заявка, поданная раньше: клиент ждёт решения организатора. */
+  requestId: z.string().min(8).max(64).optional(),
+})
+export type MeetingGuestJoinInput = z.infer<typeof MeetingGuestJoinInput>
+
+/** Ответ гостю: ждёт решения, впущен (токен комнаты) или отклонён. */
+export const MeetingGuestJoin = z.object({
+  state: z.enum(['waiting', 'admitted', 'denied']),
+  requestId: z.string(),
+  meeting: MeetingGuestPreview,
+  join: MeetingJoin.nullable(),
+})
+export type MeetingGuestJoin = z.infer<typeof MeetingGuestJoin>
+
+/** Заявка из комнаты ожидания — тому, кто ведёт встречу. */
+export const MeetingKnock = z.object({
+  id: z.string(),
+  name: z.string(),
+  requestedAt: Timestamp,
+})
+export type MeetingKnock = z.infer<typeof MeetingKnock>
+
+export const MeetingKnockList = z.object({ items: z.array(MeetingKnock) })
+export type MeetingKnockList = z.infer<typeof MeetingKnockList>
+
+export const MeetingKnockDecision = z.object({ admit: z.boolean() })
+export type MeetingKnockDecision = z.infer<typeof MeetingKnockDecision>
+
+/**
+ * Сообщения участников по каналу данных комнаты (ADR-0091): поднятая рука,
+ * реакция и «Показать всем» идут между клиентами через медиасервер, api их не
+ * видит. Получатель открывает объект своими правами — сигнал доступа не даёт.
+ */
+export const MeetingSignal = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('hand'), raised: z.boolean() }),
+  z.object({ type: z.literal('reaction'), emoji: z.string().min(1).max(8) }),
+  z.object({
+    type: z.literal('show'),
+    objectId: Uuid,
+    objectType: z.string().min(1).max(40),
+    title: z.string().min(1).max(300),
+  }),
+])
+export type MeetingSignal = z.infer<typeof MeetingSignal>
+
+/** Входящий звонок — компактное сообщение realtime приглашённому (ADR-0091). */
+export const IncomingCall = z.object({
+  meetingId: Uuid,
+  title: z.string(),
+  caller: UserRef.nullable(),
+  conversationId: Uuid.nullable(),
+})
+export type IncomingCall = z.infer<typeof IncomingCall>

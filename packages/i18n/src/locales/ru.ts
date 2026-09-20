@@ -1076,6 +1076,7 @@ export const ru = {
       eventProposed: '{actor} предлагает другое время для «{title}»',
       eventReminder: 'Напоминание: «{title}», {when}',
       eventStarting: 'Начинается: «{title}», {when}',
+      callIncoming: '{actor} звонит: «{title}»',
     },
   },
 
