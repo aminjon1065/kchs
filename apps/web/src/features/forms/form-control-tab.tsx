@@ -49,7 +49,8 @@ export function FormControlTab({ form }: { form: FormRecord }) {
   const t = useT()
   const [periods, setPeriods] = useState('8')
   const [state, setState] = useState<'all' | FormCellState>('all')
-  const [selected, setSelected] = useState<FormControlCell | null>(null)
+  // Выбранная ячейка: строка + период — по ним же подсвечивается нажатая
+  const [selected, setSelected] = useState<{ row: string; cell: FormControlCell } | null>(null)
   const { data, isLoading } = useQuery(formControlQuery(form.id, Number(periods)))
 
   if (isLoading) return <Skeleton className="h-64 w-full" />
@@ -120,55 +121,58 @@ export function FormControlTab({ form }: { form: FormRecord }) {
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => (
-                <tr
-                  key={`${row.subject.kind}:${row.subject.id}`}
-                  className="border-b border-line last:border-0 hover:bg-surface-2"
-                >
-                  <th scope="row" className="px-3 py-1.5 text-left font-normal text-fg">
-                    {row.name}
-                  </th>
-                  {row.cells.map((cell) => (
-                    <td key={cell.periodKey} className="px-2 py-1 text-center">
-                      <button
-                        type="button"
-                        aria-pressed={
-                          selected?.submissionId === cell.submissionId && selected !== null
-                        }
-                        aria-label={t('forms.control.cellLabel', {
-                          subject: row.name,
-                          period: cell.periodKey,
-                          state: t(`forms.states.${cell.state}`),
-                        })}
-                        onClick={() => setSelected(cell)}
-                        className={cn(
-                          'rounded-xs px-1.5 py-0.5 text-sm hover:underline',
-                          STATE_TONE[cell.state],
-                          cell.overdue && 'bg-danger-subtle',
-                        )}
-                      >
-                        {SHORT[cell.state]}
-                      </button>
-                    </td>
-                  ))}
-                </tr>
-              ))}
+              {rows.map((row) => {
+                const rowKey = `${row.subject.kind}:${row.subject.id}`
+                return (
+                  <tr
+                    key={rowKey}
+                    className="border-b border-line last:border-0 hover:bg-surface-2"
+                  >
+                    <th scope="row" className="px-3 py-1.5 text-left font-normal text-fg">
+                      {row.name}
+                    </th>
+                    {row.cells.map((cell) => (
+                      <td key={cell.periodKey} className="px-2 py-1 text-center">
+                        <button
+                          type="button"
+                          aria-pressed={
+                            selected?.row === rowKey && selected.cell.periodKey === cell.periodKey
+                          }
+                          aria-label={t('forms.control.cellLabel', {
+                            subject: row.name,
+                            period: cell.periodKey,
+                            state: t(`forms.states.${cell.state}`),
+                          })}
+                          onClick={() => setSelected({ row: rowKey, cell })}
+                          className={cn(
+                            'rounded-xs px-1.5 py-0.5 text-sm hover:underline',
+                            STATE_TONE[cell.state],
+                            cell.overdue && 'bg-danger-subtle',
+                          )}
+                        >
+                          {SHORT[cell.state]}
+                        </button>
+                      </td>
+                    ))}
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
       </Card>
 
-      {selected?.submissionId ? (
+      {selected?.cell.submissionId ? (
         <SubmissionPanel
           form={form}
-          submissionId={selected.submissionId}
+          submissionId={selected.cell.submissionId}
           onClose={() => setSelected(null)}
         />
       ) : selected ? (
         <div className="flex flex-wrap items-center gap-2 rounded-md border border-line bg-surface px-3 py-2">
-          <span className="text-sm">{selected.periodKey}</span>
-          <Badge tone={selected.overdue ? 'danger' : 'neutral'} size="sm">
-            {t(`forms.states.${selected.state}`)}
+          <span className="text-sm">{selected.cell.periodKey}</span>
+          <Badge tone={selected.cell.overdue ? 'danger' : 'neutral'} size="sm">
+            {t(`forms.states.${selected.cell.state}`)}
           </Badge>
           <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setSelected(null)}>
             {t('common.actions.close')}
