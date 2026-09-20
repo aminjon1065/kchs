@@ -31,6 +31,7 @@ import {
   X,
 } from 'lucide-react'
 import { useState } from 'react'
+import { ManualRuleActions } from '~/features/automation/manual-rules.js'
 import { type ComposedMessage, MessageComposer } from '~/features/discussion/message-composer.js'
 import { MessageItem } from '~/features/discussion/message-item.js'
 import { uploadFile } from '~/features/files/upload.js'
@@ -214,6 +215,9 @@ function InfoTab({ objectId }: { objectId: string }) {
       />
 
       <ObjectTags object={object} />
+
+      {/* Правила с ручным запуском для этого объекта (ADR-0096) */}
+      <ManualRuleActions objectId={objectId} />
 
       {access?.entries.length ? (
         <div>

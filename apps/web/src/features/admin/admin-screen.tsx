@@ -30,6 +30,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Activity,
   Building2,
+  CalendarClock,
   CalendarDays,
   Database,
   Download,
@@ -48,10 +49,13 @@ import {
   UserPlus,
   Users,
   Workflow,
+  Zap,
 } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
+import { AutomationRulesSection } from '~/features/automation/rules-section.js'
+import { SchedulesSection } from '~/features/automation/schedules-section.js'
 import { ProcessesSection } from '~/features/processes/processes-section.js'
 import {
   auditQuery,
@@ -86,6 +90,8 @@ type Section =
   | 'security'
   | 'tasks'
   | 'processes'
+  | 'automation'
+  | 'schedules'
 
 /**
  * Консоль администрирования (15-admin-operations.md §1): разделы — вертикальные
@@ -101,6 +107,7 @@ export function AdminScreen() {
   const isSystemAdmin = me?.capabilities.includes('admin.system') ?? false
   const canManageBasemaps = me?.capabilities.includes('gis.basemaps.manage') ?? false
   const canManageProcesses = me?.capabilities.includes('processes.manage') ?? false
+  const canManageAutomation = me?.capabilities.includes('automation.manage') ?? false
   const wide = useMediaQuery('(min-width: 768px)')
 
   const sections: Array<{ value: Section; label: string; icon: ReactNode; visible: boolean }> = [
@@ -176,6 +183,18 @@ export function AdminScreen() {
       icon: <Route className="size-3.5" />,
       visible: canManageProcesses,
     },
+    {
+      value: 'automation',
+      label: t('admin.sections.automation'),
+      icon: <Zap className="size-3.5" />,
+      visible: canManageAutomation,
+    },
+    {
+      value: 'schedules',
+      label: t('admin.sections.schedules'),
+      icon: <CalendarClock className="size-3.5" />,
+      visible: canManageAutomation,
+    },
   ]
 
   return (
@@ -248,6 +267,16 @@ export function AdminScreen() {
           <TabsContent value="processes" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
             <ProcessesSection />
           </TabsContent>
+        ) : null}
+        {canManageAutomation ? (
+          <>
+            <TabsContent value="automation" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
+              <AutomationRulesSection />
+            </TabsContent>
+            <TabsContent value="schedules" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
+              <SchedulesSection />
+            </TabsContent>
+          </>
         ) : null}
         <TabsContent value="audit" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
           <AuditSection />

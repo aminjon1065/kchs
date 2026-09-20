@@ -28,6 +28,8 @@ export type ScreenKey =
   | 'workload'
   /** Конструктор маршрута процесса (ADR-0087): параметр `key`. */
   | 'process-designer'
+  /** Конструктор правила автоматизации (ADR-0096): параметр `id`. */
+  | 'rule-designer'
 
 export interface TabState {
   id: string

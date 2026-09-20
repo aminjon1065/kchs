@@ -54,6 +54,7 @@ const MeetingView = lazy(() => import('~/features/meetings/meeting-view.js'))
 const ProtocolView = lazy(() => import('~/features/meetings/protocol/protocol-view.js'))
 /** Конструктор маршрутов — отдельным чанком: нужен только администратору маршрутов (ADR-0087). */
 const ProcessDesigner = lazy(() => import('~/features/processes/designer/designer-screen.js'))
+const RuleDesigner = lazy(() => import('~/features/automation/designer/rule-designer.js'))
 /** Запись встречи — отдельным чанком: плеер и расшифровка нужны не всем (ADR-0092). */
 const RecordingView = lazy(() => import('~/features/meetings/recording/recording-view.js'))
 
@@ -243,6 +244,23 @@ export function registerModules(): void {
         }
       >
         <ProcessDesigner definitionKey={tab.params.key ?? ''} tabId={tab.id} />
+      </Suspense>
+    ),
+  })
+  registerScreen({
+    key: 'rule-designer',
+    titleKey: 'automation.title',
+    icon: 'zap',
+    render: (tab) => (
+      <Suspense
+        fallback={
+          <div className="flex flex-col gap-3 p-6">
+            <Skeleton className="h-7 w-72" />
+            <Skeleton className="h-64 w-full" />
+          </div>
+        }
+      >
+        <RuleDesigner ruleId={tab.params.id ?? ''} />
       </Suspense>
     ),
   })
