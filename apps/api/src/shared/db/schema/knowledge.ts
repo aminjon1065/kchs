@@ -20,6 +20,12 @@ export const pages = pgTable(
     template: text('template').notNull().default('blank'),
     /** Снимок блоков документа Yjs — его пишет сервер совместного редактирования. */
     blocks: jsonbArray('blocks'),
+    /**
+     * Владелец страницы: отвечает за её пересмотр, ему открывается дело
+     * «Пересмотреть страницу». По умолчанию — автор; меняется отдельно от
+     * владельца объекта в реестре (тот определяет права, этот — ответственность).
+     */
+    ownerId: uuid('owner_id').references(() => users.id, { onDelete: 'set null' }),
     /** Срок пересмотра: наступил — страница уходит в `review`, владельцу — дело. */
     reviewAt: date('review_at'),
     /** Дело о пересмотре открыто на этот срок — повторно его не открывают. */
@@ -33,10 +39,7 @@ export const pages = pgTable(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [
-    index('pages_status_idx').on(t.status),
-    index('pages_review_idx').on(t.reviewAt),
-  ],
+  (t) => [index('pages_status_idx').on(t.status), index('pages_review_idx').on(t.reviewAt)],
 )
 
 /**

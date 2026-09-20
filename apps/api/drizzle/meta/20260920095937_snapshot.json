@@ -1,5 +1,5 @@
 {
-  "id": "81b13cbb-3439-45db-a161-7768b1d60279",
+  "id": "f788c6d0-3651-4d88-8ef9-73756608c431",
   "prevId": "47f0371f-bc6a-4587-a914-b46b77a4314e",
   "version": "7",
   "dialect": "postgresql",
@@ -14563,6 +14563,12 @@
           "notNull": true,
           "default": "'[]'::jsonb"
         },
+        "owner_id": {
+          "name": "owner_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "review_at": {
           "name": "review_at",
           "type": "date",
@@ -14659,6 +14665,19 @@
             "id"
           ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "pages_owner_id_users_id_fk": {
+          "name": "pages_owner_id_users_id_fk",
+          "tableFrom": "pages",
+          "tableTo": "users",
+          "columnsFrom": [
+            "owner_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         },
         "pages_published_by_users_id_fk": {
