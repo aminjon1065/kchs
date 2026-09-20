@@ -181,13 +181,15 @@ export type ProtocolAcknowledgeInput = z.infer<typeof ProtocolAcknowledgeInput>
 // ─── Документ Yjs ────────────────────────────────────────────────────────────
 
 /**
- * Раскладка документа Yjs протокола (ADR-0093), как у тетради (ADR-0071):
- * `blocks` — `Y.Map` блоков по идентификатору, `order` — `Y.Array` порядка,
- * `meta` — `Y.Map` резюме. Блок — `Y.Map` с ключами из раскладки его вида:
- * `rich` — `Y.XmlFragment` (текст Tiptap), `text` — `Y.Text` (заголовок:
- * правки двух авторов сливаются посимвольно), `json` — значение целиком.
+ * Раскладка документа Yjs протокола (ADR-0093), как у тетради и отчёта
+ * (ADR-0071, ADR-0078): `Y.Map` блоков по идентификатору, `order` — `Y.Array`
+ * порядка, `meta` — `Y.Map` резюме. Имена корневых типов совпадают с
+ * тетрадью — клиент правит порядок блоков теми же функциями. Блок — `Y.Map` с
+ * ключами из раскладки его вида: `rich` — `Y.XmlFragment` (текст Tiptap),
+ * `text` — `Y.Text` (заголовок: правки двух авторов сливаются посимвольно),
+ * `json` — значение целиком.
  */
-export const PROTOCOL_DOC = { blocks: 'blocks', order: 'order', meta: 'meta' } as const
+export const PROTOCOL_DOC = { blocks: 'cells', order: 'order', meta: 'meta' } as const
 
 /** Ключ резюме в `meta` документа: его пишет черновик ИИ, правит человек. */
 export const PROTOCOL_SUMMARY_KEY = 'summary'
