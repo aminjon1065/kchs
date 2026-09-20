@@ -1,13 +1,18 @@
+import type { AuthMethods } from '@kchs/contracts'
 import { LOCALE_NAMES, LOCALES, type Locale } from '@kchs/i18n'
 import { Button, Callout, cn, Field, Input, PasswordInput, SegmentedControl } from '@kchs/ui'
-import { useMutation } from '@tanstack/react-query'
-import { KeyRound, ShieldCheck } from 'lucide-react'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { Building2, Fingerprint, KeyRound, ShieldCheck } from 'lucide-react'
 import { useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { ApiError, http, setCsrfToken } from '~/shared/api/client.js'
+import { passkeysSupported, requestPasskey } from '~/shared/auth/webauthn.js'
 
 type Step = 'credentials' | 'mfa' | 'reset'
+
+/** Второй фактор, который принял сервер для этого вызова входа. */
+type Factor = 'totp' | 'recovery_code' | 'passkey'
 
 export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
   const t = useT()
@@ -20,6 +25,17 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
   const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [resetSent, setResetSent] = useState(false)
+  const [factors, setFactors] = useState<Factor[]>(['totp'])
+
+  // Способы входа установки: кнопка IdP и вход по ключу показываются,
+  // только если они настроены
+  const { data: methods } = useQuery({
+    queryKey: ['auth', 'methods'],
+    queryFn: () => http.get<AuthMethods>('/auth/methods', { anonymous: true }),
+    staleTime: 60_000,
+    retry: false,
+  })
+  const canUseKeys = passkeysSupported() && (methods?.passkeys ?? false)
 
   // Лимит частоты — понятным текстом со временем ожидания, а не ответом сервера
   const failure = (err: unknown, fallback: string) => {
@@ -31,7 +47,7 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
 
   const signIn = useMutation({
     mutationFn: () =>
-      http.post<{ status: string; csrfToken?: string }>(
+      http.post<{ status: string; csrfToken?: string; methods?: Factor[] }>(
         '/auth/login',
         { login, password, rememberDevice: false },
         { anonymous: true },
@@ -39,6 +55,7 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
     onSuccess: (result) => {
       setError(null)
       if (result.status === 'mfa_required') {
+        setFactors(result.methods?.length ? result.methods : ['totp'])
         setStep('mfa')
         return
       }
@@ -60,6 +77,64 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
       onSignedIn()
     },
     onError: (err) => setError(failure(err, t('auth.mfa.invalid'))),
+  })
+
+  /** Вход через корпоративный IdP: браузер уходит на страницу провайдера. */
+  const startSso = useMutation({
+    mutationFn: () => http.post<{ url: string }>('/auth/sso/start', undefined, { anonymous: true }),
+    onSuccess: (result) => {
+      window.location.assign(result.url)
+    },
+    onError: (err) => setError(failure(err, t('errors.unknown'))),
+  })
+
+  /** Самостоятельный вход по ключу: вызов сервера → подпись устройства → сессия. */
+  const signInWithKey = useMutation({
+    mutationFn: async () => {
+      const options = await http.post<Record<string, unknown>>('/auth/passkey/options', undefined, {
+        anonymous: true,
+      })
+      const credential = await requestPasskey(options)
+      return http.post<{ csrfToken: string }>(
+        '/auth/passkey/verify',
+        { credential },
+        { anonymous: true },
+      )
+    },
+    onSuccess: (result) => {
+      setCsrfToken(result.csrfToken)
+      onSignedIn()
+    },
+    onError: (err) => {
+      // Отмена на устройстве — не ошибка: человек просто передумал
+      if (err instanceof Error && err.name === 'NotAllowedError') return
+      setError(failure(err, t('auth.passkey.failed')))
+    },
+  })
+
+  /** Подтверждение второго фактора ключом поверх входа по паролю. */
+  const verifyWithKey = useMutation({
+    mutationFn: async () => {
+      const options = await http.post<Record<string, unknown>>(
+        '/auth/mfa/passkey/options',
+        undefined,
+        { anonymous: true },
+      )
+      const credential = await requestPasskey(options)
+      return http.post<{ csrfToken: string }>(
+        '/auth/mfa/passkey/verify',
+        { credential },
+        { anonymous: true },
+      )
+    },
+    onSuccess: (result) => {
+      setCsrfToken(result.csrfToken)
+      onSignedIn()
+    },
+    onError: (err) => {
+      if (err instanceof Error && err.name === 'NotAllowedError') return
+      setError(failure(err, t('auth.passkey.failed')))
+    },
   })
 
   const requestReset = useMutation({
@@ -140,6 +215,40 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
                 {t('auth.signIn.submit')}
               </Button>
 
+              {methods?.sso.enabled || canUseKeys ? (
+                <div className="flex items-center gap-3">
+                  <span className="h-px flex-1 bg-line" />
+                  <span className="text-xs text-fg-muted">{t('auth.signIn.orWith')}</span>
+                  <span className="h-px flex-1 bg-line" />
+                </div>
+              ) : null}
+
+              {methods?.sso.enabled ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  block
+                  loading={startSso.isPending}
+                  icon={<Building2 className="size-4" />}
+                  onClick={() => startSso.mutate()}
+                >
+                  {methods.sso.buttonLabel || t('auth.signIn.sso')}
+                </Button>
+              ) : null}
+
+              {canUseKeys ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  block
+                  loading={signInWithKey.isPending}
+                  icon={<Fingerprint className="size-4" />}
+                  onClick={() => signInWithKey.mutate()}
+                >
+                  {t('auth.passkey.signIn')}
+                </Button>
+              ) : null}
+
               <button
                 type="button"
                 onClick={() => {
@@ -169,23 +278,40 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
 
               {error ? <Callout tone="danger">{error}</Callout> : null}
 
-              <Field label={t('auth.mfa.code')} htmlFor="code">
-                <Input
-                  id="code"
-                  autoFocus
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  maxLength={24}
-                  value={code}
-                  onChange={(event) => setCode(event.target.value)}
-                  className="text-center text-lg tracking-[0.3em]"
-                  mono
-                />
-              </Field>
+              {factors.includes('totp') ? (
+                <>
+                  <Field label={t('auth.mfa.code')} htmlFor="code">
+                    <Input
+                      id="code"
+                      autoFocus
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      maxLength={24}
+                      value={code}
+                      onChange={(event) => setCode(event.target.value)}
+                      className="text-center text-lg tracking-[0.3em]"
+                      mono
+                    />
+                  </Field>
 
-              <Button type="submit" variant="primary" block loading={verifyMfa.isPending}>
-                {t('auth.mfa.submit')}
-              </Button>
+                  <Button type="submit" variant="primary" block loading={verifyMfa.isPending}>
+                    {t('auth.mfa.submit')}
+                  </Button>
+                </>
+              ) : null}
+
+              {factors.includes('passkey') ? (
+                <Button
+                  type="button"
+                  variant={factors.includes('totp') ? 'secondary' : 'primary'}
+                  block
+                  loading={verifyWithKey.isPending}
+                  icon={<Fingerprint className="size-4" />}
+                  onClick={() => verifyWithKey.mutate()}
+                >
+                  {t('auth.passkey.confirm')}
+                </Button>
+              ) : null}
 
               <button
                 type="button"
