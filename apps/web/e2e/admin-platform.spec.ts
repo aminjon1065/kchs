@@ -99,3 +99,46 @@ test.describe('Администрирование: возможности, бр�
     await expect(page.getByRole('button', { name: 'Переиндексировать поиск' })).toBeVisible()
   })
 })
+
+/**
+ * Правка подразделения (вопрос N86): консоль умела только заводить
+ * подразделения, менять их приходилось запросом к API. Сценарий заводит своё
+ * подразделение, правит название и убирает за собой.
+ */
+test.describe('Администрирование: оргструктура', () => {
+  test('подразделение правится в консоли: название и признак действующего', async ({
+    page,
+    request,
+  }) => {
+    test.setTimeout(120_000)
+    const run = Date.now().toString(36)
+    const me = await (await request.get('/api/v1/me')).json()
+    const headers = { 'x-csrf-token': me.session.csrfToken as string }
+
+    const created = await request.post('/api/v1/org/units', {
+      headers,
+      data: { name: { ru: `Отдел приёмки ${run}` }, code: `ACC-${run}`, createSpace: false },
+    })
+    expect(created.ok(), await created.text()).toBeTruthy()
+
+    await openWorkspace(page, request)
+    await openScreen(page, 'Администрирование')
+    await page.getByRole('tab', { name: 'Оргструктура' }).click()
+    await page.getByRole('treeitem', { name: new RegExp(`Отдел приёмки ${run}`) }).click()
+
+    const editor = page.getByRole('group', { name: 'Подразделение' })
+    await expect(editor).toBeVisible()
+    await editor.getByLabel('Название (рус.)').fill(`Отдел приёмки ${run} (правленый)`)
+    await editor.getByRole('button', { name: 'Сохранить' }).click()
+    await expect(page.getByText('Подразделение сохранено')).toBeVisible({ timeout: 20_000 })
+
+    const units = await request.get('/api/v1/org/units')
+    const unit = ((await units.json()).items as Array<{ id: string; name: { ru: string } }>).find(
+      (item) => item.name.ru.startsWith(`Отдел приёмки ${run}`),
+    )
+    expect(unit?.name.ru).toContain('правленый')
+    if (unit) {
+      await request.patch(`/api/v1/org/units/${unit.id}`, { headers, data: { isActive: false } })
+    }
+  })
+})

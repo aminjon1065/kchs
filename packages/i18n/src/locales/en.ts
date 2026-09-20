@@ -7221,6 +7221,8 @@ export const en: DeepPartial<Dictionary> = {
     org: {
       createUnit: 'New unit',
       created: 'Unit created',
+      editUnit: 'Unit',
+      saved: 'Unit saved',
       fields: {
         nameRu: 'Name (Russian)',
         nameTg: 'Name (Tajik)',
@@ -7232,6 +7234,11 @@ export const en: DeepPartial<Dictionary> = {
         topLevel: 'Top level',
         createSpace: 'Unit space',
         createSpaceHint: 'Create a shared space for the unit’s employees',
+        head: 'Head',
+        headHint: 'Approvals and escalations of the unit go to them',
+        noHead: 'Not assigned',
+        active: 'Unit is active',
+        activeHint: 'An inactive unit is not offered when assigning people',
       },
       head: 'Head',
       employees: '{count, plural, one {# employee} other {# employees}}',

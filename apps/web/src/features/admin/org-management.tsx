@@ -21,7 +21,7 @@ import { ApiError, http } from '~/shared/api/client.js'
 import { orgUnitsQuery } from '~/shared/api/queries.js'
 import { unitOptions } from './user-management.js'
 
-const TOP_LEVEL = '__root__'
+export const TOP_LEVEL = '__root__'
 
 /** Новое подразделение (P0-E04 S01): название на трёх языках, код, вид, место в дереве. */
 export function CreateUnitDialog({

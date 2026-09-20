@@ -90,6 +90,7 @@ import { FeaturesSection } from './features-section.js'
 import { GisServicesSection } from './gis-services-section.js'
 import { IntegrationsSection } from './integrations-section.js'
 import { CreateUnitDialog } from './org-management.js'
+import { OrgUnitEditor } from './org-unit-editor.js'
 import { RolesSection } from './roles-section.js'
 import { SecuritySection } from './security-section.js'
 import { SpacesSection } from './spaces-section.js'
@@ -731,6 +732,7 @@ function OrgSection() {
           </div>
         )}
       </Card>
+      {canManage && selected ? <OrgUnitEditor unitId={selected} /> : null}
     </div>
   )
 }
