@@ -1,4 +1,4 @@
-import type { ChatListItem, Message } from '@kchs/contracts'
+import type { ChatListItem, Message, TranslateResult } from '@kchs/contracts'
 import {
   Badge,
   Button,
@@ -20,6 +20,7 @@ import {
   BellOff,
   CheckSquare,
   ChevronLeft,
+  Languages,
   Link2,
   MessageSquare,
   MoreHorizontal,
@@ -32,6 +33,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
+import { aiStatusQuery } from '~/features/data/queries.js'
 import { MessageComposer } from '~/features/discussion/message-composer.js'
 import { MessageItem } from '~/features/discussion/message-item.js'
 import { uploadFile } from '~/features/files/upload.js'
@@ -96,10 +98,13 @@ export function MessageFeed({
   const [searching, setSearching] = useState(false)
   const [pinsOpen, setPinsOpen] = useState(false)
   const [search, setSearch] = useState('')
+  // Перевод сообщения (ADR-0100): показывается под оригиналом, никуда не пишется
+  const [translations, setTranslations] = useState<Record<string, string>>({})
   const needle = useDebouncedValue(search.trim(), 250)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   const { data, isLoading } = useQuery(chatMessagesQuery(conversation.id, null, limit))
+  const { data: ai } = useQuery(aiStatusQuery())
   const { data: pins } = useQuery(chatPinsQuery(pinsOpen ? conversation.id : null))
   const { data: found } = useQuery(chatSearchQuery(searching ? needle : '', conversation.id))
 
@@ -132,6 +137,19 @@ export function MessageFeed({
         text,
       }),
     onSuccess: () => void client.invalidateQueries({ queryKey: chatKeys.drafts }),
+  })
+
+  const translate = useMutation({
+    mutationFn: async (input: { messageId: string; text: string }) => ({
+      messageId: input.messageId,
+      result: await http.post<TranslateResult>('/ai/translate', {
+        text: input.text,
+        to: locale,
+      }),
+    }),
+    onSuccess: ({ messageId, result }) =>
+      setTranslations((current) => ({ ...current, [messageId]: result.text })),
+    onError: () => toast.error(t('chats.translateFailed')),
   })
 
   const post = useMutation({
@@ -391,6 +409,11 @@ export function MessageFeed({
                             objectId={conversation.id}
                             canReact={conversation.can.post}
                           />
+                          {translations[message.id] ? (
+                            <p className="ml-9 mt-1 whitespace-pre-wrap border-l-2 border-accent pl-2 text-xs text-fg-secondary">
+                              {translations[message.id]}
+                            </p>
+                          ) : null}
                           {message.threadReplyCount > 0 ? (
                             <Button
                               size="sm"
@@ -419,6 +442,19 @@ export function MessageFeed({
                             <DropdownMenuItem onSelect={() => onThread(message.id)}>
                               {t('chats.reply')}
                             </DropdownMenuItem>
+                            {ai?.enabled ? (
+                              <DropdownMenuItem
+                                onSelect={() =>
+                                  translate.mutate({
+                                    messageId: message.id,
+                                    text: message.text,
+                                  })
+                                }
+                              >
+                                <Languages className="mr-2 size-3.5" aria-hidden />
+                                {t('chats.translate')}
+                              </DropdownMenuItem>
+                            ) : null}
                             <DropdownMenuItem
                               onSelect={() => pin.mutate({ messageId: message.id, on: true })}
                             >

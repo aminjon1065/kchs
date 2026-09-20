@@ -4,11 +4,14 @@ import {
   AssistantMessage,
   AssistantThread,
   AssistantThreadQuery,
+  TranslateInput,
+  TranslateResult,
 } from '@kchs/contracts'
 import { z } from 'zod'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { Assistant } from './domain/assistant.js'
 import { AiService } from './domain/service.js'
+import { Translate } from './domain/translate.js'
 
 export function registerAiRoutes(route: RouteRegistrar): void {
   route({
@@ -59,5 +62,15 @@ export function registerAiRoutes(route: RouteRegistrar): void {
       await Assistant.clear(request.ctx, request.params.id)
       return { ok: true as const }
     },
+  })
+
+  route({
+    method: 'POST',
+    url: '/ai/translate',
+    auth: 'session',
+    tags: ['ai'],
+    summary: 'Перевод текста между языками платформы (ru, tg, en)',
+    schema: { body: TranslateInput, response: { 200: TranslateResult } },
+    handler: async (request) => Translate.run(request.ctx, request.body),
   })
 }

@@ -83,3 +83,21 @@ export type AssistantThreadQuery = z.infer<typeof AssistantThreadQuery>
 
 /** Предел шагов на один вопрос: ассистент не ходит по кругу. */
 export const ASSISTANT_MAX_STEPS = 4
+
+/** Перевод текста между языками интерфейса (13-search-knowledge-ai.md §4). */
+export const TRANSLATE_LANGUAGES = ['ru', 'tg', 'en'] as const
+export const TranslateLanguage = z.enum(TRANSLATE_LANGUAGES)
+export type TranslateLanguage = z.infer<typeof TranslateLanguage>
+
+export const TranslateInput = z.object({
+  text: z.string().trim().min(1).max(8000),
+  to: TranslateLanguage,
+})
+export type TranslateInput = z.infer<typeof TranslateInput>
+
+export const TranslateResult = z.object({
+  text: z.string(),
+  /** Язык оригинала, как его определила модель. */
+  from: z.string(),
+})
+export type TranslateResult = z.infer<typeof TranslateResult>

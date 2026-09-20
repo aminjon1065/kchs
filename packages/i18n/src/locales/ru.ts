@@ -5530,6 +5530,8 @@ export const ru = {
 
   /** Мессенджер (11-communications-meetings.md §1, ADR-0090). */
   chats: {
+    translate: 'Перевести',
+    translateFailed: 'Не удалось перевести сообщение',
     title: 'Чаты',
     newChat: 'Новая беседа',
     findChat: 'Найти беседу',

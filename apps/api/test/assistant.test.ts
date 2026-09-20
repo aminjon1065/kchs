@@ -198,3 +198,27 @@ describe('ассистент', () => {
     configure({ AI_PROVIDER: 'anthropic' })
   })
 })
+
+describe('перевод', () => {
+  it('возвращает перевод и язык оригинала, без провайдера — 503', async () => {
+    ai.reply({ text: 'Flood in Khatlon', from: 'ru' })
+    const response = await call(fx.app, {
+      method: 'POST',
+      url: '/ai/translate',
+      as: fx.admin,
+      payload: { text: 'Паводок в Хатлоне', to: 'en' },
+    })
+    expect(response.statusCode, response.body).toBe(200)
+    expect(response.json()).toMatchObject({ text: 'Flood in Khatlon', from: 'ru' })
+
+    configure({ AI_PROVIDER: undefined })
+    const off = await call(fx.app, {
+      method: 'POST',
+      url: '/ai/translate',
+      as: fx.admin,
+      payload: { text: 'Паводок', to: 'tg' },
+    })
+    expect(off.statusCode).toBe(503)
+    configure({ AI_PROVIDER: 'anthropic' })
+  })
+})

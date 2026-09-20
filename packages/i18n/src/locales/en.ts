@@ -5458,6 +5458,8 @@ export const en: DeepPartial<Dictionary> = {
   },
 
   chats: {
+    translate: 'Translate',
+    translateFailed: 'Could not translate the message',
     title: 'Chats',
     newChat: 'New chat',
     findChat: 'Find a chat',
