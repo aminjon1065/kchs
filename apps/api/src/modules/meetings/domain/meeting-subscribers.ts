@@ -10,7 +10,7 @@ import { emitToRoom, emitToUser } from '~/kernel/realtime/gateway.js'
  * входящий звонок приглашённому, отказ — звонящему, смена состава и
  * завершение — всем, у кого открыта комната.
  */
-export function registerMeetingsBackground(): void {
+export function registerMeetingRealtime(): void {
   registerSubscriber({
     name: 'meetings-realtime',
     types: [

@@ -17,6 +17,7 @@ export const meetingKeys = {
   list: (scope: string) => ['meetings', 'list', scope] as const,
   meeting: (id: string) => ['meeting', id] as const,
   knocks: (id: string) => ['meeting', id, 'knocks'] as const,
+  recordings: (id: string) => ['meeting', id, 'recordings'] as const,
   guest: (token: string) => ['meeting', 'guest', token] as const,
 }
 

@@ -225,6 +225,13 @@
       "when": 1789885610933,
       "tag": "20260920062650_meeting_recordings",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1789886321952,
+      "tag": "20260920063841_meeting_protocol",
+      "breakpoints": true
     }
   ]
 }

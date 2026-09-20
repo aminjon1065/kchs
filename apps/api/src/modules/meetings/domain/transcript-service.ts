@@ -1,5 +1,5 @@
 import type { TranscriptRecord, TranscriptResult, TranscriptStatus } from '@kchs/contracts'
-import { eq, sql } from 'drizzle-orm'
+import { and, desc, eq, sql } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { systemCtx, type UserCtx } from '~/shared/context.js'
@@ -7,6 +7,7 @@ import { db } from '~/shared/db/client.js'
 import { objects, recordings, transcripts } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
+import type { TranscriptText } from './protocol-transcript.js'
 
 /**
  * Расшифровка записи встречи (11-communications-meetings.md §4, ADR-0092).
@@ -145,5 +146,36 @@ export const TranscriptService = {
         },
       })
     })
+  },
+
+  /**
+   * Текст последней готовой расшифровки встречи — источник для черновика
+   * протокола (ADR-0093). Права здесь не проверяются: порт зовёт черновик уже
+   * после `authorize()` на протоколе, а протокол и запись видит один круг —
+   * участники встречи.
+   */
+  async textOf(meetingId: string, limit: number): Promise<TranscriptText | null> {
+    const [row] = await db()
+      .select({ segments: transcripts.segments })
+      .from(transcripts)
+      .innerJoin(recordings, eq(recordings.id, transcripts.recordingId))
+      .where(and(eq(recordings.meetingId, meetingId), eq(recordings.transcriptStatus, 'ready')))
+      .orderBy(desc(transcripts.createdAt))
+      .limit(1)
+    if (!row) return null
+
+    let text = ''
+    let truncated = false
+    for (const segment of row.segments) {
+      const phrase = segment.text.trim()
+      if (!phrase) continue
+      const line = segment.speaker ? `${segment.speaker}: ${phrase}` : phrase
+      if (text.length + line.length + 1 > limit) {
+        truncated = true
+        break
+      }
+      text += text ? `\n${line}` : line
+    }
+    return { text, truncated }
   },
 }

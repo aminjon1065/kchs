@@ -1,4 +1,4 @@
-import type { MeetingGuestLink, MeetingJoin } from '@kchs/contracts'
+import type { MeetingGuestLink, MeetingJoin, RecordingList } from '@kchs/contracts'
 import { formatDateTime } from '@kchs/fields'
 import {
   Avatar,
@@ -10,6 +10,10 @@ import {
   EmptyState,
   Input,
   Skeleton,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
   useToast,
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -20,24 +24,31 @@ import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { onRealtimeEvent } from '~/shared/realtime/client.js'
+import { ProtocolPanel } from './protocol/protocol-panel.js'
 import { endMeeting, joinMeeting, leaveMeeting, meetingKeys, meetingQuery } from './queries.js'
 import { MeetingRoom } from './room/meeting-room.js'
 
 /**
- * Встреча как объект (ADR-0089, ADR-0091): до входа — карточка с составом и
- * кнопкой входа, после — комната. Вход выдаёт токен медиасервера; на экране
- * встречи он же перевыпускается при переподключении.
+ * Встреча как объект (ADR-0089, ADR-0091): до входа — карточка с составом,
+ * записями и протоколом (ADR-0092, ADR-0093), после — комната. Вход выдаёт
+ * токен медиасервера; на экране встречи он же перевыпускается при
+ * переподключении.
  */
-export function MeetingView({ objectId }: { objectId: string; tabId?: string }) {
+export default function MeetingView({ objectId, tabId }: { objectId: string; tabId?: string }) {
   const t = useT()
   const locale = useAppearance((s) => s.locale)
   const toast = useToast()
   const client = useQueryClient()
   const openTab = useWorkspace((s) => s.openTab)
+  const setTabTitle = useWorkspace((s) => s.setTabTitle)
   const [join, setJoin] = useState<MeetingJoin | null>(null)
   const [linkOpen, setLinkOpen] = useState(false)
 
   const { data: meeting, isLoading, error } = useQuery(meetingQuery(objectId))
+
+  useEffect(() => {
+    if (tabId && meeting?.title) setTabTitle(tabId, meeting.title)
+  }, [meeting?.title, setTabTitle, tabId])
 
   // Состав комнаты и завершение приходят realtime: карточка не устаревает
   useEffect(
@@ -117,82 +128,142 @@ export function MeetingView({ objectId }: { objectId: string; tabId?: string }) 
   const when = meeting.startsAt ? formatDateTime(meeting.startsAt, { locale }) : null
 
   return (
-    <div className="flex flex-col gap-4 p-6">
-      <header className="flex flex-wrap items-center gap-3">
-        <h1 className="text-lg font-semibold">{meeting.title}</h1>
-        <Badge tone={meeting.status === 'live' ? 'success' : 'neutral'}>
-          {t(`meetings.status.${meeting.status}`)}
-        </Badge>
-        {when ? <span className="text-sm text-fg-secondary">{when}</span> : null}
-      </header>
+    <Tabs defaultValue="overview" className="flex h-full min-h-0 flex-col">
+      <TabsList className="px-6 pt-4">
+        <TabsTrigger value="overview">{t('meetings.tabs.overview')}</TabsTrigger>
+        <TabsTrigger value="protocol">{t('meetings.protocol.tab')}</TabsTrigger>
+      </TabsList>
 
-      {meeting.can.join ? null : (
-        <Callout tone="warning">{t('meetings.errors.unavailable')}</Callout>
-      )}
+      <TabsContent value="overview" className="min-h-0 flex-1 overflow-y-auto">
+        <div className="flex flex-col gap-4 p-6">
+          <header className="flex flex-wrap items-center gap-3">
+            <h1 className="text-lg font-semibold">{meeting.title}</h1>
+            <Badge tone={meeting.status === 'live' ? 'success' : 'neutral'}>
+              {t(`meetings.status.${meeting.status}`)}
+            </Badge>
+            {when ? <span className="text-sm text-fg-secondary">{when}</span> : null}
+          </header>
 
-      <div className="flex flex-wrap gap-2">
-        <Button
-          variant="primary"
-          disabled={!meeting.can.join}
-          loading={enter.isPending}
-          onClick={() => enter.mutate()}
-          data-testid="meeting-join"
-          icon={<Video className="size-4" />}
-        >
-          {t('meetings.actions.join')}
-        </Button>
-        {meeting.can.manage ? (
-          <Button
-            variant="secondary"
-            onClick={() => setLinkOpen(true)}
-            data-testid="meeting-guest-link"
-            icon={<Link2 className="size-4" />}
-          >
-            {t('meetings.actions.guestLink')}
-          </Button>
-        ) : null}
-        {meeting.can.end ? (
-          <Button variant="ghost" onClick={() => finish.mutate()} loading={finish.isPending}>
-            {t('meetings.room.endForAll')}
-          </Button>
-        ) : null}
-      </div>
+          {meeting.can.join ? null : (
+            <Callout tone="warning">{t('meetings.errors.unavailable')}</Callout>
+          )}
 
-      <section className="flex flex-col gap-2">
-        <h2 className="flex items-center gap-2 text-sm font-medium">
-          <Users className="size-4" aria-hidden />
-          {t('meetings.room.invited')}
-        </h2>
-        {meeting.participants.length === 0 ? (
-          <p className="text-sm text-fg-muted">{t('meetings.room.noInvited')}</p>
-        ) : (
-          <ul className="flex flex-col gap-1">
-            {meeting.participants.map((participant) => (
-              <li key={participant.user.id} className="flex items-center gap-2">
-                <Avatar
-                  name={participant.user.displayName}
-                  src={participant.user.avatarUrl}
-                  size="sm"
-                />
-                <span className="text-sm">{participant.user.displayName}</span>
-                {participant.role === 'organizer' ? (
-                  <Badge tone="accent" size="sm">
-                    {t('meetings.role.organizer')}
-                  </Badge>
-                ) : null}
-                {participant.inRoom ? (
-                  <Badge tone="success" size="sm">
-                    {t('meetings.room.here')}
-                  </Badge>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="primary"
+              disabled={!meeting.can.join}
+              loading={enter.isPending}
+              onClick={() => enter.mutate()}
+              data-testid="meeting-join"
+              icon={<Video className="size-4" />}
+            >
+              {t('meetings.actions.join')}
+            </Button>
+            {meeting.can.manage ? (
+              <Button
+                variant="secondary"
+                onClick={() => setLinkOpen(true)}
+                data-testid="meeting-guest-link"
+                icon={<Link2 className="size-4" />}
+              >
+                {t('meetings.actions.guestLink')}
+              </Button>
+            ) : null}
+            {meeting.can.end ? (
+              <Button variant="ghost" onClick={() => finish.mutate()} loading={finish.isPending}>
+                {t('meetings.room.endForAll')}
+              </Button>
+            ) : null}
+          </div>
+
+          <section className="flex flex-col gap-2">
+            <h2 className="flex items-center gap-2 text-sm font-medium">
+              <Users className="size-4" aria-hidden />
+              {t('meetings.room.invited')}
+            </h2>
+            {meeting.participants.length === 0 ? (
+              <p className="text-sm text-fg-muted">{t('meetings.room.noInvited')}</p>
+            ) : (
+              <ul className="flex flex-col gap-1">
+                {meeting.participants.map((participant) => (
+                  <li key={participant.user.id} className="flex items-center gap-2">
+                    <Avatar
+                      name={participant.user.displayName}
+                      src={participant.user.avatarUrl}
+                      size="sm"
+                    />
+                    <span className="text-sm">{participant.user.displayName}</span>
+                    {participant.role === 'organizer' ? (
+                      <Badge tone="accent" size="sm">
+                        {t('meetings.role.organizer')}
+                      </Badge>
+                    ) : null}
+                    {participant.inRoom ? (
+                      <Badge tone="success" size="sm">
+                        {t('meetings.room.here')}
+                      </Badge>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <RecordingsSection meetingId={objectId} />
+        </div>
+      </TabsContent>
+
+      <TabsContent value="protocol" className="min-h-0 flex-1">
+        <ProtocolPanel meetingId={objectId} />
+      </TabsContent>
 
       <GuestLinkDialog meetingId={objectId} open={linkOpen} onOpenChange={setLinkOpen} />
-    </div>
+    </Tabs>
+  )
+}
+
+/** Записи встречи (ADR-0092): доступны тем же, кому доступна сама встреча. */
+function RecordingsSection({ meetingId }: { meetingId: string }) {
+  const t = useT()
+  const locale = useAppearance((s) => s.locale)
+  const openTab = useWorkspace((s) => s.openTab)
+  const { data } = useQuery({
+    queryKey: meetingKeys.recordings(meetingId),
+    queryFn: () => http.get<RecordingList>(`/meetings/${meetingId}/recordings`),
+  })
+  const items = data?.items ?? []
+  if (items.length === 0) return null
+
+  return (
+    <section className="flex flex-col gap-2">
+      <h2 className="text-sm font-medium">{t('meetings.recording.listTitle')}</h2>
+      <ul className="flex flex-col gap-1" aria-label={t('meetings.recording.listTitle')}>
+        {items.map((recording) => (
+          <li key={recording.id} className="flex flex-wrap items-center gap-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() =>
+                openTab({
+                  kind: 'object',
+                  objectId: recording.id,
+                  objectType: 'recording',
+                  title: recording.title,
+                  mode: 'permanent',
+                })
+              }
+            >
+              {recording.startedAt
+                ? formatDateTime(recording.startedAt, { locale })
+                : recording.title}
+            </Button>
+            <Badge tone={recording.status === 'ready' ? 'success' : 'neutral'} size="sm">
+              {t(`meetings.recording.status.${recording.status}`)}
+            </Badge>
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }
 

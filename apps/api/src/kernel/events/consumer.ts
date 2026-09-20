@@ -280,11 +280,13 @@ export const KNOWN_DOMAINS = [
   'correspondent',
   'acknowledgment',
   'case',
-  // Встречи и звонки (ADR-0089), запись и расшифровка (ADR-0092), чаты (ADR-0090)
+  // Встречи и звонки (ADR-0089), запись и расшифровка (ADR-0092),
+  // протокол (ADR-0093), чаты (ADR-0090)
   'meeting',
   'call',
   'recording',
   'transcript',
+  'protocol',
   'chat',
 ] as const
 

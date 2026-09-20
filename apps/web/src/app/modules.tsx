@@ -29,7 +29,6 @@ import { TerritoriesScreen } from '~/features/gis/territories-screen.js'
 import { TerritoryView } from '~/features/gis/territory-view.js'
 import { HomeScreen } from '~/features/home/home-screen.js'
 import { InboxScreen } from '~/features/inbox/inbox-screen.js'
-import { MeetingView } from '~/features/meetings/meeting-view.js'
 import { MeetingsScreen } from '~/features/meetings/meetings-screen.js'
 import { NotificationsScreen } from '~/features/notifications/notifications-screen.js'
 import { FileView } from '~/features/objects/file-view.js'
@@ -50,6 +49,9 @@ import { registerObjectView, registerScreen } from './workspace/registry.js'
 const NotebookView = lazy(() => import('~/features/notebooks/notebook-view.js'))
 /** Отчёт — тоже отдельным чанком: тот же совместный документ, что у тетради (ADR-0078). */
 const ReportView = lazy(() => import('~/features/reports/report-view.js'))
+/** Встреча и её протокол — отдельным чанком: Tiptap и клиент совместной правки (ADR-0093). */
+const MeetingView = lazy(() => import('~/features/meetings/meeting-view.js'))
+const ProtocolView = lazy(() => import('~/features/meetings/protocol/protocol-view.js'))
 /** Конструктор маршрутов — отдельным чанком: нужен только администратору маршрутов (ADR-0087). */
 const ProcessDesigner = lazy(() => import('~/features/processes/designer/designer-screen.js'))
 /** Запись встречи — отдельным чанком: плеер и расшифровка нужны не всем (ADR-0092). */
@@ -191,10 +193,6 @@ export function registerModules(): void {
     icon: 'meeting',
     render: () => <MeetingsScreen />,
   })
-  registerObjectView({
-    type: 'meeting',
-    render: (tab) => <MeetingView objectId={tab.objectId!} tabId={tab.id} />,
-  })
   registerScreen({
     key: 'search',
     titleKey: 'shell.rail.search',
@@ -295,6 +293,22 @@ export function registerModules(): void {
         }
       >
         <ReportView objectId={tab.objectId!} tabId={tab.id} />
+      </Suspense>
+    ),
+  })
+  registerObjectView({
+    type: 'meeting',
+    render: (tab) => (
+      <Suspense fallback={<Skeleton className="m-4 h-40" />}>
+        <MeetingView objectId={tab.objectId!} tabId={tab.id} />
+      </Suspense>
+    ),
+  })
+  registerObjectView({
+    type: 'protocol',
+    render: (tab) => (
+      <Suspense fallback={<Skeleton className="m-4 h-40" />}>
+        <ProtocolView objectId={tab.objectId!} tabId={tab.id} />
       </Suspense>
     ),
   })

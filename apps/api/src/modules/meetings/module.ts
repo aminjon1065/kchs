@@ -1,19 +1,24 @@
 import type { ObjectSummary } from '@kchs/contracts'
 import { inArray } from 'drizzle-orm'
+import { registerCollabType } from '~/kernel/collab/registry.js'
+import { registerSubscriber } from '~/kernel/events/bus.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
 import { db } from '~/shared/db/client.js'
 import { meetings, recordings } from '~/shared/db/schema/index.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
+import { registerMeetingRealtime } from './domain/meeting-subscribers.js'
+import { ProtocolService } from './domain/protocol-service.js'
+import { protocolSubscribers } from './domain/protocol-subscribers.js'
+import { setTranscriptSource } from './domain/protocol-transcript.js'
+import { TranscriptService } from './domain/transcript-service.js'
 import { registerMeetingsGuestRoutes } from './http/guest-routes.js'
 import { registerMeetingRecordingRoutes } from './http/recording-routes.js'
 import { registerMeetingsRoomRoutes } from './http/room-routes.js'
 import { registerMeetingsRoutes as registerCoreRoutes } from './http.js'
 
-export { registerMeetingsBackground } from './domain/meeting-subscribers.js'
-
 /**
  * Маршруты встреч: ядро модуля, гостевой вход и комната ожидания (ADR-0091),
- * запись и расшифровка (ADR-0092).
+ * запись и расшифровка (ADR-0092), протокол (ADR-0093).
  */
 export function registerMeetingsRoutes(route: RouteRegistrar): void {
   registerCoreRoutes(route)
@@ -73,11 +78,20 @@ export function registerMeetingsObjectTypes(): void {
     },
   })
 
-  /**
-   * Тип `recording` (11-communications-meetings.md §3, ADR-0092): запись —
-   * ребёнок своей встречи, поэтому её видит тот, кто видит встречу, а
-   * посторонний получает 404. Сам файл записи — вложение этого объекта.
-   */
+  registerRecordingType()
+  registerProtocolType()
+
+  // Черновик протокола читает расшифровку записи через порт (ADR-0093):
+  // источник — своя часть модуля, поэтому подключается при регистрации типов
+  setTranscriptSource({ textOf: (meetingId, limit) => TranscriptService.textOf(meetingId, limit) })
+}
+
+/**
+ * Тип `recording` (11-communications-meetings.md §3, ADR-0092): запись —
+ * ребёнок своей встречи, поэтому её видит тот, кто видит встречу, а
+ * посторонний получает 404. Сам файл записи — вложение этого объекта.
+ */
+function registerRecordingType(): void {
   registerObjectType({
     type: 'recording',
     labelKey: 'objects.types.recording',
@@ -119,4 +133,47 @@ export function registerMeetingsObjectTypes(): void {
       )
     },
   })
+}
+
+/**
+ * Тип `protocol` (11-communications-meetings.md §4, ADR-0093) — ребёнок
+ * встречи: права наследуются от неё, поэтому участник встречи (уровень
+ * `comment`) ведёт повестку и протокол совместно, а подтверждение,
+ * регистрация документом и ознакомление — за организатором (`manage`).
+ */
+function registerProtocolType(): void {
+  registerObjectType({
+    type: 'protocol',
+    labelKey: 'objects.types.protocol',
+    icon: 'protocol',
+    route: (id) => `/o/${id}`,
+    levels: ['view', 'comment', 'edit', 'manage', 'owner'],
+    actions: {
+      view: { minLevel: 'view' },
+      comment: { minLevel: 'comment' },
+      /** Совместная правка документа протокола — участникам встречи. */
+      edit: { minLevel: 'comment' },
+      manage: { minLevel: 'manage' },
+      request_acknowledgment: { minLevel: 'manage', allowArchived: true },
+      share: { minLevel: 'manage' },
+      delete: { minLevel: 'owner' },
+    },
+    discussable: true,
+    linkable: true,
+    hasParentTree: false,
+    moduleManaged: true,
+    searchable: (id) => ProtocolService.searchable(id),
+  })
+
+  registerCollabType({
+    type: 'protocol',
+    initialState: (id, executor) => ProtocolService.initialState(id, executor),
+    snapshot: (tx, ctx, id, doc) => ProtocolService.snapshot(tx, ctx, id, doc),
+  })
+}
+
+/** Подписчики встреч, звонков и протокола — только в роли worker. */
+export function registerMeetingsBackground(): void {
+  registerMeetingRealtime()
+  for (const subscriber of protocolSubscribers) registerSubscriber(subscriber)
 }
