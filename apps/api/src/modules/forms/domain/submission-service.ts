@@ -4,7 +4,7 @@ import type {
   FormSubmission,
   FormSubmissionStatus,
 } from '@kchs/contracts'
-import { and, eq, sql } from 'drizzle-orm'
+import { and, eq, inArray, sql } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
 import { buildUserCtxFor } from '~/kernel/access/explain.js'
 import { BusinessCalendar } from '~/kernel/business-calendar/service.js'
@@ -449,10 +449,7 @@ export async function submissionsOf(
     .select()
     .from(formSubmissions)
     .where(
-      and(
-        eq(formSubmissions.formId, formId),
-        sql`${formSubmissions.periodKey} = any(${[...periodKeys]})`,
-      ),
+      and(eq(formSubmissions.formId, formId), inArray(formSubmissions.periodKey, [...periodKeys])),
     )
   return rows as SubmissionRow[]
 }

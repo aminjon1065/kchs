@@ -17,7 +17,7 @@ import {
   useToast,
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ClipboardPen, Send } from 'lucide-react'
+import { ClipboardPen, Save } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
@@ -180,27 +180,19 @@ export function FormFillTab({ form }: { form: FormRecord }) {
               {t('forms.fill.readOnly')}
             </Callout>
           )}
-          <div className="flex flex-wrap gap-2">
-            {submission.canSubmit ? (
+          {submission.canSubmit ? (
+            <div className="flex flex-wrap gap-2">
+              {/* Сдача — кнопка самой формы: она отправляет только корректные значения */}
               <Button
                 variant="secondary"
+                icon={<Save className="size-4" />}
                 loading={saveDraft.isPending}
                 onClick={() => saveDraft.mutate()}
               >
                 {t('forms.fill.saveDraft')}
               </Button>
-            ) : null}
-            {submission.canSubmit ? (
-              <Button
-                variant="primary"
-                loading={submit.isPending}
-                icon={<Send className="size-4" />}
-                onClick={() => submit.mutate()}
-              >
-                {t('forms.fill.submit')}
-              </Button>
-            ) : null}
-          </div>
+            </div>
+          ) : null}
 
           {submission.canReview ? (
             <div className="flex flex-col gap-2 rounded-md border border-line bg-surface p-3">

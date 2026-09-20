@@ -107,8 +107,11 @@ export function AlertView({ objectId }: { objectId: string }) {
           onCheckedChange={(enabled) => toggle.mutate(enabled)}
         />
         <div className="ml-auto flex flex-wrap gap-2">
+          {/* Проверка идёт по сохранённому правилу: с несохранёнными правками она
+              показала бы не то, что видит человек на экране */}
           <Button
             variant="secondary"
+            disabled={draft !== null}
             loading={check.isPending && check.variables === true}
             icon={<PlayCircle className="size-4" />}
             onClick={() => check.mutate(true)}
@@ -117,6 +120,7 @@ export function AlertView({ objectId }: { objectId: string }) {
           </Button>
           <Button
             variant="secondary"
+            disabled={draft !== null}
             loading={check.isPending && check.variables === false}
             onClick={() => check.mutate(false)}
           >

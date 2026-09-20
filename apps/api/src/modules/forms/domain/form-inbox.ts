@@ -3,7 +3,7 @@ import { InboxService } from '~/kernel/inbox/service.js'
 import type { Ctx } from '~/shared/context.js'
 import type { Executor } from '~/shared/db/client.js'
 import type { FormRow } from './form-service.js'
-import { subjectNames, submitterOf } from './subject-names.js'
+import { subjectNames, submittersOf } from './subject-names.js'
 
 /**
  * Дела Входящих формы (12-calendar-notifications-home.md §3, ADR-0103):
@@ -48,20 +48,20 @@ export const FormInbox = {
     submission: SubmissionLike,
     subject: FormSubject,
   ): Promise<void> {
-    const userId = await submitterOf(subject)
-    if (!userId) return
-    await InboxService.open(tx, ctx, {
-      userId,
-      kind: 'submit_form',
-      objectId: form.id,
-      titleKey: 'inbox.tpl.submitForm',
-      params: { title: form.title, period: submission.periodKey },
-      payload: { submissionId: submission.id, periodKey: submission.periodKey },
-      dueAt: submission.dueAt,
-      priority: 'normal',
-      dedupeKey: `form:${submission.id}:submit`,
-      actions: FILL,
-    })
+    for (const userId of await submittersOf(subject)) {
+      await InboxService.open(tx, ctx, {
+        userId,
+        kind: 'submit_form',
+        objectId: form.id,
+        titleKey: 'inbox.tpl.submitForm',
+        params: { title: form.title, period: submission.periodKey },
+        payload: { submissionId: submission.id, periodKey: submission.periodKey },
+        dueAt: submission.dueAt,
+        priority: 'normal',
+        dedupeKey: `form:${submission.id}:submit`,
+        actions: FILL,
+      })
+    }
   },
 
   /** Ответственным: принять сводку или вернуть с комментарием. */

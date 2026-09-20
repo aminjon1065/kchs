@@ -70,7 +70,9 @@ export const formPolicy: TypePolicy = {
     if (ctx.principals.unitIds.length > 0) {
       conditions.push(arrayOverlaps(forms.assignedUnits, ctx.principals.unitIds))
     }
-    return sql`${objects.id} IN (SELECT ${forms.id} FROM ${forms}
-      WHERE ${sql.join(conditions, sql` OR `)})`
+    // EXISTS с корреляцией по идентификатору: поиск по первичному ключу форм,
+    // а не подзапрос-список на каждый объект пространства
+    return sql`EXISTS (SELECT 1 FROM ${forms}
+      WHERE ${forms.id} = ${objects.id} AND (${sql.join(conditions, sql` OR `)}))`
   },
 }

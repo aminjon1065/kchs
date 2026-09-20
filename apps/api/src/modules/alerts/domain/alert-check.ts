@@ -8,7 +8,7 @@ import type {
   MetricRecord,
   MetricValue,
 } from '@kchs/contracts'
-import { eq, sql } from 'drizzle-orm'
+import { and, desc, eq, inArray } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
 import { buildUserCtxFor } from '~/kernel/access/explain.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
@@ -144,13 +144,15 @@ async function metricValue(
 /** Когда группа срабатывала в последний раз — для периода тишины. */
 async function lastFired(alertId: string, groupKeys: string[]): Promise<Map<string, string>> {
   if (groupKeys.length === 0) return new Map()
-  const rows = await db().execute<{ group_key: string; fired_at: string }>(
-    sql`select distinct on (group_key) group_key, fired_at
-        from alert_events
-        where alert_id = ${alertId} and group_key = any(${groupKeys})
-        order by group_key, fired_at desc`,
-  )
-  return new Map(rows.map((row) => [row.group_key, row.fired_at]))
+  const rows = await db()
+    .selectDistinctOn([alertEvents.groupKey], {
+      groupKey: alertEvents.groupKey,
+      firedAt: alertEvents.firedAt,
+    })
+    .from(alertEvents)
+    .where(and(eq(alertEvents.alertId, alertId), inArray(alertEvents.groupKey, groupKeys)))
+    .orderBy(alertEvents.groupKey, desc(alertEvents.firedAt))
+  return new Map(rows.map((row) => [row.groupKey, row.firedAt]))
 }
 
 export const AlertCheck = {

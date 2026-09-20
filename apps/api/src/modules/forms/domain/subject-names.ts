@@ -23,14 +23,23 @@ export async function subjectNames(subjects: readonly FormSubject[]): Promise<Ma
 
 export const subjectKey = (subject: FormSubject): string => `${subject.kind}:${subject.id}`
 
-/** Кому адресуется дело «Сдать сводку»: сотруднику или главе подразделения. */
-export async function submitterOf(subject: FormSubject): Promise<string | null> {
-  if (subject.kind === 'user') return subject.id
-  return directory().unitHead(subject.id)
+/** Сотрудников подразделения без руководителя в деле — не больше. */
+const FALLBACK_MEMBERS = 10
+
+/**
+ * Кому адресуется дело «Сдать сводку»: сотруднику, главе подразделения, а если
+ * главы нет — его сотрудникам, иначе сдавать было бы некому.
+ */
+export async function submittersOf(subject: FormSubject): Promise<string[]> {
+  if (subject.kind === 'user') return [subject.id]
+  const head = await directory().unitHead(subject.id)
+  if (head) return [head]
+  const members = await directory().unitMembers(subject.id)
+  return members.slice(0, FALLBACK_MEMBERS)
 }
 
 /** Кому уходит эскалация: руководителю назначенного. */
 export async function managerOf(subject: FormSubject): Promise<string | null> {
-  const submitter = await submitterOf(subject)
+  const [submitter] = await submittersOf(subject)
   return submitter ? directory().manager(submitter) : null
 }
