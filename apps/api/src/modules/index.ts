@@ -36,6 +36,7 @@ import { registerGisBackground, registerGisObjectTypes, registerGisRoutes } from
 import { registerIdentityBackground, registerIdentityRoutes } from './identity/module.js'
 import { AuthService, DirectoryQueries, OrgService, UserService } from './identity/public.js'
 import { registerMeetingsObjectTypes, registerMeetingsRoutes } from './meetings/module.js'
+import { registerPushChannel, registerPushRoutes } from './push/module.js'
 import {
   registerReportsBackground,
   registerReportsObjectTypes,
@@ -82,6 +83,7 @@ export function registerAllObjectTypes(): void {
   registerDirectory()
   // Каналы уведомлений модулей: ядро доставляет через них в любой роли процесса
   registerTelegramChannel()
+  registerPushChannel()
 }
 
 /** Модуль identity предоставляет ядру справочник людей и оргструктуры и проверку второго фактора. */
@@ -120,6 +122,7 @@ export async function registerModules(app: FastifyInstance, route: RouteRegistra
   registerDocumentsRoutes(route)
   registerCalendarRoutes(route)
   registerMeetingsRoutes(route)
+  registerPushRoutes(route)
   registerTelegramRoutes(route)
   registerAiRoutes(route)
   registerAdminRoutes(route)

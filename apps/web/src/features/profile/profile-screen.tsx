@@ -21,6 +21,7 @@ import { ApiError, http, setCsrfToken } from '~/shared/api/client.js'
 import { keys, meQuery } from '~/shared/api/queries.js'
 import { DelegationCard } from './delegation-card.js'
 import { MfaCard } from './mfa-card.js'
+import { PushCard } from './push-card.js'
 import { TelegramCard } from './telegram-card.js'
 
 export function ProfileScreen() {
@@ -175,6 +176,8 @@ export function ProfileScreen() {
         <MfaCard enabled={me.mfaEnabled} />
 
         <TelegramCard />
+
+        <PushCard />
 
         <Card title={t('auth.password.title')}>
           <form

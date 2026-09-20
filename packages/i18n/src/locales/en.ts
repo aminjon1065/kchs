@@ -5515,6 +5515,23 @@ export const en: DeepPartial<Dictionary> = {
       connected: 'Telegram connected',
       categories: 'What to send to Telegram',
     },
+    push: {
+      title: 'Browser notifications',
+      description:
+        'Push notifications reach this device even when the tab is closed; a click opens the object.',
+      enable: 'Enable on this device',
+      disable: 'Disable',
+      deviceOn: 'This device is subscribed',
+      deviceOff: 'This device is not subscribed',
+      devices: '{count, plural, =0 {no devices} one {# device} other {# devices}}',
+      subscribed: 'Browser notifications enabled',
+      unsubscribed: 'Browser notifications disabled',
+      denied: 'The browser did not grant notification permission',
+      blocked:
+        'Notifications are blocked for this site in browser settings — allow them and try again.',
+      unsupported: 'This browser does not support push notifications',
+      failed: 'Could not subscribe',
+    },
   },
   admin: {
     title: 'Administration',

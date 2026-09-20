@@ -68,6 +68,10 @@ x-app-env: &app-env
   AI_DOCUMENTS_MAX_CONFIDENTIALITY: ${AI_DOCUMENTS_MAX_CONFIDENTIALITY:-}
   # Подписки ICS на адреса внутренней сети (ADR-0081): пусто — запрещены
   CALENDAR_FEEDS_ALLOW_PRIVATE: ${CALENDAR_FEEDS_ALLOW_PRIVATE:-}
+  # Push-уведомления браузера (ADR-0094): пустые ключи — push выключен
+  PUSH_VAPID_PUBLIC_KEY: ${PUSH_VAPID_PUBLIC_KEY:-}
+  PUSH_VAPID_PRIVATE_KEY: ${PUSH_VAPID_PRIVATE_KEY:-}
+  PUSH_CONTACT: ${PUSH_CONTACT:-}
   # Медиасервер встреч (ADR-0089): пустые значения — встречи выключены
   LIVEKIT_URL: ${LIVEKIT_URL:-}
   LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-}

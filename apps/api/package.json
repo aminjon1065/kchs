@@ -70,6 +70,7 @@
     "rrule": "2.8.1",
     "socket.io": "^4.8.1",
     "uuidv7": "^1.0.2",
+    "web-push": "^3.6.7",
     "y-protocols": "^1.0.7",
     "yjs": "^13.6.32",
     "zod": "^4.1.12"
@@ -81,6 +82,7 @@
     "@types/node": "^22.18.9",
     "@types/nodemailer": "^7.0.4",
     "@types/qrcode": "^1.5.5",
+    "@types/web-push": "^3.6.4",
     "dependency-cruiser": "^17.0.1",
     "drizzle-kit": "^0.31.5",
     "esbuild": "0.28.2",

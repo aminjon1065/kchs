@@ -62,3 +62,25 @@ export const NotificationPreferences = z.object({
   digestHour: z.number().int().min(0).max(23).default(8),
 })
 export type NotificationPreferences = z.infer<typeof NotificationPreferences>
+
+/**
+ * Push-уведомления (Web Push, ADR-0094): ключ VAPID отдаётся браузеру для
+ * подписки, устройства считаются по пользователю.
+ */
+export const PushStatus = z.object({
+  enabled: z.boolean(),
+  publicKey: z.string().nullable(),
+  devices: z.number().int().nonnegative(),
+})
+export type PushStatus = z.infer<typeof PushStatus>
+
+/** Подписка устройства: адрес службы доставки и ключи шифрования браузера. */
+export const PushSubscribeInput = z.object({
+  endpoint: z.string().min(1).max(2000),
+  keys: z.object({
+    p256dh: z.string().min(1).max(500),
+    auth: z.string().min(1).max(500),
+  }),
+  userAgent: z.string().max(500).nullish(),
+})
+export type PushSubscribeInput = z.infer<typeof PushSubscribeInput>

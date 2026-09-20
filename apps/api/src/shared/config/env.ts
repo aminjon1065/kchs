@@ -151,6 +151,11 @@ const EnvSchema = z.object({
    */
   CALENDAR_FEEDS_ALLOW_PRIVATE: z.preprocess(unset, bool.default(false)),
 
+  /** Web Push (ADR-0094): пустые ключи — push выключен. */
+  PUSH_VAPID_PUBLIC_KEY: z.string().optional(),
+  PUSH_VAPID_PRIVATE_KEY: z.string().optional(),
+  /** Контакт администратора для службы доставки (`mailto:` или адрес). */
+  PUSH_CONTACT: z.string().optional(),
   LIVEKIT_URL: z.string().optional(),
   LIVEKIT_API_KEY: z.string().optional(),
   LIVEKIT_API_SECRET: z.string().optional(),

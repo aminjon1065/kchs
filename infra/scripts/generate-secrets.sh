@@ -39,6 +39,16 @@ fi
 
 rnd() { openssl rand -base64 48 | LC_ALL=C tr -dc 'A-Za-z0-9' | cut -c1-"${1:-32}"; }
 b64key() { openssl rand -base64 32; }
+# Ключи VAPID для push (ADR-0094): пара P-256 в base64url — приватный скаляр и
+# несжатая открытая точка из DER-структуры SEC1 (фиксированные смещения)
+vapid_keys() {
+  local der
+  der="$(mktemp)"
+  openssl ecparam -name prime256v1 -genkey -noout -outform DER -out "$der" 2>/dev/null
+  VAPID_PRIVATE="$(dd if="$der" bs=1 skip=7 count=32 2>/dev/null | base64 | tr '+/' '-_' | tr -d '=\n')"
+  VAPID_PUBLIC="$(tail -c 65 "$der" | base64 | tr '+/' '-_' | tr -d '=\n')"
+  rm -f "$der"
+}
 
 PG_SUPER="$(rnd 32)"; PG_APP="$(rnd 32)"; PG_MIGRATOR="$(rnd 32)"
 PG_QUERY="$(rnd 32)"; PG_READONLY="$(rnd 32)"; PG_AUDIT="$(rnd 32)"
@@ -46,6 +56,7 @@ REDIS_PW="$(rnd 32)"; S3_SECRET="$(rnd 40)"; MEILI_KEY="$(rnd 40)"
 MASTER_KEY="$(b64key)"; INTERNAL_TOKEN="$(rnd 48)"; GRAFANA_PW="$(rnd 24)"
 # Медиасервер встреч (ADR-0089): ключ и секрет — пара для токенов комнат
 LIVEKIT_KEY="$(rnd 16)"; LIVEKIT_SECRET="$(rnd 48)"
+vapid_keys
 
 mkdir -p "$(dirname "$ENV_FILE")"
 cp "$EXAMPLE" "$ENV_FILE"
@@ -73,6 +84,8 @@ repl INTERNAL_SERVICE_TOKEN "$INTERNAL_TOKEN"
 repl GRAFANA_ADMIN_PASSWORD "$GRAFANA_PW"
 repl LIVEKIT_API_KEY "$LIVEKIT_KEY"
 repl LIVEKIT_API_SECRET "$LIVEKIT_SECRET"
+repl PUSH_VAPID_PUBLIC_KEY "$VAPID_PUBLIC"
+repl PUSH_VAPID_PRIVATE_KEY "$VAPID_PRIVATE"
 
 # Порты и привязка — из окружения, если заданы
 for key in POSTGRES_PORT REDIS_PORT S3_PORT S3_CONSOLE_PORT MEILI_PORT MAILPIT_SMTP_PORT \

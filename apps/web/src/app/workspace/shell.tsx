@@ -7,6 +7,7 @@ import { ActingBanner } from '~/features/delegation/acting-banner.js'
 import { CreateSpaceDialog } from '~/features/spaces/create-space-dialog.js'
 import { http } from '~/shared/api/client.js'
 import { keys, meQuery } from '~/shared/api/queries.js'
+import { registerServiceWorker } from '~/shared/push/client.js'
 import {
   connectRealtime,
   disconnectRealtime,
@@ -83,6 +84,23 @@ export function WorkspaceShell() {
   }, [restore])
 
   useEffect(() => subscribeWorkspaceSave(), [])
+
+  // Push (ADR-0094): служебный поток показывает уведомление при закрытой вкладке,
+  // а по клику просит открыть объект в уже открытом приложении
+  useEffect(() => {
+    void registerServiceWorker()
+    if (!('serviceWorker' in navigator)) return
+    const onMessage = (event: MessageEvent) => {
+      const data = event.data as { kind?: string; url?: string } | null
+      if (data?.kind !== 'push.open' || !data.url) return
+      window.history.pushState(null, '', data.url)
+      void openFromLocation(translate, () =>
+        toastRef.current.show({ title: translate('objects.unavailable'), tone: 'warning' }),
+      )
+    }
+    navigator.serviceWorker.addEventListener('message', onMessage)
+    return () => navigator.serviceWorker.removeEventListener('message', onMessage)
+  }, [])
 
   useEffect(() => {
     connectRealtime(client, {
