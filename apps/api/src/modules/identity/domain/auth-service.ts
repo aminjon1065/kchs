@@ -778,23 +778,24 @@ export const AuthService = {
     return (await AuthService.secondFactorMethods(userId)).length > 0
   },
 
-  /** Чем пользователь может подтвердить второй фактор. */
+  /**
+   * Чем пользователь может подтвердить второй фактор. Один запрос: он идёт на
+   * каждом обращении к API (проверка сессии), и лишний обход базы там заметен.
+   */
   async secondFactorMethods(userId: string): Promise<SecondFactorMethod[]> {
-    const [totp, keys] = await Promise.all([
-      db()
-        .select({ id: mfaFactors.id })
-        .from(mfaFactors)
-        .where(and(eq(mfaFactors.userId, userId), sql`${mfaFactors.verifiedAt} is not null`))
-        .limit(1),
-      db()
-        .select({ id: webauthnCredentials.id })
-        .from(webauthnCredentials)
-        .where(eq(webauthnCredentials.userId, userId))
-        .limit(1),
-    ])
+    const rows = await db().execute<{ totp: boolean; passkey: boolean }>(sql`
+      SELECT
+        EXISTS (
+          SELECT 1 FROM ${mfaFactors}
+           WHERE ${mfaFactors.userId} = ${userId} AND ${mfaFactors.verifiedAt} IS NOT NULL
+        ) AS totp,
+        EXISTS (
+          SELECT 1 FROM ${webauthnCredentials} WHERE ${webauthnCredentials.userId} = ${userId}
+        ) AS passkey`)
+    const row = rows[0]
     const methods: SecondFactorMethod[] = []
-    if (totp.length > 0) methods.push('totp', 'recovery_code')
-    if (keys.length > 0) methods.push('passkey')
+    if (row?.totp) methods.push('totp', 'recovery_code')
+    if (row?.passkey) methods.push('passkey')
     return methods
   },
 }
