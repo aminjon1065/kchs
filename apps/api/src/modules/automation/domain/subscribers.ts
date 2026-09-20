@@ -1,6 +1,5 @@
 import type { EventEnvelope, RuleDefinition } from '@kchs/contracts'
 import { RuleDefinition as RuleDefinitionSchema } from '@kchs/contracts'
-import { matchesType } from '~/kernel/events/bus.js'
 import type { Subscriber } from '~/kernel/events/index.js'
 import { NotificationService } from '~/kernel/notifications/service.js'
 import { config } from '~/shared/config/index.js'
@@ -10,6 +9,7 @@ import { logger } from '~/shared/logger/index.js'
 import { type RuleRow, RuleService } from './rule-service.js'
 import { RuleRuns } from './runs.js'
 import { renderTemplate, ruleScope, scopeFromEvent } from './scope.js'
+import { matchesTrigger } from './triggers.js'
 
 /**
  * Подписчик правил (ADR-0096): каждое событие шины сверяется с включёнными
@@ -20,46 +20,6 @@ import { renderTemplate, ruleScope, scopeFromEvent } from './scope.js'
  * а цепочка «событие → правило → событие» обрывается на глубине пяти звеньев.
  */
 export const MAX_CAUSAL_DEPTH = 5
-
-/** Кэш включённых правил: список меняется редко, а событий много. */
-const CACHE_TTL_MS = 10_000
-let cache: { rules: RuleRow[]; at: number } | null = null
-
-export function invalidateRuleCache(): void {
-  cache = null
-}
-
-async function eventRules(): Promise<RuleRow[]> {
-  if (cache && Date.now() - cache.at < CACHE_TTL_MS) return cache.rules
-  const rules = await RuleService.enabledEventRules()
-  cache = { rules, at: Date.now() }
-  return rules
-}
-
-function valueAt(event: EventEnvelope, path: string): unknown {
-  let current: unknown = event
-  for (const part of path.split('.')) {
-    if (current === null || typeof current !== 'object') return undefined
-    current = (current as Record<string, unknown>)[part]
-  }
-  return current
-}
-
-/** Отбор по полям конверта: сравнение по значению, без вычисления выражений. */
-export function matchesFilter(event: EventEnvelope, filter: Record<string, unknown>): boolean {
-  return Object.entries(filter).every(([path, expected]) => {
-    const actual = valueAt(event, path)
-    if (Array.isArray(expected)) return expected.some((item) => String(item) === String(actual))
-    if (expected === null) return actual === null || actual === undefined
-    return String(expected) === String(actual)
-  })
-}
-
-export function matchesTrigger(definition: RuleDefinition, event: EventEnvelope): boolean {
-  if (definition.trigger.kind !== 'event') return false
-  if (!matchesType([definition.trigger.type], event.type)) return false
-  return matchesFilter(event, definition.trigger.filter)
-}
 
 /** Ставит запуск правила по событию, соблюдая лимиты и дедупликацию. */
 export async function queueEventRun(
@@ -116,9 +76,9 @@ export function automationSubscribers(): Subscriber[] {
       name: 'automation-rules',
       types: ['*'],
       handle: async (event) => {
-        // События самих правил меняют состав: кэш сбрасывается сразу
-        if (event.type.startsWith('rule.')) invalidateRuleCache()
-        const rules = await eventRules()
+        // Список включённых правил читается на каждое событие: кэш с временем
+        // жизни пропускал бы события, пришедшие сразу после создания правила
+        const rules = await RuleService.enabledEventRules()
         if (rules.length === 0) return
         const candidates: Array<{ rule: RuleRow; definition: RuleDefinition }> = []
         for (const rule of rules) {

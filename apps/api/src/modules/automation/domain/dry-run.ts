@@ -8,7 +8,7 @@ import { errors } from '~/shared/errors.js'
 import { describeAction } from './actions.js'
 import { objectScopeData } from './runner.js'
 import { evaluateRuleCondition, ruleScope, scopeFromEvent } from './scope.js'
-import { matchesFilter } from './subscribers.js'
+import { matchesFilter } from './triggers.js'
 
 /**
  * Тестовый прогон «что бы произошло» (contracts/automation-rule.md §Правила

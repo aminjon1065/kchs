@@ -8,7 +8,7 @@ import {
 } from '@kchs/contracts'
 import { checkAssignee } from '@kchs/process'
 import { checkEvaluable } from '@kchs/query/expr'
-import { nextRuns } from '~/kernel/schedules/index.js'
+import cronParser from 'cron-parser'
 import { conditionExpressions, templateExpressions } from './scope.js'
 
 /**
@@ -68,7 +68,7 @@ class Issues {
       return
     }
     try {
-      nextRuns(pattern, timezone, 2)
+      cronParser.parseExpression(pattern, { tz: timezone }).next()
     } catch {
       this.error(path, 'Неверное выражение cron')
     }

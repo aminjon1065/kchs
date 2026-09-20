@@ -932,6 +932,45 @@ const FIXTURES: Record<string, TypeFixture> = {
     viewerForbidden: (_fx, id) => [{ method: 'POST', url: `/recordings/${id}/stop` }],
   },
 
+  // Правило автоматизации (ADR-0096): ведение — способность `automation.manage`,
+  // видимость — по общим правилам ядра
+  rule: {
+    create: async (fx, title) => {
+      const response = await call(fx.app, {
+        method: 'POST',
+        url: '/automation/rules',
+        as: fx.admin,
+        payload: {
+          spaceId: fx.spaceId,
+          definition: {
+            name: { ru: title },
+            enabled: false,
+            runAs: fx.users.member.id,
+            trigger: { kind: 'event', type: 'object.created', filter: {} },
+            conditions: null,
+            actions: [
+              {
+                type: 'notify',
+                to: [`user:${fx.users.member.id}`],
+                text: 'Создан объект {{object.title}}',
+              },
+            ],
+          },
+        },
+      })
+      expect(response.statusCode, response.body).toBe(200)
+      return { id: response.json().id, title }
+    },
+    readPaths: ['/automation/rules/:id', '/automation/rules/:id/runs'],
+    viewerForbidden: (_fx, id) => [
+      {
+        method: 'POST',
+        url: `/automation/rules/${id}/enabled`,
+        payload: { enabled: true },
+      },
+    ],
+  },
+
   protocol: {
     create: async (fx, title) => {
       const meetingId = await createMatrixMeeting(fx, `${title} — встреча`)
