@@ -185,12 +185,20 @@ describe('звонок из беседы', () => {
     })
     expect(byMember.statusCode).toBe(403)
 
+    // Организатор всё ещё в комнате: завершение выпускает его выход, иначе
+    // присутствие навсегда оставит его «на встрече»
+    await call(fx.app, { method: 'POST', url: `/meetings/${meetingId}/join`, as: organizer })
     const ended = await call(fx.app, {
       method: 'POST',
       url: `/meetings/${meetingId}/end`,
       as: organizer,
     })
     expect(ended.statusCode, ended.body).toBe(200)
+    const leftEvents = await db().execute<{ type: string; event: Json }>(
+      sql`SELECT type, event FROM ops.outbox
+           WHERE event->'object'->>'id' = ${meetingId} AND type = 'meeting.participant_left'`,
+    )
+    expect(leftEvents.map((row) => row.event.payload.userId)).toContain(organizer.id)
     expect(ended.json()).toMatchObject({ status: 'ended', can: { join: false, end: false } })
     expect(ended.json().endedAt).not.toBeNull()
 

@@ -420,10 +420,20 @@ export const MeetingService = {
     if (row.status === 'ended' || row.status === 'cancelled') return
     const status = reason === 'cancelled' && row.status === 'planned' ? 'cancelled' : 'ended'
     await tx.update(meetings).set({ status, endedAt: sql`now()` }).where(eq(meetings.id, id))
-    await tx
+    // Оставшиеся в комнате выходят вместе со встречей: иначе подписчики
+    // присутствия навсегда оставят человека «на встрече» (ADR-0090)
+    const stillIn = await tx
       .update(meetingParticipants)
       .set({ leftAt: sql`now()` })
       .where(and(eq(meetingParticipants.meetingId, id), isNull(meetingParticipants.leftAt)))
+      .returning({ userId: meetingParticipants.userId })
+    for (const { userId } of stillIn) {
+      await publishEvent(tx, ctx, {
+        type: 'meeting.participant_left',
+        object: { id, type: 'meeting', spaceId: null, title: row.title },
+        payload: { userId },
+      })
+    }
     const duration = row.startedAt
       ? Math.max(0, Math.round((Date.now() - Date.parse(row.startedAt)) / 1000))
       : null

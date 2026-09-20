@@ -66,10 +66,12 @@ test('чаты: личная беседа, закрепление, поруче�
   await resetWorkspaceState(peerContext.request)
   const peerPage = await peerContext.newPage()
   await peerPage.goto('/chats')
+  // Личная беседа у собеседника названа именем отправителя, а не текстом
+  // последнего сообщения: после поручения в предпросмотре уже оно
   const chat = peerPage
     .getByRole('list', { name: 'Чаты' })
     .getByRole('listitem')
-    .filter({ hasText: `Паводок ${run}` })
+    .filter({ hasText: 'Системный Администратор' })
     .first()
   await expect(chat).toBeVisible()
   await chat.getByRole('button').first().click()
