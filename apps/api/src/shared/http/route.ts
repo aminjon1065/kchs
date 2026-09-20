@@ -106,6 +106,9 @@ export function routeRegistrar(app: FastifyInstance): RouteRegistrar {
       config: {
         ...definition.config,
         auth: definition.auth,
+        // Теги нужны не только OpenAPI: по ним определяется область доступа
+        // токена публичного API (ADR-0097)
+        ...(definition.tags ? { apiTags: definition.tags } : {}),
         ...(definition.rateLimit ? { rateLimit: definition.rateLimit } : {}),
         ...(definition.allowPendingPasswordChange ? { allowPendingPasswordChange: true } : {}),
         ...(definition.allowPendingMfaEnrollment ? { allowPendingMfaEnrollment: true } : {}),

@@ -5,6 +5,7 @@ import type {
   AdminSpace,
   AdminUser,
   Announcement,
+  ApiToken,
   AuditEntry,
   EffectiveAccess,
   FileRecord,
@@ -12,6 +13,7 @@ import type {
   HealthReport,
   InboxCounts,
   InboxItem,
+  Integration,
   JobRecord,
   Level,
   LinkView,
@@ -32,6 +34,8 @@ import type {
   TagListResponse,
   TagView,
   UsersImportStatus,
+  Webhook,
+  WebhookDelivery,
 } from '@kchs/contracts'
 import { queryOptions } from '@tanstack/react-query'
 import { http } from './client.js'
@@ -77,6 +81,11 @@ export const keys = {
   securityPolicy: ['admin', 'security-policy'] as const,
   announcements: ['announcements'] as const,
   adminAnnouncements: ['admin', 'announcements'] as const,
+  myApiTokens: ['me', 'api-tokens'] as const,
+  adminApiTokens: ['admin', 'api-tokens'] as const,
+  integrations: ['integrations'] as const,
+  webhooks: ['webhooks'] as const,
+  webhookDeliveries: (id: string) => ['webhooks', id, 'deliveries'] as const,
   adminSpaces: (params: Record<string, unknown>) => ['admin', 'spaces', params] as const,
 }
 
@@ -380,4 +389,40 @@ export const adminSpacesQuery = (params: { q?: string }) =>
     queryKey: keys.adminSpaces(params),
     queryFn: () => http.get<{ items: AdminSpace[] }>('/admin/spaces', { query: params }),
     select: (data: { items: AdminSpace[] }) => data.items,
+  })
+
+/** Токены публичного API: свои — в профиле, все — в администрировании (ADR-0097). */
+export const myApiTokensQuery = () =>
+  queryOptions({
+    queryKey: keys.myApiTokens,
+    queryFn: () => http.get<{ items: ApiToken[] }>('/me/api-tokens'),
+    select: (data: { items: ApiToken[] }) => data.items,
+  })
+
+export const adminApiTokensQuery = () =>
+  queryOptions({
+    queryKey: keys.adminApiTokens,
+    queryFn: () => http.get<{ items: ApiToken[] }>('/admin/api-tokens'),
+    select: (data: { items: ApiToken[] }) => data.items,
+  })
+
+export const integrationsQuery = () =>
+  queryOptions({
+    queryKey: keys.integrations,
+    queryFn: () => http.get<{ items: Integration[] }>('/integrations'),
+    select: (data: { items: Integration[] }) => data.items,
+  })
+
+export const webhooksQuery = () =>
+  queryOptions({
+    queryKey: keys.webhooks,
+    queryFn: () => http.get<{ items: Webhook[] }>('/webhooks'),
+    select: (data: { items: Webhook[] }) => data.items,
+  })
+
+export const webhookDeliveriesQuery = (id: string) =>
+  queryOptions({
+    queryKey: keys.webhookDeliveries(id),
+    queryFn: () => http.get<{ items: WebhookDelivery[] }>(`/webhooks/${id}/deliveries`),
+    select: (data: { items: WebhookDelivery[] }) => data.items,
   })

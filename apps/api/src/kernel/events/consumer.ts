@@ -293,6 +293,10 @@ export const KNOWN_DOMAINS = [
   // Поставщики входа и синхронизация каталога (ADR-0098)
   'integration',
   'directory',
+  // Публичный API, вебхуки и интеграции (ADR-0097)
+  'token',
+  'webhook',
+  'config',
 ] as const
 
 function resolveDomains(): string[] {

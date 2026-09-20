@@ -30,10 +30,12 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Activity,
   Building2,
+  Cable,
   CalendarDays,
   Contact,
   Database,
   Download,
+  FileJson,
   FileSpreadsheet,
   HardDrive,
   KeyRound,
@@ -47,6 +49,7 @@ import {
   Server,
   ShieldCheck,
   Shuffle,
+  Ticket,
   UserPlus,
   Users,
   Workflow,
@@ -65,9 +68,12 @@ import {
   usersQuery,
 } from '~/shared/api/queries.js'
 import { AnnouncementsSection } from './announcements-section.js'
+import { ApiTokensSection } from './api-tokens-section.js'
 import { BasemapsSection } from './basemaps-section.js'
 import { BusinessCalendarSection } from './business-calendar-section.js'
+import { ConfigPackageSection } from './config-package-section.js'
 import { DirectorySection } from './directory-section.js'
+import { IntegrationsSection } from './integrations-section.js'
 import { CreateUnitDialog } from './org-management.js'
 import { RolesSection } from './roles-section.js'
 import { SecuritySection } from './security-section.js'
@@ -92,6 +98,9 @@ type Section =
   | 'sso'
   | 'tasks'
   | 'processes'
+  | 'integrations'
+  | 'apiTokens'
+  | 'config'
 
 /**
  * Консоль администрирования (15-admin-operations.md §1): разделы — вертикальные
@@ -107,6 +116,7 @@ export function AdminScreen() {
   const isSystemAdmin = me?.capabilities.includes('admin.system') ?? false
   const canManageBasemaps = me?.capabilities.includes('gis.basemaps.manage') ?? false
   const canManageProcesses = me?.capabilities.includes('processes.manage') ?? false
+  const canManageIntegrations = me?.capabilities.includes('automation.manage') ?? false
   const wide = useMediaQuery('(min-width: 768px)')
 
   const sections: Array<{ value: Section; label: string; icon: ReactNode; visible: boolean }> = [
@@ -194,6 +204,24 @@ export function AdminScreen() {
       icon: <Route className="size-3.5" />,
       visible: canManageProcesses,
     },
+    {
+      value: 'integrations',
+      label: t('admin.sections.integrations'),
+      icon: <Cable className="size-3.5" />,
+      visible: canManageIntegrations,
+    },
+    {
+      value: 'apiTokens',
+      label: t('admin.sections.apiTokens'),
+      icon: <Ticket className="size-3.5" />,
+      visible: isSystemAdmin,
+    },
+    {
+      value: 'config',
+      label: t('admin.sections.config'),
+      icon: <FileJson className="size-3.5" />,
+      visible: isSystemAdmin,
+    },
   ]
 
   return (
@@ -261,7 +289,18 @@ export function AdminScreen() {
             <TabsContent value="tasks" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
               <TasksSection />
             </TabsContent>
+            <TabsContent value="apiTokens" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
+              <ApiTokensSection />
+            </TabsContent>
+            <TabsContent value="config" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
+              <ConfigPackageSection />
+            </TabsContent>
           </>
+        ) : null}
+        {canManageIntegrations ? (
+          <TabsContent value="integrations" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
+            <IntegrationsSection />
+          </TabsContent>
         ) : null}
         {canManageBasemaps ? (
           <TabsContent value="basemaps" className="min-h-0 flex-1 overflow-y-auto bg-canvas">

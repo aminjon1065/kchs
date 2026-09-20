@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { Uuid } from '../common/primitives.js'
+import { Timestamp, Uuid } from '../common/primitives.js'
 
 /**
  * Каталог доменных событий (16-api-and-events.md §2).
@@ -808,6 +808,72 @@ export const EVENT_PAYLOADS = {
   }),
   'announcement.published': z.object({ title: z.string() }),
   'announcement.withdrawn': z.object({ title: z.string() }),
+
+  // ── автоматизация: токены, интеграции, вебхуки (ADR-0097) ─────────────────
+  /** Токен публичного API выпущен: сам токен в событие не попадает. */
+  'token.created': z.object({
+    tokenId: Uuid,
+    userId: Uuid,
+    prefix: z.string(),
+    scopes: z.array(z.string()),
+    expiresAt: Timestamp.nullable(),
+  }),
+  /** Токен отозван владельцем или администратором. */
+  'token.revoked': z.object({ tokenId: Uuid, userId: Uuid, prefix: z.string() }),
+  'integration.created': z.object({ key: z.string(), kind: z.string() }),
+  'integration.updated': z.object({ key: z.string(), changed: z.array(z.string()) }),
+  /** Синхронизация завершилась успехом. */
+  'integration.synced': z.object({
+    key: z.string(),
+    kind: z.string(),
+    stats: z.record(z.string(), z.unknown()).default({}),
+  }),
+  /** Синхронизация или проверка связи не удалась. */
+  'integration.failed': z.object({ key: z.string(), kind: z.string(), error: z.string() }),
+  'webhook.created': z.object({ key: z.string(), url: z.string() }),
+  'webhook.updated': z.object({ key: z.string(), changed: z.array(z.string()) }),
+  /** Вебхук отключён после серии отказов или вручную. */
+  'webhook.disabled': z.object({ key: z.string(), reason: z.string(), failures: z.number().int() }),
+  /** Доставка исходящего вебхука завершилась. */
+  'webhook.delivered': z.object({
+    webhookId: Uuid,
+    deliveryId: Uuid,
+    eventType: z.string(),
+    responseStatus: z.number().int().nullable(),
+    attempts: z.number().int(),
+  }),
+  /** Доставка исходящего вебхука окончательно не удалась. */
+  'webhook.failed': z.object({
+    webhookId: Uuid,
+    deliveryId: Uuid,
+    eventType: z.string(),
+    attempts: z.number().int(),
+    error: z.string(),
+  }),
+  /**
+   * Входящий вебхук интеграции (`POST /hooks/{integrationId}/{secret}`).
+   * Событие — факт получения; правила автоматизации подхватывают его сами.
+   */
+  'webhook.received': z.object({
+    integrationId: Uuid,
+    integrationKey: z.string(),
+    kind: z.string(),
+    /** Тело запроса: JSON-объект или `{ raw: '<текст>' }`. */
+    body: z.record(z.string(), z.unknown()).default({}),
+    /** Подпись отправителя из заголовка, если он её прислал. */
+    signature: z.string().nullable().default(null),
+  }),
+  /** Пакет конфигурации выгружен. */
+  'config.exported': z.object({
+    sections: z.array(z.string()),
+    items: z.number().int(),
+  }),
+  /** Пакет конфигурации импортирован. */
+  'config.imported': z.object({
+    sections: z.array(z.string()),
+    applied: z.number().int(),
+    skipped: z.number().int(),
+  }),
 } as const satisfies Record<string, z.ZodType>
 
 export type EventType = keyof typeof EVENT_PAYLOADS

@@ -19,6 +19,7 @@ import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { ApiError, http, setCsrfToken } from '~/shared/api/client.js'
 import { keys, meQuery } from '~/shared/api/queries.js'
+import { ApiTokensCard } from './api-tokens-card.js'
 import { DelegationCard } from './delegation-card.js'
 import { MfaCard } from './mfa-card.js'
 import { PasskeysCard } from './passkeys-card.js'
@@ -184,6 +185,8 @@ export function ProfileScreen() {
         <TelegramCard />
 
         <PushCard />
+
+        <ApiTokensCard />
 
         <Card title={t('auth.password.title')}>
           <form

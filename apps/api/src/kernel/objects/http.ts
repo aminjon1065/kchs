@@ -227,6 +227,8 @@ export function registerObjectRoutes(route: RouteRegistrar): void {
     url: '/objects/batch-get',
     auth: 'session',
     tags: ['objects'],
+    // POST ради тела запроса: данных не меняет — хватает области чтения (ADR-0097)
+    readOnly: true,
     summary: 'Сводки объектов для чипов и пикеров',
     schema: { body: BatchGetInput, response: { 200: z.object({ items: z.array(ObjectSummary) }) } },
     handler: async (request) => {

@@ -19,6 +19,7 @@
 import type { ProcessDefinition, ProcessPreview, ProcessPreviewInput } from '@kchs/process'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import type { Executor } from '~/shared/db/client.js'
+import { registerProcessConfigSection } from './config-section.js'
 import { DefinitionService } from './definitions.js'
 import { registerProcessInboxActions } from './inbox.js'
 
@@ -66,4 +67,6 @@ export const ProcessDefinitions = {
 /** Действия шагов во Входящих — при старте в любой роли процесса (HTTP исполняет кнопки). */
 export function registerProcessEngine(): void {
   registerProcessInboxActions()
+  // Маршруты переносятся между контурами пакетом конфигурации (ADR-0097)
+  registerProcessConfigSection()
 }

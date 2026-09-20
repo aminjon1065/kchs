@@ -52,6 +52,11 @@ export interface UserCtx {
    * запуска, права — того, под кем строится документ, только чтение.
    */
   print?: { scope: string } | null
+  /**
+   * Запрос пришёл с токеном публичного API (ADR-0097): права — владельца
+   * токена, дополнительно ограниченные областями (`scopes`).
+   */
+  apiToken?: { id: string; name: string; scopes: string[] } | null
   requestId: string
   ip: string | null
   userAgent: string | null

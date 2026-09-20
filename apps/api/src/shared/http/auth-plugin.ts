@@ -12,6 +12,8 @@ declare module 'fastify' {
   }
   interface FastifyContextConfig {
     auth?: RouteAuth
+    /** Теги маршрута: по ним определяется область доступа токена API (ADR-0097). */
+    apiTags?: string[]
     allowPendingPasswordChange?: boolean
     allowPendingMfaEnrollment?: boolean
     /** POST без изменения данных (запрос к датасету): доступен странице печати. */
@@ -45,10 +47,24 @@ export interface AuthDependencies {
   resolveShareLink?: (token: string) => Promise<UserCtx | null>
   /** Служебный токен страницы печати (cookie `kchs_print`, ADR-0078). */
   resolvePrintGrant?: (token: string) => Promise<UserCtx | null>
+  /**
+   * Токен публичного API (`Authorization: Bearer …`, ADR-0097): строит контекст
+   * владельца токена. Бросает 401/403/429 — наружу уходит обычная проблема API.
+   */
+  resolveApiToken?: (request: FastifyRequest, secret: string) => Promise<UserCtx>
+  /** Проверка области доступа токена для конкретного маршрута (ADR-0097). */
+  enforceTokenScope?: (request: FastifyRequest) => Promise<void>
 }
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/** `Authorization: Bearer <token>` — иные схемы игнорируются. */
+function bearerToken(header: string | undefined): string | null {
+  if (typeof header !== 'string') return null
+  const match = /^Bearer\s+(\S+)$/i.exec(header.trim())
+  return match?.[1] ?? null
+}
 
 /**
  * Аутентификация и применение политики маршрута.
@@ -71,6 +87,16 @@ export const authPlugin = fp<AuthDependencies>(async (app: FastifyInstance, deps
     }
 
     if (auth === 'public') return
+
+    // Токен публичного API идёт раньше сессии: интеграция ходит без cookie,
+    // CSRF ей не нужен (17-security.md §5), а области проверяются отдельно
+    const bearer = bearerToken(request.headers.authorization)
+    if (bearer && deps.resolveApiToken) {
+      request.ctx = await deps.resolveApiToken(request, bearer)
+      await deps.enforceTokenScope?.(request)
+      await applyRoutePolicy(request, auth, deps)
+      return
+    }
 
     const token = request.cookies?.[env.SESSION_COOKIE_NAME]
     const shareToken = request.headers['x-kchs-share-token']

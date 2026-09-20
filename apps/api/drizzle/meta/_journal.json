@@ -267,6 +267,13 @@
       "when": 1789901690989,
       "tag": "20260920105450_directory_sso_passkeys",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1789901911728,
+      "tag": "20260920105831_integrations_webhooks_tokens",
+      "breakpoints": true
     }
   ]
 }

@@ -51,3 +51,19 @@ export async function sendMail(message: MailMessage): Promise<boolean> {
   })
   return true
 }
+
+/**
+ * Проверка соединения с почтовым сервером для кнопки «Проверить соединение»
+ * (14-automation-integrations.md §5, ADR-0097). Адрес сервера и пароль в
+ * сообщение не попадают — только исход проверки.
+ */
+export async function verifyMail(): Promise<{ ok: boolean; message: string }> {
+  const transport = mailer()
+  if (!transport) return { ok: false, message: 'SMTP не настроен: задайте SMTP_URL' }
+  try {
+    await transport.verify()
+    return { ok: true, message: 'Соединение установлено' }
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : 'Ошибка соединения' }
+  }
+}
