@@ -54,6 +54,7 @@ export function result(fields: FieldSpec[], rows: unknown[][]): QueryResult {
     truncated: false,
     durationMs: 1,
     cached: false,
+    executedOn: 'postgres',
   }
 }
 

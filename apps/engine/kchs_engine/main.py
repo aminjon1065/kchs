@@ -21,6 +21,8 @@ from kchs_engine.ai.embed import embed, embeddings_enabled
 from kchs_engine.config import settings
 from kchs_engine.contracts import data_export_contract
 from kchs_engine.data.analyze import analyze_object
+from kchs_engine.data.columnar import ColumnarError
+from kchs_engine.data.columnar import query as columnar_query
 from kchs_engine.data.geo_export import ExportField, convert_features
 from kchs_engine.data.readers import ImportFileError
 from kchs_engine.jobs import registered_queues
@@ -231,6 +233,51 @@ async def data_geo_export(
         raise
     log.info("geo_export.done", format=body.format, rows=rows, size=size)
     return {"rows": rows, "size": size}
+
+
+class ColumnarSource(BaseModel):
+    """Колоночная копия датасета: имя таблицы в SQL и файл в хранилище."""
+
+    table: str = Field(min_length=1, max_length=80)
+    bucket: str = Field(min_length=1, max_length=200)
+    key: str = Field(min_length=1, max_length=1024)
+
+
+class ColumnarQueryInput(BaseModel):
+    """Запрос компилятора в диалекте DuckDB поверх копий (ADR-0109).
+
+    Политики строк и столбцов уже внутри `sql`: движок его не разбирает и не
+    меняет, значения приходят только параметрами.
+    """
+
+    sql: str = Field(min_length=1, max_length=1_000_000)
+    params: list[Any] = Field(default_factory=list, max_length=2000)
+    countSql: str | None = Field(default=None, max_length=1_000_000)  # noqa: N815 — поле контракта
+    countParams: list[Any] = Field(default_factory=list, max_length=2000)  # noqa: N815
+    sources: list[ColumnarSource] = Field(min_length=1, max_length=20)
+    timeoutMs: int = Field(default=30_000, ge=100, le=600_000)  # noqa: N815 — поле контракта
+
+
+@app.post("/data/columnar/query")
+async def data_columnar_query(
+    body: ColumnarQueryInput,
+    x_kchs_service_token: str | None = Header(default=None),
+) -> dict[str, Any]:
+    """Счёт агрегата DuckDB поверх Parquet колоночной копии (06-analytics-engine.md §19)."""
+    require_service_token(x_kchs_service_token)
+    try:
+        return await columnar_query(body.model_dump())
+    except ColumnarError as error:
+        raise HTTPException(status_code=422, detail=_sentence(str(error))) from error
+    except TimeoutError as error:
+        raise HTTPException(
+            status_code=504, detail="Запрос по колоночной копии выполнялся слишком долго"
+        ) from error
+    except ClientError as error:
+        code = str(error.response.get("Error", {}).get("Code", ""))
+        if code in ("NoSuchKey", "404", "NotFound"):
+            raise HTTPException(status_code=404, detail="Колоночная копия не найдена") from error
+        raise
 
 
 class EmbedInput(BaseModel):

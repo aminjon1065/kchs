@@ -1,0 +1,165 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`DuckDB: выборка и агрегаты > агрегат с бакетом времени 1`] = `
+"WITH
+"q0" AS (
+  SELECT "_id", "_ver", "_created_at", "_updated_at", "_created_by", "_updated_by", "c_1" AS "title", "c_2" AS "kind", "c_3" AS "damage", "c_4" AS "victims", "c_5" AS "occurred_at", "c_6" AS "reported_on", "c_7" AS "territory_id", "c_8" AS "assignee", "c_9" AS "unit_id", "c_10" AS "tags", "c_11" AS "is_confirmed", CAST("c_12" AS DOUBLE) AS "response", "c_13" AS "ratio", "c_14" AS "phone", "c_15" AS "start_time", "c_16" AS "meta", "c_17" AS "share", "c_18" AS "code", "c_19" AS "email", "c_20" AS "notes"
+  FROM "ds"."t_incidents"
+  WHERE "_deleted_at" IS NULL
+),
+"q1" AS (
+  SELECT "q0"."kind" AS "kind", CAST(date_trunc('month', CAST("q0"."occurred_at" AT TIME ZONE CAST($1 AS VARCHAR) AS DATE)) AS DATE) AS "month", count(*) AS "n", sum("q0"."damage") AS "total", avg("q0"."victims") AS "mean", percentile_cont(0.95) WITHIN GROUP (ORDER BY "q0"."response") AS "p95", count(DISTINCT "q0"."unit_id") AS "units"
+  FROM "q0"
+  GROUP BY 1, 2
+)
+SELECT "q1"."kind" AS "kind", "q1"."month" AS "month", "q1"."n" AS "n", "q1"."total" AS "total", "q1"."mean" AS "mean", "q1"."p95" AS "p95", "q1"."units" AS "units"
+FROM "q1"
+ORDER BY "q1"."n" DESC
+LIMIT 50001
+-- params: ["Asia/Dushanbe"]
+-- fields: kind:select, month:date, n:integer, total:money, mean:number, p95:duration, units:integer
+-- count: SELECT count(*) AS "count" FROM "q1""
+`;
+
+exports[`DuckDB: выборка и агрегаты > выборка полей 1`] = `
+"WITH
+"q0" AS (
+  SELECT "_id", "_ver", "_created_at", "_updated_at", "_created_by", "_updated_by", "c_1" AS "title", "c_2" AS "kind", "c_3" AS "damage", "c_4" AS "victims", "c_5" AS "occurred_at", "c_6" AS "reported_on", "c_7" AS "territory_id", "c_8" AS "assignee", "c_9" AS "unit_id", "c_10" AS "tags", "c_11" AS "is_confirmed", CAST("c_12" AS DOUBLE) AS "response", "c_13" AS "ratio", "c_14" AS "phone", "c_15" AS "start_time", "c_16" AS "meta", "c_17" AS "share", "c_18" AS "code", "c_19" AS "email", "c_20" AS "notes"
+  FROM "ds"."t_incidents"
+  WHERE "_deleted_at" IS NULL
+),
+"q1" AS (
+  SELECT "q0"."title" AS "title", "q0"."kind" AS "kind", "q0"."victims" AS "victims", "q0"."_id" AS "_id", "q0"."_ver" AS "_ver", "q0"."_created_at" AS "_created_at", "q0"."_updated_at" AS "_updated_at", "q0"."_created_by" AS "_created_by", "q0"."_updated_by" AS "_updated_by"
+  FROM "q0"
+)
+SELECT "q1"."title" AS "title", "q1"."kind" AS "kind", "q1"."victims" AS "victims"
+FROM "q1"
+LIMIT 50001
+-- params: []
+-- fields: title:text, kind:select, victims:integer
+-- count: SELECT count(*) AS "count" FROM "q0""
+`;
+
+exports[`DuckDB: выборка и агрегаты > выражения: даты, строки, списки 1`] = `
+"WITH
+"q0" AS (
+  SELECT "_id", "_ver", "_created_at", "_updated_at", "_created_by", "_updated_by", "c_1" AS "title", "c_2" AS "kind", "c_3" AS "damage", "c_4" AS "victims", "c_5" AS "occurred_at", "c_6" AS "reported_on", "c_7" AS "territory_id", "c_8" AS "assignee", "c_9" AS "unit_id", "c_10" AS "tags", "c_11" AS "is_confirmed", CAST("c_12" AS DOUBLE) AS "response", "c_13" AS "ratio", "c_14" AS "phone", "c_15" AS "start_time", "c_16" AS "meta", "c_17" AS "share", "c_18" AS "code", "c_19" AS "email", "c_20" AS "notes"
+  FROM "ds"."t_incidents"
+  WHERE "_deleted_at" IS NULL
+),
+"q1" AS (
+  SELECT "q0".*, CAST(extract(year FROM ("q0"."occurred_at" AT TIME ZONE CAST($1 AS VARCHAR))) AS INTEGER) AS "y", ((date_trunc('week', "q0"."occurred_at" AT TIME ZONE CAST($1 AS VARCHAR))) AT TIME ZONE CAST($1 AS VARCHAR)) AS "w", ("q0"."reported_on" + to_months(CAST((3)::int AS INTEGER)))::date AS "later", (CAST($2 AS DATE) - "q0"."reported_on") AS "days", lower(concat("q0"."title", "q0"."kind")) AS "label", (regexp_matches("q0"."kind", CAST($3 AS VARCHAR))) AS "ok", (CASE WHEN ("q0"."victims" > 3) THEN CAST($4 AS VARCHAR) ELSE CAST($5 AS VARCHAR) END) AS "many"
+  FROM "q0"
+)
+SELECT "q1"."title" AS "title", "q1"."kind" AS "kind", "q1"."damage" AS "damage", "q1"."victims" AS "victims", "q1"."occurred_at" AS "occurred_at", "q1"."reported_on" AS "reported_on", "q1"."territory_id" AS "territory_id", "q1"."assignee" AS "assignee", "q1"."unit_id" AS "unit_id", "q1"."tags" AS "tags", "q1"."is_confirmed" AS "is_confirmed", "q1"."response" AS "response", "q1"."ratio" AS "ratio", "q1"."phone" AS "phone", "q1"."start_time" AS "start_time", "q1"."meta" AS "meta", "q1"."share" AS "share", "q1"."code" AS "code", "q1"."email" AS "email", "q1"."notes" AS "notes", "q1"."y" AS "y", "q1"."w" AS "w", "q1"."later" AS "later", "q1"."days" AS "days", "q1"."label" AS "label", "q1"."ok" AS "ok", "q1"."many" AS "many"
+FROM "q1"
+LIMIT 50001
+-- params: ["Asia/Dushanbe","2026-09-18","^f","много","мало"]
+-- fields: title:text, kind:select, damage:money, victims:integer, occurred_at:datetime, reported_on:date, territory_id:territory, assignee:user, unit_id:unit, tags:multi_select, is_confirmed:boolean, response:duration, ratio:number, phone:phone, start_time:time, meta:json, share:percent, code:identifier, email:email, notes:long_text, y:number, w:datetime, later:date, days:number, label:text, ok:boolean, many:text
+-- count: SELECT count(*) AS "count" FROM "q0""
+`;
+
+exports[`DuckDB: выборка и агрегаты > длительность читается минутами 1`] = `
+"WITH
+"q0" AS (
+  SELECT "_id", "_ver", "_created_at", "_updated_at", "_created_by", "_updated_by", "c_1" AS "title", "c_2" AS "kind", "c_3" AS "damage", "c_4" AS "victims", "c_5" AS "occurred_at", "c_6" AS "reported_on", "c_7" AS "territory_id", "c_8" AS "assignee", "c_9" AS "unit_id", "c_10" AS "tags", "c_11" AS "is_confirmed", CAST("c_12" AS DOUBLE) AS "response", "c_13" AS "ratio", "c_14" AS "phone", "c_15" AS "start_time", "c_16" AS "meta", "c_17" AS "share", "c_18" AS "code", "c_19" AS "email", "c_20" AS "notes"
+  FROM "ds"."t_incidents"
+  WHERE "_deleted_at" IS NULL
+),
+"q1" AS (
+  SELECT "q0"."response" AS "response", "q0"."_id" AS "_id", "q0"."_ver" AS "_ver", "q0"."_created_at" AS "_created_at", "q0"."_updated_at" AS "_updated_at", "q0"."_created_by" AS "_created_by", "q0"."_updated_by" AS "_updated_by"
+  FROM "q0"
+)
+SELECT "q1"."response" AS "response"
+FROM "q1"
+LIMIT 50001
+-- params: []
+-- fields: response:duration
+-- count: SELECT count(*) AS "count" FROM "q0""
+`;
+
+exports[`DuckDB: выборка и агрегаты > фильтры: список, шаблон, регулярное выражение, множественный выбор 1`] = `
+"WITH
+"q0" AS (
+  SELECT "_id", "_ver", "_created_at", "_updated_at", "_created_by", "_updated_by", "c_1" AS "title", "c_2" AS "kind", "c_3" AS "damage", "c_4" AS "victims", "c_5" AS "occurred_at", "c_6" AS "reported_on", "c_7" AS "territory_id", "c_8" AS "assignee", "c_9" AS "unit_id", "c_10" AS "tags", "c_11" AS "is_confirmed", CAST("c_12" AS DOUBLE) AS "response", "c_13" AS "ratio", "c_14" AS "phone", "c_15" AS "start_time", "c_16" AS "meta", "c_17" AS "share", "c_18" AS "code", "c_19" AS "email", "c_20" AS "notes"
+  FROM "ds"."t_incidents"
+  WHERE "_deleted_at" IS NULL
+),
+"q1" AS (
+  SELECT *
+  FROM "q0"
+  WHERE ((list_contains(CAST($1 AS VARCHAR[]), "q0"."kind")) AND ("q0"."title" ILIKE CAST($2 AS VARCHAR) ESCAPE '\\') AND (regexp_matches("q0"."title", CAST($3 AS VARCHAR), 'i')) AND (list_has_any("q0"."tags", CAST($4 AS VARCHAR[]))) AND ("q0"."victims" > CAST($5 AS BIGINT)))
+)
+SELECT "q1"."title" AS "title", "q1"."kind" AS "kind", "q1"."damage" AS "damage", "q1"."victims" AS "victims", "q1"."occurred_at" AS "occurred_at", "q1"."reported_on" AS "reported_on", "q1"."territory_id" AS "territory_id", "q1"."assignee" AS "assignee", "q1"."unit_id" AS "unit_id", "q1"."tags" AS "tags", "q1"."is_confirmed" AS "is_confirmed", "q1"."response" AS "response", "q1"."ratio" AS "ratio", "q1"."phone" AS "phone", "q1"."start_time" AS "start_time", "q1"."meta" AS "meta", "q1"."share" AS "share", "q1"."code" AS "code", "q1"."email" AS "email", "q1"."notes" AS "notes"
+FROM "q1"
+LIMIT 50001
+-- params: [["fire","flood"],"%склад%","^A\\\\d+",["крупное","ночное"],3]
+-- fields: title:text, kind:select, damage:money, victims:integer, occurred_at:datetime, reported_on:date, territory_id:territory, assignee:user, unit_id:unit, tags:multi_select, is_confirmed:boolean, response:duration, ratio:number, phone:phone, start_time:time, meta:json, share:percent, code:identifier, email:email, notes:long_text
+-- count: SELECT count(*) AS "count" FROM "q1""
+`;
+
+exports[`DuckDB: политики > столбцы: маска не обходится фильтром 1`] = `
+"WITH
+"q0" AS (
+  SELECT "_id", "_ver", "_created_at", "_updated_at", "_created_by", "_updated_by", "c_1" AS "title", "c_2" AS "kind", CAST((CASE WHEN "c_3" IS NULL OR "c_3" = 0 THEN "c_3" ELSE round(CAST(("c_3") AS DOUBLE), CAST((1 - floor(log(abs(CAST(("c_3") AS DOUBLE))))) AS INTEGER)) END) AS DECIMAL(38,12)) AS "damage", "c_4" AS "victims", ((date_trunc('year', "c_5" AT TIME ZONE CAST($1 AS VARCHAR))) AT TIME ZONE CAST($1 AS VARCHAR)) AS "occurred_at", CAST(date_trunc('year', "c_6") AS DATE) AS "reported_on", "c_7" AS "territory_id", "c_8" AS "assignee", "c_9" AS "unit_id", "c_10" AS "tags", "c_11" AS "is_confirmed", CAST("c_12" AS DOUBLE) AS "response", CAST((CASE WHEN "c_13" IS NULL OR "c_13" = 0 THEN "c_13" WHEN (isnan("c_13") OR isinf("c_13")) THEN NULL ELSE round(CAST(("c_13") AS DOUBLE), CAST((1 - floor(log(abs(CAST(("c_13") AS DOUBLE))))) AS INTEGER)) END) AS DOUBLE) AS "ratio", (CASE WHEN "c_14" IS NULL THEN NULL WHEN length("c_14") >= 8 THEN '***' || right("c_14", 4) ELSE '***' END) AS "phone", "c_15" AS "start_time", "c_16" AS "meta", "c_17" AS "share", (CASE WHEN "c_18" IS NULL THEN NULL WHEN length("c_18") >= 8 THEN '***' || right("c_18", 4) ELSE '***' END) AS "code", (CASE WHEN "c_19" IS NULL THEN NULL ELSE '***@' || split_part("c_19", '@', 2) END) AS "email"
+  FROM "ds"."t_incidents"
+  WHERE "_deleted_at" IS NULL
+),
+"q1" AS (
+  SELECT *
+  FROM "q0"
+  WHERE ("q0"."phone" ILIKE CAST($2 AS VARCHAR) ESCAPE '\\')
+)
+SELECT "q1"."title" AS "title", "q1"."kind" AS "kind", "q1"."damage" AS "damage", "q1"."victims" AS "victims", "q1"."occurred_at" AS "occurred_at", "q1"."reported_on" AS "reported_on", "q1"."territory_id" AS "territory_id", "q1"."assignee" AS "assignee", "q1"."unit_id" AS "unit_id", "q1"."tags" AS "tags", "q1"."is_confirmed" AS "is_confirmed", "q1"."response" AS "response", "q1"."ratio" AS "ratio", "q1"."phone" AS "phone", "q1"."start_time" AS "start_time", "q1"."meta" AS "meta", "q1"."share" AS "share", "q1"."code" AS "code", "q1"."email" AS "email"
+FROM "q1"
+LIMIT 50001
+-- params: ["Asia/Dushanbe","%992%"]
+-- fields: title:text, kind:select, damage:money, victims:integer, occurred_at:datetime, reported_on:date, territory_id:territory, assignee:user, unit_id:unit, tags:multi_select, is_confirmed:boolean, response:duration, ratio:number, phone:phone, start_time:time, meta:json, share:percent, code:identifier, email:email
+-- count: SELECT count(*) AS "count" FROM "q1""
+`;
+
+exports[`DuckDB: политики > столбцы: скрытие и маскирование 1`] = `
+"WITH
+"q0" AS (
+  SELECT "_id", "_ver", "_created_at", "_updated_at", "_created_by", "_updated_by", "c_1" AS "title", "c_2" AS "kind", CAST((CASE WHEN "c_3" IS NULL OR "c_3" = 0 THEN "c_3" ELSE round(CAST(("c_3") AS DOUBLE), CAST((1 - floor(log(abs(CAST(("c_3") AS DOUBLE))))) AS INTEGER)) END) AS DECIMAL(38,12)) AS "damage", "c_4" AS "victims", ((date_trunc('year', "c_5" AT TIME ZONE CAST($1 AS VARCHAR))) AT TIME ZONE CAST($1 AS VARCHAR)) AS "occurred_at", CAST(date_trunc('year', "c_6") AS DATE) AS "reported_on", "c_7" AS "territory_id", "c_8" AS "assignee", "c_9" AS "unit_id", "c_10" AS "tags", "c_11" AS "is_confirmed", CAST("c_12" AS DOUBLE) AS "response", CAST((CASE WHEN "c_13" IS NULL OR "c_13" = 0 THEN "c_13" WHEN (isnan("c_13") OR isinf("c_13")) THEN NULL ELSE round(CAST(("c_13") AS DOUBLE), CAST((1 - floor(log(abs(CAST(("c_13") AS DOUBLE))))) AS INTEGER)) END) AS DOUBLE) AS "ratio", (CASE WHEN "c_14" IS NULL THEN NULL WHEN length("c_14") >= 8 THEN '***' || right("c_14", 4) ELSE '***' END) AS "phone", "c_15" AS "start_time", "c_16" AS "meta", "c_17" AS "share", (CASE WHEN "c_18" IS NULL THEN NULL WHEN length("c_18") >= 8 THEN '***' || right("c_18", 4) ELSE '***' END) AS "code", (CASE WHEN "c_19" IS NULL THEN NULL ELSE '***@' || split_part("c_19", '@', 2) END) AS "email"
+  FROM "ds"."t_incidents"
+  WHERE "_deleted_at" IS NULL
+)
+SELECT "q0"."title" AS "title", "q0"."kind" AS "kind", "q0"."damage" AS "damage", "q0"."victims" AS "victims", "q0"."occurred_at" AS "occurred_at", "q0"."reported_on" AS "reported_on", "q0"."territory_id" AS "territory_id", "q0"."assignee" AS "assignee", "q0"."unit_id" AS "unit_id", "q0"."tags" AS "tags", "q0"."is_confirmed" AS "is_confirmed", "q0"."response" AS "response", "q0"."ratio" AS "ratio", "q0"."phone" AS "phone", "q0"."start_time" AS "start_time", "q0"."meta" AS "meta", "q0"."share" AS "share", "q0"."code" AS "code", "q0"."email" AS "email"
+FROM "q0"
+LIMIT 50001
+-- params: ["Asia/Dushanbe"]
+-- fields: title:text, kind:select, damage:money, victims:integer, occurred_at:datetime, reported_on:date, territory_id:territory, assignee:user, unit_id:unit, tags:multi_select, is_confirmed:boolean, response:duration, ratio:number, phone:phone, start_time:time, meta:json, share:percent, code:identifier, email:email
+-- count: SELECT count(*) AS "count" FROM "q0""
+`;
+
+exports[`DuckDB: политики > строки: ни одной 1`] = `
+"WITH
+"q0" AS (
+  SELECT "_id", "_ver", "_created_at", "_updated_at", "_created_by", "_updated_by", "c_1" AS "title", "c_2" AS "kind", "c_3" AS "damage", "c_4" AS "victims", "c_5" AS "occurred_at", "c_6" AS "reported_on", "c_7" AS "territory_id", "c_8" AS "assignee", "c_9" AS "unit_id", "c_10" AS "tags", "c_11" AS "is_confirmed", CAST("c_12" AS DOUBLE) AS "response", "c_13" AS "ratio", "c_14" AS "phone", "c_15" AS "start_time", "c_16" AS "meta", "c_17" AS "share", "c_18" AS "code", "c_19" AS "email", "c_20" AS "notes"
+  FROM "ds"."t_incidents"
+  WHERE "_deleted_at" IS NULL AND FALSE
+)
+SELECT "q0"."title" AS "title", "q0"."kind" AS "kind", "q0"."damage" AS "damage", "q0"."victims" AS "victims", "q0"."occurred_at" AS "occurred_at", "q0"."reported_on" AS "reported_on", "q0"."territory_id" AS "territory_id", "q0"."assignee" AS "assignee", "q0"."unit_id" AS "unit_id", "q0"."tags" AS "tags", "q0"."is_confirmed" AS "is_confirmed", "q0"."response" AS "response", "q0"."ratio" AS "ratio", "q0"."phone" AS "phone", "q0"."start_time" AS "start_time", "q0"."meta" AS "meta", "q0"."share" AS "share", "q0"."code" AS "code", "q0"."email" AS "email", "q0"."notes" AS "notes"
+FROM "q0"
+LIMIT 50001
+-- params: []
+-- fields: title:text, kind:select, damage:money, victims:integer, occurred_at:datetime, reported_on:date, territory_id:territory, assignee:user, unit_id:unit, tags:multi_select, is_confirmed:boolean, response:duration, ratio:number, phone:phone, start_time:time, meta:json, share:percent, code:identifier, email:email, notes:long_text
+-- count: SELECT count(*) AS "count" FROM "q0""
+`;
+
+exports[`DuckDB: политики > строки: политика и барьер 1`] = `
+"WITH
+"q0" AS (
+  SELECT "_id", "_ver", "_created_at", "_updated_at", "_created_by", "_updated_by", "c_1" AS "title", "c_2" AS "kind", "c_3" AS "damage", "c_4" AS "victims", "c_5" AS "occurred_at", "c_6" AS "reported_on", "c_7" AS "territory_id", "c_8" AS "assignee", "c_9" AS "unit_id", "c_10" AS "tags", "c_11" AS "is_confirmed", CAST("c_12" AS DOUBLE) AS "response", "c_13" AS "ratio", "c_14" AS "phone", "c_15" AS "start_time", "c_16" AS "meta", "c_17" AS "share", "c_18" AS "code", "c_19" AS "email", "c_20" AS "notes"
+  FROM "ds"."t_incidents"
+  WHERE "_deleted_at" IS NULL AND (list_contains(CAST($1 AS VARCHAR[]), "c_7"))
+  OFFSET 0
+)
+SELECT "q0"."title" AS "title", "q0"."kind" AS "kind", "q0"."damage" AS "damage", "q0"."victims" AS "victims", "q0"."occurred_at" AS "occurred_at", "q0"."reported_on" AS "reported_on", "q0"."territory_id" AS "territory_id", "q0"."assignee" AS "assignee", "q0"."unit_id" AS "unit_id", "q0"."tags" AS "tags", "q0"."is_confirmed" AS "is_confirmed", "q0"."response" AS "response", "q0"."ratio" AS "ratio", "q0"."phone" AS "phone", "q0"."start_time" AS "start_time", "q0"."meta" AS "meta", "q0"."share" AS "share", "q0"."code" AS "code", "q0"."email" AS "email", "q0"."notes" AS "notes"
+FROM "q0"
+LIMIT 50001
+-- params: [["cccccccc-cccc-4ccc-8ccc-ccccccccccc1"]]
+-- fields: title:text, kind:select, damage:money, victims:integer, occurred_at:datetime, reported_on:date, territory_id:territory, assignee:user, unit_id:unit, tags:multi_select, is_confirmed:boolean, response:duration, ratio:number, phone:phone, start_time:time, meta:json, share:percent, code:identifier, email:email, notes:long_text
+-- count: SELECT count(*) AS "count" FROM "q0""
+`;

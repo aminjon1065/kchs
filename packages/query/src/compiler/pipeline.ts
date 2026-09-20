@@ -195,9 +195,9 @@ function savedQuery(
 /** Приведение значения при соединении и объединении (дата → момент, строка → ссылка). */
 function convertSql(state: CompileState, sql: string, from: ValueType, to: ValueType): string {
   if (from === to) return sql
-  if (from === 'null') return `${sql}::${sqlTypeOfValue(to)}`
+  if (from === 'null') return state.dialect.cast(sql, sqlTypeOfValue(to))
   if (from === 'date' && to === 'datetime') {
-    return state.dialect.atTimeZone(`${sql}::timestamp`, state.tz())
+    return state.dialect.atTimeZone(state.dialect.cast(sql, 'timestamp'), state.tz())
   }
   if (from === 'text' && to === 'uuid') return state.dialect.tryCast(sql, 'uuid')
   return sql
@@ -398,7 +398,7 @@ class StepCompiler {
           fail([...fieldPath, 'type'], `Тип «${field.type}» не подходит для вычисляемого поля`)
         }
         if (type === 'null') {
-          sql = `NULL::${sqlTypeOfField(field.type)}`
+          sql = this.d.cast('NULL', sqlTypeOfField(field.type))
           type = declared
         } else if (declared !== type) {
           fail(
@@ -406,13 +406,13 @@ class StepCompiler {
             `Выражение даёт «${VALUE_TYPE_LABELS[type]}», а объявлено «${VALUE_TYPE_LABELS[declared]}»`,
           )
         } else if (declared === 'number' && sqlTypeOfField(field.type) !== 'double precision') {
-          sql = `(${sql})::${sqlTypeOfField(field.type)}`
+          sql = this.d.cast(`(${sql})`, sqlTypeOfField(field.type))
         }
         fieldType = field.type
       }
       if (type === 'null') {
         // Пустое значение без типа — строка (иначе Postgres не сравнит его с другими)
-        sql = 'NULL::text'
+        sql = this.d.cast('NULL', 'text')
         type = 'text'
         fieldType = 'text'
       }
@@ -548,7 +548,7 @@ class StepCompiler {
       )
       const type = compiled.type === 'null' ? 'text' : compiled.type
       return {
-        sql: compiled.type === 'null' ? 'NULL::text' : compiled.sql,
+        sql: compiled.type === 'null' ? this.d.cast('NULL', 'text') : compiled.sql,
         type,
         meta: {
           fieldType: compiled.fieldType ?? fieldTypeOfValue(type),
@@ -675,7 +675,7 @@ class StepCompiler {
         }
       }
       case 'string_agg': {
-        const text = `(${need().sql})::text`
+        const text = this.d.cast(`(${need().sql})`, 'text')
         return {
           sql: withFilter(`string_agg(${text}, ', ' ORDER BY ${text})`),
           type: 'text',

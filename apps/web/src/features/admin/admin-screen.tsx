@@ -33,6 +33,7 @@ import {
   Cable,
   CalendarClock,
   CalendarDays,
+  Columns3,
   Contact,
   Database,
   DatabaseBackup,
@@ -81,6 +82,7 @@ import { BackupsSection } from './backups-section.js'
 import { BasemapsSection } from './basemaps-section.js'
 import { BrandingSection } from './branding-section.js'
 import { BusinessCalendarSection } from './business-calendar-section.js'
+import { ColumnarSection } from './columnar-section.js'
 import { ConfigPackageSection } from './config-package-section.js'
 import { DataSourcesSection } from './data-sources-section.js'
 import { DirectorySection } from './directory-section.js'
@@ -119,6 +121,7 @@ type Section =
   | 'integrations'
   | 'apiTokens'
   | 'config'
+  | 'columnar'
   | 'automation'
   | 'schedules'
 
@@ -275,6 +278,12 @@ export function AdminScreen() {
       visible: isSystemAdmin,
     },
     {
+      value: 'columnar',
+      label: t('admin.sections.columnar'),
+      icon: <Columns3 className="size-3.5" />,
+      visible: isSystemAdmin,
+    },
+    {
       value: 'automation',
       label: t('admin.sections.automation'),
       icon: <Zap className="size-3.5" />,
@@ -367,6 +376,9 @@ export function AdminScreen() {
             </TabsContent>
             <TabsContent value="config" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
               <ConfigPackageSection />
+            </TabsContent>
+            <TabsContent value="columnar" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
+              <ColumnarSection />
             </TabsContent>
           </>
         ) : null}

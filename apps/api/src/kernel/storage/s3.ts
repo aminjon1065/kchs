@@ -58,6 +58,7 @@ export const buckets = {
   tiles: () => config().S3_BUCKET_TILES,
   /** Резервные копии базы (15-admin-operations.md §5). */
   backups: () => config().S3_BUCKET_BACKUPS,
+  columnar: () => config().S3_BUCKET_COLUMNAR,
 }
 
 /** Ключ хранения: spaces/{spaceId}/files/{fileId}/{versionId}/{safeName} (09-files.md §2). */

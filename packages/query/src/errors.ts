@@ -45,6 +45,21 @@ export class ExpressionError extends Error {
   }
 }
 
+/**
+ * Диалект не умеет того, что требует запрос (геометрия в DuckDB, ADR-0109).
+ * Это не ошибка пользователя: вызывающий повторяет компиляцию в диалекте
+ * Postgres, поэтому сообщение видит только журнал.
+ */
+export class UnsupportedByDialectError extends Error {
+  constructor(
+    readonly feature: string,
+    readonly dialect: string,
+  ) {
+    super(`${feature}: диалект ${dialect} не поддерживает эту возможность`)
+    this.name = 'UnsupportedByDialectError'
+  }
+}
+
 /** Переводит ошибку выражения в ошибку компиляции с путём. */
 export function atPath<T>(path: IssuePath, run: () => T): T {
   try {

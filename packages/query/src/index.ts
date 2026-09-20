@@ -13,8 +13,8 @@ export {
   DEFAULT_TIMEOUT_MS,
 } from './compiler/compile.js'
 export { DEFAULT_TIMEZONE } from './compiler/state.js'
-export { type Dialect, postgresDialect } from './dialect.js'
-export { ExpressionError, QueryCompileError } from './errors.js'
+export { type Dialect, duckdbDialect, postgresDialect } from './dialect.js'
+export { ExpressionError, QueryCompileError, UnsupportedByDialectError } from './errors.js'
 export type { Expr } from './expr/ast.js'
 export {
   type CompiledExpr,

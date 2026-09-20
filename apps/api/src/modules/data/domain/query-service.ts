@@ -3,6 +3,7 @@ import {
   type FieldType,
   FilterNode,
   type Locale,
+  type QueryExecutor,
   type QueryResult,
   type QueryResultField,
   QuerySpec,
@@ -17,6 +18,7 @@ import {
   collectSources,
   compileQuery,
   compileRawSql,
+  duckdbDialect,
   type LookupRef,
   MissingReferencesError,
   QueryCompileError,
@@ -29,6 +31,7 @@ import {
   referenceKey,
   type SpatialWindow,
   type SqlDataset,
+  UnsupportedByDialectError,
 } from '@kchs/query'
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm'
 import { authorize, requireCapability, visibleObjectsSql } from '~/kernel/access/authorize.js'
@@ -41,6 +44,7 @@ import { objects, queries, queryRuns } from '~/shared/db/schema/index.js'
 import { AppError, errors } from '~/shared/errors.js'
 import { logger } from '~/shared/logger/index.js'
 import { redis } from '~/shared/redis/index.js'
+import { ColumnarService, type ColumnarSource, columnarUnsupported } from './columnar-service.js'
 import { DatasetAccess, type DatasetGrant } from './dataset-access.js'
 import { DatasetService, type DatasetStorage } from './dataset-service.js'
 
@@ -161,6 +165,45 @@ async function resolveDataset(
     }),
     schemaVersion: storage.schemaVersion,
   }
+}
+
+/**
+ * Датасет для компиляции под колоночную копию: поля, которых в Parquet нет
+ * (геометрия, вычисляемые), убираются. Запрос, который их читает, не
+ * скомпилируется — вызывающий уходит в Postgres. Политики строк и столбцов
+ * остаются целиком: их компилятор пишет в подзапрос так же, как для Postgres.
+ */
+function columnarDataset(dataset: ResolvedDataset): ResolvedDataset {
+  const missing = columnarUnsupported(dataset.fields)
+  if (missing.size === 0) return dataset
+  return { ...dataset, fields: dataset.fields.filter((field) => !missing.has(field.key)) }
+}
+
+/** Тяжёлый запрос: сворачивает строки — такие и уходят в колоночную копию. */
+function heavyQuery(spec: QuerySpec): boolean {
+  return spec.steps.some((step) => step.type === 'aggregate' || step.type === 'pivot')
+}
+
+/**
+ * Колоночные копии всех датасетов запроса — если tier включён, копии свежие и
+ * запрос вообще к ним применим (ADR-0109). Иначе null: считает Postgres.
+ */
+async function columnarSources(
+  spec: QuerySpec,
+  sources: { datasets: string[]; system: string[]; sql: boolean },
+  options: RunOptions,
+): Promise<Map<string, ColumnarSource> | null> {
+  const choice = spec.options?.executor ?? 'auto'
+  if (choice === 'postgres') return null
+  if (sources.sql || sources.system.length > 0 || sources.datasets.length === 0) return null
+  // Правка строк, тайлы и геометрия как есть — только основное хранилище
+  if (options.rowMeta || options.geometryOutput === 'raw' || options.spatialWindow) return null
+  if (choice === 'auto' && !heavyQuery(spec)) return null
+  const plan = await ColumnarService.sourcesFor(sources.datasets)
+  if (!plan) return null
+  // Авто-выбор — только для крупных датасетов; явный `columnar` — для любых
+  if (choice === 'auto' && !plan.large) return null
+  return plan.sources
 }
 
 function compileUser(ctx: Ctx): CompileUser {
@@ -424,13 +467,20 @@ export const QueryService = {
     ctx: Ctx,
     spec: QuerySpec,
     options: RunOptions = {},
+    /** Компиляция под колоночную копию: диалект DuckDB и поля, которые в ней есть. */
+    columnar?: ReadonlyMap<string, ColumnarSource>,
   ): Promise<{ compiled: CompiledQuery; schemaVersions: string; cacheable: boolean }> {
     let sources = collectSources(spec)
     const saved = await loadSavedQueries(ctx, sources.queries)
     if (saved.size > 0) sources = collectSources(spec, saved)
     if (sources.sql) throw errors.validation('Сырой SQL выполняется в SQL-лаборатории')
     const resolved = await Promise.all(sources.datasets.map((id) => resolveDataset(ctx, id)))
-    const datasets = new Map(resolved.map((item) => [item.dataset.id, item.dataset]))
+    const datasets = new Map(
+      resolved.map((item) => [
+        item.dataset.id,
+        columnar ? columnarDataset(item.dataset) : item.dataset,
+      ]),
+    )
     // Системные датасеты (задачи…) описывает модуль-владелец с правами смотрящего
     const systemDatasets = new Map(
       await Promise.all(
@@ -457,6 +507,7 @@ export const QueryService = {
           rowMeta: options.rowMeta ?? false,
           ...(options.geometryOutput ? { geometryOutput: options.geometryOutput } : {}),
           ...(options.spatialWindow ? { spatialWindow: options.spatialWindow } : {}),
+          ...(columnar ? { dialect: duckdbDialect } : {}),
           ...(await referenceContext(ctx, lookups)),
         })
         // Подписи полей — из схемы, поэтому её версия тоже входит в ключ кэша
@@ -480,15 +531,52 @@ export const QueryService = {
     }
   },
 
+  /**
+   * Выбор исполнителя (ADR-0109): годится ли колоночная копия и собирается ли
+   * запрос в диалекте DuckDB. Не собрался — честно возвращаемся в Postgres:
+   * ошибка спецификации всплывёт там же, с обычным сообщением компилятора.
+   */
+  async plan(
+    ctx: Ctx,
+    spec: QuerySpec,
+    options: RunOptions = {},
+  ): Promise<{
+    compiled: CompiledQuery
+    schemaVersions: string
+    cacheable: boolean
+    executor: QueryExecutor
+    sources: ColumnarSource[]
+  }> {
+    const collected = collectSources(spec)
+    const copies = await columnarSources(spec, collected, options).catch((error: unknown) => {
+      logger().warn({ err: error }, 'колоночная копия не проверена')
+      return null
+    })
+    if (copies) {
+      try {
+        const compiled = await QueryService.compile(ctx, spec, options, copies)
+        // Геометрия в копии не хранится: ST_* означает, что диалект её пропустил
+        if (!/\bST_/i.test(compiled.compiled.sql)) {
+          return { ...compiled, executor: 'columnar', sources: [...copies.values()] }
+        }
+      } catch (error) {
+        if (!(error instanceof UnsupportedByDialectError) && !(error instanceof AppError))
+          throw error
+      }
+    }
+    const compiled = await QueryService.compile(ctx, spec, options)
+    return { ...compiled, executor: 'postgres', sources: [] }
+  },
+
   async run(ctx: Ctx, spec: QuerySpec, options: RunOptions = {}): Promise<QueryResult> {
     const started = performance.now()
-    const compiledQuery = await QueryService.compile(ctx, spec, options)
-    const { compiled, schemaVersions } = compiledQuery
+    const plan = await QueryService.plan(ctx, spec, options)
+    const { compiled, schemaVersions, executor } = plan
     // `options.cache: false` (контракт QuerySpec) — мимо кэша: свежий результат и замеры
-    const cacheable = compiledQuery.cacheable && spec.options?.cache !== false
+    const cacheable = plan.cacheable && spec.options?.cache !== false
     const count = options.count ?? false
     const specHash = createHash('sha256')
-      .update(`${cacheKeyText(compiled.cacheKeyParts)}|${schemaVersions}|${count}`)
+      .update(`${cacheKeyText(compiled.cacheKeyParts)}|${schemaVersions}|${count}|${executor}`)
       .digest('hex')
     const cacheKey = `kchs:query:${specHash}`
 
@@ -506,21 +594,29 @@ export const QueryService = {
       return { ...result, durationMs }
     }
 
-    let rows: Array<Record<string, unknown>>
+    const fields: QueryResultField[] = compiled.fields
+    let rows: unknown[][]
     let total: number | null = null
     try {
-      const executed = await queryRoleSql().begin('read only', async (sql) => {
-        await sql`SELECT set_config('statement_timeout', ${String(compiled.timeoutMs)}, true)`
-        const data = await sql.unsafe(compiled.sql, compiled.params as never[])
-        const counted = count
-          ? await sql.unsafe(compiled.countSql, compiled.countParams as never[])
+      if (executor === 'columnar') {
+        const reply = await ColumnarService.run(compiled, plan.sources, { count })
+        rows = reply.rows
+        total = reply.rowCount
+      } else {
+        const executed = await queryRoleSql().begin('read only', async (sql) => {
+          await sql`SELECT set_config('statement_timeout', ${String(compiled.timeoutMs)}, true)`
+          const data = await sql.unsafe(compiled.sql, compiled.params as never[])
+          const counted = count
+            ? await sql.unsafe(compiled.countSql, compiled.countParams as never[])
+            : null
+          return { data, counted }
+        })
+        const records = executed.data as unknown as Array<Record<string, unknown>>
+        rows = records.map((row) => fields.map((field) => row[field.name]))
+        total = executed.counted
+          ? Number((executed.counted[0] as unknown as { count: unknown } | undefined)?.count ?? 0)
           : null
-        return { data, counted }
-      })
-      rows = executed.data as unknown as Array<Record<string, unknown>>
-      total = executed.counted
-        ? Number((executed.counted[0] as unknown as { count: unknown } | undefined)?.count ?? 0)
-        : null
+      }
     } catch (error) {
       const durationMs = performance.now() - started
       await recordRun(ctx, {
@@ -537,15 +633,15 @@ export const QueryService = {
 
     const truncated = compiled.maxRows !== null && rows.length > compiled.maxRows
     if (truncated && compiled.maxRows !== null) rows = rows.slice(0, compiled.maxRows)
-    const fields: QueryResultField[] = compiled.fields
     const result: QueryResult = {
       fields,
-      rows: rows.map((row) => fields.map((field) => jsonValue(row[field.name], field.type))),
+      rows: rows.map((row) => fields.map((field, index) => jsonValue(row[index], field.type))),
       rowCount: total,
       approx: false,
       truncated,
       durationMs: performance.now() - started,
       cached: false,
+      executedOn: executor,
     }
     if (cacheable) await redis().set(cacheKey, JSON.stringify(result), 'EX', CACHE_TTL_SECONDS)
     await recordRun(ctx, {
@@ -710,6 +806,7 @@ export const QueryService = {
       truncated,
       durationMs: performance.now() - started,
       cached: false,
+      executedOn: 'postgres',
     }
     if (compiled.cacheable) {
       await redis().set(cacheKey, JSON.stringify(result), 'EX', CACHE_TTL_SECONDS)

@@ -65,6 +65,8 @@ const EnvSchema = z.object({
   S3_BUCKET_EXPORTS: z.string().default('kchs-exports'),
   S3_BUCKET_TILES: z.string().default('kchs-tiles'),
   S3_BUCKET_BACKUPS: z.string().default('kchs-backups'),
+  /** Колоночные копии датасетов в Parquet (ADR-0109). */
+  S3_BUCKET_COLUMNAR: z.string().default('kchs-columnar'),
   /** Каталог базовых карт в бакете тайлов (ADR-0066); интеграционные тесты работают в своём. */
   BASEMAPS_PREFIX: z
     .string()

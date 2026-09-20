@@ -1,6 +1,9 @@
+import { UnsupportedByDialectError } from './errors.js'
+
 /**
- * Диалект SQL. Компилятор пишет запрос через эти примитивы; Postgres — сейчас,
- * DuckDB для колоночного tier (06-analytics-engine.md §5) — за тем же интерфейсом.
+ * Диалект SQL. Компилятор пишет запрос через эти примитивы: Postgres —
+ * основное хранилище, DuckDB — колоночный tier поверх Parquet
+ * (06-analytics-engine.md §5, ADR-0109).
  */
 export type DateUnit = 'year' | 'quarter' | 'month' | 'week' | 'day' | 'hour'
 export type DatePart = 'year' | 'quarter' | 'month' | 'week' | 'day' | 'dow' | 'hour'
@@ -9,7 +12,7 @@ export type IntervalUnit = 'year' | 'quarter' | 'month' | 'week' | 'day' | 'hour
 export type CastType = 'date' | 'uuid' | 'timestamptz' | 'double precision' | 'boolean'
 
 export interface Dialect {
-  readonly name: 'postgres'
+  readonly name: 'postgres' | 'duckdb'
   /** Идентификатор в кавычках; допускаются только проверенные имена. */
   ident(name: string): string
   /** Физическая таблица `schema.table`. */
@@ -53,6 +56,19 @@ export interface Dialect {
   overlaps(sql: string, array: string): string
   /** Число элементов массива. */
   cardinality(sql: string): string
+  /** Длина строки в символах (маскирование по политике столбцов). */
+  charLength(sql: string): string
+  /** Число с плавающей точкой — не конечное (NaN, ±бесконечность). */
+  notFinite(sql: string): string
+  /** Длительность физического столбца в минутах. */
+  durationMinutes(column: string): string
+  /** Округление до двух значащих цифр (маска чисел): 123 456 → 120 000. */
+  roundSignificant(sql: string): string
+  /**
+   * Барьер оптимизатора после политики строк: условия пользователя не
+   * опускаются ниже политики. `null` — диалект барьера не даёт.
+   */
+  fence(): string | null
 }
 
 const SAFE_IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/
@@ -124,4 +140,118 @@ export const postgresDialect: Dialect = {
   truncLocal: (unit, sql) => `date_trunc('${unit}', ${sql})`,
   overlaps: (sql, array) => `${sql} && ${array}`,
   cardinality: (sql) => `cardinality(${sql})`,
+  charLength: (sql) => `char_length(${sql})`,
+  notFinite: (sql) => `${sql}::text IN ('NaN', 'Infinity', '-Infinity')`,
+  durationMinutes: (column) => `(extract(epoch FROM ${column}) / 60)::double precision`,
+  roundSignificant: (sql) =>
+    `round((${sql})::numeric, (1 - floor(log(abs((${sql})::numeric))))::int)`,
+  fence: () => 'OFFSET 0',
+}
+
+// ─── DuckDB (колоночный tier, ADR-0109) ──────────────────────────────────────
+
+/**
+ * Типы SQL компилятора → типы DuckDB. Колоночная копия хранит ссылки (`uuid`)
+ * строками: сравнение и группировка канонических идентификаторов совпадают
+ * посимвольно, а лишнего приведения на 5 млн строк не происходит.
+ */
+const DUCKDB_TYPES: Record<string, string> = {
+  text: 'VARCHAR',
+  bigint: 'BIGINT',
+  int: 'INTEGER',
+  integer: 'INTEGER',
+  numeric: 'DECIMAL(38,12)',
+  'double precision': 'DOUBLE',
+  float8: 'DOUBLE',
+  boolean: 'BOOLEAN',
+  date: 'DATE',
+  timestamptz: 'TIMESTAMPTZ',
+  timestamp: 'TIMESTAMP',
+  time: 'TIME',
+  uuid: 'VARCHAR',
+  json: 'JSON',
+  jsonb: 'JSON',
+  'text[]': 'VARCHAR[]',
+}
+
+/** Единицы `make_interval` Postgres → функции DuckDB `to_*`. */
+const DUCKDB_INTERVAL: Record<IntervalUnit, [string, number]> = {
+  year: ['to_years', 1],
+  quarter: ['to_months', 3],
+  month: ['to_months', 1],
+  week: ['to_days', 7],
+  day: ['to_days', 1],
+  hour: ['to_hours', 1],
+  minute: ['to_minutes', 1],
+}
+
+function duckdbType(type: string): string {
+  const name = type.toLowerCase().trim()
+  const mapped = DUCKDB_TYPES[name]
+  if (mapped) return mapped
+  // Массив значений (списки `IN`, множественный выбор) — список DuckDB
+  if (name.endsWith('[]')) return `${duckdbType(name.slice(0, -2))}[]`
+  throw new UnsupportedByDialectError(`тип ${type}`, 'duckdb')
+}
+
+function unsupported(feature: string): never {
+  throw new UnsupportedByDialectError(feature, 'duckdb')
+}
+
+/**
+ * DuckDB поверх Parquet колоночной копии (ADR-0109). Отличия от Postgres, из-за
+ * которых нужен отдельный диалект: имена типов, часовой пояс третьим
+ * аргументом `date_trunc`, списки вместо массивов, регулярные выражения
+ * функцией. Геометрия в колоночной копии не хранится — запрос с ней
+ * завершается `UnsupportedByDialectError`, и вызывающий уходит в Postgres.
+ */
+export const duckdbDialect: Dialect = {
+  name: 'duckdb',
+  ident: quote,
+  table: postgresDialect.table,
+  placeholder: (index) => `$${index}`,
+  cast: (sql, type) => `CAST(${sql} AS ${duckdbType(type)})`,
+  ilike: (sql, pattern) => `${sql} ILIKE ${pattern} ESCAPE '\\'`,
+  regex: (sql, pattern, caseInsensitive) =>
+    caseInsensitive
+      ? `regexp_matches(${sql}, ${pattern}, 'i')`
+      : `regexp_matches(${sql}, ${pattern})`,
+  dateTrunc(unit, sql, temporal, tz) {
+    if (temporal === 'date') return `CAST(date_trunc('${unit}', ${sql}) AS DATE)`
+    // Усечение в поясе: момент → местное время → усечение → снова момент
+    return `((date_trunc('${unit}', ${sql} AT TIME ZONE ${tz()})) AT TIME ZONE ${tz()})`
+  },
+  datePart(part, sql, temporal, tz) {
+    const source = temporal === 'date' ? sql : `(${sql} AT TIME ZONE ${tz()})`
+    return `CAST(extract(${PG_DATE_PART[part]} FROM ${source}) AS INTEGER)`
+  },
+  interval(unit, n) {
+    const [fn, factor] = DUCKDB_INTERVAL[unit]
+    const amount = factor === 1 ? n : `(${n}) * ${factor}`
+    return `${fn}(CAST(${amount} AS INTEGER))`
+  },
+  localDate: (sql, tz) => `CAST(${sql} AT TIME ZONE ${tz} AS DATE)`,
+  percentile: (p, sql) => `percentile_cont(${p}) WITHIN GROUP (ORDER BY ${sql})`,
+  inArray: (sql, array) => `list_contains(${array}, ${sql})`,
+  geoJson: () => unsupported('геометрия в результате'),
+  geomFromGeoJson: () => unsupported('геометрия из GeoJSON'),
+  geography: () => unsupported('метрические расчёты по геометрии'),
+  randomOrder: () => 'random()',
+  tryCast: (sql, type) => `TRY_CAST(${sql} AS ${duckdbType(type)})`,
+  atTimeZone: (sql, tz) => `(${sql} AT TIME ZONE ${tz})`,
+  truncLocal: (unit, sql) => `date_trunc('${unit}', ${sql})`,
+  overlaps: (sql, array) => `list_has_any(${sql}, ${array})`,
+  cardinality: (sql) => `len(${sql})`,
+  charLength: (sql) => `length(${sql})`,
+  // DuckDB печатает нечисловые значения как `nan`/`inf`: проверяем функциями
+  notFinite: (sql) => `(isnan(${sql}) OR isinf(${sql}))`,
+  // Длительность колоночная копия хранит уже в минутах (ADR-0109)
+  durationMinutes: (column) => `CAST(${column} AS DOUBLE)`,
+  // DuckDB не умеет round(DECIMAL, <не константа>) — считаем в DOUBLE
+  roundSignificant(sql) {
+    const value = `CAST((${sql}) AS DOUBLE)`
+    return `round(${value}, CAST((1 - floor(log(abs(${value})))) AS INTEGER))`
+  },
+  // LIMIT/OFFSET — граница для опускания условий и в DuckDB
+  fence: () => 'OFFSET 0',
 }

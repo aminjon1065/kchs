@@ -208,7 +208,7 @@ services:
       - |
         set -e
         mc alias set kchs http://minio:9000 "$$S3_ACCESS_KEY" "$$S3_SECRET_KEY"
-        for b in kchs-files kchs-previews kchs-media kchs-exports kchs-tiles kchs-backups; do
+        for b in kchs-files kchs-previews kchs-media kchs-exports kchs-tiles kchs-backups kchs-columnar; do
           mc mb --ignore-existing "kchs/$$b"
         done
         mc ilm rule add --expire-days 30 kchs/kchs-exports 2>/dev/null || true
@@ -307,6 +307,9 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       DATABASE_URL: postgres://kchs_app:${KCHS_APP_PASSWORD}@postgres:5432/${POSTGRES_DB:-kchs}
+      # Колоночные копии датасетов (ADR-0109) движок читает ролью только для
+      # чтения таблиц строк (ADR-0048)
+      DATABASE_QUERY_URL: postgres://kchs_query:${KCHS_QUERY_PASSWORD}@postgres:5432/${POSTGRES_DB:-kchs}
       S3_ENDPOINT: http://minio:9000
       S3_ACCESS_KEY: ${S3_ACCESS_KEY}
       S3_SECRET_KEY: ${S3_SECRET_KEY}
@@ -323,6 +326,12 @@ services:
       ENGINE_TRANSCRIBE_DEVICE: ${ENGINE_TRANSCRIBE_DEVICE:-cpu}
       ENGINE_TRANSCRIBE_COMPUTE: ${ENGINE_TRANSCRIBE_COMPUTE:-int8}
       ENGINE_TRANSCRIBE_LANGUAGE: ${ENGINE_TRANSCRIBE_LANGUAGE:-}
+      # Колоночный tier (ADR-0109): кэш файлов Parquet на диске движка и пределы
+      # DuckDB. Каталог по умолчанию — временный, он живёт вместе с контейнером
+      ENGINE_COLUMNAR_CACHE_DIR: ${ENGINE_COLUMNAR_CACHE_DIR:-}
+      ENGINE_COLUMNAR_CACHE_MB: ${ENGINE_COLUMNAR_CACHE_MB:-4096}
+      ENGINE_COLUMNAR_THREADS: ${ENGINE_COLUMNAR_THREADS:-4}
+      ENGINE_COLUMNAR_MEMORY_MB: ${ENGINE_COLUMNAR_MEMORY_MB:-2048}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:

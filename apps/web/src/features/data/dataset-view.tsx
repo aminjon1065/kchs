@@ -44,6 +44,7 @@ import { ApiError, http } from '~/shared/api/client.js'
 import { keys, objectQuery } from '~/shared/api/queries.js'
 import { AccessTab } from './access-tab.js'
 import { AnalysisDialog } from './analysis-dialog.js'
+import { ColumnarCard } from './columnar-card.js'
 import { DatasetTable } from './dataset-table.js'
 import { ImportChanges } from './import-review.js'
 import { ImportWizard } from './import-wizard.js'
@@ -333,50 +334,54 @@ function VersionsTab({
     onSettled: () => setTarget(null),
   })
   if (isLoading) return <Skeleton className="mx-auto h-40 max-w-[760px]" />
-  if (versions.length === 0) return <EmptyState title={t('data.dataset.versions.empty')} />
   const number = (value: number) => formatNumber(value, {}, { locale })
   return (
-    <div className="mx-auto max-w-[760px]">
-      <Card padded={false}>
-        <ul className="divide-y divide-line">
-          {versions.map((version) => (
-            <li key={version.number} className="flex items-center gap-3 px-4 py-2.5">
-              <History className="size-4 shrink-0 text-fg-muted" aria-hidden />
-              <span className="min-w-0 flex-1">
-                <span className="flex items-center gap-2 text-sm text-fg">
-                  {t('data.dataset.version', { number: version.number })}
-                  <Badge size="sm" tone={version.number === current ? 'accent' : 'neutral'}>
-                    {t(`data.dataset.versions.origin.${version.origin}`)}
-                  </Badge>
+    <div className="mx-auto flex max-w-[760px] flex-col gap-4">
+      <ColumnarCard datasetId={datasetId} canManage={canManage} />
+      {versions.length === 0 ? (
+        <EmptyState title={t('data.dataset.versions.empty')} />
+      ) : (
+        <Card padded={false}>
+          <ul className="divide-y divide-line">
+            {versions.map((version) => (
+              <li key={version.number} className="flex items-center gap-3 px-4 py-2.5">
+                <History className="size-4 shrink-0 text-fg-muted" aria-hidden />
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-2 text-sm text-fg">
+                    {t('data.dataset.version', { number: version.number })}
+                    <Badge size="sm" tone={version.number === current ? 'accent' : 'neutral'}>
+                      {t(`data.dataset.versions.origin.${version.origin}`)}
+                    </Badge>
+                  </span>
+                  <span className="block text-xs text-fg-muted">
+                    {version.createdBy?.displayName ?? '—'} ·{' '}
+                    {formatRelativeTime(version.createdAt, { locale })} ·{' '}
+                    {t('data.dataset.rows', { count: version.rowCount })}
+                  </span>
                 </span>
-                <span className="block text-xs text-fg-muted">
-                  {version.createdBy?.displayName ?? '—'} ·{' '}
-                  {formatRelativeTime(version.createdAt, { locale })} ·{' '}
-                  {t('data.dataset.rows', { count: version.rowCount })}
+                <span className="shrink-0 tabular text-xs text-fg-secondary">
+                  {t('data.dataset.versions.diff', {
+                    added: number(version.diff.added),
+                    updated: number(version.diff.updated),
+                    deleted: number(version.diff.deleted),
+                  })}
                 </span>
-              </span>
-              <span className="shrink-0 tabular text-xs text-fg-secondary">
-                {t('data.dataset.versions.diff', {
-                  added: number(version.diff.added),
-                  updated: number(version.diff.updated),
-                  deleted: number(version.diff.deleted),
-                })}
-              </span>
-              {canManage && version.number < current ? (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={<RotateCcw className="size-3.5" />}
-                  aria-label={t('data.dataset.versions.rollbackTo', { number: version.number })}
-                  onClick={() => setTarget(version.number)}
-                >
-                  {t('data.dataset.versions.rollback')}
-                </Button>
-              ) : null}
-            </li>
-          ))}
-        </ul>
-      </Card>
+                {canManage && version.number < current ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={<RotateCcw className="size-3.5" />}
+                    aria-label={t('data.dataset.versions.rollbackTo', { number: version.number })}
+                    onClick={() => setTarget(version.number)}
+                  >
+                    {t('data.dataset.versions.rollback')}
+                  </Button>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
       <AlertDialog
         open={target !== null}
         onOpenChange={(open) => !open && !rollback.isPending && setTarget(null)}

@@ -100,12 +100,12 @@ export class CompileState {
     const map = this.ctx.references?.(request)
     if (!map) {
       this.missingReferences.set(key, request)
-      return `'{}'::jsonb`
+      return this.dialect.cast(`'{}'`, 'jsonb')
     }
     this.usedReferences.set(key, map.version)
     // Строкой с приведением: с типом jsonb драйвер закодировал бы JSON повторно
     const param = this.binder.once(`reference:${key}`, JSON.stringify(map.values), 'text')
-    return `${param}::jsonb`
+    return this.dialect.cast(param, 'jsonb')
   }
 
   now(): string {

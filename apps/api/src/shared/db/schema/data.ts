@@ -113,6 +113,32 @@ export const datasetVersions = pgTable(
   (t) => [uniqueIndex('dataset_versions_number_uq').on(t.datasetId, t.number)],
 )
 
+/**
+ * Колоночная копия датасета (ADR-0109): одна строка на датасет — текущая копия.
+ * Файл Parquet лежит в хранилище под `key`; метаданные показываются в карточке
+ * датасета и в администрировании.
+ */
+export const datasetColumnarCopies = pgTable('dataset_columnar_copies', {
+  datasetId: uuid('dataset_id')
+    .primaryKey()
+    .references(() => datasets.id, { onDelete: 'cascade' }),
+  /** `building` | `ready` | `stale` | `failed`. */
+  status: text('status').notNull().default('building'),
+  /** Версия данных, с которой снята копия. */
+  version: integer('version'),
+  rowCount: bigint('row_count', { mode: 'number' }),
+  sizeBytes: bigint('size_bytes', { mode: 'number' }),
+  buildMs: integer('build_ms'),
+  /** Ключ файла Parquet в бакете колоночных копий. */
+  key: text('key'),
+  jobId: uuid('job_id'),
+  error: text('error'),
+  requestedAt: tsCol('requested_at'),
+  builtAt: tsCol('built_at'),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+})
+
 /** Связи датасетов: ключ → ключ (P1-E07). */
 export const datasetRelations = pgTable(
   'dataset_relations',

@@ -26,6 +26,8 @@ data = [
     "pandas>=2.3",
     "pyarrow>=21.0",
     "duckdb>=1.4",
+    # Пояса в результатах DuckDB (колоночный tier, ADR-0109); приходит и с pandas
+    "pytz>=2025.1",
 ]
 gis = [
     "pyogrio>=0.11",

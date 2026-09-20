@@ -5,6 +5,10 @@ import {
   ChartDataInput,
   ChartRecord,
   ChartUpdateInput,
+  ColumnarAdmin,
+  ColumnarCopy,
+  ColumnarSettings,
+  ColumnarSettingsPatch,
   DashboardCreateInput,
   DashboardData,
   DashboardDataInput,
@@ -82,6 +86,7 @@ import {
 } from './analysis-module.js'
 import { AskService } from './domain/ask-service.js'
 import { ChartService, runChartSpec } from './domain/chart-service.js'
+import { COLUMNAR_BUILD_JOB, ColumnarService } from './domain/columnar-service.js'
 import { DashboardService } from './domain/dashboard-service.js'
 import { DatasetAccess } from './domain/dataset-access.js'
 import { DatasetService } from './domain/dataset-service.js'
@@ -336,6 +341,46 @@ export function registerDataRoutes(route: RouteRegistrar): void {
     summary: 'Качество данных: правила и последняя проверка (ADR-0101)',
     schema: { params: IdParam, response: { 200: DatasetQuality } },
     handler: async (request) => QualityService.get(request.ctx, request.params.id),
+  })
+
+  route({
+    method: 'GET',
+    url: '/datasets/:id/columnar',
+    auth: 'session',
+    tags: ['data'],
+    summary: 'Колоночная копия датасета: версия, размер, время сборки, свежесть (ADR-0109)',
+    schema: { params: IdParam, response: { 200: ColumnarCopy } },
+    handler: async (request) => ColumnarService.state(request.ctx, request.params.id),
+  })
+
+  route({
+    method: 'POST',
+    url: '/datasets/:id/columnar/build',
+    auth: 'session',
+    tags: ['data'],
+    summary: 'Собрать колоночную копию текущей версии (уровень manage)',
+    schema: { params: IdParam, response: { 200: ColumnarCopy } },
+    handler: async (request) => ColumnarService.build(request.ctx, request.params.id),
+  })
+
+  route({
+    method: 'GET',
+    url: '/admin/data/columnar',
+    auth: { capability: 'admin.system' },
+    tags: ['data'],
+    summary: 'Колоночный tier: настройки и копии датасетов (ADR-0109)',
+    schema: { response: { 200: ColumnarAdmin } },
+    handler: async (request) => ColumnarService.admin(request.ctx),
+  })
+
+  route({
+    method: 'PUT',
+    url: '/admin/data/columnar/settings',
+    auth: { capability: 'admin.system' },
+    tags: ['data'],
+    summary: 'Настройки колоночного tier: включён и порог строк',
+    schema: { body: ColumnarSettingsPatch, response: { 200: ColumnarSettings } },
+    handler: async (request) => ColumnarService.updateSettings(request.ctx, request.body),
   })
 
   route({
@@ -1164,6 +1209,44 @@ export function registerDataBackground(): void {
         data: { datasetId: event.object.id },
         objectId: event.object.id,
         idempotencyKey: `data.quality-check:${event.id}`,
+      })
+    },
+  })
+
+  // Новая версия данных — копия устарела; крупный датасет пересобирается сам (ADR-0109)
+  registerSubscriber({
+    name: 'data-columnar-version',
+    types: ['dataset.version_created'],
+    handle: async (event) => {
+      if (!event.object) return
+      await ColumnarService.onVersionCreated(systemCtx('data.columnar'), event.object.id)
+    },
+  })
+
+  // Итог сборки копии: движок сообщает его результатом задания (ADR-0035)
+  registerSubscriber({
+    name: 'data-columnar-job',
+    types: ['job.finished', 'job.failed'],
+    handle: async (event) => {
+      const jobId = String(event.payload.jobId ?? '')
+      if (!jobId) return
+      const job = await JobService.get(jobId)
+      if (job?.queue !== COLUMNAR_BUILD_JOB.queue || job.name !== COLUMNAR_BUILD_JOB.name) return
+      const payload = (await JobService.payload(jobId)) as { datasetId?: string } | null
+      if (!payload?.datasetId) return
+      if (event.type === 'job.failed') {
+        await ColumnarService.markFailed(
+          payload.datasetId,
+          String(event.payload.error ?? 'Сбой сборки колоночной копии'),
+        )
+        return
+      }
+      const result = (job.result ?? {}) as Record<string, unknown>
+      await ColumnarService.finish(payload.datasetId, {
+        rows: Number(result.rows ?? 0),
+        size: Number(result.size ?? 0),
+        buildMs: Number(result.buildMs ?? 0),
+        key: String(result.key ?? ''),
       })
     },
   })

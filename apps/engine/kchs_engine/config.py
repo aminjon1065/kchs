@@ -15,6 +15,9 @@ class Settings(BaseSettings):
 
     REDIS_URL: str = "redis://localhost:6379"
     DATABASE_URL: str = ""
+    # Роль только для чтения таблиц строк датасетов (ADR-0048): ею движок читает
+    # датасет при сборке колоночной копии. Пусто — берётся DATABASE_URL
+    DATABASE_QUERY_URL: str = ""
 
     S3_ENDPOINT: str = "http://localhost:9000"
     S3_REGION: str = "us-east-1"
@@ -50,6 +53,15 @@ class Settings(BaseSettings):
     ENGINE_EMBEDDING_BATCH: int = 16
     # Предел одного вызова, с: очередь индексации не должна вставать
     ENGINE_EMBEDDING_TIMEOUT_S: int = 120
+
+    # Колоночный tier (ADR-0109): копии версий датасетов в Parquet и счёт DuckDB.
+    # Кэш файлов на диске движка — пусто, значит каталог временных файлов
+    ENGINE_COLUMNAR_CACHE_DIR: str = ""
+    ENGINE_COLUMNAR_CACHE_MB: int = 4096
+    ENGINE_COLUMNAR_THREADS: int = 4
+    ENGINE_COLUMNAR_MEMORY_MB: int = 2048
+    # Предел одной сборки копии, с: 5 млн строк укладываются с запасом
+    ENGINE_COLUMNAR_BUILD_TIMEOUT_S: int = 3600
 
     # Печать отчётов (ADR-0078): адрес веба, который открывает Chromium движка
     # (страница `/print/report/<запуск>`), и сколько страниц печатается сразу

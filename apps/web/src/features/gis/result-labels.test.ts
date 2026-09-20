@@ -18,6 +18,7 @@ const result: QueryResult = {
   truncated: false,
   durationMs: 1,
   cached: false,
+  executedOn: 'postgres',
 }
 
 describe('подписи в результате запроса', () => {

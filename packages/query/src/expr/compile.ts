@@ -261,7 +261,8 @@ class ExprCompiler {
     target: ValueType,
     pos: number,
   ): string {
-    if (kind === 'null') return target === 'null' ? 'NULL' : `NULL::${sqlTypeOfValue(target)}`
+    if (kind === 'null')
+      return target === 'null' ? 'NULL' : this.d.cast('NULL', sqlTypeOfValue(target))
     if (kind === 'boolean') return value ? 'TRUE' : 'FALSE'
     if (kind === 'number') {
       // Число из лексера конечно и не содержит ничего, кроме цифр, точки и экспоненты
@@ -376,7 +377,7 @@ class ExprCompiler {
     if (target === 'json') {
       // JSON — строкой с приведением: драйвер не сериализует значение повторно
       const text = typeof value === 'string' ? value : JSON.stringify(value)
-      return `${this.env.binder.add(text, 'text')}::jsonb`
+      return this.d.cast(this.env.binder.add(text, 'text'), 'jsonb')
     }
     return this.env.binder.add(value, sqlTypeOfValue(target))
   }
@@ -460,12 +461,11 @@ class ExprCompiler {
       }
       case '%': {
         this.arithmetic(left, right, '%', expr.opPos)
-        return this.make(
-          'number',
-          [left, right],
-          span,
-          () =>
-            `mod(${left.emit('number')}::numeric, NULLIF(${right.emit('number')}::numeric, 0))::double precision`,
+        return this.make('number', [left, right], span, () =>
+          this.d.cast(
+            `mod(${this.d.cast(left.emit('number'), 'numeric')}, NULLIF(${this.d.cast(right.emit('number'), 'numeric')}, 0))`,
+            'double precision',
+          ),
         )
       }
       case '||': {
@@ -612,11 +612,11 @@ class ExprCompiler {
         if (args.length === 1)
           return this.make('number', args, span, () => `round(${arg(0).emit('number')})`)
         const digits = this.integerLiteral(arg(1), 'число знаков')
-        return this.make(
-          'number',
-          args,
-          span,
-          () => `round(${arg(0).emit('number')}::numeric, ${digits})::double precision`,
+        return this.make('number', args, span, () =>
+          this.d.cast(
+            `round(${this.d.cast(arg(0).emit('number'), 'numeric')}, ${digits})`,
+            'double precision',
+          ),
         )
       }
       case 'coalesce':
@@ -987,7 +987,8 @@ class ExprCompiler {
             'uuid',
             args,
             span,
-            () => `((${map} ->> (${arg(0).emit('uuid')})::text)::uuid)`,
+            () =>
+              `(${this.d.cast(`(${map} ->> ${this.d.cast(`(${arg(0).emit('uuid')})`, 'text')})`, 'uuid')})`,
           ),
           fieldType: 'territory',
         }
@@ -997,7 +998,7 @@ class ExprCompiler {
         const key = this.territoryKey(arg(0), name)
         const map = this.reference({ kind: 'territory_name', key }, pos)
         const value = () =>
-          key === 'code' ? arg(0).emit('text') : `(${arg(0).emit('uuid')})::text`
+          key === 'code' ? arg(0).emit('text') : this.d.cast(`(${arg(0).emit('uuid')})`, 'text')
         return this.make('text', args, span, () => `(${map} ->> ${value()})`)
       }
       case 'lookup_label': {
@@ -1011,7 +1012,12 @@ class ExprCompiler {
           )
         }
         const map = this.reference({ kind: 'lookup_label', ...field.lookup }, pos)
-        return this.make('text', args, span, () => `(${map} ->> (${field.emit()})::text)`)
+        return this.make(
+          'text',
+          args,
+          span,
+          () => `(${map} ->> ${this.d.cast(`(${field.emit()})`, 'text')})`,
+        )
       }
       case 'user_attr': {
         arity(1)
@@ -1187,10 +1193,10 @@ class ExprCompiler {
   /** Приведение готового SQL к целевому типу при унификации. */
   private convert(sql: string, from: ValueType, to: ValueType): string {
     if (from === to || to === 'null') return sql
-    if (from === 'null') return `${sql}::${sqlTypeOfValue(to)}`
+    if (from === 'null') return this.d.cast(sql, sqlTypeOfValue(to))
     if (from === 'date' && to === 'datetime') {
       // Дата — полночь в поясе запроса
-      return `(${sql}::timestamp AT TIME ZONE ${this.env.timezone()})`
+      return this.d.atTimeZone(this.d.cast(sql, 'timestamp'), this.env.timezone())
     }
     if (from === 'text' && to === 'uuid') return this.d.tryCast(sql, 'uuid')
     return sql

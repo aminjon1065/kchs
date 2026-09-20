@@ -15,6 +15,7 @@ export function queryResult(fields: FieldSpec[], rows: unknown[][]): QueryResult
     truncated: false,
     durationMs: 12,
     cached: false,
+    executedOn: 'postgres',
   }
 }
 
