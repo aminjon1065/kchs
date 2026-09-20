@@ -1,4 +1,5 @@
-import type { Basemap, BasemapKind } from '@kchs/contracts'
+import type { Basemap, BasemapKind, BasemapServiceParams } from '@kchs/contracts'
+import { RASTER_BASEMAP_KINDS } from '@kchs/contracts'
 import { formatFileSize, formatNumber } from '@kchs/fields'
 import {
   AlertDialog,
@@ -35,11 +36,17 @@ import { useT } from '~/app/i18n.js'
 import { basemapKeys, basemapsQuery } from '~/features/gis/basemaps.js'
 import { ApiError, http } from '~/shared/api/client.js'
 
-const KIND_TONES: Record<BasemapKind, 'accent' | 'neutral' | 'purple'> = {
+const KIND_TONES: Record<BasemapKind, 'accent' | 'neutral' | 'purple' | 'warning'> = {
   vector: 'accent',
   raster: 'purple',
+  wms: 'warning',
+  wmts: 'warning',
   none: 'neutral',
 }
+
+/** Растровые виды: у них есть адрес, масштабы и размер тайла. */
+const isRasterKind = (kind: BasemapKind): boolean =>
+  (RASTER_BASEMAP_KINDS as readonly string[]).includes(kind)
 
 function problemMessage(err: unknown, fallback: string): string {
   if (!(err instanceof ApiError)) return fallback
@@ -98,7 +105,7 @@ export function BasemapsSection() {
         tiles: formatNumber(basemap.build.tiles, {}, { locale }),
       })
     }
-    if (basemap.kind === 'raster') {
+    if (isRasterKind(basemap.kind)) {
       return [
         t('admin.basemaps.zooms', { min: basemap.minZoom, max: basemap.maxZoom }),
         t('admin.basemaps.tileSizeValue', { size: basemap.tileSize ?? 256 }),
@@ -184,7 +191,7 @@ export function BasemapsSection() {
                       icon={<Pencil className="size-4" />}
                       onSelect={() => setEditing(basemap)}
                     >
-                      {basemap.kind === 'raster'
+                      {isRasterKind(basemap.kind)
                         ? t('common.actions.edit')
                         : t('admin.basemaps.rename')}
                     </DropdownMenuItem>
@@ -239,8 +246,12 @@ export function BasemapsSection() {
 
 const TILE_SIZES = ['256', '512'] as const
 
+/** Виды, которые администратор заводит руками: XYZ и внешние службы (ADR-0108). */
+const ADDABLE_KINDS = ['raster', 'wms', 'wmts'] as const
+
 interface Form {
   name: string
+  kind: (typeof ADDABLE_KINDS)[number]
   url: string
   apiKey: string
   clearKey: boolean
@@ -249,11 +260,22 @@ interface Form {
   maxZoom: string
   tileSize: (typeof TILE_SIZES)[number]
   isDefault: boolean
+  /** WMS: слои, версия, формат, прозрачность. */
+  layers: string
+  wmsVersion: '1.1.1' | '1.3.0'
+  /** WMTS: слой, набор матриц, стиль, шаблон номера матрицы. */
+  layer: string
+  tileMatrixSet: string
+  style: string
+  tileMatrix: string
+  format: 'image/png' | 'image/jpeg'
 }
 
 function initial(basemap: Basemap | null): Form {
+  const service = basemap?.service ?? null
   return {
     name: basemap?.name ?? '',
+    kind: basemap && isRasterKind(basemap.kind) ? (basemap.kind as Form['kind']) : 'raster',
     url: basemap?.url ?? '',
     apiKey: '',
     clearKey: false,
@@ -262,7 +284,39 @@ function initial(basemap: Basemap | null): Form {
     maxZoom: String(basemap?.maxZoom ?? 19),
     tileSize: basemap?.tileSize === 512 ? '512' : '256',
     isDefault: false,
+    layers: service?.kind === 'wms' ? service.layers : '',
+    wmsVersion: service?.kind === 'wms' ? service.version : '1.3.0',
+    layer: service?.kind === 'wmts' ? service.layer : '',
+    tileMatrixSet: service?.kind === 'wmts' ? service.tileMatrixSet : 'GoogleMapsCompatible',
+    style: service?.kind === 'wmts' ? service.style : 'default',
+    tileMatrix: service?.kind === 'wmts' ? service.tileMatrix : '{z}',
+    format: (service?.format ?? 'image/png') === 'image/jpeg' ? 'image/jpeg' : 'image/png',
   }
+}
+
+/** Параметры службы из формы — по выбранному виду. */
+function serviceOf(form: Form): BasemapServiceParams | undefined {
+  if (form.kind === 'wms') {
+    return {
+      kind: 'wms',
+      layers: form.layers.trim(),
+      version: form.wmsVersion,
+      format: form.format,
+      styles: '',
+      transparent: true,
+    }
+  }
+  if (form.kind === 'wmts') {
+    return {
+      kind: 'wmts',
+      layer: form.layer.trim(),
+      tileMatrixSet: form.tileMatrixSet.trim(),
+      style: form.style.trim() || 'default',
+      format: form.format,
+      tileMatrix: form.tileMatrix.trim() || '{z}',
+    }
+  }
+  return undefined
 }
 
 /** Добавление растровой XYZ и правка: у векторной и «без подложки» — только название. */
@@ -278,7 +332,7 @@ function BasemapDialog({
   const t = useT()
   const formId = useId()
   const current = basemap === 'new' ? null : basemap
-  const raster = basemap === 'new' || current?.kind === 'raster'
+  const raster = basemap === 'new' || (current !== null && isRasterKind(current.kind))
   const [form, setForm] = useState<Form>(() => initial(current))
   const [opened, setOpened] = useState<Basemap | 'new' | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -294,10 +348,13 @@ function BasemapDialog({
     mutationFn: async () => {
       const zooms = { minZoom: Number(form.minZoom), maxZoom: Number(form.maxZoom) }
       const attribution = form.attribution.trim() || null
+      const service = serviceOf(form)
       if (!current) {
         await http.post('/gis/basemaps', {
           name: form.name.trim(),
+          kind: form.kind,
           url: form.url.trim(),
+          ...(service ? { service } : {}),
           ...(form.apiKey.trim() ? { apiKey: form.apiKey.trim() } : {}),
           attribution,
           ...zooms,
@@ -311,7 +368,9 @@ function BasemapDialog({
         raster
           ? {
               name: form.name.trim(),
+              kind: current.kind,
               url: form.url.trim(),
+              ...(service ? { service } : {}),
               ...(form.clearKey
                 ? { apiKey: null }
                 : form.apiKey.trim()
@@ -334,7 +393,9 @@ function BasemapDialog({
 
   const valid =
     form.name.trim().length > 0 &&
-    (!raster || (form.url.trim().length > 0 && form.minZoom !== '' && form.maxZoom !== ''))
+    (!raster || (form.url.trim().length > 0 && form.minZoom !== '' && form.maxZoom !== '')) &&
+    (form.kind !== 'wms' || form.layers.trim().length > 0) &&
+    (form.kind !== 'wmts' || form.layer.trim().length > 0)
 
   return (
     <Dialog open={basemap !== null} onOpenChange={onOpenChange}>
@@ -381,21 +442,143 @@ function BasemapDialog({
           </Field>
           {raster ? (
             <>
+              {!current ? (
+                <Field label={t('admin.basemaps.fields.kind')} htmlFor={`${formId}-kind`}>
+                  <Select
+                    value={form.kind}
+                    onValueChange={(value) => set({ kind: value as Form['kind'] })}
+                  >
+                    <SelectTrigger id={`${formId}-kind`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ADDABLE_KINDS.map((kind) => (
+                        <SelectItem key={kind} value={kind}>
+                          {t(`admin.basemaps.kinds.${kind}`)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              ) : null}
               <Field
                 label={t('admin.basemaps.fields.url')}
                 htmlFor={`${formId}-url`}
-                hint={t('admin.basemaps.fields.urlHint')}
+                hint={
+                  form.kind === 'raster'
+                    ? t('admin.basemaps.fields.urlHint')
+                    : t('admin.basemaps.fields.serviceUrlHint')
+                }
                 required
               >
                 <Input
                   id={`${formId}-url`}
                   className="font-mono"
                   maxLength={2000}
-                  placeholder="https://tiles.example.org/{z}/{x}/{y}.png?key={key}"
+                  placeholder={
+                    form.kind === 'raster'
+                      ? 'https://tiles.example.org/{z}/{x}/{y}.png?key={key}'
+                      : 'https://geo.example.org/geoserver/ows'
+                  }
                   value={form.url}
                   onChange={(event) => set({ url: event.target.value })}
                 />
               </Field>
+              {form.kind === 'wms' ? (
+                <div className="grid grid-cols-2 gap-3">
+                  <Field
+                    label={t('admin.basemaps.fields.layers')}
+                    htmlFor={`${formId}-layers`}
+                    required
+                  >
+                    <Input
+                      id={`${formId}-layers`}
+                      className="font-mono"
+                      maxLength={500}
+                      value={form.layers}
+                      onChange={(event) => set({ layers: event.target.value })}
+                    />
+                  </Field>
+                  <Field label={t('admin.basemaps.fields.version')} htmlFor={`${formId}-wmsv`}>
+                    <Select
+                      value={form.wmsVersion}
+                      onValueChange={(value) => set({ wmsVersion: value as Form['wmsVersion'] })}
+                    >
+                      <SelectTrigger id={`${formId}-wmsv`}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1.3.0">1.3.0</SelectItem>
+                        <SelectItem value="1.1.1">1.1.1</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                </div>
+              ) : null}
+              {form.kind === 'wmts' ? (
+                <div className="grid grid-cols-2 gap-3">
+                  <Field
+                    label={t('admin.basemaps.fields.layer')}
+                    htmlFor={`${formId}-layer`}
+                    required
+                  >
+                    <Input
+                      id={`${formId}-layer`}
+                      className="font-mono"
+                      maxLength={300}
+                      value={form.layer}
+                      onChange={(event) => set({ layer: event.target.value })}
+                    />
+                  </Field>
+                  <Field label={t('admin.basemaps.fields.matrixSet')} htmlFor={`${formId}-tms`}>
+                    <Input
+                      id={`${formId}-tms`}
+                      className="font-mono"
+                      maxLength={200}
+                      value={form.tileMatrixSet}
+                      onChange={(event) => set({ tileMatrixSet: event.target.value })}
+                    />
+                  </Field>
+                  <Field label={t('admin.basemaps.fields.style')} htmlFor={`${formId}-style`}>
+                    <Input
+                      id={`${formId}-style`}
+                      className="font-mono"
+                      maxLength={200}
+                      value={form.style}
+                      onChange={(event) => set({ style: event.target.value })}
+                    />
+                  </Field>
+                  <Field
+                    label={t('admin.basemaps.fields.tileMatrix')}
+                    htmlFor={`${formId}-tm`}
+                    hint={t('admin.basemaps.fields.tileMatrixHint')}
+                  >
+                    <Input
+                      id={`${formId}-tm`}
+                      className="font-mono"
+                      maxLength={120}
+                      value={form.tileMatrix}
+                      onChange={(event) => set({ tileMatrix: event.target.value })}
+                    />
+                  </Field>
+                </div>
+              ) : null}
+              {form.kind !== 'raster' ? (
+                <Field label={t('admin.basemaps.fields.format')} htmlFor={`${formId}-format`}>
+                  <Select
+                    value={form.format}
+                    onValueChange={(value) => set({ format: value as Form['format'] })}
+                  >
+                    <SelectTrigger id={`${formId}-format`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="image/png">image/png</SelectItem>
+                      <SelectItem value="image/jpeg">image/jpeg</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+              ) : null}
               <Field
                 label={t('admin.basemaps.fields.apiKey')}
                 htmlFor={`${formId}-key`}

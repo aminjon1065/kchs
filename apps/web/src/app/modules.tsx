@@ -12,6 +12,7 @@ import { DataCatalogScreen } from '~/features/data/data-catalog-screen.js'
 import { DatasetView } from '~/features/data/dataset-view.js'
 import { ExploreScreen } from '~/features/data/explore-screen.js'
 import { MetricView } from '~/features/data/metric-view.js'
+import { PipelinesScreen } from '~/features/data/pipelines/pipelines-screen.js'
 import { type SavedSqlLab, SqlLabScreen } from '~/features/data/sql-lab-screen.js'
 import { DocumentAssistant } from '~/features/documents/assist/document-assistant.js'
 import { DocumentContextSection, DocumentView } from '~/features/documents/card/document-view.js'
@@ -58,6 +59,8 @@ const PageView = lazy(() => import('~/features/knowledge/page-view.js'))
 /** Конструктор маршрутов — отдельным чанком: нужен только администратору маршрутов (ADR-0087). */
 const ProcessDesigner = lazy(() => import('~/features/processes/designer/designer-screen.js'))
 const RuleDesigner = lazy(() => import('~/features/automation/designer/rule-designer.js'))
+/** Конструктор пайплайна (ADR-0106): тяжёлый экран — грузится по требованию. */
+const PipelineDesigner = lazy(() => import('~/features/data/pipelines/pipeline-designer.js'))
 /** Запись встречи — отдельным чанком: плеер и расшифровка нужны не всем (ADR-0092). */
 const RecordingView = lazy(() => import('~/features/meetings/recording/recording-view.js'))
 
@@ -381,6 +384,27 @@ export function registerModules(): void {
     ),
   })
   registerObjectView({ type: 'space', render: (tab) => <SpaceScreen spaceId={tab.objectId!} /> })
+  registerScreen({
+    key: 'pipelines',
+    titleKey: 'data.pipelines.title',
+    icon: 'pipeline',
+    render: () => <PipelinesScreen />,
+  })
+  registerObjectView({
+    type: 'pipeline',
+    render: (tab) => (
+      <Suspense
+        fallback={
+          <div className="flex flex-col gap-3 p-6">
+            <Skeleton className="h-7 w-72" />
+            <Skeleton className="h-64 w-full" />
+          </div>
+        }
+      >
+        <PipelineDesigner pipelineId={tab.objectId ?? ''} />
+      </Suspense>
+    ),
+  })
   registerScreen({
     key: 'territories',
     titleKey: 'gis.territories.title',

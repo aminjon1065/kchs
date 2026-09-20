@@ -30,11 +30,6 @@ import { errors } from '~/shared/errors.js'
 import { rateLimit } from '~/shared/http/rate-limit.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { registerBasemapObjectType, registerBasemapRoutes } from './basemaps.js'
-import {
-  registerServiceLayerBackground,
-  registerServiceLayerObjectType,
-  registerServiceLayerRoutes,
-} from './service-layers.js'
 import { FeatureEditService } from './domain/feature-edit-service.js'
 import { FeatureService } from './domain/feature-service.js'
 import { featureSubscribers } from './domain/feature-subscribers.js'
@@ -46,6 +41,11 @@ import { TerritoryService } from './domain/territory-service.js'
 import { TileService } from './domain/tile-service.js'
 import { registerFeatureRoutes } from './http/feature-routes.js'
 import { registerTerritoryRoutes } from './http/territory-routes.js'
+import {
+  registerServiceLayerBackground,
+  registerServiceLayerObjectType,
+  registerServiceLayerRoutes,
+} from './service-layers.js'
 
 const gunzip = promisify(gunzipCallback)
 

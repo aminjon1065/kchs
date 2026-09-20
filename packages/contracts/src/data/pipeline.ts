@@ -244,7 +244,8 @@ const AssignTerritoryStep = z.object({
 const SpatialJoinStep = z.object({
   ...stepBase,
   type: z.literal('spatial_join'),
-  target: z.unknown(),
+  /** Цель пространственного соединения (contracts/query-spec.md, шаг spatial). */
+  target: z.unknown().optional(),
   predicate: z.enum(['intersects', 'contains', 'within', 'dwithin']).default('intersects'),
   distance: z.number().positive().max(1_000_000).optional(),
   measures: z

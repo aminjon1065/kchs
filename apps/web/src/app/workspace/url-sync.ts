@@ -33,6 +33,8 @@ const SCREEN_PATHS: Record<string, ScreenKey> = {
   '/explore': 'explore',
   '/sql': 'sql',
   '/territories': 'territories',
+  // Пайплайны преобразований (ADR-0106)
+  '/pipelines': 'pipelines',
   // Контроль исполнения и нагрузка (ADR-0082)
   '/control': 'control',
   '/workload': 'workload',

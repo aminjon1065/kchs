@@ -10,15 +10,16 @@ import {
 } from '@kchs/contracts'
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
+import { authorize } from '~/kernel/access/authorize.js'
+import { buildUserCtxFor } from '~/kernel/access/explain.js'
 import { registerJobHandler } from '~/kernel/jobs/runner.js'
 import { JobService } from '~/kernel/jobs/service.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
-import { buildUserCtxFor } from '~/kernel/access/explain.js'
 import { db } from '~/shared/db/client.js'
 import { objects, serviceLayers } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
-import type { RouteRegistrar } from '~/shared/http/route.js'
 import { rateLimit } from '~/shared/http/rate-limit.js'
+import type { RouteRegistrar } from '~/shared/http/route.js'
 import {
   SERVICE_LAYER_IMPORT_JOB,
   type ServiceLayerImportJobData,
@@ -198,12 +199,8 @@ export function registerServiceLayerRoutes(route: RouteRegistrar): void {
     },
     rateLimit: { max: 10, timeWindow: '1 minute' },
     handler: async (request) => {
-      const [row] = await db()
-        .select({ spaceId: objects.spaceId })
-        .from(objects)
-        .where(eq(objects.id, request.params.id))
-        .limit(1)
-      if (!row?.spaceId) throw errors.notFound('Слой-ссылка')
+      // Файл выгрузки ложится в пространство, где человек может заводить объекты
+      await authorize(request.ctx, 'create_child', request.body.spaceId)
       const jobId = await JobService.enqueue(request.ctx, {
         ...SERVICE_LAYER_IMPORT_JOB,
         objectId: request.params.id,
@@ -211,7 +208,7 @@ export function registerServiceLayerRoutes(route: RouteRegistrar): void {
           serviceLayerId: request.params.id,
           ...(request.body.bbox ? { bbox: request.body.bbox } : {}),
           limit: request.body.limit,
-          spaceId: row.spaceId,
+          spaceId: request.body.spaceId,
         } satisfies ServiceLayerImportJobData as unknown as Record<string, unknown>,
         options: { attempts: 1 },
       })

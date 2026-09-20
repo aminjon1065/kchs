@@ -61,8 +61,6 @@ export const ServiceLayerRecord = z.object({
   id: Uuid,
   name: z.string(),
   description: z.string().nullable(),
-  spaceId: Uuid,
-  parentId: Uuid.nullable(),
   kind: ServiceLayerKind,
   /** Адрес службы — только управляющим внешними службами. */
   url: z.string().nullable(),
@@ -123,9 +121,8 @@ function checkKindParams(
   }
 }
 
-export const ServiceLayerCreateInput = z
-  .object({ ...serviceShape, spaceId: Uuid, parentId: Uuid.nullable().optional() })
-  .superRefine(checkKindParams)
+/** Служба принадлежит установке — как базовая карта: без пространства и владельца. */
+export const ServiceLayerCreateInput = z.object(serviceShape).superRefine(checkKindParams)
 export type ServiceLayerCreateInput = z.infer<typeof ServiceLayerCreateInput>
 
 export const ServiceLayerUpdateInput = z
@@ -175,6 +172,8 @@ export type ServiceLayerFeaturesQuery = z.infer<typeof ServiceLayerFeaturesQuery
  * (мастер импорта по `fileId`, ADR-0068) — движок читает файл GDAL.
  */
 export const ServiceLayerImportInput = z.object({
+  /** Пространство, куда ляжет файл выгрузки. */
+  spaceId: Uuid,
   bbox: ServiceLayerFeaturesQuery.shape.bbox,
   limit: z.number().int().min(1).max(SERVICE_LAYER_IMPORT_LIMIT).default(50_000),
 })

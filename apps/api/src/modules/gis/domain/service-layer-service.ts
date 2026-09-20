@@ -5,7 +5,6 @@ import {
   SERVICE_LAYER_CACHE_TTL,
   SERVICE_LAYER_FEATURES_LIMIT,
   type ServiceLayerCreateInput,
-  type ServiceLayerImportInput,
   type ServiceLayerImportResult,
   ServiceLayerKind,
   ServiceLayerParams,
@@ -40,8 +39,6 @@ const MANAGE = 'gis.basemaps.manage'
 const FEATURES_MAX_BYTES = 32 * 1024 * 1024
 const IMPORT_PAGE = 1000
 
-type Row = typeof serviceLayers.$inferSelect & { name: string; version: number }
-
 const isRaster = (kind: string) => (RASTER_SERVICE_KINDS as readonly string[]).includes(kind)
 
 const columns = {
@@ -62,8 +59,6 @@ const columns = {
   createdAt: serviceLayers.createdAt,
   updatedAt: serviceLayers.updatedAt,
   name: objects.title,
-  spaceId: objects.spaceId,
-  parentId: objects.parentId,
   version: objects.version,
 }
 
@@ -93,8 +88,6 @@ function toRecord(row: LoadedRow, manager: boolean): ServiceLayerRecord {
     id: row.id,
     name: row.name,
     description: row.description,
-    spaceId: row.spaceId as string,
-    parentId: row.parentId,
     kind: ServiceLayerKind.parse(row.kind),
     url: manager ? row.url : null,
     params: paramsOf(row),
@@ -241,12 +234,13 @@ export const ServiceLayerService = {
     requireCapability(ctx, MANAGE)
     checkUrl(input.kind, input.url)
     const id = await db().transaction(async (tx) => {
+      // Служба принадлежит установке, а не автору: владельца нет, видят все
       const object = await ObjectService.create(tx, ctx, {
         type: 'service_layer',
-        spaceId: input.spaceId,
-        parentId: input.parentId ?? null,
+        spaceId: null,
         title: input.name,
         subtitle: input.description ?? null,
+        ownerId: null,
         meta: { kind: input.kind },
       })
       await tx.insert(serviceLayers).values({
@@ -272,12 +266,7 @@ export const ServiceLayerService = {
       )
       await publishEvent(tx, ctx, {
         type: 'service_layer.created',
-        object: {
-          id: object.id,
-          type: 'service_layer',
-          spaceId: object.spaceId,
-          title: input.name,
-        },
+        object: { id: object.id, type: 'service_layer', spaceId: null, title: input.name },
         payload: { kind: input.kind },
       })
       return object.id
@@ -327,7 +316,7 @@ export const ServiceLayerService = {
         .where(eq(serviceLayers.id, id))
       await publishEvent(tx, ctx, {
         type: 'service_layer.updated',
-        object: { id, type: 'service_layer', spaceId: row.spaceId, title: row.name },
+        object: { id, type: 'service_layer', spaceId: null, title: row.name },
         payload: { changed },
       })
     })
@@ -365,7 +354,7 @@ export const ServiceLayerService = {
         .where(eq(serviceLayers.id, id))
       await publishEvent(tx, ctx, {
         type: 'service_layer.checked',
-        object: { id, type: 'service_layer', spaceId: row.spaceId, title: row.name },
+        object: { id, type: 'service_layer', spaceId: null, title: row.name },
         payload: { ok: result.ok, message: result.message },
       })
     })

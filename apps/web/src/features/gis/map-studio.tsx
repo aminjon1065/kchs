@@ -34,6 +34,8 @@ import { FeatureCard } from './feature-card.js'
 import { LayerPanel, type PanelLayer } from './layer-panel.js'
 import { layerSourceId, type RenderEntry, useRenderedLayers } from './layer-render.js'
 import { gisKeys, layerQuery, mapQuery } from './queries.js'
+import { serviceLayersQuery } from './service-layers.js'
+import { serviceEntries, useServiceLayers } from './service-render.js'
 import { AnalysisTools } from './studio/analysis-tools.js'
 import { AttributeTable } from './studio/attribute-table.js'
 import {
@@ -166,6 +168,11 @@ export function MapStudio({
   )
   const time = current?.time ? `${current.time.from}/${current.time.to}` : null
   const rendered = useRenderedLayers(entries, theme, { filters: layerFilters, time })
+  // Слои-ссылки на внешние службы (ADR-0108): рисуются под слоями данных
+  const { data: serviceList } = useQuery(serviceLayersQuery())
+  const services = useServiceLayers(
+    serviceEntries(current?.services ?? [], serviceList?.items ?? []),
+  )
   const basemap = useBasemapStyle(current?.basemapId ?? null, theme?.mode ?? 'light')
   const { data: basemaps = [] } = useQuery(basemapsQuery())
 
@@ -440,6 +447,28 @@ export function MapStudio({
                 setAttributesOpen(true)
               }}
               onAdd={() => setAdding(true)}
+              services={current?.services ?? []}
+              serviceCatalog={serviceList?.items ?? []}
+              onToggleService={(serviceId, visible) =>
+                edit((value) => ({
+                  ...value,
+                  services: value.services.map((entry) =>
+                    entry.serviceId === serviceId ? { ...entry, visible } : entry,
+                  ),
+                }))
+              }
+              onAddService={(serviceId) =>
+                edit((value) => ({
+                  ...value,
+                  services: [...value.services, { serviceId, visible: true, opacity: 1 }],
+                }))
+              }
+              onRemoveService={(serviceId) =>
+                edit((value) => ({
+                  ...value,
+                  services: value.services.filter((entry) => entry.serviceId !== serviceId),
+                }))
+              }
             />
           </aside>
           <div className="flex min-w-0 flex-1 flex-col">
@@ -447,8 +476,8 @@ export function MapStudio({
               className="min-h-[320px] flex-1"
               basemapStyle={basemap.style}
               prepare={registerPmtilesProtocol}
-              sources={rendered.sources}
-              layers={rendered.layers}
+              sources={{ ...services.sources, ...rendered.sources }}
+              layers={[...services.layers, ...rendered.layers]}
               images={rendered.images}
               camera={view}
               fitBounds={fit}

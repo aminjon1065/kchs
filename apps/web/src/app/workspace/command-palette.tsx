@@ -161,6 +161,12 @@ export function CommandPalette({
         run: () => goScreen('workload', t('tasks.workload.title'), 'user'),
       },
       {
+        id: 'pipelines',
+        label: t('data.pipelines.title'),
+        icon: <ObjectIcon type="pipeline" />,
+        run: () => goScreen('pipelines', t('data.pipelines.title'), 'pipeline'),
+      },
+      {
         id: 'territories',
         label: t('gis.territories.title'),
         icon: <ObjectIcon type="territory" />,
