@@ -235,6 +235,6 @@ def test_plan_rejects_geometry() -> None:
 def test_select_expression_per_type() -> None:
     expr = columnar._select_expr  # noqa: SLF001
     assert expr(columnar.Column("c_1", "text")) == '"c_1"'
-    assert "extract(epoch" in expr(columnar.Column("c_12", "duration"))
+    assert expr(columnar.Column("c_12", "duration")).startswith("(extract(epoch")
     assert "::numeric(38, 12)" in expr(columnar.Column("c_3", "money"))
     assert expr(columnar.Column("c_7", "territory")) == '"c_7"::text'

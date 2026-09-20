@@ -103,8 +103,9 @@ def _select_expr(column: Column) -> str:
     quoted = ident(column.name)
     match column.type:
         case "duration":
-            # Компилятор читает длительность минутами — копия хранит уже минуты
-            return f"extract(epoch FROM {quoted}) / 60"
+            # Компилятор читает длительность минутами — копия хранит уже минуты.
+            # `extract` в Postgres даёт numeric: приведение нужно pyarrow
+            return f"(extract(epoch FROM {quoted}) / 60)::double precision"
         case "decimal" | "money":
             return f"{quoted}::numeric({DECIMAL_PRECISION}, {DECIMAL_SCALE})"
         case "user" | "unit" | "territory" | "object_ref" | "file" | "json":
@@ -121,6 +122,8 @@ def _value_for_arrow(value: Any, kind: str) -> Any:
         return None
     if kind in ("decimal", "money"):
         return value if isinstance(value, Decimal) else Decimal(str(value))
+    if kind in ("number", "percent", "duration") and isinstance(value, Decimal):
+        return float(value)
     if kind == "datetime" and isinstance(value, datetime):
         return value.astimezone(timezone.utc) if value.tzinfo else value.replace(tzinfo=timezone.utc)
     if kind == "multi_select":
