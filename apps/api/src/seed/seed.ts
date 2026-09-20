@@ -106,8 +106,8 @@ export async function runSeed(
     await seedDocuments(ctx, options.profile === 'demo')
     // Канцелярия и демо-документы (ADR-0086) — тоже: они появились позже демо-мира
     if (options.profile === 'demo') await seedOffice(await seedAdminCtx(options.adminLogin))
-    // Разделы базы знаний (ADR-0095) появились ещё позже
-    await seedKnowledge(ctx)
+    // Разделы базы знаний (ADR-0095) и руководство (P5-E07) появились позже
+    await seedKnowledge(await seedAdminCtx(options.adminLogin))
     log.warn('демо-данные уже загружены — seed пропущен (используйте db:reset)')
     return { users: 0, units: 0, spaces: 0 }
   }
@@ -378,7 +378,7 @@ export async function runSeed(
 
   await seedDocuments(adminCtx, true)
   await seedOffice(adminCtx)
-  await seedKnowledge(ctx)
+  await seedKnowledge(adminCtx)
   await bumpPrincipalsVersion()
 
   // Объекты созданы без запущенного worker — индексируем явно
@@ -397,8 +397,12 @@ export async function runSeed(
 }
 
 /**
- * Разделы базы знаний по умолчанию (13-search-knowledge-ai.md §2, ADR-0095) —
- * в пространстве «Общее», идемпотентно: раздел с таким названием не дублируется.
+ * База знаний в пространстве «Общее»: разделы по умолчанию
+ * (13-search-knowledge-ai.md §2, ADR-0095) и краткое руководство пользователя
+ * в разделе «Обучение» (P5-E07). Идемпотентно: страница с таким названием на
+ * своём месте не дублируется, уже написанный текст не перезаписывается.
+ * Контекст — с инициатором: иначе у страниц не будет владельца, и механизм
+ * пересмотра для них не заработает.
  */
 async function seedKnowledge(ctx: SystemCtx): Promise<void> {
   const [org] = await db()
@@ -407,8 +411,11 @@ async function seedKnowledge(ctx: SystemCtx): Promise<void> {
     .where(eq(spaces.key, 'org'))
     .limit(1)
   if (!org) return
+  const log = logger().child({ module: 'seed' })
   const created = await KnowledgeSeed.ensureDefaultSections(ctx, org.id)
-  logger().child({ module: 'seed' }).info({ created }, 'разделы базы знаний заведены')
+  log.info({ created }, 'разделы базы знаний заведены')
+  const guide = await KnowledgeSeed.ensureUserGuide(ctx, org.id)
+  log.info(guide, 'руководство пользователя в базе знаний заведено')
 }
 
 /**
