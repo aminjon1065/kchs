@@ -3,6 +3,7 @@ export const ru = {
   common: {
     appName: 'kchs',
     actions: {
+      loadMore: 'Показать ещё',
       save: 'Сохранить',
       cancel: 'Отмена',
       close: 'Закрыть',

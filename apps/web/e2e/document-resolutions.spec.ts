@@ -1,4 +1,4 @@
-import { type APIRequestContext, request as playwrightRequest } from '@playwright/test'
+import { type APIRequestContext, type Page, request as playwrightRequest } from '@playwright/test'
 import { EMPLOYEE_STATE, expect, resetWorkspaceState, test } from './fixtures.js'
 import { ACCOUNTS } from './global-setup.js'
 
@@ -127,6 +127,25 @@ type Json = any
  * Ознакомление: делопроизводитель отправляет документ сотруднику, тот
  * отмечает «Ознакомлен» в карточке.
  */
+/**
+ * Дело во Входящих: у занятого руководителя их больше страницы, поэтому
+ * список догружается кнопкой «Показать ещё», пока нужное не покажется.
+ */
+async function openInboxItem(page: Page, name: RegExp): Promise<void> {
+  const inbox = page.getByRole('list', { name: 'Входящие' })
+  const item = inbox.getByRole('option', { name }).first()
+  await expect(inbox.getByRole('option').first()).toBeVisible({ timeout: 20_000 })
+  const more = page.getByRole('button', { name: 'Показать ещё' })
+  for (let attempt = 0; attempt < 15; attempt += 1) {
+    if ((await item.count()) > 0) break
+    if (!(await more.isVisible().catch(() => false))) break
+    const before = await inbox.getByRole('option').count()
+    await more.click()
+    await expect.poll(() => inbox.getByRole('option').count()).toBeGreaterThan(before)
+  }
+  await item.click()
+}
+
 test.describe('Документы: резолюции, исполнение, ознакомление', () => {
   test('резолюция из Входящих → поручения → исполнение → документ «Исполнен»', async ({
     request,
@@ -160,10 +179,7 @@ test.describe('Документы: резолюции, исполнение, о�
     await resetWorkspaceState(managerContext.request)
     const managerPage = await managerContext.newPage()
     await managerPage.goto('/inbox')
-    const inbox = managerPage.getByRole('list', { name: 'Входящие' })
-    await inbox
-      .getByRole('option', { name: new RegExp(`Резолюция по документу: ${subject}`) })
-      .click()
+    await openInboxItem(managerPage, new RegExp(`Резолюция по документу: ${subject}`))
     await managerPage.getByRole('button', { name: 'Наложить резолюцию', exact: true }).click()
     const dialog = managerPage.getByRole('dialog', { name: 'Наложить резолюцию' })
     await expect(dialog).toBeVisible({ timeout: 15_000 })
@@ -244,11 +260,7 @@ test.describe('Документы: резолюции, исполнение, о�
 
     // Автор резолюции принимает отчёт во Входящих — документ «Исполнен»
     await managerPage.goto('/inbox')
-    await managerPage
-      .getByRole('list', { name: 'Входящие' })
-      .getByRole('option', { name: /Отчёт по поручению: Прошу подготовить ответ/ })
-      .first()
-      .click()
+    await openInboxItem(managerPage, /Отчёт по поручению: Прошу подготовить ответ/)
     await managerPage.getByRole('button', { name: 'Принять отчёт', exact: true }).click()
     await expect(managerPage.getByText('Выполнено')).toBeVisible()
     await expect

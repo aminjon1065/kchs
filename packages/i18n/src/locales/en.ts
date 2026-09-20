@@ -6,6 +6,7 @@ export const en: DeepPartial<Dictionary> = {
   common: {
     appName: 'kchs',
     actions: {
+      loadMore: 'Show more',
       save: 'Save',
       cancel: 'Cancel',
       close: 'Close',

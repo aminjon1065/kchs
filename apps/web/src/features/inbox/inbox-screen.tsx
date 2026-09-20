@@ -18,7 +18,7 @@ import {
   useHotkeys,
   useToast,
 } from '@kchs/ui'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CheckCheck, Clock3, Inbox as InboxIcon, User } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
@@ -26,7 +26,7 @@ import { useT } from '~/app/i18n.js'
 import { useObjectActions } from '~/app/workspace/object-actions.js'
 import { useWorkspace } from '~/app/workspace/store.js'
 import { ApiError, http } from '~/shared/api/client.js'
-import { inboxCountsQuery, inboxQuery, keys } from '~/shared/api/queries.js'
+import { inboxCountsQuery, keys } from '~/shared/api/queries.js'
 
 type Scope = 'all' | 'mine' | 'delegated'
 
@@ -40,10 +40,20 @@ export function InboxScreen() {
   const [scope, setScope] = useState<Scope>('all')
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
-  const { data, isLoading } = useQuery(inboxQuery({ state: 'open', scope }))
+  // Дел бывает больше страницы: список догружается курсором, иначе часть дел
+  // просто не видна (их у занятого сотрудника легко больше полусотни)
+  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
+    queryKey: keys.inbox({ state: 'open', scope }),
+    initialPageParam: undefined as string | undefined,
+    queryFn: ({ pageParam }) =>
+      http.get<{ items: InboxItem[]; nextCursor: string | null }>('/inbox', {
+        query: { state: 'open', scope, ...(pageParam ? { cursor: pageParam } : {}) },
+      }),
+    getNextPageParam: (last) => last.nextCursor ?? undefined,
+  })
   const { data: counts } = useQuery(inboxCountsQuery())
 
-  const items = data?.items ?? []
+  const items = data?.pages.flatMap((page) => page.items) ?? []
   const selected = items.find((item) => item.id === selectedId) ?? items[0] ?? null
 
   useEffect(() => {
@@ -140,59 +150,73 @@ export function InboxScreen() {
               description={t('inbox.emptyHint')}
             />
           ) : (
-            <ul className="divide-y divide-line" aria-label={t('inbox.title')}>
-              {items.map((item) => (
-                <li key={item.id}>
-                  <button
-                    type="button"
-                    role="option"
-                    aria-selected={selected?.id === item.id}
-                    onClick={() => setSelectedId(item.id)}
-                    className={cn(
-                      'flex w-full flex-col gap-1 px-3 py-2.5 text-left',
-                      selected?.id === item.id ? 'bg-accent-subtle' : 'hover:bg-surface-2',
-                    )}
-                  >
-                    <span className="flex items-center gap-2">
-                      <ObjectIcon
-                        type={item.object?.type ?? 'inbox'}
-                        className="size-4 shrink-0 text-fg-muted"
-                      />
-                      <span className="min-w-0 flex-1 truncate text-sm font-medium text-fg">
-                        {item.title}
+            <>
+              <ul className="divide-y divide-line" aria-label={t('inbox.title')}>
+                {items.map((item) => (
+                  <li key={item.id}>
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={selected?.id === item.id}
+                      onClick={() => setSelectedId(item.id)}
+                      className={cn(
+                        'flex w-full flex-col gap-1 px-3 py-2.5 text-left',
+                        selected?.id === item.id ? 'bg-accent-subtle' : 'hover:bg-surface-2',
+                      )}
+                    >
+                      <span className="flex items-center gap-2">
+                        <ObjectIcon
+                          type={item.object?.type ?? 'inbox'}
+                          className="size-4 shrink-0 text-fg-muted"
+                        />
+                        <span className="min-w-0 flex-1 truncate text-sm font-medium text-fg">
+                          {item.title}
+                        </span>
+                        {item.priority === 'urgent' || item.priority === 'high' ? (
+                          <Badge tone="danger" size="sm">
+                            {t('inbox.urgent')}
+                          </Badge>
+                        ) : null}
                       </span>
-                      {item.priority === 'urgent' || item.priority === 'high' ? (
-                        <Badge tone="danger" size="sm">
-                          {t('inbox.urgent')}
-                        </Badge>
-                      ) : null}
-                    </span>
-                    <span className="flex items-center gap-2 text-xs text-fg-muted">
-                      {item.actor ? (
-                        <span className="truncate">{item.actor.displayName}</span>
-                      ) : null}
-                      {item.dueAt ? (
-                        <span
-                          className={cn(
-                            'flex items-center gap-1',
-                            new Date(item.dueAt) < new Date() && 'text-danger',
-                          )}
-                        >
-                          <Clock3 className="size-3" aria-hidden />
-                          {formatRelativeTime(item.dueAt, { locale })}
-                        </span>
-                      ) : null}
-                      {item.onBehalfOf ? (
-                        <span className="flex items-center gap-1 text-warning">
-                          <User className="size-3" aria-hidden />
-                          {item.onBehalfOf.displayName}
-                        </span>
-                      ) : null}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
+                      <span className="flex items-center gap-2 text-xs text-fg-muted">
+                        {item.actor ? (
+                          <span className="truncate">{item.actor.displayName}</span>
+                        ) : null}
+                        {item.dueAt ? (
+                          <span
+                            className={cn(
+                              'flex items-center gap-1',
+                              new Date(item.dueAt) < new Date() && 'text-danger',
+                            )}
+                          >
+                            <Clock3 className="size-3" aria-hidden />
+                            {formatRelativeTime(item.dueAt, { locale })}
+                          </span>
+                        ) : null}
+                        {item.onBehalfOf ? (
+                          <span className="flex items-center gap-1 text-warning">
+                            <User className="size-3" aria-hidden />
+                            {item.onBehalfOf.displayName}
+                          </span>
+                        ) : null}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              {hasNextPage ? (
+                <div className="p-2">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    loading={isFetchingNextPage}
+                    onClick={() => void fetchNextPage()}
+                  >
+                    {t('common.actions.loadMore')}
+                  </Button>
+                </div>
+              ) : null}
+            </>
           )}
         </div>
 

@@ -1,6 +1,6 @@
 import type { InboxCounts, InboxItem, InboxKind, InboxState, Locale } from '@kchs/contracts'
 import { createTranslator } from '@kchs/i18n'
-import { and, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { actorId } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
@@ -42,6 +42,44 @@ export interface OpenInboxInput {
  * Входящие — «от вас требуется действие» (12-calendar-notifications-home.md §3).
  * Закрываются автоматически по событию выполнения действия.
  */
+/** Порядок важности в выдаче Входящих: срочное выше обычного. */
+const PRIORITY_RANK = sql`CASE ${inboxItems.priority} WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'normal' THEN 2 ELSE 3 END`
+
+const RANK_OF: Record<string, number> = { urgent: 0, high: 1, normal: 2 }
+
+interface InboxCursor {
+  rank: number
+  dueAt: string | null
+  openedAt: string
+  id: string
+}
+
+/** Курсор страницы — непрозрачная строка: в ней весь ключ сортировки. */
+function encodeCursor(
+  row: { priority: string; dueAt: string | null; openedAt: string; id: string } | undefined,
+): string | null {
+  if (!row) return null
+  const cursor: InboxCursor = {
+    rank: RANK_OF[row.priority] ?? 3,
+    dueAt: row.dueAt,
+    openedAt: row.openedAt,
+    id: row.id,
+  }
+  return Buffer.from(JSON.stringify(cursor), 'utf8').toString('base64url')
+}
+
+function decodeCursor(value: string | undefined): InboxCursor | null {
+  if (!value) return null
+  try {
+    const parsed = JSON.parse(Buffer.from(value, 'base64url').toString('utf8')) as InboxCursor
+    if (typeof parsed.openedAt !== 'string' || typeof parsed.id !== 'string') return null
+    return parsed
+  } catch {
+    // Чужой или устаревший курсор — показываем первую страницу, а не ошибку
+    return null
+  }
+}
+
 export const InboxService = {
   async open(tx: Executor, ctx: Ctx, input: OpenInboxInput): Promise<string> {
     const dedupeKey = input.dedupeKey ?? `${input.kind}:${input.objectId ?? ''}`
@@ -340,16 +378,33 @@ export const InboxService = {
     if (query.due === 'week') {
       conditions.push(sql`${inboxItems.dueAt} < now() + interval '7 days'`)
     }
-    if (query.cursor) conditions.push(sql`${inboxItems.openedAt} < ${query.cursor}`)
+    // Курсор повторяет порядок выдачи целиком (важность, срок, время, id):
+    // курсор по одному лишь времени пропускал дела, потому что список
+    // отсортирован не по нему
+    const cursor = decodeCursor(query.cursor)
+    if (cursor) {
+      const dueSort = sql`coalesce(${inboxItems.dueAt}, 'infinity')`
+      const cursorDue = sql`coalesce(${cursor.dueAt}::timestamptz, 'infinity')`
+      conditions.push(
+        sql`(${PRIORITY_RANK} > ${cursor.rank}
+          or (${PRIORITY_RANK} = ${cursor.rank}
+            and (${dueSort} > ${cursorDue}
+              or (${dueSort} = ${cursorDue}
+                and (${inboxItems.openedAt} < ${cursor.openedAt}::timestamptz
+                  or (${inboxItems.openedAt} = ${cursor.openedAt}::timestamptz
+                    and ${inboxItems.id} > ${cursor.id}))))))`,
+      )
+    }
 
     const rows = await db()
       .select()
       .from(inboxItems)
       .where(and(...conditions))
       .orderBy(
-        sql`CASE ${inboxItems.priority} WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'normal' THEN 2 ELSE 3 END`,
+        PRIORITY_RANK,
         sql`${inboxItems.dueAt} asc nulls last`,
         desc(inboxItems.openedAt),
+        asc(inboxItems.id),
       )
       .limit(limit + 1)
 
@@ -399,7 +454,7 @@ export const InboxService = {
           (row.payload as { actions?: InboxItem['actions'] }).actions ??
           defaultActions(row.kind as InboxKind),
       })),
-      nextCursor: hasMore ? (page[page.length - 1]?.openedAt ?? null) : null,
+      nextCursor: hasMore ? encodeCursor(page[page.length - 1]) : null,
     }
   },
 

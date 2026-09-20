@@ -1,4 +1,4 @@
-import { expect, openWorkspace, test } from './fixtures.js'
+import { expect, openScreen, openWorkspace, test } from './fixtures.js'
 
 test.use({ storageState: './e2e/.auth/employee.json' })
 
@@ -18,10 +18,9 @@ test.describe('Права рядового сотрудника', () => {
 
   test('видит общее пространство и свои файлы', async ({ page, request }) => {
     await openWorkspace(page, request)
-    await page.keyboard.press('Meta+k')
-    await page.getByPlaceholder(/Поиск объектов/).fill('Файлы')
-    await page.waitForTimeout(400)
-    await page.keyboard.press('Enter')
+    // Первый результат палитры на общем стенде — не обязательно экран: берём
+    // пункт по названию (`openScreen`)
+    await openScreen(page, 'Файлы')
 
     await expect(page.getByRole('button', { name: 'Новая папка' })).toBeVisible()
     await expect(page.getByText('Общее').first()).toBeVisible()
