@@ -31,6 +31,18 @@ export interface PrincipalSet {
   version: number
 }
 
+/**
+ * Причина действия — событие, из-за которого оно выполняется (ADR-0096).
+ * Правило автоматизации исполняет действия в контексте с причиной: события,
+ * порождённые ими, несут `causationId` и источник `automation`, по которым
+ * работают защита от циклов и глубина каузальной цепочки.
+ */
+export interface EventCause {
+  eventId: string
+  /** Правило, исполняющее действие. */
+  ruleId: string
+}
+
 export interface UserCtx {
   kind: 'user'
   userId: string
@@ -82,6 +94,8 @@ export interface UserCtx {
    * доступны только профиль, подключение MFA и выход (17-security.md §2).
    */
   mfaEnrollmentRequired: boolean
+  /** Действие выполняет правило автоматизации в ответ на событие (ADR-0096). */
+  cause?: EventCause | null
 }
 
 /** Контекст фоновых заданий и внутренних вызовов. Всегда логируется. */
@@ -92,6 +106,8 @@ export interface SystemCtx {
   /** Инициатор, если задание порождено действием пользователя. */
   initiatorId: string | null
   locale: Locale
+  /** Действие выполняет правило автоматизации в ответ на событие (ADR-0096). */
+  cause?: EventCause | null
 }
 
 export type Ctx = UserCtx | SystemCtx
@@ -118,6 +134,11 @@ export function systemCtx(reason: string, options?: Partial<SystemCtx>): SystemC
     initiatorId: options?.initiatorId ?? null,
     locale: options?.locale ?? 'ru',
   }
+}
+
+/** Тот же контекст, но действие выполняется по причине события (ADR-0096). */
+export function withCause<T extends Ctx>(ctx: T, cause: EventCause): T {
+  return { ...ctx, cause }
 }
 
 /**

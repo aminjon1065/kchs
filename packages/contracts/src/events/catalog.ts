@@ -785,6 +785,18 @@ export const EVENT_PAYLOADS = {
   /** Дело уничтожено по акту о выделении к уничтожению. */
   'case.destroyed': z.object({ actId: Uuid, number: z.string(), documents: z.number().int() }),
 
+  // ── автоматизация: правила и входящие вызовы (ADR-0096) ────────────────────
+  'rule.created': z.object({ key: z.string(), triggerKind: z.string() }),
+  'rule.updated': z.object({ key: z.string(), changed: z.array(z.string()).default([]) }),
+  'rule.enabled': z.object({ key: z.string() }),
+  'rule.disabled': z.object({ key: z.string() }),
+  /** Запуск правила окончательно не выполнен: владелец получает уведомление. */
+  'rule.run_failed': z.object({
+    runId: Uuid,
+    ruleId: Uuid,
+    error: z.string(),
+    actionIndex: z.number().int().nullable().default(null),
+  }),
   // ── admin ─────────────────────────────────────────────────────────────────
   'settings.changed': z.object({ scope: z.string(), key: z.string() }),
   /** День производственного календаря изменён или удалён (`kind: null`). */
@@ -851,13 +863,19 @@ export const EVENT_PAYLOADS = {
     error: z.string(),
   }),
   /**
-   * Входящий вебхук интеграции (`POST /hooks/{integrationId}/{secret}`).
-   * Событие — факт получения; правила автоматизации подхватывают его сами.
+   * Входящий вызов: вебхук интеграции (`POST /hooks/{integrationId}/{secret}`)
+   * или адрес правила (`POST /hooks/rules/{id}/{token}`). Событие — факт
+   * получения; тело не разбирается, к нему обращаются условия правил
+   * (`event.payload.body.*`), а действия выполняют сами правила.
    */
   'webhook.received': z.object({
-    integrationId: Uuid,
-    integrationKey: z.string(),
-    kind: z.string(),
+    /** Куда пришёл вызов: на адрес интеграции или правила. */
+    source: z.enum(['integration', 'rule']).default('integration'),
+    /** Интеграция, если вызов пришёл на её адрес. */
+    integrationId: Uuid.nullable().default(null),
+    /** Устойчивый ключ адреса: ключ интеграции или ключ вызова правила. */
+    hookKey: z.string(),
+    kind: z.string().default(''),
     /** Тело запроса: JSON-объект или `{ raw: '<текст>' }`. */
     body: z.record(z.string(), z.unknown()).default({}),
     /** Подпись отправителя из заголовка, если он её прислал. */

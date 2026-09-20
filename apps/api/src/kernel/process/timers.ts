@@ -6,7 +6,7 @@ import { processSteps } from '~/shared/db/schema/index.js'
 import { logger } from '~/shared/logger/index.js'
 import { publishEvent } from '../events/publisher.js'
 import { registerJobHandler } from '../jobs/runner.js'
-import { queue } from '../jobs/service.js'
+import { declareSchedule } from '../schedules/registry.js'
 import { kernelDirectory } from './directory.js'
 import { Execution, transition } from './engine.js'
 import type { StepTimers } from './store.js'
@@ -180,11 +180,12 @@ export function registerProcessJobs(): void {
   })
 }
 
-/** Обход таймеров по расписанию: раз в пять минут. */
-export async function scheduleProcessTimers(): Promise<void> {
-  await queue('process-timers').add(
-    SWEEP_JOB,
-    {},
-    { repeat: { pattern: '*/5 * * * *' }, jobId: `cron:${SWEEP_JOB}` },
-  )
+/** Обход таймеров по расписанию: раз в пять минут (единый планировщик). */
+export function scheduleProcessTimers(): void {
+  declareSchedule({
+    queue: 'process-timers',
+    name: SWEEP_JOB,
+    pattern: '*/5 * * * *',
+    labelKey: 'schedules.jobs.processTimersSweep',
+  })
 }

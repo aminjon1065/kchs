@@ -4,34 +4,61 @@
 {
   "version": 1,
   "name": {"ru": "Крупные договоры — уведомить финансистов"},
+  "description": null,
   "enabled": true,
-  "runAs": "service:automation",
+  "runAs": "01J8X4M3K9Q2Z7C1V5B8N0P2R4",
   "trigger": {"kind": "event", "type": "document.registered", "filter": {"object.type": "document"}},
   "conditions": {"and": [
     {"expr": "object.typeKey == 'contract'"},
     {"expr": "object.fields.amount >= 1000000"}
   ]},
   "actions": [
-    {"type": "notify", "to": ["group:finance"], "template": "large_contract", "channels": ["app", "telegram"]},
-    {"type": "create_task", "kind": "instruction", "title": "Проверить договор {{object.regNumber}}", "assignee": "unit_head('finance')", "dueWorkingDays": 3, "source": "{{object.id}}"},
-    {"type": "add_tag", "tag": "крупный"},
+    {"type": "notify", "to": ["role:finance"], "text": "Крупный договор {{object.title}}", "channels": ["app", "telegram"], "object": "{{object.id}}"},
+    {"type": "create_task", "title": "Проверить договор {{object.regNumber}}", "assignee": "unit_head('FIN')", "dueWorkingDays": 3, "source": "{{object.id}}"},
+    {"type": "add_tag", "tag": "крупный", "object": "{{object.id}}"},
     {"type": "webhook", "url": "https://erp.local/hooks/contracts", "payload": {"id": "{{object.id}}", "amount": "{{object.fields.amount}}"}}
   ],
-  "limits": {"maxRunsPerHour": 100, "dedupeKey": "{{object.id}}"}
+  "limits": {"maxRunsPerHour": 100, "dedupeKey": "{{object.id}}", "dedupeWindowMinutes": 60}
 }
 ```
 
+Схема — `packages/contracts/src/automation/rule.ts` (`RuleDefinition`). Правило — объект реестра
+типа `rule`: пространство, доступ, поиск и обсуждение — общие (ADR-0096).
+
 ## Триггеры
-`event` (тип из каталога + фильтр по полям конверта), `schedule` (`cron`, `timezone`), `webhook` (входящий), `manual` (кнопка у объекта типа; появляется в меню «⋯»), `metric` (значение показателя по расписанию: `metricId`, `condition`).
+`event` (тип из каталога или префикс домена `task.*` + отбор `filter` по полям конверта),
+`schedule` (`cron`, `timezone`, необязательный `objectId`), `webhook` (входящий вызов с ключом
+`hookKey`; адрес правила — `POST /api/v1/hooks/rules/{id}/{token}`), `manual` (кнопка у объекта
+типов `objectTypes`, с подтверждением по `confirm`), `metric` (значение показателя по
+расписанию: `metricId`, `condition` над `value` и `previous`, `cron`, `timezone`).
 
 ## Действия
-`notify`, `create_task`, `update_fields`, `set_status`, `assign`, `create_document` (по шаблону), `start_process`, `run_pipeline`, `run_import` (из файла-источника), `add_link`, `add_tag`, `post_message` (в беседу/канал), `create_event`, `send_email`, `send_telegram`, `webhook`, `ai_task` (промпт + куда записать результат), `wait` (задержка/до события — превращает правило в процесс), `stop`.
+`notify`, `create_task`, `update_fields`, `set_status`, `assign`, `create_document` (по типу
+документа), `start_process`, `add_link`, `add_tag`, `post_message` (в обсуждение объекта или
+беседу), `create_event`, `send_email`, `send_telegram`, `webhook` (с подписью HMAC-SHA256),
+`ai_task` (промпт + куда записать результат: комментарий или поле), `wait` (задержка —
+правило продолжается заданием), `stop` (с необязательным условием).
+
+Отложены до пайплайнов (P5-E03): `run_pipeline`, `run_import`. Действия `update_fields` и
+`set_status` работают для типов с поставщиком данных и переходами (документ, задача);
+`assign` — для задач.
 
 ## Контекст выражений и шаблонов
-`event.*`, `object.*` (сводка + поля), `actor.*`, `previous.*` (для `updated`), `now`, `user_attr`, функции языка выражений. Шаблоны `{{…}}` — тот же язык, экранирование по контексту.
+`event.*` (`id`, `type`, `occurredAt`, `payload.*`, `changedFields`), `object.*` (сводка,
+`fields.*` карточки, свойства типа), `actor.*`, `previous.*` (значения до изменения, если модуль
+их публикует), `now`, функции языка выражений (`@kchs/query/expr`). Шаблоны `{{…}}` — тот же
+язык; шаблон целиком из одного выражения сохраняет тип значения (число остаётся числом).
+Получатели и исполнители — язык назначений маршрутов (`@kchs/process`): `user:<id>`,
+`group:<id>`, `role:<ключ>`, `unit_head(<подразделение>)`, `manager(<люди>)`, `field:<путь>`.
 
 ## Правила исполнения
-- `runAs` — служебный пользователь с ограниченными правами (администратор назначает); правило не может сделать больше, чем `runAs`.
-- Идемпотентность по `(ruleId, eventId)` и `dedupeKey`; лимиты; журнал `rule_runs` с логом шагов; ошибки — уведомление владельцу правила.
-- Защита от циклов: события, порождённые правилом, несут `causationId`; правило не запускается от собственных событий; глубина цепочки ≤ 5.
+- `runAs` — идентификатор служебного пользователя с ограниченными правами (администратор
+  системы недопустим); все действия проходят `authorize` от его имени, поэтому правило не может
+  сделать больше, чем он. Если `run_as` не видит объект события, запуск пропускается — условия и
+  шаблоны не вычисляются.
+- Идемпотентность по `(ruleId, eventId)` и `dedupeKey` (окно `dedupeWindowMinutes`); лимит
+  `maxRunsPerHour`; журнал `rule_runs` с логом шагов; ошибки — событие `rule.run_failed` и
+  уведомление владельцу правила.
+- Защита от циклов: события, порождённые правилом, несут `causationId` и источник `automation`;
+  правило не запускается от собственных событий; глубина цепочки ≤ 5.
 - Тестовый режим: прогон на N последних событиях без действий («что бы произошло»).

@@ -95,7 +95,7 @@ describe('токены публичного API', () => {
   it('без нужной области маршрут отвечает 403', async () => {
     const { secret } = await issue(fx.admin, { name: 'Только данные', scopes: ['read:datasets'] })
     const response = await call(fx.app, {
-      url: '/objects/' + fx.spaceId,
+      url: `/objects/${fx.spaceId}`,
       headers: withToken(secret),
     })
     expect(response.statusCode).toBe(403)

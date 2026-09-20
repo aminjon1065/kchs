@@ -59,8 +59,9 @@ export async function receiveInbound(input: {
       object: { id: row.id, type: 'integration' },
       source: 'webhook',
       payload: {
+        source: 'integration',
         integrationId: row.id,
-        integrationKey: row.key,
+        hookKey: row.key,
         kind: row.kind,
         body,
         signature: input.signature,

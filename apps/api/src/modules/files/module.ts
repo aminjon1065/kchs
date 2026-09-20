@@ -15,8 +15,9 @@ import { z } from 'zod'
 import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
 import { registerSubscriber } from '~/kernel/events/bus.js'
 import { registerJobHandler } from '~/kernel/jobs/runner.js'
-import { JobService, queue } from '~/kernel/jobs/service.js'
+import { JobService } from '~/kernel/jobs/service.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
+import { declareSchedule } from '~/kernel/schedules/index.js'
 import { buckets, deleteObject } from '~/kernel/storage/s3.js'
 import { db } from '~/shared/db/client.js'
 import { files, objects } from '~/shared/db/schema/index.js'
@@ -399,10 +400,11 @@ export function registerFilesBackground(): void {
   })
 }
 
-export async function scheduleFilesJobs(): Promise<void> {
-  await queue('maintenance').add(
-    'files.process-pending',
-    {},
-    { repeat: { pattern: '*/10 * * * *' }, jobId: 'cron:files.process-pending' },
-  )
+export function scheduleFilesJobs(): void {
+  declareSchedule({
+    queue: 'maintenance',
+    name: 'files.process-pending',
+    pattern: '*/10 * * * *',
+    labelKey: 'schedules.jobs.filesProcessPending',
+  })
 }

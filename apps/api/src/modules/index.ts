@@ -10,6 +10,12 @@ import type { RouteRegistrar } from '~/shared/http/route.js'
 import { registerAdminRoutes } from './admin/module.js'
 import { registerAiRoutes } from './ai/module.js'
 import {
+  registerAutomationBackground,
+  registerAutomationObjectTypes,
+  registerAutomationRoutes,
+  scheduleAutomationJobs,
+} from './automation/module.js'
+import {
   registerCalendarBackground,
   registerCalendarObjectTypes,
   registerCalendarRoutes,
@@ -101,6 +107,8 @@ export function registerAllObjectTypes(): void {
   registerKnowledgeObjectTypes()
   connectKnowledgeSemantics()
   registerIntegrationsObjectTypes()
+  // Правила автоматизации (ADR-0096): тип `rule` — объект реестра
+  registerAutomationObjectTypes()
   registerDirectory()
   // Каналы уведомлений модулей: ядро доставляет через них в любой роли процесса
   registerTelegramChannel()
@@ -149,6 +157,7 @@ export async function registerModules(app: FastifyInstance, route: RouteRegistra
   registerTelegramRoutes(route)
   registerIntegrationsRoutes(route)
   registerAiRoutes(route)
+  registerAutomationRoutes(route)
   registerAdminRoutes(route)
   app.log.debug('модули зарегистрированы')
 }
@@ -167,16 +176,18 @@ export function registerModulesBackground(): void {
   registerMeetingsBackground()
   registerKnowledgeBackground()
   registerIntegrationsBackground()
+  registerAutomationBackground()
 }
 
 export async function scheduleModuleJobs(): Promise<void> {
-  await scheduleFilesJobs()
+  scheduleFilesJobs()
+  scheduleTasksJobs()
   await scheduleReportsJobs()
-  await scheduleTasksJobs()
   await scheduleCalendarJobs()
   await scheduleChatJobs()
   await scheduleKnowledgeJobs()
   await scheduleIntegrationsJobs()
+  await scheduleAutomationJobs()
 }
 
 /** Долгоживущие процессы модулей в роли worker: опрос Telegram-бота (ADR-0061). */

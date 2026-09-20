@@ -36,8 +36,8 @@ import { authorize, loadObject } from '~/kernel/access/authorize.js'
 import { registerSubscriber } from '~/kernel/events/bus.js'
 import { registerInboxActionHandler } from '~/kernel/inbox/actions.js'
 import { registerJobHandler } from '~/kernel/jobs/runner.js'
-import { queue } from '~/kernel/jobs/service.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
+import { declareSchedule } from '~/kernel/schedules/index.js'
 import { registerSystemDataset } from '~/kernel/system-datasets.js'
 import { registerCalendarProjection } from '~/modules/calendar/public.js'
 import { systemCtx, type UserCtx } from '~/shared/context.js'
@@ -279,12 +279,13 @@ export function registerTasksBackground(): void {
 }
 
 /** Расписание: проход по срокам каждые 15 минут — идемпотентен по ключу задания. */
-export async function scheduleTasksJobs(): Promise<void> {
-  await queue('maintenance').add(
-    'tasks.deadlines',
-    {},
-    { repeat: { pattern: '*/15 * * * *' }, jobId: 'cron:tasks.deadlines' },
-  )
+export function scheduleTasksJobs(): void {
+  declareSchedule({
+    queue: 'maintenance',
+    name: 'tasks.deadlines',
+    pattern: '*/15 * * * *',
+    labelKey: 'schedules.jobs.tasksDeadlines',
+  })
 }
 
 export function registerTasksRoutes(route: RouteRegistrar): void {
