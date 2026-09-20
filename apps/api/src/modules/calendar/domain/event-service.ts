@@ -36,6 +36,7 @@ import {
 } from '~/shared/db/schema/index.js'
 import { AppError, errors } from '~/shared/errors.js'
 import { CalendarInbox } from './calendar-inbox.js'
+import { cancelEventMeeting, syncEventMeeting } from './event-meeting.js'
 import {
   type CalendarRow,
   CalendarService,
@@ -591,6 +592,21 @@ export const EventService = {
     })
     await assertResourcesFree(tx, row.id, resourceIds)
 
+    // Онлайн-встреча: комната медиасервера заводится вместе с событием (ADR-0089)
+    const meeting = await syncEventMeeting(tx, ctx, {
+      eventId: row.id,
+      meetingId: null,
+      wanted: input.onlineMeeting,
+      title: input.title,
+      organizerId,
+      participantIds: attendees.map((item) => item.userId),
+      startsAt: row.startsAt,
+      endsAt: row.endsAt,
+    })
+    if (meeting.meetingId) {
+      await tx.update(events).set({ meetingId: meeting.meetingId }).where(eq(events.id, row.id))
+    }
+
     const view = { id: row.id, spaceId: calendar.spaceId, title: input.title }
     await emit(tx, ctx, view, 'event.created', {
       calendarId: calendar.id,
@@ -688,6 +704,8 @@ export const EventService = {
         { silent: true },
       )
     } else {
+      // Событие отменено целиком — онлайн-встреча закрывается для всех (ADR-0089)
+      await cancelEventMeeting(tx, ctx, row.meetingId)
       await ObjectService.trash(tx, ctx, id)
       await CalendarInbox.close(tx, ctx, id, undefined, 'dismissed')
       await dropReminders(tx, id)
@@ -1212,6 +1230,24 @@ async function updateSeries(
   if (input.title !== undefined && input.title !== loaded.title) {
     await ObjectService.update(tx, ctx, row.id, { title: input.title })
     changed.push('title')
+  }
+
+  // Онлайн-встреча: включили или выключили — заводим или закрываем комнату,
+  // состав участников встречи идёт за участниками события (ADR-0089)
+  const meeting = await syncEventMeeting(tx, ctx, {
+    eventId: row.id,
+    meetingId: row.meetingId,
+    wanted: input.onlineMeeting,
+    title,
+    organizerId: row.organizerId,
+    participantIds: (await attendeesOf(tx, row.id)).map((item) => item.userId),
+    startsAt: next.startsAt,
+    endsAt: next.endsAt,
+  })
+  if (meeting.changed) {
+    await tx.update(events).set({ meetingId: meeting.meetingId }).where(eq(events.id, row.id))
+    next.meetingId = meeting.meetingId
+    changed.push('meeting')
   }
   await ObjectService.update(
     tx,

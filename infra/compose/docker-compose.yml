@@ -68,6 +68,10 @@ x-app-env: &app-env
   AI_DOCUMENTS_MAX_CONFIDENTIALITY: ${AI_DOCUMENTS_MAX_CONFIDENTIALITY:-}
   # Подписки ICS на адреса внутренней сети (ADR-0081): пусто — запрещены
   CALENDAR_FEEDS_ALLOW_PRIVATE: ${CALENDAR_FEEDS_ALLOW_PRIVATE:-}
+  # Медиасервер встреч (ADR-0089): пустые значения — встречи выключены
+  LIVEKIT_URL: ${LIVEKIT_URL:-}
+  LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-}
+  LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:-}
 
 services:
   postgres:
@@ -332,19 +336,28 @@ services:
     depends_on:
       api: { condition: service_healthy }
 
-  # ── Профиль media: аудио/видео (фаза 4, поднимается заранее) ───────────────
+  # ── Профиль media: аудио/видео встреч (ADR-0089) ───────────────────────────
+  # Ключ и секрет — из .env (generate-secrets.sh); api выпускает по ним токены
+  # комнат, браузер подключается к :7880 напрямую.
   livekit:
     <<: [*restart, *logging]
     profiles: ["media"]
     image: livekit/livekit-server:v1.8
     command: --config /etc/livekit.yaml
+    environment:
+      LIVEKIT_KEYS: "${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}"
     volumes:
       - ./livekit/livekit.yaml:/etc/livekit.yaml:ro
     ports:
-      - "7880:7880"
+      - "${LIVEKIT_PORT:-7880}:7880"
       - "7881:7881"
       - "3478:3478/udp"
       - "50000-50100:50000-50100/udp"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:7880/"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   # ── Профиль observability: трассы, метрики, журналы (15-admin-operations.md §4,
   # ADR-0045). Трассы включает OTEL_EXPORTER_OTLP_ENDPOINT_INTERNAL=http://alloy:4318

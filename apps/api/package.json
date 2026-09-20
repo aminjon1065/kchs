@@ -60,6 +60,7 @@
     "ical.js": "2.2.1",
     "ioredis": "^5.8.1",
     "libpg-query": "^17.7.4",
+    "livekit-server-sdk": "^2.19.0",
     "meilisearch": "^0.54.0",
     "nodemailer": "^7.0.9",
     "otplib": "^12.0.1",

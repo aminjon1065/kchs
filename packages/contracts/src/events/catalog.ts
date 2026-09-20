@@ -341,6 +341,31 @@ export const EVENT_PAYLOADS = {
     channels: z.array(z.string()),
   }),
 
+  // ── meetings (11-communications-meetings.md §3, ADR-0089) ──────────────────
+  /** Встреча заведена: звонок из беседы или встреча события календаря. */
+  'meeting.scheduled': z.object({
+    kind: z.string(),
+    eventId: Uuid.nullable(),
+    conversationId: Uuid.nullable(),
+    participantIds: z.array(Uuid),
+  }),
+  /** Первый участник вошёл в комнату. */
+  'meeting.started': z.object({ kind: z.string(), roomName: z.string() }),
+  'meeting.participant_joined': z.object({ userId: Uuid, role: z.string() }),
+  'meeting.participant_left': z.object({ userId: Uuid }),
+  /** Встреча завершена: вручную, последним вышедшим или отменой события. */
+  'meeting.ended': z.object({
+    reason: z.enum(['manual', 'empty', 'cancelled']),
+    durationSeconds: z.number().int().nullable(),
+  }),
+  /** Звонок поднят — приглашённым показывается входящий (ADR-0089). */
+  'call.incoming': z.object({
+    meetingId: Uuid,
+    callerId: Uuid.nullable(),
+    conversationId: Uuid.nullable(),
+    userIds: z.array(Uuid),
+  }),
+
   // ── gis (07-gis-engine.md, ADR-0064) ───────────────────────────────────────
   'layer.published': z.object({
     datasetId: Uuid,

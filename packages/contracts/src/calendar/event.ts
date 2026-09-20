@@ -147,7 +147,7 @@ export const EventRecord = z.object({
   myReminders: z.array(Reminder).nullable(),
   myStatus: AttendeeStatus.nullable(),
   linkedObjects: z.array(ObjectSummary),
-  /** Встреча LiveKit — фаза 4: точка расширения, пока всегда `null`. */
+  /** Онлайн-встреча события: комната медиасервера (ADR-0089). */
   meetingId: Uuid.nullable(),
   source: EventSource,
   seriesId: Uuid.nullable(),
@@ -231,6 +231,8 @@ export const EventCreateInput = z
     attendees: EventFields.attendees.default([]),
     resourceIds: EventFields.resourceIds.default([]),
     linkedObjectIds: EventFields.linkedObjectIds.default([]),
+    /** Онлайн-встреча: для события поднимается комната медиасервера (ADR-0089). */
+    onlineMeeting: z.boolean().default(false),
   })
   .superRefine((value, context) => checkTime(value, context, true))
 export type EventCreateInput = z.infer<typeof EventCreateInput>
@@ -262,6 +264,8 @@ export const EventUpdateInput = z
     attendees: EventFields.attendees.optional(),
     resourceIds: EventFields.resourceIds.optional(),
     linkedObjectIds: EventFields.linkedObjectIds.optional(),
+    /** Включить или выключить онлайн-встречу серии (ADR-0089). */
+    onlineMeeting: z.boolean().optional(),
   })
   .superRefine((value, context) => {
     if (value.scope !== 'series' && !value.recurrenceId) {

@@ -1,4 +1,5 @@
-# LiveKit SFU (фаза 4). Ключи задаются переменными окружения compose.
+# LiveKit SFU встреч (ADR-0089). Ключи — из окружения (LIVEKIT_KEYS в compose,
+# значения из .env), поэтому в файле их нет.
 port: 7880
 rtc:
   tcp_port: 7881
@@ -8,8 +9,5 @@ rtc:
 turn:
   enabled: true
   udp_port: 3478
-keys:
-  # заполняется из .env при поднятии профиля media
-  devkey: devsecret_change_me_at_least_32_characters
 logging:
   level: info

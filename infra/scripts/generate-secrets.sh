@@ -44,6 +44,8 @@ PG_SUPER="$(rnd 32)"; PG_APP="$(rnd 32)"; PG_MIGRATOR="$(rnd 32)"
 PG_QUERY="$(rnd 32)"; PG_READONLY="$(rnd 32)"; PG_AUDIT="$(rnd 32)"
 REDIS_PW="$(rnd 32)"; S3_SECRET="$(rnd 40)"; MEILI_KEY="$(rnd 40)"
 MASTER_KEY="$(b64key)"; INTERNAL_TOKEN="$(rnd 48)"; GRAFANA_PW="$(rnd 24)"
+# Медиасервер встреч (ADR-0089): ключ и секрет — пара для токенов комнат
+LIVEKIT_KEY="$(rnd 16)"; LIVEKIT_SECRET="$(rnd 48)"
 
 mkdir -p "$(dirname "$ENV_FILE")"
 cp "$EXAMPLE" "$ENV_FILE"
@@ -69,10 +71,13 @@ repl MEILI_MASTER_KEY "$MEILI_KEY"
 repl KCHS_MASTER_KEY "$MASTER_KEY"
 repl INTERNAL_SERVICE_TOKEN "$INTERNAL_TOKEN"
 repl GRAFANA_ADMIN_PASSWORD "$GRAFANA_PW"
+repl LIVEKIT_API_KEY "$LIVEKIT_KEY"
+repl LIVEKIT_API_SECRET "$LIVEKIT_SECRET"
 
 # Порты и привязка — из окружения, если заданы
 for key in POSTGRES_PORT REDIS_PORT S3_PORT S3_CONSOLE_PORT MEILI_PORT MAILPIT_SMTP_PORT \
-  MAILPIT_UI_PORT API_PORT ENGINE_PORT WEB_PORT WEB_HTTPS_PORT KCHS_BIND KCHS_IMAGE_TAG; do
+  MAILPIT_UI_PORT API_PORT ENGINE_PORT WEB_PORT WEB_HTTPS_PORT LIVEKIT_PORT KCHS_BIND \
+  KCHS_IMAGE_TAG; do
   if [[ -n "${!key:-}" ]]; then set_kv "$key" "${!key}"; fi
 done
 
@@ -92,6 +97,8 @@ set_kv ENGINE_INTERNAL_URL "http://localhost:${ENGINE_PORT:-8000}"
 set_kv S3_PUBLIC_ENDPOINT "http://localhost:$S3P"
 set_kv KCHS_STORAGE_ORIGIN "http://localhost:$S3P"
 set_kv MINIO_CONSOLE_URL "http://localhost:${S3_CONSOLE_PORT:-9001}"
+# Медиасервер: браузер подключается к нему напрямую (профиль media)
+set_kv LIVEKIT_URL "ws://localhost:${LIVEKIT_PORT:-7880}"
 
 if [[ "$MODE" == app ]]; then
   WEB="${WEB_PORT:-8080}"

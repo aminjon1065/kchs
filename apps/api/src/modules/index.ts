@@ -35,6 +35,7 @@ import {
 import { registerGisBackground, registerGisObjectTypes, registerGisRoutes } from './gis/module.js'
 import { registerIdentityBackground, registerIdentityRoutes } from './identity/module.js'
 import { AuthService, DirectoryQueries, OrgService, UserService } from './identity/public.js'
+import { registerMeetingsObjectTypes, registerMeetingsRoutes } from './meetings/module.js'
 import {
   registerReportsBackground,
   registerReportsObjectTypes,
@@ -77,6 +78,7 @@ export function registerAllObjectTypes(): void {
   registerTasksObjectTypes()
   registerDocumentsObjectTypes()
   registerCalendarObjectTypes()
+  registerMeetingsObjectTypes()
   registerDirectory()
   // Каналы уведомлений модулей: ядро доставляет через них в любой роли процесса
   registerTelegramChannel()
@@ -117,6 +119,7 @@ export async function registerModules(app: FastifyInstance, route: RouteRegistra
   registerTasksRoutes(route)
   registerDocumentsRoutes(route)
   registerCalendarRoutes(route)
+  registerMeetingsRoutes(route)
   registerTelegramRoutes(route)
   registerAiRoutes(route)
   registerAdminRoutes(route)
