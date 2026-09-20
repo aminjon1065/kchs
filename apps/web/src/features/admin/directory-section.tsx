@@ -77,6 +77,8 @@ export function DirectorySection() {
   const filterId = useId()
   const unitBaseDnId = useId()
   const intervalId = useId()
+  // Общая основа для идентификаторов полей соответствия: их список перебирается
+  const attributeId = useId()
 
   const { data: state } = useQuery(directoryQuery())
   const { data: runs = [] } = useQuery(directorySyncsQuery())
@@ -275,12 +277,12 @@ export function DirectorySection() {
               ['memberOf', t('admin.directory.fields.memberOf')],
             ] as Array<[keyof Draft['attributes'], string]>
           ).map(([key, label]) => (
-            <Field key={key} label={label}>
+            <Field key={key} label={label} htmlFor={`${attributeId}-${key}`}>
               <Input
+                id={`${attributeId}-${key}`}
                 mono
                 value={value.attributes[key]}
                 onChange={(event) => setAttribute(key, event.target.value)}
-                aria-label={label}
               />
             </Field>
           ))}

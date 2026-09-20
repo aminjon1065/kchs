@@ -49,6 +49,8 @@ export function SsoSection() {
   const secretId = useId()
   const scopesId = useId()
   const labelId = useId()
+  // Общая основа для идентификаторов полей соответствия claims
+  const claimId = useId()
 
   const { data: state } = useQuery(ssoQuery())
   const { data: roles = [] } = useQuery(rolesQuery())
@@ -205,12 +207,12 @@ export function SsoSection() {
               ['groups', t('admin.sso.groupsClaim')],
             ] as Array<[keyof Draft['claims'], string]>
           ).map(([key, label]) => (
-            <Field key={key} label={label}>
+            <Field key={key} label={label} htmlFor={`${claimId}-${key}`}>
               <Input
+                id={`${claimId}-${key}`}
                 mono
                 value={value.claims[key]}
                 onChange={(event) => setClaim(key, event.target.value)}
-                aria-label={label}
               />
             </Field>
           ))}
