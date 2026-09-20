@@ -528,6 +528,11 @@ export async function resetData(): Promise<void> {
     sql`DELETE FROM delegations`,
     sql`DELETE FROM sessions`,
     sql`DELETE FROM credentials`,
+    // Поставщики входа и следы внешних входов (ADR-0098): ключи, вызовы и
+    // связи с IdP уходят каскадом вместе с пользователями
+    sql`DELETE FROM auth_providers`,
+    sql`DELETE FROM directory_syncs`,
+    sql`DELETE FROM sso_auth_requests`,
     sql`DELETE FROM users`,
     sql`DELETE FROM org_closure`,
     sql`DELETE FROM org_units`,

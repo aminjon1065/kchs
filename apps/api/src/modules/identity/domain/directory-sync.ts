@@ -514,7 +514,7 @@ async function syncPeople(
         continue
       }
       try {
-        await db().transaction(async (tx) => {
+        const createdId = await db().transaction(async (tx) => {
           const { id } = await UserService.create(tx, ctx, {
             login: person.login,
             email: person.email,
@@ -541,7 +541,11 @@ async function syncPeople(
               status: person.disabled ? 'blocked' : 'active',
             })
             .where(eq(users.id, id))
+          return id
         })
+        // Созданный сотрудник тоже «виден в каталоге»: иначе блокировка
+        // отсутствующих тут же его и отключит
+        seen.add(createdId)
         stats.created += 1
       } catch (error) {
         stats.failed += 1

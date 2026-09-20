@@ -36,11 +36,15 @@ function toEntry(raw: Entry): DirectoryEntry {
 
 function clientFor(settings: DirectorySettings): Client {
   if (!settings.url) throw errors.validation('Адрес каталога не задан')
+  // `ldapts` считает соединение защищённым при одном наличии tlsOptions, поэтому
+  // для обычного `ldap://` их передавать нельзя: клиент попытается говорить TLS
+  // с открытым портом и упрётся в тайм-аут
+  const secure = settings.url.trim().toLowerCase().startsWith('ldaps://')
   return new Client({
     url: settings.url,
     timeout: 15_000,
     connectTimeout: 10_000,
-    tlsOptions: { rejectUnauthorized: settings.tlsRejectUnauthorized },
+    ...(secure ? { tlsOptions: { rejectUnauthorized: settings.tlsRejectUnauthorized } } : {}),
   })
 }
 
