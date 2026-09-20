@@ -36,13 +36,13 @@ import {
 } from '~/shared/db/schema/index.js'
 import { AppError, errors } from '~/shared/errors.js'
 import { CalendarInbox } from './calendar-inbox.js'
-import { cancelEventMeeting, syncEventMeeting } from './event-meeting.js'
 import {
   type CalendarRow,
   CalendarService,
   loadCalendar,
   principalUser,
 } from './calendar-service.js'
+import { cancelEventMeeting, syncEventMeeting } from './event-meeting.js'
 import {
   type EventRow,
   inclusiveEnd,

@@ -12,11 +12,14 @@ import { db } from '~/shared/db/client.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { mediaConfig } from './domain/livekit.js'
 import { MeetingService } from './domain/meeting-service.js'
+import { registerProtocolRoutes } from './http/protocol-routes.js'
 
 const IdParam = z.object({ id: z.uuid() })
 
 /** Маршруты встреч и звонков (11-communications-meetings.md §3, ADR-0089). */
 export function registerMeetingsRoutes(route: RouteRegistrar): void {
+  registerProtocolRoutes(route)
+
   route({
     method: 'GET',
     url: '/meetings/status',

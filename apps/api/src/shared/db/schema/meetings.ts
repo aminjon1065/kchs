@@ -1,5 +1,5 @@
 import { index, pgTable, primaryKey, text, uuid } from 'drizzle-orm/pg-core'
-import { createdAt, jsonbObject, tsCol, updatedAt } from './_shared.js'
+import { createdAt, jsonbArray, jsonbObject, tsCol, updatedAt } from './_shared.js'
 import { users } from './identity.js'
 import { objects } from './kernel.js'
 
@@ -60,5 +60,43 @@ export const meetingParticipants = pgTable(
   (t) => [
     primaryKey({ columns: [t.meetingId, t.userId] }),
     index('meeting_participants_user_idx').on(t.userId),
+  ],
+)
+
+/**
+ * Протокол встречи (11-communications-meetings.md §4, ADR-0093): объект
+ * `protocol` — дочерний объекту встречи. Тело ведут совместно (`yjs.documents`),
+ * здесь — JSON-снимок блоков, который пишет сервер совместной правки, и итоги:
+ * подтверждение, созданные поручения и документ регистрации.
+ */
+export const protocols = pgTable(
+  'protocols',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .references(() => objects.id, { onDelete: 'cascade' }),
+    meetingId: uuid('meeting_id')
+      .notNull()
+      .references(() => meetings.id, { onDelete: 'cascade' }),
+    /** `agenda` — повестка, `draft` — протокол правится, `confirmed` — подтверждён. */
+    status: text('status').notNull().default('agenda'),
+    blocks: jsonbArray('blocks'),
+    /** Резюме встречи из черновика ИИ. */
+    summary: text('summary'),
+    /** Поручения по блокам протокола: `{"<blockId>": "<taskId>"}`. */
+    instructions: jsonbObject<Record<string, string>>('instructions'),
+    /** Документ, которым зарегистрирован протокол (объект реестра). */
+    documentId: uuid('document_id').references(() => objects.id, { onDelete: 'set null' }),
+    confirmedAt: tsCol('confirmed_at'),
+    confirmedBy: uuid('confirmed_by').references(() => users.id, { onDelete: 'set null' }),
+    registeredAt: tsCol('registered_at'),
+    /** Ознакомление участников запрошено (учёт ведёт ядро, ADR-0084). */
+    acknowledgmentAt: tsCol('acknowledgment_at'),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index('protocols_meeting_idx').on(t.meetingId),
+    index('protocols_document_idx').on(t.documentId),
   ],
 )

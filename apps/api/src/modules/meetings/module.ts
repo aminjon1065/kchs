@@ -1,8 +1,12 @@
 import type { ObjectSummary } from '@kchs/contracts'
 import { inArray } from 'drizzle-orm'
+import { registerCollabType } from '~/kernel/collab/registry.js'
+import { registerSubscriber } from '~/kernel/events/bus.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
 import { db } from '~/shared/db/client.js'
 import { meetings } from '~/shared/db/schema/index.js'
+import { ProtocolService } from './domain/protocol-service.js'
+import { protocolSubscribers } from './domain/protocol-subscribers.js'
 
 export { registerMeetingsRoutes } from './http.js'
 
@@ -56,4 +60,48 @@ export function registerMeetingsObjectTypes(): void {
       )
     },
   })
+
+  registerProtocolType()
+}
+
+/**
+ * Тип `protocol` (11-communications-meetings.md §4, ADR-0093) — ребёнок
+ * встречи: права наследуются от неё, поэтому участник встречи (уровень
+ * `comment`) ведёт повестку и протокол совместно, а подтверждение,
+ * регистрация документом и ознакомление — за организатором (`manage`).
+ */
+function registerProtocolType(): void {
+  registerObjectType({
+    type: 'protocol',
+    labelKey: 'objects.types.protocol',
+    icon: 'protocol',
+    route: (id) => `/o/${id}`,
+    levels: ['view', 'comment', 'edit', 'manage', 'owner'],
+    actions: {
+      view: { minLevel: 'view' },
+      comment: { minLevel: 'comment' },
+      /** Совместная правка документа протокола — участникам встречи. */
+      edit: { minLevel: 'comment' },
+      manage: { minLevel: 'manage' },
+      request_acknowledgment: { minLevel: 'manage', allowArchived: true },
+      share: { minLevel: 'manage' },
+      delete: { minLevel: 'owner' },
+    },
+    discussable: true,
+    linkable: true,
+    hasParentTree: false,
+    moduleManaged: true,
+    searchable: (id) => ProtocolService.searchable(id),
+  })
+
+  registerCollabType({
+    type: 'protocol',
+    initialState: (id, executor) => ProtocolService.initialState(id, executor),
+    snapshot: (tx, ctx, id, doc) => ProtocolService.snapshot(tx, ctx, id, doc),
+  })
+}
+
+/** Подписчики протокола — только в роли worker. */
+export function registerMeetingsBackground(): void {
+  for (const subscriber of protocolSubscribers) registerSubscriber(subscriber)
 }

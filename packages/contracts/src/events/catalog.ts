@@ -358,6 +358,25 @@ export const EVENT_PAYLOADS = {
     reason: z.enum(['manual', 'empty', 'cancelled']),
     durationSeconds: z.number().int().nullable(),
   }),
+  // ── протокол встречи (11-communications-meetings.md §4, ADR-0093) ─────────
+  /** Совместная правка протокола записана: блоки или резюме изменились. */
+  'protocol.updated': z.object({ meetingId: Uuid, changed: z.array(z.string()) }),
+  /** ИИ дописал в протокол резюме, решения и предложенные поручения. */
+  'protocol.drafted': z.object({
+    meetingId: Uuid,
+    decisions: z.number().int(),
+    instructions: z.number().int(),
+    usedTranscript: z.boolean(),
+  }),
+  /** Протокол подтверждён организатором: поручения созданы (`taskIds`). */
+  'protocol.confirmed': z.object({
+    meetingId: Uuid,
+    decisions: z.number().int(),
+    taskIds: z.array(Uuid),
+  }),
+  /** Протокол зарегистрирован документом: дальше — маршрут документа (ADR-0083). */
+  'protocol.registered': z.object({ meetingId: Uuid, documentId: Uuid, typeId: Uuid }),
+
   /** Звонок поднят — приглашённым показывается входящий (ADR-0089). */
   'call.incoming': z.object({
     meetingId: Uuid,

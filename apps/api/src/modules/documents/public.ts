@@ -9,7 +9,12 @@
  *  - шаг маршрута `register` вызывает `register` (номер из журнала типа).
  * Каждая функция принимает контекст и проверяет права сама (16-api-and-events.md §4).
  */
-import type { DocumentRegisterInput, DocumentStatus } from '@kchs/contracts'
+import {
+  type DocumentCreateInput,
+  DocumentCreateInput as DocumentCreateSchema,
+  type DocumentRegisterInput,
+  type DocumentStatus,
+} from '@kchs/contracts'
 import type { Ctx } from '~/shared/context.js'
 import type { Executor } from '~/shared/db/client.js'
 import { seedDemoDocuments } from './domain/demo-documents.js'
@@ -31,6 +36,16 @@ export type { ParticipantEntry, ParticipantRole } from './domain/participants.js
 
 /** @public — точки расширения второй волны: маршруты, резолюции, печатные формы */
 export const DocumentsPublic = {
+  /**
+   * Документ из объекта другого модуля (16-api-and-events.md §4
+   * `documents.public.registerProtocol`): протокол встречи, документ по отчёту.
+   * Черновик заводится в транзакции вызывающего; дальше — обычная карточка,
+   * маршрут и регистрация документа.
+   * @public — протокол встречи (ADR-0093)
+   */
+  create: (tx: Executor, ctx: Ctx, input: DocumentCreateInput): Promise<string> =>
+    DocumentService.create(tx, ctx, DocumentCreateSchema.parse(input)),
+
   /**
    * Переход жизненного цикла (08-documents.md §3) в транзакции вызывающего.
    * @public — движок процессов второй волны (маршруты согласования и подписи)
