@@ -124,6 +124,31 @@ async function createMatrixGeoDataset(fx: TestContext, title: string): Promise<s
   return response.json().id
 }
 
+/** Встреча администратора без участников: доступ читателю выдаётся записью ACL. */
+async function createMatrixMeeting(fx: TestContext, title: string): Promise<string> {
+  const response = await call(fx.app, {
+    method: 'POST',
+    url: '/meetings',
+    as: fx.admin,
+    payload: { title, participantIds: [] },
+  })
+  expect(response.statusCode, response.body).toBe(200)
+  return response.json().id
+}
+
+/** Уровень `view` читателю: объекты в закрытых пространствах роль не раздаёт. */
+async function grantView(fx: TestContext, objectId: string): Promise<void> {
+  const response = await call(fx.app, {
+    method: 'POST',
+    url: `/objects/${objectId}/access`,
+    as: fx.admin,
+    payload: {
+      grants: [{ principal: { type: 'user', id: fx.users.viewer.id }, level: 'view' }],
+    },
+  })
+  expect(response.statusCode, response.body).toBe(200)
+}
+
 const FIXTURES: Record<string, TypeFixture> = {
   space: {
     create: async (fx, title) => {
@@ -846,6 +871,42 @@ const FIXTURES: Record<string, TypeFixture> = {
     viewerForbidden: (_fx, id) => [
       { method: 'PATCH', url: `/events/${id}`, payload: { title: 'правка читателя' } },
       { method: 'POST', url: `/events/${id}/cancel`, payload: { scope: 'series' } },
+    ],
+  },
+
+  meeting: {
+    create: async (fx, title) => {
+      const id = await createMatrixMeeting(fx, title)
+      await grantView(fx, id)
+      return { id, title }
+    },
+    readPaths: ['/meetings/:id'],
+    viewerForbidden: (_fx, id) => [{ method: 'POST', url: `/meetings/${id}/end` }],
+  },
+
+  protocol: {
+    create: async (fx, title) => {
+      const meetingId = await createMatrixMeeting(fx, `${title} — встреча`)
+      const response = await call(fx.app, {
+        method: 'POST',
+        url: `/meetings/${meetingId}/protocol`,
+        as: fx.admin,
+      })
+      expect(response.statusCode, response.body).toBe(200)
+      const id = response.json().id as string
+      // Читатель видит протокол явной записью ACL: участие дало бы ему и правку
+      await grantView(fx, id)
+      return { id, title: response.json().title as string }
+    },
+    readPaths: ['/protocols/:id'],
+    viewerForbidden: (_fx, id) => [
+      {
+        method: 'POST',
+        url: `/protocols/${id}/blocks`,
+        payload: { blocks: [{ id: 'b1', kind: 'note' }] },
+      },
+      { method: 'POST', url: `/protocols/${id}/confirm` },
+      { method: 'POST', url: `/protocols/${id}/acknowledgments`, payload: {} },
     ],
   },
 }
