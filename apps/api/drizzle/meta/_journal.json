@@ -316,6 +316,13 @@
       "when": 1789920594151,
       "tag": "20260920160954_columnar-tier",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1789927350596,
+      "tag": "20260920180230_rule-runs-object",
+      "breakpoints": true
     }
   ]
 }

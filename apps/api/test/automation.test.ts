@@ -1,7 +1,14 @@
 import type { RuleRunRecord } from '@kchs/contracts'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { Subscriber } from '../src/kernel/events/types.js'
-import { call, db, registerLifecycle, setupFixture, type TestContext } from './helpers.js'
+import {
+  call,
+  createUser,
+  db,
+  registerLifecycle,
+  setupFixture,
+  type TestContext,
+} from './helpers.js'
 
 /**
  * Правила автоматизации (P5-E02, ADR-0096): создание и проверка определения,
@@ -224,6 +231,33 @@ describe('правила автоматизации: исполнение', () =
     expect(runRecord.objectId).toBe(folderId)
 
     expect(await tagsOf(folderId)).toContain(`авто-${run}`)
+  })
+
+  it('событие о человеке: правило работает, хотя объект не в реестре', async () => {
+    // `user.created` приносит объект вне реестра: запись прогона падала на
+    // внешнем ключе, а проверка видимости отбрасывала запуск — правила
+    // адаптации не работали вовсе
+    const created = await createRule({
+      name: `Адаптация ${run}`,
+      runAs: fx.users.member.id,
+      trigger: { kind: 'event', type: 'user.created' },
+      actions: [
+        {
+          type: 'notify',
+          to: ['user:{{object.id}}'],
+          text: 'Добро пожаловать',
+          object: fx.spaceId,
+        },
+      ],
+    })
+    expect(created.statusCode, created.body).toBe(200)
+    const ruleId = created.json().id as string
+
+    const newcomer = await createUser(fx.app, `newbie_${run}`, ['employee'])
+    const record = await waitForRun(ruleId, ['succeeded', 'failed', 'skipped'])
+    expect(record.status, JSON.stringify(record.steps)).toBe('succeeded')
+    expect(record.objectId).toBe(newcomer.id)
+    expect(record.steps[0]?.status).toBe('ok')
   })
 
   it('условие не выполнено — запуск помечен пропущенным с причиной', async () => {

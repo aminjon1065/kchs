@@ -1,6 +1,7 @@
 import type { EventEnvelope, RuleAction, RuleRunStep } from '@kchs/contracts'
 import { RuleDefinition } from '@kchs/contracts'
 import { evaluateCondition } from '@kchs/query/expr'
+import { eq } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
 import { buildUserCtxFor } from '~/kernel/access/explain.js'
 import { directory } from '~/kernel/directory/port.js'
@@ -9,11 +10,22 @@ import { processObjectProvider } from '~/kernel/process/registry.js'
 import { config } from '~/shared/config/index.js'
 import { type UserCtx, withCause } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
+import { objects } from '~/shared/db/schema/index.js'
 import { logger } from '~/shared/logger/index.js'
 import { type ActionContext, runAction } from './actions.js'
 import { RuleService } from './rule-service.js'
 import { RuleRuns } from './runs.js'
 import { evaluateRuleCondition, type RuleScopeData, ruleScope, scopeFromEvent } from './scope.js'
+
+/** Объект события есть в реестре: у людей и подразделений своей записи там нет. */
+async function inRegistry(objectId: string): Promise<boolean> {
+  const [row] = await db()
+    .select({ id: objects.id })
+    .from(objects)
+    .where(eq(objects.id, objectId))
+    .limit(1)
+  return Boolean(row)
+}
 
 /**
  * Исполнение запуска правила (ADR-0096). Всё делается от имени служебного
@@ -76,7 +88,11 @@ export async function buildScopeData(
       correlationId: null,
     }
   }
-  if (objectId) data.object = await objectScopeData(objectId)
+  if (objectId) {
+    // Объект события не всегда в реестре (человек, подразделение): тогда
+    // остаётся то, что принёс конверт события, — идентификатор, вид и название
+    data.object = (await objectScopeData(objectId)) ?? data.object
+  }
   if (data.actor.id) {
     data.actor.displayName = (await directory().refs([data.actor.id])).get(data.actor.id)
       ? ((await directory().refs([data.actor.id])).get(data.actor.id)?.displayName ?? null)
@@ -136,8 +152,11 @@ export async function executeRun(runId: string): Promise<RunOutcome> {
   const context = run.context as Record<string, unknown>
   const objectId = run.objectId
   // Доступ служебного пользователя к объекту события: без него не читаются и
-  // поля карточки — правило не раскрывает того, чего не видит `run_as`
-  if (objectId) {
+  // поля карточки — правило не раскрывает того, чего не видит `run_as`.
+  // Объект события не всегда объект реестра (`user.created` приносит человека,
+  // `org.*` — подразделение): проверять у него видимость нечем и незачем —
+  // права проверит само действие
+  if (objectId && (await inRegistry(objectId))) {
     const decision = await authorize(ctx, 'view', objectId, { soft: true })
     if (!decision.allowed) {
       const reason = 'Служебный пользователь не видит объект события'

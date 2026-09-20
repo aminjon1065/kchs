@@ -58,6 +58,13 @@ class Issues {
   assignee(path: string, source: string): void {
     // Явный адрес почты — не выражение назначения (действие send_email)
     if (source.includes('@') && !source.includes('(') && !source.includes(':')) return
+    // Назначение может собираться шаблоном (`user:{{object.id}}`): исполнение
+    // подставляет значения до разбора, поэтому здесь проверяются только
+    // выражения шаблона, а само назначение — при запуске
+    if (source.includes('{{')) {
+      this.template(path, source)
+      return
+    }
     const { problem } = checkAssignee(source, { variables: {} })
     if (problem) this.error(path, problem.message)
   }

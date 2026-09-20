@@ -198,7 +198,6 @@ export function QualityTab({ dataset }: { dataset: DatasetRecord }) {
 
                 <RuleParams
                   rule={rule}
-                  fields={dataset.fields}
                   disabled={!canManage}
                   onChange={(params) =>
                     setRules((current) =>
@@ -274,12 +273,10 @@ export function QualityTab({ dataset }: { dataset: DatasetRecord }) {
  */
 function RuleParams({
   rule,
-  fields,
   disabled,
   onChange,
 }: {
   rule: QualityRule
-  fields: ReadonlyArray<{ key: string; label: { ru: string } }>
   disabled: boolean
   onChange: (params: QualityRule['params']) => void
 }) {

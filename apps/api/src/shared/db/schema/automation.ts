@@ -60,7 +60,13 @@ export const ruleRuns = pgTable(
     eventType: text('event_type'),
     triggerKind: text('trigger_kind').notNull(),
     status: text('status').notNull().default('queued'),
-    objectId: uuid('object_id').references(() => objects.id, { onDelete: 'set null' }),
+    /**
+     * Объект события: не всегда объект реестра — `user.created` приносит
+     * пользователя, `org.*` подразделение. Внешнего ключа здесь нет, иначе
+     * правило на такие события не запускается вовсе (запись прогона не
+     * вставляется, и подписчик уходит в бесконечный повтор).
+     */
+    objectId: uuid('object_id'),
     /** От чьего имени выполнялся запуск (`run_as` на момент запуска). */
     actorId: uuid('actor_id').references(() => users.id, { onDelete: 'set null' }),
     depth: integer('depth').notNull().default(0),

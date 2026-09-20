@@ -264,3 +264,128 @@ test.describe('Приёмка фазы 5: сценарий C — отчёт ру
     }
   })
 })
+
+/**
+ * Сценарий G «Новый сотрудник и замещение»: учётная запись с подразделением и
+ * должностью, стартовая страница базы знаний из сида, задача адаптации
+ * правилом автоматизации по событию `user.created`, замещение на период
+ * отпуска. Действия «от имени» приняты в фазе 0 (сценарий №6).
+ */
+test.describe('Приёмка фазы 5: сценарий G — новый сотрудник', () => {
+  test('новичок получает задачу адаптации правилом и находит руководство', async ({
+    page,
+    request,
+  }) => {
+    test.setTimeout(180_000)
+    const run = Date.now().toString(36)
+    const me = await (await request.get('/api/v1/me')).json()
+    const headers = { 'x-csrf-token': me.session.csrfToken as string }
+    const login = `newbie-${run}`
+
+    const spaces = (await (await request.get('/api/v1/spaces')).json()).items as Array<{
+      id: string
+      kind: string
+    }>
+    const spaceId = (spaces.find((item) => item.kind === 'team') ?? spaces[0])?.id
+    const units = (await (await request.get('/api/v1/org/units')).json()).items as Array<{
+      id: string
+      name: { ru: string }
+    }>
+    const unit = units[0]
+    expect(unit, 'в оргструктуре есть подразделение').toBeTruthy()
+
+    // Правило работает от служебного пользователя: администратором системы — нельзя
+    const employee = await playwrightRequest.newContext({
+      baseURL: BASE,
+      storageState: EMPLOYEE_STATE,
+    })
+    const serviceUser = (await (await employee.get('/api/v1/me')).json()).user as { id: string }
+    await employee.dispose()
+
+    // Стартовая страница руководства — она же источник поручения адаптации
+    const pages = await request.get(
+      `/api/v1/objects?type=page&q=${encodeURIComponent('Как работать в kchs')}&limit=5`,
+    )
+    const guide = ((await pages.json()).items as Array<{ id: string; title: string }>)[0]
+    expect(guide, 'руководство пользователя заведено сидом').toBeTruthy()
+
+    // Правило адаптации: новому сотруднику — поручение прочитать руководство
+    const rule = await request.post('/api/v1/automation/rules', {
+      headers,
+      data: {
+        spaceId,
+        definition: {
+          name: { ru: `Адаптация нового сотрудника ${run}` },
+          enabled: true,
+          runAs: serviceUser.id,
+          trigger: { kind: 'event', type: 'user.created' },
+          actions: [
+            {
+              type: 'create_task',
+              title: `Ознакомиться с руководством ${run}`,
+              assignee: 'user:{{object.id}}',
+              dueWorkingDays: 3,
+              source: guide?.id ?? '',
+            },
+          ],
+        },
+      },
+    })
+    expect(rule.ok(), await rule.text()).toBeTruthy()
+    const ruleId = (await rule.json()).id as string
+
+    let userId = ''
+    try {
+      const created = await request.post('/api/v1/users', {
+        headers,
+        data: {
+          login,
+          email: `${login}@example.org`,
+          lastName: 'Новиков',
+          firstName: `Новичок${run}`,
+          unitId: unit?.id,
+          roleKeys: ['employee'],
+        },
+      })
+      expect(created.ok(), await created.text()).toBeTruthy()
+      userId = (await created.json()).id as string
+
+      // Правило отработало: у новичка есть поручение
+      await expect
+        .poll(
+          async () => {
+            const runs = await request.get(`/api/v1/automation/rules/${ruleId}/runs?limit=5`)
+            const items = (await runs.json()).items as Array<{ status: string }>
+            return items.filter((item) => item.status === 'succeeded').length
+          },
+          { timeout: 60_000, message: 'правило адаптации сработало на нового сотрудника' },
+        )
+        .toBeGreaterThan(0)
+
+      const tasks = await request.get(
+        `/api/v1/objects?type=task&q=${encodeURIComponent(`Ознакомиться с руководством ${run}`)}&limit=5`,
+      )
+      expect((await tasks.json()).items.length, 'поручение адаптации создано').toBeGreaterThan(0)
+
+      // Стартовая страница базы знаний на месте: руководство приезжает с сидом
+      await openWorkspace(page, request)
+      await page.goto(`/o/${guide?.id}`)
+      await expect(page.getByRole('tab', { name: /Как работать в kchs/ })).toBeVisible({
+        timeout: 20_000,
+      })
+      await expect(page.getByRole('navigation', { name: 'Оглавление' })).toBeVisible({
+        timeout: 20_000,
+      })
+    } finally {
+      await request.patch(`/api/v1/automation/rules/${ruleId}/enabled`, {
+        headers,
+        data: { enabled: false },
+      })
+      await request.delete(`/api/v1/objects/${ruleId}`, { headers })
+      // Новичок остаётся, но заблокирован: удалять людей платформа не даёт
+      if (userId) {
+        await request.patch(`/api/v1/users/${userId}`, { headers, data: { status: 'blocked' } })
+      }
+    }
+  })
+})
