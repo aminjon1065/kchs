@@ -173,7 +173,10 @@ describe('правила автоматизации: ведение', () => {
     expect(object.statusCode).toBe(200)
     expect(object.json().type).toBe('rule')
 
-    const list = await call(fx.app, { url: `/automation/rules?spaceId=${fx.spaceId}`, as: fx.admin })
+    const list = await call(fx.app, {
+      url: `/automation/rules?spaceId=${fx.spaceId}`,
+      as: fx.admin,
+    })
     expect(list.statusCode, list.body).toBe(200)
     expect(list.json().items.some((item: { id: string }) => item.id === id)).toBe(true)
 
@@ -262,9 +265,7 @@ describe('правила автоматизации: исполнение', () =
       runAs: fx.users.member.id,
       trigger: { kind: 'event', type: 'object.created', filter: { 'object.type': 'folder' } },
       conditions: { expr: "contains(object.title, 'Уведомление')" },
-      actions: [
-        { type: 'notify', to: [`user:${fx.users.stranger.id}`], text: 'Создана папка' },
-      ],
+      actions: [{ type: 'notify', to: [`user:${fx.users.stranger.id}`], text: 'Создана папка' }],
     })
     const ruleId = created.json().id as string
     await createFolder(`Уведомление ${run}`)
@@ -424,7 +425,11 @@ describe('расписания', () => {
 
     const list = await call(fx.app, { url: '/schedules', as: fx.admin })
     expect(list.statusCode, list.body).toBe(200)
-    const items = list.json().items as Array<{ key: string; kind: string; nextRunAt: string | null }>
+    const items = list.json().items as Array<{
+      key: string
+      kind: string
+      nextRunAt: string | null
+    }>
     expect(items.some((item) => item.key === 'maintenance:trash.purge')).toBe(true)
     const ruleSchedule = items.find((item) => item.key === `rule:${ruleId}`)
     expect(ruleSchedule?.kind).toBe('rule')

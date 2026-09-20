@@ -77,7 +77,10 @@ describe('область вычисления правила', () => {
       ),
     ).toBe(true)
     expect(
-      evaluateRuleCondition({ or: [{ expr: '1 = 2' }, { expr: 'object.fields.amount > 0' }] }, scope),
+      evaluateRuleCondition(
+        { or: [{ expr: '1 = 2' }, { expr: 'object.fields.amount > 0' }] },
+        scope,
+      ),
     ).toBe(true)
     expect(evaluateRuleCondition({ not: { expr: 'object.fields.amount > 0' } }, scope)).toBe(false)
     // Неизвестная ссылка — null, а не истина: условие не выполнено
@@ -123,7 +126,9 @@ describe('проверка определения правила', () => {
   })
 
   it('не пропускает событие вне каталога', () => {
-    const issues = checkRule(rule({ trigger: { kind: 'event', type: 'ghost.created', filter: {} } }))
+    const issues = checkRule(
+      rule({ trigger: { kind: 'event', type: 'ghost.created', filter: {} } }),
+    )
     expect(issues.some((issue) => issue.path === 'trigger.type')).toBe(true)
   })
 
