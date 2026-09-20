@@ -91,6 +91,19 @@ const EnvSchema = z.object({
    * дня потолок должен покрывать утренний вход всех сотрудников.
    */
   LOGIN_RATE_LIMIT_PER_IP_PER_MINUTE: z.coerce.number().int().min(10).max(100_000).default(300),
+  /**
+   * Лимит запросов в минуту на токен публичного API (ADR-0097). У токена может
+   * быть свой потолок; этот — по умолчанию для всех остальных.
+   */
+  API_TOKEN_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(10).max(1_000_000).default(600),
+  /**
+   * Разрешить исходящим вебхукам адреса внутренней сети (localhost, 10.0.0.0/8…).
+   * По умолчанию запрещено: иначе вебхук становится способом ходить по
+   * внутреннему периметру чужими руками (SSRF, 17-security.md §5).
+   */
+  WEBHOOKS_ALLOW_PRIVATE_ADDRESSES: z.preprocess(unset, bool.default(false)),
+  /** Сколько всего повторять доставку вебхука, считая от первой попытки. */
+  WEBHOOK_RETRY_WINDOW_HOURS: z.coerce.number().int().min(1).max(168).default(24),
   SESSION_ABSOLUTE_DAYS: z.coerce.number().int().min(1).max(365).default(30),
   INTERNAL_SERVICE_TOKEN: z.string().min(16).optional(),
   /** Файл-признак жизни worker для healthcheck контейнера (у worker нет HTTP-сервера). */

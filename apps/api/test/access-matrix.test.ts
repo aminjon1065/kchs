@@ -957,6 +957,51 @@ const FIXTURES: Record<string, TypeFixture> = {
       { method: 'POST', url: `/protocols/${id}/acknowledgments`, payload: {} },
     ],
   },
+
+  // Интеграции и вебхуки (ADR-0097): справочник установки, читателю его
+  // выдаёт только запись ACL — способности `automation.manage` у него нет
+  integration: {
+    create: async (fx, title) => {
+      const response = await call(fx.app, {
+        method: 'POST',
+        url: '/integrations',
+        as: fx.admin,
+        payload: { key: `matrix-int-${run}`, kind: 'http', name: title, config: { url: 'https://example.org/api' } },
+      })
+      expect(response.statusCode, response.body).toBe(200)
+      const id = response.json().id as string
+      await grantView(fx, id)
+      return { id, title }
+    },
+    readPaths: ['/integrations/:id', '/integrations/:id/syncs'],
+    viewerForbidden: (_fx, id) => [
+      { method: 'PATCH', url: `/integrations/${id}`, payload: { enabled: false } },
+      { method: 'POST', url: `/integrations/${id}/check` },
+      { method: 'POST', url: `/integrations/${id}/inbound-secret` },
+      { method: 'DELETE', url: `/integrations/${id}` },
+    ],
+  },
+
+  webhook: {
+    create: async (fx, title) => {
+      const response = await call(fx.app, {
+        method: 'POST',
+        url: '/webhooks',
+        as: fx.admin,
+        payload: { name: title, url: 'http://127.0.0.1:9/matrix', eventTypes: ['object.*'] },
+      })
+      expect(response.statusCode, response.body).toBe(200)
+      const id = response.json().webhook.id as string
+      await grantView(fx, id)
+      return { id, title }
+    },
+    readPaths: ['/webhooks/:id', '/webhooks/:id/deliveries'],
+    viewerForbidden: (_fx, id) => [
+      { method: 'PATCH', url: `/webhooks/${id}`, payload: { status: 'paused' } },
+      { method: 'POST', url: `/webhooks/${id}/secret` },
+      { method: 'DELETE', url: `/webhooks/${id}` },
+    ],
+  },
 }
 
 let fx: TestContext

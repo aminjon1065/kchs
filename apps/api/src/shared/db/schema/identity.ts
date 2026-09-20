@@ -368,6 +368,11 @@ export const ssoIdentities = pgTable(
   (t) => [uniqueIndex('sso_identities_provider_subject_key').on(t.provider, t.subject)],
 )
 
+/**
+ * Токен публичного API (14-automation-integrations.md §3, ADR-0097).
+ * Токен — учётные данные, как сессия: в базе только хэш, видимая часть
+ * (`prefix`) служит для поиска строки и узнавания токена в списке.
+ */
 export const apiTokens = pgTable(
   'api_tokens',
   {
@@ -376,16 +381,25 @@ export const apiTokens = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
+    /** Видимая часть токена: по ней ищется строка, сравнение — по хэшу. */
+    prefix: text('prefix').notNull().unique(),
     tokenHash: text('token_hash').notNull().unique(),
     scopes: text('scopes').array().notNull().default(sql`'{}'::text[]`),
+    /** Кто выпустил: администратор — для служебной учётной записи. */
+    createdById: uuid('created_by_id').references(() => users.id, { onDelete: 'set null' }),
     expiresAt: tsCol('expires_at'),
     lastUsedAt: tsCol('last_used_at'),
+    lastUsedIp: text('last_used_ip'),
     revokedAt: tsCol('revoked_at'),
+    revokedById: uuid('revoked_by_id').references(() => users.id, { onDelete: 'set null' }),
+    /** Свой потолок запросов в минуту; `null` — общий лимит установки. */
+    rateLimitPerMinute: integer('rate_limit_per_minute'),
     createdAt: createdAt(),
   },
   (t) => [index('api_tokens_user_idx').on(t.userId)],
 )
 
+export type ApiTokenRow = typeof apiTokens.$inferSelect
 export type UserRow = typeof users.$inferSelect
 export type SessionRow = typeof sessions.$inferSelect
 export type OrgUnitRow = typeof orgUnits.$inferSelect

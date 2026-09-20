@@ -288,6 +288,11 @@ export const KNOWN_DOMAINS = [
   'transcript',
   'protocol',
   'chat',
+  // Публичный API, вебхуки и интеграции (ADR-0097)
+  'token',
+  'integration',
+  'webhook',
+  'config',
 ] as const
 
 function resolveDomains(): string[] {

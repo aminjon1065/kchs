@@ -18,8 +18,10 @@ import { buildUserCtx } from '~/kernel/context-builder.js'
 import { PrintGrants } from '~/kernel/print/grants.js'
 import { AuthService } from '~/modules/identity/domain/auth-service.js'
 import { registerModules } from '~/modules/index.js'
+import { authenticateApiToken, enforceTokenScope } from '~/modules/integrations/public.js'
 import { config } from '~/shared/config/index.js'
 import { errors } from '~/shared/errors.js'
+import { API_DOCS_STYLE, OPENAPI_TAGS, renderApiDocs } from '~/shared/http/api-docs.js'
 import { authPlugin } from '~/shared/http/auth-plugin.js'
 import { sendProblem } from '~/shared/http/problem.js'
 import { routeRegistrar } from '~/shared/http/route.js'
@@ -114,9 +116,15 @@ export async function buildApp(): Promise<FastifyInstance> {
         title: 'kchs API',
         version: '0.1.0',
         description:
-          'Корпоративная рабочая платформа: данные, GIS, документы, задачи, коммуникации.',
+          'Корпоративная рабочая платформа: данные, GIS, документы, задачи, коммуникации. ' +
+          'Всё, что умеет интерфейс, доступно через этот API: веб-клиент ходит теми же маршрутами. ' +
+          'Аутентификация — cookie-сессия браузера или Authorization: Bearer <токен интеграции>.',
       },
       servers: [{ url: `${env.KCHS_API_URL}/api/v1` }],
+      // Схемы предъявляются на каждой операции: cookie-сессия браузера либо
+      // токен интеграции (14-automation-integrations.md §3, ADR-0097)
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }],
+      tags: [...OPENAPI_TAGS],
       components: {
         securitySchemes: {
           cookieAuth: { type: 'apiKey', in: 'cookie', name: env.SESSION_COOKIE_NAME },
@@ -137,6 +145,8 @@ export async function buildApp(): Promise<FastifyInstance> {
     requireCapability,
     resolveShareLink: resolveShareLinkCtx,
     resolvePrintGrant: (token) => PrintGrants.resolve(token),
+    resolveApiToken: (request, secret) => authenticateApiToken(request, secret),
+    enforceTokenScope,
   })
 
   // Вебхук медиасервера приходит типом application/webhook+json и проверяется по
@@ -160,6 +170,18 @@ export async function buildApp(): Promise<FastifyInstance> {
   // Здоровье — вне /api/v1, без аутентификации
   app.get('/health', { config: { auth: 'public' } }, async () => ({ status: 'ok' }))
   app.get('/api/openapi.json', { config: { auth: 'public' } }, async () => app.swagger())
+
+  // Публичная документация API (14-automation-integrations.md §3, ADR-0097):
+  // серверная страница без скриптов — CSP установки разрешает только свои файлы
+  app.get('/api/docs', { config: { auth: 'public' } }, async (_request, reply) =>
+    reply
+      .type('text/html; charset=utf-8')
+      .header('cache-control', 'no-store')
+      .send(renderApiDocs(app.swagger() as unknown as Record<string, unknown>)),
+  )
+  app.get('/api/docs/style.css', { config: { auth: 'public' } }, async (_request, reply) =>
+    reply.type('text/css; charset=utf-8').send(API_DOCS_STYLE),
+  )
 
   await app.register(
     async (instance) => {

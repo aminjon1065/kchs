@@ -205,4 +205,24 @@ export const AUDIT_ACTIONS = {
   // Резолюции и ознакомление (ADR-0084): резолюция от имени руководителя, отметка с MFA
   resolutionAdded: 'document.resolution_added',
   objectAcknowledged: 'object.acknowledged',
+  // Публичный API, вебхуки, интеграции (ADR-0097)
+  apiTokenCreated: 'api_token.created',
+  apiTokenRevoked: 'api_token.revoked',
+  /** Предъявлен недействительный токен: отозванный, просроченный или чужой. */
+  apiTokenRejected: 'api_token.rejected',
+  /** Токену не хватило области доступа на маршруте. */
+  apiTokenScopeDenied: 'api_token.scope_denied',
+  integrationCreated: 'integration.created',
+  integrationUpdated: 'integration.updated',
+  integrationDeleted: 'integration.deleted',
+  integrationSecretRotated: 'integration.secret_rotated',
+  integrationChecked: 'integration.checked',
+  webhookCreated: 'webhook.created',
+  webhookUpdated: 'webhook.updated',
+  webhookDeleted: 'webhook.deleted',
+  webhookSecretRotated: 'webhook.secret_rotated',
+  /** Входящий вебхук интеграции принят. */
+  webhookReceived: 'webhook.received',
+  configExported: 'config.exported',
+  configImported: 'config.imported',
 } as const
