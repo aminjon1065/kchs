@@ -45,10 +45,7 @@ test.describe('Правила автоматизации', () => {
 
     // «Если»: условие на языке выражений платформы
     await page.getByRole('button', { name: 'Добавить условие' }).click()
-    await page
-      .getByLabel('Если')
-      .last()
-      .fill(`contains(object.title, 'Автоправило ${tag}')`)
+    await page.getByLabel('Если').last().fill(`contains(object.title, 'Автоправило ${tag}')`)
 
     // «То»: единственное действие — поставить тег
     await page.getByRole('combobox', { name: 'Действие' }).first().click()
