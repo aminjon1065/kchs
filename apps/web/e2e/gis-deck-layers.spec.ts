@@ -1,3 +1,4 @@
+import type { Locator, Page } from '@playwright/test'
 import { expect, openScreen, openWorkspace, test } from './fixtures.js'
 
 /**
@@ -8,7 +9,33 @@ import { expect, openScreen, openWorkspace, test } from './fixtures.js'
  *
  * Сколько слоёв рисует deck.gl — атрибут `data-deck-layers` области карты.
  */
+/**
+ * Щелчок по середине карты, пока не откроется карточка объекта: тайлы слоя
+ * приходят асинхронно, и первый щелчок может прийтись на ещё пустую карту.
+ */
+async function clickUntilCard(page: Page, map: Locator): Promise<void> {
+  const card = page.getByRole('button', { name: 'Открыть датасет' })
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const box = await map.boundingBox()
+    if (!box) throw new Error('нет области карты')
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
+    if (await card.isVisible().catch(() => false)) return
+    await page.waitForTimeout(1500)
+  }
+  await expect(card).toBeVisible({ timeout: 10_000 })
+}
+
 test.describe('GIS: deck.gl для больших слоёв', () => {
+  // Настройка установки общая: возвращаем её и при обрыве сценария
+  test.afterAll(async ({ request }) => {
+    const me = await request.get('/api/v1/me')
+    if (!me.ok()) return
+    await request.put('/api/v1/admin/gis/render-settings', {
+      headers: { 'x-csrf-token': (await me.json()).session.csrfToken as string },
+      data: { deckEnabled: true, deckThreshold: 50_000 },
+    })
+  })
+
   test('порог в администрировании → слой рисует deck.gl → карточка объекта → возврат к MapLibre', async ({
     page,
     request,
@@ -57,6 +84,13 @@ test.describe('GIS: deck.gl для больших слоёв', () => {
       expect(inserted.ok(), await inserted.text()).toBeTruthy()
     }
 
+    // Начальное состояние настройки — известное: прошлый прогон мог оборваться
+    // на середине и оставить порог, а кнопка «Сохранить» без изменений выключена
+    await request.put('/api/v1/admin/gis/render-settings', {
+      headers,
+      data: { deckEnabled: true, deckThreshold: 50_000 },
+    })
+
     // Порог отрисовки — в администрировании, рядом с базовыми картами
     await openScreen(page, 'Администрирование')
     await page.getByRole('tab', { name: 'Базовые карты' }).click()
@@ -87,6 +121,24 @@ test.describe('GIS: deck.gl для больших слоёв', () => {
       page.getByRole('checkbox', { name: `Показывать слой «${datasetName}»` }),
     ).toBeChecked()
 
+    // Кластеризацию точек по умолчанию рисует MapLibre (ADR-0110): у deck.gl
+    // нет кластеров, поэтому для ускоренной отрисовки её выключаем
+    const layers = await request.get(
+      `/api/v1/objects?type=layer&q=${encodeURIComponent(datasetName)}`,
+    )
+    const layerId = ((await layers.json()).items as Array<{ id: string }>)[0]?.id
+    expect(layerId, 'слой найден').toBeTruthy()
+    const layer = await (await request.get(`/api/v1/gis/layers/${layerId}`)).json()
+    const plain = await request.patch(`/api/v1/gis/layers/${layerId}`, {
+      headers,
+      data: { style: { ...layer.style, cluster: { ...layer.style.cluster, enabled: false } } },
+    })
+    expect(plain.ok(), await plain.text()).toBeTruthy()
+    await page.reload()
+    await expect(
+      page.getByRole('checkbox', { name: `Показывать слой «${datasetName}»` }),
+    ).toBeChecked()
+
     // 1200 объектов больше порога — слой рисует deck.gl
     await expect(page.locator('[data-deck-layers]')).toHaveAttribute('data-deck-layers', '1', {
       timeout: 30_000,
@@ -97,13 +149,7 @@ test.describe('GIS: deck.gl для больших слоёв', () => {
     const map = page.getByRole('region', { name: `Карта ${run}` })
     await expect(map).toBeVisible()
     await page.waitForTimeout(2000)
-    const box = await map.boundingBox()
-    if (!box) throw new Error('нет области карты')
-    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
-    await expect(page.getByRole('button', { name: 'Открыть датасет' })).toBeVisible({
-      timeout: 20_000,
-    })
-    await page.screenshot({ path: 'test-results/gis-deck-layers.png' })
+    await clickUntilCard(page, map)
 
     // Карта сохраняется: после перезагрузки слой на месте
     await page.getByRole('button', { name: 'Сохранить карту' }).click()
@@ -123,12 +169,7 @@ test.describe('GIS: deck.gl для больших слоёв', () => {
     // Карта работает как раньше: щелчок по той же точке открывает карточку
     await page.getByRole('button', { name: 'Показать всё' }).click()
     await page.waitForTimeout(2000)
-    const again = await page.getByRole('region', { name: `Карта ${run}` }).boundingBox()
-    if (!again) throw new Error('нет области карты')
-    await page.mouse.click(again.x + again.width / 2, again.y + again.height / 2)
-    await expect(page.getByRole('button', { name: 'Открыть датасет' })).toBeVisible({
-      timeout: 20_000,
-    })
+    await clickUntilCard(page, page.getByRole('region', { name: `Карта ${run}` }))
 
     // Убираем за собой: настройка по умолчанию, карта и датасет со слоем
     await request.put('/api/v1/admin/gis/render-settings', {
