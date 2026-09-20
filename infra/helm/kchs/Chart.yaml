@@ -1,0 +1,17 @@
+apiVersion: v2
+name: kchs
+description: kchs — корпоративная платформа с аналитическим и GIS-ядром (сценарий S2, Kubernetes)
+type: application
+# Версия чарта; версия приложения — тег образов (values.image.tag)
+version: 0.1.0
+appVersion: "0.1.0"
+kubeVersion: ">=1.27.0-0"
+keywords:
+  - kchs
+  - analytics
+  - gis
+maintainers:
+  - name: kchs
+annotations:
+  # Встроенные зависимости — свои манифесты, а не subcharts (ADR-0118)
+  kchs.dev/embedded-dependencies: postgres,redis,minio,meilisearch,livekit

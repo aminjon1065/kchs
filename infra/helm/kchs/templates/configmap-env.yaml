@@ -1,0 +1,76 @@
+{{/*
+Несекретное окружение api, worker и заданий CLI — одно на все процессы, чтобы
+они не расходились (так же устроен x-app-env в compose S1).
+*/}}
+{{- include "kchs.validate" . -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "kchs.configMapName" . }}
+  labels:
+    {{- include "kchs.labels" . | nindent 4 }}
+data:
+  NODE_ENV: production
+  TZ: {{ .Values.timezone | quote }}
+  LOG_LEVEL: {{ .Values.logLevel | quote }}
+  KCHS_BASE_URL: {{ include "kchs.baseUrl" . | quote }}
+  KCHS_API_URL: {{ printf "%s/api" (include "kchs.baseUrl" .) | quote }}
+  TRUST_PROXY: {{ .Values.api.trustProxy | quote }}
+
+  S3_ENDPOINT: {{ include "kchs.s3.endpoint" . | quote }}
+  S3_PUBLIC_ENDPOINT: {{ default (include "kchs.s3.endpoint" .) .Values.s3.publicEndpoint | quote }}
+  S3_REGION: {{ .Values.s3.region | quote }}
+  S3_FORCE_PATH_STYLE: {{ .Values.s3.forcePathStyle | quote }}
+  S3_BUCKET_FILES: {{ .Values.s3.buckets.files | quote }}
+  S3_BUCKET_PREVIEWS: {{ .Values.s3.buckets.previews | quote }}
+  S3_BUCKET_MEDIA: {{ .Values.s3.buckets.media | quote }}
+  S3_BUCKET_EXPORTS: {{ .Values.s3.buckets.exports | quote }}
+  S3_BUCKET_TILES: {{ .Values.s3.buckets.tiles | quote }}
+  S3_BUCKET_BACKUPS: {{ .Values.s3.buckets.backups | quote }}
+  S3_BUCKET_COLUMNAR: {{ .Values.s3.buckets.columnar | quote }}
+
+  MEILI_HOST: {{ include "kchs.meili.host" . | quote }}
+  MEILI_INDEX_PREFIX: {{ .Values.meilisearch.indexPrefix | quote }}
+
+  {{- if .Values.engine.enabled }}
+  ENGINE_INTERNAL_URL: {{ include "kchs.engine.url" . | quote }}
+  {{- end }}
+
+  SESSION_IDLE_HOURS: {{ .Values.app.sessionIdleHours | quote }}
+  RATE_LIMIT_PER_MINUTE: {{ .Values.app.rateLimitPerMinute | quote }}
+  LOGIN_RATE_LIMIT_PER_IP_PER_MINUTE: {{ .Values.app.loginRateLimitPerIpPerMinute | quote }}
+  API_TOKEN_RATE_LIMIT_PER_MINUTE: {{ .Values.app.apiTokenRateLimitPerMinute | quote }}
+  WEBHOOK_RETRY_WINDOW_HOURS: {{ .Values.app.webhookRetryWindowHours | quote }}
+  WEBHOOKS_ALLOW_PRIVATE_ADDRESSES: {{ ternary "1" "" .Values.app.webhooksAllowPrivateAddresses | quote }}
+  CALENDAR_FEEDS_ALLOW_PRIVATE: {{ ternary "1" "" .Values.app.calendarFeedsAllowPrivate | quote }}
+  SMTP_FROM: {{ .Values.app.smtpFrom | quote }}
+  PUSH_CONTACT: {{ .Values.app.pushContact | quote }}
+
+  # Метрики Prometheus — отдельный порт внутренней сети, наружу не публикуется;
+  # трассы включает адрес коллектора OTLP, пустой — выключены (ADR-0045)
+  METRICS_PORT: {{ .Values.observability.metricsPort | quote }}
+  METRICS_HOST: "0.0.0.0"
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.observability.otlpEndpoint | quote }}
+  {{- with .Values.observability.tracesSamplerArg }}
+  OTEL_TRACES_SAMPLER: parentbased_traceidratio
+  OTEL_TRACES_SAMPLER_ARG: {{ . | quote }}
+  {{- end }}
+
+  TELEGRAM_API_URL: {{ .Values.app.telegram.apiUrl | quote }}
+  TELEGRAM_POLLING: {{ ternary "1" "" .Values.app.telegram.polling | quote }}
+
+  AI_PROVIDER: {{ .Values.app.ai.provider | quote }}
+  AI_MODEL: {{ .Values.app.ai.model | quote }}
+  ANTHROPIC_BASE_URL: {{ .Values.app.ai.anthropicBaseUrl | quote }}
+  OPENAI_COMPAT_URL: {{ .Values.app.ai.openaiCompatUrl | quote }}
+  AI_DAILY_REQUESTS: {{ .Values.app.ai.dailyRequests | quote }}
+  AI_DAILY_TOKENS: {{ .Values.app.ai.dailyTokens | quote }}
+  AI_DOCUMENTS_MAX_CONFIDENTIALITY: {{ .Values.app.ai.documentsMaxConfidentiality | quote }}
+
+  ONLYOFFICE_URL: {{ .Values.app.office.url | quote }}
+  ONLYOFFICE_INTERNAL_URL: {{ .Values.app.office.internalUrl | quote }}
+  ONLYOFFICE_CALLBACK_URL: {{ include "kchs.api.url" . | quote }}
+
+  LIVEKIT_URL: {{ .Values.livekit.url | quote }}
+  S3_EGRESS_ENDPOINT: {{ include "kchs.s3.endpoint" . | quote }}
+  LIVEKIT_WEBHOOK_URL: {{ printf "%s/api/v1/meetings/webhooks/livekit" (include "kchs.api.url" .) | quote }}

@@ -1,0 +1,62 @@
+{{/*
+Регулярные работы CLI `kchs` расписанием кластера. Штатное обслуживание
+платформы (очистка корзины и экспортов, партиции, дайджесты, переиндексация,
+резервные копии) ведёт единый планировщик внутри worker — ADR-0096, ADR-0117:
+дублировать его здесь не нужно. Список пуст по умолчанию и нужен для работ,
+которых в планировщике нет (разовые регламенты контура).
+*/}}
+{{- range .Values.cronJobs }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ printf "%s-%s" (include "kchs.fullname" $) .name | trunc 52 | trimSuffix "-" }}
+  labels:
+    {{- include "kchs.componentLabels" (dict "ctx" $ "component" "cron") | nindent 4 }}
+spec:
+  schedule: {{ .schedule | quote }}
+  timeZone: {{ $.Values.timezone | quote }}
+  concurrencyPolicy: {{ default "Forbid" .concurrencyPolicy }}
+  successfulJobsHistoryLimit: {{ default 3 .successfulJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ default 3 .failedJobsHistoryLimit }}
+  jobTemplate:
+    spec:
+      backoffLimit: {{ default 1 .backoffLimit }}
+      {{- with .activeDeadlineSeconds }}
+      activeDeadlineSeconds: {{ . }}
+      {{- end }}
+      template:
+        metadata:
+          labels:
+            {{- include "kchs.componentLabels" (dict "ctx" $ "component" "cron") | nindent 12 }}
+        spec:
+          restartPolicy: Never
+          {{- include "kchs.imagePullSecrets" $ | nindent 10 }}
+          serviceAccountName: {{ include "kchs.serviceAccountName" $ }}
+          automountServiceAccountToken: false
+          securityContext:
+            {{- toYaml $.Values.podSecurityContext | nindent 12 }}
+          containers:
+            - name: kchs
+              image: {{ include "kchs.image" (dict "ctx" $ "image" $.Values.api.image) }}
+              imagePullPolicy: {{ $.Values.image.pullPolicy }}
+              securityContext:
+                {{- toYaml $.Values.containerSecurityContext | nindent 16 }}
+              command: ["kchs"]
+              args: {{ toYaml .args | nindent 16 }}
+              envFrom:
+                - configMapRef:
+                    name: {{ include "kchs.configMapName" $ }}
+              env:
+                - name: ROLE
+                  value: worker
+                {{- include "kchs.appEnv" (dict "ctx" $) | nindent 16 }}
+              resources:
+                {{- toYaml (default $.Values.migrations.resources .resources) | nindent 16 }}
+              volumeMounts:
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            - name: tmp
+              emptyDir: {}
+{{- end }}

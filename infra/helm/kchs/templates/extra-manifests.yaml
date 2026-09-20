@@ -1,0 +1,9 @@
+{{/*
+Свои манифесты рядом с релизом: NetworkPolicy, ExternalSecret, PrometheusRule,
+PodMonitor и прочее, чего нет в чарте. Значение — список объектов или строк
+с шаблоном Helm (строка проходит через tpl).
+*/}}
+{{- range .Values.extraManifests }}
+---
+{{ if typeIs "string" . }}{{ tpl . $ }}{{ else }}{{ toYaml . }}{{ end }}
+{{- end }}

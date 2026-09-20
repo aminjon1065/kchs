@@ -1,0 +1,114 @@
+# Набор значений «всё в чарте» — тестовый кластер (kind, minikube, стенд).
+# Postgres, Redis, MinIO и Meilisearch поднимаются манифестами чарта теми же
+# образами, что в compose S1. Секреты поддельные: набор для CI и стенда.
+#
+#   helm upgrade --install kchs infra/helm/kchs \
+#     -f infra/helm/kchs/ci/embedded-values.yaml --wait --timeout 15m
+
+image:
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+
+baseUrl: http://kchs.127.0.0.1.nip.io
+
+ingress:
+  enabled: true
+  className: nginx
+  host: kchs.127.0.0.1.nip.io
+  tls:
+    enabled: false
+
+postgres:
+  embedded:
+    enabled: true
+    persistence:
+      enabled: false
+    resources:
+      requests: { cpu: 100m, memory: 256Mi }
+      limits: { memory: 1Gi }
+    parameters:
+      max_connections: "100"
+      shared_buffers: 128MB
+      effective_cache_size: 512MB
+      work_mem: 8MB
+      maintenance_work_mem: 64MB
+      shared_preload_libraries: pg_stat_statements
+
+redis:
+  embedded:
+    enabled: true
+    persistence:
+      enabled: false
+
+s3:
+  publicEndpoint: http://s3.127.0.0.1.nip.io
+  embedded:
+    enabled: true
+    persistence:
+      enabled: false
+    ingress:
+      enabled: true
+      className: nginx
+      host: s3.127.0.0.1.nip.io
+      tls:
+        enabled: false
+
+meilisearch:
+  embedded:
+    enabled: true
+    environment: development
+    persistence:
+      enabled: false
+
+api:
+  replicas: 1
+  autoscaling:
+    enabled: false
+  podDisruptionBudget:
+    enabled: false
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { memory: 1Gi }
+
+worker:
+  replicas: 1
+  autoscaling:
+    mode: "off"
+  podDisruptionBudget:
+    enabled: false
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { memory: 1Gi }
+
+# Движок тяжёлый (GDAL, LibreOffice, Chromium, tesseract): на тестовом кластере
+# его обычно не поднимают — превью и отчёты там не проверяют
+engine:
+  enabled: false
+
+web:
+  replicas: 1
+  podDisruptionBudget:
+    enabled: false
+
+migrations:
+  enabled: true
+
+init:
+  enabled: true
+  adminLogin: admin
+  adminEmail: admin@example.org
+
+secrets:
+  values:
+    POSTGRES_SUPERUSER_PASSWORD: ci-superuser-password
+    POSTGRES_APP_PASSWORD: ci-app-password
+    POSTGRES_MIGRATOR_PASSWORD: ci-migrator-password
+    POSTGRES_QUERY_PASSWORD: ci-query-password
+    POSTGRES_READONLY_PASSWORD: ci-readonly-password
+    POSTGRES_AUDIT_PASSWORD: ci-audit-password
+    REDIS_PASSWORD: ci-redis-password
+    S3_ACCESS_KEY: ci-access-key
+    S3_SECRET_KEY: ci-secret-key-0123456789
+    MEILI_MASTER_KEY: ci-meili-key-0123456789
+    KCHS_MASTER_KEY: Y2ktbWFzdGVyLWtleS1mb3ItaGVsbS1saW50LTAwMDA=
+    INTERNAL_SERVICE_TOKEN: ci-internal-service-token-0123456789

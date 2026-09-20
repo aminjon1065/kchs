@@ -1,0 +1,83 @@
+# Набор значений «внешние управляемые службы» — промышленная установка S2.
+# Секреты здесь заведомо поддельные: набор существует только для `helm lint` и
+# `helm template` в CI. Настоящие пароли живут во внешнем менеджере
+# (secrets.existingSecret) или в файле значений вне репозитория.
+
+image:
+  tag: "0.1.0"
+
+baseUrl: https://kchs.example.org
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+    # Загрузки файлов идут в S3 напрямую, но экспорт и печать проходят через api
+    nginx.ingress.kubernetes.io/proxy-body-size: 64m
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+  host: kchs.example.org
+  tls:
+    enabled: true
+
+postgres:
+  host: pg-rw.databases.svc.cluster.local
+  port: 6432
+  database: kchs
+  sslMode: require
+
+redis:
+  host: redis-master.databases.svc.cluster.local
+
+s3:
+  endpoint: http://minio.storage.svc.cluster.local:9000
+  publicEndpoint: https://s3.kchs.example.org
+
+meilisearch:
+  host: http://meilisearch.search.svc.cluster.local:7700
+
+worker:
+  autoscaling:
+    mode: keda
+    minReplicas: 2
+    maxReplicas: 12
+    keda:
+      prometheusAddress: http://prometheus.observability.svc.cluster.local:9090
+      jobsPerReplica: 50
+
+engine:
+  autoscaling:
+    mode: keda
+    keda:
+      prometheusAddress: http://prometheus.observability.svc.cluster.local:9090
+    minReplicas: 1
+    maxReplicas: 6
+
+observability:
+  otlpEndpoint: http://alloy.observability.svc.cluster.local:4318
+  tracesSamplerArg: "0.1"
+  serviceMonitor:
+    enabled: true
+
+livekit:
+  url: wss://meet.kchs.example.org
+
+app:
+  office:
+    url: https://office.kchs.example.org
+    internalUrl: http://onlyoffice.office.svc.cluster.local
+
+secrets:
+  values:
+    POSTGRES_APP_PASSWORD: ci-app-password
+    POSTGRES_MIGRATOR_PASSWORD: ci-migrator-password
+    POSTGRES_QUERY_PASSWORD: ci-query-password
+    REDIS_PASSWORD: ci-redis-password
+    S3_ACCESS_KEY: ci-access-key
+    S3_SECRET_KEY: ci-secret-key
+    MEILI_MASTER_KEY: ci-meili-key
+    KCHS_MASTER_KEY: Y2ktbWFzdGVyLWtleS1mb3ItaGVsbS1saW50LTAwMDA=
+    INTERNAL_SERVICE_TOKEN: ci-internal-service-token
+    SMTP_URL: smtp://kchs:ci-password@smtp.example.org:587
+    LIVEKIT_API_KEY: ci-livekit-key
+    LIVEKIT_API_SECRET: ci-livekit-secret

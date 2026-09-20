@@ -1,0 +1,27 @@
+{{- if .Values.observability.serviceMonitor.enabled }}
+{{/*
+Сбор метрик api и worker Prometheus Operator'ом (ADR-0045): порт 9464 во
+внутренней сети, наружу не публикуется и через web не проксируется.
+*/}}
+{{- $fullname := include "kchs.fullname" . -}}
+{{- range $component := list "api" "worker" }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ printf "%s-%s" $fullname $component }}
+  labels:
+    {{- include "kchs.componentLabels" (dict "ctx" $ "component" $component) | nindent 4 }}
+    {{- with $.Values.observability.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "kchs.selectorLabels" (dict "ctx" $ "component" $component) | nindent 6 }}
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: {{ $.Values.observability.serviceMonitor.interval }}
+{{- end }}
+{{- end }}

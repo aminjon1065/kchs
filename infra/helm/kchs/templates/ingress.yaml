@@ -1,0 +1,123 @@
+{{- if .Values.ingress.enabled }}
+{{/*
+Единственная точка входа — web (Caddy со сборкой SPA): статика, /api, /ws,
+/collab и CSP (ADR-0043, ADR-0044). Контроллер Ingress снимает TLS и передаёт
+запрос обычным HTTP — отдельного прокси перед web в кластере нет.
+*/}}
+{{- $fullname := include "kchs.fullname" . -}}
+{{- $hosts := prepend .Values.ingress.extraHosts .Values.ingress.host -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $fullname }}
+  labels:
+    {{- include "kchs.componentLabels" (dict "ctx" . "component" "web") | nindent 4 }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.ingress.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  {{- if .Values.ingress.tls.enabled }}
+  tls:
+    - hosts:
+        {{- range $hosts }}
+        - {{ . | quote }}
+        {{- end }}
+      secretName: {{ default (printf "%s-tls" $fullname) .Values.ingress.tls.secretName }}
+  {{- end }}
+  rules:
+    {{- range $hosts }}
+    - host: {{ . | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: {{ $.Values.ingress.pathType }}
+            backend:
+              service:
+                name: {{ $fullname }}-web
+                port:
+                  number: {{ $.Values.web.service.port }}
+    {{- end }}
+{{- end }}
+{{- if and .Values.s3.embedded.enabled .Values.s3.embedded.ingress.enabled }}
+---
+{{/*
+Хранилище публикуется отдельным именем: браузер грузит файлы и превью по
+подписанным ссылкам напрямую (ADR-0044). Имя должно совпадать с
+s3.publicEndpoint, иначе подпись SigV4 не сойдётся по заголовку Host.
+*/}}
+{{- $fullname := include "kchs.fullname" . -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $fullname }}-minio
+  labels:
+    {{- include "kchs.componentLabels" (dict "ctx" . "component" "minio") | nindent 4 }}
+  {{- with .Values.s3.embedded.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.s3.embedded.ingress.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  {{- if .Values.s3.embedded.ingress.tls.enabled }}
+  tls:
+    - hosts:
+        - {{ required "s3.embedded.ingress.host обязателен" .Values.s3.embedded.ingress.host | quote }}
+      secretName: {{ default (printf "%s-minio-tls" $fullname) .Values.s3.embedded.ingress.tls.secretName }}
+  {{- end }}
+  rules:
+    - host: {{ required "s3.embedded.ingress.host обязателен" .Values.s3.embedded.ingress.host | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $fullname }}-minio
+                port:
+                  number: 9000
+{{- end }}
+{{- if and .Values.livekit.embedded.enabled .Values.livekit.embedded.ingress.enabled }}
+---
+{{/*
+Сигнальный канал медиасервера (WebSocket) — обычный HTTPS-вход; сам медиапоток
+идёт мимо Ingress по UDP через отдельный сервис (livekit.yaml, ADR-0118).
+*/}}
+{{- $fullname := include "kchs.fullname" . -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $fullname }}-livekit
+  labels:
+    {{- include "kchs.componentLabels" (dict "ctx" . "component" "livekit") | nindent 4 }}
+  {{- with .Values.livekit.embedded.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.livekit.embedded.ingress.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  {{- if .Values.livekit.embedded.ingress.tls.enabled }}
+  tls:
+    - hosts:
+        - {{ required "livekit.embedded.ingress.host обязателен" .Values.livekit.embedded.ingress.host | quote }}
+      secretName: {{ default (printf "%s-livekit-tls" $fullname) .Values.livekit.embedded.ingress.tls.secretName }}
+  {{- end }}
+  rules:
+    - host: {{ required "livekit.embedded.ingress.host обязателен" .Values.livekit.embedded.ingress.host | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $fullname }}-livekit
+                port:
+                  number: 7880
+{{- end }}

@@ -1,0 +1,118 @@
+{{- if .Values.meilisearch.embedded.enabled }}
+{{/*
+Встроенный Meilisearch (ADR-0118): один под с томом — так же он ставится и в
+промышленной установке S2 (15-admin-operations.md §3: «одиночный с PVC,
+репликация — перестроением»), поэтому отличие от внешнего только в адресе.
+Индекс полностью восстанавливается переиндексацией из Postgres.
+*/}}
+{{- $fullname := include "kchs.fullname" . -}}
+{{- $meili := .Values.meilisearch.embedded -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullname }}-meilisearch
+  labels:
+    {{- include "kchs.componentLabels" (dict "ctx" . "component" "meilisearch") | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 7700
+      targetPort: http
+  selector:
+    {{- include "kchs.selectorLabels" (dict "ctx" . "component" "meilisearch") | nindent 4 }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $fullname }}-meilisearch
+  labels:
+    {{- include "kchs.componentLabels" (dict "ctx" . "component" "meilisearch") | nindent 4 }}
+spec:
+  serviceName: {{ $fullname }}-meilisearch
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "kchs.selectorLabels" (dict "ctx" . "component" "meilisearch") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "kchs.componentLabels" (dict "ctx" . "component" "meilisearch") | nindent 8 }}
+    spec:
+      {{- include "kchs.imagePullSecrets" . | nindent 6 }}
+      automountServiceAccountToken: false
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: meilisearch
+          image: {{ include "kchs.image" (dict "ctx" . "image" $meili.image) }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          env:
+            - name: MEILI_ENV
+              value: {{ $meili.environment | quote }}
+            - name: MEILI_NO_ANALYTICS
+              value: "true"
+            - name: MEILI_EXPERIMENTAL_ENABLE_METRICS
+              value: "true"
+            - name: MEILI_DB_PATH
+              value: /meili_data/data.ms
+            - name: MEILI_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kchs.secretName" . }}
+                  key: MEILI_MASTER_KEY
+          ports:
+            - name: http
+              containerPort: 7700
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            failureThreshold: 5
+          resources:
+            {{- toYaml $meili.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /meili_data
+      volumes:
+        {{- if not $meili.persistence.enabled }}
+        - name: data
+          emptyDir: {}
+        {{- end }}
+      {{- with $meili.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $meili.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $meili.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  {{- if $meili.persistence.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- with $meili.persistence.storageClassName }}
+        storageClassName: {{ . | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ $meili.persistence.size }}
+  {{- end }}
+{{- end }}
