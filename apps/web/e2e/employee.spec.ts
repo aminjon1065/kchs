@@ -26,3 +26,24 @@ test.describe('Права рядового сотрудника', () => {
     await expect(page.getByText('Общее').first()).toBeVisible()
   })
 })
+
+/**
+ * Восстановление доступа (вопрос N83): письмо ведёт на `/reset-password?token=…`,
+ * и этот адрес должен открывать экран смены пароля, а не оболочку. Проверяем,
+ * что ссылка живая и что негодный токен честно об этом говорит.
+ */
+test.describe('Вход: восстановление доступа по ссылке', () => {
+  test('ссылка из письма открывает смену пароля; негодный токен отклоняется', async ({
+    browser,
+  }) => {
+    const context = await browser.newContext({ storageState: { cookies: [], origins: [] } })
+    const page = await context.newPage()
+    await page.goto('/reset-password?token=' + 'a'.repeat(40))
+    await expect(page.getByRole('heading', { name: /kchs|Комитет/ })).toBeVisible()
+    await page.getByLabel('Новый пароль').fill('Novyj-Parol-2026!')
+    await page.getByLabel('Повторите пароль').fill('Novyj-Parol-2026!')
+    await page.getByRole('button', { name: 'Сменить пароль' }).click()
+    await expect(page.getByText(/недействительна|истекла|Ссылка/)).toBeVisible({ timeout: 20_000 })
+    await context.close()
+  })
+})

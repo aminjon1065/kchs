@@ -4,6 +4,7 @@ import { lazy, Suspense, useEffect, useState } from 'react'
 import { LoginScreen } from '~/features/auth/login-screen.js'
 import { MfaEnrollmentScreen } from '~/features/auth/mfa-enrollment-screen.js'
 import { PasswordChangeScreen } from '~/features/auth/password-change-screen.js'
+import { PasswordResetScreen } from '~/features/auth/password-reset-screen.js'
 import { printTargetFromPath } from '~/features/reports/print/print-target.js'
 import { GuestShareScreen } from '~/features/share/guest-screen.js'
 import { useBranding } from '~/shared/api/branding.js'
@@ -35,6 +36,13 @@ function shareTokenFromUrl(): string | null {
   return match?.[1] ?? null
 }
 
+/** Восстановление доступа по ссылке из письма: `/reset-password?token=…`. */
+function resetTokenFromUrl(): string | null {
+  if (window.location.pathname !== '/reset-password') return null
+  const token = new URLSearchParams(window.location.search).get('token')
+  return token && /^[A-Za-z0-9_-]{16,200}$/.test(token) ? token : null
+}
+
 /** Гость во встрече — тоже вне оболочки: `/meet/<токен>` (ADR-0091). */
 function meetTokenFromUrl(): string | null {
   const match = /^\/meet\/([A-Za-z0-9_.-]{40,200})$/.exec(window.location.pathname)
@@ -48,6 +56,7 @@ export function App() {
   useBranding()
   const [signedOut, setSignedOut] = useState(false)
   const [shareToken] = useState(shareTokenFromUrl)
+  const [resetToken] = useState(resetTokenFromUrl)
   const [meetToken] = useState(meetTokenFromUrl)
   // Печать (03-screens.md §21): вне оболочки, без входа — у движка токен печати
   const [printTarget] = useState(() => printTargetFromPath(window.location.pathname))
@@ -73,7 +82,7 @@ export function App() {
     error,
   } = useQuery({
     ...meQuery(),
-    enabled: !signedOut && !shareToken && !meetToken && !printTarget,
+    enabled: !signedOut && !shareToken && !meetToken && !printTarget && !resetToken,
   })
 
   // Токен CSRF восстанавливается из /me: сессия переживает перезагрузку вкладки
@@ -81,6 +90,7 @@ export function App() {
     if (me?.session.csrfToken) setCsrfToken(me.session.csrfToken)
   }, [me])
 
+  if (resetToken) return <PasswordResetScreen token={resetToken} />
   if (shareToken) return <GuestShareScreen token={shareToken} />
   if (meetToken) {
     return (

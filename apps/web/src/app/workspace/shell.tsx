@@ -187,6 +187,12 @@ export function WorkspaceShell() {
     { combo: 'g h', handler: () => goScreen('home', 'shell.rail.home', 'home') },
     { combo: 'g i', handler: () => goScreen('inbox', 'shell.rail.inbox', 'inbox') },
     { combo: 'g f', handler: () => goScreen('files', 'shell.rail.files', 'folder') },
+    // Подсказки на рейке обещают эти сочетания — значит, они должны работать
+    { combo: 'g d', handler: () => goScreen('data', 'shell.rail.data', 'dataset') },
+    { combo: 'g m', handler: () => goScreen('maps', 'shell.rail.maps', 'map') },
+    { combo: 'g o', handler: () => goScreen('documents', 'shell.rail.documents', 'document') },
+    { combo: 'g t', handler: () => goScreen('tasks', 'shell.rail.tasks', 'task') },
+    { combo: 'g c', handler: () => goScreen('chats', 'shell.rail.chats', 'conversation') },
     ...Array.from({ length: 9 }, (_, index) => ({
       combo: `mod+${index + 1}`,
       handler: () => activateByIndex(index),
