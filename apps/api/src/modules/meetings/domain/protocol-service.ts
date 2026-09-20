@@ -1,7 +1,10 @@
 import { isDeepStrictEqual } from 'node:util'
 import {
+  PROTOCOL_DOC,
+  PROTOCOL_MAX_BLOCKS,
   type ProtocolAcknowledgeInput,
   type ProtocolBlock,
+  type ProtocolBlocksInput,
   type ProtocolInstruction,
   type ProtocolRecord,
   type ProtocolRegisterInput,
@@ -26,7 +29,7 @@ import { Instructions } from '~/modules/tasks/public.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
 import { meetings, objects, protocols } from '~/shared/db/schema/index.js'
-import { errors } from '~/shared/errors.js'
+import { AppError, errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { draftAvailability } from './protocol-assist.js'
 import {
@@ -36,7 +39,7 @@ import {
   type ProtocolRow,
   protocolText,
 } from './protocol-core.js'
-import { protocolState, readProtocol, setBlockTask } from './protocol-doc.js'
+import { insertProtocolBlocks, protocolState, readProtocol, setBlockTask } from './protocol-doc.js'
 
 /** Текста протокола в поисковом индексе — не больше (как у тетради). */
 const SEARCH_BODY_LIMIT = 20_000
@@ -187,6 +190,26 @@ export const ProtocolService = {
   },
 
   /**
+   * Блоки от сервера (повестка из карточки встречи, черновик ИИ) — через
+   * совместный документ: у открывших протокол они появляются сразу, снимок
+   * записан к возврату (как ячейки тетради, ADR-0070 §7).
+   */
+  async addBlocks(ctx: UserCtx, id: string, input: ProtocolBlocksInput): Promise<ProtocolRecord> {
+    await authorize(ctx, 'edit', id)
+    const row = await load(db(), id)
+    if (!row) throw errors.notFound('Протокол')
+    if (row.status === 'confirmed') throw errors.conflict('Протокол уже подтверждён')
+    await CollabService.change(ctx, { id, type: 'protocol' }, (doc) => {
+      const count = doc.getArray(PROTOCOL_DOC.order).length
+      if (count + input.blocks.length > PROTOCOL_MAX_BLOCKS) {
+        throw errors.conflict(`В протоколе не больше ${PROTOCOL_MAX_BLOCKS} блоков`)
+      }
+      insertProtocolBlocks(doc, input.blocks, input.index)
+    })
+    return ProtocolService.get(ctx, id)
+  },
+
+  /**
    * Подтверждение протокола организатором: блоки `instruction` становятся
    * поручениями (`Instructions.create`, источник — протокол), их ключи
    * возвращаются в документ. Снимок перед этим берётся из открытого документа:
@@ -206,9 +229,12 @@ export const ProtocolService = {
       if (row.status === 'confirmed') throw errors.conflict('Протокол уже подтверждён')
       const incomplete = incompleteInstructions(row.blocks)
       if (incomplete.length > 0) {
-        throw errors.conflict('У поручения протокола нет исполнителя, срока или текста', {
-          blockIds: incomplete,
-        })
+        throw new AppError(
+          'conflict',
+          'У поручения протокола нет исполнителя, срока или текста',
+          409,
+          { data: { reason: 'incomplete_instruction', blockIds: incomplete } },
+        )
       }
       const links: Record<string, string> = { ...row.instructions }
       const blocks: ProtocolBlock[] = []
@@ -284,8 +310,8 @@ export const ProtocolService = {
       throw errors.conflict('Протокол ещё не подтверждён', { status: row.status })
     }
     if (row.documentId) {
-      throw errors.conflict('Протокол уже зарегистрирован документом', {
-        documentId: row.documentId,
+      throw new AppError('conflict', 'Протокол уже зарегистрирован документом', 409, {
+        data: { reason: 'already_registered', documentId: row.documentId },
       })
     }
     const documentId = await db().transaction(async (tx) => {

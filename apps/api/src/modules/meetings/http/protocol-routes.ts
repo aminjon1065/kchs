@@ -1,5 +1,6 @@
 import {
   ProtocolAcknowledgeInput,
+  ProtocolBlocksInput,
   ProtocolDraft,
   ProtocolRecord,
   ProtocolRegisterInput,
@@ -49,6 +50,18 @@ export function registerProtocolRoutes(route: RouteRegistrar): void {
     summary: 'Протокол: блоки, поручения, состояние',
     schema: { params: IdParam, response: { 200: ProtocolRecord } },
     handler: async (request) => ProtocolService.get(request.ctx, request.params.id),
+  })
+
+  route({
+    method: 'POST',
+    url: '/protocols/:id/blocks',
+    auth: 'session',
+    tags: ['meetings'],
+    summary: 'Добавить блоки в протокол',
+    description: 'Блоки сразу появляются у всех, кто открыл протокол.',
+    schema: { params: IdParam, body: ProtocolBlocksInput, response: { 200: ProtocolRecord } },
+    handler: async (request) =>
+      ProtocolService.addBlocks(request.ctx, request.params.id, request.body),
   })
 
   route({

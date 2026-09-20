@@ -156,6 +156,17 @@ export const PROTOCOL_DRAFT_BLOCKERS = ['ai_disabled', 'confidentiality', 'empty
 export const ProtocolDraftBlocker = z.enum(PROTOCOL_DRAFT_BLOCKERS)
 export type ProtocolDraftBlocker = z.infer<typeof ProtocolDraftBlocker>
 
+/**
+ * Блоки, добавленные сервером (повестка из карточки встречи, черновик ИИ):
+ * сразу видны всем, кто открыл протокол. Правит их человек в редакторе.
+ */
+export const ProtocolBlocksInput = z.object({
+  blocks: z.array(ProtocolBlock).min(1).max(20),
+  /** Позиция вставки; по умолчанию — в конец. */
+  index: z.number().int().min(0).optional(),
+})
+export type ProtocolBlocksInput = z.infer<typeof ProtocolBlocksInput>
+
 /** Регистрация протокола документом: тип документа выбирает человек. */
 export const ProtocolRegisterInput = z.object({ typeId: Uuid })
 export type ProtocolRegisterInput = z.infer<typeof ProtocolRegisterInput>
