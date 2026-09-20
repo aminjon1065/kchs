@@ -5859,6 +5859,9 @@ export const ru = {
   },
 
   discussion: {
+    anchored: 'Комментарии к фрагменту',
+    anchorEmpty: 'К этому фрагменту ещё не писали',
+    wholeObject: 'Ко всему объекту',
     title: 'Обсуждение',
     empty: 'Обсуждение ещё не начато',
     emptyHint: 'Напишите первое сообщение',

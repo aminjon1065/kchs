@@ -105,11 +105,11 @@ export const PageMetricBlock = z.object({
   metricId: Uuid.nullable().default(null),
 })
 
-/** Список задач — сохранённое представление (`view`) с его фильтрами. */
+/** Список задач — открытые задачи проекта (10-tasks-projects.md §4). */
 export const PageTasksBlock = z.object({
   ...base,
   kind: z.literal('tasks'),
-  viewId: Uuid.nullable().default(null),
+  projectId: Uuid.nullable().default(null),
 })
 
 export const PageBlock = z.discriminatedUnion('kind', [
@@ -354,5 +354,5 @@ export const PAGE_BLOCK_LAYOUT = {
   map: { ...COMMON_LAYOUT, mapId: 'json', layerId: 'json' },
   dataset: { ...COMMON_LAYOUT, datasetId: 'json', limit: 'json' },
   metric: { ...COMMON_LAYOUT, metricId: 'json' },
-  tasks: { ...COMMON_LAYOUT, viewId: 'json' },
+  tasks: { ...COMMON_LAYOUT, projectId: 'json' },
 } as const satisfies Record<PageBlockKind, Record<string, PageValueKind>>

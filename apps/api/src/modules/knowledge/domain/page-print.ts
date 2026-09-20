@@ -157,7 +157,7 @@ function embedIds(blocks: readonly PageBlock[]): string[] {
     if (item.kind === 'map' && (item.mapId ?? item.layerId)) {
       ids.push((item.mapId ?? item.layerId) as string)
     }
-    if (item.kind === 'tasks' && item.viewId) ids.push(item.viewId)
+    if (item.kind === 'tasks' && item.projectId) ids.push(item.projectId)
     if (item.kind === 'file' && item.fileId) ids.push(item.fileId)
   }
   return [...new Set(ids)]
@@ -201,7 +201,7 @@ async function renderBlock(
             : item.kind === 'dataset'
               ? item.datasetId
               : item.kind === 'tasks'
-                ? item.viewId
+                ? item.projectId
                 : (item.mapId ?? item.layerId)
       const name = id ? (titles.get(id) ?? '') : ''
       const kind = pc.t(`knowledge.blocks.${item.kind}`)

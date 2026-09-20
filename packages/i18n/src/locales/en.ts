@@ -5779,6 +5779,9 @@ export const en: DeepPartial<Dictionary> = {
   },
 
   discussion: {
+    anchored: 'Comments on this fragment',
+    anchorEmpty: 'No comments on this fragment yet',
+    wholeObject: 'Whole object',
     title: 'Discussion',
     empty: 'No messages yet',
     emptyHint: 'Write the first message',

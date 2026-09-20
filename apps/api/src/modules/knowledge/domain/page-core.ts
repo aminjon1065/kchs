@@ -162,7 +162,7 @@ export function pageDependencies(blocks: readonly PageBlock[]): string[] {
       if (block.mapId) ids.add(block.mapId)
       if (block.layerId) ids.add(block.layerId)
     }
-    if (block.kind === 'tasks' && block.viewId) ids.add(block.viewId)
+    if (block.kind === 'tasks' && block.projectId) ids.add(block.projectId)
     if ((block.kind === 'image' || block.kind === 'file') && block.fileId) ids.add(block.fileId)
   }
   return [...ids]

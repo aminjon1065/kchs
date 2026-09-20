@@ -78,7 +78,14 @@ export interface WorkspaceStore extends WorkspaceSnapshot {
   toggleNavigator: (open?: boolean) => void
   toggleContext: (open?: boolean) => void
   toggleBottom: (open?: boolean) => void
-  setContextTab: (tab: ContextTabKey) => void
+  /**
+   * Вкладка контекстной панели; `anchor` — якорь на фрагмент объекта
+   * (идентификатор блока страницы базы знаний, ADR-0095): обсуждение
+   * открывается на комментариях к этому фрагменту.
+   */
+  setContextTab: (tab: ContextTabKey, anchor?: string | null) => void
+  /** Текущий якорь обсуждения; null — обсуждение всего объекта. */
+  discussionAnchor: string | null
   setNavigatorModule: (module: ScreenKey) => void
   activeTab: () => TabState | null
   restore: (snapshot: WorkspaceSnapshot) => void
@@ -104,6 +111,7 @@ export const useWorkspace = create<WorkspaceStore>()(
     (set, get) => ({
       ...initialSnapshot(),
       closedStack: [],
+      discussionAnchor: null,
 
       openTab: (input) => {
         const state = get()
@@ -400,7 +408,8 @@ export const useWorkspace = create<WorkspaceStore>()(
       toggleNavigator: (open) => set((s) => ({ navigatorOpen: open ?? !s.navigatorOpen })),
       toggleContext: (open) => set((s) => ({ contextOpen: open ?? !s.contextOpen })),
       toggleBottom: (open) => set((s) => ({ bottomOpen: open ?? !s.bottomOpen })),
-      setContextTab: (contextTab) => set({ contextTab, contextOpen: true }),
+      setContextTab: (contextTab, anchor = null) =>
+        set({ contextTab, contextOpen: true, discussionAnchor: anchor }),
       setNavigatorModule: (navigatorModule) => set({ navigatorModule }),
 
       activeTab: () => {

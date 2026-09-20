@@ -29,6 +29,7 @@ import { TerritoriesScreen } from '~/features/gis/territories-screen.js'
 import { TerritoryView } from '~/features/gis/territory-view.js'
 import { HomeScreen } from '~/features/home/home-screen.js'
 import { InboxScreen } from '~/features/inbox/inbox-screen.js'
+import { KnowledgeScreen } from '~/features/knowledge/knowledge-screen.js'
 import { MeetingsScreen } from '~/features/meetings/meetings-screen.js'
 import { NotificationsScreen } from '~/features/notifications/notifications-screen.js'
 import { FileView } from '~/features/objects/file-view.js'
@@ -52,6 +53,8 @@ const ReportView = lazy(() => import('~/features/reports/report-view.js'))
 /** Встреча и её протокол — отдельным чанком: Tiptap и клиент совместной правки (ADR-0093). */
 const MeetingView = lazy(() => import('~/features/meetings/meeting-view.js'))
 const ProtocolView = lazy(() => import('~/features/meetings/protocol/protocol-view.js'))
+/** Страница базы знаний — отдельным чанком: Tiptap и клиент совместной правки (ADR-0095). */
+const PageView = lazy(() => import('~/features/knowledge/page-view.js'))
 /** Конструктор маршрутов — отдельным чанком: нужен только администратору маршрутов (ADR-0087). */
 const ProcessDesigner = lazy(() => import('~/features/processes/designer/designer-screen.js'))
 /** Запись встречи — отдельным чанком: плеер и расшифровка нужны не всем (ADR-0092). */
@@ -69,6 +72,12 @@ export function registerModules(): void {
     titleKey: 'shell.rail.home',
     icon: 'home',
     render: () => <HomeScreen />,
+  })
+  registerScreen({
+    key: 'knowledge',
+    titleKey: 'shell.rail.knowledge',
+    icon: 'page',
+    render: (tab) => <KnowledgeScreen spaceId={tab.params.spaceId} />,
   })
   registerScreen({
     key: 'inbox',
@@ -265,6 +274,21 @@ export function registerModules(): void {
   registerObjectView({
     type: 'chart',
     render: (tab) => <ChartView objectId={tab.objectId!} tabId={tab.id} />,
+  })
+  registerObjectView({
+    type: 'page',
+    render: (tab) => (
+      <Suspense
+        fallback={
+          <div className="flex flex-col gap-3 p-6">
+            <Skeleton className="h-7 w-72" />
+            <Skeleton className="h-64 w-full" />
+          </div>
+        }
+      >
+        <PageView objectId={tab.objectId!} tabId={tab.id} />
+      </Suspense>
+    ),
   })
   registerObjectView({
     type: 'notebook',
