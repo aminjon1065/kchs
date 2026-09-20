@@ -84,7 +84,9 @@ export function ContextPanel() {
       <div className="flex h-10 shrink-0 items-center gap-0.5 border-b border-line px-1.5">
         {TABS.map((item) => {
           const Icon = item.icon
-          const disabled = item.key === 'assistant' && !assistant
+          // Ассистент доступен у любого объекта (ADR-0100): без объекта
+          // спрашивать не о чем, и вкладка выключена
+          const disabled = item.key === 'assistant' && !objectId
           return (
             <Tooltip key={item.key} content={t(item.labelKey)} delay={250}>
               <button

@@ -55,6 +55,8 @@ type CreatableKind = 'task' | 'instruction'
 export interface TaskDraft {
   kind?: CreatableKind
   title?: string
+  /** Текст поручения: его предлагает ассистент (ADR-0100). */
+  description?: string
   projectId?: string
   source?: TaskSource
   /** Территория задачи (паспорт территории). */
@@ -109,7 +111,7 @@ export function CreateTaskDialog({
   const [priority, setPriority] = useState('3')
   const [projectId, setProjectId] = useState(draft.projectId ?? NO_PROJECT)
   const [territoryId, setTerritoryId] = useState<string | null>(draft.territoryId ?? null)
-  const [description, setDescription] = useState('')
+  const [description, setDescription] = useState(draft.description ?? '')
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [failure, setFailure] = useState<string | null>(null)
   const { data: projects = [] } = useQuery(projectsQuery())

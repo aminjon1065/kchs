@@ -72,6 +72,9 @@ interface ToolOutcome {
   citations: AssistantCitation[]
 }
 
+/** Подсветка поиска (`<mark>`) — разметка выдачи, а не текст объекта. */
+const plain = (value: string): string => value.replaceAll('<mark>', '').replaceAll('</mark>', '')
+
 function citationOf(hit: {
   objectId: string
   type: string
@@ -82,9 +85,9 @@ function citationOf(hit: {
   return {
     objectId: hit.objectId,
     type: hit.type,
-    title: hit.title,
+    title: plain(hit.title),
     url: hit.url,
-    snippet: hit.snippet,
+    snippet: hit.snippet === null ? null : plain(hit.snippet),
   }
 }
 

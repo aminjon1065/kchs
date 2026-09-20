@@ -189,7 +189,11 @@ export function AssistantPanel({ objectId }: { objectId: string | null }) {
 
       {taskDraft ? (
         <CreateTaskDialog
-          draft={{ title: taskDraft.title }}
+          draft={{
+            kind: 'instruction',
+            title: taskDraft.title,
+            description: taskDraft.description,
+          }}
           onClose={() => setTaskDraft(null)}
           onCreated={() => setTaskDraft(null)}
         />
