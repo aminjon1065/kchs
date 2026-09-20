@@ -45,6 +45,10 @@ x-app-env: &app-env
   SESSION_IDLE_HOURS: ${SESSION_IDLE_HOURS:-12}
   RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-600}
   LOGIN_RATE_LIMIT_PER_IP_PER_MINUTE: ${LOGIN_RATE_LIMIT_PER_IP_PER_MINUTE:-300}
+  # Публичный API и вебхуки (ADR-0097)
+  API_TOKEN_RATE_LIMIT_PER_MINUTE: ${API_TOKEN_RATE_LIMIT_PER_MINUTE:-600}
+  WEBHOOKS_ALLOW_PRIVATE_ADDRESSES: ${WEBHOOKS_ALLOW_PRIVATE_ADDRESSES:-}
+  WEBHOOK_RETRY_WINDOW_HOURS: ${WEBHOOK_RETRY_WINDOW_HOURS:-24}
   # Caddy (контейнер web) в частной сети Docker: X-Forwarded-For верим только ему
   TRUST_PROXY: ${TRUST_PROXY_APP:-uniquelocal}
   # Метрики Prometheus — отдельный порт во внутренней сети: не пробрасывается и не
