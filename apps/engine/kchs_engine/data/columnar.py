@@ -22,7 +22,7 @@ import math
 import threading
 import uuid
 from dataclasses import dataclass
-from datetime import date, datetime, time, timezone
+from datetime import UTC, date, datetime, time
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -125,7 +125,9 @@ def _value_for_arrow(value: Any, kind: str) -> Any:
     if kind in ("number", "percent", "duration") and isinstance(value, Decimal):
         return float(value)
     if kind == "datetime" and isinstance(value, datetime):
-        return value.astimezone(timezone.utc) if value.tzinfo else value.replace(tzinfo=timezone.utc)
+        if value.tzinfo:
+            return value.astimezone(UTC)
+        return value.replace(tzinfo=UTC)
     if kind == "multi_select":
         return [None if item is None else str(item) for item in value]
     if isinstance(value, uuid.UUID):
@@ -273,7 +275,7 @@ def _json_value(value: Any) -> Any:
     if isinstance(value, Decimal):
         return str(value)
     if isinstance(value, datetime):
-        moment = value.astimezone(timezone.utc) if value.tzinfo else value
+        moment = value.astimezone(UTC) if value.tzinfo else value
         return moment.isoformat().replace("+00:00", "Z")
     if isinstance(value, date):
         return value.isoformat()
@@ -331,7 +333,8 @@ def _query(payload: dict[str, Any], files: dict[str, Path]) -> dict[str, Any]:
         count_sql = payload.get("countSql")
         if count_sql:
             _, counted = _run(con, str(count_sql), list(payload.get("countParams") or []))
-            total = int(counted[0][0]) if counted and counted[0] and counted[0][0] is not None else 0
+            first = counted[0][0] if counted and counted[0] else None
+            total = 0 if first is None else int(first)
     finally:
         timer.cancel()
         con.close()

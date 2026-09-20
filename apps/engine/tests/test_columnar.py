@@ -18,7 +18,7 @@ from kchs_engine.data import columnar
 
 TERR_MINE = "cccccccc-cccc-4ccc-8ccc-ccccccccccc1"
 TERR_OTHER = "cccccccc-cccc-4ccc-8ccc-ccccccccccc4"
-NOW = dt.datetime(2026, 9, 18, 7, 30, tzinfo=dt.timezone.utc)
+NOW = dt.datetime(2026, 9, 18, 7, 30, tzinfo=dt.UTC)
 ROWS = 120
 
 #: Столбцы фикстуры — как их строит план копии для датасета «Происшествия».
@@ -85,11 +85,11 @@ def _values(name: str, kind: str) -> list[object]:
 @pytest.fixture(scope="module")
 def copy_file(tmp_path_factory: pytest.TempPathFactory) -> Path:
     schema = pa.schema(
-        [pa.field(name, columnar._arrow_type(kind)) for name, kind in PLAN]  # noqa: SLF001
+        [pa.field(name, columnar._arrow_type(kind)) for name, kind in PLAN]
     )
     table = pa.table(
         {
-            name: pa.array(_values(name, kind), type=columnar._arrow_type(kind))  # noqa: SLF001
+            name: pa.array(_values(name, kind), type=columnar._arrow_type(kind))
             for name, kind in PLAN
         },
         schema=schema,
@@ -101,7 +101,7 @@ def copy_file(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 @pytest.fixture
 def con(copy_file: Path):
-    connection = columnar._connect({"t_incidents": copy_file})  # noqa: SLF001
+    connection = columnar._connect({"t_incidents": copy_file})
     yield connection
     connection.close()
 
@@ -208,11 +208,11 @@ def test_interval_and_date_math(con) -> None:
 
 
 def test_json_value_conversions() -> None:
-    convert = columnar._json_value  # noqa: SLF001
+    convert = columnar._json_value
     assert convert(None) is None
     assert convert(True) is True
     assert convert(decimal.Decimal("1.50")) == "1.50"
-    assert convert(dt.datetime(2026, 1, 2, 3, 4, tzinfo=dt.timezone.utc)) == "2026-01-02T03:04:00Z"
+    assert convert(dt.datetime(2026, 1, 2, 3, 4, tzinfo=dt.UTC)) == "2026-01-02T03:04:00Z"
     assert convert(dt.date(2026, 1, 2)) == "2026-01-02"
     assert convert(dt.time(10, 30)) == "10:30:00"
     assert convert(["a", None]) == ["a", None]
@@ -229,11 +229,11 @@ def test_identifiers_are_checked() -> None:
 
 def test_plan_rejects_geometry() -> None:
     with pytest.raises(columnar.ColumnarError):
-        columnar._arrow_type("geometry")  # noqa: SLF001
+        columnar._arrow_type("geometry")
 
 
 def test_select_expression_per_type() -> None:
-    expr = columnar._select_expr  # noqa: SLF001
+    expr = columnar._select_expr
     assert expr(columnar.Column("c_1", "text")) == '"c_1"'
     assert expr(columnar.Column("c_12", "duration")).startswith("(extract(epoch")
     assert "::numeric(38, 12)" in expr(columnar.Column("c_3", "money"))

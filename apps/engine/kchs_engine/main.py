@@ -21,7 +21,8 @@ from kchs_engine.ai.embed import embed, embeddings_enabled
 from kchs_engine.config import settings
 from kchs_engine.contracts import data_export_contract
 from kchs_engine.data.analyze import analyze_object
-from kchs_engine.data.columnar import ColumnarError, query as columnar_query
+from kchs_engine.data.columnar import ColumnarError
+from kchs_engine.data.columnar import query as columnar_query
 from kchs_engine.data.geo_export import ExportField, convert_features
 from kchs_engine.data.readers import ImportFileError
 from kchs_engine.jobs import registered_queues
