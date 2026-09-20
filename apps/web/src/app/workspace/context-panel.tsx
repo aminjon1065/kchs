@@ -32,6 +32,7 @@ import {
   X,
 } from 'lucide-react'
 import { useState } from 'react'
+import { AssistantPanel } from '~/features/assistant/assistant-panel.js'
 import { type ComposedMessage, MessageComposer } from '~/features/discussion/message-composer.js'
 import { MessageItem } from '~/features/discussion/message-item.js'
 import { uploadFile } from '~/features/files/upload.js'
@@ -133,11 +134,14 @@ export function ContextPanel() {
         ) : contextTab === 'activity' ? (
           <ActivityTab objectId={objectId} />
         ) : contextTab === 'assistant' ? (
-          assistant ? (
-            assistant(objectId)
-          ) : (
-            <EmptyState compact icon={<Bot />} title={t('shell.context.assistantUnavailable')} />
-          )
+          // Свои действия типа (для документа — резюме и черновик ответа,
+          // ADR-0088) идут над общим диалогом с инструментами (ADR-0100)
+          <div className="flex h-full min-h-0 flex-col">
+            {assistant ? <div className="shrink-0">{assistant(objectId)}</div> : null}
+            <div className="min-h-0 flex-1">
+              <AssistantPanel objectId={objectId} />
+            </div>
+          </div>
         ) : null}
       </div>
     </aside>

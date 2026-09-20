@@ -1,3 +1,5 @@
+export * from './assistant.js'
+
 import { z } from 'zod'
 
 /**

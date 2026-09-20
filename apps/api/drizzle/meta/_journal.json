@@ -239,6 +239,13 @@
       "when": 1789897805943,
       "tag": "20260920095005_semantic_embeddings",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1789898486422,
+      "tag": "20260920100126_assistant_threads",
+      "breakpoints": true
     }
   ]
 }
