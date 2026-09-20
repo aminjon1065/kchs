@@ -187,6 +187,35 @@ export const EVENT_PAYLOADS = {
   /** Снимок тетради после совместной правки (ADR-0070): что изменилось — ячейки, параметры. */
   'notebook.updated': z.object({ changed: z.array(z.enum(['cells', 'params'])) }),
 
+  // ── база знаний (13-search-knowledge-ai.md §2, ADR-0095) ───────────────────
+  /** Снимок страницы после совместной правки: блоки изменились. */
+  'page.updated': z.object({ changed: z.array(z.enum(['blocks'])) }),
+  /** Страница опубликована: снимок стал версией, срок пересмотра назначен. */
+  'page.published': z.object({
+    versionId: Uuid,
+    number: z.number().int(),
+    reviewAt: z.string().nullable(),
+  }),
+  /**
+   * Состояние страницы изменилось. `cause`: `publish` — публикация,
+   * `review_due` — наступил срок пересмотра, `manual` — владелец вернул в работу.
+   */
+  'page.status_changed': z.object({
+    from: z.string(),
+    to: z.string(),
+    cause: z.enum(['publish', 'review_due', 'manual']),
+  }),
+  /** Снимок страницы сохранён версией: публикация, кнопка «Сохранить версию», откат. */
+  'page.version_created': z.object({
+    versionId: Uuid,
+    number: z.number().int(),
+    reason: z.enum(['publish', 'manual', 'restore']),
+  }),
+  /** Страница откачена к версии: её текст стал текущим (перед откатом снят снимок). */
+  'page.restored': z.object({ versionId: Uuid, number: z.number().int() }),
+  /** Срок пересмотра наступил: страница ушла на пересмотр, владельцу — дело. */
+  'page.review_due': z.object({ reviewAt: z.string(), ownerId: Uuid.nullable() }),
+
   // ── reports (06-analytics-engine.md §12, ADR-0078) ─────────────────────────
   /** Снимок шаблона после совместной правки: блоки, параметры, настройки печати. */
   'report.updated': z.object({ changed: z.array(z.enum(['blocks', 'params', 'settings'])) }),

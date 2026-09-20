@@ -6,7 +6,7 @@ import type { UserCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { documentVersions } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
-import { diffText } from './diff.js'
+import { diffText } from '~/shared/text-diff.js'
 
 /** Сравнивается начало текста версии: длиннее — это уже не правка письма, а другой документ. */
 const TEXT_LIMIT = 300_000
