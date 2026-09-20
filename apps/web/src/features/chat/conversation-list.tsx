@@ -61,12 +61,15 @@ export function ConversationList({
   selectedId,
   onSelect,
   onCreate,
+  full = false,
 }: {
   section: ChatSection
   onSection: (section: ChatSection) => void
   selectedId: string | null
   onSelect: (item: ChatListItem) => void
   onCreate: () => void
+  /** Мобильный веб: список — единственная панель и занимает экран целиком. */
+  full?: boolean
 }) {
   const t = useT()
   const [search, setSearch] = useState('')
@@ -94,7 +97,12 @@ export function ConversationList({
   )
 
   return (
-    <div className="flex h-full min-h-0 w-72 shrink-0 flex-col border-r border-line bg-surface-2">
+    <div
+      className={cn(
+        'flex h-full min-h-0 flex-col bg-surface-2',
+        full ? 'w-full flex-1' : 'w-72 shrink-0 border-r border-line',
+      )}
+    >
       <div className="flex items-center gap-1.5 border-b border-line p-2">
         <SearchInput
           value={search}

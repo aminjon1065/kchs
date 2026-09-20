@@ -355,11 +355,14 @@ services:
   # ── Профиль media: аудио/видео встреч (ADR-0089) ───────────────────────────
   # Ключ и секрет — из .env (generate-secrets.sh); api выпускает по ним токены
   # комнат, браузер подключается к :7880 напрямую.
+  # На стенде разработчика (Docker Desktop) узел объявляет клиентам адрес
+  # контейнера, и браузер на хосте до потока не доходит: тогда задаётся
+  # LIVEKIT_NODE_IP=127.0.0.1. В установке узел определяет адрес сам.
   livekit:
     <<: [*restart, *logging]
     profiles: ["media"]
     image: livekit/livekit-server:v1.8
-    command: --config /etc/livekit.yaml
+    command: --config /etc/livekit.yaml ${LIVEKIT_NODE_IP:+--node-ip ${LIVEKIT_NODE_IP}}
     environment:
       LIVEKIT_KEYS: "${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}"
       # Задания записи медиасервер передаёт Egress через Redis — тот же, что у

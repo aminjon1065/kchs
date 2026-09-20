@@ -5691,6 +5691,8 @@ export const ru = {
       screenOf: 'Экран: {name}',
       guestTag: 'Гость',
       recording: 'Идёт запись',
+      startRecording: 'Записать встречу',
+      stopRecording: 'Остановить запись',
       people: 'Участники',
       chat: 'Чат встречи',
       chatEmpty: 'В чате встречи пока пусто',
@@ -5754,6 +5756,7 @@ export const ru = {
       left: 'Вы вышли из комнаты',
     },
     errors: {
+      recordFailed: 'Не удалось изменить запись встречи',
       notFound: 'Встреча не найдена',
       joinFailed: 'Не удалось войти во встречу',
       noMedia: 'Медиасервер не настроен',
@@ -5766,6 +5769,13 @@ export const ru = {
     participants: 'Участники',
     participantsCount: 'Участников',
     protocol: {
+      ack: {
+        mine: 'Вас просят ознакомиться с протоколом',
+        mineHint: 'Отметка останется в учёте ознакомления и во Входящих',
+        mark: 'Ознакомлен',
+        done: 'Отметка об ознакомлении поставлена',
+        summary: 'Ознакомлены {acknowledged} из {total}',
+      },
       tab: 'Протокол',
       emptyTitle: 'Протокола ещё нет',
       emptyHint: 'Повестку можно вести до встречи — она станет протоколом',

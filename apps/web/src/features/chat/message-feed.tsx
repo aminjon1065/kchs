@@ -19,6 +19,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   BellOff,
   CheckSquare,
+  ChevronLeft,
   Link2,
   MessageSquare,
   MoreHorizontal,
@@ -77,11 +78,14 @@ export function MessageFeed({
   threadRootId,
   onThread,
   onOpenMeeting,
+  onBack,
 }: {
   conversation: ChatListItem
   threadRootId: string | null
   onThread: (messageId: string | null) => void
   onOpenMeeting: (meetingId: string) => void
+  /** Мобильный веб: возврат к списку бесед — панель здесь одна. */
+  onBack?: () => void
 }) {
   const t = useT()
   const locale = useAppearance((s) => s.locale)
@@ -213,6 +217,11 @@ export function MessageFeed({
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col">
       <header className="flex shrink-0 items-center gap-2 border-b border-line px-3 py-2">
+        {onBack ? (
+          <IconButton size="sm" label={t('common.actions.back')} onClick={onBack}>
+            <ChevronLeft className="size-4" />
+          </IconButton>
+        ) : null}
         <h2 className="min-w-0 truncate text-sm font-medium text-fg">{conversation.title}</h2>
         <Badge tone="neutral" size="sm">
           <Users className="mr-1 size-3" aria-hidden />

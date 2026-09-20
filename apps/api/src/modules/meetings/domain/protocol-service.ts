@@ -351,8 +351,13 @@ export const ProtocolService = {
       throw errors.conflict('Протокол ещё не подтверждён', { status: row.status })
     }
     return db().transaction(async (tx) => {
+      // По умолчанию — участники встречи, кроме того, кто отправляет: он
+      // протокол подтвердил, просить его ознакомиться с ним незачем
+      const me = ctx.onBehalfOf ?? ctx.userId
       const userIds =
-        input.userIds.length > 0 ? input.userIds : await meetingParticipantIds(tx, row.meetingId)
+        input.userIds.length > 0
+          ? input.userIds
+          : (await meetingParticipantIds(tx, row.meetingId)).filter((userId) => userId !== me)
       const outcome = await Acknowledgments.request(tx, ctx, {
         objectId: id,
         source: 'manual',

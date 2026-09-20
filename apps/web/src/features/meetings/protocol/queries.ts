@@ -7,6 +7,7 @@ export const protocolKeys = {
   meeting: (id: string) => ['meeting', id] as const,
   ofMeeting: (id: string) => ['meeting', id, 'protocol'] as const,
   protocol: (id: string) => ['protocol', id] as const,
+  acknowledgments: (id: string) => ['protocol', id, 'acknowledgments'] as const,
 }
 
 export const meetingQuery = (id: string) =>

@@ -5613,6 +5613,8 @@ export const en: DeepPartial<Dictionary> = {
       screenOf: 'Screen: {name}',
       guestTag: 'Guest',
       recording: 'Recording',
+      startRecording: 'Record the meeting',
+      stopRecording: 'Stop recording',
       people: 'Participants',
       chat: 'Meeting chat',
       chatEmpty: 'The meeting chat is empty',
@@ -5675,6 +5677,7 @@ export const en: DeepPartial<Dictionary> = {
       left: 'You left the room',
     },
     errors: {
+      recordFailed: 'Could not change the meeting recording',
       notFound: 'Meeting not found',
       joinFailed: 'Could not join the meeting',
       noMedia: 'The media server is not configured',
@@ -5687,6 +5690,13 @@ export const en: DeepPartial<Dictionary> = {
     participants: 'Participants',
     participantsCount: 'Participants',
     protocol: {
+      ack: {
+        mine: 'You are asked to review the minutes',
+        mineHint: 'The mark stays in the acknowledgment record and in the inbox',
+        mark: 'Reviewed',
+        done: 'Acknowledgment recorded',
+        summary: 'Reviewed {acknowledged} of {total}',
+      },
       tab: 'Minutes',
       emptyTitle: 'No minutes yet',
       emptyHint: 'Keep the agenda before the meeting — it becomes the minutes',

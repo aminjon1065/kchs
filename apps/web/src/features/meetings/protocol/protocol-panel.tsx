@@ -1,4 +1,9 @@
-import type { ProtocolBlockKind, ProtocolDraft, ProtocolRecord } from '@kchs/contracts'
+import type {
+  ObjectAcknowledgments,
+  ProtocolBlockKind,
+  ProtocolDraft,
+  ProtocolRecord,
+} from '@kchs/contracts'
 import {
   Badge,
   Button,
@@ -221,6 +226,7 @@ export function ProtocolBody({ protocolId, meetingId }: { protocolId: string; me
           ) : (
             <Skeleton className="h-40" />
           )}
+          <ProtocolAcknowledgments protocol={protocol} />
           <ProtocolInstructions protocol={protocol} />
         </div>
       </div>
@@ -285,6 +291,58 @@ function ProtocolBlocks({ doc, readOnly }: { doc: Y.Doc; readOnly: boolean }) {
 }
 
 /** Поручения протокола со статусами: их ведёт модуль задач. */
+/**
+ * Ознакомление с протоколом (ADR-0084, ADR-0093): участнику — просьба и
+ * отметка, организатору — сколько человек уже ознакомились. Учёт ведёт ядро,
+ * поэтому здесь только его сводка по объекту протокола.
+ */
+function ProtocolAcknowledgments({ protocol }: { protocol: ProtocolRecord }) {
+  const t = useT()
+  const toast = useToast()
+  const client = useQueryClient()
+  const { data } = useQuery({
+    queryKey: protocolKeys.acknowledgments(protocol.id),
+    queryFn: () => http.get<ObjectAcknowledgments>(`/objects/${protocol.id}/acknowledgments`),
+    enabled: protocol.status === 'confirmed',
+  })
+
+  const acknowledge = useMutation({
+    mutationFn: () =>
+      http.post<ObjectAcknowledgments>(`/objects/${protocol.id}/acknowledgments/acknowledge`, {}),
+    onSuccess: (next) => {
+      client.setQueryData(protocolKeys.acknowledgments(protocol.id), next)
+      void client.invalidateQueries({ queryKey: ['inbox'] })
+      toast.show({ title: t('meetings.protocol.ack.done'), tone: 'success' })
+    },
+    onError: (failure) =>
+      toast.error(failure instanceof ApiError ? failure.message : t('errors.unknown')),
+  })
+
+  if (!data || data.summary.total === 0) return null
+
+  return data.mine.pending ? (
+    <Callout
+      tone="info"
+      title={t('meetings.protocol.ack.mine')}
+      action={
+        <Button size="sm" onClick={() => acknowledge.mutate()} disabled={acknowledge.isPending}>
+          <UserCheck className="size-4" />
+          {t('meetings.protocol.ack.mark')}
+        </Button>
+      }
+    >
+      {t('meetings.protocol.ack.mineHint')}
+    </Callout>
+  ) : (
+    <p className="text-xs text-fg-muted" data-testid="protocol-ack-summary">
+      {t('meetings.protocol.ack.summary', {
+        acknowledged: data.summary.acknowledged,
+        total: data.summary.total,
+      })}
+    </p>
+  )
+}
+
 function ProtocolInstructions({ protocol }: { protocol: ProtocolRecord }) {
   const t = useT()
   const openTab = useWorkspace((s) => s.openTab)

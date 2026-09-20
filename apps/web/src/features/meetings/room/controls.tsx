@@ -11,6 +11,7 @@ import {
   Tooltip,
 } from '@kchs/ui'
 import {
+  Circle,
   Columns2,
   Hand,
   LayoutGrid,
@@ -49,6 +50,10 @@ export function RoomControls({
   canPanels,
   canShowToAll,
   onShowToAll,
+  canRecord,
+  recording,
+  recordPending,
+  onRecord,
   canEnd,
   onEnd,
   onLeave,
@@ -62,6 +67,11 @@ export function RoomControls({
   canPanels: boolean
   canShowToAll: boolean
   onShowToAll: () => void
+  /** Запись ведёт тот, кто ведёт встречу и имеет способность `meetings.record`. */
+  canRecord: boolean
+  recording: boolean
+  recordPending: boolean
+  onRecord: () => void
   canEnd: boolean
   onEnd: () => void
   onLeave: () => void
@@ -142,6 +152,28 @@ export function RoomControls({
             </div>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        {canRecord ? (
+          <Tooltip
+            content={
+              recording ? t('meetings.room.stopRecording') : t('meetings.room.startRecording')
+            }
+          >
+            <Button
+              variant={recording ? 'danger' : 'secondary'}
+              size="sm"
+              onClick={onRecord}
+              loading={recordPending}
+              data-testid="meeting-record"
+              aria-pressed={recording}
+              aria-label={
+                recording ? t('meetings.room.stopRecording') : t('meetings.room.startRecording')
+              }
+            >
+              <Circle className={cn('size-4', recording && 'fill-current')} />
+            </Button>
+          </Tooltip>
+        ) : null}
 
         {canShowToAll ? (
           <Tooltip content={t('meetings.room.showToAllHint')}>

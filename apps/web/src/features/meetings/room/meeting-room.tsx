@@ -10,11 +10,13 @@ import {
   Spinner,
   useToast,
 } from '@kchs/ui'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Circle, MonitorUp } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import { useT } from '~/app/i18n.js'
+import { http } from '~/shared/api/client.js'
 import { objectLinksQuery } from '~/shared/api/queries.js'
+import { meetingKeys } from '../queries.js'
 import { RoomControls, type RoomLayout, type SidePanel } from './controls.js'
 import { RoomAudio, VideoTile } from './media.js'
 import { MeetingChat, PeoplePanel } from './side-panel.js'
@@ -56,6 +58,20 @@ export function MeetingRoom({
   const [layout, setLayout] = useState<RoomLayout>('grid')
   const [panel, setPanel] = useState<SidePanel>('none')
   const [showOpen, setShowOpen] = useState(false)
+  const client = useQueryClient()
+
+  // Запись встречи (ADR-0092): состояние ведёт сервер, индикатор — у всех
+  const active = meeting?.recording ?? null
+  const record = useMutation({
+    mutationFn: async () => {
+      if (active) await http.post(`/recordings/${active.id}/stop`)
+      else await http.post(`/meetings/${meeting?.id}/recording/start`)
+    },
+    onSuccess: () => {
+      if (meeting) void client.invalidateQueries({ queryKey: meetingKeys.meeting(meeting.id) })
+    },
+    onError: () => toast.error(t('meetings.errors.recordFailed')),
+  })
 
   const onSignal = useCallback(
     (signal: MeetingSignal) => {
@@ -88,7 +104,7 @@ export function MeetingRoom({
     <div className="flex h-full min-h-0 flex-col bg-canvas" data-testid="meeting-room">
       <header className="flex items-center gap-2 border-b border-line px-3 py-2">
         <span className="truncate text-sm font-medium">{title}</span>
-        {room.recording ? (
+        {room.recording || active ? (
           <Badge tone="danger" size="sm" data-testid="meeting-recording">
             <Circle className="size-2 fill-current" aria-hidden />
             {t('meetings.room.recording')}
@@ -185,6 +201,10 @@ export function MeetingRoom({
         canPanels={!guest}
         canShowToAll={!guest}
         onShowToAll={() => setShowOpen(true)}
+        canRecord={Boolean(meeting?.can.record)}
+        recording={Boolean(active)}
+        recordPending={record.isPending}
+        onRecord={() => record.mutate()}
         canEnd={Boolean(onEnd) && Boolean(meeting?.can.end)}
         onEnd={() => onEnd?.()}
         onLeave={leave}

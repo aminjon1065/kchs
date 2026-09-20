@@ -8,15 +8,16 @@ import {
   ObjectIcon,
 } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
-import { Bell, Folder, Home, Inbox, MoreHorizontal, Search } from 'lucide-react'
+import { Bell, Folder, Home, Inbox, MessageSquare, MoreHorizontal, Search } from 'lucide-react'
+import { chatListQuery } from '~/features/chat/queries.js'
 import { inboxCountsQuery, meQuery } from '~/shared/api/queries.js'
 import { useT } from '../i18n.js'
 import { useWorkspace } from './store.js'
 import type { ScreenKey } from './types.js'
 
 /**
- * Нижняя навигация мобильного веба (03-ui/01-ux-concept.md §9):
- * Мой день, Входящие, Поиск, Файлы, Ещё.
+ * Нижняя навигация мобильного веба (03-ui/01-ux-concept.md, адаптив):
+ * Мой день, Входящие, Поиск, Чаты, Ещё; файлы и остальное — в «Ещё».
  */
 export function MobileNav({ onOpenPalette }: { onOpenPalette: () => void }) {
   const t = useT()
@@ -25,6 +26,7 @@ export function MobileNav({ onOpenPalette }: { onOpenPalette: () => void }) {
   const setNavigatorModule = useWorkspace((s) => s.setNavigatorModule)
   const { data: counts } = useQuery(inboxCountsQuery())
   const { data: me } = useQuery(meQuery())
+  const { data: chats } = useQuery(chatListQuery('all'))
 
   const go = (screen: ScreenKey, labelKey: string, icon: string): void => {
     setNavigatorModule(screen)
@@ -47,7 +49,13 @@ export function MobileNav({ onOpenPalette }: { onOpenPalette: () => void }) {
       iconName: 'view',
       action: onOpenPalette,
     },
-    { key: 'files' as const, icon: Folder, labelKey: 'shell.rail.files', iconName: 'folder' },
+    {
+      key: 'chats' as const,
+      icon: MessageSquare,
+      labelKey: 'shell.rail.chats',
+      iconName: 'conversation',
+      badge: chats?.totalUnread,
+    },
   ]
 
   return (
@@ -92,6 +100,12 @@ export function MobileNav({ onOpenPalette }: { onOpenPalette: () => void }) {
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" side="top" className="mb-2 min-w-[200px]">
+          <DropdownMenuItem
+            icon={<Folder className="size-4" />}
+            onSelect={() => go('files', 'shell.rail.files', 'folder')}
+          >
+            {t('shell.rail.files')}
+          </DropdownMenuItem>
           <DropdownMenuItem
             icon={<ObjectIcon type="space" className="size-4" />}
             onSelect={() => go('spaces', 'spaces.title', 'space')}

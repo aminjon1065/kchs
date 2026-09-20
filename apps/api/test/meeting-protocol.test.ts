@@ -332,6 +332,13 @@ describe('черновик ИИ, подтверждение, документ и
     expect(list.statusCode, list.body).toBe(200)
     expect(list.json().mine).toMatchObject({ pending: true })
 
+    // Отправителя просить незачем: он же протокол и подтвердил
+    const mineAsOrganizer = await call(fx.app, {
+      url: `/objects/${protocolId}/acknowledgments`,
+      as: organizer,
+    })
+    expect(mineAsOrganizer.json().mine).toMatchObject({ pending: false })
+
     const acknowledged = await call(fx.app, {
       method: 'POST',
       url: `/objects/${protocolId}/acknowledgments/acknowledge`,
