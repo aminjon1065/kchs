@@ -30,6 +30,11 @@ import { errors } from '~/shared/errors.js'
 import { rateLimit } from '~/shared/http/rate-limit.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { registerBasemapObjectType, registerBasemapRoutes } from './basemaps.js'
+import {
+  registerServiceLayerBackground,
+  registerServiceLayerObjectType,
+  registerServiceLayerRoutes,
+} from './service-layers.js'
 import { FeatureEditService } from './domain/feature-edit-service.js'
 import { FeatureService } from './domain/feature-service.js'
 import { featureSubscribers } from './domain/feature-subscribers.js'
@@ -94,6 +99,7 @@ async function titleSearchable(id: string, type: 'layer' | 'map') {
  */
 export function registerGisObjectTypes(): void {
   registerBasemapObjectType()
+  registerServiceLayerObjectType()
   // Слой и карта: права на объект не открывают данные — тайлы и объекты
   // читаются с политиками смотрящего (03-access-model.md)
   for (const type of ['layer', 'map'] as const) {
@@ -188,11 +194,13 @@ export function registerGisObjectTypes(): void {
 /** Подписчики модуля — только в роли worker: уведомления о правках слоёв. */
 export function registerGisBackground(): void {
   for (const subscriber of featureSubscribers) registerSubscriber(subscriber)
+  registerServiceLayerBackground()
 }
 
 export function registerGisRoutes(route: RouteRegistrar): void {
   registerTerritoryRoutes(route)
   registerBasemapRoutes(route)
+  registerServiceLayerRoutes(route)
   registerFeatureRoutes(route)
   route({
     method: 'GET',

@@ -21,6 +21,11 @@ import { LayerService } from './layer-service.js'
 async function assertLayers(ctx: Ctx, spec: MapSpec): Promise<string[]> {
   const ids = [...new Set(spec.layers.map((entry) => entry.layerId))]
   for (const id of ids) await authorize(ctx, 'view', id)
+  // Слои-ссылки на внешние службы (ADR-0108) — тоже объекты: право видеть их обязательно
+  for (const id of new Set(spec.services.map((entry) => entry.serviceId))) {
+    await authorize(ctx, 'view', id)
+    ids.push(id)
+  }
   return ids
 }
 

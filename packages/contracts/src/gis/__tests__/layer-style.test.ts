@@ -80,6 +80,7 @@ describe('контракт LayerStyle (docs/contracts/layer-style.md)', () => {
       basemapId: null,
       camera: { center: [69, 38.6], zoom: 6, bearing: 0, pitch: 0 },
       layers: [],
+      services: [],
       bookmarks: [],
       time: null,
     })
