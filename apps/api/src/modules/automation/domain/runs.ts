@@ -6,7 +6,7 @@ import type {
   RuleRunStep,
   RuleTriggerKind,
 } from '@kchs/contracts'
-import { and, count, desc, eq, inArray, isNull, lt, sql } from 'drizzle-orm'
+import { and, count, desc, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm'
 import { directory } from '~/kernel/directory/port.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { JobService } from '~/kernel/jobs/service.js'
@@ -109,7 +109,7 @@ export const RuleRuns = {
   async finish(
     runId: string,
     status: RuleRunStatus,
-    options: { error?: string | null; resumeAt?: number } = {},
+    options: { error?: string | null; resumeAt?: number; waitUntil?: string } = {},
   ): Promise<void> {
     const finished = status !== 'waiting'
     await db()
@@ -118,6 +118,12 @@ export const RuleRuns = {
         status,
         error: options.error ?? null,
         ...(options.resumeAt !== undefined ? { resumeAt: options.resumeAt } : {}),
+        // Момент продолжения после `wait`: по нему обход находит потерянное задание
+        ...(options.waitUntil
+          ? {
+              context: sql`${ruleRuns.context} || ${JSON.stringify({ waitUntil: options.waitUntil })}::jsonb`,
+            }
+          : {}),
         ...(finished ? { finishedAt: sql`now()` } : {}),
       })
       .where(eq(ruleRuns.id, runId))
@@ -266,16 +272,28 @@ export const RuleRuns = {
     return deleted.length
   },
 
-  /** Запуски, застрявшие в очереди: задание потеряно — вернуть в очередь. */
+  /**
+   * Запуски, застрявшие без задания: очередь очищена или задание потеряно.
+   * Ожидание (`wait`) считается потерянным, когда его момент прошёл давно.
+   */
   async stale(olderThanMinutes = 10): Promise<string[]> {
     const rows = await db()
       .select({ id: ruleRuns.id })
       .from(ruleRuns)
       .where(
         and(
-          inArray(ruleRuns.status, ['queued', 'running']),
           isNull(ruleRuns.finishedAt),
-          lt(ruleRuns.createdAt, sql`now() - make_interval(mins => ${olderThanMinutes})`),
+          or(
+            and(
+              inArray(ruleRuns.status, ['queued', 'running']),
+              lt(ruleRuns.createdAt, sql`now() - make_interval(mins => ${olderThanMinutes})`),
+            ),
+            and(
+              eq(ruleRuns.status, 'waiting'),
+              sql`(${ruleRuns.context} ->> 'waitUntil')::timestamptz
+                    < now() - make_interval(mins => ${olderThanMinutes})`,
+            ),
+          ),
         ),
       )
       .limit(100)

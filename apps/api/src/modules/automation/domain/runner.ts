@@ -194,8 +194,12 @@ export async function executeRun(runId: string): Promise<RunOutcome> {
         step(index, action, 'ok', outcome.message, outcome.objectId ?? null, startedAt),
       )
       if (outcome.waitMinutes) {
-        await RuleRuns.finish(runId, 'waiting', { resumeAt: index + 1 })
-        await RuleRuns.resume(runId, outcome.waitMinutes * 60_000)
+        const delayMs = outcome.waitMinutes * 60_000
+        await RuleRuns.finish(runId, 'waiting', {
+          resumeAt: index + 1,
+          waitUntil: new Date(Date.now() + delayMs).toISOString(),
+        })
+        await RuleRuns.resume(runId, delayMs)
         return { status: 'waiting' }
       }
       if (outcome.stop) break
