@@ -335,6 +335,8 @@ export const DATASET_VERSION_ORIGINS = [
   'rollback',
   'schema',
   'analysis',
+  'pipeline',
+  'sync',
 ] as const
 export const DatasetVersionOrigin = z.enum(DATASET_VERSION_ORIGINS)
 

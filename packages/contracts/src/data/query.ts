@@ -231,6 +231,22 @@ const SpatialStep = z.object({
 
 const UnnestStep = z.object({ type: z.literal('unnest'), field: FieldRef })
 
+/**
+ * Столбцы → строки (ADR-0106): выбранные поля превращаются в пары «имя,
+ * значение», остальные (`keep`) повторяются в каждой строке. Значения
+ * приводятся к общему типу — иначе результат нельзя было бы сложить в один
+ * столбец.
+ */
+const UnpivotStep = z.object({
+  type: z.literal('unpivot'),
+  keep: z.array(FieldRef).max(50).default([]),
+  fields: z.array(FieldRef).min(1).max(200),
+  nameField: QueryAlias.default('name'),
+  valueField: QueryAlias.default('value'),
+  /** Не создавать строку для пустого значения. */
+  dropNulls: z.boolean().default(true),
+})
+
 const SampleStep = z
   .object({
     type: z.literal('sample'),
@@ -254,6 +270,7 @@ export const QueryStep = z.union([
   UnionStep,
   SpatialStep,
   UnnestStep,
+  UnpivotStep,
   SampleStep,
 ])
 export type QueryStep = z.infer<typeof QueryStep>

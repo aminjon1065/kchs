@@ -428,3 +428,122 @@ export const datasetQualityRuns = pgTable(
   },
   (t) => [index('dataset_quality_runs_idx').on(t.datasetId, t.checkedAt)],
 )
+
+/**
+ * Пайплайн преобразований — объект реестра типа `pipeline`
+ * (06-analytics-engine.md §16, ADR-0106): определение шагов, расписание и
+ * состояние последнего прогона. Результат — новая версия выходного датасета.
+ */
+export const pipelines = pgTable(
+  'pipelines',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .references(() => objects.id, { onDelete: 'cascade' }),
+    /** `PipelineDefinition`: источник, шаги, название результата. */
+    definition: jsonbObject('definition'),
+    description: text('description'),
+    /** Расписание cron (5 полей) или null. */
+    schedule: text('schedule'),
+    enabled: boolean('enabled').notNull().default(true),
+    /** Запускать после успешного импорта входного датасета. */
+    runOnImport: boolean('run_on_import').notNull().default(false),
+    inputDatasetIds: uuid('input_dataset_ids').array().notNull().default(sql`'{}'::uuid[]`),
+    outputDatasetId: uuid('output_dataset_id').references(() => datasets.id, {
+      onDelete: 'set null',
+    }),
+    status: text('status').notNull().default('draft'),
+    jobId: uuid('job_id'),
+    rowCount: bigint('row_count', { mode: 'number' }),
+    error: text('error'),
+    lastRunAt: tsCol('last_run_at'),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index('pipelines_output_idx').on(t.outputDatasetId),
+    index('pipelines_inputs_idx').using('gin', t.inputDatasetIds),
+    index('pipelines_enabled_idx').on(t.enabled),
+  ],
+)
+
+/** Журнал прогонов пайплайна: чем запущен, сколько строк, что пошло не так. */
+export const pipelineRuns = pgTable(
+  'pipeline_runs',
+  {
+    id: uuid('id').primaryKey(),
+    pipelineId: uuid('pipeline_id')
+      .notNull()
+      .references(() => pipelines.id, { onDelete: 'cascade' }),
+    jobId: uuid('job_id'),
+    status: text('status').notNull().default('queued'),
+    /** `manual` | `schedule` | `import` | `rule`. */
+    trigger: text('trigger').notNull().default('manual'),
+    stats: jsonbObject('stats'),
+    error: text('error'),
+    rejected: integer('rejected').notNull().default(0),
+    startedAt: tsCol('started_at').notNull().default(sql`now()`),
+    finishedAt: tsCol('finished_at'),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  },
+  (t) => [index('pipeline_runs_pipeline_idx').on(t.pipelineId, t.startedAt)],
+)
+
+/**
+ * Источник датасета — объект реестра типа `source` (05-data-model.md §Данные,
+ * ADR-0107): интеграция с подключением к внешней СУБД плюс запрос или таблица.
+ * Учётные данные живут в интеграции — здесь их нет.
+ */
+export const sources = pgTable(
+  'sources',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .references(() => objects.id, { onDelete: 'cascade' }),
+    kind: text('kind').notNull().default('database'),
+    integrationId: uuid('integration_id').notNull(),
+    /** `{ query, columns, cursorField, keyFields, datasetName }`. */
+    config: jsonbObject('config'),
+    description: text('description'),
+    /** `snapshot` — полная перезагрузка версии, `incremental` — по полю-курсору. */
+    mode: text('mode').notNull().default('snapshot'),
+    /** Последнее перенесённое значение курсора (текстом). */
+    cursorValue: text('cursor_value'),
+    datasetId: uuid('dataset_id').references(() => datasets.id, { onDelete: 'set null' }),
+    schedule: text('schedule'),
+    enabled: boolean('enabled').notNull().default(true),
+    status: text('status').notNull().default('draft'),
+    statusMessage: text('status_message'),
+    lastCheckAt: tsCol('last_check_at'),
+    lastRunAt: tsCol('last_run_at'),
+    rowCount: bigint('row_count', { mode: 'number' }),
+    jobId: uuid('job_id'),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index('sources_dataset_idx').on(t.datasetId),
+    index('sources_integration_idx').on(t.integrationId),
+    index('sources_enabled_idx').on(t.enabled),
+  ],
+)
+
+/** Журнал синхронизаций источника: у интеграции — свой, общий по всем источникам. */
+export const sourceRuns = pgTable(
+  'source_runs',
+  {
+    id: uuid('id').primaryKey(),
+    sourceId: uuid('source_id')
+      .notNull()
+      .references(() => sources.id, { onDelete: 'cascade' }),
+    jobId: uuid('job_id'),
+    status: text('status').notNull().default('queued'),
+    mode: text('mode').notNull().default('snapshot'),
+    stats: jsonbObject('stats'),
+    error: text('error'),
+    startedAt: tsCol('started_at').notNull().default(sql`now()`),
+    finishedAt: tsCol('finished_at'),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  },
+  (t) => [index('source_runs_source_idx').on(t.sourceId, t.startedAt)],
+)

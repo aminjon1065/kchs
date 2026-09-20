@@ -274,6 +274,9 @@ class StepCompiler {
       case 'unnest':
         this.unnest(step, path)
         break
+      case 'unpivot':
+        this.unpivot(step, path)
+        break
       case 'pivot':
         fail([...path, 'type'], 'Шаг «pivot» не поддерживается в фазе 1', {
           hint: 'Сводную таблицу строит клиент по результату шага aggregate',
@@ -1090,6 +1093,84 @@ class StepCompiler {
       `SELECT ${select.join(', ')}\nFROM ${this.ref()}\nLEFT JOIN LATERAL unnest(${this.col(target)}) AS ${d.ident('u')}(${d.ident('value')}) ON TRUE`,
       columns,
     )
+  }
+
+  /**
+   * Столбцы → строки (ADR-0106): `CROSS JOIN LATERAL (VALUES …)`. Значения
+   * приводятся к общему типу; несводимые — к тексту, чтобы столбец значения был
+   * одного типа.
+   */
+  private unpivot(step: Step<'unpivot'>, path: IssuePath): void {
+    const relation = this.rel
+    const d = this.d
+    const kept = step.keep.map((ref, index) =>
+      resolveColumn(relation, ref, [...path, 'keep', index]),
+    )
+    const targets = step.fields.map((ref, index) => {
+      const column = resolveColumn(relation, ref, [...path, 'fields', index])
+      if (column.type === 'geometry' || column.type === 'text[]' || column.type === 'json') {
+        fail(
+          [...path, 'fields', index],
+          `Поле «${ref}» типа «${VALUE_TYPE_LABELS[column.type]}» в строки не разворачивается`,
+        )
+      }
+      return column
+    })
+    let valueType: ValueType = targets[0]?.type ?? 'text'
+    for (const column of targets.slice(1)) valueType = unify(valueType, column.type) ?? 'text'
+    if (valueType === 'null') valueType = 'text'
+    const valueSql = sqlTypeOfValue(valueType)
+    const rows = targets.map((column, index) => {
+      const label = this.state.binder.add(step.fields[index], 'text')
+      return `(${label}, (${this.col(column)})::${valueSql})`
+    })
+
+    const taken = new Set<string>()
+    const columns: Column[] = []
+    const select: string[] = []
+    for (const column of kept) {
+      const internal = uniqueInternal(taken, column.name)
+      taken.add(internal)
+      select.push(`${this.col(column)} AS ${d.ident(internal)}`)
+      columns.push({ ...column, internal, hidden: false })
+    }
+    const nameInternal = uniqueInternal(taken, step.nameField)
+    taken.add(nameInternal)
+    const valueInternal = uniqueInternal(taken, step.valueField)
+    select.push(`${d.ident('u')}.${d.ident('name')} AS ${d.ident(nameInternal)}`)
+    select.push(`${d.ident('u')}.${d.ident('value')} AS ${d.ident(valueInternal)}`)
+    columns.push(
+      {
+        name: step.nameField,
+        qualifier: null,
+        internal: nameInternal,
+        type: 'text',
+        meta: { fieldType: 'text', semantic: 'dimension', label: null, format: null },
+        hidden: false,
+      },
+      {
+        name: step.valueField,
+        qualifier: null,
+        internal: valueInternal,
+        type: valueType,
+        meta: {
+          fieldType: fieldTypeOfValue(valueType),
+          semantic: semanticOfValue(valueType),
+          label: null,
+          format: null,
+        },
+        hidden: false,
+      },
+    )
+
+    const where = step.dropNulls ? `\nWHERE ${d.ident('u')}.${d.ident('value')} IS NOT NULL` : ''
+    const name = this.state.nextName(this.prefix)
+    this.state.addCte(
+      name,
+      `SELECT ${select.join(', ')}\nFROM ${this.ref()}\nCROSS JOIN LATERAL (VALUES ${rows.join(', ')}) AS ${d.ident('u')}(${d.ident('name')}, ${d.ident('value')})${where}`,
+    )
+    this.pipeline.relation = { ...relation, name, columns, qualifiers: new Set() }
+    this.pipeline.ordering = []
   }
 }
 

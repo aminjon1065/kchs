@@ -281,6 +281,13 @@
       "when": 1789902274583,
       "tag": "20260920110434_automation_rules",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1789914555337,
+      "tag": "20260920142915_pipelines-sources",
+      "breakpoints": true
     }
   ]
 }

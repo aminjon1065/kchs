@@ -501,6 +501,31 @@ export const Physical = {
   },
 
   /**
+   * Пачка строк внешнего источника → staging (ADR-0107): JSON одним параметром,
+   * номера строк продолжают сквозную нумерацию пачек. Значения — параметром,
+   * в текст запроса идут только проверенные имена столбцов.
+   */
+  async insertStagingJson(
+    staging: string,
+    columns: PhysicalColumn[],
+    rows: Array<Record<string, unknown>>,
+    firstRow: number,
+  ): Promise<number> {
+    if (rows.length === 0) return 0
+    if (columns.length === 0) throw errors.internal('Нет столбцов для строк источника')
+    const list = columns.map((column) => ident(column.name)).join(', ')
+    const record = columns.map((column) => `${ident(column.name)} ${recordType(column)}`)
+    const values = columns.map((column) => recordValue(column)).join(', ')
+    const result = await rawSql().unsafe(
+      `INSERT INTO ${qualified(staging)} (_row, ${list})
+         SELECT $2::bigint + row_number() OVER (), ${values}
+           FROM jsonb_to_recordset($1::jsonb) AS r(${record.join(', ')})`,
+      [JSON.stringify(rows), String(firstRow)],
+    )
+    return result.count ?? rows.length
+  },
+
+  /**
    * Повторы ключа в staging: остаётся последняя строка файла, прочие — в
    * отчёт об ошибках. Возвращает номера отброшенных строк.
    */

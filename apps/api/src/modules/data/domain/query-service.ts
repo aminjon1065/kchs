@@ -565,6 +565,67 @@ export const QueryService = {
    * только для чтения с тайм-аутом и поясом пользователя, кэш — если запрос
    * детерминированный. Нужна способность `data.sql`.
    */
+  /**
+   * Компиляция сырого SQL вне лаборатории — для задания (свой SQL пайплайна,
+   * ADR-0106): тот же разбор, те же подзапросы-политики и та же роль.
+   */
+  async compileSql(
+    ctx: Ctx,
+    sqlText: string,
+    options: { maxRows: number; params?: Record<string, unknown>; timeoutMs?: number },
+  ): Promise<CompiledRawSql> {
+    requireCapability(ctx, 'data.sql')
+    try {
+      const datasets = await sqlDatasets(ctx, await rawSqlTables(sqlText))
+      const compiled = await compileRawSql(sqlText, {
+        datasets,
+        user: compileUser(ctx),
+        params: options.params ?? {},
+        now: new Date(),
+        ...(ctx.kind === 'user' ? { timezone: ctx.timezone } : {}),
+        maxRows: options.maxRows,
+        ...(await referenceContext(ctx)),
+      })
+      return options.timeoutMs ? { ...compiled, timeoutMs: options.timeoutMs } : compiled
+    } catch (error) {
+      if (error instanceof QueryCompileError) throw compileError(error)
+      throw error
+    }
+  },
+
+  /**
+   * Столбцы результата сырого SQL до выполнения: описание строки на выборке без
+   * строк. Имена столбцов сырого SQL известны только Postgres.
+   */
+  async sqlFields(compiled: CompiledRawSql): Promise<QueryResultField[]> {
+    const probe = await queryRoleSql().begin('read only', async (sql) => {
+      await sql`SELECT set_config('statement_timeout', ${String(compiled.timeoutMs)}, true),
+                       set_config('TimeZone', ${compiled.timezone}, true)`
+      return sql
+        .unsafe(
+          `SELECT * FROM (${compiled.sql}) AS "__kchs_head" LIMIT 0`,
+          compiled.params as never[],
+        )
+        .values()
+    })
+    const columns = (probe as { columns?: Array<{ name: string; type: number }> }).columns ?? []
+    return columns.map((column, index) => {
+      const field = compiled.fields?.[index]?.field ?? null
+      if (field) {
+        return field.type === 'geometry'
+          ? { ...field, name: column.name, type: 'text' as FieldType }
+          : { ...field, name: column.name }
+      }
+      return {
+        name: column.name,
+        type: PG_TYPES[column.type] ?? 'text',
+        semantic: null,
+        label: null,
+        format: null,
+      }
+    })
+  },
+
   async runSql(ctx: Ctx, input: SqlRunInput): Promise<QueryResult> {
     requireCapability(ctx, 'data.sql')
     const started = performance.now()
@@ -668,13 +729,19 @@ export const QueryService = {
    * прогресса. Кэш результатов не участвует.
    */
   async stream<T>(
-    compiled: CompiledQuery,
+    compiled: Pick<CompiledQuery, 'sql' | 'params' | 'countSql' | 'countParams' | 'timeoutMs'> & {
+      /** Пояс запроса — у сырого SQL свой (`CompiledRawSql.timezone`). */
+      timezone?: string
+    },
     consume: (batches: AsyncIterable<Array<Record<string, unknown>>>, total: number) => Promise<T>,
     batchSize = STREAM_BATCH,
   ): Promise<T> {
     try {
       const result = await queryRoleSql().begin('read only', async (sql) => {
         await sql`SELECT set_config('statement_timeout', ${String(compiled.timeoutMs)}, true)`
+        if (compiled.timezone) {
+          await sql`SELECT set_config('TimeZone', ${compiled.timezone}, true)`
+        }
         const counted = await sql.unsafe(compiled.countSql, compiled.countParams as never[])
         const total = Number((counted[0] as { count?: unknown } | undefined)?.count ?? 0)
         const cursor = sql.unsafe(compiled.sql, compiled.params as never[]).cursor(batchSize)

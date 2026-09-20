@@ -79,6 +79,10 @@ interface Typed {
 }
 
 const DATE_UNITS: readonly DateUnit[] = ['year', 'quarter', 'month', 'week', 'day', 'hour']
+
+/** Типы, к которым приводит `cast(x, '…')` (ADR-0106). */
+const CAST_TARGETS = new Set(['text', 'number', 'boolean', 'date', 'datetime'])
+type CastTarget = 'text' | 'number' | 'boolean' | 'date' | 'datetime'
 const INTERVAL_UNITS: readonly IntervalUnit[] = [
   'year',
   'quarter',
@@ -1025,6 +1029,36 @@ class ExprCompiler {
           `user_attr('${key.literal.value}')`,
         )
       }
+      /**
+       * Приведение типа (ADR-0106): `cast(x, 'number')`. Значение, которое не
+       * приводится, становится пустым — шаг пайплайна не должен падать из-за
+       * одной строки. Целевой тип — строковый литерал.
+       */
+      case 'cast': {
+        arity(2)
+        const target = arg(1)
+        if (target.literal?.kind !== 'string') {
+          throw new ExpressionError(
+            'Тип пишется строкой',
+            target.pos,
+            "Например, cast(x, 'number')",
+          )
+        }
+        const to = String(target.literal.value).toLowerCase()
+        if (!CAST_TARGETS.has(to)) {
+          throw new ExpressionError(
+            `Приведение к «${to}» не поддерживается`,
+            target.pos,
+            `Возможные типы: ${[...CAST_TARGETS].join(', ')}`,
+          )
+        }
+        const value = arg(0)
+        const type = to as CastTarget
+        if (value.type === type || value.type === 'null') {
+          return this.make(type, args, span, () => value.emit(type))
+        }
+        return this.make(type, args, span, () => this.castSql(value, type))
+      }
       default:
         throw new ExpressionError(`Неизвестная функция ${name}()`, pos, 'Проверьте имя функции')
     }
@@ -1214,6 +1248,47 @@ class ExprCompiler {
       }
     }
     return type
+  }
+
+  /**
+   * SQL приведения: текст проверяется `pg_input_is_valid`, поэтому мусорное
+   * значение даёт `NULL`, а не ошибку всего запроса.
+   */
+  private castSql(value: Typed, to: CastTarget): string {
+    const d = this.d
+    if (to === 'text') {
+      const source = value.type === 'geometry' ? d.geoJson(value.emit('geometry')) : value.emit()
+      return `(${source})::text`
+    }
+    if (value.type === 'text') {
+      const text = `btrim(${value.emit('text')})`
+      if (to === 'number') return d.tryCast(text, 'double precision')
+      if (to === 'boolean') return d.tryCast(text, 'boolean')
+      if (to === 'date') return d.tryCast(text, 'date')
+      return d.tryCast(text, 'timestamptz')
+    }
+    if (to === 'number') {
+      if (value.type === 'boolean') return `(CASE WHEN ${value.emit('boolean')} THEN 1 ELSE 0 END)`
+      throw new ExpressionError(
+        `Значение типа «${VALUE_TYPE_LABELS[value.type]}» к числу не приводится`,
+        value.pos,
+      )
+    }
+    if (to === 'boolean') {
+      if (value.type === 'number') return `(${value.emit('number')} <> 0)`
+      throw new ExpressionError(
+        `Значение типа «${VALUE_TYPE_LABELS[value.type]}» к логическому не приводится`,
+        value.pos,
+      )
+    }
+    if (to === 'date' && value.type === 'datetime') {
+      return d.localDate(value.emit('datetime'), this.env.timezone())
+    }
+    if (to === 'datetime' && value.type === 'date') return `(${value.emit('date')})::timestamptz`
+    throw new ExpressionError(
+      `Значение типа «${VALUE_TYPE_LABELS[value.type]}» к «${to}» не приводится`,
+      value.pos,
+    )
   }
 
   private integerLiteral(value: Typed, what: string): number {

@@ -2,6 +2,7 @@ import { lookup } from 'node:dns/promises'
 import { isIP } from 'node:net'
 import { config } from '~/shared/config/index.js'
 import type { IntegrationRow } from '~/shared/db/schema/index.js'
+import { DATABASE_KINDS, ExternalDatabases } from './database-source.js'
 
 /** Сколько ждём ответа при проверке связи и при доставке вебхука. */
 export const OUTBOUND_TIMEOUT_MS = 10_000
@@ -103,6 +104,8 @@ export async function checkIntegration(
     }
   }
 
+  if (DATABASE_KINDS.has(row.kind)) return ExternalDatabases.check(row, secrets)
+
   const required = REQUIRED_SECRETS[row.kind] ?? []
   const missing = required.filter((key) => !secrets[key])
   if (missing.length > 0) {
@@ -120,5 +123,7 @@ const REQUIRED_SECRETS: Record<string, string[]> = {
   oidc: ['clientSecret'],
   s3: ['secretKey'],
   sftp: ['password'],
+  postgres: ['password'],
+  mysql: ['password'],
   custom: [],
 }

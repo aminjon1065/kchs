@@ -300,6 +300,10 @@ export const KNOWN_DOMAINS = [
   // Правила автоматизации и входящие вызовы (ADR-0096)
   'rule',
   'webhook',
+  // Пайплайны, внешние источники и слои-ссылки (ADR-0106…0108)
+  'pipeline',
+  'source',
+  'service_layer',
 ] as const
 
 function resolveDomains(): string[] {

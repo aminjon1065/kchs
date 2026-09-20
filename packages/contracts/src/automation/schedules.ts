@@ -8,7 +8,7 @@ import { QueueName } from '../jobs/job.js'
  * по показателю. Экран «Расписания» в администрировании показывает их вместе.
  */
 
-export const SCHEDULE_KINDS = ['system', 'rule'] as const
+export const SCHEDULE_KINDS = ['system', 'rule', 'pipeline', 'source'] as const
 export const ScheduleKind = z.enum(SCHEDULE_KINDS)
 export type ScheduleKind = z.infer<typeof ScheduleKind>
 
@@ -21,7 +21,7 @@ export const ScheduleLastRun = z.object({
 export type ScheduleLastRun = z.infer<typeof ScheduleLastRun>
 
 export const ScheduleRecord = z.object({
-  /** Ключ расписания: `system:maintenance:trash.purge`, `rule:<id>`. */
+  /** Ключ расписания: `system:maintenance:trash.purge`, `rule:<id>`, `pipeline:<id>`. */
   key: z.string(),
   kind: ScheduleKind,
   /** Ключ словаря для системных заданий; у правил — null (название своё). */
@@ -34,8 +34,8 @@ export const ScheduleRecord = z.object({
   enabled: z.boolean(),
   nextRunAt: Timestamp.nullable(),
   lastRun: ScheduleLastRun.nullable(),
-  /** Правило, которому принадлежит расписание. */
-  ruleId: Uuid.nullable(),
+  /** Объект, которому принадлежит расписание (правило, пайплайн, источник). */
+  objectId: Uuid.nullable(),
 })
 export type ScheduleRecord = z.infer<typeof ScheduleRecord>
 

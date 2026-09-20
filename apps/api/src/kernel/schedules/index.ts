@@ -13,11 +13,11 @@ export {
   scheduleKey,
 } from './registry.js'
 export {
+  type EntityScheduleEntry,
+  type EntityScheduleProvider,
   nextRunAt,
   nextRuns,
-  type RuleScheduleEntry,
-  type RuleScheduleProvider,
+  registerEntityScheduleProvider,
   ScheduleService,
-  setRuleScheduleProvider,
   syncSchedules,
 } from './service.js'
