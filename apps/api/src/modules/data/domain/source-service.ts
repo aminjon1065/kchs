@@ -25,7 +25,7 @@ import { nextRuns } from '~/kernel/schedules/index.js'
 import { ExternalDatabase, externalValue, Integrations } from '~/modules/integrations/public.js'
 import { actorId, type Ctx, systemCtx, type UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import { integrations, objects, sourceRuns, sources } from '~/shared/db/schema/index.js'
+import { datasets, integrations, objects, sourceRuns, sources } from '~/shared/db/schema/index.js'
 import { AppError, errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { logger } from '~/shared/logger/index.js'
@@ -253,7 +253,8 @@ export const SourceService = {
         enabled: input.enabled,
         status: 'draft',
       })
-      await tx.update(objects).set({ updatedAt: sql`now()` }).where(eq(objects.id, object.id))
+      // `datasets.source_id` — «откуда данные» на карточке датасета (05-data-model.md)
+      await tx.update(datasets).set({ sourceId: object.id }).where(eq(datasets.id, datasetId))
       // Происхождение: датасет ← источник ← интеграция (ADR-0102)
       await LinkService.setDependencies(tx, object.id, [input.integrationId], 'uses')
       await LinkService.setDependencies(tx, datasetId, [object.id], 'derives_from')
@@ -510,8 +511,14 @@ export const SourceService = {
         row.integrationId,
         {
           query: config.query,
-          ...(mode === 'incremental' ? { cursorField: config.cursorField } : {}),
-          ...(mode === 'incremental' ? { cursorValue: row.cursorValue ?? '' } : {}),
+          ...(mode === 'incremental'
+            ? {
+                cursorField: config.cursorField,
+                cursorType: config.columns.find((column) => column.name === config.cursorField)
+                  ?.type,
+                cursorValue: row.cursorValue,
+              }
+            : {}),
         },
         async (batch) => {
           if (read + batch.length > SOURCE_MAX_ROWS) {

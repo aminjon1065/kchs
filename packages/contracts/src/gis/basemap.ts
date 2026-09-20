@@ -197,32 +197,26 @@ const zoomOrder = (value: { minZoom?: number; maxZoom?: number }) =>
   value.minZoom === undefined || value.maxZoom === undefined || value.minZoom <= value.maxZoom
 
 /**
- * Адрес подложки по виду: XYZ — шаблон с номером тайла, WMS и WMTS — адрес
- * службы (номер тайла подставляет прокси).
+ * Адрес подложки по виду (ADR-0108): XYZ — шаблон с номером тайла, WMS и
+ * WMTS — адрес службы (номер тайла подставляет прокси). Возвращает сообщение об
+ * ошибке или null. Правка подложки проверяется так же, но по её сохранённому
+ * виду: в запросе вид не повторяют.
  */
+export function basemapUrlIssue(kind: string, url: string): string | null {
+  const parsed = (kind === 'raster' ? RasterUrlTemplate : ServiceUrl).safeParse(url)
+  return parsed.success ? null : (parsed.error.issues[0]?.message ?? 'Некорректный адрес')
+}
+
 function checkServiceUrl(
   value: { kind?: string; url?: string; service?: unknown },
   context: z.RefinementCtx,
 ): void {
-  if (value.url === undefined && value.service === undefined) return
-  if (value.kind === undefined) {
-    context.addIssue({
-      code: 'custom',
-      message: 'Вместе с адресом укажите вид подложки',
-      path: ['kind'],
-    })
-    return
-  }
-  const raster = value.kind === 'raster'
+  const kind = value.kind
+  if (kind === undefined) return
+  const raster = kind === 'raster'
   if (value.url !== undefined) {
-    const parsed = (raster ? RasterUrlTemplate : ServiceUrl).safeParse(value.url)
-    for (const issue of parsed.success ? [] : parsed.error.issues) {
-      context.addIssue({ code: 'custom', message: issue.message, path: ['url'] })
-    }
-  }
-  if (!raster && value.service === undefined) {
-    context.addIssue({ code: 'custom', message: 'Нужны параметры службы', path: ['service'] })
-    return
+    const issue = basemapUrlIssue(kind, value.url)
+    if (issue) context.addIssue({ code: 'custom', message: issue, path: ['url'] })
   }
   if (value.service === undefined) return
   if (raster) {
@@ -231,7 +225,7 @@ function checkServiceUrl(
       message: 'У XYZ-подложки параметров службы нет',
       path: ['service'],
     })
-  } else if ((value.service as { kind?: string }).kind !== value.kind) {
+  } else if ((value.service as { kind?: string }).kind !== kind) {
     context.addIssue({
       code: 'custom',
       message: 'Вид службы не совпадает с видом подложки',
@@ -258,7 +252,13 @@ export const BasemapCreateInput = z
     isDefault: z.boolean().default(false),
   })
   .refine(zoomOrder, { message: 'Минимальный масштаб больше максимального', path: ['minZoom'] })
-  .superRefine(checkServiceUrl)
+  .superRefine((value, context) => {
+    if (value.kind !== 'raster' && value.service === undefined) {
+      context.addIssue({ code: 'custom', message: 'Нужны параметры службы', path: ['service'] })
+      return
+    }
+    checkServiceUrl(value, context)
+  })
 export type BasemapCreateInput = z.infer<typeof BasemapCreateInput>
 
 /**

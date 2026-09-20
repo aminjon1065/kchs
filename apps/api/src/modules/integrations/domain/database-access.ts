@@ -1,4 +1,10 @@
-import type { SourceColumn, SourcePreview, SourceQuery, SourceTable } from '@kchs/contracts'
+import type {
+  SourceColumn,
+  SourcePreview,
+  SourceQuery,
+  SourceTable,
+  StoredFieldType,
+} from '@kchs/contracts'
 import { eq } from 'drizzle-orm'
 import { db } from '~/shared/db/client.js'
 import { type IntegrationRow, integrations } from '~/shared/db/schema/index.js'
@@ -30,6 +36,8 @@ async function load(
 export interface ExternalReadRequest {
   query: SourceQuery
   cursorField?: string | null
+  /** Тип поля-курсора: значение хранится текстом и приводится к нему. */
+  cursorType?: StoredFieldType | undefined
   cursorValue?: string | null
   limit?: number | null
 }

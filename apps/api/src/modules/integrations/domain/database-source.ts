@@ -92,27 +92,47 @@ function quoteIdent(value: string, dialect: 'postgres' | 'mysql'): string {
  * курсора уходит параметром — в текст запроса подставляются только проверенные
  * имена.
  */
+const PG_CURSOR_CAST: Partial<Record<StoredFieldType, string>> = {
+  datetime: 'timestamptz',
+  date: 'date',
+  time: 'time',
+  integer: 'bigint',
+  number: 'double precision',
+  decimal: 'numeric',
+  money: 'numeric',
+  percent: 'double precision',
+}
+
 function selectText(
   query: SourceQuery,
   dialect: 'postgres' | 'mysql',
-  options: { cursorField?: string | null; limit?: number | null; defaultSchema: string },
-): { sql: string; params: unknown[]; withCursor: boolean } {
-  const placeholder = dialect === 'mysql' ? '?' : '$1'
+  options: {
+    cursorField?: string | null
+    cursorType?: StoredFieldType | undefined
+    cursorValue?: string | null
+    limit?: number | null
+    defaultSchema: string
+  },
+): { sql: string; withCursor: boolean } {
   const from =
     query.kind === 'table'
       ? `${quoteIdent(query.schema || options.defaultSchema, dialect)}.${quoteIdent(query.table, dialect)}`
       : `(${query.sql}) AS kchs_src`
   const parts = [`SELECT * FROM ${from}`]
-  const params: unknown[] = []
-  let withCursor = false
+  // Первый инкремент читает всё: сравнивать не с чем
+  const withCursor = Boolean(options.cursorField && options.cursorValue)
   if (options.cursorField) {
     const column = quoteIdent(options.cursorField, dialect)
-    parts.push(`WHERE ${column} > ${placeholder}`)
+    if (withCursor) {
+      // Значение курсора всегда приходит текстом — приводим его к типу столбца
+      const cast = PG_CURSOR_CAST[options.cursorType ?? 'text']
+      const placeholder = dialect === 'mysql' ? '?' : cast ? `$1::text::${cast}` : '$1::text'
+      parts.push(`WHERE ${column} > ${placeholder}`)
+    }
     parts.push(`ORDER BY ${column} ASC`)
-    withCursor = true
   }
   if (options.limit) parts.push(`LIMIT ${Math.trunc(options.limit)}`)
-  return { sql: parts.join(' '), params, withCursor }
+  return { sql: parts.join(' '), withCursor }
 }
 
 /** Тип столбца PostgreSQL (OID) → тип поля датасета. */
@@ -181,6 +201,8 @@ export function externalValue(value: unknown, type: StoredFieldType): unknown {
 interface ReadRequest {
   query: SourceQuery
   cursorField?: string | null
+  /** Тип поля-курсора: значение приходит текстом и приводится к нему. */
+  cursorType?: StoredFieldType | undefined
   cursorValue?: string | null
   limit?: number | null
 }
@@ -218,10 +240,13 @@ async function postgresDriver(
   const text = (request: ReadRequest) =>
     selectText(request.query, 'postgres', {
       cursorField: request.cursorField ?? null,
+      cursorType: request.cursorType,
+      cursorValue: request.cursorValue ?? null,
       limit: request.limit ?? null,
       defaultSchema: configuration.schema,
     })
-  const values = (request: ReadRequest) => (request.cursorField ? [request.cursorValue ?? ''] : [])
+  const values = (request: ReadRequest) =>
+    text(request).withCursor ? [request.cursorValue ?? ''] : []
 
   return {
     async columns(request) {
@@ -309,10 +334,13 @@ async function mysqlDriver(
   const text = (request: ReadRequest) =>
     selectText(request.query, 'mysql', {
       cursorField: request.cursorField ?? null,
+      cursorType: request.cursorType,
+      cursorValue: request.cursorValue ?? null,
       limit: request.limit ?? null,
       defaultSchema: configuration.database,
     })
-  const values = (request: ReadRequest) => (request.cursorField ? [request.cursorValue ?? ''] : [])
+  const values = (request: ReadRequest) =>
+    text(request).withCursor ? [request.cursorValue ?? ''] : []
 
   return {
     async columns(request) {

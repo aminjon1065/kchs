@@ -8,6 +8,7 @@ import {
   type BasemapStyleQuery,
   type BasemapUpdateInput,
   Bbox,
+  basemapUrlIssue,
   RASTER_BASEMAP_KINDS,
   type RasterBasemapKind,
 } from '@kchs/contracts'
@@ -407,6 +408,8 @@ export const BasemapService = {
           : input.apiKey === null
             ? null
             : encryptSecret(input.apiKey)
+      const urlIssue = basemapUrlIssue(row.kind, url)
+      if (urlIssue) throw errors.validation(urlIssue, [{ path: 'url', message: urlIssue }])
       checkKey(url, secretEnc !== null, row.kind)
       const minZoom = input.minZoom ?? row.minZoom
       const maxZoom = input.maxZoom ?? row.maxZoom
