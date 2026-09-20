@@ -5,6 +5,8 @@
 export type DateUnit = 'year' | 'quarter' | 'month' | 'week' | 'day' | 'hour'
 export type DatePart = 'year' | 'quarter' | 'month' | 'week' | 'day' | 'dow' | 'hour'
 export type IntervalUnit = 'year' | 'quarter' | 'month' | 'week' | 'day' | 'hour' | 'minute'
+/** Типы безопасного приведения (`cast()` и разбор текста фильтра). */
+export type CastType = 'date' | 'uuid' | 'timestamptz' | 'double precision' | 'boolean'
 
 export interface Dialect {
   readonly name: 'postgres'
@@ -42,7 +44,7 @@ export interface Dialect {
   geography(sql: string): string
   randomOrder(): string
   /** Приведение строки без ошибки: неверное значение — NULL (ошибка раскрыла бы данные). */
-  tryCast(sql: string, type: 'date' | 'uuid'): string
+  tryCast(sql: string, type: CastType): string
   /** Момент ↔ местное время в поясе `tz` (в обе стороны, как AT TIME ZONE). */
   atTimeZone(sql: string, tz: string): string
   /** Усечение местного времени (timestamp без пояса) до единицы. */

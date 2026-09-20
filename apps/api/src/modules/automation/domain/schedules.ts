@@ -4,7 +4,7 @@ import { and, eq, isNull } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
 import { buildUserCtxFor } from '~/kernel/access/explain.js'
 import { queue } from '~/kernel/jobs/service.js'
-import type { RuleScheduleEntry, RuleScheduleProvider } from '~/kernel/schedules/index.js'
+import type { EntityScheduleEntry, EntityScheduleProvider } from '~/kernel/schedules/index.js'
 import { Metrics } from '~/modules/data/public.js'
 import { config } from '~/shared/config/index.js'
 import { systemCtx, type UserCtx } from '~/shared/context.js'
@@ -198,19 +198,20 @@ export async function runFromWebhook(
 }
 
 /** Расписания правил для экрана «Расписания» (порт ядра). */
-export const ruleScheduleProvider: RuleScheduleProvider = {
-  list: async (): Promise<RuleScheduleEntry[]> => {
+export const ruleScheduleProvider: EntityScheduleProvider = {
+  kind: 'rule',
+  list: async (): Promise<EntityScheduleEntry[]> => {
     const rows = await db()
       .select({ id: rules.id })
       .from(rules)
       .innerJoin(objects, eq(objects.id, rules.id))
       .where(isNull(objects.deletedAt))
-    const out: RuleScheduleEntry[] = []
+    const out: EntityScheduleEntry[] = []
     for (const row of rows) {
       const rule = await RuleService.load(db(), row.id)
       if (!rule?.cron || !SCHEDULED_KINDS.includes(rule.triggerKind)) continue
       out.push({
-        ruleId: rule.id,
+        objectId: rule.id,
         title: rule.title,
         cron: rule.cron,
         timezone: rule.timezone ?? config().TZ,

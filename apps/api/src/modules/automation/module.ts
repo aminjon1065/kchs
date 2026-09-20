@@ -3,7 +3,7 @@ import { registerSubscriber } from '~/kernel/events/bus.js'
 import { registerFeature } from '~/kernel/features/registry.js'
 import { registerJobHandler } from '~/kernel/jobs/runner.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
-import { declareSchedule, setRuleScheduleProvider } from '~/kernel/schedules/index.js'
+import { declareSchedule, registerEntityScheduleProvider } from '~/kernel/schedules/index.js'
 import { db } from '~/shared/db/client.js'
 import { objects, rules } from '~/shared/db/schema/index.js'
 import { logger } from '~/shared/logger/index.js'
@@ -157,7 +157,7 @@ export async function scheduleAutomationJobs(): Promise<void> {
     pattern: '*/5 * * * *',
     labelKey: 'schedules.jobs.automationResume',
   })
-  setRuleScheduleProvider(ruleScheduleProvider)
+  registerEntityScheduleProvider(ruleScheduleProvider)
   const count = await syncRuleSchedules()
   logger().info({ rules: count }, 'расписания правил автоматизации синхронизированы')
 }

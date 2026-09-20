@@ -1,4 +1,9 @@
-import type { LayerRecord, MapLayerEntry } from '@kchs/contracts'
+import type {
+  LayerRecord,
+  MapLayerEntry,
+  MapServiceEntry,
+  ServiceLayerRecord,
+} from '@kchs/contracts'
 import type { LegendModel } from '@kchs/map-style'
 import {
   Badge,
@@ -21,6 +26,7 @@ import {
   ArrowDown,
   ArrowUp,
   ExternalLink,
+  Globe2,
   Layers,
   MoreHorizontal,
   Palette,
@@ -53,6 +59,12 @@ export interface LayerPanelProps {
   /** Нижняя панель: атрибутивная таблица слоя. */
   onAttributes: (layerId: string) => void
   onAdd: () => void
+  /** Слои-ссылки на внешние ГИС-службы (ADR-0108): реестр и записи карты. */
+  services: readonly MapServiceEntry[]
+  serviceCatalog: readonly ServiceLayerRecord[]
+  onToggleService: (serviceId: string, visible: boolean) => void
+  onAddService: (serviceId: string) => void
+  onRemoveService: (serviceId: string) => void
 }
 
 const OPACITIES = [1, 0.75, 0.5, 0.25] as const
@@ -75,6 +87,11 @@ export function LayerPanel({
   onStyle,
   onAttributes,
   onAdd,
+  services,
+  serviceCatalog,
+  onToggleService,
+  onAddService,
+  onRemoveService,
 }: LayerPanelProps) {
   const t = useT()
   // Порядок отрисовки — снизу вверх; в панели верхний слой — первым
@@ -215,6 +232,90 @@ export function LayerPanel({
           })}
         </ul>
       )}
+      <ServiceSection
+        services={services}
+        catalog={serviceCatalog}
+        canEdit={canEdit}
+        onToggle={onToggleService}
+        onAdd={onAddService}
+        onRemove={onRemoveService}
+      />
     </section>
+  )
+}
+
+/** Внешние ГИС-службы карты: подложки под слоями данных (ADR-0108). */
+function ServiceSection({
+  services,
+  catalog,
+  canEdit,
+  onToggle,
+  onAdd,
+  onRemove,
+}: {
+  services: readonly MapServiceEntry[]
+  catalog: readonly ServiceLayerRecord[]
+  canEdit: boolean
+  onToggle: (serviceId: string, visible: boolean) => void
+  onAdd: (serviceId: string) => void
+  onRemove: (serviceId: string) => void
+}) {
+  const t = useT()
+  const used = new Set(services.map((entry) => entry.serviceId))
+  const rest = catalog.filter((service) => !used.has(service.id))
+  if (catalog.length === 0) return null
+  return (
+    <div className="border-t border-line pt-2">
+      <div className="flex items-center justify-between gap-2 px-3 py-1">
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-fg-muted">
+          {t('gis.map.services')}
+        </h2>
+        {canEdit && rest.length > 0 ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <IconButton size="sm" label={t('gis.map.addService')}>
+                <Plus className="size-4" />
+              </IconButton>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {rest.map((service) => (
+                <DropdownMenuItem key={service.id} onSelect={() => onAdd(service.id)}>
+                  {service.name}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
+      </div>
+      <ul className="flex flex-col gap-1 px-2 pb-3">
+        {services.map((entry) => {
+          const service = catalog.find((item) => item.id === entry.serviceId)
+          const name = service?.name ?? t('gis.map.layerUnavailable')
+          return (
+            <li
+              key={entry.serviceId}
+              className="flex items-center gap-2 rounded-md border border-line bg-surface px-2 py-1.5"
+            >
+              <Checkbox
+                checked={entry.visible}
+                onCheckedChange={(checked) => onToggle(entry.serviceId, checked === true)}
+                aria-label={t('gis.map.toggleLayer', { name })}
+              />
+              <Globe2 className="size-3.5 shrink-0 text-fg-muted" aria-hidden />
+              <span className="min-w-0 flex-1 truncate text-sm text-fg">{name}</span>
+              {canEdit ? (
+                <IconButton
+                  size="sm"
+                  label={t('gis.map.removeService')}
+                  onClick={() => onRemove(entry.serviceId)}
+                >
+                  <Trash2 className="size-4" />
+                </IconButton>
+              ) : null}
+            </li>
+          )
+        })}
+      </ul>
+    </div>
   )
 }

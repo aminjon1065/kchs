@@ -39,6 +39,7 @@ import {
   Download,
   FileJson,
   FileSpreadsheet,
+  Globe2,
   HardDrive,
   KeyRound,
   LayoutGrid,
@@ -81,8 +82,10 @@ import { BasemapsSection } from './basemaps-section.js'
 import { BrandingSection } from './branding-section.js'
 import { BusinessCalendarSection } from './business-calendar-section.js'
 import { ConfigPackageSection } from './config-package-section.js'
+import { DataSourcesSection } from './data-sources-section.js'
 import { DirectorySection } from './directory-section.js'
 import { FeaturesSection } from './features-section.js'
+import { GisServicesSection } from './gis-services-section.js'
 import { IntegrationsSection } from './integrations-section.js'
 import { CreateUnitDialog } from './org-management.js'
 import { RolesSection } from './roles-section.js'
@@ -102,6 +105,8 @@ type Section =
   | 'announcements'
   | 'business-calendar'
   | 'basemaps'
+  | 'gisServices'
+  | 'dataSources'
   | 'audit'
   | 'security'
   | 'features'
@@ -130,6 +135,7 @@ export function AdminScreen() {
   const { data: me } = useQuery(meQuery())
   const isSystemAdmin = me?.capabilities.includes('admin.system') ?? false
   const canManageBasemaps = me?.capabilities.includes('gis.basemaps.manage') ?? false
+  const canManageSources = me?.capabilities.includes('data.sources.manage') ?? false
   const canManageProcesses = me?.capabilities.includes('processes.manage') ?? false
   const canManageIntegrations = me?.capabilities.includes('automation.manage') ?? false
   const canManageAutomation = me?.capabilities.includes('automation.manage') ?? false
@@ -183,6 +189,18 @@ export function AdminScreen() {
       label: t('admin.sections.basemaps'),
       icon: <MapIcon className="size-3.5" />,
       visible: canManageBasemaps,
+    },
+    {
+      value: 'gisServices',
+      label: t('admin.sections.gisServices'),
+      icon: <Globe2 className="size-3.5" />,
+      visible: canManageBasemaps,
+    },
+    {
+      value: 'dataSources',
+      label: t('admin.sections.dataSources'),
+      icon: <Database className="size-3.5" />,
+      visible: canManageSources,
     },
     {
       value: 'audit',
@@ -360,6 +378,16 @@ export function AdminScreen() {
         {canManageBasemaps ? (
           <TabsContent value="basemaps" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
             <BasemapsSection />
+          </TabsContent>
+        ) : null}
+        {canManageBasemaps ? (
+          <TabsContent value="gisServices" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
+            <GisServicesSection />
+          </TabsContent>
+        ) : null}
+        {canManageSources ? (
+          <TabsContent value="dataSources" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
+            <DataSourcesSection />
           </TabsContent>
         ) : null}
         {canManageProcesses ? (

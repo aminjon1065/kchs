@@ -38,6 +38,8 @@ export type ScreenKey =
   | 'alerts'
   /** Редактор офисного файла (ADR-0112): параметр `id` — файл. */
   | 'office-editor'
+  /** Пайплайны преобразований (ADR-0106). */
+  | 'pipelines'
 
 export interface TabState {
   id: string

@@ -1,4 +1,4 @@
-import type { QueueName, ScheduleRecord, ScheduleRun } from '@kchs/contracts'
+import type { QueueName, ScheduleKind, ScheduleRecord, ScheduleRun } from '@kchs/contracts'
 import cronParser from 'cron-parser'
 import { desc, eq, sql } from 'drizzle-orm'
 import { config } from '~/shared/config/index.js'
@@ -12,11 +12,12 @@ import { listSchedules, scheduleDefinition } from './registry.js'
 
 /**
  * Состояние единого планировщика: объявленные регулярные задания платформы и
- * расписания правил автоматизации (их ведёт модуль `automation` через порт —
- * ядро не знает о модулях).
+ * расписания отдельных записей — правил автоматизации (ADR-0096), пайплайнов и
+ * внешних источников (ADR-0106, ADR-0107). Их ведут модули через порт: ядро не
+ * знает о модулях.
  */
-export interface RuleScheduleEntry {
-  ruleId: string
+export interface EntityScheduleEntry {
+  objectId: string
   title: string
   cron: string
   timezone: string
@@ -27,17 +28,27 @@ export interface RuleScheduleEntry {
   lastStatus: string | null
 }
 
-export interface RuleScheduleProvider {
-  list(): Promise<RuleScheduleEntry[]>
-  setEnabled(ctx: UserCtx, ruleId: string, enabled: boolean): Promise<void>
-  runNow(ctx: UserCtx, ruleId: string): Promise<void>
+export interface EntityScheduleProvider {
+  /** Вид расписания и префикс ключа: `rule:<id>`, `pipeline:<id>`, `source:<id>`. */
+  kind: Exclude<ScheduleKind, 'system'>
+  list(): Promise<EntityScheduleEntry[]>
+  setEnabled(ctx: UserCtx, objectId: string, enabled: boolean): Promise<void>
+  runNow(ctx: UserCtx, objectId: string): Promise<void>
 }
 
-let ruleProvider: RuleScheduleProvider | null = null
+const entityProviders = new Map<string, EntityScheduleProvider>()
 
-/** Модуль автоматизации подключает свои расписания к экрану (ADR-0096). */
-export function setRuleScheduleProvider(provider: RuleScheduleProvider): void {
-  ruleProvider = provider
+/** Модуль подключает свои расписания к экрану «Расписания». */
+export function registerEntityScheduleProvider(provider: EntityScheduleProvider): void {
+  entityProviders.set(provider.kind, provider)
+}
+
+/** Провайдер по ключу расписания (`rule:<id>`) и идентификатор записи. */
+function entityOf(key: string): { provider: EntityScheduleProvider; objectId: string } | null {
+  const colon = key.indexOf(':')
+  if (colon <= 0) return null
+  const provider = entityProviders.get(key.slice(0, colon))
+  return provider ? { provider, objectId: key.slice(colon + 1) } : null
 }
 
 /** Идентификатор планировщика BullMQ: без «:» — иначе читается как ключ старого формата. */
@@ -169,41 +180,43 @@ export const ScheduleService = {
         enabled,
         nextRunAt: enabled ? nextRunAt(definition.pattern, timezone) : null,
         lastRun: history.get(definition.key) ?? null,
-        ruleId: null,
+        objectId: null,
       }
     })
 
-    for (const entry of (await ruleProvider?.list()) ?? []) {
-      items.push({
-        key: `rule:${entry.ruleId}`,
-        kind: 'rule',
-        labelKey: null,
-        title: entry.title,
-        queue: entry.queue,
-        job: entry.job,
-        cron: entry.cron,
-        timezone: entry.timezone,
-        enabled: entry.enabled,
-        nextRunAt: entry.enabled ? nextRunAt(entry.cron, entry.timezone) : null,
-        lastRun: entry.lastRunAt
-          ? {
-              at: entry.lastRunAt,
-              status: entry.lastStatus ?? 'unknown',
-              durationMs: null,
-              message: null,
-            }
-          : null,
-        ruleId: entry.ruleId,
-      })
+    for (const provider of entityProviders.values()) {
+      for (const entry of await provider.list()) {
+        items.push({
+          key: `${provider.kind}:${entry.objectId}`,
+          kind: provider.kind,
+          labelKey: null,
+          title: entry.title,
+          queue: entry.queue,
+          job: entry.job,
+          cron: entry.cron,
+          timezone: entry.timezone,
+          enabled: entry.enabled,
+          nextRunAt: entry.enabled ? nextRunAt(entry.cron, entry.timezone) : null,
+          lastRun: entry.lastRunAt
+            ? {
+                at: entry.lastRunAt,
+                status: entry.lastStatus ?? 'unknown',
+                durationMs: null,
+                message: null,
+              }
+            : null,
+          objectId: entry.objectId,
+        })
+      }
     }
     return items
   },
 
   /** Включает или выключает расписание: системное — в базе, правила — в правиле. */
   async setEnabled(ctx: UserCtx, key: string, enabled: boolean): Promise<ScheduleRecord> {
-    if (key.startsWith('rule:')) {
-      if (!ruleProvider) throw errors.notFound('Расписание')
-      await ruleProvider.setEnabled(ctx, key.slice('rule:'.length), enabled)
+    const entity = entityOf(key)
+    if (entity) {
+      await entity.provider.setEnabled(ctx, entity.objectId, enabled)
     } else {
       const definition = scheduleDefinition(key)
       if (!definition) throw errors.notFound('Расписание')
@@ -223,9 +236,9 @@ export const ScheduleService = {
 
   /** Запуск вне расписания: «Выполнить сейчас». */
   async runNow(ctx: UserCtx, key: string): Promise<void> {
-    if (key.startsWith('rule:')) {
-      if (!ruleProvider) throw errors.notFound('Расписание')
-      await ruleProvider.runNow(ctx, key.slice('rule:'.length))
+    const entity = entityOf(key)
+    if (entity) {
+      await entity.provider.runNow(ctx, entity.objectId)
       return
     }
     const definition = scheduleDefinition(key)

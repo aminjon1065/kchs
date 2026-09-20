@@ -42,6 +42,11 @@ import { TerritoryService } from './domain/territory-service.js'
 import { TileService } from './domain/tile-service.js'
 import { registerFeatureRoutes } from './http/feature-routes.js'
 import { registerTerritoryRoutes } from './http/territory-routes.js'
+import {
+  registerServiceLayerBackground,
+  registerServiceLayerObjectType,
+  registerServiceLayerRoutes,
+} from './service-layers.js'
 
 const gunzip = promisify(gunzipCallback)
 
@@ -104,6 +109,7 @@ export function registerGisObjectTypes(): void {
   })
 
   registerBasemapObjectType()
+  registerServiceLayerObjectType()
   // Слой и карта: права на объект не открывают данные — тайлы и объекты
   // читаются с политиками смотрящего (03-access-model.md)
   for (const type of ['layer', 'map'] as const) {
@@ -198,11 +204,13 @@ export function registerGisObjectTypes(): void {
 /** Подписчики модуля — только в роли worker: уведомления о правках слоёв. */
 export function registerGisBackground(): void {
   for (const subscriber of featureSubscribers) registerSubscriber(subscriber)
+  registerServiceLayerBackground()
 }
 
 export function registerGisRoutes(route: RouteRegistrar): void {
   registerTerritoryRoutes(route)
   registerBasemapRoutes(route)
+  registerServiceLayerRoutes(route)
   registerFeatureRoutes(route)
   route({
     method: 'GET',

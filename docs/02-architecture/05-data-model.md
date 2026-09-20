@@ -106,7 +106,11 @@ sso_identities(id, user_id, provider text, subject text unique(provider, subject
 ## Данные
 
 ```sql
-sources(id pk → objects, kind text, config jsonb, credentials_enc bytea, status, last_check_at, schedule text)
+sources(id pk → objects, kind text, integration_id, config jsonb, credentials_enc bytea, mode text, cursor_value text,
+        dataset_id, enabled bool, status, status_message, last_check_at, last_run_at, row_count, job_id, schedule text)
+  source_runs(id, source_id, job_id, status, mode, stats jsonb, error, started_at, finished_at, created_by)
+  -- ADR-0107: учётные данные живут в интеграции (`integrations.secrets`), поэтому
+  -- credentials_enc остаётся пустым; источник хранит «что и как читаем»
 datasets(id pk → objects, kind text, storage text, source_id, primary_key text[], geometry jsonb, time_field text,
          territory_field text, row_count bigint, current_version int, settings jsonb, description text, steward_id,
          physical_table text, last_import_at, schema_version int)
@@ -118,7 +122,9 @@ dataset_relations(id, left_dataset_id, left_field, right_dataset_id, right_field
 dataset_row_policies(id, dataset_id, principal_type, principal_id, filter jsonb, note)
 dataset_column_policies(id, dataset_id, principal_type, principal_id, mode text, fields text[])
 imports(id, dataset_id, file_id, status, options jsonb, mapping jsonb, stats jsonb, errors_file_id, job_id, created_by, created_at, finished_at)
-pipelines(id pk → objects, definition jsonb, schedule text, last_run_at, status)   pipeline_runs(id, pipeline_id, job_id, status, stats, started_at, finished_at)
+pipelines(id pk → objects, definition jsonb, description, schedule text, enabled bool, run_on_import bool,
+          input_dataset_ids uuid[], output_dataset_id, status, job_id, row_count, error, last_run_at)   -- ADR-0106
+  pipeline_runs(id, pipeline_id, job_id, status, trigger text, stats jsonb, error, rejected int, started_at, finished_at, created_by)
 queries(id pk → objects, mode text, spec jsonb, sql text, params_schema jsonb, dataset_ids uuid[], compiled_hash text)
 query_runs(id bigint, query_id null, user_id, spec_hash, sql_hash, duration_ms, row_count, cached bool, error text, at)
 metrics(id pk → objects, dataset_id null, system_source text null, definition jsonb, unit, format jsonb, direction text, targets jsonb, thresholds jsonb)
@@ -173,6 +179,9 @@ layers(id pk → objects, dataset_id, style jsonb, popup_template jsonb, label j
 maps(id pk → objects, basemap_id, view jsonb, layers jsonb, widgets jsonb, bookmarks jsonb, filters_binding jsonb, time jsonb)
 basemaps(id pk → objects, key text unique null, kind text, url text, style jsonb, attribution, min_zoom, max_zoom, is_default,
          secret_enc bytea null)                    -- key и secret_enc — ADR-0066; одна is_default
+  -- kind: vector | raster (XYZ) | wms | wmts | none; параметры службы — в style.service (ADR-0108)
+service_layers(id pk → objects, kind text, url text, params jsonb, description, attribution, min_zoom, max_zoom,
+               opacity real, tile_size int, status, status_message, last_check_at, secret_enc bytea null)  -- ADR-0108
 territories(id pk → objects, code text unique, parent_id, level text, name jsonb, geom geometry(MultiPolygon,4326), centroid geometry(Point,4326), area_km2, attributes jsonb, dataset_row_id bigint)
   idx: gist(geom), (parent_id), (level)
 territory_closure(territory_id, ancestor_id, depth)

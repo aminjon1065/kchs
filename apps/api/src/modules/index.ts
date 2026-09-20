@@ -37,6 +37,7 @@ import {
   registerDataBackground,
   registerDataObjectTypes,
   registerDataRoutes,
+  scheduleDataJobs,
   upgradeDataStorage,
 } from './data/module.js'
 import {
@@ -222,6 +223,7 @@ export async function scheduleModuleJobs(): Promise<void> {
   await scheduleAutomationJobs()
   scheduleFormsJobs()
   scheduleAlertJobs()
+  await scheduleDataJobs()
 }
 
 /** Долгоживущие процессы модулей в роли worker: опрос Telegram-бота (ADR-0061). */

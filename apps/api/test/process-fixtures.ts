@@ -18,9 +18,10 @@ const { objects } = await import('../src/shared/db/schema/index.js')
 /**
  * Тип объекта «тестовый документ» (маршруты запускаются и из API): ответы API
  * проверяют тип по перечню контрактов, поэтому берётся первый тип перечня, ещё
- * не занятый модулями (типы будущих фаз).
+ * не занятый модулями. Список приходится обновлять, когда очередная фаза
+ * занимает тип: свободных в перечне остаётся всё меньше.
  */
-const CANDIDATES = ['pipeline', 'form', 'alert', 'basemap', 'correspondent', 'source']
+const CANDIDATES = ['query', 'route', 'basemap', 'correspondent']
 let testType = ''
 
 export function TEST_TYPE(): string {

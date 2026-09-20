@@ -46,6 +46,9 @@ const { resetConfigCache } = await import('../src/shared/config/index.js')
 const {
   basemaps,
   cases,
+  pipelines,
+  serviceLayers,
+  sources,
   correspondents,
   documentTypes,
   journals,
@@ -619,6 +622,85 @@ const FIXTURES: Record<string, TypeFixture> = {
       { method: 'PATCH', url: `/gis/basemaps/${id}`, payload: { name: 'правка читателя' } },
       { method: 'POST', url: `/gis/basemaps/${id}/default` },
       { method: 'DELETE', url: `/gis/basemaps/${id}` },
+    ],
+  },
+
+  // Пайплайн и источник — объекты пространства (ADR-0106, ADR-0107)
+  pipeline: {
+    create: async (fx, title) => {
+      const id = await db().transaction(async (tx) => {
+        const object = await ObjectService.create(
+          tx,
+          systemCtx('test', { initiatorId: fx.admin.id }),
+          { type: 'pipeline', spaceId: fx.spaceId, title, meta: {} },
+        )
+        await tx.insert(pipelines).values({
+          id: object.id,
+          definition: {
+            version: 1,
+            source: { kind: 'dataset', id: object.id },
+            steps: [],
+            outputName: title,
+          },
+        })
+        return object.id
+      })
+      return { id, title }
+    },
+    readPaths: ['/pipelines/:id', '/pipelines/:id/runs'],
+    viewerForbidden: (_fx, id) => [
+      { method: 'PATCH', url: `/pipelines/${id}`, payload: { enabled: false } },
+      { method: 'POST', url: `/pipelines/${id}/run` },
+    ],
+  },
+
+  source: {
+    create: async (fx, title) => {
+      const id = await db().transaction(async (tx) => {
+        const object = await ObjectService.create(
+          tx,
+          systemCtx('test', { initiatorId: fx.admin.id }),
+          { type: 'source', spaceId: fx.spaceId, title, meta: {} },
+        )
+        await tx.insert(sources).values({
+          id: object.id,
+          integrationId: object.id,
+          config: { query: { kind: 'table', schema: 'public', table: 'none' }, columns: [] },
+        })
+        return object.id
+      })
+      return { id, title }
+    },
+    readPaths: ['/sources/:id', '/sources/:id/runs'],
+    viewerForbidden: (_fx, id) => [
+      { method: 'PATCH', url: `/sources/${id}`, payload: { enabled: false } },
+      { method: 'POST', url: `/sources/${id}/sync` },
+    ],
+  },
+
+  // Слой-ссылка принадлежит установке, как подложка: видят все, ведут — управляющие
+  service_layer: {
+    create: async (fx, title) => {
+      const id = await db().transaction(async (tx) => {
+        const object = await ObjectService.create(
+          tx,
+          systemCtx('test', { initiatorId: fx.admin.id }),
+          { type: 'service_layer', spaceId: fx.spaceId, title, meta: {} },
+        )
+        await tx.insert(serviceLayers).values({
+          id: object.id,
+          kind: 'xyz',
+          url: 'https://tiles.example.org/{z}/{x}/{y}.png',
+          params: { kind: 'xyz' },
+        })
+        return object.id
+      })
+      return { id, title }
+    },
+    readPaths: ['/gis/service-layers/:id'],
+    viewerForbidden: (_fx, id) => [
+      { method: 'PATCH', url: `/gis/service-layers/${id}`, payload: { name: 'правка читателя' } },
+      { method: 'POST', url: `/gis/service-layers/${id}/check` },
     ],
   },
 

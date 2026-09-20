@@ -34,6 +34,7 @@ export const OBJECT_TYPES = [
   'territory',
   'analysis',
   'basemap',
+  'service_layer',
   // документы
   'document',
   'document_type',

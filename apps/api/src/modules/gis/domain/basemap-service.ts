@@ -4,9 +4,13 @@ import {
   type Basemap,
   type BasemapCreateInput,
   BasemapKind,
+  BasemapServiceParams,
   type BasemapStyleQuery,
   type BasemapUpdateInput,
   Bbox,
+  basemapUrlIssue,
+  RASTER_BASEMAP_KINDS,
+  type RasterBasemapKind,
 } from '@kchs/contracts'
 import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm'
 import { z } from 'zod'
@@ -42,6 +46,7 @@ import {
 } from './basemap-storage.js'
 import { basemapStyle, type StyleContent } from './basemap-style.js'
 import { fetchRasterTile } from './raster-fetch.js'
+import { serviceTileUrl } from './service-url.js'
 
 const MANAGE = 'gis.basemaps.manage'
 /** Системная подложка «только фон»: есть всегда, удалить нельзя. */
@@ -61,7 +66,18 @@ const VectorInfo = z.object({
 })
 type VectorInfo = z.infer<typeof VectorInfo>
 
-const RasterInfo = z.object({ tileSize: z.union([z.literal(256), z.literal(512)]) })
+const RasterInfo = z.object({
+  tileSize: z.union([z.literal(256), z.literal(512)]),
+  /** Параметры внешней службы WMS/WMTS (ADR-0108). */
+  service: BasemapServiceParams.optional(),
+})
+
+/** Растровые виды подложки: тайлы идут через прокси API. */
+const isRaster = (kind: string): kind is RasterBasemapKind =>
+  (RASTER_BASEMAP_KINDS as readonly string[]).includes(kind)
+
+const serviceOf = (row: Row): BasemapServiceParams | null =>
+  RasterInfo.safeParse(row.style).data?.service ?? null
 
 const columns = {
   id: basemaps.id,
@@ -124,9 +140,10 @@ function toBasemap(row: Row, manager: boolean): Basemap {
     maxZoom: row.maxZoom,
     bounds: vector?.bounds ?? null,
     build: vector ? { version: vector.version, bytes: vector.bytes, tiles: vector.tiles } : null,
-    url: kind === 'raster' && manager ? row.url : null,
+    url: isRaster(kind) && manager ? row.url : null,
     hasKey: row.secretEnc !== null,
-    tileSize: kind === 'raster' ? tileSize(row) : null,
+    tileSize: isRaster(kind) ? tileSize(row) : null,
+    service: manager ? serviceOf(row) : null,
     version: row.version,
     updatedAt: row.updatedAt,
   }
@@ -160,10 +177,10 @@ const ESCAPES: Record<string, string> = {
 /** MapLibre вставляет атрибуцию как HTML — ввод администратора только текстом. */
 const escapeHtml = (text: string) => text.replace(/[&<>"']/g, (char) => ESCAPES[char] ?? char)
 
-/** Метка адреса растрового сервера: смена адреса начинает кэш заново. */
+/** Метка адреса растрового сервера: смена адреса или параметров начинает кэш заново. */
 const rasterTag = (row: Row) =>
   createHash('sha256')
-    .update(`${row.url ?? ''}|${tileSize(row)}`)
+    .update(`${row.url ?? ''}|${tileSize(row)}|${JSON.stringify(serviceOf(row) ?? {})}`)
     .digest('hex')
     .slice(0, 12)
 
@@ -188,8 +205,16 @@ function vectorContent(manifest: BasemapManifest) {
   }
 }
 
-/** Шаблон `{key}` и ключ доступа идут парой. */
-function checkKey(url: string, hasKey: boolean): void {
+/** Шаблон `{key}` и ключ доступа идут парой; у служб ключ необязателен. */
+function checkKey(url: string, hasKey: boolean, kind: string = 'raster'): void {
+  if (kind !== 'raster') {
+    if (hasKey && !url.includes('{key}')) {
+      throw errors.validation('Ключ доступа не используется: добавьте {key} в адрес службы', [
+        { path: 'url', message: 'Добавьте {key} в адрес' },
+      ])
+    }
+    return
+  }
   const needsKey = url.includes('{key}')
   if (needsKey && !hasKey) {
     throw errors.validation('Шаблон содержит {key} — укажите ключ доступа', [
@@ -336,14 +361,17 @@ export const BasemapService = {
   /** Растровая XYZ-подложка; векторные регистрирует `sync` по манифестам сборок. */
   async create(ctx: Ctx, input: BasemapCreateInput): Promise<Basemap> {
     requireCapability(ctx, MANAGE)
-    checkKey(input.url, Boolean(input.apiKey))
+    checkKey(input.url, Boolean(input.apiKey), input.kind)
     const id = await db().transaction(async (tx) => {
       const created = await insertBasemap(tx, ctx, {
         name: input.name,
         key: null,
-        kind: 'raster',
+        kind: input.kind,
         url: input.url,
-        style: { tileSize: input.tileSize },
+        style: {
+          tileSize: input.tileSize,
+          ...(input.service ? { service: input.service } : {}),
+        },
         attribution: input.attribution,
         minZoom: input.minZoom,
         maxZoom: input.maxZoom,
@@ -362,8 +390,11 @@ export const BasemapService = {
       if (!row) throw errors.notFound('Базовая карта')
       const { name, ...rest } = input
       const technical = Object.values(rest).some((value) => value !== undefined)
-      if (technical && row.kind !== 'raster') {
+      if (technical && !isRaster(row.kind)) {
         throw errors.validation('У этой подложки меняется только название')
+      }
+      if (input.kind !== undefined && technical && input.kind !== row.kind) {
+        throw errors.validation('Вид подложки менять нельзя — заведите новую')
       }
       if (name !== undefined && name !== row.name) {
         await ObjectService.update(tx, ctx, id, { title: name })
@@ -377,7 +408,9 @@ export const BasemapService = {
           : input.apiKey === null
             ? null
             : encryptSecret(input.apiKey)
-      checkKey(url, secretEnc !== null)
+      const urlIssue = basemapUrlIssue(row.kind, url)
+      if (urlIssue) throw errors.validation(urlIssue, [{ path: 'url', message: urlIssue }])
+      checkKey(url, secretEnc !== null, row.kind)
       const minZoom = input.minZoom ?? row.minZoom
       const maxZoom = input.maxZoom ?? row.maxZoom
       if (minZoom > maxZoom) {
@@ -386,7 +419,12 @@ export const BasemapService = {
         ])
       }
       const size = input.tileSize ?? tileSize(row)
+      const service = input.service ?? serviceOf(row)
       const changed = [
+        ...(input.service !== undefined &&
+        JSON.stringify(input.service) !== JSON.stringify(serviceOf(row))
+          ? ['service']
+          : []),
         ...(input.url !== undefined && input.url !== row.url ? ['url'] : []),
         ...(input.apiKey !== undefined ? ['apiKey'] : []),
         ...(input.attribution !== undefined && input.attribution !== row.attribution
@@ -405,12 +443,12 @@ export const BasemapService = {
           attribution: input.attribution === undefined ? row.attribution : input.attribution,
           minZoom,
           maxZoom,
-          style: { tileSize: size },
+          style: { tileSize: size, ...(service ? { service } : {}) },
           updatedAt: sql`now()`,
         })
         .where(eq(basemaps.id, id))
-      await recordChange(tx, ctx, id, { kind: 'raster' }, changed)
-      return changed.includes('url') || changed.includes('tileSize')
+      await recordChange(tx, ctx, id, { kind: row.kind }, changed)
+      return changed.includes('url') || changed.includes('tileSize') || changed.includes('service')
     })
     // Кэш прежнего адреса больше не читается — освобождаем место
     if (clearCache) {
@@ -468,7 +506,7 @@ export const BasemapService = {
         attribution: row.attribution ? escapeHtml(row.attribution) : null,
         center: vector.center,
       }
-    } else if (row.kind === 'raster') {
+    } else if (isRaster(row.kind)) {
       content = {
         kind: 'raster',
         tiles: `${base}/gis/basemaps/${id}/tiles/{z}/{x}/{y}?v=${rasterTag(row)}`,
@@ -541,7 +579,7 @@ export const BasemapService = {
     y: number,
   ): Promise<{ body: Buffer; contentType: string } | null> {
     const row = await loadRow(id)
-    if (!row?.url || row.kind !== 'raster') throw errors.notFound('Растровая подложка')
+    if (!row?.url || !isRaster(row.kind)) throw errors.notFound('Растровая подложка')
     const limit = 2 ** z
     if (x >= limit || y >= limit) throw errors.validation('Тайл вне сетки масштаба')
     if (z < row.minZoom || z > row.maxZoom) return null
@@ -558,12 +596,19 @@ export const BasemapService = {
       }
     }
 
-    const key = row.secretEnc ? encodeURIComponent(decryptSecret(row.secretEnc)) : ''
-    const target = row.url
-      .replaceAll('{z}', String(z))
-      .replaceAll('{x}', String(x))
-      .replaceAll('{y}', String(y))
-      .replaceAll('{key}', key)
+    const key = row.secretEnc ? decryptSecret(row.secretEnc) : ''
+    const target = serviceTileUrl(
+      {
+        kind: row.kind === 'raster' ? 'xyz' : (row.kind as 'wms' | 'wmts'),
+        url: row.url,
+        service: serviceOf(row),
+        tileSize: tileSize(row),
+      },
+      z,
+      x,
+      y,
+      key,
+    )
     const tile = await fetchRasterTile(target)
     if (!tile) return null
     await putObject(cacheKey, tile.body, {

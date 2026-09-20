@@ -68,16 +68,34 @@ export interface RasterTile {
   contentType: string
 }
 
-/** Тайл или null (у сервера нет тайла: 204/404); сбой сервера — `dependency_failed`. */
-export async function fetchRasterTile(target: string): Promise<RasterTile | null> {
+export interface FetchOptions {
+  /** Заголовок `accept` запроса. */
+  accept: string
+  /** Требуемое начало `content-type` ответа: `image/` у тайла, `` — любой. */
+  expect: string
+  maxBytes: number
+  /** Имя службы в сообщениях об ошибке. */
+  what: string
+}
+
+/**
+ * Запрос к внешней ГИС-службе с той же защитой, что у прокси тайлов (ADR-0066,
+ * ADR-0108): адрес проверяется в момент соединения, перенаправления не
+ * выполняются, ответ ограничен по размеру и типу. null — у службы нет ответа
+ * (204/404).
+ */
+export async function fetchExternal(
+  target: string,
+  options: FetchOptions,
+): Promise<RasterTile | null> {
   const url = new URL(target)
   if (url.protocol !== 'https:' && url.protocol !== 'http:') {
-    throw errors.validation('Адрес растрового сервера должен быть http(s)')
+    throw errors.validation(`Адрес ${options.what} должен быть http(s)`)
   }
   const host = url.hostname.replace(/^\[|\]$/g, '')
   // Адрес-литерал соединяется без разрешения имени — проверяем здесь
   if (isIP(host) && deniedAddress(host)) {
-    throw errors.dependencyFailed('Адрес растрового сервера закрыт для прокси')
+    throw errors.dependencyFailed(`Адрес ${options.what} закрыт для прокси`)
   }
   const send = url.protocol === 'https:' ? httpsRequest : httpRequest
 
@@ -89,7 +107,7 @@ export async function fetchRasterTile(target: string): Promise<RasterTile | null
         {
           method: 'GET',
           lookup: guardedLookup,
-          headers: { accept: 'image/*', 'user-agent': 'kchs-basemap-proxy/1' },
+          headers: { accept: options.accept, 'user-agent': 'kchs-basemap-proxy/1' },
           timeout: TIMEOUT_MS,
         },
         resolve,
@@ -101,7 +119,7 @@ export async function fetchRasterTile(target: string): Promise<RasterTile | null
   } catch (error) {
     const blocked = error instanceof DeniedAddressError
     throw errors.dependencyFailed(
-      blocked ? 'Адрес растрового сервера закрыт для прокси' : 'Растровый сервер недоступен',
+      blocked ? `Адрес ${options.what} закрыт для прокси` : `${options.what} недоступен`,
       { reason: error instanceof Error ? error.message : String(error) },
     )
   }
@@ -112,17 +130,17 @@ export async function fetchRasterTile(target: string): Promise<RasterTile | null
     return null
   }
   const contentType = String(response.headers['content-type'] ?? '')
-  if (status !== 200 || !contentType.startsWith('image/')) {
+  if (status !== 200 || (options.expect && !contentType.startsWith(options.expect))) {
     response.resume()
-    throw errors.dependencyFailed('Растровый сервер вернул не изображение', {
+    throw errors.dependencyFailed(`${options.what} вернул неожиданный ответ`, {
       status,
       contentType,
     })
   }
   const declared = Number(response.headers['content-length'] ?? 0)
-  if (declared > MAX_BYTES) {
+  if (declared > options.maxBytes) {
     response.destroy()
-    throw errors.dependencyFailed('Тайл растрового сервера слишком большой', { bytes: declared })
+    throw errors.dependencyFailed(`Ответ ${options.what} слишком большой`, { bytes: declared })
   }
 
   const chunks: Buffer[] = []
@@ -130,15 +148,15 @@ export async function fetchRasterTile(target: string): Promise<RasterTile | null
   try {
     for await (const chunk of response) {
       size += (chunk as Buffer).length
-      if (size > MAX_BYTES) {
+      if (size > options.maxBytes) {
         response.destroy()
-        throw errors.dependencyFailed('Тайл растрового сервера слишком большой', { bytes: size })
+        throw errors.dependencyFailed(`Ответ ${options.what} слишком большой`, { bytes: size })
       }
       chunks.push(chunk as Buffer)
     }
   } catch (error) {
     if (isAppError(error)) throw error
-    throw errors.dependencyFailed('Растровый сервер оборвал ответ', {
+    throw errors.dependencyFailed(`${options.what} оборвал ответ`, {
       reason: error instanceof Error ? error.message : String(error),
     })
   }
@@ -146,4 +164,14 @@ export async function fetchRasterTile(target: string): Promise<RasterTile | null
     body: Buffer.concat(chunks),
     contentType: contentType.split(';')[0]?.trim() ?? contentType,
   }
+}
+
+/** Тайл или null (у сервера нет тайла: 204/404); сбой сервера — `dependency_failed`. */
+export async function fetchRasterTile(target: string): Promise<RasterTile | null> {
+  return fetchExternal(target, {
+    accept: 'image/*',
+    expect: 'image/',
+    maxBytes: MAX_BYTES,
+    what: 'растровый сервер',
+  })
 }

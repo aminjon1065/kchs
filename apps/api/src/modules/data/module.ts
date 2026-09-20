@@ -117,6 +117,18 @@ import {
   registerNotebookRoutes,
   registerNotebookType,
 } from './notebook-module.js'
+import {
+  registerPipelineBackground,
+  registerPipelineObjectType,
+  registerPipelineRoutes,
+  schedulePipelineJobs,
+} from './pipeline-module.js'
+import {
+  registerSourceBackground,
+  registerSourceObjectType,
+  registerSourceRoutes,
+  scheduleSourceJobs,
+} from './source-module.js'
 
 const IdParam = z.object({ id: z.uuid() })
 const FieldParams = z.object({ id: z.uuid(), key: z.string().min(1).max(64) })
@@ -290,11 +302,15 @@ export function registerDataObjectTypes(): void {
 
   registerAnalysisObjectType()
   registerNotebookType()
+  registerPipelineObjectType()
+  registerSourceObjectType()
 }
 
 export function registerDataRoutes(route: RouteRegistrar): void {
   registerAnalysisRoutes(route)
   registerNotebookRoutes(route)
+  registerPipelineRoutes(route)
+  registerSourceRoutes(route)
 
   route({
     method: 'POST',
@@ -1094,6 +1110,8 @@ export function registerDataRoutes(route: RouteRegistrar): void {
 export function registerDataBackground(): void {
   registerAnalysisBackground()
   registerNotebookBackground()
+  registerPipelineBackground()
+  registerSourceBackground()
 
   registerJobHandler({
     queue: ROWS_BATCH_JOB.queue,
@@ -1168,4 +1186,10 @@ export function registerDataBackground(): void {
       )
     },
   })
+}
+
+/** Расписания пайплайнов и внешних источников при старте воркера (ADR-0106, ADR-0107). */
+export async function scheduleDataJobs(): Promise<void> {
+  await schedulePipelineJobs()
+  await scheduleSourceJobs()
 }

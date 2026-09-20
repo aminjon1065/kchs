@@ -625,6 +625,41 @@ export const EVENT_PAYLOADS = {
     error: z.string().nullable(),
   }),
 
+  // ── пайплайны преобразований (06-analytics-engine.md §16, ADR-0106) ───────
+  'pipeline.created': z.object({ steps: z.number().int(), datasetIds: z.array(Uuid) }),
+  /** Определение, расписание или включение изменены. */
+  'pipeline.updated': z.object({ changed: z.array(z.string()) }),
+  'pipeline.queued': z.object({ jobId: Uuid, runId: Uuid, trigger: z.string() }),
+  'pipeline.started': z.object({ jobId: Uuid, runId: Uuid }),
+  'pipeline.finished': z.object({
+    jobId: Uuid,
+    runId: Uuid,
+    status: z.enum(['succeeded', 'failed']),
+    datasetId: Uuid.nullable(),
+    rows: z.number().int().nullable(),
+    error: z.string().nullable(),
+  }),
+
+  // ── источники датасетов из внешних БД (14-…md §5, ADR-0107) ───────────────
+  'source.created': z.object({ kind: z.string(), integrationId: Uuid, mode: z.string() }),
+  'source.updated': z.object({ changed: z.array(z.string()) }),
+  'source.queued': z.object({ jobId: Uuid, runId: Uuid, mode: z.string() }),
+  'source.synced': z.object({
+    jobId: Uuid,
+    runId: Uuid,
+    datasetId: Uuid,
+    rows: z.number().int(),
+    inserted: z.number().int(),
+    updated: z.number().int(),
+    version: z.number().int(),
+  }),
+  'source.failed': z.object({ jobId: Uuid.nullable(), runId: Uuid, error: z.string() }),
+
+  // ── слои-ссылки на внешние ГИС-службы (07-gis-engine.md §5, ADR-0108) ─────
+  'service_layer.created': z.object({ kind: z.string() }),
+  'service_layer.updated': z.object({ changed: z.array(z.string()) }),
+  'service_layer.checked': z.object({ ok: z.boolean(), message: z.string() }),
+
   // ── documents (08-documents.md, ADR-0080) ─────────────────────────────────
   'document.created': z.object({ typeKey: z.string(), direction: z.string(), status: z.string() }),
   /** Реквизиты или поля карточки изменены: changed — ключи реквизитов и `fields.<key>`. */

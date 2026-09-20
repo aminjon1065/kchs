@@ -376,7 +376,9 @@ function CreateIntegrationDialog({
             hint={
               kind === 'imap'
                 ? t('admin.integrations.mailboxHint')
-                : t('admin.integrations.configHint')
+                : kind === 'postgres' || kind === 'mysql'
+                  ? t('admin.integrations.configDatabaseHint')
+                  : t('admin.integrations.configHint')
             }
           >
             <Textarea

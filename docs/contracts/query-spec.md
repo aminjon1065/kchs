@@ -50,6 +50,7 @@
 | `union` | `source`, `mode: all|distinct` |
 | `spatial` | `op: buffer|intersects|within|dwithin|nearest|centroid|area|length|assign_territory|spatial_join|grid|hexgrid|dissolve|clip`, `params`, `target?` (датасет/запрос/территории/геометрия; слой — позже) — см. «Шаг spatial» |
 | `unnest` | `field` (массивы) |
+| `unpivot` | `keep[]` (остаются как есть), `fields[]` (в строки), `nameField`, `valueField`, `dropNulls` — столбцы в строки (ADR-0106) |
 | `sample` | `n` или `fraction` (для предпросмотров) |
 
 ### Шаг spatial
@@ -94,7 +95,7 @@
 
 Операторы: `+ - * / %`, `= != < <= > >=`, `and or not`, `in (…)`, `like`, `is null`, `?:`-условие через `if(cond, a, b)`, конкатенация `||`.
 
-Функции (минимальный набор v1): **числа** `abs, round(x, n), floor, ceil, coalesce, nullif, greatest, least, safe_div(a,b)`; **строки** `lower, upper, trim, length, substr, replace, concat, split_part, regex_match, regex_extract, starts_with, contains`; **даты** `now, today, date(x), date_trunc(unit, x), date_add(x, n, unit), date_diff(a, b, unit), year, quarter, month, week, day, dow, hour, format_date(x, fmt), working_days_between(a, b), add_working_days(x, n)`; **условия** `if, case(when…then…, else)`; **агрегаты** (только в `measures`/`expr` внутри aggregate) `count, count_distinct, sum, avg, min, max, median, percentile(x, p), string_agg(x, sep)`; **окно** — через шаг `window`; **гео** `st_distance(a, b)` (м), `st_within(a, b)`, `st_intersects`, `st_area` (км²), `st_length` (км), `st_buffer(g, m)`, `st_centroid`, `st_x`, `st_y`, `st_point(lon, lat)`; **справочники** `lookup_label(field)`, `territory_level(field, level)` (родитель уровня: `country|region|district|jamoat|settlement`), `territory_name(field)` — аргумент территориальных функций: поле-территория или код территории текстом (ADR-0057); **пользователь** `user_attr('territory_codes')`.
+Функции (минимальный набор v1): **числа** `abs, round(x, n), floor, ceil, coalesce, nullif, greatest, least, safe_div(a,b)`; **строки** `lower, upper, trim, length, substr, replace, concat, split_part, regex_match, regex_extract, starts_with, contains`; **даты** `now, today, date(x), date_trunc(unit, x), date_add(x, n, unit), date_diff(a, b, unit), year, quarter, month, week, day, dow, hour, format_date(x, fmt), working_days_between(a, b), add_working_days(x, n)`; **приведение** `cast(x, 'text'|'number'|'boolean'|'date'|'datetime')` — негодное значение даёт пусто, а не ошибку (ADR-0106); **условия** `if, case(when…then…, else)`; **агрегаты** (только в `measures`/`expr` внутри aggregate) `count, count_distinct, sum, avg, min, max, median, percentile(x, p), string_agg(x, sep)`; **окно** — через шаг `window`; **гео** `st_distance(a, b)` (м), `st_within(a, b)`, `st_intersects`, `st_area` (км²), `st_length` (км), `st_buffer(g, m)`, `st_centroid`, `st_x`, `st_y`, `st_point(lon, lat)`; **справочники** `lookup_label(field)`, `territory_level(field, level)` (родитель уровня: `country|region|district|jamoat|settlement`), `territory_name(field)` — аргумент территориальных функций: поле-территория или код территории текстом (ADR-0057); **пользователь** `user_attr('territory_codes')`.
 
 Типизация: числовые/строковые/логические/дата/геометрия/массив; неявные приведения только число→строка в `concat`. Ошибки — позиция, ожидаемый тип, подсказка.
 

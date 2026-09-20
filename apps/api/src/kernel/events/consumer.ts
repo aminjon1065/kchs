@@ -304,6 +304,10 @@ export const KNOWN_DOMAINS = [
   'alert',
   // Почта канцелярии: очередь «Из почты» (ADR-0113)
   'mail',
+  // Пайплайны, внешние источники и слои-ссылки (ADR-0106…0108)
+  'pipeline',
+  'source',
+  'service_layer',
 ] as const
 
 function resolveDomains(): string[] {

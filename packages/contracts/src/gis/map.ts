@@ -26,6 +26,18 @@ export const MapLayerEntry = z.object({
 })
 export type MapLayerEntry = z.infer<typeof MapLayerEntry>
 
+/**
+ * Слой-ссылка на внешнюю службу на карте (ADR-0108): растровые службы рисуются
+ * под слоями данных, векторные — поверх подложки. Отдельным списком, чтобы
+ * `layers` остался списком слоёв датасетов.
+ */
+export const MapServiceEntry = z.object({
+  serviceId: Uuid,
+  visible: z.boolean().default(true),
+  opacity: z.number().min(0).max(1).default(1),
+})
+export type MapServiceEntry = z.infer<typeof MapServiceEntry>
+
 export const MapBookmark = z.object({
   id: z.string().min(1).max(40),
   name: z.string().trim().min(1).max(200),
@@ -60,6 +72,8 @@ export const MapSpec = z.object({
   camera: MapCamera.default({ center: [69.0, 38.6], zoom: 6, bearing: 0, pitch: 0 }),
   /** Порядок — снизу вверх: последний рисуется поверх. */
   layers: z.array(MapLayerEntry).max(50).default([]),
+  /** Слои-ссылки на внешние ГИС-службы (ADR-0108). */
+  services: z.array(MapServiceEntry).max(20).default([]),
   bookmarks: z.array(MapBookmark).max(100).default([]),
   /** Время на карте: интервал для слоёв со временем; null — время не ограничено. */
   time: MapTime.nullable().default(null),
@@ -87,6 +101,7 @@ export const MapCreateInput = z.object({
     basemapId: null,
     camera: { center: [69.0, 38.6], zoom: 6, bearing: 0, pitch: 0 },
     layers: [],
+    services: [],
     bookmarks: [],
     time: null,
   }),

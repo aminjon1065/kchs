@@ -14,6 +14,9 @@ export const INTEGRATION_KINDS = [
   'http',
   's3',
   'sftp',
+  /** Внешняя СУБД как источник датасетов (ADR-0107). */
+  'postgres',
+  'mysql',
   'custom',
 ] as const
 export const IntegrationKind = z.enum(INTEGRATION_KINDS)
