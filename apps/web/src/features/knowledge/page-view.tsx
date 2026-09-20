@@ -33,7 +33,7 @@ import {
 import { meQuery } from '~/shared/api/queries.js'
 import { AddBlockButtons, PageBlockCard } from './page-blocks.js'
 import { PageProvider } from './page-context.js'
-import { createPageBlock } from './page-doc.js'
+import { createPageBlock, PAGE_KEYS } from './page-doc.js'
 import { PageOutline } from './page-outline.js'
 import { PageReview, PublishDialog } from './page-panels.js'
 import { PageVersions } from './page-versions.js'
@@ -162,14 +162,14 @@ export default function PageView({ objectId, tabId }: { objectId: string; tabId:
 /** Блоки страницы по порядку документа: правки соавторов видны сразу. */
 function PageBlocks({ doc, readOnly }: { doc: Y.Doc; readOnly: boolean }) {
   const t = useT()
-  const orderVersion = useYChanges(orderOf(doc) as unknown as Y.AbstractType<unknown>)
-  const blocksVersion = useYChanges(cellsOf(doc) as unknown as Y.AbstractType<unknown>)
+  const orderVersion = useYChanges(orderOf(doc, PAGE_KEYS) as unknown as Y.AbstractType<unknown>)
+  const blocksVersion = useYChanges(cellsOf(doc, PAGE_KEYS) as unknown as Y.AbstractType<unknown>)
   // biome-ignore lint/correctness/useExhaustiveDependencies: версии документа — сигнал пересчёта
-  const ids = useMemo(() => cellIds(doc), [doc, orderVersion, blocksVersion])
-  const blocks = cellsOf(doc)
+  const ids = useMemo(() => cellIds(doc, PAGE_KEYS), [doc, orderVersion, blocksVersion])
+  const blocks = cellsOf(doc, PAGE_KEYS)
 
   const add = (kind: PageBlockKind) => {
-    insertCell(doc, createPageBlock(kind), ids.length)
+    insertCell(doc, createPageBlock(kind), ids.length, PAGE_KEYS)
   }
 
   return (
@@ -191,9 +191,9 @@ function PageBlocks({ doc, readOnly }: { doc: Y.Doc; readOnly: boolean }) {
             id={id}
             block={block}
             kind={kind as PageBlockKind}
-            onMove={(delta) => moveCell(doc, id, delta)}
-            onRemove={() => removeCell(doc, id)}
-            onDuplicate={() => duplicateCell(doc, id)}
+            onMove={(delta) => moveCell(doc, id, delta, PAGE_KEYS)}
+            onRemove={() => removeCell(doc, id, PAGE_KEYS)}
+            onDuplicate={() => duplicateCell(doc, id, PAGE_KEYS)}
           />
         )
       })}

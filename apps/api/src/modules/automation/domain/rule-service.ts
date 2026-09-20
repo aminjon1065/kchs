@@ -24,7 +24,7 @@ import { db, type Executor } from '~/shared/db/client.js'
 import { objects, ruleRuns, rules, spaces, users } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
-import { checkRule, ruleIssuesOk } from './validate.js'
+import { blockingIssues, checkRule } from './validate.js'
 
 /**
  * Правила автоматизации (14-automation-integrations.md §1, ADR-0096).
@@ -243,13 +243,11 @@ export const RuleService = {
 
   async create(tx: Executor, ctx: UserCtx, input: RuleCreateInput): Promise<string> {
     const definition = RuleDefinition.parse(input.definition)
-    const issues = checkRule(definition)
-    if (!ruleIssuesOk(issues)) {
+    const blocking = blockingIssues(checkRule(definition), definition.enabled)
+    if (blocking.length > 0) {
       throw errors.validation(
-        `Правило не сохранено: ${issues.find((issue) => issue.severity === 'error')?.message ?? ''}`,
-        issues
-          .filter((issue) => issue.severity === 'error')
-          .map((issue) => ({ path: issue.path, message: issue.message })),
+        `Правило не сохранено: ${blocking[0]?.message ?? ''}`,
+        blocking.map((issue) => ({ path: issue.path, message: issue.message })),
       )
     }
     if (definition.runAs) await assertRunAs(definition.runAs)
@@ -287,13 +285,11 @@ export const RuleService = {
     const current = await RuleService.load(tx, id)
     if (!current) throw errors.notFound('Правило')
     const definition = RuleDefinition.parse(next)
-    const issues = checkRule(definition)
-    if (!ruleIssuesOk(issues)) {
+    const blocking = blockingIssues(checkRule(definition), definition.enabled)
+    if (blocking.length > 0) {
       throw errors.validation(
-        `Правило не сохранено: ${issues.find((issue) => issue.severity === 'error')?.message ?? ''}`,
-        issues
-          .filter((issue) => issue.severity === 'error')
-          .map((issue) => ({ path: issue.path, message: issue.message })),
+        `Правило не сохранено: ${blocking[0]?.message ?? ''}`,
+        blocking.map((issue) => ({ path: issue.path, message: issue.message })),
       )
     }
     if (definition.runAs) await assertRunAs(definition.runAs)

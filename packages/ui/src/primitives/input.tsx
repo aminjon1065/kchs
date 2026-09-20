@@ -1,7 +1,9 @@
 import { Eye, EyeOff, Search, X } from 'lucide-react'
 import {
+  cloneElement,
   forwardRef,
   type InputHTMLAttributes,
+  isValidElement,
   type ReactNode,
   type TextareaHTMLAttributes,
   useId,
@@ -209,6 +211,13 @@ export interface FieldProps {
 export function Field({ label, hint, error, required, htmlFor, children, className }: FieldProps) {
   const generatedId = useId()
   const id = htmlFor ?? generatedId
+  // Подпись связывается с полем: если единственный потомок не задал свой `id`,
+  // он получает сгенерированный — иначе `htmlFor` указывал бы в пустоту и у
+  // поля не было бы доступного имени (17-security.md §7, доступность)
+  const field =
+    htmlFor === undefined && isValidElement<{ id?: string }>(children) && !children.props.id
+      ? cloneElement(children, { id })
+      : children
   return (
     <div className={cn('flex flex-col gap-1.5', className)}>
       {label ? (
@@ -217,7 +226,7 @@ export function Field({ label, hint, error, required, htmlFor, children, classNa
           {required ? <span className="ml-0.5 text-danger">*</span> : null}
         </label>
       ) : null}
-      {children}
+      {field}
       {error ? (
         <p role="alert" className="text-xs text-danger">
           {error}

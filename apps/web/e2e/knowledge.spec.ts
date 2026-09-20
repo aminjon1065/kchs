@@ -41,14 +41,18 @@ test.describe('Знания: страница базы знаний', () => {
     const review = new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10)
     await page.getByLabel('Следующий пересмотр').fill(review)
     await page.getByRole('button', { name: 'Опубликовать' }).last().click()
-    await expect(page.getByText('Опубликована')).toBeVisible()
+    await expect(page.getByText('Опубликована').first()).toBeVisible()
 
     // Версии: снимок публикации, сравнение с текущим текстом
     await page.getByRole('tab', { name: 'Версии' }).click()
     await expect(page.getByText('Версия 1')).toBeVisible()
     await page.getByRole('button', { name: 'Сравнить' }).click()
     await expect(page.getByRole('dialog', { name: 'Сравнение версий' })).toBeVisible()
-    await page.getByRole('button', { name: 'Закрыть' }).click()
+    await page
+      .getByRole('dialog', { name: 'Сравнение версий' })
+      .getByRole('button', { name: 'Закрыть' })
+      .last()
+      .click()
 
     // Откат: текущий текст сохраняется версией, страница возвращается к снимку
     await page.getByRole('button', { name: 'Откатить к версии' }).first().click()
@@ -56,7 +60,7 @@ test.describe('Знания: страница базы знаний', () => {
 
     // Пересмотр: владелец и срок видны, страницу можно вернуть на пересмотр
     await page.getByRole('tab', { name: 'Пересмотр' }).click()
-    await expect(page.getByText(review)).toBeVisible()
+    await expect(page.getByText(review, { exact: true })).toBeVisible()
     await page.getByRole('button', { name: 'Отправить на ознакомление' }).click()
     await expect(page.getByRole('dialog', { name: 'Кого ознакомить со страницей' })).toBeVisible()
     await page.getByRole('button', { name: 'Отмена' }).click()
@@ -87,6 +91,8 @@ test.describe('Знания: страница базы знаний', () => {
     const pageId = (await created.json()).id as string
 
     await page.goto(`/o/${pageId}`)
+    // Блоки приходят совместным документом — ждём, пока он подключится
+    await expect(page.getByRole('article').first()).toBeVisible({ timeout: 30_000 })
     await page.getByRole('button', { name: 'Обсудить фрагмент' }).first().click()
     await expect(page.getByText('Комментарии к фрагменту')).toBeVisible()
     await page.getByRole('textbox', { name: 'Комментарий' }).fill(`Уточнить срок ${run}`)

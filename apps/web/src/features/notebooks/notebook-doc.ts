@@ -20,8 +20,19 @@ import * as Y from 'yjs'
 
 export type CellMap = Y.Map<unknown>
 
-export const cellsOf = (doc: Y.Doc) => doc.getMap<CellMap>(NOTEBOOK_DOC.cells)
-export const orderOf = (doc: Y.Doc) => doc.getArray<string>(NOTEBOOK_DOC.order)
+/**
+ * Корневые ключи документа: у тетради это `cells`/`order`, у страницы базы
+ * знаний — `blocks`/`order` (ADR-0095). Функции работы с блоками одни и те же,
+ * поэтому ключи передаются параметром, а не зашиты в них.
+ */
+export interface DocKeys {
+  cells: string
+  order: string
+}
+
+export const cellsOf = (doc: Y.Doc, keys: DocKeys = NOTEBOOK_DOC) => doc.getMap<CellMap>(keys.cells)
+export const orderOf = (doc: Y.Doc, keys: DocKeys = NOTEBOOK_DOC) =>
+  doc.getArray<string>(keys.order)
 export const paramsOf = (doc: Y.Doc) => doc.getMap<unknown>(NOTEBOOK_DOC.params)
 
 /** Идентификатор ячейки; getRandomValues работает и на странице без HTTPS (randomUUID — нет). */
@@ -31,11 +42,11 @@ export function newCellId(): string {
 }
 
 /** Ячейки по порядку: повтор идентификатора (одновременный перенос) — один раз. */
-export function cellIds(doc: Y.Doc): string[] {
-  const cells = cellsOf(doc)
+export function cellIds(doc: Y.Doc, keys: DocKeys = NOTEBOOK_DOC): string[] {
+  const cells = cellsOf(doc, keys)
   const seen = new Set<string>()
   const ids: string[] = []
-  for (const id of orderOf(doc).toArray()) {
+  for (const id of orderOf(doc, keys).toArray()) {
     if (typeof id !== 'string' || seen.has(id) || !(cells.get(id) instanceof Y.Map)) continue
     seen.add(id)
     ids.push(id)
@@ -71,59 +82,68 @@ export function writeCell(cell: CellMap, values: Record<string, unknown>): void 
 }
 
 /** Ячейка на позицию в порядке; ячеек больше лимита не бывает. */
-export function insertCell(doc: Y.Doc, cell: { id: string; map: CellMap }, index: number): boolean {
-  if (cellIds(doc).length >= NOTEBOOK_MAX_CELLS) return false
+export function insertCell(
+  doc: Y.Doc,
+  cell: { id: string; map: CellMap },
+  index: number,
+  keys: DocKeys = NOTEBOOK_DOC,
+): boolean {
+  if (cellIds(doc, keys).length >= NOTEBOOK_MAX_CELLS) return false
   doc.transact(() => {
-    cellsOf(doc).set(cell.id, cell.map)
-    const order = orderOf(doc)
+    cellsOf(doc, keys).set(cell.id, cell.map)
+    const order = orderOf(doc, keys)
     order.insert(Math.max(0, Math.min(index, order.length)), [cell.id])
   })
   return true
 }
 
 /** Позиция ячейки в массиве порядка (первое вхождение). */
-function positionOf(doc: Y.Doc, id: string): number {
-  return orderOf(doc).toArray().indexOf(id)
+function positionOf(doc: Y.Doc, id: string, keys: DocKeys = NOTEBOOK_DOC): number {
+  return orderOf(doc, keys).toArray().indexOf(id)
 }
 
-export function removeCell(doc: Y.Doc, id: string): void {
+export function removeCell(doc: Y.Doc, id: string, keys: DocKeys = NOTEBOOK_DOC): void {
   doc.transact(() => {
-    const order = orderOf(doc)
+    const order = orderOf(doc, keys)
     // Все вхождения: после одновременного переноса их может быть два
     for (let index = order.length - 1; index >= 0; index--) {
       if (order.get(index) === id) order.delete(index, 1)
     }
-    cellsOf(doc).delete(id)
+    cellsOf(doc, keys).delete(id)
   })
 }
 
 /** Перенос меняет только порядок: содержимое ячейки и правка в ней не трогаются. */
-export function moveCell(doc: Y.Doc, id: string, delta: -1 | 1): void {
-  const ids = cellIds(doc)
+export function moveCell(
+  doc: Y.Doc,
+  id: string,
+  delta: -1 | 1,
+  keys: DocKeys = NOTEBOOK_DOC,
+): void {
+  const ids = cellIds(doc, keys)
   const from = ids.indexOf(id)
   const target = ids[from + delta]
   if (from < 0 || !target) return
   doc.transact(() => {
-    const order = orderOf(doc)
-    const at = positionOf(doc, id)
+    const order = orderOf(doc, keys)
+    const at = positionOf(doc, id, keys)
     if (at < 0) return
     order.delete(at, 1)
-    const anchor = positionOf(doc, target)
+    const anchor = positionOf(doc, target, keys)
     order.insert(delta > 0 ? anchor + 1 : anchor, [id])
   })
 }
 
 /** Копия ячейки — сразу после неё. */
-export function duplicateCell(doc: Y.Doc, id: string): string | null {
-  const source = cellsOf(doc).get(id)
+export function duplicateCell(doc: Y.Doc, id: string, keys: DocKeys = NOTEBOOK_DOC): string | null {
+  const source = cellsOf(doc, keys).get(id)
   if (!(source instanceof Y.Map)) return null
   const copy = source.clone()
   const copyId = newCellId()
   copy.set('id', copyId)
-  const at = positionOf(doc, id)
-  return insertCell(doc, { id: copyId, map: copy }, at < 0 ? orderOf(doc).length : at + 1)
-    ? copyId
-    : null
+  const at = positionOf(doc, id, keys)
+  const index = at < 0 ? orderOf(doc, keys).length : at + 1
+  return insertCell(doc, { id: copyId, map: copy }, index, keys) ? copyId : null
 }
 
 /** Параметры тетради: значение, не прошедшее контракт, — «не задан». */

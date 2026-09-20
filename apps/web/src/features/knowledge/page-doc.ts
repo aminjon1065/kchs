@@ -1,6 +1,10 @@
-import { PAGE_BLOCK_LAYOUT, PageBlock, type PageBlockKind } from '@kchs/contracts'
+import { PAGE_BLOCK_LAYOUT, PAGE_DOC, PageBlock, type PageBlockKind } from '@kchs/contracts'
 import * as Y from 'yjs'
+import type { DocKeys } from '~/features/notebooks/notebook-doc.js'
 import { type CellMap, newCellId } from '~/features/notebooks/notebook-doc.js'
+
+/** Корневые ключи документа страницы: у сервера те же (ADR-0095). */
+export const PAGE_KEYS: DocKeys = { cells: PAGE_DOC.blocks, order: PAGE_DOC.order }
 
 /**
  * Документ Yjs страницы на клиенте (ADR-0095): корневые типы и ключи — как у

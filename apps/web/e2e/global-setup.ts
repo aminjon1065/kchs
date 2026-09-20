@@ -38,6 +38,16 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
         `Не удалось войти как ${account.login}: ${response.status()} ${await response.text()}`,
       )
     }
+    // Вход со вторым фактором отвечает 200 и вызовом, а не сессией: без этой
+    // проверки прогон продолжился бы с пустым состоянием и падал бы далеко
+    // от причины (ADR-0098)
+    const body = (await response.json()) as { status?: string }
+    if (body.status !== 'ok') {
+      throw new Error(
+        `Учётная запись ${account.login} требует второй фактор (${body.status}): ` +
+          'снимите ключ входа или TOTP у демо-пользователя перед прогоном',
+      )
+    }
     await context.storageState({ path: account.file })
     await context.dispose()
   }

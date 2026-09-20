@@ -33,9 +33,8 @@ test.describe('Правила автоматизации', () => {
     await expect(page.getByRole('tab', { name })).toBeVisible()
     await expect(page.getByRole('heading', { name })).toBeVisible()
 
-    // Без служебного пользователя правило не сохранить: проверка показывает ошибку
-    await expect(page.getByText('Укажите служебного пользователя')).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Сохранить' })).toBeDisabled()
+    // Правило родилось черновиком (выключенным): включить его без служебного
+    // пользователя нельзя — это проверяется ниже
 
     // «Когда»: событие каталога и отбор по типу объекта
     await page.getByLabel('Тип события').fill('object.created')
@@ -50,7 +49,8 @@ test.describe('Правила автоматизации', () => {
     // «То»: единственное действие — поставить тег
     await page.getByRole('combobox', { name: 'Действие' }).first().click()
     await page.getByRole('option', { name: 'Добавить тег' }).click()
-    await page.getByLabel('Тег').fill(`авто-${tag}`)
+    // В шаблоне уже есть действие с тегом — заполняем только что добавленное
+    await page.getByLabel('Тег').first().fill(`авто-${tag}`)
 
     // Служебный пользователь: сотрудник с правами на пространство
     const runAs = await request.get('/api/v1/users?q=user001')
@@ -70,8 +70,10 @@ test.describe('Правила автоматизации', () => {
     await page.getByRole('button', { name: 'Сохранить' }).click()
     await expect(page.getByText('Правило сохранено')).toBeVisible()
 
-    // Список правил: правило включено и видно с триггером
+    // Список правил: правило включено и видно с триггером. Возврат во вкладку
+    // администрирования открывает её первый раздел — выбираем свой снова
     await page.getByRole('tab', { name: 'Администрирование' }).click()
+    await page.getByRole('tab', { name: 'Правила автоматизации' }).click()
     await expect(page.getByRole('row', { name: new RegExp(name) })).toContainText('Событие')
   })
 

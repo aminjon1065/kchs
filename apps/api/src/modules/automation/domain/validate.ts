@@ -236,3 +236,13 @@ export function checkRule(definition: RuleDefinition): RuleIssue[] {
 export function ruleIssuesOk(issues: RuleIssue[]): boolean {
   return !issues.some((issue) => issue.severity === 'error')
 }
+
+/**
+ * Черновик правила сохраняется и без служебного пользователя: правило
+ * рождается выключенным, а включить его без `runAs` всё равно нельзя
+ * (`setEnabled`). Остальные ошибки держат сохранение как раньше.
+ */
+export function blockingIssues(issues: RuleIssue[], enabled: boolean): RuleIssue[] {
+  const errors = issues.filter((issue) => issue.severity === 'error')
+  return enabled ? errors : errors.filter((issue) => issue.path !== 'runAs')
+}

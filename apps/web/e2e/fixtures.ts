@@ -48,8 +48,14 @@ export async function openWorkspace(page: Page, request: APIRequestContext): Pro
 
 /** Открывает экран через палитру команд. */
 export async function openScreen(page: Page, query: string): Promise<void> {
-  await page.keyboard.press('Meta+k')
+  // После перезагрузки страницы фокус не на документе, и сочетание не доходит
+  // до обработчика: щёлкаем по оболочке и при необходимости повторяем
   const input = page.getByPlaceholder(/Поиск объектов/)
+  await page.locator('body').click({ position: { x: 5, y: 5 } })
+  await page.keyboard.press('Meta+k')
+  if (!(await input.isVisible().catch(() => false))) {
+    await page.keyboard.press('Control+k')
+  }
   await expect(input).toBeVisible()
   await input.fill(query)
   // Не первый результат, а пункт с названием экрана: на общем стенде копятся объекты

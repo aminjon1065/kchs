@@ -70,11 +70,14 @@ test.describe('Каталог, единый вход и ключи входа', 
     await expect(page.getByText(/Соединение не установлено/)).toBeVisible({ timeout: 30_000 })
 
     // Выключенный единый вход не показывает кнопку на экране входа
-    const anonymous = await page.context().browser()?.newContext({ baseURL: BASE })
+    const anonymous = await page
+      .context()
+      .browser()
+      ?.newContext({ baseURL: BASE, storageState: undefined })
     if (anonymous) {
       const login = await anonymous.newPage()
       await login.goto('/')
-      await expect(login.getByRole('button', { name: 'Войти' })).toBeVisible({ timeout: 20_000 })
+      await expect(login.getByLabel('Логин или почта')).toBeVisible({ timeout: 20_000 })
       await expect(login.getByRole('button', { name: /корпоративн/i })).toHaveCount(0)
       await anonymous.close()
     }
@@ -101,35 +104,42 @@ test.describe('Каталог, единый вход и ключи входа', 
       },
     })
 
-    await page.goto('/')
-    await expect(page.getByRole('tab', { name: /Мой день/ })).toBeVisible({ timeout: 20_000 })
-    await openScreen(page, 'Профиль')
+    // Ключ снимается в любом случае: иначе учётная запись останется со вторым
+    // фактором и следующие прогоны не войдут под сотрудником
+    try {
+      await page.goto('/')
+      await expect(page.getByRole('tab', { name: /Мой день/ })).toBeVisible({ timeout: 20_000 })
+      await page.goto('/profile')
 
-    await page.getByLabel('Название ключа').fill('Ключ сценария')
-    await page.getByRole('button', { name: 'Добавить ключ' }).click()
-    await expect(page.getByText('Ключ добавлен')).toBeVisible({ timeout: 20_000 })
-    const row = page.getByRole('listitem').filter({ hasText: 'Ключ сценария' })
-    await expect(row).toBeVisible()
-    await expect(row.getByText('Подтверждает личность')).toBeVisible()
+      await page.getByLabel('Название ключа').fill('Ключ сценария')
+      await page.getByRole('button', { name: 'Добавить ключ' }).click()
+      await expect(page.getByText('Ключ добавлен')).toBeVisible({ timeout: 20_000 })
+      const row = page.getByRole('listitem').filter({ hasText: 'Ключ сценария' })
+      await expect(row).toBeVisible()
+      await expect(row.getByText('Подтверждает личность')).toBeVisible()
 
-    // Выход и вход по ключу: пароль не вводится
-    await page.getByRole('button', { name: 'Выйти' }).click()
-    await expect(page.getByRole('button', { name: 'Войти' })).toBeVisible({ timeout: 20_000 })
-    await page.getByRole('button', { name: 'Войти по ключу' }).click()
-    await expect(page.getByRole('tab', { name: /Мой день/ })).toBeVisible({ timeout: 30_000 })
-
-    // Ключ убирается за собой: стенд общий
-    await openScreen(page, 'Профиль')
-    await page
-      .getByRole('listitem')
-      .filter({ hasText: 'Ключ сценария' })
-      .getByRole('button', { name: 'Удалить' })
-      .click()
-
-    await page.getByRole('alertdialog').getByRole('button', { name: 'Удалить' }).click()
-    await expect(page.getByText('Ключ отозван')).toBeVisible()
-
-    await cdp.send('WebAuthn.removeVirtualAuthenticator', { authenticatorId })
-    await context.close()
+      // Выход и вход по ключу: пароль не вводится
+      await page.getByRole('button', { name: 'Выйти' }).first().click()
+      await expect(page.getByLabel('Логин или почта')).toBeVisible({ timeout: 20_000 })
+      await page.getByRole('button', { name: 'Войти по ключу' }).click()
+      await expect(page.getByRole('tab', { name: /Мой день/ })).toBeVisible({ timeout: 30_000 })
+    } finally {
+      // Ключ снимается в любом случае — запросом, а не через интерфейс: при
+      // падении посреди сценария страница может быть где угодно, а ключ делает
+      // учётную запись двухфакторной и ломает вход другим сценариям
+      const me = await context.request.get('/api/v1/me')
+      if (me.ok()) {
+        const csrf = (await me.json()).session.csrfToken as string
+        const keys = await context.request.get('/api/v1/me/passkeys')
+        const items = keys.ok() ? ((await keys.json()).items as Array<Record<string, string>>) : []
+        for (const key of items.filter((item) => item.name === 'Ключ сценария')) {
+          await context.request.delete(`/api/v1/me/passkeys/${key.id}`, {
+            headers: { 'x-csrf-token': csrf },
+          })
+        }
+      }
+      await cdp.send('WebAuthn.removeVirtualAuthenticator', { authenticatorId })
+      await context.close()
+    }
   })
 })

@@ -44,7 +44,7 @@ test.afterAll(async () => {
 test.describe('Публичный API и вебхуки', () => {
   test('токен из профиля открывает API и отзывается', async ({ page, request }) => {
     await openWorkspace(page, request)
-    await openScreen(page, 'Мой профиль')
+    await page.goto('/profile')
 
     const name = `Интеграция ${Date.now().toString(36)}`
     await page.getByRole('button', { name: 'Выпустить токен' }).click()
@@ -57,7 +57,7 @@ test.describe('Публичный API и вебхуки', () => {
     await expect(issued).toBeVisible()
     const secret = (await issued.locator('code').innerText()).trim()
     expect(secret.startsWith('kchs_')).toBeTruthy()
-    await issued.getByRole('button', { name: 'Закрыть' }).click()
+    await issued.getByRole('button', { name: 'Закрыть' }).last().click()
 
     // Токен ходит в API без cookie и без CSRF-токена
     const withToken = await request.get('/api/v1/spaces', {
@@ -107,7 +107,7 @@ test.describe('Публичный API и вебхуки', () => {
     const inbound = page.getByRole('dialog', { name: 'Адрес входящего вебхука' })
     await expect(inbound).toBeVisible()
     const url = (await inbound.locator('code').innerText()).trim()
-    await inbound.getByRole('button', { name: 'Закрыть' }).click()
+    await inbound.getByRole('button', { name: 'Закрыть' }).last().click()
 
     // Запрос по адресу принимается и не требует сессии
     const posted = await request.post(url.replace(/^https?:\/\/[^/]+/, ''), {
@@ -139,16 +139,16 @@ test.describe('Публичный API и вебхуки', () => {
     const secretDialog = page.getByRole('dialog', { name: 'Секрет подписи' })
     await expect(secretDialog).toBeVisible()
     const secret = (await secretDialog.locator('code').innerText()).trim()
-    await secretDialog.getByRole('button', { name: 'Закрыть' }).click()
+    await secretDialog.getByRole('button', { name: 'Закрыть' }).last().click()
 
     // Любое действие порождает `object.created` — создаём папку в личном пространстве
     const me = await request.get('/api/v1/me')
     const csrfToken = (await me.json()).session.csrfToken as string
     const spaces = await request.get('/api/v1/spaces')
     const spaceId = (await spaces.json()).items[0].id as string
-    const folder = await request.post('/api/v1/objects', {
+    const folder = await request.post('/api/v1/folders', {
       headers: { 'x-csrf-token': csrfToken },
-      data: { type: 'folder', spaceId, title: `Папка ${name}` },
+      data: { spaceId, name: `Папка ${name}` },
     })
     expect(folder.ok()).toBeTruthy()
 
@@ -170,7 +170,7 @@ test.describe('Публичный API и вебхуки', () => {
     await row.getByRole('button', { name: 'Доставки' }).click()
     const log = page.getByRole('dialog', { name: `Доставки: ${name}` })
     await expect(log.getByText('Доставлено')).toBeVisible({ timeout: 20_000 })
-    await log.getByRole('button', { name: 'Закрыть' }).click()
+    await log.getByRole('button', { name: 'Закрыть' }).last().click()
 
     // Уборка стенда: подписка не должна стучаться после прогона
     await row.getByRole('button', { name: 'Удалить' }).click()
@@ -190,7 +190,8 @@ test.describe('Публичный API и вебхуки', () => {
     expect(json).toContain('"version": 1')
 
     await page.getByRole('button', { name: 'Показать различия' }).click()
-    await expect(page.getByRole('heading', { name: 'Различия' })).toBeVisible()
+    // Заголовок карточки дизайн-системы — не heading (известное ограничение)
+    await expect(page.getByText('Различия', { exact: true })).toBeVisible()
     // Тот же контур: всё совпадает
     await expect(page.getByText('Совпадает').first()).toBeVisible()
   })
