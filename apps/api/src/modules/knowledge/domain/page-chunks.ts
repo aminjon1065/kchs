@@ -179,7 +179,8 @@ export async function searchPageChunks(
   try {
     const result = await index().search(q, {
       limit,
-      filter,
+      // Пустой фильтр — у смотрящего нет ограничений (администратор, аудитор)
+      ...(filter ? { filter } : {}),
       attributesToHighlight: ['text'],
       highlightPreTag: '<mark>',
       highlightPostTag: '</mark>',
