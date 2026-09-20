@@ -33,13 +33,13 @@ export async function receiveInbound(input: {
     .limit(1)
 
   // Существование интеграции не раскрывается: нет строки, выключен входящий
-  // вебхук или не сошёлся секрет — ответ одинаковый
-  const hash = row?.inboundSecretHash ?? null
+  // вебхук или не сошёлся секрет — ответ одинаковый. Сравнение идёт и без
+  // строки (с заведомо чужим хэшем) — иначе время ответа выдавало бы, есть
+  // ли такая интеграция
+  const hash = row?.inboundSecretHash ?? hashToken(`absent:${input.integrationId}`)
+  const matches = safeEqual(hash, hashToken(input.secret))
   const ok =
-    row?.enabled === true &&
-    row.inboundEnabled &&
-    hash !== null &&
-    safeEqual(hash, hashToken(input.secret))
+    row?.enabled === true && row.inboundEnabled && row.inboundSecretHash !== null && matches
   if (!ok || !row) {
     await audit(systemCtx('webhook-inbound'), {
       action: AUDIT_ACTIONS.webhookReceived,

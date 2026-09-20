@@ -14,7 +14,7 @@ import { webhookDeliveries, webhooks } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { logger } from '~/shared/logger/index.js'
-import { OUTBOUND_TIMEOUT_MS } from './checks.js'
+import { checkOutboundUrl, OUTBOUND_TIMEOUT_MS } from './checks.js'
 import { Webhooks } from './webhook-service.js'
 
 export const WEBHOOK_DELIVER_JOB = { queue: 'automation', name: 'webhook.deliver' } as const
@@ -119,6 +119,18 @@ async function send(row: WebhookRow, delivery: WebhookDeliveryRow): Promise<Atte
   const timer = setTimeout(() => controller.abort(), OUTBOUND_TIMEOUT_MS)
   const started = Date.now()
   try {
+    // Адрес проверяется не только при подписке, но и перед каждой отправкой:
+    // имя, которое при создании смотрело наружу, к моменту доставки может
+    // указывать внутрь сети (DNS rebinding), а подписка живёт сутками
+    const allowed = await checkOutboundUrl(row.url)
+    if (!allowed.ok) {
+      return {
+        ok: false,
+        status: null,
+        error: allowed.reason ?? 'Адрес запрещён',
+        durationMs: Date.now() - started,
+      }
+    }
     const response = await fetch(row.url, {
       method: 'POST',
       // Перенаправления не выполняются: иначе получатель уводит запрос внутрь сети

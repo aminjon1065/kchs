@@ -238,6 +238,32 @@ describe('исходящие вебхуки', () => {
     }
   })
 
+  it('адрес проверяется и перед самой отправкой, а не только при подписке', async () => {
+    // Подписка заведена, когда защита была снята (так и бывает на стенде), а к
+    // моменту доставки имя стало смотреть внутрь сети: доставки быть не должно
+    const { id } = await createWebhook({
+      name: `Метаданные облака ${Date.now().toString(36)}`,
+      url: 'http://169.254.169.254/latest/meta-data',
+    })
+    await dispatchEvent(envelope('object.created'))
+    const [delivery] = await deliveriesOf(id)
+    expect(delivery).toBeDefined()
+
+    process.env.WEBHOOKS_ALLOW_PRIVATE_ADDRESSES = 'false'
+    resetConfigCache()
+    const before = received.length
+    try {
+      const result = await deliverOnce(delivery?.id ?? '')
+      expect(result.status).not.toBe('delivered')
+    } finally {
+      process.env.WEBHOOKS_ALLOW_PRIVATE_ADDRESSES = 'true'
+      resetConfigCache()
+    }
+    expect(received.length).toBe(before)
+    const [after] = await deliveriesOf(id)
+    expect(after?.error ?? '').toMatch(/внутренн/i)
+  })
+
   it('сотрудник без способности не видит вебхуки', async () => {
     const response = await call(fx.app, { url: '/webhooks', as: fx.users.member })
     expect(response.statusCode).toBe(403)
@@ -299,6 +325,21 @@ describe('входящие вебхуки', () => {
     })
     expect(unknown.statusCode).toBe(404)
     expect(unknown.json().code).toBe(wrong.json().code)
+  })
+
+  it('секрет не возвращается обратно в ответе об ошибке', async () => {
+    // `instance` проблемы — адрес запроса, а в нём секрет: в ответ он не идёт,
+    // иначе секрет разъезжается по журналам посредников (17-security.md §4)
+    const { id } = await createIntegration(`inbound-echo-${Date.now().toString(36)}`)
+    const secret = 'sup3r-s3cr3t-value-0123456789'
+    const response = await call(fx.app, {
+      method: 'POST',
+      url: `/hooks/${id}/${secret}`,
+      payload: {},
+    })
+    expect(response.statusCode).toBe(404)
+    expect(response.body).not.toContain(secret)
+    expect(response.json().instance ?? '').toContain('[скрыто]')
   })
 
   it('выключенный вход перестаёт принимать запросы', async () => {
