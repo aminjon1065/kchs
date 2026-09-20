@@ -1,5 +1,6 @@
 import {
   DocumentAssistStatus,
+  DocumentClassification,
   DocumentExtraction,
   DocumentReplyDraft,
   DocumentReplyDraftInput,
@@ -36,6 +37,18 @@ export function registerDocumentAssistRoutes(route: RouteRegistrar): void {
     readOnly: true,
     schema: { params: IdParam, response: { 200: DocumentExtraction } },
     handler: async (request) => DocumentAssistService.extract(request.ctx, request.params.id),
+  })
+
+  route({
+    method: 'POST',
+    url: '/documents/:id/assist/classify',
+    auth: 'session',
+    tags: ['documents'],
+    summary: 'Вид документа по тексту скана и похожие документы',
+    description: 'Предложение с уверенностью и цитатой: вид выбирается из заведённых в установке.',
+    readOnly: true,
+    schema: { params: IdParam, response: { 200: DocumentClassification } },
+    handler: async (request) => DocumentAssistService.classify(request.ctx, request.params.id),
   })
 
   route({

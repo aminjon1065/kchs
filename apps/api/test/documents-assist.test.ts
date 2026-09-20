@@ -214,6 +214,34 @@ describe('ИИ в документах', () => {
     expect(JSON.stringify(entry?.details)).not.toContain('дамбы')
   })
 
+  it('вид документа: выбирается из заведённых, похожие документы — из доступных', async () => {
+    const { id, fileId } = await draftWithScan()
+    await recognized(fileId)
+
+    // Модель выбирает ключ из перечня видов
+    ai.reply({ key: 'incoming_letter', confidence: 0.92, quote: 'МИНИСТЕРСТВО ФИНАНСОВ' })
+    const response = await assist(id, 'classify')
+    expect(response.statusCode, response.body).toBe(200)
+    const answer = response.json()
+    expect(answer.type).toMatchObject({ id: types.get('incoming_letter'), confidence: 0.92 })
+    expect(answer.type.name).toBeTruthy()
+    expect(Array.isArray(answer.similar)).toBe(true)
+
+    // Ключ не из перечня — предложения нет, а не выдуманный вид
+    ai.reply({ key: 'нет-такого-вида', confidence: 0.99, quote: '' })
+    const unknown = await assist(id, 'classify')
+    expect(unknown.statusCode, unknown.body).toBe(200)
+    expect(unknown.json().type).toBeNull()
+  })
+
+  it('вид документа: без права правки предложение не запрашивается', async () => {
+    const { id, fileId } = await draftWithScan()
+    await recognized(fileId)
+    const stranger = await createUser(fx.app, `stranger_classify_${run}`, ['employee'])
+    const response = await assist(id, 'classify', stranger)
+    expect([403, 404]).toContain(response.statusCode)
+  })
+
   it('краткое содержание и черновик ответа по указаниям исполнителя', async () => {
     const { id, fileId } = await draftWithScan({ correspondentId: ministry })
     await recognized(fileId)

@@ -1,5 +1,10 @@
-import type { DocumentReplyDraft, DocumentSummaryDraft } from '@kchs/contracts'
+import type {
+  DocumentClassification,
+  DocumentReplyDraft,
+  DocumentSummaryDraft,
+} from '@kchs/contracts'
 import {
+  Badge,
   Button,
   Callout,
   Card,
@@ -14,9 +19,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bot, Copy, FileText, Reply, Sparkles } from 'lucide-react'
 import { useId, useState } from 'react'
 import { useT } from '~/app/i18n.js'
+import { useWorkspace } from '~/app/workspace/store.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { documentKeys, documentQuery } from '../queries.js'
-import { documentAssistQuery } from './queries.js'
+import { confidenceTone, documentAssistQuery } from './queries.js'
 
 /**
  * Ассистент документа в контекстной панели (13-search-knowledge-ai.md §5,
@@ -65,6 +71,9 @@ export function DocumentAssistant({ documentId }: { documentId: string }) {
   return (
     <div className="flex flex-col gap-3 p-3">
       <SummaryCard documentId={documentId} canEdit={doc.data?.can.edit ?? false} />
+      {doc.data?.status === 'draft' ? (
+        <ClassifyCard documentId={documentId} canEdit={doc.data?.can.edit ?? false} />
+      ) : null}
       {doc.data?.type.direction === 'incoming' ? <ReplyCard documentId={documentId} /> : null}
     </div>
   )
@@ -77,6 +86,121 @@ async function copy(text: string, done: () => void, failed: () => void) {
   } catch {
     failed()
   }
+}
+
+/**
+ * Вид документа по тексту скана (P5-E05): предложение с уверенностью и цитатой
+ * и похожие документы — по ним видно, как такие бумаги вели раньше. Вид
+ * применяет человек; до регистрации его ещё можно сменить.
+ */
+function ClassifyCard({ documentId, canEdit }: { documentId: string; canEdit: boolean }) {
+  const t = useT()
+  const toast = useToast()
+  const client = useQueryClient()
+  const openTab = useWorkspace((s) => s.openTab)
+  const make = useMutation({
+    mutationFn: () => http.post<DocumentClassification>(`/documents/${documentId}/assist/classify`),
+    onError: (error) =>
+      toast.error(error instanceof ApiError ? error.message : t('errors.unknown')),
+  })
+  const apply = useMutation({
+    mutationFn: (typeId: string) => http.patch(`/documents/${documentId}`, { typeId }),
+    onSuccess: () => {
+      toast.show({ title: t('documentAssist.panel.typeApplied'), tone: 'success' })
+      void client.invalidateQueries({ queryKey: documentKeys.document(documentId) })
+    },
+    onError: (error) =>
+      toast.error(error instanceof ApiError ? error.message : t('errors.unknown')),
+  })
+  const answer = make.data
+
+  return (
+    <Card title={t('documentAssist.panel.classifyTitle')} padded>
+      <div className="flex flex-col gap-2">
+        {answer ? (
+          <>
+            {answer.type ? (
+              <div className="flex flex-col gap-1">
+                <span className="flex items-center gap-2 text-sm text-fg">
+                  {answer.type.name}
+                  <Badge size="sm" tone={confidenceTone(answer.type.confidence)}>
+                    {t(`documentAssist.confidence.${confidenceTone(answer.type.confidence)}`, {
+                      percent: Math.round(answer.type.confidence * 100),
+                    })}
+                  </Badge>
+                </span>
+                {answer.type.journal ? (
+                  <span className="text-xs text-fg-secondary">
+                    {t('documentAssist.panel.journal', { name: answer.type.journal.name })}
+                  </span>
+                ) : null}
+                {answer.type.quote ? (
+                  <q className="text-xs text-fg-muted">{answer.type.quote}</q>
+                ) : null}
+                {canEdit ? (
+                  <div>
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      loading={apply.isPending}
+                      onClick={() => answer.type && apply.mutate(answer.type.id)}
+                    >
+                      {t('documentAssist.panel.applyType')}
+                    </Button>
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <p className="text-xs text-fg-muted">{t('documentAssist.panel.typeUnknown')}</p>
+            )}
+
+            {answer.similar.length > 0 ? (
+              <div className="flex flex-col gap-1">
+                <span className="text-2xs font-medium uppercase tracking-wide text-fg-muted">
+                  {t('documentAssist.panel.similar')}
+                </span>
+                <ul className="flex flex-col gap-0.5">
+                  {answer.similar.map((item) => (
+                    <li key={item.objectId}>
+                      <button
+                        type="button"
+                        className="w-full truncate text-left text-xs text-accent hover:underline"
+                        onClick={() =>
+                          openTab({
+                            kind: 'object',
+                            objectId: item.objectId,
+                            objectType: 'document',
+                            title: item.title,
+                            mode: 'preview',
+                          })
+                        }
+                      >
+                        {item.number ? `№ ${item.number} · ` : ''}
+                        {item.title}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </>
+        ) : (
+          <p className="text-xs text-fg-muted">{t('documentAssist.panel.classifyHint')}</p>
+        )}
+        <div>
+          <Button
+            size="sm"
+            variant="secondary"
+            icon={<Sparkles className="size-3.5" />}
+            loading={make.isPending}
+            onClick={() => make.mutate()}
+          >
+            {t('documentAssist.panel.classify')}
+          </Button>
+        </div>
+      </div>
+    </Card>
+  )
 }
 
 function SummaryCard({ documentId, canEdit }: { documentId: string; canEdit: boolean }) {

@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { Confidentiality } from '../access/confidentiality.js'
+import { Uuid } from '../common/primitives.js'
 import { CorrespondentRef } from './correspondent.js'
 
 /**
@@ -75,6 +76,37 @@ export const DocumentExtraction = z.object({
   truncated: z.boolean(),
 })
 export type DocumentExtraction = z.infer<typeof DocumentExtraction>
+
+/**
+ * Классификация входящего (P5-E05, ADR-0118): по тексту скана предлагается тип
+ * документа с журналом регистрации и показываются похожие документы — по ним
+ * видно, как такие бумаги вели раньше. Предложение принимает человек.
+ */
+export const DocumentClassification = z.object({
+  /** Предложенный тип документа: null — модель не выбрала ни одного из доступных. */
+  type: z
+    .object({
+      id: Uuid,
+      name: z.string(),
+      confidence: z.number().min(0).max(1),
+      quote: z.string().nullable(),
+      /** Журнал регистрации типа — виден сразу, чтобы не открывать карточку типа. */
+      journal: z.object({ id: Uuid, name: z.string() }).nullable(),
+    })
+    .nullable(),
+  /** Похожие документы — ближайшие по смыслу из доступных смотрящему. */
+  similar: z.array(
+    z.object({
+      objectId: Uuid,
+      title: z.string(),
+      number: z.string().nullable(),
+      registeredAt: z.string().nullable(),
+      typeName: z.string().nullable(),
+    }),
+  ),
+  truncated: z.boolean(),
+})
+export type DocumentClassification = z.infer<typeof DocumentClassification>
 
 export const DocumentSummaryDraft = z.object({
   summary: z.string(),

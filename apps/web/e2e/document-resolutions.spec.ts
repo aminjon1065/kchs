@@ -1,4 +1,4 @@
-import { type APIRequestContext, type Page, request as playwrightRequest } from '@playwright/test'
+import { type APIRequestContext, request as playwrightRequest } from '@playwright/test'
 import { EMPLOYEE_STATE, expect, openInboxItem, resetWorkspaceState, test } from './fixtures.js'
 import { ACCOUNTS } from './global-setup.js'
 
