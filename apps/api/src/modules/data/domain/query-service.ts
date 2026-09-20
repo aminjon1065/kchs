@@ -199,17 +199,11 @@ async function columnarSources(
   // Правка строк, тайлы и геометрия как есть — только основное хранилище
   if (options.rowMeta || options.geometryOutput === 'raw' || options.spatialWindow) return null
   if (choice === 'auto' && !heavyQuery(spec)) return null
-  const copies = new Map<string, ColumnarSource>()
-  for (const id of sources.datasets) {
-    const copy = await ColumnarService.ready(id)
-    if (!copy) return null
-    copies.set(id, copy)
-  }
-  if (choice === 'auto') {
-    const large = await Promise.all(sources.datasets.map((id) => ColumnarService.large(id)))
-    if (!large.some(Boolean)) return null
-  }
-  return copies
+  const plan = await ColumnarService.sourcesFor(sources.datasets)
+  if (!plan) return null
+  // Авто-выбор — только для крупных датасетов; явный `columnar` — для любых
+  if (choice === 'auto' && !plan.large) return null
+  return plan.sources
 }
 
 function compileUser(ctx: Ctx): CompileUser {

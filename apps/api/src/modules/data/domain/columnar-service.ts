@@ -357,38 +357,37 @@ export const ColumnarService = {
   },
 
   /**
-   * Копия, годная для запроса прямо сейчас: собрана, той же версии, что данные,
-   * и колоночный tier включён. Иначе — null, и запрос считает Postgres.
+   * Копии, годные для запроса прямо сейчас: собраны, той же версии, что данные.
+   * Одним запросом на все датасеты — это горячий путь каждого агрегата.
+   * Копии нет хотя бы у одного датасета — null, считает Postgres.
    */
-  async ready(datasetId: string): Promise<ColumnarSource | null> {
+  async sourcesFor(
+    datasetIds: readonly string[],
+  ): Promise<{ sources: Map<string, ColumnarSource>; large: boolean } | null> {
+    if (datasetIds.length === 0) return null
     const settings = await ColumnarService.settings()
     if (!settings.enabled) return null
-    const [row] = await db()
+    const rows = await db()
       .select({
+        datasetId: datasets.id,
+        table: datasets.physicalTable,
+        currentVersion: datasets.currentVersion,
+        rowCount: datasets.rowCount,
         key: datasetColumnarCopies.key,
         status: datasetColumnarCopies.status,
         version: datasetColumnarCopies.version,
-        table: datasets.physicalTable,
-        currentVersion: datasets.currentVersion,
       })
-      .from(datasetColumnarCopies)
-      .innerJoin(datasets, eq(datasets.id, datasetColumnarCopies.datasetId))
-      .where(eq(datasetColumnarCopies.datasetId, datasetId))
-      .limit(1)
-    if (!row?.key || row.status !== 'ready' || row.version !== row.currentVersion) return null
-    return { table: row.table, bucket: buckets.columnar(), key: row.key }
-  },
-
-  /** Датасет крупнее порога — агрегаты по нему уходят в копию сами. */
-  async large(datasetId: string): Promise<boolean> {
-    const settings = await ColumnarService.settings()
-    if (!settings.enabled) return false
-    const [row] = await db()
-      .select({ rowCount: datasets.rowCount })
       .from(datasets)
-      .where(eq(datasets.id, datasetId))
-      .limit(1)
-    return (row?.rowCount ?? 0) >= settings.minRows
+      .leftJoin(datasetColumnarCopies, eq(datasetColumnarCopies.datasetId, datasets.id))
+      .where(inArray(datasets.id, [...datasetIds]))
+    const sources = new Map<string, ColumnarSource>()
+    let large = false
+    for (const row of rows) {
+      if (!row.key || row.status !== 'ready' || row.version !== row.currentVersion) return null
+      sources.set(row.datasetId, { table: row.table, bucket: buckets.columnar(), key: row.key })
+      if (row.rowCount >= settings.minRows) large = true
+    }
+    return sources.size === datasetIds.length ? { sources, large } : null
   },
 
   /**
