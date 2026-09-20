@@ -29,6 +29,9 @@ import { formKeys, formsApi } from './queries.js'
  */
 const AUTO_ROLES = ['unit', 'period', 'author', 'submittedAt'] as const
 
+/** Как на сервере (ADR-0103): вычисляемые и особые типы форма не спрашивает. */
+const NOT_ASKABLE = new Set(['formula', 'lookup', 'rollup', 'geometry', 'file', 'signature'])
+
 export function FormSettingsTab({ form }: { form: FormRecord }) {
   const t = useT()
   const toast = useToast()
@@ -59,7 +62,7 @@ export function FormSettingsTab({ form }: { form: FormRecord }) {
   const autoUsed = new Set(
     AUTO_ROLES.map((role) => draft.auto[role]).filter((key): key is string => Boolean(key)),
   )
-  const available = dataset.fields.filter((field) => field.type !== 'geometry')
+  const available = dataset.fields.filter((field) => !NOT_ASKABLE.has(field.type))
 
   const toggleField = (key: string, on: boolean) =>
     setDraft((current) => ({

@@ -31,6 +31,13 @@ import { objectListQuery, spacesQuery } from '~/shared/api/queries.js'
 import { formDutiesQuery, formKeys, formsApi, formsQuery } from './queries.js'
 
 /**
+ * Поля, которые форма спрашивать не может: вычисляемые и требующие особых
+ * контролов (геометрия, файл, подпись) — как на сервере (ADR-0103).
+ */
+const NOT_ASKABLE = new Set(['formula', 'lookup', 'rollup', 'geometry', 'file', 'signature'])
+const ASKABLE = (type: string) => !NOT_ASKABLE.has(type)
+
+/**
  * Экран «Формы сбора данных» (06-analytics-engine.md §13, ADR-0103): формы,
  * назначенные смотрящему, и — тем, кто их ведёт, — список с включением сбора.
  */
@@ -262,10 +269,7 @@ function CreateFormDialog({
     enabled: datasetId.length > 0,
   })
 
-  /** Поля датасета, которые форма может спрашивать: без геометрии и только для чтения. */
-  const usable = (dataset?.fields ?? []).filter(
-    (field) => field.type !== 'geometry' && !field.readOnly,
-  )
+  const usable = (dataset?.fields ?? []).filter((field) => !field.readOnly && ASKABLE(field.type))
 
   const create = useMutation({
     mutationFn: () => {

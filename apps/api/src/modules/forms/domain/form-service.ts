@@ -73,10 +73,17 @@ function toRow(row: Record<string, unknown>): FormRow {
   }
 }
 
-/** Поля датасета, доступные форме: те, что хранятся в таблице и правятся. */
+/** Поля датасета по ключу. */
 function datasetFields(dataset: DatasetRecord): Map<string, FieldDef> {
   return new Map(dataset.fields.map((field) => [field.key, field as FieldDef]))
 }
+
+/**
+ * Поля, которые форма спрашивать не может: вычисляемые (их считает датасет) и
+ * требующие особых контролов (геометрия, файл, подпись) — их сбор появится
+ * вместе с заполнением из мобильного веба.
+ */
+const NOT_ASKABLE = new Set(['formula', 'lookup', 'rollup', 'geometry', 'file', 'signature'])
 
 /** Проверка определения: схема формы ⊆ полей датасета, авто-поля не дублируют их. */
 async function validate(definition: FormDefinition): Promise<void> {
@@ -84,8 +91,12 @@ async function validate(definition: FormDefinition): Promise<void> {
   const fields = datasetFields(dataset)
   const keys = new Set<string>()
   for (const field of definition.fields) {
-    if (!fields.has(field.key)) throw errors.validation(`Поля «${field.key}» в датасете нет`)
+    const stored = fields.get(field.key)
+    if (!stored) throw errors.validation(`Поля «${field.key}» в датасете нет`)
     if (keys.has(field.key)) throw errors.validation(`Поле «${field.key}» указано дважды`)
+    if (NOT_ASKABLE.has(stored.type)) {
+      throw errors.validation(`Поле «${field.key}» типа «${stored.type}» форма спрашивать не может`)
+    }
     keys.add(field.key)
   }
   for (const [role, key] of Object.entries(definition.auto)) {
