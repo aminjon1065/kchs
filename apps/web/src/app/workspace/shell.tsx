@@ -4,6 +4,7 @@ import { PanelLeftOpen, PanelRightOpen } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { AdminModeBanner } from '~/features/admin/admin-mode.js'
 import { ActingBanner } from '~/features/delegation/acting-banner.js'
+import { IncomingCallOverlay } from '~/features/meetings/incoming-call.js'
 import { CreateSpaceDialog } from '~/features/spaces/create-space-dialog.js'
 import { http } from '~/shared/api/client.js'
 import { keys, meQuery } from '~/shared/api/queries.js'
@@ -245,6 +246,8 @@ export function WorkspaceShell() {
         <StatusBar onShowShortcuts={() => setShortcutsOpen(true)} />
       )}
 
+      {/* Входящий звонок приходит realtime в любой вкладке оболочки (ADR-0091) */}
+      <IncomingCallOverlay />
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
       <ShortcutsOverlay open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
       <CreateSpaceDialog open={createSpaceOpen} onOpenChange={setCreateSpaceOpen} />

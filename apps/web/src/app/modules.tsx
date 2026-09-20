@@ -29,6 +29,8 @@ import { TerritoriesScreen } from '~/features/gis/territories-screen.js'
 import { TerritoryView } from '~/features/gis/territory-view.js'
 import { HomeScreen } from '~/features/home/home-screen.js'
 import { InboxScreen } from '~/features/inbox/inbox-screen.js'
+import { MeetingView } from '~/features/meetings/meeting-view.js'
+import { MeetingsScreen } from '~/features/meetings/meetings-screen.js'
 import { NotificationsScreen } from '~/features/notifications/notifications-screen.js'
 import { FileView } from '~/features/objects/file-view.js'
 import { FolderView } from '~/features/objects/folder-view.js'
@@ -165,6 +167,16 @@ export function registerModules(): void {
   registerObjectView({
     type: 'event',
     render: (tab) => <EventView objectId={tab.objectId!} tabId={tab.id} />,
+  })
+  registerScreen({
+    key: 'meetings',
+    titleKey: 'shell.rail.meetings',
+    icon: 'meeting',
+    render: () => <MeetingsScreen />,
+  })
+  registerObjectView({
+    type: 'meeting',
+    render: (tab) => <MeetingView objectId={tab.objectId!} tabId={tab.id} />,
   })
   registerScreen({
     key: 'search',

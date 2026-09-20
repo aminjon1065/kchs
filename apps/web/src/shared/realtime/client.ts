@@ -54,6 +54,12 @@ export function connectRealtime(client: QueryClient, handlers: RealtimeHandlers 
   socket.on('disconnect', () => setStatus('disconnected'))
   socket.on('connect_error', () => setStatus('disconnected'))
 
+  // Сообщения модулей (входящий звонок, комната встречи): шлюз общий, а
+  // обработчики живут в своих функциях и подписываются, когда им нужно
+  socket.onAny((event: string, payload: unknown) => {
+    for (const handler of moduleHandlers.get(event) ?? []) handler(payload)
+  })
+
   socket.on(
     'object.updated',
     (payload: { id: string; type: string; changedFields: string[] | null }) => {
@@ -129,6 +135,23 @@ export function connectRealtime(client: QueryClient, handlers: RealtimeHandlers 
   })
 
   return socket
+}
+
+type ModuleHandler = (payload: unknown) => void
+const moduleHandlers = new Map<string, Set<ModuleHandler>>()
+
+/**
+ * Подписка модуля на сообщение шлюза (входящий звонок, состав комнаты):
+ * переживает переподключение, снимается возвращённой функцией.
+ */
+export function onRealtimeEvent(event: string, handler: ModuleHandler): () => void {
+  const set = moduleHandlers.get(event) ?? new Set<ModuleHandler>()
+  set.add(handler)
+  moduleHandlers.set(event, set)
+  return () => {
+    set.delete(handler)
+    if (set.size === 0) moduleHandlers.delete(event)
+  }
 }
 
 export function subscribeRooms(rooms: string[]): void {

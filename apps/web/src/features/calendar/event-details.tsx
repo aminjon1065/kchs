@@ -208,12 +208,30 @@ export function EventDetails({
             .join(' · ')}
         </Row>
       ) : null}
+      {/* Онлайн-встреча события: вход в комнату из карточки (ADR-0091) */}
       <Row icon={<Video className="size-4" />}>
         <span className="flex flex-wrap items-center gap-2">
-          <Button size="sm" variant="secondary" disabled>
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={!record.meetingId}
+            data-testid="event-join-meeting"
+            onClick={() =>
+              record.meetingId &&
+              openTab({
+                kind: 'object',
+                objectId: record.meetingId,
+                objectType: 'meeting',
+                title: record.title,
+                mode: 'permanent',
+              })
+            }
+          >
             {t('calendar.event.join')}
           </Button>
-          <span className="text-xs text-fg-muted">{t('calendar.event.meetingSoon')}</span>
+          {record.meetingId ? null : (
+            <span className="text-xs text-fg-muted">{t('calendar.event.meetingOff')}</span>
+          )}
         </span>
       </Row>
 

@@ -393,6 +393,8 @@ export const EVENT_PAYLOADS = {
     conversationId: Uuid.nullable(),
     userIds: z.array(Uuid),
   }),
+  /** Приглашённый отклонил входящий звонок — звонящий видит это сразу (ADR-0091). */
+  'call.declined': z.object({ meetingId: Uuid, userId: Uuid, callerId: Uuid.nullable() }),
 
   // ── gis (07-gis-engine.md, ADR-0064) ───────────────────────────────────────
   'layer.published': z.object({

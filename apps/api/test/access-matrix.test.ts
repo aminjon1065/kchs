@@ -872,7 +872,13 @@ const FIXTURES: Record<string, TypeFixture> = {
       return { id, title }
     },
     readPaths: ['/meetings/:id'],
-    viewerForbidden: (_fx, id) => [{ method: 'POST', url: `/meetings/${id}/end` }],
+    viewerForbidden: (_fx, id) => [
+      // Вход в комнату — уровень «комментарий», ведение встречи и ссылка — «управление»
+      { method: 'POST', url: `/meetings/${id}/join` },
+      { method: 'POST', url: `/meetings/${id}/end` },
+      { method: 'POST', url: `/meetings/${id}/guest-link`, payload: { ttlMinutes: 60 } },
+      { method: 'GET', url: `/meetings/${id}/knocks` },
+    ],
   },
 }
 

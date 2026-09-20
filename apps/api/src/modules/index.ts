@@ -36,7 +36,11 @@ import {
 import { registerGisBackground, registerGisObjectTypes, registerGisRoutes } from './gis/module.js'
 import { registerIdentityBackground, registerIdentityRoutes } from './identity/module.js'
 import { AuthService, DirectoryQueries, OrgService, UserService } from './identity/public.js'
-import { registerMeetingsObjectTypes, registerMeetingsRoutes } from './meetings/module.js'
+import {
+  registerMeetingsBackground,
+  registerMeetingsObjectTypes,
+  registerMeetingsRoutes,
+} from './meetings/module.js'
 import { registerPushChannel, registerPushRoutes } from './push/module.js'
 import {
   registerReportsBackground,
@@ -142,6 +146,7 @@ export function registerModulesBackground(): void {
   registerDocumentsBackground()
   registerCalendarBackground()
   registerChatBackground()
+  registerMeetingsBackground()
 }
 
 export async function scheduleModuleJobs(): Promise<void> {

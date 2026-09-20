@@ -23,9 +23,20 @@ registerModules()
 /** Страница печати отчёта — отдельным чанком: оболочке она не нужна (ADR-0078). */
 const PrintScreen = lazy(() => import('~/features/reports/print/print-screen.js'))
 
+/** Комната гостя — отдельным чанком: клиент медиасервера нужен только ей. */
+const GuestMeetingScreen = lazy(async () => ({
+  default: (await import('~/features/meetings/guest-screen.js')).GuestMeetingScreen,
+}))
+
 /** Гостевая ссылка обслуживается вне рабочего пространства: `/s/<токен>`. */
 function shareTokenFromUrl(): string | null {
   const match = /^\/s\/([A-Za-z0-9_-]{8,128})$/.exec(window.location.pathname)
+  return match?.[1] ?? null
+}
+
+/** Гость во встрече — тоже вне оболочки: `/meet/<токен>` (ADR-0091). */
+function meetTokenFromUrl(): string | null {
+  const match = /^\/meet\/([A-Za-z0-9_.-]{40,200})$/.exec(window.location.pathname)
   return match?.[1] ?? null
 }
 
@@ -34,6 +45,7 @@ export function App() {
   const client = useQueryClient()
   const [signedOut, setSignedOut] = useState(false)
   const [shareToken] = useState(shareTokenFromUrl)
+  const [meetToken] = useState(meetTokenFromUrl)
   // Печать (03-screens.md §21): вне оболочки, без входа — у движка токен печати
   const [printTarget] = useState(() => printTargetFromPath(window.location.pathname))
 
@@ -56,7 +68,10 @@ export function App() {
     isLoading,
     isError,
     error,
-  } = useQuery({ ...meQuery(), enabled: !signedOut && !shareToken && !printTarget })
+  } = useQuery({
+    ...meQuery(),
+    enabled: !signedOut && !shareToken && !meetToken && !printTarget,
+  })
 
   // Токен CSRF восстанавливается из /me: сессия переживает перезагрузку вкладки
   useEffect(() => {
@@ -64,6 +79,13 @@ export function App() {
   }, [me])
 
   if (shareToken) return <GuestShareScreen token={shareToken} />
+  if (meetToken) {
+    return (
+      <Suspense fallback={null}>
+        <GuestMeetingScreen token={meetToken} />
+      </Suspense>
+    )
+  }
   if (printTarget) {
     return (
       <Suspense fallback={null}>
