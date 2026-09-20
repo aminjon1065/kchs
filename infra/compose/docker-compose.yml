@@ -329,6 +329,8 @@ services:
       CADDY_EMAIL: ${CADDY_EMAIL:-admin@example.org}
       # Origin S3 для CSP: прямые загрузки и превью по подписанным ссылкам (ADR-0043)
       KCHS_STORAGE_ORIGIN: ${KCHS_STORAGE_ORIGIN:-http://localhost:9000}
+      # Медиасервер встреч: браузер подключается к нему напрямую (ADR-0089)
+      KCHS_MEDIA_ORIGIN: ${KCHS_MEDIA_ORIGIN:-}
     ports:
       - "${WEB_PORT:-8080}:80"
       - "${WEB_HTTPS_PORT:-8443}:443"

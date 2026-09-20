@@ -112,6 +112,8 @@ set_kv KCHS_STORAGE_ORIGIN "http://localhost:$S3P"
 set_kv MINIO_CONSOLE_URL "http://localhost:${S3_CONSOLE_PORT:-9001}"
 # Медиасервер: браузер подключается к нему напрямую (профиль media)
 set_kv LIVEKIT_URL "ws://localhost:${LIVEKIT_PORT:-7880}"
+# Тот же адрес в CSP собранного веба: браузер подключается к комнате напрямую
+set_kv KCHS_MEDIA_ORIGIN "ws://localhost:${LIVEKIT_PORT:-7880}"
 
 if [[ "$MODE" == app ]]; then
   WEB="${WEB_PORT:-8080}"

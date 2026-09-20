@@ -623,6 +623,9 @@ async function main() {
     `KCHS_API_UPSTREAM=${API_UPSTREAM}`,
     '-e',
     `KCHS_STORAGE_ORIGIN=${s3Origin}`,
+    // Медиасервер встреч (ADR-0089): тот же origin, что в развёртывании
+    '-e',
+    `KCHS_MEDIA_ORIGIN=${envValue('KCHS_MEDIA_ORIGIN') ?? envValue('LIVEKIT_URL') ?? ''}`,
     CADDY_IMAGE,
   ])
 
