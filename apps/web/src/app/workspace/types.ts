@@ -15,6 +15,8 @@ export type ScreenKey =
   | 'meetings'
   | 'calendar'
   | 'knowledge'
+  /** Разговор с ассистентом без объекта (ADR-0100). */
+  | 'assistant'
   | 'admin'
   | 'profile'
   | 'trash'

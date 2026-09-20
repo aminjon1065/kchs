@@ -2,6 +2,7 @@ import { PAGE_STATUSES } from '@kchs/contracts'
 import { sql } from 'drizzle-orm'
 import { registerCollabType } from '~/kernel/collab/registry.js'
 import { registerSubscriber } from '~/kernel/events/bus.js'
+import { registerFeature } from '~/kernel/features/registry.js'
 import { registerJobHandler } from '~/kernel/jobs/runner.js'
 import { queue } from '~/kernel/jobs/service.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
@@ -22,6 +23,15 @@ export { registerKnowledgeRoutes } from './http/routes.js'
  * пересмотра и ознакомление — за тем, кто ею распоряжается (`manage`).
  */
 export function registerKnowledgeObjectTypes(): void {
+  registerFeature({
+    key: 'knowledge',
+    titleKey: 'admin.features.items.knowledge.title',
+    hintKey: 'admin.features.items.knowledge.hint',
+    tags: ['knowledge'],
+    screens: ['knowledge'],
+    objectTypes: ['page'],
+  })
+
   registerObjectType({
     type: 'page',
     labelKey: 'objects.types.page',

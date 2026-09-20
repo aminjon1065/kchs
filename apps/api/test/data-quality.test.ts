@@ -88,6 +88,36 @@ describe('правила качества', () => {
     expect(byKey.people_range).toMatchObject({ status: 'failed', failed: 1, severity: 'warning' })
   })
 
+  it('набор значений и бейдж качества в каталоге: список уходит одним параметром', async () => {
+    const saved = await setRules([
+      {
+        key: 'district_known',
+        kind: 'in_set',
+        field: 'district',
+        params: { values: ['Хатлон'] },
+        severity: 'error',
+      },
+    ])
+    expect(saved.statusCode, saved.body).toBe(200)
+
+    const report = await check()
+    expect(report.statusCode, report.body).toBe(200)
+    const results = report.json().results as Array<{ key: string; status: string; failed: number }>
+    // «Согд» вне набора; пустое значение — забота правила «не пусто», не этого
+    expect(results[0]).toMatchObject({ key: 'district_known', status: 'failed', failed: 1 })
+
+    // Бейдж качества в каталоге — поле списка типа `dataset`
+    const catalog = await call(fx.app, {
+      url: `/objects?type=dataset&limit=50&fields=quality`,
+      as: fx.admin,
+    })
+    expect(catalog.statusCode, catalog.body).toBe(200)
+    const item = (
+      catalog.json().items as Array<{ id: string; meta?: Record<string, unknown> }>
+    ).find((row) => row.id === datasetId)
+    expect(item?.meta?.quality).toBe('failed')
+  })
+
   it('без нарушений статус «ok», предупреждение не роняет сводку', async () => {
     const saved = await setRules([
       { key: 'code_filled', kind: 'not_null', field: 'code', severity: 'error' },

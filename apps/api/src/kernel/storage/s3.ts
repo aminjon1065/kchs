@@ -3,10 +3,12 @@ import {
   AbortMultipartUploadCommand,
   CompleteMultipartUploadCommand,
   CopyObjectCommand,
+  CreateBucketCommand,
   CreateMultipartUploadCommand,
   DeleteObjectCommand,
   DeleteObjectsCommand,
   GetObjectCommand,
+  HeadBucketCommand,
   HeadObjectCommand,
   ListObjectsV2Command,
   PutObjectCommand,
@@ -54,6 +56,8 @@ export const buckets = {
   media: () => config().S3_BUCKET_MEDIA,
   exports: () => config().S3_BUCKET_EXPORTS,
   tiles: () => config().S3_BUCKET_TILES,
+  /** Резервные копии базы (15-admin-operations.md §5). */
+  backups: () => config().S3_BUCKET_BACKUPS,
 }
 
 /** Ключ хранения: spaces/{spaceId}/files/{fileId}/{versionId}/{safeName} (09-files.md §2). */
@@ -145,6 +149,102 @@ export async function initMultipart(
   }
 
   return { uploadId, partUrls, partSize: PART_SIZE }
+}
+
+/**
+ * Бакет существует: у установки, поднятой до появления бакета (копии базы),
+ * его может не быть, а создавать его руками — лишний шаг в runbook.
+ */
+export async function ensureBucket(bucket: string): Promise<void> {
+  try {
+    await s3().send(new HeadBucketCommand({ Bucket: bucket }))
+  } catch (error) {
+    const status = (error as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode
+    if (status !== 404 && status !== 403) throw error
+    await s3().send(new CreateBucketCommand({ Bucket: bucket }))
+  }
+}
+
+/**
+ * Поток, длина которого заранее неизвестна (дамп базы): части по `partSize`
+ * уходят multipart-загрузкой. Обычный `putObject` так не умеет — подписи S3
+ * нужен `Content-Length`, а у потока его нет. Возвращает размер объекта.
+ */
+export async function putStream(
+  key: string,
+  body: Readable,
+  options: { bucket?: string; contentType?: string; partSize?: number } = {},
+): Promise<number> {
+  const Bucket = options.bucket ?? buckets.files()
+  const partSize = Math.max(5 * 1024 * 1024, options.partSize ?? PART_SIZE)
+  const created = await s3().send(
+    new CreateMultipartUploadCommand({ Bucket, Key: key, ContentType: options.contentType }),
+  )
+  const uploadId = created.UploadId!
+  const parts: Array<{ PartNumber: number; ETag: string }> = []
+  let buffered: Buffer[] = []
+  let bufferedBytes = 0
+  let total = 0
+
+  const flush = async (): Promise<void> => {
+    if (bufferedBytes === 0) return
+    const part = Buffer.concat(buffered, bufferedBytes)
+    buffered = []
+    bufferedBytes = 0
+    const uploaded = await s3().send(
+      new UploadPartCommand({
+        Bucket,
+        Key: key,
+        UploadId: uploadId,
+        PartNumber: parts.length + 1,
+        Body: part,
+        ContentLength: part.byteLength,
+      }),
+    )
+    parts.push({ PartNumber: parts.length + 1, ETag: uploaded.ETag! })
+  }
+
+  try {
+    for await (const chunk of body) {
+      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as string)
+      buffered.push(buffer)
+      bufferedBytes += buffer.byteLength
+      total += buffer.byteLength
+      if (bufferedBytes >= partSize) await flush()
+    }
+    await flush()
+    // Пустой поток — тоже объект: S3 требует хотя бы одну часть
+    if (parts.length === 0) {
+      buffered = [Buffer.alloc(0)]
+      bufferedBytes = 0
+      await s3()
+        .send(
+          new UploadPartCommand({
+            Bucket,
+            Key: key,
+            UploadId: uploadId,
+            PartNumber: 1,
+            Body: Buffer.alloc(0),
+            ContentLength: 0,
+          }),
+        )
+        .then((uploaded) => parts.push({ PartNumber: 1, ETag: uploaded.ETag! }))
+    }
+    await s3().send(
+      new CompleteMultipartUploadCommand({
+        Bucket,
+        Key: key,
+        UploadId: uploadId,
+        MultipartUpload: { Parts: parts },
+      }),
+    )
+    return total
+  } catch (error) {
+    await s3()
+      .send(new AbortMultipartUploadCommand({ Bucket, Key: key, UploadId: uploadId }))
+      .catch(() => undefined)
+    throw error
+  }
 }
 
 export async function completeMultipart(

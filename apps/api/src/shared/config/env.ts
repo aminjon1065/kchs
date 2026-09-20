@@ -64,6 +64,7 @@ const EnvSchema = z.object({
   S3_BUCKET_MEDIA: z.string().default('kchs-media'),
   S3_BUCKET_EXPORTS: z.string().default('kchs-exports'),
   S3_BUCKET_TILES: z.string().default('kchs-tiles'),
+  S3_BUCKET_BACKUPS: z.string().default('kchs-backups'),
   /** Каталог базовых карт в бакете тайлов (ADR-0066); интеграционные тесты работают в своём. */
   BASEMAPS_PREFIX: z
     .string()

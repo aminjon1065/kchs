@@ -94,6 +94,10 @@ export const MeResponse = z.object({
   /** Политика требует второй фактор для роли, а он не подключён: оболочка показывает только подключение MFA. */
   mfaEnrollmentRequired: z.boolean().default(false),
   preferences: z.record(z.string(), z.unknown()).default({}),
+  /** Включённые возможности установки (15-admin-operations.md §1): выключенное оболочка прячет. */
+  features: z.array(z.string()).default([]),
+  /** Экраны выключенных возможностей: рейка их не показывает, вкладка — объясняет. */
+  hiddenScreens: z.array(z.string()).default([]),
   /** Допуск к грифам (ADR-0080): документы строже него не видны. */
   clearance: Confidentiality.default('internal'),
   /** Режим администратора текущей сессии (ADR-0080); null — не включён. */

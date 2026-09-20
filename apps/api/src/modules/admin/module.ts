@@ -13,10 +13,17 @@ import { csvCell } from '~/shared/csv.js'
 import { db } from '~/shared/db/client.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { redis } from '~/shared/redis/index.js'
+import { registerBackupRoutes } from './http/backup-routes.js'
+import { registerBrandingRoutes } from './http/branding-routes.js'
+import { registerFeatureRoutes } from './http/features-routes.js'
 
 const startedAt = Date.now()
 
 export function registerAdminRoutes(route: RouteRegistrar): void {
+  registerFeatureRoutes(route)
+  registerBrandingRoutes(route)
+  registerBackupRoutes(route)
+
   route({
     method: 'GET',
     url: '/admin/audit',

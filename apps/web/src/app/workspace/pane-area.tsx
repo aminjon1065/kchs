@@ -1,6 +1,8 @@
 import { cn, EmptyState, Panel, PanelGroup, ResizeHandle, Skeleton } from '@kchs/ui'
-import { LayoutGrid } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { LayoutGrid, PowerOff } from 'lucide-react'
 import { Suspense } from 'react'
+import { meQuery } from '~/shared/api/queries.js'
 import { useT } from '../i18n.js'
 import { getObjectView, getScreen } from './registry.js'
 import { useWorkspace } from './store.js'
@@ -87,6 +89,18 @@ function PaneView({
 
 function TabContent({ tab }: { tab: TabState }) {
   const t = useT()
+  const { data: me } = useQuery(meQuery())
+  // Экран выключенной возможности (15-admin-operations.md §1): ссылка из
+  // закладок или прошлой сессии ведёт сюда — объясняем, а не показываем пустоту
+  if (tab.kind === 'screen' && tab.screen && (me?.hiddenScreens ?? []).includes(tab.screen)) {
+    return (
+      <EmptyState
+        icon={<PowerOff />}
+        title={t('shell.pane.featureOff')}
+        description={t('shell.pane.featureOffHint')}
+      />
+    )
+  }
   if (tab.kind === 'object') {
     const view = getObjectView(tab.objectType ?? '')
     if (view) return <>{view.render(tab)}</>

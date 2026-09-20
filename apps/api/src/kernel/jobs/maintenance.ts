@@ -1,6 +1,7 @@
 import { systemCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { remindDueAcknowledgments } from '../acknowledgments/index.js'
+import { BackupService } from '../backup/service.js'
 import { pruneOutbox } from '../events/dispatcher.js'
 import { InboxService } from '../inbox/service.js'
 import { sendEmailDigest } from '../notifications/service.js'
@@ -107,6 +108,18 @@ export function registerMaintenanceJobs(): void {
     concurrency: 1,
     handle: async () => ({ reminded: await remindDueAcknowledgments() }),
   })
+
+  // Резервная копия базы (15-admin-operations.md §5): ночью и по кнопке в консоли
+  registerJobHandler({
+    queue: 'maintenance',
+    name: 'backup.run',
+    concurrency: 1,
+    handle: async () => {
+      await BackupService.failStale()
+      const record = await BackupService.run(null)
+      return { status: record.status, sizeBytes: record.sizeBytes }
+    },
+  })
 }
 
 /**
@@ -162,6 +175,12 @@ export function scheduleMaintenance(): void {
     name: 'acknowledgments.remind',
     pattern: '5 9 * * *',
     labelKey: 'schedules.jobs.acknowledgmentsRemind',
+  })
+  declareSchedule({
+    queue: 'maintenance',
+    name: 'backup.run',
+    pattern: '50 2 * * *',
+    labelKey: 'schedules.jobs.backupRun',
   })
   // Каталог LDAP/AD (ADR-0098): задание проверяет интервал настройки само
   declareSchedule({

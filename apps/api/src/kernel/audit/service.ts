@@ -183,6 +183,14 @@ export const AUDIT_ACTIONS = {
   objectPurged: 'object.purged',
   auditExported: 'audit.exported',
   securityPolicyChanged: 'security.policy_changed',
+  /** Резервная копия базы сделана вручную (15-admin-operations.md §5). */
+  backupCreated: 'backup.created',
+  /** Копия отмечена проверенной восстановлением. */
+  backupVerified: 'backup.verified',
+  /** Брендирование установки изменено (15-admin-operations.md §1). */
+  brandingChanged: 'settings.branding_changed',
+  /** Возможность установки включена или выключена (15-admin-operations.md §1). */
+  featureChanged: 'settings.feature_changed',
   usersImported: 'users.imported',
   usersImportCredentialsDownloaded: 'users.import_credentials_downloaded',
   announcementPublished: 'announcement.published',

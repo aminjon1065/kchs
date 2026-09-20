@@ -199,7 +199,7 @@ services:
       - |
         set -e
         mc alias set kchs http://minio:9000 "$$S3_ACCESS_KEY" "$$S3_SECRET_KEY"
-        for b in kchs-files kchs-previews kchs-media kchs-exports kchs-tiles; do
+        for b in kchs-files kchs-previews kchs-media kchs-exports kchs-tiles kchs-backups; do
           mc mb --ignore-existing "kchs/$$b"
         done
         mc ilm rule add --expire-days 30 kchs/kchs-exports 2>/dev/null || true

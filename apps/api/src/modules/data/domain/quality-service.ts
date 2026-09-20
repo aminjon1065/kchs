@@ -5,7 +5,7 @@ import type {
   QualityRuleResult,
   QualityStatus,
 } from '@kchs/contracts'
-import { and, desc, eq, sql } from 'drizzle-orm'
+import { and, desc, eq, inArray, sql } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { systemCtx, type UserCtx } from '~/shared/context.js'
@@ -60,7 +60,13 @@ function violation(rule: QualityRule, field: StoredField | null) {
     case 'in_set': {
       const values = rule.params.values ?? []
       if (values.length === 0) throw errors.validation('Правилу набора нужны значения')
-      return sql`${column} is not null and not (${column}::text = any(${values}))`
+      // Список уходит параметрами по одному: массив в шаблоне drizzle
+      // разворачивается в перечисление, и `= any($1, $2)` — уже не SQL
+      const list = sql.join(
+        values.map((value) => sql`${value}`),
+        sql`, `,
+      )
+      return sql`${column} is not null and ${column}::text not in (${list})`
     }
     case 'geometry_valid':
       return sql`${column} is not null and not extensions.ST_IsValid(${column})`
@@ -354,13 +360,16 @@ export const QualityService = {
   /** Бейдж качества для каталога: статус последней проверки по датасетам. */
   async statuses(datasetIds: string[]): Promise<Map<string, QualityStatus>> {
     if (datasetIds.length === 0) return new Map()
-    const rows = await db().execute<{ dataset_id: string; status: string }>(
-      sql`select distinct on (dataset_id) dataset_id, status
-          from dataset_quality_runs
-          where dataset_id = any(${datasetIds})
-          order by dataset_id, checked_at desc`,
-    )
-    return new Map(rows.map((row) => [row.dataset_id, row.status as QualityStatus]))
+    // Построителем, а не строкой: имена столбцов берутся из схемы и не расходятся с ней
+    const rows = await db()
+      .selectDistinctOn([datasetQualityRuns.datasetId], {
+        datasetId: datasetQualityRuns.datasetId,
+        status: datasetQualityRuns.status,
+      })
+      .from(datasetQualityRuns)
+      .where(inArray(datasetQualityRuns.datasetId, datasetIds))
+      .orderBy(datasetQualityRuns.datasetId, desc(datasetQualityRuns.checkedAt))
+    return new Map(rows.map((row) => [row.datasetId, row.status as QualityStatus]))
   },
 }
 

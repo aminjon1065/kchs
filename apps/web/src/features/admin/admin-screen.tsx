@@ -35,6 +35,7 @@ import {
   CalendarDays,
   Contact,
   Database,
+  DatabaseBackup,
   Download,
   FileJson,
   FileSpreadsheet,
@@ -43,6 +44,7 @@ import {
   LayoutGrid,
   Map as MapIcon,
   Megaphone,
+  Palette,
   Plus,
   Route,
   ScrollText,
@@ -51,6 +53,7 @@ import {
   ShieldCheck,
   Shuffle,
   Ticket,
+  ToggleLeft,
   UserPlus,
   Users,
   Workflow,
@@ -73,10 +76,13 @@ import {
 } from '~/shared/api/queries.js'
 import { AnnouncementsSection } from './announcements-section.js'
 import { ApiTokensSection } from './api-tokens-section.js'
+import { BackupsSection } from './backups-section.js'
 import { BasemapsSection } from './basemaps-section.js'
+import { BrandingSection } from './branding-section.js'
 import { BusinessCalendarSection } from './business-calendar-section.js'
 import { ConfigPackageSection } from './config-package-section.js'
 import { DirectorySection } from './directory-section.js'
+import { FeaturesSection } from './features-section.js'
 import { IntegrationsSection } from './integrations-section.js'
 import { CreateUnitDialog } from './org-management.js'
 import { RolesSection } from './roles-section.js'
@@ -98,6 +104,9 @@ type Section =
   | 'basemaps'
   | 'audit'
   | 'security'
+  | 'features'
+  | 'branding'
+  | 'backups'
   | 'directory'
   | 'sso'
   | 'tasks'
@@ -185,6 +194,24 @@ export function AdminScreen() {
       value: 'security',
       label: t('admin.sections.security'),
       icon: <ShieldCheck className="size-3.5" />,
+      visible: isSystemAdmin,
+    },
+    {
+      value: 'features',
+      label: t('admin.sections.features'),
+      icon: <ToggleLeft className="size-3.5" />,
+      visible: isSystemAdmin,
+    },
+    {
+      value: 'branding',
+      label: t('admin.sections.branding'),
+      icon: <Palette className="size-3.5" />,
+      visible: isSystemAdmin,
+    },
+    {
+      value: 'backups',
+      label: t('admin.sections.backups'),
+      icon: <DatabaseBackup className="size-3.5" />,
       visible: isSystemAdmin,
     },
     {
@@ -295,6 +322,15 @@ export function AdminScreen() {
               className="min-h-0 flex-1 overflow-y-auto bg-canvas"
             >
               <BusinessCalendarSection />
+            </TabsContent>
+            <TabsContent value="features" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
+              <FeaturesSection />
+            </TabsContent>
+            <TabsContent value="branding" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
+              <BrandingSection />
+            </TabsContent>
+            <TabsContent value="backups" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
+              <BackupsSection />
             </TabsContent>
             <TabsContent value="security" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
               <SecuritySection />

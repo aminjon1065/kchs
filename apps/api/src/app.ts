@@ -15,6 +15,7 @@ import { auditAdminModeRequest } from '~/kernel/access/admin-mode.js'
 import { authorize, requireCapability } from '~/kernel/access/authorize.js'
 import { resolveShareLinkCtx } from '~/kernel/access/share-links.js'
 import { buildUserCtx } from '~/kernel/context-builder.js'
+import { featureGate } from '~/kernel/features/gate.js'
 import { PrintGrants } from '~/kernel/print/grants.js'
 import { AuthService } from '~/modules/identity/domain/auth-service.js'
 import { registerModules } from '~/modules/index.js'
@@ -189,6 +190,10 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   await app.register(
     async (instance) => {
+      // Возможности установки (15-admin-operations.md §1): выключенный модуль
+      // отвечает «не найдено» — проверка после аутентификации, чтобы гость не
+      // узнавал по ответам, какие модули включены
+      instance.addHook('onRequest', featureGate)
       const route = routeRegistrar(instance)
       await registerModules(instance, route)
     },

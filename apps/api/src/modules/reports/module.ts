@@ -17,6 +17,7 @@ import { z } from 'zod'
 import { authorize } from '~/kernel/access/authorize.js'
 import { registerCollabType } from '~/kernel/collab/registry.js'
 import { registerSubscriber } from '~/kernel/events/bus.js'
+import { registerFeature } from '~/kernel/features/registry.js'
 import { registerInboxActionHandler } from '~/kernel/inbox/actions.js'
 import { InboxService } from '~/kernel/inbox/service.js'
 import { registerJobHandler } from '~/kernel/jobs/runner.js'
@@ -45,6 +46,14 @@ function assertService(token: string | string[] | undefined): void {
  * совместный документ шаблона, действие элемента Входящих «Ознакомлен».
  */
 export function registerReportsObjectTypes(): void {
+  registerFeature({
+    key: 'reports',
+    titleKey: 'admin.features.items.reports.title',
+    hintKey: 'admin.features.items.reports.hint',
+    tags: ['reports'],
+    objectTypes: ['report'],
+  })
+
   registerObjectType({
     type: 'report',
     labelKey: 'objects.types.report',

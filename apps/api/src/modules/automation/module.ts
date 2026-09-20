@@ -1,5 +1,6 @@
 import { eq, sql } from 'drizzle-orm'
 import { registerSubscriber } from '~/kernel/events/bus.js'
+import { registerFeature } from '~/kernel/features/registry.js'
 import { registerJobHandler } from '~/kernel/jobs/runner.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
 import { declareSchedule, setRuleScheduleProvider } from '~/kernel/schedules/index.js'
@@ -24,6 +25,14 @@ export { registerAutomationRoutes } from './http.js'
  * `automation.manage`, исполнение — от служебного пользователя правила.
  */
 export function registerAutomationObjectTypes(): void {
+  registerFeature({
+    key: 'automation',
+    titleKey: 'admin.features.items.automation.title',
+    hintKey: 'admin.features.items.automation.hint',
+    tags: ['automation'],
+    objectTypes: ['rule'],
+  })
+
   registerObjectType({
     type: 'rule',
     labelKey: 'objects.types.rule',

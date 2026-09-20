@@ -779,6 +779,9 @@ export const en: DeepPartial<Dictionary> = {
       emptyHint: 'Open an object from the navigator or press ⌘K',
       unsupportedType: 'This object type is not supported yet',
       unsupportedTypeHint: 'The module for “{type}” arrives in a later phase.',
+      featureOff: 'Feature is off',
+      featureOffHint:
+        'An administrator turned it off for the whole installation. The data is intact and returns when the feature is back.',
       inDevelopment: 'Section in development',
       inDevelopmentHint: 'This module arrives in one of the next roadmap phases.',
     },
@@ -3126,6 +3129,7 @@ export const en: DeepPartial<Dictionary> = {
   },
   data: {
     quality: {
+      title: 'Quality',
       rules: 'Quality rules',
       addRule: 'Add a rule',
       key: 'Key',
@@ -5875,6 +5879,7 @@ export const en: DeepPartial<Dictionary> = {
     disabled: 'The assistant is off',
     disabledHint: 'No AI provider is configured here, or you lack the capability to use it',
     hint: 'Ask about the open object: the assistant only searches and reads what you can access',
+    hintGlobal: 'Ask anything: the assistant only searches what you can access',
     question: 'Question for the assistant',
     placeholder: 'For example: what do we know about this flood?',
     send: 'Ask',
@@ -6210,6 +6215,99 @@ export const en: DeepPartial<Dictionary> = {
       processes: 'Process routes',
       directory: 'Directory (LDAP/AD)',
       sso: 'Single sign-on',
+      features: 'Features',
+      branding: 'Branding',
+      backups: 'Backups',
+    },
+
+    backups: {
+      title: 'Backups',
+      hint: 'A database backup runs nightly and on demand: the dump goes to storage and the last seven are kept. Files and search are backed up separately — see the restore runbook.',
+      run: 'Back up now',
+      done: 'Backup ready',
+      last: 'Last backup: {when}, {size}',
+      none: 'No successful backups yet',
+      empty: 'No runs yet',
+      markVerified: 'Mark verified',
+      verified: 'Backup marked verified',
+      verifiedAt: 'verified by restore on {when}',
+      status: { running: 'Running', done: 'Ready', failed: 'Failed' },
+    },
+    maintenance: {
+      title: 'Maintenance',
+      hint: 'Regular work runs on a schedule — see “Schedules”. Here is what runs on demand.',
+      reindex: 'Reindex search',
+      reindexStarted: 'Reindexing queued as a job',
+    },
+    branding: {
+      title: 'Branding',
+      hint: 'The organization name and logo appear on the sign-in screen, in the shell and on printed forms.',
+      name: 'Organization name',
+      nameHint: 'Full name — printed form headers and the window title',
+      shortName: 'Short name',
+      shortNameHint: 'For the rail and the browser tab title',
+      loginNote: 'Sign-in screen note',
+      loginNoteHint: 'For example: “For official use only”',
+      logo: 'Logo',
+      logoHint: 'PNG, JPEG, WebP or SVG up to 256 KB; shown on the sign-in screen and in the rail',
+      noLogo: 'none',
+      pickLogo: 'Choose a file',
+      removeLogo: 'Remove',
+      logoTooBig: 'The file is larger than 256 KB — choose a smaller one',
+      accent: 'Accent colour',
+      accentHint:
+        'Colour of buttons and highlights; each one passes the design system contrast check',
+      accents: {
+        blue: 'Blue',
+        green: 'Green',
+        violet: 'Violet',
+        teal: 'Teal',
+        maroon: 'Maroon',
+      },
+      saved: 'Branding saved',
+    },
+    features: {
+      title: 'Features',
+      hint: 'A feature that is off disappears from the shell and its routes answer “not found”. The data stays and comes back with the feature.',
+      state: 'On',
+      objects: 'objects: {count}',
+      objectsWarning: 'Turning this off hides objects already created: {count}',
+      screens: 'Screens: {list}',
+      saved: 'Feature changed',
+      items: {
+        knowledge: {
+          title: 'Knowledge base',
+          hint: 'Space pages, templates, versions, review and acknowledgement',
+        },
+        chats: {
+          title: 'Chats',
+          hint: 'Unit channels, direct conversations, threads and message search',
+        },
+        meetings: {
+          title: 'Meetings and calls',
+          hint: 'Room with audio and video, recording, transcript and minutes',
+        },
+        gis: {
+          title: 'Maps and spatial data',
+          hint: 'Layers, maps, territories, tiles and spatial analysis',
+        },
+        reports: {
+          title: 'Reports',
+          hint: 'Report templates, PDF and DOCX output, scheduled delivery',
+        },
+        automation: {
+          title: 'Automation rules',
+          hint: 'Event rules, schedules and the run log',
+        },
+        integrations: {
+          title: 'Public API and integrations',
+          hint: 'Tokens, webhooks, external systems and configuration transfer',
+        },
+        ai: {
+          title: 'AI features',
+          hint: 'Assistant, translation, requisite extraction and data hints',
+        },
+      },
     },
 
     directory: {
@@ -7058,6 +7156,7 @@ export const en: DeepPartial<Dictionary> = {
       trashPurge: 'Trash: permanent deletion',
       recentTrim: 'Recent: trim history',
       acknowledgmentsRemind: 'Acknowledgements: reminders',
+      backupRun: 'Database backup',
       processTimersSweep: 'Routes: timer sweep',
       tasksDeadlines: 'Instructions: deadlines and overdue',
       filesProcessPending: 'Files: retry processing',

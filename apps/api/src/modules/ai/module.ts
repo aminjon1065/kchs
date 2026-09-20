@@ -8,10 +8,26 @@ import {
   TranslateResult,
 } from '@kchs/contracts'
 import { z } from 'zod'
+import { registerFeature } from '~/kernel/features/registry.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { Assistant } from './domain/assistant.js'
 import { AiService } from './domain/service.js'
 import { Translate } from './domain/translate.js'
+
+/**
+ * Возможность «Интеллектуальные функции» (15-admin-operations.md §1): выключение
+ * закрывает ассистента, перевод и подсказки ИИ независимо от того, настроен ли
+ * провайдер. Организация, которой ИИ не положен, выключает его раз и навсегда.
+ */
+export function registerAiFeature(): void {
+  registerFeature({
+    key: 'ai',
+    titleKey: 'admin.features.items.ai.title',
+    hintKey: 'admin.features.items.ai.hint',
+    tags: ['ai'],
+    screens: ['assistant'],
+  })
+}
 
 export function registerAiRoutes(route: RouteRegistrar): void {
   route({

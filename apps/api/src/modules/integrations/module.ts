@@ -1,4 +1,5 @@
 import { registerSubscriber } from '~/kernel/events/bus.js'
+import { registerFeature } from '~/kernel/features/registry.js'
 import { registerJobHandler } from '~/kernel/jobs/runner.js'
 import { queue } from '~/kernel/jobs/service.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
@@ -22,6 +23,14 @@ const PRUNE_JOB = 'webhooks.prune-deliveries'
  * исходящие и входящие вебхуки, объект `integration`, пакет конфигурации.
  */
 export function registerIntegrationsObjectTypes(): void {
+  registerFeature({
+    key: 'integrations',
+    titleKey: 'admin.features.items.integrations.title',
+    hintKey: 'admin.features.items.integrations.hint',
+    tags: ['integrations'],
+    objectTypes: ['integration', 'webhook'],
+  })
+
   registerIntegrationObjectTypes()
   registerIntegrationConfigSections()
 }

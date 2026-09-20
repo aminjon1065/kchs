@@ -119,6 +119,28 @@ lines.push('  }')
 lines.push('}')
 lines.push('')
 
+// Акценты брендирования (15-admin-operations.md §1): организация выбирает один,
+// остальные токены не меняются — акцент живёт атрибутом `data-accent` на корне
+const accents = tokens.color.accents as Record<string, Record<string, Pair>>
+for (const [name, group] of Object.entries(accents)) {
+  const accentLight = Object.entries(group).map(([token, pair]) => `  --${token}: ${pair.light};`)
+  const accentDark = Object.entries(group).map(([token, pair]) => `  --${token}: ${pair.dark};`)
+  lines.push(`[data-accent="${name}"] {`)
+  lines.push(...accentLight)
+  lines.push('}')
+  lines.push('')
+  lines.push(`[data-theme="dark"][data-accent="${name}"] {`)
+  lines.push(...accentDark)
+  lines.push('}')
+  lines.push('')
+  lines.push('@media (prefers-color-scheme: dark) {')
+  lines.push(`  :root:not([data-theme="light"])[data-accent="${name}"] {`)
+  lines.push(...accentDark.map((l) => `  ${l}`))
+  lines.push('  }')
+  lines.push('}')
+  lines.push('')
+}
+
 writeFileSync(out, `${lines.join('\n')}`, 'utf8')
 
 // ── theme.css: отображение токенов в пространства имён Tailwind 4 ───────────

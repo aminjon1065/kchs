@@ -1,6 +1,7 @@
 import { Skeleton } from '@kchs/ui'
 import { lazy, Suspense } from 'react'
 import { AdminScreen } from '~/features/admin/admin-screen.js'
+import { AssistantScreen } from '~/features/assistant/assistant-screen.js'
 import { CalendarScreen, type CalendarScreenState } from '~/features/calendar/calendar-screen.js'
 import { CalendarView } from '~/features/calendar/calendar-view.js'
 import { EventView } from '~/features/calendar/event-view.js'
@@ -73,6 +74,12 @@ export function registerModules(): void {
     titleKey: 'shell.rail.home',
     icon: 'home',
     render: () => <HomeScreen />,
+  })
+  registerScreen({
+    key: 'assistant',
+    titleKey: 'shell.rail.assistant',
+    icon: 'assistant',
+    render: () => <AssistantScreen />,
   })
   registerScreen({
     key: 'knowledge',

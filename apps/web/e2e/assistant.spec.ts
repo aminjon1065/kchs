@@ -142,3 +142,17 @@ test.describe('Ассистент', () => {
     await expect(dialog).toBeHidden({ timeout: 20_000 })
   })
 })
+
+/**
+ * Экран ассистента (ADR-0100): кнопка рейки открывает разговор без объекта.
+ * Провайдер ИИ для этого не нужен — без него экран честно говорит, что
+ * ассистент выключен, и это тоже проверка (сценарий идёт на любом стенде).
+ */
+test.describe('Ассистент: экран', () => {
+  test('кнопка рейки открывает разговор без объекта', async ({ page, request }) => {
+    await openWorkspace(page, request)
+    await page.getByRole('button', { name: 'Ассистент', exact: true }).first().click()
+    await expect(page.getByRole('tab', { name: 'Ассистент' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Ассистент' })).toBeVisible()
+  })
+})

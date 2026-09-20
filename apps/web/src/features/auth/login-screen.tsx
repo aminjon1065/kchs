@@ -6,6 +6,7 @@ import { Building2, Fingerprint, KeyRound, ShieldCheck } from 'lucide-react'
 import { useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
+import { useBranding } from '~/shared/api/branding.js'
 import { ApiError, http, setCsrfToken } from '~/shared/api/client.js'
 import { passkeysSupported, requestPasskey } from '~/shared/auth/webauthn.js'
 
@@ -16,6 +17,8 @@ type Factor = 'totp' | 'recovery_code' | 'passkey'
 
 export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
   const t = useT()
+  // Название, логотип и приписка организации — до входа (15-admin-operations.md §1)
+  const branding = useBranding()
   const locale = useAppearance((s) => s.locale)
   const setLocale = useAppearance((s) => s.setLocale)
 
@@ -155,21 +158,28 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
     <div className="flex min-h-full items-center justify-center bg-canvas px-4 py-10">
       <div className="w-full max-w-[400px]">
         <div className="mb-7 flex flex-col items-center gap-3 text-center">
-          <div className="flex size-11 items-center justify-center rounded-lg bg-accent text-accent-fg shadow-sm">
-            <svg viewBox="0 0 32 32" className="size-6" aria-hidden>
-              <path
-                d="M9 8v16M9 16l8-8M9 16l8 8"
-                stroke="currentColor"
-                strokeWidth="2.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                fill="none"
-              />
-            </svg>
-          </div>
+          {branding?.logo ? (
+            <img src={branding.logo} alt="" className="size-11 rounded-lg object-contain" />
+          ) : (
+            <div className="flex size-11 items-center justify-center rounded-lg bg-accent text-accent-fg shadow-sm">
+              <svg viewBox="0 0 32 32" className="size-6" aria-hidden>
+                <path
+                  d="M9 8v16M9 16l8-8M9 16l8 8"
+                  stroke="currentColor"
+                  strokeWidth="2.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  fill="none"
+                />
+              </svg>
+            </div>
+          )}
           <div>
-            <h1 className="text-xl font-semibold text-fg">kchs</h1>
+            <h1 className="text-xl font-semibold text-fg">{branding?.name || 'kchs'}</h1>
             <p className="mt-0.5 text-sm text-fg-secondary">{t('auth.signIn.subtitle')}</p>
+            {branding?.loginNote ? (
+              <p className="mt-1 text-xs text-fg-muted">{branding.loginNote}</p>
+            ) : null}
           </div>
         </div>
 

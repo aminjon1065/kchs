@@ -2,6 +2,7 @@ import type { ObjectSummary } from '@kchs/contracts'
 import { inArray } from 'drizzle-orm'
 import { registerCollabType } from '~/kernel/collab/registry.js'
 import { registerSubscriber } from '~/kernel/events/bus.js'
+import { registerFeature } from '~/kernel/features/registry.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
 import { db } from '~/shared/db/client.js'
 import { meetings, recordings } from '~/shared/db/schema/index.js'
@@ -34,6 +35,15 @@ export function registerMeetingsRoutes(route: RouteRegistrar): void {
  * обсуждение её объекта.
  */
 export function registerMeetingsObjectTypes(): void {
+  registerFeature({
+    key: 'meetings',
+    titleKey: 'admin.features.items.meetings.title',
+    hintKey: 'admin.features.items.meetings.hint',
+    tags: ['meetings'],
+    screens: ['meetings'],
+    objectTypes: ['meeting', 'protocol', 'recording'],
+  })
+
   registerObjectType({
     type: 'meeting',
     labelKey: 'objects.types.meeting',

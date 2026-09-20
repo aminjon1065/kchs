@@ -77,7 +77,7 @@ export function AssistantPanel({ objectId }: { objectId: string | null }) {
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3">
         {isLoading ? <Skeleton className="h-20" /> : null}
         {!isLoading && messages.length === 0 ? (
-          <Callout tone="info">{t('assistant.hint')}</Callout>
+          <Callout tone="info">{t(objectId ? 'assistant.hint' : 'assistant.hintGlobal')}</Callout>
         ) : null}
 
         {messages.map((message) => (

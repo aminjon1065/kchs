@@ -79,6 +79,7 @@ export const keys = {
   workspaces: ['workspaces'] as const,
   attachmentsFolder: (spaceId: string) => ['files', 'attachments-folder', spaceId] as const,
   securityPolicy: ['admin', 'security-policy'] as const,
+  features: ['admin', 'features'] as const,
   announcements: ['announcements'] as const,
   adminAnnouncements: ['admin', 'announcements'] as const,
   myApiTokens: ['me', 'api-tokens'] as const,

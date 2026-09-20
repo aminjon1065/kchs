@@ -51,6 +51,7 @@ import {
   MetricValue,
   MetricValueInput,
   type ObjectSummary,
+  QUALITY_STATUSES,
   QualityRulesInput,
   QueryResult,
   QueryRunInput,
@@ -60,6 +61,7 @@ import {
   SystemDatasetSchema,
 } from '@kchs/contracts'
 import { eq, inArray, sql } from 'drizzle-orm'
+import { alias } from 'drizzle-orm/pg-core'
 import { z } from 'zod'
 import { authorize } from '~/kernel/access/authorize.js'
 import { registerSubscriber } from '~/kernel/events/bus.js'
@@ -68,7 +70,7 @@ import { JobService } from '~/kernel/jobs/service.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
 import { systemCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
-import { datasetFields, datasets, objects } from '~/shared/db/schema/index.js'
+import { datasetFields, datasetQualityRuns, datasets, objects } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { validServiceToken } from '~/shared/http/service-token.js'
@@ -127,6 +129,9 @@ export async function upgradeDataStorage(): Promise<void> {
   if (upgraded > 0) logger().info({ upgraded }, 'таблицы истории строк дополнены номером версии')
 }
 
+/** Последняя проверка качества датасета — подзапросом поля списка (ADR-0101). */
+const qualityRun = alias(datasetQualityRuns, 'quality_run')
+
 /** Типы объектов модуля «Данные» (06-analytics-engine.md). */
 export function registerDataObjectTypes(): void {
   registerObjectType({
@@ -158,16 +163,40 @@ export function registerDataObjectTypes(): void {
         sql: sql`(${objects.meta}->>'rows')::bigint`,
         sortable: true,
       },
+      // Бейдж качества в каталоге (ADR-0101): последняя проверка датасета
+      {
+        key: 'quality',
+        labelKey: 'data.quality.title',
+        type: 'select',
+        sql: sql`(select ${qualityRun.status} from ${qualityRun}
+          where ${qualityRun.datasetId} = ${objects.id}
+          order by ${qualityRun.checkedAt} desc limit 1)`,
+        sortable: true,
+        options: QUALITY_STATUSES.filter((value) => value !== 'unknown').map((value) => ({
+          value,
+          labelKey: `data.quality.statuses.${value}`,
+        })),
+      },
     ],
     summary: async (ids) => {
-      const rows = await db()
-        .select({ id: datasets.id, rows: datasets.rowCount, version: datasets.currentVersion })
-        .from(datasets)
-        .where(inArray(datasets.id, ids))
+      const [rows, quality] = await Promise.all([
+        db()
+          .select({ id: datasets.id, rows: datasets.rowCount, version: datasets.currentVersion })
+          .from(datasets)
+          .where(inArray(datasets.id, ids)),
+        // Бейдж качества в каталоге и карточке (ADR-0101)
+        QualityService.statuses(ids),
+      ])
       return new Map(
         rows.map((row) => [
           row.id,
-          { meta: { rows: row.rows, version: row.version } } as Partial<ObjectSummary>,
+          {
+            meta: {
+              rows: row.rows,
+              version: row.version,
+              quality: quality.get(row.id) ?? 'unknown',
+            },
+          } as Partial<ObjectSummary>,
         ]),
       )
     },

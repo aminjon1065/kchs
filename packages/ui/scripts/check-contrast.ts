@@ -31,6 +31,10 @@ function ratio(a: string, b: string): number {
 const neutral = tokens.color.neutral as Record<string, { light: string; dark: string }>
 const accent = tokens.color.accent as Record<string, { light: string; dark: string }>
 const semantic = tokens.color.semantic as Record<string, { light: string; dark: string }>
+const accents = tokens.color.accents as Record<
+  string,
+  Record<string, { light: string; dark: string }>
+>
 
 const TEXT_AA = 4.5
 
@@ -92,6 +96,31 @@ for (const theme of ['light', 'dark'] as Theme[]) {
       bg: color(group, subtle),
       min: TEXT_AA,
     })
+  }
+
+  // Акценты брендирования (15-admin-operations.md §1): организация выбирает
+  // один, и каждый обязан держать те же пороги, что и акцент по умолчанию
+  for (const [name, group] of Object.entries(accents)) {
+    checks.push(
+      {
+        name: `accent-fg на accent (${name})`,
+        fg: color(group, 'accent-fg'),
+        bg: color(group, 'accent'),
+        min: TEXT_AA,
+      },
+      {
+        name: `text-muted на accent-subtle (${name})`,
+        fg: color(neutral, 'text-muted'),
+        bg: color(group, 'accent-subtle'),
+        min: TEXT_AA,
+      },
+      {
+        name: `accent на accent-subtle (${name})`,
+        fg: color(group, 'accent'),
+        bg: color(group, 'accent-subtle'),
+        min: TEXT_AA,
+      },
+    )
   }
 
   // Текст на заливках: основная и «опасная» кнопки

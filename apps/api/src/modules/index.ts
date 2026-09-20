@@ -8,7 +8,7 @@ import { registerKernelRoutes } from '~/kernel/routes.js'
 import { setSecondFactorProvider } from '~/kernel/second-factor/port.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { registerAdminRoutes } from './admin/module.js'
-import { registerAiRoutes } from './ai/module.js'
+import { registerAiFeature, registerAiRoutes } from './ai/module.js'
 import {
   registerAutomationBackground,
   registerAutomationObjectTypes,
@@ -21,7 +21,12 @@ import {
   registerCalendarRoutes,
   scheduleCalendarJobs,
 } from './calendar/module.js'
-import { registerChatBackground, registerChatRoutes, scheduleChatJobs } from './chat/module.js'
+import {
+  registerChatBackground,
+  registerChatFeature,
+  registerChatRoutes,
+  scheduleChatJobs,
+} from './chat/module.js'
 import {
   registerDataBackground,
   registerDataObjectTypes,
@@ -105,6 +110,9 @@ export function registerAllObjectTypes(): void {
   registerCalendarObjectTypes()
   registerMeetingsObjectTypes()
   registerKnowledgeObjectTypes()
+  // Возможности модулей без своих типов объектов (15-admin-operations.md §1)
+  registerChatFeature()
+  registerAiFeature()
   connectKnowledgeSemantics()
   registerIntegrationsObjectTypes()
   // Правила автоматизации (ADR-0096): тип `rule` — объект реестра

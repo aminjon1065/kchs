@@ -122,7 +122,10 @@ export const SettingsService = {
 /** Типизированные ключи настроек платформы. */
 export const SETTING_KEYS = {
   brandName: 'brand.name',
+  brandShortName: 'brand.shortName',
   brandLogo: 'brand.logo',
+  brandAccent: 'brand.accent',
+  brandLoginNote: 'brand.loginNote',
   securityAllowShareLinks: 'security.allowShareLinks',
   securityRequireMfaRoles: 'security.requireMfaRoles',
   securitySessionIdleHours: 'security.sessionIdleHours',

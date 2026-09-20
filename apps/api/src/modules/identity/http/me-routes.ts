@@ -2,6 +2,7 @@ import { AdminModeInput, AdminModeState, MeResponse, ProfileUpdateInput } from '
 import { and, eq, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { invalidatePrincipalSet } from '~/kernel/access/principal-set.js'
+import { FeatureService } from '~/kernel/features/service.js'
 import { recheckUserRooms } from '~/kernel/realtime/gateway.js'
 import { SETTING_KEYS, SettingsService } from '~/kernel/settings/service.js'
 import { db } from '~/shared/db/client.js'
@@ -23,12 +24,15 @@ export function registerMeRoutes(route: RouteRegistrar): void {
     schema: { response: { 200: MeResponse } },
     handler: async (request) => {
       const ctx = request.ctx
-      const [profile, delegations, mfaEnabled, preferences] = await Promise.all([
-        UserService.profile(ctx.userId),
-        DelegationService.activeFor(ctx.userId),
-        AuthService.mfaEnabled(ctx.userId),
-        SettingsService.forUser(ctx.userId),
-      ])
+      const [profile, delegations, mfaEnabled, preferences, features, hiddenScreens] =
+        await Promise.all([
+          UserService.profile(ctx.userId),
+          DelegationService.activeFor(ctx.userId),
+          AuthService.mfaEnabled(ctx.userId),
+          SettingsService.forUser(ctx.userId),
+          FeatureService.enabledKeys(),
+          FeatureService.hiddenScreens(),
+        ])
       if (!profile) throw errors.notFound('Пользователь')
 
       const employmentRows = await db()
@@ -76,6 +80,8 @@ export function registerMeRoutes(route: RouteRegistrar): void {
         mustChangePassword: ctx.mustChangePassword,
         mfaEnrollmentRequired: ctx.mfaEnrollmentRequired,
         preferences,
+        features,
+        hiddenScreens,
         clearance: ctx.clearance,
         adminMode: ctx.adminMode,
         session: {

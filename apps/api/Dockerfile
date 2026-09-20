@@ -6,6 +6,21 @@ RUN corepack enable && apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates curl \
  && rm -rf /var/lib/apt/lists/*
 
+# Клиент PostgreSQL 17 из репозитория PGDG: `pg_dump` резервных копий обязан
+# быть не старше сервера (15-admin-operations.md §5), а в Debian bookworm 15-й
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends gnupg; \
+    install -d /usr/share/postgresql-common/pgdg; \
+    curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+      -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc; \
+    echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] \
+https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" > /etc/apt/sources.list.d/pgdg.list; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends postgresql-client-17; \
+    apt-get purge -y gnupg; apt-get autoremove -y; \
+    rm -rf /var/lib/apt/lists/*
+
 # ── Зависимости ──────────────────────────────────────────────────────────────
 FROM base AS manifests
 WORKDIR /repo

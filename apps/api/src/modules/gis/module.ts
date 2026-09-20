@@ -21,6 +21,7 @@ import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { authorize } from '~/kernel/access/authorize.js'
 import { registerSubscriber } from '~/kernel/events/bus.js'
+import { registerFeature } from '~/kernel/features/registry.js'
 import { registerInboxActionHandler } from '~/kernel/inbox/actions.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
 import { registerSystemDataset } from '~/kernel/system-datasets.js'
@@ -93,6 +94,15 @@ async function titleSearchable(id: string, type: 'layer' | 'map') {
  * ADR-0066), слои и карты (ADR-0064).
  */
 export function registerGisObjectTypes(): void {
+  registerFeature({
+    key: 'gis',
+    titleKey: 'admin.features.items.gis.title',
+    hintKey: 'admin.features.items.gis.hint',
+    tags: ['gis'],
+    screens: ['maps', 'territories'],
+    objectTypes: ['layer', 'map'],
+  })
+
   registerBasemapObjectType()
   // Слой и карта: права на объект не открывают данные — тайлы и объекты
   // читаются с политиками смотрящего (03-access-model.md)

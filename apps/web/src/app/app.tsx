@@ -6,6 +6,7 @@ import { MfaEnrollmentScreen } from '~/features/auth/mfa-enrollment-screen.js'
 import { PasswordChangeScreen } from '~/features/auth/password-change-screen.js'
 import { printTargetFromPath } from '~/features/reports/print/print-target.js'
 import { GuestShareScreen } from '~/features/share/guest-screen.js'
+import { useBranding } from '~/shared/api/branding.js'
 import {
   ApiError,
   setCsrfToken,
@@ -43,6 +44,8 @@ function meetTokenFromUrl(): string | null {
 export function App() {
   const t = useT()
   const client = useQueryClient()
+  // Акцент и заголовок окна — из брендирования установки (15-admin-operations.md §1)
+  useBranding()
   const [signedOut, setSignedOut] = useState(false)
   const [shareToken] = useState(shareTokenFromUrl)
   const [meetToken] = useState(meetTokenFromUrl)

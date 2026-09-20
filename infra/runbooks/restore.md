@@ -11,6 +11,23 @@
 | Meilisearch | перестраивается из Postgres (`search.reindex`) | не резервируется |
 | Redis | только кэш и очереди; AOF для очередей | не резервируется |
 
+## Копии установки S1 (ADR-0117)
+
+Помимо pgBackRest установка делает собственные копии: задание `backup.run`
+(02:50) и кнопка «Сделать копию» в консоли (`Администрирование → Резервные
+копии`) пишут `pg_dump --format=custom` в бакет `kchs-backups`; хранятся
+последние семь. Восстановление такой копии:
+
+```bash
+docker compose --profile app stop api worker engine web
+docker compose exec -T postgres pg_restore -U postgres -d kchs --clean --if-exists < kchs.dump
+docker compose --profile app up -d
+```
+
+Архив выгружается из бакета любым клиентом S3 (`mc cp kchs/kchs-backups/pg/<файл> .`).
+После проверки отметьте копию в консоли кнопкой «Отметить проверенной» — дата и
+кто проверял останутся в списке и в аудите.
+
 ## Порядок восстановления
 
 1. **Остановить приложение**, оставив базу и хранилище:

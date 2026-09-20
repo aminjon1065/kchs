@@ -20,6 +20,7 @@ import {
   Video,
 } from 'lucide-react'
 import { chatListQuery } from '~/features/chat/queries.js'
+import { useBranding } from '~/shared/api/branding.js'
 import { inboxCountsQuery, meQuery, notificationsQuery } from '~/shared/api/queries.js'
 import { useT } from '../i18n.js'
 import { useWorkspace } from './store.js'
@@ -54,6 +55,10 @@ export function Rail({ onOpenPalette }: { onOpenPalette: () => void }) {
   const setNavigatorModule = useWorkspace((s) => s.setNavigatorModule)
 
   const { data: me } = useQuery(meQuery())
+  // Экраны выключенных возможностей (15-admin-operations.md §1) рейка не показывает
+  const hidden = new Set<string>(me?.hiddenScreens ?? [])
+  const branding = useBranding()
+  const brandName = branding?.shortName || branding?.name || 'kchs'
   const { data: counts } = useQuery(inboxCountsQuery())
   // Непрочитанные сообщения — значок на кнопке «Чаты» (ADR-0090)
   const { data: chats } = useQuery(chatListQuery('all'))
@@ -80,23 +85,30 @@ export function Rail({ onOpenPalette }: { onOpenPalette: () => void }) {
       <button
         type="button"
         onClick={() => open(PRIMARY[0]!)}
-        className="mb-1 flex size-8 items-center justify-center rounded-md bg-accent text-accent-fg"
-        aria-label="kchs"
+        className={cn(
+          'mb-1 flex size-8 items-center justify-center overflow-hidden rounded-md',
+          branding?.logo ? 'bg-surface' : 'bg-accent text-accent-fg',
+        )}
+        aria-label={brandName}
       >
-        <svg viewBox="0 0 32 32" className="size-5" aria-hidden>
-          <path
-            d="M9 8v16M9 16l8-8M9 16l8 8"
-            stroke="currentColor"
-            strokeWidth="2.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            fill="none"
-          />
-        </svg>
+        {branding?.logo ? (
+          <img src={branding.logo} alt="" className="size-full object-contain" />
+        ) : (
+          <svg viewBox="0 0 32 32" className="size-5" aria-hidden>
+            <path
+              d="M9 8v16M9 16l8-8M9 16l8 8"
+              stroke="currentColor"
+              strokeWidth="2.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              fill="none"
+            />
+          </svg>
+        )}
       </button>
 
       <div className="flex flex-col items-center gap-0.5">
-        {PRIMARY.map((item) => (
+        {PRIMARY.filter((item) => !hidden.has(item.key)).map((item) => (
           <RailButton
             key={item.key}
             item={item}
@@ -132,13 +144,14 @@ export function Rail({ onOpenPalette }: { onOpenPalette: () => void }) {
             open({ key: 'notifications', icon: Bell, labelKey: 'shell.rail.notifications' })
           }
         />
-        <RailButton
-          item={{ key: 'home', icon: Bot, labelKey: 'shell.rail.assistant', soon: true }}
-          label={t('shell.rail.assistant')}
-          active={false}
-          disabled
-          onClick={() => undefined}
-        />
+        {hidden.has('assistant') ? null : (
+          <RailButton
+            item={{ key: 'assistant', icon: Bot, labelKey: 'shell.rail.assistant' }}
+            label={t('shell.rail.assistant')}
+            active={navigatorModule === 'assistant'}
+            onClick={() => open({ key: 'assistant', icon: Bot, labelKey: 'shell.rail.assistant' })}
+          />
+        )}
         {isAdmin ? (
           <RailButton
             item={{ key: 'admin', icon: Shield, labelKey: 'shell.rail.admin' }}

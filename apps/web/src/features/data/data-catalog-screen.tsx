@@ -1,6 +1,7 @@
 import type { ObjectSummary } from '@kchs/contracts'
 import { formatNumber, formatRelativeTime } from '@kchs/fields'
 import {
+  Badge,
   Button,
   type CollectionState,
   CollectionView,
@@ -48,6 +49,13 @@ const TYPES = ['dataset', 'metric', 'chart', 'dashboard', 'notebook', 'report']
  * Каталог «Данные» (03-screens.md §4): объекты данных пространства в
  * CollectionView, загрузка файла — мастер импорта; пустой каталог — крупная зона.
  */
+/** Тон бейджа качества: нарушения — опасность, замечания — предупреждение. */
+const QUALITY_TONES: Record<string, 'success' | 'warning' | 'danger'> = {
+  ok: 'success',
+  warning: 'warning',
+  failed: 'danger',
+}
+
 export function DataCatalogScreen({
   spaceId: initialSpaceId,
   tabId,
@@ -129,6 +137,22 @@ export function DataCatalogScreen({
       align: 'end',
       sortable: sortable.includes('rows'),
       cell: (item) => <span className="tabular text-xs text-fg-secondary">{rowCount(item)}</span>,
+    },
+    {
+      // Бейдж качества (ADR-0101): последняя проверка датасета
+      key: 'quality',
+      header: t('data.quality.title'),
+      width: 150,
+      sortable: sortable.includes('quality'),
+      cell: (item) => {
+        const status = item.type === 'dataset' ? String(item.meta.quality ?? 'unknown') : 'unknown'
+        if (status === 'unknown') return <span className="text-xs text-fg-muted">—</span>
+        return (
+          <Badge size="sm" tone={QUALITY_TONES[status] ?? 'neutral'}>
+            {t(`data.quality.statuses.${status}`)}
+          </Badge>
+        )
+      },
     },
     {
       key: 'updatedAt',
