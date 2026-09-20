@@ -76,6 +76,8 @@ export function connectRealtime(client: QueryClient, handlers: RealtimeHandlers 
       } else {
         void client.invalidateQueries({ queryKey: ['object'] })
       }
+      // Непрочитанное и последнее сообщение в списке бесед (ADR-0090)
+      void client.invalidateQueries({ queryKey: ['chats'] })
       handlers.onMessagePosted?.(payload)
     },
   )
@@ -88,6 +90,11 @@ export function connectRealtime(client: QueryClient, handlers: RealtimeHandlers 
   socket.on('notification.new', () => {
     void client.invalidateQueries({ queryKey: ['notifications'] })
     handlers.onNotification?.()
+  })
+
+  // Новое сообщение, состав беседы, переименование — список бесед и счётчики (ADR-0090)
+  socket.on('chat.changed', () => {
+    void client.invalidateQueries({ queryKey: ['chats'] })
   })
 
   // Приглашение, ответ участника, перенос встречи — сетка и «Сегодня» (ADR-0081)
