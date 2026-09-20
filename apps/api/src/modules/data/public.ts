@@ -17,9 +17,10 @@ import type {
 } from '@kchs/contracts'
 import type { CompiledQuery } from '@kchs/query'
 import { ObjectService } from '~/kernel/objects/service.js'
-import type { Ctx } from '~/shared/context.js'
+import type { Ctx, UserCtx } from '~/shared/context.js'
 import type { Executor } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
+import { AskService } from './domain/ask-service.js'
 import { DashboardService } from './domain/dashboard-service.js'
 import { DatasetAccess } from './domain/dataset-access.js'
 import { DatasetService } from './domain/dataset-service.js'
@@ -172,4 +173,13 @@ export const DatasetRows = {
   /** Удаление строки той версии, что видел пользователь. */
   remove: (tx: Executor, ctx: Ctx, datasetId: string, rowId: string, ver: number) =>
     RowService.remove(ctx, datasetId, [rowId], tx, { ver }),
+}
+
+/**
+ * «Спросить данные» для ассистента (ADR-0100): вопрос → план запроса → выборка
+ * правами спрашивающего. Лимиты и аудит — общие, модуля ИИ.
+ */
+export const AskData = {
+  ask: (ctx: UserCtx, datasetId: string, question: string) =>
+    AskService.ask(ctx, datasetId, question),
 }

@@ -199,6 +199,65 @@ describe('ассистент', () => {
   })
 })
 
+describe('вопрос к данным', () => {
+  it('ассистент спрашивает датасет и отвечает по выборке', async () => {
+    const dataset = await call(fx.app, {
+      method: 'POST',
+      url: '/datasets',
+      as: fx.admin,
+      payload: {
+        name: `Обращения ${run}`,
+        spaceId: fx.spaceId,
+        fields: [
+          { key: 'district', label: { ru: 'Район' }, type: 'text', semantic: 'category' },
+          { key: 'people', label: { ru: 'Людей' }, type: 'integer', semantic: 'measure' },
+        ],
+      },
+    })
+    expect(dataset.statusCode, dataset.body).toBe(200)
+    const datasetId = dataset.json().id as string
+    const rows = await call(fx.app, {
+      method: 'POST',
+      url: `/datasets/${datasetId}/rows`,
+      as: fx.admin,
+      payload: {
+        rows: [
+          { values: { district: 'Хатлон', people: 12 } },
+          { values: { district: 'Согд', people: 7 } },
+        ],
+      },
+    })
+    expect(rows.statusCode, rows.body).toBe(200)
+
+    ai.reply(
+      {
+        action: 'tool',
+        tool: 'ask_data',
+        query: 'людей по районам',
+        objectId: datasetId,
+        reason: 'считаю',
+      },
+      // Ответ «спросить данные»: план, запрос и подпись
+      {
+        plan: {
+          datasetId,
+          groupBy: [{ field: 'district' }],
+          measures: [{ alias: 'n', agg: 'sum', field: 'people' }],
+        },
+        chart: 'bar',
+        title: 'Людей по районам',
+        explanation: 'Сумма людей по районам',
+      },
+      { action: 'answer', text: 'Больше всего людей в Хатлоне.', citations: [], proposals: [] },
+    )
+
+    const response = await ask('Сколько людей по районам?', fx.admin, datasetId)
+    expect(response.statusCode, response.body).toBe(200)
+    expect(response.json().steps[0]).toMatchObject({ tool: 'ask_data' })
+    expect(response.json().text).toContain('Хатлон')
+  })
+})
+
 describe('перевод', () => {
   it('возвращает перевод и язык оригинала, без провайдера — 503', async () => {
     ai.reply({ text: 'Flood in Khatlon', from: 'ru' })

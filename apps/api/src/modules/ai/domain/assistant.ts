@@ -14,6 +14,7 @@ import { authorize } from '~/kernel/access/authorize.js'
 import { objectType } from '~/kernel/objects/registry.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import { search, similar } from '~/kernel/search/index-service.js'
+import { AskData } from '~/modules/data/public.js'
 import { fileText } from '~/modules/files/public.js'
 import type { UserCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
@@ -61,7 +62,8 @@ const SYSTEM = [
   'Ты видишь только то, что доступно спрашивающему: если инструмент ничего не вернул, так и скажи.',
   'Ничего не выдумывай: факты бери из результатов инструментов и ссылайся на объекты их идентификаторами.',
   'Инструменты: search (поиск по названию и смыслу), similar (похожие на объект),',
-  'get_object (карточка объекта), file_text (извлечённый текст файла).',
+  'get_object (карточка объекта), file_text (извлечённый текст файла),',
+  'ask_data (вопрос к датасету на русском: objectId — датасет, query — вопрос).',
   'Когда данных достаточно — отвечай (action: "answer").',
   'Если нужно создать поручение или документ — предложи его в proposals, не выполняй сам.',
 ].join(' ')
@@ -162,6 +164,26 @@ async function runTool(
         meta: summary.meta,
       }).slice(0, TOOL_CHARS),
       citations: [citation],
+    }
+  }
+
+  if (decision.tool === 'ask_data') {
+    const question = decision.query.trim() || 'покажи сводку'
+    try {
+      const answer = await AskData.ask(ctx, objectId, question)
+      const rows = answer.result.rows.slice(0, 20)
+      return {
+        step: { tool: 'ask_data', summary: `спросил данные: ${question}`, found: rows.length },
+        text: JSON.stringify({
+          title: answer.title,
+          explanation: answer.explanation,
+          fields: answer.result.fields.map((field) => field.name),
+          rows,
+        }).slice(0, TOOL_CHARS),
+        citations: [],
+      }
+    } catch (error) {
+      return none(error instanceof Error ? error.message.slice(0, 120) : 'данные не ответили')
     }
   }
 

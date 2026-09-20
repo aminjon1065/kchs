@@ -10,7 +10,7 @@ import { Timestamp, Uuid } from '../common/primitives.js'
  */
 
 /** Что ассистент умеет делать сам: чтение, ничего меняющего. */
-export const ASSISTANT_TOOLS = ['search', 'similar', 'get_object', 'file_text'] as const
+export const ASSISTANT_TOOLS = ['search', 'similar', 'get_object', 'file_text', 'ask_data'] as const
 export const AssistantTool = z.enum(ASSISTANT_TOOLS)
 export type AssistantTool = z.infer<typeof AssistantTool>
 
