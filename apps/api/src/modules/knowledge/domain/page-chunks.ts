@@ -26,7 +26,7 @@ const CHUNK_MIN_CHARS = 120
 const MAX_CHUNKS = 120
 
 export interface PageChunkDocument {
-  /** `<pageId>:<blockId>:<n>` — устойчив, пока блок и порядок кусков не менялись. */
+  /** `<pageId>_<blockId>_<n>` — устойчив, пока блок и порядок кусков не менялись. */
   id: string
   pageId: string
   blockId: string | null
@@ -116,7 +116,7 @@ export function pageChunks(pageId: string, blocks: readonly PageBlock[]): Semant
     const parts = splitBlock(text)
     parts.forEach((part, n) => {
       if (chunks.length >= MAX_CHUNKS) return
-      chunks.push({ id: `${pageId}:${block.id}:${n}`, blockId: block.id, heading, text: part })
+      chunks.push({ id: `${pageId}_${block.id}_${n}`, blockId: block.id, heading, text: part })
     })
   }
   return chunks

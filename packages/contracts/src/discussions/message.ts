@@ -51,6 +51,8 @@ export const Message = z.object({
   attachments: z.array(MessageAttachment).default([]),
   mentions: z.array(Uuid).default([]),
   mentionedObjectIds: z.array(Uuid).default([]),
+  /** Якорь на фрагмент объекта (комментарий к блоку страницы, ADR-0095). */
+  anchor: z.string().nullable().default(null),
   reactions: z.array(Reaction).default([]),
   editedAt: Timestamp.nullable(),
   deletedAt: Timestamp.nullable(),
@@ -80,6 +82,12 @@ export const MessagePostInput = z.object({
   attachments: z.array(z.object({ fileId: Uuid })).default([]),
   mentions: z.array(Uuid).default([]),
   mentionedObjectIds: z.array(Uuid).default([]),
+  /**
+   * Якорь на фрагмент объекта: комментарий относится не ко всему объекту, а к
+   * его части. Значение задаёт тип объекта — у страницы базы знаний это
+   * идентификатор блока (ADR-0095).
+   */
+  anchor: z.string().max(64).nullable().optional(),
   idempotencyKey: z.string().max(64).optional(),
 })
 export type MessagePostInput = z.infer<typeof MessagePostInput>

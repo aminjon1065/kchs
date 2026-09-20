@@ -15,7 +15,7 @@ import { logger } from '~/shared/logger/index.js'
 
 /** Кусок страницы для векторного индекса: тот же разрез, что у `page_chunk`. */
 export interface SemanticChunk {
-  /** Идентификатор чанка — `<pageId>:<blockId>:<n>`, устойчив между правками. */
+  /** Идентификатор чанка — `<pageId>_<blockId>_<n>`, устойчив между правками. */
   id: string
   blockId: string | null
   /** Заголовок, под которым лежит кусок (для сниппета и цитаты). */
