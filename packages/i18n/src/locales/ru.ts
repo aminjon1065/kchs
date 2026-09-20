@@ -5342,6 +5342,7 @@ export const ru = {
       inCalendarOf: 'Календарь: {name}',
       join: 'Присоединиться',
       meetingSoon: 'Видеовстречи появятся в следующей версии',
+      meetingOff: 'Онлайн-встреча не включена',
       attendeesSummary:
         '{count, plural, one {# участник} few {# участника} many {# участников} other {# участника}}, придут: {going}',
       andMore: 'и ещё {count}',

@@ -125,6 +125,34 @@ test.describe('Встречи: комната и звонки', () => {
     await guestContext.close()
     await context.close()
   })
+
+  test('встреча по расписанию: вход из карточки события', async ({ page, request }) => {
+    test.setTimeout(120_000)
+    const run = Date.now().toString(36)
+    const csrf = (await (await request.get('/api/v1/me')).json()).session.csrfToken as string
+    const starts = new Date(Date.now() + 3_600_000).toISOString()
+    const created = await request.post('/api/v1/events', {
+      data: {
+        title: `Планёрка e2e ${run}`,
+        startsAt: starts,
+        endsAt: new Date(Date.now() + 5_400_000).toISOString(),
+        onlineMeeting: true,
+      },
+      headers: { 'x-csrf-token': csrf },
+    })
+    expect(created.ok(), await created.text()).toBeTruthy()
+    const eventId = (await created.json()).id as string
+
+    await page.goto(`/o/${eventId}`)
+    const join = page.getByTestId('event-join-meeting').first()
+    await expect(join).toBeEnabled({ timeout: 20_000 })
+    await join.click()
+
+    await page.getByTestId('meeting-join').click()
+    await expect(page.getByTestId('meeting-room')).toBeVisible({ timeout: 30_000 })
+    await expect(page.getByTestId('meeting-tile')).toHaveCount(1, { timeout: 30_000 })
+    await leaveRoom(page)
+  })
 })
 
 /** Связанный объект и его показ всем: получатель открывает его своими правами. */

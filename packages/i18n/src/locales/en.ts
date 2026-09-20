@@ -5279,6 +5279,7 @@ export const en: DeepPartial<Dictionary> = {
       inCalendarOf: 'Calendar: {name}',
       join: 'Join',
       meetingSoon: 'Video meetings arrive in the next version',
+      meetingOff: 'No online meeting for this event',
       attendeesSummary: '{count, plural, one {# attendee} other {# attendees}}, going: {going}',
       andMore: 'and {count} more',
       recurring: 'recurring',
