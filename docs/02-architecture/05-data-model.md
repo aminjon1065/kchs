@@ -300,8 +300,14 @@ calendar_feeds(id, calendar_id, user_id, token_hash unique, created_at, last_use
 pages(id pk → objects, status, template_key, owners uuid[], review_due_at, ack_required bool, current_version int)
 page_versions(id, page_id, number, body jsonb, created_by, created_at, summary)
 
-rules(id pk → objects, trigger jsonb, conditions jsonb, actions jsonb, enabled, run_as uuid, last_run_at)
-rule_runs(id bigint, rule_id, event_id, status, log jsonb, started_at, finished_at)
+-- Правила автоматизации (ADR-0096): определение целиком в `definition`, столбцы триггера
+-- денормализованы для выборки подписчиком и планировщиком
+rules(id pk → objects, key unique, definition jsonb, enabled, run_as uuid, trigger_kind, event_type, cron, timezone, hook_key, webhook_token unique, last_run_at, last_status)
+   idx: (trigger_kind, enabled), (event_type), (hook_key)
+rule_runs(id uuid pk, rule_id, event_id, event_type, trigger_kind, status, object_id, actor_id, depth, context jsonb, steps jsonb, resume_at, error, started_at, finished_at, created_at)
+   idx: (rule_id, created_at desc), (event_id); uniq: (rule_id, event_id) where event_id is not null
+rule_dedupe(rule_id, key, expires_at)  uniq: (rule_id, key)      -- окно дедупликации запусков
+schedules(key pk, enabled, updated_by, updated_at)               -- выключенные администратором проверки
 integrations(id pk → objects, kind text, config jsonb, secrets_enc bytea, status, last_sync_at)
 webhooks(id, integration_id null, url, events text[], secret_enc, enabled)  webhook_deliveries(id bigint, webhook_id, event_id, status, response_code, attempts, next_at)
 api_tokens(id, user_id, name, token_hash unique, scopes text[], expires_at, last_used_at)
