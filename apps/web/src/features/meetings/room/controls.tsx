@@ -69,133 +69,135 @@ export function RoomControls({
   const t = useT()
 
   return (
-    <div className="flex flex-wrap items-center justify-center gap-2 border-t border-line bg-surface-2 px-3 py-2">
-      <Tooltip content={room.micOn ? t('meetings.room.muteMic') : t('meetings.room.unmuteMic')}>
-        <Button
-          variant={room.micOn ? 'secondary' : 'danger'}
-          size="sm"
-          onClick={room.toggleMic}
-          data-testid="meeting-mic"
-          aria-pressed={room.micOn}
-        >
-          {room.micOn ? <Mic className="size-4" /> : <MicOff className="size-4" />}
-        </Button>
-      </Tooltip>
-
-      <Tooltip content={room.camOn ? t('meetings.room.stopCam') : t('meetings.room.startCam')}>
-        <Button
-          variant={room.camOn ? 'secondary' : 'danger'}
-          size="sm"
-          onClick={room.toggleCam}
-          data-testid="meeting-cam"
-          aria-pressed={room.camOn}
-        >
-          {room.camOn ? <Video className="size-4" /> : <VideoOff className="size-4" />}
-        </Button>
-      </Tooltip>
-
-      <DeviceMenu room={room} />
-
-      <Tooltip content={t('meetings.room.share')}>
-        <Button
-          variant={room.sharing ? 'primary' : 'secondary'}
-          size="sm"
-          onClick={room.toggleShare}
-          data-testid="meeting-share"
-          aria-pressed={room.sharing}
-        >
-          <ScreenShare className="size-4" />
-        </Button>
-      </Tooltip>
-
-      <Tooltip content={t('meetings.room.raiseHand')}>
-        <Button
-          variant={room.handRaised ? 'primary' : 'secondary'}
-          size="sm"
-          onClick={room.toggleHand}
-          data-testid="meeting-hand"
-          aria-pressed={room.handRaised}
-        >
-          <Hand className="size-4" />
-        </Button>
-      </Tooltip>
-
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="secondary" size="sm" aria-label={t('meetings.room.reactions')}>
-            <Smile className="size-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="center">
-          <div className="flex gap-1 p-1">
-            {REACTIONS.map((emoji) => (
-              <IconButton
-                key={emoji}
-                label={emoji}
-                size="sm"
-                onClick={() => room.sendReaction(emoji)}
-              >
-                <span aria-hidden>{emoji}</span>
-              </IconButton>
-            ))}
-          </div>
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      {canShowToAll ? (
-        <Tooltip content={t('meetings.room.showToAllHint')}>
-          <Button variant="secondary" size="sm" onClick={onShowToAll} data-testid="meeting-show">
-            <MonitorUp className="size-4" />
-            <span className="hidden sm:inline">{t('meetings.room.showToAll')}</span>
+    <div className="flex items-center gap-2 border-t border-line bg-surface-2 px-3 py-2">
+      <div className="flex min-w-0 flex-1 flex-wrap items-center justify-center gap-2">
+        <Tooltip content={room.micOn ? t('meetings.room.muteMic') : t('meetings.room.unmuteMic')}>
+          <Button
+            variant={room.micOn ? 'secondary' : 'danger'}
+            size="sm"
+            onClick={room.toggleMic}
+            data-testid="meeting-mic"
+            aria-pressed={room.micOn}
+          >
+            {room.micOn ? <Mic className="size-4" /> : <MicOff className="size-4" />}
           </Button>
         </Tooltip>
-      ) : null}
 
-      <div className="mx-1 h-6 w-px bg-line" aria-hidden />
-
-      <LayoutButton
-        active={layout === 'grid'}
-        label={t('meetings.layout.grid')}
-        onClick={() => onLayout('grid')}
-      >
-        <LayoutGrid className="size-4" />
-      </LayoutButton>
-      <LayoutButton
-        active={layout === 'speaker'}
-        label={t('meetings.layout.speaker')}
-        onClick={() => onLayout('speaker')}
-      >
-        <Presentation className="size-4" />
-      </LayoutButton>
-      <LayoutButton
-        active={layout === 'sidebar'}
-        label={t('meetings.layout.sidebar')}
-        onClick={() => onLayout('sidebar')}
-      >
-        <Columns2 className="size-4" />
-      </LayoutButton>
-
-      {canPanels ? (
-        <>
-          <div className="mx-1 h-6 w-px bg-line" aria-hidden />
-          <LayoutButton
-            active={panel === 'people'}
-            label={t('meetings.room.people')}
-            onClick={() => onPanel(panel === 'people' ? 'none' : 'people')}
+        <Tooltip content={room.camOn ? t('meetings.room.stopCam') : t('meetings.room.startCam')}>
+          <Button
+            variant={room.camOn ? 'secondary' : 'danger'}
+            size="sm"
+            onClick={room.toggleCam}
+            data-testid="meeting-cam"
+            aria-pressed={room.camOn}
           >
-            <Users className="size-4" />
-          </LayoutButton>
-          <LayoutButton
-            active={panel === 'chat'}
-            label={t('meetings.room.chat')}
-            onClick={() => onPanel(panel === 'chat' ? 'none' : 'chat')}
-          >
-            <MessageSquare className="size-4" />
-          </LayoutButton>
-        </>
-      ) : null}
+            {room.camOn ? <Video className="size-4" /> : <VideoOff className="size-4" />}
+          </Button>
+        </Tooltip>
 
-      <div className="ml-auto flex items-center gap-2">
+        <DeviceMenu room={room} />
+
+        <Tooltip content={t('meetings.room.share')}>
+          <Button
+            variant={room.sharing ? 'primary' : 'secondary'}
+            size="sm"
+            onClick={room.toggleShare}
+            data-testid="meeting-share"
+            aria-pressed={room.sharing}
+          >
+            <ScreenShare className="size-4" />
+          </Button>
+        </Tooltip>
+
+        <Tooltip content={t('meetings.room.raiseHand')}>
+          <Button
+            variant={room.handRaised ? 'primary' : 'secondary'}
+            size="sm"
+            onClick={room.toggleHand}
+            data-testid="meeting-hand"
+            aria-pressed={room.handRaised}
+          >
+            <Hand className="size-4" />
+          </Button>
+        </Tooltip>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="secondary" size="sm" aria-label={t('meetings.room.reactions')}>
+              <Smile className="size-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="center">
+            <div className="flex gap-1 p-1">
+              {REACTIONS.map((emoji) => (
+                <IconButton
+                  key={emoji}
+                  label={emoji}
+                  size="sm"
+                  onClick={() => room.sendReaction(emoji)}
+                >
+                  <span aria-hidden>{emoji}</span>
+                </IconButton>
+              ))}
+            </div>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {canShowToAll ? (
+          <Tooltip content={t('meetings.room.showToAllHint')}>
+            <Button variant="secondary" size="sm" onClick={onShowToAll} data-testid="meeting-show">
+              <MonitorUp className="size-4" />
+              <span className="hidden sm:inline">{t('meetings.room.showToAll')}</span>
+            </Button>
+          </Tooltip>
+        ) : null}
+
+        <div className="mx-1 h-6 w-px bg-line" aria-hidden />
+
+        <LayoutButton
+          active={layout === 'grid'}
+          label={t('meetings.layout.grid')}
+          onClick={() => onLayout('grid')}
+        >
+          <LayoutGrid className="size-4" />
+        </LayoutButton>
+        <LayoutButton
+          active={layout === 'speaker'}
+          label={t('meetings.layout.speaker')}
+          onClick={() => onLayout('speaker')}
+        >
+          <Presentation className="size-4" />
+        </LayoutButton>
+        <LayoutButton
+          active={layout === 'sidebar'}
+          label={t('meetings.layout.sidebar')}
+          onClick={() => onLayout('sidebar')}
+        >
+          <Columns2 className="size-4" />
+        </LayoutButton>
+
+        {canPanels ? (
+          <>
+            <div className="mx-1 h-6 w-px bg-line" aria-hidden />
+            <LayoutButton
+              active={panel === 'people'}
+              label={t('meetings.room.people')}
+              onClick={() => onPanel(panel === 'people' ? 'none' : 'people')}
+            >
+              <Users className="size-4" />
+            </LayoutButton>
+            <LayoutButton
+              active={panel === 'chat'}
+              label={t('meetings.room.chat')}
+              onClick={() => onPanel(panel === 'chat' ? 'none' : 'chat')}
+            >
+              <MessageSquare className="size-4" />
+            </LayoutButton>
+          </>
+        ) : null}
+      </div>
+
+      <div className="flex shrink-0 items-center gap-2">
         {canEnd ? (
           <Button variant="ghost" size="sm" onClick={onEnd} data-testid="meeting-end">
             {t('meetings.room.endForAll')}
