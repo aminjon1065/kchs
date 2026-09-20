@@ -134,6 +134,14 @@ export async function buildApp(): Promise<FastifyInstance> {
     resolvePrintGrant: (token) => PrintGrants.resolve(token),
   })
 
+  // Вебхук медиасервера приходит типом application/webhook+json и проверяется по
+  // подписи тела: разбирать его до проверки нельзя (ADR-0092)
+  app.addContentTypeParser(
+    'application/webhook+json',
+    { parseAs: 'string' },
+    (_request, body, done) => done(null, body),
+  )
+
   app.addHook('onSend', async (_request, reply, payload) => {
     reply.header('x-kchs-version', '0.1.0')
     return payload

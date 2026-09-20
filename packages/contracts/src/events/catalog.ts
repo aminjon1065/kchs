@@ -358,6 +358,33 @@ export const EVENT_PAYLOADS = {
     reason: z.enum(['manual', 'empty', 'cancelled']),
     durationSeconds: z.number().int().nullable(),
   }),
+  // ── запись и расшифровка встречи (ADR-0092); объект события — запись ──────
+  /** Запись включена: индикатор всем участникам комнаты. */
+  'recording.started': z.object({ meetingId: Uuid, startedBy: Uuid.nullable() }),
+  /** Запись остановлена — медиасервер ещё докладывает файл. */
+  'recording.stopped': z.object({ meetingId: Uuid, reason: z.enum(['manual', 'meeting_ended']) }),
+  /** Файл записи в реестре: длительность, размер и объект файла. */
+  'recording.ready': z.object({
+    meetingId: Uuid,
+    fileId: Uuid,
+    durationSeconds: z.number().int().nullable(),
+    sizeBytes: z.number().int().nullable(),
+  }),
+  'recording.failed': z.object({ meetingId: Uuid, error: z.string() }),
+  /** Расшифровка готова: сегменты с таймкодами привязаны к записи. */
+  'transcript.ready': z.object({
+    meetingId: Uuid,
+    recordingId: Uuid,
+    language: z.string().nullable(),
+    segments: z.number().int(),
+  }),
+  'transcript.failed': z.object({
+    meetingId: Uuid,
+    recordingId: Uuid,
+    /** `unavailable` — модель распознавания не настроена, функция выключена. */
+    reason: z.enum(['unavailable', 'failed']),
+    error: z.string().nullable(),
+  }),
   /** Звонок поднят — приглашённым показывается входящий (ADR-0089). */
   'call.incoming': z.object({
     meetingId: Uuid,

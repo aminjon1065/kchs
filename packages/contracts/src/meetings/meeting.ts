@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { UserRef } from '../auth/session.js'
 import { Timestamp, Uuid } from '../common/primitives.js'
+import { RecordingStatus } from './recording.js'
 
 /**
  * Встречи и звонки (11-communications-meetings.md §3, ADR-0089): объект реестра
@@ -47,6 +48,17 @@ export const MeetingPermissions = z.object({
 })
 export type MeetingPermissions = z.infer<typeof MeetingPermissions>
 
+/**
+ * Индикатор записи: идущая запись видна всем участникам комнаты, а не только
+ * тому, кто её включил (11-communications-meetings.md §3, ADR-0092).
+ */
+export const MeetingRecordingState = z.object({
+  id: Uuid,
+  status: RecordingStatus,
+  startedAt: Timestamp.nullable(),
+})
+export type MeetingRecordingState = z.infer<typeof MeetingRecordingState>
+
 export const MeetingRecord = z.object({
   id: Uuid,
   kind: MeetingKind,
@@ -67,6 +79,8 @@ export const MeetingRecord = z.object({
   startedAt: Timestamp.nullable(),
   endedAt: Timestamp.nullable(),
   can: MeetingPermissions,
+  /** Идущая запись встречи или `null` — индикатор в интерфейсе комнаты. */
+  recording: MeetingRecordingState.nullable(),
   createdAt: Timestamp,
 })
 export type MeetingRecord = z.infer<typeof MeetingRecord>
