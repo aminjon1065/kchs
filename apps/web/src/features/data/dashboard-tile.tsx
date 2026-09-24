@@ -26,10 +26,10 @@ import {
 } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp, SlidersHorizontal, Trash2 } from 'lucide-react'
-import { type ReactNode, useState } from 'react'
+import { type ReactNode, useMemo, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
-import { unlabelPick, useLabelledResult } from '~/features/gis/result-labels.js'
+import { optionLabels, unlabelPick, useLabelledResult } from '~/features/gis/result-labels.js'
 import { meQuery } from '~/shared/api/queries.js'
 import { DashboardMapTile, MapBindingsDialog } from './dashboard-map-tile.js'
 import { metricTileModel, periodText } from './metric-format.js'
@@ -122,8 +122,21 @@ export function TileCard({
   const { data: me } = useQuery(meQuery())
   const [bindings, setBindings] = useState(false)
   const height = Math.min(tile.h, 8)
-  // Территории в разрезах плитки — названиями единиц справочника (ADR-0057)
-  const result = useLabelledResult(data?.result ?? undefined)
+  // Варианты выбора — подписями полей датасета-источника встроенного графика;
+  // территории, подразделения и сотрудники — названиями (ADR-0057)
+  const query = tile.spec && 'query' in tile.spec.data ? tile.spec.data.query : null
+  const sourceId = query?.source.kind === 'dataset' ? query.source.id : null
+  const { data: source } = useQuery({ ...datasetQuery(sourceId ?? ''), enabled: Boolean(sourceId) })
+  const valueLabels = useMemo(
+    () =>
+      new Map(
+        (source?.fields ?? []).flatMap((field) =>
+          field.options?.length ? [[field.key, optionLabels(field.options, locale)] as const] : [],
+        ),
+      ),
+    [source, locale],
+  )
+  const result = useLabelledResult(data?.result ?? undefined, valueLabels)
 
   let body: ReactNode
   if (tile.kind === 'map') {
