@@ -44,12 +44,15 @@ export function DashboardMapTile({
   values,
   editing,
   onChange,
+  refreshMs = null,
 }: {
   tile: DashboardTile
   filters: readonly DashboardFilter[]
   values: Readonly<Record<string, unknown>>
   editing: boolean
   onChange: (tile: DashboardTile) => void
+  /** Перечитывание слоёв карты вместе с данными дашборда (TV, автообновление), мс. */
+  refreshMs?: number | null
 }) {
   const t = useT()
   const [current, setCurrent] = useState<MapCamera | null>(null)
@@ -63,6 +66,7 @@ export function DashboardMapTile({
       camera={options.camera}
       filter={(layer) => byDataset[layer.datasetId] ?? null}
       onCameraChange={setCurrent}
+      refreshMs={refreshMs}
       actions={
         editing ? (
           <>

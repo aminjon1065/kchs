@@ -54,6 +54,12 @@ export interface MapEmbedProps {
   onCameraChange?: (camera: MapCamera) => void
   /** Кнопки поверх карты рядом с легендой (правка плитки: «запомнить вид»). */
   actions?: ReactNode
+  /**
+   * Период перечитывания слоёв, мс (TV-режим и дашборд с автообновлением): в записи
+   * слоя — версия данных, она входит в адрес тайлов, и новые строки появляются на карте
+   * без перезагрузки страницы. null — слои не перечитываются.
+   */
+  refreshMs?: number | null
   className?: string
 }
 
@@ -71,6 +77,7 @@ export function MapEmbed({
   filter,
   onCameraChange,
   actions,
+  refreshMs = null,
   className,
 }: MapEmbedProps) {
   const t = useT()
@@ -86,7 +93,13 @@ export function MapEmbed({
   const [fit, setFit] = useState<{ bbox: Bbox; key: number } | null>(null)
 
   const mapRecord = useQuery({ ...mapQuery(mapId ?? ''), enabled: Boolean(mapId), retry: false })
-  const single = useQuery({ ...layerQuery(layerId ?? ''), enabled: Boolean(layerId), retry: false })
+  const polling = refreshMs ? { refetchInterval: refreshMs, refetchIntervalInBackground: true } : {}
+  const single = useQuery({
+    ...layerQuery(layerId ?? ''),
+    enabled: Boolean(layerId),
+    retry: false,
+    ...polling,
+  })
   const spec = mapRecord.data?.spec ?? null
   const entries: MapLayerEntry[] = mapId
     ? (spec?.layers ?? [])
@@ -94,7 +107,9 @@ export function MapEmbed({
       ? [{ layerId, visible: true, opacity: 1, group: null }]
       : []
   const layerQueries = useQueries({
-    queries: mapId ? entries.map((entry) => ({ ...layerQuery(entry.layerId), retry: false })) : [],
+    queries: mapId
+      ? entries.map((entry) => ({ ...layerQuery(entry.layerId), retry: false, ...polling }))
+      : [],
   })
   const records: Array<LayerRecord | null> = mapId
     ? layerQueries.map((query) => query.data ?? null)

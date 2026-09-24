@@ -299,6 +299,7 @@ export function DashboardView({ objectId, tabId }: { objectId: string; tabId: st
                   onMove={(delta) => setTiles(moveTile(tiles, index, delta))}
                   onRemove={() => setTiles(tiles.filter((item) => item.id !== tile.id))}
                   onPick={(pick) => setDrill({ tile, pick })}
+                  refreshMs={refresh && !editing ? refresh * 1000 : null}
                 />
               ))}
             </div>

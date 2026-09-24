@@ -99,6 +99,7 @@ export function TileCard({
   onRemove,
   onPick,
   large = false,
+  refreshMs = null,
 }: {
   tile: DashboardTile
   data: DashboardTileData | undefined
@@ -113,6 +114,8 @@ export function TileCard({
   /** Щелчок по элементу графика вне режима правки — детализация до строк. */
   onPick?: (pick: ChartPick) => void
   large?: boolean
+  /** Автообновление дашборда, мс: плитка-карта перечитывает слои с тем же периодом. */
+  refreshMs?: number | null
 }) {
   const t = useT()
   const locale = useAppearance((s) => s.locale)
@@ -131,6 +134,7 @@ export function TileCard({
         values={values}
         editing={editing}
         onChange={onChange}
+        refreshMs={refreshMs}
       />
     )
   } else if (tile.kind === 'text' || tile.kind === 'heading') {

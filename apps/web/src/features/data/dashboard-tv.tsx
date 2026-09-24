@@ -58,9 +58,10 @@ export function DashboardTv({
   exit.current = onExit
   const [now, setNow] = useState(() => new Date())
 
+  const refreshMs = (dashboard.spec.refreshInterval ?? DEFAULT_REFRESH) * 1000
   const data = useQuery({
     ...dashboardDataQuery(dashboard.id, values),
-    refetchInterval: (dashboard.spec.refreshInterval ?? DEFAULT_REFRESH) * 1000,
+    refetchInterval: refreshMs,
     refetchIntervalInBackground: true,
   })
 
@@ -141,6 +142,7 @@ export function DashboardTv({
                 onMove={noop}
                 onRemove={noop}
                 large
+                refreshMs={refreshMs}
               />
             ))}
           </div>
