@@ -3,6 +3,7 @@ import type { DemoDataResult, DemoProfile } from '~/modules/data/public.js'
 import { runMigrations } from '~/shared/db/migrate.js'
 import { logger } from '~/shared/logger/index.js'
 import { seedDemoData } from './demo-data.js'
+import { type EmergencyPackResult, installEmergencyPack } from './packs/emergency/index.js'
 import { resetData, runSeed } from './seed.js'
 
 export interface SeedCommandOptions {
@@ -11,12 +12,21 @@ export interface SeedCommandOptions {
   reset: boolean
   /** Демо-датасеты генератора (ADR-0063): нужен запущенный стек; `none` — без них. */
   data?: DemoProfile | 'none'
+  /**
+   * Предметный пакет (ADR-0128): по умолчанию демо-профиль ставит пакет ЧС — демо-мир
+   * и есть Комитет; чистая установка (`minimal`) — только по явному `emergency`.
+   */
+  pack?: 'emergency' | 'none'
 }
 
 /** Демо-данные: `pnpm db:seed` при разработке и `kchs seed` в образе api. */
-export async function seedCommand(
-  options: SeedCommandOptions,
-): Promise<{ users: number; units: number; spaces: number; datasets: DemoDataResult | null }> {
+export async function seedCommand(options: SeedCommandOptions): Promise<{
+  users: number
+  units: number
+  spaces: number
+  datasets: DemoDataResult | null
+  pack: EmergencyPackResult | null
+}> {
   await runMigrations()
   if (options.reset) {
     await resetData()
@@ -33,5 +43,8 @@ export async function seedCommand(
   })
   const data = options.data ?? 'none'
   const datasets = data === 'none' ? null : await seedDemoData(data, adminLogin)
-  return { ...seeded, datasets }
+  // Пакет — после демо-датасетов: принимает их, а не заводит пустые двойники
+  const pack = options.pack ?? (options.profile === 'demo' ? 'emergency' : 'none')
+  const installed = pack === 'emergency' ? await installEmergencyPack(adminLogin) : null
+  return { ...seeded, datasets, pack: installed }
 }

@@ -16,7 +16,8 @@ const HELP = `kchs — служебные команды установки
                    --admin-email <почта>  (или KCHS_ADMIN_EMAIL)
   kchs migrate   только миграции базы
   kchs seed      демо-данные: --profile demo|minimal; --reset --yes сначала удаляет данные;
-                   --data small|demo — демо-датасеты генератора (нужны api, worker и engine)
+                   --data small|demo — демо-датасеты генератора (нужны api, worker и engine);
+                   --pack emergency|none — предметный пакет ЧС (демо-профиль ставит его сам)
   kchs basemaps upload <каталог> [--key <ключ>] [--no-register]
                  сборка infra/basemaps/build-pmtiles.sh → хранилище (шрифты, спрайты,
                    PMTiles, манифест), затем регистрация в реестре базовых карт
@@ -36,6 +37,7 @@ async function run(argv: string[]): Promise<number> {
       'admin-email': { type: 'string' },
       profile: { type: 'string', default: 'demo' },
       data: { type: 'string', default: 'none' },
+      pack: { type: 'string' },
       reset: { type: 'boolean', default: false },
       yes: { type: 'boolean', default: false },
       key: { type: 'string' },
@@ -74,6 +76,7 @@ async function run(argv: string[]): Promise<number> {
         profile: values.profile === 'minimal' ? 'minimal' : 'demo',
         reset: values.reset,
         data,
+        ...(values.pack === 'emergency' || values.pack === 'none' ? { pack: values.pack } : {}),
       })
       process.stdout.write(
         result.units === 0
@@ -83,6 +86,11 @@ async function run(argv: string[]): Promise<number> {
       if (result.datasets) {
         process.stdout.write(
           `Демо-датасеты: ${result.datasets.datasets} (новых ${result.datasets.created}), строк загружено ${result.datasets.rows}\n`,
+        )
+      }
+      if (result.pack) {
+        process.stdout.write(
+          `Пакет ЧС: датасетов ${result.pack.datasets}, дашбордов ${result.pack.dashboards}, новых страниц регламентов ${result.pack.pages}\n`,
         )
       }
       return 0
