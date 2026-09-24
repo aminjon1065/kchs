@@ -143,7 +143,28 @@ test.describe('Поручения: полный режим и контроль �
   }) => {
     test.setTimeout(90_000)
     const run = Date.now().toString(36)
-    const { headers, employeeId } = await session(request)
+    const { headers } = await session(request)
+    // Свой исполнитель на прогон: у сотрудника seed на общем стенде копятся десятки
+    // просроченных поручений прошлых прогонов, и нужное не попадает в видимые строки
+    const units = (await (await request.get('/api/v1/org/units')).json()).items as Array<{
+      id: string
+      code: string
+    }>
+    const login = `control-${run}`
+    const created = await request.post('/api/v1/users', {
+      headers,
+      data: {
+        login,
+        lastName: 'Контролев',
+        firstName: `Исполнитель${run}`,
+        roleKeys: ['employee'],
+        password: `Kontrol-${run}-2026!`,
+        mustChangePassword: false,
+        unitId: units.find((unit) => unit.code === 'UO')?.id ?? null,
+      },
+    })
+    expect(created.ok(), await created.text()).toBeTruthy()
+    const employeeId = (await created.json()).id as string
     const today = localDay(new Date())
     const create = async (title: string, due: Record<string, unknown>) => {
       const response = await request.post('/api/v1/tasks', {
@@ -175,6 +196,9 @@ test.describe('Поручения: полный режим и контроль �
     await page.goto('/control')
     const matrix = page.getByRole('table', { name: 'Подразделения × состояния' })
     await expect(matrix).toBeVisible()
+    // Матрица и список — только по исполнителю прогона
+    await page.getByRole('searchbox', { name: 'Исполнитель' }).fill(login)
+    await page.getByRole('list', { name: 'Исполнитель' }).getByRole('button').first().click()
     // Строка — подразделение и его путь в оргструктуре
     const rowName = [unit, (rows[0]?.unitPath ?? []).join(' › ')].filter(Boolean).join(' ')
     await expect(matrix.getByRole('rowheader', { name: rowName, exact: true })).toBeVisible()

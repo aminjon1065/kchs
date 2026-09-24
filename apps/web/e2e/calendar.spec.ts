@@ -3,6 +3,7 @@ import {
   ADMIN_STATE,
   EMPLOYEE_STATE,
   expect,
+  openInboxItem,
   openWorkspace,
   resetWorkspaceState,
   test,
@@ -146,10 +147,8 @@ test.describe('Приёмка фазы 3 — календарь (сценари�
     const other = await context.newPage()
     await openWorkspace(other, context.request)
     await other.getByRole('button', { name: 'Входящие', exact: true }).first().click()
-    await other
-      .getByRole('option', { name: new RegExp(`Приглашение: ${meeting}`) })
-      .first()
-      .click()
+    // На общем стенде у сотрудника сотни дел прошлых прогонов — ищем с подгрузкой
+    await openInboxItem(other, new RegExp(`Приглашение: ${meeting}`))
     await other.getByRole('button', { name: 'Да', exact: true }).click()
     await expect(other.getByText('Выполнено')).toBeVisible()
     const answered = await (await context.request.get(`/api/v1/events/${meetingId}`)).json()
