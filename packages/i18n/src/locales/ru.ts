@@ -3268,6 +3268,7 @@ export const ru = {
       findUser: 'Найти сотрудника',
       findUnit: 'Найти подразделение',
       nothingFound: 'Ничего не найдено',
+      typeToSearch: 'Начните вводить название или имя',
       none: 'Не выбрано',
       otherObject: 'Объект недоступен',
     },

@@ -244,7 +244,8 @@ export function useFieldFormatter(
 
 /**
  * Сотрудник или подразделение: кнопка с именем выбранного (подпись поля
- * связана с ней), по нажатию — поиск; крестик очищает поле.
+ * связана с ней), по нажатию — всплывающий поиск, как у выбора варианта и
+ * территории: в ячейке таблицы список не раздвигает строку; крестик очищает поле.
  */
 function PrincipalValueField({
   kind,
@@ -256,93 +257,79 @@ function PrincipalValueField({
 }: ControlProps & { kind: 'user' | 'unit' }) {
   const t = useT()
   const listId = useId()
-  const [editing, setEditing] = useState(false)
+  const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
   const query = useDebouncedValue(search.trim(), 200)
   const current = typeof value === 'string' && value ? value : null
   const key = `${kind}:${current ?? ''}`
   const { data: refs } = useQuery(principalRefsQuery(current ? [key] : []))
   const { data: found = [], isFetching } = useQuery(principalsQuery(query, kind))
+  const shown = current ? (refs?.get(key)?.title ?? t('data.fieldControls.unknown')) : null
+  const placeholder =
+    kind === 'user' ? t('data.fieldControls.findUser') : t('data.fieldControls.findUnit')
 
-  if (current && !editing) {
-    return (
-      <div className="flex min-w-0 items-center gap-1">
-        <Button
-          id={id}
-          type="button"
-          variant="secondary"
-          disabled={disabled}
-          aria-invalid={invalid || undefined}
-          className="min-w-0 flex-1 justify-start"
-          onClick={() => setEditing(true)}
-        >
-          <span className="truncate">
-            {refs?.get(key)?.title ?? t('data.fieldControls.unknown')}
-          </span>
-        </Button>
-        {!disabled ? (
-          <IconButton
-            type="button"
-            size="sm"
-            label={t('data.fieldControls.clear')}
-            onClick={() => onChange(null)}
-          >
-            <X className="size-3.5" aria-hidden />
-          </IconButton>
-        ) : null}
-      </div>
-    )
-  }
   return (
-    <div className="flex min-w-0 flex-col gap-1.5">
-      <SearchInput
-        id={id}
-        value={search}
-        onValueChange={setSearch}
-        disabled={disabled}
-        invalid={invalid}
-        placeholder={
-          kind === 'user' ? t('data.fieldControls.findUser') : t('data.fieldControls.findUnit')
-        }
-        aria-controls={listId}
-      />
-      {query ? (
-        <ul id={listId} className="max-h-48 overflow-y-auto rounded-md border border-line p-1">
-          {found.map((principal) => (
-            <li key={principal.id}>
-              <button
-                type="button"
-                onClick={() => {
-                  onChange(principal.id)
-                  setSearch('')
-                  setEditing(false)
-                }}
-                className="flex w-full items-center rounded-xs px-2 py-1.5 text-left hover:bg-surface-3"
-              >
-                <PrincipalLine principal={principal} />
-              </button>
-            </li>
-          ))}
-          {!isFetching && found.length === 0 ? (
-            <li className="px-2 py-1.5 text-sm text-fg-muted">
-              {t('data.fieldControls.nothingFound')}
-            </li>
-          ) : null}
-        </ul>
-      ) : null}
-      {editing ? (
-        <Button
+    <div className="flex min-w-0 items-center gap-1">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            id={id}
+            type="button"
+            variant="secondary"
+            disabled={disabled}
+            aria-invalid={invalid || undefined}
+            className="min-w-0 flex-1 justify-start"
+          >
+            <span className={cn('truncate', shown === null && 'text-fg-muted')}>
+              {shown ?? placeholder}
+            </span>
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="flex max-h-80 w-80 flex-col gap-1.5 p-2">
+          <SearchInput
+            value={search}
+            onValueChange={setSearch}
+            aria-controls={listId}
+            placeholder={placeholder}
+          />
+          <ul id={listId} className="m-0 min-h-0 flex-1 list-none overflow-y-auto p-0">
+            {found.map((principal) => (
+              <li key={principal.id}>
+                <button
+                  type="button"
+                  aria-current={principal.id === current || undefined}
+                  onClick={() => {
+                    onChange(principal.id)
+                    setSearch('')
+                    setOpen(false)
+                  }}
+                  className="flex w-full items-center rounded-xs px-2 py-1.5 text-left hover:bg-surface-3"
+                >
+                  <PrincipalLine principal={principal} />
+                </button>
+              </li>
+            ))}
+            {!query ? (
+              <li className="px-2 py-1.5 text-sm text-fg-muted">
+                {t('data.fieldControls.typeToSearch')}
+              </li>
+            ) : !isFetching && found.length === 0 ? (
+              <li className="px-2 py-1.5 text-sm text-fg-muted">
+                {t('data.fieldControls.nothingFound')}
+              </li>
+            ) : null}
+          </ul>
+        </PopoverContent>
+      </Popover>
+      {current && !disabled ? (
+        <IconButton
           type="button"
-          variant="link"
           size="sm"
-          className="self-start"
-          onClick={() => {
-            setSearch('')
-            setEditing(false)
-          }}
+          label={t('data.fieldControls.clear')}
+          onClick={() => onChange(null)}
         >
-          {t('common.actions.cancel')}
-        </Button>
+          <X className="size-3.5" aria-hidden />
+        </IconButton>
       ) : null}
     </div>
   )

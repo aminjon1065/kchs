@@ -3223,6 +3223,7 @@ export const en: DeepPartial<Dictionary> = {
       findUser: 'Find a person',
       findUnit: 'Find a unit',
       nothingFound: 'Nothing found',
+      typeToSearch: 'Start typing a name',
       none: 'Not selected',
       otherObject: 'Object unavailable',
     },
