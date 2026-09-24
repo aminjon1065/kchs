@@ -301,7 +301,7 @@ async function resolveUser(
 
   // Учётная запись уже заведена: связываем её с субъектом IdP
   const [existing] = await db()
-    .select({ id: users.id })
+    .select({ id: users.id, kind: users.kind })
     .from(users)
     .where(
       email
@@ -309,6 +309,20 @@ async function resolveUser(
         : sql`lower(${users.login}) = ${login}`,
     )
     .limit(1)
+
+  // Служебная учётная запись (ADR-0130) с субъектом IdP не связывается: войти ею нельзя,
+  // а совпадение логина или почты не должно открыть её человеку
+  if (existing?.kind === 'service') {
+    await audit(sys, {
+      action: AUDIT_ACTIONS.loginFailed,
+      actorId: existing.id,
+      details: { provider: OIDC_PROVIDER, reason: 'service_account', login },
+      severity: 'warning',
+      ip: meta.ip,
+      userAgent: meta.userAgent,
+    })
+    throw errors.unauthorized('Учётная запись не заведена. Обратитесь к администратору')
+  }
 
   if (existing) {
     await assertActive(existing.id, meta)

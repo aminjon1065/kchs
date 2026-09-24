@@ -11,6 +11,12 @@ import {
 } from '~/shared/db/schema/index.js'
 
 /**
+ * Назначать можно только людей: служебная учётная запись (ADR-0130) не получает
+ * дел и уведомлений, её не выбирают ни роль, ни подразделение, ни группа.
+ */
+const isPerson = eq(users.kind, 'person')
+
+/**
  * Запросы справочника для назначений по оргструктуре (порт ядра
  * `DirectoryProvider`, ADR-0079): только активные сотрудники и действующие
  * занятости; порядок — по имени, чтобы очередь назначенных была стабильной.
@@ -39,6 +45,7 @@ export const DirectoryQueries = {
           eq(orgClosure.ancestorId, unitId),
           isNull(employments.endsAt),
           eq(users.status, 'active'),
+          isPerson,
         ),
       )
       .orderBy(asc(users.displayName), asc(users.id))
@@ -59,7 +66,7 @@ export const DirectoryQueries = {
       .select({ id: users.id })
       .from(groupMembers)
       .innerJoin(users, eq(users.id, groupMembers.userId))
-      .where(and(eq(groupMembers.groupId, groupId), eq(users.status, 'active')))
+      .where(and(eq(groupMembers.groupId, groupId), eq(users.status, 'active'), isPerson))
       .orderBy(asc(users.displayName), asc(users.id))
     return rows.map((row) => row.id)
   },
@@ -85,17 +92,18 @@ export const DirectoryQueries = {
       .from(userRoles)
       .innerJoin(roles, eq(roles.id, userRoles.roleId))
       .innerJoin(users, eq(users.id, userRoles.userId))
-      .where(and(eq(roles.key, roleKey), eq(users.status, 'active'), scope))
+      .where(and(eq(roles.key, roleKey), eq(users.status, 'active'), isPerson, scope))
       .orderBy(asc(users.displayName), asc(users.id))
     return rows.map((row) => row.id)
   },
 
+  /** Действующие сотрудники из списка — служебные учётные записи отсеиваются. */
   async activeUsers(userIds: string[], database: Database = db()): Promise<string[]> {
     if (userIds.length === 0) return []
     const rows = await database
       .select({ id: users.id })
       .from(users)
-      .where(and(inArray(users.id, userIds), eq(users.status, 'active')))
+      .where(and(inArray(users.id, userIds), eq(users.status, 'active'), isPerson))
     const active = new Set(rows.map((row) => row.id))
     return userIds.filter((id) => active.has(id))
   },

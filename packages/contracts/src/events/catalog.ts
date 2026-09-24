@@ -48,7 +48,11 @@ export const EVENT_PAYLOADS = {
   'object.tagged': z.object({ tagIds: z.array(Uuid) }),
 
   // ── identity ──────────────────────────────────────────────────────────────
-  'user.created': z.object({ login: z.string() }),
+  'user.created': z.object({
+    login: z.string(),
+    /** Служебная учётная запись (ADR-0130) создаётся тем же событием. */
+    kind: z.enum(['person', 'service']).default('person'),
+  }),
   'user.updated': empty,
   'user.blocked': z.object({ reason: z.string().nullable().default(null) }),
   'user.login': z.object({ ip: z.string().nullable(), userAgent: z.string().nullable() }),

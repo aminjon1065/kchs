@@ -81,6 +81,7 @@ export const AuthService = {
         id: users.id,
         login: users.login,
         status: users.status,
+        kind: users.kind,
         displayName: users.displayName,
         mustChangePassword: users.mustChangePassword,
         authSource: users.authSource,
@@ -99,13 +100,16 @@ export const AuthService = {
       ? await db().select().from(credentials).where(eq(credentials.userId, user.id)).limit(1)
       : []
 
-    if (!user || !cred) {
+    // Служебная учётная запись (ADR-0130) не входит никак: пароля у неё нет, а ответ —
+    // тот же, что неизвестному логину, чтобы не раскрывать вид учётной записи
+    if (!user || !cred || user.kind === 'service') {
       // Хеш считается и для неизвестного логина: по времени ответа не понять,
       // существует ли учётная запись
       await verifyPassword(await dummyHash(), password)
       await audit(sys, {
         action: AUDIT_ACTIONS.loginFailed,
-        details: { login, reason: 'unknown_user' },
+        ...(user?.kind === 'service' ? { actorId: user.id } : {}),
+        details: { login, reason: user?.kind === 'service' ? 'service_account' : 'unknown_user' },
         severity: 'notice',
         ip: meta.ip,
         userAgent: meta.userAgent,
@@ -330,6 +334,15 @@ export const AuthService = {
     meta: RequestMeta,
     mfaVerified: boolean,
   ): Promise<{ sessionToken: string; csrfToken: string; userId: string; expiresAt: string }> {
+    // Общий рубеж пароля, LDAP, OIDC и ключа входа: служебной учётной записи
+    // (ADR-0130) сессия не выдаётся ни одним способом
+    const [owner] = await db()
+      .select({ kind: users.kind })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1)
+    if (owner?.kind === 'service') throw errors.unauthorized('Неверный логин или пароль')
+
     const env = config()
     const token = randomToken(32)
     const csrfToken = randomToken(24)
@@ -588,10 +601,16 @@ export const AuthService = {
     login?: string,
     tx: Executor = db(),
   ): Promise<void> {
-    const [owner] = login
-      ? [{ login }]
-      : await tx.select({ login: users.login }).from(users).where(eq(users.id, userId)).limit(1)
-    const policy = checkPasswordPolicy(password, owner?.login)
+    const [account] = await tx
+      .select({ login: users.login, kind: users.kind })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1)
+    // Служебная учётная запись не входит в систему — пароля у неё нет (ADR-0130)
+    if (account?.kind === 'service') {
+      throw errors.validation('У служебной учётной записи нет пароля: она не входит в систему')
+    }
+    const policy = checkPasswordPolicy(password, login ?? account?.login)
     if (!policy.ok) {
       throw errors.validation('Пароль не соответствует политике', [
         { path: 'newPassword', message: policy.messageKey ?? 'auth.password.tooSimple' },
@@ -642,7 +661,7 @@ export const AuthService = {
 
   async requestPasswordReset(login: string): Promise<{ token: string; userId: string } | null> {
     const [user] = await db()
-      .select({ id: users.id, status: users.status })
+      .select({ id: users.id, status: users.status, kind: users.kind })
       .from(users)
       .where(
         or(
@@ -651,7 +670,8 @@ export const AuthService = {
         ),
       )
       .limit(1)
-    if (user?.status !== 'active') return null
+    // Служебной учётной записи пароль не восстанавливают: его нет (ADR-0130)
+    if (user?.status !== 'active' || user.kind === 'service') return null
 
     const token = randomToken(32)
     await db()
@@ -681,11 +701,13 @@ export const AuthService = {
 
     // Отключённая после запроса учётная запись доступ по ссылке не возвращает
     const [user] = await db()
-      .select({ status: users.status })
+      .select({ status: users.status, kind: users.kind })
       .from(users)
       .where(eq(users.id, row.userId))
       .limit(1)
-    if (user?.status !== 'active') throw errors.validation('Ссылка недействительна или истекла')
+    if (user?.status !== 'active' || user.kind === 'service') {
+      throw errors.validation('Ссылка недействительна или истекла')
+    }
 
     await AuthService.setPassword(row.userId, newPassword)
     await db()

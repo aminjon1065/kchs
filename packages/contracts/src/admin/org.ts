@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { Confidentiality } from '../access/confidentiality.js'
-import { UserRef, UserStatus } from '../auth/session.js'
+import { UserKind, UserRef, UserStatus } from '../auth/session.js'
 import { LangText, Timestamp, Uuid } from '../common/primitives.js'
 
 export const ORG_UNIT_KINDS = ['committee', 'department', 'division', 'regional', 'sector'] as const
@@ -93,6 +93,10 @@ export const AdminUser = z.object({
   phone: z.string().nullable(),
   displayName: z.string(),
   status: UserStatus,
+  /** Сотрудник или служебная учётная запись (ADR-0130). */
+  kind: UserKind.default('person'),
+  /** Назначение служебной учётной записи; у сотрудника — null. */
+  description: z.string().nullable().default(null),
   avatarUrl: z.string().nullable(),
   mfaEnabled: z.boolean(),
   lastSeenAt: Timestamp.nullable(),

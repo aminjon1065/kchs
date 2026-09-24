@@ -39,6 +39,8 @@ export async function describePrincipals(
         unitName: orgUnits.name,
         positionName: positions.name,
         status: users.status,
+        kind: users.kind,
+        description: users.description,
       })
       .from(users)
       .leftJoin(employments, eq(employments.userId, users.id))
@@ -48,6 +50,20 @@ export async function describePrincipals(
 
     for (const row of rows) {
       if (result.has(`user:${row.id}`)) continue
+      // Служебная учётная запись (ADR-0130): подпись — её назначение, отметку
+      // «служебная» рисует интерфейс по признаку `service`
+      if (row.kind === 'service') {
+        result.set(`user:${row.id}`, {
+          type: 'user',
+          id: row.id,
+          title: row.displayName,
+          subtitle: row.description ?? undefined,
+          avatarUrl: null,
+          icon: 'bot',
+          service: true,
+        })
+        continue
+      }
       result.set(`user:${row.id}`, {
         type: 'user',
         id: row.id,

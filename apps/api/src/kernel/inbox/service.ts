@@ -9,6 +9,7 @@ import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { cacheKeys, redis } from '~/shared/redis/index.js'
 import { redactSummary } from '../access/confidentiality.js'
+import { isServiceAccount } from '../access/service-accounts.js'
 import { directory } from '../directory/port.js'
 import { publishEvent } from '../events/publisher.js'
 import { ObjectService } from '../objects/service.js'
@@ -84,6 +85,8 @@ export const InboxService = {
   async open(tx: Executor, ctx: Ctx, input: OpenInboxInput): Promise<string> {
     const dedupeKey = input.dedupeKey ?? `${input.kind}:${input.objectId ?? ''}`
     const id = newId()
+    // Служебной учётной записи дела не открываются: действовать по ним некому (ADR-0130)
+    if (await isServiceAccount(input.userId, tx)) return id
 
     const inserted = await tx
       .insert(inboxItems)

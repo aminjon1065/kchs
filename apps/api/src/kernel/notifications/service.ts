@@ -15,6 +15,7 @@ import { notificationPreferences, notifications, users } from '~/shared/db/schem
 import { logger } from '~/shared/logger/index.js'
 import { mailConfigured, sendMail } from '~/shared/mail/index.js'
 import { redactSummary } from '../access/confidentiality.js'
+import { serviceAccountIds } from '../access/service-accounts.js'
 import { directory } from '../directory/port.js'
 import { InboxService } from '../inbox/service.js'
 import { ObjectService } from '../objects/service.js'
@@ -54,7 +55,11 @@ export const NotificationService = {
    * (02-platform-kernel.md §7).
    */
   async notify(input: NotifyInput): Promise<void> {
-    const recipients = [...new Set(input.userIds)].filter((id) => id && !id.startsWith('link:'))
+    const addressed = [...new Set(input.userIds)].filter((id) => id && !id.startsWith('link:'))
+    // Служебной учётной записи не уходит ничего и ни в один канал (ADR-0130):
+    // читать уведомления некому, а письма и Telegram утекали бы в чужой ящик
+    const service = await serviceAccountIds(addressed)
+    const recipients = addressed.filter((id) => !service.has(id))
     if (recipients.length === 0) return
 
     const aggregateKey =

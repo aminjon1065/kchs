@@ -33,6 +33,14 @@ export type MfaVerifyInput = z.infer<typeof MfaVerifyInput>
 export const UserStatus = z.enum(['active', 'invited', 'blocked', 'deactivated'])
 export type UserStatus = z.infer<typeof UserStatus>
 
+/**
+ * Вид учётной записи (ADR-0130): сотрудник или служебная запись правил и
+ * интеграций — без входа и уведомлений, с отметкой в справочнике.
+ */
+export const USER_KINDS = ['person', 'service'] as const
+export const UserKind = z.enum(USER_KINDS)
+export type UserKind = z.infer<typeof UserKind>
+
 /** Компактное представление пользователя для чипов, пикеров и авторства. */
 export const UserRef = z.object({
   id: Uuid,
@@ -41,6 +49,8 @@ export const UserRef = z.object({
   position: z.string().nullable(),
   unitName: z.string().nullable(),
   status: UserStatus.optional(),
+  /** Служебная учётная запись отмечается в чипах и справочнике (ADR-0130). */
+  kind: UserKind.optional(),
 })
 export type UserRef = z.infer<typeof UserRef>
 

@@ -43,6 +43,8 @@ export const PrincipalRef = Principal.extend({
   subtitle: z.string().optional(),
   avatarUrl: z.string().nullable().optional(),
   icon: z.string().optional(),
+  /** Пользователь — служебная учётная запись (ADR-0130): интерфейс её отмечает. */
+  service: z.boolean().optional(),
 })
 export type PrincipalRef = z.infer<typeof PrincipalRef>
 

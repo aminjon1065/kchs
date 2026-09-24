@@ -12,6 +12,7 @@ import {
   Position,
   PrincipalRef,
   RoleInfo,
+  UserKind,
   UserRef,
 } from '@kchs/contracts'
 import { and, eq, inArray, sql } from 'drizzle-orm'
@@ -56,6 +57,11 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
         q: z.string().max(200).default(''),
         types: z.string().default('user,group,unit,position'),
         limit: z.coerce.number().int().min(1).max(50).default(20),
+        /**
+         * Служебные учётные записи (ADR-0130): пикеры людей их не показывают,
+         * а выдача доступа и участники пространства — показывают с отметкой.
+         */
+        serviceAccounts: z.enum(['exclude', 'include']).default('exclude'),
       }),
       response: { 200: z.object({ items: z.array(PrincipalRef) }) },
     },
@@ -71,6 +77,7 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
           .where(
             and(
               eq(users.status, 'active'),
+              request.query.serviceAccounts === 'include' ? undefined : eq(users.kind, 'person'),
               // Скобки обязательны: иначе OR обходил бы условие «активен»
               sql`(${users.displayName} ilike ${q} OR ${users.login} ilike ${q})`,
             ),
@@ -156,6 +163,8 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
         unitId: z.uuid().optional(),
         /** Сотрудники с ролью — переход из матрицы ролей. */
         roleKey: z.string().max(64).optional(),
+        /** Сотрудники или служебные учётные записи (ADR-0130). */
+        kind: UserKind.optional(),
         limit: z.coerce.number().int().min(1).max(200).default(50),
         cursor: z.string().optional(),
       }),

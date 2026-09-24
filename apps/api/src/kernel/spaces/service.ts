@@ -21,6 +21,7 @@ import {
 } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { invalidatePrincipalSet } from '../access/principal-set.js'
+import { isServiceAccount } from '../access/service-accounts.js'
 import { directory } from '../directory/port.js'
 import { publishEvent } from '../events/publisher.js'
 import { ObjectService } from '../objects/service.js'
@@ -30,6 +31,17 @@ import { ObjectService } from '../objects/service.js'
  * некому, кроме администратора системы. Строки администраторов блокируются —
  * двое, одновременно разжалующие друг друга, не оставят пространство без них.
  */
+/**
+ * Служебная учётная запись (ADR-0130) администратором пространства не бывает:
+ * правилу хватает правки, а управление доступом — работа человека.
+ */
+async function assertServiceNotAdmin(tx: Executor, userId: string, role: SpaceRole): Promise<void> {
+  if (role !== 'admin') return
+  if (await isServiceAccount(userId, tx)) {
+    throw errors.validation('Служебная учётная запись не бывает администратором пространства')
+  }
+}
+
 async function assertAdminRemains(
   tx: Executor,
   spaceId: string,
@@ -166,6 +178,7 @@ export const SpaceService = {
     userId: string,
     role: SpaceRole,
   ): Promise<void> {
+    await assertServiceNotAdmin(tx, userId, role)
     // Повторное приглашение меняет роль — и не должно разжаловать последнего администратора
     await assertAdminRemains(tx, spaceId, userId, role)
     await tx
@@ -209,6 +222,7 @@ export const SpaceService = {
       .where(and(eq(spaceMembers.spaceId, spaceId), eq(spaceMembers.userId, userId)))
       .limit(1)
     if (!current) throw errors.notFound('Участник пространства')
+    await assertServiceNotAdmin(tx, userId, role)
     await assertAdminRemains(tx, spaceId, userId, role)
 
     await tx

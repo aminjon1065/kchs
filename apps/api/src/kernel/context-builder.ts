@@ -30,6 +30,7 @@ export async function buildUserCtx(
       locale: users.locale,
       timezone: users.timezone,
       status: users.status,
+      kind: users.kind,
       attributes: users.attributes,
       mustChangePassword: users.mustChangePassword,
     })
@@ -39,6 +40,12 @@ export async function buildUserCtx(
 
   if (!user) throw errors.unauthorized('Учётная запись не найдена')
   if (user.status !== 'active') throw errors.unauthorized('Учётная запись отключена')
+  // Служебная учётная запись (ADR-0130) работает только по токену API: сессии
+  // браузера, сокета или совместного редактирования у неё быть не может
+  const service = user.kind === 'service'
+  if (service && !session.sessionId.startsWith('token:')) {
+    throw errors.unauthorized('Учётная запись отключена')
+  }
 
   const principals = await getPrincipalSet(user.id)
   const capabilities = await loadCapabilities(principals.roleKeys)
@@ -80,8 +87,12 @@ export async function buildUserCtx(
     attributes: user.attributes,
     clearance: parseConfidentiality(user.attributes.clearance),
     adminMode,
-    mustChangePassword: user.mustChangePassword,
+    mustChangePassword: !service && user.mustChangePassword,
+    // Второй фактор служебной записи подключить нечем: её единственный вход —
+    // токен, который выпускает администратор системы
     mfaEnrollmentRequired:
-      !session.mfaEnrolled && SecurityPolicyService.requiresMfa(policy, principals.roleKeys),
+      !service &&
+      !session.mfaEnrolled &&
+      SecurityPolicyService.requiresMfa(policy, principals.roleKeys),
   }
 }

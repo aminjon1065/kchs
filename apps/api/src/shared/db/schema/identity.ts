@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm'
 import {
   bigint,
   boolean,
+  check,
   customType,
   date,
   index,
@@ -36,6 +37,14 @@ export const users = pgTable(
     timezone: text('timezone').notNull().default('Asia/Dushanbe'),
     avatarFileId: uuid('avatar_file_id'),
     status: text('status').notNull().default('active'),
+    /**
+     * Вид учётной записи (ADR-0130): `person` — сотрудник, `service` — служебная
+     * запись правил и интеграций: без входа, без уведомлений и дел, не выбирается
+     * назначениями и пикерами людей.
+     */
+    kind: text('kind').notNull().default('person'),
+    /** Назначение служебной учётной записи — видно в консоли и при выборе `run_as`. */
+    description: text('description'),
     attributes: jsonb('attributes')
       .$type<Record<string, unknown>>()
       .notNull()
@@ -62,6 +71,7 @@ export const users = pgTable(
     uniqueIndex('users_email_key').on(sql`lower(${t.email})`).where(sql`${t.email} is not null`),
     index('users_status_idx').on(t.status),
     index('users_display_name_trgm').using('gin', sql`${t.displayName} extensions.gin_trgm_ops`),
+    check('users_kind_check', sql`${t.kind} in ('person', 'service')`),
   ],
 )
 

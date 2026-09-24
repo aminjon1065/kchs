@@ -9,6 +9,7 @@ import {
   type OrgUnitInput,
   type OrgUnitPatch,
   parseConfidentiality,
+  type UserKind,
   type UserProfile,
   type UserRef,
   type UserStatus,
@@ -143,6 +144,19 @@ export const UserService = {
   async patch(tx: Executor, ctx: Ctx, userId: string, patch: AdminUserPatchInput): Promise<void> {
     const [current] = await tx.select().from(users).where(eq(users.id, userId)).limit(1)
     if (!current) throw errors.notFound('Пользователь')
+    if (current.kind === 'service') {
+      // Имя, почта и телефон служебной записи правятся в её разделе (ADR-0130):
+      // здесь — только роли, статус и подразделение, общие для обоих видов
+      const personal = ['email', 'phone', 'firstName', 'lastName', 'middleName'] as const
+      if (personal.some((key) => patch[key] !== undefined)) {
+        throw errors.validation('Служебная учётная запись правится в разделе служебных записей')
+      }
+      if (patch.roleKeys?.includes('system_admin')) {
+        throw errors.validation('Служебная учётная запись не бывает администратором системы', [
+          { path: 'roleKeys', message: 'system_admin', code: 'service_admin_role' },
+        ])
+      }
+    }
 
     await assertCanManageUser(tx, ctx, userId, {
       changesRolesOrStatus: patch.roleKeys !== undefined || patch.status !== undefined,
@@ -287,6 +301,7 @@ export const UserService = {
         displayName: users.displayName,
         avatarFileId: users.avatarFileId,
         status: users.status,
+        kind: users.kind,
         positionName: positions.name,
         unitName: orgUnits.name,
       })
@@ -306,6 +321,7 @@ export const UserService = {
         position: row.positionName?.ru ?? null,
         unitName: row.unitName?.ru ?? null,
         status: row.status as UserStatus,
+        kind: row.kind as UserKind,
       })
     }
     return map
@@ -316,6 +332,8 @@ export const UserService = {
     status?: UserStatus
     unitId?: string
     roleKey?: string
+    /** Сотрудники или служебные учётные записи (ADR-0130); без фильтра — все. */
+    kind?: UserKind
     limit?: number
     cursor?: string
     /** Допуск к грифам показывается только администратору системы (ADR-0080). */
@@ -333,6 +351,7 @@ export const UserService = {
       )
     }
     if (query.status) conditions.push(eq(users.status, query.status))
+    if (query.kind) conditions.push(eq(users.kind, query.kind))
     if (query.cursor) conditions.push(sql`${users.id} > ${query.cursor}`)
     if (query.unitId) {
       conditions.push(
@@ -397,6 +416,8 @@ export const UserService = {
         phone: row.phone,
         displayName: row.displayName,
         status: row.status as UserStatus,
+        kind: row.kind as UserKind,
+        description: row.description,
         avatarUrl: row.avatarFileId ? `/api/v1/files/${row.avatarFileId}/content` : null,
         mfaEnabled: mfaSet.has(row.id),
         lastSeenAt: row.lastSeenAt,
@@ -511,6 +532,25 @@ export const UserService = {
 
 // ─── Оргструктура ────────────────────────────────────────────────────────────
 
+/**
+ * Руководитель подразделения — действующий сотрудник: служебной учётной записи
+ * (ADR-0130) дела и эскалации подчинённых приходили бы в пустоту.
+ */
+async function assertHeadIsPerson(tx: Executor, userId: string | null | undefined): Promise<void> {
+  if (!userId) return
+  const [row] = await tx
+    .select({ kind: users.kind })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1)
+  if (!row) throw errors.validation('Нет такого сотрудника')
+  if (row.kind === 'service') {
+    throw errors.validation(
+      'Руководителем подразделения назначают сотрудника, а не служебную запись',
+    )
+  }
+}
+
 /** Территория подразделения — из справочника территорий (модуль GIS). */
 async function assertTerritory(territoryId: string | null | undefined): Promise<void> {
   if (!territoryId) return
@@ -521,6 +561,7 @@ async function assertTerritory(territoryId: string | null | undefined): Promise<
 export const OrgService = {
   async createUnit(tx: Executor, ctx: Ctx, input: OrgUnitInput): Promise<string> {
     await assertTerritory(input.territoryId)
+    await assertHeadIsPerson(tx, input.headUserId)
     const id = newId()
     await tx.insert(orgUnits).values({
       id,
@@ -558,6 +599,7 @@ export const OrgService = {
     const [current] = await tx.select().from(orgUnits).where(eq(orgUnits.id, id)).limit(1)
     if (!current) throw errors.notFound('Подразделение')
     await assertTerritory(patch.territoryId)
+    await assertHeadIsPerson(tx, patch.headUserId)
 
     const values: Record<string, unknown> = {}
     if (patch.code !== undefined) values.code = patch.code
@@ -704,7 +746,14 @@ export const OrgService = {
     const rows = await database
       .select({ userId: employments.userId })
       .from(employments)
-      .where(and(inArray(employments.unitId, allUnits), isNull(employments.endsAt)))
+      .innerJoin(users, eq(users.id, employments.userId))
+      .where(
+        and(
+          inArray(employments.unitId, allUnits),
+          isNull(employments.endsAt),
+          eq(users.kind, 'person'),
+        ),
+      )
     return [...new Set(rows.map((r) => r.userId))].filter((id) => id !== userId)
   },
 
@@ -729,6 +778,7 @@ export const OrgService = {
           inArray(employments.unitId, unitIds),
           isNull(employments.endsAt),
           eq(users.status, 'active'),
+          eq(users.kind, 'person'),
         ),
       )
     return rows.map((row) => row.userId)
@@ -788,6 +838,16 @@ export const DelegationService = {
     fromUserId = ctx.userId,
   ): Promise<string> {
     if (input.toUserId === fromUserId) throw errors.validation('Нельзя назначить заместителем себя')
+    const [deputy] = await tx
+      .select({ kind: users.kind })
+      .from(users)
+      .where(eq(users.id, input.toUserId))
+      .limit(1)
+    if (!deputy) throw errors.validation('Нет такого сотрудника')
+    // Замещение — работа человека: служебная запись не получает дел (ADR-0130)
+    if (deputy.kind === 'service') {
+      throw errors.validation('Заместителем назначают сотрудника, а не служебную запись')
+    }
     if (new Date(input.endsAt) <= new Date(input.startsAt)) {
       throw errors.validation('Дата окончания должна быть позже начала')
     }
