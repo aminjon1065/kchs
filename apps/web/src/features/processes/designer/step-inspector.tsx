@@ -20,14 +20,22 @@ import { useT } from '~/app/i18n.js'
 import { addBranch, issuesByStep, layoutOf, renameStep, updateStep } from '../model.js'
 import { AssigneeEditor } from './assignee-editor.js'
 import { useDesigner, useStepTitle } from './context.js'
-import { ExpressionInput, JsonInput, LangFields, NONE, NumberInput, StepSelect } from './fields.js'
+import {
+  DeadlineInput,
+  ExpressionInput,
+  JsonInput,
+  LangFields,
+  NONE,
+  NumberInput,
+  StepSelect,
+} from './fields.js'
 import { StepIcon } from './summary.js'
 
 type Patch = Record<string, unknown>
 
 /**
  * Инспектор шага (08-documents.md §4): название, ключ, назначенные, порядок и
- * кворум, срок в рабочих днях, переход при отклонении и далее — поля по типу
+ * кворум, срок в рабочих днях или часах, переход при отклонении и далее — поля по типу
  * шага; внизу — проблемы проверки этого шага.
  */
 export function StepInspector({ stepKey }: { stepKey: string }) {
@@ -212,20 +220,34 @@ function RejectSelect({
   )
 }
 
+/**
+ * Срок шага: рабочие дни по производственному календарю или календарные часы
+ * (ADR-0131) — два поля определения, одно на экране. Ключ шага сбрасывает
+ * выбранную единицу при переходе к другому шагу.
+ */
 function DueInput({
-  value,
-  onChange,
+  stepKey,
+  step,
+  patch,
 }: {
-  value: number | undefined
-  onChange: (next: number | undefined) => void
+  stepKey: string
+  step: { dueWorkingDays?: number | undefined; dueHours?: number | undefined }
+  patch: (changes: Patch) => void
 }) {
   const t = useT()
   return (
-    <NumberInput
-      label={t('processDesigner.inspector.due')}
-      hint={t('processDesigner.inspector.dueHint')}
-      value={value}
-      onChange={onChange}
+    <DeadlineInput
+      key={`${stepKey}:due`}
+      value={{ days: step.dueWorkingDays, hours: step.dueHours }}
+      onChange={(next) => patch({ dueWorkingDays: next.days, dueHours: next.hours })}
+      labels={{
+        days: t('processDesigner.inspector.due'),
+        hours: t('processDesigner.inspector.dueHours'),
+      }}
+      hints={{
+        days: t('processDesigner.inspector.dueHint'),
+        hours: t('processDesigner.inspector.dueHoursHint'),
+      }}
     />
   )
 }
@@ -291,10 +313,7 @@ function TypeFields({
               ) : null}
             </Row>
           )}
-          <DueInput
-            value={step.dueWorkingDays}
-            onChange={(dueWorkingDays) => patch({ dueWorkingDays })}
-          />
+          <DueInput stepKey={stepKey} step={step} patch={patch} />
           <RejectSelect
             stepKey={stepKey}
             label={t('processDesigner.inspector.onReject')}
@@ -335,10 +354,7 @@ function TypeFields({
               }))}
             />
           </Field>
-          <DueInput
-            value={step.dueWorkingDays}
-            onChange={(dueWorkingDays) => patch({ dueWorkingDays })}
-          />
+          <DueInput stepKey={stepKey} step={step} patch={patch} />
           <Toggle
             label={t('processDesigner.inspector.requireMfa')}
             checked={step.requireMfa}
@@ -383,10 +399,7 @@ function TypeFields({
             value={step.journal ?? ''}
             onChange={(journal) => patch({ journal: journal.trim() ? journal : undefined })}
           />
-          <DueInput
-            value={step.dueWorkingDays}
-            onChange={(dueWorkingDays) => patch({ dueWorkingDays })}
-          />
+          <DueInput stepKey={stepKey} step={step} patch={patch} />
         </>
       )
     case 'acknowledge':
@@ -399,10 +412,7 @@ function TypeFields({
               onChange={(assignees) => patch({ assignees })}
             />
           </Field>
-          <DueInput
-            value={step.dueWorkingDays}
-            onChange={(dueWorkingDays) => patch({ dueWorkingDays })}
-          />
+          <DueInput stepKey={stepKey} step={step} patch={patch} />
         </>
       )
     case 'task':
@@ -421,10 +431,7 @@ function TypeFields({
               onChange={(assignees) => patch({ assignees })}
             />
           </Field>
-          <DueInput
-            value={step.dueWorkingDays}
-            onChange={(dueWorkingDays) => patch({ dueWorkingDays })}
-          />
+          <DueInput stepKey={stepKey} step={step} patch={patch} />
           <JsonInput
             label={t('processDesigner.inspector.params')}
             value={step.params}
@@ -568,10 +575,20 @@ function TypeFields({
               onChange={(filter) => patch({ filter: filter.trim() ? filter : undefined })}
             />
           ) : null}
-          <NumberInput
-            label={t('processDesigner.inspector.duration')}
-            value={step.durationWorkingDays}
-            onChange={(durationWorkingDays) => patch({ durationWorkingDays })}
+          <DeadlineInput
+            key={`${stepKey}:duration`}
+            value={{ days: step.durationWorkingDays, hours: step.durationHours }}
+            onChange={(next) =>
+              patch({ durationWorkingDays: next.days, durationHours: next.hours })
+            }
+            labels={{
+              days: t('processDesigner.inspector.duration'),
+              hours: t('processDesigner.inspector.durationHours'),
+            }}
+            hints={{
+              days: t('processDesigner.inspector.durationHint'),
+              hours: t('processDesigner.inspector.dueHoursHint'),
+            }}
           />
           <ExpressionInput
             label={t('processDesigner.inspector.until')}
@@ -660,10 +677,7 @@ function TypeFields({
             }))}
             onChange={(reapproval) => patch({ reapproval })}
           />
-          <DueInput
-            value={step.dueWorkingDays}
-            onChange={(dueWorkingDays) => patch({ dueWorkingDays })}
-          />
+          <DueInput stepKey={stepKey} step={step} patch={patch} />
           <p className="text-xs text-fg-muted">
             {t('processDesigner.inspector.returnHint', {
               step: step.next ? titleOf(step.next, definition.steps[step.next]) : '—',

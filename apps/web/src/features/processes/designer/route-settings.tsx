@@ -1,4 +1,10 @@
-import type { StartCondition, Step, Timer, Variable } from '@kchs/process'
+import {
+  deadlineOf,
+  type StartCondition,
+  type Step,
+  type Timer,
+  type Variable,
+} from '@kchs/process'
 import {
   Button,
   Card,
@@ -19,7 +25,7 @@ import { useT } from '~/app/i18n.js'
 import { defaultStep } from '../model.js'
 import { AssigneeEditor } from './assignee-editor.js'
 import { useDesigner, useStepTitle } from './context.js'
-import { ExpressionInput, LangFields, NumberInput, StepSelect } from './fields.js'
+import { DeadlineInput, ExpressionInput, LangFields, StepSelect } from './fields.js'
 
 const VARIABLE_TYPES = [
   'user',
@@ -243,8 +249,9 @@ function Timers({ readOnly }: { readOnly: boolean }) {
   const t = useT()
   const { definition, update } = useDesigner()
   const setTimers = (timers: Timer[]) => update((current) => ({ ...current, timers }))
+  // Эскалация срабатывает на просрочку: шаги со сроком в рабочих днях или часах
   const withDue = Object.entries(definition.steps).filter(
-    ([, step]) => 'dueWorkingDays' in step && step.dueWorkingDays !== undefined,
+    ([, step]) => deadlineOf(step) !== undefined,
   )
   return (
     <Section
@@ -481,14 +488,26 @@ function InsertedStepFields({ step, onChange }: { step: Step; onChange: (step: S
         </Field>
       ) : null}
       {'dueWorkingDays' in step || step.type === 'approval' || step.type === 'sign' ? (
-        <NumberInput
-          label={t('processDesigner.inspector.due')}
-          value={'dueWorkingDays' in step ? step.dueWorkingDays : undefined}
-          onChange={(dueWorkingDays) => {
+        <DeadlineInput
+          value={{
+            days: 'dueWorkingDays' in step ? step.dueWorkingDays : undefined,
+            hours: 'dueHours' in step ? step.dueHours : undefined,
+          }}
+          onChange={({ days, hours }) => {
             const next: Record<string, unknown> = { ...step }
-            if (dueWorkingDays === undefined) delete next.dueWorkingDays
-            else next.dueWorkingDays = dueWorkingDays
+            if (days === undefined) delete next.dueWorkingDays
+            else next.dueWorkingDays = days
+            if (hours === undefined) delete next.dueHours
+            else next.dueHours = hours
             onChange(next as Step)
+          }}
+          labels={{
+            days: t('processDesigner.inspector.due'),
+            hours: t('processDesigner.inspector.dueHours'),
+          }}
+          hints={{
+            days: t('processDesigner.inspector.dueHint'),
+            hours: t('processDesigner.inspector.dueHoursHint'),
           }}
         />
       ) : null}

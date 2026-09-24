@@ -1,6 +1,7 @@
 import {
   Field,
   Input,
+  SegmentedControl,
   Select,
   SelectContent,
   SelectItem,
@@ -108,6 +109,88 @@ export function NumberInput({
           if (Number.isFinite(parsed)) onChange(Math.min(max, Math.max(min, parsed)))
         }}
       />
+    </Field>
+  )
+}
+
+/** Срок шага: рабочие дни по производственному календарю или календарные часы (ADR-0131). */
+export interface DeadlineValue {
+  days: number | undefined
+  hours: number | undefined
+}
+
+type DeadlineUnit = 'days' | 'hours'
+
+/** Границы числа по единице — как у схемы определения (`dueWorkingDays`, `dueHours`). */
+const DEADLINE_LIMITS: Record<DeadlineUnit, { min: number; max: number }> = {
+  days: { min: 0, max: 365 },
+  hours: { min: 1, max: 720 },
+}
+
+/**
+ * Срок шага или ожидания: число и единица. Единица без числа помнится здесь же;
+ * смена единицы переносит число в другое поле определения — оба сразу
+ * проверка не пропускает (`due_conflict`).
+ */
+export function DeadlineInput({
+  value,
+  onChange,
+  labels,
+  hints,
+}: {
+  value: DeadlineValue
+  onChange: (next: DeadlineValue) => void
+  /** Подпись поля по единице: «Срок, рабочих дней» / «Срок, часов». */
+  labels: Record<DeadlineUnit, string>
+  hints: Record<DeadlineUnit, string>
+}) {
+  const t = useT()
+  const id = useId()
+  const { readOnly } = useDesigner()
+  const [chosen, setChosen] = useState<DeadlineUnit>(value.hours !== undefined ? 'hours' : 'days')
+  const unit: DeadlineUnit =
+    value.hours !== undefined ? 'hours' : value.days !== undefined ? 'days' : chosen
+  const current = unit === 'hours' ? value.hours : value.days
+  const set = (next: DeadlineUnit, amount: number | undefined): void =>
+    onChange(
+      next === 'hours' ? { days: undefined, hours: amount } : { days: amount, hours: undefined },
+    )
+  const clamp = (next: DeadlineUnit, amount: number) =>
+    Math.min(DEADLINE_LIMITS[next].max, Math.max(DEADLINE_LIMITS[next].min, amount))
+  return (
+    <Field label={labels[unit]} hint={hints[unit]} htmlFor={id}>
+      <div className="flex flex-wrap items-center gap-2">
+        <Input
+          id={id}
+          type="number"
+          inputMode="numeric"
+          min={DEADLINE_LIMITS[unit].min}
+          max={DEADLINE_LIMITS[unit].max}
+          value={current ?? ''}
+          readOnly={readOnly}
+          className="w-32"
+          onChange={(event) => {
+            const raw = event.target.value
+            if (raw === '') return set(unit, undefined)
+            const parsed = Number.parseInt(raw, 10)
+            if (Number.isFinite(parsed)) set(unit, clamp(unit, parsed))
+          }}
+        />
+        <SegmentedControl
+          aria-label={t('processDesigner.inspector.dueUnit')}
+          size="sm"
+          value={unit}
+          onValueChange={(next) => {
+            if (readOnly || next === unit) return
+            setChosen(next)
+            if (current !== undefined) set(next, clamp(next, current))
+          }}
+          options={(['days', 'hours'] as const).map((option) => ({
+            value: option,
+            label: t(`processDesigner.inspector.dueUnits.${option}`),
+          }))}
+        />
+      </div>
     </Field>
   )
 }

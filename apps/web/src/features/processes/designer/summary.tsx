@@ -1,5 +1,11 @@
 import { localizedText } from '@kchs/i18n'
-import type { Step, StepType } from '@kchs/process'
+import {
+  deadlineOf,
+  type Step,
+  type StepDeadline,
+  type StepType,
+  waitDurationOf,
+} from '@kchs/process'
 import {
   Bell,
   BookMarked,
@@ -51,8 +57,18 @@ export function useStepSummary(): (step: Step) => string[] {
   const titleOf = useStepTitle()
   const { definition } = useDesigner()
   const people = (list: readonly string[]) => list.map(labelOf).join(', ')
-  const due = (days: number | undefined) =>
-    days === undefined ? [] : [t('processDesigner.summary.due', { count: days })]
+  // Срок в рабочих днях или календарных часах (ADR-0131)
+  const due = (deadline: StepDeadline | undefined) =>
+    deadline === undefined
+      ? []
+      : [
+          t(
+            deadline.unit === 'hours'
+              ? 'processDesigner.summary.dueHours'
+              : 'processDesigner.summary.due',
+            { count: deadline.value },
+          ),
+        ]
   const target = (value: string | undefined): string => {
     if (!value || value === 'end:rejected') return t('processDesigner.summary.endRejected')
     if (value === 'continue') return t('processDesigner.summary.continue')
@@ -70,11 +86,9 @@ export function useStepSummary(): (step: Step) => string[] {
             : t(`processDesigner.summary.quorum.${step.quorum}`)
         return [
           people(step.assignees),
-          [
-            t(`processDesigner.summary.mode.${step.mode}`),
-            quorum,
-            ...due(step.dueWorkingDays),
-          ].join(' · '),
+          [t(`processDesigner.summary.mode.${step.mode}`), quorum, ...due(deadlineOf(step))].join(
+            ' · ',
+          ),
           t('processDesigner.summary.onReject', { target: target(step.onReject) }),
         ]
       }
@@ -84,7 +98,7 @@ export function useStepSummary(): (step: Step) => string[] {
           [
             t(`processDesigner.summary.mode.${step.mode}`),
             ...(step.requireMfa ? [t('processDesigner.summary.mfa')] : []),
-            ...due(step.dueWorkingDays),
+            ...due(deadlineOf(step)),
           ].join(' · '),
           t('processDesigner.summary.onRefuse', { target: target(step.onReject) }),
         ]
@@ -95,15 +109,15 @@ export function useStepSummary(): (step: Step) => string[] {
             ...(step.journal
               ? [t('processDesigner.summary.journal', { journal: step.journal })]
               : []),
-            ...due(step.dueWorkingDays),
+            ...due(deadlineOf(step)),
           ].join(' · '),
         ].filter(Boolean)
       case 'acknowledge':
-        return [people(step.assignees), ...due(step.dueWorkingDays)]
+        return [people(step.assignees), ...due(deadlineOf(step))]
       case 'task':
         return [
           localizedText(step.title, locale),
-          [people(step.assignees), ...due(step.dueWorkingDays)].join(' · '),
+          [people(step.assignees), ...due(deadlineOf(step))].join(' · '),
         ]
       case 'condition':
         return [
@@ -118,9 +132,7 @@ export function useStepSummary(): (step: Step) => string[] {
         return [
           [
             ...(step.event ? [t('processDesigner.summary.waitEvent', { event: step.event })] : []),
-            ...(step.durationWorkingDays !== undefined
-              ? [t('processDesigner.summary.due', { count: step.durationWorkingDays })]
-              : []),
+            ...due(waitDurationOf(step)),
             ...(step.until ? [t('processDesigner.summary.waitUntil', { until: step.until })] : []),
           ].join(' · '),
         ]
@@ -134,7 +146,7 @@ export function useStepSummary(): (step: Step) => string[] {
         return [
           labelOf(step.to),
           t(`processDesigner.summary.reapproval.${step.reapproval}`),
-          ...due(step.dueWorkingDays),
+          ...due(deadlineOf(step)),
         ]
       case 'end':
         return [t('processDesigner.summary.outcome', { outcome: step.outcome })]
