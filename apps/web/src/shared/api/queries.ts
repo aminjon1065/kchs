@@ -78,6 +78,7 @@ export const keys = {
   workspaceState: ['me', 'workspace-state'] as const,
   principals: (q: string, types: string, serviceAccounts: boolean) =>
     ['principals', q, types, serviceAccounts] as const,
+  principalRefs: (refs: readonly string[]) => ['principals', 'describe', ...refs] as const,
   tags: (spaceId: string | null, q: string) => ['tags', spaceId, q] as const,
   roles: ['roles'] as const,
   workspaces: ['workspaces'] as const,
@@ -347,6 +348,23 @@ export const serviceAccountsQuery = () =>
     queryKey: keys.serviceAccounts,
     queryFn: () => http.get<{ items: ServiceAccount[] }>('/service-accounts'),
     select: (data: { items: ServiceAccount[] }) => data.items,
+  })
+
+/**
+ * Подписи людей и подразделений по ключам `user:<id>`, `unit:<id>` — значения
+ * полей-ссылок в формах и карточках (ADR-0129). Ключ — подпись принципала.
+ */
+export const principalRefsQuery = (refs: readonly string[]) =>
+  queryOptions({
+    queryKey: keys.principalRefs(refs),
+    queryFn: () =>
+      http.get<{ items: PrincipalRef[] }>('/principals/describe', {
+        query: { keys: refs.join(',') },
+      }),
+    select: (data: { items: PrincipalRef[] }) =>
+      new Map(data.items.map((item) => [`${item.type}:${item.id}`, item])),
+    enabled: refs.length > 0,
+    staleTime: 60_000,
   })
 
 export const shareLinksQuery = (objectId: string) =>

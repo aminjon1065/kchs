@@ -26,7 +26,8 @@ import { SubmissionPanel } from './submission-panel.js'
 
 /**
  * Контроль сдачи (ADR-0103): матрица «назначения × периоды». Ячейка —
- * состояние сводки; просроченная выделяется и ведёт к отправке.
+ * состояние сводки, у табличной формы — и число сданных строк (ADR-0129);
+ * просроченная выделяется и ведёт к отправке.
  */
 
 const STATE_TONE: Record<FormCellState, string> = {
@@ -138,11 +139,20 @@ export function FormControlTab({ form }: { form: FormRecord }) {
                           aria-pressed={
                             selected?.row === rowKey && selected.cell.periodKey === cell.periodKey
                           }
-                          aria-label={t('forms.control.cellLabel', {
-                            subject: row.name,
-                            period: cell.periodKey,
-                            state: t(`forms.states.${cell.state}`),
-                          })}
+                          aria-label={
+                            cell.rows === null
+                              ? t('forms.control.cellLabel', {
+                                  subject: row.name,
+                                  period: cell.periodKey,
+                                  state: t(`forms.states.${cell.state}`),
+                                })
+                              : t('forms.control.cellRowsLabel', {
+                                  subject: row.name,
+                                  period: cell.periodKey,
+                                  state: t(`forms.states.${cell.state}`),
+                                  count: cell.rows,
+                                })
+                          }
                           onClick={() => setSelected({ row: rowKey, cell })}
                           className={cn(
                             'rounded-xs px-1.5 py-0.5 text-sm hover:underline',
@@ -151,6 +161,9 @@ export function FormControlTab({ form }: { form: FormRecord }) {
                           )}
                         >
                           {SHORT[cell.state]}
+                          {cell.rows === null ? null : (
+                            <span className="ml-0.5 text-2xs tabular-nums">{cell.rows}</span>
+                          )}
                         </button>
                       </td>
                     ))}

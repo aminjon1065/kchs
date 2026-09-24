@@ -1,4 +1,4 @@
-import type { DatasetField, FieldOption } from '@kchs/contracts'
+import type { FieldDef, FieldOption } from '@kchs/contracts'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { territoriesQuery, territoryOptions } from '~/features/gis/queries.js'
@@ -13,7 +13,7 @@ const lookupKey = (lookup: LookupRef) =>
  * показывают подпись вместо значения и дают выбрать вариант.
  */
 export function useFieldOptions(
-  fields: readonly DatasetField[],
+  fields: readonly Pick<FieldDef, 'key' | 'type' | 'lookup'>[],
 ): ReadonlyMap<string, FieldOption[]> {
   const hasTerritory = fields.some((field) => field.type === 'territory')
   const { data: territories } = useQuery({ ...territoriesQuery(), enabled: hasTerritory })

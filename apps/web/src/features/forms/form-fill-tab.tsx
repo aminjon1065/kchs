@@ -1,6 +1,13 @@
-import type { FormPeriodOption, FormRecord, FormSubject, FormSubmission } from '@kchs/contracts'
+import type {
+  FieldDef,
+  FormPeriodOption,
+  FormRecord,
+  FormSubject,
+  FormSubmission,
+} from '@kchs/contracts'
 import { formatDateTime } from '@kchs/fields'
 import {
+  AlertDialog,
   Badge,
   Button,
   Callout,
@@ -17,17 +24,24 @@ import {
   useToast,
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ClipboardPen, Save } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { ClipboardPen, Plus, Save } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { ApiError } from '~/shared/api/client.js'
+import { useFieldControls } from '../data/field-controls.js'
+import { type CellErrors, type TableRow, validateRows, withNewRow } from './form-table.js'
+import { FormTableEditor } from './form-table-editor.js'
 import { formDutiesQuery, formKeys, formSchemaQuery, formsApi } from './queries.js'
 
+const NO_FIELDS: FieldDef[] = []
+
 /**
- * Заполнение сводки (ADR-0103): период выбирается из назначений смотрящего,
- * черновик сохраняется, сдача пишет строку датасета. Узкая колонка — экран
- * годится и для мобильного веба.
+ * Заполнение сводки (ADR-0103, ADR-0129): период выбирается из назначений
+ * смотрящего, черновик сохраняется, сдача пишет строку датасета — у табличной
+ * формы строки, пустая таблица сдаётся явным подтверждением «записей не было».
+ * Узкая колонка у одиночной формы и карточки строк у табличной на телефоне —
+ * экран годится и для мобильного веба.
  */
 export function FormFillTab({ form }: { form: FormRecord }) {
   const t = useT()
@@ -40,7 +54,16 @@ export function FormFillTab({ form }: { form: FormRecord }) {
   const [periodKey, setPeriodKey] = useState('')
   const [submission, setSubmission] = useState<FormSubmission | null>(null)
   const [values, setValues] = useState<Record<string, unknown>>({})
+  const [rows, setRows] = useState<TableRow[]>([])
+  const [cellErrors, setCellErrors] = useState<CellErrors>({})
+  const [rowErrors, setRowErrors] = useState<number[]>([])
+  const [confirmEmpty, setConfirmEmpty] = useState(false)
   const [comment, setComment] = useState('')
+
+  const fields = schema?.fields ?? NO_FIELDS
+  const renderControl = useFieldControls(fields)
+  const table = form.definition.layout === 'table'
+  const maxRows = form.definition.table.maxRows
 
   const mine = (duties?.items ?? []).filter((item) => item.formId === form.id)
   const duty = mine[0]
@@ -51,6 +74,8 @@ export function FormFillTab({ form }: { form: FormRecord }) {
     if (!periodKey && periods.length > 0) setPeriodKey(periods[0]?.key ?? '')
   }, [periodKey, periods])
 
+  const input = useMemo(() => (table ? { values: {}, rows } : { values }), [table, rows, values])
+
   const openSubmission = useMutation({
     mutationFn: (key: string) => {
       if (!subject) throw new Error('subject')
@@ -59,13 +84,16 @@ export function FormFillTab({ form }: { form: FormRecord }) {
     onSuccess: (next) => {
       setSubmission(next)
       setValues(next.values)
+      setRows(next.rows ?? [])
+      setCellErrors({})
+      setRowErrors([])
     },
     onError: (error) =>
       toast.error(error instanceof ApiError ? error.message : t('errors.unknown')),
   })
 
   const saveDraft = useMutation({
-    mutationFn: () => formsApi.save(submission?.id ?? '', values),
+    mutationFn: () => formsApi.save(submission?.id ?? '', input),
     onSuccess: (next) => {
       setSubmission(next)
       toast.success(t('forms.fill.saved'))
@@ -75,9 +103,11 @@ export function FormFillTab({ form }: { form: FormRecord }) {
   })
 
   const submit = useMutation({
-    mutationFn: () => formsApi.submit(submission?.id ?? '', values),
+    mutationFn: (body: { values: Record<string, unknown>; rows?: TableRow[] }) =>
+      formsApi.submit(submission?.id ?? '', body),
     onSuccess: async (next) => {
       setSubmission(next)
+      setConfirmEmpty(false)
       toast.success(t('forms.fill.submitted'))
       await client.invalidateQueries({ queryKey: formKeys.all })
     },
@@ -100,6 +130,26 @@ export function FormFillTab({ form }: { form: FormRecord }) {
       toast.error(error instanceof ApiError ? error.message : t('errors.unknown')),
   })
 
+  /** Сдача табличной сводки: проверка ячеек; пустая таблица — через подтверждение. */
+  const submitTable = () => {
+    if (rows.length === 0) {
+      setConfirmEmpty(true)
+      return
+    }
+    const checked = validateRows(fields, rows, {
+      required: t('ui.form.errors.required'),
+      invalid: t('ui.form.errors.invalid'),
+    })
+    if (!checked.ok) {
+      setCellErrors(checked.errors)
+      setRowErrors(checked.rowErrors)
+      return
+    }
+    setCellErrors({})
+    setRowErrors([])
+    submit.mutate({ values: {}, rows: checked.rows })
+  }
+
   if (isLoading) return <Skeleton className="h-64 w-full" />
   if (!duty || !subject) {
     return (
@@ -112,10 +162,16 @@ export function FormFillTab({ form }: { form: FormRecord }) {
   }
 
   const selected = periods.find((period) => period.key === periodKey)
-  const fields = schema?.fields ?? []
+  const issues = Object.keys(cellErrors).length + rowErrors.length
 
   return (
-    <div className="mx-auto flex w-full max-w-[640px] flex-col gap-4">
+    <div
+      className={
+        table
+          ? 'mx-auto flex w-full max-w-[1200px] flex-col gap-4'
+          : 'mx-auto flex w-full max-w-[640px] flex-col gap-4'
+      }
+    >
       <div className="flex flex-wrap items-end gap-2">
         <Field label={t('forms.fill.period')} className="min-w-[200px] flex-1">
           <Select value={periodKey} onValueChange={setPeriodKey}>
@@ -167,31 +223,90 @@ export function FormFillTab({ form }: { form: FormRecord }) {
               {submission.comment}
             </Callout>
           ) : null}
-          {submission.canSubmit ? (
-            <SchemaForm
-              schema={{ fields }}
-              values={values}
-              onChange={setValues}
-              onSubmit={() => submit.mutate()}
-              submitLabel={t('forms.fill.submit')}
-            />
-          ) : (
+          {!submission.canSubmit ? (
             <Callout tone="info" title={t(`forms.states.${submission.status}`)}>
               {t('forms.fill.readOnly')}
             </Callout>
-          )}
-          {submission.canSubmit ? (
-            <div className="flex flex-wrap gap-2">
-              {/* Сдача — кнопка самой формы: она отправляет только корректные значения */}
-              <Button
-                variant="secondary"
-                icon={<Save className="size-4" />}
-                loading={saveDraft.isPending}
-                onClick={() => saveDraft.mutate()}
-              >
-                {t('forms.fill.saveDraft')}
-              </Button>
-            </div>
+          ) : null}
+
+          {table ? (
+            <>
+              {issues > 0 ? (
+                <Callout tone="danger">{t('forms.table.issues', { count: issues })}</Callout>
+              ) : null}
+              {rows.length === 0 && submission.canSubmit ? (
+                <Callout tone="info">{t('forms.table.emptyHint')}</Callout>
+              ) : null}
+              <FormTableEditor
+                fields={fields}
+                rows={rows}
+                onChange={setRows}
+                renderControl={renderControl}
+                errors={cellErrors}
+                rowErrors={rowErrors}
+                readOnly={!submission.canSubmit}
+              />
+              {submission.canSubmit ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    variant="secondary"
+                    icon={<Plus className="size-4" />}
+                    disabled={rows.length >= maxRows}
+                    onClick={() => setRows(withNewRow(rows, maxRows))}
+                  >
+                    {t('forms.table.addRow')}
+                  </Button>
+                  <span className="text-xs text-fg-muted">
+                    {t('forms.table.count', { count: rows.length, max: maxRows })}
+                  </span>
+                  <div className="ml-auto flex flex-wrap gap-2">
+                    <Button
+                      variant="secondary"
+                      icon={<Save className="size-4" />}
+                      loading={saveDraft.isPending}
+                      onClick={() => saveDraft.mutate()}
+                    >
+                      {t('forms.fill.saveDraft')}
+                    </Button>
+                    <Button variant="primary" loading={submit.isPending} onClick={submitTable}>
+                      {rows.length === 0 ? t('forms.table.submitEmpty') : t('forms.fill.submit')}
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
+              <AlertDialog
+                open={confirmEmpty}
+                onOpenChange={setConfirmEmpty}
+                title={t('forms.table.confirmEmptyTitle')}
+                description={t('forms.table.confirmEmptyText')}
+                confirmLabel={t('forms.table.submitEmpty')}
+                destructive={false}
+                loading={submit.isPending}
+                onConfirm={() => submit.mutate({ values: {}, rows: [] })}
+              />
+            </>
+          ) : submission.canSubmit ? (
+            <>
+              <SchemaForm
+                schema={{ fields }}
+                values={values}
+                onChange={setValues}
+                onSubmit={() => submit.mutate({ values })}
+                renderControl={renderControl}
+                submitLabel={t('forms.fill.submit')}
+              />
+              <div className="flex flex-wrap gap-2">
+                {/* Сдача — кнопка самой формы: она отправляет только корректные значения */}
+                <Button
+                  variant="secondary"
+                  icon={<Save className="size-4" />}
+                  loading={saveDraft.isPending}
+                  onClick={() => saveDraft.mutate()}
+                >
+                  {t('forms.fill.saveDraft')}
+                </Button>
+              </div>
+            </>
           ) : null}
 
           {submission.canReview ? (

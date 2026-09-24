@@ -359,6 +359,18 @@ function FormGroup({
   )
 }
 
+/**
+ * Контрол одного поля по его типу — тот же, что в `SchemaForm`: для таблиц
+ * значений, где поля идут столбцами (табличная форма сбора, ADR-0129).
+ * Подпись поля ставит вызывающий.
+ */
+export function FieldControl(
+  props: ControlProps & { options?: Array<{ value: string; label: string }> },
+) {
+  const locale = useUiLocale()
+  return <DefaultControl {...props} locale={locale} />
+}
+
 function DefaultControl({
   field,
   value,

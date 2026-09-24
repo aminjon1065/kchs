@@ -161,14 +161,96 @@ export const lookupOptionsQuery = (lookup: LookupRef) =>
         },
       })
       if (result.rows.length > LOOKUP_OPTIONS_LIMIT) return []
-      const keyIndex = result.fields.findIndex((field) => field.name === lookup.keyField)
-      const labelIndex = result.fields.findIndex((field) => field.name === lookup.labelField)
-      return result.rows.flatMap((row) => {
-        const key = row[keyIndex]
-        const label = row[labelIndex]
-        if (key === null || key === undefined || label === null || label === undefined) return []
-        return [{ value: String(key), label: { ru: String(label) } }]
+      return lookupPairs(lookup, result)
+    },
+    staleTime: 60_000,
+    retry: false,
+  })
+
+/** Строк поиска по большому справочнику в выпадающем списке. */
+const LOOKUP_SEARCH_LIMIT = 50
+
+/** Пары «ключ — подпись» из результата запроса к справочнику. */
+function lookupPairs(lookup: LookupRef, result: QueryResult): FieldOption[] {
+  const keyIndex = result.fields.findIndex((field) => field.name === lookup.keyField)
+  const labelIndex = result.fields.findIndex((field) => field.name === lookup.labelField)
+  return result.rows.flatMap((row) => {
+    const key = row[keyIndex]
+    const label = row[labelIndex]
+    if (key === null || key === undefined || label === null || label === undefined) return []
+    return [{ value: String(key), label: { ru: String(label) } }]
+  })
+}
+
+/**
+ * Поиск по справочнику, который больше `LOOKUP_OPTIONS_LIMIT` (ADR-0129): по
+ * подстроке подписи или точному ключу, первые строки — на пустой запрос.
+ */
+export const lookupSearchQuery = (lookup: LookupRef, q: string) =>
+  queryOptions({
+    queryKey: [
+      ...dataKeys.dataset(lookup.datasetId),
+      'lookup-search',
+      lookup.keyField,
+      lookup.labelField,
+      q,
+    ] as const,
+    queryFn: async (): Promise<FieldOption[]> => {
+      const fields = [...new Set([lookup.keyField, lookup.labelField])]
+      const result = await http.post<QueryResult>('/queries/run', {
+        spec: {
+          version: 1,
+          source: { kind: 'dataset', id: lookup.datasetId },
+          steps: [
+            ...(q
+              ? [
+                  {
+                    type: 'filter',
+                    where: {
+                      or: [
+                        { field: lookup.labelField, op: 'contains', value: q },
+                        { field: lookup.keyField, op: 'eq', value: q },
+                      ],
+                    },
+                  },
+                ]
+              : []),
+            { type: 'select', fields },
+            { type: 'limit', limit: LOOKUP_SEARCH_LIMIT, offset: 0 },
+          ],
+        },
       })
+      return lookupPairs(lookup, result)
+    },
+    staleTime: 60_000,
+    retry: false,
+  })
+
+/** Подпись одного ключа справочника (значение поля, когда справочник велик). */
+export const lookupLabelQuery = (lookup: LookupRef, key: string) =>
+  queryOptions({
+    queryKey: [
+      ...dataKeys.dataset(lookup.datasetId),
+      'lookup-label',
+      lookup.keyField,
+      lookup.labelField,
+      key,
+    ] as const,
+    queryFn: async (): Promise<string | null> => {
+      const fields = [...new Set([lookup.keyField, lookup.labelField])]
+      const result = await http.post<QueryResult>('/queries/run', {
+        spec: {
+          version: 1,
+          source: { kind: 'dataset', id: lookup.datasetId },
+          steps: [
+            { type: 'filter', where: { field: lookup.keyField, op: 'eq', value: key } },
+            { type: 'select', fields },
+            { type: 'limit', limit: 1, offset: 0 },
+          ],
+        },
+      })
+      const [pair] = lookupPairs(lookup, result)
+      return pair ? pair.label.ru : null
     },
     staleTime: 60_000,
     retry: false,

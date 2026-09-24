@@ -1,4 +1,4 @@
-import type { DatasetRecord, FormDefinition, FormListItem, FormSubject } from '@kchs/contracts'
+import type { DatasetRecord, FormAssignment, FormDefinition, FormListItem } from '@kchs/contracts'
 import { formatRelativeTime } from '@kchs/fields'
 import {
   Badge,
@@ -278,16 +278,19 @@ function CreateFormDialog({
         .map((field) => ({ key: field.key, required: false, hint: null }))
       const definition: FormDefinition = {
         datasetId,
+        layout: 'single',
+        table: { minRows: 0, maxRows: 200 },
         fields,
         auto: { unit: null, period: null, author: null, submittedAt: null },
         schedule: {
           periodicity,
           time: '08:00',
+          dueMode: 'working',
           dueWorkingDays: 1,
           startsOn: null,
           dueOn: periodicity === 'once' ? new Date().toISOString().slice(0, 10) : null,
         },
-        assignments: [] as FormSubject[],
+        assignments: [] as FormAssignment[],
         review: { enabled: false, reviewers: [] },
         escalation: { enabled: true, afterWorkingDays: 1 },
       }

@@ -11,6 +11,7 @@ import type {
   FormSchema,
   FormSubject,
   FormSubmission,
+  FormSubmissionSaveInput,
 } from '@kchs/contracts'
 import { queryOptions } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
@@ -77,10 +78,11 @@ export const formsApi = {
     http.post<FormRecord>(`/forms/${id}/enabled`, { enabled }),
   open: (id: string, periodKey: string, subject: FormSubject) =>
     http.post<FormSubmission>(`/forms/${id}/submissions`, { periodKey, subject }),
-  save: (sid: string, values: Record<string, unknown>) =>
-    http.put<FormSubmission>(`/forms/submissions/${sid}`, { values }),
-  submit: (sid: string, values: Record<string, unknown>) =>
-    http.post<FormSubmission>(`/forms/submissions/${sid}/submit`, { values }),
+  /** Черновик: у одиночной формы — значения, у табличной — строки (ADR-0129). */
+  save: (sid: string, input: FormSubmissionSaveInput) =>
+    http.put<FormSubmission>(`/forms/submissions/${sid}`, input),
+  submit: (sid: string, input: FormSubmissionSaveInput) =>
+    http.post<FormSubmission>(`/forms/submissions/${sid}/submit`, input),
   review: (sid: string, input: FormReviewInput) =>
     http.post<FormSubmission>(`/forms/submissions/${sid}/review`, input),
 }

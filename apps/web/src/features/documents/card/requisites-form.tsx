@@ -25,6 +25,7 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { useId } from 'react'
 import { useT } from '~/app/i18n.js'
+import { useFieldControls } from '~/features/data/field-controls.js'
 import { type PickedUser, UserPicker } from '~/features/tasks/user-picker.js'
 import { meQuery } from '~/shared/api/queries.js'
 import { CorrespondentPicker } from '../correspondent-picker.js'
@@ -129,9 +130,11 @@ export function cardPayload(value: CardValue): DocumentUpdateInput {
 
 /**
  * Карточка документа (08-documents.md §2, 03-screens.md §12): реквизиты
- * направления типа и поля карточки типа (SchemaForm). Для входящего —
- * корреспондент, исходящие реквизиты отправителя, дата поступления, способ
- * доставки. Гриф — из допустимых типом и не строже допуска автора правки.
+ * направления типа и поля карточки типа (SchemaForm; сотрудники,
+ * подразделения, территории, объекты и справочники — своими контролами,
+ * ADR-0129). Для входящего — корреспондент, исходящие реквизиты отправителя,
+ * дата поступления, способ доставки. Гриф — из допустимых типом и не строже
+ * допуска автора правки.
  */
 export function RequisitesForm({
   type,
@@ -150,6 +153,7 @@ export function RequisitesForm({
 }) {
   const t = useT()
   const formId = useId()
+  const renderControl = useFieldControls(type.cardSchema.fields)
   const { data: me } = useQuery(meQuery())
   const clearance = me?.clearance ?? 'internal'
   const set = (patch: Partial<CardValue>) => onChange({ ...value, ...patch })
@@ -374,6 +378,7 @@ export function RequisitesForm({
             schema={{ fields: type.cardSchema.fields }}
             values={value.fields}
             onChange={(fields) => set({ fields })}
+            renderControl={renderControl}
             serverErrors={fieldErrors}
             readOnly={readOnly}
           />
