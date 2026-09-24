@@ -4293,6 +4293,9 @@ export const en: DeepPartial<Dictionary> = {
           primaryKeyHint: 'Imports update rows by the key; key values must not repeat across rows',
           editable: 'Rows can be edited in the table',
           trackHistory: 'Keep row change history',
+          rowEvents: 'Tell automation rules about every row',
+          rowEventsHint:
+            'Rules can pick new and changed rows by field values, and their texts show these values to everyone who can see the dataset. Sensitive fields are not passed; editing more than 200 rows at once and file imports do not trigger rules.',
           saved: 'Settings saved',
         },
       },

@@ -137,6 +137,7 @@ export const DatasetService = {
     const settings: DatasetSettings = {
       editable: input.settings?.editable ?? true,
       trackHistory: input.settings?.trackHistory ?? true,
+      rowEvents: input.settings?.rowEvents ?? false,
     }
 
     // Физическое имя столбца — по счётчику: переименование ключа поля его не трогает

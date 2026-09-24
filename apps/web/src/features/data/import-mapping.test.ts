@@ -113,7 +113,7 @@ const dataset: DatasetRecord = {
   currentVersion: 3,
   schemaVersion: 1,
   lastImportAt: null,
-  settings: { editable: true, trackHistory: true },
+  settings: { editable: true, trackHistory: true, rowEvents: false },
   createdAt: '2026-09-18T10:00:00.000Z',
   updatedAt: '2026-09-18T10:00:00.000Z',
 }

@@ -59,6 +59,13 @@ export const DatasetSettings = z.object({
   editable: z.boolean().default(true),
   /** Каждая правка строки пишется в историю `ds.h_*`. */
   trackHistory: z.boolean().default(true),
+  /**
+   * События строк для правил автоматизации (ADR-0133): правка строки публикует
+   * `dataset.row_created` / `row_updated` / `row_deleted` со значениями полей, и правило
+   * отбирает строки по значениям. Выключено по умолчанию: значения попадают в тексты
+   * уведомлений правил; импорт файла событий строк не публикует.
+   */
+  rowEvents: z.boolean().default(false),
 })
 export type DatasetSettings = z.infer<typeof DatasetSettings>
 
@@ -177,7 +184,11 @@ export const DatasetUpdateInput = z.object({
   timeField: z.string().nullable().optional(),
   territoryField: z.string().nullable().optional(),
   settings: z
-    .object({ editable: z.boolean().optional(), trackHistory: z.boolean().optional() })
+    .object({
+      editable: z.boolean().optional(),
+      trackHistory: z.boolean().optional(),
+      rowEvents: z.boolean().optional(),
+    })
     .optional(),
 })
 export type DatasetUpdateInput = z.infer<typeof DatasetUpdateInput>

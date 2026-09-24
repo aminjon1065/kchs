@@ -26,6 +26,7 @@ import { columnType, historyName, ident, qualified } from '../infra/physical.js'
 import { DatasetAccess, type DatasetGrant } from './dataset-access.js'
 import { DatasetService, type DatasetStorage, type StoredField } from './dataset-service.js'
 import { QueryService } from './query-service.js'
+import { publishRowEvents } from './row-events.js'
 
 /** Поля быстрого поиска таблицы. */
 const SEARCH_TYPES = new Set<string>([
@@ -529,6 +530,14 @@ export const RowService = {
         userId,
         version,
       )
+      await publishRowEvents(
+        tx,
+        ctx,
+        storage,
+        territories,
+        'created',
+        result.map((row) => ({ rowId: row._id, values: row.values })),
+      )
       return result
     })
   },
@@ -625,6 +634,14 @@ export const RowService = {
         userId,
         version,
       )
+      await publishRowEvents(tx, ctx, storage, territories, 'updated', [
+        {
+          rowId,
+          values: { ...currentValues, ...next },
+          changed: Object.keys(next),
+          previous,
+        },
+      ])
       return { _id: rowId, _ver: ver, values: { ...currentValues, ...next } }
     })
   },
@@ -668,7 +685,7 @@ export const RowService = {
     outer?: Executor,
     options: { ver?: number } = {},
   ): Promise<number> {
-    const { grant, storage } = await writable(ctx, datasetId)
+    const { grant, storage, territories } = await writable(ctx, datasetId)
     const unique = [...new Set(ids)]
     // Идентификаторы проверены контрактом (цифры) — литерал массива безопасен
     const idList = `{${unique.join(',')}}`
@@ -740,6 +757,18 @@ export const RowService = {
           })),
           userId,
           version,
+        )
+        // Без истории строки удаляются окончательно, и значений в RETURNING нет
+        await publishRowEvents(
+          tx,
+          ctx,
+          storage,
+          territories,
+          'deleted',
+          removed.map((row) => ({
+            rowId: String(row._id),
+            values: storage.settings.trackHistory ? valuesOf(row, fields) : {},
+          })),
         )
       }
       return removed.length

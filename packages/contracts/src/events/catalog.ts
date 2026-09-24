@@ -8,6 +8,19 @@ import { Timestamp, Uuid } from '../common/primitives.js'
  */
 const empty = z.object({})
 
+/** Строка датасета в событиях строк (ADR-0133). */
+const DatasetRowEvent = z.object({
+  rowId: z.string(),
+  values: z.record(z.string(), z.unknown()),
+  labels: z.record(z.string(), z.string()).default({}),
+  territories: z
+    .record(
+      z.string(),
+      z.object({ id: Uuid, code: z.string(), name: z.string(), path: z.array(z.string()) }),
+    )
+    .default({}),
+})
+
 export const EVENT_PAYLOADS = {
   // ── object ────────────────────────────────────────────────────────────────
   'object.created': z.object({ type: z.string(), title: z.string() }),
@@ -175,6 +188,19 @@ export const EVENT_PAYLOADS = {
     ids: z.array(z.string()).max(1000),
     count: z.number().int(),
   }),
+  /**
+   * Строка датасета с включёнными событиями строк (ADR-0133): значения полей без
+   * чувствительных, подписи вариантов и территорий, территории с кодом и путём кодами
+   * от страны — правило отбирает строки по значениям. Правка больше 200 строк за раз
+   * публикует только `dataset.rows_changed`.
+   */
+  'dataset.row_created': DatasetRowEvent,
+  /** Правка строки: полные значения после неё, изменённые поля и их прежние значения. */
+  'dataset.row_updated': DatasetRowEvent.extend({
+    changed: z.array(z.string()),
+    previous: z.record(z.string(), z.unknown()),
+  }),
+  'dataset.row_deleted': DatasetRowEvent,
   'dataset.version_created': z.object({ version: z.number().int(), origin: z.string() }),
   /** Правила качества датасета изменены (ADR-0101). */
   'dataset.quality_rules_changed': z.object({ rules: z.number().int() }),

@@ -935,6 +935,7 @@ function TableSettingsDialog({
   const [primaryKey, setPrimaryKey] = useState<string[]>(dataset.primaryKey)
   const [editable, setEditable] = useState(dataset.settings.editable)
   const [trackHistory, setTrackHistory] = useState(dataset.settings.trackHistory)
+  const [rowEvents, setRowEvents] = useState(dataset.settings.rowEvents)
   const [failure, setFailure] = useState<string | null>(null)
   const timeFields = dataset.fields.filter((item) => ['date', 'datetime'].includes(item.type))
   const keyFields = dataset.fields.filter((item) => !NOT_KEY_TYPES.has(item.type))
@@ -944,7 +945,7 @@ function TableSettingsDialog({
       http.patch<DatasetRecord>(`/datasets/${dataset.id}`, {
         timeField: timeField === NONE ? null : timeField,
         primaryKey,
-        settings: { editable, trackHistory },
+        settings: { editable, trackHistory, rowEvents },
       }),
     onSuccess: () => {
       toast.show({ title: t('data.dataset.editor.settingsDialog.saved'), tone: 'success' })
@@ -1020,6 +1021,14 @@ function TableSettingsDialog({
               onCheckedChange={setTrackHistory}
               label={t('data.dataset.editor.settingsDialog.trackHistory')}
             />
+            <Switch
+              checked={rowEvents}
+              onCheckedChange={setRowEvents}
+              label={t('data.dataset.editor.settingsDialog.rowEvents')}
+            />
+            {rowEvents ? (
+              <Callout tone="info">{t('data.dataset.editor.settingsDialog.rowEventsHint')}</Callout>
+            ) : null}
           </div>
         </div>
       </DialogContent>
