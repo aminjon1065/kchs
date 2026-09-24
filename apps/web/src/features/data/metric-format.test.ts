@@ -46,6 +46,19 @@ describe('периоды показателя', () => {
       '01.03.2026 — 31.03.2026',
     )
   })
+
+  it('частые относительные периоды — словами, а не отсчётом единиц', () => {
+    expect(periodText({ unit: 'day', from: 0, to: 0 }, t, 'ru')).toBe('data.metric.periods.today')
+    expect(periodText({ unit: 'day', from: -1, to: -1 }, t, 'ru')).toBe(
+      'data.metric.previousUnit.day',
+    )
+    expect(periodText({ unit: 'day', from: -13, to: 0 }, t, 'ru')).toBe(
+      'data.metric.lastUnits.day {"count":14}',
+    )
+    expect(periodText({ unit: 'month', from: -5, to: -2 }, t, 'ru')).toBe(
+      'data.metric.periodRelative {"unit":"data.metric.units.month","from":-5,"to":-2}',
+    )
+  })
 })
 
 describe('модель плитки показателя', () => {

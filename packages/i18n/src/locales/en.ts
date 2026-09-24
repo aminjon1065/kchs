@@ -3734,6 +3734,7 @@ export const en: DeepPartial<Dictionary> = {
         expr: 'Expression',
       },
       periods: {
+        today: 'Today',
         week: 'This week',
         month: 'This month',
         quarter: 'This quarter',
@@ -3742,6 +3743,20 @@ export const en: DeepPartial<Dictionary> = {
         last30: 'Last 30 days',
         last90: 'Last 90 days',
         all: 'All time',
+      },
+      previousUnit: {
+        day: 'Yesterday',
+        week: 'Last week',
+        month: 'Last month',
+        quarter: 'Last quarter',
+        year: 'Last year',
+      },
+      lastUnits: {
+        day: 'Last {count, plural, one {# day} other {# days}}',
+        week: 'Last {count, plural, one {# week} other {# weeks}}',
+        month: 'Last {count, plural, one {# month} other {# months}}',
+        quarter: 'Last {count, plural, one {# quarter} other {# quarters}}',
+        year: 'Last {count, plural, one {# year} other {# years}}',
       },
       periodRelative: '{unit}: from {from} to {to}',
       units: { day: 'days', week: 'weeks', month: 'months', quarter: 'quarters', year: 'years' },

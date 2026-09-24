@@ -6,6 +6,7 @@ type Translate = (key: string, params?: Record<string, string | number>) => stri
 
 /** Периоды на выбор в карточке и плитке: календарные единицы, последние дни, всё время. */
 export const METRIC_PERIOD_PRESETS = [
+  'today',
   'week',
   'month',
   'quarter',
@@ -21,6 +22,7 @@ const LAST_DAYS: Partial<Record<MetricPeriodPreset, number>> = { last7: 7, last3
 
 export function presetPeriod(preset: MetricPeriodPreset): MetricPeriod | null {
   if (preset === 'all') return null
+  if (preset === 'today') return { unit: 'day', from: 0, to: 0 }
   const days = LAST_DAYS[preset]
   if (days) return { unit: 'day', from: 1 - days, to: 0 }
   return { unit: preset as 'week' | 'month' | 'quarter' | 'year', from: 0, to: 0 }
@@ -34,7 +36,10 @@ export function periodPreset(period: MetricPeriod | null): MetricPeriodPreset | 
   return found ?? 'custom'
 }
 
-/** Подпись периода: «Этот месяц», «Последние 30 дней», «01.03.2026 — 31.03.2026». */
+/**
+ * Подпись периода: «Сегодня», «Этот месяц», «Вчера», «Последние 14 дней»,
+ * «01.03.2026 — 31.03.2026»; прочие относительные периоды — единицами отсчёта.
+ */
 export function periodText(period: MetricPeriod | null, t: Translate, locale: Locale): string {
   const preset = periodPreset(period)
   if (preset !== 'custom') return t(`data.metric.periods.${preset}`)
@@ -42,6 +47,9 @@ export function periodText(period: MetricPeriod | null, t: Translate, locale: Lo
     return `${formatDate(period.start, { locale })} — ${formatDate(period.end, { locale })}`
   }
   if (period) {
+    if (period.from === -1 && period.to === -1) return t(`data.metric.previousUnit.${period.unit}`)
+    if (period.to === 0)
+      return t(`data.metric.lastUnits.${period.unit}`, { count: 1 - period.from })
     return t('data.metric.periodRelative', {
       unit: t(`data.metric.units.${period.unit}`),
       from: period.from,

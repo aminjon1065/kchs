@@ -3790,6 +3790,7 @@ export const ru = {
         expr: 'Выражение',
       },
       periods: {
+        today: 'Сегодня',
         week: 'Эта неделя',
         month: 'Этот месяц',
         quarter: 'Этот квартал',
@@ -3798,6 +3799,22 @@ export const ru = {
         last30: 'Последние 30 дней',
         last90: 'Последние 90 дней',
         all: 'Всё время',
+      },
+      previousUnit: {
+        day: 'Вчера',
+        week: 'Прошлая неделя',
+        month: 'Прошлый месяц',
+        quarter: 'Прошлый квартал',
+        year: 'Прошлый год',
+      },
+      lastUnits: {
+        day: 'Последние {count, plural, one {# день} few {# дня} many {# дней} other {# дня}}',
+        week: 'Последние {count, plural, one {# неделя} few {# недели} many {# недель} other {# недели}}',
+        month:
+          'Последние {count, plural, one {# месяц} few {# месяца} many {# месяцев} other {# месяца}}',
+        quarter:
+          'Последние {count, plural, one {# квартал} few {# квартала} many {# кварталов} other {# квартала}}',
+        year: 'Последние {count, plural, one {# год} few {# года} many {# лет} other {# года}}',
       },
       periodRelative: '{unit}: с {from} по {to}',
       units: { day: 'дни', week: 'недели', month: 'месяцы', quarter: 'кварталы', year: 'годы' },
