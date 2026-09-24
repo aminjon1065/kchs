@@ -15,6 +15,7 @@ import {
   parseCsv,
   parseFeed,
   recordGeometry,
+  translateValue,
   valueAt,
   withinBbox,
 } from './feed-parse.js'
@@ -257,5 +258,32 @@ describe('значения и геометрия', () => {
       'properties.tags.1': 'b',
       'properties.nested.0.iso3': 'TJK',
     })
+  })
+})
+
+describe('словарь значений ленты', () => {
+  it('код ленты превращается в значение поля: точно, без регистра, запасной', () => {
+    const map = { EQ: 'earthquake', FL: 'flood', '*': 'other' }
+    expect(translateValue('EQ', map)).toBe('earthquake')
+    expect(translateValue('fl', map)).toBe('flood')
+    expect(translateValue('XX', map)).toBe('other')
+    expect(translateValue('XX', { EQ: 'earthquake' })).toBe('XX')
+    expect(translateValue(null, map)).toBeNull()
+  })
+
+  it('сопоставление по пути применяет словарь до приведения типа', () => {
+    const record = { properties: { eventtype: 'EQ', alertlevel: 'Orange' } }
+    expect(
+      mappedValue(
+        record,
+        {
+          kind: 'path',
+          path: 'properties.alertlevel',
+          transform: 'auto',
+          map: { green: 'green', orange: 'orange', red: 'red' },
+        },
+        'select',
+      ),
+    ).toBe('orange')
   })
 })

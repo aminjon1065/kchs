@@ -6,6 +6,7 @@ import type {
   FeedPathInfo,
   FeedTransform,
   FeedValue,
+  FeedValueMap,
 } from '@kchs/contracts'
 
 /**
@@ -26,6 +27,11 @@ export interface MappingDraft {
   template: string
   date: string
   time: string
+  /**
+   * Словарь значений пути (`EQ` → `earthquake`): мастер его не показывает, но и не
+   * теряет — правка ленты, заведённой пакетом или из API, сохраняет словарь.
+   */
+  map?: FeedValueMap | undefined
 }
 
 /** Типы полей, которые мастер предлагает для нового датасета. */
@@ -111,7 +117,13 @@ function mappingOf(value: FeedValue): MappingDraft {
   const draft = emptyMapping()
   switch (value.kind) {
     case 'path':
-      return { ...draft, kind: 'path', path: value.path, transform: value.transform }
+      return {
+        ...draft,
+        kind: 'path',
+        path: value.path,
+        transform: value.transform,
+        ...(value.map ? { map: value.map } : {}),
+      }
     case 'const':
       return { ...draft, kind: 'const', constant: String(value.value) }
     case 'template':
@@ -144,7 +156,14 @@ export function draftFromConfig(config: FeedConfig, integrationId: string | null
 function resolvedValue(draft: MappingDraft): FeedValue | null {
   switch (draft.kind) {
     case 'path':
-      return draft.path ? { kind: 'path', path: draft.path, transform: draft.transform } : null
+      return draft.path
+        ? {
+            kind: 'path',
+            path: draft.path,
+            transform: draft.transform,
+            ...(draft.map ? { map: draft.map } : {}),
+          }
+        : null
     case 'const': {
       if (draft.constant.trim() === '') return null
       return { kind: 'const', value: draft.constant.trim() }

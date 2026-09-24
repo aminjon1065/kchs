@@ -5,6 +5,7 @@ import type {
   FeedPathInfo,
   FeedTransform,
   FeedValue,
+  FeedValueMap,
   FeedValueType,
   StoredFieldType,
 } from '@kchs/contracts'
@@ -388,6 +389,17 @@ export function renderRecordTemplate(template: string, record: FeedRecord): stri
   })
 }
 
+/** Значение по словарю ленты: точное совпадение, без учёта регистра, запасной `*`. */
+export function translateValue(raw: unknown, map: FeedValueMap | null | undefined): unknown {
+  if (!map || raw === undefined || raw === null) return raw
+  const key = text(raw).trim()
+  if (Object.hasOwn(map, key)) return map[key]
+  const lower = key.toLowerCase()
+  const found = Object.keys(map).find((candidate) => candidate.toLowerCase() === lower)
+  if (found !== undefined) return map[found]
+  return Object.hasOwn(map, '*') ? map['*'] : raw
+}
+
 /** Значение поля датасета по его сопоставлению с записью ленты. */
 export function mappedValue(record: FeedRecord, value: FeedValue, type: StoredFieldType): unknown {
   switch (value.kind) {
@@ -400,7 +412,11 @@ export function mappedValue(record: FeedRecord, value: FeedValue, type: StoredFi
     case 'date_time':
       return dateTimeOf(valueAt(record, value.date), valueAt(record, value.time))
     default:
-      return coerceValue(valueAt(record, value.path), value.transform, type)
+      return coerceValue(
+        translateValue(valueAt(record, value.path), value.map),
+        value.transform,
+        type,
+      )
   }
 }
 

@@ -90,8 +90,23 @@ export const FeedTransform = z.enum(FEED_TRANSFORMS)
 export type FeedTransform = z.infer<typeof FeedTransform>
 
 /** Откуда берётся значение поля датасета. */
+/**
+ * Словарь значений ленты: код ленты → значение поля датасета (`EQ` → `earthquake`,
+ * `Orange` → `orange`). Ищется точное совпадение, затем без учёта регистра, затем
+ * запасной ключ `*`; не нашлось и запасного нет — значение остаётся как было.
+ */
+export const FeedValueMap = z
+  .record(z.string().max(100), z.union([z.string().max(500), z.number(), z.boolean()]))
+  .refine((map) => Object.keys(map).length <= 200, { message: 'не больше 200 значений' })
+export type FeedValueMap = z.infer<typeof FeedValueMap>
+
 export const FeedValue = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('path'), path: FeedPath, transform: FeedTransform.default('auto') }),
+  z.object({
+    kind: z.literal('path'),
+    path: FeedPath,
+    transform: FeedTransform.default('auto'),
+    map: FeedValueMap.optional(),
+  }),
   /** Постоянное значение: например, имя ленты в общем датасете нескольких лент. */
   z.object({
     kind: z.literal('const'),
