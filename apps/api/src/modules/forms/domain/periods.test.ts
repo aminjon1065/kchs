@@ -10,6 +10,7 @@ const plainCalendar: DayKindOf = () => undefined
 const schedule = (patch: Partial<FormSchedule> = {}): FormSchedule => ({
   periodicity: 'daily',
   time: '08:00',
+  dueMode: 'working',
   dueWorkingDays: 1,
   startsOn: null,
   dueOn: null,
@@ -61,6 +62,17 @@ describe('периоды формы сбора данных', () => {
     )
     // 30 сентября 2026 — среда; три рабочих дня — понедельник 5 октября
     expect(due.toISOString()).toBe(atTime('2026-10-05', '18:00', TZ).toISOString())
+  })
+
+  it('календарные сроки: субботняя сводка — к 08:00 воскресенья, а не понедельника', () => {
+    const calendar = schedule({ dueMode: 'calendar' })
+    // Суббота 19 сентября 2026 → воскресенье 20-го
+    const saturday = dueAtOf(periodOf('2026-09-19', 'daily'), calendar, TZ, plainCalendar)
+    expect(saturday.toISOString()).toBe(atTime('2026-09-20', '08:00', TZ).toISOString())
+    // Пятница 18-го → суббота 19-го; праздники календаря календарный срок не сдвигают
+    const holiday: DayKindOf = (day) => (day === '2026-09-19' ? 'holiday' : undefined)
+    const friday = dueAtOf(periodOf('2026-09-18', 'daily'), calendar, TZ, holiday)
+    expect(friday.toISOString()).toBe(atTime('2026-09-19', '08:00', TZ).toISOString())
   })
 
   it('разовая форма — один период со своим днём срока', () => {

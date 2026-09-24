@@ -70,6 +70,39 @@ describe('этапы контроля сдачи', () => {
     expect(again.fire).toEqual([])
   })
 
+  it('календарные сроки: напоминание за два часа, эскалация через час — и в выходной', () => {
+    // Срок — воскресенье 20 сентября 2026, 08:00 в поясе установки
+    const sunday = new Date('2026-09-20T03:00:00.000Z')
+    const now = { enabled: true, afterWorkingDays: 0 }
+    const moments = stageMoments(sunday, TZ, plainCalendar, now, 'calendar')
+    expect(moments.due_soon.toISOString()).toBe('2026-09-20T01:00:00.000Z')
+    expect(moments.overdue.getTime()).toBe(sunday.getTime())
+    expect(moments.escalated.toISOString()).toBe('2026-09-20T04:00:00.000Z')
+
+    const plan = planStages(
+      { dueAt: sunday, done: new Set<FormStage>(['due_soon']) },
+      new Date('2026-09-20T04:30:00.000Z'),
+      TZ,
+      plainCalendar,
+      now,
+      'calendar',
+    )
+    expect(plan.fire).toEqual(['overdue', 'escalated'])
+  })
+
+  it('календарные сроки с днями на эскалацию — 09:00 через N календарных дней', () => {
+    const saturday = new Date('2026-09-19T03:00:00.000Z')
+    const moments = stageMoments(
+      saturday,
+      TZ,
+      plainCalendar,
+      { enabled: true, afterWorkingDays: 1 },
+      'calendar',
+    )
+    // Воскресенье 20-го, 09:00 — выходной не пропускается
+    expect(moments.escalated.toISOString()).toBe('2026-09-20T04:00:00.000Z')
+  })
+
   it('выключенная эскалация не наступает', () => {
     const plan = planStages(
       { dueAt: due, done: new Set<FormStage>(['due_soon', 'overdue']) },

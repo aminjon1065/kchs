@@ -1,5 +1,6 @@
-import type { FormEscalation } from '@kchs/contracts'
+import type { FormDueMode, FormEscalation } from '@kchs/contracts'
 import {
+  addDays,
   type DayKindOf,
   localDate,
   shiftWorkingDays,
@@ -12,6 +13,10 @@ import {
  * эскалация руководителю — через заданное число рабочих дней после срока.
  * Правило то же, что у поручений (ADR-0082), но этапов три: сводку сдают
  * коротким циклом, и «за 3 дня» для ежедневной формы бессмысленно.
+ *
+ * Календарные сроки (ADR-0129) — дежурный цикл без выходных: напоминание за
+ * два часа до срока, просрочка в срок, эскалация через час после него или
+ * через N календарных дней в 09:00.
  */
 
 export const FORM_STAGES = ['due_soon', 'overdue', 'escalated'] as const
@@ -20,6 +25,10 @@ export type FormStage = (typeof FORM_STAGES)[number]
 /** Утро дня: напоминания приходят к началу рабочего дня, а не ночью. */
 const MORNING_HOUR = 9
 const HOUR_MS = 3_600_000
+/** Календарные сроки: напоминание за столько до срока. */
+const CALENDAR_REMIND_BEFORE_MS = 2 * HOUR_MS
+/** Календарные сроки без дней на эскалацию: через столько после срока. */
+const CALENDAR_ESCALATE_AFTER_MS = HOUR_MS
 
 export interface StageMoments {
   dueDate: string
@@ -33,10 +42,24 @@ export function stageMoments(
   timezone: string,
   kindOf: DayKindOf,
   escalation: FormEscalation,
+  mode: FormDueMode = 'working',
 ): StageMoments {
   const dueDate = localDate(dueAt, timezone)
   const morning = (day: string) =>
     new Date(startOfLocalDay(day, timezone).getTime() + MORNING_HOUR * HOUR_MS)
+  if (mode === 'calendar') {
+    const days = Math.max(escalation.afterWorkingDays, 0)
+    const escalated =
+      days === 0
+        ? new Date(dueAt.getTime() + CALENDAR_ESCALATE_AFTER_MS)
+        : new Date(Math.max(morning(addDays(dueDate, days)).getTime(), dueAt.getTime() + 1))
+    return {
+      dueDate,
+      due_soon: new Date(dueAt.getTime() - CALENDAR_REMIND_BEFORE_MS),
+      overdue: dueAt,
+      escalated,
+    }
+  }
   const escalationDay = shiftWorkingDays(dueDate, Math.max(escalation.afterWorkingDays, 0), kindOf)
   const escalated = new Date(Math.max(morning(escalationDay).getTime(), dueAt.getTime() + 1))
   const dueDayMorning = morning(dueDate)
@@ -72,8 +95,9 @@ export function planStages(
   timezone: string,
   kindOf: DayKindOf,
   escalation: FormEscalation,
+  mode: FormDueMode = 'working',
 ): StagePlan {
-  const moments = stageMoments(facts.dueAt, timezone, kindOf, escalation)
+  const moments = stageMoments(facts.dueAt, timezone, kindOf, escalation, mode)
   const at = now.getTime()
   const fire: FormStage[] = []
   const skip: FormStage[] = []

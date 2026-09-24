@@ -157,6 +157,7 @@ async function runReminders(now: Date): Promise<number> {
       timezone,
       kindOf,
       form.definition.escalation,
+      form.definition.schedule.dueMode,
     )
     if (plan.fire.length === 0 && plan.skip.length === 0) continue
     try {

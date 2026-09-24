@@ -11,7 +11,8 @@ import {
 /**
  * Периоды формы сбора данных (06-analytics-engine.md §13, ADR-0103) — чистые
  * функции над датами `ГГГГ-ММ-ДД`. Срок считается от конца периода по
- * производственному календарю, как у поручений: исключения подаёт вызывающий.
+ * производственному календарю, как у поручений (исключения подаёт вызывающий),
+ * или календарными днями (ADR-0129).
  */
 
 export interface FormPeriod {
@@ -107,8 +108,9 @@ export function closedPeriods(today: string, schedule: FormSchedule, count: numb
 }
 
 /**
- * Момент срока сдачи периода: `dueWorkingDays` рабочих дней после конца
- * периода, в указанный час пояса установки. У разовой формы — день `dueOn`.
+ * Момент срока сдачи периода: `dueWorkingDays` дней после конца периода — рабочих
+ * по производственному календарю или календарных (`dueMode`, ADR-0129), — в
+ * указанный час пояса установки. У разовой формы — день `dueOn`.
  */
 export function dueAtOf(
   period: FormPeriod,
@@ -119,7 +121,9 @@ export function dueAtOf(
   const day =
     schedule.periodicity === 'once'
       ? (schedule.dueOn ?? period.end)
-      : shiftWorkingDays(period.end, schedule.dueWorkingDays, kindOf)
+      : schedule.dueMode === 'calendar'
+        ? addDays(period.end, schedule.dueWorkingDays)
+        : shiftWorkingDays(period.end, schedule.dueWorkingDays, kindOf)
   return atTime(day, schedule.time, timezone)
 }
 

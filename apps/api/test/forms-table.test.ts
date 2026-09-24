@@ -7,11 +7,14 @@ import { call, db, registerLifecycle, setupFixture, type TestContext } from './h
  * период — таблица строк; сдача пишет строки датасета с `_import_id` отправки,
  * повторная сдача после возврата заменяет их, пустая таблица — «записей не
  * было». Дело «Сдать сводку» подразделения уходит ответственному, который
- * видит форму и сдаёт за подразделение, даже не состоя в нём.
+ * видит форму и сдаёт за подразделение, даже не состоя в нём. Календарные
+ * сроки не ждут рабочего дня: субботняя сводка — к утру воскресенья.
  */
 registerLifecycle()
 
 const { FormJobs } = await import('../src/modules/forms/domain/form-jobs.js')
+const { atTime } = await import('../src/modules/forms/domain/periods.js')
+const { config } = await import('../src/shared/config/index.js')
 
 const run = Date.now().toString(36)
 let fx: TestContext
@@ -314,5 +317,46 @@ describe('табличная сводка (N49)', () => {
     })
     expect(response.statusCode, response.body).toBe(200)
     expect(response.json().canSubmit).toBe(true)
+  })
+})
+
+describe('календарные сроки (dueMode)', () => {
+  it('срок суточной сводки — 08:00 следующего календарного дня, в выходные тоже', async () => {
+    const created = await call(fx.app, {
+      method: 'POST',
+      url: '/forms',
+      as: fx.admin,
+      payload: {
+        name: `Сводка дежурной смены ${run}`,
+        spaceId: fx.spaceId,
+        definition: definition({
+          schedule: {
+            periodicity: 'daily',
+            time: '08:00',
+            dueMode: 'calendar',
+            dueWorkingDays: 1,
+            startsOn: null,
+            dueOn: null,
+          },
+        }),
+      },
+    })
+    expect(created.statusCode, created.body).toBe(200)
+    const id = created.json().id as string
+    const nextDay = (key: string) =>
+      new Date(Date.parse(`${key}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10)
+    // Неделя подряд — в ней обязательно есть суббота и воскресенье
+    for (const offset of [1, 2, 3, 4, 5, 6, 7]) {
+      const periodKey = day(offset)
+      const opened = await call(fx.app, {
+        method: 'POST',
+        url: `/forms/${id}/submissions`,
+        as: fx.users.viewer,
+        payload: { periodKey, subject: { kind: 'unit', id: fx.unitId } },
+      })
+      expect(opened.statusCode, opened.body).toBe(200)
+      const expected = atTime(nextDay(periodKey), '08:00', config().TZ).getTime()
+      expect(Date.parse(opened.json().dueAt as string), periodKey).toBe(expected)
+    }
   })
 })

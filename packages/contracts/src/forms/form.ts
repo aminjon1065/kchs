@@ -21,11 +21,25 @@ export type FormPeriodicity = z.infer<typeof FormPeriodicity>
 /** Время суток `ЧЧ:ММ` в поясе установки. */
 export const DayTime = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'время в виде ЧЧ:ММ')
 
+/**
+ * Как считаются сроки (ADR-0129): по производственному календарю (`working`)
+ * или календарными днями (`calendar`) — сводку дежурной службы сдают и в
+ * выходные, и субботняя не должна ждать понедельника.
+ */
+export const FORM_DUE_MODES = ['working', 'calendar'] as const
+export const FormDueMode = z.enum(FORM_DUE_MODES)
+export type FormDueMode = z.infer<typeof FormDueMode>
+
 export const FormSchedule = z.object({
   periodicity: FormPeriodicity,
   /** Час срока в поясе установки: «ежедневно к 08:00». */
   time: DayTime.default('08:00'),
-  /** Через сколько рабочих дней после конца периода наступает срок. */
+  /** Рабочие дни по производственному календарю или календарные. */
+  dueMode: FormDueMode.default('working'),
+  /**
+   * Через сколько дней после конца периода наступает срок: рабочих или
+   * календарных — по `dueMode` (имя поля — от первого режима).
+   */
   dueWorkingDays: z.number().int().min(0).max(30).default(1),
   /** Раньше этого дня периоды не открываются; null — со дня включения формы. */
   startsOn: DateOnly.nullable().default(null),
