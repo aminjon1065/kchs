@@ -1,6 +1,7 @@
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm'
 import { buildUserCtxFor } from '~/kernel/access/explain.js'
 import { ObjectService } from '~/kernel/objects/service.js'
+import { SpaceService } from '~/kernel/spaces/service.js'
 import { type SystemCtx, systemCtx, type UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
 import { employments, objects, orgUnits, spaces, users } from '~/shared/db/schema/index.js'
@@ -24,7 +25,11 @@ export interface PackContext {
   /** Тот же администратор как пользователь: сервисам, которым нужен UserCtx. */
   user: UserCtx
   adminId: string
-  /** Демо-мир загружен (демо-оргструктура): люди, группы, демо-строки. */
+  /**
+   * Установка демо-мира (профиль `demo`): участники и состав групп из демо-людей,
+   * назначения регионам, руководители в правилах, синтетические строки. Чистая
+   * установка (`minimal`) получает те же объекты пустыми — их наполняет администратор.
+   */
   demo: boolean
   /** «Общее» — реестры общего пользования, в нём же демо-датасеты генератора. */
   orgSpaceId: string
@@ -33,8 +38,32 @@ export interface PackContext {
   log: (message: string, details?: Record<string, unknown>) => void
 }
 
+/**
+ * «Общее» — пространство всей организации (вид `org`): его заводит демо-сид, а на
+ * чистой установке (`kchs init`, профиль `minimal`) его ещё нет — пакет создаёт его сам
+ * с тем же ключом, чтобы общие реестры происшествий и зон риска видели все сотрудники.
+ */
+async function ensureOrgSpace(ctx: SystemCtx, ownerId: string): Promise<string> {
+  const [org] = await db()
+    .select({ id: spaces.id })
+    .from(spaces)
+    .where(eq(spaces.key, 'org'))
+    .limit(1)
+  if (org) return org.id
+  return db().transaction((tx) =>
+    SpaceService.create(tx, ctx, {
+      key: 'org',
+      name: 'Общее',
+      kind: 'org',
+      description: 'Справочники, регламенты, общие материалы',
+      ownerId,
+    }),
+  )
+}
+
 export async function packContext(
   adminLogin: string,
+  options: { demo: boolean },
   log: PackContext['log'],
 ): Promise<Omit<PackContext, 'spaceId'>> {
   const [admin] = await db()
@@ -45,23 +74,13 @@ export async function packContext(
   if (!admin) throw new Error(`Нет администратора «${adminLogin}» — сначала kchs init или db:seed`)
   const user = await buildUserCtxFor(admin.id)
   if (!user) throw new Error('Администратор недоступен как пользователь')
-  const [org] = await db()
-    .select({ id: spaces.id })
-    .from(spaces)
-    .where(eq(spaces.key, 'org'))
-    .limit(1)
-  if (!org) throw new Error('Нет пространства «Общее» — пакет ставится после сида')
-  const [root] = await db()
-    .select({ id: orgUnits.id })
-    .from(orgUnits)
-    .where(eq(orgUnits.code, 'HQ'))
-    .limit(1)
+  const ctx = systemCtx('seed.emergency', { initiatorId: admin.id })
   return {
-    ctx: systemCtx('seed.emergency', { initiatorId: admin.id }),
+    ctx,
     user,
     adminId: admin.id,
-    demo: Boolean(root),
-    orgSpaceId: org.id,
+    demo: options.demo,
+    orgSpaceId: await ensureOrgSpace(ctx, admin.id),
     log,
   }
 }

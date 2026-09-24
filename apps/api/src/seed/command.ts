@@ -45,6 +45,9 @@ export async function seedCommand(options: SeedCommandOptions): Promise<{
   const datasets = data === 'none' ? null : await seedDemoData(data, adminLogin)
   // Пакет — после демо-датасетов: принимает их, а не заводит пустые двойники
   const pack = options.pack ?? (options.profile === 'demo' ? 'emergency' : 'none')
-  const installed = pack === 'emergency' ? await installEmergencyPack(adminLogin) : null
+  const installed =
+    pack === 'emergency'
+      ? await installEmergencyPack(adminLogin, { demo: options.profile === 'demo' })
+      : null
   return { ...seeded, datasets, pack: installed }
 }

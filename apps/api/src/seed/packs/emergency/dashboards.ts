@@ -22,7 +22,8 @@ const lastDays = (field: string, days: number) => ({
 
 interface PackMetric {
   key: string
-  dataset: string
+  /** Датасет пакета или системный датасет (`tasks`) — права смотрящего применяет он сам. */
+  source: { dataset: string } | { system: 'tasks' }
   /** Определение без пространства и датасета — их подставляет установка. */
   input: Record<string, unknown>
 }
@@ -31,12 +32,40 @@ interface PackMetric {
  * Показатели пакета (04-domain-pack-emergency.md «Показатели»): одно определение —
  * одно число на ситуационном экране, в сводке, в алерте и в паспорте территории.
  */
-function packMetrics(): PackMetric[] {
+function packMetrics(spaceId: string): PackMetric[] {
   const count = { agg: 'count' as const }
   return [
     {
+      key: 'metric.hq_tasks_overdue',
+      source: { system: 'tasks' },
+      input: {
+        name: 'Просроченные поручения штаба',
+        description:
+          'Открытые поручения пространства штаба, срок которых прошёл: из распоряжений, протоколов заседаний и правил',
+        definition: {
+          measure: count,
+          filter: {
+            and: [
+              { field: 'overdue', op: 'is_true' },
+              { field: 'space', op: 'eq', value: spaceId },
+            ],
+          },
+          timeField: 'due_at',
+          dimensions: ['assignee', 'controller'],
+          period: null,
+          comparison: 'none',
+        },
+        format: { precision: 0 },
+        direction: 'down',
+        thresholds: [
+          { value: 1, status: 'warning' },
+          { value: 5, status: 'danger' },
+        ],
+      },
+    },
+    {
       key: 'metric.incidents_today',
-      dataset: 'incidents',
+      source: { dataset: 'incidents' },
       input: {
         name: 'Происшествия за сутки',
         description: 'Происшествия и ЧС с начала текущих суток — по всем источникам',
@@ -53,7 +82,7 @@ function packMetrics(): PackMetric[] {
     },
     {
       key: 'metric.injured_today',
-      dataset: 'incidents',
+      source: { dataset: 'incidents' },
       input: {
         name: 'Пострадавшие за сутки',
         definition: {
@@ -70,7 +99,7 @@ function packMetrics(): PackMetric[] {
     },
     {
       key: 'metric.deaths_today',
-      dataset: 'incidents',
+      source: { dataset: 'incidents' },
       input: {
         name: 'Погибшие за сутки',
         definition: {
@@ -87,7 +116,7 @@ function packMetrics(): PackMetric[] {
     },
     {
       key: 'metric.incidents_month',
-      dataset: 'incidents',
+      source: { dataset: 'incidents' },
       input: {
         name: 'Происшествия за месяц',
         definition: {
@@ -103,7 +132,7 @@ function packMetrics(): PackMetric[] {
     },
     {
       key: 'metric.damage_month',
-      dataset: 'incidents',
+      source: { dataset: 'incidents' },
       input: {
         name: 'Ущерб за месяц',
         definition: {
@@ -120,7 +149,7 @@ function packMetrics(): PackMetric[] {
     },
     {
       key: 'metric.posts_above_danger',
-      dataset: 'water_levels',
+      source: { dataset: 'water_levels' },
       input: {
         name: 'Гидропосты выше опасного уровня',
         description: 'Посты, у которых сегодняшний уровень воды выше опасной отметки',
@@ -142,7 +171,7 @@ function packMetrics(): PackMetric[] {
     },
     {
       key: 'metric.messages_new',
-      dataset: 'hazard_messages',
+      source: { dataset: 'hazard_messages' },
       input: {
         name: 'Нерассмотренные сообщения об опасных явлениях',
         description: 'Сообщения лент и служб, по которым дежурный ещё не принял решения',
@@ -161,7 +190,7 @@ function packMetrics(): PackMetric[] {
     },
     {
       key: 'metric.shelter_free',
-      dataset: 'shelters',
+      source: { dataset: 'shelters' },
       input: {
         name: 'Свободные места в ПВР',
         definition: {
@@ -177,7 +206,7 @@ function packMetrics(): PackMetric[] {
     },
     {
       key: 'metric.shelter_occupied',
-      dataset: 'shelters',
+      source: { dataset: 'shelters' },
       input: {
         name: 'Размещено в ПВР',
         definition: {
@@ -193,7 +222,7 @@ function packMetrics(): PackMetric[] {
     },
     {
       key: 'metric.forces_ready',
-      dataset: 'forces',
+      source: { dataset: 'forces' },
       input: {
         name: 'Готовность сил и средств',
         description: 'Доля сил и средств в готовности от положенных по штату',
@@ -217,19 +246,22 @@ function packMetrics(): PackMetric[] {
 
 async function ensureMetrics(pack: PackContext, datasets: Ids): Promise<Map<string, string>> {
   const ids = new Map<string, string>()
-  for (const metric of packMetrics()) {
+  for (const metric of packMetrics(pack.spaceId)) {
     const found = await findPackObject('metric', metric.key)
     if (found) {
       ids.set(metric.key, found)
       continue
     }
-    const datasetId = datasets.get(metric.dataset)
-    if (!datasetId) continue
+    const origin =
+      'system' in metric.source
+        ? { systemSource: metric.source.system }
+        : { datasetId: datasets.get(metric.source.dataset) }
+    if (!('systemSource' in origin) && !origin.datasetId) continue
     const id = await db().transaction((tx) =>
       Metrics.create(
         tx,
         pack.ctx,
-        MetricCreateInput.parse({ ...metric.input, spaceId: pack.spaceId, datasetId }),
+        MetricCreateInput.parse({ ...metric.input, spaceId: pack.spaceId, ...origin }),
         { systemKey: packKey(metric.key) },
       ),
     )
@@ -685,8 +717,9 @@ function packDashboards(ids: Ids, metrics: Ids, mapId: string): PackDashboard[] 
       tiles: [
         ...metricTile('incidents_month', m('incidents_month'), 0, 0, 3),
         ...metricTile('damage_month', m('damage_month'), 3, 0, 3),
-        ...metricTile('deaths_today', m('deaths_today'), 6, 0, 3),
-        ...metricTile('injured_today', m('injured_today'), 9, 0, 3),
+        ...metricTile('deaths_today', m('deaths_today'), 6, 0),
+        ...metricTile('injured_today', m('injured_today'), 8, 0),
+        ...metricTile('hq_tasks_overdue', m('hq_tasks_overdue'), 10, 0),
         specTile(
           'by_day',
           'Происшествия по суткам',

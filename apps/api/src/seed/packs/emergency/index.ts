@@ -2,6 +2,7 @@ import { grantAccess } from '~/kernel/access/acl-service.js'
 import { bumpPrincipalsVersion } from '~/kernel/access/principal-set.js'
 import { db } from '~/shared/db/client.js'
 import { logger } from '~/shared/logger/index.js'
+import { ensureAutomation } from './automation.js'
 import { type PackContext, packContext } from './context.js'
 import { ensureDashboards } from './dashboards.js'
 import { ensureDatasets, ensureIncidentKinds } from './datasets.js'
@@ -55,9 +56,14 @@ async function grantGroups(
  * `pnpm db:seed --pack=emergency`, `kchs seed --pack emergency`. Повторный запуск
  * досводит только недостающее: объекты находятся по ключам пакета.
  */
-export async function installEmergencyPack(adminLogin: string): Promise<EmergencyPackResult> {
+export async function installEmergencyPack(
+  adminLogin: string,
+  options: { demo: boolean },
+): Promise<EmergencyPackResult> {
   const log = logger().child({ module: 'seed', pack: 'emergency' })
-  const base = await packContext(adminLogin, (message, details) => log.info(details ?? {}, message))
+  const base = await packContext(adminLogin, options, (message, details) =>
+    log.info(details ?? {}, message),
+  )
   const structure = await ensureStructure(base)
   const pack: PackContext = { ...base, spaceId: structure.spaceId }
 
@@ -68,9 +74,11 @@ export async function installEmergencyPack(adminLogin: string): Promise<Emergenc
   await seedDemoRows(pack, datasets)
 
   const { mapId } = await ensureMap(pack, datasets)
-  const { dashboards } = await ensureDashboards(pack, datasets, mapId)
+  const { metrics, dashboards } = await ensureDashboards(pack, datasets, mapId)
   await ensureDocuments(pack, { duty: structure.groupIds.duty })
   const pages = await ensureKnowledge(pack)
+  // После документов: правило донесений отбирает события по журналу пакета
+  await ensureAutomation(pack, datasets, metrics, structure, mapId)
   await bumpPrincipalsVersion()
 
   const result = {
