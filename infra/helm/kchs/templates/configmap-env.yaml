@@ -43,6 +43,7 @@ data:
   WEBHOOK_RETRY_WINDOW_HOURS: {{ .Values.app.webhookRetryWindowHours | quote }}
   WEBHOOKS_ALLOW_PRIVATE_ADDRESSES: {{ ternary "1" "" .Values.app.webhooksAllowPrivateAddresses | quote }}
   CALENDAR_FEEDS_ALLOW_PRIVATE: {{ ternary "1" "" .Values.app.calendarFeedsAllowPrivate | quote }}
+  NO_PROXY: {{ .Values.app.outbound.noProxy | quote }}
   SMTP_FROM: {{ .Values.app.smtpFrom | quote }}
   PUSH_CONTACT: {{ .Values.app.pushContact | quote }}
 

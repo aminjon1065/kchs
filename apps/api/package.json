@@ -75,6 +75,7 @@
     "qrcode": "^1.5.4",
     "rrule": "2.8.1",
     "socket.io": "^4.8.1",
+    "undici": "6.28.1",
     "uuidv7": "^1.0.2",
     "web-push": "^3.6.7",
     "y-protocols": "^1.0.7",

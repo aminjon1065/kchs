@@ -27,6 +27,7 @@ import { config } from './shared/config/index.js'
 import { closeDb, closeQueryRole } from './shared/db/client.js'
 import { runMigrations } from './shared/db/migrate.js'
 import { logger } from './shared/logger/index.js'
+import { configureOutboundProxy } from './shared/net/outbound.js'
 import { closeRedis } from './shared/redis/index.js'
 import { startMetrics, stopMetrics } from './shared/telemetry/metrics.js'
 import { stopTracing, tracingEnabled, tracingRequested } from './shared/telemetry/tracing.js'
@@ -50,6 +51,8 @@ async function main(): Promise<void> {
       'адрес OTLP задан, но трассы выключены: запустите node с --import ./dist/instrument.js',
     )
   }
+  // Исходящий прокси — до первых запросов наружу: глобальный fetch пойдёт через него (ADR-0132)
+  if (configureOutboundProxy()) log.info('исходящие запросы идут через прокси')
 
   await runMigrations()
   await bootstrapPlatform()

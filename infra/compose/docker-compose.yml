@@ -81,6 +81,11 @@ x-app-env: &app-env
   ONLYOFFICE_JWT_SECRET: ${ONLYOFFICE_JWT_SECRET:-}
   # Подписки ICS на адреса внутренней сети (ADR-0081): пусто — запрещены
   CALENDAR_FEEDS_ALLOW_PRIVATE: ${CALENDAR_FEEDS_ALLOW_PRIVATE:-}
+  # Исходящий прокси (ADR-0132): ленты, подложки, ГИС-службы, ICS и вызовы api
+  # наружу; службы установки идут мимо него сами. Пусто — запросы напрямую
+  HTTP_PROXY: ${HTTP_PROXY:-}
+  HTTPS_PROXY: ${HTTPS_PROXY:-}
+  NO_PROXY: ${NO_PROXY:-}
   # Push-уведомления браузера (ADR-0094): пустые ключи — push выключен
   PUSH_VAPID_PUBLIC_KEY: ${PUSH_VAPID_PUBLIC_KEY:-}
   PUSH_VAPID_PRIVATE_KEY: ${PUSH_VAPID_PRIVATE_KEY:-}

@@ -61,6 +61,9 @@ secrets:
     TELEGRAM_BOT_TOKEN: TELEGRAM_BOT_TOKEN
     ANTHROPIC_API_KEY: ANTHROPIC_API_KEY
     OPENAI_COMPAT_API_KEY: OPENAI_COMPAT_API_KEY
+    # Исходящий прокси (ADR-0132): в адресе бывают логин и пароль — поэтому в Secret
+    HTTP_PROXY: HTTP_PROXY
+    HTTPS_PROXY: HTTPS_PROXY
 
 # ── Postgres ───────────────────────────────────────────────────────────────
 postgres:
@@ -460,6 +463,11 @@ app:
     # Сервер документов ONLYOFFICE (ADR-0112): пусто — редактор выключен
     url: ""
     internalUrl: ""
+  outbound:
+    # Узлы мимо исходящего прокси через запятую (ADR-0132): имя точно, .домен —
+    # поддомены, * — никогда. Службы установки добавляются сами. Сам прокси —
+    # secrets.values.HTTP_PROXY / HTTPS_PROXY
+    noProxy: ""
 
 # ── Медиасервер встреч (ADR-0089) ──────────────────────────────────────────
 livekit:

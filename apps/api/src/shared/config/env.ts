@@ -189,6 +189,26 @@ const EnvSchema = z.object({
    */
   CALENDAR_FEEDS_ALLOW_PRIVATE: z.preprocess(unset, bool.default(false)),
 
+  /**
+   * Исходящий прокси (ADR-0132, 17-security.md §5): `http://[пользователь:пароль@]узел:порт`.
+   * Через него идут ленты, подложки, ГИС-службы, ICS-подписки и глобальный `fetch`
+   * (вебхуки, провайдеры ИИ); `HTTPS_PROXY` без значения берёт `HTTP_PROXY`.
+   */
+  HTTP_PROXY: optionalUrl,
+  HTTPS_PROXY: optionalUrl,
+  /**
+   * Узлы мимо прокси через запятую: имя точно, `.домен` — все его поддомены, `*` —
+   * никогда через прокси. Службы установки (api, хранилище, поиск, движок, офисный
+   * сервер, медиасервер) добавляются сами.
+   */
+  NO_PROXY: optionalText,
+  /**
+   * Разрешить исходящим запросам по адресу (ленты, подложки, ICS) адреса loopback —
+   * только для локальной отладки: лента с машины разработчика. В эксплуатации не
+   * включать: запрос по адресу, заданному человеком, дошёл бы до служб самого узла.
+   */
+  OUTBOUND_ALLOW_LOOPBACK: z.preprocess(unset, bool.default(false)),
+
   /** Web Push (ADR-0094): пустые ключи — push выключен. */
   PUSH_VAPID_PUBLIC_KEY: z.string().optional(),
   PUSH_VAPID_PRIVATE_KEY: z.string().optional(),
