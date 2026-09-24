@@ -15,6 +15,7 @@ export {
   formatAssignee,
   parseAssignee,
 } from './assignee.js'
+export { hoursDeadline, hoursReminder } from './deadline.js'
 export {
   applyConditions,
   type BranchPlace,

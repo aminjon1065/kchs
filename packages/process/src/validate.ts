@@ -220,12 +220,19 @@ export function checkDefinition(def: ProcessDefinition): DefinitionIssue[] {
         )
     }
 
+    checkDeadline(out, path, step)
+
     if (step.type === 'wait') {
-      if (!step.event && !step.until && step.durationWorkingDays === undefined) {
+      if (
+        !step.event &&
+        !step.until &&
+        step.durationWorkingDays === undefined &&
+        step.durationHours === undefined
+      ) {
         out.error(
           path,
           'wait_empty',
-          'Шаг wait ждёт событие (event) или срок (until, durationWorkingDays)',
+          'Шаг wait ждёт событие (event) или срок (until, durationWorkingDays, durationHours)',
         )
       }
       if (step.filter) {
@@ -286,6 +293,7 @@ export function checkDefinition(def: ProcessDefinition): DefinitionIssue[] {
     }
     insertedKeys.add(key)
     const step = condition.step as Step
+    checkDeadline(out, `${path}.step`, step)
     if (nextOf(step)) {
       out.error(
         `${path}.step.next`,
@@ -353,6 +361,31 @@ export function checkDefinition(def: ProcessDefinition): DefinitionIssue[] {
   }
 
   return out.issues
+}
+
+/**
+ * Срок шага задаётся одним способом: рабочими днями по производственному
+ * календарю или календарными часами (ADR-0131) — оба сразу неоднозначны.
+ */
+function checkDeadline(out: Collector, path: string, step: Step): void {
+  if ('dueHours' in step && step.dueHours !== undefined && step.dueWorkingDays !== undefined) {
+    out.error(
+      `${path}.dueHours`,
+      'due_conflict',
+      'Срок задаётся одним способом: рабочими днями (dueWorkingDays) или часами (dueHours)',
+    )
+  }
+  if (
+    step.type === 'wait' &&
+    step.durationHours !== undefined &&
+    step.durationWorkingDays !== undefined
+  ) {
+    out.error(
+      `${path}.durationHours`,
+      'due_conflict',
+      'Срок ожидания задаётся одним способом: рабочими днями (durationWorkingDays) или часами (durationHours)',
+    )
+  }
 }
 
 /** Поле шага с выражениями назначений и его значение (`null` — у шага их нет). */

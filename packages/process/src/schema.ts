@@ -38,6 +38,11 @@ const Recipients = z.union([Assignee, z.array(Assignee).min(1).max(50)])
 
 /** Срок в рабочих днях по производственному календарю от активации шага. */
 const DueWorkingDays = z.number().int().min(0).max(365)
+/**
+ * Срок в календарных часах от активации шага — для экстренных маршрутов: ЧС не
+ * ждут выходных (ADR-0131). С `dueWorkingDays` одновременно не задаётся.
+ */
+const DueHours = z.number().int().min(1).max(720)
 /** Условие на языке выражений платформы (`object.fields.amount > 1000000`). */
 const ConditionExpr = z.string().trim().min(1).max(4000)
 /** Шаблон уведомления: ключ словаря в разделе `processes.templates`. */
@@ -59,6 +64,7 @@ export const ApprovalStep = z.strictObject({
   quorum: Quorum.default('all'),
   assignees: Assignees,
   dueWorkingDays: DueWorkingDays.optional(),
+  dueHours: DueHours.optional(),
   onReject: RejectTarget.optional(),
   allowAddApprover: z.boolean().default(false),
   /** Согласующий может передать шаг другому сотруднику. */
@@ -72,6 +78,7 @@ export const SignStep = z.strictObject({
   mode: z.enum(['parallel', 'sequential']).default('parallel'),
   assignees: Assignees,
   dueWorkingDays: DueWorkingDays.optional(),
+  dueHours: DueHours.optional(),
   /** Подпись подтверждается кодом второго фактора. */
   requireMfa: z.boolean().default(false),
   signatureKind: z.enum(['simple', 'qualified']).default('simple'),
@@ -87,6 +94,7 @@ export const RegisterStep = z.strictObject({
   assignees: Assignees.optional(),
   journal: z.string().trim().min(1).max(64).optional(),
   dueWorkingDays: DueWorkingDays.optional(),
+  dueHours: DueHours.optional(),
   next: StepKey.optional(),
 })
 
@@ -95,6 +103,7 @@ export const AcknowledgeStep = z.strictObject({
   ...base,
   assignees: Assignees,
   dueWorkingDays: DueWorkingDays.optional(),
+  dueHours: DueHours.optional(),
   next: StepKey.optional(),
 })
 
@@ -104,6 +113,7 @@ export const TaskStep = z.strictObject({
   title: LangText,
   assignees: Assignees,
   dueWorkingDays: DueWorkingDays.optional(),
+  dueHours: DueHours.optional(),
   params: z.record(z.string(), Json).default({}),
   next: StepKey.optional(),
 })
@@ -140,6 +150,7 @@ export const WaitStep = z.strictObject({
   /** Дата или момент ISO 8601, `var:<имя>` или `field:<путь>`. */
   until: z.string().trim().min(1).max(200).optional(),
   durationWorkingDays: DueWorkingDays.optional(),
+  durationHours: DueHours.optional(),
   next: StepKey.optional(),
 })
 
@@ -175,6 +186,7 @@ export const ReturnStep = z.strictObject({
   to: Assignee.default('author'),
   reapproval: z.enum(['full', 'rejecters_only']).default('full'),
   dueWorkingDays: DueWorkingDays.optional(),
+  dueHours: DueHours.optional(),
   next: StepKey.optional(),
 })
 
@@ -341,7 +353,30 @@ export function nextOf(step: Step): string | undefined {
   return 'next' in step ? step.next : undefined
 }
 
-/** Срок шага в рабочих днях, если задан. */
-export function dueOf(step: Step): number | undefined {
-  return 'dueWorkingDays' in step ? step.dueWorkingDays : undefined
+/** Срок шага: рабочие дни по производственному календарю или календарные часы. */
+export type StepDeadline =
+  | { unit: 'working_days'; value: number }
+  | { unit: 'hours'; value: number }
+
+/**
+ * Срок шага, если задан. Оба способа сразу проверка определения не пропускает
+ * (`due_conflict`); если такое всё же встретилось, часы важнее — срок строже.
+ */
+export function deadlineOf(step: Step): StepDeadline | undefined {
+  if ('dueHours' in step && step.dueHours !== undefined) {
+    return { unit: 'hours', value: step.dueHours }
+  }
+  if ('dueWorkingDays' in step && step.dueWorkingDays !== undefined) {
+    return { unit: 'working_days', value: step.dueWorkingDays }
+  }
+  return undefined
+}
+
+/** Срок ожидания шага `wait` — те же единицы, что у срока шага. */
+export function waitDurationOf(step: StepOf<'wait'>): StepDeadline | undefined {
+  if (step.durationHours !== undefined) return { unit: 'hours', value: step.durationHours }
+  if (step.durationWorkingDays !== undefined) {
+    return { unit: 'working_days', value: step.durationWorkingDays }
+  }
+  return undefined
 }
