@@ -75,7 +75,9 @@ async function insert(dataset: string, rows: Array<Record<string, unknown>>) {
     payload: { rows: rows.map((values) => ({ values })) },
   })
   expect(response.statusCode, response.body).toBe(200)
-  return response.json() as { items: Array<{ _id: string; _ver: number }> }
+  return response.json() as {
+    items: Array<{ _id: string; _ver: number; values: Record<string, unknown> }>
+  }
 }
 
 beforeAll(async () => {
@@ -147,8 +149,8 @@ describe('события строк', () => {
 
   it('поле без значения при вставке получает значение по умолчанию', async () => {
     const created = await insert(datasetId, [{ code: 'default-1', magnitude: 2 }])
-    const row = created.items[0] as { _id: string; values: Record<string, unknown> }
-    expect(row.values.status).toBe('new')
+    const row = created.items[0]
+    expect(row?.values.status).toBe('new')
     const events = await eventsOf(datasetId, 'dataset.row_created')
     expect(events.at(-1)?.payload).toMatchObject({
       values: { code: 'default-1', status: 'new' },
