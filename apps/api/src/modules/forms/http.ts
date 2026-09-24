@@ -165,7 +165,7 @@ export function registerFormRoutes(route: RouteRegistrar): void {
       response: { 200: FormSubmission },
     },
     handler: async (request) =>
-      SubmissionService.save(request.ctx, request.params.sid, request.body.values),
+      SubmissionService.save(request.ctx, request.params.sid, request.body),
   })
 
   route({
@@ -173,14 +173,14 @@ export function registerFormRoutes(route: RouteRegistrar): void {
     url: '/forms/submissions/:sid/submit',
     auth: 'session',
     tags: ['forms'],
-    summary: 'Сдать сводку: строки датасета с `_import_id` отправки',
+    summary: 'Сдать сводку: строка датасета (у табличной формы — строки) с `_import_id` отправки',
     schema: {
       params: SubmissionParam,
       body: FormSubmissionSaveInput,
       response: { 200: FormSubmission },
     },
     handler: async (request) =>
-      SubmissionService.submit(request.ctx, request.params.sid, request.body.values),
+      SubmissionService.submit(request.ctx, request.params.sid, request.body),
   })
 
   route({

@@ -868,13 +868,18 @@ export const EVENT_PAYLOADS = {
     subjectId: Uuid,
     dueAt: Timestamp.nullable().default(null),
   }),
-  /** Сводка сдана: строка датасета записана отправкой. */
+  /**
+   * Сводка сдана: строки датасета записаны отправкой. У одиночной формы
+   * `rowId` — её строка; у табличной (ADR-0129) — `rowIds` и их число, `rowId` пуст.
+   */
   'form.submitted': z.object({
     submissionId: Uuid,
     periodKey: z.string(),
     subjectKind: z.string(),
     subjectId: Uuid,
     rowId: z.string().nullable().default(null),
+    rowIds: z.array(z.string()).max(500).default([]),
+    rowCount: z.number().int().nonnegative().default(0),
     resubmitted: z.boolean().default(false),
   }),
   /** Сводка принята ответственным. */

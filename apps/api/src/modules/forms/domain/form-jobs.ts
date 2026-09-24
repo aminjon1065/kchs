@@ -12,7 +12,7 @@ import { type FormStage, planStages } from './form-deadlines.js'
 import { FormInbox } from './form-inbox.js'
 import { type FormRow, FormService, objectRef } from './form-service.js'
 import { calendarSpan, closedPeriods, dueAtOf, type FormPeriod, today } from './periods.js'
-import { managerOf } from './subject-names.js'
+import { managerOf, responsibleOf } from './subject-names.js'
 
 /**
  * Контроль сдачи заданием воркера (ADR-0103): открывает периоды назначенным,
@@ -214,7 +214,8 @@ async function fire(
   for (const stage of skip) await mark(stage, true)
   let count = 0
   for (const stage of stages) {
-    const managerId = stage === 'escalated' ? await managerOf(subject) : null
+    const managerId =
+      stage === 'escalated' ? await managerOf(subject, responsibleOf(form, subject)) : null
     if (stage === 'escalated' && !managerId) {
       await mark(stage, true)
       continue

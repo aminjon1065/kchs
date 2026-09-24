@@ -3,11 +3,11 @@ import { DateOnly, Timestamp, Uuid } from '../common/primitives.js'
 import { FieldDef } from '../fields/field-def.js'
 
 /**
- * Формы сбора данных (06-analytics-engine.md §13, ADR-0103). Форма — объект
- * реестра типа `form`, привязанный к датасету: её схема — подмножество полей
- * датасета плюс скрытые авто-поля (подразделение, период, автор, время
- * отправки). Отправка — строка датасета с `_import_id` отправки; контроль
- * сдачи — матрица «подразделения × периоды».
+ * Формы сбора данных (06-analytics-engine.md §13, ADR-0103, ADR-0129). Форма —
+ * объект реестра типа `form`, привязанный к датасету: её схема — подмножество
+ * полей датасета плюс скрытые авто-поля (подразделение, период, автор, время
+ * отправки). Отправка — строка датасета (у табличной формы — строки) с
+ * `_import_id` отправки; контроль сдачи — матрица «подразделения × периоды».
  */
 
 /** Ключ поля датасета. */
@@ -41,6 +41,34 @@ export type FormSubjectKind = z.infer<typeof FormSubjectKind>
 
 export const FormSubject = z.object({ kind: FormSubjectKind, id: Uuid })
 export type FormSubject = z.infer<typeof FormSubject>
+
+/**
+ * Назначение формы (ADR-0129): у подразделения можно указать ответственного за
+ * сдачу — дело «Сдать сводку» уходит ему, а не главе подразделения. У
+ * назначения сотруднику ответственный — он сам, поле пустое.
+ */
+export const FormAssignment = FormSubject.extend({
+  responsibleId: Uuid.nullable().default(null),
+})
+export type FormAssignment = z.infer<typeof FormAssignment>
+
+/**
+ * Вид формы (ADR-0129): одна запись за период или таблица записей — список
+ * происшествий за сутки, итоги которого считаются из строк.
+ */
+export const FORM_LAYOUTS = ['single', 'table'] as const
+export const FormLayout = z.enum(FORM_LAYOUTS)
+export type FormLayout = z.infer<typeof FormLayout>
+
+/** Строк в сдаче табличной формы — не больше. */
+export const FORM_TABLE_MAX_ROWS = 500
+
+/** Сколько строк сдаёт табличная форма за период; пустая таблица — «записей не было». */
+export const FormTable = z.object({
+  minRows: z.number().int().min(0).max(FORM_TABLE_MAX_ROWS).default(0),
+  maxRows: z.number().int().min(1).max(FORM_TABLE_MAX_ROWS).default(200),
+})
+export type FormTable = z.infer<typeof FormTable>
 
 /** Поле формы — поле датасета; подпись и тип берутся из схемы датасета. */
 export const FormField = z.object({
@@ -79,10 +107,14 @@ export type FormEscalation = z.infer<typeof FormEscalation>
 
 export const FormDefinition = z.object({
   datasetId: Uuid,
+  /** Одна запись за период или таблица; у табличной поля формы — столбцы. */
+  layout: FormLayout.default('single'),
+  /** Границы числа строк — только у табличной формы. */
+  table: FormTable.prefault({}),
   fields: z.array(FormField).min(1).max(100),
   auto: FormAutoFields.prefault({}),
   schedule: FormSchedule,
-  assignments: z.array(FormSubject).max(300).default([]),
+  assignments: z.array(FormAssignment).max(300).default([]),
   review: FormReview.prefault({}),
   escalation: FormEscalation.prefault({}),
 })
@@ -177,8 +209,12 @@ export const FormSubmission = z.object({
   subjectName: z.string().nullable(),
   status: FormSubmissionStatus,
   values: z.record(z.string(), z.unknown()),
+  /** Табличная форма: строки сводки, как их сохранили или сдали; у одиночной — null. */
+  rows: z.array(z.record(z.string(), z.unknown())).nullable(),
   /** Строка датасета, созданная отправкой. */
   rowId: z.string().nullable(),
+  /** Строки датасета, записанные сдачей: у одиночной формы — одна. */
+  rowIds: z.array(z.string()),
   authorId: Uuid.nullable(),
   submittedAt: Timestamp.nullable(),
   reviewerId: Uuid.nullable(),
@@ -198,8 +234,13 @@ export const FormSubmissionOpenInput = z.object({
 })
 export type FormSubmissionOpenInput = z.infer<typeof FormSubmissionOpenInput>
 
+/**
+ * Значения сводки: у одиночной формы — `values`, у табличной — `rows` (пустой
+ * массив — «записей не было»). Вид проверяет сервер по определению формы.
+ */
 export const FormSubmissionSaveInput = z.object({
-  values: z.record(z.string(), z.unknown()),
+  values: z.record(z.string(), z.unknown()).default({}),
+  rows: z.array(z.record(z.string(), z.unknown())).max(FORM_TABLE_MAX_ROWS).optional(),
 })
 export type FormSubmissionSaveInput = z.infer<typeof FormSubmissionSaveInput>
 
@@ -219,6 +260,8 @@ export const FormControlCell = z.object({
   state: FormCellState,
   submissionId: Uuid.nullable(),
   overdue: z.boolean(),
+  /** Табличная форма: сколько строк сдано; у одиночной и несданной — null. */
+  rows: z.number().int().nonnegative().nullable(),
 })
 export type FormControlCell = z.infer<typeof FormControlCell>
 

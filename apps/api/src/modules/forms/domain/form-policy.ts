@@ -5,13 +5,14 @@ import { db } from '~/shared/db/client.js'
 import { forms, objects } from '~/shared/db/schema/index.js'
 
 /**
- * Политика типа `form` (03-access-model.md §5, ADR-0103):
- * - назначенный (сам человек или сотрудник назначенного подразделения) видит
- *   форму — иначе он не смог бы сдать сводку;
+ * Политика типа `form` (03-access-model.md §5, ADR-0103, ADR-0129):
+ * - назначенный (сам человек, сотрудник назначенного подразделения или
+ *   ответственный за сдачу подразделения) видит форму — иначе он не смог бы
+ *   сдать сводку;
  * - ответственный за приёмку правит форму: принимает и возвращает сводки.
  *
- * Оба множества денормализованы в столбцы-массивы при сохранении формы: один
- * и тот же набор читают `authorize()`, списки и поиск.
+ * Множества денормализованы в столбцы-массивы при сохранении формы: один и
+ * тот же набор читают `authorize()`, списки и поиск.
  */
 const reason = (level: Level, key: 'form_assignee' | 'form_reviewer'): AccessReason => ({
   kind: 'type_policy',
@@ -28,6 +29,7 @@ export const formPolicy: TypePolicy = {
         units: forms.assignedUnits,
         users: forms.assignedUsers,
         reviewers: forms.reviewers,
+        responsible: forms.responsibleUsers,
       })
       .from(forms)
       .where(eq(forms.id, object.id))
@@ -37,6 +39,7 @@ export const formPolicy: TypePolicy = {
       ...row.units.map((id) => `unit:${id}`),
       ...row.users.map((id) => `user:${id}`),
       ...row.reviewers.map((id) => `user:${id}`),
+      ...row.responsible.map((id) => `user:${id}`),
     ]
   },
 
@@ -46,6 +49,7 @@ export const formPolicy: TypePolicy = {
         units: forms.assignedUnits,
         users: forms.assignedUsers,
         reviewers: forms.reviewers,
+        responsible: forms.responsibleUsers,
       })
       .from(forms)
       .where(eq(forms.id, object.id))
@@ -56,7 +60,11 @@ export const formPolicy: TypePolicy = {
       result.push({ level: 'edit', reason: reason('edit', 'form_reviewer') })
     }
     const units = new Set(ctx.principals.unitIds)
-    if (row.users.includes(ctx.userId) || row.units.some((id) => units.has(id))) {
+    if (
+      row.users.includes(ctx.userId) ||
+      row.responsible.includes(ctx.userId) ||
+      row.units.some((id) => units.has(id))
+    ) {
       result.push({ level: 'view', reason: reason('view', 'form_assignee') })
     }
     return result
@@ -66,6 +74,7 @@ export const formPolicy: TypePolicy = {
     const conditions: SQL[] = [
       arrayContains(forms.assignedUsers, [ctx.userId]),
       arrayContains(forms.reviewers, [ctx.userId]),
+      arrayContains(forms.responsibleUsers, [ctx.userId]),
     ]
     if (ctx.principals.unitIds.length > 0) {
       conditions.push(arrayOverlaps(forms.assignedUnits, ctx.principals.unitIds))

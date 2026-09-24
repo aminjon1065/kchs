@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm'
-import { boolean, index, pgTable, text, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
+import { boolean, index, jsonb, pgTable, text, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
 import { createdAt, jsonbObject, tsCol, updatedAt } from './_shared.js'
 import { datasets } from './data.js'
 import { users } from './identity.js'
@@ -37,6 +37,11 @@ export const forms = pgTable(
     assignedUsers: uuid('assigned_users').array().notNull().default(sql`'{}'::uuid[]`),
     /** Ответственные за приёмку: выражения назначений, разобранные в людей. */
     reviewers: uuid('reviewers').array().notNull().default(sql`'{}'::uuid[]`),
+    /**
+     * Ответственные за сдачу подразделений (ADR-0129): видят форму и сдают
+     * сводку за своё подразделение, даже если сами в нём не состоят.
+     */
+    responsibleUsers: uuid('responsible_users').array().notNull().default(sql`'{}'::uuid[]`),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -45,8 +50,9 @@ export const forms = pgTable(
 
 /**
  * Отправка формы: сводка одного назначенного за один период. Черновик, сдача,
- * приёмка и возврат — состояния одной строки; `row_id` — строка датасета,
- * записанная отправкой (`_import_id` строки равен `id` отправки).
+ * приёмка и возврат — состояния одной строки; `row_ids` — строки датасета,
+ * записанные отправкой (`_import_id` строк равен `id` отправки): у одиночной
+ * формы одна (она же `row_id`), у табличной (ADR-0129) — сколько сдали.
  */
 export const formSubmissions = pgTable(
   'form_submissions',
@@ -64,8 +70,12 @@ export const formSubmissions = pgTable(
     subjectId: uuid('subject_id').notNull(),
     status: text('status').notNull().default('draft'),
     values: jsonbObject('values'),
+    /** Табличная форма: строки черновика или сдачи; у одиночной — null. */
+    rows: jsonb('rows').$type<Record<string, unknown>[]>(),
     /** `_id` строки датасета в виде строки: у строк датасетов ключ — bigint. */
     rowId: text('row_id'),
+    /** Все строки датасета, записанные сдачей, — повторная сдача заменяет их. */
+    rowIds: text('row_ids').array().notNull().default(sql`'{}'::text[]`),
     authorId: uuid('author_id').references(() => users.id, { onDelete: 'set null' }),
     submittedAt: tsCol('submitted_at'),
     reviewerId: uuid('reviewer_id').references(() => users.id, { onDelete: 'set null' }),

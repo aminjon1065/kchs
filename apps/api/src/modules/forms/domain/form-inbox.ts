@@ -3,11 +3,12 @@ import { InboxService } from '~/kernel/inbox/service.js'
 import type { Ctx } from '~/shared/context.js'
 import type { Executor } from '~/shared/db/client.js'
 import type { FormRow } from './form-service.js'
-import { subjectNames, submittersOf } from './subject-names.js'
+import { responsibleOf, subjectNames, submittersOf } from './subject-names.js'
 
 /**
  * Дела Входящих формы (12-calendar-notifications-home.md §3, ADR-0103):
- * назначенному — «Сдать сводку», ответственному — «Принять сводку».
+ * назначенному — «Сдать сводку» (у подразделения — ответственному за сдачу,
+ * ADR-0129), ответственному за приёмку — «Принять сводку».
  * Ключ дедупликации содержит отправку: у одной формы дел столько, сколько
  * открытых периодов.
  */
@@ -48,7 +49,7 @@ export const FormInbox = {
     submission: SubmissionLike,
     subject: FormSubject,
   ): Promise<void> {
-    for (const userId of await submittersOf(subject)) {
+    for (const userId of await submittersOf(subject, responsibleOf(form, subject))) {
       await InboxService.open(tx, ctx, {
         userId,
         kind: 'submit_form',

@@ -3,7 +3,7 @@ import type { Subscriber } from '~/kernel/events/types.js'
 import { NotificationService } from '~/kernel/notifications/service.js'
 import { db } from '~/shared/db/client.js'
 import { FormService } from './form-service.js'
-import { submittersOf } from './subject-names.js'
+import { responsibleOf, submittersOf } from './subject-names.js'
 
 /**
  * Уведомления по формам сбора данных (ADR-0103). Дела Входящих открывает сам
@@ -54,7 +54,11 @@ export const formSubscribers: Subscriber[] = [
 
       const recipients = new Set<string>()
       if (payload.authorId) recipients.add(payload.authorId)
-      if (subject) for (const userId of await submittersOf(subject)) recipients.add(userId)
+      if (subject) {
+        for (const userId of await submittersOf(subject, responsibleOf(form, subject))) {
+          recipients.add(userId)
+        }
+      }
       if (recipients.size === 0) return
       const titleKey =
         event.type === 'form.returned'

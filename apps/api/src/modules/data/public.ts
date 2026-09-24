@@ -175,6 +175,43 @@ export const DatasetRows = {
   /** Удаление строки той версии, что видел пользователь. */
   remove: (tx: Executor, ctx: Ctx, datasetId: string, rowId: string, ver: number) =>
     RowService.remove(ctx, datasetId, [rowId], tx, { ver }),
+  /**
+   * Несколько строк одной записью (сдача табличной формы, ADR-0129): одна версия
+   * датасета и одно `dataset.rows_changed` на всю пачку; ошибка значения — с
+   * номером строки. Пустая пачка ничего не пишет.
+   */
+  insertMany: async (
+    tx: Executor,
+    ctx: Ctx,
+    datasetId: string,
+    rows: ReadonlyArray<Record<string, unknown>>,
+    options: RowWriteOptions = {},
+  ): Promise<DatasetRow[]> => {
+    if (rows.length === 0) return []
+    return RowService.insert(
+      ctx,
+      datasetId,
+      rows.map((values) => ({ values })),
+      tx,
+      options,
+    )
+  },
+  /**
+   * Удаление строк по `_id` без сверки версий — замена строк прежней сдачи формы
+   * при повторной сдаче (ADR-0129). Возвращает число удалённых строк.
+   */
+  removeMany: async (
+    tx: Executor,
+    ctx: Ctx,
+    datasetId: string,
+    rowIds: readonly string[],
+  ): Promise<number> => {
+    if (rowIds.length === 0) return 0
+    if (rowIds.some((id) => !/^\d+$/.test(id))) {
+      throw errors.validation('Идентификатор строки датасета — целое число')
+    }
+    return RowService.remove(ctx, datasetId, [...rowIds], tx)
+  },
 }
 
 /**

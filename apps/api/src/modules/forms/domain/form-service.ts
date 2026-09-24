@@ -1,16 +1,17 @@
-import type {
-  DatasetRecord,
-  FieldDef,
-  FormCreateInput,
+import {
+  type DatasetRecord,
+  type FieldDef,
+  type FormCreateInput,
   FormDefinition,
-  FormList,
-  FormListQuery,
-  FormRecord,
-  FormSchema,
-  FormUpdateInput,
+  type FormList,
+  type FormListQuery,
+  type FormRecord,
+  type FormSchema,
+  type FormUpdateInput,
 } from '@kchs/contracts'
 import { and, arrayContains, arrayOverlaps, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
+import { directory } from '~/kernel/directory/port.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { LinkService } from '~/kernel/links/service.js'
 import { ObjectService } from '~/kernel/objects/service.js'
@@ -22,9 +23,10 @@ import { errors } from '~/shared/errors.js'
 import { resolvePeople } from './assignees.js'
 
 /**
- * Формы сбора данных (06-analytics-engine.md §13, ADR-0103): форма — объект
- * реестра, привязанный к датасету. Схема формы — подмножество полей датасета;
- * скрытые авто-поля заполняются при отправке.
+ * Формы сбора данных (06-analytics-engine.md §13, ADR-0103, ADR-0129): форма —
+ * объект реестра, привязанный к датасету. Схема формы — подмножество полей
+ * датасета (у табличной формы — столбцы); скрытые авто-поля заполняются при
+ * отправке.
  */
 
 export interface FormRow {
@@ -37,6 +39,8 @@ export interface FormRow {
   assignedUnits: string[]
   assignedUsers: string[]
   reviewers: string[]
+  /** Ответственные за сдачу подразделений (ADR-0129). */
+  responsibleUsers: string[]
   spaceId: string
   parentId: string | null
   ownerId: string | null
@@ -56,6 +60,7 @@ const selection = {
   assignedUnits: forms.assignedUnits,
   assignedUsers: forms.assignedUsers,
   reviewers: forms.reviewers,
+  responsibleUsers: forms.responsibleUsers,
   spaceId: objects.spaceId,
   parentId: objects.parentId,
   ownerId: objects.ownerId,
@@ -68,7 +73,8 @@ const selection = {
 function toRow(row: Record<string, unknown>): FormRow {
   return {
     ...(row as unknown as FormRow),
-    definition: row.definition as FormDefinition,
+    // Разбор контрактом: определения до ADR-0129 получают вид и ответственных по умолчанию
+    definition: FormDefinition.parse(row.definition),
     spaceId: (row.spaceId as string | null) ?? '',
   }
 }
@@ -115,10 +121,32 @@ async function validate(definition: FormDefinition): Promise<void> {
   if (definition.schedule.periodicity === 'once' && !definition.schedule.dueOn) {
     throw errors.validation('У разовой формы укажите день срока')
   }
+  if (definition.layout === 'table' && definition.table.minRows > definition.table.maxRows) {
+    throw errors.validation('Наименьшее число строк таблицы больше наибольшего')
+  }
   const subjects = new Set(definition.assignments.map((item) => `${item.kind}:${item.id}`))
   if (subjects.size !== definition.assignments.length) {
     throw errors.validation('Назначения повторяются')
   }
+  // Ответственный за сдачу (ADR-0129) — у подразделения и только действующий сотрудник
+  if (definition.assignments.some((item) => item.kind === 'user' && item.responsibleId)) {
+    throw errors.validation('У назначения сотруднику ответственный за сдачу — он сам')
+  }
+  const responsible = responsibleIds(definition)
+  if (responsible.length > 0) {
+    const active = new Set(await directory().activeUsers(responsible))
+    if (responsible.some((id) => !active.has(id))) {
+      throw errors.validation('Ответственный за сдачу — не действующий сотрудник')
+    }
+  }
+}
+
+/** Ответственные за сдачу подразделений из назначений формы — без повторов. */
+function responsibleIds(definition: FormDefinition): string[] {
+  const ids = definition.assignments
+    .filter((item) => item.kind === 'unit' && item.responsibleId)
+    .map((item) => item.responsibleId as string)
+  return [...new Set(ids)]
 }
 
 /** Денормализованные столбцы: назначения и разобранные ответственные. */
@@ -135,6 +163,7 @@ async function denormalize(definition: FormDefinition, spaceId: string, ownerId:
       .filter((item) => item.kind === 'user')
       .map((item) => item.id),
     reviewers,
+    responsibleUsers: responsibleIds(definition),
   }
 }
 
@@ -286,11 +315,12 @@ export const FormService = {
     if (query.mine) {
       const mine = [
         arrayContains(forms.assignedUsers, [ctx.userId]),
+        arrayContains(forms.responsibleUsers, [ctx.userId]),
         ...(ctx.principals.unitIds.length > 0
           ? [arrayOverlaps(forms.assignedUnits, ctx.principals.unitIds)]
           : []),
       ]
-      const predicate = mine.length === 1 ? mine[0] : or(...mine)
+      const predicate = or(...mine)
       if (predicate) conditions.push(predicate)
     }
     const rows = await db()
@@ -366,17 +396,23 @@ export const FormService = {
 }
 
 /**
- * Назначения, за которые отчитывается пользователь: он сам и подразделения,
- * в которых он состоит. Матрица контроля показывает их строками.
+ * Назначения, за которые отчитывается пользователь: он сам, подразделения, в
+ * которых он состоит, и подразделения, где он ответственный за сдачу
+ * (ADR-0129). Матрица контроля показывает их строками.
  */
 export function subjectsFor(
   ctx: UserCtx,
-  row: Pick<FormRow, 'assignedUnits' | 'assignedUsers'>,
+  row: Pick<FormRow, 'assignedUsers' | 'definition'>,
 ): Array<{ kind: 'unit' | 'user'; id: string }> {
   const out: Array<{ kind: 'unit' | 'user'; id: string }> = []
   if (row.assignedUsers.includes(ctx.userId)) out.push({ kind: 'user', id: ctx.userId })
   const units = new Set(ctx.principals.unitIds)
-  for (const id of row.assignedUnits) if (units.has(id)) out.push({ kind: 'unit', id })
+  for (const item of row.definition.assignments) {
+    if (item.kind !== 'unit') continue
+    if (units.has(item.id) || item.responsibleId === ctx.userId) {
+      out.push({ kind: 'unit', id: item.id })
+    }
+  }
   return out
 }
 

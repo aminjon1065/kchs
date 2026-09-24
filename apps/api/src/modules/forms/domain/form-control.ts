@@ -22,9 +22,9 @@ import { submissionsOf } from './submission-service.js'
 
 /**
  * Контроль сдачи (06-analytics-engine.md §13, ADR-0103): матрица
- * «назначения × периоды» со статусом каждой сводки. Права — обычные:
- * матрицу целиком видит тот, кто распоряжается формой, назначенный видит
- * свои строки.
+ * «назначения × периоды» со статусом каждой сводки, у табличной формы — и с
+ * числом сданных строк (ADR-0129). Права — обычные: матрицу целиком видит тот,
+ * кто распоряжается формой, назначенный видит свои строки.
  */
 
 /** Сроки периодов одной загрузкой календаря. */
@@ -46,8 +46,9 @@ export const FormControlService = {
     const manage = await authorize(ctx, 'manage', formId, { soft: true })
     const own = subjectsFor(ctx, form)
     const subjects: FormSubject[] = manage.allowed
-      ? form.definition.assignments
+      ? form.definition.assignments.map((item) => ({ kind: item.kind, id: item.id }))
       : (own as FormSubject[])
+    const table = form.definition.layout === 'table'
 
     const periods = recentPeriods(today(config().TZ), form.definition.schedule, query.periods)
     const [due, submissions, names] = await Promise.all([
@@ -82,6 +83,8 @@ export const FormControlService = {
           state,
           submissionId: row?.id ?? null,
           overdue,
+          // Табличная сводка: сколько строк в последней сдаче (ADR-0129)
+          rows: table && row?.submittedAt ? (row.rowIds ?? []).length : null,
         }
       }),
     }))

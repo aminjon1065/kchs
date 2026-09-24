@@ -1,4 +1,4 @@
-import type { FormSubject } from '@kchs/contracts'
+import type { FormDefinition, FormSubject } from '@kchs/contracts'
 import { directory } from '~/kernel/directory/port.js'
 import { OrgService } from '~/modules/identity/public.js'
 
@@ -27,19 +27,46 @@ export const subjectKey = (subject: FormSubject): string => `${subject.kind}:${s
 const FALLBACK_MEMBERS = 10
 
 /**
- * Кому адресуется дело «Сдать сводку»: сотруднику, главе подразделения, а если
- * главы нет — его сотрудникам, иначе сдавать было бы некому.
+ * Ответственный за сдачу назначенного подразделения (ADR-0129) — из назначения
+ * формы; у назначения сотруднику и без указания — null.
  */
-export async function submittersOf(subject: FormSubject): Promise<string[]> {
+export function responsibleOf(
+  form: { definition: FormDefinition },
+  subject: FormSubject,
+): string | null {
+  if (subject.kind !== 'unit') return null
+  const assignment = form.definition.assignments.find(
+    (item) => item.kind === 'unit' && item.id === subject.id,
+  )
+  return assignment?.responsibleId ?? null
+}
+
+/**
+ * Кому адресуется дело «Сдать сводку»: сотруднику; у подразделения —
+ * ответственному за сдачу (ADR-0129), иначе главе подразделения, а если главы
+ * нет — его сотрудникам, иначе сдавать было бы некому. Уволенный или
+ * заблокированный ответственный пропускается — дело уходит главе.
+ */
+export async function submittersOf(
+  subject: FormSubject,
+  responsibleId: string | null = null,
+): Promise<string[]> {
   if (subject.kind === 'user') return [subject.id]
+  if (responsibleId) {
+    const [active] = await directory().activeUsers([responsibleId])
+    if (active) return [active]
+  }
   const head = await directory().unitHead(subject.id)
   if (head) return [head]
   const members = await directory().unitMembers(subject.id)
   return members.slice(0, FALLBACK_MEMBERS)
 }
 
-/** Кому уходит эскалация: руководителю назначенного. */
-export async function managerOf(subject: FormSubject): Promise<string | null> {
-  const [submitter] = await submittersOf(subject)
+/** Кому уходит эскалация: руководителю назначенного (ответственного за сдачу). */
+export async function managerOf(
+  subject: FormSubject,
+  responsibleId: string | null = null,
+): Promise<string | null> {
+  const [submitter] = await submittersOf(subject, responsibleId)
   return submitter ? directory().manager(submitter) : null
 }

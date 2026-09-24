@@ -2,6 +2,7 @@ import type {
   FormReviewInput,
   FormSubject,
   FormSubmission,
+  FormSubmissionSaveInput,
   FormSubmissionStatus,
 } from '@kchs/contracts'
 import { and, eq, inArray, sql } from 'drizzle-orm'
@@ -22,11 +23,13 @@ import { FormInbox } from './form-inbox.js'
 import { type FormRow, FormService, objectRef, subjectsFor } from './form-service.js'
 import { dueAtOf, type FormPeriod, recentPeriods, today } from './periods.js'
 import { subjectKey, subjectNames } from './subject-names.js'
+import { checkTableRows, isBlank, pickFields } from './table-rows.js'
 
 /**
- * Отправки формы (06-analytics-engine.md §13, ADR-0103): сводка одного
- * назначенного за один период. Сдача — запись строки датасета через публичный
- * API модуля «Данные» с `_import_id` отправки; чужих таблиц форма не трогает.
+ * Отправки формы (06-analytics-engine.md §13, ADR-0103, ADR-0129): сводка
+ * одного назначенного за один период. Сдача — запись строки датасета (у
+ * табличной формы — строк) через публичный API модуля «Данные» с `_import_id`
+ * отправки; чужих таблиц форма не трогает.
  */
 
 export interface SubmissionRow {
@@ -40,7 +43,10 @@ export interface SubmissionRow {
   subjectId: string
   status: string
   values: Record<string, unknown>
+  /** Табличная форма: строки черновика или сдачи. */
+  rows: Array<Record<string, unknown>> | null
   rowId: string | null
+  rowIds: string[]
   authorId: string | null
   submittedAt: string | null
   reviewerId: string | null
@@ -103,7 +109,9 @@ async function view(
     subjectName: names.get(subjectKey(subject)) ?? null,
     status: row.status as FormSubmissionStatus,
     values: row.values,
+    rows: form.definition.layout === 'table' ? (row.rows ?? []) : null,
     rowId: row.rowId,
+    rowIds: row.rowIds ?? [],
     authorId: row.authorId,
     submittedAt: row.submittedAt,
     reviewerId: row.reviewerId,
@@ -114,6 +122,12 @@ async function view(
     canReview: row.status === 'submitted' && (canManage || form.reviewers.includes(ctx.userId)),
     updatedAt: row.updatedAt,
   }
+}
+
+/** Строки табличной сводки из запроса: у табличной формы значения — только строками. */
+function tableRows(input: FormSubmissionSaveInput): Array<Record<string, unknown>> {
+  if (!input.rows) throw errors.validation('Табличная сводка сохраняется и сдаётся строками')
+  return input.rows
 }
 
 /** Контекст записи строк: права служебного пользователя формы (ADR-0103). */
@@ -223,11 +237,11 @@ export const SubmissionService = {
     return view(ctx, form, row, manage.allowed)
   },
 
-  /** Черновик: значения сохраняются без записи в датасет. */
+  /** Черновик: значения (у табличной формы — строки) сохраняются без записи в датасет. */
   async save(
     ctx: UserCtx,
     submissionId: string,
-    values: Record<string, unknown>,
+    input: FormSubmissionSaveInput,
   ): Promise<FormSubmission> {
     const row = await loadSubmission(db(), submissionId)
     await authorize(ctx, 'view', row.formId)
@@ -238,21 +252,25 @@ export const SubmissionService = {
     if (!OPEN_STATUSES.includes(row.status as FormSubmissionStatus)) {
       throw errors.conflict('Сводка уже сдана')
     }
+    const patch =
+      form.definition.layout === 'table' ? { rows: tableRows(input) } : { values: input.values }
     await db()
       .update(formSubmissions)
-      .set({ values, authorId: ctx.userId, updatedAt: sql`now()` })
+      .set({ ...patch, authorId: ctx.userId, updatedAt: sql`now()` })
       .where(eq(formSubmissions.id, submissionId))
     return SubmissionService.get(ctx, submissionId)
   },
 
   /**
    * Сдача: значения проверяются и пишутся строкой датасета с `_import_id`
-   * отправки. Повторная сдача после возврата правит ту же строку.
+   * отправки; повторная сдача после возврата правит ту же строку. Табличная
+   * форма (ADR-0129) пишет строки одной записью, а повторная сдача заменяет
+   * строки прежней сдачи новыми; пустая таблица — «записей не было».
    */
   async submit(
     ctx: UserCtx,
     submissionId: string,
-    values: Record<string, unknown>,
+    input: FormSubmissionSaveInput,
   ): Promise<FormSubmission> {
     const current = await loadSubmission(db(), submissionId)
     await authorize(ctx, 'view', current.formId)
@@ -264,56 +282,76 @@ export const SubmissionService = {
     if (!OPEN_STATUSES.includes(current.status as FormSubmissionStatus)) {
       throw errors.conflict('Сводка уже сдана')
     }
-    for (const field of form.definition.fields) {
-      const value = values[field.key]
-      if (field.required && (value === undefined || value === null || value === '')) {
-        throw errors.validation(`Поле «${field.key}» обязательно`)
+    const table = form.definition.layout === 'table'
+    const keys = form.definition.fields.map((item) => item.key)
+    let entered: Array<Record<string, unknown>>
+    if (table) {
+      const check = checkTableRows(form.definition, tableRows(input))
+      if (!check.ok) throw errors.validation(check.message)
+      entered = check.rows
+    } else {
+      for (const field of form.definition.fields) {
+        if (field.required && isBlank(input.values[field.key])) {
+          throw errors.validation(`Поле «${field.key}» обязательно`)
+        }
       }
+      entered = [pickFields(input.values, keys)]
     }
     const writer = await writerCtx(form)
-    const auto = await autoValues(form, { ...current, values }, ctx.userId)
-    const payload = {
-      ...pick(
-        values,
-        form.definition.fields.map((item) => item.key),
-      ),
-      ...auto,
-    }
-    const resubmitted = current.status === 'returned' && current.rowId !== null
+    const auto = await autoValues(form, current, ctx.userId)
+    const payloads = entered.map((values) => ({ ...values, ...auto }))
+    const resubmitted = current.status === 'returned' && (table || current.rowId !== null)
 
-    const result = await db().transaction(async (tx) => {
+    await db().transaction(async (tx) => {
       const [locked] = await tx
-        .select({ status: formSubmissions.status, rowId: formSubmissions.rowId })
+        .select({
+          status: formSubmissions.status,
+          rowId: formSubmissions.rowId,
+          rowIds: formSubmissions.rowIds,
+        })
         .from(formSubmissions)
         .where(eq(formSubmissions.id, submissionId))
         .for('update')
       if (!locked || !OPEN_STATUSES.includes(locked.status as FormSubmissionStatus)) {
         throw errors.conflict('Сводка уже сдана')
       }
-      let rowId = locked.rowId
-      if (rowId) {
+      let rowId: string | null = locked.rowId
+      let rowIds: string[]
+      if (table) {
+        // Возвращённая сводка сдаётся заново целиком: строки прежней сдачи
+        // уходят (с историей), новые помечаются той же отправкой
+        await DatasetRows.removeMany(tx, writer, form.datasetId, locked.rowIds)
+        const inserted = await DatasetRows.insertMany(tx, writer, form.datasetId, payloads, {
+          importId: submissionId,
+        })
+        rowIds = inserted.map((row) => row._id)
+        rowId = null
+      } else if (rowId) {
         const existing = await DatasetQueries.row(writer, form.datasetId, rowId)
         const updated = await DatasetRows.update(
           tx,
           writer,
           form.datasetId,
           rowId,
-          { ver: existing._ver, values: payload },
+          { ver: existing._ver, values: payloads[0] ?? {} },
           { importId: submissionId },
         )
         rowId = updated._id
+        rowIds = [rowId]
       } else {
-        const inserted = await DatasetRows.insert(tx, writer, form.datasetId, payload, {
+        const inserted = await DatasetRows.insert(tx, writer, form.datasetId, payloads[0] ?? {}, {
           importId: submissionId,
         })
         rowId = inserted._id
+        rowIds = [rowId]
       }
       const review = form.definition.review.enabled
       await tx
         .update(formSubmissions)
         .set({
-          values,
+          ...(table ? { rows: entered } : { values: input.values }),
           rowId,
+          rowIds,
           status: review ? 'submitted' : 'accepted',
           authorId: ctx.userId,
           submittedAt: sql`now()`,
@@ -332,6 +370,8 @@ export const SubmissionService = {
           subjectKind: subject.kind,
           subjectId: subject.id,
           rowId,
+          rowIds,
+          rowCount: rowIds.length,
           resubmitted,
         },
       })
@@ -357,9 +397,7 @@ export const SubmissionService = {
           },
         })
       }
-      return rowId
     })
-    if (!result) throw errors.internal('Строка не записана')
     return SubmissionService.get(ctx, submissionId)
   },
 
@@ -430,13 +468,6 @@ export const SubmissionService = {
     })
     return SubmissionService.get(ctx, submissionId)
   },
-}
-
-/** Только ключи схемы формы: лишние значения в датасет не попадают. */
-function pick(values: Record<string, unknown>, keys: readonly string[]): Record<string, unknown> {
-  const out: Record<string, unknown> = {}
-  for (const key of keys) if (key in values) out[key] = values[key]
-  return out
 }
 
 /** Отправки формы за набор периодов — для матрицы контроля. */
