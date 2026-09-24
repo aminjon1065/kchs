@@ -1,3 +1,4 @@
+import { hoursDeadline, hoursReminder, type StepDeadline } from '@kchs/process'
 import { config } from '~/shared/config/index.js'
 import { systemCtx } from '~/shared/context.js'
 import type { Executor } from '~/shared/db/client.js'
@@ -22,8 +23,30 @@ function morningOf(day: string, timezone: string): Date {
 }
 
 /**
- * Таймеры срока шага: напоминание за рабочий день и в день срока (утром),
- * просрочка — в конце дня срока. Прошедшие моменты не ставятся.
+ * Момент срока шага от активации: рабочие дни — конец N-го рабочего дня по
+ * производственному календарю, часы — ровно через N календарных часов (ADR-0131).
+ */
+export async function deadlineAt(tx: Executor, from: Date, deadline: StepDeadline): Promise<Date> {
+  if (deadline.unit === 'hours') return hoursDeadline(from, deadline.value)
+  return (await BusinessCalendar.deadline(from, deadline.value, { executor: tx })).dueAt
+}
+
+/**
+ * Таймеры часового срока (ADR-0131): одно напоминание — за час до срока, а у
+ * срока короче двух часов посередине, — и просрочка в момент срока. Прошедший
+ * момент напоминания не ставится.
+ */
+export function hourTimers(activatedAt: string, dueAt: string, now: Date): StepTimers {
+  const timers: StepTimers = {}
+  const remind = hoursReminder(activatedAt, dueAt)
+  if (remind > now) timers.remindSoon = { at: remind.toISOString() }
+  timers.overdue = { at: new Date(dueAt).toISOString() }
+  return timers
+}
+
+/**
+ * Таймеры дневного срока шага: напоминание за рабочий день и в день срока
+ * (утром), просрочка — в конце дня срока. Прошедшие моменты не ставятся.
  */
 export async function dueTimers(tx: Executor, dueAt: string, now: Date): Promise<StepTimers> {
   const timezone = config().TZ

@@ -3,7 +3,7 @@ import {
   assignStep,
   completeStep,
   DECISIONS_BY_TYPE,
-  dueOf,
+  deadlineOf,
   type InstanceState,
   isDecisionStep,
   type MachineEnv,
@@ -16,6 +16,7 @@ import {
   type StepRun,
   stepAssigneeExpressions,
   type Transition,
+  waitDurationOf,
 } from '@kchs/process'
 import { evaluateCondition } from '@kchs/query/expr'
 import { eq } from 'drizzle-orm'
@@ -25,7 +26,6 @@ import type { Executor } from '~/shared/db/client.js'
 import { objects } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
-import { BusinessCalendar } from '../business-calendar/service.js'
 import { directory } from '../directory/port.js'
 import { publishEvent } from '../events/publisher.js'
 import { InboxService } from '../inbox/service.js'
@@ -41,7 +41,14 @@ import {
 } from './registry.js'
 import type { LoadedInstance, StepMeta } from './store.js'
 import { saveState } from './store.js'
-import { dueTimers, nextTimerAt, scheduleTimerJob, untilMoment } from './timer-schedule.js'
+import {
+  deadlineAt,
+  dueTimers,
+  hourTimers,
+  nextTimerAt,
+  scheduleTimerJob,
+  untilMoment,
+} from './timer-schedule.js'
 
 /**
  * Исполнение переходов в транзакции (ADR-0079): модель из `@kchs/process`
@@ -289,14 +296,10 @@ export class Execution {
       const step = this.stepOf(run)
       if (item.kind === 'resolve') {
         const assignees = await this.resolve(run, step)
-        const due = dueOf(step)
+        const deadline = deadlineOf(step)
         const dueAt =
-          due !== undefined && (isDecisionStep(step) || step.type === 'task')
-            ? (
-                await BusinessCalendar.deadline(new Date(run.activatedAt), due, {
-                  executor: this.tx,
-                })
-              ).dueAt.toISOString()
+          deadline !== undefined && (isDecisionStep(step) || step.type === 'task')
+            ? (await deadlineAt(this.tx, new Date(run.activatedAt), deadline)).toISOString()
             : null
         const result = transition(() =>
           assignStep(this.def, this.state, { stepId: run.id, assignees, dueAt }, this.env()),
@@ -400,13 +403,9 @@ export class Execution {
   /** Ожидание: событие об этом же объекте и/или срок. */
   private async startWait(run: StepRun, step: Extract<Step, { type: 'wait' }>): Promise<void> {
     const moments: string[] = []
-    if (step.durationWorkingDays !== undefined) {
-      const { dueAt } = await BusinessCalendar.deadline(
-        new Date(run.activatedAt),
-        step.durationWorkingDays,
-        { executor: this.tx },
-      )
-      moments.push(dueAt.toISOString())
+    const duration = waitDurationOf(step)
+    if (duration !== undefined) {
+      moments.push((await deadlineAt(this.tx, new Date(run.activatedAt), duration)).toISOString())
     }
     if (step.until) {
       const until = parseUntil(step.until)
@@ -456,8 +455,12 @@ export class Execution {
       }
       const old = previous.get(run.id)
       // Срок у шага появился в этом проходе (назначенные определены) — таймеры срока
-      if (run.dueAt && !old?.dueAt && !meta?.timers.overdue && isDecisionStep(this.stepOf(run))) {
-        const timers = await dueTimers(this.tx, run.dueAt, this.now)
+      const step = this.stepOf(run)
+      if (run.dueAt && !old?.dueAt && !meta?.timers.overdue && isDecisionStep(step)) {
+        const timers =
+          deadlineOf(step)?.unit === 'hours'
+            ? hourTimers(run.activatedAt, run.dueAt, this.now)
+            : await dueTimers(this.tx, run.dueAt, this.now)
         this.loaded.meta.set(run.id, {
           timers,
           nextTimerAt: nextTimerAt(timers),

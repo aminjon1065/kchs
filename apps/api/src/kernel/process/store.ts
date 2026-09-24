@@ -39,8 +39,12 @@ export interface StepTimer {
   firedAt?: string | null
 }
 
+/**
+ * `remindBefore`, `remindDue` — напоминания дневного срока (за рабочий день и в
+ * день срока), `remindSoon` — напоминание часового срока (ADR-0131).
+ */
 export type StepTimers = Partial<
-  Record<'remindBefore' | 'remindDue' | 'overdue' | 'wait', StepTimer>
+  Record<'remindBefore' | 'remindDue' | 'remindSoon' | 'overdue' | 'wait', StepTimer>
 >
 
 /** Поля строки шага, которыми управляет ядро, а не модель переходов. */

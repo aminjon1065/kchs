@@ -4,7 +4,7 @@ import {
   checkDefinition,
   conditionKey,
   type DefinitionIssue,
-  dueOf,
+  deadlineOf,
   type ProcessDefinition,
   type ProcessDefinitionDetails,
   ProcessDefinition as ProcessDefinitionSchema,
@@ -28,13 +28,13 @@ import { AppError, errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { authorize, loadObject } from '../access/authorize.js'
 import { AUDIT_ACTIONS, audit } from '../audit/service.js'
-import { BusinessCalendar } from '../business-calendar/service.js'
 import { directory } from '../directory/port.js'
 import { publishEvent } from '../events/publisher.js'
 import { objectType } from '../objects/registry.js'
 import { kernelDirectory } from './directory.js'
 import { evaluate, evaluationData, loadObjectData } from './engine.js'
 import { processObjectProvider, processStepHandler, waitableEvents } from './registry.js'
+import { deadlineAt } from './timer-schedule.js'
 
 /**
  * Определения маршрутов с версиями (ADR-0079). Черновик у ключа один и
@@ -501,7 +501,7 @@ export const DefinitionService = {
         kernelDirectory,
       )
       const refs = await refsOf(resolved.assignees.map((item) => item.userId))
-      const due = dueOf(step)
+      const deadline = deadlineOf(step)
       steps.push({
         key,
         type: step.type,
@@ -513,9 +513,7 @@ export const DefinitionService = {
         })),
         issues: resolved.issues,
         dueAt:
-          due !== undefined
-            ? (await BusinessCalendar.deadline(now, due)).dueAt.toISOString()
-            : null,
+          deadline !== undefined ? (await deadlineAt(db(), now, deadline)).toISOString() : null,
       })
     }
     return { issues, conditions, steps }

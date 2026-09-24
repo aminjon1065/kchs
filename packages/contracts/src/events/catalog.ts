@@ -613,7 +613,8 @@ export const EVENT_PAYLOADS = {
     kind: z.string(),
     dueAt: z.string(),
     userIds: z.array(Uuid),
-    when: z.enum(['before', 'due_day']),
+    /** За рабочий день, в день срока или незадолго до часового срока (ADR-0131). */
+    when: z.enum(['before', 'due_day', 'soon']),
   }),
   /** Срок шага истёк: не ответившие и получатели эскалации по таймерам определения. */
   'process.step_overdue': z.object({

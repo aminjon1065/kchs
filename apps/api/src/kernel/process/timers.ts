@@ -15,15 +15,22 @@ import { nextTimerAt, TIMER_JOB } from './timer-schedule.js'
 
 /**
  * Срабатывание таймеров шагов (ADR-0079): напоминания за рабочий день и в
- * день срока, просрочка с эскалацией по `timers` определения, срок ожидания
- * `wait`. Обработчик идемпотентен: момент отмечается в строке шага под
+ * день срока (у часового срока — одно, незадолго до срока, ADR-0131), просрочка
+ * с эскалацией по `timers` определения, срок ожидания `wait`. Обработчик идемпотентен: момент отмечается в строке шага под
  * блокировкой экземпляра, повтор задания ничего не дублирует. Обход таймеров
  * по расписанию подхватывает моменты, задание которых потеряно (очередь
  * очищена): состояние — только в базе.
  */
 export const SWEEP_JOB = 'process.timers-sweep'
 
-const ORDER = ['remindBefore', 'remindDue', 'overdue', 'wait'] as const
+const ORDER = ['remindBefore', 'remindDue', 'remindSoon', 'overdue', 'wait'] as const
+
+/** Какое напоминание сработало: за рабочий день, в день срока, незадолго до часового срока. */
+const REMINDER_WHEN = {
+  remindBefore: 'before',
+  remindDue: 'due_day',
+  remindSoon: 'soon',
+} as const
 
 export async function fireStepTimers(stepId: string, now = new Date()): Promise<number> {
   return db().transaction(async (tx) => {
@@ -55,17 +62,12 @@ export async function fireStepTimers(stepId: string, now = new Date()): Promise<
         if (!timer || timer.firedAt || Date.parse(timer.at) > now.getTime()) continue
         timer.firedAt = now.toISOString()
         fired += 1
-        if (kind === 'remindBefore' || kind === 'remindDue') {
+        if (kind === 'remindBefore' || kind === 'remindDue' || kind === 'remindSoon') {
           if (pending.length === 0 || !run.dueAt) continue
           await publishEvent(tx, ctx, {
             type: 'process.step_due_soon',
             object,
-            payload: {
-              ...base,
-              dueAt: run.dueAt,
-              userIds: pending,
-              when: kind === 'remindBefore' ? 'before' : 'due_day',
-            },
+            payload: { ...base, dueAt: run.dueAt, userIds: pending, when: REMINDER_WHEN[kind] },
           })
         } else if (kind === 'overdue') {
           await publishEvent(tx, ctx, {

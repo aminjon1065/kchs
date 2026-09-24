@@ -152,7 +152,9 @@ async function notify(event: EventEnvelope): Promise<void> {
         titleKey:
           payload.when === 'before'
             ? 'notifications.tpl.processDueSoon'
-            : 'notifications.tpl.processDueToday',
+            : payload.when === 'soon'
+              ? 'notifications.tpl.processDueHours'
+              : 'notifications.tpl.processDueToday',
         aggregateKey: `process:${String(payload.stepId)}:${String(payload.when)}`,
       })
       break
