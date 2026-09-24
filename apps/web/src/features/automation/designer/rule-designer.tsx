@@ -1,4 +1,4 @@
-import type { RuleCondition, RuleDefinition, RuleIssue } from '@kchs/contracts'
+import type { RuleDefinition, RuleIssue } from '@kchs/contracts'
 import { localizedText } from '@kchs/i18n'
 import {
   Badge,
@@ -28,24 +28,9 @@ import { RunAsSelect } from '~/features/admin/run-as-select.js'
 import { ApiError } from '~/shared/api/client.js'
 import { automationApi, automationKeys, ruleCatalogQuery, ruleQuery } from '../queries.js'
 import { ActionEditor } from './action-editor.js'
+import { conditionList, conditionOf } from './conditions.js'
 import { DryRunPanel, RunsPanel } from './runs-panel.js'
 import { TriggerEditor } from './trigger-editor.js'
-
-/** Условия правила в конструкторе — плоский список выражений, объединённых «и». */
-function conditionList(condition: RuleCondition | null): string[] {
-  if (!condition) return []
-  if ('expr' in condition) return [condition.expr]
-  if ('and' in condition) return condition.and.flatMap(conditionList)
-  if ('or' in condition) return condition.or.flatMap(conditionList)
-  return conditionList(condition.not)
-}
-
-function conditionOf(expressions: string[]): RuleCondition | null {
-  const list = expressions.map((item) => item.trim()).filter(Boolean)
-  if (list.length === 0) return null
-  if (list.length === 1) return { expr: list[0] as string }
-  return { and: list.map((expr) => ({ expr })) }
-}
 
 /**
  * Конструктор правила «когда / если / то» (14-automation-integrations.md §1,
