@@ -52,8 +52,9 @@ test.describe('Правила автоматизации', () => {
     // В шаблоне уже есть действие с тегом — заполняем только что добавленное
     await page.getByLabel('Тег').first().fill(`авто-${tag}`)
 
-    // Служебная учётная запись (ADR-0130) с правкой в пространствах администратора:
-    // правило ставит тег на папку, созданную в любом из них
+    // Служебная учётная запись (ADR-0130) с правкой в общих и командных пространствах
+    // администратора: правило ставит тег на папку, созданную в любом из них. На общем стенде
+    // копятся пространства подразделений прогонов — их не берём (в записи не больше 50)
     const spaces = (await (await request.get('/api/v1/spaces')).json()).items as Array<{
       id: string
       kind: string
@@ -62,7 +63,8 @@ test.describe('Правила автоматизации', () => {
       request,
       `Робот тегов ${tag}`,
       spaces
-        .filter((space) => space.kind !== 'personal')
+        .filter((space) => space.kind === 'org' || space.kind === 'team')
+        .slice(0, 50)
         .map((space) => ({ spaceId: space.id, role: 'editor' as const })),
     )
     await page.getByRole('combobox', { name: 'Работает от имени' }).click()

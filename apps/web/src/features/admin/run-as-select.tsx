@@ -29,7 +29,10 @@ export function RunAsSelect({
   const t = useT()
   const client = useQueryClient()
   const { data: me } = useQuery(meQuery())
-  const { data: accounts = [] } = useQuery({ ...serviceAccountsQuery(), enabled: !disabled })
+  const { data: accounts = [], refetch } = useQuery({
+    ...serviceAccountsQuery(),
+    enabled: !disabled,
+  })
   const [creating, setCreating] = useState(false)
   const canCreate = me?.capabilities.includes('users.manage') ?? false
   const active = accounts.filter((account) => account.status === 'active')
@@ -41,6 +44,11 @@ export function RunAsSelect({
         value={value ?? NONE}
         disabled={disabled}
         onValueChange={(next) => onChange(next === NONE ? null : next)}
+        // Список перечитывается при открытии: запись, заведённая в другой вкладке или
+        // другим администратором, видна без перезагрузки
+        onOpenChange={(open) => {
+          if (open) void refetch()
+        }}
       >
         <SelectTrigger id={id} className="min-w-0 flex-1">
           <SelectValue />
