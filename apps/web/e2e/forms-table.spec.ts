@@ -1,4 +1,4 @@
-import { expect, openScreen, openWorkspace, test } from './fixtures.js'
+import { createServiceAccount, expect, openScreen, openWorkspace, test } from './fixtures.js'
 
 /**
  * Табличная форма сбора (N49, ADR-0129): сводка за период — таблица строк с
@@ -70,11 +70,16 @@ test.describe('Данные: табличная форма сбора', () => {
     })
     expect(lookup.ok(), await lookup.text()).toBeTruthy()
 
+    // Строки сводки пишет служебная учётная запись с правкой пространства (ADR-0130)
+    const writer = await createServiceAccount(request, `Сводки ${formName}`, [
+      { spaceId: spaceId as string, role: 'editor' },
+    ])
     const form = await request.post('/api/v1/forms', {
       headers,
       data: {
         name: formName,
         spaceId,
+        runAs: writer.id,
         definition: {
           datasetId,
           layout: 'table',

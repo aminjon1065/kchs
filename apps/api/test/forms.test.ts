@@ -1,5 +1,11 @@
 import { beforeAll, describe, expect, it } from 'vitest'
-import { call, registerLifecycle, setupFixture, type TestContext } from './helpers.js'
+import {
+  call,
+  createServiceAccount,
+  registerLifecycle,
+  setupFixture,
+  type TestContext,
+} from './helpers.js'
 
 /**
  * Формы сбора данных (P5-E03, ADR-0103): форма — объект реестра над датасетом,
@@ -12,6 +18,8 @@ const run = Date.now().toString(36)
 let fx: TestContext
 let datasetId = ''
 let formId = ''
+/** Служебная учётная запись, от имени которой форма пишет строки (ADR-0130). */
+let writer = ''
 
 /** Период, который уже закрыт: вчерашний день в поясе установки. */
 const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10)
@@ -38,6 +46,7 @@ const definition = (patch: Record<string, unknown> = {}) => ({
 
 beforeAll(async () => {
   fx = await setupFixture()
+  writer = await createServiceAccount(fx.app, fx.admin, `Сводки ${run}`, [fx.spaceId])
   const dataset = await call(fx.app, {
     method: 'POST',
     url: '/datasets',
@@ -62,7 +71,12 @@ beforeAll(async () => {
     method: 'POST',
     url: '/forms',
     as: fx.admin,
-    payload: { name: `Суточная сводка ${run}`, spaceId: fx.spaceId, definition: definition() },
+    payload: {
+      name: `Суточная сводка ${run}`,
+      spaceId: fx.spaceId,
+      definition: definition(),
+      runAs: writer,
+    },
   })
   expect(created.statusCode, created.body).toBe(200)
   formId = created.json().id as string
@@ -248,6 +262,56 @@ describe('форма сбора данных', () => {
       },
     })
     expect(bad.statusCode).toBe(400)
+  })
+
+  it('форма пишет строки только от имени служебной учётной записи (ADR-0130)', async () => {
+    const person = await call(fx.app, {
+      method: 'POST',
+      url: '/forms',
+      as: fx.admin,
+      payload: {
+        name: `От имени сотрудника ${run}`,
+        spaceId: fx.spaceId,
+        definition: definition(),
+        runAs: fx.users.member.id,
+      },
+    })
+    expect(person.statusCode).toBe(400)
+    expect(person.json().detail).toMatch(/служебной учётной записи/)
+
+    const draft = await call(fx.app, {
+      method: 'POST',
+      url: '/forms',
+      as: fx.admin,
+      payload: {
+        name: `Без служебной записи ${run}`,
+        spaceId: fx.spaceId,
+        definition: definition(),
+      },
+    })
+    expect(draft.statusCode, draft.body).toBe(200)
+    const id = draft.json().id as string
+    const enable = () =>
+      call(fx.app, {
+        method: 'POST',
+        url: `/forms/${id}/enabled`,
+        as: fx.admin,
+        payload: { enabled: true },
+      })
+    const refused = await enable()
+    expect(refused.statusCode).toBe(400)
+    expect(refused.json().detail).toMatch(/служебную учётную запись/)
+
+    const chosen = await call(fx.app, {
+      method: 'PUT',
+      url: `/forms/${id}`,
+      as: fx.admin,
+      payload: { runAs: writer },
+    })
+    expect(chosen.statusCode, chosen.body).toBe(200)
+    expect((await enable()).statusCode).toBe(200)
+    const record = await call(fx.app, { url: `/forms/${id}`, as: fx.admin })
+    expect(record.json()).toMatchObject({ runAs: writer, enabled: true })
   })
 
   it('включение формы без назначений отклоняется', async () => {

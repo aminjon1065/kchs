@@ -19,6 +19,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Save } from 'lucide-react'
 import { useId, useState } from 'react'
 import { useT } from '~/app/i18n.js'
+import { RunAsSelect } from '~/features/admin/run-as-select.js'
 import { UserPicker } from '~/features/tasks/user-picker.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { orgUnitsQuery, principalRefsQuery } from '~/shared/api/queries.js'
@@ -41,7 +42,9 @@ export function FormSettingsTab({ form }: { form: FormRecord }) {
   const client = useQueryClient()
   const timeId = useId()
   const dueId = useId()
+  const runAsId = useId()
   const [draft, setDraft] = useState<FormDefinition>(form.definition)
+  const [runAs, setRunAs] = useState<string | null>(form.runAs)
 
   const { data: dataset } = useQuery({
     queryKey: ['forms', 'dataset', form.datasetId],
@@ -50,7 +53,7 @@ export function FormSettingsTab({ form }: { form: FormRecord }) {
   const { data: units = [] } = useQuery(orgUnitsQuery())
 
   const save = useMutation({
-    mutationFn: () => formsApi.update(form.id, { definition: draft }),
+    mutationFn: () => formsApi.update(form.id, { definition: draft, runAs }),
     onSuccess: async () => {
       toast.success(t('forms.settings.saved'))
       await client.invalidateQueries({ queryKey: formKeys.all })
@@ -115,6 +118,15 @@ export function FormSettingsTab({ form }: { form: FormRecord }) {
 
   return (
     <div className="mx-auto flex w-full max-w-[860px] flex-col gap-4">
+      <Card title={t('forms.settings.writer')}>
+        <Field
+          label={t('automation.fields.runAs')}
+          htmlFor={runAsId}
+          hint={t('forms.settings.runAsHint')}
+        >
+          <RunAsSelect id={runAsId} value={runAs} onChange={setRunAs} disabled={!form.canManage} />
+        </Field>
+      </Card>
       <Card title={t('forms.settings.layout')}>
         <div className="grid gap-3 sm:grid-cols-3">
           <Field label={t('forms.settings.layoutKind')} hint={t('forms.settings.layoutHint')}>

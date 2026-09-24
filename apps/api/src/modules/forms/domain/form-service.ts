@@ -11,6 +11,7 @@ import {
 } from '@kchs/contracts'
 import { and, arrayContains, arrayOverlaps, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
+import { buildUserCtxFor } from '~/kernel/access/explain.js'
 import { directory } from '~/kernel/directory/port.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { LinkService } from '~/kernel/links/service.js'
@@ -167,6 +168,36 @@ async function denormalize(definition: FormDefinition, spaceId: string, ownerId:
   }
 }
 
+const NO_ASSIGNMENTS = 'У формы нет назначений — сдавать сводку некому'
+const NO_RUN_AS =
+  'Выберите служебную учётную запись, от имени которой форма пишет строки: без неё форму не включить'
+
+/**
+ * Форма пишет строки датасета от имени служебной учётной записи (ADR-0130) — не
+ * сотрудника: уход человека не останавливает сбор, а права записи видны отдельно.
+ * Администратор системы недопустим, как у правил: форма не должна мочь больше нужного.
+ */
+export async function assertRunAs(userId: string): Promise<void> {
+  const ref = (await directory().refs([userId])).get(userId)
+  if (!ref) throw errors.validation('Служебная учётная запись формы не найдена')
+  if (ref.kind !== 'service') {
+    throw errors.validation(
+      'Форма пишет строки только от имени служебной учётной записи: заведите её в консоли администрирования',
+    )
+  }
+  // `activeUsers` справочника отдаёт только людей (ADR-0130) — статус берётся из карточки
+  if (ref.status !== 'active') {
+    throw errors.validation('Служебная учётная запись формы заблокирована')
+  }
+  const ctx = await buildUserCtxFor(userId)
+  if (!ctx) throw errors.validation('Служебная учётная запись формы не найдена')
+  if (ctx.isSystemAdmin) {
+    throw errors.validation(
+      'Форма не пишет строки от имени администратора системы: заведите служебную запись с нужными правами',
+    )
+  }
+}
+
 export const FormService = {
   async load(executor: Executor, id: string): Promise<FormRow | null> {
     const [row] = await executor
@@ -186,6 +217,11 @@ export const FormService = {
 
   async create(tx: Executor, ctx: UserCtx, input: FormCreateInput): Promise<string> {
     await validate(input.definition)
+    if (input.runAs) await assertRunAs(input.runAs)
+    if (input.enabled) {
+      if (!input.runAs) throw errors.validation(NO_RUN_AS)
+      if (input.definition.assignments.length === 0) throw errors.validation(NO_ASSIGNMENTS)
+    }
     const object = await ObjectService.create(tx, ctx, {
       type: 'form',
       spaceId: input.spaceId,
@@ -200,7 +236,7 @@ export const FormService = {
       datasetId: input.definition.datasetId,
       definition: input.definition,
       enabled: input.enabled,
-      runAs: ctx.userId,
+      runAs: input.runAs,
       ...extra,
     })
     await LinkService.setDependencies(tx, object.id, [input.definition.datasetId])
@@ -225,6 +261,15 @@ export const FormService = {
       })
       if (input.name !== undefined) changed.push('name')
       if (input.description !== undefined) changed.push('description')
+    }
+    if (input.runAs !== undefined && input.runAs !== current.runAs) {
+      if (input.runAs) await assertRunAs(input.runAs)
+      else if (current.enabled) throw errors.validation(NO_RUN_AS)
+      await tx
+        .update(forms)
+        .set({ runAs: input.runAs, updatedAt: sql`now()` })
+        .where(eq(forms.id, id))
+      changed.push('runAs')
     }
     if (input.definition) {
       await validate(input.definition)
@@ -263,7 +308,12 @@ export const FormService = {
     const current = await FormService.require(tx, id)
     if (current.enabled === enabled) return
     if (enabled && current.definition.assignments.length === 0) {
-      throw errors.validation('У формы нет назначений — сдавать сводку некому')
+      throw errors.validation(NO_ASSIGNMENTS)
+    }
+    if (enabled) {
+      if (!current.runAs) throw errors.validation(NO_RUN_AS)
+      // Запись могли заблокировать после сохранения формы — проверяется при включении
+      await assertRunAs(current.runAs)
     }
     await tx.update(forms).set({ enabled, updatedAt: sql`now()` }).where(eq(forms.id, id))
     await ObjectService.update(
@@ -297,6 +347,7 @@ export const FormService = {
       datasetName: dataset,
       definition: row.definition,
       enabled: row.enabled,
+      runAs: row.runAs,
       canManage: manage.allowed,
       canSubmit: subjectsFor(ctx, row).length > 0,
       createdAt: row.createdAt,

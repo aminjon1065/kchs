@@ -1,4 +1,4 @@
-import { expect, openScreen, openWorkspace, test } from './fixtures.js'
+import { createServiceAccount, expect, openScreen, openWorkspace, test } from './fixtures.js'
 
 /**
  * Формы сбора данных и алерты (P5-E03, ADR-0103, ADR-0104): сводка сдаётся с
@@ -38,11 +38,16 @@ test.describe('Данные: формы сбора и алерты', () => {
     expect(dataset.ok(), await dataset.text()).toBeTruthy()
     const datasetId = (await dataset.json()).id as string
 
+    // Строки сводки пишет служебная учётная запись с правкой пространства (ADR-0130)
+    const writer = await createServiceAccount(request, `Сводки ${formName}`, [
+      { spaceId: spaceId as string, role: 'editor' },
+    ])
     const form = await request.post('/api/v1/forms', {
       headers,
       data: {
         name: formName,
         spaceId,
+        runAs: writer.id,
         definition: {
           datasetId,
           fields: [

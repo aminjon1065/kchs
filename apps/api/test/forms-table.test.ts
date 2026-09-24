@@ -1,6 +1,13 @@
 import { sql } from 'drizzle-orm'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { call, db, registerLifecycle, setupFixture, type TestContext } from './helpers.js'
+import {
+  call,
+  createServiceAccount,
+  db,
+  registerLifecycle,
+  setupFixture,
+  type TestContext,
+} from './helpers.js'
 
 /**
  * Табличные формы и ответственный за сдачу (N48, N49, ADR-0129): сводка за
@@ -20,6 +27,8 @@ const run = Date.now().toString(36)
 let fx: TestContext
 let datasetId = ''
 let formId = ''
+/** Служебная учётная запись, от имени которой форма пишет строки (ADR-0130). */
+let writer = ''
 
 /** Закрытые периоды ежедневной формы: вчера и позавчера в поясе установки. */
 const day = (offset: number) =>
@@ -70,6 +79,7 @@ async function openSubmission(periodKey: string) {
 
 beforeAll(async () => {
   fx = await setupFixture()
+  writer = await createServiceAccount(fx.app, fx.admin, `Сводки ${run}`, [fx.spaceId])
   const dataset = await call(fx.app, {
     method: 'POST',
     url: '/datasets',
@@ -94,7 +104,12 @@ beforeAll(async () => {
     method: 'POST',
     url: '/forms',
     as: fx.admin,
-    payload: { name: `Суточная сводка ${run}`, spaceId: fx.spaceId, definition: definition() },
+    payload: {
+      name: `Суточная сводка ${run}`,
+      spaceId: fx.spaceId,
+      definition: definition(),
+      runAs: writer,
+    },
   })
   expect(created.statusCode, created.body).toBe(200)
   formId = created.json().id as string

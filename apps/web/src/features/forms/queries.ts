@@ -2,7 +2,6 @@ import type {
   FormControl,
   FormControlQuery,
   FormCreateInput,
-  FormDefinition,
   FormDutyList,
   FormList,
   FormListQuery,
@@ -12,6 +11,7 @@ import type {
   FormSubject,
   FormSubmission,
   FormSubmissionSaveInput,
+  FormUpdateInput,
 } from '@kchs/contracts'
 import { queryOptions } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
@@ -72,8 +72,7 @@ export const formSubmissionQuery = (id: string) =>
 
 export const formsApi = {
   create: (input: FormCreateInput) => http.post<{ id: string }>('/forms', input),
-  update: (id: string, body: { name?: string; definition?: FormDefinition }) =>
-    http.put<FormRecord>(`/forms/${id}`, body),
+  update: (id: string, body: FormUpdateInput) => http.put<FormRecord>(`/forms/${id}`, body),
   setEnabled: (id: string, enabled: boolean) =>
     http.post<FormRecord>(`/forms/${id}/enabled`, { enabled }),
   open: (id: string, periodKey: string, subject: FormSubject) =>

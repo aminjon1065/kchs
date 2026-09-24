@@ -294,7 +294,8 @@ function CreateFormDialog({
         review: { enabled: false, reviewers: [] },
         escalation: { enabled: true, afterWorkingDays: 1 },
       }
-      return formsApi.create({ name, spaceId, definition, enabled: false })
+      // Служебную запись выбирают в настройках: без неё форма создаётся выключенной
+      return formsApi.create({ name, spaceId, definition, runAs: null, enabled: false })
     },
     onSuccess: async (result) => {
       await client.invalidateQueries({ queryKey: formKeys.all })

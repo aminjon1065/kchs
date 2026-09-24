@@ -20,7 +20,7 @@ import { formSubmissions } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { FormInbox } from './form-inbox.js'
-import { type FormRow, FormService, objectRef, subjectsFor } from './form-service.js'
+import { assertRunAs, type FormRow, FormService, objectRef, subjectsFor } from './form-service.js'
 import { dueAtOf, type FormPeriod, recentPeriods, today } from './periods.js'
 import { subjectKey, subjectNames } from './subject-names.js'
 import { checkTableRows, isBlank, pickFields } from './table-rows.js'
@@ -130,11 +130,17 @@ function tableRows(input: FormSubmissionSaveInput): Array<Record<string, unknown
   return input.rows
 }
 
-/** Контекст записи строк: права служебного пользователя формы (ADR-0103). */
+/**
+ * Контекст записи строк: права служебной учётной записи формы (ADR-0103, ADR-0130).
+ * Запись проверяется в момент сдачи (ADR-0123): её могли заблокировать после включения.
+ */
 async function writerCtx(form: FormRow): Promise<UserCtx> {
-  const userId = form.runAs ?? form.ownerId
-  const ctx = userId ? await buildUserCtxFor(userId) : null
-  if (!ctx) throw errors.validation('Служебный пользователь формы недоступен')
+  if (!form.runAs) {
+    throw errors.validation('У формы не выбрана служебная учётная запись — сдача невозможна')
+  }
+  await assertRunAs(form.runAs)
+  const ctx = await buildUserCtxFor(form.runAs)
+  if (!ctx) throw errors.validation('Служебная учётная запись формы недоступна')
   return ctx
 }
 

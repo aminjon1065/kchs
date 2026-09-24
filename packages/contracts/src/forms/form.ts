@@ -147,6 +147,8 @@ export const FormRecord = z.object({
   datasetName: z.string().nullable(),
   definition: FormDefinition,
   enabled: z.boolean(),
+  /** Служебная учётная запись, от имени которой пишутся строки (ADR-0130). */
+  runAs: Uuid.nullable(),
   /** Право менять форму и принимать отправки. */
   canManage: z.boolean(),
   /** Смотрящий — назначенный: ему открыт экран заполнения. */
@@ -189,6 +191,11 @@ export const FormCreateInput = z.object({
   spaceId: Uuid,
   parentId: Uuid.nullable().optional(),
   definition: FormDefinition,
+  /**
+   * Служебная учётная запись, от имени которой форма пишет строки датасета
+   * (ADR-0130): без неё форму можно настроить, но не включить.
+   */
+  runAs: Uuid.nullable().default(null),
   enabled: z.boolean().default(false),
 })
 export type FormCreateInput = z.infer<typeof FormCreateInput>
@@ -198,6 +205,7 @@ export const FormUpdateInput = z
     name: Name,
     description: Description.nullable(),
     definition: FormDefinition,
+    runAs: Uuid.nullable(),
   })
   .partial()
 export type FormUpdateInput = z.infer<typeof FormUpdateInput>

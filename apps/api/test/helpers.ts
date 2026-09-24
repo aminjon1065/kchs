@@ -246,6 +246,28 @@ export async function setupFixture(): Promise<TestContext> {
  * Загрузка файла настоящим путём клиента: сессия → PUT по подписанной ссылке
  * в MinIO → подтверждение (09-files.md §2).
  */
+/**
+ * Служебная учётная запись (ADR-0130): от её имени работают правила и формы. Роль в
+ * пространствах — редактор: форме и правилу нужна правка объектов пространства.
+ */
+export async function createServiceAccount(
+  instance: FastifyInstance,
+  as: TestUser,
+  name: string,
+  spaceIds: string[] = [],
+): Promise<string> {
+  const response = await call(instance, {
+    method: 'POST',
+    url: '/service-accounts',
+    as,
+    payload: { name, spaces: spaceIds.map((spaceId) => ({ spaceId, role: 'editor' })) },
+  })
+  if (response.statusCode !== 200) {
+    throw new Error(`служебная запись не создана: ${response.statusCode} ${response.body}`)
+  }
+  return (response.json() as { id: string }).id
+}
+
 export async function uploadFile(
   instance: FastifyInstance,
   as: TestUser,

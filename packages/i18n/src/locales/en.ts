@@ -7689,6 +7689,9 @@ export const en: DeepPartial<Dictionary> = {
       rowsCount: '{count, plural, one {# row} other {# rows}}',
     },
     settings: {
+      writer: 'Who writes the rows',
+      runAsHint:
+        'A service account allowed to edit the dataset: report rows are written on its behalf, the author is recorded separately. The form cannot be enabled without it.',
       layout: 'Form kind',
       layoutKind: 'Kind',
       layoutHint: 'A table holds many records per period; totals come from the rows',

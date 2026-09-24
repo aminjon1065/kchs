@@ -10,11 +10,6 @@ import {
   Input,
   PanelToolbar,
   SectionHeader,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Skeleton,
   Switch,
   Tabs,
@@ -25,13 +20,12 @@ import {
   useToast,
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Bot, Plus, Save, Trash2 } from 'lucide-react'
+import { Plus, Save, Trash2 } from 'lucide-react'
 import { useEffect, useId, useMemo, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
-import { ServiceAccountDialog } from '~/features/admin/service-accounts.js'
+import { RunAsSelect } from '~/features/admin/run-as-select.js'
 import { ApiError } from '~/shared/api/client.js'
-import { meQuery, serviceAccountsQuery } from '~/shared/api/queries.js'
 import { automationApi, automationKeys, ruleCatalogQuery, ruleQuery } from '../queries.js'
 import { ActionEditor } from './action-editor.js'
 import { DryRunPanel, RunsPanel } from './runs-panel.js'
@@ -53,9 +47,6 @@ function conditionOf(expressions: string[]): RuleCondition | null {
   return { and: list.map((expr) => ({ expr })) }
 }
 
-/** Пустое значение выбора `run_as`: у выключенного правила служебная запись необязательна. */
-const NO_RUN_AS = '__none__'
-
 /**
  * Конструктор правила «когда / если / то» (14-automation-integrations.md §1,
  * ADR-0096): форма с подсказками каталога событий, проверка на лету, тестовый
@@ -72,14 +63,6 @@ export default function RuleDesigner({ ruleId }: { ruleId: string }) {
 
   const { data: rule, isLoading } = useQuery(ruleQuery(ruleId))
   const { data: catalog } = useQuery(ruleCatalogQuery())
-  const { data: me } = useQuery(meQuery())
-  // Правило работает только от служебной учётной записи (ADR-0130): список — из консоли
-  const { data: accounts = [] } = useQuery({
-    ...serviceAccountsQuery(),
-    enabled: rule?.canManage ?? false,
-  })
-  const canCreateAccount = me?.capabilities.includes('users.manage') ?? false
-  const [creatingAccount, setCreatingAccount] = useState(false)
   const [draft, setDraft] = useState<RuleDefinition | null>(null)
   const [issues, setIssues] = useState<RuleIssue[]>([])
   const [jsonText, setJsonText] = useState('')
@@ -118,8 +101,6 @@ export default function RuleDesigner({ ruleId }: { ruleId: string }) {
 
   const errors = issues.filter((issue) => issue.severity === 'error')
   // Выбрать можно только действующую запись; заблокированная остаётся видна по имени
-  const activeAccounts = accounts.filter((account) => account.status === 'active')
-  const currentAccount = accounts.find((account) => account.id === draft.runAs)
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -174,54 +155,13 @@ export default function RuleDesigner({ ruleId }: { ruleId: string }) {
                 htmlFor={runAsId}
                 hint={t('automation.fields.runAsHint')}
               >
-                <div className="flex items-center gap-2">
-                  <Select
-                    value={draft.runAs ?? NO_RUN_AS}
-                    disabled={!rule.canManage}
-                    onValueChange={(next) =>
-                      update({ ...draft, runAs: next === NO_RUN_AS ? null : next })
-                    }
-                  >
-                    <SelectTrigger id={runAsId} className="min-w-0 flex-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={NO_RUN_AS}>{t('automation.fields.runAsNone')}</SelectItem>
-                      {activeAccounts.map((account) => (
-                        <SelectItem key={account.id} value={account.id}>
-                          {account.name}
-                        </SelectItem>
-                      ))}
-                      {draft.runAs && !activeAccounts.some((item) => item.id === draft.runAs) ? (
-                        <SelectItem value={draft.runAs}>
-                          {currentAccount
-                            ? t('automation.fields.runAsBlocked', { name: currentAccount.name })
-                            : t('automation.fields.runAsUnknown')}
-                        </SelectItem>
-                      ) : null}
-                    </SelectContent>
-                  </Select>
-                  {canCreateAccount && rule.canManage ? (
-                    <IconButton
-                      size="sm"
-                      variant="ghost"
-                      label={t('automation.fields.runAsCreate')}
-                      onClick={() => setCreatingAccount(true)}
-                    >
-                      <Bot className="size-4" />
-                    </IconButton>
-                  ) : null}
-                </div>
+                <RunAsSelect
+                  id={runAsId}
+                  value={draft.runAs}
+                  disabled={!rule.canManage}
+                  onChange={(next) => update({ ...draft, runAs: next })}
+                />
               </Field>
-              <ServiceAccountDialog
-                accountId={null}
-                open={creatingAccount}
-                onOpenChange={setCreatingAccount}
-                onSaved={(account) => {
-                  update({ ...draft, runAs: account.id })
-                  void client.invalidateQueries({ queryKey: ['users'] })
-                }}
-              />
               <div className="md:col-span-2">
                 <Field label={t('automation.fields.description')}>
                   <Textarea
