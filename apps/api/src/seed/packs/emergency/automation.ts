@@ -648,7 +648,13 @@ async function packRules(
                   priority: 1,
                 },
               ],
-              limits: { maxRunsPerHour: 10, dedupeKey: null, dedupeWindowMinutes: 60 },
+              // Алерт повторяется раз в три часа, пока вода высокая: поручение о заседании —
+              // одно на сутки, напоминания дежурным идут от самого алерта
+              limits: {
+                maxRunsPerHour: 10,
+                dedupeKey: 'water:{{today()}}',
+                dedupeWindowMinutes: 1440,
+              },
             },
           },
         ]
