@@ -1,0 +1,2 @@
+ALTER TABLE "sources" ALTER COLUMN "integration_id" DROP NOT NULL;--> statement-breakpoint
+ALTER TABLE "sources" ADD CONSTRAINT "sources_integration_check" CHECK ("sources"."kind" <> 'database' OR "sources"."integration_id" IS NOT NULL);
