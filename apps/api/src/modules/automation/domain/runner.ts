@@ -15,7 +15,13 @@ import { logger } from '~/shared/logger/index.js'
 import { type ActionContext, runAction } from './actions.js'
 import { RuleService } from './rule-service.js'
 import { RuleRuns } from './runs.js'
-import { evaluateRuleCondition, type RuleScopeData, ruleScope, scopeFromEvent } from './scope.js'
+import {
+  evaluateRuleCondition,
+  type RuleScopeData,
+  renderTemplate,
+  ruleScope,
+  scopeFromEvent,
+} from './scope.js'
 
 /** Объект события есть в реестре: у людей и подразделений своей записи там нет. */
 async function inRegistry(objectId: string): Promise<boolean> {
@@ -205,6 +211,27 @@ export async function executeRun(runId: string): Promise<RunOutcome> {
       await RuleRuns.finish(runId, 'skipped', { error: 'Условие не выполнено' })
       await RuleService.markRun(db(), rule.id, 'skipped')
       return { status: 'skipped', reason: 'Условие не выполнено' }
+    }
+  }
+
+  // Ключ повтора занимает только запуск с выполненным условием: отсеянный условием не
+  // глушит следующий (толчок M3,8 от одной службы — не повод молчать о M4,1 от другой)
+  if (run.triggerKind === 'event' && run.resumeAt === 0 && definition.limits.dedupeKey) {
+    let key: string
+    try {
+      key = renderTemplate(definition.limits.dedupeKey, scope).trim()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      await RuleRuns.fail(runId, rule.id, `Ключ повтора не вычислен: ${message}`, null)
+      await RuleService.markRun(db(), rule.id, 'failed')
+      return { status: 'failed', reason: message }
+    }
+    const window = definition.limits.dedupeWindowMinutes
+    if (key.length > 0 && !(await RuleRuns.claimDedupe(rule.id, key, window))) {
+      const reason = `Повтор по ключу «${key}»`
+      await RuleRuns.finish(runId, 'skipped', { error: reason })
+      await RuleService.markRun(db(), rule.id, 'skipped')
+      return { status: 'skipped', reason }
     }
   }
 

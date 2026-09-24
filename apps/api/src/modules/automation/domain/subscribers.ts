@@ -2,13 +2,11 @@ import type { EventEnvelope, RuleDefinition } from '@kchs/contracts'
 import { RuleDefinition as RuleDefinitionSchema } from '@kchs/contracts'
 import type { Subscriber } from '~/kernel/events/index.js'
 import { NotificationService } from '~/kernel/notifications/service.js'
-import { config } from '~/shared/config/index.js'
 import { systemCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { logger } from '~/shared/logger/index.js'
 import { type RuleRow, RuleService } from './rule-service.js'
 import { RuleRuns } from './runs.js'
-import { renderTemplate, ruleScope, scopeFromEvent } from './scope.js'
 import { matchesTrigger } from './triggers.js'
 
 /**
@@ -21,7 +19,10 @@ import { matchesTrigger } from './triggers.js'
  */
 export const MAX_CAUSAL_DEPTH = 5
 
-/** Ставит запуск правила по событию, соблюдая лимиты и дедупликацию. */
+/**
+ * Ставит запуск правила по событию, соблюдая лимит в час. Ключ повтора проверяет
+ * исполнитель после условий: запуск, отсеянный условием, ключ не занимает.
+ */
 export async function queueEventRun(
   rule: RuleRow,
   definition: RuleDefinition,
@@ -36,26 +37,6 @@ export async function queueEventRun(
     })
     return null
   }
-  if (definition.limits.dedupeKey) {
-    const scope = ruleScope(scopeFromEvent(event), config().TZ)
-    const key = renderTemplate(definition.limits.dedupeKey, scope).trim()
-    if (key.length > 0) {
-      const claimed = await RuleRuns.claimDedupe(
-        rule.id,
-        key,
-        definition.limits.dedupeWindowMinutes,
-      )
-      if (!claimed) {
-        await RuleRuns.recordSkip(rule.id, {
-          triggerKind: 'event',
-          reason: `Повтор по ключу «${key}»`,
-          eventId: event.id,
-        })
-        return null
-      }
-    }
-  }
-
   return db().transaction((tx) =>
     RuleRuns.queue(tx, systemCtx('automation.rule', { initiatorId: event.actor.userId }), {
       ruleId: rule.id,

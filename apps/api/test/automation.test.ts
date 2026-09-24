@@ -297,6 +297,51 @@ describe('правила автоматизации: исполнение', () =
     expect(runRecord.error).toBe('Условие не выполнено')
   })
 
+  it('ключ повтора занимает только запуск с выполненным условием', async () => {
+    // Две ленты об одном толчке: первая запись не проходит условие — вторая должна
+    // сработать, а третья с тем же ключом — пропуститься как повтор
+    const created = await createRule({
+      name: `Повтор после условия ${run}`,
+      runAs: bot.id,
+      trigger: { kind: 'event', type: 'object.created', filter: { 'object.type': 'folder' } },
+      conditions: { expr: "contains(object.title, 'Годная')" },
+      actions: [{ type: 'add_tag', tag: `повтор-${run}` }],
+      limits: { maxRunsPerHour: 100, dedupeKey: `повтор-${run}`, dedupeWindowMinutes: 60 },
+    })
+    expect(created.statusCode, created.body).toBe(200)
+    const ruleId = created.json().id as string
+    const finished = async (count: number) => {
+      const started = Date.now()
+      while (Date.now() - started < 25_000) {
+        const items = (await runsOf(ruleId)).filter((item) => FINISHED.includes(item.status))
+        if (items.length >= count) return items
+        await new Promise((resolve) => setTimeout(resolve, 150))
+      }
+      throw new Error(`не дождались ${count} запусков правила ${ruleId}`)
+    }
+
+    const miss = await createFolder(`Повтор мимо ${run}`)
+    await finished(1)
+    const first = await createFolder(`Повтор Годная первая ${run}`)
+    await finished(2)
+    const second = await createFolder(`Повтор Годная вторая ${run}`)
+    const items = await finished(3)
+    const byObject = new Map(items.map((item) => [item.objectId, item]))
+    expect(byObject.get(miss)?.error).toBe('Условие не выполнено')
+    expect(byObject.get(first)?.status).toBe('succeeded')
+    expect(byObject.get(second)?.status).toBe('skipped')
+    expect(byObject.get(second)?.error).toBe(`Повтор по ключу «повтор-${run}»`)
+    expect(await tagsOf(first)).toContain(`повтор-${run}`)
+    expect(await tagsOf(second)).not.toContain(`повтор-${run}`)
+
+    await call(fx.app, {
+      method: 'POST',
+      url: `/automation/rules/${ruleId}/enabled`,
+      as: fx.admin,
+      payload: { enabled: false },
+    })
+  })
+
   it('служебный пользователь без доступа к объекту: правило не выполняется', async () => {
     const created = await createRule({
       name: `Чужое пространство ${run}`,
