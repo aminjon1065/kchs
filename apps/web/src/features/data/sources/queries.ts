@@ -1,4 +1,7 @@
 import type {
+  FeedPreview,
+  FeedPreviewInput,
+  FeedSourceCreateInput,
   IntegrationCheckResult,
   SourceCreateInput,
   SourceList,
@@ -14,16 +17,25 @@ import { queryOptions } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
 
 /**
- * Источники датасетов из внешних баз (ADR-0107): подключение живёт в
- * интеграции, выборка и расписание — в источнике. Учётные данные в браузер не
- * приходят: чтение внешней базы всегда идёт через API.
+ * Источники датасетов из внешних баз (ADR-0107) и ленты по адресу (ADR-0132):
+ * подключение и секреты живут в интеграции, выборка или разбор ленты и
+ * расписание — в источнике. Учётные данные в браузер не приходят: чтение
+ * внешней базы и ленты всегда идёт через API.
  */
 export const sourceKeys = {
   all: ['sources'] as const,
   list: () => ['sources', 'list'] as const,
+  one: (id: string) => ['sources', id] as const,
   runs: (id: string) => ['sources', id, 'runs'] as const,
   tables: (integrationId: string) => ['sources', 'tables', integrationId] as const,
 }
+
+export const sourceQuery = (id: string) =>
+  queryOptions({
+    queryKey: sourceKeys.one(id),
+    queryFn: () => http.get<SourceRecord>(`/sources/${id}`),
+    enabled: id.length > 0,
+  })
 
 const ACTIVE = new Set(['queued', 'running'])
 
@@ -55,6 +67,8 @@ export const sourceTablesQuery = (integrationId: string) =>
 
 export const sourceApi = {
   create: (input: SourceCreateInput) => http.post<SourceRecord>('/sources', input),
+  createFeed: (input: FeedSourceCreateInput) => http.post<SourceRecord>('/sources/feeds', input),
+  previewFeed: (input: FeedPreviewInput) => http.post<FeedPreview>('/sources/feed/preview', input),
   update: (id: string, input: SourceUpdateInput) =>
     http.patch<SourceRecord>(`/sources/${id}`, input),
   preview: (input: SourcePreviewInput) => http.post<SourcePreview>('/sources/preview', input),

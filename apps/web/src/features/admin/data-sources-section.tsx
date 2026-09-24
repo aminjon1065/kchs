@@ -34,13 +34,25 @@ import {
   useToast,
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Database, MoreHorizontal, Pencil, Play, Plug, Plus, Trash2 } from 'lucide-react'
+import {
+  ChevronDown,
+  Database,
+  MoreHorizontal,
+  Pencil,
+  Play,
+  Plug,
+  Plus,
+  Rss,
+  Trash2,
+} from 'lucide-react'
 import { useId, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
+import { FeedSourceDialog } from '~/features/data/sources/feed-dialog.js'
 import {
   sourceApi,
   sourceKeys,
+  sourceQuery,
   sourceRunsQuery,
   sourcesQuery,
   sourceTablesQuery,
@@ -67,9 +79,9 @@ function problemMessage(err: unknown, fallback: string): string {
 }
 
 /**
- * «Источники данных» (14-automation-integrations.md §5, ADR-0107): датасеты из
- * внешних баз. Подключение берётся из интеграции, здесь — выборка, режим
- * (снимок или инкремент), расписание и журнал синхронизаций.
+ * «Источники данных» (14-automation-integrations.md §5, ADR-0107, ADR-0132):
+ * датасеты из внешних баз и ленты по адресу. Подключение и секреты берутся из
+ * интеграции, здесь — выборка или разбор ленты, режим, расписание и журнал.
  */
 export function DataSourcesSection() {
   const t = useT()
@@ -79,7 +91,10 @@ export function DataSourcesSection() {
   const { data, isLoading } = useQuery(sourcesQuery())
   const items = data?.items ?? []
   const [creating, setCreating] = useState(false)
+  const [creatingFeed, setCreatingFeed] = useState(false)
   const [editing, setEditing] = useState<SourceListItem | null>(null)
+  const [editingFeedId, setEditingFeedId] = useState('')
+  const { data: editingFeed } = useQuery(sourceQuery(editingFeedId))
   const [removing, setRemoving] = useState<SourceListItem | null>(null)
   const [runsOf, setRunsOf] = useState<SourceListItem | null>(null)
 
@@ -125,14 +140,28 @@ export function DataSourcesSection() {
     <div className="mx-auto flex max-w-[980px] flex-col gap-3 p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-fg-secondary">{t('admin.dataSources.hint')}</p>
-        <Button
-          variant="primary"
-          size="sm"
-          icon={<Plus className="size-3.5" />}
-          onClick={() => setCreating(true)}
-        >
-          {t('admin.dataSources.add')}
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="primary" size="sm" icon={<Plus className="size-3.5" />}>
+              {t('admin.dataSources.add')}
+              <ChevronDown className="size-3.5" aria-hidden />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              icon={<Database className="size-4" />}
+              onSelect={() => setCreating(true)}
+            >
+              {t('admin.dataSources.addDatabase')}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              icon={<Rss className="size-4" />}
+              onSelect={() => setCreatingFeed(true)}
+            >
+              {t('admin.dataSources.feed.add')}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
       <Card padded={false}>
         {isLoading ? (
@@ -147,7 +176,11 @@ export function DataSourcesSection() {
           <ul className="divide-y divide-line">
             {items.map((source) => (
               <li key={source.id} className="flex items-start gap-3 px-4 py-3">
-                <Database className="mt-0.5 size-4 shrink-0 text-fg-muted" aria-hidden />
+                {source.kind === 'feed' ? (
+                  <Rss className="mt-0.5 size-4 shrink-0 text-fg-muted" aria-hidden />
+                ) : (
+                  <Database className="mt-0.5 size-4 shrink-0 text-fg-muted" aria-hidden />
+                )}
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium text-fg">{source.name}</span>
@@ -155,7 +188,9 @@ export function DataSourcesSection() {
                       {t(`admin.dataSources.status.${source.status}`)}
                     </Badge>
                     <Badge tone="neutral" size="sm">
-                      {t(`admin.dataSources.modes.${source.mode}`)}
+                      {source.kind === 'feed'
+                        ? t('admin.dataSources.feed.kind')
+                        : t(`admin.dataSources.modes.${source.mode}`)}
                     </Badge>
                     {source.enabled ? null : (
                       <Badge tone="neutral" size="sm">
@@ -207,7 +242,9 @@ export function DataSourcesSection() {
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       icon={<Pencil className="size-4" />}
-                      onSelect={() => setEditing(source)}
+                      onSelect={() =>
+                        source.kind === 'feed' ? setEditingFeedId(source.id) : setEditing(source)
+                      }
                     >
                       {t('admin.dataSources.settings')}
                     </DropdownMenuItem>
@@ -234,6 +271,25 @@ export function DataSourcesSection() {
         onOpenChange={setCreating}
         onCreated={() => {
           toast.show({ title: t('admin.dataSources.created'), tone: 'success' })
+          refresh()
+        }}
+      />
+      <FeedSourceDialog
+        open={creatingFeed || (editingFeedId.length > 0 && editingFeed !== undefined)}
+        source={editingFeedId ? (editingFeed ?? null) : null}
+        onOpenChange={(open) => {
+          if (open) return
+          setCreatingFeed(false)
+          setEditingFeedId('')
+        }}
+        onSaved={() => {
+          toast.show({
+            title: editingFeedId ? t('admin.dataSources.saved') : t('admin.dataSources.created'),
+            tone: 'success',
+          })
+          if (editingFeedId) {
+            void client.invalidateQueries({ queryKey: sourceKeys.one(editingFeedId) })
+          }
           refresh()
         }}
       />
