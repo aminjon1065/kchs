@@ -43,6 +43,16 @@ titiler, photon     (профили `raster`, `geocoder`, опционально
 
 Обновление: `docker compose pull && docker compose up -d` — миграции применяются при старте `api` с advisory lock; обратная совместимость миграций на одну версию назад (blue-green без простоя для S2).
 
+Выход в интернет через исходящий прокси (ADR-0132) — переменные в `.env`, их берут `api` и `worker`:
+
+| Переменная | Что задаёт |
+|---|---|
+| `HTTP_PROXY`, `HTTPS_PROXY` | адрес прокси `http://[пользователь:пароль@]узел:порт`; `HTTPS_PROXY` без значения берёт `HTTP_PROXY`. Через прокси идут ленты по адресу, растровые подложки, ГИС-службы, ICS-подписки и вызовы api наружу через `fetch` (вебхуки, провайдеры ИИ); Telegram-бот и web-push ходят своими клиентами мимо прокси |
+| `NO_PROXY` | узлы мимо прокси через запятую: имя точно, `.домен` — все поддомены, `*` — никогда через прокси; порт — `имя:порт`. Службы установки (api, хранилище, поиск, движок, офисный сервер, медиасервер) добавляются сами; внутренние серверы лент и подложек закрытого контура, свой сервер модели (`OPENAI_COMPAT_URL`) — сюда |
+| `OUTBOUND_ALLOW_LOOPBACK` | только для локальной отладки: лента или подложка с этой же машины; в эксплуатации не включать |
+
+В Helm адреса прокси — ключи Secret (`secrets.values.HTTP_PROXY`/`HTTPS_PROXY`: в них бывают логин и пароль), `NO_PROXY` — `app.outbound.noProxy`.
+
 ## 3. S2 (Kubernetes)
 
 Helm-чарт `infra/helm/kchs`: Deployments `api` (HPA по CPU/RPS), `worker` (по глубине очередей, KEDA), `engine` (по очередям; GPU-node pool опционально для whisper/эмбеддингов), `web` (nginx). Данные: PostgreSQL через оператор (CloudNativePG/Patroni) с репликой и PgBouncer, Redis Sentinel/оператор, MinIO distributed (4+ узла) или внешний S3, Meilisearch (одиночный с PVC; репликация — перестроением), LiveKit multi-node с Redis. Ingress с TLS, отдельный сервис для UDP LiveKit. Кэш тайлов — nginx/Varnish перед API или Martin. Secrets — внешний менеджер (Vault/SealedSecrets).
