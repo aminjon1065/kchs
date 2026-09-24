@@ -48,6 +48,8 @@ export const EVALUABLE_FUNCTIONS: ReadonlySet<string> = new Set([
   'month',
   'day',
   'date',
+  'date_add',
+  'date_diff',
 ])
 
 const EVALUABLE_MACROS = new Set(['today', 'now'])
@@ -198,6 +200,12 @@ function datePart(value: Value): { y: number; m: number; d: number } | null {
   return { y: Number(match[1]), m: Number(match[2]), d: Number(match[3]) }
 }
 
+/** Части даты `ГГГГ-ММ-ДД` для `Date.UTC`. */
+function ymd(value: string): [number, number, number] {
+  const parts = datePart(value) as { y: number; m: number; d: number }
+  return [parts.y, parts.m - 1, parts.d]
+}
+
 function localDay(instant: Date, timezone: string): string {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: timezone,
@@ -209,6 +217,87 @@ function localDay(instant: Date, timezone: string): string {
   return `${get('year')}-${get('month')}-${get('day')}`
 }
 
+type IntervalUnit = 'year' | 'quarter' | 'month' | 'week' | 'day' | 'hour' | 'minute'
+
+const INTERVAL_UNITS: ReadonlySet<string> = new Set([
+  'year',
+  'quarter',
+  'month',
+  'week',
+  'day',
+  'hour',
+  'minute',
+])
+
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/
+const DAY_MS = 86_400_000
+
+/** Настенное время момента в поясе: части календаря и миллисекунды суток. */
+interface WallClock {
+  y: number
+  m: number
+  d: number
+  ms: number
+}
+
+function wallClock(instant: number, timezone: string): WallClock {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    hourCycle: 'h23',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).formatToParts(new Date(instant))
+  const get = (type: string) => Number(parts.find((part) => part.type === type)?.value ?? 0)
+  const ms =
+    ((get('hour') * 60 + get('minute')) * 60 + get('second')) * 1000 +
+    (((instant % 1000) + 1000) % 1000)
+  return { y: get('year'), m: get('month'), d: get('day'), ms }
+}
+
+/** Момент для настенного времени пояса (две итерации — переход часов учтён). */
+function fromWallClock(wall: WallClock, timezone: string): number {
+  const naive = Date.UTC(wall.y, wall.m - 1, wall.d) + wall.ms
+  let instant = naive
+  for (let step = 0; step < 2; step += 1) {
+    const seen = wallClock(instant, timezone)
+    const offset = Date.UTC(seen.y, seen.m - 1, seen.d) + seen.ms - instant
+    instant = naive - offset
+  }
+  return instant
+}
+
+/** Сдвиг календаря на месяцы; день за концом месяца прижимается к последнему (как в SQL). */
+function addMonths(wall: WallClock, months: number): WallClock {
+  const index = wall.y * 12 + (wall.m - 1) + months
+  const y = Math.floor(index / 12)
+  const m = index - y * 12 + 1
+  const last = new Date(Date.UTC(y, m, 0)).getUTCDate()
+  return { y, m, d: Math.min(wall.d, last), ms: wall.ms }
+}
+
+function addDays(wall: WallClock, days: number): WallClock {
+  const shifted = new Date(Date.UTC(wall.y, wall.m - 1, wall.d) + days * DAY_MS)
+  return {
+    y: shifted.getUTCFullYear(),
+    m: shifted.getUTCMonth() + 1,
+    d: shifted.getUTCDate(),
+    ms: wall.ms,
+  }
+}
+
+/** Целые месяцы от `a` до `b` по календарю, как `age(b, a)` в SQL: неполный — не в счёт. */
+function monthsBetween(a: WallClock, b: WallClock): number {
+  const months = (b.y - a.y) * 12 + (b.m - a.m)
+  const rest = (wall: WallClock) => wall.d * DAY_MS + wall.ms
+  if (months > 0 && rest(b) < rest(a)) return months - 1
+  if (months < 0 && rest(b) > rest(a)) return months + 1
+  return months
+}
+
 class Evaluator {
   constructor(private readonly scope: EvalScope) {}
 
@@ -218,6 +307,88 @@ class Evaluator {
 
   private today(): string {
     return localDay(this.now(), this.scope.timezone ?? 'UTC')
+  }
+
+  private get timezone(): string {
+    return this.scope.timezone ?? 'UTC'
+  }
+
+  private unit(value: Value, pos: number): IntervalUnit {
+    if (typeof value === 'string' && INTERVAL_UNITS.has(value)) return value as IntervalUnit
+    throw new ExpressionError(
+      'Единица — одна из year, quarter, month, week, day, hour, minute',
+      pos,
+    )
+  }
+
+  /** Дата без времени — полночь в поясе вычисления; момент — как есть; иное — `null`. */
+  private instant(value: Value): number | null {
+    if (typeof value !== 'string') return null
+    if (DATE_ONLY.test(value)) {
+      const parts = datePart(value)
+      return parts ? fromWallClock({ ...parts, ms: 0 }, this.timezone) : null
+    }
+    const time = Date.parse(value)
+    return Number.isNaN(time) ? null : time
+  }
+
+  /**
+   * `date_add(x, n, unit)` — как у компилятора запросов: к дате прибавляются дни и больше
+   * (результат — дата), к моменту — любые единицы; дни и месяцы — по календарю пояса.
+   */
+  private dateAdd(value: Value, amount: Value, unit: IntervalUnit, pos: number): Value {
+    const n = asNumber(amount)
+    if (value === null || n === null) return null
+    const count = Math.trunc(n)
+    if (typeof value === 'string' && DATE_ONLY.test(value)) {
+      if (unit === 'hour' || unit === 'minute') {
+        throw new ExpressionError('К дате прибавляются дни и больше', pos)
+      }
+      const parts = datePart(value)
+      if (!parts) return null
+      const wall = { ...parts, ms: 0 }
+      const next = this.shift(wall, count, unit)
+      return `${String(next.y).padStart(4, '0')}-${String(next.m).padStart(2, '0')}-${String(next.d).padStart(2, '0')}`
+    }
+    const start = this.instant(value)
+    if (start === null) return null
+    if (unit === 'minute') return new Date(start + count * 60_000).toISOString()
+    if (unit === 'hour') return new Date(start + count * 3_600_000).toISOString()
+    const next = this.shift(wallClock(start, this.timezone), count, unit)
+    return new Date(fromWallClock(next, this.timezone)).toISOString()
+  }
+
+  private shift(wall: WallClock, count: number, unit: IntervalUnit): WallClock {
+    if (unit === 'year') return addMonths(wall, count * 12)
+    if (unit === 'quarter') return addMonths(wall, count * 3)
+    if (unit === 'month') return addMonths(wall, count)
+    return addDays(wall, unit === 'week' ? count * 7 : count)
+  }
+
+  /** `date_diff(a, b, unit)` — `b − a` в целых единицах (к нулю), как у компилятора запросов. */
+  private dateDiff(left: Value, right: Value, unit: IntervalUnit): Value {
+    const a = this.instant(left)
+    const b = this.instant(right)
+    if (a === null || b === null) return null
+    const dates =
+      typeof left === 'string' &&
+      typeof right === 'string' &&
+      DATE_ONLY.test(left) &&
+      DATE_ONLY.test(right)
+    if (unit === 'month' || unit === 'quarter' || unit === 'year') {
+      const wall = (value: Value, instant: number): WallClock => {
+        const parts = dates ? datePart(value) : null
+        return parts ? { ...parts, ms: 0 } : wallClock(instant, this.timezone)
+      }
+      const months = monthsBetween(wall(left, a), wall(right, b))
+      if (unit === 'month') return months
+      return Math.trunc(months / (unit === 'quarter' ? 3 : 12))
+    }
+    // Даты без времени — целые сутки календаря, без поправки на переход часов
+    const ms = dates ? Date.UTC(...ymd(right as string)) - Date.UTC(...ymd(left as string)) : b - a
+    const size = { minute: 60_000, hour: 3_600_000, day: DAY_MS, week: 7 * DAY_MS }[unit]
+    // `+ 0` — без «минус нуля» у доли единицы в прошлое
+    return Math.trunc(ms / size) + 0
   }
 
   node(expr: Expr): Value {
@@ -465,6 +636,16 @@ class Evaluator {
         const parts = datePart(args()[0] ?? null)
         if (!parts) return null
         return name === 'year' ? parts.y : name === 'month' ? parts.m : parts.d
+      }
+      case 'date_add': {
+        arity(3)
+        const [value = null, amount = null, unit = null] = args()
+        return this.dateAdd(value, amount, this.unit(unit, (argExprs[2] as Expr).pos), pos)
+      }
+      case 'date_diff': {
+        arity(3)
+        const [left = null, right = null, unit = null] = args()
+        return this.dateDiff(left, right, this.unit(unit, (argExprs[2] as Expr).pos))
       }
       case 'date': {
         arity(1)

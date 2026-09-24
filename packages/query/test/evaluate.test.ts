@@ -128,6 +128,34 @@ describe('вычисление в памяти', () => {
     expect(value("date('2026-09-19T20:30:00Z')")).toBe('2026-09-20')
   })
 
+  it('разница и сдвиг дат — как у компилятора запросов', () => {
+    // b − a в целых единицах к нулю
+    expect(value("date_diff('2026-09-19T14:00:00Z', now(), 'hour')")).toBe(6)
+    expect(value("date_diff(now(), '2026-09-19T14:00:00Z', 'hour')")).toBe(-6)
+    expect(value("date_diff('2026-09-19T20:29:30Z', now(), 'minute')")).toBe(0)
+    expect(value("date_diff('2026-09-01', '2026-09-19', 'day')")).toBe(18)
+    expect(value("date_diff('2026-09-01', '2026-09-19', 'week')")).toBe(2)
+    expect(value("date_diff('2026-01-31', '2026-02-28', 'month')")).toBe(0)
+    expect(value("date_diff('2026-01-31', '2026-03-01', 'month')")).toBe(1)
+    expect(value("date_diff('2025-09-20', '2026-09-19', 'year')")).toBe(0)
+    expect(value("date_diff('2025-09-19', '2026-09-19', 'year')")).toBe(1)
+    // Дата без времени рядом с моментом — полночь в поясе вычисления (UTC+5)
+    expect(value("date_diff('2026-09-20', now(), 'hour')")).toBe(1)
+    expect(value("date_diff(object.fields.empty, now(), 'hour')")).toBeNull()
+    expect(holds("date_diff('2026-09-19T17:00:00Z', now(), 'hour') < 6")).toBe(true)
+
+    expect(value("date_add(now(), -6, 'hour')")).toBe('2026-09-19T14:30:00.000Z')
+    expect(value("date_add('2026-01-31', 1, 'month')")).toBe('2026-02-28')
+    expect(value("date_add('2026-09-19', 2, 'week')")).toBe('2026-10-03')
+    // Месяц к моменту — по календарю пояса: 31 января 01:00 по Душанбе → 28 февраля
+    expect(value("date_add('2026-01-30T20:00:00Z', 1, 'month')")).toBe('2026-02-27T20:00:00.000Z')
+    expect(() => value("date_add('2026-09-19', 1, 'hour')")).toThrow(ExpressionError)
+    expect(() => value("date_diff(now(), now(), 'сутки')")).toThrow(ExpressionError)
+    expect(
+      checkEvaluable("date_diff(object.fields.signed_on, today(), 'day') > 1", ['object']),
+    ).toBeNull()
+  })
+
   it('строковые функции', () => {
     expect(value("substr('Договор', 2, 3)")).toBe('ого')
     expect(value("replace('a-b-c', '-', '+')")).toBe('a+b+c')
