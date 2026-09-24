@@ -119,9 +119,11 @@ function slugify(value: string): string {
 }
 
 /**
- * Служебный пользователь правила: действующая учётная запись без прав
- * администратора системы — правило не должно уметь больше, чем человек
- * (contracts/automation-rule.md §Правила исполнения).
+ * Служебный пользователь правила — служебная учётная запись (ADR-0130):
+ * действующая, без прав администратора системы. Правило не должно уметь
+ * больше, чем человек (contracts/automation-rule.md §Правила исполнения), и не
+ * работает от имени живого сотрудника: его уход или смена ролей не должны
+ * незаметно менять поведение правил.
  */
 function runAsError(message: string) {
   return errors.validation(message, [{ path: 'runAs', message }])
@@ -129,11 +131,16 @@ function runAsError(message: string) {
 
 export async function assertRunAs(userId: string): Promise<void> {
   const [user] = await db()
-    .select({ status: users.status })
+    .select({ status: users.status, kind: users.kind })
     .from(users)
     .where(eq(users.id, userId))
     .limit(1)
   if (!user) throw runAsError('Служебный пользователь не найден')
+  if (user.kind !== 'service') {
+    throw runAsError(
+      'Правило работает только от имени служебной учётной записи: заведите её в консоли администрирования',
+    )
+  }
   if (user.status !== 'active') throw runAsError('Служебный пользователь отключён')
   const ctx = await buildUserCtxFor(userId)
   if (!ctx) throw runAsError('Служебный пользователь не найден')

@@ -1091,7 +1091,8 @@ const FIXTURES: Record<string, TypeFixture> = {
           definition: {
             name: { ru: title },
             enabled: false,
-            runAs: fx.users.member.id,
+            // Выключенному правилу служебная запись не обязательна (ADR-0130)
+            runAs: null,
             trigger: { kind: 'event', type: 'object.created', filter: {} },
             conditions: null,
             actions: [

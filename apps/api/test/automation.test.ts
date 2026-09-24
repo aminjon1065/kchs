@@ -31,6 +31,23 @@ const { systemCtx } = await import('../src/shared/context.js')
 let fx: TestContext
 let previousSubscribers: Subscriber[] = []
 const run = Date.now().toString(36)
+/** Служебные учётные записи (ADR-0130): правила работают только от их имени. */
+let bot: { id: string }
+let outsider: { id: string }
+
+async function serviceAccount(
+  name: string,
+  spaces: Array<{ spaceId: string; role: 'viewer' | 'member' | 'editor' }>,
+): Promise<{ id: string }> {
+  const response = await call(fx.app, {
+    method: 'POST',
+    url: '/service-accounts',
+    as: fx.admin,
+    payload: { name, roleKeys: ['employee'], spaces },
+  })
+  expect(response.statusCode, response.body).toBe(200)
+  return response.json() as { id: string }
+}
 
 interface RuleInput {
   name: string
@@ -112,6 +129,9 @@ async function tagsOf(objectId: string): Promise<string[]> {
 
 beforeAll(async () => {
   fx = await setupFixture()
+  // Робот пространства правит в нём объекты, посторонний робот доступа не имеет
+  bot = await serviceAccount(`Робот ${run}`, [{ spaceId: fx.spaceId, role: 'editor' }])
+  outsider = await serviceAccount(`Посторонний робот ${run}`, [])
   previousSubscribers = [...bus.listSubscribers()]
   bus.clearSubscribers()
   registerKernelSubscribers()
@@ -133,15 +153,17 @@ afterAll(async () => {
 })
 
 describe('правила автоматизации: ведение', () => {
-  it('правило не работает от имени администратора системы', async () => {
-    const response = await createRule({
-      name: `Админское правило ${run}`,
-      runAs: fx.admin.id,
-      trigger: { kind: 'event', type: 'object.created', filter: {} },
-      actions: [{ type: 'add_tag', tag: 'тест' }],
-    })
-    expect(response.statusCode).toBe(400)
-    expect(response.body).toContain('администратора системы')
+  it('правило не работает от имени сотрудника или администратора системы', async () => {
+    for (const person of [fx.admin.id, fx.users.member.id]) {
+      const response = await createRule({
+        name: `Правило сотрудника ${run}`,
+        runAs: person,
+        trigger: { kind: 'event', type: 'object.created', filter: {} },
+        actions: [{ type: 'add_tag', tag: 'тест' }],
+      })
+      expect(response.statusCode).toBe(400)
+      expect(response.body).toContain('служебной учётной записи')
+    }
   })
 
   it('определение проверяется: неизвестное событие и чужой корень выражения', async () => {
@@ -152,7 +174,7 @@ describe('правила автоматизации: ведение', () => {
       payload: {
         definition: {
           name: { ru: 'Проверка' },
-          runAs: fx.users.member.id,
+          runAs: bot.id,
           enabled: false,
           trigger: { kind: 'event', type: 'object.created', filter: {} },
           conditions: { expr: 'secret.value > 0' },
@@ -168,7 +190,7 @@ describe('правила автоматизации: ведение', () => {
   it('создаётся объектом реестра, включается и выключается', async () => {
     const created = await createRule({
       name: `Правило списка ${run}`,
-      runAs: fx.users.member.id,
+      runAs: bot.id,
       enabled: false,
       trigger: { kind: 'event', type: 'object.created', filter: {} },
       actions: [{ type: 'add_tag', tag: 'список' }],
@@ -215,7 +237,7 @@ describe('правила автоматизации: исполнение', () =
   it('срабатывает по событию, выполняет действие от имени run_as и пишет журнал', async () => {
     const created = await createRule({
       name: `Тег по созданию ${run}`,
-      runAs: fx.users.member.id,
+      runAs: bot.id,
       trigger: { kind: 'event', type: 'object.created', filter: { 'object.type': 'folder' } },
       conditions: { expr: "contains(object.title, 'Автоправило')" },
       actions: [{ type: 'add_tag', tag: `авто-${run}` }],
@@ -227,7 +249,7 @@ describe('правила автоматизации: исполнение', () =
     const runRecord = await waitForRun(ruleId, ['succeeded'])
     expect(runRecord.steps).toHaveLength(1)
     expect(runRecord.steps[0]?.status).toBe('ok')
-    expect(runRecord.runAs?.id).toBe(fx.users.member.id)
+    expect(runRecord.runAs?.id).toBe(bot.id)
     expect(runRecord.objectId).toBe(folderId)
 
     expect(await tagsOf(folderId)).toContain(`авто-${run}`)
@@ -239,8 +261,9 @@ describe('правила автоматизации: исполнение', () =
     // адаптации не работали вовсе
     const created = await createRule({
       name: `Адаптация ${run}`,
-      runAs: fx.users.member.id,
-      trigger: { kind: 'event', type: 'user.created' },
+      runAs: bot.id,
+      // Служебные учётные записи создаются тем же событием — адаптация им не нужна
+      trigger: { kind: 'event', type: 'user.created', filter: { 'payload.kind': 'person' } },
       actions: [
         {
           type: 'notify',
@@ -263,7 +286,7 @@ describe('правила автоматизации: исполнение', () =
   it('условие не выполнено — запуск помечен пропущенным с причиной', async () => {
     const created = await createRule({
       name: `Условие мимо ${run}`,
-      runAs: fx.users.member.id,
+      runAs: bot.id,
       trigger: { kind: 'event', type: 'object.created', filter: { 'object.type': 'folder' } },
       conditions: { expr: "object.title == 'такого названия нет'" },
       actions: [{ type: 'add_tag', tag: 'нет' }],
@@ -277,7 +300,7 @@ describe('правила автоматизации: исполнение', () =
   it('служебный пользователь без доступа к объекту: правило не выполняется', async () => {
     const created = await createRule({
       name: `Чужое пространство ${run}`,
-      runAs: fx.users.stranger.id,
+      runAs: outsider.id,
       trigger: { kind: 'event', type: 'object.created', filter: { 'object.type': 'folder' } },
       conditions: { expr: "contains(object.title, 'Закрытая')" },
       actions: [{ type: 'add_tag', tag: 'не должно быть' }],
@@ -293,10 +316,41 @@ describe('правила автоматизации: исполнение', () =
     expect(await tagsOf(folderId)).not.toContain('не должно быть')
   })
 
+  it('заблокированная служебная запись: запуск не исполняется', async () => {
+    // Решение принимается и в момент исполнения (ADR-0130): запись могли
+    // заблокировать уже после включения правила
+    const leaving = await serviceAccount(`Робот на выход ${run}`, [
+      { spaceId: fx.spaceId, role: 'editor' },
+    ])
+    const created = await createRule({
+      name: `Выход ${run}`,
+      runAs: leaving.id,
+      trigger: { kind: 'event', type: 'object.created', filter: { 'object.type': 'folder' } },
+      conditions: { expr: "contains(object.title, 'Уход')" },
+      actions: [{ type: 'add_tag', tag: `уход-${run}` }],
+    })
+    expect(created.statusCode, created.body).toBe(200)
+    const ruleId = created.json().id as string
+
+    const blocked = await call(fx.app, {
+      method: 'PATCH',
+      url: `/service-accounts/${leaving.id}`,
+      as: fx.admin,
+      payload: { status: 'blocked' },
+    })
+    expect(blocked.statusCode, blocked.body).toBe(200)
+
+    const folderId = await createFolder(`Уход ${run}`)
+    const runRecord = await waitForRun(ruleId, ['failed', 'succeeded', 'skipped'])
+    expect(runRecord.status).toBe('failed')
+    expect(runRecord.error).toContain('отключён')
+    expect(await tagsOf(folderId)).not.toContain(`уход-${run}`)
+  })
+
   it('уведомление не уходит тому, кто не видит объект', async () => {
     const created = await createRule({
       name: `Уведомление постороннему ${run}`,
-      runAs: fx.users.member.id,
+      runAs: bot.id,
       trigger: { kind: 'event', type: 'object.created', filter: { 'object.type': 'folder' } },
       conditions: { expr: "contains(object.title, 'Уведомление')" },
       actions: [{ type: 'notify', to: [`user:${fx.users.stranger.id}`], text: 'Создана папка' }],
@@ -315,7 +369,7 @@ describe('правила автоматизации: исполнение', () =
     const folderId = await createFolder(`Цикл ${run}`)
     const created = await createRule({
       name: `Цикл по тегам ${run}`,
-      runAs: fx.users.member.id,
+      runAs: bot.id,
       trigger: { kind: 'event', type: 'object.tagged', filter: {} },
       conditions: { expr: `object.id == '${folderId}'` },
       actions: [{ type: 'add_tag', tag: `эхо-${run}` }],
@@ -340,7 +394,7 @@ describe('правила автоматизации: исполнение', () =
   it('повторная постановка по тому же событию ничего не дублирует', async () => {
     const created = await createRule({
       name: `Идемпотентность ${run}`,
-      runAs: fx.users.member.id,
+      runAs: bot.id,
       enabled: false,
       trigger: { kind: 'event', type: 'object.created', filter: {} },
       actions: [{ type: 'add_tag', tag: 'и' }],
@@ -350,7 +404,7 @@ describe('правила автоматизации: исполнение', () =
       ruleId,
       triggerKind: 'event' as const,
       eventId: `evt-${run}`,
-      runAs: fx.users.member.id,
+      runAs: bot.id,
       context: {},
     }
     const first = await db().transaction((tx) => RuleRuns.queue(tx, systemCtx('test'), input))
@@ -362,7 +416,7 @@ describe('правила автоматизации: исполнение', () =
   it('лимит запусков в час: лишнее срабатывание пропускается с причиной', async () => {
     const created = await createRule({
       name: `Лимит ${run}`,
-      runAs: fx.users.member.id,
+      runAs: bot.id,
       trigger: { kind: 'event', type: 'object.created', filter: { 'object.type': 'folder' } },
       conditions: { expr: "contains(object.title, 'Лимитная')" },
       actions: [{ type: 'add_tag', tag: `лимит-${run}` }],
@@ -381,7 +435,7 @@ describe('правила автоматизации: ручной запуск �
   it('кнопка у объекта: правило видно в меню и запускается', async () => {
     const created = await createRule({
       name: `Ручное правило ${run}`,
-      runAs: fx.users.member.id,
+      runAs: bot.id,
       trigger: { kind: 'manual', objectTypes: ['folder'], confirm: false },
       actions: [{ type: 'add_tag', tag: `ручной-${run}` }],
     })
@@ -426,7 +480,7 @@ describe('правила автоматизации: ручной запуск �
         limit: 20,
         definition: {
           name: { ru: `Прогон ${run}` },
-          runAs: fx.users.member.id,
+          runAs: bot.id,
           enabled: false,
           trigger: { kind: 'event', type: 'object.created', filter: { 'object.type': 'folder' } },
           conditions: { expr: "contains(object.title, 'Прогон')" },
@@ -450,7 +504,7 @@ describe('расписания', () => {
   it('экран показывает проверки платформы и правила по cron', async () => {
     const created = await createRule({
       name: `По расписанию ${run}`,
-      runAs: fx.users.member.id,
+      runAs: bot.id,
       trigger: { kind: 'schedule', cron: '0 6 * * *', timezone: 'Asia/Dushanbe', objectId: null },
       actions: [{ type: 'webhook', url: 'https://example.invalid/hook' }],
     })

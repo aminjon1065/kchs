@@ -10,7 +10,7 @@ import { processObjectProvider } from '~/kernel/process/registry.js'
 import { config } from '~/shared/config/index.js'
 import { type UserCtx, withCause } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
-import { objects } from '~/shared/db/schema/index.js'
+import { objects, users } from '~/shared/db/schema/index.js'
 import { logger } from '~/shared/logger/index.js'
 import { type ActionContext, runAction } from './actions.js'
 import { RuleService } from './rule-service.js'
@@ -120,6 +120,24 @@ function step(
   }
 }
 
+/**
+ * Почему служебный пользователь не может исполнить правило (ADR-0130): правило
+ * работает только от действующей служебной учётной записи. Проверка стоит и
+ * здесь, а не только при сохранении: запись могли заблокировать позже, а правило
+ * из пакета конфигурации — сохранить до этого требования.
+ */
+async function runAsRefusal(userId: string): Promise<string | null> {
+  const [user] = await db()
+    .select({ kind: users.kind, status: users.status })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1)
+  if (!user) return 'Служебный пользователь правила недоступен'
+  if (user.kind !== 'service') return 'Правило работает только от имени служебной учётной записи'
+  if (user.status !== 'active') return 'Служебный пользователь отключён'
+  return null
+}
+
 /** Исполняет запуск: задание очереди `automation` вызывает эту функцию. */
 export async function executeRun(runId: string): Promise<RunOutcome> {
   const run = await RuleRuns.load(runId)
@@ -137,8 +155,12 @@ export async function executeRun(runId: string): Promise<RunOutcome> {
 
   await RuleRuns.start(runId)
   const base = definition.runAs ? await buildUserCtxFor(definition.runAs) : null
-  if (!base) {
-    const error = 'Служебный пользователь правила недоступен'
+  const refusal =
+    base && definition.runAs
+      ? await runAsRefusal(definition.runAs)
+      : 'Служебный пользователь правила недоступен'
+  if (!base || refusal) {
+    const error = refusal ?? 'Служебный пользователь правила недоступен'
     await RuleRuns.fail(runId, rule.id, error, null)
     await RuleService.markRun(db(), rule.id, 'failed')
     return { status: 'failed', reason: error }
