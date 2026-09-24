@@ -167,8 +167,27 @@ function prepare(
     out.push({ field, value })
   }
   if (insert) {
+    // Значение по умолчанию поля (`FieldDef.default`) — у полей, которых в строке нет:
+    // «Решение: новое» у сообщения ленты ставит сам датасет, а не каждый, кто пишет.
+    // Макросы (`@today`, `@me`) здесь не раскрываются — такое значение пропускается.
+    const defaults = new Set<string>()
     for (const field of storage.fields) {
-      if (field.required && !grant.hidden.has(field.key) && !(field.key in values)) {
+      if (field.key in values || grant.hidden.has(field.key)) continue
+      const fallback = field.default
+      if (fallback === undefined || fallback === null) continue
+      if (typeof fallback === 'string' && fallback.startsWith('@')) continue
+      const parsed = fieldSchema(field, false).safeParse(fallback)
+      if (!parsed.success || parsed.data === null || parsed.data === undefined) continue
+      out.push({ field, value: parsed.data })
+      defaults.add(field.key)
+    }
+    for (const field of storage.fields) {
+      if (
+        field.required &&
+        !grant.hidden.has(field.key) &&
+        !(field.key in values) &&
+        !defaults.has(field.key)
+      ) {
         issues.push({ path: field.key, message: 'Обязательное поле', code: 'required' })
       }
     }

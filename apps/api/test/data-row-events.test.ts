@@ -55,6 +55,7 @@ async function createDataset(name: string, rowEvents: boolean): Promise<string> 
             { value: 'new', label: { ru: 'Новое' } },
             { value: 'reviewed', label: { ru: 'Рассмотрено' } },
           ],
+          default: 'new',
         },
         { key: 'territory', label: { ru: 'Район' }, type: 'territory' },
         { key: 'note', label: { ru: 'Служебная пометка' }, type: 'text', sensitive: true },
@@ -142,6 +143,17 @@ describe('события строк', () => {
     expect(removed.statusCode, removed.body).toBe(200)
     const deletions = await eventsOf(datasetId, 'dataset.row_deleted')
     expect(deletions.at(-1)?.payload).toMatchObject({ rowId: row._id, values: { code: 'emsc:1' } })
+  })
+
+  it('поле без значения при вставке получает значение по умолчанию', async () => {
+    const created = await insert(datasetId, [{ code: 'default-1', magnitude: 2 }])
+    const row = created.items[0] as { _id: string; values: Record<string, unknown> }
+    expect(row.values.status).toBe('new')
+    const events = await eventsOf(datasetId, 'dataset.row_created')
+    expect(events.at(-1)?.payload).toMatchObject({
+      values: { code: 'default-1', status: 'new' },
+      labels: { status: 'Новое' },
+    })
   })
 
   it('выключенная настройка и большой пакет — только сводное событие', async () => {
