@@ -179,7 +179,10 @@ const PACK_LAYERS: readonly PackLayer[] = [
       renderer: { kind: 'simple', color: 'danger', icon: 'siren' },
       point: { shape: 'icon', size: 16 },
       cluster: { enabled: true, radius: 50 },
-      filter: lastDays('occurred_at', 3),
+      // Только случившееся: строка с будущим временем — ошибка ввода (демо-набор — до конца года)
+      filter: {
+        and: [lastDays('occurred_at', 3), { field: 'occurred_at', op: 'lte', value: '@now' }],
+      },
       popup: {
         title: '{{description}}',
         fields: ['occurred_at', 'type_code', 'territory', 'injured', 'deaths', 'scale'],

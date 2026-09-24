@@ -19,6 +19,15 @@ const lastDays = (field: string, days: number) => ({
   op: 'relative' as const,
   value: { unit: 'day' as const, from: 1 - days, to: 0 },
 })
+/**
+ * Уже случившееся: время события не позже «сейчас». На настоящих данных условие ничего
+ * не отсекает, а строка с будущим временем — ошибка ввода, и в оперативную обстановку
+ * она не попадает (демо-набор генератора тянется до конца года, ADR-0063).
+ */
+const happened = (field: string) => ({ field, op: 'lte' as const, value: '@now' })
+const recent = (field: string, days: number) => ({
+  and: [lastDays(field, days), happened(field)],
+})
 
 interface PackMetric {
   key: string
@@ -71,6 +80,7 @@ function packMetrics(spaceId: string): PackMetric[] {
         description: 'Происшествия и ЧС с начала текущих суток — по всем источникам',
         definition: {
           measure: count,
+          filter: happened('occurred_at'),
           timeField: 'occurred_at',
           dimensions: ['territory', 'type_code', 'scale'],
           period: today,
@@ -87,6 +97,7 @@ function packMetrics(spaceId: string): PackMetric[] {
         name: 'Пострадавшие за сутки',
         definition: {
           measure: { agg: 'sum', field: 'injured' },
+          filter: happened('occurred_at'),
           timeField: 'occurred_at',
           dimensions: ['territory', 'type_code'],
           period: today,
@@ -104,6 +115,7 @@ function packMetrics(spaceId: string): PackMetric[] {
         name: 'Погибшие за сутки',
         definition: {
           measure: { agg: 'sum', field: 'deaths' },
+          filter: happened('occurred_at'),
           timeField: 'occurred_at',
           dimensions: ['territory', 'type_code'],
           period: today,
@@ -121,6 +133,7 @@ function packMetrics(spaceId: string): PackMetric[] {
         name: 'Происшествия за месяц',
         definition: {
           measure: count,
+          filter: happened('occurred_at'),
           timeField: 'occurred_at',
           dimensions: ['territory', 'type_code', 'scale'],
           period: { unit: 'month', from: 0, to: 0 },
@@ -137,6 +150,7 @@ function packMetrics(spaceId: string): PackMetric[] {
         name: 'Ущерб за месяц',
         definition: {
           measure: { agg: 'sum', field: 'damage' },
+          filter: happened('occurred_at'),
           timeField: 'occurred_at',
           dimensions: ['territory', 'type_code'],
           period: { unit: 'month', from: 0, to: 0 },
@@ -334,9 +348,23 @@ function metricTile(
   y: number,
   w = 2,
   h = 2,
+  /** Короткий заголовок вместо имени показателя — для узких плиток экрана. */
+  title?: string,
 ): DashboardTile[] {
   if (!metricId) return []
-  return [{ id, kind: 'metric', metricId, filterBindings: {}, x, y, w, h } as DashboardTile]
+  return [
+    {
+      id,
+      kind: 'metric',
+      metricId,
+      filterBindings: {},
+      x,
+      y,
+      w,
+      h,
+      ...(title ? { title } : {}),
+    } as DashboardTile,
+  ]
 }
 
 function specTile(
@@ -374,7 +402,7 @@ function recentIncidents(ids: Ids, days: number, limit: number): QuerySpec {
     version: 1,
     source: source(ids.get('incidents') as string, 'inc'),
     steps: [
-      { type: 'filter', where: lastDays('inc.occurred_at', days) },
+      { type: 'filter', where: recent('inc.occurred_at', days) },
       {
         type: 'join',
         source: source(ids.get('incident_types') as string, 'kinds'),
@@ -402,7 +430,7 @@ function incidentsByDay(ids: Ids, days: number): QuerySpec {
     version: 1,
     source: source(ids.get('incidents') as string, 'inc'),
     steps: [
-      { type: 'filter', where: lastDays('inc.occurred_at', days) },
+      { type: 'filter', where: recent('inc.occurred_at', days) },
       {
         type: 'join',
         source: source(ids.get('incident_types') as string, 'kinds'),
@@ -428,7 +456,7 @@ function incidentsByRegion(ids: Ids, days: number): QuerySpec {
     version: 1,
     source: source(ids.get('incidents') as string, 'inc'),
     steps: [
-      { type: 'filter', where: lastDays('inc.occurred_at', days) },
+      { type: 'filter', where: recent('inc.occurred_at', days) },
       {
         type: 'compute',
         fields: [
@@ -525,6 +553,7 @@ function incidentsOfKinds(ids: Ids, kinds: string[], days: number): QuerySpec {
         where: {
           and: [
             lastDays('inc.occurred_at', days),
+            happened('inc.occurred_at'),
             { field: 'inc.type_code', op: 'in', value: kinds },
           ],
         },
@@ -634,12 +663,12 @@ function packDashboards(ids: Ids, metrics: Ids, mapId: string): PackDashboard[] 
       refreshInterval: 60,
       theme: 'dark',
       tiles: [
-        ...metricTile('incidents_today', m('incidents_today'), 0, 0),
-        ...metricTile('injured_today', m('injured_today'), 2, 0),
-        ...metricTile('deaths_today', m('deaths_today'), 4, 0),
-        ...metricTile('posts_above', m('posts_above_danger'), 6, 0),
-        ...metricTile('messages_new', m('messages_new'), 8, 0),
-        ...metricTile('shelter_free', m('shelter_free'), 10, 0),
+        ...metricTile('incidents_today', m('incidents_today'), 0, 0, 2, 2, 'Происшествия'),
+        ...metricTile('injured_today', m('injured_today'), 2, 0, 2, 2, 'Пострадавшие'),
+        ...metricTile('deaths_today', m('deaths_today'), 4, 0, 2, 2, 'Погибшие'),
+        ...metricTile('posts_above', m('posts_above_danger'), 6, 0, 2, 2, 'Превышения уровня воды'),
+        ...metricTile('messages_new', m('messages_new'), 8, 0, 2, 2, 'Новые сообщения'),
+        ...metricTile('shelter_free', m('shelter_free'), 10, 0, 2, 2, 'Свободно в ПВР'),
         mapTile('map', 'Обстановка', mapId, { x: 0, y: 2, w: 8, h: 7 }),
         specTile(
           'incidents',
