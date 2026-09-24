@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useId, useState } from 'react'
 import { useT } from '~/app/i18n.js'
 import { principalsQuery } from '~/shared/api/queries.js'
+import { ServiceAccountBadge } from './service-account-badge.js'
 
 /** Роли пространства ниже «Администратор»: управляющих политики доступа не ограничивают. */
 const SPACE_ROLES = ['viewer', 'member', 'editor'] as const
@@ -34,8 +35,11 @@ export function PrincipalLine({ principal }: { principal: PrincipalRef }) {
     <span className="flex min-w-0 flex-1 items-center gap-2">
       <Avatar name={title} src={principal.avatarUrl} size="sm" />
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm text-fg" title={title}>
-          {title}
+        <span className="flex min-w-0 items-center gap-1.5">
+          <span className="truncate text-sm text-fg" title={title}>
+            {title}
+          </span>
+          {principal.service ? <ServiceAccountBadge /> : null}
         </span>
         {subtitle ? (
           <span className="block truncate text-xs text-fg-muted" title={subtitle}>
@@ -67,7 +71,10 @@ export function PrincipalPicker({
   const listId = useId()
   const [search, setSearch] = useState('')
   const query = useDebouncedValue(search.trim(), 200)
-  const { data: found = [], isFetching } = useQuery(principalsQuery(query))
+  // Доступ выдают и служебным учётным записям: правилу нужны права на объекты
+  const { data: found = [], isFetching } = useQuery(
+    principalsQuery(query, undefined, { serviceAccounts: true }),
+  )
 
   if (value) {
     return (

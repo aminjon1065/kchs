@@ -1,4 +1,4 @@
-import { expect, openScreen, openWorkspace, test } from './fixtures.js'
+import { createServiceAccount, expect, openScreen, openWorkspace, test } from './fixtures.js'
 
 /**
  * Правила автоматизации и расписания (P5-E02, ADR-0096): администратор создаёт
@@ -52,10 +52,21 @@ test.describe('Правила автоматизации', () => {
     // В шаблоне уже есть действие с тегом — заполняем только что добавленное
     await page.getByLabel('Тег').first().fill(`авто-${tag}`)
 
-    // Служебный пользователь: сотрудник с правами на пространство
-    const runAs = await request.get('/api/v1/users?q=user001')
-    const userId = (await runAs.json()).items[0].id as string
-    await page.getByLabel('Работает от имени').fill(userId)
+    // Служебная учётная запись (ADR-0130) с правкой в пространствах администратора:
+    // правило ставит тег на папку, созданную в любом из них
+    const spaces = (await (await request.get('/api/v1/spaces')).json()).items as Array<{
+      id: string
+      kind: string
+    }>
+    const robot = await createServiceAccount(
+      request,
+      `Робот тегов ${tag}`,
+      spaces
+        .filter((space) => space.kind !== 'personal')
+        .map((space) => ({ spaceId: space.id, role: 'editor' as const })),
+    )
+    await page.getByRole('combobox', { name: 'Работает от имени' }).click()
+    await page.getByRole('option', { name: robot.name }).click()
     await expect(page.getByText('Ошибок нет')).toBeVisible()
 
     // Тестовый прогон: правило ничего не делает, только показывает, что было бы

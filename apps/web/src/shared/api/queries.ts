@@ -28,6 +28,7 @@ import type {
   RoleInfo,
   SearchResponse,
   SecurityPolicy,
+  ServiceAccount,
   ShareLinkList,
   Space,
   SpaceMember,
@@ -66,6 +67,8 @@ export const keys = {
   filePreviews: (id: string) => ['object', id, 'previews'] as const,
   fileText: (id: string) => ['object', id, 'text'] as const,
   users: (params: Record<string, unknown>) => ['users', params] as const,
+  // Под `users`: создание и правка служебной записи сбрасывают и список консоли
+  serviceAccounts: ['users', 'service-accounts'] as const,
   orgUnits: ['org', 'units'] as const,
   audit: (params: Record<string, unknown>) => ['admin', 'audit', params] as const,
   usersImport: (importId: string) => ['admin', 'users-import', importId] as const,
@@ -73,7 +76,8 @@ export const keys = {
   jobs: ['jobs'] as const,
   delegations: ['me', 'delegations'] as const,
   workspaceState: ['me', 'workspace-state'] as const,
-  principals: (q: string, types: string) => ['principals', q, types] as const,
+  principals: (q: string, types: string, serviceAccounts: boolean) =>
+    ['principals', q, types, serviceAccounts] as const,
   tags: (spaceId: string | null, q: string) => ['tags', spaceId, q] as const,
   roles: ['roles'] as const,
   workspaces: ['workspaces'] as const,
@@ -253,6 +257,8 @@ export const usersQuery = (params: {
   limit?: number
   status?: string
   roleKey?: string
+  /** Сотрудники или служебные учётные записи (ADR-0130). */
+  kind?: 'person' | 'service'
 }) =>
   queryOptions({
     queryKey: keys.users(params),
@@ -309,13 +315,38 @@ export const delegationsQuery = () =>
     select: (data: { items: ActiveDelegation[] }) => data.items,
   })
 
-export const principalsQuery = (q: string, types = 'user,group,unit,position') =>
-  queryOptions({
-    queryKey: keys.principals(q, types),
+/**
+ * Поиск принципалов. Служебные учётные записи (ADR-0130) пикеры людей не
+ * показывают; `serviceAccounts` включают выдача доступа и участники пространства.
+ */
+export const principalsQuery = (
+  q: string,
+  types = 'user,group,unit,position',
+  options: { serviceAccounts?: boolean } = {},
+) => {
+  const serviceAccounts = options.serviceAccounts ?? false
+  return queryOptions({
+    queryKey: keys.principals(q, types, serviceAccounts),
     queryFn: () =>
-      http.get<{ items: PrincipalRef[] }>('/principals/search', { query: { q, types, limit: 20 } }),
+      http.get<{ items: PrincipalRef[] }>('/principals/search', {
+        query: {
+          q,
+          types,
+          limit: 20,
+          serviceAccounts: serviceAccounts ? 'include' : 'exclude',
+        },
+      }),
     select: (data: { items: PrincipalRef[] }) => data.items,
     enabled: q.length > 0,
+  })
+}
+
+/** Служебные учётные записи: консоль и выбор `run_as` правила (ADR-0130). */
+export const serviceAccountsQuery = () =>
+  queryOptions({
+    queryKey: keys.serviceAccounts,
+    queryFn: () => http.get<{ items: ServiceAccount[] }>('/service-accounts'),
+    select: (data: { items: ServiceAccount[] }) => data.items,
   })
 
 export const shareLinksQuery = (objectId: string) =>

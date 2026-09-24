@@ -1406,6 +1406,10 @@ export const en: DeepPartial<Dictionary> = {
       nothingFound: 'Nobody found',
     },
     spaceRoles: { viewer: 'Viewer', member: 'Member', editor: 'Editor', admin: 'Admin' },
+    serviceAccount: {
+      label: 'Service',
+      hint: 'Service account: rules and integrations run on its behalf, nobody can sign in with it',
+    },
     explain: { title: 'Why access is granted', noAccess: 'No access' },
     confidentiality: {
       label: 'Classification',
@@ -7224,6 +7228,12 @@ export const en: DeepPartial<Dictionary> = {
       mfaResetDone: 'Second factor reset',
       roleFilter: 'Role',
       allRoles: 'All roles',
+      kindFilter: 'Account kind',
+      kinds: {
+        all: 'All accounts',
+        person: 'Employees',
+        service: 'Service accounts',
+      },
       fields: {
         lastName: 'Last name',
         firstName: 'First name',
@@ -7232,6 +7242,24 @@ export const en: DeepPartial<Dictionary> = {
         noUnit: 'No unit',
         roles: 'Roles',
       },
+    },
+    serviceAccounts: {
+      create: 'Service account',
+      editTitle: 'Service account',
+      hint: 'Automation rules and integrations run on its behalf. Nobody can sign in with it, and it gets no notifications or tasks.',
+      name: 'Name',
+      namePlaceholder: 'For example, “Registry automation”',
+      description: 'Purpose',
+      descriptionHint:
+        'What rules and integrations do on its behalf — shown when choosing “Runs as”',
+      rolesHint: 'A service account is never a system administrator',
+      spaces: 'Spaces',
+      spacesHint: 'A rule that creates or edits objects needs the Editor role',
+      spaceRole: 'Role in the space “{space}”',
+      removeSpace: 'Remove the space “{space}”',
+      addSpace: 'Add a space',
+      created: 'Service account created',
+      saved: 'Service account saved',
     },
     org: {
       createUnit: 'New unit',
@@ -7350,7 +7378,11 @@ export const en: DeepPartial<Dictionary> = {
       trigger: 'When',
       runAs: 'Runs as',
       runAsHint:
-        'A service account with the rights the rule needs. A system administrator is not allowed.',
+        'A service account with the rights the rule needs: rules never run as an employee.',
+      runAsNone: 'Not selected',
+      runAsUnknown: 'Not a service account — choose another',
+      runAsBlocked: '{name} (blocked) — choose another',
+      runAsCreate: 'Create a service account',
       description: 'Description',
       lastRun: 'Last run',
     },

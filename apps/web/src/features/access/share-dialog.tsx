@@ -28,6 +28,7 @@ import { useState } from 'react'
 import { useT } from '~/app/i18n.js'
 import { http } from '~/shared/api/client.js'
 import { keys, objectAccessQuery, principalsQuery } from '~/shared/api/queries.js'
+import { ServiceAccountBadge } from './service-account-badge.js'
 import { ShareLinksSection } from './share-links-section.js'
 
 const LEVELS: Level[] = ['view', 'comment', 'edit', 'manage']
@@ -58,7 +59,10 @@ export function ShareDialog({
 
   const query = useDebouncedValue(search, 200)
   const { data: access, isLoading } = useQuery(objectAccessQuery(objectId))
-  const { data: candidates = [] } = useQuery(principalsQuery(query))
+  // Доступ выдают и служебным учётным записям: правилу нужны права на объекты
+  const { data: candidates = [] } = useQuery(
+    principalsQuery(query, undefined, { serviceAccounts: true }),
+  )
 
   const grant = useMutation({
     mutationFn: () =>
@@ -147,7 +151,10 @@ export function ShareDialog({
                         >
                           <Avatar name={principal.title} src={principal.avatarUrl} size="sm" />
                           <span className="min-w-0 flex-1">
-                            <span className="block truncate">{principal.title}</span>
+                            <span className="flex min-w-0 items-center gap-1.5">
+                              <span className="truncate">{principal.title}</span>
+                              {principal.service ? <ServiceAccountBadge /> : null}
+                            </span>
                             {principal.subtitle ? (
                               <span className="block truncate text-xs text-fg-muted">
                                 {principal.subtitle}

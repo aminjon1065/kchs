@@ -84,6 +84,24 @@ export async function openInboxItem(page: Page, name: RegExp): Promise<void> {
   await item.click()
 }
 
+/**
+ * Служебная учётная запись (ADR-0130): правила работают только от её имени.
+ * Заводит её администратор; права — роль «Сотрудник» и роли в пространствах.
+ */
+export async function createServiceAccount(
+  request: APIRequestContext,
+  name: string,
+  spaces: Array<{ spaceId: string; role: 'viewer' | 'member' | 'editor' }>,
+): Promise<{ id: string; name: string }> {
+  const me = await (await request.get('/api/v1/me')).json()
+  const response = await request.post('/api/v1/service-accounts', {
+    headers: { 'x-csrf-token': me.session.csrfToken as string },
+    data: { name, roleKeys: ['employee'], spaces },
+  })
+  expect(response.ok(), await response.text()).toBeTruthy()
+  return (await response.json()) as { id: string; name: string }
+}
+
 /** Код TOTP (RFC 6238: SHA-1, 30 с, 6 цифр) — как у приложения-аутентификатора. */
 export function totp(secret: string, at = Date.now()): string {
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'

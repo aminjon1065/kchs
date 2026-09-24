@@ -1,5 +1,12 @@
 import { request as playwrightRequest } from '@playwright/test'
-import { EMPLOYEE_STATE, expect, openScreen, openWorkspace, test } from './fixtures.js'
+import {
+  createServiceAccount,
+  EMPLOYEE_STATE,
+  expect,
+  openScreen,
+  openWorkspace,
+  test,
+} from './fixtures.js'
 
 const BASE = process.env.KCHS_BASE_URL ?? 'http://localhost:5173'
 
@@ -77,20 +84,24 @@ test.describe('Приёмка фазы 5: сценарий A — от показ
     const metricId = (await metric.json()).id as string
 
     // 3. Правило: событие алерта → сообщение в канале и совещание в календаре.
-    // Правило работает от служебного пользователя (ADR-0096: администратором
-    // системы — нельзя), поэтому канал берётся из видимых и ему, и проверяющему
+    // Правило работает от служебной учётной записи (ADR-0130): она правит в
+    // пространстве, а открытый канал пространства даёт ей право писать в него
     const employee = await playwrightRequest.newContext({
       baseURL: BASE,
       storageState: EMPLOYEE_STATE,
     })
-    const serviceUser = (await (await employee.get('/api/v1/me')).json()).user as { id: string }
+    const staff = (await (await employee.get('/api/v1/me')).json()).user as { id: string }
+    const robot = await createServiceAccount(request, `Робот штаба ${run}`, [
+      { spaceId: spaceId as string, role: 'editor' },
+    ])
     const staffChannel = await request.post('/api/v1/chats', {
       headers,
       data: {
         kind: 'channel',
         title: `Оперативный штаб ${run}`,
         spaceId,
-        memberIds: [serviceUser.id],
+        privacy: 'open',
+        memberIds: [staff.id],
       },
     })
     expect(staffChannel.ok(), await staffChannel.text()).toBeTruthy()
@@ -103,7 +114,7 @@ test.describe('Приёмка фазы 5: сценарий A — от показ
         definition: {
           name: { ru: `Оперативный штаб ${run}` },
           enabled: true,
-          runAs: serviceUser.id,
+          runAs: robot.id,
           trigger: { kind: 'event', type: 'alert.fired' },
           actions: [
             {
@@ -116,7 +127,7 @@ test.describe('Приёмка фазы 5: сценарий A — от показ
               title: meetingTitle,
               startsAt: '{{now}}',
               durationMinutes: 30,
-              participants: [`user:${serviceUser.id}`],
+              participants: [`user:${staff.id}`],
             },
           ],
         },
@@ -294,13 +305,18 @@ test.describe('Приёмка фазы 5: сценарий G — новый со
     const unit = units[0]
     expect(unit, 'в оргструктуре есть подразделение').toBeTruthy()
 
-    // Правило работает от служебного пользователя: администратором системы — нельзя
-    const employee = await playwrightRequest.newContext({
-      baseURL: BASE,
-      storageState: EMPLOYEE_STATE,
-    })
-    const serviceUser = (await (await employee.get('/api/v1/me')).json()).user as { id: string }
-    await employee.dispose()
+    // Правило работает от служебной учётной записи (ADR-0130): поручение ложится
+    // в пространство руководства, где ей нужна правка
+    const orgSpace = (
+      (await (await request.get('/api/v1/spaces')).json()).items as Array<{
+        id: string
+        kind: string
+      }>
+    ).find((item) => item.kind === 'org')
+    expect(orgSpace, 'общее пространство есть').toBeTruthy()
+    const robot = await createServiceAccount(request, `Робот адаптации ${run}`, [
+      { spaceId: orgSpace?.id as string, role: 'editor' },
+    ])
 
     // Стартовая страница руководства — она же источник поручения адаптации
     const pages = await request.get(
@@ -317,8 +333,9 @@ test.describe('Приёмка фазы 5: сценарий G — новый со
         definition: {
           name: { ru: `Адаптация нового сотрудника ${run}` },
           enabled: true,
-          runAs: serviceUser.id,
-          trigger: { kind: 'event', type: 'user.created' },
+          runAs: robot.id,
+          // Служебные учётные записи создаются тем же событием — адаптация им не нужна
+          trigger: { kind: 'event', type: 'user.created', filter: { 'payload.kind': 'person' } },
           actions: [
             {
               type: 'create_task',

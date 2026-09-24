@@ -29,6 +29,7 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Activity,
+  Bot,
   Building2,
   Cable,
   CalendarClock,
@@ -64,6 +65,7 @@ import {
 import { type ReactNode, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
+import { ServiceAccountBadge } from '~/features/access/service-account-badge.js'
 import { AutomationRulesSection } from '~/features/automation/rules-section.js'
 import { SchedulesSection } from '~/features/automation/schedules-section.js'
 import { ProcessesSection } from '~/features/processes/processes-section.js'
@@ -93,6 +95,7 @@ import { CreateUnitDialog } from './org-management.js'
 import { OrgUnitEditor } from './org-unit-editor.js'
 import { RolesSection } from './roles-section.js'
 import { SecuritySection } from './security-section.js'
+import { ServiceAccountActions, ServiceAccountDialog } from './service-accounts.js'
 import { SpacesSection } from './spaces-section.js'
 import { SsoSection } from './sso-section.js'
 import { TasksSection } from './tasks-section.js'
@@ -512,6 +515,9 @@ function HealthSection() {
 }
 
 const ALL_ROLES = '*'
+/** Вид учётных записей в списке: все, сотрудники или служебные (ADR-0130). */
+const ALL_KINDS = '*'
+type KindFilter = typeof ALL_KINDS | 'person' | 'service'
 
 function UsersSection({
   roleKey,
@@ -527,10 +533,17 @@ function UsersSection({
   const [search, setSearch] = useState('')
   const [importing, setImporting] = useState(false)
   const [creating, setCreating] = useState(false)
+  const [creatingService, setCreatingService] = useState(false)
+  const [kind, setKind] = useState<KindFilter>(ALL_KINDS)
   const query = useDebouncedValue(search, 250)
   const { data: roles = [] } = useQuery(rolesQuery())
   const { data, isLoading } = useQuery(
-    usersQuery({ q: query || undefined, roleKey: roleKey ?? undefined, limit: 100 }),
+    usersQuery({
+      q: query || undefined,
+      roleKey: roleKey ?? undefined,
+      ...(kind === ALL_KINDS ? {} : { kind }),
+      limit: 100,
+    }),
   )
   const { data: me } = useQuery(meQuery())
   const canManage = me?.capabilities.includes('users.manage') ?? false
@@ -562,8 +575,26 @@ function UsersSection({
             ))}
           </SelectContent>
         </Select>
+        <Select value={kind} onValueChange={(next) => setKind(next as KindFilter)}>
+          <SelectTrigger aria-label={t('admin.users.kindFilter')} className="w-48">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_KINDS}>{t('admin.users.kinds.all')}</SelectItem>
+            <SelectItem value="person">{t('admin.users.kinds.person')}</SelectItem>
+            <SelectItem value="service">{t('admin.users.kinds.service')}</SelectItem>
+          </SelectContent>
+        </Select>
         {canManage ? (
           <div className="ml-auto flex gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={<Bot className="size-3.5" />}
+              onClick={() => setCreatingService(true)}
+            >
+              {t('admin.serviceAccounts.create')}
+            </Button>
             <Button
               variant="secondary"
               size="sm"
@@ -584,6 +615,15 @@ function UsersSection({
         ) : null}
       </div>
       <UsersImportDialog open={importing} onOpenChange={setImporting} />
+      <ServiceAccountDialog
+        accountId={null}
+        open={creatingService}
+        onOpenChange={setCreatingService}
+        onSaved={() => {
+          toast.show({ title: t('admin.serviceAccounts.created'), tone: 'success' })
+          refresh()
+        }}
+      />
       <CreateUserDialog
         open={creating}
         onOpenChange={setCreating}
@@ -620,7 +660,12 @@ function UsersSection({
             <tbody>
               {data.items.map((user) => (
                 <tr key={user.id} className="border-b border-line last:border-0 hover:bg-surface-2">
-                  <td className="h-(--row-h) px-3">{user.displayName}</td>
+                  <td className="h-(--row-h) px-3">
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      <span className="truncate">{user.displayName}</span>
+                      {user.kind === 'service' ? <ServiceAccountBadge /> : null}
+                    </span>
+                  </td>
                   <td className="px-3 font-mono text-xs text-fg-secondary">{user.login}</td>
                   <td className="px-3 text-xs text-fg-secondary">
                     {user.units.find((unit) => unit.isPrimary)?.name ?? '—'}
@@ -654,7 +699,11 @@ function UsersSection({
                   </td>
                   {canManage ? (
                     <td className="px-3 text-right">
-                      <UserActions user={user} onChanged={refresh} />
+                      {user.kind === 'service' ? (
+                        <ServiceAccountActions user={user} onChanged={refresh} />
+                      ) : (
+                        <UserActions user={user} onChanged={refresh} />
+                      )}
                     </td>
                   ) : null}
                 </tr>

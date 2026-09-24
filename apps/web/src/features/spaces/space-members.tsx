@@ -20,6 +20,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { UserMinus } from 'lucide-react'
 import { useState } from 'react'
 import { useT } from '~/app/i18n.js'
+import { ServiceAccountBadge } from '~/features/access/service-account-badge.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { keys, principalsQuery } from '~/shared/api/queries.js'
 
@@ -51,7 +52,10 @@ export function AddMemberDialog({
   const [role, setRole] = useState<SpaceRole>('member')
   const [error, setError] = useState<string | null>(null)
   const query = useDebouncedValue(search, 200)
-  const { data: candidates = [] } = useQuery(principalsQuery(query, 'user'))
+  // Служебную учётную запись тоже включают в пространство — с отметкой
+  const { data: candidates = [] } = useQuery(
+    principalsQuery(query, 'user', { serviceAccounts: true }),
+  )
   const already = new Set(members.map((member) => member.userId))
 
   const close = (next: boolean) => {
@@ -131,7 +135,10 @@ export function AddMemberDialog({
                       >
                         <Avatar name={candidate.title} src={candidate.avatarUrl} size="sm" />
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate">{candidate.title}</span>
+                          <span className="flex min-w-0 items-center gap-1.5">
+                            <span className="truncate">{candidate.title}</span>
+                            {candidate.service ? <ServiceAccountBadge /> : null}
+                          </span>
                           <span className="block truncate text-xs text-fg-muted">
                             {already.has(candidate.id)
                               ? t('spaces.members.alreadyMember')
