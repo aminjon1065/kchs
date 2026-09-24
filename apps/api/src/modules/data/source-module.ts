@@ -1,4 +1,7 @@
 import {
+  FeedPreview,
+  FeedPreviewInput,
+  FeedSourceCreateInput,
   IntegrationCheckResult,
   SourceCreateInput,
   SourceList,
@@ -22,6 +25,7 @@ import { ExternalDatabase } from '~/modules/integrations/public.js'
 import { db } from '~/shared/db/client.js'
 import { objects, sources } from '~/shared/db/schema/index.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
+import { FeedService } from './domain/feed-service.js'
 import {
   SOURCE_SCHEDULE_JOB,
   sourceScheduleProvider,
@@ -121,6 +125,33 @@ export function registerSourceRoutes(route: RouteRegistrar): void {
       await syncSourceSchedule(id)
       return SourceService.get(request.ctx, id)
     },
+  })
+
+  route({
+    method: 'POST',
+    url: '/sources/feeds',
+    auth: { capability: MANAGE },
+    tags: ['data'],
+    summary: 'Завести ленту по адресу: разбор, датасет-приёмник и расписание',
+    schema: { body: FeedSourceCreateInput, response: { 200: SourceRecord } },
+    handler: async (request) => {
+      await authorize(request.ctx, 'create_child', request.body.parentId ?? request.body.spaceId)
+      const id = await FeedService.create(request.ctx, request.body)
+      await syncSourceSchedule(id)
+      return SourceService.get(request.ctx, id)
+    },
+  })
+
+  route({
+    method: 'POST',
+    url: '/sources/feed/preview',
+    auth: { capability: MANAGE },
+    readOnly: true,
+    tags: ['data'],
+    summary: 'Предпросмотр ленты по адресу: первые записи и найденные поля',
+    schema: { body: FeedPreviewInput, response: { 200: FeedPreview } },
+    rateLimit: { max: 30, timeWindow: '1 minute' },
+    handler: async (request) => FeedService.preview(request.ctx, request.body),
   })
 
   route({

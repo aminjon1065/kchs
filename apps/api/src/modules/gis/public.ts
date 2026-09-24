@@ -6,6 +6,7 @@
 export { BasemapService, type BasemapSyncSummary } from './domain/basemap-service.js'
 export { type UploadSummary, uploadBasemapBuild } from './domain/basemap-storage.js'
 export { normalizeName, type TerritoryIndex, territoryIndex } from './domain/territory-index.js'
+export { type LocatableGeometry, TerritoryLocator } from './domain/territory-locate.js'
 export {
   type TerritoryInput,
   type TerritoryPopulationInput,

@@ -1,0 +1,421 @@
+{
+ "type": "FeatureCollection",
+ "metadata": {
+  "generated": 1790270786000,
+  "url": "https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime=2026-08-24&minlatitude=35&maxlatitude=42&minlongitude=66&maxlongitude=76&minmagnitude=2.5&orderby=time",
+  "title": "USGS Earthquakes",
+  "status": 200,
+  "api": "2.7.0",
+  "count": 10
+ },
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "mag": 4.7,
+    "place": "30 km SE of Khorugh, Tajikistan",
+    "time": 1790142371056,
+    "updated": 1790143382040,
+    "tz": null,
+    "url": "https://earthquake.usgs.gov/earthquakes/eventpage/us6000tx16",
+    "detail": "https://earthquake.usgs.gov/fdsnws/event/1/query?eventid=us6000tx16&format=geojson",
+    "felt": null,
+    "cdi": null,
+    "mmi": null,
+    "alert": null,
+    "status": "reviewed",
+    "tsunami": 0,
+    "sig": 340,
+    "net": "us",
+    "code": "6000tx16",
+    "ids": ",us6000tx16,",
+    "sources": ",us,",
+    "types": ",origin,phase-data,",
+    "nst": 68,
+    "dmin": 2.197,
+    "rms": 1.31,
+    "gap": 57,
+    "magType": "mb",
+    "type": "earthquake",
+    "title": "M 4.7 - 30 km SE of Khorugh, Tajikistan"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     71.768,
+     37.2772,
+     141.19
+    ]
+   },
+   "id": "us6000tx16"
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mag": 4.4,
+    "place": "38 km S of Jurm, Afghanistan",
+    "time": 1790076581886,
+    "updated": 1790077842040,
+    "tz": null,
+    "url": "https://earthquake.usgs.gov/earthquakes/eventpage/us7000tj55",
+    "detail": "https://earthquake.usgs.gov/fdsnws/event/1/query?eventid=us7000tj55&format=geojson",
+    "felt": null,
+    "cdi": null,
+    "mmi": null,
+    "alert": null,
+    "status": "reviewed",
+    "tsunami": 0,
+    "sig": 298,
+    "net": "us",
+    "code": "7000tj55",
+    "ids": ",us7000tj55,",
+    "sources": ",us,",
+    "types": ",origin,phase-data,",
+    "nst": 83,
+    "dmin": 2.19,
+    "rms": 0.77,
+    "gap": 72,
+    "magType": "mb",
+    "type": "earthquake",
+    "title": "M 4.4 - 38 km S of Jurm, Afghanistan"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     70.898,
+     36.5213,
+     192.749
+    ]
+   },
+   "id": "us7000tj55"
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mag": 4.3,
+    "place": "35 km S of Jurm, Afghanistan",
+    "time": 1790035634659,
+    "updated": 1790052184040,
+    "tz": null,
+    "url": "https://earthquake.usgs.gov/earthquakes/eventpage/us7000tj20",
+    "detail": "https://earthquake.usgs.gov/fdsnws/event/1/query?eventid=us7000tj20&format=geojson",
+    "felt": null,
+    "cdi": null,
+    "mmi": null,
+    "alert": null,
+    "status": "reviewed",
+    "tsunami": 0,
+    "sig": 284,
+    "net": "us",
+    "code": "7000tj20",
+    "ids": ",us7000tj20,",
+    "sources": ",us,",
+    "types": ",origin,phase-data,",
+    "nst": 31,
+    "dmin": 2.21,
+    "rms": 0.46,
+    "gap": 64,
+    "magType": "mb",
+    "type": "earthquake",
+    "title": "M 4.3 - 35 km S of Jurm, Afghanistan"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     70.8201,
+     36.5413,
+     196.057
+    ]
+   },
+   "id": "us7000tj20"
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mag": 4.7,
+    "place": "95 km ENE of Khorugh, Tajikistan",
+    "time": 1789987696231,
+    "updated": 1789995624040,
+    "tz": null,
+    "url": "https://earthquake.usgs.gov/earthquakes/eventpage/us7000tiwz",
+    "detail": "https://earthquake.usgs.gov/fdsnws/event/1/query?eventid=us7000tiwz&format=geojson",
+    "felt": null,
+    "cdi": null,
+    "mmi": null,
+    "alert": null,
+    "status": "reviewed",
+    "tsunami": 0,
+    "sig": 340,
+    "net": "us",
+    "code": "7000tiwz",
+    "ids": ",us7000tiwz,",
+    "sources": ",us,",
+    "types": ",origin,phase-data,",
+    "nst": 68,
+    "dmin": 0.395,
+    "rms": 0.88,
+    "gap": 50,
+    "magType": "mb",
+    "type": "earthquake",
+    "title": "M 4.7 - 95 km ENE of Khorugh, Tajikistan"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     72.4916,
+     37.9169,
+     129.316
+    ]
+   },
+   "id": "us7000tiwz"
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mag": 4.2,
+    "place": "34 km S of Jurm, Afghanistan",
+    "time": 1789733258239,
+    "updated": 1789734817040,
+    "tz": null,
+    "url": "https://earthquake.usgs.gov/earthquakes/eventpage/us7000ti97",
+    "detail": "https://earthquake.usgs.gov/fdsnws/event/1/query?eventid=us7000ti97&format=geojson",
+    "felt": null,
+    "cdi": null,
+    "mmi": null,
+    "alert": null,
+    "status": "reviewed",
+    "tsunami": 0,
+    "sig": 271,
+    "net": "us",
+    "code": "7000ti97",
+    "ids": ",us7000ti97,",
+    "sources": ",us,",
+    "types": ",origin,phase-data,",
+    "nst": 34,
+    "dmin": 2.181,
+    "rms": 0.69,
+    "gap": 76,
+    "magType": "mb",
+    "type": "earthquake",
+    "title": "M 4.2 - 34 km S of Jurm, Afghanistan"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     70.8569,
+     36.5552,
+     179.456
+    ]
+   },
+   "id": "us7000ti97"
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mag": 4.1,
+    "place": "40 km N of Ishqoshim, Tajikistan",
+    "time": 1789694941643,
+    "updated": 1789698799040,
+    "tz": null,
+    "url": "https://earthquake.usgs.gov/earthquakes/eventpage/us7000ti74",
+    "detail": "https://earthquake.usgs.gov/fdsnws/event/1/query?eventid=us7000ti74&format=geojson",
+    "felt": null,
+    "cdi": null,
+    "mmi": null,
+    "alert": null,
+    "status": "reviewed",
+    "tsunami": 0,
+    "sig": 259,
+    "net": "us",
+    "code": "7000ti74",
+    "ids": ",us7000ti74,",
+    "sources": ",us,",
+    "types": ",origin,phase-data,",
+    "nst": 37,
+    "dmin": 1.432,
+    "rms": 0.64,
+    "gap": 101,
+    "magType": "mb",
+    "type": "earthquake",
+    "title": "M 4.1 - 40 km N of Ishqoshim, Tajikistan"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     71.5498,
+     37.0863,
+     106.028
+    ]
+   },
+   "id": "us7000ti74"
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mag": 4.1,
+    "place": "35 km ESE of Farkhār, Afghanistan",
+    "time": 1789415294687,
+    "updated": 1789749365040,
+    "tz": null,
+    "url": "https://earthquake.usgs.gov/earthquakes/eventpage/us7000thgc",
+    "detail": "https://earthquake.usgs.gov/fdsnws/event/1/query?eventid=us7000thgc&format=geojson",
+    "felt": null,
+    "cdi": null,
+    "mmi": null,
+    "alert": null,
+    "status": "reviewed",
+    "tsunami": 0,
+    "sig": 259,
+    "net": "us",
+    "code": "7000thgc",
+    "ids": ",us7000thgc,",
+    "sources": ",us,",
+    "types": ",origin,phase-data,",
+    "nst": 59,
+    "dmin": 2.138,
+    "rms": 0.64,
+    "gap": 67,
+    "magType": "mb",
+    "type": "earthquake",
+    "title": "M 4.1 - 35 km ESE of Farkhār, Afghanistan"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     70.2314,
+     36.4612,
+     217.496
+    ]
+   },
+   "id": "us7000thgc"
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mag": 4.4,
+    "place": "87 km SSE of Karakenja, Tajikistan",
+    "time": 1789408873716,
+    "updated": 1789744257040,
+    "tz": null,
+    "url": "https://earthquake.usgs.gov/earthquakes/eventpage/us7000thfi",
+    "detail": "https://earthquake.usgs.gov/fdsnws/event/1/query?eventid=us7000thfi&format=geojson",
+    "felt": null,
+    "cdi": null,
+    "mmi": null,
+    "alert": null,
+    "status": "reviewed",
+    "tsunami": 0,
+    "sig": 298,
+    "net": "us",
+    "code": "7000thfi",
+    "ids": ",us7000thfi,",
+    "sources": ",us,",
+    "types": ",origin,phase-data,",
+    "nst": 34,
+    "dmin": 0.439,
+    "rms": 0.74,
+    "gap": 121,
+    "magType": "mb",
+    "type": "earthquake",
+    "title": "M 4.4 - 87 km SSE of Karakenja, Tajikistan"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     72.0064,
+     38.5404,
+     10
+    ]
+   },
+   "id": "us7000thfi"
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mag": 4.1,
+    "place": "62 km NNW of Barishal, Pakistan",
+    "time": 1789066631977,
+    "updated": 1790268650040,
+    "tz": null,
+    "url": "https://earthquake.usgs.gov/earthquakes/eventpage/us7000thvx",
+    "detail": "https://earthquake.usgs.gov/fdsnws/event/1/query?eventid=us7000thvx&format=geojson",
+    "felt": null,
+    "cdi": null,
+    "mmi": null,
+    "alert": null,
+    "status": "reviewed",
+    "tsunami": 0,
+    "sig": 259,
+    "net": "us",
+    "code": "7000thvx",
+    "ids": ",us7000thvx,",
+    "sources": ",us,",
+    "types": ",origin,phase-data,",
+    "nst": 21,
+    "dmin": 2.107,
+    "rms": 0.97,
+    "gap": 97,
+    "magType": "mb",
+    "type": "earthquake",
+    "title": "M 4.1 - 62 km NNW of Barishal, Pakistan"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     74.3388,
+     36.8038,
+     61.034
+    ]
+   },
+   "id": "us7000thvx"
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mag": 4.6,
+    "place": "24 km E of Rasht, Tajikistan",
+    "time": 1788985033749,
+    "updated": 1788990803040,
+    "tz": null,
+    "url": "https://earthquake.usgs.gov/earthquakes/eventpage/us7000tg5i",
+    "detail": "https://earthquake.usgs.gov/fdsnws/event/1/query?eventid=us7000tg5i&format=geojson",
+    "felt": null,
+    "cdi": null,
+    "mmi": null,
+    "alert": null,
+    "status": "reviewed",
+    "tsunami": 0,
+    "sig": 326,
+    "net": "us",
+    "code": "7000tg5i",
+    "ids": ",us7000tg5i,",
+    "sources": ",us,",
+    "types": ",origin,phase-data,",
+    "nst": 33,
+    "dmin": 1.014,
+    "rms": 1.51,
+    "gap": 144,
+    "magType": "mb",
+    "type": "earthquake",
+    "title": "M 4.6 - 24 km E of Rasht, Tajikistan"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     70.6552,
+     38.9879,
+     29.594
+    ]
+   },
+   "id": "us7000tg5i"
+  }
+ ],
+ "bbox": [
+  70.2239,
+  36.0942,
+  10,
+  75.8859,
+  39.8141,
+  217.496
+ ]
+}

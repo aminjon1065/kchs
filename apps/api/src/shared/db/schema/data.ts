@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm'
 import {
   bigint,
   boolean,
+  check,
   index,
   integer,
   jsonb,
@@ -518,7 +519,8 @@ export const pipelineRuns = pgTable(
 /**
  * Источник датасета — объект реестра типа `source` (05-data-model.md §Данные,
  * ADR-0107): интеграция с подключением к внешней СУБД плюс запрос или таблица.
- * Учётные данные живут в интеграции — здесь их нет.
+ * Учётные данные живут в интеграции — здесь их нет. Вид `feed` — лента по адресу
+ * (ADR-0132): интеграция `http` необязательна, она хранит секреты адреса.
  */
 export const sources = pgTable(
   'sources',
@@ -527,8 +529,11 @@ export const sources = pgTable(
       .primaryKey()
       .references(() => objects.id, { onDelete: 'cascade' }),
     kind: text('kind').notNull().default('database'),
-    integrationId: uuid('integration_id').notNull(),
-    /** `{ query, columns, cursorField, keyFields, datasetName }`. */
+    integrationId: uuid('integration_id'),
+    /**
+     * База: `{ query, columns, cursorField, keyFields, datasetName }`;
+     * лента: `{ feed }` (ADR-0132).
+     */
     config: jsonbObject('config'),
     description: text('description'),
     /** `snapshot` — полная перезагрузка версии, `incremental` — по полю-курсору. */
@@ -551,6 +556,11 @@ export const sources = pgTable(
     index('sources_dataset_idx').on(t.datasetId),
     index('sources_integration_idx').on(t.integrationId),
     index('sources_enabled_idx').on(t.enabled),
+    // Внешняя база без подключения читаться не может; лента обходится без интеграции
+    check(
+      'sources_integration_check',
+      sql`${t.kind} <> 'database' OR ${t.integrationId} IS NOT NULL`,
+    ),
   ],
 )
 

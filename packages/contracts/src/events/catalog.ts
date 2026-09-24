@@ -676,7 +676,12 @@ export const EVENT_PAYLOADS = {
   }),
 
   // ── источники датасетов из внешних БД (14-…md §5, ADR-0107) ───────────────
-  'source.created': z.object({ kind: z.string(), integrationId: Uuid, mode: z.string() }),
+  /** У ленты по адресу (ADR-0132) интеграции может не быть. */
+  'source.created': z.object({
+    kind: z.string(),
+    integrationId: Uuid.nullable(),
+    mode: z.string(),
+  }),
   'source.updated': z.object({ changed: z.array(z.string()) }),
   'source.queued': z.object({ jobId: Uuid, runId: Uuid, mode: z.string() }),
   'source.synced': z.object({

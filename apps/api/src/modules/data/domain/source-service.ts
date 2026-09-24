@@ -3,6 +3,7 @@ import {
   SOURCE_MAX_ROWS,
   type SourceColumn,
   type SourceCreateInput,
+  type SourceKind,
   type SourceListItem,
   type SourceMode,
   type SourceQuery,
@@ -21,7 +22,6 @@ import { publishEvent } from '~/kernel/events/publisher.js'
 import { JobService } from '~/kernel/jobs/service.js'
 import { LinkService } from '~/kernel/links/service.js'
 import { ObjectService } from '~/kernel/objects/service.js'
-import { nextRuns } from '~/kernel/schedules/index.js'
 import { ExternalDatabase, externalValue, Integrations } from '~/modules/integrations/public.js'
 import { actorId, type Ctx, systemCtx, type UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
@@ -31,6 +31,8 @@ import { newId } from '~/shared/ids.js'
 import { logger } from '~/shared/logger/index.js'
 import { Physical, type PhysicalColumn } from '../infra/physical.js'
 import { DatasetService, type DatasetStorage, defaultSemantic } from './dataset-service.js'
+import { FeedService, feedOf } from './feed-service.js'
+import { assertCron, sourceEventObject } from './source-shared.js'
 
 export const SOURCE_SYNC_JOB = { queue: 'data', name: 'source.sync' } as const
 
@@ -70,15 +72,6 @@ function configOf(row: SourceRow): SourceConfig {
 /** Столбцы, которые загружаются: у них задан ключ поля датасета. */
 const loaded = (columns: SourceColumn[]) => columns.filter((column) => Boolean(column.key))
 
-function assertCron(pattern: string | null | undefined): void {
-  if (!pattern) return
-  try {
-    nextRuns(pattern, 'UTC', 1)
-  } catch {
-    throw errors.validation('Не удалось разобрать расписание: нужно выражение cron из пяти полей')
-  }
-}
-
 function assertMode(mode: SourceMode, config: { cursorField: string | null; keyFields: string[] }) {
   if (mode !== 'incremental') return
   if (!config.cursorField) throw errors.validation('Для инкремента нужно поле-курсор')
@@ -111,14 +104,12 @@ async function load(
   return found
 }
 
-const eventObject = (id: string, object: ObjectRow) => ({
-  id,
-  type: 'source' as const,
-  spaceId: object.spaceId,
-  title: object.title,
-})
+const eventObject = sourceEventObject
 
-async function integrationBrief(id: string): Promise<{ name: string | null; kind: string | null }> {
+async function integrationBrief(
+  id: string | null,
+): Promise<{ name: string | null; kind: string | null }> {
+  if (!id) return { name: null, kind: null }
   const [row] = await db()
     .select({ name: objects.title, kind: integrations.kind })
     .from(integrations)
@@ -133,24 +124,26 @@ async function toRecord(
   object: LoadedObject,
   canManage: boolean,
 ): Promise<SourceRecord> {
-  const config = configOf(row)
   const integration = await integrationBrief(row.integrationId)
+  const feed = row.kind === 'feed' ? feedOf(row) : null
+  const config = feed ? null : configOf(row)
   return {
     id: row.id,
     name: object.title,
     description: row.description,
     spaceId: object.spaceId as string,
     parentId: object.parentId,
-    kind: 'database',
+    kind: row.kind as SourceKind,
     integrationId: row.integrationId,
     integrationName: integration.name,
     integrationKind: integration.kind,
-    query: config.query,
+    query: config?.query ?? null,
+    feed,
     mode: row.mode as SourceMode,
-    cursorField: config.cursorField,
+    cursorField: config?.cursorField ?? null,
     cursorValue: row.cursorValue,
-    keyFields: config.keyFields,
-    columns: config.columns,
+    keyFields: config?.keyFields ?? feed?.keyFields ?? [],
+    columns: config?.columns ?? [],
     datasetId: row.datasetId,
     schedule: row.schedule,
     enabled: row.enabled,
@@ -294,7 +287,7 @@ export const SourceService = {
         id: item.row.id,
         name: item.title,
         spaceId: item.spaceId as string,
-        kind: 'database',
+        kind: item.row.kind as SourceKind,
         mode: item.row.mode as SourceMode,
         status: item.row.status as SourceStatus,
         schedule: item.row.schedule,
@@ -309,18 +302,50 @@ export const SourceService = {
 
   async update(ctx: UserCtx, id: string, input: SourceUpdateInput): Promise<SourceRecord> {
     const current = await load(id)
-    const config = configOf(current.row)
     assertCron(input.schedule)
-    const next: SourceConfig = {
-      query: input.query ?? config.query,
-      columns: input.columns ?? config.columns,
-      cursorField: input.cursorField === undefined ? config.cursorField : input.cursorField,
-      keyFields: input.keyFields ?? config.keyFields,
-      datasetName: config.datasetName,
+    const isFeed = current.row.kind === 'feed'
+    const foreign = isFeed
+      ? (['query', 'mode', 'columns', 'cursorField', 'keyFields'] as const).filter(
+          (key) => input[key] !== undefined,
+        )
+      : (['feed', 'integrationId'] as const).filter((key) => input[key] !== undefined)
+    if (foreign.length > 0) {
+      throw errors.validation(
+        isFeed
+          ? `У ленты нет выборки внешней базы: ${foreign.join(', ')}`
+          : `У источника внешней базы нет настройки ленты: ${foreign.join(', ')}`,
+      )
     }
-    assertMode((input.mode ?? current.row.mode) as SourceMode, next)
+    let next: Record<string, unknown>
+    let integrationId = current.row.integrationId
+    if (isFeed) {
+      const checked = await FeedService.validateUpdate(ctx, current.row, input)
+      next = { feed: checked.feed }
+      integrationId = checked.integrationId
+    } else {
+      const config = configOf(current.row)
+      const database: SourceConfig = {
+        query: input.query ?? config.query,
+        columns: input.columns ?? config.columns,
+        cursorField: input.cursorField === undefined ? config.cursorField : input.cursorField,
+        keyFields: input.keyFields ?? config.keyFields,
+        datasetName: config.datasetName,
+      }
+      assertMode((input.mode ?? current.row.mode) as SourceMode, database)
+      next = database as unknown as Record<string, unknown>
+    }
     const changed: string[] = []
-    for (const key of ['name', 'description', 'query', 'mode', 'columns', 'schedule', 'enabled']) {
+    for (const key of [
+      'name',
+      'description',
+      'query',
+      'mode',
+      'columns',
+      'feed',
+      'integrationId',
+      'schedule',
+      'enabled',
+    ]) {
       if ((input as Record<string, unknown>)[key] !== undefined) changed.push(key)
     }
     await db().transaction(async (tx) => {
@@ -339,7 +364,8 @@ export const SourceService = {
       await tx
         .update(sources)
         .set({
-          config: next as unknown as Record<string, unknown>,
+          config: next,
+          integrationId,
           ...(input.description === undefined ? {} : { description: input.description }),
           ...(input.mode === undefined ? {} : { mode: input.mode }),
           ...(input.schedule === undefined ? {} : { schedule: input.schedule }),
@@ -347,6 +373,10 @@ export const SourceService = {
           updatedAt: sql`now()`,
         })
         .where(eq(sources.id, id))
+      // Происхождение ленты — за её интеграцией с секретами (ADR-0102)
+      if (isFeed && input.integrationId !== undefined) {
+        await LinkService.setDependencies(tx, id, integrationId ? [integrationId] : [], 'uses')
+      }
       await publishEvent(tx, ctx, {
         type: 'source.updated',
         object: eventObject(id, current.object),
@@ -430,15 +460,19 @@ export const SourceService = {
   /** Проверка связи источника: подключение интеграции и его выборка. */
   async check(ctx: UserCtx, id: string): Promise<{ ok: boolean; message: string }> {
     const { row, object } = await load(id)
-    const config = configOf(row)
     let result: { ok: boolean; message: string }
-    try {
-      const columns = await ExternalDatabase.columns(row.integrationId, config.query)
-      result = { ok: true, message: `Выборка читается, столбцов: ${columns.length}` }
-    } catch (error) {
-      result = {
-        ok: false,
-        message: error instanceof Error ? error.message : 'Выборка не читается',
+    if (row.kind === 'feed') {
+      result = await FeedService.check(row)
+    } else {
+      try {
+        const config = configOf(row)
+        const columns = await ExternalDatabase.columns(row.integrationId as string, config.query)
+        result = { ok: true, message: `Выборка читается, столбцов: ${columns.length}` }
+      } catch (error) {
+        result = {
+          ok: false,
+          message: error instanceof Error ? error.message : 'Выборка не читается',
+        }
       }
     }
     await db().transaction(async (tx) => {
@@ -468,11 +502,20 @@ export const SourceService = {
   ): Promise<SourceRunResult> {
     const job = await JobService.get(helpers.recordId)
     const { row, object } = await load(data.sourceId)
-    const config = configOf(row)
     if (!row.datasetId) throw new UnrecoverableError('У источника нет датасета')
     const ctx = job?.initiatorId
       ? ((await buildUserCtxFor(job.initiatorId)) ?? systemCtx('source-sync'))
       : systemCtx('source-sync')
+    // Лента по адресу пишет строки сама (ADR-0132)
+    if (row.kind === 'feed') {
+      return FeedService.execute(
+        ctx,
+        { row, object },
+        { jobId: helpers.recordId, runId: data.runId },
+      )
+    }
+    const config = configOf(row)
+    const integrationId = row.integrationId as string
 
     const mode = row.mode as SourceMode
     const columns = loaded(config.columns)
@@ -508,7 +551,7 @@ export const SourceService = {
     let cursorValue = row.cursorValue
     try {
       await ExternalDatabase.stream(
-        row.integrationId,
+        integrationId,
         {
           query: config.query,
           ...(mode === 'incremental'
@@ -613,7 +656,7 @@ export const SourceService = {
           })
           .where(eq(sourceRuns.id, data.runId))
         await Integrations.recordSync(tx, ctx, {
-          integrationId: row.integrationId,
+          integrationId,
           key: row.id,
           kind: 'database',
           status: 'ok',
@@ -664,7 +707,11 @@ export const SourceService = {
           updatedAt: sql`now()`,
         })
         .where(and(eq(sources.id, sourceId), eq(sources.jobId, jobId)))
-        .returning({ id: sources.id, integrationId: sources.integrationId })
+        .returning({
+          id: sources.id,
+          integrationId: sources.integrationId,
+          kind: sources.kind,
+        })
       if (!updated) return
       const [run] = await tx
         .update(sourceRuns)
@@ -672,14 +719,17 @@ export const SourceService = {
         .where(and(eq(sourceRuns.jobId, jobId), eq(sourceRuns.sourceId, sourceId)))
         .returning({ id: sourceRuns.id })
       const { object } = await load(sourceId, tx)
-      await Integrations.recordSync(tx, ctx, {
-        integrationId: updated.integrationId,
-        key: sourceId,
-        kind: 'database',
-        status: 'error',
-        message: message.slice(0, 1000),
-        stats: { sourceId },
-      })
+      // У ленты без секретов интеграции нет — журнал ведёт только сам источник
+      if (updated.integrationId) {
+        await Integrations.recordSync(tx, ctx, {
+          integrationId: updated.integrationId,
+          key: sourceId,
+          kind: updated.kind,
+          status: 'error',
+          message: message.slice(0, 1000),
+          stats: { sourceId },
+        })
+      }
       await publishEvent(tx, ctx, {
         type: 'source.failed',
         object: eventObject(sourceId, object),
