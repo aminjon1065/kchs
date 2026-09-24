@@ -1,5 +1,5 @@
 import type { Locale, Territory } from '@kchs/contracts'
-import { formatNumber } from '@kchs/fields'
+import { formatDate, formatNumber } from '@kchs/fields'
 import {
   Badge,
   Breadcrumbs,
@@ -21,7 +21,7 @@ const nameOf = (territory: Territory, locale: Locale) => territory.name[locale] 
 
 /**
  * Карточка территории (07-gis-engine.md §11, без карты): путь от страны,
- * уровень и вид, код, население, центроид и вложенные единицы.
+ * уровень и вид, код, население с датой и источником, центроид и вложенные единицы.
  */
 export function TerritoryCard({
   territoryId,
@@ -49,6 +49,16 @@ export function TerritoryCard({
   if (error || !territory) return <ErrorState onRetry={() => void refetch()} />
 
   const population = territory.attributes.population
+  // Происхождение численности (вопрос N7): источник, дата и способ из загрузки статистики
+  const origin = territory.attributes.population_source as
+    | { source?: unknown; date?: unknown; method?: unknown }
+    | undefined
+  const populationNotes = [
+    typeof origin?.date === 'string'
+      ? t('gis.territories.populationAsOf', { date: formatDate(origin.date, { locale }) })
+      : null,
+    origin?.method === 'estimate_share' ? t('gis.territories.populationEstimate') : null,
+  ].filter((note) => note !== null)
   const items = [
     { key: 'code', label: t('gis.territories.code'), value: territory.code },
     {
@@ -64,7 +74,16 @@ export function TerritoryCard({
           {
             key: 'population',
             label: t('gis.territories.population'),
-            value: formatNumber(population, {}, { locale }),
+            value: [formatNumber(population, {}, { locale }), ...populationNotes].join(' · '),
+          },
+        ]
+      : []),
+    ...(typeof population === 'number' && typeof origin?.source === 'string'
+      ? [
+          {
+            key: 'populationSource',
+            label: t('gis.territories.populationSource'),
+            value: origin.source,
           },
         ]
       : []),

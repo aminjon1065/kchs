@@ -6,4 +6,8 @@
 export { BasemapService, type BasemapSyncSummary } from './domain/basemap-service.js'
 export { type UploadSummary, uploadBasemapBuild } from './domain/basemap-storage.js'
 export { normalizeName, type TerritoryIndex, territoryIndex } from './domain/territory-index.js'
-export { type TerritoryInput, TerritoryService } from './domain/territory-service.js'
+export {
+  type TerritoryInput,
+  type TerritoryPopulationInput,
+  TerritoryService,
+} from './domain/territory-service.js'

@@ -49,6 +49,25 @@ interface BoundaryAttribute {
   hash: string
 }
 
+/** Численность населения единицы для загрузки (seed, в будущем — импорт статистики). */
+export interface TerritoryPopulationInput {
+  code: string
+  population: number
+  /**
+   * Способ: `official` — строка статистической таблицы, `official_sum` — сумма города
+   * и одноимённого района, `estimate_share` — доля официального итога по оценке.
+   */
+  method: string
+}
+
+/** Происхождение численности в `attributes.population_source`. */
+interface PopulationSource {
+  source: string
+  /** Дата, на которую приведена численность, `YYYY-MM-DD`. */
+  date: string
+  method: string
+}
+
 /** Номер версии справочника: процессы сверяют с ним свои кэши. */
 const VERSION_KEY = 'kchs:territories:version'
 
@@ -294,6 +313,69 @@ export const TerritoryService = {
       })
     }
     return changed.length
+  },
+
+  /**
+   * Численность населения (вопрос N7): единица получает число и его происхождение —
+   * источник, дату и способ (`attributes.population_source`), их видят карточка и
+   * паспорт территории. Повтор с теми же данными ничего не меняет; изменённая единица
+   * публикует `territory.updated`. Возвращает число изменённых единиц.
+   */
+  async loadPopulation(
+    tx: Executor,
+    ctx: Ctx,
+    input: { source: string; date: string; units: TerritoryPopulationInput[] },
+  ): Promise<number> {
+    const rows = await tx
+      .select({
+        id: territories.id,
+        code: territories.code,
+        name: territories.name,
+        population: sql<unknown>`${territories.attributes} -> 'population'`,
+        origin: sql<PopulationSource | null>`${territories.attributes} -> 'population_source'`,
+      })
+      .from(territories)
+      .innerJoin(objects, eq(objects.id, territories.id))
+      .where(isNull(objects.deletedAt))
+    const byCode = new Map(rows.map((row) => [row.code, row]))
+    let changed = 0
+    for (const unit of input.units) {
+      const row = byCode.get(unit.code)
+      if (!row) throw errors.validation(`Нет территории «${unit.code}» для численности населения`)
+      if (!Number.isInteger(unit.population) || unit.population < 0) {
+        throw errors.validation(`Численность населения «${unit.code}» — не целое неотрицательное`)
+      }
+      const origin: PopulationSource = {
+        source: input.source,
+        date: input.date,
+        method: unit.method,
+      }
+      if (
+        row.population === unit.population &&
+        row.origin?.source === origin.source &&
+        row.origin.date === origin.date &&
+        row.origin.method === origin.method
+      ) {
+        continue
+      }
+      await tx
+        .update(territories)
+        .set({
+          attributes: sql`${territories.attributes} || jsonb_build_object(
+            'population', ${unit.population}::bigint,
+            'population_source', ${JSON.stringify(origin)}::jsonb)`,
+          updatedAt: sql`now()`,
+        })
+        .where(eq(territories.id, row.id))
+      await publishEvent(tx, ctx, {
+        type: 'territory.updated',
+        object: { id: row.id, type: 'territory', spaceId: null, title: row.name.ru },
+        payload: { code: row.code },
+        changedFields: ['population'],
+      })
+      changed += 1
+    }
+    return changed
   },
 
   /**

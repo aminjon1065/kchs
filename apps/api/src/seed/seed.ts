@@ -38,6 +38,7 @@ import {
 import SETTLEMENTS from './settlements.json' with { type: 'json' }
 import TERRITORIES from './territories.json' with { type: 'json' }
 import BOUNDARIES from './territory-boundaries.json' with { type: 'json' }
+import POPULATION from './territory-population.json' with { type: 'json' }
 
 export interface SeedOptions {
   profile: 'minimal' | 'demo'
@@ -63,10 +64,10 @@ export async function runSeed(
   const random = makeRandom(20_260_917)
 
   // ── Территории ────────────────────────────────────────────────────────────
-  // Справочник и границы нужны и чистой установке (профиль minimal); загрузка
-  // повторяема: существующие коды не меняются, те же границы не перезаписываются
-  // (seeds/README.md, ADR-0057, ADR-0067). Кишлаки демо-мира синтетические —
-  // только в профиле demo
+  // Справочник, границы и численность населения нужны и чистой установке (профиль
+  // minimal); загрузка повторяема: существующие коды не меняются, те же границы и
+  // численность не перезаписываются (seeds/README.md, ADR-0057, ADR-0067). Кишлаки
+  // демо-мира синтетические — только в профиле demo
   const loaded = await db().transaction(async (tx) => ({
     created: await TerritoryService.load(tx, ctx, TERRITORIES as unknown as TerritoryInput[]),
     settlements:
@@ -74,6 +75,8 @@ export async function runSeed(
         ? await TerritoryService.load(tx, ctx, SETTLEMENTS as unknown as TerritoryInput[])
         : 0,
     boundaries: await TerritoryService.loadBoundaries(tx, ctx, BOUNDARIES),
+    // Официальная статистика (вопрос N7) поверх оценок генератора из справочника
+    population: await TerritoryService.loadPopulation(tx, ctx, POPULATION),
   }))
   await TerritoryService.invalidate()
   const territoryIds = new Map(

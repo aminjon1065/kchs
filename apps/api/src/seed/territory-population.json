@@ -1,0 +1,376 @@
+{
+  "source": "Агентство по статистике при Президенте Республики Таджикистан. Демографический ежегодник Республики Таджикистан, 2024, с. 281–283: численность постоянного населения по областям, районам и городам на конец 2023 года",
+  "date": "2024-01-01",
+  "units": [
+    {
+      "code": "TJ",
+      "population": 10288300,
+      "method": "official"
+    },
+    {
+      "code": "TJ-DU",
+      "population": 1242600,
+      "method": "official"
+    },
+    {
+      "code": "TJ-DU-01",
+      "population": 216414,
+      "method": "estimate_share"
+    },
+    {
+      "code": "TJ-DU-02",
+      "population": 474598,
+      "method": "estimate_share"
+    },
+    {
+      "code": "TJ-DU-03",
+      "population": 304174,
+      "method": "estimate_share"
+    },
+    {
+      "code": "TJ-DU-04",
+      "population": 247414,
+      "method": "estimate_share"
+    },
+    {
+      "code": "TJ-GB",
+      "population": 233600,
+      "method": "official"
+    },
+    {
+      "code": "TJ-GB-01",
+      "population": 31400,
+      "method": "official"
+    },
+    {
+      "code": "TJ-GB-02",
+      "population": 35400,
+      "method": "official"
+    },
+    {
+      "code": "TJ-GB-03",
+      "population": 24200,
+      "method": "official"
+    },
+    {
+      "code": "TJ-GB-04",
+      "population": 31000,
+      "method": "official"
+    },
+    {
+      "code": "TJ-GB-05",
+      "population": 16700,
+      "method": "official"
+    },
+    {
+      "code": "TJ-GB-06",
+      "population": 28200,
+      "method": "official"
+    },
+    {
+      "code": "TJ-GB-07",
+      "population": 26700,
+      "method": "official"
+    },
+    {
+      "code": "TJ-GB-08",
+      "population": 39900,
+      "method": "official"
+    },
+    {
+      "code": "TJ-KT",
+      "population": 3697800,
+      "method": "official"
+    },
+    {
+      "code": "TJ-KT-01",
+      "population": 130800,
+      "method": "official"
+    },
+    {
+      "code": "TJ-KT-02",
+      "population": 231100,
+      "method": "official_sum"
+    },
+    {
+      "code": "TJ-KT-03",
+      "population": 52700,
+      "method": "official_sum"
+    },
+    {
+      "code": "TJ-KT-04",
+      "population": 68600,
+      "method": "official_sum"
+    },
+    {
+      "code": "TJ-KT-05",
+      "population": 193000,
+      "method": "official"
+    },
+    {
+      "code": "TJ-KT-06",
+      "population": 34300,
+      "method": "official"
+    },
+    {
+      "code": "TJ-KT-07",
+      "population": 223100,
+      "method": "official"
+    },
+    {
+      "code": "TJ-KT-08",
+      "population": 237500,
+      "method": "official"
+    },
+    {
+      "code": "TJ-KT-09",
+      "population": 180800,
+      "method": "official"
+    },
+    {
+      "code": "TJ-KT-10",
+      "population": 150300,
+      "method": "official"
+    },
+    {
+      "code": "TJ-KT-11",
+      "population": 221000,
+      "method": "official"
+    },
+    {
+      "code": "TJ-KT-12",
+      "population": 128400,
+      "method": "official"
+    },
+    {
+      "code": "TJ-KT-13",
+      "population": 206200,
+      "method": "official"
+    },
+    {
+      "code": "TJ-KT-14",
+      "population": 270700,
+      "method": "official"
+    },
+    {
+      "code": "TJ-KT-15",
+      "population": 102900,
+      "method": "official"
+    },
+    {
+      "code": "TJ-KT-16",
+      "population": 48500,
+      "method": "official"
+    },
+    {
+      "code": "TJ-KT-17",
+      "population": 130000,
+      "method": "official"
+    },
+    {
+      "code": "TJ-KT-18",
+      "population": 78400,
+      "method": "official"
+    },
+    {
+      "code": "TJ-KT-19",
+      "population": 187800,
+      "method": "official"
+    },
+    {
+      "code": "TJ-KT-20",
+      "population": 161100,
+      "method": "official"
+    },
+    {
+      "code": "TJ-KT-21",
+      "population": 61100,
+      "method": "official"
+    },
+    {
+      "code": "TJ-KT-22",
+      "population": 131600,
+      "method": "official"
+    },
+    {
+      "code": "TJ-KT-23",
+      "population": 60400,
+      "method": "official"
+    },
+    {
+      "code": "TJ-KT-24",
+      "population": 143400,
+      "method": "official"
+    },
+    {
+      "code": "TJ-KT-25",
+      "population": 264000,
+      "method": "official"
+    },
+    {
+      "code": "TJ-RA",
+      "population": 2197000,
+      "method": "official"
+    },
+    {
+      "code": "TJ-RA-01",
+      "population": 375800,
+      "method": "official_sum"
+    },
+    {
+      "code": "TJ-RA-02",
+      "population": 346800,
+      "method": "official"
+    },
+    {
+      "code": "TJ-RA-03",
+      "population": 46900,
+      "method": "official_sum"
+    },
+    {
+      "code": "TJ-RA-04",
+      "population": 336200,
+      "method": "official_sum"
+    },
+    {
+      "code": "TJ-RA-05",
+      "population": 93000,
+      "method": "official"
+    },
+    {
+      "code": "TJ-RA-06",
+      "population": 56800,
+      "method": "official"
+    },
+    {
+      "code": "TJ-RA-07",
+      "population": 75700,
+      "method": "official"
+    },
+    {
+      "code": "TJ-RA-08",
+      "population": 136600,
+      "method": "official"
+    },
+    {
+      "code": "TJ-RA-09",
+      "population": 404800,
+      "method": "official"
+    },
+    {
+      "code": "TJ-RA-10",
+      "population": 26200,
+      "method": "official"
+    },
+    {
+      "code": "TJ-RA-11",
+      "population": 53500,
+      "method": "official"
+    },
+    {
+      "code": "TJ-RA-12",
+      "population": 116800,
+      "method": "official"
+    },
+    {
+      "code": "TJ-RA-13",
+      "population": 127900,
+      "method": "official"
+    },
+    {
+      "code": "TJ-SU",
+      "population": 2917300,
+      "method": "official"
+    },
+    {
+      "code": "TJ-SU-01",
+      "population": 203800,
+      "method": "official"
+    },
+    {
+      "code": "TJ-SU-02",
+      "population": 39700,
+      "method": "official"
+    },
+    {
+      "code": "TJ-SU-03",
+      "population": 51100,
+      "method": "official"
+    },
+    {
+      "code": "TJ-SU-04",
+      "population": 299300,
+      "method": "official_sum"
+    },
+    {
+      "code": "TJ-SU-05",
+      "population": 19100,
+      "method": "official"
+    },
+    {
+      "code": "TJ-SU-06",
+      "population": 290600,
+      "method": "official_sum"
+    },
+    {
+      "code": "TJ-SU-07",
+      "population": 224000,
+      "method": "official_sum"
+    },
+    {
+      "code": "TJ-SU-08",
+      "population": 325800,
+      "method": "official_sum"
+    },
+    {
+      "code": "TJ-SU-09",
+      "population": 93800,
+      "method": "official"
+    },
+    {
+      "code": "TJ-SU-10",
+      "population": 182100,
+      "method": "official"
+    },
+    {
+      "code": "TJ-SU-11",
+      "population": 400100,
+      "method": "official"
+    },
+    {
+      "code": "TJ-SU-12",
+      "population": 25200,
+      "method": "official"
+    },
+    {
+      "code": "TJ-SU-13",
+      "population": 189900,
+      "method": "official"
+    },
+    {
+      "code": "TJ-SU-14",
+      "population": 148800,
+      "method": "official"
+    },
+    {
+      "code": "TJ-SU-15",
+      "population": 81100,
+      "method": "official"
+    },
+    {
+      "code": "TJ-SU-16",
+      "population": 138600,
+      "method": "official"
+    },
+    {
+      "code": "TJ-SU-17",
+      "population": 155400,
+      "method": "official"
+    },
+    {
+      "code": "TJ-SU-18",
+      "population": 48700,
+      "method": "official"
+    }
+  ]
+}
