@@ -398,12 +398,18 @@ function AddCondition({
   // Поле из запроса «Фильтр по столбцу»: редактор открывается сразу на нём
   const [preset, setPreset] = useState<string | null>(null)
   const handled = useRef<number | null>(null)
+  // Меню столбца, закрываясь, возвращает фокус в таблицу — это не уход из поповера
+  const requestedAt = useRef(0)
   useEffect(() => {
     if (!request || request.nonce === handled.current) return
     handled.current = request.nonce
+    requestedAt.current = Date.now()
     setPreset(request.field)
     setOpen(true)
   }, [request])
+  const keepOpen = (event: Event) => {
+    if (Date.now() - requestedAt.current < 800) event.preventDefault()
+  }
   return (
     <Popover
       open={open}
@@ -417,7 +423,7 @@ function AddCondition({
           {t('ui.filter.add')}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80">
+      <PopoverContent className="w-80" onFocusOutside={keepOpen} onInteractOutside={keepOpen}>
         <ConditionEditor
           key={preset ?? ''}
           fields={fields}
