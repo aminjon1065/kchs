@@ -320,7 +320,7 @@ async function runOne(
     .where(and(eq(taskSeries.id, id), sql`${objects.deletedAt} IS NULL`))
     .limit(1)
     .for('update', { of: taskSeries, skipLocked: true })
-  if (!row || row.status !== 'active' || !row.nextRunAt) return 'skipped'
+  if (row?.status !== 'active' || !row.nextRunAt) return 'skipped'
   if (new Date(row.nextRunAt).getTime() > now.getTime()) return 'skipped'
   if (row.maxCount !== null && row.createdCount >= row.maxCount) {
     await tx
