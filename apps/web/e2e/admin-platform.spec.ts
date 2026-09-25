@@ -1,5 +1,7 @@
 import { expect, openScreen, openWorkspace, test } from './fixtures.js'
 
+const BASE = process.env.KCHS_BASE_URL ?? 'http://localhost:5173'
+
 /**
  * Администрирование установки (P5-E06): возможности (ADR-0115), брендирование
  * (ADR-0116) и резервные копии (ADR-0117). Сценарий возвращает установку в
@@ -259,5 +261,53 @@ test.describe('Администрирование: группы, должнос�
       const removed = await request.delete(`/api/v1/org/positions/${position.id}`, { headers })
       expect(removed.ok(), await removed.text()).toBeTruthy()
     }
+  })
+})
+
+/**
+ * Консоль по способностям разделов (N85): администратор ГИС видит вход в консоль на рейке
+ * и в палитре, а в самой консоли — только свои разделы, без ошибок чужих.
+ */
+test.describe('Администрирование: вход по способностям разделов', () => {
+  test('администратор ГИС видит только подложки и ГИС-службы', async ({ browser, request }) => {
+    test.setTimeout(120_000)
+    const run = Date.now().toString(36)
+    const me = await (await request.get('/api/v1/me')).json()
+    const headers = { 'x-csrf-token': me.session.csrfToken as string }
+    const login = `gisadm-${run}`
+    const password = `Gis-${run}-Kchs-2026!`
+    const created = await request.post('/api/v1/users', {
+      headers,
+      data: {
+        login,
+        lastName: 'Картографов',
+        firstName: `Админ${run}`,
+        roleKeys: ['gis_admin'],
+        password,
+        mustChangePassword: false,
+      },
+    })
+    expect(created.ok(), await created.text()).toBeTruthy()
+    const userId = (await created.json()).id as string
+
+    const context = await browser.newContext({ baseURL: BASE })
+    const signedIn = await context.request.post('/api/v1/auth/login', {
+      data: { login, password, rememberDevice: false },
+    })
+    expect(signedIn.ok(), await signedIn.text()).toBeTruthy()
+    const page = await context.newPage()
+    await openWorkspace(page, context.request)
+    await expect(page.getByRole('button', { name: 'Администрирование' })).toBeVisible()
+    await openScreen(page, 'Администрирование')
+    await expect(page.getByRole('tablist', { name: 'Раздел' }).getByRole('tab')).toHaveText([
+      'Базовые карты',
+      'Внешние ГИС-службы',
+    ])
+    await expect(page.getByRole('tab', { name: 'Базовые карты' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    await context.close()
+    await request.patch(`/api/v1/users/${userId}`, { headers, data: { status: 'blocked' } })
   })
 })

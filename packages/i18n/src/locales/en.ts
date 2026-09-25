@@ -6543,6 +6543,8 @@ export const en: DeepPartial<Dictionary> = {
     },
     title: 'Administration',
     sectionLabel: 'Section',
+    noSections:
+      'None of the console sections are available to your roles — contact the system administrator',
     sections: {
       integrations: 'Integrations',
       apiTokens: 'API tokens',

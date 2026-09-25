@@ -28,6 +28,7 @@ import {
   Users,
 } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
+import { canOpenAdmin } from '~/features/admin/sections.js'
 import { useCalendarUi } from '~/features/calendar/calendar-store.js'
 import { useQuickEvent } from '~/features/calendar/quick-create.js'
 import {
@@ -200,7 +201,7 @@ export function CommandPalette({
         id: 'admin',
         label: t('admin.title'),
         icon: <Shield />,
-        hidden: !me?.capabilities.includes('admin.system'),
+        hidden: !canOpenAdmin(me?.capabilities),
         run: () => goScreen('admin', t('admin.title'), 'role'),
       },
       {

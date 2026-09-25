@@ -6640,6 +6640,7 @@ export const ru = {
     },
     title: 'Администрирование',
     sectionLabel: 'Раздел',
+    noSections: 'Разделов консоли для ваших ролей нет — обратитесь к администратору системы',
     sections: {
       integrations: 'Интеграции',
       apiTokens: 'Токены API',

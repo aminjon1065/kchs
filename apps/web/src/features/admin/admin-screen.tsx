@@ -99,6 +99,7 @@ import { CreateUnitDialog } from './org-management.js'
 import { OrgUnitEditor } from './org-unit-editor.js'
 import { PositionsCard } from './positions-card.js'
 import { RolesSection } from './roles-section.js'
+import { ADMIN_SECTIONS, type AdminSection, visibleAdminSections } from './sections.js'
 import { SecuritySection } from './security-section.js'
 import { ServiceAccountActions, ServiceAccountDialog } from './service-accounts.js'
 import { SpacesSection } from './spaces-section.js'
@@ -107,34 +108,7 @@ import { TasksSection } from './tasks-section.js'
 import { CreateUserDialog, UserActions } from './user-management.js'
 import { UsersImportDialog } from './users-import-dialog.js'
 
-type Section =
-  | 'health'
-  | 'users'
-  | 'org'
-  | 'groups'
-  | 'roles'
-  | 'spaces'
-  | 'announcements'
-  | 'business-calendar'
-  | 'basemaps'
-  | 'gisServices'
-  | 'dataSources'
-  | 'audit'
-  | 'security'
-  | 'features'
-  | 'branding'
-  | 'backups'
-  | 'directory'
-  | 'sso'
-  | 'tasks'
-  | 'meetings'
-  | 'processes'
-  | 'integrations'
-  | 'apiTokens'
-  | 'config'
-  | 'columnar'
-  | 'automation'
-  | 'schedules'
+type Section = AdminSection
 
 /**
  * Консоль администрирования (15-admin-operations.md §1): разделы — вертикальные
@@ -143,7 +117,7 @@ type Section =
  */
 export function AdminScreen() {
   const t = useT()
-  const [section, setSection] = useState<Section>('health')
+  const [picked, setSection] = useState<Section | null>(null)
   // Переход из матрицы ролей: «Пользователи» с фильтром по роли
   const [roleFilter, setRoleFilter] = useState<string | null>(null)
   const { data: me } = useQuery(meQuery())
@@ -155,171 +129,190 @@ export function AdminScreen() {
   const canManageAutomation = me?.capabilities.includes('automation.manage') ?? false
   const canManageGroups = me?.capabilities.includes('groups.manage') ?? false
   const wide = useMediaQuery('(min-width: 768px)')
+  // Консоль открывается по любой способности своих разделов (N85): выбранный раздел —
+  // из доступных, иначе первый доступный
+  const allowed = visibleAdminSections(me?.capabilities)
+  const section =
+    picked && allowed.has(picked)
+      ? picked
+      : (ADMIN_SECTIONS.find((item) => allowed.has(item.value))?.value ?? 'health')
 
   const sections: Array<{ value: Section; label: string; icon: ReactNode; visible: boolean }> = [
     {
       value: 'health',
       label: t('admin.sections.health'),
       icon: <Server className="size-3.5" />,
-      visible: true,
+      visible: allowed.has('health'),
     },
     {
       value: 'users',
       label: t('admin.sections.users'),
       icon: <Users className="size-3.5" />,
-      visible: true,
+      visible: allowed.has('users'),
     },
     {
       value: 'org',
       label: t('admin.sections.org'),
       icon: <Building2 className="size-3.5" />,
-      visible: true,
+      visible: allowed.has('org'),
     },
     {
       value: 'groups',
       label: t('admin.sections.groups'),
       icon: <UsersRound className="size-3.5" />,
-      visible: canManageGroups,
+      visible: allowed.has('groups'),
     },
     {
       value: 'roles',
       label: t('admin.sections.roles'),
       icon: <KeyRound className="size-3.5" />,
-      visible: true,
+      visible: allowed.has('roles'),
     },
     {
       value: 'spaces',
       label: t('admin.sections.spaces'),
       icon: <LayoutGrid className="size-3.5" />,
-      visible: isSystemAdmin,
+      visible: allowed.has('spaces'),
     },
     {
       value: 'announcements',
       label: t('admin.sections.announcements'),
       icon: <Megaphone className="size-3.5" />,
-      visible: isSystemAdmin,
+      visible: allowed.has('announcements'),
     },
     {
       value: 'business-calendar',
       label: t('admin.sections.businessCalendar'),
       icon: <CalendarDays className="size-3.5" />,
-      visible: isSystemAdmin,
+      visible: allowed.has('business-calendar'),
     },
     {
       value: 'basemaps',
       label: t('admin.sections.basemaps'),
       icon: <MapIcon className="size-3.5" />,
-      visible: canManageBasemaps,
+      visible: allowed.has('basemaps'),
     },
     {
       value: 'gisServices',
       label: t('admin.sections.gisServices'),
       icon: <Globe2 className="size-3.5" />,
-      visible: canManageBasemaps,
+      visible: allowed.has('gisServices'),
     },
     {
       value: 'dataSources',
       label: t('admin.sections.dataSources'),
       icon: <Database className="size-3.5" />,
-      visible: canManageSources,
+      visible: allowed.has('dataSources'),
     },
     {
       value: 'audit',
       label: t('admin.sections.audit'),
       icon: <ScrollText className="size-3.5" />,
-      visible: true,
+      visible: allowed.has('audit'),
     },
     {
       value: 'security',
       label: t('admin.sections.security'),
       icon: <ShieldCheck className="size-3.5" />,
-      visible: isSystemAdmin,
+      visible: allowed.has('security'),
     },
     {
       value: 'features',
       label: t('admin.sections.features'),
       icon: <ToggleLeft className="size-3.5" />,
-      visible: isSystemAdmin,
+      visible: allowed.has('features'),
     },
     {
       value: 'branding',
       label: t('admin.sections.branding'),
       icon: <Palette className="size-3.5" />,
-      visible: isSystemAdmin,
+      visible: allowed.has('branding'),
     },
     {
       value: 'backups',
       label: t('admin.sections.backups'),
       icon: <DatabaseBackup className="size-3.5" />,
-      visible: isSystemAdmin,
+      visible: allowed.has('backups'),
     },
     {
       value: 'directory',
       label: t('admin.sections.directory'),
       icon: <Contact className="size-3.5" />,
-      visible: isSystemAdmin,
+      visible: allowed.has('directory'),
     },
     {
       value: 'sso',
       label: t('admin.sections.sso'),
       icon: <Shuffle className="size-3.5" />,
-      visible: isSystemAdmin,
+      visible: allowed.has('sso'),
     },
     {
       value: 'tasks',
       label: t('admin.sections.tasks'),
       icon: <Workflow className="size-3.5" />,
-      visible: isSystemAdmin,
+      visible: allowed.has('tasks'),
     },
     {
       value: 'meetings',
       label: t('admin.sections.meetings'),
       icon: <Video className="size-3.5" />,
-      visible: isSystemAdmin,
+      visible: allowed.has('meetings'),
     },
     {
       value: 'processes',
       label: t('admin.sections.processes'),
       icon: <Route className="size-3.5" />,
-      visible: canManageProcesses,
+      visible: allowed.has('processes'),
     },
     {
       value: 'integrations',
       label: t('admin.sections.integrations'),
       icon: <Cable className="size-3.5" />,
-      visible: canManageIntegrations,
+      visible: allowed.has('integrations'),
     },
     {
       value: 'apiTokens',
       label: t('admin.sections.apiTokens'),
       icon: <Ticket className="size-3.5" />,
-      visible: isSystemAdmin,
+      visible: allowed.has('apiTokens'),
     },
     {
       value: 'config',
       label: t('admin.sections.config'),
       icon: <FileJson className="size-3.5" />,
-      visible: isSystemAdmin,
+      visible: allowed.has('config'),
     },
     {
       value: 'columnar',
       label: t('admin.sections.columnar'),
       icon: <Columns3 className="size-3.5" />,
-      visible: isSystemAdmin,
+      visible: allowed.has('columnar'),
     },
     {
       value: 'automation',
       label: t('admin.sections.automation'),
       icon: <Zap className="size-3.5" />,
-      visible: canManageAutomation,
+      visible: allowed.has('automation'),
     },
     {
       value: 'schedules',
       label: t('admin.sections.schedules'),
       icon: <CalendarClock className="size-3.5" />,
-      visible: canManageAutomation,
+      visible: allowed.has('schedules'),
     },
   ]
+
+  // Прямой адрес /admin без единой способности раздела: объяснение вместо ошибок 403
+  if (me && allowed.size === 0) {
+    return (
+      <div className="flex h-full min-h-0 flex-col">
+        <PanelToolbar
+          left={<h1 className="text-sm font-semibold text-fg">{t('admin.title')}</h1>}
+        />
+        <EmptyState icon={<ShieldCheck />} title={t('admin.noSections')} />
+      </div>
+    )
+  }
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -359,10 +352,14 @@ export function AdminScreen() {
         ) : null}
         <TabsContent value="roles" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
           <RolesSection
-            onShowHolders={(roleKey) => {
-              setRoleFilter(roleKey)
-              setSection('users')
-            }}
+            onShowHolders={
+              allowed.has('users')
+                ? (roleKey) => {
+                    setRoleFilter(roleKey)
+                    setSection('users')
+                  }
+                : undefined
+            }
           />
         </TabsContent>
         {isSystemAdmin ? (

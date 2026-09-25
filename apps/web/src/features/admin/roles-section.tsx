@@ -14,7 +14,12 @@ import { CAPABILITY_GROUPS, capabilityLabelKey } from './capabilities.js'
  * способностям и число сотрудников с ролью — переход к ним в «Пользователи».
  * Способности системных ролей задаёт платформа: здесь они только читаются.
  */
-export function RolesSection({ onShowHolders }: { onShowHolders: (roleKey: string) => void }) {
+export function RolesSection({
+  onShowHolders,
+}: {
+  /** Переход к держателям роли — только если раздел «Пользователи» доступен (N85). */
+  onShowHolders?: (roleKey: string) => void
+}) {
   const t = useT()
   const locale = useAppearance((s) => s.locale)
   const { data: unordered = [], isLoading } = useQuery(rolesQuery())
@@ -50,14 +55,20 @@ export function RolesSection({ onShowHolders }: { onShowHolders: (roleKey: strin
                   return (
                     <th key={role.id} scope="col" className="px-2 py-2 text-center font-medium">
                       <span className="block text-fg">{name}</span>
-                      <Button
-                        variant="link"
-                        size="sm"
-                        aria-label={t('admin.roles.showHolders', { role: name })}
-                        onClick={() => onShowHolders(role.key)}
-                      >
-                        {t('admin.roles.holders', { count: role.userCount })}
-                      </Button>
+                      {onShowHolders ? (
+                        <Button
+                          variant="link"
+                          size="sm"
+                          aria-label={t('admin.roles.showHolders', { role: name })}
+                          onClick={() => onShowHolders(role.key)}
+                        >
+                          {t('admin.roles.holders', { count: role.userCount })}
+                        </Button>
+                      ) : (
+                        <span className="text-xs text-fg-muted">
+                          {t('admin.roles.holders', { count: role.userCount })}
+                        </span>
+                      )}
                     </th>
                   )
                 })}

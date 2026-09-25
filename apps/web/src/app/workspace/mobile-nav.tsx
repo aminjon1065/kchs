@@ -9,6 +9,7 @@ import {
 } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { Bell, Folder, Home, Inbox, MessageSquare, MoreHorizontal, Search } from 'lucide-react'
+import { canOpenAdmin } from '~/features/admin/sections.js'
 import { chatListQuery } from '~/features/chat/queries.js'
 import { inboxCountsQuery, meQuery } from '~/shared/api/queries.js'
 import { useT } from '../i18n.js'
@@ -125,7 +126,7 @@ export function MobileNav({ onOpenPalette }: { onOpenPalette: () => void }) {
           >
             {me?.user.displayName ?? t('shell.rail.profile')}
           </DropdownMenuItem>
-          {me?.capabilities.includes('admin.system') ? (
+          {canOpenAdmin(me?.capabilities) ? (
             <DropdownMenuItem
               icon={<ObjectIcon type="role" className="size-4" />}
               onSelect={() => go('admin', 'admin.title', 'role')}

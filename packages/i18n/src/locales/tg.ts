@@ -7061,6 +7061,7 @@ export const tg: DeepPartial<Dictionary> = {
     },
     title: 'Маъмурият',
     sectionLabel: 'Бахш',
+    noSections: 'Барои нақшҳои шумо бахши консол нест — ба маъмури система муроҷиат кунед',
     sections: {
       integrations: 'Интегратсияҳо',
       apiTokens: 'Токенҳои API',

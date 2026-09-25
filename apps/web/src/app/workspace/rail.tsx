@@ -19,6 +19,7 @@ import {
   Shield,
   Video,
 } from 'lucide-react'
+import { canOpenAdmin } from '~/features/admin/sections.js'
 import { chatListQuery } from '~/features/chat/queries.js'
 import { useBranding } from '~/shared/api/branding.js'
 import { inboxCountsQuery, meQuery, notificationsQuery } from '~/shared/api/queries.js'
@@ -64,7 +65,8 @@ export function Rail({ onOpenPalette }: { onOpenPalette: () => void }) {
   const { data: chats } = useQuery(chatListQuery('all'))
   const { data: notifications } = useQuery(notificationsQuery(true))
 
-  const isAdmin = me?.capabilities.includes('admin.system') ?? false
+  // Консоль — по любой способности её разделов (N85), не только администратору системы
+  const isAdmin = canOpenAdmin(me?.capabilities)
 
   const open = (item: RailItem): void => {
     setNavigatorModule(item.key)
