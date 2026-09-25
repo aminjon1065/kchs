@@ -39,8 +39,7 @@ import {
   Users,
   X,
 } from 'lucide-react'
-import { Suspense, useState } from 'react'
-import { AssistantPanel } from '~/features/assistant/assistant-panel.js'
+import { lazy, Suspense, useState } from 'react'
 import { ManualRuleActions } from '~/features/automation/manual-rules.js'
 import { type ComposedMessage, MessageComposer } from '~/features/discussion/message-composer.js'
 import {
@@ -65,6 +64,13 @@ import { useT } from '../i18n.js'
 import { getObjectView } from './registry.js'
 import { useWorkspace } from './store.js'
 import type { ContextTabKey } from './types.js'
+
+/** Помощник — отдельным чанком: вкладку открывают не каждый раз, а с ним идут диалоги задач. */
+const AssistantPanel = lazy(() =>
+  import('~/features/assistant/assistant-panel.js').then((module) => ({
+    default: module.AssistantPanel,
+  })),
+)
 
 const TABS: Array<{ key: ContextTabKey; labelKey: string; icon: typeof Info }> = [
   { key: 'info', labelKey: 'shell.context.info', icon: Info },
@@ -159,7 +165,9 @@ export function ContextPanel() {
               </div>
             ) : null}
             <div className="min-h-0 flex-1">
-              <AssistantPanel objectId={objectId} />
+              <Suspense fallback={null}>
+                <AssistantPanel objectId={objectId} />
+              </Suspense>
             </div>
           </div>
         ) : null}

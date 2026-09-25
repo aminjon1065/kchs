@@ -1,12 +1,7 @@
 import { Spinner } from '@kchs/ui'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { lazy, Suspense, useEffect, useState } from 'react'
-import { LoginScreen } from '~/features/auth/login-screen.js'
-import { MfaEnrollmentScreen } from '~/features/auth/mfa-enrollment-screen.js'
-import { PasswordChangeScreen } from '~/features/auth/password-change-screen.js'
-import { PasswordResetScreen } from '~/features/auth/password-reset-screen.js'
 import { printTargetFromPath } from '~/features/reports/print/print-target.js'
-import { GuestShareScreen } from '~/features/share/guest-screen.js'
 import { useBranding } from '~/shared/api/branding.js'
 import {
   ApiError,
@@ -21,6 +16,34 @@ import { registerModules } from './modules.js'
 import { WorkspaceShell } from './workspace/shell.js'
 
 registerModules()
+
+/**
+ * Вход, смена пароля, второй фактор и гостевая ссылка — отдельными чанками: вошедшему
+ * сотруднику они не нужны, а оболочке нужен каждый килобайт бюджета (ADR-0166).
+ */
+const LoginScreen = lazy(() =>
+  import('~/features/auth/login-screen.js').then((module) => ({ default: module.LoginScreen })),
+)
+const MfaEnrollmentScreen = lazy(() =>
+  import('~/features/auth/mfa-enrollment-screen.js').then((module) => ({
+    default: module.MfaEnrollmentScreen,
+  })),
+)
+const PasswordChangeScreen = lazy(() =>
+  import('~/features/auth/password-change-screen.js').then((module) => ({
+    default: module.PasswordChangeScreen,
+  })),
+)
+const PasswordResetScreen = lazy(() =>
+  import('~/features/auth/password-reset-screen.js').then((module) => ({
+    default: module.PasswordResetScreen,
+  })),
+)
+const GuestShareScreen = lazy(() =>
+  import('~/features/share/guest-screen.js').then((module) => ({
+    default: module.GuestShareScreen,
+  })),
+)
 
 /** Страница печати отчёта — отдельным чанком: оболочке она не нужна (ADR-0078). */
 const PrintScreen = lazy(() => import('~/features/reports/print/print-screen.js'))
@@ -92,8 +115,20 @@ export function App() {
     if (me?.session.csrfToken) setCsrfToken(me.session.csrfToken)
   }, [me])
 
-  if (resetToken) return <PasswordResetScreen token={resetToken} />
-  if (shareToken) return <GuestShareScreen token={shareToken} />
+  if (resetToken) {
+    return (
+      <Suspense fallback={<ScreenLoading />}>
+        <PasswordResetScreen token={resetToken} />
+      </Suspense>
+    )
+  }
+  if (shareToken) {
+    return (
+      <Suspense fallback={<ScreenLoading />}>
+        <GuestShareScreen token={shareToken} />
+      </Suspense>
+    )
+  }
   if (meetToken) {
     return (
       <Suspense fallback={null}>
@@ -111,12 +146,14 @@ export function App() {
 
   if (signedOut || (isError && error instanceof ApiError && error.status === 401)) {
     return (
-      <LoginScreen
-        onSignedIn={() => {
-          setSignedOut(false)
-          void client.invalidateQueries()
-        }}
-      />
+      <Suspense fallback={<ScreenLoading />}>
+        <LoginScreen
+          onSignedIn={() => {
+            setSignedOut(false)
+            void client.invalidateQueries()
+          }}
+        />
+      </Suspense>
     )
   }
 
@@ -132,9 +169,30 @@ export function App() {
   }
 
   // Вход по временному паролю: до смены пароля оболочка недоступна
-  if (me.mustChangePassword) return <PasswordChangeScreen />
+  if (me.mustChangePassword) {
+    return (
+      <Suspense fallback={<ScreenLoading />}>
+        <PasswordChangeScreen />
+      </Suspense>
+    )
+  }
   // Политика требует второй фактор для роли: до подключения оболочка недоступна
-  if (me.mfaEnrollmentRequired) return <MfaEnrollmentScreen />
+  if (me.mfaEnrollmentRequired) {
+    return (
+      <Suspense fallback={<ScreenLoading />}>
+        <MfaEnrollmentScreen />
+      </Suspense>
+    )
+  }
 
   return <WorkspaceShell />
+}
+
+/** Пока грузится чанк экрана вне оболочки — тот же индикатор, что у загрузки пространства. */
+function ScreenLoading() {
+  return (
+    <div className="flex h-full items-center justify-center bg-canvas">
+      <Spinner className="size-6" />
+    </div>
+  )
 }
