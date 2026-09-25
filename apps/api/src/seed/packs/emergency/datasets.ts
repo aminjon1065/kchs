@@ -237,6 +237,14 @@ export const PACK_DATASETS: readonly PackDataset[] = [
       field('arrived_at', 'Время прибытия', 'Arrived on scene', 'datetime', 'time', {
         format: DATETIME,
       }),
+      // Точка строки сводки без указанного места — центр района (ADR-0157)
+      field(
+        'location_approx',
+        'Место приблизительное',
+        'Approximate location',
+        'boolean',
+        'category',
+      ),
     ],
     // Строку из суточной сводки номер не спрашивает: ключ остаётся, пустые ключи не конфликтуют
     patches: [{ key: 'code', patch: { required: false } }],

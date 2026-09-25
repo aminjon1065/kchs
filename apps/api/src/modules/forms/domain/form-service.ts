@@ -87,10 +87,16 @@ function datasetFields(dataset: DatasetRecord): Map<string, FieldDef> {
 
 /**
  * Поля, которые форма спрашивать не может: вычисляемые (их считает датасет) и
- * требующие особых контролов (геометрия, файл, подпись) — их сбор появится
- * вместе с заполнением из мобильного веба.
+ * требующие особых контролов (файл, подпись) — их сбор появится вместе с
+ * заполнением из мобильного веба. Геометрия — только точкой (ADR-0157): линию и
+ * полигон в строке сводки не нарисовать.
  */
-const NOT_ASKABLE = new Set(['formula', 'lookup', 'rollup', 'geometry', 'file', 'signature'])
+const NOT_ASKABLE = new Set(['formula', 'lookup', 'rollup', 'file', 'signature'])
+
+const askable = (field: Pick<FieldDef, 'type' | 'geometryType'>): boolean =>
+  field.type === 'geometry'
+    ? !field.geometryType || field.geometryType === 'point' || field.geometryType === 'any'
+    : !NOT_ASKABLE.has(field.type)
 
 /** Проверка определения: схема формы ⊆ полей датасета, авто-поля не дублируют их. */
 async function validate(definition: FormDefinition): Promise<void> {
@@ -101,7 +107,7 @@ async function validate(definition: FormDefinition): Promise<void> {
     const stored = fields.get(field.key)
     if (!stored) throw errors.validation(`Поля «${field.key}» в датасете нет`)
     if (keys.has(field.key)) throw errors.validation(`Поле «${field.key}» указано дважды`)
-    if (NOT_ASKABLE.has(stored.type)) {
+    if (!askable(stored)) {
       throw errors.validation(`Поле «${field.key}» типа «${stored.type}» форма спрашивать не может`)
     }
     keys.add(field.key)
@@ -117,6 +123,9 @@ async function validate(definition: FormDefinition): Promise<void> {
       if (type !== 'datetime' && type !== 'date') {
         throw errors.validation('Авто-поле времени отправки — дата или дата со временем')
       }
+    }
+    if (role === 'approxLocation' && fields.get(key)?.type !== 'boolean') {
+      throw errors.validation('Авто-поле «место приблизительное» — логическое поле')
     }
   }
   if (definition.schedule.periodicity === 'once' && !definition.schedule.dueOn) {

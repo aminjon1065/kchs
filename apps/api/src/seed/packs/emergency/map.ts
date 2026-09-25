@@ -185,7 +185,17 @@ const PACK_LAYERS: readonly PackLayer[] = [
       },
       popup: {
         title: '{{description}}',
-        fields: ['occurred_at', 'type_code', 'territory', 'injured', 'deaths', 'scale'],
+        // Строка сводки без указанного места стоит в центре района (ADR-0157)
+        fields: [
+          'occurred_at',
+          'type_code',
+          'territory',
+          'injured',
+          'deaths',
+          'scale',
+          'arrived_at',
+          'location_approx',
+        ],
         actions: ['open', 'instruction'],
       },
     },

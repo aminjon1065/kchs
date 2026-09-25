@@ -12,6 +12,7 @@ import { BusinessCalendar } from '~/kernel/business-calendar/service.js'
 import { directory } from '~/kernel/directory/port.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { DatasetQueries, DatasetRows, datasetRecord } from '~/modules/data/public.js'
+import { territoryIndex } from '~/modules/gis/public.js'
 import { OrgService } from '~/modules/identity/public.js'
 import { config } from '~/shared/config/index.js'
 import type { UserCtx } from '~/shared/context.js'
@@ -183,6 +184,39 @@ async function autoValues(
   return out
 }
 
+/**
+ * Место строк (ADR-0157): форма спрашивает точку, а её не указали — точка встаёт в центр
+ * территории строки (поле территории датасета), авто-поле «место приблизительное» — «да»;
+ * указанная точка — «нет». Строка без точки и без территории остаётся без места.
+ */
+async function located(
+  form: FormRow,
+  rows: Array<Record<string, unknown>>,
+): Promise<Array<Record<string, unknown>>> {
+  const dataset = await datasetRecord(form.datasetId)
+  const geometry = dataset.fields.find(
+    (field) =>
+      field.type === 'geometry' && form.definition.fields.some((item) => item.key === field.key),
+  )
+  if (!geometry) return rows
+  const approx = form.definition.auto.approxLocation
+  const territoryKey = dataset.territoryField
+  const index = territoryKey ? await territoryIndex() : null
+  return rows.map((values) => {
+    if (!isBlank(values[geometry.key])) return approx ? { ...values, [approx]: false } : values
+    const raw = territoryKey ? values[territoryKey] : null
+    const id =
+      typeof raw === 'string' && index ? (index.byId.has(raw) ? raw : index.resolve(raw)) : null
+    const centroid = id && id !== 'ambiguous' ? index?.byId.get(id)?.centroid : null
+    if (!centroid) return values
+    return {
+      ...values,
+      [geometry.key]: { type: 'Point', coordinates: [centroid.lon, centroid.lat] },
+      ...(approx ? { [approx]: true } : {}),
+    }
+  })
+}
+
 export const SubmissionService = {
   /** Отправка периода: существующая или новый черновик. */
   async open(
@@ -305,7 +339,7 @@ export const SubmissionService = {
     }
     const writer = await writerCtx(form)
     const auto = await autoValues(form, current, ctx.userId)
-    const payloads = entered.map((values) => ({ ...values, ...auto }))
+    const payloads = (await located(form, entered)).map((values) => ({ ...values, ...auto }))
     const resubmitted = current.status === 'returned' && (table || current.rowId !== null)
 
     await db().transaction(async (tx) => {

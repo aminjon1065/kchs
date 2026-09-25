@@ -107,6 +107,14 @@ async function ensureForms(
             { key: 'occurred_at', required: true, hint: 'Когда произошло' },
             { key: 'type_code', required: true, hint: null },
             { key: 'territory', required: true, hint: 'Район происшествия' },
+            {
+              key: 'geometry',
+              required: false,
+              hint: 'Место на карте или координаты; без точки — центр района',
+            },
+            { key: 'called_at', required: false, hint: 'Когда поступил вызов' },
+            { key: 'dispatched_at', required: false, hint: 'Когда выехали силы' },
+            { key: 'arrived_at', required: false, hint: 'Когда первые силы прибыли на место' },
             { key: 'injured', required: false, hint: null },
             { key: 'deaths', required: false, hint: null },
             { key: 'evacuated', required: false, hint: null },
@@ -119,6 +127,7 @@ async function ensureForms(
             period: 'report_date',
             author: 'reported_by',
             submittedAt: 'submitted_at',
+            approxLocation: 'location_approx',
           },
           schedule: {
             periodicity: 'daily',

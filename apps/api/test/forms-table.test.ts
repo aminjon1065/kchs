@@ -375,3 +375,132 @@ describe('календарные сроки (dueMode)', () => {
     }
   })
 })
+
+describe('место строки сводки (ADR-0157)', () => {
+  it('точка — на карте или координатами; без точки — центр района и «место приблизительное»', async () => {
+    const { TerritoryService, territoryIndex } = await import('../src/modules/gis/public.js')
+    const { systemCtx } = await import('../src/shared/context.js')
+    const TERRITORIES = (await import('../src/seed/territories.json', { with: { type: 'json' } }))
+      .default
+    await db().transaction((tx) =>
+      TerritoryService.load(tx, systemCtx('test'), TERRITORIES as never),
+    )
+    await TerritoryService.invalidate()
+    const created = await call(fx.app, {
+      method: 'POST',
+      url: '/datasets',
+      as: fx.admin,
+      payload: {
+        name: `Происшествия с местом ${run}`,
+        spaceId: fx.spaceId,
+        fields: [
+          { key: 'kind', label: { ru: 'Вид' }, type: 'text', semantic: 'category' },
+          { key: 'territory', label: { ru: 'Район' }, type: 'territory', semantic: 'territory' },
+          {
+            key: 'place',
+            label: { ru: 'Место' },
+            type: 'geometry',
+            semantic: 'geometry',
+            geometryType: 'point',
+          },
+          { key: 'zone', label: { ru: 'Зона' }, type: 'geometry', geometryType: 'polygon' },
+          { key: 'approx', label: { ru: 'Место приблизительное' }, type: 'boolean' },
+          { key: 'period', label: { ru: 'Сутки' }, type: 'date', semantic: 'time' },
+        ],
+        territoryField: 'territory',
+      },
+    })
+    expect(created.statusCode, created.body).toBe(200)
+    const placed = created.json().id as string
+    const fields = [
+      { key: 'kind', required: true, hint: null },
+      { key: 'territory', required: false, hint: null },
+      { key: 'place', required: false, hint: null },
+    ]
+    const auto = {
+      unit: null,
+      period: 'period',
+      author: null,
+      submittedAt: null,
+      approxLocation: 'approx',
+    }
+    const form = (patch: Record<string, unknown>) =>
+      call(fx.app, {
+        method: 'POST',
+        url: '/forms',
+        as: fx.admin,
+        payload: {
+          name: `Сводка с местом ${run}`,
+          spaceId: fx.spaceId,
+          definition: definition({ datasetId: placed, fields, auto, ...patch }),
+          runAs: writer,
+        },
+      })
+    // Полигон строкой сводки не нарисовать; «место приблизительное» — только логическое поле
+    const polygon = await form({
+      fields: [...fields, { key: 'zone', required: false, hint: null }],
+    })
+    expect(polygon.statusCode).toBe(400)
+    expect((await form({ auto: { ...auto, approxLocation: 'kind' } })).statusCode).toBe(400)
+
+    const ok = await form({})
+    expect(ok.statusCode, ok.body).toBe(200)
+    const id = ok.json().id as string
+    const enabled = await call(fx.app, {
+      method: 'POST',
+      url: `/forms/${id}/enabled`,
+      as: fx.admin,
+      payload: { enabled: true },
+    })
+    expect(enabled.statusCode, enabled.body).toBe(200)
+    const opened = await call(fx.app, {
+      method: 'POST',
+      url: `/forms/${id}/submissions`,
+      as: fx.users.viewer,
+      payload: { periodKey: yesterday, subject: { kind: 'unit', id: fx.unitId } },
+    })
+    expect(opened.statusCode, opened.body).toBe(200)
+    const submitted = await call(fx.app, {
+      method: 'POST',
+      url: `/forms/submissions/${opened.json().id}/submit`,
+      as: fx.users.viewer,
+      payload: {
+        rows: [
+          {
+            kind: 'Пожар',
+            territory: 'TJ-DU-02',
+            place: { type: 'Point', coordinates: [68.7101, 38.5712] },
+          },
+          { kind: 'ДТП', territory: 'TJ-DU-02' },
+          { kind: 'Сель' },
+        ],
+      },
+    })
+    expect(submitted.statusCode, submitted.body).toBe(200)
+    const values: Array<Record<string, unknown>> = []
+    for (const rowId of submitted.json().rowIds as string[]) {
+      const row = await call(fx.app, {
+        method: 'GET',
+        url: `/datasets/${placed}/rows/${rowId}`,
+        as: fx.admin,
+      })
+      expect(row.statusCode, row.body).toBe(200)
+      values.push(row.json().values)
+    }
+    const byKind = new Map(values.map((item) => [item.kind, item]))
+    const [exact, approximate, nowhere] = ['Пожар', 'ДТП', 'Сель'].map((kind) => byKind.get(kind))
+    expect(exact).toMatchObject({
+      approx: false,
+      place: { type: 'Point', coordinates: [68.7101, 38.5712] },
+    })
+    // Центр Сино из справочника территорий
+    const sino = (await territoryIndex()).byCode.get('TJ-DU-02')?.centroid
+    const point = approximate?.place as { coordinates: [number, number] } | undefined
+    expect(approximate?.approx).toBe(true)
+    expect(point?.coordinates[0]).toBeCloseTo(Number(sino?.lon), 5)
+    expect(point?.coordinates[1]).toBeCloseTo(Number(sino?.lat), 5)
+    // Без территории места нет
+    expect(nowhere?.place ?? null).toBeNull()
+    expect(nowhere?.approx ?? null).toBeNull()
+  })
+})

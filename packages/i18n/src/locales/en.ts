@@ -2872,6 +2872,13 @@ export const en: DeepPartial<Dictionary> = {
       failed: 'Could not load the feature',
       openDataset: 'Open dataset',
     },
+    point: {
+      pick: 'Set location',
+      clear: 'Remove point',
+      title: 'Location on the map',
+      hint: 'Click the place on the map or enter latitude and longitude.',
+      map: 'Map for choosing the location',
+    },
     edit: {
       start: 'Edit',
       chooseLayer: 'Layer to edit',
@@ -8263,7 +8270,13 @@ export const en: DeepPartial<Dictionary> = {
       auto: 'Hidden auto fields',
       autoField: 'Auto field',
       autoNone: 'Do not write',
-      autoRoles: { unit: 'Unit', period: 'Period', author: 'Author', submittedAt: 'Submitted at' },
+      autoRoles: {
+        unit: 'Unit',
+        period: 'Period',
+        author: 'Author',
+        submittedAt: 'Submitted at',
+        approxLocation: 'Approximate location',
+      },
       schedule: 'Periodicity and deadline',
       time: 'Deadline time',
       dueOn: 'Due date',

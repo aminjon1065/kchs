@@ -23,6 +23,7 @@ import { RunAsSelect } from '~/features/admin/run-as-select.js'
 import { UserPicker } from '~/features/tasks/user-picker.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { orgUnitsQuery, principalRefsQuery } from '~/shared/api/queries.js'
+import { askable } from './askable.js'
 import { formKeys, formsApi } from './queries.js'
 
 /**
@@ -31,10 +32,7 @@ import { formKeys, formsApi } from './queries.js'
  * срок (рабочими или календарными днями), назначения с ответственным за сдачу,
  * приёмка и эскалация.
  */
-const AUTO_ROLES = ['unit', 'period', 'author', 'submittedAt'] as const
-
-/** Как на сервере (ADR-0103): вычисляемые и особые типы форма не спрашивает. */
-const NOT_ASKABLE = new Set(['formula', 'lookup', 'rollup', 'geometry', 'file', 'signature'])
+const AUTO_ROLES = ['unit', 'period', 'author', 'submittedAt', 'approxLocation'] as const
 
 export function FormSettingsTab({ form }: { form: FormRecord }) {
   const t = useT()
@@ -68,7 +66,7 @@ export function FormSettingsTab({ form }: { form: FormRecord }) {
   const autoUsed = new Set(
     AUTO_ROLES.map((role) => draft.auto[role]).filter((key): key is string => Boolean(key)),
   )
-  const available = dataset.fields.filter((field) => !NOT_ASKABLE.has(field.type))
+  const available = dataset.fields.filter(askable)
 
   const toggleField = (key: string, on: boolean) =>
     setDraft((current) => ({

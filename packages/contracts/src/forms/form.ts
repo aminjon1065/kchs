@@ -84,7 +84,10 @@ export const FormTable = z.object({
 })
 export type FormTable = z.infer<typeof FormTable>
 
-/** Поле формы — поле датасета; подпись и тип берутся из схемы датасета. */
+/**
+ * Поле формы — поле датасета; подпись и тип берутся из схемы датасета. Геометрию
+ * форма спрашивает только точкой (ADR-0157): на карте или координатами.
+ */
 export const FormField = z.object({
   key: FieldKey,
   required: z.boolean().default(false),
@@ -95,12 +98,17 @@ export type FormField = z.infer<typeof FormField>
 /**
  * Скрытые авто-поля: подразделение, период, автор и время отправки
  * записываются в поля датасета сами. null — не записывать.
+ *
+ * `approxLocation` (ADR-0157) — логическое поле «место приблизительное»: форма
+ * спрашивает точку, а её не указали — точка встаёт в центр территории строки и поле
+ * получает «да»; указанная точка — «нет».
  */
 export const FormAutoFields = z.object({
   unit: FieldKey.nullable().default(null),
   period: FieldKey.nullable().default(null),
   author: FieldKey.nullable().default(null),
   submittedAt: FieldKey.nullable().default(null),
+  approxLocation: FieldKey.nullable().default(null),
 })
 export type FormAutoFields = z.infer<typeof FormAutoFields>
 

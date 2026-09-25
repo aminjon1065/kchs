@@ -22,6 +22,7 @@ import { type ReactNode, useId, useMemo, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { PrincipalLine } from '~/features/access/principal-picker.js'
+import { PointField } from '~/features/gis/edit/point-field.js'
 import { TerritoryField } from '~/features/gis/edit/territory-field.js'
 import { objectListQuery, principalRefsQuery, principalsQuery } from '~/shared/api/queries.js'
 import { useFieldOptions } from './field-options.js'
@@ -43,7 +44,7 @@ const CHOICE_VISIBLE = 200
 
 /**
  * Контролы полей-ссылок для `SchemaForm` и табличных сводок (ADR-0129):
- * территория — деревом справочника, сотрудник и подразделение — поиском,
+ * территория — деревом справочника, точка — на карте или координатами (ADR-0157), сотрудник и подразделение — поиском,
  * объект — списком доступных, поле со справочником (`lookup`, любого типа) —
  * выбором из строк справочного датасета с поиском, текстовое поле с вариантами
  * — выбором, как `select`. Без них такие поля правились бы как текст с кодом
@@ -70,6 +71,8 @@ export function useFieldControls(
         />
       )
     }
+    // Точка — на карте или координатами (ADR-0157)
+    if (field.type === 'geometry') return <PointField {...control} />
     if (field.type === 'user' || field.type === 'unit') {
       return <PrincipalValueField kind={field.type} {...control} />
     }

@@ -28,14 +28,13 @@ import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { objectListQuery, spacesQuery } from '~/shared/api/queries.js'
+import { askable } from './askable.js'
 import { formDutiesQuery, formKeys, formsApi, formsQuery } from './queries.js'
 
 /**
  * Поля, которые форма спрашивать не может: вычисляемые и требующие особых
  * контролов (геометрия, файл, подпись) — как на сервере (ADR-0103).
  */
-const NOT_ASKABLE = new Set(['formula', 'lookup', 'rollup', 'geometry', 'file', 'signature'])
-const ASKABLE = (type: string) => !NOT_ASKABLE.has(type)
 
 /**
  * Экран «Формы сбора данных» (06-analytics-engine.md §13, ADR-0103): формы,
@@ -269,7 +268,7 @@ function CreateFormDialog({
     enabled: datasetId.length > 0,
   })
 
-  const usable = (dataset?.fields ?? []).filter((field) => !field.readOnly && ASKABLE(field.type))
+  const usable = (dataset?.fields ?? []).filter((field) => !field.readOnly && askable(field))
 
   const create = useMutation({
     mutationFn: () => {
@@ -281,7 +280,7 @@ function CreateFormDialog({
         layout: 'single',
         table: { minRows: 0, maxRows: 200 },
         fields,
-        auto: { unit: null, period: null, author: null, submittedAt: null },
+        auto: { unit: null, period: null, author: null, submittedAt: null, approxLocation: null },
         schedule: {
           periodicity,
           time: '08:00',

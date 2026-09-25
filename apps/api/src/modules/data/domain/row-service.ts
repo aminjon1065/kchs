@@ -75,6 +75,9 @@ export function valueSql(field: StoredField, value: unknown): SQL {
     return sql`extensions.ST_SetSRID(extensions.ST_GeomFromGeoJSON(${JSON.stringify(value)}), 4326)`
   }
   if (type === 'json') return sql`${JSON.stringify(value)}::jsonb`
+  // Логическое — значением JS: драйвер (postgres.js) пишет 't' только для true, а строка
+  // 'true' в параметре типа boolean стала бы 'f'
+  if (type === 'boolean') return sql`${value === true || value === 'true'}::boolean`
   if (type === 'multi_select') return sql`${textArrayLiteral(value as string[])}::text[]`
   // Имя типа — из columnType (сгенерировано), значение — параметром
   return sql`${String(value)}::${sql.raw(columnType(type, field.format?.precision))}`

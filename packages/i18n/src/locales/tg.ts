@@ -3084,6 +3084,13 @@ export const tg: DeepPartial<Dictionary> = {
       failed: 'Объект бор нашуд',
       openDataset: 'Кушодани маҷмӯи маълумот',
     },
+    point: {
+      pick: 'Ҷойро нишон додан',
+      clear: 'Нуқтаро тоза кардан',
+      title: 'Ҷой дар харита',
+      hint: 'Ҷойро дар харита клик кунед ё арз ва тӯли ҷуғрофиро ворид намоед.',
+      map: 'Харита барои интихоби ҷой',
+    },
     edit: {
       start: 'Таҳрир кардан',
       chooseLayer: 'Қабат барои таҳрир',
@@ -8895,6 +8902,7 @@ export const tg: DeepPartial<Dictionary> = {
         period: 'Давра',
         author: 'Муаллиф',
         submittedAt: 'Вақти фиристодан',
+        approxLocation: 'Ҷойи тахминӣ',
       },
       schedule: 'Даврият ва мӯҳлат',
       time: 'Вақти мӯҳлат',
