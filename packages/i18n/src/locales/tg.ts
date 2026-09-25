@@ -1135,6 +1135,8 @@ export const tg: DeepPartial<Dictionary> = {
       taskAssigned: '{actor} ба шумо супориш дод: «{title}»',
       taskAccepted: '{actor} барои иҷро қабул кард: «{title}»',
       taskReported: '{actor} оид ба «{title}» ҳисобот дод',
+      taskReportPrepared:
+        'Ҷавоб фиристода шуд — ҳисобот оид ба «{title}» омода аст, онро бо як тугма фиристед',
       taskCompleted: '{actor} иҷроро қабул кард: «{title}»',
       taskDone: '{actor} иҷро кард: «{title}»',
       taskReturned: '{actor} барои ислоҳ баргардонд: «{title}»',
@@ -1736,9 +1738,16 @@ export const tg: DeepPartial<Dictionary> = {
       fixFields: 'Майдонҳои ҳатмии кортро санҷед',
       noType: 'Намудҳои ҳуҷҷатҳои воридотӣ нест',
       nextNumber: 'Рақами навбатӣ: {number}',
+      numberPreview: 'Рақам чунин мешавад: {number}',
       reservation: 'Рақам аз захира',
       reservationHint: 'Барои ҳуҷҷати коғазӣ, ки рақамаш пешакӣ дода шудааст',
       noReservation: 'Рақами нав',
+      case: 'Парванда аз рӯи номгӯй',
+      caseHint:
+        'Индекси парванда ба рақам дохил мешавад; аз рӯи намуди ҳуҷҷат ва воҳиди сохторӣ интихоб шудааст',
+      noCase: 'Бе парванда',
+      noCases: 'Парвандаҳои кушодаи номгӯи соли ҷорӣ нест — рақам бе индекси парванда мешавад',
+      reservationCase: 'Рақам аз захира пешакӣ дода шудааст ва индекси парвандаро надорад',
     },
     cancel: {
       title: 'Беэътибор кардани ҳуҷҷат',
@@ -1833,6 +1842,9 @@ export const tg: DeepPartial<Dictionary> = {
       title: 'Коргузорӣ',
       case: 'Парванда',
       filedAt: '{date} ба парванда гузошта шуд',
+      registrationCase: 'Парванда аз рӯи номгӯй',
+      registrationCaseHint:
+        'Ҳангоми бақайдгирӣ нишон дода шуд: пас аз иҷро ҳуҷҷат ба ҳамин парванда гузошта мешавад',
       dispatches: 'Фиристодан',
       filesDestroyed: 'Файлҳо нобуд карда шуданд',
       filesDestroyedHint:
@@ -1941,6 +1953,24 @@ export const tg: DeepPartial<Dictionary> = {
         hint: 'Ҳамаи парвандаҳои кушодаи сол, ки шумо пеш мебаред, пӯшида мешаванд.',
         confirm: 'Пӯшидани парвандаҳо',
         done: '{count, plural, =0 {Парвандаи кушода набуд} one {# парванда пӯшида шуд} other {# парванда пӯшида шуд}}',
+      },
+      import: {
+        action: 'Воридот аз Excel',
+        title: 'Воридоти номгӯи парвандаҳо аз Excel',
+        description:
+          'Номгӯи тасдиқшуда дар файли Excel: сутунҳои «Индекс», «Сарлавҳаи парванда», «Сол», «Воҳиди сохторӣ», «Мӯҳлати нигоҳдорӣ», «Моддаи рӯйхат», «Намудҳои ҳуҷҷатҳо», «Эзоҳ». Намуна — номгӯи намунавӣ аз рӯи воҳидҳои сохторӣ.',
+        template: 'Боргирии намуна',
+        chooseFile: 'Интихоби файл',
+        uploading: 'Боргузории файл',
+        year: 'Сол барои сатрҳои бе сол',
+        check: 'Санҷидан',
+        apply: '{count, plural, one {Эҷоди # парванда} other {Эҷоди # парванда}}',
+        done: '{count, plural, =0 {Парвандаи нав нест} one {# парванда эҷод шуд} other {# парванда эҷод шуд}}',
+        sheet: 'Варақи «{name}»',
+        rows: 'Сатрҳои файл',
+        nothing: 'Дар файл сатр бо парванда нест',
+        statuses: { ready: 'Омода', exists: 'Аллакай ҳаст', error: 'Хато', created: 'Эҷод шуд' },
+        columns: { row: 'Сатр', status: 'Натиҷа' },
       },
       destruction: {
         open: 'Санади нобудкунӣ',
@@ -2130,7 +2160,8 @@ export const tg: DeepPartial<Dictionary> = {
       name: 'Ном',
       prefix: 'Префикс',
       format: 'Қолаби рақам',
-      formatHint: 'Ивазшавандаҳо: {prefix}, {seq:04}, {yy}, {yyyy}, {unit.code}',
+      formatHint:
+        'Ивазшавандаҳо: {case.index} — индекси парванда аз рӯи номгӯй (ҳангоми бақайдгирӣ интихоб мешавад), {prefix}, {seq:04}, {yy}, {yyyy}, {unit.code}',
       formatIssues: {
         empty: 'Қолаб муайян нашудааст',
         too_long: 'Қолаб хеле дароз аст',
@@ -2202,6 +2233,9 @@ export const tg: DeepPartial<Dictionary> = {
       rejectReason: 'Сабаби радкунӣ',
       rejected: 'Мактуб рад карда шуд',
       error: 'Хатои таҳлил',
+      correspondentByDomain: 'аз рӯи домени {domain}',
+      purgeAt:
+        '{date} аз навбат нест мешавад: мактубҳои радшуда ва баррасинашуда {days, plural, one {# рӯз} other {# рӯз}} нигоҳ дошта мешаванд',
     },
     correspondents: {
       title: 'Мукотибакунандагон',
@@ -2228,6 +2262,9 @@ export const tg: DeepPartial<Dictionary> = {
       empty: 'Мукотибакунанда нест',
       notFound: 'Ҳеҷ чиз ёфт нашуд',
       pick: 'Мукотибакунандаро интихоб кунед',
+      mailDomains: 'Доменҳои почта',
+      mailDomainsHint:
+        'Бо вергул, масалан mvd.tj. Мактубҳо аз суроғаҳои ин доменҳо ҳангоми қабул аз почта ҳамин мукотибакунандаро мегиранд; хадамоти умумии почта мувофиқ нестанд',
     },
     types: {
       title: 'Намудҳои ҳуҷҷатҳо',
@@ -5111,6 +5148,12 @@ export const tg: DeepPartial<Dictionary> = {
       objectsHint: 'Файлҳо замимаи супориш мешаванд; ҳуҷҷати омодашударо аз рӯи ном ёбед',
       findObject: 'Ёфтани ҳуҷҷат ё объекти дигар',
       noAccess: 'Дастрасӣ нест',
+      ready: 'Ҳисоботи омода',
+      readyHints: {
+        reply_dispatched:
+          'Вақте ки ҷавоб ба қайд гирифта ва фиристода шуд, омода гардид: санҷед ва барои қабул ба муаллиф фиристед',
+      },
+      sendReady: 'Фиристодани ҳисобот',
     },
     return: {
       title: 'Барои ислоҳ баргардонидан',
@@ -8724,6 +8767,7 @@ export const tg: DeepPartial<Dictionary> = {
       filesProcessPending: 'Файлҳо: коркарди такрорӣ',
       filesCloseOfficeSessions: 'Файлҳо: пӯшидани сеансҳои муҳаррир',
       documentsMailPoll: 'Ҳуҷҷатҳо: санҷиши қуттиҳои почта',
+      documentsMailPurge: 'Ҳуҷҷатҳо: тоза кардани навбати «Аз почта» аз рӯи мӯҳлати нигоҳдорӣ',
       calendarReminders: 'Тақвим: ёдрасиҳо',
       calendarPlan: 'Тақвим: банақшагирии ёдрасиҳо',
       calendarHorizon: 'Тақвим: уфуқи такрорҳо',
