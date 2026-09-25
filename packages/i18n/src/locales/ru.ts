@@ -982,6 +982,7 @@ export const ru = {
       fillForm: 'Заполнить сводку',
       acceptForm: 'Принять сводку',
       dismissAlert: 'Разобрался',
+      respond: 'Ответить',
     },
     tpl: {
       acceptInstruction: 'Поручение: {title}',
@@ -8246,6 +8247,7 @@ export const ru = {
       recordingsRetention: 'Встречи: срок хранения записей',
       formsPrune: 'Формы сбора: очистка отметок напоминаний',
       identityPrune: 'Вход: чистка истёкших сессий и брошенных попыток входа',
+      directorySync: 'Каталог: синхронизация учётных записей',
       alertsCheck: 'Алерты: проверка показателей',
       alertsPrune: 'Алерты: очистка истории срабатываний',
     },

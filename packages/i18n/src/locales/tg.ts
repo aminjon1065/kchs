@@ -1040,6 +1040,7 @@ export const tg: DeepPartial<Dictionary> = {
       fillForm: 'Пур кардани гузориш',
       acceptForm: 'Қабули гузориш',
       dismissAlert: 'Баррасӣ шуд',
+      respond: 'Ҷавоб додан',
     },
     tpl: {
       acceptInstruction: 'Супориш: {title}',
@@ -8788,6 +8789,7 @@ export const tg: DeepPartial<Dictionary> = {
       formsPrune: 'Шаклҳои ҷамъоварӣ: тоза кардани қайдҳои ёдрасӣ',
       identityPrune:
         'Воридшавӣ: тоза кардани сеансҳои мӯҳлатгузашта ва кӯшишҳои нотамоми воридшавӣ',
+      directorySync: 'Каталог: ҳамоҳангсозии ҳисобҳо',
       alertsCheck: 'Огоҳиҳо: санҷиши нишондиҳандаҳо',
       alertsPrune: 'Огоҳиҳо: тоза кардани таърихи фаъолшавиҳо',
     },

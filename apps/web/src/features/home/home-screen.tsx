@@ -1,4 +1,4 @@
-import type { AnnouncementSeverity } from '@kchs/contracts'
+import type { AnnouncementSeverity, InboxItem } from '@kchs/contracts'
 import { formatRelativeTime } from '@kchs/fields'
 import {
   Badge,
@@ -53,6 +53,17 @@ type OpenObject = (item: { id: string; type: string; title: string }) => void
  * счётчики Входящих и виджеты в порядке, который выбрал пользователь, — или
  * набором по его роли.
  */
+
+/**
+ * Подсказка «что сделать» у дела во Входящих — подпись первой кнопки (у действия свой
+ * labelKey: ключ действия со словарём не совпадает). У приглашения кнопки «Да», «Возможно»,
+ * «Нет» — подсказка «Ответить».
+ */
+function actionHint(item: InboxItem): string {
+  if (item.actions.some((action) => action.key === 'tentative')) return 'inbox.actions.respond'
+  return item.actions[0]?.labelKey ?? 'inbox.actions.open'
+}
+
 export function HomeScreen() {
   const t = useT()
   const locale = useAppearance((s) => s.locale)
@@ -262,7 +273,7 @@ function InboxWidget({ openObject, openInbox }: { openObject: OpenObject; openIn
                   ) : null}
                 </span>
                 <Badge tone={item.priority === 'urgent' ? 'danger' : 'neutral'} size="sm">
-                  {t(`inbox.actions.${item.actions[0]?.key ?? 'open'}`)}
+                  {t(actionHint(item))}
                 </Badge>
               </button>
             </li>

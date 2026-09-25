@@ -966,6 +966,7 @@ export const en: DeepPartial<Dictionary> = {
       fillForm: 'Fill in',
       acceptForm: 'Accept submission',
       dismissAlert: 'Acknowledged',
+      respond: 'Respond',
     },
     tpl: {
       acceptInstruction: 'Assignment: {title}',
@@ -8126,6 +8127,7 @@ export const en: DeepPartial<Dictionary> = {
       recordingsRetention: 'Meetings: recording retention',
       formsPrune: 'Data forms: prune reminder marks',
       identityPrune: 'Sign-in: prune expired sessions and abandoned sign-in attempts',
+      directorySync: 'Directory: account synchronisation',
       alertsCheck: 'Alerts: check metrics',
       alertsPrune: 'Alerts: prune firing history',
     },
