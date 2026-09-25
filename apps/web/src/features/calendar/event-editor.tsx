@@ -62,7 +62,7 @@ import { ScopeDialog } from './scope-dialog.js'
 import { addDays, clockMinutes, clockText, DAY_MS, instantAt, MINUTE_MS, wallOf } from './time.js'
 
 const REMINDER_MINUTES = [0, 5, 10, 15, 30, 60, 120, 1440, 2880]
-const CHANNELS: ReminderChannel[] = ['app', 'email', 'telegram']
+const CHANNELS: ReminderChannel[] = ['app', 'email', 'telegram', 'push']
 
 /** Что открыть в форме: новое событие (заготовка) или правку (экземпляр серии). */
 export type EditorTarget =

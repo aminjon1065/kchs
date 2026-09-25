@@ -6116,6 +6116,7 @@ export const ru = {
         app: 'В приложении',
         email: 'Почта',
         telegram: 'Telegram',
+        push: 'Push',
       },
     },
     findTime: {

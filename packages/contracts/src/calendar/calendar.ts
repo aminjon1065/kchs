@@ -199,14 +199,15 @@ export type CalendarImportResult = z.infer<typeof CalendarImportResult>
 
 // ─── Настройки пользователя ───────────────────────────────────────────────
 
-export const REMINDER_CHANNELS = ['app', 'email', 'telegram'] as const
+/** Каналы напоминания; `push` — уведомление на устройство (ADR-0162). */
+export const REMINDER_CHANNELS = ['app', 'email', 'telegram', 'push'] as const
 export const ReminderChannel = z.enum(REMINDER_CHANNELS)
 export type ReminderChannel = z.infer<typeof ReminderChannel>
 
 /** Напоминание: за сколько минут до начала и в какие каналы (не больше недели). */
 export const Reminder = z.object({
   minutes: z.number().int().min(0).max(10_080),
-  channels: z.array(ReminderChannel).min(1).max(3),
+  channels: z.array(ReminderChannel).min(1).max(REMINDER_CHANNELS.length),
 })
 export type Reminder = z.infer<typeof Reminder>
 

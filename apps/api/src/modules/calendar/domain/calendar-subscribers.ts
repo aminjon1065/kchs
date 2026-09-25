@@ -1,4 +1,4 @@
-import type { EventEnvelope, Locale, NotificationCategory } from '@kchs/contracts'
+import type { EventEnvelope, Locale, NotificationCategory, ReminderChannel } from '@kchs/contracts'
 import { eq } from 'drizzle-orm'
 import { recordModuleActivity } from '~/kernel/activity/service.js'
 import type { Subscriber } from '~/kernel/events/types.js'
@@ -58,7 +58,7 @@ async function notifyEach(
     when?: { startsAt: number; allDay: boolean; startDate: string | null } | null
     params?: Record<string, unknown>
     aggregateKey?: string
-    channels?: Array<'app' | 'email' | 'telegram'>
+    channels?: ReminderChannel[]
     urgent?: boolean
   },
 ): Promise<void> {
@@ -196,7 +196,8 @@ async function remind(event: EventEnvelope): Promise<void> {
       allDay: row?.allDay ?? false,
       startDate: row?.allDay ? localDate(startsAt, row.timezone) : null,
     },
-    channels: (event.payload.channels as Array<'app' | 'email' | 'telegram'>) ?? ['app'],
+    // Push доставляется, если у получателя есть подписанное устройство (ADR-0162)
+    channels: (event.payload.channels as ReminderChannel[] | undefined) ?? ['app'],
     aggregateKey: `calendar:reminder:${event.object.id}:${String(event.payload.occurrenceStart)}:${minutes}`,
     urgent: true,
   })

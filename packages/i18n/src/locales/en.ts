@@ -6028,6 +6028,7 @@ export const en: DeepPartial<Dictionary> = {
         app: 'In app',
         email: 'Email',
         telegram: 'Telegram',
+        push: 'Push',
       },
     },
     findTime: {

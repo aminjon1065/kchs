@@ -6487,6 +6487,7 @@ export const tg: DeepPartial<Dictionary> = {
         app: 'Дар барнома',
         email: 'Почта',
         telegram: 'Telegram',
+        push: 'Push',
       },
     },
     findTime: {
