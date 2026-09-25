@@ -9,6 +9,11 @@ import type { RouteAuth } from './route.js'
 declare module 'fastify' {
   interface FastifyRequest {
     ctx: UserCtx
+    /**
+     * Решение проверки прав маршрута (`auth: { action }`): обработчику, которому нужен
+     * уровень доступа, не приходится проверять его второй раз.
+     */
+    routeDecision?: { action: string; objectId: string; decision: unknown }
   }
   interface FastifyContextConfig {
     auth?: RouteAuth
@@ -21,6 +26,9 @@ declare module 'fastify' {
   }
 }
 
+/** Как часто обновлять отметку активности сессии. */
+const SESSION_TOUCH_INTERVAL_MS = 60_000
+
 export interface AuthDependencies {
   resolveSession: (token: string) => Promise<{
     sessionId: string
@@ -30,6 +38,8 @@ export interface AuthDependencies {
     onBehalfOf: string | null
     mfaEnrolled: boolean
     adminMode?: AdminModeState | null
+    /** Последняя отметка активности — чтобы не писать её на каждый запрос. */
+    lastActiveAt?: string
   } | null>
   buildUserCtx: (
     session: {
@@ -42,7 +52,7 @@ export interface AuthDependencies {
     request: FastifyRequest,
   ) => Promise<UserCtx>
   touchSession: (sessionId: string) => Promise<void>
-  authorizeRoute: (ctx: UserCtx, action: string, objectId: string) => Promise<void>
+  authorizeRoute: (ctx: UserCtx, action: string, objectId: string) => Promise<unknown>
   requireCapability: (ctx: UserCtx, capability: string) => void
   resolveShareLink?: (token: string) => Promise<UserCtx | null>
   /** Служебный токен страницы печати (cookie `kchs_print`, ADR-0078). */
@@ -151,7 +161,14 @@ export const authPlugin = fp<AuthDependencies>(async (app: FastifyInstance, deps
     }
 
     request.ctx = await deps.buildUserCtx(session, request)
-    void deps.touchSession(session.sessionId)
+    // Не чаще раза в минуту: простой считается по отметке с точностью до минуты, а запись
+    // строки сессии на каждый запрос была лишней нагрузкой на базу
+    if (
+      !session.lastActiveAt ||
+      Date.now() - Date.parse(session.lastActiveAt) > SESSION_TOUCH_INTERVAL_MS
+    ) {
+      void deps.touchSession(session.sessionId)
+    }
 
     // Незавершённая настройка входа (17-security.md §2): сначала временный пароль,
     // затем обязательный второй фактор — маршрут смены пароля не требует MFA
@@ -192,6 +209,7 @@ async function applyRoutePolicy(
     // Проверка прав идёт до валидации схемы: чужой формат идентификатора — «не найдено»
     if (!UUID_RE.test(objectId)) throw errors.notFound()
     if (auth.capability) deps.requireCapability(request.ctx, auth.capability)
-    await deps.authorizeRoute(request.ctx, auth.action, objectId)
+    const decision = await deps.authorizeRoute(request.ctx, auth.action, objectId)
+    request.routeDecision = { action: auth.action, objectId, decision }
   }
 }

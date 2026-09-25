@@ -143,9 +143,7 @@ export async function buildApp(): Promise<FastifyInstance> {
     resolveSession: (token) => AuthService.resolveSession(token),
     buildUserCtx,
     touchSession: (sessionId) => AuthService.touchSession(sessionId),
-    authorizeRoute: async (ctx, action, objectId) => {
-      await authorize(ctx, action, objectId)
-    },
+    authorizeRoute: (ctx, action, objectId) => authorize(ctx, action, objectId),
     requireCapability,
     resolveShareLink: resolveShareLinkCtx,
     resolvePrintGrant: (token) => PrintGrants.resolve(token),

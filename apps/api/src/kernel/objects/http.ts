@@ -29,6 +29,7 @@ import { decodeCursor, encodeCursor } from '~/shared/http/pagination.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { authorize, loadObject, visibleObjectsSql } from '../access/authorize.js'
 import { clearanceSql } from '../access/confidentiality.js'
+import type { Decision } from '../access/types.js'
 import { listActivity } from '../activity/service.js'
 import { lineageOf } from '../links/lineage.js'
 import { LinkService } from '../links/service.js'
@@ -51,7 +52,12 @@ export function registerObjectRoutes(route: RouteRegistrar): void {
     schema: { params: IdParam, response: { 200: ObjectRecord } },
     handler: async (request) => {
       const { id } = request.params
-      const decision = await authorize(request.ctx, 'view', id)
+      // Права уже проверены маршрутом — берём его решение, а не проверяем второй раз
+      const checked = request.routeDecision
+      const decision =
+        checked?.action === 'view' && checked.objectId === id
+          ? (checked.decision as Decision)
+          : await authorize(request.ctx, 'view', id)
       const [row] = await db().select().from(objects).where(eq(objects.id, id)).limit(1)
       if (!row) throw errors.notFound()
 

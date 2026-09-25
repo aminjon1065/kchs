@@ -397,6 +397,7 @@ export const AuthService = {
     mfaEnrolled: boolean
     /** Режим администратора сессии (ADR-0080), если он включён и не истёк. */
     adminMode: { reason: string; until: string } | null
+    lastActiveAt: string
   } | null> {
     const env = config()
     const [row] = await db()
@@ -422,6 +423,7 @@ export const AuthService = {
       csrfToken: row.csrfToken,
       expiresAt: row.expiresAt,
       onBehalfOf: row.onBehalfOf,
+      lastActiveAt: row.lastActiveAt,
       // Отдельным запросом: коррелированный подзапрос в списке select drizzle
       // выводит без имён таблиц, и условие вырождается в user_id = user_id
       mfaEnrolled: await AuthService.mfaEnabled(row.userId),
