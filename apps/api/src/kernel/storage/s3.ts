@@ -11,6 +11,7 @@ import {
   HeadBucketCommand,
   HeadObjectCommand,
   ListObjectsV2Command,
+  ListPartsCommand,
   PutObjectCommand,
   S3Client,
   UploadPartCommand,
@@ -131,9 +132,20 @@ export async function initMultipart(
     }),
   )
   const uploadId = result.UploadId!
+  return { uploadId, partUrls: await multipartPartUrls(key, uploadId, size), partSize: PART_SIZE }
+}
+
+/**
+ * Подписанные адреса всех частей многочастной загрузки. Перевыпускаются и при
+ * докачке: прежние могли истечь, пока связь не вернулась.
+ */
+export async function multipartPartUrls(
+  key: string,
+  uploadId: string,
+  size: number,
+): Promise<MultipartInit['partUrls']> {
   const partCount = Math.max(1, Math.ceil(size / PART_SIZE))
   const partUrls: MultipartInit['partUrls'] = []
-
   for (let partNumber = 1; partNumber <= partCount; partNumber++) {
     const command = new UploadPartCommand({
       Bucket: buckets.files(),
@@ -148,8 +160,37 @@ export async function initMultipart(
       size: partNumber === partCount ? size - PART_SIZE * (partCount - 1) : PART_SIZE,
     })
   }
+  return partUrls
+}
 
-  return { uploadId, partUrls, partSize: PART_SIZE }
+/** Части, которые уже лежат в хранилище: с них докачка и продолжается. */
+export async function listUploadedParts(
+  key: string,
+  uploadId: string,
+): Promise<Array<{ partNumber: number; etag: string; size: number }>> {
+  const parts: Array<{ partNumber: number; etag: string; size: number }> = []
+  let marker: string | undefined
+  for (;;) {
+    const page = await s3().send(
+      new ListPartsCommand({
+        Bucket: buckets.files(),
+        Key: key,
+        UploadId: uploadId,
+        ...(marker ? { PartNumberMarker: marker } : {}),
+      }),
+    )
+    for (const part of page.Parts ?? []) {
+      if (!part.PartNumber || !part.ETag) continue
+      parts.push({
+        partNumber: part.PartNumber,
+        etag: part.ETag.replace(/"/g, ''),
+        size: part.Size ?? 0,
+      })
+    }
+    if (!page.IsTruncated || !page.NextPartNumberMarker) break
+    marker = String(page.NextPartNumberMarker)
+  }
+  return parts
 }
 
 /**

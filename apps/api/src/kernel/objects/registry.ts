@@ -66,6 +66,11 @@ export interface ObjectTypeDefinition {
       object: ObjectLike,
       from: { spaceId: string | null; parentId: string | null },
     ) => Promise<void>
+    /**
+     * После правки общих полей в той же транзакции: модуль держит свою таблицу в
+     * согласии с реестром (имя файла — название объекта).
+     */
+    onUpdate?: (tx: Executor, ctx: Ctx, object: ObjectLike, changed: string[]) => Promise<void>
   }
   discussable: boolean
   linkable: boolean

@@ -49,6 +49,8 @@ export function registerKernelObjectTypes(): void {
       view: { minLevel: 'view' },
       edit: { minLevel: 'edit' },
       create_child: { minLevel: 'edit' },
+      // Разложить папки по дереву может редактор: цель проверяется правом create_child
+      move: { minLevel: 'edit' },
       share: { minLevel: 'manage' },
       delete: { minLevel: 'manage' },
     },

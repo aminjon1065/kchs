@@ -22,13 +22,29 @@ import {
   useToast,
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronRight, Download, FolderPlus, Paperclip, Share2, Trash2, Upload } from 'lucide-react'
+import {
+  ChevronRight,
+  Download,
+  FolderInput,
+  FolderPlus,
+  Paperclip,
+  Pencil,
+  Share2,
+  Trash2,
+  Upload,
+} from 'lucide-react'
 import { type DragEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
 import { ShareDialog } from '~/features/access/share-dialog.js'
-import { uploadFile } from '~/features/files/upload.js'
+import {
+  type Movable,
+  MoveDialog,
+  moveObjects,
+  RenameDialog,
+} from '~/features/files/move-dialog.js'
+import { UploadInterruptedError, uploadFile } from '~/features/files/upload.js'
 import { useFileDownload } from '~/features/files/use-file-download.js'
 import { http } from '~/shared/api/client.js'
 import { attachmentsFolderQuery, spacesQuery } from '~/shared/api/queries.js'
@@ -43,6 +59,8 @@ import {
 import { orderSpaces } from '~/shared/spaces.js'
 
 const TYPES = ['folder', 'file']
+/** Тип данных перетаскивания объектов списка: отличает их от файлов с диска. */
+const DRAG_OBJECTS = 'application/x-kchs-objects'
 
 /** Категория файла для доски: папки, документы, таблицы, изображения, прочее. */
 type FileCategory = 'folder' | 'document' | 'spreadsheet' | 'image' | 'other'
@@ -89,6 +107,10 @@ export function FilesScreen({
   const [folderName, setFolderName] = useState('')
   const [shareTarget, setShareTarget] = useState<ObjectSummary | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ObjectSummary | null>(null)
+  const [moveTargets, setMoveTargets] = useState<Movable[] | null>(null)
+  const [renameTarget, setRenameTarget] = useState<Movable | null>(null)
+  // Папка, над которой тащат файлы списка: подсветка цели перетаскивания
+  const [dropFolderId, setDropFolderId] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   // На узком экране таблица нечитаема — переключаемся на плитки
@@ -165,7 +187,7 @@ export function FilesScreen({
     },
   })
 
-  const handleFiles = async (fileList: FileList | null): Promise<void> => {
+  const handleFiles = async (fileList: FileList | File[] | null): Promise<void> => {
     if (!fileList?.length || !effectiveSpaceId) return
     for (const file of Array.from(fileList)) {
       const key = `${file.name}-${file.size}`
@@ -178,8 +200,22 @@ export function FilesScreen({
           onProgress: (progress) => setUploads((current) => ({ ...current, [key]: progress })),
         })
         toast.show({ title: t('files.upload.done', { name: file.name }), tone: 'success' })
-      } catch {
-        toast.error(t('files.upload.failed'), file.name)
+      } catch (error) {
+        if (error instanceof UploadInterruptedError) {
+          // Сессия жива: повтор продолжит с первой недокачанной части
+          toast.show({
+            title: error.message,
+            description: file.name,
+            tone: 'warning',
+            duration: 60_000,
+            action: {
+              label: t('files.upload.resume'),
+              onClick: () => void handleFiles([file]),
+            },
+          })
+        } else {
+          toast.error(t('files.upload.failed'), file.name)
+        }
       } finally {
         setUploads((current) => {
           const next = { ...current }
@@ -194,8 +230,62 @@ export function FilesScreen({
   const onDrop = (event: DragEvent): void => {
     event.preventDefault()
     setDragActive(false)
+    // Перетаскивание объектов списка обрабатывает папка-цель, здесь — файлы с диска
+    if (event.dataTransfer.types.includes(DRAG_OBJECTS)) return
     void handleFiles(event.dataTransfer.files)
   }
+
+  const movable = (item: ObjectSummary): Movable => ({
+    id: item.id,
+    type: item.type,
+    title: item.title,
+    spaceId: item.spaceId,
+  })
+
+  // Перетащить объекты списка на папку: выделенные вместе, если тащат одну из них
+  const startDrag = (event: DragEvent, item: ObjectSummary): void => {
+    const ids = selected.has(item.id) ? [...selected] : [item.id]
+    event.dataTransfer.setData(DRAG_OBJECTS, JSON.stringify(ids))
+    event.dataTransfer.effectAllowed = 'move'
+  }
+
+  const dropTargetProps = (folder: ObjectSummary) => ({
+    onDragOver: (event: DragEvent) => {
+      if (!event.dataTransfer.types.includes(DRAG_OBJECTS)) return
+      event.preventDefault()
+      event.stopPropagation()
+      event.dataTransfer.dropEffect = 'move'
+      setDropFolderId(folder.id)
+    },
+    onDragLeave: () => setDropFolderId((current) => (current === folder.id ? null : current)),
+    onDrop: (event: DragEvent) => {
+      if (!event.dataTransfer.types.includes(DRAG_OBJECTS)) return
+      event.preventDefault()
+      event.stopPropagation()
+      setDropFolderId(null)
+      const ids = JSON.parse(event.dataTransfer.getData(DRAG_OBJECTS) || '[]') as string[]
+      const dragged = items.filter((row) => ids.includes(row.id) && row.id !== folder.id)
+      if (dragged.length === 0 || !effectiveSpaceId) return
+      void moveObjects(dragged.map(movable), {
+        spaceId: effectiveSpaceId,
+        parentId: folder.id,
+      }).then((result) => {
+        refresh()
+        setSelected(new Set())
+        if (result.failed.length > 0) {
+          toast.error(
+            t('files.move.failed', { count: result.failed.length }),
+            result.failed.map((failure) => `${failure.title}: ${failure.reason}`).join('\n'),
+          )
+        } else {
+          toast.show({
+            title: t('files.move.movedTo', { count: result.moved, folder: folder.title }),
+            tone: 'success',
+          })
+        }
+      })
+    },
+  })
 
   const openObject = (item: ObjectSummary, permanent = false): void => {
     if (item.type === 'folder') {
@@ -218,7 +308,16 @@ export function FilesScreen({
       header: t('files.columns.name'),
       sortable: sortable.includes('title'),
       cell: (item) => (
-        <span className="flex min-w-0 items-center gap-2">
+        // biome-ignore lint/a11y/noStaticElementInteractions: перетаскивание — ускоритель для мыши; с клавиатуры то же делает «Переместить» в строке
+        <span
+          className={cn(
+            'flex min-w-0 items-center gap-2 rounded-xs',
+            dropFolderId === item.id && 'bg-accent-subtle ring-1 ring-accent',
+          )}
+          draggable={!inAttachments}
+          onDragStart={(event) => startDrag(event, item)}
+          {...(item.type === 'folder' ? dropTargetProps(item) : {})}
+        >
           <ObjectIcon type={item.type} className="size-4 shrink-0 text-fg-muted" />
           <span className="truncate">{item.title}</span>
           {item.type === 'folder' ? (
@@ -269,7 +368,8 @@ export function FilesScreen({
       className={cn('flex h-full min-h-0 flex-col', dragActive && 'ring-2 ring-inset ring-accent')}
       onDragOver={(event) => {
         event.preventDefault()
-        setDragActive(true)
+        // Подсветка приёма — только для файлов с диска, не для объектов списка
+        if (event.dataTransfer.types.includes('Files')) setDragActive(true)
       }}
       onDragLeave={() => setDragActive(false)}
       onDrop={onDrop}
@@ -393,17 +493,31 @@ export function FilesScreen({
           selection={selected}
           onSelectionChange={setSelected}
           bulkActions={
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={<Trash2 className="size-3.5" />}
-              onClick={() => {
-                for (const id of selected) trash.mutate(id)
-                setSelected(new Set())
-              }}
-            >
-              {t('common.actions.delete')}
-            </Button>
+            <>
+              {inAttachments ? null : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={<FolderInput className="size-3.5" />}
+                  onClick={() =>
+                    setMoveTargets(items.filter((item) => selected.has(item.id)).map(movable))
+                  }
+                >
+                  {t('files.move.action')}
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={<Trash2 className="size-3.5" />}
+                onClick={() => {
+                  for (const id of selected) trash.mutate(id)
+                  setSelected(new Set())
+                }}
+              >
+                {t('common.actions.delete')}
+              </Button>
+            </>
           }
           onRowClick={(item) => openObject(item)}
           onRowOpen={(item) => openObject(item, true)}
@@ -416,6 +530,24 @@ export function FilesScreen({
               >
                 <Share2 className="size-3.5" />
               </IconButton>
+              {inAttachments ? null : (
+                <>
+                  <IconButton
+                    label={t('files.move.actionFor', { name: item.title })}
+                    size="sm"
+                    onClick={() => setMoveTargets([movable(item)])}
+                  >
+                    <FolderInput className="size-3.5" />
+                  </IconButton>
+                  <IconButton
+                    label={t('files.rename.actionFor', { name: item.title })}
+                    size="sm"
+                    onClick={() => setRenameTarget(movable(item))}
+                  >
+                    <Pencil className="size-3.5" />
+                  </IconButton>
+                </>
+              )}
               {item.type === 'file' ? (
                 <IconButton
                   label={t('common.actions.download')}
@@ -440,7 +572,13 @@ export function FilesScreen({
               type="button"
               onClick={() => openObject(item)}
               onDoubleClick={() => openObject(item, true)}
-              className="flex w-full flex-col items-start gap-2 rounded-md border border-line bg-surface p-3 text-left transition-colors hover:border-line-strong hover:bg-surface-2"
+              draggable={!inAttachments}
+              onDragStart={(event) => startDrag(event, item)}
+              {...(item.type === 'folder' ? dropTargetProps(item) : {})}
+              className={cn(
+                'flex w-full flex-col items-start gap-2 rounded-md border border-line bg-surface p-3 text-left transition-colors hover:border-line-strong hover:bg-surface-2',
+                dropFolderId === item.id && 'border-accent bg-accent-subtle',
+              )}
             >
               <ObjectIcon type={item.type} className="size-8 text-fg-muted" />
               <span className="line-clamp-2 text-sm text-fg">{item.title}</span>
@@ -527,6 +665,21 @@ export function FilesScreen({
           </Field>
         </DialogContent>
       </Dialog>
+
+      {moveTargets && effectiveSpaceId ? (
+        <MoveDialog
+          items={moveTargets}
+          spaceId={effectiveSpaceId}
+          excludeFolderId={attachmentsFolderId}
+          onClose={() => {
+            setMoveTargets(null)
+            setSelected(new Set())
+          }}
+        />
+      ) : null}
+      {renameTarget ? (
+        <RenameDialog item={renameTarget} onClose={() => setRenameTarget(null)} />
+      ) : null}
 
       {shareTarget ? (
         <ShareDialog

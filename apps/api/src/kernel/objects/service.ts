@@ -172,6 +172,7 @@ export const ObjectService = {
 
     if (!row) throw errors.notFound()
 
+    await objectType(row.type)?.lifecycle?.onUpdate?.(tx, ctx, toObjectLike(row), changed)
     if (!options.silent) {
       await publishEvent(tx, ctx, {
         type: 'object.updated',

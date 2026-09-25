@@ -1,3 +1,4 @@
+import type { FileVersion } from '@kchs/contracts'
 import { formatDateTime, formatFileSize, formatRelativeTime } from '@kchs/fields'
 import {
   AlertDialog,
@@ -19,8 +20,8 @@ import {
   useToast,
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Download, History, PenLine, Share2, Trash2, Upload } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { Download, History, PenLine, RotateCcw, Share2, Trash2, Upload } from 'lucide-react'
+import { useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
@@ -32,8 +33,8 @@ import {
   useOfficeEditing,
   useOpenOfficeEditor,
 } from '~/features/files/office.js'
-import { uploadFile } from '~/features/files/upload.js'
 import { useFileDownload } from '~/features/files/use-file-download.js'
+import { NewVersionDialog, RestoreVersionDialog } from '~/features/files/version-dialogs.js'
 import { http } from '~/shared/api/client.js'
 import { fileQuery, fileVersionsQuery, keys, objectQuery } from '~/shared/api/queries.js'
 import { PresenceAvatars } from './presence-avatars.js'
@@ -49,7 +50,8 @@ export function FileView({ objectId, tabId }: { objectId: string; tabId: string 
 
   const [shareOpen, setShareOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const [newVersionOpen, setNewVersionOpen] = useState(false)
+  const [restoring, setRestoring] = useState<FileVersion | null>(null)
 
   const { data: object } = useQuery(objectQuery(objectId))
   const { data: file, isLoading } = useQuery(fileQuery(objectId))
@@ -100,14 +102,6 @@ export function FileView({ objectId, tabId }: { objectId: string; tabId: string 
   const download = (versionId?: string) =>
     fileDownload.mutate({ fileId: objectId, ...(versionId ? { versionId } : {}) })
 
-  const uploadVersion = async (fileList: FileList | null): Promise<void> => {
-    if (!fileList?.[0] || !object?.spaceId) return
-    await uploadFile({ file: fileList[0], spaceId: object.spaceId, fileId: objectId })
-    toast.show({ title: t('files.versions.uploaded'), tone: 'success' })
-    void client.invalidateQueries({ queryKey: keys.file(objectId) })
-    void client.invalidateQueries({ queryKey: keys.fileVersions(objectId) })
-  }
-
   const canEdit = object ? ['edit', 'manage', 'owner'].includes(object.level) : false
 
   return (
@@ -148,22 +142,14 @@ export function FileView({ objectId, tabId }: { objectId: string; tabId: string 
               {t('common.actions.download')}
             </Button>
             {canEdit ? (
-              <>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={<Upload className="size-3.5" />}
-                  onClick={() => inputRef.current?.click()}
-                >
-                  {t('files.versions.upload')}
-                </Button>
-                <input
-                  ref={inputRef}
-                  type="file"
-                  hidden
-                  onChange={(event) => void uploadVersion(event.target.files)}
-                />
-              </>
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={<Upload className="size-3.5" />}
+                onClick={() => setNewVersionOpen(true)}
+              >
+                {t('files.versions.upload')}
+              </Button>
             ) : null}
             <IconButton label={t('common.actions.share')} onClick={() => setShareOpen(true)}>
               <Share2 className="size-4" />
@@ -260,7 +246,19 @@ export function FileView({ objectId, tabId }: { objectId: string; tabId: string 
                         {formatRelativeTime(version.createdAt, { locale })} ·{' '}
                         {formatFileSize(version.size, { locale })}
                       </span>
+                      {version.note ? (
+                        <span className="block text-xs text-fg-secondary">{version.note}</span>
+                      ) : null}
                     </span>
+                    {canEdit && version.number !== file.versionNumber ? (
+                      <IconButton
+                        label={t('files.versions.restoreFor', { number: version.number })}
+                        size="sm"
+                        onClick={() => setRestoring(version)}
+                      >
+                        <RotateCcw className="size-3.5" />
+                      </IconButton>
+                    ) : null}
                     <IconButton
                       label={t('common.actions.download')}
                       size="sm"
@@ -282,6 +280,20 @@ export function FileView({ objectId, tabId }: { objectId: string; tabId: string 
         open={shareOpen}
         onOpenChange={setShareOpen}
       />
+      {newVersionOpen && object?.spaceId ? (
+        <NewVersionDialog
+          fileId={objectId}
+          spaceId={object.spaceId}
+          onClose={() => setNewVersionOpen(false)}
+        />
+      ) : null}
+      {restoring ? (
+        <RestoreVersionDialog
+          fileId={objectId}
+          version={restoring}
+          onClose={() => setRestoring(null)}
+        />
+      ) : null}
       <AlertDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}

@@ -4,10 +4,12 @@ import {
   FileRecord,
   FileText,
   FileVersion,
+  FileVersionRestoreInput,
   FolderCreateInput,
   FolderRecord,
   type ObjectSummary,
   UploadCompleteInput,
+  UploadResume,
   UploadSessionInput,
 } from '@kchs/contracts'
 import { eq, inArray, sql } from 'drizzle-orm'
@@ -47,8 +49,24 @@ export function registerFilesObjectTypes(): void {
       comment: { minLevel: 'comment' },
       edit: { minLevel: 'edit' },
       upload_version: { minLevel: 'edit' },
+      // Разложить файлы по папкам может редактор: цель проверяется правом create_child
+      move: { minLevel: 'edit' },
       share: { minLevel: 'manage' },
       delete: { minLevel: 'manage' },
+    },
+    lifecycle: {
+      // Папка файла живёт и в таблице модуля: перенос по дереву её обновляет
+      onMove: async (tx, _ctx, object) => {
+        await tx.update(files).set({ folderId: object.parentId }).where(eq(files.id, object.id))
+      },
+      // Переименование в реестре — это имя файла: с ним файл скачивается и ищется
+      onUpdate: async (tx, _ctx, object, changed) => {
+        if (!changed.includes('title')) return
+        await tx
+          .update(files)
+          .set({ name: object.title, updatedAt: sql`now()` })
+          .where(eq(files.id, object.id))
+      },
     },
     discussable: true,
     linkable: true,
@@ -184,6 +202,16 @@ export function registerFilesRoutes(route: RouteRegistrar): void {
   })
 
   route({
+    method: 'GET',
+    url: '/files/upload-sessions/:id',
+    auth: 'session',
+    tags: ['files'],
+    summary: 'Продолжить прерванную загрузку: адреса частей и что уже загружено',
+    schema: { params: IdParam, response: { 200: UploadResume } },
+    handler: async (request) => FileService.resumeUploadSession(request.ctx, request.params.id),
+  })
+
+  route({
     method: 'DELETE',
     url: '/files/upload-sessions/:id',
     auth: 'session',
@@ -228,11 +256,18 @@ export function registerFilesRoutes(route: RouteRegistrar): void {
     summary: 'Сделать версию текущей',
     schema: {
       params: z.object({ id: z.uuid(), versionId: z.uuid() }),
+      body: FileVersionRestoreInput.optional(),
       response: { 200: z.object({ ok: z.boolean() }) },
     },
     handler: async (request) => {
       await db().transaction((tx) =>
-        FileService.restoreVersion(tx, request.ctx, request.params.id, request.params.versionId),
+        FileService.restoreVersion(
+          tx,
+          request.ctx,
+          request.params.id,
+          request.params.versionId,
+          request.body?.note,
+        ),
       )
       return { ok: true }
     },
@@ -391,6 +426,15 @@ export function registerFilesBackground(): void {
     handle: async () => ({ closed: await OfficeService.closeStale() }),
   })
 
+  // Брошенные загрузки (ADR-0151): докачка держит сессию открытой сутки, потом части
+  // многочастной загрузки отменяются
+  registerJobHandler({
+    queue: 'maintenance',
+    name: 'files.prune-uploads',
+    concurrency: 1,
+    handle: async () => ({ expired: await FileService.pruneUploadSessions() }),
+  })
+
   // Содержимое уничтоженных файлов (ADR-0086): удаление ключа идемпотентно,
   // повтор задания после сбоя удаляет оставшееся
   registerJobHandler({
@@ -435,5 +479,11 @@ export function scheduleFilesJobs(): void {
     name: 'files.close-office-sessions',
     pattern: '17 * * * *',
     labelKey: 'schedules.jobs.filesCloseOfficeSessions',
+  })
+  declareSchedule({
+    queue: 'maintenance',
+    name: 'files.prune-uploads',
+    pattern: '43 3 * * *',
+    labelKey: 'schedules.jobs.filesPruneUploads',
   })
 }

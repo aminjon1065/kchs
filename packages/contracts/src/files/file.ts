@@ -79,6 +79,28 @@ export const UploadSession = z.object({
 })
 export type UploadSession = z.infer<typeof UploadSession>
 
+/**
+ * Докачка после обрыва (ADR-0151): открытая многочастная сессия с заново
+ * подписанными адресами частей и частями, которые уже лежат в хранилище.
+ */
+export const UploadResume = z.object({
+  uploadId: z.string(),
+  storageKey: z.string(),
+  parts: z.array(UploadPart),
+  partSize: z.number().int(),
+  expiresAt: Timestamp,
+  uploaded: z.array(z.object({ partNumber: z.number().int(), etag: z.string() })),
+  fileId: Uuid,
+  versionId: Uuid,
+})
+export type UploadResume = z.infer<typeof UploadResume>
+
+/** Откат к прежней версии: необязательная причина попадает в примечание новой. */
+export const FileVersionRestoreInput = z.object({
+  note: z.string().trim().max(500).optional(),
+})
+export type FileVersionRestoreInput = z.infer<typeof FileVersionRestoreInput>
+
 export const UploadCompleteInput = z.object({
   uploadId: z.string(),
   storageKey: z.string(),

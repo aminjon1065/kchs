@@ -1,4 +1,4 @@
-import type { FileRecord, FolderRecord, UploadSessionInput } from '@kchs/contracts'
+import type { FileRecord, FolderRecord, UploadResume, UploadSessionInput } from '@kchs/contracts'
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { JobService } from '~/kernel/jobs/service.js'
@@ -10,6 +10,8 @@ import {
   copyObject,
   headObject,
   initMultipart,
+  listUploadedParts,
+  multipartPartUrls,
   signedGetUrl,
   signedPutUrl,
   storageKey,
@@ -238,6 +240,73 @@ export const FileService = {
       fileId,
       versionId,
     }
+  },
+
+  /**
+   * Докачка (ADR-0151): открытая многочастная сессия своего пользователя —
+   * заново подписанные адреса частей и части, которые уже в хранилище. Сессия
+   * однокусочной загрузки не докачивается: файл до 8 МБ проще отправить заново.
+   */
+  async resumeUploadSession(ctx: UserCtx, sessionId: string): Promise<UploadResume> {
+    const [session] = await db()
+      .select()
+      .from(uploadSessions)
+      .where(and(eq(uploadSessions.id, sessionId), eq(uploadSessions.userId, ctx.userId)))
+      .limit(1)
+    if (!session) throw errors.notFound('Сессия загрузки')
+    if (session.status !== 'open' || new Date(session.expiresAt).getTime() <= Date.now()) {
+      throw errors.conflict('Сессия загрузки закрыта — загрузите файл заново')
+    }
+    if (!session.multipartUploadId || !session.plannedFileId || !session.plannedVersionId) {
+      throw errors.conflict('Эту загрузку нельзя продолжить — загрузите файл заново')
+    }
+    const [parts, uploaded] = await Promise.all([
+      multipartPartUrls(session.storageKey, session.multipartUploadId, session.size),
+      listUploadedParts(session.storageKey, session.multipartUploadId),
+    ])
+    return {
+      uploadId: session.id,
+      storageKey: session.storageKey,
+      parts,
+      partSize: parts[0]?.size ?? session.size,
+      expiresAt: session.expiresAt,
+      uploaded: uploaded.map(({ partNumber, etag }) => ({ partNumber, etag })),
+      fileId: session.plannedFileId,
+      versionId: session.plannedVersionId,
+    }
+  },
+
+  /**
+   * Обслуживание: открытые сессии с истёкшим сроком закрываются, их
+   * многочастные загрузки отменяются — иначе части лежали бы в хранилище вечно.
+   */
+  async pruneUploadSessions(): Promise<number> {
+    const stale = await db()
+      .select({
+        id: uploadSessions.id,
+        storageKey: uploadSessions.storageKey,
+        multipartUploadId: uploadSessions.multipartUploadId,
+      })
+      .from(uploadSessions)
+      .where(and(eq(uploadSessions.status, 'open'), sql`${uploadSessions.expiresAt} < now()`))
+      .limit(500)
+    for (const session of stale) {
+      if (session.multipartUploadId) {
+        await abortMultipart(session.storageKey, session.multipartUploadId)
+      }
+    }
+    if (stale.length > 0) {
+      await db()
+        .update(uploadSessions)
+        .set({ status: 'expired' })
+        .where(
+          inArray(
+            uploadSessions.id,
+            stale.map((session) => session.id),
+          ),
+        )
+    }
+    return stale.length
   },
 
   /** Шаг 2: подтверждение загрузки создаёт объект реестра и версию файла. */
@@ -596,8 +665,9 @@ export const FileService = {
     ctx: UserCtx,
     fileId: string,
     versionId: string,
+    reason?: string,
   ): Promise<void> {
-    const [file] = await tx.select().from(files).where(eq(files.id, fileId)).limit(1)
+    const [file] = await tx.select().from(files).where(eq(files.id, fileId)).limit(1).for('update')
     const [version] = await tx
       .select()
       .from(fileVersions)
@@ -615,7 +685,9 @@ export const FileService = {
       mime: version.mime,
       checksum: version.checksum,
       createdBy: ctx.userId,
-      note: `Восстановлена версия ${version.number}`,
+      note: reason
+        ? `Восстановлена версия ${version.number}: ${reason}`
+        : `Восстановлена версия ${version.number}`,
     })
     await tx
       .update(files)
@@ -631,6 +703,14 @@ export const FileService = {
         updatedAt: sql`now()`,
       })
       .where(eq(files.id, fileId))
+    // Размер и формат в сводке объекта — как у новой текущей версии
+    await ObjectService.update(
+      tx,
+      ctx,
+      fileId,
+      { meta: { size: version.size, mime: version.mime } },
+      { silent: true },
+    )
 
     await publishEvent(tx, ctx, {
       type: 'file.version_added',

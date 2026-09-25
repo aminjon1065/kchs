@@ -2447,6 +2447,8 @@ export const ru = {
       partFailed: 'Часть {part} не загрузилась',
       httpFailed: 'Загрузка не выполнена: {status}',
       networkFailed: 'Сеть недоступна',
+      interrupted: 'Загрузка прервалась на {percent} % — повторите, она продолжится с места обрыва',
+      resume: 'Продолжить',
     },
     folder: {
       create: 'Новая папка',
@@ -2456,6 +2458,26 @@ export const ru = {
       createFailed: 'Не удалось создать папку',
       unavailable: 'Папка недоступна',
     },
+    move: {
+      action: 'Переместить',
+      actionFor: 'Переместить «{name}»',
+      title:
+        '{count, plural, one {Переместить # объект} few {Переместить # объекта} many {Переместить # объектов} other {Переместить # объекта}}',
+      hint: 'Выберите папку; пространство в дереве — его корень.',
+      space: 'Пространство',
+      root: 'Корень пространства',
+      submit: 'Переместить сюда',
+      moved:
+        '{count, plural, one {Перемещён # объект} few {Перемещено # объекта} many {Перемещено # объектов} other {Перемещено # объекта}}',
+      movedTo: 'Перемещено в «{folder}»: {count}',
+      failed: 'Не удалось переместить: {count}',
+    },
+    rename: {
+      actionFor: 'Переименовать «{name}»',
+      fileTitle: 'Переименовать файл',
+      folderTitle: 'Переименовать папку',
+      done: 'Переименовано',
+    },
     versions: {
       title: 'Версии',
       current: 'Текущая',
@@ -2464,6 +2486,14 @@ export const ru = {
       upload: 'Новая версия',
       uploaded: 'Новая версия загружена',
       number: 'Версия {number}',
+      drop: 'Перетащите файл новой версии или выберите его',
+      noteHint: 'Что изменилось — видно в истории версий',
+      restoreFor: 'Вернуться к версии {number}',
+      restoreTitle: 'Вернуться к версии {number}?',
+      restoreHint:
+        'Версия {number} станет текущей — новой версией в истории с примечанием. Остальные версии сохранятся.',
+      restoreReason: 'Причина (необязательно)',
+      restored: 'Версия {number} снова текущая',
     },
     watermark: {
       preparing: 'Готовим копию с водяным знаком…',
@@ -8415,6 +8445,7 @@ export const ru = {
       tasksSeries: 'Поручения: повторяющиеся серии',
       filesProcessPending: 'Файлы: повтор обработки',
       filesCloseOfficeSessions: 'Файлы: закрытие сессий редактора',
+      filesPruneUploads: 'Файлы: отмена брошенных загрузок',
       documentsMailPoll: 'Документы: опрос почтовых ящиков',
       documentsMailPurge: 'Документы: очистка очереди «Из почты» по сроку хранения',
       calendarReminders: 'Календарь: напоминания',
