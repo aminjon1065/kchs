@@ -1,10 +1,13 @@
+import type { DocumentEmail, DocumentEmailStatus } from '@kchs/contracts'
 import { formatDate, formatDateTime } from '@kchs/fields'
-import { Callout, KeyValueList, ObjectChip } from '@kchs/ui'
-import { useQuery } from '@tanstack/react-query'
+import { Badge, Button, Callout, KeyValueList, ObjectChip, useToast } from '@kchs/ui'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
-import { dispatchesQuery } from '../queries.js'
+import { http } from '~/shared/api/client.js'
+import { dispatchesQuery, documentKeys, emailsQuery } from '../queries.js'
+import { errorText } from '../status.js'
 import { useDocument } from './document-context.js'
 
 /**
@@ -20,10 +23,22 @@ export function DocumentOfficeSection() {
     ...dispatchesQuery(document.id),
     enabled: document.dispatchCount > 0,
   })
+  const { data: emails = [] } = useQuery({
+    ...emailsQuery(document.id),
+    enabled: document.type.direction === 'outgoing',
+  })
   const filed = document.case
   // Дело по номенклатуре из номера — пока документ не подшит (ADR-0134)
   const planned = filed ? null : document.registrationCase
-  if (!filed && !planned && dispatches.length === 0 && !document.filesDestroyedAt) return null
+  if (
+    !filed &&
+    !planned &&
+    dispatches.length === 0 &&
+    emails.length === 0 &&
+    !document.filesDestroyedAt
+  ) {
+    return null
+  }
   const openCase = (item: { id: string; index: string; title: string }) =>
     openTab({
       kind: 'object',
@@ -86,6 +101,9 @@ export function DocumentOfficeSection() {
           </div>
         </section>
       ) : null}
+      {emails.length > 0 ? (
+        <DocumentEmails documentId={document.id} emails={emails} canRetry={document.can.dispatch} />
+      ) : null}
       {dispatches.length > 0 ? (
         <section className="rounded-lg border border-line bg-surface p-4">
           <h2 className="mb-3 text-sm font-semibold text-fg">{t('documents.office.dispatches')}</h2>
@@ -129,5 +147,75 @@ export function DocumentOfficeSection() {
         </section>
       ) : null}
     </>
+  )
+}
+
+const EMAIL_TONES: Record<DocumentEmailStatus, 'neutral' | 'success' | 'danger' | 'warning'> = {
+  queued: 'neutral',
+  sent: 'success',
+  failed: 'danger',
+  bounced: 'warning',
+}
+
+/**
+ * Письма исходящего (ADR-0149): кому, в каком состоянии, почему не ушло. Не ушедшее или
+ * вернувшееся письмо ставится снова кнопкой «Повторить».
+ */
+function DocumentEmails({
+  documentId,
+  emails,
+  canRetry,
+}: {
+  documentId: string
+  emails: DocumentEmail[]
+  canRetry: boolean
+}) {
+  const t = useT()
+  const toast = useToast()
+  const locale = useAppearance((s) => s.locale)
+  const client = useQueryClient()
+  const retry = useMutation({
+    mutationFn: (emailId: string) =>
+      http.post(`/documents/${documentId}/emails/${emailId}/retry`, {}),
+    onSuccess: () => {
+      toast.show({ title: t('documents.email.retried'), tone: 'success' })
+      void client.invalidateQueries({ queryKey: documentKeys.emails(documentId) })
+    },
+    onError: (error) => toast.error(errorText(error, t('errors.unknown'))),
+  })
+  return (
+    <section
+      className="rounded-lg border border-line bg-surface p-4"
+      aria-label={t('documents.email.list')}
+    >
+      <h2 className="mb-3 text-sm font-semibold text-fg">{t('documents.email.list')}</h2>
+      <ul className="flex flex-col gap-3">
+        {emails.map((email) => (
+          <li key={email.id} className="flex flex-col gap-1">
+            <div className="flex items-center gap-2 text-sm">
+              <span className="min-w-0 flex-1 truncate text-fg">{email.to}</span>
+              <Badge size="sm" tone={EMAIL_TONES[email.status]}>
+                {t(`documents.email.statuses.${email.status}`)}
+              </Badge>
+              {canRetry && (email.status === 'failed' || email.status === 'bounced') ? (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  loading={retry.isPending && retry.variables === email.id}
+                  onClick={() => retry.mutate(email.id)}
+                >
+                  {t('documents.email.retry')}
+                </Button>
+              ) : null}
+            </div>
+            <p className="text-xs text-fg-muted">
+              {email.createdBy?.displayName ?? '—'} ·{' '}
+              {formatDateTime(email.sentAt ?? email.createdAt, { locale })}
+            </p>
+            {email.error ? <p className="text-xs text-danger">{email.error}</p> : null}
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }

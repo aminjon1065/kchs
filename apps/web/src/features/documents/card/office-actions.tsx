@@ -19,6 +19,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Switch,
+  Textarea,
   useToast,
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -29,7 +31,7 @@ import { useWorkspace } from '~/app/workspace/store.js'
 import { http } from '~/shared/api/client.js'
 import { meQuery } from '~/shared/api/queries.js'
 import { CorrespondentPicker } from '../correspondent-picker.js'
-import { caseSuggestionsQuery, documentKeys } from '../queries.js'
+import { caseSuggestionsQuery, documentKeys, mailOutStatusQuery } from '../queries.js'
 import { errorText, localToday } from '../status.js'
 import { useDocument } from './document-context.js'
 
@@ -147,6 +149,29 @@ function DispatchDialog({
   const [sentOn, setSentOn] = useState(localToday())
   const [tracking, setTracking] = useState('')
   const [failure, setFailure] = useState<string | null>(null)
+  // Письмом из ящика канцелярии (ADR-0149): отметка появится, когда сервер примет письмо
+  const client = useQueryClient()
+  const { data: mailOut } = useQuery(mailOutStatusQuery())
+  const [emailTo, setEmailTo] = useState('')
+  const [message, setMessage] = useState('')
+  const [withAttachments, setWithAttachments] = useState(true)
+  const email = method === 'email'
+
+  const send = useMutation({
+    mutationFn: () =>
+      http.post<DocumentRecord>(`/documents/${document.id}/emails`, {
+        correspondentId: correspondent?.id ?? null,
+        to: emailTo.trim() || null,
+        message: message.trim() || null,
+        attachments: withAttachments,
+      }),
+    onSuccess: (record) => {
+      toast.show({ title: t('documents.email.queued'), tone: 'success' })
+      void client.invalidateQueries({ queryKey: documentKeys.emails(document.id) })
+      onDone(record)
+    },
+    onError: (error) => setFailure(errorText(error, t('errors.unknown'))),
+  })
 
   const dispatch = useMutation({
     mutationFn: () =>
@@ -174,14 +199,25 @@ function DispatchDialog({
             <Button variant="secondary" onClick={onClose}>
               {t('common.actions.cancel')}
             </Button>
-            <Button
-              variant="primary"
-              disabled={(!correspondent && !addressee.trim()) || !sentOn}
-              loading={dispatch.isPending}
-              onClick={() => dispatch.mutate()}
-            >
-              {t('documents.actions.dispatch')}
-            </Button>
+            {email ? (
+              <Button
+                variant="primary"
+                disabled={!mailOut?.configured || (!correspondent && !emailTo.trim())}
+                loading={send.isPending}
+                onClick={() => send.mutate()}
+              >
+                {t('documents.email.send')}
+              </Button>
+            ) : (
+              <Button
+                variant="primary"
+                disabled={(!correspondent && !addressee.trim()) || !sentOn}
+                loading={dispatch.isPending}
+                onClick={() => dispatch.mutate()}
+              >
+                {t('documents.actions.dispatch')}
+              </Button>
+            )}
           </>
         }
       >
@@ -198,18 +234,20 @@ function DispatchDialog({
               canCreate={me?.capabilities.includes('documents.register') ?? false}
             />
           </Field>
-          <Field
-            label={t('documents.dispatch.addressee')}
-            htmlFor={`${formId}-addressee`}
-            hint={t('documents.dispatch.addresseeHint')}
-          >
-            <Input
-              id={`${formId}-addressee`}
-              value={addressee}
-              maxLength={500}
-              onChange={(event) => setAddressee(event.target.value)}
-            />
-          </Field>
+          {email ? null : (
+            <Field
+              label={t('documents.dispatch.addressee')}
+              htmlFor={`${formId}-addressee`}
+              hint={t('documents.dispatch.addresseeHint')}
+            >
+              <Input
+                id={`${formId}-addressee`}
+                value={addressee}
+                maxLength={500}
+                onChange={(event) => setAddressee(event.target.value)}
+              />
+            </Field>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <Field label={t('documents.fields.deliveryMethod')}>
               <Select value={method} onValueChange={(next) => setMethod(next as DeliveryMethod)}>
@@ -225,28 +263,68 @@ function DispatchDialog({
                 </SelectContent>
               </Select>
             </Field>
-            <Field label={t('documents.dispatch.sentOn')} htmlFor={`${formId}-date`}>
+            {email ? null : (
+              <Field label={t('documents.dispatch.sentOn')} htmlFor={`${formId}-date`}>
+                <Input
+                  id={`${formId}-date`}
+                  type="date"
+                  value={sentOn}
+                  max={localToday()}
+                  onChange={(event) => setSentOn(event.target.value)}
+                />
+              </Field>
+            )}
+          </div>
+          {email ? (
+            <>
+              {mailOut?.configured ? (
+                <Callout tone="info">
+                  {t('documents.email.from', { from: mailOut.from ?? '' })}
+                </Callout>
+              ) : (
+                <Callout tone="warning">{t('documents.email.notConfigured')}</Callout>
+              )}
+              <Field
+                label={t('documents.email.to')}
+                htmlFor={`${formId}-email`}
+                hint={t('documents.email.toHint')}
+              >
+                <Input
+                  id={`${formId}-email`}
+                  type="email"
+                  value={emailTo}
+                  maxLength={320}
+                  onChange={(event) => setEmailTo(event.target.value)}
+                />
+              </Field>
+              <Field label={t('documents.email.message')} htmlFor={`${formId}-message`}>
+                <Textarea
+                  id={`${formId}-message`}
+                  value={message}
+                  rows={3}
+                  maxLength={4000}
+                  onChange={(event) => setMessage(event.target.value)}
+                />
+              </Field>
+              <label className="flex items-center gap-2 text-sm text-fg">
+                <Switch checked={withAttachments} onCheckedChange={setWithAttachments} />
+                {t('documents.email.attachments')}
+              </label>
+            </>
+          ) : (
+            <Field
+              label={t('documents.dispatch.tracking')}
+              htmlFor={`${formId}-tracking`}
+              hint={t('documents.dispatch.trackingHint')}
+            >
               <Input
-                id={`${formId}-date`}
-                type="date"
-                value={sentOn}
-                max={localToday()}
-                onChange={(event) => setSentOn(event.target.value)}
+                id={`${formId}-tracking`}
+                value={tracking}
+                maxLength={200}
+                onChange={(event) => setTracking(event.target.value)}
               />
             </Field>
-          </div>
-          <Field
-            label={t('documents.dispatch.tracking')}
-            htmlFor={`${formId}-tracking`}
-            hint={t('documents.dispatch.trackingHint')}
-          >
-            <Input
-              id={`${formId}-tracking`}
-              value={tracking}
-              maxLength={200}
-              onChange={(event) => setTracking(event.target.value)}
-            />
-          </Field>
+          )}
         </div>
       </DialogContent>
     </Dialog>

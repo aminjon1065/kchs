@@ -8,6 +8,8 @@ import type {
   CorrespondentRecord,
   DestructionActList,
   DocumentDispatchList,
+  DocumentEmailList,
+  DocumentMailStatus,
   DocumentNumberPreview,
   DocumentRecord,
   DocumentResolutions,
@@ -53,6 +55,8 @@ export const documentKeys = {
   numberPreview: (id: string, journalId: string, caseId: string) =>
     ['object', id, 'number-preview', journalId, caseId] as const,
   dispatches: (id: string) => ['object', id, 'dispatches'] as const,
+  emails: (id: string) => ['object', id, 'emails'] as const,
+  mailOut: ['documents', 'mail-out'] as const,
   correspondence: (id: string) => ['object', id, 'correspondence'] as const,
   destructionActs: ['documents', 'destruction-acts'] as const,
   office: ['documents', 'office'] as const,
@@ -216,6 +220,24 @@ export const dispatchesQuery = (documentId: string) =>
     queryKey: documentKeys.dispatches(documentId),
     queryFn: async () =>
       (await http.get<DocumentDispatchList>(`/documents/${documentId}/dispatches`)).items,
+  })
+
+/** Письма исходящего (ADR-0149); пока письмо в очереди — опрос раз в 5 секунд. */
+export const emailsQuery = (documentId: string) =>
+  queryOptions({
+    queryKey: documentKeys.emails(documentId),
+    queryFn: async () =>
+      (await http.get<DocumentEmailList>(`/documents/${documentId}/emails`)).items,
+    refetchInterval: (query) =>
+      query.state.data?.some((email) => email.status === 'queued') ? 5000 : false,
+  })
+
+/** Настроена ли почта установки и от чьего имени уходят письма. */
+export const mailOutStatusQuery = () =>
+  queryOptions({
+    queryKey: documentKeys.mailOut,
+    queryFn: () => http.get<DocumentMailStatus>('/documents/mail-out/status'),
+    staleTime: 5 * 60_000,
   })
 
 export const correspondenceQuery = (documentId: string) =>

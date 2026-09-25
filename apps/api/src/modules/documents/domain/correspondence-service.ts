@@ -41,6 +41,23 @@ export const DISPATCHABLE_STATUSES: readonly DocumentStatus[] = ['registered', '
 /** Сколько документов показывает цепочка переписки. */
 const CHAIN_LIMIT = 50
 
+/**
+ * Можно ли отправить документ: зарегистрированный или исполненный исходящий. Общая
+ * проверка отметки отправки и письма (ADR-0149); `lock` — строка документа под замком.
+ */
+export async function dispatchable(executor: Executor, documentId: string, lock = false) {
+  const row = await DocumentService.load(executor, documentId, lock)
+  if (!row) throw errors.notFound('Документ')
+  if ((await directionOf(executor, row.typeId)) !== 'outgoing') {
+    throw errors.conflict('Отправка отмечается у исходящего документа')
+  }
+  const status = row.status as DocumentStatus
+  if (!DISPATCHABLE_STATUSES.includes(status)) {
+    throw errors.conflict('Отметить отправку можно у зарегистрированного исходящего', { status })
+  }
+  return { row, status }
+}
+
 /** Исходящий тип для ответа: заданный, иначе «Исходящее письмо», иначе первый исходящий. */
 async function replyType(executor: Executor, typeId: string | undefined) {
   if (typeId) {
@@ -134,17 +151,7 @@ export const Correspondence = {
     input: DocumentDispatchInput,
   ): Promise<string> {
     await authorize(ctx, 'dispatch', documentId)
-    const row = await DocumentService.load(tx, documentId, true)
-    if (!row) throw errors.notFound('Документ')
-    if ((await directionOf(tx, row.typeId)) !== 'outgoing') {
-      throw errors.conflict('Отправка отмечается у исходящего документа')
-    }
-    const status = row.status as DocumentStatus
-    if (!DISPATCHABLE_STATUSES.includes(status)) {
-      throw errors.conflict('Отметить отправку можно у зарегистрированного исходящего', {
-        status,
-      })
-    }
+    const { row, status } = await dispatchable(tx, documentId, true)
     let addressee = input.addressee
     if (input.correspondentId) {
       const found = (await CorrespondentService.names(tx, [input.correspondentId])).get(

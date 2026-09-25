@@ -72,6 +72,49 @@ export const DocumentDispatchList = z.object({ items: z.array(DocumentDispatch) 
 export type DocumentDispatchList = z.infer<typeof DocumentDispatchList>
 
 /**
+ * Отправка исходящего письмом из ящика канцелярии (ADR-0149): адрес — введённый или из
+ * контактов корреспондента; во вложениях PDF текущей версии и, по желанию, приложения.
+ * Письмо уходит заданием; отметка в реестре отправки появляется, когда сервер его принял.
+ */
+export const DocumentEmailInput = z.object({
+  correspondentId: Uuid.nullable().default(null),
+  to: z.email().max(320).nullable().default(null),
+  message: z.string().trim().max(4000).nullable().default(null),
+  attachments: z.boolean().default(true),
+})
+export type DocumentEmailInput = z.infer<typeof DocumentEmailInput>
+
+/** Письмо: в очереди, принято сервером, не ушло, возвращено сервером адресата. */
+export const DOCUMENT_EMAIL_STATUSES = ['queued', 'sent', 'failed', 'bounced'] as const
+export const DocumentEmailStatus = z.enum(DOCUMENT_EMAIL_STATUSES)
+export type DocumentEmailStatus = z.infer<typeof DocumentEmailStatus>
+
+export const DocumentEmail = z.object({
+  id: Uuid,
+  to: z.string(),
+  correspondent: CorrespondentRef.nullable(),
+  status: DocumentEmailStatus,
+  messageId: z.string().nullable(),
+  error: z.string().nullable(),
+  withAttachments: z.boolean(),
+  dispatchId: Uuid.nullable(),
+  createdBy: UserRef.nullable(),
+  createdAt: Timestamp,
+  sentAt: Timestamp.nullable(),
+})
+export type DocumentEmail = z.infer<typeof DocumentEmail>
+
+export const DocumentEmailList = z.object({ items: z.array(DocumentEmail) })
+export type DocumentEmailList = z.infer<typeof DocumentEmailList>
+
+/** Можно ли отправлять письма: почта установки настроена и от чьего имени они уходят. */
+export const DocumentMailStatus = z.object({
+  configured: z.boolean(),
+  from: z.string().nullable(),
+})
+export type DocumentMailStatus = z.infer<typeof DocumentMailStatus>
+
+/**
  * Документ цепочки переписки: доступный — с реквизитами; недоступный (нет
  * права или гриф выше допуска) — только позиция в цепочке, без названия.
  */

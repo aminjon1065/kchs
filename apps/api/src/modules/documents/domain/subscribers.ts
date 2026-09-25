@@ -118,6 +118,24 @@ async function notify(event: EventEnvelope): Promise<void> {
       })
       break
     }
+    // Письмо исходящего не ушло или вернулось (ADR-0149): узнаёт тот, кто его ставил
+    case 'document.email_failed':
+      if (typeof event.payload.createdBy !== 'string') break
+      await NotificationService.notify({
+        ...base,
+        actorId: null,
+        userIds: [event.payload.createdBy],
+        titleKey:
+          event.payload.reason === 'bounced'
+            ? 'notifications.tpl.documentEmailBounced'
+            : 'notifications.tpl.documentEmailFailed',
+        params: {
+          ...base.params,
+          to: String(event.payload.to ?? ''),
+          error: String(event.payload.error ?? ''),
+        },
+      })
+      break
     case 'document.cancelled':
       await NotificationService.notify({
         ...base,
@@ -251,6 +269,7 @@ export const documentSubscribers: Subscriber[] = [
       'document.participants_changed',
       'document.cancelled',
       'document.resolution_requested',
+      'document.email_failed',
     ],
     handle: notify,
   },

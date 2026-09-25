@@ -26,6 +26,7 @@ import { CaseService } from './domain/case-service.js'
 import { documentControlProjection } from './domain/control-projection.js'
 import { onDocumentRegistered } from './domain/document-service.js'
 import { MailIntake } from './domain/mail/mail-service.js'
+import { DocumentMailOut, EMAIL_SEND_JOB } from './domain/mail-out.js'
 import { capabilityPolicy, documentPolicy } from './domain/policies.js'
 import { registerBuiltinPrintForms } from './domain/print/forms/index.js'
 import {
@@ -364,6 +365,12 @@ export function registerDocumentsBackground(): void {
       const report = await MailIntake.poll()
       return { ...report.result, mailboxes: report.mailboxes, errors: report.errors.length }
     },
+  })
+  registerJobHandler({
+    queue: 'notify',
+    name: EMAIL_SEND_JOB,
+    concurrency: 2,
+    handle: async (job) => DocumentMailOut.send(String(job.data.emailId)),
   })
   registerJobHandler({
     queue: 'maintenance',

@@ -414,6 +414,13 @@
       "when": 1790316483018,
       "tag": "20260925060803_documents-mail-domains",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1790330731799,
+      "tag": "20260925100531_documents-emails",
+      "breakpoints": true
     }
   ]
 }

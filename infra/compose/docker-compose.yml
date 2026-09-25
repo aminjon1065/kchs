@@ -45,6 +45,8 @@ x-app-env: &app-env
   ENGINE_INTERNAL_URL: http://engine:8000
   SMTP_URL: ${SMTP_URL_INTERNAL:-smtp://mailpit:1025}
   SMTP_FROM: ${SMTP_FROM:-Портал КЧС <no-reply@kchs.local>}
+  # Отправитель исходящих документов — ящик канцелярии (ADR-0149); пусто — SMTP_FROM
+  DOCUMENTS_MAIL_FROM: ${DOCUMENTS_MAIL_FROM:-}
   SESSION_IDLE_HOURS: ${SESSION_IDLE_HOURS:-12}
   RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-600}
   LOGIN_RATE_LIMIT_PER_IP_PER_MINUTE: ${LOGIN_RATE_LIMIT_PER_IP_PER_MINUTE:-300}

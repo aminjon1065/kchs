@@ -143,6 +143,11 @@ const EnvSchema = z.object({
 
   SMTP_URL: z.string().optional(),
   SMTP_FROM: z.string().default('Портал КЧС <no-reply@kchs.local>'),
+  /**
+   * Отправитель исходящих документов — ящик канцелярии (ADR-0149), например
+   * `Канцелярия КЧС <kanc@kchs.test>`. Пусто — `SMTP_FROM`.
+   */
+  DOCUMENTS_MAIL_FROM: z.string().default(''),
 
   /**
    * Telegram-бот (ADR-0061): без токена привязка и канал уведомлений скрыты.

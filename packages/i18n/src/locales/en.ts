@@ -1123,6 +1123,9 @@ export const en: DeepPartial<Dictionary> = {
       documentRegistered: 'Document “{title}” registered',
       documentAssigned: 'You are a participant of document “{title}”',
       documentCancelled: '{actor} cancelled “{title}”',
+      documentEmailFailed: 'The email for “{title}” was not sent to {to}: {error}',
+      documentEmailBounced:
+        'The email for “{title}” bounced from the recipient server {to}: {error}',
       resolutionRequested: '{actor} sent you “{title}” for a resolution',
       acknowledgmentRequested: '{actor} asks you to acknowledge “{title}”',
       acknowledgmentReminder: 'Reminder: please acknowledge “{title}”',
@@ -1734,6 +1737,22 @@ export const en: DeepPartial<Dictionary> = {
         'The document files were destroyed under an act on {date}; the card is kept in the case inventory.',
     },
     reply: { created: 'Reply created — an outgoing draft linked as “in reply to”' },
+    email: {
+      title: 'Send by email',
+      send: 'Send by email',
+      to: 'Email address',
+      toHint: 'Empty — the address from the correspondent card',
+      message: 'Cover note',
+      attachments: 'With attachments',
+      from: 'The email goes from {from} with the PDF of the current version; replies arrive in the “From mail” queue.',
+      notConfigured:
+        'Mail is not configured in this installation — sending by email is unavailable.',
+      queued: 'The email is queued for sending',
+      list: 'Emails',
+      retry: 'Retry',
+      retried: 'The email is queued again',
+      statuses: { queued: 'Queued', sent: 'Sent', failed: 'Not sent', bounced: 'Bounced' },
+    },
     dispatch: {
       title: 'Dispatch record',
       hint: 'The first dispatch marks the outgoing document as executed.',
@@ -2055,6 +2074,13 @@ export const en: DeepPartial<Dictionary> = {
     },
     /** Очередь «Из почты»: регистрация входящих из ящика канцелярии (ADR-0113). */
     mail: {
+      out: {
+        subject: 'Ref. No. {number} of {date} — {subject}',
+        greeting: 'Hello,',
+        lead: 'Please find attached the document “{subject}” — ref. No. {number} of {date}.',
+        files: 'Attachments: {files}.',
+        footer: 'This message was sent from {product}. Please reply to this address.',
+      },
       title: 'From mail',
       pending: 'Awaiting decision: {count}',
       scopeLabel: 'What to show',

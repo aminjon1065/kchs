@@ -862,6 +862,24 @@ export const EVENT_PAYLOADS = {
     addressee: z.string(),
     first: z.boolean(),
   }),
+  /** Исходящий поставлен в очередь отправки письмом (ADR-0149). */
+  'document.email_queued': z.object({ emailId: Uuid, to: z.string() }),
+  /** Письмо принято почтовым сервером; отметка в реестре отправки — `document.dispatched`. */
+  'document.email_sent': z.object({
+    emailId: Uuid,
+    to: z.string(),
+    messageId: z.string(),
+    dispatchId: Uuid.nullable(),
+  }),
+  /** Письмо не ушло (`error`, `rejected`) или вернулось от сервера адресата (`bounced`). */
+  'document.email_failed': z.object({
+    emailId: Uuid,
+    to: z.string(),
+    reason: z.enum(['error', 'rejected', 'bounced']),
+    error: z.string(),
+    /** Кто ставил письмо — ему уведомление. */
+    createdBy: Uuid.nullable(),
+  }),
   /** Файлы документа уничтожены по акту: карточка осталась описью. */
   'document.files_destroyed': z.object({
     actId: Uuid,

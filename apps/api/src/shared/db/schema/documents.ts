@@ -522,6 +522,42 @@ export const documentDispatches = pgTable(
 )
 
 /**
+ * Письма исходящих (ADR-0149): отправка из ящика канцелярии заданием. Отметка в реестре
+ * отправки (`document_dispatches`) заводится, только когда сервер принял письмо, — реестр,
+ * счётчики и печатный реестр не видят писем в очереди и неудачных. Message-ID — наш: по
+ * нему уведомление о недоставке из ящика канцелярии находит своё письмо.
+ */
+export const documentEmails = pgTable(
+  'document_emails',
+  {
+    id: uuid('id').primaryKey(),
+    documentId: uuid('document_id')
+      .notNull()
+      .references(() => documents.id, { onDelete: 'cascade' }),
+    correspondentId: uuid('correspondent_id').references(() => correspondents.id, {
+      onDelete: 'set null',
+    }),
+    toAddress: text('to_address').notNull(),
+    message: text('message'),
+    withAttachments: boolean('with_attachments').notNull().default(true),
+    /** `queued` | `sent` | `failed` | `bounced`. */
+    status: text('status').notNull().default('queued'),
+    messageId: text('message_id'),
+    error: text('error'),
+    dispatchId: uuid('dispatch_id').references(() => documentDispatches.id, {
+      onDelete: 'set null',
+    }),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: createdAt(),
+    sentAt: tsCol('sent_at'),
+  },
+  (t) => [
+    index('document_emails_document_idx').on(t.documentId),
+    uniqueIndex('document_emails_message_idx').on(t.messageId),
+  ],
+)
+
+/**
  * Шаблон документа — объект реестра `template` (05-data-model.md, 08-documents.md
  * §8, ADR-0085): файл DOCX — вложение шаблона; плейсхолдеры — по разбору движком.
  */

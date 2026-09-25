@@ -1,3 +1,4 @@
+import type { Readable } from 'node:stream'
 import nodemailer, { type Transporter } from 'nodemailer'
 import { config } from '../config/index.js'
 import { logger } from '../logger/index.js'
@@ -13,6 +14,12 @@ function mailer(): Transporter | null {
   if (!url) return null
   if (!transporter) transporter = nodemailer.createTransport(url)
   return transporter
+}
+
+/** Сброс транспорта после смены SMTP_URL (тесты, смена настроек). */
+export function resetMailer(): void {
+  transporter?.close()
+  transporter = null
 }
 
 export function mailConfigured(): boolean {
@@ -50,6 +57,61 @@ export async function sendMail(message: MailMessage): Promise<boolean> {
     ...(message.attachments?.length ? { attachments: message.attachments } : {}),
   })
   return true
+}
+
+/** Письмо от имени организации — исходящий документ (ADR-0149). */
+export interface OutgoingMail {
+  from: string
+  replyTo?: string
+  to: string
+  subject: string
+  text: string
+  html: string
+  /** Свой Message-ID: по нему уведомление о недоставке находит письмо. */
+  messageId: string
+  attachments: Array<{ filename: string; content: Readable | Buffer; contentType: string }>
+}
+
+export interface MailReceipt {
+  messageId: string
+  accepted: string[]
+  rejected: string[]
+  response: string
+}
+
+/**
+ * Отправка с квитанцией сервера: кого он принял и кого отклонил сразу. `null` — SMTP не
+ * настроен. Ошибку соединения и отказ сервера целиком бросает транспорт.
+ */
+export async function sendMailWithReceipt(message: OutgoingMail): Promise<MailReceipt | null> {
+  const transport = mailer()
+  if (!transport) return null
+  const info = await transport.sendMail({
+    from: message.from,
+    ...(message.replyTo ? { replyTo: message.replyTo } : {}),
+    to: message.to,
+    subject: message.subject,
+    text: message.text,
+    html: message.html,
+    messageId: message.messageId,
+    attachments: message.attachments,
+  })
+  const addresses = (list: unknown): string[] =>
+    Array.isArray(list)
+      ? list.map((item) => (typeof item === 'string' ? item : String(item?.address ?? item)))
+      : []
+  return {
+    messageId: String(info.messageId ?? message.messageId),
+    accepted: addresses(info.accepted),
+    rejected: addresses(info.rejected),
+    response: String(info.response ?? ''),
+  }
+}
+
+/** Адрес отправителя без имени: `Канцелярия <kanc@kchs.test>` → `kanc@kchs.test`. */
+export function mailAddressOf(from: string): string {
+  const match = /<([^>]+)>/.exec(from)
+  return (match?.[1] ?? from).trim()
 }
 
 /**

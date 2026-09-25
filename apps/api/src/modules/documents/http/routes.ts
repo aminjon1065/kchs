@@ -23,7 +23,10 @@ import {
   DocumentCreateInput,
   DocumentDispatchInput,
   DocumentDispatchList,
+  DocumentEmailInput,
+  DocumentEmailList,
   DocumentFileInput,
+  DocumentMailStatus,
   DocumentNumberPreview,
   DocumentNumberPreviewQuery,
   DocumentPdfResult,
@@ -65,6 +68,7 @@ import { Correspondence } from '../domain/correspondence-service.js'
 import { CorrespondentService } from '../domain/correspondent-service.js'
 import { DocumentService } from '../domain/document-service.js'
 import { JournalService } from '../domain/journal-service.js'
+import { DocumentMailOut } from '../domain/mail-out.js'
 import { officeDashboardId } from '../domain/office-dashboard.js'
 import { ResolutionService } from '../domain/resolution-service.js'
 import { ResolutionTemplates } from '../domain/resolution-templates.js'
@@ -450,6 +454,62 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
       )
       return DocumentService.get(request.ctx, request.params.id)
     },
+  })
+
+  route({
+    method: 'GET',
+    url: '/documents/mail-out/status',
+    auth: 'session',
+    tags: ['documents'],
+    summary: 'Можно ли отправлять исходящие письмом и от чьего имени (ADR-0149)',
+    schema: { response: { 200: DocumentMailStatus } },
+    handler: async () => DocumentMailOut.status(),
+  })
+
+  route({
+    method: 'GET',
+    url: '/documents/:id/emails',
+    auth: 'session',
+    tags: ['documents'],
+    summary: 'Письма исходящего: в очереди, отправленные, не ушедшие',
+    schema: { params: IdParam, response: { 200: DocumentEmailList } },
+    handler: async (request) => ({
+      items: await DocumentMailOut.list(request.ctx, request.params.id),
+    }),
+  })
+
+  route({
+    method: 'POST',
+    url: '/documents/:id/emails',
+    auth: 'session',
+    tags: ['documents'],
+    summary: 'Отправить исходящий письмом из ящика канцелярии',
+    description:
+      'Письмо уходит заданием; отметка в реестре отправки появляется, когда почтовый сервер его принял.',
+    schema: { params: IdParam, body: DocumentEmailInput, response: { 200: DocumentRecord } },
+    handler: async (request) => {
+      await db().transaction((tx) =>
+        DocumentMailOut.queue(tx, request.ctx, request.params.id, request.body),
+      )
+      return DocumentService.get(request.ctx, request.params.id)
+    },
+  })
+
+  route({
+    method: 'POST',
+    url: '/documents/:id/emails/:emailId/retry',
+    auth: 'session',
+    tags: ['documents'],
+    summary: 'Повторить письмо, которое не ушло или вернулось',
+    schema: {
+      params: z.object({ id: z.uuid(), emailId: z.uuid() }),
+      response: { 200: z.object({ id: z.uuid() }) },
+    },
+    handler: async (request) => ({
+      id: await db().transaction((tx) =>
+        DocumentMailOut.retry(tx, request.ctx, request.params.id, request.params.emailId),
+      ),
+    }),
   })
 
   route({
