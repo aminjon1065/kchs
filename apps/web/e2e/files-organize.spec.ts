@@ -25,14 +25,22 @@ test.describe('Раскладка файлов и массовые действ�
     await openWorkspace(page, request)
     await openScreen(page, 'Файлы')
 
-    const draft = `Черновая ${run}`
-    const target = `Разобрано ${run}`
-    for (const name of [draft, `Входящие ${run}`]) {
+    const createFolder = async (name: string) => {
       await page.getByRole('button', { name: 'Новая папка' }).click()
       await page.getByLabel('Имя папки').fill(name)
       await page.getByRole('button', { name: 'Создать' }).click()
       await expect(page.getByRole('gridcell', { name })).toBeVisible()
     }
+
+    // Всё — в своей папке: корень общего пространства на стенде длинный, и файл после
+    // десятков папок оказался бы за пределами прокручиваемого списка
+    const work = `Раскладка ${run}`
+    await createFolder(work)
+    await page.getByRole('gridcell', { name: work }).click()
+
+    const draft = `Черновая ${run}`
+    const target = `Разобрано ${run}`
+    for (const name of [draft, `Входящие ${run}`]) await createFolder(name)
 
     const row = (name: string) =>
       page.getByRole('row').filter({ has: page.getByRole('gridcell', { name }) })
@@ -45,7 +53,7 @@ test.describe('Раскладка файлов и массовые действ�
     await expect(page.getByRole('gridcell', { name: target })).toBeVisible()
     await expect(page.getByRole('gridcell', { name: draft })).toBeHidden()
 
-    // Файл в корне пространства
+    // Файл рядом с папками
     const fileName = `akt-osmotra-${run}.txt`
     await page
       .locator('input[type="file"]')
@@ -56,7 +64,9 @@ test.describe('Раскладка файлов и массовые действ�
     // «Переместить в…»: дерево папок пространства, выбор цели, перенос
     await row(fileName).getByRole('button', { name: 'Переместить' }).click()
     const move = page.getByRole('dialog', { name: 'Переместить 1 объект' })
-    // Корень дерева — само пространство, под ним папки
+    // Корень дерева — само пространство, под ним папки; ветка раскрывается стрелкой
+    await expect(move.getByRole('treeitem', { name: 'Общее' })).toBeVisible()
+    await move.getByRole('treeitem', { name: work }).press('ArrowRight')
     await move.getByRole('treeitem', { name: target }).click()
     await move.getByRole('button', { name: 'Переместить сюда' }).click()
     await expect(move).toBeHidden()
