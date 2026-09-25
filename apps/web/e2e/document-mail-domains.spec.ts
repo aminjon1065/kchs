@@ -29,7 +29,7 @@ test.describe('Документы: почтовые домены ведомст�
     const directory = await openCorrespondents(page)
 
     await directory.getByRole('button', { name: 'Новый корреспондент', exact: true }).click()
-    await directory.getByRole('textbox', { name: 'Название', exact: true }).fill(`МВД ${run}`)
+    await directory.getByRole('textbox', { name: /^Название/ }).fill(`МВД ${run}`)
     await directory.getByRole('textbox', { name: 'Почтовые домены' }).fill(`@MVD-${run}.example.tj`)
     await directory.getByRole('button', { name: 'Создать', exact: true }).click()
     await expect(page.getByText('Корреспондент добавлен')).toBeVisible()
@@ -37,7 +37,7 @@ test.describe('Документы: почтовые домены ведомст�
     await expect(directory.getByRole('textbox', { name: 'Почтовые домены' })).toHaveValue(domain)
 
     await directory.getByRole('button', { name: 'Новый корреспондент', exact: true }).click()
-    await directory.getByRole('textbox', { name: 'Название', exact: true }).fill(`Двойник ${run}`)
+    await directory.getByRole('textbox', { name: /^Название/ }).fill(`Двойник ${run}`)
     await directory.getByRole('textbox', { name: 'Почтовые домены' }).fill(domain)
     await directory.getByRole('button', { name: 'Создать', exact: true }).click()
     await expect(

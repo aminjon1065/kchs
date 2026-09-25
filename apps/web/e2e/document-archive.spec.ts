@@ -90,7 +90,10 @@ test.describe('Документы: переписка, дела и архив', 
     const registerDialog = page.getByRole('dialog', { name: 'Регистрация документа' })
     await expect(registerDialog.getByText(/Номер будет: [\p{L}\d-]+\/\d+/u)).toBeVisible()
     await registerDialog.getByRole('button', { name: 'Зарегистрировать', exact: true }).click()
-    const outgoingToast = page.getByText(/Зарегистрирован № [\p{L}\d-]+\/\d+/u)
+    // Номера журналов теперь одного вида (ADR-0134): тост входящего может быть ещё на экране
+    const outgoingToast = page
+      .getByText(/Зарегистрирован № [\p{L}\d-]+\/\d+/u)
+      .filter({ hasNotText: incomingNumber })
     await expect(outgoingToast).toBeVisible()
     const outgoingNumber = ((await outgoingToast.textContent()) ?? '').replace(/^.*№\s*/, '').trim()
 
