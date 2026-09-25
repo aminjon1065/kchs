@@ -18,10 +18,6 @@ allowBuilds:
 # обновления — вопрос N80 в docs/04-delivery/05-risks-and-open-questions.md.
 auditConfig:
   ignoreGhsas:
-    # drizzle-orm < 0.45.2: `sql.identifier()` и `.as()` не экранируют кавычку в
-    # имени. В kchs их нет: имена в динамическом SQL идут через `quoteIdent`
-    # (packages/query) и белый список `IDENT` (внешние базы).
-    - GHSA-gpj5-g38j-94v9
     # image-size <= 2.0.2 (deck.gl → loaders.gl → texture-compressor): сжатые
     # текстуры glTF мы не грузим, этот код в сборку web не попадает.
     - GHSA-w3rx-r6r6-pgpr
