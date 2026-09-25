@@ -139,6 +139,22 @@ test.describe('Данные и карты: доработка до пилота'
     await expect(page.getByRole('heading', { name: 'Ущерб по районам' })).toBeVisible()
     await expect(page.locator('[data-chart-state="ready"]')).toHaveCount(1)
     await expect(page.getByText(`Сводка ${run}`)).toBeVisible()
+
+    // Плитка-график на дашборде: картинка PNG и данные с фильтрами дашборда
+    await page.goto(`/o/${dashboardId}`)
+    await expect(page.getByRole('heading', { name: 'Ущерб по районам' })).toBeVisible()
+    await expect(page.locator('[data-chart-state="ready"]').first()).toBeVisible({
+      timeout: 20_000,
+    })
+    const tileExport = page.getByRole('button', { name: 'Экспорт', exact: true })
+    await tileExport.click()
+    const picture = page.waitForEvent('download')
+    await page.getByRole('menuitem', { name: 'Картинка — PNG' }).click()
+    expect((await picture).suggestedFilename()).toBe('Ущерб по районам.png')
+    await tileExport.click()
+    const data = page.waitForEvent('download')
+    await page.getByRole('menuitem', { name: 'Данные — Excel (XLSX)' }).click()
+    expect((await data).suggestedFilename()).toMatch(/^Ущерб по районам .+\.xlsx$/)
   })
 
   test('группа слоёв карты: узел дерева и общий флажок видимости', async ({ page, request }) => {
@@ -175,6 +191,18 @@ test.describe('Данные и карты: доработка до пилота'
     await expect(
       panel.getByRole('checkbox', { name: `Показывать слой «Пункты ${run}»` }),
     ).not.toBeChecked()
+    // Выгрузка видимых слоёв: слой снова виден — файл GeoJSON по слою
+    await toggle.click()
+    await panel.getByRole('button', { name: 'Выгрузить слои в геоформаты' }).click()
+    const exportDialog = page.getByRole('dialog', { name: 'Выгрузка видимых слоёв' })
+    await exportDialog.getByRole('button', { name: 'Выгрузить' }).click()
+    const geojson = page.waitForEvent('download')
+    await exportDialog
+      .getByRole('button', { name: `Скачать «Пункты ${run}»` })
+      .click({ timeout: 60_000 })
+    expect((await geojson).suggestedFilename()).toMatch(/\.geojson$/)
+    await exportDialog.getByRole('button', { name: 'Закрыть' }).first().click()
+
     await panel.getByRole('button', { name: 'Свернуть группу «Паводок»' }).click()
     await expect(
       panel.getByRole('button', { name: `Действия со слоем «Пункты ${run}»` }),
