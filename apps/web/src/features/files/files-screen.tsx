@@ -131,6 +131,9 @@ export function FilesScreen({
     enabled: Boolean(effectiveSpaceId),
   })
   const inAttachments = Boolean(attachmentsFolderId && path[0]?.id === attachmentsFolderId)
+  // Архивное пространство — только чтение (ADR-0152): загрузка и перестановка скрыты
+  const archived = Boolean(spaces.find((space) => space.id === effectiveSpaceId)?.archivedAt)
+  const readOnly = inAttachments || archived
   const parentId = path[path.length - 1]?.id
   const { fields, sortable } = useListFields(TYPES)
   // Фильтр или поиск ищут по всему пространству, без них — содержимое текущей папки
@@ -314,7 +317,7 @@ export function FilesScreen({
             'flex min-w-0 items-center gap-2 rounded-xs',
             dropFolderId === item.id && 'bg-accent-subtle ring-1 ring-accent',
           )}
-          draggable={!inAttachments}
+          draggable={!readOnly}
           onDragStart={(event) => startDrag(event, item)}
           {...(item.type === 'folder' ? dropTargetProps(item) : {})}
         >
@@ -405,7 +408,7 @@ export function FilesScreen({
                 {t('files.attachmentsFolder')}
               </Button>
             ) : null}
-            {inAttachments ? null : (
+            {readOnly ? null : (
               <>
                 <Button
                   variant="secondary"
@@ -494,7 +497,7 @@ export function FilesScreen({
           onSelectionChange={setSelected}
           bulkActions={
             <>
-              {inAttachments ? null : (
+              {readOnly ? null : (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -530,7 +533,7 @@ export function FilesScreen({
               >
                 <Share2 className="size-3.5" />
               </IconButton>
-              {inAttachments ? null : (
+              {readOnly ? null : (
                 <>
                   <IconButton
                     label={t('files.move.actionFor', { name: item.title })}
@@ -572,7 +575,7 @@ export function FilesScreen({
               type="button"
               onClick={() => openObject(item)}
               onDoubleClick={() => openObject(item, true)}
-              draggable={!inAttachments}
+              draggable={!readOnly}
               onDragStart={(event) => startDrag(event, item)}
               {...(item.type === 'folder' ? dropTargetProps(item) : {})}
               className={cn(

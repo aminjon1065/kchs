@@ -3,6 +3,7 @@ import { eq, inArray, sql } from 'drizzle-orm'
 import { db } from '~/shared/db/client.js'
 import { conversations, objects, spaces } from '~/shared/db/schema/index.js'
 import { registerObjectType } from './objects/registry.js'
+import { SpaceLifecycle } from './spaces/lifecycle.js'
 
 /**
  * Типы объектов, принадлежащие самому ядру: пространство, папка/раздел,
@@ -20,7 +21,16 @@ export function registerKernelObjectTypes(): void {
       edit: { minLevel: 'manage' },
       manage: { minLevel: 'manage' },
       invite: { minLevel: 'manage' },
-      delete: { minLevel: 'owner' },
+      // В архив и обратно — одним правом; удалять можно и заархивированное (ADR-0152)
+      archive: { minLevel: 'manage', allowArchived: true },
+      delete: { minLevel: 'owner', allowArchived: true },
+    },
+    // Архив и удаление — вместе с содержимым по space_id (ADR-0152)
+    lifecycle: {
+      beforeArchive: SpaceLifecycle.beforeArchive,
+      onArchive: SpaceLifecycle.onArchive,
+      beforeTrash: SpaceLifecycle.beforeTrash,
+      onRestore: SpaceLifecycle.onRestore,
     },
     discussable: true,
     linkable: true,

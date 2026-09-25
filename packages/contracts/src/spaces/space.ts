@@ -29,10 +29,21 @@ export const Space = z.object({
   settings: SpaceSettings,
   memberCount: z.number().int(),
   myRole: SpaceRole.nullable(),
+  /** В архиве: всё содержимое только для чтения (ADR-0152). */
+  archivedAt: Timestamp.nullable().default(null),
   createdAt: Timestamp,
   updatedAt: Timestamp,
 })
 export type Space = z.infer<typeof Space>
+
+/** Переименование и описание пространства (ADR-0152). */
+export const SpacePatchInput = z
+  .object({
+    name: z.string().trim().min(1).max(200),
+    description: z.string().trim().max(2000).nullable(),
+  })
+  .partial()
+export type SpacePatchInput = z.infer<typeof SpacePatchInput>
 
 export const SpaceCreateInput = z.object({
   key: z

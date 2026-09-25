@@ -28,6 +28,7 @@ import {
   spaceMembersQuery,
   spacesQuery,
 } from '~/shared/api/queries.js'
+import { ArchivedSpaceNotice, SpaceActions } from './space-actions.js'
 import { AddMemberDialog, MemberControls } from './space-members.js'
 
 export function SpaceScreen({ spaceId }: { spaceId: string }) {
@@ -66,6 +67,11 @@ export function SpaceScreen({ spaceId }: { spaceId: string }) {
             <ObjectIcon type="space" className="size-4 text-fg-muted" />
             <h1 className="truncate text-sm font-semibold text-fg">{space.name}</h1>
             <Badge size="sm">{t(`spaces.kinds.${space.kind}`)}</Badge>
+            {space.archivedAt ? (
+              <Badge size="sm" tone="warning">
+                {t('spaces.lifecycle.archivedBadge')}
+              </Badge>
+            ) : null}
             <span className="tabular text-xs text-fg-muted">
               {t('admin.org.employees', { count: space.memberCount })}
             </span>
@@ -87,6 +93,7 @@ export function SpaceScreen({ spaceId }: { spaceId: string }) {
                 {t('spaces.members.add')}
               </Button>
             ) : null}
+            <SpaceActions space={space} allowed={record?.allowedActions ?? []} />
           </>
         }
       />
@@ -105,6 +112,7 @@ export function SpaceScreen({ spaceId }: { spaceId: string }) {
 
         <TabsContent value="overview" className="min-h-0 flex-1 overflow-y-auto bg-canvas p-5">
           <div className="mx-auto flex max-w-[1000px] flex-col gap-4">
+            <ArchivedSpaceNotice space={space} allowed={record?.allowedActions ?? []} />
             {space.description ? (
               <Card>
                 <p className="text-sm text-fg-secondary">{space.description}</p>

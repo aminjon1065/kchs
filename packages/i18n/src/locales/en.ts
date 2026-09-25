@@ -2363,6 +2363,27 @@ export const en: DeepPartial<Dictionary> = {
   spaces: {
     title: 'Spaces',
     kinds: { personal: 'Personal', unit: 'Unit', team: 'Team', org: 'Organization' },
+    lifecycle: {
+      actions: 'Actions for space “{name}”',
+      rename: 'Rename',
+      renamed: 'Space renamed',
+      description: 'Description',
+      archive: 'Archive',
+      archiveTitle: 'Archive “{name}”?',
+      archiveHint:
+        'All content becomes read-only and nothing new can be added. You can bring the space back from the archive at any time.',
+      archived: 'Space archived',
+      unarchive: 'Restore from archive',
+      unarchived: 'Space is active again',
+      archivedBadge: 'Archived',
+      archivedTitle: 'This space is archived',
+      archivedHint: 'Content is read-only. Restore the space from the archive to keep working.',
+      delete: 'Delete',
+      deleteTitle: 'Delete space “{name}”?',
+      deleteHint:
+        'The space and all its content go to the trash for 30 days and are then deleted for good. Only an empty or archived space can be deleted.',
+      deleted: 'Space moved to trash',
+    },
     create: {
       title: 'New space',
       name: 'Name',

@@ -4,6 +4,7 @@ import type {
   SpaceCreateInput,
   SpaceKind,
   SpaceMember,
+  SpacePatchInput,
   SpaceRole,
 } from '@kchs/contracts'
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm'
@@ -249,6 +250,7 @@ export const SpaceService = {
         settings: spaces.settings,
         title: objects.title,
         ownerId: objects.ownerId,
+        archivedAt: objects.archivedAt,
         createdAt: objects.createdAt,
         updatedAt: objects.updatedAt,
       })
@@ -282,9 +284,46 @@ export const SpaceService = {
       settings: row.settings as Space['settings'],
       memberCount: countMap.get(row.id) ?? 0,
       myRole: (ctx.principals.spaceRoles[row.id] as SpaceRole | undefined) ?? null,
+      archivedAt: row.archivedAt,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     }))
+  },
+
+  /**
+   * Переименование и описание (ADR-0152). Название — это название объекта
+   * пространства: оно же в навигаторе, поиске и хлебных крошках.
+   */
+  async update(tx: Executor, ctx: Ctx, spaceId: string, patch: SpacePatchInput): Promise<void> {
+    if (patch.name !== undefined) {
+      await ObjectService.update(tx, ctx, spaceId, { title: patch.name })
+    }
+    if (patch.description !== undefined) {
+      const [current] = await tx
+        .select({ description: spaces.description })
+        .from(spaces)
+        .where(eq(spaces.id, spaceId))
+        .limit(1)
+      if (!current) throw errors.notFound('Пространство')
+      const description = patch.description || null
+      if (current.description !== description) {
+        await tx
+          .update(spaces)
+          .set({ description, updatedAt: sql`now()` })
+          .where(eq(spaces.id, spaceId))
+        const [object] = await tx
+          .select({ title: objects.title })
+          .from(objects)
+          .where(eq(objects.id, spaceId))
+          .limit(1)
+        await publishEvent(tx, ctx, {
+          type: 'object.updated',
+          object: { id: spaceId, type: 'space', spaceId, title: object?.title ?? '' },
+          payload: { title: object?.title ?? '' },
+          changedFields: ['description'],
+        })
+      }
+    }
   },
 
   /**

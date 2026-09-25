@@ -142,6 +142,30 @@ export async function hasAccessDependents(objectId: string): Promise<boolean> {
  * (наследование ACL и граница restricted), поэтому изменение доступа или
  * перенос папки меняет фильтр прав у всего её содержимого.
  */
+/**
+ * Всё содержимое пространства, включая удалённое: удалённое уходит из поиска,
+ * восстановленное возвращается (архив и корзина пространства, ADR-0152).
+ */
+export async function reindexSpace(spaceId: string, batchSize = 200): Promise<number> {
+  await indexObject(spaceId)
+  let total = 1
+  let cursor: string | null = null
+  for (;;) {
+    const scope = eq(objects.spaceId, spaceId)
+    const rows: Array<{ id: string }> = await db()
+      .select({ id: objects.id })
+      .from(objects)
+      .where(cursor ? and(scope, gt(objects.id, cursor)) : scope)
+      .orderBy(asc(objects.id))
+      .limit(batchSize)
+    if (rows.length === 0) break
+    await indexObjects(rows.map((row) => row.id).filter((id) => id !== spaceId))
+    total += rows.length
+    cursor = rows[rows.length - 1]?.id ?? null
+  }
+  return total
+}
+
 export async function reindexSubtree(objectId: string, batchSize = 200): Promise<number> {
   await indexObject(objectId)
   let total = 1

@@ -60,10 +60,11 @@ export function Navigator({ onCreateSpace }: { onCreateSpace: () => void }) {
       label: space.name,
       icon: <ObjectIcon type="space" className="text-fg-muted" />,
       hasChildren: true,
-      badge:
-        space.kind === 'personal' ? (
-          <span className="text-2xs text-fg-muted">{t('spaces.kinds.personal')}</span>
-        ) : null,
+      badge: space.archivedAt ? (
+        <span className="text-2xs text-fg-muted">{t('spaces.lifecycle.archivedBadge')}</span>
+      ) : space.kind === 'personal' ? (
+        <span className="text-2xs text-fg-muted">{t('spaces.kinds.personal')}</span>
+      ) : null,
       children:
         expandedSpaceId === space.id
           ? (children?.items ?? []).filter((item) => !item.meta?.parentId).map(toNode)

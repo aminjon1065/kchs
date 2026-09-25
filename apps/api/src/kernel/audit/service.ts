@@ -203,6 +203,10 @@ export const AUDIT_ACTIONS = {
   announcementWithdrawn: 'announcement.withdrawn',
   businessCalendarChanged: 'business_calendar.changed',
   spaceAdminAssigned: 'space.admin_assigned',
+  /** Пространство целиком в архив, из архива, в корзину (ADR-0152). */
+  spaceArchived: 'space.archived',
+  spaceUnarchived: 'space.unarchived',
+  spaceDeleted: 'space.deleted',
   /** Решение шага маршрута: кто, от чьего имени, подтверждение вторым фактором (ADR-0079). */
   processDecision: 'process.decision',
   processReassigned: 'process.reassigned',
