@@ -1,5 +1,6 @@
 import {
   RULE_EXPORT_FORMAT,
+  type RuleAction,
   type RuleDefinition,
   type RuleExport,
   type RuleListItem,
@@ -383,7 +384,15 @@ function CreateRuleDialog({
             runAs: null,
             trigger: { kind: 'event', type: 'object.created', filter: {} },
             conditions: null,
-            actions: [defaultAction('notify')],
+            // Заготовка должна пройти схему: пустые получатели и текст сервер не примет —
+            // по умолчанию уведомление владельцу объекта с его названием
+            actions: [
+              {
+                ...(defaultAction('notify') as Extract<RuleAction, { type: 'notify' }>),
+                to: ['user:{{object.ownerId}}'],
+                text: '{{object.title}}',
+              },
+            ],
             otherwise: [],
             limits: { maxRunsPerHour: 100, dedupeKey: null, dedupeWindowMinutes: 60 },
           }

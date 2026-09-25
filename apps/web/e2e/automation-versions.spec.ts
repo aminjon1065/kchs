@@ -89,4 +89,22 @@ test.describe('Правила автоматизации: группы, «ина
     await importing.getByRole('button', { name: 'Импортировать' }).click()
     await expect(page.getByText('Правило импортировано')).toBeVisible()
   })
+
+  test('правило «С нуля» создаётся: заготовка проходит проверку сервера', async ({
+    page,
+    request,
+  }) => {
+    const name = `С нуля ${Date.now().toString(36)}`
+    await openWorkspace(page, request)
+    await openScreen(page, 'Администрирование')
+    await page.getByRole('tab', { name: 'Правила автоматизации' }).click()
+    await page.getByRole('button', { name: 'Создать правило' }).click()
+    const create = page.getByRole('dialog')
+    await create.getByLabel('Название').fill(name)
+    await create.getByRole('combobox', { name: 'Пространство' }).click()
+    await page.getByRole('option').first().click()
+    await create.getByRole('button', { name: 'Создать правило' }).click()
+    await expect(page.getByText('Правило создано')).toBeVisible()
+    await expect(page.getByRole('heading', { name })).toBeVisible()
+  })
 })
