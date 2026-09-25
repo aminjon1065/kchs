@@ -203,6 +203,17 @@ test.describe('Данные и карты: доработка до пилота'
     expect((await geojson).suggestedFilename()).toMatch(/\.geojson$/)
     await exportDialog.getByRole('button', { name: 'Закрыть' }).first().click()
 
+    // Шторка сравнения: вторая карта со слоем справа, шторка — стрелками
+    await panel.getByRole('button', { name: `Действия со слоем «Пункты ${run}»` }).click()
+    await page.getByRole('menuitem', { name: 'Сравнить шторкой' }).click()
+    const handle = page.getByRole('slider', { name: `Шторка сравнения слоя «Пункты ${run}»` })
+    await expect(handle).toHaveAttribute('aria-valuenow', '50')
+    await handle.focus()
+    await page.keyboard.press('ArrowLeft')
+    await expect(handle).toHaveAttribute('aria-valuenow', '45')
+    await page.getByRole('button', { name: 'Закрыть сравнение' }).click()
+    await expect(handle).toBeHidden()
+
     await panel.getByRole('button', { name: 'Свернуть группу «Паводок»' }).click()
     await expect(
       panel.getByRole('button', { name: `Действия со слоем «Пункты ${run}»` }),

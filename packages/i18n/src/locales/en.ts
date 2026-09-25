@@ -2558,6 +2558,13 @@ export const en: DeepPartial<Dictionary> = {
 
   gis: {
     map: {
+      swipe: {
+        start: 'Compare with a swipe',
+        stop: 'Remove the swipe',
+        handle: 'Swipe comparing layer «{name}»',
+        right: 'Right of the swipe — with layer «{name}»',
+        close: 'Close comparison',
+      },
       groups: {
         assign: 'Group…',
         title: 'Group of layer «{name}»',

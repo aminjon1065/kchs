@@ -2604,6 +2604,13 @@ export const ru = {
 
   gis: {
     map: {
+      swipe: {
+        start: 'Сравнить шторкой',
+        stop: 'Убрать шторку',
+        handle: 'Шторка сравнения слоя «{name}»',
+        right: 'Справа от шторки — со слоем «{name}»',
+        close: 'Закрыть сравнение',
+      },
       groups: {
         assign: 'Группа…',
         title: 'Группа слоя «{name}»',

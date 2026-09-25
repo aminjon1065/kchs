@@ -55,6 +55,7 @@ import { StudioLinks } from './studio/linked-views.js'
 import { NavigationTools } from './studio/navigation-tools.js'
 import { PrintTools } from './studio/print-tools.js'
 import { StudioSidePanel } from './studio/side-panel.js'
+import { SwipeCompare } from './studio/swipe-compare.js'
 import { TimeBar } from './studio/time-bar.js'
 import { TimeTools } from './studio/time-tools.js'
 
@@ -131,6 +132,8 @@ export function MapStudio({
   const [instance, setInstance] = useState<MapInstance | null>(null)
   const [adding, setAdding] = useState(false)
   const [importing, setImporting] = useState(false)
+  // Шторка сравнения (ADR-0160): слой и положение шторки в процентах ширины карты
+  const [swipe, setSwipe] = useState<{ layerId: string; position: number } | null>(null)
   const [exporting, setExporting] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
@@ -536,6 +539,12 @@ export function MapStudio({
                 }))
               }
               onAddFile={() => setImporting(true)}
+              comparing={swipe?.layerId ?? null}
+              onCompare={(layerId) =>
+                setSwipe((value) =>
+                  value?.layerId === layerId ? null : { layerId, position: value?.position ?? 50 },
+                )
+              }
               onExport={canExport ? () => setExporting(true) : undefined}
               services={current?.services ?? []}
               serviceCatalog={serviceList?.items ?? []}
@@ -568,7 +577,14 @@ export function MapStudio({
               basemapStyle={basemap.style}
               prepare={registerPmtilesProtocol}
               sources={{ ...services.sources, ...rendered.sources }}
-              layers={[...services.layers, ...rendered.layers]}
+              layers={[
+                ...services.layers,
+                ...(swipe
+                  ? rendered.layers.filter(
+                      (layer) => !layer.id.startsWith(`kchs-data:${swipe.layerId}:`),
+                    )
+                  : rendered.layers),
+              ]}
               images={rendered.images}
               camera={view}
               fitBounds={fit}
@@ -592,6 +608,30 @@ export function MapStudio({
                   <AnalysisTools />
                 </div>
               </div>
+              {swipe && view ? (
+                <SwipeCompare
+                  position={swipe.position}
+                  layerName={layerById.get(swipe.layerId)?.name ?? ''}
+                  onPosition={(position) =>
+                    setSwipe((value) => (value ? { ...value, position } : value))
+                  }
+                  onClose={() => setSwipe(null)}
+                >
+                  <MapCanvas
+                    className="absolute inset-0"
+                    basemapStyle={basemap.style}
+                    prepare={registerPmtilesProtocol}
+                    sources={{ ...services.sources, ...rendered.sources }}
+                    layers={[...services.layers, ...rendered.layers]}
+                    images={rendered.images}
+                    camera={view}
+                    staticView
+                    aria-label={t('gis.map.swipe.right', {
+                      name: layerById.get(swipe.layerId)?.name ?? '',
+                    })}
+                  />
+                </SwipeCompare>
+              ) : null}
               <TimeBar />
               <CursorCoordinates />
               <StudioLinks />

@@ -2757,6 +2757,13 @@ export const tg: DeepPartial<Dictionary> = {
   },
   gis: {
     map: {
+      swipe: {
+        start: 'Муқоиса бо парда',
+        stop: 'Пардаро гирифтан',
+        handle: 'Пардаи муқоисаи қабати «{name}»',
+        right: 'Аз рости парда — бо қабати «{name}»',
+        close: 'Пӯшидани муқоиса',
+      },
       groups: {
         assign: 'Гурӯҳ…',
         title: 'Гурӯҳи қабати «{name}»',

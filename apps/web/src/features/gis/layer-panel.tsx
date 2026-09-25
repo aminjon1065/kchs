@@ -31,6 +31,7 @@ import {
   ArrowUp,
   ChevronDown,
   ChevronRight,
+  Columns2,
   Download,
   ExternalLink,
   FileUp,
@@ -78,6 +79,10 @@ export interface LayerPanelProps {
   onAddFile?: (() => void) | undefined
   /** Выгрузка видимых слоёв в геоформаты. */
   onExport?: (() => void) | undefined
+  /** Шторка сравнения: слой справа от шторки есть, слева — нет (ADR-0160). */
+  onCompare: (layerId: string) => void
+  /** Слой под шторкой сейчас. */
+  comparing: string | null
   /** Слои-ссылки на внешние ГИС-службы (ADR-0108): реестр и записи карты. */
   services: readonly MapServiceEntry[]
   serviceCatalog: readonly ServiceLayerRecord[]
@@ -272,6 +277,8 @@ function LayerItem({
   onStyle,
   onAttributes,
   onGroup,
+  onCompare,
+  comparing,
 }: PanelLayer &
   Pick<
     LayerPanelProps,
@@ -283,6 +290,8 @@ function LayerItem({
     | 'onOpenLayer'
     | 'onStyle'
     | 'onAttributes'
+    | 'onCompare'
+    | 'comparing'
   > & {
     legend: LegendModel | undefined
     first: boolean
@@ -355,6 +364,13 @@ function LayerItem({
             </DropdownMenuItem>
             <DropdownMenuItem icon={<FolderInput className="size-4" />} onSelect={onGroup}>
               {t('gis.map.groups.assign')}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={!layer || noData}
+              icon={<Columns2 className="size-4" />}
+              onSelect={() => onCompare(entry.layerId)}
+            >
+              {comparing === entry.layerId ? t('gis.map.swipe.stop') : t('gis.map.swipe.start')}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuLabel>{t('gis.map.opacity')}</DropdownMenuLabel>
