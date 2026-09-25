@@ -19,6 +19,8 @@ import {
   CorrespondentUpdateInput,
   DestructionActInput,
   DestructionActList,
+  DocumentBulkInput,
+  DocumentBulkResult,
   DocumentCancelInput,
   DocumentCreateInput,
   DocumentDispatchInput,
@@ -32,6 +34,7 @@ import {
   DocumentPdfResult,
   DocumentRecord,
   DocumentRegisterInput,
+  DocumentRegistryQuery,
   DocumentReplyInput,
   DocumentResolutions,
   DocumentSummary,
@@ -62,6 +65,7 @@ import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { validServiceToken } from '~/shared/http/service-token.js'
 import { DocumentAcknowledgments } from '../domain/acknowledgment-service.js'
+import { DocumentBulk } from '../domain/bulk-service.js'
 import { CaseImport } from '../domain/case-import.js'
 import { CaseService } from '../domain/case-service.js'
 import { Correspondence } from '../domain/correspondence-service.js'
@@ -103,6 +107,35 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
     summary: 'Дашборд «Канцелярия», если он заведён и виден пользователю',
     schema: { response: { 200: z.object({ dashboardId: z.uuid().nullable() }) } },
     handler: async (request) => ({ dashboardId: await officeDashboardId(request.ctx) }),
+  })
+
+  // ─── Массовые действия в списке (ADR-0152) ─────────────────────────────────
+  route({
+    method: 'POST',
+    url: '/documents/bulk',
+    auth: 'session',
+    tags: ['documents'],
+    summary: 'Массовое действие над выбранными документами: подшить в дело, на ознакомление',
+    description:
+      'Права и состояние проверяются по каждому документу; отказ по одному не отменяет остальных.',
+    schema: { body: DocumentBulkInput, response: { 200: DocumentBulkResult } },
+    handler: async (request) => DocumentBulk.run(request.ctx, request.body),
+  })
+
+  route({
+    method: 'GET',
+    url: '/documents/registry.xlsx',
+    auth: 'session',
+    tags: ['documents'],
+    summary: 'Реестр выбранных документов в Excel',
+    schema: { querystring: DocumentRegistryQuery },
+    handler: async (request, reply) => {
+      const content = await DocumentBulk.registry(request.ctx, request.query.ids)
+      reply
+        .header('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        .header('content-disposition', 'attachment; filename="kchs-documents.xlsx"')
+      return reply.send(content)
+    },
   })
 
   route({

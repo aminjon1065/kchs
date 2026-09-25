@@ -1774,6 +1774,40 @@ export const en: DeepPartial<Dictionary> = {
       suggested: 'Suggested',
       done: 'Filed in case {index}',
     },
+    bulk: {
+      acknowledge: 'For acknowledgment',
+      fileTitle:
+        '{count, plural, one {File # document in a case} other {File # documents in a case}}',
+      fileHint:
+        'Executed documents are filed and become “Filed”. Others are skipped with a reason.',
+      acknowledgeTitle:
+        '{count, plural, one {Send # document for acknowledgment} other {Send # documents for acknowledgment}}',
+      acknowledgeHint:
+        'Each document gets these recipients; those who have acknowledged or are pending are not asked again.',
+      done: '{count, plural, one {Done: # document} other {Done: # documents}}',
+      skipped: '{count, plural, one {# document skipped} other {# documents skipped}}',
+      hidden: 'Document unavailable',
+      noRecipients:
+        'No new recipients: all have acknowledged, are pending or lack clearance for the classification',
+      registry: {
+        action: 'Registry to Excel',
+        sheet: 'Registry',
+        of: ' of ',
+        columns: {
+          position: 'No.',
+          number: 'Reg. number',
+          date: 'Date',
+          type: 'Document type',
+          subject: 'Subject',
+          correspondent: 'Correspondent',
+          externalNumber: 'Sender’s number and date',
+          status: 'Status',
+          deadline: 'Deadline',
+          responsible: 'Responsible',
+          case: 'Case file',
+        },
+      },
+    },
     correspondence: {
       title: 'Correspondence',
       empty: 'No correspondence yet — a reply to an incoming letter will appear here',

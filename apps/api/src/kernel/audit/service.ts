@@ -216,6 +216,8 @@ export const AUDIT_ACTIONS = {
   documentPrinted: 'document.printed',
   /** Копия файла с грифом под водяным знаком (ADR-0085). */
   documentFileExported: 'document.file_exported',
+  /** Реестр выбранных документов выгружен в Excel (ADR-0152). */
+  documentsRegistryExported: 'document.registry_exported',
   // Поручения (ADR-0082): продление срока и переназначение исполнителя
   taskExtensionRequested: 'task.extension_requested',
   taskExtensionDecided: 'task.extension_decided',

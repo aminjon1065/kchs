@@ -1,4 +1,5 @@
 export * from './assist.js'
+export * from './bulk.js'
 export * from './case.js'
 export * from './compare.js'
 export * from './correspondence.js'

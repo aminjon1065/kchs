@@ -51,6 +51,7 @@ import {
   describeUserFilterValue,
   renderUserFilterValue,
 } from '~/shared/collections/user-filter-value.js'
+import { DocumentsBulkActions } from './bulk-actions.js'
 import { CreateDocumentDialog } from './create-document-dialog.js'
 import { CasesDirectory } from './directories/cases-directory.js'
 import { CorrespondentsDirectory } from './directories/correspondents-directory.js'
@@ -220,6 +221,8 @@ function DocumentsList({
   )
   const [viewId, setViewId] = useState<string | null>(savedState?.viewId ?? null)
   const [creating, setCreating] = useState(false)
+  // Выбор для массовых действий (ADR-0152): сбрасывается при смене раздела
+  const [selected, setSelected] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     setTabState(tabId, { preset, journalId, collection, viewId })
@@ -434,6 +437,7 @@ function DocumentsList({
               onClick={() => {
                 setJournalId(null)
                 setPreset(key)
+                setSelected(new Set())
               }}
             />
           ))}
@@ -481,7 +485,10 @@ function DocumentsList({
                 label={journal.name}
                 count={journal.documentCount}
                 active={journalId === journal.id}
-                onClick={() => setJournalId(journal.id)}
+                onClick={() => {
+                  setJournalId(journal.id)
+                  setSelected(new Set())
+                }}
               />
             ))}
           </NavGroup>
@@ -557,6 +564,11 @@ function DocumentsList({
             onLoadMore={loadMore}
             onRowClick={(item) => openDocument(item)}
             onRowOpen={(item) => openDocument(item, true)}
+            selection={selected}
+            onSelectionChange={setSelected}
+            bulkActions={
+              <DocumentsBulkActions ids={[...selected]} onDone={() => setSelected(new Set())} />
+            }
             viewsMenu={
               <SavedViewsMenu
                 objectType="document"
