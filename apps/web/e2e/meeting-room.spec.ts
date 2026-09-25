@@ -72,11 +72,15 @@ test.describe('Встречи: комната и звонки', () => {
     await expect(incoming).toContainText(`Звонок e2e ${run}`)
     await incoming.getByTestId('call-accept').click()
     await colleaguePage.getByTestId('meeting-join').click()
+    // Проверка перед входом (ADR-0162): устройства по умолчанию
+    await colleaguePage.getByTestId('prejoin-join').click()
     await expect(colleaguePage.getByTestId('meeting-room')).toBeVisible({ timeout: 30_000 })
 
     // 2. Организатор входит из экрана встреч
     await page.goto(`/o/${meetingId}`)
     await page.getByTestId('meeting-join').click()
+    // Проверка перед входом (ADR-0162): устройства по умолчанию
+    await page.getByTestId('prejoin-join').click()
     await expect(page.getByTestId('meeting-room')).toBeVisible({ timeout: 30_000 })
 
     // Оба видят по две плитки: свою и собеседника
@@ -149,6 +153,8 @@ test.describe('Встречи: комната и звонки', () => {
     await join.click()
 
     await page.getByTestId('meeting-join').click()
+    // Проверка перед входом (ADR-0162): устройства по умолчанию
+    await page.getByTestId('prejoin-join').click()
     await expect(page.getByTestId('meeting-room')).toBeVisible({ timeout: 30_000 })
     await expect(page.getByTestId('meeting-tile')).toHaveCount(1, { timeout: 30_000 })
     await leaveRoom(page)

@@ -61,10 +61,14 @@ test.describe('Приёмка фазы 4: сценарий D', () => {
     const colleaguePage = await context.newPage()
     await colleaguePage.goto(`/o/${meetingId}`)
     await colleaguePage.getByTestId('meeting-join').click()
+    // Проверка перед входом (ADR-0162): устройства по умолчанию
+    await colleaguePage.getByTestId('prejoin-join').click()
     await expect(colleaguePage.getByTestId('meeting-room')).toBeVisible({ timeout: 30_000 })
 
     await page.goto(`/o/${meetingId}`)
     await page.getByTestId('meeting-join').click()
+    // Проверка перед входом (ADR-0162): устройства по умолчанию
+    await page.getByTestId('prejoin-join').click()
     await expect(page.getByTestId('meeting-room')).toBeVisible({ timeout: 30_000 })
     await expect(page.getByTestId('meeting-tile')).toHaveCount(2, { timeout: 30_000 })
 
@@ -270,6 +274,8 @@ test.describe('Приёмка фазы 4: звонок из беседы', () =>
 
     // Организатор входит в комнату из вкладки встречи
     await page.getByTestId('meeting-join').click()
+    // Проверка перед входом (ADR-0162): устройства по умолчанию
+    await page.getByTestId('prejoin-join').click()
     await expect(page.getByTestId('meeting-room')).toBeVisible({ timeout: 30_000 })
 
     // Собеседник принимает входящий и входит
@@ -277,6 +283,8 @@ test.describe('Приёмка фазы 4: звонок из беседы', () =>
     await expect(incoming).toBeVisible({ timeout: 30_000 })
     await incoming.getByTestId('call-accept').click()
     await colleaguePage.getByTestId('meeting-join').click()
+    // Проверка перед входом (ADR-0162): устройства по умолчанию
+    await colleaguePage.getByTestId('prejoin-join').click()
     await expect(colleaguePage.getByTestId('meeting-room')).toBeVisible({ timeout: 30_000 })
     await expect(page.getByTestId('meeting-tile')).toHaveCount(2, { timeout: 30_000 })
 

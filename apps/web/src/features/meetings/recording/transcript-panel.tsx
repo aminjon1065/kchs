@@ -137,13 +137,13 @@ export function TranscriptPanel({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex items-center gap-2 border-b border-line p-2">
+      <div className="flex flex-wrap items-center gap-2 border-b border-line p-2">
         <SearchInput
           value={search}
           onValueChange={setSearch}
           onClear={() => setSearch('')}
           placeholder={t('meetings.recording.transcript.search')}
-          className="flex-1"
+          className="min-w-40 flex-1"
         />
         {canEdit && transcript.speakers.length > 0 ? (
           <Button
