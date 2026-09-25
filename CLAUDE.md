@@ -64,6 +64,8 @@ pnpm e2e                                 # Playwright (нужны api и web)
 bash infra/scripts/smoke-api.sh          # дымовой прогон API на демо-данных
 bash infra/perf/run-k6.sh                # бюджеты p95 API (k6 в Docker) на демо-данных
 helm lint infra/helm/kchs -f infra/helm/kchs/ci/external-values.yaml  # чарт S2 (ADR-0118)
+docker run --rm -v "$PWD/infra/observability/prometheus:/etc/prometheus:ro" -w /etc/prometheus \
+  --entrypoint promtool prom/prometheus:v3.9.1 test rules alerts.test.yml  # правила оповещений (ADR-0147)
 ```
 
 Кластер S2 (ADR-0118, `infra/helm/README.md`) и нагрузка его масштаба (ADR-0119):

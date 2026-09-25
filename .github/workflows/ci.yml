@@ -289,6 +289,25 @@ jobs:
             exit 1
           fi
 
+  alerts:
+    name: Правила оповещений
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Та же версия Prometheus, что в профиле observability (ADR-0147): синтаксис правил и
+      # их модульные тесты — метки instance/job, пороги, молчание правила реплики
+      - name: promtool
+        run: |
+          set -eu
+          docker run --rm -v "$PWD/infra/observability/prometheus:/etc/prometheus:ro" \
+            --entrypoint promtool "prom/prometheus:${PROMETHEUS_VERSION}" \
+            check rules /etc/prometheus/alerts.yml
+          docker run --rm -v "$PWD/infra/observability/prometheus:/etc/prometheus:ro" \
+            -w /etc/prometheus --entrypoint promtool "prom/prometheus:${PROMETHEUS_VERSION}" \
+            test rules alerts.test.yml
+        env:
+          PROMETHEUS_VERSION: 'v3.9.1'
+
   security:
     name: Безопасность
     runs-on: ubuntu-latest
