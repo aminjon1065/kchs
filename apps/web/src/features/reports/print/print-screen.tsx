@@ -24,6 +24,8 @@ import {
   PrintText,
 } from './print-blocks.js'
 import { type PrintContextValue, PrintProvider, setPrintState, settleDom } from './print-context.js'
+import { PrintDashboard, PrintFiles, PrintImage } from './print-library.js'
+import { reportSections, tocModel } from './print-sections.js'
 import type { PrintTarget } from './print-target.js'
 
 declare global {
@@ -83,7 +85,7 @@ function useSubtitle(payload: ReportPrintPayload): { text: string; ready: boolea
   return { text: parts.join(' · '), ready: !territory || !isLoading }
 }
 
-function PrintBlock({ block }: { block: ReportBlock }) {
+function PrintBlock({ block, reportId }: { block: ReportBlock; reportId: string }) {
   switch (block.kind) {
     case 'text':
       return <PrintText block={block} />
@@ -95,6 +97,12 @@ function PrintBlock({ block }: { block: ReportBlock }) {
       return <PrintMetrics block={block} />
     case 'map':
       return <PrintMap block={block} />
+    case 'image':
+      return <PrintImage block={block} reportId={reportId} />
+    case 'file':
+      return <PrintFiles block={block} reportId={reportId} />
+    case 'dashboard':
+      return <PrintDashboard block={block} />
     case 'page_break':
       return <PrintPageBreak block={block} />
   }
@@ -110,6 +118,12 @@ function PrintDocument({ payload }: { payload: ReportPrintPayload }) {
   const locale = useAppearance((s) => s.locale) as Locale
   const { report } = payload
   const { text: subtitle, ready: subtitleReady } = useSubtitle(payload)
+  // Оглавление и нумерация разделов (ADR-0164): номера — прямо в подписях и заголовках
+  const sections = useMemo(
+    () => reportSections(report.blocks, report.settings.numbering),
+    [report.blocks, report.settings.numbering],
+  )
+  const toc = report.settings.toc ? sections.toc : []
   const models = useRef(new Map<string, ReportPrintBlock[]>())
   const [readyCount, setReadyCount] = useState(0)
   const published = useRef(false)
@@ -148,14 +162,17 @@ function PrintDocument({ payload }: { payload: ReportPrintPayload }) {
         subtitle,
         settings: report.settings,
         labels: { page: t('data.report.print.page'), of: t('data.report.print.of') },
-        blocks: report.blocks.flatMap((block) => models.current.get(block.id) ?? []),
+        blocks: [
+          ...tocModel(toc, t('data.report.print.toc'), report.settings.numbering),
+          ...report.blocks.flatMap((block) => models.current.get(block.id) ?? []),
+        ],
       }
       setPrintState('ready')
     })
     return () => {
       cancelled = true
     }
-  }, [all, readyCount, report, subtitle, t])
+  }, [all, readyCount, report, subtitle, t, toc])
 
   return (
     <PrintProvider value={context}>
@@ -177,8 +194,24 @@ function PrintDocument({ payload }: { payload: ReportPrintPayload }) {
         {report.blocks.length === 0 ? (
           <p className="text-sm text-fg-muted">{t('data.report.print.emptyReport')}</p>
         ) : null}
-        {report.blocks.map((block) => (
-          <PrintBlock key={block.id} block={block} />
+        {toc.length > 0 ? (
+          <nav
+            aria-label={t('data.report.print.toc')}
+            className="flex flex-col gap-1 break-after-page"
+          >
+            <h2 className="text-base font-semibold text-fg">{t('data.report.print.toc')}</h2>
+            <ol className="flex flex-col gap-0.5 text-sm text-fg">
+              {toc.map((entry, index) => (
+                <li key={`${entry.number}-${index}`} className={entry.level === 2 ? 'ps-5' : ''}>
+                  {report.settings.numbering ? `${entry.number} ` : ''}
+                  {entry.text}
+                </li>
+              ))}
+            </ol>
+          </nav>
+        ) : null}
+        {sections.blocks.map((block) => (
+          <PrintBlock key={block.id} block={block} reportId={report.id} />
         ))}
       </article>
     </PrintProvider>

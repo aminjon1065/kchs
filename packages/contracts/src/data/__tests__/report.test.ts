@@ -33,7 +33,7 @@ describe('расписание отчёта → cron', () => {
     )
   })
 
-  it('ввод расписания: время ЧЧ:ММ, день месяца до 28-го, хотя бы один получатель и канал', () => {
+  it('ввод расписания: время ЧЧ:ММ, день месяца до 28-го, получатели любого вида, канал', () => {
     const valid = {
       frequency: 'weekly',
       timezone: 'Asia/Dushanbe',
@@ -48,7 +48,12 @@ describe('расписание отчёта → cron', () => {
     })
     expect(ReportScheduleInput.safeParse({ ...valid, time: '24:00' }).success).toBe(false)
     expect(ReportScheduleInput.safeParse({ ...valid, monthDay: 31 }).success).toBe(false)
-    expect(ReportScheduleInput.safeParse({ ...valid, recipients: [] }).success).toBe(false)
+    // Получатели — сотрудники, группы, роли или внешние адреса (ADR-0164); что указан хоть
+    // кто-то, проверяет сервис при сохранении
+    expect(
+      ReportScheduleInput.parse({ ...valid, recipients: [], roles: ['registrar'] }),
+    ).toMatchObject({ recipients: [], groups: [], roles: ['registrar'], emails: [] })
+    expect(ReportScheduleInput.safeParse({ ...valid, emails: ['не-адрес'] }).success).toBe(false)
     expect(ReportScheduleInput.safeParse({ ...valid, channels: [] }).success).toBe(false)
   })
 })

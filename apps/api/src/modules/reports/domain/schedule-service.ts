@@ -117,6 +117,32 @@ async function withoutAccess(reportId: string, userIds: string[]): Promise<strin
   return out
 }
 
+/**
+ * Получатели рассылки на момент рассылки (ADR-0164): сотрудники, участники групп и
+ * обладатели ролей — без повторов, только действующие.
+ */
+async function expandRecipients(value: StoredSchedule): Promise<string[]> {
+  const ids = new Set(value.recipients)
+  for (const groupId of value.groups) {
+    for (const userId of await directory().groupMembers(groupId)) ids.add(userId)
+  }
+  for (const role of value.roles) {
+    const holders = await directory().usersWithRole(role, { spaceId: null, scope: 'effective' })
+    for (const userId of holders) ids.add(userId)
+  }
+  return directory().activeUsers([...ids])
+}
+
+/** Гриф отчёта «Конфиденциально»: внешним адресам рассылка не уходит (как ADR-0149). */
+async function externalBlocked(reportId: string): Promise<boolean> {
+  const [row] = await db()
+    .select({ confidentiality: objects.confidentiality })
+    .from(objects)
+    .where(eq(objects.id, reportId))
+    .limit(1)
+  return row?.confidentiality === 'confidential'
+}
+
 async function toSchedule(reportId: string, value: StoredSchedule): Promise<ReportSchedule> {
   const pattern = reportCronPattern(value)
   let nextRunAt: string | null = null
@@ -137,6 +163,9 @@ async function toSchedule(reportId: string, value: StoredSchedule): Promise<Repo
     recipientRefs: value.recipients
       .map((id) => refs.get(id))
       .filter((ref): ref is UserRef => Boolean(ref)),
+    expandedCount: (await expandRecipients(value)).filter((id) => !value.recipients.includes(id))
+      .length,
+    externalBlocked: value.emails.length > 0 && (await externalBlocked(reportId)),
     recipientsWithoutAccess: await withoutAccess(reportId, value.recipients),
     updatedBy: updatedBy ? (refs.get(updatedBy) ?? null) : null,
     updatedAt,
@@ -168,9 +197,15 @@ export const ReportSchedules = {
     if (found.length !== recipients.length) {
       throw errors.validation('Получатели — действующие сотрудники')
     }
+    if (recipients.length + input.groups.length + input.roles.length + input.emails.length === 0) {
+      throw errors.validation('Укажите получателей: сотрудников, группы, роли или адреса')
+    }
     const value: StoredSchedule = {
       ...input,
       recipients,
+      groups: [...new Set(input.groups)],
+      roles: [...new Set(input.roles)],
+      emails: [...new Set(input.emails.map((email) => email.toLowerCase()))],
       formats: [...new Set(input.formats)],
       channels: [...new Set(input.channels)],
       cron: input.frequency === 'cron' ? pattern : null,
@@ -234,19 +269,50 @@ export const ReportSchedules = {
     }
     const report = await ReportService.get(reportId)
     const ctx: Ctx = systemCtx('report.schedule', { initiatorId: value.updatedBy })
-    const denied = new Set(await withoutAccess(reportId, value.recipients))
+    // Группы и роли — на момент рассылки: новый участник группы получает отчёт сразу
+    const recipients = await expandRecipients(value)
+    const denied = new Set(await withoutAccess(reportId, recipients))
     const active = new Set(
-      (
-        await db()
-          .select({ id: users.id })
-          .from(users)
-          .where(and(inArray(users.id, value.recipients), eq(users.status, 'active')))
-      ).map((user) => user.id),
+      recipients.length === 0
+        ? []
+        : (
+            await db()
+              .select({ id: users.id })
+              .from(users)
+              .where(and(inArray(users.id, recipients), eq(users.status, 'active')))
+          ).map((user) => user.id),
     )
+    const blockedOutside = value.emails.length > 0 && (await externalBlocked(reportId))
     let runs = 0
     let skipped = 0
     await db().transaction(async (tx) => {
-      for (const userId of value.recipients) {
+      // Внешние адреса: один запуск под правами автора рассылки, письмо — им (ADR-0164)
+      if (value.emails.length > 0 && value.updatedBy) {
+        const input = {
+          reportId,
+          runAs: value.updatedBy,
+          requestedBy: value.updatedBy,
+          trigger: 'schedule' as const,
+          params: value.params ?? report.params,
+          formats: value.formats,
+          channels: ['email' as const],
+          externalEmails: value.emails,
+        }
+        const authorDenied = (await withoutAccess(reportId, [value.updatedBy])).length > 0
+        if (blockedOutside || authorDenied) {
+          await ReportRuns.recordSkipped(tx, ctx, {
+            ...input,
+            reason: blockedOutside
+              ? 'Отчёт с грифом «Конфиденциально» на внешние адреса не отправляется'
+              : 'У автора рассылки нет доступа к отчёту',
+          })
+          skipped += 1
+        } else {
+          await ReportRuns.enqueue(tx, ctx, input)
+          runs += 1
+        }
+      }
+      for (const userId of recipients) {
         const input = {
           reportId,
           runAs: userId,

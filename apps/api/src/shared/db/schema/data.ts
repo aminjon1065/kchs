@@ -419,6 +419,8 @@ export const reportRuns = pgTable(
     formats: text('formats').array().notNull().default(sql`'{pdf}'::text[]`),
     /** Каналы доставки запуска по расписанию; у «Сформировать» — пусто. */
     channels: text('channels').array().notNull().default(sql`'{}'::text[]`),
+    /** Внешние адреса рассылки (ADR-0164): письмо им, а не тому, под чьими правами отчёт. */
+    externalEmails: text('external_emails').array().notNull().default(sql`'{}'::text[]`),
     status: text('status').notNull().default('queued'),
     jobId: uuid('job_id'),
     /** Сколько раз движок начинал рендер: номер попытки в `report.run_started`. */

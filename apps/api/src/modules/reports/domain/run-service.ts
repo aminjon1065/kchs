@@ -31,6 +31,7 @@ import { objects, reportRuns, users } from '~/shared/db/schema/index.js'
 import { AppError, errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { logger } from '~/shared/logger/index.js'
+import { ReportVersions } from './report-library.js'
 import { ReportService } from './report-service.js'
 
 /** Рендер — очередь `render` движка (ADR-0035): Chromium и docxtpl живут там. */
@@ -160,6 +161,8 @@ export interface EnqueueRunInput {
   params: ReportParams
   formats: ReportFormat[]
   channels: ReportDeliveryChannel[]
+  /** Внешние адреса рассылки: письмо им, а не `runAs` (ADR-0164). */
+  externalEmails?: string[]
 }
 
 /**
@@ -182,6 +185,7 @@ export const ReportRuns = {
       params: input.params as unknown as Record<string, unknown>,
       formats: input.formats,
       channels: input.channels,
+      externalEmails: input.externalEmails ?? [],
       status: 'queued',
     })
     const jobId = await JobService.schedule(tx, ctx, {
@@ -216,6 +220,7 @@ export const ReportRuns = {
       params: input.params as unknown as Record<string, unknown>,
       formats: input.formats,
       channels: input.channels,
+      externalEmails: input.externalEmails ?? [],
       status: 'skipped',
       error: input.reason,
       finishedAt: sql`now()`,
@@ -263,6 +268,8 @@ export const ReportRuns = {
       for (const stale of active) {
         await ReportRuns.fail(tx, stale.id, 'Запуск не завершился вовремя', false)
       }
+      // Версия, по которой сформирован отчёт (ADR-0164): только если шаблон менялся
+      await ReportVersions.recordIfChanged(tx, ctx, reportId, 'run')
       return ReportRuns.enqueue(tx, ctx, {
         reportId,
         runAs: ctx.userId,
@@ -422,6 +429,7 @@ export const ReportRuns = {
       locale: ctx.locale as Locale,
       timezone: ctx.timezone,
       title: report.name,
+      pageSize: report.settings.pageSize,
       orientation: report.settings.orientation,
       header: report.settings.header || report.name,
       footer: report.settings.footer,

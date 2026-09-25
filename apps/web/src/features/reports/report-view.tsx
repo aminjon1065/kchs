@@ -1,5 +1,5 @@
 import type { ReportBlockKind, ReportFormat, ReportSettings } from '@kchs/contracts'
-import { REPORT_FORMATS } from '@kchs/contracts'
+import { REPORT_FORMATS, REPORT_PAGE_SIZES } from '@kchs/contracts'
 import { localizedText } from '@kchs/i18n'
 import {
   AlertDialog,
@@ -43,6 +43,7 @@ import {
   Eye,
   FileOutput,
   FileText,
+  History,
   Lock,
   PanelRight,
   Plus,
@@ -83,12 +84,32 @@ import { ApiError, http } from '~/shared/api/client.js'
 import { keys, meQuery, objectQuery } from '~/shared/api/queries.js'
 import { reportPreviewPath } from './print/print-target.js'
 import { reportKeys } from './queries.js'
-import { ChartBlock, MapBlock, MetricsBlock, PageBreakBlock, QueryBlock } from './report-blocks.js'
+import {
+  ChartBlock,
+  DashboardBlock,
+  FileBlock,
+  ImageBlock,
+  MapBlock,
+  MetricsBlock,
+  PageBreakBlock,
+  QueryBlock,
+} from './report-blocks.js'
 import { createBlock, readSettings, settingsOf, writeSettings } from './report-doc.js'
+import { ReportLibraryDialog } from './report-library-dialog.js'
 import { ReportRunsPanel } from './report-runs.js'
 import { ReportScheduleDialog } from './schedule-dialog.js'
 
-const ADDABLE: ReportBlockKind[] = ['text', 'query', 'chart', 'metrics', 'map', 'page_break']
+const ADDABLE: ReportBlockKind[] = [
+  'text',
+  'query',
+  'chart',
+  'metrics',
+  'map',
+  'image',
+  'file',
+  'dashboard',
+  'page_break',
+]
 
 const ICONS: Record<ReportBlockKind, string> = {
   text: 'page',
@@ -96,6 +117,9 @@ const ICONS: Record<ReportBlockKind, string> = {
   chart: 'chart',
   metrics: 'metric',
   map: 'map',
+  image: 'file',
+  file: 'file',
+  dashboard: 'dashboard',
   page_break: 'template',
 }
 
@@ -120,6 +144,7 @@ export default function ReportView({ objectId, tabId }: { objectId: string; tabI
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [scheduleOpen, setScheduleOpen] = useState(false)
   const [toDocumentOpen, setToDocumentOpen] = useState(false)
+  const [libraryOpen, setLibraryOpen] = useState(false)
   const [runsOpen, setRunsOpen] = useState(true)
   const { data: object, isLoading } = useQuery(objectQuery(objectId))
   const { data: me } = useQuery(meQuery())
@@ -258,6 +283,12 @@ export default function ReportView({ objectId, tabId }: { objectId: string; tabI
                 {t('data.report.run.button')}
               </Button>
               <IconButton
+                label={t('data.report.versions.open')}
+                onClick={() => setLibraryOpen(true)}
+              >
+                <History className="size-4" />
+              </IconButton>
+              <IconButton
                 label={t(runsOpen ? 'data.report.runs.hide' : 'data.report.runs.show')}
                 onClick={() => setRunsOpen((open) => !open)}
               >
@@ -292,6 +323,14 @@ export default function ReportView({ objectId, tabId }: { objectId: string; tabI
         onOpenChange={setScheduleOpen}
         canManage={canManage}
         timezone={me.user.timezone}
+      />
+      <ReportLibraryDialog
+        reportId={objectId}
+        open={libraryOpen}
+        onOpenChange={setLibraryOpen}
+        canEdit={!collab.readOnly}
+        canManage={canManage}
+        template={(object.meta as { template?: unknown } | undefined)?.template === true}
       />
       <ReportToDocumentDialog
         reportId={objectId}
@@ -482,6 +521,13 @@ function SettingsBar({ report }: { report: ReportContextValue }) {
       </span>
       <SegmentedControl
         size="sm"
+        aria-label={t('data.report.settings.pageSize')}
+        value={settings.pageSize}
+        onValueChange={(next) => !readOnly && writeSettings(doc, { pageSize: next })}
+        options={REPORT_PAGE_SIZES.map((size) => ({ value: size, label: size }))}
+      />
+      <SegmentedControl
+        size="sm"
         aria-label={t('data.report.settings.orientation')}
         value={settings.orientation}
         onValueChange={(next) => !readOnly && writeSettings(doc, { orientation: next })}
@@ -512,6 +558,16 @@ function SettingsBar({ report }: { report: ReportContextValue }) {
         checked={settings.titlePage}
         onCheckedChange={(next) => writeSettings(doc, { titlePage: next })}
         label={t('data.report.settings.titlePage')}
+      />
+      <Switch
+        checked={settings.toc}
+        onCheckedChange={(next) => writeSettings(doc, { toc: next })}
+        label={t('data.report.settings.toc')}
+      />
+      <Switch
+        checked={settings.numbering}
+        onCheckedChange={(next) => writeSettings(doc, { numbering: next })}
+        label={t('data.report.settings.numbering')}
       />
       <fieldset className="m-0 flex items-center gap-3 border-0 p-0">
         <legend className="sr-only">{t('data.report.settings.formats')}</legend>
@@ -752,6 +808,12 @@ function BlockBody({ cell, id, kind }: { cell: CellMap; id: string; kind: Report
       return <MetricsBlock cell={cell} />
     case 'map':
       return <MapBlock cell={cell} />
+    case 'image':
+      return <ImageBlock cell={cell} />
+    case 'file':
+      return <FileBlock cell={cell} />
+    case 'dashboard':
+      return <DashboardBlock cell={cell} />
     case 'page_break':
       return <PageBreakBlock />
   }

@@ -27,6 +27,8 @@ from docxtpl import DocxTemplate
 
 PAGE_WIDTH_MM = 210
 PAGE_HEIGHT_MM = 297
+# Размеры страниц, мм (ADR-0164): короткая и длинная сторона
+PAGE_MM = {"A4": (PAGE_WIDTH_MM, PAGE_HEIGHT_MM), "A3": (297, 420)}
 MARGIN_MM = 18
 MONO_FONT = "Courier New"
 
@@ -51,15 +53,16 @@ def _field(paragraph: Any, instruction: str) -> None:
     paragraph._p.append(field)
 
 
-@lru_cache(maxsize=2)
-def template_bytes(orientation: str) -> bytes:
-    """Шаблон docxtpl: A4 нужной ориентации, колонтитулы, заголовок и тело."""
+@lru_cache(maxsize=4)
+def template_bytes(orientation: str, size: str = "A4") -> bytes:
+    """Шаблон docxtpl: страница нужного размера и ориентации, колонтитулы, заголовок и тело."""
     doc = Document()
     section = doc.sections[0]
     landscape = orientation == "landscape"
+    short, long = PAGE_MM.get(size, PAGE_MM["A4"])
     section.orientation = WD_ORIENT.LANDSCAPE if landscape else WD_ORIENT.PORTRAIT
-    section.page_width = Mm(PAGE_HEIGHT_MM if landscape else PAGE_WIDTH_MM)
-    section.page_height = Mm(PAGE_WIDTH_MM if landscape else PAGE_HEIGHT_MM)
+    section.page_width = Mm(long if landscape else short)
+    section.page_height = Mm(short if landscape else long)
     for side in ("left_margin", "right_margin", "top_margin", "bottom_margin"):
         setattr(section, side, Mm(MARGIN_MM))
 
@@ -89,8 +92,9 @@ def template_bytes(orientation: str) -> bytes:
     return out.getvalue()
 
 
-def content_width_mm(orientation: str) -> float:
-    page = PAGE_HEIGHT_MM if orientation == "landscape" else PAGE_WIDTH_MM
+def content_width_mm(orientation: str, size: str = "A4") -> float:
+    short, long = PAGE_MM.get(size, PAGE_MM["A4"])
+    page = long if orientation == "landscape" else short
     return page - 2 * MARGIN_MM
 
 
@@ -233,7 +237,8 @@ def build_docx(
     """DOCX по модели страницы печати: картинки графиков и карт — из `images(id)`."""
     settings = model.get("settings") or {}
     orientation = "landscape" if settings.get("orientation") == "landscape" else "portrait"
-    tpl = DocxTemplate(io.BytesIO(template_bytes(orientation)))
+    size = settings.get("pageSize") if settings.get("pageSize") in PAGE_MM else "A4"
+    tpl = DocxTemplate(io.BytesIO(template_bytes(orientation, size)))
     tpl.render(
         {
             "title": str(model.get("title", "")),
@@ -247,7 +252,7 @@ def build_docx(
     )
     # Тело — в отрисованный документ после заголовка
     body = tpl.docx
-    width = content_width_mm(orientation)
+    width = content_width_mm(orientation, size)
 
     for block in model.get("blocks", []):
         if not isinstance(block, Mapping):

@@ -271,7 +271,15 @@ export const EVENT_PAYLOADS = {
 
   // ── reports (06-analytics-engine.md §12, ADR-0078) ─────────────────────────
   /** Снимок шаблона после совместной правки: блоки, параметры, настройки печати. */
-  'report.updated': z.object({ changed: z.array(z.enum(['blocks', 'params', 'settings'])) }),
+  'report.updated': z.object({
+    changed: z.array(z.enum(['blocks', 'params', 'settings', 'template'])),
+  }),
+  /** Версия шаблона отчёта: вручную, при формировании или перед откатом (ADR-0164). */
+  'report.version_saved': z.object({
+    versionId: Uuid,
+    number: z.number().int(),
+    reason: z.enum(['manual', 'run', 'restore']),
+  }),
   /** Запуск рендера поставлен: «Сформировать» или расписание (по запуску на получателя). */
   'report.run_queued': z.object({
     runId: Uuid,

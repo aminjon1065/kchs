@@ -107,15 +107,21 @@ export const ReportDelivery = {
     }
     const attachable = files.filter((file) => contents.get(file))
 
+    // Внешние адреса (ADR-0164): письмо с файлами им, без ссылки в систему и обращения к
+    // автору рассылки, под чьими правами построен отчёт
+    const external = (row.externalEmails ?? []) as string[]
     if (channels.includes('email')) {
-      if (!user.email) {
+      if (external.length === 0 && !user.email) {
         results.email = 'unavailable'
       } else {
         try {
           const sent = await sendMail({
-            to: user.email,
+            to: external.length > 0 ? external.join(', ') : (user.email as string),
             subject: t('data.report.delivery.subject', { title }),
-            html: `<p>${escapeHtml(user.displayName)},</p><p>${escapeHtml(caption)}</p><p><a href="${escapeHtml(url)}">${escapeHtml(url)}</a></p>`,
+            html:
+              external.length > 0
+                ? `<p>${escapeHtml(caption)}</p>`
+                : `<p>${escapeHtml(user.displayName)},</p><p>${escapeHtml(caption)}</p><p><a href="${escapeHtml(url)}">${escapeHtml(url)}</a></p>`,
             attachments: attachable.map((file) => ({
               filename: file.fileName,
               content: contents.get(file) as Buffer,

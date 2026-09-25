@@ -29,6 +29,9 @@ export const REPORT_BLOCK_KINDS = [
   'chart',
   'metrics',
   'map',
+  'image',
+  'file',
+  'dashboard',
   'page_break',
 ] as const
 export const ReportBlockKind = z.enum(REPORT_BLOCK_KINDS)
@@ -120,6 +123,38 @@ export const ReportMapBlock = z.object({
   legend: z.boolean().default(true),
 })
 
+/** Файлов в одном блоке «Файл»: список вложений, а не архив. */
+export const REPORT_MAX_FILES = 20
+
+/**
+ * Изображение из файлов платформы (ADR-0164): картинка на странице и в DOCX — снимком;
+ * подпись — `title`. Файл с грифом не печатается: вместо него — пометка.
+ */
+export const ReportImageBlock = z.object({
+  ...base,
+  kind: z.literal('image'),
+  fileId: Uuid.nullable().default(null),
+  size: ReportFigureSize.default('medium'),
+})
+
+/** Файлы: список названий со ссылками — приложения к отчёту. */
+export const ReportFileBlock = z.object({
+  ...base,
+  kind: z.literal('file'),
+  fileIds: z.array(Uuid).max(REPORT_MAX_FILES).default([]),
+})
+
+/**
+ * Дашборд: его графики и показатели с фильтрами по умолчанию и параметрами отчёта —
+ * сеткой на странице, в DOCX — снимком (ADR-0164).
+ */
+export const ReportDashboardBlock = z.object({
+  ...base,
+  kind: z.literal('dashboard'),
+  dashboardId: Uuid.nullable().default(null),
+  size: ReportFigureSize.default('large'),
+})
+
 export const ReportPageBreakBlock = z.object({ ...base, kind: z.literal('page_break') })
 
 export const ReportBlock = z.discriminatedUnion('kind', [
@@ -128,6 +163,9 @@ export const ReportBlock = z.discriminatedUnion('kind', [
   ReportChartBlock,
   ReportMetricsBlock,
   ReportMapBlock,
+  ReportImageBlock,
+  ReportFileBlock,
+  ReportDashboardBlock,
   ReportPageBreakBlock,
 ])
 export type ReportBlock = z.infer<typeof ReportBlock>
@@ -146,22 +184,38 @@ export const REPORT_CONTENT_TYPES: Record<ReportFormat, string> = {
   docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 }
 
-/** Печать: A4, ориентация, колонтитулы (пусто — название отчёта), титульный лист, форматы. */
+/** Размер страницы печати (ADR-0164). */
+export const REPORT_PAGE_SIZES = ['A4', 'A3'] as const
+export const ReportPageSize = z.enum(REPORT_PAGE_SIZES)
+export type ReportPageSize = z.infer<typeof ReportPageSize>
+
+/**
+ * Печать: размер страницы и ориентация, колонтитулы (пусто — название отчёта), титульный
+ * лист, оглавление и нумерация разделов (ADR-0164), форматы.
+ */
 export const ReportSettings = z.object({
+  pageSize: ReportPageSize.default('A4'),
   orientation: z.enum(['portrait', 'landscape']).default('portrait'),
   header: z.string().max(200).default(''),
   footer: z.string().max(200).default(''),
   titlePage: z.boolean().default(false),
+  /** Оглавление после заголовка: подписи блоков и заголовки текста. */
+  toc: z.boolean().default(false),
+  /** Нумерация разделов: «1.», «1.1.» у подписей блоков и заголовков текста. */
+  numbering: z.boolean().default(false),
   /** Форматы запуска по умолчанию («Сформировать»). */
   formats: z.array(ReportFormat).min(1).max(REPORT_FORMATS.length).default(['pdf']),
 })
 export type ReportSettings = z.infer<typeof ReportSettings>
 
 export const DEFAULT_REPORT_SETTINGS: ReportSettings = {
+  pageSize: 'A4',
   orientation: 'portrait',
   header: '',
   footer: '',
   titlePage: false,
+  toc: false,
+  numbering: false,
   formats: ['pdf'],
 }
 
@@ -175,6 +229,8 @@ export const ReportRecord = z.object({
   settings: ReportSettings,
   /** Есть включённое расписание рассылки. */
   scheduled: z.boolean(),
+  /** Отчёт — шаблон библиотеки: из него создают новые (ADR-0164). */
+  template: z.boolean(),
   version: z.number().int().nonnegative(),
   updatedAt: Timestamp,
 })
@@ -273,6 +329,9 @@ export function reportBlockReferences(blocks: readonly ReportBlock[]): string[] 
     if (block.kind === 'metrics') for (const id of block.metricIds) ids.add(id)
     if (block.kind === 'map' && block.source === 'map' && block.mapId) ids.add(block.mapId)
     if (block.kind === 'map' && block.source === 'layer' && block.layerId) ids.add(block.layerId)
+    if (block.kind === 'image' && block.fileId) ids.add(block.fileId)
+    if (block.kind === 'file') for (const id of block.fileIds) ids.add(id)
+    if (block.kind === 'dashboard' && block.dashboardId) ids.add(block.dashboardId)
   }
   return [...ids]
 }
@@ -320,6 +379,9 @@ export const REPORT_BLOCK_LAYOUT = {
     size: 'json',
     legend: 'json',
   },
+  image: { ...COMMON_LAYOUT, fileId: 'json', size: 'json' },
+  file: { ...COMMON_LAYOUT, fileIds: 'json' },
+  dashboard: { ...COMMON_LAYOUT, dashboardId: 'json', size: 'json' },
   page_break: { ...COMMON_LAYOUT },
 } as const satisfies Record<ReportBlockKind, Record<string, NotebookValueKind>>
 
@@ -390,6 +452,8 @@ export type ReportScheduleFrequency = z.infer<typeof ReportScheduleFrequency>
 
 /** Получателей одного расписания: каждый получает свой рендер под своими правами. */
 export const REPORT_MAX_RECIPIENTS = 100
+/** Групп, ролей и внешних адресов в одном расписании. */
+export const REPORT_MAX_RECIPIENT_GROUPS = 20
 
 export const ReportScheduleInput = z.object({
   enabled: z.boolean().default(true),
@@ -407,7 +471,15 @@ export const ReportScheduleInput = z.object({
   cron: z.string().trim().max(100).nullable().default(null),
   /** Часовой пояс IANA, например Asia/Dushanbe. */
   timezone: z.string().min(1).max(64),
-  recipients: z.array(Uuid).min(1).max(REPORT_MAX_RECIPIENTS),
+  /** Сотрудники; группы и роли разворачиваются в сотрудников на момент рассылки (ADR-0164). */
+  recipients: z.array(Uuid).max(REPORT_MAX_RECIPIENTS).default([]),
+  groups: z.array(Uuid).max(REPORT_MAX_RECIPIENT_GROUPS).default([]),
+  roles: z.array(z.string().trim().min(1).max(64)).max(REPORT_MAX_RECIPIENT_GROUPS).default([]),
+  /**
+   * Внешние адреса: письмо с отчётом, построенным под правами автора рассылки. Отчёт с
+   * грифом «Конфиденциально» и выше наружу не уходит (как исходящий письмом, ADR-0149).
+   */
+  emails: z.array(z.email().max(254)).max(REPORT_MAX_RECIPIENT_GROUPS).default([]),
   channels: z.array(ReportDeliveryChannel).min(1).max(REPORT_DELIVERY_CHANNELS.length),
   formats: z.array(ReportFormat).min(1).max(REPORT_FORMATS.length).default(['pdf']),
   /** Параметры рассылки; null — параметры отчёта. Период — обычно относительный. */
@@ -420,6 +492,10 @@ export const ReportSchedule = ReportScheduleInput.extend({
   pattern: z.string(),
   nextRunAt: Timestamp.nullable(),
   recipientRefs: z.array(UserRef),
+  /** Сколько сотрудников дают группы и роли сейчас (без повторов с явными получателями). */
+  expandedCount: z.number().int().nonnegative(),
+  /** Отчёт с грифом: внешним адресам рассылка не придёт. */
+  externalBlocked: z.boolean(),
   /** Получатели, которые сейчас не видят отчёт: им рассылка не придёт. */
   recipientsWithoutAccess: z.array(Uuid),
   updatedBy: UserRef.nullable(),
@@ -440,6 +516,59 @@ export function reportCronPattern(
   const days = [...new Set(schedule.weekdays.map((day) => day % 7))].sort((a, b) => a - b)
   return `${time} * * ${days.join(',')}`
 }
+
+// ─── Версии и библиотека шаблонов (ADR-0164) ────────────────────────────────
+
+export const REPORT_VERSION_REASONS = ['manual', 'run', 'restore'] as const
+export const ReportVersionReason = z.enum(REPORT_VERSION_REASONS)
+export type ReportVersionReason = z.infer<typeof ReportVersionReason>
+
+/** Версия шаблона отчёта: снимок блоков, параметров и настроек печати. */
+export const ReportVersion = z.object({
+  id: Uuid,
+  number: z.number().int().positive(),
+  reason: ReportVersionReason,
+  label: z.string().nullable(),
+  blocks: z.number().int().nonnegative(),
+  createdBy: UserRef.nullable(),
+  createdAt: Timestamp,
+})
+export type ReportVersion = z.infer<typeof ReportVersion>
+
+export const ReportVersionList = z.object({ items: z.array(ReportVersion) })
+export type ReportVersionList = z.infer<typeof ReportVersionList>
+
+export const ReportVersionInput = z.object({
+  label: z.string().trim().max(200).nullable().default(null),
+})
+export type ReportVersionInput = z.infer<typeof ReportVersionInput>
+
+/**
+ * Шаблон библиотеки: встроенный (`builtin:<ключ>`, подписи — словари интерфейса) или
+ * отчёт, отмеченный шаблоном. Новый отчёт копирует его блоки, параметры и печать.
+ */
+export const ReportTemplate = z.object({
+  id: z.string(),
+  source: z.enum(['builtin', 'report']),
+  /** Ключ встроенного шаблона: подписи `data.report.templates.builtin.<ключ>`. */
+  key: z.string().nullable(),
+  name: z.string(),
+  description: z.string().nullable(),
+  blocks: z.array(ReportBlock),
+  params: ReportParams,
+  settings: ReportSettings,
+})
+export type ReportTemplate = z.infer<typeof ReportTemplate>
+
+export const ReportTemplateList = z.object({ items: z.array(ReportTemplate) })
+export type ReportTemplateList = z.infer<typeof ReportTemplateList>
+
+export const ReportTemplateFlagInput = z.object({ template: z.boolean() })
+export type ReportTemplateFlagInput = z.infer<typeof ReportTemplateFlagInput>
+
+/** Картинка блока «Изображение» для печати и редактора: data URL, файл до 8 МБ. */
+export const ReportImage = z.object({ name: z.string(), dataUrl: z.string() })
+export type ReportImage = z.infer<typeof ReportImage>
 
 // ─── Печать (web ↔ движок) ──────────────────────────────────────────────────
 
@@ -478,7 +607,7 @@ export const ReportPrintBlock = z.discriminatedUnion('kind', [
     id: z.string(),
     kind: z.literal('figure'),
     title: z.string().nullable(),
-    figure: z.enum(['chart', 'map']),
+    figure: z.enum(['chart', 'map', 'image', 'dashboard']),
     note: z.string().nullable(),
   }),
   z.object({
@@ -539,6 +668,7 @@ export const ReportRenderStart = z.discriminatedUnion('status', [
     locale: Locale,
     timezone: z.string(),
     title: z.string(),
+    pageSize: ReportPageSize,
     orientation: z.enum(['portrait', 'landscape']),
     /** Колонтитулы PDF и DOCX: пустой верхний — название отчёта. */
     header: z.string(),

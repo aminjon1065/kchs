@@ -1,7 +1,9 @@
+import type { ReportImage } from '@kchs/contracts'
 import {
   type MapCamera,
   REPORT_FIGURE_HEIGHT,
   REPORT_FIGURE_SIZES,
+  REPORT_MAX_FILES,
   REPORT_MAX_METRICS,
   REPORT_MAX_TABLE_ROWS,
   type ReportFigureSize,
@@ -34,6 +36,7 @@ import { type CellMap, useCellValue, writeCell } from '~/features/notebooks/note
 import { ObjectPicker } from '~/features/notebooks/object-picker.js'
 import { QueryCell } from '~/features/notebooks/query-cell.js'
 import { ChartCell } from '~/features/notebooks/source-cells.js'
+import { http } from '~/shared/api/client.js'
 import { useReportMap } from './report-map.js'
 
 const NO_METRICS: string[] = []
@@ -329,6 +332,139 @@ export function PageBreakBlock() {
         {t('data.report.block.pageBreak')}
       </span>
       <hr className="m-0 flex-1 border-0 border-t border-dashed border-line-strong" />
+    </div>
+  )
+}
+
+const NO_FILES: string[] = []
+
+/**
+ * Изображение (ADR-0164): файл-картинка из файлов платформы, подпись — подпись блока. Файл с
+ * грифом в отчёт не печатается — сервер отказывает, в блоке видна причина.
+ */
+export function ImageBlock({ cell }: { cell: CellMap }) {
+  const t = useT()
+  const { notebookId, spaceId, readOnly } = useNotebook()
+  const fileId = useCellValue<string | null>(cell, 'fileId') ?? null
+  const size = useCellValue<ReportFigureSize>(cell, 'size') ?? 'medium'
+  const image = useQuery({
+    queryKey: ['report', notebookId, 'image', fileId],
+    queryFn: () => http.get<ReportImage>(`/reports/${notebookId}/images/${fileId}`),
+    enabled: Boolean(fileId),
+    staleTime: 300_000,
+    retry: false,
+  })
+  return (
+    <div className="flex flex-col gap-3">
+      {fileId && image.data ? (
+        <img
+          src={image.data.dataUrl}
+          alt={image.data.name}
+          className="mx-auto max-w-full object-contain"
+          style={{ maxHeight: REPORT_FIGURE_HEIGHT[size] }}
+        />
+      ) : fileId && image.error ? (
+        <Callout tone="warning">{(image.error as Error).message}</Callout>
+      ) : (
+        <p className="rounded-md border border-dashed border-line px-3 py-4 text-center text-xs text-fg-muted">
+          {t('data.report.block.pickImage')}
+        </p>
+      )}
+      <div className="flex flex-wrap items-center gap-2 border-t border-line pt-3">
+        <ObjectPicker
+          type="file"
+          value={fileId}
+          spaceId={spaceId}
+          disabled={readOnly}
+          label={t('data.report.block.image')}
+          placeholder={t('data.report.block.pickImage')}
+          onChange={(id) => writeCell(cell, { fileId: id })}
+        />
+        <SizeControl cell={cell} />
+      </div>
+    </div>
+  )
+}
+
+/** Файлы (ADR-0164): приложения к отчёту — названия со ссылками на странице и в DOCX. */
+export function FileBlock({ cell }: { cell: CellMap }) {
+  const t = useT()
+  const { notebookId, spaceId, readOnly } = useNotebook()
+  const fileIds = useCellValue<string[]>(cell, 'fileIds') ?? NO_FILES
+  const { data } = useQuery({
+    queryKey: ['report', notebookId, 'files', fileIds],
+    queryFn: () =>
+      http.get<{ items: Array<{ id: string; name: string }> }>(`/reports/${notebookId}/files`, {
+        query: { ids: fileIds.join(',') },
+      }),
+    enabled: fileIds.length > 0,
+  })
+  const names = new Map((data?.items ?? []).map((item) => [item.id, item.name]))
+  return (
+    <div className="flex flex-col gap-3">
+      {fileIds.length > 0 ? (
+        <ul className="flex flex-col gap-1" aria-label={t('data.report.kinds.file')}>
+          {fileIds.map((id) => (
+            <li key={id} className="flex items-center gap-2 text-sm">
+              <span className="truncate">{names.get(id) ?? t('data.report.block.fileHidden')}</span>
+              {readOnly ? null : (
+                <IconButton
+                  label={t('data.report.block.removeFile')}
+                  size="sm"
+                  onClick={() =>
+                    writeCell(cell, { fileIds: fileIds.filter((item) => item !== id) })
+                  }
+                >
+                  <X className="size-3" />
+                </IconButton>
+              )}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="rounded-md border border-dashed border-line px-3 py-4 text-center text-xs text-fg-muted">
+          {t('data.report.block.pickFiles')}
+        </p>
+      )}
+      {readOnly || fileIds.length >= REPORT_MAX_FILES ? null : (
+        <ObjectPicker
+          type="file"
+          value={null}
+          spaceId={spaceId}
+          label={t('data.report.block.addFile')}
+          placeholder={t('data.report.block.addFile')}
+          onChange={(id) => {
+            if (!fileIds.includes(id)) writeCell(cell, { fileIds: [...fileIds, id] })
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+/**
+ * Дашборд (ADR-0164): графики и показатели дашборда с параметрами отчёта — сеткой на
+ * странице печати; в редакторе — выбор дашборда и высота.
+ */
+export function DashboardBlock({ cell }: { cell: CellMap }) {
+  const t = useT()
+  const { spaceId, readOnly } = useNotebook()
+  const dashboardId = useCellValue<string | null>(cell, 'dashboardId') ?? null
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-xs text-fg-muted">{t('data.report.block.dashboardHint')}</p>
+      <div className="flex flex-wrap items-center gap-2">
+        <ObjectPicker
+          type="dashboard"
+          value={dashboardId}
+          spaceId={spaceId}
+          disabled={readOnly}
+          label={t('data.report.kinds.dashboard')}
+          placeholder={t('data.report.block.pickDashboard')}
+          onChange={(id) => writeCell(cell, { dashboardId: id })}
+        />
+        <SizeControl cell={cell} />
+      </div>
     </div>
   )
 }

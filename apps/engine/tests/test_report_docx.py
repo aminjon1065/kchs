@@ -202,6 +202,20 @@ def test_build_docx_landscape_and_missing_images() -> None:
     assert content_width_mm("landscape") > content_width_mm("portrait")
 
 
+def test_build_docx_a3_page_size() -> None:
+    # Размер страницы из настроек печати (ADR-0164): A3 книжная — 297 × 420 мм
+    model = {**MODEL, "settings": {**MODEL["settings"], "pageSize": "A3"}}
+    section = Document(io.BytesIO(build_docx(model, lambda _id: None, LABELS))).sections[0]
+    assert round(section.page_width.mm) == 297
+    assert round(section.page_height.mm) == 420
+    assert content_width_mm("portrait", "A3") > content_width_mm("portrait")
+    assert content_width_px("portrait", "A3") > content_width_px("portrait")
+    # Неизвестный размер — A4
+    fallback = {**MODEL, "settings": {**MODEL["settings"], "pageSize": "Letter"}}
+    section = Document(io.BytesIO(build_docx(fallback, lambda _id: None, LABELS))).sections[0]
+    assert round(section.page_width.mm) == 210
+
+
 def test_rich_text_ignores_foreign_nodes() -> None:
     doc = Document()
     add_rich_text(doc, {"type": "doc", "content": [{"type": "mystery", "content": []}, "x"]})

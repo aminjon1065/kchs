@@ -10,6 +10,7 @@ import {
   type ReportScheduleInput,
 } from '@kchs/contracts'
 import { formatDateTime } from '@kchs/fields'
+import { localizedText } from '@kchs/i18n'
 import {
   AlertDialog,
   Avatar,
@@ -29,6 +30,7 @@ import {
   SelectValue,
   Skeleton,
   Switch,
+  Textarea,
   useToast,
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -36,9 +38,11 @@ import { Send, X } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
+import { groupsQuery } from '~/features/admin/groups-section.js'
 import { PERIOD_PRESETS, type PeriodPreset, periodValue } from '~/features/data/dashboard-layout.js'
 import { UserPicker } from '~/features/tasks/user-picker.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { rolesQuery } from '~/shared/api/queries.js'
 import { reportKeys, reportScheduleQuery } from './queries.js'
 
 const AS_REPORT = '__report'
@@ -64,6 +68,9 @@ function draftOf(schedule: ReportSchedule | null, timezone: string): Draft {
       cron: null,
       timezone,
       recipients: [],
+      groups: [],
+      roles: [],
+      emails: [],
       channels: ['inbox'],
       formats: ['pdf'],
       params: null,
@@ -79,6 +86,9 @@ function draftOf(schedule: ReportSchedule | null, timezone: string): Draft {
     cron: schedule.cron,
     timezone: schedule.timezone,
     recipients: schedule.recipients.map((id) => ({ id, name: names.get(id) ?? id })),
+    groups: schedule.groups,
+    roles: schedule.roles,
+    emails: schedule.emails,
     channels: schedule.channels,
     formats: schedule.formats,
     params: schedule.params,
@@ -185,7 +195,8 @@ export function ReportScheduleDialog({
   const disabled = !canManage
   const valid =
     draft !== null &&
-    draft.recipients.length > 0 &&
+    draft.recipients.length + draft.groups.length + draft.roles.length + draft.emails.length > 0 &&
+    draft.emails.every((email) => EMAIL.test(email)) &&
     draft.channels.length > 0 &&
     draft.formats.length > 0 &&
     (draft.frequency !== 'cron' || Boolean(draft.cron?.trim()))
@@ -417,6 +428,14 @@ export function ReportScheduleDialog({
               </div>
             </Field>
 
+            <RecipientGroups
+              draft={draft}
+              disabled={disabled}
+              onChange={update}
+              expanded={schedule?.expandedCount ?? 0}
+              externalBlocked={schedule?.externalBlocked ?? false}
+            />
+
             <div className="flex flex-wrap gap-8">
               <Field label={t('data.report.schedule.channels')}>
                 <div className="flex flex-col gap-2">
@@ -478,5 +497,146 @@ export function ReportScheduleDialog({
         />
       </DialogContent>
     </Dialog>
+  )
+}
+
+/** Простая проверка адреса: полную проверку делает сервер. */
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+/**
+ * Группы, роли и внешние адреса рассылки (ADR-0164): группы и роли разворачиваются в
+ * сотрудников на момент рассылки, внешним адресам уходит письмо с отчётом под правами
+ * автора рассылки — кроме отчёта с грифом «Конфиденциально».
+ */
+function RecipientGroups({
+  draft,
+  disabled,
+  onChange,
+  expanded,
+  externalBlocked,
+}: {
+  draft: Draft
+  disabled: boolean
+  onChange: (patch: Partial<Draft>) => void
+  expanded: number
+  externalBlocked: boolean
+}) {
+  const t = useT()
+  const locale = useAppearance((s) => s.locale)
+  const { data: groups = [] } = useQuery(groupsQuery())
+  const { data: roles = [] } = useQuery(rolesQuery())
+  const [emails, setEmails] = useState(draft.emails.join('\n'))
+  const groupName = (id: string) => groups.find((group) => group.id === id)?.name ?? id
+  const roleName = (key: string) => {
+    const role = roles.find((item) => item.key === key)
+    return role ? localizedText(role.name, locale) : key
+  }
+  const chips = (items: string[], label: (value: string) => string, key: 'groups' | 'roles') =>
+    items.length > 0 ? (
+      <ul className="flex flex-wrap gap-2">
+        {items.map((item) => (
+          <li
+            key={item}
+            className="flex items-center gap-1 rounded-sm border border-line bg-surface-2 py-0.5 pr-0.5 pl-2 text-xs"
+          >
+            {label(item)}
+            {disabled ? null : (
+              <IconButton
+                size="sm"
+                label={t('data.report.schedule.removeRecipient')}
+                onClick={() => onChange({ [key]: items.filter((value) => value !== item) })}
+              >
+                <X className="size-3" />
+              </IconButton>
+            )}
+          </li>
+        ))}
+      </ul>
+    ) : null
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label={t('data.report.schedule.groups')}>
+          <div className="flex flex-col gap-2">
+            {chips(draft.groups, groupName, 'groups')}
+            {disabled ? null : (
+              <Select
+                value=""
+                onValueChange={(id) =>
+                  !draft.groups.includes(id) && onChange({ groups: [...draft.groups, id] })
+                }
+              >
+                <SelectTrigger aria-label={t('data.report.schedule.addGroup')}>
+                  <SelectValue placeholder={t('data.report.schedule.addGroup')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {groups.map((group) => (
+                    <SelectItem key={group.id} value={group.id}>
+                      {group.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+        </Field>
+        <Field label={t('data.report.schedule.roles')}>
+          <div className="flex flex-col gap-2">
+            {chips(draft.roles, roleName, 'roles')}
+            {disabled ? null : (
+              <Select
+                value=""
+                onValueChange={(key) =>
+                  !draft.roles.includes(key) && onChange({ roles: [...draft.roles, key] })
+                }
+              >
+                <SelectTrigger aria-label={t('data.report.schedule.addRole')}>
+                  <SelectValue placeholder={t('data.report.schedule.addRole')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {roles.map((role) => (
+                    <SelectItem key={role.key} value={role.key}>
+                      {localizedText(role.name, locale)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+        </Field>
+      </div>
+      {expanded > 0 ? (
+        <p className="text-2xs text-fg-muted">
+          {t('data.report.schedule.expanded', { count: expanded })}
+        </p>
+      ) : null}
+      <Field label={t('data.report.schedule.emails')} hint={t('data.report.schedule.emailsHint')}>
+        <Textarea
+          rows={2}
+          value={emails}
+          disabled={disabled}
+          aria-label={t('data.report.schedule.emails')}
+          onChange={(event) => setEmails(event.target.value)}
+          onBlur={() =>
+            onChange({
+              emails: [
+                ...new Set(
+                  emails
+                    .split(/[\s,;]+/)
+                    .map((item) => item.trim().toLowerCase())
+                    .filter(Boolean),
+                ),
+              ],
+            })
+          }
+        />
+      </Field>
+      {draft.emails.some((email) => !EMAIL.test(email)) ? (
+        <Callout tone="danger">{t('data.report.schedule.emailsInvalid')}</Callout>
+      ) : null}
+      {externalBlocked ? (
+        <Callout tone="warning">{t('data.report.schedule.emailsBlocked')}</Callout>
+      ) : null}
+    </div>
   )
 }

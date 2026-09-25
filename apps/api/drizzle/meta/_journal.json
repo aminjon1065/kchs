@@ -463,6 +463,13 @@
       "when": 1790340702212,
       "tag": "20260925125142_rule-report-versions",
       "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "7",
+      "when": 1790340757536,
+      "tag": "20260925125237_report-external-recipients",
+      "breakpoints": true
     }
   ]
 }

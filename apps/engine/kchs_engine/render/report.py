@@ -34,6 +34,8 @@ if TYPE_CHECKING:
 # Поля PDF, мм: колонтитулы — в верхнем и нижнем поле
 MARGIN_MM = {"top": 16, "bottom": 16, "left": 14, "right": 14}
 A4_MM = (210, 297)
+# Размеры страниц отчёта, мм (ADR-0164): короткая и длинная сторона
+PAGE_MM = {"A4": A4_MM, "A3": (297, 420)}
 PX_PER_MM = 96 / 25.4
 # WebGL карт без GPU — SwiftShader (MapLibre GL 6 требует WebGL 2)
 CHROMIUM_ARGS = [
@@ -103,9 +105,15 @@ async def close_browser() -> None:
 # ─── Печать ───────────────────────────────────────────────────────────────────
 
 
-def content_width_px(orientation: str) -> int:
+def page_size(value: Any) -> str:
+    """Размер страницы из плана: неизвестное значение — A4."""
+    return value if value in PAGE_MM else "A4"
+
+
+def content_width_px(orientation: str, size: str = "A4") -> int:
     """Ширина окна = ширина поля печати: графики и карты не растягиваются при печати."""
-    page = A4_MM[1] if orientation == "landscape" else A4_MM[0]
+    short, long = PAGE_MM[page_size(size)]
+    page = long if orientation == "landscape" else short
     return round((page - MARGIN_MM["left"] - MARGIN_MM["right"]) * PX_PER_MM)
 
 
@@ -159,13 +167,14 @@ async def render_report(plan: dict[str, Any], workdir: Path) -> RenderOutput:
     contract = report_render_contract()["print"]
     web_url = settings().KCHS_WEB_URL.rstrip("/")
     orientation = "landscape" if plan.get("orientation") == "landscape" else "portrait"
+    size = page_size(plan.get("pageSize"))
     formats = [item["format"] for item in plan["files"]]
     timings: dict[str, int] = {}
 
     async with render_slots():
         browser = await shared_browser()
         context = await browser.new_context(
-            viewport={"width": content_width_px(orientation), "height": 1100},
+            viewport={"width": content_width_px(orientation, size), "height": 1100},
             device_scale_factor=2,
             locale=str(plan.get("locale") or "ru"),
             timezone_id=str(plan.get("timezone") or "Asia/Dushanbe"),
@@ -212,7 +221,7 @@ async def render_report(plan: dict[str, Any], workdir: Path) -> RenderOutput:
                 mark = time.monotonic()
                 labels = plan.get("labels") or {}
                 pdf = await page.pdf(
-                    format="A4",
+                    format=size,
                     landscape=orientation == "landscape",
                     print_background=True,
                     display_header_footer=True,

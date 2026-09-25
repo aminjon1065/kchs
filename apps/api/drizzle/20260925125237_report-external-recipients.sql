@@ -1,0 +1,1 @@
+ALTER TABLE "report_runs" ADD COLUMN "external_emails" text[] DEFAULT '{}'::text[] NOT NULL;

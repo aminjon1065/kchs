@@ -33,6 +33,7 @@ import { ReportService } from './domain/report-service.js'
 import { REPORT_RENDER_JOB, ReportRuns } from './domain/run-service.js'
 import { REPORT_SCHEDULE_JOB, ReportSchedules } from './domain/schedule-service.js'
 import { ReportToDocument } from './domain/to-document.js'
+import { registerReportLibraryRoutes } from './library-routes.js'
 
 const IdParam = z.object({ id: z.uuid() })
 const RunParam = z.object({ runId: z.uuid() })
@@ -97,6 +98,8 @@ export function registerReportsObjectTypes(): void {
 }
 
 export function registerReportsRoutes(route: RouteRegistrar): void {
+  registerReportLibraryRoutes(route)
+
   route({
     method: 'POST',
     url: '/reports',

@@ -1051,6 +1051,8 @@ export function registerDataRoutes(route: RouteRegistrar): void {
     auth: { action: 'view' },
     tags: ['data'],
     summary: 'Данные плиток дашборда одним запросом, с фильтрами дашборда',
+    // Чтение: доступно и странице печати отчёта с токеном печати (блок «Дашборд», ADR-0164)
+    readOnly: true,
     schema: { params: IdParam, body: DashboardDataInput, response: { 200: DashboardData } },
     handler: async (request) => DashboardService.data(request.ctx, request.params.id, request.body),
   })

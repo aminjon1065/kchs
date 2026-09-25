@@ -158,6 +158,7 @@ export const ReportService = {
       params: paramsOf(row.report.params),
       settings: settingsOf(row.report.settings),
       scheduled: schedule?.enabled === true,
+      template: (row.object.meta as { template?: unknown } | null)?.template === true,
       version: row.object.version,
       updatedAt: row.object.updatedAt,
     }
