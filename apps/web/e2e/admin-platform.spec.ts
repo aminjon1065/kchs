@@ -58,6 +58,8 @@ test.describe('Администрирование: возможности, бр�
     const name = `Комитет ${run}`
     const csrf = (await (await request.get('/api/v1/me')).json()).session.csrfToken as string
     const headers = { 'x-csrf-token': csrf }
+    // Демо-стенд держит брендирование Комитета — после сценария оно возвращается
+    const before = await (await request.get('/api/v1/branding')).json()
 
     await openWorkspace(page, request)
     try {
@@ -80,7 +82,13 @@ test.describe('Администрирование: возможности, бр�
     } finally {
       await request.patch('/api/v1/admin/branding', {
         headers,
-        data: { name: '', shortName: '', accent: 'blue', logo: null, loginNote: '' },
+        data: {
+          name: before.name ?? '',
+          shortName: before.shortName ?? '',
+          accent: before.accent ?? 'blue',
+          logo: before.logo ?? null,
+          loginNote: before.loginNote ?? '',
+        },
       })
     }
   })

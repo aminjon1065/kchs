@@ -3,6 +3,7 @@ import { grantAccess } from '~/kernel/access/acl-service.js'
 import { bumpPrincipalsVersion } from '~/kernel/access/principal-set.js'
 import { DiscussionService } from '~/kernel/discussions/service.js'
 import { reindexAll } from '~/kernel/search/index-service.js'
+import { BrandingService } from '~/kernel/settings/branding.js'
 import { SpaceService } from '~/kernel/spaces/service.js'
 import { type DemoDocumentPeople, DocumentsSeed } from '~/modules/documents/public.js'
 import { FileService } from '~/modules/files/domain/file-service.js'
@@ -109,6 +110,7 @@ export async function runSeed(
     await seedDocuments(ctx, options.profile === 'demo')
     // Канцелярия и демо-документы (ADR-0086) — тоже: они появились позже демо-мира
     if (options.profile === 'demo') await seedOffice(await seedAdminCtx(options.adminLogin))
+    if (options.profile === 'demo') await seedBranding(await seedAdminCtx(options.adminLogin))
     // Разделы базы знаний (ADR-0095) и руководство (P5-E07) появились позже
     await seedKnowledge(await seedAdminCtx(options.adminLogin))
     log.warn('демо-данные уже загружены — seed пропущен (используйте db:reset)')
@@ -381,6 +383,7 @@ export async function runSeed(
 
   await seedDocuments(adminCtx, true)
   await seedOffice(adminCtx)
+  await seedBranding(adminCtx)
   await seedKnowledge(adminCtx)
   await bumpPrincipalsVersion()
 
@@ -397,6 +400,24 @@ export async function runSeed(
 
   log.info({ users: Number(count), units: unitIds.size, spaces: spaceIds.size }, 'seed завершён')
   return { users: Number(count), units: unitIds.size, spaces: spaceIds.size }
+}
+
+/**
+ * Демо-мир — это Комитет (Q13): название организации в брендировании — подзаголовок
+ * экрана входа под «Портал КЧС» и шапки печатных форм. Только если его ещё никто не
+ * задал: правку администратора сид не перетирает. Рабочей установке название задаёт
+ * администратор в консоли.
+ */
+async function seedBranding(ctx: SystemCtx): Promise<void> {
+  const current = await BrandingService.current()
+  if (current.name) return
+  await db().transaction((tx) =>
+    BrandingService.update(tx, ctx, {
+      name: 'Комитет по чрезвычайным ситуациям и гражданской обороне при Правительстве Республики Таджикистан',
+      shortName: 'КЧС и ГО',
+    }),
+  )
+  BrandingService.invalidate()
 }
 
 /**
