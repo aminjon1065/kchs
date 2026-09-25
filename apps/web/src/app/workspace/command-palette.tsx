@@ -13,6 +13,7 @@ import {
   Bell,
   CalendarDays,
   CalendarPlus,
+  CircleHelp,
   ClipboardCheck,
   Home,
   Inbox,
@@ -31,6 +32,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { canOpenAdmin } from '~/features/admin/sections.js'
 import { useCalendarUi } from '~/features/calendar/calendar-store.js'
 import { useQuickEvent } from '~/features/calendar/quick-create.js'
+import { useOpenHelp } from '~/features/knowledge/help.js'
 import {
   meQuery,
   recentQuery,
@@ -62,6 +64,7 @@ export function CommandPalette({
   const density = useAppearance((s) => s.density)
 
   const { data: me } = useQuery(meQuery())
+  const openHelp = useOpenHelp()
   const { data: recent = [] } = useQuery(recentQuery())
   const { data: spaces = [] } = useQuery(spacesQuery())
   const { data: results, isFetching } = useQuery(searchQuery({ q: query, limit: 8 }))
@@ -205,6 +208,16 @@ export function CommandPalette({
         run: () => goScreen('admin', t('admin.title'), 'role'),
       },
       {
+        id: 'help',
+        label: t('shell.rail.help'),
+        icon: <CircleHelp />,
+        hidden: !openHelp,
+        run: () => {
+          openHelp?.()
+          close()
+        },
+      },
+      {
         id: 'theme-light',
         label: `${t('common.labels.theme')}: ${t('common.theme.light')}`,
         icon: <Sun />,
@@ -258,6 +271,7 @@ export function CommandPalette({
     workspaces,
     openWorkspace,
     openDraft,
+    openHelp,
   ])
 
   const spaceMatches = useMemo(() => {

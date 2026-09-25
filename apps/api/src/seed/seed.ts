@@ -440,6 +440,9 @@ async function seedKnowledge(ctx: SystemCtx): Promise<void> {
   log.info({ created }, 'разделы базы знаний заведены')
   const guide = await KnowledgeSeed.ensureUserGuide(ctx, org.id)
   log.info(guide, 'руководство пользователя в базе знаний заведено')
+  // Корни руководства — страницы пункта «Справка», если администратор их ещё не выбрал
+  const help = await db().transaction((tx) => KnowledgeSeed.ensureHelp(tx, ctx, guide.roots))
+  if (help > 0) log.info({ languages: help }, 'справка ведёт на руководство')
 }
 
 /**

@@ -5,6 +5,7 @@ import { useRef, useState } from 'react'
 import { useT } from '~/app/i18n.js'
 import { brandingQuery } from '~/shared/api/branding.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { HelpCard } from './help-card.js'
 
 /** Типы, которые принимает настройка логотипа (контракт `Branding`). */
 const LOGO_TYPES = 'image/png,image/jpeg,image/webp,image/svg+xml'
@@ -165,6 +166,8 @@ export function BrandingSection() {
           </Button>
         ) : null}
       </div>
+
+      <HelpCard />
     </div>
   )
 }

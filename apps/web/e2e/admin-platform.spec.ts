@@ -311,3 +311,50 @@ test.describe('Администрирование: вход по способн�
     await request.patch(`/api/v1/users/${userId}`, { headers, data: { status: 'blocked' } })
   })
 })
+
+/**
+ * Справка (N88): администратор выбирает страницу базы знаний в «Брендировании», и пункт
+ * «Справка» на рейке открывает её вкладкой. Прежний выбор возвращается после сценария.
+ */
+test.describe('Администрирование: справка', () => {
+  test('страница справки выбирается в консоли и открывается с рейки', async ({ page, request }) => {
+    test.setTimeout(120_000)
+    const run = Date.now().toString(36)
+    const me = await (await request.get('/api/v1/me')).json()
+    const headers = { 'x-csrf-token': me.session.csrfToken as string }
+    const before = await (await request.get('/api/v1/knowledge/help/pages')).json()
+    const spaces = (await (await request.get('/api/v1/spaces')).json()).items as Array<{
+      id: string
+      key: string | null
+    }>
+    const org = spaces.find((space) => space.key === 'org')
+    expect(org).toBeTruthy()
+    const title = `Справка приёмки ${run}`
+    const created = await request.post('/api/v1/pages', {
+      headers,
+      data: { title, spaceId: org?.id, template: 'blank' },
+    })
+    expect(created.ok(), await created.text()).toBeTruthy()
+
+    try {
+      await openWorkspace(page, request)
+      await openScreen(page, 'Администрирование')
+      await page.getByRole('tab', { name: 'Брендирование' }).click()
+      const card = page.getByRole('group', { name: 'Справка' })
+      await card.getByRole('combobox', { name: 'Страница справки: Русский' }).click()
+      await page.getByRole('option', { name: title }).click()
+      await card.getByRole('button', { name: 'Сохранить' }).click()
+      await expect(page.getByText('Справка сохранена')).toBeVisible({ timeout: 20_000 })
+
+      await page.reload()
+      await page.getByRole('button', { name: 'Справка', exact: true }).click()
+      // Страница открывается вкладкой рабочей области с её названием
+      await expect(page.getByRole('tab', { name: new RegExp(title) })).toBeVisible({
+        timeout: 20_000,
+      })
+    } finally {
+      // Стенд общий: прежний выбор справки возвращается и при падении сценария
+      await request.put('/api/v1/knowledge/help/pages', { headers, data: before })
+    }
+  })
+})

@@ -235,6 +235,8 @@ export const AUDIT_ACTIONS = {
   positionDeleted: 'position.deleted',
   /** Основное назначение сотрудника: подразделение определяет доступ к данным (N86). */
   employmentChanged: 'user.employment_changed',
+  /** Страницы пункта «Справка» (N88). */
+  helpPagesChanged: 'help.pages_changed',
   // Публичный API, вебхуки, интеграции (ADR-0097)
   apiTokenCreated: 'api_token.created',
   apiTokenRevoked: 'api_token.revoked',

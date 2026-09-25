@@ -8,9 +8,19 @@ import {
   ObjectIcon,
 } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
-import { Bell, Folder, Home, Inbox, MessageSquare, MoreHorizontal, Search } from 'lucide-react'
+import {
+  Bell,
+  CircleHelp,
+  Folder,
+  Home,
+  Inbox,
+  MessageSquare,
+  MoreHorizontal,
+  Search,
+} from 'lucide-react'
 import { canOpenAdmin } from '~/features/admin/sections.js'
 import { chatListQuery } from '~/features/chat/queries.js'
+import { useOpenHelp } from '~/features/knowledge/help.js'
 import { inboxCountsQuery, meQuery } from '~/shared/api/queries.js'
 import { useT } from '../i18n.js'
 import { useWorkspace } from './store.js'
@@ -27,6 +37,7 @@ export function MobileNav({ onOpenPalette }: { onOpenPalette: () => void }) {
   const setNavigatorModule = useWorkspace((s) => s.setNavigatorModule)
   const { data: counts } = useQuery(inboxCountsQuery())
   const { data: me } = useQuery(meQuery())
+  const openHelp = useOpenHelp()
   const { data: chats } = useQuery(chatListQuery('all'))
 
   const go = (screen: ScreenKey, labelKey: string, icon: string): void => {
@@ -126,6 +137,11 @@ export function MobileNav({ onOpenPalette }: { onOpenPalette: () => void }) {
           >
             {me?.user.displayName ?? t('shell.rail.profile')}
           </DropdownMenuItem>
+          {openHelp ? (
+            <DropdownMenuItem icon={<CircleHelp className="size-4" />} onSelect={openHelp}>
+              {t('shell.rail.help')}
+            </DropdownMenuItem>
+          ) : null}
           {canOpenAdmin(me?.capabilities) ? (
             <DropdownMenuItem
               icon={<ObjectIcon type="role" className="size-4" />}

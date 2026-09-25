@@ -742,6 +742,7 @@ export const en: DeepPartial<Dictionary> = {
       notifications: 'Notifications',
       assistant: 'Assistant',
       admin: 'Administration',
+      help: 'Help',
       profile: 'Profile',
       forms: 'Data forms',
       alerts: 'Alerts',
@@ -6642,6 +6643,13 @@ export const en: DeepPartial<Dictionary> = {
       hint: 'Regular work runs on a schedule — see “Schedules”. Here is what runs on demand.',
       reindex: 'Reindex search',
       reindexStarted: 'Reindexing queued as a job',
+    },
+    help: {
+      title: 'Help',
+      hint: 'The Help item on the rail and in the command palette opens a knowledge base page — one per interface language. Without a page in the employee’s language the Russian one opens; without either, there is no Help item.',
+      pageFor: 'Help page: {language}',
+      none: 'Not selected',
+      saved: 'Help saved',
     },
     branding: {
       title: 'Branding',

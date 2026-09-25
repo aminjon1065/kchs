@@ -6,6 +6,7 @@ import {
   Bot,
   CalendarDays,
   CheckSquare,
+  CircleHelp,
   Database,
   FileText,
   Folder,
@@ -21,6 +22,7 @@ import {
 } from 'lucide-react'
 import { canOpenAdmin } from '~/features/admin/sections.js'
 import { chatListQuery } from '~/features/chat/queries.js'
+import { useOpenHelp } from '~/features/knowledge/help.js'
 import { useBranding } from '~/shared/api/branding.js'
 import { inboxCountsQuery, meQuery, notificationsQuery } from '~/shared/api/queries.js'
 import { useT } from '../i18n.js'
@@ -67,6 +69,7 @@ export function Rail({ onOpenPalette }: { onOpenPalette: () => void }) {
 
   // Консоль — по любой способности её разделов (N85), не только администратору системы
   const isAdmin = canOpenAdmin(me?.capabilities)
+  const openHelp = useOpenHelp()
 
   const open = (item: RailItem): void => {
     setNavigatorModule(item.key)
@@ -162,6 +165,14 @@ export function Rail({ onOpenPalette }: { onOpenPalette: () => void }) {
             onClick={() => open({ key: 'admin', icon: Shield, labelKey: 'shell.rail.admin' })}
           />
         ) : null}
+        {openHelp ? (
+          <RailButton
+            item={{ icon: CircleHelp }}
+            label={t('shell.rail.help')}
+            active={false}
+            onClick={openHelp}
+          />
+        ) : null}
         <RailButton
           item={{ key: 'profile', icon: Settings, labelKey: 'common.actions.settings' }}
           label={t('common.actions.settings')}
@@ -194,7 +205,8 @@ function RailButton({
   disabled,
   onClick,
 }: {
-  item: RailItem
+  /** Пункт рейки; у кнопок не-экранов («Справка») — только значок. */
+  item: Pick<RailItem, 'icon' | 'shortcut' | 'soon'> & Partial<Pick<RailItem, 'key' | 'labelKey'>>
   label: string
   active: boolean
   badge?: number

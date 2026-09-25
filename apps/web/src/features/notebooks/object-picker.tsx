@@ -19,7 +19,7 @@ export function ObjectPicker({
   spaceId,
   disabled,
 }: {
-  type: 'dataset' | 'chart' | 'metric' | 'map' | 'layer' | 'file' | 'project'
+  type: 'dataset' | 'chart' | 'metric' | 'map' | 'layer' | 'file' | 'project' | 'page'
   value: string | null
   onChange: (id: string) => void
   label: string

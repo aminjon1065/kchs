@@ -6,8 +6,10 @@
  *    (эмбеддинги, pgvector): без него база знаний ищет только словами;
  *  - `KnowledgeSeed.ensureDefaultSections` — разделы по умолчанию (`db:seed`);
  *  - `KnowledgeSeed.ensureUserGuide` — краткое руководство пользователя
- *    страницами базы знаний (`db:seed`, P5-E07).
+ *    страницами базы знаний (`db:seed`, P5-E07);
+ *  - `KnowledgeSeed.ensureHelp` — его корни становятся страницами «Справки» (N88).
  */
+import { HelpService } from './domain/help-service.js'
 import { ensureDefaultSections, ensureUserGuide } from './domain/page-seed.js'
 import { type SemanticSource, setSemanticSource } from './domain/semantic-port.js'
 
@@ -25,4 +27,8 @@ export const KnowledgeSemantics = {
 }
 
 /** @public — разделы базы знаний и краткое руководство для `db:seed` */
-export const KnowledgeSeed = { ensureDefaultSections, ensureUserGuide }
+export const KnowledgeSeed = {
+  ensureDefaultSections,
+  ensureUserGuide,
+  ensureHelp: HelpService.ensureDefaults,
+}

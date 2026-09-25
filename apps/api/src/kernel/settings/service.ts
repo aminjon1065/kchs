@@ -126,6 +126,8 @@ export const SETTING_KEYS = {
   brandLogo: 'brand.logo',
   brandAccent: 'brand.accent',
   brandLoginNote: 'brand.loginNote',
+  /** Страницы базы знаний для пункта «Справка» по языкам (N88). */
+  helpPages: 'help.pages',
   securityAllowShareLinks: 'security.allowShareLinks',
   securityRequireMfaRoles: 'security.requireMfaRoles',
   securityRuleEmailDomains: 'security.ruleEmailDomains',

@@ -1,4 +1,7 @@
 import {
+  HelpLink,
+  HelpPages,
+  HelpPagesPatch,
   PageAcknowledgeInput,
   PageBlocksInput,
   PageCreateInput,
@@ -19,6 +22,7 @@ import { z } from 'zod'
 import { authorize } from '~/kernel/access/authorize.js'
 import { db } from '~/shared/db/client.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
+import { HelpService } from '../domain/help-service.js'
 import { PageSearch } from '../domain/page-search.js'
 import { PageService } from '../domain/page-service.js'
 import { PageVersions } from '../domain/page-version-service.js'
@@ -33,6 +37,37 @@ const VersionParams = z.object({ id: z.uuid(), versionId: z.uuid() })
  * пространства и поиск по чанкам.
  */
 export function registerKnowledgeRoutes(route: RouteRegistrar): void {
+  route({
+    method: 'GET',
+    url: '/knowledge/help',
+    auth: 'session',
+    tags: ['knowledge'],
+    summary: 'Что открывает пункт «Справка» у сотрудника (N88)',
+    schema: { response: { 200: HelpLink } },
+    handler: async (request) => ({ page: await HelpService.forUser(request.ctx) }),
+  })
+
+  route({
+    method: 'GET',
+    url: '/knowledge/help/pages',
+    auth: { capability: 'admin.system' },
+    tags: ['knowledge'],
+    summary: 'Страницы справки по языкам',
+    schema: { response: { 200: HelpPages } },
+    handler: async () => HelpService.pages(),
+  })
+
+  route({
+    method: 'PUT',
+    url: '/knowledge/help/pages',
+    auth: { capability: 'admin.system' },
+    tags: ['knowledge'],
+    summary: 'Выбрать страницы справки по языкам',
+    schema: { body: HelpPagesPatch, response: { 200: HelpPages } },
+    handler: async (request) =>
+      db().transaction((tx) => HelpService.update(tx, request.ctx, request.body)),
+  })
+
   route({
     method: 'POST',
     url: '/pages',
