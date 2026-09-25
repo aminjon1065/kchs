@@ -61,6 +61,7 @@ pnpm test                                # unit
 pnpm test:integration                    # интеграционные (база kchs_test)
 bash apps/api/scripts/test-slot.sh N && KCHS_TEST_SLOT=N pnpm --filter @kchs/api test:integration  # своя база kchs_test_N (N = 1…14)
 pnpm e2e                                 # Playwright (нужны api и web)
+pnpm --filter @kchs/web build && pnpm --filter @kchs/web budget  # бюджет оболочки ≤ 400 КБ gzip (ADR-0166)
 bash infra/scripts/smoke-api.sh          # дымовой прогон API на демо-данных
 bash infra/perf/run-k6.sh                # бюджеты p95 API (k6 в Docker) на демо-данных
 helm lint infra/helm/kchs -f infra/helm/kchs/ci/external-values.yaml  # чарт S2 (ADR-0118)
