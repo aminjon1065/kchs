@@ -246,8 +246,12 @@ export const PACK_DATASETS: readonly PackDataset[] = [
         'category',
       ),
     ],
-    // Строку из суточной сводки номер не спрашивает: ключ остаётся, пустые ключи не конфликтуют
-    patches: [{ key: 'code', patch: { required: false } }],
+    // Строку из суточной сводки номер не спрашивает: ключ остаётся, пустые ключи не конфликтуют.
+    // Геометрию сводка спрашивает точкой (ADR-0157) — столбец формы называется по-человечески
+    patches: [
+      { key: 'code', patch: { required: false } },
+      { key: 'geometry', patch: { label: { ru: 'Место', en: 'Location' } } },
+    ],
     lookups: [
       { field: 'type_code', dataset: 'incident_types', keyField: 'code', labelField: 'name' },
     ],
@@ -548,6 +552,14 @@ async function create(pack: PackContext, spec: PackDataset): Promise<string> {
   })
 }
 
+/** JSON с ключами по алфавиту: сравнение значений без оглядки на порядок ключей. */
+const stable = (value: unknown): string =>
+  JSON.stringify(value, (_key, item: unknown) =>
+    item && typeof item === 'object' && !Array.isArray(item)
+      ? Object.fromEntries(Object.entries(item).sort(([a], [b]) => a.localeCompare(b)))
+      : item,
+  )
+
 /**
  * Досводка существующего датасета до схемы пакета: поля пакета, правки полей,
  * справочники и события строк — только то, чего ещё нет.
@@ -570,7 +582,12 @@ async function align(
     for (const { key, patch } of spec.patches ?? []) {
       const current = byKey.get(key)
       if (!current) continue
-      if (patch.required !== undefined && current.required === patch.required) continue
+      // Правка уже применена — каждое её свойство совпадает с полем (порядок ключей jsonb — свой)
+      const applied = Object.entries(patch).every(
+        ([name, value]) =>
+          stable((current as unknown as Record<string, unknown>)[name]) === stable(value),
+      )
+      if (applied) continue
       await SchemaService.updateField(tx, pack.ctx, id, key, patch)
       changes.push(`~${key}`)
     }

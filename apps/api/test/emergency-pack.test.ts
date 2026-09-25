@@ -128,10 +128,20 @@ describe('пакет ЧС: чистая установка', () => {
 
   it('повторный запуск ничего не дублирует', async () => {
     const before = await packObjects()
+    // Досводка схемы (поля пакета, правки подписей) второй раз ничего не меняет
+    const schemaVersion = async () =>
+      (
+        await db()
+          .select({ version: datasets.schemaVersion })
+          .from(datasets)
+          .where(eq(datasets.id, before.get('emergency.dataset.incidents') as string))
+      )[0]?.version
+    const versionBefore = await schemaVersion()
     const again = await seedCommand({ profile: 'minimal', reset: false, pack: 'emergency' })
     expect(again.pack).toMatchObject({ datasets: 11, dashboards: 5, pages: 0 })
     const after = await packObjects()
     expect(after).toEqual(before)
+    expect(await schemaVersion()).toBe(versionBefore)
     const [counted] = await db()
       .select({ total: sql<number>`count(*)::int` })
       .from(rules)
