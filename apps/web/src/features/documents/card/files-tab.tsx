@@ -1,8 +1,9 @@
-import type { DocumentFileRef, DocumentVersionRecord } from '@kchs/contracts'
+import type { DocumentFileRef, DocumentVersionRecord, OfficeEditing } from '@kchs/contracts'
 import { formatDateTime, formatFileSize } from '@kchs/fields'
 import {
   Badge,
   Button,
+  Callout,
   cn,
   Field,
   FileDropzone,
@@ -20,8 +21,10 @@ import { useId, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import {
+  editorNames,
   officeEditable,
   useOfficeConfigured,
+  useOfficeEditing,
   useOpenOfficeEditor,
 } from '~/features/files/office.js'
 import { uploadFile } from '~/features/files/upload.js'
@@ -33,6 +36,35 @@ import { documentVersionsQuery } from '../queries.js'
 import { ScanViewer } from '../scan-viewer.js'
 import { errorText } from '../status.js'
 import { useDocument } from './document-context.js'
+
+/** Файлы версии, которые открывает редактор: основной и приложения. */
+function editableFiles(version: DocumentVersionRecord | null | undefined): DocumentFileRef[] {
+  if (!version) return []
+  return [version.mainFile, ...version.attachments].filter(
+    (file): file is DocumentFileRef => file !== null && officeEditable(file),
+  )
+}
+
+/**
+ * «Файл правят» в шапке карточки (N70): файл текущей версии открыт в редакторе —
+ * видно с любой вкладки, кто именно, — в подсказке.
+ */
+export function OfficeEditingBadge() {
+  const t = useT()
+  const { document } = useDocument()
+  const files = editableFiles(document.currentVersion)
+  const editing = useOfficeEditing(files.map((file) => file.id))
+  const first = files.map((file) => editing.get(file.id)).find(Boolean)
+  if (!first) return null
+  return (
+    <Tooltip content={t('files.office.editingNow', { names: editorNames(first) })}>
+      <Badge size="sm" tone="warning">
+        <PenLine className="size-2.5" aria-hidden />
+        {t('files.office.editingFile')}
+      </Badge>
+    </Tooltip>
+  )
+}
 
 /**
  * Вкладка «Файлы и версии» (03-screens.md §12): PDF-представление выбранной
@@ -123,6 +155,7 @@ function VersionItem({
   // ложится новой версией самого файла (ADR-0112)
   const openOffice = useOpenOfficeEditor()
   const officeReady = useOfficeConfigured()
+  const editing = useOfficeEditing(editableFiles(version).map((file) => file.id))
   return (
     <div
       className={cn(
@@ -168,6 +201,17 @@ function VersionItem({
                 {index === 0 ? t('documents.versions.main') : t('documents.versions.attachment')}:{' '}
                 {file.name}
               </span>
+              {editing.get(file.id) ? (
+                <Tooltip
+                  content={t('files.office.editingNow', {
+                    names: editorNames(editing.get(file.id) as OfficeEditing),
+                  })}
+                >
+                  <Badge size="sm" tone="warning">
+                    {t('files.office.editing')}
+                  </Badge>
+                </Tooltip>
+              ) : null}
               <span className="shrink-0 tabular text-fg-muted">{formatFileSize(file.size)}</span>
               {officeReady && officeEditable(file) ? (
                 <Tooltip content={t('files.office.open')}>
@@ -207,6 +251,12 @@ function NewVersion({ onDone }: { onDone: () => void }) {
   const toast = useToast()
   const noteId = useId()
   const { document } = useDocument()
+  // Пока файл правят в редакторе, новую версию загрузить можно, но об этом стоит знать (N70)
+  const currentFiles = editableFiles(document.currentVersion)
+  const editing = useOfficeEditing(currentFiles.map((file) => file.id))
+  const busy = currentFiles
+    .map((file) => ({ file, editing: editing.get(file.id) }))
+    .find((item) => item.editing !== undefined)
   const [main, setMain] = useState<File | null>(null)
   const [attachments, setAttachments] = useState<File[]>([])
   const [note, setNote] = useState('')
@@ -251,6 +301,14 @@ function NewVersion({ onDone }: { onDone: () => void }) {
       <h3 className="text-xs font-semibold uppercase tracking-wide text-fg-muted">
         {t('documents.versions.new')}
       </h3>
+      {busy?.editing ? (
+        <Callout tone="warning">
+          {t('files.office.editingUpload', {
+            name: busy.file.name,
+            names: editorNames(busy.editing),
+          })}
+        </Callout>
+      ) : null}
       <FileDropzone
         compact
         multiple={false}

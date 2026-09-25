@@ -157,6 +157,11 @@ export const officeSessions = pgTable(
     savedVersionId: uuid('saved_version_id'),
     /** Сохранение пришло на версию, которая уже не текущая (ADR-0112). */
     conflict: boolean('conflict').notNull().default(false),
+    /**
+     * Кто сейчас в редакторе — список сервера документов из колбэка «документ правят»
+     * (идентификаторы сотрудников). Карточки показывают «файл сейчас правят» (N70).
+     */
+    editors: jsonb('editors').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
     error: text('error'),
     lastCallbackAt: tsCol('last_callback_at'),
     expiresAt: tsCol('expires_at').notNull(),

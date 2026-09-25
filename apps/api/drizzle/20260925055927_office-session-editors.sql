@@ -1,0 +1,1 @@
+ALTER TABLE "office_sessions" ADD COLUMN "editors" jsonb DEFAULT '[]'::jsonb NOT NULL;

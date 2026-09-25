@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { UserRef } from '../auth/session.js'
 import { Timestamp, Uuid } from '../common/primitives.js'
 
 /**
@@ -74,3 +75,15 @@ export type OfficeSession = z.infer<typeof OfficeSession>
 export const OFFICE_UNAVAILABLE = 'office_unavailable'
 /** Файл с грифом во внешний редактор не отдаётся (ADR-0085). */
 export const OFFICE_CONFIDENTIAL = 'office_confidential'
+
+/**
+ * Файл сейчас правят в редакторе (вопрос N70): кто в нём по последнему сообщению
+ * сервера документов и с какого момента. Загрузить новую версию можно и сейчас —
+ * правка из редактора ляжет следующей версией с отметкой о конфликте (ADR-0112).
+ */
+export const OfficeEditing = z.object({
+  fileId: Uuid,
+  editors: z.array(UserRef),
+  since: Timestamp,
+})
+export type OfficeEditing = z.infer<typeof OfficeEditing>

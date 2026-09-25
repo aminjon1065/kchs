@@ -2362,6 +2362,11 @@ export const en: DeepPartial<Dictionary> = {
       unavailable: 'Editor unavailable',
       failed: 'The editor did not open',
       failedHint: 'Download the file and upload a new version the usual way',
+      editing: 'Being edited',
+      editingFile: 'File being edited',
+      editingNow: 'Being edited now: {names}',
+      editingUpload:
+        '“{name}” is being edited now ({names}). You can still upload a new version: their changes will not be lost and will be saved as the next version, noting which version they were made on.',
       pageFailed: 'The editor did not open. Close the tab and try again.',
     },
     fields: { format: 'Format' },

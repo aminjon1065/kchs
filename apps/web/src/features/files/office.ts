@@ -1,4 +1,4 @@
-import type { FileRecord, OfficeSession, OfficeStatus } from '@kchs/contracts'
+import type { FileRecord, OfficeEditing, OfficeSession, OfficeStatus } from '@kchs/contracts'
 import { officeFormat } from '@kchs/contracts'
 import { queryOptions, useQuery } from '@tanstack/react-query'
 import { useWorkspace } from '~/app/workspace/store.js'
@@ -13,6 +13,7 @@ import { http } from '~/shared/api/client.js'
 
 export const officeKeys = {
   status: ['files', 'office', 'status'] as const,
+  editing: (ids: readonly string[]) => ['files', 'office', 'editing', ...ids] as const,
 }
 
 export function officeStatusQuery() {
@@ -62,4 +63,28 @@ export function useOpenOfficeEditor(): (file: { id: string; name: string }) => v
       mode: 'permanent',
     })
   }
+}
+
+/**
+ * Кто сейчас правит файлы в редакторе (N70): карточки показывают «файл правят», а
+ * форма новой версии предупреждает. Состояние меняется, пока карточка открыта, —
+ * опрос раз в полминуты; без настроенного редактора запроса нет.
+ */
+export function useOfficeEditing(ids: readonly string[]): Map<string, OfficeEditing> {
+  const configured = useOfficeConfigured()
+  const sorted = [...new Set(ids)].sort()
+  const { data } = useQuery({
+    queryKey: officeKeys.editing(sorted),
+    queryFn: async () =>
+      (await http.get<{ items: OfficeEditing[] }>(`/files/office/editing?ids=${sorted.join(',')}`))
+        .items,
+    enabled: configured && sorted.length > 0,
+    refetchInterval: 30_000,
+  })
+  return new Map((data ?? []).map((item) => [item.fileId, item]))
+}
+
+/** Имена тех, кто в редакторе, — для подсказок и предупреждений. */
+export function editorNames(editing: OfficeEditing): string {
+  return editing.editors.map((user) => user.displayName).join(', ')
 }

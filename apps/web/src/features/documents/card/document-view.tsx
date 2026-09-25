@@ -38,7 +38,7 @@ import {
   type DocumentSection,
   useDocument,
 } from './document-context.js'
-import { FilesTab } from './files-tab.js'
+import { FilesTab, OfficeEditingBadge } from './files-tab.js'
 import { HistoryTab } from './history-tab.js'
 import { LinksTab } from './links-tab.js'
 import { DocumentOfficeActions } from './office-actions.js'
@@ -210,6 +210,7 @@ function DocumentHeader() {
                 {t(`access.confidentialityShort.${document.confidentiality}`)}
               </Badge>
             ) : null}
+            <OfficeEditingBadge />
           </>
         }
         right={

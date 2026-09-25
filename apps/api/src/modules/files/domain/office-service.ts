@@ -3,13 +3,15 @@ import type { Readable } from 'node:stream'
 import {
   OFFICE_CONFIDENTIAL,
   OFFICE_UNAVAILABLE,
+  type OfficeEditing,
   type OfficeSession,
   type OfficeStatus,
 } from '@kchs/contracts'
-import { and, eq, sql } from 'drizzle-orm'
+import { and, eq, inArray, sql } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
 import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
 import { buckets, getObjectStream, putObject, storageKey } from '~/kernel/storage/s3.js'
+import { UserService } from '~/modules/identity/public.js'
 import { type Ctx, systemCtx, type UserCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import type { OfficeSessionRow } from '~/shared/db/schema/index.js'
@@ -223,16 +225,22 @@ export const OfficeService = {
     const url = typeof signed.url === 'string' ? signed.url : null
 
     if (status === 1) {
-      await touch(sessionId, { status: 'open' })
+      // Кто-то вошёл в документ или вышел: `users` — все, кто в нём сейчас
+      await touch(sessionId, { status: 'open', editors: editorIds(signed.users) })
       return { error: 0 }
     }
     if (status === 4) {
-      await touch(sessionId, { status: 'closed' })
+      await touch(sessionId, { status: 'closed', editors: [] })
       return { error: 0 }
     }
     if (status === 3 || status === 7) {
       const message = typeof signed.error === 'string' ? signed.error : 'Ошибка сервера документов'
-      await touch(sessionId, { status: 'failed', error: message })
+      // 3 приходит, когда все вышли; 7 — сбой принудительного сохранения, правка идёт
+      await touch(sessionId, {
+        status: 'failed',
+        error: message,
+        ...(status === 3 ? { editors: [] } : {}),
+      })
       logger().warn({ sessionId, error: message }, 'редактор не сохранил документ')
       return { error: 0 }
     }
@@ -240,6 +248,8 @@ export const OfficeService = {
       await touch(sessionId, {})
       return { error: 0 }
     }
+    // 2 — все вышли, правка готова; 6 — принудительное сохранение, в документе ещё работают
+    if (status === 2) await touch(sessionId, { editors: [] })
     if (!url) {
       await touch(sessionId, { status: 'failed', error: 'Сервер документов не прислал файл' })
       return { error: 0 }
@@ -257,7 +267,7 @@ export const OfficeService = {
   async closeStale(): Promise<number> {
     const rows = await db()
       .update(officeSessions)
-      .set({ status: 'closed', updatedAt: sql`now()` })
+      .set({ status: 'closed', editors: [], updatedAt: sql`now()` })
       .where(
         and(
           sql`${officeSessions.status} in ('open', 'saving')`,
@@ -267,17 +277,64 @@ export const OfficeService = {
       .returning({ id: officeSessions.id })
     return rows.length
   },
+
+  /**
+   * Какие из файлов сейчас правят в редакторе (N70): живые сессии, в которых по
+   * последнему сообщению сервера документов кто-то есть. Файлы, которые спрашивающему
+   * не видны, в ответ не попадают.
+   */
+  async editing(ctx: UserCtx, fileIds: string[]): Promise<OfficeEditing[]> {
+    if (fileIds.length === 0) return []
+    const rows = await db()
+      .select({
+        fileId: officeSessions.fileId,
+        editors: officeSessions.editors,
+        since: officeSessions.createdAt,
+      })
+      .from(officeSessions)
+      .where(
+        and(
+          inArray(officeSessions.fileId, fileIds),
+          sql`${officeSessions.status} in ('open', 'saving')`,
+          sql`${officeSessions.expiresAt} > now()`,
+          sql`jsonb_array_length(${officeSessions.editors}) > 0`,
+        ),
+      )
+    const visible: typeof rows = []
+    for (const row of rows) {
+      if ((await authorize(ctx, 'view', row.fileId, { soft: true })).allowed) visible.push(row)
+    }
+    const refs = await UserService.refs([...new Set(visible.flatMap((row) => row.editors))])
+    return visible.map((row) => ({
+      fileId: row.fileId,
+      editors: row.editors.flatMap((id) => {
+        const ref = refs.get(id)
+        return ref ? [ref] : []
+      }),
+      since: row.since,
+    }))
+  },
+}
+
+/** Список сервера документов — идентификаторы из конфигурации редактора (сотрудники). */
+function editorIds(users: unknown): string[] {
+  if (!Array.isArray(users)) return []
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  return [
+    ...new Set(users.filter((id): id is string => typeof id === 'string' && uuid.test(id))),
+  ].slice(0, 100)
 }
 
 async function touch(
   sessionId: string,
-  patch: { status?: string; error?: string | null },
+  patch: { status?: string; error?: string | null; editors?: string[] },
 ): Promise<void> {
   await db()
     .update(officeSessions)
     .set({
       ...(patch.status ? { status: patch.status } : {}),
       ...(patch.error !== undefined ? { error: patch.error } : {}),
+      ...(patch.editors ? { editors: patch.editors } : {}),
       lastCallbackAt: sql`now()`,
       updatedAt: sql`now()`,
     })

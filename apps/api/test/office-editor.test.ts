@@ -9,6 +9,7 @@ import {
   registerLifecycle,
   setupFixture,
   type TestContext,
+  type TestUser,
   uploadFile,
 } from './helpers.js'
 
@@ -180,6 +181,42 @@ describe('офисный редактор', () => {
       payload: { status: 2, url: `${process.env.ONLYOFFICE_URL}/cache/out.docx` },
     })
     expect(response.statusCode).toBe(401)
+  })
+
+  it('«файл сейчас правят»: список сервера документов виден карточкам, постороннему — нет', async () => {
+    const callback = async (body: Record<string, unknown>) => {
+      const ticket = officeTicket(sessionId, 'callback', SECRET, 60_000)
+      const response = await call(fx.app, {
+        method: 'POST',
+        url: `/internal/office/${sessionId}/callback?t=${ticket}`,
+        payload: body,
+        headers: { authorization: `Bearer ${signJwt(body, SECRET, 60)}` },
+      })
+      expect(response.json()).toEqual({ error: 0 })
+    }
+    const editing = async (as: TestUser) => {
+      const response = await call(fx.app, { url: `/files/office/editing?ids=${fileId}`, as })
+      expect(response.statusCode, response.body).toBe(200)
+      return response.json().items as Array<{ fileId: string; editors: Array<{ id: string }> }>
+    }
+
+    expect(await editing(fx.admin)).toEqual([])
+    // Сотрудник вошёл в документ: сервер документов шлёт всех, кто в нём сейчас
+    await callback({
+      key: 'k',
+      status: 1,
+      users: [fx.admin.id, 'не-идентификатор'],
+      actions: [{ type: 1, userid: fx.admin.id }],
+    })
+    const now = await editing(fx.admin)
+    expect(now.map((item) => item.fileId)).toEqual([fileId])
+    expect(now[0]?.editors.map((user) => user.id)).toEqual([fx.admin.id])
+    expect(await editing(fx.users.viewer)).toHaveLength(1)
+    expect(await editing(fx.users.stranger)).toEqual([])
+
+    // Вышел — файл больше не правят
+    await callback({ key: 'k', status: 1, users: [], actions: [{ type: 0, userid: fx.admin.id }] })
+    expect(await editing(fx.admin)).toEqual([])
   })
 
   it('сохранение из редактора становится новой версией файла', async () => {

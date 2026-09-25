@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { OfficeSession, OfficeStatus } from '@kchs/contracts'
+import { OfficeEditing, OfficeSession, OfficeStatus } from '@kchs/contracts'
 import { createTranslator } from '@kchs/i18n'
 import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
@@ -21,8 +21,8 @@ const Ticket = z.object({ t: z.string().min(8).max(200) })
 /**
  * Совместное редактирование офисных файлов (09-files.md §7, ADR-0112).
  *
- * Маршрутов четыре: два для рабочей области (доступен ли редактор и открыть
- * сессию) и два служебных — по ним сервер документов забирает содержимое и
+ * Маршрутов пять: три для рабочей области (доступен ли редактор, кто сейчас правит
+ * файлы и открыть сессию) и два служебных — по ним сервер документов забирает содержимое и
  * возвращает правку. Служебные лежат в `/internal`, куда прокси снаружи не
  * пускает, и проверяются подписью, а не сессией.
  */
@@ -35,6 +35,27 @@ export function registerOfficeRoutes(route: RouteRegistrar): void {
     summary: 'Доступен ли офисный редактор в этой установке',
     schema: { response: { 200: OfficeStatus } },
     handler: async () => OfficeService.status(),
+  })
+
+  route({
+    method: 'GET',
+    url: '/files/office/editing',
+    auth: 'session',
+    tags: ['files'],
+    summary: 'Какие из файлов сейчас правят в редакторе и кто (N70)',
+    schema: {
+      querystring: z.object({
+        ids: z
+          .string()
+          .max(4000)
+          .transform((value) => value.split(',').filter(Boolean))
+          .pipe(z.array(z.uuid()).max(100)),
+      }),
+      response: { 200: z.object({ items: z.array(OfficeEditing) }) },
+    },
+    handler: async (request) => ({
+      items: await OfficeService.editing(request.ctx, request.query.ids),
+    }),
   })
 
   route({

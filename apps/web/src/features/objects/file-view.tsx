@@ -3,6 +3,7 @@ import {
   AlertDialog,
   Badge,
   Button,
+  Callout,
   Card,
   EmptyState,
   IconButton,
@@ -25,7 +26,12 @@ import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
 import { ShareDialog } from '~/features/access/share-dialog.js'
 import { FilePreview } from '~/features/files/file-preview.js'
-import { useOfficeAvailable, useOpenOfficeEditor } from '~/features/files/office.js'
+import {
+  editorNames,
+  useOfficeAvailable,
+  useOfficeEditing,
+  useOpenOfficeEditor,
+} from '~/features/files/office.js'
 import { uploadFile } from '~/features/files/upload.js'
 import { useFileDownload } from '~/features/files/use-file-download.js'
 import { http } from '~/shared/api/client.js'
@@ -52,6 +58,8 @@ export function FileView({ objectId, tabId }: { objectId: string; tabId: string 
   // редактору — правка; режим определяет сервер по правам на файл
   const officeAvailable = useOfficeAvailable(file?.name)
   const openOffice = useOpenOfficeEditor()
+  // Файл сейчас правят в редакторе (N70): видно до того, как загрузить свою версию
+  const editing = useOfficeEditing(officeAvailable ? [objectId] : []).get(objectId)
 
   const rename = useMutation({
     mutationFn: (title: string) => http.patch(`/objects/${objectId}`, { title }),
@@ -183,6 +191,11 @@ export function FileView({ objectId, tabId }: { objectId: string; tabId: string 
 
         <TabsContent value="overview" className="min-h-0 flex-1 overflow-y-auto bg-canvas p-5">
           <div className="mx-auto flex max-w-[760px] flex-col gap-4">
+            {editing ? (
+              <Callout tone="info">
+                {t('files.office.editingNow', { names: editorNames(editing) })}
+              </Callout>
+            ) : null}
             <Card>
               <FilePreview fileId={objectId} />
             </Card>
