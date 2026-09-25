@@ -40,6 +40,7 @@ export const TASK_COLUMNS = {
   returnComment: tasks.returnComment,
   source: tasks.source,
   labels: tasks.labels,
+  checklist: tasks.checklist,
   territoryId: tasks.territoryId,
   title: objects.title,
   spaceId: objects.spaceId,

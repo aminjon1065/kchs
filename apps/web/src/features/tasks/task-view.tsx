@@ -49,6 +49,7 @@ import { ApiError, http } from '~/shared/api/client.js'
 import { meQuery, objectQuery } from '~/shared/api/queries.js'
 import { taskKeys, taskQuery } from './queries.js'
 import { errorText, postTaskStep, type TaskStep, useTaskInvalidation } from './task-actions.js'
+import { ChecklistSection, SubtasksSection } from './task-checklist.js'
 import {
   EditTaskDialog,
   ExtensionDecisionDialog,
@@ -343,6 +344,8 @@ export function TaskView({ objectId, tabId }: { objectId: string; tabId: string 
                 </p>
               </section>
             ) : null}
+            <ChecklistSection task={task} />
+            <SubtasksSection task={task} />
             <PartsSection task={task} />
             <DueHistorySection task={task} ctx={ctx} />
           </div>
@@ -593,7 +596,7 @@ function details(
     const parent = task.parent
     items.push({
       key: 'parent',
-      label: t('tasks.fields.parent'),
+      label: t(task.kind === 'subtask' ? 'tasks.fields.parentTask' : 'tasks.fields.parent'),
       value: (
         <Button variant="link" size="sm" onClick={() => actions.openTask(parent.id, parent.title)}>
           {parent.key} · {parent.title}

@@ -99,6 +99,9 @@ export function permissionsFor(facts: TaskFacts, actor: TaskActor, level: Level)
       requestExtension: false,
       decideExtension: false,
       reassign: false,
+      checklist: canEdit && !isClosed(facts.status),
+      // Подзадачи — только у обычной задачи: у подзадачи своих нет
+      subtasks: canEdit && !isClosed(facts.status) && facts.kind === 'task',
       transitions: canEdit ? workflow.filter((status) => status !== facts.status) : [],
     }
   }
@@ -122,6 +125,9 @@ export function permissionsFor(facts: TaskFacts, actor: TaskActor, level: Level)
     decideExtension:
       Boolean(facts.pendingExtension) && open && decider !== null && ids.has(decider),
     reassign: reviewer && canEdit && open,
+    // Шаги исполнения ведёт сам исполнитель, автор и контролёр видят и правят их
+    checklist: (author || assignee || roles.has('controller')) && !isClosed(status),
+    subtasks: false,
     transitions: [],
   }
   const byAction: Array<[InstructionAction, boolean]> = [

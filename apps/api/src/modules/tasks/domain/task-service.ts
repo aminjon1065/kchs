@@ -9,6 +9,7 @@ import {
   type TaskListItem,
   type TaskListQuery,
   type TaskPart,
+  type TaskProgress,
   type TaskReassignInput,
   type TaskRecord,
   type TaskReportDraft,
@@ -43,6 +44,7 @@ import {
   refreshViewers,
   syncParticipants,
 } from './task-access.js'
+import { checklistProgress, TaskChecklist, TaskSubtasks } from './task-checklist.js'
 import {
   actorOf,
   assertPeople,
@@ -94,6 +96,7 @@ function listItemOf(
   level: Level,
   actor: TaskActor,
   pendingExtension = false,
+  subtaskProgress: TaskProgress | null = null,
 ): TaskListItem {
   const status = row.status as TaskStatus
   return {
@@ -117,6 +120,8 @@ function listItemOf(
     territoryId: row.territoryId,
     overdue: isOverdue(status, row.dueAt, new Date(), row.reportedAt),
     parentId: row.parentId,
+    checklistProgress: checklistProgress(row.checklist),
+    subtaskProgress,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     version: row.version,
@@ -272,20 +277,40 @@ export const TaskService = {
     const decision = await authorize(ctx, 'view', id)
     const row = await loadRow(db(), id)
     if (!row) throw errors.notFound('Задача')
-    const [people, projectMap, pending, dueHistory, extension, parts, parent, resultObjects] =
-      await Promise.all([
-        peopleOf([row]),
-        projectInfo(db(), row.projectId ? [row.projectId] : []),
-        hasPendingExtension(db(), id),
-        dueHistoryOf(id),
-        TaskExtensions.latest(id),
-        partsOf(ctx, row),
-        parentOf(row),
-        resultObjectsOf(ctx, row),
-      ])
+    const [
+      people,
+      projectMap,
+      pending,
+      dueHistory,
+      extension,
+      parts,
+      parent,
+      resultObjects,
+      checklist,
+      subtasks,
+    ] = await Promise.all([
+      peopleOf([row]),
+      projectInfo(db(), row.projectId ? [row.projectId] : []),
+      hasPendingExtension(db(), id),
+      dueHistoryOf(id),
+      TaskExtensions.latest(id),
+      partsOf(ctx, row),
+      parentOf(row),
+      resultObjectsOf(ctx, row),
+      TaskChecklist.itemsOf(row),
+      TaskSubtasks.of(ctx, row),
+    ])
     const project = row.projectId ? projectMap.get(row.projectId) : null
+    const subtaskProgress = subtasks.length
+      ? {
+          done: subtasks.filter((child) => isClosed(child.status)).length,
+          total: subtasks.length,
+        }
+      : null
     return {
-      ...listItemOf(row, people, project, decision.level, actorOf(ctx), pending),
+      ...listItemOf(row, people, project, decision.level, actorOf(ctx), pending, subtaskProgress),
+      checklist,
+      subtasks,
       description: row.description,
       coAssignees: row.coAssignees.flatMap((userId) => {
         const ref = people.get(userId)
@@ -817,12 +842,13 @@ function mineSql(me: string): SQL {
 /** Строки списка с правами смотрящего (оценка для кнопок) и ожидающими продлениями. */
 export async function listItems(ctx: Ctx, rows: TaskRow[]): Promise<TaskListItem[]> {
   if (rows.length === 0) return []
-  const [people, projectMap, pending] = await Promise.all([
+  const [people, projectMap, pending, subtasks] = await Promise.all([
     peopleOf(rows),
     projectInfo(db(), [
       ...new Set(rows.map((row) => row.projectId).filter((id): id is string => Boolean(id))),
     ]),
     pendingExtensions(rows.map((row) => row.id)),
+    TaskSubtasks.progress(rows.filter((row) => row.kind === 'task').map((row) => row.id)),
   ])
   const actor = actorOf(ctx)
   return rows.map((row) =>
@@ -833,6 +859,7 @@ export async function listItems(ctx: Ctx, rows: TaskRow[]): Promise<TaskListItem
       ctx.kind === 'user' ? approximateLevel(ctx, row) : 'owner',
       actor,
       pending.has(row.id),
+      subtasks.get(row.id) ?? null,
     ),
   )
 }

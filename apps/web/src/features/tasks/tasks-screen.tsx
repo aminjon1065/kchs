@@ -46,6 +46,7 @@ import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
 import { projectsQuery, taskKeys, taskSummaryQuery, tasksQuery } from './queries.js'
 import { errorText, postTaskStep, type TaskStep, useTaskInvalidation } from './task-actions.js'
+import { ProgressMark } from './task-checklist.js'
 import {
   CreateProjectDialog,
   CreateTaskDialog,
@@ -196,7 +197,14 @@ export function TasksScreen({
               {t('tasks.kinds.instruction')}
             </Badge>
           ) : null}
+          {item.kind === 'subtask' ? (
+            <Badge tone="neutral" size="sm">
+              {t('tasks.kinds.subtask')}
+            </Badge>
+          ) : null}
           <span className="truncate">{item.title}</span>
+          <ProgressMark progress={item.checklistProgress} kind="checklist" />
+          <ProgressMark progress={item.subtaskProgress} kind="subtasks" />
           {item.extensions > 0 ? (
             <Badge tone="warning" size="sm">
               {t('tasks.extended')}
@@ -458,6 +466,8 @@ export function TasksScreen({
                 <div className="line-clamp-3 text-sm text-fg">{item.title}</div>
                 <div className="flex flex-wrap items-center gap-2 text-xs">
                   {status(item)}
+                  <ProgressMark progress={item.checklistProgress} kind="checklist" />
+                  <ProgressMark progress={item.subtaskProgress} kind="subtasks" />
                   {item.assignee ? (
                     <Avatar
                       name={item.assignee.displayName}

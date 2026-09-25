@@ -136,6 +136,10 @@ export const TaskPermissions = z.object({
   decideExtension: z.boolean(),
   /** Переназначить исполнителя (автор или контролёр поручения). */
   reassign: z.boolean(),
+  /** Вести чек-лист: у поручения — исполнитель, автор, контролёр; у задачи — кто правит. */
+  checklist: z.boolean(),
+  /** Добавлять подзадачи (только у обычной задачи, ADR-0155). */
+  subtasks: z.boolean(),
   /** Статусы, в которые можно перевести задачу одним действием (доска). */
   transitions: z.array(TaskStatus),
 })
@@ -235,6 +239,33 @@ export const TaskPart = z.object({
 })
 export type TaskPart = z.infer<typeof TaskPart>
 
+/** Пункт чек-листа: шаг исполнения с отметкой (ADR-0155). */
+export const TaskChecklistItem = z.object({
+  id: z.string(),
+  text: z.string(),
+  done: z.boolean(),
+  doneAt: Timestamp.nullable(),
+  doneBy: UserRef.nullable(),
+})
+export type TaskChecklistItem = z.infer<typeof TaskChecklistItem>
+
+/** Прогресс: сделано из скольких — пункты чек-листа или подзадачи. */
+export const TaskProgress = z.object({ done: z.number().int(), total: z.number().int() })
+export type TaskProgress = z.infer<typeof TaskProgress>
+
+/** Подзадача обычной задачи — дочерняя задача со своим исполнителем и сроком (ADR-0155). */
+export const TaskSubtask = z.object({
+  id: Uuid,
+  key: z.string(),
+  title: z.string(),
+  status: TaskStatus,
+  assignee: UserRef.nullable(),
+  dueAt: Timestamp.nullable(),
+  overdue: z.boolean(),
+  completedAt: Timestamp.nullable(),
+})
+export type TaskSubtask = z.infer<typeof TaskSubtask>
+
 /** Основное поручение для части соисполнителя. */
 export const TaskParentRef = z.object({ id: Uuid, key: z.string(), title: z.string() })
 export type TaskParentRef = z.infer<typeof TaskParentRef>
@@ -281,6 +312,14 @@ export const TaskRecord = z.object({
   parent: TaskParentRef.nullable(),
   /** Части соисполнителей основного поручения (видимые смотрящему). */
   parts: z.array(TaskPart),
+  /** Чек-лист: шаги исполнения по порядку. */
+  checklist: z.array(TaskChecklistItem).default([]),
+  /** Подзадачи обычной задачи (видимые смотрящему). */
+  subtasks: z.array(TaskSubtask).default([]),
+  /** Прогресс чек-листа; null — чек-листа нет. */
+  checklistProgress: TaskProgress.nullable().default(null),
+  /** Прогресс подзадач; null — подзадач нет. */
+  subtaskProgress: TaskProgress.nullable().default(null),
   /** История сроков: от назначения до последнего продления. */
   dueHistory: z.array(TaskDueChange),
   /** Последний запрос продления; `pending` — ждёт решения автора. */
@@ -303,6 +342,8 @@ export const TaskListItem = TaskRecord.omit({
   source: true,
   parent: true,
   parts: true,
+  checklist: true,
+  subtasks: true,
   dueHistory: true,
   extension: true,
 }).extend({
@@ -456,6 +497,32 @@ export type TaskReassignInput = z.infer<typeof TaskReassignInput>
 
 export const TaskCancelInput = z.object({ comment: z.string().trim().max(5_000).optional() })
 export type TaskCancelInput = z.infer<typeof TaskCancelInput>
+
+/** Пунктов в чек-листе не больше — длинный план лучше разбить на подзадачи. */
+export const TASK_CHECKLIST_MAX = 100
+const ChecklistText = z.string().trim().min(1).max(500)
+
+/** Новый пункт чек-листа: в конец или на место `position` (с нуля). */
+export const TaskChecklistAddInput = z.object({
+  text: ChecklistText,
+  position: z.number().int().min(0).optional(),
+})
+export type TaskChecklistAddInput = z.infer<typeof TaskChecklistAddInput>
+
+/** Правка пункта: текст, отметка, место в списке. */
+export const TaskChecklistPatchInput = z
+  .object({ text: ChecklistText, done: z.boolean(), position: z.number().int().min(0) })
+  .partial()
+  .refine((input) => Object.keys(input).length > 0, { message: 'Нечего менять' })
+export type TaskChecklistPatchInput = z.infer<typeof TaskChecklistPatchInput>
+
+/** Подзадача: название, исполнитель (по умолчанию — исполнитель задачи) и срок. */
+export const TaskSubtaskCreateInput = z.object({
+  title: Title,
+  assigneeId: Uuid.optional(),
+  dueAt: Timestamp.optional(),
+})
+export type TaskSubtaskCreateInput = z.infer<typeof TaskSubtaskCreateInput>
 
 /** «Команда» — поручения подчинённых руководителя (03-access-model.md, ADR-0082). */
 export const TASK_SCOPES = ['mine', 'assigned_by_me', 'controlled', 'team', 'all'] as const

@@ -44,6 +44,15 @@ export const projects = pgTable(
 )
 
 /** Источник задачи: строка датасета, объект реестра или резолюция документа. */
+/** Пункт чек-листа задачи: текст, отметка и кто когда отметил (ADR-0155). */
+export interface TaskChecklistValue {
+  id: string
+  text: string
+  done: boolean
+  doneAt: string | null
+  doneBy: string | null
+}
+
 export type TaskSourceValue =
   | { kind: 'dataset_row'; datasetId: string; rowId: string; label?: string | null }
   | { kind: 'object'; objectId: string }
@@ -108,6 +117,11 @@ export const tasks = pgTable(
     } | null>(),
     source: jsonb('source').$type<TaskSourceValue | null>(),
     labels: text('labels').array().notNull().default(sql`'{}'::text[]`),
+    /**
+     * Чек-лист (ADR-0155): шаги исполнения по порядку массива. У поручения его ведут
+     * исполнитель, автор и контролёр, у задачи — кто её правит.
+     */
+    checklist: jsonb('checklist').$type<TaskChecklistValue[]>().notNull().default(sql`'[]'::jsonb`),
     /**
      * Территория задачи (ADR-0077): единица справочника модуля GIS, без внешнего
      * ключа — модули не связаны таблицами, как `org_units.territory_id`.

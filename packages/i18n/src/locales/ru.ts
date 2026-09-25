@@ -4730,6 +4730,25 @@ export const ru = {
   tasks: {
     title: 'Задачи',
     kinds: { task: 'Задача', instruction: 'Поручение', subtask: 'Подзадача', milestone: 'Веха' },
+    progress: {
+      checklist: 'Чек-лист: {done} из {total}',
+      subtasks: 'Подзадачи: {done} из {total}',
+      count: '{done} из {total}',
+    },
+    checklist: {
+      title: 'Чек-лист',
+      add: 'Добавить пункт',
+      placeholder: 'Следующий шаг',
+      rename: 'Изменить пункт «{text}»',
+      up: 'Поднять пункт «{text}»',
+      down: 'Опустить пункт «{text}»',
+      remove: 'Убрать пункт «{text}»',
+    },
+    subtasks: {
+      title: 'Подзадачи',
+      add: 'Добавить подзадачу',
+      placeholder: 'Название подзадачи',
+    },
     statuses: {
       todo: 'К выполнению',
       assigned: 'Назначено',
@@ -4789,6 +4808,7 @@ export const ru = {
       completed: 'Закрыто',
       originalDue: 'Первоначальный срок',
       parent: 'Основное поручение',
+      parentTask: 'Задача',
     },
     allProjects: 'Все проекты',
     noProject: 'Без проекта',

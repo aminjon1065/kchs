@@ -5065,6 +5065,25 @@ export const tg: DeepPartial<Dictionary> = {
       subtask: 'Зервазифа',
       milestone: 'Марҳилаи калидӣ',
     },
+    progress: {
+      checklist: 'Рӯйхати санҷишӣ: {done} аз {total}',
+      subtasks: 'Зервазифаҳо: {done} аз {total}',
+      count: '{done} аз {total}',
+    },
+    checklist: {
+      title: 'Рӯйхати санҷишӣ',
+      add: 'Илова кардани банд',
+      placeholder: 'Қадами навбатӣ',
+      rename: 'Таҳрири банди «{text}»',
+      up: 'Боло бурдани банди «{text}»',
+      down: 'Поён фаровардани банди «{text}»',
+      remove: 'Хориҷ кардани банди «{text}»',
+    },
+    subtasks: {
+      title: 'Зервазифаҳо',
+      add: 'Илова кардани зервазифа',
+      placeholder: 'Номи зервазифа',
+    },
     statuses: {
       todo: 'Барои иҷро',
       assigned: 'Таъин шуд',
@@ -5131,6 +5150,7 @@ export const tg: DeepPartial<Dictionary> = {
       completed: 'Пӯшида шуд',
       originalDue: 'Мӯҳлати ибтидоӣ',
       parent: 'Супориши асосӣ',
+      parentTask: 'Вазифа',
     },
     allProjects: 'Ҳамаи лоиҳаҳо',
     noProject: 'Бе лоиҳа',

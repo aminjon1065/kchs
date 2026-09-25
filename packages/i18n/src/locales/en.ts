@@ -4658,6 +4658,25 @@ export const en: DeepPartial<Dictionary> = {
   tasks: {
     title: 'Tasks',
     kinds: { task: 'Task', instruction: 'Assignment', subtask: 'Subtask', milestone: 'Milestone' },
+    progress: {
+      checklist: 'Checklist: {done} of {total}',
+      subtasks: 'Subtasks: {done} of {total}',
+      count: '{done} of {total}',
+    },
+    checklist: {
+      title: 'Checklist',
+      add: 'Add item',
+      placeholder: 'Next step',
+      rename: 'Edit item “{text}”',
+      up: 'Move item “{text}” up',
+      down: 'Move item “{text}” down',
+      remove: 'Remove item “{text}”',
+    },
+    subtasks: {
+      title: 'Subtasks',
+      add: 'Add subtask',
+      placeholder: 'Subtask title',
+    },
     statuses: {
       todo: 'To do',
       assigned: 'Assigned',
@@ -4717,6 +4736,7 @@ export const en: DeepPartial<Dictionary> = {
       completed: 'Closed',
       originalDue: 'Original due date',
       parent: 'Main assignment',
+      parentTask: 'Task',
     },
     allProjects: 'All projects',
     noProject: 'No project',

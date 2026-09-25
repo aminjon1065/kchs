@@ -13,6 +13,8 @@ import {
   ProjectRecord,
   ProjectUpdateInput,
   TaskCancelInput,
+  TaskChecklistAddInput,
+  TaskChecklistPatchInput,
   TaskCreateInput,
   TaskExtensionDecisionInput,
   TaskExtensionRequestInput,
@@ -24,6 +26,7 @@ import {
   TaskReturnInput,
   TaskSettings,
   TaskStatusInput,
+  TaskSubtaskCreateInput,
   TaskSummary,
   TaskUpdateInput,
   TeamSummary,
@@ -51,6 +54,7 @@ import { ControlService } from './domain/control-service.js'
 import { INSTRUCTIONS_SYSTEM_DATASET } from './domain/instructions-dataset.js'
 import { ProjectService } from './domain/project-service.js'
 import { TASKS_SYSTEM_DATASET } from './domain/system-dataset.js'
+import { TaskChecklist, TaskSubtasks } from './domain/task-checklist.js'
 import { dueFromDate } from './domain/task-due.js'
 import { taskPolicy } from './domain/task-policy.js'
 import { taskDueProjection } from './domain/task-projection.js'
@@ -629,6 +633,82 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
         TaskService.cancel(tx, request.ctx, request.params.id, request.body),
       )
       return TaskService.get(request.ctx, request.params.id)
+    },
+  })
+
+  const ChecklistItemParams = z.object({ id: z.uuid(), itemId: z.uuid() })
+
+  route({
+    method: 'POST',
+    url: '/tasks/:id/checklist',
+    auth: 'session',
+    tags: ['tasks'],
+    summary: 'Добавить пункт чек-листа (ADR-0155)',
+    schema: { params: IdParam, body: TaskChecklistAddInput, response: { 200: TaskRecord } },
+    handler: async (request) => {
+      await db().transaction((tx) =>
+        TaskChecklist.add(tx, request.ctx, request.params.id, request.body),
+      )
+      return TaskService.get(request.ctx, request.params.id)
+    },
+  })
+
+  route({
+    method: 'PATCH',
+    url: '/tasks/:id/checklist/:itemId',
+    auth: 'session',
+    tags: ['tasks'],
+    summary: 'Отметить, переименовать или переместить пункт чек-листа',
+    schema: {
+      params: ChecklistItemParams,
+      body: TaskChecklistPatchInput,
+      response: { 200: TaskRecord },
+    },
+    handler: async (request) => {
+      await db().transaction((tx) =>
+        TaskChecklist.patch(
+          tx,
+          request.ctx,
+          request.params.id,
+          request.params.itemId,
+          request.body,
+        ),
+      )
+      return TaskService.get(request.ctx, request.params.id)
+    },
+  })
+
+  route({
+    method: 'DELETE',
+    url: '/tasks/:id/checklist/:itemId',
+    auth: 'session',
+    tags: ['tasks'],
+    summary: 'Убрать пункт чек-листа',
+    schema: { params: ChecklistItemParams, response: { 200: TaskRecord } },
+    handler: async (request) => {
+      await db().transaction((tx) =>
+        TaskChecklist.remove(tx, request.ctx, request.params.id, request.params.itemId),
+      )
+      return TaskService.get(request.ctx, request.params.id)
+    },
+  })
+
+  route({
+    method: 'POST',
+    url: '/tasks/:id/subtasks',
+    auth: 'session',
+    tags: ['tasks'],
+    summary: 'Добавить подзадачу к обычной задаче (ADR-0155)',
+    schema: {
+      params: IdParam,
+      body: TaskSubtaskCreateInput,
+      response: { 200: z.object({ id: z.uuid() }) },
+    },
+    handler: async (request) => {
+      const id = await db().transaction((tx) =>
+        TaskSubtasks.create(tx, request.ctx, request.params.id, request.body),
+      )
+      return { id }
     },
   })
 

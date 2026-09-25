@@ -338,6 +338,14 @@ export const EVENT_PAYLOADS = {
   }),
   'task.reported': z.object({ key: z.string() }),
   'task.report_prepared': z.object({ key: z.string(), cause: z.string() }),
+  /** Чек-лист изменился: пункт добавлен, отмечен, переименован, убран (ADR-0155). */
+  'task.checklist_changed': z.object({
+    key: z.string(),
+    done: z.number().int(),
+    total: z.number().int(),
+    change: z.enum(['added', 'checked', 'unchecked', 'renamed', 'moved', 'removed']),
+    item: z.string(),
+  }),
   /** Автор или контролёр принял отчёт — поручение закрыто. */
   'task.completed': z.object({ key: z.string() }),
   'task.returned': z.object({ key: z.string(), comment: z.string() }),

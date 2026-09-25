@@ -12,6 +12,8 @@ const can = (transitions: TaskStatus[]): TaskPermissions => ({
   requestExtension: false,
   decideExtension: false,
   reassign: false,
+  checklist: false,
+  subtasks: false,
   transitions,
 })
 
