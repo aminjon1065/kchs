@@ -1,11 +1,13 @@
-import type { PageBlock, PageTemplate } from '@kchs/contracts'
+import type { Locale, PageBlock, PageTemplate } from '@kchs/contracts'
 import { and, eq, isNull } from 'drizzle-orm'
 import { buildUserCtxFor } from '~/kernel/access/explain.js'
 import type { SystemCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { objects } from '~/shared/db/schema/index.js'
 import { logger } from '~/shared/logger/index.js'
-import { GUIDE_PAGES, GUIDE_ROOT, GUIDE_SECTION, type GuidePage } from './page-guide.js'
+import { GUIDE_SECTION } from './page-guide.js'
+import type { GuidePage } from './page-guide-kit.js'
+import { GUIDES } from './page-guides.js'
 import { PageService } from './page-service.js'
 
 /**
@@ -87,6 +89,7 @@ async function createGuidePage(
   spaceId: string,
   parentId: string | null,
   guide: GuidePage,
+  locale: Locale,
 ): Promise<string> {
   const id = await db().transaction((tx) =>
     PageService.create(
@@ -99,7 +102,7 @@ async function createGuidePage(
         template: 'blank',
         blocks: guide.blocks as PageBlock[],
       },
-      'ru',
+      locale,
     ),
   )
   await publishPage(ctx.initiatorId, id)
@@ -107,29 +110,33 @@ async function createGuidePage(
 }
 
 /**
- * Краткое руководство пользователя в базе знаний (P5-E07): страница «Как
- * работать в kchs» внутри раздела «Обучение» и вложенные в неё разделы по
- * работе. Идемпотентно: страница с таким названием на своём месте второй раз не
- * заводится, уже написанный текст не перезаписывается.
+ * Краткое руководство пользователя в базе знаний (P5-E07): на каждом языке
+ * интерфейса — корневая страница внутри раздела «Обучение» и вложенные в неё
+ * разделы по работе (N88). Идемпотентно: страница с таким названием на своём месте
+ * второй раз не заводится, уже написанный текст не перезаписывается. Возвращает
+ * корни по языкам — их открывает пункт «Справка».
  */
 export async function ensureUserGuide(
   ctx: SystemCtx,
   spaceId: string,
-): Promise<{ created: number }> {
+): Promise<{ created: number; roots: Partial<Record<Locale, string>> }> {
   const sectionId = await findPage(spaceId, GUIDE_SECTION, null)
-  if (!sectionId) return { created: 0 }
+  if (!sectionId) return { created: 0, roots: {} }
 
   let created = 0
-  let rootId = await findPage(spaceId, GUIDE_ROOT.title, sectionId)
-  if (!rootId) {
-    rootId = await createGuidePage(ctx, spaceId, sectionId, GUIDE_ROOT)
-    created += 1
+  const roots: Partial<Record<Locale, string>> = {}
+  for (const guide of GUIDES) {
+    let rootId = await findPage(spaceId, guide.root.title, sectionId)
+    if (!rootId) {
+      rootId = await createGuidePage(ctx, spaceId, sectionId, guide.root, guide.locale)
+      created += 1
+    }
+    roots[guide.locale] = rootId
+    for (const child of guide.pages) {
+      if (await findPage(spaceId, child.title, rootId)) continue
+      await createGuidePage(ctx, spaceId, rootId, child, guide.locale)
+      created += 1
+    }
   }
-
-  for (const guide of GUIDE_PAGES) {
-    if (await findPage(spaceId, guide.title, rootId)) continue
-    await createGuidePage(ctx, spaceId, rootId, guide)
-    created += 1
-  }
-  return { created }
+  return { created, roots }
 }

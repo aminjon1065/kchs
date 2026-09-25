@@ -1,4 +1,4 @@
-import type { PageBlock } from '@kchs/contracts'
+import { block, type GuidePage, ol, p, page, ul } from './page-guide-kit.js'
 
 /**
  * Краткое руководство пользователя в базе знаний (P5-E07): дерево страниц,
@@ -7,44 +7,6 @@ import type { PageBlock } from '@kchs/contracts'
  * проверьте и эти страницы. Подписи кнопок здесь приведены дословно по словарю
  * `ru` — иначе руководство разойдётся с интерфейсом.
  */
-
-type Node = Record<string, unknown>
-
-const p = (...parts: string[]): Node => ({
-  type: 'paragraph',
-  content: parts.map((text) => ({ type: 'text', text })),
-})
-
-const ul = (...items: string[]): Node => ({
-  type: 'bulletList',
-  content: items.map((text) => ({
-    type: 'listItem',
-    content: [{ type: 'paragraph', content: [{ type: 'text', text }] }],
-  })),
-})
-
-const ol = (...items: string[]): Node => ({
-  type: 'orderedList',
-  content: items.map((text) => ({
-    type: 'listItem',
-    content: [{ type: 'paragraph', content: [{ type: 'text', text }] }],
-  })),
-})
-
-/** Текстовый блок с подписью: подпись становится пунктом оглавления страницы. */
-const block = (title: string, ...content: Node[]): Omit<PageBlock, 'id'> =>
-  ({ kind: 'text', title, body: { type: 'doc', content } }) as Omit<PageBlock, 'id'>
-
-/** Идентификаторы блоков по порядку: одинаковый вход даёт одинаковый документ. */
-const page = (title: string, ...blocks: Array<Omit<PageBlock, 'id'>>): GuidePage => ({
-  title,
-  blocks: blocks.map((item, index) => ({ ...item, id: `g-${index + 1}` }) as PageBlock),
-})
-
-export interface GuidePage {
-  title: string
-  blocks: PageBlock[]
-}
 
 /** Раздел по умолчанию, внутри которого живёт руководство. */
 export const GUIDE_SECTION = 'Обучение'
