@@ -146,10 +146,11 @@ function registerRecordingType(): void {
 }
 
 /**
- * Тип `protocol` (11-communications-meetings.md §4, ADR-0093) — ребёнок
- * встречи: права наследуются от неё, поэтому участник встречи (уровень
- * `comment`) ведёт повестку и протокол совместно, а подтверждение,
- * регистрация документом и ознакомление — за организатором (`manage`).
+ * Тип `protocol` (11-communications-meetings.md §4, ADR-0093, ADR-0137) —
+ * ребёнок встречи: права наследуются от неё. Участник встречи (уровень
+ * `comment`) читает и обсуждает протокол; правят организатор и секретарь
+ * (своя запись `edit` на протоколе); подтверждение, регистрация документом и
+ * ознакомление — за организатором (`manage`).
  */
 function registerProtocolType(): void {
   registerObjectType({
@@ -161,8 +162,8 @@ function registerProtocolType(): void {
     actions: {
       view: { minLevel: 'view' },
       comment: { minLevel: 'comment' },
-      /** Совместная правка документа протокола — участникам встречи. */
-      edit: { minLevel: 'comment' },
+      /** Совместная правка протокола — организатору и секретарю встречи (N30). */
+      edit: { minLevel: 'edit' },
       manage: { minLevel: 'manage' },
       request_acknowledgment: { minLevel: 'manage', allowArchived: true },
       share: { minLevel: 'manage' },

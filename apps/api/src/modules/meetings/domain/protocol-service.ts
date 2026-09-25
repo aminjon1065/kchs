@@ -1,5 +1,6 @@
 import { isDeepStrictEqual } from 'node:util'
 import {
+  PROTOCOL_DEFAULT_DUE_WORKING_DAYS,
   PROTOCOL_DOC,
   PROTOCOL_MAX_BLOCKS,
   type ProtocolAcknowledgeInput,
@@ -14,6 +15,7 @@ import {
 } from '@kchs/contracts'
 import { eq, sql } from 'drizzle-orm'
 import type * as Y from 'yjs'
+import { grantAccess, revokeAccess } from '~/kernel/access/acl-service.js'
 import { authorize } from '~/kernel/access/authorize.js'
 import { Acknowledgments } from '~/kernel/acknowledgments/index.js'
 import { CollabService } from '~/kernel/collab/server.js'
@@ -36,6 +38,7 @@ import {
   protocolOfMeeting as byMeeting,
   loadProtocol as load,
   meetingParticipantIds,
+  meetingSecretaryId,
   type ProtocolRow,
   protocolText,
 } from './protocol-core.js'
@@ -46,6 +49,25 @@ const SEARCH_BODY_LIMIT = 20_000
 
 /** Дело Входящих организатора после встречи: «Проверить протокол». */
 export const REVIEW_INBOX_KIND = 'review_protocol'
+
+/** Пометка записи ACL секретаря на протоколе: права выданы назначением, а не вручную. */
+const SECRETARY_NOTE = 'meeting:secretary'
+
+/** Право секретаря править протокол — своя запись `edit` поверх наследуемых от встречи. */
+async function grantSecretary(
+  tx: Executor,
+  ctx: Ctx,
+  protocolId: string,
+  userId: string,
+): Promise<void> {
+  await grantAccess(
+    tx,
+    ctx,
+    protocolId,
+    [{ principal: { type: 'user', id: userId }, level: 'edit', note: SECRETARY_NOTE }],
+    { quiet: true },
+  )
+}
 
 /** Поручения протокола: видимые смотрящему — целиком, прочие — ключом и состоянием. */
 async function instructionsOf(ctx: UserCtx, row: ProtocolRow): Promise<ProtocolInstruction[]> {
@@ -103,14 +125,17 @@ async function toRecord(ctx: UserCtx, row: ProtocolRow): Promise<ProtocolRecord>
   }
 }
 
-/** Блоки без исполнителя или срока подтвердить нельзя: поручение из них не соберётся. */
+/**
+ * Блоки без исполнителя или текста подтвердить нельзя: поручение из них не соберётся.
+ * Срок не обязателен — без него ставится `PROTOCOL_DEFAULT_DUE_WORKING_DAYS` (N33).
+ */
 function incompleteInstructions(blocks: readonly ProtocolBlock[]): string[] {
   return blocks
     .filter(
       (block) =>
         block.kind === 'instruction' &&
         !block.taskId &&
-        (!block.assigneeId || !block.dueAt || !(block.title.trim() || richBodyText(block.body))),
+        (!block.assigneeId || !(block.title.trim() || richBodyText(block.body))),
     )
     .map((block) => block.id)
 }
@@ -165,7 +190,33 @@ export const ProtocolService = {
     await tx.insert(protocols).values({ id, meetingId, status: 'agenda' })
     // Состояние Yjs — сразу: первое открытие не строит документ из JSON
     await CollabStore.create(tx, id, protocolState({ blocks: [], summary: null }))
+    // Секретаря могли назначить раньше, чем завели протокол
+    const secretary = await meetingSecretaryId(tx, meetingId)
+    if (secretary && secretary !== meeting.organizerId) {
+      await grantSecretary(tx, ctx, id, secretary)
+    }
     return id
+  },
+
+  /**
+   * Секретарь сменился (N30): прежний теряет право правки протокола, новый
+   * получает; протокол заводится сразу — секретарю есть что вести.
+   */
+  async syncSecretary(
+    tx: Executor,
+    ctx: Ctx,
+    meetingId: string,
+    previousId: string | null,
+    nextId: string | null,
+  ): Promise<void> {
+    const existing = await byMeeting(tx, meetingId)
+    if (!existing && !nextId) return
+    const id = existing?.id ?? (await ProtocolService.ensure(tx, ctx, meetingId))
+    if (previousId && previousId !== nextId) {
+      await revokeAccess(tx, ctx, id, { type: 'user', id: previousId })
+    }
+    // Новому секретарю право выдаёт уже `ensure`, если протокол заведён только что
+    if (nextId && existing) await grantSecretary(tx, ctx, id, nextId)
   },
 
   async get(ctx: UserCtx, id: string): Promise<ProtocolRecord> {
@@ -229,12 +280,9 @@ export const ProtocolService = {
       if (row.status === 'confirmed') throw errors.conflict('Протокол уже подтверждён')
       const incomplete = incompleteInstructions(row.blocks)
       if (incomplete.length > 0) {
-        throw new AppError(
-          'conflict',
-          'У поручения протокола нет исполнителя, срока или текста',
-          409,
-          { data: { reason: 'incomplete_instruction', blockIds: incomplete } },
-        )
+        throw new AppError('conflict', 'У поручения протокола нет исполнителя или текста', 409, {
+          data: { reason: 'incomplete_instruction', blockIds: incomplete },
+        })
       }
       const links: Record<string, string> = { ...row.instructions }
       const blocks: ProtocolBlock[] = []
@@ -249,7 +297,10 @@ export const ProtocolService = {
           source: { kind: 'object', objectId: id },
           assigneeId: block.assigneeId as string,
           ...(block.controllerId ? { controllerId: block.controllerId } : {}),
-          due: { at: `${block.dueAt as string}T23:59:59.000Z` },
+          // Срок не назван — 10 рабочих дней по производственному календарю (N33)
+          due: block.dueAt
+            ? { at: `${block.dueAt}T23:59:59.000Z` }
+            : { workingDays: PROTOCOL_DEFAULT_DUE_WORKING_DAYS },
         })
         links[block.id] = instruction.id
         blocks.push({ ...block, taskId: instruction.id })

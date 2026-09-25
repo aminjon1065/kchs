@@ -12,6 +12,7 @@ import { grantAccess, revokeAccess } from '~/kernel/access/acl-service.js'
 import { authorize, hasCapability, visibleObjectsSql } from '~/kernel/access/authorize.js'
 import { directory } from '~/kernel/directory/port.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
+import { NotificationService } from '~/kernel/notifications/service.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import { actorId, type Ctx, type UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
@@ -25,6 +26,8 @@ import {
   roomNameFor,
   roomToken,
 } from './livekit.js'
+import { meetingSecretaryId } from './protocol-core.js'
+import { ProtocolService } from './protocol-service.js'
 import { RECORD_CAPABILITY, RecordingService } from './recording-service.js'
 import { meetingsSpaceId } from './space.js'
 import { clearKnocks } from './waiting-room.js'
@@ -272,6 +275,11 @@ export const MeetingService = {
     ]
     const removed = before.filter((id) => !wanted.includes(id))
     const added = wanted.filter((id) => !before.includes(id))
+    // Секретарь, которого убрали из участников, теряет и право правки протокола
+    const secretary = await meetingSecretaryId(tx, meetingId)
+    if (secretary && removed.includes(secretary)) {
+      await ProtocolService.syncSecretary(tx, ctx, meetingId, secretary, null)
+    }
     if (removed.length > 0) {
       await tx
         .delete(meetingParticipants)
@@ -293,6 +301,59 @@ export const MeetingService = {
     }
     if (added.length > 0 || removed.length > 0) {
       await syncAccess(tx, ctx, meetingId, before, wanted, row.organizerId)
+    }
+  },
+
+  /**
+   * Секретарь встречи (N30, ADR-0137): организатор назначает одного из
+   * участников вести протокол или снимает назначение. Секретарь правит
+   * протокол наравне с организатором; подтверждение остаётся за организатором.
+   */
+  async setSecretary(ctx: UserCtx, id: string, userId: string | null): Promise<void> {
+    await authorize(ctx, 'manage', id)
+    const title = await db().transaction(async (tx) => {
+      const row = await load(tx, id)
+      if (!row) throw errors.notFound('Встреча')
+      const participants = await participantIds(tx, id)
+      if (userId && (userId === row.organizerId || !participants.includes(userId))) {
+        throw errors.validation('Секретарём назначается участник встречи, не организатор', [
+          { path: 'userId', message: 'not_participant' },
+        ])
+      }
+      const previous = await meetingSecretaryId(tx, id)
+      if (previous === userId) return null
+      if (previous) {
+        await tx
+          .update(meetingParticipants)
+          .set({ role: 'participant' })
+          .where(
+            and(eq(meetingParticipants.meetingId, id), eq(meetingParticipants.userId, previous)),
+          )
+      }
+      if (userId) {
+        await tx
+          .update(meetingParticipants)
+          .set({ role: 'secretary' })
+          .where(and(eq(meetingParticipants.meetingId, id), eq(meetingParticipants.userId, userId)))
+      }
+      await ProtocolService.syncSecretary(tx, ctx, id, previous, userId)
+      await publishEvent(tx, ctx, {
+        type: 'meeting.secretary_changed',
+        object: { id, type: 'meeting', spaceId: await meetingsSpaceId(tx), title: row.title },
+        payload: { secretaryId: userId, previousId: previous },
+      })
+      return row.title
+    })
+    // Новому секретарю — уведомление: вести протокол теперь ему
+    if (userId && title !== null) {
+      await NotificationService.notify({
+        userIds: [userId],
+        category: 'meetings',
+        titleKey: 'notifications.tpl.meetingSecretary',
+        params: { title },
+        objectId: id,
+        url: `/o/${id}`,
+      })
     }
   },
 

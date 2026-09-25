@@ -20,6 +20,8 @@ export function registerMeetingRealtime(): void {
       'meeting.ended',
       'meeting.participant_joined',
       'meeting.participant_left',
+      // Секретарь сменился: карточка и протокол у открывших обновляются (N30)
+      'meeting.secretary_changed',
     ],
     handle: handleMeetingEvent,
   })

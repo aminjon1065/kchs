@@ -74,6 +74,21 @@ export async function meetingParticipantIds(
   return rows.map((row) => row.userId)
 }
 
+/** Секретарь встречи — участник с ролью `secretary` (N30); null — не назначен. */
+export async function meetingSecretaryId(
+  executor: Executor,
+  meetingId: string,
+): Promise<string | null> {
+  const [row] = await executor
+    .select({ userId: meetingParticipants.userId })
+    .from(meetingParticipants)
+    .where(
+      and(eq(meetingParticipants.meetingId, meetingId), eq(meetingParticipants.role, 'secretary')),
+    )
+    .limit(1)
+  return row?.userId ?? null
+}
+
 /** Текст протокола: резюме, заголовки и тело блоков — для поиска и документа. */
 export function protocolText(blocks: readonly ProtocolBlock[], summary: string | null): string {
   const parts: string[] = summary ? [summary] : []

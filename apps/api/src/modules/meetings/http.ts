@@ -4,6 +4,7 @@ import {
   MeetingList,
   MeetingListQuery,
   MeetingRecord,
+  MeetingSecretaryInput,
   MeetingsStatus,
 } from '@kchs/contracts'
 import { z } from 'zod'
@@ -88,6 +89,19 @@ export function registerMeetingsRoutes(route: RouteRegistrar): void {
     handler: async (request) => {
       await MeetingService.leave(request.ctx, request.params.id)
       return { ok: true as const }
+    },
+  })
+
+  route({
+    method: 'PUT',
+    url: '/meetings/:id/secretary',
+    auth: 'session',
+    tags: ['meetings'],
+    summary: 'Назначить или снять секретаря встречи: он правит протокол (ADR-0137)',
+    schema: { params: IdParam, body: MeetingSecretaryInput, response: { 200: MeetingRecord } },
+    handler: async (request) => {
+      await MeetingService.setSecretary(request.ctx, request.params.id, request.body.userId)
+      return MeetingService.get(request.ctx, request.params.id)
     },
   })
 

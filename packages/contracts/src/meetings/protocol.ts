@@ -18,6 +18,13 @@ export type ProtocolBlockKind = z.infer<typeof ProtocolBlockKind>
 /** Блоков в протоколе — не больше: документ ведут люди, не машина. */
 export const PROTOCOL_MAX_BLOCKS = 300
 
+/**
+ * Срок поручения протокола, если он не назван (N33, ADR-0137): столько рабочих
+ * дней по производственному календарю от подтверждения. Организатор может
+ * назначить свою дату в блоке до подтверждения и изменить срок поручения после.
+ */
+export const PROTOCOL_DEFAULT_DUE_WORKING_DAYS = 10
+
 export const ProtocolBlockId = z.string().regex(/^[A-Za-z0-9_-]{1,40}$/)
 
 const base = {
@@ -51,7 +58,10 @@ export const ProtocolInstructionBlock = z.object({
   kind: z.literal('instruction'),
   body: RichBody.default({ type: 'doc', content: [] }),
   assigneeId: Uuid.nullable().default(null),
-  /** Срок поручения, `ГГГГ-ММ-ДД`; null — не задан (подтвердить нельзя). */
+  /**
+   * Срок поручения, `ГГГГ-ММ-ДД`; null — не назван: при подтверждении ставится
+   * `PROTOCOL_DEFAULT_DUE_WORKING_DAYS` рабочих дней.
+   */
   dueAt: DateOnly.nullable().default(null),
   controllerId: Uuid.nullable().default(null),
   /** Созданное поручение; null — ещё не создано. */

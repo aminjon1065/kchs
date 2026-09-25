@@ -1063,6 +1063,7 @@ export const ru = {
       formEscalated: 'Просрочена сводка «{title}» за {period}',
       alertFired: 'Алерт «{title}»: {message}',
       automation: '{text}',
+      meetingSecretary: 'Вы назначены секретарём встречи «{title}»: вести протокол вам',
       announcement: 'Объявление: {title}',
       taskAssigned: '{actor} поручил вам «{title}»',
       taskAccepted: '{actor} принял к исполнению «{title}»',
@@ -6018,6 +6019,16 @@ export const ru = {
     },
     role: {
       organizer: 'Организатор',
+      secretary: 'Секретарь',
+    },
+    secretary: {
+      assign: 'Назначить секретарём',
+      remove: 'Снять секретаря',
+      assignLabel: 'Назначить секретарём: {name}',
+      removeLabel: 'Снять секретаря: {name}',
+      assigned: 'Секретарь назначен — он ведёт протокол вместе с вами',
+      removed: 'Секретарь снят',
+      hint: 'Протокол правят организатор и секретарь, остальные участники читают и обсуждают',
     },
     actions: {
       join: 'Войти',
@@ -6141,6 +6152,8 @@ export const ru = {
       assignee: 'Исполнитель',
       controller: 'Контролёр',
       due: 'Срок',
+      defaultDue:
+        'Не назван — {days, plural, one {# рабочий день} few {# рабочих дня} many {# рабочих дней} other {# рабочего дня}} от подтверждения',
       notChosen: 'Не выбран',
       moveUp: 'Переместить выше',
       moveDown: 'Переместить ниже',

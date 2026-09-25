@@ -220,7 +220,10 @@ export function ProtocolBody({ protocolId, meetingId }: { protocolId: string; me
             <Callout tone="info" title={t('meetings.protocol.confirmedTitle')}>
               {t('meetings.protocol.confirmedHint')}
             </Callout>
-          ) : null}
+          ) : protocol.can.edit ? null : (
+            // Правят организатор и секретарь (N30): остальным — чтение и обсуждение
+            <Callout tone="neutral">{t('meetings.secretary.hint')}</Callout>
+          )}
           {collab?.doc && collab.synced ? (
             <ProtocolBlocks doc={collab.doc} readOnly={readOnly} />
           ) : (

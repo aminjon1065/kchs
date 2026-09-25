@@ -149,15 +149,23 @@ describe('повестка и права', () => {
     expect((await createProtocol(meetingId)).json().id).toBe(protocolId)
   })
 
-  it('участник видит и правит протокол, посторонний получает 404', async () => {
+  it('участник читает и обсуждает протокол, посторонний получает 404', async () => {
     const asMember = await call(fx.app, { url: `/protocols/${protocolId}`, as: member })
     expect(asMember.statusCode, asMember.body).toBe(200)
+    // Правят организатор и секретарь (N30): рядовой участник только читает
     expect(asMember.json().can).toMatchObject({
-      edit: true,
+      edit: false,
       confirm: false,
       register: false,
       requestAcknowledgment: false,
     })
+    const blocks = await call(fx.app, {
+      method: 'POST',
+      url: `/protocols/${protocolId}/blocks`,
+      as: member,
+      payload: { blocks: [{ id: 'm1', kind: 'note', title: 'Замечание участника' }] },
+    })
+    expect(blocks.statusCode).toBe(403)
     const asOutsider = await call(fx.app, { url: `/protocols/${protocolId}`, as: outsider })
     expect(asOutsider.statusCode).toBe(404)
     const throughMeeting = await call(fx.app, {
@@ -386,6 +394,112 @@ describe('черновик ИИ, подтверждение, документ и
     expect(confirmed.statusCode).toBe(409)
     expect(confirmed.json().data.blockIds).toHaveLength(1)
     expect((await protocolOf(other)).status).toBe('draft')
+  })
+})
+
+describe('секретарь встречи (N30)', () => {
+  const setSecretary = (meetingId: string, userId: string | null, as = organizer) =>
+    call(fx.app, {
+      method: 'PUT',
+      url: `/meetings/${meetingId}/secretary`,
+      as,
+      payload: { userId },
+    })
+
+  it('организатор назначает секретаря — тот правит протокол, снятый теряет право', async () => {
+    const meetingId = await createMeeting(`Заседание штаба ${run}`)
+
+    // Назначает только организатор и только участника встречи
+    expect((await setSecretary(meetingId, member.id, member)).statusCode).toBe(403)
+    expect((await setSecretary(meetingId, outsider.id)).statusCode).toBe(400)
+    expect((await setSecretary(meetingId, organizer.id)).statusCode).toBe(400)
+
+    // Протокола ещё нет: назначение заводит его, секретарю есть что вести
+    const assigned = await setSecretary(meetingId, member.id)
+    expect(assigned.statusCode, assigned.body).toBe(200)
+    const roles = new Map(
+      (assigned.json().participants as Json[]).map((item: Json) => [item.user.id, item.role]),
+    )
+    expect(roles.get(member.id)).toBe('secretary')
+    expect(roles.get(organizer.id)).toBe('organizer')
+
+    const protocol = await call(fx.app, { url: `/meetings/${meetingId}/protocol`, as: member })
+    const protocolId = protocol.json().protocol.id as string
+    expect(protocol.json().protocol.can).toMatchObject({ edit: true, confirm: false })
+    const added = await call(fx.app, {
+      method: 'POST',
+      url: `/protocols/${protocolId}/blocks`,
+      as: member,
+      payload: { blocks: [{ id: 's1', kind: 'agenda_item', title: 'Доклад секретаря' }] },
+    })
+    expect(added.statusCode, added.body).toBe(200)
+    // Подтверждение — по-прежнему за организатором
+    const confirm = await call(fx.app, {
+      method: 'POST',
+      url: `/protocols/${protocolId}/confirm`,
+      as: member,
+    })
+    expect(confirm.statusCode).toBe(403)
+
+    // Секретаря сняли — правка закрыта, чтение осталось
+    const removed = await setSecretary(meetingId, null)
+    expect(removed.statusCode, removed.body).toBe(200)
+    expect((await protocolOf(protocolId, member)).can.edit).toBe(false)
+  })
+
+  it('секретарь, убранный из участников, теряет и право правки протокола', async () => {
+    const meetingId = await createMeeting(`Совещание с секретарём ${run}`)
+    expect((await setSecretary(meetingId, member.id)).statusCode).toBe(200)
+    const protocolId = (
+      await protocolOf(
+        (await call(fx.app, { url: `/meetings/${meetingId}/protocol`, as: organizer })).json()
+          .protocol.id,
+      )
+    ).id as string
+    const { MeetingService } = await import('../src/modules/meetings/domain/meeting-service.js')
+    await db().transaction((tx) =>
+      MeetingService.setParticipants(tx, systemCtx('test'), meetingId, [outsider.id]),
+    )
+    const aclRows = await db().execute<{ n: number }>(
+      sql`SELECT count(*)::int AS n FROM acl_entries
+           WHERE object_id = ${protocolId} AND principal_id = ${member.id}`,
+    )
+    expect(aclRows[0]?.n).toBe(0)
+  })
+})
+
+describe('срок поручения по умолчанию (N33)', () => {
+  it('поручению без названного срока ставится 10 рабочих дней', async () => {
+    const meetingId = await createMeeting(`Штаб без сроков ${run}`)
+    const protocolId = (await createProtocol(meetingId)).json().id as string
+    const added = await call(fx.app, {
+      method: 'POST',
+      url: `/protocols/${protocolId}/blocks`,
+      as: organizer,
+      payload: {
+        blocks: [
+          {
+            id: 'instr1',
+            kind: 'instruction',
+            title: 'Подготовить справку о готовности',
+            assigneeId: member.id,
+          },
+        ],
+      },
+    })
+    expect(added.statusCode, added.body).toBe(200)
+    const confirmed = await call(fx.app, {
+      method: 'POST',
+      url: `/protocols/${protocolId}/confirm`,
+      as: organizer,
+    })
+    expect(confirmed.statusCode, confirmed.body).toBe(200)
+    const [instruction] = confirmed.json().instructions as Json[]
+    expect(instruction.dueAt).toBeTruthy()
+    // 10 рабочих дней — не меньше двух календарных недель и не больше месяца
+    const days = (Date.parse(instruction.dueAt) - Date.now()) / 86_400_000
+    expect(days).toBeGreaterThanOrEqual(13)
+    expect(days).toBeLessThanOrEqual(31)
   })
 })
 

@@ -25,7 +25,11 @@ export const MeetingStatus = z.enum(MEETING_STATUSES)
 export type MeetingStatus = z.infer<typeof MeetingStatus>
 
 /** Организатор ведёт встречу, участник входит, гость — по ссылке, без объектов. */
-export const MEETING_ROLES = ['organizer', 'participant', 'guest'] as const
+/**
+ * Роли участника: `secretary` — участник, которому организатор поручил вести
+ * протокол (N30, ADR-0137): он правит протокол наравне с организатором.
+ */
+export const MEETING_ROLES = ['organizer', 'secretary', 'participant', 'guest'] as const
 export const MeetingRole = z.enum(MEETING_ROLES)
 export type MeetingRole = z.infer<typeof MeetingRole>
 
@@ -118,6 +122,10 @@ export const MeetingListQuery = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
 })
 export type MeetingListQuery = z.infer<typeof MeetingListQuery>
+
+/** Секретарь встречи: участник, который ведёт протокол; null — снять (N30, ADR-0137). */
+export const MeetingSecretaryInput = z.object({ userId: Uuid.nullable() })
+export type MeetingSecretaryInput = z.infer<typeof MeetingSecretaryInput>
 
 export const MeetingList = z.object({ items: z.array(MeetingRecord) })
 export type MeetingList = z.infer<typeof MeetingList>

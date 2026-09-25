@@ -1,4 +1,8 @@
-import type { ProtocolBlockKind, UserRef } from '@kchs/contracts'
+import {
+  PROTOCOL_DEFAULT_DUE_WORKING_DAYS,
+  type ProtocolBlockKind,
+  type UserRef,
+} from '@kchs/contracts'
 import {
   Badge,
   type BadgeProps,
@@ -90,7 +94,17 @@ function InstructionFields({ block }: { block: CellMap }) {
       <Field label={t('meetings.protocol.controller')}>
         {person(controllerId, 'controllerId')}
       </Field>
-      <Field label={t('meetings.protocol.due')}>
+      <Field
+        label={t('meetings.protocol.due')}
+        // Срок не назван — при подтверждении поручению ставится 10 рабочих дней (N33)
+        {...(dueAt || taskId
+          ? {}
+          : {
+              hint: t('meetings.protocol.defaultDue', {
+                days: PROTOCOL_DEFAULT_DUE_WORKING_DAYS,
+              }),
+            })}
+      >
         <Input
           type="date"
           value={dueAt ?? ''}

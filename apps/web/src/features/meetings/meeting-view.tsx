@@ -1,4 +1,4 @@
-import type { MeetingGuestLink, MeetingJoin, RecordingList } from '@kchs/contracts'
+import type { MeetingGuestLink, MeetingJoin, MeetingRecord, RecordingList } from '@kchs/contracts'
 import { formatDateTime } from '@kchs/fields'
 import {
   Avatar,
@@ -89,6 +89,22 @@ export default function MeetingView({ objectId, tabId }: { objectId: string; tab
       setJoin(null)
       void client.invalidateQueries({ queryKey: meetingKeys.meeting(objectId) })
     },
+  })
+
+  // Секретарь ведёт протокол вместе с организатором (N30); протокол заводится назначением
+  const secretary = useMutation({
+    mutationFn: (userId: string | null) =>
+      http.put<MeetingRecord>(`/meetings/${objectId}/secretary`, { userId }),
+    onSuccess: (record, userId) => {
+      client.setQueryData(meetingKeys.meeting(objectId), record)
+      void client.invalidateQueries({ queryKey: meetingKeys.meeting(objectId) })
+      toast.show({
+        title: t(userId ? 'meetings.secretary.assigned' : 'meetings.secretary.removed'),
+        tone: 'success',
+      })
+    },
+    onError: (cause) =>
+      toast.error(cause instanceof ApiError ? cause.message : t('errors.unknown')),
   })
 
   const refreshToken = useCallback(() => joinMeeting(objectId), [objectId])
@@ -198,10 +214,41 @@ export default function MeetingView({ objectId, tabId }: { objectId: string; tab
                         {t('meetings.role.organizer')}
                       </Badge>
                     ) : null}
+                    {participant.role === 'secretary' ? (
+                      <Badge tone="purple" size="sm">
+                        {t('meetings.role.secretary')}
+                      </Badge>
+                    ) : null}
                     {participant.inRoom ? (
                       <Badge tone="success" size="sm">
                         {t('meetings.room.here')}
                       </Badge>
+                    ) : null}
+                    {meeting.can.manage &&
+                    (participant.role === 'participant' || participant.role === 'secretary') ? (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="ml-auto"
+                        disabled={secretary.isPending}
+                        onClick={() =>
+                          secretary.mutate(
+                            participant.role === 'secretary' ? null : participant.user.id,
+                          )
+                        }
+                        aria-label={t(
+                          participant.role === 'secretary'
+                            ? 'meetings.secretary.removeLabel'
+                            : 'meetings.secretary.assignLabel',
+                          { name: participant.user.displayName },
+                        )}
+                      >
+                        {t(
+                          participant.role === 'secretary'
+                            ? 'meetings.secretary.remove'
+                            : 'meetings.secretary.assign',
+                        )}
+                      </Button>
                     ) : null}
                   </li>
                 ))}

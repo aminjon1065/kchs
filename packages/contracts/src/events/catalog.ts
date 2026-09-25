@@ -457,6 +457,11 @@ export const EVENT_PAYLOADS = {
   'meeting.started': z.object({ kind: z.string(), roomName: z.string() }),
   'meeting.participant_joined': z.object({ userId: Uuid, role: z.string() }),
   'meeting.participant_left': z.object({ userId: Uuid }),
+  /** Организатор назначил или снял секретаря — он правит протокол (ADR-0137). */
+  'meeting.secretary_changed': z.object({
+    secretaryId: Uuid.nullable(),
+    previousId: Uuid.nullable(),
+  }),
   /** Встреча завершена: вручную, последним вышедшим или отменой события. */
   'meeting.ended': z.object({
     reason: z.enum(['manual', 'empty', 'cancelled']),

@@ -1045,6 +1045,7 @@ export const en: DeepPartial<Dictionary> = {
       formEscalated: 'Overdue report “{title}” for {period}',
       alertFired: 'Alert “{title}”: {message}',
       automation: '{text}',
+      meetingSecretary: 'You are the secretary of “{title}”: you keep the minutes',
       announcement: 'Announcement: {title}',
       taskAssigned: '{actor} assigned “{title}” to you',
       taskAccepted: '{actor} accepted “{title}”',
@@ -5930,6 +5931,16 @@ export const en: DeepPartial<Dictionary> = {
     },
     role: {
       organizer: 'Organizer',
+      secretary: 'Secretary',
+    },
+    secretary: {
+      assign: 'Make secretary',
+      remove: 'Remove secretary',
+      assignLabel: 'Make secretary: {name}',
+      removeLabel: 'Remove secretary: {name}',
+      assigned: 'Secretary assigned — they keep the minutes with you',
+      removed: 'Secretary removed',
+      hint: 'The organizer and the secretary edit the minutes; other participants read and comment',
     },
     actions: {
       join: 'Join',
@@ -6051,6 +6062,8 @@ export const en: DeepPartial<Dictionary> = {
       assignee: 'Assignee',
       controller: 'Controller',
       due: 'Due date',
+      defaultDue:
+        'Not set — {days, plural, one {# working day} other {# working days}} after confirmation',
       notChosen: 'Not chosen',
       moveUp: 'Move up',
       moveDown: 'Move down',
