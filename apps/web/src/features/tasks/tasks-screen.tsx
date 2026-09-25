@@ -468,6 +468,7 @@ export function TasksScreen({
             getRowId={(item) => item.id}
             columns={columns}
             loading={isLoading}
+            selectable
             selection={selection}
             onSelectionChange={setSelection}
             onRowClick={(item) => open(item, 'preview')}
