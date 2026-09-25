@@ -1,3 +1,4 @@
+import { loadLocale } from '@kchs/i18n'
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 
@@ -25,6 +26,10 @@ function apply(state: Pick<AppearanceState, 'theme' | 'density' | 'fontSize' | '
   root.lang = state.locale
 }
 
+// Последний выбранный язык: словари догружаются, и быстрый повторный выбор не должен
+// уступить медленной загрузке предыдущего
+let requestedLocale: AppearanceState['locale'] | null = null
+
 export const useAppearance = create<AppearanceState>()(
   persist(
     (set, get) => ({
@@ -45,8 +50,16 @@ export const useAppearance = create<AppearanceState>()(
         apply({ ...get(), fontSize })
       },
       setLocale: (locale) => {
-        set({ locale })
-        apply({ ...get(), locale })
+        // Словарь языка — отдельный чанк (ADR-0166): переключаем, когда он загружен;
+        // не загрузился — остаёмся на прежнем языке
+        requestedLocale = locale
+        void loadLocale(locale)
+          .then(() => {
+            if (requestedLocale !== locale) return
+            set({ locale })
+            apply({ ...get(), locale })
+          })
+          .catch(() => undefined)
       },
     }),
     {

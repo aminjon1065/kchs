@@ -1,10 +1,5 @@
-import {
-  DEFAULT_LOCALE,
-  dictionaries,
-  FALLBACK_LOCALE,
-  INTL_LOCALE,
-  type Locale,
-} from './resources.js'
+import { localeDictionary } from './registry.js'
+import { DEFAULT_LOCALE, FALLBACK_LOCALE, INTL_LOCALE, type Locale } from './resources.js'
 import type { TranslateParams } from './types.js'
 
 function lookup(dict: unknown, path: string[]): string | undefined {
@@ -119,8 +114,9 @@ export interface Translator {
 export function createTranslator(locale: Locale = DEFAULT_LOCALE): Translator {
   const t = ((key: string, params: TranslateParams = {}) => {
     const path = key.split('.')
+    // Словарь языка ещё не загружен или ключа в нём нет — основной язык
     const template =
-      lookup(dictionaries[locale], path) ?? lookup(dictionaries[FALLBACK_LOCALE], path)
+      lookup(localeDictionary(locale), path) ?? lookup(localeDictionary(FALLBACK_LOCALE), path)
     if (!template) return key
     return interpolate(template, params, locale)
   }) as Translator
@@ -135,7 +131,7 @@ export function translate(locale: Locale, key: string, params: TranslateParams =
 
 /** Есть ли ключ хотя бы в одном словаре — используется скриптом проверки. */
 export function hasKey(key: string, locale: Locale = FALLBACK_LOCALE): boolean {
-  return lookup(dictionaries[locale], key.split('.')) !== undefined
+  return lookup(localeDictionary(locale), key.split('.')) !== undefined
 }
 
 /** Текст данных на нескольких языках (названия подразделений, ролей, справочников). */

@@ -1,4 +1,4 @@
-import type { Locale } from '@kchs/i18n'
+import { type Locale, loadLocale } from '@kchs/i18n'
 import type { Decorator, Preview } from '@storybook/react-vite'
 import {
   readCspNonce,
@@ -43,6 +43,13 @@ const withAppearance: Decorator = (Story, context) => {
 
 const preview: Preview = {
   decorators: [withAppearance],
+  // Словари tg и en в браузере догружаются (ADR-0166) — до отрисовки истории
+  loaders: [
+    async (context) => {
+      await loadLocale((context.globals.locale ?? 'ru') as Locale)
+      return {}
+    },
+  ],
   globalTypes: {
     theme: {
       description: 'Тема',

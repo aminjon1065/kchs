@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createTranslator, localizedText, translate } from '../translate.js'
+import { createTranslator, localizedText, translate } from '../index.js'
 
 describe('плюрализация', () => {
   const t = createTranslator('ru')

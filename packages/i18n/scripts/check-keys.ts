@@ -2,7 +2,12 @@
  * Проверка полноты словарей: любой ключ ru должен существовать в tg/en
  * или осознанно отсутствовать (fallback). Отчёт — покрытие по локалям.
  */
-import { dictionaries, LOCALES } from '../src/resources.js'
+import { en } from '../src/locales/en.js'
+import { ru } from '../src/locales/ru.js'
+import { tg } from '../src/locales/tg.js'
+import { LOCALES } from '../src/resources.js'
+
+const dictionaries = { ru, tg, en } as const
 
 function flatten(obj: unknown, prefix = ''): string[] {
   if (typeof obj !== 'object' || obj === null) return []

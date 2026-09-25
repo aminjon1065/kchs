@@ -1,19 +1,8 @@
-import { en } from './locales/en.js'
-import { ru } from './locales/ru.js'
-import { tg } from './locales/tg.js'
-
 export const LOCALES = ['ru', 'tg', 'en'] as const
 export type Locale = (typeof LOCALES)[number]
 
 export const DEFAULT_LOCALE: Locale = 'ru'
 export const FALLBACK_LOCALE: Locale = 'ru'
-
-/**
- * Словари интерфейса: вложенные ключи `module.screen.element`. Их читает
- * собственный переводчик (`translate.ts`) — один и тот же на сервере
- * (уведомления, письма) и в клиенте (ADR-0037).
- */
-export const dictionaries = { ru, tg, en } as const
 
 /**
  * Самоназвания языков для переключателя. Не переводятся: каждый язык
