@@ -91,18 +91,22 @@ export const NotificationService = {
       const channels = Object.keys(modes) as NotificationChannel[]
       if (channels.length === 0) continue
 
-      const [existing] = await db()
-        .select({ id: notifications.id, count: notifications.aggregateCount })
-        .from(notifications)
-        .where(
-          and(
-            eq(notifications.userId, userId),
-            eq(notifications.aggregateKey, aggregateKey),
-            isNull(notifications.readAt),
-            sql`${notifications.createdAt} > now() - make_interval(mins => ${AGGREGATE_WINDOW_MINUTES})`,
-          ),
-        )
-        .limit(1)
+      // Срочное (алерт, опасное явление, эскалация) — каждое отдельной строкой: сводка
+      // «3 изменения в …» спрятала бы суть тревоги (ADR-0168)
+      const [existing] = input.urgent
+        ? []
+        : await db()
+            .select({ id: notifications.id, count: notifications.aggregateCount })
+            .from(notifications)
+            .where(
+              and(
+                eq(notifications.userId, userId),
+                eq(notifications.aggregateKey, aggregateKey),
+                isNull(notifications.readAt),
+                sql`${notifications.createdAt} > now() - make_interval(mins => ${AGGREGATE_WINDOW_MINUTES})`,
+              ),
+            )
+            .limit(1)
 
       if (existing) {
         await db()
