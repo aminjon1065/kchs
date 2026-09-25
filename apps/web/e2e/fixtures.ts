@@ -60,8 +60,13 @@ export async function openScreen(page: Page, query: string): Promise<void> {
   await expect(input).toBeVisible()
   await input.fill(query)
   // Не первый результат, а пункт с названием экрана: на общем стенде копятся объекты
-  // с похожими названиями (личные пространства прогонов)
-  await page.getByRole('option').filter({ hasText: query }).first().click()
+  // с похожими названиями (личные пространства прогонов). Точное имя — надёжнее подстроки:
+  // результаты поиска приходят позже и сдвигают список, а подстрока задела бы и соседние
+  // команды («Настройки уведомлений»)
+  const loose = page.getByRole('option').filter({ hasText: query }).first()
+  await expect(loose).toBeVisible()
+  const exact = page.getByRole('option', { name: query, exact: true })
+  await ((await exact.count()) > 0 ? exact.first() : loose).click()
   await expect(page.getByRole('dialog', { name: 'Палитра команд' })).toBeHidden()
 }
 

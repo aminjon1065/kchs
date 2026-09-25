@@ -17,6 +17,7 @@ import { ChevronsLeft, Clock, LayoutGrid, Plus, Star, Trash2 } from 'lucide-reac
 import { useMemo, useState } from 'react'
 import { favoritesQuery, objectListQuery, recentQuery, spacesQuery } from '~/shared/api/queries.js'
 import { useT } from '../i18n.js'
+import { getScreen } from './registry.js'
 import { useWorkspace } from './store.js'
 
 const SPACE_KIND_ORDER: Record<string, number> = { org: 0, unit: 1, team: 2, personal: 3 }
@@ -91,7 +92,9 @@ export function Navigator({ onCreateSpace }: { onCreateSpace: () => void }) {
     >
       <div className="flex h-10 shrink-0 items-center gap-1 border-b border-line px-2">
         <span className="flex-1 truncate text-xs font-semibold text-fg">
-          {t(`shell.rail.${navigatorModule}`)}
+          {/* Заголовок — названия экрана из реестра: палитра открывает и экраны без
+              кнопки на рейке (корзина, контроль, SQL), у них нет подписи shell.rail.* */}
+          {t(getScreen(navigatorModule)?.titleKey ?? `shell.rail.${navigatorModule}`)}
         </span>
         <Tooltip content={t('shell.navigator.collapse')} shortcut="mod+b">
           <IconButton

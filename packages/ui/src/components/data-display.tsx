@@ -248,11 +248,17 @@ export function Card({
   className,
   children,
   title,
+  titleAs: Title = 'h2',
   action,
   padded = true,
   ...props
 }: Omit<HTMLAttributes<HTMLDivElement>, 'title'> & {
   title?: ReactNode
+  /**
+   * Уровень заголовка карточки: по заголовкам программа чтения с экрана переходит между
+   * виджетами. По умолчанию `h2` — под заголовком экрана; вложенной карточке — `h3`.
+   */
+  titleAs?: 'h2' | 'h3' | 'h4'
   action?: ReactNode
   padded?: boolean
 }) {
@@ -263,7 +269,11 @@ export function Card({
     >
       {title || action ? (
         <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-2.5">
-          <div className="truncate text-sm font-semibold text-fg">{title}</div>
+          {title ? (
+            <Title className="truncate text-sm font-semibold text-fg">{title}</Title>
+          ) : (
+            <span />
+          )}
           {action}
         </div>
       ) : null}
