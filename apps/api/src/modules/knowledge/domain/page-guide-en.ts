@@ -159,7 +159,9 @@ export const GUIDE_PAGES_EN: readonly GuidePage[] = [
     block(
       'Versions and preview',
       ul(
-        'A new revision — the “New version” button on the file card; earlier ones stay on the “Versions” tab.',
+        'A new revision — the “New version” button on the file card, with a “Version note” field; earlier ones stay on the “Versions” tab.',
+        'An earlier version comes back with “Go back to version N” — it becomes a new version with a note.',
+        'To move a file or folder, use “Move” in its row or drag it onto a folder; “Rename” is there too.',
         'Previews are built for images, PDF and office files; text files are shown as text.',
         'Office files may have an “Open in editor” button — you edit right in the browser, and the result is saved as a new version.',
         'Deleted items stay in the trash for 30 days: the trash button at the bottom of the navigator, then “Restore”.',
