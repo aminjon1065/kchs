@@ -315,7 +315,22 @@ function ProtocolPrintState({ protocol }: { protocol: ProtocolRecord }) {
       toast.error(failure instanceof ApiError ? failure.message : t('errors.unknown')),
   })
   const documentId = protocol.documentId
-  if (!documentId || protocol.print.status === 'none') return null
+  if (!documentId) return null
+  if (protocol.print.status === 'none') {
+    // Протокол зарегистрирован до печатной формы: собрать её можно и сейчас
+    return protocol.can.print ? (
+      <Callout
+        tone="neutral"
+        action={
+          <Button size="sm" onClick={() => retry.mutate()} disabled={retry.isPending}>
+            {t('meetings.protocol.print.make')}
+          </Button>
+        }
+      >
+        {t('meetings.protocol.print.missing')}
+      </Callout>
+    ) : null
+  }
   if (protocol.print.status === 'pending') {
     return <Callout tone="info">{t('meetings.protocol.print.pending')}</Callout>
   }

@@ -6116,6 +6116,8 @@ export const en: DeepPartial<Dictionary> = {
         ready: 'The minutes PDF is the first document version: it is what gets signed',
         failed: 'The printed minutes could not be prepared',
         retry: 'Prepare again',
+        missing: 'The minutes document has no printed version yet',
+        make: 'Prepare printed minutes',
         openDocument: 'Open document',
       },
       hiddenInstruction: 'Instruction is not accessible',
