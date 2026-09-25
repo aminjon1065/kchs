@@ -111,6 +111,9 @@ test.describe('Пакет ЧС: приёмка', () => {
       'Происшествия за трое суток',
       'Опасные явления за неделю',
       'Дежурная смена сегодня',
+      // Время реагирования и охват оповещения (ADR-0157)
+      'Время прибытия по регионам, мин',
+      'Оповещение населения за неделю',
     ]) {
       await expect(page.getByText(title, { exact: true }).first()).toBeVisible({ timeout: 20_000 })
     }
@@ -229,6 +232,21 @@ test.describe('Пакет ЧС: приёмка', () => {
         .getByRole('button', { name: /^Худжанд/ })
         .first()
         .click()
+      // Место — точкой на карте или координатами (ADR-0157)
+      await table.getByRole('button', { name: 'Место, строка 1' }).click()
+      const place = page.getByRole('dialog', { name: 'Место на карте' })
+      await expect(place.locator('canvas.maplibregl-canvas')).toBeVisible({ timeout: 20_000 })
+      await place.getByRole('region', { name: 'Карта для выбора места' }).click()
+      await expect(place.getByLabel('Широта')).not.toHaveValue('')
+      await place.getByLabel('Широта').fill('40.28556')
+      await place.getByLabel('Долгота').fill('69.62158')
+      await place.getByRole('button', { name: 'Применить' }).click()
+      await expect(table.getByRole('button', { name: 'Место, строка 1' })).toHaveText(
+        '40.28556, 69.62158',
+      )
+      await table.getByLabel('Время вызова, строка 1').fill('2026-09-24T14:32')
+      await table.getByLabel('Время выезда, строка 1').fill('2026-09-24T14:35')
+      await table.getByLabel('Время прибытия, строка 1').fill('2026-09-24T14:51')
       await table.getByLabel('Пострадавшие, строка 1').fill('2')
       await table.getByLabel('Погибшие, строка 1').fill('1')
       await table.getByLabel('Описание, строка 1').fill(description)
@@ -259,6 +277,11 @@ test.describe('Пакет ЧС: приёмка', () => {
         reported_by: assignment?.responsibleId,
       })
       expect(rows[0]?.report_date).toBeTruthy()
+      // Точка строки — на слое карты обстановки; место указано, не приблизительное
+      expect(rows[0]?.geometry).toMatchObject({ type: 'Point', coordinates: [69.62158, 40.28556] })
+      expect(rows[0]?.location_approx).toBe(false)
+      expect(rows[0]?.called_at).toBeTruthy()
+      expect(rows[0]?.arrived_at).toBeTruthy()
 
       // Правило «Происшествие с погибшими»: председатель видит уведомление…
       const chairman = await browser.newContext({ baseURL: BASE, storageState: EMPLOYEE_STATE })

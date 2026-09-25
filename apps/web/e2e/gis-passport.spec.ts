@@ -94,6 +94,17 @@ test.describe('GIS: паспорт территории', () => {
     })
     expect(task.ok(), await task.text()).toBeTruthy()
 
+    // Документ района — реквизитом «Территория» (ADR-0158)
+    const types = (await (await request.get('/api/v1/document-types')).json()).items as Array<{
+      id: string
+    }>
+    const subject = `О паводковой обстановке ${run}`
+    const document = await request.post('/api/v1/documents', {
+      headers,
+      data: { typeId: types[0]?.id, subject, territoryId: district.id },
+    })
+    expect(document.ok(), await document.text()).toBeTruthy()
+
     // Справочник → карточка региона → паспорт
     await page.goto('/territories')
     await page
@@ -147,9 +158,11 @@ test.describe('GIS: паспорт территории', () => {
         .filter({ hasText: `${name} — слой` })
         .getByRole('button', { name: 'Открыть слой' }),
     ).toBeVisible()
-    // Документы — заглушка до фазы 3
+    // Документы: документ района — и в паспорте региона, с тем, как он связан
     await page.getByRole('tab', { name: /^Документы/ }).click()
-    await expect(page.getByText('Документы появятся с документооборотом')).toBeVisible()
+    const documents = page.getByRole('grid', { name: 'Документы' })
+    await expect(documents.getByText(subject)).toBeVisible()
+    await expect(documents.getByText('Реквизит «Территория»').first()).toBeVisible()
     // Поручения: поручение района — и в паспорте региона
     await page.getByRole('tab', { name: /^Поручения/ }).click()
     await expect(page.getByText(`Проверить дамбу ${run}`)).toBeVisible()
