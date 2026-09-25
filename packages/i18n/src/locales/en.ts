@@ -2474,7 +2474,6 @@ export const en: DeepPartial<Dictionary> = {
     },
     move: {
       action: 'Move',
-      actionFor: 'Move “{name}”',
       title: '{count, plural, one {Move # item} other {Move # items}}',
       hint: 'Choose a folder; the space in the tree is its root.',
       space: 'Space',
@@ -2485,7 +2484,6 @@ export const en: DeepPartial<Dictionary> = {
       failed: 'Could not move: {count}',
     },
     rename: {
-      actionFor: 'Rename “{name}”',
       fileTitle: 'Rename file',
       folderTitle: 'Rename folder',
       done: 'Renamed',

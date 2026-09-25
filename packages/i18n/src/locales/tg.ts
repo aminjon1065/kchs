@@ -2669,7 +2669,6 @@ export const tg: DeepPartial<Dictionary> = {
     },
     move: {
       action: 'Кӯчонидан',
-      actionFor: 'Кӯчонидани «{name}»',
       title: '{count, plural, one {Кӯчонидани # объект} other {Кӯчонидани # объект}}',
       hint: 'Ҷузвдонро интихоб кунед; фазо дар дарахт — решаи он.',
       space: 'Фазо',
@@ -2680,7 +2679,6 @@ export const tg: DeepPartial<Dictionary> = {
       failed: 'Кӯчонидан нашуд: {count}',
     },
     rename: {
-      actionFor: 'Иваз кардани номи «{name}»',
       fileTitle: 'Иваз кардани номи файл',
       folderTitle: 'Иваз кардани номи ҷузвдон',
       done: 'Ном иваз шуд',

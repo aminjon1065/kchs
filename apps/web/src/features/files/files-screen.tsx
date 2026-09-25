@@ -538,14 +538,14 @@ export function FilesScreen({
               {readOnly ? null : (
                 <>
                   <IconButton
-                    label={t('files.move.actionFor', { name: item.title })}
+                    label={t('common.actions.move')}
                     size="sm"
                     onClick={() => setMoveTargets([movable(item)])}
                   >
                     <FolderInput className="size-3.5" />
                   </IconButton>
                   <IconButton
-                    label={t('files.rename.actionFor', { name: item.title })}
+                    label={t('common.actions.rename')}
                     size="sm"
                     onClick={() => setRenameTarget(movable(item))}
                   >
