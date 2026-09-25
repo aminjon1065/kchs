@@ -11,6 +11,7 @@ metadata:
     {{- include "kchs.labels" . | nindent 4 }}
 data:
   NODE_ENV: production
+  KCHS_VERSION: {{ .Values.image.tag | quote }}
   TZ: {{ .Values.timezone | quote }}
   LOG_LEVEL: {{ .Values.logLevel | quote }}
   KCHS_BASE_URL: {{ include "kchs.baseUrl" . | quote }}
@@ -52,6 +53,9 @@ data:
   METRICS_PORT: {{ .Values.observability.metricsPort | quote }}
   METRICS_HOST: "0.0.0.0"
   OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.observability.otlpEndpoint | quote }}
+  # «Здоровье системы» читает метрики и оповещения кластера (ADR-0167); пусто — не читает
+  PROMETHEUS_URL: {{ .Values.observability.prometheusUrl | quote }}
+  ALERTMANAGER_URL: {{ .Values.observability.alertmanagerUrl | quote }}
   {{- with .Values.observability.tracesSamplerArg }}
   OTEL_TRACES_SAMPLER: parentbased_traceidratio
   OTEL_TRACES_SAMPLER_ARG: {{ . | quote }}

@@ -14,7 +14,6 @@ import {
   SelectTrigger,
   SelectValue,
   Skeleton,
-  StatTile,
   TableSkeleton,
   Tabs,
   TabsContent,
@@ -28,7 +27,6 @@ import {
 } from '@kchs/ui'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  Activity,
   Bot,
   Building2,
   Cable,
@@ -42,7 +40,6 @@ import {
   FileJson,
   FileSpreadsheet,
   Globe2,
-  HardDrive,
   KeyRound,
   LayoutGrid,
   Map as MapIcon,
@@ -51,7 +48,6 @@ import {
   Plus,
   Route,
   ScrollText,
-  Search,
   Server,
   ShieldCheck,
   Shuffle,
@@ -73,7 +69,6 @@ import { SchedulesSection } from '~/features/automation/schedules-section.js'
 import { ProcessesSection } from '~/features/processes/processes-section.js'
 import {
   auditQuery,
-  healthQuery,
   keys,
   meQuery,
   orgUnitsQuery,
@@ -93,6 +88,7 @@ import { DirectorySection } from './directory-section.js'
 import { FeaturesSection } from './features-section.js'
 import { GisServicesSection } from './gis-services-section.js'
 import { GroupsSection } from './groups-section.js'
+import { HealthSection } from './health-section.js'
 import { IntegrationsSection } from './integrations-section.js'
 import { MeetingsSection } from './meetings-section.js'
 import { CreateUnitDialog } from './org-management.js'
@@ -450,91 +446,6 @@ export function AdminScreen() {
           <AuditSection />
         </TabsContent>
       </Tabs>
-    </div>
-  )
-}
-
-const COMPONENT_ICONS: Record<string, typeof Server> = {
-  postgres: Database,
-  redis: Activity,
-  meilisearch: Search,
-  storage: HardDrive,
-}
-
-function HealthSection() {
-  const t = useT()
-  const { data, isLoading } = useQuery(healthQuery())
-
-  if (isLoading) {
-    return (
-      <div className="grid gap-3 p-5 sm:grid-cols-2 lg:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, index) => (
-          <Skeleton key={index} className="h-24 w-full" />
-        ))}
-      </div>
-    )
-  }
-  if (!data) return null
-
-  return (
-    <div className="mx-auto flex max-w-[1100px] flex-col gap-4 p-5">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {data.components.map((component) => {
-          const Icon = COMPONENT_ICONS[component.name] ?? Server
-          return (
-            <div
-              key={component.name}
-              className="flex flex-col gap-2 rounded-lg border border-line bg-surface p-4"
-            >
-              <div className="flex items-center gap-2">
-                <Icon className="size-4 text-fg-muted" aria-hidden />
-                <span className="text-sm font-medium text-fg">{component.name}</span>
-                <Badge
-                  className="ml-auto"
-                  tone={component.status === 'ok' ? 'success' : 'danger'}
-                  dot
-                  size="sm"
-                >
-                  {t(`admin.health.${component.status}`)}
-                </Badge>
-              </div>
-              <div className="tabular text-xs text-fg-muted">
-                {component.latencyMs !== null
-                  ? t('admin.health.latencyMs', { ms: component.latencyMs })
-                  : '—'}
-              </div>
-              {component.detail ? <p className="text-xs text-danger">{component.detail}</p> : null}
-            </div>
-          )
-        })}
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-4">
-        <StatTile
-          label={t('admin.health.outboxPending', { count: data.outbox.pending })}
-          value={data.outbox.pending}
-        />
-        <StatTile label={t('admin.health.jobsQueued')} value={data.jobs.queued} />
-        <StatTile label={t('admin.health.jobsRunning')} value={data.jobs.running} />
-        <StatTile label={t('admin.health.jobsFailed')} value={data.jobs.failed} />
-      </div>
-
-      <Card title={t('admin.health.installation')}>
-        <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2 text-sm">
-          <dt className="text-fg-muted">{t('admin.health.version')}</dt>
-          <dd className="tabular">{data.version}</dd>
-          <dt className="text-fg-muted">{t('admin.health.uptime')}</dt>
-          <dd className="tabular">
-            {t('admin.health.uptimeMinutes', { minutes: Math.floor(data.uptimeSeconds / 60) })}
-          </dd>
-          <dt className="text-fg-muted">{t('admin.health.state')}</dt>
-          <dd>
-            <Badge tone={data.status === 'ok' ? 'success' : 'warning'} dot>
-              {t(`admin.health.${data.status}`)}
-            </Badge>
-          </dd>
-        </dl>
-      </Card>
     </div>
   )
 }

@@ -132,6 +132,9 @@ redis:
       enabled: true
       size: 8Gi
       storageClassName: ""
+    # Предел памяти Redis (noeviction: у предела запись отклоняется). Ниже лимита
+    # контейнера с запасом на буферы клиентов и перезапись AOF
+    maxmemory: 768mb
     resources:
       requests: { cpu: 100m, memory: 256Mi }
       limits: { memory: 1Gi }
@@ -431,6 +434,10 @@ observability:
   # выключены полностью: SDK не загружается
   otlpEndpoint: ""
   tracesSamplerArg: ""
+  # Prometheus и Alertmanager кластера для экрана «Здоровье системы» (ADR-0167),
+  # например http://prometheus-operated.monitoring:9090. Пусто — экран их не читает
+  prometheusUrl: ""
+  alertmanagerUrl: ""
   serviceMonitor:
     # Требует Prometheus Operator (CRD monitoring.coreos.com/v1)
     enabled: false

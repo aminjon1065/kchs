@@ -11,6 +11,10 @@ test.describe('Администрирование', () => {
     await expect(page.getByText('meilisearch')).toBeVisible()
     await expect(page.getByText('storage')).toBeVisible()
     await expect(page.getByText('Работает').first()).toBeVisible()
+    // Метрики и оповещения профиля observability (ADR-0167): на стенде разработки он не
+    // запущен — карточки говорят, чего не хватает, а не пустеют
+    await expect(page.getByRole('heading', { name: 'Нагрузка и ресурсы' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Действующие оповещения' })).toBeVisible()
 
     // Пользователи
     await page.getByRole('tab', { name: 'Пользователи' }).click()

@@ -43,6 +43,12 @@ x-app-env: &app-env
   KCHS_MASTER_KEY_PREVIOUS: ${KCHS_MASTER_KEY_PREVIOUS:-}
   INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
   ENGINE_INTERNAL_URL: http://engine:8000
+  # Версия установки — тег образов; видна в «Здоровье системы»
+  KCHS_VERSION: ${KCHS_IMAGE_TAG:-0.1.0}
+  # «Здоровье системы» читает метрики и оповещения профиля observability (ADR-0167);
+  # профиль не запущен — экран так и пишет
+  PROMETHEUS_URL: ${PROMETHEUS_URL_INTERNAL:-http://prometheus:9090}
+  ALERTMANAGER_URL: ${ALERTMANAGER_URL_INTERNAL:-http://alertmanager:9093}
   SMTP_URL: ${SMTP_URL_INTERNAL:-smtp://mailpit:1025}
   SMTP_FROM: ${SMTP_FROM:-Портал КЧС <no-reply@kchs.local>}
   # Отправитель исходящих документов — ящик канцелярии (ADR-0149); пусто — SMTP_FROM
@@ -175,6 +181,11 @@ services:
       - "yes"
       - --appendfsync
       - everysec
+      # Предел памяти: без него Redis растёт до памяти сервера. noeviction обязателен —
+      # в Redis очереди BullMQ и поток событий: у предела запись отклоняется, ключи не
+      # вытесняются (оповещение KchsRedisMemory — на 90%)
+      - --maxmemory
+      - ${REDIS_MAXMEMORY:-1gb}
       - --maxmemory-policy
       - noeviction
       - --requirepass

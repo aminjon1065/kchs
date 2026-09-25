@@ -9,10 +9,12 @@ import { EngineJobs } from '~/kernel/jobs/engine.js'
 import { JobService } from '~/kernel/jobs/service.js'
 import { searchHealthy } from '~/kernel/search/index-service.js'
 import { storageHealthy } from '~/kernel/storage/s3.js'
+import { config } from '~/shared/config/env.js'
 import { csvCell } from '~/shared/csv.js'
 import { db } from '~/shared/db/client.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { redis } from '~/shared/redis/index.js'
+import { observabilitySnapshot } from './domain/observability.js'
 import { registerBackupRoutes } from './http/backup-routes.js'
 import { registerBrandingRoutes } from './http/branding-routes.js'
 import { registerFeatureRoutes } from './http/features-routes.js'
@@ -141,18 +143,35 @@ export function registerAdminRoutes(route: RouteRegistrar): void {
         check('storage', async () => {
           if (!(await storageHealthy())) throw new Error('недоступно')
         }),
+        // Движок — в установке всегда, при разработке — если поднят (ENGINE_INTERNAL_URL)
+        ...(config().ENGINE_INTERNAL_URL
+          ? [
+              check('engine', async () => {
+                const response = await fetch(`${config().ENGINE_INTERNAL_URL}/health`, {
+                  signal: AbortSignal.timeout(3000),
+                })
+                if (!response.ok) throw new Error(`HTTP ${response.status}`)
+              }),
+            ]
+          : []),
       ])
 
-      const [lag, jobs] = await Promise.all([outboxLag(), JobService.counts()])
+      const [lag, jobs, observed] = await Promise.all([
+        outboxLag(),
+        JobService.counts(),
+        observabilitySnapshot(),
+      ])
       const down = components.filter((c) => c.status === 'down').length
 
       return {
         status: down > 0 ? ('degraded' as const) : ('ok' as const),
-        version: '0.1.0',
+        version: config().KCHS_VERSION ?? 'dev',
         uptimeSeconds: Math.floor((Date.now() - startedAt) / 1000),
         components,
         outbox: lag,
         jobs,
+        metrics: observed.metrics,
+        alerts: observed.alerts,
       }
     },
   })

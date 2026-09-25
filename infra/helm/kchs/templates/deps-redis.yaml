@@ -62,6 +62,7 @@ spec:
               exec redis-server \
                 --appendonly yes \
                 --appendfsync everysec \
+                --maxmemory {{ $redis.maxmemory | quote }} \
                 --maxmemory-policy noeviction \
                 --requirepass "$REDIS_PASSWORD"
           env:

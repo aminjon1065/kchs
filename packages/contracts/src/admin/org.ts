@@ -159,6 +159,40 @@ export const HealthComponent = z.object({
   latencyMs: z.number().nullable(),
 })
 
+/**
+ * Метрики из Prometheus профиля observability (ADR-0167): `off` — адрес не задан,
+ * `unavailable` — не ответил; значения — за последние 5 минут, `null` — нет данных.
+ */
+export const HealthMetrics = z.object({
+  status: z.enum(['ok', 'unavailable', 'off']),
+  requestsPerSecond: z.number().nullable(),
+  /** Доля ответов 5xx, 0…1. */
+  errorRate: z.number().nullable(),
+  latencyP95Ms: z.number().nullable(),
+  /** Наибольший RSS процессов api и worker. */
+  memoryBytes: z.number().nullable(),
+  postgresSizeBytes: z.number().nullable(),
+  postgresConnections: z.number().nullable(),
+  redisUsedBytes: z.number().nullable(),
+  /** 0 — предел памяти Redis не задан. */
+  redisMaxBytes: z.number().nullable(),
+})
+export type HealthMetrics = z.infer<typeof HealthMetrics>
+
+/** Действующие оповещения Alertmanager — без заглушённых и подавленных. */
+export const HealthAlerts = z.object({
+  status: z.enum(['ok', 'unavailable', 'off']),
+  items: z.array(
+    z.object({
+      name: z.string(),
+      severity: z.string().nullable(),
+      summary: z.string().nullable(),
+      startsAt: z.string(),
+    }),
+  ),
+})
+export type HealthAlerts = z.infer<typeof HealthAlerts>
+
 export const HealthReport = z.object({
   status: z.enum(['ok', 'degraded', 'down']),
   version: z.string(),
@@ -166,5 +200,7 @@ export const HealthReport = z.object({
   components: z.array(HealthComponent),
   outbox: z.object({ pending: z.number().int(), oldestSeconds: z.number().int().nullable() }),
   jobs: z.object({ queued: z.number().int(), running: z.number().int(), failed: z.number().int() }),
+  metrics: HealthMetrics,
+  alerts: HealthAlerts,
 })
 export type HealthReport = z.infer<typeof HealthReport>

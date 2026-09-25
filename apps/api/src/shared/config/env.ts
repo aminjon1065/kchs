@@ -42,6 +42,15 @@ const EnvSchema = z.object({
     z.coerce.number().int().min(1).max(65535).optional(),
   ),
   METRICS_HOST: z.string().default('127.0.0.1'),
+  /**
+   * Prometheus и Alertmanager профиля observability (ADR-0167): экран «Здоровье
+   * системы» читает из них нагрузку, память служб и действующие оповещения. Пусто —
+   * блоки метрик и оповещений показывают, что сбор не настроен.
+   */
+  PROMETHEUS_URL: optionalUrl,
+  ALERTMANAGER_URL: optionalUrl,
+  /** Версия установки — тег образов; при разработке не задана (ADR-0167). */
+  KCHS_VERSION: optionalText,
 
   KCHS_BASE_URL: z.url().default('http://localhost:5173'),
   KCHS_API_URL: z.url().default('http://localhost:3000'),
