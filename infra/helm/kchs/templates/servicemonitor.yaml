@@ -23,5 +23,10 @@ spec:
     - port: metrics
       path: /metrics
       interval: {{ $.Values.observability.serviceMonitor.interval }}
+      # Имя задания — как в compose и в правилах оповещений (kchs-api, kchs-worker), а не
+      # имя сервиса: оно зависит от имени релиза (ADR-0167)
+      relabelings:
+        - targetLabel: job
+          replacement: {{ printf "kchs-%s" $component }}
 {{- end }}
 {{- end }}

@@ -149,7 +149,12 @@ helm template kchs infra/helm/kchs -f infra/helm/kchs/ci/external-values.yaml | 
 ## Чего в чарте нет
 
 - Наблюдаемости (Prometheus, Loki, Tempo, Grafana): в кластере это отдельные
-  релизы, чарт только отдаёт метрики и трассы (`observability.*`).
+  релизы, чарт только отдаёт метрики и трассы (`observability.*`). Для Prometheus
+  Operator чарт ставит `ServiceMonitor` (задания `kchs-api` и `kchs-worker`) и
+  `PrometheusRule` с теми же правилами оповещений, что в S1
+  (`observability.prometheusRule.enabled`, ADR-0167); экран «Здоровье системы»
+  читает Prometheus и Alertmanager по `observability.prometheusUrl` и
+  `observability.alertmanagerUrl`.
 - Резервного копирования Postgres: копии делает сама установка заданием
   платформы в бакет копий (ADR-0117); pgBackRest с архивом WAL — дело оператора
   кластера.

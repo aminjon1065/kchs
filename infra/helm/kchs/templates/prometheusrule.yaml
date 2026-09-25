@@ -1,0 +1,21 @@
+{{- if .Values.observability.prometheusRule.enabled }}
+{{/*
+Правила оповещений kchs для Prometheus Operator (ADR-0167) — те же, что в профиле
+observability S1: files/alerts.yml — копия infra/observability/prometheus/alerts.yml,
+совпадение сверяет CI. Файл вставляется как есть, без шаблонизации: {{ $labels }} в
+аннотациях — шаблоны самого Prometheus. Имена заданий kchs-api и kchs-worker ставит
+ServiceMonitor чарта; экспортёрам служб данных администратор кластера даёт job postgres,
+redis, minio, meilisearch и alertmanager, иначе правила по `up{job=...}` молчат.
+*/}}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "kchs.fullname" . }}
+  labels:
+    {{- include "kchs.labels" . | nindent 4 }}
+    {{- with .Values.observability.prometheusRule.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+{{ .Files.Get "files/alerts.yml" | indent 2 }}
+{{- end }}

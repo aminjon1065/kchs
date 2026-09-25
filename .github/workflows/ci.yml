@@ -307,6 +307,13 @@ jobs:
             test rules alerts.test.yml
         env:
           PROMETHEUS_VERSION: 'v3.9.1'
+      # Чарт S2 несёт те же правила (PrometheusRule, ADR-0167) — копией внутри чарта
+      - name: Правила чарта совпадают с правилами профиля
+        run: |
+          if ! cmp -s infra/observability/prometheus/alerts.yml infra/helm/kchs/files/alerts.yml; then
+            echo "infra/helm/kchs/files/alerts.yml отстал: cp infra/observability/prometheus/alerts.yml infra/helm/kchs/files/alerts.yml" >&2
+            exit 1
+          fi
 
   security:
     name: Безопасность

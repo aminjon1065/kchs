@@ -56,8 +56,14 @@ engine:
 observability:
   otlpEndpoint: http://alloy.observability.svc.cluster.local:4318
   tracesSamplerArg: "0.1"
+  prometheusUrl: http://prometheus.observability.svc.cluster.local:9090
+  alertmanagerUrl: http://alertmanager.observability.svc.cluster.local:9093
   serviceMonitor:
     enabled: true
+  prometheusRule:
+    enabled: true
+    labels:
+      release: prometheus
 
 livekit:
   url: wss://meet.kchs.example.org

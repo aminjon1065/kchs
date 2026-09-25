@@ -443,6 +443,11 @@ observability:
     enabled: false
     interval: 15s
     labels: {}
+  # Правила оповещений kchs (PrometheusRule, Prometheus Operator) — те же, что в S1
+  # (ADR-0167). labels — метки, по которым ваш Prometheus выбирает правила
+  prometheusRule:
+    enabled: false
+    labels: {}
 
 # ── Прикладные настройки (те же переменные, что в x-app-env compose) ───────
 app:
