@@ -1412,9 +1412,9 @@ export const ru = {
       delegation: 'Замещение: {user}',
       attribute_cap: 'Ограничено: {reason}',
       confidentiality:
-        'Гриф «{confidentiality, select, public {общедоступно} internal {для служебного пользования} confidential {конфиденциально} secret {секретно} other {{confidentiality}}}» выше допуска «{clearance, select, public {общедоступно} internal {для служебного пользования} confidential {конфиденциально} secret {секретно} other {{clearance}}}»',
+        'Гриф «{confidentiality, select, public {общедоступно} internal {для служебного пользования} confidential {конфиденциально} other {{confidentiality}}}» выше допуска «{clearance, select, public {общедоступно} internal {для служебного пользования} confidential {конфиденциально} other {{clearance}}}»',
       admin_mode:
-        'Режим администратора: доступ к грифу «{confidentiality, select, public {общедоступно} internal {для служебного пользования} confidential {конфиденциально} secret {секретно} other {{confidentiality}}}»',
+        'Режим администратора: доступ к грифу «{confidentiality, select, public {общедоступно} internal {для служебного пользования} confidential {конфиденциально} other {{confidentiality}}}»',
       denied: 'Доступ не предоставлен',
       process_step: 'Участник маршрута',
       form_assignee: 'Назначенный по форме сбора',
@@ -1444,13 +1444,11 @@ export const ru = {
       public: 'Общедоступно',
       internal: 'Для служебного пользования',
       confidential: 'Конфиденциально',
-      secret: 'Секретно',
     },
     confidentialityShort: {
       public: 'Общедоступно',
       internal: 'ДСП',
       confidential: 'Конфиденциально',
-      secret: 'Секретно',
     },
     clearance: {
       label: 'Допуск',

@@ -86,18 +86,18 @@ describe('жизненный цикл документа', () => {
 describe('грифы и допуски', () => {
   it('упорядочены по строгости', () => {
     expect(confidentialityRank('public')).toBeLessThan(confidentialityRank('internal'))
-    expect(confidentialityRank('confidential')).toBeLessThan(confidentialityRank('secret'))
+    expect(confidentialityRank('internal')).toBeLessThan(confidentialityRank('confidential'))
   })
 
   it('допуск открывает грифы не строже себя', () => {
     expect(allowedConfidentiality('internal')).toEqual(['public', 'internal'])
-    expect(clearancesFor('confidential')).toEqual(['confidential', 'secret'])
+    expect(clearancesFor('internal')).toEqual(['internal', 'confidential'])
     expect(withinClearance('confidential', 'internal')).toBe(false)
-    expect(withinClearance('internal', 'secret')).toBe(true)
+    expect(withinClearance('internal', 'confidential')).toBe(true)
   })
 
   it('действующий гриф — самый строгий; содержание скрыто от «конфиденциально»', () => {
-    expect(strictest('internal', 'secret', 'public')).toBe('secret')
+    expect(strictest('internal', 'confidential', 'public')).toBe('confidential')
     expect(strictest()).toBe('public')
     expect(isRedacted('internal')).toBe(false)
     expect(isRedacted('confidential')).toBe(true)
@@ -107,7 +107,11 @@ describe('грифы и допуски', () => {
   it('неизвестное значение атрибута — допуск по умолчанию', () => {
     expect(parseConfidentiality('top-secret')).toBe('internal')
     expect(parseConfidentiality(undefined)).toBe('internal')
-    expect(parseConfidentiality('secret')).toBe('secret')
     expect(parseConfidentiality(null, 'public')).toBe('public')
+  })
+
+  it('снятый гриф «Секретно» читается самым строгим из оставшихся, а не ДСП', () => {
+    expect(parseConfidentiality('secret')).toBe('confidential')
+    expect(parseConfidentiality('secret', 'public')).toBe('confidential')
   })
 })

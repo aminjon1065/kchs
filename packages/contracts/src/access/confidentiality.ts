@@ -5,9 +5,10 @@ import { Timestamp } from '../common/primitives.js'
  * Грифы конфиденциальности (08-documents.md §13, ADR-0080) — атрибутное
  * ограничение ядра (03-access-model.md, источник прав №7): объект с грифом
  * выше допуска пользователя недоступен независимо от ACL, роли в пространстве
- * и политики типа. Порядок значений — по строгости.
+ * и политики типа. Порядок значений — по строгости. Грифа «Секретно» нет:
+ * гостайна обрабатывается только в аттестованных системах (ADR-0142).
  */
-export const CONFIDENTIALITY_LEVELS = ['public', 'internal', 'confidential', 'secret'] as const
+export const CONFIDENTIALITY_LEVELS = ['public', 'internal', 'confidential'] as const
 export const Confidentiality = z.enum(CONFIDENTIALITY_LEVELS)
 export type Confidentiality = z.infer<typeof Confidentiality>
 
@@ -27,14 +28,20 @@ export function confidentialityRank(value: Confidentiality): number {
   return CONFIDENTIALITY_LEVELS.indexOf(value)
 }
 
+/**
+ * Снятые значения: старая копия базы или пакет конфигурации ещё может принести
+ * «Секретно» — это самый строгий из оставшихся грифов, а не ДСП (ADR-0142).
+ */
+const LEGACY_LEVELS: Readonly<Record<string, Confidentiality>> = { secret: 'confidential' }
+
 /** Значение из хранилища (jsonb, текст) — к грифу; неизвестное — `fallback`. */
 export function parseConfidentiality(
   value: unknown,
   fallback: Confidentiality = DEFAULT_CLEARANCE,
 ): Confidentiality {
-  return typeof value === 'string' && (CONFIDENTIALITY_LEVELS as readonly string[]).includes(value)
-    ? (value as Confidentiality)
-    : fallback
+  if (typeof value !== 'string') return fallback
+  if ((CONFIDENTIALITY_LEVELS as readonly string[]).includes(value)) return value as Confidentiality
+  return LEGACY_LEVELS[value] ?? fallback
 }
 
 /** Грифы, которые открыты допуску: все не строже его. */

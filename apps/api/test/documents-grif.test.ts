@@ -363,7 +363,7 @@ describe('документ выше допуска не виден даже пр
 
 describe('допуск и гриф меняются — доступ пересчитывается', () => {
   it('допуск выдаёт только администратор системы; с допуском документ виден', async () => {
-    expect((await setClearance(fx.users.member, 'secret', registrar)).statusCode).toBe(403)
+    expect((await setClearance(fx.users.member, 'confidential', registrar)).statusCode).toBe(403)
     expect((await setClearance(fx.users.member, 'confidential')).statusCode).toBe(200)
     expect((await get(fx.users.member, `/documents/${secretId}`)).statusCode).toBe(200)
     expect((await setClearance(fx.users.member, 'internal')).statusCode).toBe(200)

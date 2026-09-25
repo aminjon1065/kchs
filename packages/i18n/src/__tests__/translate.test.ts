@@ -42,8 +42,11 @@ describe('выбор по значению (select)', () => {
 
   it('несколько выборов в одном тексте', () => {
     expect(
-      t('access.reason.confidentiality', { confidentiality: 'secret', clearance: 'internal' }),
-    ).toBe('Гриф «секретно» выше допуска «для служебного пользования»')
+      t('access.reason.confidentiality', {
+        confidentiality: 'confidential',
+        clearance: 'internal',
+      }),
+    ).toBe('Гриф «конфиденциально» выше допуска «для служебного пользования»')
   })
 })
 

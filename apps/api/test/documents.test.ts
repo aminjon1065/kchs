@@ -339,7 +339,8 @@ describe('права: регистрация, журнал, участники',
       method: 'POST',
       url: '/documents',
       as: fx.admin,
-      payload: { typeId: types.get('memo'), confidentiality: 'secret' },
+      // Донесение не бывает общедоступным: тип допускает только ДСП и «Конфиденциально»
+      payload: { typeId: types.get('situation_report'), confidentiality: 'public' },
     })
     expect(notAllowed.statusCode).toBe(400)
     expect(notAllowed.json().errors[0].message).toBe('not_allowed')

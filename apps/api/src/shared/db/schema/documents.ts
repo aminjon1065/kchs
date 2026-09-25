@@ -257,7 +257,7 @@ export const documents = pgTable(
     index('documents_fields_idx').using('gin', t.fields),
     check(
       'documents_confidentiality_check',
-      sql`${t.confidentiality} in ('public', 'internal', 'confidential', 'secret')`,
+      sql`${t.confidentiality} in ('public', 'internal', 'confidential')`,
     ),
     check('documents_control_check', sql`${t.control} in ('none', 'on', 'done')`),
   ],

@@ -173,7 +173,7 @@ const TYPES: StarterType[] = [
     direction: 'incoming',
     journal: 'incoming',
     settings: { autoControl: true, resolutionBy: 'unit_head' },
-    confidentialityAllowed: ['internal', 'confidential', 'secret'],
+    confidentialityAllowed: ['internal', 'confidential'],
     retentionYears: 10,
   },
 ]

@@ -1389,9 +1389,9 @@ export const en: DeepPartial<Dictionary> = {
       delegation: 'Delegation: {user}',
       attribute_cap: 'Limited: {reason}',
       confidentiality:
-        'Classification “{confidentiality, select, public {public} internal {internal use} confidential {confidential} secret {secret} other {{confidentiality}}}” is above clearance “{clearance, select, public {public} internal {internal use} confidential {confidential} secret {secret} other {{clearance}}}”',
+        'Classification “{confidentiality, select, public {public} internal {internal use} confidential {confidential} other {{confidentiality}}}” is above clearance “{clearance, select, public {public} internal {internal use} confidential {confidential} other {{clearance}}}”',
       admin_mode:
-        'Administrator mode: access to “{confidentiality, select, public {public} internal {internal use} confidential {confidential} secret {secret} other {{confidentiality}}}”',
+        'Administrator mode: access to “{confidentiality, select, public {public} internal {internal use} confidential {confidential} other {{confidentiality}}}”',
       denied: 'Access not granted',
       process_step: 'Route participant',
       form_assignee: 'Assigned on the data form',
@@ -1416,13 +1416,11 @@ export const en: DeepPartial<Dictionary> = {
       public: 'Public',
       internal: 'Internal use',
       confidential: 'Confidential',
-      secret: 'Secret',
     },
     confidentialityShort: {
       public: 'Public',
       internal: 'Internal',
       confidential: 'Confidential',
-      secret: 'Secret',
     },
     clearance: {
       label: 'Clearance',

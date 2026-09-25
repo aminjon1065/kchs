@@ -58,7 +58,7 @@ export const objects = pgTable(
       .where(sql`${t.confidentiality} <> 'public'`),
     check(
       'objects_confidentiality_check',
-      sql`${t.confidentiality} in ('public', 'internal', 'confidential', 'secret')`,
+      sql`${t.confidentiality} in ('public', 'internal', 'confidential')`,
     ),
     index('objects_parent_idx').on(t.parentId),
     index('objects_owner_idx').on(t.ownerId),

@@ -179,7 +179,7 @@ const EnvSchema = z.object({
    */
   AI_DOCUMENTS_MAX_CONFIDENTIALITY: z.preprocess(
     unset,
-    z.enum(['public', 'internal', 'confidential', 'secret']).default('internal'),
+    z.enum(['public', 'internal', 'confidential']).default('internal'),
   ),
 
   /**

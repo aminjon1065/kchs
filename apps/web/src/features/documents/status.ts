@@ -21,12 +21,11 @@ export const DOCUMENT_STATUS_TONE: Record<DocumentStatus, string> = {
   cancelled: 'cancelled',
 }
 
-/** Гриф — тон бейджа: общедоступное без акцента, секретное — тревожным цветом. */
+/** Гриф — тон бейджа: общедоступное и ДСП без акцента, конфиденциальное — тревожным цветом. */
 export const CONFIDENTIALITY_TONE: Record<Confidentiality, NonNullable<BadgeProps['tone']>> = {
   public: 'neutral',
   internal: 'neutral',
-  confidential: 'warning',
-  secret: 'danger',
+  confidential: 'danger',
 }
 
 /** Текст ошибки API для тоста и формы. */

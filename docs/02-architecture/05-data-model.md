@@ -19,7 +19,7 @@
 objects(id uuid pk, type text, space_id uuid, parent_id uuid null, title text, subtitle text, icon text,
         owner_id uuid, created_by uuid, created_at, updated_at, archived_at, deleted_at,
         access_mode text default 'inherit', meta jsonb default '{}', search_version bigint, version int,
-        confidentiality text default 'public')   -- гриф: public|internal|confidential|secret (ADR-0080)
+        confidentiality text default 'public')   -- гриф: public|internal|confidential (ADR-0080, ADR-0142)
   idx: (space_id, type, deleted_at), (parent_id), (owner_id), (type, updated_at desc), gin(meta jsonb_path_ops), trgm(title),
        (confidentiality) where confidentiality <> 'public'
 
