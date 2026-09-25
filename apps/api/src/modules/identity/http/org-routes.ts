@@ -13,6 +13,8 @@ import {
   Position,
   PrincipalRef,
   RoleInfo,
+  RoleInput,
+  RolePatch,
   UserKind,
   UserRef,
 } from '@kchs/contracts'
@@ -20,7 +22,7 @@ import { and, eq, inArray, isNull, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { hasCapability } from '~/kernel/access/authorize.js'
 import { describePrincipals } from '~/kernel/access/principal-refs.js'
-import { invalidatePrincipalSet } from '~/kernel/access/principal-set.js'
+import { bumpPrincipalsVersion, invalidatePrincipalSet } from '~/kernel/access/principal-set.js'
 import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
 import { recheckUserRooms } from '~/kernel/realtime/gateway.js'
 import { db } from '~/shared/db/client.js'
@@ -40,6 +42,7 @@ import { newId } from '~/shared/ids.js'
 import { AuthService } from '../domain/auth-service.js'
 import { PasskeyService } from '../domain/passkeys.js'
 import { assertCanManageUser } from '../domain/role-policy.js'
+import { RoleService } from '../domain/role-service.js'
 import {
   GroupService,
   OrgService,
@@ -644,11 +647,60 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
           id: row.id,
           key: row.key,
           name: row.name,
+          description: row.description,
           isSystem: row.isSystem,
           capabilities: caps.filter((c) => c.roleId === row.id).map((c) => c.capability),
           userCount: counts.get(row.id) ?? 0,
         })),
       }
+    },
+  })
+
+  route({
+    method: 'POST',
+    url: '/roles',
+    auth: { capability: 'roles.manage' },
+    tags: ['org'],
+    summary: 'Своя роль организации (ADR-0165)',
+    schema: { body: RoleInput, response: { 200: z.object({ id: z.uuid(), key: z.string() }) } },
+    handler: async (request) =>
+      db().transaction((tx) => RoleService.create(tx, request.ctx, request.body)),
+  })
+
+  route({
+    method: 'PATCH',
+    url: '/roles/:id',
+    auth: { capability: 'roles.manage' },
+    tags: ['org'],
+    summary: 'Изменить свою роль: название, описание, способности',
+    schema: {
+      params: z.object({ id: z.uuid() }),
+      body: RolePatch,
+      response: { 200: z.object({ ok: z.literal(true) }) },
+    },
+    handler: async (request) => {
+      const { capabilitiesChanged } = await db().transaction((tx) =>
+        RoleService.update(tx, request.ctx, request.params.id, request.body),
+      )
+      // После фиксации: права держателей роли меняются сразу, а не через срок кэша
+      if (capabilitiesChanged) await bumpPrincipalsVersion()
+      return { ok: true as const }
+    },
+  })
+
+  route({
+    method: 'DELETE',
+    url: '/roles/:id',
+    auth: { capability: 'roles.manage' },
+    tags: ['org'],
+    summary: 'Удалить свою роль, которую никто не держит',
+    schema: {
+      params: z.object({ id: z.uuid() }),
+      response: { 200: z.object({ ok: z.literal(true) }) },
+    },
+    handler: async (request) => {
+      await db().transaction((tx) => RoleService.remove(tx, request.ctx, request.params.id))
+      return { ok: true as const }
     },
   })
 }

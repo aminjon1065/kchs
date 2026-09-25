@@ -153,6 +153,10 @@ export const AUDIT_ACTIONS = {
   sessionRevoked: 'session.revoked',
   aclChanged: 'acl.changed',
   roleAssigned: 'role.assigned',
+  /** Свои роли организации (ADR-0165): состав способностей меняет права держателей. */
+  roleCreated: 'role.created',
+  roleUpdated: 'role.updated',
+  roleDeleted: 'role.deleted',
   orgChanged: 'org.changed',
   userCreated: 'user.created',
   userBlocked: 'user.blocked',

@@ -1,8 +1,9 @@
+import { CUSTOM_ROLE_FORBIDDEN, PRIVILEGED_CAPABILITIES } from '@kchs/contracts'
 import { and, eq, inArray, ne, sql } from 'drizzle-orm'
 import { hasCapability } from '~/kernel/access/authorize.js'
 import type { Ctx } from '~/shared/context.js'
 import type { Executor } from '~/shared/db/client.js'
-import { roles, userRoles, users } from '~/shared/db/schema/index.js'
+import { roleCapabilities, roles, userRoles, users } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 
 /**
@@ -25,6 +26,68 @@ function isSuperuser(ctx: Ctx): boolean {
   return ctx.kind === 'system' || ctx.isSystemAdmin
 }
 
+/**
+ * Привилегированные среди ролей: `system_admin`, `security_auditor` и свои роли с
+ * привилегированными способностями (ADR-0165) — их назначает и их держателей обслуживает
+ * только администратор системы.
+ */
+async function privilegedRoleKeys(tx: Executor, keys: string[]): Promise<Set<string>> {
+  const result = new Set(keys.filter((key) => PRIVILEGED_ROLES.has(key)))
+  const rest = keys.filter((key) => !result.has(key))
+  if (rest.length === 0) return result
+  const rows = await tx
+    .selectDistinct({ key: roles.key })
+    .from(roles)
+    .innerJoin(roleCapabilities, eq(roleCapabilities.roleId, roles.id))
+    .where(
+      and(
+        inArray(roles.key, rest),
+        inArray(roleCapabilities.capability, [...PRIVILEGED_CAPABILITIES]),
+      ),
+    )
+  for (const row of rows) result.add(row.key)
+  return result
+}
+
+/**
+ * Набор способностей своей роли (ADR-0165). Администрирование системы — только у
+ * системной роли. Не администратор системы собирает роль лишь из своих способностей и без
+ * привилегированных: иначе он выдал бы себе или другим больше, чем имеет сам.
+ */
+export function assertCanDefineRole(ctx: Ctx, capabilities: readonly string[]): void {
+  const forbidden = capabilities.filter((capability) =>
+    (CUSTOM_ROLE_FORBIDDEN as readonly string[]).includes(capability),
+  )
+  if (forbidden.length > 0) {
+    throw errors.validation('Администрирование системы — только у системной роли', [
+      { path: 'capabilities', message: forbidden.join(', '), code: 'forbidden_capability' },
+    ])
+  }
+  if (isSuperuser(ctx)) return
+  const privileged = capabilities.filter((capability) =>
+    (PRIVILEGED_CAPABILITIES as readonly string[]).includes(capability),
+  )
+  if (privileged.length > 0) {
+    throw errors.forbidden('Эти способности выдаёт только администратор системы', {
+      capabilities: privileged,
+    })
+  }
+  const lacking = capabilities.filter((capability) => !hasCapability(ctx, capability))
+  if (lacking.length > 0) {
+    throw errors.forbidden('Нельзя выдать способности, которых нет у вас самих', {
+      capabilities: lacking,
+    })
+  }
+}
+
+/** Роль с привилегированными способностями меняет и удаляет только администратор системы. */
+export async function assertCanEditRole(tx: Executor, ctx: Ctx, key: string): Promise<void> {
+  if (isSuperuser(ctx)) return
+  if ((await privilegedRoleKeys(tx, [key])).size > 0) {
+    throw errors.forbidden('Эту роль меняет только администратор системы')
+  }
+}
+
 /** Роли существуют и назначить их этому пользователю можно. */
 export async function assertCanAssignRoles(
   tx: Executor,
@@ -43,7 +106,7 @@ export async function assertCanAssignRoles(
   }
   if (isSuperuser(ctx)) return
 
-  const privileged = unique.filter((key) => PRIVILEGED_ROLES.has(key))
+  const privileged = [...(await privilegedRoleKeys(tx, unique))]
   if (privileged.length > 0) {
     throw errors.forbidden('Эти роли назначает только администратор системы', {
       roles: privileged,
@@ -82,7 +145,7 @@ export async function assertCanManageUser(
       .where(eq(userRoles.userId, userId))
   ).map((row) => row.key)
 
-  if (targetRoles.some((key) => PRIVILEGED_ROLES.has(key))) {
+  if ((await privilegedRoleKeys(tx, targetRoles)).size > 0) {
     throw errors.forbidden('Учётной записью администратора управляет только администратор системы')
   }
   if (hasCapability(ctx, 'roles.manage')) return

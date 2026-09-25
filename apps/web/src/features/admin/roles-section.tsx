@@ -1,18 +1,20 @@
-import { SYSTEM_ROLES } from '@kchs/contracts'
+import { type RoleInfo, SYSTEM_ROLES } from '@kchs/contracts'
 import { localizedText } from '@kchs/i18n'
-import { Button, Card, cn, Skeleton } from '@kchs/ui'
+import { Badge, Button, Card, cn, IconButton, Skeleton } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
-import { Check, Minus } from 'lucide-react'
-import { Fragment } from 'react'
+import { Check, Minus, Pencil, Plus } from 'lucide-react'
+import { Fragment, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
-import { rolesQuery } from '~/shared/api/queries.js'
+import { meQuery, rolesQuery } from '~/shared/api/queries.js'
 import { CAPABILITY_GROUPS, capabilityLabelKey } from './capabilities.js'
+import { RoleDialog } from './role-dialog.js'
 
 /**
- * «Роли и способности» (15-admin-operations.md): матрица системных ролей по
- * способностям и число сотрудников с ролью — переход к ним в «Пользователи».
- * Способности системных ролей задаёт платформа: здесь они только читаются.
+ * «Роли и способности» (15-admin-operations.md): матрица ролей по способностям и число
+ * сотрудников с ролью — переход к ним в «Пользователи». Способности системных ролей задаёт
+ * платформа — они только читаются; свои роли организации заводит и правит владелец
+ * roles.manage (ADR-0165).
  */
 export function RolesSection({
   onShowHolders,
@@ -23,6 +25,9 @@ export function RolesSection({
   const t = useT()
   const locale = useAppearance((s) => s.locale)
   const { data: unordered = [], isLoading } = useQuery(rolesQuery())
+  const { data: me } = useQuery(meQuery())
+  const canManage = me?.capabilities.includes('roles.manage') ?? false
+  const [editing, setEditing] = useState<RoleInfo | 'new' | null>(null)
   // Порядок платформы (от администратора к сотруднику), свои роли — следом
   const rank = (key: string) => {
     const index = (SYSTEM_ROLES as readonly string[]).indexOf(key)
@@ -32,7 +37,19 @@ export function RolesSection({
 
   return (
     <div className="mx-auto flex max-w-[1100px] flex-col gap-3 p-5">
-      <p className="text-sm text-fg-secondary">{t('admin.roles.hint')}</p>
+      <div className="flex items-start gap-3">
+        <p className="min-w-0 flex-1 text-sm text-fg-secondary">{t('admin.roles.hint')}</p>
+        {canManage ? (
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={<Plus className="size-3.5" />}
+            onClick={() => setEditing('new')}
+          >
+            {t('admin.roles.create')}
+          </Button>
+        ) : null}
+      </div>
       <Card padded={false} className="overflow-x-auto">
         {isLoading ? (
           <div className="flex flex-col gap-2 p-4">
@@ -54,7 +71,24 @@ export function RolesSection({
                   const name = localizedText(role.name, locale)
                   return (
                     <th key={role.id} scope="col" className="px-2 py-2 text-center font-medium">
-                      <span className="block text-fg">{name}</span>
+                      <span className="flex items-center justify-center gap-1 text-fg">
+                        {name}
+                        {!role.isSystem && canManage ? (
+                          <IconButton
+                            size="sm"
+                            variant="ghost"
+                            label={t('admin.roles.edit', { role: name })}
+                            onClick={() => setEditing(role)}
+                          >
+                            <Pencil className="size-3" />
+                          </IconButton>
+                        ) : null}
+                      </span>
+                      {role.isSystem ? null : (
+                        <Badge size="sm" tone="accent" className="mb-0.5">
+                          {t('admin.roles.custom')}
+                        </Badge>
+                      )}
                       {onShowHolders ? (
                         <Button
                           variant="link"
@@ -121,6 +155,9 @@ export function RolesSection({
           </table>
         )}
       </Card>
+      {editing ? (
+        <RoleDialog role={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />
+      ) : null}
     </div>
   )
 }

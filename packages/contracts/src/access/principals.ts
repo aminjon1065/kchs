@@ -88,13 +88,45 @@ export const CAPABILITIES = [
 export const Capability = z.enum(CAPABILITIES)
 export type Capability = z.infer<typeof Capability>
 
+/**
+ * Способности, которых нет в своих ролях (ADR-0165): администрирование системы остаётся
+ * за системной ролью `system_admin` — по ней ядро узнаёт администратора.
+ */
+export const CUSTOM_ROLE_FORBIDDEN: readonly Capability[] = ['admin.system']
+
+/**
+ * Привилегированные способности: роль с ними назначает, а её держателей обслуживает только
+ * администратор системы — как `system_admin` и `security_auditor`.
+ */
+export const PRIVILEGED_CAPABILITIES: readonly Capability[] = [
+  'admin.impersonate',
+  'admin.audit.read',
+]
+
 export const RoleInfo = z.object({
   id: z.string(),
   key: z.string(),
   name: LangText,
+  description: z.string().nullable().default(null),
   isSystem: z.boolean(),
   capabilities: z.array(z.string()),
   /** Активных сотрудников с этой ролью (матрица ролей в консоли). */
   userCount: z.number().int().nonnegative(),
 })
 export type RoleInfo = z.infer<typeof RoleInfo>
+
+/** Своя роль организации (ADR-0165): название на трёх языках и набор способностей. */
+export const RoleInput = z.object({
+  /** Ключ латиницей; без него строится из случайной части — `role_…`. */
+  key: z
+    .string()
+    .regex(/^[a-z][a-z0-9_]{2,40}$/, 'ключ: латиница, цифры и _, от 3 символов')
+    .optional(),
+  name: LangText,
+  description: z.string().max(300).nullable().optional(),
+  capabilities: z.array(Capability).max(CAPABILITIES.length),
+})
+export type RoleInput = z.infer<typeof RoleInput>
+
+export const RolePatch = RoleInput.omit({ key: true }).partial()
+export type RolePatch = z.infer<typeof RolePatch>

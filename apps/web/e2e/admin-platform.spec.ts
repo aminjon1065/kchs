@@ -358,3 +358,36 @@ test.describe('Администрирование: справка', () => {
     }
   })
 })
+
+/**
+ * Свои роли организации (ADR-0165): роль собирается из способностей в матрице ролей,
+ * правится и удаляется, пока её никто не держит.
+ */
+test.describe('Администрирование: свои роли', () => {
+  test('роль из способностей заводится, видна в матрице и удаляется', async ({ page, request }) => {
+    test.setTimeout(120_000)
+    const run = Date.now().toString(36)
+    const name = `Выгрузка сводок ${run}`
+    await openWorkspace(page, request)
+    await openScreen(page, 'Администрирование')
+    await page.getByRole('tab', { name: 'Роли и способности' }).click()
+    await page.getByRole('button', { name: 'Новая роль' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Новая роль' })
+    await dialog.getByLabel('Название (рус.)').fill(name)
+    await dialog.getByRole('checkbox', { name: 'Выгрузка данных' }).check()
+    // Администрирование системы в своей роли не выдаётся
+    await expect(dialog.getByRole('checkbox', { name: 'Администрирование системы' })).toBeDisabled()
+    await dialog.getByRole('button', { name: 'Сохранить' }).click()
+    await expect(page.getByText('Роль сохранена')).toBeVisible({ timeout: 20_000 })
+    await expect(page.getByRole('columnheader', { name: new RegExp(name) })).toBeVisible()
+
+    await page.getByRole('button', { name: `Изменить роль «${name}»` }).click()
+    await page
+      .getByRole('dialog', { name: 'Роль' })
+      .getByRole('button', { name: 'Удалить' })
+      .click()
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Удалить' }).click()
+    await expect(page.getByText('Роль удалена')).toBeVisible({ timeout: 20_000 })
+    await expect(page.getByRole('columnheader', { name: new RegExp(name) })).toHaveCount(0)
+  })
+})

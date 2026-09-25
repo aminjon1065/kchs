@@ -62,6 +62,10 @@ export const EVENT_PAYLOADS = {
   'user.mfa_enabled': z.object({ kind: z.string() }),
   'user.mfa_disabled': z.object({ kind: z.string() }),
   'user.roles_changed': z.object({ userId: Uuid, roles: z.array(z.string()) }),
+  /** Своя роль организации заведена, изменена или удалена (ADR-0165). */
+  'role.created': z.object({ roleId: Uuid, key: z.string(), capabilities: z.array(z.string()) }),
+  'role.updated': z.object({ roleId: Uuid, key: z.string(), capabilities: z.array(z.string()) }),
+  'role.deleted': z.object({ roleId: Uuid, key: z.string() }),
   /** Допуск к грифам изменён администратором системы (ADR-0080). */
   'user.clearance_changed': z.object({ userId: Uuid, from: z.string(), to: z.string() }),
   /** Telegram привязан к пользователю (ADR-0061); chat_id в событие не попадает. */
