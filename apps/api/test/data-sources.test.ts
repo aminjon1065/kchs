@@ -13,6 +13,7 @@ registerLifecycle()
 const { SourceService } = await import('../src/modules/data/domain/source-service.js')
 const { JobService } = await import('../src/kernel/jobs/service.js')
 const { config } = await import('../src/shared/config/index.js')
+const { resetConfigCache } = await import('../src/shared/config/env.js')
 
 let fx: TestContext
 let integrationId = ''
@@ -126,6 +127,30 @@ describe('подключение к внешней базе', () => {
     expect(result.columns.map((column) => column.name)).toEqual(['id', 'name', 'updated_at'])
     expect(result.columns[0]?.type).toBe('integer')
     expect(result.rows).toHaveLength(2)
+  })
+
+  it('медленная выборка прерывается по потолку времени с понятной ошибкой (N79)', async () => {
+    process.env.EXTERNAL_DB_TIMEOUT_MS = '1000'
+    resetConfigCache()
+    try {
+      const started = Date.now()
+      const preview = await call(fx.app, {
+        method: 'POST',
+        url: '/sources/preview',
+        as: fx.admin,
+        payload: {
+          integrationId,
+          query: { kind: 'sql', sql: 'SELECT pg_sleep(5) AS slept' },
+          limit: 1,
+        },
+      })
+      expect(preview.statusCode, preview.body).toBe(504)
+      expect(preview.body).toContain('не ответила вовремя')
+      expect(Date.now() - started).toBeLessThan(4500)
+    } finally {
+      delete process.env.EXTERNAL_DB_TIMEOUT_MS
+      resetConfigCache()
+    }
   })
 
   it('рядовой сотрудник выборку не читает', async () => {

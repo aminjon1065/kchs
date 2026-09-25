@@ -101,7 +101,9 @@ Meilisearch; трасс движка; Alertmanager и доставки алер�
 `SESSION_IDLE_HOURS`, `SESSION_ABSOLUTE_DAYS`, `INTERNAL_SERVICE_TOKEN`,
 `RATE_LIMIT_PER_MINUTE`, `LOGIN_RATE_LIMIT_PER_IP_PER_MINUTE`,
 `API_TOKEN_RATE_LIMIT_PER_MINUTE`, `WEBHOOKS_ALLOW_PRIVATE_ADDRESSES`,
-`WEBHOOK_RETRY_WINDOW_HOURS`.
+`WEBHOOK_RETRY_WINDOW_HOURS`, `EXTERNAL_DB_TIMEOUT_MS` (потолок запроса к внешней
+базе при предпросмотре и проверке, по умолчанию 30 000 мс; загрузка в задании —
+до 10 минут).
 
 ### Почта, Telegram, движок
 

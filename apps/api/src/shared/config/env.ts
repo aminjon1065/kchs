@@ -209,6 +209,13 @@ const EnvSchema = z.object({
    */
   OUTBOUND_ALLOW_LOOPBACK: z.preprocess(unset, bool.default(false)),
 
+  /**
+   * Потолок интерактивного запроса к внешней базе (N79, ADR-0107): предпросмотр,
+   * столбцы, список таблиц. Медленная или недобросовестная база не держит обработчик
+   * до разрыва сокета; загрузка потоком в задании живёт по своему потолку — 10 минут.
+   */
+  EXTERNAL_DB_TIMEOUT_MS: z.coerce.number().int().min(1000).max(600_000).default(30_000),
+
   /** Web Push (ADR-0094): пустые ключи — push выключен. */
   PUSH_VAPID_PUBLIC_KEY: z.string().optional(),
   PUSH_VAPID_PRIVATE_KEY: z.string().optional(),

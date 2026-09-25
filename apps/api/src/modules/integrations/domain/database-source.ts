@@ -235,6 +235,8 @@ async function postgresDriver(
     prepare: false,
     connect_timeout: Math.ceil(SOURCE_PROBE_TIMEOUT_MS / 1000),
     idle_timeout: 20,
+    // Потолок каждого запроса сессии (N79); поток в задании поднимает его у себя
+    connection: { statement_timeout: config().EXTERNAL_DB_TIMEOUT_MS },
     ...(configuration.ssl ? { ssl: { servername: configuration.host } } : {}),
   })
   const text = (request: ReadRequest) =>
@@ -318,10 +320,13 @@ async function mysqlDriver(
     // Соединяемся с проверенным адресом, а имя для сертификата — настоящее
     ...(configuration.ssl ? { ssl: { servername: configuration.host } as never } : {}),
   })
-  const run = (text: string, params: unknown[]) =>
+  const interactive = config().EXTERNAL_DB_TIMEOUT_MS
+  // Потолок на стороне клиента — у каждого запроса; сервер MySQL прерывает SELECT
+  // сам по max_execution_time (MariaDB такой переменной не знает — тогда хватит клиента)
+  const run = (text: string, params: unknown[], timeout = interactive) =>
     new Promise<{ rows: Array<Record<string, unknown>>; fields: MysqlField[] }>(
       (resolve, reject) => {
-        connection.query(text, params, (error, rows, fields) => {
+        connection.query({ sql: text, timeout }, params, (error, rows, fields) => {
           if (error) reject(error)
           else
             resolve({
@@ -341,6 +346,9 @@ async function mysqlDriver(
     })
   const values = (request: ReadRequest) =>
     text(request).withCursor ? [request.cursorValue ?? ''] : []
+  const serverLimit = (ms: number) =>
+    run('SET SESSION max_execution_time = ?', [ms]).catch(() => undefined)
+  await serverLimit(interactive)
 
   return {
     async columns(request) {
@@ -361,7 +369,10 @@ async function mysqlDriver(
     },
     async stream(request, onBatch, batchSize) {
       const built = text(request)
-      const stream = connection.query(built.sql, values(request)).stream()
+      await serverLimit(STATEMENT_TIMEOUT_MS)
+      const stream = connection
+        .query({ sql: built.sql, timeout: STATEMENT_TIMEOUT_MS }, values(request))
+        .stream()
       let batch: Array<Record<string, unknown>> = []
       for await (const row of stream) {
         batch.push(row as Record<string, unknown>)
@@ -405,6 +416,22 @@ async function connect(row: IntegrationRow, secrets: Record<string, string>): Pr
     : postgresDriver(configuration, address, password)
 }
 
+/**
+ * Запрос прерван по времени: PostgreSQL `57014` (statement_timeout), MySQL 3024
+ * (max_execution_time), MariaDB 1969, тайм-аут клиента mysql2.
+ */
+function timedOut(error: unknown): boolean {
+  const code = (error as { code?: unknown; errno?: unknown } | null)?.code
+  const errno = (error as { errno?: unknown } | null)?.errno
+  return (
+    code === '57014' ||
+    code === 'PROTOCOL_SEQUENCE_TIMEOUT' ||
+    code === 'ER_QUERY_TIMEOUT' ||
+    errno === 3024 ||
+    errno === 1969
+  )
+}
+
 async function withDriver<T>(
   row: IntegrationRow,
   secrets: Record<string, string>,
@@ -413,6 +440,13 @@ async function withDriver<T>(
   const driver = await connect(row, secrets)
   try {
     return await run(driver)
+  } catch (error) {
+    if (timedOut(error)) {
+      throw errors.queryTimeout(
+        'Внешняя база не ответила вовремя: сузьте выборку, добавьте условие или индекс',
+      )
+    }
+    throw error
   } finally {
     await driver.close().catch(() => undefined)
   }
