@@ -35,6 +35,7 @@ import {
   CheckSquare,
   ClipboardCheck,
   FolderKanban,
+  GanttChart,
   LayoutList,
   Plus,
   Repeat,
@@ -47,6 +48,7 @@ import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
 import { projectsQuery, taskKeys, taskSummaryQuery, tasksQuery } from './queries.js'
 import { errorText, postTaskStep, type TaskStep, useTaskInvalidation } from './task-actions.js'
+import { BulkBar, BulkDialog, type BulkKind } from './task-bulk.js'
 import { ProgressMark } from './task-checklist.js'
 import {
   CreateProjectDialog,
@@ -56,8 +58,9 @@ import {
 } from './task-dialogs.js'
 import { SeriesDialog } from './task-series.js'
 import { ACTION_STATUS, BOARD_COLUMNS, boardMove, STATUS_TONE_KEY } from './task-status.js'
+import { TaskTimeline } from './task-timeline.js'
 
-type Mode = 'list' | 'board'
+type Mode = 'list' | 'board' | 'timeline'
 type State = TaskListQuery['state']
 
 const ALL_PROJECTS = '__all'
@@ -104,6 +107,9 @@ export function TasksScreen({
   const [creatingProject, setCreatingProject] = useState(false)
   const [seriesOpen, setSeriesOpen] = useState(false)
   const [reporting, setReporting] = useState<TaskListItem | null>(null)
+  // Массовые действия списка (ADR-0155)
+  const [selection, setSelection] = useState<Set<string>>(new Set())
+  const [bulk, setBulk] = useState<BulkKind | null>(null)
   const q = useDebouncedValue(search.trim(), 250)
 
   useEffect(() => {
@@ -425,10 +431,22 @@ export function TasksScreen({
               label: t('tasks.views.board'),
               icon: <SquareKanban className="size-3.5" aria-hidden />,
             },
+            {
+              value: 'timeline',
+              label: t('tasks.views.timeline'),
+              icon: <GanttChart className="size-3.5" aria-hidden />,
+            },
           ]}
         />
       </div>
 
+      {mode === 'list' && selection.size > 0 ? (
+        <BulkBar
+          count={selection.size}
+          onAction={setBulk}
+          onClear={() => setSelection(new Set())}
+        />
+      ) : null}
       <div className="min-h-0 flex-1">
         {!isLoading && items.length === 0 ? (
           <EmptyState
@@ -450,9 +468,13 @@ export function TasksScreen({
             getRowId={(item) => item.id}
             columns={columns}
             loading={isLoading}
+            selection={selection}
+            onSelectionChange={setSelection}
             onRowClick={(item) => open(item, 'preview')}
             onRowOpen={(item) => open(item)}
           />
+        ) : mode === 'timeline' ? (
+          <TaskTimeline items={items} onOpen={(item) => open(item)} />
         ) : (
           <KanbanBoard
             aria-label={t('tasks.views.board')}
@@ -497,6 +519,14 @@ export function TasksScreen({
       {creating ? <CreateTaskDialog draft={creating} onClose={() => setCreating(null)} /> : null}
       {creatingProject ? <CreateProjectDialog onClose={() => setCreatingProject(false)} /> : null}
       {seriesOpen ? <SeriesDialog onClose={() => setSeriesOpen(false)} /> : null}
+      {bulk ? (
+        <BulkDialog
+          kind={bulk}
+          ids={items.filter((item) => selection.has(item.id)).map((item) => item.id)}
+          onClose={() => setBulk(null)}
+          onDone={() => setSelection(new Set())}
+        />
+      ) : null}
       {reporting ? <ReportDialog task={reporting} onClose={() => setReporting(null)} /> : null}
     </div>
   )

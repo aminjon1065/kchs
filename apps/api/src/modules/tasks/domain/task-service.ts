@@ -110,6 +110,7 @@ function listItemOf(
     assignee: row.assigneeId ? (people.get(row.assigneeId) ?? null) : null,
     project: project ? { id: project.id, key: project.key, name: project.name } : null,
     spaceId: row.spaceId,
+    startAt: row.startAt,
     dueAt: row.dueAt,
     dueWorkingDays: row.dueWorkingDays,
     originalDueAt: row.originalDueAt,
@@ -381,6 +382,7 @@ export const TaskService = {
           : {}),
         ...(patch.priority !== undefined ? { priority: patch.priority } : {}),
         ...(patch.labels !== undefined ? { labels: [...new Set(patch.labels)] } : {}),
+        ...(patch.startAt !== undefined ? { startAt: patch.startAt } : {}),
         coAssignees,
         controllerId,
         territoryId,
@@ -422,6 +424,42 @@ export const TaskService = {
       await syncParts(tx, ctx, row, coAssignees, title)
     }
     // Контролёр основного поручения не влияет на части: их контролирует исполнитель
+    await refreshViewers(tx, id)
+  },
+
+  /**
+   * Перенос обычной задачи в проект или из проекта (ADR-0155): объект реестра уходит под
+   * проект (права — от проекта), подзадачи переезжают вместе с ней. Поручения и части
+   * соисполнителей не переносятся: их доступ — у участников, а не у проекта.
+   */
+  async moveToProject(tx: Executor, ctx: Ctx, id: string, projectId: string | null): Promise<void> {
+    const decision = await authorize(ctx, 'edit', id)
+    const row = await loadRow(tx, id, true)
+    if (!row) throw errors.notFound('Задача')
+    if (row.kind !== 'task') {
+      throw errors.validation('В проект переносится обычная задача, поручение остаётся на месте')
+    }
+    const projectMap = await projectInfo(tx, [
+      ...new Set([row.projectId, projectId].filter((value): value is string => Boolean(value))),
+    ])
+    const can = permissionsFor(
+      factsOf(row, row.projectId ? projectMap.get(row.projectId) : null),
+      actorOf(ctx),
+      decision.level,
+    )
+    if (!can.edit) throw errors.forbidden('Переносить задачу может тот, кто её правит')
+    if (projectId === row.projectId) return
+    if (projectId) {
+      if (!projectMap.get(projectId)) throw errors.notFound('Проект')
+      await authorize(ctx, 'create_task', projectId)
+    }
+    await tx.update(tasks).set({ projectId }).where(eq(tasks.id, id))
+    await tx
+      .update(tasks)
+      .set({ projectId })
+      .where(and(eq(tasks.parentId, id), eq(tasks.kind, 'subtask')))
+    // Событие реестра object.moved: права, поиск и realtime пересчитываются по нему
+    await ObjectService.move(tx, ctx, id, { parentId: projectId })
     await refreshViewers(tx, id)
   },
 

@@ -4715,6 +4715,32 @@ export const en: DeepPartial<Dictionary> = {
       monthDayOf: 'on day {day}',
       everyMonths: 'Every {n} months, {day}',
     },
+    bulk: {
+      toolbar: 'Actions on selected tasks',
+      selected: 'Selected: {count}',
+      actions: {
+        reassign: 'Assignee…',
+        due: 'Deadline…',
+        close: 'Close',
+        project: 'To project…',
+        cancel: 'Cancel',
+      },
+      clear: 'Clear selection',
+      titles: {
+        reassign: 'Change assignee: {count} selected',
+        due: 'Move deadline: {count} selected',
+        close: 'Close: {count} selected',
+        project: 'Move to project: {count} selected',
+        cancel: 'Cancel: {count} selected',
+      },
+      apply: 'Apply',
+      result: 'Done: {done}, skipped: {skipped}',
+      skipped: 'Skipped tasks',
+      projectHint: 'Only regular tasks are moved; “No project” takes them out of a project',
+      closeHint:
+        'Tasks move to “Done”, reported instructions are accepted. Others are skipped with a reason.',
+      comment: 'Comment',
+    },
     statuses: {
       todo: 'To do',
       assigned: 'Assigned',
@@ -4752,7 +4778,14 @@ export const en: DeepPartial<Dictionary> = {
     scopeLabel: 'Whose tasks',
     states: { open: 'Open', closed: 'Closed', all: 'All' },
     stateLabel: 'State',
-    views: { list: 'List', board: 'Board' },
+    views: { list: 'List', board: 'Board', timeline: 'Timeline' },
+    timeline: {
+      empty: 'No tasks with deadlines',
+      emptyHint:
+        'The timeline shows tasks and instructions with deadlines: a bar from the planned start to the deadline.',
+      bar: '{title}: {start} to {end}. Drag to move; Shift and arrows move the deadline by a day',
+      undated: 'Without deadline: {count} — they are in the list',
+    },
     viewLabel: 'View',
     fields: {
       title: 'Title',

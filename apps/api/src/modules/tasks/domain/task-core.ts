@@ -25,6 +25,7 @@ export const TASK_COLUMNS = {
   coAssignees: tasks.coAssignees,
   authorId: tasks.authorId,
   controllerId: tasks.controllerId,
+  startAt: tasks.startAt,
   dueAt: tasks.dueAt,
   dueWorkingDays: tasks.dueWorkingDays,
   originalDueAt: tasks.originalDueAt,

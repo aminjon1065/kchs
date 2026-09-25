@@ -12,6 +12,8 @@ import {
   ProjectListQuery,
   ProjectRecord,
   ProjectUpdateInput,
+  TaskBulkInput,
+  TaskBulkResult,
   TaskCancelInput,
   TaskChecklistAddInput,
   TaskChecklistPatchInput,
@@ -58,6 +60,7 @@ import { ControlService } from './domain/control-service.js'
 import { INSTRUCTIONS_SYSTEM_DATASET } from './domain/instructions-dataset.js'
 import { ProjectService } from './domain/project-service.js'
 import { TASKS_SYSTEM_DATASET } from './domain/system-dataset.js'
+import { applyBulk } from './domain/task-bulk.js'
 import { TaskChecklist, TaskSubtasks } from './domain/task-checklist.js'
 import { dueFromDate } from './domain/task-due.js'
 import { taskPolicy } from './domain/task-policy.js'
@@ -672,6 +675,18 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
       )
       return TaskService.get(request.ctx, request.params.id)
     },
+  })
+
+  route({
+    method: 'POST',
+    url: '/tasks/bulk',
+    auth: 'session',
+    tags: ['tasks'],
+    summary: 'Массовое действие над задачами списка (ADR-0155)',
+    description:
+      'Права — по каждой задаче; отказ по одной не останавливает остальные. Итог — сделано и пропущено с причинами.',
+    schema: { body: TaskBulkInput, response: { 200: TaskBulkResult } },
+    handler: async (request) => applyBulk(request.ctx, request.body),
   })
 
   route({

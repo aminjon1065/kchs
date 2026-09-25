@@ -284,6 +284,8 @@ export const TaskRecord = z.object({
   controller: UserRef.nullable(),
   project: TaskProjectRef.nullable(),
   spaceId: Uuid.nullable(),
+  /** Плановое начало — левый край полосы на таймлайне (ADR-0155). */
+  startAt: Timestamp.nullable().default(null),
   dueAt: Timestamp.nullable(),
   /** Срок задан как «N рабочих дней» по производственному календарю. */
   dueWorkingDays: z.number().int().nullable(),
@@ -412,6 +414,8 @@ export const TaskUpdateInput = z
     dueWorkingDays: WorkingDays,
     /** Основание изменения срока — в историю сроков. */
     dueComment: z.string().trim().max(1000).nullable(),
+    /** Плановое начало (таймлайн). */
+    startAt: Timestamp.nullable(),
     assigneeId: Uuid.nullable(),
     coAssigneeIds: z.array(Uuid).max(20),
     controllerId: Uuid.nullable(),
@@ -501,6 +505,47 @@ export type TaskReassignInput = z.infer<typeof TaskReassignInput>
 
 export const TaskCancelInput = z.object({ comment: z.string().trim().max(5_000).optional() })
 export type TaskCancelInput = z.infer<typeof TaskCancelInput>
+
+/**
+ * Массовое действие над задачами списка (ADR-0155): права проверяются по каждой задаче,
+ * отказ по одной не останавливает остальные — итог «сделано N, пропущено M с причинами».
+ */
+export const TaskBulkAction = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('reassign'),
+    assigneeId: Uuid,
+    comment: z.string().trim().max(2_000).optional(),
+  }),
+  z
+    .object({
+      kind: z.literal('due'),
+      dueAt: Timestamp.optional(),
+      dueWorkingDays: WorkingDays.optional(),
+      comment: z.string().trim().max(1_000).optional(),
+    })
+    .refine((input) => (input.dueAt === undefined) !== (input.dueWorkingDays === undefined), {
+      message: 'Укажите срок датой или числом рабочих дней',
+      path: ['dueAt'],
+    }),
+  /** Закрыть: задачу — в «Готово», поручение с отчётом — принять. */
+  z.object({ kind: z.literal('close') }),
+  z.object({ kind: z.literal('cancel'), comment: z.string().trim().max(5_000).optional() }),
+  /** Перенести обычные задачи в проект или вывести из проекта (`null`). */
+  z.object({ kind: z.literal('project'), projectId: Uuid.nullable() }),
+])
+export type TaskBulkAction = z.infer<typeof TaskBulkAction>
+
+export const TaskBulkInput = z.object({
+  ids: z.array(Uuid).min(1).max(200),
+  action: TaskBulkAction,
+})
+export type TaskBulkInput = z.infer<typeof TaskBulkInput>
+
+export const TaskBulkResult = z.object({
+  done: z.number().int(),
+  skipped: z.array(z.object({ id: Uuid, key: z.string().nullable(), reason: z.string() })),
+})
+export type TaskBulkResult = z.infer<typeof TaskBulkResult>
 
 /** Пунктов в чек-листе не больше — длинный план лучше разбить на подзадачи. */
 export const TASK_CHECKLIST_MAX = 100
