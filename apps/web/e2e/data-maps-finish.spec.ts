@@ -157,6 +157,41 @@ test.describe('Данные и карты: доработка до пилота'
     expect((await data).suggestedFilename()).toMatch(/^Ущерб по районам .+\.xlsx$/)
   })
 
+  test('предпросмотр печати отчёта — та же страница печати, сигнал готовности', async ({
+    page,
+    request,
+  }) => {
+    const headers = await csrf(request)
+    const spaces = (await (await request.get('/api/v1/spaces')).json()).items as Array<{
+      id: string
+    }>
+    const created = await request.post('/api/v1/reports', {
+      headers,
+      data: {
+        name: `Сводка за сутки ${run}`,
+        spaceId: spaces[0]?.id,
+        blocks: [
+          {
+            id: 'intro',
+            kind: 'text',
+            body: {
+              type: 'doc',
+              content: [
+                { type: 'paragraph', content: [{ type: 'text', text: `Обстановка ${run}` }] },
+              ],
+            },
+          },
+        ],
+      },
+    })
+    expect(created.ok(), await created.text()).toBeTruthy()
+    await openWorkspace(page, request)
+    await page.goto(`/print/report-preview/${(await created.json()).id}`)
+    await expect(page.locator('html[data-print-state="ready"]')).toBeAttached({ timeout: 30_000 })
+    await expect(page.getByRole('heading', { name: `Сводка за сутки ${run}` })).toBeVisible()
+    await expect(page.getByText(`Обстановка ${run}`)).toBeVisible()
+  })
+
   test('группа слоёв карты: узел дерева и общий флажок видимости', async ({ page, request }) => {
     test.setTimeout(90_000)
     const { datasetId, spaceId, headers } = await seedDataset(request)
