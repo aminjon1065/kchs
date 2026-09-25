@@ -12,6 +12,7 @@
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui",
     "csp:check": "node scripts/csp-check.mjs",
+    "budget": "node scripts/bundle-budget.mjs",
     "api:types": "openapi-typescript http://localhost:3000/api/openapi.json -o src/shared/api/openapi.gen.ts"
   },
   "dependencies": {

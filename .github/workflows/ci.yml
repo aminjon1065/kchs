@@ -165,6 +165,10 @@ jobs:
       - name: CSP на продакшен-сборке
         run: pnpm --filter @kchs/web csp:check
 
+      # Та же сборка: основной чанк и предзагрузка — в бюджете оболочки (ADR-0166)
+      - name: Бюджет оболочки
+        run: pnpm --filter @kchs/web budget
+
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
