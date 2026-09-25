@@ -1,10 +1,11 @@
-import type {
-  Conversation,
-  ConversationKind,
-  Message,
-  MessageKind,
-  MessagePostInput,
-  RichBody,
+import {
+  type Conversation,
+  type ConversationKind,
+  MESSAGE_EDIT_WINDOW_HOURS,
+  type Message,
+  type MessageKind,
+  type MessagePostInput,
+  type RichBody,
 } from '@kchs/contracts'
 import { and, asc, desc, eq, gt, inArray, isNull, lt, sql } from 'drizzle-orm'
 import type { Ctx, UserCtx } from '~/shared/context.js'
@@ -82,6 +83,28 @@ async function subjectOf(tx: Executor, conversationId: string) {
 function anchorOf(meta: Record<string, unknown> | null): string | null {
   const value = meta?.anchor
   return typeof value === 'string' && value ? value : null
+}
+
+/** Автор ещё может изменить или удалить сообщение (ADR-0161). */
+function inEditWindow(createdAt: string | Date): boolean {
+  return Date.now() - new Date(createdAt).getTime() < MESSAGE_EDIT_WINDOW_HOURS * 3_600_000
+}
+
+/**
+ * Ведущий беседы удаляет чужие сообщения в любой срок: владелец группы или
+ * канала, у обсуждения — тот, кто управляет объектом (право `manage`), и
+ * системный администратор. В личной беседе ведущих нет — только автор.
+ */
+async function isModerator(tx: Executor, ctx: UserCtx, conversationId: string): Promise<boolean> {
+  if (ctx.isSystemAdmin) return true
+  const [conversation] = await tx
+    .select({ kind: conversations.kind })
+    .from(conversations)
+    .where(eq(conversations.id, conversationId))
+    .limit(1)
+  if (!conversation || conversation.kind === 'direct') return false
+  const decision = await authorize(ctx, 'manage', conversationId, { soft: true })
+  return decision.allowed
 }
 
 /**
@@ -295,6 +318,9 @@ export const DiscussionService = {
     const reactionRows = messageIds.length
       ? await db().select().from(reactions).where(inArray(reactions.messageId, messageIds))
       : []
+    const moderator = ordered.some((r) => r.authorId !== ctx.userId && !r.deletedAt)
+      ? await isModerator(db(), ctx, conversationId)
+      : false
 
     return {
       items: ordered.map((row) => {
@@ -306,6 +332,8 @@ export const DiscussionService = {
           if (r.userId === ctx.userId) entry.mine = true
           grouped.set(r.emoji, entry)
         }
+        const live = !row.deletedAt && row.kind === 'user'
+        const ownInWindow = row.authorId === ctx.userId && inEditWindow(row.createdAt)
         return {
           id: String(row.id),
           conversationId: row.conversationId,
@@ -329,6 +357,7 @@ export const DiscussionService = {
             users: value.users,
             mine: value.mine,
           })),
+          can: { edit: live && ownInWindow, delete: live && (ownInWindow || moderator) },
           editedAt: row.editedAt,
           deletedAt: row.deletedAt,
           createdAt: row.createdAt,
@@ -338,6 +367,10 @@ export const DiscussionService = {
     }
   },
 
+  /**
+   * Правка своего сообщения — в срок `MESSAGE_EDIT_WINDOW_HOURS` (ADR-0161);
+   * у сообщения появляется пометка «изменено».
+   */
   async edit(
     tx: Executor,
     ctx: UserCtx,
@@ -346,8 +379,12 @@ export const DiscussionService = {
     text: string,
   ): Promise<void> {
     const [row] = await tx.select().from(messages).where(eq(messages.id, messageId)).limit(1)
-    if (!row) throw errors.notFound('Сообщение')
+    if (!row || row.deletedAt) throw errors.notFound('Сообщение')
     if (row.authorId !== ctx.userId) throw errors.forbidden('Редактировать может только автор')
+    if (row.kind !== 'user') throw errors.forbidden('Служебное сообщение не редактируется')
+    if (!inEditWindow(row.createdAt)) {
+      throw errors.forbidden(`Изменить сообщение можно в течение ${MESSAGE_EDIT_WINDOW_HOURS} ч`)
+    }
 
     await tx
       .update(messages)
@@ -361,16 +398,40 @@ export const DiscussionService = {
     })
   },
 
+  /**
+   * Удаление: строка остаётся в ленте как «Сообщение удалено» — ответы треда
+   * и цитаты не повисают без корня, а текст, вложения и реакции стираются.
+   * Автор удаляет своё в срок правки, ведущий беседы — любое и в любой срок.
+   * Связь вложения с объектом не снимается: тот же файл мог быть прикреплён
+   * к объекту и помимо сообщения (ADR-0161).
+   */
   async remove(tx: Executor, ctx: UserCtx, messageId: number): Promise<void> {
     const [row] = await tx.select().from(messages).where(eq(messages.id, messageId)).limit(1)
-    if (!row) throw errors.notFound('Сообщение')
-    if (row.authorId !== ctx.userId && !ctx.isSystemAdmin) {
-      throw errors.forbidden('Удалить может только автор')
+    if (!row || row.deletedAt) throw errors.notFound('Сообщение')
+    if (row.kind === 'system') throw errors.forbidden('Служебное сообщение не удаляется')
+    const own = row.authorId === ctx.userId
+    const allowed =
+      (own && row.kind === 'user' && inEditWindow(row.createdAt)) ||
+      (await isModerator(tx, ctx, row.conversationId))
+    if (!allowed) {
+      throw errors.forbidden(
+        own
+          ? `Удалить сообщение можно в течение ${MESSAGE_EDIT_WINDOW_HOURS} ч`
+          : 'Удалить может только автор или ведущий беседы',
+      )
     }
     await tx
       .update(messages)
-      .set({ deletedAt: sql`now()`, text: '', body: null })
+      .set({
+        deletedAt: sql`now()`,
+        text: '',
+        body: null,
+        attachments: [],
+        mentions: [],
+        mentionedObjectIds: [],
+      })
       .where(eq(messages.id, messageId))
+    await tx.delete(reactions).where(eq(reactions.messageId, messageId))
     await publishEvent(tx, ctx, {
       type: 'message.deleted',
       object: await subjectOf(tx, row.conversationId),
@@ -421,15 +482,31 @@ export const DiscussionService = {
     })
   },
 
+  /**
+   * Отметка прочтения только продвигается вперёд: вкладка со старой лентой не
+   * откатит её назад. Продвижение — событие `message.read`: по нему соседи по
+   * беседе видят «прочитано», а другие вкладки читателя — непрочитанное (ADR-0161).
+   */
   async markRead(ctx: UserCtx, conversationId: string, messageId: number): Promise<void> {
     if (isGuest(ctx)) return
-    await db()
-      .insert(conversationMembers)
-      .values({ conversationId, userId: ctx.userId, lastReadMessageId: messageId })
-      .onConflictDoUpdate({
-        target: [conversationMembers.conversationId, conversationMembers.userId],
-        set: { lastReadMessageId: messageId },
+    await db().transaction(async (tx) => {
+      const advanced = await tx
+        .insert(conversationMembers)
+        .values({ conversationId, userId: ctx.userId, lastReadMessageId: messageId })
+        .onConflictDoUpdate({
+          target: [conversationMembers.conversationId, conversationMembers.userId],
+          set: { lastReadMessageId: messageId },
+          setWhere: sql`${conversationMembers.lastReadMessageId} IS NULL
+            OR ${conversationMembers.lastReadMessageId} < ${messageId}`,
+        })
+        .returning({ userId: conversationMembers.userId })
+      if (advanced.length === 0) return
+      await publishEvent(tx, ctx, {
+        type: 'message.read',
+        object: await subjectOf(tx, conversationId),
+        payload: { conversationId, messageId: String(messageId), userId: ctx.userId },
       })
+    })
   },
 
   async conversationFor(objectId: string, database: Database = db()): Promise<Conversation | null> {

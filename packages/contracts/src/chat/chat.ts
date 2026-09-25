@@ -67,6 +67,11 @@ export const ChatListItem = z.object({
   firstUnreadMessageId: z.string().nullable(),
   pinned: z.boolean(),
   muted: z.boolean(),
+  /**
+   * В архиве смотрящего (ADR-0161): скрыта из разделов, пока нет нового
+   * сообщения; беседа без звука остаётся в архиве и с новыми сообщениями.
+   */
+  archived: z.boolean(),
   memberCount: z.number().int(),
   role: ChatMemberRole.nullable(),
   member: z.boolean(),
@@ -84,6 +89,8 @@ export const CHAT_SECTIONS = [
   'discussions',
   /** Открытые каналы моих пространств, в которых я не состою. */
   'discover',
+  /** Архив смотрящего: беседы, скрытые из остальных разделов. */
+  'archived',
 ] as const
 export const ChatSection = z.enum(CHAT_SECTIONS)
 export type ChatSection = z.infer<typeof ChatSection>
@@ -121,6 +128,8 @@ export type ChatInviteInput = z.infer<typeof ChatInviteInput>
 export const ChatSettingsInput = z.object({
   pinned: z.boolean().optional(),
   muted: z.boolean().optional(),
+  /** Убрать в архив или вернуть; в архиве беседа не закреплена. */
+  archived: z.boolean().optional(),
 })
 export type ChatSettingsInput = z.infer<typeof ChatSettingsInput>
 

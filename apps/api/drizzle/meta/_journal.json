@@ -442,6 +442,13 @@
       "when": 1790333543119,
       "tag": "20260925105223_tasks-series",
       "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1790338822319,
+      "tag": "20260925122022_chat-archive",
+      "breakpoints": true
     }
   ]
 }

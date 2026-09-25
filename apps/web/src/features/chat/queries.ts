@@ -2,6 +2,7 @@ import type {
   ChatDraft,
   ChatList,
   ChatListItem,
+  ChatMember,
   ChatPin,
   ChatSearchResponse,
   ChatSection,
@@ -23,6 +24,7 @@ export const chatKeys = {
   messages: (id: string, threadRootId: string | null) =>
     ['object', id, 'discussion', threadRootId ?? 'feed'] as const,
   pins: (id: string) => ['chats', 'pins', id] as const,
+  members: (id: string) => ['chats', 'members', id] as const,
   drafts: ['chats', 'drafts'] as const,
   search: (q: string, conversationId: string | null) =>
     ['chats', 'search', q, conversationId ?? 'all'] as const,
@@ -58,6 +60,14 @@ export const chatPinsQuery = (id: string | null) =>
   queryOptions({
     queryKey: chatKeys.pins(id ?? 'none'),
     queryFn: () => http.get<{ items: ChatPin[] }>(`/chats/${id}/pins`),
+    enabled: Boolean(id),
+  })
+
+/** Участники с отметками прочтения — для «доставлено/прочитано» (ADR-0161). */
+export const chatMembersQuery = (id: string | null) =>
+  queryOptions({
+    queryKey: chatKeys.members(id ?? 'none'),
+    queryFn: () => http.get<{ items: ChatMember[] }>(`/chats/${id}/members`),
     enabled: Boolean(id),
   })
 

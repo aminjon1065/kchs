@@ -8,6 +8,12 @@ export const ConversationKind = z.enum(CONVERSATION_KINDS)
 export type ConversationKind = z.infer<typeof ConversationKind>
 
 export const MESSAGE_KINDS = ['user', 'system', 'decision', 'action'] as const
+
+/**
+ * Срок, в который автор может изменить или удалить своё сообщение (ADR-0161).
+ * Позже переписка становится записью: удалить может только ведущий беседы.
+ */
+export const MESSAGE_EDIT_WINDOW_HOURS = 24
 export const MessageKind = z.enum(MESSAGE_KINDS)
 export type MessageKind = z.infer<typeof MessageKind>
 
@@ -54,6 +60,8 @@ export const Message = z.object({
   /** Якорь на фрагмент объекта (комментарий к блоку страницы, ADR-0095). */
   anchor: z.string().nullable().default(null),
   reactions: z.array(Reaction).default([]),
+  /** Что смотрящий может сделать с сообщением: правка — автор в срок, удаление — ещё и ведущий. */
+  can: z.object({ edit: z.boolean(), delete: z.boolean() }).default({ edit: false, delete: false }),
   editedAt: Timestamp.nullable(),
   deletedAt: Timestamp.nullable(),
   createdAt: Timestamp,

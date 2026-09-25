@@ -370,11 +370,11 @@ export const ChatService = {
     })
   },
 
-  /** Закрепление беседы и «без звука» — настройка участника, не домен: без события. */
+  /** Закрепление, «без звука» и архив — настройка участника, не домен: без события. */
   async setSettings(
     ctx: UserCtx,
     conversationId: string,
-    input: { pinned?: boolean; muted?: boolean },
+    input: { pinned?: boolean; muted?: boolean; archived?: boolean },
   ): Promise<void> {
     const me = userOf(ctx)
     await authorize(ctx, 'view', conversationId)
@@ -382,6 +382,11 @@ export const ChatService = {
     if (input.pinned !== undefined) patch.pinned = input.pinned
     if (input.muted !== undefined)
       patch.mutedUntil = input.muted ? sql`'infinity'::timestamptz` : null
+    // Архив у каждого свой (ADR-0161); убранная в архив беседа не закреплена
+    if (input.archived !== undefined) {
+      patch.archivedAt = input.archived ? sql`now()` : null
+      if (input.archived) patch.pinned = false
+    }
     if (Object.keys(patch).length === 0) return
     await db()
       .insert(conversationMembers)

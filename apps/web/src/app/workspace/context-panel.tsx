@@ -28,6 +28,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Activity as ActivityIcon,
   Bot,
+  ChevronLeft,
   ChevronsRight,
   Info,
   Link2,
@@ -42,11 +43,16 @@ import { Suspense, useState } from 'react'
 import { AssistantPanel } from '~/features/assistant/assistant-panel.js'
 import { ManualRuleActions } from '~/features/automation/manual-rules.js'
 import { type ComposedMessage, MessageComposer } from '~/features/discussion/message-composer.js'
-import { MessageItem } from '~/features/discussion/message-item.js'
+import {
+  DeleteMessageDialog,
+  MessageItem,
+  MessageMenu,
+} from '~/features/discussion/message-item.js'
 import { uploadFile } from '~/features/files/upload.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import {
   discussionQuery,
+  discussionThreadQuery,
   keys,
   objectAccessQuery,
   objectActivityQuery,
@@ -578,13 +584,22 @@ function DiscussionTab({ objectId }: { objectId: string }) {
   const client = useQueryClient()
   const anchor = useWorkspace((s) => s.discussionAnchor)
   const setContextTab = useWorkspace((s) => s.setContextTab)
+  const [threadRootId, setThreadRootId] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   const { data, isLoading } = useQuery(discussionQuery(objectId))
+  const { data: thread } = useQuery(discussionThreadQuery(objectId, threadRootId))
   const { data: object } = useQuery(objectQuery(objectId))
   // Писать и реагировать может уровень comment и выше — сервер проверяет сам
   const canPost = object ? object.level !== 'view' : false
-  const items = anchor
+  const roots = anchor
     ? (data?.items ?? []).filter((message) => message.anchor === anchor)
     : (data?.items ?? [])
+  // Тред, как в беседах (ADR-0161): корень и ответы, новый ответ — в тред
+  const root = threadRootId
+    ? (data?.items ?? []).find((message) => message.id === threadRootId)
+    : undefined
+  const items = threadRootId ? [...(root ? [root] : []), ...(thread?.items ?? [])] : roots
 
   const post = useMutation({
     mutationFn: (message: ComposedMessage) =>
@@ -594,7 +609,7 @@ function DiscussionTab({ objectId }: { objectId: string }) {
         attachments: message.attachments.map((fileId) => ({ fileId })),
         mentions: message.mentions,
         mentionedObjectIds: [],
-        anchor,
+        ...(threadRootId ? { threadRootId } : { anchor }),
       }),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: keys.discussion(objectId) })
@@ -612,7 +627,18 @@ function DiscussionTab({ objectId }: { objectId: string }) {
 
   return (
     <div className="flex h-full flex-col">
-      {anchor ? (
+      {threadRootId ? (
+        <div className="flex items-center gap-2 border-line border-b px-3 py-2">
+          <Button size="sm" variant="ghost" onClick={() => setThreadRootId(null)}>
+            <ChevronLeft className="mr-1 size-3.5" aria-hidden />
+            {t('discussion.backToDiscussion')}
+          </Button>
+          <div className="flex-1" />
+          <span className="text-2xs text-fg-muted">
+            {t('discussion.thread', { count: thread?.items.length ?? 0 })}
+          </span>
+        </div>
+      ) : anchor ? (
         <div className="flex items-center gap-2 border-line border-b px-3 py-2">
           <span className="text-2xs text-fg-muted">{t('discussion.anchored')}</span>
           <div className="flex-1" />
@@ -632,25 +658,63 @@ function DiscussionTab({ objectId }: { objectId: string }) {
             description={t('discussion.emptyHint')}
           />
         ) : (
-          <div className="flex flex-col gap-3">
+          <ul
+            aria-label={threadRootId ? t('discussion.threadTitle') : t('discussion.title')}
+            className="flex flex-col gap-3"
+          >
             {items.map((message) => (
-              <MessageItem
-                key={message.id}
-                message={message}
-                objectId={objectId}
-                canReact={canPost}
-              />
+              <li key={message.id} className="group/message flex items-start gap-1">
+                <div className="min-w-0 flex-1">
+                  <MessageItem
+                    message={message}
+                    objectId={objectId}
+                    canReact={canPost}
+                    editing={editingId === message.id}
+                    onEditEnd={() => setEditingId(null)}
+                  />
+                  {!threadRootId && message.threadReplyCount > 0 ? (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="ml-9 mt-1"
+                      onClick={() => setThreadRootId(message.id)}
+                    >
+                      {t('discussion.thread', { count: message.threadReplyCount })}
+                    </Button>
+                  ) : null}
+                </div>
+                <MessageMenu
+                  message={message}
+                  onThread={
+                    !threadRootId && canPost && !message.deletedAt
+                      ? () => setThreadRootId(message.id)
+                      : undefined
+                  }
+                  onEdit={() => setEditingId(message.id)}
+                  onDelete={() => setDeletingId(message.id)}
+                />
+              </li>
             ))}
-          </div>
+          </ul>
         )}
       </div>
 
       {canPost ? (
         <MessageComposer
+          key={threadRootId ?? 'discussion'}
           onSend={(message) => post.mutateAsync(message)}
           onAttach={attach}
           pending={post.isPending}
-          placeholder={t('discussion.placeholderComment')}
+          placeholder={t(
+            threadRootId ? 'discussion.threadPlaceholder' : 'discussion.placeholderComment',
+          )}
+        />
+      ) : null}
+      {deletingId ? (
+        <DeleteMessageDialog
+          messageId={deletingId}
+          objectId={objectId}
+          onClose={() => setDeletingId(null)}
         />
       ) : null}
     </div>

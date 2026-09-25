@@ -271,7 +271,16 @@ export function RenameDialog({
 }
 
 /** Пересылка сообщения в другую беседу. */
-export function ForwardDialog({ messageId, onClose }: { messageId: string; onClose: () => void }) {
+/** Пересылка одного или нескольких сообщений: цитаты уходят в порядке ленты. */
+export function ForwardDialog({
+  messageIds,
+  onClose,
+  onDone,
+}: {
+  messageIds: string[]
+  onClose: () => void
+  onDone?: () => void
+}) {
   const t = useT()
   const report = useReport()
   const toast = useToast()
@@ -283,11 +292,11 @@ export function ForwardDialog({ messageId, onClose }: { messageId: string; onClo
   })
   const options = (data?.items ?? []).filter((item) => item.can.post)
   const forward = useMutation({
-    mutationFn: () =>
-      http.post('/chats/forward', { messageIds: [messageId], toConversationIds: [target] }),
+    mutationFn: () => http.post('/chats/forward', { messageIds, toConversationIds: [target] }),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: chatKeys.all })
       toast.show({ title: t('chats.forwarded') })
+      onDone?.()
       onClose()
     },
     onError: report,
@@ -296,6 +305,9 @@ export function ForwardDialog({ messageId, onClose }: { messageId: string; onClo
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent
         title={t('chats.forwardTitle')}
+        description={
+          messageIds.length > 1 ? t('chats.selected', { count: messageIds.length }) : undefined
+        }
         size="sm"
         footer={
           <>

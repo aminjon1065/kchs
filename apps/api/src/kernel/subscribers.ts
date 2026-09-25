@@ -150,6 +150,16 @@ export function registerKernelSubscribers(): void {
           emitToRoom(`object:${event.object.id}`, 'message.updated', payload)
           break
         }
+        case 'message.read': {
+          // Отметки «прочитано» в открытой беседе; в комнату объекта не идёт —
+          // обсуждению во вкладке объекта чужое прочтение не нужно (ADR-0161)
+          emitToRoom(`conversation:${event.payload.conversationId as string}`, 'message.read', {
+            conversationId: event.payload.conversationId,
+            messageId: event.payload.messageId,
+            userId: event.payload.userId,
+          })
+          break
+        }
         case 'acl.changed':
           await revokeRoomAccess(event.object.id)
           break

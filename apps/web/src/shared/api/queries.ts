@@ -185,6 +185,20 @@ export const discussionQuery = (id: string) =>
       }>(`/objects/${id}/discussion`),
   })
 
+/**
+ * Ответы треда в обсуждении объекта (ADR-0161); ключ под `keys.discussion`,
+ * поэтому realtime и отправка сбрасывают его вместе с лентой.
+ */
+export const discussionThreadQuery = (id: string, rootId: string | null) =>
+  queryOptions({
+    queryKey: [...keys.discussion(id), 'thread', rootId ?? 'none'] as const,
+    queryFn: () =>
+      http.get<{ items: Message[]; nextCursor: string | null }>(`/objects/${id}/discussion`, {
+        query: { threadRootId: rootId ?? '', limit: 100 },
+      }),
+    enabled: Boolean(rootId),
+  })
+
 export const inboxQuery = (params: { state?: string; scope?: string; kind?: string }) =>
   queryOptions({
     queryKey: keys.inbox(params),

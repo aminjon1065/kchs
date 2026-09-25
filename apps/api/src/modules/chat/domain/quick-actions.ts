@@ -1,5 +1,5 @@
 import type { ChatForwardInput, ChatTaskInput, RichBody } from '@kchs/contracts'
-import { and, eq, inArray, sql } from 'drizzle-orm'
+import { and, eq, inArray, isNull, sql } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
 import { DiscussionService } from '~/kernel/discussions/service.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
@@ -185,7 +185,8 @@ export const QuickActions = {
         createdAt: messages.createdAt,
       })
       .from(messages)
-      .where(inArray(messages.id, ids))
+      // Удалённое сообщение не пересылается: от него осталась только строка
+      .where(and(inArray(messages.id, ids), isNull(messages.deletedAt)))
       .orderBy(messages.id)
     if (rows.length === 0) throw errors.notFound('Сообщение')
 

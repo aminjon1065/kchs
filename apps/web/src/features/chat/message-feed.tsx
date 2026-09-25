@@ -2,6 +2,7 @@ import type { ChatListItem, Message, TranslateResult } from '@kchs/contracts'
 import {
   Badge,
   Button,
+  Checkbox,
   cn,
   DropdownMenu,
   DropdownMenuContent,
@@ -17,17 +18,23 @@ import {
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  Archive,
   BellOff,
+  Check,
+  CheckCheck,
   CheckSquare,
   ChevronLeft,
   Languages,
   Link2,
+  ListChecks,
   MessageSquare,
   MoreHorizontal,
+  Pencil,
   Phone,
   Pin,
   Search,
   Share2,
+  Trash2,
   Users,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -35,10 +42,15 @@ import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { aiStatusQuery } from '~/features/data/queries.js'
 import { MessageComposer } from '~/features/discussion/message-composer.js'
-import { MessageItem } from '~/features/discussion/message-item.js'
+import {
+  DeleteMessageDialog,
+  MessageItem,
+  MessageMenu,
+} from '~/features/discussion/message-item.js'
 import { uploadFile } from '~/features/files/upload.js'
 import { ApiError, http } from '~/shared/api/client.js'
-import { keys } from '~/shared/api/queries.js'
+import { keys, meQuery } from '~/shared/api/queries.js'
+import { emitTyping, onRealtimeEvent } from '~/shared/realtime/client.js'
 import {
   AttachDialog,
   ForwardDialog,
@@ -46,7 +58,20 @@ import {
   MessageTaskDialog,
   RenameDialog,
 } from './chat-dialogs.js'
-import { chatKeys, chatMessagesQuery, chatPinsQuery, chatSearchQuery } from './queries.js'
+import {
+  chatKeys,
+  chatMembersQuery,
+  chatMessagesQuery,
+  chatPinsQuery,
+  chatSearchQuery,
+} from './queries.js'
+
+/** Сколько держится «печатает» после последнего сигнала соседа. */
+const TYPING_TTL_MS = 5_000
+/** Свой сигнал «печатает» — не чаще раза за этот промежуток. */
+const TYPING_EVERY_MS = 3_000
+/** Столько сообщений пересылается за раз (ChatForwardInput). */
+const FORWARD_LIMIT = 20
 
 /** Разделитель дня: сегодня, вчера или дата. */
 function dayLabel(iso: string, locale: string, t: (key: string) => string): string {
@@ -65,10 +90,95 @@ function dayLabel(iso: string, locale: string, t: (key: string) => string): stri
 type Dialog =
   | { kind: 'task'; messageId: string; text: string }
   | { kind: 'attach'; messageId: string }
-  | { kind: 'forward'; messageId: string }
+  | { kind: 'forward'; messageIds: string[] }
+  | { kind: 'delete'; messageId: string }
   | { kind: 'invite' }
   | { kind: 'rename' }
   | null
+
+/**
+ * Кто печатает в беседе — по сигналам `typing` шлюза (ADR-0161); каждый гаснет
+ * через `TYPING_TTL_MS`, если сигнал не повторился.
+ */
+function useTyping(conversationId: string): string[] {
+  const [typers, setTypers] = useState<Record<string, { name: string; until: number }>>({})
+  useEffect(() => {
+    setTypers({})
+    const off = onRealtimeEvent('typing', (payload) => {
+      const {
+        conversationId: from,
+        userId,
+        displayName,
+      } = payload as {
+        conversationId?: string
+        userId?: string
+        displayName?: string
+      }
+      if (from !== conversationId || !userId) return
+      setTypers((current) => ({
+        ...current,
+        [userId]: { name: displayName ?? '', until: Date.now() + TYPING_TTL_MS },
+      }))
+    })
+    const timer = window.setInterval(() => {
+      setTypers((current) => {
+        const now = Date.now()
+        const alive = Object.entries(current).filter(([, typer]) => typer.until > now)
+        return alive.length === Object.keys(current).length ? current : Object.fromEntries(alive)
+      })
+    }, 1_000)
+    return () => {
+      off()
+      window.clearInterval(timer)
+    }
+  }, [conversationId])
+  return Object.values(typers).map((typer) => typer.name)
+}
+
+function typingLabel(
+  names: string[],
+  t: (key: string, params?: Record<string, string | number>) => string,
+) {
+  if (names.length === 0) return null
+  if (names.length === 1) return t('discussion.typing', { name: names[0] ?? '' })
+  if (names.length === 2) {
+    return t('chats.typingTwo', { first: names[0] ?? '', second: names[1] ?? '' })
+  }
+  return t('chats.typingMany', { count: names.length })
+}
+
+/**
+ * Отметка своего сообщения (ADR-0161): в личной беседе ✓ — доставлено, ✓✓ —
+ * собеседник прочитал; в группе и канале ✓✓ с числом прочитавших.
+ */
+function Receipt({ direct, readers }: { direct: boolean; readers: number }) {
+  const t = useT()
+  const label =
+    readers === 0
+      ? t('chats.receipt.sent')
+      : direct
+        ? t('chats.receipt.read')
+        : t('chats.receipt.readBy', { count: readers })
+  const Icon = readers > 0 ? CheckCheck : Check
+  return (
+    <span
+      role="img"
+      aria-label={label}
+      title={label}
+      className={cn(
+        'inline-flex shrink-0 items-center gap-0.5 text-2xs',
+        readers > 0 ? 'text-accent' : 'text-fg-muted',
+      )}
+    >
+      <Icon className="size-3" aria-hidden />
+      {!direct && readers > 0 ? (
+        <span className="tabular" aria-hidden>
+          {readers}
+        </span>
+      ) : null}
+    </span>
+  )
+}
 
 /**
  * Лента беседы (P4-E01 S02): шапка с участниками, звонком, поиском и
@@ -102,15 +212,67 @@ export function MessageFeed({
   const [translations, setTranslations] = useState<Record<string, string>>({})
   const needle = useDebouncedValue(search.trim(), 250)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  // Выбор сообщений для пересылки: null — обычный режим ленты
+  const [selected, setSelected] = useState<string[] | null>(null)
+  const typingSentRef = useRef(0)
+  const typing = typingLabel(useTyping(conversation.id), t)
+  // Отметки прочтения — в беседах с участниками; у обсуждения объекта их нет
+  const receiptsOn = conversation.kind !== 'object'
 
   const { data, isLoading } = useQuery(chatMessagesQuery(conversation.id, null, limit))
   const { data: ai } = useQuery(aiStatusQuery())
   const { data: pins } = useQuery(chatPinsQuery(pinsOpen ? conversation.id : null))
   const { data: found } = useQuery(chatSearchQuery(searching ? needle : '', conversation.id))
+  const { data: me } = useQuery(meQuery())
+  const { data: members } = useQuery(chatMembersQuery(receiptsOn ? conversation.id : null))
+  const myId = me?.user.id ?? null
 
   const messages = data?.items ?? []
   const lastId = messages.at(-1)?.id ?? null
   const unreadFrom = conversation.firstUnreadMessageId
+
+  // Докуда дочитали остальные участники
+  const readUpTo = useMemo(
+    () =>
+      (members?.items ?? []).flatMap((member) =>
+        member.user.id !== myId && member.lastReadMessageId
+          ? [Number(member.lastReadMessageId)]
+          : [],
+      ),
+    [members, myId],
+  )
+  const receiptOf = (message: Message) => {
+    if (!receiptsOn || !myId || message.author?.id !== myId || message.kind !== 'user') return null
+    const readers = readUpTo.filter((position) => position >= Number(message.id)).length
+    return <Receipt direct={conversation.kind === 'direct'} readers={readers} />
+  }
+
+  // Прочтения в оживлённой беседе приходят пачкой — участники перечитываются
+  // не чаще раза в секунду
+  useEffect(() => {
+    if (!receiptsOn) return
+    let timer: number | undefined
+    const off = onRealtimeEvent('message.read', (payload) => {
+      if ((payload as { conversationId?: string }).conversationId !== conversation.id) return
+      if (timer !== undefined) return
+      timer = window.setTimeout(() => {
+        timer = undefined
+        void client.invalidateQueries({ queryKey: chatKeys.members(conversation.id) })
+      }, 1_000)
+    })
+    return () => {
+      off()
+      if (timer !== undefined) window.clearTimeout(timer)
+    }
+  }, [conversation.id, receiptsOn, client])
+
+  const toggleSelected = (messageId: string) =>
+    setSelected((current) => {
+      const list = current ?? []
+      if (list.includes(messageId)) return list.filter((id) => id !== messageId)
+      return list.length >= FORWARD_LIMIT ? list : [...list, messageId]
+    })
 
   // Отметка прочтения — когда лента показана и внизу есть новое сообщение
   const markRead = useMutation({
@@ -186,9 +348,13 @@ export function MessageFeed({
   })
 
   const settings = useMutation({
-    mutationFn: (patch: { pinned?: boolean; muted?: boolean }) =>
+    mutationFn: (patch: { pinned?: boolean; muted?: boolean; archived?: boolean }) =>
       http.put(`/chats/${conversation.id}/settings`, patch),
-    onSuccess: () => void client.invalidateQueries({ queryKey: chatKeys.all }),
+    onSuccess: (_, patch) => {
+      void client.invalidateQueries({ queryKey: chatKeys.all })
+      if (patch.archived)
+        toast.show({ title: t('chats.archivedDone'), description: t('chats.archiveHint') })
+    },
   })
 
   const pin = useMutation({
@@ -248,6 +414,12 @@ export function MessageFeed({
         {conversation.muted ? (
           <BellOff className="size-3.5 text-fg-muted" aria-label={t('chats.mute')} />
         ) : null}
+        {conversation.archived ? (
+          <Badge tone="neutral" size="sm">
+            <Archive className="mr-1 size-3" aria-hidden />
+            {t('chats.inArchive')}
+          </Badge>
+        ) : null}
         <div className="ml-auto flex items-center gap-1">
           <IconButton
             size="sm"
@@ -285,6 +457,16 @@ export function MessageFeed({
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => settings.mutate({ muted: !conversation.muted })}>
                 {t(conversation.muted ? 'chats.unmute' : 'chats.mute')}
+              </DropdownMenuItem>
+              {conversation.member || conversation.kind === 'object' ? (
+                <DropdownMenuItem
+                  onSelect={() => settings.mutate({ archived: !conversation.archived })}
+                >
+                  {t(conversation.archived ? 'chats.unarchive' : 'chats.archive')}
+                </DropdownMenuItem>
+              ) : null}
+              <DropdownMenuItem onSelect={() => setSelected([])}>
+                {t('chats.selectMany')}
               </DropdownMenuItem>
               {conversation.can.manage ? (
                 <>
@@ -403,11 +585,24 @@ export function MessageFeed({
                         </div>
                       ) : null}
                       <div className="flex items-start gap-1">
+                        {selected && !message.deletedAt && message.kind !== 'system' ? (
+                          <Checkbox
+                            className="mt-1.5"
+                            checked={selected.includes(message.id)}
+                            onCheckedChange={() => toggleSelected(message.id)}
+                            aria-label={t('chats.selectMessage', {
+                              author: message.author?.displayName ?? '',
+                            })}
+                          />
+                        ) : null}
                         <div className="min-w-0 flex-1">
                           <MessageItem
                             message={message}
                             objectId={conversation.id}
                             canReact={conversation.can.post}
+                            editing={editingId === message.id}
+                            onEditEnd={() => setEditingId(null)}
+                            receipt={receiptOf(message)}
                           />
                           {translations[message.id] ? (
                             <p className="ml-9 mt-1 whitespace-pre-wrap border-l-2 border-accent pl-2 text-xs text-fg-secondary">
@@ -425,68 +620,98 @@ export function MessageFeed({
                             </Button>
                           ) : null}
                         </div>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <IconButton
-                              size="sm"
-                              label={t('chats.actions')}
-                              className={cn(
-                                'opacity-0 group-hover/message:opacity-100 focus-visible:opacity-100',
-                                '[@media(hover:none)]:opacity-100',
-                              )}
-                            >
-                              <MoreHorizontal className="size-3.5" />
-                            </IconButton>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onSelect={() => onThread(message.id)}>
-                              {t('chats.reply')}
-                            </DropdownMenuItem>
-                            {ai?.enabled ? (
+                        {message.deletedAt || selected ? null : (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <IconButton
+                                size="sm"
+                                label={t('chats.actions')}
+                                className={cn(
+                                  'opacity-0 group-hover/message:opacity-100 focus-visible:opacity-100',
+                                  '[@media(hover:none)]:opacity-100',
+                                )}
+                              >
+                                <MoreHorizontal className="size-3.5" />
+                              </IconButton>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onSelect={() => onThread(message.id)}>
+                                {t('chats.reply')}
+                              </DropdownMenuItem>
+                              {ai?.enabled ? (
+                                <DropdownMenuItem
+                                  onSelect={() =>
+                                    translate.mutate({
+                                      messageId: message.id,
+                                      text: message.text,
+                                    })
+                                  }
+                                >
+                                  <Languages className="mr-2 size-3.5" aria-hidden />
+                                  {t('chats.translate')}
+                                </DropdownMenuItem>
+                              ) : null}
+                              <DropdownMenuItem
+                                onSelect={() => pin.mutate({ messageId: message.id, on: true })}
+                              >
+                                {t('chats.pinMessage')}
+                              </DropdownMenuItem>
                               <DropdownMenuItem
                                 onSelect={() =>
-                                  translate.mutate({
+                                  setDialog({ kind: 'forward', messageIds: [message.id] })
+                                }
+                              >
+                                <Share2 className="mr-2 size-3.5" aria-hidden />
+                                {t('chats.forward')}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onSelect={() => setSelected([message.id])}>
+                                <ListChecks className="mr-2 size-3.5" aria-hidden />
+                                {t('chats.select')}
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onSelect={() =>
+                                  setDialog({
+                                    kind: 'task',
                                     messageId: message.id,
                                     text: message.text,
                                   })
                                 }
                               >
-                                <Languages className="mr-2 size-3.5" aria-hidden />
-                                {t('chats.translate')}
+                                <CheckSquare className="mr-2 size-3.5" aria-hidden />
+                                {t('chats.createTask')}
                               </DropdownMenuItem>
-                            ) : null}
-                            <DropdownMenuItem
-                              onSelect={() => pin.mutate({ messageId: message.id, on: true })}
-                            >
-                              {t('chats.pinMessage')}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onSelect={() => setDialog({ kind: 'forward', messageId: message.id })}
-                            >
-                              <Share2 className="mr-2 size-3.5" aria-hidden />
-                              {t('chats.forward')}
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              onSelect={() =>
-                                setDialog({
-                                  kind: 'task',
-                                  messageId: message.id,
-                                  text: message.text,
-                                })
-                              }
-                            >
-                              <CheckSquare className="mr-2 size-3.5" aria-hidden />
-                              {t('chats.createTask')}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onSelect={() => setDialog({ kind: 'attach', messageId: message.id })}
-                            >
-                              <Link2 className="mr-2 size-3.5" aria-hidden />
-                              {t('chats.attachTo')}
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                              <DropdownMenuItem
+                                onSelect={() =>
+                                  setDialog({ kind: 'attach', messageId: message.id })
+                                }
+                              >
+                                <Link2 className="mr-2 size-3.5" aria-hidden />
+                                {t('chats.attachTo')}
+                              </DropdownMenuItem>
+                              {message.can.edit || message.can.delete ? (
+                                <DropdownMenuSeparator />
+                              ) : null}
+                              {message.can.edit ? (
+                                <DropdownMenuItem onSelect={() => setEditingId(message.id)}>
+                                  <Pencil className="mr-2 size-3.5" aria-hidden />
+                                  {t('discussion.editMessage')}
+                                </DropdownMenuItem>
+                              ) : null}
+                              {message.can.delete ? (
+                                <DropdownMenuItem
+                                  danger
+                                  onSelect={() =>
+                                    setDialog({ kind: 'delete', messageId: message.id })
+                                  }
+                                >
+                                  <Trash2 className="mr-2 size-3.5" aria-hidden />
+                                  {t('discussion.deleteMessage')}
+                                </DropdownMenuItem>
+                              ) : null}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
                       </div>
                     </li>
                   ))}
@@ -498,7 +723,29 @@ export function MessageFeed({
         )}
       </div>
 
-      {conversation.can.post ? (
+      <p aria-live="polite" className="h-4 shrink-0 truncate px-3 text-2xs text-fg-muted">
+        {typing ?? ''}
+      </p>
+
+      {selected ? (
+        <div className="flex shrink-0 items-center gap-2 border-t border-line bg-surface px-3 py-2">
+          <span className="text-sm text-fg">{t('chats.selected', { count: selected.length })}</span>
+          <div className="ml-auto flex items-center gap-2">
+            <Button size="sm" variant="ghost" onClick={() => setSelected(null)}>
+              {t('common.actions.cancel')}
+            </Button>
+            <Button
+              size="sm"
+              variant="primary"
+              disabled={selected.length === 0}
+              onClick={() => setDialog({ kind: 'forward', messageIds: selected })}
+            >
+              <Share2 className="mr-1.5 size-3.5" aria-hidden />
+              {t('chats.forward')}
+            </Button>
+          </div>
+        </div>
+      ) : conversation.can.post ? (
         <>
           <p className="shrink-0 px-3 text-2xs text-fg-muted">{t('chats.commandHint')}</p>
           <MessageComposer
@@ -506,6 +753,11 @@ export function MessageFeed({
             placeholder={t('chats.placeholder')}
             pending={post.isPending}
             onValueChange={(text) => {
+              // «Печатает» — соседям по беседе, не чаще раза в несколько секунд
+              if (text && Date.now() - typingSentRef.current > TYPING_EVERY_MS) {
+                typingSentRef.current = Date.now()
+                emitTyping(conversation.id)
+              }
               // Черновик сохраняется не на каждый символ: раз в дюжину и при очистке
               if (text.length === 0 || text.length % 12 === 0) saveDraft.mutate(text)
             }}
@@ -537,7 +789,18 @@ export function MessageFeed({
         <AttachDialog messageId={dialog.messageId} onClose={() => setDialog(null)} />
       ) : null}
       {dialog?.kind === 'forward' ? (
-        <ForwardDialog messageId={dialog.messageId} onClose={() => setDialog(null)} />
+        <ForwardDialog
+          messageIds={dialog.messageIds}
+          onClose={() => setDialog(null)}
+          onDone={() => setSelected(null)}
+        />
+      ) : null}
+      {dialog?.kind === 'delete' ? (
+        <DeleteMessageDialog
+          messageId={dialog.messageId}
+          objectId={conversation.id}
+          onClose={() => setDialog(null)}
+        />
       ) : null}
       {dialog?.kind === 'invite' ? (
         <InviteDialog conversationId={conversation.id} onClose={() => setDialog(null)} />
@@ -568,6 +831,8 @@ function ThreadPanel({
 }) {
   const t = useT()
   const client = useQueryClient()
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   const { data } = useQuery(chatMessagesQuery(conversation.id, rootId))
   const post = useMutation({
     mutationFn: (message: { body: unknown; text: string; mentions: string[] }) =>
@@ -595,11 +860,20 @@ function ThreadPanel({
       <div className="min-h-0 flex-1 overflow-y-auto p-3">
         <ul className="flex flex-col gap-3">
           {(data?.items ?? []).map((message) => (
-            <li key={message.id}>
-              <MessageItem
+            <li key={message.id} className="group/message flex items-start gap-1">
+              <div className="min-w-0 flex-1">
+                <MessageItem
+                  message={message}
+                  objectId={conversation.id}
+                  canReact={conversation.can.post}
+                  editing={editingId === message.id}
+                  onEditEnd={() => setEditingId(null)}
+                />
+              </div>
+              <MessageMenu
                 message={message}
-                objectId={conversation.id}
-                canReact={conversation.can.post}
+                onEdit={() => setEditingId(message.id)}
+                onDelete={() => setDeletingId(message.id)}
               />
             </li>
           ))}
@@ -610,6 +884,13 @@ function ThreadPanel({
           placeholder={t('chats.threadPlaceholder')}
           pending={post.isPending}
           onSend={(message) => post.mutateAsync(message)}
+        />
+      ) : null}
+      {deletingId ? (
+        <DeleteMessageDialog
+          messageId={deletingId}
+          objectId={conversation.id}
+          onClose={() => setDeletingId(null)}
         />
       ) : null}
     </aside>

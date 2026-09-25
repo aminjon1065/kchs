@@ -100,6 +100,8 @@ export const EVENT_PAYLOADS = {
   'message.edited': z.object({ conversationId: Uuid, messageId: z.string() }),
   'message.deleted': z.object({ conversationId: Uuid, messageId: z.string() }),
   'message.reacted': z.object({ conversationId: Uuid, messageId: z.string(), emoji: z.string() }),
+  /** Участник дочитал беседу до сообщения — отметки «прочитано» (ADR-0161). */
+  'message.read': z.object({ conversationId: Uuid, messageId: z.string(), userId: Uuid }),
   'mention.created': z.object({
     conversationId: Uuid,
     messageId: z.string(),

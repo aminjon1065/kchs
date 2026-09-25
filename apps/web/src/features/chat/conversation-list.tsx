@@ -24,6 +24,7 @@ const SECTIONS: ChatSection[] = [
   'channels',
   'discussions',
   'discover',
+  'archived',
 ]
 
 /** Точка присутствия у аватара: «на встрече» и «не беспокоить» показываются одинаково. */
@@ -157,8 +158,8 @@ export function ConversationList({
           <EmptyState
             compact
             icon={<MessageSquare className="size-5" />}
-            title={t('chats.empty')}
-            description={t('chats.emptyHint')}
+            title={t(section === 'archived' ? 'chats.archiveEmpty' : 'chats.empty')}
+            description={t(section === 'archived' ? 'chats.archiveHint' : 'chats.emptyHint')}
           />
         ) : (
           <ul aria-label={t('chats.title')} className="flex flex-col p-1">

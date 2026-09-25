@@ -329,6 +329,8 @@ export const conversationMembers = pgTable(
     lastReadMessageId: bigint('last_read_message_id', { mode: 'number' }),
     mutedUntil: tsCol('muted_until'),
     pinned: boolean('pinned').notNull().default(false),
+    /** Убрана участником в архив (ADR-0161); у каждого участника — свой. */
+    archivedAt: tsCol('archived_at'),
     joinedAt: createdAt(),
   },
   (t) => [

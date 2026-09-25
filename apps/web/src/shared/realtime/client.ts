@@ -164,6 +164,14 @@ export function unsubscribeRooms(rooms: string[]): void {
   socket.emit('unsubscribe', { rooms })
 }
 
+/**
+ * «Печатает» в беседе: шлюз пересылает соседям по её комнате, в базу ничего
+ * не пишется (ADR-0161). Вызывающий сам не шлёт чаще раза в несколько секунд.
+ */
+export function emitTyping(conversationId: string): void {
+  socket?.emit('typing', { conversationId })
+}
+
 /** Отметка просмотра видимой вкладки (раз в 30 с) или уход с неё. */
 export function reportPresence(objectId: string, state: 'view' | 'leave'): void {
   socket?.emit(state === 'view' ? 'presence.view' : 'presence.leave', { objectId })

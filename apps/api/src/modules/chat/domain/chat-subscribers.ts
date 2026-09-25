@@ -118,6 +118,13 @@ async function indexMessages(event: EventEnvelope): Promise<void> {
   }
 }
 
+/** Прочтение на одном устройстве — непрочитанное читателя на остальных (ADR-0161). */
+async function refreshReader(event: EventEnvelope): Promise<void> {
+  const userId = String(event.payload.userId ?? '')
+  const conversationId = String(event.payload.conversationId ?? '')
+  if (userId && conversationId) emitToUser(userId, 'chat.changed', { conversationId })
+}
+
 /** Открытые списки бесед перечитываются: у участников изменилось непрочитанное. */
 async function refreshLists(event: EventEnvelope): Promise<void> {
   const conversationId = String(event.payload.conversationId ?? event.object?.id ?? '')
@@ -200,9 +207,18 @@ export const chatSubscribers: Subscriber[] = [
   },
   {
     name: 'chat-realtime',
-    types: ['message.posted', 'chat.member_joined', 'chat.member_left', 'chat.renamed'],
+    // Правка и удаление меняют последнее сообщение в списке бесед
+    types: [
+      'message.posted',
+      'message.edited',
+      'message.deleted',
+      'chat.member_joined',
+      'chat.member_left',
+      'chat.renamed',
+    ],
     handle: refreshLists,
   },
+  { name: 'chat-reads', types: ['message.read'], handle: refreshReader },
   { name: 'chat-spaces', types: ['space.created'], handle: spaceChannel },
   {
     name: 'chat-space-membership',

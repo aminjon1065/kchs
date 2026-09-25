@@ -73,3 +73,26 @@ export function composeMessage(
     attachments,
   }
 }
+
+/** Упоминания из тела сообщения — чтобы правка текста их сохранила (ADR-0161). */
+export function mentionsOf(body: RichBody | null): Mention[] {
+  const found: Mention[] = []
+  const walk = (nodes: unknown[]) => {
+    for (const node of nodes) {
+      if (!node || typeof node !== 'object') continue
+      const { type, attrs, content } = node as {
+        type?: string
+        attrs?: { id?: unknown; label?: unknown }
+        content?: unknown[]
+      }
+      const id = attrs?.id
+      const label = attrs?.label
+      if (type === 'mention' && typeof id === 'string' && typeof label === 'string') {
+        if (!found.some((mention) => mention.id === id)) found.push({ id, name: label })
+      }
+      if (Array.isArray(content)) walk(content)
+    }
+  }
+  walk(body?.content ?? [])
+  return found
+}

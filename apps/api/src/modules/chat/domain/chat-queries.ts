@@ -22,6 +22,7 @@ interface ListRow extends Record<string, unknown> {
   role: string | null
   pinned: boolean
   muted: boolean
+  archived: boolean
   member_count: number
   peer_id: string | null
   last_message_at: string | null
@@ -91,6 +92,11 @@ async function rows(
            cm.role,
            coalesce(cm.pinned, false) AS pinned,
            (cm.muted_until IS NOT NULL AND cm.muted_until > now()) AS muted,
+           -- Архив до нового сообщения; беседа без звука остаётся в архиве и с ним
+           (cm.archived_at IS NOT NULL
+             AND ((cm.muted_until IS NOT NULL AND cm.muted_until > now())
+                  OR c.last_message_at IS NULL
+                  OR c.last_message_at <= cm.archived_at)) AS archived,
            (SELECT count(*)::int FROM conversation_members mc WHERE mc.conversation_id = c.id)
              AS member_count,
            (SELECT peer.user_id FROM conversation_members peer
@@ -135,9 +141,17 @@ function matches(item: ChatListItem, section: ChatSection): boolean {
       return item.kind === 'direct'
     case 'discussions':
       return item.kind === 'object'
+    case 'archived':
+      return item.archived
     default:
       return true
   }
+}
+
+/** Архивная беседа видна только в архиве; «Куда вступить» архива не знает. */
+function inSection(item: ChatListItem, section: ChatSection): boolean {
+  if (section === 'archived' || section === 'discover') return matches(item, section)
+  return !item.archived && matches(item, section)
 }
 
 async function toItems(ctx: UserCtx, found: ListRow[]): Promise<ChatListItem[]> {
@@ -186,6 +200,7 @@ async function toItems(ctx: UserCtx, found: ListRow[]): Promise<ChatListItem[]> 
       firstUnreadMessageId: row.first_unread,
       pinned: Boolean(row.pinned),
       muted: Boolean(row.muted),
+      archived: Boolean(row.archived),
       memberCount: Number(row.member_count ?? 0),
       role: isMember ? (row.role === 'owner' ? ('owner' as const) : ('member' as const)) : null,
       member: isMember,
@@ -208,11 +223,11 @@ export const ChatQueries = {
     const needle = query.q?.trim().toLowerCase()
     return {
       items: items
-        .filter((item) => matches(item, query.section))
+        .filter((item) => inSection(item, query.section))
         .filter((item) => !needle || item.title.toLowerCase().includes(needle))
         .slice(0, query.limit),
       totalUnread: items
-        .filter((item) => !item.muted)
+        .filter((item) => !item.muted && !item.archived)
         .reduce((sum, item) => sum + item.unreadCount, 0),
     }
   },
