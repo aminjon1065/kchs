@@ -4,12 +4,14 @@ import type {
   RuleCreateInput,
   RuleDefinition,
   RuleDryRunResult,
+  RuleExport,
   RuleList,
   RuleListQuery,
   RuleRecord,
   RuleRunList,
   RuleTemplate,
   RuleValidateResult,
+  RuleVersionList,
   ScheduleList,
   ScheduleRecord,
   ScheduleRunList,
@@ -23,6 +25,7 @@ export const automationKeys = {
   rules: (query: Partial<RuleListQuery> = {}) => ['automation', 'rules', query] as const,
   rule: (id: string) => ['automation', 'rule', id] as const,
   runs: (id: string) => ['automation', 'rule', id, 'runs'] as const,
+  versions: (id: string) => ['automation', 'rule', id, 'versions'] as const,
   templates: ['automation', 'templates'] as const,
   catalog: ['automation', 'catalog'] as const,
   manual: (objectId: string) => ['object', objectId, 'manual-rules'] as const,
@@ -49,6 +52,15 @@ export const ruleRunsQuery = (id: string) =>
     queryFn: () => http.get<RuleRunList>(`/automation/rules/${id}/runs`, { query: { limit: 30 } }),
     enabled: id.length > 0,
     refetchInterval: 5000,
+  })
+
+/** Версии определения правила (ADR-0163). */
+export const ruleVersionsQuery = (id: string) =>
+  queryOptions({
+    queryKey: automationKeys.versions(id),
+    queryFn: () => http.get<RuleVersionList>(`/automation/rules/${id}/versions`),
+    select: (data: RuleVersionList) => data.items,
+    enabled: id.length > 0,
   })
 
 export const ruleTemplatesQuery = () =>
@@ -106,6 +118,12 @@ export const automationApi = {
     http.post<RuleValidateResult>('/automation/rules/validate', { definition }),
   dryRun: (definition: RuleDefinition, limit: number) =>
     http.post<RuleDryRunResult>('/automation/rules/dry-run', { definition, limit }),
+  duplicate: (id: string) => http.post<{ id: string }>(`/automation/rules/${id}/duplicate`),
+  restore: (id: string, versionId: string) =>
+    http.post<RuleRecord>(`/automation/rules/${id}/versions/${versionId}/restore`),
+  exportRule: (id: string) => http.get<RuleExport>(`/automation/rules/${id}/export`),
+  importRule: (spaceId: string, rule: RuleExport) =>
+    http.post<{ id: string }>('/automation/rules/import', { spaceId, rule }),
   run: (id: string, objectId: string | null) =>
     http.post<{ runId: string }>(`/automation/rules/${id}/run`, { objectId }),
   scheduleEnabled: (key: string, enabled: boolean) =>

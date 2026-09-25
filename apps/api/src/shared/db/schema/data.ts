@@ -376,6 +376,30 @@ export const reports = pgTable('reports', {
 })
 
 /**
+ * Версии шаблона отчёта (ADR-0164): снимок блоков, параметров и настроек печати — вручную
+ * («Сохранить версию»), при «Сформировать» и перед откатом. Откат пишет снимок в документ.
+ */
+export const reportVersions = pgTable(
+  'report_versions',
+  {
+    id: uuid('id').primaryKey(),
+    reportId: uuid('report_id')
+      .notNull()
+      .references(() => objects.id, { onDelete: 'cascade' }),
+    number: integer('number').notNull(),
+    blocks: jsonbArray('blocks'),
+    params: jsonbObject('params'),
+    settings: jsonbObject('settings'),
+    /** manual | run | restore */
+    reason: text('reason').notNull(),
+    label: text('label'),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex('report_versions_number_key').on(t.reportId, t.number)],
+)
+
+/**
  * Запуск рендера отчёта: под чьими правами (`run_as`), параметры, файлы в бакете
  * экспортов, доставка по каналам. Расписание даёт запуск на каждого получателя.
  */

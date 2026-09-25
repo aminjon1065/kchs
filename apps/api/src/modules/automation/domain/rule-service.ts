@@ -1,13 +1,18 @@
 import { randomBytes } from 'node:crypto'
 import {
+  RULE_EXPORT_FORMAT,
+  type RuleAction,
   type RuleCreateInput,
   RuleDefinition,
+  type RuleExport,
+  type RuleImportInput,
   type RuleListItem,
   type RuleListQuery,
   type RuleRecord,
   type RuleStats,
   type RuleTrigger,
   type RuleTriggerKind,
+  type RuleVersionReason,
   type UserRef,
 } from '@kchs/contracts'
 import { localizedText } from '@kchs/i18n'
@@ -24,6 +29,7 @@ import { db, type Executor } from '~/shared/db/client.js'
 import { objects, ruleRuns, rules, spaces, users } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
+import { RuleVersions } from './rule-versions.js'
 import { blockingIssues, checkRule, ruleAllowlist } from './validate.js'
 
 /**
@@ -216,6 +222,52 @@ async function toListItem(
   }
 }
 
+/** Заголовки вебхука, похожие на ключи доступа: в файл правила не попадают. */
+const SECRET_HEADER = /authorization|token|secret|key|cookie|password/i
+
+function withoutSecrets(action: RuleAction): RuleAction {
+  if (action.type !== 'webhook') return action
+  return {
+    ...action,
+    secret: null,
+    headers: Object.fromEntries(
+      Object.entries(action.headers).map(([name, value]) => [
+        name,
+        SECRET_HEADER.test(name) ? '' : value,
+      ]),
+    ),
+  }
+}
+
+/**
+ * Определение для переноса между установками (ADR-0163): без секретов и привязки к людям —
+ * служебный пользователь снят, правило выключено, секрет подписи и ключи в заголовках пусты.
+ */
+export function exportableDefinition(definition: RuleDefinition): RuleDefinition {
+  return {
+    ...definition,
+    enabled: false,
+    runAs: null,
+    actions: definition.actions.map(withoutSecrets),
+    otherwise: definition.otherwise.map(withoutSecrets),
+  }
+}
+
+/** Пометка копии в названии — на языке каждой подписи. */
+const COPY_LABEL: Record<string, string> = { ru: 'копия', tg: 'нусха', en: 'copy' }
+
+/** Поля определения, изменение которых — новая версия правила. */
+const VERSIONED_FIELDS = [
+  'name',
+  'description',
+  'trigger',
+  'conditions',
+  'actions',
+  'otherwise',
+  'limits',
+  'runAs',
+] as const
+
 export const RuleService = {
   async load(executor: Executor, id: string): Promise<RuleRow | null> {
     const [row] = await executor
@@ -248,7 +300,12 @@ export const RuleService = {
     return rows.map(asRow)
   },
 
-  async create(tx: Executor, ctx: UserCtx, input: RuleCreateInput): Promise<string> {
+  async create(
+    tx: Executor,
+    ctx: UserCtx,
+    input: RuleCreateInput,
+    reason: RuleVersionReason = 'create',
+  ): Promise<string> {
     const definition = RuleDefinition.parse(input.definition)
     const blocking = blockingIssues(
       checkRule(definition, await ruleAllowlist()),
@@ -263,7 +320,9 @@ export const RuleService = {
     if (definition.runAs) await assertRunAs(definition.runAs)
 
     const title = localizedText(definition.name, 'ru')
-    const key = input.key ?? `${slugify(title)}-${newId().slice(0, 8)}`
+    // Хвост идентификатора, а не начало: у UUIDv7 начало — время, и правила, созданные
+    // в одну миллисекунду с одним названием (копия, импорт), получали бы один ключ
+    const key = input.key ?? `${slugify(title)}-${newId().slice(-8)}`
     const object = await ObjectService.create(tx, ctx, {
       type: 'rule',
       spaceId: input.spaceId,
@@ -283,6 +342,8 @@ export const RuleService = {
       webhookToken: columns.triggerKind === 'webhook' ? randomBytes(24).toString('hex') : null,
     })
 
+    await RuleVersions.record(tx, ctx, object.id, definition, reason)
+
     await publishEvent(tx, ctx, {
       type: 'rule.created',
       object: { id: object.id, type: 'rule', spaceId: object.spaceId, title },
@@ -291,7 +352,13 @@ export const RuleService = {
     return object.id
   },
 
-  async update(tx: Executor, ctx: UserCtx, id: string, next: RuleDefinition): Promise<void> {
+  async update(
+    tx: Executor,
+    ctx: UserCtx,
+    id: string,
+    next: RuleDefinition,
+    reason: RuleVersionReason = 'update',
+  ): Promise<void> {
     const current = await RuleService.load(tx, id)
     if (!current) throw errors.notFound('Правило')
     const definition = RuleDefinition.parse(next)
@@ -308,9 +375,9 @@ export const RuleService = {
     if (definition.runAs) await assertRunAs(definition.runAs)
 
     const previous = RuleDefinition.parse(current.definition)
-    const changed = (['name', 'trigger', 'conditions', 'actions', 'limits', 'runAs'] as const)
-      .filter((field) => JSON.stringify(previous[field]) !== JSON.stringify(definition[field]))
-      .map(String)
+    const changed = VERSIONED_FIELDS.filter(
+      (field) => JSON.stringify(previous[field]) !== JSON.stringify(definition[field]),
+    ).map(String)
 
     const title = localizedText(definition.name, 'ru')
     const columns = triggerColumns(definition.trigger)
@@ -334,6 +401,10 @@ export const RuleService = {
       meta: { triggerKind: definition.trigger.kind, enabled: definition.enabled },
       mergeMeta: true,
     })
+
+    if (changed.length > 0 || reason === 'restore') {
+      await RuleVersions.record(tx, ctx, id, definition, reason, changed)
+    }
 
     await publishEvent(tx, ctx, {
       type: 'rule.updated',
@@ -486,6 +557,68 @@ export const RuleService = {
         ),
       )
     return rows.map(asRow)
+  },
+
+  /** Копия правила в том же пространстве: выключена, с пометкой в названии. */
+  async duplicate(tx: Executor, ctx: UserCtx, id: string): Promise<string> {
+    const row = await RuleService.load(tx, id)
+    if (!row?.spaceId) throw errors.notFound('Правило')
+    const definition = RuleDefinition.parse(row.definition)
+    const name = Object.fromEntries(
+      Object.entries(definition.name).map(([locale, text]) => [
+        locale,
+        typeof text === 'string' && text
+          ? `${text} (${COPY_LABEL[locale] ?? COPY_LABEL.ru})`
+          : text,
+      ]),
+    ) as RuleDefinition['name']
+    return RuleService.create(
+      tx,
+      ctx,
+      { spaceId: row.spaceId, definition: { ...definition, name, enabled: false } },
+      'duplicate',
+    )
+  },
+
+  /** Откат к версии: определение версии становится новой версией, состояние — текущее. */
+  async restore(tx: Executor, ctx: UserCtx, id: string, versionId: string): Promise<void> {
+    const row = await RuleService.load(tx, id)
+    if (!row) throw errors.notFound('Правило')
+    const version = await RuleVersions.get(id, versionId)
+    if (!version) throw errors.notFound('Версия правила')
+    await RuleService.update(tx, ctx, id, { ...version, enabled: row.enabled }, 'restore')
+  },
+
+  /** Файл одного правила (ADR-0163): определение без секретов и привязок к людям. */
+  async exportRule(id: string): Promise<RuleExport> {
+    const row = await RuleService.load(db(), id)
+    if (!row) throw errors.notFound('Правило')
+    return {
+      format: RULE_EXPORT_FORMAT,
+      version: 1,
+      key: row.key,
+      exportedAt: new Date().toISOString(),
+      definition: exportableDefinition(RuleDefinition.parse(row.definition)),
+    }
+  },
+
+  /** Правило из файла: выключенным, без служебного пользователя; занятый ключ — новый. */
+  async importRule(tx: Executor, ctx: UserCtx, input: RuleImportInput): Promise<string> {
+    const [taken] = await tx
+      .select({ id: rules.id })
+      .from(rules)
+      .where(eq(rules.key, input.rule.key))
+      .limit(1)
+    return RuleService.create(
+      tx,
+      ctx,
+      {
+        spaceId: input.spaceId,
+        ...(taken ? {} : { key: input.rule.key }),
+        definition: exportableDefinition(RuleDefinition.parse(input.rule.definition)),
+      },
+      'import',
+    )
   },
 
   /** Отметка последнего запуска — колонка «Здоровье» в списке. */

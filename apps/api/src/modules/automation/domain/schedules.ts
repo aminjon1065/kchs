@@ -1,4 +1,4 @@
-import { RuleDefinition } from '@kchs/contracts'
+import { type MetricTrigger, RuleDefinition } from '@kchs/contracts'
 import { evaluateCondition } from '@kchs/query/expr'
 import { and, eq, isNull } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
@@ -72,6 +72,32 @@ export async function syncRuleSchedules(): Promise<number> {
 }
 
 /**
+ * Значение показателя триггера под правами служебного пользователя и условие над ним: общее
+ * для срабатывания по расписанию и тестового прогона (ADR-0163).
+ */
+export async function checkMetricTrigger(
+  ctx: UserCtx,
+  trigger: MetricTrigger,
+): Promise<{ matched: boolean; reason: string; payload: Record<string, unknown> }> {
+  const metric = await Metrics.get(trigger.metricId)
+  const value = await Metrics.value(ctx, metric, {})
+  const scope = {
+    resolve: (path: readonly string[]) => {
+      if (path[0] === 'value') return value.value
+      if (path[0] === 'previous') return value.base
+      if (path[0] === 'metric') return path[1] ? (value as never)[path[1] as never] : value.name
+      return undefined
+    },
+  }
+  const matched = evaluateCondition(trigger.condition, scope)
+  return {
+    matched,
+    reason: matched ? '' : `Условие показателя не выполнено (${value.value ?? '—'})`,
+    payload: { metricId: metric.id, name: value.name, value: value.value, base: value.base },
+  }
+}
+
+/**
  * Срабатывание правила по расписанию. Для триггера `metric` значение
  * показателя считается под правами служебного пользователя и проверяется
  * условием: не выполнено — запуск не ставится.
@@ -111,25 +137,13 @@ export async function fireScheduledRule(ruleId: string): Promise<string | null> 
       })
       return null
     }
-    const metric = await Metrics.get(definition.trigger.metricId)
-    const value = await Metrics.value(ctx, metric, {})
-    const scope = {
-      resolve: (path: readonly string[]) => {
-        if (path[0] === 'value') return value.value
-        if (path[0] === 'previous') return value.base
-        if (path[0] === 'metric') return path[1] ? (value as never)[path[1] as never] : value.name
-        return undefined
-      },
-    }
-    if (!evaluateCondition(definition.trigger.condition, scope)) {
-      await RuleRuns.recordSkip(ruleId, {
-        triggerKind: 'metric',
-        reason: `Условие показателя не выполнено (${value.value ?? '—'})`,
-      })
+    const checked = await checkMetricTrigger(ctx, definition.trigger)
+    if (!checked.matched) {
+      await RuleRuns.recordSkip(ruleId, { triggerKind: 'metric', reason: checked.reason })
       return null
     }
-    payload = { metricId: metric.id, name: value.name, value: value.value, base: value.base }
-    objectId = metric.id
+    payload = checked.payload
+    objectId = definition.trigger.metricId
   } else if (definition.trigger.kind === 'schedule') {
     objectId = definition.trigger.objectId
   }

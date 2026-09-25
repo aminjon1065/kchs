@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { UserRef } from '../auth/session.js'
 import { LangText, Slug, Timestamp, Uuid } from '../common/primitives.js'
 import { ObjectType } from '../objects/object.js'
-import { RuleActionType, RuleDefinition, RuleTriggerKind } from './rule.js'
+import { RuleActionType, RuleBranch, RuleDefinition, RuleTriggerKind } from './rule.js'
 
 /** API правил автоматизации и журнала запусков (14-automation-integrations.md §1). */
 
@@ -93,6 +93,8 @@ export const RuleRunStep = z.object({
   objectId: Uuid.nullable(),
   durationMs: z.number().int(),
   at: Timestamp,
+  /** Ветка действия; у записей до ADR-0163 её нет — это «то». */
+  branch: RuleBranch.optional(),
 })
 export type RuleRunStep = z.infer<typeof RuleRunStep>
 
@@ -151,6 +153,8 @@ export const RuleDryRunItem = z.object({
   objectId: Uuid.nullable(),
   objectTitle: z.string().nullable(),
   matched: z.boolean(),
+  /** Какая ветка выполнилась бы; null — никакая. */
+  branch: RuleBranch.nullable(),
   /** Почему не сработало: условие, фильтр, лимит, каузальная цепочка. */
   reason: z.string().nullable(),
   actions: z.array(RuleDryRunAction),
@@ -163,6 +167,46 @@ export const RuleDryRunResult = z.object({
   items: z.array(RuleDryRunItem),
 })
 export type RuleDryRunResult = z.infer<typeof RuleDryRunResult>
+
+// ── Версии, копия, перенос одного правила (ADR-0163) ────────────────────────
+
+export const RULE_VERSION_REASONS = ['create', 'update', 'restore', 'import', 'duplicate'] as const
+export const RuleVersionReason = z.enum(RULE_VERSION_REASONS)
+export type RuleVersionReason = z.infer<typeof RuleVersionReason>
+
+/** Версия определения правила: каждая правка определения — новая версия. */
+export const RuleVersion = z.object({
+  id: Uuid,
+  number: z.number().int().positive(),
+  reason: RuleVersionReason,
+  /** Что изменилось относительно предыдущей версии: `trigger`, `actions`… */
+  changed: z.array(z.string()),
+  createdBy: UserRef.nullable(),
+  createdAt: Timestamp,
+  definition: RuleDefinition,
+})
+export type RuleVersion = z.infer<typeof RuleVersion>
+
+export const RuleVersionList = z.object({ items: z.array(RuleVersion) })
+export type RuleVersionList = z.infer<typeof RuleVersionList>
+
+/**
+ * Файл одного правила: определение без секретов и без привязок к установке — служебный
+ * пользователь снят, правило выключено, секрет подписи вебхука и заголовки с ключами пусты.
+ */
+export const RULE_EXPORT_FORMAT = 'kchs.rule' as const
+export const RuleExport = z.object({
+  format: z.literal(RULE_EXPORT_FORMAT),
+  version: z.literal(1),
+  /** Ключ правила: из названия, бывает и кириллицей (`slugify` правил). */
+  key: z.string().trim().min(1).max(120),
+  exportedAt: Timestamp,
+  definition: RuleDefinition,
+})
+export type RuleExport = z.infer<typeof RuleExport>
+
+export const RuleImportInput = z.object({ spaceId: Uuid, rule: RuleExport })
+export type RuleImportInput = z.infer<typeof RuleImportInput>
 
 /** Ручной запуск правила у объекта (триггер `manual`). */
 export const RuleRunNowInput = z.object({ objectId: Uuid.nullable().default(null) })

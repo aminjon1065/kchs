@@ -18,6 +18,7 @@ import { useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { ApiError } from '~/shared/api/client.js'
+import { RunsPanel } from './designer/runs-panel.js'
 import { automationApi, automationKeys, scheduleRunsQuery, schedulesQuery } from './queries.js'
 
 /**
@@ -31,6 +32,7 @@ export function SchedulesSection() {
   const client = useQueryClient()
   const toast = useToast()
   const [historyKey, setHistoryKey] = useState<string | null>(null)
+  const [ruleHistory, setRuleHistory] = useState<string | null>(null)
   const { data: items = [], isLoading } = useQuery(schedulesQuery())
 
   const invalidate = () => client.invalidateQueries({ queryKey: automationKeys.schedules })
@@ -142,11 +144,13 @@ export function SchedulesSection() {
                 >
                   <PlayCircle className="size-4" />
                 </Button>
-                {row.kind === 'system' ? (
+                {row.kind === 'system' || (row.kind === 'rule' && row.objectId) ? (
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => setHistoryKey(row.key)}
+                    onClick={() =>
+                      row.kind === 'rule' ? setRuleHistory(row.objectId) : setHistoryKey(row.key)
+                    }
                     aria-label={t('schedules.history.open')}
                   >
                     <History className="size-4" />
@@ -159,6 +163,15 @@ export function SchedulesSection() {
       )}
 
       <HistoryDialog scheduleKey={historyKey} onClose={() => setHistoryKey(null)} />
+      {/* У правила — его журнал запусков с шагами, как в конструкторе (ADR-0163) */}
+      <Dialog
+        open={ruleHistory !== null}
+        onOpenChange={(open) => (open ? null : setRuleHistory(null))}
+      >
+        <DialogContent title={t('schedules.history.title')} size="lg">
+          {ruleHistory ? <RunsPanel ruleId={ruleHistory} /> : null}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -17,6 +17,7 @@ import { processObjectProvider } from '~/kernel/process/registry.js'
 import { TagService } from '~/kernel/tags/service.js'
 import { AiService } from '~/modules/ai/public.js'
 import { CalendarPublic } from '~/modules/calendar/public.js'
+import { DataRuns } from '~/modules/data/public.js'
 import { DocumentsPublic } from '~/modules/documents/public.js'
 import { Instructions, Tasks } from '~/modules/tasks/public.js'
 import { config } from '~/shared/config/index.js'
@@ -477,6 +478,28 @@ export async function runAction(
       return { message: `Вызов ${action.url}: ${response.status}` }
     }
 
+    case 'run_pipeline': {
+      // Прогон читает входы с правами служебного пользователя (ADR-0106): ему нужно право
+      // «запускать» пайплайн, как человеку с кнопкой «Запустить»
+      const pipelineId = targetId(action.pipelineId, context, 'pipelineId')
+      await authorize(context.ctx, 'run', pipelineId)
+      const started = await DataRuns.pipeline(context.ctx, pipelineId)
+      return {
+        message: `Пайплайн поставлен в очередь (прогон ${started.runId})`,
+        objectId: pipelineId,
+      }
+    }
+
+    case 'run_import': {
+      const sourceId = targetId(action.sourceId, context, 'sourceId')
+      await authorize(context.ctx, 'sync', sourceId)
+      const started = await DataRuns.source(context.ctx, sourceId)
+      return {
+        message: `Синхронизация источника поставлена в очередь (${started.runId})`,
+        objectId: sourceId,
+      }
+    }
+
     case 'ai_task': {
       const objectId = targetId(action.object, context)
       const row = await objectRow(db(), objectId)
@@ -560,6 +583,10 @@ export function describeAction(action: RuleAction, scope: EvalScope): string {
       return `Вызов ${action.method} ${action.url}`
     case 'ai_task':
       return `ИИ: «${render(action.prompt)}» → ${action.target.kind}`
+    case 'run_pipeline':
+      return `Запустить пайплайн ${render(action.pipelineId)}`
+    case 'run_import':
+      return `Синхронизировать источник ${render(action.sourceId)}`
     case 'wait':
       return `Ожидание ${action.minutes} мин`
     case 'stop':

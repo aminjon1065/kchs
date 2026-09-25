@@ -1,4 +1,4 @@
-import type { EventEnvelope, RuleAction, RuleRunStep } from '@kchs/contracts'
+import type { EventEnvelope, RuleAction, RuleBranch, RuleRunStep } from '@kchs/contracts'
 import { RuleDefinition } from '@kchs/contracts'
 import { evaluateCondition } from '@kchs/query/expr'
 import { eq } from 'drizzle-orm'
@@ -114,6 +114,7 @@ function step(
   message: string,
   objectId: string | null,
   startedAt: number,
+  branch: RuleBranch = 'then',
 ): RuleRunStep {
   return {
     index,
@@ -123,6 +124,7 @@ function step(
     objectId,
     durationMs: Math.max(0, Date.now() - startedAt),
     at: new Date().toISOString(),
+    branch,
   }
 }
 
@@ -197,6 +199,9 @@ export async function executeRun(runId: string): Promise<RunOutcome> {
   const data = await buildScopeData(context, objectId)
   const scope = ruleScope(data, config().TZ)
 
+  // Ветка запуска (ADR-0163): «иначе» выбирается один раз и помнится в контексте запуска —
+  // продолжение после `wait` идёт по той же ветке
+  let branch: RuleBranch = context.branch === 'otherwise' ? 'otherwise' : 'then'
   if (definition.conditions && run.resumeAt === 0) {
     let matched = false
     try {
@@ -207,11 +212,13 @@ export async function executeRun(runId: string): Promise<RunOutcome> {
       await RuleService.markRun(db(), rule.id, 'failed')
       return { status: 'failed', reason: message }
     }
-    if (!matched) {
+    if (!matched && definition.otherwise.length === 0) {
       await RuleRuns.finish(runId, 'skipped', { error: 'Условие не выполнено' })
       await RuleService.markRun(db(), rule.id, 'skipped')
       return { status: 'skipped', reason: 'Условие не выполнено' }
     }
+    branch = matched ? 'then' : 'otherwise'
+    if (branch === 'otherwise') await RuleRuns.setBranch(runId, branch)
   }
 
   // Ключ повтора занимает только запуск с выполненным условием: отсеянный условием не
@@ -227,7 +234,9 @@ export async function executeRun(runId: string): Promise<RunOutcome> {
       return { status: 'failed', reason: message }
     }
     const window = definition.limits.dedupeWindowMinutes
-    if (key.length > 0 && !(await RuleRuns.claimDedupe(rule.id, key, window))) {
+    // У ветки «иначе» свои ключи: её запуск не глушит следующий по ветке «то»
+    const claimed = branch === 'otherwise' ? `otherwise:${key}` : key
+    if (key.length > 0 && !(await RuleRuns.claimDedupe(rule.id, claimed, window))) {
       const reason = `Повтор по ключу «${key}»`
       await RuleRuns.finish(runId, 'skipped', { error: reason })
       await RuleService.markRun(db(), rule.id, 'skipped')
@@ -245,21 +254,22 @@ export async function executeRun(runId: string): Promise<RunOutcome> {
     spaceId: (data.object?.spaceId as string | null) ?? rule.spaceId,
   }
 
-  for (let index = run.resumeAt; index < definition.actions.length; index++) {
-    const action = definition.actions[index] as RuleAction
+  const actions = branch === 'otherwise' ? definition.otherwise : definition.actions
+  for (let index = run.resumeAt; index < actions.length; index++) {
+    const action = actions[index] as RuleAction
     const startedAt = Date.now()
     try {
       if (action.type === 'stop' && action.when && !evaluateCondition(action.when, scope)) {
         await RuleRuns.appendStep(
           runId,
-          step(index, action, 'skipped', 'Условие остановки не выполнено', null, startedAt),
+          step(index, action, 'skipped', 'Условие остановки не выполнено', null, startedAt, branch),
         )
         continue
       }
       const outcome = await runAction(action, actionContext)
       await RuleRuns.appendStep(
         runId,
-        step(index, action, 'ok', outcome.message, outcome.objectId ?? null, startedAt),
+        step(index, action, 'ok', outcome.message, outcome.objectId ?? null, startedAt, branch),
       )
       if (outcome.waitMinutes) {
         const delayMs = outcome.waitMinutes * 60_000
@@ -273,7 +283,10 @@ export async function executeRun(runId: string): Promise<RunOutcome> {
       if (outcome.stop) break
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      await RuleRuns.appendStep(runId, step(index, action, 'failed', message, null, startedAt))
+      await RuleRuns.appendStep(
+        runId,
+        step(index, action, 'failed', message, null, startedAt, branch),
+      )
       await RuleRuns.fail(runId, rule.id, message, index)
       await RuleService.markRun(db(), rule.id, 'failed')
       return { status: 'failed', reason: message }

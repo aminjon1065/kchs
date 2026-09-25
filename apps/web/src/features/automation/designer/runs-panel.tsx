@@ -79,6 +79,11 @@ function RunCard({ run, locale }: { run: RuleRunRecord; locale: 'ru' | 'tg' | 'e
               >
                 {t(`automation.actions.${step.action}`)}
               </Badge>
+              {step.branch === 'otherwise' ? (
+                <Badge size="sm" tone="warning">
+                  {t('automation.designer.otherwise')}
+                </Badge>
+              ) : null}
               <span className="truncate text-fg-secondary">{step.message}</span>
               <span className="ms-auto shrink-0 text-fg-tertiary">{step.durationMs} ms</span>
             </li>
@@ -91,6 +96,7 @@ function RunCard({ run, locale }: { run: RuleRunRecord; locale: 'ru' | 'tg' | 'e
 
 /** Тестовый прогон: что бы произошло на последних событиях (ничего не делает). */
 export function DryRunPanel({ definition }: { definition: RuleDefinition }) {
+  const kind = definition.trigger.kind
   const t = useT()
   const locale = useAppearance((s) => s.locale)
   const toast = useToast()
@@ -106,16 +112,18 @@ export function DryRunPanel({ definition }: { definition: RuleDefinition }) {
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-sm text-fg-secondary">{t('automation.dryRun.hint')}</p>
+      <p className="text-sm text-fg-secondary">{t(`automation.dryRun.hints.${kind}`)}</p>
       <div className="flex items-end gap-2">
-        <div className="w-28">
-          <Input
-            type="number"
-            value={String(limit)}
-            aria-label={t('automation.dryRun.limit')}
-            onChange={(event) => setLimit(Math.max(1, Math.min(50, Number(event.target.value))))}
-          />
-        </div>
+        {kind === 'schedule' || kind === 'metric' ? null : (
+          <div className="w-28">
+            <Input
+              type="number"
+              value={String(limit)}
+              aria-label={t('automation.dryRun.limit')}
+              onChange={(event) => setLimit(Math.max(1, Math.min(50, Number(event.target.value))))}
+            />
+          </div>
+        )}
         <Button variant="secondary" loading={dryRun.isPending} onClick={() => dryRun.mutate()}>
           <PlayCircle className="size-4" />
           {t('automation.dryRun.run')}
@@ -135,6 +143,9 @@ export function DryRunPanel({ definition }: { definition: RuleDefinition }) {
                   <Badge tone={item.matched ? 'success' : 'neutral'}>
                     {item.matched ? t('automation.dryRun.matched') : t('automation.dryRun.skipped')}
                   </Badge>
+                  {item.branch === 'otherwise' ? (
+                    <Badge tone="warning">{t('automation.designer.otherwise')}</Badge>
+                  ) : null}
                   <code className="font-mono text-xs">{item.eventType}</code>
                   <span className="text-xs text-fg-secondary">
                     {formatDateTime(item.occurredAt, { locale })}

@@ -13,9 +13,12 @@ import {
   Switch,
   Textarea,
 } from '@kchs/ui'
+import { useQuery } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react'
 import { useId } from 'react'
 import { useT } from '~/app/i18n.js'
+import { pipelinesQuery } from '~/features/data/pipelines/queries.js'
+import { sourcesQuery } from '~/features/data/sources/queries.js'
 import { ACTION_FIELDS, type ActionField, defaultAction } from './action-fields.js'
 
 /**
@@ -236,6 +239,17 @@ function ActionFieldInput({
       )
     case 'map':
       return <MapInput label={label} value={value} disabled={disabled} onChange={set} />
+    case 'pipeline':
+    case 'source':
+      return (
+        <DataObjectInput
+          kind={field.kind}
+          label={label}
+          value={typeof value === 'string' ? value : ''}
+          disabled={disabled}
+          onChange={set}
+        />
+      )
     case 'select':
       return (
         <Field label={label} htmlFor={id}>
@@ -334,5 +348,71 @@ function MapInput({
         </div>
       </div>
     </Field>
+  )
+}
+
+/** Значение-шаблон вместо выбора из списка: `{{event.payload.pipelineId}}`. */
+const TEMPLATE_OPTION = '__template'
+
+/**
+ * Пайплайн или источник данных для действий «Запустить пайплайн» и «Запустить импорт»
+ * (ADR-0163): выбор из видимых администратору или шаблон, который даст идентификатор.
+ */
+function DataObjectInput({
+  kind,
+  label,
+  value,
+  onChange,
+  disabled,
+}: {
+  kind: 'pipeline' | 'source'
+  label: string
+  value: string
+  onChange: (next: string) => void
+  disabled?: boolean
+}) {
+  const t = useT()
+  const id = useId()
+  const pipelines = useQuery({ ...pipelinesQuery(), enabled: kind === 'pipeline' })
+  const sources = useQuery({ ...sourcesQuery(), enabled: kind === 'source' })
+  const items =
+    (kind === 'pipeline' ? pipelines.data?.items : sources.data?.items)?.map((item) => ({
+      id: item.id,
+      name: item.name,
+    })) ?? []
+  const known = items.some((item) => item.id === value)
+  const template = !known && value.length > 0
+  return (
+    <div className="flex flex-col gap-2">
+      <Field label={label} htmlFor={id}>
+        <Select
+          value={known ? value : template ? TEMPLATE_OPTION : ''}
+          onValueChange={(next) => onChange(next === TEMPLATE_OPTION ? '{{}}' : next)}
+          disabled={disabled}
+        >
+          <SelectTrigger id={id} aria-label={label}>
+            <SelectValue placeholder={t('automation.actionFields.dataObjectPick')} />
+          </SelectTrigger>
+          <SelectContent>
+            {items.map((item) => (
+              <SelectItem key={item.id} value={item.id}>
+                {item.name}
+              </SelectItem>
+            ))}
+            <SelectItem value={TEMPLATE_OPTION}>
+              {t('automation.actionFields.dataObjectTemplate')}
+            </SelectItem>
+          </SelectContent>
+        </Select>
+      </Field>
+      {template ? (
+        <Input
+          value={value}
+          disabled={disabled}
+          aria-label={t('automation.actionFields.dataObjectTemplate')}
+          onChange={(event) => onChange(event.target.value)}
+        />
+      ) : null}
+    </div>
   )
 }

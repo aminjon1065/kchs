@@ -1,4 +1,10 @@
-import type { RuleDefinition, RuleListItem, RuleTemplate } from '@kchs/contracts'
+import {
+  RULE_EXPORT_FORMAT,
+  type RuleDefinition,
+  type RuleExport,
+  type RuleListItem,
+  type RuleTemplate,
+} from '@kchs/contracts'
 import { formatRelativeTime } from '@kchs/fields'
 import { localizedText } from '@kchs/i18n'
 import {
@@ -24,8 +30,8 @@ import {
   useToast,
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Zap } from 'lucide-react'
-import { useId, useState } from 'react'
+import { Plus, Upload, Zap } from 'lucide-react'
+import { useId, useRef, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
@@ -49,7 +55,21 @@ export function AutomationRulesSection() {
   const [spaceId, setSpaceId] = useState('all')
   const [triggerKind, setTriggerKind] = useState('all')
   const [creating, setCreating] = useState(false)
+  const [importing, setImporting] = useState<RuleExport | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
   const q = useDebouncedValue(search, 300)
+
+  // Файл правила (ADR-0163): разбор на клиенте, проверка схемы — на сервере при импорте
+  const pickFile = async (file: File | undefined) => {
+    if (!file) return
+    try {
+      const parsed = JSON.parse(await file.text()) as RuleExport
+      if (parsed?.format !== RULE_EXPORT_FORMAT) throw new Error('format')
+      setImporting(parsed)
+    } catch {
+      toast.error(t('automation.import.invalid'))
+    }
+  }
 
   const { data, isLoading } = useQuery(
     rulesQuery({
@@ -162,10 +182,27 @@ export function AutomationRulesSection() {
           <h2 className="text-base font-semibold text-fg">{t('automation.title')}</h2>
           <p className="text-sm text-fg-secondary">{t('automation.hint')}</p>
         </div>
-        <Button variant="primary" onClick={() => setCreating(true)}>
-          <Plus className="size-4" />
-          {t('automation.create')}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" onClick={() => fileRef.current?.click()}>
+            <Upload className="size-4" />
+            {t('automation.import.action')}
+          </Button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            aria-label={t('automation.import.action')}
+            onChange={(event) => {
+              void pickFile(event.target.files?.[0])
+              event.target.value = ''
+            }}
+          />
+          <Button variant="primary" onClick={() => setCreating(true)}>
+            <Plus className="size-4" />
+            {t('automation.create')}
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -223,6 +260,15 @@ export function AutomationRulesSection() {
         </div>
       )}
 
+      <ImportRuleDialog
+        file={importing}
+        onClose={() => setImporting(null)}
+        onImported={(id, name) => {
+          setImporting(null)
+          open({ id, name })
+        }}
+      />
+
       <CreateRuleDialog
         open={creating}
         onOpenChange={setCreating}
@@ -232,6 +278,75 @@ export function AutomationRulesSection() {
         }}
       />
     </div>
+  )
+}
+
+/** Импорт правила из файла: пространство — выбор администратора, правило — выключенным. */
+function ImportRuleDialog({
+  file,
+  onClose,
+  onImported,
+}: {
+  file: RuleExport | null
+  onClose: () => void
+  onImported: (id: string, name: RuleListItem['name']) => void
+}) {
+  const t = useT()
+  const locale = useAppearance((s) => s.locale)
+  const toast = useToast()
+  const client = useQueryClient()
+  const [spaceId, setSpaceId] = useState('')
+  const { data: spaces = [] } = useQuery(spacesQuery())
+
+  const save = useMutation({
+    mutationFn: (rule: RuleExport) => automationApi.importRule(spaceId, rule),
+    onSuccess: async (result, rule) => {
+      await client.invalidateQueries({ queryKey: automationKeys.all })
+      toast.show({ title: t('automation.import.done'), tone: 'success' })
+      onImported(result.id, rule.definition.name)
+    },
+    onError: (error) =>
+      toast.error(error instanceof ApiError ? error.message : t('errors.unknown')),
+  })
+
+  return (
+    <Dialog open={file !== null} onOpenChange={(value) => (value ? null : onClose())}>
+      <DialogContent
+        title={t('automation.import.title')}
+        size="md"
+        footer={
+          <Button
+            variant="primary"
+            disabled={spaceId.length === 0}
+            loading={save.isPending}
+            onClick={() => (file ? save.mutate(file) : undefined)}
+          >
+            {t('automation.import.confirm')}
+          </Button>
+        }
+      >
+        <div className="flex flex-col gap-3">
+          <p className="text-sm text-fg">
+            {file ? localizedText(file.definition.name, locale) : ''}
+          </p>
+          <p className="text-xs text-fg-secondary">{t('automation.import.hint')}</p>
+          <Field label={t('automation.space')} required>
+            <Select value={spaceId} onValueChange={setSpaceId}>
+              <SelectTrigger aria-label={t('automation.space')}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {spaces.map((space) => (
+                  <SelectItem key={space.id} value={space.id}>
+                    {space.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -269,6 +384,7 @@ function CreateRuleDialog({
             trigger: { kind: 'event', type: 'object.created', filter: {} },
             conditions: null,
             actions: [defaultAction('notify')],
+            otherwise: [],
             limits: { maxRunsPerHour: 100, dedupeKey: null, dedupeWindowMinutes: 60 },
           }
       return automationApi.create({

@@ -26,8 +26,10 @@ import { DatasetAccess } from './domain/dataset-access.js'
 import { DatasetService } from './domain/dataset-service.js'
 import { type MetricEvaluation, MetricService } from './domain/metric-service.js'
 import { NotebookService } from './domain/notebook-service.js'
+import { PipelineService } from './domain/pipeline-service.js'
 import { QueryService, type RunOptions } from './domain/query-service.js'
 import { RowService, type RowWriteAccess, type RowWriteOptions } from './domain/row-service.js'
+import { SourceService } from './domain/source-service.js'
 
 export { DatasetGeo, type DatasetGeometry } from './domain/dataset-geo.js'
 export {
@@ -221,4 +223,16 @@ export const DatasetRows = {
 export const AskData = {
   ask: (ctx: UserCtx, datasetId: string, question: string) =>
     AskService.ask(ctx, datasetId, question),
+}
+
+/**
+ * Запуск пайплайна и синхронизация источника для действий правил автоматизации
+ * (ADR-0163): право «запускать» / «синхронизировать» проверяет вызывающий через
+ * `authorize`, прогон идёт заданием с правами того, кто его поставил.
+ */
+export const DataRuns = {
+  pipeline: (ctx: Ctx, pipelineId: string): Promise<{ jobId: string; runId: string }> =>
+    PipelineService.run(ctx, pipelineId, 'rule'),
+  source: (ctx: Ctx, sourceId: string): Promise<{ jobId: string; runId: string }> =>
+    SourceService.run(ctx, sourceId),
 }

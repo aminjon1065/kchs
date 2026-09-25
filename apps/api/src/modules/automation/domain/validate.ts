@@ -110,6 +110,15 @@ class Issues {
     if (problem) this.error(path, problem.message)
   }
 
+  /** Ссылка на объект: идентификатор или шаблон, который его даст при запуске. */
+  objectRef(path: string, source: string): void {
+    const value = source.trim()
+    if (value.includes('{{')) return
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)) {
+      this.error(path, 'Нужен идентификатор объекта или шаблон {{…}}, который его даст')
+    }
+  }
+
   cron(path: string, pattern: string, timezone: string): void {
     if (!validTimezone(timezone)) {
       this.error(path, 'Неизвестный часовой пояс')
@@ -128,8 +137,9 @@ function checkAction(
   action: RuleAction,
   index: number,
   allow: RuleAllowlist | undefined,
+  branch: 'actions' | 'otherwise' = 'actions',
 ): void {
-  const at = `actions.${index}`
+  const at = `${branch}.${index}`
   switch (action.type) {
     case 'notify':
       for (const [i, to] of action.to.entries()) issues.assignee(`${at}.to.${i}`, to)
@@ -234,6 +244,14 @@ function checkAction(
       issues.template(`${at}.prompt`, action.prompt)
       issues.template(`${at}.object`, action.object)
       break
+    case 'run_pipeline':
+      issues.template(`${at}.pipelineId`, action.pipelineId)
+      issues.objectRef(`${at}.pipelineId`, action.pipelineId)
+      break
+    case 'run_import':
+      issues.template(`${at}.sourceId`, action.sourceId)
+      issues.objectRef(`${at}.sourceId`, action.sourceId)
+      break
     case 'stop':
       if (action.when) issues.expression(`${at}.when`, action.when)
       break
@@ -286,15 +304,21 @@ export function checkRule(definition: RuleDefinition, allow?: RuleAllowlist): Ru
   for (const [index, action] of definition.actions.entries()) {
     checkAction(issues, action, index, allow)
   }
+  // Ветка «иначе» (ADR-0163): те же проверки, пути — `otherwise.N`
+  for (const [index, action] of definition.otherwise.entries()) {
+    checkAction(issues, action, index, allow, 'otherwise')
+  }
+  if (definition.otherwise.length > 0 && !definition.conditions) {
+    issues.warning('otherwise', 'Без условий ветка «иначе» не выполнится никогда')
+  }
   issues.template('limits.dedupeKey', definition.limits.dedupeKey)
 
   if (!definition.runAs) {
     issues.error('runAs', 'Укажите служебного пользователя: от его имени работает правило')
   }
-  if (definition.actions.some((action) => action.type === 'wait')) {
-    const last = definition.actions.at(-1)
-    if (last?.type === 'wait') {
-      issues.warning('actions', 'Ожидание последним действием ничего не даёт')
+  for (const branch of ['actions', 'otherwise'] as const) {
+    if (definition[branch].at(-1)?.type === 'wait') {
+      issues.warning(branch, 'Ожидание последним действием ничего не даёт')
     }
   }
   return issues.list

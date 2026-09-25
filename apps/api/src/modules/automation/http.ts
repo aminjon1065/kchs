@@ -7,6 +7,8 @@ import {
   RuleDryRunInput,
   RuleDryRunResult,
   RuleEnabledInput,
+  RuleExport,
+  RuleImportInput,
   RuleList,
   RuleListQuery,
   RuleRecord,
@@ -19,6 +21,7 @@ import {
   RuleUpdateInput,
   RuleValidateInput,
   RuleValidateResult,
+  RuleVersionList,
 } from '@kchs/contracts'
 import { z } from 'zod'
 import { authorize } from '~/kernel/access/authorize.js'
@@ -30,6 +33,7 @@ import type { RouteRegistrar } from '~/shared/http/route.js'
 import { ruleCatalog } from './domain/catalog.js'
 import { dryRun } from './domain/dry-run.js'
 import { RuleService } from './domain/rule-service.js'
+import { RuleVersions } from './domain/rule-versions.js'
 import { RuleRuns } from './domain/runs.js'
 import { runManually, syncRuleSchedule } from './domain/schedules.js'
 import { RULE_TEMPLATES } from './domain/templates.js'
@@ -108,6 +112,79 @@ export function registerAutomationRoutes(route: RouteRegistrar): void {
       )
       await syncRuleSchedule(request.params.id)
       return RuleService.get(request.ctx, request.params.id)
+    },
+  })
+
+  route({
+    method: 'POST',
+    url: '/automation/rules/:id/duplicate',
+    auth: { action: 'view' },
+    tags: ['automation'],
+    summary: 'Копия правила в том же пространстве (выключенная)',
+    schema: { params: IdParam, response: { 200: z.object({ id: z.uuid() }) } },
+    handler: async (request) => {
+      const rule = await RuleService.load(db(), request.params.id)
+      if (!rule?.spaceId) throw errors.notFound('Правило')
+      await authorize(request.ctx, 'create_child', rule.spaceId)
+      const id = await db().transaction((tx) =>
+        RuleService.duplicate(tx, request.ctx, request.params.id),
+      )
+      return { id }
+    },
+  })
+
+  route({
+    method: 'GET',
+    url: '/automation/rules/:id/versions',
+    auth: { action: 'view' },
+    tags: ['automation'],
+    summary: 'Версии определения правила',
+    schema: { params: IdParam, response: { 200: RuleVersionList } },
+    handler: async (request) => ({ items: await RuleVersions.list(request.params.id) }),
+  })
+
+  route({
+    method: 'POST',
+    url: '/automation/rules/:id/versions/:versionId/restore',
+    auth: { action: 'manage' },
+    tags: ['automation'],
+    summary: 'Откатить правило к версии: её определение становится новой версией',
+    schema: {
+      params: z.object({ id: z.uuid(), versionId: z.uuid() }),
+      response: { 200: RuleRecord },
+    },
+    handler: async (request) => {
+      await db().transaction((tx) =>
+        RuleService.restore(tx, request.ctx, request.params.id, request.params.versionId),
+      )
+      await syncRuleSchedule(request.params.id)
+      return RuleService.get(request.ctx, request.params.id)
+    },
+  })
+
+  route({
+    method: 'GET',
+    url: '/automation/rules/:id/export',
+    auth: { action: 'view' },
+    tags: ['automation'],
+    summary: 'Файл одного правила: определение без секретов и служебного пользователя',
+    schema: { params: IdParam, response: { 200: RuleExport } },
+    handler: async (request) => RuleService.exportRule(request.params.id),
+  })
+
+  route({
+    method: 'POST',
+    url: '/automation/rules/import',
+    auth: { capability: 'automation.manage' },
+    tags: ['automation'],
+    summary: 'Правило из файла: выключенным, без служебного пользователя',
+    schema: { body: RuleImportInput, response: { 200: z.object({ id: z.uuid() }) } },
+    handler: async (request) => {
+      await authorize(request.ctx, 'create_child', request.body.spaceId)
+      const id = await db().transaction((tx) =>
+        RuleService.importRule(tx, request.ctx, request.body),
+      )
+      return { id }
     },
   })
 

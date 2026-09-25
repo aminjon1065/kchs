@@ -99,6 +99,14 @@ export const RuleRuns = {
       .where(eq(ruleRuns.id, runId))
   },
 
+  /** Ветка «иначе» (ADR-0163): помнится в контексте, чтобы продолжить её после `wait`. */
+  async setBranch(runId: string, branch: 'then' | 'otherwise'): Promise<void> {
+    await db()
+      .update(ruleRuns)
+      .set({ context: sql`${ruleRuns.context} || ${JSON.stringify({ branch })}::jsonb` })
+      .where(eq(ruleRuns.id, runId))
+  },
+
   async appendStep(runId: string, step: RuleRunStep): Promise<void> {
     await db()
       .update(ruleRuns)

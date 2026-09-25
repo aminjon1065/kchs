@@ -5,7 +5,17 @@ import type { RuleAction, RuleActionType } from '@kchs/contracts'
  * словаря. Значения действий — шаблоны `{{…}}` и выражения назначений, поэтому
  * почти всё это однострочные поля; списки получателей — многострочные.
  */
-export type FieldKind = 'text' | 'textarea' | 'number' | 'boolean' | 'list' | 'map' | 'select'
+export type FieldKind =
+  | 'text'
+  | 'textarea'
+  | 'number'
+  | 'boolean'
+  | 'list'
+  | 'map'
+  | 'select'
+  /** Пайплайн или источник данных: выбор из видимых или шаблон `{{…}}` (ADR-0163). */
+  | 'pipeline'
+  | 'source'
 
 export interface ActionField {
   key: string
@@ -100,6 +110,8 @@ export const ACTION_FIELDS: Record<RuleActionType, ActionField[]> = {
     { key: 'target', kind: 'select', label: 'target', options: ['comment', 'field'] },
     OBJECT,
   ],
+  run_pipeline: [{ key: 'pipelineId', kind: 'pipeline', label: 'pipelineId' }],
+  run_import: [{ key: 'sourceId', kind: 'source', label: 'sourceId' }],
   wait: [{ key: 'minutes', kind: 'number', label: 'minutes' }],
   stop: [{ key: 'when', kind: 'text', label: 'when' }],
 }
@@ -170,6 +182,10 @@ export function defaultAction(type: RuleActionType): RuleAction {
       return { type, url: 'https://', method: 'POST', headers: {}, payload: {}, secret: null }
     case 'ai_task':
       return { type, prompt: '', target: { kind: 'comment' }, object: '{{object.id}}' }
+    case 'run_pipeline':
+      return { type, pipelineId: '' }
+    case 'run_import':
+      return { type, sourceId: '' }
     case 'wait':
       return { type, minutes: 60 }
     case 'stop':

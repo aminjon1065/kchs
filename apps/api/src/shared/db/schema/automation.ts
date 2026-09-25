@@ -109,6 +109,28 @@ export const ruleDedupe = pgTable(
 )
 
 /**
+ * Версии определения правила (ADR-0163): каждая правка определения — новая строка,
+ * откат — новая версия с определением старой. Включение и выключение версий не плодят.
+ */
+export const ruleVersions = pgTable(
+  'rule_versions',
+  {
+    id: uuid('id').primaryKey(),
+    ruleId: uuid('rule_id')
+      .notNull()
+      .references(() => rules.id, { onDelete: 'cascade' }),
+    number: integer('number').notNull(),
+    definition: jsonbObject('definition'),
+    /** create | update | restore | import | duplicate */
+    reason: text('reason').notNull(),
+    changed: jsonbArray('changed'),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex('rule_versions_number_key').on(t.ruleId, t.number)],
+)
+
+/**
  * Состояние расписаний платформы (14-automation-integrations.md §2):
  * администратор выключает системную проверку, не трогая код. Правила по cron
  * включаются собственным переключателем правила.

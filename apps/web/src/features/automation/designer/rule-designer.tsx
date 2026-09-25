@@ -20,17 +20,32 @@ import {
   useToast,
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Save, Trash2 } from 'lucide-react'
-import { useEffect, useId, useMemo, useState } from 'react'
+import { Copy, Download, Plus, Save } from 'lucide-react'
+import { useEffect, useId, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
+import { useWorkspace } from '~/app/workspace/store.js'
 import { RunAsSelect } from '~/features/admin/run-as-select.js'
 import { ApiError } from '~/shared/api/client.js'
 import { automationApi, automationKeys, ruleCatalogQuery, ruleQuery } from '../queries.js'
 import { ActionEditor } from './action-editor.js'
-import { conditionList, conditionOf } from './conditions.js'
+import { defaultAction } from './action-fields.js'
+import { ConditionTreeEditor } from './condition-tree.js'
 import { DryRunPanel, RunsPanel } from './runs-panel.js'
 import { TriggerEditor } from './trigger-editor.js'
+import { VersionsPanel } from './versions-panel.js'
+
+/** Файл правила (ADR-0163) — скачивание без отдельного маршрута: JSON уже на клиенте. */
+function downloadJson(fileName: string, data: unknown): void {
+  const url = URL.createObjectURL(
+    new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }),
+  )
+  const link = document.createElement('a')
+  link.href = url
+  link.download = fileName
+  link.click()
+  URL.revokeObjectURL(url)
+}
 
 /**
  * Конструктор правила «когда / если / то» (14-automation-integrations.md §1,
@@ -43,6 +58,7 @@ export default function RuleDesigner({ ruleId }: { ruleId: string }) {
   const locale = useAppearance((s) => s.locale)
   const toast = useToast()
   const client = useQueryClient()
+  const openTab = useWorkspace((state) => state.openTab)
   const nameId = useId()
   const runAsId = useId()
 
@@ -59,8 +75,6 @@ export default function RuleDesigner({ ruleId }: { ruleId: string }) {
     }
   }, [rule, draft])
 
-  const conditions = useMemo(() => conditionList(draft?.conditions ?? null), [draft])
-
   const validate = useMutation({
     mutationFn: (definition: RuleDefinition) => automationApi.validate(definition),
     onSuccess: (result) => setIssues(result.issues),
@@ -72,6 +86,31 @@ export default function RuleDesigner({ ruleId }: { ruleId: string }) {
       toast.show({ title: t('automation.designer.saved'), tone: 'success' })
       await client.invalidateQueries({ queryKey: automationKeys.all })
     },
+    onError: (error) =>
+      toast.error(error instanceof ApiError ? error.message : t('errors.unknown')),
+  })
+
+  const duplicate = useMutation({
+    mutationFn: () => automationApi.duplicate(ruleId),
+    onSuccess: async ({ id }) => {
+      toast.show({ title: t('automation.designer.duplicated'), tone: 'success' })
+      await client.invalidateQueries({ queryKey: automationKeys.all })
+      openTab({
+        kind: 'screen',
+        screen: 'rule-designer',
+        params: { id },
+        title: `${localizedText(draft?.name ?? { ru: '' }, locale)} (${t('automation.designer.copy')})`,
+        icon: 'zap',
+        mode: 'permanent',
+      })
+    },
+    onError: (error) =>
+      toast.error(error instanceof ApiError ? error.message : t('errors.unknown')),
+  })
+
+  const exportRule = useMutation({
+    mutationFn: () => automationApi.exportRule(ruleId),
+    onSuccess: (file) => downloadJson(`${file.key}.rule.json`, file),
     onError: (error) =>
       toast.error(error instanceof ApiError ? error.message : t('errors.unknown')),
   })
@@ -102,6 +141,24 @@ export default function RuleDesigner({ ruleId }: { ruleId: string }) {
         }
         right={
           <div className="flex items-center gap-2">
+            <IconButton
+              size="sm"
+              variant="ghost"
+              label={t('automation.designer.duplicate')}
+              disabled={duplicate.isPending}
+              onClick={() => duplicate.mutate()}
+            >
+              <Copy className="size-4" />
+            </IconButton>
+            <IconButton
+              size="sm"
+              variant="ghost"
+              label={t('automation.designer.export')}
+              disabled={exportRule.isPending}
+              onClick={() => exportRule.mutate()}
+            >
+              <Download className="size-4" />
+            </IconButton>
             <Switch
               checked={draft.enabled}
               aria-label={t('automation.fields.enabled')}
@@ -180,52 +237,12 @@ export default function RuleDesigner({ ruleId }: { ruleId: string }) {
               title={t('automation.designer.if')}
               description={t('automation.designer.conditionsHint')}
             />
-            <Card className="flex flex-col gap-2 p-4">
-              {conditions.map((expression, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <Input
-                    value={expression}
-                    disabled={!rule.canManage}
-                    placeholder={t('automation.designer.conditionPlaceholder')}
-                    aria-label={t('automation.designer.if')}
-                    onChange={(event) => {
-                      const next = conditions.map((item, position) =>
-                        position === index ? event.target.value : item,
-                      )
-                      update({ ...draft, conditions: conditionOf(next) })
-                    }}
-                  />
-                  <IconButton
-                    size="sm"
-                    variant="ghost"
-                    label={t('automation.designer.conditionRemove')}
-                    disabled={!rule.canManage}
-                    onClick={() =>
-                      update({
-                        ...draft,
-                        conditions: conditionOf(
-                          conditions.filter((_, position) => position !== index),
-                        ),
-                      })
-                    }
-                  >
-                    <Trash2 className="size-4" />
-                  </IconButton>
-                </div>
-              ))}
-              <div>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  disabled={!rule.canManage}
-                  onClick={() =>
-                    update({ ...draft, conditions: conditionOf([...conditions, 'true']) })
-                  }
-                >
-                  <Plus className="size-4" />
-                  {t('automation.designer.conditionAdd')}
-                </Button>
-              </div>
+            <Card className="p-4">
+              <ConditionTreeEditor
+                condition={draft.conditions}
+                disabled={!rule.canManage}
+                onChange={(conditions) => update({ ...draft, conditions })}
+              />
             </Card>
           </section>
 
@@ -236,6 +253,32 @@ export default function RuleDesigner({ ruleId }: { ruleId: string }) {
               disabled={!rule.canManage}
               onChange={(actions) => update({ ...draft, actions })}
             />
+          </section>
+
+          <section className="flex flex-col gap-3">
+            <SectionHeader
+              title={t('automation.designer.otherwise')}
+              description={t('automation.designer.otherwiseHint')}
+            />
+            {draft.otherwise.length > 0 ? (
+              <ActionEditor
+                actions={draft.otherwise}
+                disabled={!rule.canManage}
+                onChange={(otherwise) => update({ ...draft, otherwise })}
+              />
+            ) : (
+              <div>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={!rule.canManage || !draft.conditions}
+                  onClick={() => update({ ...draft, otherwise: [defaultAction('notify')] })}
+                >
+                  <Plus className="size-4" />
+                  {t('automation.designer.otherwiseAdd')}
+                </Button>
+              </div>
+            )}
           </section>
 
           <section className="flex flex-col gap-3">
@@ -313,6 +356,7 @@ export default function RuleDesigner({ ruleId }: { ruleId: string }) {
             <TabsList aria-label={t('automation.runs.title')}>
               <TabsTrigger value="runs">{t('automation.runs.title')}</TabsTrigger>
               <TabsTrigger value="dry-run">{t('automation.dryRun.title')}</TabsTrigger>
+              <TabsTrigger value="versions">{t('automation.versions.title')}</TabsTrigger>
               <TabsTrigger value="json">{t('automation.designer.json')}</TabsTrigger>
             </TabsList>
             <TabsContent value="runs" className="pt-3">
@@ -320,6 +364,17 @@ export default function RuleDesigner({ ruleId }: { ruleId: string }) {
             </TabsContent>
             <TabsContent value="dry-run" className="pt-3">
               <DryRunPanel definition={draft} />
+            </TabsContent>
+            <TabsContent value="versions" className="pt-3">
+              <VersionsPanel
+                ruleId={ruleId}
+                canManage={rule.canManage}
+                onRestored={(definition) => {
+                  setDraft(definition)
+                  setJsonText(JSON.stringify(definition, null, 2))
+                  setIssues([])
+                }}
+              />
             </TabsContent>
             <TabsContent value="json" className="flex flex-col gap-2 pt-3">
               <Textarea

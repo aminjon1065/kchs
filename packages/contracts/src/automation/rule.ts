@@ -131,6 +131,8 @@ export const RULE_ACTION_TYPES = [
   'send_telegram',
   'webhook',
   'ai_task',
+  'run_pipeline',
+  'run_import',
   'wait',
   'stop',
 ] as const
@@ -279,6 +281,26 @@ export const AiTaskAction = z.object({
   object: TargetObject,
 })
 
+/**
+ * Прогон пайплайна (ADR-0106, ADR-0163): ставится заданием с правами служебного пользователя
+ * правила — нужно право «запускать» у пайплайна; правило не ждёт конца прогона.
+ */
+export const RunPipelineAction = z.object({
+  type: z.literal('run_pipeline'),
+  /** Идентификатор пайплайна или шаблон, который его даёт. */
+  pipelineId: Template.min(1),
+})
+
+/**
+ * Импорт из источника (внешняя база, лента по адресу — ADR-0107, ADR-0108): синхронизация
+ * сейчас, снимком или добором по курсору — как кнопка «Синхронизировать» источника.
+ */
+export const RunImportAction = z.object({
+  type: z.literal('run_import'),
+  /** Идентификатор источника или шаблон, который его даёт. */
+  sourceId: Template.min(1),
+})
+
 export const WaitAction = z.object({
   type: z.literal('wait'),
   minutes: z
@@ -310,10 +332,17 @@ export const RuleAction = z.discriminatedUnion('type', [
   SendTelegramAction,
   WebhookAction,
   AiTaskAction,
+  RunPipelineAction,
+  RunImportAction,
   WaitAction,
   StopAction,
 ])
 export type RuleAction = z.infer<typeof RuleAction>
+
+/** Ветка действий: «то» — условие выполнено, «иначе» — нет (ADR-0163). */
+export const RULE_BRANCHES = ['then', 'otherwise'] as const
+export const RuleBranch = z.enum(RULE_BRANCHES)
+export type RuleBranch = z.infer<typeof RuleBranch>
 
 // ── Правило целиком ─────────────────────────────────────────────────────────
 
@@ -339,6 +368,11 @@ export const RuleDefinition = z.object({
   trigger: RuleTrigger,
   conditions: RuleCondition.nullable().default(null),
   actions: z.array(RuleAction).min(1).max(20),
+  /**
+   * Ветка «иначе» (ADR-0163): действия, когда условие не выполнено. Пусто — такой запуск
+   * пропускается, как раньше. У правила без условий ветка не срабатывает никогда.
+   */
+  otherwise: z.array(RuleAction).max(20).default([]),
   limits: RuleLimits.default({ maxRunsPerHour: 100, dedupeKey: null, dedupeWindowMinutes: 60 }),
 })
 export type RuleDefinition = z.infer<typeof RuleDefinition>

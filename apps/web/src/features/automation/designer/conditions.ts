@@ -19,19 +19,51 @@ export function conditionText(condition: RuleCondition): string {
 }
 
 /**
- * Условия правила в конструкторе — список выражений, объединённых «и». Верхний уровень
- * «и» раскладывается на строки, вложенные «или» и «не» становятся одной строкой со
- * скобками: правка одной строки не меняет смысла остальных.
+ * Узел конструктора условий (ADR-0163): выражение или группа «все» / «любое» с флажком
+ * «не». Дерево контракта (`and` / `or` / `not`) переводится в узлы и обратно без потери
+ * смысла: вложенные группы правятся группами, а не одной строкой со скобками.
  */
-export function conditionList(condition: RuleCondition | null): string[] {
-  if (!condition) return []
-  if ('and' in condition) return condition.and.map(conditionText)
-  return [conditionText(condition)]
+export type ConditionNode =
+  | { kind: 'expr'; expr: string; negated: boolean }
+  | { kind: 'group'; op: 'and' | 'or'; items: ConditionNode[]; negated: boolean }
+
+/** Глубина вложенности групп в форме: глубже — правка в JSON. */
+export const MAX_CONDITION_DEPTH = 3
+
+function node(condition: RuleCondition): ConditionNode {
+  if ('expr' in condition) return { kind: 'expr', expr: condition.expr, negated: false }
+  if ('not' in condition) {
+    const inner = node(condition.not)
+    return { ...inner, negated: !inner.negated }
+  }
+  const op = 'and' in condition ? 'and' : 'or'
+  const items = 'and' in condition ? condition.and : condition.or
+  return { kind: 'group', op, items: items.map(node), negated: false }
 }
 
-export function conditionOf(expressions: string[]): RuleCondition | null {
-  const list = expressions.map((item) => item.trim()).filter(Boolean)
-  if (list.length === 0) return null
-  if (list.length === 1) return { expr: list[0] as string }
-  return { and: list.map((expr) => ({ expr })) }
+/** Условие правила → корневая группа конструктора (пустое условие — пустая группа «все»). */
+export function toConditionNode(condition: RuleCondition | null): ConditionNode {
+  if (!condition) return { kind: 'group', op: 'and', items: [], negated: false }
+  const root = node(condition)
+  return root.kind === 'group' && !root.negated
+    ? root
+    : { kind: 'group', op: 'and', items: [root], negated: false }
+}
+
+/** Узлы → дерево контракта: пустые выражения и группы отбрасываются, группа из одного — узел. */
+export function fromConditionNode(item: ConditionNode): RuleCondition | null {
+  let condition: RuleCondition | null
+  if (item.kind === 'expr') {
+    const expr = item.expr.trim()
+    condition = expr ? { expr } : null
+  } else {
+    const items = item.items
+      .map(fromConditionNode)
+      .filter((value): value is RuleCondition => value !== null)
+    if (items.length === 0) condition = null
+    else if (items.length === 1) condition = items[0] as RuleCondition
+    else condition = item.op === 'and' ? { and: items } : { or: items }
+  }
+  if (!condition) return null
+  return item.negated ? { not: condition } : condition
 }
