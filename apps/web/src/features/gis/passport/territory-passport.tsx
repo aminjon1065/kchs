@@ -37,10 +37,12 @@ import { useMemo, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
+import { territoryDocumentsQuery } from '../../documents/queries.js'
 import { territoriesQuery, territoryQuery } from '../queries.js'
 import { useOpenPassport } from '../territory-link.js'
 import { PassportChildren } from './passport-children.js'
 import { PassportData } from './passport-data.js'
+import { PassportDocuments } from './passport-documents.js'
 import { PassportIndicators } from './passport-indicators.js'
 import { type PassportLayer, PassportMap } from './passport-map.js'
 import { PassportMetricsDialog } from './passport-metrics.js'
@@ -72,6 +74,7 @@ export function TerritoryPassport({ territoryId }: { territoryId: string }) {
 
   const territory = useQuery(territoryQuery(territoryId))
   const passport = useQuery(passportQuery(territoryId, period))
+  const documents = useQuery(territoryDocumentsQuery(territoryId))
   const { data: all = [] } = useQuery(territoriesQuery())
 
   const nameOf = (item: Pick<Territory, 'name'>) => item.name[locale] ?? item.name.ru
@@ -290,7 +293,9 @@ export function TerritoryPassport({ territoryId }: { territoryId: string }) {
             <TabsTrigger value="objects" count={objectLayers.length}>
               {t('gis.passport.tabs.objects')}
             </TabsTrigger>
-            <TabsTrigger value="documents">{t('gis.passport.tabs.documents')}</TabsTrigger>
+            <TabsTrigger value="documents" count={documents.data?.total}>
+              {t('gis.passport.tabs.documents')}
+            </TabsTrigger>
             <TabsTrigger value="tasks" count={passport.data?.tasks.open}>
               {t('gis.passport.tabs.tasks')}
             </TabsTrigger>
@@ -348,10 +353,7 @@ export function TerritoryPassport({ territoryId }: { territoryId: string }) {
             )}
           </TabsContent>
           <TabsContent value="documents" className="pt-4">
-            <EmptyState
-              title={t('gis.passport.documentsTitle')}
-              description={t('gis.passport.documentsHint')}
-            />
+            <PassportDocuments territoryId={unit.id} />
           </TabsContent>
           <TabsContent value="tasks" className="pt-4">
             <PassportTasks territoryId={unit.id} />

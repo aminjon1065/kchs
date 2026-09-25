@@ -38,6 +38,8 @@ import {
   DocumentReplyInput,
   DocumentResolutions,
   DocumentSummary,
+  DocumentTerritoryList,
+  DocumentTerritoryQuery,
   DocumentTypeCreateInput,
   DocumentTypeRecord,
   DocumentTypeUpdateInput,
@@ -76,6 +78,7 @@ import { DocumentMailOut } from '../domain/mail-out.js'
 import { officeDashboardId } from '../domain/office-dashboard.js'
 import { ResolutionService } from '../domain/resolution-service.js'
 import { ResolutionTemplates } from '../domain/resolution-templates.js'
+import { territoryDocuments } from '../domain/territory-documents.js'
 import { DocumentTypeService } from '../domain/type-service.js'
 import { DocumentVersionService } from '../domain/version-service.js'
 
@@ -136,6 +139,22 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
         .header('content-disposition', 'attachment; filename="kchs-documents.xlsx"')
       return reply.send(content)
     },
+  })
+
+  route({
+    method: 'GET',
+    url: '/documents/territory/:id',
+    auth: 'session',
+    tags: ['documents'],
+    summary:
+      'Документы территории для паспорта: по реквизиту «Территория», полю-территории карточки или связи «о территории», с вложенными единицами и правами на каждый документ (ADR-0158)',
+    schema: {
+      params: IdParam,
+      querystring: DocumentTerritoryQuery,
+      response: { 200: DocumentTerritoryList },
+    },
+    handler: async (request) =>
+      territoryDocuments(request.ctx, request.params.id, request.query.limit),
   })
 
   route({

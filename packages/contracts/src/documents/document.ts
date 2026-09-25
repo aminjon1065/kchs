@@ -281,6 +281,41 @@ export const DocumentSummary = z.object({
 export type DocumentSummary = z.infer<typeof DocumentSummary>
 
 /**
+ * Как документ связан с территорией паспорта (ADR-0158): реквизит «Территория»
+ * документа (`card`), поле-территория карточки его типа (`field`) или связь «о
+ * территории» (`link`).
+ */
+export const DOCUMENT_TERRITORY_VIA = ['card', 'field', 'link'] as const
+export const DocumentTerritoryVia = z.enum(DOCUMENT_TERRITORY_VIA)
+export type DocumentTerritoryVia = z.infer<typeof DocumentTerritoryVia>
+
+export const DocumentTerritoryQuery = z.object({
+  limit: z.coerce.number().int().min(1).max(200).default(100),
+})
+export type DocumentTerritoryQuery = z.infer<typeof DocumentTerritoryQuery>
+
+/** Документ вкладки «Документы» паспорта территории — виден смотрящему. */
+export const DocumentTerritoryItem = z.object({
+  id: Uuid,
+  title: z.string(),
+  typeName: LangText,
+  status: DocumentStatus,
+  regNumber: z.string().nullable(),
+  regDate: DateOnly.nullable(),
+  createdAt: Timestamp,
+  /** Территория документа: сама единица паспорта или вложенная. */
+  territoryId: Uuid,
+  via: DocumentTerritoryVia,
+})
+export type DocumentTerritoryItem = z.infer<typeof DocumentTerritoryItem>
+
+export const DocumentTerritoryList = z.object({
+  items: z.array(DocumentTerritoryItem),
+  total: z.number().int(),
+})
+export type DocumentTerritoryList = z.infer<typeof DocumentTerritoryList>
+
+/**
  * Ответ движка о версии (внутренний маршрут): SHA-256 основного файла и, если
  * просили перевод, PDF-представление под ключом заранее выданного файла.
  */

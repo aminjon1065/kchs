@@ -3183,9 +3183,16 @@ export const en: DeepPartial<Dictionary> = {
       openDataset: 'Open dataset',
       objectsIn: '{count, plural, one {# feature} other {# features}} in the territory',
       openLayer: 'Open layer',
-      documentsTitle: 'Documents will come with document management',
+      documentsTitle: 'No documents for this territory',
       documentsHint:
-        'Documents linked to the territory (“about territory” link) will appear here in phase 3.',
+        'A document appears here through its “Territory” attribute, a territory field of its card or an “about territory” link, including nested units. Only documents open to you are shown.',
+      documentsMore: 'Showing {shown} of {total}, most recent first',
+      documentVia: {
+        title: 'Linked by',
+        card: '“Territory” attribute',
+        field: 'Card field',
+        link: '“About territory” link',
+      },
       tasksState: 'Which instructions',
       tasksStates: { open: 'Open', all: 'All' },
       newInstruction: 'Instruction',

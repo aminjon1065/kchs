@@ -17,6 +17,7 @@ import type {
   DocumentRouteStepVersions,
   DocumentSignatureList,
   DocumentSummary,
+  DocumentTerritoryList,
   DocumentTypeRecord,
   DocumentVersionList,
   JournalRecord,
@@ -60,7 +61,18 @@ export const documentKeys = {
   correspondence: (id: string) => ['object', id, 'correspondence'] as const,
   destructionActs: ['documents', 'destruction-acts'] as const,
   office: ['documents', 'office'] as const,
+  territory: (territoryId: string) => ['documents', 'territory', territoryId] as const,
 }
+
+/** Документы территории для паспорта (ADR-0158): с вложенными единицами и правами. */
+export const territoryDocumentsQuery = (territoryId: string) =>
+  queryOptions({
+    queryKey: documentKeys.territory(territoryId),
+    queryFn: () =>
+      http.get<DocumentTerritoryList>(`/documents/territory/${territoryId}`, {
+        query: { limit: 200 },
+      }),
+  })
 
 export const documentQuery = (id: string) =>
   queryOptions({
