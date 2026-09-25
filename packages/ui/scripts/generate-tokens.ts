@@ -107,6 +107,33 @@ for (const [name, value] of Object.entries(tokens.density.compact)) {
 }
 lines.push('}')
 lines.push('')
+
+// Размер шрифта интерфейса (ADR-0154): ступени шкалы — переменные, `data-font-size` на
+// корне сдвигает их все сразу; утилиты Tailwind ссылаются на переменные (theme.css)
+type Step = { size: number; line: number }
+const scaleEntries = Object.entries(tokens.typography.scale) as Array<
+  [string, { size: string; line: string; weight: number; tracking: string }]
+>
+const steps = tokens.typography.sizeSteps as unknown as { minSize: number } & Record<string, Step>
+const px = (value: string) => Number.parseFloat(value)
+function sizeVars(step: Step | null): string[] {
+  return scaleEntries.flatMap(([name, s]) => {
+    const size = step ? Math.max(steps.minSize, px(s.size) + step.size) : px(s.size)
+    const line = step ? Math.max(size + 4, px(s.line) + step.line) : px(s.line)
+    return [`  --fs-${name}: ${size}px;`, `  --lh-${name}: ${line}px;`]
+  })
+}
+lines.push('/* Размер шрифта: по умолчанию — шкала tokens.json */')
+lines.push(':root {')
+lines.push(...sizeVars(null))
+lines.push('}')
+for (const key of ['s', 'l'] as const) {
+  lines.push('')
+  lines.push(`[data-font-size="${key}"] {`)
+  lines.push(...sizeVars(steps[key] ?? null))
+  lines.push('}')
+}
+lines.push('')
 lines.push('/* Тёмная тема — отдельно выверенные поверхности, не инверсия */')
 lines.push('[data-theme="dark"] {')
 lines.push(...dark)
@@ -195,8 +222,9 @@ theme.push(`  --font-sans--font-feature-settings: ${tokens.typography.fontFeatur
 theme.push(`  --font-mono--font-feature-settings: ${tokens.typography.fontFeatureSettings.mono};`)
 for (const [name, scale] of Object.entries(tokens.typography.scale)) {
   const s = scale as { size: string; line: string; weight: number; tracking: string }
-  theme.push(`  --text-${name}: ${s.size};`)
-  theme.push(`  --text-${name}--line-height: ${s.line};`)
+  // Через переменные: размер шрифта интерфейса меняет их на корне (tokens.css, ADR-0154)
+  theme.push(`  --text-${name}: var(--fs-${name});`)
+  theme.push(`  --text-${name}--line-height: var(--lh-${name});`)
   theme.push(`  --text-${name}--font-weight: ${s.weight};`)
   theme.push(`  --text-${name}--letter-spacing: ${s.tracking};`)
 }

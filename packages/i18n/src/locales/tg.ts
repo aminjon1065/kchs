@@ -756,6 +756,8 @@ export const tg: DeepPartial<Dictionary> = {
       revokeAll: 'Аз ҳамаи дастгоҳҳо баромадан',
       expired: 'Мӯҳлати сеанс гузашт, аз нав ворид шавед',
       othersRevoked: 'Сеансҳои дигар анҷом ёфтанд',
+      revoked: 'Сеанс анҷом ёфт',
+      revokeNamed: 'Анҷом додани сеанс: {device}',
       unknownDevice: 'Дастгоҳи номаълум',
     },
     signOut: 'Баромадан',
@@ -1110,6 +1112,14 @@ export const tg: DeepPartial<Dictionary> = {
       digest: 'Дар хулоса',
       off: 'Хомӯш',
     },
+    all: 'Ҳама',
+    markRead: 'Хондашуда қайд кардан',
+    settingsCategory: 'Категория',
+    settingsCell: '{category} — {channel}',
+    channelUnavailable: 'пайваст нашудааст',
+    quietHint:
+      'Соатҳои ором ва «Халал нарасонед» Telegram, push ва мактубҳоро дар ҳамаи категорияҳо хомӯш мекунанд, ба истиснои фаврӣ: огоҳиҳо, хабар додан ба роҳбар, супоришҳои фаврӣ, ёдраскуниҳои вохӯрӣ.',
+    quietEdit: 'Ҳолат ва соатҳои ором',
     category: {
       inbox: 'Воридшудаҳо',
       mention: 'Ёдовариҳо',
@@ -7023,6 +7033,8 @@ export const tg: DeepPartial<Dictionary> = {
     startHint: 'Дархостро ворид кунед — ҷустуҷӯ дар байни объектҳои ба шумо дастрас анҷом мешавад',
   },
   profile: {
+    fontSize: 'Андозаи ҳарф',
+    fontSizes: { s: 'Хурдтар', m: 'Муқаррарӣ', l: 'Калонтар' },
     apiTokens: {
       title: 'Токенҳои API-и ман',
       hint: 'Токен ба интегратсия лозим аст, то аз номи шумо ба API муроҷиат кунад. Он аз ҳуқуқҳои шумо бештар ҳуқуқ намедиҳад: доираҳои дастрасӣ онҳоро танҳо маҳдуд мекунанд.',
@@ -7072,6 +7084,8 @@ export const tg: DeepPartial<Dictionary> = {
       disconnected: 'Telegram хомӯш карда шуд',
       connected: 'Telegram пайваст шуд',
       categories: 'Чӣ ба Telegram фиристода шавад',
+      categoriesHint:
+        'Кадом огоҳиномаҳо ба Telegram мераванд — дар «Танзими огоҳиномаҳо» дар боло.',
     },
     push: {
       title: 'Огоҳиномаҳои браузер',

@@ -261,7 +261,7 @@ export const NotificationService = {
         mode: row.mode as DeliveryMode,
       })),
       defaults: NOTIFICATION_CATEGORIES.flatMap((category) =>
-        (['app', 'email', 'telegram'] as const).map((channel) => ({
+        (['app', 'email', 'telegram', 'push'] as const).map((channel) => ({
           category,
           channel,
           mode: DEFAULT_MODES[category]?.[channel] ?? 'off',
@@ -297,18 +297,20 @@ export const NotificationService = {
  * Правила по умолчанию (12-calendar-notifications-home.md §2): действия и
  * упоминания — во все каналы, включая Telegram; остальное в Telegram — по выбору.
  * Поручения и задачи — тоже действия: назначение и отчёт приходят в Telegram сразу.
+ * Push — как Telegram (ADR-0153): сотрудник, подписавший устройство, ждёт от него тех же
+ * действий; без настройки по умолчанию push молчал бы у всех категорий.
  */
 const DEFAULT_MODES: Record<string, Partial<Record<NotificationChannel, DeliveryMode>>> = {
-  inbox: { app: 'immediate', email: 'immediate', telegram: 'immediate' },
-  mention: { app: 'immediate', email: 'immediate', telegram: 'immediate' },
+  inbox: { app: 'immediate', email: 'immediate', telegram: 'immediate', push: 'immediate' },
+  mention: { app: 'immediate', email: 'immediate', telegram: 'immediate', push: 'immediate' },
   discussion: { app: 'immediate', email: 'digest' },
   object: { app: 'immediate', email: 'off' },
-  tasks: { app: 'immediate', email: 'digest', telegram: 'immediate' },
+  tasks: { app: 'immediate', email: 'digest', telegram: 'immediate', push: 'immediate' },
   documents: { app: 'immediate', email: 'digest' },
-  'chat.direct': { app: 'immediate', email: 'off', telegram: 'immediate' },
-  'chat.mention': { app: 'immediate', email: 'off', telegram: 'immediate' },
+  'chat.direct': { app: 'immediate', email: 'off', telegram: 'immediate', push: 'immediate' },
+  'chat.mention': { app: 'immediate', email: 'off', telegram: 'immediate', push: 'immediate' },
   'chat.channel': { app: 'immediate', email: 'off' },
-  meetings: { app: 'immediate', email: 'immediate', telegram: 'immediate' },
+  meetings: { app: 'immediate', email: 'immediate', telegram: 'immediate', push: 'immediate' },
   calendar: { app: 'immediate', email: 'digest' },
   data: { app: 'immediate', email: 'digest' },
   system: { app: 'immediate', email: 'digest' },

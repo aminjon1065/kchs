@@ -146,6 +146,70 @@
   --tab-h: 32px;
 }
 
+/* Размер шрифта: по умолчанию — шкала tokens.json */
+:root {
+  --fs-2xs: 11px;
+  --lh-2xs: 16px;
+  --fs-xs: 12px;
+  --lh-xs: 16px;
+  --fs-sm: 13px;
+  --lh-sm: 20px;
+  --fs-base: 14px;
+  --lh-base: 22px;
+  --fs-md: 16px;
+  --lh-md: 24px;
+  --fs-lg: 18px;
+  --lh-lg: 26px;
+  --fs-xl: 22px;
+  --lh-xl: 30px;
+  --fs-2xl: 28px;
+  --lh-2xl: 36px;
+  --fs-3xl: 36px;
+  --lh-3xl: 44px;
+}
+
+[data-font-size="s"] {
+  --fs-2xs: 10px;
+  --lh-2xs: 14px;
+  --fs-xs: 11px;
+  --lh-xs: 15px;
+  --fs-sm: 12px;
+  --lh-sm: 18px;
+  --fs-base: 13px;
+  --lh-base: 20px;
+  --fs-md: 15px;
+  --lh-md: 22px;
+  --fs-lg: 17px;
+  --lh-lg: 24px;
+  --fs-xl: 21px;
+  --lh-xl: 28px;
+  --fs-2xl: 27px;
+  --lh-2xl: 34px;
+  --fs-3xl: 35px;
+  --lh-3xl: 42px;
+}
+
+[data-font-size="l"] {
+  --fs-2xs: 13px;
+  --lh-2xs: 18px;
+  --fs-xs: 14px;
+  --lh-xs: 18px;
+  --fs-sm: 15px;
+  --lh-sm: 22px;
+  --fs-base: 16px;
+  --lh-base: 24px;
+  --fs-md: 18px;
+  --lh-md: 26px;
+  --fs-lg: 20px;
+  --lh-lg: 28px;
+  --fs-xl: 24px;
+  --lh-xl: 32px;
+  --fs-2xl: 30px;
+  --lh-2xl: 38px;
+  --fs-3xl: 38px;
+  --lh-3xl: 46px;
+}
+
 /* Тёмная тема — отдельно выверенные поверхности, не инверсия */
 [data-theme="dark"] {
   --bg-canvas: #0E0F11;

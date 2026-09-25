@@ -710,6 +710,8 @@ export const ru = {
       revokeAll: 'Выйти на всех устройствах',
       expired: 'Сессия истекла, войдите заново',
       othersRevoked: 'Другие сессии завершены',
+      revoked: 'Сессия завершена',
+      revokeNamed: 'Завершить сессию: {device}',
       unknownDevice: 'Неизвестное устройство',
     },
     signOut: 'Выйти',
@@ -1045,6 +1047,14 @@ export const ru = {
     doNotDisturb: 'Не беспокоить',
     channel: { app: 'В приложении', email: 'Почта', telegram: 'Telegram', push: 'Push' },
     mode: { immediate: 'Сразу', digest: 'В дайджесте', off: 'Выключено' },
+    all: 'Все',
+    markRead: 'Отметить прочитанным',
+    settingsCategory: 'Категория',
+    settingsCell: '{category} — {channel}',
+    channelUnavailable: 'не подключено',
+    quietHint:
+      'Тихие часы и «Не беспокоить» глушат Telegram, push и письма у всех категорий, кроме срочного: алертов, эскалаций, срочных поручений, напоминаний о встрече.',
+    quietEdit: 'Статус и тихие часы',
     category: {
       inbox: 'Входящие',
       mention: 'Упоминания',
@@ -6603,6 +6613,8 @@ export const ru = {
   },
 
   profile: {
+    fontSize: 'Размер шрифта',
+    fontSizes: { s: 'Мельче', m: 'Обычный', l: 'Крупнее' },
     apiTokens: {
       title: 'Мои токены API',
       hint: 'Токен нужен интеграции, чтобы ходить в API от вашего имени. Он не даёт больше прав, чем есть у вас: области доступа только сужают их.',
@@ -6651,6 +6663,7 @@ export const ru = {
       disconnected: 'Telegram отключён',
       connected: 'Telegram подключён',
       categories: 'Что присылать в Telegram',
+      categoriesHint: 'Какие уведомления приходят в Telegram — в «Настройках уведомлений» выше.',
     },
     push: {
       title: 'Уведомления браузера',

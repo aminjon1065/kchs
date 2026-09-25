@@ -22,6 +22,7 @@ import { keys, meQuery } from '~/shared/api/queries.js'
 import { ApiTokensCard } from './api-tokens-card.js'
 import { DelegationCard } from './delegation-card.js'
 import { MfaCard } from './mfa-card.js'
+import { NotificationSettingsCard } from './notification-settings-card.js'
 import { PasskeysCard } from './passkeys-card.js'
 import { PushCard } from './push-card.js'
 import { TelegramCard } from './telegram-card.js'
@@ -85,6 +86,18 @@ export function ProfileScreen() {
     },
   })
 
+  // Одна сессия — например, забытый вход на чужом компьютере (ADR-0153)
+  const revokeOne = useMutation({
+    mutationFn: (sessionId: string) =>
+      http.post('/me/sessions/revoke', { sessionIds: [sessionId] }),
+    onSuccess: () => {
+      toast.show({ title: t('auth.session.revoked'), tone: 'success' })
+      void client.invalidateQueries({ queryKey: ['me', 'sessions'] })
+    },
+    onError: (error) =>
+      toast.error(error instanceof ApiError ? error.message : t('errors.unknown')),
+  })
+
   if (isLoading || !me) {
     return (
       <div className="flex flex-col gap-3 p-6">
@@ -125,7 +138,7 @@ export function ProfileScreen() {
         </header>
 
         <Card title={t('profile.appearance')}>
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2">
             <Field label={t('common.labels.theme')}>
               <SegmentedControl
                 aria-label={t('common.labels.theme')}
@@ -164,6 +177,18 @@ export function ProfileScreen() {
                 ]}
               />
             </Field>
+            <Field label={t('profile.fontSize')}>
+              <SegmentedControl
+                aria-label={t('profile.fontSize')}
+                value={appearance.fontSize}
+                onValueChange={(next) => appearance.setFontSize(next as 's' | 'm' | 'l')}
+                options={[
+                  { value: 's', label: t('profile.fontSizes.s') },
+                  { value: 'm', label: t('profile.fontSizes.m') },
+                  { value: 'l', label: t('profile.fontSizes.l') },
+                ]}
+              />
+            </Field>
             <Field label={t('common.labels.language')}>
               <SegmentedControl
                 aria-label={t('common.labels.language')}
@@ -177,6 +202,8 @@ export function ProfileScreen() {
             </Field>
           </div>
         </Card>
+
+        <NotificationSettingsCard />
 
         <MfaCard enabled={me.mfaEnabled} />
 
@@ -255,7 +282,20 @@ export function ProfileScreen() {
                   <Badge tone="success" size="sm">
                     {t('auth.session.current')}
                   </Badge>
-                ) : null}
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    loading={revokeOne.isPending && revokeOne.variables === session.id}
+                    disabled={revokeOne.isPending}
+                    aria-label={t('auth.session.revokeNamed', {
+                      device: session.deviceName ?? t('auth.session.unknownDevice'),
+                    })}
+                    onClick={() => revokeOne.mutate(session.id)}
+                  >
+                    {t('auth.session.revoke')}
+                  </Button>
+                )}
               </li>
             ))}
           </ul>

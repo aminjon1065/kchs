@@ -1,3 +1,4 @@
+import type { Notification } from '@kchs/contracts'
 import { formatRelativeTime } from '@kchs/fields'
 import {
   Avatar,
@@ -5,13 +6,14 @@ import {
   Button,
   cn,
   EmptyState,
+  IconButton,
   ObjectIcon,
   PanelToolbar,
   SegmentedControl,
   Skeleton,
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Bell, CheckCheck } from 'lucide-react'
+import { Bell, Check, CheckCheck } from 'lucide-react'
 import { useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
@@ -32,6 +34,24 @@ export function NotificationsScreen() {
     mutationFn: () => http.post('/notifications/read', { all: true }),
     onSuccess: () => void client.invalidateQueries({ queryKey: ['notifications'] }),
   })
+  // Одно уведомление (ADR-0153): кнопкой «Прочитано» или щелчком, который открывает объект
+  const markOne = useMutation({
+    mutationFn: (id: string) => http.post('/notifications/read', { ids: [id] }),
+    onSuccess: () => void client.invalidateQueries({ queryKey: ['notifications'] }),
+  })
+
+  const open = (item: Notification) => {
+    if (!item.readAt) markOne.mutate(item.id)
+    if (item.object) {
+      openTab({
+        kind: 'object',
+        objectId: item.object.id,
+        objectType: item.object.type,
+        title: item.object.title,
+        mode: 'permanent',
+      })
+    }
+  }
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -54,7 +74,7 @@ export function NotificationsScreen() {
               value={unreadOnly ? 'unread' : 'all'}
               onValueChange={(next) => setUnreadOnly(next === 'unread')}
               options={[
-                { value: 'all', label: t('common.actions.more') },
+                { value: 'all', label: t('notifications.all') },
                 { value: 'unread', label: t('notifications.unreadOnly') },
               ]}
             />
@@ -82,23 +102,17 @@ export function NotificationsScreen() {
         ) : (
           <ul className="divide-y divide-line">
             {data.items.map((item) => (
-              <li key={item.id}>
+              <li
+                key={item.id}
+                className={cn(
+                  'flex items-start gap-1 pr-2 hover:bg-surface-2',
+                  !item.readAt && 'bg-accent-subtle/40',
+                )}
+              >
                 <button
                   type="button"
-                  onClick={() =>
-                    item.object &&
-                    openTab({
-                      kind: 'object',
-                      objectId: item.object.id,
-                      objectType: item.object.type,
-                      title: item.object.title,
-                      mode: 'permanent',
-                    })
-                  }
-                  className={cn(
-                    'flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-surface-2',
-                    !item.readAt && 'bg-accent-subtle/40',
-                  )}
+                  onClick={() => open(item)}
+                  className="flex min-w-0 flex-1 items-start gap-3 px-4 py-3 text-left"
                 >
                   {item.actor ? (
                     <Avatar name={item.actor.displayName} src={item.actor.avatarUrl} size="sm" />
@@ -108,13 +122,26 @@ export function NotificationsScreen() {
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm text-fg">{item.title}</span>
                     <span className="mt-0.5 flex items-center gap-2 text-2xs text-fg-muted">
-                      <Badge size="sm">{item.category}</Badge>
+                      <Badge size="sm">{t(`notifications.category.${item.category}`)}</Badge>
                       {formatRelativeTime(item.createdAt, { locale })}
                       {item.aggregateCount > 1 ? <span>· ×{item.aggregateCount}</span> : null}
                     </span>
                   </span>
-                  {!item.readAt ? <span className="mt-1.5 size-2 rounded-full bg-accent" /> : null}
+                  {!item.readAt ? (
+                    <span className="mt-1.5 size-2 rounded-full bg-accent" aria-hidden />
+                  ) : null}
                 </button>
+                {!item.readAt ? (
+                  <IconButton
+                    className="mt-2.5"
+                    size="sm"
+                    variant="ghost"
+                    label={t('notifications.markRead')}
+                    onClick={() => markOne.mutate(item.id)}
+                  >
+                    <Check className="size-3.5" />
+                  </IconButton>
+                ) : null}
               </li>
             ))}
           </ul>

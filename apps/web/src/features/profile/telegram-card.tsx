@@ -1,12 +1,6 @@
-import {
-  NOTIFICATION_CATEGORIES,
-  type NotificationCategory,
-  type NotificationPreferences,
-  type TelegramLinkStart,
-  type TelegramStatus,
-} from '@kchs/contracts'
+import type { TelegramLinkStart, TelegramStatus } from '@kchs/contracts'
 import { formatDate, formatDateTime } from '@kchs/fields'
-import { Button, Callout, Card, cn, Switch, useToast } from '@kchs/ui'
+import { Button, Callout, Card, cn, useToast } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Send } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -15,7 +9,6 @@ import { useT } from '~/app/i18n.js'
 import { http } from '~/shared/api/client.js'
 
 const statusKey = ['me', 'telegram'] as const
-const preferencesKey = ['me', 'notification-preferences'] as const
 
 /**
  * Telegram в профиле (P1-E09 S01, ADR-0061): одноразовая ссылка на бота,
@@ -136,53 +129,10 @@ export function TelegramCard() {
           </Callout>
         ) : null}
 
-        {linked ? <TelegramCategories /> : null}
+        {linked ? (
+          <p className="text-xs text-fg-secondary">{t('profile.telegram.categoriesHint')}</p>
+        ) : null}
       </div>
     </Card>
-  )
-}
-
-/** Какие категории уведомлений уходят в Telegram: действующий режим и переключатель. */
-function TelegramCategories() {
-  const t = useT()
-  const client = useQueryClient()
-  const { data } = useQuery({
-    queryKey: preferencesKey,
-    queryFn: () => http.get<NotificationPreferences>('/me/notification-preferences'),
-  })
-
-  const update = useMutation({
-    mutationFn: (input: { category: NotificationCategory; enabled: boolean }) =>
-      http.put('/me/notification-preferences', {
-        category: input.category,
-        channel: 'telegram',
-        mode: input.enabled ? 'immediate' : 'off',
-      }),
-    onSuccess: () => void client.invalidateQueries({ queryKey: preferencesKey }),
-  })
-
-  if (!data) return null
-  const modeOf = (category: NotificationCategory) =>
-    data.items.find((item) => item.category === category && item.channel === 'telegram')?.mode ??
-    data.defaults.find((item) => item.category === category && item.channel === 'telegram')?.mode ??
-    'off'
-
-  return (
-    <fieldset className="flex flex-col gap-2 border-t border-line pt-3">
-      <legend className="pb-1 text-2xs font-medium tracking-wide text-fg-muted uppercase">
-        {t('profile.telegram.categories')}
-      </legend>
-      <div className="grid gap-2 sm:grid-cols-2">
-        {NOTIFICATION_CATEGORIES.map((category) => (
-          <Switch
-            key={category}
-            label={t(`notifications.category.${category}`)}
-            checked={modeOf(category) !== 'off'}
-            disabled={update.isPending}
-            onCheckedChange={(enabled) => update.mutate({ category, enabled })}
-          />
-        ))}
-      </div>
-    </fieldset>
   )
 }

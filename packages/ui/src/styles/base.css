@@ -40,13 +40,8 @@
     text-rendering: optimizeLegibility;
   }
 
-  /* Размер шрифта интерфейса — персонализация (03-ui/01-ux-concept.md §8) */
-  [data-font-size="s"] body {
-    font-size: 12px;
-  }
-  [data-font-size="l"] body {
-    font-size: 14px;
-  }
+  /* Размер шрифта интерфейса (03-ui/01-ux-concept.md §8, ADR-0154) — ступени шкалы в
+     tokens.css меняются атрибутом data-font-size на корне, вместе со всеми утилитами */
 
   h1,
   h2,

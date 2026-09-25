@@ -697,6 +697,8 @@ export const en: DeepPartial<Dictionary> = {
       revokeAll: 'Sign out everywhere',
       expired: 'Session expired, sign in again',
       othersRevoked: 'Other sessions signed out',
+      revoked: 'Session ended',
+      revokeNamed: 'End session: {device}',
       unknownDevice: 'Unknown device',
     },
     signOut: 'Sign out',
@@ -1027,6 +1029,14 @@ export const en: DeepPartial<Dictionary> = {
     doNotDisturb: 'Do not disturb',
     channel: { app: 'In app', email: 'Email', telegram: 'Telegram', push: 'Push' },
     mode: { immediate: 'Immediate', digest: 'Digest', off: 'Off' },
+    all: 'All',
+    markRead: 'Mark as read',
+    settingsCategory: 'Category',
+    settingsCell: '{category} — {channel}',
+    channelUnavailable: 'not connected',
+    quietHint:
+      'Quiet hours and “Do not disturb” mute Telegram, push and email for every category except urgent ones: alerts, escalations, urgent instructions, meeting reminders.',
+    quietEdit: 'Status and quiet hours',
     category: {
       inbox: 'Inbox',
       mention: 'Mentions',
@@ -6508,6 +6518,8 @@ export const en: DeepPartial<Dictionary> = {
     startHint: 'Type a query — search covers the objects available to you',
   },
   profile: {
+    fontSize: 'Font size',
+    fontSizes: { s: 'Smaller', m: 'Normal', l: 'Larger' },
     apiTokens: {
       title: 'My API tokens',
       hint: 'An integration needs a token to call the API on your behalf. It never grants more than you have: scopes only narrow your rights.',
@@ -6556,6 +6568,7 @@ export const en: DeepPartial<Dictionary> = {
       disconnected: 'Telegram disconnected',
       connected: 'Telegram connected',
       categories: 'What to send to Telegram',
+      categoriesHint: 'Which notifications go to Telegram — see “Notification settings” above.',
     },
     push: {
       title: 'Browser notifications',

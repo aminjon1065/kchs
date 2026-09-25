@@ -1,4 +1,4 @@
-import { Notification, NotificationPreferences } from '@kchs/contracts'
+import { Notification, NotificationPreference, NotificationPreferences } from '@kchs/contracts'
 import { z } from 'zod'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { NotificationService } from './service.js'
@@ -66,17 +66,13 @@ export function registerNotificationRoutes(route: RouteRegistrar): void {
     tags: ['notifications'],
     summary: 'Изменить настройку уведомлений',
     schema: {
-      body: z.object({
-        category: z.string(),
-        channel: z.enum(['app', 'email', 'telegram', 'push']),
-        mode: z.enum(['immediate', 'digest', 'off']),
-      }),
+      body: NotificationPreference,
       response: { 200: z.object({ ok: z.boolean() }) },
     },
     handler: async (request) => {
       await NotificationService.setPreference(
         request.ctx.userId,
-        request.body.category as never,
+        request.body.category,
         request.body.channel,
         request.body.mode,
       )
