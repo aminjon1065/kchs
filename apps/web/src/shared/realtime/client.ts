@@ -93,6 +93,11 @@ export function connectRealtime(client: QueryClient, handlers: RealtimeHandlers 
     if (payload.objectId) void client.invalidateQueries({ queryKey: ['object', payload.objectId] })
   })
 
+  // Запись ленты активности появилась — перечитать ленту открытого объекта
+  socket.on('activity.added', (payload: { objectId: string }) => {
+    void client.invalidateQueries({ queryKey: ['object', payload.objectId, 'activity'] })
+  })
+
   socket.on('notification.new', () => {
     void client.invalidateQueries({ queryKey: ['notifications'] })
     handlers.onNotification?.()

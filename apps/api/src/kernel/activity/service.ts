@@ -5,6 +5,7 @@ import { activities } from '~/shared/db/schema/index.js'
 import { directory } from '../directory/port.js'
 import type { Subscriber } from '../events/types.js'
 import { objectType } from '../objects/registry.js'
+import { emitToRoom } from '../realtime/gateway.js'
 
 /**
  * Лента активности строится из событий (02-platform-kernel.md §5).
@@ -78,6 +79,9 @@ async function insertActivity(
       },
       occurredAt: event.occurredAt,
     })
+  // Открытая лента объекта перечитывается, когда запись уже есть: сообщение обсуждения или
+  // правка приходят в клиент другим подписчиком и могут обогнать её
+  emitToRoom(`object:${event.object.id}`, 'activity.added', { objectId: event.object.id })
 }
 
 export const activitySubscriber: Subscriber = {
