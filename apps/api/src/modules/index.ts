@@ -60,7 +60,11 @@ import {
   scheduleFormsJobs,
 } from './forms/module.js'
 import { registerGisBackground, registerGisObjectTypes, registerGisRoutes } from './gis/module.js'
-import { registerIdentityBackground, registerIdentityRoutes } from './identity/module.js'
+import {
+  registerIdentityBackground,
+  registerIdentityRoutes,
+  scheduleIdentityJobs,
+} from './identity/module.js'
 import { AuthService, DirectoryQueries, OrgService, UserService } from './identity/public.js'
 import {
   registerIntegrationsBackground,
@@ -213,6 +217,7 @@ export function registerModulesBackground(): void {
 
 export async function scheduleModuleJobs(): Promise<void> {
   scheduleFilesJobs()
+  scheduleIdentityJobs()
   scheduleTasksJobs()
   scheduleDocumentsJobs()
   await scheduleReportsJobs()

@@ -7956,6 +7956,7 @@ export const en: DeepPartial<Dictionary> = {
       automationResume: 'Rules: resume stuck runs',
       formsControl: 'Data forms: periods, reminders and overdue',
       formsPrune: 'Data forms: prune reminder marks',
+      identityPrune: 'Sign-in: prune expired sessions and abandoned sign-in attempts',
       alertsCheck: 'Alerts: check metrics',
       alertsPrune: 'Alerts: prune firing history',
     },

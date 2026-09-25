@@ -1,6 +1,8 @@
 import { registerJobHandler } from '~/kernel/jobs/runner.js'
+import { declareSchedule } from '~/kernel/schedules/index.js'
 import { systemCtx } from '~/shared/context.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
+import { pruneAuthArtifacts } from './domain/auth-prune.js'
 import { DirectorySync } from './domain/directory-sync.js'
 import { APPLY_JOB, UsersImport } from './domain/users-import.js'
 import { registerAuthRoutes } from './http/auth-routes.js'
@@ -49,5 +51,22 @@ export function registerIdentityBackground(): void {
       const run = await DirectorySync.run(systemCtx('directory.schedule'), 'scheduled')
       return { status: run.status, ...run.stats }
     },
+  })
+
+  registerJobHandler({
+    queue: 'maintenance',
+    name: 'identity.prune',
+    concurrency: 1,
+    handle: async () => ({ ...(await pruneAuthArtifacts()) }),
+  })
+}
+
+/** Регулярные задания модуля — через единый планировщик ядра (ADR-0096). */
+export function scheduleIdentityJobs(): void {
+  declareSchedule({
+    queue: 'maintenance',
+    name: 'identity.prune',
+    pattern: '37 3 * * *',
+    labelKey: 'schedules.jobs.identityPrune',
   })
 }
