@@ -17,14 +17,23 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { useEffect, useId, useState } from 'react'
 import { useT } from '~/app/i18n.js'
 import { http } from '~/shared/api/client.js'
-import { journalReservationsQuery, journalsQuery } from '../queries.js'
+import {
+  caseSuggestionsQuery,
+  journalReservationsQuery,
+  journalsQuery,
+  numberPreviewQuery,
+} from '../queries.js'
 import { errorText } from '../status.js'
 
 const NO_RESERVATION = '__none'
+/** Дело не выбрано — номер без индекса дела. */
+const NO_CASE = 'none'
 
 /**
  * Регистрация (08-documents.md §5): журнал типа по умолчанию или выбранный,
- * для бумажного документа — номер из резерва журнала.
+ * для бумажного документа — номер из резерва журнала. Если в формате номера есть индекс
+ * дела, дело по номенклатуре подбирается по типу и подразделению и видно в номере сразу
+ * (ADR-0134): чаще всего делопроизводителю остаётся только нажать «Зарегистрировать».
  */
 export function RegisterDialog({
   document,
@@ -52,6 +61,16 @@ export function RegisterDialog({
   })
   const open = reservations.filter((reservation) => reservation.state === 'open')
   const current = allowed.find((journal) => journal.id === journalId)
+  const { data: suggestions } = useQuery(caseSuggestionsQuery(document.id, 'registration'))
+  // Пусто — дело ещё не выбрано: берётся подобранное по типу и подразделению
+  const [caseChoice, setCaseChoice] = useState('')
+  const caseId = caseChoice || (suggestions ? (suggestions.suggestedId ?? NO_CASE) : '')
+  const { data: preview } = useQuery({
+    ...numberPreviewQuery(document.id, journalId, caseId || 'auto'),
+    enabled: Boolean(journalId) && Boolean(suggestions),
+  })
+  const usesCase = preview?.usesCase ?? false
+  const reserved = reservationId !== NO_RESERVATION
 
   useEffect(() => {
     if (!journalId && allowed[0]) setJournalId(allowed[0].id)
@@ -61,7 +80,8 @@ export function RegisterDialog({
     mutationFn: () =>
       http.post<DocumentRecord>(`/documents/${document.id}/register`, {
         journalId,
-        ...(reservationId !== NO_RESERVATION ? { reservationId } : {}),
+        ...(reserved ? { reservationId } : {}),
+        ...(usesCase && caseId ? { caseId: caseId === NO_CASE ? null : caseId } : {}),
       }),
     onSuccess: (record) => {
       toast.show({
@@ -117,10 +137,36 @@ export function RegisterDialog({
               </SelectContent>
             </Select>
           </Field>
-          {current ? (
+          {usesCase && !reserved ? (
+            <Field label={t('documents.register.case')} hint={t('documents.register.caseHint')}>
+              <Select value={caseId} onValueChange={setCaseChoice}>
+                <SelectTrigger aria-label={t('documents.register.case')}>
+                  <SelectValue placeholder={t('documents.placeholders.choose')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_CASE}>{t('documents.register.noCase')}</SelectItem>
+                  {(suggestions?.items ?? []).map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {item.index} · {item.title}
+                      {item.unitName ? ` · ${item.unitName}` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          ) : null}
+          {usesCase && !reserved && suggestions?.items.length === 0 ? (
+            <p className="text-xs text-fg-muted">{t('documents.register.noCases')}</p>
+          ) : null}
+          {current && !reserved ? (
             <p className="text-xs text-fg-muted">
-              {t('documents.register.nextNumber', { number: current.nextNumber })}
+              {preview
+                ? t('documents.register.numberPreview', { number: preview.number })
+                : t('documents.register.nextNumber', { number: current.nextNumber })}
             </p>
+          ) : null}
+          {usesCase && reserved ? (
+            <p className="text-xs text-fg-muted">{t('documents.register.reservationCase')}</p>
           ) : null}
           {open.length > 0 ? (
             <Field

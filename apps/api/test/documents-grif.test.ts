@@ -340,7 +340,7 @@ describe('документ выше допуска не виден даже пр
     expect(about.length).toBeGreaterThan(0)
     for (const item of about) {
       expect(item.title).not.toContain(subject)
-      expect(item.title).toMatch(/Документ № ВХ-/)
+      expect(item.title).toMatch(/Документ № ВХ\//)
       expect(item.object?.title).not.toContain(subject)
     }
 

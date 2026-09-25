@@ -191,6 +191,53 @@ async function documentFiles(executor: Executor, documentId: string): Promise<st
 }
 
 /**
+ * Открытые дела, подходящие документу: видимые и с правом подшивать; по типу и подразделению
+ * (сначала оба совпадения), свежий год выше. Предлагается единственное лучшее совпадение.
+ */
+async function rankCases(
+  executor: Executor,
+  ctx: Ctx,
+  input: { typeId: string; unitId: string | null; year: number | null },
+): Promise<CaseSuggestions> {
+  const rows = await selectCases(executor)
+    .where(
+      and(
+        eq(cases.status, 'open'),
+        sql`${objects.deletedAt} IS NULL`,
+        visibleObjectsSql(ctx, 'case'),
+        ...(input.year !== null ? [eq(cases.year, input.year)] : []),
+      ),
+    )
+    .orderBy(desc(cases.year), asc(cases.index))
+    .limit(500)
+  const units = await OrgService.briefs([
+    ...new Set(rows.map((row) => row.unitId).filter((v): v is string => !!v)),
+  ])
+  const rank: Record<CaseMatch, number> = { type_unit: 0, type: 1, unit: 2, other: 3 }
+  const items = []
+  for (const row of rows) {
+    const decision = await authorize(ctx, 'file_in', row.id, { soft: true })
+    if (!decision.allowed) continue
+    const byType = row.documentTypeIds.includes(input.typeId)
+    const byUnit = input.unitId !== null && row.unitId === input.unitId
+    const match: CaseMatch =
+      byType && byUnit ? 'type_unit' : byType ? 'type' : byUnit ? 'unit' : 'other'
+    const unit = row.unitId ? units.get(row.unitId) : undefined
+    items.push({ ...refOf(row), unitName: unit?.name.ru ?? null, match })
+  }
+  items.sort((a, b) => rank[a.match] - rank[b.match] || b.year - a.year)
+  const best = items[0]
+  const second = items[1]
+  const suggestedId =
+    best &&
+    best.match !== 'other' &&
+    (!second || rank[second.match] > rank[best.match] || second.year < best.year)
+      ? best.id
+      : null
+  return { items, suggestedId }
+}
+
+/**
  * Номенклатура дел (08-documents.md §12, ADR-0086). Дело — объект реестра без
  * владельца в пространстве документооборота: ведут его владельцы способности
  * «вести журналы» (производный `manage`), подшивают документы делопроизводители
@@ -542,51 +589,75 @@ export const CaseService = {
   },
 
   /**
-   * Открытые дела для подшивки документа: видимые пользователю, в которые он
-   * вправе подшивать; сначала совпавшие по типу и подразделению документа,
-   * текущего года — выше прошлых.
+   * Открытые дела для документа: видимые пользователю, в которые он вправе подшивать; сначала
+   * совпавшие по типу и подразделению документа. Для подшивки — дела любого года (текущего
+   * выше) и первым дело, указанное при регистрации; для регистрации — дела года регистрации:
+   * индекс идёт в номер (ADR-0134).
    */
-  async suggest(ctx: UserCtx, documentId: string): Promise<CaseSuggestions> {
+  async suggest(
+    ctx: UserCtx,
+    documentId: string,
+    purpose: 'filing' | 'registration' = 'filing',
+  ): Promise<CaseSuggestions> {
     await authorize(ctx, 'view', documentId)
     const [doc] = await db()
-      .select({ typeId: documents.typeId, unitId: documents.unitId })
+      .select({
+        typeId: documents.typeId,
+        unitId: documents.unitId,
+        regCaseId: documents.regCaseId,
+      })
       .from(documents)
       .where(eq(documents.id, documentId))
       .limit(1)
     if (!doc) throw errors.notFound('Документ')
-    const rows = await selectCases(db())
-      .where(
-        and(
-          eq(cases.status, 'open'),
-          sql`${objects.deletedAt} IS NULL`,
-          visibleObjectsSql(ctx, 'case'),
-        ),
-      )
-      .orderBy(desc(cases.year), asc(cases.index))
-      .limit(500)
-    const units = await OrgService.briefs([
-      ...new Set(rows.map((row) => row.unitId).filter((v): v is string => !!v)),
-    ])
-    const rank: Record<CaseMatch, number> = { type_unit: 0, type: 1, unit: 2, other: 3 }
-    const items = []
-    for (const row of rows) {
-      const decision = await authorize(ctx, 'file_in', row.id, { soft: true })
-      if (!decision.allowed) continue
-      const byType = row.documentTypeIds.includes(doc.typeId)
-      const byUnit = doc.unitId !== null && row.unitId === doc.unitId
-      const match: CaseMatch =
-        byType && byUnit ? 'type_unit' : byType ? 'type' : byUnit ? 'unit' : 'other'
-      const unit = row.unitId ? units.get(row.unitId) : undefined
-      items.push({ ...refOf(row), unitName: unit?.name.ru ?? null, match })
+    const year = purpose === 'registration' ? Number(todayLocal().slice(0, 4)) : null
+    const ranked = await rankCases(db(), ctx, { typeId: doc.typeId, unitId: doc.unitId, year })
+    if (purpose === 'filing' && doc.regCaseId) {
+      const at = ranked.items.findIndex((item) => item.id === doc.regCaseId)
+      if (at >= 0) {
+        const [chosen] = ranked.items.splice(at, 1)
+        if (chosen) ranked.items.unshift(chosen)
+        return { items: ranked.items, suggestedId: doc.regCaseId }
+      }
     }
-    items.sort((a, b) => rank[a.match] - rank[b.match] || b.year - a.year)
-    const best = items[0]
-    const second = items[1]
-    const suggestedId =
-      best && best.match !== 'other' && (!second || rank[second.match] > rank[best.match])
-        ? best.id
-        : null
-    return { items, suggestedId }
+    return ranked
+  },
+
+  /**
+   * Дело для номера при регистрации (ADR-0134): выбранное — открытое, года регистрации и с
+   * правом подшивать в него; не выбранное — единственное лучшее по типу и подразделению;
+   * `null` — без дела (тогда `{case.index}` берёт префикс журнала).
+   */
+  async forRegistration(
+    executor: Executor,
+    ctx: Ctx,
+    input: { typeId: string; unitId: string | null; date: string; caseId?: string | null },
+  ): Promise<{ id: string; index: string } | null> {
+    if (input.caseId === null) return null
+    const year = Number(input.date.slice(0, 4))
+    if (input.caseId === undefined) {
+      const ranked = await rankCases(executor, ctx, {
+        typeId: input.typeId,
+        unitId: input.unitId,
+        year,
+      })
+      const best = ranked.items.find((item) => item.id === ranked.suggestedId)
+      return best ? { id: best.id, index: best.index } : null
+    }
+    await authorize(ctx, 'file_in', input.caseId)
+    const row = await loadCase(executor, input.caseId)
+    if (!row) throw errors.notFound('Дело')
+    if (row.status !== 'open') {
+      throw errors.validation('Дело закрыто — выберите открытое дело номенклатуры', [
+        { path: 'caseId', message: 'closed' },
+      ])
+    }
+    if (row.year !== year) {
+      throw errors.validation(`Дело ${row.index} — номенклатуры ${row.year} года`, [
+        { path: 'caseId', message: 'year' },
+      ])
+    }
+    return { id: row.id, index: row.index }
   },
 
   /**

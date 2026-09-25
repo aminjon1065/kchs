@@ -287,7 +287,14 @@ export const JournalService = {
   async issue(
     tx: Executor,
     journal: JournalRow,
-    input: { date: string; format?: string | null; unitId?: string | null; reservationId?: string },
+    input: {
+      date: string
+      format?: string | null
+      unitId?: string | null
+      /** Индекс дела по номенклатуре для `{case.index}` (ADR-0134). */
+      caseIndex?: string | null
+      reservationId?: string
+    },
   ): Promise<IssuedNumber> {
     if (input.reservationId) {
       const [reservation] = await tx
@@ -329,11 +336,42 @@ export const JournalService = {
         sequence: counter.lastSeq,
         date: input.date,
         unitCode: code,
+        caseIndex: input.caseIndex ?? null,
       }),
       sequence: counter.lastSeq,
       year,
       reservationId: null,
     }
+  },
+
+  /**
+   * Каким будет следующий номер — без выдачи и блокировки счётчика (предпросмотр в диалоге
+   * регистрации, ADR-0134). Параллельная регистрация может занять его раньше.
+   */
+  async preview(
+    executor: Executor,
+    journal: JournalRow,
+    input: {
+      date: string
+      format?: string | null
+      unitId?: string | null
+      caseIndex?: string | null
+    },
+  ): Promise<string> {
+    const year = counterYear(journal.reset, input.date)
+    const [counter] = await executor
+      .select({ lastSeq: journalCounters.lastSeq })
+      .from(journalCounters)
+      .where(and(eq(journalCounters.journalId, journal.id), eq(journalCounters.year, year)))
+      .limit(1)
+    const code = (await unitCode(input.unitId ?? null)) ?? (await unitCode(journal.unitId))
+    return formatRegNumber(input.format ?? journal.format, {
+      prefix: journal.prefix,
+      sequence: (counter?.lastSeq ?? 0) + 1,
+      date: input.date,
+      unitCode: code,
+      caseIndex: input.caseIndex ?? null,
+    })
   },
 
   /** Отметка: номер из резерва выдан документу (в транзакции регистрации). */

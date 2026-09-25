@@ -10,13 +10,34 @@ import {
 } from '../../access/confidentiality.js'
 import { JournalCreateInput } from '../journal.js'
 import { canTransition, DOCUMENT_STATUSES, DOCUMENT_TRANSITIONS } from '../lifecycle.js'
-import { counterYear, formatRegNumber, numberFormatIssue } from '../numbering.js'
+import {
+  counterYear,
+  DEFAULT_NUMBER_FORMAT,
+  formatRegNumber,
+  numberFormatIssue,
+  usesCaseIndex,
+} from '../numbering.js'
 
 describe('нумерация журнала', () => {
   const parts = { prefix: 'ВХ', sequence: 7, date: '2026-09-19', unitCode: '01-15' }
 
-  it('шаблон по умолчанию: префикс, номер с нулями, две цифры года', () => {
+  it('прежний шаблон: префикс, номер с нулями, две цифры года', () => {
     expect(formatRegNumber('{prefix}-{seq:04}/{yy}', parts)).toBe('ВХ-0007/26')
+  })
+
+  it('по умолчанию — «подразделение-дело/номер»: индекс дела по номенклатуре', () => {
+    expect(DEFAULT_NUMBER_FORMAT).toBe('{case.index}/{seq}')
+    expect(
+      formatRegNumber(DEFAULT_NUMBER_FORMAT, { ...parts, sequence: 145, caseIndex: '03-12' }),
+    ).toBe('03-12/145')
+    // Дело не выбрано — префикс журнала: номер не рвётся
+    expect(formatRegNumber(DEFAULT_NUMBER_FORMAT, { ...parts, caseIndex: null })).toBe('ВХ/7')
+    expect(formatRegNumber(DEFAULT_NUMBER_FORMAT, { ...parts, prefix: '', caseIndex: null })).toBe(
+      '01-15/7',
+    )
+    expect(numberFormatIssue(DEFAULT_NUMBER_FORMAT)).toBeNull()
+    expect(usesCaseIndex(DEFAULT_NUMBER_FORMAT)).toBe(true)
+    expect(usesCaseIndex('{seq:03}-{prefix}/{yy}')).toBe(false)
   })
 
   it('полный год, месяц, индекс подразделения и номер без ширины', () => {
@@ -46,7 +67,7 @@ describe('нумерация журнала', () => {
     expect(JournalCreateInput.safeParse({ name: 'Входящие', format: '{prefix}' }).success).toBe(
       false,
     )
-    expect(JournalCreateInput.parse({ name: 'Входящие' }).format).toBe('{prefix}-{seq:04}/{yy}')
+    expect(JournalCreateInput.parse({ name: 'Входящие' }).format).toBe('{case.index}/{seq}')
   })
 
   it('год счётчика: сброс по году — год даты, без сброса — общий счётчик', () => {

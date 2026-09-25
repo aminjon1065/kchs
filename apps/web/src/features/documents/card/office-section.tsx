@@ -21,7 +21,17 @@ export function DocumentOfficeSection() {
     enabled: document.dispatchCount > 0,
   })
   const filed = document.case
-  if (!filed && dispatches.length === 0 && !document.filesDestroyedAt) return null
+  // Дело по номенклатуре из номера — пока документ не подшит (ADR-0134)
+  const planned = filed ? null : document.registrationCase
+  if (!filed && !planned && dispatches.length === 0 && !document.filesDestroyedAt) return null
+  const openCase = (item: { id: string; index: string; title: string }) =>
+    openTab({
+      kind: 'object',
+      objectId: item.id,
+      objectType: 'case',
+      title: `${item.index} · ${item.title}`,
+      mode: 'permanent',
+    })
 
   return (
     <>
@@ -43,15 +53,7 @@ export function DocumentOfficeSection() {
                 title: filed.title,
                 subtitle: `${filed.index} · ${filed.year}`,
               }}
-              onOpen={() =>
-                openTab({
-                  kind: 'object',
-                  objectId: filed.id,
-                  objectType: 'case',
-                  title: `${filed.index} · ${filed.title}`,
-                  mode: 'permanent',
-                })
-              }
+              onOpen={() => openCase(filed)}
             />
             {document.filedAt ? (
               <span className="text-xs text-fg-muted">
@@ -60,6 +62,27 @@ export function DocumentOfficeSection() {
                 })}
               </span>
             ) : null}
+          </div>
+        </section>
+      ) : null}
+      {planned ? (
+        <section className="rounded-lg border border-line bg-surface p-4">
+          <h2 className="mb-3 text-sm font-semibold text-fg">
+            {t('documents.office.registrationCase')}
+          </h2>
+          <div className="flex flex-wrap items-center gap-3">
+            <ObjectChip
+              object={{
+                id: planned.id,
+                type: 'case',
+                title: planned.title,
+                subtitle: `${planned.index} · ${planned.year}`,
+              }}
+              onOpen={() => openCase(planned)}
+            />
+            <span className="text-xs text-fg-muted">
+              {t('documents.office.registrationCaseHint')}
+            </span>
           </div>
         </section>
       ) : null}

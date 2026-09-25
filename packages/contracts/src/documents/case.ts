@@ -131,6 +131,12 @@ export const CaseSuggestion = CaseRef.extend({
 })
 export type CaseSuggestion = z.infer<typeof CaseSuggestion>
 
+/** Для чего подбирается дело: подшивка (любой год) или номер при регистрации (год регистрации). */
+export const CaseSuggestionsQuery = z.object({
+  purpose: z.enum(['filing', 'registration']).default('filing'),
+})
+export type CaseSuggestionsQuery = z.infer<typeof CaseSuggestionsQuery>
+
 /** Открытые дела для подшивки: сначала подходящие по типу и подразделению. */
 export const CaseSuggestions = z.object({
   items: z.array(CaseSuggestion),

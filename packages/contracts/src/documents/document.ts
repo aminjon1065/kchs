@@ -152,6 +152,8 @@ export const DocumentRecord = z.object({
   route: DocumentRouteBrief.nullable(),
   /** Дело номенклатуры, в которое подшит документ (ADR-0086). */
   case: CaseRef.nullable(),
+  /** Дело по номенклатуре, указанное при регистрации: индекс — в номере (ADR-0134). */
+  registrationCase: CaseRef.nullable(),
   filedAt: Timestamp.nullable(),
   /** Отметок об отправке исходящего. */
   dispatchCount: z.number().int(),
@@ -232,8 +234,30 @@ export type DocumentUpdateInput = z.infer<typeof DocumentUpdateInput>
 export const DocumentRegisterInput = z.object({
   journalId: Uuid.optional(),
   reservationId: Uuid.optional(),
+  /**
+   * Дело по номенклатуре — его индекс идёт в номер (`{case.index}`, ADR-0134). Не задано —
+   * дело подбирается по типу и подразделению документа, `null` — зарегистрировать без дела.
+   */
+  caseId: Uuid.nullable().optional(),
 })
 export type DocumentRegisterInput = z.infer<typeof DocumentRegisterInput>
+
+/** Каким будет номер при регистрации — без выдачи и резервирования (ADR-0134). */
+export const DocumentNumberPreviewQuery = z.object({
+  journalId: Uuid.optional(),
+  /** Дело по номенклатуре; `none` — без дела; не задано — подбор по типу и подразделению. */
+  caseId: z.union([Uuid, z.literal('none')]).optional(),
+})
+export type DocumentNumberPreviewQuery = z.infer<typeof DocumentNumberPreviewQuery>
+
+export const DocumentNumberPreview = z.object({
+  number: z.string(),
+  /** В формате журнала есть индекс дела — при регистрации выбирается дело. */
+  usesCase: z.boolean(),
+  /** Дело, с которым посчитан номер (выбранное или подобранное). */
+  caseId: Uuid.nullable(),
+})
+export type DocumentNumberPreview = z.infer<typeof DocumentNumberPreview>
 
 /** Аннулирование — со способностью и обоснованием (08-documents.md §3). */
 export const DocumentCancelInput = z.object({

@@ -230,6 +230,11 @@ export const documents = pgTable(
     currentVersionId: uuid('current_version_id'),
     /** Дело номенклатуры (08-documents.md §12, ADR-0086). */
     caseId: uuid('case_id').references(() => cases.id, { onDelete: 'set null' }),
+    /**
+     * Дело по номенклатуре, указанное при регистрации: его индекс — в номере, подшивка
+     * предлагает его первым (ADR-0134). Отдельно от `case_id`: подшит документ позже.
+     */
+    regCaseId: uuid('reg_case_id').references(() => cases.id, { onDelete: 'set null' }),
     filedAt: tsCol('filed_at'),
     filedBy: uuid('filed_by').references(() => users.id, { onDelete: 'set null' }),
     /** Файлы версий уничтожены по акту — карточка осталась описью (ADR-0086). */

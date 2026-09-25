@@ -7,6 +7,7 @@ import {
   CaseListQuery,
   CaseRecord,
   CaseSuggestions,
+  CaseSuggestionsQuery,
   CaseUpdateInput,
   CorrespondenceChain,
   CorrespondentInput,
@@ -21,6 +22,8 @@ import {
   DocumentDispatchInput,
   DocumentDispatchList,
   DocumentFileInput,
+  DocumentNumberPreview,
+  DocumentNumberPreviewQuery,
   DocumentPdfResult,
   DocumentRecord,
   DocumentRegisterInput,
@@ -148,6 +151,21 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
       )
       return DocumentService.get(request.ctx, request.params.id)
     },
+  })
+
+  route({
+    method: 'GET',
+    url: '/documents/:id/number-preview',
+    auth: 'session',
+    tags: ['documents'],
+    summary: 'Каким будет номер при регистрации: журнал и дело по номенклатуре, без выдачи',
+    schema: {
+      params: IdParam,
+      querystring: DocumentNumberPreviewQuery,
+      response: { 200: DocumentNumberPreview },
+    },
+    handler: async (request) =>
+      DocumentService.previewNumber(request.ctx, request.params.id, request.query),
   })
 
   route({
@@ -436,9 +454,15 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
     url: '/documents/:id/cases',
     auth: 'session',
     tags: ['documents'],
-    summary: 'Открытые дела для подшивки документа — подходящие по типу и подразделению',
-    schema: { params: IdParam, response: { 200: CaseSuggestions } },
-    handler: async (request) => CaseService.suggest(request.ctx, request.params.id),
+    summary:
+      'Открытые дела для подшивки документа или номера при регистрации — подходящие по типу и подразделению',
+    schema: {
+      params: IdParam,
+      querystring: CaseSuggestionsQuery,
+      response: { 200: CaseSuggestions },
+    },
+    handler: async (request) =>
+      CaseService.suggest(request.ctx, request.params.id, request.query.purpose),
   })
 
   route({

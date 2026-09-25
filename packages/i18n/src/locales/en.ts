@@ -1612,9 +1612,16 @@ export const en: DeepPartial<Dictionary> = {
       fixFields: 'Check the required fields of the card',
       noType: 'There are no incoming document types',
       nextNumber: 'Next number: {number}',
+      numberPreview: 'The number will be: {number}',
       reservation: 'Reserved number',
       reservationHint: 'For a paper document whose number was issued in advance',
       noReservation: 'New number',
+      case: 'File per nomenclature',
+      caseHint: 'The file index goes into the number; suggested by document type and unit',
+      noCase: 'No file',
+      noCases:
+        'There are no open nomenclature files for this year — the number will have no file index',
+      reservationCase: 'A reserved number was issued in advance and has no file index',
     },
     cancel: {
       title: 'Cancel document',
@@ -1688,6 +1695,8 @@ export const en: DeepPartial<Dictionary> = {
       title: 'Records management',
       case: 'Case file',
       filedAt: 'Filed {date}',
+      registrationCase: 'File per nomenclature',
+      registrationCaseHint: 'Set at registration: the document is filed into it once executed',
       dispatches: 'Dispatch',
       filesDestroyed: 'Files destroyed',
       filesDestroyedHint:
@@ -1962,7 +1971,8 @@ export const en: DeepPartial<Dictionary> = {
       name: 'Name',
       prefix: 'Prefix',
       format: 'Number template',
-      formatHint: 'Placeholders: {prefix}, {seq:04}, {yy}, {yyyy}, {unit.code}',
+      formatHint:
+        'Placeholders: {case.index} — nomenclature file index (chosen at registration), {prefix}, {seq:04}, {yy}, {yyyy}, {unit.code}',
       formatIssues: {
         empty: 'The template is empty',
         too_long: 'The template is too long',

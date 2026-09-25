@@ -5,6 +5,8 @@ import {
   type DocumentCancelInput,
   type DocumentControl,
   type DocumentCreateInput,
+  type DocumentNumberPreview,
+  type DocumentNumberPreviewQuery,
   type DocumentRecord,
   type DocumentRegisterInput,
   type DocumentStatus,
@@ -15,6 +17,7 @@ import {
   levelValue,
   parseConfidentiality,
   type UserRef,
+  usesCaseIndex,
   withinClearance,
 } from '@kchs/contracts'
 import { and, eq, sql } from 'drizzle-orm'
@@ -82,6 +85,7 @@ const COLUMNS = {
   cancelledAt: documents.cancelledAt,
   cancelReason: documents.cancelReason,
   caseId: documents.caseId,
+  regCaseId: documents.regCaseId,
   filedAt: documents.filedAt,
   filesDestroyedAt: documents.filesDestroyedAt,
   spaceId: objects.spaceId,
@@ -366,7 +370,10 @@ export const DocumentService = {
       DocumentVersionService.count(db(), row.id),
       activeRoute(db(), row.id),
       ProcessDefinitions.published(db(), 'document'),
-      CaseService.refs(db(), row.caseId ? [row.caseId] : []),
+      CaseService.refs(
+        db(),
+        [row.caseId, row.regCaseId].filter((id): id is string => id !== null),
+      ),
       db()
         .select({ total: sql<number>`count(*)::int` })
         .from(documentDispatches)
@@ -425,6 +432,7 @@ export const DocumentService = {
       cancelledAt: row.cancelledAt,
       route,
       case: row.caseId ? (caseRefs.get(row.caseId) ?? null) : null,
+      registrationCase: row.regCaseId ? (caseRefs.get(row.regCaseId) ?? null) : null,
       filedAt: row.filedAt,
       dispatchCount: dispatches[0]?.total ?? 0,
       filesDestroyedAt: row.filesDestroyedAt,
@@ -588,6 +596,50 @@ export const DocumentService = {
   },
 
   /**
+   * Каким будет номер при регистрации (ADR-0134): журнал типа или выбранный, дело —
+   * выбранное, подобранное по типу и подразделению или «без дела». Номер не выдаётся.
+   */
+  async previewNumber(
+    ctx: UserCtx,
+    id: string,
+    query: DocumentNumberPreviewQuery,
+  ): Promise<DocumentNumberPreview> {
+    await authorize(ctx, 'view', id)
+    const row = await loadRow(db(), id)
+    if (!row) throw errors.notFound('Документ')
+    const type = await DocumentTypeService.load(db(), row.typeId)
+    if (!type) throw errors.notFound('Тип документа')
+    const journalId = query.journalId ?? type.numbering.journalId
+    if (!journalId) {
+      throw errors.validation('У типа документа нет журнала — выберите журнал', [
+        { path: 'journalId', message: 'required' },
+      ])
+    }
+    const journal = await JournalService.load(db(), journalId)
+    if (!journal) throw errors.notFound('Журнал')
+    const date = todayLocal()
+    const format = type.numbering.format ?? journal.format
+    const uses = usesCaseIndex(format)
+    const caseId = query.caseId === 'none' ? null : query.caseId
+    const regCase =
+      uses || caseId
+        ? await CaseService.forRegistration(db(), ctx, {
+            typeId: type.id,
+            unitId: row.unitId,
+            date,
+            ...(caseId !== undefined ? { caseId } : {}),
+          })
+        : null
+    const number = await JournalService.preview(db(), journal, {
+      date,
+      format,
+      unitId: row.unitId,
+      caseIndex: regCase?.index ?? null,
+    })
+    return { number, usesCase: uses, caseId: regCase?.id ?? null }
+  },
+
+  /**
    * Регистрация (08-documents.md §5): реквизиты и поля типа заполнены, скан на
    * месте (правило типа), номер из журнала — в транзакции с блокировкой
    * счётчика или из резерва; документ ложится в журнал (его делопроизводители
@@ -659,10 +711,23 @@ export const DocumentService = {
     }
 
     const date = options.date ?? todayLocal()
+    // Дело по номенклатуре: индекс — в номер (ADR-0134); выбранное — проверяется,
+    // не выбранное — подбирается по типу и подразделению, если формат его просит
+    const format = type.numbering.format ?? journal.format
+    const regCase =
+      usesCaseIndex(format) || input.caseId
+        ? await CaseService.forRegistration(tx, ctx, {
+            typeId: type.id,
+            unitId: row.unitId,
+            date,
+            ...(input.caseId !== undefined ? { caseId: input.caseId } : {}),
+          })
+        : null
     const issued = await JournalService.issue(tx, journal, {
       date,
       format: type.numbering.format,
       unitId: row.unitId,
+      caseIndex: regCase?.index ?? null,
       ...(input.reservationId ? { reservationId: input.reservationId } : {}),
     })
     if (issued.reservationId) await JournalService.useReservation(tx, issued.reservationId, id)
@@ -694,7 +759,14 @@ export const DocumentService = {
       row.control === 'none' && type.settings.autoControl && deadline ? 'on' : row.control
     await tx
       .update(documents)
-      .set({ regNumber: issued.number, regDate: date, journalId, deadline, control })
+      .set({
+        regNumber: issued.number,
+        regDate: date,
+        journalId,
+        deadline,
+        control,
+        regCaseId: regCase?.id ?? null,
+      })
       .where(eq(documents.id, id))
     await applyTransition(tx, ctx, id, { to: 'registered', cause: 'register' })
 

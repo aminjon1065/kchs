@@ -420,7 +420,7 @@ describe('маршрут исходящего письма (сценарий ф�
     expect(registered.statusCode, registered.body).toBe(200)
     card = await getDocument(people.author, doc.id)
     expect(card.status).toBe('registered')
-    expect(card.regNumber).toMatch(/^ИСХ-\d{4}\/\d{2}$/)
+    expect(card.regNumber).toMatch(/^ИСХ\/\d+$/)
     expect(card.registration.registeredBy.id).toBe(people.registrar.id)
     expect(card.route).toBeNull()
     view = await route(fx, people.author, instanceId)
@@ -492,7 +492,7 @@ describe('подпись без согласования и автоматиче
     expect((await actInbox(fx, people.boss, item?.id ?? '', 'sign')).statusCode).toBe(200)
     const card = await getDocument(people.author, doc.id)
     expect(card.status).toBe('registered')
-    expect(card.regNumber).toMatch(/^ВН-\d{4}\/\d{2}$/)
+    expect(card.regNumber).toMatch(/^ВН\/\d+$/)
     expect(await statusHistory(doc.id)).toEqual(['on_signing', 'signed', 'registered'])
   })
 

@@ -169,7 +169,9 @@ describe('справочники стартового набора', () => {
     const inbound = items.find((item) => item.name === 'Входящие')
     // Роль «Делопроизводитель» ведёт и журналы (documents.journals.manage)
     expect(inbound).toMatchObject({ canRegister: true, canManage: true })
-    expect(inbound?.nextNumber).toMatch(/^ВХ-0001\/\d{2}$/)
+    // Номер по умолчанию — «подразделение-дело/номер» (ADR-0134); номенклатуры в базе
+    // тестов нет, поэтому индекс дела заменяет префикс журнала
+    expect(inbound?.nextNumber).toBe('ВХ/1')
     const adminJournals = await call(fx.app, { url: '/journals', as: fx.admin })
     expect(
       (adminJournals.json().items as Array<{ canManage: boolean }>).every((j) => j.canManage),
@@ -187,7 +189,7 @@ describe('регистрация входящего', () => {
     expect(registered.statusCode, registered.body).toBe(200)
     const body = registered.json() as DocumentBody
     expect(body.status).toBe('registered')
-    expect(body.regNumber).toMatch(/^ВХ-0001\/\d{2}$/)
+    expect(body.regNumber).toBe('ВХ/1')
     expect(body.registration).toMatchObject({ journalName: 'Входящие', sequence: 1 })
     expect(body.can.register).toBe(false)
 
@@ -240,7 +242,7 @@ describe('регистрация входящего', () => {
     })
     expect(reserved.statusCode, reserved.body).toBe(200)
     const [first, second] = reserved.json().items as Array<{ id: string; number: string }>
-    expect(first?.number).toMatch(/^ВН-\d{4}\/\d{2}$/)
+    expect(first?.number).toMatch(/^ВН\/\d+$/)
 
     const paper = await createDraft(registrar, 'memo', { subject: `Бумажный ${run}` })
     const registered = await register(registrar, paper.id, { reservationId: first!.id })

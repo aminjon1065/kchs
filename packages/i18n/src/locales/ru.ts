@@ -1640,9 +1640,15 @@ export const ru = {
       fixFields: 'Проверьте обязательные поля карточки',
       noType: 'Нет типов входящих документов',
       nextNumber: 'Следующий номер: {number}',
+      numberPreview: 'Номер будет: {number}',
       reservation: 'Номер из резерва',
       reservationHint: 'Для бумажного документа, номер которого выдан заранее',
       noReservation: 'Новый номер',
+      case: 'Дело по номенклатуре',
+      caseHint: 'Индекс дела идёт в номер; подобрано по типу документа и подразделению',
+      noCase: 'Без дела',
+      noCases: 'Открытых дел номенклатуры этого года нет — номер будет без индекса дела',
+      reservationCase: 'Номер из резерва выдан заранее и индекса дела не содержит',
     },
     cancel: {
       title: 'Аннулировать документ',
@@ -1717,6 +1723,8 @@ export const ru = {
       title: 'Делопроизводство',
       case: 'Дело',
       filedAt: 'Подшит {date}',
+      registrationCase: 'Дело по номенклатуре',
+      registrationCaseHint: 'Указано при регистрации: после исполнения документ подшивается в него',
       dispatches: 'Отправка',
       filesDestroyed: 'Файлы уничтожены',
       filesDestroyedHint:
@@ -1994,7 +2002,8 @@ export const ru = {
       name: 'Название',
       prefix: 'Префикс',
       format: 'Шаблон номера',
-      formatHint: 'Подстановки: {prefix}, {seq:04}, {yy}, {yyyy}, {unit.code}',
+      formatHint:
+        'Подстановки: {case.index} — индекс дела по номенклатуре (выбирается при регистрации), {prefix}, {seq:04}, {yy}, {yyyy}, {unit.code}',
       formatIssues: {
         empty: 'Шаблон не задан',
         too_long: 'Шаблон слишком длинный',

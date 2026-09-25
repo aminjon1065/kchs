@@ -1,8 +1,9 @@
-import type {
-  DocumentDirection,
-  DocumentTypeCreateInput,
-  FieldDef,
-  LangText,
+import {
+  DEFAULT_NUMBER_FORMAT,
+  type DocumentDirection,
+  type DocumentTypeCreateInput,
+  type FieldDef,
+  type LangText,
 } from '@kchs/contracts'
 import { eq } from 'drizzle-orm'
 import { putObject } from '~/kernel/storage/s3.js'
@@ -26,7 +27,11 @@ interface StarterJournal {
   format?: string
 }
 
-/** Стартовые журналы (08-documents.md §5): входящие, исходящие, внутренние, приказы… */
+/**
+ * Стартовые журналы (08-documents.md §5): входящие, исходящие, внутренние, приказы… Номер по
+ * умолчанию — «подразделение-дело/номер» (`03-12/145`, ADR-0134); приказы и распоряжения
+ * по традиции нумеруются по порядку в году (`001-ПР/26`).
+ */
 const JOURNALS: StarterJournal[] = [
   { key: 'incoming', name: 'Входящие', prefix: 'ВХ' },
   { key: 'outgoing', name: 'Исходящие', prefix: 'ИСХ' },
@@ -290,7 +295,7 @@ export async function ensureStarterSet(
       JournalService.create(tx, ctx, {
         name: journal.name,
         prefix: journal.prefix,
-        format: journal.format ?? '{prefix}-{seq:04}/{yy}',
+        format: journal.format ?? DEFAULT_NUMBER_FORMAT,
         reset: 'year',
         unitId: options.unitId ?? null,
         typeIds: [],

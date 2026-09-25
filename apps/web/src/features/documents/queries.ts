@@ -8,6 +8,7 @@ import type {
   CorrespondentRecord,
   DestructionActList,
   DocumentDispatchList,
+  DocumentNumberPreview,
   DocumentRecord,
   DocumentResolutions,
   DocumentRouteOptions,
@@ -47,7 +48,10 @@ export const documentKeys = {
   // Дела и переписка (ADR-0086)
   cases: (query: CaseListQuery) => ['documents', 'cases', query] as const,
   case: (id: string) => ['object', id, 'case'] as const,
-  caseSuggestions: (id: string) => ['object', id, 'case-suggestions'] as const,
+  caseSuggestions: (id: string, purpose: 'filing' | 'registration' = 'filing') =>
+    ['object', id, 'case-suggestions', purpose] as const,
+  numberPreview: (id: string, journalId: string, caseId: string) =>
+    ['object', id, 'number-preview', journalId, caseId] as const,
   dispatches: (id: string) => ['object', id, 'dispatches'] as const,
   correspondence: (id: string) => ['object', id, 'correspondence'] as const,
   destructionActs: ['documents', 'destruction-acts'] as const,
@@ -187,10 +191,24 @@ export const caseQuery = (id: string) =>
     queryFn: () => http.get<CaseRecord>(`/cases/${id}`),
   })
 
-export const caseSuggestionsQuery = (documentId: string) =>
+export const caseSuggestionsQuery = (
+  documentId: string,
+  purpose: 'filing' | 'registration' = 'filing',
+) =>
   queryOptions({
-    queryKey: documentKeys.caseSuggestions(documentId),
-    queryFn: () => http.get<CaseSuggestions>(`/documents/${documentId}/cases`),
+    queryKey: documentKeys.caseSuggestions(documentId, purpose),
+    queryFn: () =>
+      http.get<CaseSuggestions>(`/documents/${documentId}/cases`, { query: { purpose } }),
+  })
+
+/** Каким будет номер при регистрации: журнал и дело (`none` — без дела, `auto` — подбор). */
+export const numberPreviewQuery = (documentId: string, journalId: string, caseId: string) =>
+  queryOptions({
+    queryKey: documentKeys.numberPreview(documentId, journalId, caseId),
+    queryFn: () =>
+      http.get<DocumentNumberPreview>(`/documents/${documentId}/number-preview`, {
+        query: { journalId, ...(caseId === 'auto' ? {} : { caseId }) },
+      }),
   })
 
 export const dispatchesQuery = (documentId: string) =>

@@ -5,14 +5,20 @@
  *  - `{seq}` / `{seq:N}` — порядковый номер в журнале (N — ширина с нулями, 1…9), ровно один раз;
  *  - `{prefix}` — префикс журнала;
  *  - `{yy}`, `{yyyy}`, `{mm}` — год и месяц даты регистрации;
- *  - `{unit.code}` — индекс подразделения документа (без него — журнала).
+ *  - `{unit.code}` — индекс подразделения документа (без него — журнала);
+ *  - `{case.index}` — индекс дела по номенклатуре, выбранного при регистрации: он уже
+ *    содержит индекс подразделения («03-12» — подразделение 03, дело 12, ADR-0134). Дело не
+ *    выбрано — префикс журнала, чтобы номер не рвался.
  *
  * Чистые функции: сервер выдаёт номер, клиент показывает предпросмотр.
  */
-export const DEFAULT_NUMBER_FORMAT = '{prefix}-{seq:04}/{yy}'
+/** Номер по умолчанию — «подразделение-дело/номер» (`03-12/145`, ADR-0134). */
+export const DEFAULT_NUMBER_FORMAT = '{case.index}/{seq}'
+/** Прежний формат по умолчанию: стартовые журналы до ADR-0134. */
+export const LEGACY_NUMBER_FORMAT = '{prefix}-{seq:04}/{yy}'
 
 const TOKEN = /\{([a-z.]+)(?::(0?[1-9]))?\}/g
-const KNOWN = new Set(['prefix', 'seq', 'yy', 'yyyy', 'mm', 'unit.code'])
+const KNOWN = new Set(['prefix', 'seq', 'yy', 'yyyy', 'mm', 'unit.code', 'case.index'])
 const MAX_FORMAT = 64
 
 export interface NumberParts {
@@ -21,6 +27,8 @@ export interface NumberParts {
   /** Дата регистрации (локальная дата организации) в виде YYYY-MM-DD. */
   date: string
   unitCode: string | null
+  /** Индекс дела по номенклатуре, выбранного при регистрации. */
+  caseIndex?: string | null
 }
 
 export type NumberFormatIssue = 'empty' | 'too_long' | 'unknown_token' | 'no_seq' | 'many_seq'
@@ -61,10 +69,17 @@ export function formatRegNumber(format: string, parts: NumberParts): string {
         return month
       case 'unit.code':
         return parts.unitCode ?? ''
+      case 'case.index':
+        return parts.caseIndex || parts.prefix || parts.unitCode || ''
       default:
         return ''
     }
   })
+}
+
+/** Номер строится с индексом дела: при регистрации выбирается дело номенклатуры. */
+export function usesCaseIndex(format: string): boolean {
+  return format.includes('{case.index}')
 }
 
 /** Год счётчика: сброс по году — год даты регистрации, «никогда» — общий счётчик 0. */
