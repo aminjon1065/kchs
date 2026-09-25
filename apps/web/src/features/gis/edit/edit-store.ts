@@ -43,6 +43,10 @@ export interface EditState {
   /** Панель: вкладка, которую нужно открыть (после выбора объекта — «Объект»). */
   tab: 'feature' | 'history' | 'edits'
   controller: DrawController | null
+  /** Прежние состояния черновика — «Отменить» (ADR-0160); сбрасываются новым объектом. */
+  past: Array<FeatureGeometry | null>
+  /** Отменённые состояния — «Повторить»; новая правка их забывает. */
+  future: Array<FeatureGeometry | null>
 }
 
 interface EditActions {
@@ -59,6 +63,9 @@ interface EditActions {
   /** Отменить черновик: объект не выбран, инструмент — выбор. */
   discard: () => void
   setGeometry: (geometry: FeatureGeometry | null) => void
+  /** Шаг назад или вперёд по истории черновика; undefined — шагать некуда. */
+  undo: () => FeatureGeometry | null | undefined
+  redo: () => FeatureGeometry | null | undefined
   setValues: (values: Record<string, unknown>, auto?: boolean) => void
   setGhost: (ghost: Ghost | null) => void
   setTab: (tab: EditState['tab']) => void
@@ -67,7 +74,12 @@ interface EditActions {
 
 export type EditStore = EditState & EditActions
 
+/** Шагов отмены в черновике — больше не хранится. */
+const HISTORY_LIMIT = 50
+
 const IDLE: Omit<EditState, 'layerId' | 'snapping' | 'controller'> = {
+  past: [],
+  future: [],
   tool: 'select',
   target: null,
   geometry: null,
@@ -79,7 +91,7 @@ const IDLE: Omit<EditState, 'layerId' | 'snapping' | 'controller'> = {
 }
 
 function createEditStore() {
-  return create<EditStore>((set) => ({
+  return create<EditStore>((set, get) => ({
     ...IDLE,
     layerId: null,
     snapping: true,
@@ -98,9 +110,34 @@ function createEditStore() {
         tool: 'select',
         ghost: null,
         tab: 'feature',
+        past: [],
+        future: [],
       }),
     discard: () => set({ ...IDLE }),
-    setGeometry: (geometry) => set({ geometry }),
+    setGeometry: (geometry) =>
+      set((state) =>
+        JSON.stringify(state.geometry) === JSON.stringify(geometry)
+          ? {}
+          : {
+              geometry,
+              past: [...state.past, state.geometry].slice(-HISTORY_LIMIT),
+              future: [],
+            },
+      ),
+    undo: () => {
+      const { past, future, geometry } = get()
+      if (past.length === 0) return undefined
+      const previous = past[past.length - 1] ?? null
+      set({ geometry: previous, past: past.slice(0, -1), future: [geometry, ...future] })
+      return previous
+    },
+    redo: () => {
+      const { past, future, geometry } = get()
+      if (future.length === 0) return undefined
+      const next = future[0] ?? null
+      set({ geometry: next, past: [...past, geometry], future: future.slice(1) })
+      return next
+    },
     setValues: (values, auto) =>
       set((state) => ({ values, autoTerritory: auto ?? state.autoTerritory })),
     setGhost: (ghost) => set({ ghost }),

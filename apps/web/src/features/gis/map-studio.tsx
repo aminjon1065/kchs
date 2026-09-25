@@ -25,14 +25,16 @@ import { useEffect, useMemo, useState } from 'react'
 import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
 import { ShareDialog } from '~/features/access/share-dialog.js'
+import { ImportWizard } from '~/features/data/import-wizard.js'
 import { PresenceAvatars } from '~/features/objects/presence-avatars.js'
 import { ApiError, http } from '~/shared/api/client.js'
-import { keys, objectQuery } from '~/shared/api/queries.js'
+import { keys, meQuery, objectQuery } from '~/shared/api/queries.js'
 import { AddLayerDialog } from './add-layer-dialog.js'
 import { basemapsQuery, registerPmtilesProtocol, useBasemapStyle } from './basemaps.js'
 import { FeatureCard } from './feature-card.js'
 import { LayerPanel, type PanelLayer } from './layer-panel.js'
 import { layerSourceId, type RenderEntry, useRenderedLayers } from './layer-render.js'
+import { MapExportDialog } from './map-export-dialog.js'
 import { gisKeys, gisRenderSettingsQuery, layerQuery, mapQuery } from './queries.js'
 import { serviceLayersQuery } from './service-layers.js'
 import { serviceEntries, useServiceLayers } from './service-render.js'
@@ -128,6 +130,8 @@ export function MapStudio({
   const [styleDrafts, setStyleDrafts] = useState<Record<string, LayerStyle>>({})
   const [instance, setInstance] = useState<MapInstance | null>(null)
   const [adding, setAdding] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
 
@@ -201,6 +205,8 @@ export function MapStudio({
 
   const level = object?.level ?? 'view'
   const canEdit = ['edit', 'manage', 'owner'].includes(level)
+  const { data: me } = useQuery(meQuery())
+  const canExport = me?.capabilities.includes('data.export') ?? false
   const canManage = ['manage', 'owner'].includes(level)
 
   const edit = (change: (spec: MapSpec) => MapSpec) => {
@@ -214,6 +220,48 @@ export function MapStudio({
         entry.layerId === layerId ? { ...entry, ...patch } : entry,
       ),
     }))
+
+  /**
+   * Группа слоя (ADR-0160): слой встаёт поверх остальных слоёв группы, чтобы
+   * группа оставалась одним узлом дерева; без группы — остаётся на месте.
+   */
+  const groupEntry = (layerId: string, group: string | null) =>
+    edit((value) => {
+      const layers = value.layers.filter((entry) => entry.layerId !== layerId)
+      const entry = value.layers.find((item) => item.layerId === layerId)
+      if (!entry) return value
+      const moved = { ...entry, group }
+      const lastMember = group ? layers.map((item) => item.group).lastIndexOf(group) : -1
+      if (lastMember >= 0) layers.splice(lastMember + 1, 0, moved)
+      else layers.splice(value.layers.indexOf(entry), 0, moved)
+      return { ...value, layers }
+    })
+
+  /** Файл геоданных на карту: импорт уже создал датасет — слой со стилем по умолчанию. */
+  const addFileLayer = useMutation({
+    mutationFn: async ({ datasetId, name }: { datasetId: string; name: string }) => {
+      const created = await http.post<{ id: string }>('/gis/layers', {
+        name,
+        spaceId: map?.spaceId,
+        datasetId,
+      })
+      return { id: created.id, name }
+    },
+    onSuccess: async ({ id, name }) => {
+      edit((value) => ({
+        ...value,
+        layers: [...value.layers, { layerId: id, visible: true, opacity: 1, group: null }],
+      }))
+      toast.show({ title: t('gis.map.fileImport.added', { name }), tone: 'success' })
+      const layer = await client.fetchQuery(layerQuery(id)).catch(() => null)
+      if (layer?.extent) setFit({ bbox: layer.extent, key: Date.now() })
+    },
+    onError: (failure) =>
+      toast.show({
+        title: failure instanceof ApiError ? failure.message : t('errors.unknown'),
+        tone: 'danger',
+      }),
+  })
 
   const save = useMutation({
     mutationFn: () =>
@@ -478,6 +526,17 @@ export function MapStudio({
                 setAttributesOpen(true)
               }}
               onAdd={() => setAdding(true)}
+              onGroup={groupEntry}
+              onToggleGroup={(group, visible) =>
+                edit((value) => ({
+                  ...value,
+                  layers: value.layers.map((entry) =>
+                    entry.group === group ? { ...entry, visible } : entry,
+                  ),
+                }))
+              }
+              onAddFile={() => setImporting(true)}
+              onExport={canExport ? () => setExporting(true) : undefined}
               services={current?.services ?? []}
               serviceCatalog={serviceList?.items ?? []}
               onToggleService={(serviceId, visible) =>
@@ -576,6 +635,22 @@ export function MapStudio({
               }))
             }
             onClose={() => setAdding(false)}
+          />
+        ) : null}
+        {importing ? (
+          <ImportWizard
+            spaceId={map.spaceId}
+            openLabel={t('gis.map.fileImport.addToMap')}
+            onImported={(datasetId, name) => addFileLayer.mutate({ datasetId, name })}
+            onClose={() => setImporting(false)}
+          />
+        ) : null}
+        {exporting ? (
+          <MapExportDialog
+            layers={panelLayers.flatMap(({ entry, layer }) =>
+              entry.visible && layer?.dataAccess ? [layer] : [],
+            )}
+            onClose={() => setExporting(false)}
           />
         ) : null}
         <ShareDialog

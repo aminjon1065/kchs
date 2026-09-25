@@ -23,7 +23,9 @@ import {
   MousePointer2,
   PencilLine,
   Pentagon,
+  Redo2,
   Spline,
+  Undo2,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useT } from '~/app/i18n.js'
@@ -107,6 +109,8 @@ export function EditTools() {
   const snapping = useSession((s) => s.snapping)
   const ghost = useSession((s) => s.ghost)
   const controller = useSession((s) => s.controller)
+  const canUndo = useSession((s) => s.past.length > 0)
+  const canRedo = useSession((s) => s.future.length > 0)
   const [coordinates, setCoordinates] = useState<DrawKind | null>(null)
   const [leaving, setLeaving] = useState(false)
   const [locating, setLocating] = useState(false)
@@ -134,6 +138,37 @@ export function EditTools() {
 
   useGhostOverlay(map, ghost)
   useEditLayersOnTop(map, layerId !== null)
+
+  /** Шаг по истории черновика (ADR-0160): геометрия — в хранилище и в terra-draw. */
+  const stepHistory = (direction: 'undo' | 'redo') => {
+    const state = useSession.getState()
+    if (state.target?.geometryLocked) return
+    const next = direction === 'undo' ? state.undo() : state.redo()
+    if (next === undefined) return
+    state.controller?.load(next ? splitParts(next) : [])
+  }
+  const stepRef = useRef(stepHistory)
+  stepRef.current = stepHistory
+
+  // ⌘Z / Ctrl+Z — отменить, ⇧⌘Z / Ctrl+Y — повторить; в полях формы — их собственная отмена
+  useEffect(() => {
+    if (!layerId || !target) return
+    const onKey = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || event.altKey) return
+      const element = event.target as HTMLElement | null
+      if (element?.closest('input, textarea, select, [contenteditable="true"]')) return
+      const key = event.key.toLowerCase()
+      if (key === 'z') {
+        event.preventDefault()
+        stepRef.current(event.shiftKey ? 'redo' : 'undo')
+      } else if (key === 'y') {
+        event.preventDefault()
+        stepRef.current('redo')
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [layerId, target])
 
   // Студия закрыта — сеанс правки забыт
   useEffect(
@@ -496,6 +531,21 @@ export function EditTools() {
       </IconButton>
       <IconButton label={t('gis.edit.tools.gps')} disabled={locating} onClick={() => void gps()}>
         <LocateFixed className="size-4" aria-hidden />
+      </IconButton>
+      <Separator orientation="vertical" className="mx-0.5 h-5" />
+      <IconButton
+        label={t('gis.edit.tools.undo')}
+        disabled={!canUndo || target?.geometryLocked === true}
+        onClick={() => stepHistory('undo')}
+      >
+        <Undo2 className="size-4" aria-hidden />
+      </IconButton>
+      <IconButton
+        label={t('gis.edit.tools.redo')}
+        disabled={!canRedo || target?.geometryLocked === true}
+        onClick={() => stepHistory('redo')}
+      >
+        <Redo2 className="size-4" aria-hidden />
       </IconButton>
       <Separator orientation="vertical" className="mx-0.5 h-5" />
       <Button

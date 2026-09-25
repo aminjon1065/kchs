@@ -2558,6 +2558,29 @@ export const en: DeepPartial<Dictionary> = {
 
   gis: {
     map: {
+      groups: {
+        assign: 'Group…',
+        title: 'Group of layer «{name}»',
+        name: 'Group name',
+        hint: 'Layers of one group stay together in the tree and are switched on with one checkbox.',
+        ungroup: 'Remove from group',
+        toggle: 'Show group «{name}»',
+        collapse: 'Collapse group «{name}»',
+        expand: 'Expand group «{name}»',
+      },
+      fileImport: {
+        action: 'Add a geodata file to the map',
+        addToMap: 'Add to map',
+        added: 'Layer «{name}» is on the map — save the map',
+      },
+      export: {
+        action: 'Export layers to geoformats',
+        title: 'Export visible layers',
+        layers: 'Layers',
+        noLayers: 'No visible layers with data access',
+        hint: 'One file per layer: rows follow the layer filter and your rights; the file is kept for 30 days.',
+        downloadLayer: 'Download «{name}»',
+      },
       layers: 'Layers',
       services: 'External services',
       addService: 'Add service',
@@ -2899,6 +2922,8 @@ export const en: DeepPartial<Dictionary> = {
       leaveBody: 'Unsaved changes to the feature will be lost.',
       leaveConfirm: 'Leave without saving',
       tools: {
+        undo: 'Undo geometry edit (⌘Z)',
+        redo: 'Redo geometry edit (⇧⌘Z)',
         select: 'Select a feature',
         point: 'Point',
         line: 'Line',

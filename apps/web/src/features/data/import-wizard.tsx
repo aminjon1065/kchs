@@ -83,13 +83,26 @@ export interface ImportWizardProps {
   initialFile?: File | null
   /** Импорт в существующий датасет (из его экрана). */
   dataset?: DatasetRecord
+  /**
+   * Новый датасет загружен — вместо «Открыть датасет» (файл сразу на карту,
+   * ADR-0160: вызывающий создаёт слой). Подпись кнопки итога — `openLabel`.
+   */
+  onImported?: (datasetId: string, name: string) => void
+  openLabel?: string
 }
 
 /**
  * Мастер импорта (03-screens.md §6): Файл → Структура → Сопоставление →
  * Проверка и запуск; затем ход выполнения и итог с кнопкой «Открыть».
  */
-export function ImportWizard({ onClose, spaceId, initialFile, dataset }: ImportWizardProps) {
+export function ImportWizard({
+  onClose,
+  spaceId,
+  initialFile,
+  dataset,
+  onImported,
+  openLabel,
+}: ImportWizardProps) {
   const t = useT()
   const client = useQueryClient()
   const openTab = useWorkspace((s) => s.openTab)
@@ -225,7 +238,13 @@ export function ImportWizard({ onClose, spaceId, initialFile, dataset }: ImportW
           <ImportProgress
             importId={importId}
             dataset={dataset}
+            openLabel={openLabel}
             onOpen={(datasetId) => {
+              if (onImported) {
+                onImported(datasetId, dataset?.name ?? name)
+                onClose()
+                return
+              }
               openTab({
                 kind: 'object',
                 objectId: datasetId,
@@ -1154,10 +1173,12 @@ function ImportProgress({
   onOpen,
   onClose,
   onFinished,
+  openLabel,
 }: {
   importId: string
   /** Существующий датасет: подписи полей и версия для сводки изменений. */
   dataset?: DatasetRecord
+  openLabel?: string | undefined
   onOpen: (datasetId: string) => void
   onClose: () => void
   onFinished: (record: ImportRecord) => void
@@ -1283,7 +1304,7 @@ function ImportProgress({
           </Button>
           {ok ? (
             <Button variant="primary" onClick={() => onOpen(record.datasetId)}>
-              {t('data.import.progress.open')}
+              {openLabel ?? t('data.import.progress.open')}
             </Button>
           ) : null}
         </div>
