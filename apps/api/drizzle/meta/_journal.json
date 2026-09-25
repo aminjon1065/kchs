@@ -449,6 +449,13 @@
       "when": 1790338822319,
       "tag": "20260925122022_chat-archive",
       "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1790338847411,
+      "tag": "20260925122047_transcript-edits",
+      "breakpoints": true
     }
   ]
 }

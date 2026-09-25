@@ -515,6 +515,18 @@ export const EVENT_PAYLOADS = {
     reason: z.enum(['unavailable', 'failed']),
     error: z.string().nullable(),
   }),
+  /**
+   * Расшифровку поправили вручную (ADR-0162): текст фразы (`segment` — её
+   * номер) или сопоставление говорящего (`label` → `userId`).
+   */
+  'transcript.edited': z.object({
+    meetingId: Uuid,
+    recordingId: Uuid,
+    change: z.enum(['segment', 'speaker']),
+    segment: z.number().int().nullable().default(null),
+    label: z.string().nullable().default(null),
+    userId: Uuid.nullable().default(null),
+  }),
 
   // ── протокол встречи (11-communications-meetings.md §4, ADR-0093) ─────────
   /** Совместная правка протокола записана: блоки или резюме изменились. */

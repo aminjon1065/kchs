@@ -22,6 +22,8 @@ export function registerMeetingRealtime(): void {
       'meeting.participant_left',
       // Секретарь сменился: карточка и протокол у открывших обновляются (N30)
       'meeting.secretary_changed',
+      // Расшифровку поправили: у открывших запись она перечитывается (ADR-0162)
+      'transcript.edited',
     ],
     handle: handleMeetingEvent,
   })
@@ -31,6 +33,18 @@ async function handleMeetingEvent(event: EventEnvelope): Promise<void> {
   const meetingId = event.object?.id
   if (!meetingId) return
   const payload = (event.payload ?? {}) as Record<string, unknown>
+
+  if (event.type === 'transcript.edited') {
+    // Объект события — запись: её вкладка подписана на свою комнату
+    emitToRoom(`object:${meetingId}`, 'object.updated', {
+      id: meetingId,
+      type: 'recording',
+      version: 0,
+      changedFields: ['transcript'],
+      actorId: event.actor.userId,
+    })
+    return
+  }
 
   if (event.type === 'call.incoming') {
     await ringInvited(event, meetingId, payload)

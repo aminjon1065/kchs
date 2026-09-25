@@ -5,6 +5,8 @@ import {
   RecordingRecord,
   TranscriptRecord,
   TranscriptResult,
+  TranscriptSegmentEditInput,
+  TranscriptSpeakerInput,
 } from '@kchs/contracts'
 import { z } from 'zod'
 import { db } from '~/shared/db/client.js'
@@ -107,6 +109,42 @@ export function registerMeetingRecordingRoutes(route: RouteRegistrar): void {
     summary: 'Расшифровка записи: сегменты с таймкодами',
     schema: { params: IdParam, response: { 200: TranscriptRecord } },
     handler: async (request) => TranscriptService.get(request.ctx, request.params.id),
+  })
+
+  route({
+    method: 'PATCH',
+    url: '/recordings/:id/transcript/segments/:index',
+    auth: 'session',
+    tags: ['meetings'],
+    summary: 'Исправить текст фразы расшифровки (ADR-0162)',
+    schema: {
+      params: z.object({ id: z.uuid(), index: z.coerce.number().int().min(0) }),
+      body: TranscriptSegmentEditInput,
+      response: { 200: TranscriptRecord },
+    },
+    handler: async (request) =>
+      TranscriptService.editSegment(
+        request.ctx,
+        request.params.id,
+        request.params.index,
+        request.body.text,
+      ),
+  })
+
+  route({
+    method: 'PUT',
+    url: '/recordings/:id/transcript/speakers',
+    auth: 'session',
+    tags: ['meetings'],
+    summary: 'Сопоставить говорящего расшифровки с участником встречи (ADR-0162)',
+    schema: { params: IdParam, body: TranscriptSpeakerInput, response: { 200: TranscriptRecord } },
+    handler: async (request) =>
+      TranscriptService.setSpeaker(
+        request.ctx,
+        request.params.id,
+        request.body.label,
+        request.body.userId,
+      ),
   })
 
   // ─── Медиасервер (подпись ключом установки) ────────────────────────────────

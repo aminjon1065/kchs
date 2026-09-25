@@ -1,4 +1,4 @@
-import type { RecordingRecord } from '@kchs/contracts'
+import type { RecordingRecord, UserRef } from '@kchs/contracts'
 import { formatDate } from '@kchs/fields'
 import {
   Badge,
@@ -14,15 +14,16 @@ import {
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, Pin, PinOff, Video } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
 import { saveLink } from '~/features/documents/print/renders.js'
 import { useFileDownload } from '~/features/files/use-file-download.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { meetingQuery } from '../queries.js'
 import { playbackQuery, recordingKeys, recordingQuery, transcriptQuery } from './queries.js'
-import { TranscriptPanel, transcriptText } from './transcript-panel.js'
+import { speakerNames, TranscriptPanel, transcriptText } from './transcript-panel.js'
 
 const TONE = {
   starting: 'warning',
@@ -72,6 +73,20 @@ export default function RecordingView({ objectId, tabId }: { objectId: string; t
     transcriptQuery(objectId, record?.status === 'ready' || record?.transcriptStatus === 'ready'),
   )
 
+  // Кого можно указать говорящим — организатор и участники встречи (ADR-0162)
+  const { data: meeting } = useQuery({
+    ...meetingQuery(record?.meetingId ?? ''),
+    enabled: Boolean(record?.meetingId && transcript?.can.edit),
+  })
+  const participants = useMemo(() => {
+    const people = new Map<string, UserRef>()
+    if (meeting?.organizer) people.set(meeting.organizer.id, meeting.organizer)
+    for (const participant of meeting?.participants ?? []) {
+      people.set(participant.user.id, participant.user)
+    }
+    return [...people.values()]
+  }, [meeting])
+
   useEffect(() => {
     if (record) setTabTitle(tabId, record.title)
   }, [record, tabId, setTabTitle])
@@ -94,7 +109,7 @@ export default function RecordingView({ objectId, tabId }: { objectId: string; t
 
   const exportText = useCallback(() => {
     if (!transcript || transcript.segments.length === 0) return
-    const blob = new Blob([transcriptText(transcript.segments)], {
+    const blob = new Blob([transcriptText(transcript.segments, speakerNames(transcript))], {
       type: 'text/plain;charset=utf-8',
     })
     const url = URL.createObjectURL(blob)
@@ -217,6 +232,7 @@ export default function RecordingView({ objectId, tabId }: { objectId: string; t
         <aside className="flex min-h-0 w-full flex-col border-line border-t lg:w-96 lg:border-t-0 lg:border-l">
           <TranscriptPanel
             transcript={transcript}
+            participants={participants}
             currentTime={currentTime}
             onSeek={seek}
             onExport={exportText}

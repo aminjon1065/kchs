@@ -124,10 +124,20 @@ export const transcripts = pgTable(
     language: text('language'),
     model: text('model'),
     durationS: integer('duration_s'),
-    segments: jsonbArray<{ start: number; end: number; text: string; speaker: string | null }>(
-      'segments',
-    ),
+    /** `edited`/`original` — фраза исправлена вручную, исходный текст распознавания (ADR-0162). */
+    segments: jsonbArray<{
+      start: number
+      end: number
+      text: string
+      speaker: string | null
+      edited?: boolean
+      original?: string
+    }>('segments'),
     summary: jsonbObject('summary'),
+    /** Метка говорящего → участник встречи (ADR-0162); переживает перерасшифровку. */
+    speakers: jsonbObject<Record<string, string>>('speakers'),
+    editedAt: tsCol('edited_at'),
+    editedBy: uuid('edited_by').references(() => users.id, { onDelete: 'set null' }),
     createdAt: createdAt(),
   },
   (t) => [index('transcripts_recording_idx').on(t.recordingId)],

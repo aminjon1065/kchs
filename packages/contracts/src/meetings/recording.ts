@@ -129,17 +129,59 @@ export const TranscriptSegment = z.object({
 })
 export type TranscriptSegment = z.infer<typeof TranscriptSegment>
 
+/** Предел текста одной фразы при исправлении вручную (ADR-0162). */
+export const TRANSCRIPT_SEGMENT_MAX_TEXT = 4000
+
+/**
+ * Фраза в выдаче: исправленная вручную помечена, `original` — текст
+ * распознавания до первой правки (ADR-0162).
+ */
+export const TranscriptRecordSegment = TranscriptSegment.extend({
+  edited: z.boolean().default(false),
+  original: z.string().nullable().default(null),
+})
+export type TranscriptRecordSegment = z.infer<typeof TranscriptRecordSegment>
+
+/**
+ * Говорящий расшифровки: метка диаризации («Говорящий 1») и участник встречи,
+ * с которым её сопоставили; сопоставление хранится при расшифровке (ADR-0162).
+ */
+export const TranscriptSpeaker = z.object({
+  label: z.string(),
+  user: UserRef.nullable(),
+})
+export type TranscriptSpeaker = z.infer<typeof TranscriptSpeaker>
+
 export const TranscriptRecord = z.object({
   recordingId: Uuid,
   status: TranscriptStatus,
   language: z.string().nullable(),
   model: z.string().nullable(),
   durationSeconds: z.number().nullable(),
-  segments: z.array(TranscriptSegment),
+  segments: z.array(TranscriptRecordSegment),
+  /** Метки говорящих в порядке первого появления — с сопоставленными участниками. */
+  speakers: z.array(TranscriptSpeaker).default([]),
   error: z.string().nullable(),
   createdAt: Timestamp.nullable(),
+  /** Последнее исправление фразы или говорящего. */
+  editedAt: Timestamp.nullable().default(null),
+  /** Исправлять фразы и сопоставлять говорящих — право `edit` на записи. */
+  can: z.object({ edit: z.boolean() }).default({ edit: false }),
 })
 export type TranscriptRecord = z.infer<typeof TranscriptRecord>
+
+/** Исправление текста фразы; таймкоды и говорящий не меняются. */
+export const TranscriptSegmentEditInput = z.object({
+  text: z.string().trim().min(1).max(TRANSCRIPT_SEGMENT_MAX_TEXT),
+})
+export type TranscriptSegmentEditInput = z.infer<typeof TranscriptSegmentEditInput>
+
+/** Сопоставить метку говорящего с участником встречи или снять сопоставление. */
+export const TranscriptSpeakerInput = z.object({
+  label: z.string().min(1).max(100),
+  userId: Uuid.nullable(),
+})
+export type TranscriptSpeakerInput = z.infer<typeof TranscriptSpeakerInput>
 
 /**
  * Итог задания `media:media.transcribe` (движок → api внутренним маршрутом).
