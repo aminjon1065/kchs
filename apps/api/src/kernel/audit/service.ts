@@ -224,6 +224,8 @@ export const AUDIT_ACTIONS = {
   loginExternal: 'user.login_external',
   passkeyAdded: 'user.passkey_added',
   passkeyRemoved: 'user.passkey_removed',
+  /** Администратор отозвал ключи входа сотрудника (потерянное устройство, N45). */
+  passkeysRevoked: 'user.passkeys_revoked',
   // Публичный API, вебхуки, интеграции (ADR-0097)
   apiTokenCreated: 'api_token.created',
   apiTokenRevoked: 'api_token.revoked',

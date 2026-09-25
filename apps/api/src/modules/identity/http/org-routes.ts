@@ -9,6 +9,7 @@ import {
   OrgUnit,
   OrgUnitInput,
   OrgUnitPatch,
+  PasskeyInfo,
   Position,
   PrincipalRef,
   RoleInfo,
@@ -36,6 +37,7 @@ import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { newId } from '~/shared/ids.js'
 import { AuthService } from '../domain/auth-service.js'
+import { PasskeyService } from '../domain/passkeys.js'
 import { assertCanManageUser } from '../domain/role-policy.js'
 import {
   GroupService,
@@ -264,6 +266,38 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
       await assertCanManageUser(db(), request.ctx, request.params.id)
       await AuthService.disableMfa(request.ctx, request.params.id)
       return { ok: true }
+    },
+  })
+
+  route({
+    method: 'GET',
+    url: '/users/:id/passkeys',
+    auth: { capability: 'users.manage' },
+    tags: ['org'],
+    summary: 'Ключи входа сотрудника — перед отзывом (N45)',
+    schema: {
+      params: z.object({ id: z.uuid() }),
+      response: { 200: z.object({ items: z.array(PasskeyInfo) }) },
+    },
+    handler: async (request) => {
+      await assertCanManageUser(db(), request.ctx, request.params.id)
+      return { items: await PasskeyService.list(request.params.id) }
+    },
+  })
+
+  route({
+    method: 'DELETE',
+    url: '/users/:id/passkeys',
+    auth: { capability: 'users.manage' },
+    tags: ['org'],
+    summary: 'Отозвать все ключи входа сотрудника (N45)',
+    schema: {
+      params: z.object({ id: z.uuid() }),
+      response: { 200: z.object({ revoked: z.number().int() }) },
+    },
+    handler: async (request) => {
+      await assertCanManageUser(db(), request.ctx, request.params.id)
+      return { revoked: await PasskeyService.revokeAll(request.ctx, request.params.id) }
     },
   })
 

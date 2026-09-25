@@ -246,6 +246,37 @@ export const PasskeyService = {
   },
 
   /**
+   * Администратор отзывает все ключи входа сотрудника (N45): телефон или ключ
+   * безопасности потерян, а войти с другого устройства сотрудник не может. Одна
+   * запись аудита с числом и названиями ключей; событие — на каждый ключ, как при
+   * отзыве владельцем. Право вести сотрудника проверяет маршрут.
+   */
+  async revokeAll(ctx: UserCtx, userId: string): Promise<number> {
+    const rows = await db()
+      .delete(webauthnCredentials)
+      .where(eq(webauthnCredentials.userId, userId))
+      .returning({ name: webauthnCredentials.name })
+    if (rows.length === 0) return 0
+    await audit(ctx, {
+      action: AUDIT_ACTIONS.passkeysRevoked,
+      objectId: userId,
+      objectType: 'user',
+      details: { count: rows.length, names: rows.map((row) => row.name ?? '') },
+      severity: 'warning',
+    })
+    await db().transaction(async (tx) => {
+      for (const row of rows) {
+        await publishEvent(tx, ctx, {
+          type: 'user.passkey_removed',
+          object: { id: userId, type: 'user' },
+          payload: { userId, name: row.name ?? '' },
+        })
+      }
+    })
+    return rows.length
+  },
+
+  /**
    * Вход по ключу без логина: браузер сам показывает подходящие ключи
    * (discoverable credentials), поэтому список допустимых не передаётся.
    */

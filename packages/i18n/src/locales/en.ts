@@ -7362,6 +7362,15 @@ export const en: DeepPartial<Dictionary> = {
       resetMfaHint:
         'The employee signs in with the password and sets up the second factor again. If the policy requires MFA for their role, the workspace is unavailable until then.',
       mfaResetDone: 'Second factor reset',
+      passkeys: 'Passkeys',
+      passkeysTitle: 'Passkeys — {name}',
+      passkeysHint:
+        'Revoke the passkeys if the employee lost their phone or security key: they will no longer sign in. The employee adds new passkeys in the profile. “Reset MFA” does not touch passkeys.',
+      passkeysRevoke: 'Revoke all',
+      passkeysRevokeTitle: 'Revoke all passkeys of {name}?',
+      passkeysRevokeHint:
+        'None of the keys will sign in any more. The revocation is recorded in the audit log. If the phone was lost with an open session, end it too.',
+      passkeysRevoked: '{count, plural, one {# passkey revoked} other {# passkeys revoked}}',
       roleFilter: 'Role',
       allRoles: 'All roles',
       kindFilter: 'Account kind',

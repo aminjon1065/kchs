@@ -33,6 +33,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Ban,
   Copy,
+  Fingerprint,
   KeyRound,
   LockKeyhole,
   MoreHorizontal,
@@ -45,6 +46,7 @@ import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { meQuery, orgUnitsQuery, rolesQuery } from '~/shared/api/queries.js'
+import { UserPasskeysDialog } from './user-passkeys-dialog.js'
 
 const NO_UNIT = '__none__'
 
@@ -321,6 +323,7 @@ export function UserActions({ user, onChanged }: { user: AdminUser; onChanged: (
   const [password, setPassword] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [clearanceOpen, setClearanceOpen] = useState(false)
+  const [passkeysOpen, setPasskeysOpen] = useState(false)
   const { data: me } = useQuery(meQuery())
   const canSetClearance = me?.capabilities.includes('admin.system') ?? false
 
@@ -416,6 +419,12 @@ export function UserActions({ user, onChanged }: { user: AdminUser; onChanged: (
               {t('admin.users.resetMfa')}
             </DropdownMenuItem>
           ) : null}
+          <DropdownMenuItem
+            icon={<Fingerprint className="size-4" />}
+            onSelect={() => setPasskeysOpen(true)}
+          >
+            {t('admin.users.passkeys')}
+          </DropdownMenuItem>
           {canSetClearance ? (
             <DropdownMenuItem
               icon={<LockKeyhole className="size-4" />}
@@ -488,6 +497,9 @@ export function UserActions({ user, onChanged }: { user: AdminUser; onChanged: (
         loading={resetMfa.isPending}
         onConfirm={() => resetMfa.mutate()}
       />
+      {passkeysOpen ? (
+        <UserPasskeysDialog user={user} onClose={() => setPasskeysOpen(false)} />
+      ) : null}
       {clearanceOpen ? (
         <ClearanceDialog
           user={user}

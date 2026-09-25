@@ -157,6 +157,56 @@ describe('ключи входа: самостоятельный вход', () =>
     expect(response.statusCode).toBe(401)
   })
 
+  it('администратор видит ключи сотрудника и отзывает все; посторонний — нет (N45)', async () => {
+    const user = await createUser(fx.app, `passkey_lost_${Date.now().toString(36)}`, ['employee'])
+    const phone = new FakeAuthenticator()
+    const token = new FakeAuthenticator()
+    await addKey(user, phone, 'Телефон')
+    await addKey(user, token, 'Ключ безопасности')
+
+    const listed = await call(fx.app, { url: `/users/${user.id}/passkeys`, as: fx.admin })
+    expect(listed.statusCode, listed.body).toBe(200)
+    expect((listed.json().items as PasskeyInfo[]).map((item) => item.name).sort()).toEqual([
+      'Ключ безопасности',
+      'Телефон',
+    ])
+
+    // Рядовой сотрудник чужие ключи не видит и не отзывает
+    expect(
+      (await call(fx.app, { url: `/users/${user.id}/passkeys`, as: fx.users.member })).statusCode,
+    ).toBe(403)
+    expect(
+      (
+        await call(fx.app, {
+          method: 'DELETE',
+          url: `/users/${user.id}/passkeys`,
+          as: fx.users.member,
+        })
+      ).statusCode,
+    ).toBe(403)
+
+    const revoked = await call(fx.app, {
+      method: 'DELETE',
+      url: `/users/${user.id}/passkeys`,
+      as: fx.admin,
+    })
+    expect(revoked.statusCode, revoked.body).toBe(200)
+    expect(revoked.json().revoked).toBe(2)
+    expect((await loginWithKey(phone, user.id)).statusCode).toBe(401)
+    expect((await loginWithKey(token, user.id)).statusCode).toBe(401)
+
+    const audit = await call(fx.app, {
+      url: `/admin/audit?action=user.passkeys_revoked&limit=5`,
+      as: fx.admin,
+    })
+    expect(audit.statusCode, audit.body).toBe(200)
+    expect(
+      (audit.json().items as Array<{ objectId: string | null }>).some(
+        (item) => item.objectId === user.id,
+      ),
+    ).toBe(true)
+  })
+
   it('повторный ответ с тем же вызовом не принимается', async () => {
     const user = await createUser(fx.app, 'passkey_replay', ['employee'])
     const device = new FakeAuthenticator()
