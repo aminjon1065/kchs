@@ -2149,6 +2149,7 @@ export const ru = {
         signature_sheet: 'Лист подписи',
         acknowledgment_sheet: 'Лист ознакомления',
         case_inventory: 'Опись дела',
+        meeting_protocol: 'Протокол встречи',
       },
       reasons: {
         notRegistered: 'Документ ещё не зарегистрирован',
@@ -6187,6 +6188,25 @@ export const ru = {
       ackSent:
         'Ознакомление запрошено у {count, plural, one {# участника} few {# участников} many {# участников} other {# участника}}',
       instructions: 'Поручения протокола',
+      print: {
+        title: 'Протокол',
+        held: 'Дата и время',
+        chairman: 'Председатель',
+        present: 'Присутствовали',
+        agenda: 'Повестка дня',
+        proceedings: 'Ход заседания',
+        heard: 'Слушали',
+        speaker: 'докладчик: {name}',
+        decided: 'Решили',
+        defaultDue:
+          '{days, plural, one {# рабочий день} few {# рабочих дня} many {# рабочих дней} other {# рабочего дня}} от подтверждения',
+        versionNote: 'Печатная форма протокола',
+        pending: 'Печатная форма протокола готовится — она станет первой версией документа',
+        ready: 'PDF протокола — первая версия документа: подписывают его',
+        failed: 'Печатную форму протокола собрать не удалось',
+        retry: 'Собрать заново',
+        openDocument: 'Открыть документ',
+      },
       hiddenInstruction: 'Поручение недоступно',
       unknownStatus: 'Неизвестно',
       denied: 'Протокол недоступен',

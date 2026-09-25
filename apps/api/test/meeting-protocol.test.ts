@@ -33,6 +33,16 @@ const { systemCtx } = await import('../src/shared/context.js')
 type Json = any
 
 const run = Date.now().toString(36)
+const serviceToken = process.env.INTERNAL_SERVICE_TOKEN ?? ''
+
+/** Движок печати: план рендера и результат — внутренними маршрутами, как настоящий. */
+const engine = (path: string, payload: Record<string, unknown> = {}) =>
+  call(fx.app, {
+    method: 'POST',
+    url: path,
+    headers: { 'x-kchs-service-token': serviceToken },
+    payload,
+  })
 
 let fx: TestContext
 let ai: FakeAi
@@ -306,6 +316,8 @@ describe('черновик ИИ, подтверждение, документ и
     const record = await protocolOf(protocolId)
     expect(record.documentId).toBe(documentId)
     expect(record.can.register).toBe(false)
+    // Печатная форма заказана сама (N32): она станет первой версией документа
+    expect(record.print).toMatchObject({ status: 'pending', fileId: null })
     const links = await db().execute<{ n: number }>(
       sql`SELECT count(*)::int AS n FROM links
            WHERE source_id = ${protocolId} AND target_id = ${documentId}`,
@@ -320,6 +332,42 @@ describe('черновик ИИ, подтверждение, документ и
       payload: { typeId: protocolTypeId },
     })
     expect(twice.statusCode).toBe(409)
+  })
+
+  it('печатная форма протокола становится первой версией документа (N32)', async () => {
+    const renders = await db().execute<{ id: string }>(
+      sql`SELECT id FROM document_renders
+           WHERE subject_id = ${protocolId} AND form_key = 'meeting_protocol'
+           ORDER BY created_at DESC LIMIT 1`,
+    )
+    const renderId = renders[0]?.id as string
+    expect(renderId).toBeTruthy()
+
+    // Движок берёт план: HTML формы с повесткой, решениями и поручениями
+    const started = await engine(`/internal/documents/renders/${renderId}/start`)
+    expect(started.statusCode, started.body).toBe(200)
+    const plan = started.json().plan as { html?: string }
+    expect(plan.html).toContain('Готовность насосных станций')
+    expect(plan.html).toContain('Обследовать насосные станции района')
+    expect(plan.html).toContain('Проверить насосные станции')
+
+    const done = await engine(`/internal/documents/renders/${renderId}/done`, {
+      status: 'ready',
+      pages: 2,
+      size: 4096,
+    })
+    expect(done.statusCode, done.body).toBe(200)
+    await drainOutbox()
+
+    const record = await protocolOf(protocolId)
+    expect(record.print.status).toBe('ready')
+    expect(record.print.fileId).toBeTruthy()
+    expect(record.can.print).toBe(false)
+    const document = await call(fx.app, { url: `/documents/${documentId}`, as: organizer })
+    expect(document.json().currentVersion).toMatchObject({
+      number: 1,
+      mainFile: { id: record.print.fileId },
+    })
   })
 
   it('ознакомление участников ведёт ядро', async () => {

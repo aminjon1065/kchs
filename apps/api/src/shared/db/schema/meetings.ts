@@ -157,6 +157,13 @@ export const protocols = pgTable(
     registeredAt: tsCol('registered_at'),
     /** Ознакомление участников запрошено (учёт ведёт ядро, ADR-0084). */
     acknowledgmentAt: tsCol('acknowledgment_at'),
+    /**
+     * Печатная форма протокола — первая версия документа (N32, ADR-0137):
+     * заказанный рендер, состояние (`pending` | `ready` | `failed`) и готовый PDF.
+     */
+    printRenderId: uuid('print_render_id'),
+    printStatus: text('print_status'),
+    printFileId: uuid('print_file_id'),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

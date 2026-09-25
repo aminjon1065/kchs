@@ -3,16 +3,19 @@ import {
   PROTOCOL_DEFAULT_DUE_WORKING_DAYS,
   PROTOCOL_DOC,
   PROTOCOL_MAX_BLOCKS,
+  PROTOCOL_PRINT_FORM,
   type ProtocolAcknowledgeInput,
   type ProtocolBlock,
   type ProtocolBlocksInput,
   type ProtocolInstruction,
+  type ProtocolPrintStatus,
   type ProtocolRecord,
   type ProtocolRegisterInput,
   type ProtocolStatus,
   parseConfidentiality,
   richBodyText,
 } from '@kchs/contracts'
+import { createTranslator } from '@kchs/i18n'
 import { eq, sql } from 'drizzle-orm'
 import type * as Y from 'yjs'
 import { grantAccess, revokeAccess } from '~/kernel/access/acl-service.js'
@@ -28,7 +31,7 @@ import type { SearchContent } from '~/kernel/objects/registry.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import { DocumentsPublic } from '~/modules/documents/public.js'
 import { Instructions } from '~/modules/tasks/public.js'
-import type { Ctx, UserCtx } from '~/shared/context.js'
+import { type Ctx, systemCtx, type UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
 import { meetings, objects, protocols } from '~/shared/db/schema/index.js'
 import { AppError, errors } from '~/shared/errors.js'
@@ -99,6 +102,7 @@ async function toRecord(ctx: UserCtx, row: ProtocolRow): Promise<ProtocolRecord>
   ])
   const confirmed = row.status === 'confirmed'
   const draft = await draftAvailability(ctx, row.id)
+  const print = (row.documentId ? (row.printStatus ?? 'none') : 'none') as ProtocolPrintStatus
   return {
     id: row.id,
     meetingId: row.meetingId,
@@ -113,12 +117,14 @@ async function toRecord(ctx: UserCtx, row: ProtocolRow): Promise<ProtocolRecord>
       : null,
     instructions,
     acknowledgmentRequested: row.acknowledgmentAt !== null,
+    print: { status: print, fileId: row.printFileId },
     can: {
       edit: edit.allowed && !confirmed,
       confirm: manage.allowed && !confirmed,
       register: manage.allowed && confirmed && row.documentId === null,
       requestAcknowledgment: ack.allowed && confirmed,
       draft: edit.allowed && !confirmed && draft.available,
+      print: manage.allowed && row.documentId !== null && (print === 'failed' || print === 'none'),
     },
     version: row.version,
     updatedAt: row.updatedAt,
@@ -383,7 +389,102 @@ export const ProtocolService = {
       })
       return created
     })
+    // Печатная форма протокола станет первой версией документа (N32): её подписывают
+    await ProtocolService.print(ctx, id)
     return { documentId }
+  },
+
+  /**
+   * Заказ печатной формы протокола для документа регистрации (N32, ADR-0137):
+   * рендер движком, по готовности (`document.render_finished`) подписчик кладёт
+   * PDF первой версией документа. Повтор — если прошлая сборка не удалась.
+   */
+  async print(ctx: UserCtx, id: string): Promise<ProtocolRecord> {
+    await authorize(ctx, 'manage', id)
+    const row = await load(db(), id)
+    if (!row) throw errors.notFound('Протокол')
+    if (!row.documentId) {
+      throw errors.conflict('Протокол ещё не зарегистрирован документом', { status: row.status })
+    }
+    if (row.printFileId) {
+      throw errors.conflict('Печатная форма уже стала версией документа')
+    }
+    const renderId = await DocumentsPublic.requestPrint(ctx, {
+      subjectId: id,
+      form: PROTOCOL_PRINT_FORM,
+    })
+    const documentId = row.documentId
+    await db().transaction(async (tx) => {
+      await tx
+        .update(protocols)
+        .set({ printRenderId: renderId, printStatus: 'pending', updatedAt: sql`now()` })
+        .where(eq(protocols.id, id))
+      await publishEvent(tx, ctx, {
+        type: 'protocol.print_requested',
+        object: { id, type: 'protocol', spaceId: row.spaceId, title: row.title },
+        payload: { meetingId: row.meetingId, documentId, renderId },
+      })
+    })
+    return ProtocolService.get(ctx, id)
+  },
+
+  /**
+   * Печатная форма собрана (подписчик `document.render_finished`): PDF —
+   * первая версия документа регистрации, если он ещё без версий; сбой — видно
+   * в протоколе, организатор соберёт форму заново.
+   */
+  async printFinished(input: {
+    protocolId: string
+    renderId: string
+    status: 'ready' | 'failed'
+    fileId: string | null
+  }): Promise<void> {
+    await db().transaction(async (tx) => {
+      const row = await load(tx, input.protocolId)
+      if (!row || row.printRenderId !== input.renderId || row.printFileId) return
+      const ctx = systemCtx('meetings.protocol', {
+        ...(row.confirmedBy ? { initiatorId: row.confirmedBy } : {}),
+      })
+      const object = { id: row.id, type: 'protocol', spaceId: row.spaceId, title: row.title }
+      if (input.status !== 'ready' || !input.fileId || !row.documentId) {
+        await tx
+          .update(protocols)
+          .set({ printStatus: 'failed', updatedAt: sql`now()` })
+          .where(eq(protocols.id, row.id))
+        await publishEvent(tx, ctx, {
+          type: 'protocol.printed',
+          object,
+          payload: {
+            meetingId: row.meetingId,
+            documentId: row.documentId,
+            status: 'failed',
+            fileId: null,
+          },
+        })
+        return
+      }
+      // PDF прикреплён к протоколу (объекту печати); вложением документа его видят
+      // участники маршрута, и версия документа строится из вложения
+      await LinkService.link(tx, ctx, row.documentId, input.fileId, 'attachment')
+      await DocumentsPublic.addVersion(tx, ctx, row.documentId, {
+        mainFileId: input.fileId,
+        note: createTranslator('ru')('meetings.protocol.print.versionNote'),
+      })
+      await tx
+        .update(protocols)
+        .set({ printStatus: 'ready', printFileId: input.fileId, updatedAt: sql`now()` })
+        .where(eq(protocols.id, row.id))
+      await publishEvent(tx, ctx, {
+        type: 'protocol.printed',
+        object,
+        payload: {
+          meetingId: row.meetingId,
+          documentId: row.documentId,
+          status: 'ready',
+          fileId: input.fileId,
+        },
+      })
+    })
   },
 
   /**

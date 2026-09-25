@@ -20,6 +20,9 @@ export interface ProtocolRow {
   confirmedAt: string | null
   confirmedBy: string | null
   acknowledgmentAt: string | null
+  printRenderId: string | null
+  printStatus: string | null
+  printFileId: string | null
   title: string
   spaceId: string | null
   version: number
@@ -39,6 +42,9 @@ const select = (executor: Executor) =>
       confirmedAt: protocols.confirmedAt,
       confirmedBy: protocols.confirmedBy,
       acknowledgmentAt: protocols.acknowledgmentAt,
+      printRenderId: protocols.printRenderId,
+      printStatus: protocols.printStatus,
+      printFileId: protocols.printFileId,
       title: objects.title,
       spaceId: objects.spaceId,
       version: objects.version,

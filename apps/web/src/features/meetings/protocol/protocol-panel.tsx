@@ -88,7 +88,11 @@ export function ProtocolBody({ protocolId, meetingId }: { protocolId: string; me
   const toast = useToast()
   const client = useQueryClient()
   const openTab = useWorkspace((s) => s.openTab)
-  const { data: protocol } = useQuery(protocolQuery(protocolId))
+  // Пока печатная форма собирается, протокол перечитывается: она станет версией документа
+  const { data: protocol } = useQuery({
+    ...protocolQuery(protocolId),
+    refetchInterval: (query) => (query.state.data?.print.status === 'pending' ? 3000 : false),
+  })
   const { data: meeting } = useQuery(meetingQuery(meetingId))
   const { data: me } = useQuery(meQuery())
   const collab = useCollabDocument(protocolId)
@@ -229,6 +233,7 @@ export function ProtocolBody({ protocolId, meetingId }: { protocolId: string; me
           ) : (
             <Skeleton className="h-40" />
           )}
+          <ProtocolPrintState protocol={protocol} />
           <ProtocolAcknowledgments protocol={protocol} />
           <ProtocolInstructions protocol={protocol} />
         </div>
@@ -294,6 +299,63 @@ function ProtocolBlocks({ doc, readOnly }: { doc: Y.Doc; readOnly: boolean }) {
 }
 
 /** Поручения протокола со статусами: их ведёт модуль задач. */
+/**
+ * Печатная форма протокола (N32, ADR-0137): после регистрации PDF собирается
+ * движком и становится первой версией документа — его подписывают.
+ */
+function ProtocolPrintState({ protocol }: { protocol: ProtocolRecord }) {
+  const t = useT()
+  const toast = useToast()
+  const client = useQueryClient()
+  const openTab = useWorkspace((s) => s.openTab)
+  const retry = useMutation({
+    mutationFn: () => http.post<ProtocolRecord>(`/protocols/${protocol.id}/print`, {}),
+    onSuccess: (next) => client.setQueryData(protocolKeys.protocol(protocol.id), next),
+    onError: (failure) =>
+      toast.error(failure instanceof ApiError ? failure.message : t('errors.unknown')),
+  })
+  const documentId = protocol.documentId
+  if (!documentId || protocol.print.status === 'none') return null
+  if (protocol.print.status === 'pending') {
+    return <Callout tone="info">{t('meetings.protocol.print.pending')}</Callout>
+  }
+  if (protocol.print.status === 'failed') {
+    return (
+      <Callout
+        tone="warning"
+        action={
+          protocol.can.print ? (
+            <Button size="sm" onClick={() => retry.mutate()} disabled={retry.isPending}>
+              {t('meetings.protocol.print.retry')}
+            </Button>
+          ) : undefined
+        }
+      >
+        {t('meetings.protocol.print.failed')}
+      </Callout>
+    )
+  }
+  return (
+    <Callout
+      tone="success"
+      action={
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() =>
+            openTab({ kind: 'object', objectId: documentId, title: t('objects.types.document') })
+          }
+        >
+          <FileText className="size-4" />
+          {t('meetings.protocol.print.openDocument')}
+        </Button>
+      }
+    >
+      {t('meetings.protocol.print.ready')}
+    </Callout>
+  )
+}
+
 /**
  * Ознакомление с протоколом (ADR-0084, ADR-0093): участнику — просьба и
  * отметка, организатору — сколько человек уже ознакомились. Учёт ведёт ядро,

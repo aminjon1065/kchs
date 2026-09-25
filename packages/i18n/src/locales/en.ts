@@ -2115,6 +2115,7 @@ export const en: DeepPartial<Dictionary> = {
         signature_sheet: 'Signature sheet',
         acknowledgment_sheet: 'Acknowledgment sheet',
         case_inventory: 'Case file inventory',
+        meeting_protocol: 'Meeting minutes',
       },
       reasons: {
         notRegistered: 'The document is not registered yet',
@@ -6096,6 +6097,25 @@ export const en: DeepPartial<Dictionary> = {
       ackSent:
         'Acknowledgment requested from {count, plural, one {# participant} other {# participants}}',
       instructions: 'Minutes instructions',
+      print: {
+        title: 'Minutes',
+        held: 'Date and time',
+        chairman: 'Chair',
+        present: 'Present',
+        agenda: 'Agenda',
+        proceedings: 'Proceedings',
+        heard: 'Heard',
+        speaker: 'speaker: {name}',
+        decided: 'Resolved',
+        defaultDue: '{days, plural, one {# working day} other {# working days}} after confirmation',
+        versionNote: 'Printed minutes',
+        pending:
+          'The printed minutes are being prepared — they will become the first document version',
+        ready: 'The minutes PDF is the first document version: it is what gets signed',
+        failed: 'The printed minutes could not be prepared',
+        retry: 'Prepare again',
+        openDocument: 'Open document',
+      },
       hiddenInstruction: 'Instruction is not accessible',
       unknownStatus: 'Unknown',
       denied: 'Minutes are not available',

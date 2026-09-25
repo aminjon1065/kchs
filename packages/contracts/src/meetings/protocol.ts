@@ -107,6 +107,23 @@ export const ProtocolInstruction = z.object({
 export type ProtocolInstruction = z.infer<typeof ProtocolInstruction>
 
 /** Что смотрящий может сделать с протоколом. */
+/**
+ * Печатная форма протокола (N32, ADR-0137): PDF с повесткой, решениями и
+ * поручениями становится первой версией документа при регистрации — его и
+ * подписывают. `none` — документа ещё нет, `pending` — форма собирается.
+ */
+export const PROTOCOL_PRINT_FORM = 'meeting_protocol'
+export const PROTOCOL_PRINT_STATUSES = ['none', 'pending', 'ready', 'failed'] as const
+export const ProtocolPrintStatus = z.enum(PROTOCOL_PRINT_STATUSES)
+export type ProtocolPrintStatus = z.infer<typeof ProtocolPrintStatus>
+
+export const ProtocolPrint = z.object({
+  status: ProtocolPrintStatus,
+  /** PDF протокола — основной файл первой версии документа. */
+  fileId: Uuid.nullable(),
+})
+export type ProtocolPrint = z.infer<typeof ProtocolPrint>
+
 export const ProtocolPermissions = z.object({
   edit: z.boolean(),
   /** Подтвердить: организатор, протокол ещё не подтверждён. */
@@ -116,6 +133,8 @@ export const ProtocolPermissions = z.object({
   requestAcknowledgment: z.boolean(),
   /** Черновик ИИ доступен: модель настроена, есть право и гриф позволяет. */
   draft: z.boolean(),
+  /** Собрать печатную форму заново: организатор, документ есть, прошлая сборка не удалась. */
+  print: z.boolean(),
 })
 export type ProtocolPermissions = z.infer<typeof ProtocolPermissions>
 
@@ -135,6 +154,8 @@ export const ProtocolRecord = z.object({
   instructions: z.array(ProtocolInstruction),
   /** Ознакомление участников запрошено. */
   acknowledgmentRequested: z.boolean(),
+  /** Печатная форма — первая версия документа регистрации (N32). */
+  print: ProtocolPrint,
   can: ProtocolPermissions,
   version: z.number().int(),
   updatedAt: Timestamp,

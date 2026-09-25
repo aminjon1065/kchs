@@ -1,3 +1,4 @@
+import { PROTOCOL_PRINT_FORM } from '@kchs/contracts'
 import { eq } from 'drizzle-orm'
 import type { Subscriber } from '~/kernel/events/types.js'
 import { InboxService } from '~/kernel/inbox/service.js'
@@ -37,6 +38,22 @@ export const protocolSubscribers: Subscriber[] = [
           titleKey: 'inbox.tpl.reviewProtocol',
           params: { title: event.object?.title ?? '' },
         })
+      })
+    },
+  },
+  {
+    // Печатная форма протокола собрана: PDF — первая версия документа (N32)
+    name: 'meetings-protocol-print',
+    types: ['document.render_finished'],
+    handle: async (event) => {
+      if (event.object?.type !== 'protocol' || event.payload.form !== PROTOCOL_PRINT_FORM) return
+      const renderId = event.payload.renderId
+      if (typeof renderId !== 'string') return
+      await ProtocolService.printFinished({
+        protocolId: event.object.id,
+        renderId,
+        status: event.payload.status === 'ready' ? 'ready' : 'failed',
+        fileId: typeof event.payload.fileId === 'string' ? event.payload.fileId : null,
       })
     },
   },

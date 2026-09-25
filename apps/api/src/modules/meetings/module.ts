@@ -4,10 +4,12 @@ import { registerCollabType } from '~/kernel/collab/registry.js'
 import { registerSubscriber } from '~/kernel/events/bus.js'
 import { registerFeature } from '~/kernel/features/registry.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
+import { DocumentsPrint } from '~/modules/documents/public.js'
 import { db } from '~/shared/db/client.js'
 import { meetings, recordings } from '~/shared/db/schema/index.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { registerMeetingRealtime } from './domain/meeting-subscribers.js'
+import { protocolPrintForm } from './domain/protocol-print.js'
 import { ProtocolService } from './domain/protocol-service.js'
 import { protocolSubscribers } from './domain/protocol-subscribers.js'
 import { setTranscriptSource } from './domain/protocol-transcript.js'
@@ -90,6 +92,8 @@ export function registerMeetingsObjectTypes(): void {
 
   registerRecordingType()
   registerProtocolType()
+  // Печатная форма протокола: при регистрации документом — первая версия (N32)
+  DocumentsPrint.register(protocolPrintForm)
 
   // Черновик протокола читает расшифровку записи через порт (ADR-0093):
   // источник — своя часть модуля, поэтому подключается при регистрации типов

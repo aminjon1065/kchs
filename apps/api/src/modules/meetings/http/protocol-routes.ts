@@ -103,6 +103,18 @@ export function registerProtocolRoutes(route: RouteRegistrar): void {
 
   route({
     method: 'POST',
+    url: '/protocols/:id/print',
+    auth: 'session',
+    tags: ['meetings'],
+    summary: 'Собрать печатную форму протокола заново — первой версией документа',
+    description:
+      'При регистрации форма заказывается сама (N32, ADR-0137); повтор — если сборка не удалась.',
+    schema: { params: IdParam, response: { 200: ProtocolRecord } },
+    handler: async (request) => ProtocolService.print(request.ctx, request.params.id),
+  })
+
+  route({
+    method: 'POST',
     url: '/protocols/:id/acknowledgments',
     auth: 'session',
     tags: ['meetings'],

@@ -14,8 +14,9 @@ import {
   DocumentCreateInput as DocumentCreateSchema,
   type DocumentRegisterInput,
   type DocumentStatus,
+  PrintRequestInput,
 } from '@kchs/contracts'
-import type { Ctx } from '~/shared/context.js'
+import type { Ctx, UserCtx } from '~/shared/context.js'
 import type { Executor } from '~/shared/db/client.js'
 import { seedDemoDocuments } from './domain/demo-documents.js'
 import { seedDemoWorkflow } from './domain/demo-workflow.js'
@@ -25,6 +26,7 @@ import { ensureOfficeDashboard } from './domain/office-dashboard.js'
 import { DocumentParticipants, type ParticipantEntry } from './domain/participants.js'
 import { html, multiline, overlayPage } from './domain/print/html.js'
 import { registerPrintForm } from './domain/print/registry.js'
+import { DocumentRenders } from './domain/render-service.js'
 import { ensureStarterSet } from './domain/starter-set.js'
 import { DocumentTypeService } from './domain/type-service.js'
 import { DocumentVersionService } from './domain/version-service.js'
@@ -100,6 +102,15 @@ export const DocumentsPublic = {
     documentId: string,
     input: DocumentRegisterInput = {},
   ): Promise<string> => DocumentService.register(tx, ctx, documentId, input),
+
+  /**
+   * Заказ печатной формы объекта другого модуля (ADR-0085): рендер движком с
+   * правами заказчика, результат — PDF, прикреплённый к объекту; готовность —
+   * событие `document.render_finished` (`renderId`, `fileId`).
+   * @public — печатная форма протокола встречи (N32, ADR-0137)
+   */
+  requestPrint: (ctx: UserCtx, input: { subjectId: string; form: string }): Promise<string> =>
+    DocumentRenders.requestPrint(ctx, PrintRequestInput.parse({ ...input, params: {} })),
 
   /**
    * Идентификатор типа документа по ключу: правило создаёт документ по типу

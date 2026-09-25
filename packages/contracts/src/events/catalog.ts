@@ -513,6 +513,15 @@ export const EVENT_PAYLOADS = {
   }),
   /** Протокол зарегистрирован документом: дальше — маршрут документа (ADR-0083). */
   'protocol.registered': z.object({ meetingId: Uuid, documentId: Uuid, typeId: Uuid }),
+  /** Заказана печатная форма протокола для документа регистрации (N32, ADR-0137). */
+  'protocol.print_requested': z.object({ meetingId: Uuid, documentId: Uuid, renderId: Uuid }),
+  /** Печатная форма собрана и стала первой версией документа или сборка не удалась. */
+  'protocol.printed': z.object({
+    meetingId: Uuid,
+    documentId: Uuid.nullable(),
+    status: z.enum(['ready', 'failed']),
+    fileId: Uuid.nullable(),
+  }),
 
   /** Звонок поднят — приглашённым показывается входящий (ADR-0089). */
   'call.incoming': z.object({
