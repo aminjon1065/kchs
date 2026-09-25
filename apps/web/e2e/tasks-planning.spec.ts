@@ -111,7 +111,10 @@ test.describe('Задачи: чек-лист, таймлайн, массовые
     }
   })
 
-  test('серия повторяющихся задач: пауза из списка «Повторяющиеся»', async ({ page, request }) => {
+  test('серия повторяющихся задач: пауза и правка из списка «Повторяющиеся»', async ({
+    page,
+    request,
+  }) => {
     const run = Date.now().toString(36)
     const { headers, spaceId } = await prepare(request)
     const title = `Еженедельная сверка ${run}`
@@ -137,5 +140,17 @@ test.describe('Задачи: чек-лист, таймлайн, массовые
     expect((await (await request.get(`/api/v1/task-series/${seriesId}`)).json()).status).toBe(
       'paused',
     )
+
+    // Правка — для следующих экземпляров: название и время создания
+    await row.getByRole('button', { name: 'Изменить' }).click()
+    await row.getByLabel('Название').fill(`${title} — правка`)
+    await row.getByLabel('Время создания').fill('10:30')
+    await row.getByRole('button', { name: 'Сохранить серию' }).click()
+    await expect(page.getByText('Серия изменена — для следующих поручений')).toBeVisible()
+    await expect(row.getByText(`${title} — правка`)).toBeVisible()
+    await expect(row.getByText(/в 10:30/)).toBeVisible()
+    const edited = await (await request.get(`/api/v1/task-series/${seriesId}`)).json()
+    expect(edited).toMatchObject({ title: `${title} — правка`, status: 'paused' })
+    expect(edited.rule.time).toBe('10:30')
   })
 })
