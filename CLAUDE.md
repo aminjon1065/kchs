@@ -83,6 +83,7 @@ docker compose --profile app up -d --build --wait
 docker compose exec api kchs init --admin-email admin@example.org   # временный пароль — один раз
 docker compose exec api kchs seed                                   # демо-данные, по желанию
 bash infra/scripts/verify-stack.sh       # вся цепочка на отдельном проекте compose с чистыми томами
+bash infra/scripts/demo-stand.sh up [--domain демо.домен --email почта]   # стенд демонстрации: ноутбук или VPS (ADR-0148)
 ```
 
 `kchs` локально — `pnpm kchs init|migrate|seed`. Образ api — бандл esbuild

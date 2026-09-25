@@ -1,0 +1,16 @@
+# Хранилище по HTTPS на имени установки, отдельный порт (ADR-0148). Подключается
+# надстройкой infra/compose/storage-https.yml. Заголовок Host доходит до MinIO как есть:
+# по нему сходится подпись ссылок, выданных для S3_PUBLIC_ENDPOINT.
+{$KCHS_DOMAIN}:9443 {
+	reverse_proxy minio:9000 {
+		# Большие загрузки идут частями по 16 МБ; ответ на часть может задержаться
+		transport http {
+			response_header_timeout 5m
+		}
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		-Server
+	}
+}

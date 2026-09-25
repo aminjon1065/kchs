@@ -68,6 +68,23 @@ Caddy получит сертификат сам. Важно: браузер з�
 `KCHS_STORAGE_ORIGIN` должны быть адресом, видимым браузеру; если сайт работает
 по HTTPS, хранилище тоже должно быть по HTTPS.
 
+Готовый способ — надстройка `infra/compose/storage-https.yml` (ADR-0148). Тот же Caddy
+публикует хранилище на имени установки и отдельном порту 9443 с тем же сертификатом.
+S3 по HTTP наружу больше не выставляется:
+
+```
+S3_PUBLIC_ENDPOINT=https://kchs.example.org:9443
+KCHS_STORAGE_ORIGIN=https://kchs.example.org:9443
+```
+
+```bash
+docker compose -p kchs --env-file .env -f infra/compose/docker-compose.yml \
+  -f infra/compose/storage-https.yml --profile app up -d --wait
+```
+
+Откройте порт 9443 в сетевом экране. Так же ставит стенд демонстрации:
+`bash infra/scripts/demo-stand.sh up --domain …` ([30](30-demo-stand.md)).
+
 Порты данных (Postgres, Redis, Meilisearch, консоль MinIO, mailpit) публикуются
 только на самом сервере — `KCHS_BIND=127.0.0.1`.
 

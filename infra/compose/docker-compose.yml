@@ -273,6 +273,10 @@ services:
       # Первый администратор для `docker compose exec api kchs init`
       KCHS_ADMIN_LOGIN: ${KCHS_ADMIN_LOGIN:-admin}
       KCHS_ADMIN_EMAIL: ${KCHS_ADMIN_EMAIL:-}
+      # Пароли демо-учёток для `kchs seed` (стенд демонстрации, ADR-0148): свои у стенда,
+      # пусто — встроенные, известные всем, кто видел код
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
+      SEED_USER_PASSWORD: ${SEED_USER_PASSWORD:-}
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }

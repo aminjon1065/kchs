@@ -8,6 +8,8 @@
  *   STACK_S3_ORIGIN=http://localhost:9000 node scripts/stack-check.mjs
  *
  * Администратор должен уже сменить временный пароль от `kchs init`.
+ * STACK_IGNORE_TLS=1 — стенд с сертификатом внутреннего центра Caddy (домен localhost,
+ * проверка режима HTTPS стенда демонстрации, ADR-0148).
  */
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -40,6 +42,7 @@ const browser = await chromium.launch()
 const context = await browser.newContext({
   locale: 'ru-RU',
   viewport: { width: 1440, height: 900 },
+  ignoreHTTPSErrors: process.env.STACK_IGNORE_TLS === '1',
 })
 await context.addInitScript(() => {
   window.__cspViolations = []

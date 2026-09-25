@@ -1,0 +1,17 @@
+# Хранилище по HTTPS для установки с доменом — стенд демонстрации на VPS (ADR-0148).
+# Браузер получает и загружает файлы по подписанным ссылкам напрямую (ADR-0044); при
+# сайте по HTTPS хранилище тоже должно быть по HTTPS. Сайт хранилища — то же имя на
+# отдельном порту: сертификат тот же, подпись SigV4 сходится по заголовку Host.
+# Подключается вторым файлом к infra/compose/docker-compose.yml (-f … -f …), пути — от
+# каталога infra/compose; так её подключает infra/scripts/demo-stand.sh.
+services:
+  web:
+    volumes:
+      - ./caddy/sites-available/storage-https.caddy:/etc/caddy/sites/storage-https.caddy:ro
+    ports:
+      - "${S3_HTTPS_PORT:-9443}:9443"
+  # S3 по HTTP наружу не публикуется: браузер ходит в хранилище через Caddy
+  minio:
+    ports: !override
+      - "${KCHS_BIND:-127.0.0.1}:${S3_PORT:-9000}:9000"
+      - "${KCHS_BIND:-127.0.0.1}:${S3_CONSOLE_PORT:-9001}:9001"

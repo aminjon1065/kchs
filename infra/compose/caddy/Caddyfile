@@ -75,3 +75,7 @@
 		-Server
 	}
 }
+
+# Дополнительные сайты — например, хранилище по HTTPS на отдельном порту для установки с
+# доменом (infra/compose/storage-https.yml, ADR-0148). Без файлов импорт пуст
+import /etc/caddy/sites/*.caddy

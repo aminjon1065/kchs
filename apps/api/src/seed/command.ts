@@ -37,12 +37,13 @@ export async function seedCommand(options: SeedCommandOptions): Promise<{
   }
   // Системные роли восстанавливаются после очистки
   await bootstrapPlatform()
-  const adminLogin = process.env.SEED_ADMIN_LOGIN ?? 'admin'
+  // Пустое значение — как не заданное: compose передаёт `${SEED_…:-}` пустой строкой
+  const adminLogin = process.env.SEED_ADMIN_LOGIN || 'admin'
   const seeded = await runSeed({
     profile: options.profile,
     adminLogin,
-    adminPassword: process.env.SEED_ADMIN_PASSWORD ?? 'Kchs!Start-2026-7q',
-    employeePassword: process.env.SEED_USER_PASSWORD ?? 'Kchs!Work-2026-3v',
+    adminPassword: process.env.SEED_ADMIN_PASSWORD || 'Kchs!Start-2026-7q',
+    employeePassword: process.env.SEED_USER_PASSWORD || 'Kchs!Work-2026-3v',
   })
   if (options.profile === 'demo') {
     // Демо-мир — общие учётные записи для показа: второй фактор, который ставит
