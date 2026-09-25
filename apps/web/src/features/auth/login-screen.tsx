@@ -175,8 +175,11 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
             </div>
           )}
           <div>
-            <h1 className="text-xl font-semibold text-fg">{branding?.name || 'kchs'}</h1>
-            <p className="mt-0.5 text-sm text-fg-secondary">{t('auth.signIn.subtitle')}</p>
+            {/* Название продукта, под ним — организация из брендирования (Q13) */}
+            <h1 className="text-xl font-semibold text-fg">{t('common.appName')}</h1>
+            <p className="mt-0.5 text-sm text-fg-secondary">
+              {branding?.name || t('auth.signIn.subtitle')}
+            </p>
             {branding?.loginNote ? (
               <p className="mt-1 text-xs text-fg-muted">{branding.loginNote}</p>
             ) : null}

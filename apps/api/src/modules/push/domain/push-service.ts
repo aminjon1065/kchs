@@ -1,3 +1,4 @@
+import { PRODUCT_NAME } from '@kchs/contracts'
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import webpush, { WebPushError } from 'web-push'
 import type { ChannelMessage } from '~/kernel/notifications/channels.js'
@@ -111,7 +112,7 @@ export const PushService = {
     const expired: string[] = []
     for (const message of messages) {
       const payload = JSON.stringify({
-        title: 'kchs',
+        title: PRODUCT_NAME,
         body: message.text,
         url: message.url,
         category: message.category,

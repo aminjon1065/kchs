@@ -2,6 +2,7 @@ import {
   type AdminModeInput,
   type AdminModeState,
   type Confidentiality,
+  PRODUCT_NAME,
   parseConfidentiality,
 } from '@kchs/contracts'
 import { and, eq, gt, isNull, or, sql } from 'drizzle-orm'
@@ -723,7 +724,7 @@ export const AuthService = {
   async startMfaSetup(ctx: UserCtx): Promise<{ secret: string; otpauthUrl: string }> {
     // 160 бит: RFC 4226 §4 требует не меньше 128 и рекомендует 160 (у otplib по умолчанию 80)
     const secret = authenticator.generateSecret(20)
-    const issuer = 'kchs'
+    const issuer = PRODUCT_NAME
     const otpauthUrl = authenticator.keyuri(ctx.displayName || ctx.userId, issuer, secret)
 
     await db()

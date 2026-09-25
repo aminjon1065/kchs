@@ -1,6 +1,7 @@
 import type { Branding } from '@kchs/contracts'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect } from 'react'
+import { useT } from '~/app/i18n.js'
 import { http } from './client.js'
 
 /**
@@ -17,13 +18,15 @@ export function brandingQuery() {
 
 /** Акцент и заголовок окна — из брендирования; без него всё как в дизайн-системе. */
 export function useBranding(): Branding | undefined {
+  const t = useT()
   const { data } = useQuery(brandingQuery())
   useEffect(() => {
     const root = document.documentElement
     if (!data || data.accent === 'blue') delete root.dataset.accent
     else root.dataset.accent = data.accent
+    const product = t('common.appName')
     const title = data?.shortName || data?.name
-    document.title = title ? `${title} — kchs` : 'kchs'
-  }, [data])
+    document.title = title ? `${title} — ${product}` : product
+  }, [data, t])
   return data
 }

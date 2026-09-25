@@ -12,6 +12,7 @@ import {
   isDocumentClosed,
   isRedacted,
   PRINT_PERIOD_MAX_DAYS,
+  PRODUCT_NAME,
   type PrintFormInfo,
   type PrintRequestInput,
 } from '@kchs/contracts'
@@ -71,7 +72,7 @@ async function orgName(): Promise<string> {
     [{ scope: 'system' }],
     '',
   )
-  return typeof value === 'string' && value.trim() ? value.trim() : 'kchs'
+  return typeof value === 'string' && value.trim() ? value.trim() : PRODUCT_NAME
 }
 
 async function printContext(ctx: UserCtx): Promise<PrintContext> {

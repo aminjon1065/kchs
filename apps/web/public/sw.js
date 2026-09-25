@@ -20,7 +20,7 @@ self.addEventListener('push', (event) => {
   } catch {
     payload = { body: event.data.text() }
   }
-  const title = payload.title || 'kchs'
+  const title = payload.title || 'Портал КЧС'
   const options = {
     body: payload.body || '',
     icon: '/icon-192.png',

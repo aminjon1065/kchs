@@ -4,6 +4,7 @@ import type {
   PasskeyInfo,
   PasskeyRegistrationOptions,
 } from '@kchs/contracts'
+import { PRODUCT_NAME } from '@kchs/contracts'
 import type {
   AuthenticationResponseJSON,
   AuthenticatorTransport,
@@ -51,7 +52,7 @@ const MAX_KEYS = 20
 /** Идентификатор проверяющей стороны — имя узла установки (WebAuthn: rpId). */
 function relyingParty(): { id: string; origin: string; name: string } {
   const base = new URL(config().KCHS_BASE_URL)
-  return { id: base.hostname, origin: base.origin, name: 'kchs' }
+  return { id: base.hostname, origin: base.origin, name: PRODUCT_NAME }
 }
 
 function toInfo(row: typeof webauthnCredentials.$inferSelect): PasskeyInfo {

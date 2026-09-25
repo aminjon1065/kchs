@@ -13,7 +13,8 @@ import { ApiError, http } from '~/shared/api/client.js'
  */
 export function PasswordResetScreen({ token }: { token: string }) {
   const t = useT()
-  const branding = useBranding()
+  // Акцент и заголовок окна — из брендирования установки
+  useBranding()
   const [password, setPassword] = useState('')
   const [repeat, setRepeat] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -42,7 +43,7 @@ export function PasswordResetScreen({ token }: { token: string }) {
           <div className="flex size-10 items-center justify-center rounded-lg bg-accent text-accent-fg">
             <KeyRound className="size-5" />
           </div>
-          <h1 className="text-lg font-semibold text-fg">{branding?.name || 'kchs'}</h1>
+          <h1 className="text-lg font-semibold text-fg">{t('common.appName')}</h1>
           <p className="text-sm text-fg-secondary">{t('auth.reset.subtitle')}</p>
         </div>
 

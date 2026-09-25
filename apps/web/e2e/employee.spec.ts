@@ -39,7 +39,7 @@ test.describe('Вход: восстановление доступа по ссы
     const context = await browser.newContext({ storageState: { cookies: [], origins: [] } })
     const page = await context.newPage()
     await page.goto('/reset-password?token=' + 'a'.repeat(40))
-    await expect(page.getByRole('heading', { name: /kchs|Комитет/ })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Портал КЧС' })).toBeVisible()
     await page.getByLabel('Новый пароль').fill('Novyj-Parol-2026!')
     await page.getByLabel('Повторите пароль').fill('Novyj-Parol-2026!')
     await page.getByRole('button', { name: 'Сменить пароль' }).click()

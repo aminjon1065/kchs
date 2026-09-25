@@ -58,7 +58,7 @@ export function Rail({ onOpenPalette }: { onOpenPalette: () => void }) {
   // Экраны выключенных возможностей (15-admin-operations.md §1) рейка не показывает
   const hidden = new Set<string>(me?.hiddenScreens ?? [])
   const branding = useBranding()
-  const brandName = branding?.shortName || branding?.name || 'kchs'
+  const brandName = branding?.shortName || branding?.name || t('common.appName')
   const { data: counts } = useQuery(inboxCountsQuery())
   // Непрочитанные сообщения — значок на кнопке «Чаты» (ADR-0090)
   const { data: chats } = useQuery(chatListQuery('all'))

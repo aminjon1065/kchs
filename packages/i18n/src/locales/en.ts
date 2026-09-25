@@ -4,7 +4,7 @@ import type { Dictionary } from './ru.js'
 /** English — full coverage of phase 0 screens. */
 export const en: DeepPartial<Dictionary> = {
   common: {
-    appName: 'kchs',
+    appName: 'KChS Portal',
     actions: {
       loadMore: 'Show more',
       save: 'Save',
@@ -644,7 +644,7 @@ export const en: DeepPartial<Dictionary> = {
       copyCodes: 'Copy codes',
       downloadCodes: 'Download .txt',
       codesCopied: 'Codes copied',
-      codesFileTitle: 'kchs recovery codes — each works once',
+      codesFileTitle: 'KChS Portal recovery codes — each works once',
       savedCheck: 'I have stored the codes safely',
       disableHint: 'Enter a code from the app or a recovery code',
       disabledNow: 'Second factor turned off',
@@ -1109,27 +1109,29 @@ export const en: DeepPartial<Dictionary> = {
   },
   telegram: {
     welcome:
-      'This is the kchs bot: it sends notifications with a link to the object. To connect your account, open your profile in kchs and click “Connect Telegram”.',
+      'This is the KChS Portal bot: it sends notifications with a link to the object. To connect your account, open your profile in KChS Portal and click “Connect Telegram”.',
     linked:
-      'Done: Telegram is connected to the account “{name}”. Notifications will arrive here. To disconnect, send /stop or use your kchs profile.',
-    alreadyLinked: 'This chat is already connected to kchs. Send /stop to turn notifications off.',
-    linkInvalid: 'The link has expired or was already used. Get a new one in your kchs profile.',
+      'Done: Telegram is connected to the account “{name}”. Notifications will arrive here. To disconnect, send /stop or use your KChS Portal profile.',
+    alreadyLinked:
+      'This chat is already connected to KChS Portal. Send /stop to turn notifications off.',
+    linkInvalid:
+      'The link has expired or was already used. Get a new one in your KChS Portal profile.',
     chatTaken:
-      'This chat is already connected to another kchs account. Send /stop to disconnect it, then open the link again.',
-    stopped: 'Telegram notifications are off. You can connect again in your kchs profile.',
-    notLinked: 'This chat is not connected to kchs. Connect it in your kchs profile.',
-    help: 'The bot sends kchs notifications with a link to the object and action buttons. /cancel cancels a reply to the bot, /stop turns notifications off.',
+      'This chat is already connected to another KChS Portal account. Send /stop to disconnect it, then open the link again.',
+    stopped: 'Telegram notifications are off. You can connect again in your KChS Portal profile.',
+    notLinked: 'This chat is not connected to KChS Portal. Connect it in your KChS Portal profile.',
+    help: 'The bot sends KChS Portal notifications with a link to the object and action buttons. /cancel cancels a reply to the bot, /stop turns notifications off.',
     actionDone: 'Done.',
     actionGone: 'This item is already closed or unavailable.',
     actionFailed: 'Could not do that: {reason}',
-    actionError: 'Could not perform the action — open it in kchs.',
+    actionError: 'Could not perform the action — open it in KChS Portal.',
     askReport: 'Write your report in one message. /cancel to cancel.',
     askComment: 'Write a comment in one message. /cancel to cancel.',
     askDueAndReason:
       'Write the new date and the reason in one message: “25.09.2026 Waiting for district data”. /cancel to cancel.',
     badDueAndReason: 'Could not read the date. Write it like this: “DD.MM.YYYY reason”.',
     cancelled: 'Cancelled.',
-    open: 'Open in kchs',
+    open: 'Open in KChS Portal',
   },
   activity: {
     object: {
@@ -1319,7 +1321,7 @@ export const en: DeepPartial<Dictionary> = {
       invalid: 'The link is invalid, revoked or expired',
       wrongPassword: 'Wrong link password',
       onlyView: 'View only',
-      signIn: 'Sign in to kchs',
+      signIn: 'Sign in to KChS Portal',
     },
     share: {
       title: 'Access to “{title}”',

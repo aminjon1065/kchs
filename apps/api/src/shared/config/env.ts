@@ -137,7 +137,7 @@ const EnvSchema = z.object({
   ONLYOFFICE_JWT_SECRET: optionalText,
 
   SMTP_URL: z.string().optional(),
-  SMTP_FROM: z.string().default('kchs <no-reply@kchs.local>'),
+  SMTP_FROM: z.string().default('Портал КЧС <no-reply@kchs.local>'),
 
   /**
    * Telegram-бот (ADR-0061): без токена привязка и канал уведомлений скрыты.
