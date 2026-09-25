@@ -3,6 +3,7 @@ import './quiet.js'
 import { parseArgs } from 'node:util'
 import { ZodError } from 'zod'
 import { seedCommand } from '~/seed/command.js'
+import { formatRotation, rotateSecrets } from '~/shared/crypto/rotation.js'
 import { closeDb, closeQueryRole } from '~/shared/db/client.js'
 import { runMigrations } from '~/shared/db/migrate.js'
 import { closeRedis } from '~/shared/redis/index.js'
@@ -23,6 +24,9 @@ const HELP = `kchs — служебные команды установки
                    PMTiles, манифест), затем регистрация в реестре базовых карт
   kchs basemaps sync
                  реестр базовых карт по манифестам в хранилище и подложка по умолчанию
+  kchs secrets rotate [--dry-run]
+                 перешифровать секреты текущим KCHS_MASTER_KEY; прежний ключ —
+                   в KCHS_MASTER_KEY_PREVIOUS (порядок — infra/runbooks/secret-leak.md)
   kchs help      эта справка
 
   --verbose      показывать журнал выполнения
@@ -42,6 +46,7 @@ async function run(argv: string[]): Promise<number> {
       yes: { type: 'boolean', default: false },
       key: { type: 'string' },
       'no-register': { type: 'boolean', default: false },
+      'dry-run': { type: 'boolean', default: false },
       verbose: { type: 'boolean', default: false },
       help: { type: 'boolean', short: 'h', default: false },
     },
@@ -115,6 +120,16 @@ async function run(argv: string[]): Promise<number> {
       }
       process.stderr.write(`kchs basemaps upload <каталог> | sync\n\n${HELP}`)
       return 2
+    }
+    case 'secrets': {
+      if (positionals[1] !== 'rotate') {
+        process.stderr.write(`kchs secrets rotate [--dry-run]\n\n${HELP}`)
+        return 2
+      }
+      const dryRun = values['dry-run']
+      const report = await rotateSecrets({ dryRun })
+      process.stdout.write(formatRotation(report, dryRun))
+      return report.some((line) => line.unreadable > 0) ? 1 : 0
     }
     case 'help':
       process.stdout.write(HELP)

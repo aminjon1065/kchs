@@ -97,7 +97,8 @@ Meilisearch; трасс движка; Alertmanager и доставки алер�
 
 ### Безопасность и лимиты
 
-`KCHS_MASTER_KEY` (шифрование секретов интеграций и TOTP), `SESSION_COOKIE_NAME`,
+`KCHS_MASTER_KEY` (шифрование секретов интеграций и TOTP), `KCHS_MASTER_KEY_PREVIOUS`
+(прежний ключ на время смены, потом убрать), `SESSION_COOKIE_NAME`,
 `SESSION_IDLE_HOURS`, `SESSION_ABSOLUTE_DAYS`, `INTERNAL_SERVICE_TOKEN`,
 `RATE_LIMIT_PER_MINUTE`, `LOGIN_RATE_LIMIT_PER_IP_PER_MINUTE`,
 `API_TOKEN_RATE_LIMIT_PER_MINUTE`, `WEBHOOKS_ALLOW_PRIVATE_ADDRESSES`,

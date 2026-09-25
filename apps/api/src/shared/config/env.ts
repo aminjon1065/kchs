@@ -83,6 +83,11 @@ const EnvSchema = z.object({
 
   /** 32 байта base64 — шифрование секретов и TOTP (17-security.md §4). */
   KCHS_MASTER_KEY: z.string().min(16),
+  /**
+   * Прежний мастер-ключ на время смены (ADR-0143): секреты, ещё зашифрованные им,
+   * читаются, пока `kchs secrets rotate` не перешифрует их текущим. Потом — убрать.
+   */
+  KCHS_MASTER_KEY_PREVIOUS: z.preprocess(unset, z.string().min(16).optional()),
   SESSION_COOKIE_NAME: z.string().default('kchs_session'),
   SESSION_IDLE_HOURS: z.coerce.number().int().min(1).max(720).default(12),
   /**
