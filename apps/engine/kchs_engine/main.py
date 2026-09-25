@@ -29,6 +29,7 @@ from kchs_engine.jobs import registered_queues
 from kchs_engine.logging import configure_logging, log
 from kchs_engine.render.report import close_browser
 from kchs_engine.storage import download, upload
+from kchs_engine.telemetry import configure_tracing
 from kchs_engine.users_import import build_template
 from kchs_engine.worker import run_workers
 
@@ -49,6 +50,8 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title="kchs engine", version=__version__, lifespan=lifespan)
+# Трассы — только с адресом коллектора (OTEL_EXPORTER_OTLP_ENDPOINT), ADR-0167
+configure_tracing(app)
 
 
 @app.get("/health")

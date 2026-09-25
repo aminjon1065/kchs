@@ -53,6 +53,14 @@ media = [
 ai = [
     "fastembed>=0.7",
 ]
+# Трассы (ADR-0167): OTLP/HTTP в коллектор, как у api. Без OTEL_EXPORTER_OTLP_ENDPOINT
+# пакеты не импортируются
+otel = [
+    "opentelemetry-sdk>=1.37",
+    "opentelemetry-exporter-otlp-proto-http>=1.37",
+    "opentelemetry-instrumentation-fastapi>=0.58b0",
+    "opentelemetry-instrumentation-httpx>=0.58b0",
+]
 dev = [
     "pytest>=8.4",
     "pytest-asyncio>=1.2",

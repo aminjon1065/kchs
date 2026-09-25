@@ -77,6 +77,15 @@ spec:
               value: {{ .Values.engine.service.port | quote }}
             - name: ENGINE_CONCURRENCY
               value: {{ .Values.engine.concurrency | quote }}
+            # Трассы движка — в тот же коллектор, что у api и worker (ADR-0167)
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: {{ .Values.observability.otlpEndpoint | quote }}
+            {{- with .Values.observability.tracesSamplerArg }}
+            - name: OTEL_TRACES_SAMPLER
+              value: parentbased_traceidratio
+            - name: OTEL_TRACES_SAMPLER_ARG
+              value: {{ . | quote }}
+            {{- end }}
             - name: ENGINE_TRANSCRIBE_MODEL
               value: {{ .Values.engine.transcribe.model | quote }}
             - name: ENGINE_TRANSCRIBE_DEVICE

@@ -462,6 +462,8 @@ services:
       ENGINE_COLUMNAR_CACHE_MB: ${ENGINE_COLUMNAR_CACHE_MB:-4096}
       ENGINE_COLUMNAR_THREADS: ${ENGINE_COLUMNAR_THREADS:-4}
       ENGINE_COLUMNAR_MEMORY_MB: ${ENGINE_COLUMNAR_MEMORY_MB:-2048}
+      # Трассы движка — в тот же коллектор, что у api и worker (ADR-0167); пусто — выключены
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT_INTERNAL:-}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:

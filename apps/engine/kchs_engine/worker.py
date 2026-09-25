@@ -20,9 +20,11 @@ from kchs_engine.jobs import echo as _echo  # noqa: F401
 from kchs_engine.jobs import files as _files  # noqa: F401
 from kchs_engine.jobs import media as _media  # noqa: F401
 from kchs_engine.jobs import users_import as _users_import  # noqa: F401
+from kchs_engine.jobs.registry import JobHandler
 from kchs_engine.logging import log
 from kchs_engine.render import documents as _documents_render  # noqa: F401
 from kchs_engine.render import report as _report  # noqa: F401
+from kchs_engine.telemetry import job_span
 
 Processor = Callable[[Job, str], Awaitable[dict[str, Any]]]
 
@@ -37,33 +39,45 @@ def _make_processor(queue: str) -> Processor:
             raise RuntimeError(f"Нет обработчика для {key}")
 
         record_id = str(job.data.get("jobRecordId") or job.id)
-        log.info("job.started", queue=queue, name=job.name, job_id=record_id)
-        await report_started(record_id)
-
-        try:
-            result = await job_handler(job.data)
-        except Exception as error:  # статус задания фиксируется в реестре
-            permanent = isinstance(error, PermanentJobError)
-            final = permanent or is_final_attempt(job)
-            log.error(
-                "job.failed",
-                queue=queue,
-                name=job.name,
-                job_id=record_id,
-                error=str(error),
-                final=final,
-            )
-            await report_failure(record_id, str(error), final=final)
-            if permanent:
-                # Повтор не поможет (файл не читается): BullMQ не повторяет такие задания
-                raise UnrecoverableError(str(error)) from error
-            raise
-
-        await report_result(record_id, result)
-        log.info("job.finished", queue=queue, name=job.name, job_id=record_id)
-        return result
+        # Задание продолжает трассу запроса api, который его поставил (ADR-0167)
+        opts = getattr(job, "opts", None)
+        with job_span(queue, job.name, record_id, int(job.attemptsMade) + 1, opts):
+            return await _run(queue, job, job_handler, record_id)
 
     return process
+
+
+async def _run(
+    queue: str,
+    job: Job,
+    job_handler: JobHandler,
+    record_id: str,
+) -> dict[str, Any]:
+    log.info("job.started", queue=queue, name=job.name, job_id=record_id)
+    await report_started(record_id)
+
+    try:
+        result = await job_handler(job.data)
+    except Exception as error:  # статус задания фиксируется в реестре
+        permanent = isinstance(error, PermanentJobError)
+        final = permanent or is_final_attempt(job)
+        log.error(
+            "job.failed",
+            queue=queue,
+            name=job.name,
+            job_id=record_id,
+            error=str(error),
+            final=final,
+        )
+        await report_failure(record_id, str(error), final=final)
+        if permanent:
+            # Повтор не поможет (файл не читается): BullMQ не повторяет такие задания
+            raise UnrecoverableError(str(error)) from error
+        raise
+
+    await report_result(record_id, result)
+    log.info("job.finished", queue=queue, name=job.name, job_id=record_id)
+    return result
 
 
 def is_final_attempt(job: Job) -> bool:
