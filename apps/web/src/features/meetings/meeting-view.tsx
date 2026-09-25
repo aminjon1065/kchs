@@ -27,6 +27,7 @@ import { onRealtimeEvent } from '~/shared/realtime/client.js'
 import { ProtocolPanel } from './protocol/protocol-panel.js'
 import { endMeeting, joinMeeting, leaveMeeting, meetingKeys, meetingQuery } from './queries.js'
 import { MeetingRoom } from './room/meeting-room.js'
+import { type DevicePrefs, loadDevicePrefs, PrejoinDialog } from './room/prejoin.js'
 
 /**
  * Встреча как объект (ADR-0089, ADR-0091): до входа — карточка с составом,
@@ -61,9 +62,13 @@ export default function MeetingView({ objectId, tabId }: { objectId: string; tab
     [client, objectId],
   )
 
+  // Проверка перед входом (ADR-0162): устройства выбираются до подключения
+  const [prejoin, setPrejoin] = useState(false)
+  const [prefs, setPrefs] = useState<DevicePrefs | null>(null)
   const enter = useMutation({
     mutationFn: () => joinMeeting(objectId),
     onSuccess: (result) => {
+      setPrejoin(false)
       setJoin(result)
       void client.invalidateQueries({ queryKey: meetingKeys.meeting(objectId) })
     },
@@ -127,6 +132,7 @@ export default function MeetingView({ objectId, tabId }: { objectId: string; tab
         refreshToken={refreshToken}
         onLeave={leave}
         onEnd={() => finish.mutate()}
+        prefs={prefs}
         onShow={(object) => {
           openTab({
             kind: 'object',
@@ -169,7 +175,7 @@ export default function MeetingView({ objectId, tabId }: { objectId: string; tab
               variant="primary"
               disabled={!meeting.can.join}
               loading={enter.isPending}
-              onClick={() => enter.mutate()}
+              onClick={() => setPrejoin(true)}
               data-testid="meeting-join"
               icon={<Video className="size-4" />}
             >
@@ -265,6 +271,18 @@ export default function MeetingView({ objectId, tabId }: { objectId: string; tab
       </TabsContent>
 
       <GuestLinkDialog meetingId={objectId} open={linkOpen} onOpenChange={setLinkOpen} />
+      {prejoin ? (
+        <PrejoinDialog
+          title={meeting.title}
+          initial={loadDevicePrefs(meeting.kind === 'call')}
+          loading={enter.isPending}
+          onJoin={(chosen) => {
+            setPrefs(chosen)
+            enter.mutate()
+          }}
+          onClose={() => setPrejoin(false)}
+        />
+      ) : null}
     </Tabs>
   )
 }

@@ -9,6 +9,7 @@ import {
   type TrackPublication,
 } from 'livekit-client'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { DevicePrefs } from './prejoin.js'
 
 /**
  * Клиент комнаты встречи (11-communications-meetings.md §3, ADR-0091): свой
@@ -82,6 +83,12 @@ export interface MeetingRoomOptions {
   onSignal?: (signal: MeetingSignal, from: string) => void
   /** Войти с включённой камерой: у звонка — да, у большой встречи — нет. */
   startWithVideo?: boolean
+  /**
+   * Выбор проверки перед входом (ADR-0162): устройства и с чем войти. Задан —
+   * важнее `startWithVideo`; менять его после входа нечего — дальше устройства
+   * переключает `selectDevice`.
+   */
+  prefs?: DevicePrefs | null
 }
 
 export interface MeetingRoomApi {
@@ -108,7 +115,9 @@ export interface MeetingRoomApi {
 }
 
 export function useMeetingRoom(options: MeetingRoomOptions): MeetingRoomApi {
-  const { join, refreshToken, onSignal, startWithVideo = false } = options
+  const { join, refreshToken, onSignal, startWithVideo = false, prefs = null } = options
+  const prefsRef = useRef(prefs)
+  prefsRef.current = prefs
   const roomRef = useRef<Room | null>(null)
   /** Токен подключённой комнаты: по нему эффект узнаёт «ту же» комнату. */
   const tokenRef = useRef<string | null>(null)
@@ -157,7 +166,17 @@ export function useMeetingRoom(options: MeetingRoomOptions): MeetingRoomApi {
     }
     if (roomRef.current && tokenRef.current === token.token) return closeLater
 
-    const room = new Room({ adaptiveStream: true, dynacast: true })
+    const chosen = prefsRef.current
+    const room = new Room({
+      adaptiveStream: true,
+      dynacast: true,
+      ...(chosen?.audioDeviceId
+        ? { audioCaptureDefaults: { deviceId: chosen.audioDeviceId } }
+        : {}),
+      ...(chosen?.videoDeviceId
+        ? { videoCaptureDefaults: { deviceId: chosen.videoDeviceId } }
+        : {}),
+    })
     roomRef.current = room
     tokenRef.current = token.token
     /** Комната ещё наша: иначе её сменили новым токеном или закрыли. */
@@ -238,11 +257,17 @@ export function useMeetingRoom(options: MeetingRoomOptions): MeetingRoomApi {
         // Микрофон включается сразу, камера — по желанию: так вход тише.
         // Публикация не ждётся: при плохой сети она может тянуться долго, а
         // комната должна быть видна сразу — состояние обновят события дорожек
-        void room.localParticipant
-          .setMicrophoneEnabled(true)
-          .then(refresh)
-          .catch(() => undefined)
-        if (startWithVideo) {
+        if (chosen?.mic ?? true) {
+          void room.localParticipant
+            .setMicrophoneEnabled(true)
+            .then(refresh)
+            .catch(() => undefined)
+        }
+        setActiveDevices({
+          ...(chosen?.audioDeviceId ? { audioinput: chosen.audioDeviceId } : {}),
+          ...(chosen?.videoDeviceId ? { videoinput: chosen.videoDeviceId } : {}),
+        })
+        if (chosen ? chosen.camera : startWithVideo) {
           void room.localParticipant
             .setCameraEnabled(true)
             .then(refresh)

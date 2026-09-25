@@ -6758,6 +6758,22 @@ export const tg: DeepPartial<Dictionary> = {
       shown: 'Ба ҳама нишон дода шуд: «{title}»',
       showedToYou: 'Иштирокчӣ ба шумо «{title}»-ро кушод',
     },
+    prejoin: {
+      title: 'Санҷиш пеш аз ворид шудан',
+      preview: 'Пешнамоиши камера',
+      cameraOff: 'Камера хомӯш аст',
+      camera: 'Камера',
+      microphone: 'Микрофон',
+      cameraOn: 'Бо камера ворид шудан',
+      micOn: 'Бо микрофон ворид шудан',
+      level: 'Сатҳи микрофон',
+      defaultDevice: 'Пешфарз',
+      cameraN: 'Камера {n}',
+      microphoneN: 'Микрофон {n}',
+      noAccess: 'Ба камера ё микрофон дастрасӣ нест',
+      noAccessHint:
+        'Дар браузер дастрасӣ диҳед ё бе онҳо ворид шавед — дар ҳуҷра ҳам фаъол кардан мумкин аст',
+    },
     devices: {
       title: 'Дастгоҳҳо',
       microphone: 'Микрофон',

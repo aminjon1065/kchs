@@ -6300,6 +6300,22 @@ export const en: DeepPartial<Dictionary> = {
       shown: 'Shown to everyone: “{title}”',
       showedToYou: 'A participant opened “{title}” for you',
     },
+    prejoin: {
+      title: 'Check before joining',
+      preview: 'Camera preview',
+      cameraOff: 'Camera is off',
+      camera: 'Camera',
+      microphone: 'Microphone',
+      cameraOn: 'Join with camera',
+      micOn: 'Join with microphone',
+      level: 'Microphone level',
+      defaultDevice: 'Default',
+      cameraN: 'Camera {n}',
+      microphoneN: 'Microphone {n}',
+      noAccess: 'No access to the camera or microphone',
+      noAccessHint:
+        'Allow access in the browser or join without them — you can turn them on in the room',
+    },
     devices: {
       title: 'Devices',
       microphone: 'Microphone',

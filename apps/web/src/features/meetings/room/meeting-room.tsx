@@ -19,6 +19,7 @@ import { objectLinksQuery } from '~/shared/api/queries.js'
 import { meetingKeys } from '../queries.js'
 import { RoomControls, type RoomLayout, type SidePanel } from './controls.js'
 import { RoomAudio, VideoTile } from './media.js'
+import type { DevicePrefs } from './prejoin.js'
 import { MeetingChat, PeoplePanel } from './side-panel.js'
 import { type RoomTile, useMeetingRoom } from './use-meeting-room.js'
 
@@ -36,6 +37,8 @@ export interface MeetingRoomProps {
   onEnd?: () => void
   /** «Показать всем»: получатель открывает объект своими правами. */
   onShow?: (object: { objectId: string; objectType: string; title: string }) => void
+  /** Устройства и с чем войти — из проверки перед входом (ADR-0162). */
+  prefs?: DevicePrefs | null
 }
 
 /**
@@ -51,6 +54,7 @@ export function MeetingRoom({
   onLeave,
   onEnd,
   onShow,
+  prefs = null,
 }: MeetingRoomProps) {
   const guest = meeting === null
   const t = useT()
@@ -90,6 +94,7 @@ export function MeetingRoom({
     refreshToken,
     onSignal,
     startWithVideo: meeting?.kind === 'call',
+    prefs,
   })
 
   const stage = useMemo(() => pickStage(room.tiles), [room.tiles])
