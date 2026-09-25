@@ -3,24 +3,27 @@ import { call, registerLifecycle, setupFixture, type TestContext } from './helpe
 
 /**
  * Содержимое базы знаний из `db:seed` (P5-E07): разделы по умолчанию и краткое
- * руководство пользователя деревом страниц в разделе «Обучение». Проверяем то,
- * ради чего оно заведено: страницы действительно создаются, у них есть текст,
- * оглавление и владелец, они опубликованы, и повторный сид ничего не дублирует.
+ * руководство пользователя деревом страниц в разделе «Обучение» — на каждом языке
+ * интерфейса своё дерево (N88). Проверяем то, ради чего оно заведено: страницы
+ * действительно создаются, у них есть текст, оглавление и владелец, они
+ * опубликованы, корни по языкам возвращаются для «Справки», и повторный сид ничего
+ * не дублирует.
  */
 registerLifecycle()
 
 const { startCollab, stopCollab } = await import('../src/kernel/collab/server.js')
 const { AuthService } = await import('../src/modules/identity/public.js')
 const { KnowledgeSeed } = await import('../src/modules/knowledge/public.js')
-const { GUIDE_PAGES, GUIDE_ROOT, GUIDE_SECTION } = await import(
-  '../src/modules/knowledge/domain/page-guide.js'
-)
+const { GUIDE_SECTION } = await import('../src/modules/knowledge/domain/page-guide.js')
+const { GUIDES } = await import('../src/modules/knowledge/domain/page-guides.js')
 const { systemCtx } = await import('../src/shared/context.js')
 
 // biome-ignore lint/suspicious/noExplicitAny: ответы API в тестах — без приведения типов
 type Json = any
 
 let fx: TestContext
+/** Итог первого сида: сколько страниц заведено и корни руководства по языкам. */
+let firstRun: Awaited<ReturnType<typeof KnowledgeSeed.ensureUserGuide>>
 
 /** Дерево страниц пространства — плоский список узлов с `parentId`. */
 async function tree(spaceId = fx.spaceId): Promise<Json[]> {
@@ -37,52 +40,79 @@ beforeAll(async () => {
   startCollab(fx.app.server, { resolveSession: (token) => AuthService.resolveSession(token) })
   const ctx = systemCtx('seed', { initiatorId: fx.admin.id })
   await KnowledgeSeed.ensureDefaultSections(ctx, fx.spaceId)
-  await KnowledgeSeed.ensureUserGuide(ctx, fx.spaceId)
-}, 180_000)
+  firstRun = await KnowledgeSeed.ensureUserGuide(ctx, fx.spaceId)
+}, 300_000)
 
 afterAll(async () => {
   await stopCollab()
 })
 
 describe('база знаний из сида', () => {
-  it('заводит разделы по умолчанию и дерево руководства', async () => {
+  it('заводит разделы по умолчанию и дерево руководства на каждом языке', async () => {
     const items = await tree()
     for (const section of ['Регламенты и инструкции', 'Справочники', GUIDE_SECTION]) {
       expect(byTitle(items, section), section).toMatchObject({ parentId: null })
     }
 
-    // руководство вложено в раздел «Обучение», а не лежит в корне пространства
+    // руководства вложены в раздел «Обучение», а не лежат в корне пространства:
+    // три корня — русский, таджикский, английский
     const section = byTitle(items, GUIDE_SECTION) as Json
-    const root = byTitle(items, GUIDE_ROOT.title) as Json
-    expect(root).toMatchObject({ parentId: section.id, hasChildren: true })
+    expect(items.filter((item) => item.parentId === section.id)).toHaveLength(GUIDES.length)
+    expect(GUIDES.map((guide) => guide.locale)).toEqual(['ru', 'tg', 'en'])
 
-    const children = items.filter((item) => item.parentId === root.id)
-    expect(children).toHaveLength(GUIDE_PAGES.length)
-    for (const guide of GUIDE_PAGES) {
-      expect(byTitle(children, guide.title), guide.title).toBeDefined()
+    for (const guide of GUIDES) {
+      const root = byTitle(items, guide.root.title) as Json
+      expect(root, guide.root.title).toMatchObject({ parentId: section.id, hasChildren: true })
+
+      const children = items.filter((item) => item.parentId === root.id)
+      expect(children).toHaveLength(guide.pages.length)
+      for (const child of guide.pages) {
+        expect(byTitle(children, child.title), `${guide.locale}: ${child.title}`).toBeDefined()
+      }
+    }
+    const created = GUIDES.reduce((sum, guide) => sum + 1 + guide.pages.length, 0)
+    expect(firstRun.created).toBe(created)
+  })
+
+  it('корни руководства по языкам — для пункта «Справка»', async () => {
+    const items = await tree()
+    expect(Object.keys(firstRun.roots).sort()).toEqual(['en', 'ru', 'tg'])
+    for (const guide of GUIDES) {
+      const root = byTitle(items, guide.root.title) as Json
+      expect(firstRun.roots[guide.locale], guide.locale).toBe(root.id)
     }
   })
 
   it('у страниц есть текст, оглавление, владелец и версия', async () => {
-    const root = byTitle(await tree(), GUIDE_ROOT.title) as Json
-    const response = await call(fx.app, { url: `/pages/${root.id}`, as: fx.admin })
-    expect(response.statusCode, response.body).toBe(200)
-    const page = response.json() as Json
+    const items = await tree()
+    for (const guide of GUIDES) {
+      const root = byTitle(items, guide.root.title) as Json
+      const response = await call(fx.app, { url: `/pages/${root.id}`, as: fx.admin })
+      expect(response.statusCode, response.body).toBe(200)
+      const page = response.json() as Json
 
-    expect(page.blocks).toHaveLength(GUIDE_ROOT.blocks.length)
-    expect(page.blocks[0].kind).toBe('text')
-    // подписи блоков дают оглавление страницы
-    expect(page.outline.map((item: Json) => item.text)).toContain('Содержание')
-    expect(page.owner?.id).toBe(fx.admin.id)
-    expect(page.status).toBe('published')
-    expect(page.versionNumber).toBe(1)
+      expect(page.blocks).toHaveLength(guide.root.blocks.length)
+      expect(page.blocks[0].kind).toBe('text')
+      // подписи блоков дают оглавление страницы: «Содержание», «Мундариҷа», «Contents»
+      const contents = (guide.root.blocks[1] as Json).title as string
+      expect(
+        page.outline.map((item: Json) => item.text),
+        guide.locale,
+      ).toContain(contents)
+      expect(page.owner?.id).toBe(fx.admin.id)
+      expect(page.status).toBe('published')
+      expect(page.versionNumber).toBe(1)
+    }
   })
 
   it('повторный сид ничего не дублирует', async () => {
     const before = await tree()
     const ctx = systemCtx('seed', { initiatorId: fx.admin.id })
     expect(await KnowledgeSeed.ensureDefaultSections(ctx, fx.spaceId)).toBe(0)
-    expect(await KnowledgeSeed.ensureUserGuide(ctx, fx.spaceId)).toEqual({ created: 0 })
+    expect(await KnowledgeSeed.ensureUserGuide(ctx, fx.spaceId)).toEqual({
+      created: 0,
+      roots: firstRun.roots,
+    })
     expect(await tree()).toHaveLength(before.length)
   })
 
@@ -96,7 +126,7 @@ describe('база знаний из сида', () => {
     expect(created.statusCode, created.body).toBe(200)
     const spaceId = created.json().id as string
     const ctx = systemCtx('seed', { initiatorId: fx.admin.id })
-    expect(await KnowledgeSeed.ensureUserGuide(ctx, spaceId)).toEqual({ created: 0 })
+    expect(await KnowledgeSeed.ensureUserGuide(ctx, spaceId)).toEqual({ created: 0, roots: {} })
     expect(await tree(spaceId)).toHaveLength(0)
   })
 })

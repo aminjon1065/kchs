@@ -1,6 +1,8 @@
 import type { Locale } from '@kchs/contracts'
 import { GUIDE_PAGES, GUIDE_ROOT } from './page-guide.js'
+import { GUIDE_PAGES_EN, GUIDE_ROOT_EN } from './page-guide-en.js'
 import type { GuidePage } from './page-guide-kit.js'
+import { GUIDE_PAGES_TG, GUIDE_ROOT_TG } from './page-guide-tg.js'
 
 /**
  * Краткое руководство на языках интерфейса (вопрос N88: руководства переводятся
@@ -14,4 +16,8 @@ export interface Guide {
   pages: readonly GuidePage[]
 }
 
-export const GUIDES: readonly Guide[] = [{ locale: 'ru', root: GUIDE_ROOT, pages: GUIDE_PAGES }]
+export const GUIDES: readonly Guide[] = [
+  { locale: 'ru', root: GUIDE_ROOT, pages: GUIDE_PAGES },
+  { locale: 'tg', root: GUIDE_ROOT_TG, pages: GUIDE_PAGES_TG },
+  { locale: 'en', root: GUIDE_ROOT_EN, pages: GUIDE_PAGES_EN },
+]
