@@ -20,6 +20,8 @@ const KEYS: Record<Field, string> = {
   requireMfaRoles: SETTING_KEYS.securityRequireMfaRoles,
   allowShareLinks: SETTING_KEYS.securityAllowShareLinks,
   sessionIdleHours: SETTING_KEYS.securitySessionIdleHours,
+  ruleEmailDomains: SETTING_KEYS.securityRuleEmailDomains,
+  ruleWebhookDomains: SETTING_KEYS.securityRuleWebhookDomains,
 }
 
 /**

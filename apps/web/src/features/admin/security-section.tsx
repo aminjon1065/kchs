@@ -1,6 +1,16 @@
 import type { SecurityPolicy } from '@kchs/contracts'
 import { localizedText } from '@kchs/i18n'
-import { Button, Card, Checkbox, Field, Input, Skeleton, Switch, useToast } from '@kchs/ui'
+import {
+  Button,
+  Card,
+  Checkbox,
+  Field,
+  Input,
+  Skeleton,
+  Switch,
+  Textarea,
+  useToast,
+} from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useId, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
@@ -9,10 +19,17 @@ import { ApiError, http } from '~/shared/api/client.js'
 import { keys, rolesQuery, securityPolicyQuery } from '~/shared/api/queries.js'
 import { AdminModeCard } from './admin-mode.js'
 
+/** Домены списка: по одному в строке (запятые и пробелы тоже разделяют). */
+const domainsOf = (text: string): string[] =>
+  text
+    .split(/[\s,;]+/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+
 /**
  * Политика безопасности (17-security.md §2): обязательный второй фактор по
- * ролям, гостевые ссылки, простой сессии. Изменения собираются в черновик и
- * сохраняются одной правкой — она попадает в аудит.
+ * ролям, гостевые ссылки, простой сессии, адресаты правил автоматизации (ADR-0141).
+ * Изменения собираются в черновик и сохраняются одной правкой — она попадает в аудит.
  */
 export function SecuritySection() {
   const t = useT()
@@ -20,6 +37,11 @@ export function SecuritySection() {
   const client = useQueryClient()
   const locale = useAppearance((s) => s.locale)
   const idleId = useId()
+  const emailId = useId()
+  const webhookId = useId()
+  // Текст полей доменов — как набрал администратор; в политику уходит разобранный список
+  const [emailText, setEmailText] = useState<string | null>(null)
+  const [webhookText, setWebhookText] = useState<string | null>(null)
   const { data: policy } = useQuery(securityPolicyQuery())
   const { data: roles = [] } = useQuery(rolesQuery())
   const [draft, setDraft] = useState<SecurityPolicy | null>(null)
@@ -30,6 +52,8 @@ export function SecuritySection() {
     onSuccess: (saved) => {
       client.setQueryData(keys.securityPolicy, saved)
       setDraft(null)
+      setEmailText(null)
+      setWebhookText(null)
       toast.show({ title: t('admin.security.saved'), tone: 'success' })
     },
     onError: (err) => toast.error(err instanceof ApiError ? err.message : t('errors.unknown')),
@@ -108,6 +132,42 @@ export function SecuritySection() {
         </Field>
       </Card>
 
+      <Card title={t('admin.security.rulesTitle')}>
+        <p className="text-xs text-fg-secondary">{t('admin.security.rulesHint')}</p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <Field
+            label={t('admin.security.emailDomains')}
+            hint={t('admin.security.emailDomainsHint')}
+            htmlFor={emailId}
+          >
+            <Textarea
+              id={emailId}
+              rows={4}
+              value={emailText ?? value.ruleEmailDomains.join('\n')}
+              onChange={(event) => {
+                setEmailText(event.target.value)
+                update({ ruleEmailDomains: domainsOf(event.target.value) })
+              }}
+            />
+          </Field>
+          <Field
+            label={t('admin.security.webhookDomains')}
+            hint={t('admin.security.webhookDomainsHint')}
+            htmlFor={webhookId}
+          >
+            <Textarea
+              id={webhookId}
+              rows={4}
+              value={webhookText ?? value.ruleWebhookDomains.join('\n')}
+              onChange={(event) => {
+                setWebhookText(event.target.value)
+                update({ ruleWebhookDomains: domainsOf(event.target.value) })
+              }}
+            />
+          </Field>
+        </div>
+      </Card>
+
       <div className="flex gap-2">
         <Button
           variant="primary"
@@ -117,7 +177,15 @@ export function SecuritySection() {
         >
           {t('common.actions.save')}
         </Button>
-        <Button variant="ghost" disabled={!draft} onClick={() => setDraft(null)}>
+        <Button
+          variant="ghost"
+          disabled={!draft}
+          onClick={() => {
+            setDraft(null)
+            setEmailText(null)
+            setWebhookText(null)
+          }}
+        >
           {t('common.actions.cancel')}
         </Button>
       </div>

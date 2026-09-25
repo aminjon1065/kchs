@@ -144,7 +144,19 @@ beforeAll(async () => {
   bus.startDispatcher()
 }, 60_000)
 
+/** Белый список адресатов правил (N38, ADR-0141) — политикой безопасности. */
+async function allowlist(ruleEmailDomains: string[], ruleWebhookDomains: string[]) {
+  const response = await call(fx.app, {
+    method: 'PATCH',
+    url: '/admin/security-policy',
+    as: fx.admin,
+    payload: { ruleEmailDomains, ruleWebhookDomains },
+  })
+  expect(response.statusCode, response.body).toBe(200)
+}
+
 afterAll(async () => {
+  await allowlist([], [])
   bus.stopDispatcher()
   await bus.stopConsumers()
   await stopWorkers()
@@ -545,8 +557,98 @@ describe('правила автоматизации: ручной запуск �
   })
 })
 
+describe('белый список адресатов правил (N38)', () => {
+  it('письмо на чужой домен и вебхук мимо списка не сохраняются; поддомен разрешённого — можно', async () => {
+    await allowlist([], [])
+    const check = async (actions: Array<Record<string, unknown>>) => {
+      const response = await call(fx.app, {
+        method: 'POST',
+        url: '/automation/rules/validate',
+        as: fx.admin,
+        payload: {
+          definition: {
+            name: { ru: 'Адресаты' },
+            runAs: bot.id,
+            enabled: true,
+            trigger: { kind: 'event', type: 'object.created', filter: {} },
+            conditions: { expr: "object.type = 'folder'" },
+            actions,
+          },
+        },
+      })
+      expect(response.statusCode, response.body).toBe(200)
+      return response.json() as { ok: boolean; issues: Array<{ path: string; message: string }> }
+    }
+    const actions = [
+      {
+        type: 'send_email',
+        to: ['duty@partner.tj', `user:${fx.users.member.id}`],
+        subject: 'Т',
+        body: 'Т',
+      },
+      { type: 'webhook', url: 'https://hooks.partner.tj/in' },
+    ]
+    const denied = await check(actions)
+    expect(denied.ok).toBe(false)
+    expect(denied.issues.map((issue) => issue.path)).toEqual(
+      expect.arrayContaining(['actions.0.to.0', 'actions.1.url']),
+    )
+    expect(denied.issues.find((issue) => issue.path === 'actions.0.to.0')?.message).toContain(
+      'нет в белом списке',
+    )
+    // Сотрудник из справочника — адрес организации, его список не касается
+    expect(denied.issues.some((issue) => issue.path === 'actions.0.to.1')).toBe(false)
+
+    await allowlist(['partner.tj'], ['partner.tj'])
+    expect((await check(actions)).ok).toBe(true)
+  })
+
+  it('сузили список — правило не включается, а запуск отказывает с причиной', async () => {
+    await allowlist([], ['partner.tj'])
+    const created = await createRule({
+      name: `Вебхук партнёру ${run}`,
+      runAs: bot.id,
+      trigger: { kind: 'manual', objectTypes: ['folder'], confirm: false },
+      actions: [{ type: 'webhook', url: 'https://hooks.partner.tj/in' }],
+    })
+    expect(created.statusCode, created.body).toBe(200)
+    const ruleId = created.json().id as string
+    const folderId = await createFolder(`Вызов партнёру ${run}`)
+
+    await allowlist([], [])
+    const started = await call(fx.app, {
+      method: 'POST',
+      url: `/automation/rules/${ruleId}/run`,
+      as: fx.admin,
+      payload: { objectId: folderId },
+    })
+    expect(started.statusCode, started.body).toBe(200)
+    const failed = await waitForRun(ruleId, ['failed', 'succeeded'])
+    expect(failed.status).toBe('failed')
+    expect(JSON.stringify(failed)).toContain('нет в списке разрешённых')
+
+    const off = await call(fx.app, {
+      method: 'POST',
+      url: `/automation/rules/${ruleId}/enabled`,
+      as: fx.admin,
+      payload: { enabled: false },
+    })
+    expect(off.statusCode, off.body).toBe(200)
+    const on = await call(fx.app, {
+      method: 'POST',
+      url: `/automation/rules/${ruleId}/enabled`,
+      as: fx.admin,
+      payload: { enabled: true },
+    })
+    expect(on.statusCode).toBe(400)
+    expect(on.body).toContain('Правило не включено')
+  })
+})
+
 describe('расписания', () => {
   it('экран показывает проверки платформы и правила по cron', async () => {
+    // Вебхук правила — только на разрешённый домен (N38)
+    await allowlist([], ['example.invalid'])
     const created = await createRule({
       name: `По расписанию ${run}`,
       runAs: bot.id,

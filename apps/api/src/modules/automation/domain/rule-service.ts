@@ -24,7 +24,7 @@ import { db, type Executor } from '~/shared/db/client.js'
 import { objects, ruleRuns, rules, spaces, users } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
-import { blockingIssues, checkRule } from './validate.js'
+import { blockingIssues, checkRule, ruleAllowlist } from './validate.js'
 
 /**
  * Правила автоматизации (14-automation-integrations.md §1, ADR-0096).
@@ -250,7 +250,10 @@ export const RuleService = {
 
   async create(tx: Executor, ctx: UserCtx, input: RuleCreateInput): Promise<string> {
     const definition = RuleDefinition.parse(input.definition)
-    const blocking = blockingIssues(checkRule(definition), definition.enabled)
+    const blocking = blockingIssues(
+      checkRule(definition, await ruleAllowlist()),
+      definition.enabled,
+    )
     if (blocking.length > 0) {
       throw errors.validation(
         `Правило не сохранено: ${blocking[0]?.message ?? ''}`,
@@ -292,7 +295,10 @@ export const RuleService = {
     const current = await RuleService.load(tx, id)
     if (!current) throw errors.notFound('Правило')
     const definition = RuleDefinition.parse(next)
-    const blocking = blockingIssues(checkRule(definition), definition.enabled)
+    const blocking = blockingIssues(
+      checkRule(definition, await ruleAllowlist()),
+      definition.enabled,
+    )
     if (blocking.length > 0) {
       throw errors.validation(
         `Правило не сохранено: ${blocking[0]?.message ?? ''}`,
@@ -352,6 +358,15 @@ export const RuleService = {
       throw runAsError('Укажите служебного пользователя правила')
     }
     if (enabled && definition.runAs) await assertRunAs(definition.runAs)
+    if (enabled) {
+      // Белый список мог сузиться, пока правило было выключено (ADR-0141)
+      const [blocking] = blockingIssues(checkRule(definition, await ruleAllowlist()), true)
+      if (blocking) {
+        throw errors.validation(`Правило не включено: ${blocking.message}`, [
+          { path: blocking.path, message: blocking.message },
+        ])
+      }
+    }
 
     await tx
       .update(rules)

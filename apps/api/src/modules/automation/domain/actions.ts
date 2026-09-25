@@ -26,6 +26,7 @@ import { objects, users } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { sendMail } from '~/shared/mail/index.js'
 import { type RuleScopeData, renderTemplate, renderValue } from './scope.js'
+import { emailOutsideAllowlist, ruleAllowlist, webhookOutsideAllowlist } from './validate.js'
 
 /**
  * Действия правил (contracts/automation-rule.md §Действия). Каждое выполняется
@@ -391,9 +392,17 @@ export async function runAction(
               .where(eq(users.status, 'active'))
           : []
       const known = new Set(people)
+      // Сотрудники из справочника — адреса организации; явные адреса — только из белого
+      // списка (N38, ADR-0141): его могли сузить уже после сохранения правила
+      const allow = await ruleAllowlist()
+      const explicit = plainEmails(action.to).map((address) => address.trim())
+      const blocked = explicit
+        .map((address) => emailOutsideAllowlist(address, allow))
+        .filter((reason): reason is string => reason !== null)
+      if (blocked.length > 0) throw errors.forbidden(`Письмо не отправлено. ${blocked[0]}`)
       const addresses = [
         ...rows.filter((row) => known.has(row.id)).map((row) => row.email),
-        ...plainEmails(action.to),
+        ...explicit,
       ].filter((address): address is string => Boolean(address))
       if (addresses.length === 0) return { message: 'Адресатов нет' }
       const subject = required(
@@ -434,6 +443,9 @@ export async function runAction(
     }
 
     case 'webhook': {
+      // Вызов — только на домены из белого списка вебхуков правил (N38, ADR-0141)
+      const outside = webhookOutsideAllowlist(action.url, await ruleAllowlist())
+      if (outside) throw errors.forbidden(`Вызов не выполнен. ${outside}`)
       const payload = Object.fromEntries(
         Object.entries(action.payload).map(([key, template]) => [
           key,

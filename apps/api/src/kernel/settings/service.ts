@@ -128,6 +128,8 @@ export const SETTING_KEYS = {
   brandLoginNote: 'brand.loginNote',
   securityAllowShareLinks: 'security.allowShareLinks',
   securityRequireMfaRoles: 'security.requireMfaRoles',
+  securityRuleEmailDomains: 'security.ruleEmailDomains',
+  securityRuleWebhookDomains: 'security.ruleWebhookDomains',
   securitySessionIdleHours: 'security.sessionIdleHours',
   uiTheme: 'ui.theme',
   uiDensity: 'ui.density',

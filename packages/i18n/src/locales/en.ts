@@ -7168,6 +7168,14 @@ export const en: DeepPartial<Dictionary> = {
       idleTitle: 'Session idle timeout',
       idleHint: 'Hours of inactivity after which a session ends. Empty — the server default.',
       idleHours: 'Idle hours',
+      rulesTitle: 'Automation rule recipients',
+      rulesHint:
+        'Rule emails go to directory employees and to addresses in these domains; rule webhooks call only the listed domains and their subdomains. A rule outside the list is neither saved nor run.',
+      emailDomains: 'Email domains',
+      emailDomainsHint: 'One per line, for example kchs.tj or mchs.gov.ru',
+      webhookDomains: 'Webhook domains',
+      webhookDomainsHint:
+        'One per line, for example hooks.example.org. Empty — rules may not call webhooks',
       saved: 'Security policy saved',
     },
     capabilityGroups: {

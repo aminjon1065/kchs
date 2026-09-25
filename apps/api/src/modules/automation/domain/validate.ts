@@ -1,4 +1,5 @@
 import {
+  domainAllowed,
   EVENT_TYPES,
   isKnownEventType,
   RULE_EXPRESSION_ROOTS,
@@ -9,6 +10,7 @@ import {
 import { checkAssignee } from '@kchs/process'
 import { checkEvaluable } from '@kchs/query/expr'
 import cronParser from 'cron-parser'
+import { SecurityPolicyService } from '~/kernel/settings/security-policy.js'
 import { conditionExpressions, templateExpressions } from './scope.js'
 
 /**
@@ -19,6 +21,45 @@ import { conditionExpressions, templateExpressions } from './scope.js'
  */
 
 const DOMAINS = new Set(EVENT_TYPES.map((type) => type.split('.')[0] ?? ''))
+
+/**
+ * Белый список адресатов правил (N38, ADR-0141): явные адреса писем — только этих доменов,
+ * вебхуки — только на эти домены. Ведёт администратор в политике безопасности.
+ */
+export interface RuleAllowlist {
+  emailDomains: readonly string[]
+  webhookDomains: readonly string[]
+}
+
+export async function ruleAllowlist(): Promise<RuleAllowlist> {
+  const policy = await SecurityPolicyService.current()
+  return { emailDomains: policy.ruleEmailDomains, webhookDomains: policy.ruleWebhookDomains }
+}
+
+const WHERE_LIST = 'список ведёт администратор: «Администрирование» → «Безопасность»'
+
+/** Явный адрес почты, а не выражение назначения (как у `send_email`). */
+const isPlainEmail = (source: string) =>
+  source.includes('@') && !source.includes('(') && !source.includes(':') && !source.includes('{{')
+
+export function emailOutsideAllowlist(address: string, allow: RuleAllowlist): string | null {
+  const domain = address.slice(address.lastIndexOf('@') + 1)
+  return domainAllowed(domain, allow.emailDomains)
+    ? null
+    : `Адрес «${address}» вне организации: домена «${domain}» нет в белом списке писем правил — ${WHERE_LIST}`
+}
+
+export function webhookOutsideAllowlist(url: string, allow: RuleAllowlist): string | null {
+  let host = ''
+  try {
+    host = new URL(url).hostname
+  } catch {
+    return null
+  }
+  return domainAllowed(host, allow.webhookDomains)
+    ? null
+    : `Домена «${host}» нет в списке разрешённых для вебхуков правил — ${WHERE_LIST}`
+}
 
 /** Область вычисления условия триггера по показателю. */
 const METRIC_ROOTS = ['value', 'previous', 'metric', 'now']
@@ -82,7 +123,12 @@ class Issues {
   }
 }
 
-function checkAction(issues: Issues, action: RuleAction, index: number): void {
+function checkAction(
+  issues: Issues,
+  action: RuleAction,
+  index: number,
+  allow: RuleAllowlist | undefined,
+): void {
   const at = `actions.${index}`
   switch (action.type) {
     case 'notify':
@@ -153,7 +199,11 @@ function checkAction(issues: Issues, action: RuleAction, index: number): void {
       }
       break
     case 'send_email':
-      for (const [i, to] of action.to.entries()) issues.assignee(`${at}.to.${i}`, to)
+      for (const [i, to] of action.to.entries()) {
+        issues.assignee(`${at}.to.${i}`, to)
+        const outside = allow && isPlainEmail(to) ? emailOutsideAllowlist(to.trim(), allow) : null
+        if (outside) issues.error(`${at}.to.${i}`, outside)
+      }
       issues.template(`${at}.subject`, action.subject)
       issues.template(`${at}.body`, action.body)
       break
@@ -175,6 +225,10 @@ function checkAction(issues: Issues, action: RuleAction, index: number): void {
       if (action.url.startsWith('http://')) {
         issues.warning(`${at}.url`, 'Вызов без шифрования: данные уйдут открытым текстом')
       }
+      {
+        const outside = allow ? webhookOutsideAllowlist(action.url, allow) : null
+        if (outside) issues.error(`${at}.url`, outside)
+      }
       break
     case 'ai_task':
       issues.template(`${at}.prompt`, action.prompt)
@@ -188,8 +242,12 @@ function checkAction(issues: Issues, action: RuleAction, index: number): void {
   }
 }
 
-/** Смысловая проверка правила: ошибки и предупреждения с путями в определении. */
-export function checkRule(definition: RuleDefinition): RuleIssue[] {
+/**
+ * Смысловая проверка правила: ошибки и предупреждения с путями в определении. С белым
+ * списком адресатов проверяются и письма на явные адреса, и вебхуки (ADR-0141); без него —
+ * только форма и выражения.
+ */
+export function checkRule(definition: RuleDefinition, allow?: RuleAllowlist): RuleIssue[] {
   const issues = new Issues()
   const trigger = definition.trigger
 
@@ -225,7 +283,9 @@ export function checkRule(definition: RuleDefinition): RuleIssue[] {
     }
   }
 
-  for (const [index, action] of definition.actions.entries()) checkAction(issues, action, index)
+  for (const [index, action] of definition.actions.entries()) {
+    checkAction(issues, action, index, allow)
+  }
   issues.template('limits.dedupeKey', definition.limits.dedupeKey)
 
   if (!definition.runAs) {

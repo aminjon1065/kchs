@@ -36,6 +36,8 @@ const DEFAULTS: SecurityPolicy = {
   requireMfaRoles: [],
   allowShareLinks: true,
   sessionIdleHours: null,
+  ruleEmailDomains: [],
+  ruleWebhookDomains: [],
 }
 
 beforeAll(async () => {
@@ -85,6 +87,23 @@ describe('политика безопасности: администриров�
       payload: { allowShareLinks: false },
     })
     expect(write.statusCode).toBe(403)
+  })
+
+  it('домены белого списка правил приводятся к виду kchs.tj, мусор отклоняется (N38)', async () => {
+    const saved = await setPolicy({
+      ruleEmailDomains: ['@Kchs.TJ', 'mchs.gov.ru.'],
+      ruleWebhookDomains: ['https://Hooks.Partner.tj/path?x=1', '*.gdacs.org'],
+    })
+    expect(saved.ruleEmailDomains).toEqual(['kchs.tj', 'mchs.gov.ru'])
+    expect(saved.ruleWebhookDomains).toEqual(['hooks.partner.tj', 'gdacs.org'])
+    const broken = await call(fx.app, {
+      method: 'PATCH',
+      url: '/admin/security-policy',
+      as: fx.admin,
+      payload: { ruleWebhookDomains: ['не домен'] },
+    })
+    expect(broken.statusCode).toBe(400)
+    await setPolicy({ ruleEmailDomains: [], ruleWebhookDomains: [] })
   })
 
   it('неизвестная роль отклоняется', async () => {

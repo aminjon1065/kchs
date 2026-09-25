@@ -33,7 +33,7 @@ import { RuleService } from './domain/rule-service.js'
 import { RuleRuns } from './domain/runs.js'
 import { runManually, syncRuleSchedule } from './domain/schedules.js'
 import { RULE_TEMPLATES } from './domain/templates.js'
-import { checkRule, ruleIssuesOk } from './domain/validate.js'
+import { checkRule, ruleAllowlist, ruleIssuesOk } from './domain/validate.js'
 
 const IdParam = z.object({ id: z.uuid() })
 const Ok = z.object({ ok: z.boolean() })
@@ -120,7 +120,7 @@ export function registerAutomationRoutes(route: RouteRegistrar): void {
     readOnly: true,
     schema: { body: RuleValidateInput, response: { 200: RuleValidateResult } },
     handler: async (request) => {
-      const issues = checkRule(RuleDefinition.parse(request.body.definition))
+      const issues = checkRule(RuleDefinition.parse(request.body.definition), await ruleAllowlist())
       return { ok: ruleIssuesOk(issues), issues }
     },
   })
