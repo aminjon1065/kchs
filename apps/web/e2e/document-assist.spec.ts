@@ -148,7 +148,7 @@ test.describe('ИИ в документах', () => {
     ).toBeVisible()
 
     await screen.getByRole('button', { name: 'Зарегистрировать', exact: true }).click()
-    const toast = page.getByText(/Зарегистрирован № ВХ-\d{4}\/\d{2}/)
+    const toast = page.getByText(/Зарегистрирован № [\p{L}\d-]+\/\d+/u)
     await expect(toast).toBeVisible({ timeout: 15_000 })
     const number = ((await toast.textContent()) ?? '').replace(/^.*№\s*/, '').trim()
     await page.getByRole('tab', { name: new RegExp(`${number}`) }).click()

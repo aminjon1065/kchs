@@ -315,7 +315,7 @@ test('маршрут исходящего: согласование, замеч�
   await author.reload()
   await expect(author.getByRole('heading', { name: subject })).toBeVisible({ timeout: 20_000 })
   await expect(author.getByText('Зарегистрирован', { exact: true }).first()).toBeVisible()
-  await expect(author.getByText(/№ ИСХ-\d{4}\/\d{2}/).first()).toBeVisible()
+  await expect(author.getByText(/№ [\p{L}\d-]+\/\d+/u).first()).toBeVisible()
   await author.getByRole('tab', { name: 'Маршрут', exact: true }).click()
   const finished = author.getByRole('tabpanel', { name: 'Маршрут' })
   await expect(finished.getByText('Завершён', { exact: true })).toBeVisible()

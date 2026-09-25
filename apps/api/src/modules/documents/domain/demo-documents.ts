@@ -105,19 +105,28 @@ const REPORTS = [
 const APPLICANTS = ['Заявитель Р. Каримов', 'Заявитель М. Шарипова', 'Заявитель Д. Саидов'] as const
 const METHODS: DeliveryMethod[] = ['post', 'email', 'courier', 'edms']
 
-/** Номенклатура канцелярии: индекс, заголовок, типы документов, срок хранения. */
+/**
+ * Дела демо-документов — индексы типовой номенклатуры (ADR-0135): приказы — у руководства,
+ * переписка, обращения и записки — у канцелярии. Если типовая номенклатура уже заведена,
+ * дела берутся из неё, иначе заводятся здесь на подразделение канцелярии.
+ */
 const NOMENCLATURE = [
-  { index: '01-01', title: 'Приказы по основной деятельности', types: ['order'], years: null },
   {
-    index: '01-05',
-    title: 'Входящая корреспонденция',
-    types: ['incoming_letter', 'situation_report'],
+    index: '01-02',
+    title: 'Приказы председателя по основной деятельности',
+    types: ['order'],
+    years: null,
+  },
+  { index: '02-05', title: 'Входящая корреспонденция', types: ['incoming_letter'], years: 5 },
+  { index: '02-06', title: 'Исходящая корреспонденция', types: ['outgoing_letter'], years: 5 },
+  {
+    index: '02-07',
+    title: 'Обращения граждан и документы по их рассмотрению',
+    types: ['appeal'],
     years: 5,
   },
-  { index: '01-06', title: 'Исходящая корреспонденция', types: ['outgoing_letter'], years: 5 },
-  { index: '01-07', title: 'Обращения граждан и ответы на них', types: ['appeal'], years: 5 },
   {
-    index: '01-08',
+    index: '02-08',
     title: 'Служебные и докладные записки',
     types: ['memo', 'report_memo'],
     years: 3,
@@ -263,7 +272,7 @@ export async function seedDemoDocuments(people: DemoDocumentPeople): Promise<Dem
   for (const caseYear of [year - 1, year]) {
     for (const item of NOMENCLATURE) await ensureCase(item, caseYear)
   }
-  const memosCase = NOMENCLATURE.find((item) => item.index === '01-08')
+  const memosCase = NOMENCLATURE.find((item) => item.index === '02-08')
   if (memosCase) await ensureCase(memosCase, year - 5)
 
   // ── План документов ──────────────────────────────────────────────────────
@@ -332,7 +341,7 @@ export async function seedDemoDocuments(people: DemoDocumentPeople): Promise<Dem
         // Часть открытых — просрочена: срок в прошлом
         deadline: addDays(regDate, status === 'registered' && index % 3 === 0 ? 5 : 20),
         scan: true,
-        caseKey: status === 'filed' || status === 'archived' ? caseKey('01-05', planYear) : null,
+        caseKey: status === 'filed' || status === 'archived' ? caseKey('02-05', planYear) : null,
       })
       // Каждое второе входящее — с ответом: исходящий в ответ на него
       if (index % 2 === 0) {
@@ -356,7 +365,7 @@ export async function seedDemoDocuments(people: DemoDocumentPeople): Promise<Dem
           replyTo: letter.key,
           caseKey:
             replyStatus === 'filed' || replyStatus === 'archived'
-              ? caseKey('01-06', planYear)
+              ? caseKey('02-06', planYear)
               : null,
         })
       }
@@ -383,7 +392,7 @@ export async function seedDemoDocuments(people: DemoDocumentPeople): Promise<Dem
         regDate: status === 'draft' ? null : dateOf(planYear, share),
         signerId: head().id,
         correspondentId: pick(orgs, random).id,
-        caseKey: status === 'filed' || status === 'archived' ? caseKey('01-06', planYear) : null,
+        caseKey: status === 'filed' || status === 'archived' ? caseKey('02-06', planYear) : null,
       })
     }
 
@@ -403,7 +412,7 @@ export async function seedDemoDocuments(people: DemoDocumentPeople): Promise<Dem
         control: status === 'registered',
         controllerId: status === 'registered' ? chief.id : null,
         deadline: status === 'registered' ? addDays(dateOf(planYear, share), 30) : null,
-        caseKey: status === 'filed' || status === 'archived' ? caseKey('01-01', planYear) : null,
+        caseKey: status === 'filed' || status === 'archived' ? caseKey('01-02', planYear) : null,
       })
     }
   }
@@ -428,7 +437,7 @@ export async function seedDemoDocuments(people: DemoDocumentPeople): Promise<Dem
       status,
       regDate: status === 'draft' || status === 'cancelled' ? null : dateOf(year, share),
       signerId: head().id,
-      caseKey: status === 'filed' ? caseKey('01-08', year) : null,
+      caseKey: status === 'filed' ? caseKey('02-08', year) : null,
     })
   }
   // Старое дело записок: срок хранения истёк — его можно выделить к уничтожению
@@ -439,7 +448,7 @@ export async function seedDemoDocuments(people: DemoDocumentPeople): Promise<Dem
       status: 'archived',
       regDate: dayIn(year - 5, 3 + index * 2, 12),
       signerId: head().id,
-      caseKey: caseKey('01-08', year - 5),
+      caseKey: caseKey('02-08', year - 5),
     })
   }
 
@@ -455,7 +464,7 @@ export async function seedDemoDocuments(people: DemoDocumentPeople): Promise<Dem
       regDate: dateOf(year, share),
       correspondentId: pick(applicants, random),
       controllerId: head().id,
-      caseKey: status === 'filed' ? caseKey('01-07', year) : null,
+      caseKey: status === 'filed' ? caseKey('02-07', year) : null,
     })
   }
 

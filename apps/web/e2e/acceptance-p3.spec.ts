@@ -288,7 +288,7 @@ test('сценарий B: входящее → резолюция → поруч
     .click()
   await screen.getByRole('textbox', { name: 'Исходящий номер отправителя' }).fill(`21-${run}`)
   await screen.getByRole('button', { name: 'Зарегистрировать', exact: true }).click()
-  const registered = registrar.getByText(/Зарегистрирован № ВХ-\d{4}\/\d{2}/)
+  const registered = registrar.getByText(/Зарегистрирован № [\p{L}\d-]+\/\d+/u)
   await expect(registered).toBeVisible({ timeout: 15_000 })
   expect(Date.now() - registrationStarted).toBeLessThan(120_000)
   const incomingNumber = ((await registered.textContent()) ?? '').replace(/^.*№\s*/, '').trim()
@@ -417,13 +417,14 @@ test('сценарий B: входящее → резолюция → поруч
     .toBe('registered')
 
   await openDocument(registrar, replyId)
-  await expect(registrar.getByText(/№ ИСХ-\d{4}\/\d{2}/).first()).toBeVisible()
+  // Номер «подразделение-дело/номер» (ADR-0134), без дела — префикс журнала
+  await expect(registrar.getByText(/№ [\p{L}\d-]+\/\d+/u).first()).toBeVisible()
   const outgoingNumber = (
     (await registrar
-      .getByText(/ИСХ-\d{4}\/\d{2}/)
+      .getByText(/№ [\p{L}\d-]+\/\d+/u)
       .first()
       .textContent()) ?? ''
-  ).match(/ИСХ-\d{4}\/\d{2}/)?.[0] as string
+  ).match(/№ ([\p{L}\d-]+\/\d+)/u)?.[1] as string
   const dispatchSection = await contextSection(registrar, 'Делопроизводство')
   await dispatchSection.getByRole('button', { name: 'Отметить отправку', exact: true }).click()
   const dispatch = registrar.getByRole('dialog', { name: 'Отметка об отправке' })

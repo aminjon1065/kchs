@@ -3,6 +3,8 @@ import {
   AcknowledgmentRequestResult,
   CaseCloseYearInput,
   CaseCreateInput,
+  CaseImportInput,
+  CaseImportReport,
   CaseList,
   CaseListQuery,
   CaseRecord,
@@ -57,6 +59,7 @@ import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { validServiceToken } from '~/shared/http/service-token.js'
 import { DocumentAcknowledgments } from '../domain/acknowledgment-service.js'
+import { CaseImport } from '../domain/case-import.js'
 import { CaseService } from '../domain/case-service.js'
 import { Correspondence } from '../domain/correspondence-service.js'
 import { CorrespondentService } from '../domain/correspondent-service.js'
@@ -488,6 +491,31 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
     summary: 'Номенклатура дел: дела по годам, состоянию, подразделению',
     schema: { querystring: CaseListQuery, response: { 200: CaseList } },
     handler: async (request) => ({ items: await CaseService.list(request.ctx, request.query) }),
+  })
+
+  route({
+    method: 'GET',
+    url: '/cases/import/template.xlsx',
+    auth: 'session',
+    tags: ['documents'],
+    summary: 'Образец импорта номенклатуры: типовая номенклатура, подразделения и типы документов',
+    handler: async (request, reply) => {
+      const content = await CaseImport.template(request.ctx)
+      reply
+        .header('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        .header('content-disposition', 'attachment; filename="kchs-nomenclature.xlsx"')
+      return reply.send(content)
+    },
+  })
+
+  route({
+    method: 'POST',
+    url: '/cases/import',
+    auth: 'session',
+    tags: ['documents'],
+    summary: 'Проверить или импортировать номенклатуру дел из загруженного файла Excel',
+    schema: { body: CaseImportInput, response: { 200: CaseImportReport } },
+    handler: async (request) => CaseImport.run(request.ctx, request.body),
   })
 
   route({

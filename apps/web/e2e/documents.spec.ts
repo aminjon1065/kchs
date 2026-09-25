@@ -62,7 +62,7 @@ test.describe('Документы', () => {
     await screen.getByRole('textbox', { name: 'Исходящий номер отправителя' }).fill(`12-${run}`)
 
     await screen.getByRole('button', { name: 'Зарегистрировать', exact: true }).click()
-    const toast = page.getByText(/Зарегистрирован № ВХ-\d{4}\/\d{2}/)
+    const toast = page.getByText(/Зарегистрирован № [\p{L}\d-]+\/\d+/u)
     await expect(toast).toBeVisible({ timeout: 15_000 })
     const number = ((await toast.textContent()) ?? '').replace(/^.*№\s*/, '').trim()
 
@@ -111,9 +111,9 @@ test.describe('Документы', () => {
     const context = page.getByRole('complementary', { name: 'Контекст' })
     await context.getByRole('button', { name: 'Зарегистрировать', exact: true }).click()
     const register = page.getByRole('dialog', { name: 'Регистрация документа' })
-    await expect(register.getByText(/Следующий номер: ВН-\d{4}\/\d{2}/)).toBeVisible()
+    await expect(register.getByText(/Номер будет: [\p{L}\d-]+\/\d+/u)).toBeVisible()
     await register.getByRole('button', { name: 'Зарегистрировать', exact: true }).click()
-    await expect(page.getByText(/Зарегистрирован № ВН-\d{4}\/\d{2}/)).toBeVisible()
+    await expect(page.getByText(/Зарегистрирован № [\p{L}\d-]+\/\d+/u)).toBeVisible()
     await expect(page.getByText('Зарегистрирован', { exact: true }).first()).toBeVisible()
     await expect(
       context.getByRole('button', { name: 'Зарегистрировать', exact: true }),

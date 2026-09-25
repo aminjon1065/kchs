@@ -29,6 +29,7 @@ import { registerPrintForm } from './domain/print/registry.js'
 import { DocumentRenders } from './domain/render-service.js'
 import { ensureStarterSet } from './domain/starter-set.js'
 import { DocumentTypeService } from './domain/type-service.js'
+import { seedTypicalNomenclature } from './domain/typical-nomenclature.js'
 import { DocumentVersionService } from './domain/version-service.js'
 
 /** @public — люди демо-мира для демо-документов сида (ADR-0086) */
@@ -155,6 +156,7 @@ export const DocumentsSeed = {
   ensureOfficeDashboard,
   seedDemoDocuments,
   seedDemoWorkflow,
+  seedTypicalNomenclature,
 }
 
 /** @public — типы печатной формы для модулей, добавляющих свои формы (ADR-0085) */

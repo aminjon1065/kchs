@@ -131,6 +131,52 @@ export const CaseSuggestion = CaseRef.extend({
 })
 export type CaseSuggestion = z.infer<typeof CaseSuggestion>
 
+/**
+ * Импорт номенклатуры из Excel (N20, ADR-0135): строка файла — дело. Проверка показывает, что
+ * будет создано, что уже есть и что с ошибкой; импорт создаёт только готовые строки.
+ */
+export const CaseImportMode = z.enum(['check', 'apply'])
+export type CaseImportMode = z.infer<typeof CaseImportMode>
+
+export const CaseImportInput = z.object({
+  fileId: Uuid,
+  mode: CaseImportMode,
+  /** Год дел для строк без столбца «Год»; по умолчанию — текущий. */
+  year: Year.optional(),
+})
+export type CaseImportInput = z.infer<typeof CaseImportInput>
+
+export const CASE_IMPORT_ROW_STATUSES = ['ready', 'exists', 'error', 'created'] as const
+export const CaseImportRowStatus = z.enum(CASE_IMPORT_ROW_STATUSES)
+export type CaseImportRowStatus = z.infer<typeof CaseImportRowStatus>
+
+export const CaseImportRow = z.object({
+  /** Номер строки в файле — как видит Excel. */
+  row: z.number().int(),
+  index: z.string(),
+  title: z.string(),
+  year: z.number().int().nullable(),
+  unitName: z.string().nullable(),
+  /** Срок хранения, лет; null — постоянно. */
+  retentionYears: z.number().int().nullable(),
+  status: CaseImportRowStatus,
+  messages: z.array(z.string()),
+})
+export type CaseImportRow = z.infer<typeof CaseImportRow>
+
+export const CaseImportReport = z.object({
+  mode: CaseImportMode,
+  sheet: z.string(),
+  rows: z.array(CaseImportRow),
+  counts: z.object({
+    ready: z.number().int(),
+    exists: z.number().int(),
+    error: z.number().int(),
+    created: z.number().int(),
+  }),
+})
+export type CaseImportReport = z.infer<typeof CaseImportReport>
+
 /** Для чего подбирается дело: подшивка (любой год) или номер при регистрации (год регистрации). */
 export const CaseSuggestionsQuery = z.object({
   purpose: z.enum(['filing', 'registration']).default('filing'),

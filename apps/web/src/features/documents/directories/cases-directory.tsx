@@ -41,6 +41,7 @@ import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tansta
 import {
   Archive,
   Briefcase,
+  FileSpreadsheet,
   FileX,
   Lock,
   LockOpen,
@@ -65,6 +66,7 @@ import {
   documentTypesQuery,
 } from '../queries.js'
 import { DOCUMENT_STATUS_TONE, errorText, localToday } from '../status.js'
+import { CaseImportDialog } from './case-import-dialog.js'
 
 /** Цвет состояния дела — ключ `STATUS_TONES` дизайн-системы. */
 const CASE_STATUS_TONE: Record<CaseStatus, string> = {
@@ -121,6 +123,7 @@ export function CasesDirectory({ selectedId }: { selectedId: string | null }) {
   const [creating, setCreating] = useState(false)
   const [closingYear, setClosingYear] = useState(false)
   const [destroying, setDestroying] = useState(false)
+  const [importing, setImporting] = useState(false)
   const canManage = me?.capabilities.includes('documents.journals.manage') ?? false
 
   // Открытое из ссылки дело другого года — список переключается на его год
@@ -228,6 +231,12 @@ export function CasesDirectory({ selectedId }: { selectedId: string | null }) {
                     </DropdownMenuItem>
                   ) : null}
                   <DropdownMenuItem
+                    icon={<FileSpreadsheet className="size-3.5" />}
+                    onSelect={() => setImporting(true)}
+                  >
+                    {t('documents.cases.import.action')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
                     icon={<FileX className="size-3.5" />}
                     danger
                     onSelect={() => setDestroying(true)}
@@ -319,6 +328,7 @@ export function CasesDirectory({ selectedId }: { selectedId: string | null }) {
         />
       ) : null}
       {destroying ? <DestructionDialog onClose={() => setDestroying(false)} /> : null}
+      {importing ? <CaseImportDialog open onOpenChange={setImporting} /> : null}
       <AlertDialog
         open={closingYear}
         onOpenChange={setClosingYear}

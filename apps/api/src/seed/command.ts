@@ -7,7 +7,7 @@ import { runMigrations } from '~/shared/db/migrate.js'
 import { logger } from '~/shared/logger/index.js'
 import { seedDemoData } from './demo-data.js'
 import { type EmergencyPackResult, installEmergencyPack } from './packs/emergency/index.js'
-import { resetData, runSeed } from './seed.js'
+import { linkTypicalNomenclature, resetData, runSeed } from './seed.js'
 
 export interface SeedCommandOptions {
   profile: 'minimal' | 'demo'
@@ -65,5 +65,7 @@ export async function seedCommand(options: SeedCommandOptions): Promise<{
     pack === 'emergency'
       ? await installEmergencyPack(adminLogin, { demo: options.profile === 'demo' })
       : null
+  // Типы пакета появились после номенклатуры демо-мира — привязать их к её делам
+  if (installed && options.profile === 'demo') await linkTypicalNomenclature(adminLogin)
   return { ...seeded, datasets, pack: installed }
 }

@@ -456,6 +456,28 @@ async function seedDocuments(ctx: SystemCtx, demo: boolean): Promise<void> {
   logger().child({ module: 'seed' }).info(summary, 'справочники документооборота загружены')
 }
 
+/** Типовая номенклатура дел для подразделений демо-мира: прошлый и текущий год. */
+async function typicalNomenclature(ctx: SystemCtx): Promise<void> {
+  const units = await db().select({ id: orgUnits.id, code: orgUnits.code }).from(orgUnits)
+  const year = new Date().getFullYear()
+  const result = await DocumentsSeed.seedTypicalNomenclature(
+    ctx,
+    new Map(units.map((unit) => [unit.code, unit.id])),
+    [year - 1, year],
+  )
+  if (result.created > 0 || result.linked > 0) {
+    logger().child({ module: 'seed' }).info(result, 'типовая номенклатура дел заведена')
+  }
+}
+
+/**
+ * Повтор после предметного пакета: его типы документов (распоряжения и протоколы штаба,
+ * оперативные сводки) появляются позже номенклатуры и привязываются к её делам.
+ */
+export async function linkTypicalNomenclature(adminLogin: string): Promise<void> {
+  await typicalNomenclature(await seedAdminCtx(adminLogin))
+}
+
 /** Контекст сида от имени администратора демо-стенда (для повторного запуска). */
 async function seedAdminCtx(adminLogin: string): Promise<SystemCtx> {
   const [admin] = await db()
@@ -485,6 +507,9 @@ async function seedOffice(ctx: SystemCtx): Promise<void> {
     )
     log.info(office, 'показатели и дашборд «Канцелярия» заведены')
   }
+  // Типовая номенклатура по подразделениям (N20, ADR-0135) — до демо-документов: их номер
+  // «подразделение-дело/номер» берёт индекс дела из неё (ADR-0134)
+  await typicalNomenclature(ctx)
   const people = await demoDocumentPeople()
   const summary = await DocumentsSeed.seedDemoDocuments(people)
   log.info(summary, summary.skipped ? 'демо-документы уже есть' : 'демо-документы созданы')

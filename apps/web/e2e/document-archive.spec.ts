@@ -67,7 +67,7 @@ test.describe('Документы: переписка, дела и архив', 
       .click()
     await screen.getByRole('textbox', { name: 'Исходящий номер отправителя' }).fill(`14-${run}`)
     await screen.getByRole('button', { name: 'Зарегистрировать', exact: true }).click()
-    const registered = page.getByText(/Зарегистрирован № ВХ-\d{4}\/\d{2}/)
+    const registered = page.getByText(/Зарегистрирован № [\p{L}\d-]+\/\d+/u)
     await expect(registered).toBeVisible({ timeout: 15_000 })
     const incomingNumber = ((await registered.textContent()) ?? '').replace(/^.*№\s*/, '').trim()
     await page.getByRole('tab', { name: new RegExp(incomingNumber) }).click()
@@ -88,9 +88,9 @@ test.describe('Документы: переписка, дела и архив', 
     // Регистрация ответа в журнале «Исходящие»
     await context(page).getByRole('button', { name: 'Зарегистрировать', exact: true }).click()
     const registerDialog = page.getByRole('dialog', { name: 'Регистрация документа' })
-    await expect(registerDialog.getByText(/Следующий номер: ИСХ-\d{4}\/\d{2}/)).toBeVisible()
+    await expect(registerDialog.getByText(/Номер будет: [\p{L}\d-]+\/\d+/u)).toBeVisible()
     await registerDialog.getByRole('button', { name: 'Зарегистрировать', exact: true }).click()
-    const outgoingToast = page.getByText(/Зарегистрирован № ИСХ-\d{4}\/\d{2}/)
+    const outgoingToast = page.getByText(/Зарегистрирован № [\p{L}\d-]+\/\d+/u)
     await expect(outgoingToast).toBeVisible()
     const outgoingNumber = ((await outgoingToast.textContent()) ?? '').replace(/^.*№\s*/, '').trim()
 
