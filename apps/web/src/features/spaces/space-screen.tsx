@@ -40,7 +40,10 @@ export function SpaceScreen({ spaceId }: { spaceId: string }) {
   const { data: spaces = [] } = useQuery(spacesQuery())
   const space = spaces.find((item) => item.id === spaceId)
   const { data: members = [], isLoading: membersLoading } = useQuery(spaceMembersQuery(spaceId))
-  const { data: listed, isLoading } = useQuery(objectListQuery({ spaceId, limit: 50 }))
+  // Содержимое архивного пространства ушло в архив вместе с ним (ADR-0152)
+  const { data: listed, isLoading } = useQuery(
+    objectListQuery({ spaceId, limit: 50, lifecycle: space?.archivedAt ? 'archived' : undefined }),
+  )
   // Объект самого пространства тоже принадлежит пространству — в содержимом он лишний
   const content = listed && { ...listed, items: listed.items.filter((item) => item.id !== spaceId) }
   // Приглашать может тот, кому объект пространства разрешает действие invite

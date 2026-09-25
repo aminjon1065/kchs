@@ -15,6 +15,8 @@ export interface ObjectCollectionScope {
   types: string[]
   spaceId?: string
   parentId?: string
+  /** По умолчанию — живые объекты; архивное пространство смотрят в архиве. */
+  lifecycle?: 'active' | 'archived'
 }
 
 /**
@@ -32,6 +34,7 @@ export function useObjectCollection(
     types: scope.types.join(','),
     spaceId: scope.spaceId,
     parentId: scope.parentId,
+    lifecycle: scope.lifecycle,
     q: search.trim() || undefined,
     filter: state.filter ? JSON.stringify(state.filter) : undefined,
     sort: state.sort.map((item) => `${item.field}:${item.direction}`).join(',') || undefined,

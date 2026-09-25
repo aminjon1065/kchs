@@ -41,8 +41,16 @@ export function Navigator({ onCreateSpace }: { onCreateSpace: () => void }) {
     [expanded, spaces],
   )
 
+  // Содержимое архивного пространства ушло в архив вместе с ним (ADR-0152)
+  const expandedArchived = spaces.some(
+    (space) => space.id === expandedSpaceId && Boolean(space.archivedAt),
+  )
   const { data: children } = useQuery({
-    ...objectListQuery({ spaceId: expandedSpaceId ?? '', limit: 100 }),
+    ...objectListQuery({
+      spaceId: expandedSpaceId ?? '',
+      limit: 100,
+      lifecycle: expandedArchived ? 'archived' : undefined,
+    }),
     enabled: Boolean(expandedSpaceId),
   })
 

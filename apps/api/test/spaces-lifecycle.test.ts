@@ -117,6 +117,15 @@ describe('пространство целиком', () => {
     expect(
       (await call(fx.app, { url: `/spaces/${spaceId}`, as: fx.admin })).json().archivedAt,
     ).not.toBeNull()
+    // Содержимое видно в архиве пространства — так его показывают файлы и навигатор
+    const listed = await call(fx.app, {
+      url: `/objects?spaceId=${spaceId}&lifecycle=archived&limit=100`,
+      as: fx.admin,
+    })
+    expect(listed.statusCode, listed.body).toBe(200)
+    expect((listed.json().items as Array<{ id: string }>).map((item) => item.id)).toEqual(
+      expect.arrayContaining([folderId, inside.id, old.id]),
+    )
 
     // Только чтение: ни правки, ни новой папки
     const edit = await call(fx.app, {

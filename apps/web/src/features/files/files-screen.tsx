@@ -143,6 +143,8 @@ export function FilesScreen({
       types: TYPES,
       spaceId: effectiveSpaceId,
       parentId: searching ? undefined : (parentId ?? 'root'),
+      // Содержимое архивного пространства ушло в архив вместе с ним
+      lifecycle: archived ? 'archived' : undefined,
     },
     // Папки всегда выше файлов: сортировка по умолчанию — от сервера (свежие сверху)
     collection,

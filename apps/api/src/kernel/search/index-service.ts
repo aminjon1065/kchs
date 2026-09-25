@@ -138,11 +138,6 @@ export async function hasAccessDependents(objectId: string): Promise<boolean> {
 }
 
 /**
- * Переиндексация поддерева: читатели потомков зависят от прав предков
- * (наследование ACL и граница restricted), поэтому изменение доступа или
- * перенос папки меняет фильтр прав у всего её содержимого.
- */
-/**
  * Всё содержимое пространства, включая удалённое: удалённое уходит из поиска,
  * восстановленное возвращается (архив и корзина пространства, ADR-0152).
  */
@@ -166,6 +161,11 @@ export async function reindexSpace(spaceId: string, batchSize = 200): Promise<nu
   return total
 }
 
+/**
+ * Переиндексация поддерева: читатели потомков зависят от прав предков
+ * (наследование ACL и граница restricted), поэтому изменение доступа или
+ * перенос папки меняет фильтр прав у всего её содержимого.
+ */
 export async function reindexSubtree(objectId: string, batchSize = 200): Promise<number> {
   await indexObject(objectId)
   let total = 1
