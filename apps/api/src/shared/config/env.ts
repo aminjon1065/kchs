@@ -148,6 +148,27 @@ const EnvSchema = z.object({
    * `Канцелярия КЧС <kanc@kchs.test>`. Пусто — `SMTP_FROM`.
    */
   DOCUMENTS_MAIL_FROM: z.string().default(''),
+  /**
+   * Почта в составе установки (ADR-0150): домен ящиков. Пусто — почтовых ящиков
+   * платформа не ведёт (письма уходят через SMTP_URL как раньше).
+   */
+  MAIL_DOMAIN: z.string().default(''),
+  /** Каталог настроек почтового сервера: сюда пишется postfix-accounts.cf. */
+  MAIL_CONFIG_DIR: z.string().default(''),
+  /** Отправка от имени ящика канцелярии: адрес сервера без учётки, например smtp://mailserver:587. */
+  MAIL_SUBMISSION_URL: z.string().default(''),
+  /** IMAP почтового сервера для приёма в очередь «Из почты». */
+  MAIL_IMAP_HOST: z.string().default(''),
+  MAIL_IMAP_PORT: z.coerce.number().int().min(1).max(65_535).default(993),
+  /** Проверять сертификат своего почтового сервера (самоподписанный в закрытом контуре — нет). */
+  MAIL_TLS_VERIFY: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((value) => value === 'true'),
+  /** Адрес веб-почты для профиля сотрудника. */
+  MAIL_WEBMAIL_URL: z.string().default(''),
+  /** Имя ящика канцелярии: kanc → kanc@домен. */
+  MAIL_REGISTRY_LOCAL: z.string().default('kanc'),
 
   /**
    * Telegram-бот (ADR-0061): без токена привязка и канал уведомлений скрыты.

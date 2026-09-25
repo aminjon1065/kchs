@@ -862,6 +862,14 @@ export const EVENT_PAYLOADS = {
     addressee: z.string(),
     first: z.boolean(),
   }),
+  // ── mail: почта установки (ADR-0150) ──────────────────────────────────────
+  /** Сотрудник задал (`set`) или отозвал пароль для почты. */
+  'mail.password_changed': z.object({ userId: Uuid, address: z.string(), set: z.boolean() }),
+  /** Синхронизация завела новые ящики; `accounts` — всего в файле учёток. */
+  'mail.mailboxes_synced': z.object({
+    created: z.number().int(),
+    accounts: z.number().int(),
+  }),
   /** Исходящий поставлен в очередь отправки письмом (ADR-0149). */
   'document.email_queued': z.object({ emailId: Uuid, to: z.string() }),
   /** Письмо принято почтовым сервером; отметка в реестре отправки — `document.dispatched`. */

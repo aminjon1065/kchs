@@ -16,14 +16,28 @@ function mailer(): Transporter | null {
   return transporter
 }
 
+/** Транспорты по адресу: ящик канцелярии своего почтового сервера (ADR-0150). */
+const byUrl = new Map<string, Transporter>()
+
+function transportFor(url: string): Transporter {
+  let transport = byUrl.get(url)
+  if (!transport) {
+    transport = nodemailer.createTransport(url)
+    byUrl.set(url, transport)
+  }
+  return transport
+}
+
 /** Сброс транспорта после смены SMTP_URL (тесты, смена настроек). */
 export function resetMailer(): void {
   transporter?.close()
   transporter = null
+  for (const transport of byUrl.values()) transport.close()
+  byUrl.clear()
 }
 
 export function mailConfigured(): boolean {
-  return Boolean(config().SMTP_URL)
+  return Boolean(config().SMTP_URL) || Boolean(config().MAIL_DOMAIN && config().MAIL_SUBMISSION_URL)
 }
 
 export interface MailAttachment {
@@ -83,8 +97,11 @@ export interface MailReceipt {
  * Отправка с квитанцией сервера: кого он принял и кого отклонил сразу. `null` — SMTP не
  * настроен. Ошибку соединения и отказ сервера целиком бросает транспорт.
  */
-export async function sendMailWithReceipt(message: OutgoingMail): Promise<MailReceipt | null> {
-  const transport = mailer()
+export async function sendMailWithReceipt(
+  message: OutgoingMail,
+  transportUrl?: string,
+): Promise<MailReceipt | null> {
+  const transport = transportUrl ? transportFor(transportUrl) : mailer()
   if (!transport) return null
   const info = await transport.sendMail({
     from: message.from,

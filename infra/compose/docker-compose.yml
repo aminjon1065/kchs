@@ -47,6 +47,15 @@ x-app-env: &app-env
   SMTP_FROM: ${SMTP_FROM:-Портал КЧС <no-reply@kchs.local>}
   # Отправитель исходящих документов — ящик канцелярии (ADR-0149); пусто — SMTP_FROM
   DOCUMENTS_MAIL_FROM: ${DOCUMENTS_MAIL_FROM:-}
+  # Почта в составе установки (профиль mail, ADR-0150): пусто — ящики не ведутся
+  MAIL_DOMAIN: ${MAIL_DOMAIN:-}
+  MAIL_CONFIG_DIR: ${MAIL_CONFIG_DIR_IN_APP:-}
+  MAIL_SUBMISSION_URL: ${MAIL_SUBMISSION_URL_IN_APP:-}
+  MAIL_IMAP_HOST: ${MAIL_IMAP_HOST_IN_APP:-}
+  MAIL_IMAP_PORT: ${MAIL_IMAP_PORT_IN_APP:-993}
+  MAIL_TLS_VERIFY: ${MAIL_TLS_VERIFY:-false}
+  MAIL_WEBMAIL_URL: ${MAIL_WEBMAIL_URL:-}
+  MAIL_REGISTRY_LOCAL: ${MAIL_REGISTRY_LOCAL:-kanc}
   SESSION_IDLE_HOURS: ${SESSION_IDLE_HOURS:-12}
   RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-600}
   LOGIN_RATE_LIMIT_PER_IP_PER_MINUTE: ${LOGIN_RATE_LIMIT_PER_IP_PER_MINUTE:-300}
@@ -259,6 +268,97 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
+
+  # ── Профиль mail: почта Комитета (ADR-0150) ──────────────────────────────
+  # docker-mailserver (Postfix + Dovecot + OpenDKIM) и веб-почта Roundcube. Ящики
+  # сотрудников и канцелярии ведёт платформа: `kchs mail sync` пишет файл учёток
+  # postfix-accounts.cf в каталог настроек сервера, сервер подхватывает его сам.
+  # Поднимается отдельно: docker compose --profile mail up -d --wait
+  mail-init:
+    profiles: ["mail"]
+    image: alpine/openssl:3.5.4
+    # Самоподписанный сертификат для закрытого контура и тестового домена: с доменом
+    # Комитета его заменяет настоящий (docs/06-guides/31-admin-mail.md)
+    entrypoint:
+      - sh
+      - -c
+      - |
+        set -e
+        dir=/config/ssl
+        name="$$MAIL_HOSTNAME"
+        mkdir -p "$$dir/demoCA"
+        if [ ! -f "$$dir/$$name-cert.pem" ]; then
+          openssl req -x509 -newkey rsa:2048 -nodes -days 3650 \
+            -subj "/CN=$$name" -addext "subjectAltName=DNS:$$name,DNS:mailserver" \
+            -keyout "$$dir/$$name-key.pem" -out "$$dir/$$name-cert.pem"
+          cp "$$dir/$$name-cert.pem" "$$dir/demoCA/cacert.pem"
+        fi
+        touch /config/postfix-accounts.cf
+    environment:
+      MAIL_HOSTNAME: ${MAIL_HOSTNAME:-mail.kchs.test}
+    volumes:
+      - ${MAIL_CONFIG_VOLUME:-mailconfig}:/config
+
+  mailserver:
+    <<: [*restart, *logging]
+    profiles: ["mail"]
+    image: mailserver/docker-mailserver:16.0.1
+    hostname: ${MAIL_HOSTNAME:-mail.kchs.test}
+    environment:
+      OVERRIDE_HOSTNAME: ${MAIL_HOSTNAME:-mail.kchs.test}
+      ONE_DIR: "1"
+      SSL_TYPE: self-signed
+      # Отправка от имени платформы (api, worker) и веб-почты — только с паролем
+      PERMIT_DOCKER: none
+      SPOOF_PROTECTION: "1"
+      ENABLE_OPENDKIM: "1"
+      ENABLE_OPENDMARC: "1"
+      ENABLE_SPAMASSASSIN: "0"
+      ENABLE_CLAMAV: "0"
+      ENABLE_AMAVIS: "0"
+      ENABLE_FAIL2BAN: "0"
+      ENABLE_POSTGREY: "0"
+      ENABLE_UPDATE_CHECK: "0"
+      POSTFIX_MESSAGE_SIZE_LIMIT: "31457280"
+      # Исходящие наружу — через ретранслятор провайдера, если прямой порт 25 закрыт
+      DEFAULT_RELAY_HOST: ${MAIL_RELAY_HOST:-}
+      LOG_LEVEL: warn
+    volumes:
+      - ${MAIL_CONFIG_VOLUME:-mailconfig}:/tmp/docker-mailserver
+      - maildata:/var/mail
+      - mailstate:/var/mail-state
+    ports:
+      # 25 — приём почты из интернета; 587 и 993 — почтовые программы сотрудников
+      - "${MAIL_BIND:-127.0.0.1}:${MAIL_SMTP_PORT:-2525}:25"
+      - "${MAIL_BIND:-127.0.0.1}:${MAIL_SUBMISSION_PORT:-5587}:587"
+      - "${MAIL_BIND:-127.0.0.1}:${MAIL_IMAPS_PORT:-9993}:993"
+    healthcheck:
+      test: ["CMD-SHELL", "ss -lnt | grep -q ':25 ' && ss -lnt | grep -q ':993 '"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    depends_on:
+      mail-init: { condition: service_completed_successfully }
+
+  webmail:
+    <<: [*restart, *logging]
+    profiles: ["mail"]
+    image: roundcube/roundcubemail:1.7.4-apache
+    environment:
+      ROUNDCUBEMAIL_DEFAULT_HOST: ssl://mailserver
+      ROUNDCUBEMAIL_DEFAULT_PORT: "993"
+      ROUNDCUBEMAIL_SMTP_SERVER: tls://mailserver
+      ROUNDCUBEMAIL_SMTP_PORT: "587"
+      ROUNDCUBEMAIL_DB_TYPE: sqlite
+      ROUNDCUBEMAIL_SKIN: elastic
+      ROUNDCUBEMAIL_UPLOAD_MAX_FILESIZE: 25M
+    volumes:
+      - ./mail/roundcube.inc.php:/var/roundcube/config/kchs.inc.php:ro
+      - webmaildata:/var/roundcube/db
+    ports:
+      - "${KCHS_BIND:-127.0.0.1}:${WEBMAIL_PORT:-8083}:80"
+    depends_on:
+      mailserver: { condition: service_healthy }
 
   # ── Профиль app: образы приложения (полное развёртывание) ─────────────────
   api:
@@ -696,3 +796,7 @@ volumes:
   alertmanagerdata:
   grafanadata:
   onlyofficedata:
+  mailconfig:
+  maildata:
+  mailstate:
+  webmaildata:

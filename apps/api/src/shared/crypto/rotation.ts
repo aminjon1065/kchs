@@ -6,6 +6,7 @@ import {
   basemaps,
   calendars,
   integrations,
+  mailMailboxes,
   mfaFactors,
   serviceLayers,
   ssoAuthRequests,
@@ -35,6 +36,12 @@ export const ENCRYPTED_COLUMNS: readonly EncryptedColumn[] = [
     label: 'Секреты интеграций',
   },
   { table: webhooks, id: webhooks.id, column: webhooks.secret, label: 'Подписи вебхуков' },
+  {
+    table: mailMailboxes,
+    id: mailMailboxes.id,
+    column: mailMailboxes.secretEnc,
+    label: 'Пароль ящика канцелярии',
+  },
   { table: basemaps, id: basemaps.id, column: basemaps.secretEnc, label: 'Ключи базовых карт' },
   {
     table: serviceLayers,

@@ -16,6 +16,7 @@ import { JobService } from '~/kernel/jobs/service.js'
 import { BrandingService } from '~/kernel/settings/branding.js'
 import { getObjectStream } from '~/kernel/storage/s3.js'
 import { fileSource } from '~/modules/files/public.js'
+import { MailPublic } from '~/modules/mail/public.js'
 import { config } from '~/shared/config/index.js'
 import { actorId, type Ctx, systemCtx, type UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
@@ -26,6 +27,24 @@ import { logger } from '~/shared/logger/index.js'
 import { mailAddressOf, mailConfigured, sendMailWithReceipt } from '~/shared/mail/index.js'
 import { Correspondence, dispatchable } from './correspondence-service.js'
 import { CorrespondentService } from './correspondent-service.js'
+
+/**
+ * Уведомление о недоставке (DSN, RFC 3464) на наше письмо: Message-ID вида
+ * `<kchs-…@…>` из вложенных заголовков и причина из `Diagnostic-Code` или `Status`.
+ */
+export function bounceOf(source: Buffer): { messageIds: string[]; reason: string } | null {
+  const text = source.toString('utf8')
+  if (!/content-type:\s*multipart\/report/i.test(text)) return null
+  if (!/report-type="?delivery-status/i.test(text)) return null
+  const messageIds = [...new Set(text.match(/<kchs-[0-9a-f-]{36}@[^>\s]+>/gi) ?? [])]
+  if (messageIds.length === 0) return null
+  const diagnostic = /Diagnostic-Code:\s*([^\r\n]+)/i.exec(text)?.[1]
+  const status = /^Status:\s*([245]\.\d{1,3}\.\d{1,3})/im.exec(text)?.[1]
+  return {
+    messageIds,
+    reason: (diagnostic ?? (status ? `Статус ${status}` : 'Письмо не доставлено')).trim(),
+  }
+}
 
 /** Задание отправки письма исходящего (очередь `notify`, воркер). */
 export const EMAIL_SEND_JOB = 'documents.email-send'
@@ -161,7 +180,10 @@ async function failEmail(
 export const DocumentMailOut = {
   status(): DocumentMailStatus {
     const configured = mailConfigured()
-    return { configured, from: configured ? sender() : null }
+    const registry = MailPublic.enabled()
+      ? `${config().MAIL_REGISTRY_LOCAL}@${config().MAIL_DOMAIN}`
+      : null
+    return { configured, from: configured ? (registry ?? sender()) : null }
   },
 
   async queue(
@@ -297,7 +319,9 @@ export const DocumentMailOut = {
     }
     const object = { id: row.id, spaceId: row.spaceId, title: row.title }
 
-    const from = sender()
+    // Свой почтовый сервер — от имени ящика канцелярии; иначе SMTP_URL установки
+    const registry = await MailPublic.registrySender()
+    const from = registry?.from ?? sender()
     const domain = mailAddressOf(from).split('@')[1] || 'kchs.local'
     const messageId = `<kchs-${email.id}@${domain}>`
     const t = createTranslator('ru')
@@ -327,16 +351,19 @@ export const DocumentMailOut = {
         ...(organization ? [organization] : []),
         t('documents.mail.out.footer', { product: PRODUCT_NAME }),
       ]
-      receipt = await sendMailWithReceipt({
-        from,
-        replyTo: mailAddressOf(from),
-        to: email.toAddress,
-        subject: t('documents.mail.out.subject', params),
-        text: lines.join('\n\n'),
-        html: lines.map((line) => `<p>${escapeHtml(line).replaceAll('\n', '<br>')}</p>`).join(''),
-        messageId,
-        attachments,
-      })
+      receipt = await sendMailWithReceipt(
+        {
+          from,
+          replyTo: mailAddressOf(from),
+          to: email.toAddress,
+          subject: t('documents.mail.out.subject', params),
+          text: lines.join('\n\n'),
+          html: lines.map((line) => `<p>${escapeHtml(line).replaceAll('\n', '<br>')}</p>`).join(''),
+          messageId,
+          attachments,
+        },
+        registry?.url,
+      )
     } catch (error) {
       const message = error instanceof Error ? error.message : 'почтовый сервер не принял письмо'
       logger().warn({ emailId, error: message }, 'письмо исходящего не ушло')

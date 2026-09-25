@@ -421,6 +421,13 @@
       "when": 1790330731799,
       "tag": "20260925100531_documents-emails",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1790331955937,
+      "tag": "20260925102555_mail-mailboxes",
+      "breakpoints": true
     }
   ]
 }

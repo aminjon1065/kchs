@@ -9,6 +9,7 @@ import { runMigrations } from '~/shared/db/migrate.js'
 import { closeRedis } from '~/shared/redis/index.js'
 import { formatSyncSummary, runBasemapsSync, runBasemapsUpload } from './basemaps.js'
 import { formatInitSummary, runInit } from './init.js'
+import { formatMailSync, runMailSync } from './mail.js'
 
 const HELP = `kchs — служебные команды установки
 
@@ -25,6 +26,7 @@ const HELP = `kchs — служебные команды установки
   kchs basemaps sync
                  реестр базовых карт по манифестам в хранилище и подложка по умолчанию
   kchs secrets rotate [--dry-run]
+  kchs mail sync                  ящики сотрудников и канцелярии → почтовый сервер (ADR-0150)
                  перешифровать секреты текущим KCHS_MASTER_KEY; прежний ключ —
                    в KCHS_MASTER_KEY_PREVIOUS (порядок — infra/runbooks/secret-leak.md)
   kchs help      эта справка
@@ -130,6 +132,15 @@ async function run(argv: string[]): Promise<number> {
       const report = await rotateSecrets({ dryRun })
       process.stdout.write(formatRotation(report, dryRun))
       return report.some((line) => line.unreadable > 0) ? 1 : 0
+    }
+    case 'mail': {
+      if (positionals[1] !== 'sync') {
+        process.stderr.write(`kchs mail sync\n\n${HELP}`)
+        return 2
+      }
+      await runMigrations()
+      process.stdout.write(formatMailSync(await runMailSync()))
+      return 0
     }
     case 'help':
       process.stdout.write(HELP)

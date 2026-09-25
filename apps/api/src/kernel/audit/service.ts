@@ -230,6 +230,8 @@ export const AUDIT_ACTIONS = {
   passkeyRemoved: 'user.passkey_removed',
   /** Администратор отозвал ключи входа сотрудника (потерянное устройство, N45). */
   passkeysRevoked: 'user.passkeys_revoked',
+  /** Пароль для почты установки задан или отозван (ADR-0150). */
+  mailPasswordChanged: 'user.mail_password_changed',
   /** Группы и должности из консоли (N86): состав группы меняет права доступа. */
   groupCreated: 'group.created',
   groupUpdated: 'group.updated',

@@ -39,6 +39,7 @@ import { newId } from '~/shared/ids.js'
 import { logger } from '~/shared/logger/index.js'
 import { type FetchedLetter, mailboxPort, readMailbox } from '~/shared/mail/imap.js'
 import { DocumentService } from '../document-service.js'
+import { bounceOf, DocumentMailOut } from '../mail-out.js'
 import { documentsSpaceId } from '../space.js'
 import { DocumentTypeService } from '../type-service.js'
 import { DocumentVersionService } from '../version-service.js'
@@ -171,6 +172,13 @@ export const MailIntake = {
     }
 
     if (await seen(mailbox.integrationId, messageKey)) return 'duplicates'
+
+    // Уведомление о недоставке нашего исходящего (ADR-0149) — не входящий документ, а
+    // состояние письма: «Вернулось» в карточке и уведомление тому, кто его отправлял
+    const bounce = bounceOf(fetched.source)
+    if (bounce && (await DocumentMailOut.bounced(bounce.messageIds, bounce.reason))) {
+      return 'duplicates'
+    }
 
     const rejection = letterRejection(letter, mailbox.config.filters)
     if (rejection) {

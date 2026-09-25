@@ -80,6 +80,7 @@ import {
   scheduleKnowledgeJobs,
 } from './knowledge/module.js'
 import { connectKnowledgeSemantics } from './knowledge/semantic-source.js'
+import { registerMailBackground, registerMailModuleRoutes } from './mail/module.js'
 import {
   registerMeetingsBackground,
   registerMeetingsObjectTypes,
@@ -187,6 +188,7 @@ export async function registerModules(app: FastifyInstance, route: RouteRegistra
   registerMeetingsRoutes(route)
   registerKnowledgeRoutes(route)
   registerPushRoutes(route)
+  registerMailModuleRoutes(route)
   registerChatRoutes(route)
   registerTelegramRoutes(route)
   registerIntegrationsRoutes(route)
@@ -209,6 +211,7 @@ export function registerModulesBackground(): void {
   registerReportsBackground()
   registerTasksBackground()
   registerDocumentsBackground()
+  registerMailBackground()
   registerCalendarBackground()
   registerChatBackground()
   registerMeetingsBackground()
