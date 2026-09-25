@@ -220,3 +220,136 @@ describe('пакет ЧС: условия правил лент', () => {
     expect(holds(hq, { ...quake, occurred_at: '2026-06-27T13:34:52Z' }, null)).toBe(false)
   })
 })
+
+describe('пакет ЧС: время реагирования и охват оповещения (ADR-0157)', () => {
+  const HOUR = 3600_000
+  const at = (offset: number) => new Date(Date.now() + offset).toISOString()
+
+  /** Минуты этапов реагирования строк реестра происшествий по номеру. */
+  async function stages(incidents: string) {
+    const { DatasetService } = await import('../src/modules/data/domain/dataset-service.js')
+    const storage = await DatasetService.storage(incidents)
+    const column = (key: string) =>
+      sql.identifier(storage.fields.find((item) => item.key === key)?.physical as string)
+    const [code, occurred, called, dispatched, arrived] = [
+      'code',
+      'occurred_at',
+      'called_at',
+      'dispatched_at',
+      'arrived_at',
+    ].map(column)
+    return db().execute<{
+      code: string | null
+      call: string | null
+      dispatch: string | null
+      arrive: string | null
+      future: boolean
+    }>(sql`
+      SELECT ${code} AS code,
+             extract(epoch FROM ${called} - ${occurred}) / 60 AS call,
+             extract(epoch FROM ${dispatched} - ${called}) / 60 AS dispatch,
+             extract(epoch FROM ${arrived} - ${dispatched}) / 60 AS arrive,
+             coalesce(greatest(${called}, ${dispatched}, ${arrived}) > now(), false) AS future
+        FROM ${sql.identifier('ds')}.${sql.identifier(storage.table)}
+       WHERE _deleted_at IS NULL
+       ORDER BY ${code} NULLS LAST`)
+  }
+
+  it('демо-время вызова, выезда и прибытия — только у прошедших происшествий генератора', async () => {
+    const { packContext } = await import('../src/seed/packs/emergency/context.js')
+    const { seedDemoRows } = await import('../src/seed/packs/emergency/demo-rows.js')
+    const { RowService } = await import('../src/modules/data/domain/row-service.js')
+    const found = await packObjects()
+    const incidents = found.get('emergency.dataset.incidents') as string
+    const base = await packContext('admin', { demo: true }, () => {})
+    const pack = { ...base, spaceId: base.orgSpaceId }
+    // Строка сводки номера не спрашивает — поля нет в значениях
+    const row = (code: string | null, offset: number, type: string, territory: string) => ({
+      values: { ...(code ? { code } : {}), occurred_at: at(offset), type_code: type, territory },
+    })
+    await RowService.insert(pack.ctx, incidents, [
+      row('INC-2026-9000001', -5 * HOUR, 'FIRE', 'TJ-DU-02'),
+      row('INC-2026-9000002', -30 * HOUR, 'AVALANCHE', 'TJ-GB-03'),
+      row('INC-2026-9000003', -2 * HOUR, 'INFECTION', 'TJ-KT-10'),
+      row('INC-2026-9000004', 5 * HOUR, 'FIRE', 'TJ-DU-02'),
+      row(null, -3 * HOUR, 'ROAD', 'TJ-DU-02'),
+    ])
+    const prefix = 'emergency.dataset.'
+    const ids = new Map(
+      [...found]
+        .filter(([key]) => key.startsWith(prefix))
+        .map(([key, id]) => [key.slice(prefix.length), id]),
+    )
+    await seedDemoRows(pack, ids)
+
+    const times = await stages(incidents)
+    const byCode = new Map(times.map((item) => [item.code, item]))
+    for (const code of ['INC-2026-9000001', 'INC-2026-9000002']) {
+      const item = byCode.get(code)
+      expect(Number(item?.call), code).toBeGreaterThanOrEqual(2)
+      expect(Number(item?.call), code).toBeLessThanOrEqual(20)
+      expect(Number(item?.dispatch), code).toBeGreaterThanOrEqual(1)
+      expect(Number(item?.dispatch), code).toBeLessThanOrEqual(8)
+    }
+    // Пожар в Душанбе — 7–25 минут в пути, лавина в ГБАО — от 37 минут
+    expect(Number(byCode.get('INC-2026-9000001')?.arrive)).toBeGreaterThanOrEqual(7)
+    expect(Number(byCode.get('INC-2026-9000001')?.arrive)).toBeLessThanOrEqual(25)
+    expect(Number(byCode.get('INC-2026-9000002')?.arrive)).toBeGreaterThanOrEqual(37)
+    // Инфекция — не выезд сил; будущее и строка сводки без номера генератора не трогаются
+    for (const code of ['INC-2026-9000003', 'INC-2026-9000004', null]) {
+      expect(byCode.get(code)?.call, String(code)).toBeNull()
+    }
+    expect(times.every((item) => !item.future)).toBe(true)
+
+    // Повторная установка минут не меняет
+    await seedDemoRows(pack, ids)
+    expect(JSON.stringify(await stages(incidents))).toBe(JSON.stringify(times))
+  })
+
+  it('показатели и плитки: среднее время прибытия по регионам и доля оповещённого населения', async () => {
+    const { Metrics, DatasetQueries } = await import('../src/modules/data/public.js')
+    const { dashboards } = await import('../src/shared/db/schema/index.js')
+    const { systemCtx } = await import('../src/shared/context.js')
+    const ctx = systemCtx('test')
+    const found = await packObjects()
+    const value = async (key: string) =>
+      (
+        await Metrics.value(
+          ctx,
+          await Metrics.get(found.get(`emergency.metric.${key}`) as string),
+          {
+            series: false,
+          },
+        )
+      ).value
+    expect(await value('arrival_week')).toBeGreaterThan(10)
+    expect(await value('warned_week')).toBeGreaterThan(0)
+
+    const [situation] = await db()
+      .select({ spec: dashboards.spec })
+      .from(dashboards)
+      .where(eq(dashboards.id, found.get('emergency.dashboard.situation') as string))
+    const spec = situation?.spec as
+      | { tiles: Array<{ id: string; spec?: { data: { query: unknown } } }> }
+      | undefined
+    const tiles = spec?.tiles ?? []
+    const run = async (id: string) => {
+      const tile = tiles.find((item) => item.id === id)
+      expect(tile, id).toBeTruthy()
+      const result = await DatasetQueries.run(ctx, tile?.spec?.data.query as never)
+      return result.rows.map((values) =>
+        Object.fromEntries(result.fields.map((field, index) => [field.name, values[index]])),
+      )
+    }
+    const arrival = await run('arrival')
+    expect(arrival.length).toBeGreaterThan(0)
+    expect(arrival.every((item) => Number(item.week) > 0)).toBe(true)
+    const coverage = await run('warnings')
+    expect(coverage.length).toBeGreaterThan(0)
+    for (const item of coverage) {
+      expect(Number(item.people)).toBeGreaterThan(0)
+      expect(Number(item.share)).toBeGreaterThan(0)
+      expect(Number(item.share)).toBeLessThanOrEqual(100)
+    }
+  })
+})

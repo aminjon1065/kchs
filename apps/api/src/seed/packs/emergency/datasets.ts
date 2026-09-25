@@ -61,6 +61,7 @@ const POINT = field('geometry', 'Местоположение', 'Location', 'geo
   geometryType: 'point',
 })
 const DATE: FieldFormat = { dateFormat: 'yyyy-MM-dd' }
+const DATETIME: FieldFormat = { dateFormat: 'yyyy-MM-dd HH:mm' }
 
 /** Справочник видов происшествий — тот же, что у генератора демо-данных (ADR-0054). */
 export const INCIDENT_KINDS: ReadonlyArray<readonly [string, string, string]> = [
@@ -228,6 +229,14 @@ export const PACK_DATASETS: readonly PackDataset[] = [
       field('report_date', 'Дата сводки', 'Report date', 'date', 'time', { format: DATE }),
       field('reported_by', 'Кто сообщил', 'Reported by', 'user', 'dimension'),
       field('submitted_at', 'Время сдачи', 'Submitted at', 'datetime', 'time'),
+      // Время реагирования сил (ADR-0157): вызов, выезд и прибытие первых сил на место
+      field('called_at', 'Время вызова', 'Call received', 'datetime', 'time', { format: DATETIME }),
+      field('dispatched_at', 'Время выезда', 'Dispatched', 'datetime', 'time', {
+        format: DATETIME,
+      }),
+      field('arrived_at', 'Время прибытия', 'Arrived on scene', 'datetime', 'time', {
+        format: DATETIME,
+      }),
     ],
     // Строку из суточной сводки номер не спрашивает: ключ остаётся, пустые ключи не конфликтуют
     patches: [{ key: 'code', patch: { required: false } }],

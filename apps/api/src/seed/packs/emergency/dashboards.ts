@@ -14,6 +14,10 @@ type Ids = ReadonlyMap<string, string>
 
 const ru = (text: string): LangText => ({ ru: text })
 const today = { unit: 'day' as const, from: 0, to: 0 }
+/** Семь суток по сегодня включительно. */
+const week = { unit: 'day' as const, from: -6, to: 0 }
+/** Среднее число минут от вызова до прибытия (ADR-0157). */
+const MINUTES_AVG = "avg(date_diff(called_at, arrived_at, 'minute'))"
 const lastDays = (field: string, days: number) => ({
   field,
   op: 'relative' as const,
@@ -255,7 +259,60 @@ function packMetrics(spaceId: string): PackMetric[] {
         ],
       },
     },
+    arrival('metric.arrival_day', 'Среднее время прибытия за сутки', today),
+    arrival('metric.arrival_week', 'Среднее время прибытия за неделю', week),
+    {
+      key: 'metric.warned_week',
+      source: { dataset: 'warnings_log' },
+      input: {
+        name: 'Оповещено за неделю',
+        description:
+          'Охват оповещения населения за семь суток по журналу — сумма по всем способам: один человек мог получить несколько оповещений',
+        definition: {
+          measure: { agg: 'sum', field: 'coverage' },
+          filter: happened('sent_at'),
+          timeField: 'sent_at',
+          dimensions: ['territory', 'channel'],
+          period: week,
+          comparison: 'previous_period',
+        },
+        unit: 'чел.',
+        format: { precision: 0, thousands: true },
+        direction: 'neutral',
+      },
+    },
   ]
+}
+
+/**
+ * Среднее время прибытия (ADR-0157): от вызова до прибытия первых сил на место, по
+ * вызовам периода; вызов без прибытия (силы в пути) в среднее не входит.
+ */
+function arrival(key: string, name: string, period: typeof today): PackMetric {
+  return {
+    key,
+    source: { dataset: 'incidents' },
+    input: {
+      name,
+      description:
+        'От вызова до прибытия первых сил на место — среднее по вызовам периода, у которых отмечено прибытие',
+      definition: {
+        measure: { agg: 'expr', expr: MINUTES_AVG },
+        filter: happened('arrived_at'),
+        timeField: 'called_at',
+        dimensions: ['territory', 'type_code', 'scale'],
+        period,
+        comparison: 'previous_period',
+      },
+      unit: 'мин',
+      format: { precision: 0 },
+      direction: 'down',
+      thresholds: [
+        { value: 30, status: 'warning' },
+        { value: 60, status: 'danger' },
+      ],
+    },
+  }
 }
 
 async function ensureMetrics(pack: PackContext, datasets: Ids): Promise<Map<string, string>> {
@@ -643,6 +700,89 @@ function sheltersByStatus(ids: Ids): QuerySpec {
   } as unknown as QuerySpec
 }
 
+/**
+ * Среднее время прибытия по регионам, мин (ADR-0157): у экрана без фильтров — за сутки и
+ * за семь суток; у сводки — за период её фильтра, с числом выездов.
+ */
+function arrivalByRegion(ids: Ids, mode: 'day_week' | 'period', days: number): QuerySpec {
+  const minutes = `date_diff(inc.called_at, inc.arrived_at, 'minute')`
+  const measures =
+    mode === 'day_week'
+      ? [
+          {
+            alias: 'day',
+            agg: 'expr',
+            expr: 'round(avg(minutes), 0)',
+            filter: { field: 'inc.called_at', op: 'relative', value: today },
+          },
+          { alias: 'week', agg: 'expr', expr: 'round(avg(minutes), 0)' },
+        ]
+      : [
+          { alias: 'minutes_avg', agg: 'expr', expr: 'round(avg(minutes), 0)' },
+          { alias: 'responses', agg: 'count' },
+        ]
+  return {
+    version: 1,
+    source: source(ids.get('incidents') as string, 'inc'),
+    steps: [
+      {
+        type: 'filter',
+        where: { and: [lastDays('inc.called_at', days), happened('inc.arrived_at')] },
+      },
+      {
+        type: 'compute',
+        fields: [
+          { name: 'region', expr: "territory_level(inc.territory, 'region')", type: 'territory' },
+          { name: 'minutes', expr: minutes, type: 'number' },
+        ],
+      },
+      { type: 'aggregate', groupBy: [{ field: 'region', alias: 'region' }], measures },
+      {
+        type: 'sort',
+        by: [{ field: mode === 'day_week' ? 'week' : 'minutes_avg', dir: 'desc' }],
+      },
+    ],
+  } as unknown as QuerySpec
+}
+
+/**
+ * Охват оповещения по районам (ADR-0157): сумма охвата по журналу и доля населения района
+ * по справочнику территорий (N7). Разные способы могли оповестить одних и тех же людей,
+ * поэтому доля — не больше 100 %.
+ */
+function warningCoverage(ids: Ids, days: number): QuerySpec {
+  return {
+    version: 1,
+    source: source(ids.get('warnings_log') as string, 'w'),
+    steps: [
+      { type: 'filter', where: recent('w.sent_at', days) },
+      {
+        type: 'join',
+        source: { kind: 'system', name: 'territories', alias: 'terr' },
+        on: [{ left: 'w.territory', right: 'terr.id' }],
+        kind: 'left',
+      },
+      {
+        type: 'aggregate',
+        groupBy: [{ field: 'w.territory', alias: 'territory' }],
+        measures: [
+          { alias: 'warnings', agg: 'count' },
+          { alias: 'people', agg: 'sum', field: 'w.coverage' },
+          { alias: 'population', agg: 'max', field: 'terr.population' },
+          {
+            alias: 'share',
+            agg: 'expr',
+            expr: 'least(100, round(100.0 * sum(w.coverage) / nullif(max(terr.population), 0), 1))',
+          },
+        ],
+      },
+      { type: 'sort', by: [{ field: 'share', dir: 'desc', nulls: 'last' }] },
+    ],
+  } as unknown as QuerySpec
+}
+
+const ARRIVAL_TITLE = 'Время прибытия по регионам, мин'
+
 // ── Дашборды ──────────────────────────────────────────────────────────────────
 
 interface PackDashboard {
@@ -729,6 +869,32 @@ function packDashboards(ids: Ids, metrics: Ids, mapId: string): PackDashboard[] 
           ),
           { x: 9, y: 9, w: 3, h: 3 },
         ),
+        specTile(
+          'arrival',
+          ARRIVAL_TITLE,
+          chart(
+            'bar',
+            arrivalByRegion(ids, 'day_week', 7),
+            { field: 'region', label: 'Регион', type: 'nominal' },
+            [
+              { field: 'day', label: 'За сутки', type: 'quantitative' },
+              { field: 'week', label: 'За неделю', type: 'quantitative' },
+            ],
+            { horizontal: true },
+          ),
+          { x: 0, y: 12, w: 6, h: 3 },
+        ),
+        specTile(
+          'warnings',
+          'Оповещение населения за неделю',
+          table(warningCoverage(ids, 7), [
+            { field: 'territory', label: 'Район', type: 'nominal' },
+            { field: 'warnings', label: 'Оповещений', type: 'quantitative' },
+            { field: 'people', label: 'Оповещено, чел.', type: 'quantitative' },
+            { field: 'share', label: 'Доля населения, %', type: 'quantitative' },
+          ]),
+          { x: 6, y: 12, w: 6, h: 3 },
+        ),
       ],
     },
     {
@@ -791,6 +957,36 @@ function packDashboards(ids: Ids, metrics: Ids, mapId: string): PackDashboard[] 
           ]),
           { x: 0, y: 6, w: 12, h: 5 },
           { period: 'inc.occurred_at', territory: 'inc.territory' },
+        ),
+        ...metricTile('arrival_day', m('arrival_day'), 0, 11, 3),
+        ...metricTile('arrival_week', m('arrival_week'), 3, 11, 3),
+        ...metricTile('warned_week', m('warned_week'), 6, 11, 3),
+        ...metricTile('forces_ready', m('forces_ready'), 9, 11, 3),
+        specTile(
+          'arrival',
+          ARRIVAL_TITLE,
+          chart(
+            'bar',
+            arrivalByRegion(ids, 'period', 60),
+            { field: 'region', label: 'Регион', type: 'nominal' },
+            [{ field: 'minutes_avg', label: 'Среднее, мин', type: 'quantitative' }],
+            { horizontal: true },
+          ),
+          { x: 0, y: 13, w: 6, h: 4 },
+          { period: 'inc.called_at', territory: 'inc.territory' },
+        ),
+        specTile(
+          'warnings',
+          'Охват оповещения по районам',
+          table(warningCoverage(ids, 60), [
+            { field: 'territory', label: 'Район', type: 'nominal' },
+            { field: 'warnings', label: 'Оповещений', type: 'quantitative' },
+            { field: 'people', label: 'Оповещено, чел.', type: 'quantitative' },
+            { field: 'population', label: 'Население', type: 'quantitative' },
+            { field: 'share', label: 'Доля населения, %', type: 'quantitative' },
+          ]),
+          { x: 6, y: 13, w: 6, h: 4 },
+          { period: 'w.sent_at', territory: 'w.territory' },
         ),
       ],
     },

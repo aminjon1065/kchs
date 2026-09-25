@@ -1,8 +1,10 @@
-import { sql } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
+import { publishEvent } from '~/kernel/events/publisher.js'
 import { DatasetService } from '~/modules/data/domain/dataset-service.js'
 import { qualified } from '~/modules/data/infra/physical.js'
 import { TerritoryService } from '~/modules/gis/public.js'
 import { db } from '~/shared/db/client.js'
+import { datasets, objects } from '~/shared/db/schema/index.js'
 import { type PackContext, staffOf, unitId } from './context.js'
 import { insertRows, rowCount } from './datasets.js'
 
@@ -132,12 +134,15 @@ async function forces(pack: PackContext, target: string): Promise<number> {
   return insertRows(pack, target, rows)
 }
 
-/** Журнал оповещения: оповещения весеннего паводка и селя за последние две недели. */
+/**
+ * Журнал оповещения: оповещения паводка и селя за последние две недели. Время — сколько
+ * часов назад: запись не бывает позже «сейчас», в какое бы время ни ставился пакет.
+ */
 async function warnings(pack: PackContext, target: string): Promise<number> {
   const places = await centroids()
   const entries: Array<[number, string, string, string, number, string]> = [
     [
-      -12,
+      290,
       'TJ-KT-10',
       'Кишлаки вдоль Пянджа ниже по течению от поста',
       'siren',
@@ -145,7 +150,7 @@ async function warnings(pack: PackContext, target: string): Promise<number> {
       'Угроза подтопления: подъём уровня воды в реке Пяндж. Подготовьтесь к эвакуации, следуйте указаниям спасателей.',
     ],
     [
-      -12,
+      287,
       'TJ-KT-10',
       'Кишлаки вдоль Пянджа ниже по течению от поста',
       'door',
@@ -153,7 +158,7 @@ async function warnings(pack: PackContext, target: string): Promise<number> {
       'Подворный обход: предупреждение об угрозе подтопления и о пунктах временного размещения.',
     ],
     [
-      -9,
+      218,
       'TJ-RA-12',
       'Селеопасные саи Файзабадского района',
       'sms',
@@ -161,7 +166,7 @@ async function warnings(pack: PackContext, target: string): Promise<number> {
       'Сильные дожди: угроза схода селей. Не находитесь в руслах саев и на склонах.',
     ],
     [
-      -6,
+      146,
       'TJ-RA-09',
       'Пойма Кафирнигана, джамоаты вдоль реки',
       'radio',
@@ -169,7 +174,15 @@ async function warnings(pack: PackContext, target: string): Promise<number> {
       'Повышение уровня воды в реке Кафирниган. Не приближайтесь к берегу, держите детей под присмотром.',
     ],
     [
-      -3,
+      122,
+      'TJ-RA-12',
+      'Селеопасные саи Файзабадского района',
+      'loudspeaker',
+      3100,
+      'Повторное предупреждение: сход селей в соседних саях. Жителям у русел — уйти на возвышенность.',
+    ],
+    [
+      74,
       'TJ-GB-03',
       'Автодорога вдоль Пянджа, лавиноопасные участки',
       'telegram',
@@ -177,25 +190,164 @@ async function warnings(pack: PackContext, target: string): Promise<number> {
       'Угроза камнепадов на автодороге. Движение ограничено, следуйте указаниям дорожных служб.',
     ],
     [
-      -1,
+      50,
+      'TJ-KT-13',
+      'Приграничные кишлаки у Пянджа',
+      'siren',
+      5200,
+      'Угроза подтопления: уровень воды в реке Пяндж приближается к опасной отметке.',
+    ],
+    [
+      26,
       'TJ-KT-13',
       'Приграничные кишлаки у Пянджа',
       'loudspeaker',
       2300,
       'Повторное предупреждение: уровень воды у опасной отметки, ПВР развёрнуты в школах района.',
     ],
+    [
+      5,
+      'TJ-KT-10',
+      'Кишлаки вдоль Пянджа ниже по течению от поста',
+      'sms',
+      9800,
+      'Уровень воды в реке Пяндж снова растёт. Держите документы и запас воды под рукой, следите за сообщениями.',
+    ],
   ]
-  const rows = entries.map(([offset, territory, zone, channel, coverage, message], index) => ({
-    code: `ОП-${day(offset).slice(0, 4)}-${String(index + 1).padStart(4, '0')}`,
-    sent_at: `${day(offset)}T${String(9 + index).padStart(2, '0')}:30:00+05:00`,
-    territory: places.get(territory)?.id ?? null,
-    zone,
-    channel,
-    coverage,
-    message,
-    responsible: 'Оперативный дежурный',
-  }))
+  const rows = entries.map(([hours, territory, zone, channel, coverage, message], index) => {
+    const at = new Date(Date.now() - hours * 3600_000)
+    at.setUTCMinutes(index % 2 === 0 ? 10 : 40, 0, 0)
+    return {
+      code: `ОП-${at.getUTCFullYear()}-${String(index + 1).padStart(4, '0')}`,
+      sent_at: at.toISOString(),
+      territory: places.get(territory)?.id ?? null,
+      zone,
+      channel,
+      coverage,
+      message,
+      responsible: 'Оперативный дежурный',
+    }
+  })
   return insertRows(pack, target, rows)
+}
+
+/** Время в пути по региону района (префикс кода): [минимум, разброс] минут. */
+const TRAVEL: Record<string, readonly [number, number]> = {
+  'TJ-DU': [7, 18],
+  'TJ-SU': [12, 40],
+  'TJ-KT': [12, 40],
+  'TJ-RA': [14, 45],
+  'TJ-GB': [25, 110],
+}
+/** Горные и природные происшествия дальше от дорог: в пути в полтора раза дольше. */
+const REMOTE_KINDS = ['AVALANCHE', 'MUDFLOW', 'LANDSLIDE', 'ROCKFALL', 'MOUNTAIN', 'WILDFIRE']
+/** Эпизоотии и вспышки инфекций — работа санитарных и ветеринарных служб, не выезд сил. */
+const NO_RESPONSE = ['INFECTION', 'EPIZOOTIC']
+
+const literal = (items: readonly string[]) => `{${items.join(',')}}`
+
+/**
+ * Время реагирования демо-происшествий генератора (ADR-0157): вызов — через 2–20 минут
+ * после происшествия, выезд — через 1–8 минут после вызова, прибытие — по удалённости
+ * района. Только прошедшее: время позже «сейчас» остаётся пустым — силы ещё в пути.
+ * Заполняется один раз, пока ни у одной строки нет времени вызова, и только у строк
+ * генератора (номер `INC-…`). Как загрузка генератора — одной пачкой: новая версия
+ * датасета и `dataset.rows_changed`, без истории строк.
+ */
+async function responseTimes(pack: PackContext, target: string): Promise<number> {
+  const storage = await DatasetService.storage(target)
+  const column = (key: string) => {
+    const found = storage.fields.find((item) => item.key === key)
+    return found ? sql.raw(`"${found.physical}"`) : null
+  }
+  const [code, occurred, kind, territory, called, dispatched, arrived] = [
+    'code',
+    'occurred_at',
+    'type_code',
+    'territory',
+    'called_at',
+    'dispatched_at',
+    'arrived_at',
+  ].map(column)
+  if (!code || !occurred || !kind || !territory || !called || !dispatched || !arrived) return 0
+  const table = sql.raw(qualified(storage.table))
+  const [filled] = await db().execute<{ found: boolean }>(
+    sql`SELECT EXISTS (SELECT 1 FROM ${table} WHERE ${called} IS NOT NULL) AS found`,
+  )
+  if (filled?.found) return 0
+  const groups = new Map<string, string[]>()
+  for (const item of await TerritoryService.list()) {
+    const prefix = item.code.slice(0, 5)
+    if (TRAVEL[prefix]) groups.set(prefix, [...(groups.get(prefix) ?? []), item.id])
+  }
+  if (groups.size === 0) return 0
+  // Доли 0…1 по номеру строки: повторная установка на тех же данных даёт те же минуты
+  const share = (salt: string) => sql`(abs(hashtext(_id::text || ${salt})) % 10000) / 10000.0`
+  const travel = sql.join(
+    [...groups].map(([prefix, ids]) => {
+      const [base, spread] = TRAVEL[prefix] as readonly [number, number]
+      return sql`WHEN ${territory} = ANY(${literal(ids)}::uuid[])
+        THEN ${base} + ${spread} * power(${share('t')}, 1.6)`
+    }),
+    sql` `,
+  )
+  return db().transaction(async (tx) => {
+    const [result] = await tx.execute<{ count: number }>(sql`
+      WITH plan AS (
+        SELECT _id,
+               ${occurred} + make_interval(mins => (2 + floor(18 * power(${share('c')}, 1.5)))::int)
+                 AS call_at,
+               (1 + floor(7 * ${share('d')}))::int AS to_dispatch,
+               ((CASE ${travel} ELSE 30 + 60 * ${share('t')} END)
+                 * CASE WHEN ${kind} = ANY(${literal(REMOTE_KINDS)}::text[]) THEN 1.5 ELSE 1 END
+               )::int AS to_arrive
+          FROM ${table}
+         WHERE _deleted_at IS NULL AND ${called} IS NULL AND ${code} LIKE 'INC-%'
+           AND ${occurred} <= now() AND NOT (${kind} = ANY(${literal(NO_RESPONSE)}::text[]))
+      ), times AS (
+        SELECT _id, call_at,
+               call_at + make_interval(mins => to_dispatch) AS dispatch_at,
+               call_at + make_interval(mins => to_dispatch + to_arrive) AS arrive_at
+          FROM plan
+         WHERE call_at <= now()
+      ), done AS (
+        UPDATE ${table} AS target
+           SET ${called} = times.call_at,
+               ${dispatched} = CASE WHEN times.dispatch_at <= now() THEN times.dispatch_at END,
+               ${arrived} = CASE WHEN times.arrive_at <= now() THEN times.arrive_at END
+          FROM times
+         WHERE target._id = times._id
+     RETURNING 1
+      )
+      SELECT count(*)::int AS count FROM done`)
+    const count = Number(result?.count ?? 0)
+    if (count === 0) return 0
+    const [dataset] = await tx
+      .select({ rows: datasets.rowCount })
+      .from(datasets)
+      .where(eq(datasets.id, target))
+    await DatasetService.bumpVersion(tx, pack.ctx, {
+      datasetId: target,
+      origin: 'edit',
+      rowCount: dataset?.rows ?? 0,
+      diff: { added: 0, updated: count, deleted: 0 },
+    })
+    const [object] = await tx
+      .select({ spaceId: objects.spaceId, title: objects.title })
+      .from(objects)
+      .where(eq(objects.id, target))
+    await publishEvent(tx, pack.ctx, {
+      type: 'dataset.rows_changed',
+      object: {
+        id: target,
+        type: 'dataset',
+        spaceId: object?.spaceId ?? null,
+        title: object?.title,
+      },
+      payload: { op: 'update', ids: [], count },
+    })
+    return count
+  })
 }
 
 /** График дежурств на две недели назад и вперёд — ротация дежурной службы. */
@@ -234,5 +386,10 @@ export async function seedDemoRows(pack: PackContext, ids: Map<string, string>):
   await fill('forces', (target) => forces(pack, target))
   await fill('warnings_log', (target) => warnings(pack, target))
   await fill('duty_roster', (target) => roster(pack, target))
+  const incidents = ids.get('incidents')
+  if (incidents) {
+    const responded = await responseTimes(pack, incidents)
+    if (responded > 0) summary.response_times = responded
+  }
   pack.log('демо-строки реестров штаба', summary)
 }
