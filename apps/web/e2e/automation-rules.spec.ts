@@ -96,8 +96,14 @@ test.describe('Правила автоматизации', () => {
     await page.getByRole('tab', { name: 'Расписания' }).click()
     await expect(page.getByRole('heading', { name: 'Расписания' })).toBeVisible()
 
+    // Таблица виртуальная: строки ниже видимой части не отрисованы, а регулярных заданий
+    // платформы с каждой веткой больше — листаем, пока нужная строка не появится
+    const grid = page.getByRole('grid').filter({ hasText: 'Ближайший запуск' })
     const row = page.getByRole('row', { name: /Корзина: окончательное удаление/ })
-    await expect(row).toBeVisible()
+    await expect(async () => {
+      if (!(await row.isVisible())) await grid.evaluate((el) => el.scrollBy(0, el.clientHeight / 2))
+      await expect(row).toBeVisible({ timeout: 500 })
+    }).toPass({ timeout: 15_000 })
     await expect(row).toContainText('Проверка платформы')
 
     // Выключение снимает ближайший запуск, включение возвращает
