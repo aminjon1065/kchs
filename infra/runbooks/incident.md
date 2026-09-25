@@ -59,7 +59,7 @@ docker compose logs --tail=200 api worker        # последние ошибк
 | `KchsPostgresDeadlocks` | взаимные блокировки в базе | журнал postgres: «deadlock detected» с запросами; единичные при гонке допустимы, серия — баг |
 | `KchsPostgresWraparound` | возраст транзакций выше миллиарда, автоочистка не успевает | `SELECT datname, age(datfrozenxid) FROM pg_database ORDER BY 2 DESC;`, долгие транзакции мешают очистке; `VACUUM (FREEZE, VERBOSE)` проблемной базы в окно |
 | `KchsRedisDown` | Redis не отвечает — очереди и realtime стоят | `docker compose ps redis`, журнал; место на диске (AOF); после подъёма очереди продолжатся сами |
-| `KchsRedisMemory`, `KchsRedisMemoryUnbounded` | память у предела или больше 2 ГБ без предела | `redis-cli --bigkeys`; очереди BullMQ: зависшие завершённые задания; задать `maxmemory` с запасом |
+| `KchsRedisMemory`, `KchsRedisMemoryUnbounded` | память у предела или больше 2 ГБ без предела | `redis-cli --bigkeys`; очереди BullMQ: зависшие завершённые задания; поднять предел с запасом — `REDIS_MAXMEMORY` в `.env` и `docker compose up -d redis` (в чарте — `redis.embedded.maxmemory`) |
 | `KchsRedisRejectedConnections` | исчерпан `maxclients` | кто держит соединения: `redis-cli CLIENT LIST`; утечка — перезапуск процесса |
 | `KchsRedisWriteErrors`, `KchsRedisPersistence` | отказ записи (OOM, MISCONF) или сбой сохранения на диск | место на диске и права на том `redisdata`; `redis-cli INFO persistence`; после починки — `BGSAVE` |
 | `KchsMinioDown` | MinIO не отдаёт метрики: хранилище лежит или устарел токен | `docker compose ps minio`, журнал; хранилище живо — `docker compose --profile observability up -d metrics-init-minio` выпустит новый токен |
