@@ -10,12 +10,12 @@ export const AUTH_DIR = path.join(here, '.auth')
 export const ACCOUNTS = {
   admin: {
     login: 'admin',
-    password: process.env.SEED_ADMIN_PASSWORD ?? 'Kchs!Start-2026-7q',
+    password: process.env.SEED_ADMIN_PASSWORD || 'Kchs!Start-2026-7q',
     file: path.join(AUTH_DIR, 'admin.json'),
   },
   employee: {
     login: 'user001',
-    password: process.env.SEED_USER_PASSWORD ?? 'Kchs!Work-2026-3v',
+    password: process.env.SEED_USER_PASSWORD || 'Kchs!Work-2026-3v',
     file: path.join(AUTH_DIR, 'employee.json'),
   },
 } as const

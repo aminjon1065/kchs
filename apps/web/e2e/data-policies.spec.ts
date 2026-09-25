@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { expect, test } from './fixtures.js'
 
 const MANAGER_LOGIN = 'user058'
-const MANAGER_PASSWORD = process.env.SEED_USER_PASSWORD ?? 'Kchs!Work-2026-3v'
+const MANAGER_PASSWORD = process.env.SEED_USER_PASSWORD || 'Kchs!Work-2026-3v'
 
 /**
  * Сценарий приёмки фазы 1 №5 (04-verification.md): руководитель с политикой

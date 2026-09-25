@@ -2,7 +2,7 @@ import type { APIRequestContext, Browser } from '@playwright/test'
 import { EMPLOYEE_STATE, expect, openScreen, openWorkspace, test } from './fixtures.js'
 
 const BASE = process.env.KCHS_BASE_URL ?? 'http://localhost:5173'
-const PASSWORD = process.env.SEED_USER_PASSWORD ?? 'Kchs!Work-2026-3v'
+const PASSWORD = process.env.SEED_USER_PASSWORD || 'Kchs!Work-2026-3v'
 const NOT_INSTALLED = 'пакет ЧС не установлен: pnpm db:seed --pack=emergency'
 
 /**
