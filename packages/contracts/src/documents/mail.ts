@@ -60,6 +60,22 @@ export const MAIL_MESSAGE_STATUSES = ['draft', 'registered', 'rejected', 'failed
 export const MailMessageStatus = z.enum(MAIL_MESSAGE_STATUSES)
 export type MailMessageStatus = z.infer<typeof MailMessageStatus>
 
+/**
+ * Срок хранения очереди «Из почты» (ADR-0136): отклонённые и неразобранные письма удаляются
+ * через 180 дней после решения или получения. Черновики и зарегистрированные письма хранятся —
+ * по ним видно, из какого письма заведён документ.
+ */
+export const MAIL_QUEUE_RETENTION_DAYS = 180
+export const MAIL_PURGED_STATUSES = [
+  'rejected',
+  'failed',
+] as const satisfies readonly MailMessageStatus[]
+
+/** Как найден корреспондент письма: по адресу отправителя или по домену ведомства. */
+export const MAIL_CORRESPONDENT_MATCHES = ['email', 'domain'] as const
+export const MailCorrespondentMatch = z.enum(MAIL_CORRESPONDENT_MATCHES)
+export type MailCorrespondentMatch = z.infer<typeof MailCorrespondentMatch>
+
 export const MailAttachmentRef = z.object({
   id: Uuid,
   name: z.string(),
@@ -87,8 +103,9 @@ export const MailMessageRecord = z.object({
   documentId: Uuid.nullable(),
   documentStatus: DocumentStatus.nullable(),
   documentRegNumber: z.string().nullable(),
-  /** Найденный по адресу корреспондент; `null` — предлагаем завести. */
+  /** Найденный по адресу или домену корреспондент; `null` — предлагаем завести. */
   correspondent: CorrespondentRef.nullable(),
+  correspondentMatch: MailCorrespondentMatch.nullable(),
   /** Адрес, по которому корреспондент не нашёлся. */
   suggestedCorrespondentName: z.string().nullable(),
   attachments: z.array(MailAttachmentRef),
@@ -96,6 +113,8 @@ export const MailMessageRecord = z.object({
   rejectReason: z.string().nullable(),
   decidedBy: UserRef.nullable(),
   decidedAt: Timestamp.nullable(),
+  /** Когда запись удалится из очереди (отклонённые и неразобранные, ADR-0136). */
+  purgeAt: Timestamp.nullable(),
   createdAt: Timestamp,
 })
 export type MailMessageRecord = z.infer<typeof MailMessageRecord>

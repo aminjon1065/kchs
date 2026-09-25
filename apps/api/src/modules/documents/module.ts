@@ -350,6 +350,7 @@ export function registerDocumentsObjectTypes(): void {
 }
 
 const MAIL_POLL_JOB = 'documents.mail-poll'
+const MAIL_PURGE_JOB = 'documents.mail-purge'
 
 /** Подписчики модуля — только в роли worker. */
 export function registerDocumentsBackground(): void {
@@ -363,6 +364,12 @@ export function registerDocumentsBackground(): void {
       const report = await MailIntake.poll()
       return { ...report.result, mailboxes: report.mailboxes, errors: report.errors.length }
     },
+  })
+  registerJobHandler({
+    queue: 'maintenance',
+    name: MAIL_PURGE_JOB,
+    concurrency: 1,
+    handle: async () => ({ deleted: await MailIntake.purge() }),
   })
 }
 
@@ -380,6 +387,7 @@ export function registerDocumentsRoutes(route: RouteRegistrar): void {
  * Опрос ящиков канцелярии (ADR-0113). Расписание одно на установку и тикает
  * раз в пять минут; свой период (`pollMinutes`) у каждого ящика проверяется
  * внутри задания — второго планировщика для этого не нужно (ADR-0096).
+ * Очистка очереди «Из почты» по сроку хранения — раз в сутки ночью (ADR-0136).
  */
 export function scheduleDocumentsJobs(): void {
   declareSchedule({
@@ -387,5 +395,11 @@ export function scheduleDocumentsJobs(): void {
     name: MAIL_POLL_JOB,
     pattern: '*/5 * * * *',
     labelKey: 'schedules.jobs.documentsMailPoll',
+  })
+  declareSchedule({
+    queue: 'maintenance',
+    name: MAIL_PURGE_JOB,
+    pattern: '25 3 * * *',
+    labelKey: 'schedules.jobs.documentsMailPurge',
   })
 }

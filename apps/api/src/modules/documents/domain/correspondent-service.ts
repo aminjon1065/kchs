@@ -6,7 +6,7 @@ import {
   type CorrespondentRecord,
   type CorrespondentUpdateInput,
 } from '@kchs/contracts'
-import { and, asc, count, eq, ilike, inArray, or, sql } from 'drizzle-orm'
+import { and, arrayOverlaps, asc, count, eq, ilike, inArray, ne, or, sql } from 'drizzle-orm'
 import { grantAccess } from '~/kernel/access/acl-service.js'
 import { authorize, requireCapability, visibleObjectsSql } from '~/kernel/access/authorize.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
@@ -25,6 +25,7 @@ const COLUMNS = {
   details: correspondents.details,
   contacts: correspondents.contacts,
   externalId: correspondents.externalId,
+  mailDomains: correspondents.mailDomains,
   createdAt: objects.createdAt,
   updatedAt: objects.updatedAt,
 }
@@ -99,6 +100,7 @@ export const CorrespondentService = {
       details: Record<string, string>
       contacts: Record<string, string>
       externalId: string | null
+      mailDomains: string[]
       createdAt: string
       updatedAt: string
     }>,
@@ -130,6 +132,7 @@ export const CorrespondentService = {
         details: row.details,
         contacts: row.contacts,
         externalId: row.externalId,
+        mailDomains: row.mailDomains,
         documentCount: counts.find((item) => item.correspondentId === row.id)?.total ?? 0,
         canEdit: decision.allowed,
         createdAt: row.createdAt,
@@ -150,6 +153,7 @@ export const CorrespondentService = {
         .limit(1)
       if (taken) throw errors.conflict('Корреспондент с таким внешним кодом уже есть')
     }
+    await assertMailDomains(tx, input.kind, input.mailDomains, null)
     const spaceId = await documentsSpaceId(tx)
     const object = await ObjectService.create(tx, ctx, {
       type: 'correspondent',
@@ -166,6 +170,7 @@ export const CorrespondentService = {
       details: stripEmpty(input.details),
       contacts: stripEmpty(input.contacts),
       externalId: input.externalId,
+      mailDomains: input.mailDomains,
     })
     await grantAccess(
       tx,
@@ -190,6 +195,18 @@ export const CorrespondentService = {
     if (patch.details !== undefined) values.details = stripEmpty(patch.details)
     if (patch.contacts !== undefined) values.contacts = stripEmpty(patch.contacts)
     if (patch.externalId !== undefined) values.externalId = patch.externalId
+    if (patch.mailDomains !== undefined || patch.kind === 'person') {
+      const [current] = await tx
+        .select({ kind: correspondents.kind })
+        .from(correspondents)
+        .where(eq(correspondents.id, id))
+        .limit(1)
+      const kind = patch.kind ?? (current?.kind as CorrespondentKind | undefined) ?? 'organization'
+      // Лицо доменов не имеет: смена вида на «лицо» без доменов в правке их снимает
+      const domains = patch.mailDomains ?? []
+      await assertMailDomains(tx, kind, domains, id)
+      values.mailDomains = domains
+    }
     const changed = Object.keys(values)
     if (changed.length === 0) return
     await tx.update(correspondents).set(values).where(eq(correspondents.id, id))
@@ -223,6 +240,43 @@ export const CorrespondentService = {
       .where(inArray(correspondents.id, ids))
     return new Map(rows.map((row) => [row.id, { ...row, kind: row.kind as CorrespondentKind }]))
   },
+}
+
+/**
+ * Домены — только у организаций, и каждый — у одного корреспондента (ADR-0136): иначе письмо
+ * с домена некому подставить. Поддомен (`dushanbe.mvd.tj`) может принадлежать другому
+ * корреспонденту — подставляется самый точный.
+ */
+async function assertMailDomains(
+  tx: Executor,
+  kind: CorrespondentKind,
+  domains: string[],
+  exceptId: string | null,
+): Promise<void> {
+  if (domains.length === 0) return
+  if (kind !== 'organization') {
+    throw errors.validation('Почтовые домены указываются только у организаций', [
+      { path: 'mailDomains', message: 'Почтовые домены указываются только у организаций' },
+    ])
+  }
+  const [taken] = await tx
+    .select({ name: correspondents.name, mailDomains: correspondents.mailDomains })
+    .from(correspondents)
+    .innerJoin(objects, eq(objects.id, correspondents.id))
+    .where(
+      and(
+        arrayOverlaps(correspondents.mailDomains, domains),
+        sql`${objects.deletedAt} IS NULL`,
+        exceptId ? ne(correspondents.id, exceptId) : undefined,
+      ),
+    )
+    .limit(1)
+  if (taken) {
+    const domain = domains.find((item) => taken.mailDomains.includes(item))
+    throw errors.conflict(`Домен ${domain} уже указан у корреспондента «${taken.name}»`, {
+      domain,
+    })
+  }
 }
 
 function stripEmpty(values: Record<string, string | undefined>): Record<string, string> {

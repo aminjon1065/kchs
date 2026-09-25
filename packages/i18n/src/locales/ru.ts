@@ -2090,6 +2090,9 @@ export const ru = {
       rejectReason: 'Причина отклонения',
       rejected: 'Письмо отклонено',
       error: 'Ошибка разбора',
+      correspondentByDomain: 'по домену {domain}',
+      purgeAt:
+        'Удалится из очереди {date}: отклонённые и неразобранные письма хранятся {days, plural, one {# день} few {# дня} many {# дней} other {# дня}}',
     },
     correspondents: {
       title: 'Корреспонденты',
@@ -2114,6 +2117,9 @@ export const ru = {
       empty: 'Корреспондентов нет',
       notFound: 'Ничего не найдено',
       pick: 'Выберите корреспондента',
+      mailDomains: 'Почтовые домены',
+      mailDomainsHint:
+        'Через запятую, например mvd.tj. Письма с адресов этих доменов при приёме из почты получат этого корреспондента; общие почтовые сервисы не подходят',
     },
     types: {
       title: 'Типы документов',
@@ -8220,6 +8226,7 @@ export const ru = {
       filesProcessPending: 'Файлы: повтор обработки',
       filesCloseOfficeSessions: 'Файлы: закрытие сессий редактора',
       documentsMailPoll: 'Документы: опрос почтовых ящиков',
+      documentsMailPurge: 'Документы: очистка очереди «Из почты» по сроку хранения',
       calendarReminders: 'Календарь: напоминания',
       calendarPlan: 'Календарь: планирование напоминаний',
       calendarHorizon: 'Календарь: горизонт повторений',

@@ -124,9 +124,15 @@ export const correspondents = pgTable(
     details: jsonbObject<Record<string, string>>('details'),
     contacts: jsonbObject<Record<string, string>>('contacts'),
     externalId: text('external_id'),
+    /**
+     * Почтовые домены ведомства (ADR-0136): письмо с адреса такого домена или его поддомена
+     * получает этого корреспондента при приёме из почты. Домен принадлежит одному корреспонденту.
+     */
+    mailDomains: text('mail_domains').array().notNull().default(sql`'{}'::text[]`),
   },
   (t) => [
     index('correspondents_name_trgm').using('gin', sql`${t.name} extensions.gin_trgm_ops`),
+    index('correspondents_mail_domains_idx').using('gin', t.mailDomains),
     uniqueIndex('correspondents_external_uq')
       .on(t.externalId)
       .where(sql`${t.externalId} is not null`),
@@ -633,6 +639,8 @@ export const mailMessages = pgTable(
     correspondentId: uuid('correspondent_id').references(() => objects.id, {
       onDelete: 'set null',
     }),
+    /** Как найден корреспондент: `email` — по адресу, `domain` — по домену ведомства (ADR-0136). */
+    correspondentMatch: text('correspondent_match'),
     /** Файлы-вложения письма, прикреплённые к черновику. */
     attachmentIds: uuid('attachment_ids').array().notNull().default(sql`'{}'::uuid[]`),
     error: text('error'),

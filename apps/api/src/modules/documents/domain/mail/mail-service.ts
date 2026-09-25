@@ -1,17 +1,21 @@
-import type {
-  CorrespondentKind,
-  CorrespondentRef,
-  DocumentStatus,
-  MailAttachmentRef,
-  MailboxConfig,
-  MailMessageList,
-  MailMessageListQuery,
-  MailMessageRecord,
-  MailMessageStatus,
-  MailPollReport,
-  MailPollResult,
+import {
+  type CorrespondentKind,
+  type CorrespondentRef,
+  type DocumentStatus,
+  isPublicMailDomain,
+  MAIL_PURGED_STATUSES,
+  MAIL_QUEUE_RETENTION_DAYS,
+  type MailAttachmentRef,
+  type MailboxConfig,
+  type MailCorrespondentMatch,
+  type MailMessageList,
+  type MailMessageListQuery,
+  type MailMessageRecord,
+  type MailMessageStatus,
+  type MailPollReport,
+  type MailPollResult,
 } from '@kchs/contracts'
-import { and, count, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm'
+import { and, arrayOverlaps, count, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm'
 import { authorize, loadObject, requireCapability } from '~/kernel/access/authorize.js'
 import { buildUserCtxFor } from '~/kernel/access/explain.js'
 import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
@@ -58,6 +62,8 @@ import {
  */
 
 type Outcome = 'created' | 'duplicates' | 'skipped' | 'failed'
+
+const DAY_MS = 86_400_000
 
 const EMPTY: MailPollResult = { fetched: 0, created: 0, duplicates: 0, skipped: 0, failed: 0 }
 
@@ -301,6 +307,36 @@ export const MailIntake = {
   },
 
   /**
+   * Срок хранения очереди (ADR-0136): отклонённые и неразобранные письма удаляются через
+   * 180 дней после решения, а без решения — после получения. Черновики и зарегистрированные
+   * остаются: по ним видно, из какого письма заведён документ. Файлы писем здесь не живут —
+   * вложения принадлежат черновику и уходят с ним по правилам корзины. Вызывается заданием
+   * обслуживания раз в сутки.
+   */
+  async purge(now = new Date()): Promise<number> {
+    const before = new Date(now.getTime() - MAIL_QUEUE_RETENTION_DAYS * DAY_MS).toISOString()
+    const ctx = systemCtx('documents.mail-purge')
+    return db().transaction(async (tx) => {
+      const removed = await tx
+        .delete(mailMessages)
+        .where(
+          and(
+            inArray(mailMessages.status, [...MAIL_PURGED_STATUSES]),
+            sql`coalesce(${mailMessages.decidedAt}, ${mailMessages.receivedAt}) < ${before}`,
+          ),
+        )
+        .returning({ id: mailMessages.id })
+      if (removed.length > 0) {
+        await publishEvent(tx, ctx, {
+          type: 'mail.purged',
+          payload: { count: removed.length, before },
+        })
+      }
+      return removed.length
+    })
+  },
+
+  /**
    * Документ зарегистрирован — письмо уходит из очереди. Вызывается
    * подписчиком события `document.registered`: очередь не гадает о состоянии
    * документа, а узнаёт о нём из события (CLAUDE.md, правило 3).
@@ -420,7 +456,8 @@ async function createDraft(
   const type = await DocumentTypeService.byKey(db(), mailbox.config.documentTypeKey)
   if (!type) throw new Error(`нет типа документа «${mailbox.config.documentTypeKey}»`)
   const spaceId = await documentsSpaceId(db())
-  const correspondentId = await matchCorrespondent(letter.fromEmail)
+  const match = await matchCorrespondent(letter.fromEmail)
+  const correspondentId = match?.id ?? null
 
   // Вложения кладутся в хранилище до транзакции: их байты не должны держать
   // её открытой. Идентификаторы выданы заранее — они же в ключе хранения
@@ -485,6 +522,7 @@ async function createDraft(
           status: 'draft',
           documentId,
           correspondentId,
+          correspondentMatch: match?.match ?? null,
           attachmentIds: planned.map((item) => item.fileId),
         })
         .returning({ id: mailMessages.id })
@@ -544,18 +582,54 @@ async function aliveDocument(documentId: string) {
   return object && !object.deletedAt ? object : null
 }
 
-/** Корреспондент по адресу отправителя; не нашёлся — предложим завести. */
-async function matchCorrespondent(email: string): Promise<string | null> {
+/**
+ * Корреспондент по адресу отправителя, а не нашёлся — по домену ведомства из белого списка
+ * (почтовые домены корреспондентов, ADR-0136). Совпадает домен адреса или родительский:
+ * `duty@dushanbe.mvd.tj` → `dushanbe.mvd.tj`, затем `mvd.tj`; самый точный домен побеждает.
+ * Общие почтовые сервисы по домену не сопоставляются. Не нашёлся — предложим завести.
+ */
+async function matchCorrespondent(
+  email: string,
+): Promise<{ id: string; match: MailCorrespondentMatch } | null> {
   if (!email) return null
-  const [row] = await db()
+  const address = email.toLowerCase()
+  const [exact] = await db()
     .select({ id: correspondents.id })
     .from(correspondents)
     .innerJoin(objects, eq(objects.id, correspondents.id))
     .where(
-      sql`${objects.deletedAt} is null and lower(${correspondents.contacts}->>'email') = ${email.toLowerCase()}`,
+      sql`${objects.deletedAt} is null and lower(${correspondents.contacts}->>'email') = ${address}`,
     )
     .limit(1)
-  return row?.id ?? null
+  if (exact) return { id: exact.id, match: 'email' }
+
+  const candidates = domainCandidates(address)
+  if (candidates.length === 0) return null
+  const rows = await db()
+    .select({ id: correspondents.id, mailDomains: correspondents.mailDomains })
+    .from(correspondents)
+    .innerJoin(objects, eq(objects.id, correspondents.id))
+    .where(
+      and(arrayOverlaps(correspondents.mailDomains, candidates), sql`${objects.deletedAt} is null`),
+    )
+  // Кандидаты идут от точного к общему: побеждает корреспондент с самым точным доменом
+  for (const domain of candidates) {
+    const owners = rows.filter((row) => row.mailDomains.includes(domain))
+    if (owners.length === 1 && owners[0]) return { id: owners[0].id, match: 'domain' }
+    if (owners.length > 1) return null
+  }
+  return null
+}
+
+/** `duty@a.mvd.tj` → [`a.mvd.tj`, `mvd.tj`]; адрес общего почтового сервиса — пусто. */
+function domainCandidates(address: string): string[] {
+  const domain = address
+    .slice(address.lastIndexOf('@') + 1)
+    .trim()
+    .replace(/\.$/, '')
+  if (!address.includes('@') || !domain.includes('.') || isPublicMailDomain(domain)) return []
+  const labels = domain.split('.')
+  return labels.slice(0, -1).map((_, index) => labels.slice(index).join('.'))
 }
 
 type MailRow = typeof mailMessages.$inferSelect
@@ -633,13 +707,24 @@ async function records(rows: MailRow[]): Promise<MailMessageRecord[]> {
       documentStatus: alive ? (alive.status as DocumentStatus) : null,
       documentRegNumber: alive?.regNumber ?? null,
       correspondent,
+      correspondentMatch: correspondent
+        ? ((row.correspondentMatch as MailCorrespondentMatch | null) ?? null)
+        : null,
       suggestedCorrespondentName: correspondent ? null : (row.fromName ?? (row.fromEmail || null)),
       attachments,
       error: row.error,
       rejectReason: row.rejectReason,
       decidedBy: row.decidedBy ? (people.get(row.decidedBy) ?? null) : null,
       decidedAt: row.decidedAt,
+      purgeAt: purgeAtOf(row),
       createdAt: row.createdAt,
     }
   })
+}
+
+/** Когда запись уйдёт из очереди: только отклонённые и неразобранные (ADR-0136). */
+function purgeAtOf(row: MailRow): string | null {
+  if (!(MAIL_PURGED_STATUSES as readonly string[]).includes(row.status)) return null
+  const from = new Date(row.decidedAt ?? row.receivedAt).getTime()
+  return new Date(from + MAIL_QUEUE_RETENTION_DAYS * DAY_MS).toISOString()
 }

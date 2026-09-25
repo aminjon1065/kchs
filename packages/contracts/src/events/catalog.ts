@@ -1085,6 +1085,8 @@ export const EVENT_PAYLOADS = {
   'mail.rejected': z.object({ messageId: Uuid, reason: z.string() }),
   /** Письмо не разобралось: оно помечено в очереди «Из почты», а не потеряно. */
   'mail.failed': z.object({ messageId: Uuid, error: z.string() }),
+  /** Срок хранения очереди «Из почты»: удалены отклонённые и неразобранные письма (ADR-0136). */
+  'mail.purged': z.object({ count: z.number().int(), before: z.string() }),
   /** Пакет конфигурации выгружен. */
   'config.exported': z.object({
     sections: z.array(z.string()),

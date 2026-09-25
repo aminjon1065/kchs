@@ -27,7 +27,7 @@ import { useT } from '~/app/i18n.js'
 import { http } from '~/shared/api/client.js'
 import { meQuery } from '~/shared/api/queries.js'
 import { correspondentQuery, correspondentsQuery, documentKeys } from '../queries.js'
-import { errorText } from '../status.js'
+import { errorText, fieldErrors } from '../status.js'
 
 /**
  * Справочник корреспондентов (08-documents.md §5): организации и лица —
@@ -165,6 +165,8 @@ interface FormValue {
   email: string
   phone: string
   note: string
+  /** Почтовые домены через запятую (ADR-0136). */
+  mailDomains: string
 }
 
 const formOf = (record: CorrespondentRecord | null): FormValue => ({
@@ -177,7 +179,15 @@ const formOf = (record: CorrespondentRecord | null): FormValue => ({
   email: record?.contacts.email ?? '',
   phone: record?.contacts.phone ?? '',
   note: record?.details.note ?? '',
+  mailDomains: (record?.mailDomains ?? []).join(', '),
 })
+
+/** «mvd.tj, @mvd.gov.tj» → [`mvd.tj`, `mvd.gov.tj`]; проверяет домены сервер. */
+const domainsOf = (value: string) =>
+  value
+    .split(/[\s,;]+/)
+    .map((item) => item.trim().toLowerCase().replace(/^@/, ''))
+    .filter((item) => item !== '')
 
 /** Пустые строки не сохраняются: справочник хранит только заполненные реквизиты. */
 const compact = (entries: Record<string, string>) =>
@@ -201,6 +211,7 @@ function CorrespondentForm({
   const client = useQueryClient()
   const formId = useId()
   const [value, setValue] = useState<FormValue>(() => formOf(record))
+  const [domainsError, setDomainsError] = useState<string | undefined>()
   const set = (patch: Partial<FormValue>) => setValue((current) => ({ ...current, ...patch }))
   const editable = record ? record.canEdit : true
   const dirty = JSON.stringify(value) !== JSON.stringify(formOf(record))
@@ -230,6 +241,7 @@ function CorrespondentForm({
           phone: undefined,
           ...compact({ email: value.email, phone: value.phone }),
         },
+        mailDomains: value.kind === 'organization' ? domainsOf(value.mailDomains) : [],
       }
       return record
         ? http.patch<CorrespondentRecord>(`/correspondents/${record.id}`, body)
@@ -242,9 +254,17 @@ function CorrespondentForm({
       })
       void client.invalidateQueries({ queryKey: documentKeys.all })
       void client.invalidateQueries({ queryKey: documentKeys.correspondent(saved.id) })
+      setDomainsError(undefined)
       onSaved(saved.id)
     },
-    onError: (error) => toast.error(errorText(error, t('errors.unknown'))),
+    onError: (error) => {
+      // Ошибка домена (`mailDomains.0`) — под полем: общий сервис, неверный вид
+      const domains = Object.entries(fieldErrors(error)).find(([path]) =>
+        path.startsWith('mailDomains'),
+      )
+      setDomainsError(domains?.[1])
+      toast.error(errorText(error, t('errors.unknown')))
+    },
   })
 
   const input = (key: keyof FormValue, label: string, maxLength: number) => (
@@ -302,6 +322,22 @@ function CorrespondentForm({
         {input('email', t('documents.correspondents.email'), 200)}
         {input('phone', t('documents.correspondents.phone'), 64)}
       </div>
+      {value.kind === 'organization' ? (
+        <Field
+          label={t('documents.correspondents.mailDomains')}
+          hint={t('documents.correspondents.mailDomainsHint')}
+          htmlFor={`${formId}-mailDomains`}
+          error={domainsError}
+        >
+          <Input
+            id={`${formId}-mailDomains`}
+            value={value.mailDomains}
+            maxLength={1000}
+            disabled={!editable}
+            onChange={(event) => set({ mailDomains: event.target.value })}
+          />
+        </Field>
+      ) : null}
       <Field label={t('documents.correspondents.note')} htmlFor={`${formId}-note`}>
         <Textarea
           id={`${formId}-note`}

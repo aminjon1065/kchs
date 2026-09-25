@@ -2058,6 +2058,9 @@ export const en: DeepPartial<Dictionary> = {
       rejectReason: 'Reason for rejection',
       rejected: 'Letter rejected',
       error: 'Parsing error',
+      correspondentByDomain: 'by domain {domain}',
+      purgeAt:
+        'Leaves the queue on {date}: rejected and unparsed letters are kept for {days, plural, one {# day} other {# days}}',
     },
     correspondents: {
       title: 'Correspondents',
@@ -2081,6 +2084,9 @@ export const en: DeepPartial<Dictionary> = {
       empty: 'No correspondents',
       notFound: 'Nothing found',
       pick: 'Choose a correspondent',
+      mailDomains: 'Mail domains',
+      mailDomainsHint:
+        'Comma-separated, e.g. mvd.tj. Letters from addresses of these domains get this correspondent on mail intake; public mail services are not allowed',
     },
     types: {
       title: 'Document types',
@@ -8100,6 +8106,7 @@ export const en: DeepPartial<Dictionary> = {
       filesProcessPending: 'Files: retry processing',
       filesCloseOfficeSessions: 'Files: close editor sessions',
       documentsMailPoll: 'Documents: poll mailboxes',
+      documentsMailPurge: 'Documents: purge the “From mail” queue by retention',
       calendarReminders: 'Calendar: reminders',
       calendarPlan: 'Calendar: plan reminders',
       calendarHorizon: 'Calendar: recurrence horizon',

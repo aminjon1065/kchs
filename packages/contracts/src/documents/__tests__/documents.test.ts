@@ -8,6 +8,11 @@ import {
   strictest,
   withinClearance,
 } from '../../access/confidentiality.js'
+import {
+  CorrespondentInput,
+  CorrespondentMailDomain,
+  isPublicMailDomain,
+} from '../correspondent.js'
 import { JournalCreateInput } from '../journal.js'
 import { canTransition, DOCUMENT_STATUSES, DOCUMENT_TRANSITIONS } from '../lifecycle.js'
 import {
@@ -134,5 +139,25 @@ describe('грифы и допуски', () => {
   it('снятый гриф «Секретно» читается самым строгим из оставшихся, а не ДСП', () => {
     expect(parseConfidentiality('secret')).toBe('confidential')
     expect(parseConfidentiality('secret', 'public')).toBe('confidential')
+  })
+})
+
+describe('почтовые домены корреспондента (ADR-0136)', () => {
+  it('домен приводится к виду mvd.tj, повторы снимаются', () => {
+    const input = CorrespondentInput.parse({
+      name: 'МВД',
+      mailDomains: ['@MVD.tj', 'mvd.tj', ' dushanbe.mvd.tj '],
+    })
+    expect(input.mailDomains).toEqual(['mvd.tj', 'dushanbe.mvd.tj'])
+    expect(CorrespondentInput.parse({ name: 'Минфин' }).mailDomains).toEqual([])
+  })
+
+  it('адрес вместо домена и общие почтовые сервисы не принимаются', () => {
+    for (const value of ['duty@mvd.tj', 'mvd', 'gmail.com', 'corp.mail.ru', 'mvd .tj']) {
+      expect(CorrespondentMailDomain.safeParse(value).success, value).toBe(false)
+    }
+    expect(CorrespondentMailDomain.parse('xn--b1aew.tj')).toBe('xn--b1aew.tj')
+    expect(isPublicMailDomain('Yandex.RU')).toBe(true)
+    expect(isPublicMailDomain('mvd.tj')).toBe(false)
   })
 })

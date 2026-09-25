@@ -183,25 +183,51 @@ const TYPES: StarterType[] = [
   },
 ]
 
-/** Корреспонденты демо-мира — синтетические, для регистрации входящих. */
-const DEMO_CORRESPONDENTS: Array<{ name: string; shortName: string; kind: 'organization' }> = [
+/**
+ * Корреспонденты демо-мира — синтетические, для регистрации входящих. Почтовые домены — белый
+ * список ведомств для приёма из почты (ADR-0136).
+ */
+const DEMO_CORRESPONDENTS: Array<{
+  name: string
+  shortName: string
+  kind: 'organization'
+  mailDomains: string[]
+}> = [
   {
     name: 'Министерство финансов Республики Таджикистан',
     shortName: 'Минфин',
     kind: 'organization',
+    mailDomains: ['minfin.tj'],
   },
   {
     name: 'Агентство по гидрометеорологии Комитета охраны окружающей среды',
     shortName: 'Гидромет',
     kind: 'organization',
+    mailDomains: ['meteo.tj'],
   },
-  { name: 'Хукумат Согдийской области', shortName: 'Хукумат Согда', kind: 'organization' },
-  { name: 'Хукумат Хатлонской области', shortName: 'Хукумат Хатлона', kind: 'organization' },
-  { name: 'ОАО «Барки Точик»', shortName: 'Барки Точик', kind: 'organization' },
+  {
+    name: 'Хукумат Согдийской области',
+    shortName: 'Хукумат Согда',
+    kind: 'organization',
+    mailDomains: ['sughd.tj'],
+  },
+  {
+    name: 'Хукумат Хатлонской области',
+    shortName: 'Хукумат Хатлона',
+    kind: 'organization',
+    mailDomains: ['khatlon.tj'],
+  },
+  {
+    name: 'ОАО «Барки Точик»',
+    shortName: 'Барки Точик',
+    kind: 'organization',
+    mailDomains: ['barqitojik.tj'],
+  },
   {
     name: 'Министерство здравоохранения и социальной защиты населения',
     shortName: 'Минздрав',
     kind: 'organization',
+    mailDomains: ['moh.tj'],
   },
 ]
 
@@ -353,11 +379,22 @@ export async function ensureStarterSet(
   if (options.demo) {
     for (const item of DEMO_CORRESPONDENTS) {
       const [existing] = await db()
-        .select({ id: correspondents.id })
+        .select({ id: correspondents.id, mailDomains: correspondents.mailDomains })
         .from(correspondents)
         .where(eq(correspondents.name, item.name))
         .limit(1)
-      if (existing) continue
+      if (existing) {
+        // Установка засеяна до почтовых доменов (ADR-0136): домены добавляются, если их нет
+        if (existing.mailDomains.length === 0) {
+          await db()
+            .transaction((tx) =>
+              CorrespondentService.update(tx, ctx, existing.id, { mailDomains: item.mailDomains }),
+            )
+            // Домен уже у другого корреспондента — справочник канцелярии не трогаем
+            .catch(() => undefined)
+        }
+        continue
+      }
       await db().transaction((tx) =>
         CorrespondentService.create(tx, ctx, {
           kind: item.kind,
@@ -365,6 +402,7 @@ export async function ensureStarterSet(
           details: { shortName: item.shortName },
           contacts: {},
           externalId: null,
+          mailDomains: item.mailDomains,
         }),
       )
       summary.correspondents += 1

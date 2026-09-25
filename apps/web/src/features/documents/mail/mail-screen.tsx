@@ -1,8 +1,14 @@
-import type { MailMessageList, MailMessageRecord, MailPollReport } from '@kchs/contracts'
-import { formatDateTime, formatFileSize } from '@kchs/fields'
+import {
+  MAIL_QUEUE_RETENTION_DAYS,
+  type MailMessageList,
+  type MailMessageRecord,
+  type MailPollReport,
+} from '@kchs/contracts'
+import { formatDate, formatDateTime, formatFileSize } from '@kchs/fields'
 import {
   Badge,
   Button,
+  Callout,
   Card,
   cn,
   Dialog,
@@ -307,6 +313,14 @@ function MailDetail({ item }: { item: MailMessageRecord }) {
         </div>
       </header>
 
+      {item.purgeAt ? (
+        <Callout tone="info">
+          {t('documents.mail.purgeAt', {
+            date: formatDate(item.purgeAt, { locale }),
+            days: MAIL_QUEUE_RETENTION_DAYS,
+          })}
+        </Callout>
+      ) : null}
       {item.error ? (
         <Card title={t('documents.mail.error')}>
           <p className="text-sm text-danger">{item.error}</p>
@@ -341,7 +355,16 @@ function MailDetail({ item }: { item: MailMessageRecord }) {
               key: 'correspondent',
               label: t('documents.fields.correspondent'),
               value: item.correspondent ? (
-                item.correspondent.name
+                <span>
+                  {item.correspondent.name}
+                  {item.correspondentMatch === 'domain' ? (
+                    <span className="ml-1.5 text-xs text-fg-muted">
+                      {t('documents.mail.correspondentByDomain', {
+                        domain: item.fromEmail.slice(item.fromEmail.lastIndexOf('@') + 1),
+                      })}
+                    </span>
+                  ) : null}
+                </span>
               ) : (
                 <span className="text-warning">
                   {t('documents.mail.correspondentMissing', {

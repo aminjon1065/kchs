@@ -238,6 +238,7 @@ export async function seedDemoDocuments(people: DemoDocumentPeople): Promise<Dem
             details: { note: 'Демо-данные' },
             contacts: {},
             externalId: null,
+            mailDomains: [],
           }),
         )),
     )
