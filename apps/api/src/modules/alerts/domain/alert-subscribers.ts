@@ -58,6 +58,8 @@ export const alertSubscribers: Subscriber[] = [
           objectId: object.id,
           url: `/o/${object.id}`,
           aggregateKey: `alert:${row.id}`,
+          // Алерт — срочное: проходит сквозь тихие часы и «не беспокоить» (ADR-0140)
+          urgent: true,
           ...(definition.channels.email
             ? { channels: definition.channels.notify ? ['app', 'email'] : ['email'] }
             : {}),

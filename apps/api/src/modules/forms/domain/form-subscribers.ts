@@ -48,6 +48,8 @@ export const formSubscribers: Subscriber[] = [
           params,
           objectId: object.id,
           url,
+          // Эскалация проходит сквозь тихие часы руководителя (ADR-0140)
+          urgent: true,
         })
         return
       }

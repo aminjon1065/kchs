@@ -31,6 +31,7 @@ import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
 import { ApiError } from '~/shared/api/client.js'
 import { spacesQuery } from '~/shared/api/queries.js'
+import { defaultAction } from './designer/action-fields.js'
 import { automationApi, automationKeys, rulesQuery, ruleTemplatesQuery } from './queries.js'
 
 /**
@@ -267,9 +268,7 @@ function CreateRuleDialog({
             runAs: null,
             trigger: { kind: 'event', type: 'object.created', filter: {} },
             conditions: null,
-            actions: [
-              { type: 'notify', to: [], text: '', channels: ['app'], object: '{{object.id}}' },
-            ],
+            actions: [defaultAction('notify')],
             limits: { maxRunsPerHour: 100, dedupeKey: null, dedupeWindowMinutes: 60 },
           }
       return automationApi.create({

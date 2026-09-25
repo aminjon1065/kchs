@@ -1,5 +1,6 @@
 import { registerSubscriber } from '~/kernel/events/bus.js'
 import { registerFeature } from '~/kernel/features/registry.js'
+import { setQuietResolver } from '~/kernel/notifications/quiet.js'
 import { logger } from '~/shared/logger/index.js'
 import { chatSubscribers, ensureUnitChannels } from './domain/chat-subscribers.js'
 import { ensureMessageIndex } from './domain/message-search.js'
@@ -20,6 +21,15 @@ export function registerChatFeature(): void {
     tags: ['chat'],
     screens: ['chats'],
   })
+}
+
+/**
+ * Тишина получателя для доставки уведомлений ядром (ADR-0140): «не беспокоить», тихие
+ * часы и встреча живут в присутствии этого модуля. Регистрируется в любой роли процесса —
+ * уведомления шлют и api, и воркер.
+ */
+export function registerChatQuietHours(): void {
+  setQuietResolver((userIds) => PresenceService.quietUsers(userIds))
 }
 
 /**

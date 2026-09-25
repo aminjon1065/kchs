@@ -40,6 +40,7 @@ export const RULE_TEMPLATES: RuleTemplate[] = [
           text: 'Зарегистрирован крупный договор {{object.title}}',
           channels: ['app'],
           object: '{{object.id}}',
+          urgent: false,
         },
         {
           type: 'add_tag',
@@ -73,6 +74,8 @@ export const RULE_TEMPLATES: RuleTemplate[] = [
           text: 'Просрочено поручение «{{object.title}}»',
           channels: ['app', 'telegram'],
           object: '{{object.id}}',
+          // Эскалация проходит сквозь тихие часы руководителя (ADR-0140)
+          urgent: true,
         },
       ],
       limits: { maxRunsPerHour: 200, dedupeKey: '{{object.id}}', dedupeWindowMinutes: 1440 },
@@ -161,6 +164,7 @@ export const RULE_TEMPLATES: RuleTemplate[] = [
           text: 'Показатель {{event.payload.name}}: {{event.payload.value}}',
           channels: ['app'],
           object: '{{object.id}}',
+          urgent: false,
         },
       ],
       limits: { maxRunsPerHour: 10, dedupeKey: null, dedupeWindowMinutes: 60 },

@@ -39,12 +39,16 @@ async function participants(taskId: string) {
       assigneeId: tasks.assigneeId,
       coAssignees: tasks.coAssignees,
       controllerId: tasks.controllerId,
+      priority: tasks.priority,
     })
     .from(tasks)
     .where(eq(tasks.id, taskId))
     .limit(1)
   return row ?? null
 }
+
+/** «P1 · срочно» — высший приоритет поручения (10-tasks-projects.md, ADR-0082). */
+const URGENT_PRIORITY = 1
 
 const people = (...ids: Array<string | null | undefined>): string[] =>
   ids.filter((id): id is string => typeof id === 'string')
@@ -65,7 +69,14 @@ async function notify(event: EventEnvelope): Promise<void> {
     url: `/o/${event.object.id}`,
     params: { title: event.object.title ?? '' },
   }
-  const send = (userIds: string[], titleKey: string, params: Record<string, unknown> = {}) =>
+  // Срочное поручение (P1) и эскалация проходят сквозь тихие часы и «не беспокоить» (ADR-0140)
+  const urgentTask = task.priority === URGENT_PRIORITY
+  const send = (
+    userIds: string[],
+    titleKey: string,
+    params: Record<string, unknown> = {},
+    options: { escalation?: boolean } = {},
+  ) =>
     NotificationService.notify({
       ...base,
       userIds,
@@ -73,6 +84,7 @@ async function notify(event: EventEnvelope): Promise<void> {
       params: { ...base.params, ...params },
       // Напоминания одного поручения не сливаются с назначением и отчётом
       aggregateKey: `tasks:${event.object?.id ?? ''}:${titleKey}`,
+      urgent: urgentTask || Boolean(options.escalation),
     })
   // Отчёт по части соисполнителя принимает ответственный исполнитель (контролёр части)
   const reviewers = task.parentId
@@ -141,7 +153,9 @@ async function notify(event: EventEnvelope): Promise<void> {
       // Руководитель, который и так узнал о просрочке (автор, контролёр), — без повтора
       const managerId = event.payload.managerId as string
       const informed = new Set(people(task.authorId, task.controllerId, task.assigneeId))
-      if (!informed.has(managerId)) await send([managerId], 'notifications.tpl.taskEscalated')
+      if (!informed.has(managerId)) {
+        await send([managerId], 'notifications.tpl.taskEscalated', {}, { escalation: true })
+      }
       break
     }
     default:

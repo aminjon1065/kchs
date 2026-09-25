@@ -144,12 +144,20 @@ const Assignee = z.string().trim().min(1).max(200)
 /** Объект действия; по умолчанию — объект события. */
 const TargetObject = Template.default('{{object.id}}')
 
+/**
+ * Срочное уведомление (05-risks N23, ADR-0140): проходит сквозь тихие часы и «не беспокоить»
+ * получателя — внешние каналы (Telegram, push, почта) доставляются сразу. Для алертов ЧС,
+ * эскалаций и срочных поручений; остальные уведомления правил тишина глушит.
+ */
+const Urgent = z.boolean().default(false)
+
 export const NotifyAction = z.object({
   type: z.literal('notify'),
   to: z.array(Assignee).min(1).max(20),
   text: Template.min(1),
   channels: z.array(z.enum(['app', 'email', 'telegram', 'push'])).default(['app']),
   object: TargetObject,
+  urgent: Urgent,
 })
 
 export const CreateTaskAction = z.object({
@@ -247,6 +255,7 @@ export const SendTelegramAction = z.object({
   to: z.array(Assignee).min(1).max(20),
   text: Template.min(1),
   object: TargetObject,
+  urgent: Urgent,
 })
 
 export const WebhookAction = z.object({

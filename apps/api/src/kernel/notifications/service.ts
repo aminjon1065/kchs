@@ -26,6 +26,7 @@ import {
   type ExternalChannel,
   notificationChannel,
 } from './channels.js'
+import { quietRecipients } from './quiet.js'
 
 /** Окно агрегации: несколько событий одного объекта сливаются в одно уведомление. */
 const AGGREGATE_WINDOW_MINUTES = 5
@@ -42,9 +43,15 @@ export interface NotifyInput {
   aggregateKey?: string | null
   channels?: NotificationChannel[]
   /**
-   * Срочное (напоминание о встрече, ADR-0081): запрошенные каналы доставляются
-   * сразу, без дайджеста и без режимов по умолчанию; канал снимает только явное
-   * «выключено» пользователя в этой категории.
+   * Каналы выбраны явно (действие правила «Отправить в Telegram»): запрошенные каналы
+   * доставляются сразу, минуя режимы категории по умолчанию; снимает канал только явное
+   * «выключено» пользователя в этой категории. Тишину получателя это не отменяет.
+   */
+  direct?: boolean
+  /**
+   * Срочное (05-risks N23, ADR-0140): алерты, эскалации, срочные поручения, напоминание о
+   * встрече и входящий звонок. Проходит сквозь тишину получателя — «не беспокоить», тихие
+   * часы, встречу; запрошенные каналы доставляются сразу, как у `direct`.
    */
   urgent?: boolean
 }
@@ -66,6 +73,8 @@ export const NotificationService = {
       input.aggregateKey ?? `${input.category}:${input.objectId ?? 'none'}:${input.titleKey}`
     // Внешние каналы (Telegram) — только у тех, кому они доступны: привязан аккаунт
     const external = await availableChannels(recipients)
+    // Тишина получателя глушит внешние каналы у всего, кроме срочного (ADR-0140)
+    const quiet = input.urgent ? new Set<string>() : await quietRecipients(recipients)
 
     for (const userId of recipients) {
       // Не уведомляем автора о его же действии
@@ -76,8 +85,9 @@ export const NotificationService = {
         input.category,
         input.channels,
         external.get(userId),
-        input.urgent ?? false,
+        Boolean(input.urgent || input.direct),
       )
+      if (quiet.has(userId)) muteExternal(modes)
       const channels = Object.keys(modes) as NotificationChannel[]
       if (channels.length === 0) continue
 
@@ -304,6 +314,18 @@ const DEFAULT_MODES: Record<string, Partial<Record<NotificationChannel, Delivery
   system: { app: 'immediate', email: 'digest' },
 }
 
+/**
+ * Получатель «в тишине» (ADR-0140): Telegram и push молчат, письмо «немедленно» уйдёт
+ * с дайджестом, когда тишина кончится, значок в приложении остаётся. Если заглушено всё,
+ * что просили, уведомление ждёт в приложении — сообщение не теряется.
+ */
+function muteExternal(modes: Partial<Record<NotificationChannel, DeliveryMode>>): void {
+  const requested = Object.keys(modes).length
+  for (const channel of EXTERNAL_CHANNELS) delete modes[channel]
+  if (modes.email === 'immediate') modes.email = 'digest'
+  if (requested > 0 && Object.keys(modes).length === 0) modes.app = 'immediate'
+}
+
 const isExternal = (channel: NotificationChannel): channel is ExternalChannel =>
   (EXTERNAL_CHANNELS as readonly string[]).includes(channel)
 
@@ -312,7 +334,7 @@ async function resolveChannels(
   category: NotificationCategory,
   requested: NotificationChannel[] | undefined,
   available: Set<ExternalChannel> | undefined,
-  urgent = false,
+  direct = false,
 ): Promise<Partial<Record<NotificationChannel, DeliveryMode>>> {
   const prefs = await db()
     .select()
@@ -331,8 +353,8 @@ async function resolveChannels(
   for (const channel of candidates) {
     if (isExternal(channel) && !available?.has(channel)) continue
     const override = prefs.find((p) => p.channel === channel)?.mode as DeliveryMode | undefined
-    if (urgent && requested) {
-      // Пользователь сам выбрал канал напоминания: доставка сразу, если канал не выключен
+    if (direct && requested) {
+      // Канал выбран явно (напоминание, правило): доставка сразу, если канал не выключен
       if (override !== 'off') result[channel] = 'immediate'
       continue
     }
@@ -550,7 +572,7 @@ export async function sendEmailDigest(olderThanMinutes = 5): Promise<number> {
   if (!mailConfigured()) return 0
 
   const pending = await db()
-    .select({ id: notifications.id })
+    .select({ id: notifications.id, userId: notifications.userId })
     .from(notifications)
     .where(
       and(
@@ -562,7 +584,9 @@ export async function sendEmailDigest(olderThanMinutes = 5): Promise<number> {
     )
     .limit(1000)
 
-  return deliverEmail(pending.map((row) => row.id))
+  // Получателям «в тишине» дайджест подождёт до её конца (ADR-0140)
+  const quiet = await quietRecipients([...new Set(pending.map((row) => row.userId))])
+  return deliverEmail(pending.filter((row) => !quiet.has(row.userId)).map((row) => row.id))
 }
 
 function escapeHtml(value: string): string {

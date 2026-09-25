@@ -5898,7 +5898,7 @@ export const en: DeepPartial<Dictionary> = {
       quietTo: 'To',
       forHour: 'For an hour',
       save: 'Save',
-      hint: 'Do not disturb and quiet hours leave only the in-app badge',
+      hint: 'Do not disturb, quiet hours and meetings mute Telegram, push and email for all notifications except urgent ones: alerts, escalations, urgent tasks. The in-app badge stays',
     },
   },
   meetings: {
@@ -7611,6 +7611,7 @@ export const en: DeepPartial<Dictionary> = {
       typeKey: 'Document type',
       subject: 'Subject',
       linkToSource: 'Link to the source',
+      urgent: 'Urgent — through quiet hours and do not disturb',
       definitionKey: 'Route',
       variables: 'Variables',
       target: 'Target',

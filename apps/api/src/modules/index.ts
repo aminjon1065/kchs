@@ -30,6 +30,7 @@ import {
 import {
   registerChatBackground,
   registerChatFeature,
+  registerChatQuietHours,
   registerChatRoutes,
   scheduleChatJobs,
 } from './chat/module.js'
@@ -143,6 +144,8 @@ export function registerAllObjectTypes(): void {
   // Каналы уведомлений модулей: ядро доставляет через них в любой роли процесса
   registerTelegramChannel()
   registerPushChannel()
+  // Тишина получателя — из присутствия модуля чатов (ADR-0140)
+  registerChatQuietHours()
 }
 
 /** Модуль identity предоставляет ядру справочник людей и оргструктуры и проверку второго фактора. */

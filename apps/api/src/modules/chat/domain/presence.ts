@@ -8,6 +8,8 @@ import type {
 import { eq, inArray, sql } from 'drizzle-orm'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { emitToUser } from '~/kernel/realtime/gateway.js'
+import { UserService } from '~/modules/identity/public.js'
+import { config } from '~/shared/config/index.js'
 import { systemCtx, type UserCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { userPresence } from '~/shared/db/schema/index.js'
@@ -199,6 +201,27 @@ export const PresenceService = {
   async quiet(userId: string, timezone: string): Promise<boolean> {
     const state = await PresenceService.get(userId, timezone)
     return state.status === 'dnd' || state.status === 'in_meeting'
+  },
+
+  /**
+   * Кто сейчас «в тишине» (ADR-0140): выбрал «не беспокоить», у него тихие часы по его
+   * поясу или идёт встреча. Ядро уведомлений глушит этим людям внешние каналы у всего,
+   * кроме срочного. Пояс читается только у тех, у кого тихие часы включены.
+   */
+  async quietUsers(userIds: readonly string[]): Promise<Set<string>> {
+    const rows = await load([...new Set(userIds)])
+    const quiet = new Set<string>()
+    for (const [userId, row] of rows) {
+      if (row.inMeeting || chosenOf(row) === 'dnd') {
+        quiet.add(userId)
+        continue
+      }
+      const hours = quietOf(row)
+      if (!hours.enabled) continue
+      const profile = await UserService.profile(userId)
+      if (inQuietHours(hours, profile?.timezone ?? config().TZ)) quiet.add(userId)
+    }
+    return quiet
   },
 
   /** Сброс «на встрече» при старте воркера: комнаты после перезапуска пусты. */

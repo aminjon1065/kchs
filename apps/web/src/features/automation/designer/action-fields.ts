@@ -16,6 +16,8 @@ export interface ActionField {
 }
 
 const OBJECT: ActionField = { key: 'object', kind: 'text', label: 'object' }
+/** Срочное: сквозь тихие часы и «не беспокоить» получателя (ADR-0140). */
+const URGENT: ActionField = { key: 'urgent', kind: 'boolean', label: 'urgent' }
 
 export const ACTION_FIELDS: Record<RuleActionType, ActionField[]> = {
   notify: [
@@ -23,6 +25,7 @@ export const ACTION_FIELDS: Record<RuleActionType, ActionField[]> = {
     { key: 'text', kind: 'textarea', label: 'text' },
     { key: 'channels', kind: 'list', label: 'channels' },
     OBJECT,
+    URGENT,
   ],
   create_task: [
     { key: 'title', kind: 'text', label: 'title' },
@@ -83,6 +86,7 @@ export const ACTION_FIELDS: Record<RuleActionType, ActionField[]> = {
     { key: 'to', kind: 'list', label: 'to' },
     { key: 'text', kind: 'textarea', label: 'text' },
     OBJECT,
+    URGENT,
   ],
   webhook: [
     { key: 'url', kind: 'text', label: 'url' },
@@ -104,7 +108,14 @@ export const ACTION_FIELDS: Record<RuleActionType, ActionField[]> = {
 export function defaultAction(type: RuleActionType): RuleAction {
   switch (type) {
     case 'notify':
-      return { type, to: [], text: '', channels: ['app'], object: '{{object.id}}' }
+      return {
+        type,
+        to: [],
+        text: '',
+        channels: ['app'],
+        object: '{{object.id}}',
+        urgent: false,
+      }
     case 'create_task':
       return {
         type,
@@ -154,7 +165,7 @@ export function defaultAction(type: RuleActionType): RuleAction {
     case 'send_email':
       return { type, to: [], subject: '', body: '' }
     case 'send_telegram':
-      return { type, to: [], text: '', object: '{{object.id}}' }
+      return { type, to: [], text: '', object: '{{object.id}}', urgent: false }
     case 'webhook':
       return { type, url: 'https://', method: 'POST', headers: {}, payload: {}, secret: null }
     case 'ai_task':

@@ -517,11 +517,13 @@ async function packRules(
             to: [`group:${duty}`],
             text: `{{event.payload.labels.hazard}}: {{event.payload.values.title}} — ${where}. Решение — в «Сообщениях об опасных явлениях».`,
             channels: ['app', 'push'],
+            urgent: true,
           },
           {
             type: 'send_telegram',
             to: [`group:${duty}`],
             text: `⚠ {{event.payload.labels.hazard}}: {{event.payload.values.title}} — ${where}`,
+            urgent: true,
           },
           {
             type: 'post_message',
@@ -561,11 +563,13 @@ async function packRules(
             to: [`group:${hq}`],
             text: 'Сильное землетрясение: {{event.payload.values.title}}. Оцените последствия для районов страны.',
             channels: ['app', 'push'],
+            urgent: true,
           },
           {
             type: 'send_telegram',
             to: [`group:${hq}`],
             text: '⚠ Сильное землетрясение: {{event.payload.values.title}}',
+            urgent: true,
           },
         ],
         limits: {
@@ -592,6 +596,7 @@ async function packRules(
             to: [`group:${hq}`],
             text: `Происшествие с погибшими ({{event.payload.values.deaths}}): ${where}. {{event.payload.values.description}}`,
             channels: ['app', 'push'],
+            urgent: true,
           },
           {
             type: 'post_message',
@@ -687,6 +692,7 @@ async function packRules(
                   to: [`group:${hq}`],
                   text: 'Донесение {{event.payload.number}}: {{object.title}}. Нужна резолюция руководства штаба.',
                   channels: ['app' as const, 'push' as const],
+                  urgent: true,
                 },
                 {
                   type: 'post_message' as const,

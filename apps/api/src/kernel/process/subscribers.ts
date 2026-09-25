@@ -176,6 +176,8 @@ async function notify(event: EventEnvelope): Promise<void> {
           category: 'inbox',
           titleKey: 'notifications.tpl.processEscalation',
           aggregateKey: `process:${String(payload.stepId)}:escalation`,
+          // Эскалация проходит сквозь тихие часы (ADR-0140)
+          urgent: true,
         })
         await NotificationService.notify({
           userIds: hidden,
@@ -186,6 +188,7 @@ async function notify(event: EventEnvelope): Promise<void> {
           category: 'inbox',
           titleKey: 'notifications.tpl.processEscalationHidden',
           aggregateKey: `process:${String(payload.stepId)}:escalation`,
+          urgent: true,
         })
       }
       break

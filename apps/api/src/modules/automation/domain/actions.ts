@@ -166,6 +166,8 @@ export async function runAction(
         url: row ? objectUrl(row.id, row.type) : null,
         aggregateKey: `rule:${context.ruleId}:${objectId ?? 'none'}`,
         channels: action.channels,
+        // Срочное проходит сквозь тихие часы и «не беспокоить» (ADR-0140)
+        urgent: action.urgent,
       })
       return { message: `Уведомлены: ${userIds.length}`, objectId }
     }
@@ -424,7 +426,9 @@ export async function runAction(
         objectId,
         url: row ? objectUrl(row.id, row.type) : null,
         channels: ['telegram'],
-        urgent: true,
+        // Канал выбран явно: мимо режимов категории; тишину снимает только «срочное»
+        direct: true,
+        urgent: action.urgent,
       })
       return { message: `Telegram: ${userIds.length}`, objectId }
     }
@@ -513,7 +517,7 @@ export function describeAction(action: RuleAction, scope: EvalScope): string {
   const render = (template: string) => renderTemplate(template, scope)
   switch (action.type) {
     case 'notify':
-      return `Уведомить ${action.to.join(', ')}: «${render(action.text)}»`
+      return `Уведомить${action.urgent ? ' срочно' : ''} ${action.to.join(', ')}: «${render(action.text)}»`
     case 'create_task':
       return `Поручение «${render(action.title)}» — ${action.assignee}`
     case 'update_fields':
@@ -539,7 +543,7 @@ export function describeAction(action: RuleAction, scope: EvalScope): string {
     case 'send_email':
       return `Письмо ${action.to.join(', ')}: «${render(action.subject)}»`
     case 'send_telegram':
-      return `Telegram ${action.to.join(', ')}: «${render(action.text)}»`
+      return `Telegram${action.urgent ? ' срочно' : ''} ${action.to.join(', ')}: «${render(action.text)}»`
     case 'webhook':
       return `Вызов ${action.method} ${action.url}`
     case 'ai_task':
