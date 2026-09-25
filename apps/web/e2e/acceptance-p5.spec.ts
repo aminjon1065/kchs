@@ -320,7 +320,7 @@ test.describe('Приёмка фазы 5: сценарий G — новый со
 
     // Стартовая страница руководства — она же источник поручения адаптации
     const pages = await request.get(
-      `/api/v1/objects?type=page&q=${encodeURIComponent('Как работать в kchs')}&limit=5`,
+      `/api/v1/objects?type=page&q=${encodeURIComponent('Как работать в Портале КЧС')}&limit=5`,
     )
     const guide = ((await pages.json()).items as Array<{ id: string; title: string }>)[0]
     expect(guide, 'руководство пользователя заведено сидом').toBeTruthy()
@@ -387,7 +387,7 @@ test.describe('Приёмка фазы 5: сценарий G — новый со
       // Стартовая страница базы знаний на месте: руководство приезжает с сидом
       await openWorkspace(page, request)
       await page.goto(`/o/${guide?.id}`)
-      await expect(page.getByRole('tab', { name: /Как работать в kchs/ })).toBeVisible({
+      await expect(page.getByRole('tab', { name: /Как работать в Портале КЧС/ })).toBeVisible({
         timeout: 20_000,
       })
       await expect(page.getByRole('navigation', { name: 'Оглавление' })).toBeVisible({
