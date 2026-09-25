@@ -1,5 +1,8 @@
 import { bootstrapPlatform } from '~/bootstrap.js'
+import { SecurityPolicyService } from '~/kernel/settings/security-policy.js'
 import type { DemoDataResult, DemoProfile } from '~/modules/data/public.js'
+import { systemCtx } from '~/shared/context.js'
+import { db } from '~/shared/db/client.js'
 import { runMigrations } from '~/shared/db/migrate.js'
 import { logger } from '~/shared/logger/index.js'
 import { seedDemoData } from './demo-data.js'
@@ -41,6 +44,19 @@ export async function seedCommand(options: SeedCommandOptions): Promise<{
     adminPassword: process.env.SEED_ADMIN_PASSWORD ?? 'Kchs!Start-2026-7q',
     employeePassword: process.env.SEED_USER_PASSWORD ?? 'Kchs!Work-2026-3v',
   })
+  if (options.profile === 'demo') {
+    // Демо-мир — общие учётные записи для показа: второй фактор, который ставит
+    // `kchs init` рабочей установке, здесь снимается (ADR-0139)
+    const relaxed = await db().transaction((tx) =>
+      SecurityPolicyService.relaxInstallDefaultForDemo(tx, systemCtx('seed')),
+    )
+    SecurityPolicyService.invalidate()
+    if (relaxed) {
+      logger().warn(
+        'демо-профиль: обязательный второй фактор администраторов и аудиторов выключен — установка демонстрационная',
+      )
+    }
+  }
   const data = options.data ?? 'none'
   const datasets = data === 'none' ? null : await seedDemoData(data, adminLogin)
   // Пакет — после демо-датасетов: принимает их, а не заводит пустые двойники

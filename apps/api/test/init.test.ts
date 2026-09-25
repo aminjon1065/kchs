@@ -13,6 +13,8 @@ registerLifecycle()
 const { formatInitSummary, runInit } = await import('../src/cli/init.js')
 const { seedCommand } = await import('../src/seed/command.js')
 const { businessCalendar, users } = await import('../src/shared/db/schema/index.js')
+const { SecurityPolicyService } = await import('../src/kernel/settings/security-policy.js')
+const { systemCtx } = await import('../src/shared/context.js')
 
 const now = new Date('2026-09-18T10:00:00Z')
 let app: FastifyInstance
@@ -32,6 +34,19 @@ describe('kchs init', () => {
       { year: 2027, added: 11 },
     ])
     expect(summary.admin).toMatchObject({ login: 'admin', created: true })
+    // Рабочая установка: второй фактор обязателен администраторам и аудиторам (N3, ADR-0139)
+    expect(summary.security).toEqual({
+      requireMfaRoles: ['system_admin', 'security_auditor'],
+      applied: true,
+    })
+    expect(formatInitSummary(summary)).toContain(
+      'Второй фактор обязателен для ролей: Администратор системы, Аудитор безопасности',
+    )
+    SecurityPolicyService.invalidate()
+    expect((await SecurityPolicyService.current()).requireMfaRoles).toEqual([
+      'system_admin',
+      'security_auditor',
+    ])
     const password = summary.admin.temporaryPassword
     expect(password).toBeTruthy()
     expect(formatInitSummary(summary)).toContain(password as string)
@@ -65,6 +80,35 @@ describe('kchs init', () => {
       existing: ['admin'],
     })
     expect(formatInitSummary(again)).toContain('уже есть (admin)')
+    expect(again.security.applied).toBe(false)
+  })
+
+  it('выбор администратора init не перезаписывает, демо-профиль снимает только умолчание', async () => {
+    const ctx = systemCtx('test')
+    // Администратор сузил политику до одной роли — повторный init её не трогает, демо-сид тоже
+    await db().transaction((tx) =>
+      SecurityPolicyService.update(tx, ctx, { requireMfaRoles: ['system_admin'] }),
+    )
+    SecurityPolicyService.invalidate()
+    const kept = await runInit({ adminLogin: 'admin', now })
+    expect(kept.security).toEqual({ requireMfaRoles: ['system_admin'], applied: false })
+    expect(
+      await db().transaction((tx) => SecurityPolicyService.relaxInstallDefaultForDemo(tx, ctx)),
+    ).toBe(false)
+
+    // Умолчание init демо-установка снимает: общие учётные записи демо-мира
+    await db().transaction((tx) =>
+      SecurityPolicyService.update(tx, ctx, {
+        requireMfaRoles: ['security_auditor', 'system_admin'],
+      }),
+    )
+    expect(
+      await db().transaction((tx) => SecurityPolicyService.relaxInstallDefaultForDemo(tx, ctx)),
+    ).toBe(true)
+    SecurityPolicyService.invalidate()
+    expect((await SecurityPolicyService.current()).requireMfaRoles).toEqual([])
+    // Пустой список — тоже выбор: повторный init его не заменяет умолчанием
+    expect((await runInit({ adminLogin: 'admin', now })).security.applied).toBe(false)
   })
 
   it('демо-данные ставятся поверх и используют того же администратора', async () => {

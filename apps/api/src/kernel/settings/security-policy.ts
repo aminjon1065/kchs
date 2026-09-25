@@ -6,6 +6,16 @@ import { SETTING_KEYS, SettingsService } from './service.js'
 
 type Field = keyof SecurityPolicy
 
+/**
+ * Роли, которым второй фактор обязателен на рабочей установке (05-risks N3, ADR-0139):
+ * администратор системы и аудитор безопасности. Их записывает `kchs init`, пока политику
+ * никто не задавал; демо-профиль сида это умолчание снимает.
+ */
+export const INSTALL_MFA_ROLES: readonly string[] = ['system_admin', 'security_auditor']
+
+const sameRoles = (a: readonly string[], b: readonly string[]) =>
+  a.length === b.length && a.every((role) => b.includes(role))
+
 const KEYS: Record<Field, string> = {
   requireMfaRoles: SETTING_KEYS.securityRequireMfaRoles,
   allowShareLinks: SETTING_KEYS.securityAllowShareLinks,
@@ -65,6 +75,35 @@ export const SecurityPolicyService = {
       tx,
     )
     return after
+  },
+
+  /**
+   * Умолчание рабочей установки (`kchs init`): обязательный второй фактор для
+   * администраторов и аудиторов, если политику ещё никто не задавал. Выбор администратора
+   * — в том числе пустой список — повторный запуск не трогает.
+   */
+  async applyInstallDefault(
+    tx: Executor,
+    ctx: Ctx,
+  ): Promise<{ requireMfaRoles: string[]; applied: boolean }> {
+    const system = await SettingsService.system()
+    if (KEYS.requireMfaRoles in system) {
+      return { requireMfaRoles: fromSettings(system).requireMfaRoles, applied: false }
+    }
+    const after = await this.update(tx, ctx, { requireMfaRoles: [...INSTALL_MFA_ROLES] })
+    return { requireMfaRoles: after.requireMfaRoles, applied: true }
+  },
+
+  /**
+   * Демо-установка (профиль `demo`): общие учётные записи демонстрационного мира входят
+   * без второго фактора, поэтому умолчание `kchs init` снимается. Политику, которую
+   * администратор задал по-своему, демо-сид не трогает.
+   */
+  async relaxInstallDefaultForDemo(tx: Executor, ctx: Ctx): Promise<boolean> {
+    const current = fromSettings(await SettingsService.system())
+    if (!sameRoles(current.requireMfaRoles, INSTALL_MFA_ROLES)) return false
+    await this.update(tx, ctx, { requireMfaRoles: [] })
+    return true
   },
 
   /** Сброс кэша процесса: после изменения политики и в тестах. */

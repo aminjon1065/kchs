@@ -1,6 +1,7 @@
 import { AdminUserCreateInput } from '@kchs/contracts'
 import { bootstrapPlatform } from '~/bootstrap.js'
 import { seedFixedHolidays } from '~/kernel/business-calendar/service.js'
+import { SecurityPolicyService } from '~/kernel/settings/security-policy.js'
 import { DocumentsSeed } from '~/modules/documents/public.js'
 import { BasemapService, type BasemapSyncSummary } from '~/modules/gis/public.js'
 import { UserService } from '~/modules/identity/public.js'
@@ -27,6 +28,11 @@ export interface InitSummary {
   basemaps: BasemapSyncSummary
   /** Стартовые журналы, типы, маршруты и шаблоны документов (08-documents.md §2, ADR-0080, ADR-0083, ADR-0085). */
   documents: { journals: number; types: number; routes: number; templates: number }
+  /**
+   * Роли с обязательным вторым фактором (05-risks N3, ADR-0139): `applied` — политику
+   * записал этот запуск; иначе она уже была задана и не менялась.
+   */
+  security: { requireMfaRoles: string[]; applied: boolean }
   admin: {
     login: string
     created: boolean
@@ -57,6 +63,10 @@ export async function runInit(options: InitOptions): Promise<InitSummary> {
   const calendar = await db().transaction((tx) => seedFixedHolidays(tx, [year, year + 1]))
   const basemaps = await BasemapService.sync(systemCtx('kchs-init'))
   const documents = await DocumentsSeed.ensureStarterSet(systemCtx('kchs-init'))
+  const security = await db().transaction((tx) =>
+    SecurityPolicyService.applyInstallDefault(tx, systemCtx('kchs-init')),
+  )
+  SecurityPolicyService.invalidate()
 
   const existing = await UserService.activeSystemAdminLogins()
 
@@ -92,6 +102,7 @@ export async function runInit(options: InitOptions): Promise<InitSummary> {
       routes: documents.routes,
       templates: documents.templates,
     },
+    security,
     admin: {
       login: created ? admin.login : (existing[0] ?? admin.login),
       created,
@@ -101,6 +112,12 @@ export async function runInit(options: InitOptions): Promise<InitSummary> {
     baseUrl: config().KCHS_BASE_URL,
   }
 }
+
+const ROLE_NAMES: Record<string, string> = {
+  system_admin: 'Администратор системы',
+  security_auditor: 'Аудитор безопасности',
+}
+const roleName = (key: string) => ROLE_NAMES[key] ?? key
 
 /** Сводка для терминала: что сделано и как войти. */
 export function formatInitSummary(summary: InitSummary): string {
@@ -122,6 +139,11 @@ export function formatInitSummary(summary: InitSummary): string {
   )
   lines.push(
     `  Документооборот: журналов добавлено ${summary.documents.journals}, типов документов — ${summary.documents.types}, маршрутов — ${summary.documents.routes}, шаблонов — ${summary.documents.templates}`,
+  )
+  lines.push(
+    summary.security.requireMfaRoles.length > 0
+      ? `  Второй фактор обязателен для ролей: ${summary.security.requireMfaRoles.map(roleName).join(', ')}${summary.security.applied ? ' — подключается при первом входе' : ''}`
+      : '  Второй фактор: обязательных ролей нет — задаются в консоли, раздел «Безопасность»',
   )
   lines.push(`  Базовая карта по умолчанию: ${summary.basemaps.defaultName ?? '—'}`)
   if (summary.basemaps.defaultKind === 'none') {
