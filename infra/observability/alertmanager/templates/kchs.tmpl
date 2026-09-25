@@ -1,0 +1,70 @@
+{{/*
+  Оповещения kchs по-русски (ADR-0147): тема и текст письма, HTML письма и сообщение
+  Telegram. Суть оповещения — в аннотации summary правил Prometheus (alerts.yml),
+  название установки — kchs.installation (entrypoint.sh, ALERTMANAGER_INSTALLATION).
+*/}}
+
+{{ define "kchs.state" }}{{ if eq .Status "firing" }}ТРЕВОГА{{ else }}Восстановлено{{ end }}{{ end }}
+
+{{ define "kchs.severity" }}{{ if eq . "critical" }}критично{{ else if eq . "warning" }}предупреждение{{ else }}{{ . }}{{ end }}{{ end }}
+
+{{ define "kchs.subject" -}}
+[{{ template "kchs.installation" }}] {{ template "kchs.state" . }}: {{ .CommonLabels.alertname }}
+{{- with .CommonAnnotations.summary }} — {{ . }}{{ end }}
+{{- if gt (len .Alerts) 1 }} ({{ len .Alerts }}){{ end }}
+{{- end }}
+
+{{ define "kchs.when" -}}
+с {{ .StartsAt.Local.Format "02.01.2006 15:04" }}
+{{- if eq .Status "resolved" }} до {{ .EndsAt.Local.Format "02.01.2006 15:04" }}{{ end }}
+{{- end }}
+
+{{ define "kchs.text" -}}
+{{ template "kchs.installation" }}: {{ if eq .Status "firing" }}сработало оповещений — {{ len .Alerts.Firing }}{{ else }}оповещения сняты{{ end }}.
+{{ range .Alerts }}
+{{ if eq .Status "firing" }}●{{ else }}○{{ end }} {{ .Labels.alertname }} — {{ template "kchs.severity" .Labels.severity }}{{ with .Labels.instance }}, {{ . }}{{ end }}
+{{ with .Annotations.summary }}{{ . }}
+{{ end }}{{ with .Annotations.description }}{{ . }}
+{{ end }}{{ template "kchs.when" . }}
+{{ end }}
+Alertmanager: {{ .ExternalURL }}
+Что делать — infra/runbooks/incident.md, раздел «Оповещения наблюдаемости».
+{{- end }}
+
+{{ define "kchs.telegram" -}}
+{{ if eq .Status "firing" }}🔴{{ else }}🟢{{ end }} {{ template "kchs.installation" }} — {{ template "kchs.state" . }}
+{{ range .Alerts }}
+{{ .Labels.alertname }} ({{ template "kchs.severity" .Labels.severity }}{{ with .Labels.instance }}, {{ . }}{{ end }})
+{{ with .Annotations.summary }}{{ . }}
+{{ end }}{{ template "kchs.when" . }}
+{{ end }}
+{{- end }}
+
+{{ define "kchs.html" -}}
+<!DOCTYPE html>
+<html lang="ru">
+<body style="margin:0;padding:16px;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1f2328;background:#f6f8fa">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:680px;margin:0 auto;background:#ffffff;border:1px solid #d0d7de;border-radius:6px">
+<tr><td style="padding:16px 20px;border-bottom:1px solid #d0d7de">
+<div style="font-size:12px;color:#57606a">{{ template "kchs.installation" }}</div>
+<div style="font-size:18px;font-weight:bold;margin-top:4px;color:{{ if eq .Status "firing" }}#cf222e{{ else }}#1a7f37{{ end }}">
+{{ if eq .Status "firing" }}Сработало оповещений: {{ len .Alerts.Firing }}{{ else }}Оповещения сняты{{ end }}
+</div>
+</td></tr>
+{{ range .Alerts }}
+<tr><td style="padding:14px 20px;border-bottom:1px solid #eaeef2">
+<div style="font-weight:bold">{{ if eq .Status "firing" }}●{{ else }}○{{ end }} {{ .Labels.alertname }}</div>
+<div style="font-size:12px;color:#57606a;margin-top:2px">{{ template "kchs.severity" .Labels.severity }}{{ with .Labels.instance }} · {{ . }}{{ end }}{{ with .Labels.job }} · {{ . }}{{ end }}</div>
+{{ with .Annotations.summary }}<div style="margin-top:8px">{{ . }}</div>{{ end }}
+{{ with .Annotations.description }}<div style="margin-top:4px;color:#57606a">{{ . }}</div>{{ end }}
+<div style="font-size:12px;color:#57606a;margin-top:8px">{{ template "kchs.when" . }}</div>
+</td></tr>
+{{ end }}
+<tr><td style="padding:12px 20px;font-size:12px;color:#57606a">
+Alertmanager: <a href="{{ .ExternalURL }}">{{ .ExternalURL }}</a> (открывается с самого сервера).<br>
+Что делать по каждому оповещению — <code>infra/runbooks/incident.md</code>, раздел «Оповещения наблюдаемости».
+</td></tr>
+</table>
+</body>
+</html>
+{{- end }}

@@ -11,8 +11,9 @@
 #
 # Порты и привязку можно задать переменными окружения при запуске скрипта:
 # POSTGRES_PORT, REDIS_PORT, S3_PORT, S3_CONSOLE_PORT, MEILI_PORT, MAILPIT_SMTP_PORT,
-# MAILPIT_UI_PORT, API_PORT, ENGINE_PORT, WEB_PORT, WEB_HTTPS_PORT, KCHS_BIND,
-# KCHS_IMAGE_TAG — например, для второго стенда рядом с основным.
+# MAILPIT_UI_PORT, API_PORT, ENGINE_PORT, WEB_PORT, WEB_HTTPS_PORT, GRAFANA_PORT,
+# ALERTMANAGER_PORT, KCHS_BIND, KCHS_IMAGE_TAG — например, для второго стенда рядом
+# с основным.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -52,6 +53,8 @@ vapid_keys() {
 
 PG_SUPER="$(rnd 32)"; PG_APP="$(rnd 32)"; PG_MIGRATOR="$(rnd 32)"
 PG_QUERY="$(rnd 32)"; PG_READONLY="$(rnd 32)"; PG_AUDIT="$(rnd 32)"
+# Роль экспортёра метрик Postgres (ADR-0147): только pg_monitor
+PG_MONITOR="$(rnd 32)"
 REDIS_PW="$(rnd 32)"; S3_SECRET="$(rnd 40)"; MEILI_KEY="$(rnd 40)"
 MASTER_KEY="$(b64key)"; INTERNAL_TOKEN="$(rnd 48)"; GRAFANA_PW="$(rnd 24)"
 # Медиасервер встреч (ADR-0089): ключ и секрет — пара для токенов комнат
@@ -78,6 +81,7 @@ repl KCHS_MIGRATOR_PASSWORD "$PG_MIGRATOR"
 repl KCHS_QUERY_PASSWORD "$PG_QUERY"
 repl KCHS_READONLY_PASSWORD "$PG_READONLY"
 repl KCHS_AUDIT_PASSWORD "$PG_AUDIT"
+repl KCHS_MONITOR_PASSWORD "$PG_MONITOR"
 repl REDIS_PASSWORD "$REDIS_PW"
 repl S3_SECRET_KEY "$S3_SECRET"
 repl MEILI_MASTER_KEY "$MEILI_KEY"
@@ -93,7 +97,7 @@ repl PUSH_VAPID_PRIVATE_KEY "$VAPID_PRIVATE"
 # Порты и привязка — из окружения, если заданы
 for key in POSTGRES_PORT REDIS_PORT S3_PORT S3_CONSOLE_PORT MEILI_PORT MAILPIT_SMTP_PORT \
   MAILPIT_UI_PORT API_PORT ENGINE_PORT WEB_PORT WEB_HTTPS_PORT LIVEKIT_PORT ONLYOFFICE_PORT \
-  KCHS_BIND KCHS_IMAGE_TAG; do
+  GRAFANA_PORT ALERTMANAGER_PORT KCHS_BIND KCHS_IMAGE_TAG; do
   if [[ -n "${!key:-}" ]]; then set_kv "$key" "${!key}"; fi
 done
 

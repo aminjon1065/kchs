@@ -1,7 +1,10 @@
 # Алерты kchs (15-admin-operations.md §4, 04-verification.md §4–5). Состояние
 # видно в Prometheus (/alerts) и Grafana; доставка (почта, Telegram) —
-# Alertmanager, в S1 пока не подключён (ADR-0045). Имена метрик — как их
-# отдаёт экспортёр OpenTelemetry: без суффикса единицы, счётчики с `_total`.
+# Alertmanager профиля observability (ADR-0147). Имена метрик api/worker — как
+# их отдаёт экспортёр OpenTelemetry: без суффикса единицы, счётчики с `_total`.
+# Службы данных — экспортёры Postgres и Redis, собственные метрики MinIO и
+# Meilisearch; что делать по каждому оповещению — infra/runbooks/incident.md.
+# severity: critical — данные недоступны или скоро будут; warning — деградация.
 groups:
   - name: kchs
     rules:
@@ -62,3 +65,226 @@ groups:
           severity: warning
         annotations:
           summary: "{{ $labels.instance }}: RSS выше 1 ГБ"
+
+  # ── Postgres (экспортёр, роль kchs_monitor) ────────────────────────────────
+  - name: kchs-postgres
+    rules:
+      - alert: KchsPostgresDown
+        expr: pg_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Postgres не отвечает экспортёру — api и worker без базы"
+
+      # 200 соединений на установку (max_connections); пулы api, worker и движка
+      # вместе держат около 60 — рост к пределу значит утечку соединений
+      - alert: KchsPostgresConnections
+        expr: |
+          sum by (instance, job) (pg_stat_database_numbackends)
+            / max by (instance, job) (pg_settings_max_connections) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Postgres: занято {{ $value | humanizePercentage }} соединений от max_connections"
+
+      # Транзакции приложения — доли секунды. Полчаса — зависший запрос или
+      # отчёт; такая транзакция держит очистку (VACUUM) всех таблиц. Ночная
+      # резервная копия на большой базе тоже долгая — её время видно в аудите
+      - alert: KchsPostgresLongTransaction
+        expr: pg_long_running_transactions_oldest_timestamp_seconds > 1800
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Postgres: транзакция открыта дольше {{ $value | humanizeDuration }}"
+
+      - alert: KchsPostgresIdleInTransaction
+        expr: max by (instance, job) (pg_stat_activity_max_tx_duration{state=~"idle in transaction.*"}) > 300
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Postgres: соединение держит транзакцию и ничего не делает {{ $value | humanizeDuration }}"
+
+      # Тестовые базы (kchs_test, kchs_test_N) живут в том же кластере
+      - alert: KchsPostgresDeadlocks
+        expr: |
+          sum by (instance, job, datname) (increase(pg_stat_database_deadlocks{datname!~"template.*|postgres|.*_test(_[0-9]+)?"}[10m])) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "Postgres: взаимные блокировки в базе {{ $labels.datname }}"
+
+      # Счётчик транзакций исчерпывается на 2^31; автоочистка замораживает строки
+      # задолго до этого (200 млн) — миллиард значит, что она не успевает
+      - alert: KchsPostgresWraparound
+        expr: max by (instance, job, datname) (pg_database_wraparound_age_datfrozenxid_seconds) > 1e9
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Postgres: возраст транзакций базы {{ $labels.datname }} выше миллиарда — автоочистка не успевает"
+
+      # В S1 реплик нет; правило срабатывает только на реплике
+      - alert: KchsPostgresReplicationLag
+        expr: pg_replication_lag_seconds > 300 and pg_replication_is_replica == 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Postgres: реплика отстаёт на {{ $value | humanizeDuration }}"
+
+  # ── Redis (очереди BullMQ, кэш прав, сессии realtime) ──────────────────────
+  - name: kchs-redis
+    rules:
+      - alert: KchsRedisDown
+        expr: redis_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis не отвечает — очереди заданий и realtime стоят"
+
+      # noeviction: у предела Redis отказывает в записи, а не вытесняет ключи
+      - alert: KchsRedisMemory
+        # Значение оповещения — левая часть `and`: доля памяти, а не предел
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.9 and redis_memory_max_bytes > 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis: память занята на {{ $value | humanizePercentage }} от maxmemory — дальше отказ в записи"
+
+      # Без maxmemory Redis растёт до памяти сервера; обычный объём — десятки МБ
+      - alert: KchsRedisMemoryUnbounded
+        expr: redis_memory_used_bytes > 2e9 and redis_memory_max_bytes == 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis без предела памяти занял {{ $value | humanize1024 }}Б"
+
+      - alert: KchsRedisRejectedConnections
+        expr: increase(redis_rejected_connections_total[5m]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis отклоняет соединения: достигнут maxclients"
+
+      # OOM — отказ записи по памяти; MISCONF — запись остановлена после сбоя
+      # сохранения на диск
+      - alert: KchsRedisWriteErrors
+        expr: sum by (instance, job, err) (increase(redis_errors_total{err=~"OOM|MISCONF"}[5m])) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis отказывает в записи ({{ $labels.err }})"
+
+      - alert: KchsRedisPersistence
+        expr: redis_aof_last_write_status == 0 or redis_rdb_last_bgsave_status == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis не может сохранить данные на диск (AOF или снимок)"
+
+  # ── Хранилище файлов (MinIO) ───────────────────────────────────────────────
+  - name: kchs-storage
+    rules:
+      # Метрики отдаёт сам MinIO: нет ответа — нет и хранилища. 403 вместо метрик —
+      # устарел токен (перезапуск metrics-init-minio выпустит новый)
+      - alert: KchsMinioDown
+        expr: up{job="minio"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "MinIO не отдаёт метрики — файлы не загружаются и не открываются, либо устарел токен метрик"
+
+      - alert: KchsMinioNodesOffline
+        expr: max by (instance, job) (minio_cluster_nodes_offline_total) > 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "MinIO: узлов вне сети — {{ $value }}"
+
+      - alert: KchsMinioDrivesOffline
+        expr: max by (instance, job) (minio_cluster_drive_offline_total) > 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "MinIO: дисков вне сети — {{ $value }}"
+
+      # В S1 тома всех служб обычно на одном диске: место MinIO — место установки
+      - alert: KchsMinioLowSpace
+        expr: |
+          min by (instance, job) (minio_cluster_capacity_usable_free_bytes
+            / minio_cluster_capacity_usable_total_bytes) < 0.1
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Диск хранилища: свободно {{ $value | humanizePercentage }}"
+
+      - alert: KchsMinioSpaceCritical
+        expr: |
+          min by (instance, job) (minio_cluster_capacity_usable_free_bytes
+            / minio_cluster_capacity_usable_total_bytes) < 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Диск хранилища почти заполнен: свободно {{ $value | humanizePercentage }}"
+
+  # ── Поиск (Meilisearch) ────────────────────────────────────────────────────
+  - name: kchs-search
+    rules:
+      # Поиск деградирует, данные целы: переиндексация восстановит индекс
+      - alert: KchsMeilisearchDown
+        expr: up{job="meilisearch"} == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Meilisearch не отвечает — поиск не работает"
+
+      - alert: KchsMeilisearchIndexingLag
+        expr: meilisearch_task_queue_latency_seconds > 900
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Meilisearch: индексирование отстаёт на {{ $value | humanizeDuration }}"
+
+      # Заполненная очередь задач — новые изменения индекса не принимаются
+      - alert: KchsMeilisearchTaskQueueFull
+        expr: meilisearch_task_queue_size_until_stop_registering < 0.05 * meilisearch_task_queue_max_size
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Meilisearch: очередь задач почти заполнена — изменения индекса перестанут приниматься"
+
+  # ── Сама наблюдаемость ─────────────────────────────────────────────────────
+  - name: kchs-observability
+    rules:
+      # Экспортёр Postgres отвечает и при упавшей базе (pg_up = 0): здесь — именно
+      # пропавшие метрики, а не падение службы
+      - alert: KchsMetricsTargetDown
+        expr: up{job=~"postgres|redis|alertmanager"} == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Метрики {{ $labels.job }} не собираются ({{ $labels.instance }})"
+
+      - alert: KchsAlertDeliveryFailing
+        expr: sum by (instance, job, integration) (increase(alertmanager_notifications_failed_total[15m])) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "Alertmanager не доставил оповещения через {{ $labels.integration }}"

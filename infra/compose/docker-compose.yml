@@ -2,7 +2,8 @@
 # Профили: по умолчанию — данные и сервисы (postgres, redis, minio, meilisearch,
 # mailpit); `app` — образы api/worker/engine/web; `media` — LiveKit (фаза 4);
 # `office` — сервер документов ONLYOFFICE (фаза 5); `observability` — трассы,
-# метрики и журналы (Alloy, Tempo, Loki, Prometheus, Grafana).
+# метрики, журналы и оповещения (Alloy, Tempo, Loki, Prometheus, Grafana,
+# экспортёры Postgres и Redis, Alertmanager).
 # web — это Caddy со сборкой SPA: он отдаёт статику, проксирует /api и /ws,
 # ставит CSP и выпускает TLS, поэтому отдельного прокси нет.
 #
@@ -470,7 +471,8 @@ services:
   # ── Профиль observability: трассы, метрики, журналы (15-admin-operations.md §4,
   # ADR-0045). Трассы включает OTEL_EXPORTER_OTLP_ENDPOINT_INTERNAL=http://alloy:4318
   # (api/worker профиля app) или OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
-  # (api на хосте). Grafana — http://127.0.0.1:3001, наружу не публикуется.
+  # (api на хосте). Grafana — http://127.0.0.1:3001, Alertmanager — :9093; наружу
+  # не публикуются. Метрики служб данных и доставка оповещений — ADR-0147.
   alloy:
     <<: [*restart, *logging]
     profiles: ["observability"]
@@ -536,6 +538,123 @@ services:
     volumes:
       - ../observability/prometheus:/etc/prometheus:ro
       - prometheusdata:/prometheus
+      # Токены метрик MinIO и Meilisearch (metrics-init-*): читаются при каждом опросе
+      - prometheussecrets:/etc/prometheus-secrets:ro
+
+  # ── Метрики служб данных (ADR-0147) ────────────────────────────────────────
+  # Учётные записи только для чтения метрик заводятся при каждом запуске профиля:
+  # роль БД kchs_monitor (pg_monitor), пользователь MinIO с правом admin:Prometheus,
+  # ключ Meilisearch с действием metrics.get. Токены — в томе prometheussecrets.
+  metrics-init-postgres:
+    profiles: ["observability"]
+    image: postgres:17-bookworm
+    entrypoint: ["bash", "/scripts/postgres.sh"]
+    environment:
+      PGHOST: postgres
+      PGUSER: postgres
+      PGPASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:-}
+      PGDATABASE: ${POSTGRES_DB:-kchs}
+      KCHS_MONITOR_PASSWORD: ${KCHS_MONITOR_PASSWORD:-}
+    volumes:
+      - ../observability/secrets:/scripts:ro
+      - prometheussecrets:/secrets
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: "no"
+
+  metrics-init-minio:
+    profiles: ["observability"]
+    image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
+    entrypoint: ["bash", "/scripts/minio.sh"]
+    environment:
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-}
+    volumes:
+      - ../observability/secrets:/scripts:ro
+      - prometheussecrets:/secrets
+    depends_on:
+      minio: { condition: service_healthy }
+    restart: "no"
+
+  metrics-init-meilisearch:
+    profiles: ["observability"]
+    image: busybox:1.37
+    entrypoint: ["sh", "/scripts/meilisearch.sh"]
+    environment:
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-}
+    volumes:
+      - ../observability/secrets:/scripts:ro
+      - prometheussecrets:/secrets
+    depends_on:
+      meilisearch: { condition: service_healthy }
+    restart: "no"
+
+  # Postgres: активность и длинные транзакции, соединения, размер баз, WAL,
+  # блокировки. Потабличные сборщики выключены: у каждого датасета своя таблица в
+  # схеме ds, и их число растёт вместе с данными — метрики разрослись бы вслед
+  postgres-exporter:
+    <<: [*restart, *logging]
+    profiles: ["observability"]
+    image: prometheuscommunity/postgres-exporter:v0.20.1
+    command:
+      - --collector.long_running_transactions
+      - --collector.database_wraparound
+      - --collector.stat_checkpointer
+      - --collector.postmaster
+      - --no-collector.stat_user_tables
+      - --no-collector.statio_user_tables
+    environment:
+      DATA_SOURCE_URI: postgres:5432/${POSTGRES_DB:-kchs}?sslmode=disable
+      DATA_SOURCE_USER: kchs_monitor
+      DATA_SOURCE_PASS_FILE: /secrets/postgres-password
+    volumes:
+      - prometheussecrets:/secrets:ro
+    depends_on:
+      # Пароль в .env сменили — роль пересоздана, экспортёр перечитывает файл
+      metrics-init-postgres: { condition: service_completed_successfully, restart: true }
+
+  redis-exporter:
+    <<: [*restart, *logging]
+    profiles: ["observability"]
+    image: oliver006/redis_exporter:v1.91.1
+    environment:
+      REDIS_ADDR: redis://redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+
+  # ── Оповещения (ADR-0147): правила Prometheus → Alertmanager → почта и Telegram ─
+  # Конфигурация собирается при старте из переменных (entrypoint.sh): SMTP — тот же,
+  # что у api и worker; получатели — ALERTMANAGER_EMAIL_TO; Telegram — по желанию,
+  # бот по умолчанию тот же, что у платформы. Интерфейс — http://127.0.0.1:9093
+  alertmanager:
+    <<: [*restart, *logging]
+    profiles: ["observability"]
+    image: prom/alertmanager:v0.34.1
+    entrypoint: ["sh", "/etc/alertmanager-kchs/entrypoint.sh"]
+    environment:
+      TZ: ${TZ:-Asia/Dushanbe}
+      ALERTMANAGER_EMAIL_TO: ${ALERTMANAGER_EMAIL_TO:-}
+      ALERTMANAGER_SMTP_URL: ${ALERTMANAGER_SMTP_URL:-${SMTP_URL_INTERNAL:-smtp://mailpit:1025}}
+      ALERTMANAGER_SMTP_FROM: ${ALERTMANAGER_SMTP_FROM:-${SMTP_FROM:-Портал КЧС <no-reply@kchs.local>}}
+      ALERTMANAGER_SMTP_REQUIRE_TLS: ${ALERTMANAGER_SMTP_REQUIRE_TLS:-}
+      ALERTMANAGER_TELEGRAM_BOT_TOKEN: ${ALERTMANAGER_TELEGRAM_BOT_TOKEN:-${TELEGRAM_BOT_TOKEN:-}}
+      ALERTMANAGER_TELEGRAM_CHAT_ID: ${ALERTMANAGER_TELEGRAM_CHAT_ID:-}
+      ALERTMANAGER_TELEGRAM_API_URL: ${ALERTMANAGER_TELEGRAM_API_URL:-${TELEGRAM_API_URL:-}}
+      ALERTMANAGER_INSTALLATION: ${ALERTMANAGER_INSTALLATION:-Портал КЧС}
+      ALERTMANAGER_EXTERNAL_URL: ${ALERTMANAGER_EXTERNAL_URL:-http://127.0.0.1:9093}
+      # Telegram из закрытого контура — через исходящий прокси установки (ADR-0132)
+      HTTP_PROXY: ${HTTP_PROXY:-}
+      HTTPS_PROXY: ${HTTPS_PROXY:-}
+      NO_PROXY: ${NO_PROXY:-}
+    volumes:
+      - ../observability/alertmanager:/etc/alertmanager-kchs:ro
+      - alertmanagerdata:/alertmanager
+    ports:
+      - "${KCHS_BIND:-127.0.0.1}:${ALERTMANAGER_PORT:-9093}:9093"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9093/-/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   grafana:
     <<: [*restart, *logging]
@@ -567,5 +686,7 @@ volumes:
   tempodata:
   lokidata:
   prometheusdata:
+  prometheussecrets:
+  alertmanagerdata:
   grafanadata:
   onlyofficedata:

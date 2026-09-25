@@ -137,10 +137,17 @@ Helm-чарт `infra/helm/kchs`: Deployments `api` (HPA по CPU/RPS), `worker` 
 - **Дашборд** «kchs — обзор» (`infra/observability/dashboards/kchs-overview.json`): запросы,
   p95 по маршрутам с линией бюджета, ошибки, память, CPU, цикл событий, outbox, очереди,
   задания, события, журналы предупреждений. **Алерты** — `infra/observability/prometheus/
-  alerts.yml`; доставка (Alertmanager, почта/Telegram) — следующий шаг.
+  alerts.yml`.
+- **Службы данных** (ADR-0147): экспортёры Postgres (роль `kchs_monitor`, `pg_monitor`) и Redis,
+  собственные метрики MinIO (токен пользователя с `admin:Prometheus`) и Meilisearch (ключ
+  `metrics.get`); дашборд «kchs — инфраструктура», правила по каждой службе.
+- **Доставка оповещений** (ADR-0147): Prometheus → Alertmanager → письмо через SMTP установки
+  (`ALERTMANAGER_EMAIL_TO`) и Telegram (`ALERTMANAGER_TELEGRAM_CHAT_ID`), шаблоны по-русски,
+  повтор раз в 4 часа, предупреждения упавшего экземпляра подавляются его критическим.
 - **Бюджеты** (`04-verification.md` §4) — `bash infra/perf/run-k6.sh` на стенде с демо-данными
   (профиль `infra/perf/k6/api-basic.js`); ночью в CI — в задании «Установка в контейнерах».
-- Пока нет: экспортёров Postgres/Redis/MinIO/Meilisearch, трасс движка, Alertmanager.
+- Пока нет: трасс движка, метрик диска сервера (место видно по MinIO), экрана «Здоровье» из
+  метрик.
 
 ## 5. Резервирование и восстановление
 

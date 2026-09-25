@@ -8,6 +8,13 @@ global:
 rule_files:
   - /etc/prometheus/alerts.yml
 
+# Доставка оповещений — Alertmanager профиля observability (ADR-0147): почта и
+# Telegram. Не запущен — оповещения видны в /alerts, Prometheus работает дальше
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: [alertmanager:9093]
+
 scrape_configs:
   # Все экземпляры сервиса (api ×2 в S1) — через DNS compose; сервис не
   # запущен — целей нет, а не «цель недоступна»
@@ -30,6 +37,45 @@ scrape_configs:
       - names: [host.docker.internal]
         type: A
         port: 9464
+
+  # ── Службы данных (ADR-0147). instance — имя службы, а не адрес экспортёра:
+  # так его видно в оповещениях и по нему подавляются предупреждения при падении
+  - job_name: postgres
+    static_configs:
+      - targets: [postgres-exporter:9187]
+        labels: { instance: postgres }
+
+  - job_name: redis
+    static_configs:
+      - targets: [redis-exporter:9121]
+        labels: { instance: redis }
+
+  # Собственные метрики MinIO: токен пользователя только с правом admin:Prometheus
+  # (metrics-init-minio). Кластерные метрики тяжелее прочих — раз в 30 с
+  - job_name: minio
+    metrics_path: /minio/v2/metrics/cluster
+    scrape_interval: 30s
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus-secrets/minio-token
+    static_configs:
+      - targets: [minio:9000]
+        labels: { instance: minio }
+
+  # /metrics Meilisearch (экспериментальная функция включена в сервисе) — ключ только
+  # с действием metrics.get (metrics-init-meilisearch)
+  - job_name: meilisearch
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus-secrets/meilisearch-key
+    static_configs:
+      - targets: [meilisearch:7700]
+        labels: { instance: meilisearch }
+
+  - job_name: alertmanager
+    static_configs:
+      - targets: [alertmanager:9093]
+        labels: { instance: alertmanager }
 
   - job_name: prometheus
     static_configs:

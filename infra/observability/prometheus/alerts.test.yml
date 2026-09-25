@@ -1,0 +1,114 @@
+# Модульные тесты правил оповещений (ADR-0147): метки instance и job доходят до
+# оповещения (по instance подавляются предупреждения), пороги срабатывают там, где
+# задуманы, а правило реплики молчит на основном сервере. Запуск:
+#   docker compose --profile observability exec prometheus \
+#     promtool test rules /etc/prometheus/alerts.test.yml
+rule_files:
+  - alerts.yml
+
+evaluation_interval: 1m
+
+tests:
+  - interval: 1m
+    input_series:
+      - series: 'pg_up{job="postgres", instance="postgres"}'
+        values: '1 0 0 0'
+      - series: 'pg_settings_max_connections{job="postgres", instance="postgres"}'
+        values: '200x10'
+      - series: 'pg_stat_database_numbackends{job="postgres", instance="postgres", datname="kchs"}'
+        values: '100x3 170x10'
+      - series: 'pg_replication_is_replica{job="postgres", instance="postgres"}'
+        values: '0x10'
+      - series: 'pg_replication_lag_seconds{job="postgres", instance="postgres"}'
+        values: '9000x10'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: KchsPostgresDown
+        exp_alerts:
+          - exp_labels: { severity: critical, job: postgres, instance: postgres }
+            exp_annotations:
+              summary: "Postgres не отвечает экспортёру — api и worker без базы"
+      - eval_time: 10m
+        alertname: KchsPostgresConnections
+        exp_alerts:
+          - exp_labels: { severity: warning, job: postgres, instance: postgres }
+            exp_annotations:
+              summary: "Postgres: занято 85% соединений от max_connections"
+      # На основном сервере отставание не считается, даже если метрика есть
+      - eval_time: 10m
+        alertname: KchsPostgresReplicationLag
+        exp_alerts: []
+
+  - interval: 1m
+    input_series:
+      - series: 'pg_replication_is_replica{job="postgres", instance="postgres-replica"}'
+        values: '1x10'
+      - series: 'pg_replication_lag_seconds{job="postgres", instance="postgres-replica"}'
+        values: '900x10'
+      - series: 'redis_memory_max_bytes{job="redis", instance="redis"}'
+        values: '1000x20'
+      - series: 'redis_memory_used_bytes{job="redis", instance="redis"}'
+        values: '950x20'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: KchsPostgresReplicationLag
+        exp_alerts:
+          - exp_labels: { severity: warning, job: postgres, instance: postgres-replica }
+            exp_annotations:
+              summary: "Postgres: реплика отстаёт на 15m 0s"
+      - eval_time: 15m
+        alertname: KchsRedisMemory
+        exp_alerts:
+          - exp_labels: { severity: warning, job: redis, instance: redis }
+            exp_annotations:
+              summary: "Redis: память занята на 95% от maxmemory — дальше отказ в записи"
+
+  - interval: 1m
+    input_series:
+      - series: 'redis_memory_max_bytes{job="redis", instance="redis"}'
+        values: '0x30'
+      - series: 'redis_memory_used_bytes{job="redis", instance="redis"}'
+        values: '3000000000x30'
+      - series: 'redis_errors_total{job="redis", instance="redis", err="BUSYGROUP"}'
+        values: '0+10x30'
+      - series: 'redis_errors_total{job="redis", instance="redis", err="OOM"}'
+        values: '0 0 0 1 2 3 4 5 6 7'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: KchsRedisMemoryUnbounded
+        exp_alerts:
+          - exp_labels: { severity: warning, job: redis, instance: redis }
+            exp_annotations:
+              summary: "Redis без предела памяти занял 2.794GiБ"
+      # BUSYGROUP — обычный ответ BullMQ, отказом записи не считается
+      - eval_time: 6m
+        alertname: KchsRedisWriteErrors
+        exp_alerts:
+          - exp_labels: { severity: critical, job: redis, instance: redis, err: OOM }
+            exp_annotations:
+              summary: "Redis отказывает в записи (OOM)"
+
+  - interval: 1m
+    input_series:
+      - series: 'minio_cluster_capacity_usable_total_bytes{job="minio", instance="minio", server="127.0.0.1:9000"}'
+        values: '1000x30'
+      - series: 'minio_cluster_capacity_usable_free_bytes{job="minio", instance="minio", server="127.0.0.1:9000"}'
+        values: '80x30'
+      - series: 'up{job="redis", instance="redis"}'
+        values: '1 0 0 0 0 0 0'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: KchsMinioLowSpace
+        exp_alerts:
+          - exp_labels: { severity: warning, job: minio, instance: minio }
+            exp_annotations:
+              summary: "Диск хранилища: свободно 8%"
+      - eval_time: 20m
+        alertname: KchsMinioSpaceCritical
+        exp_alerts: []
+      - eval_time: 6m
+        alertname: KchsMetricsTargetDown
+        exp_alerts:
+          - exp_labels: { severity: warning, job: redis, instance: redis }
+            exp_annotations:
+              summary: "Метрики redis не собираются (redis)"
