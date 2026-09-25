@@ -108,27 +108,37 @@ export const ReportDelivery = {
     const attachable = files.filter((file) => contents.get(file))
 
     // Внешние адреса (ADR-0164): письмо с файлами им, без ссылки в систему и обращения к
-    // автору рассылки, под чьими правами построен отчёт
+    // автору рассылки, под чьими правами построен отчёт. Каждому — отдельное письмо:
+    // сторонние организации не должны видеть адреса друг друга
     const external = (row.externalEmails ?? []) as string[]
     if (channels.includes('email')) {
       if (external.length === 0 && !user.email) {
         results.email = 'unavailable'
       } else {
+        const targets = external.length > 0 ? external : [user.email as string]
+        const html =
+          external.length > 0
+            ? `<p>${escapeHtml(caption)}</p>`
+            : `<p>${escapeHtml(user.displayName)},</p><p>${escapeHtml(caption)}</p><p><a href="${escapeHtml(url)}">${escapeHtml(url)}</a></p>`
         try {
-          const sent = await sendMail({
-            to: external.length > 0 ? external.join(', ') : (user.email as string),
-            subject: t('data.report.delivery.subject', { title }),
-            html:
-              external.length > 0
-                ? `<p>${escapeHtml(caption)}</p>`
-                : `<p>${escapeHtml(user.displayName)},</p><p>${escapeHtml(caption)}</p><p><a href="${escapeHtml(url)}">${escapeHtml(url)}</a></p>`,
-            attachments: attachable.map((file) => ({
-              filename: file.fileName,
-              content: contents.get(file) as Buffer,
-              contentType: REPORT_CONTENT_TYPES[file.format],
-            })),
-          })
-          results.email = sent ? 'sent' : 'unavailable'
+          let outcome: ReportDeliveryStatus = 'sent'
+          for (const to of targets) {
+            const sent = await sendMail({
+              to,
+              subject: t('data.report.delivery.subject', { title }),
+              html,
+              attachments: attachable.map((file) => ({
+                filename: file.fileName,
+                content: contents.get(file) as Buffer,
+                contentType: REPORT_CONTENT_TYPES[file.format],
+              })),
+            })
+            if (!sent) {
+              outcome = 'unavailable'
+              break
+            }
+          }
+          results.email = outcome
         } catch (error) {
           logger().warn({ err: error, runId }, 'отчёт не отправлен почтой')
           results.email = 'failed'
