@@ -139,6 +139,12 @@ export const PAGE_TEMPLATES = ['blank', 'instruction', 'regulation', 'reference'
 export const PageTemplate = z.enum(PAGE_TEMPLATES)
 export type PageTemplate = z.infer<typeof PageTemplate>
 
+/**
+ * Шаблоны с обязательным пересмотром (05-risks N35): регламенту и инструкции срок
+ * пересмотра ставится сам — год от публикации, если при публикации не задан другой.
+ */
+export const REVIEWED_PAGE_TEMPLATES: readonly PageTemplate[] = ['regulation', 'instruction']
+
 /** Пункт оглавления: заголовки текста и подписи блоков с якорем на блок. */
 export const PageOutlineItem = z.object({
   blockId: PageBlockId,
@@ -162,6 +168,11 @@ export const PageRecord = z.object({
   owner: UserRef.nullable(),
   /** Срок пересмотра; наступил — страница уходит в `review`, владельцу — дело. */
   reviewAt: DateOnly.nullable(),
+  /**
+   * Срок пересмотра прошёл больше месяца назад (N35): читатель видит предупреждение, что
+   * текст мог устареть.
+   */
+  reviewStale: z.boolean(),
   publishedAt: Timestamp.nullable(),
   publishedBy: UserRef.nullable(),
   /** Номер последней версии; 0 — версий ещё нет. */
@@ -207,7 +218,10 @@ export type PageUpdateInput = z.infer<typeof PageUpdateInput>
 
 export const PagePublishInput = z.object({
   note: z.string().max(500).nullable().default(null),
-  /** Срок следующего пересмотра; не задан — остаётся прежним. */
+  /**
+   * Срок следующего пересмотра; не задан — остаётся прежним. У регламента и инструкции
+   * без срока (не задан или пуст) ставится год от публикации (N35).
+   */
   reviewAt: DateOnly.nullable().optional(),
 })
 export type PagePublishInput = z.infer<typeof PagePublishInput>

@@ -1,3 +1,4 @@
+import { type PageTemplate, REVIEWED_PAGE_TEMPLATES } from '@kchs/contracts'
 import { and, eq, isNull, lte, ne, or, sql } from 'drizzle-orm'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { InboxService } from '~/kernel/inbox/service.js'
@@ -9,6 +10,35 @@ import { logger } from '~/shared/logger/index.js'
 
 /** Дело Входящих владельца страницы, когда подошёл срок пересмотра. */
 export const REVIEW_INBOX_KIND = 'review_page'
+
+/** Календарная дата `ГГГГ-ММ-ДД` момента в поясе установки. */
+export function localDay(at: Date, timezone: string): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: timezone }).format(at)
+}
+
+/** Дата со сдвигом на месяцы; 29–31 число прижимается к концу короткого месяца. */
+export function shiftMonths(day: string, months: number): string {
+  const [y = 0, m = 1, d = 1] = day.split('-').map(Number)
+  const index = y * 12 + (m - 1) + months
+  const year = Math.floor(index / 12)
+  const month = index - year * 12 + 1
+  const last = new Date(Date.UTC(year, month, 0)).getUTCDate()
+  const pad = (value: number) => String(value).padStart(2, '0')
+  return `${year}-${pad(month)}-${pad(Math.min(d, last))}`
+}
+
+/**
+ * Срок пересмотра по умолчанию (05-risks N35): регламенту и инструкции — год от публикации.
+ * Остальным шаблонам срока сам по себе нет.
+ */
+export function defaultReviewAt(template: PageTemplate, publishedOn: string): string | null {
+  return REVIEWED_PAGE_TEMPLATES.includes(template) ? shiftMonths(publishedOn, 12) : null
+}
+
+/** Срок пересмотра прошёл больше месяца назад — читатель видит предупреждение (N35). */
+export function reviewStale(reviewAt: string | null, today: string): boolean {
+  return reviewAt !== null && shiftMonths(reviewAt, 1) < today
+}
 
 /** Страниц за один проход — не больше: остальные дождутся следующего. */
 const BATCH = 200

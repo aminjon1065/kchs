@@ -6310,6 +6310,8 @@ export const en: DeepPartial<Dictionary> = {
       title: 'Publish page',
       note: 'Version note',
       reviewAt: 'Next review',
+      reviewYear:
+        'Regulations and instructions get a year from publication; an empty field gives a year too',
       submit: 'Publish',
       done: 'Page published',
       hint: 'The current text becomes version {number}',
@@ -6323,6 +6325,8 @@ export const en: DeepPartial<Dictionary> = {
       dueNone: 'Not set',
       due: 'Review by {date}',
       overdue: 'Review is overdue',
+      stale:
+        'The review date {date} has passed — the text may be outdated. Check with the page owner: {owner}',
       inReview: 'The page is under review',
       inReviewHint: 'Check the text and publish it again',
       send: 'Send to review',

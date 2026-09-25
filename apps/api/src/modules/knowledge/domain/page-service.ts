@@ -26,13 +26,14 @@ import { InboxService } from '~/kernel/inbox/service.js'
 import { LinkService } from '~/kernel/links/service.js'
 import type { SearchContent } from '~/kernel/objects/registry.js'
 import { ObjectService } from '~/kernel/objects/service.js'
+import { config } from '~/shared/config/index.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
 import { objects, pages } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { loadPage, type PageRow, pageDependencies, pageOutline, pageText } from './page-core.js'
 import { buildPageDoc, insertPageBlocks, pageState, readPage } from './page-doc.js'
-import { REVIEW_INBOX_KIND } from './page-review.js'
+import { defaultReviewAt, localDay, REVIEW_INBOX_KIND, reviewStale } from './page-review.js'
 import { templateBlocks } from './page-templates.js'
 import { PageVersions } from './page-version-service.js'
 
@@ -80,6 +81,7 @@ async function toRecord(ctx: UserCtx, row: PageRow): Promise<PageRecord> {
     outline: pageOutline(row.blocks),
     owner: row.ownerId ? (people.get(row.ownerId) ?? null) : null,
     reviewAt: row.reviewAt,
+    reviewStale: reviewStale(row.reviewAt, localDay(new Date(), config().TZ)),
     publishedAt: row.publishedAt,
     publishedBy: row.publishedBy ? (people.get(row.publishedBy) ?? null) : null,
     versionNumber: row.versionNumber,
@@ -217,7 +219,12 @@ export const PageService = {
         reason: 'publish',
         note: input.note,
       })
-      const reviewAt = input.reviewAt === undefined ? row.reviewAt : input.reviewAt
+      const requested = input.reviewAt === undefined ? row.reviewAt : input.reviewAt
+      // Регламенту и инструкции срок ставится сам — год от публикации (N35)
+      const reviewAt =
+        input.reviewAt ??
+        defaultReviewAt(row.template as PageTemplate, localDay(new Date(), config().TZ)) ??
+        requested
       await tx
         .update(pages)
         .set({

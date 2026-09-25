@@ -333,6 +333,62 @@ describe('пересмотр и ознакомление', () => {
     expect(item, 'дело закрылось публикацией').toBeUndefined()
   })
 
+  it('регламенту и инструкции срок пересмотра ставится сам — год от публикации (N35)', async () => {
+    const localToday = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dushanbe' }).format(
+      new Date(),
+    )
+    const [y = 0, m = 1, d = 1] = localToday.split('-').map(Number)
+    const lastDay = new Date(Date.UTC(y + 1, m, 0)).getUTCDate()
+    const nextYear = `${y + 1}-${String(m).padStart(2, '0')}-${String(Math.min(d, lastDay)).padStart(2, '0')}`
+
+    const regulation = await createPage(`Регламент дежурства ${run}`, { template: 'regulation' })
+    const published = await call(fx.app, {
+      method: 'POST',
+      url: `/pages/${regulation}/publish`,
+      as: author,
+      payload: { note: null, reviewAt: null },
+    })
+    expect(published.statusCode, published.body).toBe(200)
+    expect(published.json()).toMatchObject({ reviewAt: nextYear, reviewStale: false })
+
+    // Явный срок — как задан; справочнику срока сам по себе нет
+    const explicit = await call(fx.app, {
+      method: 'POST',
+      url: `/pages/${regulation}/publish`,
+      as: author,
+      payload: { note: null, reviewAt: dateAfter(30) },
+    })
+    expect(explicit.json().reviewAt).toBe(dateAfter(30))
+    const reference = await createPage(`Справочник телефонов ${run}`, { template: 'reference' })
+    const plain = await call(fx.app, {
+      method: 'POST',
+      url: `/pages/${reference}/publish`,
+      as: author,
+      payload: { note: null },
+    })
+    expect(plain.json().reviewAt).toBeNull()
+  })
+
+  it('просрочка пересмотра больше месяца — предупреждение читателю (N35)', async () => {
+    const page = await createPage(`Инструкция по связи ${run}`, { template: 'instruction' })
+    await call(fx.app, {
+      method: 'POST',
+      url: `/pages/${page}/publish`,
+      as: author,
+      payload: { note: null },
+    })
+    await db()
+      .update(pages)
+      .set({ reviewAt: dateAfter(-20) })
+      .where(sql`id = ${page}`)
+    expect((await pageOf(page)).reviewStale).toBe(false)
+    await db()
+      .update(pages)
+      .set({ reviewAt: dateAfter(-40) })
+      .where(sql`id = ${page}`)
+    expect((await pageOf(page)).reviewStale).toBe(true)
+  })
+
   it('ознакомление: черновик знакомить нельзя, опубликованную — можно', async () => {
     const draftId = await createPage(`Черновик памятки ${run}`)
     const early = await call(fx.app, {

@@ -1,4 +1,5 @@
 import type { PageBlockKind } from '@kchs/contracts'
+import { formatDate } from '@kchs/fields'
 import {
   Badge,
   Button,
@@ -16,6 +17,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { BookCheck } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import type * as Y from 'yjs'
+import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
 import { PrintMenu } from '~/features/documents/print/print-menu.js'
@@ -48,6 +50,7 @@ const STATUS_TONE = { draft: 'neutral', published: 'success', review: 'warning' 
  */
 export default function PageView({ objectId, tabId }: { objectId: string; tabId: string }) {
   const t = useT()
+  const locale = useAppearance((s) => s.locale)
   const client = useQueryClient()
   const setTabTitle = useWorkspace((s) => s.setTabTitle)
   const setContextTab = useWorkspace((s) => s.setContextTab)
@@ -100,7 +103,7 @@ export default function PageView({ objectId, tabId }: { objectId: string; tabId:
               <Badge tone={STATUS_TONE[page.status]}>{t(`knowledge.status.${page.status}`)}</Badge>
               {page.reviewAt ? (
                 <span className="text-2xs text-fg-muted">
-                  {t('knowledge.review.due', { date: page.reviewAt })}
+                  {t('knowledge.review.due', { date: formatDate(page.reviewAt, { locale }) })}
                 </span>
               ) : null}
             </>
@@ -129,6 +132,15 @@ export default function PageView({ objectId, tabId }: { objectId: string; tabId:
 
           <TabsContent value="text" className="flex min-h-0 flex-1 gap-4 overflow-hidden p-4">
             <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
+              {page.reviewStale && page.reviewAt ? (
+                // Срок пересмотра прошёл больше месяца назад — текст мог устареть (N35)
+                <Callout tone="warning">
+                  {t('knowledge.review.stale', {
+                    date: formatDate(page.reviewAt, { locale }),
+                    owner: page.owner?.displayName ?? t('knowledge.review.ownerNone'),
+                  })}
+                </Callout>
+              ) : null}
               {readOnly ? <Callout tone="neutral">{t('knowledge.readOnly')}</Callout> : null}
               {collab?.doc && collab.synced ? (
                 <PageBlocks doc={collab.doc} readOnly={readOnly} />

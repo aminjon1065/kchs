@@ -1,4 +1,9 @@
-import type { ObjectAcknowledgments, PageRecord, PrincipalRef } from '@kchs/contracts'
+import {
+  type ObjectAcknowledgments,
+  type PageRecord,
+  type PrincipalRef,
+  REVIEWED_PAGE_TEMPLATES,
+} from '@kchs/contracts'
 import {
   Button,
   Callout,
@@ -253,14 +258,26 @@ export function PageReview({ page }: { page: PageRecord }) {
   )
 }
 
-/** Публикация: примечание к версии и следующий срок пересмотра. */
+/** Сегодня через год — `ГГГГ-ММ-ДД` по часам смотрящего. */
+function yearFromToday(): string {
+  const now = new Date()
+  const next = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate())
+  const pad = (value: number) => String(value).padStart(2, '0')
+  return `${next.getFullYear()}-${pad(next.getMonth() + 1)}-${pad(next.getDate())}`
+}
+
+/**
+ * Публикация: примечание к версии и следующий срок пересмотра. Регламенту и инструкции
+ * срок подставляется сам — год от публикации (N35); его можно поменять, но не убрать.
+ */
 export function PublishDialog({ page, onClose }: { page: PageRecord; onClose: () => void }) {
   const t = useT()
   const toast = useToast()
   const client = useQueryClient()
   const dueId = useId()
+  const reviewed = REVIEWED_PAGE_TEMPLATES.includes(page.template)
   const [note, setNote] = useState('')
-  const [reviewAt, setReviewAt] = useState(page.reviewAt ?? '')
+  const [reviewAt, setReviewAt] = useState(reviewed ? yearFromToday() : (page.reviewAt ?? ''))
 
   const publish = useMutation({
     mutationFn: () =>
@@ -294,7 +311,11 @@ export function PublishDialog({ page, onClose }: { page: PageRecord; onClose: ()
               rows={2}
             />
           </Field>
-          <Field label={t('knowledge.publish.reviewAt')} htmlFor={dueId}>
+          <Field
+            label={t('knowledge.publish.reviewAt')}
+            htmlFor={dueId}
+            {...(reviewed ? { hint: t('knowledge.publish.reviewYear') } : {})}
+          >
             <Input
               id={dueId}
               type="date"
