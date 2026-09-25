@@ -1,5 +1,5 @@
 import type { Principal, PrincipalRef } from '@kchs/contracts'
-import { eq, inArray } from 'drizzle-orm'
+import { and, eq, inArray, isNull } from 'drizzle-orm'
 import { type Database, db } from '~/shared/db/client.js'
 import {
   employments,
@@ -43,7 +43,14 @@ export async function describePrincipals(
         description: users.description,
       })
       .from(users)
-      .leftJoin(employments, eq(employments.userId, users.id))
+      .leftJoin(
+        employments,
+        and(
+          eq(employments.userId, users.id),
+          eq(employments.isPrimary, true),
+          isNull(employments.endsAt),
+        ),
+      )
       .leftJoin(orgUnits, eq(orgUnits.id, employments.unitId))
       .leftJoin(positions, eq(positions.id, employments.positionId))
       .where(inArray(users.id, userIds))

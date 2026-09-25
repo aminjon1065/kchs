@@ -379,6 +379,13 @@
       "when": 1790313258159,
       "tag": "20260925051418_meetings-recording-retention",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1790314220318,
+      "tag": "20260925053020_employments-close-demoted",
+      "breakpoints": true
     }
   ]
 }

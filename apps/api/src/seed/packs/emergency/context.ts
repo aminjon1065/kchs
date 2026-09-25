@@ -168,6 +168,7 @@ export async function staffOf(
           wanted.map((unit) => unit.id),
         ),
         eq(employments.isPrimary, true),
+        isNull(employments.endsAt),
         eq(users.status, 'active'),
       ),
     )

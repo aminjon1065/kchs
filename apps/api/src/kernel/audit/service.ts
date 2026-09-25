@@ -226,6 +226,15 @@ export const AUDIT_ACTIONS = {
   passkeyRemoved: 'user.passkey_removed',
   /** Администратор отозвал ключи входа сотрудника (потерянное устройство, N45). */
   passkeysRevoked: 'user.passkeys_revoked',
+  /** Группы и должности из консоли (N86): состав группы меняет права доступа. */
+  groupCreated: 'group.created',
+  groupUpdated: 'group.updated',
+  groupMembersChanged: 'group.members_changed',
+  positionCreated: 'position.created',
+  positionUpdated: 'position.updated',
+  positionDeleted: 'position.deleted',
+  /** Основное назначение сотрудника: подразделение определяет доступ к данным (N86). */
+  employmentChanged: 'user.employment_changed',
   // Публичный API, вебхуки, интеграции (ADR-0097)
   apiTokenCreated: 'api_token.created',
   apiTokenRevoked: 'api_token.revoked',

@@ -225,25 +225,25 @@ export const UserService = {
       })
     }
 
-    if (patch.unitId !== undefined) {
-      await tx.update(employments).set({ isPrimary: false }).where(eq(employments.userId, userId))
-      if (patch.unitId) {
-        await tx
-          .insert(employments)
-          .values({
-            id: newId(),
-            userId,
-            unitId: patch.unitId,
-            positionId: patch.positionId ?? null,
-            isPrimary: true,
-          })
-          .onConflictDoNothing()
+    if (patch.unitId !== undefined || patch.positionId !== undefined) {
+      const change = await assignPrimary(tx, userId, patch)
+      if (change) {
+        await audit(
+          ctx,
+          {
+            action: AUDIT_ACTIONS.employmentChanged,
+            objectId: userId,
+            objectType: 'user',
+            details: change,
+          },
+          tx,
+        )
+        await publishEvent(tx, ctx, {
+          type: 'org.employment_changed',
+          object: { id: userId, type: 'user' },
+          payload: { userId, unitId: change.to.unitId },
+        })
       }
-      await publishEvent(tx, ctx, {
-        type: 'org.employment_changed',
-        object: { id: userId, type: 'user' },
-        payload: { userId, unitId: patch.unitId },
-      })
     }
 
     if (patch.status === 'blocked') {
@@ -306,7 +306,14 @@ export const UserService = {
         unitName: orgUnits.name,
       })
       .from(users)
-      .leftJoin(employments, and(eq(employments.userId, users.id), eq(employments.isPrimary, true)))
+      .leftJoin(
+        employments,
+        and(
+          eq(employments.userId, users.id),
+          eq(employments.isPrimary, true),
+          isNull(employments.endsAt),
+        ),
+      )
       .leftJoin(positions, eq(positions.id, employments.positionId))
       .leftJoin(orgUnits, eq(orgUnits.id, employments.unitId))
       .where(inArray(users.id, userIds))
@@ -355,7 +362,7 @@ export const UserService = {
     if (query.cursor) conditions.push(sql`${users.id} > ${query.cursor}`)
     if (query.unitId) {
       conditions.push(
-        sql`EXISTS (SELECT 1 FROM ${employments} e WHERE e.user_id = ${users.id} AND e.unit_id = ${query.unitId})`,
+        sql`EXISTS (SELECT 1 FROM ${employments} e WHERE e.user_id = ${users.id} AND e.unit_id = ${query.unitId} AND e.ends_at IS NULL)`,
       )
     }
     if (query.roleKey) {
@@ -389,7 +396,8 @@ export const UserService = {
             .from(employments)
             .leftJoin(orgUnits, eq(orgUnits.id, employments.unitId))
             .leftJoin(positions, eq(positions.id, employments.positionId))
-            .where(inArray(employments.userId, ids))
+            .where(and(inArray(employments.userId, ids), isNull(employments.endsAt)))
+            .orderBy(sql`${employments.isPrimary} desc`)
         : [],
       ids.length
         ? db()
@@ -528,6 +536,76 @@ export const UserService = {
       endsAt: row.endsAt,
     }))
   },
+}
+
+type Assignment = { unitId: string | null; positionId: string | null }
+
+/**
+ * Основное назначение сотрудника — перевод, а не совместительство: прежнее
+ * закрывается датой и остаётся в истории, иначе сотрудник сохранил бы доступ к данным
+ * прежнего подразделения (множество принципалов берёт все действующие занятости).
+ * Не переданное поле не меняется; в том же подразделении должность правится на месте.
+ * Возвращает было/стало или `null`, если ничего не изменилось.
+ */
+async function assignPrimary(
+  tx: Executor,
+  userId: string,
+  patch: { unitId?: string | null; positionId?: string | null },
+): Promise<{ from: Assignment; to: Assignment } | null> {
+  const [current] = await tx
+    .select({
+      id: employments.id,
+      unitId: employments.unitId,
+      positionId: employments.positionId,
+    })
+    .from(employments)
+    .where(
+      and(
+        eq(employments.userId, userId),
+        eq(employments.isPrimary, true),
+        isNull(employments.endsAt),
+      ),
+    )
+    .limit(1)
+  const from: Assignment = {
+    unitId: current?.unitId ?? null,
+    positionId: current?.positionId ?? null,
+  }
+  const to: Assignment = {
+    unitId: patch.unitId === undefined ? from.unitId : patch.unitId,
+    positionId: patch.positionId === undefined ? from.positionId : patch.positionId,
+  }
+  if (!to.unitId && to.positionId) {
+    throw errors.validation('Должность назначается вместе с подразделением', [
+      { path: 'positionId', message: 'Сначала выберите подразделение', code: 'unit_required' },
+    ])
+  }
+  if (from.unitId === to.unitId && from.positionId === to.positionId) return null
+
+  if (current && current.unitId === to.unitId) {
+    await tx
+      .update(employments)
+      .set({ positionId: to.positionId })
+      .where(eq(employments.id, current.id))
+  } else {
+    if (current) {
+      await tx
+        .update(employments)
+        .set({ isPrimary: false, endsAt: sql`current_date` })
+        .where(eq(employments.id, current.id))
+    }
+    if (to.unitId) {
+      await tx.insert(employments).values({
+        id: newId(),
+        userId,
+        unitId: to.unitId,
+        positionId: to.positionId,
+        isPrimary: true,
+        startsAt: sql`current_date`,
+      })
+    }
+  }
+  return { from, to }
 }
 
 // ─── Оргструктура ────────────────────────────────────────────────────────────
@@ -975,5 +1053,49 @@ export const GroupService = {
       await tx.insert(groupMembers).values(userIds.map((userId) => ({ groupId, userId })))
     }
     await bumpPrincipalsVersion()
+  },
+
+  /** Состав группы — сотрудники по имени; для консоли (N86). */
+  async members(groupId: string, database: Database = db()): Promise<UserRef[]> {
+    const rows = await database
+      .select({ userId: groupMembers.userId })
+      .from(groupMembers)
+      .where(eq(groupMembers.groupId, groupId))
+    const refs = await UserService.refs(
+      rows.map((row) => row.userId),
+      database,
+    )
+    return [...refs.values()].sort((a, b) => a.displayName.localeCompare(b.displayName, 'ru'))
+  },
+
+  /** Группа для правки из консоли: системную (состав считает платформа) менять нельзя. */
+  async editable(database: Database, groupId: string): Promise<{ name: string }> {
+    const [row] = await database
+      .select({ name: groups.name, kind: groups.kind })
+      .from(groups)
+      .where(eq(groups.id, groupId))
+      .limit(1)
+    if (!row) throw errors.notFound('Группа')
+    if (row.kind === 'system') {
+      throw errors.validation(
+        'Системная группа ведётся платформой: её состав и название не меняются',
+      )
+    }
+    return { name: row.name }
+  },
+
+  async update(
+    tx: Executor,
+    groupId: string,
+    patch: { name?: string | undefined; description?: string | null | undefined },
+  ): Promise<void> {
+    await GroupService.editable(tx, groupId)
+    await tx
+      .update(groups)
+      .set({
+        ...(patch.name !== undefined ? { name: patch.name } : {}),
+        ...(patch.description !== undefined ? { description: patch.description } : {}),
+      })
+      .where(eq(groups.id, groupId))
   },
 }

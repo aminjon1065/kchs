@@ -507,7 +507,7 @@ async function demoDocumentPeople(): Promise<DemoDocumentPeople> {
            EXISTS (SELECT 1 FROM ${userRoles} ur JOIN ${roles} r ON r.id = ur.role_id
                     WHERE ur.user_id = u.id AND r.key = 'registrar') AS registrar
       FROM ${users} u
-      LEFT JOIN ${employments} e ON e.user_id = u.id AND e.is_primary
+      LEFT JOIN ${employments} e ON e.user_id = u.id AND e.is_primary AND e.ends_at IS NULL
       LEFT JOIN ${orgUnits} ou ON ou.id = e.unit_id
      WHERE u.status = 'active' AND u.login LIKE 'user%'
      ORDER BY u.login`)

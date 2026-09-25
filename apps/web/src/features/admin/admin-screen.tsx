@@ -59,6 +59,7 @@ import {
   ToggleLeft,
   UserPlus,
   Users,
+  UsersRound,
   Video,
   Workflow,
   Zap,
@@ -91,10 +92,12 @@ import { DataSourcesSection } from './data-sources-section.js'
 import { DirectorySection } from './directory-section.js'
 import { FeaturesSection } from './features-section.js'
 import { GisServicesSection } from './gis-services-section.js'
+import { GroupsSection } from './groups-section.js'
 import { IntegrationsSection } from './integrations-section.js'
 import { MeetingsSection } from './meetings-section.js'
 import { CreateUnitDialog } from './org-management.js'
 import { OrgUnitEditor } from './org-unit-editor.js'
+import { PositionsCard } from './positions-card.js'
 import { RolesSection } from './roles-section.js'
 import { SecuritySection } from './security-section.js'
 import { ServiceAccountActions, ServiceAccountDialog } from './service-accounts.js'
@@ -108,6 +111,7 @@ type Section =
   | 'health'
   | 'users'
   | 'org'
+  | 'groups'
   | 'roles'
   | 'spaces'
   | 'announcements'
@@ -149,6 +153,7 @@ export function AdminScreen() {
   const canManageProcesses = me?.capabilities.includes('processes.manage') ?? false
   const canManageIntegrations = me?.capabilities.includes('automation.manage') ?? false
   const canManageAutomation = me?.capabilities.includes('automation.manage') ?? false
+  const canManageGroups = me?.capabilities.includes('groups.manage') ?? false
   const wide = useMediaQuery('(min-width: 768px)')
 
   const sections: Array<{ value: Section; label: string; icon: ReactNode; visible: boolean }> = [
@@ -169,6 +174,12 @@ export function AdminScreen() {
       label: t('admin.sections.org'),
       icon: <Building2 className="size-3.5" />,
       visible: true,
+    },
+    {
+      value: 'groups',
+      label: t('admin.sections.groups'),
+      icon: <UsersRound className="size-3.5" />,
+      visible: canManageGroups,
     },
     {
       value: 'roles',
@@ -341,6 +352,11 @@ export function AdminScreen() {
         <TabsContent value="org" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
           <OrgSection />
         </TabsContent>
+        {canManageGroups ? (
+          <TabsContent value="groups" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
+            <GroupsSection />
+          </TabsContent>
+        ) : null}
         <TabsContent value="roles" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
           <RolesSection
             onShowHolders={(roleKey) => {
@@ -794,6 +810,7 @@ function OrgSection() {
         )}
       </Card>
       {canManage && selected ? <OrgUnitEditor unitId={selected} /> : null}
+      {canManage ? <PositionsCard /> : null}
     </div>
   )
 }

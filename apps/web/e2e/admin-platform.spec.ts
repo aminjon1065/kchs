@@ -150,3 +150,114 @@ test.describe('Администрирование: оргструктура', ()
     }
   })
 })
+
+/**
+ * Группы, должности и назначение в консоли (N86, ADR-0144): каталога нет, состав
+ * «Дежурной смены» и справочник должностей администратор ведёт сам. Сотрудник для
+ * назначения — свой, чтобы не менять подразделение демо-сотрудников других сценариев.
+ */
+test.describe('Администрирование: группы, должности, назначение', () => {
+  test('группа с составом, новая должность и перевод сотрудника', async ({ page, request }) => {
+    test.setTimeout(150_000)
+    const run = Date.now().toString(36)
+    const me = await (await request.get('/api/v1/me')).json()
+    const headers = { 'x-csrf-token': me.session.csrfToken as string }
+    const units = (await (await request.get('/api/v1/org/units')).json()).items as Array<{
+      id: string
+      code: string
+      name: { ru: string }
+    }>
+    const from = units.find((unit) => unit.code === 'UO')
+    const to = units.find((unit) => unit.code === 'UD-HR')
+    expect(from && to).toBeTruthy()
+    const login = `assign-${run}`
+    const created = await request.post('/api/v1/users', {
+      headers,
+      data: {
+        login,
+        lastName: 'Назначенов',
+        firstName: `Сотрудник${run}`,
+        roleKeys: ['employee'],
+        mustChangePassword: true,
+        unitId: from?.id,
+      },
+    })
+    expect(created.ok(), await created.text()).toBeTruthy()
+    const employeeId = (await created.json()).id as string
+    const displayName = `Назначенов Сотрудник${run}`
+
+    await openWorkspace(page, request)
+    await openScreen(page, 'Администрирование')
+
+    // Группа: название и состав
+    await page.getByRole('tab', { name: 'Группы' }).click()
+    await page.getByRole('button', { name: 'Новая группа' }).click()
+    const groupDialog = page.getByRole('dialog', { name: 'Новая группа' })
+    await groupDialog.getByLabel('Название').fill(`Смена приёмки ${run}`)
+    await groupDialog.getByRole('searchbox', { name: 'Добавить сотрудника' }).fill(login)
+    await groupDialog
+      .getByRole('list', { name: 'Добавить сотрудника' })
+      .getByRole('button', { name: new RegExp(displayName) })
+      .click()
+    await expect(groupDialog.getByRole('list', { name: 'Состав' })).toContainText(displayName)
+    await groupDialog.getByRole('button', { name: 'Сохранить' }).click()
+    await expect(page.getByText('Группа сохранена')).toBeVisible({ timeout: 20_000 })
+    await expect(page.getByRole('row', { name: new RegExp(`Смена приёмки ${run}`) })).toContainText(
+      '1',
+    )
+
+    // Должность в справочнике
+    await page.getByRole('tab', { name: 'Оргструктура' }).click()
+    await page.getByRole('button', { name: 'Новая должность' }).click()
+    const positionDialog = page.getByRole('dialog', { name: 'Новая должность' })
+    await positionDialog.getByLabel('Название (рус.)').fill(`Дежурный приёмки ${run}`)
+    await positionDialog.getByLabel('Ранг').fill('15')
+    await positionDialog.getByRole('button', { name: 'Сохранить' }).click()
+    await expect(page.getByText('Должность сохранена')).toBeVisible({ timeout: 20_000 })
+    await expect(page.getByRole('list', { name: 'Должности' })).toContainText(
+      `Дежурный приёмки ${run}`,
+    )
+
+    // Перевод: другое подразделение и новая должность
+    await page.getByRole('tab', { name: 'Пользователи' }).click()
+    await page.getByPlaceholder('Имя, логин или почта').fill(login)
+    await expect(page.getByRole('button', { name: /^Действия: / })).toHaveCount(1)
+    await page.getByRole('button', { name: `Действия: ${displayName}` }).click()
+    await page.getByRole('menuitem', { name: 'Подразделение и должность' }).click()
+    const assignment = page.getByRole('dialog', {
+      name: `Подразделение и должность — ${displayName}`,
+    })
+    await assignment.getByRole('combobox', { name: 'Подразделение' }).click()
+    await page.getByRole('option', { name: to?.name.ru, exact: false }).first().click()
+    await assignment.getByRole('combobox', { name: 'Должность' }).click()
+    await page.getByRole('option', { name: `Дежурный приёмки ${run}` }).click()
+    await assignment.getByRole('button', { name: 'Сохранить' }).click()
+    await expect(page.getByText('Назначение сохранено')).toBeVisible({ timeout: 20_000 })
+
+    const after = (await (await request.get(`/api/v1/users?q=${login}`)).json()).items as Array<{
+      id: string
+      units: Array<{ id: string; isPrimary: boolean }>
+      positions: Array<{ name: string }>
+    }>
+    const moved = after.find((user) => user.id === employeeId)
+    // Перевод, а не совместительство: прежнего подразделения в назначениях нет
+    expect(moved?.units.map((unit) => unit.id)).toEqual([to?.id])
+    expect(moved?.positions.map((position) => position.name)).toEqual([`Дежурный приёмки ${run}`])
+
+    // Уборка: должность освобождается и удаляется, сотрудник блокируется. Группа остаётся —
+    // удаления групп нет намеренно (ADR-0144)
+    await request.patch(`/api/v1/users/${employeeId}`, {
+      headers,
+      data: { positionId: null, status: 'blocked' },
+    })
+    const positions = (await (await request.get('/api/v1/org/positions')).json()).items as Array<{
+      id: string
+      name: { ru: string }
+    }>
+    const position = positions.find((item) => item.name.ru === `Дежурный приёмки ${run}`)
+    if (position) {
+      const removed = await request.delete(`/api/v1/org/positions/${position.id}`, { headers })
+      expect(removed.ok(), await removed.text()).toBeTruthy()
+    }
+  })
+})

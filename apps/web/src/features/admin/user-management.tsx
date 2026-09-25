@@ -32,6 +32,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Ban,
+  Briefcase,
   Copy,
   Fingerprint,
   KeyRound,
@@ -46,6 +47,7 @@ import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { meQuery, orgUnitsQuery, rolesQuery } from '~/shared/api/queries.js'
+import { positionsQuery } from './positions-card.js'
 import { UserPasskeysDialog } from './user-passkeys-dialog.js'
 
 const NO_UNIT = '__none__'
@@ -324,6 +326,7 @@ export function UserActions({ user, onChanged }: { user: AdminUser; onChanged: (
   const [error, setError] = useState<string | null>(null)
   const [clearanceOpen, setClearanceOpen] = useState(false)
   const [passkeysOpen, setPasskeysOpen] = useState(false)
+  const [assigning, setAssigning] = useState(false)
   const { data: me } = useQuery(meQuery())
   const canSetClearance = me?.capabilities.includes('admin.system') ?? false
 
@@ -404,6 +407,12 @@ export function UserActions({ user, onChanged }: { user: AdminUser; onChanged: (
             }}
           >
             {t('admin.users.editRoles')}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            icon={<Briefcase className="size-4" />}
+            onSelect={() => setAssigning(true)}
+          >
+            {t('admin.users.assignment')}
           </DropdownMenuItem>
           <DropdownMenuItem
             icon={<KeyRound className="size-4" />}
@@ -499,6 +508,16 @@ export function UserActions({ user, onChanged }: { user: AdminUser; onChanged: (
       />
       {passkeysOpen ? (
         <UserPasskeysDialog user={user} onClose={() => setPasskeysOpen(false)} />
+      ) : null}
+      {assigning ? (
+        <AssignmentDialog
+          user={user}
+          onClose={() => setAssigning(false)}
+          onSaved={() => {
+            setAssigning(false)
+            onChanged()
+          }}
+        />
       ) : null}
       {clearanceOpen ? (
         <ClearanceDialog
@@ -610,6 +629,104 @@ function ClearanceDialog({
               value={reason}
               onChange={(event) => setReason(event.target.value)}
             />
+          </Field>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+/**
+ * Подразделение и должность сотрудника (N86): основное назначение. Каталога у
+ * Комитета нет, поэтому назначения ведутся здесь, а не синхронизацией.
+ */
+function AssignmentDialog({
+  user,
+  onClose,
+  onSaved,
+}: {
+  user: AdminUser
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const t = useT()
+  const toast = useToast()
+  const client = useQueryClient()
+  const locale = useAppearance((s) => s.locale)
+  const formId = useId()
+  const { data: units = [] } = useQuery(orgUnitsQuery())
+  const { data: positions = [] } = useQuery(positionsQuery())
+  const primary = user.units.find((unit) => unit.isPrimary) ?? user.units[0]
+  const [unitId, setUnitId] = useState<string>(primary?.id ?? NO_UNIT)
+  const [positionId, setPositionId] = useState<string>(user.positions[0]?.id ?? NO_UNIT)
+  const [error, setError] = useState<string | null>(null)
+  const save = useMutation({
+    mutationFn: () =>
+      http.patch(`/users/${user.id}`, {
+        unitId: unitId === NO_UNIT ? null : unitId,
+        positionId: positionId === NO_UNIT ? null : positionId,
+      }),
+    onSuccess: () => {
+      toast.show({ title: t('admin.users.assignmentSaved'), tone: 'success' })
+      void client.invalidateQueries({ queryKey: ['users'] })
+      onSaved()
+    },
+    onError: (err) => setError(err instanceof ApiError ? err.message : t('errors.unknown')),
+  })
+  return (
+    <Dialog open onOpenChange={(open) => (open ? undefined : onClose())}>
+      <DialogContent
+        title={t('admin.users.assignmentTitle', { name: user.displayName })}
+        size="sm"
+        footer={
+          <>
+            <Button variant="ghost" onClick={onClose}>
+              {t('common.actions.cancel')}
+            </Button>
+            <Button variant="primary" loading={save.isPending} onClick={() => save.mutate()}>
+              {t('common.actions.save')}
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-3">
+          {error ? <Callout tone="danger">{error}</Callout> : null}
+          <Field label={t('common.labels.unit')}>
+            <Select
+              value={unitId}
+              onValueChange={(value) => {
+                setUnitId(value)
+                // Должность без подразделения не бывает: занятость — всегда в подразделении
+                if (value === NO_UNIT) setPositionId(NO_UNIT)
+              }}
+            >
+              <SelectTrigger id={`${formId}-unit`} aria-label={t('common.labels.unit')}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_UNIT}>{t('admin.users.fields.noUnit')}</SelectItem>
+                {unitOptions(units, locale).map((option) => (
+                  <SelectItem key={option.id} value={option.id}>
+                    {`${' '.repeat(option.depth)}${option.label}`}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field label={t('common.labels.position')}>
+            <Select value={positionId} onValueChange={setPositionId} disabled={unitId === NO_UNIT}>
+              <SelectTrigger id={`${formId}-position`} aria-label={t('common.labels.position')}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_UNIT}>{t('admin.users.fields.noPosition')}</SelectItem>
+                {positions.map((position) => (
+                  <SelectItem key={position.id} value={position.id}>
+                    {localizedText(position.name, locale)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </Field>
         </div>
       </DialogContent>

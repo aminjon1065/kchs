@@ -6,7 +6,7 @@ import type {
   SpaceMember,
   SpaceRole,
 } from '@kchs/contracts'
-import { and, eq, inArray, sql } from 'drizzle-orm'
+import { and, eq, inArray, isNull, sql } from 'drizzle-orm'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { actorId, systemCtx } from '~/shared/context.js'
 import { type Database, db, type Executor } from '~/shared/db/client.js'
@@ -365,7 +365,14 @@ export const SpaceService = {
       })
       .from(spaceMembers)
       .innerJoin(users, eq(users.id, spaceMembers.userId))
-      .leftJoin(employments, and(eq(employments.userId, users.id), eq(employments.isPrimary, true)))
+      .leftJoin(
+        employments,
+        and(
+          eq(employments.userId, users.id),
+          eq(employments.isPrimary, true),
+          isNull(employments.endsAt),
+        ),
+      )
       .leftJoin(positions, eq(positions.id, employments.positionId))
       .leftJoin(orgUnits, eq(orgUnits.id, employments.unitId))
       .where(eq(spaceMembers.spaceId, spaceId))

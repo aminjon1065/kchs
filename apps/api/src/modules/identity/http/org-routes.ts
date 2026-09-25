@@ -16,7 +16,7 @@ import {
   UserKind,
   UserRef,
 } from '@kchs/contracts'
-import { and, eq, inArray, sql } from 'drizzle-orm'
+import { and, eq, inArray, isNull, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { hasCapability } from '~/kernel/access/authorize.js'
 import { describePrincipals } from '~/kernel/access/principal-refs.js'
@@ -25,6 +25,7 @@ import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
 import { recheckUserRooms } from '~/kernel/realtime/gateway.js'
 import { db } from '~/shared/db/client.js'
 import {
+  employments,
   groups,
   orgUnits,
   positions,
@@ -421,7 +422,85 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
           rank: request.body.rank,
           unitId: request.body.unitId ?? null,
         })
+      await audit(request.ctx, {
+        action: AUDIT_ACTIONS.positionCreated,
+        objectId: id,
+        objectType: 'position',
+        details: { name: request.body.name },
+      })
       return { id }
+    },
+  })
+
+  route({
+    method: 'PATCH',
+    url: '/org/positions/:id',
+    auth: { capability: 'org.manage' },
+    tags: ['org'],
+    summary: 'Изменить должность (N86)',
+    schema: {
+      params: z.object({ id: z.uuid() }),
+      body: z.object({
+        name: LangText.optional(),
+        rank: z.number().int().optional(),
+        unitId: z.uuid().nullable().optional(),
+      }),
+      response: { 200: z.object({ ok: z.boolean() }) },
+    },
+    handler: async (request) => {
+      const { name, rank, unitId } = request.body
+      const updated = await db()
+        .update(positions)
+        .set({
+          ...(name !== undefined ? { name } : {}),
+          ...(rank !== undefined ? { rank } : {}),
+          ...(unitId !== undefined ? { unitId } : {}),
+        })
+        .where(eq(positions.id, request.params.id))
+        .returning({ id: positions.id })
+      if (updated.length === 0) throw errors.notFound('Должность')
+      await audit(request.ctx, {
+        action: AUDIT_ACTIONS.positionUpdated,
+        objectId: request.params.id,
+        objectType: 'position',
+        details: request.body,
+      })
+      return { ok: true }
+    },
+  })
+
+  route({
+    method: 'DELETE',
+    url: '/org/positions/:id',
+    auth: { capability: 'org.manage' },
+    tags: ['org'],
+    summary: 'Удалить должность, если её никто не занимает (N86)',
+    schema: {
+      params: z.object({ id: z.uuid() }),
+      response: { 200: z.object({ ok: z.boolean() }) },
+    },
+    handler: async (request) => {
+      const [taken] = await db()
+        .select({ count: sql<number>`count(*)::int` })
+        .from(employments)
+        .where(and(eq(employments.positionId, request.params.id), isNull(employments.endsAt)))
+      if ((taken?.count ?? 0) > 0) {
+        throw errors.conflict(
+          `Должность занимают сотрудники (${taken?.count}): сначала переназначьте их`,
+        )
+      }
+      const deleted = await db()
+        .delete(positions)
+        .where(eq(positions.id, request.params.id))
+        .returning({ name: positions.name })
+      if (deleted.length === 0) throw errors.notFound('Должность')
+      await audit(request.ctx, {
+        action: AUDIT_ACTIONS.positionDeleted,
+        objectId: request.params.id,
+        objectType: 'position',
+        details: { name: deleted[0]?.name },
+      })
+      return { ok: true }
     },
   })
 
@@ -453,8 +532,53 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
       const id = await db().transaction((tx) =>
         GroupService.create(tx, request.body.name, request.body.description),
       )
+      await audit(request.ctx, {
+        action: AUDIT_ACTIONS.groupCreated,
+        objectId: id,
+        objectType: 'group',
+        details: { name: request.body.name },
+      })
       return { id }
     },
+  })
+
+  route({
+    method: 'PATCH',
+    url: '/groups/:id',
+    auth: { capability: 'groups.manage' },
+    tags: ['org'],
+    summary: 'Переименовать группу или изменить описание (N86)',
+    schema: {
+      params: z.object({ id: z.uuid() }),
+      body: z.object({
+        name: z.string().trim().min(1).max(200).optional(),
+        description: z.string().max(1000).nullable().optional(),
+      }),
+      response: { 200: z.object({ ok: z.boolean() }) },
+    },
+    handler: async (request) => {
+      await db().transaction((tx) => GroupService.update(tx, request.params.id, request.body))
+      await audit(request.ctx, {
+        action: AUDIT_ACTIONS.groupUpdated,
+        objectId: request.params.id,
+        objectType: 'group',
+        details: request.body,
+      })
+      return { ok: true }
+    },
+  })
+
+  route({
+    method: 'GET',
+    url: '/groups/:id/members',
+    auth: { capability: 'groups.manage' },
+    tags: ['org'],
+    summary: 'Состав группы (N86)',
+    schema: {
+      params: z.object({ id: z.uuid() }),
+      response: { 200: z.object({ items: z.array(UserRef) }) },
+    },
+    handler: async (request) => ({ items: await GroupService.members(request.params.id) }),
   })
 
   route({
@@ -469,9 +593,23 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
       response: { 200: z.object({ ok: z.boolean() }) },
     },
     handler: async (request) => {
-      await db().transaction((tx) =>
-        GroupService.setMembers(tx, request.params.id, request.body.userIds),
-      )
+      const before = new Set((await GroupService.members(request.params.id)).map((u) => u.id))
+      const after = new Set(request.body.userIds)
+      await db().transaction(async (tx) => {
+        await GroupService.editable(tx, request.params.id)
+        await GroupService.setMembers(tx, request.params.id, [...after])
+      })
+      // Состав группы меняет права доступа — в журнал аудита, кого добавили и убрали
+      await audit(request.ctx, {
+        action: AUDIT_ACTIONS.groupMembersChanged,
+        objectId: request.params.id,
+        objectType: 'group',
+        severity: 'notice',
+        details: {
+          added: [...after].filter((id) => !before.has(id)),
+          removed: [...before].filter((id) => !after.has(id)),
+        },
+      })
       return { ok: true }
     },
   })
