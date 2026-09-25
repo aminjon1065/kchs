@@ -508,9 +508,12 @@ interface ReportObject {
  */
 export function ReportDialog({
   task,
+  initial,
   onClose,
 }: {
   task: { id: string; key: string; title: string; spaceId: string | null }
+  /** Готовый отчёт (ADR-0136): форма открывается с его текстом и материалами. */
+  initial?: { text: string; objects: ReportObject[] }
   onClose: () => void
 }) {
   const t = useT()
@@ -518,8 +521,8 @@ export function ReportDialog({
   const client = useQueryClient()
   const invalidate = useTaskInvalidation()
   const textId = useId()
-  const [text, setText] = useState('')
-  const [objects, setObjects] = useState<ReportObject[]>([])
+  const [text, setText] = useState(initial?.text ?? '')
+  const [objects, setObjects] = useState<ReportObject[]>(initial?.objects ?? [])
   const [uploads, setUploads] = useState<Record<string, { name: string; progress: number }>>({})
   const [search, setSearch] = useState('')
   const q = useDebouncedValue(search.trim(), 250)

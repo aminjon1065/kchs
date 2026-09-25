@@ -36,6 +36,7 @@ export const TASK_COLUMNS = {
   completedAt: tasks.completedAt,
   description: tasks.description,
   result: tasks.result,
+  reportDraft: tasks.reportDraft,
   returnComment: tasks.returnComment,
   source: tasks.source,
   labels: tasks.labels,

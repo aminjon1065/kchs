@@ -1,0 +1,1 @@
+ALTER TABLE "tasks" ADD COLUMN "report_draft" jsonb;

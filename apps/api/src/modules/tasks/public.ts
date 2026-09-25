@@ -132,6 +132,36 @@ export const Instructions = {
     TaskService.bySource(ctx, sourceObjectId),
 
   /**
+   * Открытые поручения из списка (ещё не отчитаны): кому поручено и основное ли —
+   * для готового отчёта после отправки ответа (N22, ADR-0136).
+   */
+  async open(
+    ids: readonly string[],
+    executor: Executor = db(),
+  ): Promise<Array<{ id: string; parentId: string | null; assigneeId: string | null }>> {
+    if (ids.length === 0) return []
+    return executor
+      .select({ id: tasks.id, parentId: tasks.parentId, assigneeId: tasks.assigneeId })
+      .from(tasks)
+      .innerJoin(objects, eq(objects.id, tasks.id))
+      .where(
+        and(
+          inArray(tasks.id, [...ids]),
+          inArray(tasks.status, ['assigned', 'in_progress']),
+          sql`${objects.deletedAt} IS NULL`,
+        ),
+      )
+  },
+
+  /** Готовый отчёт исполнителю: отправляет его одной кнопкой (ADR-0136). */
+  prepareReport: (
+    tx: Executor,
+    ctx: Ctx,
+    taskId: string,
+    draft: { text: string; objectIds: string[]; cause: 'reply_dispatched'; sourceObjectId: string },
+  ): Promise<boolean> => TaskService.prepareReport(tx, ctx, taskId, draft),
+
+  /**
    * Сколько поручений из списка (резолюции — основное и части) всего и сколько
    * ещё открыто — без содержания, в том числе невидимых смотрящему (ADR-0084).
    */

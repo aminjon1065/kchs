@@ -163,6 +163,19 @@ export const TaskResult = z.object({
 export type TaskResult = z.infer<typeof TaskResult>
 
 /**
+ * Готовый отчёт по поручению (N22, ADR-0136): система готовит его по событию — ответ на
+ * входящий зарегистрирован и отправлен; исполнитель отправляет его одной кнопкой.
+ */
+export const TASK_REPORT_DRAFT_CAUSES = ['reply_dispatched'] as const
+export const TaskReportDraft = z.object({
+  text: z.string(),
+  objects: z.array(TaskResultObject).default([]),
+  cause: z.enum(TASK_REPORT_DRAFT_CAUSES),
+  preparedAt: Timestamp,
+})
+export type TaskReportDraft = z.infer<typeof TaskReportDraft>
+
+/**
  * Основание изменения срока: назначен при создании, изменён автором, новый срок
  * при возврате, продление по запросу, вслед за основным поручением (часть
  * соисполнителя).
@@ -251,6 +264,8 @@ export const TaskRecord = z.object({
   startedAt: Timestamp.nullable(),
   completedAt: Timestamp.nullable(),
   result: TaskResult.nullable(),
+  /** Готовый отчёт — только исполнителю, пока поручение не отчитано. */
+  reportDraft: TaskReportDraft.nullable().default(null),
   /** Замечания при последнем возврате на доработку. */
   returnComment: z.string().nullable(),
   source: TaskSource.nullable(),
@@ -281,6 +296,7 @@ export type TaskRecord = z.infer<typeof TaskRecord>
 export const TaskListItem = TaskRecord.omit({
   description: true,
   result: true,
+  reportDraft: true,
   returnComment: true,
   coAssignees: true,
   controller: true,

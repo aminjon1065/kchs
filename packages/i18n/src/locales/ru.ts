@@ -1070,6 +1070,7 @@ export const ru = {
       taskAssigned: '{actor} поручил вам «{title}»',
       taskAccepted: '{actor} принял к исполнению «{title}»',
       taskReported: '{actor} отчитался по «{title}»',
+      taskReportPrepared: 'Ответ отправлен — готов отчёт по «{title}», отправьте его одной кнопкой',
       taskCompleted: '{actor} принял исполнение «{title}»',
       taskDone: '{actor} выполнил «{title}»',
       taskReturned: '{actor} вернул на доработку «{title}»',
@@ -4797,6 +4798,12 @@ export const ru = {
       objectsHint: 'Файлы станут вложениями поручения; подготовленный документ найдите по названию',
       findObject: 'Найти документ или другой объект',
       noAccess: 'Нет доступа',
+      ready: 'Готовый отчёт',
+      readyHints: {
+        reply_dispatched:
+          'Подготовлен, когда ответ зарегистрирован и отправлен: проверьте и отправьте автору на приёмку',
+      },
+      sendReady: 'Отправить отчёт',
     },
     return: {
       title: 'Вернуть на доработку',

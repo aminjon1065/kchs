@@ -333,6 +333,7 @@ export const EVENT_PAYLOADS = {
     to: z.string().nullable(),
   }),
   'task.reported': z.object({ key: z.string() }),
+  'task.report_prepared': z.object({ key: z.string(), cause: z.string() }),
   /** Автор или контролёр принял отчёт — поручение закрыто. */
   'task.completed': z.object({ key: z.string() }),
   'task.returned': z.object({ key: z.string(), comment: z.string() }),

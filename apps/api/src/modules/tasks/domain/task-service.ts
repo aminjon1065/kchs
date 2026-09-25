@@ -11,6 +11,7 @@ import {
   type TaskPart,
   type TaskReassignInput,
   type TaskRecord,
+  type TaskReportDraft,
   type TaskReportInput,
   type TaskResultObject,
   type TaskReturnInput,
@@ -299,6 +300,7 @@ export const TaskService = {
             objects: resultObjects,
           }
         : null,
+      reportDraft: await reportDraftOf(ctx, row),
       returnComment: row.returnComment,
       source: (row.source as TaskSource | null) ?? null,
       parent,
@@ -468,6 +470,7 @@ export const TaskService = {
           reportedBy: actorId(ctx),
           objectIds,
         },
+        reportDraft: null,
       })
       .where(eq(tasks.id, id))
     // Подготовленные объекты — связи отчёта; вложения поручения уже связаны с ним
@@ -481,6 +484,37 @@ export const TaskService = {
     await TaskInbox.close(tx, ctx, id, { kind: 'accept_instruction' })
     await TaskInbox.close(tx, ctx, id, { kind: 'report_instruction' })
     await TaskInbox.reported(tx, ctx, inboxTaskOf(row))
+  },
+
+  /**
+   * Готовый отчёт исполнителю (N22, ADR-0136): поручение ещё не отчитано — отчёт кладётся в
+   * карточку, исполнителю уходит уведомление. Повтор события с тем же основанием ничего не
+   * меняет. Возвращает, подготовлен ли отчёт.
+   */
+  async prepareReport(
+    tx: Executor,
+    ctx: Ctx,
+    id: string,
+    draft: { text: string; objectIds: string[]; cause: 'reply_dispatched'; sourceObjectId: string },
+  ): Promise<boolean> {
+    const row = await loadRow(tx, id, true)
+    if (row?.kind !== 'instruction') return false
+    if (row.status !== 'assigned' && row.status !== 'in_progress') return false
+    if (row.reportDraft?.sourceObjectId === draft.sourceObjectId) return false
+    await tx
+      .update(tasks)
+      .set({
+        reportDraft: {
+          text: draft.text,
+          objectIds: [...new Set(draft.objectIds)],
+          cause: draft.cause,
+          sourceObjectId: draft.sourceObjectId,
+          preparedAt: new Date().toISOString(),
+        },
+      })
+      .where(eq(tasks.id, id))
+    await emit(tx, ctx, viewOf(row), 'task.report_prepared', { key: row.key, cause: draft.cause })
+    return true
   },
 
   /** Автор или контролёр принимает отчёт — поручение закрыто, Входящие по нему тоже. */
@@ -1094,7 +1128,23 @@ async function parentOf(row: TaskRow): Promise<TaskRecord['parent']> {
  * видит, иначе — «нет доступа» без названия.
  */
 async function resultObjectsOf(ctx: UserCtx, row: TaskRow): Promise<TaskResultObject[]> {
-  const ids = row.result?.objectIds ?? []
+  return objectsOf(ctx, row.result?.objectIds ?? [])
+}
+
+/** Готовый отчёт — только исполнителю, пока поручение открыто (ADR-0136). */
+async function reportDraftOf(ctx: UserCtx, row: TaskRow): Promise<TaskReportDraft | null> {
+  const draft = row.reportDraft
+  if (!draft || row.assigneeId !== ctx.userId) return null
+  if (row.status !== 'assigned' && row.status !== 'in_progress') return null
+  return {
+    text: draft.text,
+    objects: await objectsOf(ctx, draft.objectIds),
+    cause: draft.cause,
+    preparedAt: draft.preparedAt,
+  }
+}
+
+async function objectsOf(ctx: UserCtx, ids: string[]): Promise<TaskResultObject[]> {
   if (ids.length === 0) return []
   const summaries = await ObjectService.summaries(ids)
   const result: TaskResultObject[] = []

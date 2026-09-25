@@ -94,6 +94,18 @@ export const tasks = pgTable(
       objectIds?: string[]
     } | null>(),
     returnComment: text('return_comment'),
+    /**
+     * Готовый отчёт (N22, ADR-0136): подготовлен системой по событию — например, ответ на
+     * входящий отправлен; исполнитель отправляет его одной кнопкой или правит.
+     */
+    reportDraft: jsonb('report_draft').$type<{
+      text: string
+      objectIds: string[]
+      cause: 'reply_dispatched'
+      /** Объект-основание: по нему повтор события не готовит отчёт заново. */
+      sourceObjectId: string
+      preparedAt: string
+    } | null>(),
     source: jsonb('source').$type<TaskSourceValue | null>(),
     labels: text('labels').array().notNull().default(sql`'{}'::text[]`),
     /**

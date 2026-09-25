@@ -1052,6 +1052,8 @@ export const en: DeepPartial<Dictionary> = {
       taskAssigned: '{actor} assigned “{title}” to you',
       taskAccepted: '{actor} accepted “{title}”',
       taskReported: '{actor} reported on “{title}”',
+      taskReportPrepared:
+        'The reply is sent — a report on “{title}” is ready, send it with one click',
       taskCompleted: '{actor} accepted the result of “{title}”',
       taskDone: '{actor} completed “{title}”',
       taskReturned: '{actor} returned “{title}” for rework',
@@ -4729,6 +4731,12 @@ export const en: DeepPartial<Dictionary> = {
         'Files become attachments of the assignment; find a prepared document by its title',
       findObject: 'Find a document or another object',
       noAccess: 'No access',
+      ready: 'Ready report',
+      readyHints: {
+        reply_dispatched:
+          'Prepared once the reply was registered and sent: check it and send it to the author for acceptance',
+      },
+      sendReady: 'Send report',
     },
     return: {
       title: 'Return for rework',

@@ -1,4 +1,4 @@
-import type { Locale, TaskRecord, TaskStatus } from '@kchs/contracts'
+import type { Locale, TaskRecord, TaskReportDraft, TaskStatus } from '@kchs/contracts'
 import { formatDate, formatDateTime } from '@kchs/fields'
 import {
   AlertDialog,
@@ -286,6 +286,13 @@ export function TaskView({ objectId, tabId }: { objectId: string; tabId: string 
         <div className="mx-auto grid max-w-[1100px] items-start gap-5 p-6 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div className="flex min-w-0 flex-col gap-4">
             <NextStep task={task} />
+            {task.reportDraft && task.can.report ? (
+              <ReadyReport
+                task={task}
+                draft={task.reportDraft}
+                onEdit={() => setDialog('report')}
+              />
+            ) : null}
             {task.extension?.status === 'pending' ? (
               <Callout
                 tone="warning"
@@ -327,7 +334,7 @@ export function TaskView({ objectId, tabId }: { objectId: string; tabId: string 
               <section className="rounded-lg border border-line bg-surface p-4">
                 <h2 className="mb-2 text-sm font-semibold text-fg">{t('tasks.view.result')}</h2>
                 <p className="whitespace-pre-line text-sm text-fg">{task.result.text}</p>
-                <ResultObjects task={task} />
+                <ResultObjects objects={task.result.objects} />
                 <p className="mt-2 text-xs text-fg-muted">
                   {t('tasks.view.reportedBy', {
                     name: task.result.reportedBy?.displayName ?? '—',
@@ -360,7 +367,24 @@ export function TaskView({ objectId, tabId }: { objectId: string; tabId: string 
       </div>
 
       {dialog === 'edit' ? <EditTaskDialog task={task} onClose={() => setDialog(null)} /> : null}
-      {dialog === 'report' ? <ReportDialog task={task} onClose={() => setDialog(null)} /> : null}
+      {dialog === 'report' ? (
+        <ReportDialog
+          task={task}
+          initial={
+            task.reportDraft
+              ? {
+                  text: task.reportDraft.text,
+                  objects: task.reportDraft.objects.map((object) => ({
+                    id: object.id,
+                    type: object.type,
+                    title: object.title ?? t('tasks.report.noAccess'),
+                  })),
+                }
+              : undefined
+          }
+          onClose={() => setDialog(null)}
+        />
+      ) : null}
       {dialog === 'return' ? <ReturnDialog task={task} onClose={() => setDialog(null)} /> : null}
       {dialog === 'extend' ? (
         <ExtensionRequestDialog task={task} onClose={() => setDialog(null)} />
@@ -399,6 +423,73 @@ const isClosedStatus = (status: TaskRecord['status']) =>
   status === 'accepted' || status === 'done' || status === 'cancelled'
 
 /**
+ * Готовый отчёт (N22, ADR-0136): система подготовила его, когда ответ на входящий
+ * зарегистрирован и отправлен, — с номером исходящего. Исполнитель отправляет его автору на
+ * приёмку одной кнопкой или правит перед отправкой. Пока открыты части соисполнителей,
+ * отчитаться нельзя — об этом говорит подсказка «что дальше».
+ */
+function ReadyReport({
+  task,
+  draft,
+  onEdit,
+}: {
+  task: TaskRecord
+  draft: TaskReportDraft
+  onEdit: () => void
+}) {
+  const t = useT()
+  const toast = useToast()
+  const client = useQueryClient()
+  const invalidate = useTaskInvalidation()
+  const openParts = task.parts.filter((part) => !isClosedStatus(part.status)).length
+  const send = useMutation({
+    mutationFn: () =>
+      http.post<TaskRecord>(`/tasks/${task.id}/report`, {
+        text: draft.text,
+        objectIds: draft.objects.map((object) => object.id),
+      }),
+    onSuccess: (record) => {
+      client.setQueryData(taskKeys.task(task.id), record)
+      toast.show({ title: t('tasks.report.sent'), tone: 'success' })
+      invalidate(task.id)
+    },
+    onError: (failure) => toast.error(errorText(failure, t('errors.unknown'))),
+  })
+  return (
+    <section
+      aria-label={t('tasks.report.ready')}
+      className="rounded-lg border border-accent bg-surface p-4"
+    >
+      <h2 className="text-sm font-semibold text-fg">{t('tasks.report.ready')}</h2>
+      <p className="mb-2 text-xs text-fg-muted">{t(`tasks.report.readyHints.${draft.cause}`)}</p>
+      <p className="whitespace-pre-line text-sm text-fg">{draft.text}</p>
+      <ResultObjects objects={draft.objects} />
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button
+          variant="primary"
+          size="sm"
+          icon={<Send className="size-3.5" />}
+          loading={send.isPending}
+          disabled={openParts > 0}
+          onClick={() => send.mutate()}
+        >
+          {t('tasks.report.sendReady')}
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          icon={<Pencil className="size-3.5" />}
+          disabled={send.isPending}
+          onClick={onEdit}
+        >
+          {t('common.actions.edit')}
+        </Button>
+      </div>
+    </section>
+  )
+}
+
+/**
  * Подсказка «что дальше» для смотрящего: его ход в процессе поручения. Запрос
  * продления показывает своя плашка с кнопкой решения — здесь он не повторяется.
  */
@@ -417,7 +508,8 @@ function NextStep({ task }: { task: TaskRecord }) {
           : task.status === 'reported'
             ? 'waitAccept'
             : null
-  if (!key) return null
+  // Готовый отчёт сам подсказывает следующий шаг — общая подсказка не повторяет его
+  if (!key || (key === 'report' && task.reportDraft)) return null
   return <Callout tone="info">{t(`tasks.next.${key}`, { count: openParts })}</Callout>
 }
 

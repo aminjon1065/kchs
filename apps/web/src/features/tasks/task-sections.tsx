@@ -1,4 +1,4 @@
-import type { Locale, TaskRecord } from '@kchs/contracts'
+import type { Locale, TaskRecord, TaskResultObject } from '@kchs/contracts'
 import { formatDate, formatDateTime } from '@kchs/fields'
 import { Badge, Button, cn, ObjectChip, ObjectIcon, StatusBadge, UserChip } from '@kchs/ui'
 import { useAppearance } from '~/app/appearance.js'
@@ -120,10 +120,9 @@ export function DueHistorySection({
 }
 
 /** Вложения и подготовленные объекты отчёта: чип — если объект виден смотрящему. */
-export function ResultObjects({ task }: { task: TaskRecord }) {
+export function ResultObjects({ objects }: { objects: readonly TaskResultObject[] }) {
   const t = useT()
   const openTab = useWorkspace((s) => s.openTab)
-  const objects = task.result?.objects ?? []
   if (objects.length === 0) return null
   return (
     <ul aria-label={t('tasks.report.objects')} className="mt-2 flex flex-wrap gap-2">

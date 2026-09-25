@@ -107,6 +107,9 @@ async function notify(event: EventEnvelope): Promise<void> {
     case 'task.reported':
       await send(reviewers, 'notifications.tpl.taskReported')
       break
+    case 'task.report_prepared':
+      await send(people(task.assigneeId), 'notifications.tpl.taskReportPrepared')
+      break
     case 'task.completed':
       // Поручение принято — исполнителю; задача готова — автору
       await send(
@@ -265,6 +268,7 @@ export const taskSubscribers: Subscriber[] = [
       'task.assigned',
       'task.accepted',
       'task.reported',
+      'task.report_prepared',
       'task.completed',
       'task.returned',
       'task.extension_requested',

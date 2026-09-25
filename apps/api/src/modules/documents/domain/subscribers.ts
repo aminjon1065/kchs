@@ -11,6 +11,7 @@ import { db } from '~/shared/db/client.js'
 import { documents } from '~/shared/db/schema/index.js'
 import { MailIntake } from './mail/mail-service.js'
 import { refreshJournalViewers, refreshViewers } from './participants.js'
+import { prepareReplyReports } from './reply-report.js'
 import { ResolutionService } from './resolution-service.js'
 
 /** Лента документа (вкладка «История»): создание пишет ядро (`object.created`). */
@@ -254,6 +255,14 @@ export const documentSubscribers: Subscriber[] = [
     handle: notify,
   },
   { name: 'documents-execution', types: ['task.source_closed'], handle: executed },
+  {
+    // Ответ отправлен — исполнителю поручения готовый отчёт (N22, ADR-0136)
+    name: 'documents-reply-report',
+    types: ['document.dispatched'],
+    handle: async (event) => {
+      await prepareReplyReports(event)
+    },
+  },
   {
     name: 'documents-resolution-requests',
     types: ['document.cancelled', 'document.status_changed'],
