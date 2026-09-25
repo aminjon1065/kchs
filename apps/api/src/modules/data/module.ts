@@ -145,6 +145,8 @@ const PolicyParams = z.object({ id: z.uuid(), policyId: z.uuid() })
 export async function upgradeDataStorage(): Promise<void> {
   const upgraded = await Physical.upgradeHistoryTables()
   if (upgraded > 0) logger().info({ upgraded }, 'таблицы истории строк дополнены номером версии')
+  const keys = await Physical.upgradeKeyIndexes()
+  if (keys > 0) logger().info({ keys }, 'индексы ключа строк — только по живым строкам (ADR-0160)')
 }
 
 /** Последняя проверка качества датасета — подзапросом поля списка (ADR-0101). */

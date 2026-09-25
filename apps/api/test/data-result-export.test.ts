@@ -123,7 +123,7 @@ describe('выгрузка результата запроса', () => {
   it('XLSX — книга Excel; без способности «Выгрузка данных» — 403', async () => {
     const xlsx = await exportQuery({ spec: byDistrict(datasetId), format: 'xlsx', name: 'Сводка' })
     expect(xlsx.statusCode, xlsx.body).toBe(200)
-    expect(xlsx.rawPayload.subarray(0, 2).toString()).toBe('PK')
+    expect(xlsx.body.slice(0, 2)).toBe('PK')
 
     const denied = await exportQuery(
       { spec: byDistrict(datasetId), format: 'csv', name: 'Сводка' },

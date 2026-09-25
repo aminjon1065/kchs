@@ -179,6 +179,38 @@ describe('строки: вставка и чтение', () => {
     })
     expect(duplicate.statusCode).toBe(409)
 
+    // Мягко удалённая строка ключ не держит (ADR-0160): новая строка с тем же ключом
+    const spare = await call(fx.app, {
+      method: 'POST',
+      url: `/datasets/${datasetId}/rows`,
+      as: fx.admin,
+      payload: { rows: [{ values: { code: 'KEY-REUSE' } }] },
+    })
+    expect(spare.statusCode, spare.body).toBe(200)
+    const removed = await call(fx.app, {
+      method: 'POST',
+      url: `/datasets/${datasetId}/rows/delete`,
+      as: fx.admin,
+      payload: { ids: [spare.json().items[0]._id] },
+    })
+    expect(removed.statusCode, removed.body).toBe(200)
+    const reused = await call(fx.app, {
+      method: 'POST',
+      url: `/datasets/${datasetId}/rows`,
+      as: fx.admin,
+      payload: { rows: [{ values: { code: 'KEY-REUSE' } }] },
+    })
+    expect(reused.statusCode, reused.body).toBe(200)
+    expect(reused.json().items[0]._id).not.toBe(spare.json().items[0]._id)
+    // Строки проверки ключа — не в счёт следующим проверкам
+    const cleaned = await call(fx.app, {
+      method: 'POST',
+      url: `/datasets/${datasetId}/rows/delete`,
+      as: fx.admin,
+      payload: { ids: [reused.json().items[0]._id] },
+    })
+    expect(cleaned.statusCode, cleaned.body).toBe(200)
+
     // Пакет (вставка из буфера): в ошибке — номер строки
     const batch = await call(fx.app, {
       method: 'POST',

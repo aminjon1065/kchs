@@ -89,6 +89,16 @@ export interface PhysicalColumn {
   indexed?: boolean
 }
 
+/**
+ * Уникальный индекс ключа строки — только по живым строкам (ADR-0160): мягко
+ * удалённая строка ключ не держит, новая строка с тем же ключом допустима.
+ */
+const keyIndexStatement = (table: string, keyColumns: string[]) =>
+  `CREATE UNIQUE INDEX ON ${qualified(table)} (${keyColumns.map(ident).join(', ')}) WHERE _deleted_at IS NULL`
+
+/** Таблица строк датасета (не staging `s_*` и не таблица замены `*_n`). */
+const ROWS_TABLE = /^t_[0-9a-f]{32}$/
+
 const columnDefs = (columns: PhysicalColumn[]) =>
   columns.map((column) => `${ident(column.name)} ${columnType(column.type, column.precision)}`)
 
@@ -280,13 +290,7 @@ export const Physical = {
       if (statement) await tx.execute(sql.raw(statement))
     }
     if (options.keyColumns.length > 0) {
-      // Ключ upsert/sync: полный уникальный индекс, чтобы удалённая строка
-      // «воскресала» при повторной загрузке того же ключа
-      await tx.execute(
-        sql.raw(
-          `CREATE UNIQUE INDEX ON ${qualified(table)} (${options.keyColumns.map(ident).join(', ')})`,
-        ),
-      )
+      await tx.execute(sql.raw(keyIndexStatement(table, options.keyColumns)))
     }
     await Physical.grantRead(tx, table)
     if (options.trackHistory) await Physical.ensureHistory(tx, datasetId)
@@ -346,6 +350,35 @@ export const Physical = {
     return missing.length
   },
 
+  /**
+   * Полные уникальные индексы ключа, созданные до ADR-0160, — по живым строкам.
+   * Таблицы строк создаются на лету, поэтому это проверка при старте, а не
+   * миграция схемы (как у таблиц истории); повторный запуск ничего не меняет.
+   */
+  async upgradeKeyIndexes(): Promise<number> {
+    const full = await rawSql()<Array<{ index: string; table: string; columns: string[] }>>`
+      SELECT i.relname AS index, t.relname AS table,
+             array_agg(a.attname::text ORDER BY k.ord) AS columns
+        FROM pg_index x
+        JOIN pg_class i ON i.oid = x.indexrelid
+        JOIN pg_class t ON t.oid = x.indrelid
+        JOIN pg_namespace n ON n.oid = t.relnamespace
+        JOIN LATERAL unnest(x.indkey) WITH ORDINALITY AS k(attnum, ord) ON true
+        JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = k.attnum
+       WHERE n.nspname = 'ds' AND x.indisunique AND NOT x.indisprimary AND x.indpred IS NULL
+       GROUP BY i.relname, t.relname`
+    let upgraded = 0
+    for (const item of full) {
+      if (!ROWS_TABLE.test(item.table)) continue
+      await rawSql().begin(async (tx) => {
+        await tx.unsafe(keyIndexStatement(item.table, item.columns))
+        await tx.unsafe(`DROP INDEX ds.${ident(item.index)}`)
+      })
+      upgraded++
+    }
+    return upgraded
+  },
+
   /** Чтение таблицы строк для пользовательских запросов и резервной роли. */
   async grantRead(tx: Executor, table: string): Promise<void> {
     await tx.execute(sql.raw(`GRANT SELECT ON ${qualified(table)} TO kchs_query, kchs_readonly`))
@@ -394,12 +427,13 @@ export const Physical = {
     for (const row of rows) await tx.execute(sql.raw(`DROP INDEX ds.${ident(row.name)}`))
   },
 
-  /** Групп строк с одинаковым ключом (учитываются и удалённые — индекс полный). */
+  /** Групп живых строк с одинаковым ключом (удалённые ключ не держат, ADR-0160). */
   async keyDuplicates(tx: Executor, table: string, keyColumns: string[]): Promise<number> {
     const keys = keyColumns.map(ident).join(', ')
     const [row] = await tx.execute<{ n: string }>(
       sql.raw(`SELECT count(*) AS n FROM (
-                 SELECT 1 FROM ${qualified(table)} GROUP BY ${keys} HAVING count(*) > 1
+                 SELECT 1 FROM ${qualified(table)} WHERE _deleted_at IS NULL
+                  GROUP BY ${keys} HAVING count(*) > 1
                ) d`),
     )
     return Number(row?.n ?? 0)
@@ -417,11 +451,7 @@ export const Physical = {
              AND x.indisunique AND NOT x.indisprimary`,
     )
     for (const row of rows) await tx.execute(sql.raw(`DROP INDEX ds.${ident(row.name)}`))
-    if (keyColumns.length > 0) {
-      await tx.execute(
-        sql.raw(`CREATE UNIQUE INDEX ON ${qualified(table)} (${keyColumns.map(ident).join(', ')})`),
-      )
-    }
+    if (keyColumns.length > 0) await tx.execute(sql.raw(keyIndexStatement(table, keyColumns)))
   },
 
   /** Сколько непустых значений не приводится к новому типу, и примеры. */
@@ -605,7 +635,9 @@ export const Physical = {
 
   /**
    * `upsert` по ключу: новые строки добавляются, изменившиеся обновляются с
-   * ростом `_ver`, удалённые ранее «воскресают». Возвращает счётчики.
+   * ростом `_ver`. Ключ, который есть только у удалённых строк, «воскрешает»
+   * последнюю из них (история строки не рвётся); индекс ключа — по живым
+   * строкам (ADR-0160), поэтому воскрешение — отдельным шагом до вставки.
    */
   async upsert(
     tx: Executor,
@@ -618,34 +650,50 @@ export const Physical = {
   ): Promise<{ inserted: number; updated: number }> {
     const list = columns.map(ident).join(', ')
     const keys = keyColumns.map(ident).join(', ')
+    const t = qualified(table)
+    const s = qualified(staging)
+    const match = (a: string, b: string) =>
+      keyColumns.map((c) => `${a}.${ident(c)} = ${b}.${ident(c)}`).join(' AND ')
     const valueColumns = columns.filter((column) => !keyColumns.includes(column))
+    const restoreValues = valueColumns.map((c) => `${ident(c)} = s.${ident(c)}, `).join('')
+    // Имена — только сгенерированные и проверенные `ident`; значения — параметрами
+    const restored = await tx.execute(
+      sql`UPDATE ${sql.raw(t)} AS t
+             SET ${sql.raw(restoreValues)}_ver = t._ver + 1, _updated_at = now(),
+                 _updated_by = ${userId}::uuid, _deleted_at = NULL, _import_id = ${importId}::uuid
+            FROM ${sql.raw(s)} s
+           WHERE t._deleted_at IS NOT NULL AND ${sql.raw(match('t', 's'))}
+             AND t._id = (SELECT max(d._id) FROM ${sql.raw(t)} d
+                           WHERE d._deleted_at IS NOT NULL AND ${sql.raw(match('d', 's'))})
+             AND NOT EXISTS (SELECT 1 FROM ${sql.raw(t)} l
+                              WHERE l._deleted_at IS NULL AND ${sql.raw(match('l', 's'))})`,
+    )
     const assignments = valueColumns.map((column) => `${ident(column)} = EXCLUDED.${ident(column)}`)
     const changed =
       valueColumns.length > 0
         ? `(${valueColumns.map((c) => `t.${ident(c)}`).join(', ')}) IS DISTINCT FROM (${valueColumns
             .map((c) => `EXCLUDED.${ident(c)}`)
-            .join(', ')}) OR t._deleted_at IS NOT NULL`
-        : 't._deleted_at IS NOT NULL'
+            .join(', ')})`
+        : 'false'
     const setList = [
       ...assignments,
       '_ver = t._ver + 1',
       '_updated_at = now()',
       '_updated_by = EXCLUDED._updated_by',
-      '_deleted_at = NULL',
       '_import_id = EXCLUDED._import_id',
     ].join(', ')
-    // Имена — только сгенерированные и проверенные `ident`; значения — параметрами
+    // Воскрешённые строки уже живые и совпадают с файлом — повторно не обновляются
     const rows = await tx.execute<{ inserted: boolean }>(
-      sql`INSERT INTO ${sql.raw(qualified(table))} AS t (${sql.raw(list)}, _import_id, _created_by, _updated_by)
+      sql`INSERT INTO ${sql.raw(t)} AS t (${sql.raw(list)}, _import_id, _created_by, _updated_by)
           SELECT ${sql.raw(list)}, ${importId}::uuid, ${userId}::uuid, ${userId}::uuid
-            FROM ${sql.raw(qualified(staging))} ORDER BY _row
-          ON CONFLICT (${sql.raw(keys)}) DO UPDATE SET ${sql.raw(setList)}
+            FROM ${sql.raw(s)} ORDER BY _row
+          ON CONFLICT (${sql.raw(keys)}) WHERE _deleted_at IS NULL DO UPDATE SET ${sql.raw(setList)}
           WHERE ${sql.raw(changed)}
           RETURNING (xmax = 0) AS inserted`,
     )
     let inserted = 0
     for (const row of rows) if (row.inserted) inserted++
-    return { inserted, updated: rows.length - inserted }
+    return { inserted, updated: rows.length - inserted + (restored.count ?? 0) }
   },
 
   /** `sync`: строки, которых нет в файле, помечаются удалёнными. */
@@ -684,6 +732,9 @@ export const Physical = {
     const t = qualified(table)
     const s = qualified(staging)
     const match = keyColumns.map((c) => `s.${ident(c)} = t.${ident(c)}`).join(' AND ')
+    // Строка ключа, как её выберет `upsert`: живая, иначе последняя удалённая (ADR-0160)
+    const target = `LATERAL (SELECT * FROM ${t} t WHERE ${match}
+                     ORDER BY (t._deleted_at IS NULL) DESC, t._id DESC LIMIT 1) t`
     const values = columns.filter((column) => !keyColumns.includes(column.physical))
     const changed =
       values.length > 0
@@ -707,7 +758,7 @@ export const Physical = {
       `SELECT count(*) FILTER (WHERE t._id IS NULL) AS added,
               count(*) FILTER (WHERE t._id IS NOT NULL AND ${changed}) AS changed,
               count(*) FILTER (WHERE t._id IS NOT NULL AND NOT ${changed}) AS unchanged
-         FROM ${s} s LEFT JOIN ${t} t ON ${match}`,
+         FROM ${s} s LEFT JOIN ${target} ON true`,
     )
     const missing = `t._deleted_at IS NULL AND NOT EXISTS (SELECT 1 FROM ${s} s WHERE ${match})`
     let deleted = 0
@@ -721,7 +772,7 @@ export const Physical = {
     const added = await rawSql().unsafe<DiffSampleRow[]>(
       `SELECT s._row AS row, ${keyText('s')} AS keys, NULL::text[] AS before,
               ${valueText('s')} AS after, NULL::boolean[] AS distinct, false AS restored
-         FROM ${s} s LEFT JOIN ${t} t ON ${match}
+         FROM ${s} s LEFT JOIN ${target} ON true
         WHERE t._id IS NULL ORDER BY s._row LIMIT $1`,
       [sampleRows],
     )
@@ -729,7 +780,7 @@ export const Physical = {
       `SELECT s._row AS row, ${keyText('s')} AS keys, ${valueText('t')} AS before,
               ${valueText('s')} AS after, ${distinct} AS distinct,
               t._deleted_at IS NOT NULL AS restored
-         FROM ${s} s JOIN ${t} t ON ${match}
+         FROM ${s} s JOIN ${target} ON true
         WHERE ${changed} ORDER BY s._row LIMIT $1`,
       [sampleRows],
     )

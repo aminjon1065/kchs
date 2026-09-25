@@ -220,20 +220,73 @@ describe('откат: правки строк', () => {
     expect((await state(datasetId)).A).toMatchObject({ amount: 2 })
   })
 
-  it('прежнее значение ключа занято другой строкой — 409, данные не тронуты', async () => {
+  it('ключ, который держала отменённая вставка, откату не мешает (ADR-0160)', async () => {
     const datasetId = await createDataset('Откат ключ')
     const [row] = await insert(datasetId, [{ code: 'K-1', amount: 1 }]) // 2
     await patch(datasetId, String(row?._id), { code: 'K-2' }) // 3
     await insert(datasetId, [{ code: 'K-1', amount: 5 }]) // 4
 
+    // Вставка K-1 отменяется первой — удалённая строка ключ больше не держит
+    const done = await rollback(datasetId, 2)
+    expect(done.statusCode, done.body).toBe(200)
+    const live = await call(fx.app, {
+      method: 'POST',
+      url: `/datasets/${datasetId}/rows/query`,
+      as: fx.admin,
+      payload: {},
+    })
+    const codeIndex = live.json().fields.findIndex((f: { name: string }) => f.name === 'code')
+    expect(live.json().rows.map((r: unknown[]) => r[codeIndex])).toEqual(['K-1'])
+    expect(await datasetOf(datasetId)).toMatchObject({ currentVersion: 5, rowCount: 1 })
+  })
+
+  it('удалённая строка с ключом, занятым живой строкой, не возвращается — 409', async () => {
+    const datasetId = await createDataset('Откат занятый ключ')
+    const [row] = await insert(datasetId, [{ code: 'Z-1', amount: 1 }]) // 2
+    await remove(datasetId, [String(row?._id)]) // 3
+    // Живая строка с тем же ключом вне истории датасета (записана в обход версий)
+    const [meta] = await db().execute<{ physical_table: string }>(
+      sql`SELECT physical_table FROM datasets WHERE id = ${datasetId}`,
+    )
+    const [field] = await db().execute<{ physical_column: string }>(
+      sql`SELECT physical_column FROM dataset_fields WHERE dataset_id = ${datasetId} AND key = 'code'`,
+    )
+    await db().execute(
+      sql.raw(
+        `INSERT INTO ds."${meta?.physical_table}" (${field?.physical_column}) VALUES ('Z-1')`,
+      ),
+    )
+
     const conflict = await rollback(datasetId, 2)
     expect(conflict.statusCode).toBe(409)
     expect(conflict.json().detail).toContain('прежнее значение ключа занято')
-    expect(await state(datasetId)).toEqual({
-      'K-1': { region: null, amount: 5, deleted: false },
-      'K-2': { region: null, amount: 1, deleted: false },
-    })
-    expect(await datasetOf(datasetId)).toMatchObject({ currentVersion: 4, rowCount: 2 })
+    expect(await datasetOf(datasetId)).toMatchObject({ currentVersion: 3 })
+  })
+
+  it('полный индекс ключа прежних версий при старте становится индексом живых строк', async () => {
+    const datasetId = await createDataset('Индекс ключа')
+    const [meta] = await db().execute<{ physical_table: string }>(
+      sql`SELECT physical_table FROM datasets WHERE id = ${datasetId}`,
+    )
+    const table = meta?.physical_table ?? ''
+    const indexes = () =>
+      db().execute<{ indexdef: string }>(
+        sql`SELECT indexdef FROM pg_indexes WHERE schemaname = 'ds' AND tablename = ${table}
+             AND indexdef LIKE 'CREATE UNIQUE INDEX%' AND indexname NOT LIKE '%_pkey'`,
+      )
+    const [key] = await indexes()
+    expect(key?.indexdef).toContain('WHERE (_deleted_at IS NULL)')
+    // Индекс, как его строили до ADR-0160, — полный
+    const column = /\((c_\d+)\)/.exec(key?.indexdef ?? '')?.[1]
+    await db().execute(
+      sql.raw(`DROP INDEX ds."${/INDEX (\S+) ON/.exec(key?.indexdef ?? '')?.[1]}"`),
+    )
+    await db().execute(sql.raw(`CREATE UNIQUE INDEX ON ds."${table}" (${column})`))
+    expect(await Physical.upgradeKeyIndexes()).toBeGreaterThanOrEqual(1)
+    const upgraded = await indexes()
+    expect(upgraded).toHaveLength(1)
+    expect(upgraded[0]?.indexdef).toContain('WHERE (_deleted_at IS NULL)')
+    expect(await Physical.upgradeKeyIndexes()).toBe(0)
   })
 })
 

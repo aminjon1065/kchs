@@ -107,7 +107,7 @@ async function laterVersions(tx: Executor, datasetId: string, target: number) {
 export const RollbackService = {
   async rollback(ctx: Ctx, datasetId: string, target: number): Promise<DatasetVersion> {
     const version = await revert(ctx, datasetId, target).catch((error: unknown) => {
-      // Ключ хранят и удалённые строки: прежнее значение могло занять другое
+      // Прежнее значение ключа возвращаемой строки могла занять живая строка (ADR-0160)
       if (pgErrorCode(error) === UNIQUE_VIOLATION) {
         throw errors.conflict(
           `Откат к версии ${target} недоступен: прежнее значение ключа занято другой строкой`,
