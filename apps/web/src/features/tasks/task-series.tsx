@@ -20,10 +20,11 @@ import {
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Repeat } from 'lucide-react'
-import { useId } from 'react'
+import { useId, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { type PickedUser, UserPicker } from './user-picker.js'
 
 type Translate = (key: string, params?: Record<string, string | number>) => string
 
@@ -96,13 +97,16 @@ export function ruleText(rule: TaskSeriesRule, t: Translate): string {
 /**
  * Поля «Повторять» диалога создания (ADR-0156): частота, дни, время по часам
  * организации, срок каждого экземпляра в рабочих днях, начало и окончание серии.
+ * При правке заведённой серии (`editing`) переключателя нет, а начало не меняется.
  */
 export function RepeatFields({
   value,
   onChange,
+  editing = false,
 }: {
   value: RepeatValue
   onChange: (next: RepeatValue) => void
+  editing?: boolean
 }) {
   const t = useT()
   const id = useId()
@@ -116,17 +120,19 @@ export function RepeatFields({
     })
   return (
     <div className="flex flex-col gap-3 rounded-md border border-line p-3">
-      <label className="flex items-center gap-2 text-sm text-fg" htmlFor={`${id}-repeat`}>
-        <Switch
-          id={`${id}-repeat`}
-          checked={value.enabled}
-          onCheckedChange={(checked) => set({ enabled: checked })}
-        />
-        {t('tasks.series.repeat')}
-      </label>
-      {value.enabled ? (
+      {editing ? null : (
+        <label className="flex items-center gap-2 text-sm text-fg" htmlFor={`${id}-repeat`}>
+          <Switch
+            id={`${id}-repeat`}
+            checked={value.enabled}
+            onCheckedChange={(checked) => set({ enabled: checked })}
+          />
+          {t('tasks.series.repeat')}
+        </label>
+      )}
+      {value.enabled || editing ? (
         <>
-          <p className="text-xs text-fg-muted">{t('tasks.series.repeatHint')}</p>
+          {editing ? null : <p className="text-xs text-fg-muted">{t('tasks.series.repeatHint')}</p>}
           <div className="grid grid-cols-2 gap-3">
             <Field label={t('tasks.series.freq')}>
               <Select
@@ -228,14 +234,16 @@ export function RepeatFields({
             </Field>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Field label={t('tasks.series.startsOn')} htmlFor={`${id}-starts`}>
-              <Input
-                id={`${id}-starts`}
-                type="date"
-                value={value.startsOn}
-                onChange={(event) => set({ startsOn: event.target.value })}
-              />
-            </Field>
+            {editing ? null : (
+              <Field label={t('tasks.series.startsOn')} htmlFor={`${id}-starts`}>
+                <Input
+                  id={`${id}-starts`}
+                  type="date"
+                  value={value.startsOn}
+                  onChange={(event) => set({ startsOn: event.target.value })}
+                />
+              </Field>
+            )}
             <Field
               label={t('tasks.series.endsOn')}
               hint={t('tasks.series.endsOnHint')}
@@ -275,6 +283,7 @@ export function SeriesDialog({ onClose }: { onClose: () => void }) {
       toast.error(error instanceof ApiError ? error.message : t('errors.unknown')),
   })
   const items = data?.items ?? []
+  const [editingId, setEditingId] = useState<string | null>(null)
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent
@@ -329,8 +338,15 @@ export function SeriesDialog({ onClose }: { onClose: () => void }) {
                 {series.statusReason ? (
                   <Callout tone="warning">{series.statusReason}</Callout>
                 ) : null}
-                {series.can.edit ? (
+                {editingId === series.id ? (
+                  <SeriesEditForm series={series} onDone={() => setEditingId(null)} />
+                ) : series.can.edit ? (
                   <div className="flex gap-2">
+                    {series.status === 'stopped' ? null : (
+                      <Button size="sm" variant="secondary" onClick={() => setEditingId(series.id)}>
+                        {t('tasks.series.edit')}
+                      </Button>
+                    )}
                     {series.status === 'active' ? (
                       <Button
                         size="sm"
@@ -363,5 +379,78 @@ export function SeriesDialog({ onClose }: { onClose: () => void }) {
         )}
       </DialogContent>
     </Dialog>
+  )
+}
+
+/**
+ * Правка заведённой серии (ADR-0156): название, исполнитель, правило, срок и окончание —
+ * для следующих поручений; уже созданные остаются как есть.
+ */
+function SeriesEditForm({ series, onDone }: { series: TaskSeriesRecord; onDone: () => void }) {
+  const t = useT()
+  const toast = useToast()
+  const client = useQueryClient()
+  const id = useId()
+  const instruction = series.kind === 'instruction'
+  const [title, setTitle] = useState(series.title)
+  const [assignee, setAssignee] = useState<PickedUser | null>(
+    series.assignee ? { id: series.assignee.id, title: series.assignee.displayName } : null,
+  )
+  const [repeat, setRepeat] = useState<RepeatValue>({
+    enabled: true,
+    rule: series.rule,
+    dueWorkingDays: String(series.dueWorkingDays),
+    startsOn: series.startsOn,
+    endsOn: series.endsOn ?? '',
+  })
+  const save = useMutation({
+    mutationFn: () =>
+      http.patch<TaskSeriesRecord>(`/task-series/${series.id}`, {
+        title: title.trim(),
+        assigneeId: assignee?.id ?? null,
+        rule: repeat.rule,
+        dueWorkingDays: Math.max(1, Number.parseInt(repeat.dueWorkingDays, 10) || 1),
+        endsOn: repeat.endsOn || null,
+      }),
+    onSuccess: () => {
+      toast.show({ title: t('tasks.series.saved'), tone: 'success' })
+      void client.invalidateQueries({ queryKey: seriesKey })
+      onDone()
+    },
+    onError: (error) =>
+      toast.error(error instanceof ApiError ? error.message : t('errors.unknown')),
+  })
+  const ready =
+    title.trim().length > 0 && repeatReady(repeat) && (!instruction || assignee !== null)
+
+  return (
+    <div className="flex flex-col gap-3 rounded-md border border-line bg-surface-2 p-3">
+      <p className="text-xs text-fg-muted">{t('tasks.series.editHint')}</p>
+      <Field label={t('tasks.fields.title')} htmlFor={`${id}-title`} required>
+        <Input
+          id={`${id}-title`}
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
+        />
+      </Field>
+      <Field label={t('tasks.fields.assignee')} required={instruction}>
+        <UserPicker value={assignee} onChange={setAssignee} label={t('tasks.fields.assignee')} />
+      </Field>
+      <RepeatFields value={repeat} onChange={setRepeat} editing />
+      <div className="flex justify-end gap-2">
+        <Button size="sm" variant="ghost" onClick={onDone}>
+          {t('common.actions.cancel')}
+        </Button>
+        <Button
+          size="sm"
+          variant="primary"
+          loading={save.isPending}
+          disabled={!ready}
+          onClick={() => save.mutate()}
+        >
+          {t('tasks.series.save')}
+        </Button>
+      </div>
+    </div>
   )
 }

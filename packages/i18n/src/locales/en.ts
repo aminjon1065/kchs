@@ -4922,6 +4922,11 @@ export const en: DeepPartial<Dictionary> = {
       pause: 'Pause',
       resume: 'Resume',
       stop: 'Stop',
+      edit: 'Edit',
+      editHint:
+        'Changes apply to the next instructions; the ones already created stay as they are.',
+      save: 'Save series',
+      saved: 'Series updated — for the next instructions',
       at: 'at {time}',
       everyDay: 'Every day',
       everyDays: 'Every {n} days',
