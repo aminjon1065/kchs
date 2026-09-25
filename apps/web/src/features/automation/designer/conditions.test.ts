@@ -27,7 +27,26 @@ describe('условия правила в конструкторе', () => {
     expect(fromConditionNode(root)).toEqual(tree)
   })
 
-  it('пустые строки и группы отбрасываются, группа из одного — сам узел', () => {
+  it('вложенная группа из одного условия не схлопывается — её только что добавили', () => {
+    expect(
+      fromConditionNode({
+        kind: 'group',
+        op: 'and',
+        negated: false,
+        items: [
+          { kind: 'expr', expr: 'a = 1', negated: false },
+          {
+            kind: 'group',
+            op: 'or',
+            negated: false,
+            items: [{ kind: 'expr', expr: 'true', negated: false }],
+          },
+        ],
+      }),
+    ).toEqual({ and: [{ expr: 'a = 1' }, { or: [{ expr: 'true' }] }] })
+  })
+
+  it('пустые строки и группы отбрасываются, корень из одного — сам узел', () => {
     expect(toConditionNode(null)).toEqual({ kind: 'group', op: 'and', items: [], negated: false })
     expect(fromConditionNode(toConditionNode(null))).toBeNull()
     expect(

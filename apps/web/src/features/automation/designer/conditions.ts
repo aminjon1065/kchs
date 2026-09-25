@@ -50,18 +50,22 @@ export function toConditionNode(condition: RuleCondition | null): ConditionNode 
     : { kind: 'group', op: 'and', items: [root], negated: false }
 }
 
-/** Узлы → дерево контракта: пустые выражения и группы отбрасываются, группа из одного — узел. */
-export function fromConditionNode(item: ConditionNode): RuleCondition | null {
+/**
+ * Узлы → дерево контракта: пустые выражения и группы отбрасываются. Корневая группа из
+ * одного узла — сам узел (простое правило остаётся `{expr}`); вложенная группа сохраняется и
+ * с одним узлом — иначе только что добавленная группа тут же схлопнулась бы в строку.
+ */
+export function fromConditionNode(item: ConditionNode, root = true): RuleCondition | null {
   let condition: RuleCondition | null
   if (item.kind === 'expr') {
     const expr = item.expr.trim()
     condition = expr ? { expr } : null
   } else {
     const items = item.items
-      .map(fromConditionNode)
+      .map((child) => fromConditionNode(child, false))
       .filter((value): value is RuleCondition => value !== null)
     if (items.length === 0) condition = null
-    else if (items.length === 1) condition = items[0] as RuleCondition
+    else if (items.length === 1 && root) condition = items[0] as RuleCondition
     else condition = item.op === 'and' ? { and: items } : { or: items }
   }
   if (!condition) return null
