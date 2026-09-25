@@ -17,6 +17,8 @@ import {
   type DataGridRow,
   type DataGridSelectionInfo,
   type DataGridSortItem,
+  FilterBuilder,
+  type FilterFieldRequest,
   IconButton,
   SearchInput,
   Switch,
@@ -35,15 +37,29 @@ import {
   usePaneLinkGroup,
   useViewContext,
 } from '~/app/workspace/view-context.js'
+import { useTerritoryFilterEditor } from '~/features/gis/territory-filter.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { meQuery } from '~/shared/api/queries.js'
 import { ExportDialog } from './export-dialog.js'
 import { useFieldOptions } from './field-options.js'
+import { filterFieldsOf } from './field-types.js'
 import { dataKeys } from './queries.js'
 import { NewRowDialog, RowCard } from './row-card.js'
 
 /** Строк в странице таблицы: грид просит окна, страницы грузятся по мере прокрутки. */
 const PAGE = 200
+
+/** Поля, по которым фильтр столбца не строится: геометрия — на карте, JSON — в данных. */
+const NOT_FILTERABLE = new Set(['geometry', 'json'])
+
+/** Поля условий фильтра — для значка фильтра в шапке столбца. */
+function filterKeys(node: FilterNode | null, out = new Set<string>()): Set<string> {
+  if (!node) return out
+  if ('field' in node) out.add(node.field)
+  else if ('not' in node) filterKeys(node.not, out)
+  else for (const child of 'and' in node ? node.and : node.or) filterKeys(child, out)
+  return out
+}
 
 interface Loaded {
   rows: DataGridRow[]
@@ -81,6 +97,9 @@ export function DatasetTable({ dataset, canEdit }: { dataset: DatasetRecord; can
 
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebouncedValue(search.trim(), 300)
+  // Фильтры по столбцам: чипы над таблицей, «Фильтр по столбцу» в меню столбца
+  const [filter, setFilter] = useState<FilterNode | null>(null)
+  const [filterRequest, setFilterRequest] = useState<FilterFieldRequest | null>(null)
   const [sort, setSort] = useState<DataGridSortItem[]>([])
   const [pages, setPages] = useState<Map<number, DataGridRow[]>>(new Map())
   const [rowCount, setRowCount] = useState(0)
@@ -110,6 +129,7 @@ export function DatasetTable({ dataset, canEdit }: { dataset: DatasetRecord; can
   const [inExtent, setInExtent] = useState(false)
   const [onlyLinked, setOnlyLinked] = useState(false)
   const conditions: FilterNode[] = [
+    ...(filter ? [filter] : []),
     ...(linkedFilter ? [linkedFilter.where] : []),
     ...(onlyLinked && linkedSelection
       ? [{ field: '_id', op: 'in' as const, value: linkedSelection.ids.map(Number) }]
@@ -139,6 +159,17 @@ export function DatasetTable({ dataset, canEdit }: { dataset: DatasetRecord; can
     [dataset.fields, dataset.settings.editable, canEdit, locale, fieldOptions],
   )
   const [columnState, setColumnState] = useDataGridColumnState(columns)
+  const filterFields = useMemo(
+    () =>
+      filterFieldsOf(dataset.fields, locale, fieldOptions).filter(
+        (field) => !NOT_FILTERABLE.has(field.type),
+      ),
+    [dataset.fields, locale, fieldOptions],
+  )
+  const territoryEditor = useTerritoryFilterEditor(
+    dataset.fields.some((field) => field.type === 'territory'),
+  )
+  const filteredKeys = useMemo(() => [...filterKeys(filter)], [filter])
 
   const load = useCallback(
     async (page: number, current: number) => {
@@ -337,6 +368,15 @@ export function DatasetTable({ dataset, canEdit }: { dataset: DatasetRecord; can
           </IconButton>
         </div>
       </div>
+      <div className="shrink-0 border-b border-line bg-surface px-2.5 py-1.5">
+        <FilterBuilder
+          fields={filterFields}
+          value={filter}
+          onChange={setFilter}
+          renderValue={territoryEditor}
+          request={filterRequest}
+        />
+      </div>
       {group && (linkedExtent || linkedSelection || linkedFilter) ? (
         <section
           aria-label={t('data.table.linked.title')}
@@ -401,6 +441,8 @@ export function DatasetTable({ dataset, canEdit }: { dataset: DatasetRecord; can
         onVisibleRangeChange={onVisibleRangeChange}
         sort={sort}
         onSortChange={setSort}
+        onColumnFilter={(key) => setFilterRequest({ field: key, nonce: Date.now() })}
+        filteredKeys={filteredKeys}
         columnState={columnState}
         onColumnStateChange={setColumnState}
         {...(writable ? { onEdit, onAppendRows } : { readOnly: true })}
@@ -409,7 +451,7 @@ export function DatasetTable({ dataset, canEdit }: { dataset: DatasetRecord; can
         loading={loading}
         empty={
           <span className="text-sm text-fg-muted">
-            {debouncedSearch
+            {debouncedSearch || where
               ? t('data.table.nothingFound')
               : writable
                 ? t('data.table.emptyEditable')
@@ -443,6 +485,7 @@ export function DatasetTable({ dataset, canEdit }: { dataset: DatasetRecord; can
         <ExportDialog
           dataset={dataset}
           view={{
+            ...(where ? { where } : {}),
             search: debouncedSearch,
             sort: sort.map((item) => ({ field: item.key, dir: item.dir })),
             // Закреплённые столбцы — первыми, как в гриде; скрытые не выгружаются

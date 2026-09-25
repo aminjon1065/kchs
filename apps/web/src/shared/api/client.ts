@@ -110,6 +110,42 @@ export function setUnauthorizedHandler(handler: UnauthorizedHandler | null): voi
   onUnauthorized = handler
 }
 
+function requestHeaders(
+  path: string,
+  method: NonNullable<RequestOptions['method']>,
+  hasBody: boolean,
+  extra?: Record<string, string>,
+): Record<string, string> {
+  const headers: Record<string, string> = {
+    accept: 'application/json',
+    'accept-language': document.documentElement.lang || 'ru',
+    ...extra,
+  }
+  if (hasBody) headers['content-type'] = 'application/json'
+  if (method !== 'GET') {
+    const token = getCsrfToken()
+    if (token) headers['x-csrf-token'] = token
+  }
+  if (shareToken) headers['x-kchs-share-token'] = shareToken
+  // Личные запросы идут от себя: иначе выход из режима был бы невозможен
+  if (onBehalfOf && !path.startsWith('/me') && !path.startsWith('/auth')) {
+    headers['x-kchs-on-behalf-of'] = onBehalfOf
+  }
+  return headers
+}
+
+/** Ответ с ошибкой → `ApiError` (проблема RFC 9457 или общая «запрос не выполнен»). */
+function problemOf(status: number, payload: unknown): ApiError {
+  const problem = (payload ?? {
+    type: 'about:blank',
+    // Язык интерфейса отражён в <html lang>: клиент API не зависит от оболочки
+    title: translate(normalizeLocale(document.documentElement.lang), 'errors.requestFailed'),
+    status,
+    code: 'internal_error',
+  }) as ProblemDetails
+  return new ApiError(problem)
+}
+
 export async function api<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const method = options.method ?? 'GET'
   const url = new URL(`${BASE}${path}`, window.location.origin)
@@ -120,22 +156,7 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
     }
   }
 
-  const headers: Record<string, string> = {
-    accept: 'application/json',
-    'accept-language': document.documentElement.lang || 'ru',
-    ...options.headers,
-  }
-
-  if (options.body !== undefined) headers['content-type'] = 'application/json'
-  if (method !== 'GET') {
-    const token = getCsrfToken()
-    if (token) headers['x-csrf-token'] = token
-  }
-  if (shareToken) headers['x-kchs-share-token'] = shareToken
-  // Личные запросы идут от себя: иначе выход из режима был бы невозможен
-  if (onBehalfOf && !path.startsWith('/me') && !path.startsWith('/auth')) {
-    headers['x-kchs-on-behalf-of'] = onBehalfOf
-  }
+  const headers = requestHeaders(path, method, options.body !== undefined, options.headers)
 
   const response = await fetch(url.toString(), {
     method,
@@ -151,20 +172,60 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
   const payload = text ? (JSON.parse(text) as unknown) : null
 
   if (!response.ok) {
-    const problem = (payload ?? {
-      type: 'about:blank',
-      // Язык интерфейса отражён в <html lang>: клиент API не зависит от оболочки
-      title: translate(normalizeLocale(document.documentElement.lang), 'errors.requestFailed'),
-      status: response.status,
-      code: 'internal_error',
-    }) as ProblemDetails
-
+    const error = problemOf(response.status, payload)
     if (response.status === 401 && !options.anonymous) onUnauthorized?.()
-    if (response.status === 403 && SETUP_CODES.has(problem.code)) onSetupRequired?.()
-    throw new ApiError(problem)
+    if (response.status === 403 && SETUP_CODES.has(error.problem.code)) onSetupRequired?.()
+    throw error
   }
 
   return payload as T
+}
+
+/** Сохранить файл из памяти: браузер скачивает его под этим именем. */
+export function saveBlob(blob: Blob, name: string): void {
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = name
+  document.body.append(link)
+  link.click()
+  link.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 10_000)
+}
+
+/** Имя файла из `Content-Disposition`: `filename*` (UTF-8) важнее `filename`. */
+function dispositionName(header: string | null): string | null {
+  if (!header) return null
+  const encoded = /filename\*=UTF-8''([^;]+)/i.exec(header)?.[1]
+  if (encoded) return decodeURIComponent(encoded)
+  return /filename="([^"]+)"/i.exec(header)?.[1] ?? null
+}
+
+/**
+ * Выгрузка файлом (POST с телом запроса): ответ сохраняется под именем из
+ * `Content-Disposition`; ошибка — `ApiError`, как у `api`. Заголовки ответа —
+ * вызывающему (счётчики выгрузки).
+ */
+export async function downloadFile(
+  path: string,
+  body: unknown,
+  fallbackName = 'export',
+): Promise<Headers> {
+  const response = await fetch(new URL(`${BASE}${path}`, window.location.origin).toString(), {
+    method: 'POST',
+    headers: requestHeaders(path, 'POST', true),
+    credentials: 'same-origin',
+    body: JSON.stringify(body),
+  })
+  if (!response.ok) {
+    const text = await response.text()
+    const error = problemOf(response.status, text ? (JSON.parse(text) as unknown) : null)
+    if (response.status === 401) onUnauthorized?.()
+    throw error
+  }
+  const name = dispositionName(response.headers.get('content-disposition')) ?? fallbackName
+  saveBlob(await response.blob(), name)
+  return response.headers
 }
 
 export const http = {

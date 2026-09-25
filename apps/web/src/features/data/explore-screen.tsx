@@ -11,6 +11,7 @@ import {
   Button,
   Callout,
   Chart,
+  type ChartHandle,
   Dialog,
   DialogContent,
   EmptyState,
@@ -31,7 +32,7 @@ import {
 } from '@kchs/ui'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Save } from 'lucide-react'
-import { type ReactNode, useEffect, useMemo, useState } from 'react'
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
@@ -47,6 +48,7 @@ import {
 } from './explore-builder.js'
 import { type ExploreState, emptyExplore, exploreSpec } from './explore-query.js'
 import { datasetQuery } from './queries.js'
+import { chartHasImage, ResultExportMenu } from './result-export.js'
 
 const AUTO = '__auto'
 
@@ -83,6 +85,7 @@ export function ExploreScreen({
   const [view, setView] = useState<View>(savedState?.view ?? 'chart')
   const [chartType, setChartType] = useState<ChartType | null>(savedState?.chartType ?? null)
   const [saving, setSaving] = useState(false)
+  const chartRef = useRef<ChartHandle | null>(null)
 
   useEffect(() => {
     setTabState(tabId, { explore: state, view, chartType })
@@ -153,7 +156,13 @@ export function ExploreScreen({
   } else if (view === 'chart' && chartSpec) {
     body = (
       <div className="min-h-0 flex-1 overflow-auto p-4">
-        <Chart spec={chartSpec} result={labelled} height={460} pending={result.isFetching} />
+        <Chart
+          spec={chartSpec}
+          result={labelled}
+          height={460}
+          pending={result.isFetching}
+          handleRef={chartRef}
+        />
       </div>
     )
   } else {
@@ -217,15 +226,40 @@ export function ExploreScreen({
             </>
           }
           right={
-            <Button
-              variant="primary"
-              size="sm"
-              icon={<Save className="size-3.5" />}
-              disabled={!chartSpec}
-              onClick={() => setSaving(true)}
-            >
-              {t('data.explore.save')}
-            </Button>
+            <>
+              <ResultExportMenu
+                data={
+                  result.data
+                    ? {
+                        path: '/queries/export',
+                        body: {
+                          spec: JSON.parse(specKey),
+                          name: dataset.name,
+                          labels: Object.fromEntries(
+                            result.data.fields.map((field) => [
+                              field.name,
+                              columnLabel(field.name),
+                            ]),
+                          ),
+                        },
+                      }
+                    : null
+                }
+                chart={
+                  view === 'chart' && chartSpec && chartHasImage(chartSpec.type) ? chartRef : null
+                }
+                name={dataset.name}
+              />
+              <Button
+                variant="primary"
+                size="sm"
+                icon={<Save className="size-3.5" />}
+                disabled={!chartSpec}
+                onClick={() => setSaving(true)}
+              >
+                {t('data.explore.save')}
+              </Button>
+            </>
           }
         />
         <AskBox datasetId={datasetId} onAnswer={applyAnswer} />

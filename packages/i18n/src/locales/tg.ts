@@ -204,6 +204,7 @@ export const tg: DeepPartial<Dictionary> = {
       actions: 'Амалҳо',
     },
     grid: {
+      filtered: 'филтр гузошта шудааст',
       rowNumber: 'Рақами сатр',
       rows: '{count, plural, one {# сатр} other {# сатр}}',
       rowsApprox: 'тақрибан {count, plural, one {# сатр} other {# сатр}}',
@@ -3948,6 +3949,11 @@ export const tg: DeepPartial<Dictionary> = {
       system: 'Хизматӣ',
     },
     export: {
+      resultCsv: 'Маълумот — CSV',
+      resultXlsx: 'Маълумот — Excel (XLSX)',
+      resultPng: 'Тасвир — PNG',
+      resultTruncated: 'Натиҷа бурида шуд: дар файл {rows} сатри аввал — дархостро дақиқ кунед',
+      noImage: 'Тасвир танҳо дар диаграмма ҳаст — маълумоти ҷадвал ва ададро содир кунед',
       action: 'Содирот',
       title: 'Содироти «{name}»',
       format: 'Формат',
@@ -4710,6 +4716,16 @@ export const tg: DeepPartial<Dictionary> = {
       },
     },
     dashboard: {
+      print: 'Чоп ва PDF',
+      printPage: {
+        generated: 'Таҳия шуд {date}',
+        filters: 'Филтрҳо: {list}',
+        hint: 'Равзанаи чоп худ кушода мешавад; барои гирифтани PDF дар он «Ҳамчун PDF нигоҳ доштан»-ро интихоб кунед.',
+        print: 'Чоп',
+        mapFilters:
+          'Филтрҳои дашборд ба харитаҳои варақ татбиқ намешаванд — харитаҳо пурра нишон дода мешаванд.',
+        unavailable: 'Дашборд барои чоп кушода нашуд',
+      },
       drill: {
         rows: 'Сатрҳои унсури диаграмма',
         count: '{count, plural, one {# сатр} other {# сатр}}',

@@ -5,6 +5,7 @@ import {
   Button,
   Callout,
   Chart,
+  type ChartHandle,
   EmptyState,
   IconButton,
   InlineEdit,
@@ -16,7 +17,7 @@ import {
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { LayoutDashboard, Link2, RefreshCw, Share2, Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
@@ -29,6 +30,7 @@ import { keys, meQuery, objectQuery } from '~/shared/api/queries.js'
 import { brushFilter, brushLabel } from './brush-filter.js'
 import { AddToDashboardDialog } from './dashboard-dialogs.js'
 import { chartDataQuery, chartQuery, dataKeys, datasetQuery } from './queries.js'
+import { chartHasImage, ResultExportMenu } from './result-export.js'
 
 /**
  * График (06-analytics-engine.md §8): спецификация объекта и данные, посчитанные
@@ -43,6 +45,7 @@ export function ChartView({ objectId, tabId }: { objectId: string; tabId: string
   const [shareOpen, setShareOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [addingToDashboard, setAddingToDashboard] = useState(false)
+  const chartRef = useRef<ChartHandle | null>(null)
 
   const { data: object } = useQuery(objectQuery(objectId))
   const { data: me } = useQuery(meQuery())
@@ -104,6 +107,13 @@ export function ChartView({ objectId, tabId }: { objectId: string; tabId: string
   const canManage = ['manage', 'owner'].includes(level)
   const noAccess =
     data.error instanceof ApiError && (data.error.status === 403 || data.error.status === 404)
+  // Данные графика по датасету или сохранённому запросу — выгрузкой; у показателя — только картинка
+  const exportSpec =
+    'query' in chart.spec.data
+      ? chart.spec.data.query
+      : 'queryId' in chart.spec.data
+        ? { version: 1, source: { kind: 'query', id: chart.spec.data.queryId }, steps: [] }
+        : null
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -124,6 +134,20 @@ export function ChartView({ objectId, tabId }: { objectId: string; tabId: string
         right={
           <>
             <PresenceAvatars objectId={objectId} />
+            {data.data ? (
+              <ResultExportMenu
+                data={
+                  exportSpec
+                    ? {
+                        path: '/queries/export',
+                        body: { spec: exportSpec, params: chart.paramsDefaults, name: chart.name },
+                      }
+                    : null
+                }
+                chart={chartHasImage(chart.spec.type) ? chartRef : null}
+                name={chart.name}
+              />
+            ) : null}
             <Button
               variant="secondary"
               size="sm"
@@ -178,6 +202,7 @@ export function ChartView({ objectId, tabId }: { objectId: string; tabId: string
                 result={labelled ?? data.data}
                 height={520}
                 pending={data.isFetching}
+                handleRef={chartRef}
                 {...(me?.user.timezone ? { timezone: me.user.timezone } : {})}
                 {...(linkable && group && dataset
                   ? {

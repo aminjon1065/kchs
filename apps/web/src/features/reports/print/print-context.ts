@@ -1,6 +1,37 @@
-import type { Locale, QueryResult, ReportParams, ReportPrintBlock } from '@kchs/contracts'
+import {
+  type Locale,
+  type QueryResult,
+  REPORT_PRINT,
+  type ReportParams,
+  type ReportPrintBlock,
+} from '@kchs/contracts'
 import { formatValue } from '@kchs/fields'
 import { createContext, useContext, useEffect, useRef } from 'react'
+
+const DOM_SETTLE_LIMIT_MS = 60_000
+
+/** Сигнал движку и автотестам: страница печати готова или не открылась. */
+export function setPrintState(state: 'ready' | 'error'): void {
+  document.documentElement.setAttribute(REPORT_PRINT.stateAttribute, state)
+}
+
+/**
+ * Страница дорисована: графики ECharts закончили кадр, текст Tiptap и шрифты
+ * загружены. Карты к этому моменту уже сняты в картинки.
+ */
+export async function settleDom(): Promise<void> {
+  await document.fonts?.ready
+  const started = Date.now()
+  while (Date.now() - started < DOM_SETTLE_LIMIT_MS) {
+    const busy = document.querySelector(
+      '[data-chart-state="loading"], [data-rich-text-state="loading"], [data-map-state="loading"]',
+    )
+    if (!busy) break
+    await new Promise((resolve) => setTimeout(resolve, 100))
+  }
+  // Два кадра: последние изменения разметки успели нарисоваться
+  await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+}
 
 /** Страница печати: параметры отчёта и куда блок сообщает свою готовность. */
 export interface PrintContextValue {

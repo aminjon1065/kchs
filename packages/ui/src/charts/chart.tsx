@@ -7,7 +7,16 @@ import {
 import type { ChartSpec, QueryResult } from '@kchs/contracts'
 import type { EChartsType } from 'echarts/core'
 import { AlertCircle, BarChart3, Map as MapIcon, Table2 } from 'lucide-react'
-import { type ReactNode, useEffect, useId, useMemo, useRef, useState } from 'react'
+import {
+  type ReactNode,
+  type Ref,
+  useEffect,
+  useId,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { EmptyState } from '../components/feedback.js'
 import { useMediaQuery } from '../hooks/use-media-query.js'
 import { useUiLocale, useUiT } from '../i18n/ui-locale.js'
@@ -24,6 +33,42 @@ let runtime: Promise<Runtime> | null = null
 function loadRuntime(): Promise<Runtime> {
   runtime ??= import('./echarts-runtime.js')
   return runtime
+}
+
+/** Управление графиком снаружи: картинка для выгрузки «PNG». */
+export interface ChartHandle {
+  /** PNG кадра ECharts (вдвое плотнее экрана, на фоне карточки); null — у вида нет холста. */
+  image: () => Promise<Blob | null>
+}
+
+/** Фон под прозрачным кадром: первый непрозрачный фон вверх по дереву. */
+function backgroundOf(element: HTMLElement | null): string | null {
+  for (let node = element; node; node = node.parentElement) {
+    const color = getComputedStyle(node).backgroundColor
+    if (color && color !== 'transparent' && !/,\s*0\)$/.test(color)) return color
+  }
+  return null
+}
+
+async function chartImage(
+  instance: EChartsType,
+  element: HTMLElement | null,
+): Promise<Blob | null> {
+  const picture = new Image()
+  picture.src = instance.getDataURL({ type: 'png', pixelRatio: 2 })
+  await picture.decode()
+  const canvas = document.createElement('canvas')
+  canvas.width = picture.naturalWidth
+  canvas.height = picture.naturalHeight
+  const context = canvas.getContext('2d')
+  if (!context) return null
+  const background = backgroundOf(element)
+  if (background) {
+    context.fillStyle = background
+    context.fillRect(0, 0, canvas.width, canvas.height)
+  }
+  context.drawImage(picture, 0, 0)
+  return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
 }
 
 export interface ChartProps {
@@ -45,6 +90,8 @@ export interface ChartProps {
   onElementClick?: (pick: ChartPick) => void
   /** Выделение кистью закончено; null — выделение снято. */
   onBrush?: (filter: ChartFilter | null) => void
+  /** Картинка кадра для выгрузки (есть только у графиков ECharts). */
+  handleRef?: Ref<ChartHandle | null>
   className?: string
 }
 
@@ -57,6 +104,7 @@ interface EChartsViewProps {
   onElementClick?: (pick: ChartPick) => void
   onBrush?: (filter: ChartFilter | null) => void
   onReadyChange: (ready: boolean) => void
+  handleRef?: Ref<ChartHandle | null> | undefined
 }
 
 function EChartsView({
@@ -66,6 +114,7 @@ function EChartsView({
   onElementClick,
   onBrush,
   onReadyChange,
+  handleRef,
 }: EChartsViewProps) {
   const ref = useRef<HTMLDivElement>(null)
   const [chart, setChart] = useState<EChartsType | null>(null)
@@ -144,6 +193,11 @@ function EChartsView({
   }, [chart, option, brushType])
 
   useEffect(() => onReadyChange(ready), [ready, onReadyChange])
+  useImperativeHandle(
+    handleRef,
+    () => ({ image: () => (chart ? chartImage(chart, ref.current) : Promise.resolve(null)) }),
+    [chart],
+  )
 
   return (
     <div className="relative w-full" style={{ height }}>
@@ -176,6 +230,7 @@ export function Chart({
   direction,
   onElementClick,
   onBrush,
+  handleRef,
   className,
 }: ChartProps) {
   const t = useUiT()
@@ -240,6 +295,7 @@ export function Chart({
             onElementClick={onElementClick}
             onBrush={onBrush}
             onReadyChange={setEchartsReady}
+            handleRef={handleRef}
           />
         )
         break

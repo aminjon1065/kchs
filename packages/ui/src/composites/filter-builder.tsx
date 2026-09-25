@@ -1,7 +1,7 @@
 import type { FieldType, FilterCondition, FilterNode, FilterOperator } from '@kchs/contracts'
 import { formatDate, formatNumber, needsValue, operatorsFor } from '@kchs/fields'
 import { ListFilter, Plus, Trash2, X } from 'lucide-react'
-import { type ReactNode, useMemo, useState } from 'react'
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { useUiLocale, useUiT } from '../i18n/ui-locale.js'
 import { cn } from '../lib/cn.js'
 import { Button, IconButton } from '../primitives/button.js'
@@ -38,7 +38,18 @@ export interface FilterBuilderProps {
   renderValue?: (props: ValueEditorProps) => ReactNode | undefined
   /** Подпись значения в чипе для таких полей (имена людей вместо идентификаторов). */
   describeValue?: (field: FilterField, op: FilterOperator, value: unknown) => string | undefined
+  /**
+   * Добавить условие по этому полю: открывается поповер добавления с выбранным
+   * полем (пункт «Фильтр по столбцу» в меню столбца таблицы). Новый `nonce` —
+   * новый запрос.
+   */
+  request?: FilterFieldRequest | null
   className?: string
+}
+
+export interface FilterFieldRequest {
+  field: string
+  nonce: number
 }
 
 type RelativePreset = {
@@ -101,6 +112,12 @@ function defaultValue(field: FilterField, op: FilterOperator): unknown {
   return ''
 }
 
+/** Новое условие по полю: первый оператор типа и его значение по умолчанию. */
+function freshCondition(field: FilterField): FilterCondition {
+  const op = operatorsFor(field.type)[0] as FilterOperator
+  return { field: field.key, op, value: defaultValue(field, op) }
+}
+
 function isComplete(condition: FilterCondition): boolean {
   if (!needsValue(condition.op)) return true
   const value = condition.value
@@ -123,6 +140,7 @@ export function FilterBuilder({
   onChange,
   renderValue,
   describeValue,
+  request,
   className,
 }: FilterBuilderProps) {
   const t = useUiT()
@@ -162,6 +180,7 @@ export function FilterBuilder({
         <AddCondition
           fields={fields}
           renderValue={renderValue}
+          request={request ?? null}
           onAdd={(condition) => setItems([...items, condition])}
         />
         {items.length > 0 ? (
@@ -366,16 +385,33 @@ function GroupChip({
 function AddCondition({
   fields,
   renderValue,
+  request,
   onAdd,
 }: {
   fields: FilterField[]
   renderValue?: FilterBuilderProps['renderValue']
+  request: FilterFieldRequest | null
   onAdd: (condition: FilterCondition) => void
 }) {
   const t = useUiT()
   const [open, setOpen] = useState(false)
+  // Поле из запроса «Фильтр по столбцу»: редактор открывается сразу на нём
+  const [preset, setPreset] = useState<string | null>(null)
+  const handled = useRef<number | null>(null)
+  useEffect(() => {
+    if (!request || request.nonce === handled.current) return
+    handled.current = request.nonce
+    setPreset(request.field)
+    setOpen(true)
+  }, [request])
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next)
+        if (!next) setPreset(null)
+      }}
+    >
       <PopoverTrigger asChild>
         <Button variant="secondary" size="sm" icon={<ListFilter className="size-3.5" />}>
           {t('ui.filter.add')}
@@ -383,11 +419,14 @@ function AddCondition({
       </PopoverTrigger>
       <PopoverContent className="w-80">
         <ConditionEditor
+          key={preset ?? ''}
           fields={fields}
+          preset={preset}
           renderValue={renderValue}
           onApply={(condition) => {
             onAdd(condition)
             setOpen(false)
+            setPreset(null)
           }}
         />
       </PopoverContent>
@@ -400,16 +439,23 @@ function AddCondition({
 function ConditionEditor({
   fields,
   initial,
+  preset,
   renderValue,
   onApply,
 }: {
   fields: FilterField[]
   initial?: FilterCondition
+  /** Новое условие сразу по этому полю (его можно сменить). */
+  preset?: string | null
   renderValue?: FilterBuilderProps['renderValue']
   onApply: (condition: FilterCondition) => void
 }) {
   const t = useUiT()
-  const [draft, setDraft] = useState<FilterCondition | null>(initial ?? null)
+  const [draft, setDraft] = useState<FilterCondition | null>(() => {
+    if (initial) return initial
+    const field = preset ? fields.find((f) => f.key === preset) : undefined
+    return field ? freshCondition(field) : null
+  })
   const [query, setQuery] = useState('')
   const field = draft ? fields.find((f) => f.key === draft.field) : undefined
 
@@ -427,8 +473,7 @@ function ConditionEditor({
             const first = matches[0]
             if (event.key === 'Enter' && first) {
               event.preventDefault()
-              const op = operatorsFor(first.type)[0] as FilterOperator
-              setDraft({ field: first.key, op, value: defaultValue(first, op) })
+              setDraft(freshCondition(first))
             }
           }}
         />
@@ -437,10 +482,7 @@ function ConditionEditor({
             <li key={candidate.key}>
               <button
                 type="button"
-                onClick={() => {
-                  const op = operatorsFor(candidate.type)[0] as FilterOperator
-                  setDraft({ field: candidate.key, op, value: defaultValue(candidate, op) })
-                }}
+                onClick={() => setDraft(freshCondition(candidate))}
                 className="flex w-full items-center rounded-xs px-2 py-1.5 text-left text-sm hover:bg-surface-3 focus-visible:bg-surface-3 focus-visible:outline-none"
               >
                 {candidate.label}

@@ -7,6 +7,7 @@ import {
   type DatasetExportResult,
   type DatasetExportStarted,
   type DatasetRecord,
+  type FilterNode,
 } from '@kchs/contracts'
 import { formatNumber } from '@kchs/fields'
 import {
@@ -27,8 +28,9 @@ import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { exportJobQuery, isJobFinished } from './queries.js'
 
-/** Текущий вид таблицы: поиск, сортировка и видимые столбцы в их порядке. */
+/** Текущий вид таблицы: фильтры, поиск, сортировка и видимые столбцы в их порядке. */
 export interface TableView {
+  where?: FilterNode
   search: string
   sort: DatasetExportInput['sort']
   fields: string[]
@@ -89,6 +91,7 @@ export function ExportDialog({
       const body: DatasetExportInput = {
         format,
         sort: scope === 'view' ? view.sort : [],
+        ...(scope === 'view' && view.where ? { where: view.where } : {}),
         ...(scope === 'view' && view.search ? { search: view.search } : {}),
         ...(scope === 'view' && view.fields.length > 0 ? { fields: view.fields } : {}),
       }

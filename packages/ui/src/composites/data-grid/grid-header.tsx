@@ -51,6 +51,8 @@ interface GridHeaderProps {
   sort: ReadonlyArray<DataGridSortItem>
   sortable: boolean
   filterable: boolean
+  /** Столбцы под фильтром — значок в шапке. */
+  filtered?: readonly string[] | undefined
   /** Столбцы в выделении — подсвечиваются в шапке. */
   selLeft: number
   selRight: number
@@ -80,6 +82,7 @@ export const GridHeader = memo(function GridHeader({
   sort,
   sortable,
   filterable,
+  filtered,
   selLeft,
   selRight,
   menuKey,
@@ -148,6 +151,12 @@ export const GridHeader = memo(function GridHeader({
         ) : null}
         {sorted && sort.length > 1 ? (
           <span className="tabular text-2xs">{sortIndex + 1}</span>
+        ) : null}
+        {filtered?.includes(col.key) ? (
+          <>
+            <ListFilter aria-hidden className="size-3 shrink-0 text-accent" />
+            <span className="sr-only">{t('ui.grid.filtered')}</span>
+          </>
         ) : null}
       </>
     )

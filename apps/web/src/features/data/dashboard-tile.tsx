@@ -10,6 +10,7 @@ import {
   Callout,
   Card,
   Chart,
+  type ChartHandle,
   cn,
   Dialog,
   DialogContent,
@@ -26,7 +27,7 @@ import {
 } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp, SlidersHorizontal, Trash2 } from 'lucide-react'
-import { type ReactNode, useMemo, useState } from 'react'
+import { type ReactNode, useMemo, useRef, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { optionLabels, unlabelPick, useLabelledResult } from '~/features/gis/result-labels.js'
@@ -34,6 +35,7 @@ import { meQuery } from '~/shared/api/queries.js'
 import { DashboardMapTile, MapBindingsDialog } from './dashboard-map-tile.js'
 import { metricTileModel, periodText } from './metric-format.js'
 import { chartQuery, datasetQuery, metricQuery } from './queries.js'
+import { chartHasImage, type ResultData, ResultExportMenu } from './result-export.js'
 
 /** Высота строки сетки, px: обычный вид — auto-rows-[80px], TV — auto-rows-[112px]. */
 const ROW = 80
@@ -100,6 +102,7 @@ export function TileCard({
   onPick,
   large = false,
   refreshMs = null,
+  exportData = null,
 }: {
   tile: DashboardTile
   data: DashboardTileData | undefined
@@ -116,11 +119,14 @@ export function TileCard({
   large?: boolean
   /** Автообновление дашборда, мс: плитка-карта перечитывает слои с тем же периодом. */
   refreshMs?: number | null
+  /** Выгрузка данных плитки-графика с фильтрами дашборда (ADR-0159). */
+  exportData?: ResultData | null
 }) {
   const t = useT()
   const locale = useAppearance((s) => s.locale)
   const { data: me } = useQuery(meQuery())
   const [bindings, setBindings] = useState(false)
+  const chartRef = useRef<ChartHandle | null>(null)
   const height = Math.min(tile.h, 8)
   // Варианты выбора — подписями полей датасета-источника встроенного графика;
   // территории, подразделения и сотрудники — названиями (ADR-0057)
@@ -182,6 +188,7 @@ export function TileCard({
         result={result}
         height={height * (large ? TV_ROW : ROW) - 64}
         pending={pending}
+        handleRef={chartRef}
         {...(me?.user.timezone ? { timezone: me.user.timezone } : {})}
         {...(onPick && !editing
           ? { onElementClick: (pick: ChartPick) => onPick(unlabelPick(pick, original, result)) }
@@ -256,6 +263,13 @@ export function TileCard({
               <Trash2 className="size-3.5" />
             </IconButton>
           </span>
+        ) : tile.kind === 'chart' && !large && data?.spec && !data.error ? (
+          <ResultExportMenu
+            compact
+            data={exportData}
+            chart={chartHasImage(data.spec.type) ? chartRef : null}
+            name={tileTitle(tile, data, t)}
+          />
         ) : null
       }
     >

@@ -463,6 +463,14 @@ export async function checkRowPolicy(
  * `kchs_query` в транзакции только для чтения с тайм-аутом → колоночный результат.
  */
 export const QueryService = {
+  /** Датасеты и системные источники запроса — и через сохранённые запросы (право view на них). */
+  async sources(ctx: Ctx, spec: QuerySpec): Promise<{ datasets: string[]; system: string[] }> {
+    let sources = collectSources(spec)
+    const saved = await loadSavedQueries(ctx, sources.queries)
+    if (saved.size > 0) sources = collectSources(spec, saved)
+    return { datasets: sources.datasets, system: sources.system }
+  },
+
   async compile(
     ctx: Ctx,
     spec: QuerySpec,

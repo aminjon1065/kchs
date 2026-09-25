@@ -166,6 +166,7 @@ export const ru = {
       actions: 'Действия',
     },
     grid: {
+      filtered: 'есть фильтр',
       rowNumber: 'Номер строки',
       rows: '{count, plural, one {# строка} few {# строки} many {# строк} other {# строки}}',
       rowsApprox:
@@ -3712,6 +3713,11 @@ export const ru = {
       system: 'Служебное',
     },
     export: {
+      resultCsv: 'Данные — CSV',
+      resultXlsx: 'Данные — Excel (XLSX)',
+      resultPng: 'Картинка — PNG',
+      resultTruncated: 'Результат обрезан: в файл вошли первые {rows} строк — уточните запрос',
+      noImage: 'Картинка есть только у графика — у таблицы и числа выгрузите данные',
       action: 'Экспорт',
       title: 'Экспорт «{name}»',
       format: 'Формат',
@@ -4399,6 +4405,15 @@ export const ru = {
       inbox: { ready: 'Отчёт «{title}» — ознакомьтесь' },
     },
     dashboard: {
+      print: 'Печать и PDF',
+      printPage: {
+        generated: 'Сформирован {date}',
+        filters: 'Фильтры: {list}',
+        hint: 'Окно печати откроется само; чтобы получить PDF, выберите в нём «Сохранить как PDF».',
+        print: 'Печать',
+        mapFilters: 'Фильтры дашборда к картам на листе не применяются — карты показаны целиком.',
+        unavailable: 'Дашборд не открылся для печати',
+      },
       drill: {
         rows: 'Строки элемента графика',
         count: '{count, plural, one {# строка} few {# строки} many {# строк} other {# строки}}',

@@ -27,3 +27,13 @@ html[data-print] #root {
   display: block;
   overflow: visible;
 }
+
+/* Лист дашборда (ADR-0159): сетка плиток шире книжного листа — альбомный A4 */
+@page dashboard {
+  size: A4 landscape;
+  margin: 10mm;
+}
+
+html[data-print="dashboard"] body {
+  page: dashboard;
+}

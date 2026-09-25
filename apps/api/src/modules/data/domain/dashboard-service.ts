@@ -9,6 +9,7 @@ import type {
   DashboardSpec,
   DashboardTileData,
   DashboardUpdateInput,
+  QuerySpec,
 } from '@kchs/contracts'
 import { collectSources } from '@kchs/query'
 import { eq } from 'drizzle-orm'
@@ -206,30 +207,51 @@ export const DashboardService = {
   },
 
   /**
-   * Детализация плитки до строк: запрос графика с фильтрами дашборда по
-   * привязкам плитки, выбранный элемент — условия по разрезам (drill.ts);
-   * строки — с политиками смотрящего, как в таблице датасета.
+   * Запрос плитки-графика с фильтрами дашборда по её привязкам — как у данных
+   * плиток; для детализации и выгрузки. Только графики по датасету (`query`).
    */
-  async drill(ctx: Ctx, id: string, input: DashboardDrillInput): Promise<DashboardDrillResult> {
+  async tileQuery(
+    ctx: Ctx,
+    id: string,
+    tileId: string,
+    filters: Record<string, unknown>,
+    unsupported: string,
+  ): Promise<{ query: QuerySpec; title: string }> {
     const dashboard = await DashboardService.get(id)
-    const tile = dashboard.spec.tiles.find((item) => item.id === input.tileId)
+    const tile = dashboard.spec.tiles.find((item) => item.id === tileId)
     if (tile?.kind !== 'chart') throw errors.notFound('Плитка')
     let spec: ChartSpec
+    let title = tile.title ?? dashboard.name
     if (tile.chartId) {
       await authorize(ctx, 'view', tile.chartId)
-      spec = (await ChartService.get(tile.chartId)).spec
+      const chart = await ChartService.get(tile.chartId)
+      spec = chart.spec
+      title = tile.title ?? chart.name
     } else if (tile.spec) {
       spec = tile.spec
     } else {
       throw errors.validation('У плитки нет графика')
     }
     const query = 'query' in spec.data ? spec.data.query : null
-    if (!query) throw errors.validation('Детализация до строк доступна для графиков по датасету')
-    const filtered = applyDashboardFilters(
-      query,
-      dashboard.spec.filters,
-      tile.filterBindings,
+    if (!query) throw errors.validation(unsupported)
+    return {
+      query: applyDashboardFilters(query, dashboard.spec.filters, tile.filterBindings, filters),
+      title,
+    }
+  },
+
+  /**
+   * Детализация плитки до строк: запрос графика с фильтрами дашборда по
+   * привязкам плитки, выбранный элемент — условия по разрезам (drill.ts);
+   * строки — с политиками смотрящего, как в таблице датасета.
+   */
+  async drill(ctx: Ctx, id: string, input: DashboardDrillInput): Promise<DashboardDrillResult> {
+    const { query: filtered } = await DashboardService.tileQuery(
+      ctx,
+      id,
+      input.tileId,
       input.filters,
+      'Детализация до строк доступна для графиков по датасету',
     )
     const plan = drillSpec(filtered, input.pick, input.limit)
     const result = await QueryService.run(ctx, plan.spec, { rowMeta: true, count: true })

@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { FilterNode } from '../common/filter.js'
 import { BigIntString, Uuid } from '../common/primitives.js'
-import { QuerySortItem } from './query.js'
+import { QuerySortItem, QuerySpec } from './query.js'
 
 /**
  * Экспорт датасета (P1-E03 S04, ADR-0056): задание очереди `exports` читает
@@ -68,3 +68,45 @@ export type DatasetExportResult = z.infer<typeof DatasetExportResult>
 
 export const DatasetExportDownload = z.object({ url: z.string() })
 export type DatasetExportDownload = z.infer<typeof DatasetExportDownload>
+
+/**
+ * Выгрузка результата запроса (ADR-0159): «Исследование», сохранённый график и
+ * плитка дашборда — CSV или XLSX тем же писателем, что у экспорта датасета.
+ * Результат считается заново с политиками запросившего, файл отдаётся сразу в
+ * ответе (сводки маленькие; сырые строки — не больше `QUERY_EXPORT_MAX_ROWS`).
+ * Нужны способность `data.export` и действие `export` на каждом датасете запроса.
+ */
+export const QUERY_EXPORT_FORMATS = ['csv', 'xlsx'] as const
+export const QueryExportFormat = z.enum(QUERY_EXPORT_FORMATS)
+export type QueryExportFormat = z.infer<typeof QueryExportFormat>
+
+/** Больше строк результат не выгружает — ответ помечается заголовком `truncated`. */
+export const QUERY_EXPORT_MAX_ROWS = 100_000
+
+/** Заголовки ответа выгрузки: сколько строк в файле и обрезан ли результат. */
+export const QUERY_EXPORT_HEADERS = {
+  rows: 'x-kchs-export-rows',
+  truncated: 'x-kchs-export-truncated',
+} as const
+
+const ExportLabels = z.record(z.string().max(160), z.string().max(200)).default({})
+
+export const QueryExportInput = z.object({
+  spec: QuerySpec,
+  params: z.record(z.string(), z.unknown()).default({}),
+  format: QueryExportFormat,
+  /** Имя файла без расширения и даты: название графика, датасета или плитки. */
+  name: z.string().trim().min(1).max(200),
+  /** Подписи столбцов на языке интерфейса — как на экране (разрезы и меры). */
+  labels: ExportLabels,
+})
+export type QueryExportInput = z.infer<typeof QueryExportInput>
+
+/** Выгрузка данных плитки-графика дашборда — с фильтрами дашборда, как на экране. */
+export const DashboardTileExportInput = z.object({
+  tileId: z.string().min(1).max(64),
+  filters: z.record(z.string(), z.unknown()).default({}),
+  format: QueryExportFormat,
+  labels: ExportLabels,
+})
+export type DashboardTileExportInput = z.infer<typeof DashboardTileExportInput>

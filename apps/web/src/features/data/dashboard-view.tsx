@@ -31,7 +31,7 @@ import {
   useToast,
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Filter, Pencil, Plus, RefreshCw, Share2, Trash2, Tv, X } from 'lucide-react'
+import { Filter, Pencil, Plus, Printer, RefreshCw, Share2, Trash2, Tv, X } from 'lucide-react'
 import { type ReactNode, useEffect, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
@@ -40,6 +40,7 @@ import { ShareDialog } from '~/features/access/share-dialog.js'
 import { MapSlotsProvider } from '~/features/gis/map-slots.js'
 import { TerritorySelect } from '~/features/gis/territory-select.js'
 import { PresenceAvatars } from '~/features/objects/presence-avatars.js'
+import { dashboardPrintPath } from '~/features/reports/print/print-target.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { keys, objectListQuery, objectQuery } from '~/shared/api/queries.js'
 import { DrillSheet } from './dashboard-drill.js'
@@ -213,6 +214,17 @@ export function DashboardView({ objectId, tabId }: { objectId: string; tabId: st
               >
                 {t('data.dashboard.tv.enter')}
               </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={<Printer className="size-3.5" />}
+                disabled={tiles.length === 0}
+                onClick={() =>
+                  window.open(dashboardPrintPath(objectId, values), '_blank', 'noopener')
+                }
+              >
+                {t('data.dashboard.print')}
+              </Button>
               <IconButton
                 label={t('data.dashboard.refresh')}
                 onClick={() =>
@@ -300,6 +312,14 @@ export function DashboardView({ objectId, tabId }: { objectId: string; tabId: st
                   onRemove={() => setTiles(tiles.filter((item) => item.id !== tile.id))}
                   onPick={(pick) => setDrill({ tile, pick })}
                   refreshMs={refresh && !editing ? refresh * 1000 : null}
+                  exportData={
+                    tile.kind === 'chart'
+                      ? {
+                          path: `/dashboards/${objectId}/export`,
+                          body: { tileId: tile.id, filters: values },
+                        }
+                      : null
+                  }
                 />
               ))}
             </div>

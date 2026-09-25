@@ -1,4 +1,4 @@
-export { Chart, type ChartProps } from './charts/chart.js'
+export { Chart, type ChartHandle, type ChartProps } from './charts/chart.js'
 export { ChartTable, type ChartTableProps } from './charts/chart-table.js'
 export { NumberTile, type NumberTileProps } from './charts/number-tile.js'
 export * from './components/data-display.js'

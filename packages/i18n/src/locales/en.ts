@@ -168,6 +168,7 @@ export const en: DeepPartial<Dictionary> = {
       actions: 'Actions',
     },
     grid: {
+      filtered: 'filtered',
       rowNumber: 'Row number',
       rows: '{count, plural, one {# row} other {# rows}}',
       rowsApprox: 'about {count, plural, one {# row} other {# rows}}',
@@ -3652,6 +3653,11 @@ export const en: DeepPartial<Dictionary> = {
       system: 'System',
     },
     export: {
+      resultCsv: 'Data — CSV',
+      resultXlsx: 'Data — Excel (XLSX)',
+      resultPng: 'Image — PNG',
+      resultTruncated: 'Result truncated: the file holds the first {rows} rows — narrow the query',
+      noImage: 'Only a chart has an image — export the data of a table or a number',
       action: 'Export',
       title: 'Export «{name}»',
       format: 'Format',
@@ -4334,6 +4340,15 @@ export const en: DeepPartial<Dictionary> = {
       inbox: { ready: 'Report “{title}” — please review' },
     },
     dashboard: {
+      print: 'Print & PDF',
+      printPage: {
+        generated: 'Generated {date}',
+        filters: 'Filters: {list}',
+        hint: 'The print window opens by itself; to get a PDF, choose “Save as PDF” in it.',
+        print: 'Print',
+        mapFilters: 'Dashboard filters do not apply to maps on the sheet — maps are shown in full.',
+        unavailable: 'The dashboard could not be opened for printing',
+      },
       drill: {
         rows: 'Rows behind the chart element',
         count: '{count, plural, one {# row} other {# rows}}',

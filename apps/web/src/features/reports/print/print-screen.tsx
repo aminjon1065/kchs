@@ -1,7 +1,6 @@
 import {
   type Locale,
   PRINT_MODEL_VERSION,
-  REPORT_PRINT,
   type ReportBlock,
   type ReportPrintBlock,
   type ReportPrintModel,
@@ -15,6 +14,7 @@ import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { territoriesQuery } from '~/features/gis/queries.js'
 import { ApiError, http, setCsrfToken } from '~/shared/api/client.js'
+import { DashboardPrint } from './dashboard-print.js'
 import {
   PrintChart,
   PrintMap,
@@ -23,7 +23,7 @@ import {
   PrintQuery,
   PrintText,
 } from './print-blocks.js'
-import { type PrintContextValue, PrintProvider } from './print-context.js'
+import { type PrintContextValue, PrintProvider, setPrintState, settleDom } from './print-context.js'
 import type { PrintTarget } from './print-target.js'
 
 declare global {
@@ -31,30 +31,6 @@ declare global {
     /** Модель документа для движка (ADR-0078): `window.kchsPrint`. */
     kchsPrint?: ReportPrintModel | { error: string }
   }
-}
-
-const DOM_SETTLE_LIMIT_MS = 60_000
-
-function setPrintState(state: 'ready' | 'error'): void {
-  document.documentElement.setAttribute(REPORT_PRINT.stateAttribute, state)
-}
-
-/**
- * Страница дорисована: графики ECharts закончили кадр, текст Tiptap и шрифты
- * загружены. Карты к этому моменту уже сняты в картинки.
- */
-async function settleDom(): Promise<void> {
-  await document.fonts?.ready
-  const started = Date.now()
-  while (Date.now() - started < DOM_SETTLE_LIMIT_MS) {
-    const busy = document.querySelector(
-      '[data-chart-state="loading"], [data-rich-text-state="loading"], [data-map-state="loading"]',
-    )
-    if (!busy) break
-    await new Promise((resolve) => setTimeout(resolve, 100))
-  }
-  // Два кадра: последние изменения разметки успели нарисоваться
-  await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
 }
 
 /**
@@ -209,12 +185,20 @@ function PrintDocument({ payload }: { payload: ReportPrintPayload }) {
   )
 }
 
+/** Страницы печати вне оболочки: отчёт (ADR-0078) и дашборд (ADR-0159). */
+export default function PrintScreen({ target }: { target: PrintTarget }) {
+  if (target.kind === 'dashboard') {
+    return <DashboardPrint dashboardId={target.dashboardId} filters={target.filters} />
+  }
+  return <ReportPrint target={target} />
+}
+
 /**
  * Страница печати отчёта вне оболочки (03-screens.md §21, ADR-0078): браузер
  * движка со служебным токеном (cookie) или пользователь — предпросмотр и печать
  * своего запуска. Всегда светлая тема: печать — на бумаге.
  */
-export default function PrintScreen({ target }: { target: PrintTarget }) {
+function ReportPrint({ target }: { target: Exclude<PrintTarget, { kind: 'dashboard' }> }) {
   const t = useT()
   // Сессия пользователя (предпросмотр в новой вкладке) — CSRF-токен из /me;
   // у браузера движка сессии нет, и /me ему недоступен — это не ошибка

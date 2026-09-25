@@ -86,6 +86,8 @@ export interface DataGridProps {
    * (FilterBuilder над таблицей, QuerySpec `filter`), таблица только сообщает поле.
    */
   onColumnFilter?: (key: string) => void
+  /** Столбцы под фильтром родителя — значок фильтра в шапке. */
+  filteredKeys?: readonly string[]
   /** Раскладка столбцов; без неё таблица хранит раскладку сама. */
   columnState?: DataGridColumnState
   onColumnStateChange?: (state: DataGridColumnState) => void

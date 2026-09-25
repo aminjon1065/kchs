@@ -191,6 +191,7 @@ export function DataGrid({
   sort = NO_SORT,
   onSortChange,
   onColumnFilter,
+  filteredKeys,
   columnState,
   onColumnStateChange,
   onEdit,
@@ -1356,6 +1357,7 @@ export function DataGrid({
               sort={sort}
               sortable={Boolean(onSortChange)}
               filterable={Boolean(onColumnFilter)}
+              filtered={filteredKeys}
               selLeft={range ? range.left : -1}
               selRight={range ? range.right : -1}
               menuKey={menuKey}

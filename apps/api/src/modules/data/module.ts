@@ -116,6 +116,7 @@ import {
 import { SchemaService } from './domain/schema-service.js'
 import { SqlService } from './domain/sql-service.js'
 import { systemDatasetSchema } from './domain/system-schema.js'
+import { registerExportRoutes } from './export-module.js'
 import { Physical } from './infra/physical.js'
 import {
   registerNotebookBackground,
@@ -313,6 +314,7 @@ export function registerDataObjectTypes(): void {
 
 export function registerDataRoutes(route: RouteRegistrar): void {
   registerAnalysisRoutes(route)
+  registerExportRoutes(route)
   registerNotebookRoutes(route)
   registerPipelineRoutes(route)
   registerSourceRoutes(route)

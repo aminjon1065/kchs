@@ -59,7 +59,9 @@ export function App() {
   const [resetToken] = useState(resetTokenFromUrl)
   const [meetToken] = useState(meetTokenFromUrl)
   // Печать (03-screens.md §21): вне оболочки, без входа — у движка токен печати
-  const [printTarget] = useState(() => printTargetFromPath(window.location.pathname))
+  const [printTarget] = useState(() =>
+    printTargetFromPath(window.location.pathname, window.location.search),
+  )
 
   useEffect(() => {
     initAppearance()
