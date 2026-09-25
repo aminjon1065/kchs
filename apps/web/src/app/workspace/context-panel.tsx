@@ -38,7 +38,7 @@ import {
   Users,
   X,
 } from 'lucide-react'
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { AssistantPanel } from '~/features/assistant/assistant-panel.js'
 import { ManualRuleActions } from '~/features/automation/manual-rules.js'
 import { type ComposedMessage, MessageComposer } from '~/features/discussion/message-composer.js'
@@ -147,7 +147,11 @@ export function ContextPanel() {
           // Свои действия типа (для документа — резюме и черновик ответа,
           // ADR-0088) идут над общим диалогом с инструментами (ADR-0100)
           <div className="flex h-full min-h-0 flex-col">
-            {assistant ? <div className="shrink-0">{assistant(objectId)}</div> : null}
+            {assistant ? (
+              <div className="shrink-0">
+                <Suspense fallback={null}>{assistant(objectId)}</Suspense>
+              </div>
+            ) : null}
             <div className="min-h-0 flex-1">
               <AssistantPanel objectId={objectId} />
             </div>
@@ -181,7 +185,8 @@ function InfoTab({ objectId }: { objectId: string }) {
 
   return (
     <div className="flex flex-col gap-4 p-3">
-      {getObjectView(object.type)?.contextSection?.(objectId)}
+      {/* Раздел типа объекта грузится своим чанком вместе с представлением объекта */}
+      <Suspense fallback={null}>{getObjectView(object.type)?.contextSection?.(objectId)}</Suspense>
       <div className="flex items-start gap-2.5">
         <ObjectIcon type={object.type} className="mt-0.5 size-5 shrink-0 text-fg-muted" />
         <div className="min-w-0 flex-1">

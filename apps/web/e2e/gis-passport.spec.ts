@@ -169,5 +169,13 @@ test.describe('GIS: паспорт территории', () => {
     await expect(page.getByText(`Проверить дамбу ${run}`)).toBeVisible()
     await page.getByRole('navigation').getByRole('button', { name: 'Хатлонская область' }).click()
     await expect(page.getByRole('heading', { name: 'Хатлонская область' })).toBeVisible()
+
+    // Уборка: на общем стенде открытые поручения прогонов копились бы в паспорте района, и
+    // свежее уходило бы за пределы видимой части таблицы
+    const cancelled = await request.post(`/api/v1/tasks/${(await task.json()).id}/cancel`, {
+      headers,
+      data: { comment: 'Сценарий проверки завершён' },
+    })
+    expect(cancelled.ok(), await cancelled.text()).toBeTruthy()
   })
 })
