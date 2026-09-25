@@ -94,6 +94,11 @@ export const recordings = pgTable(
     startedBy: uuid('started_by').references(() => users.id, { onDelete: 'set null' }),
     startedAt: tsCol('started_at'),
     endedAt: tsCol('ended_at'),
+    /** Закреплена от удаления по сроку хранения (N29, ADR-0138) — кем и когда. */
+    pinnedAt: tsCol('pinned_at'),
+    pinnedBy: uuid('pinned_by').references(() => users.id, { onDelete: 'set null' }),
+    /** Организатора предупредили о скором удалении по сроку. */
+    retentionWarnedAt: tsCol('retention_warned_at'),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

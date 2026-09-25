@@ -480,6 +480,12 @@ export const EVENT_PAYLOADS = {
     sizeBytes: z.number().int().nullable(),
   }),
   'recording.failed': z.object({ meetingId: Uuid, error: z.string() }),
+  /** Запись закреплена от удаления по сроку хранения или откреплена (N29, ADR-0138). */
+  'recording.pinned': z.object({ meetingId: Uuid, pinned: z.boolean() }),
+  /** Организатора предупредили: запись удалится по сроку хранения. */
+  'recording.retention_warned': z.object({ meetingId: Uuid, expiresAt: Timestamp }),
+  /** Запись удалена по сроку хранения вместе с файлом и расшифровкой. */
+  'recording.expired': z.object({ meetingId: Uuid, fileId: Uuid.nullable() }),
   /** Расшифровка готова: сегменты с таймкодами привязаны к записи. */
   'transcript.ready': z.object({
     meetingId: Uuid,

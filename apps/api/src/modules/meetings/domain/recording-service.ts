@@ -22,6 +22,7 @@ import {
   startRoomRecording,
   stopRoomRecording,
 } from './recording-egress.js'
+import { expiryOf, keptByLinks, MeetingSettingsService } from './recording-retention.js'
 import { meetingsSpaceId } from './space.js'
 
 /** Способность вести запись встречи (11-communications-meetings.md §3). */
@@ -43,6 +44,8 @@ interface RecordingRow {
   startedBy: string | null
   startedAt: string | null
   endedAt: string | null
+  pinnedAt: string | null
+  retentionWarnedAt: string | null
   createdAt: string
   title: string
 }
@@ -63,6 +66,8 @@ const selectRecordings = (executor: Executor) =>
       startedBy: recordings.startedBy,
       startedAt: recordings.startedAt,
       endedAt: recordings.endedAt,
+      pinnedAt: recordings.pinnedAt,
+      retentionWarnedAt: recordings.retentionWarnedAt,
       createdAt: recordings.createdAt,
       title: objects.title,
     })
@@ -107,9 +112,18 @@ function recordingFileName(title: string): string {
   return `${title}.mp4`
 }
 
+/** Срок хранения записей: срок установки и записи, попавшие в протокол или дело (N29). */
+async function retentionOf(rows: RecordingRow[]) {
+  const [{ recordingRetentionMonths: months }, kept] = await Promise.all([
+    MeetingSettingsService.current(),
+    keptByLinks(rows.map((row) => row.id)),
+  ])
+  return (row: RecordingRow) => expiryOf(row, months, kept.has(row.id))?.toISOString() ?? null
+}
+
 async function toRecord(
   row: RecordingRow,
-  options: { canStop: boolean },
+  options: { canStop: boolean; canPin?: boolean; expiresAt?: string | null },
 ): Promise<RecordingRecord> {
   const refs = row.startedBy ? await directory().refs([row.startedBy]) : null
   const live = row.status === 'starting' || row.status === 'active'
@@ -127,7 +141,9 @@ async function toRecord(
     fileName: row.fileId ? recordingFileName(row.title) : null,
     transcriptStatus: row.transcriptStatus as TranscriptStatus,
     error: row.error,
-    can: { stop: live && options.canStop },
+    pinnedAt: row.pinnedAt,
+    expiresAt: options.expiresAt ?? null,
+    can: { stop: live && options.canStop, pin: !live && (options.canPin ?? false) },
     createdAt: row.createdAt,
   }
 }
@@ -286,7 +302,44 @@ export const RecordingService = {
     const canStop = hasCapability(ctx, RECORD_CAPABILITY)
       ? (await authorize(ctx, 'end', row.meetingId, { soft: true })).allowed
       : false
-    return toRecord(row, { canStop })
+    const canPin = (await authorize(ctx, 'edit', recordingId, { soft: true })).allowed
+    const expires = await retentionOf([row])
+    return toRecord(row, { canStop, canPin, expiresAt: expires(row) })
+  },
+
+  /**
+   * Закрепить запись от удаления по сроку хранения или открепить (N29,
+   * ADR-0138) — организатор. Предупреждение о сроке после этого — заново.
+   */
+  async pin(ctx: UserCtx, recordingId: string, pinned: boolean): Promise<RecordingRecord> {
+    await authorize(ctx, 'edit', recordingId)
+    const row = await loadRecording(db(), recordingId)
+    if (!row) throw errors.notFound('Запись')
+    if (row.status !== 'ready' && row.status !== 'failed') {
+      throw errors.conflict('Запись ещё идёт', { status: row.status })
+    }
+    await db().transaction(async (tx) => {
+      await tx
+        .update(recordings)
+        .set({
+          pinnedAt: pinned ? sql`now()` : null,
+          pinnedBy: pinned ? (ctx.onBehalfOf ?? ctx.userId) : null,
+          retentionWarnedAt: null,
+          updatedAt: sql`now()`,
+        })
+        .where(eq(recordings.id, recordingId))
+      await publishEvent(tx, ctx, {
+        type: 'recording.pinned',
+        object: {
+          id: recordingId,
+          type: 'recording',
+          spaceId: await meetingsSpaceId(tx),
+          title: row.title,
+        },
+        payload: { meetingId: row.meetingId, pinned },
+      })
+    })
+    return RecordingService.get(ctx, recordingId)
   },
 
   /** Записи встречи: доступны тем же, кому доступна сама встреча. */
@@ -298,8 +351,13 @@ export const RecordingService = {
     const canStop = hasCapability(ctx, RECORD_CAPABILITY)
       ? (await authorize(ctx, 'end', meetingId, { soft: true })).allowed
       : false
+    const expires = await retentionOf(rows)
     const items: RecordingRecord[] = []
-    for (const row of rows) items.push(await toRecord((await reconcile(row)) ?? row, { canStop }))
+    for (const row of rows) {
+      const current = (await reconcile(row)) ?? row
+      const canPin = (await authorize(ctx, 'edit', row.id, { soft: true })).allowed
+      items.push(await toRecord(current, { canStop, canPin, expiresAt: expires(current) }))
+    }
     return items
   },
 

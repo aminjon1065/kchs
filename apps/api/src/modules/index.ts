@@ -84,6 +84,7 @@ import {
   registerMeetingsBackground,
   registerMeetingsObjectTypes,
   registerMeetingsRoutes,
+  scheduleMeetingsJobs,
 } from './meetings/module.js'
 import { registerPushChannel, registerPushRoutes } from './push/module.js'
 import {
@@ -230,6 +231,7 @@ export async function scheduleModuleJobs(): Promise<void> {
   await scheduleIntegrationsJobs()
   await scheduleAutomationJobs()
   scheduleFormsJobs()
+  scheduleMeetingsJobs()
   scheduleAlertJobs()
   await scheduleDataJobs()
 }

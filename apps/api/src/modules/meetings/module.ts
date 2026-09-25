@@ -3,7 +3,9 @@ import { inArray } from 'drizzle-orm'
 import { registerCollabType } from '~/kernel/collab/registry.js'
 import { registerSubscriber } from '~/kernel/events/bus.js'
 import { registerFeature } from '~/kernel/features/registry.js'
+import { registerJobHandler } from '~/kernel/jobs/runner.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
+import { declareSchedule } from '~/kernel/schedules/index.js'
 import { DocumentsPrint } from '~/modules/documents/public.js'
 import { db } from '~/shared/db/client.js'
 import { meetings, recordings } from '~/shared/db/schema/index.js'
@@ -13,6 +15,7 @@ import { protocolPrintForm } from './domain/protocol-print.js'
 import { ProtocolService } from './domain/protocol-service.js'
 import { protocolSubscribers } from './domain/protocol-subscribers.js'
 import { setTranscriptSource } from './domain/protocol-transcript.js'
+import { RecordingRetention } from './domain/recording-retention.js'
 import { TranscriptService } from './domain/transcript-service.js'
 import { registerMeetingsGuestRoutes } from './http/guest-routes.js'
 import { registerMeetingRecordingRoutes } from './http/recording-routes.js'
@@ -187,8 +190,26 @@ function registerProtocolType(): void {
   })
 }
 
-/** Подписчики встреч, звонков и протокола — только в роли worker. */
+/** Подписчики встреч, звонков и протокола, срок хранения записей — только в роли worker. */
 export function registerMeetingsBackground(): void {
   registerMeetingRealtime()
   for (const subscriber of protocolSubscribers) registerSubscriber(subscriber)
+
+  registerJobHandler({
+    queue: 'maintenance',
+    name: 'meetings.recordings-retention',
+    concurrency: 1,
+    handle: async () => ({ ...(await RecordingRetention.run()) }),
+  })
+}
+
+/** Регулярные задания встреч — через единый планировщик ядра (ADR-0096). */
+export function scheduleMeetingsJobs(): void {
+  declareSchedule({
+    queue: 'maintenance',
+    name: 'meetings.recordings-retention',
+    // Раз в сутки ночью: предупреждение за неделю и удаление записей по сроку (N29)
+    pattern: '25 3 * * *',
+    labelKey: 'schedules.jobs.recordingsRetention',
+  })
 }

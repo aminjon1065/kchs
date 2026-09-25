@@ -51,9 +51,30 @@ export const RECORDING_MIME = 'video/mp4'
 /** Задание расшифровки: очередь движка и имя обработчика (ADR-0035). */
 export const TRANSCRIBE_JOB = { queue: 'media', name: 'media.transcribe' } as const
 
+/**
+ * Срок хранения записей встреч (N29, ADR-0138): по умолчанию 6 месяцев от
+ * окончания записи; за неделю до удаления организатор получает предупреждение и
+ * может закрепить запись. Записи, связанные с протоколом или документом (дело),
+ * и закреплённые не удаляются.
+ */
+export const RECORDING_RETENTION_DEFAULT_MONTHS = 6
+export const RECORDING_RETENTION_WARNING_DAYS = 7
+
+export const MeetingSettings = z.object({
+  /** Срок хранения записей встреч, месяцев; 0 — хранить бессрочно. */
+  recordingRetentionMonths: z.number().int().min(0).max(120),
+})
+export type MeetingSettings = z.infer<typeof MeetingSettings>
+
+/** Закрепить запись — срок хранения на неё не действует; открепить — снова действует. */
+export const RecordingPinInput = z.object({ pinned: z.boolean() })
+export type RecordingPinInput = z.infer<typeof RecordingPinInput>
+
 export const RecordingPermissions = z.object({
   /** Остановить запись: способность `meetings.record` и право вести встречу. */
   stop: z.boolean(),
+  /** Закрепить или открепить запись от удаления по сроку — организатор (N29). */
+  pin: z.boolean(),
 })
 export type RecordingPermissions = z.infer<typeof RecordingPermissions>
 
@@ -73,6 +94,13 @@ export const RecordingRecord = z.object({
   fileName: z.string().nullable(),
   transcriptStatus: TranscriptStatus,
   error: z.string().nullable(),
+  /** Закреплена от удаления по сроку хранения (N29). */
+  pinnedAt: Timestamp.nullable(),
+  /**
+   * Когда запись удалится по сроку хранения; null — не удалится: закреплена,
+   * связана с протоколом или документом, срок выключен или запись ещё идёт.
+   */
+  expiresAt: Timestamp.nullable(),
   can: RecordingPermissions,
   createdAt: Timestamp,
 })

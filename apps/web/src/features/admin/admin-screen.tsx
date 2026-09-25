@@ -59,6 +59,7 @@ import {
   ToggleLeft,
   UserPlus,
   Users,
+  Video,
   Workflow,
   Zap,
 } from 'lucide-react'
@@ -91,6 +92,7 @@ import { DirectorySection } from './directory-section.js'
 import { FeaturesSection } from './features-section.js'
 import { GisServicesSection } from './gis-services-section.js'
 import { IntegrationsSection } from './integrations-section.js'
+import { MeetingsSection } from './meetings-section.js'
 import { CreateUnitDialog } from './org-management.js'
 import { OrgUnitEditor } from './org-unit-editor.js'
 import { RolesSection } from './roles-section.js'
@@ -121,6 +123,7 @@ type Section =
   | 'directory'
   | 'sso'
   | 'tasks'
+  | 'meetings'
   | 'processes'
   | 'integrations'
   | 'apiTokens'
@@ -258,6 +261,12 @@ export function AdminScreen() {
       visible: isSystemAdmin,
     },
     {
+      value: 'meetings',
+      label: t('admin.sections.meetings'),
+      icon: <Video className="size-3.5" />,
+      visible: isSystemAdmin,
+    },
+    {
       value: 'processes',
       label: t('admin.sections.processes'),
       icon: <Route className="size-3.5" />,
@@ -374,6 +383,9 @@ export function AdminScreen() {
             </TabsContent>
             <TabsContent value="tasks" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
               <TasksSection />
+            </TabsContent>
+            <TabsContent value="meetings" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
+              <MeetingsSection />
             </TabsContent>
             <TabsContent value="apiTokens" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
               <ApiTokensSection />

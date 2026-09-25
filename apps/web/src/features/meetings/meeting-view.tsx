@@ -307,6 +307,17 @@ function RecordingsSection({ meetingId }: { meetingId: string }) {
             <Badge tone={recording.status === 'ready' ? 'success' : 'neutral'} size="sm">
               {t(`meetings.recording.status.${recording.status}`)}
             </Badge>
+            {recording.pinnedAt ? (
+              <Badge tone="accent" size="sm">
+                {t('meetings.recording.retention.pinned')}
+              </Badge>
+            ) : recording.expiresAt ? (
+              <span className="text-xs text-fg-muted">
+                {t('meetings.recording.retention.expires', {
+                  date: formatDateTime(recording.expiresAt, { locale }),
+                })}
+              </span>
+            ) : null}
           </li>
         ))}
       </ul>

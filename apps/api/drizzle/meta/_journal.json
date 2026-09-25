@@ -372,6 +372,13 @@
       "when": 1790313223433,
       "tag": "20260925051343_meetings-protocol-print",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1790313258159,
+      "tag": "20260925051418_meetings-recording-retention",
+      "breakpoints": true
     }
   ]
 }

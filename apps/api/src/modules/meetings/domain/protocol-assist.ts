@@ -14,6 +14,7 @@ import { effectiveConfidentiality } from '~/kernel/access/confidentiality.js'
 import { CollabService } from '~/kernel/collab/server.js'
 import { directory } from '~/kernel/directory/port.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
+import { LinkService } from '~/kernel/links/service.js'
 import { AiService } from '~/modules/ai/public.js'
 import { config } from '~/shared/config/index.js'
 import type { UserCtx } from '~/shared/context.js'
@@ -226,6 +227,12 @@ export const ProtocolAssist = {
         .update(protocols)
         .set({ status: 'draft', updatedAt: sql`now()` })
         .where(eq(protocols.id, protocolId))
+      // Расшифровка записи попала в протокол — запись не удалится по сроку (N29)
+      if (transcript?.recordingId) {
+        await LinkService.link(tx, ctx, protocolId, transcript.recordingId, 'source', {
+          reason: 'transcript',
+        })
+      }
       await publishEvent(tx, ctx, {
         type: 'protocol.drafted',
         object: { id: protocolId, type: 'protocol', spaceId: row.spaceId, title: row.title },

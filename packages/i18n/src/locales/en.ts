@@ -1046,6 +1046,8 @@ export const en: DeepPartial<Dictionary> = {
       alertFired: 'Alert “{title}”: {message}',
       automation: '{text}',
       meetingSecretary: 'You are the secretary of “{title}”: you keep the minutes',
+      recordingExpiring:
+        'The recording of “{title}” will be deleted on {date} — pin it if you need it',
       announcement: 'Announcement: {title}',
       taskAssigned: '{actor} assigned “{title}” to you',
       taskAccepted: '{actor} accepted “{title}”',
@@ -6121,7 +6123,23 @@ export const en: DeepPartial<Dictionary> = {
       denied: 'Minutes are not available',
       deniedHint: 'Access to the meeting changed — reload the page',
     },
+    settings: {
+      title: 'Meetings',
+      retention: 'Recording retention, months',
+      retentionHint:
+        '0 — keep forever. A week before deletion the organizer is warned and can pin the recording; recordings linked to minutes or a document are never deleted.',
+      save: 'Save',
+      saved: 'Meeting settings saved',
+    },
     recording: {
+      retention: {
+        expires: 'deleted on {date}',
+        pinned: 'Pinned',
+        pin: 'Pin',
+        unpin: 'Unpin',
+        pinnedToast: 'The recording is pinned — retention no longer applies to it',
+        unpinnedToast: 'The recording is unpinned — retention applies again',
+      },
       listTitle: 'Meeting recordings',
       download: 'Download recording',
       live: 'The meeting is being recorded',
@@ -6546,6 +6564,7 @@ export const en: DeepPartial<Dictionary> = {
       dataSources: 'Data sources',
       businessCalendar: 'Business calendar',
       tasks: 'Assignments',
+      meetings: 'Meetings',
       processes: 'Process routes',
       directory: 'Directory (LDAP/AD)',
       sso: 'Single sign-on',
@@ -8010,6 +8029,7 @@ export const en: DeepPartial<Dictionary> = {
       automationPrune: 'Rules: run log cleanup',
       automationResume: 'Rules: resume stuck runs',
       formsControl: 'Data forms: periods, reminders and overdue',
+      recordingsRetention: 'Meetings: recording retention',
       formsPrune: 'Data forms: prune reminder marks',
       identityPrune: 'Sign-in: prune expired sessions and abandoned sign-in attempts',
       alertsCheck: 'Alerts: check metrics',

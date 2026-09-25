@@ -1,3 +1,5 @@
+import type { RecordingRecord } from '@kchs/contracts'
+import { formatDate } from '@kchs/fields'
 import {
   Badge,
   Button,
@@ -8,16 +10,18 @@ import {
   PanelToolbar,
   Skeleton,
   Spinner,
+  useToast,
 } from '@kchs/ui'
-import { useQuery } from '@tanstack/react-query'
-import { Download, Video } from 'lucide-react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Download, Pin, PinOff, Video } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { useWorkspace } from '~/app/workspace/store.js'
 import { saveLink } from '~/features/documents/print/renders.js'
 import { useFileDownload } from '~/features/files/use-file-download.js'
-import { ApiError } from '~/shared/api/client.js'
-import { playbackQuery, recordingQuery, transcriptQuery } from './queries.js'
+import { ApiError, http } from '~/shared/api/client.js'
+import { playbackQuery, recordingKeys, recordingQuery, transcriptQuery } from './queries.js'
 import { TranscriptPanel, transcriptText } from './transcript-panel.js'
 
 const TONE = {
@@ -40,8 +44,29 @@ export default function RecordingView({ objectId, tabId }: { objectId: string; t
   const video = useRef<HTMLVideoElement>(null)
   const [currentTime, setCurrentTime] = useState(0)
   const download = useFileDownload()
+  const locale = useAppearance((s) => s.locale)
+  const toast = useToast()
+  const client = useQueryClient()
 
   const { data: record, isLoading, error, refetch } = useQuery(recordingQuery(objectId))
+  // Закрепить от удаления по сроку хранения (N29): решает организатор
+  const pin = useMutation({
+    mutationFn: (pinned: boolean) =>
+      http.post<RecordingRecord>(`/recordings/${objectId}/pin`, { pinned }),
+    onSuccess: (next) => {
+      client.setQueryData(recordingKeys.recording(objectId), next)
+      toast.show({
+        title: t(
+          next.pinnedAt
+            ? 'meetings.recording.retention.pinnedToast'
+            : 'meetings.recording.retention.unpinnedToast',
+        ),
+        tone: 'success',
+      })
+    },
+    onError: (failure) =>
+      toast.error(failure instanceof ApiError ? failure.message : t('errors.unknown')),
+  })
   const { data: playback } = useQuery(playbackQuery(record?.fileId ?? null))
   const { data: transcript } = useQuery(
     transcriptQuery(objectId, record?.status === 'ready' || record?.transcriptStatus === 'ready'),
@@ -108,20 +133,52 @@ export default function RecordingView({ objectId, tabId }: { objectId: string; t
             <Badge tone={TONE[record.status]}>
               {t(`meetings.recording.status.${record.status}`)}
             </Badge>
+            {record.pinnedAt ? (
+              <Badge tone="accent">{t('meetings.recording.retention.pinned')}</Badge>
+            ) : record.expiresAt ? (
+              <Badge tone="warning">
+                {t('meetings.recording.retention.expires', {
+                  date: formatDate(record.expiresAt, { locale }),
+                })}
+              </Badge>
+            ) : null}
           </>
         }
         right={
-          record.fileId ? (
-            <Button
-              size="sm"
-              variant="secondary"
-              icon={<Download className="size-3.5" aria-hidden />}
-              disabled={download.isPending}
-              onClick={() => download.mutate({ fileId: record.fileId as string })}
-            >
-              {t('meetings.recording.download')}
-            </Button>
-          ) : null
+          <>
+            {record.can.pin ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                icon={
+                  record.pinnedAt ? (
+                    <PinOff className="size-3.5" aria-hidden />
+                  ) : (
+                    <Pin className="size-3.5" aria-hidden />
+                  )
+                }
+                disabled={pin.isPending}
+                onClick={() => pin.mutate(!record.pinnedAt)}
+              >
+                {t(
+                  record.pinnedAt
+                    ? 'meetings.recording.retention.unpin'
+                    : 'meetings.recording.retention.pin',
+                )}
+              </Button>
+            ) : null}
+            {record.fileId ? (
+              <Button
+                size="sm"
+                variant="secondary"
+                icon={<Download className="size-3.5" aria-hidden />}
+                disabled={download.isPending}
+                onClick={() => download.mutate({ fileId: record.fileId as string })}
+              >
+                {t('meetings.recording.download')}
+              </Button>
+            ) : null}
+          </>
         }
       />
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">

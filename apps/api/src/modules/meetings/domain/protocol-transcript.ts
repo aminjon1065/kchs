@@ -10,6 +10,11 @@ export interface TranscriptText {
   text: string
   /** Текст обрезан по лимиту запроса. */
   truncated: boolean
+  /**
+   * Запись, чья расшифровка использована: протокол связывается с ней — запись,
+   * попавшая в протокол, не удаляется по сроку хранения (N29, ADR-0138).
+   */
+  recordingId?: string
 }
 
 export interface TranscriptSource {

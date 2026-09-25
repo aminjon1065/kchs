@@ -156,7 +156,7 @@ export const TranscriptService = {
    */
   async textOf(meetingId: string, limit: number): Promise<TranscriptText | null> {
     const [row] = await db()
-      .select({ segments: transcripts.segments })
+      .select({ segments: transcripts.segments, recordingId: transcripts.recordingId })
       .from(transcripts)
       .innerJoin(recordings, eq(recordings.id, transcripts.recordingId))
       .where(and(eq(recordings.meetingId, meetingId), eq(recordings.transcriptStatus, 'ready')))
@@ -176,6 +176,6 @@ export const TranscriptService = {
       }
       text += text ? `\n${line}` : line
     }
-    return { text, truncated }
+    return { text, truncated, recordingId: row.recordingId }
   },
 }
