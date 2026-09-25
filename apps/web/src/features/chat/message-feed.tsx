@@ -100,7 +100,7 @@ type Dialog =
  * Кто печатает в беседе — по сигналам `typing` шлюза (ADR-0161); каждый гаснет
  * через `TYPING_TTL_MS`, если сигнал не повторился.
  */
-function useTyping(conversationId: string): string[] {
+function useTyping(conversationId: string, myId: string | null): string[] {
   const [typers, setTypers] = useState<Record<string, { name: string; until: number }>>({})
   useEffect(() => {
     setTypers({})
@@ -114,7 +114,8 @@ function useTyping(conversationId: string): string[] {
         userId?: string
         displayName?: string
       }
-      if (from !== conversationId || !userId) return
+      // Свой сигнал с другой вкладки — не «кто-то печатает»
+      if (from !== conversationId || !userId || userId === myId) return
       setTypers((current) => ({
         ...current,
         [userId]: { name: displayName ?? '', until: Date.now() + TYPING_TTL_MS },
@@ -131,7 +132,7 @@ function useTyping(conversationId: string): string[] {
       off()
       window.clearInterval(timer)
     }
-  }, [conversationId])
+  }, [conversationId, myId])
   return Object.values(typers).map((typer) => typer.name)
 }
 
@@ -216,7 +217,6 @@ export function MessageFeed({
   // Выбор сообщений для пересылки: null — обычный режим ленты
   const [selected, setSelected] = useState<string[] | null>(null)
   const typingSentRef = useRef(0)
-  const typing = typingLabel(useTyping(conversation.id), t)
   // Отметки прочтения — в беседах с участниками; у обсуждения объекта их нет
   const receiptsOn = conversation.kind !== 'object'
 
@@ -227,6 +227,7 @@ export function MessageFeed({
   const { data: me } = useQuery(meQuery())
   const { data: members } = useQuery(chatMembersQuery(receiptsOn ? conversation.id : null))
   const myId = me?.user.id ?? null
+  const typing = typingLabel(useTyping(conversation.id, myId), t)
 
   const messages = data?.items ?? []
   const lastId = messages.at(-1)?.id ?? null

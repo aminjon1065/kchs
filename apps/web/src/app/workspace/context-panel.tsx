@@ -146,7 +146,7 @@ export function ContextPanel() {
         ) : contextTab === 'links' ? (
           <LinksTab objectId={objectId} />
         ) : contextTab === 'discussion' ? (
-          <DiscussionTab objectId={objectId} />
+          <DiscussionTab key={objectId} objectId={objectId} />
         ) : contextTab === 'activity' ? (
           <ActivityTab objectId={objectId} />
         ) : contextTab === 'assistant' ? (
