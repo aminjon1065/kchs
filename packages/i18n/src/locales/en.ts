@@ -6546,6 +6546,18 @@ export const en: DeepPartial<Dictionary> = {
   profile: {
     fontSize: 'Font size',
     fontSizes: { s: 'Smaller', m: 'Normal', l: 'Larger' },
+    mail: {
+      title: 'Mail',
+      hint: 'Your Committee mailbox. Sign in to webmail and mail apps with the mailbox address and the mail password — it is separate from your KChS Portal password.',
+      issue: 'Get a mail password',
+      reissue: 'New mail password',
+      revoke: 'Revoke password',
+      revoked: 'Mail password revoked: mail still arrives, but the mailbox cannot be opened',
+      webmail: 'Open webmail',
+      password: 'Mail password',
+      passwordOnce:
+        'The password is shown once — write it down. The previous password no longer works.',
+    },
     apiTokens: {
       title: 'My API tokens',
       hint: 'An integration needs a token to call the API on your behalf. It never grants more than you have: scopes only narrow your rights.',

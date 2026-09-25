@@ -379,6 +379,9 @@ services:
       # пусто — встроенные, известные всем, кто видел код
       SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
       SEED_USER_PASSWORD: ${SEED_USER_PASSWORD:-}
+    # Каталог настроек почтового сервера: сюда платформа пишет файл учёток (ADR-0150)
+    volumes:
+      - ${MAIL_CONFIG_VOLUME:-mailconfig}:/var/lib/kchs/mail
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
@@ -405,6 +408,9 @@ services:
       timeout: 5s
       retries: 3
       start_period: 60s
+    # Каталог настроек почтового сервера: сюда платформа пишет файл учёток (ADR-0150)
+    volumes:
+      - ${MAIL_CONFIG_VOLUME:-mailconfig}:/var/lib/kchs/mail
     depends_on:
       # Миграции и системные роли готовит api при старте
       api: { condition: service_healthy }

@@ -10,7 +10,8 @@ Node на сервере не нужен — всё работает в конт
 `worker`, `engine` (движок: превью, геоформаты, распознавание), `postgres` с
 PostGIS и pgvector, `redis`, `minio`, `meilisearch`, `mailpit`. Отдельными
 профилями поднимаются `livekit` (встречи), `onlyoffice` (офисный редактор),
-наблюдаемость (`alloy`, `tempo`, `loki`, `prometheus`, `grafana`).
+наблюдаемость (`alloy`, `tempo`, `loki`, `prometheus`, `grafana`), почта Комитета
+(`mailserver`, `webmail` — профиль `mail`, [31](31-admin-mail.md)).
 
 ## Установка
 

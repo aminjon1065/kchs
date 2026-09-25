@@ -21,6 +21,7 @@ import { ApiError, http, setCsrfToken } from '~/shared/api/client.js'
 import { keys, meQuery } from '~/shared/api/queries.js'
 import { ApiTokensCard } from './api-tokens-card.js'
 import { DelegationCard } from './delegation-card.js'
+import { MailCard } from './mail-card.js'
 import { MfaCard } from './mfa-card.js'
 import { NotificationSettingsCard } from './notification-settings-card.js'
 import { PasskeysCard } from './passkeys-card.js'
@@ -209,6 +210,7 @@ export function ProfileScreen() {
 
         <PasskeysCard />
 
+        <MailCard />
         <TelegramCard />
 
         <PushCard />
