@@ -786,6 +786,30 @@ const FIXTURES: Record<string, TypeFixture> = {
     ],
   },
 
+  // Серия повторяющихся задач (ADR-0156) — в пространстве матрицы, как задача
+  task_series: {
+    create: async (fx, title) => {
+      const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10)
+      const response = await call(fx.app, {
+        method: 'POST',
+        url: '/task-series',
+        as: fx.admin,
+        payload: {
+          template: { kind: 'task', title, spaceId: fx.spaceId },
+          rule: { freq: 'daily', interval: 1, time: '09:00' },
+          startsOn: tomorrow,
+        },
+      })
+      expect(response.statusCode, response.body).toBe(200)
+      return { id: response.json().id, title }
+    },
+    readPaths: ['/task-series/:id'],
+    viewerForbidden: (_fx, id) => [
+      { method: 'PATCH', url: `/task-series/${id}`, payload: { title: 'правка читателя' } },
+      { method: 'POST', url: `/task-series/${id}/pause` },
+    ],
+  },
+
   // Документ живёт в системном пространстве документооборота без участников:
   // читатель получает view явной записью, как любой участник документа
   document: {
