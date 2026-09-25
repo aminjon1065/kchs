@@ -343,7 +343,7 @@ test.describe('Администрирование: справка', () => {
       const card = page.getByRole('group', { name: 'Справка' })
       await card.getByRole('combobox', { name: 'Страница справки: Русский' }).click()
       await page.getByRole('option', { name: title }).click()
-      await card.getByRole('button', { name: 'Сохранить' }).click()
+      await card.getByRole('button', { name: 'Сохранить справку' }).click()
       await expect(page.getByText('Справка сохранена')).toBeVisible({ timeout: 20_000 })
 
       await page.reload()

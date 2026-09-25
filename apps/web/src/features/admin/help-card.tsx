@@ -69,7 +69,8 @@ export function HelpCard() {
             loading={save.isPending}
             onClick={() => draft && save.mutate(draft)}
           >
-            {t('common.actions.save')}
+            {/* Своя подпись: на экране брендирования уже есть «Сохранить» (N88) */}
+            {t('admin.help.save')}
           </Button>
           {draft ? (
             <Button variant="ghost" size="sm" onClick={() => setDraft(null)}>

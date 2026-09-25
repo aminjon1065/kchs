@@ -155,6 +155,8 @@ test.describe('Документы: переписка, дела и архив', 
 
     // ── Закрытие дела и передача в архив ─────────────────────────────────────
     await page.getByRole('tab', { name: /Номенклатура дел/ }).click()
+    // На общем стенде в номенклатуре десятки типовых дел: своё находим поиском
+    await cases.getByPlaceholder('Индекс или заголовок').fill(index)
     await cases.getByRole('row', { name: new RegExp(index) }).click()
     const inventory = cases.getByRole('list').filter({ hasText: outgoingNumber })
     await expect(inventory.getByRole('listitem')).toHaveCount(2)

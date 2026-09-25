@@ -112,7 +112,7 @@
 
 ### Последствия
 
-- Миграция `20260925050823_tasks-report-draft`: колонка `tasks.report_draft jsonb` (nullable).
+- Миграция `20260925060742_tasks-report-draft`: колонка `tasks.report_draft jsonb` (nullable).
   Данные переносить не нужно.
 - Контракты:
   - `TaskReportDraft`, `TASK_REPORT_DRAFT_CAUSES`;
@@ -210,7 +210,7 @@
 
 ### Последствия
 
-- Миграция `20260925052438_documents-mail-domains`:
+- Миграция `20260925060803_documents-mail-domains`:
   - колонка `correspondents.mail_domains` и индекс GIN;
   - колонка `mail_messages.correspondent_match`;
   - ручной хвост: прежним письмам с корреспондентом проставлен способ `email`.

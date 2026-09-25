@@ -6745,6 +6745,7 @@ export const ru = {
       pageFor: 'Страница справки: {language}',
       none: 'Не выбрана',
       saved: 'Справка сохранена',
+      save: 'Сохранить справку',
     },
     branding: {
       title: 'Брендирование',

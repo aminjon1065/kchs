@@ -6650,6 +6650,7 @@ export const en: DeepPartial<Dictionary> = {
       pageFor: 'Help page: {language}',
       none: 'Not selected',
       saved: 'Help saved',
+      save: 'Save help',
     },
     branding: {
       title: 'Branding',

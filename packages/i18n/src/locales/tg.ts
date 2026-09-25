@@ -7171,6 +7171,7 @@ export const tg: DeepPartial<Dictionary> = {
       pageFor: 'Саҳифаи кӯмак: {language}',
       none: 'Интихоб нашудааст',
       saved: 'Кӯмак нигоҳ дошта шуд',
+      save: 'Нигоҳ доштани кӯмак',
     },
     branding: {
       title: 'Брендинг',
