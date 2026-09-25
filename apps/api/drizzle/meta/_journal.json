@@ -435,6 +435,13 @@
       "when": 1790333511624,
       "tag": "20260925105151_tasks-checklist",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1790333543119,
+      "tag": "20260925105223_tasks-series",
+      "breakpoints": true
     }
   ]
 }

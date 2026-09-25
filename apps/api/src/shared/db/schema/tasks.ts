@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm'
 import {
   bigint,
   boolean,
+  date,
   doublePrecision,
   index,
   integer,
@@ -13,7 +14,7 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core'
-import { createdAt, jsonbArray, jsonbObject, tsCol } from './_shared.js'
+import { createdAt, jsonbArray, jsonbObject, tsCol, updatedAt } from './_shared.js'
 import { users } from './identity.js'
 import { objects } from './kernel.js'
 
@@ -134,6 +135,9 @@ export const tasks = pgTable(
      */
     unitId: uuid('unit_id'),
     fields: jsonbObject('fields'),
+    /** Серия повторяющихся поручений и дата экземпляра (ADR-0156): по паре — без дублей. */
+    seriesId: uuid('series_id'),
+    occurrence: date('occurrence'),
     order: doublePrecision('order').notNull().default(0),
     /**
      * Кто видит задачу — принципалы в форме множества принципалов ядра
@@ -153,12 +157,70 @@ export const tasks = pgTable(
     index('tasks_source_object_idx').on(sql`(${t.source}->>'objectId')`),
     index('tasks_territory_idx').on(t.territoryId),
     index('tasks_parent_idx').on(t.parentId),
+    uniqueIndex('tasks_series_occurrence_uq')
+      .on(t.seriesId, t.occurrence)
+      .where(sql`${t.seriesId} is not null`),
     index('tasks_unit_idx').on(t.unitId),
     index('tasks_due_open_idx')
       .on(t.dueAt)
       .where(sql`${t.kind} = 'instruction' and ${t.status} not in ('accepted', 'cancelled')`),
   ],
 )
+
+/**
+ * Серия повторяющихся поручений и задач (ADR-0156): объект реестра с шаблоном экземпляра
+ * и правилом повторения. Экземпляры создаёт задание `tasks.series` от имени автора.
+ */
+export const taskSeries = pgTable(
+  'task_series',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .references(() => objects.id, { onDelete: 'cascade' }),
+    kind: text('kind').notNull().default('instruction'),
+    template: jsonb('template').$type<TaskSeriesTemplateValue>().notNull(),
+    rule: jsonb('rule').$type<TaskSeriesRuleValue>().notNull(),
+    dueWorkingDays: smallint('due_working_days').notNull().default(1),
+    startsOn: date('starts_on').notNull(),
+    endsOn: date('ends_on'),
+    maxCount: integer('max_count'),
+    /** active | paused | stopped */
+    status: text('status').notNull().default('active'),
+    statusReason: text('status_reason'),
+    createdCount: integer('created_count').notNull().default(0),
+    lastOccurrence: date('last_occurrence'),
+    nextRunAt: tsCol('next_run_at'),
+    authorId: uuid('author_id').references(() => users.id, { onDelete: 'set null' }),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index('task_series_due_idx').on(t.nextRunAt).where(sql`${t.status} = 'active'`),
+    index('task_series_author_idx').on(t.authorId),
+  ],
+)
+
+/** Шаблон экземпляра серии (контракт `TaskSeriesTemplate`). */
+export interface TaskSeriesTemplateValue {
+  kind: 'task' | 'instruction'
+  title: string
+  description?: string | null
+  projectId?: string | null
+  spaceId?: string | null
+  assigneeId?: string | null
+  coAssigneeIds: string[]
+  controllerId?: string | null
+  priority: number
+  labels: string[]
+}
+
+/** Правило повторения (контракт `TaskSeriesRule`). */
+export interface TaskSeriesRuleValue {
+  freq: 'daily' | 'weekly' | 'monthly'
+  interval: number
+  weekdays: number[]
+  monthDay: number
+  time: string
+}
 
 /**
  * История сроков поручения (10-tasks-projects.md §4, ADR-0082): кто, когда,

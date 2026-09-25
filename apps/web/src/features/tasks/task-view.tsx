@@ -604,6 +604,9 @@ function details(
       ),
     })
   }
+  if (task.series) {
+    items.push({ key: 'series', label: t('tasks.fields.series'), value: task.series.title })
+  }
   if (task.project) {
     const project = task.project
     items.push({

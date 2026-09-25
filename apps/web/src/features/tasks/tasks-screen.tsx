@@ -37,6 +37,7 @@ import {
   FolderKanban,
   LayoutList,
   Plus,
+  Repeat,
   SquareKanban,
   Users,
 } from 'lucide-react'
@@ -53,6 +54,7 @@ import {
   ReportDialog,
   type TaskDraft,
 } from './task-dialogs.js'
+import { SeriesDialog } from './task-series.js'
 import { ACTION_STATUS, BOARD_COLUMNS, boardMove, STATUS_TONE_KEY } from './task-status.js'
 
 type Mode = 'list' | 'board'
@@ -100,6 +102,7 @@ export function TasksScreen({
   const [search, setSearch] = useState('')
   const [creating, setCreating] = useState<TaskDraft | null>(null)
   const [creatingProject, setCreatingProject] = useState(false)
+  const [seriesOpen, setSeriesOpen] = useState(false)
   const [reporting, setReporting] = useState<TaskListItem | null>(null)
   const q = useDebouncedValue(search.trim(), 250)
 
@@ -315,6 +318,14 @@ export function TasksScreen({
                 >
                   {t('tasks.projects.create')}
                 </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={<Repeat className="size-3.5" />}
+                  onClick={() => setSeriesOpen(true)}
+                >
+                  {t('tasks.series.title')}
+                </Button>
               </>
             )}
             <Button
@@ -485,6 +496,7 @@ export function TasksScreen({
 
       {creating ? <CreateTaskDialog draft={creating} onClose={() => setCreating(null)} /> : null}
       {creatingProject ? <CreateProjectDialog onClose={() => setCreatingProject(false)} /> : null}
+      {seriesOpen ? <SeriesDialog onClose={() => setSeriesOpen(false)} /> : null}
       {reporting ? <ReportDialog task={reporting} onClose={() => setReporting(null)} /> : null}
     </div>
   )

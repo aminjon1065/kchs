@@ -38,6 +38,8 @@ export interface TaskSpec {
   parentTaskId: string | null
   /** Гриф: поручение по резолюции конфиденциального документа (ADR-0084). */
   confidentiality?: Confidentiality
+  /** Экземпляр серии повторяющихся поручений и его дата (ADR-0156). */
+  series?: { id: string; occurrence: string }
 }
 
 /**
@@ -91,6 +93,8 @@ export async function insertTask(tx: Executor, ctx: Ctx, spec: TaskSpec): Promis
     labels: spec.labels,
     territoryId: spec.territoryId,
     requiresAcceptance: spec.kind === 'instruction',
+    seriesId: spec.series?.id ?? null,
+    occurrence: spec.series?.occurrence ?? null,
     startedAt: spec.kind === 'task' && status === 'in_progress' ? sql`now()` : null,
   })
   await syncParticipants(tx, ctx, object.id, object.ownerId, [], participantsOf(spec))

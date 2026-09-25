@@ -122,6 +122,7 @@ function listItemOf(
     parentId: row.parentId,
     checklistProgress: checklistProgress(row.checklist),
     subtaskProgress,
+    seriesId: row.seriesId,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     version: row.version,
@@ -203,6 +204,8 @@ export interface CreateOptions {
    * документа закрыто тем же грифом — уведомления о нём без содержания.
    */
   confidentiality?: Confidentiality
+  /** Экземпляр серии повторяющихся поручений (ADR-0156). */
+  series?: { id: string; occurrence: string }
 }
 
 /**
@@ -269,6 +272,7 @@ export const TaskService = {
       territoryId,
       parentTaskId: null,
       ...(options.confidentiality ? { confidentiality: options.confidentiality } : {}),
+      ...(options.series ? { series: options.series } : {}),
     }
     return insertTask(tx, ctx, spec)
   },
@@ -311,6 +315,7 @@ export const TaskService = {
       ...listItemOf(row, people, project, decision.level, actorOf(ctx), pending, subtaskProgress),
       checklist,
       subtasks,
+      series: await seriesOf(row),
       description: row.description,
       coAssignees: row.coAssignees.flatMap((userId) => {
         const ref = people.get(userId)
@@ -1142,6 +1147,17 @@ async function partsOf(ctx: UserCtx, row: TaskRow): Promise<TaskPart[]> {
     overdue: isOverdue(part.status as TaskStatus, part.dueAt, new Date(), part.reportedAt),
     completedAt: part.completedAt,
   }))
+}
+
+/** Серия экземпляра — название объекта серии (ADR-0156). */
+async function seriesOf(row: TaskRow): Promise<TaskRecord['series']> {
+  if (!row.seriesId) return null
+  const [series] = await db()
+    .select({ id: objects.id, title: objects.title })
+    .from(objects)
+    .where(and(eq(objects.id, row.seriesId), isNull(objects.deletedAt)))
+    .limit(1)
+  return series ?? null
 }
 
 async function parentOf(row: TaskRow): Promise<TaskRecord['parent']> {

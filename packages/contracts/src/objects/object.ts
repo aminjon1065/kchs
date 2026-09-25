@@ -48,6 +48,7 @@ export const OBJECT_TYPES = [
   // задачи
   'project',
   'task',
+  'task_series',
   // встречи и календарь
   'meeting',
   'recording',

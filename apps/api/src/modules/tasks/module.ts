@@ -24,6 +24,10 @@ import {
   TaskRecord,
   TaskReportInput,
   TaskReturnInput,
+  TaskSeriesCreateInput,
+  TaskSeriesList,
+  TaskSeriesPatch,
+  TaskSeriesRecord,
   TaskSettings,
   TaskStatusInput,
   TaskSubtaskCreateInput,
@@ -59,6 +63,7 @@ import { dueFromDate } from './domain/task-due.js'
 import { taskPolicy } from './domain/task-policy.js'
 import { taskDueProjection } from './domain/task-projection.js'
 import { TaskReminders } from './domain/task-reminders.js'
+import { TaskSeriesService } from './domain/task-series.js'
 import { TaskService } from './domain/task-service.js'
 import { TaskSettingsService } from './domain/task-settings.js'
 import { taskSubscribers } from './domain/task-subscribers.js'
@@ -138,6 +143,25 @@ export function registerTasksObjectTypes(): void {
         meta: {},
       }
     },
+  })
+
+  // Серия повторяющихся поручений (ADR-0156): ведёт автор, права — как у объекта
+  registerObjectType({
+    type: 'task_series',
+    labelKey: 'objects.types.task_series',
+    icon: 'repeat',
+    route: (id) => `/o/${id}`,
+    levels: ['view', 'edit', 'manage', 'owner'],
+    actions: {
+      view: { minLevel: 'view' },
+      edit: { minLevel: 'edit' },
+      manage: { minLevel: 'manage' },
+      share: { minLevel: 'manage' },
+      delete: { minLevel: 'manage' },
+    },
+    discussable: false,
+    linkable: false,
+    hasParentTree: false,
   })
 
   registerObjectType({
@@ -280,6 +304,13 @@ export function registerTasksBackground(): void {
     concurrency: 1,
     handle: async () => TaskReminders.run(),
   })
+  // Экземпляры повторяющихся поручений (ADR-0156)
+  registerJobHandler({
+    queue: 'maintenance',
+    name: 'tasks.series',
+    concurrency: 1,
+    handle: async () => TaskSeriesService.run(),
+  })
 }
 
 /** Расписание: проход по срокам каждые 15 минут — идемпотентен по ключу задания. */
@@ -289,6 +320,13 @@ export function scheduleTasksJobs(): void {
     name: 'tasks.deadlines',
     pattern: '*/15 * * * *',
     labelKey: 'schedules.jobs.tasksDeadlines',
+  })
+  // Раз в пять минут: экземпляр появляется в пределах пяти минут от времени правила
+  declareSchedule({
+    queue: 'maintenance',
+    name: 'tasks.series',
+    pattern: '*/5 * * * *',
+    labelKey: 'schedules.jobs.tasksSeries',
   })
 }
 
@@ -635,6 +673,82 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
       return TaskService.get(request.ctx, request.params.id)
     },
   })
+
+  route({
+    method: 'GET',
+    url: '/task-series',
+    auth: 'session',
+    tags: ['tasks'],
+    summary: 'Серии повторяющихся поручений, видимые пользователю (ADR-0156)',
+    schema: { response: { 200: TaskSeriesList } },
+    handler: async (request) => ({ items: await TaskSeriesService.list(request.ctx) }),
+  })
+
+  route({
+    method: 'POST',
+    url: '/task-series',
+    auth: 'session',
+    tags: ['tasks'],
+    summary: 'Завести серию повторяющихся поручений или задач',
+    schema: { body: TaskSeriesCreateInput, response: { 200: TaskSeriesRecord } },
+    handler: async (request) => {
+      const id = await db().transaction((tx) =>
+        TaskSeriesService.create(tx, request.ctx, request.body),
+      )
+      return TaskSeriesService.get(request.ctx, id)
+    },
+  })
+
+  route({
+    method: 'GET',
+    url: '/task-series/:id',
+    auth: 'session',
+    tags: ['tasks'],
+    summary: 'Серия повторяющихся поручений',
+    schema: { params: IdParam, response: { 200: TaskSeriesRecord } },
+    handler: async (request) => TaskSeriesService.get(request.ctx, request.params.id),
+  })
+
+  route({
+    method: 'PATCH',
+    url: '/task-series/:id',
+    auth: 'session',
+    tags: ['tasks'],
+    summary: 'Изменить серию — для будущих экземпляров',
+    schema: { params: IdParam, body: TaskSeriesPatch, response: { 200: TaskSeriesRecord } },
+    handler: async (request) => {
+      await db().transaction((tx) =>
+        TaskSeriesService.update(tx, request.ctx, request.params.id, request.body),
+      )
+      return TaskSeriesService.get(request.ctx, request.params.id)
+    },
+  })
+
+  for (const [action, status] of [
+    ['pause', 'paused'],
+    ['resume', 'active'],
+    ['stop', 'stopped'],
+  ] as const) {
+    route({
+      method: 'POST',
+      url: `/task-series/:id/${action}`,
+      auth: 'session',
+      tags: ['tasks'],
+      summary:
+        action === 'pause'
+          ? 'Приостановить серию'
+          : action === 'resume'
+            ? 'Возобновить серию'
+            : 'Остановить серию насовсем',
+      schema: { params: IdParam, response: { 200: TaskSeriesRecord } },
+      handler: async (request) => {
+        await db().transaction((tx) =>
+          TaskSeriesService.setStatus(tx, request.ctx, request.params.id, status),
+        )
+        return TaskSeriesService.get(request.ctx, request.params.id)
+      },
+    })
+  }
 
   const ChecklistItemParams = z.object({ id: z.uuid(), itemId: z.uuid() })
 

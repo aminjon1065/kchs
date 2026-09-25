@@ -44,6 +44,13 @@ import { orderSpaces } from '~/shared/spaces.js'
 import { DueInput, type DueValue, dueFields, emptyDue, hasDue } from './due-input.js'
 import { projectsQuery, taskKeys } from './queries.js'
 import { errorText, useTaskInvalidation } from './task-actions.js'
+import {
+  emptyRepeat,
+  RepeatFields,
+  type RepeatValue,
+  repeatFields,
+  repeatReady,
+} from './task-series.js'
 import { dateFromDue, PRIORITIES, pickedOf } from './task-status.js'
 import { type PickedUser, UserPicker, UsersPicker } from './user-picker.js'
 
@@ -114,8 +121,45 @@ export function CreateTaskDialog({
   const [description, setDescription] = useState(draft.description ?? '')
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [failure, setFailure] = useState<string | null>(null)
+  // Повторяющееся поручение (ADR-0156): вместо задачи заводится серия
+  const [repeat, setRepeat] = useState<RepeatValue>(emptyRepeat())
+  const locale = useAppearance((s) => s.locale)
   const { data: projects = [] } = useQuery(projectsQuery())
   const instruction = kind === 'instruction'
+  const repeating = repeat.enabled && !draft.source
+
+  const createSeries = useMutation({
+    mutationFn: () =>
+      http.post<{ id: string; nextRunAt: string | null }>('/task-series', {
+        template: {
+          kind,
+          title: title.trim(),
+          priority: Number(priority),
+          ...(description.trim() ? { description: description.trim() } : {}),
+          ...(projectId !== NO_PROJECT ? { projectId } : {}),
+          ...(assignee ? { assigneeId: assignee.id } : {}),
+          ...(instruction && coAssignees.length > 0
+            ? { coAssigneeIds: coAssignees.map((user) => user.id) }
+            : {}),
+          ...(instruction && controller ? { controllerId: controller.id } : {}),
+        },
+        ...repeatFields(repeat),
+      }),
+    onSuccess: (series) => {
+      toast.show({
+        title: series.nextRunAt
+          ? t('tasks.series.created', { date: formatDateTime(series.nextRunAt, { locale }) })
+          : t('tasks.series.createdNoNext'),
+        tone: 'success',
+      })
+      invalidate()
+      onClose()
+    },
+    onError: (error) => {
+      setFieldErrors(error instanceof ApiError ? error.fieldErrors() : {})
+      setFailure(errorText(error, t('errors.unknown')))
+    },
+  })
 
   const create = useMutation({
     mutationFn: () =>
@@ -161,7 +205,9 @@ export function CreateTaskDialog({
     },
   })
 
-  const ready = title.trim().length > 0 && (!instruction || (assignee !== null && hasDue(due)))
+  const ready = repeating
+    ? title.trim().length > 0 && (!instruction || assignee !== null) && repeatReady(repeat)
+    : title.trim().length > 0 && (!instruction || (assignee !== null && hasDue(due)))
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent
@@ -175,8 +221,8 @@ export function CreateTaskDialog({
             <Button
               variant="primary"
               disabled={!ready}
-              loading={create.isPending}
-              onClick={() => create.mutate()}
+              loading={create.isPending || createSeries.isPending}
+              onClick={() => (repeating ? createSeries.mutate() : create.mutate())}
             >
               {t('common.actions.create')}
             </Button>
@@ -250,13 +296,16 @@ export function CreateTaskDialog({
               </Field>
             </>
           ) : null}
-          <DueInput
-            value={due}
-            onChange={setDue}
-            label={t('tasks.fields.due')}
-            required={instruction}
-            error={fieldErrors.dueAt ?? fieldErrors.dueWorkingDays}
-          />
+          {repeating ? null : (
+            <DueInput
+              value={due}
+              onChange={setDue}
+              label={t('tasks.fields.due')}
+              required={instruction}
+              error={fieldErrors.dueAt ?? fieldErrors.dueWorkingDays}
+            />
+          )}
+          {draft.source ? null : <RepeatFields value={repeat} onChange={setRepeat} />}
           <Field label={t('tasks.fields.priority')}>
             <PrioritySelect value={priority} onChange={setPriority} />
           </Field>

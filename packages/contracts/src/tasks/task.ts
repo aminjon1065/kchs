@@ -320,6 +320,9 @@ export const TaskRecord = z.object({
   checklistProgress: TaskProgress.nullable().default(null),
   /** Прогресс подзадач; null — подзадач нет. */
   subtaskProgress: TaskProgress.nullable().default(null),
+  /** Серия повторяющихся поручений, из которой создан экземпляр (ADR-0156). */
+  seriesId: Uuid.nullable().default(null),
+  series: z.object({ id: Uuid, title: z.string() }).nullable().default(null),
   /** История сроков: от назначения до последнего продления. */
   dueHistory: z.array(TaskDueChange),
   /** Последний запрос продления; `pending` — ждёт решения автора. */
@@ -344,6 +347,7 @@ export const TaskListItem = TaskRecord.omit({
   parts: true,
   checklist: true,
   subtasks: true,
+  series: true,
   dueHistory: true,
   extension: true,
 }).extend({
