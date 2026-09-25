@@ -21,3 +21,24 @@ export function useUiT(): Translator {
   const locale = useUiLocale()
   return useMemo(() => createTranslator(locale), [locale])
 }
+
+/**
+ * Часовой пояс профиля сотрудника для полей даты-времени дизайн-системы: поле
+ * `datetime-local` пояса не знает, и без провайдера оно работало бы в поясе браузера.
+ * Без провайдера — пояс браузера (`undefined`).
+ */
+const UiTimeZoneContext = createContext<string | undefined>(undefined)
+
+export function UiTimeZoneProvider({
+  timeZone,
+  children,
+}: {
+  timeZone: string | undefined
+  children: ReactNode
+}) {
+  return <UiTimeZoneContext.Provider value={timeZone}>{children}</UiTimeZoneContext.Provider>
+}
+
+export function useUiTimeZone(): string | undefined {
+  return useContext(UiTimeZoneContext)
+}

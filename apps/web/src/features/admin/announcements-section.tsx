@@ -15,11 +15,13 @@ import {
   DialogContent,
   EmptyState,
   Field,
+  fromLocalInput,
   Input,
   SegmentedControl,
   Skeleton,
   Textarea,
   useToast,
+  useUiTimeZone,
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Megaphone, Plus } from 'lucide-react'
@@ -50,6 +52,9 @@ export function AnnouncementsSection() {
   const locale = useAppearance((s) => s.locale)
   const toast = useToast()
   const client = useQueryClient()
+  // Сроки объявлений — в поясе профиля, как и поле ввода в диалоге
+  const timeZone = useUiTimeZone()
+  const zone = timeZone ? { timezone: timeZone } : {}
   const { data: items = [], isLoading } = useQuery(adminAnnouncementsQuery())
   const [creating, setCreating] = useState(false)
   const [withdrawing, setWithdrawing] = useState<AdminAnnouncement | null>(null)
@@ -72,10 +77,10 @@ export function AnnouncementsSection() {
   const period = (item: AdminAnnouncement) =>
     item.endsAt
       ? t('admin.announcements.period', {
-          from: formatDateTime(item.startsAt, { locale }),
-          to: formatDateTime(item.endsAt, { locale }),
+          from: formatDateTime(item.startsAt, { locale, ...zone }),
+          to: formatDateTime(item.endsAt, { locale, ...zone }),
         })
-      : t('admin.announcements.since', { from: formatDateTime(item.startsAt, { locale }) })
+      : t('admin.announcements.since', { from: formatDateTime(item.startsAt, { locale, ...zone }) })
 
   return (
     <div className="mx-auto flex max-w-[900px] flex-col gap-3 p-5">
@@ -157,8 +162,9 @@ export function AnnouncementsSection() {
   )
 }
 
-/** Локальное время из поля `datetime-local` → ISO; пусто — null. */
-const toIso = (value: string) => (value ? new Date(value).toISOString() : null)
+/** Время из поля `datetime-local` в поясе профиля → ISO; пусто — null. */
+const toIso = (value: string, timeZone: string | undefined) =>
+  value ? fromLocalInput(value, timeZone) : null
 
 function CreateAnnouncementDialog({
   open,
@@ -171,6 +177,7 @@ function CreateAnnouncementDialog({
 }) {
   const t = useT()
   const formId = useId()
+  const timeZone = useUiTimeZone()
   const empty = () => ({
     title: '',
     body: '',
@@ -197,8 +204,8 @@ function CreateAnnouncementDialog({
         title: form.title.trim(),
         body: form.body.trim(),
         severity: form.severity,
-        startsAt: toIso(form.startsAt),
-        endsAt: toIso(form.endsAt),
+        startsAt: toIso(form.startsAt, timeZone),
+        endsAt: toIso(form.endsAt, timeZone),
       }),
     onSuccess: () => {
       onCreated()

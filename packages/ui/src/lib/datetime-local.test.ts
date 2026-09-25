@@ -23,4 +23,17 @@ describe('datetime-local ↔ ISO', () => {
   it('некорректное значение — пустое поле', () => {
     expect(toLocalInput('не дата')).toBe('')
   })
+
+  it('в поясе профиля: Душанбе (UTC+5) независимо от пояса браузера', () => {
+    expect(toLocalInput('2026-09-12T06:15:00.000Z', 'Asia/Dushanbe')).toBe('2026-09-12T11:15')
+    expect(fromLocalInput('2026-09-12T11:15', 'Asia/Dushanbe')).toBe('2026-09-12T06:15:00.000Z')
+    // Через полночь: 21:30 UTC — уже следующий день в Душанбе
+    expect(toLocalInput('2026-12-31T21:30:00.000Z', 'Asia/Dushanbe')).toBe('2027-01-01T02:30')
+  })
+
+  it('в поясе с летним временем правка без изменений не сдвигает время', () => {
+    for (const iso of ['2026-03-08T12:00:00.000Z', '2026-11-01T05:30:00.000Z']) {
+      expect(fromLocalInput(toLocalInput(iso, 'America/New_York'), 'America/New_York')).toBe(iso)
+    }
+  })
 })

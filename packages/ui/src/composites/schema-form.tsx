@@ -19,7 +19,7 @@ import {
   useState,
 } from 'react'
 import { Callout } from '../components/feedback.js'
-import { useUiLocale, useUiT } from '../i18n/ui-locale.js'
+import { useUiLocale, useUiT, useUiTimeZone } from '../i18n/ui-locale.js'
 import { cn } from '../lib/cn.js'
 import { fromLocalInput, toLocalInput } from '../lib/datetime-local.js'
 import { Button, IconButton } from '../primitives/button.js'
@@ -385,6 +385,8 @@ function DefaultControl({
   locale: 'ru' | 'tg' | 'en'
 }) {
   const t = useUiT()
+  // Время — в поясе профиля сотрудника (провайдер приложения), а не браузера
+  const timeZone = useUiTimeZone()
   const choices =
     options ??
     field.options?.map((option) => ({ value: option.value, label: labelOf(option.label, locale) }))
@@ -467,7 +469,11 @@ function DefaultControl({
           id={id}
           readOnly
           disabled
-          value={value === null || value === undefined ? '' : formatValue(value, field, { locale })}
+          value={
+            value === null || value === undefined
+              ? ''
+              : formatValue(value, field, { locale, ...(timeZone ? { timezone: timeZone } : {}) })
+          }
         />
       )
     default: {
@@ -493,7 +499,7 @@ function DefaultControl({
                       : 'text'
       const shown =
         field.type === 'datetime' && typeof value === 'string' && value
-          ? toLocalInput(value)
+          ? toLocalInput(value, timeZone)
           : String(value ?? '')
       return (
         <Input
@@ -507,7 +513,7 @@ function DefaultControl({
           step={field.type === 'integer' ? 1 : 'any'}
           onChange={(event) => {
             const raw = event.target.value
-            onChange(field.type === 'datetime' && raw ? fromLocalInput(raw) : raw)
+            onChange(field.type === 'datetime' && raw ? fromLocalInput(raw, timeZone) : raw)
           }}
         />
       )
@@ -537,6 +543,7 @@ export function InlineProperties({
   readOnly = false,
 }: InlinePropertiesProps) {
   const t = useUiT()
+  const timeZone = useUiTimeZone()
   const locale = useUiLocale()
   const formId = useId()
   const [editing, setEditing] = useState<string | null>(null)
@@ -614,7 +621,10 @@ export function InlineProperties({
                       (value === null || value === undefined || value === '' ? (
                         <span className="text-fg-muted">{t('ui.form.notSet')}</span>
                       ) : (
-                        formatValue(value, field, { locale })
+                        formatValue(value, field, {
+                          locale,
+                          ...(timeZone ? { timezone: timeZone } : {}),
+                        })
                       ))}
                   </span>
                   {editable ? (
