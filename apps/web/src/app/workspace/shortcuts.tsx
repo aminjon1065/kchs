@@ -40,7 +40,10 @@ const GROUPS: Array<{ titleKey: string; rows: ShortcutRow[] }> = [
     rows: [
       { combo: 'j', labelKey: 'shell.shortcuts.listDown' },
       { combo: 'k', labelKey: 'shell.shortcuts.listUp' },
+      { combo: 'a', labelKey: 'shell.shortcuts.approve' },
+      { combo: 'r', labelKey: 'shell.shortcuts.reject' },
       { combo: 's', labelKey: 'shell.shortcuts.snooze' },
+      { combo: 'x', labelKey: 'shell.shortcuts.select' },
       { combo: 'e', labelKey: 'shell.shortcuts.openObject' },
       { combo: 'shift+?', labelKey: 'shell.shortcuts.cheatSheet' },
     ],

@@ -1,4 +1,11 @@
-import { InboxActionInput, InboxCounts, InboxItem, InboxQuery } from '@kchs/contracts'
+import {
+  InboxActionInput,
+  InboxBulkInput,
+  InboxBulkResult,
+  InboxCounts,
+  InboxItem,
+  InboxQuery,
+} from '@kchs/contracts'
 import { z } from 'zod'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { InboxService } from './service.js'
@@ -44,6 +51,16 @@ export function registerInboxRoutes(route: RouteRegistrar): void {
       await InboxService.act(request.ctx, request.params.id, request.body)
       return { ok: true }
     },
+  })
+
+  route({
+    method: 'POST',
+    url: '/inbox/bulk',
+    auth: 'session',
+    tags: ['inbox'],
+    summary: 'Массовое действие над выбранными делами: ознакомлен, выполнено, отложить',
+    schema: { body: InboxBulkInput, response: { 200: InboxBulkResult } },
+    handler: async (request) => InboxService.bulk(request.ctx, request.body),
   })
 
   route({

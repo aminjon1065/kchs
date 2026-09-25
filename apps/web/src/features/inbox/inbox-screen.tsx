@@ -1,8 +1,17 @@
-import type { InboxItem } from '@kchs/contracts'
+import {
+  INBOX_BULK_ACTION_KEY,
+  INBOX_GROUPS,
+  type InboxBulkOperation,
+  type InboxBulkResult,
+  type InboxGroup,
+  type InboxItem,
+  inboxGroupOf,
+} from '@kchs/contracts'
 import { formatDate, formatDateTime, formatRelativeTime } from '@kchs/fields'
 import {
   Badge,
   Button,
+  Checkbox,
   cn,
   Dialog,
   DialogContent,
@@ -13,6 +22,11 @@ import {
   ObjectIcon,
   PanelToolbar,
   SegmentedControl,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Skeleton,
   Textarea,
   useHotkeys,
@@ -20,7 +34,7 @@ import {
 } from '@kchs/ui'
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CheckCheck, Clock3, Inbox as InboxIcon, User } from 'lucide-react'
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useId, useMemo, useState } from 'react'
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { useObjectActions } from '~/app/workspace/object-actions.js'
@@ -29,36 +43,88 @@ import { ApiError, http } from '~/shared/api/client.js'
 import { inboxCountsQuery, keys } from '~/shared/api/queries.js'
 
 type Scope = 'all' | 'mine' | 'delegated'
+type Due = 'any' | 'overdue' | 'today' | 'week'
+type GroupFilter = 'all' | InboxGroup
+
+/** Дело подходит для массовой операции: есть её действие и ему ничего не нужно ввести. */
+function bulkApplicable(item: InboxItem, operation: InboxBulkOperation): boolean {
+  if (operation === 'snooze') return true
+  const action = item.actions.find((entry) => entry.key === INBOX_BULK_ACTION_KEY[operation])
+  return Boolean(
+    action &&
+      !action.requiresComment &&
+      !action.requiresSecondFactor &&
+      !action.input &&
+      !action.openObject,
+  )
+}
 
 export function InboxScreen() {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
   const toast = useToast()
   const client = useQueryClient()
   const openTab = useWorkspace((s) => s.openTab)
 
   const [scope, setScope] = useState<Scope>('all')
+  const [group, setGroup] = useState<GroupFilter>('all')
+  const [due, setDue] = useState<Due>('any')
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  // Отмеченные флажками дела — для массовых действий (ADR-0153)
+  const [checked, setChecked] = useState<ReadonlySet<string>>(new Set())
 
+  const filters = { state: 'open', scope, due, ...(group === 'all' ? {} : { group }) }
   // Дел бывает больше страницы: список догружается курсором, иначе часть дел
   // просто не видна (их у занятого сотрудника легко больше полусотни)
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
-    queryKey: keys.inbox({ state: 'open', scope }),
+    queryKey: keys.inbox(filters),
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam }) =>
       http.get<{ items: InboxItem[]; nextCursor: string | null }>('/inbox', {
-        query: { state: 'open', scope, ...(pageParam ? { cursor: pageParam } : {}) },
+        query: { ...filters, ...(pageParam ? { cursor: pageParam } : {}) },
       }),
     getNextPageParam: (last) => last.nextCursor ?? undefined,
   })
   const { data: counts } = useQuery(inboxCountsQuery())
 
-  const items = data?.pages.flatMap((page) => page.items) ?? []
+  // Во «всех видах» список разбит по группам: решения, ознакомления, поручения…
+  const items = useMemo(() => {
+    const loaded = data?.pages.flatMap((page) => page.items) ?? []
+    if (group !== 'all') return loaded
+    const rank = (item: InboxItem) => INBOX_GROUPS.indexOf(inboxGroupOf(item.kind))
+    return [...loaded].sort((a, b) => rank(a) - rank(b))
+  }, [data, group])
   const selected = items.find((item) => item.id === selectedId) ?? items[0] ?? null
+  const groupCounts = useMemo(() => {
+    const result: Record<InboxGroup, number> = {
+      decide: 0,
+      acknowledge: 0,
+      instructions: 0,
+      invites: 0,
+      data: 0,
+    }
+    for (const [kind, count] of Object.entries(counts?.byKind ?? {})) {
+      result[inboxGroupOf(kind)] += count
+    }
+    return result
+  }, [counts])
 
   useEffect(() => {
     if (!selectedId && items[0]) setSelectedId(items[0].id)
   }, [items, selectedId])
+
+  // Флажки остаются только у загруженных дел текущего фильтра
+  useEffect(() => {
+    setChecked((current) => {
+      const visible = new Set(items.map((item) => item.id))
+      const next = new Set([...current].filter((id) => visible.has(id)))
+      return next.size === current.size ? current : next
+    })
+  }, [items])
+
+  const refresh = () => {
+    void client.invalidateQueries({ queryKey: ['inbox'] })
+    void client.invalidateQueries({ queryKey: keys.inboxCounts })
+  }
 
   const snooze = useMutation({
     mutationFn: (itemId: string) =>
@@ -67,10 +133,32 @@ export function InboxScreen() {
       }),
     onSuccess: () => {
       toast.show({ title: t('inbox.snoozedUntilTomorrow'), tone: 'info' })
-      void client.invalidateQueries({ queryKey: ['inbox'] })
-      void client.invalidateQueries({ queryKey: keys.inboxCounts })
+      refresh()
     },
   })
+
+  const bulk = useMutation({
+    mutationFn: (operation: InboxBulkOperation) =>
+      http.post<InboxBulkResult>('/inbox/bulk', { ids: [...checked], operation }),
+    onSuccess: (result) => {
+      toast.show({
+        title: t('inbox.bulk.result', { done: result.done, skipped: result.skipped }),
+        tone: result.skipped > 0 ? 'warning' : 'success',
+      })
+      setChecked(new Set())
+      refresh()
+    },
+    onError: (error) =>
+      toast.error(error instanceof ApiError ? error.message : t('errors.unknown')),
+  })
+
+  const toggle = (id: string) =>
+    setChecked((current) => {
+      const next = new Set(current)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
 
   const move = (delta: number): void => {
     if (items.length === 0) return
@@ -85,6 +173,7 @@ export function InboxScreen() {
     { combo: 'k', handler: () => move(-1) },
     { combo: 'up', handler: () => move(-1) },
     { combo: 's', handler: () => selected && snooze.mutate(selected.id) },
+    { combo: 'x', handler: () => selected && toggle(selected.id) },
     {
       combo: 'e',
       handler: () => {
@@ -100,6 +189,12 @@ export function InboxScreen() {
       },
     },
   ])
+
+  const checkedItems = items.filter((item) => checked.has(item.id))
+  const applicable = (operation: InboxBulkOperation) =>
+    checkedItems.filter((item) => bulkApplicable(item, operation)).length
+  const allChecked = items.length > 0 && checkedItems.length === items.length
+  const filtered = group !== 'all' || due !== 'any' || scope !== 'all'
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -134,90 +229,173 @@ export function InboxScreen() {
         }
       />
 
-      <div className="grid min-h-0 flex-1 grid-cols-[minmax(280px,380px)_1fr]">
-        <div className="min-h-0 overflow-y-auto border-r border-line">
-          {isLoading ? (
-            <div className="flex flex-col gap-2 p-3">
-              {Array.from({ length: 6 }).map((_, index) => (
-                <Skeleton key={index} className="h-14 w-full" />
-              ))}
-            </div>
-          ) : items.length === 0 ? (
-            <EmptyState
-              compact
-              icon={<InboxIcon />}
-              title={t('inbox.empty')}
-              description={t('inbox.emptyHint')}
-            />
-          ) : (
-            <>
-              <ul className="divide-y divide-line" aria-label={t('inbox.title')}>
-                {items.map((item) => (
-                  <li key={item.id}>
-                    <button
-                      type="button"
-                      role="option"
-                      aria-selected={selected?.id === item.id}
-                      onClick={() => setSelectedId(item.id)}
-                      className={cn(
-                        'flex w-full flex-col gap-1 px-3 py-2.5 text-left',
-                        selected?.id === item.id ? 'bg-accent-subtle' : 'hover:bg-surface-2',
-                      )}
-                    >
-                      <span className="flex items-center gap-2">
-                        <ObjectIcon
-                          type={item.object?.type ?? 'inbox'}
-                          className="size-4 shrink-0 text-fg-muted"
-                        />
-                        <span className="min-w-0 flex-1 truncate text-sm font-medium text-fg">
-                          {item.title}
-                        </span>
-                        {item.priority === 'urgent' || item.priority === 'high' ? (
-                          <Badge tone="danger" size="sm">
-                            {t('inbox.urgent')}
-                          </Badge>
-                        ) : null}
-                      </span>
-                      <span className="flex items-center gap-2 text-xs text-fg-muted">
-                        {item.actor ? (
-                          <span className="truncate">{item.actor.displayName}</span>
-                        ) : null}
-                        {item.dueAt ? (
-                          <span
-                            className={cn(
-                              'flex items-center gap-1',
-                              new Date(item.dueAt) < new Date() && 'text-danger',
-                            )}
-                          >
-                            <Clock3 className="size-3" aria-hidden />
-                            {formatRelativeTime(item.dueAt, { locale })}
-                          </span>
-                        ) : null}
-                        {item.onBehalfOf ? (
-                          <span className="flex items-center gap-1 text-warning">
-                            <User className="size-3" aria-hidden />
-                            {item.onBehalfOf.displayName}
-                          </span>
-                        ) : null}
-                      </span>
-                    </button>
-                  </li>
+      <div className="grid min-h-0 flex-1 grid-cols-[minmax(300px,400px)_1fr]">
+        <div className="flex min-h-0 flex-col border-r border-line">
+          <div className="flex flex-wrap items-center gap-2 border-b border-line px-3 py-2">
+            <Select value={group} onValueChange={(next) => setGroup(next as GroupFilter)}>
+              <SelectTrigger aria-label={t('inbox.groupLabel')} className="h-7 w-52 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">
+                  {t('inbox.groupOption', { name: t('inbox.groupAll'), count: counts?.total ?? 0 })}
+                </SelectItem>
+                {INBOX_GROUPS.map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {t('inbox.groupOption', {
+                      name: t(`inbox.groups.${value}`),
+                      count: groupCounts[value],
+                    })}
+                  </SelectItem>
                 ))}
-              </ul>
-              {hasNextPage ? (
-                <div className="p-2">
+              </SelectContent>
+            </Select>
+            <SegmentedControl
+              size="sm"
+              aria-label={t('inbox.dueLabel')}
+              value={due}
+              onValueChange={(next) => setDue(next as Due)}
+              options={[
+                { value: 'any', label: t('inbox.due.any') },
+                { value: 'overdue', label: t('inbox.due.overdue') },
+                { value: 'today', label: t('inbox.due.today') },
+                { value: 'week', label: t('inbox.due.week') },
+              ]}
+            />
+          </div>
+
+          {items.length > 0 ? (
+            <div
+              className={cn(
+                'flex min-h-9 flex-wrap items-center gap-2 border-b border-line px-3 py-1.5',
+                checked.size > 0 && 'bg-accent-subtle',
+              )}
+            >
+              <Checkbox
+                checked={allChecked ? true : checked.size > 0 ? 'indeterminate' : false}
+                onCheckedChange={(value) =>
+                  setChecked(value === true ? new Set(items.map((item) => item.id)) : new Set())
+                }
+                aria-label={t('inbox.selectAll')}
+              />
+              {checked.size === 0 ? (
+                <span className="text-xs text-fg-muted">{t('inbox.selectAll')}</span>
+              ) : (
+                <>
+                  <span className="text-xs font-medium text-fg">
+                    {t('inbox.bulk.selected', { count: checked.size })}
+                  </span>
+                  {applicable('acknowledge') > 0 ? (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      loading={bulk.isPending && bulk.variables === 'acknowledge'}
+                      disabled={bulk.isPending}
+                      onClick={() => bulk.mutate('acknowledge')}
+                    >
+                      {t('inbox.bulk.acknowledge', { count: applicable('acknowledge') })}
+                    </Button>
+                  ) : null}
+                  {applicable('done') > 0 ? (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      loading={bulk.isPending && bulk.variables === 'done'}
+                      disabled={bulk.isPending}
+                      onClick={() => bulk.mutate('done')}
+                    >
+                      {t('inbox.bulk.done', { count: applicable('done') })}
+                    </Button>
+                  ) : null}
                   <Button
                     size="sm"
                     variant="ghost"
-                    loading={isFetchingNextPage}
-                    onClick={() => void fetchNextPage()}
+                    icon={<Clock3 className="size-3.5" />}
+                    loading={bulk.isPending && bulk.variables === 'snooze'}
+                    disabled={bulk.isPending}
+                    onClick={() => bulk.mutate('snooze')}
                   >
-                    {t('common.actions.loadMore')}
+                    {t('inbox.bulk.snooze')}
                   </Button>
-                </div>
-              ) : null}
-            </>
-          )}
+                  <Button size="sm" variant="ghost" onClick={() => setChecked(new Set())}>
+                    {t('inbox.bulk.clear')}
+                  </Button>
+                </>
+              )}
+            </div>
+          ) : null}
+
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {isLoading ? (
+              <div className="flex flex-col gap-2 p-3">
+                {Array.from({ length: 6 }).map((_, index) => (
+                  <Skeleton key={index} className="h-14 w-full" />
+                ))}
+              </div>
+            ) : items.length === 0 ? (
+              <EmptyState
+                compact
+                icon={<InboxIcon />}
+                title={filtered ? t('inbox.emptyFiltered') : t('inbox.empty')}
+                description={filtered ? undefined : t('inbox.emptyHint')}
+              />
+            ) : (
+              <>
+                <ul className="divide-y divide-line" aria-label={t('inbox.title')}>
+                  {items.map((item, index) => {
+                    const itemGroup = inboxGroupOf(item.kind)
+                    const heading =
+                      group === 'all' &&
+                      (index === 0 || inboxGroupOf(items[index - 1]?.kind ?? '') !== itemGroup)
+                    return (
+                      <li key={item.id}>
+                        {heading ? (
+                          <div className="flex items-center justify-between bg-surface-2 px-3 py-1 text-2xs font-semibold tracking-wide text-fg-muted uppercase">
+                            <span>{t(`inbox.groups.${itemGroup}`)}</span>
+                            <span className="tabular">{groupCounts[itemGroup]}</span>
+                          </div>
+                        ) : null}
+                        <div
+                          className={cn(
+                            'flex items-start gap-2 pl-3',
+                            selected?.id === item.id ? 'bg-accent-subtle' : 'hover:bg-surface-2',
+                          )}
+                        >
+                          <Checkbox
+                            className="mt-3"
+                            checked={checked.has(item.id)}
+                            onCheckedChange={() => toggle(item.id)}
+                            aria-label={t('inbox.select', { title: item.title })}
+                          />
+                          <button
+                            type="button"
+                            role="option"
+                            aria-selected={selected?.id === item.id}
+                            onClick={() => setSelectedId(item.id)}
+                            className="flex min-w-0 flex-1 flex-col gap-1 py-2.5 pr-3 text-left"
+                          >
+                            <InboxRow item={item} />
+                          </button>
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
+                {hasNextPage ? (
+                  <div className="p-2">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      loading={isFetchingNextPage}
+                      onClick={() => void fetchNextPage()}
+                    >
+                      {t('common.actions.loadMore')}
+                    </Button>
+                  </div>
+                ) : null}
+              </>
+            )}
+          </div>
         </div>
 
         <div className="min-h-0 overflow-y-auto bg-canvas">
@@ -233,6 +411,45 @@ export function InboxScreen() {
         </div>
       </div>
     </div>
+  )
+}
+
+/** Строка дела: заголовок, «срочно», инициатор, срок, замещение. */
+function InboxRow({ item }: { item: InboxItem }) {
+  const t = useT()
+  const locale = useAppearance((s) => s.locale)
+  return (
+    <>
+      <span className="flex items-center gap-2">
+        <ObjectIcon type={item.object?.type ?? 'inbox'} className="size-4 shrink-0 text-fg-muted" />
+        <span className="min-w-0 flex-1 truncate text-sm font-medium text-fg">{item.title}</span>
+        {item.priority === 'urgent' || item.priority === 'high' ? (
+          <Badge tone="danger" size="sm">
+            {t('inbox.urgent')}
+          </Badge>
+        ) : null}
+      </span>
+      <span className="flex items-center gap-2 text-xs text-fg-muted">
+        {item.actor ? <span className="truncate">{item.actor.displayName}</span> : null}
+        {item.dueAt ? (
+          <span
+            className={cn(
+              'flex items-center gap-1',
+              new Date(item.dueAt) < new Date() && 'text-danger',
+            )}
+          >
+            <Clock3 className="size-3" aria-hidden />
+            {formatRelativeTime(item.dueAt, { locale })}
+          </span>
+        ) : null}
+        {item.onBehalfOf ? (
+          <span className="flex items-center gap-1 text-warning">
+            <User className="size-3" aria-hidden />
+            {item.onBehalfOf.displayName}
+          </span>
+        ) : null}
+      </span>
+    </>
   )
 }
 
@@ -293,6 +510,26 @@ function InboxDetail({ item, onSnooze }: { item: InboxItem; onSnooze: () => void
     setDate('')
     setCommenting(action)
   }
+
+  // A — согласовать, R — отклонить (шпаргалка горячих клавиш, N84): те же кнопки дела;
+  // в открытом диалоге клавиши не срабатывают — фокус в поле ввода
+  useHotkeys([
+    {
+      combo: 'a',
+      handler: () => {
+        const approve = item.actions.find((action) => action.key === 'approve')
+        if (approve && !act.isPending && !commenting) run(approve)
+      },
+    },
+    {
+      combo: 'r',
+      handler: () => {
+        const reject = item.actions.find((action) => action.key === 'reject')
+        if (reject && !act.isPending && !commenting) run(reject)
+      },
+    },
+  ])
+
   // Запрос продления: запрошенный срок и обоснование — в деле автора (ADR-0082)
   const requestedDueAt =
     typeof item.payload.requestedDueAt === 'string' ? item.payload.requestedDueAt : null
@@ -322,7 +559,7 @@ function InboxDetail({ item, onSnooze }: { item: InboxItem; onSnooze: () => void
       <header className="flex flex-col gap-2">
         <div className="flex items-center gap-2 text-xs text-fg-muted">
           <Badge tone="accent" size="sm">
-            {t(`inbox.groups.${groupOf(item.kind)}`)}
+            {t(`inbox.groups.${inboxGroupOf(item.kind)}`)}
           </Badge>
           {item.dueAt ? (
             <span className={cn(new Date(item.dueAt) < new Date() && 'text-danger')}>
@@ -444,14 +681,4 @@ function InboxDetail({ item, onSnooze }: { item: InboxItem; onSnooze: () => void
       </Dialog>
     </article>
   )
-}
-
-function groupOf(kind: string): string {
-  if (['approve', 'sign', 'resolve', 'register', 'revise'].includes(kind)) return 'decide'
-  if (kind === 'acknowledge') return 'acknowledge'
-  if (kind.includes('instruction') || kind === 'accept_result' || kind === 'extend_due') {
-    return 'instructions'
-  }
-  if (kind === 'respond_invite') return 'invites'
-  return 'data'
 }

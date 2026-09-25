@@ -872,6 +872,7 @@ export const ru = {
       reject: 'Отклонить (Входящие)',
       snooze: 'Отложить дело (Входящие)',
       openObject: 'Открыть объект дела (Входящие)',
+      select: 'Отметить дело флажком (Входящие)',
       cheatSheet: 'Эта шпаргалка',
       pasteCells: 'Вставить в ячейки',
       undoEdit: 'Отменить правку',
@@ -1015,6 +1016,23 @@ export const ru = {
     requestedDue: 'Запрошен срок: {date}',
     reason: 'Обоснование: {reason}',
     justification: 'Обоснование',
+    groupLabel: 'Вид дел',
+    groupAll: 'Все виды',
+    groupOption: '{name} · {count}',
+    dueLabel: 'Срок',
+    due: { any: 'Любой', overdue: 'Просрочено', today: 'Сегодня', week: 'Неделя' },
+    emptyFiltered: 'Под фильтр ничего не попало',
+    select: 'Выбрать «{title}»',
+    selectAll: 'Выбрать все загруженные',
+    bulk: {
+      selected:
+        '{count, plural, one {Выбрано # дело} few {Выбрано # дела} many {Выбрано # дел} other {Выбрано # дела}}',
+      acknowledge: 'Ознакомлен ({count})',
+      done: 'Отметить выполненным ({count})',
+      snooze: 'Отложить',
+      clear: 'Снять выбор',
+      result: 'Сделано: {done}, пропущено: {skipped}',
+    },
   },
 
   notifications: {

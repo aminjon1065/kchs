@@ -1,4 +1,15 @@
-import type { InboxCounts, InboxItem, InboxKind, InboxState, Locale } from '@kchs/contracts'
+import {
+  INBOX_BULK_ACTION_KEY,
+  type InboxBulkInput,
+  type InboxBulkResult,
+  type InboxCounts,
+  type InboxGroup,
+  type InboxItem,
+  type InboxKind,
+  type InboxState,
+  inboxKindsOf,
+  type Locale,
+} from '@kchs/contracts'
 import { createTranslator } from '@kchs/i18n'
 import { and, asc, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm'
 import type { Ctx, UserCtx } from '~/shared/context.js'
@@ -341,6 +352,74 @@ export const InboxService = {
     return action ? { itemId: row.id, kind, objectId: row.objectId, ...action } : null
   },
 
+  /**
+   * Массовое действие над выбранными делами (ADR-0153). «Ознакомлен» и «Отметить
+   * выполненным» проходят тем же путём, что одиночная кнопка (`act` → модуль дела), по
+   * одному делу; дела, которым нужны комментарий, код или форма, и уже закрытые
+   * пропускаются с причиной. «Отложить» — сразу всем открытым из выбранных.
+   */
+  async bulk(ctx: UserCtx, input: InboxBulkInput): Promise<InboxBulkResult> {
+    const ids = [...new Set(input.ids)]
+    const results: InboxBulkResult['results'] = []
+    if (input.operation === 'snooze') {
+      const until = input.until ?? new Date(Date.now() + 24 * 3_600_000).toISOString()
+      const snoozed = await db()
+        .update(inboxItems)
+        .set({ state: 'snoozed', snoozedUntil: until })
+        .where(
+          and(
+            inArray(inboxItems.id, ids),
+            eq(inboxItems.userId, ctx.userId),
+            eq(inboxItems.state, 'open'),
+          ),
+        )
+        .returning({ id: inboxItems.id })
+      const done = new Set(snoozed.map((row) => row.id))
+      for (const id of ids) {
+        results.push({ id, ok: done.has(id), reason: done.has(id) ? null : 'not_applicable' })
+      }
+      if (done.size > 0) await invalidateCounts([ctx.userId])
+    } else {
+      const key = INBOX_BULK_ACTION_KEY[input.operation]
+      const rows = await db()
+        .select({
+          id: inboxItems.id,
+          kind: inboxItems.kind,
+          state: inboxItems.state,
+          payload: inboxItems.payload,
+        })
+        .from(inboxItems)
+        .where(and(inArray(inboxItems.id, ids), eq(inboxItems.userId, ctx.userId)))
+      const byId = new Map(rows.map((row) => [row.id, row]))
+      for (const id of ids) {
+        const row = byId.get(id)
+        const actions = row
+          ? ((row.payload as { actions?: InboxItem['actions'] }).actions ??
+            defaultActions(row.kind as InboxKind))
+          : []
+        const action = actions.find((item) => item.key === key)
+        const simple =
+          action &&
+          !action.requiresComment &&
+          !action.requiresSecondFactor &&
+          !action.input &&
+          !action.openObject
+        if (!row || (row.state !== 'open' && row.state !== 'snoozed') || !simple) {
+          results.push({ id, ok: false, reason: 'not_applicable' })
+          continue
+        }
+        try {
+          await InboxService.act(ctx, id, { action: key })
+          results.push({ id, ok: true, reason: null })
+        } catch (error) {
+          results.push({ id, ok: false, reason: error instanceof Error ? error.message : 'error' })
+        }
+      }
+    }
+    const done = results.filter((result) => result.ok).length
+    return { done, skipped: results.length - done, results }
+  },
+
   async snooze(ctx: UserCtx, itemId: string, until: string): Promise<void> {
     const [item] = await db()
       .select()
@@ -361,6 +440,7 @@ export const InboxService = {
     query: {
       state?: InboxState
       kind?: InboxKind
+      group?: InboxGroup
       scope?: 'all' | 'mine' | 'delegated'
       due?: 'any' | 'overdue' | 'today' | 'week'
       limit?: number
@@ -372,6 +452,7 @@ export const InboxService = {
 
     if (query.state) conditions.push(eq(inboxItems.state, query.state))
     if (query.kind) conditions.push(eq(inboxItems.kind, query.kind))
+    if (query.group) conditions.push(inArray(inboxItems.kind, inboxKindsOf(query.group)))
     if (query.scope === 'mine') conditions.push(isNull(inboxItems.onBehalfOf))
     if (query.scope === 'delegated') conditions.push(sql`${inboxItems.onBehalfOf} is not null`)
     if (query.due === 'overdue') conditions.push(sql`${inboxItems.dueAt} < now()`)
