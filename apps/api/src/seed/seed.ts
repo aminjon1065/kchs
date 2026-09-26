@@ -2,7 +2,7 @@ import { eq, inArray, sql } from 'drizzle-orm'
 import { grantAccess } from '~/kernel/access/acl-service.js'
 import { bumpPrincipalsVersion } from '~/kernel/access/principal-set.js'
 import { DiscussionService } from '~/kernel/discussions/service.js'
-import { reindexAll } from '~/kernel/search/index-service.js'
+import { meili, reindexAll } from '~/kernel/search/index-service.js'
 import { BrandingService } from '~/kernel/settings/branding.js'
 import { SpaceService } from '~/kernel/spaces/service.js'
 import { type DemoDocumentPeople, DocumentsSeed } from '~/modules/documents/public.js'
@@ -12,6 +12,7 @@ import { OrgService, UserService } from '~/modules/identity/public.js'
 import { KnowledgeSeed } from '~/modules/knowledge/public.js'
 import { ensureControlMetrics } from '~/modules/tasks/domain/control-metrics.js'
 import { seedDemoInstructions } from '~/modules/tasks/domain/demo-instructions.js'
+import { config } from '~/shared/config/index.js'
 import { type SystemCtx, systemCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import {
@@ -631,3 +632,31 @@ export async function resetData(): Promise<void> {
     await db().execute(statement)
   }
 }
+
+/**
+ * Сброс стенда целиком (`pnpm db:reset`, `kchs seed --reset`), вслед за `resetData`:
+ * таблицы строк датасетов (схема ds) — не строки реестра, без этого сброс оставлял
+ * сиротами гигабайты демо-данных. Тесты этим не пользуются: у них своя база и свой индекс.
+ */
+export async function resetStorage(): Promise<void> {
+  const tables = await db().execute<{ name: string }>(
+    sql`SELECT tablename AS name FROM pg_tables WHERE schemaname = 'ds'`,
+  )
+  for (const table of tables) {
+    await db().execute(
+      sql`DROP TABLE IF EXISTS ${sql.identifier('ds')}.${sql.identifier(table.name)} CASCADE`,
+    )
+  }
+  // Поиск установки: иначе он находил бы удалённые объекты и сообщения — ключи прав у
+  // ролей после сброса те же. Задание очистки встаёт в очередь раньше новой индексации
+  const prefix = config().MEILI_INDEX_PREFIX
+  for (const name of SEARCH_INDEXES) {
+    await meili()
+      .index(`${prefix}${name}`)
+      .deleteAllDocuments()
+      .catch(() => undefined)
+  }
+}
+
+/** Поисковые индексы установки: объекты, сообщения чатов, фрагменты страниц знаний. */
+const SEARCH_INDEXES = ['objects', 'messages', 'page_chunk'] as const

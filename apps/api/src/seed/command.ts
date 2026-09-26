@@ -7,7 +7,7 @@ import { runMigrations } from '~/shared/db/migrate.js'
 import { logger } from '~/shared/logger/index.js'
 import { seedDemoData } from './demo-data.js'
 import { type EmergencyPackResult, installEmergencyPack } from './packs/emergency/index.js'
-import { linkTypicalNomenclature, resetData, runSeed } from './seed.js'
+import { linkTypicalNomenclature, resetData, resetStorage, runSeed } from './seed.js'
 
 export interface SeedCommandOptions {
   profile: 'minimal' | 'demo'
@@ -33,6 +33,7 @@ export async function seedCommand(options: SeedCommandOptions): Promise<{
   await runMigrations()
   if (options.reset) {
     await resetData()
+    await resetStorage()
     logger().warn('данные очищены')
   }
   // Системные роли восстанавливаются после очистки
