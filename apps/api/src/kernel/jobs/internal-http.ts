@@ -1,19 +1,17 @@
 import { z } from 'zod'
-import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
-import { validServiceToken } from '~/shared/http/service-token.js'
 import { JobService } from './service.js'
 
 /**
  * Внутренние маршруты для Python-движка: он сообщает статус, прогресс и
  * результат задания (01-project-structure.md §apps/engine). Аутентификация —
- * сервисный токен, доступ только из сети развёртывания.
+ * токен этого задания (ADR-0176), доступ только из сети развёртывания.
  */
 export function registerInternalJobRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/internal/jobs/:id/status',
-    auth: 'public',
+    auth: { engineJob: { jobParam: 'id' } },
     tags: ['internal'],
     summary: 'Движок сообщает состояние задания',
     schema: {
@@ -30,10 +28,6 @@ export function registerInternalJobRoutes(route: RouteRegistrar): void {
       response: { 200: z.object({ ok: z.boolean() }) },
     },
     handler: async (request) => {
-      if (!validServiceToken(request.headers['x-kchs-service-token'])) {
-        throw errors.unauthorized('Недействительный сервисный токен')
-      }
-
       const { id } = request.params
       const body = request.body
 

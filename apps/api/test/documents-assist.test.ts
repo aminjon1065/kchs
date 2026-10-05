@@ -5,6 +5,7 @@ import {
   call,
   createUser,
   db,
+  engineHeadersFor,
   registerLifecycle,
   setupFixture,
   type TestContext,
@@ -24,7 +25,6 @@ const { resetConfigCache } = await import('../src/shared/config/env.js')
 const { DocumentsSeed } = await import('../src/modules/documents/public.js')
 const { systemCtx } = await import('../src/shared/context.js')
 
-const token = process.env.INTERNAL_SERVICE_TOKEN ?? ''
 const run = Date.now().toString(36)
 
 let fx: TestContext
@@ -85,7 +85,7 @@ async function recognized(fileId: string, text = SCAN_TEXT): Promise<void> {
   const response = await call(fx.app, {
     method: 'POST',
     url: `/internal/files/${fileId}/processed`,
-    headers: { 'x-kchs-service-token': token },
+    headers: engineHeadersFor(`/internal/files/${fileId}/processed`),
     payload: {
       versionId: job?.payload.versionId,
       previewStatus: 'unsupported',

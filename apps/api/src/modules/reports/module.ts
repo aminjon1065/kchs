@@ -27,7 +27,6 @@ import { indexObject } from '~/kernel/search/index-service.js'
 import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
-import { validServiceToken } from '~/shared/http/service-token.js'
 import { ReportDelivery } from './domain/delivery.js'
 import { ReportService } from './domain/report-service.js'
 import { REPORT_RENDER_JOB, ReportRuns } from './domain/run-service.js'
@@ -38,10 +37,6 @@ import { registerReportLibraryRoutes } from './library-routes.js'
 const IdParam = z.object({ id: z.uuid() })
 const RunParam = z.object({ runId: z.uuid() })
 const Ok = z.object({ ok: z.boolean() })
-
-function assertService(token: string | string[] | undefined): void {
-  if (!validServiceToken(token)) throw errors.unauthorized('Недействительный сервисный токен')
-}
 
 /**
  * Отчёты (06-analytics-engine.md §12, P2-E05 S03–S05, ADR-0078): тип объекта,
@@ -278,33 +273,29 @@ export function registerReportsRoutes(route: RouteRegistrar): void {
     handler: async (request) => ReportRuns.previewPayload(request.ctx, request.params.id),
   })
 
-  // ─── Движок (сервисный токен, внутренняя сеть) ─────────────────────────────
+  // ─── Движок (токен задания, внутренняя сеть, ADR-0176) ─────────────────────
 
   route({
     method: 'POST',
     url: '/internal/reports/runs/:runId/start',
-    auth: 'public',
+    auth: { engineJob: { scope: (params) => `report-run:${params.runId}` } },
     tags: ['internal'],
     summary: 'Движок начинает рендер: служебный токен страницы печати (ADR-0078)',
     schema: {
       params: RunParam,
       response: { 200: ReportRenderStart },
     },
-    handler: async (request) => {
-      assertService(request.headers['x-kchs-service-token'])
-      return ReportRuns.engineStart(request.params.runId)
-    },
+    handler: async (request) => ReportRuns.engineStart(request.params.runId),
   })
 
   route({
     method: 'POST',
     url: '/internal/reports/runs/:runId/rendered',
-    auth: 'public',
+    auth: { engineJob: { scope: (params) => `report-run:${params.runId}` } },
     tags: ['internal'],
     summary: 'Движок положил файлы отчёта в бакет экспортов',
     schema: { params: RunParam, body: ReportRenderResult, response: { 200: Ok } },
     handler: async (request) => {
-      assertService(request.headers['x-kchs-service-token'])
       await ReportRuns.engineRendered(request.params.runId, request.body)
       return { ok: true }
     },

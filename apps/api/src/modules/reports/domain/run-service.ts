@@ -191,6 +191,7 @@ export const ReportRuns = {
     const jobId = await JobService.schedule(tx, ctx, {
       ...REPORT_RENDER_JOB,
       objectId: input.reportId,
+      callbackScope: `report-run:${id}`,
       data: { runId: id },
       // Повтор — один: сбой страницы обычно не проходит сам, а бюджет рендера — минута
       options: { attempts: 2, backoff: { type: 'fixed', delay: 15_000 } },

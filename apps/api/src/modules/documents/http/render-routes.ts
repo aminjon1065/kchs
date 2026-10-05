@@ -11,9 +11,7 @@ import {
   WatermarkRequestInput,
 } from '@kchs/contracts'
 import { z } from 'zod'
-import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
-import { validServiceToken } from '~/shared/http/service-token.js'
 import { compareVersions } from '../domain/compare/compare-service.js'
 import { DocumentRenders } from '../domain/render-service.js'
 
@@ -110,27 +108,22 @@ export function registerRenderRoutes(route: RouteRegistrar): void {
     handler: async (request) => compareVersions(request.ctx, request.params.id, request.query),
   })
 
-  // ─── Движок (сервисный токен, внутренняя сеть) ─────────────────────────────
+  // ─── Движок (токен задания, внутренняя сеть, ADR-0176) ─────────────────────
 
   route({
     method: 'POST',
     url: '/internal/documents/renders/:id/start',
-    auth: 'public',
+    auth: { engineJob: { scope: (params) => `document-render:${params.id}` } },
     tags: ['internal'],
     summary: 'Движок начинает рендер: план с правами заказчика на этот момент',
     schema: { params: IdParam, response: { 200: DocumentRenderStart } },
-    handler: async (request) => {
-      if (!validServiceToken(request.headers['x-kchs-service-token'])) {
-        throw errors.unauthorized('Недействительный сервисный токен')
-      }
-      return DocumentRenders.engineStart(request.params.id)
-    },
+    handler: async (request) => DocumentRenders.engineStart(request.params.id),
   })
 
   route({
     method: 'POST',
     url: '/internal/documents/renders/:id/done',
-    auth: 'public',
+    auth: { engineJob: { scope: (params) => `document-render:${params.id}` } },
     tags: ['internal'],
     summary: 'Движок положил результат рендера под выданный ключ',
     schema: {
@@ -139,9 +132,6 @@ export function registerRenderRoutes(route: RouteRegistrar): void {
       response: { 200: z.object({ ok: z.boolean(), stale: z.boolean() }) },
     },
     handler: async (request) => {
-      if (!validServiceToken(request.headers['x-kchs-service-token'])) {
-        throw errors.unauthorized('Недействительный сервисный токен')
-      }
       const { stale } = await DocumentRenders.engineDone(request.params.id, request.body)
       return { ok: true, stale }
     },

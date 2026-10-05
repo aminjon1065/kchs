@@ -5,6 +5,7 @@ import {
   call,
   createUser,
   db,
+  engineHeadersFor,
   registerLifecycle,
   setupFixture,
   type TestContext,
@@ -33,14 +34,13 @@ const { systemCtx } = await import('../src/shared/context.js')
 type Json = any
 
 const run = Date.now().toString(36)
-const serviceToken = process.env.INTERNAL_SERVICE_TOKEN ?? ''
 
 /** Движок печати: план рендера и результат — внутренними маршрутами, как настоящий. */
 const engine = (path: string, payload: Record<string, unknown> = {}) =>
   call(fx.app, {
     method: 'POST',
     url: path,
-    headers: { 'x-kchs-service-token': serviceToken },
+    headers: engineHeadersFor(path),
     payload,
   })
 

@@ -208,6 +208,7 @@ export const DocumentVersionService = {
       name: PDF_JOB.name,
       objectId: documentId,
       idempotencyKey: `document.pdf:${id}`,
+      callbackScope: `document-version:${id}`,
       data: {
         documentId,
         versionId: id,

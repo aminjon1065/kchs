@@ -6,6 +6,7 @@ import {
   call,
   createUser,
   db,
+  engineJobHeaders,
   registerLifecycle,
   setupFixture,
   type TestContext,
@@ -51,7 +52,6 @@ const MEDIA = {
   LIVEKIT_API_KEY: `key_${run}`,
   LIVEKIT_API_SECRET: 'secret_for_tests_at_least_32_characters_long',
 }
-const serviceToken = process.env.INTERNAL_SERVICE_TOKEN ?? ''
 
 let fx: TestContext
 let member: TestUser
@@ -288,7 +288,7 @@ describe('доступ к записи и расшифровке', () => {
     const reported = await call(fx.app, {
       method: 'POST',
       url: `/internal/meetings/recordings/${recordingId}/transcript`,
-      headers: { 'x-kchs-service-token': serviceToken },
+      headers: engineJobHeaders({ scope: `recording:${recordingId}` }),
       payload: result,
     })
     expect(reported.statusCode, reported.body).toBe(200)
@@ -332,7 +332,7 @@ describe('доступ к записи и расшифровке', () => {
     const reported = await call(fx.app, {
       method: 'POST',
       url: `/internal/meetings/recordings/${otherRecording}/transcript`,
-      headers: { 'x-kchs-service-token': serviceToken },
+      headers: engineJobHeaders({ scope: `recording:${otherRecording}` }),
       payload: {
         status: 'unavailable',
         error: 'модель распознавания речи не настроена',

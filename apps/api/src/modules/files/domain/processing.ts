@@ -37,6 +37,7 @@ export const FileProcessing = {
       name: 'file.process',
       objectId: target.fileId,
       idempotencyKey: `file.process:${target.versionId}`,
+      callbackScope: `file:${target.fileId}`,
       data: {
         fileId: target.fileId,
         versionId: target.versionId,

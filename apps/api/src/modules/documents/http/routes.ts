@@ -65,7 +65,6 @@ import { z } from 'zod'
 import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
-import { validServiceToken } from '~/shared/http/service-token.js'
 import { DocumentAcknowledgments } from '../domain/acknowledgment-service.js'
 import { DocumentBulk } from '../domain/bulk-service.js'
 import { CaseImport } from '../domain/case-import.js'
@@ -278,7 +277,7 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/internal/documents/versions/:id/pdf',
-    auth: 'public',
+    auth: { engineJob: { scope: (params) => `document-version:${params.id}` } },
     tags: ['internal'],
     summary: 'Движок сообщает хэш версии и её PDF-представление',
     schema: {
@@ -287,9 +286,6 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
       response: { 200: z.object({ ok: z.boolean(), stale: z.boolean() }) },
     },
     handler: async (request) => {
-      if (!validServiceToken(request.headers['x-kchs-service-token'])) {
-        throw errors.unauthorized('Недействительный сервисный токен')
-      }
       const { stale } = await DocumentVersionService.applyPdfResult(request.params.id, request.body)
       return { ok: true, stale }
     },

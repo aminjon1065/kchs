@@ -3,6 +3,7 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import {
   call,
   db,
+  engineJobHeaders,
   registerLifecycle,
   setupFixture,
   type TestContext,
@@ -35,12 +36,16 @@ async function jobFor(fileId: string) {
   return rows
 }
 
-function processed(fileId: string, body: Record<string, unknown>, serviceToken = token) {
+function processed(
+  fileId: string,
+  body: Record<string, unknown>,
+  headers = engineJobHeaders({ scope: `file:${fileId}` }),
+) {
   return call(fx.app, {
     method: 'POST',
     url: `/internal/files/${fileId}/processed`,
     payload: body,
-    headers: { 'x-kchs-service-token': serviceToken },
+    headers,
   })
 }
 
@@ -77,12 +82,20 @@ describe('обработка файлов', () => {
     const [job] = await jobFor(file.id)
     const { versionId, previewPrefix } = job?.payload ?? {}
 
+    // Общий сервисный токен (он есть у движка) маршрут не открывает (ADR-0176)
     const unauthorized = await processed(
       file.id,
       { versionId, previewStatus: 'ready', textStatus: 'ready' },
-      'неверный-токен',
+      { 'x-kchs-service-token': token },
     )
     expect(unauthorized.statusCode).toBe(401)
+    // Токен задания другого файла — чужой ресурс
+    const otherFile = await processed(
+      file.id,
+      { versionId, previewStatus: 'ready', textStatus: 'ready' },
+      engineJobHeaders({ scope: `file:${versionId}` }),
+    )
+    expect(otherFile.statusCode).toBe(403)
 
     const foreign = await processed(file.id, {
       versionId,

@@ -1,7 +1,14 @@
 import { PutObjectCommand } from '@aws-sdk/client-s3'
 import { sql } from 'drizzle-orm'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { call, db, registerLifecycle, setupFixture, type TestContext } from './helpers.js'
+import {
+  call,
+  db,
+  engineJobHeaders,
+  registerLifecycle,
+  setupFixture,
+  type TestContext,
+} from './helpers.js'
 
 /**
  * Демо-датасеты сида (P1-E10, ADR-0063): манифест генератора → датасеты со схемой,
@@ -11,7 +18,6 @@ import { call, db, registerLifecycle, setupFixture, type TestContext } from './h
  */
 registerLifecycle()
 
-const token = process.env.INTERNAL_SERVICE_TOKEN ?? ''
 const { DemoData } = await import('../src/modules/data/public.js')
 const { ImportService } = await import('../src/modules/data/domain/import-service.js')
 const { TerritoryService } = await import('../src/modules/gis/public.js')
@@ -197,7 +203,7 @@ async function fakeEngine(signal: { done: boolean }): Promise<number> {
           errorsKey: null,
           errorSample: [],
         },
-        headers: { 'x-kchs-service-token': token },
+        headers: engineJobHeaders({ scope: `import:${item.id}` }),
       })
       expect(report.statusCode, report.body).toBe(200)
       await ImportService.load({ importId: item.id }, async () => undefined)

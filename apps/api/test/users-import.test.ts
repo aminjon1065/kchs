@@ -8,6 +8,7 @@ import {
   call,
   createUser,
   db,
+  engineJobHeaders,
   registerLifecycle,
   setupFixture,
   type TestContext,
@@ -93,12 +94,16 @@ async function startImport(fileId: string, mode: 'check' | 'apply', as: TestUser
   return response.json().importId as string
 }
 
-function engineSends(importId: string, body: UsersImportParsed, serviceToken = token) {
+function engineSends(
+  importId: string,
+  body: UsersImportParsed,
+  headers = engineJobHeaders({ jobId: importId }),
+) {
   return call(fx.app, {
     method: 'POST',
     url: `/internal/users-import/${importId}/parsed`,
     payload: body,
-    headers: { 'x-kchs-service-token': serviceToken },
+    headers,
   })
 }
 
@@ -400,7 +405,11 @@ describe('импорт пользователей: права и границы'
     expect(refused.statusCode).toBe(400)
 
     const importId = await startImport(await xlsxFile(), 'check')
-    expect((await engineSends(importId, parsed([]), 'wrong-token-0000000')).statusCode).toBe(401)
+    // Общий сервисный токен маршрут не открывает, токен другого задания — тоже (ADR-0176)
+    const shared = { 'x-kchs-service-token': token }
+    expect((await engineSends(importId, parsed([]), shared)).statusCode).toBe(401)
+    const otherJob = engineJobHeaders({ jobId: '00000000-0000-4000-8000-000000000000' })
+    expect((await engineSends(importId, parsed([]), otherJob)).statusCode).toBe(403)
     const unknown = await engineSends('00000000-0000-4000-8000-000000000000', parsed([]))
     expect(unknown.statusCode).toBe(404)
 

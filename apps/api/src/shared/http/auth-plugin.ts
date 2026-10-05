@@ -3,8 +3,9 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import fp from 'fastify-plugin'
 import { config } from '../config/index.js'
 import type { UserCtx } from '../context.js'
+import { JOB_TOKEN_HEADER, verifyJobToken } from '../crypto/job-token.js'
 import { AppError, errors } from '../errors.js'
-import type { RouteAuth } from './route.js'
+import type { EngineJobScope, RouteAuth } from './route.js'
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -98,6 +99,11 @@ export const authPlugin = fp<AuthDependencies>(async (app: FastifyInstance, deps
 
     if (auth === 'public') return
 
+    if (typeof auth === 'object' && 'engineJob' in auth) {
+      verifyEngineCallback(request, auth.engineJob)
+      return
+    }
+
     // Токен публичного API идёт раньше сессии: интеграция ходит без cookie,
     // CSRF ей не нужен (17-security.md §5), а области проверяются отдельно
     const bearer = bearerToken(request.headers.authorization)
@@ -188,6 +194,22 @@ export const authPlugin = fp<AuthDependencies>(async (app: FastifyInstance, deps
     await applyRoutePolicy(request, auth, deps)
   })
 })
+
+/**
+ * Обратный вызов движка (ADR-0176): токен задания открывает только маршруты своего
+ * задания и его ресурса. Пользователя у вызова нет — обработчик действует от имени
+ * задания, как и раньше при сервисном токене.
+ */
+function verifyEngineCallback(request: FastifyRequest, scope: EngineJobScope): void {
+  const claims = verifyJobToken(request.headers[JOB_TOKEN_HEADER])
+  if (!claims) throw errors.unauthorized('Недействительный токен задания')
+  const params = (request.params ?? {}) as Record<string, string>
+  const allowed =
+    'jobParam' in scope
+      ? params[scope.jobParam] === claims.jobId
+      : claims.scope !== '' && scope.scope(params) === claims.scope
+  if (!allowed) throw errors.forbidden('Токен выдан другому заданию')
+}
 
 async function applyRoutePolicy(
   request: FastifyRequest,

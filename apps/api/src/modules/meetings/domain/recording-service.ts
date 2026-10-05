@@ -507,6 +507,7 @@ export const RecordingService = {
         name: TRANSCRIBE_JOB.name,
         objectId: recordingId,
         idempotencyKey: `transcribe:${recordingId}`,
+        callbackScope: `recording:${recordingId}`,
         data: {
           recordingId,
           meetingId: row.meetingId,

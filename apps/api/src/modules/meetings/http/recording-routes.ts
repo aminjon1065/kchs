@@ -10,9 +10,7 @@ import {
 } from '@kchs/contracts'
 import { z } from 'zod'
 import { db } from '~/shared/db/client.js'
-import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
-import { validServiceToken } from '~/shared/http/service-token.js'
 import { verifyWebhook } from '../domain/recording-egress.js'
 import { MeetingSettingsService } from '../domain/recording-retention.js'
 import { RecordingService } from '../domain/recording-service.js'
@@ -172,7 +170,7 @@ export function registerMeetingRecordingRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/internal/meetings/recordings/:id/transcript',
-    auth: 'public',
+    auth: { engineJob: { scope: (params) => `recording:${params.id}` } },
     tags: ['internal'],
     summary: 'Движок сообщает расшифровку записи',
     schema: {
@@ -181,9 +179,6 @@ export function registerMeetingRecordingRoutes(route: RouteRegistrar): void {
       response: { 200: z.object({ ok: z.literal(true) }) },
     },
     handler: async (request) => {
-      if (!validServiceToken(request.headers['x-kchs-service-token'])) {
-        throw errors.unauthorized('Недействительный сервисный токен')
-      }
       await TranscriptService.save(request.params.id, request.body)
       return { ok: true as const }
     },

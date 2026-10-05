@@ -2,6 +2,7 @@ import {
   createCipheriv,
   createDecipheriv,
   createHash,
+  createHmac,
   randomBytes,
   timingSafeEqual,
 } from 'node:crypto'
@@ -78,6 +79,18 @@ export function reencryptSecret(
       return { state: 'unreadable' }
     }
   }
+}
+
+/**
+ * Ключи подписи для назначения `purpose`, выведенные из мастер-ключа: текущий и,
+ * пока идёт смена ключа (ADR-0143), прежний. Мастер-ключ есть только у api и
+ * worker, поэтому подпись этими ключами не подделать тем, у кого его нет, —
+ * движку (токены заданий, ADR-0176).
+ */
+export function signingKeys(purpose: string): Buffer[] {
+  return [masterKey(), previousKey()]
+    .filter((key): key is Buffer => key !== null)
+    .map((key) => createHmac('sha256', key).update(purpose, 'utf8').digest())
 }
 
 /** Хэш для хранения токенов сессий/ссылок: сравнение в постоянное время. */

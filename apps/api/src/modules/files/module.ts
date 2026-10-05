@@ -26,7 +26,6 @@ import { db } from '~/shared/db/client.js'
 import { files, objects } from '~/shared/db/schema/index.js'
 import { AppError, errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
-import { validServiceToken } from '~/shared/http/service-token.js'
 import { AttachmentsFolder } from './domain/attachments.js'
 import { FileService } from './domain/file-service.js'
 import { OfficeService } from './domain/office-service.js'
@@ -325,7 +324,7 @@ export function registerFilesRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/internal/files/:id/processed',
-    auth: 'public',
+    auth: { engineJob: { scope: (params) => `file:${params.id}` } },
     tags: ['internal'],
     summary: 'Движок сообщает превью и текст версии файла',
     schema: {
@@ -334,9 +333,6 @@ export function registerFilesRoutes(route: RouteRegistrar): void {
       response: { 200: z.object({ ok: z.boolean(), stale: z.boolean() }) },
     },
     handler: async (request) => {
-      if (!validServiceToken(request.headers['x-kchs-service-token'])) {
-        throw errors.unauthorized('Недействительный сервисный токен')
-      }
       const { stale } = await FileProcessing.applyResult(request.params.id, request.body)
       return { ok: true, stale }
     },

@@ -4,6 +4,7 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import {
   call,
   createUser,
+  engineJobHeaders,
   redis,
   registerLifecycle,
   setupFixture,
@@ -26,7 +27,6 @@ const { ImportService } = await import('../src/modules/data/domain/import-servic
 const { s3, buckets } = await import('../src/kernel/storage/s3.js')
 const { systemCtx } = await import('../src/shared/context.js')
 const { db } = await import('../src/shared/db/client.js')
-const token = process.env.INTERNAL_SERVICE_TOKEN ?? ''
 const TERRITORIES = (await import('../src/seed/territories.json', { with: { type: 'json' } }))
   .default
 
@@ -387,7 +387,7 @@ describe('импорт поля-территории', () => {
         errorsKey: `imports/${importId}/errors.csv`,
         errorSample: [{ row: 4, column: 'place', value: 'Атлантида', reason: 'unknown_territory' }],
       },
-      headers: { 'x-kchs-service-token': token },
+      headers: engineJobHeaders({ scope: `import:${importId}` }),
     })
     expect(report.statusCode, report.body).toBe(200)
     if (report.json().loadJobId) await ImportService.load({ importId }, async () => undefined)

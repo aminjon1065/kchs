@@ -299,6 +299,7 @@ export const ImportService = {
       queue: NORMALIZE_JOB.queue,
       name: NORMALIZE_JOB.name,
       objectId: datasetId,
+      callbackScope: `import:${id}`,
       data: {
         importId: id,
         bucket: source.bucket,

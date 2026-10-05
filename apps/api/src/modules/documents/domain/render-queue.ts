@@ -84,6 +84,7 @@ export async function enqueueRender(
     name: RENDER_JOB.name,
     objectId: input.subject.id,
     idempotencyKey: `document.render:${id}`,
+    callbackScope: `document-render:${id}`,
     data: { renderId: id },
     options: { attempts: 3, backoff: { type: 'exponential', delay: 5000 } },
   })

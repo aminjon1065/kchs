@@ -7,13 +7,24 @@ import type { UserCtx } from '../context.js'
  * Политика доступа маршрута. Обязательна: регистрация без `auth` падает на старте
  * (17-security.md §3, 01-project-structure.md).
  *
- *  - `public`   — без аутентификации (вход, здоровье, гостевая ссылка)
- *  - `session`  — нужна действующая сессия, объект не проверяется
- *  - `{action}` — нужно право на объект: `authorize(ctx, action, objectRef)`
+ *  - `public`      — без аутентификации (вход, здоровье, гостевая ссылка)
+ *  - `session`     — нужна действующая сессия, объект не проверяется
+ *  - `{action}`    — нужно право на объект: `authorize(ctx, action, objectRef)`
+ *  - `{engineJob}` — обратный вызов движка токеном своего задания (ADR-0176)
  */
 export type RouteAuth =
   | 'public'
   | 'session'
+  | {
+      /**
+       * Обратный вызов движка по заданию: заголовок `x-kchs-job-token` с токеном,
+       * который api выдал заданию при передаче в очередь. Общий сервисный токен
+       * здесь не принимается. Маршрут называет, что открывает токен: `jobParam` —
+       * параметр пути с id записи задания, `scope` — ресурс задания по
+       * параметрам пути (`file:<id>`), тот же, что модуль указал при постановке.
+       */
+      engineJob: EngineJobScope
+    }
   | {
       /** Действие модуля, например `file.download` или `space.manage`. */
       action: string
@@ -26,6 +37,10 @@ export type RouteAuth =
       /** Только глобальная способность, без объекта. */
       capability: string
     }
+
+export type EngineJobScope =
+  | { jobParam: string }
+  | { scope: (params: Record<string, string>) => string }
 
 export interface RouteDefinition<
   Params extends z.ZodTypeAny = z.ZodTypeAny,

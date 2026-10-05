@@ -4,6 +4,7 @@ import {
   call,
   createUser,
   db,
+  engineHeadersFor,
   registerLifecycle,
   setupFixture,
   type TestContext,
@@ -22,7 +23,6 @@ registerLifecycle()
 const { DocumentsSeed } = await import('../src/modules/documents/public.js')
 const { systemCtx } = await import('../src/shared/context.js')
 
-const token = process.env.INTERNAL_SERVICE_TOKEN ?? ''
 const run = Date.now().toString(36)
 
 let fx: TestContext
@@ -48,7 +48,7 @@ const engine = (path: string, payload: Record<string, unknown> = {}) =>
   call(fx.app, {
     method: 'POST',
     url: path,
-    headers: { 'x-kchs-service-token': token },
+    headers: engineHeadersFor(path),
     payload,
   })
 
@@ -269,9 +269,13 @@ describe('печатные формы', () => {
       sql`SELECT payload FROM jobs WHERE name = 'document.render'
            AND idempotency_key = ${`document.render:${render.id}`}`,
     )
-    expect(job?.payload).toEqual({ renderId: render.id })
+    // Ресурс задания — для токена обратного вызова движка (ADR-0176)
+    expect(job?.payload).toEqual({
+      renderId: render.id,
+      callbackScope: `document-render:${render.id}`,
+    })
 
-    // Без сервисного токена движок плана не получает
+    // Без токена задания движок плана не получает
     const anonymous = await call(fx.app, {
       method: 'POST',
       url: `/internal/documents/renders/${render.id}/start`,

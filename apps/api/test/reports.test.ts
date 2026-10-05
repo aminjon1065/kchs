@@ -3,7 +3,15 @@ import { sql } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import * as Y from 'yjs'
 import { type FakeTelegram, startFakeTelegram } from './fakes.js'
-import { call, db, redis, registerLifecycle, setupFixture, type TestContext } from './helpers.js'
+import {
+  call,
+  db,
+  engineJobHeaders,
+  redis,
+  registerLifecycle,
+  setupFixture,
+  type TestContext,
+} from './helpers.js'
 
 /**
  * Отчёты (P2-E05 S03–S05, ADR-0078): шаблон из блоков, «Экспорт в отчёт» из
@@ -27,7 +35,6 @@ const { queue } = await import('../src/kernel/jobs/service.js')
 const { s3, buckets } = await import('../src/kernel/storage/s3.js')
 const { systemCtx } = await import('../src/shared/context.js')
 const { TelegramLinks } = await import('../src/modules/telegram/domain/links.js')
-const { config } = await import('../src/shared/config/index.js')
 
 let fx: TestContext
 let telegram: FakeTelegram
@@ -36,7 +43,6 @@ let chartId: string
 let metricId: string
 let reportId: string
 const run = Date.now().toString(36)
-const SERVICE = { 'x-kchs-service-token': '' }
 const MEMBER_CHAT = 7770001
 
 function configure(env: Record<string, string | undefined>): void {
@@ -67,7 +73,7 @@ async function engineStart(runId: string) {
     method: 'POST',
     url: `/internal/reports/runs/${runId}/start`,
     payload: {},
-    headers: SERVICE,
+    headers: engineJobHeaders({ scope: `report-run:${runId}` }),
   })
   expect(response.statusCode, response.body).toBe(200)
   return response.json()
@@ -90,14 +96,13 @@ async function engineRender(
     method: 'POST',
     url: `/internal/reports/runs/${runId}/rendered`,
     payload: { files, pages: 1, durationMs: 1234, timings: { ready: 900, pdf: 300 } },
-    headers: SERVICE,
+    headers: engineJobHeaders({ scope: `report-run:${runId}` }),
   })
   expect(response.statusCode, response.body).toBe(200)
 }
 
 beforeAll(async () => {
   fx = await setupFixture()
-  SERVICE['x-kchs-service-token'] = config().INTERNAL_SERVICE_TOKEN ?? ''
   telegram = await startFakeTelegram()
   configure({
     TELEGRAM_BOT_TOKEN: telegram.token,

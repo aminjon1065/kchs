@@ -4,6 +4,7 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import {
   call,
   db,
+  engineJobHeaders,
   registerLifecycle,
   setupFixture,
   type TestContext,
@@ -20,6 +21,7 @@ registerLifecycle()
 
 const token = process.env.INTERNAL_SERVICE_TOKEN ?? ''
 const { ImportService } = await import('../src/modules/data/domain/import-service.js')
+const { newId } = await import('../src/shared/ids.js')
 const { s3, buckets } = await import('../src/kernel/storage/s3.js')
 
 let fx: TestContext
@@ -74,7 +76,7 @@ async function normalizeAndLoad(
       errorsKey: extra.errors ? `imports/${importId}/errors.csv` : null,
       errorSample: extra.errorSample ?? [],
     },
-    headers: { 'x-kchs-service-token': token },
+    headers: engineJobHeaders({ scope: `import:${importId}` }),
   })
   expect(report.statusCode, report.body).toBe(200)
   if (report.json().loadJobId) {
@@ -390,24 +392,30 @@ describe('импорт: геометрия и ключ', () => {
 })
 
 describe('импорт: права и внутренний маршрут', () => {
-  it('отчёт движка без сервисного токена отклоняется', async () => {
+  it('отчёт движка принимается только с токеном задания этого импорта (ADR-0176)', async () => {
     const started = await startImport({
       target: { kind: 'new', name: `Токен ${run}`, spaceId: fx.spaceId },
     })
-    const response = await call(fx.app, {
-      method: 'POST',
-      url: `/internal/data/imports/${started.json().id}/normalized`,
-      payload: {
-        jobRecordId: 'x',
-        rows: 0,
-        errors: 0,
-        normalizedKey: 'imports/x/normalized.csv',
-        errorsKey: null,
-        errorSample: [],
-      },
-      headers: { 'x-kchs-service-token': 'не тот' },
-    })
-    expect(response.statusCode).toBe(401)
+    const report = (headers: Record<string, string>) =>
+      call(fx.app, {
+        method: 'POST',
+        url: `/internal/data/imports/${started.json().id}/normalized`,
+        payload: {
+          jobRecordId: 'x',
+          rows: 0,
+          errors: 0,
+          normalizedKey: 'imports/x/normalized.csv',
+          errorsKey: null,
+          errorSample: [],
+        },
+        headers,
+      })
+    // Общий сервисный токен (он есть у движка) внутренние маршруты не открывает
+    expect((await report({ 'x-kchs-service-token': token })).statusCode).toBe(401)
+    expect((await report({ 'x-kchs-job-token': 'не тот' })).statusCode).toBe(401)
+    // Токен задания другого импорта — чужой ресурс
+    const other = engineJobHeaders({ scope: `import:${newId()}` })
+    expect((await report(other)).statusCode).toBe(403)
   })
 
   it('загрузить в датасет без права правки нельзя; сопоставление с несуществующим полем — 400', async () => {

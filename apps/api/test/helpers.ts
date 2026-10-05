@@ -67,6 +67,8 @@ const { SpaceService } = await import('../src/kernel/spaces/service.js')
 const { SecurityPolicyService } = await import('../src/kernel/settings/security-policy.js')
 const { AuthProviders } = await import('../src/modules/identity/domain/auth-providers.js')
 const { systemCtx } = await import('../src/shared/context.js')
+const { issueJobToken, JOB_TOKEN_HEADER } = await import('../src/shared/crypto/job-token.js')
+const { newId } = await import('../src/shared/ids.js')
 
 export interface TestUser {
   id: string
@@ -319,6 +321,52 @@ export async function uploadFile(
     throw new Error(`завершение загрузки: ${complete.statusCode} ${complete.body}`)
   }
   return { id: complete.json().id, name: input.name }
+}
+
+/**
+ * Заголовок обратного вызова движка (ADR-0176) — токен задания так, как его выдаёт
+ * api при передаче задания в очередь: `scope` — ресурс маршрута (`file:<id>`),
+ * `jobId` — запись задания (маршруты статуса и импорта пользователей).
+ */
+export function engineJobHeaders(input: {
+  scope?: string
+  jobId?: string
+}): Record<string, string> {
+  return {
+    [JOB_TOKEN_HEADER]: issueJobToken({
+      jobId: input.jobId ?? newId(),
+      scope: input.scope ?? null,
+    }),
+  }
+}
+
+/** Ресурс задания по адресу внутреннего маршрута — тот же, что указывает модуль при постановке. */
+const ENGINE_ROUTES: Array<[RegExp, (id: string) => { scope?: string; jobId?: string }]> = [
+  [/\/internal\/files\/([^/]+)\/processed$/, (id) => ({ scope: `file:${id}` })],
+  [/\/internal\/documents\/versions\/([^/]+)\/pdf$/, (id) => ({ scope: `document-version:${id}` })],
+  [
+    /\/internal\/documents\/renders\/([^/]+)\/(?:start|done)$/,
+    (id) => ({ scope: `document-render:${id}` }),
+  ],
+  [
+    /\/internal\/meetings\/recordings\/([^/]+)\/transcript$/,
+    (id) => ({ scope: `recording:${id}` }),
+  ],
+  [/\/internal\/data\/imports\/([^/]+)\/normalized$/, (id) => ({ scope: `import:${id}` })],
+  [
+    /\/internal\/reports\/runs\/([^/]+)\/(?:start|rendered)$/,
+    (id) => ({ scope: `report-run:${id}` }),
+  ],
+  [/\/internal\/(?:jobs|users-import)\/([^/]+)\/(?:status|parsed)$/, (id) => ({ jobId: id })],
+]
+
+/** Токен задания для внутреннего маршрута движка по его адресу — как у настоящего задания. */
+export function engineHeadersFor(path: string): Record<string, string> {
+  for (const [pattern, claims] of ENGINE_ROUTES) {
+    const id = pattern.exec(path)?.[1]
+    if (id) return engineJobHeaders(claims(id))
+  }
+  throw new Error(`Неизвестный внутренний маршрут движка: ${path}`)
 }
 
 export function registerLifecycle(): void {

@@ -1,8 +1,6 @@
 import { UsersImportParsed, UsersImportStartInput, UsersImportStatus } from '@kchs/contracts'
 import { z } from 'zod'
-import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
-import { validServiceToken } from '~/shared/http/service-token.js'
 import { UsersImport } from '../domain/users-import.js'
 
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -88,7 +86,8 @@ export function registerUsersImportRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/internal/users-import/:importId/parsed',
-    auth: 'public',
+    // Идентификатор импорта — запись задания разбора (ADR-0041, ADR-0176)
+    auth: { engineJob: { jobParam: 'importId' } },
     tags: ['internal'],
     summary: 'Движок передаёт строки файла импорта пользователей',
     schema: {
@@ -96,13 +95,8 @@ export function registerUsersImportRoutes(route: RouteRegistrar): void {
       body: UsersImportParsed,
       response: { 200: z.object({ applyJobId: z.uuid() }) },
     },
-    handler: async (request) => {
-      if (!validServiceToken(request.headers['x-kchs-service-token'])) {
-        throw errors.unauthorized('Недействительный сервисный токен')
-      }
-      return {
-        applyJobId: await UsersImport.acceptParsed(request.params.importId, request.body),
-      }
-    },
+    handler: async (request) => ({
+      applyJobId: await UsersImport.acceptParsed(request.params.importId, request.body),
+    }),
   })
 }

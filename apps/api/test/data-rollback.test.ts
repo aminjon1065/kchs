@@ -4,6 +4,7 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import {
   call,
   db,
+  engineJobHeaders,
   registerLifecycle,
   setupFixture,
   type TestContext,
@@ -17,7 +18,6 @@ import {
  */
 registerLifecycle()
 
-const token = process.env.INTERNAL_SERVICE_TOKEN ?? ''
 const { ImportService } = await import('../src/modules/data/domain/import-service.js')
 const { Physical, historyName } = await import('../src/modules/data/infra/physical.js')
 const { s3, buckets } = await import('../src/kernel/storage/s3.js')
@@ -342,7 +342,7 @@ describe('откат: импорт и схема', () => {
         errorsKey: null,
         errorSample: [],
       },
-      headers: { 'x-kchs-service-token': token },
+      headers: engineJobHeaders({ scope: `import:${importId}` }),
     })
     expect(report.statusCode, report.body).toBe(200)
     await ImportService.load({ importId }, async () => undefined)

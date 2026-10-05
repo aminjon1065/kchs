@@ -1,8 +1,9 @@
-import type { JobRecord, QueueName } from '@kchs/contracts'
+import { type JobRecord, QUEUE_RUNTIME, type QueueName } from '@kchs/contracts'
 import { type JobsOptions, Queue } from 'bullmq'
 import { and, desc, eq, inArray, lt, sql } from 'drizzle-orm'
 import type { Ctx } from '~/shared/context.js'
 import { actorId, systemCtx } from '~/shared/context.js'
+import { issueJobToken } from '~/shared/crypto/job-token.js'
 import { db, type Executor } from '~/shared/db/client.js'
 import { jobs } from '~/shared/db/schema/index.js'
 import { newId } from '~/shared/ids.js'
@@ -56,6 +57,12 @@ export interface EnqueueInput {
   objectId?: string | null
   idempotencyKey?: string | null
   options?: StoredJobOptions
+  /**
+   * Ресурс задания движка для его обратного вызова (ADR-0176): `<вид>:<id>`,
+   * например `file:<fileId>`. Токен задания открывает маршрут этого ресурса —
+   * маршрут сверяет его со своими параметрами. Без ресурса — только статус.
+   */
+  callbackScope?: string
 }
 
 type JobRow = typeof jobs.$inferSelect
@@ -100,7 +107,9 @@ export const JobService = {
       initiatorId: actorId(ctx),
       status: 'queued',
       idempotencyKey: input.idempotencyKey ?? null,
-      payload: input.data,
+      payload: input.callbackScope
+        ? { ...input.data, callbackScope: input.callbackScope }
+        : input.data,
       options: options as Record<string, unknown>,
     })
 
@@ -123,9 +132,19 @@ export const JobService = {
   async dispatch(id: string): Promise<boolean> {
     const [row] = await db().select().from(jobs).where(eq(jobs.id, id)).limit(1)
     if (row?.status !== 'queued') return false
-    await queue(row.queue as QueueName).add(
+    const name = row.queue as QueueName
+    await queue(name).add(
       row.name,
-      { ...row.payload, jobRecordId: row.id, initiatorId: row.initiatorId },
+      {
+        ...row.payload,
+        jobRecordId: row.id,
+        initiatorId: row.initiatorId,
+        // Обратные вызовы движка — токеном этого задания, а не общим токеном
+        // (ADR-0176); при повторной передаче — новый, со свежим сроком
+        ...(QUEUE_RUNTIME[name] === 'engine'
+          ? { callbackToken: issueJobToken({ jobId: row.id, scope: callbackScopeOf(row) }) }
+          : {}),
+      },
       { ...(row.options as StoredJobOptions), jobId: row.id },
     )
     return true
@@ -340,6 +359,11 @@ export const JobService = {
 /** События задания публикуются от имени инициатора: ему приходит уведомление о сбое. */
 function jobCtx(row: JobRow): Ctx {
   return systemCtx(`job:${row.queue}:${row.name}`, { initiatorId: row.initiatorId })
+}
+
+function callbackScopeOf(row: Pick<JobRow, 'payload'>): string | null {
+  const scope = (row.payload as { callbackScope?: unknown } | null)?.callbackScope
+  return typeof scope === 'string' && scope ? scope : null
 }
 
 /**

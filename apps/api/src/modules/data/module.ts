@@ -76,9 +76,7 @@ import { declareSchedule } from '~/kernel/schedules/index.js'
 import { systemCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { datasetFields, datasetQualityRuns, datasets, objects } from '~/shared/db/schema/index.js'
-import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
-import { validServiceToken } from '~/shared/http/service-token.js'
 import { logger } from '~/shared/logger/index.js'
 import {
   registerAnalysisBackground,
@@ -1144,7 +1142,7 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/internal/data/imports/:id/normalized',
-    auth: 'public',
+    auth: { engineJob: { scope: (params) => `import:${params.id}` } },
     tags: ['internal'],
     summary: 'Движок сообщает итог нормализации файла импорта (ADR-0046)',
     schema: {
@@ -1152,12 +1150,9 @@ export function registerDataRoutes(route: RouteRegistrar): void {
       body: NormalizedReport,
       response: { 200: z.object({ loadJobId: z.uuid().nullable() }) },
     },
-    handler: async (request) => {
-      if (!validServiceToken(request.headers['x-kchs-service-token'])) {
-        throw errors.unauthorized('Недействительный сервисный токен')
-      }
-      return { loadJobId: await ImportService.acceptNormalized(request.params.id, request.body) }
-    },
+    handler: async (request) => ({
+      loadJobId: await ImportService.acceptNormalized(request.params.id, request.body),
+    }),
   })
 }
 

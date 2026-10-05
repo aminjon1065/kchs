@@ -6,6 +6,7 @@ import {
   call,
   createUser,
   db,
+  engineHeadersFor,
   registerLifecycle,
   setupFixture,
   type TestContext,
@@ -35,7 +36,6 @@ const { matchesType } = await import('../src/kernel/events/bus.js')
 const { handleTelegramUpdate } = await import('../src/modules/telegram/domain/bot.js')
 const schema = await import('../src/shared/db/schema/index.js')
 
-const token = process.env.INTERNAL_SERVICE_TOKEN ?? ''
 const run = Date.now().toString(36)
 
 let fx: TestContext
@@ -406,7 +406,7 @@ describe('маршрут исходящего письма (сценарий ф�
     const report = await fx.app.inject({
       method: 'POST',
       url: `/api/v1/internal/documents/versions/${versionId}/pdf`,
-      headers: { 'x-kchs-service-token': token },
+      headers: engineHeadersFor(`/api/v1/internal/documents/versions/${versionId}/pdf`),
       payload: { status: 'skipped', sha256: sha },
     })
     expect(report.statusCode, report.body).toBe(200)

@@ -4,6 +4,7 @@ import {
   call,
   createUser,
   db,
+  engineHeadersFor,
   registerLifecycle,
   setupFixture,
   type TestContext,
@@ -22,7 +23,6 @@ registerLifecycle()
 const { DocumentsSeed } = await import('../src/modules/documents/public.js')
 const { systemCtx } = await import('../src/shared/context.js')
 
-const token = process.env.INTERNAL_SERVICE_TOKEN ?? ''
 const run = Date.now().toString(36)
 
 let fx: TestContext
@@ -459,7 +459,7 @@ describe('версии и PDF-представление', () => {
     const reported = await call(fx.app, {
       method: 'POST',
       url: `/internal/documents/versions/${version.id}/pdf`,
-      headers: { 'x-kchs-service-token': token },
+      headers: engineHeadersFor(`/internal/documents/versions/${version.id}/pdf`),
       payload: { status: 'skipped', sha256: hash },
     })
     expect(reported.statusCode, reported.body).toBe(200)
@@ -490,7 +490,7 @@ describe('версии и PDF-представление', () => {
     const foreign = await call(fx.app, {
       method: 'POST',
       url: `/internal/documents/versions/${version.id}/pdf`,
-      headers: { 'x-kchs-service-token': token },
+      headers: engineHeadersFor(`/internal/documents/versions/${version.id}/pdf`),
       payload: {
         status: 'ready',
         pdfFileId: target.fileId,
@@ -504,7 +504,7 @@ describe('версии и PDF-представление', () => {
     const ready = await call(fx.app, {
       method: 'POST',
       url: `/internal/documents/versions/${version.id}/pdf`,
-      headers: { 'x-kchs-service-token': token },
+      headers: engineHeadersFor(`/internal/documents/versions/${version.id}/pdf`),
       payload: {
         status: 'ready',
         sha256: 'b'.repeat(64),
