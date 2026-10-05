@@ -26,26 +26,33 @@ export interface AuditInput {
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export async function audit(ctx: Ctx, input: AuditInput, tx?: Executor): Promise<void> {
-  const executor = tx ?? db()
   const isUser = ctx.kind === 'user'
   const rawActor = input.actorId ?? (isUser ? ctx.userId : ctx.initiatorId)
   // Гость по ссылке не является пользователем: `link:<id>` уходит в детали
   const isUuid = typeof rawActor === 'string' && UUID_RE.test(rawActor)
+  const entry = {
+    actorId: isUuid ? rawActor : null,
+    onBehalfOf: input.onBehalfOf ?? (isUser ? ctx.onBehalfOf : null),
+    action: input.action,
+    objectId: input.objectId ?? null,
+    objectType: input.objectType ?? null,
+    ip: input.ip ?? (isUser ? ctx.ip : null),
+    userAgent: input.userAgent ?? (isUser ? ctx.userAgent : null),
+    details: {
+      ...(input.details ?? {}),
+      ...(rawActor && !isUuid ? { actorRef: rawActor } : {}),
+    },
+    severity: input.severity ?? 'info',
+  }
   try {
-    await executor.insert(auditLog).values({
-      actorId: isUuid ? rawActor : null,
-      onBehalfOf: input.onBehalfOf ?? (isUser ? ctx.onBehalfOf : null),
-      action: input.action,
-      objectId: input.objectId ?? null,
-      objectType: input.objectType ?? null,
-      ip: input.ip ?? (isUser ? ctx.ip : null),
-      userAgent: input.userAgent ?? (isUser ? ctx.userAgent : null),
-      details: {
-        ...(input.details ?? {}),
-        ...(rawActor && !isUuid ? { actorRef: rawActor } : {}),
-      },
-      severity: input.severity ?? 'info',
-    })
+    if (tx) {
+      // В транзакции операции — своя точка сохранения (ADR-0177): откат операции
+      // уносит и её запись, а сбой самой записи не обрывает транзакцию операции —
+      // без точки Postgres отменил бы транзакцию целиком
+      await tx.transaction((savepoint) => savepoint.insert(auditLog).values(entry))
+    } else {
+      await db().insert(auditLog).values(entry)
+    }
   } catch (error) {
     // Журнал аудита не должен ронять пользовательскую операцию,
     // но потеря записи — инцидент: логируем на уровне error.

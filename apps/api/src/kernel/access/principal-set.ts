@@ -1,7 +1,7 @@
 import type { Capability } from '@kchs/contracts'
 import { and, eq, gt, inArray, isNotNull, lte, sql } from 'drizzle-orm'
 import type { PrincipalSet } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { afterCommit, db, type Executor } from '~/shared/db/client.js'
 import {
   delegations,
   employments,
@@ -205,21 +205,37 @@ export async function principalsVersion(): Promise<number> {
   return versionStamp(cacheKeys.principalVersion())
 }
 
-/** Инвалидация: любое изменение членства меняет глобальную версию. */
-export async function bumpPrincipalsVersion(): Promise<number> {
-  return bumpVersionStamp(cacheKeys.principalVersion())
+/**
+ * Инвалидация: любое изменение членства меняет глобальную версию. Изменение в
+ * транзакции передаёт её — версия меняется после фиксации (ADR-0177): до неё
+ * параллельный запрос пересчитал бы набор по прежнему состоянию под новой версией
+ * и держал бы его весь срок кэша.
+ */
+export async function bumpPrincipalsVersion(executor?: Executor): Promise<void> {
+  const bump = async () => {
+    await bumpVersionStamp(cacheKeys.principalVersion())
+  }
+  if (executor) await afterCommit(executor, bump)
+  else await bump()
 }
 
 export async function getPrincipalSet(userId: string): Promise<PrincipalSet> {
   const key = cacheKeys.principalSet(userId)
-  const version = await principalsVersion()
-  const cached = await cache.get(key)
+  // Версия и поколение — до пересчёта: сброс во время пересчёта оставит записанный
+  // набор с прежней меткой, и следующий запрос его не примет. Обе метки — в
+  // долговечном Redis, набор — в кэше (ADR-0175)
+  const [version, generation, cached] = await Promise.all([
+    principalsVersion(),
+    versionStamp(cacheKeys.principalGeneration(userId)),
+    cache.get(key),
+  ])
   if (cached) {
     try {
       const parsed = JSON.parse(cached) as PrincipalSet
       // Кэш прежней версии кода — без территорий или глав подразделений: пересчитываем
       if (
         parsed.version === version &&
+        (parsed.generation ?? 0) === generation &&
         Array.isArray(parsed.territoryIds) &&
         Array.isArray(parsed.headedUnitIds)
       ) {
@@ -231,12 +247,21 @@ export async function getPrincipalSet(userId: string): Promise<PrincipalSet> {
   }
   const computed = await computePrincipalSet(userId)
   computed.version = version
+  computed.generation = generation
   await cache.set(key, JSON.stringify(computed), CACHE_TTL_SECONDS)
   return computed
 }
 
-export async function invalidatePrincipalSet(userId: string): Promise<void> {
-  // Кэш недоступен — набор мог остаться в нём до возвращения кэша: меняем общую
-  // версию, и устаревший набор не совпадёт с ней
-  if (!(await cache.del(cacheKeys.principalSet(userId)))) await bumpPrincipalsVersion()
+/**
+ * Сброс набора одного пользователя: новое поколение и удаление записи из кэша.
+ * Изменение в транзакции передаёт её — сброс идёт после фиксации (ADR-0177).
+ * Недоступный кэш не страшен: набор с прежним поколением не будет принят.
+ */
+export async function invalidatePrincipalSet(userId: string, executor?: Executor): Promise<void> {
+  const invalidate = async () => {
+    await bumpVersionStamp(cacheKeys.principalGeneration(userId))
+    await cache.del(cacheKeys.principalSet(userId))
+  }
+  if (executor) await afterCommit(executor, invalidate)
+  else await invalidate()
 }

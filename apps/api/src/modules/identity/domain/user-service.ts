@@ -270,7 +270,7 @@ export const UserService = {
       object: { id: userId, type: 'user', title: current.displayName },
       changedFields: Object.keys(values),
     })
-    await invalidatePrincipalSet(userId)
+    await invalidatePrincipalSet(userId, tx)
   },
 
   async profile(userId: string, database: Database = db()): Promise<UserProfile | null> {
@@ -669,7 +669,7 @@ export const OrgService = {
       object: { id, type: 'unit', title: input.name.ru },
       payload: { unitId: id, change: 'created' },
     })
-    await bumpPrincipalsVersion()
+    await bumpPrincipalsVersion(tx)
     return id
   },
 
@@ -703,7 +703,7 @@ export const OrgService = {
       patch.territoryId !== undefined && patch.territoryId !== current.territoryId
     // Глава подразделения получает принципал `unit_head:<id>`: поручения подчинённых (ADR-0082)
     const headChanged = patch.headUserId !== undefined && patch.headUserId !== current.headUserId
-    if (moved || territoryChanged || headChanged) await bumpPrincipalsVersion()
+    if (moved || territoryChanged || headChanged) await bumpPrincipalsVersion(tx)
 
     await publishEvent(tx, ctx, {
       type: 'org.unit_changed',
@@ -943,7 +943,7 @@ export const DelegationService = {
       createdBy: ctx.userId,
     })
 
-    await invalidatePrincipalSet(input.toUserId)
+    await invalidatePrincipalSet(input.toUserId, tx)
     await publishEvent(tx, ctx, {
       type: 'delegation.started',
       object: { id, type: 'delegation' },
@@ -974,7 +974,7 @@ export const DelegationService = {
       .update(delegations)
       .set({ status: 'finished', endsAt: sql`now()` })
       .where(eq(delegations.id, id))
-    await invalidatePrincipalSet(row.toUserId)
+    await invalidatePrincipalSet(row.toUserId, tx)
 
     await publishEvent(tx, ctx, {
       type: 'delegation.ended',

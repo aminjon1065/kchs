@@ -111,7 +111,7 @@ export const SpaceService = {
         role: 'admin',
         addedBy: actorId(ctx),
       })
-      await invalidatePrincipalSet(owner)
+      await invalidatePrincipalSet(owner, tx)
     }
 
     await publishEvent(tx, ctx, {
@@ -189,7 +189,7 @@ export const SpaceService = {
         target: [spaceMembers.spaceId, spaceMembers.userId],
         set: { role },
       })
-    await invalidatePrincipalSet(userId)
+    await invalidatePrincipalSet(userId, tx)
     await publishEvent(tx, ctx, {
       type: 'space.member_added',
       object: { id: spaceId, type: 'space', spaceId },
@@ -202,7 +202,7 @@ export const SpaceService = {
     await tx
       .delete(spaceMembers)
       .where(and(eq(spaceMembers.spaceId, spaceId), eq(spaceMembers.userId, userId)))
-    await invalidatePrincipalSet(userId)
+    await invalidatePrincipalSet(userId, tx)
     await publishEvent(tx, ctx, {
       type: 'space.member_removed',
       object: { id: spaceId, type: 'space', spaceId },
@@ -230,7 +230,7 @@ export const SpaceService = {
       .update(spaceMembers)
       .set({ role })
       .where(and(eq(spaceMembers.spaceId, spaceId), eq(spaceMembers.userId, userId)))
-    await invalidatePrincipalSet(userId)
+    await invalidatePrincipalSet(userId, tx)
     await publishEvent(tx, ctx, {
       type: 'space.member_role_changed',
       object: { id: spaceId, type: 'space', spaceId },

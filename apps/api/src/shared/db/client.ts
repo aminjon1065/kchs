@@ -31,8 +31,76 @@ export function db(): Database {
   if (dbInstance) return dbInstance
   const env = config()
   sqlClient = createClient(env.DATABASE_URL, env.DATABASE_POOL_MAX)
-  dbInstance = drizzle(sqlClient, { schema, logger: false })
+  dbInstance = trackCommits(drizzle(sqlClient, { schema, logger: false }))
   return dbInstance
+}
+
+// ─── После фиксации ──────────────────────────────────────────────────────────
+
+type CommitCallback = () => unknown
+
+/** Действия после фиксации внешней транзакции; ключ — объект транзакции drizzle. */
+const commitQueues = new WeakMap<object, CommitCallback[]>()
+
+/**
+ * Транзакции базы запоминают действия `afterCommit` (ADR-0177) и выполняют их
+ * после фиксации. Откат их отбрасывает.
+ */
+function trackCommits(database: Database): Database {
+  const begin = database.transaction.bind(database)
+  database.transaction = (async (run, transactionConfig) => {
+    const queue: CommitCallback[] = []
+    const result = await begin(async (tx) => {
+      track(tx, queue)
+      return run(tx)
+    }, transactionConfig)
+    await runCommitted(queue)
+    return result
+  }) as Database['transaction']
+  return database
+}
+
+/**
+ * Точка сохранения (вложенная транзакция): её действия переходят во внешнюю
+ * транзакцию, только если точка удалась — откат точки их отбрасывает.
+ */
+function track(tx: Tx, queue: CommitCallback[]): void {
+  commitQueues.set(tx, queue)
+  const savepoint = tx.transaction.bind(tx)
+  tx.transaction = (<T>(run: (inner: Tx) => Promise<T>) =>
+    savepoint(async (inner) => {
+      const nested: CommitCallback[] = []
+      track(inner as Tx, nested)
+      const result = await run(inner as Tx)
+      queue.push(...nested)
+      return result
+    })) as Tx['transaction']
+}
+
+async function runCommitted(queue: CommitCallback[]): Promise<void> {
+  for (const callback of queue) {
+    try {
+      await callback()
+    } catch (error) {
+      // Транзакция уже зафиксирована: сбой действия после неё — в журнал, не вызывающему
+      logger().error({ err: error }, 'действие после фиксации транзакции не выполнено')
+    }
+  }
+}
+
+/**
+ * Выполнить после фиксации транзакции (ADR-0177): сброс кэша и подобное, что до
+ * коммита дало бы гонку — параллельный запрос успел бы закэшировать прежнее
+ * состояние под новой меткой. На откате действие отбрасывается. Вне транзакции
+ * (передана сама база или транзакция не из `db()`) — сразу.
+ */
+export async function afterCommit(executor: Executor, callback: CommitCallback): Promise<void> {
+  const queue = commitQueues.get(executor)
+  if (queue) {
+    queue.push(callback)
+    return
+  }
+  await callback()
 }
 
 export function rawSql(): postgres.Sql {

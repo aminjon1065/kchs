@@ -171,7 +171,7 @@ export const ServiceAccountService = {
     )
     // Членство — после записи пользователя: подписчики пространств читают его имя
     await setSpaces(tx, ctx, id, input.spaces, {})
-    await invalidatePrincipalSet(id)
+    await invalidatePrincipalSet(id, tx)
     return id
   },
 
@@ -248,7 +248,7 @@ export const ServiceAccountService = {
       object: { id, type: 'user', title: patch.name ?? current.displayName },
       changedFields: Object.keys(values),
     })
-    await invalidatePrincipalSet(id)
+    await invalidatePrincipalSet(id, tx)
   },
 
   /** Все служебные учётные записи — для консоли и выбора `run_as` правила. */

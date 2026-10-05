@@ -232,6 +232,12 @@ export const cacheKeys = {
   principalSet: (userId: string) => `kchs:principals:${userId}`,
   /** Долговечный: отметка версии наборов принципалов. */
   principalVersion: () => 'kchs:principals:version',
+  /**
+   * Долговечный: отметка поколения набора принципалов пользователя (ADR-0177) —
+   * случайная, как версия: пропавшая заменяется новой, и набор, записанный до
+   * сброса, с ней не совпадёт.
+   */
+  principalGeneration: (userId: string) => `kchs:principals:gen:${userId}`,
   /** Долговечный: счётчики защиты от подбора (вход, второй фактор, ссылки). */
   rateLimit: (bucket: string, key: string) => `kchs:rl:${bucket}:${key}`,
   /** Кэш: счётчики «Входящих». */

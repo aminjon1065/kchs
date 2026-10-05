@@ -659,7 +659,7 @@ export const AuthService = {
       .update(users)
       .set({ passwordChangedAt: sql`now()`, mustChangePassword: false })
       .where(eq(users.id, userId))
-    await invalidatePrincipalSet(userId)
+    await invalidatePrincipalSet(userId, tx)
   },
 
   async requestPasswordReset(login: string): Promise<{ token: string; userId: string } | null> {
