@@ -18,7 +18,7 @@ kchs/
 │   ├── map-style/                # LayerStyle → MapLibre style + легенда
 │   ├── process/                  # схема ProcessDefinition, валидатор, резолверы назначений (чистые)
 │   ├── ui/                       # дизайн-система: токены, примитивы, компоненты, Storybook
-│   ├── i18n/                     # словари ru/tg/en, ICU, форматтеры
+│   ├── i18n/                     # словари ru/tg/en по неймспейсам (locales/<язык>/<неймспейс>.ts), ICU
 │   ├── config/                   # общие tsconfig, biome, tailwind preset
 │   └── testing/                  # фикстуры, фабрики, testcontainers-хелперы
 ├── infra/
@@ -100,12 +100,39 @@ src/
   (экраны, представления объектов, пункты навигации, возможности оболочки, слои) и регистрируется
   `registerModule`; рейка, палитра, shell и контекст-панель читают реестр;
 - обращения к API — в слое запросов фичи (`api/`, `queries.ts`), в `entities` и `shared`;
+- словари — по неймспейсам (ADR-0191, раздел «Словари» ниже): модуль объявляет нужные ему
+  неймспейсы в `registerModule({ namespaces })`, оболочка берёт тексты только из неймспейсов
+  оболочки; полноту объявлений проверяет `app/namespaces.test.ts`;
 - нарушения, бывшие до правил, — база известных (`.dependency-cruiser-known-violations.json`), новые
   роняют CI.
 
 Остальное: компоненты UI только из `@kchs/ui`; серверное состояние — TanStack Query с ключами
 `['objectType', id, …]`; инвалидация по realtime `object.updated` (все запросы с id объекта в ключе);
 состояние вкладки — `setTabState` хранилища `shared/workspace/store.ts` (Zustand, персист).
+
+### Словари (`packages/i18n`, ADR-0191)
+
+- **Неймспейс** — ключ верхнего уровня (`data` в `data.explore.title`). Файл —
+  `packages/i18n/src/locales/<язык>/<неймспейс>.ts` на каждом из `ru`, `tg`, `en`. Сборка
+  языка — `locales/<язык>/index.ts`, перечень — `NAMESPACES`.
+- **Неймспейсы оболочки** (`CORE_NAMESPACES`): `common`, `ui`, `errors`, `auth`,
+  `shell`, `objects`, `access`, `activity`, `discussion`, `spaces`, `search`, `inbox`,
+  `home`, `files`. Их `ru` — в основном чанке веба, `tg` и `en` — чанк на язык
+  (`locales/<язык>/core.ts`). Остальные неймспейсы модульные: отдельный чанк на язык.
+  Сервер держит всё.
+- **Добавить ключ модулю** — правка только файлов его неймспейса на трёх языках. Перевод на
+  `tg` и `en` обязателен: в браузере модульный неймспейс грузится только на языке
+  интерфейса, без запасного `ru` (`pnpm i18n:check`, 100 % в каждом неймспейсе).
+- **Экран берёт чужой неймспейс** — модуль объявляет его в `registerModule({ namespaces })`;
+  какой именно, подскажет `app/namespaces.test.ts`. Подпись, которую рисует оболочка
+  (`titleKey`, `labelKey`, каркас), — ключ неймспейса оболочки, например `shell.screens.*`.
+- **Новый неймспейс:**
+  - файлы на трёх языках;
+  - строки в индексах языков и в `NAMESPACES`;
+  - загрузчики в `packages/i18n/src/loaders.ts`;
+  - неймспейс оболочки — ещё `CORE_NAMESPACES` и `core.ts`.
+
+  Сверку файлов, индексов и загрузчиков делает `pnpm i18n:check`.
 
 ## `apps/engine`
 
@@ -174,4 +201,4 @@ engine/
 
 ## Скрипты (`package.json`, корень)
 
-`dev` (turbo: api, web, worker; engine — через compose profile dev), `build`, `test`, `test:integration`, `e2e`, `lint`, `typecheck`, `db:generate`, `db:migrate`, `db:seed`, `db:reset`, `storybook`, `openapi:gen`, `i18n:check` (отсутствующие ключи), `deps:check` (границы), `release`.
+`dev` (turbo: api, web, worker; engine — через compose profile dev), `build`, `test`, `test:integration`, `e2e`, `lint`, `typecheck`, `db:generate`, `db:migrate`, `db:seed`, `db:reset`, `storybook`, `openapi:gen`, `i18n:check` (перевод tg и en — 100 % в каждом неймспейсе, сверка раскладки словарей), `deps:check` (границы), `release`.
