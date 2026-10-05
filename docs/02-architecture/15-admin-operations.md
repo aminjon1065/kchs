@@ -126,7 +126,15 @@ Helm-чарт `infra/helm/kchs`: Deployments `api` (HPA по CPU/RPS), `worker` 
   по методу, шаблону маршрута и коду; процесс — `process_memory_usage` (RSS),
   `process_cpu_time_total`, `nodejs_eventloop_delay_p99`, `nodejs_eventloop_utilization`;
   `kchs_outbox_pending`, `kchs_outbox_oldest_age`; `kchs_queue_jobs{queue,state}`;
-  `kchs_job_duration`, `kchs_event_duration` (по исходу); `kchs_realtime_connections`.
+  `kchs_job_duration`, `kchs_event_duration` (по исходу); `kchs_realtime_connections`; шина
+  событий (ADR-0171, у worker) — `kchs_events_lag{subscriber}` (не получено),
+  `kchs_events_pending{subscriber}` и `kchs_events_pending_oldest_age{subscriber}` (не
+  подтверждено), `kchs_events_stream_length{stream}` (предел 1 000 000), `kchs_events_dlq`.
+- **Очередь сбоев событий** (ADR-0171): событие, которое подписчик не обработал после всех
+  попыток, лежит в DLQ и видно в «Здоровье системы» с ошибкой и числом попыток. «Повторить»
+  возвращает его в поток только для этого подписчика; повтор пишется в аудит
+  (`events.dlq_retried`). Оповещения `KchsEventsDeadLetters`, `KchsEventsLagging`,
+  `KchsEventsStuck`, `KchsEventsStreamNearCap`.
 - **Трассы**: спан запроса по шаблону маршрута с `kchs.request_id` и `enduser.id`, внутри — SQL
   (параметризованный текст), Redis (имя команды), исходящие HTTP (S3, Meilisearch, движок).
   Задание — дочерний спан трассы запроса, поставившего его (через outbox и BullMQ). Обработка
@@ -165,7 +173,7 @@ Helm-чарт `infra/helm/kchs`: Deployments `api` (HPA по CPU/RPS), `worker` 
 
 ## 6. Обслуживание
 
-Ежедневные задания: очистка корзины (30 дней), экспорты (30 дней), истёкшие сессии и следы входа (`identity.prune`: сессии и ссылки сброса — через неделю, вызовы второго фактора, ключей входа и входы через IdP — через сутки), ссылки, партиции, `VACUUM` тяжёлых таблиц, проверка сирот в S3, пересчёт денормализованных счётчиков, дайджесты. Еженедельно: отчёт о здоровье (размеры, рост, медленные запросы), проверка бэкапов. Обновление PMTiles — ежеквартально (процедура ниже).
+Ежедневные задания: очистка корзины (30 дней), экспорты (30 дней), истёкшие сессии и следы входа (`identity.prune`: сессии и ссылки сброса — через неделю, вызовы второго фактора, ключей входа и входы через IdP — через сутки), отметки обработки событий (`events.prune-consumptions`, `EVENT_CONSUMPTIONS_RETENTION_DAYS`, по умолчанию 14 дней), ссылки, партиции, `VACUUM` тяжёлых таблиц, проверка сирот в S3, пересчёт денормализованных счётчиков, дайджесты. Каждые 10 минут — обрезка потоков событий (`events.trim`): уходит то, что старше `EVENT_STREAM_RETENTION_HOURS` (24 ч) и уже получено всеми подписчиками; отстающий подписчик держит поток, пока не прочитает своё (ADR-0171). Еженедельно: отчёт о здоровье (размеры, рост, медленные запросы), проверка бэкапов. Обновление PMTiles — ежеквартально (процедура ниже).
 
 ### Базовые карты: сборка и обновление PMTiles
 
