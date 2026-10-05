@@ -1,14 +1,16 @@
 import { z } from 'zod'
 import { Timestamp, Uuid } from '../common/primitives.js'
 
-/** Очереди BullMQ (02-platform-kernel.md §9). */
+/**
+ * Очереди BullMQ (02-platform-kernel.md §9). Очереди `ai` нет: модель зовёт api
+ * (ADR-0061), векторы движок считает синхронным вызовом (ADR-0099, ADR-0190).
+ */
 export const QUEUES = [
   'imports',
   'exports',
   'transform',
   'render',
   'media',
-  'ai',
   'index',
   'notify',
   'automation',
@@ -34,7 +36,6 @@ export const QUEUE_RUNTIME: Record<QueueName, JobRuntime> = {
   transform: 'engine',
   render: 'engine',
   media: 'engine',
-  ai: 'engine',
   index: 'worker',
   notify: 'worker',
   automation: 'worker',

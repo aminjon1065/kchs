@@ -103,6 +103,13 @@ jobs:
       - name: Интеграционные тесты API
         run: pnpm test:integration
 
+      # ADR-0190: SQL компилятора — на настоящем Postgres под ролью kchs_query; без базы
+      # наборы исполнения в задании unit пропускаются
+      - name: Компилятор запросов на Postgres
+        run: |
+          KCHS_QUERY_TEST_DATABASE_URL="$(grep -E '^DATABASE_URL=' .env | cut -d= -f2-)" \
+            pnpm --filter @kchs/query test
+
       # ADR-0030: OpenAPI обязателен для внешних интеграций — собирается и проверяется
       - name: Спецификация OpenAPI
         run: pnpm openapi:gen
@@ -273,10 +280,11 @@ jobs:
         working-directory: apps/engine
         # Геоформаты и геоэкспорт (ADR-0068): GDAL, PROJ, GEOS и Arrow — из колёс групп gis и data;
         # DOCX отчётов (ADR-0078) — группа render (печать в Chromium — отметка browser, в образе);
-        # трассы (ADR-0167) — группа otel
+        # трассы (ADR-0167) — группа otel. Типы — mypy с базой исключений в pyproject.toml (ADR-0190)
         run: |
           uv sync --extra dev --extra data --extra gis --extra render --extra otel
           uv run ruff check .
+          uv run mypy
           uv run pytest
 
   helm:

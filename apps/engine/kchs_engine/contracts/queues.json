@@ -6,7 +6,6 @@
     "transform": "engine",
     "render": "engine",
     "media": "engine",
-    "ai": "engine",
     "index": "worker",
     "notify": "worker",
     "automation": "worker",

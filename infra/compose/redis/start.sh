@@ -24,7 +24,7 @@ set -- redis-server \
 
 if [ -n "${REDIS_ENGINE_PASSWORD:-}" ]; then
   set -- "$@" --user kchs-engine on ">$REDIS_ENGINE_PASSWORD" resetkeys \
-    '~bull:imports:*' '~bull:transform:*' '~bull:render:*' '~bull:media:*' '~bull:ai:*' \
+    '~bull:imports:*' '~bull:transform:*' '~bull:render:*' '~bull:media:*' \
     '%R~kchs:job:cancel:*' resetchannels \
     '+@all' '-@dangerous' '+info' '-scan' '-randomkey' '-@pubsub'
 fi

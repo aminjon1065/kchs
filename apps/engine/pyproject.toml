@@ -79,6 +79,42 @@ select = ["E", "F", "I", "N", "UP", "B", "SIM", "RUF"]
 # Кириллица в строках, докстрингах и комментариях — норма проекта, а не «похожие символы»
 ignore = ["RUF001", "RUF002", "RUF003"]
 
+# Типы движка (ADR-0190): `uv run mypy` в задании CI «Тесты движка»
+[tool.mypy]
+python_version = "3.12"
+packages = ["kchs_engine"]
+warn_unused_configs = true
+warn_redundant_casts = true
+
+# Библиотеки без типов (нет py.typed и заглушек в зависимостях)
+[[tool.mypy.overrides]]
+module = [
+    "boto3.*",
+    "botocore.*",
+    "bullmq.*",
+    "docxtpl.*",
+    "faster_whisper.*",
+    "fastembed.*",
+    "lxml.*",
+    "openpyxl.*",
+    "pyarrow.*",
+    "pyogrio.*",
+    "shapely.*",
+    "xlrd.*",
+]
+ignore_missing_imports = true
+
+# База исключений (ADR-0190): ошибки типов, которые были до проверки в CI. Модуль уходит
+# из списка, когда его ошибки исправлены; новый модуль в список не добавляется
+[[tool.mypy.overrides]]
+module = [
+    "kchs_engine.demo.boundaries",
+    "kchs_engine.render.documents",
+    "kchs_engine.render.docx_report",
+    "kchs_engine.render.report",
+]
+ignore_errors = true
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]

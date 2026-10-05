@@ -16,7 +16,7 @@ import io
 import json
 import re
 import zipfile
-from collections.abc import Iterator, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from pathlib import Path
@@ -184,6 +184,7 @@ class _Columns:
         self.fields = list(fields)
         converters: list[Any] = []
         schema = []
+        convert: Callable[[Any], object]
         for field, name in zip(self.fields, names, strict=True):
             if field.type in _INTEGER:
                 arrow, convert = pyarrow.int64(), _integer
