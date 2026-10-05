@@ -9,7 +9,7 @@
  *
  * Базы известных нарушений нет (ADR-0184): известные сняты, любое новое роняет
  * `pnpm deps:check`. Запись в таблицы ядра и сырой SQL проверяют скрипты
- * `scripts/kernel-writes.mjs` и `scripts/raw-sql.mjs` там же.
+ * `scripts/table-owners.mjs` и `scripts/raw-sql.mjs` там же.
  */
 /** @type {import('dependency-cruiser').IConfiguration} */
 module.exports = {

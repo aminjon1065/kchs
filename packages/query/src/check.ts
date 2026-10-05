@@ -2,6 +2,7 @@ import type { FieldType, QueryIssue } from '@kchs/contracts'
 import { postgresDialect } from './dialect.js'
 import { ExpressionError } from './errors.js'
 import { compileCondition, compileExpression, type ExprEnv } from './expr/compile.js'
+import { quoteIdent } from './ident.js'
 import { ParamBinder } from './params.js'
 import type { LookupRef } from './types.js'
 import { fieldTypeOfValue, type ValueType, valueTypeOfField } from './value-types.js'
@@ -38,7 +39,7 @@ const MACRO_TYPES: Record<string, { type: ValueType; array?: boolean }> = {
  */
 export function checkExpression(source: string, input: ExpressionCheck): ExpressionCheckResult {
   const fields = new Map(input.fields.map((field) => [field.key, field]))
-  const groupBy = new Set((input.groupBy ?? []).map((key) => `"${key}"`))
+  const groupBy = new Set((input.groupBy ?? []).map(quoteIdent))
   const env: ExprEnv = {
     dialect: postgresDialect,
     binder: new ParamBinder(postgresDialect),
@@ -53,7 +54,7 @@ export function checkExpression(source: string, input: ExpressionCheck): Express
       if (!type)
         throw new ExpressionError(`Поле «${name}» вычисляемое — в выражении недоступно`, pos)
       return {
-        sql: `"${name}"`,
+        sql: quoteIdent(name),
         type,
         fieldType: field.type,
         ...(field.lookup ? { lookup: field.lookup } : {}),

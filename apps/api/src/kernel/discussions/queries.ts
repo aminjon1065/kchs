@@ -22,7 +22,7 @@ function unreadSql(userId: string): SQL {
         WHEN cm.last_read_message_id IS NOT NULL THEN unread.id > cm.last_read_message_id
         ELSE unread.created_at > coalesce(
                cm.created_at,
-               (SELECT max(own.created_at) FROM messages own
+               (SELECT max(own.created_at) FROM ${messages} own
                  WHERE own.conversation_id = c.id AND own.author_id = ${userId}),
                '-infinity'::timestamptz)
       END`
@@ -150,7 +150,7 @@ export const DiscussionQueries = {
           ? sql`c.kind = 'channel' AND c.privacy = 'open' AND cm.user_id IS NULL`
           : sql`(cm.user_id IS NOT NULL
                OR (c.kind = 'object' AND EXISTS (
-                     SELECT 1 FROM messages mine
+                     SELECT 1 FROM ${messages} mine
                       WHERE mine.conversation_id = c.id AND mine.author_id = ${me})))`
     const unread = unreadSql(me)
 
@@ -173,15 +173,15 @@ export const DiscussionQueries = {
                AND ((cm.muted_until IS NOT NULL AND cm.muted_until > now())
                     OR c.last_message_at IS NULL
                     OR c.last_message_at <= cm.archived_at)) AS archived,
-             (SELECT count(*)::int FROM conversation_members mc WHERE mc.conversation_id = c.id)
+             (SELECT count(*)::int FROM ${conversationMembers} mc WHERE mc.conversation_id = c.id)
                AS member_count,
-             (SELECT peer.user_id FROM conversation_members peer
+             (SELECT peer.user_id FROM ${conversationMembers} peer
                WHERE peer.conversation_id = c.id AND peer.user_id <> ${me} LIMIT 1) AS peer_id,
              c.last_message_at,
-             (SELECT count(*)::int FROM messages unread WHERE ${unread}) AS unread_count,
-             (SELECT count(*)::int FROM messages unread
+             (SELECT count(*)::int FROM ${messages} unread WHERE ${unread}) AS unread_count,
+             (SELECT count(*)::int FROM ${messages} unread
                WHERE ${unread} AND ${me}::uuid = ANY(unread.mentions)) AS unread_mentions,
-             (SELECT min(unread.id)::text FROM messages unread WHERE ${unread}) AS first_unread,
+             (SELECT min(unread.id)::text FROM ${messages} unread WHERE ${unread}) AS first_unread,
              lm.id::text AS lm_id,
              lm.kind AS lm_kind,
              lm.text AS lm_text,
@@ -242,7 +242,7 @@ export const DiscussionQueries = {
   async unreadCount(userId: string, conversationId: string): Promise<number> {
     const unread = unreadSql(userId)
     const [row] = await db().execute<{ count: number }>(sql`
-      SELECT (SELECT count(*)::int FROM messages unread WHERE ${unread}) AS count
+      SELECT (SELECT count(*)::int FROM ${messages} unread WHERE ${unread}) AS count
         FROM ${conversations} c
         LEFT JOIN ${conversationMembers} cm ON cm.conversation_id = c.id AND cm.user_id = ${userId}
        WHERE c.id = ${conversationId}::uuid`)
