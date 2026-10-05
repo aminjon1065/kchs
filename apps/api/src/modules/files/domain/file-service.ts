@@ -31,6 +31,7 @@ import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { AttachmentsFolder } from './attachments.js'
 import { FileProcessing } from './processing.js'
+import { authorizeUploadTarget } from './upload-access.js'
 
 const SINGLE_PUT_LIMIT = 8 * 1024 * 1024
 const SESSION_TTL_HOURS = 24
@@ -260,6 +261,8 @@ export const FileService = {
     if (!session.multipartUploadId || !session.plannedFileId || !session.plannedVersionId) {
       throw errors.conflict('Эту загрузку нельзя продолжить — загрузите файл заново')
     }
+    // Докачка — тоже действие: новые адреса частей только при действующем праве (ADR-0123)
+    await authorizeUploadTarget(ctx, session)
     const [parts, uploaded] = await Promise.all([
       multipartPartUrls(session.storageKey, session.multipartUploadId, session.size),
       listUploadedParts(session.storageKey, session.multipartUploadId),
@@ -323,6 +326,8 @@ export const FileService = {
       .limit(1)
     if (!session) throw errors.notFound('Сессия загрузки')
     if (session.status !== 'open') throw errors.conflict('Сессия загрузки уже завершена')
+    // Проверка в момент действия (ADR-0123): право могли отозвать после открытия сессии
+    await authorizeUploadTarget(ctx, session)
 
     if (session.multipartUploadId) {
       await completeMultipart(session.storageKey, session.multipartUploadId, parts)

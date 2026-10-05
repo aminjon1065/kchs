@@ -31,6 +31,7 @@ import { AttachmentsFolder } from './domain/attachments.js'
 import { FileService } from './domain/file-service.js'
 import { OfficeService } from './domain/office-service.js'
 import { FileProcessing } from './domain/processing.js'
+import { authorizeUploadTarget } from './domain/upload-access.js'
 import { originalAllowed, watermarkLevel, watermarkLines } from './domain/watermark.js'
 import { registerOfficePages, registerOfficeRoutes } from './http/office-routes.js'
 
@@ -156,31 +157,7 @@ export function registerFilesRoutes(route: RouteRegistrar): void {
       },
     },
     handler: async (request) => {
-      const { authorize } = await import('~/kernel/access/authorize.js')
-      const { attachToObjectId, fileId, folderId, spaceId } = request.body
-      if (attachToObjectId && !fileId && !folderId) {
-        // Вложение меняет объект, к которому прикрепляется: нужен уровень edit на
-        // нём, а файл ляжет в системную папку «Вложения» его пространства
-        await authorize(request.ctx, 'edit', attachToObjectId)
-        const [row] = await db()
-          .select({ spaceId: objects.spaceId })
-          .from(objects)
-          .where(eq(objects.id, attachToObjectId))
-          .limit(1)
-        if (row?.spaceId !== spaceId) {
-          throw errors.validation('Вложение загружается в пространство объекта', [
-            { path: 'spaceId', message: 'mismatch' },
-          ])
-        }
-      } else {
-        // Загрузка в пространство требует права на создание в нём или в папке
-        await authorize(
-          request.ctx,
-          fileId ? 'upload_version' : 'create_child',
-          fileId ?? folderId ?? spaceId,
-        )
-        if (attachToObjectId) await authorize(request.ctx, 'edit', attachToObjectId)
-      }
+      await authorizeUploadTarget(request.ctx, request.body)
       return FileService.createUploadSession(request.ctx, request.body)
     },
   })
