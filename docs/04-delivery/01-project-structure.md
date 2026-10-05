@@ -106,7 +106,8 @@ src/
 engine/
 ├── kchs_engine/
 │   ├── main.py                   # FastAPI (внутренний: /health, /analyze-file, /preview) + запуск воркеров
-│   ├── jobs/                     # обработчики BullMQ: imports, exports, transform, render, media, ai, index
+│   ├── contracts/                # сгенерированные JSON из packages/contracts и модели заданий и обратных вызовов
+│   ├── jobs/                     # обработчики BullMQ своих очередей: imports, transform, render, media
 │   ├── data/                     # чтение форматов, типизация, staging, DuckDB
 │   ├── gis/                      # GDAL/pyogrio, проекции, валидация, анализ
 │   ├── docs/                     # docxtpl, LibreOffice, OCR, извлечение текста
@@ -124,6 +125,20 @@ engine/
 - В базу движок не пишет: нормализованный файл импорта кладёт в хранилище, строки в `ds.*` загружает TS-воркер через `COPY` (ADR-0046); читает только ролью `kchs_query` (колоночные копии).
 - Права минимальные (ADR-0176): свой пользователь хранилища (новый префикс ключа — правка `infra/compose/minio/engine-policy.json` и `kchs.engineS3Policy` чарта) и Redis (новая очередь движка — строка в `infra/compose/redis/start.sh`, её проверяет тест contracts).
 - Внешние программы запускаются с окружением `tools.tool_env()`, а не с окружением движка.
+- Контракт с api — `packages/contracts` (ADR-0190). Задание движка объявляется в `ENGINE_JOBS`
+  (`packages/contracts/src/engine/jobs.ts`): нагрузка и результат — zod; обратный вызов — в
+  `ENGINE_CALLBACKS` (тело и ответ — те же схемы, что у маршрута api). `gen:engine` выгружает их
+  JSON Schema в `kchs_engine/contracts/jobs.json`. В движке задание описывают модели
+  `contracts/jobs.py` и `contracts/callbacks.py`; `@handler` без записи в контракте не регистрируется,
+  обработчик проверяет нагрузку на входе и результат на выходе, `api.py` — тело перед отправкой и
+  ответ api. Совместимость моделей со схемами проверяет `tests/test_engine_contracts.py`.
+- Порядок изменения задания: схема в `packages/contracts` → `gen:engine` → модель движка → тест
+  контракта. Api ставит задание через `engineJob()` (`kernel/jobs/engine.ts`), `JobService.schedule`
+  разбирает нагрузку схемой до записи в реестр.
+- Типы полей движок не перечисляет сам: хранение, тип Arrow, семейство геовыгрузки и слова «да/нет» —
+  из `field_types.json` (реестр `FIELD_STORAGE`, `docs/contracts/field-types.md`).
+- Статическая проверка — `ruff` и `mypy` (задание CI «Тесты движка»; база исключений — в
+  `pyproject.toml`, модуль уходит из неё, когда его ошибки исправлены).
 
 ## Соглашения кода
 

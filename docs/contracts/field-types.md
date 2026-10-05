@@ -8,14 +8,14 @@
 | `long_text` | text | Textarea/RichText (`rich: true` → Tiptap JSON) | усечение | |
 | `integer` | bigint | NumberInput | разделители тысяч | |
 | `number` | double precision | NumberInput | `precision`, разделители | |
-| `decimal` | numeric(p,s) | NumberInput | фиксированная точность | деньги/точные |
+| `decimal` | numeric(38,s) | NumberInput | фиксированная точность | `s` — `format.precision` (≤ 12); без неё — numeric |
 | `money` | numeric(18,2) | NumberInput + валюта | `currency` | |
 | `percent` | double precision | NumberInput | `%` | значение 0–1 или 0–100 (`scale`) |
 | `boolean` | boolean | Switch/Checkbox | Да/Нет | |
 | `date` | date | DatePicker | локаль | |
 | `datetime` | timestamptz | DateTimePicker | локаль + tz | |
 | `time` | time | TimePicker | | |
-| `duration` | interval / integer minutes | DurationInput | `1 ч 30 мин` | |
+| `duration` | interval | DurationInput | `1 ч 30 мин` | в колоночной копии и выражениях — минуты (double) |
 | `select` | text | Select | подпись из `options` или справочника | `options: [{value, label{ru,tg,en}, color?}]` или `lookup` |
 | `multi_select` | text[] | MultiSelect | чипы | |
 | `user` | uuid | UserPicker | аватар+имя | |
@@ -48,6 +48,31 @@
 ```
 
 Семантики: `dimension`, `measure`, `identifier`, `time`, `geometry`, `territory`, `category`, `text`, `lookup`, `system`.
+
+## Реестр хранения (ADR-0190)
+
+Хранение хранимых типов — один реестр `FIELD_STORAGE` в
+`packages/contracts/src/data/field-storage.ts`; движок читает его копию
+`apps/engine/kchs_engine/contracts/field_types.json` (`pnpm --filter @kchs/contracts gen:engine`).
+Своих таблиц соответствия у читателей нет.
+
+| Что | Кто читает |
+|---|---|
+| Тип столбца Postgres таблицы `ds.t_*` (`pg`, `pgColumnType`) | `apps/api/src/modules/data/infra/physical.ts` |
+| Тип столбца колоночной копии в DuckDB (`duckdb`), `COLUMNAR_DECIMAL` | `packages/query/src/dialect.ts` |
+| Тип Arrow колоночной копии (`arrow`; `null` — в копии нет, это геометрия) | `kchs_engine/data/columnar.py`, `COLUMNAR_FIELD_TYPES` в api |
+| Семейство значений геовыгрузки (`exportFamily`) | `kchs_engine/data/geo_export.py` |
+| Слова «да/нет» (`BOOLEAN_WORDS`) | `@kchs/fields` (`parse.ts`, вставка в таблицу) и `kchs_engine/data/values.py` (импорт файла) |
+
+- `decimal` и `money` в колоночной копии и DuckDB — `DECIMAL(38,12)`.
+- `duration` в колоночной копии и выражениях компилятора — минуты (`DURATION_UNIT`, double): DuckDB и
+  Parquet не хранят интервал Postgres.
+- `json` в копии — строка: сравнение и группировка посимвольные.
+- Логическое значение при вставке и при импорте понимает одно множество слов без учёта регистра и
+  пробелов по краям: «да» — `true`, `t`, `1`, `yes`, `y`, `on`, `+`, `да`, `д`, `истина`, `вкл`, `ҳа`,
+  `ха`, `✓`, `✔`; «нет» — `false`, `f`, `0`, `no`, `n`, `off`, `-`, `нет`, `н`, `ложь`, `не`, `выкл`.
+- Тест согласованности: `packages/query/test/field-storage.test.ts` (приведения компилятора и типы
+  столбцов) и `apps/engine/tests/test_field_types.py` (копия, геовыгрузка, слова «да/нет»).
 
 `default` поля датасета — значение для вставки строки, в которой поля нет (форма, лента,
 правка из API): сервер подставляет его и проверяет по типу поля; обязательное поле со
