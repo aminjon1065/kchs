@@ -348,7 +348,7 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/datasets/:id/quality',
-    auth: 'session',
+    auth: { delegated: 'QualityService.get', objectType: 'dataset' },
     tags: ['data'],
     summary: 'Качество данных: правила и последняя проверка (ADR-0101)',
     schema: { params: IdParam, response: { 200: DatasetQuality } },
@@ -358,7 +358,7 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/datasets/:id/columnar',
-    auth: 'session',
+    auth: { delegated: 'ColumnarService.state', objectType: 'dataset' },
     tags: ['data'],
     summary: 'Колоночная копия датасета: версия, размер, время сборки, свежесть (ADR-0109)',
     schema: { params: IdParam, response: { 200: ColumnarCopy } },
@@ -368,7 +368,7 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/datasets/:id/columnar/build',
-    auth: 'session',
+    auth: { delegated: 'ColumnarService.build', objectType: 'dataset' },
     tags: ['data'],
     summary: 'Собрать колоночную копию текущей версии (уровень manage)',
     schema: { params: IdParam, response: { 200: ColumnarCopy } },
@@ -398,7 +398,7 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   route({
     method: 'PUT',
     url: '/datasets/:id/quality/rules',
-    auth: 'session',
+    auth: { delegated: 'QualityService.setRules', objectType: 'dataset' },
     tags: ['data'],
     summary: 'Правила качества датасета: замена набора (уровень manage)',
     schema: { params: IdParam, body: QualityRulesInput, response: { 200: DatasetQuality } },
@@ -411,7 +411,7 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/datasets/:id/quality/run',
-    auth: 'session',
+    auth: { delegated: 'QualityService.run', objectType: 'dataset' },
     tags: ['data'],
     summary: 'Проверить качество сейчас',
     schema: { params: IdParam, response: { 200: DatasetQuality } },
@@ -421,7 +421,7 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/datasets/:id',
-    auth: 'session',
+    auth: { delegated: 'DatasetAccess.resolve', objectType: 'dataset' },
     tags: ['data'],
     summary: 'Датасет: схема, счётчики, версия',
     schema: { params: IdParam, response: { 200: DatasetRecord } },
@@ -444,7 +444,7 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/datasets/:id/fields/:key/profile',
-    auth: 'session',
+    auth: { delegated: 'DatasetAccess.resolve', objectType: 'dataset' },
     tags: ['data'],
     summary: 'Профиль столбца: пустые, различные, диапазон, распределение, частые значения',
     schema: { params: FieldParams, response: { 200: FieldProfile } },
@@ -571,7 +571,7 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/datasets/:id/exports',
-    auth: 'session',
+    auth: { delegated: 'ExportService.start', objectType: 'dataset' },
     tags: ['data'],
     summary: 'Экспорт датасета в CSV, XLSX, JSON или GeoJSON — задание с файлом',
     schema: {
@@ -585,7 +585,9 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/datasets/exports/:jobId/download',
-    auth: 'session',
+    auth: {
+      owned: 'ExportService.download — только инициатор экспорта, с правом export на датасет',
+    },
     tags: ['data'],
     summary: 'Ссылка на файл экспорта — только запросившему',
     schema: {
@@ -752,7 +754,7 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/datasets/:id/rows/query',
-    auth: 'session',
+    auth: { delegated: 'RowService.query', objectType: 'dataset' },
     tags: ['data'],
     summary: 'Страница строк таблицы датасета: фильтр, поиск, сортировка, счётчик',
     schema: { params: IdParam, body: DatasetRowsQuery, response: { 200: QueryResult } },
@@ -762,7 +764,7 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/datasets/:id/rows',
-    auth: 'session',
+    auth: { delegated: 'RowService.insert', objectType: 'dataset' },
     tags: ['data'],
     summary: 'Добавить строки (до 1000)',
     schema: {
@@ -778,7 +780,7 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/datasets/:id/rows/batch',
-    auth: 'session',
+    auth: { delegated: 'RowService (applyRowsBatch, queueRowsBatch)', objectType: 'dataset' },
     tags: ['data'],
     summary: 'Массовая правка строк: вставка, изменение и удаление одним запросом',
     description:
@@ -803,7 +805,7 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/datasets/:id/rows/delete',
-    auth: 'session',
+    auth: { delegated: 'RowService.remove', objectType: 'dataset' },
     tags: ['data'],
     summary: 'Удалить строки (до 1000)',
     schema: {
@@ -819,7 +821,7 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/datasets/:id/rows/:rowId',
-    auth: 'session',
+    auth: { delegated: 'RowService.get', objectType: 'dataset' },
     tags: ['data'],
     summary: 'Строка датасета',
     schema: { params: RowParams, response: { 200: DatasetRow } },
@@ -830,7 +832,7 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   route({
     method: 'PATCH',
     url: '/datasets/:id/rows/:rowId',
-    auth: 'session',
+    auth: { delegated: 'RowService.update', objectType: 'dataset' },
     tags: ['data'],
     summary: 'Изменить строку; конфликт версии — 409 с текущими значениями',
     schema: { params: RowParams, body: DatasetRowPatch, response: { 200: DatasetRow } },
@@ -841,7 +843,7 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/datasets/:id/rows/:rowId/history',
-    auth: 'session',
+    auth: { delegated: 'RowService.history', objectType: 'dataset' },
     tags: ['data'],
     summary: 'История изменений строки',
     schema: {
@@ -910,7 +912,7 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/datasets/imports/:id',
-    auth: 'session',
+    auth: { delegated: 'ImportService.get → DatasetAccess.resolve', resource: 'import' },
     tags: ['data'],
     summary: 'Состояние импорта; сводка изменений — с политиками пользователя (ADR-0068)',
     schema: { params: IdParam, response: { 200: ImportRecord } },
@@ -927,7 +929,7 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/datasets/imports/:id/publish',
-    auth: 'session',
+    auth: { delegated: 'authorize(import)', resource: 'import' },
     tags: ['data'],
     summary: 'Опубликовать импорт после предпросмотра изменений: загрузка в датасет',
     schema: { params: IdParam, response: { 200: ImportRecord } },
@@ -943,7 +945,7 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/datasets/imports/:id/cancel',
-    auth: 'session',
+    auth: { delegated: 'authorize(import)', resource: 'import' },
     tags: ['data'],
     summary: 'Отменить импорт после предпросмотра изменений: датасет не меняется',
     schema: { params: IdParam, response: { 200: ImportRecord } },
@@ -1083,7 +1085,7 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/system-datasets/:name',
-    auth: 'session',
+    auth: { open: 'имя системного датасета — справочник полей; строки — по политикам датасета' },
     tags: ['data'],
     summary: 'Схема системного датасета: поля для подписей показателей (ADR-0082)',
     schema: {

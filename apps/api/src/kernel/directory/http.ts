@@ -206,7 +206,7 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/users/:id',
-    auth: 'session',
+    auth: { open: 'карточка сотрудника — справочник людей, её видит каждый вошедший' },
     tags: ['org'],
     summary: 'Карточка сотрудника',
     schema: { params: z.object({ id: z.uuid() }), response: { 200: UserRef } },

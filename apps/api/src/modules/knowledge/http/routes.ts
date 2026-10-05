@@ -88,7 +88,7 @@ export function registerKnowledgeRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/pages/:id',
-    auth: 'session',
+    auth: { delegated: 'PageService.get', objectType: 'page' },
     tags: ['knowledge'],
     summary: 'Страница: блоки, оглавление, состояние, права',
     description:
@@ -100,7 +100,7 @@ export function registerKnowledgeRoutes(route: RouteRegistrar): void {
   route({
     method: 'PATCH',
     url: '/pages/:id',
-    auth: 'session',
+    auth: { delegated: 'PageService.update', objectType: 'page' },
     tags: ['knowledge'],
     summary: 'Владелец страницы, срок пересмотра, возврат в работу',
     schema: { params: IdParam, body: PageUpdateInput, response: { 200: PageRecord } },
@@ -110,7 +110,7 @@ export function registerKnowledgeRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/pages/:id/blocks',
-    auth: 'session',
+    auth: { delegated: 'PageService.addBlocks', objectType: 'page' },
     tags: ['knowledge'],
     summary: 'Добавить блоки на страницу',
     description: 'Блоки сразу появляются у всех, кто открыл страницу.',
@@ -121,7 +121,7 @@ export function registerKnowledgeRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/pages/:id/publish',
-    auth: 'session',
+    auth: { delegated: 'PageService.publish', objectType: 'page' },
     tags: ['knowledge'],
     summary: 'Опубликовать страницу: снимок становится версией',
     schema: { params: IdParam, body: PagePublishInput, response: { 200: PageRecord } },
@@ -135,7 +135,7 @@ export function registerKnowledgeRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/pages/:id/versions',
-    auth: 'session',
+    auth: { delegated: 'PageVersions.list', objectType: 'page' },
     tags: ['knowledge'],
     summary: 'Версии страницы',
     schema: { params: IdParam, response: { 200: z.object({ items: z.array(PageVersionRecord) }) } },
@@ -147,7 +147,7 @@ export function registerKnowledgeRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/pages/:id/versions',
-    auth: 'session',
+    auth: { delegated: 'PageVersions.create', objectType: 'page' },
     tags: ['knowledge'],
     summary: 'Сохранить версию страницы',
     schema: { params: IdParam, body: PageVersionInput, response: { 200: PageVersionRecord } },
@@ -158,7 +158,7 @@ export function registerKnowledgeRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/pages/:id/versions/compare',
-    auth: 'session',
+    auth: { delegated: 'PageVersions.compare', objectType: 'page' },
     tags: ['knowledge'],
     summary: 'Сравнить версии страницы по словам',
     description: '`to` не задан — текущий текст страницы, `from` не задан — версия перед `to`.',
@@ -173,7 +173,7 @@ export function registerKnowledgeRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/pages/:id/versions/:versionId',
-    auth: 'session',
+    auth: { delegated: 'PageVersions.get', objectType: 'page' },
     tags: ['knowledge'],
     summary: 'Версия страницы: её блоки',
     schema: { params: VersionParams, response: { 200: PageVersionDetail } },
@@ -184,7 +184,7 @@ export function registerKnowledgeRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/pages/:id/versions/:versionId/restore',
-    auth: 'session',
+    auth: { delegated: 'PageVersions.restore', objectType: 'page' },
     tags: ['knowledge'],
     summary: 'Откатить страницу к версии',
     description: 'Текущий текст сохраняется версией, блоки версии возвращаются в документ.',
@@ -196,7 +196,7 @@ export function registerKnowledgeRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/pages/:id/acknowledgments',
-    auth: 'session',
+    auth: { delegated: 'PageService.requestAcknowledgment', objectType: 'page' },
     tags: ['knowledge'],
     summary: 'Отправить страницу на ознакомление',
     schema: {

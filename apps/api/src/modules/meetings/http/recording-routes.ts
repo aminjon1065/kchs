@@ -28,7 +28,7 @@ export function registerMeetingRecordingRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/meetings/:id/recording/start',
-    auth: 'session',
+    auth: { delegated: 'RecordingService.start', objectType: 'meeting' },
     tags: ['meetings'],
     summary: 'Включить запись встречи: индикатор видят все участники',
     schema: { params: IdParam, response: { 200: RecordingRecord } },
@@ -38,7 +38,7 @@ export function registerMeetingRecordingRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/recordings/:id/stop',
-    auth: 'session',
+    auth: { delegated: 'RecordingService.stop', objectType: 'recording' },
     tags: ['meetings'],
     summary: 'Остановить запись: файл медиасервер доложит сам',
     schema: { params: IdParam, response: { 200: RecordingRecord } },
@@ -48,7 +48,7 @@ export function registerMeetingRecordingRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/meetings/:id/recordings',
-    auth: 'session',
+    auth: { delegated: 'RecordingService.list', objectType: 'meeting' },
     tags: ['meetings'],
     summary: 'Записи встречи: доступны тем же, кому доступна встреча',
     schema: { params: IdParam, response: { 200: RecordingList } },
@@ -60,7 +60,7 @@ export function registerMeetingRecordingRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/recordings/:id',
-    auth: 'session',
+    auth: { delegated: 'RecordingService.get', objectType: 'recording' },
     tags: ['meetings'],
     summary: 'Запись: состояние, файл, длительность, состояние расшифровки',
     schema: { params: IdParam, response: { 200: RecordingRecord } },
@@ -70,7 +70,7 @@ export function registerMeetingRecordingRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/recordings/:id/pin',
-    auth: 'session',
+    auth: { delegated: 'RecordingService.pin', objectType: 'recording' },
     tags: ['meetings'],
     summary: 'Закрепить запись от удаления по сроку хранения или открепить (ADR-0138)',
     schema: { params: IdParam, body: RecordingPinInput, response: { 200: RecordingRecord } },
@@ -102,7 +102,7 @@ export function registerMeetingRecordingRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/recordings/:id/transcript',
-    auth: 'session',
+    auth: { delegated: 'TranscriptService.get', objectType: 'recording' },
     tags: ['meetings'],
     summary: 'Расшифровка записи: сегменты с таймкодами',
     schema: { params: IdParam, response: { 200: TranscriptRecord } },
@@ -112,7 +112,7 @@ export function registerMeetingRecordingRoutes(route: RouteRegistrar): void {
   route({
     method: 'PATCH',
     url: '/recordings/:id/transcript/segments/:index',
-    auth: 'session',
+    auth: { delegated: 'TranscriptService.editSegment', objectType: 'recording' },
     tags: ['meetings'],
     summary: 'Исправить текст фразы расшифровки (ADR-0162)',
     schema: {
@@ -132,7 +132,7 @@ export function registerMeetingRecordingRoutes(route: RouteRegistrar): void {
   route({
     method: 'PUT',
     url: '/recordings/:id/transcript/speakers',
-    auth: 'session',
+    auth: { delegated: 'TranscriptService.setSpeaker', objectType: 'recording' },
     tags: ['meetings'],
     summary: 'Сопоставить говорящего расшифровки с участником встречи (ADR-0162)',
     schema: { params: IdParam, body: TranscriptSpeakerInput, response: { 200: TranscriptRecord } },

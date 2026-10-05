@@ -24,7 +24,7 @@ export function registerDocumentProcessRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/documents/:id/routes',
-    auth: 'session',
+    auth: { delegated: 'DocumentRoutes.options', objectType: 'document' },
     tags: ['documents'],
     summary: 'Маршруты, по которым можно отправить документ, и можно ли сейчас',
     schema: { params: IdParam, response: { 200: DocumentRouteOptions } },
@@ -34,7 +34,7 @@ export function registerDocumentProcessRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/documents/:id/routes/preview',
-    auth: 'session',
+    auth: { delegated: 'DocumentRoutes.preview', objectType: 'document' },
     tags: ['documents'],
     summary: 'Предпросмотр маршрута на документе: кто будет назначен, сроки',
     readOnly: true,
@@ -46,7 +46,7 @@ export function registerDocumentProcessRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/documents/:id/routes',
-    auth: 'session',
+    auth: { delegated: 'DocumentRoutes.start', objectType: 'document' },
     tags: ['documents'],
     summary: 'Отправить документ по маршруту: согласование, подпись, регистрация',
     schema: {
@@ -65,7 +65,7 @@ export function registerDocumentProcessRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/documents/:id/route-versions',
-    auth: 'session',
+    auth: { delegated: 'authorize(view)', objectType: 'document' },
     tags: ['documents'],
     summary: 'Какую версию видел каждый шаг согласования и подписи',
     schema: { params: IdParam, response: { 200: DocumentRouteStepVersions } },
@@ -85,7 +85,7 @@ export function registerDocumentProcessRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/documents/:id/signatures',
-    auth: 'session',
+    auth: { delegated: 'DocumentSignatures.list', objectType: 'document' },
     tags: ['documents'],
     summary: 'Подписи документа и их проверка по хэшу версии',
     schema: { params: IdParam, response: { 200: DocumentSignatureList } },

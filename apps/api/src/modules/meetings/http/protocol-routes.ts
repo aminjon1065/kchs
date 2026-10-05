@@ -22,7 +22,7 @@ export function registerProtocolRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/meetings/:id/protocol',
-    auth: 'session',
+    auth: { delegated: 'ProtocolService.ofMeeting', objectType: 'meeting' },
     tags: ['meetings'],
     summary: 'Протокол встречи: блоки, поручения, права',
     description: 'Снимок совместного документа; null — протокол ещё не заведён.',
@@ -35,7 +35,7 @@ export function registerProtocolRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/meetings/:id/protocol',
-    auth: 'session',
+    auth: { delegated: 'ProtocolService.create', objectType: 'meeting' },
     tags: ['meetings'],
     summary: 'Завести протокол встречи (он же повестка до неё)',
     schema: { params: IdParam, response: { 200: ProtocolRecord } },
@@ -45,7 +45,7 @@ export function registerProtocolRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/protocols/:id',
-    auth: 'session',
+    auth: { delegated: 'ProtocolService.get', objectType: 'protocol' },
     tags: ['meetings'],
     summary: 'Протокол: блоки, поручения, состояние',
     schema: { params: IdParam, response: { 200: ProtocolRecord } },
@@ -55,7 +55,7 @@ export function registerProtocolRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/protocols/:id/blocks',
-    auth: 'session',
+    auth: { delegated: 'ProtocolService.addBlocks', objectType: 'protocol' },
     tags: ['meetings'],
     summary: 'Добавить блоки в протокол',
     description: 'Блоки сразу появляются у всех, кто открыл протокол.',
@@ -67,7 +67,7 @@ export function registerProtocolRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/protocols/:id/draft',
-    auth: 'session',
+    auth: { delegated: 'ProtocolAssist.draft', objectType: 'protocol' },
     tags: ['meetings'],
     summary: 'Черновик ИИ: резюме, решения и предложенные поручения',
     description:
@@ -79,7 +79,7 @@ export function registerProtocolRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/protocols/:id/confirm',
-    auth: 'session',
+    auth: { delegated: 'ProtocolService.confirm', objectType: 'protocol' },
     tags: ['meetings'],
     summary: 'Подтвердить протокол: блоки-поручения становятся поручениями',
     schema: { params: IdParam, response: { 200: ProtocolRecord } },
@@ -89,7 +89,7 @@ export function registerProtocolRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/protocols/:id/register',
-    auth: 'session',
+    auth: { delegated: 'ProtocolService.register', objectType: 'protocol' },
     tags: ['meetings'],
     summary: 'Зарегистрировать протокол документом выбранного типа',
     schema: {
@@ -104,7 +104,7 @@ export function registerProtocolRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/protocols/:id/print',
-    auth: 'session',
+    auth: { delegated: 'ProtocolService.print', objectType: 'protocol' },
     tags: ['meetings'],
     summary: 'Собрать печатную форму протокола заново — первой версией документа',
     description:
@@ -116,7 +116,7 @@ export function registerProtocolRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/protocols/:id/acknowledgments',
-    auth: 'session',
+    auth: { delegated: 'ProtocolService.requestAcknowledgment', objectType: 'protocol' },
     tags: ['meetings'],
     summary: 'Отправить протокол участникам на ознакомление',
     schema: {

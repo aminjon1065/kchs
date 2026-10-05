@@ -175,7 +175,7 @@ export function registerReportsRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/reports/runs/:runId',
-    auth: 'session',
+    auth: { delegated: 'ReportRuns.get', resource: 'report_run' },
     tags: ['reports'],
     summary: 'Запуск отчёта: состояние, файлы, доставка',
     schema: { params: RunParam, response: { 200: ReportRunRecord } },
@@ -185,7 +185,7 @@ export function registerReportsRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/reports/runs/:runId/download',
-    auth: 'session',
+    auth: { delegated: 'ReportRuns.download', resource: 'report_run' },
     tags: ['reports'],
     summary: 'Ссылка на файл запуска — тому, под чьими правами он построен',
     schema: {
@@ -254,7 +254,7 @@ export function registerReportsRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/print/report-runs/:runId',
-    auth: 'session',
+    auth: { delegated: 'ReportRuns.printPayload', resource: 'report_run' },
     tags: ['reports'],
     summary: 'Страница печати запуска: шаблон, параметры и пользователь, под кем строится отчёт',
     description:

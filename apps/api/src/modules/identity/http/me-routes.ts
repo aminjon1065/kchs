@@ -281,7 +281,7 @@ export function registerMeRoutes(route: RouteRegistrar): void {
   route({
     method: 'DELETE',
     url: '/me/delegations/:id',
-    auth: 'session',
+    auth: { owned: 'DelegationService.stop — только своё замещение' },
     tags: ['me'],
     summary: 'Завершить замещение',
     schema: {

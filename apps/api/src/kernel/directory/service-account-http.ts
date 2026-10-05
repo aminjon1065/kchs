@@ -39,7 +39,10 @@ export function registerServiceAccountRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/service-accounts/:id',
-    auth: 'session',
+    auth: {
+      delegated: 'assertCanList: users.manage или automation.manage',
+      resource: 'service_account',
+    },
     tags: ['org'],
     summary: 'Служебная учётная запись',
     schema: { params: z.object({ id: z.uuid() }), response: { 200: ServiceAccount } },

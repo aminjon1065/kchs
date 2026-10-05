@@ -227,7 +227,7 @@ export function registerAutomationRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/automation/runs/:id',
-    auth: 'session',
+    auth: { delegated: 'authorize(view)', resource: 'rule_run' },
     tags: ['automation'],
     summary: 'Запуск правила: шаги и диагностика',
     schema: { params: IdParam, response: { 200: RuleRunRecord } },

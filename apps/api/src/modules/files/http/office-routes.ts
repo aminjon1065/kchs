@@ -8,7 +8,7 @@ import { authorize } from '~/kernel/access/authorize.js'
 import { config } from '~/shared/config/index.js'
 import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
-import type { RouteRegistrar } from '~/shared/http/route.js'
+import { assertRouteAuth, type RouteAuth, type RouteRegistrar } from '~/shared/http/route.js'
 import { officeConfig, officeDocumentType, signJwt } from '../domain/office.js'
 import { officeEditorConfig, renderOfficePage } from '../domain/office-page.js'
 import { OfficeService, officeUrls } from '../domain/office-service.js'
@@ -111,6 +111,11 @@ export function registerOfficeRoutes(route: RouteRegistrar): void {
   })
 }
 
+const OFFICE_EDITOR_AUTH = {
+  delegated: 'authorize(view) файла сессии редактирования',
+  resource: 'office_session',
+} as const satisfies RouteAuth
+
 /**
  * Страница редактора: не операция API, а документ для кадра рабочей области.
  * Политика CSP — у этого ответа, а не у всей установки: `script-src` называет
@@ -118,9 +123,11 @@ export function registerOfficeRoutes(route: RouteRegistrar): void {
  * документов, поэтому его скрипт до API платформы не дотягивается (ADR-0112).
  */
 export function registerOfficePages(app: FastifyInstance): void {
+  // Страница вне реестра маршрутов API, но объявление то же (ADR-0186)
+  assertRouteAuth({ method: 'GET', url: '/office/editor/:id', auth: OFFICE_EDITOR_AUTH })
   app.get<{ Params: { id: string } }>(
     '/office/editor/:id',
-    { schema: { hide: true }, config: { auth: 'session' } },
+    { schema: { hide: true }, config: { auth: OFFICE_EDITOR_AUTH } },
     async (request, reply) => {
       const office = officeConfig()
       if (!office) throw errors.notFound()

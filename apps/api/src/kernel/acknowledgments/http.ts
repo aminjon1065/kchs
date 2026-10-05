@@ -21,7 +21,7 @@ export function registerAcknowledgmentRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/objects/:id/acknowledgments',
-    auth: 'session',
+    auth: { delegated: 'Acknowledgments.list', objectType: 'any' },
     tags: ['acknowledgments'],
     summary: 'Ознакомление с объектом: кто ознакомился, кто нет, запросы',
     schema: { params: IdParam, response: { 200: ObjectAcknowledgments } },
@@ -31,7 +31,7 @@ export function registerAcknowledgmentRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/objects/:id/acknowledgments/acknowledge',
-    auth: 'session',
+    auth: { delegated: 'Acknowledgments.acknowledge', objectType: 'any' },
     tags: ['acknowledgments'],
     summary: 'Отметить «Ознакомлен» (с кодом второго фактора, если его требует запрос)',
     schema: { params: IdParam, body: AcknowledgeInput, response: { 200: ObjectAcknowledgments } },
@@ -46,7 +46,7 @@ export function registerAcknowledgmentRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/objects/:id/acknowledgments/remind',
-    auth: 'session',
+    auth: { delegated: 'authorize(request_acknowledgment)', objectType: 'any' },
     tags: ['acknowledgments'],
     summary: 'Напомнить не ознакомившимся (не чаще раза в час одному сотруднику)',
     schema: {

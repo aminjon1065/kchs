@@ -273,7 +273,7 @@ export function registerChatRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/chats/messages/:messageId/task',
-    auth: 'session',
+    auth: { delegated: 'QuickActions.task', resource: 'message' },
     tags: ['chat'],
     summary: 'Поручение по сообщению: цитата и связь с источником',
     schema: { params: MessageParam, body: ChatTaskInput, response: { 200: ChatTaskResult } },
@@ -286,7 +286,7 @@ export function registerChatRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/chats/messages/:messageId/attach',
-    auth: 'session',
+    auth: { delegated: 'QuickActions.attach', resource: 'message' },
     tags: ['chat'],
     summary: 'Прикрепить сообщение к документу или объекту',
     schema: { params: MessageParam, body: ChatAttachInput, response: { 200: Ok } },

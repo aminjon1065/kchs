@@ -51,7 +51,7 @@ export function registerSearchRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/objects/:id/similar',
-    auth: 'session',
+    auth: { delegated: 'authorize(view)', objectType: 'any' },
     tags: ['search'],
     summary: 'Похожие по смыслу объекты (только доступные смотрящему)',
     schema: {

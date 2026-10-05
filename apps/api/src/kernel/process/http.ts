@@ -233,7 +233,7 @@ export function registerProcessRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/processes/:id',
-    auth: 'session',
+    auth: { delegated: 'ProcessView.get', resource: 'process' },
     tags: ['processes'],
     summary: 'Маршрут: линия шагов, назначенные, сроки, решения, мои действия',
     schema: { params: z.object({ id: z.uuid() }), response: { 200: ProcessInstanceView } },
@@ -243,7 +243,7 @@ export function registerProcessRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/processes/:id/cancel',
-    auth: 'session',
+    auth: { delegated: 'ProcessService.cancel', resource: 'process' },
     tags: ['processes'],
     summary: 'Отменить маршрут: инициатор, управляющий объектом, администратор маршрутов',
     schema: { params: z.object({ id: z.uuid() }), body: ProcessCancelInput, response: { 200: Ok } },
@@ -261,7 +261,7 @@ export function registerProcessRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/processes/:id/steps/:stepId/act',
-    auth: 'session',
+    auth: { delegated: 'ProcessService.act', resource: 'process' },
     tags: ['processes'],
     summary: 'Решение шага: согласовать, замечания, отклонить, подписать, ознакомиться…',
     schema: { params: StepParams, body: ProcessActInput, response: { 200: Ok } },
@@ -283,7 +283,7 @@ export function registerProcessRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/processes/:id/steps/:stepId/assignees',
-    auth: 'session',
+    auth: { delegated: 'ProcessService.addAssignee', resource: 'process' },
     tags: ['processes'],
     summary: 'Добавить согласующего (если шаг разрешает)',
     schema: { params: StepParams, body: ProcessAssigneeInput, response: { 200: Ok } },
@@ -303,7 +303,7 @@ export function registerProcessRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/processes/:id/steps/:stepId/delegate',
-    auth: 'session',
+    auth: { delegated: 'ProcessService.delegate', resource: 'process' },
     tags: ['processes'],
     summary: 'Передать свой шаг другому сотруднику',
     schema: { params: StepParams, body: ProcessAssigneeInput, response: { 200: Ok } },

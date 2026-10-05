@@ -35,7 +35,7 @@ export function registerTemplateRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/document-templates/:id',
-    auth: 'session',
+    auth: { delegated: 'DocumentTemplateService.get', objectType: 'template' },
     tags: ['documents'],
     summary: 'Шаблон документа: файл, плейсхолдеры, карточка по умолчанию',
     schema: { params: IdParam, response: { 200: DocumentTemplateRecord } },
@@ -60,7 +60,7 @@ export function registerTemplateRoutes(route: RouteRegistrar): void {
   route({
     method: 'PATCH',
     url: '/document-templates/:id',
-    auth: 'session',
+    auth: { delegated: 'DocumentTemplateService.update', objectType: 'template' },
     tags: ['documents'],
     summary: 'Изменить шаблон: название, тип, карточку по умолчанию, использование',
     schema: {
@@ -79,7 +79,7 @@ export function registerTemplateRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/document-templates/:id/file',
-    auth: 'session',
+    auth: { delegated: 'DocumentTemplateService.setFile', objectType: 'template' },
     tags: ['documents'],
     summary: 'Файл шаблона (DOCX, загруженный вложением): движок разберёт плейсхолдеры',
     schema: {
@@ -111,7 +111,7 @@ export function registerTemplateRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/documents/:id/fill',
-    auth: 'session',
+    auth: { delegated: 'DocumentTemplateService.fill', objectType: 'document' },
     tags: ['documents'],
     summary: 'Заполнить документ по шаблону из текущей карточки — новая версия',
     schema: { params: IdParam, body: DocumentFillInput, response: { 200: DocumentRenderRecord } },

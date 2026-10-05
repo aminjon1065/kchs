@@ -44,7 +44,7 @@ export function registerApiTokenRoutes(route: RouteRegistrar): void {
   route({
     method: 'DELETE',
     url: '/me/api-tokens/:id',
-    auth: 'session',
+    auth: { owned: 'ApiTokens.revoke — только свой токен' },
     tags: ['me'],
     summary: 'Отозвать токен API',
     schema: {

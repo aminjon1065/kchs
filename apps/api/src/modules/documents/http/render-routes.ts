@@ -77,7 +77,7 @@ export function registerRenderRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/documents/renders/:id',
-    auth: 'session',
+    auth: { delegated: 'DocumentRenders.get', resource: 'render' },
     tags: ['documents'],
     summary: 'Состояние рендера: в очереди, строится, готов, не удался',
     schema: { params: IdParam, response: { 200: DocumentRenderRecord } },
@@ -87,7 +87,7 @@ export function registerRenderRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/documents/renders/:id/download',
-    auth: 'session',
+    auth: { delegated: 'DocumentRenders.download', resource: 'render' },
     tags: ['documents'],
     summary: 'Ссылка на готовую копию с водяным знаком',
     schema: { params: IdParam, response: { 200: DocumentRenderDownload } },
@@ -97,7 +97,7 @@ export function registerRenderRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/documents/:id/versions/compare',
-    auth: 'session',
+    auth: { delegated: 'compareVersions → authorize(view)', objectType: 'document' },
     tags: ['documents'],
     summary: 'Сравнение двух версий документа по словам',
     schema: {

@@ -217,6 +217,8 @@ async function applyRoutePolicy(
   deps: AuthDependencies,
 ): Promise<void> {
   if (auth === 'session' || auth === 'public') return
+  // Сессия, а то, что в пути, проверяет сервис обработчика (ADR-0186)
+  if ('delegated' in auth || 'owned' in auth || 'open' in auth) return
 
   if ('capability' in auth && !('action' in auth)) {
     deps.requireCapability(request.ctx, auth.capability)

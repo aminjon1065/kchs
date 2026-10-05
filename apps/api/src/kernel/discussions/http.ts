@@ -105,7 +105,7 @@ export function registerDiscussionRoutes(route: RouteRegistrar): void {
   route({
     method: 'PATCH',
     url: '/messages/:messageId',
-    auth: 'session',
+    auth: { delegated: 'DiscussionService.edit', resource: 'message' },
     tags: ['discussions'],
     summary: 'Изменить своё сообщение',
     schema: {
@@ -130,7 +130,7 @@ export function registerDiscussionRoutes(route: RouteRegistrar): void {
   route({
     method: 'DELETE',
     url: '/messages/:messageId',
-    auth: 'session',
+    auth: { delegated: 'DiscussionService.remove', resource: 'message' },
     tags: ['discussions'],
     summary: 'Удалить своё сообщение',
     schema: {
@@ -148,7 +148,7 @@ export function registerDiscussionRoutes(route: RouteRegistrar): void {
   route({
     method: 'PUT',
     url: '/messages/:messageId/reactions',
-    auth: 'session',
+    auth: { delegated: 'authorize(post)', resource: 'message' },
     tags: ['discussions'],
     summary: 'Поставить или убрать реакцию',
     schema: {

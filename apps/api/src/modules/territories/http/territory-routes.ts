@@ -53,7 +53,7 @@ export function registerTerritoryRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/territories/:id',
-    auth: 'session',
+    auth: { delegated: 'TerritoryService.get', objectType: 'territory' },
     tags: ['gis'],
     summary: 'Карточка территории: путь от корня, дочерние единицы, атрибуты',
     schema: { params: IdParam, response: { 200: TerritoryDetail } },
@@ -63,7 +63,7 @@ export function registerTerritoryRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/gis/territories/:id/geometry',
-    auth: 'session',
+    auth: { delegated: 'TerritoryService.feature', objectType: 'territory' },
     tags: ['gis'],
     summary: 'Граница территории GeoJSON Feature; с зумом — упрощённая до пикселя',
     schema: {
@@ -78,7 +78,7 @@ export function registerTerritoryRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/gis/territories/tiles/:z/:x/:y.pbf',
-    auth: 'session',
+    auth: { open: 'координаты тайла; границы единиц — общая география (ADR-0057)' },
     tags: ['gis'],
     summary: 'Векторные тайлы границ: слой MVT на уровень, у объекта id, code, level, name',
     schema: { params: TileParams, querystring: TerritoryTileQuery },

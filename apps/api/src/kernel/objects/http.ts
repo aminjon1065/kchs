@@ -197,7 +197,7 @@ export function registerObjectRoutes(route: RouteRegistrar): void {
     method: 'POST',
     url: '/objects/:id/restore',
     // Объект уже в корзине: политика проверяется вручную с allowTrashed
-    auth: 'session',
+    auth: { delegated: 'authorize(delete)', objectType: 'any' },
     tags: ['objects'],
     summary: 'Восстановить объект из корзины или архива',
     schema: { params: IdParam, response: { 200: z.object({ ok: z.boolean() }) } },

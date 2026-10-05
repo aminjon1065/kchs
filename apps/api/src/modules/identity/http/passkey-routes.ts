@@ -56,7 +56,7 @@ export function registerPasskeyRoutes(route: RouteRegistrar): void {
   route({
     method: 'DELETE',
     url: '/me/passkeys/:keyId',
-    auth: 'session',
+    auth: { owned: 'PasskeyService.remove — только свой ключ входа' },
     tags: ['me'],
     summary: 'Отозвать ключ входа',
     schema: {

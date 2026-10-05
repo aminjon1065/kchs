@@ -24,7 +24,7 @@ export function registerJobRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/jobs/:id',
-    auth: 'session',
+    auth: { delegated: 'canSeeJob', resource: 'job' },
     tags: ['jobs'],
     summary: 'Состояние задания',
     schema: { params: z.object({ id: z.uuid() }), response: { 200: JobRecord } },
@@ -38,7 +38,7 @@ export function registerJobRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/jobs/:id/cancel',
-    auth: 'session',
+    auth: { delegated: 'canSeeJob', resource: 'job' },
     tags: ['jobs'],
     summary: 'Отменить задание',
     schema: {

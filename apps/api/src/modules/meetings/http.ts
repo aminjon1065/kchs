@@ -62,7 +62,7 @@ export function registerMeetingsRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/meetings/:id',
-    auth: 'session',
+    auth: { delegated: 'MeetingService.get', objectType: 'meeting' },
     tags: ['meetings'],
     summary: 'Встреча: участники, состояние, права',
     schema: { params: IdParam, response: { 200: MeetingRecord } },
@@ -72,7 +72,7 @@ export function registerMeetingsRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/meetings/:id/join',
-    auth: 'session',
+    auth: { delegated: 'MeetingService.join', objectType: 'meeting' },
     tags: ['meetings'],
     summary: 'Войти в комнату: адрес медиасервера и токен участника',
     schema: { params: IdParam, response: { 200: MeetingJoin } },
@@ -82,7 +82,7 @@ export function registerMeetingsRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/meetings/:id/leave',
-    auth: 'session',
+    auth: { delegated: 'MeetingService.leave', objectType: 'meeting' },
     tags: ['meetings'],
     summary: 'Выйти из комнаты',
     schema: { params: IdParam, response: { 200: z.object({ ok: z.literal(true) }) } },
@@ -95,7 +95,7 @@ export function registerMeetingsRoutes(route: RouteRegistrar): void {
   route({
     method: 'PUT',
     url: '/meetings/:id/secretary',
-    auth: 'session',
+    auth: { delegated: 'MeetingService.setSecretary', objectType: 'meeting' },
     tags: ['meetings'],
     summary: 'Назначить или снять секретаря встречи: он правит протокол (ADR-0137)',
     schema: { params: IdParam, body: MeetingSecretaryInput, response: { 200: MeetingRecord } },
@@ -108,7 +108,7 @@ export function registerMeetingsRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/meetings/:id/end',
-    auth: 'session',
+    auth: { delegated: 'authorize(end)', objectType: 'meeting' },
     tags: ['meetings'],
     summary: 'Завершить встречу для всех',
     schema: { params: IdParam, response: { 200: MeetingRecord } },

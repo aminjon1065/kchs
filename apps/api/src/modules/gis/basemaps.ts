@@ -210,7 +210,7 @@ export function registerBasemapRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/gis/glyphs/:fontstack/:range',
-    auth: 'session',
+    auth: { open: 'шрифты подписей карты — общие файлы оформления' },
     tags: ['gis'],
     summary: 'Шрифты подписей карты (PBF, кириллица) из хранилища установки',
     schema: { params: GlyphParams },
@@ -228,7 +228,7 @@ export function registerBasemapRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/gis/sprites/:file',
-    auth: 'session',
+    auth: { open: 'значки подложки карты — общие файлы оформления' },
     tags: ['gis'],
     summary: 'Спрайт подложки темы: значки населённых пунктов и вершин',
     schema: { params: SpriteParams },

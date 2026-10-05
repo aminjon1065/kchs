@@ -143,7 +143,7 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/documents/territory/:id',
-    auth: 'session',
+    auth: { delegated: 'territoryDocuments → TerritoryService.get', objectType: 'territory' },
     tags: ['documents'],
     summary:
       'Документы территории для паспорта: по реквизиту «Территория», полю-территории карточки или связи «о территории», с вложенными единицами и правами на каждый документ (ADR-0158)',
@@ -174,7 +174,7 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/documents/:id',
-    auth: 'session',
+    auth: { delegated: 'DocumentService.get', objectType: 'document' },
     tags: ['documents'],
     summary: 'Карточка документа: реквизиты, регистрация, текущая версия, права',
     schema: { params: IdParam, response: { 200: DocumentRecord } },
@@ -184,7 +184,7 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
   route({
     method: 'PATCH',
     url: '/documents/:id',
-    auth: 'session',
+    auth: { delegated: 'DocumentService.update', objectType: 'document' },
     tags: ['documents'],
     summary: 'Изменить карточку: реквизиты, поля типа, участники, гриф',
     schema: { params: IdParam, body: DocumentUpdateInput, response: { 200: DocumentRecord } },
@@ -199,7 +199,7 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/documents/:id/register',
-    auth: 'session',
+    auth: { delegated: 'DocumentService.register', objectType: 'document' },
     tags: ['documents'],
     summary: 'Зарегистрировать документ: номер из журнала или резерва',
     schema: { params: IdParam, body: DocumentRegisterInput, response: { 200: DocumentRecord } },
@@ -214,7 +214,7 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/documents/:id/number-preview',
-    auth: 'session',
+    auth: { delegated: 'DocumentService.previewNumber', objectType: 'document' },
     tags: ['documents'],
     summary: 'Каким будет номер при регистрации: журнал и дело по номенклатуре, без выдачи',
     schema: {
@@ -229,7 +229,7 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/documents/:id/cancel',
-    auth: 'session',
+    auth: { delegated: 'DocumentService.cancel', objectType: 'document' },
     tags: ['documents'],
     summary: 'Аннулировать документ с обоснованием',
     schema: { params: IdParam, body: DocumentCancelInput, response: { 200: DocumentRecord } },
@@ -244,7 +244,7 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/documents/:id/versions',
-    auth: 'session',
+    auth: { delegated: 'DocumentVersionService.list', objectType: 'document' },
     tags: ['documents'],
     summary: 'Версии документа: основной файл, приложения, PDF-представление',
     schema: { params: IdParam, response: { 200: DocumentVersionList } },
@@ -256,7 +256,7 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/documents/:id/versions',
-    auth: 'session',
+    auth: { delegated: 'DocumentVersionService.add', objectType: 'document' },
     tags: ['documents'],
     summary: 'Новая версия документа из прикреплённых файлов',
     schema: {
@@ -295,7 +295,7 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/documents/:id/resolutions',
-    auth: 'session',
+    auth: { delegated: 'ResolutionService.list', objectType: 'document' },
     tags: ['documents'],
     summary: 'Резолюции документа деревом, направления на резолюцию, права смотрящего',
     schema: { params: IdParam, response: { 200: DocumentResolutions } },
@@ -305,7 +305,7 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/documents/:id/resolutions',
-    auth: 'session',
+    auth: { delegated: 'ResolutionService.create', objectType: 'document' },
     tags: ['documents'],
     summary: 'Наложить резолюцию: поручения ответственному и соисполнителям в той же транзакции',
     schema: { params: IdParam, body: ResolutionInput, response: { 200: DocumentResolutions } },
@@ -320,7 +320,7 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/documents/:id/resolution-requests',
-    auth: 'session',
+    auth: { delegated: 'ResolutionService.request', objectType: 'document' },
     tags: ['documents'],
     summary: 'Направить документ на резолюцию (или переадресовать)',
     schema: {
@@ -339,7 +339,7 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
   route({
     method: 'DELETE',
     url: '/documents/:id/resolution-requests/:requestId',
-    auth: 'session',
+    auth: { delegated: 'ResolutionService.cancelRequest', objectType: 'document' },
     tags: ['documents'],
     summary: 'Снять направление на резолюцию',
     schema: {
@@ -362,7 +362,7 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/documents/:id/no-execution',
-    auth: 'session',
+    auth: { delegated: 'ResolutionService.noExecution', objectType: 'document' },
     tags: ['documents'],
     summary: '«Не требует исполнения»: зарегистрированный документ исполнен без поручений',
     schema: { params: IdParam, body: NoExecutionInput, response: { 200: DocumentRecord } },
@@ -377,7 +377,7 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/documents/:id/acknowledgments',
-    auth: 'session',
+    auth: { delegated: 'DocumentAcknowledgments.request', objectType: 'document' },
     tags: ['documents'],
     summary: 'Отправить на ознакомление: сотрудники, подразделения, группы',
     schema: {
@@ -420,7 +420,7 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
   route({
     method: 'PATCH',
     url: '/resolution-templates/:id',
-    auth: 'session',
+    auth: { owned: 'ResolutionTemplates.editable — свои шаблоны резолюций' },
     tags: ['documents'],
     summary: 'Изменить шаблон резолюции',
     schema: {
@@ -437,7 +437,7 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
   route({
     method: 'DELETE',
     url: '/resolution-templates/:id',
-    auth: 'session',
+    auth: { owned: 'ResolutionTemplates.editable — свои шаблоны резолюций' },
     tags: ['documents'],
     summary: 'Удалить шаблон резолюции',
     schema: { params: IdParam, response: { 200: Ok } },
@@ -451,7 +451,7 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/documents/:id/reply',
-    auth: 'session',
+    auth: { delegated: 'Correspondence.reply', objectType: 'document' },
     tags: ['documents'],
     summary: 'Ответить на входящий: исходящий черновик со связью «в ответ на»',
     schema: {
@@ -470,7 +470,7 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/documents/:id/correspondence',
-    auth: 'session',
+    auth: { delegated: 'Correspondence.chain', objectType: 'document' },
     tags: ['documents'],
     summary: 'Цепочка переписки по связям «в ответ на»',
     schema: { params: IdParam, response: { 200: CorrespondenceChain } },
@@ -480,7 +480,7 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/documents/:id/dispatches',
-    auth: 'session',
+    auth: { delegated: 'Correspondence.dispatches', objectType: 'document' },
     tags: ['documents'],
     summary: 'Отметки об отправке исходящего',
     schema: { params: IdParam, response: { 200: DocumentDispatchList } },
@@ -492,7 +492,7 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/documents/:id/dispatches',
-    auth: 'session',
+    auth: { delegated: 'Correspondence.dispatch', objectType: 'document' },
     tags: ['documents'],
     summary: 'Отметить отправку исходящего; первая отправка исполняет документ',
     schema: { params: IdParam, body: DocumentDispatchInput, response: { 200: DocumentRecord } },
@@ -517,7 +517,7 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/documents/:id/emails',
-    auth: 'session',
+    auth: { delegated: 'DocumentMailOut.list', objectType: 'document' },
     tags: ['documents'],
     summary: 'Письма исходящего: в очереди, отправленные, не ушедшие',
     schema: { params: IdParam, response: { 200: DocumentEmailList } },
@@ -529,7 +529,7 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/documents/:id/emails',
-    auth: 'session',
+    auth: { delegated: 'DocumentMailOut.queue', objectType: 'document' },
     tags: ['documents'],
     summary: 'Отправить исходящий письмом из ящика канцелярии',
     description:
@@ -546,7 +546,7 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/documents/:id/emails/:emailId/retry',
-    auth: 'session',
+    auth: { delegated: 'DocumentMailOut.retry', objectType: 'document' },
     tags: ['documents'],
     summary: 'Повторить письмо, которое не ушло или вернулось',
     schema: {
@@ -563,7 +563,7 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/documents/:id/cases',
-    auth: 'session',
+    auth: { delegated: 'CaseService.suggest', objectType: 'document' },
     tags: ['documents'],
     summary:
       'Открытые дела для подшивки документа или номера при регистрации — подходящие по типу и подразделению',
@@ -579,7 +579,7 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/documents/:id/file',
-    auth: 'session',
+    auth: { delegated: 'CaseService.fileDocument', objectType: 'document' },
     tags: ['documents'],
     summary: 'Подшить исполненный документ в дело',
     schema: { params: IdParam, body: DocumentFileInput, response: { 200: DocumentRecord } },
@@ -629,7 +629,7 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/cases/:id',
-    auth: 'session',
+    auth: { delegated: 'CaseService.get', objectType: 'case' },
     tags: ['documents'],
     summary: 'Дело номенклатуры',
     schema: { params: IdParam, response: { 200: CaseRecord } },
@@ -652,7 +652,7 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
   route({
     method: 'PATCH',
     url: '/cases/:id',
-    auth: 'session',
+    auth: { delegated: 'CaseService.update', objectType: 'case' },
     tags: ['documents'],
     summary: 'Изменить дело номенклатуры',
     schema: { params: IdParam, body: CaseUpdateInput, response: { 200: CaseRecord } },
@@ -668,7 +668,7 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
     route({
       method: 'POST',
       url: `/cases/:id/${action}`,
-      auth: 'session',
+      auth: { delegated: 'CaseService.get', objectType: 'case' },
       tags: ['documents'],
       summary:
         action === 'close'
@@ -744,7 +744,7 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/document-types/:id',
-    auth: 'session',
+    auth: { delegated: 'DocumentTypeService.get', objectType: 'document_type' },
     tags: ['documents'],
     summary: 'Тип документа',
     schema: { params: IdParam, response: { 200: DocumentTypeRecord } },
@@ -769,7 +769,7 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
   route({
     method: 'PATCH',
     url: '/document-types/:id',
-    auth: 'session',
+    auth: { delegated: 'DocumentTypeService.update', objectType: 'document_type' },
     tags: ['documents'],
     summary: 'Изменить тип документа',
     schema: {
@@ -806,7 +806,7 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/journals/:id',
-    auth: 'session',
+    auth: { delegated: 'JournalService.get', objectType: 'journal' },
     tags: ['documents'],
     summary: 'Журнал регистрации: счётчик, следующий номер, резервы',
     schema: { params: IdParam, response: { 200: JournalRecord } },
@@ -831,7 +831,7 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
   route({
     method: 'PATCH',
     url: '/journals/:id',
-    auth: 'session',
+    auth: { delegated: 'JournalService.update', objectType: 'journal' },
     tags: ['documents'],
     summary: 'Изменить журнал регистрации',
     schema: { params: IdParam, body: JournalUpdateInput, response: { 200: JournalRecord } },
@@ -846,7 +846,7 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/journals/:id/reservations',
-    auth: 'session',
+    auth: { delegated: 'JournalService.reservations', objectType: 'journal' },
     tags: ['documents'],
     summary: 'Зарезервированные номера журнала',
     schema: {
@@ -862,7 +862,7 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/journals/:id/reservations',
-    auth: 'session',
+    auth: { delegated: 'JournalService.reserve', objectType: 'journal' },
     tags: ['documents'],
     summary: 'Зарезервировать номера для бумажных документов',
     schema: {
@@ -880,7 +880,7 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
   route({
     method: 'DELETE',
     url: '/journals/:id/reservations/:reservationId',
-    auth: 'session',
+    auth: { delegated: 'JournalService.cancelReservation', objectType: 'journal' },
     tags: ['documents'],
     summary: 'Снять резерв номера',
     schema: {
@@ -914,7 +914,7 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/correspondents/:id',
-    auth: 'session',
+    auth: { delegated: 'CorrespondentService.get', objectType: 'correspondent' },
     tags: ['documents'],
     summary: 'Корреспондент',
     schema: { params: IdParam, response: { 200: CorrespondentRecord } },
@@ -939,7 +939,7 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
   route({
     method: 'PATCH',
     url: '/correspondents/:id',
-    auth: 'session',
+    auth: { delegated: 'CorrespondentService.update', objectType: 'correspondent' },
     tags: ['documents'],
     summary: 'Изменить корреспондента',
     schema: {

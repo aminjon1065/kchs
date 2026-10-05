@@ -174,7 +174,9 @@ export function registerFilesRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/files/upload-sessions/:id/complete',
-    auth: 'session',
+    auth: {
+      owned: 'FileService — сессия загрузки только своя, право на цель перепроверяется (ADR-0177)',
+    },
     tags: ['files'],
     summary: 'Завершить загрузку и создать файл',
     schema: { params: IdParam, body: UploadCompleteInput, response: { 200: FileRecord } },
@@ -190,7 +192,9 @@ export function registerFilesRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/files/upload-sessions/:id',
-    auth: 'session',
+    auth: {
+      owned: 'FileService — сессия загрузки только своя, право на цель перепроверяется (ADR-0177)',
+    },
     tags: ['files'],
     summary: 'Продолжить прерванную загрузку: адреса частей и что уже загружено',
     schema: { params: IdParam, response: { 200: UploadResume } },
@@ -200,7 +204,9 @@ export function registerFilesRoutes(route: RouteRegistrar): void {
   route({
     method: 'DELETE',
     url: '/files/upload-sessions/:id',
-    auth: 'session',
+    auth: {
+      owned: 'FileService — сессия загрузки только своя, право на цель перепроверяется (ADR-0177)',
+    },
     tags: ['files'],
     summary: 'Отменить загрузку',
     schema: { params: IdParam, response: { 200: z.object({ ok: z.boolean() }) } },

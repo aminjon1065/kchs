@@ -41,7 +41,7 @@ export function registerAssistantRoutes(route: RouteRegistrar): void {
   route({
     method: 'DELETE',
     url: '/assistant/threads/:id',
-    auth: 'session',
+    auth: { owned: 'Assistant.clear — только свой разговор с помощником' },
     tags: ['ai'],
     summary: 'Стереть свой диалог с ассистентом',
     schema: {

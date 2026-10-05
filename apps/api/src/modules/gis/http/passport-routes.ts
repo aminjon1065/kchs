@@ -15,7 +15,7 @@ export function registerPassportRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/gis/territories/:id/passport',
-    auth: 'session',
+    auth: { delegated: 'PassportService.get → TerritoryService.get', objectType: 'territory' },
     tags: ['gis'],
     summary: 'Паспорт территории: показатели датасетов, привязанные показатели, поручения',
     description:

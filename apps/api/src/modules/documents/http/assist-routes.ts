@@ -21,7 +21,7 @@ export function registerDocumentAssistRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/documents/:id/assist',
-    auth: 'session',
+    auth: { delegated: 'DocumentAssistService.status', objectType: 'document' },
     tags: ['documents'],
     summary: 'Доступна ли помощь ИИ по документу и почему нет',
     schema: { params: IdParam, response: { 200: DocumentAssistStatus } },
@@ -31,7 +31,7 @@ export function registerDocumentAssistRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/documents/:id/assist/extract',
-    auth: 'session',
+    auth: { delegated: 'DocumentAssistService.extract', objectType: 'document' },
     tags: ['documents'],
     summary: 'Реквизиты из текста скана — предложения с уверенностью',
     readOnly: true,
@@ -42,7 +42,7 @@ export function registerDocumentAssistRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/documents/:id/assist/classify',
-    auth: 'session',
+    auth: { delegated: 'DocumentAssistService.classify', objectType: 'document' },
     tags: ['documents'],
     summary: 'Вид документа по тексту скана и похожие документы',
     description: 'Предложение с уверенностью и цитатой: вид выбирается из заведённых в установке.',
@@ -54,7 +54,7 @@ export function registerDocumentAssistRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/documents/:id/assist/summary',
-    auth: 'session',
+    auth: { delegated: 'DocumentAssistService.summary', objectType: 'document' },
     tags: ['documents'],
     summary: 'Краткое содержание документа',
     readOnly: true,
@@ -65,7 +65,7 @@ export function registerDocumentAssistRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/documents/:id/assist/reply',
-    auth: 'session',
+    auth: { delegated: 'DocumentAssistService.reply', objectType: 'document' },
     tags: ['documents'],
     summary: 'Черновик ответа на входящее',
     readOnly: true,

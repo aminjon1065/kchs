@@ -39,7 +39,7 @@ export function registerInboxRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/inbox/:id/act',
-    auth: 'session',
+    auth: { owned: 'InboxService.act — только элементы «Входящих» вошедшего и замещаемых им' },
     tags: ['inbox'],
     summary: 'Выполнить действие элемента Входящих (принять, отчитаться, вернуть…)',
     schema: {
@@ -66,7 +66,7 @@ export function registerInboxRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/inbox/:id/snooze',
-    auth: 'session',
+    auth: { owned: 'InboxService.snooze — только свои элементы «Входящих»' },
     tags: ['inbox'],
     summary: 'Отложить элемент Входящих',
     schema: {

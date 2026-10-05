@@ -562,7 +562,7 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/tasks/:id',
-    auth: 'session',
+    auth: { delegated: 'TaskService.get', objectType: 'task' },
     tags: ['tasks'],
     summary: 'Карточка задачи: участники, сроки, отчёт, доступные действия',
     schema: { params: IdParam, response: { 200: TaskRecord } },
@@ -572,7 +572,7 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
   route({
     method: 'PATCH',
     url: '/tasks/:id',
-    auth: 'session',
+    auth: { delegated: 'TaskService.update', objectType: 'task' },
     tags: ['tasks'],
     summary: 'Изменить задачу: название, описание, срок, исполнителей, приоритет',
     schema: { params: IdParam, body: TaskUpdateInput, response: { 200: TaskRecord } },
@@ -587,7 +587,7 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/tasks/:id/status',
-    auth: 'session',
+    auth: { delegated: 'TaskService.setStatus', objectType: 'task' },
     tags: ['tasks'],
     summary: 'Статус задачи по рабочему процессу (доска)',
     schema: { params: IdParam, body: TaskStatusInput, response: { 200: TaskRecord } },
@@ -602,7 +602,7 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/tasks/:id/start',
-    auth: 'session',
+    auth: { delegated: 'TaskService.start', objectType: 'task' },
     tags: ['tasks'],
     summary: 'Принять поручение к исполнению',
     schema: { params: IdParam, response: { 200: TaskRecord } },
@@ -615,7 +615,7 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/tasks/:id/report',
-    auth: 'session',
+    auth: { delegated: 'TaskService.report', objectType: 'task' },
     tags: ['tasks'],
     summary: 'Отчитаться об исполнении поручения',
     schema: { params: IdParam, body: TaskReportInput, response: { 200: TaskRecord } },
@@ -630,7 +630,7 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/tasks/:id/accept',
-    auth: 'session',
+    auth: { delegated: 'TaskService.accept', objectType: 'task' },
     tags: ['tasks'],
     summary: 'Принять отчёт и закрыть поручение',
     schema: { params: IdParam, response: { 200: TaskRecord } },
@@ -643,7 +643,7 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/tasks/:id/return',
-    auth: 'session',
+    auth: { delegated: 'TaskService.return', objectType: 'task' },
     tags: ['tasks'],
     summary: 'Вернуть поручение на доработку',
     schema: { params: IdParam, body: TaskReturnInput, response: { 200: TaskRecord } },
@@ -658,7 +658,7 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/tasks/:id/reassign',
-    auth: 'session',
+    auth: { delegated: 'TaskService.reassign', objectType: 'task' },
     tags: ['tasks'],
     summary: 'Переназначить исполнителя поручения (автор или контролёр)',
     schema: { params: IdParam, body: TaskReassignInput, response: { 200: TaskRecord } },
@@ -673,7 +673,7 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/tasks/:id/extension',
-    auth: 'session',
+    auth: { delegated: 'TaskService.requestExtension', objectType: 'task' },
     tags: ['tasks'],
     summary: 'Запросить продление срока: желаемый срок и обоснование — решение за автором',
     schema: { params: IdParam, body: TaskExtensionRequestInput, response: { 200: TaskRecord } },
@@ -688,7 +688,7 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/tasks/:id/extension/decide',
-    auth: 'session',
+    auth: { delegated: 'TaskService.decideExtension', objectType: 'task' },
     tags: ['tasks'],
     summary: 'Согласовать продление (запрошенный или другой срок) или отказать',
     schema: { params: IdParam, body: TaskExtensionDecisionInput, response: { 200: TaskRecord } },
@@ -703,7 +703,7 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/tasks/:id/cancel',
-    auth: 'session',
+    auth: { delegated: 'TaskService.cancel', objectType: 'task' },
     tags: ['tasks'],
     summary: 'Отменить задачу или поручение',
     schema: { params: IdParam, body: TaskCancelInput, response: { 200: TaskRecord } },
@@ -755,7 +755,7 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/task-series/:id',
-    auth: 'session',
+    auth: { delegated: 'TaskSeriesService.get', objectType: 'task_series' },
     tags: ['tasks'],
     summary: 'Серия повторяющихся поручений',
     schema: { params: IdParam, response: { 200: TaskSeriesRecord } },
@@ -765,7 +765,7 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
   route({
     method: 'PATCH',
     url: '/task-series/:id',
-    auth: 'session',
+    auth: { delegated: 'TaskSeriesService.update', objectType: 'task_series' },
     tags: ['tasks'],
     summary: 'Изменить серию — для будущих экземпляров',
     schema: { params: IdParam, body: TaskSeriesPatch, response: { 200: TaskSeriesRecord } },
@@ -785,7 +785,7 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
     route({
       method: 'POST',
       url: `/task-series/:id/${action}`,
-      auth: 'session',
+      auth: { delegated: 'TaskSeriesService.setStatus', objectType: 'task_series' },
       tags: ['tasks'],
       summary:
         action === 'pause'
@@ -808,7 +808,7 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/tasks/:id/checklist',
-    auth: 'session',
+    auth: { delegated: 'TaskChecklist.add', objectType: 'task' },
     tags: ['tasks'],
     summary: 'Добавить пункт чек-листа (ADR-0155)',
     schema: { params: IdParam, body: TaskChecklistAddInput, response: { 200: TaskRecord } },
@@ -823,7 +823,7 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
   route({
     method: 'PATCH',
     url: '/tasks/:id/checklist/:itemId',
-    auth: 'session',
+    auth: { delegated: 'TaskChecklist.patch', objectType: 'task' },
     tags: ['tasks'],
     summary: 'Отметить, переименовать или переместить пункт чек-листа',
     schema: {
@@ -848,7 +848,7 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
   route({
     method: 'DELETE',
     url: '/tasks/:id/checklist/:itemId',
-    auth: 'session',
+    auth: { delegated: 'TaskChecklist.remove', objectType: 'task' },
     tags: ['tasks'],
     summary: 'Убрать пункт чек-листа',
     schema: { params: ChecklistItemParams, response: { 200: TaskRecord } },
@@ -863,7 +863,7 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/tasks/:id/subtasks',
-    auth: 'session',
+    auth: { delegated: 'TaskSubtasks.create', objectType: 'task' },
     tags: ['tasks'],
     summary: 'Добавить подзадачу к обычной задаче (ADR-0155)',
     schema: {
@@ -910,7 +910,7 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/projects/:id',
-    auth: 'session',
+    auth: { delegated: 'ProjectService.get', objectType: 'project' },
     tags: ['tasks'],
     summary: 'Проект: ключ, руководитель, рабочий процесс, счётчики задач',
     schema: { params: IdParam, response: { 200: ProjectRecord } },
@@ -920,7 +920,7 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
   route({
     method: 'PATCH',
     url: '/projects/:id',
-    auth: 'session',
+    auth: { delegated: 'ProjectService.update', objectType: 'project' },
     tags: ['tasks'],
     summary: 'Изменить проект',
     schema: { params: IdParam, body: ProjectUpdateInput, response: { 200: ProjectRecord } },

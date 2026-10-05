@@ -146,7 +146,7 @@ export function registerFormRoutes(route: RouteRegistrar): void {
   route({
     method: 'GET',
     url: '/forms/submissions/:sid',
-    auth: 'session',
+    auth: { delegated: 'SubmissionService.get', resource: 'submission' },
     tags: ['forms'],
     summary: 'Отправка формы',
     schema: { params: SubmissionParam, response: { 200: FormSubmission } },
@@ -156,7 +156,7 @@ export function registerFormRoutes(route: RouteRegistrar): void {
   route({
     method: 'PUT',
     url: '/forms/submissions/:sid',
-    auth: 'session',
+    auth: { delegated: 'SubmissionService.save', resource: 'submission' },
     tags: ['forms'],
     summary: 'Сохранить черновик сводки',
     schema: {
@@ -171,7 +171,7 @@ export function registerFormRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/forms/submissions/:sid/submit',
-    auth: 'session',
+    auth: { delegated: 'SubmissionService.submit', resource: 'submission' },
     tags: ['forms'],
     summary: 'Сдать сводку: строка датасета (у табличной формы — строки) с `_import_id` отправки',
     schema: {
@@ -186,7 +186,7 @@ export function registerFormRoutes(route: RouteRegistrar): void {
   route({
     method: 'POST',
     url: '/forms/submissions/:sid/review',
-    auth: 'session',
+    auth: { delegated: 'SubmissionService.review', resource: 'submission' },
     tags: ['forms'],
     summary: 'Принять сводку или вернуть с комментарием',
     schema: {
