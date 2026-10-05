@@ -1012,7 +1012,10 @@ export const DelegationService = {
 
   async stop(tx: Executor, ctx: UserCtx, id: string): Promise<void> {
     const [row] = await tx.select().from(delegations).where(eq(delegations.id, id)).limit(1)
-    if (!row) throw errors.notFound('Замещение')
+    // Постороннему замещение не видно — 404, как недоступный объект (ADR-0187);
+    // заместитель о нём знает, ему — понятный отказ
+    const party = row && (row.fromUserId === ctx.userId || row.toUserId === ctx.userId)
+    if (!row || (!party && !ctx.isSystemAdmin)) throw errors.notFound('Замещение')
     if (row.fromUserId !== ctx.userId && !ctx.isSystemAdmin) {
       throw errors.forbidden('Замещение может завершить только назначивший его')
     }

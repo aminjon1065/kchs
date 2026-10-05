@@ -418,6 +418,20 @@ describe('делегирование', () => {
     const theirs = await call(fx.app, { url: '/me/delegations', as: fx.users.member })
     expect(theirs.json().items).toHaveLength(1)
 
+    // Посторонний не узнаёт, что замещение есть; заместитель — получает отказ
+    const stranger = await call(fx.app, {
+      method: 'DELETE',
+      url: `/me/delegations/${create.json().id}`,
+      as: fx.users.stranger,
+    })
+    expect(stranger.statusCode).toBe(404)
+    const deputy = await call(fx.app, {
+      method: 'DELETE',
+      url: `/me/delegations/${create.json().id}`,
+      as: fx.users.member,
+    })
+    expect(deputy.statusCode).toBe(403)
+
     const stop = await call(fx.app, {
       method: 'DELETE',
       url: `/me/delegations/${create.json().id}`,
