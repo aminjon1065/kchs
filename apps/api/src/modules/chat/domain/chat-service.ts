@@ -1,9 +1,11 @@
 import type { ChatCreateInput, ChatMember, ChatMemberRole, ChatPrivacy } from '@kchs/contracts'
-import { and, eq, sql } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import { grantAccess, revokeAccess } from '~/kernel/access/acl-service.js'
 import { authorize } from '~/kernel/access/authorize.js'
 import { directory } from '~/kernel/directory/port.js'
-import { conversationMembers, conversations } from '~/kernel/discussions/schema.js'
+import { DiscussionMembers } from '~/kernel/discussions/members.js'
+import { DiscussionQueries } from '~/kernel/discussions/queries.js'
+import { DiscussionService } from '~/kernel/discussions/service.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
@@ -25,28 +27,19 @@ export interface ConversationRow {
   systemKey: string | null
 }
 
-const selectConversation = (executor: Executor) =>
-  executor
-    .select({
-      id: conversations.id,
-      kind: conversations.kind,
-      privacy: conversations.privacy,
-      objectId: conversations.objectId,
-      spaceId: objects.spaceId,
-      title: objects.title,
-      ownerId: objects.ownerId,
-      systemKey: chatConversations.systemKey,
-    })
-    .from(conversations)
-    .innerJoin(objects, eq(objects.id, conversations.id))
-    .leftJoin(chatConversations, eq(chatConversations.id, conversations.id))
-
+/** Беседа ядра и её сведения мессенджера (системный ключ канала подразделения). */
 export async function loadConversation(
   executor: Executor,
   id: string,
 ): Promise<ConversationRow | null> {
-  const [row] = await selectConversation(executor).where(eq(conversations.id, id)).limit(1)
-  return (row as ConversationRow | undefined) ?? null
+  const conversation = await DiscussionQueries.conversation(executor, id)
+  if (!conversation) return null
+  const [chat] = await executor
+    .select({ systemKey: chatConversations.systemKey })
+    .from(chatConversations)
+    .where(eq(chatConversations.id, id))
+    .limit(1)
+  return { ...conversation, systemKey: chat?.systemKey ?? null }
 }
 
 /** Ключ личной беседы: пара идентификаторов по возрастанию — одна беседа на двоих. */
@@ -78,19 +71,11 @@ async function addMemberRows(
   userIds: readonly string[],
   role: ChatMemberRole = 'member',
 ): Promise<void> {
-  if (userIds.length === 0) return
-  await tx
-    .insert(conversationMembers)
-    .values(userIds.map((userId) => ({ conversationId, userId, role })))
-    .onConflictDoNothing()
+  await DiscussionMembers.add(tx, conversationId, userIds, role)
 }
 
 async function memberIdsOf(executor: Executor, conversationId: string): Promise<string[]> {
-  const rows = await executor
-    .select({ userId: conversationMembers.userId })
-    .from(conversationMembers)
-    .where(eq(conversationMembers.conversationId, conversationId))
-  return rows.map((row) => row.userId)
+  return DiscussionMembers.ids(conversationId, executor)
 }
 
 /**
@@ -121,10 +106,10 @@ export const ChatService = {
 
     const spaceId = await chatsSpaceId(tx)
     const names = await directory().refs([me, peerId])
-    const id = newId()
-    await ObjectService.create(tx, ctx, {
-      id,
-      type: 'conversation',
+    const id = await DiscussionService.createConversation(tx, ctx, {
+      id: newId(),
+      kind: 'direct',
+      privacy: 'closed',
       spaceId,
       title: [names.get(me)?.displayName ?? '', names.get(peerId)?.displayName ?? '']
         .filter(Boolean)
@@ -132,10 +117,7 @@ export const ChatService = {
       // Личная беседа не принадлежит одному из собеседников: оба — участники
       ownerId: null,
       accessMode: 'restricted',
-      meta: { kind: 'direct' },
-      silent: true,
     })
-    await tx.insert(conversations).values({ id, kind: 'direct', privacy: 'closed' })
     await tx.insert(chatConversations).values({ id, directKey: key, createdBy: me })
     await addMemberRows(tx, id, [me, peerId])
     await grantMembers(tx, ctx, id, [me, peerId], null)
@@ -171,19 +153,16 @@ export const ChatService = {
     }
 
     const members = [...new Set([me, ...(await directory().activeUsers([...input.memberIds]))])]
-    const id = newId()
-    await ObjectService.create(tx, ctx, {
-      id,
-      type: 'conversation',
+    const id = await DiscussionService.createConversation(tx, ctx, {
+      id: newId(),
+      kind: input.kind,
+      privacy,
       spaceId,
       title,
       ownerId: me,
       // Открытый канал наследует права пространства: его видит любой участник
       accessMode: privacy === 'open' ? 'inherit' : 'restricted',
-      meta: { kind: input.kind },
-      silent: true,
     })
-    await tx.insert(conversations).values({ id, kind: input.kind, privacy })
     await tx.insert(chatConversations).values({ id, createdBy: me })
     await addMemberRows(tx, id, [me], 'owner')
     await addMemberRows(
@@ -222,18 +201,16 @@ export const ChatService = {
       .limit(1)
     if (!space) throw errors.notFound('Пространство')
 
-    const id = newId()
-    await ObjectService.create(tx, ctx, {
-      id,
-      type: 'conversation',
+    const id = await DiscussionService.createConversation(tx, ctx, {
+      id: newId(),
+      kind: 'channel',
+      privacy: 'open',
       spaceId,
       title: space.title,
       ownerId: null,
       accessMode: 'inherit',
-      meta: { kind: 'channel', system: systemKey },
-      silent: true,
+      meta: { system: systemKey },
     })
-    await tx.insert(conversations).values({ id, kind: 'channel', privacy: 'open' })
     await tx.insert(chatConversations).values({ id, systemKey })
     await publishEvent(tx, ctx, {
       type: 'chat.created',
@@ -273,16 +250,7 @@ export const ChatService = {
     if (row.ownerId === me) {
       throw errors.validation('Владелец не может выйти: передайте беседу или удалите её')
     }
-    const deleted = await tx
-      .delete(conversationMembers)
-      .where(
-        and(
-          eq(conversationMembers.conversationId, conversationId),
-          eq(conversationMembers.userId, me),
-        ),
-      )
-      .returning({ userId: conversationMembers.userId })
-    if (deleted.length === 0) return
+    if (!(await DiscussionMembers.remove(tx, conversationId, me))) return
     if (row.privacy !== 'open') {
       await revokeAccess(tx, ctx, conversationId, { type: 'user', id: me })
     }
@@ -331,16 +299,7 @@ export const ChatService = {
     if (!row) throw errors.notFound('Беседа')
     await authorize(ctx, 'manage', conversationId)
     if (row.ownerId === userId) throw errors.validation('Нельзя исключить владельца беседы')
-    const deleted = await tx
-      .delete(conversationMembers)
-      .where(
-        and(
-          eq(conversationMembers.conversationId, conversationId),
-          eq(conversationMembers.userId, userId),
-        ),
-      )
-      .returning({ userId: conversationMembers.userId })
-    if (deleted.length === 0) return
+    if (!(await DiscussionMembers.remove(tx, conversationId, userId))) return
     if (row.privacy !== 'open') {
       await revokeAccess(tx, ctx, conversationId, { type: 'user', id: userId })
     }
@@ -373,38 +332,14 @@ export const ChatService = {
     conversationId: string,
     input: { pinned?: boolean; muted?: boolean; archived?: boolean },
   ): Promise<void> {
-    const me = userOf(ctx)
     await authorize(ctx, 'view', conversationId)
-    const patch: Record<string, unknown> = {}
-    if (input.pinned !== undefined) patch.pinned = input.pinned
-    if (input.muted !== undefined)
-      patch.mutedUntil = input.muted ? sql`'infinity'::timestamptz` : null
     // Архив у каждого свой (ADR-0161); убранная в архив беседа не закреплена
-    if (input.archived !== undefined) {
-      patch.archivedAt = input.archived ? sql`now()` : null
-      if (input.archived) patch.pinned = false
-    }
-    if (Object.keys(patch).length === 0) return
-    await db()
-      .insert(conversationMembers)
-      .values({ conversationId, userId: me, ...patch })
-      .onConflictDoUpdate({
-        target: [conversationMembers.conversationId, conversationMembers.userId],
-        set: patch,
-      })
+    await DiscussionMembers.setSettings(conversationId, userOf(ctx), input)
   },
 
   async members(ctx: UserCtx, conversationId: string): Promise<ChatMember[]> {
     await authorize(ctx, 'view', conversationId)
-    const rows = await db()
-      .select({
-        userId: conversationMembers.userId,
-        role: conversationMembers.role,
-        joinedAt: conversationMembers.joinedAt,
-        lastReadMessageId: conversationMembers.lastReadMessageId,
-      })
-      .from(conversationMembers)
-      .where(eq(conversationMembers.conversationId, conversationId))
+    const rows = await DiscussionMembers.list(conversationId)
     const refs = await directory().refs(rows.map((row) => row.userId))
     return rows
       .map((row) => {
@@ -427,16 +362,6 @@ export const ChatService = {
 
   /** Беседы, где пользователь состоит или писал: фильтр поиска сообщений. */
   async myConversationIds(userId: string, limit = 500): Promise<string[]> {
-    const rows = await db().execute<{ id: string }>(sql`
-      SELECT c.id FROM ${conversations} c
-       WHERE EXISTS (
-               SELECT 1 FROM ${conversationMembers} cm
-                WHERE cm.conversation_id = c.id AND cm.user_id = ${userId})
-          OR EXISTS (
-               SELECT 1 FROM messages msg
-                WHERE msg.conversation_id = c.id AND msg.author_id = ${userId})
-       ORDER BY c.last_message_at DESC NULLS LAST
-       LIMIT ${limit}`)
-    return rows.map((row) => row.id)
+    return DiscussionQueries.involving(userId, limit)
   },
 }

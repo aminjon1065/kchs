@@ -4,11 +4,9 @@ import type {
   ChatSearchResponse,
   ConversationKind,
 } from '@kchs/contracts'
-import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
 import { directory } from '~/kernel/directory/port.js'
-import { conversations, messages } from '~/kernel/discussions/schema.js'
-import { objects } from '~/kernel/objects/schema.js'
+import { DiscussionQueries } from '~/kernel/discussions/queries.js'
 import { meili, meiliValue } from '~/kernel/search/index-service.js'
 import { config } from '~/shared/config/index.js'
 import type { UserCtx } from '~/shared/context.js'
@@ -51,19 +49,7 @@ export async function ensureMessageIndex(): Promise<void> {
 }
 
 export async function indexMessage(messageId: number): Promise<void> {
-  const [row] = await db()
-    .select({
-      id: messages.id,
-      conversationId: messages.conversationId,
-      authorId: messages.authorId,
-      text: messages.text,
-      createdAt: messages.createdAt,
-      deletedAt: messages.deletedAt,
-      kind: messages.kind,
-    })
-    .from(messages)
-    .where(eq(messages.id, messageId))
-    .limit(1)
+  const row = await DiscussionQueries.message(db(), messageId)
   if (!row || row.deletedAt || row.kind === 'system' || row.text.length === 0) {
     await removeMessageFromIndex(messageId)
     return
@@ -115,25 +101,10 @@ interface Found {
 }
 
 async function inConversation(query: ChatSearchQuery, conversationId: string): Promise<Found[]> {
-  const rows = await db()
-    .select({
-      id: messages.id,
-      conversationId: messages.conversationId,
-      authorId: messages.authorId,
-      text: messages.text,
-      createdAt: messages.createdAt,
-    })
-    .from(messages)
-    .where(
-      and(
-        eq(messages.conversationId, conversationId),
-        isNull(messages.deletedAt),
-        sql`${messages.text} ILIKE ${`%${query.q}%`}`,
-      ),
-    )
-    .orderBy(desc(messages.id))
-    .limit(query.limit)
-    .offset(query.offset)
+  const rows = await DiscussionQueries.search(conversationId, query.q, {
+    limit: query.limit,
+    offset: query.offset,
+  })
   return rows.map((row) => ({
     messageId: String(row.id),
     conversationId: row.conversationId,
@@ -175,13 +146,9 @@ export const MessageSearch = {
       : await globally(ctx, query)
     if (found.length === 0) return { hits: [], total: 0 }
 
-    const conversationIds = [...new Set(found.map((item) => item.conversationId))]
-    const titles = await db()
-      .select({ id: conversations.id, kind: conversations.kind, title: objects.title })
-      .from(conversations)
-      .innerJoin(objects, eq(objects.id, conversations.id))
-      .where(inArray(conversations.id, conversationIds))
-    const byId = new Map(titles.map((row) => [row.id, row]))
+    const byId = await DiscussionQueries.briefs([
+      ...new Set(found.map((item) => item.conversationId)),
+    ])
     const refs = await directory().refs([
       ...new Set(found.map((item) => item.authorId).filter((id): id is string => Boolean(id))),
     ])

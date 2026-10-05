@@ -143,18 +143,46 @@ export const SpaceService = {
   },
 
   /** Личное пространство создаётся автоматически вместе с пользователем. */
+  /** Личное пространство пользователя; `null` — ещё не заведено. */
+  async personalOf(userId: string, executor: Executor = db()): Promise<string | null> {
+    const [row] = await executor
+      .select({ id: spaces.id })
+      .from(spaces)
+      .where(and(eq(spaces.kind, 'personal'), sql`${spaces.settings}->>'ownerId' = ${userId}`))
+      .limit(1)
+    return row?.id ?? null
+  },
+
+  /** Ключ пространства (`chats`, `u-…`); `null` — пространства нет. */
+  async keyOf(spaceId: string, executor: Executor = db()): Promise<string | null> {
+    const [row] = await executor
+      .select({ key: spaces.key })
+      .from(spaces)
+      .where(eq(spaces.id, spaceId))
+      .limit(1)
+    return row?.key ?? null
+  },
+
+  /** Названия пространств по идентификаторам; не пространства пропускаются. */
+  async titles(ids: string[], executor: Executor = db()): Promise<Map<string, string>> {
+    const unique = [...new Set(ids)]
+    if (unique.length === 0) return new Map()
+    const rows = await executor
+      .select({ id: objects.id, title: objects.title })
+      .from(objects)
+      .innerJoin(spaces, eq(spaces.id, objects.id))
+      .where(inArray(objects.id, unique))
+    return new Map(rows.map((row) => [row.id, row.title]))
+  },
+
   async ensurePersonal(
     tx: Executor,
     ctx: Ctx,
     userId: string,
     _displayName: string,
   ): Promise<string> {
-    const existing = await tx
-      .select({ id: spaces.id })
-      .from(spaces)
-      .where(and(eq(spaces.kind, 'personal'), sql`${spaces.settings}->>'ownerId' = ${userId}`))
-      .limit(1)
-    if (existing[0]) return existing[0].id
+    const existing = await SpaceService.personalOf(userId, tx)
+    if (existing) return existing
 
     const key = `u-${userId.replace(/-/g, '').slice(-12)}`
     return SpaceService.create(tx, ctx, {

@@ -1,11 +1,10 @@
 import type { ChatForwardInput, ChatTaskInput, RichBody } from '@kchs/contracts'
-import { and, eq, inArray, isNull, sql } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
-import { messages } from '~/kernel/discussions/schema.js'
+import { DiscussionQueries, type MessageRef } from '~/kernel/discussions/queries.js'
 import { DiscussionService } from '~/kernel/discussions/service.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { LinkService } from '~/kernel/links/service.js'
-import { spaces } from '~/kernel/spaces/schema.js'
+import { SpaceService } from '~/kernel/spaces/service.js'
 import { startCall } from '~/modules/meetings/public.js'
 import { Instructions } from '~/modules/tasks/public.js'
 import type { UserCtx } from '~/shared/context.js'
@@ -14,26 +13,8 @@ import { errors } from '~/shared/errors.js'
 import { ChatService, loadConversation } from './chat-service.js'
 import { CHATS_SPACE_KEY } from './space.js'
 
-interface MessageRow {
-  id: number
-  conversationId: string
-  authorId: string | null
-  text: string
-  createdAt: string
-}
-
-async function loadMessage(executor: Executor, messageId: number): Promise<MessageRow> {
-  const [row] = await executor
-    .select({
-      id: messages.id,
-      conversationId: messages.conversationId,
-      authorId: messages.authorId,
-      text: messages.text,
-      createdAt: messages.createdAt,
-    })
-    .from(messages)
-    .where(eq(messages.id, messageId))
-    .limit(1)
+async function loadMessage(executor: Executor, messageId: number): Promise<MessageRef> {
+  const row = await DiscussionQueries.message(executor, messageId)
   if (!row) throw errors.notFound('Сообщение')
   return row
 }
@@ -57,20 +38,10 @@ async function taskSpaceId(
   conversationSpaceId: string | null,
 ): Promise<string | undefined> {
   if (!conversationSpaceId) return undefined
-  const [space] = await tx
-    .select({ key: spaces.key })
-    .from(spaces)
-    .where(eq(spaces.id, conversationSpaceId))
-    .limit(1)
-  if (space?.key !== CHATS_SPACE_KEY) return undefined
+  if ((await SpaceService.keyOf(conversationSpaceId, tx)) !== CHATS_SPACE_KEY) return undefined
   // Личное пространство уже есть у каждого: создавать его здесь нельзя —
   // `authorize` читает объект вне транзакции и не увидел бы новую запись
-  const [personal] = await tx
-    .select({ id: spaces.id })
-    .from(spaces)
-    .where(and(eq(spaces.kind, 'personal'), sql`${spaces.settings}->>'ownerId' = ${ctx.userId}`))
-    .limit(1)
-  return personal?.id
+  return (await SpaceService.personalOf(ctx.userId, tx)) ?? undefined
 }
 
 /**
@@ -108,7 +79,7 @@ export const QuickActions = {
 
     // Цитата остаётся в беседе сообщением-действием. Упоминанием поручение не
     // оформляется: `authorize` читает объект вне транзакции и не увидел бы его
-    const trace = await DiscussionService.post(
+    await DiscussionService.post(
       tx,
       ctx,
       message.conversationId,
@@ -122,11 +93,8 @@ export const QuickActions = {
         threadRootId: null,
       },
       'action',
+      { meta: { taskId: created.id, taskKey: created.key } },
     )
-    await tx
-      .update(messages)
-      .set({ meta: { taskId: created.id, taskKey: created.key } })
-      .where(eq(messages.id, trace))
     return { taskId: created.id, key: created.key }
   },
 
@@ -156,7 +124,7 @@ export const QuickActions = {
     // След в ленте — сообщение-действие с идентификатором встречи в `meta`:
     // свой текст интерфейс подставляет по виду сообщения, сервер подписей не
     // сочиняет, а упоминание встречи в этой же транзакции ещё не проверяемо
-    const trace = await DiscussionService.post(
+    await DiscussionService.post(
       tx,
       ctx,
       conversationId,
@@ -168,8 +136,8 @@ export const QuickActions = {
         mentionedObjectIds: [],
       },
       'action',
+      { meta: { meetingId } },
     )
-    await tx.update(messages).set({ meta: { meetingId } }).where(eq(messages.id, trace))
     return meetingId
   },
 
@@ -177,18 +145,8 @@ export const QuickActions = {
   async forward(tx: Executor, ctx: UserCtx, input: ChatForwardInput): Promise<{ posted: number }> {
     const ids = input.messageIds.map(Number).filter((id) => Number.isInteger(id))
     if (ids.length === 0) throw errors.validation('Нечего пересылать')
-    const rows = await tx
-      .select({
-        id: messages.id,
-        conversationId: messages.conversationId,
-        authorId: messages.authorId,
-        text: messages.text,
-        createdAt: messages.createdAt,
-      })
-      .from(messages)
-      // Удалённое сообщение не пересылается: от него осталась только строка
-      .where(and(inArray(messages.id, ids), isNull(messages.deletedAt)))
-      .orderBy(messages.id)
+    // Удалённое сообщение не пересылается: от него осталась только строка
+    const rows = await DiscussionQueries.messages(tx, ids, { live: true })
     if (rows.length === 0) throw errors.notFound('Сообщение')
 
     for (const source of new Set(rows.map((row) => row.conversationId))) {
@@ -199,18 +157,21 @@ export const QuickActions = {
     let posted = 0
     for (const target of input.toConversationIds) {
       for (const [at, row] of rows.entries()) {
-        const newId = await DiscussionService.post(tx, ctx, target, {
-          body: quoteBody(row.text, at === 0 ? input.comment : undefined),
-          text: row.text.slice(0, 20_000),
-          attachments: [],
-          mentions: [],
-          mentionedObjectIds: [],
-        })
         // Пометка «переслано» — в свободном поле сообщения: список и карточка
         // показывают источник, а текст остаётся пригодным для поиска
-        await tx
-          .update(messages)
-          .set({
+        await DiscussionService.post(
+          tx,
+          ctx,
+          target,
+          {
+            body: quoteBody(row.text, at === 0 ? input.comment : undefined),
+            text: row.text.slice(0, 20_000),
+            attachments: [],
+            mentions: [],
+            mentionedObjectIds: [],
+          },
+          'user',
+          {
             meta: {
               forwardedFrom: {
                 messageId: String(row.id),
@@ -219,8 +180,8 @@ export const QuickActions = {
                 createdAt: row.createdAt,
               },
             },
-          })
-          .where(eq(messages.id, newId))
+          },
+        )
         posted += 1
       }
     }

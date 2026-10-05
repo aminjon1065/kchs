@@ -2,7 +2,7 @@ import type { ChatDraft, ChatPin } from '@kchs/contracts'
 import { and, desc, eq } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
 import { directory } from '~/kernel/directory/port.js'
-import { messages } from '~/kernel/discussions/schema.js'
+import { DiscussionQueries } from '~/kernel/discussions/queries.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import type { UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
@@ -18,22 +18,30 @@ import { loadConversation } from './chat-service.js'
 export const ChatPins = {
   async list(ctx: UserCtx, conversationId: string): Promise<ChatPin[]> {
     await authorize(ctx, 'view', conversationId)
-    const rows = await db()
+    const pins = await db()
       .select({
         messageId: chatPins.messageId,
         pinnedBy: chatPins.pinnedBy,
         pinnedAt: chatPins.pinnedAt,
-        text: messages.text,
-        authorId: messages.authorId,
-        deletedAt: messages.deletedAt,
       })
       .from(chatPins)
-      .innerJoin(messages, eq(messages.id, chatPins.messageId))
       .where(eq(chatPins.conversationId, conversationId))
       .orderBy(desc(chatPins.pinnedAt))
       .limit(50)
-
-    const live = rows.filter((row) => !row.deletedAt)
+    // Тексты сообщений — из обсуждений ядра; удалённое закрепление не показывается
+    const pinned = new Map(
+      (
+        await DiscussionQueries.messages(
+          db(),
+          pins.map((pin) => pin.messageId),
+          { live: true },
+        )
+      ).map((message) => [message.id, message]),
+    )
+    const live = pins.flatMap((pin) => {
+      const message = pinned.get(pin.messageId)
+      return message ? [{ ...pin, text: message.text, authorId: message.authorId }] : []
+    })
     const refs = await directory().refs([
       ...new Set(
         live.flatMap((row) =>
@@ -60,11 +68,7 @@ export const ChatPins = {
     await authorize(ctx, 'post', conversationId)
     const conversation = await loadConversation(tx, conversationId)
     if (!conversation) throw errors.notFound('Беседа')
-    const [message] = await tx
-      .select({ id: messages.id, text: messages.text, conversationId: messages.conversationId })
-      .from(messages)
-      .where(eq(messages.id, messageId))
-      .limit(1)
+    const message = await DiscussionQueries.message(tx, messageId)
     if (!message || message.conversationId !== conversationId) throw errors.notFound('Сообщение')
 
     const changed = on

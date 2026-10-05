@@ -19,7 +19,23 @@ import { LinkService } from '../links/service.js'
 import { objectType } from '../objects/registry.js'
 import { objects } from '../objects/schema.js'
 import { ObjectService } from '../objects/service.js'
+import { DiscussionQueries } from './queries.js'
 import { conversationMembers, conversations, messages, reactions } from './schema.js'
+
+/** Открытую беседу видит каждый, кому виден её контейнер; закрытую — участники. */
+export type ConversationPrivacy = 'open' | 'closed'
+
+/** Беседа вне объекта: личная, группа, канал (ADR-0090) — объект реестра `conversation`. */
+export interface ConversationCreateInput {
+  id?: string
+  kind: Exclude<ConversationKind, 'object'>
+  privacy: ConversationPrivacy
+  spaceId: string
+  title: string
+  ownerId: string | null
+  accessMode: 'inherit' | 'restricted'
+  meta?: Record<string, unknown>
+}
 
 /**
  * Вложения сообщения. Вложение открывает файл каждому, кто видит беседу, —
@@ -154,12 +170,42 @@ export const DiscussionService = {
     return object.id
   },
 
+  /**
+   * Беседа мессенджера (ADR-0090, ADR-0184): объект реестра и строка беседы в
+   * одной транзакции. Состав и событие о создании — у вызывающего модуля.
+   */
+  async createConversation(
+    tx: Executor,
+    ctx: Ctx,
+    input: ConversationCreateInput,
+  ): Promise<string> {
+    const object = await ObjectService.create(tx, ctx, {
+      ...(input.id ? { id: input.id } : {}),
+      type: 'conversation',
+      spaceId: input.spaceId,
+      title: input.title,
+      ownerId: input.ownerId,
+      accessMode: input.accessMode,
+      meta: { kind: input.kind, ...input.meta },
+      silent: true,
+    })
+    await tx
+      .insert(conversations)
+      .values({ id: object.id, kind: input.kind, privacy: input.privacy })
+    return object.id
+  },
+
+  /**
+   * Сообщение в беседу. `meta` — сводные поля сообщения от модуля (поручение,
+   * встреча, пересылка), рядом с якорем на фрагмент объекта (ADR-0095).
+   */
   async post(
     tx: Executor,
     ctx: UserCtx,
     conversationId: string,
     input: MessagePostInput,
     kind: MessageKind = 'user',
+    options: { meta?: Record<string, unknown> } = {},
   ): Promise<number> {
     const [conversation] = await tx
       .select()
@@ -187,7 +233,9 @@ export const DiscussionService = {
         mentions: input.mentions,
         mentionedObjectIds: input.mentionedObjectIds,
         // Якорь на фрагмент объекта — сводное поле сообщения (ADR-0095)
-        ...(input.anchor ? { meta: { anchor: input.anchor } } : {}),
+        ...(input.anchor || options.meta
+          ? { meta: { ...options.meta, ...(input.anchor ? { anchor: input.anchor } : {}) } }
+          : {}),
       })
       .returning({ id: messages.id })
 
@@ -540,29 +588,9 @@ export const DiscussionService = {
     }
   },
 
+  /** Непрочитанное смотрящего — то же определение, что у списка бесед (ADR-0184). */
   async unreadCount(ctx: UserCtx, conversationId: string): Promise<number> {
     if (isGuest(ctx)) return 0
-    const [member] = await db()
-      .select({ lastReadMessageId: conversationMembers.lastReadMessageId })
-      .from(conversationMembers)
-      .where(
-        and(
-          eq(conversationMembers.conversationId, conversationId),
-          eq(conversationMembers.userId, ctx.userId),
-        ),
-      )
-      .limit(1)
-
-    const [row] = await db()
-      .select({ count: sql<number>`count(*)::int` })
-      .from(messages)
-      .where(
-        and(
-          eq(messages.conversationId, conversationId),
-          member?.lastReadMessageId ? gt(messages.id, member.lastReadMessageId) : sql`true`,
-          sql`${messages.authorId} <> ${ctx.userId}`,
-        ),
-      )
-    return row?.count ?? 0
+    return DiscussionQueries.unreadCount(ctx.userId, conversationId)
   },
 }

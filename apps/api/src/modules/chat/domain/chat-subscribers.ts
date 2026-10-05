@@ -1,7 +1,7 @@
 import type { EventEnvelope, NotificationCategory } from '@kchs/contracts'
-import { and, eq, isNull, lte, or, sql } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { directory } from '~/kernel/directory/port.js'
-import { conversationMembers } from '~/kernel/discussions/schema.js'
+import { DiscussionMembers } from '~/kernel/discussions/members.js'
 import type { Subscriber } from '~/kernel/events/types.js'
 import { NotificationService } from '~/kernel/notifications/service.js'
 import { emitToRoom, emitToUser } from '~/kernel/realtime/gateway.js'
@@ -20,17 +20,9 @@ const chatUrl = (conversationId: string, objectId: string | null): string =>
 
 /** Участники, которым беседа не «без звука», кроме автора. */
 async function recipients(conversationId: string, authorId: string | null): Promise<string[]> {
-  const rows = await db()
-    .select({ userId: conversationMembers.userId })
-    .from(conversationMembers)
-    .where(
-      and(
-        eq(conversationMembers.conversationId, conversationId),
-        // «Без звука» — участник в списке остаётся, уведомление не получает
-        or(isNull(conversationMembers.mutedUntil), lte(conversationMembers.mutedUntil, sql`now()`)),
-      ),
-    )
-  return rows.map((row) => row.userId).filter((userId) => userId !== authorId)
+  // «Без звука» — участник в списке остаётся, уведомление не получает
+  const audience = await DiscussionMembers.audience(conversationId)
+  return audience.filter((userId) => userId !== authorId)
 }
 
 /**
@@ -149,11 +141,11 @@ async function spaceChannel(event: EventEnvelope): Promise<void> {
 /** Состав канала подразделения повторяет состав его пространства. */
 async function syncChannelMembers(conversationId: string, spaceId: string): Promise<void> {
   const members = await SpaceService.members(spaceId)
-  if (members.length === 0) return
-  await db()
-    .insert(conversationMembers)
-    .values(members.map((member) => ({ conversationId, userId: member.userId })))
-    .onConflictDoNothing()
+  await DiscussionMembers.add(
+    db(),
+    conversationId,
+    members.map((member) => member.userId),
+  )
 }
 
 async function channelOfSpace(spaceId: string): Promise<string | null> {
@@ -173,18 +165,11 @@ async function spaceMembership(event: EventEnvelope): Promise<void> {
   const userId = String(event.payload.userId ?? '')
   if (!userId) return
   if (event.type === 'space.member_added') {
-    await db().insert(conversationMembers).values({ conversationId, userId }).onConflictDoNothing()
+    await DiscussionMembers.add(db(), conversationId, [userId])
     emitToUser(userId, 'chat.changed', { conversationId })
     return
   }
-  await db()
-    .delete(conversationMembers)
-    .where(
-      and(
-        eq(conversationMembers.conversationId, conversationId),
-        eq(conversationMembers.userId, userId),
-      ),
-    )
+  await DiscussionMembers.remove(db(), conversationId, userId)
   emitToUser(userId, 'chat.changed', { conversationId })
 }
 

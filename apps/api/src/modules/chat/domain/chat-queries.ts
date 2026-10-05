@@ -1,133 +1,22 @@
-import type { ChatListItem, ChatListQuery, ChatSection, MessageKind } from '@kchs/contracts'
-import { sql } from 'drizzle-orm'
-import { visibleObjectsSql } from '~/kernel/access/authorize.js'
+import type { ChatListItem, ChatListQuery, ChatSection } from '@kchs/contracts'
 import { directory } from '~/kernel/directory/port.js'
-import { conversations } from '~/kernel/discussions/schema.js'
+import {
+  type ConversationScope,
+  DiscussionQueries,
+  type InboxRow,
+} from '~/kernel/discussions/queries.js'
 import { objectType } from '~/kernel/objects/registry.js'
-import { objects } from '~/kernel/objects/schema.js'
 import type { UserCtx } from '~/shared/context.js'
-import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
-
-interface ListRow extends Record<string, unknown> {
-  id: string
-  kind: string
-  privacy: string
-  object_id: string | null
-  subject_type: string | null
-  title: string
-  space_id: string | null
-  space_name: string | null
-  owner_id: string | null
-  is_member: boolean
-  role: string | null
-  pinned: boolean
-  muted: boolean
-  archived: boolean
-  member_count: number
-  peer_id: string | null
-  last_message_at: string | null
-  unread_count: number
-  unread_mentions: number
-  first_unread: string | null
-  lm_id: string | null
-  lm_kind: string | null
-  lm_text: string | null
-  lm_system_key: string | null
-  lm_author_id: string | null
-  lm_created_at: string | null
-}
 
 /**
  * Список бесед смотрящего: беседы, где он участник, и обсуждения объектов, где
- * он писал. Видимость — предикат ядра (`visibleObjectsSql`), а не фильтр
- * модуля: закрытый канал и обсуждение недоступного объекта в список не попадут.
+ * он писал. Строки, видимость и непрочитанное — ядра (`DiscussionQueries.inbox`,
+ * ADR-0184); модуль раскладывает их по разделам экрана «Чаты».
  */
-async function rows(
-  ctx: UserCtx,
-  section: ChatSection,
-  limit: number,
-  only?: string,
-): Promise<ListRow[]> {
-  const me = ctx.userId
-  const visible = visibleObjectsSql(ctx, 'conversation')
-
-  // «Куда вступить»: открытые каналы пространств, где смотрящий ещё не состоит
-  const scope = only
-    ? sql`c.id = ${only}::uuid`
-    : section === 'discover'
-      ? sql`c.kind = 'channel' AND c.privacy = 'open' AND cm.user_id IS NULL`
-      : sql`(cm.user_id IS NOT NULL
-             OR (c.kind = 'object' AND EXISTS (
-                   SELECT 1 FROM messages mine
-                    WHERE mine.conversation_id = c.id AND mine.author_id = ${me})))`
-
-  // Точка отсчёта непрочитанного: отметка прочтения, иначе вступление в беседу
-  // (`conversation_members.created_at`), иначе собственное последнее сообщение —
-  // обсуждение объекта, где отметок ещё нет
-  const unreadFrom = sql`CASE
-      WHEN cm.last_read_message_id IS NOT NULL THEN unread.id > cm.last_read_message_id
-      ELSE unread.created_at > coalesce(
-             cm.created_at,
-             (SELECT max(m3.created_at) FROM messages m3
-               WHERE m3.conversation_id = c.id AND m3.author_id = ${me}),
-             '-infinity'::timestamptz)
-    END`
-
-  const unreadScope = sql`unread.conversation_id = c.id
-      AND unread.deleted_at IS NULL
-      AND unread.author_id IS DISTINCT FROM ${me}
-      AND ${unreadFrom}`
-
-  return db().execute<ListRow>(sql`
-    SELECT c.id,
-           c.kind,
-           c.privacy,
-           c.object_id,
-           subject.type AS subject_type,
-           ${objects.title} AS title,
-           ${objects.spaceId} AS space_id,
-           space.title AS space_name,
-           ${objects.ownerId} AS owner_id,
-           (cm.user_id IS NOT NULL) AS is_member,
-           cm.role,
-           coalesce(cm.pinned, false) AS pinned,
-           (cm.muted_until IS NOT NULL AND cm.muted_until > now()) AS muted,
-           -- Архив до нового сообщения; беседа без звука остаётся в архиве и с ним
-           (cm.archived_at IS NOT NULL
-             AND ((cm.muted_until IS NOT NULL AND cm.muted_until > now())
-                  OR c.last_message_at IS NULL
-                  OR c.last_message_at <= cm.archived_at)) AS archived,
-           (SELECT count(*)::int FROM conversation_members mc WHERE mc.conversation_id = c.id)
-             AS member_count,
-           (SELECT peer.user_id FROM conversation_members peer
-             WHERE peer.conversation_id = c.id AND peer.user_id <> ${me} LIMIT 1) AS peer_id,
-           c.last_message_at,
-           (SELECT count(*)::int FROM messages unread WHERE ${unreadScope}) AS unread_count,
-           (SELECT count(*)::int FROM messages unread
-             WHERE ${unreadScope} AND ${me}::uuid = ANY(unread.mentions)) AS unread_mentions,
-           (SELECT min(unread.id)::text FROM messages unread WHERE ${unreadScope}) AS first_unread,
-           lm.id::text AS lm_id,
-           lm.kind AS lm_kind,
-           lm.text AS lm_text,
-           lm.system_key AS lm_system_key,
-           lm.author_id AS lm_author_id,
-           lm.created_at AS lm_created_at
-      FROM ${conversations} c
-      JOIN ${objects} ON ${objects.id} = c.id
-      LEFT JOIN ${objects} subject ON subject.id = c.object_id
-      LEFT JOIN ${objects} space ON space.id = ${objects.spaceId}
-      LEFT JOIN conversation_members cm ON cm.conversation_id = c.id AND cm.user_id = ${me}
-      LEFT JOIN LATERAL (
-        SELECT m.id, m.kind, m.text, m.system_key, m.author_id, m.created_at
-          FROM messages m
-         WHERE m.conversation_id = c.id AND m.deleted_at IS NULL
-         ORDER BY m.id DESC LIMIT 1) lm ON true
-     WHERE ${objects.deletedAt} IS NULL
-       AND ${visible}
-       AND ${scope}
-     ORDER BY coalesce(cm.pinned, false) DESC, c.last_message_at DESC NULLS LAST, c.id DESC
-     LIMIT ${limit}`)
+function scopeOf(section: ChatSection, only?: string): ConversationScope {
+  if (only) return { kind: 'one', conversationId: only }
+  return section === 'discover' ? { kind: 'discover' } : { kind: 'mine' }
 }
 
 function matches(item: ChatListItem, section: ChatSection): boolean {
@@ -155,61 +44,57 @@ function inSection(item: ChatListItem, section: ChatSection): boolean {
   return !item.archived && matches(item, section)
 }
 
-async function toItems(ctx: UserCtx, found: ListRow[]): Promise<ChatListItem[]> {
+async function toItems(ctx: UserCtx, found: InboxRow[]): Promise<ChatListItem[]> {
   const userIds = new Set<string>()
   for (const row of found) {
-    if (row.peer_id) userIds.add(row.peer_id)
-    if (row.lm_author_id) userIds.add(row.lm_author_id)
+    if (row.peerId) userIds.add(row.peerId)
+    if (row.lastMessage?.authorId) userIds.add(row.lastMessage.authorId)
   }
   const refs = await directory().refs([...userIds])
-  // `execute` отдаёт время драйвера (Date), а не строку типа-обёртки схемы
-  const iso = (value: unknown): string | null =>
-    value === null || value === undefined ? null : new Date(value as string).toISOString()
 
   return found.map((row) => {
-    const peer = row.kind === 'direct' && row.peer_id ? (refs.get(row.peer_id) ?? null) : null
-    const isMember = Boolean(row.is_member)
+    const peer = row.kind === 'direct' && row.peerId ? (refs.get(row.peerId) ?? null) : null
     const openChannel = row.kind === 'channel' && row.privacy === 'open'
     return {
       id: row.id,
-      kind: row.kind as ChatListItem['kind'],
+      kind: row.kind,
       // Имя личной беседы — собеседник, у обсуждения — название объекта
       title: peer?.displayName ?? row.title,
       icon:
-        row.kind === 'object' && row.subject_type
-          ? (objectType(row.subject_type)?.icon ?? null)
+        row.kind === 'object' && row.subjectType
+          ? (objectType(row.subjectType)?.icon ?? null)
           : null,
-      spaceId: row.space_id,
-      spaceName: row.space_name,
+      spaceId: row.spaceId,
+      spaceName: row.spaceName,
       privacy: row.privacy === 'open' ? ('open' as const) : ('closed' as const),
-      objectId: row.object_id,
-      objectType: row.subject_type,
+      objectId: row.objectId,
+      objectType: row.subjectType,
       peer,
-      lastMessage: row.lm_id
+      lastMessage: row.lastMessage
         ? {
-            id: row.lm_id,
-            kind: (row.lm_kind ?? 'user') as MessageKind,
-            text: row.lm_text ?? '',
-            author: row.lm_author_id ? (refs.get(row.lm_author_id) ?? null) : null,
-            systemKey: row.lm_system_key,
-            createdAt: iso(row.lm_created_at) ?? new Date().toISOString(),
+            id: row.lastMessage.id,
+            kind: row.lastMessage.kind,
+            text: row.lastMessage.text,
+            author: row.lastMessage.authorId ? (refs.get(row.lastMessage.authorId) ?? null) : null,
+            systemKey: row.lastMessage.systemKey,
+            createdAt: row.lastMessage.createdAt,
           }
         : null,
-      lastMessageAt: iso(row.last_message_at),
-      unreadCount: Number(row.unread_count ?? 0),
-      unreadMentions: Number(row.unread_mentions ?? 0),
-      firstUnreadMessageId: row.first_unread,
-      pinned: Boolean(row.pinned),
-      muted: Boolean(row.muted),
-      archived: Boolean(row.archived),
-      memberCount: Number(row.member_count ?? 0),
-      role: isMember ? (row.role === 'owner' ? ('owner' as const) : ('member' as const)) : null,
-      member: isMember,
+      lastMessageAt: row.lastMessageAt,
+      unreadCount: row.unreadCount,
+      unreadMentions: row.unreadMentions,
+      firstUnreadMessageId: row.firstUnreadId,
+      pinned: row.pinned,
+      muted: row.muted,
+      archived: row.archived,
+      memberCount: row.memberCount,
+      role: row.isMember ? (row.role === 'owner' ? ('owner' as const) : ('member' as const)) : null,
+      member: row.isMember,
       can: {
-        post: isMember || openChannel || row.kind === 'object',
-        manage: row.owner_id === ctx.userId,
-        leave: isMember && (row.kind === 'group' || row.kind === 'channel'),
-        join: openChannel && !isMember,
+        post: row.isMember || openChannel || row.kind === 'object',
+        manage: row.ownerId === ctx.userId,
+        leave: row.isMember && (row.kind === 'group' || row.kind === 'channel'),
+        join: openChannel && !row.isMember,
       },
     }
   })
@@ -220,7 +105,12 @@ export const ChatQueries = {
     ctx: UserCtx,
     query: ChatListQuery,
   ): Promise<{ items: ChatListItem[]; totalUnread: number }> {
-    const items = await toItems(ctx, await rows(ctx, query.section, Math.max(query.limit, 100)))
+    const found = await DiscussionQueries.inbox(
+      ctx,
+      scopeOf(query.section),
+      Math.max(query.limit, 100),
+    )
+    const items = await toItems(ctx, found)
     const needle = query.q?.trim().toLowerCase()
     return {
       items: items
@@ -235,7 +125,10 @@ export const ChatQueries = {
 
   /** Одна беседа: шапка экрана «Чаты» и проверка прав после вступления. */
   async one(ctx: UserCtx, conversationId: string): Promise<ChatListItem> {
-    const [item] = await toItems(ctx, await rows(ctx, 'all', 1, conversationId))
+    const [item] = await toItems(
+      ctx,
+      await DiscussionQueries.inbox(ctx, scopeOf('all', conversationId), 1),
+    )
     if (!item) throw errors.notFound('Беседа')
     return item
   },
