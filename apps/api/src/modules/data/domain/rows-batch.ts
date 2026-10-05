@@ -5,6 +5,7 @@ import type { Ctx } from '~/shared/context.js'
 import { actorId } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
+import { DatasetAccess } from './dataset-access.js'
 import { RowService } from './row-service.js'
 
 /** Задание массовой правки строк (ADR-0097). */
@@ -56,6 +57,9 @@ export async function queueRowsBatch(
   input: DatasetRowsBatch,
 ): Promise<string> {
   if (batchSize(input) === 0) throw errors.validation('Пачка пуста')
+  // Право — в момент запроса (ADR-0123, ADR-0186): без этого посторонний ставил бы
+  // задание на чужой датасет и получал 202; задание всё равно перепроверит права
+  await DatasetAccess.resolve(ctx, datasetId, 'edit')
   const initiatorId = actorId(ctx)
   if (!initiatorId) throw errors.internal('Пачку ставит человек: нужен инициатор')
   return JobService.enqueue(ctx, {
