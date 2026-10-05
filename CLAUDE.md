@@ -57,6 +57,7 @@ pnpm i18n:check && pnpm i18n:literals
 pnpm --filter @kchs/ui contrast && pnpm --filter @kchs/ui tokens
 pnpm --filter @kchs/ui test:visual       # снимки историй в двух темах и axe (Docker)
 pnpm --filter @kchs/contracts gen:engine # контракты движка; git diff должен быть пустым
+pnpm contracts:snapshot && pnpm contracts:compat  # снимки событий и OpenAPI (git diff пуст), совместимость с main (ADR-0189)
 pnpm test                                # unit
 pnpm test:integration                    # интеграционные (база kchs_test)
 bash apps/api/scripts/test-slot.sh N && KCHS_TEST_SLOT=N pnpm --filter @kchs/api test:integration  # своя база kchs_test_N (N = 1…14)
