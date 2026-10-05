@@ -2,9 +2,9 @@
 /**
  * Браузерная проверка установки в контейнерах (infra/scripts/verify-stack.sh):
  * вход через web (Caddy со сборкой SPA и CSP), «Мой день», загрузка файла
- * напрямую в S3, превью, которое делает движок, расписания на экране api и живое
- * обновление открытой вкладки из worker (api и worker здесь — разные контейнеры).
- * Любое нарушение CSP — ошибка.
+ * напрямую в S3, превью и импорт датасета, которые делает движок своими правами
+ * (ADR-0176), расписания на экране api и живое обновление открытой вкладки из worker
+ * (api и worker здесь — разные контейнеры). Любое нарушение CSP — ошибка.
  *
  *   STACK_URL=http://localhost:8080 STACK_ADMIN_PASSWORD=… \
  *   STACK_S3_ORIGIN=http://localhost:9000 node scripts/stack-check.mjs
@@ -105,6 +105,64 @@ await step('превью от движка из S3 во вкладке файл�
   await page.goto(`${BASE}/o/${fileId}`)
   await page.getByRole('tab', { name: new RegExp(fileName) }).waitFor({ timeout: 20_000 })
   await page.locator(`img[src^="${S3_ORIGIN}"]`).first().waitFor({ timeout: 90_000 })
+})
+
+// Движок работает со своими правами (ADR-0176): читает исходник из хранилища, кладёт
+// нормализованный файл, сообщает итог токеном задания — и только тогда worker
+// загружает строки в датасет
+await step('импорт файла в датасет: движок нормализует, worker загружает', async () => {
+  const csvName = `импорт-установки-${Date.now().toString(36)}.csv`
+  const dir = mkdtempSync(path.join(tmpdir(), 'kchs-stack-'))
+  const csv = path.join(dir, csvName)
+  writeFileSync(csv, 'code;amount\nA-1;10\nA-2;20\nA-3;30\n')
+  await page.goto(`${BASE}/files`)
+  await page.getByRole('button', { name: 'Новая папка' }).waitFor({ timeout: 20_000 })
+  await page.locator('input[type="file"]').first().setInputFiles(csv)
+  await page.getByText(`Загружен «${csvName}»`).waitFor({ timeout: 30_000 })
+
+  const found = await page.request.get(
+    `${BASE}/api/v1/objects?type=file&q=${encodeURIComponent(csvName)}&limit=1`,
+  )
+  const file = (await found.json()).items?.[0]
+  if (!file?.id || !file.spaceId) throw new Error('файл импорта не найден через API')
+  const csrf = await page.evaluate(() => sessionStorage.getItem('kchs.csrf'))
+  const started = await page.request.post(`${BASE}/api/v1/datasets/imports`, {
+    headers: { 'x-csrf-token': csrf ?? '' },
+    data: {
+      fileId: file.id,
+      options: { delimiter: ';' },
+      target: { kind: 'new', name: `Проверка установки ${csvName}`, spaceId: file.spaceId },
+      mapping: [
+        {
+          column: 0,
+          fieldKey: 'code',
+          label: { ru: 'Код' },
+          type: 'identifier',
+          semantic: 'identifier',
+        },
+        {
+          column: 1,
+          fieldKey: 'amount',
+          label: { ru: 'Сумма' },
+          type: 'number',
+          semantic: 'measure',
+        },
+      ],
+    },
+  })
+  if (!started.ok()) throw new Error(`запуск импорта: статус ${started.status()}`)
+  const importId = (await started.json()).id
+
+  let record = null
+  for (let i = 0; i < 180; i++) {
+    const response = await page.request.get(`${BASE}/api/v1/datasets/imports/${importId}`)
+    record = await response.json()
+    if (['succeeded', 'failed', 'cancelled'].includes(record.status)) break
+    await page.waitForTimeout(500)
+  }
+  if (record?.status !== 'succeeded') {
+    throw new Error(`импорт: ${record?.status ?? 'нет ответа'} ${record?.message ?? ''}`.trim())
+  }
 })
 
 // Расписания ставит в очередь worker, а экран «Расписания» отвечает из api: в api
