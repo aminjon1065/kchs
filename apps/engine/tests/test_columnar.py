@@ -9,6 +9,7 @@ import datetime as dt
 import decimal
 import math
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -168,7 +169,9 @@ def test_column_masks_match_postgres(con) -> None:
     )[0]
     assert row[0] == "***3450"
     assert row[1] == decimal.Decimal("1000.000000000000")
-    assert row[2].year == 2026 and row[2].month == 1
+    # Момент начала года по Душанбе; DuckDB отдаёт его в часовом поясе машины, поэтому
+    # сравнивается момент, а не год в записи (под UTC это 31.12.2025, 19:00)
+    assert row[2] == dt.datetime(2026, 1, 1, tzinfo=ZoneInfo("Asia/Dushanbe"))
     assert row[3] == dt.date(2026, 1, 1)
 
 
