@@ -25,7 +25,7 @@ import type {
   ObjectAcknowledgments,
   ResolutionTemplate,
 } from '@kchs/contracts'
-import { queryOptions } from '@tanstack/react-query'
+import { keepPreviousData, queryOptions } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
 
 /**
@@ -188,6 +188,9 @@ export const resolutionTemplatesQuery = () =>
 export const casesQuery = (query: CaseListQuery = {}) =>
   queryOptions({
     queryKey: documentKeys.cases(query),
+    // Пока грузится список нового поиска, остаётся прежний: выбранное дело не
+    // пропадает на миг, и его панель с открытым подтверждением не размонтируется
+    placeholderData: keepPreviousData,
     queryFn: async () =>
       (
         await http.get<CaseList>('/cases', {
