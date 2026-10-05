@@ -169,7 +169,9 @@ test.describe('Публичный API и вебхуки', () => {
     const row = page.getByRole('listitem').filter({ hasText: name })
     await row.getByRole('button', { name: 'Доставки' }).click()
     const log = page.getByRole('dialog', { name: `Доставки: ${name}` })
-    await expect(log.getByText('Доставлено')).toBeVisible({ timeout: 20_000 })
+    // Подписка на `object.created` всей платформы: параллельные сценарии на общем стенде
+    // тоже создают объекты, и доставок может быть больше одной
+    await expect(log.getByText('Доставлено').first()).toBeVisible({ timeout: 20_000 })
     await log.getByRole('button', { name: 'Закрыть' }).last().click()
 
     // Уборка стенда: подписка не должна стучаться после прогона
