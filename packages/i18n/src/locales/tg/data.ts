@@ -712,6 +712,8 @@ export const data: DeepPartial<Dictionary['data']> = {
     name: 'Ном',
     saved: 'Диаграмма нигоҳ дошта шуд',
     remove: 'Хориҷ кардан',
+    noDataset: 'Маҷмӯи маълумотро интихоб кунед',
+    noDatasetHint: 'Тадқиқ аз маҷмӯи маълумот кушода мешавад: тугмаи «Тадқиқ кардан» дар корти он',
   },
   chartTypes: {
     table: 'Ҷадвал',

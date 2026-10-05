@@ -651,6 +651,8 @@ export const data: DeepPartial<Dictionary['data']> = {
     name: 'Name',
     saved: 'Chart saved',
     remove: 'Remove',
+    noDataset: 'Choose a dataset',
+    noDatasetHint: 'Explore opens from a dataset: the «Explore» button on its card',
   },
   chartTypes: {
     table: 'Table',

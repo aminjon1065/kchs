@@ -71,7 +71,9 @@ export function ExploreScreen({
   const locale = useLocale()
   const client = useQueryClient()
   const setTabState = useWorkspace((s) => s.setTabState)
-  const { data: dataset, isLoading } = useQuery(datasetQuery(datasetId))
+  // Без датасета (адрес `/explore` без него) запросы не уходят — экран просит выбрать датасет
+  const hasDataset = datasetId !== ''
+  const { data: dataset, isLoading } = useQuery({ ...datasetQuery(datasetId), enabled: hasDataset })
 
   const [state, setState] = useState<ExploreState>(
     () => savedState?.explore ?? emptyExplore(datasetId),
@@ -94,6 +96,7 @@ export function ExploreScreen({
     queryFn: () => http.post('/queries/run', { body: { spec: settled } }),
     placeholderData: keepPreviousData,
     retry: false,
+    enabled: hasDataset,
   })
 
   const fields = dataset?.fields ?? []
@@ -107,6 +110,14 @@ export function ExploreScreen({
     )
   }, [labelled, settled, chartType])
 
+  if (!hasDataset) {
+    return (
+      <EmptyState
+        title={t('data.explore.noDataset')}
+        description={t('data.explore.noDatasetHint')}
+      />
+    )
+  }
   if (isLoading) {
     return (
       <div className="flex flex-col gap-3 p-6">
