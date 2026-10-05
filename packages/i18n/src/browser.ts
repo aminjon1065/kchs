@@ -1,5 +1,5 @@
-import type { Dictionary } from './locales/ru.js'
-import { ru } from './locales/ru.js'
+import type { Dictionary } from './locales/ru/index.js'
+import { ru } from './locales/ru/index.js'
 import { isLocaleLoaded, registerLocale } from './registry.js'
 import type { Locale } from './resources.js'
 import type { DeepPartial } from './types.js'
@@ -13,8 +13,8 @@ import type { DeepPartial } from './types.js'
 registerLocale('ru', ru)
 
 const loaders: Record<Exclude<Locale, 'ru'>, () => Promise<DeepPartial<Dictionary>>> = {
-  tg: () => import('./locales/tg.js').then((module) => module.tg),
-  en: () => import('./locales/en.js').then((module) => module.en),
+  tg: () => import('./locales/tg/index.js').then((module) => module.tg),
+  en: () => import('./locales/en/index.js').then((module) => module.en),
 }
 
 /** Загрузить словарь языка; уже загруженный — сразу. */

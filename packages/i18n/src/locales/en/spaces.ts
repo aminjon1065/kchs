@@ -1,0 +1,58 @@
+import type { DeepPartial } from '../../types.js'
+import type { Dictionary } from '../ru/index.js'
+
+export const spaces: DeepPartial<Dictionary['spaces']> = {
+  title: 'Spaces',
+  kinds: { personal: 'Personal', unit: 'Unit', team: 'Team', org: 'Organization' },
+  lifecycle: {
+    actions: 'Actions for space “{name}”',
+    rename: 'Rename',
+    renamed: 'Space renamed',
+    description: 'Description',
+    archive: 'Archive',
+    archiveTitle: 'Archive “{name}”?',
+    archiveHint:
+      'All content becomes read-only and nothing new can be added. You can bring the space back from the archive at any time.',
+    archived: 'Space archived',
+    unarchive: 'Restore from archive',
+    unarchived: 'Space is active again',
+    archivedBadge: 'Archived',
+    archivedTitle: 'This space is archived',
+    archivedHint: 'Content is read-only. Restore the space from the archive to keep working.',
+    delete: 'Delete',
+    deleteTitle: 'Delete space “{name}”?',
+    deleteHint:
+      'The space and all its content go to the trash for 30 days and are then deleted for good. Only an empty or archived space can be deleted.',
+    deleted: 'Space moved to trash',
+  },
+  create: {
+    title: 'New space',
+    name: 'Name',
+    key: 'Short key',
+    kind: 'Type',
+    created: 'Space created',
+    hint: 'A space is where people work together: sections, files, discussions and access',
+    namePlaceholder: 'Flood-2026',
+    keyHint: 'Latin letters, digits and hyphen — used in links',
+    descriptionPlaceholder: 'What is this space for',
+  },
+  members: {
+    title: 'Members',
+    add: 'Add member',
+    role: 'Role',
+    remove: 'Remove',
+    person: 'Employee',
+    searchPlaceholder: 'Name, login or email',
+    candidates: 'Matching employees',
+    alreadyMember: 'Already a member',
+    added: '{name} added to the space',
+    removed: '{name} removed from the space',
+    roleOf: 'Role: {name}',
+    removeOf: 'Remove {name}',
+  },
+  sections: { title: 'Sections', create: 'New section' },
+  empty: 'This space is empty',
+  emptyHint: 'Create a section or upload a file',
+  unavailable: 'Space is unavailable',
+  content: 'Contents',
+}

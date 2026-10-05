@@ -1,4 +1,4 @@
-import type { Dictionary } from './locales/ru.js'
+import type { Dictionary } from './locales/ru/index.js'
 import type { Locale } from './resources.js'
 import type { DeepPartial } from './types.js'
 

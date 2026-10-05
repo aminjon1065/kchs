@@ -1,0 +1,87 @@
+import type { DeepPartial } from '../../types.js'
+import type { Dictionary } from '../ru/index.js'
+
+export const activity: DeepPartial<Dictionary['activity']> = {
+  object: {
+    created: '{actor} created the object',
+    updated: '{actor} changed {fields}',
+    moved: '{actor} moved the object',
+    archived: '{actor} archived it',
+    restored: '{actor} restored it',
+    trashed: '{actor} moved it to trash',
+    shared: '{actor} changed access',
+    linked: '{actor} added a link',
+  },
+  message: { posted: '{actor} wrote in the discussion' },
+  file: {
+    uploaded: '{actor} uploaded “{name}”',
+    version_added: '{actor} uploaded version {number}',
+  },
+  space: { member_added: '{actor} added a member' },
+  task: {
+    assigned: '{actor} set the assignee',
+    accepted: '{actor} accepted the assignment',
+    statusChanged:
+      '{actor} moved it to «{to, select, todo {To do} in_progress {In progress} review {In review} done {Done} cancelled {Cancelled} assigned {Assigned} other {{to}}}»',
+    dueChanged: '{actor} changed the due date',
+    reported: '{actor} reported on the assignment',
+    completed: '{actor} closed the task',
+    returned: '{actor} returned it for rework: {comment}',
+    extensionRequested: '{actor} requested an extension: {reason}',
+    extensionApproved: '{actor} extended the due date',
+    extensionRejected: '{actor} declined the extension',
+    overdue: 'The assignment is overdue',
+    escalated: 'The overdue assignment was escalated to the assignee’s manager',
+  },
+  process: {
+    started: '{actor} started the route “{name}”',
+    decided: {
+      approve: '{actor} approved',
+      remarks: '{actor} left remarks',
+      reject: '{actor} rejected',
+      sign: '{actor} signed',
+      refuse: '{actor} refused to sign',
+      acknowledge: '{actor} acknowledged',
+      register: '{actor} registered it',
+      resubmit: '{actor} resubmitted it for approval',
+      withdraw: '{actor} withdrew it from the route',
+    },
+    assignees: {
+      added: '{actor} added an approver',
+      delegated: '{actor} handed over their route step',
+      reassigned: '{actor} reassigned a route step',
+    },
+    finished: 'The route is complete',
+    cancelled: 'The route was cancelled',
+  },
+  document: {
+    registered: '{actor} registered the document: No. {number}',
+    cancelled: '{actor} cancelled the document: {reason}',
+    statusChanged:
+      '{actor} moved the document to “{to, select, draft {Draft} on_approval {On approval} returned {Returned} approved {Approved} on_signing {On signing} signed {Signed} registered {Registered} on_execution {In execution} executed {Executed} filed {Filed} archived {Archived} cancelled {Cancelled} other {{to}}}”',
+    updated: '{actor} changed the card',
+    versionAdded: '{actor} added version {number}',
+    confidentialityChanged: '{actor} changed the classification',
+    resolutionRequested: '{actor} sent the document for a resolution',
+    resolutionAdded: '{actor} added a resolution',
+    filed: '{actor} filed the document in case {index}',
+    dispatched: '{actor} recorded dispatch: {addressee}',
+    filesDestroyed: 'The document files were destroyed under act No. {number}',
+  },
+  case: {
+    created: '{actor} created case file {index}',
+    updated: '{actor} changed the case file',
+    closed: '{actor} closed the case file',
+    reopened: '{actor} reopened the case file',
+    archived: '{actor} transferred the case file to the archive',
+    destroyed: 'The case file was destroyed under act No. {number}',
+  },
+  event: {
+    updated: '{actor} changed the event',
+    cancelled: '{actor} cancelled the event',
+    invited: '{actor} invited attendees',
+    accepted: '{actor} accepted the invitation',
+    tentative: '{actor} replied “maybe”',
+    declined: '{actor} declined the invitation',
+  },
+}

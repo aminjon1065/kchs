@@ -1,0 +1,66 @@
+import type { DeepPartial } from '../../types.js'
+import type { Dictionary } from '../ru/index.js'
+
+export const spaces: DeepPartial<Dictionary['spaces']> = {
+  title: 'Фазоҳо',
+  lifecycle: {
+    actions: 'Амалҳо бо фазои «{name}»',
+    rename: 'Иваз кардани ном',
+    renamed: 'Номи фазо иваз шуд',
+    description: 'Тавсиф',
+    archive: 'Ба бойгонӣ',
+    archiveTitle: '«{name}» ба бойгонӣ фиристода шавад?',
+    archiveHint:
+      'Тамоми мундариҷа танҳо барои хондан мешавад, маводи нав илова намешавад. Фазоро аз бойгонӣ ҳар вақт баргардонидан мумкин аст.',
+    archived: 'Фазо дар бойгонӣ',
+    unarchive: 'Аз бойгонӣ баргардонидан',
+    unarchived: 'Фазо боз дар кор аст',
+    archivedBadge: 'Дар бойгонӣ',
+    archivedTitle: 'Фазо дар бойгонӣ аст',
+    archivedHint: 'Мавод танҳо барои хондан. Барои идомаи кор фазоро аз бойгонӣ баргардонед.',
+    delete: 'Нест кардан',
+    deleteTitle: 'Фазои «{name}» нест карда шавад?',
+    deleteHint:
+      'Фазо ва тамоми мундариҷаи он ба сабад барои 30 рӯз мераванд, баъд тамоман нест мешаванд. Танҳо фазои холӣ ё дар бойгонӣбударо нест кардан мумкин аст.',
+    deleted: 'Фазо дар сабад',
+  },
+  kinds: {
+    personal: 'Шахсӣ',
+    unit: 'Воҳид',
+    team: 'Даста',
+    org: 'Умумӣ',
+  },
+  create: {
+    title: 'Фазои нав',
+    name: 'Ном',
+    key: 'Коди кӯтоҳ',
+    kind: 'Навъ',
+    created: 'Фазо эҷод шуд',
+    hint: 'Фазо — ҷои кори муштарак: бахшҳо, файлҳо, муҳокимаҳо ва ҳуқуқҳо',
+    namePlaceholder: 'Обхезӣ-2026',
+    keyHint: 'Ҳарфҳои лотинӣ, рақамҳо ва дефис — дар пайвандҳо истифода мешавад',
+    descriptionPlaceholder: 'Ин фазо барои чӣ',
+  },
+  members: {
+    title: 'Иштирокчиён',
+    add: 'Илова кардани иштирокчӣ',
+    role: 'Нақш',
+    remove: 'Хориҷ кардан',
+    person: 'Корманд',
+    searchPlaceholder: 'Ном, логин ё почта',
+    candidates: 'Кормандони ёфтшуда',
+    alreadyMember: 'Аллакай иштирокчӣ аст',
+    added: '{name} — дар фазо',
+    removed: '{name} аз фазо хориҷ карда шуд',
+    roleOf: 'Нақш: {name}',
+    removeOf: 'Хориҷ кардан: {name}',
+  },
+  sections: {
+    title: 'Бахшҳо',
+    create: 'Бахши нав',
+  },
+  empty: 'Дар фазо ҳоло чизе нест',
+  emptyHint: 'Бахш эҷод кунед ё файл боргузорӣ кунед',
+  unavailable: 'Фазо дастнорас аст',
+  content: 'Мӯҳтаво',
+}

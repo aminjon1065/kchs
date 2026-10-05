@@ -1,6 +1,6 @@
-import { en } from './locales/en.js'
-import { ru } from './locales/ru.js'
-import { tg } from './locales/tg.js'
+import { en } from './locales/en/index.js'
+import { ru } from './locales/ru/index.js'
+import { tg } from './locales/tg/index.js'
 import { registerLocale } from './registry.js'
 import type { Locale } from './resources.js'
 

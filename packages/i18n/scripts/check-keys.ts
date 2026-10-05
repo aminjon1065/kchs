@@ -2,9 +2,9 @@
  * Проверка полноты словарей: любой ключ ru должен существовать в tg/en
  * или осознанно отсутствовать (fallback). Отчёт — покрытие по локалям.
  */
-import { en } from '../src/locales/en.js'
-import { ru } from '../src/locales/ru.js'
-import { tg } from '../src/locales/tg.js'
+import { en } from '../src/locales/en/index.js'
+import { ru } from '../src/locales/ru/index.js'
+import { tg } from '../src/locales/tg/index.js'
 import { LOCALES } from '../src/resources.js'
 
 const dictionaries = { ru, tg, en } as const
