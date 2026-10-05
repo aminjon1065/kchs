@@ -10,6 +10,7 @@ from typing import Any
 import pytest
 from PIL import Image
 
+from kchs_engine.api import checked_body
 from kchs_engine.files.pdf import image_to_pdf, sha256_file, to_pdf
 from kchs_engine.files.processing import ToolError
 from kchs_engine.jobs import documents
@@ -76,7 +77,7 @@ async def test_job_reports_hash_without_conversion(
         return target
 
     async def fake_report(version_id: str, body: dict[str, Any]) -> dict[str, Any]:
-        reports.append((version_id, body))
+        reports.append((version_id, checked_body("documentPdf", body)))
         return {"ok": True}
 
     monkeypatch.setattr(documents, "object_size", fake_size)
@@ -118,7 +119,7 @@ async def test_job_converts_image_and_uploads_under_target_key(
         uploads.append((bucket, key, content_type))
 
     async def fake_report(_version_id: str, body: dict[str, Any]) -> dict[str, Any]:
-        reports.append(body)
+        reports.append(checked_body("documentPdf", body))
         return {"ok": True}
 
     monkeypatch.setattr(documents, "object_size", fake_size)

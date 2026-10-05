@@ -62,6 +62,16 @@ def document_render_contract() -> dict[str, Any]:
 
 
 @lru_cache
+def jobs_contract() -> dict[str, Any]:
+    """JSON Schema нагрузки и результата заданий движка и его обратных вызовов (ADR-0190).
+
+    Модели движка — `contracts/jobs.py` и `contracts/callbacks.py`; их совместимость
+    со схемами отсюда проверяет `tests/test_engine_contracts.py`.
+    """
+    return _load("jobs.json")
+
+
+@lru_cache
 def field_types_contract() -> dict[str, Any]:
     """Хранение полей датасета и слова «да/нет» — общий реестр с api и компилятором (ADR-0190)."""
     return _load("field_types.json")

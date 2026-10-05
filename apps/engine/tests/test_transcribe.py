@@ -9,6 +9,7 @@ from typing import Any
 
 import pytest
 
+from kchs_engine.api import checked_body
 from kchs_engine.config import settings
 from kchs_engine.contracts import media_transcribe_contract
 from kchs_engine.jobs import JOB_HANDLERS
@@ -64,7 +65,7 @@ async def test_job_reports_unavailable_without_downloading(
     reported: list[tuple[str, dict[str, Any]]] = []
 
     async def fake_report(recording_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-        reported.append((recording_id, payload))
+        reported.append((recording_id, checked_body("recordingTranscript", payload)))
         return {"ok": True}
 
     async def fail_download(*_args: object, **_kwargs: object) -> Path:
@@ -87,7 +88,7 @@ async def test_job_reports_segments(monkeypatch: pytest.MonkeyPatch) -> None:
     reported: list[dict[str, Any]] = []
 
     async def fake_report(_recording_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-        reported.append(payload)
+        reported.append(checked_body("recordingTranscript", payload))
         return {"ok": True}
 
     async def fake_download(_bucket: str, _key: str, target: Path) -> Path:

@@ -214,7 +214,7 @@ async def build(payload: dict[str, Any]) -> dict[str, Any]:
     table = str(payload["table"])
     bucket = str(payload["bucket"])
     key = str(payload["key"])
-    timeout_s = int(payload.get("timeoutS") or settings().ENGINE_COLUMNAR_BUILD_TIMEOUT_S)
+    timeout_s = int(settings().ENGINE_COLUMNAR_BUILD_TIMEOUT_S)
     raw_columns = payload.get("columns") or []
     if not raw_columns:
         raise ColumnarError("в плане копии нет ни одного столбца")

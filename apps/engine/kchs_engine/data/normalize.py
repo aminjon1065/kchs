@@ -55,7 +55,8 @@ from kchs_engine.data.values import (
     resolve_zone,
 )
 
-ERROR_SAMPLE_LIMIT = 50
+# Первых ошибок в отчёте api — столько же показывает карточка импорта (ADR-0190)
+ERROR_SAMPLE_LIMIT = int(data_import_contract()["limits"]["errorSampleRows"])
 # Значение в файле ошибок и в errorSample — не длиннее (символов)
 ERROR_VALUE_CHARS = 500
 # Как часто сообщать о ходе (строк)

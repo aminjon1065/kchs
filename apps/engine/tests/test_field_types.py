@@ -65,10 +65,10 @@ def test_geometry_is_not_in_columnar_copy() -> None:
 
 def test_columnar_decimal_and_duration_from_registry() -> None:
     contract = field_types_contract()
-    assert (columnar.DECIMAL_PRECISION, columnar.DECIMAL_SCALE) == (
+    assert (
         contract["columnarDecimal"]["precision"],
         contract["columnarDecimal"]["scale"],
-    )
+    ) == (columnar.DECIMAL_PRECISION, columnar.DECIMAL_SCALE)
     assert contract["durationUnit"] == "minute"
     assert "/ 60" in columnar._select_expr(columnar.Column("c_1", "duration"))
     assert columnar._select_expr(columnar.Column("c_2", "json")) == '"c_2"::text'
@@ -77,10 +77,10 @@ def test_columnar_decimal_and_duration_from_registry() -> None:
 
 def test_geo_export_families_follow_registry() -> None:
     assert geo_export._INTEGER == fields_of_export_family("integer") == {"integer"}
-    assert geo_export._REAL == {"number", "decimal", "money", "percent"}
-    assert geo_export._BOOLEAN == {"boolean"}
-    assert geo_export._DATE == {"date"}
-    assert geo_export._DATETIME == {"datetime"}
+    assert {"number", "decimal", "money", "percent"} == geo_export._REAL
+    assert {"boolean"} == geo_export._BOOLEAN
+    assert {"date"} == geo_export._DATE
+    assert {"datetime"} == geo_export._DATETIME
 
 
 def test_boolean_words_are_one_set_for_paste_and_import() -> None:

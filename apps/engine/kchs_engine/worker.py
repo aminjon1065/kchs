@@ -6,10 +6,12 @@ from typing import Any
 
 from bullmq import Job, Worker
 from bullmq.custom_errors import UnrecoverableError
+from pydantic import ValidationError
 
 from kchs_engine.api import JOB_TOKEN, report_failure, report_result, report_started
 from kchs_engine.cancel import is_cancelled, run_cancellable
 from kchs_engine.config import settings
+from kchs_engine.contracts.jobs import ENVELOPE, contract_errors
 from kchs_engine.jobs import JOB_HANDLERS, PermanentJobError, registered_queues
 
 # Обработчики регистрируются импортом модулей
@@ -39,10 +41,16 @@ def _make_processor(queue: str) -> Processor:
         if job_handler is None:
             raise RuntimeError(f"Нет обработчика для {key}")
 
-        record_id = str(job.data.get("jobRecordId") or job.id)
+        try:
+            envelope = ENVELOPE.validate_python(job.data)
+        except ValidationError as error:
+            # Задание поставило не api: без записи реестра отчитываться некому (ADR-0190)
+            reason = contract_errors(error)
+            log.error("job.invalid_envelope", queue=queue, name=job.name, error=reason)
+            raise UnrecoverableError(f"задание без конверта api: {reason}") from error
+        record_id = envelope["jobRecordId"]
         # Обратные вызовы задания — его токеном из данных задания (ADR-0176)
-        callback_token = job.data.get("callbackToken")
-        reset = JOB_TOKEN.set(str(callback_token) if callback_token else None)
+        reset = JOB_TOKEN.set(envelope.get("callbackToken") or None)
         try:
             # Задание продолжает трассу запроса api, который его поставил (ADR-0167)
             opts = getattr(job, "opts", None)

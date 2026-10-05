@@ -12,6 +12,9 @@ import pytest
 from kchs_engine import api, cancel, worker
 from kchs_engine.config import settings
 
+# Тело обратного вызова по контракту (ADR-0190): иначе движок его не отправит
+PROCESSED = {"versionId": "v-1", "previewStatus": "ready", "textStatus": "ready"}
+
 
 @pytest.fixture
 def token(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
@@ -38,7 +41,7 @@ def fake_api(
         calls.append(request.url.path)
         if headers is not None:
             headers.append(dict(request.headers))
-        return httpx.Response(next(replies), json={"ok": True})
+        return httpx.Response(next(replies), json={"ok": True, "stale": False})
 
     real_client = httpx.AsyncClient
 
@@ -69,7 +72,7 @@ async def test_отчёт_несёт_токен_задания_а_не_серв�
     sent: list[dict[str, str]] = []
     fake_api(monkeypatch, [200, 200], sent)
     assert await api._post("/api/v1/internal/jobs/x/status", {"status": "running"}) is True
-    await api.report_file_processed("f", {"status": "ready"})
+    await api.report_file_processed("f", PROCESSED)
     for request in sent:
         assert request[api.JOB_TOKEN_HEADER] == "test-job-token"
         assert "x-kchs-service-token" not in request
@@ -80,7 +83,7 @@ async def test_без_токена_задания_отчёт_не_уходит(m
     assert api.JOB_TOKEN.get() is None
     assert await api._post("/api/v1/internal/jobs/x/status", {"status": "running"}) is False
     with pytest.raises(RuntimeError, match="токена"):
-        await api.report_file_processed("f", {"status": "ready"})
+        await api.report_file_processed("f", PROCESSED)
     assert calls == []
 
 

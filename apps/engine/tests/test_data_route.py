@@ -23,6 +23,7 @@ from openpyxl import Workbook
 from pyogrio import raw
 
 from kchs_engine import main, worker
+from kchs_engine.api import checked_body
 from kchs_engine.config import settings
 from kchs_engine.data import analyze as analyze_module
 from kchs_engine.jobs import JOB_HANDLERS, PermanentJobError, dataset_import
@@ -240,7 +241,8 @@ class FakeJobIo:
         self.progress.append((value, message))
 
     async def report(self, import_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-        self.reports.append((import_id, payload))
+        # Тело — по контракту обратного вызова, как перед отправкой в api (ADR-0190)
+        self.reports.append((import_id, checked_body("importNormalized", payload)))
         return {"loadJobId": "load-job"}
 
 
@@ -272,7 +274,6 @@ def job_data(**extra: Any) -> dict[str, Any]:
         "mapping": mapping,
         "geometry": None,
         "geometryField": None,
-        "onError": "skip",
         "output": {
             "bucket": BUCKET,
             "normalizedKey": "imports/import-1/normalized.csv",
