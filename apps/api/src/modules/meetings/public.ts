@@ -6,7 +6,7 @@
  * модуль встреч в чужие таблицы не ходит: событие и беседа приходят
  * идентификаторами.
  */
-import type { Ctx, UserCtx } from '~/shared/context.js'
+import type { UserCtx } from '~/shared/context.js'
 import type { Executor } from '~/shared/db/client.js'
 import { MeetingService } from './domain/meeting-service.js'
 
