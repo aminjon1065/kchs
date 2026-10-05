@@ -1,6 +1,6 @@
 import { and, eq, inArray, isNull, ne, sql } from 'drizzle-orm'
 import type { Ctx } from '~/shared/context.js'
-import type { Executor } from '~/shared/db/client.js'
+import type { Tx } from '~/shared/db/client.js'
 import { newId } from '~/shared/ids.js'
 import { loadObject } from '../access/authorize.js'
 import { publishEvent } from '../events/publisher.js'
@@ -21,7 +21,7 @@ const DROPPED = new Set(['cancelled', 'delegated'])
  * объекту из запросов без кода второго фактора. Снятие с шага, отмена шага и
  * маршрута снимают ожидания. Всё — в транзакции перехода движка.
  */
-async function stepChanged(tx: Executor, ctx: Ctx, change: ProcessStepChange): Promise<void> {
+async function stepChanged(tx: Tx, ctx: Ctx, change: ProcessStepChange): Promise<void> {
   const objectId = change.instance.objectId
   const [existing] = await tx
     .select({ id: acknowledgmentRequests.id })
@@ -123,7 +123,7 @@ async function stepChanged(tx: Executor, ctx: Ctx, change: ProcessStepChange): P
  * с кодом); дела Входящих этих запросов закрываются.
  */
 async function acknowledgedByStep(
-  tx: Executor,
+  tx: Tx,
   ctx: Ctx,
   input: {
     objectId: string

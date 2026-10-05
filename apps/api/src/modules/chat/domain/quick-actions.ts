@@ -8,7 +8,7 @@ import { SpaceService } from '~/kernel/spaces/service.js'
 import { startCall } from '~/modules/meetings/public.js'
 import { Instructions } from '~/modules/tasks/public.js'
 import type { UserCtx } from '~/shared/context.js'
-import type { Executor } from '~/shared/db/client.js'
+import type { Executor, Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { ChatService, loadConversation } from './chat-service.js'
 import { CHATS_SPACE_KEY } from './space.js'
@@ -52,7 +52,7 @@ async function taskSpaceId(
 export const QuickActions = {
   /** Поручение по сообщению: источник — обсуждаемый объект или сама беседа. */
   async task(
-    tx: Executor,
+    tx: Tx,
     ctx: UserCtx,
     messageId: number,
     input: ChatTaskInput,
@@ -99,7 +99,7 @@ export const QuickActions = {
   },
 
   /** Прикрепить сообщение к документу или другому объекту — связь ядра. */
-  async attach(tx: Executor, ctx: UserCtx, messageId: number, objectId: string): Promise<void> {
+  async attach(tx: Tx, ctx: UserCtx, messageId: number, objectId: string): Promise<void> {
     const message = await loadMessage(tx, messageId)
     await authorize(ctx, 'view', message.conversationId)
     // Связь заводит тот, кто вправе править объект-хозяин
@@ -111,7 +111,7 @@ export const QuickActions = {
   },
 
   /** Звонок из беседы: участники беседы — участники звонка (модуль встреч, ADR-0089). */
-  async call(tx: Executor, ctx: UserCtx, conversationId: string, title?: string): Promise<string> {
+  async call(tx: Tx, ctx: UserCtx, conversationId: string, title?: string): Promise<string> {
     await authorize(ctx, 'post', conversationId)
     const conversation = await loadConversation(tx, conversationId)
     if (!conversation) throw errors.notFound('Беседа')
@@ -142,7 +142,7 @@ export const QuickActions = {
   },
 
   /** Пересылка: в каждой беседе-получателе появляется цитата исходного сообщения. */
-  async forward(tx: Executor, ctx: UserCtx, input: ChatForwardInput): Promise<{ posted: number }> {
+  async forward(tx: Tx, ctx: UserCtx, input: ChatForwardInput): Promise<{ posted: number }> {
     const ids = input.messageIds.map(Number).filter((id) => Number.isInteger(id))
     if (ids.length === 0) throw errors.validation('Нечего пересылать')
     // Удалённое сообщение не пересылается: от него осталась только строка

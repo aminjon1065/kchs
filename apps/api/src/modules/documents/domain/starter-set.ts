@@ -253,7 +253,7 @@ const STARTER_TEMPLATE = {
 async function ensureStarterTemplate(ctx: Ctx): Promise<number> {
   if (await DocumentTemplateService.byName(db(), STARTER_TEMPLATE.name)) return 0
   const type = await DocumentTypeService.byKey(db(), STARTER_TEMPLATE.typeKey)
-  const spaceId = await documentsSpaceId(db())
+  const spaceId = await db().transaction((tx) => documentsSpaceId(tx))
   const fileId = newId()
   const versionId = newId()
   const data = outgoingLetterDocx()

@@ -21,7 +21,7 @@ import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import { fileBriefs } from '~/modules/files/public.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { documentTypes, templates } from '../schema.js'
 import { DocumentService } from './document-service.js'
@@ -144,7 +144,7 @@ export const DocumentTemplateService = {
     return result
   },
 
-  async create(tx: Executor, ctx: Ctx, raw: DocumentTemplateCreateInput): Promise<string> {
+  async create(tx: Tx, ctx: Ctx, raw: DocumentTemplateCreateInput): Promise<string> {
     requireCapability(ctx, 'documents.journals.manage')
     const input = DocumentTemplateCreateInput.parse(raw)
     await assertType(tx, input.typeId)
@@ -180,12 +180,7 @@ export const DocumentTemplateService = {
     return object.id
   },
 
-  async update(
-    tx: Executor,
-    ctx: Ctx,
-    id: string,
-    patch: DocumentTemplateUpdateInput,
-  ): Promise<void> {
+  async update(tx: Tx, ctx: Ctx, id: string, patch: DocumentTemplateUpdateInput): Promise<void> {
     await authorize(ctx, 'manage', id)
     const current = await loadTemplate(tx, id)
     if (!current) throw errors.notFound('Шаблон')
@@ -227,7 +222,7 @@ export const DocumentTemplateService = {
    * движок (`inspect`), до разбора шаблон в «Создать по шаблону» не предлагается.
    */
   async setFile(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     id: string,
     input: DocumentTemplateFileInput,
@@ -280,7 +275,7 @@ export const DocumentTemplateService = {
   },
 
   /** Разбор шаблона движком: найденные плейсхолдеры и неизвестные контексту. */
-  async inspect(tx: Executor, ctx: Ctx, id: string): Promise<string> {
+  async inspect(tx: Tx, ctx: Ctx, id: string): Promise<string> {
     const subject = await loadSubject(tx, id)
     if (!subject) throw errors.notFound('Шаблон')
     await tx
@@ -300,7 +295,7 @@ export const DocumentTemplateService = {
    * по умолчанию) и введённой; первую версию строит движок заполнением шаблона.
    */
   async createDocument(
-    tx: Executor,
+    tx: Tx,
     ctx: UserCtx,
     input: DocumentFromTemplateInput,
   ): Promise<{ id: string; renderId: string }> {
@@ -333,7 +328,7 @@ export const DocumentTemplateService = {
   },
 
   /** Перезаполнить документ по шаблону из текущей карточки — новая версия. */
-  async fill(tx: Executor, ctx: UserCtx, documentId: string, input: DocumentFillInput) {
+  async fill(tx: Tx, ctx: UserCtx, documentId: string, input: DocumentFillInput) {
     await authorize(ctx, 'add_version', documentId)
     await authorize(ctx, 'view', input.templateId)
     const template = await loadTemplate(tx, input.templateId)
@@ -353,12 +348,7 @@ export const DocumentTemplateService = {
     return DocumentTemplateService.enqueueFill(tx, ctx, documentId, template.id)
   },
 
-  async enqueueFill(
-    tx: Executor,
-    ctx: UserCtx,
-    documentId: string,
-    templateId: string,
-  ): Promise<string> {
+  async enqueueFill(tx: Tx, ctx: UserCtx, documentId: string, templateId: string): Promise<string> {
     const subject = await loadSubject(tx, documentId)
     if (!subject) throw errors.notFound('Документ')
     return enqueueRender(tx, ctx, {

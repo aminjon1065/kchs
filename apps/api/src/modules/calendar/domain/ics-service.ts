@@ -17,7 +17,7 @@ import { ObjectService } from '~/kernel/objects/service.js'
 import { config } from '~/shared/config/index.js'
 import { type Ctx, systemCtx, type UserCtx } from '~/shared/context.js'
 import { decryptSecret, hashToken } from '~/shared/crypto/secrets.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Tx } from '~/shared/db/client.js'
 import { errors, isAppError } from '~/shared/errors.js'
 import { newId, randomToken } from '~/shared/ids.js'
 import { logger } from '~/shared/logger/index.js'
@@ -97,7 +97,7 @@ function icsEventOf(row: ExportRow, detailed: boolean): IcsEvent {
 
 export const IcsService = {
   /** Ссылка подписки: токен показывается один раз, в базе — только хэш. */
-  async createFeed(tx: Executor, ctx: UserCtx, calendarId: string): Promise<CalendarFeedCreated> {
+  async createFeed(tx: Tx, ctx: UserCtx, calendarId: string): Promise<CalendarFeedCreated> {
     await authorize(ctx, 'feed', calendarId)
     const calendar = await loadCalendar(tx, calendarId)
     if (!calendar) throw errors.notFound('Календарь')
@@ -138,7 +138,7 @@ export const IcsService = {
   },
 
   /** Отзыв ссылки: свою — любой, чужую — управляющий календарём. */
-  async revokeFeed(tx: Executor, ctx: UserCtx, calendarId: string, feedId: string): Promise<void> {
+  async revokeFeed(tx: Tx, ctx: UserCtx, calendarId: string, feedId: string): Promise<void> {
     const decision = await authorize(ctx, 'view', calendarId)
     const [row] = await tx
       .select()

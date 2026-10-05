@@ -16,7 +16,7 @@ import { NotificationService } from '~/kernel/notifications/service.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import { actorId, type Ctx, type UserCtx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { meetingParticipants, meetings } from '../schema.js'
@@ -85,7 +85,7 @@ function actorOf(ctx: Ctx): string | null {
  * так встречу одинаково показывают списки, поиск и `authorize()`.
  */
 async function syncAccess(
-  tx: Executor,
+  tx: Tx,
   ctx: Ctx,
   meetingId: string,
   before: readonly string[],
@@ -208,7 +208,7 @@ export const MeetingService = {
    * владеет ею, приглашённые получают доступ участием. Комната медиасервера
    * поднимается при первом входе, имя известно сразу (ADR-0089).
    */
-  async create(tx: Executor, ctx: Ctx, input: CreateMeetingInput): Promise<string> {
+  async create(tx: Tx, ctx: Ctx, input: CreateMeetingInput): Promise<string> {
     const spaceId = await meetingsSpaceId(tx)
     const organizerId = input.organizerId === undefined ? actorOf(ctx) : input.organizerId
     const id = newId()
@@ -260,7 +260,7 @@ export const MeetingService = {
 
   /** Приглашённые встречи: список ведёт тот, кто её завёл (календарь — по событию). */
   async setParticipants(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     meetingId: string,
     userIds: readonly string[],
@@ -482,7 +482,7 @@ export const MeetingService = {
 
   /** Завершение: организатор (право `end`) или отмена события календарём. */
   async end(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     id: string,
     reason: 'manual' | 'empty' | 'cancelled' = 'manual',
@@ -527,7 +527,7 @@ export const MeetingService = {
    * Входящий звонок отклонён приглашённым (ADR-0091): звонящий узнаёт об этом
    * событием, сама встреча продолжает существовать — другие могут войти.
    */
-  async decline(tx: Executor, ctx: UserCtx, id: string): Promise<void> {
+  async decline(tx: Tx, ctx: UserCtx, id: string): Promise<void> {
     const row = await load(tx, id)
     if (!row) throw errors.notFound('Встреча')
     await publishEvent(tx, ctx, {
@@ -573,7 +573,7 @@ export const MeetingService = {
   },
 
   /** Звонок из беседы: участники — собеседники, встреча начинается сразу. */
-  async startCall(tx: Executor, ctx: UserCtx, input: MeetingCreateInput): Promise<string> {
+  async startCall(tx: Tx, ctx: UserCtx, input: MeetingCreateInput): Promise<string> {
     const id = await MeetingService.create(tx, ctx, {
       kind: 'call',
       title: input.title,

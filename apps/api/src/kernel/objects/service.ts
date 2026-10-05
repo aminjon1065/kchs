@@ -7,7 +7,7 @@ import {
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm'
 import type { Ctx } from '~/shared/context.js'
 import { actorId } from '~/shared/context.js'
-import { type Database, db, type Executor } from '~/shared/db/client.js'
+import { type Database, db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { grantOwner } from '../access/acl-service.js'
@@ -71,7 +71,7 @@ export function hiddenSummary(summary: ObjectSummary): ObjectSummary {
  * в той же транзакции, что и запись в таблицу модуля (правило №1 CLAUDE.md).
  */
 export const ObjectService = {
-  async create(tx: Executor, ctx: Ctx, input: CreateObjectInput): Promise<ObjectLike> {
+  async create(tx: Tx, ctx: Ctx, input: CreateObjectInput): Promise<ObjectLike> {
     requireObjectType(input.type)
     const id = input.id ?? newId()
     // `ownerId: null` — объект без личного владельца (например, беседа объекта
@@ -122,7 +122,7 @@ export const ObjectService = {
   },
 
   async update(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     id: string,
     patch: UpdateObjectInput,
@@ -208,7 +208,7 @@ export const ObjectService = {
 
   /** Перенос по дереву и/или между пространствами с пересчётом предков. */
   async move(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     id: string,
     target: { parentId?: string | null; spaceId?: string },
@@ -287,7 +287,7 @@ export const ObjectService = {
    * пересчитывает поиск (с вложениями), комнаты realtime и системные датасеты.
    */
   async setConfidentiality(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     id: string,
     confidentiality: Confidentiality,
@@ -316,7 +316,7 @@ export const ObjectService = {
     await publishEvent(tx, ctx, { type: 'acl.changed', object, payload: { objectId: id } })
   },
 
-  async archive(tx: Executor, ctx: Ctx, id: string): Promise<void> {
+  async archive(tx: Tx, ctx: Ctx, id: string): Promise<void> {
     const row = await loadRow(tx, id)
     if (!row || row.deletedAt) throw errors.notFound()
     if (row.archivedAt) return
@@ -333,7 +333,7 @@ export const ObjectService = {
     await objectType(row.type)?.lifecycle?.onArchive?.(tx, ctx, toObjectLike(row))
   },
 
-  async restore(tx: Executor, ctx: Ctx, id: string): Promise<void> {
+  async restore(tx: Tx, ctx: Ctx, id: string): Promise<void> {
     const row = await loadRow(tx, id)
     if (!row) throw errors.notFound()
     const from = row.deletedAt ? 'trash' : 'archive'
@@ -352,7 +352,7 @@ export const ObjectService = {
   },
 
   /** Мягкое удаление: объект и поддерево уходят в корзину на 30 дней. */
-  async trash(tx: Executor, ctx: Ctx, id: string): Promise<void> {
+  async trash(tx: Tx, ctx: Ctx, id: string): Promise<void> {
     const row = await loadRow(tx, id)
     if (!row) throw errors.notFound()
     if (row.deletedAt) return
@@ -369,7 +369,7 @@ export const ObjectService = {
   },
 
   /** Окончательное удаление: вызывает lifecycle модуля и удаляет строку. */
-  async purge(tx: Executor, ctx: Ctx, id: string): Promise<void> {
+  async purge(tx: Tx, ctx: Ctx, id: string): Promise<void> {
     const row = await loadRow(tx, id)
     if (!row) return
 

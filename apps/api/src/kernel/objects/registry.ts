@@ -1,7 +1,7 @@
 import type { FieldType, Level, ObjectSummary, ObjectType, SearchDocument } from '@kchs/contracts'
 import type { SQL } from 'drizzle-orm'
 import type { Ctx, UserCtx } from '~/shared/context.js'
-import type { Executor } from '~/shared/db/client.js'
+import type { Tx } from '~/shared/db/client.js'
 import type { ActionDefinition, ObjectLike, TypePolicy } from '../access/types.js'
 
 /**
@@ -54,14 +54,14 @@ export interface ObjectTypeDefinition {
      * Перед переносом в корзину: модуль может запретить удаление, бросив
      * ошибку (зарегистрированный документ не удаляется — только аннулируется).
      */
-    beforeTrash?: (tx: Executor, ctx: Ctx, object: ObjectLike) => Promise<void>
+    beforeTrash?: (tx: Tx, ctx: Ctx, object: ObjectLike) => Promise<void>
     /** Перед архивированием: модуль может запретить общий архив (у документа — своё «в дело»). */
-    beforeArchive?: (tx: Executor, ctx: Ctx, object: ObjectLike) => Promise<void>
-    onArchive?: (tx: Executor, ctx: Ctx, object: ObjectLike) => Promise<void>
-    onRestore?: (tx: Executor, ctx: Ctx, object: ObjectLike) => Promise<void>
-    onDelete?: (tx: Executor, ctx: Ctx, object: ObjectLike) => Promise<void>
+    beforeArchive?: (tx: Tx, ctx: Ctx, object: ObjectLike) => Promise<void>
+    onArchive?: (tx: Tx, ctx: Ctx, object: ObjectLike) => Promise<void>
+    onRestore?: (tx: Tx, ctx: Ctx, object: ObjectLike) => Promise<void>
+    onDelete?: (tx: Tx, ctx: Ctx, object: ObjectLike) => Promise<void>
     onMove?: (
-      tx: Executor,
+      tx: Tx,
       ctx: Ctx,
       object: ObjectLike,
       from: { spaceId: string | null; parentId: string | null },
@@ -70,7 +70,7 @@ export interface ObjectTypeDefinition {
      * После правки общих полей в той же транзакции: модуль держит свою таблицу в
      * согласии с реестром (имя файла — название объекта).
      */
-    onUpdate?: (tx: Executor, ctx: Ctx, object: ObjectLike, changed: string[]) => Promise<void>
+    onUpdate?: (tx: Tx, ctx: Ctx, object: ObjectLike, changed: string[]) => Promise<void>
   }
   discussable: boolean
   linkable: boolean

@@ -2,7 +2,7 @@ import type { LinkKind, LinkView, ObjectSummary } from '@kchs/contracts'
 import { and, eq, inArray, or, type SQL, sql } from 'drizzle-orm'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { actorId } from '~/shared/context.js'
-import { type Database, db, type Executor } from '~/shared/db/client.js'
+import { type Database, db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { authorize } from '../access/authorize.js'
@@ -14,7 +14,7 @@ import { dependencies, links } from './schema.js'
 /** Связи объектов (02-platform-kernel.md §3): двунаправленные по чтению. */
 export const LinkService = {
   async link(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     sourceId: string,
     targetId: string,
@@ -62,7 +62,7 @@ export const LinkService = {
   },
 
   async unlink(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     sourceId: string,
     targetId: string,

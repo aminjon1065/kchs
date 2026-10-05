@@ -8,7 +8,7 @@ import {
 } from '@kchs/contracts'
 import { and, asc, desc, eq, sql } from 'drizzle-orm'
 import type { UserCtx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { authorize, visibleObjectsSql } from '../access/authorize.js'
 import { publishEvent } from '../events/publisher.js'
@@ -34,7 +34,7 @@ const columns = {
  * пространстве, общее — в пространстве команды: права — обычные права объекта.
  */
 export const WorkspaceViews = {
-  async create(tx: Executor, ctx: UserCtx, input: NamedWorkspaceInput): Promise<string> {
+  async create(tx: Tx, ctx: UserCtx, input: NamedWorkspaceInput): Promise<string> {
     if (input.shared && !input.spaceId) {
       throw errors.validation('Общее рабочее пространство сохраняется в пространстве команды', [
         { path: 'spaceId', message: 'required' },
@@ -98,7 +98,7 @@ export const WorkspaceViews = {
     return rows.map(({ layout: _layout, ...row }) => row)
   },
 
-  async update(tx: Executor, ctx: UserCtx, id: string, patch: NamedWorkspacePatch) {
+  async update(tx: Tx, ctx: UserCtx, id: string, patch: NamedWorkspacePatch) {
     if (patch.title !== undefined) await ObjectService.update(tx, ctx, id, { title: patch.title })
     const values: Record<string, unknown> = {}
     if (patch.layout !== undefined) values.definition = patch.layout

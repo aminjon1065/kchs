@@ -34,7 +34,7 @@ import {
 import { config } from '~/shared/config/index.js'
 import type { Ctx } from '~/shared/context.js'
 import { decryptSecret, encryptSecret } from '~/shared/crypto/secrets.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { logger } from '~/shared/logger/index.js'
 import { basemaps } from '../schema.js'
@@ -230,7 +230,7 @@ function checkKey(url: string, hasKey: boolean, kind: string = 'raster'): void {
 }
 
 async function insertBasemap(
-  tx: Executor,
+  tx: Tx,
   ctx: Ctx,
   values: Omit<typeof basemaps.$inferInsert, 'id'> & { name: string; build?: string },
 ): Promise<string> {
@@ -254,7 +254,7 @@ async function insertBasemap(
   return object.id
 }
 
-async function markDefault(tx: Executor, ctx: Ctx, id: string): Promise<void> {
+async function markDefault(tx: Tx, ctx: Ctx, id: string): Promise<void> {
   const [current] = await tx
     .select({ id: basemaps.id })
     .from(basemaps)
@@ -284,7 +284,7 @@ async function markDefault(tx: Executor, ctx: Ctx, id: string): Promise<void> {
 
 /** Изменение параметров: версия объекта растёт (кэши клиента), событие — с полями. */
 async function recordChange(
-  tx: Executor,
+  tx: Tx,
   ctx: Ctx,
   id: string,
   meta: Record<string, unknown>,

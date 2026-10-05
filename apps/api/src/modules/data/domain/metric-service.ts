@@ -28,7 +28,7 @@ import { ObjectService } from '~/kernel/objects/service.js'
 import { systemDataset } from '~/kernel/system-datasets.js'
 import { config } from '~/shared/config/index.js'
 import type { Ctx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { metrics } from '../schema.js'
 import { filterCondition } from './dashboard-filters.js'
@@ -384,7 +384,7 @@ function toRecord(
  */
 export const MetricService = {
   async create(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     input: MetricCreateInput,
     options: { systemKey?: string } = {},
@@ -434,7 +434,7 @@ export const MetricService = {
     return toRecord(row.metric, row.object)
   },
 
-  async update(tx: Executor, ctx: Ctx, id: string, input: MetricUpdateInput): Promise<void> {
+  async update(tx: Tx, ctx: Ctx, id: string, input: MetricUpdateInput): Promise<void> {
     const current = await MetricService.get(id, tx)
     const changed: string[] = []
     if (input.name !== undefined || input.description !== undefined) {

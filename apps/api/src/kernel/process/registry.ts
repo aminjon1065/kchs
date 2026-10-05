@@ -1,6 +1,6 @@
 import type { ProcessFieldHint, Step } from '@kchs/process'
 import type { Ctx, UserCtx } from '~/shared/context.js'
-import type { Executor } from '~/shared/db/client.js'
+import type { Executor, Tx } from '~/shared/db/client.js'
 
 /**
  * Расширения движка процессов для модулей (ADR-0079). Ядро не знает о
@@ -73,13 +73,7 @@ export interface ProcessObjectProvider {
    */
   fieldHints?: (executor: Executor) => Promise<ProcessFieldHint[]>
   /** Шаг `set`: изменить поле объекта. */
-  setField?: (
-    tx: Executor,
-    ctx: Ctx,
-    objectId: string,
-    field: string,
-    value: unknown,
-  ) => Promise<void>
+  setField?: (tx: Tx, ctx: Ctx, objectId: string, field: string, value: unknown) => Promise<void>
   /**
    * Запуск через общий API `POST /processes`: бросает ошибку, если нельзя.
    * Без функции маршрут объекта запускает только модуль.
@@ -90,23 +84,23 @@ export interface ProcessObjectProvider {
     definition: { key: string; version: number },
   ) => Promise<void>
   onStepActivated?: (
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     event: { instance: ProcessInstanceInfo; step: ProcessStepInfo },
   ) => Promise<void>
   /** Каждое решение назначенного (лист согласования, подпись версии). */
   onDecision?: (
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     event: { instance: ProcessInstanceInfo; step: ProcessStepInfo; decision: ProcessDecisionInfo },
   ) => Promise<void>
   onStepCompleted?: (
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     event: { instance: ProcessInstanceInfo; step: ProcessStepInfo },
   ) => Promise<void>
   onFinished?: (
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     event: { instance: ProcessInstanceInfo; status: 'finished' | 'cancelled'; outcome: string },
   ) => Promise<void>
@@ -132,9 +126,9 @@ export interface ProcessStepHandler {
   objectType?: string
   /** Для `call`: действие `documents.dispatch`. */
   action?: string
-  execute: (tx: Executor, ctx: Ctx, input: StepHandlerInput) => Promise<StepHandlerResult>
+  execute: (tx: Tx, ctx: Ctx, input: StepHandlerInput) => Promise<StepHandlerResult>
   /** Шаг отменён (маршрут отменён, ветвь снята): модуль снимает свои поручения. */
-  cancel?: (tx: Executor, ctx: Ctx, input: StepHandlerInput) => Promise<void>
+  cancel?: (tx: Tx, ctx: Ctx, input: StepHandlerInput) => Promise<void>
 }
 
 /** Назначенный шага для наблюдателей: состояние решения и кто нажал. */
@@ -163,7 +157,7 @@ export interface ProcessStepChange {
 export interface ProcessObserver {
   name: string
   stepTypes: ReadonlyArray<Step['type']>
-  stepChanged: (tx: Executor, ctx: Ctx, change: ProcessStepChange) => Promise<void>
+  stepChanged: (tx: Tx, ctx: Ctx, change: ProcessStepChange) => Promise<void>
 }
 
 const providers = new Map<string, ProcessObjectProvider>()

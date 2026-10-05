@@ -465,7 +465,8 @@ async function createDraft(
 
   const type = await DocumentTypeService.byKey(db(), mailbox.config.documentTypeKey)
   if (!type) throw new Error(`нет типа документа «${mailbox.config.documentTypeKey}»`)
-  const spaceId = await documentsSpaceId(db())
+  // Пространство документов может создаваться здесь — с событием, в своей транзакции
+  const spaceId = await db().transaction((tx) => documentsSpaceId(tx))
   const match = await matchCorrespondent(letter.fromEmail)
   const correspondentId = match?.id ?? null
 

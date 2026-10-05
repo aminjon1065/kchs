@@ -13,7 +13,7 @@ import { authorize, visibleObjectsSql } from '~/kernel/access/authorize.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import { actorId, type Ctx, type UserCtx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { type TaskChecklistValue, tasks } from '../schema.js'
@@ -65,7 +65,7 @@ export function checklistProgress(items: readonly TaskChecklistValue[]): TaskPro
 
 /** Запись чек-листа: строка задачи, прогресс в `meta` реестра (версия объекта растёт), событие. */
 async function saveChecklist(
-  tx: Executor,
+  tx: Tx,
   ctx: Ctx,
   row: TaskRow,
   items: TaskChecklistValue[],
@@ -109,7 +109,7 @@ function moved<T>(items: T[], from: number, to: number): T[] {
  * друг друга.
  */
 export const TaskChecklist = {
-  async add(tx: Executor, ctx: Ctx, id: string, input: TaskChecklistAddInput): Promise<string> {
+  async add(tx: Tx, ctx: Ctx, id: string, input: TaskChecklistAddInput): Promise<string> {
     const row = await guarded(tx, ctx, id, 'checklist')
     if (row.checklist.length >= TASK_CHECKLIST_MAX) {
       throw errors.validation(
@@ -130,7 +130,7 @@ export const TaskChecklist = {
   },
 
   async patch(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     id: string,
     itemId: string,
@@ -158,7 +158,7 @@ export const TaskChecklist = {
     await saveChecklist(tx, ctx, row, items, change, next.text)
   },
 
-  async remove(tx: Executor, ctx: Ctx, id: string, itemId: string): Promise<void> {
+  async remove(tx: Tx, ctx: Ctx, id: string, itemId: string): Promise<void> {
     const row = await guarded(tx, ctx, id, 'checklist')
     const item = row.checklist.find((entry) => entry.id === itemId)
     if (!item) throw errors.notFound('Пункт чек-листа')
@@ -186,12 +186,7 @@ export const TaskChecklist = {
  * чек-лист.
  */
 export const TaskSubtasks = {
-  async create(
-    tx: Executor,
-    ctx: Ctx,
-    parentId: string,
-    input: TaskSubtaskCreateInput,
-  ): Promise<string> {
+  async create(tx: Tx, ctx: Ctx, parentId: string, input: TaskSubtaskCreateInput): Promise<string> {
     const parent = await guarded(tx, ctx, parentId, 'subtasks')
     const authorId = actorId(ctx)
     if (!authorId) throw errors.validation('У подзадачи должен быть автор')

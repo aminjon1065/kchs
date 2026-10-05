@@ -1,5 +1,5 @@
 import type { Ctx } from '~/shared/context.js'
-import type { Executor } from '~/shared/db/client.js'
+import type { Tx } from '~/shared/db/client.js'
 import { onlineMeetings } from './meeting-provider.js'
 
 /**
@@ -22,7 +22,7 @@ export interface EventMeetingSync {
 }
 
 export async function syncEventMeeting(
-  tx: Executor,
+  tx: Tx,
   ctx: Ctx,
   input: EventMeetingSync,
 ): Promise<{ meetingId: string | null; changed: boolean }> {
@@ -49,7 +49,7 @@ export async function syncEventMeeting(
 
 /** Событие отменено или удалено — встреча закрывается для всех. */
 export async function cancelEventMeeting(
-  tx: Executor,
+  tx: Tx,
   ctx: Ctx,
   meetingId: string | null,
 ): Promise<void> {

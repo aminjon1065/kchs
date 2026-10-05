@@ -4,7 +4,7 @@ import { publishEvent } from '~/kernel/events/publisher.js'
 import { objects } from '~/kernel/objects/schema.js'
 import type { TerritoryIndex } from '~/modules/territories/public.js'
 import type { Ctx } from '~/shared/context.js'
-import type { Executor } from '~/shared/db/client.js'
+import type { Tx } from '~/shared/db/client.js'
 import type { DatasetStorage, StoredField } from './dataset-service.js'
 
 /**
@@ -115,7 +115,7 @@ export function rowEventPayload(
  * получатели уведомлений правила — те, кто его видит.
  */
 export async function publishRowEvents(
-  tx: Executor,
+  tx: Tx,
   ctx: Ctx,
   storage: DatasetStorage,
   territories: TerritoryIndex | null,

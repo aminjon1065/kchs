@@ -22,7 +22,7 @@ import { evaluateCondition } from '@kchs/query/expr'
 import { eq } from 'drizzle-orm'
 import { config } from '~/shared/config/index.js'
 import type { Ctx } from '~/shared/context.js'
-import type { Executor } from '~/shared/db/client.js'
+import type { Executor, Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { directory } from '../directory/port.js'
@@ -190,7 +190,7 @@ export class Execution {
   private readonly now = new Date()
 
   constructor(
-    private readonly tx: Executor,
+    private readonly tx: Tx,
     private readonly ctx: Ctx,
     readonly loaded: LoadedInstance,
   ) {

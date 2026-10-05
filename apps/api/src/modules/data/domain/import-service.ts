@@ -22,7 +22,7 @@ import { buckets, deleteObject, s3 } from '~/kernel/storage/s3.js'
 import { fileSource } from '~/modules/files/public.js'
 import { territoryIndex } from '~/modules/territories/public.js'
 import { type Ctx, systemCtx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { logger } from '~/shared/logger/index.js'
@@ -224,7 +224,7 @@ export const ImportService = {
   },
 
   /** Запуск: новый датасет (или проверка существующего), запись импорта, задание движку. */
-  async start(tx: Executor, ctx: Ctx, input: ImportRunInput): Promise<ImportRecord> {
+  async start(tx: Tx, ctx: Ctx, input: ImportRunInput): Promise<ImportRecord> {
     const source = await fileSource(input.fileId)
     if (!source) throw errors.notFound('Файл')
 
@@ -800,7 +800,7 @@ export const ImportService = {
 }
 
 async function publishFailed(
-  tx: Executor,
+  tx: Tx,
   ctx: Ctx,
   datasetId: string,
   importId: string,

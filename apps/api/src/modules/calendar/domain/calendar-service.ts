@@ -23,7 +23,7 @@ import { SpaceService } from '~/kernel/spaces/service.js'
 import { config } from '~/shared/config/index.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { encryptSecret } from '~/shared/crypto/secrets.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { calendars } from '../schema.js'
 import { calendarSettings } from './settings.js'
@@ -135,7 +135,7 @@ export const CalendarService = {
    * Личный календарь пользователя — создаётся при первом обращении в его
    * личном пространстве; владелец — сам пользователь.
    */
-  async ensurePersonal(tx: Executor, ctx: Ctx, userId: string): Promise<string> {
+  async ensurePersonal(tx: Tx, ctx: Ctx, userId: string): Promise<string> {
     const key = `personal:${userId}`
     const existing = await bySystemKey(tx, key)
     if (existing) return existing
@@ -175,7 +175,7 @@ export const CalendarService = {
   },
 
   /** Календарь пространства подразделения — создаётся автоматически, права — от ролей пространства. */
-  async ensureSpaceCalendar(tx: Executor, ctx: Ctx, spaceId: string): Promise<string | null> {
+  async ensureSpaceCalendar(tx: Tx, ctx: Ctx, spaceId: string): Promise<string | null> {
     const key = `space:${spaceId}`
     const existing = await bySystemKey(tx, key)
     if (existing) return existing
@@ -207,7 +207,7 @@ export const CalendarService = {
     return object.id
   },
 
-  async create(tx: Executor, ctx: UserCtx, input: CalendarCreateInput): Promise<string> {
+  async create(tx: Tx, ctx: UserCtx, input: CalendarCreateInput): Promise<string> {
     const me = principalUser(ctx)
     const profile = await directory().profile(me)
     const timezone = input.timezone ?? profile?.timezone ?? config().TZ
@@ -313,7 +313,7 @@ export const CalendarService = {
     return object.id
   },
 
-  async update(tx: Executor, ctx: UserCtx, id: string, patch: CalendarUpdateInput): Promise<void> {
+  async update(tx: Tx, ctx: UserCtx, id: string, patch: CalendarUpdateInput): Promise<void> {
     await authorize(ctx, 'manage', id)
     const row = await loadCalendar(tx, id)
     if (!row) throw errors.notFound('Календарь')

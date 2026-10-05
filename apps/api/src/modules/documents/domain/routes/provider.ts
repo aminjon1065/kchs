@@ -17,7 +17,7 @@ import {
   registerProcessWaitEvent,
 } from '~/kernel/process/index.js'
 import { actorId, type Ctx, systemCtx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import {
   documentStepVersions,
@@ -191,7 +191,7 @@ async function assertCleared(tx: Executor, documentId: string, step: ProcessStep
 }
 
 async function onStepActivated(
-  tx: Executor,
+  tx: Tx,
   ctx: Ctx,
   { instance, step }: { instance: ProcessInstanceInfo; step: ProcessStepInfo },
 ): Promise<void> {
@@ -221,7 +221,7 @@ async function onStepActivated(
 
 /** Решение «Подписать» — запись подписи; последняя подпись — статус «Подписан». */
 async function onDecision(
-  tx: Executor,
+  tx: Tx,
   ctx: Ctx,
   {
     instance,
@@ -272,7 +272,7 @@ async function onDecision(
 }
 
 async function onStepCompleted(
-  tx: Executor,
+  tx: Tx,
   ctx: Ctx,
   { instance, step }: { instance: ProcessInstanceInfo; step: ProcessStepInfo },
 ): Promise<void> {
@@ -287,7 +287,7 @@ async function onStepCompleted(
  * дальше (подписан, зарегистрирован), не трогается.
  */
 async function onFinished(
-  tx: Executor,
+  tx: Tx,
   ctx: Ctx,
   {
     instance,

@@ -19,7 +19,7 @@ import { ObjectService } from '~/kernel/objects/service.js'
 import { nextRunAt } from '~/kernel/schedules/index.js'
 import { Metrics } from '~/modules/data/public.js'
 import type { UserCtx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { alertEvents, alerts } from '../schema.js'
 
@@ -109,7 +109,7 @@ export const AlertService = {
     return row
   },
 
-  async create(tx: Executor, ctx: UserCtx, input: AlertCreateInput): Promise<string> {
+  async create(tx: Tx, ctx: UserCtx, input: AlertCreateInput): Promise<string> {
     const definition = input.definition
     if (!computeNextRun(definition)) throw errors.validation('Неверное выражение расписания')
     // Показатель должен быть виден заводящему: алерт не открывает чужие данные
@@ -141,7 +141,7 @@ export const AlertService = {
     return object.id
   },
 
-  async update(tx: Executor, ctx: UserCtx, id: string, input: AlertUpdateInput): Promise<void> {
+  async update(tx: Tx, ctx: UserCtx, id: string, input: AlertUpdateInput): Promise<void> {
     const current = await AlertService.require(tx, id)
     const definition = input.definition
     if (!computeNextRun(definition)) throw errors.validation('Неверное выражение расписания')
@@ -182,7 +182,7 @@ export const AlertService = {
     })
   },
 
-  async setEnabled(tx: Executor, ctx: UserCtx, id: string, enabled: boolean): Promise<void> {
+  async setEnabled(tx: Tx, ctx: UserCtx, id: string, enabled: boolean): Promise<void> {
     const current = await AlertService.require(tx, id)
     if (current.enabled === enabled) return
     const definition = AlertService.definitionOf(current)

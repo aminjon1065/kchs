@@ -1,7 +1,7 @@
 import type { FeatureFlag } from '@kchs/contracts'
 import { inArray, sql } from 'drizzle-orm'
 import type { Ctx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Tx } from '~/shared/db/client.js'
 import { AUDIT_ACTIONS, audit } from '../audit/service.js'
 import { objects } from '../objects/schema.js'
 import { SettingsService } from '../settings/service.js'
@@ -98,7 +98,7 @@ export const FeatureService = {
    * установка следовала умолчанию и дальше. Кэш процесса сбрасывает вызывающий
    * после коммита — см. `invalidate`.
    */
-  async set(tx: Executor, ctx: Ctx, key: string, enabled: boolean): Promise<void> {
+  async set(tx: Tx, ctx: Ctx, key: string, enabled: boolean): Promise<void> {
     const definition = getFeature(key)
     if (!definition) throw new Error(`Неизвестная возможность: ${key}`)
     const before = (await this.values()).get(key) ?? true

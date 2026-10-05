@@ -14,7 +14,7 @@ import { createTranslator } from '@kchs/i18n'
 import { and, asc, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { actorId } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { cache, cacheKeys } from '~/shared/redis/index.js'
@@ -94,7 +94,7 @@ function decodeCursor(value: string | undefined): InboxCursor | null {
 }
 
 export const InboxService = {
-  async open(tx: Executor, ctx: Ctx, input: OpenInboxInput): Promise<string> {
+  async open(tx: Tx, ctx: Ctx, input: OpenInboxInput): Promise<string> {
     const dedupeKey = input.dedupeKey ?? `${input.kind}:${input.objectId ?? ''}`
     const id = newId()
     // Служебной учётной записи дела не открываются: действовать по ним некому (ADR-0130)
@@ -171,7 +171,7 @@ export const InboxService = {
    * Закрывает и копии, выданные заместителям.
    */
   async resolve(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     selector: {
       objectId?: string

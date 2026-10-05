@@ -19,7 +19,7 @@ import { LinkService } from '~/kernel/links/service.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import type { Ctx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors, isAppError } from '~/shared/errors.js'
 import { logger } from '~/shared/logger/index.js'
 import { dashboards } from '../schema.js'
@@ -68,7 +68,7 @@ const emptyTile = (patch: Partial<DashboardTileData>): DashboardTileData => ({
  * данные плиток — одним запросом, каждая плитка — с правами смотрящего.
  */
 export const DashboardService = {
-  async create(tx: Executor, ctx: Ctx, input: DashboardCreateInput): Promise<string> {
+  async create(tx: Tx, ctx: Ctx, input: DashboardCreateInput): Promise<string> {
     await assertTiles(ctx, input.spec)
     const object = await ObjectService.create(tx, ctx, {
       type: 'dashboard',
@@ -105,7 +105,7 @@ export const DashboardService = {
     }
   },
 
-  async update(tx: Executor, ctx: Ctx, id: string, input: DashboardUpdateInput): Promise<void> {
+  async update(tx: Tx, ctx: Ctx, id: string, input: DashboardUpdateInput): Promise<void> {
     const changed: string[] = []
     if (input.name !== undefined) {
       await ObjectService.update(tx, ctx, id, { title: input.name })

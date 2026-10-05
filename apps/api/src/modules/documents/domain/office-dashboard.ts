@@ -4,7 +4,7 @@ import { visibleObjectsSql } from '~/kernel/access/authorize.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { Dashboards, Metrics } from '~/modules/data/public.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 
 /** Показатели канцелярии (08-documents.md §14, ADR-0086) — ключи `meta.systemKey`. */
 export const OFFICE_METRIC_KEYS = [
@@ -298,7 +298,7 @@ async function existing(executor: Executor, type: 'metric' | 'dashboard', keys: 
  * их дважды. Возвращает id дашборда.
  */
 export async function ensureOfficeDashboard(
-  tx: Executor,
+  tx: Tx,
   ctx: Ctx,
   spaceId: string,
 ): Promise<{ dashboardId: string; created: string[] }> {

@@ -1,5 +1,5 @@
 import { SpaceService } from '~/kernel/spaces/service.js'
-import type { Executor } from '~/shared/db/client.js'
+import type { Tx } from '~/shared/db/client.js'
 
 /** Ключ системного пространства встреч (ADR-0089). */
 export const MEETINGS_SPACE_KEY = 'meetings'
@@ -9,7 +9,7 @@ export const MEETINGS_SPACE_KEY = 'meetings'
  * доступа не даёт, видимость — только по правам самой встречи (участие,
  * организатор, явная запись ACL). Так же устроен документооборот (ADR-0080).
  */
-export async function meetingsSpaceId(tx: Executor): Promise<string> {
+export async function meetingsSpaceId(tx: Tx): Promise<string> {
   return SpaceService.ensureSystem(tx, {
     key: MEETINGS_SPACE_KEY,
     name: 'Встречи',

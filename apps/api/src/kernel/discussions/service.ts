@@ -10,7 +10,7 @@ import {
 import { and, asc, desc, eq, gt, inArray, isNull, lt, sql } from 'drizzle-orm'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { actorId, isGuest } from '~/shared/context.js'
-import { type Database, db, type Executor } from '~/shared/db/client.js'
+import { type Database, db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { authorize } from '../access/authorize.js'
 import { directory } from '../directory/port.js'
@@ -127,7 +127,7 @@ async function isModerator(tx: Executor, ctx: UserCtx, conversationId: string): 
  * Беседа объекта создаётся лениво при первом сообщении.
  */
 export const DiscussionService = {
-  async ensureObjectConversation(tx: Executor, ctx: Ctx, objectId: string): Promise<string> {
+  async ensureObjectConversation(tx: Tx, ctx: Ctx, objectId: string): Promise<string> {
     const [existing] = await tx
       .select({ id: conversations.id })
       .from(conversations)
@@ -174,11 +174,7 @@ export const DiscussionService = {
    * Беседа мессенджера (ADR-0090, ADR-0184): объект реестра и строка беседы в
    * одной транзакции. Состав и событие о создании — у вызывающего модуля.
    */
-  async createConversation(
-    tx: Executor,
-    ctx: Ctx,
-    input: ConversationCreateInput,
-  ): Promise<string> {
+  async createConversation(tx: Tx, ctx: Ctx, input: ConversationCreateInput): Promise<string> {
     const object = await ObjectService.create(tx, ctx, {
       ...(input.id ? { id: input.id } : {}),
       type: 'conversation',
@@ -200,7 +196,7 @@ export const DiscussionService = {
    * встреча, пересылка), рядом с якорем на фрагмент объекта (ADR-0095).
    */
   async post(
-    tx: Executor,
+    tx: Tx,
     ctx: UserCtx,
     conversationId: string,
     input: MessagePostInput,
@@ -308,7 +304,7 @@ export const DiscussionService = {
 
   /** Системное сообщение: «документ отправлен на согласование». */
   async postSystem(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     objectId: string,
     systemKey: string,
@@ -418,13 +414,7 @@ export const DiscussionService = {
    * Правка своего сообщения — в срок `MESSAGE_EDIT_WINDOW_HOURS` (ADR-0161);
    * у сообщения появляется пометка «изменено».
    */
-  async edit(
-    tx: Executor,
-    ctx: UserCtx,
-    messageId: number,
-    body: RichBody,
-    text: string,
-  ): Promise<void> {
+  async edit(tx: Tx, ctx: UserCtx, messageId: number, body: RichBody, text: string): Promise<void> {
     const [row] = await tx.select().from(messages).where(eq(messages.id, messageId)).limit(1)
     if (!row || row.deletedAt) throw errors.notFound('Сообщение')
     if (row.authorId !== ctx.userId) throw errors.forbidden('Редактировать может только автор')
@@ -452,7 +442,7 @@ export const DiscussionService = {
    * Связь вложения с объектом не снимается: тот же файл мог быть прикреплён
    * к объекту и помимо сообщения (ADR-0161).
    */
-  async remove(tx: Executor, ctx: UserCtx, messageId: number): Promise<void> {
+  async remove(tx: Tx, ctx: UserCtx, messageId: number): Promise<void> {
     const [row] = await tx.select().from(messages).where(eq(messages.id, messageId)).limit(1)
     if (!row || row.deletedAt) throw errors.notFound('Сообщение')
     if (row.kind === 'system') throw errors.forbidden('Служебное сообщение не удаляется')
@@ -490,13 +480,7 @@ export const DiscussionService = {
    * Реакция ставится или снимается; событие — только если что-то изменилось,
    * чтобы соседи по обсуждению увидели её без перезагрузки.
    */
-  async react(
-    tx: Executor,
-    ctx: UserCtx,
-    messageId: number,
-    emoji: string,
-    on: boolean,
-  ): Promise<void> {
+  async react(tx: Tx, ctx: UserCtx, messageId: number, emoji: string, on: boolean): Promise<void> {
     const [message] = await tx
       .select({ conversationId: messages.conversationId, deletedAt: messages.deletedAt })
       .from(messages)

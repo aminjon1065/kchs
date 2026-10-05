@@ -17,7 +17,7 @@ import {
   PrintRequestInput,
 } from '@kchs/contracts'
 import type { Ctx, UserCtx } from '~/shared/context.js'
-import type { Executor } from '~/shared/db/client.js'
+import type { Executor, Tx } from '~/shared/db/client.js'
 import { seedDemoDocuments } from './domain/demo-documents.js'
 import { seedDemoWorkflow } from './domain/demo-workflow.js'
 import { DocumentService } from './domain/document-service.js'
@@ -48,7 +48,7 @@ export const DocumentsPublic = {
    * маршрут и регистрация документа.
    * @public — протокол встречи (ADR-0093)
    */
-  create: (tx: Executor, ctx: Ctx, input: DocumentCreateInput): Promise<string> =>
+  create: (tx: Tx, ctx: Ctx, input: DocumentCreateInput): Promise<string> =>
     DocumentService.create(tx, ctx, DocumentCreateSchema.parse(input)),
 
   /**
@@ -56,7 +56,7 @@ export const DocumentsPublic = {
    * @public — движок процессов второй волны (маршруты согласования и подписи)
    */
   applyTransition: (
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     documentId: string,
     input: TransitionInput,
@@ -69,7 +69,7 @@ export const DocumentsPublic = {
    * @public — участники маршрута и исполнители резолюций (вторая волна)
    */
   setParticipants: (
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     documentId: string,
     source: string,
@@ -86,7 +86,7 @@ export const DocumentsPublic = {
    * исходящим, кладёт свой файл первой версией. Права проверяет сам сервис.
    */
   addVersion: (
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     documentId: string,
     input: { mainFileId: string; note?: string | null },
@@ -98,7 +98,7 @@ export const DocumentsPublic = {
     }),
 
   register: (
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     documentId: string,
     input: DocumentRegisterInput = {},

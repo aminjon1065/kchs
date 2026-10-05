@@ -241,11 +241,9 @@ async function refreshOrg(event: EventEnvelope): Promise<void> {
 /** Задача в корзине — её дела во Входящих больше не ждут действия. */
 async function dismissTrashed(event: EventEnvelope): Promise<void> {
   if (event.object?.type !== 'task') return
-  await InboxService.resolve(
-    db(),
-    systemCtx('tasks.trashed'),
-    { objectId: event.object.id },
-    'dismissed',
+  const objectId = event.object.id
+  await db().transaction((tx) =>
+    InboxService.resolve(tx, systemCtx('tasks.trashed'), { objectId }, 'dismissed'),
   )
 }
 

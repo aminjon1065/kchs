@@ -36,7 +36,7 @@ import { SpaceService } from '~/kernel/spaces/service.js'
 import { DatasetQueries, datasetRecord } from '~/modules/data/public.js'
 import { territoryIndex } from '~/modules/territories/public.js'
 import { actorId, type Ctx, type UserCtx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { AppError, errors } from '~/shared/errors.js'
 import { type TaskSourceValue, tasks } from '../schema.js'
 import { TASKS_AUDIT } from './audit-actions.js'
@@ -145,7 +145,7 @@ function newcomers(before: TaskRow, after: Parameters<typeof participantsOf>[0])
  * участников); иначе личное пространство автора.
  */
 async function spaceFor(
-  tx: Executor,
+  tx: Tx,
   ctx: Ctx,
   input: TaskCreateInput,
   source: ObjectLike | null,
@@ -218,7 +218,7 @@ export interface CreateOptions {
  */
 export const TaskService = {
   async create(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     input: TaskCreateInput,
     options: CreateOptions = {},
@@ -344,7 +344,7 @@ export const TaskService = {
   },
 
   /** Правка полей: у поручения — только автор, у задачи — кто правит. */
-  async update(tx: Executor, ctx: Ctx, id: string, patch: TaskUpdateInput): Promise<void> {
+  async update(tx: Tx, ctx: Ctx, id: string, patch: TaskUpdateInput): Promise<void> {
     const decision = await authorize(ctx, 'edit', id)
     const row = await loadRow(tx, id, true)
     if (!row) throw errors.notFound('Задача')
@@ -434,7 +434,7 @@ export const TaskService = {
    * проект (права — от проекта), подзадачи переезжают вместе с ней. Поручения и части
    * соисполнителей не переносятся: их доступ — у участников, а не у проекта.
    */
-  async moveToProject(tx: Executor, ctx: Ctx, id: string, projectId: string | null): Promise<void> {
+  async moveToProject(tx: Tx, ctx: Ctx, id: string, projectId: string | null): Promise<void> {
     const decision = await authorize(ctx, 'edit', id)
     const row = await loadRow(tx, id, true)
     if (!row) throw errors.notFound('Задача')
@@ -466,7 +466,7 @@ export const TaskService = {
   },
 
   /** Статус обычной задачи (доска): любой статус рабочего процесса, кроме текущего. */
-  async setStatus(tx: Executor, ctx: Ctx, id: string, status: TaskStatus): Promise<void> {
+  async setStatus(tx: Tx, ctx: Ctx, id: string, status: TaskStatus): Promise<void> {
     const decision = await authorize(ctx, 'edit', id)
     const row = await loadRow(tx, id, true)
     if (!row) throw errors.notFound('Задача')
@@ -505,7 +505,7 @@ export const TaskService = {
   },
 
   /** Исполнитель принимает поручение к исполнению — время принятия фиксируется. */
-  async start(tx: Executor, ctx: Ctx, id: string): Promise<void> {
+  async start(tx: Tx, ctx: Ctx, id: string): Promise<void> {
     const { row } = await instructionAction(tx, ctx, id, 'start')
     await tx
       .update(tasks)
@@ -523,7 +523,7 @@ export const TaskService = {
    * части соисполнителей открыты, ответственный не отчитывается: он собирает
    * их результаты (ADR-0082).
    */
-  async report(tx: Executor, ctx: Ctx, id: string, input: TaskReportInput): Promise<void> {
+  async report(tx: Tx, ctx: Ctx, id: string, input: TaskReportInput): Promise<void> {
     const { row } = await instructionAction(tx, ctx, id, 'report')
     await assertPartsClosed(tx, row)
     const objectIds = [...new Set(input.objectIds ?? [])].filter((objectId) => objectId !== id)
@@ -562,7 +562,7 @@ export const TaskService = {
    * меняет. Возвращает, подготовлен ли отчёт.
    */
   async prepareReport(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     id: string,
     draft: { text: string; objectIds: string[]; cause: 'reply_dispatched'; sourceObjectId: string },
@@ -588,7 +588,7 @@ export const TaskService = {
   },
 
   /** Автор или контролёр принимает отчёт — поручение закрыто, Входящие по нему тоже. */
-  async accept(tx: Executor, ctx: Ctx, id: string): Promise<void> {
+  async accept(tx: Tx, ctx: Ctx, id: string): Promise<void> {
     const { row } = await instructionAction(tx, ctx, id, 'accept')
     await assertPartsClosed(tx, row)
     await tx
@@ -602,7 +602,7 @@ export const TaskService = {
   },
 
   /** Возврат на доработку с замечаниями и, при необходимости, новым сроком. */
-  async return(tx: Executor, ctx: Ctx, id: string, input: TaskReturnInput): Promise<void> {
+  async return(tx: Tx, ctx: Ctx, id: string, input: TaskReturnInput): Promise<void> {
     const { row } = await instructionAction(tx, ctx, id, 'return')
     const due = await resolveDue(input, new Date(), tx)
     await tx
@@ -628,7 +628,7 @@ export const TaskService = {
    * Отмена: поручение — только автор, вместе с открытыми частями соисполнителей;
    * обычная задача — статусом «Отменена».
    */
-  async cancel(tx: Executor, ctx: Ctx, id: string, input: TaskCancelInput): Promise<void> {
+  async cancel(tx: Tx, ctx: Ctx, id: string, input: TaskCancelInput): Promise<void> {
     const row = await loadRow(tx, id)
     if (!row) throw errors.notFound('Задача')
     if (row.kind !== 'instruction') {
@@ -645,7 +645,7 @@ export const TaskService = {
    * §4): новый исполнитель заново принимает поручение, прежний теряет права и
    * дела, контроль частей соисполнителей переходит к новому исполнителю.
    */
-  async reassign(tx: Executor, ctx: Ctx, id: string, input: TaskReassignInput): Promise<void> {
+  async reassign(tx: Tx, ctx: Ctx, id: string, input: TaskReassignInput): Promise<void> {
     const { row } = await instructionAction(tx, ctx, id, 'reassign')
     if (input.assigneeId === row.assigneeId) {
       throw errors.validation('Сотрудник уже исполняет это поручение')
@@ -680,7 +680,7 @@ export const TaskService = {
 
   /** Исполнитель просит продлить срок: решение — за автором (ADR-0082). */
   async requestExtension(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     id: string,
     input: TaskExtensionRequestInput,
@@ -691,7 +691,7 @@ export const TaskService = {
 
   /** Автор согласует продление (запрошенный или другой срок) или отказывает. */
   async decideExtension(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     id: string,
     input: TaskExtensionDecisionInput,
@@ -989,12 +989,7 @@ async function instructionAction(
 }
 
 /** Общее после смены статуса поручения: состояние в реестре и событие перехода. */
-async function afterTransition(
-  tx: Executor,
-  ctx: Ctx,
-  row: TaskRow,
-  to: TaskStatus,
-): Promise<void> {
+async function afterTransition(tx: Tx, ctx: Ctx, row: TaskRow, to: TaskStatus): Promise<void> {
   await ObjectService.update(
     tx,
     ctx,
@@ -1031,7 +1026,7 @@ async function assertPartsClosed(tx: Executor, row: TaskRow): Promise<void> {
  * Права участников выдаёт вызывающий одним пересчётом.
  */
 async function changeAssignee(
-  tx: Executor,
+  tx: Tx,
   ctx: Ctx,
   row: TaskRow,
   assigneeId: string,
@@ -1073,7 +1068,7 @@ async function changeAssignee(
 
 /** Контроль открытых частей соисполнителей — у нового ответственного исполнителя. */
 async function retargetParts(
-  tx: Executor,
+  tx: Tx,
   ctx: Ctx,
   parentId: string,
   previous: string | null,
@@ -1097,7 +1092,7 @@ async function retargetParts(
  * исключённых открытые части отменяются.
  */
 async function syncParts(
-  tx: Executor,
+  tx: Tx,
   ctx: Ctx,
   row: TaskRow,
   coAssignees: string[],
@@ -1142,7 +1137,7 @@ async function syncParts(
 
 /** Отмена поручения и его открытых частей: статус, дела, запрос продления. */
 async function cancelInstruction(
-  tx: Executor,
+  tx: Tx,
   ctx: Ctx,
   row: TaskRow,
   comment: string | null,

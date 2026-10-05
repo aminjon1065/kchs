@@ -4,7 +4,7 @@ import { directory } from '~/kernel/directory/port.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { config } from '~/shared/config/index.js'
 import { systemCtx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Tx } from '~/shared/db/client.js'
 import { logger } from '~/shared/logger/index.js'
 import { taskReminders, tasks } from '../schema.js'
 import { emit } from './task-core.js'
@@ -124,7 +124,7 @@ async function doneStages(taskIds: string[]): Promise<Map<string, Set<ReminderSt
  * если его успели принять, отменить или продлить, этапы старого срока не шлются.
  */
 async function fire(
-  tx: Executor,
+  tx: Tx,
   row: DueRow,
   plan: StagePlan,
   afterWorkingDays: number,

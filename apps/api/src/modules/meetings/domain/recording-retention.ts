@@ -16,7 +16,7 @@ import { SettingsService } from '~/kernel/settings/service.js'
 import { deleteObject } from '~/kernel/storage/s3.js'
 import { destroyFiles } from '~/modules/files/public.js'
 import { type Ctx, systemCtx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { logger } from '~/shared/logger/index.js'
 import { meetings, recordings } from '../schema.js'
 
@@ -47,7 +47,7 @@ export const MeetingSettingsService = {
     }
   },
 
-  async update(tx: Executor, ctx: Ctx, next: MeetingSettings): Promise<MeetingSettings> {
+  async update(tx: Tx, ctx: Ctx, next: MeetingSettings): Promise<MeetingSettings> {
     const before = await MeetingSettingsService.current()
     await SettingsService.set(tx, ctx, 'system', null, RETENTION_KEY, next.recordingRetentionMonths)
     await audit(

@@ -9,7 +9,7 @@ import {
 import { loadObject } from '~/kernel/access/authorize.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import type { Ctx } from '~/shared/context.js'
-import type { Executor } from '~/shared/db/client.js'
+import type { Executor, Tx } from '~/shared/db/client.js'
 import { documentParticipants, documents } from '../schema.js'
 
 /**
@@ -54,7 +54,7 @@ const NOTE_PREFIX = 'participant:'
  */
 export const DocumentParticipants = {
   async sync(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     documentId: string,
     source: string,

@@ -1,7 +1,7 @@
 import type { EventEnvelope } from '@kchs/contracts'
 import { EVENT_PAYLOADS, eventDomain, isKnownEventType } from '@kchs/contracts'
 import type { Ctx } from '~/shared/context.js'
-import type { Executor } from '~/shared/db/client.js'
+import type { Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newEventId } from '~/shared/ids.js'
 import { outbox } from './schema.js'
@@ -11,11 +11,7 @@ import type { EventInput } from './types.js'
  * Записывает событие в outbox **в той же транзакции**, что и изменение данных
  * (02-platform-kernel.md §4). Это единственный способ публиковать события.
  */
-export async function publishEvent(
-  tx: Executor,
-  ctx: Ctx,
-  input: EventInput,
-): Promise<EventEnvelope> {
+export async function publishEvent(tx: Tx, ctx: Ctx, input: EventInput): Promise<EventEnvelope> {
   const envelope = buildEnvelope(ctx, input)
   await tx.insert(outbox).values({
     eventId: envelope.id,

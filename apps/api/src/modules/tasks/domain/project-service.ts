@@ -16,7 +16,7 @@ import { publishEvent } from '~/kernel/events/publisher.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import { actorId, type Ctx, type UserCtx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { pgErrorCode, UNIQUE_VIOLATION } from '~/shared/db/pg-error.js'
 import { errors } from '~/shared/errors.js'
 import { projects, tasks } from '../schema.js'
@@ -115,7 +115,7 @@ async function recordsOf(rows: ProjectRow[]): Promise<ProjectRecord[]> {
  * доступ к ним наследуется от проекта.
  */
 export const ProjectService = {
-  async create(tx: Executor, ctx: Ctx, input: ProjectCreateInput): Promise<string> {
+  async create(tx: Tx, ctx: Ctx, input: ProjectCreateInput): Promise<string> {
     await authorize(ctx, 'create_child', input.spaceId)
     const leadId = input.leadId ?? actorId(ctx)
     if (input.leadId) {
@@ -182,7 +182,7 @@ export const ProjectService = {
     return recordsOf(rows)
   },
 
-  async update(tx: Executor, ctx: Ctx, id: string, patch: ProjectUpdateInput): Promise<void> {
+  async update(tx: Tx, ctx: Ctx, id: string, patch: ProjectUpdateInput): Promise<void> {
     await authorize(ctx, 'manage', id)
     if (patch.leadId) {
       const refs = await directory().refs([patch.leadId])

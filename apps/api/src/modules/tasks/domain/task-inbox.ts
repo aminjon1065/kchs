@@ -1,7 +1,7 @@
 import type { InboxItem, InboxKind } from '@kchs/contracts'
 import { InboxService } from '~/kernel/inbox/service.js'
 import type { Ctx } from '~/shared/context.js'
-import type { Executor } from '~/shared/db/client.js'
+import type { Tx } from '~/shared/db/client.js'
 
 type InboxPriority = 'low' | 'normal' | 'high' | 'urgent'
 
@@ -78,13 +78,13 @@ export interface InboxTask {
  */
 export const TaskInbox = {
   /** Исполнителю: принять поручение к исполнению. */
-  async assigned(tx: Executor, ctx: Ctx, task: InboxTask): Promise<void> {
+  async assigned(tx: Tx, ctx: Ctx, task: InboxTask): Promise<void> {
     if (!task.assigneeId) return
     await open(tx, ctx, task, task.assigneeId, 'accept_instruction', 'inbox.tpl.acceptInstruction')
   },
 
   /** Исполнителю: отчитаться (после принятия или возврата на доработку). */
-  async toReport(tx: Executor, ctx: Ctx, task: InboxTask, returned = false): Promise<void> {
+  async toReport(tx: Tx, ctx: Ctx, task: InboxTask, returned = false): Promise<void> {
     if (!task.assigneeId) return
     await open(
       tx,
@@ -97,7 +97,7 @@ export const TaskInbox = {
   },
 
   /** Автору и контролёру: принять отчёт или вернуть. */
-  async reported(tx: Executor, ctx: Ctx, task: InboxTask): Promise<void> {
+  async reported(tx: Tx, ctx: Ctx, task: InboxTask): Promise<void> {
     for (const userId of reviewersOf(task)) {
       await open(tx, ctx, task, userId, 'accept_result', 'inbox.tpl.acceptResult')
     }
@@ -105,7 +105,7 @@ export const TaskInbox = {
 
   /** Автору (решает по продлению): согласовать новый срок или отказать. */
   async extensionRequested(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     task: InboxTask,
     deciderId: string,
@@ -116,7 +116,7 @@ export const TaskInbox = {
 
   /** Закрыть элементы задачи: вида (всем получателям) или все сразу. */
   async close(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     taskId: string,
     selector: { kind?: InboxKind; userId?: string } = {},
@@ -134,7 +134,7 @@ export function reviewersOf(task: InboxTask): string[] {
 }
 
 async function open(
-  tx: Executor,
+  tx: Tx,
   ctx: Ctx,
   task: InboxTask,
   userId: string,

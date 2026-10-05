@@ -2,7 +2,7 @@ import type { InboxItem, Locale } from '@kchs/contracts'
 import { directory } from '~/kernel/directory/port.js'
 import { InboxService } from '~/kernel/inbox/service.js'
 import type { Ctx } from '~/shared/context.js'
-import type { Executor } from '~/shared/db/client.js'
+import type { Tx } from '~/shared/db/client.js'
 import { formatWhen } from './format.js'
 
 /** Кнопки приглашения: да, возможно, нет — из Входящих и из Telegram одним путём. */
@@ -43,7 +43,7 @@ const dedupeKey = (eventId: string) => `event:${eventId}:invite`
  * исключение из участников.
  */
 export const CalendarInbox = {
-  async invite(tx: Executor, ctx: Ctx, event: InviteTarget, userIds: string[]): Promise<void> {
+  async invite(tx: Tx, ctx: Ctx, event: InviteTarget, userIds: string[]): Promise<void> {
     for (const userId of userIds) {
       const profile = await directory().profile(userId)
       await InboxService.open(tx, ctx, {
@@ -66,7 +66,7 @@ export const CalendarInbox = {
 
   /** Закрыть приглашения события: у одного участника или у всех. */
   async close(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     eventId: string,
     userId?: string,
@@ -81,7 +81,7 @@ export const CalendarInbox = {
   },
 
   /** Время встречи изменилось — открытые приглашения переоткрываются с новым сроком. */
-  async reopen(tx: Executor, ctx: Ctx, event: InviteTarget, userIds: string[]): Promise<void> {
+  async reopen(tx: Tx, ctx: Ctx, event: InviteTarget, userIds: string[]): Promise<void> {
     for (const userId of userIds) {
       await InboxService.resolve(
         tx,

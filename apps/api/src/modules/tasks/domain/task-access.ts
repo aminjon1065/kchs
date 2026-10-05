@@ -2,7 +2,7 @@ import { type Level, maxLevel, SPACE_ROLE_DEFAULT_LEVEL, type SpaceRole } from '
 import { eq } from 'drizzle-orm'
 import { grantAccess, readPrincipalsFor, revokeAccess } from '~/kernel/access/acl-service.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
-import type { Executor } from '~/shared/db/client.js'
+import type { Executor, Tx } from '~/shared/db/client.js'
 import { tasks } from '../schema.js'
 
 interface Participants {
@@ -28,7 +28,7 @@ export function participantsOf(row: Participants): string[] {
  * о назначении сообщает сам модуль, а не «с вами поделились».
  */
 export async function syncParticipants(
-  tx: Executor,
+  tx: Tx,
   ctx: Ctx,
   taskId: string,
   ownerId: string | null,

@@ -14,7 +14,7 @@ import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import { DatasetGeo, datasetRecord } from '~/modules/data/public.js'
 import type { Ctx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { layers } from '../schema.js'
 import { defaultStyle } from './style-fields.js'
@@ -86,7 +86,7 @@ async function load(id: string, executor: Executor = db()): Promise<StoredLayer>
 export const LayerService = {
   load,
 
-  async create(tx: Executor, ctx: Ctx, input: LayerCreateInput): Promise<string> {
+  async create(tx: Tx, ctx: Ctx, input: LayerCreateInput): Promise<string> {
     // Автор слоя должен видеть датасет, иначе слой ссылался бы на недоступное
     await authorize(ctx, 'view', input.datasetId)
     const geo = await DatasetGeo.describe(input.datasetId, input.geometryField)
@@ -150,7 +150,7 @@ export const LayerService = {
     }
   },
 
-  async update(tx: Executor, ctx: Ctx, id: string, input: LayerUpdateInput): Promise<void> {
+  async update(tx: Tx, ctx: Ctx, id: string, input: LayerUpdateInput): Promise<void> {
     const layer = await load(id, tx)
     const changed: string[] = []
     if (input.name !== undefined) {

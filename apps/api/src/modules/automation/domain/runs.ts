@@ -13,7 +13,7 @@ import { JobService } from '~/kernel/jobs/service.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import type { Ctx } from '~/shared/context.js'
 import { systemCtx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Tx } from '~/shared/db/client.js'
 import { newId } from '~/shared/ids.js'
 import { logger } from '~/shared/logger/index.js'
 import { ruleDedupe, ruleRuns, rules } from '../schema.js'
@@ -45,7 +45,7 @@ export const RuleRuns = {
    * Ставит запуск в очередь. Возвращает `null`, если запуск по этому событию
    * уже есть: повторная доставка ничего не дублирует.
    */
-  async queue(tx: Executor, ctx: Ctx, input: QueueRunInput): Promise<string | null> {
+  async queue(tx: Tx, ctx: Ctx, input: QueueRunInput): Promise<string | null> {
     const id = newId()
     const inserted = await tx
       .insert(ruleRuns)

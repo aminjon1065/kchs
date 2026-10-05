@@ -1,7 +1,7 @@
 import { TAG_NAME_MAX, TAGS_PER_OBJECT_MAX, type TagColor, type TagView } from '@kchs/contracts'
 import { and, asc, eq, ilike, isNull, or, type SQL, sql } from 'drizzle-orm'
 import type { Ctx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { publishEvent } from '../events/publisher.js'
@@ -63,7 +63,7 @@ export const TagService = {
   },
 
   async add(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     objectId: string,
     input: { name: string; color?: TagColor | null },
@@ -99,7 +99,7 @@ export const TagService = {
     return next
   },
 
-  async remove(tx: Executor, ctx: Ctx, objectId: string, tagId: string): Promise<TagView[]> {
+  async remove(tx: Tx, ctx: Ctx, objectId: string, tagId: string): Promise<TagView[]> {
     const deleted = await tx
       .delete(objectTags)
       .where(and(eq(objectTags.objectId, objectId), eq(objectTags.tagId, tagId)))

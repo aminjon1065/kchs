@@ -15,7 +15,7 @@ import { publishEvent } from '~/kernel/events/publisher.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import type { Ctx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { redis } from '~/shared/redis/index.js'
@@ -161,7 +161,7 @@ export const TerritoryService = {
    * Загрузка справочника: новые коды создаются, существующие не меняются —
    * повторный запуск ничего не делает. Возвращает число созданных единиц.
    */
-  async load(tx: Executor, ctx: Ctx, items: TerritoryInput[]): Promise<number> {
+  async load(tx: Tx, ctx: Ctx, items: TerritoryInput[]): Promise<number> {
     const existing = await tx
       .select({ id: territories.id, code: territories.code })
       .from(territories)
@@ -222,7 +222,7 @@ export const TerritoryService = {
    * Каждая изменённая единица публикует `territory.updated`; возвращает их число.
    */
   async loadBoundaries(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     input: { source: string; units: TerritoryBoundaryInput[] },
   ): Promise<number> {
@@ -335,7 +335,7 @@ export const TerritoryService = {
    * публикует `territory.updated`. Возвращает число изменённых единиц.
    */
   async loadPopulation(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     input: { source: string; date: string; units: TerritoryPopulationInput[] },
   ): Promise<number> {

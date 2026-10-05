@@ -4,7 +4,7 @@ import { buildUserCtxFor } from '~/kernel/access/explain.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import { SpaceService } from '~/kernel/spaces/service.js'
 import { type SystemCtx, systemCtx, type UserCtx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 
 /**
  * Предметный пакет «Чрезвычайные ситуации» (P5-E08, ADR-0128): конфигурация и данные
@@ -107,7 +107,7 @@ export async function findPackObject(
 
 /** Пометить созданный объект ключом пакета — без события: это служебная метка. */
 export async function markPackObject(
-  tx: Executor,
+  tx: Tx,
   ctx: SystemCtx,
   id: string,
   key: string,

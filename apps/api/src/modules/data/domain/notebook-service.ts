@@ -20,7 +20,7 @@ import type { SearchContent } from '~/kernel/objects/registry.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { notebooks } from '../schema.js'
 import { insertCells, type NotebookBody, notebookState, readNotebook } from './notebook-doc.js'
@@ -89,7 +89,7 @@ function searchText(cells: NotebookCell[]): string {
  * пишет сервер совместного редактирования после правок.
  */
 export const NotebookService = {
-  async create(tx: Executor, ctx: Ctx, input: NotebookCreateInput): Promise<string> {
+  async create(tx: Tx, ctx: Ctx, input: NotebookCreateInput): Promise<string> {
     await assertReferences(ctx, input.cells)
     const { state, body } = build({ cells: input.cells, params: input.params })
     const object = await ObjectService.create(tx, ctx, {
@@ -167,7 +167,7 @@ export const NotebookService = {
    * состояния): JSON ячеек и параметров, зависимости, версия объекта и
    * `notebook.updated`. Без изменений в JSON (правка вне раскладки) — ничего.
    */
-  async snapshot(tx: Executor, ctx: Ctx, id: string, doc: Y.Doc): Promise<void> {
+  async snapshot(tx: Tx, ctx: Ctx, id: string, doc: Y.Doc): Promise<void> {
     const next = readNotebook(doc)
     const [row] = await tx
       .select({ cells: notebooks.cells, params: notebooks.params })

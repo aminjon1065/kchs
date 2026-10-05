@@ -11,7 +11,7 @@ import {
 import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm'
 import type { Ctx } from '~/shared/context.js'
 import { actorId } from '~/shared/context.js'
-import { type Database, db, type Executor } from '~/shared/db/client.js'
+import { type Database, db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { users } from '../directory/schema.js'
@@ -48,7 +48,7 @@ export async function grantOwner(tx: Executor, objectId: string, userId: string)
  * «с вами поделились» нет, о деле сообщит модуль.
  */
 export async function grantAccess(
-  tx: Executor,
+  tx: Tx,
   ctx: Ctx,
   objectId: string,
   grants: AclGrantInput[],
@@ -107,7 +107,7 @@ export async function grantAccess(
 }
 
 export async function revokeAccess(
-  tx: Executor,
+  tx: Tx,
   ctx: Ctx,
   objectId: string,
   principal: Principal,
@@ -152,7 +152,7 @@ export async function revokeAccess(
  * ADR-0081): копировать их было бы раскрытием.
  */
 export async function setAccessMode(
-  tx: Executor,
+  tx: Tx,
   ctx: Ctx,
   objectId: string,
   mode: 'inherit' | 'restricted',

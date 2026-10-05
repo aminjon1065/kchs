@@ -246,11 +246,9 @@ async function reindex(event: EventEnvelope): Promise<void> {
 /** Документ в корзине — его дела во Входящих больше не ждут действия. */
 async function dismissTrashed(event: EventEnvelope): Promise<void> {
   if (event.object?.type !== 'document') return
-  await InboxService.resolve(
-    db(),
-    systemCtx('documents.trashed'),
-    { objectId: event.object.id },
-    'dismissed',
+  const objectId = event.object.id
+  await db().transaction((tx) =>
+    InboxService.resolve(tx, systemCtx('documents.trashed'), { objectId }, 'dismissed'),
   )
 }
 

@@ -1,7 +1,7 @@
 import { type SavedView, type ViewCreateInput, ViewDefinition } from '@kchs/contracts'
 import { and, asc, desc, eq, sql } from 'drizzle-orm'
 import type { UserCtx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { authorize, visibleObjectsSql } from '../access/authorize.js'
 import { publishEvent } from '../events/publisher.js'
@@ -26,7 +26,7 @@ export const ViewService = {
     return row.id
   },
 
-  async create(tx: Executor, ctx: UserCtx, input: ViewCreateInput): Promise<SavedView> {
+  async create(tx: Tx, ctx: UserCtx, input: ViewCreateInput): Promise<SavedView> {
     const spaceId =
       input.shared && input.spaceId ? input.spaceId : await ViewService.personalSpaceId(ctx, tx)
     if (input.shared) {
@@ -59,7 +59,7 @@ export const ViewService = {
   },
 
   async update(
-    tx: Executor,
+    tx: Tx,
     ctx: UserCtx,
     id: string,
     patch: { title?: string; definition?: ViewDefinition; pinned?: boolean },

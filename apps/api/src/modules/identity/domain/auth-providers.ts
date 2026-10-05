@@ -10,7 +10,7 @@ import { publishEvent } from '~/kernel/events/publisher.js'
 import type { Ctx } from '~/shared/context.js'
 import { actorId } from '~/shared/context.js'
 import { decryptSecret, encryptSecret } from '~/shared/crypto/secrets.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Tx } from '~/shared/db/client.js'
 import { authProviders } from '../schema.js'
 
 /**
@@ -60,7 +60,7 @@ function safeDecrypt(payload: Buffer): string | null {
 }
 
 async function save(
-  tx: Executor,
+  tx: Tx,
   ctx: Ctx,
   kind: string,
   enabled: boolean,
@@ -126,7 +126,7 @@ export const AuthProviders = {
     }
   },
 
-  async saveDirectory(tx: Executor, ctx: Ctx, input: DirectorySettingsInput): Promise<void> {
+  async saveDirectory(tx: Tx, ctx: Ctx, input: DirectorySettingsInput): Promise<void> {
     const { bindPassword, ...settings } = input
     await save(tx, ctx, LDAP_PROVIDER, settings.enabled, settings, bindPassword)
   },
@@ -147,7 +147,7 @@ export const AuthProviders = {
     }
   },
 
-  async saveSso(tx: Executor, ctx: Ctx, input: SsoSettingsInput): Promise<void> {
+  async saveSso(tx: Tx, ctx: Ctx, input: SsoSettingsInput): Promise<void> {
     const { clientSecret, ...settings } = input
     await save(tx, ctx, OIDC_PROVIDER, settings.enabled, settings, clientSecret)
   },

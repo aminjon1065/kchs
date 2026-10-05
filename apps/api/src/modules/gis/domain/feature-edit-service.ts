@@ -21,7 +21,7 @@ import { publishEvent } from '~/kernel/events/publisher.js'
 import { InboxService } from '~/kernel/inbox/service.js'
 import { DatasetQueries, DatasetRows, type RowWriteAccess } from '~/modules/data/public.js'
 import { actorId, type Ctx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Tx } from '~/shared/db/client.js'
 import { AppError, errors, isAppError } from '~/shared/errors.js'
 import { featureEdits } from '../schema.js'
 import { normalizeGeometry } from './feature-geometry.js'
@@ -186,7 +186,7 @@ async function toEdits(rows: EditRow[], visible: Set<string> | null): Promise<Fe
 
 /** Применение принятой правки строкой датасета — в транзакции решения. */
 async function apply(
-  tx: Executor,
+  tx: Tx,
   ctx: Ctx,
   layer: StoredLayer,
   edit: EditRow,

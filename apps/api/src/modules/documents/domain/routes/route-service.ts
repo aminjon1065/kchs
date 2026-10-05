@@ -24,7 +24,7 @@ import { buildUserCtxFor } from '~/kernel/access/explain.js'
 import { directory } from '~/kernel/directory/port.js'
 import { ProcessDefinitions, ProcessService } from '~/kernel/process/index.js'
 import type { UserCtx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { assertRequisites, validateCardFields } from '../card.js'
 import { DocumentService } from '../document-service.js'
@@ -199,7 +199,7 @@ export const DocumentRoutes = {
    * версии делают хуки поставщика `document`.
    */
   async start(
-    tx: Executor,
+    tx: Tx,
     ctx: UserCtx,
     documentId: string,
     input: DocumentRouteStartInput,

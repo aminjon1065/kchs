@@ -24,7 +24,7 @@ import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import { destroyFiles } from '~/modules/files/public.js'
 import { actorId, type Ctx, type UserCtx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import {
@@ -95,7 +95,7 @@ const refOf = (row: CaseRow): CaseRef => ({
 })
 
 async function emit(
-  tx: Executor,
+  tx: Tx,
   ctx: Ctx,
   row: { id: string; spaceId: string | null; title: string },
   type: string,
@@ -354,7 +354,7 @@ export const CaseService = {
     return new Map(rows.map((row) => [row.id, refOf(row)]))
   },
 
-  async create(tx: Executor, ctx: Ctx, input: CaseCreateInput): Promise<string> {
+  async create(tx: Tx, ctx: Ctx, input: CaseCreateInput): Promise<string> {
     requireCapability(ctx, 'documents.journals.manage')
     await assertUnit(input.unitId)
     await assertTypes(tx, input.documentTypeIds)
@@ -402,7 +402,7 @@ export const CaseService = {
     return object.id
   },
 
-  async update(tx: Executor, ctx: Ctx, id: string, patch: CaseUpdateInput): Promise<void> {
+  async update(tx: Tx, ctx: Ctx, id: string, patch: CaseUpdateInput): Promise<void> {
     await authorize(ctx, 'manage', id)
     const row = await loadCase(tx, id, true)
     if (!row) throw errors.notFound('Дело')
@@ -452,7 +452,7 @@ export const CaseService = {
   },
 
   /** Закрыть дело: подшивать в него больше нельзя (конец года, дело завершено). */
-  async close(tx: Executor, ctx: Ctx, id: string): Promise<void> {
+  async close(tx: Tx, ctx: Ctx, id: string): Promise<void> {
     await authorize(ctx, 'manage', id)
     const row = await loadCase(tx, id, true)
     if (!row) throw errors.notFound('Дело')
@@ -487,7 +487,7 @@ export const CaseService = {
   },
 
   /** Вернуть закрытое дело в работу — пока оно не передано в архив. */
-  async reopen(tx: Executor, ctx: Ctx, id: string): Promise<void> {
+  async reopen(tx: Tx, ctx: Ctx, id: string): Promise<void> {
     await authorize(ctx, 'manage', id)
     const row = await loadCase(tx, id, true)
     if (!row) throw errors.notFound('Дело')
@@ -510,7 +510,7 @@ export const CaseService = {
   },
 
   /** Закрыть открытые дела года, которые ведёт пользователь (конец делопроизводственного года). */
-  async closeYear(tx: Executor, ctx: Ctx, year: number): Promise<number> {
+  async closeYear(tx: Tx, ctx: Ctx, year: number): Promise<number> {
     requireCapability(ctx, 'documents.journals.manage')
     const open = await tx
       .select({ id: cases.id })
@@ -539,7 +539,7 @@ export const CaseService = {
    * Передать закрытое дело в архив: документы дела — «В архиве» (переход
    * жизненного цикла с причиной `archive`), дело — «В архиве».
    */
-  async archive(tx: Executor, ctx: Ctx, id: string): Promise<number> {
+  async archive(tx: Tx, ctx: Ctx, id: string): Promise<number> {
     await authorize(ctx, 'manage', id)
     const row = await loadCase(tx, id, true)
     if (!row) throw errors.notFound('Дело')
@@ -666,7 +666,7 @@ export const CaseService = {
    * исполнения» — `registered → executed → filed` в одной транзакции. Дело
    * блокируется, чтобы закрытие и передача в архив не разошлись с подшивкой.
    */
-  async fileDocument(tx: Executor, ctx: Ctx, documentId: string, caseId: string): Promise<void> {
+  async fileDocument(tx: Tx, ctx: Ctx, documentId: string, caseId: string): Promise<void> {
     await authorize(ctx, 'file', documentId)
     await authorize(ctx, 'file_in', caseId)
     const target = await loadCase(tx, caseId, true)
@@ -730,7 +730,7 @@ export const CaseService = {
    * содержимым, карточки документов остаются описью; дела — «Уничтожено».
    * Номер акта — порядковый в году; каждое дело — в аудит.
    */
-  async destroy(tx: Executor, ctx: Ctx, input: DestructionActInput): Promise<string> {
+  async destroy(tx: Tx, ctx: Ctx, input: DestructionActInput): Promise<string> {
     requireCapability(ctx, 'documents.journals.manage')
     const ids = [...new Set(input.caseIds)]
     const today = todayLocal()

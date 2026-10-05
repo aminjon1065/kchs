@@ -1,5 +1,5 @@
 import { SpaceService } from '~/kernel/spaces/service.js'
-import type { Executor } from '~/shared/db/client.js'
+import type { Tx } from '~/shared/db/client.js'
 
 /** Ключ системного пространства документооборота (ADR-0080). */
 export const DOCUMENTS_SPACE_KEY = 'documents'
@@ -9,7 +9,7 @@ export const DOCUMENTS_SPACE_KEY = 'documents'
  * участников: роль в пространстве доступа не даёт, видимость — только по
  * правам самих объектов. Здесь же папка «Вложения» со сканами и версиями.
  */
-export async function documentsSpaceId(tx: Executor): Promise<string> {
+export async function documentsSpaceId(tx: Tx): Promise<string> {
   return SpaceService.ensureSystem(tx, {
     key: DOCUMENTS_SPACE_KEY,
     name: 'Документооборот',

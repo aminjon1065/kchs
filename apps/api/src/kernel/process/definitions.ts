@@ -22,7 +22,7 @@ import {
 import { and, desc, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { actorId } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { AppError, errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { authorize, loadObject } from '../access/authorize.js'
@@ -229,7 +229,7 @@ export const DefinitionService = {
   },
 
   /** Новый маршрут: черновик версии 1 под ключом определения. */
-  async create(tx: Executor, ctx: Ctx, raw: unknown): Promise<ProcessDraftSaved> {
+  async create(tx: Tx, ctx: Ctx, raw: unknown): Promise<ProcessDraftSaved> {
     const def = parsed(raw)
     const existing = await rowsOf(tx, def.key)
     if (existing.length > 0) throw errors.conflict(`Маршрут с ключом «${def.key}» уже есть`)
@@ -255,7 +255,7 @@ export const DefinitionService = {
   },
 
   /** Сохранить черновик: правка текущего или новый со следующим номером версии. */
-  async saveDraft(tx: Executor, ctx: Ctx, key: string, raw: unknown): Promise<ProcessDraftSaved> {
+  async saveDraft(tx: Tx, ctx: Ctx, key: string, raw: unknown): Promise<ProcessDraftSaved> {
     const def = parsed(raw)
     if (def.key !== key) {
       throw errors.validation('Ключ определения не совпадает с ключом маршрута', [
@@ -306,7 +306,7 @@ export const DefinitionService = {
     return { version: toVersion(saved, await refsOf([saved.createdBy])), issues: allIssues(def) }
   },
 
-  async discardDraft(tx: Executor, ctx: Ctx, key: string): Promise<void> {
+  async discardDraft(tx: Tx, ctx: Ctx, key: string): Promise<void> {
     const removed = await tx
       .delete(processDefinitions)
       .where(and(eq(processDefinitions.key, key), isNull(processDefinitions.publishedAt)))
@@ -329,7 +329,7 @@ export const DefinitionService = {
   },
 
   /** Публикация черновика: новая версия для новых запусков, идущие — по своей. */
-  async publish(tx: Executor, ctx: Ctx, key: string): Promise<ProcessDefinitionVersion> {
+  async publish(tx: Tx, ctx: Ctx, key: string): Promise<ProcessDefinitionVersion> {
     const [draft] = await tx
       .select()
       .from(processDefinitions)
@@ -414,7 +414,7 @@ export const DefinitionService = {
    * только если ключа ещё нет — маршруты, изменённые администратором, сид не
    * трогает. `true` — маршрут создан.
    */
-  async ensurePublished(tx: Executor, ctx: Ctx, raw: unknown): Promise<boolean> {
+  async ensurePublished(tx: Tx, ctx: Ctx, raw: unknown): Promise<boolean> {
     const def = parsed(raw)
     const existing = await rowsOf(tx, def.key)
     if (existing.length > 0) return false

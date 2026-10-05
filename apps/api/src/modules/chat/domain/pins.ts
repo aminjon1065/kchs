@@ -5,7 +5,7 @@ import { directory } from '~/kernel/directory/port.js'
 import { DiscussionQueries } from '~/kernel/discussions/queries.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import type { UserCtx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { chatDrafts, chatPins } from '../schema.js'
 import { loadConversation } from './chat-service.js'
@@ -59,7 +59,7 @@ export const ChatPins = {
   },
 
   async set(
-    tx: Executor,
+    tx: Tx,
     ctx: UserCtx,
     conversationId: string,
     messageId: number,

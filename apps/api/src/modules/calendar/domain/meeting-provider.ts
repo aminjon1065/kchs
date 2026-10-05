@@ -1,5 +1,5 @@
 import type { Ctx } from '~/shared/context.js'
-import type { Executor } from '~/shared/db/client.js'
+import type { Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 
 /** Встреча, которую событие календаря заводит у поставщика. */
@@ -21,16 +21,11 @@ export interface EventMeetingInput {
  */
 export interface OnlineMeetingProvider {
   /** Встреча события: создаётся один раз, дальше только обновляется. */
-  ensureForEvent(tx: Executor, ctx: Ctx, input: EventMeetingInput): Promise<string>
+  ensureForEvent(tx: Tx, ctx: Ctx, input: EventMeetingInput): Promise<string>
   /** Состав участников события изменился — синхронизировать встречу. */
-  setParticipants(
-    tx: Executor,
-    ctx: Ctx,
-    meetingId: string,
-    userIds: readonly string[],
-  ): Promise<void>
+  setParticipants(tx: Tx, ctx: Ctx, meetingId: string, userIds: readonly string[]): Promise<void>
   /** Событие отменено или удалено — встреча закрывается для всех. */
-  cancel(tx: Executor, ctx: Ctx, meetingId: string): Promise<void>
+  cancel(tx: Tx, ctx: Ctx, meetingId: string): Promise<void>
 }
 
 let provider: OnlineMeetingProvider | null = null

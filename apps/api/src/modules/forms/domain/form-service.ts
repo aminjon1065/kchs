@@ -19,7 +19,7 @@ import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import { datasetRecord } from '~/modules/data/public.js'
 import type { UserCtx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { formSubmissions, forms } from '../schema.js'
 import { resolvePeople } from './assignees.js'
@@ -225,7 +225,7 @@ export const FormService = {
     return row
   },
 
-  async create(tx: Executor, ctx: UserCtx, input: FormCreateInput): Promise<string> {
+  async create(tx: Tx, ctx: UserCtx, input: FormCreateInput): Promise<string> {
     await validate(input.definition)
     if (input.runAs) await assertRunAs(input.runAs)
     if (input.enabled) {
@@ -261,7 +261,7 @@ export const FormService = {
     return object.id
   },
 
-  async update(tx: Executor, ctx: UserCtx, id: string, input: FormUpdateInput): Promise<void> {
+  async update(tx: Tx, ctx: UserCtx, id: string, input: FormUpdateInput): Promise<void> {
     const current = await FormService.require(tx, id)
     const changed: string[] = []
     if (input.name !== undefined || input.description !== undefined) {
@@ -314,7 +314,7 @@ export const FormService = {
     })
   },
 
-  async setEnabled(tx: Executor, ctx: UserCtx, id: string, enabled: boolean): Promise<void> {
+  async setEnabled(tx: Tx, ctx: UserCtx, id: string, enabled: boolean): Promise<void> {
     const current = await FormService.require(tx, id)
     if (current.enabled === enabled) return
     if (enabled && current.definition.assignments.length === 0) {

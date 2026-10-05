@@ -8,7 +8,7 @@
  */
 import { EventCreateInput } from '@kchs/contracts'
 import type { UserCtx } from '~/shared/context.js'
-import type { Executor } from '~/shared/db/client.js'
+import type { Tx } from '~/shared/db/client.js'
 import { EventService } from './domain/event-service.js'
 
 export {
@@ -32,7 +32,7 @@ export {
  */
 export const CalendarPublic = {
   createEvent: (
-    tx: Executor,
+    tx: Tx,
     ctx: UserCtx,
     input: {
       title: string

@@ -14,7 +14,7 @@ import { LinkService } from '~/kernel/links/service.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import type { Ctx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { charts, queries } from '../schema.js'
 import { MetricService } from './metric-service.js'
@@ -80,7 +80,7 @@ export async function runChartSpec(
 
 /** Графики — объекты реестра типа `chart` (06-analytics-engine.md §8). */
 export const ChartService = {
-  async create(tx: Executor, ctx: Ctx, input: ChartCreateInput): Promise<string> {
+  async create(tx: Tx, ctx: Ctx, input: ChartCreateInput): Promise<string> {
     const sources = await assertSources(ctx, input.spec)
     const object = await ObjectService.create(tx, ctx, {
       type: 'chart',
@@ -117,7 +117,7 @@ export const ChartService = {
     }
   },
 
-  async update(tx: Executor, ctx: Ctx, id: string, input: ChartUpdateInput): Promise<void> {
+  async update(tx: Tx, ctx: Ctx, id: string, input: ChartUpdateInput): Promise<void> {
     const changed: string[] = []
     if (input.name !== undefined) {
       await ObjectService.update(tx, ctx, id, { title: input.name })

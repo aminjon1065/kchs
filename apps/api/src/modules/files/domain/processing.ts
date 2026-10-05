@@ -6,7 +6,7 @@ import { objects } from '~/kernel/objects/schema.js'
 import { buckets, deleteObject, signedGetUrl } from '~/kernel/storage/s3.js'
 import type { Ctx } from '~/shared/context.js'
 import { systemCtx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { logger } from '~/shared/logger/index.js'
@@ -35,7 +35,7 @@ export const FILE_PROCESS_JOB = { queue: 'render', name: 'file.process' } as con
  * ставится в транзакции версии, результат движок сообщает внутренним маршрутом.
  */
 export const FileProcessing = {
-  async schedule(tx: Executor, ctx: Ctx, target: ProcessTarget): Promise<string> {
+  async schedule(tx: Tx, ctx: Ctx, target: ProcessTarget): Promise<string> {
     return JobService.schedule(tx, ctx, {
       ...FILE_PROCESS_JOB,
       objectId: target.fileId,

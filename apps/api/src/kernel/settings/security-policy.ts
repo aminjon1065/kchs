@@ -1,6 +1,6 @@
 import { SecurityPolicy, type SecurityPolicyPatch } from '@kchs/contracts'
 import type { Ctx } from '~/shared/context.js'
-import type { Executor } from '~/shared/db/client.js'
+import type { Tx } from '~/shared/db/client.js'
 import { AUDIT_ACTIONS, audit } from '../audit/service.js'
 import { SETTING_KEYS, SettingsService } from './service.js'
 
@@ -57,7 +57,7 @@ export const SecurityPolicyService = {
    * (17-security.md §6: «изменения политик»). Кэш процесса сбрасывает вызывающий
    * после коммита — см. `invalidate`.
    */
-  async update(tx: Executor, ctx: Ctx, patch: SecurityPolicyPatch): Promise<SecurityPolicy> {
+  async update(tx: Tx, ctx: Ctx, patch: SecurityPolicyPatch): Promise<SecurityPolicy> {
     const before = fromSettings(await SettingsService.system())
     const after: SecurityPolicy = { ...before }
     for (const field of Object.keys(KEYS) as Field[]) {
@@ -85,7 +85,7 @@ export const SecurityPolicyService = {
    * — в том числе пустой список — повторный запуск не трогает.
    */
   async applyInstallDefault(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
   ): Promise<{ requireMfaRoles: string[]; applied: boolean }> {
     const system = await SettingsService.system()
@@ -101,7 +101,7 @@ export const SecurityPolicyService = {
    * без второго фактора, поэтому умолчание `kchs init` снимается. Политику, которую
    * администратор задал по-своему, демо-сид не трогает.
    */
-  async relaxInstallDefaultForDemo(tx: Executor, ctx: Ctx): Promise<boolean> {
+  async relaxInstallDefaultForDemo(tx: Tx, ctx: Ctx): Promise<boolean> {
     const current = fromSettings(await SettingsService.system())
     if (!sameRoles(current.requireMfaRoles, INSTALL_MFA_ROLES)) return false
     await this.update(tx, ctx, { requireMfaRoles: [] })

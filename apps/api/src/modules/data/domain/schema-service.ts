@@ -12,7 +12,7 @@ import { publishEvent } from '~/kernel/events/publisher.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import type { Ctx } from '~/shared/context.js'
-import type { Executor } from '~/shared/db/client.js'
+import type { Executor, Tx } from '~/shared/db/client.js'
 import { pgErrorCode, UNIQUE_VIOLATION } from '~/shared/db/pg-error.js'
 import { errors } from '~/shared/errors.js'
 import { castExpression, columnName, Physical } from '../infra/physical.js'
@@ -77,7 +77,7 @@ function fieldOf(fields: StoredField[], key: string): StoredField {
  * даёт версию `schema` (ADR-0047), событие — в той же транзакции.
  */
 async function schemaChanged(
-  tx: Executor,
+  tx: Tx,
   ctx: Ctx,
   input: {
     datasetId: string
@@ -125,12 +125,7 @@ async function setFieldCount(tx: Executor, datasetId: string, count: number): Pr
  * физическое имя столбца стабильно; структурные правки — версия `schema`.
  */
 export const SchemaService = {
-  async addField(
-    tx: Executor,
-    ctx: Ctx,
-    datasetId: string,
-    input: DatasetFieldInput,
-  ): Promise<void> {
+  async addField(tx: Tx, ctx: Ctx, datasetId: string, input: DatasetFieldInput): Promise<void> {
     const locked = await lockForSchema(tx, datasetId)
     if (locked.fields.some((field) => field.key === input.key)) {
       throw errors.conflict(`Поле «${input.key}» уже есть`)
@@ -163,7 +158,7 @@ export const SchemaService = {
 
   /** Описание поля: подпись, семантика, формат, справочник, индекс. */
   async updateField(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     datasetId: string,
     key: string,
@@ -233,7 +228,7 @@ export const SchemaService = {
     })
   },
 
-  async removeField(tx: Executor, ctx: Ctx, datasetId: string, key: string): Promise<void> {
+  async removeField(tx: Tx, ctx: Ctx, datasetId: string, key: string): Promise<void> {
     const locked = await lockForSchema(tx, datasetId)
     const field = fieldOf(locked.fields, key)
     if (locked.primaryKey.includes(key)) {
@@ -282,7 +277,7 @@ export const SchemaService = {
    * применение — одна перезапись таблицы, потеря значений — только с согласия.
    */
   async convertField(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     datasetId: string,
     key: string,
@@ -356,12 +351,7 @@ export const SchemaService = {
   },
 
   /** Описание, ключ строки, поля времени и территории, правка и история. */
-  async update(
-    tx: Executor,
-    ctx: Ctx,
-    datasetId: string,
-    input: DatasetUpdateInput,
-  ): Promise<void> {
+  async update(tx: Tx, ctx: Ctx, datasetId: string, input: DatasetUpdateInput): Promise<void> {
     const locked = await lockForSchema(tx, datasetId, false)
     const keyChange =
       input.primaryKey !== undefined &&

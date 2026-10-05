@@ -14,7 +14,7 @@ import { ObjectService } from '~/kernel/objects/service.js'
 import { config } from '~/shared/config/index.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { decryptSecret, encryptSecret, hashToken } from '~/shared/crypto/secrets.js'
-import type { Executor } from '~/shared/db/client.js'
+import type { Tx } from '~/shared/db/client.js'
 import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
@@ -349,7 +349,7 @@ export const Integrations = {
    * в их транзакции: событие `integration.synced` уходит через outbox.
    */
   async recordSync(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     input: {
       integrationId: string

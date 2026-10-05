@@ -27,7 +27,7 @@ import { objects } from '~/kernel/objects/schema.js'
 import { PrintGrants } from '~/kernel/print/grants.js'
 import { buckets, headObject, signedGetUrl } from '~/kernel/storage/s3.js'
 import { type Ctx, systemCtx, type UserCtx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { AppError, errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { logger } from '~/shared/logger/index.js'
@@ -171,7 +171,7 @@ export interface EnqueueRunInput {
  */
 export const ReportRuns = {
   /** Запуск в той же транзакции: запись, задание движка, событие. */
-  async enqueue(tx: Executor, ctx: Ctx, input: EnqueueRunInput): Promise<string> {
+  async enqueue(tx: Tx, ctx: Ctx, input: EnqueueRunInput): Promise<string> {
     const id = newId()
     await tx.insert(reportRuns).values({
       id,
@@ -204,7 +204,7 @@ export const ReportRuns = {
 
   /** Запуск, который не нужен: получатель расписания не видит отчёт. */
   async recordSkipped(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     input: EnqueueRunInput & { reason: string },
   ): Promise<string> {
@@ -511,7 +511,7 @@ export const ReportRuns = {
    * Запуск не выполнен (окончательный сбой задания, нет доступа, завис):
    * статус, причина, `report.run_failed`; служебный токен отзывается.
    */
-  async fail(tx: Executor, runId: string, message: string, skipped: boolean): Promise<void> {
+  async fail(tx: Tx, runId: string, message: string, skipped: boolean): Promise<void> {
     const [row] = await tx
       .update(reportRuns)
       .set({

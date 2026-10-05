@@ -1,7 +1,7 @@
 import { CalendarSettings, type CalendarSettingsInput, type WorkingHours } from '@kchs/contracts'
 import { SettingsService } from '~/kernel/settings/service.js'
 import type { Ctx } from '~/shared/context.js'
-import type { Executor } from '~/shared/db/client.js'
+import type { Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 
 /** Ключ пользовательской настройки календаря. */
@@ -19,7 +19,7 @@ export async function calendarSettings(userId: string): Promise<CalendarSettings
 }
 
 export async function saveCalendarSettings(
-  tx: Executor,
+  tx: Tx,
   ctx: Ctx,
   userId: string,
   patch: CalendarSettingsInput,

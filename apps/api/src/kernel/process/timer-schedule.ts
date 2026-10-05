@@ -1,7 +1,7 @@
 import { hoursDeadline, hoursReminder, type StepDeadline } from '@kchs/process'
 import { config } from '~/shared/config/index.js'
 import { systemCtx } from '~/shared/context.js'
-import type { Executor } from '~/shared/db/client.js'
+import type { Executor, Tx } from '~/shared/db/client.js'
 import { BusinessCalendar } from '../business-calendar/service.js'
 import { endOfLocalDay, localDate, startOfLocalDay } from '../business-calendar/working-days.js'
 import { JobService } from '../jobs/service.js'
@@ -85,7 +85,7 @@ export function nextTimerAt(timers: StepTimers): string | null {
  * Задание таймера — в транзакции шага, в очередь после коммита (ADR-0036).
  * Ключ идемпотентности — шаг и момент: повтор постановки не дублирует задание.
  */
-export async function scheduleTimerJob(tx: Executor, stepId: string, at: string): Promise<void> {
+export async function scheduleTimerJob(tx: Tx, stepId: string, at: string): Promise<void> {
   await JobService.schedule(tx, systemCtx('process.timer'), {
     queue: 'process-timers',
     name: TIMER_JOB,

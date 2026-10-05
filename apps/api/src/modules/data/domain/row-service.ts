@@ -19,7 +19,7 @@ import { publishEvent } from '~/kernel/events/publisher.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { type TerritoryIndex, territoryIndex } from '~/modules/territories/public.js'
 import { actorId, type Ctx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { pgErrorCode, UNIQUE_VIOLATION } from '~/shared/db/pg-error.js'
 import { AppError, errors } from '~/shared/errors.js'
 import { aliasSql, columnSql, historySql, tableSql, typeSql } from '../infra/physical.js'
@@ -238,7 +238,7 @@ export interface RowWriteOptions {
  * Транзакция вызывающего (правка объекта слоя вместе с событием модуля GIS,
  * применение принятой правки, ADR-0076) или своя.
  */
-function inTransaction<T>(outer: Executor | undefined, work: (tx: Executor) => Promise<T>) {
+function inTransaction<T>(outer: Tx | undefined, work: (tx: Tx) => Promise<T>) {
   return outer ? work(outer) : db().transaction(work)
 }
 
@@ -248,7 +248,7 @@ const visibleFields = (storage: DatasetStorage, grant: DatasetGrant) =>
 
 /** Правка строк — версия `edit`, счётчик строк и событие `dataset.rows_changed`. */
 async function rowsChanged(
-  tx: Executor,
+  tx: Tx,
   ctx: Ctx,
   input: {
     datasetId: string
@@ -459,7 +459,7 @@ export const RowService = {
     ctx: Ctx,
     datasetId: string,
     rows: DatasetRowInput[],
-    outer?: Executor,
+    outer?: Tx,
     options: RowWriteOptions = {},
   ): Promise<DatasetRow[]> {
     const { grant, storage, territories } = await writable(ctx, datasetId)
@@ -567,7 +567,7 @@ export const RowService = {
     datasetId: string,
     rowId: string,
     patch: DatasetRowPatch,
-    outer?: Executor,
+    outer?: Tx,
     options: RowWriteOptions = {},
   ): Promise<DatasetRow> {
     const { grant, storage, territories } = await writable(ctx, datasetId)
@@ -698,7 +698,7 @@ export const RowService = {
     ctx: Ctx,
     datasetId: string,
     ids: string[],
-    outer?: Executor,
+    outer?: Tx,
     options: { ver?: number } = {},
   ): Promise<number> {
     const { grant, storage, territories } = await writable(ctx, datasetId)

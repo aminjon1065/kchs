@@ -6,7 +6,7 @@ import { InboxService } from '~/kernel/inbox/service.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import { actorId, type Ctx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { taskDueChanges, tasks } from '../schema.js'
 import { CLOSED, emit, refsOf, type TaskView } from './task-core.js'
@@ -92,7 +92,7 @@ export async function recordDueChange(
  * соисполнителей, чей срок совпадал со сроком основного поручения.
  */
 export async function applyDue(
-  tx: Executor,
+  tx: Tx,
   ctx: Ctx,
   task: TaskView & { key: string; dueAt: string | null },
   next: ResolvedDue,
@@ -131,7 +131,7 @@ export async function applyDue(
 
 /** Части соисполнителей идут за сроком основного поручения, если их срок не меняли отдельно. */
 async function followParent(
-  tx: Executor,
+  tx: Tx,
   ctx: Ctx,
   parent: { id: string; dueAt: string | null },
   next: ResolvedDue,

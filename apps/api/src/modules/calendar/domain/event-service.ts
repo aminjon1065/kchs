@@ -25,7 +25,7 @@ import { objects } from '~/kernel/objects/schema.js'
 import { hiddenSummary, ObjectService } from '~/kernel/objects/service.js'
 import { config } from '~/shared/config/index.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { AppError, errors } from '~/shared/errors.js'
 import {
   calendars,
@@ -311,7 +311,7 @@ function metaOf(row: {
 }
 
 async function emit(
-  tx: Executor,
+  tx: Tx,
   ctx: Ctx,
   view: { id: string; spaceId: string | null; title: string },
   type: EventInput['type'],
@@ -383,7 +383,7 @@ function uidHost(): string {
  * «личное»), строка события, участники с правом `comment`, ресурсы, связи и
  * экземпляры. События публикует вызывающий.
  */
-export async function insertEvent(tx: Executor, ctx: Ctx, spec: EventSpec): Promise<EventRow> {
+export async function insertEvent(tx: Tx, ctx: Ctx, spec: EventSpec): Promise<EventRow> {
   const restricted = spec.visibility !== 'public'
   const startsAt = iso(spec.time.startsAt)
   const endsAt = iso(spec.time.endsAt)
@@ -500,7 +500,7 @@ const transparencyOf = (showAs: 'busy' | 'free') => (showAs === 'free' ? 'transp
 
 /** Календарь, в котором пользователь может создавать события. */
 async function writableCalendar(
-  tx: Executor,
+  tx: Tx,
   ctx: UserCtx,
   calendarId: string | undefined,
 ): Promise<CalendarRow> {
@@ -557,7 +557,7 @@ function timeOfOccurrence(row: EventRow, occurrence: Occurrence): SeriesTime {
 const text = (value: string | null | undefined) => value?.trim() || null
 
 export const EventService = {
-  async create(tx: Executor, ctx: UserCtx, input: EventCreateInput): Promise<string> {
+  async create(tx: Tx, ctx: UserCtx, input: EventCreateInput): Promise<string> {
     const calendar = await writableCalendar(tx, ctx, input.calendarId)
     const timezone = input.timezone ?? calendar.timezone
     const time = timeOf(input, timezone, null)
@@ -629,7 +629,7 @@ export const EventService = {
    * — отдельное событие; «вся серия» — само правило. Возвращает событие,
    * которое правилось (для «это и следующие» — продолжение серии).
    */
-  async update(tx: Executor, ctx: UserCtx, id: string, input: EventUpdateInput): Promise<string> {
+  async update(tx: Tx, ctx: UserCtx, id: string, input: EventUpdateInput): Promise<string> {
     await authorize(ctx, 'edit', id)
     const loaded = await loadEvent(tx, id, true)
     if (!loaded) throw errors.notFound('Событие')
@@ -647,7 +647,7 @@ export const EventService = {
   },
 
   /** Отмена: экземпляр, «это и следующие» или событие целиком (в корзину). */
-  async cancel(tx: Executor, ctx: UserCtx, id: string, input: EventCancelInput): Promise<void> {
+  async cancel(tx: Tx, ctx: UserCtx, id: string, input: EventCancelInput): Promise<void> {
     await authorize(ctx, 'edit', id)
     const loaded = await loadEvent(tx, id, true)
     if (!loaded) throw errors.notFound('Событие')
@@ -718,7 +718,7 @@ export const EventService = {
   },
 
   /** Ответ участника: да, возможно, нет — с комментарием и предложением другого времени. */
-  async respond(tx: Executor, ctx: UserCtx, id: string, input: EventRespondInput): Promise<void> {
+  async respond(tx: Tx, ctx: UserCtx, id: string, input: EventRespondInput): Promise<void> {
     await authorize(ctx, 'view', id)
     const loaded = await loadEvent(tx, id, true)
     if (!loaded) throw errors.notFound('Событие')
@@ -946,7 +946,7 @@ export const EventService = {
 
 /** Правка одного экземпляра серии: время, название, место, описание. */
 async function updateOccurrence(
-  tx: Executor,
+  tx: Tx,
   ctx: UserCtx,
   loaded: LoadedEvent,
   input: EventUpdateInput,
@@ -1024,7 +1024,7 @@ async function updateOccurrence(
 
 /** Правка события целиком (или всей серии). */
 async function updateSeries(
-  tx: Executor,
+  tx: Tx,
   ctx: UserCtx,
   loaded: LoadedEvent,
   input: EventUpdateInput,
@@ -1293,7 +1293,7 @@ async function updateSeries(
  * сбрасываются.
  */
 async function splitSeries(
-  tx: Executor,
+  tx: Tx,
   ctx: UserCtx,
   loaded: LoadedEvent,
   input: EventUpdateInput,

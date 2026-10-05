@@ -18,7 +18,7 @@ import type {
 import type { CompiledQuery } from '@kchs/query'
 import { ObjectService } from '~/kernel/objects/service.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
-import type { Executor } from '~/shared/db/client.js'
+import type { Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { AskService } from './domain/ask-service.js'
 import { DashboardService } from './domain/dashboard-service.js'
@@ -67,7 +67,7 @@ export const Metrics = {
    * модуль находит свой показатель.
    */
   create: (
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     input: MetricCreateInput,
     options: { systemKey?: string } = {},
@@ -83,7 +83,7 @@ export const Metrics = {
  */
 export const Dashboards = {
   create: async (
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     input: DashboardCreateInput,
     options: { systemKey?: string } = {},
@@ -155,7 +155,7 @@ export const DatasetRows = {
     insert: boolean,
   ): Promise<Record<string, unknown>> => RowService.validate(ctx, datasetId, values, insert),
   insert: async (
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     datasetId: string,
     values: Record<string, unknown>,
@@ -167,7 +167,7 @@ export const DatasetRows = {
   },
   /** Правка с версией строки: устаревшая — 409 с текущими значениями и изменёнными полями. */
   update: (
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     datasetId: string,
     rowId: string,
@@ -175,7 +175,7 @@ export const DatasetRows = {
     options: RowWriteOptions = {},
   ): Promise<DatasetRow> => RowService.update(ctx, datasetId, rowId, patch, tx, options),
   /** Удаление строки той версии, что видел пользователь. */
-  remove: (tx: Executor, ctx: Ctx, datasetId: string, rowId: string, ver: number) =>
+  remove: (tx: Tx, ctx: Ctx, datasetId: string, rowId: string, ver: number) =>
     RowService.remove(ctx, datasetId, [rowId], tx, { ver }),
   /**
    * Несколько строк одной записью (сдача табличной формы, ADR-0129): одна версия
@@ -183,7 +183,7 @@ export const DatasetRows = {
    * номером строки. Пустая пачка ничего не пишет.
    */
   insertMany: async (
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     datasetId: string,
     rows: ReadonlyArray<Record<string, unknown>>,
@@ -203,7 +203,7 @@ export const DatasetRows = {
    * при повторной сдаче (ADR-0129). Возвращает число удалённых строк.
    */
   removeMany: async (
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     datasetId: string,
     rowIds: readonly string[],

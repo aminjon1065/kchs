@@ -1,7 +1,7 @@
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm'
 import type { Ctx } from '~/shared/context.js'
 import { actorId } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { publishEvent } from '../events/publisher.js'
 import { settings } from './schema.js'
 
@@ -44,7 +44,7 @@ export const SettingsService = {
   },
 
   async set(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     scope: SettingScope,
     scopeId: string | null,

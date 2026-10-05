@@ -11,7 +11,7 @@ import { audit } from '~/kernel/audit/service.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { SETTING_KEYS, SettingsService } from '~/kernel/settings/service.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { KNOWLEDGE_AUDIT } from './audit-actions.js'
 
@@ -59,7 +59,7 @@ export const HelpService = {
   },
 
   /** Выбор администратора; `null` снимает страницу языка. В аудит — было и стало. */
-  async update(tx: Executor, ctx: Ctx, patch: HelpPagesPatch): Promise<HelpPages> {
+  async update(tx: Tx, ctx: Ctx, patch: HelpPagesPatch): Promise<HelpPages> {
     const before = await stored()
     const after: HelpPages = { ...before, ...patch }
     const chosen = LOCALES.map((locale) => after[locale]).filter(Boolean) as string[]
@@ -77,11 +77,7 @@ export const HelpService = {
   },
 
   /** Сид: корни краткого руководства — языкам, для которых администратор ещё не выбрал. */
-  async ensureDefaults(
-    tx: Executor,
-    ctx: Ctx,
-    roots: Partial<Record<Locale, string>>,
-  ): Promise<number> {
+  async ensureDefaults(tx: Tx, ctx: Ctx, roots: Partial<Record<Locale, string>>): Promise<number> {
     const current = await stored()
     const patch: HelpPagesPatch = {}
     for (const locale of LOCALES) {

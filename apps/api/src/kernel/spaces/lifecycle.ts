@@ -1,7 +1,7 @@
 import { type AnyColumn, and, eq, isNull, ne, notInArray, sql } from 'drizzle-orm'
 import type { Ctx } from '~/shared/context.js'
 import { systemCtx } from '~/shared/context.js'
-import type { Executor } from '~/shared/db/client.js'
+import type { Executor, Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import type { ObjectLike } from '../access/types.js'
 import { JobService } from '../jobs/service.js'
@@ -48,7 +48,7 @@ const sameMoment = (column: AnyColumn, moment: string) =>
   sql`date_trunc('milliseconds', ${column}) = ${moment}::timestamptz`
 
 /** Переиндексация содержимого: удалённое уходит из поиска, восстановленное возвращается. */
-async function reindex(tx: Executor, ctx: Ctx, spaceId: string): Promise<void> {
+async function reindex(tx: Tx, ctx: Ctx, spaceId: string): Promise<void> {
   await JobService.schedule(
     tx,
     systemCtx('space.lifecycle', { initiatorId: ctx.kind === 'user' ? ctx.userId : null }),
@@ -67,7 +67,7 @@ export const SpaceLifecycle = {
   },
 
   /** Содержимое — в архив с той же отметкой, что у пространства (одна транзакция — один now()). */
-  async onArchive(tx: Executor, ctx: Ctx, space: ObjectLike): Promise<void> {
+  async onArchive(tx: Tx, ctx: Ctx, space: ObjectLike): Promise<void> {
     await tx
       .update(objects)
       .set({
@@ -83,7 +83,7 @@ export const SpaceLifecycle = {
    * Удалить можно заархивированное или пустое пространство: живое с содержимым
    * сначала архивируют — так случайное удаление целого отдела невозможно.
    */
-  async beforeTrash(tx: Executor, ctx: Ctx, space: ObjectLike): Promise<void> {
+  async beforeTrash(tx: Tx, ctx: Ctx, space: ObjectLike): Promise<void> {
     await assertManageable(tx, space.id, 'delete')
     if (!space.archivedAt) {
       const [row] = await tx
@@ -120,7 +120,7 @@ export const SpaceLifecycle = {
    * пространства (снимок до восстановления). Заархивированное или удалённое раньше
    * пространства остаётся, где было.
    */
-  async onRestore(tx: Executor, ctx: Ctx, snapshot: ObjectLike): Promise<void> {
+  async onRestore(tx: Tx, ctx: Ctx, snapshot: ObjectLike): Promise<void> {
     if (snapshot.deletedAt) {
       await tx
         .update(objects)

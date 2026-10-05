@@ -10,7 +10,7 @@ import { endOfLocalDay } from '~/kernel/business-calendar/working-days.js'
 import { directory } from '~/kernel/directory/port.js'
 import { config } from '~/shared/config/index.js'
 import type { Ctx } from '~/shared/context.js'
-import type { Executor } from '~/shared/db/client.js'
+import type { Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { DocumentService } from './document-service.js'
 import { DocumentParticipants } from './participants.js'
@@ -37,7 +37,7 @@ const PARTICIPANT_SOURCE = 'acknowledgment'
  */
 export const DocumentAcknowledgments = {
   async request(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     documentId: string,
     input: AcknowledgmentRequestInput,
@@ -102,7 +102,7 @@ export const DocumentAcknowledgments = {
    * Ознакомление при регистрации (правило типа `ackOnRegister`): подразделения
    * типа, а без них — подразделение документа; в транзакции регистрации.
    */
-  async onRegistered(tx: Executor, ctx: Ctx, documentId: string): Promise<void> {
+  async onRegistered(tx: Tx, ctx: Ctx, documentId: string): Promise<void> {
     const document = await DocumentService.load(tx, documentId)
     if (!document) return
     const type = await DocumentTypeService.load(tx, document.typeId)

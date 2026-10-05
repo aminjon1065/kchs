@@ -4,7 +4,7 @@ import { loadObject } from '~/kernel/access/authorize.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { objects } from '~/kernel/objects/schema.js'
 import type { Ctx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { type TaskSourceValue, tasks } from '../schema.js'
 
 /** Сколько поручений источника (документа, объекта) открыто и чем закрыты остальные. */
@@ -71,7 +71,7 @@ export async function sourceStatus(
  * статус. Объект события — сам источник.
  */
 export async function closeSourceIfDone(
-  tx: Executor,
+  tx: Tx,
   ctx: Ctx,
   source: TaskSourceValue | null,
 ): Promise<boolean> {

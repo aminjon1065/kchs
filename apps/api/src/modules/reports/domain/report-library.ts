@@ -21,7 +21,7 @@ import { ObjectService } from '~/kernel/objects/service.js'
 import { getObjectStream } from '~/kernel/storage/s3.js'
 import { fileBriefs, fileBuckets, watermarkLevel } from '~/modules/files/public.js'
 import { actorId, type Ctx, type UserCtx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { reports, reportVersions } from '../schema.js'
@@ -152,7 +152,7 @@ export const ReportVersions = {
   },
 
   async record(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     reportId: string,
     reason: ReportVersionReason,
@@ -195,7 +195,7 @@ export const ReportVersions = {
   },
 
   /** Снимок, только если шаблон изменился с последней версии (формирование, откат). */
-  async recordIfChanged(tx: Executor, ctx: Ctx, reportId: string, reason: ReportVersionReason) {
+  async recordIfChanged(tx: Tx, ctx: Ctx, reportId: string, reason: ReportVersionReason) {
     const body = await currentBody(tx, reportId)
     const [last] = await tx
       .select({
@@ -306,7 +306,7 @@ export const ReportTemplates = {
   },
 
   /** «Сохранить как шаблон» / снять отметку: признак в сводке объекта реестра. */
-  async flag(tx: Executor, ctx: Ctx, reportId: string, template: boolean): Promise<void> {
+  async flag(tx: Tx, ctx: Ctx, reportId: string, template: boolean): Promise<void> {
     const object = await ObjectService.update(
       tx,
       ctx,

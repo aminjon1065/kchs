@@ -2,7 +2,7 @@ import { and, eq, isNull, sql } from 'drizzle-orm'
 import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import type { Ctx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 
 /** Признак системной папки «Вложения» в `objects.meta.system`. */
 export const ATTACHMENTS_FOLDER = 'attachments'
@@ -31,7 +31,7 @@ export const AttachmentsFolder = {
     return row?.id ?? null
   },
 
-  async ensure(tx: Executor, ctx: Ctx, spaceId: string): Promise<string> {
+  async ensure(tx: Tx, ctx: Ctx, spaceId: string): Promise<string> {
     // Одновременные первые вложения в пространстве не создают две папки
     await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`attachments:${spaceId}`}))`)
     const existing = await AttachmentsFolder.find(spaceId, tx)

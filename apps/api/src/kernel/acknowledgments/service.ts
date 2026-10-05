@@ -8,7 +8,7 @@ import type {
 } from '@kchs/contracts'
 import { and, desc, eq, inArray, isNull, lt, or, type SQL, sql } from 'drizzle-orm'
 import { actorId, type Ctx, type UserCtx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { AppError, errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { authorize, loadObject } from '../access/authorize.js'
@@ -110,7 +110,7 @@ export const Acknowledgments = {
    * их открывает движок) и событие `acknowledgment.requested`.
    */
   async request(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     spec: AcknowledgmentRequestSpec,
   ): Promise<AcknowledgmentRequestOutcome> {
@@ -197,7 +197,7 @@ export const Acknowledgments = {
    * отмечаются решением шага (`ProcessService.act`) — маршрут идёт дальше.
    */
   async acknowledge(
-    tx: Executor,
+    tx: Tx,
     ctx: UserCtx,
     objectId: string,
     input: { code?: string | undefined } = {},
@@ -275,7 +275,7 @@ export const Acknowledgments = {
    * одному сотруднику; уведомления шлёт подписчик `acknowledgment.reminded`.
    */
   async remind(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     objectId: string,
     options: { userIds?: readonly string[] | undefined; auto?: boolean } = {},

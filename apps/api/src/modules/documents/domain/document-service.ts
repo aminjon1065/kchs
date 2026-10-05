@@ -36,7 +36,7 @@ import { ProcessDefinitions, ProcessService } from '~/kernel/process/index.js'
 import { territoryIndex } from '~/modules/territories/public.js'
 import { config } from '~/shared/config/index.js'
 import { actorId, type Ctx, systemCtx, type UserCtx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { documentDispatches, documents, journals, registrations } from '../schema.js'
@@ -231,7 +231,7 @@ function assertConfidentiality(ctx: Ctx, type: DocumentTypeRow, value: Confident
 }
 
 async function emit(
-  tx: Executor,
+  tx: Tx,
   ctx: Ctx,
   row: { id: string; spaceId: string | null; title: string },
   type: string,
@@ -245,7 +245,7 @@ async function emit(
 }
 
 /** Продолжение регистрации в той же транзакции (направление на резолюцию, ознакомление). */
-type RegisteredHook = (tx: Executor, ctx: Ctx, documentId: string) => Promise<void>
+type RegisteredHook = (tx: Tx, ctx: Ctx, documentId: string) => Promise<void>
 const registeredHooks: RegisteredHook[] = []
 
 /**
@@ -266,7 +266,7 @@ export function onDocumentRegistered(hook: RegisteredHook): void {
 export const DocumentService = {
   load: loadRow,
 
-  async create(tx: Executor, ctx: Ctx, input: DocumentCreateInput): Promise<string> {
+  async create(tx: Tx, ctx: Ctx, input: DocumentCreateInput): Promise<string> {
     const authorId = actorId(ctx)
     if (!authorId) throw errors.validation('У документа должен быть автор')
     const type = await DocumentTypeService.load(tx, input.typeId)
@@ -498,7 +498,7 @@ export const DocumentService = {
   },
 
   /** Правка карточки: реквизиты, поля типа, участники, гриф. */
-  async update(tx: Executor, ctx: Ctx, id: string, patch: DocumentUpdateInput): Promise<void> {
+  async update(tx: Tx, ctx: Ctx, id: string, patch: DocumentUpdateInput): Promise<void> {
     await authorize(ctx, 'edit', id)
     const row = await loadRow(tx, id, true)
     if (!row) throw errors.notFound('Документ')
@@ -641,7 +641,7 @@ export const DocumentService = {
    * видят документ по наследованию) и становится `registered`.
    */
   async register(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     id: string,
     input: DocumentRegisterInput,
@@ -815,7 +815,7 @@ export const DocumentService = {
    * контроля — при исполнении документа.
    */
   async applyExecutionControl(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     id: string,
     patch: { control?: DocumentControl; deadline?: string | null; controllerId?: string | null },
@@ -854,7 +854,7 @@ export const DocumentService = {
    * зарегистрированный — ещё и способностью делопроизводителя; всегда с
    * обоснованием, в аудит. Дела Входящих по документу закрываются.
    */
-  async cancel(tx: Executor, ctx: Ctx, id: string, input: DocumentCancelInput): Promise<void> {
+  async cancel(tx: Tx, ctx: Ctx, id: string, input: DocumentCancelInput): Promise<void> {
     await authorize(ctx, 'view', id)
     const row = await loadRow(tx, id, true)
     if (!row) throw errors.notFound('Документ')

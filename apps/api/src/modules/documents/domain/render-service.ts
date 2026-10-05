@@ -34,7 +34,7 @@ import {
   watermarkLines,
 } from '~/modules/files/public.js'
 import { systemCtx, type UserCtx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { AppError, errors } from '~/shared/errors.js'
 import { documentRenders, templates } from '../schema.js'
 import { DOCUMENTS_AUDIT } from './audit-actions.js'
@@ -184,7 +184,7 @@ async function toRecords(rows: RenderRow[]): Promise<DocumentRenderRecord[]> {
   })
 }
 
-async function fail(tx: Executor, row: RenderRow, message: string): Promise<void> {
+async function fail(tx: Tx, row: RenderRow, message: string): Promise<void> {
   const [updated] = await tx
     .update(documentRenders)
     .set({ status: 'failed', error: message.slice(0, 1000), finishedAt: sql`now()` })

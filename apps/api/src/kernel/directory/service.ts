@@ -36,7 +36,7 @@ import { secondFactor } from '~/kernel/second-factor/port.js'
 import { SpaceService } from '~/kernel/spaces/service.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { actorId } from '~/shared/context.js'
-import { afterCommit, type Database, db, type Executor } from '~/shared/db/client.js'
+import { afterCommit, type Database, db, type Executor, type Tx } from '~/shared/db/client.js'
 import type { LangTextValue } from '~/shared/db/columns.js'
 import { errors } from '~/shared/errors.js'
 import { newId, randomCode } from '~/shared/ids.js'
@@ -76,7 +76,7 @@ const PROFILE_FIELDS = [
 
 export const UserService = {
   async create(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     input: AdminUserCreateInput,
   ): Promise<{ id: string; temporaryPassword: string | null }> {
@@ -155,7 +155,7 @@ export const UserService = {
     return { id, temporaryPassword: input.password ? null : temporaryPassword }
   },
 
-  async patch(tx: Executor, ctx: Ctx, userId: string, patch: AdminUserPatchInput): Promise<void> {
+  async patch(tx: Tx, ctx: Ctx, userId: string, patch: AdminUserPatchInput): Promise<void> {
     const [current] = await tx.select().from(users).where(eq(users.id, userId)).limit(1)
     if (!current) throw errors.notFound('Пользователь')
     if (current.kind === 'service') {
@@ -292,12 +292,7 @@ export const UserService = {
    * событие `user.updated` и сброс набора принципалов — одной транзакцией
    * вызывающего (ADR-0184): раньше профиль писал модуль входа без события.
    */
-  async updateProfile(
-    tx: Executor,
-    ctx: Ctx,
-    userId: string,
-    patch: ProfileUpdateInput,
-  ): Promise<void> {
+  async updateProfile(tx: Tx, ctx: Ctx, userId: string, patch: ProfileUpdateInput): Promise<void> {
     const values: Record<string, unknown> = {}
     for (const key of PROFILE_FIELDS) {
       if (patch[key] !== undefined) values[key] = patch[key]
@@ -489,7 +484,7 @@ export const UserService = {
    * читает атрибут заново, открытые сокеты перепроверяет вызывающий маршрут.
    */
   async setClearance(
-    tx: Executor,
+    tx: Tx,
     ctx: UserCtx,
     userId: string,
     input: ClearanceInput,
@@ -675,7 +670,7 @@ async function assertTerritory(territoryId: string | null | undefined): Promise<
 }
 
 export const OrgService = {
-  async createUnit(tx: Executor, ctx: Ctx, input: OrgUnitInput): Promise<string> {
+  async createUnit(tx: Tx, ctx: Ctx, input: OrgUnitInput): Promise<string> {
     await assertTerritory(input.territoryId)
     await assertHeadIsPerson(tx, input.headUserId)
     const id = newId()
@@ -711,7 +706,7 @@ export const OrgService = {
     return id
   },
 
-  async updateUnit(tx: Executor, ctx: Ctx, id: string, patch: OrgUnitPatch): Promise<void> {
+  async updateUnit(tx: Tx, ctx: Ctx, id: string, patch: OrgUnitPatch): Promise<void> {
     const [current] = await tx.select().from(orgUnits).where(eq(orgUnits.id, id)).limit(1)
     if (!current) throw errors.notFound('Подразделение')
     await assertTerritory(patch.territoryId)
@@ -951,7 +946,7 @@ export async function rebuildUnitSubtreeClosure(
 
 export const DelegationService = {
   async create(
-    tx: Executor,
+    tx: Tx,
     ctx: UserCtx,
     input: {
       toUserId: string
@@ -1010,7 +1005,7 @@ export const DelegationService = {
     return id
   },
 
-  async stop(tx: Executor, ctx: UserCtx, id: string): Promise<void> {
+  async stop(tx: Tx, ctx: UserCtx, id: string): Promise<void> {
     const [row] = await tx.select().from(delegations).where(eq(delegations.id, id)).limit(1)
     // Постороннему замещение не видно — 404, как недоступный объект (ADR-0187);
     // заместитель о нём знает, ему — понятный отказ
@@ -1092,7 +1087,7 @@ export const GroupService = {
   },
 
   /** Группа, её событие и аудит — в транзакции вызывающего (ADR-0177). */
-  async create(tx: Executor, ctx: Ctx, name: string, description?: string | null): Promise<string> {
+  async create(tx: Tx, ctx: Ctx, name: string, description?: string | null): Promise<string> {
     const id = newId()
     await tx.insert(groups).values({ id, name, description: description ?? null })
     await publishEvent(tx, ctx, {
@@ -1114,7 +1109,7 @@ export const GroupService = {
    * комнаты realtime исключённых перепроверяются (ADR-0169).
    */
   async setMembers(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     groupId: string,
     userIds: string[],
@@ -1189,7 +1184,7 @@ export const GroupService = {
   },
 
   async update(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     groupId: string,
     patch: { name?: string | undefined; description?: string | null | undefined },
@@ -1229,7 +1224,7 @@ export const GroupService = {
  */
 export const PositionService = {
   async create(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     input: { name: LangTextValue; rank: number; unitId?: string | null | undefined },
   ): Promise<string> {
@@ -1252,7 +1247,7 @@ export const PositionService = {
   },
 
   async update(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     id: string,
     patch: {
@@ -1285,7 +1280,7 @@ export const PositionService = {
   },
 
   /** Удаление — только незанятой должности. */
-  async remove(tx: Executor, ctx: Ctx, id: string): Promise<void> {
+  async remove(tx: Tx, ctx: Ctx, id: string): Promise<void> {
     const [taken] = await tx
       .select({ count: sql<number>`count(*)::int` })
       .from(employments)
@@ -1315,7 +1310,7 @@ export const PositionService = {
 }
 
 async function positionChanged(
-  tx: Executor,
+  tx: Tx,
   ctx: Ctx,
   positionId: string,
   name: LangTextValue,

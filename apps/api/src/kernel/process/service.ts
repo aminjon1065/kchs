@@ -22,7 +22,7 @@ import {
 } from '@kchs/process'
 import { and, eq } from 'drizzle-orm'
 import { actorId, type Ctx, type UserCtx } from '~/shared/context.js'
-import type { Executor } from '~/shared/db/client.js'
+import type { Executor, Tx } from '~/shared/db/client.js'
 import { pgErrorCode, UNIQUE_VIOLATION } from '~/shared/db/pg-error.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
@@ -219,7 +219,7 @@ async function lockByStep(tx: Executor, stepId: string): Promise<LoadedInstance>
   return loadInstance(tx, instanceId, { lock: true })
 }
 
-async function prepared(tx: Executor, ctx: Ctx, loaded: LoadedInstance): Promise<Execution> {
+async function prepared(tx: Tx, ctx: Ctx, loaded: LoadedInstance): Promise<Execution> {
   const execution = new Execution(tx, ctx, loaded)
   await execution.objectData()
   return execution
@@ -277,7 +277,7 @@ export const ProcessService = {
    * версия определения, переменные и выбор инициатора, условия запуска.
    * Права проверяет вызывающий (модуль или `POST /processes`).
    */
-  async start(tx: Executor, ctx: Ctx, input: StartProcessInput): Promise<{ instanceId: string }> {
+  async start(tx: Tx, ctx: Ctx, input: StartProcessInput): Promise<{ instanceId: string }> {
     const object = await loadObject(input.objectId, tx)
     if (!object || object.deletedAt) throw errors.notFound()
     if (object.archivedAt) throw errors.conflict('Объект в архиве: маршрут не запускается')
@@ -398,7 +398,7 @@ export const ProcessService = {
   },
 
   /** Решение шага: согласовать, замечания, отклонить, подписать, ознакомиться… */
-  async act(tx: Executor, ctx: UserCtx, input: ActInput): Promise<void> {
+  async act(tx: Tx, ctx: UserCtx, input: ActInput): Promise<void> {
     if (!DECISIONS.includes(input.action)) throw errors.validation('Нет такого действия')
     const loaded = await lockByStep(tx, input.stepId)
     const execution = await prepared(tx, ctx, loaded)
@@ -520,7 +520,7 @@ export const ProcessService = {
    * файлы становятся вложениями объекта (прикрепить можно только свой файл).
    */
   async attachDecision(
-    tx: Executor,
+    tx: Tx,
     ctx: UserCtx,
     loaded: LoadedInstance,
     comment: string | null,
@@ -553,7 +553,7 @@ export const ProcessService = {
 
   /** Добавить согласующего (шаг разрешает): добавляет ждущий решения согласующий. */
   async addAssignee(
-    tx: Executor,
+    tx: Tx,
     ctx: UserCtx,
     input: { stepId: string; userId: string; comment?: string | null | undefined },
   ): Promise<void> {
@@ -577,7 +577,7 @@ export const ProcessService = {
 
   /** Передать свой шаг другому сотруднику (шаг разрешает). */
   async delegate(
-    tx: Executor,
+    tx: Tx,
     ctx: UserCtx,
     input: { stepId: string; userId: string; comment?: string | null | undefined },
   ): Promise<void> {
@@ -608,7 +608,7 @@ export const ProcessService = {
 
   /** Переназначение администратором маршрутов: замена назначенного или назначение пустого шага. */
   async reassign(
-    tx: Executor,
+    tx: Tx,
     ctx: UserCtx,
     input: { stepId: string; fromUserId: string | null; userIds: string[] },
   ): Promise<void> {
@@ -654,7 +654,7 @@ export const ProcessService = {
   },
 
   async changeAssignees(
-    tx: Executor,
+    tx: Tx,
     ctx: UserCtx,
     stepId: string,
     reason: 'added' | 'delegated' | 'reassigned',
@@ -697,7 +697,7 @@ export const ProcessService = {
    * маршрутов; системный контекст (корзина объекта) — без проверки.
    */
   async cancel(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     input: { instanceId: string; reason?: string | null | undefined; outcome?: string },
   ): Promise<void> {
@@ -742,7 +742,7 @@ export const ProcessService = {
    * действие `call` выполнено. Шаги решения завершаются только решениями.
    */
   async completeStep(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     input: { stepId: string; outcome?: string; result?: Record<string, unknown> },
   ): Promise<void> {

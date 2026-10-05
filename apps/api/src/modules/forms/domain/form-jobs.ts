@@ -5,7 +5,7 @@ import { publishEvent } from '~/kernel/events/publisher.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { config } from '~/shared/config/index.js'
 import { systemCtx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Tx } from '~/shared/db/client.js'
 import { newId } from '~/shared/ids.js'
 import { logger } from '~/shared/logger/index.js'
 import { formReminders, formSubmissions, forms } from '../schema.js'
@@ -190,7 +190,7 @@ async function doneStages(ids: string[]): Promise<Map<string, Set<FormStage>>> {
 }
 
 async function fire(
-  tx: Executor,
+  tx: Tx,
   form: FormRow,
   row: DueRow,
   stages: FormStage[],

@@ -7,7 +7,7 @@ import type {
 import { and, asc, between, eq } from 'drizzle-orm'
 import { config } from '~/shared/config/index.js'
 import type { Ctx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { AUDIT_ACTIONS, audit } from '../audit/service.js'
 import { publishEvent } from '../events/publisher.js'
 import { businessCalendar } from './schema.js'
@@ -264,7 +264,7 @@ export const BusinessCalendar = {
 
   /** Задать исключение дня: праздник, перенесённый выходной, рабочий или сокращённый день. */
   async setDay(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     day: string,
     input: BusinessDayInput,
@@ -293,7 +293,7 @@ export const BusinessCalendar = {
   },
 
   /** Снять исключение: день снова по правилу недели. */
-  async clearDay(tx: Executor, ctx: Ctx, day: string, country = DEFAULT_COUNTRY): Promise<boolean> {
+  async clearDay(tx: Tx, ctx: Ctx, day: string, country = DEFAULT_COUNTRY): Promise<boolean> {
     const removed = await tx
       .delete(businessCalendar)
       .where(and(eq(businessCalendar.country, country), eq(businessCalendar.day, day)))

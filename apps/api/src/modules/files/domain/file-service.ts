@@ -19,7 +19,7 @@ import {
   storageKey,
 } from '~/kernel/storage/s3.js'
 import { actorId, type Ctx, type UserCtx } from '~/shared/context.js'
-import { type Database, db, type Executor } from '~/shared/db/client.js'
+import { type Database, db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { filePreviews, files, fileTexts, fileVersions, uploadSessions } from '../schema.js'
@@ -48,7 +48,7 @@ interface NewFileInput {
  * Новый файл в транзакции: объект реестра, запись файла и первая версия,
  * событие `file.uploaded` и задание превью и текста (09-files.md §2–3).
  */
-async function createFile(tx: Executor, ctx: Ctx, input: NewFileInput): Promise<string> {
+async function createFile(tx: Tx, ctx: Ctx, input: NewFileInput): Promise<string> {
   // Вложение без явной папки — в системную папку «Вложения» пространства
   const folderId =
     input.folderId ??
@@ -127,7 +127,7 @@ interface NewVersionInput {
  * (ADR-0112) — активность и уведомления у них одинаковые.
  */
 async function appendVersion(
-  tx: Executor,
+  tx: Tx,
   ctx: Ctx,
   input: NewVersionInput,
 ): Promise<{ number: number }> {
@@ -424,7 +424,7 @@ export const FileService = {
    * превью и, при необходимости, связь-вложение — в транзакции вызывающего.
    */
   async registerGenerated(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     input: {
       fileId: string
@@ -459,7 +459,7 @@ export const FileService = {
    * Права проверяет вызывающий.
    */
   async addStoredVersion(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     input: {
       fileId: string
@@ -482,7 +482,7 @@ export const FileService = {
    * удаляет из хранилища задание, поставленное в той же транзакции: откат
    * ничего не удалит, а сбой после коммита не оставит содержимое навсегда.
    */
-  async destroy(tx: Executor, ctx: Ctx, fileIds: string[]): Promise<number> {
+  async destroy(tx: Tx, ctx: Ctx, fileIds: string[]): Promise<number> {
     const ids = [...new Set(fileIds)]
     if (ids.length === 0) return 0
     const present = await tx
@@ -660,7 +660,7 @@ export const FileService = {
 
   /** Восстановление старой версии создаёт новую (09-files.md §2). */
   async restoreVersion(
-    tx: Executor,
+    tx: Tx,
     ctx: UserCtx,
     fileId: string,
     versionId: string,
@@ -732,7 +732,7 @@ export const FileService = {
   },
 
   async createFolder(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     input: { name: string; spaceId: string; parentId?: string | null },
   ): Promise<FolderRecord> {

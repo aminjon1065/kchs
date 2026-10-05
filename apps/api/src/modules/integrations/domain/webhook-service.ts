@@ -13,7 +13,7 @@ import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { encryptSecret } from '~/shared/crypto/secrets.js'
-import type { Executor } from '~/shared/db/client.js'
+import type { Tx } from '~/shared/db/client.js'
 import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
@@ -293,7 +293,7 @@ export const Webhooks = {
 
   /** Отключение после серии отказов — в отдельной транзакции доставщика. */
   async disable(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     row: WebhookRow,
     reason: string,

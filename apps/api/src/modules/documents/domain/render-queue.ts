@@ -8,7 +8,7 @@ import { publishEvent } from '~/kernel/events/publisher.js'
 import { JobService } from '~/kernel/jobs/service.js'
 import { objects } from '~/kernel/objects/schema.js'
 import type { Ctx } from '~/shared/context.js'
-import type { Executor } from '~/shared/db/client.js'
+import type { Executor, Tx } from '~/shared/db/client.js'
 import { newId } from '~/shared/ids.js'
 import { documentRenders } from '../schema.js'
 
@@ -64,11 +64,7 @@ export interface EnqueueRenderInput {
 }
 
 /** Заказ рендера в транзакции вызывающего: строка, задание движка, событие. */
-export async function enqueueRender(
-  tx: Executor,
-  ctx: Ctx,
-  input: EnqueueRenderInput,
-): Promise<string> {
+export async function enqueueRender(tx: Tx, ctx: Ctx, input: EnqueueRenderInput): Promise<string> {
   const id = newId()
   await tx.insert(documentRenders).values({
     id,

@@ -5,7 +5,7 @@ import { publishEvent } from '~/kernel/events/publisher.js'
 import type { EventInput } from '~/kernel/events/types.js'
 import { objects } from '~/kernel/objects/schema.js'
 import type { Ctx } from '~/shared/context.js'
-import type { Executor } from '~/shared/db/client.js'
+import type { Executor, Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { projects, taskExtensions, tasks } from '../schema.js'
 import type { TaskActor, TaskFacts } from './task-rules.js'
@@ -203,7 +203,7 @@ export function viewOf(row: TaskRow): TaskView {
 }
 
 export async function emit(
-  tx: Executor,
+  tx: Tx,
   ctx: Ctx,
   row: TaskView,
   type: EventInput['type'],

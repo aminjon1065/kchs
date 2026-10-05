@@ -7,7 +7,7 @@ import type {
 } from '@kchs/contracts'
 import { and, desc, eq, gt, isNull, lte, or, sql } from 'drizzle-orm'
 import { actorId, type Ctx } from '~/shared/context.js'
-import { type Database, db, type Executor } from '~/shared/db/client.js'
+import { type Database, db, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { AUDIT_ACTIONS, audit } from '../audit/service.js'
@@ -83,7 +83,7 @@ export const AnnouncementService = {
     return items.map((item, index) => ({ ...item, status: statusOf(rows[index] as Row, now) }))
   },
 
-  async create(tx: Executor, ctx: Ctx, input: AnnouncementCreateInput): Promise<string> {
+  async create(tx: Tx, ctx: Ctx, input: AnnouncementCreateInput): Promise<string> {
     const id = newId()
     await tx.insert(announcements).values({
       id,
@@ -110,7 +110,7 @@ export const AnnouncementService = {
   },
 
   /** Снять с показа: окончание — сейчас. Снятое повторно не меняется. */
-  async withdraw(tx: Executor, ctx: Ctx, id: string): Promise<void> {
+  async withdraw(tx: Tx, ctx: Ctx, id: string): Promise<void> {
     const [row] = await tx
       .select()
       .from(announcements)

@@ -11,7 +11,7 @@ import { ObjectService } from '~/kernel/objects/service.js'
 import { buckets } from '~/kernel/storage/s3.js'
 import { registerGeneratedFile } from '~/modules/files/public.js'
 import { type Ctx, systemCtx, type UserCtx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { logger } from '~/shared/logger/index.js'
@@ -154,7 +154,7 @@ async function toRecord(
  * придёт вебхуком, поэтому статус `ready` ставится не здесь.
  */
 async function finishEgress(
-  tx: Executor,
+  tx: Tx,
   ctx: Ctx,
   row: RecordingRow,
   reason: 'manual' | 'meeting_ended',
@@ -288,7 +288,7 @@ export const RecordingService = {
    * Идущие записи встречи останавливаются вместе с ней: «идущая» запись не
    * должна пережить свою комнату. Вызывается в транзакции завершения встречи.
    */
-  async stopActive(tx: Executor, ctx: Ctx, meetingId: string): Promise<void> {
+  async stopActive(tx: Tx, ctx: Ctx, meetingId: string): Promise<void> {
     const rows = (await selectRecordings(tx).where(
       and(eq(recordings.meetingId, meetingId), inArray(recordings.status, ['starting', 'active'])),
     )) as RecordingRow[]

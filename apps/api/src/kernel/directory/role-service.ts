@@ -4,7 +4,7 @@ import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
 import { roleCapabilities, roles, userRoles } from '~/kernel/directory/schema.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import type { Ctx } from '~/shared/context.js'
-import type { Executor } from '~/shared/db/client.js'
+import type { Executor, Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { assertCanDefineRole, assertCanEditRole } from './role-policy.js'
@@ -48,7 +48,7 @@ async function capabilitiesOf(tx: Executor, roleId: string): Promise<string[]> {
  * она дала бы соседнему запросу закэшировать прежние способности под новой версией.
  */
 export const RoleService = {
-  async create(tx: Executor, ctx: Ctx, input: RoleInput): Promise<{ id: string; key: string }> {
+  async create(tx: Tx, ctx: Ctx, input: RoleInput): Promise<{ id: string; key: string }> {
     assertCanDefineRole(ctx, input.capabilities)
     const key = input.key ?? `role_${newId().replace(/-/g, '').slice(-10)}`
     const [taken] = await tx.select({ id: roles.id }).from(roles).where(eq(roles.key, key)).limit(1)
@@ -85,7 +85,7 @@ export const RoleService = {
   },
 
   async update(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     roleId: string,
     patch: RolePatch,
@@ -128,7 +128,7 @@ export const RoleService = {
     return { capabilitiesChanged: after.join() !== before.join() }
   },
 
-  async remove(tx: Executor, ctx: Ctx, roleId: string): Promise<void> {
+  async remove(tx: Tx, ctx: Ctx, roleId: string): Promise<void> {
     const role = await editableRole(tx, roleId)
     await assertCanEditRole(tx, ctx, role.key)
     const [holders] = await tx

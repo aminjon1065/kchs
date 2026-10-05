@@ -19,7 +19,7 @@ import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import { config } from '~/shared/config/index.js'
 import { actorId, type Ctx, type UserCtx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import {
@@ -187,7 +187,7 @@ export const JournalService = {
     return result
   },
 
-  async create(tx: Executor, ctx: Ctx, raw: JournalCreateInput): Promise<string> {
+  async create(tx: Tx, ctx: Ctx, raw: JournalCreateInput): Promise<string> {
     requireCapability(ctx, 'documents.journals.manage')
     const input = JournalCreateInput.parse(raw)
     await assertTypes(tx, input.typeIds)
@@ -234,7 +234,7 @@ export const JournalService = {
     return object.id
   },
 
-  async update(tx: Executor, ctx: Ctx, id: string, patch: JournalUpdateInput): Promise<void> {
+  async update(tx: Tx, ctx: Ctx, id: string, patch: JournalUpdateInput): Promise<void> {
     await authorize(ctx, 'manage', id)
     const current = await JournalService.load(tx, id)
     if (!current) throw errors.notFound('Журнал')
@@ -387,7 +387,7 @@ export const JournalService = {
    * N номеров из того же счётчика одной блокировкой, с примечанием.
    */
   async reserve(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     journalId: string,
     input: JournalReserveInput,
@@ -455,7 +455,7 @@ export const JournalService = {
   },
 
   async cancelReservation(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     journalId: string,
     reservationId: string,

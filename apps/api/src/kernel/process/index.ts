@@ -18,7 +18,7 @@
  */
 import type { ProcessDefinition, ProcessPreview, ProcessPreviewInput } from '@kchs/process'
 import type { Ctx, UserCtx } from '~/shared/context.js'
-import type { Executor } from '~/shared/db/client.js'
+import type { Executor, Tx } from '~/shared/db/client.js'
 import { registerProcessConfigSection } from './config-section.js'
 import { DefinitionService } from './definitions.js'
 import { registerProcessInboxActions } from './inbox.js'
@@ -60,7 +60,7 @@ export const ProcessDefinitions = {
     DefinitionService.publishedFor(executor, objectType),
   preview: (ctx: UserCtx, input: ProcessPreviewInput): Promise<ProcessPreview> =>
     DefinitionService.preview(ctx, input),
-  ensure: (tx: Executor, ctx: Ctx, definition: unknown): Promise<boolean> =>
+  ensure: (tx: Tx, ctx: Ctx, definition: unknown): Promise<boolean> =>
     DefinitionService.ensurePublished(tx, ctx, definition),
 }
 

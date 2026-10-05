@@ -8,7 +8,7 @@ import { and, desc, eq, sql } from 'drizzle-orm'
 import { audit } from '~/kernel/audit/service.js'
 import type { Ctx } from '~/shared/context.js'
 import { actorId } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { pgErrorCode, UNIQUE_VIOLATION } from '~/shared/db/pg-error.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
@@ -29,12 +29,7 @@ type ExtensionRow = typeof taskExtensions.$inferSelect
  * продление ставит отметку «продлено» для контроля.
  */
 export const TaskExtensions = {
-  async request(
-    tx: Executor,
-    ctx: Ctx,
-    row: TaskRow,
-    input: TaskExtensionRequestInput,
-  ): Promise<string> {
+  async request(tx: Tx, ctx: Ctx, row: TaskRow, input: TaskExtensionRequestInput): Promise<string> {
     const requested = (await resolveDue(input, new Date(), tx)) as ResolvedDue
     if (!requested.dueAt) throw errors.validation('Укажите желаемый срок')
     if (row.dueAt && new Date(requested.dueAt).getTime() <= new Date(row.dueAt).getTime()) {
@@ -97,12 +92,7 @@ export const TaskExtensions = {
     return id
   },
 
-  async decide(
-    tx: Executor,
-    ctx: Ctx,
-    row: TaskRow,
-    input: TaskExtensionDecisionInput,
-  ): Promise<void> {
+  async decide(tx: Tx, ctx: Ctx, row: TaskRow, input: TaskExtensionDecisionInput): Promise<void> {
     const pending = await pendingOf(tx, row.id, true)
     if (!pending) throw errors.conflict('Запроса продления, ждущего решения, нет')
     const decidedBy = actorId(ctx)
@@ -195,7 +185,7 @@ export const TaskExtensions = {
   },
 
   /** Поручение закрыто, отменено или переназначено — запрос продления снимается. */
-  async cancelPending(tx: Executor, ctx: Ctx, taskId: string): Promise<void> {
+  async cancelPending(tx: Tx, ctx: Ctx, taskId: string): Promise<void> {
     const cancelled = await tx
       .update(taskExtensions)
       .set({ status: 'cancelled', decidedAt: sql`now()` })

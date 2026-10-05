@@ -1,7 +1,7 @@
 import type { DocumentStatus } from '@kchs/contracts'
 import { eq } from 'drizzle-orm'
 import type { Ctx } from '~/shared/context.js'
-import type { Executor } from '~/shared/db/client.js'
+import type { Executor, Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { documents } from '../../schema.js'
 import { applyTransition } from '../lifecycle.js'
@@ -64,7 +64,7 @@ export async function currentStatus(
  * регистрация без подписи), останавливается ошибкой, а не портит статус.
  */
 export async function ensureRouteStatus(
-  tx: Executor,
+  tx: Tx,
   ctx: Ctx,
   documentId: string,
   target: RouteTarget,

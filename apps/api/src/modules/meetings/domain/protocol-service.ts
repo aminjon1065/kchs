@@ -33,7 +33,7 @@ import { ObjectService } from '~/kernel/objects/service.js'
 import { DocumentsPublic } from '~/modules/documents/public.js'
 import { Instructions } from '~/modules/tasks/public.js'
 import { type Ctx, systemCtx, type UserCtx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { AppError, errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { meetings, protocols } from '../schema.js'
@@ -58,12 +58,7 @@ export const REVIEW_INBOX_KIND = 'review_protocol'
 const SECRETARY_NOTE = 'meeting:secretary'
 
 /** Право секретаря править протокол — своя запись `edit` поверх наследуемых от встречи. */
-async function grantSecretary(
-  tx: Executor,
-  ctx: Ctx,
-  protocolId: string,
-  userId: string,
-): Promise<void> {
+async function grantSecretary(tx: Tx, ctx: Ctx, protocolId: string, userId: string): Promise<void> {
   await grantAccess(
     tx,
     ctx,
@@ -168,7 +163,7 @@ export const ProtocolService = {
    * «Проверить протокол» после неё. Права наследуются от встречи: участник
    * видит и правит протокол, организатор — подтверждает.
    */
-  async ensure(tx: Executor, ctx: Ctx, meetingId: string): Promise<string> {
+  async ensure(tx: Tx, ctx: Ctx, meetingId: string): Promise<string> {
     const existing = await byMeeting(tx, meetingId)
     if (existing) return existing.id
     const [meeting] = await tx
@@ -210,7 +205,7 @@ export const ProtocolService = {
    * получает; протокол заводится сразу — секретарю есть что вести.
    */
   async syncSecretary(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     meetingId: string,
     previousId: string | null,
@@ -537,7 +532,7 @@ export const ProtocolService = {
    * состояния): JSON блоков и резюме, версия объекта и `protocol.updated`.
    * Подтверждённый протокол правкам не подлежит — снимок его не меняет.
    */
-  async snapshot(tx: Executor, ctx: Ctx, id: string, doc: Y.Doc): Promise<void> {
+  async snapshot(tx: Tx, ctx: Ctx, id: string, doc: Y.Doc): Promise<void> {
     const next = readProtocol(doc)
     const row = await load(tx, id)
     if (!row || row.status === 'confirmed') return

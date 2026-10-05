@@ -1,7 +1,7 @@
 import type { ObjectType } from '@kchs/contracts'
 import type * as Y from 'yjs'
 import type { Ctx } from '~/shared/context.js'
-import type { Executor } from '~/shared/db/client.js'
+import type { Executor, Tx } from '~/shared/db/client.js'
 
 /**
  * Тип объекта с совместным редактированием (ADR-0070). Модуль регистрирует его
@@ -21,7 +21,7 @@ export interface CollabTypeDefinition {
    * свою таблицу, версию объекта и доменное событие. Документ пишут клиенты —
    * снимок не доверяет его содержимому и не бросает исключений из-за него.
    */
-  snapshot: (tx: Executor, ctx: Ctx, objectId: string, doc: Y.Doc) => Promise<void>
+  snapshot: (tx: Tx, ctx: Ctx, objectId: string, doc: Y.Doc) => Promise<void>
 }
 
 /** Канал Redis: подписчик событий (worker) просит api перепроверить подключения к объекту. */

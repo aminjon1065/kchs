@@ -15,7 +15,7 @@ import { ObjectService } from '~/kernel/objects/service.js'
 import { SpaceService } from '~/kernel/spaces/service.js'
 import { config } from '~/shared/config/index.js'
 import { actorId, type Ctx, systemCtx, type UserCtx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { AppError, errors } from '~/shared/errors.js'
 import { logger } from '~/shared/logger/index.js'
 import {
@@ -129,7 +129,7 @@ async function recordsOf(ctx: UserCtx, rows: SeriesRow[]): Promise<TaskSeriesRec
  * и серия, чей автор их потерял, встаёт на паузу с причиной.
  */
 export const TaskSeriesService = {
-  async create(tx: Executor, ctx: UserCtx, input: TaskSeriesCreateInput): Promise<string> {
+  async create(tx: Tx, ctx: UserCtx, input: TaskSeriesCreateInput): Promise<string> {
     const authorId = actorId(ctx)
     if (!authorId) throw errors.validation('У серии должен быть автор')
     const template = input.template
@@ -212,7 +212,7 @@ export const TaskSeriesService = {
   },
 
   /** Правка шаблона и правила — для будущих экземпляров; созданные остаются как есть. */
-  async update(tx: Executor, ctx: Ctx, id: string, patch: TaskSeriesPatch): Promise<void> {
+  async update(tx: Tx, ctx: Ctx, id: string, patch: TaskSeriesPatch): Promise<void> {
     await authorize(ctx, 'edit', id)
     const row = await loadSeries(tx, id, true)
     if (!row) throw errors.notFound('Серия')
@@ -259,7 +259,7 @@ export const TaskSeriesService = {
   },
 
   /** Пауза, возобновление, остановка. Остановленную серию не возобновить. */
-  async setStatus(tx: Executor, ctx: Ctx, id: string, status: TaskSeriesStatus): Promise<void> {
+  async setStatus(tx: Tx, ctx: Ctx, id: string, status: TaskSeriesStatus): Promise<void> {
     await authorize(ctx, 'edit', id)
     const row = await loadSeries(tx, id, true)
     if (!row) throw errors.notFound('Серия')
@@ -298,7 +298,7 @@ export const TaskSeriesService = {
   },
 }
 
-async function pause(tx: Executor, id: string, reason: string): Promise<'paused'> {
+async function pause(tx: Tx, id: string, reason: string): Promise<'paused'> {
   await tx
     .update(taskSeries)
     .set({ status: 'paused', statusReason: reason.slice(0, 500), nextRunAt: null })
@@ -312,7 +312,7 @@ async function pause(tx: Executor, id: string, reason: string): Promise<'paused'
 }
 
 async function runOne(
-  tx: Executor,
+  tx: Tx,
   id: string,
   now: Date,
 ): Promise<'created' | 'skipped' | 'paused' | 'stopped'> {

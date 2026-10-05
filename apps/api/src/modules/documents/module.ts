@@ -12,7 +12,7 @@ import { declareSchedule } from '~/kernel/schedules/index.js'
 import { registerSystemDataset } from '~/kernel/system-datasets.js'
 import { registerCalendarProjection } from '~/modules/calendar/public.js'
 import type { Ctx } from '~/shared/context.js'
-import type { Executor } from '~/shared/db/client.js'
+import type { Tx } from '~/shared/db/client.js'
 import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
@@ -47,7 +47,7 @@ import { correspondents, documents, documentTypes, journals, templates } from '.
 const LEVELS = ['view', 'comment', 'edit', 'manage', 'owner'] as const
 
 /** После регистрации — на резолюцию по правилу типа (ADR-0084). */
-async function requestResolution(tx: Executor, ctx: Ctx, documentId: string): Promise<void> {
+async function requestResolution(tx: Tx, ctx: Ctx, documentId: string): Promise<void> {
   await ResolutionService.requestByTypeRule(tx, ctx, documentId)
 }
 

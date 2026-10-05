@@ -5,7 +5,7 @@ import { LinkService } from '~/kernel/links/service.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import type { Ctx } from '~/shared/context.js'
-import type { Executor } from '~/shared/db/client.js'
+import type { Executor, Tx } from '~/shared/db/client.js'
 import { type TaskSourceValue, tasks } from '../schema.js'
 import { participantsOf, refreshViewers, syncParticipants } from './task-access.js'
 import { CLOSED, emit, metaOf, type ProjectInfo } from './task-core.js'
@@ -49,7 +49,7 @@ export interface TaskSpec {
  * и Входящие исполнителя. Соисполнители поручения получают части «в части
  * касающейся» — поручения-потомки с контролем у ответственного исполнителя.
  */
-export async function insertTask(tx: Executor, ctx: Ctx, spec: TaskSpec): Promise<string> {
+export async function insertTask(tx: Tx, ctx: Ctx, spec: TaskSpec): Promise<string> {
   const status = initialStatus(spec.kind, spec.project?.workflow)
   const key = await nextTaskKey(tx, { kind: spec.kind, project: spec.project })
   const dueAt = spec.due?.dueAt ?? null
@@ -164,7 +164,7 @@ export type PartParent = TaskSpec & { id: string }
  * В реестре часть — дочерний объект основного поручения и наследует его права.
  */
 export async function createParts(
-  tx: Executor,
+  tx: Tx,
   ctx: Ctx,
   parent: PartParent,
   coAssignees: string[],

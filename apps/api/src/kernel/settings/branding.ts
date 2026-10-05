@@ -1,6 +1,6 @@
 import { Branding, type BrandingPatch } from '@kchs/contracts'
 import type { Ctx } from '~/shared/context.js'
-import type { Executor } from '~/shared/db/client.js'
+import type { Tx } from '~/shared/db/client.js'
 import { AUDIT_ACTIONS, audit } from '../audit/service.js'
 import { SETTING_KEYS, SettingsService } from './service.js'
 
@@ -43,7 +43,7 @@ export const BrandingService = {
   },
 
   /** Изменение — в аудит с состоянием до и после; логотип там только по размеру. */
-  async update(tx: Executor, ctx: Ctx, patch: BrandingPatch): Promise<Branding> {
+  async update(tx: Tx, ctx: Ctx, patch: BrandingPatch): Promise<Branding> {
     const before = fromSettings(await SettingsService.system())
     const after: Branding = { ...before }
     for (const field of Object.keys(KEYS) as Field[]) {

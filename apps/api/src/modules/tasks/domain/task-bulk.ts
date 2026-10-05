@@ -1,19 +1,14 @@
 import type { TaskBulkAction, TaskBulkInput, TaskBulkResult } from '@kchs/contracts'
 import { inArray } from 'drizzle-orm'
 import type { UserCtx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Tx } from '~/shared/db/client.js'
 import { AppError, errors } from '~/shared/errors.js'
 import { tasks } from '../schema.js'
 import { loadRow } from './task-core.js'
 import { TaskService } from './task-service.js'
 
 /** Одно действие над одной задачей — теми же операциями, что и из карточки. */
-async function applyOne(
-  tx: Executor,
-  ctx: UserCtx,
-  id: string,
-  action: TaskBulkAction,
-): Promise<void> {
+async function applyOne(tx: Tx, ctx: UserCtx, id: string, action: TaskBulkAction): Promise<void> {
   const row = await loadRow(tx, id)
   if (!row) throw errors.notFound('Задача')
   const instruction = row.kind === 'instruction'

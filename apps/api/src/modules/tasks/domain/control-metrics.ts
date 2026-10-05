@@ -3,7 +3,7 @@ import { and, eq, inArray, sql } from 'drizzle-orm'
 import { objects } from '~/kernel/objects/schema.js'
 import { Metrics } from '~/modules/data/public.js'
 import type { Ctx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 
 /** Только основные поручения: части соисполнителей считаются вместе с ними. */
 const MAIN = { field: 'is_part', op: 'is_false' } as const
@@ -93,11 +93,7 @@ export async function controlMetricsState(executor: Executor = db()): Promise<Co
  * Завести показатели контроля в пространстве (seed, консоль): уже заведённые
  * по ключу `systemKey` не повторяются.
  */
-export async function ensureControlMetrics(
-  tx: Executor,
-  ctx: Ctx,
-  spaceId: string,
-): Promise<string[]> {
+export async function ensureControlMetrics(tx: Tx, ctx: Ctx, spaceId: string): Promise<string[]> {
   const keys = KEYS
   // Два одновременных запуска не заводят показатели дважды
   await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext('tasks:control-metrics'))`)

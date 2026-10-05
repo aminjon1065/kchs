@@ -17,7 +17,7 @@ import {
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import { objects } from '~/kernel/objects/schema.js'
 import type { Ctx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { CLOSED } from './domain/task-core.js'
 import { TaskService } from './domain/task-service.js'
 import { type InstructionSourceStatus, sourceStatus } from './domain/task-source.js'
@@ -84,7 +84,7 @@ export interface CreatedInstruction {
  *   модуля документов переводит документ в `executed`.
  */
 export const Instructions = {
-  async create(tx: Executor, ctx: Ctx, input: InstructionInput): Promise<CreatedInstruction> {
+  async create(tx: Tx, ctx: Ctx, input: InstructionInput): Promise<CreatedInstruction> {
     const parsed = TaskCreateInput.parse({
       kind: 'instruction',
       title: input.title,
@@ -156,7 +156,7 @@ export const Instructions = {
 
   /** Готовый отчёт исполнителю: отправляет его одной кнопкой (ADR-0136). */
   prepareReport: (
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     taskId: string,
     draft: { text: string; objectIds: string[]; cause: 'reply_dispatched'; sourceObjectId: string },
@@ -190,10 +190,10 @@ export const Instructions = {
  * @public — правила автоматизации (действия `set_status`, `assign`)
  */
 export const Tasks = {
-  setStatus: (tx: Executor, ctx: Ctx, taskId: string, status: TaskStatus): Promise<void> =>
+  setStatus: (tx: Tx, ctx: Ctx, taskId: string, status: TaskStatus): Promise<void> =>
     TaskService.setStatus(tx, ctx, taskId, status),
-  reassign: (tx: Executor, ctx: Ctx, taskId: string, input: TaskReassignInput): Promise<void> =>
+  reassign: (tx: Tx, ctx: Ctx, taskId: string, input: TaskReassignInput): Promise<void> =>
     TaskService.reassign(tx, ctx, taskId, TaskReassignInput.parse(input)),
-  setController: (tx: Executor, ctx: Ctx, taskId: string, userId: string): Promise<void> =>
+  setController: (tx: Tx, ctx: Ctx, taskId: string, userId: string): Promise<void> =>
     TaskService.update(tx, ctx, taskId, TaskUpdateInput.parse({ controllerId: userId })),
 }

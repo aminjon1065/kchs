@@ -4,7 +4,7 @@ import { and, desc, eq, inArray, lt, sql } from 'drizzle-orm'
 import type { Ctx } from '~/shared/context.js'
 import { actorId, systemCtx } from '~/shared/context.js'
 import { issueJobToken } from '~/shared/crypto/job-token.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Tx } from '~/shared/db/client.js'
 import { newId } from '~/shared/ids.js'
 import { logger } from '~/shared/logger/index.js'
 import { createRedisConnection, redis } from '~/shared/redis/index.js'
@@ -78,7 +78,7 @@ type JobRow = typeof jobs.$inferSelect
  * коммитом и очередью не теряет задание.
  */
 export const JobService = {
-  async schedule(tx: Executor, ctx: Ctx, input: EnqueueInput): Promise<string> {
+  async schedule(tx: Tx, ctx: Ctx, input: EnqueueInput): Promise<string> {
     if (input.idempotencyKey) {
       const [existing] = await tx
         .select({ id: jobs.id, status: jobs.status })

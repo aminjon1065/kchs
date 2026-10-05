@@ -21,7 +21,7 @@ import type { SearchContent } from '~/kernel/objects/registry.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { notebookRecord } from '../../data/public.js'
 import { reports } from '../schema.js'
@@ -80,7 +80,7 @@ function settingsOf(value: unknown): ReportSettings {
  * пишет сервер совместного редактирования после правок.
  */
 export const ReportService = {
-  async create(tx: Executor, ctx: Ctx, input: ReportCreateInput): Promise<string> {
+  async create(tx: Tx, ctx: Ctx, input: ReportCreateInput): Promise<string> {
     await assertReferences(ctx, input.blocks)
     const { state, body } = build({
       blocks: input.blocks,
@@ -184,7 +184,7 @@ export const ReportService = {
    * Снимок после совместной правки (ядро вызывает в транзакции записи
    * состояния): JSON шаблона, зависимости, версия объекта и `report.updated`.
    */
-  async snapshot(tx: Executor, ctx: Ctx, id: string, doc: Y.Doc): Promise<void> {
+  async snapshot(tx: Tx, ctx: Ctx, id: string, doc: Y.Doc): Promise<void> {
     const next = readReport(doc)
     const [row] = await tx
       .select({ blocks: reports.blocks, params: reports.params, settings: reports.settings })

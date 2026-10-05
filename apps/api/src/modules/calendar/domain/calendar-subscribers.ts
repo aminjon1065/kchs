@@ -248,11 +248,9 @@ async function lifecycle(event: EventEnvelope): Promise<void> {
   if (event.object?.type !== 'event') return
   const ctx = systemCtx('calendar.lifecycle')
   if (event.type === 'object.trashed') {
-    await InboxService.resolve(
-      db(),
-      ctx,
-      { objectId: event.object.id, kind: 'respond_invite' },
-      'dismissed',
+    const objectId = event.object.id
+    await db().transaction((tx) =>
+      InboxService.resolve(tx, ctx, { objectId, kind: 'respond_invite' }, 'dismissed'),
     )
     return
   }

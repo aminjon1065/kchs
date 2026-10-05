@@ -13,7 +13,7 @@ import { CollabService } from '~/kernel/collab/server.js'
 import { directory } from '~/kernel/directory/port.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { diffText } from '~/shared/text-diff.js'
@@ -63,7 +63,7 @@ export const PageVersions = {
    * (публикация, кнопка, откат). Номер растёт на единицу.
    */
   async snapshot(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     row: PageRow,
     input: { reason: PageVersionReason; note: string | null },

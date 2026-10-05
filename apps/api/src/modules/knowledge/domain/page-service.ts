@@ -29,7 +29,7 @@ import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import { config } from '~/shared/config/index.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { pages } from '../schema.js'
 import { loadPage, type PageRow, pageDependencies, pageOutline, pageText } from './page-core.js'
@@ -114,7 +114,7 @@ export const PageService = {
    * Yjs — первое открытие не строит его из JSON. Права наследуются от родителя
    * (страница или раздел) или от пространства.
    */
-  async create(tx: Executor, ctx: Ctx, input: PageCreateInput, locale: Locale): Promise<string> {
+  async create(tx: Tx, ctx: Ctx, input: PageCreateInput, locale: Locale): Promise<string> {
     const source = input.blocks ?? templateBlocks(input.template, locale)
     await assertReferences(ctx, source)
     const { state, blocks } = buildPageDoc(source)
@@ -345,7 +345,7 @@ export const PageService = {
    * состояния): JSON блоков, зависимости, версия объекта и `page.updated`.
    * Без изменений в JSON (правка вне раскладки) — ничего.
    */
-  async snapshot(tx: Executor, ctx: Ctx, id: string, doc: Y.Doc): Promise<void> {
+  async snapshot(tx: Tx, ctx: Ctx, id: string, doc: Y.Doc): Promise<void> {
     const next = readPage(doc)
     const row = await loadPage(tx, id)
     if (!row || isDeepStrictEqual(row.blocks, next)) return

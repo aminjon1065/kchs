@@ -20,7 +20,7 @@ import { LinkService } from '~/kernel/links/service.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import { actorId, type Ctx, type UserCtx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { documentDispatches, documents, documentTypes } from '../schema.js'
@@ -107,7 +107,7 @@ export const Correspondence = {
    * Исходящий-ответ: черновик наследует корреспондента, подразделение и гриф
    * входящего и связывается с ним `reply_to` — в той же транзакции.
    */
-  async reply(tx: Executor, ctx: UserCtx, sourceId: string, input: DocumentReplyInput) {
+  async reply(tx: Tx, ctx: UserCtx, sourceId: string, input: DocumentReplyInput) {
     await authorize(ctx, 'reply', sourceId)
     const source = await DocumentService.load(tx, sourceId)
     if (!source) throw errors.notFound('Документ')
@@ -147,7 +147,7 @@ export const Correspondence = {
    * исполняется отправкой; следующие отметки — дополнительные адресаты.
    */
   async dispatch(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     documentId: string,
     input: DocumentDispatchInput,

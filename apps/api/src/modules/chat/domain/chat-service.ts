@@ -10,7 +10,7 @@ import { publishEvent } from '~/kernel/events/publisher.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { chatConversations } from '../schema.js'
@@ -53,7 +53,7 @@ function userOf(ctx: UserCtx): string {
 
 /** Участники беседы получают её тихими записями ACL (как участники встречи, ADR-0089). */
 async function grantMembers(
-  tx: Executor,
+  tx: Tx,
   ctx: Ctx,
   conversationId: string,
   userIds: readonly string[],
@@ -89,7 +89,7 @@ export const ChatService = {
    * Личная беседа пары: детерминированный ключ и блокировка на нём не дают
    * появиться второй беседе, если оба написали друг другу одновременно.
    */
-  async ensureDirect(tx: Executor, ctx: UserCtx, peerId: string): Promise<string> {
+  async ensureDirect(tx: Tx, ctx: UserCtx, peerId: string): Promise<string> {
     const me = userOf(ctx)
     if (peerId === me) throw errors.validation('Нельзя начать беседу с самим собой')
     const [peer] = await directory().activeUsers([peerId])
@@ -130,7 +130,7 @@ export const ChatService = {
   },
 
   /** Группа и канал: канал живёт в пространстве, группа — в системном пространстве чатов. */
-  async create(tx: Executor, ctx: UserCtx, input: ChatCreateInput): Promise<string> {
+  async create(tx: Tx, ctx: UserCtx, input: ChatCreateInput): Promise<string> {
     if (input.kind === 'direct') {
       const [peerId] = input.memberIds
       if (!peerId) throw errors.validation('Нужен собеседник')
@@ -184,7 +184,7 @@ export const ChatService = {
    * канал в пространстве `unit`, без владельца; правят администраторы
    * пространства. Идемпотентно по системному ключу.
    */
-  async ensureSpaceChannel(tx: Executor, ctx: Ctx, spaceId: string): Promise<string> {
+  async ensureSpaceChannel(tx: Tx, ctx: Ctx, spaceId: string): Promise<string> {
     const systemKey = `space:${spaceId}`
     await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`chat:${systemKey}`}))`)
     const [existing] = await tx
@@ -221,7 +221,7 @@ export const ChatService = {
   },
 
   /** Вступление в открытый канал: право видеть его даёт пространство. */
-  async join(tx: Executor, ctx: UserCtx, conversationId: string): Promise<void> {
+  async join(tx: Tx, ctx: UserCtx, conversationId: string): Promise<void> {
     const row = await loadConversation(tx, conversationId)
     if (!row) throw errors.notFound('Беседа')
     if (row.kind !== 'channel' || row.privacy !== 'open') {
@@ -240,7 +240,7 @@ export const ChatService = {
   },
 
   /** Выход: из личной беседы и обсуждения объекта не выходят. */
-  async leave(tx: Executor, ctx: UserCtx, conversationId: string): Promise<void> {
+  async leave(tx: Tx, ctx: UserCtx, conversationId: string): Promise<void> {
     const row = await loadConversation(tx, conversationId)
     if (!row) throw errors.notFound('Беседа')
     if (row.kind === 'direct' || row.kind === 'object') {
@@ -263,7 +263,7 @@ export const ChatService = {
 
   /** Приглашение и исключение — право `manage` на беседе (владелец, администратор пространства). */
   async invite(
-    tx: Executor,
+    tx: Tx,
     ctx: UserCtx,
     conversationId: string,
     userIds: readonly string[],
@@ -289,12 +289,7 @@ export const ChatService = {
     return added
   },
 
-  async removeMember(
-    tx: Executor,
-    ctx: UserCtx,
-    conversationId: string,
-    userId: string,
-  ): Promise<void> {
+  async removeMember(tx: Tx, ctx: UserCtx, conversationId: string, userId: string): Promise<void> {
     const row = await loadConversation(tx, conversationId)
     if (!row) throw errors.notFound('Беседа')
     await authorize(ctx, 'manage', conversationId)
@@ -310,7 +305,7 @@ export const ChatService = {
     })
   },
 
-  async rename(tx: Executor, ctx: UserCtx, conversationId: string, title: string): Promise<void> {
+  async rename(tx: Tx, ctx: UserCtx, conversationId: string, title: string): Promise<void> {
     const row = await loadConversation(tx, conversationId)
     if (!row) throw errors.notFound('Беседа')
     if (row.kind === 'direct' || row.kind === 'object') {

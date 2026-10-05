@@ -21,7 +21,7 @@ import {
   registerGeneratedFile,
 } from '~/modules/files/public.js'
 import { type Ctx, systemCtx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { logger } from '~/shared/logger/index.js'
@@ -137,12 +137,7 @@ export const DocumentVersionService = {
    * Новая версия: основной файл и приложения уже прикреплены к документу
    * (загрузка с `attachToObjectId`). Становится текущей; хэш и PDF — заданием.
    */
-  async add(
-    tx: Executor,
-    ctx: Ctx,
-    documentId: string,
-    input: DocumentVersionInput,
-  ): Promise<string> {
+  async add(tx: Tx, ctx: Ctx, documentId: string, input: DocumentVersionInput): Promise<string> {
     await authorize(ctx, 'add_version', documentId)
     const [doc] = await tx
       .select({ status: documents.status, spaceId: objects.spaceId, title: objects.title })

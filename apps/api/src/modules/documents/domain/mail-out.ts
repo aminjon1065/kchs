@@ -19,7 +19,7 @@ import { fileSource } from '~/modules/files/public.js'
 import { MailPublic } from '~/modules/mail/public.js'
 import { config } from '~/shared/config/index.js'
 import { actorId, type Ctx, systemCtx, type UserCtx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { AppError, errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { logger } from '~/shared/logger/index.js'
@@ -187,7 +187,7 @@ export const DocumentMailOut = {
   },
 
   async queue(
-    tx: Executor,
+    tx: Tx,
     ctx: UserCtx,
     documentId: string,
     input: DocumentEmailInput,
@@ -244,7 +244,7 @@ export const DocumentMailOut = {
   },
 
   /** Повтор письма, которое не ушло или вернулось: новое задание, тот же адрес. */
-  async retry(tx: Executor, ctx: UserCtx, documentId: string, emailId: string): Promise<string> {
+  async retry(tx: Tx, ctx: UserCtx, documentId: string, emailId: string): Promise<string> {
     await authorize(ctx, 'dispatch', documentId)
     const { row } = await dispatchable(tx, documentId)
     const [email] = await tx

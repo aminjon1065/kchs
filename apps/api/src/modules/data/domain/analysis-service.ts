@@ -26,7 +26,7 @@ import { LinkService } from '~/kernel/links/service.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import { actorId, type Ctx, systemCtx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { AppError, errors } from '~/shared/errors.js'
 import { Physical, type PhysicalColumn } from '../infra/physical.js'
 import { analyses } from '../schema.js'
@@ -229,7 +229,7 @@ const eventObject = (id: string, object: ObjectRow) => ({
 })
 
 /** Постановка запуска в той же транзакции: статус «в очереди», задание, событие. */
-async function schedule(tx: Executor, ctx: Ctx, id: string, object: ObjectRow): Promise<string> {
+async function schedule(tx: Tx, ctx: Ctx, id: string, object: ObjectRow): Promise<string> {
   const jobId = await JobService.schedule(tx, ctx, {
     ...ANALYSIS_JOB,
     objectId: id,

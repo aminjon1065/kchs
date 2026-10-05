@@ -7,7 +7,7 @@ import { and, asc, eq, isNull, or, sql } from 'drizzle-orm'
 import { hasCapability, requireCapability } from '~/kernel/access/authorize.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import type { UserCtx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { resolutionTemplates } from '../schema.js'
@@ -43,7 +43,7 @@ async function editable(tx: Executor, ctx: UserCtx, id: string): Promise<Row> {
 }
 
 /** Изменение справочника — событие настроек (лента администрирования, кэши). */
-async function changed(tx: Executor, ctx: UserCtx, id: string): Promise<void> {
+async function changed(tx: Tx, ctx: UserCtx, id: string): Promise<void> {
   await publishEvent(tx, ctx, {
     type: 'settings.changed',
     object: null,
@@ -70,7 +70,7 @@ export const ResolutionTemplates = {
     return rows.map((row) => record(ctx, row))
   },
 
-  async create(tx: Executor, ctx: UserCtx, input: ResolutionTemplateInput): Promise<string> {
+  async create(tx: Tx, ctx: UserCtx, input: ResolutionTemplateInput): Promise<string> {
     if (input.shared) requireCapability(ctx, SHARED_CAPABILITY)
     const ownerId = input.shared ? null : ctx.userId
     const [last] = await tx
@@ -93,7 +93,7 @@ export const ResolutionTemplates = {
   },
 
   async update(
-    tx: Executor,
+    tx: Tx,
     ctx: UserCtx,
     id: string,
     patch: ResolutionTemplateUpdateInput,
@@ -113,7 +113,7 @@ export const ResolutionTemplates = {
     return record(ctx, row)
   },
 
-  async remove(tx: Executor, ctx: UserCtx, id: string): Promise<void> {
+  async remove(tx: Tx, ctx: UserCtx, id: string): Promise<void> {
     await editable(tx, ctx, id)
     await tx.delete(resolutionTemplates).where(and(eq(resolutionTemplates.id, id)))
     await changed(tx, ctx, id)

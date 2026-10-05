@@ -7,7 +7,7 @@
  * идентификаторами.
  */
 import type { UserCtx } from '~/shared/context.js'
-import type { Executor } from '~/shared/db/client.js'
+import type { Tx } from '~/shared/db/client.js'
 import { MeetingService } from './domain/meeting-service.js'
 
 /**
@@ -16,7 +16,7 @@ import { MeetingService } from './domain/meeting-service.js'
  * событием `call.incoming`; беседа передаётся идентификатором.
  */
 export const startCall = (
-  tx: Executor,
+  tx: Tx,
   ctx: UserCtx,
   input: { title: string; conversationId: string; participantIds: readonly string[] },
 ): Promise<string> =>

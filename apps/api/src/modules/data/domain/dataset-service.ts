@@ -16,7 +16,7 @@ import { publishEvent } from '~/kernel/events/publisher.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import { actorId, type Ctx } from '~/shared/context.js'
-import { type Database, db, type Executor } from '~/shared/db/client.js'
+import { type Database, db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { columnName, Physical, type PhysicalColumn, tableName } from '../infra/physical.js'
@@ -120,7 +120,7 @@ export function fieldValues(
 export const DatasetService = {
   /** `accessMode: restricted` — без наследования прав пространства (результат анализа). */
   async create(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     input: DatasetCreateInput,
     options: { accessMode?: 'inherit' | 'restricted' } = {},

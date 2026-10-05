@@ -27,7 +27,7 @@ import { nextRunAt } from '~/kernel/schedules/index.js'
 import { SpaceService } from '~/kernel/spaces/service.js'
 import { config } from '~/shared/config/index.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { ruleRuns, rules } from '../schema.js'
@@ -299,7 +299,7 @@ export const RuleService = {
   },
 
   async create(
-    tx: Executor,
+    tx: Tx,
     ctx: UserCtx,
     input: RuleCreateInput,
     reason: RuleVersionReason = 'create',
@@ -351,7 +351,7 @@ export const RuleService = {
   },
 
   async update(
-    tx: Executor,
+    tx: Tx,
     ctx: UserCtx,
     id: string,
     next: RuleDefinition,
@@ -418,7 +418,7 @@ export const RuleService = {
     }
   },
 
-  async setEnabled(tx: Executor, ctx: Ctx, id: string, enabled: boolean): Promise<void> {
+  async setEnabled(tx: Tx, ctx: Ctx, id: string, enabled: boolean): Promise<void> {
     const row = await RuleService.load(tx, id)
     if (!row) throw errors.notFound('Правило')
     if (row.enabled === enabled) return
@@ -558,7 +558,7 @@ export const RuleService = {
   },
 
   /** Копия правила в том же пространстве: выключена, с пометкой в названии. */
-  async duplicate(tx: Executor, ctx: UserCtx, id: string): Promise<string> {
+  async duplicate(tx: Tx, ctx: UserCtx, id: string): Promise<string> {
     const row = await RuleService.load(tx, id)
     if (!row?.spaceId) throw errors.notFound('Правило')
     const definition = RuleDefinition.parse(row.definition)
@@ -579,7 +579,7 @@ export const RuleService = {
   },
 
   /** Откат к версии: определение версии становится новой версией, состояние — текущее. */
-  async restore(tx: Executor, ctx: UserCtx, id: string, versionId: string): Promise<void> {
+  async restore(tx: Tx, ctx: UserCtx, id: string, versionId: string): Promise<void> {
     const row = await RuleService.load(tx, id)
     if (!row) throw errors.notFound('Правило')
     const version = await RuleVersions.get(id, versionId)
@@ -601,7 +601,7 @@ export const RuleService = {
   },
 
   /** Правило из файла: выключенным, без служебного пользователя; занятый ключ — новый. */
-  async importRule(tx: Executor, ctx: UserCtx, input: RuleImportInput): Promise<string> {
+  async importRule(tx: Tx, ctx: UserCtx, input: RuleImportInput): Promise<string> {
     const [taken] = await tx
       .select({ id: rules.id })
       .from(rules)

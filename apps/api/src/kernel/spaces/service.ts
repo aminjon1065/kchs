@@ -10,7 +10,7 @@ import type {
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { actorId, systemCtx } from '~/shared/context.js'
-import { type Database, db, type Executor } from '~/shared/db/client.js'
+import { type Database, db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { invalidatePrincipalSet } from '../access/principal-set.js'
 import { isServiceAccount } from '../access/service-accounts.js'
@@ -60,7 +60,7 @@ async function assertAdminRemains(
  */
 export const SpaceService = {
   async create(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     input: Omit<SpaceCreateInput, 'kind'> & { kind?: SpaceKind; ownerId?: string },
   ): Promise<string> {
@@ -123,7 +123,7 @@ export const SpaceService = {
    * нём видны только по их собственным правам. Создаётся один раз.
    */
   async ensureSystem(
-    tx: Executor,
+    tx: Tx,
     input: { key: string; name: string; description?: string | null },
   ): Promise<string> {
     await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`space:system:${input.key}`}))`)
@@ -175,12 +175,7 @@ export const SpaceService = {
     return new Map(rows.map((row) => [row.id, row.title]))
   },
 
-  async ensurePersonal(
-    tx: Executor,
-    ctx: Ctx,
-    userId: string,
-    _displayName: string,
-  ): Promise<string> {
+  async ensurePersonal(tx: Tx, ctx: Ctx, userId: string, _displayName: string): Promise<string> {
     const existing = await SpaceService.personalOf(userId, tx)
     if (existing) return existing
 
@@ -195,7 +190,7 @@ export const SpaceService = {
   },
 
   async addMember(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     spaceId: string,
     userId: string,
@@ -219,7 +214,7 @@ export const SpaceService = {
     })
   },
 
-  async removeMember(tx: Executor, ctx: Ctx, spaceId: string, userId: string): Promise<void> {
+  async removeMember(tx: Tx, ctx: Ctx, spaceId: string, userId: string): Promise<void> {
     await assertAdminRemains(tx, spaceId, userId, null)
     await tx
       .delete(spaceMembers)
@@ -233,7 +228,7 @@ export const SpaceService = {
   },
 
   async setMemberRole(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     spaceId: string,
     userId: string,
@@ -316,7 +311,7 @@ export const SpaceService = {
    * Переименование и описание (ADR-0152). Название — это название объекта
    * пространства: оно же в навигаторе, поиске и хлебных крошках.
    */
-  async update(tx: Executor, ctx: Ctx, spaceId: string, patch: SpacePatchInput): Promise<void> {
+  async update(tx: Tx, ctx: Ctx, spaceId: string, patch: SpacePatchInput): Promise<void> {
     if (patch.name !== undefined) {
       await ObjectService.update(tx, ctx, spaceId, { title: patch.name })
     }

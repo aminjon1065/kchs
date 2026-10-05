@@ -18,7 +18,7 @@ import { describePrincipals } from '~/kernel/access/principal-refs.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { actorId, type Ctx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { datasetColumnPolicies, datasetRowPolicies } from '../schema.js'
@@ -75,7 +75,7 @@ async function assertBelowLimit(tx: Executor, kind: PolicyKind, datasetId: strin
 
 /** Политики изменились — событие в той же транзакции (кэш запросов учитывает политики сам). */
 async function policiesChanged(
-  tx: Executor,
+  tx: Tx,
   ctx: Ctx,
   datasetId: string,
   payload: { kind: PolicyKind; op: PolicyOp; policyId: string },
@@ -176,7 +176,7 @@ export const PolicyService = {
   },
 
   async createRow(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     datasetId: string,
     input: DatasetRowPolicyInput,
@@ -202,7 +202,7 @@ export const PolicyService = {
   },
 
   async updateRow(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     datasetId: string,
     policyId: string,
@@ -227,7 +227,7 @@ export const PolicyService = {
     return toRowPolicy(row)
   },
 
-  async removeRow(tx: Executor, ctx: Ctx, datasetId: string, policyId: string): Promise<void> {
+  async removeRow(tx: Tx, ctx: Ctx, datasetId: string, policyId: string): Promise<void> {
     await datasetStorage(tx, datasetId)
     await rowPolicy(tx, datasetId, policyId)
     await tx.delete(datasetRowPolicies).where(eq(datasetRowPolicies.id, policyId))
@@ -235,7 +235,7 @@ export const PolicyService = {
   },
 
   async createColumn(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     datasetId: string,
     input: DatasetColumnPolicyInput,
@@ -260,7 +260,7 @@ export const PolicyService = {
   },
 
   async updateColumn(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     datasetId: string,
     policyId: string,
@@ -284,7 +284,7 @@ export const PolicyService = {
     return toColumnPolicy(row)
   },
 
-  async removeColumn(tx: Executor, ctx: Ctx, datasetId: string, policyId: string): Promise<void> {
+  async removeColumn(tx: Tx, ctx: Ctx, datasetId: string, policyId: string): Promise<void> {
     await datasetStorage(tx, datasetId)
     await columnPolicy(tx, datasetId, policyId)
     await tx.delete(datasetColumnPolicies).where(eq(datasetColumnPolicies.id, policyId))
@@ -296,7 +296,7 @@ export const PolicyService = {
    * конфликт (иначе она перестанет компилироваться и закроет строки всем);
    * из политик столбцов ключ убирается, опустевшие удаляются.
    */
-  async fieldRemoved(tx: Executor, ctx: Ctx, datasetId: string, key: string): Promise<void> {
+  async fieldRemoved(tx: Tx, ctx: Ctx, datasetId: string, key: string): Promise<void> {
     const rows = await tx
       .select({ filter: datasetRowPolicies.filter })
       .from(datasetRowPolicies)

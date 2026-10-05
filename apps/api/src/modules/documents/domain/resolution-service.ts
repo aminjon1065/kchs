@@ -22,7 +22,7 @@ import { delegationCovers, InboxService } from '~/kernel/inbox/service.js'
 import { Instructions } from '~/modules/tasks/public.js'
 import { config } from '~/shared/config/index.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { resolutionRequests, resolutions } from '../schema.js'
@@ -99,7 +99,7 @@ async function openRequestOf(
 
 /** Открытые направления: закрыть с итогом и снять дела Входящих их получателей. */
 async function closeRequests(
-  tx: Executor,
+  tx: Tx,
   ctx: Ctx,
   documentId: string,
   close: { userId?: string; state: ResolutionRequestState; comment?: string | null },
@@ -127,7 +127,7 @@ async function closeRequests(
 }
 
 /** Получатели направлений (кроме снятых) читают и обсуждают документ. */
-async function syncRequestParticipants(tx: Executor, ctx: Ctx, documentId: string) {
+async function syncRequestParticipants(tx: Tx, ctx: Ctx, documentId: string) {
   const rows = await tx
     .selectDistinct({ userId: resolutionRequests.userId })
     .from(resolutionRequests)
@@ -223,7 +223,7 @@ function eventObject(document: DocumentRow) {
  *   переводит его в `executed` — подписчик модуля.
  */
 export const ResolutionService = {
-  async create(tx: Executor, ctx: UserCtx, documentId: string, input: ResolutionInput) {
+  async create(tx: Tx, ctx: UserCtx, documentId: string, input: ResolutionInput) {
     await authorize(ctx, 'view', documentId)
     const document = await DocumentService.load(tx, documentId, true)
     if (!document) throw errors.notFound('Документ')
@@ -394,7 +394,7 @@ export const ResolutionService = {
    * `auto` — правило типа при регистрации (права проверила регистрация).
    */
   async request(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     documentId: string,
     input: ResolutionRequestInput,
@@ -490,7 +490,7 @@ export const ResolutionService = {
   },
 
   /** Направление правилом типа после регистрации (ADR-0084): получатель — по правилу. */
-  async requestByTypeRule(tx: Executor, ctx: Ctx, documentId: string): Promise<string | null> {
+  async requestByTypeRule(tx: Tx, ctx: Ctx, documentId: string): Promise<string | null> {
     const document = await DocumentService.load(tx, documentId)
     if (!document) return null
     const type = await DocumentTypeService.load(tx, document.typeId)
@@ -515,7 +515,7 @@ export const ResolutionService = {
   },
 
   /** Снять направление (делопроизводитель): получатель больше не ждёт резолюции. */
-  async cancelRequest(tx: Executor, ctx: UserCtx, documentId: string, requestId: string) {
+  async cancelRequest(tx: Tx, ctx: UserCtx, documentId: string, requestId: string) {
     await authorize(ctx, 'register', documentId)
     const [row] = await tx
       .select()
@@ -534,7 +534,7 @@ export const ResolutionService = {
    * «Не требует исполнения»: получатель направления (или его заместитель) либо
    * делопроизводитель; документ зарегистрирован и без резолюций.
    */
-  async noExecution(tx: Executor, ctx: UserCtx, documentId: string, input: NoExecutionInput) {
+  async noExecution(tx: Tx, ctx: UserCtx, documentId: string, input: NoExecutionInput) {
     await authorize(ctx, 'view', documentId)
     const document = await DocumentService.load(tx, documentId, true)
     if (!document) throw errors.notFound('Документ')
@@ -571,7 +571,7 @@ export const ResolutionService = {
    * Исполнение (подписчик `task.source_closed`): все поручения документа
    * закрыты — документ на исполнении становится «Исполнен», контроль снимается.
    */
-  async executed(tx: Executor, ctx: Ctx, documentId: string, resolutionIds: string[]) {
+  async executed(tx: Tx, ctx: Ctx, documentId: string, resolutionIds: string[]) {
     const document = await DocumentService.load(tx, documentId, true)
     if (document?.status !== 'on_execution') return false
     const status = await Instructions.status(documentId, tx)
@@ -592,7 +592,7 @@ export const ResolutionService = {
    * направления снимаются: резолюцию на него уже не наложить, а дело Входящих
    * получателя вело бы в тупик.
    */
-  async documentClosed(tx: Executor, ctx: Ctx, documentId: string) {
+  async documentClosed(tx: Tx, ctx: Ctx, documentId: string) {
     await closeRequests(tx, ctx, documentId, { state: 'cancelled' })
   },
 

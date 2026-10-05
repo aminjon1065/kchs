@@ -16,7 +16,7 @@ import { SpaceService } from '~/kernel/spaces/service.js'
 import { config } from '~/shared/config/index.js'
 import type { Ctx } from '~/shared/context.js'
 import { actorId } from '~/shared/context.js'
-import { type Database, db, type Executor } from '~/shared/db/client.js'
+import { type Database, db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId, randomCode } from '~/shared/ids.js'
 import { assertCanAssignRoles, assertCanManageUser } from './role-policy.js'
@@ -105,7 +105,7 @@ async function setUnit(tx: Executor, userId: string, unitId: string | null) {
  * выравниваются. `current` — нынешнее членство (у новой записи — пустое).
  */
 async function setSpaces(
-  tx: Executor,
+  tx: Tx,
   ctx: Ctx,
   userId: string,
   wanted: ServiceAccountCreateInput['spaces'],
@@ -132,7 +132,7 @@ export const ServiceAccountService = {
    * по паролю отвечает ей как неизвестному логину, а сессию ей не выдаёт ни
    * один способ входа. Интеграциям — токен API, его выпускает администратор.
    */
-  async create(tx: Executor, ctx: Ctx, input: ServiceAccountCreateInput): Promise<string> {
+  async create(tx: Tx, ctx: Ctx, input: ServiceAccountCreateInput): Promise<string> {
     await assertServiceRoles(tx, ctx, input.roleKeys)
     await assertSpaces(input.spaces.map((item) => item.spaceId))
 
@@ -175,7 +175,7 @@ export const ServiceAccountService = {
     return id
   },
 
-  async update(tx: Executor, ctx: Ctx, id: string, patch: ServiceAccountPatchInput): Promise<void> {
+  async update(tx: Tx, ctx: Ctx, id: string, patch: ServiceAccountPatchInput): Promise<void> {
     const current = await loadServiceAccount(tx, id)
     const changesRolesOrStatus = patch.roleKeys !== undefined || patch.status !== undefined
     await assertCanManageUser(tx, ctx, id, { changesRolesOrStatus })

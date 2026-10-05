@@ -1,7 +1,7 @@
 import type { FormSubject, InboxItem } from '@kchs/contracts'
 import { InboxService } from '~/kernel/inbox/service.js'
 import type { Ctx } from '~/shared/context.js'
-import type { Executor } from '~/shared/db/client.js'
+import type { Tx } from '~/shared/db/client.js'
 import type { FormRow } from './form-service.js'
 import { responsibleOf, subjectNames, submittersOf } from './subject-names.js'
 
@@ -43,7 +43,7 @@ interface SubmissionLike {
 export const FormInbox = {
   /** Назначенному: заполнить и сдать сводку за период. */
   async submit(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     form: FormRow,
     submission: SubmissionLike,
@@ -67,7 +67,7 @@ export const FormInbox = {
 
   /** Ответственным: принять сводку или вернуть с комментарием. */
   async review(
-    tx: Executor,
+    tx: Tx,
     ctx: Ctx,
     form: FormRow,
     submission: SubmissionLike,
@@ -94,11 +94,11 @@ export const FormInbox = {
     }
   },
 
-  async closeSubmit(tx: Executor, ctx: Ctx, submissionId: string): Promise<void> {
+  async closeSubmit(tx: Tx, ctx: Ctx, submissionId: string): Promise<void> {
     await InboxService.resolve(tx, ctx, { dedupeKey: `form:${submissionId}:submit` }, 'resolved')
   },
 
-  async closeReview(tx: Executor, ctx: Ctx, submissionId: string): Promise<void> {
+  async closeReview(tx: Tx, ctx: Ctx, submissionId: string): Promise<void> {
     await InboxService.resolve(tx, ctx, { dedupeKey: `form:${submissionId}:review` }, 'resolved')
   },
 }
