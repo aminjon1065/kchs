@@ -134,6 +134,9 @@ check "здоровье: postgres" "ok" "$(echo "$HEALTH" | jq_ "[c['status'] fo
 check "здоровье: redis" "ok" "$(echo "$HEALTH" | jq_ "[c['status'] for c in d['components'] if c['name']=='redis'][0]")"
 check "здоровье: meilisearch" "ok" "$(echo "$HEALTH" | jq_ "[c['status'] for c in d['components'] if c['name']=='meilisearch'][0]")"
 check "здоровье: хранилище" "ok" "$(echo "$HEALTH" | jq_ "[c['status'] for c in d['components'] if c['name']=='storage'][0]")"
+# Кэш — строкой, только если он отдельный (ADR-0175): в установке — служба redis-cache
+CACHE_STATUS=$(echo "$HEALTH" | jq_ "([c['status'] for c in d['components'] if c['name']=='redis-cache'] or ['нет'])[0]")
+if [[ "$CACHE_STATUS" != "нет" ]]; then check "здоровье: кэш redis-cache" "ok" "$CACHE_STATUS"; fi
 check "outbox без отставания" "yes" "$(echo "$HEALTH" | jq_ "'yes' if d['outbox']['pending'] < 50 else 'no'")"
 
 AUDIT=$(req GET '/admin/audit?limit=5')

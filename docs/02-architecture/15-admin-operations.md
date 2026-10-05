@@ -30,7 +30,8 @@ api ×2              ROLE=api
 worker ×1           ROLE=worker
 engine ×1           python; тома для моделей (whisper, bge-m3, tesseract data)
 postgres            postgis/postgis:17-3.5 + pgvector; том данных; pgbackrest sidecar
-redis               redis:7 (AOF)
+redis               redis:7 (AOF, noeviction): очереди, потоки событий, доступы, флаги — ADR-0175
+redis-cache         redis:7 без сохранения, allkeys-lru: тайлы, результаты запросов, наборы прав — ADR-0175
 minio               бакеты создаются init-контейнером
 meilisearch         том индекса
 livekit + egress    UDP 50000-60000, TCP 7881, TURN/TLS 443 (через proxy или отдельный IP)
@@ -149,6 +150,15 @@ Helm-чарт `infra/helm/kchs`: Deployments `api` (HPA по CPU/RPS), `worker` 
 - **Службы данных** (ADR-0147): экспортёры Postgres (роль `kchs_monitor`, `pg_monitor`) и Redis,
   собственные метрики MinIO (токен пользователя с `admin:Prometheus`) и Meilisearch (ключ
   `metrics.get`); дашборд «kchs — инфраструктура», правила по каждой службе.
+- **Два Redis** (ADR-0175): основной (`noeviction`, AOF) держит очереди BullMQ, потоки событий,
+  доступы, флаги, блокировки и счётчики защиты; у предела памяти он отказывает в записи —
+  оповещение `KchsRedisMemory` на 90 %. Кэш `redis-cache` (`allkeys-lru`, без сохранения,
+  `REDIS_CACHE_MAXMEMORY`, по умолчанию 512 МБ) держит то, что можно пересчитать; полная
+  память для него — норма, тревога — `KchsRedisCacheDown` (не отвечает: тайлы и запросы
+  считаются без кэша, платформа медленнее), `KchsRedisCacheUnbounded` и
+  `KchsRedisCacheThrashing` (вытесняет сотни ключей в секунду — мал для рабочего набора).
+  Сбой основного Redis — быстрый ответ 503 с повтором, а не зависший запрос; «Здоровье
+  системы» показывает оба.
 - **Доставка оповещений** (ADR-0147): Prometheus → Alertmanager → письмо через SMTP установки
   (`ALERTMANAGER_EMAIL_TO`) и Telegram (`ALERTMANAGER_TELEGRAM_CHAT_ID`), шаблоны по-русски,
   повтор раз в 4 часа, предупреждения упавшего экземпляра подавляются его критическим.
@@ -166,7 +176,8 @@ Helm-чарт `infra/helm/kchs`: Deployments `api` (HPA по CPU/RPS), `worker` 
 Реализовано для S1 (ADR-0117): копию делает сама установка — задание `backup.run` в 02:50 и кнопка «Сделать копию» в консоли пишут `pg_dump --format=custom` потоком в бакет `kchs-backups`, хранятся последние семь. RPO S1 — сутки; pgBackRest с непрерывным архивом WAL остаётся планом S2. Проверку восстановлением отмечает человек по runbook, отметка видна в списке копий и в аудите.
 | MinIO | версионирование объектов + репликация в резервный бакет/узел (mc mirror) | непрерывно | выборочная проверка контрольных сумм |
 | Meilisearch | дамп ежедневно; полностью восстанавливается переиндексацией из Postgres | ежедневно | переиндексация в тесте |
-| Redis | AOF; потери допустимы (очереди восстанавливаются из `jobs`/outbox) | — | — |
+| Redis | AOF; потери допустимы (очереди восстанавливаются из `jobs`/outbox); отметки версий кэшей при потере заменяются новыми случайными (ADR-0175) | — | — |
+| Кэш Redis | не сохраняется: после перезапуска наполняется заново | — | — |
 | Конфигурация | `.env`/секреты в менеджере, Compose/Helm в git | при изменении | — |
 
 Целевые RPO 15 мин, RTO 1 ч (S1). Runbook восстановления — в `infra/runbooks/restore.md` (создаёт исполнитель на фазе 0).

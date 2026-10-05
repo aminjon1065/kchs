@@ -21,7 +21,7 @@
 | Парсер SQL | **libpg-query** (WASM) | node-sql-parser | настоящий парсер Postgres — единственный надёжный способ проверять сырой SQL |
 | БД | **PostgreSQL 17 + PostGIS 3.5 + pgvector + pg_trgm** | MySQL, ClickHouse, отдельная гео-БД | одна система записи для всего; PostGIS — лучший открытый гео-движок; pgvector для семантики |
 | Колоночный tier (S2+) | **DuckDB + Parquet в S3** (в engine) | ClickHouse | встраиваемый, нулевая эксплуатация, spatial-расширение; ClickHouse — при потоках телеметрии |
-| Очереди/кэш | **Redis 7 + BullMQ** (TS и Python-клиент) | RabbitMQ, NATS, pg-boss | один Redis для очередей, pub/sub, кэша; BullMQ имеет Python-клиент для engine |
+| Очереди/кэш | **Redis 7 + BullMQ** (TS и Python-клиент) | RabbitMQ, NATS, pg-boss | один долговечный Redis для очередей, потоков событий и pub/sub; кэш — второй экземпляр с allkeys-lru (ADR-0175); BullMQ имеет Python-клиент для engine |
 | Шина событий | **Transactional outbox → Redis Streams** | Kafka, NATS JetStream | надёжность без Kafka; объёмы событий умеренные |
 | Объектное хранилище | **MinIO** (S3 API) | локальный диск, Ceph | стандарт S3, репликация, подписанные URL |
 | Поиск | **Meilisearch** | Postgres FTS, OpenSearch, Typesense | мгновенный, опечатки, фасеты, кириллица; один бинарник; OpenSearch тяжёл |

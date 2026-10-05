@@ -48,7 +48,8 @@ flowchart LR
 | `worker` | тот же код, что `api`, роль `worker` | Потребители событий (уведомления, индексация, автоматизация, вебхуки), таймеры процессов, отложенные задания |
 | `engine` | Python 3.12, FastAPI (внутренний), потребитель BullMQ | Импорт/экспорт данных и геоданных, преобразования, DuckDB-запросы, рендеринг отчётов/карт (Playwright), конвертации, OCR, расшифровка, эмбеддинги, LLM-задания |
 | `postgres` | PostgreSQL 17 + PostGIS 3.5 + pgvector + pg_trgm | Система записи: всё, включая таблицы датасетов |
-| `redis` | Redis 7 (или Valkey) | Очереди BullMQ, pub/sub realtime, кэш, rate limit, presence |
+| `redis` | Redis 7 (или Valkey), AOF, `noeviction` | Очереди BullMQ, потоки событий, pub/sub realtime, доступы и флаги, счётчики защиты |
+| `redis-cache` | Redis 7, `allkeys-lru`, без сохранения | Кэш: тайлы, результаты запросов, наборы прав, счётчики «Входящих», присутствие (ADR-0175) |
 | `minio` | S3-совместимое хранилище | Файлы, версии, превью, записи встреч, Parquet, PMTiles, экспорт |
 | `meilisearch` | Meilisearch | Полнотекстовый индекс объектов, файлов, сообщений |
 | `livekit` | LiveKit server + Egress + встроенный TURN | Аудио/видео, демонстрация экрана, запись |
