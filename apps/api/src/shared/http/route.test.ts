@@ -1,10 +1,10 @@
 import { type RouteContract, splitRouteKey } from '@kchs/contracts'
+import { routes } from '@kchs/process/routes'
 import Fastify from 'fastify'
 import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod'
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import { assertRouteTableRegistered, registeredRoutes, routeRegistrar } from './route.js'
-import { routeTable } from './route-table.js'
 
 function app() {
   const instance = Fastify()
@@ -29,8 +29,8 @@ describe('регистрация маршрутов по таблице конт
       handler: async (request) => ({ id: request.params.id }),
     })
     const registered = registeredRoutes().find((r) => r.method === 'GET' && r.url === '/tasks/:id')
-    expect(registered?.schema?.params).toBe(routeTable['GET /tasks/:id'].params)
-    expect(registered?.schema?.response).toBe(routeTable['GET /tasks/:id'].response)
+    expect(registered?.schema?.params).toBe(routes['GET /tasks/:id'].params)
+    expect(registered?.schema?.response).toBe(routes['GET /tasks/:id'].response)
     // Параметры проверяет схема таблицы
     const response = await instance.inject({ method: 'GET', url: '/tasks/не-uuid' })
     expect(response.statusCode).toBe(400)
@@ -42,7 +42,7 @@ describe('регистрация маршрутов по таблице конт
 
   it('схема параметров пути называет ровно параметры пути', () => {
     const problems: string[] = []
-    for (const [key, contract] of Object.entries(routeTable) as Array<[string, RouteContract]>) {
+    for (const [key, contract] of Object.entries(routes) as Array<[string, RouteContract]>) {
       const params: unknown = contract.params
       if (!(params instanceof z.ZodObject)) continue
       const inPath = [...splitRouteKey(key).url.matchAll(/:([A-Za-z_]\w*)/g)].map((m) => m[1])

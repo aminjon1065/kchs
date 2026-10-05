@@ -42,8 +42,8 @@ import { territoriesRoutes } from './modules/territories.js'
  * Маршруты HTTP API, описанные в контрактах (ADR-0188): ядро и модули, по таблице
  * на владельца. Маршруты движка процессов описывает пакет `@kchs/process`
  * (`processRoutes`, `documentProcessRoutes`): их схемы стоят на определении
- * процесса (ADR-0079). Полная таблица — `mergeRouteTables(apiRoutes, processRoutes,
- * documentProcessRoutes)`; так её собирает api.
+ * процесса (ADR-0079). Полная таблица для api и клиента — `routes` и тип `Routes` из
+ * `@kchs/process/routes`.
  */
 export type ApiRoutes = typeof kernelAccessRoutes &
   typeof kernelAcknowledgmentsRoutes &

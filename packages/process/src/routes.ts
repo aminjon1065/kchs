@@ -4,7 +4,9 @@ import {
   DocumentRouteStepVersions,
   DocumentSignatureList,
   defineRoutes,
+  mergeRouteTables,
 } from '@kchs/contracts'
+import { type ApiRoutes, apiRoutes } from '@kchs/contracts/routes'
 import { z } from 'zod'
 import {
   ProcessActInput,
@@ -128,3 +130,18 @@ export const documentProcessRoutes = defineRoutes({
   },
   'GET /documents/:id/signatures': { params: IdParam, response: { 200: DocumentSignatureList } },
 })
+
+/** Полная таблица маршрутов HTTP API: ядро и модули из контрактов и движок процессов. */
+export type Routes = ApiRoutes & typeof processRoutes & typeof documentProcessRoutes
+
+/** Ключ маршрута полной таблицы: `GET /tasks/:id`. */
+export type ApiRouteKey = keyof Routes & string
+
+/**
+ * Полная таблица маршрутов HTTP API (ADR-0188) — одна на api и клиента. Собирается здесь:
+ * пакет процессов видит и контракты, и свои маршруты, а контракты процессов не видят
+ * (ADR-0079). api регистрирует маршруты по ней; клиент web выводит из `Routes` типы пути,
+ * параметров, тела и ответа (`RouteParams`, `RouteBody`, `RouteResponse` из контрактов).
+ * Клиенту — `import type { Routes }`: значение тянет в бандл все схемы API.
+ */
+export const routes: Routes = mergeRouteTables(apiRoutes, processRoutes, documentProcessRoutes)

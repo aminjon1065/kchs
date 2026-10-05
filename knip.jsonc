@@ -64,7 +64,7 @@
       "project": ["src/**/*.ts", "test/**/*.ts"]
     },
     "packages/process": {
-      "entry": ["src/index.ts", "test/**/*.test.ts"],
+      "entry": ["src/index.ts", "src/routes.ts", "test/**/*.test.ts"],
       "project": ["src/**/*.ts", "test/**/*.ts"]
     },
     "packages/ui": {

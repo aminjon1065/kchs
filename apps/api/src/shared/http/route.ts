@@ -4,11 +4,11 @@ import {
   type RouteContract,
   splitRouteKey,
 } from '@kchs/contracts'
+import { type ApiRouteKey, type Routes, routes } from '@kchs/process/routes'
 import type { FastifyInstance, FastifyReply, FastifyRequest, RouteShorthandOptions } from 'fastify'
 import type { ZodTypeProvider } from 'fastify-type-provider-zod'
 import type { z } from 'zod'
 import type { UserCtx } from '../context.js'
-import { type ApiRouteKey, type RouteTable, routeTable } from './route-table.js'
 
 /**
  * Политика доступа маршрута. Обязательна: регистрация без `auth` падает на старте
@@ -122,9 +122,9 @@ export interface RouteDefinition<K extends ApiRouteKey> {
   readOnly?: boolean
   handler: (
     request: FastifyRequest<{
-      Params: Parsed<RouteTable[K], 'params'>
-      Querystring: Parsed<RouteTable[K], 'query'>
-      Body: Parsed<RouteTable[K], 'body'>
+      Params: Parsed<Routes[K], 'params'>
+      Querystring: Parsed<Routes[K], 'query'>
+      Body: Parsed<Routes[K], 'body'>
     }> & { ctx: UserCtx },
     reply: FastifyReply,
   ) => Promise<unknown>
@@ -196,12 +196,12 @@ export function assertRouteAuth(definition: {
 
 /** Запись таблицы маршрутов по ключу; маршрута без записи нет (ADR-0188). */
 function contractOf(key: string): RouteContract {
-  const table: Readonly<Record<string, RouteContract>> = routeTable
+  const table: Readonly<Record<string, RouteContract>> = routes
   const contract = Object.hasOwn(table, key) ? table[key] : undefined
   if (!contract) {
     throw new Error(
-      `Маршрут ${key} не описан в таблице маршрутов контрактов: добавьте запись в ` +
-        'packages/contracts/src/routes (ADR-0188)',
+      `Маршрут ${key} не описан в таблице маршрутов: добавьте запись в таблицу владельца — ` +
+        'packages/contracts/src/routes или packages/process/src/routes.ts (ADR-0188)',
     )
   }
   return contract
@@ -224,7 +224,7 @@ function schemaOf(contract: RouteContract): RouteSchema | undefined {
  */
 export function assertRouteTableRegistered(): void {
   const keys = new Set(registered.map((r) => `${r.method} ${r.url}`))
-  const missing = Object.keys(routeTable).filter((key) => !keys.has(key))
+  const missing = Object.keys(routes).filter((key) => !keys.has(key))
   if (missing.length > 0) {
     throw new Error(
       `Маршруты таблицы контрактов не зарегистрированы: ${missing.join(', ')} (ADR-0188)`,

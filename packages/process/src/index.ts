@@ -2,8 +2,8 @@
  * @kchs/process — движок процессов без базы (ADR-0012, ADR-0079): контракт
  * ProcessDefinition, проверка определений, выражения назначений и их резолвер
  * против порта справочника, модель состояния экземпляра и переходов, контракты
- * HTTP API и их таблица маршрутов (ADR-0188). Исполнение (хранение, Входящие,
- * таймеры, события) — в ядре api.
+ * HTTP API; таблица маршрутов — подпуть `@kchs/process/routes` (ADR-0188). Исполнение
+ * (хранение, Входящие, таймеры, события) — в ядре api.
  */
 export * from './api.js'
 export {
@@ -64,7 +64,6 @@ export {
   type ResolveResult,
   resolveAssignees,
 } from './resolve.js'
-export { documentProcessRoutes, processRoutes } from './routes.js'
 export * from './schema.js'
 export {
   CONDITION_ROOTS,

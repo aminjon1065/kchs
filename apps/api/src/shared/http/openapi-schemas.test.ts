@@ -1,7 +1,7 @@
 import { type RouteContract, splitRouteKey } from '@kchs/contracts'
+import { routes } from '@kchs/process/routes'
 import { describe, expect, it } from 'vitest'
 import { openApiSchemaTransforms } from './openapi-schemas.js'
-import { routeTable } from './route-table.js'
 
 const openapiObject = { openapi: '3.1.0' }
 const PREFIX = '#/components/schemas/'
@@ -29,7 +29,7 @@ describe('схемы спецификации OpenAPI (ADR-0188)', () => {
 
     const dangling = new Set<string>()
     let refs = 0
-    for (const [key, contract] of Object.entries(routeTable) as Array<[string, RouteContract]>) {
+    for (const [key, contract] of Object.entries(routes) as Array<[string, RouteContract]>) {
       const schema = {
         params: contract.params,
         querystring: contract.query,
