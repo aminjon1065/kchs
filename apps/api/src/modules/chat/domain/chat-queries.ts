@@ -77,6 +77,7 @@ async function toItems(ctx: UserCtx, found: InboxRow[]): Promise<ChatListItem[]>
             text: row.lastMessage.text,
             author: row.lastMessage.authorId ? (refs.get(row.lastMessage.authorId) ?? null) : null,
             systemKey: row.lastMessage.systemKey,
+            systemParams: row.lastMessage.systemParams,
             createdAt: row.lastMessage.createdAt,
           }
         : null,

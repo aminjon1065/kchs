@@ -62,6 +62,7 @@ export interface InboxRow {
     kind: MessageKind
     text: string
     systemKey: string | null
+    systemParams: Record<string, unknown> | null
     authorId: string | null
     createdAt: string
   } | null
@@ -92,6 +93,7 @@ interface RawInboxRow extends Record<string, unknown> {
   lm_kind: string | null
   lm_text: string | null
   lm_system_key: string | null
+  lm_system_params: Record<string, unknown> | null
   lm_author_id: string | null
   lm_created_at: string | null
 }
@@ -186,6 +188,7 @@ export const DiscussionQueries = {
              lm.kind AS lm_kind,
              lm.text AS lm_text,
              lm.system_key AS lm_system_key,
+             lm.system_params AS lm_system_params,
              lm.author_id AS lm_author_id,
              lm.created_at AS lm_created_at
         FROM ${conversations} c
@@ -194,7 +197,7 @@ export const DiscussionQueries = {
         LEFT JOIN ${objects} space ON space.id = ${objects.spaceId}
         LEFT JOIN ${conversationMembers} cm ON cm.conversation_id = c.id AND cm.user_id = ${me}
         LEFT JOIN LATERAL (
-          SELECT m.id, m.kind, m.text, m.system_key, m.author_id, m.created_at
+          SELECT m.id, m.kind, m.text, m.system_key, m.system_params, m.author_id, m.created_at
             FROM ${messages} m
            WHERE m.conversation_id = c.id AND m.deleted_at IS NULL
            ORDER BY m.id DESC LIMIT 1) lm ON true
@@ -231,6 +234,7 @@ export const DiscussionQueries = {
             kind: (row.lm_kind ?? 'user') as MessageKind,
             text: row.lm_text ?? '',
             systemKey: row.lm_system_key,
+            systemParams: row.lm_system_params,
             authorId: row.lm_author_id,
             createdAt: iso(row.lm_created_at) ?? new Date().toISOString(),
           }

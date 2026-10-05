@@ -204,7 +204,14 @@ export function ConversationList({
                         <span className="shrink-0 text-accent">{t('chats.draft')}</span>
                       ) : null}
                       <span className="min-w-0 flex-1 truncate">
-                        {item.lastMessage?.text || item.spaceName || ''}
+                        {(item.lastMessage?.kind === 'system' && item.lastMessage.systemKey
+                          ? t(
+                              item.lastMessage.systemKey,
+                              item.lastMessage.systemParams as Record<string, string> | undefined,
+                            )
+                          : item.lastMessage?.text) ||
+                          item.spaceName ||
+                          ''}
                       </span>
                     </span>
                   </span>

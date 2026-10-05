@@ -1,5 +1,7 @@
 import { sql } from 'drizzle-orm'
 import { beforeAll, describe, expect, it } from 'vitest'
+import { DiscussionService } from '../src/kernel/discussions/service.js'
+import { systemCtx } from '../src/shared/context.js'
 import {
   call,
   createUser,
@@ -392,6 +394,43 @@ describe('обсуждение объекта в списке бесед', () =>
     // Не участник обсуждения его в списке не видит
     const other = await listOf(fx.users.member, 'discussions')
     expect(other.items.some((row: Json) => row.id === conversationId)).toBe(false)
+  })
+
+  it('системное сообщение — последнее в списке с ключом и параметрами, а не сырым ключом', async () => {
+    const folder = await call(fx.app, {
+      method: 'POST',
+      url: '/folders',
+      as: fx.admin,
+      payload: { name: `Регламенты ${run}`, spaceId: fx.spaceId },
+    })
+    expect(folder.statusCode, folder.body).toBe(200)
+    const objectId = folder.json().id
+    const message = await call(fx.app, {
+      method: 'POST',
+      url: `/objects/${objectId}/discussion/messages`,
+      as: fx.admin,
+      payload: {
+        body: doc(`Регламент ${run}`),
+        text: `Регламент ${run}`,
+        attachments: [],
+        mentions: [],
+        mentionedObjectIds: [],
+      },
+    })
+    expect(message.statusCode, message.body).toBe(200)
+    await db().transaction((tx) =>
+      DiscussionService.postSystem(tx, systemCtx('test'), objectId, 'discussion.system.created', {
+        actor: 'Системный администратор',
+      }),
+    )
+
+    const list = await listOf(fx.admin, 'discussions')
+    const item = list.items.find((row: Json) => row.id === message.json().conversationId)
+    expect(item.lastMessage).toMatchObject({
+      kind: 'system',
+      systemKey: 'discussion.system.created',
+      systemParams: { actor: 'Системный администратор' },
+    })
   })
 })
 

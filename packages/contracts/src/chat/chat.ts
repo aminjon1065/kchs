@@ -32,6 +32,8 @@ export const ChatLastMessage = z.object({
   text: z.string(),
   author: UserRef.nullable(),
   systemKey: z.string().nullable(),
+  /** Параметры текста системного сообщения: список показывает `systemKey` словарём, как лента. */
+  systemParams: z.record(z.string(), z.unknown()).nullable(),
   createdAt: Timestamp,
 })
 export type ChatLastMessage = z.infer<typeof ChatLastMessage>
