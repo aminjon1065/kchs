@@ -1,8 +1,9 @@
 import type { Sql } from 'postgres'
+import { ADVISORY_LOCKS } from './advisory.js'
 import { AUDIT_PARTITIONS_APPEND_ONLY } from './grants.js'
 
 /** Блокировка обслуживания партиций: реплики и задание не делают его одновременно. */
-const PARTITIONS_LOCK_ID = 725_130_003
+const PARTITIONS_LOCK_ID = ADVISORY_LOCKS.auditPartitions
 
 /** Ожидание блокировки родителя: дольше — вставки аудита встают в очередь за ним. */
 const LOCK_TIMEOUT = '10s'

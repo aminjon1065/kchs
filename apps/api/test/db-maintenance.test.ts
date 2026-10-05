@@ -1,13 +1,17 @@
 import { sql } from 'drizzle-orm'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { bootTestApp, db, registerLifecycle } from './helpers.js'
+import { call, db, registerLifecycle, setupFixture, type TestContext } from './helpers.js'
 
 /**
  * Обслуживание базы (ADR-0173): мигратор не принимает правку применённой
  * миграции, журнал аудита разбит на месячные партиции на месяцы вперёд и
- * остаётся только на добавление — в том числе в обход родителя, через партицию.
+ * остаётся только на добавление — в том числе в обход родителя, через партицию;
+ * старт нескольких реплик не оставляет роли без способностей и не перестраивает
+ * таблицы датасетов наперегонки.
  */
 registerLifecycle()
+
+let fx: TestContext
 
 const { runMigrations, withMigratorConnection, EditedMigrationError } = await import(
   '../src/shared/db/migrate.js'
@@ -28,7 +32,7 @@ async function sqlState(run: () => Promise<unknown>): Promise<string | null> {
 const INSUFFICIENT_PRIVILEGE = '42501'
 
 beforeAll(async () => {
-  await bootTestApp()
+  fx = await setupFixture()
 })
 
 describe('мигратор', () => {
@@ -145,5 +149,68 @@ describe('партиции журнала аудита', () => {
         await owner`DELETE FROM public.audit_log_default WHERE action = 'test.stray'`
       })
     }
+  })
+})
+
+describe('старт нескольких реплик', () => {
+  it('способности системной роли сверяются: лишняя удаляется, нужные остаются', async () => {
+    const { bootstrapPlatform } = await import('../src/bootstrap.js')
+    const [employee] = await db().execute<{ id: string }>(
+      sql`SELECT id FROM roles WHERE key = 'employee'`,
+    )
+    if (!employee) throw new Error('нет роли employee')
+    await db().execute(
+      sql`INSERT INTO role_capabilities (role_id, capability)
+          VALUES (${employee.id}, 'admin.system') ON CONFLICT DO NOTHING`,
+    )
+    // Две реплики стартуют разом
+    await Promise.all([bootstrapPlatform(), bootstrapPlatform()])
+    const capabilities = await db().execute<{ capability: string }>(
+      sql`SELECT capability FROM role_capabilities WHERE role_id = ${employee.id} ORDER BY 1`,
+    )
+    expect(capabilities.map((row) => row.capability)).toEqual(['ai.use', 'share_links.create'])
+  })
+
+  it('прежний полный индекс ключа перестраивает одна реплика, а не обе наперегонки', async () => {
+    const { upgradeModuleStorage } = await import('../src/modules/index.js')
+    const created = await call(fx.app, {
+      method: 'POST',
+      url: '/datasets',
+      as: fx.admin,
+      payload: {
+        name: `Индекс до ADR-0160 ${Date.now().toString(36)}`,
+        spaceId: fx.spaceId,
+        fields: [{ key: 'code', label: { ru: 'Код' }, type: 'identifier' }],
+        primaryKey: ['code'],
+      },
+    })
+    expect(created.statusCode, created.body).toBe(200)
+    const [meta] = await db().execute<{ table: string; column: string }>(
+      sql`SELECT d.physical_table AS table, f.physical_column AS column
+            FROM datasets d JOIN dataset_fields f ON f.dataset_id = d.id
+           WHERE d.id = ${created.json().id as string}`,
+    )
+    if (!meta) throw new Error('нет таблицы датасета')
+    const uniqueIndexes = () =>
+      db().execute<{ name: string; def: string }>(
+        sql`SELECT i.relname AS name, pg_get_indexdef(x.indexrelid) AS def
+              FROM pg_index x
+              JOIN pg_class i ON i.oid = x.indexrelid
+              JOIN pg_class t ON t.oid = x.indrelid
+              JOIN pg_namespace n ON n.oid = t.relnamespace
+             WHERE n.nspname = 'ds' AND t.relname = ${meta.table}
+               AND x.indisunique AND NOT x.indisprimary`,
+      )
+    // Ключ — полным уникальным индексом, как в таблицах до ADR-0160
+    for (const index of await uniqueIndexes()) {
+      await db().execute(sql.raw(`DROP INDEX ds."${index.name}"`))
+    }
+    await db().execute(sql.raw(`CREATE UNIQUE INDEX ON ds."${meta.table}" ("${meta.column}")`))
+
+    await Promise.all([upgradeModuleStorage(), upgradeModuleStorage()])
+
+    const after = await uniqueIndexes()
+    expect(after).toHaveLength(1)
+    expect(after[0]?.def).toContain('WHERE (_deleted_at IS NULL)')
   })
 })

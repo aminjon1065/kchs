@@ -6,6 +6,7 @@ import { listObjectTypes } from '~/kernel/objects/registry.js'
 import { registerProcessEngine } from '~/kernel/process/index.js'
 import { registerKernelRoutes } from '~/kernel/routes.js'
 import { setSecondFactorProvider } from '~/kernel/second-factor/port.js'
+import { ADVISORY_LOCKS, withAdvisoryLock } from '~/shared/db/advisory.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { registerAdminRoutes } from './admin/module.js'
 import { registerAiFeature, registerAiRoutes } from './ai/module.js'
@@ -108,8 +109,13 @@ import {
 } from './telegram/module.js'
 
 /** Хранилища модулей, которые создаются на лету (таблицы датасетов), — к текущему виду. */
+/**
+ * Таблицы модулей, созданные прежними версиями, — к текущему виду при старте. Под
+ * блокировкой: реплики, стартующие вместе, иначе перестраивали бы одни и те же
+ * индексы наперегонки, и вторая падала бы на уже удалённом (ADR-0173).
+ */
 export async function upgradeModuleStorage(): Promise<void> {
-  await upgradeDataStorage()
+  await withAdvisoryLock(ADVISORY_LOCKS.storageUpgrade, () => upgradeDataStorage())
 }
 
 /**

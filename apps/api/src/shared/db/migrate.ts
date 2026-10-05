@@ -5,11 +5,12 @@ import { fileURLToPath } from 'node:url'
 import postgres from 'postgres'
 import { config } from '../config/index.js'
 import { logger } from '../logger/index.js'
+import { ADVISORY_LOCKS } from './advisory.js'
 import { applyGrants } from './grants.js'
 import { ensureAuditPartitions } from './partitions.js'
 
 /** Блокировка, чтобы несколько инстансов api не мигрировали одновременно. */
-const ADVISORY_LOCK_ID = 725_130_001
+const ADVISORY_LOCK_ID = ADVISORY_LOCKS.migrations
 
 /**
  * Каталог SQL-миграций: `KCHS_MIGRATIONS_DIR` или ближайший `drizzle` вверх от

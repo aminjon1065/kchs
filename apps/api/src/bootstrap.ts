@@ -1,5 +1,5 @@
 import type { Capability, LangText } from '@kchs/contracts'
-import { eq } from 'drizzle-orm'
+import { and, eq, notInArray } from 'drizzle-orm'
 import { ensureSearchIndex } from './kernel/search/index-service.js'
 import { registerAllObjectTypes, upgradeModuleStorage } from './modules/index.js'
 import { db } from './shared/db/client.js'
@@ -89,30 +89,42 @@ export async function bootstrapPlatform(): Promise<{ roles: number; searchIndex:
   registerAllObjectTypes()
 
   for (const role of SYSTEM_ROLES) {
-    const [existing] = await db()
-      .select({ id: roles.id })
-      .from(roles)
-      .where(eq(roles.key, role.key))
-      .limit(1)
-    const roleId = existing?.id ?? newId()
-
-    if (!existing) {
-      await db().insert(roles).values({
-        id: roleId,
-        key: role.key,
-        name: role.name,
-        description: role.description,
-        isSystem: true,
-      })
-    }
-
-    await db().delete(roleCapabilities).where(eq(roleCapabilities.roleId, roleId))
-    if (role.capabilities.length > 0) {
-      await db()
-        .insert(roleCapabilities)
-        .values(role.capabilities.map((capability) => ({ roleId, capability })))
-        .onConflictDoNothing()
-    }
+    // Роль и её способности сверяются в одной транзакции: недостающие добавляются,
+    // лишние удаляются. Удаление всех и вставка заново оставляли окно без способностей,
+    // и при старте нескольких реплик запросы в этот момент получали ложный 403 (ADR-0173)
+    await db().transaction(async (tx) => {
+      // Две реплики на чистой базе создают роль одновременно — вторая берёт готовую
+      await tx
+        .insert(roles)
+        .values({
+          id: newId(),
+          key: role.key,
+          name: role.name,
+          description: role.description,
+          isSystem: true,
+        })
+        .onConflictDoNothing({ target: roles.key })
+      const [current] = await tx
+        .select({ id: roles.id })
+        .from(roles)
+        .where(eq(roles.key, role.key))
+        .limit(1)
+      if (!current) return
+      await tx
+        .delete(roleCapabilities)
+        .where(
+          and(
+            eq(roleCapabilities.roleId, current.id),
+            notInArray(roleCapabilities.capability, role.capabilities),
+          ),
+        )
+      if (role.capabilities.length > 0) {
+        await tx
+          .insert(roleCapabilities)
+          .values(role.capabilities.map((capability) => ({ roleId: current.id, capability })))
+          .onConflictDoNothing()
+      }
+    })
   }
 
   await upgradeModuleStorage()
