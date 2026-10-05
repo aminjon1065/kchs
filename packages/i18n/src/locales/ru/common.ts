@@ -98,4 +98,5 @@ export const common = {
   selected: 'Выбрано: {count}',
   theme: { light: 'Светлая', dark: 'Тёмная', system: 'Системная' },
   density: { comfortable: 'Комфортная', compact: 'Компактная' },
+  placeholders: { userSearch: 'Имя, логин или почта' },
 } as const

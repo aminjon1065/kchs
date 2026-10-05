@@ -63,4 +63,5 @@ export const spaces: DeepPartial<Dictionary['spaces']> = {
   emptyHint: 'Бахш эҷод кунед ё файл боргузорӣ кунед',
   unavailable: 'Фазо дастнорас аст',
   content: 'Мӯҳтаво',
+  memberCount: '{count, plural, one {# корманд} other {# корманд}}',
 }

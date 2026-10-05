@@ -164,4 +164,14 @@ export const shell: DeepPartial<Dictionary['shell']> = {
     undoEdit: 'Undo edit',
     redoEdit: 'Redo edit',
   },
+  screens: {
+    explore: 'Explore',
+    sql: 'SQL lab',
+    pipelines: 'Pipelines',
+    control: 'Execution control',
+    workload: 'Workload',
+    processDesigner: 'Route designer',
+    ruleDesigner: 'Automation rules',
+    territories: 'Territories',
+  },
 }

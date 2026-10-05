@@ -61,6 +61,7 @@ export const gis: DeepPartial<Dictionary['gis']> = {
     newLayer: 'Қабати нави «{name}»',
     newLayerStyle: 'Услуби қабати нав',
     basemap: 'Харитаи асосӣ',
+    noBasemap: 'Бе харитаи асосӣ',
     showAll: 'Ҳамаро нишон додан',
     save: 'Нигоҳ доштани харита',
     saved: 'Харита нигоҳ дошта шуд',

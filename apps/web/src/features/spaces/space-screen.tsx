@@ -76,7 +76,7 @@ export function SpaceScreen({ spaceId }: { spaceId: string }) {
               </Badge>
             ) : null}
             <span className="tabular text-xs text-fg-muted">
-              {t('admin.org.employees', { count: space.memberCount })}
+              {t('spaces.memberCount', { count: space.memberCount })}
             </span>
           </>
         }

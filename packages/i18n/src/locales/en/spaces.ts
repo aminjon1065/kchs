@@ -55,4 +55,5 @@ export const spaces: DeepPartial<Dictionary['spaces']> = {
   emptyHint: 'Create a section or upload a file',
   unavailable: 'Space is unavailable',
   content: 'Contents',
+  memberCount: '{count, plural, one {# employee} other {# employees}}',
 }

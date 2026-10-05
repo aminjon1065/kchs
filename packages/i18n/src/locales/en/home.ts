@@ -63,4 +63,5 @@ export const home: DeepPartial<Dictionary['home']> = {
     overdue: 'overdue: {count}',
     overdueTitle: 'Overdue in the unit',
   },
+  delegated: 'Delegation',
 }

@@ -74,7 +74,7 @@ export function SpacesScreen() {
                 ) : null}
                 <div className="mt-auto flex w-full items-center gap-3 text-2xs text-fg-muted">
                   <span className="tabular">
-                    {t('admin.org.employees', { count: space.memberCount })}
+                    {t('spaces.memberCount', { count: space.memberCount })}
                   </span>
                   <span className="ml-auto">{formatRelativeTime(space.updatedAt, { locale })}</span>
                 </div>

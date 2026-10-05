@@ -60,6 +60,7 @@ export const gis: DeepPartial<Dictionary['gis']> = {
     newLayer: 'New layer “{name}”',
     newLayerStyle: 'Style of the new layer',
     basemap: 'Basemap',
+    noBasemap: 'No basemap',
     showAll: 'Show all',
     save: 'Save map',
     saved: 'Map saved',

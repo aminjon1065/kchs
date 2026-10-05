@@ -165,7 +165,7 @@ export function HomeScreen() {
           <StatTile label={t('inbox.title')} value={counts?.total ?? 0} onClick={openInbox} />
           <StatTile label={t('common.time.overdue')} value={counts?.overdue ?? 0} />
           <StatTile label={t('common.time.today')} value={counts?.dueToday ?? 0} />
-          <StatTile label={t('admin.delegation.title')} value={counts?.delegated ?? 0} />
+          <StatTile label={t('home.delegated')} value={counts?.delegated ?? 0} />
         </div>
 
         {shown.length === 0 ? (

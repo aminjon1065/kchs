@@ -65,4 +65,5 @@ export const home: DeepPartial<Dictionary['home']> = {
     overdue: 'мӯҳлат гузашт: {count}',
     overdueTitle: 'Мӯҳлатгузаштаҳо дар шуъба',
   },
+  delegated: 'Ивазкунӣ',
 }

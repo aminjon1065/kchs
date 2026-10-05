@@ -151,9 +151,9 @@ export function MobileNav({ onOpenPalette }: { onOpenPalette: () => void }) {
           {canOpenAdmin(me?.capabilities) ? (
             <DropdownMenuItem
               icon={<ObjectIcon type="role" className="size-4" />}
-              onSelect={() => go('admin', 'admin.title', 'role')}
+              onSelect={() => go('admin', 'shell.rail.admin', 'role')}
             >
-              {t('admin.title')}
+              {t('shell.rail.admin')}
             </DropdownMenuItem>
           ) : null}
         </DropdownMenuContent>

@@ -47,7 +47,7 @@ function UserFilterValue({ value, onChange }: ValueEditorProps) {
         autoFocus
         value={query}
         onValueChange={setQuery}
-        placeholder={t('admin.users.searchPlaceholder')}
+        placeholder={t('common.placeholders.userSearch')}
       />
       <ul className="flex max-h-56 flex-col gap-1.5 overflow-y-auto">
         {people.map((person) => (

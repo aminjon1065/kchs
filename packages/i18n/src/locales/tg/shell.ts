@@ -173,4 +173,14 @@ export const shell: DeepPartial<Dictionary['shell']> = {
     undoEdit: 'Бекор кардани тағйир',
     redoEdit: 'Такрори тағйир',
   },
+  screens: {
+    explore: 'Тадқиқ',
+    sql: 'Лабораторияи SQL',
+    pipelines: 'Табдилдиҳиҳо',
+    control: 'Назорати иҷро',
+    workload: 'Сарборӣ',
+    processDesigner: 'Созандаи масир',
+    ruleDesigner: 'Қоидаҳои худкорсозӣ',
+    territories: 'Ҳудудҳо',
+  },
 }

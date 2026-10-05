@@ -60,4 +60,5 @@ export const home = {
     overdue: 'просрочено: {count}',
     overdueTitle: 'Просроченные в отделе',
   },
+  delegated: 'Замещение',
 } as const

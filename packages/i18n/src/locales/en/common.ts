@@ -101,4 +101,5 @@ export const common: DeepPartial<Dictionary['common']> = {
   selected: 'Selected: {count}',
   theme: { light: 'Light', dark: 'Dark', system: 'System' },
   density: { comfortable: 'Comfortable', compact: 'Compact' },
+  placeholders: { userSearch: 'Name, login or email' },
 }

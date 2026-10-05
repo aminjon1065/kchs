@@ -108,4 +108,5 @@ export const common: DeepPartial<Dictionary['common']> = {
     comfortable: 'Бароҳат',
     compact: 'Фишурда',
   },
+  placeholders: { userSearch: 'Ном, логин ё почта' },
 }

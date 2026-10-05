@@ -54,4 +54,6 @@ export const spaces = {
   emptyHint: 'Создайте раздел или загрузите файл',
   unavailable: 'Пространство недоступно',
   content: 'Содержимое',
+  memberCount:
+    '{count, plural, one {# сотрудник} few {# сотрудника} many {# сотрудников} other {# сотрудника}}',
 } as const

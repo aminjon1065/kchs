@@ -446,7 +446,7 @@ export function MapStudio({
                 <SelectContent>
                   {basemaps.map((item) => (
                     <SelectItem key={item.id} value={item.id}>
-                      {item.key === 'none' ? t('admin.basemaps.noneName') : item.name}
+                      {item.key === 'none' ? t('gis.map.noBasemap') : item.name}
                     </SelectItem>
                   ))}
                 </SelectContent>

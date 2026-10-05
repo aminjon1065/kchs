@@ -57,6 +57,7 @@ export const gis = {
     newLayer: 'Новый слой «{name}»',
     newLayerStyle: 'Стиль нового слоя',
     basemap: 'Базовая карта',
+    noBasemap: 'Без подложки',
     showAll: 'Показать всё',
     save: 'Сохранить карту',
     saved: 'Карта сохранена',
