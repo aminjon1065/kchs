@@ -8,6 +8,7 @@ from bullmq import Job, Worker
 from bullmq.custom_errors import UnrecoverableError
 
 from kchs_engine.api import report_failure, report_result, report_started
+from kchs_engine.cancel import is_cancelled, run_cancellable
 from kchs_engine.config import settings
 from kchs_engine.jobs import JOB_HANDLERS, PermanentJobError, registered_queues
 
@@ -53,11 +54,17 @@ async def _run(
     job_handler: JobHandler,
     record_id: str,
 ) -> dict[str, Any]:
+    # Отменённое в api задание не начинается (ADR-0172); очередь считает его
+    # завершённым, повторов не будет
+    if await is_cancelled(record_id):
+        log.info("job.cancelled", queue=queue, name=job.name, job_id=record_id, stage="start")
+        return {"cancelled": True}
+
     log.info("job.started", queue=queue, name=job.name, job_id=record_id)
     await report_started(record_id)
 
     try:
-        result = await job_handler(job.data)
+        cancelled, result = await run_cancellable(record_id, job_handler(job.data))
     except Exception as error:  # статус задания фиксируется в реестре
         permanent = isinstance(error, PermanentJobError)
         final = permanent or is_final_attempt(job)
@@ -75,9 +82,16 @@ async def _run(
             raise UnrecoverableError(str(error)) from error
         raise
 
-    await report_result(record_id, result)
+    if cancelled:
+        log.info("job.cancelled", queue=queue, name=job.name, job_id=record_id, stage="running")
+        return {"cancelled": True}
+
+    # Исход уходит и отчётом, и результатом задания в очереди: потерянный отчёт
+    # api восполнит по событиям очереди (ADR-0172)
+    outcome = result if result is not None else {}
+    await report_result(record_id, outcome)
     log.info("job.finished", queue=queue, name=job.name, job_id=record_id)
-    return result
+    return outcome
 
 
 def is_final_attempt(job: Job) -> bool:

@@ -4,6 +4,7 @@
 и результат сообщаются внутренним маршрутом с сервисным токеном.
 """
 
+import asyncio
 from typing import Any
 
 import httpx
@@ -12,24 +13,43 @@ from kchs_engine.config import settings
 from kchs_engine.logging import log
 
 _TIMEOUT = httpx.Timeout(10.0)
+# Задержки повторов отчёта о статусе, с: api перезапускается, сеть моргнула.
+# Исчерпанные попытки — не сбой задания: исход api возьмёт из очереди (ADR-0172)
+_RETRY_DELAYS: tuple[float, ...] = (0.5, 1.0, 2.0, 4.0)
 
 
-async def _post(path: str, payload: dict[str, Any]) -> None:
+async def _post(path: str, payload: dict[str, Any], *, retry: bool = True) -> bool:
+    """Отчёт о статусе задания. Сбой сети и ответ 5xx повторяются с задержкой,
+    4xx — нет: повтор того же запроса не поможет. Истина — api принял отчёт."""
     config = settings()
     if not config.INTERNAL_SERVICE_TOKEN:
         log.debug("api.skip", path=path, reason="нет INTERNAL_SERVICE_TOKEN")
-        return
-    try:
-        async with httpx.AsyncClient(base_url=config.KCHS_API_URL, timeout=_TIMEOUT) as client:
-            response = await client.post(
-                path,
-                json=payload,
-                headers={"x-kchs-service-token": config.INTERNAL_SERVICE_TOKEN},
+        return False
+    delays = _RETRY_DELAYS if retry else ()
+    for attempt in range(len(delays) + 1):
+        try:
+            async with httpx.AsyncClient(base_url=config.KCHS_API_URL, timeout=_TIMEOUT) as client:
+                response = await client.post(
+                    path,
+                    json=payload,
+                    headers={"x-kchs-service-token": config.INTERNAL_SERVICE_TOKEN},
+                )
+            if response.status_code < 400:
+                return True
+            log.warning(
+                "api.error",
+                path=path,
+                status=response.status_code,
+                body=response.text[:500],
+                attempt=attempt + 1,
             )
-            if response.status_code >= 400:
-                log.warning("api.error", path=path, status=response.status_code, body=response.text)
-    except httpx.HTTPError as error:
-        log.warning("api.unreachable", path=path, error=str(error))
+            if response.status_code < 500:
+                return False
+        except httpx.HTTPError as error:
+            log.warning("api.unreachable", path=path, error=str(error), attempt=attempt + 1)
+        if attempt < len(delays):
+            await asyncio.sleep(delays[attempt])
+    return False
 
 
 async def report_started(job_id: str) -> None:
@@ -37,9 +57,11 @@ async def report_started(job_id: str) -> None:
 
 
 async def report_progress(job_id: str, progress: float, message: str | None = None) -> None:
+    # Прогресс не повторяется: следующий отчёт всё равно новее
     await _post(
         f"/api/v1/internal/jobs/{job_id}/status",
         {"status": "running", "progress": progress, "message": message},
+        retry=False,
     )
 
 
