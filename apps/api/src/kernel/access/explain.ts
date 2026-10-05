@@ -2,7 +2,7 @@ import { type Locale, parseConfidentiality } from '@kchs/contracts'
 import { eq } from 'drizzle-orm'
 import type { UserCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
-import { users } from '~/shared/db/schema/index.js'
+import { users } from '../directory/schema.js'
 import { getPrincipalSet, loadCapabilities } from './principal-set.js'
 
 /**

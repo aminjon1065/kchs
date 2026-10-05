@@ -11,12 +11,12 @@ import { EMPTY_PRINCIPALS, type UserCtx } from '~/shared/context.js'
 import { hashPassword, verifyPassword } from '~/shared/crypto/password.js'
 import { hashToken } from '~/shared/crypto/secrets.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import { shareLinks } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId, randomToken } from '~/shared/ids.js'
 import { cacheKeys, redis } from '~/shared/redis/index.js'
 import { SecurityPolicyService } from '../settings/security-policy.js'
 import { effectiveConfidentiality } from './confidentiality.js'
+import { shareLinks } from './schema.js'
 
 /**
  * Гостевые ссылки (03-access-model.md §Гостевые ссылки):

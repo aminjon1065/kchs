@@ -15,7 +15,7 @@ import {
  */
 registerLifecycle()
 
-const { sessions } = await import('../src/shared/db/schema/index.js')
+const { sessions } = await import('../src/db-schema.js')
 
 let fx: TestContext
 

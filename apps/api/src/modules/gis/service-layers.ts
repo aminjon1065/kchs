@@ -15,8 +15,8 @@ import { buildUserCtxFor } from '~/kernel/access/explain.js'
 import { registerJobHandler } from '~/kernel/jobs/runner.js'
 import { JobService } from '~/kernel/jobs/service.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
+import { objects } from '~/kernel/objects/schema.js'
 import { db } from '~/shared/db/client.js'
-import { objects, serviceLayers } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { rateLimit } from '~/shared/http/rate-limit.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
@@ -25,6 +25,7 @@ import {
   type ServiceLayerImportJobData,
   ServiceLayerService,
 } from './domain/service-layer-service.js'
+import { serviceLayers } from './schema.js'
 
 const IdParam = z.object({ id: z.uuid() })
 const TileParams = z.object({

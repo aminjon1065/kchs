@@ -2,9 +2,11 @@ import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js'
 import postgres from 'postgres'
 import { config } from '../config/index.js'
 import { logger } from '../logger/index.js'
-import * as schema from './schema/index.js'
-
-export type Database = PostgresJsDatabase<typeof schema>
+/**
+ * База без описания схемы: таблицы лежат у владельцев (ADR-0178), запросы строятся
+ * от таблиц, а не через `db.query.<таблица>`.
+ */
+export type Database = PostgresJsDatabase
 /** Транзакционный контекст: сервисы ядра принимают его первым аргументом. */
 export type Tx = Parameters<Parameters<Database['transaction']>[0]>[0]
 /** Любой исполнитель запросов: база или транзакция. */
@@ -31,7 +33,7 @@ export function db(): Database {
   if (dbInstance) return dbInstance
   const env = config()
   sqlClient = createClient(env.DATABASE_URL, env.DATABASE_POOL_MAX)
-  dbInstance = trackCommits(drizzle(sqlClient, { schema, logger: false }))
+  dbInstance = trackCommits(drizzle(sqlClient, { logger: false }))
   return dbInstance
 }
 
@@ -143,5 +145,3 @@ export async function closeQueryRole(): Promise<void> {
     queryClient = null
   }
 }
-
-export { schema }

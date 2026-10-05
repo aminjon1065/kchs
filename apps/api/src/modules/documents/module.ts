@@ -4,6 +4,7 @@ import { registerSubscriber } from '~/kernel/events/bus.js'
 import { registerInboxActionHandler } from '~/kernel/inbox/actions.js'
 import { registerJobHandler } from '~/kernel/jobs/runner.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
+import { objects } from '~/kernel/objects/schema.js'
 import { withProcessParticipants } from '~/kernel/process/index.js'
 import { declareSchedule } from '~/kernel/schedules/index.js'
 import { registerSystemDataset } from '~/kernel/system-datasets.js'
@@ -11,14 +12,6 @@ import { registerCalendarProjection } from '~/modules/calendar/public.js'
 import type { Ctx } from '~/shared/context.js'
 import type { Executor } from '~/shared/db/client.js'
 import { db } from '~/shared/db/client.js'
-import {
-  correspondents,
-  documents,
-  documentTypes,
-  journals,
-  objects,
-  templates,
-} from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { DocumentAcknowledgments } from './domain/acknowledgment-service.js'
@@ -46,6 +39,7 @@ import { registerDocumentProcessRoutes } from './http/process-routes.js'
 import { registerRenderRoutes } from './http/render-routes.js'
 import { registerDocumentRoutes } from './http/routes.js'
 import { registerTemplateRoutes } from './http/template-routes.js'
+import { correspondents, documents, documentTypes, journals, templates } from './schema.js'
 
 const LEVELS = ['view', 'comment', 'edit', 'manage', 'owner'] as const
 

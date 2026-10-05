@@ -2,9 +2,10 @@ import type { LineageEdge, LineageNode, ObjectLineage } from '@kchs/contracts'
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import type { Ctx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
-import { dependencies, objects } from '~/shared/db/schema/index.js'
 import { visibleObjectsSql } from '../access/authorize.js'
 import { objectType } from '../objects/registry.js'
+import { objects } from '../objects/schema.js'
+import { dependencies } from './schema.js'
 
 /**
  * Происхождение и влияние (ADR-0102): обход графа `dependencies` в обе стороны

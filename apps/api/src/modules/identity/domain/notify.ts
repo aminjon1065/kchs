@@ -1,9 +1,9 @@
 import type { Locale } from '@kchs/contracts'
 import { createTranslator } from '@kchs/i18n'
 import { eq } from 'drizzle-orm'
+import { users } from '~/kernel/directory/schema.js'
 import { config } from '~/shared/config/index.js'
 import { db } from '~/shared/db/client.js'
-import { users } from '~/shared/db/schema/index.js'
 import { logger } from '~/shared/logger/index.js'
 import { mailConfigured, sendMail } from '~/shared/mail/index.js'
 

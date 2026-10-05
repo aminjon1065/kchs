@@ -12,7 +12,7 @@ import { UserService } from '~/modules/identity/public.js'
 import { config } from '~/shared/config/index.js'
 import { systemCtx, type UserCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
-import { userPresence } from '~/shared/db/schema/index.js'
+import { userPresence } from '../schema.js'
 
 /** Дольше этого без отметки активности — «отошёл»; вдвое дольше — «не в сети». */
 const AWAY_AFTER_MINUTES = 5

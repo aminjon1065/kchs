@@ -27,7 +27,7 @@ const { startCollab, stopCollab } = await import('../src/kernel/collab/server.js
 const { COLLAB_CHANNEL } = await import('../src/kernel/collab/registry.js')
 const { AuthService } = await import('../src/modules/identity/public.js')
 const { NotebookService } = await import('../src/modules/data/domain/notebook-service.js')
-const { dependencies, yjsDocuments } = await import('../src/shared/db/schema/index.js')
+const { dependencies, yjsDocuments } = await import('../src/db-schema.js')
 
 let fx: TestContext
 let url: string

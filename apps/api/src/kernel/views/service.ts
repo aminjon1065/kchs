@@ -2,11 +2,13 @@ import { type SavedView, type ViewCreateInput, ViewDefinition } from '@kchs/cont
 import { and, asc, desc, eq, sql } from 'drizzle-orm'
 import type { UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import { objects, spaces, views } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { authorize, visibleObjectsSql } from '../access/authorize.js'
 import { publishEvent } from '../events/publisher.js'
+import { objects } from '../objects/schema.js'
 import { ObjectService } from '../objects/service.js'
+import { spaces } from '../spaces/schema.js'
+import { views } from './schema.js'
 
 /**
  * Сохранённые представления списков (02-platform-kernel.md §13): фильтры,

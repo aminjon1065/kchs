@@ -10,10 +10,10 @@ import { config } from '~/shared/config/index.js'
 import { type Ctx, systemCtx, type UserCtx } from '~/shared/context.js'
 import { decryptSecret, encryptSecret } from '~/shared/crypto/secrets.js'
 import { db } from '~/shared/db/client.js'
-import { mailMailboxes } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { logger } from '~/shared/logger/index.js'
+import { mailMailboxes } from '../schema.js'
 
 /** Файл учёток docker-mailserver: `адрес|{схема}хеш` построчно, подхватывается без перезапуска. */
 const ACCOUNTS_FILE = 'postfix-accounts.cf'

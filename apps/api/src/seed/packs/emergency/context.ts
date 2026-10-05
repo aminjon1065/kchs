@@ -1,10 +1,10 @@
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm'
+import { employments, objects, orgUnits, spaces, users } from '~/db-schema.js'
 import { buildUserCtxFor } from '~/kernel/access/explain.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import { SpaceService } from '~/kernel/spaces/service.js'
 import { type SystemCtx, systemCtx, type UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import { employments, objects, orgUnits, spaces, users } from '~/shared/db/schema/index.js'
 
 /**
  * Предметный пакет «Чрезвычайные ситуации» (P5-E08, ADR-0128): конфигурация и данные

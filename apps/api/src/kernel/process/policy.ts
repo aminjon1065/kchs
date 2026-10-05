@@ -2,8 +2,9 @@ import type { AccessReason, Level } from '@kchs/contracts'
 import { and, eq, ne, or, type SQL, sql } from 'drizzle-orm'
 import type { UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import { objects, processInstances, processSteps } from '~/shared/db/schema/index.js'
 import type { ObjectLike, TypePolicy } from '../access/types.js'
+import { objects } from '../objects/schema.js'
+import { processInstances, processSteps } from './schema.js'
 
 /**
  * Производное право участника маршрута видеть объект (03-access-model.md,

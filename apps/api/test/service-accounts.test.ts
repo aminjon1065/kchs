@@ -27,7 +27,7 @@ const { InboxService } = await import('../src/kernel/inbox/service.js')
 const { systemCtx } = await import('../src/shared/context.js')
 const { buildUserCtxFor } = await import('../src/kernel/access/explain.js')
 const { auditLog, inboxItems, notifications, passwordResets, sessions, users } = await import(
-  '../src/shared/db/schema/index.js'
+  '../src/db-schema.js'
 )
 const { hashToken } = await import('../src/shared/crypto/secrets.js')
 const { newId, randomToken } = await import('../src/shared/ids.js')

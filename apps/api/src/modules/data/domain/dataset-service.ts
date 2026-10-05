@@ -13,13 +13,14 @@ import { and, asc, desc, eq, isNotNull, isNull, sql } from 'drizzle-orm'
 import { visibleObjectsSql } from '~/kernel/access/authorize.js'
 import { directory } from '~/kernel/directory/port.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
+import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import { actorId, type Ctx } from '~/shared/context.js'
 import { type Database, db, type Executor } from '~/shared/db/client.js'
-import { datasetFields, datasets, datasetVersions, objects } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { columnName, Physical, type PhysicalColumn, tableName } from '../infra/physical.js'
+import { datasetFields, datasets, datasetVersions } from '../schema.js'
 
 /** Поле с физическим столбцом — для компилятора запросов, импорта и правки строк. */
 export interface StoredField extends DatasetField {

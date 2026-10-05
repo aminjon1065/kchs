@@ -1,8 +1,9 @@
 import { LayerStyle, type LayerStyleInput, type MapLayerEntry, MapSpec } from '@kchs/contracts'
 import { and, eq, isNull, sql } from 'drizzle-orm'
+import { objects } from '~/kernel/objects/schema.js'
 import type { Ctx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
-import { layers, objects } from '~/shared/db/schema/index.js'
+import { layers } from '../schema.js'
 import { LayerService } from './layer-service.js'
 import { MapService } from './map-service.js'
 

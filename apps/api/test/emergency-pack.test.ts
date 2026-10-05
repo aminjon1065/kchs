@@ -15,7 +15,7 @@ registerLifecycle()
 const { runInit } = await import('../src/cli/init.js')
 const { seedCommand } = await import('../src/seed/command.js')
 const { datasets, forms, objects, rules, sources, spaces, users } = await import(
-  '../src/shared/db/schema/index.js'
+  '../src/db-schema.js'
 )
 const { evaluateRuleCondition, ruleScope } = await import(
   '../src/modules/automation/domain/scope.js'
@@ -318,7 +318,7 @@ describe('пакет ЧС: время реагирования и охват о�
 
   it('показатели и плитки: среднее время прибытия по регионам и доля оповещённого населения', async () => {
     const { Metrics, DatasetQueries } = await import('../src/modules/data/public.js')
-    const { dashboards } = await import('../src/shared/db/schema/index.js')
+    const { dashboards } = await import('../src/db-schema.js')
     const { systemCtx } = await import('../src/shared/context.js')
     const ctx = systemCtx('test')
     const found = await packObjects()

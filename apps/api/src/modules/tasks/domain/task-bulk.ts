@@ -2,8 +2,8 @@ import type { TaskBulkAction, TaskBulkInput, TaskBulkResult } from '@kchs/contra
 import { inArray } from 'drizzle-orm'
 import type { UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import { tasks } from '~/shared/db/schema/index.js'
 import { AppError, errors } from '~/shared/errors.js'
+import { tasks } from '../schema.js'
 import { loadRow } from './task-core.js'
 import { TaskService } from './task-service.js'
 

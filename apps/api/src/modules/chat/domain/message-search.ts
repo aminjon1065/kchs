@@ -7,11 +7,12 @@ import type {
 import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
 import { directory } from '~/kernel/directory/port.js'
+import { conversations, messages } from '~/kernel/discussions/schema.js'
+import { objects } from '~/kernel/objects/schema.js'
 import { meili, meiliValue } from '~/kernel/search/index-service.js'
 import { config } from '~/shared/config/index.js'
 import type { UserCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
-import { conversations, messages, objects } from '~/shared/db/schema/index.js'
 import { logger } from '~/shared/logger/index.js'
 import { ChatService } from './chat-service.js'
 

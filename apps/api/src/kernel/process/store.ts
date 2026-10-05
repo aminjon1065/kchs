@@ -9,10 +9,10 @@ import {
 } from '@kchs/process'
 import { asc, eq, sql } from 'drizzle-orm'
 import type { Executor } from '~/shared/db/client.js'
-import { processDefinitions, processInstances, processSteps } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { loadObject } from '../access/authorize.js'
 import type { ObjectLike } from '../access/types.js'
+import { processDefinitions, processInstances, processSteps } from './schema.js'
 
 /**
  * Хранение экземпляров: строка `process_instances` (состояние и контекст) и

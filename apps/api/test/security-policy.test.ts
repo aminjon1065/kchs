@@ -18,7 +18,7 @@ import {
  */
 registerLifecycle()
 
-const { auditLog, sessions, users } = await import('../src/shared/db/schema/index.js')
+const { auditLog, sessions, users } = await import('../src/db-schema.js')
 const { authenticateSocket } = await import('../src/kernel/realtime/gateway.js')
 const { AuthService } = await import('../src/modules/identity/public.js')
 

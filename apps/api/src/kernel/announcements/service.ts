@@ -8,12 +8,12 @@ import type {
 import { and, desc, eq, gt, isNull, lte, or, sql } from 'drizzle-orm'
 import { actorId, type Ctx } from '~/shared/context.js'
 import { type Database, db, type Executor } from '~/shared/db/client.js'
-import { announcements } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { AUDIT_ACTIONS, audit } from '../audit/service.js'
 import { directory } from '../directory/port.js'
 import { publishEvent } from '../events/publisher.js'
+import { announcements } from './schema.js'
 
 type Row = typeof announcements.$inferSelect
 

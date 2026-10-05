@@ -12,12 +12,12 @@ import { createTranslator } from '@kchs/i18n'
 import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm'
 import { config } from '~/shared/config/index.js'
 import { type Database, db } from '~/shared/db/client.js'
-import { notificationPreferences, notifications, users } from '~/shared/db/schema/index.js'
 import { logger } from '~/shared/logger/index.js'
 import { mailConfigured, sendMail } from '~/shared/mail/index.js'
 import { redactSummary } from '../access/confidentiality.js'
 import { serviceAccountIds } from '../access/service-accounts.js'
 import { directory } from '../directory/port.js'
+import { users } from '../directory/schema.js'
 import { currentEventDelivery } from '../events/delivery.js'
 import { InboxService } from '../inbox/service.js'
 import { ObjectService } from '../objects/service.js'
@@ -29,6 +29,7 @@ import {
   notificationChannel,
 } from './channels.js'
 import { quietRecipients } from './quiet.js'
+import { notificationPreferences, notifications } from './schema.js'
 
 /** Окно агрегации: несколько событий одного объекта сливаются в одно уведомление. */
 const AGGREGATE_WINDOW_MINUTES = 5

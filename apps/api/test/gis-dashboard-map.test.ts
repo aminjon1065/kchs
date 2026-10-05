@@ -19,7 +19,7 @@ import { decodeMvt, type MvtFeature } from './mvt.js'
  */
 registerLifecycle()
 
-const { dependencies } = await import('../src/shared/db/schema/index.js')
+const { dependencies } = await import('../src/db-schema.js')
 
 let fx: TestContext
 let datasetId: string

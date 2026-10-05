@@ -17,7 +17,7 @@ import {
  */
 registerLifecycle()
 
-const { objects, spaces } = await import('../src/shared/db/schema/index.js')
+const { objects, spaces } = await import('../src/db-schema.js')
 
 let fx: TestContext
 const run = Date.now().toString(36)

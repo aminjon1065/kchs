@@ -1,4 +1,5 @@
 import { eq, sql } from 'drizzle-orm'
+import { groups, spaceMembers, spaces } from '~/db-schema.js'
 import { bumpPrincipalsVersion } from '~/kernel/access/principal-set.js'
 import { SpaceService } from '~/kernel/spaces/service.js'
 import { CalendarService } from '~/modules/calendar/domain/calendar-service.js'
@@ -7,7 +8,6 @@ import { ChatService } from '~/modules/chat/domain/chat-service.js'
 import { GroupService } from '~/modules/identity/public.js'
 import { config } from '~/shared/config/index.js'
 import { db } from '~/shared/db/client.js'
-import { groups, spaceMembers, spaces } from '~/shared/db/schema/index.js'
 import {
   findPackObject,
   headOf,

@@ -1,7 +1,7 @@
 import { and, eq, isNotNull, lt, sql } from 'drizzle-orm'
 import { db, type Executor } from '~/shared/db/client.js'
-import { eventInstances, events } from '~/shared/db/schema/index.js'
 import { logger } from '~/shared/logger/index.js'
+import { eventInstances, events } from '../schema.js'
 import {
   expandSeries,
   HORIZON_MS,

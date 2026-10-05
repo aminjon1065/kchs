@@ -56,7 +56,7 @@ const {
   territories,
   territoryClosure,
   views,
-} = await import('../src/shared/db/schema/index.js')
+} = await import('../src/db-schema.js')
 
 interface Created {
   id: string

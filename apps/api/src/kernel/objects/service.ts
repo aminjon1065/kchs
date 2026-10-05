@@ -8,7 +8,6 @@ import { and, eq, inArray, isNull, sql } from 'drizzle-orm'
 import type { Ctx } from '~/shared/context.js'
 import { actorId } from '~/shared/context.js'
 import { type Database, db, type Executor } from '~/shared/db/client.js'
-import { objectAncestors, objects, recentViews } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { grantOwner } from '../access/acl-service.js'
@@ -16,6 +15,7 @@ import { effectiveConfidentialityMany } from '../access/confidentiality.js'
 import type { ObjectLike } from '../access/types.js'
 import { publishEvent } from '../events/publisher.js'
 import { objectType, requireObjectType } from './registry.js'
+import { objectAncestors, objects, recentViews } from './schema.js'
 
 export interface CreateObjectInput {
   id?: string

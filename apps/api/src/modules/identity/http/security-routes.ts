@@ -1,8 +1,8 @@
 import { SecurityPolicy, SecurityPolicyPatch } from '@kchs/contracts'
 import { inArray } from 'drizzle-orm'
+import { roles } from '~/kernel/directory/schema.js'
 import { SecurityPolicyService } from '~/kernel/settings/security-policy.js'
 import { db } from '~/shared/db/client.js'
-import { roles } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 

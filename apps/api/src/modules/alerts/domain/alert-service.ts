@@ -14,13 +14,14 @@ import { and, desc, eq, gte, inArray, isNull, lte, sql } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { LinkService } from '~/kernel/links/service.js'
+import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import { nextRunAt } from '~/kernel/schedules/index.js'
 import { Metrics } from '~/modules/data/public.js'
 import type { UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import { alertEvents, alerts, objects } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
+import { alertEvents, alerts } from '../schema.js'
 
 /**
  * Алерты (06-analytics-engine.md §14, ADR-0104): правило на показатель —

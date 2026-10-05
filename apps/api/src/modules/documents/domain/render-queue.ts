@@ -6,10 +6,11 @@ import {
 import { eq } from 'drizzle-orm'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { JobService } from '~/kernel/jobs/service.js'
+import { objects } from '~/kernel/objects/schema.js'
 import type { Ctx } from '~/shared/context.js'
 import type { Executor } from '~/shared/db/client.js'
-import { documentRenders, objects } from '~/shared/db/schema/index.js'
 import { newId } from '~/shared/ids.js'
+import { documentRenders } from '../schema.js'
 
 /**
  * Задание движка рендеров модуля документов (ADR-0085): в данных — только

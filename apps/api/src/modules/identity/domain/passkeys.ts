@@ -18,19 +18,15 @@ import {
 } from '@simplewebauthn/server'
 import { and, eq, gt, sql } from 'drizzle-orm'
 import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
+import { users } from '~/kernel/directory/schema.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { config } from '~/shared/config/index.js'
 import { systemCtx, type UserCtx } from '~/shared/context.js'
 import { hashToken } from '~/shared/crypto/secrets.js'
 import { db } from '~/shared/db/client.js'
-import {
-  mfaChallenges,
-  users,
-  webauthnChallenges,
-  webauthnCredentials,
-} from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
+import { mfaChallenges, webauthnChallenges, webauthnCredentials } from '../schema.js'
 import { AuthService, type RequestMeta } from './auth-service.js'
 
 /**

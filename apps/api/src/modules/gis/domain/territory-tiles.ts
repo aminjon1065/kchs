@@ -3,9 +3,10 @@ import { promisify } from 'node:util'
 import { gzip as gzipCallback } from 'node:zlib'
 import { type Locale, TERRITORY_LEVELS, type TerritoryLevel } from '@kchs/contracts'
 import { sql } from 'drizzle-orm'
+import { objects } from '~/kernel/objects/schema.js'
 import { db } from '~/shared/db/client.js'
-import { objects, territories } from '~/shared/db/schema/index.js'
 import { cache } from '~/shared/redis/index.js'
+import { territories } from '../schema.js'
 import { simplifyTolerance, TerritoryService } from './territory-service.js'
 
 const gzip = promisify(gzipCallback)

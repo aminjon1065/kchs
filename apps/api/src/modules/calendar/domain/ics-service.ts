@@ -12,22 +12,16 @@ import { authorize } from '~/kernel/access/authorize.js'
 import { buildUserCtxFor } from '~/kernel/access/explain.js'
 import { directory } from '~/kernel/directory/port.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
+import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import { config } from '~/shared/config/index.js'
 import { type Ctx, systemCtx, type UserCtx } from '~/shared/context.js'
 import { decryptSecret, hashToken } from '~/shared/crypto/secrets.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import {
-  calendarFeeds,
-  calendars,
-  eventAttendees,
-  eventInstances,
-  events,
-  objects,
-} from '~/shared/db/schema/index.js'
 import { errors, isAppError } from '~/shared/errors.js'
 import { newId, randomToken } from '~/shared/ids.js'
 import { logger } from '~/shared/logger/index.js'
+import { calendarFeeds, calendars, eventAttendees, eventInstances, events } from '../schema.js'
 import { type CalendarRow, loadCalendar, principalUser } from './calendar-service.js'
 import { insertEvent } from './event-service.js'
 import { buildCalendar, type IcsEvent, type ParsedEvent, parseCalendar } from './ics.js'

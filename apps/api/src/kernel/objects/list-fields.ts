@@ -1,7 +1,7 @@
 import type { ListField } from '@kchs/contracts'
 import { sql } from 'drizzle-orm'
-import { objects } from '~/shared/db/schema/index.js'
 import { type ListFieldDef, objectType } from './registry.js'
+import { objects } from './schema.js'
 
 export type { ListFieldDef } from './registry.js'
 

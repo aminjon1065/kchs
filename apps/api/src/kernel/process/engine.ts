@@ -23,12 +23,12 @@ import { eq } from 'drizzle-orm'
 import { config } from '~/shared/config/index.js'
 import type { Ctx } from '~/shared/context.js'
 import type { Executor } from '~/shared/db/client.js'
-import { objects } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { directory } from '../directory/port.js'
 import { publishEvent } from '../events/publisher.js'
 import { InboxService } from '../inbox/service.js'
+import { objects } from '../objects/schema.js'
 import { kernelDirectory } from './directory.js'
 import {
   type ProcessInstanceInfo,

@@ -1,8 +1,8 @@
 import { and, eq, isNull } from 'drizzle-orm'
 import type { Subscriber } from '~/kernel/events/types.js'
+import { objectAncestors, objects } from '~/kernel/objects/schema.js'
 import { indexObject } from '~/kernel/search/index-service.js'
 import { db } from '~/shared/db/client.js'
-import { objectAncestors, objects } from '~/shared/db/schema/index.js'
 import { indexPageChunks, removePageChunks } from './page-chunks.js'
 
 /**

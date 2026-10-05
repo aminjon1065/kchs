@@ -6,7 +6,8 @@ import { defineConfig } from 'drizzle-kit'
  * Схема `ds` управляется кодом модуля data (physical.ts).
  */
 export default defineConfig({
-  schema: './src/shared/db/schema/index.ts',
+  // Схемы владельцев таблиц собраны в одном входе (ADR-0178)
+  schema: './src/db-schema.ts',
   out: './drizzle',
   dialect: 'postgresql',
   schemaFilter: ['public', 'ops', 'yjs'],

@@ -3,10 +3,10 @@ import { eq } from 'drizzle-orm'
 import type { UserCtx } from '~/shared/context.js'
 import { hashToken } from '~/shared/crypto/secrets.js'
 import { db } from '~/shared/db/client.js'
-import { users } from '~/shared/db/schema/index.js'
 import { randomToken } from '~/shared/ids.js'
 import { cacheKeys, redis } from '~/shared/redis/index.js'
 import { buildUserCtxFor } from '../access/explain.js'
+import { users } from '../directory/schema.js'
 
 interface StoredGrant {
   userId: string

@@ -17,11 +17,12 @@ import { CollabStore } from '~/kernel/collab/store.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { LinkService } from '~/kernel/links/service.js'
 import type { SearchContent } from '~/kernel/objects/registry.js'
+import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import { notebooks, objects } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
+import { notebooks } from '../schema.js'
 import { insertCells, type NotebookBody, notebookState, readNotebook } from './notebook-doc.js'
 
 /** Текста тетради в поисковом индексе — не больше (как у датасета). */

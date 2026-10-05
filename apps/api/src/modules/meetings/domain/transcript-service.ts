@@ -3,17 +3,12 @@ import { and, desc, eq, sql } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
 import { directory } from '~/kernel/directory/port.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
+import { objects } from '~/kernel/objects/schema.js'
 import { systemCtx, type UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import {
-  meetingParticipants,
-  meetings,
-  objects,
-  recordings,
-  transcripts,
-} from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
+import { meetingParticipants, meetings, recordings, transcripts } from '../schema.js'
 import type { TranscriptText } from './protocol-transcript.js'
 
 /** Метки говорящих в порядке первого появления в расшифровке. */

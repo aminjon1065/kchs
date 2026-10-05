@@ -1,7 +1,9 @@
 import type { ObjectSummary } from '@kchs/contracts'
 import { eq, inArray, sql } from 'drizzle-orm'
+import { conversations } from '~/kernel/discussions/schema.js'
+import { objects } from '~/kernel/objects/schema.js'
+import { spaces } from '~/kernel/spaces/schema.js'
 import { db } from '~/shared/db/client.js'
-import { conversations, objects, spaces } from '~/shared/db/schema/index.js'
 import { registerObjectType } from './objects/registry.js'
 import { SpaceLifecycle } from './spaces/lifecycle.js'
 

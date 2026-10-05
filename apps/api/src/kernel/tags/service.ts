@@ -2,10 +2,11 @@ import { TAG_NAME_MAX, TAGS_PER_OBJECT_MAX, type TagColor, type TagView } from '
 import { and, asc, eq, ilike, isNull, or, type SQL, sql } from 'drizzle-orm'
 import type { Ctx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import { objects, objectTags, tags } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { publishEvent } from '../events/publisher.js'
+import { objects } from '../objects/schema.js'
+import { objectTags, tags } from './schema.js'
 
 /** Имя тега: пробелы схлопнуты, не длиннее TAG_NAME_MAX символов. */
 export function normalizeTagName(raw: string): string {

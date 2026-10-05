@@ -2,7 +2,7 @@ import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { objects } from '../src/shared/db/schema/index.js'
+import { objects } from '../src/db-schema.js'
 import {
   call,
   db,

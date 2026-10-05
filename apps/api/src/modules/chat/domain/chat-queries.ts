@@ -2,10 +2,11 @@ import type { ChatListItem, ChatListQuery, ChatSection, MessageKind } from '@kch
 import { sql } from 'drizzle-orm'
 import { visibleObjectsSql } from '~/kernel/access/authorize.js'
 import { directory } from '~/kernel/directory/port.js'
+import { conversations } from '~/kernel/discussions/schema.js'
 import { objectType } from '~/kernel/objects/registry.js'
+import { objects } from '~/kernel/objects/schema.js'
 import type { UserCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
-import { conversations, objects } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 
 interface ListRow extends Record<string, unknown> {

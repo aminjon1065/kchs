@@ -3,11 +3,12 @@ import { and, asc, eq, notInArray, sql } from 'drizzle-orm'
 import { BusinessCalendar } from '~/kernel/business-calendar/service.js'
 import { endOfLocalDay } from '~/kernel/business-calendar/working-days.js'
 import { InboxService } from '~/kernel/inbox/service.js'
+import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import { actorId, type Ctx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import { objects, taskDueChanges, tasks } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
+import { taskDueChanges, tasks } from '../schema.js'
 import { CLOSED, emit, refsOf, type TaskView } from './task-core.js'
 
 /** Срок из ввода: дата или «N рабочих дней» от момента `from`. */

@@ -12,7 +12,7 @@ registerLifecycle()
 
 const { formatInitSummary, runInit } = await import('../src/cli/init.js')
 const { seedCommand } = await import('../src/seed/command.js')
-const { businessCalendar, users } = await import('../src/shared/db/schema/index.js')
+const { businessCalendar, users } = await import('../src/db-schema.js')
 const { SecurityPolicyService } = await import('../src/kernel/settings/security-policy.js')
 const { systemCtx } = await import('../src/shared/context.js')
 

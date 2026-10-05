@@ -21,20 +21,20 @@ import { directory } from '~/kernel/directory/port.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import type { EventInput } from '~/kernel/events/types.js'
 import { LinkService } from '~/kernel/links/service.js'
+import { objects } from '~/kernel/objects/schema.js'
 import { hiddenSummary, ObjectService } from '~/kernel/objects/service.js'
 import { config } from '~/shared/config/index.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
+import { AppError, errors } from '~/shared/errors.js'
 import {
   calendars,
   eventAttendees,
   eventInstances,
   eventResources,
   events,
-  objects,
   type ReminderValue,
-} from '~/shared/db/schema/index.js'
-import { AppError, errors } from '~/shared/errors.js'
+} from '../schema.js'
 import { CalendarInbox } from './calendar-inbox.js'
 import {
   type CalendarRow,

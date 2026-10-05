@@ -16,11 +16,14 @@ import {
 import { and, eq, inArray, isNull, or, type SQL, sql } from 'drizzle-orm'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import { aclEntries, links, objectAncestors, objects, spaces } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { AUDIT_ACTIONS, audit } from '../audit/service.js'
+import { links } from '../links/schema.js'
 import { actionDefinition, objectType } from '../objects/registry.js'
+import { objectAncestors, objects } from '../objects/schema.js'
+import { spaces } from '../spaces/schema.js'
 import { adminModeActive, clearanceOf, clearanceSql } from './confidentiality.js'
+import { aclEntries } from './schema.js'
 import type { AuthorizeOptions, ObjectLike } from './types.js'
 
 const DENIED: Decision = {

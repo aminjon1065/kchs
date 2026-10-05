@@ -7,8 +7,8 @@ import { publishEvent } from '~/kernel/events/publisher.js'
 import { type Ctx, systemCtx, type UserCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { pgErrorCode, UNIQUE_VIOLATION } from '~/shared/db/pg-error.js'
-import { telegramLinks } from '~/shared/db/schema/index.js'
 import { redis } from '~/shared/redis/index.js'
+import { telegramLinks } from '../schema.js'
 
 /** Одноразовая ссылка привязки живёт 15 минут. */
 const LINK_TTL_SECONDS = 15 * 60

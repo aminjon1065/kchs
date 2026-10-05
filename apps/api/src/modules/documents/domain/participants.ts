@@ -2,10 +2,11 @@ import { type Level, levelFromValue, levelValue, maxLevel } from '@kchs/contract
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import { grantAccess, readPrincipalsFor, revokeAccess } from '~/kernel/access/acl-service.js'
 import { loadObject } from '~/kernel/access/authorize.js'
+import { aclEntries } from '~/kernel/access/schema.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import type { Ctx } from '~/shared/context.js'
 import type { Executor } from '~/shared/db/client.js'
-import { aclEntries, documentParticipants, documents } from '~/shared/db/schema/index.js'
+import { documentParticipants, documents } from '../schema.js'
 
 /**
  * Роль участника документа. Карточка даёт автора, ответственного, подписанта и

@@ -2,6 +2,7 @@ import type { Capability } from '@kchs/contracts'
 import { and, eq, gt, inArray, isNotNull, lte, sql } from 'drizzle-orm'
 import type { PrincipalSet } from '~/shared/context.js'
 import { afterCommit, db, type Executor } from '~/shared/db/client.js'
+import { bumpVersionStamp, cache, cacheKeys, versionStamp } from '~/shared/redis/index.js'
 import {
   delegations,
   employments,
@@ -10,10 +11,9 @@ import {
   orgUnits,
   roleCapabilities,
   roles,
-  spaceMembers,
   userRoles,
-} from '~/shared/db/schema/index.js'
-import { bumpVersionStamp, cache, cacheKeys, versionStamp } from '~/shared/redis/index.js'
+} from '../directory/schema.js'
+import { spaceMembers } from '../spaces/schema.js'
 
 const CACHE_TTL_SECONDS = 300
 

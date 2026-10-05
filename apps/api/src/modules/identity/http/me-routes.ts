@@ -2,15 +2,17 @@ import { AdminModeInput, AdminModeState, MeResponse, ProfileUpdateInput } from '
 import { and, eq, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { invalidatePrincipalSet } from '~/kernel/access/principal-set.js'
+import { employments, orgUnits, positions, users } from '~/kernel/directory/schema.js'
 import { FeatureService } from '~/kernel/features/service.js'
 import { recheckUserRooms } from '~/kernel/realtime/gateway.js'
 import { SETTING_KEYS, SettingsService } from '~/kernel/settings/service.js'
+import { spaces } from '~/kernel/spaces/schema.js'
 import { db } from '~/shared/db/client.js'
-import { employments, orgUnits, positions, spaces, users } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { AuthService } from '../domain/auth-service.js'
 import { DelegationService, UserService } from '../domain/user-service.js'
+import { sessions } from '../schema.js'
 
 export function registerMeRoutes(route: RouteRegistrar): void {
   route({
@@ -56,10 +58,16 @@ export function registerMeRoutes(route: RouteRegistrar): void {
         )
         .limit(1)
 
-      const sessionRow = await db().query.sessions.findFirst({
-        where: (s, { eq: eqOp }) => eqOp(s.id, ctx.sessionId),
-        columns: { id: true, expiresAt: true, createdAt: true, csrfToken: true },
-      })
+      const [sessionRow] = await db()
+        .select({
+          id: sessions.id,
+          expiresAt: sessions.expiresAt,
+          createdAt: sessions.createdAt,
+          csrfToken: sessions.csrfToken,
+        })
+        .from(sessions)
+        .where(eq(sessions.id, ctx.sessionId))
+        .limit(1)
 
       return {
         user: profile,

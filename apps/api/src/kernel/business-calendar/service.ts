@@ -8,9 +8,9 @@ import { and, asc, between, eq } from 'drizzle-orm'
 import { config } from '~/shared/config/index.js'
 import type { Ctx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import { businessCalendar } from '~/shared/db/schema/index.js'
 import { AUDIT_ACTIONS, audit } from '../audit/service.js'
 import { publishEvent } from '../events/publisher.js'
+import { businessCalendar } from './schema.js'
 import {
   countWorkingDays,
   type DayKindOf,

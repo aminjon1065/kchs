@@ -16,7 +16,7 @@ import {
  */
 registerLifecycle()
 
-const { files, uploadSessions } = await import('../src/shared/db/schema/index.js')
+const { files, uploadSessions } = await import('../src/db-schema.js')
 const { FileService } = await import('../src/modules/files/domain/file-service.js')
 
 let fx: TestContext

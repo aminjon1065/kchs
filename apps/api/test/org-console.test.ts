@@ -16,7 +16,7 @@ import {
  */
 registerLifecycle()
 
-const { employments, groups } = await import('../src/shared/db/schema/index.js')
+const { employments, groups } = await import('../src/db-schema.js')
 const { computePrincipalSet } = await import('../src/kernel/access/principal-set.js')
 const { newId } = await import('../src/shared/ids.js')
 

@@ -5,11 +5,13 @@ import {
   MessageListQuery,
   MessagePostInput,
 } from '@kchs/contracts'
+import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { authorize } from '../access/authorize.js'
+import { messages } from './schema.js'
 import { DiscussionService } from './service.js'
 
 const IdParam = z.object({ id: z.uuid() })
@@ -188,10 +190,11 @@ export function registerDiscussionRoutes(route: RouteRegistrar): void {
 }
 
 async function conversationOfMessage(messageId: number): Promise<string> {
-  const row = await db().query.messages.findFirst({
-    where: (m, { eq }) => eq(m.id, messageId),
-    columns: { conversationId: true },
-  })
+  const [row] = await db()
+    .select({ conversationId: messages.conversationId })
+    .from(messages)
+    .where(eq(messages.id, messageId))
+    .limit(1)
   if (!row) throw errors.notFound('Сообщение')
   return row.conversationId
 }

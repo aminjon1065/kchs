@@ -1,5 +1,5 @@
+import type { objects } from '~/kernel/objects/schema.js'
 import { nextRuns } from '~/kernel/schedules/index.js'
-import type { objects } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 
 /** Общее у источников внешней базы (ADR-0107) и лент по адресу (ADR-0132). */

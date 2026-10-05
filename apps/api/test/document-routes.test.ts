@@ -34,7 +34,7 @@ const { fireStepTimers } = await import('../src/kernel/process/timers.js')
 const { processSubscribers } = await import('../src/kernel/process/subscribers.js')
 const { matchesType } = await import('../src/kernel/events/bus.js')
 const { handleTelegramUpdate } = await import('../src/modules/telegram/domain/bot.js')
-const schema = await import('../src/shared/db/schema/index.js')
+const schema = await import('../src/db-schema.js')
 
 const run = Date.now().toString(36)
 

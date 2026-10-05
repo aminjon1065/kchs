@@ -1,7 +1,7 @@
 import { eq, sql } from 'drizzle-orm'
 import * as Y from 'yjs'
 import { db, type Executor } from '~/shared/db/client.js'
-import { yjsDocuments } from '~/shared/db/schema/index.js'
+import { yjsDocuments } from './schema.js'
 
 /**
  * Состояние документов Yjs в Postgres — `yjs.documents` (05-data-model.md):

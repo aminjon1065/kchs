@@ -17,6 +17,7 @@ import { authorize, loadObject, visibleObjectsSql } from '~/kernel/access/author
 import { directory } from '~/kernel/directory/port.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { JobService } from '~/kernel/jobs/service.js'
+import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import { SpaceService } from '~/kernel/spaces/service.js'
 import { UserService } from '~/modules/identity/public.js'
@@ -24,8 +25,8 @@ import { config } from '~/shared/config/index.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { encryptSecret } from '~/shared/crypto/secrets.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import { calendars, objects } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
+import { calendars } from '../schema.js'
 import { calendarSettings } from './settings.js'
 
 /** Цвет нового календаря по виду. */

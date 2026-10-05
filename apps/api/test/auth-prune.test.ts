@@ -11,7 +11,7 @@ registerLifecycle()
 
 const { pruneAuthArtifacts } = await import('../src/modules/identity/domain/auth-prune.js')
 const { mfaChallenges, passwordResets, sessions, ssoAuthRequests, webauthnChallenges } =
-  await import('../src/shared/db/schema/index.js')
+  await import('../src/db-schema.js')
 const { newId } = await import('../src/shared/ids.js')
 
 let fx: TestContext

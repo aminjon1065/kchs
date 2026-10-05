@@ -2,8 +2,8 @@ import type { AuditEntry } from '@kchs/contracts'
 import { and, desc, eq, gte, lte, type SQL, sql } from 'drizzle-orm'
 import type { Ctx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import { auditLog } from '~/shared/db/schema/index.js'
 import { logger } from '~/shared/logger/index.js'
+import { auditLog } from './schema.js'
 
 export type AuditSeverity = 'info' | 'notice' | 'warning' | 'critical'
 

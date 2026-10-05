@@ -1,9 +1,9 @@
 import { sql } from 'drizzle-orm'
 import { beforeAll, describe, expect, it } from 'vitest'
+import { recordings } from '../src/db-schema.js'
 import { ObjectService } from '../src/kernel/objects/service.js'
 import { TranscriptService } from '../src/modules/meetings/domain/transcript-service.js'
 import { systemCtx } from '../src/shared/context.js'
-import { recordings } from '../src/shared/db/schema/index.js'
 import { newId } from '../src/shared/ids.js'
 import {
   call,

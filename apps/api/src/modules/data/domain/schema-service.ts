@@ -9,13 +9,14 @@ import type {
 import { and, eq, inArray, ne, sql } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
+import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import type { Ctx } from '~/shared/context.js'
 import type { Executor } from '~/shared/db/client.js'
 import { pgErrorCode, UNIQUE_VIOLATION } from '~/shared/db/pg-error.js'
-import { datasetFields, datasets, imports, objects } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { castExpression, columnName, Physical } from '../infra/physical.js'
+import { datasetFields, datasets, imports } from '../schema.js'
 import {
   DatasetService,
   defaultSemantic,

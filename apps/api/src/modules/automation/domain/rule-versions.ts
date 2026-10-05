@@ -8,8 +8,8 @@ import { desc, eq, max } from 'drizzle-orm'
 import { directory } from '~/kernel/directory/port.js'
 import { actorId, type Ctx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import { ruleVersions } from '~/shared/db/schema/index.js'
 import { newId } from '~/shared/ids.js'
+import { ruleVersions } from '../schema.js'
 
 /** Сколько версий показывает история правила. */
 const HISTORY_LIMIT = 50

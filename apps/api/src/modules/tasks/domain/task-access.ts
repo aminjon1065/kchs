@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm'
 import { grantAccess, readPrincipalsFor, revokeAccess } from '~/kernel/access/acl-service.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import type { Executor } from '~/shared/db/client.js'
-import { tasks } from '~/shared/db/schema/index.js'
+import { tasks } from '../schema.js'
 
 interface Participants {
   assigneeId: string | null

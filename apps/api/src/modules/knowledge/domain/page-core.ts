@@ -5,8 +5,9 @@ import {
   richBodyText,
 } from '@kchs/contracts'
 import { eq } from 'drizzle-orm'
+import { objects } from '~/kernel/objects/schema.js'
 import type { Executor } from '~/shared/db/client.js'
-import { objects, pages } from '~/shared/db/schema/index.js'
+import { pages } from '../schema.js'
 
 /**
  * Чтение страницы из базы (ADR-0095) — общее для карточки, версий, печати и

@@ -1,9 +1,9 @@
 import { type ControlMetricKey, type ControlMetricsState, MetricCreateInput } from '@kchs/contracts'
 import { and, eq, inArray, sql } from 'drizzle-orm'
+import { objects } from '~/kernel/objects/schema.js'
 import { Metrics } from '~/modules/data/public.js'
 import type { Ctx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import { objects } from '~/shared/db/schema/index.js'
 
 /** Только основные поручения: части соисполнителей считаются вместе с ними. */
 const MAIN = { field: 'is_part', op: 'is_false' } as const

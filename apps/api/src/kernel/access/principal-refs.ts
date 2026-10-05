@@ -1,15 +1,8 @@
 import type { Principal, PrincipalRef } from '@kchs/contracts'
 import { and, eq, inArray, isNull } from 'drizzle-orm'
 import { type Database, db } from '~/shared/db/client.js'
-import {
-  employments,
-  groups,
-  objects,
-  orgUnits,
-  positions,
-  roles,
-  users,
-} from '~/shared/db/schema/index.js'
+import { employments, groups, orgUnits, positions, roles, users } from '../directory/schema.js'
+import { objects } from '../objects/schema.js'
 
 /**
  * Превращает принципалы в отображаемые чипы для диалога «Поделиться»

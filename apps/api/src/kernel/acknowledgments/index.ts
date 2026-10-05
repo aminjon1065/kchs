@@ -11,12 +11,12 @@
 import { and, isNull, lt, or, sql } from 'drizzle-orm'
 import { systemCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
-import { acknowledgments } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { registerInboxActionHandler } from '../inbox/actions.js'
 import { registerProcessObserver } from '../process/registry.js'
 import { ProcessService } from '../process/service.js'
 import { processAcknowledgments } from './process.js'
+import { acknowledgments } from './schema.js'
 import { Acknowledgments } from './service.js'
 
 export {

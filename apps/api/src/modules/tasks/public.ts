@@ -15,12 +15,13 @@ import {
   TaskUpdateInput,
 } from '@kchs/contracts'
 import { and, eq, inArray, sql } from 'drizzle-orm'
+import { objects } from '~/kernel/objects/schema.js'
 import type { Ctx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import { objects, tasks } from '~/shared/db/schema/index.js'
 import { CLOSED } from './domain/task-core.js'
 import { TaskService } from './domain/task-service.js'
 import { type InstructionSourceStatus, sourceStatus } from './domain/task-source.js'
+import { tasks } from './schema.js'
 
 export type { InstructionSourceStatus }
 

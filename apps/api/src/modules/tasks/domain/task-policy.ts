@@ -2,9 +2,10 @@ import type { AccessReason, Level } from '@kchs/contracts'
 import { arrayContains, arrayOverlaps, eq, type SQL, sql } from 'drizzle-orm'
 import { UNIT_HEAD_PRINCIPAL, unitHeadPrincipalsOf } from '~/kernel/access/principal-set.js'
 import type { TypePolicy } from '~/kernel/access/types.js'
+import { objects } from '~/kernel/objects/schema.js'
 import type { UserCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
-import { objects, tasks } from '~/shared/db/schema/index.js'
+import { tasks } from '../schema.js'
 
 /** Области замещения, в которых заместитель действует по поручениям. */
 const INSTRUCTION_SCOPES = new Set(['all', 'instructions'])

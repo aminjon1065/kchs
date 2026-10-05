@@ -17,9 +17,9 @@ import { registerSubscriber } from '~/kernel/events/bus.js'
 import { registerJobHandler } from '~/kernel/jobs/runner.js'
 import { JobService } from '~/kernel/jobs/service.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
+import { objects } from '~/kernel/objects/schema.js'
 import { registerEntityScheduleProvider } from '~/kernel/schedules/index.js'
 import { db } from '~/shared/db/client.js'
-import { objects, pipelines } from '~/shared/db/schema/index.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { logger } from '~/shared/logger/index.js'
 import {
@@ -29,6 +29,7 @@ import {
   syncPipelineSchedules,
 } from './domain/pipeline-schedules.js'
 import { PIPELINE_JOB, type PipelineJobData, PipelineService } from './domain/pipeline-service.js'
+import { pipelines } from './schema.js'
 
 const IdParam = z.object({ id: z.uuid() })
 const ListQuery = z.object({ limit: z.coerce.number().int().min(1).max(200).default(50) })

@@ -9,7 +9,7 @@ import { emitToRoom } from '~/kernel/realtime/gateway.js'
 import { indexObjects } from '~/kernel/search/index-service.js'
 import { systemCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
-import { tasks } from '~/shared/db/schema/index.js'
+import { tasks } from '../schema.js'
 import { refreshViewers } from './task-access.js'
 import { CLOSED } from './task-core.js'
 

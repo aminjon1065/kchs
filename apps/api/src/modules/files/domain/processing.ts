@@ -2,14 +2,15 @@ import type { FilePreviews, FileProcessedInput, FileText } from '@kchs/contracts
 import { and, asc, eq, isNotNull, or, sql } from 'drizzle-orm'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { JobService } from '~/kernel/jobs/service.js'
+import { objects } from '~/kernel/objects/schema.js'
 import { buckets, deleteObject, signedGetUrl } from '~/kernel/storage/s3.js'
 import type { Ctx } from '~/shared/context.js'
 import { systemCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import { filePreviews, files, fileTexts, fileVersions, objects } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { logger } from '~/shared/logger/index.js'
+import { filePreviews, files, fileTexts, fileVersions } from '../schema.js'
 
 /** Превью живут рядом с версией: `…/{versionId}/preview/…` в бакете превью. */
 export function previewPrefix(storageKey: string): string {

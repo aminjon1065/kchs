@@ -5,9 +5,9 @@ import type { ChannelMessage } from '~/kernel/notifications/channels.js'
 import { config } from '~/shared/config/index.js'
 import type { UserCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
-import { pushSubscriptions } from '~/shared/db/schema/index.js'
 import { newId } from '~/shared/ids.js'
 import { logger } from '~/shared/logger/index.js'
+import { pushSubscriptions } from '../schema.js'
 
 /**
  * Push-уведомления (Web Push, ADR-0094): сообщение шифруется ключами

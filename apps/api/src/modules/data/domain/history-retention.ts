@@ -1,9 +1,9 @@
 import { DatasetSettings } from '@kchs/contracts'
 import { and, eq, lt, max, sql } from 'drizzle-orm'
 import { db } from '~/shared/db/client.js'
-import { datasets, datasetVersions } from '~/shared/db/schema/index.js'
 import { logger } from '~/shared/logger/index.js'
 import { historyName, qualified } from '../infra/physical.js'
+import { datasets, datasetVersions } from '../schema.js'
 
 /** Строк истории за одно удаление: короткие транзакции не мешают правке строк. */
 const BATCH = 10_000

@@ -2,9 +2,9 @@ import type { ConfigItem } from '@kchs/contracts'
 import { ProcessDefinition as ProcessDefinitionSchema } from '@kchs/process'
 import { desc, eq, isNotNull } from 'drizzle-orm'
 import { db } from '~/shared/db/client.js'
-import { processDefinitions } from '~/shared/db/schema/index.js'
 import { registerConfigSection } from '../config-package/registry.js'
 import { DefinitionService } from './definitions.js'
+import { processDefinitions } from './schema.js'
 
 /**
  * Маршруты в пакете конфигурации (ADR-0097). Определение маршрута уже описано

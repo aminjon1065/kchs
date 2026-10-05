@@ -2,9 +2,9 @@ import type { EventEnvelope } from '@kchs/contracts'
 import { EVENT_PAYLOADS, eventDomain, isKnownEventType } from '@kchs/contracts'
 import type { Ctx } from '~/shared/context.js'
 import type { Executor } from '~/shared/db/client.js'
-import { outbox } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newEventId } from '~/shared/ids.js'
+import { outbox } from './schema.js'
 import type { EventInput } from './types.js'
 
 /**

@@ -11,7 +11,7 @@ import type { Ctx } from '~/shared/context.js'
 import { actorId } from '~/shared/context.js'
 import { decryptSecret, encryptSecret } from '~/shared/crypto/secrets.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import { authProviders } from '~/shared/db/schema/index.js'
+import { authProviders } from '../schema.js'
 
 /**
  * Настройки поставщиков входа (ADR-0098): каталог LDAP/AD и единый вход OIDC.

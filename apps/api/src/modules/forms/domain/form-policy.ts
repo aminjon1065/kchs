@@ -1,8 +1,9 @@
 import type { AccessReason, Level } from '@kchs/contracts'
 import { arrayContains, arrayOverlaps, eq, type SQL, sql } from 'drizzle-orm'
 import type { TypePolicy } from '~/kernel/access/types.js'
+import { objects } from '~/kernel/objects/schema.js'
 import { db } from '~/shared/db/client.js'
-import { forms, objects } from '~/shared/db/schema/index.js'
+import { forms } from '../schema.js'
 
 /**
  * Политика типа `form` (03-access-model.md §5, ADR-0103, ADR-0129):

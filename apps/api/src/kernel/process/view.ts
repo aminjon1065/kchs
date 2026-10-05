@@ -14,14 +14,9 @@ import {
 import { and, asc, desc, eq, inArray } from 'drizzle-orm'
 import type { UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import {
-  processDefinitions,
-  processInstances,
-  processStepActions,
-  processSteps,
-} from '~/shared/db/schema/index.js'
 import { authorize, hasCapability } from '../access/authorize.js'
 import { directory } from '../directory/port.js'
+import { processDefinitions, processInstances, processStepActions, processSteps } from './schema.js'
 import { loadInstance, readContext } from './store.js'
 
 /** Идущий маршрут объекта: текущие шаги решения и кто ждёт — для шапки карточки. */

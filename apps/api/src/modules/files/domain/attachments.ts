@@ -1,8 +1,8 @@
 import { and, eq, isNull, sql } from 'drizzle-orm'
+import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import type { Ctx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import { objects } from '~/shared/db/schema/index.js'
 
 /** Признак системной папки «Вложения» в `objects.meta.system`. */
 export const ATTACHMENTS_FOLDER = 'attachments'

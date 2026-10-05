@@ -9,7 +9,6 @@ import type {
 import { and, desc, eq, inArray, isNull, lt, or, type SQL, sql } from 'drizzle-orm'
 import { actorId, type Ctx, type UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import { acknowledgmentRequests, acknowledgments } from '~/shared/db/schema/index.js'
 import { AppError, errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { authorize, loadObject } from '../access/authorize.js'
@@ -21,6 +20,7 @@ import { publishEvent } from '../events/publisher.js'
 import { InboxService } from '../inbox/service.js'
 import { ProcessService } from '../process/service.js'
 import { confirmSecondFactor } from '../second-factor/port.js'
+import { acknowledgmentRequests, acknowledgments } from './schema.js'
 
 /**
  * Ознакомление с объектом (08-documents.md §10, ADR-0084) — общий механизм

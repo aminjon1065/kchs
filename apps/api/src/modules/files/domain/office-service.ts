@@ -10,15 +10,15 @@ import {
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
 import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
+import { objects } from '~/kernel/objects/schema.js'
 import { buckets, getObjectStream, putObject, storageKey } from '~/kernel/storage/s3.js'
 import { UserService } from '~/modules/identity/public.js'
 import { type Ctx, systemCtx, type UserCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
-import type { OfficeSessionRow } from '~/shared/db/schema/index.js'
-import { files, fileVersions, objects, officeSessions } from '~/shared/db/schema/index.js'
 import { AppError, errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { logger } from '~/shared/logger/index.js'
+import { files, fileVersions, type OfficeSessionRow, officeSessions } from '../schema.js'
 import { FileService } from './file-service.js'
 import {
   checkTicket,

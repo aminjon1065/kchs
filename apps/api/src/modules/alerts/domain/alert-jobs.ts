@@ -1,7 +1,8 @@
 import { and, eq, isNull, lte, sql } from 'drizzle-orm'
+import { objects } from '~/kernel/objects/schema.js'
 import { db } from '~/shared/db/client.js'
-import { alertEvents, alerts, objects } from '~/shared/db/schema/index.js'
 import { logger } from '~/shared/logger/index.js'
+import { alertEvents, alerts } from '../schema.js'
 import { AlertCheck } from './alert-check.js'
 import { AlertService, computeNextRun } from './alert-service.js'
 

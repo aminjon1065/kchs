@@ -14,9 +14,9 @@ import { ObjectService } from '~/kernel/objects/service.js'
 import type { Ctx } from '~/shared/context.js'
 import { systemCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import { ruleDedupe, ruleRuns, rules } from '~/shared/db/schema/index.js'
 import { newId } from '~/shared/ids.js'
 import { logger } from '~/shared/logger/index.js'
+import { ruleDedupe, ruleRuns, rules } from '../schema.js'
 
 /**
  * Журнал запусков правил (contracts/automation-rule.md §Правила исполнения):

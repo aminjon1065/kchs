@@ -1,7 +1,8 @@
 import { type ProtocolBlock, richBodyText } from '@kchs/contracts'
 import { and, eq, isNull } from 'drizzle-orm'
+import { objects } from '~/kernel/objects/schema.js'
 import type { Executor } from '~/shared/db/client.js'
-import { meetingParticipants, objects, protocols } from '~/shared/db/schema/index.js'
+import { meetingParticipants, protocols } from '../schema.js'
 
 /**
  * Чтение протокола из базы (ADR-0093) — общее для карточки, черновика ИИ и

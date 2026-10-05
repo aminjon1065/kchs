@@ -8,6 +8,7 @@ import type { ProcessFieldHint } from '@kchs/process'
 import { and, eq, or } from 'drizzle-orm'
 import { directory } from '~/kernel/directory/port.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
+import { objects } from '~/kernel/objects/schema.js'
 import {
   type ProcessInstanceInfo,
   type ProcessStepInfo,
@@ -17,15 +18,14 @@ import {
 } from '~/kernel/process/index.js'
 import { actorId, type Ctx, systemCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
+import { errors } from '~/shared/errors.js'
 import {
   documentStepVersions,
   documents,
   documentTypes,
   documentVersions,
   journals,
-  objects,
-} from '~/shared/db/schema/index.js'
-import { errors } from '~/shared/errors.js'
+} from '../../schema.js'
 import { DocumentService } from '../document-service.js'
 import { DocumentTypeService } from '../type-service.js'
 import { DOCUMENT_OBJECT_TYPE, DocumentRoutes, withoutClearance } from './route-service.js'

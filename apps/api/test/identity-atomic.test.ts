@@ -15,7 +15,7 @@ const { SpaceService } = await import('../src/kernel/spaces/service.js')
 const { systemCtx } = await import('../src/shared/context.js')
 const { withMigratorConnection } = await import('../src/shared/db/migrate.js')
 const { encryptSecret } = await import('../src/shared/crypto/secrets.js')
-const { credentials, mfaFactors, recoveryCodes } = await import('../src/shared/db/schema/index.js')
+const { credentials, mfaFactors, recoveryCodes } = await import('../src/db-schema.js')
 const { newId } = await import('../src/shared/ids.js')
 
 let fx: TestContext

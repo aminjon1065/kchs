@@ -23,19 +23,19 @@ import { authorize, visibleObjectsSql } from '~/kernel/access/authorize.js'
 import { BusinessCalendar } from '~/kernel/business-calendar/service.js'
 import { isWorkingDate } from '~/kernel/business-calendar/working-days.js'
 import { directory } from '~/kernel/directory/port.js'
+import { objects } from '~/kernel/objects/schema.js'
 import { UserService } from '~/modules/identity/public.js'
 import { config } from '~/shared/config/index.js'
 import type { UserCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
+import { logger } from '~/shared/logger/index.js'
 import {
   eventAttendees,
   eventInstances,
   eventResources,
   events,
   type OccurrenceOverrideValue,
-  objects,
-} from '~/shared/db/schema/index.js'
-import { logger } from '~/shared/logger/index.js'
+} from '../schema.js'
 import {
   type CalendarRow,
   CalendarService,

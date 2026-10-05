@@ -4,11 +4,12 @@ import { desc, eq, sql } from 'drizzle-orm'
 import { config } from '~/shared/config/index.js'
 import type { UserCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
-import { jobs, schedules } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { logger } from '~/shared/logger/index.js'
+import { jobs } from '../jobs/schema.js'
 import { queue } from '../jobs/service.js'
 import { listSchedules, scheduleDefinition } from './registry.js'
+import { schedules } from './schema.js'
 
 /**
  * Состояние единого планировщика: объявленные регулярные задания платформы и

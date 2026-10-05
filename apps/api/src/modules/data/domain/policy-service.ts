@@ -16,11 +16,12 @@ import {
 import { and, asc, eq, sql } from 'drizzle-orm'
 import { describePrincipals } from '~/kernel/access/principal-refs.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
+import { objects } from '~/kernel/objects/schema.js'
 import { actorId, type Ctx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import { datasetColumnPolicies, datasetRowPolicies, objects } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
+import { datasetColumnPolicies, datasetRowPolicies } from '../schema.js'
 import { DatasetService, type DatasetStorage, type StoredField } from './dataset-service.js'
 import { checkRowPolicy } from './query-service.js'
 

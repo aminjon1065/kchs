@@ -4,8 +4,8 @@ import { publishEvent } from '~/kernel/events/publisher.js'
 import { systemCtx } from '~/shared/context.js'
 import { hashToken, safeEqual } from '~/shared/crypto/secrets.js'
 import { db } from '~/shared/db/client.js'
-import { integrations } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
+import { integrations } from '../schema.js'
 
 /** Предел тела входящего вебхука: он попадает в событие целиком. */
 const MAX_BODY_BYTES = 256 * 1024

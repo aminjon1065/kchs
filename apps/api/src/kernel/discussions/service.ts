@@ -11,19 +11,14 @@ import { and, asc, desc, eq, gt, inArray, isNull, lt, sql } from 'drizzle-orm'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { actorId, isGuest } from '~/shared/context.js'
 import { type Database, db, type Executor } from '~/shared/db/client.js'
-import {
-  conversationMembers,
-  conversations,
-  messages,
-  objects,
-  reactions,
-} from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { authorize } from '../access/authorize.js'
 import { directory } from '../directory/port.js'
 import { publishEvent } from '../events/publisher.js'
 import { LinkService } from '../links/service.js'
+import { objects } from '../objects/schema.js'
 import { ObjectService } from '../objects/service.js'
+import { conversationMembers, conversations, messages, reactions } from './schema.js'
 
 /**
  * Вложения сообщения. Вложение открывает файл каждому, кто видит беседу, —

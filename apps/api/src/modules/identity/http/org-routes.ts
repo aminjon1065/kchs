@@ -24,8 +24,6 @@ import { hasCapability } from '~/kernel/access/authorize.js'
 import { describePrincipals } from '~/kernel/access/principal-refs.js'
 import { bumpPrincipalsVersion, invalidatePrincipalSet } from '~/kernel/access/principal-set.js'
 import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
-import { recheckUserRooms } from '~/kernel/realtime/gateway.js'
-import { db } from '~/shared/db/client.js'
 import {
   groups,
   orgUnits,
@@ -34,7 +32,9 @@ import {
   roles,
   userRoles,
   users,
-} from '~/shared/db/schema/index.js'
+} from '~/kernel/directory/schema.js'
+import { recheckUserRooms } from '~/kernel/realtime/gateway.js'
+import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { AuthService } from '../domain/auth-service.js'

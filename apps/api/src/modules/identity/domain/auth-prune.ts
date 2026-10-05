@@ -6,7 +6,7 @@ import {
   sessions,
   ssoAuthRequests,
   webauthnChallenges,
-} from '~/shared/db/schema/index.js'
+} from '../schema.js'
 
 /** Истёкшее ещё сутки лежит — для разбора «почему не вошёл» по свежим следам. */
 const CHALLENGE_GRACE = sql`now() - interval '1 day'`

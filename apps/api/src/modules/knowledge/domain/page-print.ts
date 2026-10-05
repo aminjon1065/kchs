@@ -1,6 +1,7 @@
 import type { PageBlock } from '@kchs/contracts'
 import { safeHref } from '@kchs/contracts'
 import { inArray } from 'drizzle-orm'
+import { objects } from '~/kernel/objects/schema.js'
 import { getObjectStream } from '~/kernel/storage/s3.js'
 import {
   DocumentsPrint,
@@ -10,7 +11,6 @@ import {
 } from '~/modules/documents/public.js'
 import { fileBriefs, fileBuckets } from '~/modules/files/public.js'
 import { db } from '~/shared/db/client.js'
-import { objects } from '~/shared/db/schema/index.js'
 import { logger } from '~/shared/logger/index.js'
 import { loadPage } from './page-core.js'
 

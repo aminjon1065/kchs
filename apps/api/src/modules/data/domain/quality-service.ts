@@ -8,17 +8,13 @@ import type {
 import { and, desc, eq, inArray, sql } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
+import { objects } from '~/kernel/objects/schema.js'
 import { systemCtx, type UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import {
-  datasetQualityRules,
-  datasetQualityRuns,
-  datasetVersions,
-  objects,
-} from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { ident, qualified } from '../infra/physical.js'
+import { datasetQualityRules, datasetQualityRuns, datasetVersions } from '../schema.js'
 import { DatasetService, type DatasetStorage, type StoredField } from './dataset-service.js'
 
 /**

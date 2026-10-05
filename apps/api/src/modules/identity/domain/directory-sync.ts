@@ -8,13 +8,14 @@ import type {
 } from '@kchs/contracts'
 import { and, desc, eq, sql } from 'drizzle-orm'
 import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
+import { orgUnits, positions, roles, users } from '~/kernel/directory/schema.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import type { Ctx } from '~/shared/context.js'
 import { actorId, systemCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import { directorySyncs, orgUnits, positions, roles, users } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId, randomToken } from '~/shared/ids.js'
+import { directorySyncs } from '../schema.js'
 import { AuthProviders } from './auth-providers.js'
 import {
   attributeValues as all,

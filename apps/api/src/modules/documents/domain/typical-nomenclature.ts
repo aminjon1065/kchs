@@ -1,7 +1,7 @@
 import { and, eq, sql } from 'drizzle-orm'
 import type { Ctx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
-import { cases } from '~/shared/db/schema/index.js'
+import { cases } from '../schema.js'
 import { CaseService } from './case-service.js'
 import { DocumentTypeService } from './type-service.js'
 

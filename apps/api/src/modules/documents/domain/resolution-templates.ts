@@ -8,9 +8,9 @@ import { hasCapability, requireCapability } from '~/kernel/access/authorize.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import type { UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import { resolutionTemplates } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
+import { resolutionTemplates } from '../schema.js'
 
 /** Общие шаблоны ведёт тот, кто ведёт справочники документооборота. */
 const SHARED_CAPABILITY = 'documents.journals.manage'

@@ -10,7 +10,7 @@ import { db, registerLifecycle, setupFixture, type TestContext } from './helpers
 registerLifecycle()
 
 const { NotificationService } = await import('../src/kernel/notifications/service.js')
-const { notifications } = await import('../src/shared/db/schema/index.js')
+const { notifications } = await import('../src/db-schema.js')
 
 const run = Date.now().toString(36)
 let fx: TestContext

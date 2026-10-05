@@ -10,12 +10,13 @@ import {
 } from '@kchs/contracts'
 import { and, asc, eq, inArray, sql } from 'drizzle-orm'
 import { authorize, visibleObjectsSql } from '~/kernel/access/authorize.js'
+import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import { actorId, type Ctx, type UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import { objects, type TaskChecklistValue, tasks } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
+import { type TaskChecklistValue, tasks } from '../schema.js'
 import {
   actorOf,
   assertPeople,

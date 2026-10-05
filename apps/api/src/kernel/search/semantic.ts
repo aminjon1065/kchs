@@ -3,10 +3,11 @@ import { and, eq, inArray, sql } from 'drizzle-orm'
 import { config } from '~/shared/config/index.js'
 import type { Ctx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
-import { EMBEDDING_DIM, embeddings, objects } from '~/shared/db/schema/index.js'
 import { logger } from '~/shared/logger/index.js'
 import { visibleObjectsSql } from '../access/authorize.js'
 import { objectType } from '../objects/registry.js'
+import { objects } from '../objects/schema.js'
+import { EMBEDDING_DIM, embeddings } from './schema.js'
 
 /**
  * Поиск по смыслу (13-search-knowledge-ai.md §1, ADR-0099): текст объекта

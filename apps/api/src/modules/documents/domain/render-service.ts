@@ -35,8 +35,8 @@ import {
 } from '~/modules/files/public.js'
 import { systemCtx, type UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import { documentRenders, templates } from '~/shared/db/schema/index.js'
 import { AppError, errors } from '~/shared/errors.js'
+import { documentRenders, templates } from '../schema.js'
 import { DocumentService } from './document-service.js'
 import { printPage } from './print/html.js'
 import {

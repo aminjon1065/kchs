@@ -23,7 +23,7 @@ const { checkOutboundUrl } = await import('../src/modules/integrations/domain/ch
 const { buildEnvelope } = await import('../src/kernel/events/publisher.js')
 const { systemCtx } = await import('../src/shared/context.js')
 const { resetConfigCache } = await import('../src/shared/config/index.js')
-const { outbox, webhookDeliveries, webhooks } = await import('../src/shared/db/schema/index.js')
+const { outbox, webhookDeliveries, webhooks } = await import('../src/db-schema.js')
 
 interface Received {
   headers: Record<string, string | undefined>

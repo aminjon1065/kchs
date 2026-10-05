@@ -2,9 +2,10 @@ import type { FieldType, LangText, SqlSchema, SqlSchemaTable } from '@kchs/contr
 import { and, asc, desc, eq, inArray, isNull } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { requireCapability, visibleObjectsSql } from '~/kernel/access/authorize.js'
+import { objects } from '~/kernel/objects/schema.js'
 import type { Ctx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
-import { datasetColumnPolicies, datasetFields, objects } from '~/shared/db/schema/index.js'
+import { datasetColumnPolicies, datasetFields } from '../schema.js'
 
 /** Датасетов в подсказках редактора — самые свежие из доступных. */
 const MAX_TABLES = 200

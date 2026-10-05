@@ -7,13 +7,13 @@ import { z } from 'zod'
 import { authorize } from '~/kernel/access/authorize.js'
 import { config } from '~/shared/config/index.js'
 import { db } from '~/shared/db/client.js'
-import { files } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { officeConfig, officeDocumentType, signJwt } from '../domain/office.js'
 import { officeEditorConfig, renderOfficePage } from '../domain/office-page.js'
 import { OfficeService, officeUrls } from '../domain/office-service.js'
 import { watermarkLevel } from '../domain/watermark.js'
+import { files } from '../schema.js'
 
 const IdParam = z.object({ id: z.uuid() })
 const Ticket = z.object({ t: z.string().min(8).max(200) })

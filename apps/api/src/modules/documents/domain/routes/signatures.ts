@@ -4,13 +4,13 @@ import { authorize } from '~/kernel/access/authorize.js'
 import { directory } from '~/kernel/directory/port.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
+import { newId } from '~/shared/ids.js'
 import {
   documentSignatures,
   documentStepVersions,
   documents,
   documentVersions,
-} from '~/shared/db/schema/index.js'
-import { newId } from '~/shared/ids.js'
+} from '../../schema.js'
 
 /**
  * Простая электронная подпись (08-documents.md §9, ADR-0083): решение

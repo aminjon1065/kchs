@@ -8,17 +8,11 @@ import {
 } from '@kchs/contracts'
 import { eq, inArray, sql } from 'drizzle-orm'
 import { directory } from '~/kernel/directory/port.js'
+import { links } from '~/kernel/links/schema.js'
 import type { ListFieldDef, SearchContent } from '~/kernel/objects/registry.js'
+import { objects } from '~/kernel/objects/schema.js'
 import { db } from '~/shared/db/client.js'
-import {
-  cases,
-  documentDispatches,
-  documents,
-  documentTypes,
-  journals,
-  links,
-  objects,
-} from '~/shared/db/schema/index.js'
+import { cases, documentDispatches, documents, documentTypes, journals } from '../schema.js'
 import { CorrespondentService } from './correspondent-service.js'
 import { isOverdue } from './document-service.js'
 import { todayLocal } from './journal-service.js'

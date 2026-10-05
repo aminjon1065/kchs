@@ -1,4 +1,14 @@
 import { eq, inArray, sql } from 'drizzle-orm'
+import {
+  employments,
+  orgUnits,
+  positions,
+  roles,
+  spaceMembers,
+  spaces,
+  userRoles,
+  users,
+} from '~/db-schema.js'
 import { grantAccess } from '~/kernel/access/acl-service.js'
 import { bumpPrincipalsVersion } from '~/kernel/access/principal-set.js'
 import { DiscussionService } from '~/kernel/discussions/service.js'
@@ -15,16 +25,6 @@ import { seedDemoInstructions } from '~/modules/tasks/domain/demo-instructions.j
 import { config } from '~/shared/config/index.js'
 import { type SystemCtx, systemCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
-import {
-  employments,
-  orgUnits,
-  positions,
-  roles,
-  spaceMembers,
-  spaces,
-  userRoles,
-  users,
-} from '~/shared/db/schema/index.js'
 import { newId } from '~/shared/ids.js'
 import { logger } from '~/shared/logger/index.js'
 import {

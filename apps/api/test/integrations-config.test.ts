@@ -9,7 +9,7 @@ import { call, db, registerLifecycle, setupFixture, type TestContext } from './h
  */
 registerLifecycle()
 
-const { auditLog, outbox } = await import('../src/shared/db/schema/index.js')
+const { auditLog, outbox } = await import('../src/db-schema.js')
 
 const SECRET = 'S3cret-значение-которого-никто-не-должен-увидеть'
 

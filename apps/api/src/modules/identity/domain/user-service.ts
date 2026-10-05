@@ -17,6 +17,18 @@ import {
 import { and, asc, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm'
 import { bumpPrincipalsVersion, invalidatePrincipalSet } from '~/kernel/access/principal-set.js'
 import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
+import {
+  delegations,
+  employments,
+  groupMembers,
+  groups,
+  orgClosure,
+  orgUnits,
+  positions,
+  roles,
+  userRoles,
+  users,
+} from '~/kernel/directory/schema.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { recheckUserRooms } from '~/kernel/realtime/gateway.js'
 import { SpaceService } from '~/kernel/spaces/service.js'
@@ -24,22 +36,10 @@ import { territoryIndex } from '~/modules/gis/public.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { actorId } from '~/shared/context.js'
 import { afterCommit, type Database, db, type Executor } from '~/shared/db/client.js'
-import {
-  delegations,
-  employments,
-  groupMembers,
-  groups,
-  type LangTextValue,
-  mfaFactors,
-  orgClosure,
-  orgUnits,
-  positions,
-  roles,
-  userRoles,
-  users,
-} from '~/shared/db/schema/index.js'
+import type { LangTextValue } from '~/shared/db/columns.js'
 import { errors } from '~/shared/errors.js'
 import { newId, randomCode } from '~/shared/ids.js'
+import { mfaFactors } from '../schema.js'
 import { AuthService } from './auth-service.js'
 import {
   assertCanAssignRoles,

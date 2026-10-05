@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm'
 import { ProcessDefinitions } from '~/kernel/process/index.js'
 import type { Ctx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
-import { documentTypes } from '~/shared/db/schema/index.js'
+import { documentTypes } from '../../schema.js'
 import { DocumentTypeService } from '../type-service.js'
 
 /**

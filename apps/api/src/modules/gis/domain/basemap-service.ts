@@ -22,6 +22,7 @@ import {
   visibleObjectsSql,
 } from '~/kernel/access/authorize.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
+import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import {
   buckets,
@@ -34,9 +35,9 @@ import { config } from '~/shared/config/index.js'
 import type { Ctx } from '~/shared/context.js'
 import { decryptSecret, encryptSecret } from '~/shared/crypto/secrets.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import { basemaps, objects } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { logger } from '~/shared/logger/index.js'
+import { basemaps } from '../schema.js'
 import {
   type BasemapManifest,
   basemapKeys,

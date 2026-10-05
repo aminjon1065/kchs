@@ -7,8 +7,8 @@ import type {
 } from '@kchs/contracts'
 import { eq } from 'drizzle-orm'
 import { db } from '~/shared/db/client.js'
-import { type IntegrationRow, integrations } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
+import { type IntegrationRow, integrations } from '../schema.js'
 import { DATABASE_KINDS, ExternalDatabases } from './database-source.js'
 import { readSecrets } from './integration-service.js'
 

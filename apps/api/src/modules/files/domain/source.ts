@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { buckets } from '~/kernel/storage/s3.js'
 import { db } from '~/shared/db/client.js'
-import { files } from '~/shared/db/schema/index.js'
+import { files } from '../schema.js'
 
 /** Текущая версия файла в хранилище: откуда движку читать исходник. */
 export interface FileSource {

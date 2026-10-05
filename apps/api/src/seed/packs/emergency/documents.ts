@@ -1,12 +1,12 @@
 import type { DocumentTypeCreateInput, FieldDef } from '@kchs/contracts'
 import type { ProcessDefinitionInput } from '@kchs/process'
 import { eq } from 'drizzle-orm'
+import { documentTypes, journals } from '~/db-schema.js'
 import { grantAccess } from '~/kernel/access/acl-service.js'
 import { ProcessDefinitions } from '~/kernel/process/index.js'
 import { JournalService } from '~/modules/documents/domain/journal-service.js'
 import { DocumentTypeService } from '~/modules/documents/domain/type-service.js'
 import { db } from '~/shared/db/client.js'
-import { documentTypes, journals } from '~/shared/db/schema/index.js'
 import { type PackContext, unitId } from './context.js'
 import { INCIDENT_KINDS } from './datasets.js'
 

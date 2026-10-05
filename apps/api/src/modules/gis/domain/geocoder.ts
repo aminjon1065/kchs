@@ -7,11 +7,12 @@ import {
   type Territory,
 } from '@kchs/contracts'
 import { and, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm'
+import { objects } from '~/kernel/objects/schema.js'
 import { search } from '~/kernel/search/index-service.js'
 import type { UserCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
-import { objects, territories } from '~/shared/db/schema/index.js'
 import { logger } from '~/shared/logger/index.js'
+import { territories } from '../schema.js'
 import { normalizeName, type TerritoryIndex, territoryIndex } from './territory-index.js'
 
 /** Ближайший населённый пункт при обратном геокодировании — не дальше, м. */

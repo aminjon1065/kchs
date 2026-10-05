@@ -17,13 +17,6 @@ import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { isGuest } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
-import {
-  favorites,
-  objectAncestors,
-  objects,
-  recentViews,
-  subscriptions,
-} from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { decodeCursor, encodeCursor } from '~/shared/http/pagination.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
@@ -37,6 +30,7 @@ import { TagService } from '../tags/service.js'
 import { compileObjectFilter, compileObjectSort, parseFilter } from './filter-sql.js'
 import { describeListFields, listFieldsFor } from './list-fields.js'
 import { allowedActions, objectType } from './registry.js'
+import { favorites, objectAncestors, objects, recentViews, subscriptions } from './schema.js'
 import { hiddenSummary, ObjectService } from './service.js'
 
 const IdParam = z.object({ id: z.uuid() })

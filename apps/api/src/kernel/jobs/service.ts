@@ -5,13 +5,13 @@ import type { Ctx } from '~/shared/context.js'
 import { actorId, systemCtx } from '~/shared/context.js'
 import { issueJobToken } from '~/shared/crypto/job-token.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import { jobs } from '~/shared/db/schema/index.js'
 import { newId } from '~/shared/ids.js'
 import { logger } from '~/shared/logger/index.js'
 import { cache, cacheKeys, createRedisConnection, redis } from '~/shared/redis/index.js'
 import { traceMetadata } from '~/shared/telemetry/tracing.js'
 import { publishEvent } from '../events/publisher.js'
 import { signalCancel } from './cancellation.js'
+import { jobs } from './schema.js'
 
 const queues = new Map<QueueName, Queue>()
 

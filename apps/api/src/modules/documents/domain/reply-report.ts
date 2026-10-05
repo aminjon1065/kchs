@@ -4,7 +4,7 @@ import { LinkService } from '~/kernel/links/service.js'
 import { Instructions } from '~/modules/tasks/public.js'
 import { systemCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
-import { documents, resolutions } from '~/shared/db/schema/index.js'
+import { documents, resolutions } from '../schema.js'
 import { CorrespondentService } from './correspondent-service.js'
 
 /** «2026-09-25» → «25.09.2026». */

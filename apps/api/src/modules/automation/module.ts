@@ -3,9 +3,9 @@ import { registerSubscriber } from '~/kernel/events/bus.js'
 import { registerFeature } from '~/kernel/features/registry.js'
 import { registerJobHandler } from '~/kernel/jobs/runner.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
+import { objects } from '~/kernel/objects/schema.js'
 import { declareSchedule, registerEntityScheduleProvider } from '~/kernel/schedules/index.js'
 import { db } from '~/shared/db/client.js'
-import { objects, rules } from '~/shared/db/schema/index.js'
 import { logger } from '~/shared/logger/index.js'
 import { executeRun } from './domain/runner.js'
 import { RuleRuns } from './domain/runs.js'
@@ -16,6 +16,7 @@ import {
   syncRuleSchedules,
 } from './domain/schedules.js'
 import { automationSubscribers } from './domain/subscribers.js'
+import { rules } from './schema.js'
 
 export { registerAutomationRoutes } from './http.js'
 

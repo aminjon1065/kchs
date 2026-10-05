@@ -11,9 +11,9 @@ import {
 } from '@kchs/contracts'
 import postgres from 'postgres'
 import { config } from '~/shared/config/index.js'
-import type { IntegrationRow } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { deniedAddress } from '~/shared/net/private-address.js'
+import type { IntegrationRow } from '../schema.js'
 
 /**
  * Внешняя СУБД как источник датасета (14-automation-integrations.md §5,

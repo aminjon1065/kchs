@@ -11,21 +11,15 @@ import { and, eq, inArray, isNull, sql } from 'drizzle-orm'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { actorId, systemCtx } from '~/shared/context.js'
 import { type Database, db, type Executor } from '~/shared/db/client.js'
-import {
-  employments,
-  objects,
-  orgUnits,
-  positions,
-  spaceMembers,
-  spaces,
-  users,
-} from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { invalidatePrincipalSet } from '../access/principal-set.js'
 import { isServiceAccount } from '../access/service-accounts.js'
 import { directory } from '../directory/port.js'
+import { employments, orgUnits, positions, users } from '../directory/schema.js'
 import { publishEvent } from '../events/publisher.js'
+import { objects } from '../objects/schema.js'
 import { ObjectService } from '../objects/service.js'
+import { spaceMembers, spaces } from './schema.js'
 
 /**
  * В пространстве остаётся администратор: иначе приглашать и менять роли

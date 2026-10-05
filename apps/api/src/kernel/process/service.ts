@@ -24,7 +24,6 @@ import { and, eq } from 'drizzle-orm'
 import { actorId, type Ctx, type UserCtx } from '~/shared/context.js'
 import type { Executor } from '~/shared/db/client.js'
 import { pgErrorCode, UNIQUE_VIOLATION } from '~/shared/db/pg-error.js'
-import { processInstances, processStepActions } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { authorize, hasCapability, loadObject } from '../access/authorize.js'
@@ -46,6 +45,7 @@ import {
   transition,
 } from './engine.js'
 import { processObjectProvider, processStepHandler } from './registry.js'
+import { processInstances, processStepActions } from './schema.js'
 import {
   type InstanceContext,
   instanceIdOfStep,

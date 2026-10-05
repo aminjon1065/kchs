@@ -24,9 +24,9 @@ import { registerSubscriber } from '~/kernel/events/bus.js'
 import { registerFeature } from '~/kernel/features/registry.js'
 import { registerInboxActionHandler } from '~/kernel/inbox/actions.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
+import { objects } from '~/kernel/objects/schema.js'
 import { registerSystemDataset } from '~/kernel/system-datasets.js'
 import { db } from '~/shared/db/client.js'
-import { objects, territories } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { rateLimit } from '~/shared/http/rate-limit.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
@@ -42,6 +42,7 @@ import { TerritoryService } from './domain/territory-service.js'
 import { TileService } from './domain/tile-service.js'
 import { registerFeatureRoutes } from './http/feature-routes.js'
 import { registerTerritoryRoutes } from './http/territory-routes.js'
+import { territories } from './schema.js'
 import {
   registerServiceLayerBackground,
   registerServiceLayerObjectType,

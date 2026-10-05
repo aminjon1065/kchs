@@ -2,20 +2,15 @@ import type { SsoSettings, SsoTestResult } from '@kchs/contracts'
 import { and, eq, gt, isNull, sql } from 'drizzle-orm'
 import * as oidc from 'openid-client'
 import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
+import { roles, userRoles, users } from '~/kernel/directory/schema.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { config } from '~/shared/config/index.js'
 import { systemCtx } from '~/shared/context.js'
 import { decryptSecret, encryptSecret, hashToken } from '~/shared/crypto/secrets.js'
 import { db, type Tx } from '~/shared/db/client.js'
-import {
-  roles,
-  ssoAuthRequests,
-  ssoIdentities,
-  userRoles,
-  users,
-} from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId, randomToken } from '~/shared/ids.js'
+import { ssoAuthRequests, ssoIdentities } from '../schema.js'
 import { AuthProviders, OIDC_PROVIDER } from './auth-providers.js'
 import { AuthService, type RequestMeta } from './auth-service.js'
 import { UserService } from './user-service.js'

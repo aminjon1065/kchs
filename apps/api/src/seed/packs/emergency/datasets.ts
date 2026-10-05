@@ -8,13 +8,13 @@ import {
   type StoredFieldType,
 } from '@kchs/contracts'
 import { and, eq, isNull, sql } from 'drizzle-orm'
+import { objects } from '~/db-schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import { DatasetService } from '~/modules/data/domain/dataset-service.js'
 import { RowService } from '~/modules/data/domain/row-service.js'
 import { SchemaService } from '~/modules/data/domain/schema-service.js'
 import { qualified } from '~/modules/data/infra/physical.js'
 import { db } from '~/shared/db/client.js'
-import { objects } from '~/shared/db/schema/index.js'
 import { findPackObject, markPackObject, type PackContext } from './context.js'
 
 type FieldExtra = Partial<Omit<DatasetFieldInput, 'key' | 'label' | 'type' | 'semantic'>>

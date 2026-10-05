@@ -2,9 +2,9 @@ import { type QueueName, queuesOf } from '@kchs/contracts'
 import { type Job, QueueEvents } from 'bullmq'
 import { and, eq, lt, or, sql } from 'drizzle-orm'
 import { db } from '~/shared/db/client.js'
-import { jobs } from '~/shared/db/schema/index.js'
 import { logger } from '~/shared/logger/index.js'
 import { createRedisConnection } from '~/shared/redis/index.js'
+import { jobs } from './schema.js'
 import { bullJobIdOf, JobService, queue } from './service.js'
 
 /**

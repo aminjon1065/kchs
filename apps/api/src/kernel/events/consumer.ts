@@ -4,7 +4,6 @@ import { type Histogram, SpanKind, trace } from '@opentelemetry/api'
 import { and, eq } from 'drizzle-orm'
 import type { Redis } from 'ioredis'
 import { db } from '~/shared/db/client.js'
-import { eventConsumptions } from '~/shared/db/schema/index.js'
 import { logger } from '~/shared/logger/index.js'
 import { createRedisConnection } from '~/shared/redis/index.js'
 import { meter } from '~/shared/telemetry/metrics.js'
@@ -18,6 +17,7 @@ import {
   subscribedDomains,
 } from './bus.js'
 import { withEventDelivery } from './delivery.js'
+import { eventConsumptions } from './schema.js'
 import type { Subscriber } from './types.js'
 
 const READ_COUNT = 50

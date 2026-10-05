@@ -1,8 +1,8 @@
 import { eq } from 'drizzle-orm'
 import { db } from '~/shared/db/client.js'
-import { type IntegrationRow, integrations } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { type OutboundOptions, type OutboundResponse, outboundGet } from '~/shared/net/outbound.js'
+import { type IntegrationRow, integrations } from '../schema.js'
 import { readSecrets } from './integration-service.js'
 
 /**

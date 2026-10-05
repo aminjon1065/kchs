@@ -1,10 +1,10 @@
 import { DashboardCreateInput, type FilterNode, MetricCreateInput } from '@kchs/contracts'
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import { visibleObjectsSql } from '~/kernel/access/authorize.js'
+import { objects } from '~/kernel/objects/schema.js'
 import { Dashboards, Metrics } from '~/modules/data/public.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import { objects } from '~/shared/db/schema/index.js'
 
 /** Показатели канцелярии (08-documents.md §14, ADR-0086) — ключи `meta.systemKey`. */
 export const OFFICE_METRIC_KEYS = [

@@ -17,7 +17,7 @@ import {
 registerLifecycle()
 
 const { TaskSeriesService } = await import('../src/modules/tasks/domain/task-series.js')
-const { taskSeries, tasks } = await import('../src/shared/db/schema/index.js')
+const { taskSeries, tasks } = await import('../src/db-schema.js')
 
 let fx: TestContext
 const run = Date.now().toString(36)

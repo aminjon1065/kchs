@@ -17,7 +17,7 @@ import {
  */
 registerLifecycle()
 
-const { objects, users } = await import('../src/shared/db/schema/index.js')
+const { objects, users } = await import('../src/db-schema.js')
 const { KnowledgeSeed } = await import('../src/modules/knowledge/public.js')
 const { systemCtx } = await import('../src/shared/context.js')
 

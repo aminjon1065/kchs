@@ -22,11 +22,11 @@ import { CONTROL_METRIC_KEYS } from '@kchs/contracts'
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import { visibleObjectsSql } from '~/kernel/access/authorize.js'
 import { addDays, localDate, startOfLocalDay } from '~/kernel/business-calendar/working-days.js'
+import { objects } from '~/kernel/objects/schema.js'
 import { DatasetQueries } from '~/modules/data/public.js'
 import { OrgService } from '~/modules/identity/public.js'
 import type { UserCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
-import { objects } from '~/shared/db/schema/index.js'
 import { refsOf } from './task-core.js'
 
 /** Источник запросов контроля — системный датасет «Поручения» с правами смотрящего. */

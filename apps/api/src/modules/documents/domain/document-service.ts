@@ -30,6 +30,7 @@ import { directory } from '~/kernel/directory/port.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { InboxService } from '~/kernel/inbox/service.js'
 import { allowedActions } from '~/kernel/objects/registry.js'
+import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import { ProcessDefinitions, ProcessService } from '~/kernel/process/index.js'
 import { territoryIndex } from '~/modules/gis/public.js'
@@ -37,15 +38,9 @@ import { OrgService } from '~/modules/identity/public.js'
 import { config } from '~/shared/config/index.js'
 import { actorId, type Ctx, systemCtx, type UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import {
-  documentDispatches,
-  documents,
-  journals,
-  objects,
-  registrations,
-} from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
+import { documentDispatches, documents, journals, registrations } from '../schema.js'
 import { assertRequisites, validateCardFields } from './card.js'
 import { CaseService, canFile } from './case-service.js'
 import { CorrespondentService } from './correspondent-service.js'

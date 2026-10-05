@@ -18,7 +18,7 @@ const { notificationChannel, setNotificationChannel } = await import(
 const { registerChatQuietHours } = await import('../src/modules/chat/module.js')
 const { PresenceService } = await import('../src/modules/chat/domain/presence.js')
 const { buildUserCtxFor } = await import('../src/kernel/access/explain.js')
-const { notifications, userPresence } = await import('../src/shared/db/schema/index.js')
+const { notifications, userPresence } = await import('../src/db-schema.js')
 const { mailConfigured } = await import('../src/shared/mail/index.js')
 
 const run = Date.now().toString(36)

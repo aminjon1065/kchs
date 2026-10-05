@@ -6,11 +6,13 @@ import type {
 } from '@kchs/contracts'
 import { and, desc, eq, isNull, or, type SQL, sql } from 'drizzle-orm'
 import { visibleObjectsSql } from '~/kernel/access/authorize.js'
+import { links } from '~/kernel/links/schema.js'
+import { objects } from '~/kernel/objects/schema.js'
 import { territoryIndex } from '~/modules/gis/public.js'
 import type { UserCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
-import { documents, documentTypes, links, objects } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
+import { documents, documentTypes } from '../schema.js'
 
 /** Литерал массива Postgres из идентификаторов (UUID без запятых и кавычек). */
 const literal = (ids: readonly string[]) => `{${ids.join(',')}}`

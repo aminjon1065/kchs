@@ -24,7 +24,7 @@ registerLifecycle()
 const { DocumentsSeed } = await import('../src/modules/documents/public.js')
 const { MailIntake } = await import('../src/modules/documents/domain/mail/mail-service.js')
 const { systemCtx } = await import('../src/shared/context.js')
-const { mailMessages } = await import('../src/shared/db/schema/index.js')
+const { mailMessages } = await import('../src/db-schema.js')
 const { newId } = await import('../src/shared/ids.js')
 
 const run = Date.now().toString(36)

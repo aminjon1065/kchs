@@ -1,14 +1,9 @@
 import { and, eq, isNull, type SQL, sql } from 'drizzle-orm'
 import { publishEvent } from '~/kernel/events/publisher.js'
+import { objects } from '~/kernel/objects/schema.js'
 import { systemCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import {
-  eventAttendees,
-  eventInstances,
-  eventReminders,
-  events,
-  objects,
-} from '~/shared/db/schema/index.js'
+import { eventAttendees, eventInstances, eventReminders, events } from '../schema.js'
 
 /**
  * Напоминания (12-calendar-notifications-home.md §1, ADR-0081). Очередь

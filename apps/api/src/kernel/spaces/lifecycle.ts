@@ -2,10 +2,11 @@ import { type AnyColumn, and, eq, isNull, ne, notInArray, sql } from 'drizzle-or
 import type { Ctx } from '~/shared/context.js'
 import { systemCtx } from '~/shared/context.js'
 import type { Executor } from '~/shared/db/client.js'
-import { objects, spaces } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import type { ObjectLike } from '../access/types.js'
 import { JobService } from '../jobs/service.js'
+import { objects } from '../objects/schema.js'
+import { spaces } from './schema.js'
 
 /**
  * Архив и удаление пространства целиком (ADR-0152). Содержимое пространства не лежит

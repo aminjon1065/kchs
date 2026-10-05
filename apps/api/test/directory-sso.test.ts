@@ -19,7 +19,7 @@ registerLifecycle()
 
 const { startFakeIdp } = await import('./fake-idp.js')
 const { config } = await import('../src/shared/config/index.js')
-const { users } = await import('../src/shared/db/schema/index.js')
+const { users } = await import('../src/db-schema.js')
 
 const BASE_DN = 'ou=people,dc=example,dc=org'
 const UNIT_DN = 'ou=units,dc=example,dc=org'

@@ -1,7 +1,8 @@
 import type { TerritoryLevel } from '@kchs/contracts'
 import { sql } from 'drizzle-orm'
+import { objects } from '~/kernel/objects/schema.js'
 import { db } from '~/shared/db/client.js'
-import { objects, territories } from '~/shared/db/schema/index.js'
+import { territories } from '../schema.js'
 
 /** Геометрия GeoJSON в WGS 84 (точка, линия, полигон и их наборы). */
 export interface LocatableGeometry {

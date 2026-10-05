@@ -72,10 +72,10 @@ import { registerSubscriber } from '~/kernel/events/bus.js'
 import { registerJobHandler } from '~/kernel/jobs/runner.js'
 import { JobService } from '~/kernel/jobs/service.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
+import { objects } from '~/kernel/objects/schema.js'
 import { declareSchedule } from '~/kernel/schedules/index.js'
 import { systemCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
-import { datasetFields, datasetQualityRuns, datasets, objects } from '~/shared/db/schema/index.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { logger } from '~/shared/logger/index.js'
 import {
@@ -130,6 +130,7 @@ import {
   registerPipelineRoutes,
   schedulePipelineJobs,
 } from './pipeline-module.js'
+import { datasetFields, datasetQualityRuns, datasets } from './schema.js'
 import {
   declareSourceSchedules,
   registerSourceBackground,

@@ -13,7 +13,7 @@ const { authorize } = await import('../src/kernel/access/authorize.js')
 const processes = await import('../src/kernel/process/index.js')
 const { OrgService } = await import('../src/modules/identity/public.js')
 const { systemCtx } = await import('../src/shared/context.js')
-const { objects } = await import('../src/shared/db/schema/index.js')
+const { objects } = await import('../src/db-schema.js')
 
 /**
  * Тип объекта «тестовый документ» (маршруты запускаются и из API): ответы API

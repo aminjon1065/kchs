@@ -1,9 +1,9 @@
 import { CUSTOM_ROLE_FORBIDDEN, PRIVILEGED_CAPABILITIES } from '@kchs/contracts'
 import { and, eq, inArray, ne, sql } from 'drizzle-orm'
 import { hasCapability } from '~/kernel/access/authorize.js'
+import { roleCapabilities, roles, userRoles, users } from '~/kernel/directory/schema.js'
 import type { Ctx } from '~/shared/context.js'
 import type { Executor } from '~/shared/db/client.js'
-import { roleCapabilities, roles, userRoles, users } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 
 /**

@@ -1,10 +1,10 @@
 import type { EventEnvelope } from '@kchs/contracts'
 import { desc, eq, like, sql } from 'drizzle-orm'
 import { db, rawSql } from '~/shared/db/client.js'
-import { outbox } from '~/shared/db/schema/index.js'
 import { logger } from '~/shared/logger/index.js'
 import { redisPublisher } from '~/shared/redis/index.js'
 import { xaddEvent } from './bus.js'
+import { outbox } from './schema.js'
 
 const BATCH_SIZE = 200
 const IDLE_DELAY_MS = 200

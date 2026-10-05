@@ -14,7 +14,7 @@ import {
 registerLifecycle()
 
 const { indexObject } = await import('../src/kernel/search/index-service.js')
-const { outbox } = await import('../src/shared/db/schema/index.js')
+const { outbox } = await import('../src/db-schema.js')
 
 let fx: TestContext
 const run = Date.now().toString(36)

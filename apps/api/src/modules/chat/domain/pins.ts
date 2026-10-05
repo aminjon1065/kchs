@@ -2,11 +2,12 @@ import type { ChatDraft, ChatPin } from '@kchs/contracts'
 import { and, desc, eq } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
 import { directory } from '~/kernel/directory/port.js'
+import { messages } from '~/kernel/discussions/schema.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import type { UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import { chatDrafts, chatPins, messages } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
+import { chatDrafts, chatPins } from '../schema.js'
 import { loadConversation } from './chat-service.js'
 
 /**

@@ -3,13 +3,13 @@ import './quiet.js'
 import { parseArgs } from 'node:util'
 import { ZodError } from 'zod'
 import { seedCommand } from '~/seed/command.js'
-import { formatRotation, rotateSecrets } from '~/shared/crypto/rotation.js'
 import { closeDb, closeQueryRole } from '~/shared/db/client.js'
 import { runMigrations } from '~/shared/db/migrate.js'
 import { closeRedis } from '~/shared/redis/index.js'
 import { formatSyncSummary, runBasemapsSync, runBasemapsUpload } from './basemaps.js'
 import { formatInitSummary, runInit } from './init.js'
 import { formatMailSync, runMailSync } from './mail.js'
+import { formatRotation, rotateSecrets } from './rotation.js'
 
 const HELP = `kchs — служебные команды установки
 

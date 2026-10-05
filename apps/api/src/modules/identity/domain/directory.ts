@@ -1,5 +1,4 @@
 import { and, asc, eq, inArray, isNull, or, sql } from 'drizzle-orm'
-import { type Database, db } from '~/shared/db/client.js'
 import {
   employments,
   groupMembers,
@@ -8,7 +7,8 @@ import {
   roles,
   userRoles,
   users,
-} from '~/shared/db/schema/index.js'
+} from '~/kernel/directory/schema.js'
+import { type Database, db } from '~/shared/db/client.js'
 
 /**
  * Назначать можно только людей: служебная учётная запись (ADR-0130) не получает

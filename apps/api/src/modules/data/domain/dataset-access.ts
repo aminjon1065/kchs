@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
 import type { Ctx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import { datasetColumnPolicies, datasetRowPolicies } from '~/shared/db/schema/index.js'
+import { datasetColumnPolicies, datasetRowPolicies } from '../schema.js'
 
 /** Какие строки видит пользователь: все, никакие или по фильтрам политик (OR). */
 export type RowPolicy =

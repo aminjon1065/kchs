@@ -26,7 +26,7 @@ const { RecordingRetention, MeetingSettingsService } = await import(
 )
 const { ProtocolService } = await import('../src/modules/meetings/domain/protocol-service.js')
 const { meetingsSpaceId } = await import('../src/modules/meetings/domain/space.js')
-const { recordings } = await import('../src/shared/db/schema/index.js')
+const { recordings } = await import('../src/db-schema.js')
 const { systemCtx } = await import('../src/shared/context.js')
 const { newId } = await import('../src/shared/ids.js')
 

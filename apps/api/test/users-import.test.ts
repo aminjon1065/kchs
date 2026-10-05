@@ -28,9 +28,7 @@ const { registerKernelSubscribers } = await import('../src/kernel/subscribers.js
 const { startWorkers, stopWorkers, listJobHandlers } = await import('../src/kernel/jobs/runner.js')
 const { registerIdentityBackground } = await import('../src/modules/identity/module.js')
 const { resetConfigCache } = await import('../src/shared/config/env.js')
-const { auditLog, employments, userRoles, roles, users } = await import(
-  '../src/shared/db/schema/index.js'
-)
+const { auditLog, employments, userRoles, roles, users } = await import('../src/db-schema.js')
 
 const token = process.env.INTERNAL_SERVICE_TOKEN ?? ''
 const run = Date.now().toString(36)

@@ -5,7 +5,7 @@ import { InboxService } from '~/kernel/inbox/service.js'
 import { indexObject } from '~/kernel/search/index-service.js'
 import { systemCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
-import { meetings } from '~/shared/db/schema/index.js'
+import { meetings } from '../schema.js'
 import { ProtocolService } from './protocol-service.js'
 
 /**

@@ -13,12 +13,13 @@ import { and, asc, eq, inArray, notInArray, type SQL, sql } from 'drizzle-orm'
 import { authorize, visibleObjectsSql } from '~/kernel/access/authorize.js'
 import { directory } from '~/kernel/directory/port.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
+import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import { actorId, type Ctx, type UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
 import { pgErrorCode, UNIQUE_VIOLATION } from '~/shared/db/pg-error.js'
-import { objects, projects, tasks } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
+import { projects, tasks } from '../schema.js'
 
 const CLOSED = [...CLOSED_TASK_STATUSES] as string[]
 

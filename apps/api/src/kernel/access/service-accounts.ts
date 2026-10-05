@@ -1,6 +1,6 @@
 import { and, eq, inArray } from 'drizzle-orm'
 import { db, type Executor } from '~/shared/db/client.js'
-import { users } from '~/shared/db/schema/index.js'
+import { users } from '../directory/schema.js'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 

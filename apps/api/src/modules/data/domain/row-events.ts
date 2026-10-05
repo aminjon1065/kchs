@@ -1,10 +1,10 @@
 import type { StoredFieldType } from '@kchs/contracts'
 import { eq } from 'drizzle-orm'
 import { publishEvent } from '~/kernel/events/publisher.js'
+import { objects } from '~/kernel/objects/schema.js'
 import type { TerritoryIndex } from '~/modules/gis/public.js'
 import type { Ctx } from '~/shared/context.js'
 import type { Executor } from '~/shared/db/client.js'
-import { objects } from '~/shared/db/schema/index.js'
 import type { DatasetStorage, StoredField } from './dataset-service.js'
 
 /**

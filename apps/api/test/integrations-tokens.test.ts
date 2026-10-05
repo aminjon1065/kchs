@@ -18,7 +18,7 @@ import {
  */
 registerLifecycle()
 
-const { apiTokens, auditLog, outbox } = await import('../src/shared/db/schema/index.js')
+const { apiTokens, auditLog, outbox } = await import('../src/db-schema.js')
 
 let fx: TestContext
 let integrator: TestUser

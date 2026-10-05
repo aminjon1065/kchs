@@ -42,7 +42,7 @@ const { config } = await import('../src/shared/config/index.js')
 const { ObjectService } = await import('../src/kernel/objects/service.js')
 const { ProcessService } = await import('../src/kernel/process/service.js')
 const { systemCtx } = await import('../src/shared/context.js')
-const schema = await import('../src/shared/db/schema/index.js')
+const schema = await import('../src/db-schema.js')
 const { GroupService } = await import('../src/modules/identity/public.js')
 const { newId } = await import('../src/shared/ids.js')
 

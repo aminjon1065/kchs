@@ -22,7 +22,7 @@ registerLifecycle()
 const { DocumentsSeed } = await import('../src/modules/documents/public.js')
 const { DocumentMailOut } = await import('../src/modules/documents/domain/mail-out.js')
 const { systemCtx } = await import('../src/shared/context.js')
-const { documents } = await import('../src/shared/db/schema/index.js')
+const { documents } = await import('../src/db-schema.js')
 const { resetConfigCache } = await import('../src/shared/config/env.js')
 const { resetMailer } = await import('../src/shared/mail/index.js')
 

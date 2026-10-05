@@ -12,7 +12,7 @@ registerLifecycle()
 
 const { resetConfigCache } = await import('../src/shared/config/env.js')
 const { decryptSecret } = await import('../src/shared/crypto/secrets.js')
-const { ENCRYPTED_COLUMNS, rotateSecrets } = await import('../src/shared/crypto/rotation.js')
+const { ENCRYPTED_COLUMNS, rotateSecrets } = await import('../src/cli/rotation.js')
 
 /**
  * Колонки `bytea` схемы `public`, в которых не секреты: публичный ключ входа. Состояние

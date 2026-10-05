@@ -13,8 +13,10 @@ import { createTranslator } from '@kchs/i18n'
 import { and, eq, inArray, isNull, type SQL, sql } from 'drizzle-orm'
 import { adminModeActive, type Ctx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import { links, objects, users } from '~/shared/db/schema/index.js'
+import { users } from '../directory/schema.js'
+import { links } from '../links/schema.js'
 import { objectType } from '../objects/registry.js'
+import { objects } from '../objects/schema.js'
 
 /**
  * Грифы и допуски — атрибутное ограничение ядра (03-access-model.md, источник

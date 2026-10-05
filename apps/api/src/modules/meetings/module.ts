@@ -8,7 +8,6 @@ import { registerObjectType } from '~/kernel/objects/registry.js'
 import { declareSchedule } from '~/kernel/schedules/index.js'
 import { DocumentsPrint } from '~/modules/documents/public.js'
 import { db } from '~/shared/db/client.js'
-import { meetings, recordings } from '~/shared/db/schema/index.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { registerMeetingRealtime } from './domain/meeting-subscribers.js'
 import { protocolPrintForm } from './domain/protocol-print.js'
@@ -21,6 +20,7 @@ import { registerMeetingsGuestRoutes } from './http/guest-routes.js'
 import { registerMeetingRecordingRoutes } from './http/recording-routes.js'
 import { registerMeetingsRoomRoutes } from './http/room-routes.js'
 import { registerMeetingsRoutes as registerCoreRoutes } from './http.js'
+import { meetings, recordings } from './schema.js'
 
 /**
  * Маршруты встреч: ядро модуля, гостевой вход и комната ожидания (ADR-0091),

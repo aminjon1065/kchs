@@ -4,8 +4,8 @@ import { queue } from '~/kernel/jobs/service.js'
 import type { EntityScheduleEntry, EntityScheduleProvider } from '~/kernel/schedules/index.js'
 import { config } from '~/shared/config/index.js'
 import { db } from '~/shared/db/client.js'
-import { sources } from '~/shared/db/schema/index.js'
 import { logger } from '~/shared/logger/index.js'
+import { sources } from '../schema.js'
 import { SOURCE_SYNC_JOB, SourceService } from './source-service.js'
 
 /**

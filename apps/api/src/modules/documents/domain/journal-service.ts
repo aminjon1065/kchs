@@ -15,21 +15,21 @@ import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
 import { localDate } from '~/kernel/business-calendar/working-days.js'
 import { directory } from '~/kernel/directory/port.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
+import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import { OrgService } from '~/modules/identity/public.js'
 import { config } from '~/shared/config/index.js'
 import { actorId, type Ctx, type UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
+import { errors } from '~/shared/errors.js'
+import { newId } from '~/shared/ids.js'
 import {
   documents,
   documentTypes,
   journalCounters,
   journalReservations,
   journals,
-  objects,
-} from '~/shared/db/schema/index.js'
-import { errors } from '~/shared/errors.js'
-import { newId } from '~/shared/ids.js'
+} from '../schema.js'
 import { documentsSpaceId } from './space.js'
 
 export interface JournalRow {

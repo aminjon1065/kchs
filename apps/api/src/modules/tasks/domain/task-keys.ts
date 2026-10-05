@@ -2,7 +2,7 @@ import type { TaskKind } from '@kchs/contracts'
 import { sql } from 'drizzle-orm'
 import { config } from '~/shared/config/index.js'
 import type { Executor } from '~/shared/db/client.js'
-import { taskCounters } from '~/shared/db/schema/index.js'
+import { taskCounters } from '../schema.js'
 
 /** Счётчик в строке `task_counters`: атомарно под блокировкой строки. */
 async function nextSeq(tx: Executor, scope: string, year: number): Promise<number> {

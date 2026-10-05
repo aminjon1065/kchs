@@ -9,6 +9,7 @@ import {
   ShareLinkOpenInput,
   ShareLinkOpenResult,
 } from '@kchs/contracts'
+import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { config } from '~/shared/config/index.js'
 import { systemCtx } from '~/shared/context.js'
@@ -17,6 +18,7 @@ import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { AUDIT_ACTIONS, audit } from '../audit/service.js'
+import { objects } from '../objects/schema.js'
 import { grantAccess, listEffectiveAccess, revokeAccess, setAccessMode } from './acl-service.js'
 import { authorize, effectiveLevel, loadObject } from './authorize.js'
 import { buildUserCtxFor } from './explain.js'
@@ -51,10 +53,11 @@ export function registerAccessRoutes(route: RouteRegistrar): void {
       const { id } = request.params
       const decision = await authorize(request.ctx, 'view', id)
       const entries = await listEffectiveAccess(id)
-      const object = await db().query.objects.findFirst({
-        where: (o, { eq }) => eq(o.id, id),
-        columns: { accessMode: true },
-      })
+      const [object] = await db()
+        .select({ accessMode: objects.accessMode })
+        .from(objects)
+        .where(eq(objects.id, id))
+        .limit(1)
       return {
         entries,
         accessMode: (object?.accessMode ?? 'inherit') as 'inherit' | 'restricted',

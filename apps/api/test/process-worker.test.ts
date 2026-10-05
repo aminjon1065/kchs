@@ -33,7 +33,7 @@ const { registerProcessJobs, fireStepTimers, SWEEP_JOB } = await import(
 const { JobService, queue } = await import('../src/kernel/jobs/service.js')
 const { startWorkers, stopWorkers } = await import('../src/kernel/jobs/runner.js')
 const { systemCtx } = await import('../src/shared/context.js')
-const schema = await import('../src/shared/db/schema/index.js')
+const schema = await import('../src/db-schema.js')
 
 let fx: TestContext
 let people: ProcessPeople

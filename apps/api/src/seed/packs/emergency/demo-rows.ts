@@ -1,10 +1,10 @@
 import { eq, sql } from 'drizzle-orm'
+import { datasets, objects } from '~/db-schema.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { DatasetService } from '~/modules/data/domain/dataset-service.js'
 import { qualified } from '~/modules/data/infra/physical.js'
 import { TerritoryService } from '~/modules/gis/public.js'
 import { db } from '~/shared/db/client.js'
-import { datasets, objects } from '~/shared/db/schema/index.js'
 import { type PackContext, staffOf, unitId } from './context.js'
 import { insertRows, rowCount } from './datasets.js'
 

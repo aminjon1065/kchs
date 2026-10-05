@@ -20,21 +20,21 @@ import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
 import { directory } from '~/kernel/directory/port.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { LinkService } from '~/kernel/links/service.js'
+import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import { destroyFiles } from '~/modules/files/public.js'
 import { OrgService } from '~/modules/identity/public.js'
 import { actorId, type Ctx, type UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
+import { errors } from '~/shared/errors.js'
+import { newId } from '~/shared/ids.js'
 import {
   caseDestructionActs,
   cases,
   documents,
   documentTypes,
   documentVersions,
-  objects,
-} from '~/shared/db/schema/index.js'
-import { errors } from '~/shared/errors.js'
-import { newId } from '~/shared/ids.js'
+} from '../schema.js'
 import { todayLocal } from './journal-service.js'
 import { applyTransition } from './lifecycle.js'
 import { documentsSpaceId } from './space.js'

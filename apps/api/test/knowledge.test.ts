@@ -30,7 +30,7 @@ const { reviewDuePages } = await import('../src/modules/knowledge/domain/page-re
 const { setSemanticSource } = await import('../src/modules/knowledge/domain/semantic-port.js')
 const { SpaceService } = await import('../src/kernel/spaces/service.js')
 const { systemCtx } = await import('../src/shared/context.js')
-const { pages } = await import('../src/shared/db/schema/index.js')
+const { pages } = await import('../src/db-schema.js')
 
 // biome-ignore lint/suspicious/noExplicitAny: ответы API в тестах — без приведения типов
 type Json = any

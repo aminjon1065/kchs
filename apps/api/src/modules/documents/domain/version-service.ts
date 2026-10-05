@@ -13,6 +13,7 @@ import { directory } from '~/kernel/directory/port.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { JobService } from '~/kernel/jobs/service.js'
 import { LinkService } from '~/kernel/links/service.js'
+import { objects } from '~/kernel/objects/schema.js'
 import {
   fileBriefs,
   fileBuckets,
@@ -21,10 +22,10 @@ import {
 } from '~/modules/files/public.js'
 import { type Ctx, systemCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import { documents, documentVersions, objects } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { logger } from '~/shared/logger/index.js'
+import { documents, documentVersions } from '../schema.js'
 import { DocumentSignatures } from './routes/signatures.js'
 import { ROUTE_ACTIVE_STATUSES } from './routes/state.js'
 

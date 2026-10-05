@@ -12,13 +12,14 @@ import { and, asc, eq, inArray, isNull, type SQL, sql } from 'drizzle-orm'
 import { grantAccess } from '~/kernel/access/acl-service.js'
 import { authorize } from '~/kernel/access/authorize.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
+import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import type { Ctx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import { objects, territories, territoryClosure } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { redis } from '~/shared/redis/index.js'
+import { territories, territoryClosure } from '../schema.js'
 
 /** Единица справочника для загрузки (seed, в будущем — импорт классификатора). */
 export interface TerritoryInput {

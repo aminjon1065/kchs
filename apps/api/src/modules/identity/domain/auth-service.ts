@@ -9,6 +9,7 @@ import { and, eq, gt, isNull, or, sql } from 'drizzle-orm'
 import { authenticator } from 'otplib'
 import { invalidatePrincipalSet } from '~/kernel/access/principal-set.js'
 import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
+import { users } from '~/kernel/directory/schema.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { SecurityPolicyService } from '~/kernel/settings/security-policy.js'
 import { config } from '~/shared/config/index.js'
@@ -16,6 +17,8 @@ import { systemCtx, type UserCtx } from '~/shared/context.js'
 import { checkPasswordPolicy, hashPassword, verifyPassword } from '~/shared/crypto/password.js'
 import { decryptSecret, encryptSecret, hashToken } from '~/shared/crypto/secrets.js'
 import { db, type Executor } from '~/shared/db/client.js'
+import { errors } from '~/shared/errors.js'
+import { newId, randomCode, randomToken } from '~/shared/ids.js'
 import {
   credentials,
   mfaChallenges,
@@ -23,11 +26,8 @@ import {
   passwordResets,
   recoveryCodes,
   sessions,
-  users,
   webauthnCredentials,
-} from '~/shared/db/schema/index.js'
-import { errors } from '~/shared/errors.js'
-import { newId, randomCode, randomToken } from '~/shared/ids.js'
+} from '../schema.js'
 import { AuthProviders } from './auth-providers.js'
 import { entryDisabled, LdapClient } from './ldap-client.js'
 

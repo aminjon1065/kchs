@@ -30,14 +30,15 @@ import type { ObjectLike } from '~/kernel/access/types.js'
 import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
 import { directory } from '~/kernel/directory/port.js'
 import { LinkService } from '~/kernel/links/service.js'
+import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import { SpaceService } from '~/kernel/spaces/service.js'
 import { DatasetQueries, datasetRecord } from '~/modules/data/public.js'
 import { territoryIndex } from '~/modules/gis/public.js'
 import { actorId, type Ctx, type UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import { objects, type TaskSourceValue, tasks } from '~/shared/db/schema/index.js'
 import { AppError, errors } from '~/shared/errors.js'
+import { type TaskSourceValue, tasks } from '../schema.js'
 import {
   approximateLevel,
   participantsOf,

@@ -1,12 +1,12 @@
 import { and, eq, inArray, isNull, ne, sql } from 'drizzle-orm'
 import type { Ctx } from '~/shared/context.js'
 import type { Executor } from '~/shared/db/client.js'
-import { acknowledgmentRequests, acknowledgments } from '~/shared/db/schema/index.js'
 import { newId } from '~/shared/ids.js'
 import { loadObject } from '../access/authorize.js'
 import { publishEvent } from '../events/publisher.js'
 import { InboxService } from '../inbox/service.js'
 import type { ProcessObserver, ProcessStepChange } from '../process/registry.js'
+import { acknowledgmentRequests, acknowledgments } from './schema.js'
 import { Acknowledgments } from './service.js'
 
 const PENDING = and(isNull(acknowledgments.acknowledgedAt), isNull(acknowledgments.cancelledAt))

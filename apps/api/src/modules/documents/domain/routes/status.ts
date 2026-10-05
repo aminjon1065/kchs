@@ -2,8 +2,8 @@ import type { DocumentStatus } from '@kchs/contracts'
 import { eq } from 'drizzle-orm'
 import type { Ctx } from '~/shared/context.js'
 import type { Executor } from '~/shared/db/client.js'
-import { documents } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
+import { documents } from '../../schema.js'
 import { applyTransition } from '../lifecycle.js'
 
 /** Статус, к которому ведёт шаг маршрута (08-documents.md §3). */

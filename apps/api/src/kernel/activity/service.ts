@@ -1,11 +1,11 @@
 import type { Activity, EventEnvelope } from '@kchs/contracts'
 import { desc, eq, sql } from 'drizzle-orm'
 import { db } from '~/shared/db/client.js'
-import { activities } from '~/shared/db/schema/index.js'
 import { directory } from '../directory/port.js'
 import type { Subscriber } from '../events/types.js'
 import { objectType } from '../objects/registry.js'
 import { emitToRoom } from '../realtime/gateway.js'
+import { activities } from './schema.js'
 
 /**
  * Лента активности строится из событий (02-platform-kernel.md §5).

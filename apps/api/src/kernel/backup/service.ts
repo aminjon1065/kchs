@@ -6,10 +6,10 @@ import { config } from '~/shared/config/index.js'
 import type { Ctx } from '~/shared/context.js'
 import { actorId, systemCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
-import { backups } from '~/shared/db/schema/index.js'
 import { logger } from '~/shared/logger/index.js'
 import { AUDIT_ACTIONS, audit } from '../audit/service.js'
 import { buckets, deleteObject, ensureBucket, putStream } from '../storage/s3.js'
+import { backups } from './schema.js'
 
 /**
  * Резервные копии базы (15-admin-operations.md §5): установка S1 делает их

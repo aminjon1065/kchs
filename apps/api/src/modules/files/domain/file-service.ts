@@ -3,6 +3,7 @@ import { and, eq, inArray, sql } from 'drizzle-orm'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { JobService } from '~/kernel/jobs/service.js'
 import { LinkService } from '~/kernel/links/service.js'
+import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import {
   abortMultipart,
@@ -19,16 +20,9 @@ import {
 import { UserService } from '~/modules/identity/public.js'
 import { actorId, type Ctx, type UserCtx } from '~/shared/context.js'
 import { type Database, db, type Executor } from '~/shared/db/client.js'
-import {
-  filePreviews,
-  files,
-  fileTexts,
-  fileVersions,
-  objects,
-  uploadSessions,
-} from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
+import { filePreviews, files, fileTexts, fileVersions, uploadSessions } from '../schema.js'
 import { AttachmentsFolder } from './attachments.js'
 import { FileProcessing } from './processing.js'
 import { authorizeUploadTarget } from './upload-access.js'

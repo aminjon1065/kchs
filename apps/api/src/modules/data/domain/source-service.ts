@@ -21,15 +21,16 @@ import { buildUserCtxFor } from '~/kernel/access/explain.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { JobService } from '~/kernel/jobs/service.js'
 import { LinkService } from '~/kernel/links/service.js'
+import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import { ExternalDatabase, externalValue, Integrations } from '~/modules/integrations/public.js'
 import { actorId, type Ctx, systemCtx, type UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import { datasets, integrations, objects, sourceRuns, sources } from '~/shared/db/schema/index.js'
 import { AppError, errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { logger } from '~/shared/logger/index.js'
 import { Physical, type PhysicalColumn } from '../infra/physical.js'
+import { datasets, sourceRuns, sources } from '../schema.js'
 import { DatasetService, type DatasetStorage, defaultSemantic } from './dataset-service.js'
 import { FeedService, feedOf } from './feed-service.js'
 import { assertCron, sourceEventObject } from './source-shared.js'
@@ -110,13 +111,12 @@ async function integrationBrief(
   id: string | null,
 ): Promise<{ name: string | null; kind: string | null }> {
   if (!id) return { name: null, kind: null }
-  const [row] = await db()
-    .select({ name: objects.title, kind: integrations.kind })
-    .from(integrations)
-    .innerJoin(objects, eq(objects.id, integrations.id))
-    .where(eq(integrations.id, id))
-    .limit(1)
-  return { name: row?.name ?? null, kind: row?.kind ?? null }
+  // Таблицы интеграций читает их модуль (ADR-0178): здесь — его публичный API
+  const integration = await Integrations.get(id).catch((error: unknown) => {
+    if (error instanceof AppError && error.status === 404) return null
+    throw error
+  })
+  return { name: integration?.name ?? null, kind: integration?.kind ?? null }
 }
 
 async function toRecord(

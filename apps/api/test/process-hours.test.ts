@@ -24,7 +24,7 @@ registerLifecycle()
 const { matchesType } = await import('../src/kernel/events/bus.js')
 const { processSubscribers } = await import('../src/kernel/process/subscribers.js')
 const { fireStepTimers } = await import('../src/kernel/process/timers.js')
-const schema = await import('../src/shared/db/schema/index.js')
+const schema = await import('../src/db-schema.js')
 
 const HOUR = 3_600_000
 

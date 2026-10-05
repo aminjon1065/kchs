@@ -3,10 +3,11 @@ import { and, eq, inArray, notInArray, type SQL, sql } from 'drizzle-orm'
 import { directory } from '~/kernel/directory/port.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import type { EventInput } from '~/kernel/events/types.js'
+import { objects } from '~/kernel/objects/schema.js'
 import type { Ctx } from '~/shared/context.js'
 import type { Executor } from '~/shared/db/client.js'
-import { objects, projects, taskExtensions, tasks } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
+import { projects, taskExtensions, tasks } from '../schema.js'
 import type { TaskActor, TaskFacts } from './task-rules.js'
 
 /**

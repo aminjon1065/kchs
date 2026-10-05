@@ -6,11 +6,12 @@ import {
 } from '@kchs/contracts'
 import { eq, sql } from 'drizzle-orm'
 import { publishEvent } from '~/kernel/events/publisher.js'
+import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import type { Ctx } from '~/shared/context.js'
 import type { Executor } from '~/shared/db/client.js'
-import { documents, objects } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
+import { documents } from '../schema.js'
 
 export interface TransitionInput {
   to: DocumentStatus

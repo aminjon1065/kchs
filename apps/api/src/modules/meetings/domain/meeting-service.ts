@@ -13,12 +13,13 @@ import { authorize, hasCapability, visibleObjectsSql } from '~/kernel/access/aut
 import { directory } from '~/kernel/directory/port.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { NotificationService } from '~/kernel/notifications/service.js'
+import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import { actorId, type Ctx, type UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import { meetingParticipants, meetings, objects } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
+import { meetingParticipants, meetings } from '../schema.js'
 import {
   closeRoom,
   GUEST_TOKEN_TTL_SECONDS,

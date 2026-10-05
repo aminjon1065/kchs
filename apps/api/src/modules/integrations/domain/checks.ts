@@ -1,8 +1,8 @@
 import { lookup } from 'node:dns/promises'
 import { isIP } from 'node:net'
 import { config } from '~/shared/config/index.js'
-import type { IntegrationRow } from '~/shared/db/schema/index.js'
 import { checkMailbox } from '~/shared/mail/imap.js'
+import type { IntegrationRow } from '../schema.js'
 import { DATABASE_KINDS, ExternalDatabases } from './database-source.js'
 
 /** Сколько ждём ответа при проверке связи и при доставке вебхука. */

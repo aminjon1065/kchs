@@ -3,12 +3,13 @@ import { and, eq, inArray, or, sql } from 'drizzle-orm'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { actorId } from '~/shared/context.js'
 import { type Database, db, type Executor } from '~/shared/db/client.js'
-import { dependencies, links, objects } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { authorize } from '../access/authorize.js'
 import { publishEvent } from '../events/publisher.js'
+import { objects } from '../objects/schema.js'
 import { hiddenSummary, ObjectService } from '../objects/service.js'
+import { dependencies, links } from './schema.js'
 
 /** Связи объектов (02-platform-kernel.md §3): двунаправленные по чтению. */
 export const LinkService = {

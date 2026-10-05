@@ -9,9 +9,10 @@ import { and, eq, type SQL, sql } from 'drizzle-orm'
 import { hasCapability } from '~/kernel/access/authorize.js'
 import type { TypePolicy } from '~/kernel/access/types.js'
 import { delegationCovers } from '~/kernel/inbox/service.js'
+import { objects } from '~/kernel/objects/schema.js'
 import type { UserCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
-import { documentParticipants, objects } from '~/shared/db/schema/index.js'
+import { documentParticipants } from '../schema.js'
 
 function reason(level: Level, policy: string): AccessReason {
   return {

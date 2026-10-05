@@ -20,10 +20,10 @@ import { registerSubscriber } from '~/kernel/events/bus.js'
 import { registerJobHandler } from '~/kernel/jobs/runner.js'
 import { JobService } from '~/kernel/jobs/service.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
+import { objects } from '~/kernel/objects/schema.js'
 import { registerEntityScheduleProvider } from '~/kernel/schedules/index.js'
 import { ExternalDatabase } from '~/modules/integrations/public.js'
 import { db } from '~/shared/db/client.js'
-import { objects, sources } from '~/shared/db/schema/index.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { FeedService } from './domain/feed-service.js'
 import {
@@ -33,6 +33,7 @@ import {
   syncSourceSchedules,
 } from './domain/source-schedules.js'
 import { SOURCE_SYNC_JOB, type SourceJobData, SourceService } from './domain/source-service.js'
+import { sources } from './schema.js'
 
 const IdParam = z.object({ id: z.uuid() })
 const IntegrationParam = z.object({ integrationId: z.uuid() })

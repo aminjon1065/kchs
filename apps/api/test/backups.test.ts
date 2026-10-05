@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { backups } from '../src/shared/db/schema/index.js'
+import { backups } from '../src/db-schema.js'
 import { call, db, registerLifecycle, setupFixture, type TestContext } from './helpers.js'
 
 /**

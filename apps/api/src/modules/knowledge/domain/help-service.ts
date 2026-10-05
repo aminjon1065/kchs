@@ -8,10 +8,10 @@ import {
 import { and, eq, inArray, isNull } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
 import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
+import { objects } from '~/kernel/objects/schema.js'
 import { SETTING_KEYS, SettingsService } from '~/kernel/settings/service.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
-import { objects } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 
 const EMPTY: HelpPages = { ru: null, tg: null, en: null }
