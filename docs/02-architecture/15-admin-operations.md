@@ -28,11 +28,11 @@
 web (caddy + SPA)   :80/:443 — TLS, статика, /api → api, /ws → api, /collab → api, CSP; /livekit → livekit (фаза 4) — ADR-0044
 api ×2              ROLE=api
 worker ×1           ROLE=worker
-engine ×1           python; тома для моделей (whisper, bge-m3, tesseract data)
+engine ×1           python; тома для моделей (whisper, bge-m3, tesseract data); минимум прав — ADR-0176
 postgres            postgis/postgis:17-3.5 + pgvector; том данных; pgbackrest sidecar
-redis               redis:7 (AOF, noeviction): очереди, потоки событий, доступы, флаги — ADR-0175
+redis               redis:7 (AOF, noeviction): очереди, потоки событий, доступы, флаги — ADR-0175; пользователь движка kchs-engine — ADR-0176
 redis-cache         redis:7 без сохранения, allkeys-lru: тайлы, результаты запросов, наборы прав — ADR-0175
-minio               бакеты создаются init-контейнером
+minio               бакеты и пользователь движка создаются init-контейнером (ADR-0176)
 meilisearch         том индекса
 livekit + egress    UDP 50000-60000, TCP 7881, TURN/TLS 443 (через proxy или отдельный IP)
 alloy, tempo, loki, prometheus, grafana      (профиль `observability`, ADR-0045)
@@ -43,6 +43,8 @@ titiler, photon     (профили `raster`, `geocoder`, опционально
 Требования S1: 16 vCPU, 64 ГБ RAM, NVMe 1 ТБ (БД) + хранилище файлов по объёму (или внешний S3), ОС Linux, Docker 27+. Установка: `git clone`, `.env` из `.env.example` (секреты генерируются скриптом `infra/scripts/generate-secrets.sh --mode app`), `docker compose --profile app up -d`, `docker compose exec api kchs init` (миграции, первый администратор с временным паролем, базовые справочники, реестр базовых карт — «без подложки» и уже загруженные сборки PMTiles; сборка и загрузка подложки — §6). Порядок и проверка — ADR-0044, `infra/scripts/verify-stack.sh`.
 
 Обновление: `docker compose pull && docker compose up -d` — миграции применяются при старте `api` с advisory lock; обратная совместимость миграций на одну версию назад (blue-green без простоя для S2). Миграции выпускаются по правилу expand/contract (ADR-0173): сначала добавить новое (столбец, таблицу) и писать в оба места, следующим выпуском перейти на чтение нового, ещё одним — убрать старое; никаких переименований и удалений, на которые опирается предыдущая версия, в одном выпуске. Применённую миграцию не правят: мигратор сверяет хэши и останавливает запуск при правке задним числом — в тексте ошибки есть команда обновления хэша, если правка намеренная и база ей уже соответствует.
+
+Секреты, которые появились в новой версии, дописывает в существующий `.env` команда `infra/scripts/generate-secrets.sh --add-missing --env-file .env`: прежние пароли она не трогает (стенд показа делает это сам). Так приходят пользователи движка ADR-0176 — `REDIS_ENGINE_PASSWORD`, `S3_ENGINE_ACCESS_KEY`, `S3_ENGINE_SECRET_KEY`. Пока их нет, движок работает с прежними правами и пишет в журнал предупреждение `engine.broad_access`.
 
 Выход в интернет через исходящий прокси (ADR-0132) — переменные в `.env`, их берут `api` и `worker`:
 
@@ -56,7 +58,7 @@ titiler, photon     (профили `raster`, `geocoder`, опционально
 
 ## 3. S2 (Kubernetes)
 
-Helm-чарт `infra/helm/kchs`: Deployments `api` (HPA по CPU/RPS), `worker` (по глубине очередей, KEDA), `engine` (по очередям; GPU-node pool опционально для whisper/эмбеддингов), `web` (nginx). Данные: PostgreSQL через оператор (CloudNativePG/Patroni) с репликой и PgBouncer, Redis Sentinel/оператор, MinIO distributed (4+ узла) или внешний S3, Meilisearch (одиночный с PVC; репликация — перестроением), LiveKit multi-node с Redis. Ingress с TLS, отдельный сервис для UDP LiveKit. Кэш тайлов — nginx/Varnish перед API или Martin. Secrets — внешний менеджер (Vault/SealedSecrets).
+Helm-чарт `infra/helm/kchs`: Deployments `api` (HPA по CPU/RPS), `worker` (по глубине очередей, KEDA), `engine` (по очередям; GPU-node pool опционально для whisper/эмбеддингов), `web` (nginx). Данные: PostgreSQL через оператор (CloudNativePG/Patroni) с репликой и PgBouncer, Redis Sentinel/оператор, MinIO distributed (4+ узла) или внешний S3, Meilisearch (одиночный с PVC; репликация — перестроением), LiveKit multi-node с Redis. Ingress с TLS, отдельный сервис для UDP LiveKit. Кэш тайлов — nginx/Varnish перед API или Martin. Secrets — внешний менеджер (Vault/SealedSecrets). Движку — свои пользователи Redis (`REDIS_ENGINE_PASSWORD`, ACL `kchs-engine`) и хранилища (`S3_ENGINE_ACCESS_KEY`/`S3_ENGINE_SECRET_KEY` с политикой движка): встроенные службы чарт настраивает сам, внешние — администратор (`infra/helm/README.md`, ADR-0176).
 
 Реализовано (P5-E07, ADR-0118). Краткая инструкция — `infra/helm/README.md`, все значения с
 пояснениями — `infra/helm/kchs/values.yaml`.

@@ -41,6 +41,16 @@ PostgreSQL оператором (CloudNativePG/Patroni) с репликой и P
 Sentinel, внешний S3 или распределённый MinIO, Meilisearch с PVC. Чарт знает о
 них только адреса и ключи секрета.
 
+Движок (ADR-0176) ходит в Redis и хранилище своими пользователями. Встроенные
+Redis и MinIO чарт настраивает сам. Внешним службам их заводит администратор:
+
+- **Redis.** Пользователь `kchs-engine` — строка ACL из `files/redis-start.sh`, только
+  ключи очередей движка `bull:imports|transform|render|media|ai:*` и чтение
+  `kchs:job:cancel:*`.
+- **S3.** Ключ с политикой `infra/compose/minio/engine-policy.json` (бакеты по
+  умолчанию; свои имена из `s3.buckets` подставьте в неё). Та же политика — шаблон
+  `kchs.engineS3Policy` для встроенного MinIO.
+
 Кэш (ADR-0175) — второй Redis с `maxmemory-policy allkeys-lru` и без сохранения
 на диск: тайлы, результаты запросов, наборы прав. Адрес — `redisCache.host`,
 пароль — ключ `REDIS_CACHE_PASSWORD`. Не задан — кэш живёт в основном Redis, и
@@ -84,7 +94,9 @@ helm upgrade --install kchs infra/helm/kchs \
 | `POSTGRES_QUERY_PASSWORD` | роль `kchs_query` (пользовательские запросы) |
 | `REDIS_PASSWORD` | Redis |
 | `REDIS_CACHE_PASSWORD` | кэш Redis, если он отдельный (`redisCache`) |
+| `REDIS_ENGINE_PASSWORD` | пользователь Redis движка `kchs-engine` (ADR-0176); при `redis.urlFromSecret` — `REDIS_ENGINE_URL` |
 | `S3_ACCESS_KEY`, `S3_SECRET_KEY` | объектное хранилище |
+| `S3_ENGINE_ACCESS_KEY`, `S3_ENGINE_SECRET_KEY` | пользователь хранилища движка с политикой `kchs.engineS3Policy` (ADR-0176) |
 | `MEILI_MASTER_KEY` | поисковый индекс |
 | `KCHS_MASTER_KEY` | 32 байта base64: шифрование секретов и TOTP |
 | `INTERNAL_SERVICE_TOKEN` | доверие между api и движком |

@@ -217,6 +217,9 @@ Prometheus передаёт сработавшие правила в Alertmanage
 
 `SMTP_URL`, `SMTP_FROM`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_API_URL`,
 `TELEGRAM_POLLING`, `ENGINE_INTERNAL_URL`, `ENGINE_API_URL`, `ENGINE_WEB_URL`.
+Пользователи движка (ADR-0176): `REDIS_ENGINE_PASSWORD`, `S3_ENGINE_ACCESS_KEY`,
+`S3_ENGINE_SECRET_KEY` — их читают только службы Redis, MinIO и движка; дописать в
+прежний `.env` — `generate-secrets.sh --add-missing`.
 
 ### Интеллектуальные функции
 
