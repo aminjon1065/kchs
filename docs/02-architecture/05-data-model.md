@@ -49,7 +49,9 @@ reactions(message_id, user_id, emoji, created_at)
 activities(id bigint pk, event_id, object_id, space_id, actor_id, verb text, summary jsonb, occurred_at)
   idx: (object_id, id desc), (actor_id, id desc)
 audit_log(id bigint pk, occurred_at, actor_id, on_behalf_of, action text, object_id, object_type, ip, user_agent, details jsonb, severity)
-  -- только INSERT; партиционирование по месяцам
+  -- только INSERT, в том числе в обход родителя — запись в партиции закрыта ролям приложения;
+  -- партиции по месяцам на три месяца вперёд создаёт мигратор при старте и ночное задание
+  -- audit.partitions, строки месяца без партиции переезжают из audit_log_default (ADR-0173)
 
 notifications(id bigint pk, user_id, event_id, category text, title, body, object_id, url, channels jsonb, read_at, created_at)
 inbox_items(id, user_id, kind text, object_id, process_step_id null, title, due_at, priority, state text, opened_at, resolved_at, snoozed_until, payload jsonb)
@@ -162,12 +164,16 @@ CREATE INDEX ON ds.t_<sid> USING gist (geom);
 CREATE INDEX ON ds.t_<sid> (c_<time_field>);         -- по полям с indexed=true
 CREATE INDEX ON ds.t_<sid> USING gin (c_<text> gin_trgm_ops);  -- для текстовых поисковых полей
 -- для больших полигональных слоёв: geom_s1, geom_s2 (генерализованные для низких зумов), заполняются при импорте
-CREATE TABLE ds.h_<sid> (id bigint, row_id bigint, ver int, op char(1), data jsonb, changed_by uuid, changed_at timestamptz);
+CREATE TABLE ds.h_<sid> (id bigint, row_id bigint, ver int, op char(1), data jsonb, changed_by uuid, changed_at timestamptz, dataset_version int);
 ```
+
+История строк хранится по настройке датасета `historyRetentionDays` (ADR-0173): `null` —
+бессрочно, у лент — 90 дней. Ночное задание `data.history-prune` удаляет историю версий старше
+срока целиком, по индексу `dataset_version`; откат к ним после этого недоступен.
 
 Типы полей → столбцы: `text→text`, `long_text→text`, `number→double precision`, `decimal→numeric(p,s)`, `integer→bigint`, `boolean→boolean`, `date→date`, `datetime→timestamptz`, `time→time`, `select/multi_select→text/text[]` (значения — ключи справочника), `user/unit/territory/object_ref→uuid` (+ индекс), `file→uuid`, `json→jsonb`, `geometry→geometry`, `url/email/phone→text`, `money→numeric(18,2)`, `percent→double precision`, `formula` — не хранится (вычисляется в запросе) либо материализуется по флагу.
 
-Ключевые операции DDL инкапсулированы в `modules/data/infra/physical.ts`: создать таблицу, добавить/переименовать/удалить столбец (переименование не требуется — физическое имя стабильно), сменить тип (приведение с отчётом об ошибках; ADR-0047 — одной перезаписью `ALTER … TYPE … USING`), создать индексы, `COPY` из staging, `swap` таблиц при полной замене (`ALTER TABLE ... RENAME` в транзакции), `VACUUM ANALYZE` после импорта.
+Ключевые операции DDL инкапсулированы в `modules/data/infra/physical.ts`: создать таблицу, добавить/переименовать/удалить столбец (переименование не требуется — физическое имя стабильно), сменить тип (приведение с отчётом об ошибках; ADR-0047 — одной перезаписью `ALTER … TYPE … USING`), создать индексы, `COPY` из staging, `swap` таблиц при полной замене (`ALTER TABLE ... RENAME` в транзакции), `VACUUM ANALYZE` после импорта. DDL ждёт блокировку таблицы не дольше 5 с (`lock_timeout`, ADR-0173): занятая долгим чтением таблица — 409 «повторите позже», подмена при импорте повторяется на месте. Так правка не ставит за собой в очередь всех читателей датасета.
 
 Представления для роли `kchs_query`: компилятор создаёт при необходимости временное представление `ds_views.v_<sid>_<policyhash>` или использует подзапрос в тексте запроса. Решено: **подзапрос** (без DDL при каждом запросе), а роль `kchs_query` получает `SELECT` на схему `ds` только через `SECURITY DEFINER`-функцию `ds_read(table, policy_json)`? — Нет: избыточно. Итог: роль `kchs_query` имеет `SELECT` на `ds.*` (на таблицы строк `ds.t_*`; служебные таблицы истории и импорта ей закрыты — ADR-0048), но **все** пользовательские запросы проходят через компилятор/переписыватель, который является единственным путём к этой роли, и выполняются с `SET LOCAL statement_timeout`, `SET LOCAL ROLE kchs_query`. Сырой SQL не допускается к выполнению, если парсер нашёл ссылки на схемы, кроме `ds`, функции записи, или таблицы датасетов без прав. См. `17-security.md`.
 
@@ -325,7 +331,7 @@ embeddings(id bigint, object_id, chunk_no, text, embedding vector(1024), model, 
 
 ## Индексация и производительность
 
-- Партиционирование по месяцам: `audit_log`, `activities`, `notifications`, `query_runs`, `webhook_deliveries` (pg_partman или собственная ротация заданием).
+- Партиционирование по месяцам: `audit_log` — сделано собственным заданием (ADR-0173); `activities`, `notifications`, `query_runs`, `webhook_deliveries` — до появления объёмов (pg_partman или та же ротация заданием).
 - Все таблицы датасетов: `autovacuum` настроен агрессивнее для активно редактируемых; после импорта — `ANALYZE`.
 - Для списков используется курсорная пагинация по `(sort_key, id)`.
 - Счётчики (`row_count`, непрочитанные) — денормализованы и обновляются подписчиками событий, не `COUNT(*)` на лету.
