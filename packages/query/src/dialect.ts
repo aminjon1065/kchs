@@ -1,3 +1,4 @@
+import { COLUMNAR_DECIMAL } from '@kchs/contracts'
 import { UnsupportedByDialectError } from './errors.js'
 import { quoteIdent } from './ident.js'
 
@@ -157,7 +158,8 @@ const DUCKDB_TYPES: Record<string, string> = {
   bigint: 'BIGINT',
   int: 'INTEGER',
   integer: 'INTEGER',
-  numeric: 'DECIMAL(38,12)',
+  // Точность колоночной копии — из реестра хранения полей (ADR-0190)
+  numeric: `DECIMAL(${COLUMNAR_DECIMAL.precision},${COLUMNAR_DECIMAL.scale})`,
   'double precision': 'DOUBLE',
   float8: 'DOUBLE',
   boolean: 'BOOLEAN',

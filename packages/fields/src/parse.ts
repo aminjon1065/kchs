@@ -1,4 +1,4 @@
-import type { FieldDef, FieldType, Locale } from '@kchs/contracts'
+import { BOOLEAN_WORDS, type FieldDef, type FieldType, type Locale } from '@kchs/contracts'
 import { zonedDateTime } from './ranges.js'
 
 /**
@@ -54,8 +54,9 @@ export function parseInteger(text: string, locale: Locale = 'ru'): number | null
   return value !== null && Number.isSafeInteger(value) ? value : null
 }
 
-const TRUE_WORDS = new Set(['true', '1', 'да', 'д', 'yes', 'y', 'on', '+', 'истина', 'ҳа', '✓'])
-const FALSE_WORDS = new Set(['false', '0', 'нет', 'н', 'no', 'n', 'off', '-', 'ложь', 'не'])
+// Одно множество с импортом файла в движке (ADR-0190)
+const TRUE_WORDS = new Set<string>(BOOLEAN_WORDS.true)
+const FALSE_WORDS = new Set<string>(BOOLEAN_WORDS.false)
 
 export function parseBoolean(text: string): boolean | null {
   const word = text.trim().toLowerCase()

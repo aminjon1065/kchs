@@ -29,6 +29,7 @@ from typing import Any
 
 from kchs_engine import storage
 from kchs_engine.config import settings
+from kchs_engine.contracts import field_storage, field_types_contract
 from kchs_engine.logging import log
 
 PARQUET_CONTENT_TYPE = "application/vnd.apache.parquet"
@@ -40,9 +41,15 @@ SCHEMA = "ds"
 #: Строк в пачке при чтении из Postgres и в группе строк Parquet.
 BATCH_ROWS = 100_000
 
-#: Денежные и точные числа: та же ширина, что у диалекта DuckDB компилятора.
-DECIMAL_PRECISION = 38
-DECIMAL_SCALE = 12
+#: Денежные и точные числа: та же ширина, что у диалекта DuckDB компилятора, —
+#: из общего реестра хранения полей (ADR-0190).
+DECIMAL_PRECISION: int = field_types_contract()["columnarDecimal"]["precision"]
+DECIMAL_SCALE: int = field_types_contract()["columnarDecimal"]["scale"]
+
+# Компилятор читает длительность колоночной копии минутами (`durationMinutes`):
+# другая единица разошлась бы с ним молча
+if field_types_contract()["durationUnit"] != "minute":
+    raise RuntimeError("колоночная копия хранит длительность минутами, реестр говорит иное")
 
 _IDENT_OK = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_")
 
@@ -71,64 +78,74 @@ class Column:
     type: str
 
 
+def _arrow_kind(kind: str) -> str | None:
+    """Тип Arrow поля в колоночной копии по реестру; `None` — поле в копии не хранится."""
+    try:
+        arrow: str | None = field_storage(kind)["arrow"]
+    except ValueError:
+        return None
+    return arrow
+
+
 def _arrow_type(kind: str) -> Any:
     import pyarrow as pa
 
-    match kind:
-        case "text" | "long_text" | "select" | "identifier" | "url" | "email" | "phone":
+    match _arrow_kind(kind):
+        case "string":
             return pa.string()
-        case "integer":
+        case "int64":
             return pa.int64()
-        case "number" | "percent" | "duration":
+        case "float64":
             return pa.float64()
-        case "decimal" | "money":
+        case "decimal":
             return pa.decimal128(DECIMAL_PRECISION, DECIMAL_SCALE)
-        case "boolean":
+        case "bool":
             return pa.bool_()
-        case "date":
+        case "date32":
             return pa.date32()
-        case "datetime":
+        case "timestamp_utc":
             return pa.timestamp("us", tz="UTC")
-        case "time":
+        case "time64":
             return pa.time64("us")
-        case "multi_select":
+        case "list_string":
             return pa.list_(pa.string())
-        case "user" | "unit" | "territory" | "object_ref" | "file" | "json":
-            return pa.string()
     raise ColumnarError(f"тип поля {kind} не хранится в колоночной копии")
 
 
 def _select_expr(column: Column) -> str:
     """Выражение чтения столбца из Postgres — значение того вида, что ждёт Parquet."""
     quoted = ident(column.name)
-    match column.type:
-        case "duration":
-            # Компилятор читает длительность минутами — копия хранит уже минуты.
-            # `extract` в Postgres даёт numeric: приведение нужно pyarrow
-            return f"(extract(epoch FROM {quoted}) / 60)::double precision"
-        case "decimal" | "money":
-            return f"{quoted}::numeric({DECIMAL_PRECISION}, {DECIMAL_SCALE})"
-        case "user" | "unit" | "territory" | "object_ref" | "file" | "json":
-            # Ссылки и JSON — строками: сравнение канонических идентификаторов
-            # посимвольное, лишнего приведения на миллионах строк нет
-            return f"{quoted}::text"
-        case _:
-            return quoted
+    try:
+        stored = field_storage(column.type)
+    except ValueError as error:
+        raise ColumnarError(f"тип поля {column.type} не хранится в колоночной копии") from error
+    if stored["pg"] == "interval":
+        # Компилятор читает длительность минутами — копия хранит уже минуты.
+        # `extract` в Postgres даёт numeric: приведение нужно pyarrow
+        return f"(extract(epoch FROM {quoted}) / 60)::double precision"
+    if stored["arrow"] == "decimal":
+        return f"{quoted}::numeric({DECIMAL_PRECISION}, {DECIMAL_SCALE})"
+    if stored["arrow"] == "string" and stored["pg"] != "text":
+        # Ссылки (`uuid`) и JSON — строками: сравнение канонических идентификаторов
+        # посимвольное, лишнего приведения на миллионах строк нет
+        return f"{quoted}::text"
+    return quoted
 
 
 def _value_for_arrow(value: Any, kind: str) -> Any:
     """Значение psycopg → значение, которое принимает pyarrow."""
     if value is None:
         return None
-    if kind in ("decimal", "money"):
+    arrow = _arrow_kind(kind)
+    if arrow == "decimal":
         return value if isinstance(value, Decimal) else Decimal(str(value))
-    if kind in ("number", "percent", "duration") and isinstance(value, Decimal):
+    if arrow == "float64" and isinstance(value, Decimal):
         return float(value)
-    if kind == "datetime" and isinstance(value, datetime):
+    if arrow == "timestamp_utc" and isinstance(value, datetime):
         if value.tzinfo:
             return value.astimezone(UTC)
         return value.replace(tzinfo=UTC)
-    if kind == "multi_select":
+    if arrow == "list_string":
         return [None if item is None else str(item) for item in value]
     if isinstance(value, uuid.UUID):
         return str(value)

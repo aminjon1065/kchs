@@ -59,3 +59,24 @@ def media_transcribe_contract() -> dict[str, Any]:
 def document_render_contract() -> dict[str, Any]:
     """Виды рендеров модуля документов и пределы исходника и шаблона (ADR-0085)."""
     return _load("document_render.json")
+
+
+@lru_cache
+def field_types_contract() -> dict[str, Any]:
+    """Хранение полей датасета и слова «да/нет» — общий реестр с api и компилятором (ADR-0190)."""
+    return _load("field_types.json")
+
+
+def field_storage(kind: str) -> dict[str, Any]:
+    """Хранение типа поля: столбец Postgres, тип Arrow копии, тип DuckDB, семейство выгрузки."""
+    storage: dict[str, dict[str, Any]] = field_types_contract()["storage"]
+    try:
+        return storage[kind]
+    except KeyError as error:
+        raise ValueError(f"тип поля {kind} не хранится в таблице датасета") from error
+
+
+def fields_of_export_family(family: str) -> frozenset[str]:
+    """Типы полей, которые геовыгрузка пишет значениями этого семейства."""
+    storage: dict[str, dict[str, Any]] = field_types_contract()["storage"]
+    return frozenset(kind for kind, item in storage.items() if item["exportFamily"] == family)

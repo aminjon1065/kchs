@@ -14,6 +14,13 @@ import {
 } from '../src/admin/users-import.js'
 import { DATASET_ENGINE_EXPORT_FORMATS, DATASET_EXPORT_MAX_ROWS } from '../src/data/export.js'
 import {
+  ARROW_TYPES,
+  COLUMNAR_DECIMAL,
+  DURATION_UNIT,
+  EXPORT_FAMILIES,
+  FIELD_STORAGE,
+} from '../src/data/field-storage.js'
+import {
   IMPORT_ERROR_CODES,
   IMPORT_FIELD_TYPES,
   IMPORT_FORMATS,
@@ -36,6 +43,7 @@ import {
   RENDER_OVERLAY_PAGES,
 } from '../src/documents/print.js'
 import { FIELD_SEMANTICS } from '../src/fields/field-def.js'
+import { BOOLEAN_WORDS } from '../src/fields/values.js'
 import { QUEUE_RUNTIME } from '../src/jobs/job.js'
 import {
   RECORDING_MIME,
@@ -97,4 +105,13 @@ write('document_render.json', {
   overlayPages: RENDER_OVERLAY_PAGES,
   maxSourceBytes: DOCUMENT_RENDER_MAX_SOURCE_BYTES,
   maxTemplateBytes: DOCUMENT_TEMPLATE_MAX_BYTES,
+})
+// Хранение полей и слова «да/нет» — один реестр для api, компилятора и движка (ADR-0190)
+write('field_types.json', {
+  storage: FIELD_STORAGE,
+  arrowTypes: ARROW_TYPES,
+  exportFamilies: EXPORT_FAMILIES,
+  columnarDecimal: COLUMNAR_DECIMAL,
+  durationUnit: DURATION_UNIT,
+  booleanWords: BOOLEAN_WORDS,
 })

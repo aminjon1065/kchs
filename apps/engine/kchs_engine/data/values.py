@@ -15,6 +15,8 @@ from decimal import Decimal
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from kchs_engine.contracts import field_types_contract
+
 # ─── Пустые значения ─────────────────────────────────────────────────────────
 
 # Заглушки вместо значения в отчётах; для текстовых полей остаются текстом
@@ -212,10 +214,9 @@ def number_from_native(value: object) -> str | None:
 
 # ─── Логические значения ─────────────────────────────────────────────────────
 
-TRUE_TOKENS = frozenset(
-    {"true", "t", "yes", "y", "да", "д", "истина", "ҳа", "ха", "вкл", "1", "+", "✓", "✔"}
-)
-FALSE_TOKENS = frozenset({"false", "f", "no", "n", "нет", "н", "ложь", "не", "выкл", "0"})
+# Одно множество со вставкой в таблицу (`@kchs/fields`): реестр `field_types.json` (ADR-0190)
+TRUE_TOKENS = frozenset(field_types_contract()["booleanWords"]["true"])
+FALSE_TOKENS = frozenset(field_types_contract()["booleanWords"]["false"])
 
 
 def parse_boolean(raw: str) -> str | None:

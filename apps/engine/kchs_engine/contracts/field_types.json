@@ -1,0 +1,213 @@
+{
+  "$comment": "Сгенерировано из packages/contracts командой `pnpm --filter @kchs/contracts gen:engine`. Не редактировать вручную.",
+  "storage": {
+    "text": {
+      "pg": "text",
+      "arrow": "string",
+      "duckdb": "VARCHAR",
+      "exportFamily": "text"
+    },
+    "long_text": {
+      "pg": "text",
+      "arrow": "string",
+      "duckdb": "VARCHAR",
+      "exportFamily": "text"
+    },
+    "select": {
+      "pg": "text",
+      "arrow": "string",
+      "duckdb": "VARCHAR",
+      "exportFamily": "text"
+    },
+    "identifier": {
+      "pg": "text",
+      "arrow": "string",
+      "duckdb": "VARCHAR",
+      "exportFamily": "text"
+    },
+    "url": {
+      "pg": "text",
+      "arrow": "string",
+      "duckdb": "VARCHAR",
+      "exportFamily": "text"
+    },
+    "email": {
+      "pg": "text",
+      "arrow": "string",
+      "duckdb": "VARCHAR",
+      "exportFamily": "text"
+    },
+    "phone": {
+      "pg": "text",
+      "arrow": "string",
+      "duckdb": "VARCHAR",
+      "exportFamily": "text"
+    },
+    "integer": {
+      "pg": "bigint",
+      "arrow": "int64",
+      "duckdb": "BIGINT",
+      "exportFamily": "integer"
+    },
+    "number": {
+      "pg": "double precision",
+      "arrow": "float64",
+      "duckdb": "DOUBLE",
+      "exportFamily": "real"
+    },
+    "percent": {
+      "pg": "double precision",
+      "arrow": "float64",
+      "duckdb": "DOUBLE",
+      "exportFamily": "real"
+    },
+    "decimal": {
+      "pg": "numeric",
+      "arrow": "decimal",
+      "duckdb": "DECIMAL(38,12)",
+      "exportFamily": "real"
+    },
+    "money": {
+      "pg": "numeric(18, 2)",
+      "arrow": "decimal",
+      "duckdb": "DECIMAL(38,12)",
+      "exportFamily": "real"
+    },
+    "boolean": {
+      "pg": "boolean",
+      "arrow": "bool",
+      "duckdb": "BOOLEAN",
+      "exportFamily": "boolean"
+    },
+    "date": {
+      "pg": "date",
+      "arrow": "date32",
+      "duckdb": "DATE",
+      "exportFamily": "date"
+    },
+    "datetime": {
+      "pg": "timestamptz",
+      "arrow": "timestamp_utc",
+      "duckdb": "TIMESTAMPTZ",
+      "exportFamily": "datetime"
+    },
+    "time": {
+      "pg": "time",
+      "arrow": "time64",
+      "duckdb": "TIME",
+      "exportFamily": "text"
+    },
+    "duration": {
+      "pg": "interval",
+      "arrow": "float64",
+      "duckdb": "DOUBLE",
+      "exportFamily": "text"
+    },
+    "multi_select": {
+      "pg": "text[]",
+      "arrow": "list_string",
+      "duckdb": "VARCHAR[]",
+      "exportFamily": "text"
+    },
+    "user": {
+      "pg": "uuid",
+      "arrow": "string",
+      "duckdb": "VARCHAR",
+      "exportFamily": "text"
+    },
+    "unit": {
+      "pg": "uuid",
+      "arrow": "string",
+      "duckdb": "VARCHAR",
+      "exportFamily": "text"
+    },
+    "territory": {
+      "pg": "uuid",
+      "arrow": "string",
+      "duckdb": "VARCHAR",
+      "exportFamily": "text"
+    },
+    "object_ref": {
+      "pg": "uuid",
+      "arrow": "string",
+      "duckdb": "VARCHAR",
+      "exportFamily": "text"
+    },
+    "file": {
+      "pg": "uuid",
+      "arrow": "string",
+      "duckdb": "VARCHAR",
+      "exportFamily": "text"
+    },
+    "json": {
+      "pg": "jsonb",
+      "arrow": "string",
+      "duckdb": "VARCHAR",
+      "exportFamily": "text"
+    },
+    "geometry": {
+      "pg": "geometry(Geometry, 4326)",
+      "arrow": null,
+      "duckdb": null,
+      "exportFamily": "geometry"
+    }
+  },
+  "arrowTypes": [
+    "string",
+    "int64",
+    "float64",
+    "decimal",
+    "bool",
+    "date32",
+    "timestamp_utc",
+    "time64",
+    "list_string"
+  ],
+  "exportFamilies": [
+    "integer",
+    "real",
+    "boolean",
+    "date",
+    "datetime",
+    "text",
+    "geometry"
+  ],
+  "columnarDecimal": {
+    "precision": 38,
+    "scale": 12
+  },
+  "durationUnit": "minute",
+  "booleanWords": {
+    "true": [
+      "true",
+      "t",
+      "1",
+      "yes",
+      "y",
+      "on",
+      "+",
+      "да",
+      "д",
+      "истина",
+      "вкл",
+      "ҳа",
+      "ха",
+      "✓",
+      "✔"
+    ],
+    "false": [
+      "false",
+      "f",
+      "0",
+      "no",
+      "n",
+      "off",
+      "-",
+      "нет",
+      "н",
+      "ложь",
+      "не",
+      "выкл"
+    ]
+  }
+}

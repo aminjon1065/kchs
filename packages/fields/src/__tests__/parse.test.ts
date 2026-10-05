@@ -54,6 +54,12 @@ describe('parseBoolean', () => {
     for (const word of ['нет', 'false', '0', 'no', 'не']) expect(parseBoolean(word)).toBe(false)
     expect(parseBoolean('может быть')).toBeNull()
   })
+
+  it('понимает те же слова, что импорт файла в движке (ADR-0190)', () => {
+    // Прежде вставка не знала `t`, `вкл`, `ха`, `✔`, а импорт — `on`, `off`, `-`
+    for (const word of ['t', 'вкл', 'ха', '✔', 'on', ' ВКЛ ']) expect(parseBoolean(word)).toBe(true)
+    for (const word of ['f', 'выкл', 'off', '-']) expect(parseBoolean(word)).toBe(false)
+  })
 })
 
 describe('parseDate', () => {

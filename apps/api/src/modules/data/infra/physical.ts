@@ -1,6 +1,6 @@
 import type { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
-import type { StoredFieldType } from '@kchs/contracts'
+import { pgColumnType, type StoredFieldType } from '@kchs/contracts'
 import { quoteIdent } from '@kchs/query'
 import { type SQL, sql } from 'drizzle-orm'
 import type { Executor } from '~/shared/db/client.js'
@@ -124,49 +124,12 @@ export async function retryWhileBusy<T>(
   }
 }
 
-/** Тип поля → тип столбца Postgres (05-data-model.md «Типы полей → столбцы»). */
+/**
+ * Тип поля → тип столбца Postgres (05-data-model.md «Типы полей → столбцы»): из
+ * общего реестра хранения `FIELD_STORAGE` — его же читают компилятор и движок (ADR-0190).
+ */
 export function columnType(type: StoredFieldType, precision?: number): string {
-  switch (type) {
-    case 'text':
-    case 'long_text':
-    case 'select':
-    case 'identifier':
-    case 'url':
-    case 'email':
-    case 'phone':
-      return 'text'
-    case 'integer':
-      return 'bigint'
-    case 'number':
-    case 'percent':
-      return 'double precision'
-    case 'decimal':
-      return precision !== undefined ? `numeric(38, ${Math.min(precision, 12)})` : 'numeric'
-    case 'money':
-      return 'numeric(18, 2)'
-    case 'boolean':
-      return 'boolean'
-    case 'date':
-      return 'date'
-    case 'datetime':
-      return 'timestamptz'
-    case 'time':
-      return 'time'
-    case 'duration':
-      return 'interval'
-    case 'multi_select':
-      return 'text[]'
-    case 'user':
-    case 'unit':
-    case 'territory':
-    case 'object_ref':
-    case 'file':
-      return 'uuid'
-    case 'json':
-      return 'jsonb'
-    case 'geometry':
-      return 'geometry(Geometry, 4326)'
-  }
+  return pgColumnType(type, precision)
 }
 
 export interface PhysicalColumn {

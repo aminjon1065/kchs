@@ -22,13 +22,18 @@ from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
+from kchs_engine.contracts import fields_of_export_family
 from kchs_engine.data.readers import ImportFileError
 
 BATCH_SIZE = 5000
 # Имя поля DBF — не длиннее 10 байт ASCII
 DBF_NAME_LENGTH = 10
-_INTEGER = frozenset({"integer"})
-_REAL = frozenset({"number", "decimal", "money", "percent"})
+# Семейства значений атрибутов — из общего реестра хранения полей (ADR-0190)
+_INTEGER = fields_of_export_family("integer")
+_REAL = fields_of_export_family("real")
+_BOOLEAN = fields_of_export_family("boolean")
+_DATE = fields_of_export_family("date")
+_DATETIME = fields_of_export_family("datetime")
 _TEXTUAL = ("text", "identifier", "select", "long_text")
 # Семейства геометрий Shapefile: тип файла и суффикс имени
 _FAMILIES = {
@@ -184,11 +189,11 @@ class _Columns:
                 arrow, convert = pyarrow.int64(), _integer
             elif field.type in _REAL:
                 arrow, convert = pyarrow.float64(), _real
-            elif field.type == "boolean":
+            elif field.type in _BOOLEAN:
                 arrow, convert = pyarrow.bool_(), _boolean
-            elif field.type == "date":
+            elif field.type in _DATE:
                 arrow, convert = pyarrow.date32(), _date
-            elif field.type == "datetime":
+            elif field.type in _DATETIME:
                 arrow, convert = pyarrow.timestamp("ms", tz="UTC"), _datetime
             else:
                 arrow, convert = pyarrow.string(), _text
