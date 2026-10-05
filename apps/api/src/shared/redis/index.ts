@@ -98,24 +98,35 @@ export async function closeRedis(): Promise<void> {
 }
 
 /**
+ * Дождаться готовности соединения: ложь — не дождались за отведённое время или
+ * попытка соединения не удалась (сбой не ждём до тайм-аута).
+ */
+function whenReady(client: Redis, timeoutMs: number): Promise<boolean> {
+  if (client.status === 'ready') return Promise.resolve(true)
+  return new Promise((resolve) => {
+    const finish = (ready: boolean) => {
+      clearTimeout(timer)
+      client.off('ready', onReady)
+      client.off('error', onFailed)
+      client.off('close', onFailed)
+      resolve(ready)
+    }
+    const onReady = () => finish(true)
+    const onFailed = () => finish(false)
+    const timer = setTimeout(() => finish(false), timeoutMs)
+    client.once('ready', onReady)
+    client.once('error', onFailed)
+    client.once('close', onFailed)
+  })
+}
+
+/**
  * Кэш отвечает («Здоровье системы»). Клиент кэша создаётся при первом обращении и
  * команд без соединения не копит — сначала дожидаемся соединения.
  */
 export async function pingCache(timeoutMs = 2_000): Promise<void> {
   const client = cacheRedis()
-  if (client.status !== 'ready') {
-    await new Promise<void>((resolve, reject) => {
-      const onReady = () => {
-        clearTimeout(timer)
-        resolve()
-      }
-      const timer = setTimeout(() => {
-        client.off('ready', onReady)
-        reject(new Error('кэш не подключился'))
-      }, timeoutMs)
-      client.once('ready', onReady)
-    })
-  }
+  if (!(await whenReady(client, timeoutMs))) throw new Error('кэш не подключился')
   await client.ping()
 }
 
@@ -130,8 +141,19 @@ function cacheFailed(error: unknown, operation: string): void {
   logger().warn({ err: error, operation }, 'кэш Redis недоступен — считаем без кэша')
 }
 
+/**
+ * Первое соединение процесса ещё устанавливается — подождать его немного: иначе
+ * первые операции каждого нового процесса (старт api, `kchs seed`) промахивались бы.
+ * Разорванное или недоступное соединение не ждём — промах сразу.
+ */
+const FIRST_CONNECT_WAIT_MS = 500
+
 async function attempt<T>(operation: string, run: () => Promise<T>, fallback: T): Promise<T> {
   try {
+    const client = cacheRedis()
+    if (client.status === 'connecting' || client.status === 'connect') {
+      await whenReady(client, FIRST_CONNECT_WAIT_MS)
+    }
     return await run()
   } catch (error) {
     cacheFailed(error, operation)
