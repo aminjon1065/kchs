@@ -104,21 +104,12 @@ function useTyping(conversationId: string, myId: string | null): string[] {
   const [typers, setTypers] = useState<Record<string, { name: string; until: number }>>({})
   useEffect(() => {
     setTypers({})
-    const off = onRealtimeEvent('typing', (payload) => {
-      const {
-        conversationId: from,
-        userId,
-        displayName,
-      } = payload as {
-        conversationId?: string
-        userId?: string
-        displayName?: string
-      }
+    const off = onRealtimeEvent('typing', ({ conversationId: from, userId, displayName }) => {
       // Свой сигнал с другой вкладки — не «кто-то печатает»
-      if (from !== conversationId || !userId || userId === myId) return
+      if (from !== conversationId || userId === myId) return
       setTypers((current) => ({
         ...current,
-        [userId]: { name: displayName ?? '', until: Date.now() + TYPING_TTL_MS },
+        [userId]: { name: displayName, until: Date.now() + TYPING_TTL_MS },
       }))
     })
     const timer = window.setInterval(() => {
@@ -255,7 +246,7 @@ export function MessageFeed({
     if (!receiptsOn) return
     let timer: number | undefined
     const off = onRealtimeEvent('message.read', (payload) => {
-      if ((payload as { conversationId?: string }).conversationId !== conversation.id) return
+      if (payload.conversationId !== conversation.id) return
       if (timer !== undefined) return
       timer = window.setTimeout(() => {
         timer = undefined

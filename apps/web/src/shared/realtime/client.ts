@@ -1,3 +1,11 @@
+import {
+  type JobRecord,
+  ROOMS_PER_SUBSCRIBE,
+  type RtClientEvents,
+  type RtServerEvent,
+  type RtServerEvents,
+  type RtServerPayload,
+} from '@kchs/contracts'
 import type { QueryClient } from '@tanstack/react-query'
 import { useSyncExternalStore } from 'react'
 import { io, type Socket } from 'socket.io-client'
@@ -5,19 +13,29 @@ import { keyMentions } from './query-match.js'
 
 export type RealtimeStatus = 'connecting' | 'connected' | 'disconnected'
 
-let socket: Socket | null = null
+/**
+ * Сокет шлюза — только здесь: события сервера слушает этот модуль и обработчики
+ * `onRealtimeEvent`, отправляют — его функции. Имена и нагрузки — протокол из контрактов
+ * (ADR-0192), тест протокола сверяет с ним подписки и отправки.
+ */
+let socket: Socket<RtServerEvents, RtClientEvents> | null = null
 let status: RealtimeStatus = 'disconnected'
 const listeners = new Set<() => void>()
 
 /** Кто смотрит объект — по сообщениям `presence` из комнаты `object:{id}`. */
-export interface PresenceUser {
-  id: string
-  displayName: string
-  avatarUrl: string | null
-}
+export type PresenceUser = RtServerPayload<'presence'>['users'][number]
 const NOBODY: PresenceUser[] = []
 const presence = new Map<string, PresenceUser[]>()
 const presenceListeners = new Set<() => void>()
+
+/**
+ * Комнаты, которые держат экраны, со счётчиком: одну комнату могут держать несколько
+ * экранов. Шлюз забывает комнаты сокета при переподключении — после него подписка
+ * повторяется для всех.
+ */
+const wanted = new Map<string, number>()
+/** Комнаты, отпущенные в этом такте: отписка уйдёт, если их тут же не взяли снова. */
+const released = new Set<string>()
 
 function setStatus(next: RealtimeStatus): void {
   if (status === next) return
@@ -26,21 +44,16 @@ function setStatus(next: RealtimeStatus): void {
 }
 
 export interface RealtimeHandlers {
-  onObjectUpdated?: (payload: { id: string; type: string; changedFields: string[] | null }) => void
-  onObjectRemoved?: (payload: { id: string }) => void
-  onMessagePosted?: (payload: { conversationId: string; messageId: string }) => void
-  onNotification?: () => void
-  onInboxChanged?: (payload: { counts: { total: number; overdue: number } }) => void
-  onJobProgress?: (payload: { jobId: string; progress: number; message: string | null }) => void
-  onAclRevoked?: (payload: { objectId: string }) => void
+  onInboxChanged?: (payload: RtServerPayload<'inbox.changed'>) => void
+  onAclRevoked?: (payload: RtServerPayload<'acl.revoked'>) => void
 }
 
 /**
  * Клиент realtime (16-api-and-events.md §3). Уведомление не крадёт фокус:
  * обновления инвалидируют кэш, а UI обновляется мягко.
  */
-export function connectRealtime(client: QueryClient, handlers: RealtimeHandlers = {}): Socket {
-  if (socket?.connected) return socket
+export function connectRealtime(client: QueryClient, handlers: RealtimeHandlers = {}): void {
+  if (socket?.connected) return
 
   setStatus('connecting')
   socket = io({
@@ -51,61 +64,51 @@ export function connectRealtime(client: QueryClient, handlers: RealtimeHandlers 
     reconnectionDelayMax: 8000,
   })
 
-  socket.on('connect', () => setStatus('connected'))
+  socket.on('connect', () => {
+    setStatus('connected')
+    // Новое подключение — новый сокет на сервере: комнаты экранов берутся заново
+    sendRooms('subscribe', [...wanted.keys()])
+  })
   socket.on('disconnect', () => setStatus('disconnected'))
   socket.on('connect_error', () => setStatus('disconnected'))
 
   // Сообщения модулей (входящий звонок, комната встречи): шлюз общий, а
   // обработчики живут в своих функциях и подписываются, когда им нужно
   socket.onAny((event: string, payload: unknown) => {
-    for (const handler of moduleHandlers.get(event) ?? []) handler(payload)
+    for (const handler of moduleHandlers.get(event as RtServerEvent) ?? []) handler(payload)
   })
 
-  socket.on(
-    'object.updated',
-    (payload: { id: string; type: string; changedFields: string[] | null }) => {
-      // Все запросы объекта, а не только карточка: у модулей свои ключи —
-      // `['dataset', id]`, `['map', id]`, `['meeting', id]`…
-      void client.invalidateQueries({
-        predicate: (query) => keyMentions(query.queryKey, payload.id),
-      })
-      void client.invalidateQueries({ queryKey: ['objects'] })
-      handlers.onObjectUpdated?.(payload)
-    },
-  )
-
-  socket.on('object.removed', (payload: { id: string }) => {
+  socket.on('object.updated', (payload) => {
+    // Все запросы объекта, а не только карточка: у модулей свои ключи —
+    // `['dataset', id]`, `['map', id]`, `['meeting', id]`…
+    void client.invalidateQueries({
+      predicate: (query) => keyMentions(query.queryKey, payload.id),
+    })
     void client.invalidateQueries({ queryKey: ['objects'] })
-    handlers.onObjectRemoved?.(payload)
   })
 
-  socket.on(
-    'message.posted',
-    (payload: { conversationId: string; messageId: string; objectId?: string }) => {
-      if (payload.objectId) {
-        void client.invalidateQueries({ queryKey: ['object', payload.objectId] })
-      } else {
-        void client.invalidateQueries({ queryKey: ['object'] })
-      }
-      // Непрочитанное и последнее сообщение в списке бесед (ADR-0090)
-      void client.invalidateQueries({ queryKey: ['chats'] })
-      handlers.onMessagePosted?.(payload)
-    },
-  )
+  socket.on('object.removed', () => {
+    void client.invalidateQueries({ queryKey: ['objects'] })
+  })
+
+  socket.on('message.posted', (payload) => {
+    void client.invalidateQueries({ queryKey: ['object', payload.objectId] })
+    // Непрочитанное и последнее сообщение в списке бесед (ADR-0090)
+    void client.invalidateQueries({ queryKey: ['chats'] })
+  })
 
   // Правка, удаление, реакция — перечитать обсуждение объекта
-  socket.on('message.updated', (payload: { objectId?: string }) => {
-    if (payload.objectId) void client.invalidateQueries({ queryKey: ['object', payload.objectId] })
+  socket.on('message.updated', (payload) => {
+    void client.invalidateQueries({ queryKey: ['object', payload.objectId] })
   })
 
   // Запись ленты активности появилась — перечитать ленту открытого объекта
-  socket.on('activity.added', (payload: { objectId: string }) => {
+  socket.on('activity.added', (payload) => {
     void client.invalidateQueries({ queryKey: ['object', payload.objectId, 'activity'] })
   })
 
   socket.on('notification.new', () => {
     void client.invalidateQueries({ queryKey: ['notifications'] })
-    handlers.onNotification?.()
   })
 
   // Новое сообщение, состав беседы, переименование — список бесед и счётчики (ADR-0090)
@@ -113,65 +116,126 @@ export function connectRealtime(client: QueryClient, handlers: RealtimeHandlers 
     void client.invalidateQueries({ queryKey: ['chats'] })
   })
 
+  // Свой статус «на встрече»: вошёл в комнату или вышел — на этой вкладке или на другой
+  socket.on('presence.changed', () => {
+    void client.invalidateQueries({ queryKey: ['chats', 'presence'], exact: true })
+  })
+
   // Приглашение, ответ участника, перенос встречи — сетка и «Сегодня» (ADR-0081)
   socket.on('calendar.changed', () => {
     void client.invalidateQueries({ queryKey: ['calendar'] })
   })
 
-  socket.on('inbox.changed', (payload: { counts: { total: number; overdue: number } }) => {
+  socket.on('inbox.changed', (payload) => {
     void client.invalidateQueries({ queryKey: ['inbox'] })
     handlers.onInboxChanged?.(payload)
   })
 
-  socket.on(
-    'job.progress',
-    (payload: { jobId: string; progress: number; message: string | null }) => {
+  // Ход задания правит «Мои задания» в кэше на месте — без запроса на каждое сообщение;
+  // задания, которого в списке ещё нет, — перечитать список, не чаще раза в секунду
+  let jobsRefresh: ReturnType<typeof setTimeout> | undefined
+  const refreshJobs = (): void => {
+    if (jobsRefresh !== undefined) return
+    jobsRefresh = setTimeout(() => {
+      jobsRefresh = undefined
       void client.invalidateQueries({ queryKey: ['jobs'] })
-      handlers.onJobProgress?.(payload)
-    },
-  )
+    }, 1_000)
+  }
+  socket.on('job.progress', (payload) => {
+    let known = false
+    client.setQueryData<{ items: JobRecord[] }>(['jobs'], (current) => {
+      if (!current) return current
+      const items = current.items.map((job) => {
+        if (job.id !== payload.jobId) return job
+        known = true
+        return { ...job, progress: payload.progress, message: payload.message }
+      })
+      return known ? { items } : current
+    })
+    if (!known) refreshJobs()
+  })
 
   socket.on('job.finished', () => {
     void client.invalidateQueries({ queryKey: ['jobs'] })
   })
 
-  socket.on('acl.revoked', (payload: { objectId: string }) => {
+  socket.on('acl.revoked', (payload) => {
     handlers.onAclRevoked?.(payload)
   })
 
-  socket.on('presence', (payload: { objectId: string; users: PresenceUser[] }) => {
+  socket.on('presence', (payload) => {
     presence.set(payload.objectId, payload.users)
     for (const listener of presenceListeners) listener()
   })
-
-  return socket
 }
 
 type ModuleHandler = (payload: unknown) => void
-const moduleHandlers = new Map<string, Set<ModuleHandler>>()
+const moduleHandlers = new Map<RtServerEvent, Set<ModuleHandler>>()
 
 /**
  * Подписка модуля на сообщение шлюза (входящий звонок, состав комнаты):
  * переживает переподключение, снимается возвращённой функцией.
  */
-export function onRealtimeEvent(event: string, handler: ModuleHandler): () => void {
+export function onRealtimeEvent<E extends RtServerEvent>(
+  event: E,
+  handler: (payload: RtServerPayload<E>) => void,
+): () => void {
+  // Нагрузку `onAny` отдаёт без типа; имя события здесь задаёт её тип
+  const listener = handler as ModuleHandler
   const set = moduleHandlers.get(event) ?? new Set<ModuleHandler>()
-  set.add(handler)
+  set.add(listener)
   moduleHandlers.set(event, set)
   return () => {
-    set.delete(handler)
+    set.delete(listener)
     if (set.size === 0) moduleHandlers.delete(event)
   }
 }
 
+/** Подписка и отписка — пачками: больше `ROOMS_PER_SUBSCRIBE` шлюз в одном сообщении не примет. */
+function sendRooms(kind: 'subscribe' | 'unsubscribe', rooms: string[]): void {
+  if (!socket?.connected) return
+  for (let start = 0; start < rooms.length; start += ROOMS_PER_SUBSCRIBE) {
+    const batch = { rooms: rooms.slice(start, start + ROOMS_PER_SUBSCRIBE) }
+    if (kind === 'subscribe') socket.emit('subscribe', batch)
+    else socket.emit('unsubscribe', batch)
+  }
+}
+
+/**
+ * Экран держит комнаты, пока они ему нужны. До подключения и после переподключения
+ * подписку отправляет обработчик `connect`.
+ */
 export function subscribeRooms(rooms: string[]): void {
-  if (!socket || rooms.length === 0) return
-  socket.emit('subscribe', { rooms })
+  const fresh: string[] = []
+  for (const room of rooms) {
+    const count = wanted.get(room) ?? 0
+    wanted.set(room, count + 1)
+    // Отпущенная в этом такте комната на сервере ещё есть — подписываться не нужно
+    if (count === 0 && !released.delete(room)) fresh.push(room)
+  }
+  sendRooms('subscribe', fresh)
 }
 
 export function unsubscribeRooms(rooms: string[]): void {
-  if (!socket || rooms.length === 0) return
-  socket.emit('unsubscribe', { rooms })
+  for (const room of rooms) {
+    const count = (wanted.get(room) ?? 0) - 1
+    if (count > 0) {
+      wanted.set(room, count)
+      continue
+    }
+    wanted.delete(room)
+    released.add(room)
+  }
+  // Отписка — после текущего такта: эффект, сменивший набор комнат (открыли ещё вкладку),
+  // сначала отпускает прежние и сразу берёт новые — общие комнаты остаются без разрыва
+  queueMicrotask(flushReleased)
+}
+
+function flushReleased(): void {
+  if (released.size === 0) return
+  const rooms = [...released]
+  released.clear()
+  sendRooms('unsubscribe', rooms)
 }
 
 /**
@@ -184,7 +248,8 @@ export function emitTyping(conversationId: string): void {
 
 /** Отметка просмотра видимой вкладки (раз в 30 с) или уход с неё. */
 export function reportPresence(objectId: string, state: 'view' | 'leave'): void {
-  socket?.emit(state === 'view' ? 'presence.view' : 'presence.leave', { objectId })
+  if (state === 'view') socket?.emit('presence.view', { objectId })
+  else socket?.emit('presence.leave', { objectId })
 }
 
 export function usePresence(objectId: string): PresenceUser[] {
@@ -202,6 +267,8 @@ export function disconnectRealtime(): void {
   socket?.disconnect()
   socket = null
   presence.clear()
+  wanted.clear()
+  released.clear()
   setStatus('disconnected')
 }
 

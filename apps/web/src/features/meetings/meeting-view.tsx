@@ -54,9 +54,20 @@ export default function MeetingView({ objectId, tabId }: { objectId: string; tab
   // Состав комнаты и завершение приходят realtime: карточка не устаревает
   useEffect(
     () =>
-      onRealtimeEvent('meeting.changed', (payload) => {
-        if ((payload as { meetingId?: string }).meetingId !== objectId) return
+      onRealtimeEvent('meeting.changed', ({ meetingId }) => {
+        if (meetingId !== objectId) return
         void client.invalidateQueries({ queryKey: meetingKeys.meeting(objectId) })
+        void client.invalidateQueries({ queryKey: meetingKeys.knocks(objectId) })
+      }),
+    [client, objectId],
+  )
+
+  // Гость постучался — ведущий видит заявку сразу. Опрос заявок остаётся страховкой:
+  // сообщение, пропущенное при переподключении, шлюз не повторяет (ADR-0192)
+  useEffect(
+    () =>
+      onRealtimeEvent('meeting.knock', ({ meetingId }) => {
+        if (meetingId !== objectId) return
         void client.invalidateQueries({ queryKey: meetingKeys.knocks(objectId) })
       }),
     [client, objectId],

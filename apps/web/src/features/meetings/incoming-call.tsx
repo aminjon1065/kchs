@@ -17,23 +17,14 @@ export function IncomingCallOverlay() {
   const openTab = useWorkspace((s) => s.openTab)
   const [call, setCall] = useState<IncomingCall | null>(null)
 
-  useEffect(
-    () =>
-      onRealtimeEvent('call.incoming', (payload) => {
-        const incoming = payload as IncomingCall
-        if (!incoming?.meetingId) return
-        setCall(incoming)
-      }),
-    [],
-  )
+  useEffect(() => onRealtimeEvent('call.incoming', (incoming) => setCall(incoming)), [])
 
   // Звонок мог закончиться раньше ответа: комнату закрыли — экран убираем
   useEffect(
     () =>
-      onRealtimeEvent('meeting.changed', (payload) => {
-        const changed = payload as { meetingId?: string; change?: string }
-        if (changed.change === 'ended') {
-          setCall((current) => (current?.meetingId === changed.meetingId ? null : current))
+      onRealtimeEvent('meeting.changed', ({ meetingId, change }) => {
+        if (change === 'ended') {
+          setCall((current) => (current?.meetingId === meetingId ? null : current))
         }
       }),
     [],
