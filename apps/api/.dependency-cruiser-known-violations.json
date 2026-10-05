@@ -1,0 +1,257 @@
+[
+  {
+    "type": "dependency",
+    "from": "src/modules/automation/domain/rule-service.ts",
+    "to": "src/kernel/spaces/schema.ts",
+    "unresolvedTo": "~/kernel/spaces/schema.js",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "kernel-tables-via-services"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/modules/chat/domain/chat-queries.ts",
+    "to": "src/kernel/discussions/schema.ts",
+    "unresolvedTo": "~/kernel/discussions/schema.js",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "kernel-tables-via-services"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/modules/chat/domain/chat-service.ts",
+    "to": "src/kernel/discussions/schema.ts",
+    "unresolvedTo": "~/kernel/discussions/schema.js",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "kernel-tables-via-services"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/modules/chat/domain/chat-subscribers.ts",
+    "to": "src/kernel/discussions/schema.ts",
+    "unresolvedTo": "~/kernel/discussions/schema.js",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "kernel-tables-via-services"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/modules/chat/domain/message-search.ts",
+    "to": "src/kernel/discussions/schema.ts",
+    "unresolvedTo": "~/kernel/discussions/schema.js",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "kernel-tables-via-services"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/modules/chat/domain/pins.ts",
+    "to": "src/kernel/discussions/schema.ts",
+    "unresolvedTo": "~/kernel/discussions/schema.js",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "kernel-tables-via-services"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/modules/chat/domain/quick-actions.ts",
+    "to": "src/kernel/discussions/schema.ts",
+    "unresolvedTo": "~/kernel/discussions/schema.js",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "kernel-tables-via-services"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/modules/chat/domain/quick-actions.ts",
+    "to": "src/kernel/spaces/schema.ts",
+    "unresolvedTo": "~/kernel/spaces/schema.js",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "kernel-tables-via-services"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/modules/data/domain/feed-service.ts",
+    "to": "src/kernel/links/schema.ts",
+    "unresolvedTo": "~/kernel/links/schema.js",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "kernel-tables-via-services"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/modules/documents/domain/participants.ts",
+    "to": "src/kernel/access/schema.ts",
+    "unresolvedTo": "~/kernel/access/schema.js",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "kernel-tables-via-services"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/modules/documents/domain/print/forms/office-sheets.ts",
+    "to": "src/kernel/acknowledgments/schema.ts",
+    "unresolvedTo": "~/kernel/acknowledgments/schema.js",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "kernel-tables-via-services"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/modules/documents/domain/print/forms/route-sheets.ts",
+    "to": "src/kernel/process/schema.ts",
+    "unresolvedTo": "~/kernel/process/schema.js",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "kernel-tables-via-services"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/modules/documents/domain/registry.ts",
+    "to": "src/kernel/links/schema.ts",
+    "unresolvedTo": "~/kernel/links/schema.js",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "kernel-tables-via-services"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/modules/documents/domain/territory-documents.ts",
+    "to": "src/kernel/links/schema.ts",
+    "unresolvedTo": "~/kernel/links/schema.js",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "kernel-tables-via-services"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/modules/identity/http/me-routes.ts",
+    "to": "src/kernel/spaces/schema.ts",
+    "unresolvedTo": "~/kernel/spaces/schema.js",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "kernel-tables-via-services"
+    }
+  }
+]

@@ -1,8 +1,8 @@
-import '../config/load-env.js'
+import '~/shared/config/load-env.js'
 import { resetData, resetStorage } from '~/seed/seed.js'
-import { logger } from '../logger/index.js'
-import { cacheRedis, closeRedis, redis } from '../redis/index.js'
-import { closeDb } from './client.js'
+import { closeDb } from '~/shared/db/client.js'
+import { logger } from '~/shared/logger/index.js'
+import { cacheRedis, closeRedis, redis } from '~/shared/redis/index.js'
 
 async function main(): Promise<void> {
   await resetData()

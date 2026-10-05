@@ -16,6 +16,7 @@
       "!**/drizzle/**/*.sql",
       "!**/drizzle/meta",
       "!apps/api/openapi.json",
+      "!apps/api/.dependency-cruiser-known-violations.json",
       "!**/routeTree.gen.ts",
       "!**/*.gen.ts",
       "!apps/engine",

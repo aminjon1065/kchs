@@ -17,7 +17,7 @@
         "src/openapi-cli.ts",
         "src/seed/cli.ts",
         "src/shared/db/migrate-cli.ts",
-        "src/shared/db/reset-cli.ts",
+        "src/cli/db-reset.ts",
         "test/**/*.test.ts",
         "src/**/*.test.ts",
         "scripts/*.mjs"

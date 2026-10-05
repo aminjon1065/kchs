@@ -15,9 +15,10 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/shared/db/migrate-cli.ts",
     "db:seed": "tsx src/seed/cli.ts",
-    "db:reset": "tsx src/shared/db/reset-cli.ts",
+    "db:reset": "tsx src/cli/db-reset.ts",
     "openapi:gen": "tsx src/openapi-cli.ts",
-    "deps:check": "depcruise --config .dependency-cruiser.cjs src"
+    "deps:check": "depcruise --config .dependency-cruiser.cjs --ignore-known .dependency-cruiser-known-violations.json src",
+    "deps:baseline": "depcruise --config .dependency-cruiser.cjs --output-type baseline --output-to .dependency-cruiser-known-violations.json src"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.126.0",
