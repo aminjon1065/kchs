@@ -412,6 +412,9 @@ describe('лента по адресу: территория и секреты',
     })
     expect(created.statusCode, created.body).toBe(200)
     const datasetId = created.json().datasetId as string
+    // Лента правит строки без конца — история хранится 90 дней (ADR-0173)
+    const dataset = await call(fx.app, { url: `/datasets/${datasetId}`, as: fx.admin })
+    expect(dataset.json().settings).toMatchObject({ trackHistory: true, historyRetentionDays: 90 })
     await runJob(await sync(created.json().id))
     const rows = await rowsOf(datasetId)
     expect(rows.has('us7000tg5i')).toBe(true)

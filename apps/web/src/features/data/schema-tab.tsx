@@ -935,6 +935,12 @@ function TableSettingsDialog({
   const [primaryKey, setPrimaryKey] = useState<string[]>(dataset.primaryKey)
   const [editable, setEditable] = useState(dataset.settings.editable)
   const [trackHistory, setTrackHistory] = useState(dataset.settings.trackHistory)
+  // Срок хранения истории (ADR-0173): пусто — бессрочно
+  const [retention, setRetention] = useState(
+    dataset.settings.historyRetentionDays === null
+      ? ''
+      : String(dataset.settings.historyRetentionDays),
+  )
   const [rowEvents, setRowEvents] = useState(dataset.settings.rowEvents)
   const [failure, setFailure] = useState<string | null>(null)
   const timeFields = dataset.fields.filter((item) => ['date', 'datetime'].includes(item.type))
@@ -945,7 +951,12 @@ function TableSettingsDialog({
       http.patch<DatasetRecord>(`/datasets/${dataset.id}`, {
         timeField: timeField === NONE ? null : timeField,
         primaryKey,
-        settings: { editable, trackHistory, rowEvents },
+        settings: {
+          editable,
+          trackHistory,
+          rowEvents,
+          historyRetentionDays: retention.trim() === '' ? null : Number(retention),
+        },
       }),
     onSuccess: () => {
       toast.show({ title: t('data.dataset.editor.settingsDialog.saved'), tone: 'success' })
@@ -1021,6 +1032,23 @@ function TableSettingsDialog({
               onCheckedChange={setTrackHistory}
               label={t('data.dataset.editor.settingsDialog.trackHistory')}
             />
+            {trackHistory ? (
+              <Field
+                label={t('data.dataset.editor.settingsDialog.historyRetention')}
+                hint={t('data.dataset.editor.settingsDialog.historyRetentionHint')}
+              >
+                <Input
+                  type="number"
+                  min={1}
+                  max={3650}
+                  step={1}
+                  value={retention}
+                  onChange={(e) => setRetention(e.target.value)}
+                  placeholder={t('data.dataset.editor.settingsDialog.historyRetentionForever')}
+                  aria-label={t('data.dataset.editor.settingsDialog.historyRetention')}
+                />
+              </Field>
+            ) : null}
             <Switch
               checked={rowEvents}
               onCheckedChange={setRowEvents}

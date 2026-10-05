@@ -441,3 +441,58 @@ describe('откат: таблицы истории прежних версий'
     expect(blocked.json().detail).toContain('версия 2 — история строк этой версии не сохранена')
   })
 })
+
+describe('срок хранения истории (ADR-0173)', () => {
+  it('история версий старше срока удаляется целиком; откат к ним — с понятной причиной', async () => {
+    const { HistoryRetention } = await import('../src/modules/data/domain/history-retention.js')
+    const datasetId = await createDataset('Срок истории')
+    const [row] = await insert(datasetId, [{ code: 'A', region: 'Душанбе', amount: 1 }])
+    await patch(datasetId, String(row?._id), { amount: 2 })
+    await patch(datasetId, String(row?._id), { amount: 3 })
+    expect((await datasetOf(datasetId)).currentVersion).toBe(4)
+    // Версии 2 и 3 — сорокадневной давности
+    await db().execute(
+      sql`UPDATE dataset_versions SET created_at = now() - interval '40 days'
+           WHERE dataset_id = ${datasetId} AND number IN (2, 3)`,
+    )
+    const configured = await call(fx.app, {
+      method: 'PATCH',
+      url: `/datasets/${datasetId}`,
+      as: fx.admin,
+      payload: { settings: { historyRetentionDays: 30 } },
+    })
+    expect(configured.statusCode, configured.body).toBe(200)
+    expect(configured.json().settings).toMatchObject({
+      trackHistory: true,
+      historyRetentionDays: 30,
+    })
+
+    const report = await HistoryRetention.prune()
+    expect(report.deleted).toBeGreaterThanOrEqual(2)
+    const left = await db().execute<{ version: number; n: number }>(
+      sql.raw(`SELECT dataset_version AS version, count(*)::int AS n
+                 FROM ds."${historyName(datasetId)}" GROUP BY 1 ORDER BY 1`),
+    )
+    expect(left).toEqual([{ version: 4, n: 1 }])
+
+    // Версия, история которой цела, откатывается; к удалённым — понятный отказ
+    expect((await rollback(datasetId, 3)).statusCode).toBe(200)
+    const blocked = await rollback(datasetId, 1)
+    expect(blocked.statusCode).toBe(409)
+    expect(blocked.json().detail).toContain(
+      'версия 3 — история строк этой версии удалена по сроку хранения (30 дн.)',
+    )
+
+    // Повтор не трогает историю свежих версий, в том числе отката
+    const count = async () =>
+      (
+        await db().execute<{ n: number }>(
+          sql.raw(`SELECT count(*)::int AS n FROM ds."${historyName(datasetId)}"`),
+        )
+      )[0]?.n ?? 0
+    const before = await count()
+    expect(before).toBeGreaterThan(1)
+    await HistoryRetention.prune()
+    expect(await count()).toBe(before)
+  })
+})

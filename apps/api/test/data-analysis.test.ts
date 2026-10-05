@@ -302,7 +302,12 @@ describe('объект «анализ»', () => {
 
     const dataset = (await call(fx.app, { url: `/datasets/${outputId}`, as: analyst })).json()
     expect(dataset.name).toBe(`Происшествия с районами ${run}`)
-    expect(dataset.settings).toEqual({ editable: false, trackHistory: false, rowEvents: false })
+    expect(dataset.settings).toEqual({
+      editable: false,
+      trackHistory: false,
+      rowEvents: false,
+      historyRetentionDays: null,
+    })
     expect(
       dataset.fields.map((field: { key: string; type: string }) => [field.key, field.type]),
     ).toEqual([

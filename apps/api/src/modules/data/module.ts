@@ -72,6 +72,7 @@ import { registerSubscriber } from '~/kernel/events/bus.js'
 import { registerJobHandler } from '~/kernel/jobs/runner.js'
 import { JobService } from '~/kernel/jobs/service.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
+import { declareSchedule } from '~/kernel/schedules/index.js'
 import { systemCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { datasetFields, datasetQualityRuns, datasets, objects } from '~/shared/db/schema/index.js'
@@ -91,6 +92,7 @@ import { DashboardService } from './domain/dashboard-service.js'
 import { DatasetAccess } from './domain/dataset-access.js'
 import { DatasetService } from './domain/dataset-service.js'
 import { EXPORT_JOB, type ExportJobData, ExportService } from './domain/export-service.js'
+import { HistoryRetention } from './domain/history-retention.js'
 import {
   COMPARE_JOB,
   ImportService,
@@ -1203,6 +1205,14 @@ export function registerDataBackground(): void {
     handle: async (job) => ({ status: await QualityService.check(String(job.data.datasetId)) }),
   })
 
+  // Срок хранения истории строк (ADR-0173): версии старше срока — ночью, пачками
+  registerJobHandler({
+    queue: 'maintenance',
+    name: 'data.history-prune',
+    concurrency: 1,
+    handle: async () => ({ ...(await HistoryRetention.prune()) }),
+  })
+
   // Новая версия — повод проверить качество (ADR-0101): считаем заданием,
   // чтобы шина событий не ждала запросов по всей таблице
   registerSubscriber({
@@ -1284,6 +1294,12 @@ export function registerDataBackground(): void {
 
 /** Расписания пайплайнов и внешних источников при старте воркера (ADR-0106, ADR-0107). */
 export async function scheduleDataJobs(): Promise<void> {
+  declareSchedule({
+    queue: 'maintenance',
+    name: 'data.history-prune',
+    pattern: '37 3 * * *',
+    labelKey: 'schedules.jobs.dataHistoryPrune',
+  })
   await schedulePipelineJobs()
   await scheduleSourceJobs()
 }

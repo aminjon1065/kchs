@@ -8,6 +8,7 @@ import { datasets, datasetVersions, imports, objects } from '~/shared/db/schema/
 import { errors } from '~/shared/errors.js'
 import { historyName, ident, Physical, qualified } from '../infra/physical.js'
 import { DatasetService, type StoredField } from './dataset-service.js'
+import { HistoryRetention } from './history-retention.js'
 import { selectList, valueSql, valuesOf, writeHistory } from './row-service.js'
 
 const ACTIVE_IMPORTS = ['queued', 'normalizing', 'loading']
@@ -30,6 +31,7 @@ interface LaterVersion {
   origin: string
   importId: string | null
   diff: { added: number; updated: number; deleted: number } | null
+  createdAt: string
 }
 
 /** Почему версию нельзя отменить: у неё нет прежних значений строк. */
@@ -52,13 +54,19 @@ function blockReason(origin: string, mode: string | undefined): string {
  * запись (по одной на строку счётчиков версии), и импорт «дополнить» (его
  * строки помечены `_import_id`).
  */
-async function laterVersions(tx: Executor, datasetId: string, target: number) {
+async function laterVersions(
+  tx: Executor,
+  datasetId: string,
+  target: number,
+  retentionDays: number | null,
+) {
   const versions: LaterVersion[] = await tx
     .select({
       number: datasetVersions.number,
       origin: datasetVersions.origin,
       importId: datasetVersions.importId,
       diff: datasetVersions.diff,
+      createdAt: datasetVersions.createdAt,
     })
     .from(datasetVersions)
     .where(and(eq(datasetVersions.datasetId, datasetId), gt(datasetVersions.number, target)))
@@ -80,6 +88,8 @@ async function laterVersions(tx: Executor, datasetId: string, target: number) {
          GROUP BY dataset_version`,
   )
   for (const row of counted) logged.set(Number(row.version), Number(row.n))
+  // История версий старше срока хранения удалена (ADR-0173)
+  const cutoff = retentionDays === null ? null : HistoryRetention.cutoff(retentionDays)
 
   for (const version of versions) {
     const mode = version.importId ? modes.get(version.importId) : undefined
@@ -88,6 +98,15 @@ async function laterVersions(tx: Executor, datasetId: string, target: number) {
       const diff = version.diff ?? { added: 0, updated: 0, deleted: 0 }
       const expected = diff.added + diff.updated + diff.deleted
       if ((logged.get(version.number) ?? 0) >= expected) continue
+      if (cutoff && new Date(version.createdAt) < cutoff) {
+        return {
+          versions,
+          blocker: {
+            number: version.number,
+            reason: `история строк этой версии удалена по сроку хранения (${retentionDays} дн.)`,
+          },
+        }
+      }
     }
     return {
       versions,
@@ -147,7 +166,12 @@ async function revert(ctx: Ctx, datasetId: string, target: number): Promise<numb
     if (!storage.settings.trackHistory) {
       throw errors.conflict('История строк датасета выключена — откат версий недоступен')
     }
-    const { versions, blocker } = await laterVersions(tx, datasetId, target)
+    const { versions, blocker } = await laterVersions(
+      tx,
+      datasetId,
+      target,
+      storage.settings.historyRetentionDays,
+    )
     if (blocker) {
       throw errors.conflict(
         `Откат к версии ${target} недоступен: версия ${blocker.number} — ${blocker.reason}`,

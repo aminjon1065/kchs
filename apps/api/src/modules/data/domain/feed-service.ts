@@ -53,6 +53,8 @@ const WHAT = 'лента по адресу'
 const LOOKUP_CHUNK = 500
 /** Столько причин пропуска записей сохраняет прогон. */
 const MAX_REASONS = 5
+/** Срок хранения истории строк датасета ленты, дней (ADR-0173). */
+const FEED_HISTORY_RETENTION_DAYS = 90
 
 const ACCEPT: Record<FeedFormat, string> = {
   geojson: 'application/geo+json, application/json;q=0.9, */*;q=0.1',
@@ -395,7 +397,12 @@ export const FeedService = {
               kind: 'table',
               fields: input.target.fields,
               primaryKey: input.feed.keyFields,
-              settings: { editable: true, trackHistory: true },
+              // Лента правит строки без конца — история хранится 90 дней (ADR-0173)
+              settings: {
+                editable: true,
+                trackHistory: true,
+                historyRetentionDays: FEED_HISTORY_RETENTION_DAYS,
+              },
             })
       const object = await ObjectService.create(tx, ctx, {
         type: 'source',

@@ -60,6 +60,12 @@ export const DatasetSettings = z.object({
   /** Каждая правка строки пишется в историю `ds.h_*`. */
   trackHistory: z.boolean().default(true),
   /**
+   * Сколько дней хранить историю строк (ADR-0173); `null` — бессрочно. Старые
+   * версии удаляются ночным заданием целиком, и откатить к ним уже нельзя.
+   * У датасетов лент по умолчанию 90 дней: лента правит строки без конца.
+   */
+  historyRetentionDays: z.number().int().min(1).max(3650).nullable().default(null),
+  /**
    * События строк для правил автоматизации (ADR-0133): правка строки публикует
    * `dataset.row_created` / `row_updated` / `row_deleted` со значениями полей, и правило
    * отбирает строки по значениям. Выключено по умолчанию: значения попадают в тексты
@@ -188,6 +194,7 @@ export const DatasetUpdateInput = z.object({
       editable: z.boolean().optional(),
       trackHistory: z.boolean().optional(),
       rowEvents: z.boolean().optional(),
+      historyRetentionDays: z.number().int().min(1).max(3650).nullable().optional(),
     })
     .optional(),
 })
