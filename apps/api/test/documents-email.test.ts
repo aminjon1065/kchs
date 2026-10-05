@@ -187,6 +187,13 @@ describe('исходящий письмом', () => {
     expect(doc).toMatchObject({ status: 'registered', dispatchCount: 0 })
 
     useSmtp(SMTP_URL)
+    // Посторонний настоящее письмо чужого документа повторить не может (ADR-0187)
+    const foreign = await post(
+      fx.users.stranger,
+      `/documents/${outgoing.id}/emails/${email?.id}/retry`,
+    )
+    expect(foreign.statusCode).toBe(404)
+    expect((await emailsOf(outgoing.id))[0]?.status).toBe('failed')
     const retry = await post(registrar, `/documents/${outgoing.id}/emails/${email?.id}/retry`)
     expect(retry.statusCode, retry.body).toBe(200)
     expect((await emailsOf(outgoing.id))[0]?.status).toBe('queued')

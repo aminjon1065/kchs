@@ -1751,6 +1751,22 @@ const RESOURCES_ELSEWHERE: Record<string, string> = {
 }
 
 /**
+ * Делегированные маршруты с вложенным ресурсом в пути (пункт, строка, версия…):
+ * вложенный параметр подставляется настоящим — иначе сервис ответил бы «нет такого»
+ * раньше, чем проверил права, и тест прошёл бы вхолостую (ADR-0187). Здесь — те,
+ * чей вложенный ресурс без движка или почты не создать, со ссылкой на тест, где
+ * посторонний проверен на настоящем.
+ */
+const NESTED_ELSEWHERE: Record<string, string> = {
+  'PATCH /recordings/:id/transcript/segments/:index':
+    'сегмент готовой расшифровки (нужен движок) — test/meetings-transcript-edit.test.ts',
+  'POST /documents/:id/emails/:emailId/retry':
+    'письмо исходящего (нужна почта канцелярии) — test/documents-email.test.ts',
+  'DELETE /documents/:id/resolution-requests/:requestId':
+    'направление зарегистрированного документа — test/document-resolutions.test.ts',
+}
+
+/**
  * Маршруты, которые тест не может довести до проверки прав: схема отвергает
  * собранный из неё запрос раньше обработчика или функция выключена на стенде.
  * Каждый — с причиной; маршрут, который стал проверяться, из списка убирается.
@@ -1889,6 +1905,11 @@ function queryOf(schema: unknown): string {
 describe('маршруты с объектом в пути: посторонний не видит (ADR-0186)', () => {
   /** Вложенные ресурсы администратора, к которым у постороннего нет доступа. */
   const resources = new Map<string, Record<string, string>>()
+  /** Настоящие вложенные параметры делегированных маршрутов объектов матрицы. */
+  const nested = new Map<string, Record<string, string>>()
+  const setNested = (keys: string[], values: Record<string, string>) => {
+    for (const key of keys) nested.set(key, values)
+  }
 
   beforeAll(async () => {
     const folderId = await createFolder(fx, `Ресурсы маршрутов ${run}`)
@@ -1916,6 +1937,80 @@ describe('маршруты с объектом в пути: посторонни
     resources.set('job', { id: jobId })
     // Служебные учётные записи видят администраторы: проверка — до поиска записи
     resources.set('service_account', { id: randomUUID() })
+
+    const taskId = matrixObjects.get('task') as string
+    const item = await call(fx.app, {
+      method: 'POST',
+      url: `/tasks/${taskId}/checklist`,
+      as: fx.admin,
+      payload: { text: 'Пункт для проверки маршрутов' },
+    })
+    expect(item.statusCode, item.body).toBe(200)
+    const itemId = (item.json().checklist as Array<{ id: string }>).at(-1)?.id as string
+    setNested(['PATCH /tasks/:id/checklist/:itemId', 'DELETE /tasks/:id/checklist/:itemId'], {
+      itemId,
+    })
+
+    const datasetId = matrixObjects.get('dataset') as string
+    const row = await call(fx.app, {
+      method: 'POST',
+      url: `/datasets/${datasetId}/rows`,
+      as: fx.admin,
+      payload: { rows: [{ values: { code: `R-${run}` } }] },
+    })
+    expect(row.statusCode, row.body).toBe(200)
+    setNested(
+      [
+        'GET /datasets/:id/rows/:rowId',
+        'PATCH /datasets/:id/rows/:rowId',
+        'GET /datasets/:id/rows/:rowId/history',
+      ],
+      { rowId: String(row.json().items[0]._id) },
+    )
+    setNested(['GET /datasets/:id/fields/:key/profile'], { key: 'code' })
+
+    const journalId = matrixObjects.get('journal') as string
+    const reserved = await call(fx.app, {
+      method: 'POST',
+      url: `/journals/${journalId}/reservations`,
+      as: fx.admin,
+      payload: { count: 1, note: 'Резерв для проверки маршрутов' },
+    })
+    expect(reserved.statusCode, reserved.body).toBe(200)
+    setNested(['DELETE /journals/:id/reservations/:reservationId'], {
+      reservationId: reserved.json().items[0].id,
+    })
+
+    const pageId = matrixObjects.get('page') as string
+    const version = await call(fx.app, {
+      method: 'POST',
+      url: `/pages/${pageId}/versions`,
+      as: fx.admin,
+      payload: { note: 'Версия для проверки маршрутов' },
+    })
+    expect(version.statusCode, version.body).toBe(200)
+    setNested(
+      ['GET /pages/:id/versions/:versionId', 'POST /pages/:id/versions/:versionId/restore'],
+      {
+        versionId: version.json().id,
+      },
+    )
+  })
+
+  it('у вложенного ресурса делегированного маршрута — настоящее значение или тест, где он проверен', () => {
+    const missing: string[] = []
+    for (const route of registeredRoutes()) {
+      const auth = route.auth
+      if (typeof auth !== 'object' || !('delegated' in auth) || auth.resource) continue
+      const main = auth.objectParam ?? 'id'
+      const extra = [...route.url.matchAll(/:([A-Za-z_]\w*)/g)]
+        .map((match) => match[1])
+        .filter((name) => name !== main)
+      if (extra.length === 0) continue
+      const key = `${route.method} ${route.url}`
+      if (!nested.has(key) && !NESTED_ELSEWHERE[key]) missing.push(key)
+    }
+    expect(missing).toEqual([])
   })
 
   it('у каждого ресурса делегированного маршрута — фикстура или тест, где он проверен', () => {
@@ -1944,6 +2039,10 @@ describe('маршруты с объектом в пути: посторонни
       if ('action' in auth) {
         const id = matrixObjects.get(pathType(route.url))
         if (id) targets.push({ [auth.objectParam ?? 'id']: id })
+      } else if ('capability' in auth) {
+        // Способность проверяется до обработчика: постороннему без неё — 403 при
+        // любых значениях в пути (ADR-0187)
+        if (/:[A-Za-z_]/.test(route.url)) targets.push({})
       } else if ('delegated' in auth) {
         if (auth.resource) {
           const values = resources.get(auth.resource)
@@ -1964,7 +2063,8 @@ describe('маршруты с объектом в пути: посторонни
         continue
       }
 
-      for (const values of targets) {
+      for (const target of targets) {
+        const values = { ...target, ...nested.get(key) }
         const url = fillPath(route.url, values) + queryOf(route.schema?.querystring)
         const sampled =
           route.method === 'GET' || !route.schema?.body ? undefined : sampleOf(route.schema.body)
@@ -2009,7 +2109,8 @@ describe('маршруты с объектом в пути: посторонни
    * Справочники `open` — явным списком: новый справочник проходит через ревью.
    */
   const OWNED_ELSEWHERE: Record<string, string> = {
-    'DELETE /me/delegations/:id': 'завершает только назначивший — test/kernel.test.ts',
+    'DELETE /me/delegations/:id':
+      'завершает только назначивший; постороннему — 404 — test/kernel.test.ts',
     'DELETE /me/passkeys/:keyId': 'только свой ключ — test/passkeys.test.ts',
     'DELETE /assistant/threads/:id': 'только свой разговор — test/assistant.test.ts',
     'GET /datasets/exports/:jobId/download': 'только инициатор экспорта — test/data-export.test.ts',

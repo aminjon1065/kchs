@@ -490,8 +490,15 @@ describe('кто и как накладывает резолюцию', () => {
     expect(await inboxOf(head, id, 'resolve')).toHaveLength(0)
     // Переадресовать может только получатель открытого направления
     await json(head, `/documents/${id}/resolution-requests`, 'POST', { userId: exec1.id }, 403)
-    // Делопроизводитель снимает направление
+    // Делопроизводитель снимает направление; посторонний чужое не снимет (ADR-0187)
     const requestId = (byUser.get(chief.id) as Json).id
+    await json(
+      outsider,
+      `/documents/${id}/resolution-requests/${requestId}`,
+      'DELETE',
+      undefined,
+      404,
+    )
     const cancelled = await json(
       registrar,
       `/documents/${id}/resolution-requests/${requestId}`,
