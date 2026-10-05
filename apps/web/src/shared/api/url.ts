@@ -9,6 +9,7 @@ function resolvePath(path: string, params: Record<string, unknown> | undefined):
   return path.replace(/:([A-Za-z0-9_]+)/g, (_match, name: string) => {
     const value = params?.[name]
     if (value === undefined || value === null || value === '') {
+      // i18n-ignore — ошибка разработчика: вызов без параметра пути, до запроса
       throw new Error(`${path}: нет параметра пути ${name}`)
     }
     return encodeURIComponent(String(value))
