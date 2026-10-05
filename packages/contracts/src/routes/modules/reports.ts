@@ -6,8 +6,6 @@ import {
   ReportImage,
   ReportPrintPayload,
   ReportRecord,
-  ReportRenderResult,
-  ReportRenderStart,
   ReportRunDownload,
   ReportRunInput,
   ReportRunList,
@@ -19,6 +17,7 @@ import {
   ReportVersionInput,
   ReportVersionList,
 } from '../../data/report.js'
+import { ENGINE_CALLBACKS } from '../../engine/callbacks.js'
 import { defineRoutes } from '../../http/route-contract.js'
 import { IdParam, Ok } from '../params.js'
 
@@ -101,11 +100,11 @@ export const reportsRoutes = defineRoutes({
   'GET /print/reports/:id': { params: IdParam, response: { 200: ReportPrintPayload } },
   'POST /internal/reports/runs/:runId/start': {
     params: RunParam,
-    response: { 200: ReportRenderStart },
+    response: { 200: ENGINE_CALLBACKS.reportRenderStart.reply },
   },
   'POST /internal/reports/runs/:runId/rendered': {
     params: RunParam,
-    body: ReportRenderResult,
-    response: { 200: Ok },
+    body: ENGINE_CALLBACKS.reportRendered.body,
+    response: { 200: ENGINE_CALLBACKS.reportRendered.reply },
   },
 })

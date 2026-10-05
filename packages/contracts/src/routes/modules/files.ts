@@ -1,7 +1,7 @@
 import { z } from 'zod'
+import { ENGINE_CALLBACKS } from '../../engine/callbacks.js'
 import {
   FilePreviews,
-  FileProcessedInput,
   FileRecord,
   FileText,
   FileVersion,
@@ -94,8 +94,8 @@ export const filesRoutes = defineRoutes({
   'GET /files/:id/text': { params: IdParam, response: { 200: FileText } },
   'POST /internal/files/:id/processed': {
     params: IdParam,
-    body: FileProcessedInput,
-    response: { 200: z.object({ ok: z.boolean(), stale: z.boolean() }) },
+    body: ENGINE_CALLBACKS.fileProcessed.body,
+    response: { 200: ENGINE_CALLBACKS.fileProcessed.reply },
   },
   'GET /files/attachments-folder': {
     query: z.object({ spaceId: z.uuid() }),

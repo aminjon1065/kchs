@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { ENGINE_CALLBACKS } from '../../engine/callbacks.js'
 import { defineRoutes } from '../../http/route-contract.js'
 import { JobRecord } from '../../jobs/job.js'
 
@@ -18,15 +19,7 @@ export const kernelJobsRoutes = defineRoutes({
   },
   'POST /internal/jobs/:id/status': {
     params: z.object({ id: z.uuid() }),
-    body: z.object({
-      status: z.enum(['running', 'succeeded', 'failed']),
-      progress: z.number().min(0).max(1).optional(),
-      message: z.string().max(500).nullable().optional(),
-      result: z.record(z.string(), z.unknown()).optional(),
-      error: z.string().max(4000).optional(),
-      /** Последняя попытка: после неё движок задание не повторит. */
-      final: z.boolean().default(true),
-    }),
-    response: { 200: z.object({ ok: z.boolean() }) },
+    body: ENGINE_CALLBACKS.jobStatus.body,
+    response: { 200: ENGINE_CALLBACKS.jobStatus.reply },
   },
 })

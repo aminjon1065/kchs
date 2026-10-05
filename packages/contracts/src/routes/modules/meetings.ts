@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { ENGINE_CALLBACKS } from '../../engine/callbacks.js'
 import { defineRoutes } from '../../http/route-contract.js'
 import {
   MeetingCreateInput,
@@ -30,7 +31,6 @@ import {
   RecordingPinInput,
   RecordingRecord,
   TranscriptRecord,
-  TranscriptResult,
   TranscriptSegmentEditInput,
   TranscriptSpeakerInput,
 } from '../../meetings/recording.js'
@@ -106,8 +106,8 @@ export const meetingsRoutes = defineRoutes({
   },
   'POST /internal/meetings/recordings/:id/transcript': {
     params: IdParam,
-    body: TranscriptResult,
-    response: { 200: z.object({ ok: z.literal(true) }) },
+    body: ENGINE_CALLBACKS.recordingTranscript.body,
+    response: { 200: ENGINE_CALLBACKS.recordingTranscript.reply },
   },
   'GET /meetings/:id/knocks': { params: IdParam, response: { 200: MeetingKnockList } },
   'POST /meetings/:id/knocks/:requestId': {

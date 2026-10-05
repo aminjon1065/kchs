@@ -59,7 +59,6 @@ import {
   ImportAnalyzeInput,
   ImportRecord,
   ImportRunInput,
-  NormalizedReport,
 } from '../../data/import.js'
 import {
   MetricCreateInput,
@@ -111,6 +110,7 @@ import {
   SourceUpdateInput,
 } from '../../data/source.js'
 import { SqlRunInput, SqlSchema } from '../../data/sql.js'
+import { ENGINE_CALLBACKS } from '../../engine/callbacks.js'
 import { defineRoutes } from '../../http/route-contract.js'
 import { IntegrationCheckResult } from '../../integrations/integration.js'
 import { IdParam, RowParams } from '../params.js'
@@ -311,8 +311,8 @@ export const dataRoutes = defineRoutes({
   },
   'POST /internal/data/imports/:id/normalized': {
     params: IdParam,
-    body: NormalizedReport,
-    response: { 200: z.object({ loadJobId: z.uuid().nullable() }) },
+    body: ENGINE_CALLBACKS.importNormalized.body,
+    response: { 200: ENGINE_CALLBACKS.importNormalized.reply },
   },
   'POST /notebooks': { body: NotebookCreateInput, response: { 200: z.object({ id: z.uuid() }) } },
   'GET /notebooks/:id': { params: IdParam, response: { 200: NotebookRecord } },

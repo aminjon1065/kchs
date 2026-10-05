@@ -49,7 +49,6 @@ import {
   DocumentCreateInput,
   DocumentNumberPreview,
   DocumentNumberPreviewQuery,
-  DocumentPdfResult,
   DocumentRecord,
   DocumentRegisterInput,
   DocumentSummary,
@@ -85,8 +84,6 @@ import {
   DocumentRenderDownload,
   DocumentRenderList,
   DocumentRenderRecord,
-  DocumentRenderResult,
-  DocumentRenderStart,
   PrintFormList,
   PrintRequestInput,
   WatermarkRequestInput,
@@ -111,6 +108,7 @@ import {
   DocumentTemplateRecord,
   DocumentTemplateUpdateInput,
 } from '../../documents/template.js'
+import { ENGINE_CALLBACKS } from '../../engine/callbacks.js'
 import { defineRoutes } from '../../http/route-contract.js'
 import {
   AcknowledgmentRequestInput,
@@ -171,12 +169,12 @@ export const documentsRoutes = defineRoutes({
   },
   'POST /internal/documents/renders/:id/start': {
     params: IdParam,
-    response: { 200: DocumentRenderStart },
+    response: { 200: ENGINE_CALLBACKS.documentRenderStart.reply },
   },
   'POST /internal/documents/renders/:id/done': {
     params: IdParam,
-    body: DocumentRenderResult,
-    response: { 200: z.object({ ok: z.boolean(), stale: z.boolean() }) },
+    body: ENGINE_CALLBACKS.documentRenderDone.body,
+    response: { 200: ENGINE_CALLBACKS.documentRenderDone.reply },
   },
   'GET /documents/summary': { response: { 200: DocumentSummary } },
   'GET /documents/office': { response: { 200: z.object({ dashboardId: z.uuid().nullable() }) } },
@@ -217,8 +215,8 @@ export const documentsRoutes = defineRoutes({
   },
   'POST /internal/documents/versions/:id/pdf': {
     params: IdParam,
-    body: DocumentPdfResult,
-    response: { 200: z.object({ ok: z.boolean(), stale: z.boolean() }) },
+    body: ENGINE_CALLBACKS.documentPdf.body,
+    response: { 200: ENGINE_CALLBACKS.documentPdf.reply },
   },
   'GET /documents/:id/resolutions': { params: IdParam, response: { 200: DocumentResolutions } },
   'POST /documents/:id/resolutions': {

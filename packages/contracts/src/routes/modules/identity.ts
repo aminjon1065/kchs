@@ -1,11 +1,7 @@
 import { z } from 'zod'
 import { AdminModeInput, AdminModeState } from '../../access/confidentiality.js'
 import { SecurityPolicy, SecurityPolicyPatch } from '../../admin/security.js'
-import {
-  UsersImportParsed,
-  UsersImportStartInput,
-  UsersImportStatus,
-} from '../../admin/users-import.js'
+import { UsersImportStartInput, UsersImportStatus } from '../../admin/users-import.js'
 import {
   PasskeyAuthenticationOptions,
   PasskeyInfo,
@@ -26,6 +22,7 @@ import {
   RecoveryCodesResponse,
   SessionInfo,
 } from '../../auth/session.js'
+import { ENGINE_CALLBACKS } from '../../engine/callbacks.js'
 import { defineRoutes } from '../../http/route-contract.js'
 import {
   DirectorySettingsInput,
@@ -200,7 +197,7 @@ export const identityRoutes = defineRoutes({
   'GET /admin/users/import/:importId/credentials.csv': { params: ImportParam },
   'POST /internal/users-import/:importId/parsed': {
     params: ImportParam,
-    body: UsersImportParsed,
-    response: { 200: z.object({ applyJobId: z.uuid() }) },
+    body: ENGINE_CALLBACKS.usersImportParsed.body,
+    response: { 200: ENGINE_CALLBACKS.usersImportParsed.reply },
   },
 })
