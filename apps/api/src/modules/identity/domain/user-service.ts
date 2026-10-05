@@ -247,7 +247,7 @@ export const UserService = {
     }
 
     if (patch.status === 'blocked') {
-      await AuthService.revokeAllExcept(userId, null)
+      await AuthService.revokeAllExcept(userId, null, tx)
       await publishEvent(tx, ctx, {
         type: 'user.blocked',
         object: { id: userId, type: 'user' },

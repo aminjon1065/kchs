@@ -148,23 +148,27 @@ export const AuthService = {
     if (!valid) {
       const attempts = cred.failedAttempts + 1
       const lock = attempts >= MAX_FAILED_ATTEMPTS
-      await db()
-        .update(credentials)
-        .set({
-          failedAttempts: lock ? 0 : attempts,
-          lockedUntil: lock ? sql`now() + make_interval(mins => ${LOCK_MINUTES})` : null,
-        })
-        .where(eq(credentials.userId, user.id))
-
-      await audit(sys, {
-        action: AUDIT_ACTIONS.loginFailed,
-        actorId: user.id,
-        details: { login, reason: 'bad_password', attempts, locked: lock },
-        severity: lock ? 'warning' : 'notice',
-        ip: meta.ip,
-        userAgent: meta.userAgent,
-      })
+      // Счётчик попыток, аудит и событие — одной транзакцией (ADR-0177)
       await db().transaction(async (tx) => {
+        await tx
+          .update(credentials)
+          .set({
+            failedAttempts: lock ? 0 : attempts,
+            lockedUntil: lock ? sql`now() + make_interval(mins => ${LOCK_MINUTES})` : null,
+          })
+          .where(eq(credentials.userId, user.id))
+        await audit(
+          sys,
+          {
+            action: AUDIT_ACTIONS.loginFailed,
+            actorId: user.id,
+            details: { login, reason: 'bad_password', attempts, locked: lock },
+            severity: lock ? 'warning' : 'notice',
+            ip: meta.ip,
+            userAgent: meta.userAgent,
+          },
+          tx,
+        )
         await publishEvent(tx, sys, {
           type: 'user.login_failed',
           object: { id: user.id, type: 'user' },
@@ -279,8 +283,9 @@ export const AuthService = {
     return { ...session, mustChangePassword: user.mustChangePassword }
   },
 
-  async verifyTotp(userId: string, code: string): Promise<boolean> {
-    const factors = await db()
+  /** `tx` — когда проверка входит в операцию (подключение второго фактора). */
+  async verifyTotp(userId: string, code: string, tx: Executor = db()): Promise<boolean> {
+    const factors = await tx
       .select()
       .from(mfaFactors)
       .where(and(eq(mfaFactors.userId, userId), eq(mfaFactors.kind, 'totp')))
@@ -292,7 +297,7 @@ export const AuthService = {
       // Шаг TOTP, которому принадлежит код: повтор того же кода отклоняется
       const step = Math.floor(Date.now() / 1000 / authenticator.allOptions().step) + delta
       if (factor.lastStep !== null && step <= factor.lastStep) return false
-      const updated = await db()
+      const updated = await tx
         .update(mfaFactors)
         .set({
           lastUsedAt: sql`now()`,
@@ -368,16 +373,20 @@ export const AuthService = {
 
   async afterLogin(userId: string, meta: RequestMeta): Promise<void> {
     const sys = systemCtx('auth.login', { requestId: meta.requestId, initiatorId: userId })
-    await db().update(users).set({ lastSeenAt: sql`now()` }).where(eq(users.id, userId))
-    await audit(sys, {
-      action: AUDIT_ACTIONS.login,
-      actorId: userId,
-      objectId: userId,
-      objectType: 'user',
-      ip: meta.ip,
-      userAgent: meta.userAgent,
-    })
     await db().transaction(async (tx) => {
+      await tx.update(users).set({ lastSeenAt: sql`now()` }).where(eq(users.id, userId))
+      await audit(
+        sys,
+        {
+          action: AUDIT_ACTIONS.login,
+          actorId: userId,
+          objectId: userId,
+          objectType: 'user',
+          ip: meta.ip,
+          userAgent: meta.userAgent,
+        },
+        tx,
+      )
       await publishEvent(tx, sys, {
         type: 'user.login',
         object: { id: userId, type: 'user' },
@@ -441,33 +450,45 @@ export const AuthService = {
    */
   async enterAdminMode(ctx: UserCtx, input: AdminModeInput): Promise<AdminModeState> {
     const until = new Date(Date.now() + input.minutes * 60_000).toISOString()
-    await db()
-      .update(sessions)
-      .set({ adminModeUntil: until, adminModeReason: input.reason })
-      .where(and(eq(sessions.id, ctx.sessionId), eq(sessions.userId, ctx.userId)))
-    await audit(ctx, {
-      action: AUDIT_ACTIONS.adminMode,
-      objectId: ctx.userId,
-      objectType: 'user',
-      severity: 'warning',
-      details: { reason: input.reason, minutes: input.minutes, until },
+    await db().transaction(async (tx) => {
+      await tx
+        .update(sessions)
+        .set({ adminModeUntil: until, adminModeReason: input.reason })
+        .where(and(eq(sessions.id, ctx.sessionId), eq(sessions.userId, ctx.userId)))
+      await audit(
+        ctx,
+        {
+          action: AUDIT_ACTIONS.adminMode,
+          objectId: ctx.userId,
+          objectType: 'user',
+          severity: 'warning',
+          details: { reason: input.reason, minutes: input.minutes, until },
+        },
+        tx,
+      )
     })
     return { reason: input.reason, until }
   },
 
   async exitAdminMode(ctx: UserCtx): Promise<void> {
-    const [row] = await db()
-      .update(sessions)
-      .set({ adminModeUntil: null, adminModeReason: null })
-      .where(and(eq(sessions.id, ctx.sessionId), eq(sessions.userId, ctx.userId)))
-      .returning({ id: sessions.id })
-    if (!row) return
-    await audit(ctx, {
-      action: AUDIT_ACTIONS.adminModeExited,
-      objectId: ctx.userId,
-      objectType: 'user',
-      severity: 'notice',
-      details: { reason: ctx.adminMode?.reason ?? null },
+    await db().transaction(async (tx) => {
+      const [row] = await tx
+        .update(sessions)
+        .set({ adminModeUntil: null, adminModeReason: null })
+        .where(and(eq(sessions.id, ctx.sessionId), eq(sessions.userId, ctx.userId)))
+        .returning({ id: sessions.id })
+      if (!row) return
+      await audit(
+        ctx,
+        {
+          action: AUDIT_ACTIONS.adminModeExited,
+          objectId: ctx.userId,
+          objectType: 'user',
+          severity: 'notice',
+          details: { reason: ctx.adminMode?.reason ?? null },
+        },
+        tx,
+      )
     })
   },
 
@@ -502,30 +523,45 @@ export const AuthService = {
   },
 
   async logout(ctx: UserCtx): Promise<void> {
-    await db().update(sessions).set({ revokedAt: sql`now()` }).where(eq(sessions.id, ctx.sessionId))
-    await audit(ctx, { action: AUDIT_ACTIONS.logout, objectId: ctx.userId, objectType: 'user' })
     await db().transaction(async (tx) => {
+      await tx.update(sessions).set({ revokedAt: sql`now()` }).where(eq(sessions.id, ctx.sessionId))
+      await audit(
+        ctx,
+        { action: AUDIT_ACTIONS.logout, objectId: ctx.userId, objectType: 'user' },
+        tx,
+      )
       await publishEvent(tx, ctx, { type: 'user.logout', object: { id: ctx.userId, type: 'user' } })
     })
   },
 
   async revokeSessions(ctx: UserCtx, sessionIds: string[]): Promise<number> {
     if (sessionIds.length === 0) return 0
-    const revoked = await db()
-      .update(sessions)
-      .set({ revokedAt: sql`now()` })
-      .where(and(eq(sessions.userId, ctx.userId), sql`${sessions.id} = ANY(${sessionIds})`))
-      .returning({ id: sessions.id })
-    await audit(ctx, {
-      action: AUDIT_ACTIONS.sessionRevoked,
-      details: { count: revoked.length },
-      severity: 'notice',
+    return db().transaction(async (tx) => {
+      const revoked = await tx
+        .update(sessions)
+        .set({ revokedAt: sql`now()` })
+        .where(and(eq(sessions.userId, ctx.userId), sql`${sessions.id} = ANY(${sessionIds})`))
+        .returning({ id: sessions.id })
+      await audit(
+        ctx,
+        {
+          action: AUDIT_ACTIONS.sessionRevoked,
+          details: { count: revoked.length },
+          severity: 'notice',
+        },
+        tx,
+      )
+      return revoked.length
     })
-    return revoked.length
   },
 
-  async revokeAllExcept(userId: string, keepSessionId: string | null): Promise<number> {
-    const revoked = await db()
+  /** `tx` — когда отзыв входит в операцию (блокировка, смена пароля): откат её отменяет. */
+  async revokeAllExcept(
+    userId: string,
+    keepSessionId: string | null,
+    tx: Executor = db(),
+  ): Promise<number> {
+    const revoked = await tx
       .update(sessions)
       .set({ revokedAt: sql`now()` })
       .where(
@@ -576,16 +612,20 @@ export const AuthService = {
         { path: 'currentPassword', message: 'Текущий пароль неверен' },
       ])
     }
-    await AuthService.setPassword(ctx.userId, newPassword)
-    if (revokeOthers) await AuthService.revokeAllExcept(ctx.userId, ctx.sessionId)
-
-    await audit(ctx, {
-      action: AUDIT_ACTIONS.passwordChanged,
-      objectId: ctx.userId,
-      objectType: 'user',
-      severity: 'notice',
-    })
+    // Пароль, отзыв других сессий, аудит и событие — одной транзакцией (ADR-0177)
     await db().transaction(async (tx) => {
+      await AuthService.setPassword(ctx.userId, newPassword, undefined, tx)
+      if (revokeOthers) await AuthService.revokeAllExcept(ctx.userId, ctx.sessionId, tx)
+      await audit(
+        ctx,
+        {
+          action: AUDIT_ACTIONS.passwordChanged,
+          objectId: ctx.userId,
+          objectType: 'user',
+          severity: 'notice',
+        },
+        tx,
+      )
       await publishEvent(tx, ctx, {
         type: 'user.password_changed',
         object: { id: ctx.userId, type: 'user' },
@@ -712,12 +752,17 @@ export const AuthService = {
       throw errors.validation('Ссылка недействительна или истекла')
     }
 
-    await AuthService.setPassword(row.userId, newPassword)
-    await db()
-      .update(passwordResets)
-      .set({ usedAt: sql`now()` })
-      .where(eq(passwordResets.id, row.id))
-    await AuthService.revokeAllExcept(row.userId, null)
+    await db().transaction(async (tx) => {
+      // Ссылка одноразовая и при параллельных запросах: второй не найдёт её неиспользованной
+      const [used] = await tx
+        .update(passwordResets)
+        .set({ usedAt: sql`now()` })
+        .where(and(eq(passwordResets.id, row.id), isNull(passwordResets.usedAt)))
+        .returning({ id: passwordResets.id })
+      if (!used) throw errors.validation('Ссылка недействительна или истекла')
+      await AuthService.setPassword(row.userId, newPassword, undefined, tx)
+      await AuthService.revokeAllExcept(row.userId, null, tx)
+    })
     return row.userId
   },
 
@@ -744,30 +789,35 @@ export const AuthService = {
     return { secret, otpauthUrl }
   },
 
+  /**
+   * Подключение второго фактора: проверка кода (она же подтверждает фактор), коды
+   * восстановления, аудит и событие — одной транзакцией (ADR-0177). Сбой посередине
+   * не оставляет подтверждённый фактор без кодов восстановления.
+   */
   async enableMfa(ctx: UserCtx, code: string): Promise<string[]> {
-    const ok = await AuthService.verifyTotp(ctx.userId, code)
-    if (!ok)
-      throw errors.validation('Неверный код', [{ path: 'code', message: 'auth.mfa.invalid' }])
-
     const codes = Array.from({ length: 10 }, () => `${randomCode(5)}-${randomCode(5)}`)
-    await db().delete(recoveryCodes).where(eq(recoveryCodes.userId, ctx.userId))
-    await db()
-      .insert(recoveryCodes)
-      .values(
-        codes.map((code) => ({
+    await db().transaction(async (tx) => {
+      const ok = await AuthService.verifyTotp(ctx.userId, code, tx)
+      if (!ok)
+        throw errors.validation('Неверный код', [{ path: 'code', message: 'auth.mfa.invalid' }])
+      await tx.delete(recoveryCodes).where(eq(recoveryCodes.userId, ctx.userId))
+      await tx.insert(recoveryCodes).values(
+        codes.map((recovery) => ({
           id: newId(),
           userId: ctx.userId,
-          codeHash: hashToken(code.replace('-', '')),
+          codeHash: hashToken(recovery.replace('-', '')),
         })),
       )
-
-    await audit(ctx, {
-      action: AUDIT_ACTIONS.mfaEnabled,
-      objectId: ctx.userId,
-      objectType: 'user',
-      severity: 'notice',
-    })
-    await db().transaction(async (tx) => {
+      await audit(
+        ctx,
+        {
+          action: AUDIT_ACTIONS.mfaEnabled,
+          objectId: ctx.userId,
+          objectType: 'user',
+          severity: 'notice',
+        },
+        tx,
+      )
       await publishEvent(tx, ctx, {
         type: 'user.mfa_enabled',
         object: { id: ctx.userId, type: 'user' },
@@ -777,16 +827,21 @@ export const AuthService = {
     return codes
   },
 
+  /** Отключение второго фактора: факторы, коды, аудит и событие — одной транзакцией. */
   async disableMfa(ctx: UserCtx, userId: string): Promise<void> {
-    await db().delete(mfaFactors).where(eq(mfaFactors.userId, userId))
-    await db().delete(recoveryCodes).where(eq(recoveryCodes.userId, userId))
-    await audit(ctx, {
-      action: AUDIT_ACTIONS.mfaDisabled,
-      objectId: userId,
-      objectType: 'user',
-      severity: 'warning',
-    })
     await db().transaction(async (tx) => {
+      await tx.delete(mfaFactors).where(eq(mfaFactors.userId, userId))
+      await tx.delete(recoveryCodes).where(eq(recoveryCodes.userId, userId))
+      await audit(
+        ctx,
+        {
+          action: AUDIT_ACTIONS.mfaDisabled,
+          objectId: userId,
+          objectType: 'user',
+          severity: 'warning',
+        },
+        tx,
+      )
       await publishEvent(tx, ctx, {
         type: 'user.mfa_disabled',
         object: { id: userId, type: 'user' },

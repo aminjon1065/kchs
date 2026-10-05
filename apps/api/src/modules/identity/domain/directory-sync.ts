@@ -11,7 +11,7 @@ import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import type { Ctx } from '~/shared/context.js'
 import { actorId, systemCtx } from '~/shared/context.js'
-import { db } from '~/shared/db/client.js'
+import { db, type Executor } from '~/shared/db/client.js'
 import { directorySyncs, orgUnits, positions, roles, users } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId, randomToken } from '~/shared/ids.js'
@@ -260,6 +260,10 @@ async function runSync(ctx: Ctx, mode: DirectorySyncMode): Promise<DirectorySync
 
   const stats = emptyStats()
   const changes: DirectoryChange[] = []
+  let outcome: { status: 'succeeded' | 'failed'; error: string | null } = {
+    status: 'failed',
+    error: null,
+  }
   // Прогон идёт от имени системы: его записи в аудите не смешиваются с ручными
   // действиями администратора, а инициатор сохраняется отдельным полем
   const sys = systemCtx('directory.sync', { initiatorId })
@@ -277,51 +281,57 @@ async function runSync(ctx: Ctx, mode: DirectorySyncMode): Promise<DirectorySync
 
     const unitIndex = await syncUnits(sys, mode, unitEntries, stats, changes)
     await syncPeople(sys, mode, settings, people, unitIndex, stats, changes)
-
-    await finish(runId, 'succeeded', stats, changes, null)
+    outcome = { status: 'succeeded', error: null }
   } catch (error) {
     const message = error instanceof Error ? error.message.slice(0, 500) : 'неизвестная ошибка'
-    await finish(runId, 'failed', stats, changes, message)
+    outcome = { status: 'failed', error: message }
   }
 
-  const [row] = await db()
-    .select()
-    .from(directorySyncs)
-    .where(eq(directorySyncs.id, runId))
-    .limit(1)
-  const run = row ? toRun(row) : null
-  if (!run) throw errors.internal('Прогон синхронизации не сохранён')
-
-  await audit(ctx, {
-    action: AUDIT_ACTIONS.directorySynced,
-    severity: run.status === 'failed' ? 'warning' : 'notice',
-    details: { runId, mode, status: run.status, stats: run.stats },
-  })
-  await db().transaction(async (tx) => {
+  // Итог прогона, аудит и событие — одной транзакцией (ADR-0177)
+  const run = await db().transaction(async (tx) => {
+    await finish(tx, runId, outcome.status, stats, changes, outcome.error)
+    const [row] = await tx
+      .select()
+      .from(directorySyncs)
+      .where(eq(directorySyncs.id, runId))
+      .limit(1)
+    const saved = row ? toRun(row) : null
+    if (!saved) throw errors.internal('Прогон синхронизации не сохранён')
+    await audit(
+      ctx,
+      {
+        action: AUDIT_ACTIONS.directorySynced,
+        severity: saved.status === 'failed' ? 'warning' : 'notice',
+        details: { runId, mode, status: saved.status, stats: saved.stats },
+      },
+      tx,
+    )
     await publishEvent(tx, ctx, {
       type: 'directory.synced',
       payload: {
         runId,
         mode,
-        status: run.status,
-        created: run.stats.created,
-        updated: run.stats.updated,
-        blocked: run.stats.blocked,
+        status: saved.status,
+        created: saved.stats.created,
+        updated: saved.stats.updated,
+        blocked: saved.stats.blocked,
       },
     })
+    return saved
   })
   await prune()
   return run
 }
 
 async function finish(
+  tx: Executor,
   runId: string,
   status: 'succeeded' | 'failed',
   stats: DirectorySyncStats,
   changes: DirectoryChange[],
   error: string | null,
 ): Promise<void> {
-  await db()
+  await tx
     .update(directorySyncs)
     .set({ status, stats, changes, error, finishedAt: sql`now()` })
     .where(eq(directorySyncs.id, runId))

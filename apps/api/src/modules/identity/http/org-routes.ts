@@ -325,17 +325,24 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
       if (!target) throw errors.notFound('Пользователь')
       // Криптостойкий генератор: временный пароль не должен угадываться
       const temporaryPassword = temporaryPasswordFor(target.login)
-      await AuthService.setPassword(request.params.id, temporaryPassword, target.login)
-      await db()
-        .update(users)
-        .set({ mustChangePassword: true })
-        .where(eq(users.id, request.params.id))
-      await AuthService.revokeAllExcept(request.params.id, null)
-      await audit(request.ctx, {
-        action: AUDIT_ACTIONS.passwordResetByAdmin,
-        objectId: request.params.id,
-        objectType: 'user',
-        severity: 'warning',
+      // Пароль, требование смены, отзыв сессий и аудит — одной транзакцией (ADR-0177)
+      await db().transaction(async (tx) => {
+        await AuthService.setPassword(request.params.id, temporaryPassword, target.login, tx)
+        await tx
+          .update(users)
+          .set({ mustChangePassword: true })
+          .where(eq(users.id, request.params.id))
+        await AuthService.revokeAllExcept(request.params.id, null, tx)
+        await audit(
+          request.ctx,
+          {
+            action: AUDIT_ACTIONS.passwordResetByAdmin,
+            objectId: request.params.id,
+            objectType: 'user',
+            severity: 'warning',
+          },
+          tx,
+        )
       })
       return { temporaryPassword }
     },

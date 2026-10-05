@@ -6,7 +6,7 @@ import { publishEvent } from '~/kernel/events/publisher.js'
 import { config } from '~/shared/config/index.js'
 import { systemCtx } from '~/shared/context.js'
 import { decryptSecret, encryptSecret, hashToken } from '~/shared/crypto/secrets.js'
-import { db } from '~/shared/db/client.js'
+import { db, type Tx } from '~/shared/db/client.js'
 import {
   roles,
   ssoAuthRequests,
@@ -326,7 +326,7 @@ async function resolveUser(
 
   if (existing) {
     await assertActive(existing.id, meta)
-    await link(existing.id, subject, claims, sys)
+    await db().transaction((tx) => link(tx, existing.id, subject, claims, sys))
     return existing.id
   }
 
@@ -357,9 +357,10 @@ async function resolveUser(
       timezone: 'Asia/Dushanbe',
     })
     await tx.update(users).set({ authSource: OIDC_PROVIDER }).where(eq(users.id, created.id))
+    // Учётная запись и её связь с субъектом IdP — одной транзакцией (ADR-0177)
+    await link(tx, created.id, subject, claims, sys)
     return created.id
   })
-  await link(id, subject, claims, sys)
   return id
 }
 
@@ -393,13 +394,18 @@ async function changedFields(
   return Object.keys(patch).length > 0 ? patch : null
 }
 
+/**
+ * Связь учётной записи с субъектом IdP и её событие — в транзакции вызывающего
+ * (ADR-0177). Связь уже была (параллельный колбэк того же входа) — события нет.
+ */
 async function link(
+  tx: Tx,
   userId: string,
   subject: string,
   claims: Record<string, unknown>,
   sys: ReturnType<typeof systemCtx>,
 ): Promise<void> {
-  await db()
+  const [linked] = await tx
     .insert(ssoIdentities)
     .values({
       id: newId(),
@@ -410,12 +416,12 @@ async function link(
       profile: { sub: subject, iss: claims.iss ?? null },
     })
     .onConflictDoNothing()
-  await db().transaction(async (tx) => {
-    await publishEvent(tx, sys, {
-      type: 'user.identity_linked',
-      object: { id: userId, type: 'user' },
-      payload: { userId, provider: OIDC_PROVIDER },
-    })
+    .returning({ id: ssoIdentities.id })
+  if (!linked) return
+  await publishEvent(tx, sys, {
+    type: 'user.identity_linked',
+    object: { id: userId, type: 'user' },
+    payload: { userId, provider: OIDC_PROVIDER },
   })
 }
 

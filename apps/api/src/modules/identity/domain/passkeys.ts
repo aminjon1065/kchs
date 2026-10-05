@@ -189,54 +189,63 @@ export const PasskeyService = {
     }
     const info = verified.registrationInfo
 
-    const [row] = await db()
-      .insert(webauthnCredentials)
-      .values({
-        id: info.credential.id,
-        userId: ctx.userId,
-        publicKey: Buffer.from(info.credential.publicKey),
-        counter: info.credential.counter,
-        transports: info.credential.transports ?? [],
-        name: name.slice(0, 100),
-        userVerified: info.userVerified,
-        backedUp: info.credentialBackedUp,
-        aaguid: info.aaguid,
-      })
-      .onConflictDoNothing()
-      .returning()
-    if (!row) throw errors.conflict('Этот ключ уже добавлен')
-
-    await audit(ctx, {
-      action: AUDIT_ACTIONS.passkeyAdded,
-      objectId: ctx.userId,
-      objectType: 'user',
-      details: { name: row.name, userVerified: row.userVerified },
-      severity: 'notice',
-    })
-    await db().transaction(async (tx) => {
+    // Ключ, аудит и событие — одной транзакцией (ADR-0177)
+    const row = await db().transaction(async (tx) => {
+      const [created] = await tx
+        .insert(webauthnCredentials)
+        .values({
+          id: info.credential.id,
+          userId: ctx.userId,
+          publicKey: Buffer.from(info.credential.publicKey),
+          counter: info.credential.counter,
+          transports: info.credential.transports ?? [],
+          name: name.slice(0, 100),
+          userVerified: info.userVerified,
+          backedUp: info.credentialBackedUp,
+          aaguid: info.aaguid,
+        })
+        .onConflictDoNothing()
+        .returning()
+      if (!created) throw errors.conflict('Этот ключ уже добавлен')
+      await audit(
+        ctx,
+        {
+          action: AUDIT_ACTIONS.passkeyAdded,
+          objectId: ctx.userId,
+          objectType: 'user',
+          details: { name: created.name, userVerified: created.userVerified },
+          severity: 'notice',
+        },
+        tx,
+      )
       await publishEvent(tx, ctx, {
         type: 'user.passkey_added',
         object: { id: ctx.userId, type: 'user' },
-        payload: { userId: ctx.userId, name: row.name ?? '' },
+        payload: { userId: ctx.userId, name: created.name ?? '' },
       })
+      return created
     })
     return toInfo(row)
   },
 
   async remove(ctx: UserCtx, id: string): Promise<void> {
-    const [row] = await db()
-      .delete(webauthnCredentials)
-      .where(and(eq(webauthnCredentials.id, id), eq(webauthnCredentials.userId, ctx.userId)))
-      .returning()
-    if (!row) throw errors.notFound('Ключ входа')
-    await audit(ctx, {
-      action: AUDIT_ACTIONS.passkeyRemoved,
-      objectId: ctx.userId,
-      objectType: 'user',
-      details: { name: row.name },
-      severity: 'notice',
-    })
     await db().transaction(async (tx) => {
+      const [row] = await tx
+        .delete(webauthnCredentials)
+        .where(and(eq(webauthnCredentials.id, id), eq(webauthnCredentials.userId, ctx.userId)))
+        .returning()
+      if (!row) throw errors.notFound('Ключ входа')
+      await audit(
+        ctx,
+        {
+          action: AUDIT_ACTIONS.passkeyRemoved,
+          objectId: ctx.userId,
+          objectType: 'user',
+          details: { name: row.name },
+          severity: 'notice',
+        },
+        tx,
+      )
       await publishEvent(tx, ctx, {
         type: 'user.passkey_removed',
         object: { id: ctx.userId, type: 'user' },
@@ -252,19 +261,23 @@ export const PasskeyService = {
    * отзыве владельцем. Право вести сотрудника проверяет маршрут.
    */
   async revokeAll(ctx: UserCtx, userId: string): Promise<number> {
-    const rows = await db()
-      .delete(webauthnCredentials)
-      .where(eq(webauthnCredentials.userId, userId))
-      .returning({ name: webauthnCredentials.name })
-    if (rows.length === 0) return 0
-    await audit(ctx, {
-      action: AUDIT_ACTIONS.passkeysRevoked,
-      objectId: userId,
-      objectType: 'user',
-      details: { count: rows.length, names: rows.map((row) => row.name ?? '') },
-      severity: 'warning',
-    })
-    await db().transaction(async (tx) => {
+    return db().transaction(async (tx) => {
+      const rows = await tx
+        .delete(webauthnCredentials)
+        .where(eq(webauthnCredentials.userId, userId))
+        .returning({ name: webauthnCredentials.name })
+      if (rows.length === 0) return 0
+      await audit(
+        ctx,
+        {
+          action: AUDIT_ACTIONS.passkeysRevoked,
+          objectId: userId,
+          objectType: 'user',
+          details: { count: rows.length, names: rows.map((row) => row.name ?? '') },
+          severity: 'warning',
+        },
+        tx,
+      )
       for (const row of rows) {
         await publishEvent(tx, ctx, {
           type: 'user.passkey_removed',
@@ -272,8 +285,8 @@ export const PasskeyService = {
           payload: { userId, name: row.name ?? '' },
         })
       }
+      return rows.length
     })
-    return rows.length
   },
 
   /**
