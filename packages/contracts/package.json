@@ -8,12 +8,15 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./events": "./src/events/index.ts"
+    "./events": "./src/events/index.ts",
+    "./snapshot-format": "./scripts/snapshot-format.mjs"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
-    "gen:engine": "tsx scripts/generate-engine.ts"
+    "gen:engine": "tsx scripts/generate-engine.ts",
+    "snapshot:events": "tsx scripts/snapshot-events.ts",
+    "compat": "node scripts/contracts-compat.mjs"
   },
   "dependencies": {
     "zod": "^4.1.12"

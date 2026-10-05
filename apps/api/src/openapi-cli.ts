@@ -10,7 +10,8 @@ import { closeRedis } from './shared/redis/index.js'
  * Выгрузка спецификации OpenAPI без запуска сервера (ADR-0030): `pnpm openapi:gen`
  * пишет `apps/api/openapi.json` для внешних интеграций. CI собирает файл, проверяет
  * (маршрут без описания ответов — ошибка) и публикует артефактом; в git файл не
- * хранится — схемы zod в нём развёрнуты, и он велик для истории.
+ * хранится — схемы zod в нём развёрнуты, и он велик для истории. В git — его снимок
+ * `openapi.snapshot.json` (ADR-0189): `pnpm contracts:snapshot` собирает оба.
  */
 const METHODS = ['get', 'put', 'post', 'patch', 'delete'] as const
 

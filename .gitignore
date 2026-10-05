@@ -22,5 +22,6 @@ seeds/.cache/
 # Рабочие копии и служебные файлы агентов разработки
 .claude/
 
-# Спецификация OpenAPI собирается командой openapi:gen (артефакт CI)
+# Спецификация OpenAPI собирается командой openapi:gen (артефакт CI); в git — её снимок
+# apps/api/openapi.snapshot.json (ADR-0189)
 apps/api/openapi.json

@@ -20,6 +20,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        # Вся история: совместимость контрактов сравнивается с точкой ответвления (ADR-0189)
+        with: { fetch-depth: 0 }
       - uses: pnpm/action-setup@v4
         with: { version: '${{ env.PNPM_VERSION }}' }
       - uses: actions/setup-node@v4
@@ -49,6 +51,15 @@ jobs:
         run: |
           pnpm --filter @kchs/contracts gen:engine
           git diff --exit-code apps/engine/kchs_engine/contracts
+      # ADR-0189: снимок событий не отстал от каталога, нагрузки совместимы с базой — точкой
+      # ответвления от целевой ветки (на main — с его прежним состоянием)
+      - name: Контракт событий — снимок и совместимость
+        env:
+          KCHS_CONTRACTS_BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || (github.ref == 'refs/heads/main' && github.event.before || 'origin/main') }}
+        run: |
+          pnpm --filter @kchs/contracts snapshot:events
+          git diff --exit-code packages/contracts/snapshots/events.json
+          pnpm contracts:compat --events
 
   unit:
     name: Unit-тесты
@@ -69,6 +80,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        # Вся история: совместимость API сравнивается с точкой ответвления (ADR-0189)
+        with: { fetch-depth: 0 }
       - uses: pnpm/action-setup@v4
         with: { version: '${{ env.PNPM_VERSION }}' }
       - uses: actions/setup-node@v4
@@ -93,6 +106,14 @@ jobs:
       # ADR-0030: OpenAPI обязателен для внешних интеграций — собирается и проверяется
       - name: Спецификация OpenAPI
         run: pnpm openapi:gen
+      # ADR-0189: снимок OpenAPI в git не отстал от маршрутов, операции совместимы с базой
+      - name: Контракт API — снимок и совместимость
+        env:
+          KCHS_CONTRACTS_BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || (github.ref == 'refs/heads/main' && github.event.before || 'origin/main') }}
+        run: |
+          pnpm --filter @kchs/api openapi:snapshot
+          git diff --exit-code apps/api/openapi.snapshot.json
+          pnpm contracts:compat --api
       - uses: actions/upload-artifact@v4
         with:
           name: openapi

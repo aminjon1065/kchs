@@ -16,6 +16,8 @@
       "!**/drizzle/**/*.sql",
       "!**/drizzle/meta",
       "!apps/api/openapi.json",
+      "!apps/api/openapi.snapshot.json",
+      "!packages/contracts/snapshots/events.json",
       "!**/routeTree.gen.ts",
       "!**/*.gen.ts",
       "!apps/engine",

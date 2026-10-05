@@ -31,7 +31,9 @@
     "infra:down": "docker compose -f infra/compose/docker-compose.yml down",
     "infra:logs": "docker compose -f infra/compose/docker-compose.yml logs -f",
     "i18n:literals": "pnpm --filter @kchs/i18n literals",
-    "knip": "knip --no-progress"
+    "knip": "knip --no-progress",
+    "contracts:snapshot": "pnpm --filter @kchs/contracts snapshot:events && pnpm openapi:gen && pnpm --filter @kchs/api openapi:snapshot",
+    "contracts:compat": "pnpm --filter @kchs/contracts compat"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.0",
