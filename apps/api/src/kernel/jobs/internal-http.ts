@@ -1,3 +1,4 @@
+import { JobStatusReport } from '@kchs/contracts'
 import { z } from 'zod'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { JobService } from './service.js'
@@ -16,15 +17,7 @@ export function registerInternalJobRoutes(route: RouteRegistrar): void {
     summary: 'Движок сообщает состояние задания',
     schema: {
       params: z.object({ id: z.uuid() }),
-      body: z.object({
-        status: z.enum(['running', 'succeeded', 'failed']),
-        progress: z.number().min(0).max(1).optional(),
-        message: z.string().max(500).nullable().optional(),
-        result: z.record(z.string(), z.unknown()).optional(),
-        error: z.string().max(4000).optional(),
-        /** Последняя попытка: после неё движок задание не повторит. */
-        final: z.boolean().default(true),
-      }),
+      body: JobStatusReport,
       response: { 200: z.object({ ok: z.boolean() }) },
     },
     handler: async (request) => {

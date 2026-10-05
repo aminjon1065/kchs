@@ -1,4 +1,5 @@
 import {
+  engineJobRef,
   type Locale,
   REPORT_CONTENT_TYPES,
   REPORT_FORMATS,
@@ -22,6 +23,7 @@ import { buildUserCtxFor } from '~/kernel/access/explain.js'
 import { audit } from '~/kernel/audit/service.js'
 import { directory } from '~/kernel/directory/port.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
+import { engineJob } from '~/kernel/jobs/engine.js'
 import { JobService } from '~/kernel/jobs/service.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { PrintGrants } from '~/kernel/print/grants.js'
@@ -37,7 +39,7 @@ import { ReportVersions } from './report-library.js'
 import { ReportService } from './report-service.js'
 
 /** Рендер — очередь `render` движка (ADR-0035): Chromium и docxtpl живут там. */
-export const REPORT_RENDER_JOB = { queue: 'render', name: 'report.render' } as const
+export const REPORT_RENDER_JOB = engineJobRef('render:report.render')
 
 /** Незаконченный запуск старше этого считается зависшим и не держит новый. */
 const STALE_RUN_MS = 30 * 60_000
@@ -187,10 +189,9 @@ export const ReportRuns = {
       status: 'queued',
     })
     const jobId = await JobService.schedule(tx, ctx, {
-      ...REPORT_RENDER_JOB,
+      ...engineJob('render:report.render', { runId: id }),
       objectId: input.reportId,
       callbackScope: `report-run:${id}`,
-      data: { runId: id },
       // Повтор — один: сбой страницы обычно не проходит сам, а бюджет рендера — минута
       options: { attempts: 2, backoff: { type: 'fixed', delay: 15_000 } },
     })

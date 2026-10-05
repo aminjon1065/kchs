@@ -61,7 +61,8 @@
     "maxColumns": 500,
     "maxFileBytes": 2147483648,
     "analyzeTimeoutMs": 15000,
-    "diffSampleRows": 20
+    "diffSampleRows": 20,
+    "errorSampleRows": 50
   },
   "errorCodes": [
     "invalid_number",

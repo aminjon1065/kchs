@@ -1,4 +1,6 @@
+import { ENGINE_CALLBACKS } from '@kchs/contracts'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { z } from 'zod'
 import {
   call,
   engineJobHeaders,
@@ -19,6 +21,7 @@ const { JobService, queue } = await import('../src/kernel/jobs/service.js')
 const { verifyJobToken } = await import('../src/shared/crypto/job-token.js')
 const { systemCtx } = await import('../src/shared/context.js')
 const { config } = await import('../src/shared/config/index.js')
+const { registeredRoutes } = await import('../src/shared/http/route.js')
 
 let fx: TestContext
 const run = Date.now().toString(36)
@@ -88,5 +91,62 @@ describe('токен задания движка', () => {
       headers: engineJobHeaders({ jobId: id }),
     })
     expect(response.statusCode).toBe(403)
+  })
+})
+
+/**
+ * Контракт движка (ADR-0190): маршрут обратного вызова принимает и отдаёт ровно
+ * схемы `ENGINE_CALLBACKS` — по ним же движок сверяет свои модели, а api
+ * проверяет нагрузку задания движка до записи в реестр.
+ */
+describe('контракт обратных вызовов и заданий движка', () => {
+  const jsonSchema = (schema: unknown, io: 'input' | 'output') =>
+    schema ? z.toJSONSchema(schema as z.ZodType, { io }) : null
+
+  it('маршрут каждого обратного вызова — со схемами контракта', () => {
+    const routes = new Map(
+      registeredRoutes().map((route) => [`${route.method} ${route.url}`, route]),
+    )
+    for (const [name, callback] of Object.entries(ENGINE_CALLBACKS)) {
+      const route = routes.get(`${callback.method} ${callback.path}`)
+      expect(route, name).toBeDefined()
+      expect(typeof route?.auth === 'object' && 'engineJob' in route.auth, name).toBe(true)
+      expect(jsonSchema(route?.schema?.body, 'input'), name).toEqual(
+        jsonSchema(callback.body, 'input'),
+      )
+      expect(jsonSchema(route?.schema?.response?.[200], 'output'), name).toEqual(
+        jsonSchema(callback.reply, 'output'),
+      )
+    }
+  })
+
+  it('других внутренних маршрутов с токеном задания нет', () => {
+    const declared = new Set(
+      Object.values(ENGINE_CALLBACKS).map((callback) => `${callback.method} ${callback.path}`),
+    )
+    const engineRoutes = registeredRoutes().filter(
+      (route) => typeof route.auth === 'object' && 'engineJob' in route.auth,
+    )
+    expect(engineRoutes.map((route) => `${route.method} ${route.url}`).sort()).toEqual(
+      [...declared].sort(),
+    )
+  })
+
+  it('нагрузку задания движка проверяет схема до записи в реестр', async () => {
+    await expect(
+      JobService.enqueue(systemCtx('test'), {
+        queue: 'transform',
+        name: 'engine.echo',
+        data: { text: run },
+      }),
+    ).rejects.toThrow(/transform:engine\.echo не соответствует контракту: message/)
+
+    const id = await JobService.enqueue(systemCtx('test'), {
+      queue: 'transform',
+      name: 'engine.echo',
+      data: { message: run, extra: 'не из контракта' },
+    })
+    // В реестр попадает разобранная нагрузка: лишнего поля нет
+    expect(await JobService.payload(id)).toEqual({ message: run })
   })
 })

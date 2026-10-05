@@ -2,10 +2,13 @@ import {
   type ColumnarAdmin,
   type ColumnarAdminEntry,
   type ColumnarCopy,
+  type ColumnarFieldType,
   ColumnarSettings,
   type ColumnarSettingsPatch,
   type ColumnarStatus,
+  engineJobRef,
   type FieldType,
+  isColumnarFieldType,
 } from '@kchs/contracts'
 import type { CompiledQuery } from '@kchs/query'
 import { and, desc, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm'
@@ -13,6 +16,7 @@ import { z } from 'zod'
 import { authorize, visibleObjectsSql } from '~/kernel/access/authorize.js'
 import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
+import { engineJob } from '~/kernel/jobs/engine.js'
 import { JobService } from '~/kernel/jobs/service.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { SETTING_KEYS, SettingsService } from '~/kernel/settings/service.js'
@@ -26,13 +30,13 @@ import { datasetColumnarCopies, datasets } from '../schema.js'
 import { DatasetService, type DatasetStorage } from './dataset-service.js'
 
 /** Задание сборки копии — очередь движка (ADR-0035). */
-export const COLUMNAR_BUILD_JOB = { queue: 'transform', name: 'columnar.build' } as const
+export const COLUMNAR_BUILD_JOB = engineJobRef('transform:columnar.build')
 
 /** Тайм-аут запроса к движку: как у интерактивного запроса плюс дорога. */
 const ENGINE_MARGIN_MS = 10_000
 
 /** Системные столбцы строки в копии; `_deleted_at` нужен условию компилятора. */
-const SYSTEM_PLAN: ReadonlyArray<{ name: string; type: FieldType }> = [
+const SYSTEM_PLAN: ReadonlyArray<{ name: string; type: ColumnarFieldType }> = [
   { name: '_id', type: 'integer' },
   { name: '_ver', type: 'integer' },
   { name: '_created_at', type: 'datetime' },
@@ -41,34 +45,6 @@ const SYSTEM_PLAN: ReadonlyArray<{ name: string; type: FieldType }> = [
   { name: '_updated_by', type: 'user' },
   { name: '_deleted_at', type: 'datetime' },
 ]
-
-/** Типы полей, которые хранит Parquet: геометрия остаётся в Postgres (ADR-0109). */
-const COLUMNAR_TYPES = new Set<FieldType>([
-  'text',
-  'long_text',
-  'select',
-  'identifier',
-  'url',
-  'email',
-  'phone',
-  'integer',
-  'number',
-  'decimal',
-  'money',
-  'percent',
-  'duration',
-  'boolean',
-  'date',
-  'datetime',
-  'time',
-  'multi_select',
-  'user',
-  'unit',
-  'territory',
-  'object_ref',
-  'file',
-  'json',
-])
 
 /** Ответ движка на запрос по копии. */
 const EngineReply = z.object({
@@ -91,15 +67,21 @@ function copyKey(datasetId: string, version: number): string {
   return `columnar/${datasetId}/v${version}.parquet`
 }
 
-/** Столбцы копии: системные плюс хранимые поля, кроме геометрии и вычисляемых. */
-export function columnPlan(storage: DatasetStorage): Array<{ name: string; type: FieldType }> {
+/**
+ * Столбцы копии: системные плюс хранимые поля, кроме геометрии и вычисляемых.
+ * Что хранит Parquet, говорит реестр хранения полей (`FIELD_STORAGE`, ADR-0190).
+ */
+export function columnPlan(
+  storage: DatasetStorage,
+): Array<{ name: string; type: ColumnarFieldType }> {
   const plan = [...SYSTEM_PLAN]
   const used = new Set(plan.map((column) => column.name))
   for (const field of storage.fields) {
     if (!field.physical || used.has(field.physical)) continue
-    if (!COLUMNAR_TYPES.has(field.type)) continue
+    const type = field.type
+    if (!isColumnarFieldType(type)) continue
     used.add(field.physical)
-    plan.push({ name: field.physical, type: field.type })
+    plan.push({ name: field.physical, type })
   }
   return plan
 }
@@ -113,7 +95,7 @@ export function columnarUnsupported(
 ): Set<string> {
   const missing = new Set<string>()
   for (const field of fields) {
-    if (!field.physical || !COLUMNAR_TYPES.has(field.type)) missing.add(field.key)
+    if (!field.physical || !isColumnarFieldType(field.type)) missing.add(field.key)
   }
   return missing
 }
@@ -245,16 +227,14 @@ export const ColumnarService = {
 
     await db().transaction(async (tx) => {
       const jobId = await JobService.schedule(tx, ctx, {
-        queue: COLUMNAR_BUILD_JOB.queue,
-        name: COLUMNAR_BUILD_JOB.name,
-        data: {
+        ...engineJob('transform:columnar.build', {
           datasetId,
           version: info.currentVersion,
           table: storage.table,
           bucket: buckets.columnar(),
           key,
           columns: plan,
-        },
+        }),
         objectId: datasetId,
         options: { attempts: 2 },
       })

@@ -4,6 +4,7 @@ import {
   type DocumentStatus,
   type DocumentVersionInput,
   type DocumentVersionRecord,
+  engineJobRef,
   isDocumentClosed,
   type PdfStatus,
 } from '@kchs/contracts'
@@ -11,6 +12,7 @@ import { desc, eq, sql } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
 import { directory } from '~/kernel/directory/port.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
+import { engineJob } from '~/kernel/jobs/engine.js'
 import { JobService } from '~/kernel/jobs/service.js'
 import { LinkService } from '~/kernel/links/service.js'
 import { objects } from '~/kernel/objects/schema.js'
@@ -30,7 +32,7 @@ import { DocumentSignatures } from './routes/signatures.js'
 import { ROUTE_ACTIVE_STATUSES } from './routes/state.js'
 
 /** Задание движка: хэш основного файла и, если нужно, PDF-представление (ADR-0080). */
-export const PDF_JOB = { queue: 'render', name: 'document.pdf' } as const
+export const PDF_JOB = engineJobRef('render:document.pdf')
 
 const OFFICE = /\.(docx?|odt|rtf|xlsx?|ods|pptx?|odp)$/i
 const IMAGE = /\.(jpe?g|png|gif|webp|bmp|tiff?)$/i
@@ -200,12 +202,7 @@ export const DocumentVersionService = {
     const pdfFileId = plan === 'convert' ? newId() : null
     const pdfVersionId = plan === 'convert' ? newId() : null
     await JobService.schedule(tx, ctx, {
-      queue: PDF_JOB.queue,
-      name: PDF_JOB.name,
-      objectId: documentId,
-      idempotencyKey: `document.pdf:${id}`,
-      callbackScope: `document-version:${id}`,
-      data: {
+      ...engineJob('render:document.pdf', {
         documentId,
         versionId: id,
         name: main.name,
@@ -228,7 +225,10 @@ export const DocumentVersionService = {
               },
             }
           : {}),
-      },
+      }),
+      objectId: documentId,
+      idempotencyKey: `document.pdf:${id}`,
+      callbackScope: `document-version:${id}`,
       options: { attempts: 3, backoff: { type: 'exponential', delay: 5000 } },
     })
 

@@ -6,6 +6,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { z } from 'zod'
 import {
   USERS_IMPORT_FIELDS,
   USERS_IMPORT_ISSUE_CODES,
@@ -42,6 +43,8 @@ import {
   RENDER_ORIENTATIONS,
   RENDER_OVERLAY_PAGES,
 } from '../src/documents/print.js'
+import { ENGINE_CALLBACKS } from '../src/engine/callbacks.js'
+import { DEMO_PROFILES, ENGINE_JOBS, EngineJobEnvelope } from '../src/engine/jobs.js'
 import { FIELD_SEMANTICS } from '../src/fields/field-def.js'
 import { BOOLEAN_WORDS } from '../src/fields/values.js'
 import { QUEUE_RUNTIME } from '../src/jobs/job.js'
@@ -105,6 +108,42 @@ write('document_render.json', {
   overlayPages: RENDER_OVERLAY_PAGES,
   maxSourceBytes: DOCUMENT_RENDER_MAX_SOURCE_BYTES,
   maxTemplateBytes: DOCUMENT_TEMPLATE_MAX_BYTES,
+})
+/**
+ * JSON Schema того, что движок получает (нагрузка, ответ api), — как её отдаёт
+ * zod после разбора (`output`: значения по умолчанию уже подставлены); того, что
+ * движок отправляет (результат, тело обратного вызова), — как её принимает api
+ * (`input`). Модели движка сверяет с ними `tests/test_engine_contracts.py`.
+ */
+const received = (schema: z.ZodType) => z.toJSONSchema(schema, { io: 'output' })
+const sent = (schema: z.ZodType) => z.toJSONSchema(schema, { io: 'input' })
+
+// Задания движка и его обратные вызовы (ADR-0190)
+write('jobs.json', {
+  envelope: received(EngineJobEnvelope),
+  jobs: Object.fromEntries(
+    Object.entries(ENGINE_JOBS).map(([key, job]) => [
+      key,
+      {
+        queue: job.queue,
+        name: job.name,
+        payload: received(job.payload),
+        result: sent(job.result),
+      },
+    ]),
+  ),
+  callbacks: Object.fromEntries(
+    Object.entries(ENGINE_CALLBACKS).map(([name, callback]) => [
+      name,
+      {
+        method: callback.method,
+        path: callback.path,
+        body: callback.body ? sent(callback.body) : null,
+        reply: received(callback.reply),
+      },
+    ]),
+  ),
+  demoProfiles: DEMO_PROFILES,
 })
 // Хранение полей и слова «да/нет» — один реестр для api, компилятора и движка (ADR-0190)
 write('field_types.json', {

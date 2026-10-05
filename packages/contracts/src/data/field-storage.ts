@@ -1,4 +1,4 @@
-import type { StoredFieldType } from './dataset.js'
+import { STORED_FIELD_TYPES, type StoredFieldType } from './dataset.js'
 
 /**
  * Хранение полей датасета — один реестр для api, компилятора запросов и движка
@@ -103,6 +103,16 @@ export const FIELD_STORAGE: Record<StoredFieldType, FieldStorage> = {
     duckdb: null,
     exportFamily: 'geometry',
   },
+}
+
+/** Типы полей колоночной копии: всё, что хранит Arrow (геометрия остаётся в Postgres). */
+export type ColumnarFieldType = Exclude<StoredFieldType, 'geometry'>
+export const COLUMNAR_FIELD_TYPES = STORED_FIELD_TYPES.filter(
+  (type): type is ColumnarFieldType => FIELD_STORAGE[type].arrow !== null,
+)
+
+export function isColumnarFieldType(type: string): type is ColumnarFieldType {
+  return (COLUMNAR_FIELD_TYPES as readonly string[]).includes(type)
 }
 
 /** Тип столбца Postgres поля; `decimal` — с точностью поля (до 12 знаков). */

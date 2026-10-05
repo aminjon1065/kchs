@@ -1,5 +1,6 @@
 import {
   AdminUserCreateInput,
+  engineJobRef,
   type JobRecord,
   type Locale,
   USERS_IMPORT_FIELDS,
@@ -14,6 +15,7 @@ import {
   type UsersImportRowStatus,
   type UsersImportStartInput,
   type UsersImportStatus,
+  UsersParseJob,
 } from '@kchs/contracts'
 import { createTranslator } from '@kchs/i18n'
 import { UnrecoverableError } from 'bullmq'
@@ -25,6 +27,7 @@ import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
 import { assertCanAssignRoles } from '~/kernel/directory/role-policy.js'
 import { orgUnits, positions, roles, users } from '~/kernel/directory/schema.js'
 import { UserService } from '~/kernel/directory/service.js'
+import { engineJob } from '~/kernel/jobs/engine.js'
 import { JobService } from '~/kernel/jobs/service.js'
 import { fileSource } from '~/modules/files/public.js'
 import { config } from '~/shared/config/index.js'
@@ -45,7 +48,7 @@ import { cacheKeys, redis } from '~/shared/redis/index.js'
  * создание пользователей через `UserService` → отчёт в результате задания.
  * Идентификатор импорта — идентификатор задания разбора.
  */
-export const PARSE_JOB = { queue: 'imports', name: 'users.parse' } as const
+export const PARSE_JOB = engineJobRef('imports:users.parse')
 export const APPLY_JOB = { queue: 'maintenance', name: 'identity.users-import' } as const
 
 /** Временные пароли ждут одноразовой выгрузки не дольше двух часов. */
@@ -57,7 +60,8 @@ const DEFAULT_TIMEZONE = 'Asia/Dushanbe'
 
 const applyKey = (importId: string) => `users-import:${importId}`
 
-const StartPayload = z.object({ mode: UsersImportMode, fileId: z.uuid() })
+/** Что api читает из нагрузки задания разбора, когда движок вернёт строки. */
+const StartPayload = UsersParseJob.pick({ mode: true, fileId: true })
 const ApplyData = z.object({
   importId: z.uuid(),
   mode: UsersImportMode,
@@ -470,16 +474,14 @@ export const UsersImport = {
       throw errors.payloadTooLarge('Файл импорта больше 10 МБ')
     }
     return JobService.enqueue(ctx, {
-      queue: PARSE_JOB.queue,
-      name: PARSE_JOB.name,
-      objectId: source.fileId,
-      data: {
+      ...engineJob('imports:users.parse', {
         mode: input.mode,
         fileId: source.fileId,
         versionId: source.versionId,
         bucket: source.bucket,
         storageKey: source.storageKey,
-      },
+      }),
+      objectId: source.fileId,
       options: { attempts: 3, backoff: { type: 'exponential', delay: 5000 } },
     })
   },

@@ -1,6 +1,7 @@
+import type { DemoProfile } from '@kchs/contracts'
 import { eq, sql } from 'drizzle-orm'
 import { spaces, users } from '~/db-schema.js'
-import { DemoData, type DemoDataResult, type DemoProfile } from '~/modules/data/public.js'
+import { DemoData, type DemoDataResult } from '~/modules/data/public.js'
 // Демо-слои — только для сида: в публичном API модуля gis они замкнули бы цикл data ↔ gis
 import { DemoLayers } from '~/modules/gis/domain/demo-layers.js'
 import { config } from '~/shared/config/index.js'

@@ -2,6 +2,7 @@ import type { Readable } from 'node:stream'
 import { GetObjectCommand } from '@aws-sdk/client-s3'
 import {
   type DatasetFieldInput,
+  engineJobRef,
   IMPORT_FINAL_STATUSES,
   IMPORT_LIMITS,
   ImportAnalysis,
@@ -11,11 +12,13 @@ import {
   type ImportRecord,
   type ImportRunInput,
   type ImportStats,
+  type NormalizedReport,
   type StoredFieldType,
 } from '@kchs/contracts'
 import { and, desc, eq, notInArray, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { publishEvent } from '~/kernel/events/publisher.js'
+import { engineJob } from '~/kernel/jobs/engine.js'
 import { JobService } from '~/kernel/jobs/service.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { buckets, deleteObject, s3 } from '~/kernel/storage/s3.js'
@@ -33,31 +36,11 @@ import type { DatasetGrant } from './dataset-access.js'
 import { DatasetService, type DatasetStorage, defaultSemantic } from './dataset-service.js'
 
 /** Задания импорта (ADR-0046); сравнение с датасетом перед публикацией — ADR-0068. */
-export const NORMALIZE_JOB = { queue: 'imports', name: 'dataset.normalize' } as const
+export const NORMALIZE_JOB = engineJobRef('imports:dataset.normalize')
 export const LOAD_JOB = { queue: 'data', name: 'dataset.load' } as const
 export const COMPARE_JOB = { queue: 'data', name: 'dataset.compare' } as const
 
-const ERROR_SAMPLE_LIMIT = 50
-
-/** Итог нормализации от движка. */
-export const NormalizedReport = z.object({
-  jobRecordId: z.string(),
-  rows: z.number().int().nonnegative(),
-  errors: z.number().int().nonnegative(),
-  normalizedKey: z.string().min(1),
-  errorsKey: z.string().nullable(),
-  errorSample: z
-    .array(
-      z.object({
-        row: z.number().int(),
-        column: z.string(),
-        value: z.string().nullable(),
-        reason: z.string(),
-      }),
-    )
-    .max(ERROR_SAMPLE_LIMIT),
-})
-export type NormalizedReport = z.infer<typeof NormalizedReport>
+const ERROR_SAMPLE_LIMIT = IMPORT_LIMITS.errorSampleRows
 
 type ImportRow = typeof imports.$inferSelect
 
@@ -296,12 +279,9 @@ export const ImportService = {
     const territories = input.mapping.some((item) => item.type === 'territory')
       ? (await territoryIndex()).matchTable()
       : null
+    // Как загружать строки с ошибками (`onError`), решает загрузка воркером — по записи импорта
     const jobId = await JobService.schedule(tx, ctx, {
-      queue: NORMALIZE_JOB.queue,
-      name: NORMALIZE_JOB.name,
-      objectId: datasetId,
-      callbackScope: `import:${id}`,
-      data: {
+      ...engineJob('imports:dataset.normalize', {
         importId: id,
         bucket: source.bucket,
         storageKey: source.storageKey,
@@ -311,13 +291,14 @@ export const ImportService = {
         geometry: input.geometry ?? null,
         geometryField,
         ...(territories ? { territories } : {}),
-        onError: input.onError,
         output: {
           bucket: buckets.files(),
           normalizedKey: `${prefix}/normalized.csv`,
           errorsKey: `${prefix}/errors.csv`,
         },
-      },
+      }),
+      objectId: datasetId,
+      callbackScope: `import:${id}`,
       options: { attempts: 2, backoff: { type: 'exponential', delay: 10_000 } },
     })
     const [row] = await tx

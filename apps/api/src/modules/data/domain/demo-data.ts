@@ -1,6 +1,7 @@
 import {
   DatasetCreateInput,
   type DatasetFieldInput,
+  type DemoProfile,
   ImportMappingItem,
   type ImportRecord,
   ImportRunInput,
@@ -22,8 +23,6 @@ import { SchemaService } from './schema-service.js'
 
 /** seed генератора по умолчанию (`DEFAULT_SEED` движка): те же файлы на любой установке. */
 export const DEMO_SEED = 2026
-export const DEMO_PROFILES = ['small', 'demo'] as const
-export type DemoProfile = (typeof DEMO_PROFILES)[number]
 
 /** Набор манифеста `kchs-demo/1` (ADR-0054): что загрузить и как. */
 const DemoEntry = z.object({

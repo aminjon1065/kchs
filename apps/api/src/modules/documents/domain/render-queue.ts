@@ -1,10 +1,12 @@
 import {
   type Confidentiality,
   type DocumentRenderKind,
+  engineJobRef,
   parseConfidentiality,
 } from '@kchs/contracts'
 import { eq } from 'drizzle-orm'
 import { publishEvent } from '~/kernel/events/publisher.js'
+import { engineJob } from '~/kernel/jobs/engine.js'
 import { JobService } from '~/kernel/jobs/service.js'
 import { objects } from '~/kernel/objects/schema.js'
 import type { Ctx } from '~/shared/context.js'
@@ -16,7 +18,7 @@ import { documentRenders } from '../schema.js'
  * Задание движка рендеров модуля документов (ADR-0085): в данных — только
  * идентификатор рендера; план движок берёт у api, когда начинает работу.
  */
-export const RENDER_JOB = { queue: 'render', name: 'document.render' } as const
+export const RENDER_JOB = engineJobRef('render:document.render')
 
 export type RenderRow = typeof documentRenders.$inferSelect
 
@@ -77,12 +79,10 @@ export async function enqueueRender(tx: Tx, ctx: Ctx, input: EnqueueRenderInput)
     dedupeKey: input.dedupeKey ?? null,
   })
   await JobService.schedule(tx, ctx, {
-    queue: RENDER_JOB.queue,
-    name: RENDER_JOB.name,
+    ...engineJob('render:document.render', { renderId: id }),
     objectId: input.subject.id,
     idempotencyKey: `document.render:${id}`,
     callbackScope: `document-render:${id}`,
-    data: { renderId: id },
     options: { attempts: 3, backoff: { type: 'exponential', delay: 5000 } },
   })
   await publishEvent(tx, ctx, {

@@ -1,10 +1,11 @@
-import { type JobRecord, QUEUE_RUNTIME, type QueueName } from '@kchs/contracts'
+import { engineJobSpec, type JobRecord, QUEUE_RUNTIME, type QueueName } from '@kchs/contracts'
 import { type JobsOptions, Queue } from 'bullmq'
 import { and, desc, eq, inArray, lt, sql } from 'drizzle-orm'
 import type { Ctx } from '~/shared/context.js'
 import { actorId, systemCtx } from '~/shared/context.js'
 import { issueJobToken } from '~/shared/crypto/job-token.js'
 import { db, type Tx } from '~/shared/db/client.js'
+import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { logger } from '~/shared/logger/index.js'
 import { createRedisConnection, redis } from '~/shared/redis/index.js'
@@ -68,6 +69,27 @@ export interface EnqueueInput {
 type JobRow = typeof jobs.$inferSelect
 
 /**
+ * Нагрузка задания движка — по его схеме в `ENGINE_JOBS` (ADR-0190): в реестр
+ * и очередь попадает разобранное значение, расхождение — сбой вызывающего кода,
+ * а не данных пользователя. Задание очереди движка без контракта движок не
+ * исполнит: его обработчик без контракта не регистрируется.
+ */
+function jobData(input: EnqueueInput): Record<string, unknown> {
+  if (QUEUE_RUNTIME[input.queue] !== 'engine') return input.data
+  const spec = engineJobSpec(input.queue, input.name)
+  if (!spec) return input.data
+  const parsed = spec.payload.safeParse(input.data)
+  if (!parsed.success) {
+    const issues = parsed.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+    throw errors.internal(
+      `Нагрузка задания ${input.queue}:${input.name} не соответствует контракту: ${issues.join('; ')}`,
+      parsed.error,
+    )
+  }
+  return parsed.data
+}
+
+/**
  * Реестр заданий в Postgres — для экрана «Процессы» и истории
  * (02-platform-kernel.md §9). BullMQ отвечает за доставку и повторы.
  *
@@ -79,6 +101,7 @@ type JobRow = typeof jobs.$inferSelect
  */
 export const JobService = {
   async schedule(tx: Tx, ctx: Ctx, input: EnqueueInput): Promise<string> {
+    const data = jobData(input)
     if (input.idempotencyKey) {
       const [existing] = await tx
         .select({ id: jobs.id, status: jobs.status })
@@ -107,9 +130,7 @@ export const JobService = {
       initiatorId: actorId(ctx),
       status: 'queued',
       idempotencyKey: input.idempotencyKey ?? null,
-      payload: input.callbackScope
-        ? { ...input.data, callbackScope: input.callbackScope }
-        : input.data,
+      payload: input.callbackScope ? { ...data, callbackScope: input.callbackScope } : data,
       options: options as Record<string, unknown>,
     })
 

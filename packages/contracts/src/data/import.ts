@@ -92,6 +92,8 @@ export const IMPORT_LIMITS = {
   analyzeTimeoutMs: 15_000,
   /** Примеров строк на вид изменения в предпросмотре обновления (ADR-0068). */
   diffSampleRows: 20,
+  /** Первых ошибок нормализации в отчёте движка и в карточке импорта. */
+  errorSampleRows: 50,
 } as const
 
 /** Как читать файл. Пустые значения — автоопределение движком. */
@@ -367,6 +369,15 @@ export const ImportStats = z.object({
 })
 export type ImportStats = z.infer<typeof ImportStats>
 
+/** Ошибка строки файла: номер строки, столбец, значение, код причины. */
+export const ImportErrorSample = z.object({
+  row: z.number().int(),
+  column: z.string(),
+  value: z.string().nullable(),
+  reason: z.string(),
+})
+export type ImportErrorSample = z.infer<typeof ImportErrorSample>
+
 export const ImportRecord = z.object({
   id: Uuid,
   datasetId: Uuid,
@@ -376,14 +387,7 @@ export const ImportRecord = z.object({
   /** Файл ошибок: строка, столбец, значение, причина (CSV). */
   errorsFileId: Uuid.nullable(),
   /** Первые ошибки для показа без скачивания. */
-  errorSample: z.array(
-    z.object({
-      row: z.number().int(),
-      column: z.string(),
-      value: z.string().nullable(),
-      reason: z.string(),
-    }),
-  ),
+  errorSample: z.array(ImportErrorSample),
   jobId: Uuid.nullable(),
   version: z.number().int().nullable(),
   message: z.string().nullable(),

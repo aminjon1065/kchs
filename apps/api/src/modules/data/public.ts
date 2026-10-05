@@ -32,13 +32,7 @@ import { RowService, type RowWriteAccess, type RowWriteOptions } from './domain/
 import { SourceService } from './domain/source-service.js'
 
 export { DatasetGeo, type DatasetGeometry } from './domain/dataset-geo.js'
-export {
-  DEMO_PROFILES,
-  DEMO_SEED,
-  DemoData,
-  type DemoDataResult,
-  type DemoProfile,
-} from './domain/demo-data.js'
+export { DEMO_SEED, DemoData, type DemoDataResult } from './domain/demo-data.js'
 /**
  * Выгрузка таблицы в CSV или XLSX тем же кодом, что экспорт датасета (ADR-0056):
  * столбцы с типами, строки пачками, даты — по часам запросившего. Нужна отчётам

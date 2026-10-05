@@ -1,6 +1,7 @@
+import type { DemoProfile } from '@kchs/contracts'
 import { bootstrapPlatform } from '~/bootstrap.js'
 import { SecurityPolicyService } from '~/kernel/settings/security-policy.js'
-import type { DemoDataResult, DemoProfile } from '~/modules/data/public.js'
+import type { DemoDataResult } from '~/modules/data/public.js'
 import { systemCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { runMigrations } from '~/shared/db/migrate.js'

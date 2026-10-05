@@ -6,6 +6,8 @@ import {
   ChartRecord,
   ChartUpdateInput,
   ColumnarAdmin,
+  ColumnarBuildJob,
+  ColumnarBuildJobResult,
   ColumnarCopy,
   ColumnarSettings,
   ColumnarSettingsPatch,
@@ -54,6 +56,7 @@ import {
   MetricUpdateInput,
   MetricValue,
   MetricValueInput,
+  NormalizedReport,
   type ObjectSummary,
   QUALITY_STATUSES,
   QualityRulesInput,
@@ -95,13 +98,7 @@ import { DatasetAccess } from './domain/dataset-access.js'
 import { DatasetService } from './domain/dataset-service.js'
 import { EXPORT_JOB, type ExportJobData, ExportService } from './domain/export-service.js'
 import { HistoryRetention } from './domain/history-retention.js'
-import {
-  COMPARE_JOB,
-  ImportService,
-  LOAD_JOB,
-  NORMALIZE_JOB,
-  NormalizedReport,
-} from './domain/import-service.js'
+import { COMPARE_JOB, ImportService, LOAD_JOB, NORMALIZE_JOB } from './domain/import-service.js'
 import { MetricService } from './domain/metric-service.js'
 import { PolicyService } from './domain/policy-service.js'
 import { ProfileService } from './domain/profile-service.js'
@@ -1258,22 +1255,25 @@ export function registerDataBackground(): void {
       if (!jobId) return
       const job = await JobService.get(jobId)
       if (job?.queue !== COLUMNAR_BUILD_JOB.queue || job.name !== COLUMNAR_BUILD_JOB.name) return
-      const payload = (await JobService.payload(jobId)) as { datasetId?: string } | null
-      if (!payload?.datasetId) return
+      const payload = ColumnarBuildJob.pick({ datasetId: true }).safeParse(
+        await JobService.payload(jobId),
+      )
+      if (!payload.success) return
+      const { datasetId } = payload.data
       if (event.type !== 'job.finished') {
         await ColumnarService.markFailed(
-          payload.datasetId,
+          datasetId,
           closedReason(event, 'Сбой сборки колоночной копии'),
         )
         return
       }
-      const result = (job.result ?? {}) as Record<string, unknown>
-      await ColumnarService.finish(payload.datasetId, {
-        rows: Number(result.rows ?? 0),
-        size: Number(result.size ?? 0),
-        buildMs: Number(result.buildMs ?? 0),
-        key: String(result.key ?? ''),
-      })
+      // Результат движка — по контракту задания (ADR-0190); расхождение — сбой сборки
+      const result = ColumnarBuildJobResult.safeParse(job.result)
+      if (!result.success) {
+        await ColumnarService.markFailed(datasetId, 'Движок вернул результат не по контракту')
+        return
+      }
+      await ColumnarService.finish(datasetId, result.data)
     },
   })
 

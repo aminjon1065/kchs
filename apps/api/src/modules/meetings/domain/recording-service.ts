@@ -1,10 +1,11 @@
 import type { RecordingRecord, RecordingStatus, TranscriptStatus, UserRef } from '@kchs/contracts'
-import { RECORDING_MIME, TRANSCRIBE_JOB } from '@kchs/contracts'
+import { RECORDING_MIME } from '@kchs/contracts'
 import { and, desc, eq, inArray, sql } from 'drizzle-orm'
 import type { WebhookEvent } from 'livekit-server-sdk'
 import { authorize, hasCapability } from '~/kernel/access/authorize.js'
 import { directory } from '~/kernel/directory/port.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
+import { engineJob } from '~/kernel/jobs/engine.js'
 import { JobService } from '~/kernel/jobs/service.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
@@ -504,17 +505,15 @@ export const RecordingService = {
       // Расшифровку считает движок; без модели распознавания он ответит
       // «функция недоступна», и это не сбой задания (ADR-0092)
       await JobService.schedule(tx, ctx, {
-        queue: TRANSCRIBE_JOB.queue,
-        name: TRANSCRIBE_JOB.name,
-        objectId: recordingId,
-        idempotencyKey: `transcribe:${recordingId}`,
-        callbackScope: `recording:${recordingId}`,
-        data: {
+        ...engineJob('media:media.transcribe', {
           recordingId,
           meetingId: row.meetingId,
           bucket: buckets.files(),
           storageKey,
-        },
+        }),
+        objectId: recordingId,
+        idempotencyKey: `transcribe:${recordingId}`,
+        callbackScope: `recording:${recordingId}`,
       })
     })
   },

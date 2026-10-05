@@ -1,0 +1,2673 @@
+{
+  "$comment": "Сгенерировано из packages/contracts командой `pnpm --filter @kchs/contracts gen:engine`. Не редактировать вручную.",
+  "envelope": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "jobRecordId": {
+        "type": "string",
+        "format": "uuid",
+        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+      },
+      "initiatorId": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "callbackToken": {
+        "type": "string",
+        "minLength": 1
+      },
+      "callbackScope": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "jobRecordId",
+      "initiatorId",
+      "callbackToken"
+    ],
+    "additionalProperties": false
+  },
+  "jobs": {
+    "transform:engine.echo": {
+      "queue": "transform",
+      "name": "engine.echo",
+      "payload": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "additionalProperties": false
+      },
+      "result": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "echo": {
+            "type": "string"
+          },
+          "engineVersion": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "echo",
+          "engineVersion"
+        ]
+      }
+    },
+    "transform:demo.generate": {
+      "queue": "transform",
+      "name": "demo.generate",
+      "payload": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "profile": {
+            "type": "string",
+            "enum": [
+              "small",
+              "demo"
+            ]
+          },
+          "seed": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "prefix": {
+            "type": "string",
+            "minLength": 1
+          },
+          "bucket": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "profile",
+          "seed",
+          "prefix",
+          "bucket"
+        ],
+        "additionalProperties": false
+      },
+      "result": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "manifestKey": {
+            "type": "string"
+          },
+          "reused": {
+            "type": "boolean"
+          },
+          "datasets": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "rows": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "manifestKey",
+          "reused",
+          "datasets"
+        ]
+      }
+    },
+    "transform:columnar.build": {
+      "queue": "transform",
+      "name": "columnar.build",
+      "payload": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "datasetId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "table": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 63
+          },
+          "bucket": {
+            "type": "string",
+            "minLength": 1
+          },
+          "key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          },
+          "columns": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 63
+                },
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "text",
+                    "long_text",
+                    "integer",
+                    "number",
+                    "decimal",
+                    "money",
+                    "percent",
+                    "boolean",
+                    "date",
+                    "datetime",
+                    "time",
+                    "duration",
+                    "select",
+                    "multi_select",
+                    "user",
+                    "unit",
+                    "territory",
+                    "object_ref",
+                    "file",
+                    "url",
+                    "email",
+                    "phone",
+                    "json",
+                    "identifier"
+                  ]
+                }
+              },
+              "required": [
+                "name",
+                "type"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "datasetId",
+          "version",
+          "table",
+          "bucket",
+          "key",
+          "columns"
+        ],
+        "additionalProperties": false
+      },
+      "result": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "rows": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "buildMs": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          }
+        },
+        "required": [
+          "rows",
+          "size",
+          "buildMs",
+          "key"
+        ]
+      }
+    },
+    "render:file.process": {
+      "queue": "render",
+      "name": "file.process",
+      "payload": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "fileId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "versionId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "mime": {
+            "type": "string"
+          },
+          "bucket": {
+            "type": "string",
+            "minLength": 1
+          },
+          "storageKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          },
+          "previewBucket": {
+            "type": "string",
+            "minLength": 1
+          },
+          "previewPrefix": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          }
+        },
+        "required": [
+          "fileId",
+          "versionId",
+          "name",
+          "mime",
+          "bucket",
+          "storageKey",
+          "previewBucket",
+          "previewPrefix"
+        ],
+        "additionalProperties": false
+      },
+      "result": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "skipped": {
+                "type": "string",
+                "const": "too_large"
+              },
+              "size": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "skipped",
+              "size"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "previews": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "textChars": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "previewStatus": {
+                "type": "string",
+                "enum": [
+                  "ready",
+                  "failed",
+                  "unsupported"
+                ]
+              },
+              "textStatus": {
+                "type": "string",
+                "enum": [
+                  "ready",
+                  "failed",
+                  "unsupported"
+                ]
+              }
+            },
+            "required": [
+              "previews",
+              "textChars",
+              "previewStatus",
+              "textStatus"
+            ]
+          }
+        ]
+      }
+    },
+    "render:document.pdf": {
+      "queue": "render",
+      "name": "document.pdf",
+      "payload": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "documentId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "versionId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "mime": {
+            "type": "string"
+          },
+          "bucket": {
+            "type": "string",
+            "minLength": 1
+          },
+          "storageKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          },
+          "convert": {
+            "type": "boolean"
+          },
+          "target": {
+            "type": "object",
+            "properties": {
+              "fileId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "versionId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "bucket": {
+                "type": "string",
+                "minLength": 1
+              },
+              "storageKey": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1024
+              }
+            },
+            "required": [
+              "fileId",
+              "versionId",
+              "bucket",
+              "storageKey"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "documentId",
+          "versionId",
+          "name",
+          "mime",
+          "bucket",
+          "storageKey",
+          "convert"
+        ],
+        "additionalProperties": false
+      },
+      "result": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "skipped": {
+                "type": "string",
+                "const": "too_large"
+              },
+              "size": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "skipped",
+              "size"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "sha256": {
+                "type": "string"
+              },
+              "converted": {
+                "type": "boolean"
+              },
+              "pages": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "sha256",
+              "converted"
+            ]
+          }
+        ]
+      }
+    },
+    "render:document.render": {
+      "queue": "render",
+      "name": "document.render",
+      "payload": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "renderId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": [
+          "renderId"
+        ],
+        "additionalProperties": false
+      },
+      "result": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "skipped": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "skipped"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "placeholders": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "placeholders"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "failed": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "failed"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "html",
+                  "overlay",
+                  "docx",
+                  "inspect"
+                ]
+              },
+              "pages": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "size": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "durationMs": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "kind",
+              "pages",
+              "size",
+              "durationMs"
+            ]
+          }
+        ]
+      }
+    },
+    "render:report.render": {
+      "queue": "render",
+      "name": "report.render",
+      "payload": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": [
+          "runId"
+        ],
+        "additionalProperties": false
+      },
+      "result": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "skipped": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "skipped"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "files": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              },
+              "pages": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "durationMs": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "files",
+              "pages",
+              "durationMs"
+            ]
+          }
+        ]
+      }
+    },
+    "media:media.transcribe": {
+      "queue": "media",
+      "name": "media.transcribe",
+      "payload": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "recordingId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "meetingId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "bucket": {
+            "type": "string",
+            "minLength": 1
+          },
+          "storageKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          }
+        },
+        "required": [
+          "recordingId",
+          "meetingId",
+          "bucket",
+          "storageKey"
+        ],
+        "additionalProperties": false
+      },
+      "result": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "unavailable",
+              "failed"
+            ]
+          },
+          "segments": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "language": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ]
+      }
+    },
+    "imports:users.parse": {
+      "queue": "imports",
+      "name": "users.parse",
+      "payload": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "check",
+              "apply"
+            ]
+          },
+          "fileId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "versionId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "bucket": {
+            "type": "string",
+            "minLength": 1
+          },
+          "storageKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          }
+        },
+        "required": [
+          "mode",
+          "fileId",
+          "versionId",
+          "bucket",
+          "storageKey"
+        ],
+        "additionalProperties": false
+      },
+      "result": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "rows": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "fileError": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "unreadable",
+                  "no_sheet",
+                  "no_header",
+                  "missing_columns",
+                  "duplicate_column",
+                  "too_many_rows",
+                  "unknown_column",
+                  "required",
+                  "invalid_login",
+                  "invalid_email",
+                  "too_long",
+                  "unknown_unit",
+                  "ambiguous_unit",
+                  "inactive_unit",
+                  "unknown_position",
+                  "position_without_unit",
+                  "unknown_role",
+                  "role_forbidden",
+                  "invalid_locale",
+                  "invalid_timezone",
+                  "duplicate_login",
+                  "duplicate_email",
+                  "email_taken",
+                  "create_failed"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "applyJobId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": [
+          "rows",
+          "fileError",
+          "applyJobId"
+        ]
+      }
+    },
+    "imports:dataset.normalize": {
+      "queue": "imports",
+      "name": "dataset.normalize",
+      "payload": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "importId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "bucket": {
+            "type": "string",
+            "minLength": 1
+          },
+          "storageKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          },
+          "fileName": {
+            "type": "string"
+          },
+          "options": {
+            "type": "object",
+            "properties": {
+              "format": {
+                "type": "string",
+                "enum": [
+                  "csv",
+                  "tsv",
+                  "xlsx",
+                  "xls",
+                  "json",
+                  "ndjson",
+                  "geojson",
+                  "shp",
+                  "gpkg",
+                  "kml",
+                  "kmz",
+                  "gpx"
+                ]
+              },
+              "encoding": {
+                "type": "string",
+                "maxLength": 40
+              },
+              "delimiter": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1
+              },
+              "sheet": {
+                "type": "string",
+                "maxLength": 200
+              },
+              "skipRows": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000
+              },
+              "headerRows": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 5
+              },
+              "decimal": {
+                "type": "string",
+                "enum": [
+                  ".",
+                  ","
+                ]
+              },
+              "thousands": {
+                "type": "string",
+                "enum": [
+                  "",
+                  " ",
+                  ",",
+                  ".",
+                  "'"
+                ]
+              },
+              "dateOrder": {
+                "type": "string",
+                "enum": [
+                  "dmy",
+                  "mdy",
+                  "ymd"
+                ]
+              },
+              "layer": {
+                "type": "string",
+                "maxLength": 200
+              },
+              "crs": {
+                "type": "string",
+                "pattern": "^EPSG:\\d{4,6}$"
+              }
+            },
+            "additionalProperties": false
+          },
+          "mapping": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "column": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "fieldKey": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64,
+                  "pattern": "^[a-z_][a-z0-9_]*$"
+                },
+                "label": {
+                  "type": "object",
+                  "properties": {
+                    "ru": {
+                      "type": "string"
+                    },
+                    "tg": {
+                      "type": "string"
+                    },
+                    "en": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "ru"
+                  ],
+                  "additionalProperties": false
+                },
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "text",
+                    "long_text",
+                    "integer",
+                    "number",
+                    "decimal",
+                    "money",
+                    "percent",
+                    "boolean",
+                    "date",
+                    "datetime",
+                    "time",
+                    "select",
+                    "identifier",
+                    "url",
+                    "email",
+                    "phone",
+                    "json",
+                    "geometry",
+                    "territory"
+                  ]
+                },
+                "semantic": {
+                  "type": "string",
+                  "enum": [
+                    "dimension",
+                    "measure",
+                    "identifier",
+                    "time",
+                    "geometry",
+                    "territory",
+                    "category",
+                    "text",
+                    "lookup",
+                    "system"
+                  ]
+                },
+                "format": {
+                  "type": "object",
+                  "properties": {
+                    "precision": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 12
+                    },
+                    "thousands": {
+                      "type": "boolean"
+                    },
+                    "dateFormat": {
+                      "type": "string"
+                    },
+                    "currency": {
+                      "type": "string",
+                      "minLength": 3,
+                      "maxLength": 3
+                    },
+                    "scale": {
+                      "type": "string",
+                      "enum": [
+                        "fraction",
+                        "percent"
+                      ]
+                    },
+                    "prefix": {
+                      "type": "string"
+                    },
+                    "suffix": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "required": {
+                  "default": false,
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "column",
+                "fieldKey",
+                "label",
+                "type",
+                "semantic",
+                "required"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "geometry": {
+            "anyOf": [
+              {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "latlon"
+                      },
+                      "lat": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "lon": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "lat",
+                      "lon"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "wkt"
+                      },
+                      "column": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "column"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "geojson"
+                      },
+                      "column": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "column"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "features"
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "geometryField": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "territories": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "output": {
+            "type": "object",
+            "properties": {
+              "bucket": {
+                "type": "string",
+                "minLength": 1
+              },
+              "normalizedKey": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1024
+              },
+              "errorsKey": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1024
+              }
+            },
+            "required": [
+              "bucket",
+              "normalizedKey",
+              "errorsKey"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "importId",
+          "bucket",
+          "storageKey",
+          "fileName",
+          "options",
+          "mapping",
+          "geometry",
+          "geometryField",
+          "output"
+        ],
+        "additionalProperties": false
+      },
+      "result": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "rows": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "errors": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "normalizedKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          },
+          "errorsKey": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1024
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "loadJobId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "rows",
+          "errors",
+          "normalizedKey",
+          "errorsKey",
+          "loadJobId"
+        ]
+      }
+    }
+  },
+  "callbacks": {
+    "jobStatus": {
+      "method": "POST",
+      "path": "/internal/jobs/:id/status",
+      "body": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "running",
+              "succeeded",
+              "failed"
+            ]
+          },
+          "progress": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "result": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          },
+          "error": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "final": {
+            "default": true,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "reply": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "fileProcessed": {
+      "method": "POST",
+      "path": "/internal/files/:id/processed",
+      "body": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "versionId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "previewStatus": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "failed",
+              "unsupported"
+            ]
+          },
+          "textStatus": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "failed",
+              "unsupported"
+            ]
+          },
+          "pages": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "previews": {
+            "default": [],
+            "maxItems": 500,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "thumbnail",
+                    "page",
+                    "web"
+                  ]
+                },
+                "page": {
+                  "default": null,
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "storageKey": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1024
+                },
+                "width": {
+                  "default": null,
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "height": {
+                  "default": null,
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "mime": {
+                  "default": "image/webp",
+                  "type": "string",
+                  "maxLength": 100
+                }
+              },
+              "required": [
+                "kind",
+                "storageKey"
+              ]
+            }
+          },
+          "text": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lang": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 32
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "versionId",
+          "previewStatus",
+          "textStatus"
+        ]
+      },
+      "reply": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "stale": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok",
+          "stale"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "documentPdf": {
+      "method": "POST",
+      "path": "/internal/documents/versions/:id/pdf",
+      "body": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "failed",
+              "unsupported",
+              "skipped"
+            ]
+          },
+          "sha256": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pdfFileId": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pdfVersionId": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "storageKey": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1024
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "size": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pages": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "reply": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "stale": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok",
+          "stale"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "recordingTranscript": {
+      "method": "POST",
+      "path": "/internal/meetings/recordings/:id/transcript",
+      "body": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "unavailable",
+              "failed"
+            ]
+          },
+          "language": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 16
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "model": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "durationSeconds": {
+            "default": null,
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "segments": {
+            "default": [],
+            "maxItems": 20000,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "start": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "end": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "text": {
+                  "type": "string"
+                },
+                "speaker": {
+                  "default": null,
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "start",
+                "end",
+                "text"
+              ]
+            }
+          },
+          "error": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "reply": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "const": true
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "usersImportParsed": {
+      "method": "POST",
+      "path": "/internal/users-import/:importId/parsed",
+      "body": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "rows": {
+            "maxItems": 5000,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "row": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "values": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string",
+                    "enum": [
+                      "login",
+                      "lastName",
+                      "firstName",
+                      "middleName",
+                      "email",
+                      "phone",
+                      "unit",
+                      "position",
+                      "roles",
+                      "locale",
+                      "timezone"
+                    ]
+                  },
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 1000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "row",
+                "values"
+              ]
+            }
+          },
+          "columns": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "enum": [
+                "login",
+                "lastName",
+                "firstName",
+                "middleName",
+                "email",
+                "phone",
+                "unit",
+                "position",
+                "roles",
+                "locale",
+                "timezone"
+              ]
+            },
+            "additionalProperties": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          "warnings": {
+            "default": [],
+            "maxItems": 200,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string",
+                  "enum": [
+                    "unreadable",
+                    "no_sheet",
+                    "no_header",
+                    "missing_columns",
+                    "duplicate_column",
+                    "too_many_rows",
+                    "unknown_column",
+                    "required",
+                    "invalid_login",
+                    "invalid_email",
+                    "too_long",
+                    "unknown_unit",
+                    "ambiguous_unit",
+                    "inactive_unit",
+                    "unknown_position",
+                    "position_without_unit",
+                    "unknown_role",
+                    "role_forbidden",
+                    "invalid_locale",
+                    "invalid_timezone",
+                    "duplicate_login",
+                    "duplicate_email",
+                    "email_taken",
+                    "create_failed"
+                  ]
+                },
+                "field": {
+                  "default": null,
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "login",
+                        "lastName",
+                        "firstName",
+                        "middleName",
+                        "email",
+                        "phone",
+                        "unit",
+                        "position",
+                        "roles",
+                        "locale",
+                        "timezone"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "params": {
+                  "default": {},
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "type": [
+                      "string",
+                      "number"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "code"
+              ]
+            }
+          },
+          "fileError": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "enum": [
+                      "unreadable",
+                      "no_sheet",
+                      "no_header",
+                      "missing_columns",
+                      "duplicate_column",
+                      "too_many_rows",
+                      "unknown_column",
+                      "required",
+                      "invalid_login",
+                      "invalid_email",
+                      "too_long",
+                      "unknown_unit",
+                      "ambiguous_unit",
+                      "inactive_unit",
+                      "unknown_position",
+                      "position_without_unit",
+                      "unknown_role",
+                      "role_forbidden",
+                      "invalid_locale",
+                      "invalid_timezone",
+                      "duplicate_login",
+                      "duplicate_email",
+                      "email_taken",
+                      "create_failed"
+                    ]
+                  },
+                  "field": {
+                    "default": null,
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "login",
+                          "lastName",
+                          "firstName",
+                          "middleName",
+                          "email",
+                          "phone",
+                          "unit",
+                          "position",
+                          "roles",
+                          "locale",
+                          "timezone"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "params": {
+                    "default": {},
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {
+                      "type": [
+                        "string",
+                        "number"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "code"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "totalRows": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "rows",
+          "columns",
+          "totalRows"
+        ]
+      },
+      "reply": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "applyJobId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": [
+          "applyJobId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "importNormalized": {
+      "method": "POST",
+      "path": "/internal/data/imports/:id/normalized",
+      "body": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "jobRecordId": {
+            "type": "string"
+          },
+          "rows": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "errors": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "normalizedKey": {
+            "type": "string",
+            "minLength": 1
+          },
+          "errorsKey": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "errorSample": {
+            "maxItems": 50,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "row": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "column": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "reason": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "row",
+                "column",
+                "value",
+                "reason"
+              ]
+            }
+          }
+        },
+        "required": [
+          "jobRecordId",
+          "rows",
+          "errors",
+          "normalizedKey",
+          "errorsKey",
+          "errorSample"
+        ]
+      },
+      "reply": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "loadJobId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "loadJobId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "reportRenderStart": {
+      "method": "POST",
+      "path": "/internal/reports/runs/:runId/start",
+      "body": null,
+      "reply": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "const": "render"
+              },
+              "token": {
+                "type": "string"
+              },
+              "printPath": {
+                "type": "string"
+              },
+              "locale": {
+                "type": "string",
+                "enum": [
+                  "ru",
+                  "tg",
+                  "en"
+                ]
+              },
+              "timezone": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "pageSize": {
+                "type": "string",
+                "enum": [
+                  "A4",
+                  "A3"
+                ]
+              },
+              "orientation": {
+                "type": "string",
+                "enum": [
+                  "portrait",
+                  "landscape"
+                ]
+              },
+              "header": {
+                "type": "string"
+              },
+              "footer": {
+                "type": "string"
+              },
+              "labels": {
+                "type": "object",
+                "properties": {
+                  "page": {
+                    "type": "string"
+                  },
+                  "of": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "page",
+                  "of"
+                ],
+                "additionalProperties": false
+              },
+              "bucket": {
+                "type": "string"
+              },
+              "files": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "format": {
+                      "type": "string",
+                      "enum": [
+                        "pdf",
+                        "docx"
+                      ]
+                    },
+                    "key": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1024
+                    },
+                    "fileName": {
+                      "type": "string"
+                    },
+                    "contentType": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "format",
+                    "key",
+                    "fileName",
+                    "contentType"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "status",
+              "token",
+              "printPath",
+              "locale",
+              "timezone",
+              "title",
+              "pageSize",
+              "orientation",
+              "header",
+              "footer",
+              "labels",
+              "bucket",
+              "files"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "const": "skip"
+              },
+              "reason": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "status",
+              "reason"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      }
+    },
+    "reportRendered": {
+      "method": "POST",
+      "path": "/internal/reports/runs/:runId/rendered",
+      "body": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "files": {
+            "minItems": 1,
+            "maxItems": 2,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "format": {
+                  "type": "string",
+                  "enum": [
+                    "pdf",
+                    "docx"
+                  ]
+                },
+                "key": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1024
+                },
+                "size": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "format",
+                "key",
+                "size"
+              ]
+            }
+          },
+          "pages": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "durationMs": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "timings": {
+            "default": {},
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "number"
+            }
+          }
+        },
+        "required": [
+          "files",
+          "pages",
+          "durationMs"
+        ]
+      },
+      "reply": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "documentRenderStart": {
+      "method": "POST",
+      "path": "/internal/documents/renders/:id/start",
+      "body": null,
+      "reply": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "const": "skip"
+              },
+              "reason": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "status",
+              "reason"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "const": "render"
+              },
+              "plan": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "html"
+                      },
+                      "html": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "orientation": {
+                        "type": "string",
+                        "enum": [
+                          "portrait",
+                          "landscape"
+                        ]
+                      },
+                      "footer": {
+                        "type": "string"
+                      },
+                      "labels": {
+                        "type": "object",
+                        "properties": {
+                          "page": {
+                            "type": "string"
+                          },
+                          "of": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "page",
+                          "of"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "html",
+                      "title",
+                      "orientation",
+                      "footer",
+                      "labels"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "overlay"
+                      },
+                      "source": {
+                        "type": "object",
+                        "properties": {
+                          "bucket": {
+                            "type": "string"
+                          },
+                          "storageKey": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "mime": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "bucket",
+                          "storageKey",
+                          "name",
+                          "mime"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "html": {
+                        "type": "string"
+                      },
+                      "pages": {
+                        "type": "string",
+                        "enum": [
+                          "first",
+                          "all"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "source",
+                      "html",
+                      "pages"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "docx"
+                      },
+                      "template": {
+                        "type": "object",
+                        "properties": {
+                          "bucket": {
+                            "type": "string"
+                          },
+                          "storageKey": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "bucket",
+                          "storageKey"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "context": {
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string"
+                        },
+                        "additionalProperties": {}
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "template",
+                      "context"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "inspect"
+                      },
+                      "template": {
+                        "type": "object",
+                        "properties": {
+                          "bucket": {
+                            "type": "string"
+                          },
+                          "storageKey": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "bucket",
+                          "storageKey"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "template"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "target": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "bucket": {
+                        "type": "string"
+                      },
+                      "storageKey": {
+                        "type": "string"
+                      },
+                      "fileName": {
+                        "type": "string"
+                      },
+                      "contentType": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "bucket",
+                      "storageKey",
+                      "fileName",
+                      "contentType"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "status",
+              "plan",
+              "target"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      }
+    },
+    "documentRenderDone": {
+      "method": "POST",
+      "path": "/internal/documents/renders/:id/done",
+      "body": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "failed"
+            ]
+          },
+          "size": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pages": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "placeholders": {
+            "default": null,
+            "anyOf": [
+              {
+                "maxItems": 500,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "reply": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "stale": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok",
+          "stale"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "demoProfiles": [
+    "small",
+    "demo"
+  ]
+}

@@ -1,6 +1,12 @@
-import type { FilePreviews, FileProcessedInput, FileText } from '@kchs/contracts'
+import {
+  engineJobRef,
+  type FilePreviews,
+  type FileProcessedInput,
+  type FileText,
+} from '@kchs/contracts'
 import { and, asc, eq, isNotNull, or, sql } from 'drizzle-orm'
 import { publishEvent } from '~/kernel/events/publisher.js'
+import { engineJob } from '~/kernel/jobs/engine.js'
 import { JobService } from '~/kernel/jobs/service.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { buckets, deleteObject, signedGetUrl } from '~/kernel/storage/s3.js'
@@ -28,7 +34,7 @@ interface ProcessTarget {
 }
 
 /** Задание движка: превью и текст версии файла. */
-export const FILE_PROCESS_JOB = { queue: 'render', name: 'file.process' } as const
+export const FILE_PROCESS_JOB = engineJobRef('render:file.process')
 
 /**
  * Превью и текст файла (09-files.md §3–4): задание движка `render:file.process`
@@ -37,11 +43,7 @@ export const FILE_PROCESS_JOB = { queue: 'render', name: 'file.process' } as con
 export const FileProcessing = {
   async schedule(tx: Tx, ctx: Ctx, target: ProcessTarget): Promise<string> {
     return JobService.schedule(tx, ctx, {
-      ...FILE_PROCESS_JOB,
-      objectId: target.fileId,
-      idempotencyKey: `file.process:${target.versionId}`,
-      callbackScope: `file:${target.fileId}`,
-      data: {
+      ...engineJob('render:file.process', {
         fileId: target.fileId,
         versionId: target.versionId,
         name: target.name,
@@ -50,7 +52,10 @@ export const FileProcessing = {
         storageKey: target.storageKey,
         previewBucket: buckets.previews(),
         previewPrefix: previewPrefix(target.storageKey),
-      },
+      }),
+      objectId: target.fileId,
+      idempotencyKey: `file.process:${target.versionId}`,
+      callbackScope: `file:${target.fileId}`,
       options: { attempts: 3, backoff: { type: 'exponential', delay: 5000 } },
     })
   },
