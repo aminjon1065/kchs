@@ -16,6 +16,7 @@ import { LogOut, Monitor, Moon, Smartphone, Sun } from 'lucide-react'
 import { useState } from 'react'
 import { ApiError, http, setCsrfToken } from '~/shared/api/client.js'
 import { keys, meQuery } from '~/shared/api/queries.js'
+import type { ApiBody } from '~/shared/api/route-types.js'
 import { useAppearance, useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { ApiTokensCard } from './api-tokens-card.js'
@@ -65,7 +66,7 @@ export function ProfileScreen() {
   })
 
   const updateProfile = useMutation({
-    mutationFn: (patch: Record<string, unknown>) => http.patch('/me', { body: patch }),
+    mutationFn: (patch: ApiBody<'PATCH /me'>) => http.patch('/me', { body: patch }),
     onSuccess: () => void client.invalidateQueries({ queryKey: keys.me }),
   })
 

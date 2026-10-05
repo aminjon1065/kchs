@@ -17,6 +17,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp, ListChecks, ListTree, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { ApiError, http } from '~/shared/api/client.js'
+import type { ApiBody } from '~/shared/api/route-types.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
@@ -86,7 +87,7 @@ export function ChecklistSection({ task }: { task: TaskRecord }) {
     onError: fail,
   })
   const patch = useMutation({
-    mutationFn: (input: { itemId: string; body: Record<string, unknown> }) =>
+    mutationFn: (input: { itemId: string; body: ApiBody<'PATCH /tasks/:id/checklist/:itemId'> }) =>
       http.patch('/tasks/:id/checklist/:itemId', {
         params: { id: task.id, itemId: input.itemId },
         body: input.body,

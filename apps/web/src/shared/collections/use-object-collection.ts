@@ -39,7 +39,7 @@ export function useObjectCollection(
     queryKey: ['objects', 'collection', params],
     queryFn: ({ pageParam }) =>
       http.get('/objects', {
-        query: { ...params, cursor: pageParam } as Record<string, string | number | undefined>,
+        query: { ...params, cursor: pageParam },
       }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.nextCursor ?? undefined,

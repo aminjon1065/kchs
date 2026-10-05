@@ -1,5 +1,6 @@
 import type { Bbox, FilterNode, LayerRecord, MapSpec } from '@kchs/contracts'
 import type { MapInstance } from '@kchs/ui'
+import type { ApiQuery } from '~/shared/api/route-types.js'
 import type { FeatureRef } from './context.js'
 
 /**
@@ -108,12 +109,13 @@ export function encodeFilter(filter: FilterNode): string {
 export function featuresQuery(
   options: { bbox?: Bbox | null; filter?: FilterNode | null; time?: MapSpec['time'] },
   limit: number,
-): Record<string, string> {
-  const query: Record<string, string> = { limit: String(limit) }
-  if (options.bbox) query.bbox = options.bbox.map((value) => value.toFixed(6)).join(',')
-  if (options.filter) query.f = encodeFilter(options.filter)
-  if (options.time) query.t = `${options.time.from}/${options.time.to}`
-  return query
+): ApiQuery<'GET /gis/layers/:id/features'> {
+  return {
+    limit: String(limit),
+    ...(options.bbox ? { bbox: options.bbox.map((value) => value.toFixed(6)).join(',') } : {}),
+    ...(options.filter ? { f: encodeFilter(options.filter) } : {}),
+    ...(options.time ? { t: `${options.time.from}/${options.time.to}` } : {}),
+  }
 }
 
 /**

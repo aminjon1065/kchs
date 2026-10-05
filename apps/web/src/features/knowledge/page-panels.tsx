@@ -15,6 +15,7 @@ import { Send, UserCheck } from 'lucide-react'
 import { useId, useState } from 'react'
 import { PrincipalsPicker } from '~/features/documents/principals-picker.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import type { ApiBody } from '~/shared/api/route-types.js'
 import { useT } from '~/shared/i18n.js'
 import { knowledgeKeys } from './queries.js'
 
@@ -183,7 +184,7 @@ export function PageReview({ page }: { page: PageRecord }) {
   const [reviewAt, setReviewAt] = useState(page.reviewAt ?? '')
 
   const update = useMutation({
-    mutationFn: (patch: Record<string, unknown>) =>
+    mutationFn: (patch: ApiBody<'PATCH /pages/:id'>) =>
       http.patch('/pages/:id', { params: { id: page.id }, body: patch }),
     onSuccess: () => {
       toast.show({ title: t('knowledge.review.saved'), tone: 'success' })

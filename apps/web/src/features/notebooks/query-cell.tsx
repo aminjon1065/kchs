@@ -121,9 +121,11 @@ function VisualBody({
     [dataset, plan, params, bindings],
   )
   const specKey = useDebouncedValue(spec ? JSON.stringify(spec) : '', 400)
+  // Отложенная спецификация — та же `spec`: её JSON служит ключом запроса
+  const settled = useMemo((): typeof spec => (specKey ? JSON.parse(specKey) : null), [specKey])
   const result = useQuery({
     queryKey: notebookKeys.cell(notebookId, cellId, specKey),
-    queryFn: () => http.post('/queries/run', { body: { spec: JSON.parse(specKey) } }),
+    queryFn: () => http.post('/queries/run', { body: { spec: settled! } }),
     enabled: Boolean(specKey),
     placeholderData: keepPreviousData,
     retry: false,
@@ -131,12 +133,12 @@ function VisualBody({
   const fields = dataset?.fields ?? NO_FIELDS
   const { columnLabel, labelled } = useExploreLabels(fields, plan, result.data)
   const chartSpec = useMemo<ChartSpec | null>(() => {
-    if (!labelled || !specKey) return null
+    if (!labelled || !settled) return null
     return withChannelLabels(
-      suggestChart(labelled, { query: JSON.parse(specKey) }, chartType ? { type: chartType } : {}),
+      suggestChart(labelled, { query: settled }, chartType ? { type: chartType } : {}),
       labelled,
     )
-  }, [labelled, specKey, chartType])
+  }, [labelled, settled, chartType])
 
   return (
     <div className="flex flex-col gap-3">

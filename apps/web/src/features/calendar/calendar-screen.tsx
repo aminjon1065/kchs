@@ -37,6 +37,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ApiError, http } from '~/shared/api/client.js'
 import { meQuery } from '~/shared/api/queries.js'
+import type { ApiBody } from '~/shared/api/route-types.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
 import { useBusinessDays } from './business-days.js'
@@ -177,7 +178,7 @@ export function CalendarScreen({
   const move = useMutation({
     mutationFn: async ({ item, change, scope }: PendingMove & { scope: EventEditScope }) => {
       if (!item.eventId) return
-      const body: Record<string, unknown> = change.allDay
+      const body: ApiBody<'PATCH /events/:id'> = change.allDay
         ? { startDate: change.startDate, endDate: change.endDate }
         : { startsAt: iso(change.start), endsAt: iso(change.end) }
       if (item.recurring && item.recurrenceId) {

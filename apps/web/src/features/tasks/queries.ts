@@ -23,15 +23,21 @@ export const taskKeys = {
   project: (id: string) => ['object', id, 'project'] as const,
 }
 
-/** Параметры запроса без пустых значений. */
-export function queryOf(query: object): Record<string, string | number | boolean> {
-  const result: Record<string, string | number | boolean> = {}
-  for (const [key, value] of Object.entries(query)) {
-    if (value !== undefined && value !== '' && value !== null) {
-      result[key] = value as string | number | boolean
-    }
-  }
-  return result
+/** Логическое значение в строке запроса — `'true'` или `'false'`: так его читает `z.stringbool`. */
+type QueryValue<V> = V extends boolean ? 'true' | 'false' : V
+
+/**
+ * Параметры экрана → строка запроса маршрута: логические значения — строками, остальное как
+ * есть. Тип сохраняется — компилятор сверяет результат со схемой строки запроса; пустые
+ * значения клиент API не отправляет.
+ */
+export function queryOf<T extends object>(query: T): { [K in keyof T]: QueryValue<T[K]> } {
+  return Object.fromEntries(
+    Object.entries(query).map(([key, value]) => [
+      key,
+      typeof value === 'boolean' ? String(value) : value,
+    ]),
+  ) as { [K in keyof T]: QueryValue<T[K]> }
 }
 
 export const tasksQuery = (query: Partial<TaskListQuery>) =>

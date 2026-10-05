@@ -87,9 +87,11 @@ export function ExploreScreen({
 
   const spec = useMemo(() => exploreSpec(state), [state])
   const specKey = useDebouncedValue(JSON.stringify(spec), 400)
+  // Отложенная спецификация — та же `spec`: её JSON служит ключом запроса
+  const settled = useMemo((): typeof spec => JSON.parse(specKey), [specKey])
   const result = useQuery({
     queryKey: ['explore', specKey],
-    queryFn: () => http.post('/queries/run', { body: { spec: JSON.parse(specKey) } }),
+    queryFn: () => http.post('/queries/run', { body: { spec: settled } }),
     placeholderData: keepPreviousData,
     retry: false,
   })
@@ -100,10 +102,10 @@ export function ExploreScreen({
   const chartSpec = useMemo<ChartSpec | null>(() => {
     if (!labelled) return null
     return withChannelLabels(
-      suggestChart(labelled, { query: JSON.parse(specKey) }, chartType ? { type: chartType } : {}),
+      suggestChart(labelled, { query: settled }, chartType ? { type: chartType } : {}),
       labelled,
     )
-  }, [labelled, specKey, chartType])
+  }, [labelled, settled, chartType])
 
   if (isLoading) {
     return (
@@ -227,7 +229,7 @@ export function ExploreScreen({
                     ? {
                         path: '/queries/export',
                         body: {
-                          spec: JSON.parse(specKey),
+                          spec: settled,
                           name: dataset.name,
                           labels: Object.fromEntries(
                             result.data.fields.map((field) => [

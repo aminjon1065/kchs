@@ -216,7 +216,7 @@ export const orgUnitsQuery = () =>
     select: (data) => data.items,
   })
 
-export const auditQuery = (params: Record<string, string | number | undefined>) =>
+export const auditQuery = (params: ApiQuery<'GET /admin/audit'>) =>
   queryOptions({
     queryKey: keys.audit(params),
     queryFn: () => http.get('/admin/audit', { query: params }),

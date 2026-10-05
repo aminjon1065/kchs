@@ -25,12 +25,13 @@ export function ChoroplethPreview({ params }: { params: ChoroplethParamsInput })
   const locale = useLocale()
   // Классы и палитра меняют только стиль: запрос — без них, чтобы не спрашивать сервер заново
   const request = useDebouncedValue(JSON.stringify({ ...params, style: undefined }), 300)
+  const settled = useMemo((): ChoroplethParamsInput => JSON.parse(request), [request])
   const preview = useQuery({
     queryKey: ['choropleth', 'preview', request],
     queryFn: () =>
       http.post('/analyses/preview', {
         body: {
-          choropleth: { ...JSON.parse(request), style: params.style },
+          choropleth: { ...settled, style: params.style },
         },
       }),
     placeholderData: keepPreviousData,
