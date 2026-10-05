@@ -83,9 +83,11 @@ apps/api/src
 │   ├── storage/            # S3, ключи, подписанные URL
 │   ├── settings/           # системные/пространств/пользовательские настройки
 │   └── i18n/, calendar/, audit/
-├── modules/
-│   ├── identity/ (вход: сессии, второй фактор, SSO)  spaces-ui/  data/  gis/  documents/  files/  tasks/
-│   ├── comms/  meetings/  calendar/  knowledge/  automation/  ai/  admin/
+├── modules/                # слои без колец — ADR-0181, `pnpm --filter @kchs/api deps:layers`
+│   ├── L0: admin  ai  calendar  files  mail  push  telegram  territories
+│   ├── L1: identity (вход: сессии, второй фактор, SSO)  integrations     L2: data
+│   ├── L3: alerts  assistant  forms  tasks          L4: documents  gis
+│   ├── L5: automation  knowledge  meetings  reports  L6: chat
 │   └── <module>/
 │       ├── module.ts       # регистрация: типы объектов, маршруты, подписчики, политики, задания
 │       ├── public.ts       # публичный API модуля для других модулей
@@ -101,6 +103,7 @@ apps/api/src
 Правила границ (проверяются `dependency-cruiser`):
 - `modules/*` могут импортировать `kernel/*`, `shared/*`, `packages/*` и `modules/<other>/public.ts`. Ничего больше из чужих модулей.
 - `kernel/*` не импортирует `modules/*`. Ядро знает о типах объектов только через реестр, который модули заполняют при старте.
+- Между модулями нет колец (ADR-0181): `scripts/module-cycles.mjs` в `pnpm deps:check` сворачивает граф импортов до модулей и падает на компоненте сильной связности. Зависимость, которая замкнула бы кольцо, разрывают портом у нижнего модуля (проекции и поставщик онлайн-встречи календаря, печатные формы документов) или выносом общей части вниз (справочник территорий, ADR-0180).
 - Таблицы модуля — только через его репозитории. Таблица описана у владельца (`kernel/<область>/schema.ts`, `modules/<модуль>/schema.ts`, ADR-0178): чужую схему модуль не импортирует, из таблиц ядра напрямую читает только реестр объектов (людей и оргструктуру — через `directory()`; модуль входа identity — ещё учётную запись, ADR-0179); сборщик всей схемы `src/db-schema.ts` — только для drizzle-kit, сида, CLI и тестов.
 
 ## Как модули взаимодействуют

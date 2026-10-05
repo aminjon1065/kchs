@@ -41,7 +41,7 @@ src/
 ├── main.ts                       # старт по ROLE; graceful shutdown
 ├── app.ts                        # сборка Fastify: плагины, модули, маршруты, ws
 ├── kernel/                       # см. 02-platform-kernel.md; каждый подкаталог: service, repo, schema.ts (свои таблицы), http?, events?, __tests__
-├── modules/<module>/             # module.ts, public.ts, schema.ts (таблицы модуля), domain/, infra/, http/, jobs/, events/, __tests__/
+├── modules/<module>/             # module.ts, public.ts, schema.ts (таблицы модуля), domain/, infra/, http/, jobs/, events/, __tests__/; слои без колец — ADR-0181
 ├── db-schema.ts                  # сборка схем владельцев — только для drizzle-kit, сида, CLI и тестов (ADR-0178)
 ├── shared/
 │   ├── db/                       # drizzle client, помощники столбцов (columns.ts), транзакции, миграции runner
@@ -113,7 +113,7 @@ engine/
 
 - TypeScript strict, `noUncheckedIndexedAccess`; ESM; импорты через алиасы `@kchs/*`.
 - Именование: файлы `kebab-case.ts`, типы/классы `PascalCase`, функции/переменные `camelCase`, БД `snake_case`, события `domain.entity.verb`, i18n-ключи `module.screen.element`.
-- Biome для форматирования/линта; `dependency-cruiser` для границ (`modules/*` → только `kernel`, `shared`, `packages`, `modules/*/public`); `knip` для мёртвого кода.
+- Biome для форматирования/линта; `dependency-cruiser` для границ (`modules/*` → только `kernel`, `shared`, `packages`, `modules/*/public`) и проверка колец между модулями `scripts/module-cycles.mjs` (ADR-0181, слои — `pnpm --filter @kchs/api deps:layers`); `knip` для мёртвого кода.
 - Ошибки: классы `AppError(code, status, details)`; никаких `throw new Error('...')` в доменной логике.
 - Логи: pino, уровни, `requestId`; без персональных данных.
 - Тесты рядом с кодом (`__tests__`), интеграционные в `test/`, e2e в `apps/web/e2e`.
