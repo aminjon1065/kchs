@@ -4,6 +4,7 @@ import { defineRoutes } from '../../http/route-contract.js'
 import { ObjectType } from '../../objects/object.js'
 import { SearchResponse, SimilarObjects, SimilarQuery } from '../../search/search.js'
 
+/** Список через запятую, каждый элемент проверяется схемой — `?types=file,folder`. */
 function csv<T extends z.ZodType<unknown, string>>(item: T) {
   return z
     .string()

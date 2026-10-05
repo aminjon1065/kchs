@@ -113,14 +113,11 @@ import {
 import { SqlRunInput, SqlSchema } from '../../data/sql.js'
 import { defineRoutes } from '../../http/route-contract.js'
 import { IntegrationCheckResult } from '../../integrations/integration.js'
-
-const IdParam = z.object({ id: z.uuid() })
+import { IdParam, RowParams } from '../params.js'
 
 const FieldParams = z.object({ id: z.uuid(), key: z.string().min(1).max(64) })
 
 const PolicyParams = z.object({ id: z.uuid(), policyId: z.uuid() })
-
-const RowParams = z.object({ id: z.uuid(), rowId: z.string().regex(/^\d{1,18}$/) })
 
 const ListQuery = z.object({ limit: z.coerce.number().int().min(1).max(200).default(50) })
 

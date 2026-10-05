@@ -1,4 +1,3 @@
-import { z } from 'zod'
 import { defineRoutes } from '../../http/route-contract.js'
 import {
   AcknowledgeInput,
@@ -6,8 +5,7 @@ import {
   AcknowledgmentRemindResult,
   ObjectAcknowledgments,
 } from '../../objects/acknowledgment.js'
-
-const IdParam = z.object({ id: z.uuid() })
+import { IdParam } from '../params.js'
 
 /**
  * Маршруты ядра «acknowledgments» (ADR-0188). Регистрация —

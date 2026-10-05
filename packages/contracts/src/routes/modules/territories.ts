@@ -13,8 +13,7 @@ import {
   TerritoryTileQuery,
 } from '../../gis/territory.js'
 import { defineRoutes } from '../../http/route-contract.js'
-
-const IdParam = z.object({ id: z.uuid() })
+import { IdParam } from '../params.js'
 
 const TileParams = z.object({
   z: z.coerce.number().int().min(0).max(22),

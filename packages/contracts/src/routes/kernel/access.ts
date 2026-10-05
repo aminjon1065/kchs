@@ -11,8 +11,7 @@ import {
 import { Level } from '../../access/levels.js'
 import { Principal } from '../../access/principals.js'
 import { defineRoutes } from '../../http/route-contract.js'
-
-const IdParam = z.object({ id: z.uuid() })
+import { IdParam } from '../params.js'
 
 /**
  * Маршруты ядра «access» (ADR-0188). Регистрация — `apps/api/src/kernel/access/`: http.ts.

@@ -26,8 +26,7 @@ import {
   PresenceUpdateInput,
 } from '../../chat/chat.js'
 import { defineRoutes } from '../../http/route-contract.js'
-
-const IdParam = z.object({ id: z.uuid() })
+import { IdParam } from '../params.js'
 
 const Ok = z.object({ ok: z.literal(true) })
 

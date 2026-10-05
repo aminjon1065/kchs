@@ -20,12 +20,9 @@ import {
   ReportVersionList,
 } from '../../data/report.js'
 import { defineRoutes } from '../../http/route-contract.js'
-
-const IdParam = z.object({ id: z.uuid() })
+import { IdParam, Ok } from '../params.js'
 
 const RunParam = z.object({ runId: z.uuid() })
-
-const Ok = z.object({ ok: z.boolean() })
 
 /**
  * Маршруты модуля «reports» (ADR-0188). Регистрация — `apps/api/src/modules/reports/`:

@@ -9,8 +9,7 @@ import {
   SpaceMember,
   SpacePatchInput,
 } from '../../spaces/space.js'
-
-const IdParam = z.object({ id: z.uuid() })
+import { IdParam } from '../params.js'
 
 /**
  * Маршруты ядра «spaces» (ADR-0188). Регистрация — `apps/api/src/kernel/spaces/`: http.ts.

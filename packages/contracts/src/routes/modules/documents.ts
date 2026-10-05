@@ -116,12 +116,9 @@ import {
   AcknowledgmentRequestInput,
   AcknowledgmentRequestResult,
 } from '../../objects/acknowledgment.js'
-
-const IdParam = z.object({ id: z.uuid() })
+import { IdParam, Ok } from '../params.js'
 
 const SubjectQuery = z.object({ subjectId: z.uuid() })
-
-const Ok = z.object({ ok: z.boolean() })
 
 /**
  * Маршруты модуля «documents» (ADR-0188). Регистрация —

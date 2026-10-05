@@ -16,8 +16,7 @@ import {
   FormUpdateInput,
 } from '../../forms/form.js'
 import { defineRoutes } from '../../http/route-contract.js'
-
-const IdParam = z.object({ id: z.uuid() })
+import { IdParam } from '../params.js'
 
 const SubmissionParam = z.object({ sid: z.uuid() })
 

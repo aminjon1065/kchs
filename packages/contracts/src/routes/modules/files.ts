@@ -19,8 +19,7 @@ import {
   OfficeTicketQuery,
 } from '../../files/office.js'
 import { defineRoutes } from '../../http/route-contract.js'
-
-const IdParam = z.object({ id: z.uuid() })
+import { IdParam } from '../params.js'
 
 /**
  * Маршруты модуля «files» (ADR-0188). Регистрация — `apps/api/src/modules/files/`:

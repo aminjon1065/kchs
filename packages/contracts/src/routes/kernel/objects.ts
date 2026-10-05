@@ -11,8 +11,7 @@ import {
   ObjectType,
 } from '../../objects/object.js'
 import { ListFieldsResponse, ObjectListQuery } from '../../views/view.js'
-
-const IdParam = z.object({ id: z.uuid() })
+import { IdParam } from '../params.js'
 
 /**
  * Маршруты ядра «objects» (ADR-0188). Регистрация — `apps/api/src/kernel/objects/`: http.ts.

@@ -18,8 +18,7 @@ import {
   PageVersionInput,
   PageVersionRecord,
 } from '../../knowledge/page.js'
-
-const IdParam = z.object({ id: z.uuid() })
+import { IdParam } from '../params.js'
 
 const VersionParams = z.object({ id: z.uuid(), versionId: z.uuid() })
 

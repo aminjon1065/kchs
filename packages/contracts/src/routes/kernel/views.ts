@@ -7,8 +7,7 @@ import {
   NamedWorkspacePatch,
   NamedWorkspaceSummary,
 } from '../../views/workspace.js'
-
-const IdParam = z.object({ id: z.uuid() })
+import { IdParam } from '../params.js'
 
 /**
  * Маршруты ядра «views» (ADR-0188). Регистрация — `apps/api/src/kernel/views/`: http.ts.

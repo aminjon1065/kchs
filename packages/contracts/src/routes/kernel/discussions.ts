@@ -7,8 +7,7 @@ import {
   MessagePostInput,
 } from '../../discussions/message.js'
 import { defineRoutes } from '../../http/route-contract.js'
-
-const IdParam = z.object({ id: z.uuid() })
+import { IdParam } from '../params.js'
 
 /**
  * Маршруты ядра «discussions» (ADR-0188). Регистрация — `apps/api/src/kernel/discussions/`:

@@ -12,8 +12,7 @@ import {
   AlertUpdateInput,
 } from '../../alerts/alert.js'
 import { defineRoutes } from '../../http/route-contract.js'
-
-const IdParam = z.object({ id: z.uuid() })
+import { IdParam } from '../params.js'
 
 /**
  * Маршруты модуля «alerts» (ADR-0188). Регистрация — `apps/api/src/modules/alerts/`: http.ts.

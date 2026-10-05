@@ -42,10 +42,7 @@ import {
   ServiceLayerUpdateInput,
 } from '../../gis/service-layer.js'
 import { defineRoutes } from '../../http/route-contract.js'
-
-const IdParam = z.object({ id: z.uuid() })
-
-const Ok = z.object({ ok: z.boolean() })
+import { IdParam, Ok, RowParams } from '../params.js'
 
 const ArchiveParams = IdParam.extend({
   file: z.string().regex(/^[0-9A-Za-z][0-9A-Za-z._-]{0,63}\.pmtiles$/),
@@ -65,8 +62,6 @@ const GlyphParams = z.object({
 const SpriteParams = z.object({
   file: z.string().regex(/^basemap-(light|dark|muted)(@2x)?\.(json|png)$/),
 })
-
-const RowParams = z.object({ id: z.uuid(), rowId: z.string().regex(/^\d{1,18}$/) })
 
 const EditParams = z.object({ id: z.uuid(), editId: z.string().regex(/^\d{1,18}$/) })
 

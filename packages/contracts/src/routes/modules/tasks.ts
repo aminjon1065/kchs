@@ -46,6 +46,7 @@ import {
   TaskSummary,
   TaskUpdateInput,
 } from '../../tasks/task.js'
+import { IdParam } from '../params.js'
 
 const SourceQuery = z.object({ objectId: z.uuid() })
 
@@ -53,8 +54,6 @@ const RowSourceQuery = z.object({
   datasetId: z.uuid(),
   rowId: z.string().regex(/^\d{1,18}$/),
 })
-
-const IdParam = z.object({ id: z.uuid() })
 
 const ChecklistItemParams = z.object({ id: z.uuid(), itemId: z.uuid() })
 

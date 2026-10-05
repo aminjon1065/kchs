@@ -29,8 +29,7 @@ import {
 } from '../../calendar/event.js'
 import { Timestamp } from '../../common/primitives.js'
 import { defineRoutes } from '../../http/route-contract.js'
-
-const IdParam = z.object({ id: z.uuid() })
+import { IdParam } from '../params.js'
 
 /**
  * Маршруты модуля «calendar» (ADR-0188). Регистрация — `apps/api/src/modules/calendar/`:

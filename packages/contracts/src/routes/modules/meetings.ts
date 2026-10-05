@@ -34,9 +34,9 @@ import {
   TranscriptSegmentEditInput,
   TranscriptSpeakerInput,
 } from '../../meetings/recording.js'
+import { IdParam } from '../params.js'
 
-const IdParam = z.object({ id: z.uuid() })
-
+/** Токен ссылки: `<встреча>.<срок>.<подпись>` — только безопасные символы. */
 const TokenParam = z.object({ token: z.string().min(40).max(200) })
 
 const KnockParams = z.object({ id: z.uuid(), requestId: z.uuid() })

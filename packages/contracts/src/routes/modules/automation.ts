@@ -24,10 +24,7 @@ import {
   RuleVersionList,
 } from '../../automation/api.js'
 import { defineRoutes } from '../../http/route-contract.js'
-
-const IdParam = z.object({ id: z.uuid() })
-
-const Ok = z.object({ ok: z.boolean() })
+import { IdParam, Ok } from '../params.js'
 
 /**
  * Маршруты модуля «automation» (ADR-0188). Регистрация — `apps/api/src/modules/automation/`:
