@@ -459,13 +459,19 @@ export const MeetingService = {
   /** Выход из комнаты: отметка в участниках; встречу это не завершает. */
   async leave(ctx: UserCtx, id: string): Promise<void> {
     const userId = ctx.onBehalfOf ?? ctx.userId
+    // Выйти можно только из видимой встречи (ADR-0186): посторонний получал 200 и
+    // узнавал о встрече, а событие выхода уходило с её названием
+    await authorize(ctx, 'view', id)
     await db().transaction(async (tx) => {
       const row = await load(tx, id)
       if (!row) throw errors.notFound('Встреча')
-      await tx
+      const left = await tx
         .update(meetingParticipants)
         .set({ leftAt: sql`now()` })
         .where(and(eq(meetingParticipants.meetingId, id), eq(meetingParticipants.userId, userId)))
+        .returning({ userId: meetingParticipants.userId })
+      // Не был в комнате — выходить не из чего, события нет
+      if (left.length === 0) return
       await publishEvent(tx, ctx, {
         type: 'meeting.participant_left',
         object: { id, type: 'meeting', spaceId: null, title: row.title },
