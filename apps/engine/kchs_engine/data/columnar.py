@@ -141,8 +141,8 @@ def _value_for_arrow(value: Any, kind: str) -> Any:
 
 
 def _dsn() -> str:
-    config = settings()
-    dsn = config.DATABASE_QUERY_URL or config.DATABASE_URL
+    # Только роль чтения таблиц строк (ADR-0048, ADR-0176): иной роли базы у движка нет
+    dsn = settings().DATABASE_QUERY_URL
     if not dsn:
         raise ColumnarError("не задан DATABASE_QUERY_URL: колоночную копию собрать нечем")
     return dsn
@@ -304,15 +304,31 @@ def _connect(files: dict[str, Path]) -> Any:
         log.warning("columnar.icu", error=str(error))
     con.execute(f"SET threads={max(1, config.ENGINE_COLUMNAR_THREADS)}")
     con.execute(f"SET memory_limit='{max(256, config.ENGINE_COLUMNAR_MEMORY_MB)}MB'")
+    # Песочница (ADR-0176): запрос читает только копии этого запроса и сбрасывает
+    # промежуточное только в каталог кэша — ни других файлов, ни сети, ни
+    # расширений; запертые настройки текстом запроса не вернуть
+    spill = _cache_dir() / "spill"
+    spill.mkdir(exist_ok=True)
+    con.execute(f"SET temp_directory = {_literal(str(spill))}")
+    con.execute(f"SET allowed_directories = [{_literal(str(spill))}]")
+    if files:
+        allowed = ", ".join(_literal(str(path)) for path in files.values())
+        con.execute(f"SET allowed_paths = [{allowed}]")
+    con.execute("SET enable_external_access = false")
+    con.execute("SET lock_configuration = true")
     con.execute(f"CREATE SCHEMA IF NOT EXISTS {ident(SCHEMA)}")
     for table, path in files.items():
         # Путь — имя в кэше движка (шестнадцатеричное), не значение из запроса
-        literal = str(path).replace("'", "''")
         con.execute(
             f"CREATE OR REPLACE VIEW {ident(SCHEMA)}.{ident(table)} AS "
-            f"SELECT * FROM read_parquet('{literal}')"
+            f"SELECT * FROM read_parquet({_literal(str(path))})"
         )
     return con
+
+
+def _literal(value: str) -> str:
+    """Строковый литерал SQL: путь из кэша движка, не значение из запроса."""
+    return "'" + value.replace("'", "''") + "'"
 
 
 def _run(con: Any, sql: str, params: list[Any]) -> tuple[list[str], list[list[Any]]]:

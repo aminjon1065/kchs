@@ -1,10 +1,14 @@
 """Обратная связь с api: движок не пишет метаданные напрямую в базу.
 
 Реестр заданий ведёт ядро (02-platform-kernel.md §9), поэтому статус, прогресс
-и результат сообщаются внутренним маршрутом с сервисным токеном.
+и результат сообщаются внутренним маршрутом. Каждый вызов несёт токен своего
+задания (ADR-0176): его api кладёт в данные задания при передаче в очередь, и он
+открывает только маршруты этого задания и его ресурса. Общий сервисный токен
+внутренние маршруты api не принимают — им движок только проверяет вызовы api.
 """
 
 import asyncio
+from contextvars import ContextVar
 from typing import Any
 
 import httpx
@@ -13,6 +17,11 @@ from kchs_engine.config import settings
 from kchs_engine.logging import log
 
 _TIMEOUT = httpx.Timeout(10.0)
+
+JOB_TOKEN_HEADER = "x-kchs-job-token"
+# Токен выполняемого задания: воркер ставит его на время обработчика, задачи
+# asyncio и потоки `to_thread` получают его вместе с контекстом
+JOB_TOKEN: ContextVar[str | None] = ContextVar("kchs_job_token", default=None)
 # Задержки повторов отчёта о статусе, с: api перезапускается, сеть моргнула.
 # Исчерпанные попытки — не сбой задания: исход api возьмёт из очереди (ADR-0172)
 _RETRY_DELAYS: tuple[float, ...] = (0.5, 1.0, 2.0, 4.0)
@@ -22,18 +31,15 @@ async def _post(path: str, payload: dict[str, Any], *, retry: bool = True) -> bo
     """Отчёт о статусе задания. Сбой сети и ответ 5xx повторяются с задержкой,
     4xx — нет: повтор того же запроса не поможет. Истина — api принял отчёт."""
     config = settings()
-    if not config.INTERNAL_SERVICE_TOKEN:
-        log.debug("api.skip", path=path, reason="нет INTERNAL_SERVICE_TOKEN")
+    token = JOB_TOKEN.get()
+    if not token:
+        log.debug("api.skip", path=path, reason="нет токена задания")
         return False
     delays = _RETRY_DELAYS if retry else ()
     for attempt in range(len(delays) + 1):
         try:
             async with httpx.AsyncClient(base_url=config.KCHS_API_URL, timeout=_TIMEOUT) as client:
-                response = await client.post(
-                    path,
-                    json=payload,
-                    headers={"x-kchs-service-token": config.INTERNAL_SERVICE_TOKEN},
-                )
+                response = await client.post(path, json=payload, headers={JOB_TOKEN_HEADER: token})
             if response.status_code < 400:
                 return True
             log.warning(
@@ -80,15 +86,12 @@ async def report_failure(job_id: str, error: str, *, final: bool = True) -> None
 async def _post_strict(path: str, payload: dict[str, Any]) -> dict[str, Any]:
     """Отчёт, без которого задание не завершено: ошибка api → повтор задания."""
     config = settings()
-    if not config.INTERNAL_SERVICE_TOKEN:
-        raise RuntimeError("INTERNAL_SERVICE_TOKEN не задан: движок не может сообщить результат")
+    token = JOB_TOKEN.get()
+    if not token:
+        raise RuntimeError("у задания нет токена обратного вызова: результат не сообщить")
     timeout = httpx.Timeout(60.0)
     async with httpx.AsyncClient(base_url=config.KCHS_API_URL, timeout=timeout) as client:
-        response = await client.post(
-            path,
-            json=payload,
-            headers={"x-kchs-service-token": config.INTERNAL_SERVICE_TOKEN},
-        )
+        response = await client.post(path, json=payload, headers={JOB_TOKEN_HEADER: token})
     if response.status_code >= 400:
         raise RuntimeError(f"api {path}: {response.status_code} {response.text[:500]}")
     data: dict[str, Any] = response.json()

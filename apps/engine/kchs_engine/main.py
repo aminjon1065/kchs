@@ -30,6 +30,7 @@ from kchs_engine.logging import configure_logging, log
 from kchs_engine.render.report import close_browser
 from kchs_engine.storage import download, upload
 from kchs_engine.telemetry import configure_tracing
+from kchs_engine.tools import broad_access_warnings
 from kchs_engine.users_import import build_template
 from kchs_engine.worker import run_workers
 
@@ -37,6 +38,7 @@ from kchs_engine.worker import run_workers
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     configure_logging(settings().LOG_LEVEL)
+    warn_broad_access()
     stop = asyncio.Event()
     task = asyncio.create_task(run_workers(stop))
     log.info("engine.started", version=__version__)
@@ -47,6 +49,12 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         await task
         await close_browser()
         log.info("engine.stopped")
+
+
+def warn_broad_access() -> None:
+    """Установка до ADR-0176: движок ещё работает с полными правами — видно в журнале."""
+    for warning in broad_access_warnings():
+        log.warning("engine.broad_access", detail=warning)
 
 
 app = FastAPI(title="kchs engine", version=__version__, lifespan=lifespan)

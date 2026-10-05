@@ -15,6 +15,7 @@ from typing import Any
 from kchs_engine.config import settings
 from kchs_engine.contracts import media_transcribe_contract
 from kchs_engine.logging import log
+from kchs_engine.tools import tool_env
 
 # Whisper работает с моно 16 кГц: приводим к нему ffmpeg'ом, а не в Python
 SAMPLE_RATE = 16_000
@@ -103,6 +104,8 @@ def extract_audio(source: Path, target: Path) -> Path:
             "wav",
             str(target),
         ],
+        # Секреты движка ffmpeg не нужны (ADR-0176)
+        env=tool_env(),
         capture_output=True,
         text=True,
         check=False,

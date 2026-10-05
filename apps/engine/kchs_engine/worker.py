@@ -7,7 +7,7 @@ from typing import Any
 from bullmq import Job, Worker
 from bullmq.custom_errors import UnrecoverableError
 
-from kchs_engine.api import report_failure, report_result, report_started
+from kchs_engine.api import JOB_TOKEN, report_failure, report_result, report_started
 from kchs_engine.cancel import is_cancelled, run_cancellable
 from kchs_engine.config import settings
 from kchs_engine.jobs import JOB_HANDLERS, PermanentJobError, registered_queues
@@ -40,10 +40,16 @@ def _make_processor(queue: str) -> Processor:
             raise RuntimeError(f"Нет обработчика для {key}")
 
         record_id = str(job.data.get("jobRecordId") or job.id)
-        # Задание продолжает трассу запроса api, который его поставил (ADR-0167)
-        opts = getattr(job, "opts", None)
-        with job_span(queue, job.name, record_id, int(job.attemptsMade) + 1, opts):
-            return await _run(queue, job, job_handler, record_id)
+        # Обратные вызовы задания — его токеном из данных задания (ADR-0176)
+        callback_token = job.data.get("callbackToken")
+        reset = JOB_TOKEN.set(str(callback_token) if callback_token else None)
+        try:
+            # Задание продолжает трассу запроса api, который его поставил (ADR-0167)
+            opts = getattr(job, "opts", None)
+            with job_span(queue, job.name, record_id, int(job.attemptsMade) + 1, opts):
+                return await _run(queue, job, job_handler, record_id)
+        finally:
+            JOB_TOKEN.reset(reset)
 
     return process
 

@@ -16,6 +16,8 @@ from typing import Literal
 
 from PIL import Image, ImageOps
 
+from kchs_engine.tools import tool_env
+
 Kind = Literal["image", "pdf", "office", "text", "other"]
 Status = Literal["ready", "failed", "unsupported"]
 
@@ -90,12 +92,14 @@ def detect_lang(text: str) -> str | None:
 
 
 def run(args: list[str], timeout: int, cwd: Path | None = None) -> str:
-    """Запуск программы без оболочки (имя файла не интерпретируется)."""
+    """Запуск программы без оболочки (имя файла не интерпретируется) и без
+    секретов движка в окружении (ADR-0176)."""
     try:
         # Аргументы формируем сами, оболочка не используется
         completed = subprocess.run(
             args,
             cwd=cwd,
+            env=tool_env(),
             capture_output=True,
             timeout=timeout,
             check=False,

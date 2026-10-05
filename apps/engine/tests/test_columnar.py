@@ -84,9 +84,7 @@ def _values(name: str, kind: str) -> list[object]:
 
 @pytest.fixture(scope="module")
 def copy_file(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    schema = pa.schema(
-        [pa.field(name, columnar._arrow_type(kind)) for name, kind in PLAN]
-    )
+    schema = pa.schema([pa.field(name, columnar._arrow_type(kind)) for name, kind in PLAN])
     table = pa.table(
         {
             name: pa.array(_values(name, kind), type=columnar._arrow_type(kind))
@@ -115,6 +113,22 @@ TZ = "'Asia/Dushanbe'"
 
 
 def test_copy_reads_as_table(con) -> None:
+    assert run(con, f"SELECT count(*) FROM {TABLE}")[0][0] == ROWS
+
+
+def test_sandbox_reads_only_copies_of_the_query(con, tmp_path: Path) -> None:
+    """Песочница DuckDB (ADR-0176): чужой файл, расширения и настройки недоступны."""
+    import duckdb
+
+    outside = tmp_path / "outside.csv"
+    outside.write_text("secret\n1\n")
+    with pytest.raises(duckdb.PermissionException):
+        run(con, f"SELECT * FROM read_csv('{outside}')")
+    with pytest.raises(duckdb.Error):
+        run(con, "SET enable_external_access = true")
+    with pytest.raises(duckdb.Error):
+        run(con, "INSTALL httpfs")
+    # Копия запроса по-прежнему читается
     assert run(con, f"SELECT count(*) FROM {TABLE}")[0][0] == ROWS
 
 

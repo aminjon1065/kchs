@@ -15,20 +15,29 @@ from kchs_engine.config import settings
 
 @pytest.fixture
 def token(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    monkeypatch.setenv("INTERNAL_SERVICE_TOKEN", "test-token")
+    # Сервисный токен у движка есть, но обратные вызовы несут токен задания (ADR-0176)
+    monkeypatch.setenv("INTERNAL_SERVICE_TOKEN", "test-service-token")
     settings.cache_clear()
     monkeypatch.setattr(api, "_RETRY_DELAYS", (0.0, 0.0, 0.0))
+    reset = api.JOB_TOKEN.set("test-job-token")
     yield
+    api.JOB_TOKEN.reset(reset)
     settings.cache_clear()
 
 
-def fake_api(monkeypatch: pytest.MonkeyPatch, statuses: list[int]) -> list[str]:
+def fake_api(
+    monkeypatch: pytest.MonkeyPatch,
+    statuses: list[int],
+    headers: list[dict[str, str]] | None = None,
+) -> list[str]:
     """api отвечает по очереди кодами `statuses`; возвращает журнал запросов."""
     calls: list[str] = []
     replies = iter(statuses)
 
     def handle(request: httpx.Request) -> httpx.Response:
         calls.append(request.url.path)
+        if headers is not None:
+            headers.append(dict(request.headers))
         return httpx.Response(next(replies), json={"ok": True})
 
     real_client = httpx.AsyncClient
@@ -52,6 +61,27 @@ async def test_отчёт_не_повторяется_при_ошибке_зап
     calls = fake_api(monkeypatch, [400, 200])
     assert await api._post("/api/v1/internal/jobs/x/status", {"status": "succeeded"}) is False
     assert len(calls) == 1
+
+
+async def test_отчёт_несёт_токен_задания_а_не_сервисный(
+    token: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sent: list[dict[str, str]] = []
+    fake_api(monkeypatch, [200, 200], sent)
+    assert await api._post("/api/v1/internal/jobs/x/status", {"status": "running"}) is True
+    await api.report_file_processed("f", {"status": "ready"})
+    for request in sent:
+        assert request[api.JOB_TOKEN_HEADER] == "test-job-token"
+        assert "x-kchs-service-token" not in request
+
+
+async def test_без_токена_задания_отчёт_не_уходит(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls = fake_api(monkeypatch, [200])
+    assert api.JOB_TOKEN.get() is None
+    assert await api._post("/api/v1/internal/jobs/x/status", {"status": "running"}) is False
+    with pytest.raises(RuntimeError, match="токена"):
+        await api.report_file_processed("f", {"status": "ready"})
+    assert calls == []
 
 
 async def test_прогресс_не_повторяется(token: None, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -167,3 +197,35 @@ async def test_исход_уходит_результатом_очереди(mon
     # Тот же исход — и отчётом api, и возвращаемым значением задания BullMQ
     assert result == {"echo": "rec-1"}
     assert reported == [{"echo": "rec-1"}]
+
+
+async def test_обработчик_видит_токен_своего_задания(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Токен обратных вызовов — из данных задания, на время его обработки (ADR-0176)."""
+    seen: list[str | None] = []
+
+    async def handler(_data: dict[str, Any]) -> dict[str, Any]:
+        seen.append(api.JOB_TOKEN.get())
+        return {}
+
+    async def never(_job_id: str) -> bool:
+        return False
+
+    async def noop(*_args: Any, **_kwargs: Any) -> None:
+        return None
+
+    monkeypatch.setattr(worker, "is_cancelled", never)
+    monkeypatch.setattr(cancel, "is_cancelled", never)
+    monkeypatch.setattr(worker, "report_started", noop)
+    monkeypatch.setattr(worker, "report_result", noop)
+    monkeypatch.setitem(worker.JOB_HANDLERS, "transform:test.token", handler)
+    job = SimpleNamespace(
+        name="test.token",
+        id="bull-9",
+        data={"jobRecordId": "rec-9", "callbackToken": "token-9"},
+        attemptsMade=0,
+        attempts=1,
+        opts=None,
+    )
+    await worker._make_processor("transform")(job, "lock")  # type: ignore[arg-type]
+    assert seen == ["token-9"]
+    assert api.JOB_TOKEN.get() is None

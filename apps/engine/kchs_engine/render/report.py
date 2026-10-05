@@ -27,6 +27,7 @@ from kchs_engine.contracts import report_render_contract
 from kchs_engine.jobs.registry import PermanentJobError, handler
 from kchs_engine.logging import log
 from kchs_engine.storage import upload
+from kchs_engine.tools import tool_env
 
 if TYPE_CHECKING:
     from playwright.async_api import Browser, Playwright
@@ -86,7 +87,9 @@ async def shared_browser() -> Browser:
         if _browser is None or not _browser.is_connected():
             if _playwright is None:
                 _playwright = await async_playwright().start()
-            _browser = await _playwright.chromium.launch(args=CHROMIUM_ARGS)
+            # Страница печати показывает данные пользователей: секретов движка у
+            # браузера нет (ADR-0176)
+            _browser = await _playwright.chromium.launch(args=CHROMIUM_ARGS, env=tool_env())
             log.info("render.browser_started", version=_browser.version)
         return _browser
 
