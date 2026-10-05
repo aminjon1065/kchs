@@ -46,14 +46,20 @@ src/
 ├── shared/
 │   ├── db/                       # drizzle client, помощники столбцов (columns.ts), транзакции, миграции runner
 │   ├── config/                   # env-схема (zod), типизированный конфиг
-│   ├── http/                     # ошибки problem+json, auth-хуки, пагинация, rate limit
+│   ├── http/                     # регистратор маршрутов по таблице контрактов, ошибки problem+json, auth-хуки, пагинация, rate limit
 │   ├── logger/ telemetry/ errors/ utils/
 ├── drizzle/                      # миграции и снимки drizzle-kit (схема — у владельцев таблиц, ADR-0178)
 └── test/                         # интеграционные тесты (testcontainers), фикстуры
 ```
 
 Правила:
-- Маршрут = `route(schema, handler)` с обязательным `auth`: `{action, objectParam}`, `{capability}`, `'public'`, `'session'` (без параметров пути) или, если в пути объект, а проверяет сервис, — `{delegated, objectType | resource}`, `{owned}`, `{open}` с причиной (ADR-0186); регистрация без `auth` или `'session'` с параметром пути падает на старте.
+- Маршрут = `route({ route: 'GET /tasks/:id', auth, handler })` с обязательным `auth`: `{action, objectParam}`, `{capability}`, `'public'`, `'session'` (без параметров пути) или, если в пути объект, а проверяет сервис, — `{delegated, objectType | resource}`, `{owned}`, `{open}` с причиной (ADR-0186); регистрация без `auth` или `'session'` с параметром пути падает на старте.
+- `route` — ключ таблицы маршрутов (ADR-0188). Метод, путь и схемы берутся из записи таблицы, в api остаются политика, обработчик, теги и описание:
+  - ядро и модули — `packages/contracts/src/routes/kernel/<область>.ts` и `modules/<модуль>.ts`;
+  - движок процессов — `packages/process/src/routes.ts`;
+  - полная таблица — `shared/http/route-table.ts`.
+
+  Маршрут без записи не регистрируется, а запись без маршрута не даёт api запуститься. Схемы zod маршрутов в api не живут.
 - Сервисы принимают `ctx: UserCtx` первым аргументом; `SystemCtx` — только для worker/engine-заданий и явно логируется.
 - Репозитории — единственное место SQL модуля; кросс-модульные выборки для списков — через ядро (`objects`) и `public.ts`.
 - Таблица описана у владельца (ADR-0178, согласовано владельцем продукта 05.10.2026): область ядра — `kernel/<область>/schema.ts`, модуль — `modules/<модуль>/schema.ts`. Модуль импортирует только свою схему; схема модуля может ссылаться на чужую таблицу внешним ключом. Сборщик `src/db-schema.ts` — только для drizzle-kit, сида, CLI и тестов.
