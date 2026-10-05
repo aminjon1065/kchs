@@ -29,9 +29,11 @@ const CACHE_PATTERNS = [
 async function cacheKeysInDurable(): Promise<string[]> {
   const found: string[] = []
   for (const pattern of CACHE_PATTERNS) found.push(...(await redis().keys(pattern)))
-  // Наборы принципалов — кэш, отметка их версии — долговечная
+  // Наборы принципалов — кэш, отметки версии и поколений — долговечные (ADR-0177)
   for (const key of await redis().keys('kchs:principals:*')) {
-    if (key !== 'kchs:principals:version') found.push(key)
+    if (key !== 'kchs:principals:version' && !key.startsWith('kchs:principals:gen:')) {
+      found.push(key)
+    }
   }
   // Прогресс задания — кэш, флаг отмены — долговечный
   for (const key of await redis().keys('kchs:job:*')) {
@@ -122,6 +124,8 @@ describe('кэш Redis недоступен', () => {
 
     expect(await cacheKeysInDurable()).toEqual([])
     expect(await redis().get('kchs:principals:version')).toBeTruthy()
+    // Поколение набора — долговечная отметка: недоступный кэш её не теряет
+    expect(await redis().get(`kchs:principals:gen:${fx.users.member.id}`)).toBeTruthy()
   })
 
   it('«Здоровье системы» показывает кэш отдельной строкой', async () => {

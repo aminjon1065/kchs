@@ -44,7 +44,7 @@ api и worker в контейнерах получают её адрес чер�
 | `kchs:telegram:link:*`, `kchs:telegram:pending:*`, `kchs:meeting:knocks:*` | долговечный | состояние сценария пользователя, а не кэш |
 | `kchs:rl:*`, `kchs-rl:*` (плагин частоты) | долговечный | защита от подбора: вытеснение сбросило бы счётчик |
 | `kchs:ai:usage:*` | долговечный | квота ИИ за сутки |
-| `kchs:principals:version`, `kchs:territories:version` | долговечный | отметки версий кэшей — ниже |
+| `kchs:principals:version`, `kchs:principals:gen:*`, `kchs:territories:version` | долговечный | отметки версий и поколений кэшей — ниже, поколения — ADR-0177 |
 | `kchs:principals:<user>` — набор принципалов | кэш | пересчитывается, сверяется с версией |
 | `kchs:inbox:counts:*` | кэш | пересчитываются из базы, живут 60 с |
 | `kchs:presence:*` | кэш | присутствие; пропажа — «никто не смотрит» до следующей отметки |
