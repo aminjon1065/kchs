@@ -467,7 +467,7 @@ export function registerFilesBackground(): void {
   })
 }
 
-export function scheduleFilesJobs(): void {
+export function declareFilesSchedules(): void {
   declareSchedule({
     queue: 'maintenance',
     name: 'files.process-pending',

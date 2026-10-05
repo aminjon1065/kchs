@@ -186,7 +186,7 @@ export function registerMaintenanceJobs(): void {
  * (14-automation-integrations.md §2): экран «Расписания» показывает их
  * ближайший запуск и историю, а администратор может выключить проверку.
  */
-export function scheduleMaintenance(): void {
+export function declareMaintenanceSchedules(): void {
   declareSchedule({
     queue: 'maintenance',
     name: 'inbox.wake-snoozed',

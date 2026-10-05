@@ -67,13 +67,16 @@ export function registerIntegrationsBackground(): void {
  * Журнал доставок чистится раз в сутки: записи старше 30 дней удаляются. Через
  * единый планировщик (ADR-0096) — задание видно и выключается на экране «Расписания».
  */
-export async function scheduleIntegrationsJobs(): Promise<void> {
+export function declareIntegrationsSchedules(): void {
   declareSchedule({
     queue: 'maintenance',
     name: PRUNE_JOB,
     pattern: '30 3 * * *',
     labelKey: 'schedules.jobs.webhooksPrune',
   })
+}
+
+export async function scheduleIntegrationsJobs(): Promise<void> {
   // Прежняя повторяемая запись (до ADR-0171) снимается — иначе очистка шла бы дважды
   await queue('maintenance').removeRepeatable(
     PRUNE_JOB,

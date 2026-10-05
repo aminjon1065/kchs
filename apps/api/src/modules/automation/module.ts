@@ -144,7 +144,7 @@ export function registerAutomationBackground(): void {
 }
 
 /** Расписания правил и обслуживание журнала — при старте воркера. */
-export async function scheduleAutomationJobs(): Promise<void> {
+export function declareAutomationSchedules(): void {
   declareSchedule({
     queue: 'maintenance',
     name: 'automation.prune',
@@ -158,6 +158,9 @@ export async function scheduleAutomationJobs(): Promise<void> {
     labelKey: 'schedules.jobs.automationResume',
   })
   registerEntityScheduleProvider(ruleScheduleProvider)
+}
+
+export async function scheduleAutomationJobs(): Promise<void> {
   const count = await syncRuleSchedules()
   logger().info({ rules: count }, 'расписания правил автоматизации синхронизированы')
 }

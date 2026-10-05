@@ -2,9 +2,9 @@
 /**
  * Браузерная проверка установки в контейнерах (infra/scripts/verify-stack.sh):
  * вход через web (Caddy со сборкой SPA и CSP), «Мой день», загрузка файла
- * напрямую в S3, превью, которое делает движок, и живое обновление открытой
- * вкладки из worker (api и worker здесь — разные контейнеры). Любое нарушение
- * CSP — ошибка.
+ * напрямую в S3, превью, которое делает движок, расписания на экране api и живое
+ * обновление открытой вкладки из worker (api и worker здесь — разные контейнеры).
+ * Любое нарушение CSP — ошибка.
  *
  *   STACK_URL=http://localhost:8080 STACK_ADMIN_PASSWORD=… \
  *   STACK_S3_ORIGIN=http://localhost:9000 node scripts/stack-check.mjs
@@ -105,6 +105,18 @@ await step('превью от движка из S3 во вкладке файл�
   await page.goto(`${BASE}/o/${fileId}`)
   await page.getByRole('tab', { name: new RegExp(fileName) }).waitFor({ timeout: 20_000 })
   await page.locator(`img[src^="${S3_ORIGIN}"]`).first().waitFor({ timeout: 90_000 })
+})
+
+// Расписания ставит в очередь worker, а экран «Расписания» отвечает из api: в api
+// они должны быть объявлены так же, как в worker
+await step('«Расписания» видят задания ядра и модулей и в роли api', async () => {
+  const response = await page.request.get(`${BASE}/api/v1/schedules`)
+  if (!response.ok()) throw new Error(`статус ${response.status()}`)
+  const keys = new Set(((await response.json()).items ?? []).map((item) => item.key))
+  const missing = ['maintenance:outbox.prune', 'maintenance:tasks.deadlines'].filter(
+    (key) => !keys.has(key),
+  )
+  if (missing.length > 0) throw new Error(`нет расписаний: ${missing.join(', ')}`)
 })
 
 // Подписчики событий работают в worker, сокеты — в api: сообщение доходит до

@@ -126,12 +126,14 @@ import {
   registerNotebookType,
 } from './notebook-module.js'
 import {
+  declarePipelineSchedules,
   registerPipelineBackground,
   registerPipelineObjectType,
   registerPipelineRoutes,
   schedulePipelineJobs,
 } from './pipeline-module.js'
 import {
+  declareSourceSchedules,
   registerSourceBackground,
   registerSourceObjectType,
   registerSourceRoutes,
@@ -1293,13 +1295,18 @@ export function registerDataBackground(): void {
 }
 
 /** Расписания пайплайнов и внешних источников при старте воркера (ADR-0106, ADR-0107). */
-export async function scheduleDataJobs(): Promise<void> {
+export function declareDataSchedules(): void {
   declareSchedule({
     queue: 'maintenance',
     name: 'data.history-prune',
     pattern: '37 3 * * *',
     labelKey: 'schedules.jobs.dataHistoryPrune',
   })
+  declarePipelineSchedules()
+  declareSourceSchedules()
+}
+
+export async function scheduleDataJobs(): Promise<void> {
   await schedulePipelineJobs()
   await scheduleSourceJobs()
 }

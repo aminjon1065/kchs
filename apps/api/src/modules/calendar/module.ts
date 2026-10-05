@@ -219,7 +219,7 @@ export function registerCalendarBackground(): void {
  * Расписания модуля и календари пространств подразделений, созданных до
  * появления модуля (при старте воркера, идемпотентно).
  */
-export async function scheduleCalendarJobs(): Promise<void> {
+export function declareCalendarSchedules(): void {
   declareSchedule({
     queue: 'notify',
     name: 'calendar.reminders',
@@ -244,6 +244,9 @@ export async function scheduleCalendarJobs(): Promise<void> {
     pattern: '*/30 * * * *',
     labelKey: 'schedules.jobs.calendarSubscriptions',
   })
+}
+
+export async function scheduleCalendarJobs(): Promise<void> {
   await ensureUnitCalendars()
 }
 

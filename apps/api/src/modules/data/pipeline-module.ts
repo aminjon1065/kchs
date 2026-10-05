@@ -248,7 +248,10 @@ export function registerPipelineBackground(): void {
 }
 
 /** Планировщики пайплайнов при старте воркера и порт экрана «Расписания». */
-export async function schedulePipelineJobs(): Promise<void> {
+export function declarePipelineSchedules(): void {
   registerEntityScheduleProvider(pipelineScheduleProvider)
+}
+
+export async function schedulePipelineJobs(): Promise<void> {
   await syncPipelineSchedules()
 }

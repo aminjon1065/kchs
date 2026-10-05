@@ -204,7 +204,7 @@ export function registerMeetingsBackground(): void {
 }
 
 /** Регулярные задания встреч — через единый планировщик ядра (ADR-0096). */
-export function scheduleMeetingsJobs(): void {
+export function declareMeetingsSchedules(): void {
   declareSchedule({
     queue: 'maintenance',
     name: 'meetings.recordings-retention',

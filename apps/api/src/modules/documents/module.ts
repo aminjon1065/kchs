@@ -396,7 +396,7 @@ export function registerDocumentsRoutes(route: RouteRegistrar): void {
  * внутри задания — второго планировщика для этого не нужно (ADR-0096).
  * Очистка очереди «Из почты» по сроку хранения — раз в сутки ночью (ADR-0136).
  */
-export function scheduleDocumentsJobs(): void {
+export function declareDocumentsSchedules(): void {
   declareSchedule({
     queue: 'maintenance',
     name: MAIL_POLL_JOB,

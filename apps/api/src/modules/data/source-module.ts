@@ -290,7 +290,10 @@ export function registerSourceBackground(): void {
   })
 }
 
-export async function scheduleSourceJobs(): Promise<void> {
+export function declareSourceSchedules(): void {
   registerEntityScheduleProvider(sourceScheduleProvider)
+}
+
+export async function scheduleSourceJobs(): Promise<void> {
   await syncSourceSchedules()
 }

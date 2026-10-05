@@ -21,10 +21,9 @@ registerLifecycle()
 const bus = await import('../src/kernel/events/index.js')
 const { registerKernelSubscribers } = await import('../src/kernel/subscribers.js')
 const { startWorkers, stopWorkers } = await import('../src/kernel/jobs/runner.js')
-const { registerAutomationBackground, scheduleAutomationJobs } = await import(
-  '../src/modules/automation/module.js'
-)
-const { scheduleMaintenance } = await import('../src/kernel/jobs/maintenance.js')
+const { declareAutomationSchedules, registerAutomationBackground, scheduleAutomationJobs } =
+  await import('../src/modules/automation/module.js')
+const { declareMaintenanceSchedules } = await import('../src/kernel/jobs/maintenance.js')
 const { RuleRuns } = await import('../src/modules/automation/domain/runs.js')
 const { systemCtx } = await import('../src/shared/context.js')
 
@@ -136,7 +135,8 @@ beforeAll(async () => {
   bus.clearSubscribers()
   registerKernelSubscribers()
   registerAutomationBackground()
-  scheduleMaintenance()
+  declareMaintenanceSchedules()
+  declareAutomationSchedules()
   await scheduleAutomationJobs()
 
   startWorkers()

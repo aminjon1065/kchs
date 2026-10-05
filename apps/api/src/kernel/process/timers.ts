@@ -183,7 +183,7 @@ export function registerProcessJobs(): void {
 }
 
 /** Обход таймеров по расписанию: раз в пять минут (единый планировщик). */
-export function scheduleProcessTimers(): void {
+export function declareProcessSchedules(): void {
   declareSchedule({
     queue: 'process-timers',
     name: SWEEP_JOB,

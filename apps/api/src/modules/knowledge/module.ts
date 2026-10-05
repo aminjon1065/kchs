@@ -102,12 +102,7 @@ export function registerKnowledgeBackground(): void {
  * Индекс чанков и расписание пересмотра: индекс — как у сообщений (ADR-0090),
  * его недоступность не мешает старту; проход по срокам — раз в сутки утром.
  */
-export async function scheduleKnowledgeJobs(): Promise<void> {
-  try {
-    await ensurePageChunkIndex()
-  } catch (error) {
-    logger().warn({ err: error, module: 'knowledge' }, 'индекс чанков страниц не готов')
-  }
+export function declareKnowledgeSchedules(): void {
   // Единый планировщик (ADR-0096): проход виден на экране «Расписания» и выключается там
   declareSchedule({
     queue: 'maintenance',
@@ -115,6 +110,14 @@ export async function scheduleKnowledgeJobs(): Promise<void> {
     pattern: '10 9 * * *',
     labelKey: 'schedules.jobs.knowledgeReview',
   })
+}
+
+export async function scheduleKnowledgeJobs(): Promise<void> {
+  try {
+    await ensurePageChunkIndex()
+  } catch (error) {
+    logger().warn({ err: error, module: 'knowledge' }, 'индекс чанков страниц не готов')
+  }
   // Прежняя повторяемая запись (до ADR-0171) снимается — иначе пересмотр шёл бы дважды
   await queue('maintenance').removeRepeatable(
     'knowledge.review',

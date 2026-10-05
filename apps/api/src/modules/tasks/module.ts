@@ -317,7 +317,7 @@ export function registerTasksBackground(): void {
 }
 
 /** Расписание: проход по срокам каждые 15 минут — идемпотентен по ключу задания. */
-export function scheduleTasksJobs(): void {
+export function declareTasksSchedules(): void {
   declareSchedule({
     queue: 'maintenance',
     name: 'tasks.deadlines',

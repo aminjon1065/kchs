@@ -118,7 +118,7 @@ export function registerAlertsBackground(): void {
  * Расписание проверки — единый планировщик ядра (ADR-0096): один тик на все
  * алерты, срок каждого считается по его собственному выражению cron.
  */
-export function scheduleAlertJobs(): void {
+export function declareAlertSchedules(): void {
   declareSchedule({
     queue: 'maintenance',
     name: 'alerts.check',

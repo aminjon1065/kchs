@@ -13,9 +13,8 @@ registerLifecycle()
 const bus = await import('../src/kernel/events/index.js')
 const { registerKernelSubscribers } = await import('../src/kernel/subscribers.js')
 const { startWorkers, stopWorkers } = await import('../src/kernel/jobs/runner.js')
-const { registerAutomationBackground, scheduleAutomationJobs } = await import(
-  '../src/modules/automation/module.js'
-)
+const { declareAutomationSchedules, registerAutomationBackground, scheduleAutomationJobs } =
+  await import('../src/modules/automation/module.js')
 
 let fx: TestContext
 let previousSubscribers: Subscriber[] = []
@@ -92,6 +91,7 @@ beforeAll(async () => {
   bus.clearSubscribers()
   registerKernelSubscribers()
   registerAutomationBackground()
+  declareAutomationSchedules()
   await scheduleAutomationJobs()
   startWorkers()
   bus.startConsumers({ blockMs: 100, retryIdleMs: 300, claimIntervalMs: 100 })

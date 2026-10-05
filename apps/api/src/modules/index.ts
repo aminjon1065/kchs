@@ -11,18 +11,20 @@ import type { RouteRegistrar } from '~/shared/http/route.js'
 import { registerAdminRoutes } from './admin/module.js'
 import { registerAiFeature, registerAiRoutes } from './ai/module.js'
 import {
+  declareAlertSchedules,
   registerAlertObjectTypes,
   registerAlertRoutes,
   registerAlertsBackground,
-  scheduleAlertJobs,
 } from './alerts/module.js'
 import {
+  declareAutomationSchedules,
   registerAutomationBackground,
   registerAutomationObjectTypes,
   registerAutomationRoutes,
   scheduleAutomationJobs,
 } from './automation/module.js'
 import {
+  declareCalendarSchedules,
   registerCalendarBackground,
   registerCalendarObjectTypes,
   registerCalendarRoutes,
@@ -36,6 +38,7 @@ import {
   scheduleChatJobs,
 } from './chat/module.js'
 import {
+  declareDataSchedules,
   registerDataBackground,
   registerDataObjectTypes,
   registerDataRoutes,
@@ -43,38 +46,40 @@ import {
   upgradeDataStorage,
 } from './data/module.js'
 import {
+  declareDocumentsSchedules,
   registerDocumentsBackground,
   registerDocumentsObjectTypes,
   registerDocumentsRoutes,
-  scheduleDocumentsJobs,
 } from './documents/module.js'
 import {
+  declareFilesSchedules,
   registerFilesBackground,
   registerFilesObjectTypes,
   registerFilesPages,
   registerFilesRoutes,
-  scheduleFilesJobs,
 } from './files/module.js'
 import {
+  declareFormsSchedules,
   registerFormObjectTypes,
   registerFormRoutes,
   registerFormsBackground,
-  scheduleFormsJobs,
 } from './forms/module.js'
 import { registerGisBackground, registerGisObjectTypes, registerGisRoutes } from './gis/module.js'
 import {
+  declareIdentitySchedules,
   registerIdentityBackground,
   registerIdentityRoutes,
-  scheduleIdentityJobs,
 } from './identity/module.js'
 import { AuthService, DirectoryQueries, OrgService, UserService } from './identity/public.js'
 import {
+  declareIntegrationsSchedules,
   registerIntegrationsBackground,
   registerIntegrationsObjectTypes,
   registerIntegrationsRoutes,
   scheduleIntegrationsJobs,
 } from './integrations/module.js'
 import {
+  declareKnowledgeSchedules,
   registerKnowledgeBackground,
   registerKnowledgeObjectTypes,
   registerKnowledgeRoutes,
@@ -83,10 +88,10 @@ import {
 import { connectKnowledgeSemantics } from './knowledge/semantic-source.js'
 import { registerMailBackground, registerMailModuleRoutes } from './mail/module.js'
 import {
+  declareMeetingsSchedules,
   registerMeetingsBackground,
   registerMeetingsObjectTypes,
   registerMeetingsRoutes,
-  scheduleMeetingsJobs,
 } from './meetings/module.js'
 import { registerPushChannel, registerPushRoutes } from './push/module.js'
 import {
@@ -96,10 +101,10 @@ import {
   scheduleReportsJobs,
 } from './reports/module.js'
 import {
+  declareTasksSchedules,
   registerTasksBackground,
   registerTasksObjectTypes,
   registerTasksRoutes,
-  scheduleTasksJobs,
 } from './tasks/module.js'
 import {
   registerTelegramChannel,
@@ -228,20 +233,34 @@ export function registerModulesBackground(): void {
   registerAlertsBackground()
 }
 
+/**
+ * Расписания модулей объявляются во всех ролях: экран «Расписания» отвечает из
+ * api, а в очередь их ставит worker (`syncSchedules`). Здесь — только объявления
+ * без обращений к базе и очередям.
+ */
+export function declareModuleSchedules(): void {
+  declareFilesSchedules()
+  declareIdentitySchedules()
+  declareTasksSchedules()
+  declareDocumentsSchedules()
+  declareCalendarSchedules()
+  declareKnowledgeSchedules()
+  declareIntegrationsSchedules()
+  declareAutomationSchedules()
+  declareFormsSchedules()
+  declareMeetingsSchedules()
+  declareAlertSchedules()
+  declareDataSchedules()
+}
+
+/** Работа модулей при старте worker: синхронизация расписаний сущностей, служебные записи. */
 export async function scheduleModuleJobs(): Promise<void> {
-  scheduleFilesJobs()
-  scheduleIdentityJobs()
-  scheduleTasksJobs()
-  scheduleDocumentsJobs()
   await scheduleReportsJobs()
   await scheduleCalendarJobs()
   await scheduleChatJobs()
   await scheduleKnowledgeJobs()
   await scheduleIntegrationsJobs()
   await scheduleAutomationJobs()
-  scheduleFormsJobs()
-  scheduleMeetingsJobs()
-  scheduleAlertJobs()
   await scheduleDataJobs()
 }
 

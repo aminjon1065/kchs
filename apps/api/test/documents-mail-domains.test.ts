@@ -260,9 +260,9 @@ describe('срок хранения очереди «Из почты»', () => {
 
   it('очистка — задание обслуживания единого планировщика раз в сутки', async () => {
     const { listSchedules } = await import('../src/kernel/schedules/index.js')
-    const { scheduleDocumentsJobs } = await import('../src/modules/documents/module.js')
+    const { declareDocumentsSchedules } = await import('../src/modules/documents/module.js')
     if (!listSchedules().some((item) => item.name === 'documents.mail-purge')) {
-      scheduleDocumentsJobs()
+      declareDocumentsSchedules()
     }
     expect(listSchedules().find((item) => item.name === 'documents.mail-purge')).toMatchObject({
       queue: 'maintenance',

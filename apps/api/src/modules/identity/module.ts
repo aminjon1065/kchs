@@ -62,7 +62,7 @@ export function registerIdentityBackground(): void {
 }
 
 /** Регулярные задания модуля — через единый планировщик ядра (ADR-0096). */
-export function scheduleIdentityJobs(): void {
+export function declareIdentitySchedules(): void {
   declareSchedule({
     queue: 'maintenance',
     name: 'identity.prune',

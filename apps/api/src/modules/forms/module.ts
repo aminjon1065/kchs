@@ -96,7 +96,7 @@ export function registerFormsBackground(): void {
 }
 
 /** Регулярные задания форм — через единый планировщик ядра (ADR-0096). */
-export function scheduleFormsJobs(): void {
+export function declareFormsSchedules(): void {
   declareSchedule({
     queue: 'maintenance',
     name: 'forms.control',

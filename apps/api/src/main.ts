@@ -9,15 +9,16 @@ import {
   stopConsumers,
   stopDispatcher,
 } from './kernel/events/index.js'
-import { registerMaintenanceJobs, scheduleMaintenance } from './kernel/jobs/maintenance.js'
+import { declareMaintenanceSchedules, registerMaintenanceJobs } from './kernel/jobs/maintenance.js'
 import { startWorkers, stopWorkers } from './kernel/jobs/runner.js'
 import { registerKernelMetrics } from './kernel/metrics.js'
-import { registerProcessJobs, scheduleProcessTimers } from './kernel/process/timers.js'
+import { declareProcessSchedules, registerProcessJobs } from './kernel/process/timers.js'
 import { startRealtime, stopRealtime } from './kernel/realtime/gateway.js'
 import { syncSchedules } from './kernel/schedules/index.js'
 import { registerKernelSubscribers } from './kernel/subscribers.js'
 import { AuthService } from './modules/identity/public.js'
 import {
+  declareModuleSchedules,
   registerModulesBackground,
   scheduleModuleJobs,
   startModuleServices,
@@ -61,6 +62,11 @@ async function main(): Promise<void> {
   registerMaintenanceJobs()
   registerProcessJobs()
   registerModulesBackground()
+  // Регулярные задания объявляются в едином планировщике во всех ролях: экран
+  // «Расписания» отвечает из api, а в очередь их ставит worker (ADR-0096)
+  declareMaintenanceSchedules()
+  declareProcessSchedules()
+  declareModuleSchedules()
 
   const runsApi = env.ROLE === 'api' || env.ROLE === 'all'
   const runsWorker = env.ROLE === 'worker' || env.ROLE === 'all'
@@ -86,13 +92,11 @@ async function main(): Promise<void> {
   }
 
   if (runsWorker) {
+    // Группы потребителей — до первой публикации: события, накопленные в outbox за
+    // время обновления, попадают и в потоки, которых до него не было (ADR-0171)
+    await startConsumers()
     startDispatcher()
-    startConsumers()
     startWorkers()
-    // Регулярные задания объявляются в едином планировщике и ставятся одним
-    // проходом: экран «Расписания» видит их все (ADR-0096)
-    scheduleMaintenance()
-    scheduleProcessTimers()
     await scheduleModuleJobs()
     await syncSchedules()
     startModuleServices()
