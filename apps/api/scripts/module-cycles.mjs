@@ -21,9 +21,7 @@ const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
  * ребра которого больше нет, — тоже ошибка: список не должен устаревать.
  */
 const ALLOWED_EDGES = [
-  // Кольцо files ↔ identity (подписи пользователей и проверка второго фактора в files)
-  // снимает перенос справочника пользователей и оргструктуры в ядро
-  { from: 'files', to: 'identity', until: 'ADR-0179' },
+  // { from: 'модуль', to: 'модуль', until: 'ADR-NNNN' } — ребро, которое снимет часть этапа
 ]
 
 const moduleOf = (file) => /^src\/modules\/([^/]+)\//.exec(file ?? '')?.[1] ?? null
