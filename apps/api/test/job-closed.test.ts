@@ -13,9 +13,7 @@ registerLifecycle()
 
 const bus = await import('../src/kernel/events/index.js')
 const { JobService } = await import('../src/kernel/jobs/service.js')
-const { JOB_CANCELLED_REASON, jobClosedSubscriber } = await import(
-  '../src/kernel/jobs/outcomes.js'
-)
+const { JOB_CANCELLED_REASON, jobClosedSubscriber } = await import('../src/kernel/jobs/outcomes.js')
 const { registerModulesBackground } = await import('../src/modules/index.js')
 const { files } = await import('../src/modules/files/schema.js')
 const { systemCtx } = await import('../src/shared/context.js')
