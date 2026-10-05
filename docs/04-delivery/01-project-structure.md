@@ -53,7 +53,7 @@ src/
 ```
 
 Правила:
-- Маршрут = `route(schema, handler)` с обязательным `auth: {action, objectParam}` или `auth: 'public'|'session'`; регистрация без `auth` падает на старте.
+- Маршрут = `route(schema, handler)` с обязательным `auth`: `{action, objectParam}`, `{capability}`, `'public'`, `'session'` (без параметров пути) или, если в пути объект, а проверяет сервис, — `{delegated, objectType | resource}`, `{owned}`, `{open}` с причиной (ADR-0186); регистрация без `auth` или `'session'` с параметром пути падает на старте.
 - Сервисы принимают `ctx: UserCtx` первым аргументом; `SystemCtx` — только для worker/engine-заданий и явно логируется.
 - Репозитории — единственное место SQL модуля; кросс-модульные выборки для списков — через ядро (`objects`) и `public.ts`.
 - Таблица описана у владельца (ADR-0178, согласовано владельцем продукта 05.10.2026): область ядра — `kernel/<область>/schema.ts`, модуль — `modules/<модуль>/schema.ts`. Модуль импортирует только свою схему; из таблиц ядра напрямую — реестр объектов (`kernel/objects/schema.ts`) и, до переноса сервисов справочника в ядро, `kernel/directory/schema.ts`; схема модуля может ссылаться на чужую таблицу внешним ключом. Сборщик `src/db-schema.ts` — только для drizzle-kit, сида, CLI и тестов. Проверяет dependency-cruiser (`pnpm deps:check`, база известных нарушений — `.dependency-cruiser-known-violations.json`).
