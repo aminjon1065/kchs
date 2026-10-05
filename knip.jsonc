@@ -34,7 +34,13 @@
       "ignoreDependencies": ["tailwindcss"]
     },
     "packages/contracts": {
-      "entry": ["src/index.ts", "scripts/*.ts", "scripts/*.mjs", "scripts/__tests__/*.test.ts"],
+      "entry": [
+        "src/index.ts",
+        "src/routes/index.ts",
+        "scripts/*.ts",
+        "scripts/*.mjs",
+        "scripts/__tests__/*.test.ts"
+      ],
       "project": ["src/**/*.ts"]
     },
     "packages/chart-spec": {

@@ -50,14 +50,18 @@ export function splitRouteKey(key: string): { method: HttpMethod; url: string } 
   return { method: match[1] as HttpMethod, url: match[2] as string }
 }
 
-/** Объединение таблиц модулей: ключ, описанный дважды, — ошибка. */
+/**
+ * Объединение таблиц модулей: ключ, описанный дважды, — ошибка. Тип результата —
+ * пересечение таблиц; у большой таблицы его стоит назвать явно
+ * (`export const apiRoutes: ApiRoutes = …`), иначе он не поместится в объявления.
+ */
 export function mergeRouteTables<const T extends readonly RouteTable[]>(
   ...tables: T
 ): UnionToIntersection<T[number]> {
   const merged: Record<string, RouteContract> = {}
   for (const table of tables) {
     for (const [key, contract] of Object.entries(table)) {
-      if (key in merged) throw new Error(`Маршрут ${key} описан в двух таблицах`)
+      if (Object.hasOwn(merged, key)) throw new Error(`Маршрут ${key} описан в двух таблицах`)
       merged[key] = contract
     }
   }
@@ -95,12 +99,14 @@ type Input<S> = S extends z.ZodType ? z.input<S> : undefined
  * Параметры пути, которые передаёт клиент: по схеме маршрута, а без неё — по
  * именам сегментов `:имя` пути.
  */
-export type RouteParams<C extends RouteContract, K extends string = string> =
-  C['params'] extends z.ZodType
-    ? z.input<C['params']>
-    : [PathParamNames<RoutePath<K>>] extends [never]
-      ? undefined
-      : { [Name in PathParamNames<RoutePath<K>>]: string }
+export type RouteParams<
+  C extends RouteContract,
+  K extends string = string,
+> = C['params'] extends z.ZodType
+  ? z.input<C['params']>
+  : [PathParamNames<RoutePath<K>>] extends [never]
+    ? undefined
+    : { [Name in PathParamNames<RoutePath<K>>]: string }
 
 /** Строка запроса, которую передаёт клиент. */
 export type RouteQuery<C extends RouteContract> = Input<C['query']>

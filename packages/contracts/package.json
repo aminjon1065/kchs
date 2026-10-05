@@ -9,6 +9,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./events": "./src/events/index.ts",
+    "./routes": "./src/routes/index.ts",
     "./snapshot-format": "./scripts/snapshot-format.mjs"
   },
   "scripts": {
