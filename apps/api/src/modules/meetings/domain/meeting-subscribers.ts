@@ -1,27 +1,31 @@
-import type { EventEnvelope } from '@kchs/contracts'
+import type { EventEnvelope, EventPayload, MeetingChange } from '@kchs/contracts'
 import { directory } from '~/kernel/directory/port.js'
 import { registerSubscriber } from '~/kernel/events/bus.js'
 import { NotificationService } from '~/kernel/notifications/service.js'
 import { emitToRoom, emitToUser } from '~/kernel/realtime/gateway.js'
 
+/** Что случилось с комнатой — по событию встречи (протокол realtime, ADR-0192). */
+const MEETING_CHANGE: Record<string, MeetingChange> = {
+  'meeting.started': 'started',
+  'meeting.ended': 'ended',
+  'meeting.participant_joined': 'participant_joined',
+  'meeting.participant_left': 'participant_left',
+  'meeting.secretary_changed': 'secretary_changed',
+}
+
 /**
  * Доставка событий встречи в realtime (ADR-0091, 16-api-and-events.md §3).
  * Медиапоток идёт мимо api, поэтому шлюз сообщает клиенту только факты:
- * входящий звонок приглашённому, отказ — звонящему, смена состава и
- * завершение — всем, у кого открыта комната.
+ * входящий звонок приглашённому, смена состава и завершение — всем, у кого
+ * открыта комната. Отказ от звонка (`call.declined`) остаётся событием шины:
+ * сообщения звонящему нет, пока его некому показать (ADR-0192).
  */
 export function registerMeetingRealtime(): void {
   registerSubscriber({
     name: 'meetings-realtime',
     types: [
       'call.incoming',
-      'call.declined',
-      'meeting.started',
-      'meeting.ended',
-      'meeting.participant_joined',
-      'meeting.participant_left',
-      // Секретарь сменился: карточка и протокол у открывших обновляются (N30)
-      'meeting.secretary_changed',
+      ...Object.keys(MEETING_CHANGE),
       // Расшифровку поправили: у открывших запись она перечитывается (ADR-0162)
       'transcript.edited',
     ],
@@ -32,7 +36,6 @@ export function registerMeetingRealtime(): void {
 async function handleMeetingEvent(event: EventEnvelope): Promise<void> {
   const meetingId = event.object?.id
   if (!meetingId) return
-  const payload = (event.payload ?? {}) as Record<string, unknown>
 
   if (event.type === 'transcript.edited') {
     // Объект события — запись: её вкладка подписана на свою комнату
@@ -47,46 +50,30 @@ async function handleMeetingEvent(event: EventEnvelope): Promise<void> {
   }
 
   if (event.type === 'call.incoming') {
-    await ringInvited(event, meetingId, payload)
-    return
-  }
-
-  if (event.type === 'call.declined') {
-    const callerId = typeof payload.callerId === 'string' ? payload.callerId : null
-    if (callerId) {
-      emitToUser(callerId, 'call.declined', { meetingId, userId: payload.userId ?? null })
-    }
+    await ringInvited(event, meetingId, event.payload as EventPayload<'call.incoming'>)
     return
   }
 
   // Состав и состояние комнаты: у кого встреча открыта, тот видит это сразу.
   // Комната объекта — та же, что у обсуждения и присутствия: права проверены
-  // при подписке
-  emitToRoom(`object:${meetingId}`, 'meeting.changed', {
-    meetingId,
-    change: event.type.slice('meeting.'.length),
-  })
+  // при подписке. Секретарь сменился — карточка и протокол обновляются (N30)
+  const change = MEETING_CHANGE[event.type]
+  if (change) emitToRoom(`object:${meetingId}`, 'meeting.changed', { meetingId, change })
 }
 
 /** Входящий звонок: экран у приглашённого и уведомление в списке. */
 async function ringInvited(
   event: EventEnvelope,
   meetingId: string,
-  payload: Record<string, unknown>,
+  payload: EventPayload<'call.incoming'>,
 ): Promise<void> {
-  const userIds = Array.isArray(payload.userIds) ? (payload.userIds as string[]) : []
+  const { userIds, callerId, conversationId } = payload
   if (userIds.length === 0) return
-  const callerId = typeof payload.callerId === 'string' ? payload.callerId : null
   const caller = callerId ? ((await directory().refs([callerId])).get(callerId) ?? null) : null
   const title = event.object?.title ?? ''
   for (const userId of userIds) {
     if (userId === callerId) continue
-    emitToUser(userId, 'call.incoming', {
-      meetingId,
-      title,
-      caller,
-      conversationId: payload.conversationId ?? null,
-    })
+    emitToUser(userId, 'call.incoming', { meetingId, title, caller, conversationId })
   }
   // Звонок срочен: уведомление приходит сразу, минуя дайджест
   await NotificationService.notify({

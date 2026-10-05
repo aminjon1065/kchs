@@ -165,7 +165,7 @@ export const NotificationService = {
         .returning({ id: notifications.id })
       if (!row) continue
 
-      emitToUser(userId, 'notification.new', { id: String(row.id) })
+      emitToUser(userId, 'notification.new', { id: String(row.id), aggregated: false })
       await completeDelivery(userId, row.id, modes, immediate)
     }
   },

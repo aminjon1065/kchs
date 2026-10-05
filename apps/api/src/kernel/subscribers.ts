@@ -1,4 +1,4 @@
-import type { EventEnvelope } from '@kchs/contracts'
+import type { EventEnvelope, EventPayload } from '@kchs/contracts'
 import { systemCtx } from '~/shared/context.js'
 import { logger } from '~/shared/logger/index.js'
 import { redis } from '~/shared/redis/index.js'
@@ -127,16 +127,9 @@ export function registerKernelSubscribers(): void {
           emitToRoom(`object:${event.object.id}`, 'object.removed', { id: event.object.id })
           break
         case 'message.posted': {
-          const payload = {
-            conversationId: event.payload.conversationId,
-            messageId: event.payload.messageId,
-            objectId: event.object.id,
-          }
-          emitToRoom(
-            `conversation:${event.payload.conversationId as string}`,
-            'message.posted',
-            payload,
-          )
+          const { conversationId, messageId } = event.payload as EventPayload<'message.posted'>
+          const payload = { conversationId, messageId, objectId: event.object.id }
+          emitToRoom(`conversation:${conversationId}`, 'message.posted', payload)
           // Открытая вкладка объекта обновляет обсуждение и ленту активности
           emitToRoom(`object:${event.object.id}`, 'message.posted', payload)
           break
@@ -145,26 +138,21 @@ export function registerKernelSubscribers(): void {
         case 'message.deleted':
         case 'message.reacted': {
           // Правка, удаление и реакции — соседи перечитывают обсуждение
-          const payload = {
-            conversationId: event.payload.conversationId,
-            messageId: event.payload.messageId,
-            objectId: event.object.id,
-          }
-          emitToRoom(
-            `conversation:${event.payload.conversationId as string}`,
-            'message.updated',
-            payload,
-          )
+          const { conversationId, messageId } = event.payload as EventPayload<'message.edited'>
+          const payload = { conversationId, messageId, objectId: event.object.id }
+          emitToRoom(`conversation:${conversationId}`, 'message.updated', payload)
           emitToRoom(`object:${event.object.id}`, 'message.updated', payload)
           break
         }
         case 'message.read': {
           // Отметки «прочитано» в открытой беседе; в комнату объекта не идёт —
           // обсуждению во вкладке объекта чужое прочтение не нужно (ADR-0161)
-          emitToRoom(`conversation:${event.payload.conversationId as string}`, 'message.read', {
-            conversationId: event.payload.conversationId,
-            messageId: event.payload.messageId,
-            userId: event.payload.userId,
+          const { conversationId, messageId, userId } =
+            event.payload as EventPayload<'message.read'>
+          emitToRoom(`conversation:${conversationId}`, 'message.read', {
+            conversationId,
+            messageId,
+            userId,
           })
           break
         }

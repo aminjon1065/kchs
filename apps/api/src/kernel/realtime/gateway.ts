@@ -1,8 +1,20 @@
-import type { AdminModeState, Confidentiality } from '@kchs/contracts'
+import {
+  type AdminModeState,
+  type Confidentiality,
+  RT_SERVER_EVENTS,
+  type RtClientEvent,
+  RtPresenceTarget,
+  type RtServerEvent,
+  type RtServerEvents,
+  type RtServerPayload,
+  RtTypingSignal,
+  type SubscribeAck,
+  SubscribeInput,
+} from '@kchs/contracts'
 import { createAdapter } from '@socket.io/redis-adapter'
 import type { FastifyInstance } from 'fastify'
 import type { Redis } from 'ioredis'
-import { Server as SocketServer } from 'socket.io'
+import { type DefaultEventsMap, Server as SocketServer } from 'socket.io'
 import { z } from 'zod'
 import { config } from '~/shared/config/index.js'
 import type { UserCtx } from '~/shared/context.js'
@@ -12,10 +24,25 @@ import { authorize } from '../access/authorize.js'
 import { getPrincipalSet } from '../access/principal-set.js'
 import { buildUserCtx } from '../context-builder.js'
 import { JobService } from '../jobs/service.js'
+import { JOB_SIGNAL_CHANNEL, JobSignal } from '../jobs/signal.js'
 import { canSeeJob } from '../jobs/visibility.js'
 import { markLeft, markViewing, type Viewer } from './presence.js'
 
-let io: SocketServer | null = null
+interface SocketData {
+  ctx: UserCtx
+}
+
+/**
+ * Что шлёт клиент (протокол — ADR-0192). До разбора схемой контракта нагрузка — `unknown`:
+ * браузеру шлюз не доверяет.
+ */
+type ClientMessages = {
+  [E in RtClientEvent]: (payload: unknown, ack?: (result: SubscribeAck) => void) => void
+}
+
+type Gateway = SocketServer<ClientMessages, RtServerEvents, DefaultEventsMap, SocketData>
+
+let io: Gateway | null = null
 /** Подписки шлюза на каналы Redis — закрываются вместе с ним. */
 let channels: Redis[] = []
 
@@ -28,18 +55,23 @@ let channels: Redis[] = []
  */
 export const RELAY_CHANNEL = 'rt:relay'
 
+/**
+ * Команда ретрансляции. Событие — только из протокола: нагрузку проверил тип `emitToRoom`
+ * в процессе-отправителе, а имя вне протокола узел api не доставляет.
+ */
 const RelayCommand = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('emit'), room: z.string(), event: z.string(), payload: z.unknown() }),
+  z.object({
+    kind: z.literal('emit'),
+    room: z.string(),
+    event: z.enum(RT_SERVER_EVENTS),
+    payload: z.unknown(),
+  }),
   z.object({ kind: z.literal('revoke'), objectId: z.string() }),
   z.object({ kind: z.literal('recheck'), userId: z.string() }),
 ])
 export type RelayCommand = z.infer<typeof RelayCommand>
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-
-interface SocketData {
-  ctx: UserCtx
-}
 
 /**
  * Разрешение сессии приходит извне: ядро не знает о модуле идентификации
@@ -118,7 +150,7 @@ export function startRealtime(app: FastifyInstance, deps: RealtimeDeps): SocketS
   const log = logger().child({ module: 'realtime' })
   realtimeDeps = deps
 
-  io = new SocketServer(app.server, {
+  io = new SocketServer<ClientMessages, RtServerEvents, DefaultEventsMap, SocketData>(app.server, {
     path: '/ws',
     cors: { origin: [env.KCHS_BASE_URL], credentials: true },
     serveClient: false,
@@ -131,7 +163,7 @@ export function startRealtime(app: FastifyInstance, deps: RealtimeDeps): SocketS
 
   io.use(async (socket, next) => {
     try {
-      ;(socket.data as SocketData).ctx = await authenticateSocket(
+      socket.data.ctx = await authenticateSocket(
         socket.handshake.headers.cookie ?? '',
         { id: socket.id, ip: socket.handshake.address, headers: socket.handshake.headers },
         deps,
@@ -144,7 +176,7 @@ export function startRealtime(app: FastifyInstance, deps: RealtimeDeps): SocketS
   })
 
   io.on('connection', (socket) => {
-    const ctx = (socket.data as SocketData).ctx
+    const ctx = socket.data.ctx
     // Объекты, где сокет отметил присутствие: при отключении убираем только их
     const viewed = new Set<string>()
     void socket.join(`user:${ctx.userId}`)
@@ -152,12 +184,17 @@ export function startRealtime(app: FastifyInstance, deps: RealtimeDeps): SocketS
       void socket.join(`space:${spaceId}`)
     }
 
-    socket.on('subscribe', async (payload: { rooms?: string[] }, ack?: (r: unknown) => void) => {
+    socket.on('subscribe', async (payload, ack) => {
+      const input = SubscribeInput.safeParse(payload)
+      if (!input.success) {
+        ack?.({ granted: [], denied: [] })
+        return
+      }
       const granted: string[] = []
       const denied: string[] = []
-      const current = await withFreshAccess((socket.data as SocketData).ctx)
-      ;(socket.data as SocketData).ctx = current
-      for (const room of payload?.rooms ?? []) {
+      const current = await withFreshAccess(socket.data.ctx)
+      socket.data.ctx = current
+      for (const room of input.data.rooms) {
         if (await canJoin(current, room)) {
           await socket.join(room)
           granted.push(room)
@@ -168,39 +205,47 @@ export function startRealtime(app: FastifyInstance, deps: RealtimeDeps): SocketS
       ack?.({ granted, denied })
     })
 
-    socket.on('unsubscribe', (payload: { rooms?: string[] }) => {
-      for (const room of payload?.rooms ?? []) void socket.leave(room)
+    socket.on('unsubscribe', (payload) => {
+      const input = SubscribeInput.safeParse(payload)
+      if (!input.success) return
+      for (const room of input.data.rooms) void socket.leave(room)
     })
 
-    socket.on('presence.view', async (payload: { objectId?: string }) => {
-      if (!payload?.objectId) return
-      const room = `object:${payload.objectId}`
-      if (!(await canJoin((socket.data as SocketData).ctx, room))) return
+    socket.on('presence.view', async (payload) => {
+      const input = RtPresenceTarget.safeParse(payload)
+      if (!input.success) return
+      const { objectId } = input.data
+      const room = `object:${objectId}`
+      if (!(await canJoin(socket.data.ctx, room))) return
       // Смотрящий — в комнате до рассылки: подписка на комнаты вкладок обрабатывается
       // параллельно и может закончиться позже, тогда он не узнал бы, кто уже смотрит
       await socket.join(room)
-      viewed.add(payload.objectId)
-      const users = await markViewing(payload.objectId, {
+      viewed.add(objectId)
+      const users = await markViewing(objectId, {
         id: ctx.userId,
         displayName: ctx.displayName,
       })
-      broadcastPresence(payload.objectId, users)
+      broadcastPresence(objectId, users)
     })
 
     // Вкладка закрыта или ушла из вида — соседи видят это сразу, а не через минуту
-    socket.on('presence.leave', async (payload: { objectId?: string }) => {
-      if (!payload?.objectId || !viewed.has(payload.objectId)) return
-      viewed.delete(payload.objectId)
-      broadcastPresence(payload.objectId, await markLeft(payload.objectId, ctx.userId))
+    socket.on('presence.leave', async (payload) => {
+      const input = RtPresenceTarget.safeParse(payload)
+      if (!input.success || !viewed.has(input.data.objectId)) return
+      const { objectId } = input.data
+      viewed.delete(objectId)
+      broadcastPresence(objectId, await markLeft(objectId, ctx.userId))
     })
 
-    socket.on('typing', (payload: { conversationId?: string }) => {
-      if (!payload?.conversationId) return
+    socket.on('typing', (payload) => {
+      const input = RtTypingSignal.safeParse(payload)
+      if (!input.success) return
+      const { conversationId } = input.data
       // Писать в комнату может только тот, кого в неё впустили после проверки прав
-      const room = `conversation:${payload.conversationId}`
+      const room = `conversation:${conversationId}`
       if (!socket.rooms.has(room)) return
       socket.to(room).emit('typing', {
-        conversationId: payload.conversationId,
+        conversationId,
         userId: ctx.userId,
         displayName: ctx.displayName,
       })
@@ -211,20 +256,11 @@ export function startRealtime(app: FastifyInstance, deps: RealtimeDeps): SocketS
     })
   })
 
-  // Прогресс заданий из воркеров приходит через Redis pub/sub. Сообщение получает
-  // каждый узел api, поэтому каждый отправляет его только своим сокетам
+  // Ход заданий из воркеров приходит через Redis pub/sub. Сообщение получает каждый
+  // узел api, поэтому каждый отправляет его только своим сокетам
   const jobs = createRedisConnection('rt-job-sub')
-  void jobs.subscribe('rt:job')
-  jobs.on('message', (_channel, message) => {
-    try {
-      const payload = JSON.parse(message) as { jobId: string; status?: string }
-      io?.local
-        .to(`job:${payload.jobId}`)
-        .emit(payload.status ? 'job.finished' : 'job.progress', payload)
-    } catch {
-      // игнорируем некорректные сообщения
-    }
-  })
+  void jobs.subscribe(JOB_SIGNAL_CHANNEL)
+  jobs.on('message', (_channel, message) => deliverJobSignal(message))
 
   const relay = createRedisConnection('rt-relay-sub')
   void relay.subscribe(RELAY_CHANNEL)
@@ -239,20 +275,45 @@ export function startRealtime(app: FastifyInstance, deps: RealtimeDeps): SocketS
   return io
 }
 
+function parseJson(message: string): unknown {
+  try {
+    return JSON.parse(message)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Ход задания — в комнату задания (её открыл экран задания) и в комнату инициатора:
+ * строка состояния его вкладок показывает «Мои задания» без подписки на каждое.
+ */
+function deliverJobSignal(message: string): void {
+  const signal = JobSignal.safeParse(parseJson(message))
+  if (!io || !signal.success) return
+  const { jobId, initiatorId } = signal.data
+  const target = io.local.to(initiatorId ? [`job:${jobId}`, `user:${initiatorId}`] : `job:${jobId}`)
+  if ('status' in signal.data) {
+    target.emit('job.finished', { jobId, status: signal.data.status })
+  } else {
+    target.emit('job.progress', {
+      jobId,
+      progress: signal.data.progress,
+      message: signal.data.message,
+    })
+  }
+}
+
 /** Команда ретрансляции на этом узле api — только над его собственными сокетами. */
 async function handleRelay(message: string): Promise<void> {
   if (!io) return
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(message)
-  } catch {
+  const command = RelayCommand.safeParse(parseJson(message))
+  if (!command.success) {
+    logger().warn({ issues: command.error.issues }, 'команда ретрансляции realtime не по протоколу')
     return
   }
-  const command = RelayCommand.safeParse(parsed)
-  if (!command.success) return
   switch (command.data.kind) {
     case 'emit':
-      io.local.to(command.data.room).emit(command.data.event, command.data.payload)
+      emitLocal(command.data.room, command.data.event, command.data.payload)
       return
     case 'revoke':
       return revokeLocal(command.data.objectId)
@@ -308,20 +369,45 @@ function broadcastPresence(objectId: string, users: Viewer[]): void {
 }
 
 /**
- * Отправка сообщения в комнату. На узле api — напрямую: адаптер Redis доставит её
- * и на другие узлы. В процессе без шлюза (worker, где работают подписчики
- * событий) — через канал ретрансляции.
+ * Отправка сообщения в комнату — только события протокола с их нагрузкой (ADR-0192). На узле
+ * api — напрямую: адаптер Redis доставит её и на другие узлы. В процессе без шлюза (worker,
+ * где работают подписчики событий) — через канал ретрансляции.
  */
-export function emitToRoom(room: string, event: string, payload: unknown): void {
+export function emitToRoom<E extends RtServerEvent>(
+  room: string,
+  event: E,
+  payload: RtServerPayload<E>,
+): void {
   if (io) {
-    io.to(room).emit(event, payload)
+    emitVia(io.to(room), event, payload)
     return
   }
   void publishRelay({ kind: 'emit', room, event, payload })
 }
 
-export function emitToUser(userId: string, event: string, payload: unknown): void {
+export function emitToUser<E extends RtServerEvent>(
+  userId: string,
+  event: E,
+  payload: RtServerPayload<E>,
+): void {
   emitToRoom(`user:${userId}`, event, payload)
+}
+
+/** Ретранслированное событие — только сокетам этого узла: другие узлы получили его сами. */
+function emitLocal(room: string, event: RtServerEvent, payload: unknown): void {
+  if (io) emitVia(io.local.to(room), event, payload)
+}
+
+/**
+ * Типизированный `emit` Socket.IO не сводит обобщённое имя события к его нагрузке: здесь
+ * пара уже проверена сигнатурой `emitToRoom` или схемой команды ретрансляции.
+ */
+function emitVia(
+  target: { emit: (event: RtServerEvent, payload: never) => boolean },
+  event: RtServerEvent,
+  payload: unknown,
+): void {
+  target.emit(event, payload as never)
 }
 
 /**
@@ -336,7 +422,7 @@ async function revokeLocal(objectId: string): Promise<void> {
   if (!io) return
   const room = `object:${objectId}`
   for (const socket of await io.local.in(room).fetchSockets()) {
-    const ctx = (socket.data as SocketData).ctx
+    const ctx = socket.data.ctx
     const decision = await authorize(ctx, 'view', objectId, { soft: true })
     if (!decision.allowed) {
       socket.emit('acl.revoked', { objectId })
@@ -357,8 +443,8 @@ export async function recheckUserRooms(userId: string): Promise<void> {
 async function recheckLocal(userId: string): Promise<void> {
   if (!io) return
   for (const socket of await io.local.in(`user:${userId}`).fetchSockets()) {
-    const ctx = await withFreshAccess((socket.data as SocketData).ctx)
-    ;(socket.data as SocketData).ctx = ctx
+    const ctx = await withFreshAccess(socket.data.ctx)
+    socket.data.ctx = ctx
     for (const room of socket.rooms) {
       if (!room.startsWith('object:') && !room.startsWith('conversation:')) continue
       if (await canJoin(ctx, room)) continue

@@ -1,4 +1,4 @@
-import { emitToRoom, emitToUser } from '~/kernel/realtime/gateway.js'
+import { emitToRoom } from '~/kernel/realtime/gateway.js'
 import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
@@ -84,12 +84,9 @@ export function registerMeetingsGuestRoutes(route: RouteRegistrar): void {
 
       if (!meeting.enabled) throw errors.unavailable('Медиасервер не настроен')
       const requestId = await knock(meetingId, request.body.name)
-      const row = await MeetingService.load(db(), meetingId)
-      // Ведущий видит стучащегося сразу: в открытой комнате и в списке встреч
+      // Ведущий видит стучащегося сразу — в открытой комнате встречи: заявки
+      // показывает только она (ADR-0192)
       emitToRoom(`object:${meetingId}`, 'meeting.knock', { meetingId, requestId })
-      if (row?.organizerId) {
-        emitToUser(row.organizerId, 'meeting.knock', { meetingId, requestId })
-      }
       return { state: 'waiting' as const, requestId, meeting, join: null }
     },
   })

@@ -8,11 +8,12 @@ import { db, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { logger } from '~/shared/logger/index.js'
-import { createRedisConnection, redis } from '~/shared/redis/index.js'
+import { createRedisConnection } from '~/shared/redis/index.js'
 import { traceMetadata } from '~/shared/telemetry/tracing.js'
 import { publishEvent } from '../events/publisher.js'
 import { signalCancel } from './cancellation.js'
 import { jobs } from './schema.js'
+import { publishJobSignal } from './signal.js'
 
 const queues = new Map<QueueName, Queue>()
 
@@ -204,17 +205,20 @@ export const JobService = {
   },
 
   async progress(id: string, progress: number, message?: string): Promise<void> {
-    const updated = await db()
+    const clamped = Math.max(0, Math.min(1, progress))
+    const [updated] = await db()
       .update(jobs)
-      .set({ progress: Math.max(0, Math.min(1, progress)), message: message ?? null })
+      .set({ progress: clamped, message: message ?? null })
       .where(and(eq(jobs.id, id), isOpen))
-      .returning({ id: jobs.id })
-    if (updated.length === 0) return
+      .returning({ initiatorId: jobs.initiatorId })
+    if (!updated) return
     // Прогресс хранит запись задания; открытым экранам — сообщение realtime
-    await redis().publish(
-      'rt:job',
-      JSON.stringify({ jobId: id, progress, message: message ?? null }),
-    )
+    await publishJobSignal({
+      jobId: id,
+      initiatorId: updated.initiatorId,
+      progress: clamped,
+      message: message ?? null,
+    })
   },
 
   async finish(id: string, result: Record<string, unknown> = {}): Promise<void> {
@@ -236,7 +240,7 @@ export const JobService = {
       await logClosed(id, 'исход «выполнено» не записан')
       return
     }
-    await redis().publish('rt:job', JSON.stringify({ jobId: id, status: 'succeeded' }))
+    await publishJobSignal({ jobId: id, initiatorId: row.initiatorId, status: 'succeeded' })
   },
 
   /**
@@ -272,10 +276,11 @@ export const JobService = {
       await logClosed(id, 'сбой не записан')
       return
     }
-    await redis().publish(
-      'rt:job',
-      JSON.stringify({ jobId: id, status: final ? 'failed' : 'retrying' }),
-    )
+    await publishJobSignal({
+      jobId: id,
+      initiatorId: row.initiatorId,
+      status: final ? 'failed' : 'retrying',
+    })
     logger().warn({ jobId: id, err: error, final }, 'задание завершилось ошибкой')
   },
 
@@ -317,7 +322,7 @@ export const JobService = {
     const bull = await queue(row.queue as QueueName).getJob(bullJobIdOf(row))
     // Выполняющееся задание заблокировано воркером: его прервёт сигнал
     await bull?.remove().catch(() => undefined)
-    await redis().publish('rt:job', JSON.stringify({ jobId: id, status: 'cancelled' }))
+    await publishJobSignal({ jobId: id, initiatorId: row.initiatorId, status: 'cancelled' })
     return 'cancelled'
   },
 
