@@ -4,9 +4,9 @@ import { Badge, Button, Card, EmptyState, Input, Skeleton, useToast } from '@kch
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { History, PlayCircle } from 'lucide-react'
 import { useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { ApiError } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { automationApi, ruleRunsQuery } from '../queries.js'
 
 const TONE: Record<string, 'neutral' | 'accent' | 'success' | 'warning' | 'danger'> = {
@@ -21,7 +21,7 @@ const TONE: Record<string, 'neutral' | 'accent' | 'success' | 'warning' | 'dange
 /** История запусков правила с диагностикой шагов (ADR-0096). */
 export function RunsPanel({ ruleId }: { ruleId: string }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { data, isLoading } = useQuery(ruleRunsQuery(ruleId))
   const items = data?.items ?? []
 
@@ -98,7 +98,7 @@ function RunCard({ run, locale }: { run: RuleRunRecord; locale: 'ru' | 'tg' | 'e
 export function DryRunPanel({ definition }: { definition: RuleDefinition }) {
   const kind = definition.trigger.kind
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const toast = useToast()
   const [limit, setLimit] = useState(10)
   const [result, setResult] = useState<RuleDryRunResult | null>(null)

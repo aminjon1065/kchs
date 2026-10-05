@@ -19,13 +19,13 @@ import {
 } from '@kchs/ui'
 import { ArrowDown, ArrowUp, Trash2 } from 'lucide-react'
 import type * as Y from 'yjs'
-import { useT } from '~/app/i18n.js'
 import {
   applyTextChange,
   type CellMap,
   useCellValue,
   useYChanges,
 } from '~/features/notebooks/notebook-doc.js'
+import { useT } from '~/shared/i18n.js'
 import { useProtocol } from './protocol-context.js'
 import { bodyFragment, titleText } from './protocol-doc.js'
 

@@ -27,9 +27,9 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Trash2, Undo2 } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { ApiError } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { useFieldOptions } from '../../data/field-options.js'
 import { useStudio } from '../studio/context.js'
 import { ConflictDialog } from './conflict-dialog.js'
@@ -84,7 +84,7 @@ export function FeatureForm({
   const toast = useToast()
   const client = useQueryClient()
   const studio = useStudio()
-  const locale = useAppearance((s) => s.locale) as Locale
+  const locale = useLocale() as Locale
   const noteId = useId()
   const useSession = editStore(studio.mapId)
   const target = useSession((s) => s.target)

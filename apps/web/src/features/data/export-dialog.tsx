@@ -23,9 +23,9 @@ import {
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Download } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { exportJobQuery, isJobFinished } from './queries.js'
 
 /** Текущий вид таблицы: фильтры, поиск, сортировка и видимые столбцы в их порядке. */
@@ -71,7 +71,7 @@ export function ExportDialog({
   onClose: () => void
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const hasGeometry = dataset.fields.some((field) => field.type === 'geometry')
   const [format, setFormat] = useState<DatasetExportFormat>('xlsx')
   const [scope, setScope] = useState<Scope>('view')

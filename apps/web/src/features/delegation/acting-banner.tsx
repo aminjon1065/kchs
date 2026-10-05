@@ -2,9 +2,9 @@ import { Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue }
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { UserCog } from 'lucide-react'
 import { useEffect } from 'react'
-import { useT } from '~/app/i18n.js'
 import { getOnBehalfOf, setOnBehalfOf } from '~/shared/api/client.js'
 import { meQuery } from '~/shared/api/queries.js'
+import { useT } from '~/shared/i18n.js'
 
 /**
  * «Вы замещаете …» (03-access-model.md §Делегирование): действия заместителя

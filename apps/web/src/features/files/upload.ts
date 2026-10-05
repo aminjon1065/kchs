@@ -1,6 +1,6 @@
 import type { FileRecord, UploadResume, UploadSession } from '@kchs/contracts'
-import { t } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { t } from '~/shared/i18n.js'
 
 export interface UploadInput {
   file: File

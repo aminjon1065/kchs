@@ -2,9 +2,9 @@ import { Button, Checkbox, Dialog, DialogContent, IconButton, useToast } from '@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
-import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { keys } from '~/shared/api/queries.js'
+import { useT } from '~/shared/i18n.js'
 import { HOME_WIDGETS, HOME_WIDGETS_PREFERENCE, type HomeWidget } from './widgets.js'
 
 interface Row {

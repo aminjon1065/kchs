@@ -12,11 +12,11 @@ import {
   useToast,
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { PresenceAvatars } from '~/features/objects/presence-avatars.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { objectQuery } from '~/shared/api/queries.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { projectQuery, taskKeys } from './queries.js'
 import { errorText } from './task-actions.js'
 import { TasksScreen, type TasksScreenState } from './tasks-screen.js'

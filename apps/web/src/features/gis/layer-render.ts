@@ -23,8 +23,8 @@ import type {
 } from '@kchs/ui'
 import { queryOptions, useQueries, useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
-import { useAppearance } from '~/app/appearance.js'
 import { http } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
 import { datasetQuery } from '../data/queries.js'
 import type { DeckEntry } from './studio/deck-overlay.js'
 import { deckDrawable } from './studio/deck-roles.js'
@@ -161,7 +161,7 @@ export function useRenderedLayers(
     deckThreshold?: number | null
   } = {},
 ): RenderedLayers {
-  const locale = useAppearance((s) => s.locale) as Locale
+  const locale = useLocale() as Locale
   const drawn = entries.filter((entry) => entry.layer.dataAccess)
   const datasets = useQueries({
     queries: drawn.map((entry) => datasetQuery(entry.layer.datasetId)),

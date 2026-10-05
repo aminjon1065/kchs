@@ -23,10 +23,10 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { UserCheck } from 'lucide-react'
 import { useId, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { delegationsQuery, keys, meQuery, principalsQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 
 const SCOPES = ['all', 'approvals', 'instructions', 'documents', 'meetings'] as const
 type Scope = (typeof SCOPES)[number]
@@ -42,7 +42,7 @@ export function DelegationCard() {
   const t = useT()
   const toast = useToast()
   const client = useQueryClient()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { data: me } = useQuery(meQuery())
   const { data: delegations = [] } = useQuery(delegationsQuery())
   const [creating, setCreating] = useState(false)

@@ -1,8 +1,8 @@
 import type { FileRecord, OfficeEditing, OfficeSession, OfficeStatus } from '@kchs/contracts'
 import { officeFormat } from '@kchs/contracts'
 import { queryOptions, useQuery } from '@tanstack/react-query'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { http } from '~/shared/api/client.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 
 /**
  * Совместное редактирование офисных файлов (09-files.md §7, ADR-0112).

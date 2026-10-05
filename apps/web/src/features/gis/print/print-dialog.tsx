@@ -19,9 +19,9 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { Download, FileText } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { meQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import type { PanelLayer } from '../layer-panel.js'
 import { useRenderedLayers } from '../layer-render.js'
 import { pdfWithImage } from './pdf.js'
@@ -118,7 +118,7 @@ export function PrintDialog({
   onClose: () => void
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { data: me } = useQuery(meQuery())
   const [root, setRoot] = useState<HTMLDivElement | null>(null)
   const theme = useMapTheme(root)

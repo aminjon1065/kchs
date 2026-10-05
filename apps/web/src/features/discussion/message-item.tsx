@@ -20,11 +20,11 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { MessageSquareReply, MoreHorizontal, Pencil, SmilePlus, Trash2 } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { keys } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { composeMessage, mentionsOf } from './mention-doc.js'
 
 /** Быстрые реакции: согласие, «сделано», «смотрю», поздравление, поддержка, благодарность. */
@@ -52,7 +52,7 @@ export function MessageItem({
   receipt?: ReactNode
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const openTab = useWorkspace((s) => s.openTab)
   const toast = useToast()
   const client = useQueryClient()

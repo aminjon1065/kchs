@@ -24,10 +24,10 @@ import {
 } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useId } from 'react'
-import { useT } from '~/app/i18n.js'
 import { useFieldControls } from '~/features/data/field-controls.js'
 import { type PickedUser, UserPicker } from '~/features/tasks/user-picker.js'
 import { meQuery } from '~/shared/api/queries.js'
+import { useT } from '~/shared/i18n.js'
 import { CorrespondentPicker } from '../correspondent-picker.js'
 
 /** Реквизиты карточки в форме: люди и корреспондент — с подписями для показа. */

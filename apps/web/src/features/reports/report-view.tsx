@@ -52,9 +52,6 @@ import {
 } from 'lucide-react'
 import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import * as Y from 'yjs'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { ShareDialog } from '~/features/access/share-dialog.js'
 import { documentTypesQuery } from '~/features/documents/queries.js'
 import { useCollabDocument } from '~/features/notebooks/collab.js'
@@ -82,6 +79,9 @@ import {
 import { NotebookParamsBar } from '~/features/notebooks/notebook-params.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { keys, meQuery, objectQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { reportPreviewPath } from './print/print-target.js'
 import { reportKeys } from './queries.js'
 import {
@@ -371,7 +371,7 @@ function ReportToDocumentDialog({
 }) {
   const t = useT()
   const toast = useToast()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const openTab = useWorkspace((s) => s.openTab)
   const [typeId, setTypeId] = useState('')
   const { data: types = [] } = useQuery({ ...documentTypesQuery(), enabled: open })

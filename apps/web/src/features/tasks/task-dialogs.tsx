@@ -33,14 +33,14 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { X } from 'lucide-react'
 import { useId, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { uploadFile } from '~/features/files/upload.js'
 import { TerritorySelect } from '~/features/gis/territory-select.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { searchQuery, spacesQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { orderSpaces } from '~/shared/spaces.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { DueInput, type DueValue, dueFields, emptyDue, hasDue } from './due-input.js'
 import { projectsQuery, taskKeys } from './queries.js'
 import { errorText, useTaskInvalidation } from './task-actions.js'
@@ -123,7 +123,7 @@ export function CreateTaskDialog({
   const [failure, setFailure] = useState<string | null>(null)
   // Повторяющееся поручение (ADR-0156): вместо задачи заводится серия
   const [repeat, setRepeat] = useState<RepeatValue>(emptyRepeat())
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { data: projects = [] } = useQuery(projectsQuery())
   const instruction = kind === 'instruction'
   const repeating = repeat.enabled && !draft.source
@@ -899,7 +899,7 @@ export function ExtensionDecisionDialog({
   onClose: () => void
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const toast = useToast()
   const client = useQueryClient()
   const invalidate = useTaskInvalidation()

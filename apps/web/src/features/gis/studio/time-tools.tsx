@@ -1,6 +1,6 @@
 import { IconButton } from '@kchs/ui'
 import { Clock3 } from 'lucide-react'
-import { useT } from '~/app/i18n.js'
+import { useT } from '~/shared/i18n.js'
 import { useStudioTime } from './time-state.js'
 
 /**

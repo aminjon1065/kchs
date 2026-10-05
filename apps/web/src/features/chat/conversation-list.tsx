@@ -13,7 +13,7 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { Hash, Lock, MessageSquare, Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { useT } from '~/app/i18n.js'
+import { useT } from '~/shared/i18n.js'
 import { chatDraftsQuery, chatListQuery, peersPresenceQuery } from './queries.js'
 
 const SECTIONS: ChatSection[] = [

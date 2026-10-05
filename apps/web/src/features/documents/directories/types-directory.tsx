@@ -29,12 +29,12 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { FileCog, X } from 'lucide-react'
 import { useId, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { pickedOf } from '~/features/tasks/task-status.js'
 import { type PickedUser, UserPicker } from '~/features/tasks/user-picker.js'
 import { http } from '~/shared/api/client.js'
 import { orgUnitsQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { PrincipalsPicker } from '../principals-picker.js'
 import { documentKeys, documentTypesQuery, journalsQuery } from '../queries.js'
 import { errorText } from '../status.js'
@@ -48,7 +48,7 @@ const NO_JOURNAL = '__none__'
  */
 export function TypesDirectory({ selectedId }: { selectedId: string | null }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { data: types = [], isLoading } = useQuery(documentTypesQuery(true))
   const [selected, setSelected] = useState<string | null>(selectedId)
   const current = types.find((type) => type.id === selected) ?? null
@@ -158,7 +158,7 @@ const formOf = (type: DocumentTypeRecord): TypeForm => ({
 
 function TypePanel({ type, onClose }: { type: DocumentTypeRecord; onClose: () => void }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const toast = useToast()
   const client = useQueryClient()
   const formId = useId()

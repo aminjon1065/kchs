@@ -21,9 +21,9 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Repeat } from 'lucide-react'
 import { useId, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { type PickedUser, UserPicker } from './user-picker.js'
 
 type Translate = (key: string, params?: Record<string, string | number>) => string
@@ -270,7 +270,7 @@ export function SeriesDialog({ onClose }: { onClose: () => void }) {
   const t = useT()
   const toast = useToast()
   const client = useQueryClient()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { data, isLoading } = useQuery({
     queryKey: seriesKey,
     queryFn: () => http.get<TaskSeriesList>('/task-series'),

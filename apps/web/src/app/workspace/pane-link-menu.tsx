@@ -9,10 +9,10 @@ import {
   IconButton,
 } from '@kchs/ui'
 import { Link2, Link2Off } from 'lucide-react'
-import { useT } from '../i18n.js'
-import { useWorkspace } from './store.js'
-import type { PaneState } from './types.js'
-import { LINK_GROUPS } from './view-context.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
+import type { PaneState } from '~/shared/workspace/types.js'
+import { LINK_GROUPS } from '~/shared/workspace/view-context.js'
 
 /** Цвет метки группы связи — те же цвета, что у групп вкладок. */
 const LINK_COLORS: Record<string, string> = {

@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { reportPresence, useRealtimeStatus } from '~/shared/realtime/client.js'
-import { useWorkspace } from './store.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 
 const BEAT_MS = 30_000
 

@@ -3,10 +3,10 @@ import { cn, EmptyState, IconButton, ObjectIcon, Skeleton, Spinner, Tooltip } fr
 import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle, Maximize2, ZoomIn, ZoomOut } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
-import { useT } from '~/app/i18n.js'
 import { WatermarkLayer } from '~/features/files/watermark-layer.js'
 import { http } from '~/shared/api/client.js'
 import { keys } from '~/shared/api/queries.js'
+import { useT } from '~/shared/i18n.js'
 
 const PENDING = new Set(['queued', 'processing'])
 const ZOOMS = [50, 75, 100, 125, 150, 200, 300] as const

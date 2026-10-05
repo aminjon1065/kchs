@@ -20,7 +20,7 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { ClipboardCheck } from 'lucide-react'
 import { useState } from 'react'
-import { useT } from '~/app/i18n.js'
+import { useT } from '~/shared/i18n.js'
 import { formControlQuery } from './queries.js'
 import { SubmissionPanel } from './submission-panel.js'
 

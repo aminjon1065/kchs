@@ -13,9 +13,9 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowRight } from 'lucide-react'
 import { useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { dataKeys } from './queries.js'
 
 type Kind = 'added' | 'changed' | 'deleted'
@@ -40,7 +40,7 @@ export function ImportChanges({
   onDone?: (record: ImportRecord) => void
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const client = useQueryClient()
   const [failure, setFailure] = useState<string | null>(null)
   const action = useMutation({
@@ -150,7 +150,7 @@ function ChangeTable({
   label: (key: string) => string
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   if (rows.length === 0) {
     return <p className="py-6 text-center text-xs text-fg-muted">{t('data.import.changes.none')}</p>
   }

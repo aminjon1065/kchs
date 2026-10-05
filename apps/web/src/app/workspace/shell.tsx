@@ -8,6 +8,7 @@ import { IncomingCallOverlay } from '~/features/meetings/incoming-call.js'
 import { CreateSpaceDialog } from '~/features/spaces/create-space-dialog.js'
 import { http } from '~/shared/api/client.js'
 import { keys, meQuery } from '~/shared/api/queries.js'
+import { t as translate, useT } from '~/shared/i18n.js'
 import { registerServiceWorker } from '~/shared/push/client.js'
 import {
   connectRealtime,
@@ -15,7 +16,8 @@ import {
   subscribeRooms,
   unsubscribeRooms,
 } from '~/shared/realtime/client.js'
-import { t as translate, useT } from '../i18n.js'
+import { subscribeWorkspaceSave, useWorkspace } from '~/shared/workspace/store.js'
+import type { WorkspaceSnapshot } from '~/shared/workspace/types.js'
 import { CommandPalette } from './command-palette.js'
 import { ContextPanel } from './context-panel.js'
 import { MobileNav } from './mobile-nav.js'
@@ -25,8 +27,6 @@ import { usePresenceHeartbeat } from './presence.js'
 import { Rail } from './rail.js'
 import { ShortcutsOverlay } from './shortcuts.js'
 import { StatusBar } from './status-bar.js'
-import { subscribeWorkspaceSave, useWorkspace } from './store.js'
-import type { WorkspaceSnapshot } from './types.js'
 import { openFromLocation, subscribeUrlSync } from './url-sync.js'
 
 export function WorkspaceShell() {

@@ -1,9 +1,9 @@
 import type { Locale, TaskRecord, TaskResultObject } from '@kchs/contracts'
 import { formatDate, formatDateTime } from '@kchs/fields'
 import { Badge, Button, cn, ObjectChip, ObjectIcon, StatusBadge, UserChip } from '@kchs/ui'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { STATUS_TONE_KEY } from './task-status.js'
 
 /**
@@ -12,7 +12,7 @@ import { STATUS_TONE_KEY } from './task-status.js'
  */
 export function PartsSection({ task }: { task: TaskRecord }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const openTab = useWorkspace((s) => s.openTab)
   if (task.parts.length === 0) return null
   return (

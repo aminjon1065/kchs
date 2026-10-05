@@ -16,10 +16,10 @@ import {
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useId, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { keys, orgUnitsQuery, usersQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { TOP_LEVEL } from './org-management.js'
 import { unitOptions } from './user-management.js'
 
@@ -37,7 +37,7 @@ export function OrgUnitEditor({ unitId }: { unitId: string }) {
   const toast = useToast()
   const client = useQueryClient()
   const formId = useId()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { data: units = [] } = useQuery(orgUnitsQuery())
   const { data: people } = useQuery(usersQuery({ limit: 200 }))
   const unit = units.find((item) => item.id === unitId)

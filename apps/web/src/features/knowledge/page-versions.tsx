@@ -19,9 +19,9 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { GitCompare, History, Undo2 } from 'lucide-react'
 import { useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { knowledgeKeys, pageCompareQuery, pageVersionsQuery } from './queries.js'
 
 /** «Текущий текст» в выборе версии — сравнение со снимком страницы. */
@@ -44,7 +44,7 @@ export function PageVersions({
   const t = useT()
   const toast = useToast()
   const client = useQueryClient()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { data: versions, isLoading } = useQuery(pageVersionsQuery(pageId))
   const [note, setNote] = useState('')
   const [compareOpen, setCompareOpen] = useState(false)

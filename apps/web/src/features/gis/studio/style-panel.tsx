@@ -1,6 +1,6 @@
 import { EmptyState } from '@kchs/ui'
 import { Palette } from 'lucide-react'
-import { useT } from '~/app/i18n.js'
+import { useT } from '~/shared/i18n.js'
 import { LayerStylePanel } from '../style-editor/style-editor.js'
 import { useStudio } from './context.js'
 

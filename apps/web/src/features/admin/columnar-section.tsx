@@ -3,9 +3,9 @@ import { formatFileSize, formatNumber, formatRelativeTime } from '@kchs/fields'
 import { Badge, Button, Card, EmptyState, Field, Input, Skeleton, Switch, useToast } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useId, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 
 /**
  * Колоночный tier (06-analytics-engine.md §19, ADR-0109): порог, с которого
@@ -27,7 +27,7 @@ export function ColumnarSection() {
   const t = useT()
   const toast = useToast()
   const client = useQueryClient()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const rowsId = useId()
   const [draft, setDraft] = useState<ColumnarSettings | null>(null)
   const { data } = useQuery({

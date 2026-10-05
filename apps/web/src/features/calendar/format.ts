@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
-import { useAppearance } from '~/app/appearance.js'
 import { meQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
 import type { ViewMode } from './model.js'
 import { clockText, wallOf } from './time.js'
 
@@ -40,7 +40,7 @@ const at = (date: string) => new Date(`${date}T00:00:00Z`)
 
 /** Форматирование дат и времени календаря: язык интерфейса, пояс профиля. */
 export function useCalendarFormat(): CalendarFormat {
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { data: me } = useQuery(meQuery())
   const timezone = me?.user.timezone ?? DEFAULT_TIMEZONE
   return useMemo(() => {

@@ -2,7 +2,7 @@ import type { WorkspaceLayout } from '@kchs/contracts'
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import { getCsrfToken, http } from '~/shared/api/client.js'
-import { t } from '../i18n.js'
+import { t } from '~/shared/i18n.js'
 import type {
   ContextTabKey,
   OpenTabInput,
@@ -10,8 +10,8 @@ import type {
   ScreenKey,
   TabState,
   WorkspaceSnapshot,
-} from './types.js'
-import { freeLinkGroup } from './view-context.js'
+} from '~/shared/workspace/types.js'
+import { freeLinkGroup } from '~/shared/workspace/view-context.js'
 
 const MAX_CLOSED = 20
 const MAX_PANES = 4

@@ -18,15 +18,15 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { LayoutDashboard, Link2, RefreshCw, Share2, Trash2 } from 'lucide-react'
 import { useRef, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
-import { useLinkSource, usePaneLinkGroup, useViewContext } from '~/app/workspace/view-context.js'
 import { ShareDialog } from '~/features/access/share-dialog.js'
 import { useLabelledResult } from '~/features/gis/result-labels.js'
 import { PresenceAvatars } from '~/features/objects/presence-avatars.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { keys, meQuery, objectQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
+import { useLinkSource, usePaneLinkGroup, useViewContext } from '~/shared/workspace/view-context.js'
 import { brushFilter, brushLabel } from './brush-filter.js'
 import { AddToDashboardDialog } from './dashboard-dialogs.js'
 import { chartDataQuery, chartQuery, dataKeys, datasetQuery } from './queries.js'
@@ -53,7 +53,7 @@ export function ChartView({ objectId, tabId }: { objectId: string; tabId: string
   const data = useQuery(chartDataQuery(objectId))
   // Территории в разрезах — названиями единиц справочника
   const labelled = useLabelledResult(data.data)
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
 
   // Связанные представления (ADR-0073): кисть графика по датасету — фильтр
   // соседних панелей группы (карта, таблица датасета)

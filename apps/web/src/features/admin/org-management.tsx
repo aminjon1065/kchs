@@ -15,10 +15,10 @@ import {
 } from '@kchs/ui'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useId, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { orgUnitsQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { unitOptions } from './user-management.js'
 
 export const TOP_LEVEL = '__root__'
@@ -35,7 +35,7 @@ export function CreateUnitDialog({
 }) {
   const t = useT()
   const formId = useId()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { data: units = [] } = useQuery(orgUnitsQuery())
   const empty = {
     ru: '',

@@ -19,11 +19,11 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link2, Users, Video } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { onRealtimeEvent } from '~/shared/realtime/client.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { ProtocolPanel } from './protocol/protocol-panel.js'
 import { endMeeting, joinMeeting, leaveMeeting, meetingKeys, meetingQuery } from './queries.js'
 import { MeetingRoom } from './room/meeting-room.js'
@@ -37,7 +37,7 @@ import { type DevicePrefs, loadDevicePrefs, PrejoinDialog } from './room/prejoin
  */
 export default function MeetingView({ objectId, tabId }: { objectId: string; tabId?: string }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const toast = useToast()
   const client = useQueryClient()
   const openTab = useWorkspace((s) => s.openTab)
@@ -290,7 +290,7 @@ export default function MeetingView({ objectId, tabId }: { objectId: string; tab
 /** Записи встречи (ADR-0092): доступны тем же, кому доступна сама встреча. */
 function RecordingsSection({ meetingId }: { meetingId: string }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const openTab = useWorkspace((s) => s.openTab)
   const { data } = useQuery({
     queryKey: meetingKeys.recordings(meetingId),
@@ -356,7 +356,7 @@ function GuestLinkDialog({
   const t = useT()
   const toast = useToast()
   const [link, setLink] = useState<MeetingGuestLink | null>(null)
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
 
   const create = useMutation({
     mutationFn: (ttlMinutes: number) =>

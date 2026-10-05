@@ -12,9 +12,9 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { tasksQuery } from '../../tasks/queries.js'
 import { CreateTaskDialog } from '../../tasks/task-dialogs.js'
 import { STATUS_TONE_KEY } from '../../tasks/task-status.js'
@@ -28,7 +28,7 @@ type State = 'open' | 'all'
  */
 export function PassportTasks({ territoryId }: { territoryId: string }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale) as Locale
+  const locale = useLocale() as Locale
   const openTab = useWorkspace((s) => s.openTab)
   const [state, setState] = useState<State>('open')
   const [creating, setCreating] = useState(false)

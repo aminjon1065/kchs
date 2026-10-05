@@ -3,10 +3,10 @@ import { LOCALE_NAMES } from '@kchs/i18n'
 import { Button, Card, Field, useToast } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { useT } from '~/app/i18n.js'
 import { helpQuery } from '~/features/knowledge/help.js'
 import { ObjectPicker } from '~/features/notebooks/object-picker.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { useT } from '~/shared/i18n.js'
 
 const pagesKey = ['knowledge', 'help', 'pages'] as const
 

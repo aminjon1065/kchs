@@ -2,9 +2,9 @@ import { formatDateTime, formatFileSize } from '@kchs/fields'
 import { Badge, Button, Callout, Card, EmptyState, Skeleton, useToast } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Database } from 'lucide-react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 
 interface BackupRecord {
   id: string
@@ -28,7 +28,7 @@ export function BackupsSection() {
   const t = useT()
   const toast = useToast()
   const client = useQueryClient()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
 
   const { data } = useQuery({
     queryKey: KEY,

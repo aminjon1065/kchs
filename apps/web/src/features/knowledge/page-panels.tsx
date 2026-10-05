@@ -18,9 +18,9 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Send, UserCheck } from 'lucide-react'
 import { useId, useState } from 'react'
-import { useT } from '~/app/i18n.js'
 import { PrincipalsPicker } from '~/features/documents/principals-picker.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { useT } from '~/shared/i18n.js'
 import { knowledgeKeys } from './queries.js'
 
 const failedText = (error: unknown, fallback: string) =>

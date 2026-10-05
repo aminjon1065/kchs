@@ -41,10 +41,10 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Settings2, Trash2 } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { objectListQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { toFieldKey } from '~/shared/keys.js'
 import {
   CONVERTIBLE_TYPES,
@@ -83,7 +83,7 @@ const labelOf = (field: DatasetField, locale: Locale) =>
  */
 export function SchemaTab({ dataset, canManage }: { dataset: DatasetRecord; canManage: boolean }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const [selected, setSelected] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
   const [settings, setSettings] = useState(false)
@@ -241,7 +241,7 @@ function FieldPanel({
   onRemoved: () => void
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const toast = useToast()
   const refresh = useSchemaRefresh(dataset.id)
   const [converting, setConverting] = useState(false)
@@ -332,7 +332,7 @@ function profileValue(value: string | null, type: string, locale: Locale): strin
 
 function FieldProfileView({ datasetId, field }: { datasetId: string; field: DatasetField }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { data: profile, error, isLoading } = useQuery(fieldProfileQuery(datasetId, field.key))
   const number = (value: number) => formatNumber(value, {}, { locale })
 
@@ -483,7 +483,7 @@ function FieldPropertiesForm({
   canManage: boolean
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const toast = useToast()
   const refresh = useSchemaRefresh(dataset.id)
   const [label, setLabel] = useState(field.label[locale] ?? field.label.ru ?? '')
@@ -637,7 +637,7 @@ function LookupEditor({
   disabled?: boolean
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { data: candidates } = useQuery(
     objectListQuery({ spaceId: dataset.spaceId, types: 'dataset', limit: 100 }),
   )
@@ -705,7 +705,7 @@ function ConvertTypeDialog({
   onClose: () => void
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const toast = useToast()
   const refresh = useSchemaRefresh(dataset.id)
   const choices = CONVERTIBLE_TYPES.filter((type) => type !== field.type)
@@ -928,7 +928,7 @@ function TableSettingsDialog({
   onClose: () => void
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const toast = useToast()
   const refresh = useSchemaRefresh(dataset.id)
   const [timeField, setTimeField] = useState(dataset.timeField ?? NONE)

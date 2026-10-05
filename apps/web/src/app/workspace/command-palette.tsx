@@ -40,11 +40,11 @@ import {
   spacesQuery,
   workspacesQuery,
 } from '~/shared/api/queries.js'
-import { useAppearance } from '../appearance.js'
-import { useT } from '../i18n.js'
-import { useWorkspace } from './store.js'
-import type { ScreenKey } from './types.js'
-import { useOpenWorkspace } from './workspaces-menu.js'
+import { useAppearance } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
+import { useOpenWorkspace } from '~/shared/workspace/open-workspace.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
+import type { ScreenKey } from '~/shared/workspace/types.js'
 
 export function CommandPalette({
   open,

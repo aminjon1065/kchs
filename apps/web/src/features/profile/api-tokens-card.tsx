@@ -17,10 +17,10 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { KeyRound, Plus } from 'lucide-react'
 import { useId, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { keys, meQuery, myApiTokensQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 
 const STATUS_TONES: Record<ApiToken['status'], 'success' | 'neutral' | 'warning'> = {
   active: 'success',
@@ -37,7 +37,7 @@ export function ApiTokensCard() {
   const t = useT()
   const toast = useToast()
   const client = useQueryClient()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { data: me } = useQuery(meQuery())
   const { data: items = [], isLoading } = useQuery(myApiTokensQuery())
   const [creating, setCreating] = useState(false)

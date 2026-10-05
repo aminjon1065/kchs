@@ -4,9 +4,9 @@ import { useQueries, useQuery } from '@tanstack/react-query'
 import { ChevronLeft, Info, X, ZoomIn } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { http } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { FeatureCard } from '../feature-card.js'
 import { type FeatureRef, useStudio } from './context.js'
 import { formatDecimal } from './coordinates.js'
@@ -307,7 +307,7 @@ export function IdentifyTool() {
 
 /** Территории, содержащие точку: «Хатлонская область › Бохтар». */
 function PlaceChain({ lon, lat }: { lon: number; lat: number }) {
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { data, isLoading } = useQuery({
     queryKey: ['geocode', 'reverse', lon.toFixed(5), lat.toFixed(5)],
     queryFn: () =>

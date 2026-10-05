@@ -14,10 +14,10 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { History, RotateCcw, Save } from 'lucide-react'
 import { useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { ApiError } from '~/shared/api/client.js'
 import { keys } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { reportKeys, reportLibraryApi, reportVersionsQuery } from './queries.js'
 
 /**
@@ -41,7 +41,7 @@ export function ReportLibraryDialog({
   template: boolean
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const toast = useToast()
   const client = useQueryClient()
   const [label, setLabel] = useState('')

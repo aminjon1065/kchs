@@ -22,8 +22,8 @@ import {
   Undo2,
 } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { useAssigneeLabel, useDesigner, useStepTitle } from './context.js'
 
 const ICONS: Record<StepType, (className: string) => ReactNode> = {
@@ -52,7 +52,7 @@ export function StepIcon({ type, className = 'size-4' }: { type: StepType; class
  */
 export function useStepSummary(): (step: Step) => string[] {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const labelOf = useAssigneeLabel()
   const titleOf = useStepTitle()
   const { definition } = useDesigner()

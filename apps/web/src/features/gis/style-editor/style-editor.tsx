@@ -21,10 +21,10 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Palette, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { keys, objectQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { useFieldOptions } from '../../data/field-options.js'
 import { datasetQuery } from '../../data/queries.js'
 import { gisKeys } from '../queries.js'
@@ -65,7 +65,7 @@ export function StyleEditor({
   theme: MapTheme | null
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale) as Locale
+  const locale = useLocale() as Locale
   const options = useFieldOptions(fields)
   // Последняя версия рабочей копии: правки подряд и после ожидания запроса не теряются
   const latest = useRef(style)

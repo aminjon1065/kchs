@@ -2,8 +2,8 @@ import type { MeetingSettings } from '@kchs/contracts'
 import { Button, Card, Field, Input, Skeleton, useToast } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useId, useState } from 'react'
-import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { useT } from '~/shared/i18n.js'
 
 const settingsKey = ['admin', 'meetings', 'settings'] as const
 

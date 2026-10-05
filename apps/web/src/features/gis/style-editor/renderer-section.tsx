@@ -21,7 +21,7 @@ import {
 import { useMutation } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp, ListRestart, Plus, X } from 'lucide-react'
 import { useState } from 'react'
-import { useT } from '~/app/i18n.js'
+import { useT } from '~/shared/i18n.js'
 import { filterFieldsOf } from '../../data/field-types.js'
 import { useLayerFieldStats } from '../layer-render.js'
 import { useTerritoryFilterEditor } from '../territory-filter.js'

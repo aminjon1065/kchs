@@ -11,10 +11,10 @@ import {
 } from '@kchs/ui'
 import { Columns2, Pin, PinOff, Plus, X } from 'lucide-react'
 import { type DragEvent, useRef, useState } from 'react'
-import { useT } from '../i18n.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
+import type { PaneState, TabState } from '~/shared/workspace/types.js'
 import { PaneLinkMenu } from './pane-link-menu.js'
-import { useWorkspace } from './store.js'
-import type { PaneState, TabState } from './types.js'
 import { WorkspacesMenu } from './workspaces-menu.js'
 
 const GROUP_COLORS: Record<string, string> = {

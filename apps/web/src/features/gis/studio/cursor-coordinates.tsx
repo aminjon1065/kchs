@@ -1,8 +1,8 @@
 import { formatNumber } from '@kchs/fields'
 import { useLocalStorage } from '@kchs/ui'
 import { useEffect, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { useStudio } from './context.js'
 import {
   formatDecimal,
@@ -21,7 +21,7 @@ type Format = 'decimal' | 'dms'
  */
 export function CursorCoordinates() {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { map, camera } = useStudio()
   const [cursor, setCursor] = useState<LonLat | null>(null)
   const [format, setFormat] = useLocalStorage<Format>('kchs.map.coordinates', 'decimal')

@@ -3,8 +3,8 @@ import { localizedText } from '@kchs/i18n'
 import type { MiniCalendarMark } from '@kchs/ui'
 import { useQueries } from '@tanstack/react-query'
 import { useCallback, useMemo } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { businessYearQuery } from './queries.js'
 import { weekdayOf } from './time.js'
 
@@ -24,7 +24,7 @@ export function useBusinessDays(days: string[]): {
   marks: Record<string, MiniCalendarMark>
 } {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const years = [...new Set(days.map((day) => Number(day.slice(0, 4))))].sort()
   const combine = useCallback(
     (results: Array<{ data?: BusinessCalendarYear | undefined }>) => {

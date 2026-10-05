@@ -2,9 +2,9 @@ import type { IncomingCall } from '@kchs/contracts'
 import { Avatar, Button, Dialog, DialogContent } from '@kchs/ui'
 import { Phone, PhoneOff } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
+import { useT } from '~/shared/i18n.js'
 import { onRealtimeEvent } from '~/shared/realtime/client.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { declineCall } from './queries.js'
 
 /**

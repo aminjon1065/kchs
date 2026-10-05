@@ -3,11 +3,11 @@ import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-quer
 import { type ReactNode, useState } from 'react'
 import { ApiError } from '~/shared/api/client.js'
 import { meQuery } from '~/shared/api/queries.js'
-import { useAppearance } from './appearance.js'
+import { useLocale } from '~/shared/appearance.js'
 
 export function Providers({ children }: { children: ReactNode }) {
   // Подписи дизайн-системы (кнопки «Закрыть», «Отмена»…) — на языке интерфейса
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const [client] = useState(
     () =>
       new QueryClient({

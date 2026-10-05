@@ -38,11 +38,11 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle2, XCircle } from 'lucide-react'
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { uploadFile } from '~/features/files/upload.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { PICKABLE_SEMANTICS } from './field-types.js'
 import {
   buildRunInput,
@@ -415,7 +415,7 @@ function StructureStep({
   onApply: () => void
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const set = (patch: Partial<ImportOptions>) => onOptionsChange({ ...options, ...patch })
   const isText = ['csv', 'tsv'].includes(analysis.format)
   const isBook = ['xlsx', 'xls'].includes(analysis.format)
@@ -784,7 +784,7 @@ function MappingStep({
   problems: MappingProblem[]
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const fields = dataset ? importableFields(dataset) : []
   const hasGeometryTarget = dataset ? dataset.fields.some((f) => f.type === 'geometry') : true
   const geometry = hasGeometryTarget ? geometryText(t, analysis) : null
@@ -1184,7 +1184,7 @@ function ImportProgress({
   onFinished: (record: ImportRecord) => void
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { data: record } = useQuery(importQuery(importId))
   const finished = isImportFinished(record?.status)
 

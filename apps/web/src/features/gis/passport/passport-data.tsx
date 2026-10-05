@@ -18,10 +18,10 @@ import {
 } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { BarChart3, Table2 } from 'lucide-react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { useFieldOptions } from '../../data/field-options.js'
 import { datasetQuery } from '../../data/queries.js'
 
@@ -51,7 +51,7 @@ export const withinTerritory = (field: string, territoryId: string): FilterNode 
 
 function RowsTable({ dataset, territoryId }: { dataset: DatasetRecord; territoryId: string }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale) as Locale
+  const locale = useLocale() as Locale
   const options = useFieldOptions(dataset.fields)
   const field = dataset.territoryField as string
   const rows = useQuery({
@@ -144,7 +144,7 @@ export function PassportData({
   onSelect: (id: string) => void
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale) as Locale
+  const locale = useLocale() as Locale
   const openTab = useWorkspace((s) => s.openTab)
   const setTabState = useWorkspace((s) => s.setTabState)
   const current = datasets.find((item) => item.id === selected) ?? datasets[0] ?? null

@@ -1,8 +1,8 @@
 import type { HelpLink } from '@kchs/contracts'
 import { queryOptions, useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { http } from '~/shared/api/client.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 
 /** Страница «Справки» сотрудника (N88): на его языке, без перевода — русская. */
 export const helpQuery = () =>

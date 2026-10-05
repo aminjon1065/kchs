@@ -13,8 +13,8 @@ import {
 } from '@kchs/ui'
 import { Pause, Play, SkipBack, SkipForward, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { useStudio } from './context.js'
 import {
   addSteps,
@@ -72,7 +72,7 @@ function sliderValues(span: TimeWindow, mode: MapTimeMode): number[] {
  */
 export function TimeBar() {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { map } = useStudio()
   const time = useStudioTime()
   const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)')

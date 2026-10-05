@@ -18,10 +18,10 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { LayoutGrid, UserCog } from 'lucide-react'
 import { useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { adminSpacesQuery, principalsQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 
 /**
  * «Пространства» (15-admin-operations.md): все пространства организации,
@@ -30,7 +30,7 @@ import { adminSpacesQuery, principalsQuery } from '~/shared/api/queries.js'
  */
 export function SpacesSection() {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const [search, setSearch] = useState('')
   const query = useDebouncedValue(search, 250)
   const { data: spaces = [], isLoading } = useQuery(adminSpacesQuery({ q: query || undefined }))

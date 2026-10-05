@@ -13,12 +13,12 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { UserPlus, UserRoundPen } from 'lucide-react'
 import { useId, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { uploadFile } from '~/features/files/upload.js'
 import { type PickedUser, UserPicker } from '~/features/tasks/user-picker.js'
 import { ApiError } from '~/shared/api/client.js'
 import { keys, meQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { COMMENT_REQUIRED, knownKey, STEP_TYPES } from './labels.js'
 import { processApi } from './queries.js'
 
@@ -61,7 +61,7 @@ export function ProcessStepActions({
   onDone?: () => void
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const toast = useToast()
   const client = useQueryClient()
   const { data: me } = useQuery(meQuery())

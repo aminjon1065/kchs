@@ -18,9 +18,9 @@ import {
 } from '@kchs/ui'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useId, useMemo, useState } from 'react'
-import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { objectListQuery, spacesQuery } from '~/shared/api/queries.js'
+import { useT } from '~/shared/i18n.js'
 import { orderSpaces } from '~/shared/spaces.js'
 
 /** Корень пространства в дереве выбора: папки без родителя. */

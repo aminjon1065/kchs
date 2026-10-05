@@ -2,7 +2,7 @@ import type { Locale, Territory } from '@kchs/contracts'
 import { cn, IconButton, SearchInput } from '@kchs/ui'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { useT } from '~/app/i18n.js'
+import { useT } from '~/shared/i18n.js'
 
 /** Название без регистра, «ё» как «е» — как сопоставляет сервер. */
 // i18n-ignore: буква для сопоставления, не текст интерфейса

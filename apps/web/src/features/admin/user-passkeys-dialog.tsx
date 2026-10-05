@@ -4,8 +4,8 @@ import { AlertDialog, Badge, Button, Callout, Dialog, DialogContent, useToast } 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Fingerprint } from 'lucide-react'
 import { useState } from 'react'
-import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { useT } from '~/shared/i18n.js'
 
 /**
  * Ключи входа сотрудника в консоли (N45): список перед отзывом и «Отозвать все» —

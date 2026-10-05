@@ -16,10 +16,10 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp, ListChecks, ListTree, Trash2 } from 'lucide-react'
 import { useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { taskKeys } from './queries.js'
 import { useTaskInvalidation } from './task-actions.js'
 import { STATUS_TONE_KEY } from './task-status.js'
@@ -208,7 +208,7 @@ export function ChecklistSection({ task }: { task: TaskRecord }) {
  */
 export function SubtasksSection({ task }: { task: TaskRecord }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const openTab = useWorkspace((s) => s.openTab)
   const invalidate = useTaskInvalidation()
   const { fail } = useApply(task.id)

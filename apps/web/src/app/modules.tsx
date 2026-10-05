@@ -8,7 +8,7 @@ import { HomeScreen } from '~/features/home/home-screen.js'
 import type { ControlScreenState } from '~/features/tasks/control-screen.js'
 import type { TasksScreenState } from '~/features/tasks/tasks-screen.js'
 import type { WorkloadScreenState } from '~/features/tasks/workload-screen.js'
-import { registerObjectView, registerScreen } from './workspace/registry.js'
+import { registerObjectView, registerScreen } from '~/shared/workspace/registry.js'
 
 /**
  * Экраны и представления объектов грузятся при первом открытии (отдельными чанками): в

@@ -18,8 +18,8 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bookmark, Check } from 'lucide-react'
 import { useState } from 'react'
-import { useT } from '~/app/i18n.js'
 import { http } from '~/shared/api/client.js'
+import { useT } from '~/shared/i18n.js'
 import { fromDefinition, sameState, toDefinition } from './collection-state.js'
 
 /**

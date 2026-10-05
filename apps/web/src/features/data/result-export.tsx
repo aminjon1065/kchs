@@ -13,10 +13,10 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { Download, FileImage, FileSpreadsheet, FileText } from 'lucide-react'
 import { type RefObject, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { ApiError, downloadFile, saveBlob } from '~/shared/api/client.js'
 import { meQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 
 /** Виды графика без холста ECharts: таблица, число, сводная и карта — картинки у них нет. */
 const NO_IMAGE = new Set(['table', 'number', 'pivot', 'map'])
@@ -52,7 +52,7 @@ export function ResultExportMenu({
 }) {
   const t = useT()
   const toast = useToast()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { data: me } = useQuery(meQuery())
   const [busy, setBusy] = useState(false)
   const withData = Boolean(data) && (me?.capabilities.includes('data.export') ?? false)

@@ -1,5 +1,5 @@
 import { PanelToolbar } from '@kchs/ui'
-import { useT } from '~/app/i18n.js'
+import { useT } from '~/shared/i18n.js'
 import { AssistantPanel } from './assistant-panel.js'
 
 /**

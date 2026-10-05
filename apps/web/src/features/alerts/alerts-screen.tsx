@@ -22,11 +22,11 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, Plus } from 'lucide-react'
 import { useId, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { ApiError } from '~/shared/api/client.js'
 import { objectListQuery, spacesQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { alertKeys, alertsApi, alertsQuery } from './queries.js'
 
 /**
@@ -35,7 +35,7 @@ import { alertKeys, alertsApi, alertsQuery } from './queries.js'
  */
 export function AlertsScreen() {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const openTab = useWorkspace((s) => s.openTab)
   const client = useQueryClient()
   const toast = useToast()

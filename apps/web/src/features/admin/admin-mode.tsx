@@ -18,10 +18,10 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ShieldAlert } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { meQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 
 const DURATIONS = [15, ADMIN_MODE_MINUTES.default, 60, ADMIN_MODE_MINUTES.max]
 
@@ -63,7 +63,7 @@ function useExitAdminMode() {
  */
 export function AdminModeBanner() {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const state = useAdminMode()
   const exit = useExitAdminMode()
   if (!state) return null
@@ -97,7 +97,7 @@ export function AdminModeBanner() {
 /** Карточка раздела «Безопасность»: вход в режим администратора с обоснованием. */
 export function AdminModeCard() {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const state = useAdminMode()
   const exit = useExitAdminMode()
   const [open, setOpen] = useState(false)

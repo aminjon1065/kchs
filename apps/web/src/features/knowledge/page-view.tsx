@@ -17,9 +17,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { BookCheck } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import type * as Y from 'yjs'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { PrintMenu } from '~/features/documents/print/print-menu.js'
 import { useCollabDocument } from '~/features/notebooks/collab.js'
 import {
@@ -33,6 +30,9 @@ import {
   useYChanges,
 } from '~/features/notebooks/notebook-doc.js'
 import { meQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { AddBlockButtons, PageBlockCard } from './page-blocks.js'
 import { PageProvider } from './page-context.js'
 import { createPageBlock, PAGE_KEYS } from './page-doc.js'
@@ -50,7 +50,7 @@ const STATUS_TONE = { draft: 'neutral', published: 'success', review: 'warning' 
  */
 export default function PageView({ objectId, tabId }: { objectId: string; tabId: string }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const client = useQueryClient()
   const setTabTitle = useWorkspace((s) => s.setTabTitle)
   const setContextTab = useWorkspace((s) => s.setContextTab)

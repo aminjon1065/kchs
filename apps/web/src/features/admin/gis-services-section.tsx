@@ -30,7 +30,6 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, Globe2, MoreHorizontal, Pencil, Plug, Plus, Trash2 } from 'lucide-react'
 import { useId, useState } from 'react'
-import { useT } from '~/app/i18n.js'
 import {
   serviceLayerApi,
   serviceLayerKeys,
@@ -38,6 +37,7 @@ import {
 } from '~/features/gis/service-layers.js'
 import { ApiError } from '~/shared/api/client.js'
 import { spacesQuery } from '~/shared/api/queries.js'
+import { useT } from '~/shared/i18n.js'
 import { orderSpaces } from '~/shared/spaces.js'
 
 const KIND_TONES: Record<ServiceLayerKind, 'accent' | 'purple' | 'warning'> = {

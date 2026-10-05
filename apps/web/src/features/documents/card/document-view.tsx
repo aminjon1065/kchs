@@ -20,13 +20,13 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { PanelRightOpen, Share2 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useObjectActions } from '~/app/workspace/object-actions.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { ShareDialog } from '~/features/access/share-dialog.js'
 import { PresenceAvatars } from '~/features/objects/presence-avatars.js'
 import { ApiError } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
+import { useObjectActions } from '~/shared/workspace/object-actions.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { PrintMenu } from '../print/print-menu.js'
 import { documentQuery } from '../queries.js'
 import { CONFIDENTIALITY_TONE, DOCUMENT_STATUS_TONE, errorText } from '../status.js'
@@ -161,7 +161,7 @@ export function titleOf(document: DocumentRecord, draft: string): string {
 
 function DocumentHeader() {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const contextOpen = useWorkspace((s) => s.contextOpen)
   const contextTab = useWorkspace((s) => s.contextTab)
   const setContextTab = useWorkspace((s) => s.setContextTab)

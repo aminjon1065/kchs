@@ -34,9 +34,6 @@ import {
   Upload,
 } from 'lucide-react'
 import { type DragEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { ShareDialog } from '~/features/access/share-dialog.js'
 import {
   type Movable,
@@ -48,6 +45,7 @@ import { UploadInterruptedError, uploadFile } from '~/features/files/upload.js'
 import { useFileDownload } from '~/features/files/use-file-download.js'
 import { http } from '~/shared/api/client.js'
 import { attachmentsFolderQuery, spacesQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
 import { emptyCollectionState } from '~/shared/collections/collection-state.js'
 import { SavedViewsMenu } from '~/shared/collections/saved-views-menu.js'
 import { useListFields } from '~/shared/collections/use-list-fields.js'
@@ -56,7 +54,9 @@ import {
   describeUserFilterValue,
   renderUserFilterValue,
 } from '~/shared/collections/user-filter-value.js'
+import { useT } from '~/shared/i18n.js'
 import { orderSpaces } from '~/shared/spaces.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 
 const TYPES = ['folder', 'file']
 /** Тип данных перетаскивания объектов списка: отличает их от файлов с диска. */
@@ -85,7 +85,7 @@ export function FilesScreen({
   savedState?: { collection?: CollectionState; viewId?: string | null }
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const client = useQueryClient()
   const toast = useToast()
   const openTab = useWorkspace((s) => s.openTab)

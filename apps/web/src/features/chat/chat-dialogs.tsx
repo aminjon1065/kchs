@@ -15,10 +15,10 @@ import {
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { useT } from '~/app/i18n.js'
 import { type PickedUser, UserPicker, UsersPicker } from '~/features/tasks/user-picker.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { objectListQuery, spacesQuery } from '~/shared/api/queries.js'
+import { useT } from '~/shared/i18n.js'
 import { chatKeys } from './queries.js'
 
 const useReport = () => {

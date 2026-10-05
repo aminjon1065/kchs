@@ -61,8 +61,6 @@ import {
   Zap,
 } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { ServiceAccountBadge } from '~/features/access/service-account-badge.js'
 import { AutomationRulesSection } from '~/features/automation/rules-section.js'
 import { SchedulesSection } from '~/features/automation/schedules-section.js'
@@ -75,6 +73,8 @@ import {
   rolesQuery,
   usersQuery,
 } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { AnnouncementsSection } from './announcements-section.js'
 import { ApiTokensSection } from './api-tokens-section.js'
 import { BackupsSection } from './backups-section.js'
@@ -463,7 +463,7 @@ function UsersSection({
   onRoleKeyChange: (roleKey: string | null) => void
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const client = useQueryClient()
   const toast = useToast()
   const [search, setSearch] = useState('')
@@ -654,7 +654,7 @@ function UsersSection({
 
 function OrgSection() {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const client = useQueryClient()
   const toast = useToast()
   const { data: units = [], isLoading } = useQuery(orgUnitsQuery())
@@ -758,7 +758,7 @@ function buildTree(
 
 function AuditSection() {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const [action, setAction] = useState('')
   const query = useDebouncedValue(action, 250)
   const { data, isLoading } = useQuery(auditQuery({ action: query || undefined, limit: 100 }))

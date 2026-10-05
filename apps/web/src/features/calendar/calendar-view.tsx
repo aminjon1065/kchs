@@ -17,11 +17,11 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarDays, Link2, Settings2, Share2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { ShareDialog } from '~/features/access/share-dialog.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { CalendarSettingsDialog, FeedDialog } from './calendar-dialogs.js'
 import { calendarName } from './calendar-sidebar.js'
 import { useCalendarFormat } from './format.js'
@@ -36,7 +36,7 @@ export function CalendarView({ objectId, tabId }: { objectId: string; tabId: str
   const t = useT()
   const toast = useToast()
   const client = useQueryClient()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const format = useCalendarFormat()
   const tz = format.timezone
   const openTab = useWorkspace((s) => s.openTab)

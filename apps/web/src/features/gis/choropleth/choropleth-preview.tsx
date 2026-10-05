@@ -10,9 +10,9 @@ import { formatNumber } from '@kchs/fields'
 import { Callout, Skeleton, useDebouncedValue } from '@kchs/ui'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { ChoroplethMap } from './choropleth-map.js'
 import { numericValues, resultFeatures, resultStyleFields } from './geojson.js'
 
@@ -23,7 +23,7 @@ import { numericValues, resultFeatures, resultStyleFields } from './geojson.js'
  */
 export function ChoroplethPreview({ params }: { params: ChoroplethParamsInput }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   // Классы и палитра меняют только стиль: запрос — без них, чтобы не спрашивать сервер заново
   const request = useDebouncedValue(JSON.stringify({ ...params, style: undefined }), 300)
   const preview = useQuery({

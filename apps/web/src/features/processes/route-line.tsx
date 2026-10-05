@@ -16,10 +16,10 @@ import {
   Undo2,
   Workflow,
 } from 'lucide-react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { objectQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import {
   DECISION_LABELS,
   ENTRY_STATES,
@@ -80,7 +80,7 @@ function StepCard({
   branch: number | null
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const Icon = ICONS[step.type] ?? Workflow
   const typeLabel = t(`processes.types.${knownKey(step.type, STEP_TYPES, 'call')}`)
   const name = text(step.name, locale) ?? typeLabel

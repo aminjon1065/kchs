@@ -25,11 +25,11 @@ import {
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { ChevronRight, History, Lock, Play, Table2 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { meQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { sqlSchemaQuery } from './queries.js'
 
 /** Состояние вкладки: текст запроса и значения параметров. */
@@ -83,7 +83,7 @@ function saveHistory(userId: string, items: string[]): void {
  */
 export function SqlLabScreen({ tabId, savedState }: { tabId: string; savedState?: SavedSqlLab }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const setTabState = useWorkspace((s) => s.setTabState)
   const { data: me } = useQuery(meQuery())
   const allowed = me?.capabilities.includes('data.sql') ?? false
@@ -327,7 +327,7 @@ function SchemaPanel({
   onInsert: (text: string) => void
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const [search, setSearch] = useState('')
   const [open, setOpen] = useState<string | null>(null)
   const query = search.trim().toLowerCase()
@@ -407,7 +407,7 @@ function SchemaPanel({
 /** Результат: столбцы по номеру — имена в SQL могут повторяться. */
 function SqlResultTable({ result }: { result: QueryResult }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const columns = useMemo<DataGridColumn[]>(
     () =>
       result.fields.map((field, index) => ({

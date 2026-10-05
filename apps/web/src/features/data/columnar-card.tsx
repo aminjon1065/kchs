@@ -4,9 +4,9 @@ import { Badge, Button, Card, Skeleton, useToast } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Columns3 } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { columnarCopyQuery, dataKeys } from './queries.js'
 
 /** Состояние копии → тон значка. */
@@ -26,7 +26,7 @@ export function ColumnarCard({ datasetId, canManage }: { datasetId: string; canM
   const t = useT()
   const toast = useToast()
   const client = useQueryClient()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { data, isLoading } = useQuery(columnarCopyQuery(datasetId))
 
   const build = useMutation({

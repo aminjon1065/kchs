@@ -1,5 +1,5 @@
 import type { PageOutlineItem } from '@kchs/contracts'
-import { useT } from '~/app/i18n.js'
+import { useT } from '~/shared/i18n.js'
 
 /**
  * Оглавление страницы (03-screens.md §18): пункты с якорями на блоки. Список

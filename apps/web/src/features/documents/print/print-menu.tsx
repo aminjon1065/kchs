@@ -17,9 +17,9 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Printer } from 'lucide-react'
 import { useId, useState } from 'react'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { http } from '~/shared/api/client.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { errorText, localToday } from '../status.js'
 import { printFormsQuery, renderKeys, waitForRender } from './renders.js'
 

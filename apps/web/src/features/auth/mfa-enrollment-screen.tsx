@@ -1,9 +1,9 @@
 import { Button } from '@kchs/ui'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { LogOut, ShieldAlert } from 'lucide-react'
-import { useT } from '~/app/i18n.js'
 import { http, setCsrfToken } from '~/shared/api/client.js'
 import { keys } from '~/shared/api/queries.js'
+import { useT } from '~/shared/i18n.js'
 import { MfaSetup } from './mfa-setup.js'
 
 /**

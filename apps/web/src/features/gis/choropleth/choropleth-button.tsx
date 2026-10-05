@@ -2,7 +2,7 @@ import type { DatasetRecord } from '@kchs/contracts'
 import { Button } from '@kchs/ui'
 import { ChartArea } from 'lucide-react'
 import { useState } from 'react'
-import { useT } from '~/app/i18n.js'
+import { useT } from '~/shared/i18n.js'
 import { choroplethReady } from './choropleth-form.js'
 import { ChoroplethWizard } from './choropleth-wizard.js'
 

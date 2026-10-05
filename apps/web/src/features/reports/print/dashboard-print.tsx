@@ -11,11 +11,11 @@ import { Button, Chart, cn, ErrorState, NumberTile, Skeleton } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { Printer } from 'lucide-react'
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { metricTileModel, periodText } from '~/features/data/metric-format.js'
 import { useLabelledResult } from '~/features/gis/result-labels.js'
 import { ApiError, http, setCsrfToken } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { PrintMap } from './print-blocks.js'
 import { type PrintContextValue, PrintProvider, setPrintState, settleDom } from './print-context.js'
 
@@ -62,7 +62,7 @@ function TileBody({
   timezone: string
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale) as Locale
+  const locale = useLocale() as Locale
   const result = useLabelledResult(data?.result ?? undefined)
   if (tile.kind === 'text' || tile.kind === 'heading') {
     return <div className="h-full overflow-hidden whitespace-pre-wrap text-sm">{tile.text}</div>
@@ -130,7 +130,7 @@ function DashboardSheet({
   timezone: string
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale) as Locale
+  const locale = useLocale() as Locale
   const tiles = useMemo(
     () =>
       [...dashboard.spec.tiles]

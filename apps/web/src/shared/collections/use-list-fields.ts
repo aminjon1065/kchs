@@ -2,8 +2,8 @@ import type { ListFieldsResponse } from '@kchs/contracts'
 import type { FilterField } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
-import { useT } from '~/app/i18n.js'
 import { http } from '~/shared/api/client.js'
+import { useT } from '~/shared/i18n.js'
 
 /** Схема полей списка (общие + поля модулей) с подписями на языке интерфейса. */
 export function useListFields(types: string[]): { fields: FilterField[]; sortable: string[] } {

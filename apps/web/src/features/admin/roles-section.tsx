@@ -4,9 +4,9 @@ import { Badge, Button, Card, cn, IconButton, Skeleton } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { Check, Minus, Pencil, Plus } from 'lucide-react'
 import { Fragment, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { meQuery, rolesQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { CAPABILITY_GROUPS, capabilityLabelKey } from './capabilities.js'
 import { RoleDialog } from './role-dialog.js'
 
@@ -23,7 +23,7 @@ export function RolesSection({
   onShowHolders?: (roleKey: string) => void
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { data: unordered = [], isLoading } = useQuery(rolesQuery())
   const { data: me } = useQuery(meQuery())
   const canManage = me?.capabilities.includes('roles.manage') ?? false

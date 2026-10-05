@@ -25,9 +25,9 @@ import { chatListQuery } from '~/features/chat/queries.js'
 import { useOpenHelp } from '~/features/knowledge/help.js'
 import { useBranding } from '~/shared/api/branding.js'
 import { inboxCountsQuery, meQuery, notificationsQuery } from '~/shared/api/queries.js'
-import { useT } from '../i18n.js'
-import { useWorkspace } from './store.js'
-import type { ScreenKey } from './types.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
+import type { ScreenKey } from '~/shared/workspace/types.js'
 
 interface RailItem {
   key: ScreenKey

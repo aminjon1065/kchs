@@ -1,10 +1,10 @@
 import type { DatasetField, NotebookBindings, NotebookParams } from '@kchs/contracts'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@kchs/ui'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { PERIOD_PRESETS, type PeriodPreset, periodValue } from '~/features/data/dashboard-layout.js'
 import { labelOf } from '~/features/data/explore-builder.js'
 import { TerritorySelect } from '~/features/gis/territory-select.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { useNotebook } from './notebook-context.js'
 import { paramsOf } from './notebook-doc.js'
 
@@ -90,7 +90,7 @@ export function BindingsControl({
   disabled?: boolean
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const kinds = [
     { key: 'period' as const, types: new Set(['date', 'datetime']) },
     { key: 'territory' as const, types: new Set(['territory']) },

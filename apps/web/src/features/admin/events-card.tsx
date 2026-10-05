@@ -2,10 +2,10 @@ import type { EventDlqList, EventDlqRetryResult, HealthEvents } from '@kchs/cont
 import { formatDateTime, formatNumber } from '@kchs/fields'
 import { Badge, Button, Callout, Card, Skeleton, StatTile, useToast } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { keys } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 
 const DLQ_KEY = ['admin', 'events', 'dlq'] as const
 const DLQ_LIMIT = 50
@@ -18,7 +18,7 @@ export function EventsCard({ events }: { events: HealthEvents }) {
   const t = useT()
   const toast = useToast()
   const client = useQueryClient()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
 
   const dlq = useQuery({
     queryKey: DLQ_KEY,

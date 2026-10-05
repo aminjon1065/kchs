@@ -2,7 +2,7 @@ import type { MeetingGuestJoin, MeetingJoin } from '@kchs/contracts'
 import { Button, Callout, Card, Field, Input, Spinner } from '@kchs/ui'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useCallback, useEffect, useState } from 'react'
-import { useT } from '~/app/i18n.js'
+import { useT } from '~/shared/i18n.js'
 import { guestJoin, guestPreview, meetingKeys } from './queries.js'
 import { MeetingRoom } from './room/meeting-room.js'
 

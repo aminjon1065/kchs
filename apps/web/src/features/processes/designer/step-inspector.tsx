@@ -16,7 +16,7 @@ import {
 } from '@kchs/ui'
 import { MousePointerClick, Plus, Trash2 } from 'lucide-react'
 import { type ReactNode, useEffect, useId, useState } from 'react'
-import { useT } from '~/app/i18n.js'
+import { useT } from '~/shared/i18n.js'
 import { addBranch, issuesByStep, layoutOf, renameStep, updateStep } from '../model.js'
 import { AssigneeEditor } from './assignee-editor.js'
 import { useDesigner, useStepTitle } from './context.js'

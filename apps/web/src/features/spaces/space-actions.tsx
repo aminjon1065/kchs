@@ -19,8 +19,8 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Archive, ArchiveRestore, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
 import { useId, useState } from 'react'
-import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { useT } from '~/shared/i18n.js'
 
 /**
  * Пространство целиком (ADR-0152): переименование, архив вместе с содержимым и

@@ -2,7 +2,7 @@ import { IconButton } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { Printer } from 'lucide-react'
 import { lazy, Suspense, useState } from 'react'
-import { useT } from '~/app/i18n.js'
+import { useT } from '~/shared/i18n.js'
 import { mapQuery } from '../queries.js'
 import { useStudio } from './context.js'
 

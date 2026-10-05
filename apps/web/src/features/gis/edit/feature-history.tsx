@@ -20,10 +20,10 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Eye, EyeOff, History, RotateCcw } from 'lucide-react'
 import { useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { ApiError } from '~/shared/api/client.js'
 import { meQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { fieldLabel } from '../../data/field-types.js'
 import { rowHistoryQuery } from '../../data/queries.js'
 import { useStudio } from '../studio/context.js'
@@ -53,7 +53,7 @@ export function FeatureHistory({
   const toast = useToast()
   const client = useQueryClient()
   const studio = useStudio()
-  const locale = useAppearance((s) => s.locale) as Locale
+  const locale = useLocale() as Locale
   const { data: me } = useQuery(meQuery())
   const useSession = editStore(studio.mapId)
   const target = useSession((s) => s.target)

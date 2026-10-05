@@ -31,8 +31,6 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { Play, Settings2, Sparkles } from 'lucide-react'
 import { type ReactNode, useMemo, useState } from 'react'
 import type * as Y from 'yjs'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { askError } from '~/features/data/ask-box.js'
 import {
   CHART_TYPES,
@@ -44,6 +42,8 @@ import {
 } from '~/features/data/explore-builder.js'
 import { aiStatusQuery, datasetQuery, sqlSchemaQuery } from '~/features/data/queries.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { cellSpec, notebookKeys, sqlParams } from './cell-run.js'
 import { useNotebook } from './notebook-context.js'
 import { type CellMap, useCellValue, useSharedText, writeCell } from './notebook-doc.js'
@@ -254,7 +254,7 @@ const NO_FIELDS: DatasetRecord['fields'] = []
 /** SQL-ячейка: текст правится совместно (Y.Text), выполняется по кнопке или Ctrl+Enter. */
 function SqlBody({ cell, cellId }: { cell: CellMap; cellId: string }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { notebookId, params, readOnly, canSql, timezone } = useNotebook()
   const [sql, setSql] = useSharedText(cell.get('sql') as Y.Text | undefined)
   // Выполняется то, что отправили: правка текста не перезапускает запрос на каждую букву
@@ -460,7 +460,7 @@ export function CellResult({
   children: ReactNode
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   if (missing) {
     return (
       <p className="rounded-md border border-dashed border-line px-3 py-6 text-center text-xs text-fg-muted">

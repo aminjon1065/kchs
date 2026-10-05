@@ -1,7 +1,7 @@
 import { IconButton } from '@kchs/ui'
 import { X } from 'lucide-react'
 import { type KeyboardEvent, type PointerEvent, type ReactNode, useRef } from 'react'
-import { useT } from '~/app/i18n.js'
+import { useT } from '~/shared/i18n.js'
 
 /** Шаг шторки с клавиатуры, % ширины карты. */
 const STEP = 5

@@ -23,12 +23,10 @@ import {
   Upload,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { CreateNotebookDialog } from '~/features/notebooks/create-notebook-dialog.js'
 import { CreateReportDialog } from '~/features/reports/create-report-dialog.js'
 import { meQuery, spacesQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
 import { emptyCollectionState } from '~/shared/collections/collection-state.js'
 import { SavedViewsMenu } from '~/shared/collections/saved-views-menu.js'
 import { useListFields } from '~/shared/collections/use-list-fields.js'
@@ -37,7 +35,9 @@ import {
   describeUserFilterValue,
   renderUserFilterValue,
 } from '~/shared/collections/user-filter-value.js'
+import { useT } from '~/shared/i18n.js'
 import { orderSpaces } from '~/shared/spaces.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { CreateDashboardDialog } from './dashboard-dialogs.js'
 import { ImportWizard } from './import-wizard.js'
 import { MetricEditor } from './metric-editor.js'
@@ -66,7 +66,7 @@ export function DataCatalogScreen({
   savedState?: { collection?: CollectionState; viewId?: string | null }
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const openTab = useWorkspace((s) => s.openTab)
   const setTabState = useWorkspace((s) => s.setTabState)
   const breakpoint = useBreakpoint()

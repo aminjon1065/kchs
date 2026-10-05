@@ -34,11 +34,11 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarSearch, Copy, Link2, Trash2 } from 'lucide-react'
 import { useId, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { projectsQuery } from '~/features/tasks/queries.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { spacesQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { ColorInput, RemindersInput } from './event-editor.js'
 import { calendarKeys, calendarSettingsQuery, calendarsQuery, feedsQuery } from './queries.js'
 import { clockMinutes } from './time.js'
@@ -534,7 +534,7 @@ export function FeedDialog({
   const toast = useToast()
   const client = useQueryClient()
   const errorText = useErrorText()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const urlId = useId()
   const [created, setCreated] = useState<string | null>(null)
   const { data: feeds = [], isLoading } = useQuery(feedsQuery(calendar.id))

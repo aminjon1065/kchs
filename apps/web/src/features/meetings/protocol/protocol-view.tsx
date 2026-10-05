@@ -1,7 +1,7 @@
 import { Skeleton } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect } from 'react'
-import { useWorkspace } from '~/app/workspace/store.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { ProtocolBody } from './protocol-panel.js'
 import { protocolQuery } from './queries.js'
 

@@ -16,9 +16,9 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
-import { useT } from '~/app/i18n.js'
 import { type PickedUser, UsersPicker } from '~/features/tasks/user-picker.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { useT } from '~/shared/i18n.js'
 
 const groupsKey = ['groups'] as const
 

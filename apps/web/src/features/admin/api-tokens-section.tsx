@@ -4,10 +4,10 @@ import { AlertDialog, Badge, Button, Card, EmptyState, Skeleton, useToast } from
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { KeyRound } from 'lucide-react'
 import { useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { adminApiTokensQuery, keys } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 
 const STATUS_TONES: Record<ApiToken['status'], 'success' | 'neutral' | 'warning'> = {
   active: 'success',
@@ -24,7 +24,7 @@ export function ApiTokensSection() {
   const t = useT()
   const toast = useToast()
   const client = useQueryClient()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { data: items = [], isLoading } = useQuery(adminApiTokensQuery())
   const [revoking, setRevoking] = useState<ApiToken | null>(null)
 

@@ -16,9 +16,9 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { useId, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 
 const positionsKey = ['org', 'positions'] as const
 
@@ -36,7 +36,7 @@ export const positionsQuery = () => ({
  */
 export function PositionsCard() {
   const t = useT()
-  const locale = useAppearance((s) => s.locale) as Locale
+  const locale = useLocale() as Locale
   const toast = useToast()
   const client = useQueryClient()
   const { data: items = [], isLoading } = useQuery(positionsQuery())

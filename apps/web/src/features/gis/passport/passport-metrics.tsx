@@ -17,10 +17,10 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { X } from 'lucide-react'
 import { useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { objectListQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 
 type Scope = 'self' | 'root'
 
@@ -40,7 +40,7 @@ export function PassportMetricsDialog({
   onClose: () => void
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const client = useQueryClient()
   const [metricId, setMetricId] = useState<string | null>(null)
   const [scope, setScope] = useState<Scope>('self')

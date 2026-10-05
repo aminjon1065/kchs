@@ -2,7 +2,7 @@ import type { FeatureGeometry } from '@kchs/contracts'
 import { Button, Callout, Dialog, DialogContent, Field, Input, Textarea } from '@kchs/ui'
 import { LocateFixed } from 'lucide-react'
 import { useId, useState } from 'react'
-import { useT } from '~/app/i18n.js'
+import { useT } from '~/shared/i18n.js'
 import {
   buildGeometry,
   type CoordinatesError,

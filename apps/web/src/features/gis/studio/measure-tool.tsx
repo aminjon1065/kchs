@@ -3,8 +3,8 @@ import { Button, type MapLayerSpecification, useMapTheme } from '@kchs/ui'
 import { Pentagon, Ruler } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { useStudio } from './context.js'
 import {
   areaValue,
@@ -26,7 +26,7 @@ export const MEASURE_TOOLS = { line: 'measure-line', area: 'measure-area' } as c
 /** Значение измерения на языке интерфейса: «12,34 км», «3,5 га». */
 export function useMeasureText(): (value: MeasureValue) => string {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   return (value) =>
     t(`gis.measure.units.${value.unit}`, {
       value: formatNumber(value.value, { precision: value.precision }, { locale }),

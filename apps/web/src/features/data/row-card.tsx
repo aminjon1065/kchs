@@ -31,12 +31,12 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CheckSquare, History, Trash2 } from 'lucide-react'
 import { useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { RowTasks } from '~/features/tasks/row-tasks.js'
 import { CreateTaskDialog } from '~/features/tasks/task-dialogs.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { meQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { fieldLabel } from './field-types.js'
 import { dataKeys, datasetRowQuery, rowHistoryQuery } from './queries.js'
 
@@ -95,7 +95,7 @@ export function RowCard({
   onChanged: () => void
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const toast = useToast()
   const client = useQueryClient()
   const { data: me } = useQuery(meQuery())

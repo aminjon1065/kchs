@@ -26,10 +26,10 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Megaphone, Plus } from 'lucide-react'
 import { useId, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { adminAnnouncementsQuery, keys } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 
 const STATUS_TONES: Record<AnnouncementStatus, 'accent' | 'success' | 'neutral'> = {
   scheduled: 'accent',
@@ -49,7 +49,7 @@ const SEVERITY_TONES: Record<AnnouncementSeverity, 'neutral' | 'warning' | 'dang
  */
 export function AnnouncementsSection() {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const toast = useToast()
   const client = useQueryClient()
   // Сроки объявлений — в поясе профиля, как и поле ввода в диалоге

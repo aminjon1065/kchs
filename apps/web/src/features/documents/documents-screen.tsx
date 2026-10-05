@@ -38,11 +38,8 @@ import {
   UserRound,
 } from 'lucide-react'
 import { type ReactNode, useEffect, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
-import type { TabState } from '~/app/workspace/types.js'
 import { meQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
 import { emptyCollectionState } from '~/shared/collections/collection-state.js'
 import { SavedViewsMenu } from '~/shared/collections/saved-views-menu.js'
 import { useListFields } from '~/shared/collections/use-list-fields.js'
@@ -51,6 +48,9 @@ import {
   describeUserFilterValue,
   renderUserFilterValue,
 } from '~/shared/collections/user-filter-value.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
+import type { TabState } from '~/shared/workspace/types.js'
 import { DocumentsBulkActions } from './bulk-actions.js'
 import { CreateDocumentDialog } from './create-document-dialog.js'
 import { CasesDirectory } from './directories/cases-directory.js'
@@ -206,7 +206,7 @@ function DocumentsList({
   savedState?: DocumentsScreenState
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const openTab = useWorkspace((s) => s.openTab)
   const setTabState = useWorkspace((s) => s.setTabState)
   const { data: me } = useQuery(meQuery())

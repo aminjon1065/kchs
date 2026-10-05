@@ -1,7 +1,7 @@
 import type { FilterBuilderProps } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useCallback } from 'react'
-import { useAppearance } from '~/app/appearance.js'
+import { useLocale } from '~/shared/appearance.js'
 import { territoriesQuery } from './queries.js'
 import { TerritoryTree } from './territory-tree.js'
 
@@ -20,7 +20,7 @@ export function selectedOf(value: unknown): string | null {
  * конструктора по умолчанию (список вариантов).
  */
 export function useTerritoryFilterEditor(enabled = true): FilterBuilderProps['renderValue'] {
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { data: items } = useQuery({ ...territoriesQuery(), enabled })
   return useCallback<NonNullable<FilterBuilderProps['renderValue']>>(
     ({ field, op, value, onChange }) => {

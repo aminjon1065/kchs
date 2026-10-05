@@ -20,10 +20,10 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { Users } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { orgUnitsQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { tasksQuery, workloadQuery } from './queries.js'
 import { STATUS_TONE_KEY } from './task-status.js'
 
@@ -71,7 +71,7 @@ export function WorkloadScreen({
   savedState?: WorkloadScreenState
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const openTab = useWorkspace((s) => s.openTab)
   const setTabState = useWorkspace((s) => s.setTabState)
   const [unitId, setUnitId] = useState(savedState?.unitId ?? MINE)
@@ -332,7 +332,7 @@ function DrillList({
   onOpen: (item: TaskListItem) => void
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const columns: Array<DataTableColumn<TaskListItem>> = [
     {
       key: 'title',

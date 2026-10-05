@@ -2,9 +2,9 @@ import { formatDateTime } from '@kchs/fields'
 import { EmptyState, Skeleton } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { History } from 'lucide-react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { objectActivityQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { useDocument } from './document-context.js'
 
 /**
@@ -13,7 +13,7 @@ import { useDocument } from './document-context.js'
  */
 export function HistoryTab() {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { document } = useDocument()
   const { data, isLoading } = useQuery(objectActivityQuery(document.id))
 

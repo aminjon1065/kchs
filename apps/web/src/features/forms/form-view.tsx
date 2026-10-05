@@ -1,7 +1,7 @@
 import { Badge, ErrorState, Skeleton, Tabs, TabsContent, TabsList, TabsTrigger } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { useT } from '~/app/i18n.js'
+import { useT } from '~/shared/i18n.js'
 import { FormControlTab } from './form-control-tab.js'
 import { FormFillTab } from './form-fill-tab.js'
 import { FormSettingsTab } from './form-settings-tab.js'

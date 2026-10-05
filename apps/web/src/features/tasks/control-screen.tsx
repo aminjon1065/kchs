@@ -41,12 +41,12 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ClipboardCheck, Download, RefreshCw } from 'lucide-react'
 import { useEffect, useId, useMemo, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { metricTileModel } from '~/features/data/metric-format.js'
 import { metricValueQuery } from '~/features/data/queries.js'
 import { orgUnitsQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { controlListQuery, controlQuery, queryOf, taskKeys } from './queries.js'
 import { type PickedUser, UserPicker } from './user-picker.js'
 
@@ -191,7 +191,7 @@ export function ControlScreen({
   savedState?: ControlScreenState
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const client = useQueryClient()
   const openTab = useWorkspace((s) => s.openTab)
   const setTabState = useWorkspace((s) => s.setTabState)
@@ -525,7 +525,7 @@ function ControlMetrics({ report }: { report: ControlReport }) {
 
 function MetricTile({ metricId }: { metricId: string }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const openTab = useWorkspace((s) => s.openTab)
   const { data: value } = useQuery(metricValueQuery(metricId, {}))
   if (!value) return <Skeleton className="h-28 w-full" />
@@ -681,7 +681,7 @@ function ControlList({
   onOpen: (item: ControlListItem) => void
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const columns: Array<DataTableColumn<ControlListItem>> = [
     {
       key: 'title',

@@ -2,8 +2,8 @@ import type { FilterOperator, PrincipalRef } from '@kchs/contracts'
 import { Checkbox, type FilterField, SearchInput, type ValueEditorProps } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { useT } from '~/app/i18n.js'
 import { principalsQuery } from '~/shared/api/queries.js'
+import { useT } from '~/shared/i18n.js'
 
 /** Имена выбранных людей для чипов фильтра (идентификаторы → подписи). */
 const names = new Map<string, string>()

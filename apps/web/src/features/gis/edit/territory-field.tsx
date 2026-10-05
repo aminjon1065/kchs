@@ -3,8 +3,8 @@ import { Button, IconButton, Popover, PopoverContent, PopoverTrigger } from '@kc
 import { useQuery } from '@tanstack/react-query'
 import { MapPin, X } from 'lucide-react'
 import { useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { territoriesQuery } from '../queries.js'
 import { TerritoryTree } from '../territory-tree.js'
 
@@ -35,7 +35,7 @@ export function TerritoryField({
   auto: boolean
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale) as Locale
+  const locale = useLocale() as Locale
   const { data: items = [] } = useQuery(territoriesQuery())
   const [open, setOpen] = useState(false)
   const selected = typeof value === 'string' ? items.find((item) => item.id === value) : undefined

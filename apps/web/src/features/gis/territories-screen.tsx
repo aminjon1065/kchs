@@ -1,8 +1,8 @@
 import { EmptyState, ErrorState, Skeleton } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { territoriesQuery } from './queries.js'
 import { TerritoryCard } from './territory-card.js'
 import { TerritoryTree } from './territory-tree.js'
@@ -13,7 +13,7 @@ import { TerritoryTree } from './territory-tree.js'
  */
 export function TerritoriesScreen() {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { data: items, isLoading, error, refetch } = useQuery(territoriesQuery())
   const [selected, setSelected] = useState<string | null>(null)
 

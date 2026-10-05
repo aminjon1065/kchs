@@ -2,7 +2,7 @@ import { Avatar, Badge, cn } from '@kchs/ui'
 import { Track } from 'livekit-client'
 import { Hand, MicOff, ScreenShare, SignalHigh, SignalLow, SignalMedium } from 'lucide-react'
 import { useEffect, useRef } from 'react'
-import { useT } from '~/app/i18n.js'
+import { useT } from '~/shared/i18n.js'
 import type { Quality, RoomTile } from './use-meeting-room.js'
 
 /**

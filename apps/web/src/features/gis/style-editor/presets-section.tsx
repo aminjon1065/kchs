@@ -8,7 +8,7 @@ import {
 import { Button } from '@kchs/ui'
 import { useMutation } from '@tanstack/react-query'
 import { Sparkles } from 'lucide-react'
-import { useT } from '~/app/i18n.js'
+import { useT } from '~/shared/i18n.js'
 import { categoriesWithLabels, loadCategoryValues } from './categories.js'
 import { EditorSection, useFieldName, useStyleEditor } from './controls.js'
 

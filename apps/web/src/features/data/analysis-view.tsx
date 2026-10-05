@@ -22,9 +22,6 @@ import {
 import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Play, Share2, Trash2 } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { ShareDialog } from '~/features/access/share-dialog.js'
 import {
   ChoroplethMapButton,
@@ -34,6 +31,9 @@ import { territoriesQuery } from '~/features/gis/queries.js'
 import { PresenceAvatars } from '~/features/objects/presence-avatars.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { keys, objectQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { datasetQuery, exportJobQuery } from './queries.js'
 
 const ACTIVE = new Set<AnalysisStatus>(['queued', 'running'])
@@ -98,7 +98,7 @@ function ObjectLink({ id }: { id: string }) {
 /** Цель операции: датасет, территория, территории уровня или геометрия. */
 function TargetValue({ target }: { target: unknown }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { data: territories = [] } = useQuery(territoriesQuery())
   if (!isRecord(target)) return <>{t('common.labels.noValue')}</>
   if ((target.kind === 'dataset' || target.kind === 'query') && typeof target.id === 'string') {
@@ -129,7 +129,7 @@ function TargetValue({ target }: { target: unknown }) {
  */
 export function AnalysisView({ objectId, tabId }: { objectId: string; tabId: string }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const toast = useToast()
   const client = useQueryClient()
   const setTabTitle = useWorkspace((s) => s.setTabTitle)

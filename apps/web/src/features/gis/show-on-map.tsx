@@ -2,9 +2,9 @@ import type { DatasetRecord } from '@kchs/contracts'
 import { Button, useToast } from '@kchs/ui'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Map as MapIcon } from 'lucide-react'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { datasetLayersQuery, gisKeys } from './queries.js'
 
 /**

@@ -2,8 +2,8 @@ import type { PrincipalRef, RoleInfo } from '@kchs/contracts'
 import { localizedText } from '@kchs/i18n'
 import type { DefinitionIssue, ProcessCatalog, Step } from '@kchs/process'
 import { createContext, useContext } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { describeAssignee } from '../assignees.js'
 import type { Definition } from '../model.js'
 
@@ -37,7 +37,7 @@ export function useDesigner(): DesignerContextValue {
 /** Подпись выражения назначения словами: люди и подразделения — именами. */
 export function useAssigneeLabel(): (expression: string) => string {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { definition, roles, principals, catalog } = useDesigner()
   const fields = catalog?.objectTypes.find((item) => item.type === definition.objectType)?.fields
   return (expression) => {
@@ -87,7 +87,7 @@ export function useAssigneeLabel(): (expression: string) => string {
 /** Название шага: своё или название типа. */
 export function useStepTitle(): (key: string, step: Step | undefined) => string {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   return (key, step) => {
     if (!step) return key
     const own = step.name ? localizedText(step.name, locale).trim() : ''

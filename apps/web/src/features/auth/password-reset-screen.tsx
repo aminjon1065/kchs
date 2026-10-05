@@ -2,9 +2,9 @@ import { Button, Callout, Field, PasswordInput } from '@kchs/ui'
 import { useMutation } from '@tanstack/react-query'
 import { KeyRound } from 'lucide-react'
 import { useState } from 'react'
-import { useT } from '~/app/i18n.js'
 import { useBranding } from '~/shared/api/branding.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { useT } from '~/shared/i18n.js'
 
 /**
  * Восстановление доступа по ссылке из письма (`/reset-password?token=…`).

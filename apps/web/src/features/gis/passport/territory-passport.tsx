@@ -34,9 +34,9 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { Gauge, Layers, Map as MapIcon } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { territoryDocumentsQuery } from '../../documents/queries.js'
 import { territoriesQuery, territoryQuery } from '../queries.js'
 import { useOpenPassport } from '../territory-link.js'
@@ -61,7 +61,7 @@ type Tab = 'data' | 'objects' | 'documents' | 'tasks' | 'children'
  */
 export function TerritoryPassport({ territoryId }: { territoryId: string }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale) as Locale
+  const locale = useLocale() as Locale
   const openTab = useWorkspace((s) => s.openTab)
   const openPassport = useOpenPassport()
   const [period, setPeriod] = useState<PassportPeriod>('12m')

@@ -21,10 +21,10 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, FileSpreadsheet, FileUp } from 'lucide-react'
 import { useRef, useState } from 'react'
-import { useT } from '~/app/i18n.js'
 import { uploadFile } from '~/features/files/upload.js'
 import { http } from '~/shared/api/client.js'
 import { meQuery } from '~/shared/api/queries.js'
+import { useT } from '~/shared/i18n.js'
 import { errorText } from '../status.js'
 
 const TEMPLATE = '/api/v1/cases/import/template.xlsx'

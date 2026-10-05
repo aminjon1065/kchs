@@ -14,9 +14,9 @@ import {
 } from '@kchs/ui'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useId, useState } from 'react'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 
 /**
  * Новая страница базы знаний (ADR-0095): название, шаблон (инструкция,

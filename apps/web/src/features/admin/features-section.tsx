@@ -1,9 +1,9 @@
 import type { FeatureFlag, FeatureFlagList } from '@kchs/contracts'
 import { Callout, Card, Skeleton, Switch, useToast } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { keys } from '~/shared/api/queries.js'
+import { useT } from '~/shared/i18n.js'
 
 /**
  * Возможности установки (15-admin-operations.md §1): организация выключает то,

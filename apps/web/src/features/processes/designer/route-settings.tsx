@@ -21,7 +21,7 @@ import {
 } from '@kchs/ui'
 import { Plus, Trash2 } from 'lucide-react'
 import { type ReactNode, useId, useState } from 'react'
-import { useT } from '~/app/i18n.js'
+import { useT } from '~/shared/i18n.js'
 import { defaultStep } from '../model.js'
 import { AssigneeEditor } from './assignee-editor.js'
 import { useDesigner, useStepTitle } from './context.js'

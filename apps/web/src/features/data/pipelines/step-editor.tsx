@@ -13,7 +13,7 @@ import {
   Textarea,
 } from '@kchs/ui'
 import { useId, useState } from 'react'
-import { useT } from '~/app/i18n.js'
+import { useT } from '~/shared/i18n.js'
 import { formatPairs, parseList, parsePairs, SIMPLE_STEPS } from './step-model.js'
 
 /**

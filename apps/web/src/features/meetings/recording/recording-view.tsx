@@ -15,12 +15,12 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, Pin, PinOff, Video } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { saveLink } from '~/features/documents/print/renders.js'
 import { useFileDownload } from '~/features/files/use-file-download.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { meetingQuery } from '../queries.js'
 import { playbackQuery, recordingKeys, recordingQuery, transcriptQuery } from './queries.js'
 import { speakerNames, TranscriptPanel, transcriptText } from './transcript-panel.js'
@@ -45,7 +45,7 @@ export default function RecordingView({ objectId, tabId }: { objectId: string; t
   const video = useRef<HTMLVideoElement>(null)
   const [currentTime, setCurrentTime] = useState(0)
   const download = useFileDownload()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const toast = useToast()
   const client = useQueryClient()
 

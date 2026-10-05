@@ -2,9 +2,9 @@ import type { DocumentTerritoryItem, Locale } from '@kchs/contracts'
 import { formatDate } from '@kchs/fields'
 import { DataTable, type DataTableColumn, EmptyState, Skeleton, StatusBadge } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { territoryDocumentsQuery } from '../../documents/queries.js'
 import { DOCUMENT_STATUS_TONE } from '../../documents/status.js'
 import { TerritoryLink } from '../territory-link.js'
@@ -16,7 +16,7 @@ import { TerritoryLink } from '../territory-link.js'
  */
 export function PassportDocuments({ territoryId }: { territoryId: string }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale) as Locale
+  const locale = useLocale() as Locale
   const openTab = useWorkspace((s) => s.openTab)
   const { data, isLoading } = useQuery(territoryDocumentsQuery(territoryId))
 

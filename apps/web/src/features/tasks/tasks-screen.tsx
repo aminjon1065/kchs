@@ -43,9 +43,9 @@ import {
   Users,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { projectsQuery, taskKeys, taskSummaryQuery, tasksQuery } from './queries.js'
 import { errorText, postTaskStep, type TaskStep, useTaskInvalidation } from './task-actions.js'
 import { BulkBar, BulkDialog, type BulkKind } from './task-bulk.js'
@@ -89,7 +89,7 @@ export function TasksScreen({
   savedState?: TasksScreenState
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const toast = useToast()
   const client = useQueryClient()
   const invalidate = useTaskInvalidation()

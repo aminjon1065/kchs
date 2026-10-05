@@ -19,8 +19,8 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Download, FileText, Pencil, Users } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { useT } from '~/shared/i18n.js'
 import { recordingKeys } from './queries.js'
 
 /** Значение выбора «говорящий не сопоставлен» — у Select не бывает пустого значения. */

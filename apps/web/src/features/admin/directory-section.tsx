@@ -31,10 +31,10 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { FolderTree, Plug, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import { useId, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { rolesQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { authProviderKeys, directoryQuery, directorySyncsQuery } from './auth-providers.js'
 
 const ACTION_TONES: Record<DirectoryChange['action'], BadgeProps['tone']> = {
@@ -69,7 +69,7 @@ export function DirectorySection() {
   const t = useT()
   const toast = useToast()
   const client = useQueryClient()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const urlId = useId()
   const bindDnId = useId()
   const bindPasswordId = useId()

@@ -3,9 +3,9 @@ import { formatDateTime, formatFileSize, formatNumber, formatPercent } from '@kc
 import { Badge, Callout, Card, Skeleton, StatTile } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { Activity, Cpu, Database, HardDrive, Search, Server } from 'lucide-react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { healthQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { EventsCard } from './events-card.js'
 
 const COMPONENT_ICONS: Record<string, typeof Server> = {
@@ -107,7 +107,7 @@ export function HealthSection() {
 
 function MetricsCard({ metrics }: { metrics: HealthMetrics }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const number = (value: number | null, precision: number) =>
     value === null ? '—' : formatNumber(value, { precision }, { locale })
   const bytes = (value: number | null) => (value === null ? '—' : formatFileSize(value, { locale }))
@@ -172,7 +172,7 @@ const SEVERITY_TONE = { critical: 'danger', warning: 'warning' } as const
 
 function AlertsCard({ alerts }: { alerts: HealthAlerts }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
 
   return (
     <Card title={t('admin.health.alerts.title')}>

@@ -21,7 +21,7 @@ import {
   X,
 } from 'lucide-react'
 import { Fragment, useMemo } from 'react'
-import { useT } from '~/app/i18n.js'
+import { useT } from '~/shared/i18n.js'
 import {
   addBranch,
   canBeInBranch,

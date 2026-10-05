@@ -28,11 +28,11 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle2, History, MoreHorizontal, Save, Send, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { rolesQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { allAssigneeExpressions, principalKeysOf } from '../assignees.js'
 import type { Definition } from '../model.js'
 import {
@@ -96,7 +96,7 @@ export default function DesignerScreen({
 function Designer({ details, tabId }: { details: ProcessDefinitionDetails; tabId: string }) {
   const t = useT()
   const toast = useToast()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const client = useQueryClient()
   const setTabDirty = useWorkspace((s) => s.setTabDirty)
   const setTabTitle = useWorkspace((s) => s.setTabTitle)

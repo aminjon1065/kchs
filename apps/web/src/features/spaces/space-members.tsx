@@ -19,10 +19,10 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { UserMinus } from 'lucide-react'
 import { useState } from 'react'
-import { useT } from '~/app/i18n.js'
 import { ServiceAccountBadge } from '~/features/access/service-account-badge.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { keys, principalsQuery } from '~/shared/api/queries.js'
+import { useT } from '~/shared/i18n.js'
 
 function useRefreshMembers(spaceId: string) {
   const client = useQueryClient()

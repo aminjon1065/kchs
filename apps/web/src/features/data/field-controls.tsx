@@ -19,12 +19,12 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { X } from 'lucide-react'
 import { type ReactNode, useId, useMemo, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { PrincipalLine } from '~/features/access/principal-picker.js'
 import { PointField } from '~/features/gis/edit/point-field.js'
 import { TerritoryField } from '~/features/gis/edit/territory-field.js'
 import { objectListQuery, principalRefsQuery, principalsQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { useFieldOptions } from './field-options.js'
 import { type LookupRef, lookupLabelQuery, lookupSearchQuery } from './queries.js'
 
@@ -54,7 +54,7 @@ const CHOICE_VISIBLE = 200
 export function useFieldControls(
   fields: readonly FieldDef[],
 ): (control: ControlProps) => ReactNode | undefined {
-  const locale = useAppearance((s) => s.locale) as Locale
+  const locale = useLocale() as Locale
   const options = useFieldOptions(fields)
   return (control) => {
     const { field } = control
@@ -221,7 +221,7 @@ export function useFieldFormatter(
   fields: readonly FieldDef[],
   records: ReadonlyArray<Record<string, unknown>>,
 ): (field: FieldDef, value: unknown) => string {
-  const locale = useAppearance((s) => s.locale) as Locale
+  const locale = useLocale() as Locale
   const options = useFieldOptions(fields)
   const refs = useMemo(() => {
     const keys = new Set<string>()

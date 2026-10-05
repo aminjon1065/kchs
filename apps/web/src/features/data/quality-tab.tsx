@@ -24,9 +24,9 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, ShieldCheck, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 
 /**
  * Качество данных (06-analytics-engine.md §15, ADR-0101): правила датасета и
@@ -57,7 +57,7 @@ export function QualityTab({ dataset }: { dataset: DatasetRecord }) {
   const t = useT()
   const toast = useToast()
   const client = useQueryClient()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const key = ['object', dataset.id, 'quality'] as const
   const { data, isLoading } = useQuery({
     queryKey: key,

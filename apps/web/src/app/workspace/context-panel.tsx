@@ -59,11 +59,11 @@ import {
   objectQuery,
   tagSuggestionsQuery,
 } from '~/shared/api/queries.js'
-import { useAppearance } from '../appearance.js'
-import { useT } from '../i18n.js'
-import { getObjectView } from './registry.js'
-import { useWorkspace } from './store.js'
-import type { ContextTabKey } from './types.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
+import { getObjectView } from '~/shared/workspace/registry.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
+import type { ContextTabKey } from '~/shared/workspace/types.js'
 
 /** Помощник — отдельным чанком: вкладку открывают не каждый раз, а с ним идут диалоги задач. */
 const AssistantPanel = lazy(() =>
@@ -178,7 +178,7 @@ export function ContextPanel() {
 
 function InfoTab({ objectId }: { objectId: string }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const client = useQueryClient()
   const { data: object, isLoading } = useQuery(objectQuery(objectId))
   const { data: access } = useQuery(objectAccessQuery(objectId))
@@ -731,7 +731,7 @@ function DiscussionTab({ objectId }: { objectId: string }) {
 
 function ActivityTab({ objectId }: { objectId: string }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { data, isLoading } = useQuery(objectActivityQuery(objectId))
 
   if (isLoading) return <PanelSkeleton />

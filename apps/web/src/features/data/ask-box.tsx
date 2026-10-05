@@ -3,8 +3,8 @@ import { Button, Callout, Input } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Sparkles } from 'lucide-react'
 import { useState } from 'react'
-import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { useT } from '~/shared/i18n.js'
 import { aiStatusQuery } from './queries.js'
 
 /** Ошибка «Спросить данные» — по причине из ответа API, понятными словами (и в ИИ-ячейке тетради). */

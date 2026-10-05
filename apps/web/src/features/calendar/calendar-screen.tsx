@@ -35,10 +35,10 @@ import {
   Plus,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { meQuery } from '~/shared/api/queries.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { useBusinessDays } from './business-days.js'
 import { CalendarSidebar } from './calendar-sidebar.js'
 import { type EventDraft, useCalendarUi } from './calendar-store.js'

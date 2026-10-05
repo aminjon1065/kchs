@@ -33,9 +33,6 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Filter, Pencil, Plus, Printer, RefreshCw, Share2, Trash2, Tv, X } from 'lucide-react'
 import { type ReactNode, useEffect, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { ShareDialog } from '~/features/access/share-dialog.js'
 import { MapSlotsProvider } from '~/features/gis/map-slots.js'
 import { TerritorySelect } from '~/features/gis/territory-select.js'
@@ -43,6 +40,9 @@ import { PresenceAvatars } from '~/features/objects/presence-avatars.js'
 import { dashboardPrintPath } from '~/features/reports/print/print-target.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { keys, objectListQuery, objectQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { DrillSheet } from './dashboard-drill.js'
 import {
   moveTile,
@@ -80,7 +80,7 @@ export function DashboardView({ objectId, tabId }: { objectId: string; tabId: st
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [tv, setTv] = useState(false)
   const [drill, setDrill] = useState<{ tile: DashboardTile; pick: ChartPick } | null>(null)
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
 
   const { data: object } = useQuery(objectQuery(objectId))
   const { data: dashboard, isLoading } = useQuery(dashboardQuery(objectId))
@@ -405,7 +405,7 @@ function FilterControl({
   onRemove?: () => void
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const label = filter.label[locale] ?? filter.label.ru
   const external = Array.isArray(value) ? value.join(', ') : String(value ?? '')
   const [text, setText] = useState(external)

@@ -2,8 +2,8 @@ import type { DatasetRecord, Locale } from '@kchs/contracts'
 import { formatValue } from '@kchs/fields'
 import { useQuery } from '@tanstack/react-query'
 import { useCallback } from 'react'
-import { useAppearance } from '~/app/appearance.js'
 import { meQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
 import { useFieldOptions } from '../../data/field-options.js'
 
 /**
@@ -12,7 +12,7 @@ import { useFieldOptions } from '../../data/field-options.js'
  * остальное — форматом поля на языке интерфейса и в поясе пользователя.
  */
 export function useFieldText(dataset: DatasetRecord): (key: string, value: unknown) => string {
-  const locale = useAppearance((s) => s.locale) as Locale
+  const locale = useLocale() as Locale
   const { data: me } = useQuery(meQuery())
   const options = useFieldOptions(dataset.fields)
   const timezone = me?.user.timezone

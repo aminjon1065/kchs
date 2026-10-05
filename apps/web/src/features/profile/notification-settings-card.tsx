@@ -21,10 +21,10 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Moon } from 'lucide-react'
 import { useState } from 'react'
-import { useT } from '~/app/i18n.js'
 import { PresenceDialog } from '~/features/chat/chat-dialogs.js'
 import { chatKeys } from '~/features/chat/queries.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { useT } from '~/shared/i18n.js'
 import { pushStatusQuery } from '~/shared/push/client.js'
 
 const preferencesKey = ['me', 'notification-preferences'] as const

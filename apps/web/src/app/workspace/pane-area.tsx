@@ -3,12 +3,12 @@ import { useQuery } from '@tanstack/react-query'
 import { LayoutGrid, PowerOff } from 'lucide-react'
 import { Suspense } from 'react'
 import { meQuery } from '~/shared/api/queries.js'
-import { useT } from '../i18n.js'
-import { getObjectView, getScreen } from './registry.js'
-import { useWorkspace } from './store.js'
+import { useT } from '~/shared/i18n.js'
+import { getObjectView, getScreen } from '~/shared/workspace/registry.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
+import type { PaneState, TabState } from '~/shared/workspace/types.js'
+import { PaneLinkContext } from '~/shared/workspace/view-context.js'
 import { TabBar } from './tab-bar.js'
-import type { PaneState, TabState } from './types.js'
-import { PaneLinkContext } from './view-context.js'
 
 export function PaneArea({ onOpenPalette }: { onOpenPalette: () => void }) {
   const panes = useWorkspace((s) => s.panes)

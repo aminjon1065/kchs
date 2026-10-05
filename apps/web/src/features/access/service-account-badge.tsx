@@ -1,6 +1,6 @@
 import { Badge } from '@kchs/ui'
 import { Bot } from 'lucide-react'
-import { useT } from '~/app/i18n.js'
+import { useT } from '~/shared/i18n.js'
 
 /**
  * Отметка служебной учётной записи (ADR-0130) в списках людей и выдаче доступа:

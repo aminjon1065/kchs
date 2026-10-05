@@ -8,8 +8,8 @@ import type {
 } from '@kchs/contracts'
 import { formatNumber, formatPercent } from '@kchs/fields'
 import { Callout, KeyValueList, NumberTile, Skeleton, StatTile } from '@kchs/ui'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { metricTileModel } from '../../data/metric-format.js'
 
 type Translate = ReturnType<typeof useT>
@@ -66,7 +66,7 @@ function DatasetIndicator({
   onOpen: (dataset: PassportDataset) => void
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale) as Locale
+  const locale = useLocale() as Locale
   const measures = dataset.measures.filter((measure) => measure.value !== null)
   return (
     <article aria-label={dataset.name} className="flex min-w-0 flex-col gap-2">
@@ -108,7 +108,7 @@ export function PassportIndicators({
   onOpenTasks: () => void
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale) as Locale
+  const locale = useLocale() as Locale
   if (loading || !passport) {
     return (
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

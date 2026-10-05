@@ -9,9 +9,9 @@ import { Button, Callout, Dialog, DialogContent, SegmentedControl, Spinner } fro
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Download } from 'lucide-react'
 import { useState } from 'react'
-import { useT } from '~/app/i18n.js'
 import { exportJobQuery, isJobFinished } from '~/features/data/queries.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { useT } from '~/shared/i18n.js'
 
 /** Геоформаты выгрузки карты: GeoJSON пишет воркер, GeoPackage и KML — движок (ADR-0068). */
 const FORMATS = ['geojson', 'gpkg', 'kml'] as const

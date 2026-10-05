@@ -32,11 +32,11 @@ import {
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { ArrowDownLeft, ArrowUpRight, Link2, Plus, Reply, X } from 'lucide-react'
 import { useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { http } from '~/shared/api/client.js'
 import { objectLinksQuery, objectListQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { correspondenceQuery } from '../queries.js'
 import { DOCUMENT_STATUS_TONE, errorText } from '../status.js'
 import { useDocument } from './document-context.js'
@@ -200,7 +200,7 @@ function LinkRow({
  */
 function Correspondence() {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const toast = useToast()
   const openTab = useWorkspace((s) => s.openTab)
   const { document, refresh } = useDocument()

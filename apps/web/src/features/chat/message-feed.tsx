@@ -38,8 +38,6 @@ import {
   Users,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { aiStatusQuery } from '~/features/data/queries.js'
 import { MessageComposer } from '~/features/discussion/message-composer.js'
 import {
@@ -50,6 +48,8 @@ import {
 import { uploadFile } from '~/features/files/upload.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { keys, meQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { emitTyping, onRealtimeEvent } from '~/shared/realtime/client.js'
 import {
   AttachDialog,
@@ -201,7 +201,7 @@ export function MessageFeed({
   onBack?: () => void
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const toast = useToast()
   const client = useQueryClient()
   const [limit, setLimit] = useState(50)

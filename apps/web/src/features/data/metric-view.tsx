@@ -39,9 +39,6 @@ import {
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { LayoutDashboard, Pencil, RefreshCw, Share2, Trash2 } from 'lucide-react'
 import { useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { ShareDialog } from '~/features/access/share-dialog.js'
 import { alertEventsQuery } from '~/features/alerts/queries.js'
 import { PresenceAvatars } from '~/features/objects/presence-avatars.js'
@@ -53,6 +50,9 @@ import {
   objectQuery,
   orgUnitsQuery,
 } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { AddToDashboardDialog } from './dashboard-dialogs.js'
 import { filterFieldsOf } from './field-types.js'
 import { MetricEditor } from './metric-editor.js'
@@ -147,7 +147,7 @@ export function MetricView({ objectId, tabId }: { objectId: string; tabId: strin
   const t = useT()
   const toast = useToast()
   const client = useQueryClient()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const setTabTitle = useWorkspace((s) => s.setTabTitle)
   const closeTab = useWorkspace((s) => s.closeTab)
   const [editing, setEditing] = useState(false)
@@ -398,7 +398,7 @@ export function MetricView({ objectId, tabId }: { objectId: string; tabId: strin
  * подписи мер, условий, разрезов и поля времени на языке интерфейса.
  */
 function useSourceFields(metric: MetricRecord) {
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { data: dataset } = useQuery({
     ...datasetQuery(metric.datasetId ?? ''),
     enabled: Boolean(metric.datasetId),
@@ -431,7 +431,7 @@ function useSourceFields(metric: MetricRecord) {
  * по карточке (не больше первых 50 строк разреза); остальное — как есть.
  */
 function useValueLabels(type: FieldType | undefined, values: string[]) {
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { data: units } = useQuery({ ...orgUnitsQuery(), enabled: type === 'unit' })
   const people = type === 'user' ? values.filter(Boolean).slice(0, 50) : []
   const users = useQueries({
@@ -464,7 +464,7 @@ function BreakdownCard({
   comparison: MetricComparison
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const [dimension, setDimension] = useState(metric.definition.dimensions[0] ?? '')
   const source = useSourceFields(metric)
   const { data, isLoading } = useQuery(
@@ -546,7 +546,7 @@ function BreakdownCard({
 /** Определение показателя: датасет, мера, условия, поле времени, пороги и цели. */
 function DefinitionCard({ metric }: { metric: MetricRecord }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const openTab = useWorkspace((s) => s.openTab)
   const { dataset, fields, label, timeField } = useSourceFields(metric)
   const { definition } = metric

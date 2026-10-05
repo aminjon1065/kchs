@@ -22,9 +22,9 @@ import { canOpenAdmin } from '~/features/admin/sections.js'
 import { chatListQuery } from '~/features/chat/queries.js'
 import { useOpenHelp } from '~/features/knowledge/help.js'
 import { inboxCountsQuery, meQuery } from '~/shared/api/queries.js'
-import { useT } from '../i18n.js'
-import { useWorkspace } from './store.js'
-import type { ScreenKey } from './types.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
+import type { ScreenKey } from '~/shared/workspace/types.js'
 
 /**
  * Нижняя навигация мобильного веба (03-ui/01-ux-concept.md, адаптив):

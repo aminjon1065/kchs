@@ -1,13 +1,13 @@
 import type { Territory } from '@kchs/contracts'
 import { Button } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
-import { useAppearance } from '~/app/appearance.js'
-import { useWorkspace } from '~/app/workspace/store.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { territoriesQuery } from './queries.js'
 
 /** Открывает паспорт территории во вкладке (03-screens.md §11). */
 export function useOpenPassport(): (territory: Pick<Territory, 'id' | 'name'>) => void {
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const openTab = useWorkspace((s) => s.openTab)
   return (territory) =>
     openTab({
@@ -24,7 +24,7 @@ export function useOpenPassport(): (territory: Pick<Territory, 'id' | 'name'>) =
  * неизвестный идентификатор — прочерк.
  */
 export function TerritoryLink({ id }: { id: string | null }) {
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const open = useOpenPassport()
   const { data: items = [] } = useQuery({ ...territoriesQuery(), enabled: Boolean(id) })
   const territory = id ? items.find((item) => item.id === id) : undefined

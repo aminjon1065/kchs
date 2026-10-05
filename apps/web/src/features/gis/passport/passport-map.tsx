@@ -16,8 +16,8 @@ import {
 } from '@kchs/ui'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { registerPmtilesProtocol, useBasemapStyle } from '../basemaps.js'
 import type { GeoCollection } from '../choropleth/geojson.js'
 import { type RenderEntry, useRenderedLayers } from '../layer-render.js'
@@ -99,7 +99,7 @@ export function PassportMap({
   onLegends?: (legends: ReturnType<typeof useRenderedLayers>['legends']) => void
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale) as Locale
+  const locale = useLocale() as Locale
   const [root, setRoot] = useState<HTMLDivElement | null>(null)
   const theme = useMapTheme(root)
   const basemap = useBasemapStyle(null, 'muted')

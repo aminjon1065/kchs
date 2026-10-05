@@ -2,9 +2,9 @@ import { BRAND_ACCENTS, BRAND_LOGO_MAX_BYTES, type Branding } from '@kchs/contra
 import { Button, Callout, Card, cn, Field, Input, Skeleton, useToast } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
-import { useT } from '~/app/i18n.js'
 import { brandingQuery } from '~/shared/api/branding.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { useT } from '~/shared/i18n.js'
 import { HelpCard } from './help-card.js'
 
 /** Типы, которые принимает настройка логотипа (контракт `Branding`). */

@@ -75,3 +75,8 @@ export const useAppearance = create<AppearanceState>()(
 export function initAppearance(): void {
   apply(useAppearance.getState())
 }
+
+/** Язык интерфейса: компонент перерисовывается только при его смене. */
+export function useLocale(): AppearanceState['locale'] {
+  return useAppearance((s) => s.locale)
+}

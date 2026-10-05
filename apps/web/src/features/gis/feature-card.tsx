@@ -3,10 +3,10 @@ import { formatValue } from '@kchs/fields'
 import { Button, Callout, IconButton, KeyValueList, Skeleton } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { Landmark, Table2, X } from 'lucide-react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { ApiError } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { datasetQuery } from '../data/queries.js'
 import { layerFeatureQuery, territoriesQuery } from './queries.js'
 import { useOpenPassport } from './territory-link.js'
@@ -34,7 +34,7 @@ export function FeatureCard({
   onClose: () => void
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const openTab = useWorkspace((s) => s.openTab)
   const feature = useQuery(layerFeatureQuery(layer.id, rowId))
   const { data: dataset } = useQuery(datasetQuery(layer.datasetId))

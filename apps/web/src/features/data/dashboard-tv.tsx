@@ -4,10 +4,10 @@ import { Badge, IconButton } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { MapSlotsProvider } from '~/features/gis/map-slots.js'
 import { meQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { orderedTiles, PERIOD_PRESETS, periodValue } from './dashboard-layout.js'
 import { TileCard } from './dashboard-tile.js'
 import { dashboardDataQuery } from './queries.js'
@@ -50,7 +50,7 @@ export function DashboardTv({
   onExit: () => void
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { data: me } = useQuery(meQuery())
   const filterText = useFilterText()
   const root = useRef<HTMLDivElement>(null)

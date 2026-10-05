@@ -18,8 +18,6 @@ import {
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Download, GitCompare, PenLine } from 'lucide-react'
 import { useId, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import {
   editorNames,
   officeEditable,
@@ -30,6 +28,8 @@ import {
 import { uploadFile } from '~/features/files/upload.js'
 import { useFileDownload } from '~/features/files/use-file-download.js'
 import { http } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { CompareDialog } from '../print/compare-dialog.js'
 import { RendersSection } from '../print/renders-section.js'
 import { documentVersionsQuery } from '../queries.js'
@@ -73,7 +73,7 @@ export function OfficeEditingBadge() {
  */
 export function FilesTab() {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { document, refresh } = useDocument()
   const { data: versions = [], isLoading } = useQuery(documentVersionsQuery(document.id))
   const [selectedId, setSelectedId] = useState<string | null>(null)

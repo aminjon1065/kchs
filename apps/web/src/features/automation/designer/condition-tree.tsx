@@ -13,7 +13,7 @@ import {
 } from '@kchs/ui'
 import { FolderPlus, Plus, Trash2 } from 'lucide-react'
 import { useId } from 'react'
-import { useT } from '~/app/i18n.js'
+import { useT } from '~/shared/i18n.js'
 import {
   type ConditionNode,
   conditionText,

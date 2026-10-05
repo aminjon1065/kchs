@@ -2,8 +2,8 @@ import { Badge, cn, ProgressBar, Tooltip } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { Activity, CircleDot, Keyboard, UserCog, Wifi, WifiOff } from 'lucide-react'
 import { jobsQuery, meQuery } from '~/shared/api/queries.js'
+import { useT } from '~/shared/i18n.js'
 import { useRealtimeStatus } from '~/shared/realtime/client.js'
-import { useT } from '../i18n.js'
 
 export function StatusBar({ onShowShortcuts }: { onShowShortcuts: () => void }) {
   const t = useT()

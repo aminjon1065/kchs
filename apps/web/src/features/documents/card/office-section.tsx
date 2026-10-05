@@ -2,10 +2,10 @@ import type { DocumentEmail, DocumentEmailStatus } from '@kchs/contracts'
 import { formatDate, formatDateTime } from '@kchs/fields'
 import { Badge, Button, Callout, KeyValueList, ObjectChip, useToast } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { http } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { dispatchesQuery, documentKeys, emailsQuery } from '../queries.js'
 import { errorText } from '../status.js'
 import { useDocument } from './document-context.js'
@@ -16,7 +16,7 @@ import { useDocument } from './document-context.js'
  */
 export function DocumentOfficeSection() {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const openTab = useWorkspace((s) => s.openTab)
   const { document } = useDocument()
   const { data: dispatches = [] } = useQuery({
@@ -172,7 +172,7 @@ function DocumentEmails({
 }) {
   const t = useT()
   const toast = useToast()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const client = useQueryClient()
   const retry = useMutation({
     mutationFn: (emailId: string) =>

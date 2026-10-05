@@ -1,7 +1,7 @@
 import type { Branding } from '@kchs/contracts'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect } from 'react'
-import { useT } from '~/app/i18n.js'
+import { useT } from '~/shared/i18n.js'
 import { http } from './client.js'
 
 /**

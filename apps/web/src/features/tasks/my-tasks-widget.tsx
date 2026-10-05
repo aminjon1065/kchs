@@ -2,9 +2,9 @@ import { formatDate } from '@kchs/fields'
 import { Button, Card, cn, EmptyState, Skeleton, StatusBadge } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowRight, CheckSquare } from 'lucide-react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { taskSummaryQuery, tasksQuery } from './queries.js'
 import { STATUS_TONE_KEY } from './task-status.js'
 
@@ -15,7 +15,7 @@ import { STATUS_TONE_KEY } from './task-status.js'
  */
 export function MyTasksWidget() {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const openTab = useWorkspace((s) => s.openTab)
   const { data, isLoading } = useQuery(tasksQuery({ scope: 'mine', state: 'open', limit: 6 }))
   const { data: summary } = useQuery(taskSummaryQuery())

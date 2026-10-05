@@ -34,9 +34,9 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp, Play, Plus, Save, Trash2, Workflow } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { ApiError } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { pipelineApi, pipelineKeys, pipelineQuery, pipelineRunsQuery } from './queries.js'
 import { StepEditor } from './step-editor.js'
 import { describeStep, emptyStep } from './step-model.js'
@@ -66,7 +66,7 @@ const nextStepId = (steps: PipelineStep[]): string => {
  */
 export default function PipelineDesigner({ pipelineId }: { pipelineId: string }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const toast = useToast()
   const client = useQueryClient()
   const nameId = useId()

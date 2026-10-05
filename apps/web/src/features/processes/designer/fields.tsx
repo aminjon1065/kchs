@@ -10,7 +10,7 @@ import {
   Textarea,
 } from '@kchs/ui'
 import { useEffect, useId, useState } from 'react'
-import { useT } from '~/app/i18n.js'
+import { useT } from '~/shared/i18n.js'
 import { useDesigner, useStepTitle } from './context.js'
 
 /** Значение «не выбрано» для Select: пустая строка в Radix недопустима. */

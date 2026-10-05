@@ -30,11 +30,11 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BookOpen, Plus, Share2, X } from 'lucide-react'
 import { useId, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { ShareDialog } from '~/features/access/share-dialog.js'
 import { http } from '~/shared/api/client.js'
 import { meQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { PrintMenu } from '../print/print-menu.js'
 import { documentKeys, journalReservationsQuery, journalsQuery } from '../queries.js'
 import { errorText, localToday } from '../status.js'
@@ -292,7 +292,7 @@ function JournalPanel({ journal, onClose }: { journal: JournalRecord; onClose: (
 
 function Reservations({ journal }: { journal: JournalRecord }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const toast = useToast()
   const client = useQueryClient()
   const formId = useId()

@@ -23,10 +23,10 @@ import {
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { Crosshair, RotateCcw } from 'lucide-react'
 import { useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { MapEmbed } from '~/features/gis/map-embed.js'
 import { layerQuery, mapQuery } from '~/features/gis/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { datasetQuery } from './queries.js'
 
 const NONE = '__none'
@@ -125,7 +125,7 @@ export function MapBindingsDialog({
   onSave: (bindings: MapTileOptions['bindings']) => void
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const record = useQuery({ ...mapQuery(tile.mapId ?? ''), enabled: Boolean(tile.mapId) })
   const layers = useQueries({
     queries: (record.data?.spec.layers ?? []).map((entry) => ({

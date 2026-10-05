@@ -2,8 +2,8 @@ import { Button, IconButton, Popover, PopoverContent, PopoverTrigger } from '@kc
 import { useQuery } from '@tanstack/react-query'
 import { X } from 'lucide-react'
 import { useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { territoriesQuery } from './queries.js'
 import { selectedOf } from './territory-filter.js'
 import { TerritoryTree } from './territory-tree.js'
@@ -28,7 +28,7 @@ export function TerritorySelect({
   label: string
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { data: items = [] } = useQuery(territoriesQuery())
   const [open, setOpen] = useState(false)
   const selected = selectedOf(value)

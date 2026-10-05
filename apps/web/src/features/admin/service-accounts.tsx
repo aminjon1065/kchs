@@ -31,8 +31,6 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Ban, MoreHorizontal, Pencil, ShieldCheck, Trash2 } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import {
   adminSpacesQuery,
@@ -42,6 +40,8 @@ import {
   rolesQuery,
   spacesQuery,
 } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { unitOptions } from './user-management.js'
 
 const NO_UNIT = '__none__'
@@ -121,7 +121,7 @@ export function ServiceAccountDialog({
 }) {
   const t = useT()
   const formId = useId()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const client = useQueryClient()
   const { data: units = [] } = useQuery(orgUnitsQuery())
   const { data: roles = [] } = useQuery(rolesQuery())

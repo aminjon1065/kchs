@@ -18,11 +18,11 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Save } from 'lucide-react'
 import { useId, useState } from 'react'
-import { useT } from '~/app/i18n.js'
 import { RunAsSelect } from '~/features/admin/run-as-select.js'
 import { UserPicker } from '~/features/tasks/user-picker.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { orgUnitsQuery, principalRefsQuery } from '~/shared/api/queries.js'
+import { useT } from '~/shared/i18n.js'
 import { askable } from './askable.js'
 import { formKeys, formsApi } from './queries.js'
 

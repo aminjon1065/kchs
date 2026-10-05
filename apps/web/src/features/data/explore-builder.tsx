@@ -29,10 +29,10 @@ import {
 } from '@kchs/ui'
 import { Plus, X } from 'lucide-react'
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { optionLabels, useLabelledResult } from '~/features/gis/result-labels.js'
 import { useTerritoryFilterEditor } from '~/features/gis/territory-filter.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { useFieldOptions } from './field-options.js'
 import { filterFieldsOf, NUMERIC_TYPES } from './field-types.js'
 
@@ -116,7 +116,7 @@ export function useExploreLabels(
   result: QueryResult | undefined,
 ): { columnLabel: (name: string) => string; labelled: QueryResult | undefined } {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const byKey = useMemo(() => new Map(fields.map((field) => [field.key, field])), [fields])
   const fieldOptions = useFieldOptions(fields)
 
@@ -181,7 +181,7 @@ export function ExplorePlanEditor({
   compact?: boolean
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const fieldOptions = useFieldOptions(fields)
   const territoryEditor = useTerritoryFilterEditor(
     fields.some((field) => field.type === 'territory'),
@@ -534,7 +534,7 @@ function FormulaInput({ value, onCommit }: { value: string; onCommit: (expr: str
 /** Результат таблицей: DataGrid только для чтения. */
 export function ResultTable({ result, className }: { result: QueryResult; className?: string }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const columns = useMemo<DataGridColumn[]>(
     () =>
       result.fields.map((field) => ({

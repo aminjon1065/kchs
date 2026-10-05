@@ -2,9 +2,9 @@ import type { ChartFilter, ChartPick } from '@kchs/chart-spec'
 import type { FieldOption, Locale, QueryResult, UserRef } from '@kchs/contracts'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
-import { useAppearance } from '~/app/appearance.js'
 import { http } from '~/shared/api/client.js'
 import { orgUnitsQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
 import { territoriesQuery } from './queries.js'
 
 /**
@@ -100,7 +100,7 @@ export function useLabelledResult(
   result: QueryResult | undefined,
   extra: ReadonlyMap<string, ReadonlyMap<string, string>> = NO_LABELS,
 ): QueryResult | undefined {
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const hasTerritory = result?.fields.some((field) => field.type === 'territory') ?? false
   const hasUnit = result?.fields.some((field) => field.type === 'unit') ?? false
   const { data: territories } = useQuery({ ...territoriesQuery(), enabled: hasTerritory })

@@ -13,8 +13,6 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp, Copy, MessageSquare, Trash2 } from 'lucide-react'
 import type * as Y from 'yjs'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { DatasetTable } from '~/features/data/dataset-table.js'
 import { metricTileModel } from '~/features/data/metric-format.js'
 import { chartQuery, datasetQuery, metricQuery } from '~/features/data/queries.js'
@@ -31,6 +29,8 @@ import { ObjectPicker } from '~/features/notebooks/object-picker.js'
 import { tasksQuery } from '~/features/tasks/queries.js'
 import { http } from '~/shared/api/client.js'
 import { meQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { usePageContext } from './page-context.js'
 import { bodyFragment, captionText, embedKeyOf } from './page-doc.js'
 
@@ -123,7 +123,7 @@ function ChartBlock({ block }: { block: CellMap }) {
 
 function MetricBlock({ block }: { block: CellMap }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const metricId = useCellValue<string | null>(block, 'metricId') ?? null
   const metric = useQuery({
     ...metricQuery(metricId ?? ''),

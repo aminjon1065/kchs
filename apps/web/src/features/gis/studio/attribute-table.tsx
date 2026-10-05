@@ -29,10 +29,10 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Focus, Table2, X, XSquare } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { meQuery, objectQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { useFieldOptions } from '../../data/field-options.js'
 import { datasetQuery } from '../../data/queries.js'
 import { RowCard } from '../../data/row-card.js'
@@ -137,7 +137,7 @@ function LayerTable({
   available: readonly LayerRecord[]
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const toast = useToast()
   const client = useQueryClient()
   const studio = useStudio()

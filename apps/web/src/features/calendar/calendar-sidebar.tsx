@@ -34,10 +34,10 @@ import {
   X,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { ShareDialog } from '~/features/access/share-dialog.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { useBusinessDays } from './business-days.js'
 import {
   AddCalendarDialog,

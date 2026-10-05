@@ -22,8 +22,8 @@ import {
 } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { ChoroplethMap } from '../choropleth/choropleth-map.js'
 import type { GeoCollection } from '../choropleth/geojson.js'
 import { childShapesQuery } from './queries.js'
@@ -60,7 +60,7 @@ export function PassportChildren({
   onOpen: (child: PassportChild) => void
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale) as Locale
+  const locale = useLocale() as Locale
   const withChildren = passport.datasets.filter((item) => item.rows !== null)
   const [datasetId, setDatasetId] = useState<string | null>(null)
   const [measure, setMeasure] = useState<Measure>('rate')

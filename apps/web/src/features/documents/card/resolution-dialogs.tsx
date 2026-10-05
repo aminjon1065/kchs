@@ -24,12 +24,12 @@ import {
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useId, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { DueInput, type DueValue, emptyDue } from '~/features/tasks/due-input.js'
 import { pickedOf } from '~/features/tasks/task-status.js'
 import { type PickedUser, UserPicker, UsersPicker } from '~/features/tasks/user-picker.js'
 import { http } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { documentKeys, resolutionTemplatesQuery } from '../queries.js'
 import { errorText, localToday } from '../status.js'
 
@@ -64,7 +64,7 @@ export function ResolutionDialog({
   onClose: () => void
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const toast = useToast()
   const client = useQueryClient()
   const formId = useId()

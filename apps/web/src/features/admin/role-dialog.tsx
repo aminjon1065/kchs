@@ -18,9 +18,9 @@ import {
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useId, useState } from 'react'
-import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { meQuery, rolesQuery } from '~/shared/api/queries.js'
+import { useT } from '~/shared/i18n.js'
 import { CAPABILITY_GROUPS, capabilityLabelKey } from './capabilities.js'
 
 /**

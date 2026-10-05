@@ -18,9 +18,9 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { spacesQuery } from '~/shared/api/queries.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { CreatePageDialog } from './create-page-dialog.js'
 import { knowledgeSearchQuery, pageTreeQuery } from './queries.js'
 

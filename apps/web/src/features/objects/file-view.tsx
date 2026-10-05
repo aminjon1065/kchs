@@ -22,9 +22,6 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, History, PenLine, RotateCcw, Share2, Trash2, Upload } from 'lucide-react'
 import { useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { ShareDialog } from '~/features/access/share-dialog.js'
 import { FilePreview } from '~/features/files/file-preview.js'
 import {
@@ -37,11 +34,14 @@ import { useFileDownload } from '~/features/files/use-file-download.js'
 import { NewVersionDialog, RestoreVersionDialog } from '~/features/files/version-dialogs.js'
 import { http } from '~/shared/api/client.js'
 import { fileQuery, fileVersionsQuery, keys, objectQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { PresenceAvatars } from './presence-avatars.js'
 
 export function FileView({ objectId, tabId }: { objectId: string; tabId: string }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const toast = useToast()
   const fileDownload = useFileDownload()
   const client = useQueryClient()

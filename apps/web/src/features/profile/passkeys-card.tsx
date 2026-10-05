@@ -4,10 +4,10 @@ import { AlertDialog, Badge, Button, Callout, Card, Field, Input, useToast } fro
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Fingerprint, Trash2 } from 'lucide-react'
 import { useId, useState } from 'react'
-import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { keys } from '~/shared/api/queries.js'
 import { createPasskey, passkeysSupported } from '~/shared/auth/webauthn.js'
+import { useT } from '~/shared/i18n.js'
 
 const passkeysKey = ['me', 'passkeys'] as const
 

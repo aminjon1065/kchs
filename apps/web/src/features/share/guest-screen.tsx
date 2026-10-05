@@ -4,9 +4,9 @@ import { Badge, Button, Callout, Field, ObjectIcon, PasswordInput, Spinner } fro
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Download, Link2, LogIn } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { useT } from '~/app/i18n.js'
 import { FilePreview } from '~/features/files/file-preview.js'
 import { ApiError, http, setShareToken } from '~/shared/api/client.js'
+import { useT } from '~/shared/i18n.js'
 
 /**
  * Гостевой просмотр объекта по ссылке (03-access-model.md §Гостевые ссылки):

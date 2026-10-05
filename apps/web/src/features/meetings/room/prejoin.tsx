@@ -14,7 +14,7 @@ import {
 } from '@kchs/ui'
 import { VideoOff } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { useT } from '~/app/i18n.js'
+import { useT } from '~/shared/i18n.js'
 
 /** Выбор перед входом: устройства и с чем войти (ADR-0162). */
 export interface DevicePrefs {

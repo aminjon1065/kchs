@@ -13,7 +13,7 @@ import {
 } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { Landmark } from 'lucide-react'
-import { useT } from '~/app/i18n.js'
+import { useT } from '~/shared/i18n.js'
 import { territoryQuery } from './queries.js'
 import { useOpenPassport } from './territory-link.js'
 

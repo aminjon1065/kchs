@@ -10,10 +10,10 @@ import { formatDate, formatDateTime, relativeRange } from '@kchs/fields'
 import { ErrorState, Skeleton } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { territoriesQuery } from '~/features/gis/queries.js'
 import { ApiError, http, setCsrfToken } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { DashboardPrint } from './dashboard-print.js'
 import {
   PrintChart,
@@ -41,7 +41,7 @@ declare global {
  */
 function useSubtitle(payload: ReportPrintPayload): { text: string; ready: boolean } {
   const t = useT()
-  const locale = useAppearance((s) => s.locale) as Locale
+  const locale = useLocale() as Locale
   const { period, territory } = payload.params
   const timezone = payload.user.timezone
   const { data: territories, isLoading } = useQuery({
@@ -115,7 +115,7 @@ function PrintBlock({ block, reportId }: { block: ReportBlock; reportId: string 
  */
 function PrintDocument({ payload }: { payload: ReportPrintPayload }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale) as Locale
+  const locale = useLocale() as Locale
   const { report } = payload
   const { text: subtitle, ready: subtitleReady } = useSubtitle(payload)
   // Оглавление и нумерация разделов (ADR-0164): номера — прямо в подписях и заголовках

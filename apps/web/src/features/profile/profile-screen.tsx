@@ -15,10 +15,10 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { LogOut, Monitor, Moon, Smartphone, Sun } from 'lucide-react'
 import { useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { ApiError, http, setCsrfToken } from '~/shared/api/client.js'
 import { keys, meQuery } from '~/shared/api/queries.js'
+import { useAppearance, useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { ApiTokensCard } from './api-tokens-card.js'
 import { DelegationCard } from './delegation-card.js'
 import { MailCard } from './mail-card.js'
@@ -32,7 +32,7 @@ export function ProfileScreen() {
   const t = useT()
   const toast = useToast()
   const client = useQueryClient()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const appearance = useAppearance()
 
   const { data: me, isLoading } = useQuery(meQuery())

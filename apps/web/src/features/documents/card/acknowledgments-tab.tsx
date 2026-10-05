@@ -26,9 +26,9 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BellRing, BookCheck, Check, Send } from 'lucide-react'
 import { useId, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { PrincipalsPicker } from '../principals-picker.js'
 import { acknowledgmentsQuery, documentKeys } from '../queries.js'
 import { errorText, localToday } from '../status.js'
@@ -212,7 +212,7 @@ export function AcknowledgmentsTab() {
 
 function EntryRow({ item }: { item: AcknowledgmentEntry }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   return (
     <li className="flex items-center gap-2 rounded-xs px-2 py-1.5 text-sm">
       <Avatar name={item.user.displayName} src={item.user.avatarUrl} size="sm" />
@@ -255,7 +255,7 @@ function EntryRow({ item }: { item: AcknowledgmentEntry }) {
 /** Запросы ознакомления: откуда, кем и когда, сколько отметок. */
 function Requests({ view }: { view: ObjectAcknowledgments }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   if (view.requests.length === 0) return null
   return (
     <section

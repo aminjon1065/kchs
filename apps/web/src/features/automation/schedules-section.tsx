@@ -15,9 +15,9 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarClock, History, PlayCircle } from 'lucide-react'
 import { useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { ApiError } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { RunsPanel } from './designer/runs-panel.js'
 import { automationApi, automationKeys, scheduleRunsQuery, schedulesQuery } from './queries.js'
 
@@ -28,7 +28,7 @@ import { automationApi, automationKeys, scheduleRunsQuery, schedulesQuery } from
  */
 export function SchedulesSection() {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const client = useQueryClient()
   const toast = useToast()
   const [historyKey, setHistoryKey] = useState<string | null>(null)
@@ -184,7 +184,7 @@ function HistoryDialog({
   onClose: () => void
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { data: runs = [], isLoading } = useQuery(scheduleRunsQuery(scheduleKey ?? ''))
 
   return (

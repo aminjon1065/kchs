@@ -1,7 +1,7 @@
 import type { DatasetRecord, Locale } from '@kchs/contracts'
 import { Badge, Button, Callout, Dialog, DialogContent } from '@kchs/ui'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { fieldLabel } from '../../data/field-types.js'
 import type { RowConflict } from './edit-api.js'
 import { useFieldText } from './field-text.js'
@@ -40,7 +40,7 @@ export function ConflictDialog({
   onClose: () => void
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale) as Locale
+  const locale = useLocale() as Locale
   const keys = [...new Set([...Object.keys(mine), ...conflict.changedFields])]
   const byKey = new Map(dataset.fields.map((field) => [field.key, field]))
   const fieldText = useFieldText(dataset)

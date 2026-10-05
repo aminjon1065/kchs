@@ -26,9 +26,9 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ClipboardPen, Plus, Save } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { ApiError } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { useFieldControls } from '../data/field-controls.js'
 import { type CellErrors, type TableRow, validateRows, withNewRow } from './form-table.js'
 import { FormTableEditor } from './form-table-editor.js'
@@ -45,7 +45,7 @@ const NO_FIELDS: FieldDef[] = []
  */
 export function FormFillTab({ form }: { form: FormRecord }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const toast = useToast()
   const client = useQueryClient()
 

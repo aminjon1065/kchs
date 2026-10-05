@@ -1,5 +1,5 @@
 import { Dialog, DialogContent, formatShortcut, Kbd } from '@kchs/ui'
-import { useT } from '../i18n.js'
+import { useT } from '~/shared/i18n.js'
 
 interface ShortcutRow {
   combo: string

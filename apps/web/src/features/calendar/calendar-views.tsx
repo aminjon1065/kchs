@@ -13,7 +13,7 @@ import {
 } from '@kchs/ui'
 import { CalendarDays, CheckSquare, Lock, Repeat, Video } from 'lucide-react'
 import { type ReactNode, useMemo } from 'react'
-import { useT } from '~/app/i18n.js'
+import { useT } from '~/shared/i18n.js'
 import type { DayInfo } from './business-days.js'
 import type { EventDraft } from './calendar-store.js'
 import { type CalendarFormat, useCalendarFormat } from './format.js'

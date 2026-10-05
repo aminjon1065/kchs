@@ -16,12 +16,12 @@ import {
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useId, useState } from 'react'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { controlMetricsQuery, taskKeys, taskSettingsQuery } from '~/features/tasks/queries.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { spacesQuery } from '~/shared/api/queries.js'
+import { useT } from '~/shared/i18n.js'
 import { orderSpaces } from '~/shared/spaces.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 
 /** Подпись показателя контроля, пока он не заведён. */
 const METRIC_LABEL: Record<ControlMetricKey, string> = {

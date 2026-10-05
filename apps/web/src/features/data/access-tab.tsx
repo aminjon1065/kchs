@@ -29,8 +29,6 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { type ReactNode, useId, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import {
   PrincipalLine,
   PrincipalPicker,
@@ -38,6 +36,8 @@ import {
 } from '~/features/access/principal-picker.js'
 import { useTerritoryFilterEditor } from '~/features/gis/territory-filter.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { useFieldOptions } from './field-options.js'
 import { fieldLabel, filterFieldsOf } from './field-types.js'
 import { dataKeys, datasetPoliciesQuery } from './queries.js'
@@ -63,7 +63,7 @@ function errorText(error: unknown, fallback: string): string {
  */
 export function AccessTab({ dataset }: { dataset: DatasetRecord }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const toast = useToast()
   const client = useQueryClient()
   const labelOf = usePrincipalLabel()

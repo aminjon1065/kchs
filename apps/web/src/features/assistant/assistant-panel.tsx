@@ -12,11 +12,11 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bot, Eraser, Send, Sparkles } from 'lucide-react'
 import { useState } from 'react'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { aiStatusQuery } from '~/features/data/queries.js'
 import { CreateTaskDialog } from '~/features/tasks/task-dialogs.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 
 /**
  * Ассистент в контекстной панели (13-search-knowledge-ai.md §5, ADR-0100):

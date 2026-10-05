@@ -22,10 +22,10 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Search } from 'lucide-react'
 import { useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { objectListQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { useFieldOptions } from '../data/field-options.js'
 import { fieldLabel } from '../data/field-types.js'
 import { datasetQuery } from '../data/queries.js'
@@ -56,7 +56,7 @@ export function AddLayerDialog({
 }) {
   const t = useT()
   const client = useQueryClient()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const [search, setSearch] = useState('')
   const [datasetId, setDatasetId] = useState<string | null>(null)
   const [choice, setChoice] = useState<string>(NEW)

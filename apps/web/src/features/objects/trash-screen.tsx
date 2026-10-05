@@ -2,14 +2,14 @@ import { formatRelativeTime } from '@kchs/fields'
 import { Button, Card, EmptyState, ObjectIcon, PanelToolbar, Skeleton, useToast } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { RotateCcw, Trash2 } from 'lucide-react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { http } from '~/shared/api/client.js'
 import { trashQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 
 export function TrashScreen() {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const client = useQueryClient()
   const toast = useToast()
 

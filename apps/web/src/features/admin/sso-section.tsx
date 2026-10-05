@@ -21,10 +21,10 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plug, Plus, Trash2 } from 'lucide-react'
 import { useId, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { rolesQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { authProviderKeys, ssoQuery } from './auth-providers.js'
 
 type Draft = SsoSettingsInput
@@ -43,7 +43,7 @@ export function SsoSection() {
   const t = useT()
   const toast = useToast()
   const client = useQueryClient()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const issuerId = useId()
   const clientIdId = useId()
   const secretId = useId()

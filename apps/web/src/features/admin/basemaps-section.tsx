@@ -32,11 +32,11 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Layers, Map as MapIcon, MoreHorizontal, Pencil, Plus, Star, Trash2 } from 'lucide-react'
 import { useId, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { basemapKeys, basemapsQuery } from '~/features/gis/basemaps.js'
 import { gisKeys, gisRenderSettingsQuery } from '~/features/gis/queries.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 
 const KIND_TONES: Record<BasemapKind, 'accent' | 'neutral' | 'purple' | 'warning'> = {
   vector: 'accent',
@@ -144,7 +144,7 @@ function RenderSettingsCard() {
 
 export function BasemapsSection() {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const toast = useToast()
   const client = useQueryClient()
   const { data: items = [], isLoading } = useQuery(basemapsQuery())

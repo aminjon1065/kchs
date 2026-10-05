@@ -4,11 +4,11 @@ import { Button, Callout, cn, Field, Input, PasswordInput, SegmentedControl } fr
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Building2, Fingerprint, KeyRound, ShieldCheck } from 'lucide-react'
 import { useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { useBranding } from '~/shared/api/branding.js'
 import { ApiError, http, setCsrfToken } from '~/shared/api/client.js'
+import { useAppearance, useLocale } from '~/shared/appearance.js'
 import { passkeysSupported, requestPasskey } from '~/shared/auth/webauthn.js'
+import { useT } from '~/shared/i18n.js'
 
 type Step = 'credentials' | 'mfa' | 'reset'
 
@@ -19,7 +19,7 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
   const t = useT()
   // Название, логотип и приписка организации — до входа (15-admin-operations.md §1)
   const branding = useBranding()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const setLocale = useAppearance((s) => s.setLocale)
 
   // Провайдер вернул отказ (`?sso=denied`, ADR-0098) — говорим об этом сразу

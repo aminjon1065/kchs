@@ -1,7 +1,7 @@
 import { AvatarGroup, Tooltip } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
-import { useT } from '~/app/i18n.js'
 import { meQuery } from '~/shared/api/queries.js'
+import { useT } from '~/shared/i18n.js'
 import { usePresence } from '~/shared/realtime/client.js'
 
 /** Кто ещё сейчас смотрит объект (02-platform-kernel.md §Realtime, presence). */

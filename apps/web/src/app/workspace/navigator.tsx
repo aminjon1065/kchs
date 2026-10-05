@@ -16,9 +16,9 @@ import { useQuery } from '@tanstack/react-query'
 import { ChevronsLeft, Clock, LayoutGrid, Plus, Star, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { favoritesQuery, objectListQuery, recentQuery, spacesQuery } from '~/shared/api/queries.js'
-import { useT } from '../i18n.js'
-import { getScreen } from './registry.js'
-import { useWorkspace } from './store.js'
+import { useT } from '~/shared/i18n.js'
+import { getScreen } from '~/shared/workspace/registry.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 
 const SPACE_KIND_ORDER: Record<string, number> = { org: 0, unit: 1, team: 2, personal: 3 }
 

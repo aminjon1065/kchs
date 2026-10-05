@@ -2,8 +2,8 @@ import { IconButton, Select, SelectContent, SelectItem, SelectTrigger, SelectVal
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bot } from 'lucide-react'
 import { useState } from 'react'
-import { useT } from '~/app/i18n.js'
 import { meQuery, serviceAccountsQuery } from '~/shared/api/queries.js'
+import { useT } from '~/shared/i18n.js'
 import { ServiceAccountDialog } from './service-accounts.js'
 
 /** Пустое значение выбора: служебная запись ещё не выбрана. */

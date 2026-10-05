@@ -3,8 +3,8 @@ import type { DefinitionIssue, ProcessDefinitionDetails } from '@kchs/process'
 import { Badge, Button, Callout, Dialog, DialogContent, Field, Spinner, Textarea } from '@kchs/ui'
 import { AlertTriangle, CircleX } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { type Definition, issueTarget } from '../model.js'
 import { type Selection, useDesigner, useStepTitle } from './context.js'
 
@@ -196,7 +196,7 @@ export function VersionsDialog({
   onLoad: (version: number) => void
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { readOnly } = useDesigner()
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

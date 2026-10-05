@@ -1,7 +1,7 @@
 import { Button, Callout, Card, cn, useToast } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BellRing } from 'lucide-react'
-import { useT } from '~/app/i18n.js'
+import { useT } from '~/shared/i18n.js'
 import {
   deviceSubscribed,
   PUSH_SUPPORTED,

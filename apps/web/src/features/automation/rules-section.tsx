@@ -33,11 +33,11 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Upload, Zap } from 'lucide-react'
 import { useId, useRef, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { ApiError } from '~/shared/api/client.js'
 import { spacesQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { defaultAction } from './designer/action-fields.js'
 import { automationApi, automationKeys, rulesQuery, ruleTemplatesQuery } from './queries.js'
 
@@ -48,7 +48,7 @@ import { automationApi, automationKeys, rulesQuery, ruleTemplatesQuery } from '.
  */
 export function AutomationRulesSection() {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const openTab = useWorkspace((s) => s.openTab)
   const client = useQueryClient()
   const toast = useToast()
@@ -293,7 +293,7 @@ function ImportRuleDialog({
   onImported: (id: string, name: RuleListItem['name']) => void
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const toast = useToast()
   const client = useQueryClient()
   const [spaceId, setSpaceId] = useState('')
@@ -362,7 +362,7 @@ function CreateRuleDialog({
   onCreated: (id: string, name: string) => void
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const toast = useToast()
   const client = useQueryClient()
   const nameId = useId()

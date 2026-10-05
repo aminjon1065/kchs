@@ -2,9 +2,9 @@ import { Button, Callout, Field, PasswordInput } from '@kchs/ui'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { KeyRound, LogOut } from 'lucide-react'
 import { useState } from 'react'
-import { useT } from '~/app/i18n.js'
 import { ApiError, http, setCsrfToken } from '~/shared/api/client.js'
 import { keys } from '~/shared/api/queries.js'
+import { useT } from '~/shared/i18n.js'
 
 /**
  * Вход по временному паролю (выдан администратором): пока пароль не сменён,

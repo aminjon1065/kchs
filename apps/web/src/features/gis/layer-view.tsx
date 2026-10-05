@@ -23,13 +23,13 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Map as MapIcon, Palette, Scan, Share2, Table2, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { ShareDialog } from '~/features/access/share-dialog.js'
 import { PresenceAvatars } from '~/features/objects/presence-avatars.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { keys, objectQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { registerPmtilesProtocol, useBasemapStyle } from './basemaps.js'
 import { LayerEditSettings } from './edit/layer-edit-settings.js'
 import { FeatureCard } from './feature-card.js'
@@ -57,7 +57,7 @@ export function LayerView({
   const t = useT()
   const toast = useToast()
   const client = useQueryClient()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const setTabTitle = useWorkspace((s) => s.setTabTitle)
   const setTabState = useWorkspace((s) => s.setTabState)
   const openTab = useWorkspace((s) => s.openTab)

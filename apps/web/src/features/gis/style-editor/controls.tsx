@@ -15,7 +15,7 @@ import {
 } from '@kchs/ui'
 import { TriangleAlert } from 'lucide-react'
 import { createContext, type ReactNode, useContext, useEffect, useId, useState } from 'react'
-import { useT } from '~/app/i18n.js'
+import { useT } from '~/shared/i18n.js'
 import { fieldLabel } from '../../data/field-types.js'
 import { warningsAt } from './model.js'
 

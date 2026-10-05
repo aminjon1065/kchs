@@ -15,12 +15,12 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CornerDownRight, GitBranch, Send, Stamp, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useObjectActions } from '~/app/workspace/object-actions.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { STATUS_TONE_KEY } from '~/features/tasks/task-status.js'
 import { http } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
+import { useObjectActions } from '~/shared/workspace/object-actions.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { documentKeys, resolutionsQuery } from '../queries.js'
 import { errorText } from '../status.js'
 import { useDocument } from './document-context.js'
@@ -158,7 +158,7 @@ export function ResolutionsTab() {
 /** Направления на резолюцию: кому, кем и когда, состояние; делопроизводитель снимает. */
 function Requests({ view }: { view: DocumentResolutions }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const toast = useToast()
   const client = useQueryClient()
   const { document } = useDocument()
@@ -243,7 +243,7 @@ function ResolutionNode({
   depth?: number
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const nested = branches.get(item.id) ?? []
   const done = item.total > 0 && item.open === 0
   return (
@@ -340,7 +340,7 @@ function ResolutionNode({
 /** Поручение резолюции: номер, исполнитель, срок, статус — щелчок открывает поручение. */
 function InstructionRow({ task }: { task: TaskListItem }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const openTab = useWorkspace((s) => s.openTab)
   return (
     <li>

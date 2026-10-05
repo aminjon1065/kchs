@@ -18,9 +18,6 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { FolderPlus, UserPlus } from 'lucide-react'
 import { useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { FilesScreen } from '~/features/files/files-screen.js'
 import {
   objectListQuery,
@@ -28,12 +25,15 @@ import {
   spaceMembersQuery,
   spacesQuery,
 } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { ArchivedSpaceNotice, SpaceActions } from './space-actions.js'
 import { AddMemberDialog, MemberControls } from './space-members.js'
 
 export function SpaceScreen({ spaceId }: { spaceId: string }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const openTab = useWorkspace((s) => s.openTab)
   const [tab, setTab] = useState('overview')
 

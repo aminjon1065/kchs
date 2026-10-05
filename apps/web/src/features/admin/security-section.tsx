@@ -13,10 +13,10 @@ import {
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useId, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { keys, rolesQuery, securityPolicyQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { AdminModeCard } from './admin-mode.js'
 
 /** Домены списка: по одному в строке (запятые и пробелы тоже разделяют). */
@@ -35,7 +35,7 @@ export function SecuritySection() {
   const t = useT()
   const toast = useToast()
   const client = useQueryClient()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const idleId = useId()
   const emailId = useId()
   const webhookId = useId()

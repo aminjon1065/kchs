@@ -3,8 +3,8 @@ import { Button, Callout, Card, useToast } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Mail } from 'lucide-react'
 import { useState } from 'react'
-import { useT } from '~/app/i18n.js'
 import { http } from '~/shared/api/client.js'
+import { useT } from '~/shared/i18n.js'
 
 const mailKey = ['me', 'mail'] as const
 

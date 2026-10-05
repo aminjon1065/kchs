@@ -32,8 +32,6 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Cable, Plus, Webhook as WebhookIcon } from 'lucide-react'
 import { useId, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import {
   integrationsQuery,
@@ -41,6 +39,8 @@ import {
   webhookDeliveriesQuery,
   webhooksQuery,
 } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 
 const STATUS_TONES: Record<Integration['status'], 'success' | 'danger' | 'neutral'> = {
   ok: 'success',
@@ -112,7 +112,7 @@ function IntegrationsList() {
   const t = useT()
   const toast = useToast()
   const client = useQueryClient()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { data: items = [], isLoading } = useQuery(integrationsQuery())
   const [creating, setCreating] = useState(false)
   const [editing, setEditing] = useState<Integration | null>(null)
@@ -433,7 +433,7 @@ function EditIntegrationDialog({
   onSaved: () => void
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const formId = useId()
   const [config, setConfig] = useState(() => JSON.stringify(integration.config, null, 2))
   const [secrets, setSecrets] = useState('')
@@ -560,7 +560,7 @@ function WebhooksList() {
   const t = useT()
   const toast = useToast()
   const client = useQueryClient()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { data: items = [], isLoading } = useQuery(webhooksQuery())
   const [creating, setCreating] = useState(false)
   const [secret, setSecret] = useState<string | null>(null)
@@ -783,7 +783,7 @@ function DeliveriesDialog({ webhook, onClose }: { webhook: Webhook | null; onClo
   const t = useT()
   const toast = useToast()
   const client = useQueryClient()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { data: items = [], isLoading } = useQuery({
     ...webhookDeliveriesQuery(webhook?.id ?? ''),
     enabled: webhook !== null,

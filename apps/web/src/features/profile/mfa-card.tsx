@@ -2,10 +2,10 @@ import { Button, Callout, Card, cn, Field, Input, useToast } from '@kchs/ui'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ShieldCheck } from 'lucide-react'
 import { useId, useState } from 'react'
-import { useT } from '~/app/i18n.js'
 import { MfaSetup } from '~/features/auth/mfa-setup.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { keys } from '~/shared/api/queries.js'
+import { useT } from '~/shared/i18n.js'
 
 /** Второй фактор в профиле: подключение с QR-кодом и отключение по коду. */
 export function MfaCard({ enabled }: { enabled: boolean }) {

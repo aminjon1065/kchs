@@ -14,10 +14,10 @@ import {
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useId, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { http } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { templatesQuery } from './print/renders.js'
 import { documentKeys, documentTypesQuery } from './queries.js'
 import { errorText } from './status.js'
@@ -32,7 +32,7 @@ const NO_TEMPLATE = '__none__'
  */
 export function CreateDocumentDialog({ onClose }: { onClose: () => void }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const client = useQueryClient()
   const openTab = useWorkspace((s) => s.openTab)
   const subjectId = useId()

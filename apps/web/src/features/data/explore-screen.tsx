@@ -33,10 +33,10 @@ import {
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Save } from 'lucide-react'
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { AskBox } from './ask-box.js'
 import {
   CHART_TYPES,
@@ -74,7 +74,7 @@ export function ExploreScreen({
   savedState?: SavedExplore
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const client = useQueryClient()
   const setTabState = useWorkspace((s) => s.setTabState)
   const { data: dataset, isLoading } = useQuery(datasetQuery(datasetId))

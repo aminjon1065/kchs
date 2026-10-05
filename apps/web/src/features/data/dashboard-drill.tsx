@@ -17,10 +17,10 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { Filter, Table2 } from 'lucide-react'
 import { useMemo } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 
 /** Служебные столбцы строки и вычисляемые поля детализации — не для глаз. */
 const HIDDEN = (name: string) => name === '_id' || name === '_ver' || name.startsWith('__drill_')
@@ -99,7 +99,7 @@ export function DrillSheet({
   onClose: () => void
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const openTab = useWorkspace((s) => s.openTab)
   const { data, error, isLoading } = useQuery({
     queryKey: ['dashboard', dashboardId, 'drill', tile.id, pick.filters, values],

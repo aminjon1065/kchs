@@ -2,8 +2,8 @@ import { Avatar, Button, IconButton, SearchInput, useDebouncedValue } from '@kch
 import { useQuery } from '@tanstack/react-query'
 import { X } from 'lucide-react'
 import { useId, useState } from 'react'
-import { useT } from '~/app/i18n.js'
 import { principalsQuery } from '~/shared/api/queries.js'
+import { useT } from '~/shared/i18n.js'
 
 /** Участник встречи в форме. */
 export interface Invitee {

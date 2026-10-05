@@ -31,9 +31,9 @@ import {
   Video,
 } from 'lucide-react'
 import { type ReactNode, useId, useState } from 'react'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { reminderLabel } from './event-editor.js'
 import { useCalendarFormat } from './format.js'
 import { useCalendarInvalidation } from './queries.js'

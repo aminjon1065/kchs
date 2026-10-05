@@ -3,8 +3,8 @@ import { formatValue } from '@kchs/fields'
 import { type ControlProps, Field, FieldControl, IconButton, useMediaQuery } from '@kchs/ui'
 import { Trash2 } from 'lucide-react'
 import { type ReactNode, useEffect, useId, useRef, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { type CellErrors, columnTotals, type TableRow } from './form-table.js'
 
 const labelOf = (field: FieldDef, locale: Locale) => field.label[locale] ?? field.label.ru
@@ -34,7 +34,7 @@ export function FormTableEditor({
   readOnly?: boolean
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale) as Locale
+  const locale = useLocale() as Locale
   const baseId = useId()
   const wide = useMediaQuery('(min-width: 768px)')
   // Устойчивые ключи строк: удаление из середины не перерисовывает соседей

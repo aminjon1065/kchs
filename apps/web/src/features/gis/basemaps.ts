@@ -1,8 +1,8 @@
 import type { Basemap, BasemapList, BasemapTheme, Locale } from '@kchs/contracts'
 import { queryOptions, useQuery } from '@tanstack/react-query'
 import type { Protocol } from 'pmtiles'
-import { useAppearance } from '~/app/appearance.js'
 import { http } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
 
 /**
  * Базовые карты (07-gis-engine.md §5, ADR-0066): реестр установки и стиль
@@ -80,7 +80,7 @@ const basemapStyleQuery = (
  * @public MapView карты-студии (P2-E01) берёт стиль отсюда.
  */
 export function useBasemapStyle(basemapId: string | null, theme: BasemapTheme) {
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const basemaps = useQuery(basemapsQuery())
   const items = basemaps.data ?? []
   const basemap =

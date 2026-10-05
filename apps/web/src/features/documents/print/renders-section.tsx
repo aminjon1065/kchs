@@ -17,10 +17,10 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ExternalLink, FileInput } from 'lucide-react'
 import { useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { http } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { documentKeys } from '../queries.js'
 import { errorText } from '../status.js'
 import { renderKeys, rendersQuery, templatesQuery, waitForRender } from './renders.js'
@@ -32,7 +32,7 @@ import { renderKeys, rendersQuery, templatesQuery, waitForRender } from './rende
  */
 export function RendersSection({ document }: { document: DocumentRecord }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const openTab = useWorkspace((s) => s.openTab)
   const { data: renders = [] } = useQuery(rendersQuery(document.id))
 

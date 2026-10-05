@@ -2,7 +2,7 @@ import type { NotebookCellKind } from '@kchs/contracts'
 import { cn, ObjectIcon } from '@kchs/ui'
 import { useMemo } from 'react'
 import * as Y from 'yjs'
-import { useT } from '~/app/i18n.js'
+import { useT } from '~/shared/i18n.js'
 import { useNotebook } from './notebook-context.js'
 import { cellIds, cellsOf, useYChanges } from './notebook-doc.js'
 

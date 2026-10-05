@@ -1,8 +1,8 @@
 import { Avatar, Button, SearchInput, useDebouncedValue } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useId, useState } from 'react'
-import { useT } from '~/app/i18n.js'
 import { principalsQuery } from '~/shared/api/queries.js'
+import { useT } from '~/shared/i18n.js'
 
 /** Выбранный сотрудник: как его показать. */
 export interface PickedUser {

@@ -26,10 +26,6 @@ import {
   Star,
 } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
-import { useOpenWorkspace } from '~/app/workspace/workspaces-menu.js'
 import { TodayWidget } from '~/features/calendar/today-widget.js'
 import { IssuedWidget, TeamWidget } from '~/features/tasks/home-widgets.js'
 import { MyTasksWidget } from '~/features/tasks/my-tasks-widget.js'
@@ -43,6 +39,10 @@ import {
   recentQuery,
   workspacesQuery,
 } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
+import { useOpenWorkspace } from '~/shared/workspace/open-workspace.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { actionHint } from './action-hint.js'
 import { HomeSettingsDialog } from './home-settings-dialog.js'
 import { HOME_WIDGETS_PREFERENCE, type HomeWidget, widgetsFor } from './widgets.js'
@@ -57,7 +57,7 @@ type OpenObject = (item: { id: string; type: string; title: string }) => void
 
 export function HomeScreen() {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const openTab = useWorkspace((s) => s.openTab)
   const [customizing, setCustomizing] = useState(false)
 
@@ -211,7 +211,7 @@ function ListSkeleton({ rows, height }: { rows: number; height: string }) {
 
 function InboxWidget({ openObject, openInbox }: { openObject: OpenObject; openInbox: () => void }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { data: inbox, isLoading } = useQuery(inboxQuery({ state: 'open' }))
 
   return (
@@ -283,7 +283,7 @@ const ANNOUNCEMENT_TONES: Record<AnnouncementSeverity, 'info' | 'warning' | 'dan
 
 function AnnouncementsWidget() {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { data: announcements = [], isLoading } = useQuery(announcementsQuery())
 
   return (
@@ -322,7 +322,7 @@ function AnnouncementsWidget() {
 /** «Продолжить»: сохранённые рабочие пространства — открыть одним действием. */
 function ContinueWidget() {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const open = useOpenWorkspace()
   const { data: workspaces = [], isLoading } = useQuery(workspacesQuery())
 
@@ -368,7 +368,7 @@ function ContinueWidget() {
 
 function RecentWidget({ openObject }: { openObject: OpenObject }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { data: recent = [], isLoading } = useQuery(recentQuery())
 
   return (

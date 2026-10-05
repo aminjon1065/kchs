@@ -2,7 +2,7 @@ import type { FilterNode } from '@kchs/contracts'
 import { IconButton } from '@kchs/ui'
 import { Link2, X } from 'lucide-react'
 import { useEffect, useMemo, useRef } from 'react'
-import { useT } from '~/app/i18n.js'
+import { useT } from '~/shared/i18n.js'
 import {
   LINKED_SELECTION_LIMIT,
   type LinkedSelection,
@@ -10,7 +10,7 @@ import {
   useLinkSource,
   usePaneLinkGroup,
   useViewContext,
-} from '~/app/workspace/view-context.js'
+} from '~/shared/workspace/view-context.js'
 import { type FeatureRef, useStudio } from './context.js'
 
 /** Задержка публикации охвата после движения карты, мс. */

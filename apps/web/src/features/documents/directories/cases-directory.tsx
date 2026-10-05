@@ -51,12 +51,12 @@ import {
   X,
 } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { ShareDialog } from '~/features/access/share-dialog.js'
 import { http } from '~/shared/api/client.js'
 import { meQuery, objectListQuery, orgUnitsQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { PrintMenu } from '../print/print-menu.js'
 import {
   caseQuery,
@@ -355,7 +355,7 @@ function RetentionText({ record }: { record: CaseRecord }) {
 
 function CasePanel({ record, onClose }: { record: CaseRecord; onClose: () => void }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const toast = useToast()
   const client = useQueryClient()
   const formId = useId()
@@ -567,7 +567,7 @@ function CasePanel({ record, onClose }: { record: CaseRecord; onClose: () => voi
 /** Документы дела — видимые пользователю, в порядке подшивки (опись). */
 function CaseDocuments({ record }: { record: CaseRecord }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const openTab = useWorkspace((s) => s.openTab)
   const { data, isLoading } = useQuery(
     objectListQuery({
@@ -636,7 +636,7 @@ function CreateCaseDialog({
   onCreated: (id: string) => void
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const client = useQueryClient()
   const formId = useId()
   const { data: units = [] } = useQuery(orgUnitsQuery())
@@ -907,7 +907,7 @@ function DestructionDialog({ onClose }: { onClose: () => void }) {
 
 function ActsList({ acts }: { acts: DestructionActRecord[] }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   return (
     <section className="flex flex-col gap-1.5 border-t border-line pt-3">
       <h3 className="text-xs font-semibold uppercase tracking-wide text-fg-muted">

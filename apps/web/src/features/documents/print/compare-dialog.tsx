@@ -18,8 +18,8 @@ import {
 } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { useT } from '~/app/i18n.js'
 import { http } from '~/shared/api/client.js'
+import { useT } from '~/shared/i18n.js'
 import { ScanViewer } from '../scan-viewer.js'
 import { renderKeys } from './renders.js'
 

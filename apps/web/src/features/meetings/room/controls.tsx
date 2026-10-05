@@ -28,7 +28,7 @@ import {
   Video,
   VideoOff,
 } from 'lucide-react'
-import { useT } from '~/app/i18n.js'
+import { useT } from '~/shared/i18n.js'
 import type { MeetingRoomApi } from './use-meeting-room.js'
 
 export type RoomLayout = 'grid' | 'speaker' | 'sidebar'

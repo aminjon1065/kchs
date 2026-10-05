@@ -4,9 +4,9 @@ import { Avatar, Badge, Button, Card, cn, EmptyState, Skeleton, StatusBadge } fr
 import { useQuery } from '@tanstack/react-query'
 import { ArrowRight, ClipboardList, Users } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { issuedQuery, teamQuery } from './queries.js'
 import { STATUS_TONE_KEY } from './task-status.js'
 
@@ -25,7 +25,7 @@ function useOpenTask() {
 /** Строка поручения в виджете: ключ, название, срок и статус. */
 function TaskLine({ item, onOpen }: { item: TaskListItem; onOpen: () => void }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   return (
     <button
       type="button"

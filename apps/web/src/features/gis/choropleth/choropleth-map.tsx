@@ -9,7 +9,7 @@ import {
   useMapTheme,
 } from '@kchs/ui'
 import { useEffect, useMemo, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
+import { useLocale } from '~/shared/appearance.js'
 import { registerPmtilesProtocol, useBasemapStyle } from '../basemaps.js'
 import { featuresBbox, type GeoCollection, numericValues } from './geojson.js'
 
@@ -42,7 +42,7 @@ export function ChoroplethMap({
   className?: string
   'aria-label': string
 }) {
-  const locale = useAppearance((s) => s.locale) as Locale
+  const locale = useLocale() as Locale
   const [root, setRoot] = useState<HTMLDivElement | null>(null)
   const theme = useMapTheme(root)
   const basemap = useBasemapStyle(null, 'muted')

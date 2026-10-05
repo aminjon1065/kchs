@@ -10,8 +10,8 @@ import {
   setUnauthorizedHandler,
 } from '~/shared/api/client.js'
 import { keys, meQuery } from '~/shared/api/queries.js'
-import { initAppearance } from './appearance.js'
-import { useT } from './i18n.js'
+import { initAppearance } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { registerModules } from './modules.js'
 import { WorkspaceShell } from './workspace/shell.js'
 

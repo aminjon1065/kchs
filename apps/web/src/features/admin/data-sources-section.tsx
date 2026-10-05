@@ -46,8 +46,6 @@ import {
   Trash2,
 } from 'lucide-react'
 import { useId, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { FeedSourceDialog } from '~/features/data/sources/feed-dialog.js'
 import {
   sourceApi,
@@ -59,6 +57,8 @@ import {
 } from '~/features/data/sources/queries.js'
 import { ApiError } from '~/shared/api/client.js'
 import { integrationsQuery, spacesQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { orderSpaces } from '~/shared/spaces.js'
 
 const STATUS_TONES: Record<SourceStatus, 'neutral' | 'accent' | 'success' | 'danger'> = {
@@ -85,7 +85,7 @@ function problemMessage(err: unknown, fallback: string): string {
  */
 export function DataSourcesSection() {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const toast = useToast()
   const client = useQueryClient()
   const { data, isLoading } = useQuery(sourcesQuery())
@@ -726,7 +726,7 @@ function RunsDialog({
   onOpenChange: (open: boolean) => void
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { data } = useQuery(sourceRunsQuery(source?.id ?? ''))
   const runs = data?.items ?? []
 

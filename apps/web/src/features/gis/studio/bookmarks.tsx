@@ -11,7 +11,7 @@ import {
 } from '@kchs/ui'
 import { Bookmark, BookmarkPlus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
-import { useT } from '~/app/i18n.js'
+import { useT } from '~/shared/i18n.js'
 import { useStudio } from './context.js'
 
 /** Закладок на карте — как в контракте `MapSpec.bookmarks`. */

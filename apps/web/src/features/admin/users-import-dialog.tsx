@@ -19,11 +19,11 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, FileSpreadsheet, FileUp, KeyRound } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { uploadFile } from '~/features/files/upload.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { keys, meQuery, usersImportQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 
 const API = '/api/v1/admin/users/import'
 /** Строк с ошибками на экране; полный список — в отчёте CSV. */
@@ -51,7 +51,7 @@ export function UsersImportDialog({
   const t = useT()
   const toast = useToast()
   const client = useQueryClient()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const input = useRef<HTMLInputElement>(null)
   const { data: me } = useQuery(meQuery())
   const [file, setFile] = useState<{ id: string; name: string } | null>(null)
@@ -265,7 +265,7 @@ function ImportReport({
   onCredentialsTaken: () => void
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const problems = report.rows.filter((row) => row.status === 'error')
 
   if (report.fileError) {

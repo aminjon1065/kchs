@@ -21,13 +21,13 @@ import {
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Route, Send, ShieldCheck, Undo2 } from 'lucide-react'
 import { useId, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { outcomeTone } from '~/features/processes/labels.js'
 import { objectProcessesQuery, processApi, processQuery } from '~/features/processes/queries.js'
 import { RouteLine } from '~/features/processes/route-line.js'
 import { ProcessStepActions } from '~/features/processes/step-actions.js'
 import { ApiError } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { documentRouteVersionsQuery, documentSignaturesQuery } from '../queries.js'
 import { useDocument } from './document-context.js'
 import { RouteStartDialog } from './route-start-dialog.js'
@@ -42,7 +42,7 @@ const SIGNATURE_TONE = { valid: 'success', pending: 'neutral', mismatch: 'danger
 /** Подписи документа и их проверка по хэшу подписанной версии (08-documents.md §9). */
 function Signatures({ items }: { items: DocumentSignature[] }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   return (
     <section className="flex flex-col gap-2" aria-label={t('documents.signatures.title')}>
       <h3 className="text-xs font-semibold uppercase tracking-wide text-fg-muted">
@@ -165,7 +165,7 @@ function CancelRoute({ instanceId, onDone }: { instanceId: string; onDone: () =>
  */
 export function RouteTab() {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { document, refresh } = useDocument()
   const [selected, setSelected] = useState<string | null>(null)
   const [starting, setStarting] = useState(false)
@@ -280,7 +280,7 @@ export function RouteTab() {
  */
 export function DocumentRouteIndicator() {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { document, openSection } = useDocument()
   const step = document.route?.steps[0]
   if (!document.route || !step) return null

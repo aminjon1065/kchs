@@ -22,11 +22,11 @@ import {
 } from '@kchs/ui'
 import { keepPreviousData, useMutation, useQuery } from '@tanstack/react-query'
 import { useId, useMemo, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { knownKey, STEP_TYPES } from '~/features/processes/labels.js'
 import { type PickedUser, UserPicker, UsersPicker } from '~/features/tasks/user-picker.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { documentRoutesQuery } from '../queries.js'
 import { useDocument } from './document-context.js'
 
@@ -55,7 +55,7 @@ function VariableInput({
   onChange: (value: Value) => void
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const id = useId()
   const label = text(variable.label, locale) ?? variable.name
   switch (variable.type) {
@@ -116,7 +116,7 @@ function VariableInput({
 /** «Кто будет назначен»: шаги маршрута на этом документе, сроки, незаполненные. */
 function Preview({ preview }: { preview: ProcessPreview }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   // Возврат автору — только после замечаний: в предпросмотре его нет
   const steps = preview.steps.filter(
     (step) => step.type !== 'return' && STEP_TYPES.includes(step.type as never),
@@ -168,7 +168,7 @@ function Preview({ preview }: { preview: ProcessPreview }) {
  */
 export function RouteStartDialog({ onClose }: { onClose: () => void }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const toast = useToast()
   const { document, refresh, openSection } = useDocument()
   const routeId = useId()

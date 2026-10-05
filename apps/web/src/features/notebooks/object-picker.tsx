@@ -1,7 +1,7 @@
 import { ObjectIcon, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
-import { useT } from '~/app/i18n.js'
 import { objectListQuery } from '~/shared/api/queries.js'
+import { useT } from '~/shared/i18n.js'
 
 const NONE = '__none'
 

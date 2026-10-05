@@ -28,7 +28,6 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { Crosshair, RotateCcw, Scissors, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { useT } from '~/app/i18n.js'
 import { metricQuery } from '~/features/data/queries.js'
 import { registerPmtilesProtocol } from '~/features/gis/basemaps.js'
 import { useNotebook } from '~/features/notebooks/notebook-context.js'
@@ -37,6 +36,7 @@ import { ObjectPicker } from '~/features/notebooks/object-picker.js'
 import { QueryCell } from '~/features/notebooks/query-cell.js'
 import { ChartCell } from '~/features/notebooks/source-cells.js'
 import { http } from '~/shared/api/client.js'
+import { useT } from '~/shared/i18n.js'
 import { useReportMap } from './report-map.js'
 
 const NO_METRICS: string[] = []

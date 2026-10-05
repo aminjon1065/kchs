@@ -28,10 +28,10 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp, SlidersHorizontal, Trash2 } from 'lucide-react'
 import { type ReactNode, useMemo, useRef, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { optionLabels, unlabelPick, useLabelledResult } from '~/features/gis/result-labels.js'
 import { meQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { DashboardMapTile, MapBindingsDialog } from './dashboard-map-tile.js'
 import { metricTileModel, periodText } from './metric-format.js'
 import { chartQuery, datasetQuery, metricQuery } from './queries.js'
@@ -123,7 +123,7 @@ export function TileCard({
   exportData?: ResultData | null
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { data: me } = useQuery(meQuery())
   const [bindings, setBindings] = useState(false)
   const chartRef = useRef<ChartHandle | null>(null)
@@ -327,7 +327,7 @@ function BindingsDialog({
   onSave: (bindings: Record<string, string>) => void
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const fields = useTileFields(tile)
   const [bindings, setBindings] = useState<Record<string, string>>(tile.filterBindings)
   return (

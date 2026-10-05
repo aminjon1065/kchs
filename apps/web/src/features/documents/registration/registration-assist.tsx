@@ -10,9 +10,9 @@ import { Badge, Button, Callout, Card, cn, Spinner, useToast } from '@kchs/ui'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Check, Sparkles } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { confidenceTone, documentAssistQuery } from '../assist/queries.js'
 import type { CardValue } from '../card/requisites-form.js'
 
@@ -91,7 +91,7 @@ export function RegistrationAssist({
 }: RegistrationAssistProps): ReactNode {
   const t = useT()
   const toast = useToast()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const [result, setResult] = useState<DocumentExtraction | null>(null)
   const [accepted, setAccepted] = useState<ReadonlySet<string>>(new Set())
   const enabled = Boolean(documentId && scanFileId)

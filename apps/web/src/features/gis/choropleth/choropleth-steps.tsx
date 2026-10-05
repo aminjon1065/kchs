@@ -30,9 +30,9 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { Search } from 'lucide-react'
 import { useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { objectListQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { TerritorySelect } from '../territory-select.js'
 import {
   type ChoroplethForm,
@@ -51,7 +51,7 @@ import { ChoroplethPreview } from './choropleth-preview.js'
 type Change = (next: ChoroplethForm) => void
 
 function useLabel() {
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   return (field: DatasetField) => field.label[locale] ?? field.label.ru ?? field.key
 }
 
@@ -238,7 +238,7 @@ export function MeasureStep({
   onChange: Change
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { numeric } = sourceFields(dataset)
   const normalizations: ChoroplethNormalization[] = ['none', 'population', 'area']
   return (

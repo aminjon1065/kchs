@@ -36,13 +36,13 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Send, X } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { groupsQuery } from '~/features/admin/groups-section.js'
 import { PERIOD_PRESETS, type PeriodPreset, periodValue } from '~/features/data/dashboard-layout.js'
 import { UserPicker } from '~/features/tasks/user-picker.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { rolesQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { reportKeys, reportScheduleQuery } from './queries.js'
 
 const AS_REPORT = '__report'
@@ -130,7 +130,7 @@ export function ReportScheduleDialog({
   const t = useT()
   const toast = useToast()
   const client = useQueryClient()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const ids = { time: useId(), cron: useId(), tz: useId(), day: useId() }
   const { data: schedule, isLoading } = useQuery({
     ...reportScheduleQuery(reportId),
@@ -522,7 +522,7 @@ function RecipientGroups({
   externalBlocked: boolean
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { data: groups = [] } = useQuery(groupsQuery())
   const { data: roles = [] } = useQuery(rolesQuery())
   const [emails, setEmails] = useState(draft.emails.join('\n'))

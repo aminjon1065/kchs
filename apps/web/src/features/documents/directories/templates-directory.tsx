@@ -34,12 +34,12 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, LayoutTemplate, Plus, X } from 'lucide-react'
 import { useId, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { uploadFile } from '~/features/files/upload.js'
 import { useFileDownload } from '~/features/files/use-file-download.js'
 import { http } from '~/shared/api/client.js'
 import { meQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { templatesQuery } from '../print/renders.js'
 import { documentKeys, documentTypesQuery } from '../queries.js'
 import { errorText } from '../status.js'
@@ -55,7 +55,7 @@ const DOCX = '.docx,application/vnd.openxmlformats-officedocument.wordprocessing
  */
 export function TemplatesDirectory({ selectedId }: { selectedId: string | null }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { data: me } = useQuery(meQuery())
   const { data: templates = [], isLoading } = useQuery({
     ...templatesQuery(null, true),
@@ -198,7 +198,7 @@ function TypeSelect({
   disabled?: boolean
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { data: types = [] } = useQuery(documentTypesQuery())
   return (
     <Select value={value} onValueChange={onChange} disabled={disabled}>

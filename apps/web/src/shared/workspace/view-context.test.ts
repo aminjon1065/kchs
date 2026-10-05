@@ -5,7 +5,7 @@ import {
   LINKED_SELECTION_LIMIT,
   linkKey,
   useViewContext,
-} from './view-context.js'
+} from '~/shared/workspace/view-context.js'
 
 const store = () => useViewContext.getState()
 const entry = (group: string, datasetId: string) => store().links[linkKey(group, datasetId)]

@@ -4,9 +4,9 @@ import { AlertDialog, Badge, Button, Card, EmptyState, Skeleton, useToast } from
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { History, RotateCcw } from 'lucide-react'
 import { useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { ApiError } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { automationApi, automationKeys, ruleVersionsQuery } from '../queries.js'
 
 /**
@@ -24,7 +24,7 @@ export function VersionsPanel({
   onRestored: (definition: RuleDefinition) => void
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const toast = useToast()
   const client = useQueryClient()
   const { data: versions = [], isLoading } = useQuery(ruleVersionsQuery(ruleId))

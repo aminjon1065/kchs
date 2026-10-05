@@ -1,8 +1,8 @@
 import type { ObjectRecord } from '@kchs/contracts'
 import { http } from '~/shared/api/client.js'
-import { getObjectView, getScreen } from './registry.js'
-import { useWorkspace } from './store.js'
-import type { ScreenKey, TabState } from './types.js'
+import { getObjectView, getScreen } from '~/shared/workspace/registry.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
+import type { ScreenKey, TabState } from '~/shared/workspace/types.js'
 
 /**
  * Адрес страницы ↔ активная вкладка (02-platform-kernel.md §1: «открытие во

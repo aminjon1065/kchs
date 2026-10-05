@@ -1,7 +1,7 @@
 import type { EventEditScope } from '@kchs/contracts'
 import { Button, Dialog, DialogContent, RadioGroup, RadioItem } from '@kchs/ui'
 import { useState } from 'react'
-import { useT } from '~/app/i18n.js'
+import { useT } from '~/shared/i18n.js'
 
 /**
  * Правка или удаление повторяющегося события: «только это», «это и

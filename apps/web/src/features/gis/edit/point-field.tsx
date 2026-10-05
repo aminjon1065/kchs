@@ -16,7 +16,7 @@ import {
 } from '@kchs/ui'
 import { LocateFixed, MapPin, X } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
-import { useT } from '~/app/i18n.js'
+import { useT } from '~/shared/i18n.js'
 import { registerPmtilesProtocol, useBasemapStyle } from '../basemaps.js'
 import { locate, locateErrorKey } from './coordinates-dialog.js'
 import { type CoordinatesError, parseCoordinates } from './geometry.js'

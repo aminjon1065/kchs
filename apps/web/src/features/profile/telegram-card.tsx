@@ -4,9 +4,9 @@ import { Button, Callout, Card, cn, useToast } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Send } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { http } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 
 const statusKey = ['me', 'telegram'] as const
 
@@ -19,7 +19,7 @@ export function TelegramCard() {
   const t = useT()
   const toast = useToast()
   const client = useQueryClient()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const [pending, setPending] = useState<TelegramLinkStart | null>(null)
 
   const status = useQuery({

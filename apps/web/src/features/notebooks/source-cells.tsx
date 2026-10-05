@@ -8,12 +8,12 @@ import type {
 import { notebookParamFields } from '@kchs/contracts'
 import { Chart, NumberTile } from '@kchs/ui'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { metricTileModel, periodText } from '~/features/data/metric-format.js'
 import { chartQuery, datasetQuery, metricQuery } from '~/features/data/queries.js'
 import { useLabelledResult } from '~/features/gis/result-labels.js'
 import { http } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { chartQuerySpec, metricPeriod, notebookKeys } from './cell-run.js'
 import { useNotebook } from './notebook-context.js'
 import { type CellMap, useCellValue, writeCell } from './notebook-doc.js'
@@ -114,7 +114,7 @@ export function ChartCell({ cell, cellId }: { cell: CellMap; cellId: string }) {
  */
 export function MetricCell({ cell, cellId }: { cell: CellMap; cellId: string }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { notebookId, spaceId, params, readOnly } = useNotebook()
   const metricId = useCellValue<string | null>(cell, 'metricId') ?? null
   const bindings = useCellValue<NotebookBindings>(cell, 'bindings') ?? NO_BINDINGS

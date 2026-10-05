@@ -19,15 +19,15 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Map as MapIcon, Plus } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { spacesQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
 import { emptyCollectionState } from '~/shared/collections/collection-state.js'
 import { useListFields } from '~/shared/collections/use-list-fields.js'
 import { useObjectCollection } from '~/shared/collections/use-object-collection.js'
+import { useT } from '~/shared/i18n.js'
 import { orderSpaces } from '~/shared/spaces.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 
 const TYPES = ['map', 'layer']
 
@@ -43,7 +43,7 @@ export function MapsScreen({
   savedState?: { collection?: CollectionState; spaceId?: string }
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const openTab = useWorkspace((s) => s.openTab)
   const setTabState = useWorkspace((s) => s.setTabState)
   const { data: spaces = [] } = useQuery(spacesQuery())

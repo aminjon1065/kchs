@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import type { ScreenKey, TabState } from './types.js'
+import type { ScreenKey, TabState } from '~/shared/workspace/types.js'
 
 /**
  * Реестр экранов оболочки: модуль регистрирует свои экраны и типы объектов

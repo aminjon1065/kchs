@@ -33,15 +33,15 @@ import {
   Upload,
 } from 'lucide-react'
 import { useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { ShareDialog } from '~/features/access/share-dialog.js'
 import { ChoroplethButton } from '~/features/gis/choropleth/choropleth-button.js'
 import { ShowOnMapButton } from '~/features/gis/show-on-map.js'
 import { PresenceAvatars } from '~/features/objects/presence-avatars.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { keys, objectQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 import { AccessTab } from './access-tab.js'
 import { AnalysisDialog } from './analysis-dialog.js'
 import { ColumnarCard } from './columnar-card.js'
@@ -76,7 +76,7 @@ const IMPORT_TONES: Record<ImportRecord['status'], BadgeProps['tone']> = {
  */
 export function DatasetView({ objectId, tabId }: { objectId: string; tabId: string }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const toast = useToast()
   const client = useQueryClient()
   const setTabTitle = useWorkspace((s) => s.setTabTitle)
@@ -316,7 +316,7 @@ function VersionsTab({
   canManage: boolean
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const toast = useToast()
   const client = useQueryClient()
   const [target, setTarget] = useState<number | null>(null)
@@ -400,7 +400,7 @@ function VersionsTab({
 
 function ImportsTab({ dataset, canEdit }: { dataset: DatasetRecord; canEdit: boolean }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const client = useQueryClient()
   const [reviewing, setReviewing] = useState<string | null>(null)
   const { data: imports = [], isLoading } = useQuery(datasetImportsQuery(dataset.id))

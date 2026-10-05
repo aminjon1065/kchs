@@ -2,9 +2,9 @@ import { formatDate } from '@kchs/fields'
 import { Field, Input, SegmentedControl } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useId } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { http } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { dueFromDate } from './task-status.js'
 
 /** Срок в форме: дата или «N рабочих дней» по производственному календарю (ADR-0082). */
@@ -56,7 +56,7 @@ export function DueInput({
   error?: string | undefined
 }) {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const dateId = useId()
   const daysId = useId()
   const days = value.mode === 'working' ? workingDays(value) : null

@@ -43,10 +43,10 @@ import {
   UserCog,
 } from 'lucide-react'
 import { useId, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { meQuery, orgUnitsQuery, rolesQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { positionsQuery } from './positions-card.js'
 import { UserPasskeysDialog } from './user-passkeys-dialog.js'
 
@@ -115,7 +115,7 @@ function RolePicker({
   onChange: (next: string[]) => void
   idPrefix: string
 }) {
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { data: roles = [] } = useQuery(rolesQuery())
   return (
     <div className="grid gap-1.5 sm:grid-cols-2">
@@ -146,7 +146,7 @@ export function CreateUserDialog({
 }) {
   const t = useT()
   const formId = useId()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const { data: units = [] } = useQuery(orgUnitsQuery())
   const empty = {
     lastName: '',
@@ -652,7 +652,7 @@ function AssignmentDialog({
   const t = useT()
   const toast = useToast()
   const client = useQueryClient()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const formId = useId()
   const { data: units = [] } = useQuery(orgUnitsQuery())
   const { data: positions = [] } = useQuery(positionsQuery())

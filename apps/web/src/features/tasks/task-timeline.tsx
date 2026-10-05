@@ -4,9 +4,9 @@ import { cn, EmptyState, useToast } from '@kchs/ui'
 import { useMutation } from '@tanstack/react-query'
 import { GanttChart } from 'lucide-react'
 import { type PointerEvent as ReactPointerEvent, useMemo, useRef, useState } from 'react'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { useTaskInvalidation } from './task-actions.js'
 import { dateFromDue, dueFromDate } from './task-status.js'
 
@@ -51,7 +51,7 @@ export function TaskTimeline({
 }) {
   const t = useT()
   const toast = useToast()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const invalidate = useTaskInvalidation()
   const [drag, setDrag] = useState<Drag | null>(null)
   const dragRef = useRef<Drag | null>(null)

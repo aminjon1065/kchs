@@ -1,9 +1,9 @@
 import { Button, Callout, Dialog, DialogContent, Field, Input, useToast } from '@kchs/ui'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { useT } from '~/app/i18n.js'
-import { useWorkspace } from '~/app/workspace/store.js'
 import { ApiError, http } from '~/shared/api/client.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
 
 /**
  * Новая тетрадь в пространстве (06-analytics-engine.md §11): с пустой

@@ -20,9 +20,9 @@ import { useQueries, useQuery } from '@tanstack/react-query'
 import { Crosshair, MapPin, Search, Shapes } from 'lucide-react'
 import { type ReactNode, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { useAppearance } from '~/app/appearance.js'
-import { useT } from '~/app/i18n.js'
 import { http } from '~/shared/api/client.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
 import { useStudio } from './context.js'
 import { type CoordinateCandidate, formatHemispheres, parseCoordinates } from './coordinates.js'
 import { atLeast, geometryBounds } from './geometry.js'
@@ -92,7 +92,7 @@ async function searchLayer(
  */
 export function MapSearch() {
   const t = useT()
-  const locale = useAppearance((s) => s.locale)
+  const locale = useLocale()
   const studio = useStudio()
   const { map } = studio
   const theme = useMapTheme(map?.getContainer() ?? null)
