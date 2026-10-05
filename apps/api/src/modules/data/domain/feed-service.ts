@@ -17,8 +17,12 @@ import { publishEvent } from '~/kernel/events/publisher.js'
 import { dependencies } from '~/kernel/links/schema.js'
 import { LinkService } from '~/kernel/links/service.js'
 import { ObjectService } from '~/kernel/objects/service.js'
-import { type LocatableGeometry, TerritoryLocator, territoryIndex } from '~/modules/gis/public.js'
 import { HttpIntegration, hasSecretRef, Integrations } from '~/modules/integrations/public.js'
+import {
+  type LocatableGeometry,
+  TerritoryLocator,
+  territoryIndex,
+} from '~/modules/territories/public.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
 import { AppError, errors } from '~/shared/errors.js'

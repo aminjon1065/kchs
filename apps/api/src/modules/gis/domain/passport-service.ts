@@ -10,25 +10,23 @@ import {
   type QueryResult,
   QuerySpec,
   type QueryStep,
-  TerritoryLevel,
+  type TerritoryLevel,
   type TerritoryPassport,
 } from '@kchs/contracts'
-import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm'
+import { and, asc, eq, inArray, isNull } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
 import { LinkService } from '~/kernel/links/service.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { DatasetCatalog, DatasetQueries, datasetRecord, Metrics } from '~/modules/data/public.js'
 import { TaskQueries } from '~/modules/tasks/public.js'
+import { TerritoryService, territoryIndex } from '~/modules/territories/public.js'
 import { config } from '~/shared/config/index.js'
 import type { Ctx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { AppError } from '~/shared/errors.js'
 import { logger } from '~/shared/logger/index.js'
-import { territories } from '../schema.js'
 import { LayerService } from './layer-service.js'
 import { type PeriodPlan, periodPlan } from './passport-period.js'
-import { territoryIndex } from './territory-index.js'
-import { TerritoryService } from './territory-service.js'
 
 /** Датасетов с полем территории в паспорте — не больше. */
 const MAX_DATASETS = 30
@@ -237,29 +235,8 @@ async function datasetStats(
 
 /** Дочерние единицы: население из атрибутов справочника, площадь, наличие границы. */
 async function childrenOf(territoryId: string): Promise<PassportChild[]> {
-  const rows = await db()
-    .select({
-      id: territories.id,
-      code: territories.code,
-      level: territories.level,
-      name: territories.name,
-      population: sql<string | null>`${territories.attributes}->>'population'`,
-      areaKm2: territories.areaKm2,
-      hasGeometry: sql<boolean>`${territories.geom} IS NOT NULL`,
-    })
-    .from(territories)
-    .innerJoin(objects, eq(objects.id, territories.id))
-    .where(and(eq(territories.parentId, territoryId), isNull(objects.deletedAt)))
-    .orderBy(asc(territories.code))
-  return rows.map((row) => ({
-    id: row.id,
-    code: row.code,
-    level: TerritoryLevel.parse(row.level),
-    name: row.name,
-    population: numberOf(row.population),
-    areaKm2: row.areaKm2,
-    hasGeometry: row.hasGeometry,
-  }))
+  const rows = await TerritoryService.children(territoryId)
+  return rows.map((row) => ({ ...row, population: numberOf(row.population) }))
 }
 
 /** Уровень большинства дочерних единиц. */

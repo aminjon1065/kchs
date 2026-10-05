@@ -20,7 +20,7 @@ registerLifecycle()
 
 const { DemoData } = await import('../src/modules/data/public.js')
 const { ImportService } = await import('../src/modules/data/domain/import-service.js')
-const { TerritoryService } = await import('../src/modules/gis/public.js')
+const { TerritoryService } = await import('../src/modules/territories/public.js')
 const { s3, buckets } = await import('../src/kernel/storage/s3.js')
 const { systemCtx } = await import('../src/shared/context.js')
 const TERRITORIES = (await import('../src/seed/territories.json', { with: { type: 'json' } }))

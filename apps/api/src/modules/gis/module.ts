@@ -14,8 +14,6 @@ import {
   MapCreateInput,
   MapRecord,
   MapUpdateInput,
-  TerritoryDetail,
-  TerritoryList,
 } from '@kchs/contracts'
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
@@ -25,7 +23,6 @@ import { registerFeature } from '~/kernel/features/registry.js'
 import { registerInboxActionHandler } from '~/kernel/inbox/actions.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
 import { objects } from '~/kernel/objects/schema.js'
-import { registerSystemDataset } from '~/kernel/system-datasets.js'
 import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { rateLimit } from '~/shared/http/rate-limit.js'
@@ -37,12 +34,9 @@ import { featureSubscribers } from './domain/feature-subscribers.js'
 import { LayerService } from './domain/layer-service.js'
 import { LayerStatsService } from './domain/layer-stats.js'
 import { MapService } from './domain/map-service.js'
-import { TERRITORIES_SYSTEM_DATASET } from './domain/system-dataset.js'
-import { TerritoryService } from './domain/territory-service.js'
 import { TileService } from './domain/tile-service.js'
 import { registerFeatureRoutes } from './http/feature-routes.js'
-import { registerTerritoryRoutes } from './http/territory-routes.js'
-import { territories } from './schema.js'
+import { registerPassportRoutes } from './http/passport-routes.js'
 import {
   registerServiceLayerBackground,
   registerServiceLayerObjectType,
@@ -96,8 +90,8 @@ async function titleSearchable(id: string, type: 'layer' | 'map') {
 }
 
 /**
- * Типы объектов модуля GIS: территории (07-gis-engine.md §11), базовые карты (§5,
- * ADR-0066), слои и карты (ADR-0064).
+ * Типы объектов модуля GIS: базовые карты (07-gis-engine.md §5, ADR-0066), слои и
+ * карты (ADR-0064). Справочник территорий — отдельный базовый модуль (ADR-0180).
  */
 export function registerGisObjectTypes(): void {
   registerFeature({
@@ -155,51 +149,6 @@ export function registerGisObjectTypes(): void {
       ...(comment ? { comment } : {}),
     })
   })
-
-  registerObjectType({
-    type: 'territory',
-    labelKey: 'objects.types.territory',
-    icon: 'territory',
-    route: (id) => `/o/${id}`,
-    levels: ['view', 'comment', 'edit', 'manage', 'owner'],
-    actions: {
-      view: { minLevel: 'view' },
-      comment: { minLevel: 'comment' },
-      manage: { minLevel: 'manage' },
-    },
-    discussable: true,
-    linkable: true,
-    hasParentTree: false,
-    // Код и названия на всех языках: «Хатлон», «Khatlon», «TJ-KT» находят одну единицу
-    searchable: async (id) => {
-      const [row] = await db()
-        .select({
-          title: objects.title,
-          updatedAt: objects.updatedAt,
-          code: territories.code,
-          name: territories.name,
-          level: territories.level,
-        })
-        .from(territories)
-        .innerJoin(objects, eq(objects.id, territories.id))
-        .where(eq(territories.id, id))
-        .limit(1)
-      if (!row) return null
-      return {
-        parentId: null,
-        type: 'territory',
-        spaceId: null,
-        title: row.title,
-        body: [row.code, row.name.ru, row.name.tg ?? '', row.name.en ?? ''].join('\n'),
-        ownerId: null,
-        updatedAt: Math.floor(new Date(row.updatedAt).getTime() / 1000),
-        meta: { code: row.code, level: row.level },
-      }
-    },
-  })
-
-  // Справочник с границами — источник запросов и цель шага spatial (ADR-0069)
-  registerSystemDataset(TERRITORIES_SYSTEM_DATASET)
 }
 
 /** Подписчики модуля — только в роли worker: уведомления о правках слоёв. */
@@ -209,33 +158,10 @@ export function registerGisBackground(): void {
 }
 
 export function registerGisRoutes(route: RouteRegistrar): void {
-  registerTerritoryRoutes(route)
+  registerPassportRoutes(route)
   registerBasemapRoutes(route)
   registerServiceLayerRoutes(route)
   registerFeatureRoutes(route)
-  route({
-    method: 'GET',
-    url: '/territories',
-    auth: 'session',
-    tags: ['gis'],
-    summary: 'Справочник территорий: все единицы для дерева, пикеров и подписей',
-    schema: { response: { 200: TerritoryList } },
-    handler: async (request) => {
-      // Справочник открыт сотрудникам (ACL everyone), гостю по ссылке — нет
-      if (request.ctx.shareLink) throw errors.forbidden()
-      return { items: await TerritoryService.list() }
-    },
-  })
-
-  route({
-    method: 'GET',
-    url: '/territories/:id',
-    auth: 'session',
-    tags: ['gis'],
-    summary: 'Карточка территории: путь от корня, дочерние единицы, атрибуты',
-    schema: { params: IdParam, response: { 200: TerritoryDetail } },
-    handler: async (request) => TerritoryService.get(request.ctx, request.params.id),
-  })
 
   // ── Слои (ADR-0064) ─────────────────────────────────────────────────────────
 

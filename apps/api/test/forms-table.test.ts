@@ -378,7 +378,9 @@ describe('календарные сроки (dueMode)', () => {
 
 describe('место строки сводки (ADR-0157)', () => {
   it('точка — на карте или координатами; без точки — центр района и «место приблизительное»', async () => {
-    const { TerritoryService, territoryIndex } = await import('../src/modules/gis/public.js')
+    const { TerritoryService, territoryIndex } = await import(
+      '../src/modules/territories/public.js'
+    )
     const { systemCtx } = await import('../src/shared/context.js')
     const TERRITORIES = (await import('../src/seed/territories.json', { with: { type: 'json' } }))
       .default

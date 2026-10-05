@@ -21,6 +21,18 @@ import { newId } from '~/shared/ids.js'
 import { redis } from '~/shared/redis/index.js'
 import { territories, territoryClosure } from '../schema.js'
 
+/** Дочерняя единица со сводкой — для паспорта территории. */
+export interface TerritoryChild {
+  id: string
+  code: string
+  level: TerritoryLevelValue
+  name: (typeof territories.$inferSelect)['name']
+  /** Население из атрибутов справочника, как записано (`attributes.population`). */
+  population: string | null
+  areaKm2: number | null
+  hasGeometry: boolean
+}
+
 /** Единица справочника для загрузки (seed, в будущем — импорт классификатора). */
 export interface TerritoryInput {
   code: string
@@ -409,6 +421,29 @@ export const TerritoryService = {
       .where(isNull(objects.deletedAt))
       .orderBy(asc(territories.code))
     return rows.map((row) => toTerritory(row as Row))
+  },
+
+  /**
+   * Дочерние единицы со сводкой — для паспорта территории (ADR-0077): население из
+   * атрибутов справочника, площадь, есть ли граница. Без проверки прав: справочник
+   * открыт сотрудникам, право на саму единицу проверяет вызывающий.
+   */
+  async children(territoryId: string, database: Executor = db()): Promise<TerritoryChild[]> {
+    const rows = await database
+      .select({
+        id: territories.id,
+        code: territories.code,
+        level: territories.level,
+        name: territories.name,
+        population: sql<string | null>`${territories.attributes}->>'population'`,
+        areaKm2: territories.areaKm2,
+        hasGeometry: sql<boolean>`${territories.geom} IS NOT NULL`,
+      })
+      .from(territories)
+      .innerJoin(objects, eq(objects.id, territories.id))
+      .where(and(eq(territories.parentId, territoryId), isNull(objects.deletedAt)))
+      .orderBy(asc(territories.code))
+    return rows.map((row) => ({ ...row, level: TerritoryLevel.parse(row.level) }))
   },
 
   /** Карточка: путь от корня, дочерние единицы, атрибуты. */

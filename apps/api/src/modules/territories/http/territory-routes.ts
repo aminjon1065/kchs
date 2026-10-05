@@ -5,10 +5,10 @@ import {
   GeocodeResponse,
   ReverseGeocodeQuery,
   ReverseGeocodeResponse,
+  TerritoryDetail,
   TerritoryFeature,
   TerritoryGeometryQuery,
-  TerritoryPassport,
-  TerritoryPassportQuery,
+  TerritoryList,
   TerritoryTileQuery,
 } from '@kchs/contracts'
 import { z } from 'zod'
@@ -16,7 +16,6 @@ import { errors } from '~/shared/errors.js'
 import { rateLimit } from '~/shared/http/rate-limit.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { Geocoder } from '../domain/geocoder.js'
-import { PassportService } from '../domain/passport-service.js'
 import { TerritoryService } from '../domain/territory-service.js'
 import { TerritoryTiles, tileLevels } from '../domain/territory-tiles.js'
 
@@ -32,10 +31,35 @@ const TileParams = z.object({
 const TILES_PER_MINUTE = 12_000
 
 /**
- * Границы и геокодирование справочника территорий (P2-E04, ADR-0067). Справочник
+ * Справочник территорий (ADR-0057, ADR-0180): единицы, границы и геокодирование
+ * (P2-E04, ADR-0067). Адреса прежние — справочник вырос из модуля GIS. Справочник
  * открыт всем сотрудникам (ACL everyone), гостю по ссылке — нет.
  */
 export function registerTerritoryRoutes(route: RouteRegistrar): void {
+  route({
+    method: 'GET',
+    url: '/territories',
+    auth: 'session',
+    tags: ['gis'],
+    summary: 'Справочник территорий: все единицы для дерева, пикеров и подписей',
+    schema: { response: { 200: TerritoryList } },
+    handler: async (request) => {
+      // Справочник открыт сотрудникам (ACL everyone), гостю по ссылке — нет
+      if (request.ctx.shareLink) throw errors.forbidden()
+      return { items: await TerritoryService.list() }
+    },
+  })
+
+  route({
+    method: 'GET',
+    url: '/territories/:id',
+    auth: 'session',
+    tags: ['gis'],
+    summary: 'Карточка территории: путь от корня, дочерние единицы, атрибуты',
+    schema: { params: IdParam, response: { 200: TerritoryDetail } },
+    handler: async (request) => TerritoryService.get(request.ctx, request.params.id),
+  })
+
   route({
     method: 'GET',
     url: '/gis/territories/:id/geometry',
@@ -49,25 +73,6 @@ export function registerTerritoryRoutes(route: RouteRegistrar): void {
     },
     handler: async (request) =>
       TerritoryService.feature(request.ctx, request.params.id, request.query.zoom),
-  })
-
-  route({
-    method: 'GET',
-    url: '/gis/territories/:id/passport',
-    auth: 'session',
-    tags: ['gis'],
-    summary: 'Паспорт территории: показатели датасетов, привязанные показатели, поручения',
-    description:
-      'Строки и суммы мер датасетов с полем территории (с вложенными единицами) за период и предыдущий период, по месяцам и по дочерним единицам; показатели со связью about_territory; задачи с территорией — всё с правами и политиками смотрящего (ADR-0077).',
-    schema: {
-      params: IdParam,
-      querystring: TerritoryPassportQuery,
-      response: { 200: TerritoryPassport },
-    },
-    handler: async (request) => {
-      if (request.ctx.shareLink) throw errors.forbidden()
-      return PassportService.get(request.ctx, request.params.id, request.query.period)
-    },
   })
 
   route({

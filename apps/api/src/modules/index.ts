@@ -2,7 +2,6 @@ import type { FastifyInstance } from 'fastify'
 import { registerAcknowledgments } from '~/kernel/acknowledgments/index.js'
 import { setCredentialsProvider } from '~/kernel/directory/credentials.js'
 import { registerDirectoryProvider } from '~/kernel/directory/provider.js'
-import { setTerritoryLookup } from '~/kernel/directory/territory-lookup.js'
 import { registerKernelObjectTypes } from '~/kernel/object-types.js'
 import { listObjectTypes } from '~/kernel/objects/registry.js'
 import { registerProcessEngine } from '~/kernel/process/index.js'
@@ -67,7 +66,6 @@ import {
   registerFormsBackground,
 } from './forms/module.js'
 import { registerGisBackground, registerGisObjectTypes, registerGisRoutes } from './gis/module.js'
-import { territoryIndex } from './gis/public.js'
 import {
   declareIdentitySchedules,
   registerIdentityBackground,
@@ -119,6 +117,11 @@ import {
   startTelegramPolling,
   stopTelegramPolling,
 } from './telegram/module.js'
+import {
+  registerTerritoriesRoutes,
+  registerTerritoryLookup,
+  registerTerritoryObjectTypes,
+} from './territories/module.js'
 
 /** Хранилища модулей, которые создаются на лету (таблицы датасетов), — к текущему виду. */
 /**
@@ -143,6 +146,7 @@ export function registerAllObjectTypes(): void {
   registerAcknowledgments()
   registerFilesObjectTypes()
   registerDataObjectTypes()
+  registerTerritoryObjectTypes()
   registerGisObjectTypes()
   registerReportsObjectTypes()
   registerTasksObjectTypes()
@@ -188,7 +192,7 @@ function registerDirectory(): void {
     totpEnrolled: (userIds) => AuthService.totpEnrolled(userIds),
     verify: (userId, code) => AuthService.verifyTotp(userId, code),
   })
-  setTerritoryLookup({ exists: async (id) => (await territoryIndex()).byId.has(id) })
+  registerTerritoryLookup()
 }
 
 export async function registerModules(app: FastifyInstance, route: RouteRegistrar): Promise<void> {
@@ -196,6 +200,7 @@ export async function registerModules(app: FastifyInstance, route: RouteRegistra
   registerIdentityRoutes(route)
   registerFilesRoutes(route)
   registerDataRoutes(route)
+  registerTerritoriesRoutes(route)
   registerGisRoutes(route)
   registerReportsRoutes(route)
   registerTasksRoutes(route)

@@ -17,7 +17,7 @@ import {
 registerLifecycle()
 
 const { DocumentsSeed } = await import('../src/modules/documents/public.js')
-const { TerritoryService } = await import('../src/modules/gis/public.js')
+const { TerritoryService } = await import('../src/modules/territories/public.js')
 const { systemCtx } = await import('../src/shared/context.js')
 const TERRITORIES = (await import('../src/seed/territories.json', { with: { type: 'json' } }))
   .default

@@ -21,7 +21,7 @@ import {
  */
 registerLifecycle()
 
-const { TerritoryService } = await import('../src/modules/gis/public.js')
+const { TerritoryService } = await import('../src/modules/territories/public.js')
 const { SpaceService } = await import('../src/kernel/spaces/service.js')
 const { ImportService } = await import('../src/modules/data/domain/import-service.js')
 const { s3, buckets } = await import('../src/kernel/storage/s3.js')

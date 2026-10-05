@@ -9,7 +9,7 @@ import { db, registerLifecycle, setupFixture } from './helpers.js'
  */
 registerLifecycle()
 
-const { TerritoryService } = await import('../src/modules/gis/public.js')
+const { TerritoryService } = await import('../src/modules/territories/public.js')
 const { systemCtx } = await import('../src/shared/context.js')
 const json = { with: { type: 'json' } } as const
 const TERRITORIES = (await import('../src/seed/territories.json', json)).default

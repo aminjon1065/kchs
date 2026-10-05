@@ -9,7 +9,7 @@ import { call, db, registerLifecycle, setupFixture, type TestContext } from './h
  */
 registerLifecycle()
 
-const { TerritoryService } = await import('../src/modules/gis/public.js')
+const { TerritoryService } = await import('../src/modules/territories/public.js')
 const { computePrincipalSet } = await import('../src/kernel/access/principal-set.js')
 const { systemCtx } = await import('../src/shared/context.js')
 const TERRITORIES = (await import('../src/seed/territories.json', { with: { type: 'json' } }))
