@@ -3605,40 +3605,6 @@
   },
   {
     "type": "dependency",
-    "from": "src/app/workspace/context-panel.tsx",
-    "to": "src/features/assistant/assistant-panel.tsx",
-    "unresolvedTo": "~/features/assistant/assistant-panel.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "dynamic-import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "app-knows-features-only-in-composition-root"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/app/workspace/context-panel.tsx",
-    "to": "src/features/automation/manual-rules.tsx",
-    "unresolvedTo": "~/features/automation/manual-rules.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "app-knows-features-only-in-composition-root"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/admin/admin-screen.tsx",
     "to": "src/features/automation/rules-section.tsx",
     "unresolvedTo": "~/features/automation/rules-section.js",

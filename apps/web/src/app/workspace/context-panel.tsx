@@ -39,7 +39,7 @@ import {
   Users,
   X,
 } from 'lucide-react'
-import { lazy, Suspense, useState } from 'react'
+import { Fragment, Suspense, useState } from 'react'
 import { type ComposedMessage, MessageComposer } from '~/entities/discussion/message-composer.js'
 import {
   DeleteMessageDialog,
@@ -47,7 +47,6 @@ import {
   MessageMenu,
 } from '~/entities/discussion/message-item.js'
 import { uploadFile } from '~/entities/files/upload.js'
-import { ManualRuleActions } from '~/features/automation/manual-rules.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import {
   discussionQuery,
@@ -61,16 +60,9 @@ import {
 } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
-import { getObjectView } from '~/shared/workspace/registry.js'
+import { getObjectView, listContextSlots } from '~/shared/workspace/registry.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
 import type { ContextTabKey } from '~/shared/workspace/types.js'
-
-/** Помощник — отдельным чанком: вкладку открывают не каждый раз, а с ним идут диалоги задач. */
-const AssistantPanel = lazy(() =>
-  import('~/features/assistant/assistant-panel.js').then((module) => ({
-    default: module.AssistantPanel,
-  })),
-)
 
 const TABS: Array<{ key: ContextTabKey; labelKey: string; icon: typeof Info }> = [
   { key: 'info', labelKey: 'shell.context.info', icon: Info },
@@ -166,7 +158,10 @@ export function ContextPanel() {
             ) : null}
             <div className="min-h-0 flex-1">
               <Suspense fallback={null}>
-                <AssistantPanel objectId={objectId} />
+                {/* Диалог ассистента даёт его модуль — отдельным чанком (ADR-0183) */}
+                {listContextSlots('context-assistant').map((slot) => (
+                  <Fragment key={slot.key}>{slot.render(objectId)}</Fragment>
+                ))}
               </Suspense>
             </div>
           </div>
@@ -250,8 +245,10 @@ function InfoTab({ objectId }: { objectId: string }) {
       <ObjectTags object={object} />
 
       <SimilarObjectsSection objectId={objectId} />
-      {/* Правила с ручным запуском для этого объекта (ADR-0096) */}
-      <ManualRuleActions objectId={objectId} />
+      {/* Секции модулей для любого объекта: правила с ручным запуском (ADR-0096, ADR-0183) */}
+      {listContextSlots('context-info').map((slot) => (
+        <Fragment key={slot.key}>{slot.render(objectId)}</Fragment>
+      ))}
 
       {access?.entries.length ? (
         <div>

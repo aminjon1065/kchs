@@ -112,6 +112,15 @@ export interface ShellExtensions {
 export type ShellSlotDefinition =
   | { key: string; placement: 'banner' | 'overlay'; render: () => ReactNode }
   | { key: string; placement: 'dialog'; render: (props: ShellDialogProps) => ReactNode }
+  /**
+   * Контекст-панель для любого объекта: секция вкладки «Сведения» (правила с ручным
+   * запуском) или вкладка «Ассистент» (диалог с инструментами).
+   */
+  | {
+      key: string
+      placement: 'context-info' | 'context-assistant'
+      render: (objectId: string) => ReactNode
+    }
 
 export interface ShellDialogProps {
   open: boolean
@@ -161,6 +170,15 @@ export function shellExtension<K extends keyof ShellExtensions>(
 export function listShellSlots(
   placement: 'banner' | 'overlay',
 ): Array<{ key: string; render: () => ReactNode }> {
+  return [...slots.values()].flatMap((slot) =>
+    slot.placement === placement ? [{ key: slot.key, render: slot.render }] : [],
+  )
+}
+
+/** Секции контекст-панели модулей для открытого объекта. */
+export function listContextSlots(
+  placement: 'context-info' | 'context-assistant',
+): Array<{ key: string; render: (objectId: string) => ReactNode }> {
   return [...slots.values()].flatMap((slot) =>
     slot.placement === placement ? [{ key: slot.key, render: slot.render }] : [],
   )

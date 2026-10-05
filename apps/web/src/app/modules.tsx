@@ -2,6 +2,8 @@ import { Skeleton } from '@kchs/ui'
 import { CheckSquare, Database, FileText, Folder, Home, Map as MapIcon } from 'lucide-react'
 import { lazy, Suspense } from 'react'
 import { adminModule } from '~/features/admin/module.js'
+import { assistantModule } from '~/features/assistant/module.js'
+import { automationModule } from '~/features/automation/module.js'
 import type { CalendarScreenState } from '~/features/calendar/calendar-screen.js'
 import { calendarModule } from '~/features/calendar/module.js'
 import type { ChatsScreenState } from '~/features/chat/chats-screen.js'
@@ -300,6 +302,8 @@ export function registerModules(): void {
   for (const definition of [
     delegationModule,
     adminModule,
+    assistantModule,
+    automationModule,
     calendarModule,
     chatModule,
     knowledgeModule,
