@@ -12,6 +12,11 @@ import type { Executor } from '~/shared/db/client.js'
 import { EventService } from './domain/event-service.js'
 
 export {
+  type EventMeetingInput,
+  type OnlineMeetingProvider,
+  registerOnlineMeetingProvider,
+} from './domain/meeting-provider.js'
+export {
   type CalendarProjectionProvider,
   type ProjectedItem,
   type ProjectionRange,

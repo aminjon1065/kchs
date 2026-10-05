@@ -8,9 +8,11 @@ import { registerJobHandler } from '~/kernel/jobs/runner.js'
 import { registerNotificationCategory } from '~/kernel/notifications/service.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
 import { declareSchedule } from '~/kernel/schedules/index.js'
+import { registerOnlineMeetingProvider } from '~/modules/calendar/public.js'
 import { DocumentsPrint } from '~/modules/documents/public.js'
 import { db } from '~/shared/db/client.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
+import { MeetingService } from './domain/meeting-service.js'
 import { registerMeetingRealtime } from './domain/meeting-subscribers.js'
 import { protocolPrintForm } from './domain/protocol-print.js'
 import { ProtocolService } from './domain/protocol-service.js'
@@ -57,6 +59,24 @@ export function registerMeetingsObjectTypes(): void {
     tags: ['meetings'],
     screens: ['meetings'],
     objectTypes: ['meeting', 'protocol', 'recording'],
+  })
+
+  // Онлайн-встреча события календаря (ADR-0181): календарь зовёт поставщика и встречи
+  // не импортирует; комната — встреча `scheduled` с обратной ссылкой на событие
+  registerOnlineMeetingProvider({
+    ensureForEvent: (tx, ctx, input) =>
+      MeetingService.create(tx, ctx, {
+        kind: 'scheduled',
+        title: input.title,
+        eventId: input.eventId,
+        organizerId: input.organizerId,
+        participantIds: input.participantIds,
+        startsAt: input.startsAt,
+        endsAt: input.endsAt,
+      }),
+    setParticipants: (tx, ctx, meetingId, userIds) =>
+      MeetingService.setParticipants(tx, ctx, meetingId, userIds),
+    cancel: (tx, ctx, meetingId) => MeetingService.end(tx, ctx, meetingId, 'cancelled'),
   })
 
   registerObjectType({

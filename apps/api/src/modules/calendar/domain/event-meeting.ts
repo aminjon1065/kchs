@@ -1,15 +1,12 @@
-import {
-  endMeeting,
-  ensureMeetingForEvent,
-  setMeetingParticipants,
-} from '~/modules/meetings/public.js'
 import type { Ctx } from '~/shared/context.js'
 import type { Executor } from '~/shared/db/client.js'
+import { onlineMeetings } from './meeting-provider.js'
 
 /**
- * Онлайн-встреча события календаря (ADR-0089). Встречу заводит календарь:
- * он знает организатора, участников и время; модуль встреч в его таблицы не
- * смотрит, обратная ссылка `events.meeting_id` остаётся здесь.
+ * Онлайн-встреча события календаря (ADR-0089). Встречу заводит календарь через
+ * поставщика онлайн-встречи (ADR-0181): он знает организатора, участников и время;
+ * модуль встреч в его таблицы не смотрит, обратная ссылка `events.meeting_id`
+ * остаётся здесь.
  */
 export interface EventMeetingSync {
   eventId: string
@@ -30,7 +27,7 @@ export async function syncEventMeeting(
   input: EventMeetingSync,
 ): Promise<{ meetingId: string | null; changed: boolean }> {
   if (input.wanted === true && !input.meetingId) {
-    const meetingId = await ensureMeetingForEvent(tx, ctx, {
+    const meetingId = await onlineMeetings().ensureForEvent(tx, ctx, {
       eventId: input.eventId,
       title: input.title,
       organizerId: input.organizerId,
@@ -41,11 +38,11 @@ export async function syncEventMeeting(
     return { meetingId, changed: true }
   }
   if (input.wanted === false && input.meetingId) {
-    await endMeeting(tx, ctx, input.meetingId, 'cancelled')
+    await onlineMeetings().cancel(tx, ctx, input.meetingId)
     return { meetingId: null, changed: true }
   }
   if (input.meetingId) {
-    await setMeetingParticipants(tx, ctx, input.meetingId, input.participantIds)
+    await onlineMeetings().setParticipants(tx, ctx, input.meetingId, input.participantIds)
   }
   return { meetingId: input.meetingId, changed: false }
 }
@@ -56,5 +53,5 @@ export async function cancelEventMeeting(
   ctx: Ctx,
   meetingId: string | null,
 ): Promise<void> {
-  if (meetingId) await endMeeting(tx, ctx, meetingId, 'cancelled')
+  if (meetingId) await onlineMeetings().cancel(tx, ctx, meetingId)
 }
