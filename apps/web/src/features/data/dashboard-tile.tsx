@@ -35,7 +35,8 @@ import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { DashboardMapTile, MapBindingsDialog } from './dashboard-map-tile.js'
 import { chartQuery, datasetQuery, metricQuery } from './queries.js'
-import { chartHasImage, type ResultData, ResultExportMenu } from './result-export.js'
+import { chartHasImage, ResultExportMenu } from './result-export.js'
+import type { ResultData } from './result-export-queries.js'
 
 /** Высота строки сетки, px: обычный вид — auto-rows-[80px], TV — auto-rows-[112px]. */
 const ROW = 80

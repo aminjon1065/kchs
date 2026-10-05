@@ -8,6 +8,7 @@
  *  - приведение типа в пути (`path as …`, кроме шаблона `as const`) и путь типа `any`;
  *  - строка запроса, тело или параметры типа `any` или с индексной сигнатурой
  *    (`Record<string, …>`): такой объект компилятор со схемой не сверяет;
+ *  - транспорт без типов (`send` из `client.ts`) вне `shared/api/`;
  *  - адрес `/api/v1` строкой вне `shared/api/` и тестов без пометки
  *    `// вне клиента API: причина` на той же или предыдущей строке (шаблон тайлов MapLibre).
  *
@@ -38,7 +39,7 @@ let marked = 0
 
 const rel = (file) => path.relative(WEB, file).split(path.sep).join('/')
 
-/** Объявление идентификатора — в модуле клиента API (`client.ts`, `url.ts`)? */
+/** Объявление идентификатора — в каталоге клиента API (`shared/api/`)? */
 function fromApiModule(node) {
   let symbol = checker.getSymbolAtLocation(node)
   if (symbol && symbol.flags & ts.SymbolFlags.Alias) symbol = checker.getAliasedSymbol(symbol)
@@ -163,13 +164,22 @@ function checkLiteral(sf, node, lines) {
 
 for (const sf of program.getSourceFiles()) {
   if (!sf.fileName.startsWith(SRC)) continue
+  const inApi = sf.fileName.startsWith(API_DIR)
   // Адреса в клиенте API и в данных тестов — не обращения к API
-  const rawAllowed = sf.fileName.startsWith(API_DIR) || /\.test\.tsx?$/.test(sf.fileName)
+  const rawAllowed = inApi || /\.test\.tsx?$/.test(sf.fileName)
   const lines = sf.text.split('\n')
   const visit = (node) => {
     if (ts.isCallExpression(node)) {
       const name = clientCall(node)
       if (name) checkCall(sf, node, name)
+      else if (
+        !inApi &&
+        ts.isIdentifier(node.expression) &&
+        node.expression.text === 'send' &&
+        fromApiModule(node.expression)
+      ) {
+        report(sf, node, 'send: транспорт без типов маршрута — только внутри shared/api/')
+      }
     }
     if (
       !rawAllowed &&

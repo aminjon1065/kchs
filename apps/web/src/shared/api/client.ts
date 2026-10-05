@@ -1,6 +1,6 @@
 import type { HttpMethod, ProblemDetails } from '@kchs/contracts'
 import { normalizeLocale, translate } from '@kchs/i18n'
-import type { ApiPath, MethodTable, RequestOptions } from './route-types.js'
+import type { MethodTable, RequestOptions } from './route-types.js'
 import { requestUrl } from './url.js'
 
 export class ApiError extends Error {
@@ -93,7 +93,7 @@ type Call<T extends Record<string, PathEntry>> = <P extends keyof T & string>(
 ) => Promise<T[P]['response']>
 
 /** Опции после стирания типов: то, с чем работает транспорт. */
-interface RawOptions extends RequestOptions {
+export interface RawOptions extends RequestOptions {
   params?: Record<string, unknown>
   query?: Record<string, unknown>
   body?: unknown
@@ -157,8 +157,16 @@ function problemOf(status: number, payload: unknown): ApiError {
   return new ApiError(problem)
 }
 
-/** Запрос и ответ без ошибки — или `ApiError` (401 и незавершённая настройка входа — оболочке). */
-async function send(method: HttpMethod, path: string, options: RawOptions): Promise<Response> {
+/**
+ * Запрос и ответ без ошибки — или `ApiError` (401 и незавершённая настройка входа — оболочке).
+ * Транспорт без типов маршрута — для обёрток каталога `shared/api` (выгрузка файлом); вне
+ * каталога его вызов запрещает `scripts/api-calls.mjs`.
+ */
+export async function send(
+  method: HttpMethod,
+  path: string,
+  options: RawOptions,
+): Promise<Response> {
   const response = await fetch(requestUrl(path, options).toString(), {
     method,
     headers: requestHeaders(path, method, options.body !== undefined, options.headers),
@@ -198,40 +206,4 @@ export const http = {
   put: call<MethodTable<'PUT'>>('PUT'),
   patch: call<MethodTable<'PATCH'>>('PATCH'),
   delete: call<MethodTable<'DELETE'>>('DELETE'),
-}
-
-/** Сохранить файл из памяти: браузер скачивает его под этим именем. */
-export function saveBlob(blob: Blob, name: string): void {
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = name
-  document.body.append(link)
-  link.click()
-  link.remove()
-  setTimeout(() => URL.revokeObjectURL(url), 10_000)
-}
-
-/** Имя файла из `Content-Disposition`: `filename*` (UTF-8) важнее `filename`. */
-function dispositionName(header: string | null): string | null {
-  if (!header) return null
-  const encoded = /filename\*=UTF-8''([^;]+)/i.exec(header)?.[1]
-  if (encoded) return decodeURIComponent(encoded)
-  return /filename="([^"]+)"/i.exec(header)?.[1] ?? null
-}
-
-/**
- * Выгрузка файлом (POST маршрута таблицы с телом): ответ сохраняется под именем из
- * `Content-Disposition`; ошибка — `ApiError`, как у `http`. Заголовки ответа —
- * вызывающему (счётчики выгрузки).
- */
-export async function downloadFile<P extends ApiPath<'POST'>>(
-  path: P,
-  options: MethodTable<'POST'>[P]['args'][0],
-  fallbackName = 'export',
-): Promise<Headers> {
-  const response = await send('POST', path, options as unknown as RawOptions)
-  const name = dispositionName(response.headers.get('content-disposition')) ?? fallbackName
-  saveBlob(await response.blob(), name)
-  return response.headers
 }

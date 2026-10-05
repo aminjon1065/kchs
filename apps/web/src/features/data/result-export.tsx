@@ -13,11 +13,12 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { Download, FileImage, FileSpreadsheet, FileText } from 'lucide-react'
 import { type RefObject, useState } from 'react'
-import { ApiError, downloadFile, saveBlob } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/client.js'
 import { meQuery } from '~/shared/api/queries.js'
-import type { ApiBody } from '~/shared/api/route-types.js'
 import { useLocale } from '~/shared/appearance.js'
+import { saveBlob } from '~/shared/files.js'
 import { useT } from '~/shared/i18n.js'
+import { downloadResult, type ResultData } from './result-export-queries.js'
 
 /** Виды графика без холста ECharts: таблица, число, сводная и карта — картинки у них нет. */
 const NO_IMAGE = new Set(['table', 'number', 'pivot', 'map'])
@@ -25,23 +26,6 @@ export const chartHasImage = (type: string): boolean => !NO_IMAGE.has(type)
 
 /** Символы, которых не бывает в имени файла. */
 const UNSAFE_NAME = /[\\/:*?"<>|]+/g
-
-/** Выгрузка данных: маршрут и тело без формата (формат добавляет меню). */
-export type ResultData =
-  | { path: '/queries/export'; body: Omit<ApiBody<'POST /queries/export'>, 'format'> }
-  | {
-      path: '/dashboards/:id/export'
-      id: string
-      body: Omit<ApiBody<'POST /dashboards/:id/export'>, 'format'>
-    }
-
-const downloadResult = (data: ResultData, format: QueryExportFormat) =>
-  data.path === '/queries/export'
-    ? downloadFile('/queries/export', { body: { ...data.body, format } })
-    : downloadFile('/dashboards/:id/export', {
-        params: { id: data.id },
-        body: { ...data.body, format },
-      })
 
 /**
  * Меню «Экспорт» результата (ADR-0159): данные CSV и Excel — сервер считает

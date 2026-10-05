@@ -70,7 +70,8 @@ module.exports = {
           '\\.test\\.tsx?$',
         ],
       },
-      to: { path: '^src/shared/api/client\\.ts$' },
+      // Клиент и выгрузка файлом — вызовы API; типы маршрутов (route-types) и адреса ссылок (link) — нет
+      to: { path: '^src/shared/api/(client|download)\\.ts$' },
     },
   ],
   options: {

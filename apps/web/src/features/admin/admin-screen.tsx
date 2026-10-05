@@ -65,6 +65,7 @@ import { ServiceAccountBadge } from '~/entities/access/service-account-badge.js'
 import { AutomationRulesSection } from '~/features/automation/rules-section.js'
 import { SchedulesSection } from '~/features/automation/schedules-section.js'
 import { ProcessesSection } from '~/features/processes/processes-section.js'
+import { apiUrl } from '~/shared/api/link.js'
 import {
   auditQuery,
   keys,
@@ -73,7 +74,6 @@ import {
   rolesQuery,
   usersQuery,
 } from '~/shared/api/queries.js'
-import { apiUrl } from '~/shared/api/url.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { AnnouncementsSection } from './announcements-section.js'
