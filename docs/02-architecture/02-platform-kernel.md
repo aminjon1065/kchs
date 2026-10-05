@@ -11,7 +11,7 @@
 Единые для всех типов: открытие во вкладке по `/o/{id}`, права, связи, обсуждение, активность, избранное, недавние, теги, поиск, выбор объекта в любом поле (`ObjectPicker`), карточка при наведении, корзина и восстановление, архив, перенос между пространствами.
 
 ### Таблица `objects` (ключевые поля)
-`id uuid`, `type text`, `space_id`, `parent_id` (иерархия: папка→файл, проект→задача, датасет→слой не является родителем — слой ссылается на датасет связью), `title`, `subtitle`, `icon`, `owner_id`, `created_by`, `created_at`, `updated_at`, `archived_at`, `deleted_at` (корзина), `access_mode` (`inherit`|`restricted`), `meta jsonb` (лёгкие сводные поля для карточек: статус, срок, исполнитель — денормализация для списков и поиска), `search_version` (для инкрементальной индексации).
+`id uuid`, `type text`, `space_id`, `parent_id` (иерархия: папка→файл, проект→задача, датасет→слой не является родителем — слой ссылается на датасет связью), `title`, `subtitle`, `icon`, `owner_id`, `created_by`, `created_at`, `updated_at`, `archived_at`, `deleted_at` (корзина), `access_mode` (`inherit`|`restricted`), `meta jsonb` (лёгкие сводные поля для карточек: статус, срок, исполнитель — денормализация для списков и поиска; счётчики, которые модуль пересчитывает сам, — через `ObjectService.patchMeta` без события, ADR-0170), `search_version` (для инкрементальной индексации).
 
 Закрытие таблицы предков `object_ancestors(object_id, ancestor_id, depth)` поддерживается ядром при создании/переносе — для наследования прав и быстрых выборок.
 
@@ -144,7 +144,7 @@ BullMQ-очереди: `imports`, `exports`, `transform`, `render`, `media`, `ai
 
 ## 11. Realtime
 
-WebSocket-шлюз (Socket.IO с Redis-адаптером). Комнаты: `user:{id}`, `space:{id}`, `object:{id}`, `conversation:{id}`, `job:{id}`. Вход в комнату объекта проверяет `authorize(view)`; при изменении ACL пользователи без прав исключаются. Сообщения: `object.updated {id, type, version, changedFields}`, `message.posted`, `notification.new`, `inbox.changed`, `job.progress`, `presence` (кто смотрит объект), `typing`. Клиент по `object.updated` инвалидирует кэш запросов и мягко обновляет представление без скачков.
+WebSocket-шлюз (Socket.IO с Redis-адаптером) на узлах api; подписчики событий в worker передают сообщения узлам каналом Redis `rt:relay`, и каждый узел доставляет их своим сокетам (ADR-0169). Комнаты: `user:{id}`, `space:{id}`, `object:{id}`, `conversation:{id}`, `job:{id}`. Вход в комнату объекта проверяет `authorize(view)`; при изменении ACL пользователи без прав исключаются. Сообщения: `object.updated {id, type, version, changedFields}`, `message.posted`, `notification.new`, `inbox.changed`, `job.progress`, `presence` (кто смотрит объект), `typing`. Клиент по `object.updated` инвалидирует кэш запросов и мягко обновляет представление без скачков.
 
 Совместное редактирование (страницы, тетради, протоколы, описания): Yjs-документы через Hocuspocus на `/collab`, персистентность в Postgres (`yjs_documents`), права по объекту.
 

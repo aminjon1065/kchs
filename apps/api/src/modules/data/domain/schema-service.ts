@@ -9,6 +9,7 @@ import type {
 import { and, eq, inArray, ne, sql } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
+import { ObjectService } from '~/kernel/objects/service.js'
 import type { Ctx } from '~/shared/context.js'
 import type { Executor } from '~/shared/db/client.js'
 import { pgErrorCode, UNIQUE_VIOLATION } from '~/shared/db/pg-error.js'
@@ -115,10 +116,7 @@ async function schemaChanged(
 }
 
 async function setFieldCount(tx: Executor, datasetId: string, count: number): Promise<void> {
-  await tx
-    .update(objects)
-    .set({ meta: sql`${objects.meta} || ${JSON.stringify({ fields: count })}::jsonb` })
-    .where(eq(objects.id, datasetId))
+  await ObjectService.patchMeta(tx, datasetId, { fields: count })
 }
 
 /**
@@ -414,10 +412,9 @@ export const SchemaService = {
       })
       .where(eq(datasets.id, datasetId))
     if (input.description !== undefined) {
-      await tx
-        .update(objects)
-        .set({ subtitle: input.description, updatedAt: sql`now()` })
-        .where(eq(objects.id, datasetId))
+      // Описание — подзаголовок объекта: через реестр, чтобы его увидели поиск и
+      // открытые вкладки (`object.updated`)
+      await ObjectService.update(tx, ctx, datasetId, { subtitle: input.description })
     }
     await schemaChanged(tx, ctx, {
       datasetId,

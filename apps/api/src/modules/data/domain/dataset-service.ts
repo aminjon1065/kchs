@@ -339,13 +339,7 @@ export const DatasetService = {
       importId: input.importId ?? null,
       createdBy: actorId(ctx),
     })
-    await tx
-      .update(objects)
-      .set({
-        meta: sql`${objects.meta} || ${JSON.stringify({ rows: input.rowCount })}::jsonb`,
-        updatedAt: sql`now()`,
-      })
-      .where(eq(objects.id, input.datasetId))
+    await ObjectService.patchMeta(tx, input.datasetId, { rows: input.rowCount }, { touch: true })
     return row.version
   },
 }

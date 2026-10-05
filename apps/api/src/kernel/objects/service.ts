@@ -184,6 +184,28 @@ export const ObjectService = {
     return toObjectLike(row)
   },
 
+  /**
+   * Сводные поля карточки в `meta` (число строк, полей), которые модуль
+   * пересчитывает сам при импорте, правке строк или схемы. Без события и без
+   * новой версии объекта: это денормализация для списков, а не правка
+   * пользователя, и событие на каждую правку строки засорило бы ленту и поиск.
+   * Изменения, которые должны дойти до поиска и открытых вкладок, — через `update`.
+   */
+  async patchMeta(
+    tx: Executor,
+    id: string,
+    patch: Record<string, unknown>,
+    options: { touch?: boolean } = {},
+  ): Promise<void> {
+    await tx
+      .update(objects)
+      .set({
+        meta: sql`${objects.meta} || ${JSON.stringify(patch)}::jsonb`,
+        ...(options.touch ? { updatedAt: sql`now()` } : {}),
+      })
+      .where(eq(objects.id, id))
+  },
+
   /** Перенос по дереву и/или между пространствами с пересчётом предков. */
   async move(
     tx: Executor,

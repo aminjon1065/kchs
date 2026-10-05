@@ -372,6 +372,25 @@ describe('настройки датасета', () => {
     expect(badTime.statusCode).toBe(400)
   })
 
+  it('описание — подзаголовок объекта: доходит до поиска и открытых вкладок', async () => {
+    const id = await createDataset('Описание в поиске')
+    const changed = await call(fx.app, {
+      method: 'PATCH',
+      url: `/datasets/${id}`,
+      as: fx.admin,
+      payload: { description: 'Сводка паводков по районам' },
+    })
+    expect(changed.statusCode, changed.body).toBe(200)
+    const object = await call(fx.app, { url: `/objects/${id}`, as: fx.admin })
+    expect(object.json().subtitle).toBe('Сводка паводков по районам')
+    // Поиск и realtime перечитывают объект по `object.updated` (kernel/subscribers.ts)
+    const events = await db().execute<{ fields: string[] }>(
+      sql`SELECT event->'changedFields' AS fields FROM ops.outbox
+           WHERE type = 'object.updated' AND event->'object'->>'id' = ${id}`,
+    )
+    expect(events.map((event) => event.fields)).toContainEqual(['subtitle'])
+  })
+
   it('правка схемы — только с уровнем manage; во время импорта — конфликт', async () => {
     const id = await createDataset('Права схемы')
     for (const user of [fx.users.member, fx.users.viewer]) {
