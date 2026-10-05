@@ -40,14 +40,15 @@ kchs/
 src/
 ├── main.ts                       # старт по ROLE; graceful shutdown
 ├── app.ts                        # сборка Fastify: плагины, модули, маршруты, ws
-├── kernel/                       # см. 02-platform-kernel.md; каждый подкаталог: service, repo, http?, events?, __tests__
-├── modules/<module>/             # module.ts, public.ts, domain/, infra/, http/, jobs/, events/, __tests__/
+├── kernel/                       # см. 02-platform-kernel.md; каждый подкаталог: service, repo, schema.ts (свои таблицы), http?, events?, __tests__
+├── modules/<module>/             # module.ts, public.ts, schema.ts (таблицы модуля), domain/, infra/, http/, jobs/, events/, __tests__/
+├── db-schema.ts                  # сборка схем владельцев — только для drizzle-kit, сида, CLI и тестов (ADR-0178)
 ├── shared/
-│   ├── db/                       # drizzle client, schema index, транзакции, миграции runner
+│   ├── db/                       # drizzle client, помощники столбцов (columns.ts), транзакции, миграции runner
 │   ├── config/                   # env-схема (zod), типизированный конфиг
 │   ├── http/                     # ошибки problem+json, auth-хуки, пагинация, rate limit
 │   ├── logger/ telemetry/ errors/ utils/
-├── drizzle/                      # схема (по модулям: schema/kernel.ts, schema/data.ts, …) и миграции
+├── drizzle/                      # миграции и снимки drizzle-kit (схема — у владельцев таблиц, ADR-0178)
 └── test/                         # интеграционные тесты (testcontainers), фикстуры
 ```
 
@@ -55,6 +56,7 @@ src/
 - Маршрут = `route(schema, handler)` с обязательным `auth: {action, objectParam}` или `auth: 'public'|'session'`; регистрация без `auth` падает на старте.
 - Сервисы принимают `ctx: UserCtx` первым аргументом; `SystemCtx` — только для worker/engine-заданий и явно логируется.
 - Репозитории — единственное место SQL модуля; кросс-модульные выборки для списков — через ядро (`objects`) и `public.ts`.
+- Таблица описана у владельца (ADR-0178, согласовано владельцем продукта 05.10.2026): область ядра — `kernel/<область>/schema.ts`, модуль — `modules/<модуль>/schema.ts`. Модуль импортирует только свою схему; из таблиц ядра напрямую — реестр объектов (`kernel/objects/schema.ts`) и, до переноса сервисов справочника в ядро, `kernel/directory/schema.ts`; схема модуля может ссылаться на чужую таблицу внешним ключом. Сборщик `src/db-schema.ts` — только для drizzle-kit, сида, CLI и тестов. Проверяет dependency-cruiser (`pnpm deps:check`, база известных нарушений — `.dependency-cruiser-known-violations.json`).
 - Транзакции — `db.transaction(async tx => …)`; `ObjectService`, `EventPublisher` принимают `tx`.
 
 ## `apps/web`
