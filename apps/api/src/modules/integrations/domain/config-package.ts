@@ -182,20 +182,25 @@ export const ConfigPackages = {
     }
 
     const sections = [...new Set(applied.map((a) => a.section))]
-    await audit(ctx, {
-      action: INTEGRATIONS_AUDIT.configImported,
-      severity: 'notice',
-      details: {
-        origin: input.package.origin,
-        applied: applied.map((a) => `${a.section}:${a.key}`),
-        skipped: skipped.length,
-      },
-    })
+    // Разделы применяются каждый своей транзакцией; итог — событие и аудит вместе
     await db().transaction(async (tx) => {
       await publishEvent(tx, ctx, {
         type: 'config.imported',
         payload: { sections, applied: applied.length, skipped: skipped.length },
       })
+      await audit(
+        ctx,
+        {
+          action: INTEGRATIONS_AUDIT.configImported,
+          severity: 'notice',
+          details: {
+            origin: input.package.origin,
+            applied: applied.map((a) => `${a.section}:${a.key}`),
+            skipped: skipped.length,
+          },
+        },
+        tx,
+      )
     })
     return { applied, skipped }
   },

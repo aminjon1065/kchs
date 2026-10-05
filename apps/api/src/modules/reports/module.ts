@@ -15,6 +15,7 @@ import {
 } from '@kchs/contracts'
 import { z } from 'zod'
 import { authorize } from '~/kernel/access/authorize.js'
+import { registerAuditActions } from '~/kernel/audit/registry.js'
 import { registerCollabType } from '~/kernel/collab/registry.js'
 import { registerSubscriber } from '~/kernel/events/bus.js'
 import { registerFeature } from '~/kernel/features/registry.js'
@@ -27,6 +28,7 @@ import { indexObject } from '~/kernel/search/index-service.js'
 import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
+import { REPORTS_AUDIT } from './domain/audit-actions.js'
 import { ReportDelivery } from './domain/delivery.js'
 import { ReportService } from './domain/report-service.js'
 import { REPORT_RENDER_JOB, ReportRuns } from './domain/run-service.js'
@@ -43,6 +45,7 @@ const Ok = z.object({ ok: z.boolean() })
  * совместный документ шаблона, действие элемента Входящих «Ознакомлен».
  */
 export function registerReportsObjectTypes(): void {
+  registerAuditActions('reports', REPORTS_AUDIT)
   registerFeature({
     key: 'reports',
     titleKey: 'admin.features.items.reports.title',

@@ -78,18 +78,22 @@ export function registerAccessRoutes(route: RouteRegistrar): void {
       response: { 200: z.object({ ok: z.boolean() }) },
     },
     handler: async (request) => {
-      await db().transaction((tx) =>
-        grantAccess(tx, request.ctx, request.params.id, request.body.grants),
-      )
-      await audit(request.ctx, {
-        action: AUDIT_ACTIONS.aclChanged,
-        objectId: request.params.id,
-        details: {
-          grants: request.body.grants.map(
-            (g) => `${g.principal.type}:${g.principal.id}=${g.level}`,
-          ),
-        },
-        severity: 'notice',
+      await db().transaction(async (tx) => {
+        await grantAccess(tx, request.ctx, request.params.id, request.body.grants)
+        await audit(
+          request.ctx,
+          {
+            action: AUDIT_ACTIONS.aclChanged,
+            objectId: request.params.id,
+            details: {
+              grants: request.body.grants.map(
+                (g) => `${g.principal.type}:${g.principal.id}=${g.level}`,
+              ),
+            },
+            severity: 'notice',
+          },
+          tx,
+        )
       })
       return { ok: true }
     },
@@ -107,14 +111,18 @@ export function registerAccessRoutes(route: RouteRegistrar): void {
       response: { 200: z.object({ ok: z.boolean() }) },
     },
     handler: async (request) => {
-      await db().transaction((tx) =>
-        revokeAccess(tx, request.ctx, request.params.id, request.body.principal),
-      )
-      await audit(request.ctx, {
-        action: AUDIT_ACTIONS.aclChanged,
-        objectId: request.params.id,
-        details: { revoked: `${request.body.principal.type}:${request.body.principal.id}` },
-        severity: 'notice',
+      await db().transaction(async (tx) => {
+        await revokeAccess(tx, request.ctx, request.params.id, request.body.principal)
+        await audit(
+          request.ctx,
+          {
+            action: AUDIT_ACTIONS.aclChanged,
+            objectId: request.params.id,
+            details: { revoked: `${request.body.principal.type}:${request.body.principal.id}` },
+            severity: 'notice',
+          },
+          tx,
+        )
       })
       return { ok: true }
     },
@@ -215,16 +223,20 @@ export function registerAccessRoutes(route: RouteRegistrar): void {
       response: { 200: ShareLinkCreated },
     },
     handler: async (request) => {
-      const result = await db().transaction((tx) =>
-        createShareLink(tx, request.ctx, request.params.id, request.body),
-      )
-      await audit(request.ctx, {
-        action: AUDIT_ACTIONS.shareLinkCreated,
-        objectId: request.params.id,
-        details: { linkId: result.id, hasPassword: Boolean(request.body.password) },
-        severity: 'notice',
+      return db().transaction(async (tx) => {
+        const result = await createShareLink(tx, request.ctx, request.params.id, request.body)
+        await audit(
+          request.ctx,
+          {
+            action: AUDIT_ACTIONS.shareLinkCreated,
+            objectId: request.params.id,
+            details: { linkId: result.id, hasPassword: Boolean(request.body.password) },
+            severity: 'notice',
+          },
+          tx,
+        )
+        return result
       })
-      return result
     },
   })
 
@@ -279,15 +291,19 @@ export function registerAccessRoutes(route: RouteRegistrar): void {
       response: { 200: z.object({ ok: z.boolean() }) },
     },
     handler: async (request) => {
-      const revoked = await db().transaction((tx) =>
-        revokeShareLink(tx, request.params.id, request.params.linkId),
-      )
-      if (!revoked) throw errors.notFound('Ссылка')
-      await audit(request.ctx, {
-        action: AUDIT_ACTIONS.shareLinkRevoked,
-        objectId: request.params.id,
-        details: { linkId: request.params.linkId },
-        severity: 'notice',
+      await db().transaction(async (tx) => {
+        const revoked = await revokeShareLink(tx, request.params.id, request.params.linkId)
+        if (!revoked) throw errors.notFound('Ссылка')
+        await audit(
+          request.ctx,
+          {
+            action: AUDIT_ACTIONS.shareLinkRevoked,
+            objectId: request.params.id,
+            details: { linkId: request.params.linkId },
+            severity: 'notice',
+          },
+          tx,
+        )
       })
       return { ok: true }
     },

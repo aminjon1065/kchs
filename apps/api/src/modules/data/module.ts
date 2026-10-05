@@ -68,6 +68,7 @@ import { eq, inArray, sql } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { z } from 'zod'
 import { authorize } from '~/kernel/access/authorize.js'
+import { registerAuditActions } from '~/kernel/audit/registry.js'
 import { registerSubscriber } from '~/kernel/events/bus.js'
 import { closedReason, jobClosedSubscriber } from '~/kernel/jobs/outcomes.js'
 import { registerJobHandler } from '~/kernel/jobs/runner.js'
@@ -86,6 +87,7 @@ import {
   registerAnalysisRoutes,
 } from './analysis-module.js'
 import { AskService } from './domain/ask-service.js'
+import { DATA_AUDIT } from './domain/audit-actions.js'
 import { ChartService, runChartSpec } from './domain/chart-service.js'
 import { COLUMNAR_BUILD_JOB, ColumnarService } from './domain/columnar-service.js'
 import { DashboardService } from './domain/dashboard-service.js'
@@ -160,6 +162,7 @@ const qualityRun = alias(datasetQualityRuns, 'quality_run')
 /** Типы объектов модуля «Данные» (06-analytics-engine.md). */
 export function registerDataObjectTypes(): void {
   registerNotificationCategory('data', { app: 'immediate', email: 'digest' })
+  registerAuditActions('data', DATA_AUDIT)
   registerObjectType({
     type: 'dataset',
     labelKey: 'objects.types.dataset',

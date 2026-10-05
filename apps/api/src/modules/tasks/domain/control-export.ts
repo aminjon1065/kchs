@@ -1,8 +1,10 @@
 import type { Writable } from 'node:stream'
 import type { ControlBucket, ControlListQuery, ControlQuery, Locale } from '@kchs/contracts'
 import { createTranslator } from '@kchs/i18n'
+import { audit } from '~/kernel/audit/service.js'
 import { type ExportColumn, writeTable } from '~/modules/data/public.js'
 import type { UserCtx } from '~/shared/context.js'
+import { TASKS_AUDIT } from './audit-actions.js'
 import { ControlService } from './control-service.js'
 
 export interface ControlExportInput extends ControlQuery {
@@ -56,6 +58,7 @@ export async function controlExport(
       { unit: t('tasks.control.totals'), ...report.totals },
     ]
     await writeTable(format, out, batches(rows), options(columns))
+    await auditExport(ctx, { view, format, rows: report.rows.length })
     return
   }
 
@@ -92,6 +95,12 @@ export async function controlExport(
     extensions: item.extensions,
   }))
   await writeTable(format, out, batches(rows), options(columns))
+  await auditExport(ctx, { view, bucket, format, rows: rows.length })
+}
+
+/** Выгрузка контроля исполнения — обязательное событие аудита (17-security.md §6, ADR-0185). */
+async function auditExport(ctx: UserCtx, details: Record<string, unknown>): Promise<void> {
+  await audit(ctx, { action: TASKS_AUDIT.controlExported, severity: 'notice', details })
 }
 
 async function* batches(

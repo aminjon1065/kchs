@@ -148,14 +148,17 @@ export const Webhooks = {
         object: { id, type: 'webhook', title: input.name },
         payload: { key: webhookKey, url: input.url },
       })
-    })
-
-    await audit(ctx, {
-      action: INTEGRATIONS_AUDIT.webhookCreated,
-      objectId: id,
-      objectType: 'webhook',
-      severity: 'notice',
-      details: { key: webhookKey, url: input.url, eventTypes: input.eventTypes },
+      await audit(
+        ctx,
+        {
+          action: INTEGRATIONS_AUDIT.webhookCreated,
+          objectId: id,
+          objectType: 'webhook',
+          severity: 'notice',
+          details: { key: webhookKey, url: input.url, eventTypes: input.eventTypes },
+        },
+        tx,
+      )
     })
     return { webhook: await Webhooks.get(id), secret }
   },
@@ -211,17 +214,20 @@ export const Webhooks = {
         object: { id, type: 'webhook', title: input.name ?? found.title },
         payload: { key: found.row.key, changed },
       })
-    })
-
-    await audit(ctx, {
-      action:
-        input.secret !== undefined
-          ? INTEGRATIONS_AUDIT.webhookSecretRotated
-          : INTEGRATIONS_AUDIT.webhookUpdated,
-      objectId: id,
-      objectType: 'webhook',
-      severity: 'notice',
-      details: { key: found.row.key, changed },
+      await audit(
+        ctx,
+        {
+          action:
+            input.secret !== undefined
+              ? INTEGRATIONS_AUDIT.webhookSecretRotated
+              : INTEGRATIONS_AUDIT.webhookUpdated,
+          objectId: id,
+          objectType: 'webhook',
+          severity: 'notice',
+          details: { key: found.row.key, changed },
+        },
+        tx,
+      )
     })
     return Webhooks.get(id)
   },
@@ -230,16 +236,28 @@ export const Webhooks = {
   async rotateSecret(ctx: UserCtx, id: string): Promise<string> {
     const found = await loadRow(id)
     const secret = randomBytes(32).toString('base64url')
-    await db()
-      .update(webhooks)
-      .set({ secret: encryptSecret(secret), updatedAt: sql`now()` })
-      .where(eq(webhooks.id, id))
-    await audit(ctx, {
-      action: INTEGRATIONS_AUDIT.webhookSecretRotated,
-      objectId: id,
-      objectType: 'webhook',
-      severity: 'notice',
-      details: { key: found.row.key },
+    // Новый секрет — изменение вебхука: событие и аудит в одной транзакции с записью
+    await db().transaction(async (tx) => {
+      await tx
+        .update(webhooks)
+        .set({ secret: encryptSecret(secret), updatedAt: sql`now()` })
+        .where(eq(webhooks.id, id))
+      await publishEvent(tx, ctx, {
+        type: 'webhook.updated',
+        object: { id, type: 'webhook', title: found.title },
+        payload: { key: found.row.key, changed: ['secret'] },
+      })
+      await audit(
+        ctx,
+        {
+          action: INTEGRATIONS_AUDIT.webhookSecretRotated,
+          objectId: id,
+          objectType: 'webhook',
+          severity: 'notice',
+          details: { key: found.row.key },
+        },
+        tx,
+      )
     })
     return secret
   },
@@ -248,13 +266,17 @@ export const Webhooks = {
     const found = await loadRow(id)
     await db().transaction(async (tx) => {
       await ObjectService.purge(tx, ctx, id)
-    })
-    await audit(ctx, {
-      action: INTEGRATIONS_AUDIT.webhookDeleted,
-      objectId: id,
-      objectType: 'webhook',
-      severity: 'notice',
-      details: { key: found.row.key },
+      await audit(
+        ctx,
+        {
+          action: INTEGRATIONS_AUDIT.webhookDeleted,
+          objectId: id,
+          objectType: 'webhook',
+          severity: 'notice',
+          details: { key: found.row.key },
+        },
+        tx,
+      )
     })
   },
 

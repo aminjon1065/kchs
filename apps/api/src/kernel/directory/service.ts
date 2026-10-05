@@ -702,6 +702,18 @@ export const OrgService = {
       object: { id, type: 'unit', title: input.name.ru },
       payload: { unitId: id, change: 'created' },
     })
+    // Изменение оргструктуры — обязательное событие аудита (17-security.md §6, ADR-0185)
+    await audit(
+      ctx,
+      {
+        action: AUDIT_ACTIONS.orgChanged,
+        objectId: id,
+        objectType: 'unit',
+        severity: 'notice',
+        details: { change: 'created', code: input.code, parentId: input.parentId ?? null },
+      },
+      tx,
+    )
     await bumpPrincipalsVersion(tx)
     return id
   },
@@ -743,6 +755,17 @@ export const OrgService = {
       object: { id, type: 'unit', title: (patch.name ?? current.name).ru },
       payload: { unitId: id, change: 'updated' },
     })
+    await audit(
+      ctx,
+      {
+        action: AUDIT_ACTIONS.orgChanged,
+        objectId: id,
+        objectType: 'unit',
+        severity: 'notice',
+        details: { change: 'updated', fields: Object.keys(values), moved },
+      },
+      tx,
+    )
   },
 
   /**

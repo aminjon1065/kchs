@@ -1,7 +1,7 @@
 import type { AuditEntry } from '@kchs/contracts'
 import { and, desc, eq, gte, lte, type SQL, sql } from 'drizzle-orm'
 import type { Ctx } from '~/shared/context.js'
-import { db, type Executor } from '~/shared/db/client.js'
+import { db, type Tx } from '~/shared/db/client.js'
 import { logger } from '~/shared/logger/index.js'
 import { auditLog } from './schema.js'
 
@@ -25,7 +25,7 @@ export interface AuditInput {
  */
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-export async function audit(ctx: Ctx, input: AuditInput, tx?: Executor): Promise<void> {
+export async function audit(ctx: Ctx, input: AuditInput, tx?: Tx): Promise<void> {
   const isUser = ctx.kind === 'user'
   const rawActor = input.actorId ?? (isUser ? ctx.userId : ctx.initiatorId)
   // Гость по ссылке не является пользователем: `link:<id>` уходит в детали
@@ -173,7 +173,6 @@ export const AUDIT_ACTIONS = {
   userBlocked: 'user.blocked',
   delegationStarted: 'delegation.started',
   delegationEnded: 'delegation.ended',
-  fileExported: 'data.exported',
   shareLinkCreated: 'share_link.created',
   shareLinkOpened: 'share_link.opened',
   shareLinkRevoked: 'share_link.revoked',
@@ -202,6 +201,8 @@ export const AUDIT_ACTIONS = {
   featureChanged: 'settings.feature_changed',
   usersImported: 'users.imported',
   usersImportCredentialsDownloaded: 'users.import_credentials_downloaded',
+  /** Отчёт импорта сотрудников (логины, имена, статусы) выгружен в CSV (ADR-0185). */
+  usersImportReportDownloaded: 'users.import_report_downloaded',
   announcementPublished: 'announcement.published',
   announcementWithdrawn: 'announcement.withdrawn',
   businessCalendarChanged: 'business_calendar.changed',

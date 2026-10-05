@@ -9,4 +9,6 @@ export const TASKS_AUDIT = {
   taskExtensionRequested: 'task.extension_requested',
   taskExtensionDecided: 'task.extension_decided',
   taskReassigned: 'task.reassigned',
+  // Выгрузка контроля исполнения в CSV/XLSX — экспорт (17-security.md §6, ADR-0185)
+  controlExported: 'tasks.control_exported',
 } as const

@@ -13,6 +13,7 @@ import { newId } from '~/shared/ids.js'
 import { grantOwner } from '../access/acl-service.js'
 import { effectiveConfidentialityMany } from '../access/confidentiality.js'
 import type { ObjectLike } from '../access/types.js'
+import { AUDIT_ACTIONS, audit } from '../audit/service.js'
 import { publishEvent } from '../events/publisher.js'
 import { objectType, requireObjectType } from './registry.js'
 import { objectAncestors, objects, recentViews } from './schema.js'
@@ -392,6 +393,18 @@ export const ObjectService = {
       object: { id, type: row.type, spaceId: row.spaceId, title: row.title },
       payload: { type: row.type },
     })
+    // Окончательное удаление необратимо — в аудит, вместе с удалением (ADR-0185)
+    await audit(
+      ctx,
+      {
+        action: AUDIT_ACTIONS.objectPurged,
+        objectId: id,
+        objectType: row.type,
+        severity: 'notice',
+        details: { title: row.title, spaceId: row.spaceId, descendants: children.length },
+      },
+      tx,
+    )
 
     await tx.delete(objects).where(eq(objects.id, id))
   },

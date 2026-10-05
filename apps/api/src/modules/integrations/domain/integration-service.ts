@@ -174,14 +174,17 @@ export const Integrations = {
         object: { id, type: 'integration', title: input.name },
         payload: { key: input.key, kind: input.kind },
       })
-    })
-
-    await audit(ctx, {
-      action: INTEGRATIONS_AUDIT.integrationCreated,
-      objectId: id,
-      objectType: 'integration',
-      severity: 'notice',
-      details: { key: input.key, kind: input.kind, secretKeys: Object.keys(input.secrets) },
+      await audit(
+        ctx,
+        {
+          action: INTEGRATIONS_AUDIT.integrationCreated,
+          objectId: id,
+          objectType: 'integration',
+          severity: 'notice',
+          details: { key: input.key, kind: input.kind, secretKeys: Object.keys(input.secrets) },
+        },
+        tx,
+      )
     })
     return Integrations.get(id)
   },
@@ -231,15 +234,18 @@ export const Integrations = {
         object: { id, type: 'integration', title: input.name ?? found.title },
         payload: { key: found.row.key, changed },
       })
-    })
-
-    await audit(ctx, {
-      action: INTEGRATIONS_AUDIT.integrationUpdated,
-      objectId: id,
-      objectType: 'integration',
-      severity: 'notice',
-      // В аудит идут только имена изменённых полей: значения секретов не пишутся
-      details: { key: found.row.key, changed },
+      await audit(
+        ctx,
+        {
+          action: INTEGRATIONS_AUDIT.integrationUpdated,
+          objectId: id,
+          objectType: 'integration',
+          severity: 'notice',
+          // В аудит идут только имена изменённых полей: значения секретов не пишутся
+          details: { key: found.row.key, changed },
+        },
+        tx,
+      )
     })
     return Integrations.get(id)
   },
@@ -249,13 +255,17 @@ export const Integrations = {
     if (!found) throw errors.notFound('Интеграция')
     await db().transaction(async (tx) => {
       await ObjectService.purge(tx, ctx, id)
-    })
-    await audit(ctx, {
-      action: INTEGRATIONS_AUDIT.integrationDeleted,
-      objectId: id,
-      objectType: 'integration',
-      severity: 'notice',
-      details: { key: found.row.key },
+      await audit(
+        ctx,
+        {
+          action: INTEGRATIONS_AUDIT.integrationDeleted,
+          objectId: id,
+          objectType: 'integration',
+          severity: 'notice',
+          details: { key: found.row.key },
+        },
+        tx,
+      )
     })
   },
 
@@ -282,13 +292,16 @@ export const Integrations = {
           payload: { key: found.row.key, kind: found.row.kind, error: result.message },
         })
       }
-    })
-
-    await audit(ctx, {
-      action: INTEGRATIONS_AUDIT.integrationChecked,
-      objectId: id,
-      objectType: 'integration',
-      details: { key: found.row.key, ok: result.ok },
+      await audit(
+        ctx,
+        {
+          action: INTEGRATIONS_AUDIT.integrationChecked,
+          objectId: id,
+          objectType: 'integration',
+          details: { key: found.row.key, ok: result.ok },
+        },
+        tx,
+      )
     })
     return { ...result, checkedAt }
   },
@@ -312,16 +325,28 @@ export const Integrations = {
     const found = await rowWithTitle(id)
     if (!found) throw errors.notFound('Интеграция')
     const secret = randomBytes(24).toString('base64url')
-    await db()
-      .update(integrations)
-      .set({ inboundEnabled: true, inboundSecretHash: hashToken(secret) })
-      .where(eq(integrations.id, id))
-    await audit(ctx, {
-      action: INTEGRATIONS_AUDIT.integrationSecretRotated,
-      objectId: id,
-      objectType: 'integration',
-      severity: 'notice',
-      details: { key: found.row.key },
+    // Новый секрет — изменение интеграции: событие и аудит в одной транзакции с записью
+    await db().transaction(async (tx) => {
+      await tx
+        .update(integrations)
+        .set({ inboundEnabled: true, inboundSecretHash: hashToken(secret) })
+        .where(eq(integrations.id, id))
+      await publishEvent(tx, ctx, {
+        type: 'integration.updated',
+        object: { id, type: 'integration', title: found.title },
+        payload: { key: found.row.key, changed: ['inboundSecret'] },
+      })
+      await audit(
+        ctx,
+        {
+          action: INTEGRATIONS_AUDIT.integrationSecretRotated,
+          objectId: id,
+          objectType: 'integration',
+          severity: 'notice',
+          details: { key: found.row.key },
+        },
+        tx,
+      )
     })
     return { url: `${config().KCHS_API_URL}/api/v1/hooks/${id}/${secret}`, secret }
   },

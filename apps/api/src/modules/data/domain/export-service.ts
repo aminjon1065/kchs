@@ -44,6 +44,7 @@ import {
   type WrittenFormat,
   writeExport,
 } from '../infra/export-format.js'
+import { DATA_AUDIT } from './audit-actions.js'
 import { DatasetAccess } from './dataset-access.js'
 import { DatasetService } from './dataset-service.js'
 import { QueryService } from './query-service.js'
@@ -315,7 +316,7 @@ export const ExportService = {
         }
       }
       await audit(ctx, {
-        action: 'dataset.exported',
+        action: DATA_AUDIT.datasetExported,
         objectId: data.datasetId,
         objectType: 'dataset',
         severity: 'notice',

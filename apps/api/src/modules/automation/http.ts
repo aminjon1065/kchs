@@ -169,7 +169,7 @@ export function registerAutomationRoutes(route: RouteRegistrar): void {
     tags: ['automation'],
     summary: 'Файл одного правила: определение без секретов и служебного пользователя',
     schema: { params: IdParam, response: { 200: RuleExport } },
-    handler: async (request) => RuleService.exportRule(request.params.id),
+    handler: async (request) => RuleService.exportRule(request.ctx, request.params.id),
   })
 
   route({

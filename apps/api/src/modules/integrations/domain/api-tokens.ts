@@ -109,17 +109,20 @@ export const ApiTokens = {
           expiresAt: input.expiresAt ?? null,
         },
       })
+      await audit(
+        ctx,
+        {
+          action: INTEGRATIONS_AUDIT.apiTokenCreated,
+          objectId: null,
+          objectType: 'api_token',
+          severity: 'notice',
+          details: { tokenId: id, prefix, forUserId: ownerId, scopes: input.scopes },
+        },
+        tx,
+      )
       return inserted
     })
     if (!row) throw errors.internal('Токен не создан')
-
-    await audit(ctx, {
-      action: INTEGRATIONS_AUDIT.apiTokenCreated,
-      objectId: null,
-      objectType: 'api_token',
-      severity: 'notice',
-      details: { tokenId: id, prefix, forUserId: ownerId, scopes: input.scopes },
-    })
 
     const [token] = await present([row])
     if (!token) throw errors.internal('Токен не создан')
@@ -157,14 +160,17 @@ export const ApiTokens = {
         type: 'token.revoked',
         payload: { tokenId: id, userId: row.userId, prefix: row.prefix },
       })
-    })
-
-    await audit(ctx, {
-      action: INTEGRATIONS_AUDIT.apiTokenRevoked,
-      objectId: null,
-      objectType: 'api_token',
-      severity: 'notice',
-      details: { tokenId: id, prefix: row.prefix, ownerId: row.userId },
+      await audit(
+        ctx,
+        {
+          action: INTEGRATIONS_AUDIT.apiTokenRevoked,
+          objectId: null,
+          objectType: 'api_token',
+          severity: 'notice',
+          details: { tokenId: id, prefix: row.prefix, ownerId: row.userId },
+        },
+        tx,
+      )
     })
   },
 

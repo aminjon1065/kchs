@@ -16,6 +16,7 @@ import {
   type RowLimit,
   writeExport,
 } from '../infra/export-format.js'
+import { DATA_AUDIT } from './audit-actions.js'
 import { QueryService } from './query-service.js'
 
 const CONTENT_TYPES: Record<QueryExportFormat, string> = {
@@ -90,7 +91,7 @@ export const QueryExportService = {
     )
 
     await audit(ctx, {
-      action: 'query.exported',
+      action: DATA_AUDIT.queryExported,
       ...(sources.datasets[0] ? { objectId: sources.datasets[0], objectType: 'dataset' } : {}),
       severity: 'notice',
       details: {

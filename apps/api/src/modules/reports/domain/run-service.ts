@@ -32,6 +32,7 @@ import { AppError, errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { logger } from '~/shared/logger/index.js'
 import { reportRuns } from '../schema.js'
+import { REPORTS_AUDIT } from './audit-actions.js'
 import { ReportVersions } from './report-library.js'
 import { ReportService } from './report-service.js'
 
@@ -327,6 +328,14 @@ export const ReportRuns = {
     } catch {
       throw new AppError('not_found', 'Файл отчёта удалён: он хранится 30 дней', 404)
     }
+    // Скачивание файла отчёта — выгрузка данных (17-security.md §6, ADR-0185)
+    await audit(ctx, {
+      action: REPORTS_AUDIT.reportDownloaded,
+      objectId: row.reportId,
+      objectType: 'report',
+      severity: 'notice',
+      details: { runId, format },
+    })
     return {
       url: await signedGetUrl(file.key, { bucket: buckets.exports(), filename: file.fileName }),
     }
@@ -486,7 +495,7 @@ export const ReportRuns = {
       await audit(
         systemCtx('report.render', { initiatorId: row.runAs }),
         {
-          action: 'report.generated',
+          action: REPORTS_AUDIT.reportGenerated,
           objectId: row.reportId,
           objectType: 'report',
           severity: 'notice',

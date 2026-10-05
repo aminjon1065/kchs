@@ -1,4 +1,5 @@
 import { eq, sql } from 'drizzle-orm'
+import { registerAuditActions } from '~/kernel/audit/registry.js'
 import { registerSubscriber } from '~/kernel/events/bus.js'
 import { registerFeature } from '~/kernel/features/registry.js'
 import { jobClosedSubscriber } from '~/kernel/jobs/outcomes.js'
@@ -8,6 +9,7 @@ import { objects } from '~/kernel/objects/schema.js'
 import { declareSchedule, registerEntityScheduleProvider } from '~/kernel/schedules/index.js'
 import { db } from '~/shared/db/client.js'
 import { logger } from '~/shared/logger/index.js'
+import { AUTOMATION_AUDIT } from './domain/audit-actions.js'
 import { executeRun } from './domain/runner.js'
 import { RULE_RUN_JOB, RuleRuns } from './domain/runs.js'
 import {
@@ -27,6 +29,7 @@ export { registerAutomationRoutes } from './http.js'
  * `automation.manage`, исполнение — от служебного пользователя правила.
  */
 export function registerAutomationObjectTypes(): void {
+  registerAuditActions('automation', AUTOMATION_AUDIT)
   registerFeature({
     key: 'automation',
     titleKey: 'admin.features.items.automation.title',

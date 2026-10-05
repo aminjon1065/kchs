@@ -19,6 +19,7 @@ import { localizedText } from '@kchs/i18n'
 import { and, count, desc, eq, ilike, inArray, isNull, or, sql } from 'drizzle-orm'
 import { authorize, visibleObjectsSql } from '~/kernel/access/authorize.js'
 import { buildUserCtxFor } from '~/kernel/access/explain.js'
+import { audit } from '~/kernel/audit/service.js'
 import { directory } from '~/kernel/directory/port.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { objects } from '~/kernel/objects/schema.js'
@@ -31,6 +32,7 @@ import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { ruleRuns, rules } from '../schema.js'
+import { AUTOMATION_AUDIT } from './audit-actions.js'
 import { RuleVersions } from './rule-versions.js'
 import { blockingIssues, checkRule, ruleAllowlist } from './validate.js'
 
@@ -587,10 +589,20 @@ export const RuleService = {
     await RuleService.update(tx, ctx, id, { ...version, enabled: row.enabled }, 'restore')
   },
 
-  /** Файл одного правила (ADR-0163): определение без секретов и привязок к людям. */
-  async exportRule(id: string): Promise<RuleExport> {
+  /**
+   * Файл одного правила (ADR-0163): определение без секретов и привязок к людям.
+   * Выгрузка конфигурации — в аудит (17-security.md §6, ADR-0185).
+   */
+  async exportRule(ctx: UserCtx, id: string): Promise<RuleExport> {
     const row = await RuleService.load(db(), id)
     if (!row) throw errors.notFound('Правило')
+    await audit(ctx, {
+      action: AUTOMATION_AUDIT.ruleExported,
+      objectId: id,
+      objectType: 'rule',
+      severity: 'notice',
+      details: { key: row.key },
+    })
     return {
       format: RULE_EXPORT_FORMAT,
       version: 1,

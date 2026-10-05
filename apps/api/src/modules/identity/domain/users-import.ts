@@ -687,6 +687,13 @@ export const UsersImport = {
         row.issues.map(describe).join('; '),
       ])
     }
+    // Логины и имена сотрудников в файле — выгрузка персональных данных (17-security.md §6)
+    await audit(ctx, {
+      action: AUDIT_ACTIONS.usersImportReportDownloaded,
+      objectType: 'users_import',
+      severity: 'notice',
+      details: { importId, rows: report.rows.length },
+    })
     return out
   },
 
