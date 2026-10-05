@@ -1180,6 +1180,14 @@ export const EVENT_PAYLOADS = {
 export type EventType = keyof typeof EVENT_PAYLOADS
 export const EVENT_TYPES = Object.keys(EVENT_PAYLOADS) as EventType[]
 
+/**
+ * Домены событий каталога — потоки шины `events:<домен>` (ADR-0182). Событие вне
+ * каталога не публикуется, поэтому других потоков у шины не бывает.
+ */
+export const EVENT_DOMAINS: readonly string[] = [
+  ...new Set(EVENT_TYPES.map((type) => type.split('.')[0] ?? '')),
+].sort()
+
 export type EventPayload<T extends EventType> = z.infer<(typeof EVENT_PAYLOADS)[T]>
 
 export function isKnownEventType(type: string): type is EventType {

@@ -13,18 +13,19 @@ import { registerSubscriber } from './events/bus.js'
 import { invalidateCounts } from './inbox/service.js'
 import { JobService } from './jobs/service.js'
 import { NotificationService } from './notifications/service.js'
-import { objectType } from './objects/registry.js'
+import { declaredRefreshEvents, declaredReindexEvents, objectType } from './objects/registry.js'
 import { ObjectService } from './objects/service.js'
 import { processSubscribers } from './process/subscribers.js'
 import { emitToRoom, revokeRoomAccess } from './realtime/gateway.js'
 import { hasAccessDependents, indexObject, removeFromIndex } from './search/index-service.js'
 import { dropEmbeddings, semanticEnabled } from './search/semantic.js'
 
-/** Какое поле открытой вкладки устарело после события, не меняющего сам объект. */
+/**
+ * Какое поле открытой вкладки устарело после события ядра, не меняющего сам объект.
+ * События модулей с тем же смыслом объявляют их типы (`refreshOn`, ADR-0182).
+ */
 const CHANGED_FIELD: Record<string, string> = {
   'object.tagged': 'tags',
-  'file.previewed': 'preview',
-  'file.text_extracted': 'text',
 }
 
 /** События, после которых меняются читатели всего поддерева объекта. */
@@ -36,7 +37,9 @@ export function registerKernelSubscribers(): void {
 
   registerSubscriber({
     name: 'kernel-search',
-    types: ['object.*', 'acl.changed', 'file.text_extracted'],
+    // События модулей, после которых документ поиска устаревает, объявляют их типы
+    // объектов (`reindexOn`, ADR-0182): типы регистрируются раньше подписчиков
+    types: ['object.*', 'acl.changed', ...declaredReindexEvents()],
     // Проекция поиска: история потока полезна новой группе, повтор безвреден (ADR-0171)
     replay: true,
     handle: async (event) => {
@@ -81,16 +84,21 @@ export function registerKernelSubscribers(): void {
 
   registerSubscriber({
     name: 'kernel-realtime',
-    types: [
-      'object.*',
-      'message.*',
-      'acl.changed',
-      'inbox.*',
-      'file.previewed',
-      'file.text_extracted',
-    ],
+    types: ['object.*', 'message.*', 'acl.changed', 'inbox.*', ...declaredRefreshEvents()],
     handle: async (event) => {
       if (!event.object) return
+      // Событие модуля, после которого вкладка перечитывает поле (превью, текст файла)
+      const refreshed = objectType(event.object.type)?.refreshOn?.[event.type]
+      if (refreshed) {
+        emitToRoom(`object:${event.object.id}`, 'object.updated', {
+          id: event.object.id,
+          type: event.object.type,
+          version: 0,
+          changedFields: [refreshed],
+          actorId: event.actor.userId,
+        })
+        return
+      }
       switch (event.type) {
         case 'object.updated':
         case 'object.moved':
@@ -105,9 +113,7 @@ export function registerKernelSubscribers(): void {
           })
           break
         case 'object.tagged':
-        case 'file.previewed':
-        case 'file.text_extracted':
-          // Открытая вкладка перечитывает теги или превью без перезагрузки
+          // Открытая вкладка перечитывает теги без перезагрузки
           emitToRoom(`object:${event.object.id}`, 'object.updated', {
             id: event.object.id,
             type: event.object.type,

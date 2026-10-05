@@ -1,5 +1,5 @@
 import { performance } from 'node:perf_hooks'
-import type { EventEnvelope } from '@kchs/contracts'
+import { EVENT_DOMAINS, type EventEnvelope } from '@kchs/contracts'
 import { type Histogram, SpanKind, trace } from '@opentelemetry/api'
 import { and, eq } from 'drizzle-orm'
 import type { Redis } from 'ioredis'
@@ -302,82 +302,13 @@ export function startConsumers(overrides: Partial<ConsumerOptions> = {}): Promis
   })
 }
 
-/** Домены, на потоки которых подписываются подписчики со звёздочкой. */
-export const KNOWN_DOMAINS = [
-  'object',
-  'user',
-  'org',
-  'delegation',
-  'session',
-  'space',
-  'message',
-  'mention',
-  'file',
-  'notification',
-  'inbox',
-  'job',
-  'settings',
-  'acl',
-  'role',
-  'announcement',
-  'dataset',
-  'chart',
-  'dashboard',
-  'metric',
-  'notebook',
-  'report',
-  'task',
-  'project',
-  'calendar',
-  'event',
-  'layer',
-  'map',
-  'feature',
-  'territory',
-  'analysis',
-  'basemap',
-  'process',
-  'document',
-  'document_type',
-  'template',
-  'journal',
-  'correspondent',
-  'acknowledgment',
-  'case',
-  // Встречи и звонки (ADR-0089), запись и расшифровка (ADR-0092),
-  // протокол (ADR-0093), чаты (ADR-0090)
-  'meeting',
-  'call',
-  'recording',
-  'transcript',
-  'protocol',
-  'chat',
-  // База знаний (13-search-knowledge-ai.md §2, ADR-0095)
-  'page',
-  // Поставщики входа и синхронизация каталога (ADR-0098)
-  'integration',
-  'directory',
-  // Публичный API, вебхуки и интеграции (ADR-0097)
-  'token',
-  'webhook',
-  'config',
-  // Правила автоматизации и входящие вызовы (ADR-0096)
-  'rule',
-  // Формы сбора данных (ADR-0103) и алерты на показатели (ADR-0104)
-  'form',
-  'alert',
-  // Почта канцелярии: очередь «Из почты» (ADR-0113)
-  'mail',
-  // Пайплайны, внешние источники и слои-ссылки (ADR-0106…0108)
-  'pipeline',
-  'source',
-  'service_layer',
-] as const
-
-/** Домены, потоки которых читают подписчики (со звёздочкой — все известные). */
+/**
+ * Домены, потоки которых читают подписчики; со звёздочкой — все домены каталога событий
+ * (ADR-0182): новый модуль не правит ядро, чтобы его события дошли до подписчиков «*».
+ */
 export function resolveDomains(): string[] {
   const domains = subscribedDomains()
-  return domains.includes('*') ? [...KNOWN_DOMAINS] : domains
+  return domains.includes('*') ? [...EVENT_DOMAINS] : domains
 }
 
 async function runSubscriber(

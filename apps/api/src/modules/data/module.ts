@@ -180,6 +180,9 @@ export function registerDataObjectTypes(): void {
     discussable: true,
     linkable: true,
     hasParentTree: true,
+    // Подписи полей входят в документ поиска, а правка схемы публикует только своё
+    // событие (ADR-0170, ADR-0182)
+    reindexOn: ['dataset.schema_changed'],
     listFields: [
       {
         key: 'rows',

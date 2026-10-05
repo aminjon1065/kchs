@@ -15,6 +15,7 @@ import {
 import { eq, inArray, sql } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
+import { recordModuleActivity } from '~/kernel/activity/service.js'
 import { registerAuditActions } from '~/kernel/audit/registry.js'
 import { audit } from '~/kernel/audit/service.js'
 import { registerSubscriber } from '~/kernel/events/bus.js'
@@ -75,6 +76,11 @@ export function registerFilesObjectTypes(): void {
     discussable: true,
     linkable: true,
     hasParentTree: true,
+    // Словарь файла для ядра (ADR-0182): вложение обсуждения; текст из файла меняет
+    // документ поиска; превью и текст обновляют открытую вкладку
+    attachable: true,
+    reindexOn: ['file.text_extracted'],
+    refreshOn: { 'file.previewed': 'preview', 'file.text_extracted': 'text' },
     listFields: [
       {
         key: 'size',
@@ -426,6 +432,17 @@ export function registerFilesBackground(): void {
       for (const key of stored) await deleteObject(key, buckets.files())
       for (const key of previews) await deleteObject(key, buckets.previews())
       return { deleted: stored.length + previews.length }
+    },
+  })
+
+  // Загрузка и новая версия — в ленту активности файла (ADR-0182): свои события
+  // модуль записывает сам, как задачи и документы
+  registerSubscriber({
+    name: 'files-activity',
+    types: ['file.uploaded', 'file.version_added'],
+    handle: async (event) => {
+      const verb = event.type === 'file.uploaded' ? 'uploaded' : 'version_added'
+      await recordModuleActivity(event, { verb, key: `activity.file.${verb}` })
     },
   })
 

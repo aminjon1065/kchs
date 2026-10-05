@@ -16,6 +16,7 @@ import { authorize } from '../access/authorize.js'
 import { directory } from '../directory/port.js'
 import { publishEvent } from '../events/publisher.js'
 import { LinkService } from '../links/service.js'
+import { objectType } from '../objects/registry.js'
 import { objects } from '../objects/schema.js'
 import { ObjectService } from '../objects/service.js'
 import { conversationMembers, conversations, messages, reactions } from './schema.js'
@@ -40,7 +41,10 @@ async function checkedAttachments(
       .from(objects)
       .where(eq(objects.id, fileId))
       .limit(1)
-    if (file?.type !== 'file') throw errors.validation('Вложением может быть только файл')
+    // Что можно прикрепить, объявляет тип объекта (ADR-0182): ядро не знает типов модулей
+    if (!file || !objectType(file.type)?.attachable) {
+      throw errors.validation('Вложением может быть только файл')
+    }
     const meta = (file.meta ?? {}) as { mime?: string; size?: number }
     result.push({
       fileId: file.id,

@@ -9,7 +9,8 @@ import { activities } from './schema.js'
 
 /**
  * Лента активности строится из событий (02-platform-kernel.md §5).
- * Одно событие → максимум одна человекочитаемая запись.
+ * Одно событие → максимум одна человекочитаемая запись. Здесь — события ядра; свои
+ * события модуль записывает сам через `recordModuleActivity` (ADR-0182).
  */
 const VERB_BY_TYPE: Record<string, { verb: string; key: string }> = {
   'object.created': { verb: 'created', key: 'activity.object.created' },
@@ -21,8 +22,6 @@ const VERB_BY_TYPE: Record<string, { verb: string; key: string }> = {
   'object.shared': { verb: 'shared', key: 'activity.object.shared' },
   'object.linked': { verb: 'linked', key: 'activity.object.linked' },
   'message.posted': { verb: 'commented', key: 'activity.message.posted' },
-  'file.version_added': { verb: 'version_added', key: 'activity.file.version_added' },
-  'file.uploaded': { verb: 'uploaded', key: 'activity.file.uploaded' },
   'space.member_added': { verb: 'member_added', key: 'activity.space.member_added' },
 }
 
@@ -86,7 +85,7 @@ async function insertActivity(
 
 export const activitySubscriber: Subscriber = {
   name: 'kernel-activity',
-  types: ['object.*', 'message.posted', 'file.*', 'space.member_added'],
+  types: ['object.*', 'message.posted', 'space.member_added'],
   handle: recordActivity,
 }
 

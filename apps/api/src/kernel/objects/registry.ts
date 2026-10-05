@@ -83,6 +83,19 @@ export interface ObjectTypeDefinition {
   moduleManaged?: boolean
   /** Тип создаётся только ядром/системой (например, `conversation`). */
   internal?: boolean
+  /** Объект прикрепляется к сообщению обсуждения как вложение (файл). */
+  attachable?: boolean
+  /**
+   * События модуля, после которых поисковый документ объекта устаревает (ADR-0182):
+   * поиск ядра слушает `object.*`, а подписи полей датасета меняет, например,
+   * `dataset.schema_changed`.
+   */
+  reindexOn?: string[]
+  /**
+   * События модуля, после которых открытая вкладка объекта перечитывает поле:
+   * событие → поле `changedFields` сообщения `object.updated` (превью и текст файла).
+   */
+  refreshOn?: Record<string, string>
 }
 
 const registry = new Map<string, ObjectTypeDefinition>()
@@ -106,6 +119,20 @@ export function requireObjectType(type: string): ObjectTypeDefinition {
 
 export function listObjectTypes(): ObjectTypeDefinition[] {
   return [...registry.values()]
+}
+
+/** События модулей, объявленные типами для поиска ядра (`reindexOn`). */
+export function declaredReindexEvents(): string[] {
+  return [...new Set([...registry.values()].flatMap((definition) => definition.reindexOn ?? []))]
+}
+
+/** События модулей, объявленные типами для открытых вкладок (`refreshOn`). */
+export function declaredRefreshEvents(): string[] {
+  return [
+    ...new Set(
+      [...registry.values()].flatMap((definition) => Object.keys(definition.refreshOn ?? {})),
+    ),
+  ]
 }
 
 /** Описание действия типа: `dataset.export`, `file.download`. */

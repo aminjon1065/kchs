@@ -1,11 +1,11 @@
-import { EVENT_TYPES } from '@kchs/contracts'
+import { EVENT_DOMAINS, EVENT_TYPES } from '@kchs/contracts'
 import { describe, expect, it } from 'vitest'
-import { KNOWN_DOMAINS } from './consumer.js'
 
 describe('домены событий', () => {
-  it('у каждого события каталога известный домен: подписчики «*» читают его поток', () => {
-    const known = new Set<string>(KNOWN_DOMAINS)
-    const domains = new Set(EVENT_TYPES.map((type) => type.split('.')[0] ?? ''))
-    expect([...domains].filter((domain) => !known.has(domain))).toEqual([])
+  it('выводятся из каталога: у каждого события каталога есть поток (ADR-0182)', () => {
+    const domains = new Set(EVENT_DOMAINS)
+    for (const type of EVENT_TYPES) expect(domains.has(type.split('.')[0] ?? '')).toBe(true)
+    // Домены ядра — среди потоков; события модулей ядро по именам не знает
+    expect([...domains]).toEqual(expect.arrayContaining(['object', 'acl', 'message', 'job']))
   })
 })
