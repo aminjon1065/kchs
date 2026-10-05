@@ -63,12 +63,84 @@
 
 ## 3. Realtime-протокол (Socket.IO)
 
-- Подключение: `/ws` с cookie-сессией; при неудаче — переподключение с экспоненциальной задержкой; после переподключения клиент повторно подписывается и запрашивает `since=<lastEventId>` для пропущенных `object.updated` по открытым вкладкам.
-- Клиент → сервер: `subscribe {rooms: ['object:…','space:…','conversation:…','job:…']}`, `unsubscribe`, `presence.view {objectId}` (видимая вкладка — раз в 30 с; отметка без подтверждения дольше 70 с считается ушедшей), `presence.leave {objectId}`, `typing {conversationId}`, `ping`.
-- Сервер → клиент: `object.updated {id, type, version, changedFields, actorId}`, `object.removed {id}`, `message.posted {conversationId, message}`, `message.updated`, `activity.added {objectId}` (запись ленты активности появилась — открытая лента перечитывается; событие обсуждения приходит другим подписчиком и может её обогнать), `message.read {conversationId, messageId, userId}` (участник дочитал — отметки «прочитано» в комнату `conversation:{id}`, ADR-0161), `notification.new {notification}`, `inbox.changed {counts}`, `job.progress {jobId, progress, message}`, `job.finished {jobId, status}`, `presence {objectId, users[]}`, `typing {...}`, `call.incoming {meetingId, title, caller, conversationId}` (приглашённому в комнату `user:{id}`, ADR-0091), `call.declined {meetingId, userId}` (звонящему), `meeting.changed {meetingId, change}` (состав и состояние комнаты — в комнату `object:{id}`), `meeting.knock {meetingId, requestId}` (гость просится в комнату — ведущему встречу), `acl.revoked {objectId}` (клиент закрывает вкладку с сообщением), `calendar.changed {}` (календарь пользователя изменился: приглашение, ответ, перенос — клиент перечитывает сетку и «Сегодня», ADR-0081).
-- Комнаты объектов проверяются `authorize(view)` при подписке; изменение ACL → пересчёт членов комнаты.
-- Сокеты открыты на узлах api, подписчики событий работают в worker: worker кладёт команду (`emit`, `revoke`, `recheck`) в канал Redis `rt:relay`, каждый узел api выполняет её над своими сокетами — без задвоения при нескольких репликах и с перепроверкой прав по контексту сокета (ADR-0169). На узле api отправка идёт напрямую через адаптер.
-- Совместное редактирование — `/collab` (Hocuspocus, Yjs, ADR-0070): процесс api, тот же порт, клиент подключается к `/collab/ws` одним сокетом на вкладку браузера. Имя документа = `objectId`; вход — cookie сессии и CSRF-токен в поле `token` протокола; права `edit`/`view` (без `edit` — только чтение); отказ — `unauthorized`, `setup_required`, `not_found`. Права перепроверяются раз в минуту и сразу по `acl.changed`/корзине/архиву; потеря права закрывает документ с причиной `access_changed`. Правки сохраняются в `yjs.documents` (через 2 с, не реже 10 с), JSON-снимок тела пишет модуль типа.
+Протокол — `packages/contracts/src/realtime/protocol.ts` (ADR-0192): имя события → схема нагрузки,
+в обе стороны.
+
+- **Отправка.** Сервер шлёт только события `RT_SERVER_PAYLOADS`: `emitToRoom` и `emitToUser`
+  принимают только их и их нагрузку. Клиент шлёт только `RT_CLIENT_PAYLOADS`, шлюз разбирает их
+  схемами контракта.
+- **Проверка.** Тест `realtime/__tests__/handlers.test.ts` обходит api и web. Событие вне протокола,
+  событие, которое шлют, но не слушают, и наоборот, роняют его.
+
+**Подключение и комнаты.**
+
+- Подключение — `/ws` с cookie-сессией. При неудаче клиент переподключается с экспоненциальной
+  задержкой.
+- Клиент держит комнаты экранов со счётчиком и после переподключения подписывается заново.
+- Пропущенные за разрыв сообщения шлюз не повторяет. Экран, где пропуск недопустим, держит
+  опрос-страховку — например, заявки гостей встречи раз в 15 с.
+- В комнаты `user:{id}` и `space:{id}` сокет входит при подключении, в `object:{id}`,
+  `conversation:{id}` и `job:{id}` — по подписке.
+  - Вход в комнату проверяет `authorize(view)`, в комнату задания — видимость задания (ADR-0172).
+  - Изменение ACL → пересчёт членов комнаты.
+
+**Клиент → сервер**
+
+| Сообщение | Нагрузка | Что делает шлюз |
+|---|---|---|
+| `subscribe` | `{rooms}`, до 64 комнат (`ROOMS_PER_SUBSCRIBE`; больше — пачками) | Впускает в комнаты по правам и отвечает `{granted, denied}`. Сообщение не по схеме отклоняет целиком |
+| `unsubscribe` | `{rooms}` | Выводит из комнат |
+| `presence.view` | `{objectId}` | Отмечает видимую вкладку (клиент шлёт раз в 30 с; без подтверждения дольше 70 с — ушёл) и рассылает `presence` |
+| `presence.leave` | `{objectId}` | Отмечает, что вкладка ушла из вида, и рассылает `presence` |
+| `typing` | `{conversationId}` | Пересылает `typing` соседям по комнате беседы, если отправитель в ней |
+
+**Сервер → клиент**
+
+| Событие | Нагрузка | Комната | Что делает клиент |
+|---|---|---|---|
+| `object.updated` | `{id, type, version, changedFields, actorId}`; `version` не передаётся (`0`) | `object:{id}` | Перечитывает все запросы, в ключе которых есть id объекта, и списки объектов |
+| `object.removed` | `{id}` | `object:{id}` | Перечитывает списки объектов |
+| `message.posted` | `{conversationId, messageId, objectId}` | `conversation:{id}`, `object:{id}` | Перечитывает обсуждение объекта и список бесед |
+| `message.updated` | то же | то же | Перечитывает обсуждение (правка, удаление, реакция) |
+| `message.read` | `{conversationId, messageId, userId}` | `conversation:{id}` | Обновляет отметки «прочитано» (ADR-0161) |
+| `activity.added` | `{objectId}` | `object:{id}` | Перечитывает ленту активности. Событие обсуждения приходит другим подписчиком и может её обогнать |
+| `notification.new` | `{id, aggregated}` | `user:{id}` | Перечитывает уведомления |
+| `inbox.changed` | `{counts}` | `user:{id}` | Перечитывает «Входящие» и счётчики |
+| `job.progress` | `{jobId, progress, message}` | `job:{id}`, `user:{инициатор}` | Правит ход в кэше «Моих заданий» |
+| `job.finished` | `{jobId, status}`: `succeeded`, `failed`, `cancelled`, `retrying` (сбой попытки, задание вернулось в очередь) | то же | Перечитывает «Мои задания» |
+| `presence` | `{objectId, users[]}` | `object:{id}` | Показывает, кто смотрит объект |
+| `typing` | `{conversationId, userId, displayName}` | `conversation:{id}` | Показывает «печатает» (ADR-0161) |
+| `acl.revoked` | `{objectId}` | сокету | Закрывает вкладку |
+| `calendar.changed` | `{eventId?}` | `user:{id}` | Перечитывает сетку и «Сегодня» (ADR-0081) |
+| `chat.changed` | `{conversationId}` | `user:{id}`, `conversation:{id}` | Перечитывает список бесед и счётчики (ADR-0090) |
+| `presence.changed` | `{userId, inMeeting}` | `user:{id}` | Перечитывает свой статус «на встрече» (ADR-0090) |
+| `meeting.changed` | `{meetingId, change}`: `started`, `ended`, `participant_joined`, `participant_left`, `secretary_changed` | `object:{id}` | Перечитывает карточку и заявки встречи; по `ended` закрывает экран входящего звонка |
+| `meeting.knock` | `{meetingId, requestId}` | `object:{id}` | Показывает ведущему заявку гостя сразу (ADR-0091) |
+| `call.incoming` | `{meetingId, title, caller, conversationId}` | `user:{id}` приглашённого | Показывает экран входящего звонка (ADR-0091) |
+
+Отказ от звонка (`call.declined`) остаётся событием шины. Сообщения звонящему нет, пока отказ нечем
+показать (ADR-0192).
+
+**Кто и как отправляет.**
+
+- **Подписчики событий в worker.** Сокеты открыты на узлах api, а подписчики работают в worker.
+  - Worker кладёт команду (`emit`, `revoke`, `recheck`) в канал Redis `rt:relay`.
+  - Каждый узел api выполняет её над своими сокетами: отправка не задваивается при нескольких
+    репликах, права перепроверяются по контексту сокета (ADR-0169).
+  - Событие вне протокола узел не доставляет.
+  - На узле api отправка идёт напрямую через адаптер.
+- **Ход заданий** — канал `rt:job`: сигнал задания с инициатором. Каждый узел api доставляет его
+  своим сокетам (ADR-0192).
+- **Совместное редактирование** — `/collab` (Hocuspocus, Yjs, ADR-0070).
+  - Процесс api, тот же порт. Клиент подключается к `/collab/ws` одним сокетом на вкладку браузера.
+  - Имя документа — `objectId`.
+  - Вход — cookie сессии и CSRF-токен в поле `token` протокола.
+  - Права `edit` и `view`; без `edit` — только чтение.
+  - Отказ — `unauthorized`, `setup_required`, `not_found`.
+  - Права перепроверяются раз в минуту и сразу по `acl.changed`, корзине и архиву. Потеря права
+    закрывает документ с причиной `access_changed`.
+  - Правки сохраняются в `yjs.documents` (через 2 с, не реже 10 с), JSON-снимок тела пишет модуль
+    типа.
 
 ## 4. Внутренние контракты между модулями (`public.ts`)
 

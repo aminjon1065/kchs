@@ -109,6 +109,9 @@ export const MEETINGS_EVENTS = {
     conversationId: Uuid.nullable(),
     userIds: z.array(Uuid),
   }),
-  /** Приглашённый отклонил входящий звонок — звонящий видит это сразу (ADR-0091). */
+  /**
+   * Приглашённый отклонил входящий звонок (ADR-0091). Сообщения realtime звонящему пока нет:
+   * показать отказ нечем до строки в словаре модуля встреч (ADR-0192).
+   */
   'call.declined': z.object({ meetingId: Uuid, userId: Uuid, callerId: Uuid.nullable() }),
 } as const satisfies Record<string, z.ZodType>
