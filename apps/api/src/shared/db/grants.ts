@@ -22,6 +22,20 @@ BEGIN
 END $$`
 
 /**
+ * Журнал миграций пишет только мигратор (ADR-0187): `GRANT … ON ALL TABLES` ниже
+ * давал приложению правку и удаление его строк, то есть возможность скрыть или
+ * подделать применённую миграцию. Чтение остаётся — его просит `pg_dump` резервной
+ * копии ролью kchs_app. Если миграции идут ролью kchs_app (нет
+ * `DATABASE_MIGRATOR_URL`), отзыв пропускается: приложение не отнимает права у себя.
+ */
+export const MIGRATIONS_JOURNAL_READ_ONLY = `DO $$
+BEGIN
+  IF to_regclass('public.__migrations') IS NULL OR current_user = 'kchs_app' THEN RETURN; END IF;
+  REVOKE ALL ON TABLE public.__migrations FROM PUBLIC, kchs_app, kchs_audit, kchs_readonly;
+  GRANT SELECT ON TABLE public.__migrations TO kchs_app, kchs_readonly;
+END $$`
+
+/**
  * Синхронизация привилегий после миграций. Выполняется ролью kchs_migrator,
  * которая владеет созданными таблицами.
  *
@@ -61,6 +75,9 @@ export const GRANT_STATEMENTS: string[] = [
   `GRANT SELECT ON TABLE public.audit_log TO kchs_readonly`,
   `GRANT USAGE ON SCHEMA public TO kchs_audit`,
   AUDIT_PARTITIONS_APPEND_ONLY,
+
+  // ── журнал миграций — только мигратору ───────────────────────────────────
+  MIGRATIONS_JOURNAL_READ_ONLY,
 ]
 
 export async function applyGrants(sql: Sql): Promise<void> {

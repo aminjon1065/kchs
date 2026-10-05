@@ -41,8 +41,9 @@ describe('мигратор', () => {
       sql`SELECT name, hash FROM public.__migrations ORDER BY name LIMIT 1`,
     )
     if (!first) throw new Error('журнал миграций пуст')
-    await db().execute(
-      sql`UPDATE public.__migrations SET hash = 'edited' WHERE name = ${first.name}`,
+    // Журнал правит только мигратор (ADR-0187) — как и при настоящей правке руками
+    await withMigratorConnection(
+      (owner) => owner`UPDATE public.__migrations SET hash = 'edited' WHERE name = ${first.name}`,
     )
     try {
       const failure = await runMigrations().then(
@@ -53,10 +54,33 @@ describe('мигратор', () => {
       expect((failure as Error).message).toContain(first.name)
       expect((failure as Error).message).toContain(`SET hash = '${first.hash}'`)
     } finally {
-      await db().execute(
-        sql`UPDATE public.__migrations SET hash = ${first.hash} WHERE name = ${first.name}`,
+      await withMigratorConnection(
+        (owner) =>
+          owner`UPDATE public.__migrations SET hash = ${first.hash} WHERE name = ${first.name}`,
       )
     }
+    await expect(runMigrations()).resolves.toMatchObject({ applied: [] })
+  })
+
+  it('журнал миграций приложение только читает; мигратор работает как прежде', async () => {
+    const [first] = await db().execute<{ name: string }>(
+      sql`SELECT name FROM public.__migrations ORDER BY name LIMIT 1`,
+    )
+    expect(first?.name).toBeTruthy()
+    expect(
+      await sqlState(() =>
+        db().execute(sql`UPDATE public.__migrations SET hash = hash WHERE false`),
+      ),
+    ).toBe(INSUFFICIENT_PRIVILEGE)
+    expect(
+      await sqlState(() => db().execute(sql`DELETE FROM public.__migrations WHERE false`)),
+    ).toBe(INSUFFICIENT_PRIVILEGE)
+    expect(
+      await sqlState(() =>
+        db().execute(sql`INSERT INTO public.__migrations (name, hash) SELECT 'x', 'x' WHERE false`),
+      ),
+    ).toBe(INSUFFICIENT_PRIVILEGE)
+    // Повторный запуск мигратора сверяет журнал и права без ошибок
     await expect(runMigrations()).resolves.toMatchObject({ applied: [] })
   })
 })
