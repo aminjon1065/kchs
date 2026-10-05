@@ -2,7 +2,9 @@
 /**
  * Браузерная проверка установки в контейнерах (infra/scripts/verify-stack.sh):
  * вход через web (Caddy со сборкой SPA и CSP), «Мой день», загрузка файла
- * напрямую в S3 и превью, которое делает движок. Любое нарушение CSP — ошибка.
+ * напрямую в S3, превью, которое делает движок, и живое обновление открытой
+ * вкладки из worker (api и worker здесь — разные контейнеры). Любое нарушение
+ * CSP — ошибка.
  *
  *   STACK_URL=http://localhost:8080 STACK_ADMIN_PASSWORD=… \
  *   STACK_S3_ORIGIN=http://localhost:9000 node scripts/stack-check.mjs
@@ -51,6 +53,12 @@ await context.addInitScript(() => {
   })
 })
 const page = await context.newPage()
+// Кадры WebSocket страницы: шаг «живые обновления» ищет в них сообщения шлюза
+const frames = { sent: [], received: [] }
+page.on('websocket', (socket) => {
+  socket.on('framesent', (frame) => frames.sent.push(String(frame.payload)))
+  socket.on('framereceived', (frame) => frames.received.push(String(frame.payload)))
+})
 log(`Проверка установки в браузере: ${BASE}`)
 
 await step('web отдаёт SPA со строгим CSP и nonce', async () => {
@@ -87,15 +95,38 @@ await step('загрузка файла напрямую в S3', async () => {
   await page.getByText(`Загружен «${fileName}»`).waitFor({ timeout: 30_000 })
 })
 
+let fileId = null
 await step('превью от движка из S3 во вкладке файла', async () => {
   const found = await page.request.get(
     `${BASE}/api/v1/objects?type=file&q=${encodeURIComponent(fileName)}&limit=1`,
   )
-  const fileId = (await found.json()).items?.[0]?.id
+  fileId = (await found.json()).items?.[0]?.id
   if (!fileId) throw new Error('загруженный файл не найден через API')
   await page.goto(`${BASE}/o/${fileId}`)
   await page.getByRole('tab', { name: new RegExp(fileName) }).waitFor({ timeout: 20_000 })
   await page.locator(`img[src^="${S3_ORIGIN}"]`).first().waitFor({ timeout: 90_000 })
+})
+
+// Подписчики событий работают в worker, сокеты — в api: сообщение доходит до
+// вкладки, только если worker передаёт его узлам api (ретрансляция realtime)
+await step('живые обновления: изменение из worker доходит до открытой вкладки', async () => {
+  if (!fileId) throw new Error('нет файла из предыдущего шага')
+  const subscribed = () => frames.sent.some((f) => f.includes('"subscribe"') && f.includes(fileId))
+  for (let i = 0; i < 100 && !subscribed(); i++) await page.waitForTimeout(100)
+  if (!subscribed()) throw new Error('вкладка файла не подписалась на комнату объекта')
+
+  const from = frames.received.length
+  const csrf = await page.evaluate(() => sessionStorage.getItem('kchs.csrf'))
+  const renamed = await page.request.patch(`${BASE}/api/v1/objects/${fileId}`, {
+    data: { title: `живое-${fileName}` },
+    headers: { 'x-csrf-token': csrf ?? '' },
+  })
+  if (!renamed.ok()) throw new Error(`переименование: статус ${renamed.status()}`)
+
+  const delivered = () =>
+    frames.received.slice(from).some((f) => f.includes('"object.updated"') && f.includes(fileId))
+  for (let i = 0; i < 150 && !delivered(); i++) await page.waitForTimeout(100)
+  if (!delivered()) throw new Error('за 15 с сообщение object.updated не пришло')
 })
 
 await step('нарушений CSP нет', async () => {

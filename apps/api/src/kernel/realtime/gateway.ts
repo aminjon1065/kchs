@@ -1,17 +1,37 @@
 import type { AdminModeState, Confidentiality } from '@kchs/contracts'
 import { createAdapter } from '@socket.io/redis-adapter'
 import type { FastifyInstance } from 'fastify'
+import type { Redis } from 'ioredis'
 import { Server as SocketServer } from 'socket.io'
+import { z } from 'zod'
 import { config } from '~/shared/config/index.js'
 import type { UserCtx } from '~/shared/context.js'
 import { logger } from '~/shared/logger/index.js'
-import { createRedisConnection } from '~/shared/redis/index.js'
+import { createRedisConnection, redis } from '~/shared/redis/index.js'
 import { authorize } from '../access/authorize.js'
 import { buildUserCtx } from '../context-builder.js'
 import { JobService } from '../jobs/service.js'
 import { markLeft, markViewing, type Viewer } from './presence.js'
 
 let io: SocketServer | null = null
+/** Подписки шлюза на каналы Redis — закрываются вместе с ним. */
+let channels: Redis[] = []
+
+/**
+ * Канал ретрансляции (01-overview.md §Realtime). Подписчики событий работают в
+ * worker, а сокеты открыты на узлах api: процесс без шлюза кладёт команду в
+ * канал, каждый узел api выполняет её над своими сокетами. Так отправка не
+ * задваивается при нескольких репликах api, а права перепроверяются по
+ * настоящему контексту сокета, а не по его копии через адаптер.
+ */
+export const RELAY_CHANNEL = 'rt:relay'
+
+const RelayCommand = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('emit'), room: z.string(), event: z.string(), payload: z.unknown() }),
+  z.object({ kind: z.literal('revoke'), objectId: z.string() }),
+  z.object({ kind: z.literal('recheck'), userId: z.string() }),
+])
+export type RelayCommand = z.infer<typeof RelayCommand>
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -185,20 +205,66 @@ export function startRealtime(app: FastifyInstance, deps: RealtimeDeps): SocketS
     })
   })
 
-  // Прогресс заданий из воркеров приходит через Redis pub/sub
-  const sub = createRedisConnection('rt-job-sub')
-  void sub.subscribe('rt:job')
-  sub.on('message', (_channel, message) => {
+  // Прогресс заданий из воркеров приходит через Redis pub/sub. Сообщение получает
+  // каждый узел api, поэтому каждый отправляет его только своим сокетам
+  const jobs = createRedisConnection('rt-job-sub')
+  void jobs.subscribe('rt:job')
+  jobs.on('message', (_channel, message) => {
     try {
       const payload = JSON.parse(message) as { jobId: string; status?: string }
-      io?.to(`job:${payload.jobId}`).emit(payload.status ? 'job.finished' : 'job.progress', payload)
+      io?.local
+        .to(`job:${payload.jobId}`)
+        .emit(payload.status ? 'job.finished' : 'job.progress', payload)
     } catch {
       // игнорируем некорректные сообщения
     }
   })
 
+  const relay = createRedisConnection('rt-relay-sub')
+  void relay.subscribe(RELAY_CHANNEL)
+  relay.on('message', (_channel, message) => {
+    handleRelay(message).catch((error) =>
+      log.warn({ err: error }, 'команда ретрансляции realtime не выполнена'),
+    )
+  })
+  channels = [jobs, relay]
+
   log.info('realtime-шлюз запущен')
   return io
+}
+
+/** Команда ретрансляции на этом узле api — только над его собственными сокетами. */
+async function handleRelay(message: string): Promise<void> {
+  if (!io) return
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(message)
+  } catch {
+    return
+  }
+  const command = RelayCommand.safeParse(parsed)
+  if (!command.success) return
+  switch (command.data.kind) {
+    case 'emit':
+      io.local.to(command.data.room).emit(command.data.event, command.data.payload)
+      return
+    case 'revoke':
+      return revokeLocal(command.data.objectId)
+    case 'recheck':
+      return recheckLocal(command.data.userId)
+  }
+}
+
+/**
+ * Команда всем узлам api через Redis — так её выполняют там, где открыты сокеты.
+ * Экспортирована для тестов ретрансляции.
+ */
+export async function publishRelay(command: RelayCommand): Promise<void> {
+  try {
+    await redis().publish(RELAY_CHANNEL, JSON.stringify(command))
+  } catch (error) {
+    logger().warn({ err: error, kind: command.kind }, 'команда realtime не передана узлам api')
+  }
 }
 
 /** Проверка входа в комнату (16-api-and-events.md §3); экспортирована для тестов доступа. */
@@ -236,21 +302,35 @@ function broadcastPresence(objectId: string, users: Viewer[]): void {
   io?.to(`object:${objectId}`).emit('presence', { objectId, users })
 }
 
-/** Отправка сообщения в комнату — используется подписчиками событий. */
+/**
+ * Отправка сообщения в комнату. На узле api — напрямую: адаптер Redis доставит её
+ * и на другие узлы. В процессе без шлюза (worker, где работают подписчики
+ * событий) — через канал ретрансляции.
+ */
 export function emitToRoom(room: string, event: string, payload: unknown): void {
-  io?.to(room).emit(event, payload)
+  if (io) {
+    io.to(room).emit(event, payload)
+    return
+  }
+  void publishRelay({ kind: 'emit', room, event, payload })
 }
 
 export function emitToUser(userId: string, event: string, payload: unknown): void {
-  io?.to(`user:${userId}`).emit(event, payload)
+  emitToRoom(`user:${userId}`, event, payload)
 }
 
-/** Исключение пользователей из комнаты при отзыве прав. */
+/**
+ * Исключение пользователей из комнаты объекта при отзыве прав. Сокеты открыты на
+ * узлах api, поэтому перепроверку выполняет каждый узел над своими сокетами.
+ */
 export async function revokeRoomAccess(objectId: string): Promise<void> {
+  await publishRelay({ kind: 'revoke', objectId })
+}
+
+async function revokeLocal(objectId: string): Promise<void> {
   if (!io) return
   const room = `object:${objectId}`
-  const sockets = await io.in(room).fetchSockets()
-  for (const socket of sockets) {
+  for (const socket of await io.local.in(room).fetchSockets()) {
     const ctx = (socket.data as SocketData).ctx
     const decision = await authorize(ctx, 'view', objectId, { soft: true })
     if (!decision.allowed) {
@@ -263,11 +343,15 @@ export async function revokeRoomAccess(objectId: string): Promise<void> {
 /**
  * Перепроверка комнат объектов пользователя: режим администратора выключен,
  * допуск понижен (ADR-0080) — комнаты объектов с грифом выше допуска закрываются.
+ * Как и отзыв, выполняется каждым узлом api над своими сокетами.
  */
 export async function recheckUserRooms(userId: string): Promise<void> {
+  await publishRelay({ kind: 'recheck', userId })
+}
+
+async function recheckLocal(userId: string): Promise<void> {
   if (!io) return
-  const sockets = await io.in(`user:${userId}`).fetchSockets()
-  for (const socket of sockets) {
+  for (const socket of await io.local.in(`user:${userId}`).fetchSockets()) {
     const ctx = await withFreshAccess((socket.data as SocketData).ctx)
     for (const room of socket.rooms) {
       if (!room.startsWith('object:') && !room.startsWith('conversation:')) continue
@@ -287,6 +371,8 @@ export function stopRealtime(): void {
   void io?.close()
   io = null
   realtimeDeps = null
+  for (const connection of channels) connection.disconnect()
+  channels = []
 }
 
 function parseCookies(header: string): Record<string, string> {
