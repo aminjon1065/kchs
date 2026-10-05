@@ -3,7 +3,6 @@ import type { ApiToken, ApiTokenCreateInput } from '@kchs/contracts'
 import { and, desc, eq, isNull, or, sql } from 'drizzle-orm'
 import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
 import { directory } from '~/kernel/directory/port.js'
-import { users } from '~/kernel/directory/schema.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import type { UserCtx } from '~/shared/context.js'
 import { hashToken, safeEqual } from '~/shared/crypto/secrets.js'
@@ -75,11 +74,7 @@ export const ApiTokens = {
       throw errors.validation('Срок действия уже прошёл')
     }
 
-    const [owner] = await db()
-      .select({ id: users.id, status: users.status })
-      .from(users)
-      .where(eq(users.id, ownerId))
-      .limit(1)
+    const owner = await directory().account(ownerId)
     if (!owner) throw errors.validation('Пользователь не найден')
     if (owner.status !== 'active') throw errors.validation('Учётная запись отключена')
 

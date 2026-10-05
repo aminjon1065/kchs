@@ -21,7 +21,6 @@ import { authorize } from '~/kernel/access/authorize.js'
 import { buildUserCtxFor } from '~/kernel/access/explain.js'
 import { audit } from '~/kernel/audit/service.js'
 import { directory } from '~/kernel/directory/port.js'
-import { users } from '~/kernel/directory/schema.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { JobService } from '~/kernel/jobs/service.js'
 import { objects } from '~/kernel/objects/schema.js'
@@ -143,11 +142,7 @@ async function reportObject(tx: Executor, reportId: string) {
 
 /** Пользователь, под чьими правами строится отчёт: активный, с правом `view` на отчёт. */
 async function runAsCtx(userId: string, reportId: string): Promise<UserCtx | null> {
-  const [user] = await db()
-    .select({ status: users.status })
-    .from(users)
-    .where(eq(users.id, userId))
-    .limit(1)
+  const user = await directory().account(userId)
   if (user?.status !== 'active') return null
   const ctx = await buildUserCtxFor(userId)
   if (!ctx) return null
@@ -449,11 +444,7 @@ export const ReportRuns = {
     if (row.status !== 'running') throw errors.conflict('Запуск отчёта не выполняется')
     const prefix = `reports/${row.reportId}/${runId}/`
     const report = await ReportService.get(row.reportId)
-    const [owner] = await db()
-      .select({ timezone: users.timezone })
-      .from(users)
-      .where(eq(users.id, row.runAs))
-      .limit(1)
+    const owner = await directory().account(row.runAs)
     // Имя файла — то же, что выдал engineStart: дата начала в поясе получателя
     const date = isoDateIn(new Date(row.startedAt ?? row.createdAt), owner?.timezone ?? 'UTC')
     const byFormat = new Map<ReportFormat, StoredRunFile>()

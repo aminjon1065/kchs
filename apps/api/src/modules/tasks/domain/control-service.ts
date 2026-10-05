@@ -22,9 +22,9 @@ import { CONTROL_METRIC_KEYS } from '@kchs/contracts'
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import { visibleObjectsSql } from '~/kernel/access/authorize.js'
 import { addDays, localDate, startOfLocalDay } from '~/kernel/business-calendar/working-days.js'
+import { directory } from '~/kernel/directory/port.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { DatasetQueries } from '~/modules/data/public.js'
-import { OrgService } from '~/modules/identity/public.js'
 import type { UserCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { refsOf } from './task-core.js'
@@ -82,7 +82,7 @@ interface Units {
 }
 
 async function loadUnits(locale: Locale): Promise<Units> {
-  const tree = await OrgService.tree()
+  const tree = await directory().orgTree()
   const byId = new Map(tree.map((unit) => [unit.id, unit]))
   const children = new Map<string, string[]>()
   for (const unit of tree) {

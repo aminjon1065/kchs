@@ -11,7 +11,7 @@ const { objectType, registerObjectType } = await import('../src/kernel/objects/r
 const { ObjectService } = await import('../src/kernel/objects/service.js')
 const { authorize } = await import('../src/kernel/access/authorize.js')
 const processes = await import('../src/kernel/process/index.js')
-const { OrgService } = await import('../src/modules/identity/public.js')
+const { OrgService } = await import('../src/kernel/directory/service.js')
 const { systemCtx } = await import('../src/shared/context.js')
 const { objects } = await import('../src/db-schema.js')
 

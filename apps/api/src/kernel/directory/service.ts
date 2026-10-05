@@ -31,22 +31,22 @@ import {
 } from '~/kernel/directory/schema.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { recheckUserRooms } from '~/kernel/realtime/gateway.js'
+import { secondFactor } from '~/kernel/second-factor/port.js'
 import { SpaceService } from '~/kernel/spaces/service.js'
-import { territoryIndex } from '~/modules/gis/public.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { actorId } from '~/shared/context.js'
 import { afterCommit, type Database, db, type Executor } from '~/shared/db/client.js'
 import type { LangTextValue } from '~/shared/db/columns.js'
 import { errors } from '~/shared/errors.js'
 import { newId, randomCode } from '~/shared/ids.js'
-import { mfaFactors } from '../schema.js'
-import { AuthService } from './auth-service.js'
+import { credentials } from './credentials.js'
 import {
   assertCanAssignRoles,
   assertCanManageUser,
   assertNotLastSystemAdmin,
   hasRole,
 } from './role-policy.js'
+import { territoryLookup } from './territory-lookup.js'
 
 /**
  * Временный пароль `XXXX-XXXX-XXXX` (60 бит). Политика запрещает пароль,
@@ -97,7 +97,7 @@ export const UserService = {
     })
 
     const temporaryPassword = input.password ?? temporaryPasswordFor(input.login)
-    await AuthService.setPassword(id, temporaryPassword, input.login, tx)
+    await credentials().setPassword(id, temporaryPassword, input.login, tx)
     if (input.mustChangePassword) {
       await tx.update(users).set({ mustChangePassword: true }).where(eq(users.id, id))
     }
@@ -248,7 +248,7 @@ export const UserService = {
     }
 
     if (patch.status === 'blocked') {
-      await AuthService.revokeAllExcept(userId, null, tx)
+      await credentials().revokeSessions(userId, tx)
       await publishEvent(tx, ctx, {
         type: 'user.blocked',
         object: { id: userId, type: 'user' },
@@ -383,7 +383,7 @@ export const UserService = {
     const page = hasMore ? rows.slice(0, limit) : rows
     const ids = page.map((r) => r.id)
 
-    const [employmentRows, roleRows, mfaRows] = await Promise.all([
+    const [employmentRows, roleRows, mfaSet] = await Promise.all([
       ids.length
         ? db()
             .select({
@@ -407,15 +407,9 @@ export const UserService = {
             .innerJoin(roles, eq(roles.id, userRoles.roleId))
             .where(inArray(userRoles.userId, ids))
         : [],
-      ids.length
-        ? db()
-            .select({ userId: mfaFactors.userId })
-            .from(mfaFactors)
-            .where(and(inArray(mfaFactors.userId, ids), sql`${mfaFactors.verifiedAt} is not null`))
-        : [],
+      // Факторы входа хранит модуль identity — спрашиваем через порт ядра
+      secondFactor().totpEnrolled(ids),
     ])
-
-    const mfaSet = new Set(mfaRows.map((r) => r.userId))
 
     return {
       items: page.map((row) => ({
@@ -630,10 +624,10 @@ async function assertHeadIsPerson(tx: Executor, userId: string | null | undefine
   }
 }
 
-/** Территория подразделения — из справочника территорий (модуль GIS). */
+/** Территория подразделения — из справочника территорий (порт ядра, ADR-0179). */
 async function assertTerritory(territoryId: string | null | undefined): Promise<void> {
   if (!territoryId) return
-  if (!(await territoryIndex()).byId.has(territoryId))
+  if (!(await territoryLookup().exists(territoryId)))
     throw errors.validation('Нет такой территории')
 }
 

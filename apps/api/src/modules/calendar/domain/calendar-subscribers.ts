@@ -1,11 +1,11 @@
 import type { EventEnvelope, Locale, NotificationCategory, ReminderChannel } from '@kchs/contracts'
 import { eq } from 'drizzle-orm'
 import { recordModuleActivity } from '~/kernel/activity/service.js'
+import { directory } from '~/kernel/directory/port.js'
 import type { Subscriber } from '~/kernel/events/types.js'
 import { InboxService } from '~/kernel/inbox/service.js'
 import { NotificationService } from '~/kernel/notifications/service.js'
 import { emitToRoom, emitToUser } from '~/kernel/realtime/gateway.js'
-import { UserService } from '~/modules/identity/public.js'
 import { systemCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { eventAttendees, events } from '../schema.js'
@@ -65,7 +65,7 @@ async function notifyEach(
   if (!event.object) return
   for (const userId of [...new Set(userIds)]) {
     if (userId === event.actor.userId && !input.urgent) continue
-    const profile = await UserService.profile(userId)
+    const profile = await directory().profile(userId)
     const locale = (profile?.locale as Locale | undefined) ?? 'ru'
     await NotificationService.notify({
       userIds: [userId],

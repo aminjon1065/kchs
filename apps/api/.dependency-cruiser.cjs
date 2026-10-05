@@ -50,8 +50,22 @@ module.exports = {
       name: 'kernel-tables-via-services',
       severity: 'error',
       comment:
-        'Таблицы ядра — через его сервисы (ADR-0178). Напрямую модуль читает только реестр объектов (соединения списков) и справочник пользователей и оргструктуры — до переноса его сервисов в ядро. Схема модуля может ссылаться на таблицы ядра внешним ключом.',
-      from: { path: '^src/modules/', pathNot: '^src/modules/[^/]+/schema\\.ts$' },
+        'Таблицы ядра — через его сервисы (ADR-0178, ADR-0179). Напрямую модуль читает только реестр объектов (соединения списков); людей и оргструктуру — через порт directory() и сервисы kernel/directory. Схема модуля может ссылаться на таблицы ядра внешним ключом.',
+      from: {
+        path: '^src/modules/',
+        pathNot: ['^src/modules/[^/]+/schema\\.ts$', '^src/modules/identity/'],
+      },
+      to: {
+        path: '^src/kernel/[^/]+/schema\\.ts$',
+        pathNot: ['^src/kernel/objects/schema\\.ts$'],
+      },
+    },
+    {
+      name: 'identity-kernel-tables',
+      severity: 'error',
+      comment:
+        'Модуль входа identity — исключение ровно на справочник (ADR-0179): вход, SSO, синхронизация каталога и импорт сотрудников читают учётную запись и пишут её столбцы входа. Остальные таблицы ядра — через сервисы, как у всех модулей.',
+      from: { path: '^src/modules/identity/', pathNot: '^src/modules/identity/schema\\.ts$' },
       to: {
         path: '^src/kernel/[^/]+/schema\\.ts$',
         pathNot: ['^src/kernel/objects/schema\\.ts$', '^src/kernel/directory/schema\\.ts$'],

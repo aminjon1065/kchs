@@ -16,7 +16,7 @@ import {
  */
 registerLifecycle()
 
-const { OrgService } = await import('../src/modules/identity/public.js')
+const { OrgService } = await import('../src/kernel/directory/service.js')
 const { systemCtx } = await import('../src/shared/context.js')
 
 const run = Date.now().toString(36)

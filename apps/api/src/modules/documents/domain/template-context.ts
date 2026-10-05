@@ -1,7 +1,7 @@
 import type { CorrespondentRecord, UserProfile, UserRef } from '@kchs/contracts'
 import { formatDate, formatValue } from '@kchs/fields'
 import { createTranslator } from '@kchs/i18n'
-import { UserService } from '~/modules/identity/public.js'
+import { directory } from '~/kernel/directory/port.js'
 import type { UserCtx } from '~/shared/context.js'
 import { CorrespondentService } from './correspondent-service.js'
 import { DocumentService } from './document-service.js'
@@ -49,7 +49,7 @@ export async function templateContext(
     : null
   const people = [doc.author, doc.signer, doc.responsible, doc.controller]
   const profiles = await Promise.all(
-    people.map((ref) => (ref ? UserService.profile(ref.id) : Promise.resolve(null))),
+    people.map((ref) => (ref ? directory().profile(ref.id) : Promise.resolve(null))),
   )
   const date = (value: string | null) =>
     value ? formatDate(value, { locale: ctx.locale, timezone: 'UTC' }) : ''

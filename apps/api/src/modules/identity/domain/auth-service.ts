@@ -5,7 +5,7 @@ import {
   PRODUCT_NAME,
   parseConfidentiality,
 } from '@kchs/contracts'
-import { and, eq, gt, isNull, or, sql } from 'drizzle-orm'
+import { and, eq, gt, inArray, isNotNull, isNull, or, sql } from 'drizzle-orm'
 import { authenticator } from 'otplib'
 import { invalidatePrincipalSet } from '~/kernel/access/principal-set.js'
 import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
@@ -856,6 +856,16 @@ export const AuthService = {
    */
   async mfaEnabled(userId: string): Promise<boolean> {
     return (await AuthService.secondFactorMethods(userId)).length > 0
+  },
+
+  /** У кого из списка подключён код (TOTP) — колонка списка сотрудников (порт ядра). */
+  async totpEnrolled(userIds: string[]): Promise<Set<string>> {
+    if (userIds.length === 0) return new Set()
+    const rows = await db()
+      .select({ userId: mfaFactors.userId })
+      .from(mfaFactors)
+      .where(and(inArray(mfaFactors.userId, userIds), isNotNull(mfaFactors.verifiedAt)))
+    return new Set(rows.map((row) => row.userId))
   },
 
   /**

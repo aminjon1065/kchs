@@ -7,7 +7,7 @@ import {
 } from '@kchs/contracts'
 import { createTranslator } from '@kchs/i18n'
 import { eq } from 'drizzle-orm'
-import { users } from '~/kernel/directory/schema.js'
+import { directory } from '~/kernel/directory/port.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { InboxService } from '~/kernel/inbox/service.js'
 import { notificationChannel } from '~/kernel/notifications/channels.js'
@@ -79,11 +79,7 @@ export const ReportDelivery = {
     // Повтор подписчика: доставка уже записана — второй раз не отправляем
     if (channels.length === 0 || Object.keys(row.delivery).length > 0) return
 
-    const [user] = await db()
-      .select({ email: users.email, locale: users.locale, displayName: users.displayName })
-      .from(users)
-      .where(eq(users.id, row.runAs))
-      .limit(1)
+    const user = await directory().account(row.runAs)
     if (!user) return
     const locale = (user.locale as Locale | null) ?? 'ru'
     const t = createTranslator(locale)

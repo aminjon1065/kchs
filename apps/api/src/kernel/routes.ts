@@ -3,6 +3,8 @@ import { registerAccessRoutes } from './access/http.js'
 import { registerAcknowledgmentRoutes } from './acknowledgments/http.js'
 import { registerAnnouncementRoutes } from './announcements/http.js'
 import { registerBusinessCalendarRoutes } from './business-calendar/http.js'
+import { registerOrgRoutes } from './directory/http.js'
+import { registerServiceAccountRoutes } from './directory/service-account-http.js'
 import { registerDiscussionRoutes } from './discussions/http.js'
 import { registerEventRoutes } from './events/http.js'
 import { registerInboxRoutes } from './inbox/http.js'
@@ -20,6 +22,9 @@ import { registerViewRoutes } from './views/http.js'
 export function registerKernelRoutes(route: RouteRegistrar): void {
   registerObjectRoutes(route)
   registerAccessRoutes(route)
+  // Справочник людей и оргструктуры, служебные записи (ADR-0179)
+  registerOrgRoutes(route)
+  registerServiceAccountRoutes(route)
   registerSpaceRoutes(route)
   registerSearchRoutes(route)
   registerDiscussionRoutes(route)

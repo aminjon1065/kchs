@@ -6,9 +6,9 @@ import type {
 } from '@kchs/contracts'
 import { eq, inArray } from 'drizzle-orm'
 import { authorize, requireCapability } from '~/kernel/access/authorize.js'
+import { directory } from '~/kernel/directory/port.js'
 import { getObjectStream } from '~/kernel/storage/s3.js'
 import { fileSource } from '~/modules/files/public.js'
-import { OrgService } from '~/modules/identity/public.js'
 import type { UserCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
@@ -125,7 +125,7 @@ export const CaseImport = {
     requireCapability(ctx, 'documents.journals.manage')
     const year = Number(todayLocal().slice(0, 4))
     const [units, types] = await Promise.all([
-      OrgService.tree(),
+      directory().orgTree(),
       db()
         .select({ key: documentTypes.key, name: documentTypes.name })
         .from(documentTypes)
@@ -194,7 +194,7 @@ export const CaseImport = {
     const defaultYear = input.year ?? Number(todayLocal().slice(0, 4))
 
     const [units, types] = await Promise.all([
-      OrgService.tree(),
+      directory().orgTree(),
       db()
         .select({ id: documentTypes.id, key: documentTypes.key, name: documentTypes.name })
         .from(documentTypes),

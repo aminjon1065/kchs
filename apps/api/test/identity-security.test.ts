@@ -138,9 +138,7 @@ describe('роли и управление учётными записями', (
 
     // Вне HTTP (системный контекст, CLI) страхует проверка последнего администратора
     await db().execute(sql`UPDATE users SET status = 'blocked' WHERE id = ${second.id}`)
-    const { assertNotLastSystemAdmin } = await import(
-      '../src/modules/identity/domain/role-policy.js'
-    )
+    const { assertNotLastSystemAdmin } = await import('../src/kernel/directory/role-policy.js')
     await expect(assertNotLastSystemAdmin(db(), fx.admin.id)).rejects.toThrow('последнего')
     await db().execute(sql`UPDATE users SET status = 'active' WHERE id = ${second.id}`)
   })

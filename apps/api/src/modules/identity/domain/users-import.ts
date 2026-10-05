@@ -22,7 +22,9 @@ import { z } from 'zod'
 import { authorize, hasCapability } from '~/kernel/access/authorize.js'
 import { buildUserCtxFor } from '~/kernel/access/explain.js'
 import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
+import { assertCanAssignRoles } from '~/kernel/directory/role-policy.js'
 import { orgUnits, positions, roles, users } from '~/kernel/directory/schema.js'
+import { UserService } from '~/kernel/directory/service.js'
 import { JobService } from '~/kernel/jobs/service.js'
 import { fileSource } from '~/modules/files/public.js'
 import { config } from '~/shared/config/index.js'
@@ -32,8 +34,6 @@ import { CSV_BOM, csvLine } from '~/shared/csv.js'
 import { db } from '~/shared/db/client.js'
 import { AppError, errors, isAppError } from '~/shared/errors.js'
 import { cacheKeys, redis } from '~/shared/redis/index.js'
-import { assertCanAssignRoles } from './role-policy.js'
-import { UserService } from './user-service.js'
 
 /**
  * Импорт пользователей из Excel (P0-E04 S04, ADR-0041).

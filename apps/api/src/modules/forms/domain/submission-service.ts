@@ -13,7 +13,6 @@ import { directory } from '~/kernel/directory/port.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { DatasetQueries, DatasetRows, datasetRecord } from '~/modules/data/public.js'
 import { territoryIndex } from '~/modules/gis/public.js'
-import { OrgService } from '~/modules/identity/public.js'
 import { config } from '~/shared/config/index.js'
 import type { UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
@@ -163,7 +162,7 @@ async function autoValues(
     if (unitId) {
       if (typeOf(auto.unit) === 'unit') out[auto.unit] = unitId
       else {
-        const briefs = await OrgService.briefs([unitId])
+        const briefs = await directory().unitBriefs([unitId])
         out[auto.unit] = briefs.get(unitId)?.name.ru ?? unitId
       }
     }

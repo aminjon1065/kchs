@@ -1,11 +1,11 @@
 import type { EventEnvelope, NotificationCategory } from '@kchs/contracts'
 import { and, eq, isNull, lte, or, sql } from 'drizzle-orm'
+import { directory } from '~/kernel/directory/port.js'
 import { conversationMembers } from '~/kernel/discussions/schema.js'
 import type { Subscriber } from '~/kernel/events/types.js'
 import { NotificationService } from '~/kernel/notifications/service.js'
 import { emitToRoom, emitToUser } from '~/kernel/realtime/gateway.js'
 import { SpaceService } from '~/kernel/spaces/service.js'
-import { UserService } from '~/modules/identity/public.js'
 import { systemCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { logger } from '~/shared/logger/index.js'
@@ -38,7 +38,7 @@ async function recipients(conversationId: string, authorId: string | null): Prom
  * статус присутствия связан с настройками уведомлений (ADR-0090).
  */
 async function channelsFor(userId: string): Promise<Array<'app' | 'email' | 'telegram'>> {
-  const profile = await UserService.profile(userId)
+  const profile = await directory().profile(userId)
   const quiet = await PresenceService.quiet(userId, profile?.timezone ?? 'Asia/Dushanbe')
   return quiet ? ['app'] : ['app', 'email', 'telegram']
 }

@@ -9,6 +9,7 @@ import type {
 import { and, desc, eq, sql } from 'drizzle-orm'
 import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
 import { orgUnits, positions, roles, users } from '~/kernel/directory/schema.js'
+import { OrgService, UserService } from '~/kernel/directory/service.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import type { Ctx } from '~/shared/context.js'
 import { actorId, systemCtx } from '~/shared/context.js'
@@ -24,7 +25,6 @@ import {
   entryDisabled as isDisabled,
   LdapClient,
 } from './ldap-client.js'
-import { OrgService, UserService } from './user-service.js'
 
 /**
  * Синхронизация каталога LDAP/AD (ADR-0098). Прогон всегда строит план

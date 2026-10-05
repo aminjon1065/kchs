@@ -20,7 +20,6 @@ import { JobService } from '~/kernel/jobs/service.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import { SpaceService } from '~/kernel/spaces/service.js'
-import { UserService } from '~/modules/identity/public.js'
 import { config } from '~/shared/config/index.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { encryptSecret } from '~/shared/crypto/secrets.js'
@@ -144,7 +143,7 @@ export const CalendarService = {
     const again = await bySystemKey(tx, key)
     if (again) return again
 
-    const profile = await UserService.profile(userId)
+    const profile = await directory().profile(userId)
     if (!profile) throw errors.notFound('Сотрудник')
     const spaceId = await SpaceService.ensurePersonal(tx, ctx, userId, profile.displayName)
     const object = await ObjectService.create(tx, ctx, {
@@ -210,7 +209,7 @@ export const CalendarService = {
 
   async create(tx: Executor, ctx: UserCtx, input: CalendarCreateInput): Promise<string> {
     const me = principalUser(ctx)
-    const profile = await UserService.profile(me)
+    const profile = await directory().profile(me)
     const timezone = input.timezone ?? profile?.timezone ?? config().TZ
     const color = input.color ?? DEFAULT_COLOR[input.kind]
     const description = input.description?.trim() || null

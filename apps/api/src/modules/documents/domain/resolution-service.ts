@@ -19,7 +19,6 @@ import { endOfLocalDay } from '~/kernel/business-calendar/working-days.js'
 import { directory } from '~/kernel/directory/port.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { delegationCovers, InboxService } from '~/kernel/inbox/service.js'
-import { OrgService } from '~/modules/identity/public.js'
 import { Instructions } from '~/modules/tasks/public.js'
 import { config } from '~/shared/config/index.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
@@ -192,7 +191,7 @@ async function assertExecutors(
  */
 async function unitHeadFor(unitId: string | null): Promise<string | null> {
   if (!unitId) return null
-  const units = new Map((await OrgService.tree()).map((unit) => [unit.id, unit]))
+  const units = new Map((await directory().orgTree()).map((unit) => [unit.id, unit]))
   let current = units.get(unitId)
   const seen = new Set<string>()
   while (current && !seen.has(current.id)) {

@@ -1,5 +1,5 @@
 import { buildUserCtxFor } from '~/kernel/access/explain.js'
-import { UserService } from '~/modules/identity/public.js'
+import { UserService } from '~/kernel/directory/service.js'
 import { registerAllObjectTypes } from '~/modules/index.js'
 import { Integrations } from '~/modules/integrations/public.js'
 import { MailPublic } from '~/modules/mail/public.js'

@@ -10,7 +10,7 @@ import type { UserCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
-import { ServiceAccountService } from '../domain/service-accounts.js'
+import { ServiceAccountService } from './service-accounts.js'
 
 /**
  * Служебные записи видят те, кто ведёт людей, и те, кто ведёт правила: второму

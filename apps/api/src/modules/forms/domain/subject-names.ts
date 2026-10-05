@@ -1,6 +1,5 @@
 import type { FormDefinition, FormSubject } from '@kchs/contracts'
 import { directory } from '~/kernel/directory/port.js'
-import { OrgService } from '~/modules/identity/public.js'
 
 /**
  * Подписи назначений для матрицы контроля и авто-полей: название подразделения
@@ -11,7 +10,7 @@ export async function subjectNames(subjects: readonly FormSubject[]): Promise<Ma
   const users = subjects.filter((item) => item.kind === 'user').map((item) => item.id)
   const out = new Map<string, string>()
   if (units.length > 0) {
-    const briefs = await OrgService.briefs([...new Set(units)])
+    const briefs = await directory().unitBriefs([...new Set(units)])
     for (const [id, brief] of briefs) out.set(`unit:${id}`, brief.name.ru)
   }
   if (users.length > 0) {

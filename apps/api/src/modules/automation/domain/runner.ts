@@ -5,7 +5,6 @@ import { eq } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
 import { buildUserCtxFor } from '~/kernel/access/explain.js'
 import { directory } from '~/kernel/directory/port.js'
-import { users } from '~/kernel/directory/schema.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import { processObjectProvider } from '~/kernel/process/registry.js'
@@ -136,11 +135,7 @@ function step(
  * из пакета конфигурации — сохранить до этого требования.
  */
 async function runAsRefusal(userId: string): Promise<string | null> {
-  const [user] = await db()
-    .select({ kind: users.kind, status: users.status })
-    .from(users)
-    .where(eq(users.id, userId))
-    .limit(1)
+  const user = await directory().account(userId)
   if (!user) return 'Служебный пользователь правила недоступен'
   if (user.kind !== 'service') return 'Правило работает только от имени служебной учётной записи'
   if (user.status !== 'active') return 'Служебный пользователь отключён'

@@ -9,6 +9,7 @@ import {
   users,
 } from '~/kernel/directory/schema.js'
 import { type Database, db } from '~/shared/db/client.js'
+import type { DirectoryAccount } from './port.js'
 
 /**
  * Назначать можно только людей: служебная учётная запись (ADR-0130) не получает
@@ -95,6 +96,27 @@ export const DirectoryQueries = {
       .where(and(eq(roles.key, roleKey), eq(users.status, 'active'), isPerson, scope))
       .orderBy(asc(users.displayName), asc(users.id))
     return rows.map((row) => row.id)
+  },
+
+  /** Учётные записи из списка любого статуса и вида — для решений модулей (ADR-0179). */
+  async accounts(
+    userIds: string[],
+    database: Database = db(),
+  ): Promise<Map<string, DirectoryAccount>> {
+    if (userIds.length === 0) return new Map()
+    const rows = await database
+      .select({
+        id: users.id,
+        kind: users.kind,
+        status: users.status,
+        email: users.email,
+        displayName: users.displayName,
+        locale: users.locale,
+        timezone: users.timezone,
+      })
+      .from(users)
+      .where(inArray(users.id, [...new Set(userIds)]))
+    return new Map(rows.map((row) => [row.id, row]))
   },
 
   /** Действующие сотрудники из списка — служебные учётные записи отсеиваются. */

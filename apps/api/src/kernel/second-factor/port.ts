@@ -10,17 +10,28 @@ import { cacheKeys, redis } from '~/shared/redis/index.js'
 export interface SecondFactorProvider {
   /** У пользователя подключён второй фактор. */
   enrolled: (userId: string) => Promise<boolean>
+  /**
+   * У кого из списка подключён код (TOTP) — колонка «Второй фактор» в списке
+   * сотрудников консоли (ADR-0179).
+   */
+  totpEnrolled: (userIds: string[]) => Promise<Set<string>>
   /** Код верен; повтор уже использованного кода отклоняется. */
   verify: (userId: string, code: string) => Promise<boolean>
 }
 
 let provider: SecondFactorProvider = {
   enrolled: async () => false,
+  totpEnrolled: async () => new Set(),
   verify: async () => false,
 }
 
 export function setSecondFactorProvider(next: SecondFactorProvider): void {
   provider = next
+}
+
+/** Порт второго фактора для ядра и модулей: подключён ли он у пользователя. */
+export function secondFactor(): SecondFactorProvider {
+  return provider
 }
 
 /** Неудачных попыток подтверждения до блокировки и срок блокировки. */

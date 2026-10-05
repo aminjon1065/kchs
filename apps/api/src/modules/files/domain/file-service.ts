@@ -1,5 +1,6 @@
 import type { FileRecord, FolderRecord, UploadResume, UploadSessionInput } from '@kchs/contracts'
 import { and, eq, inArray, sql } from 'drizzle-orm'
+import { directory } from '~/kernel/directory/port.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { JobService } from '~/kernel/jobs/service.js'
 import { LinkService } from '~/kernel/links/service.js'
@@ -17,7 +18,6 @@ import {
   signedPutUrl,
   storageKey,
 } from '~/kernel/storage/s3.js'
-import { UserService } from '~/modules/identity/public.js'
 import { actorId, type Ctx, type UserCtx } from '~/shared/context.js'
 import { type Database, db, type Executor } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
@@ -592,7 +592,7 @@ export const FileService = {
       .limit(1)
 
     if (!row) return null
-    const refs = await UserService.refs(
+    const refs = await directory().refs(
       [row.ownerId, row.lockedBy].filter((v): v is string => Boolean(v)),
       database,
     )
@@ -623,7 +623,7 @@ export const FileService = {
       .from(fileVersions)
       .where(eq(fileVersions.fileId, fileId))
       .orderBy(sql`${fileVersions.number} desc`)
-    const refs = await UserService.refs(
+    const refs = await directory().refs(
       rows.map((r) => r.createdBy).filter((v): v is string => Boolean(v)),
     )
     return rows.map((row) => ({

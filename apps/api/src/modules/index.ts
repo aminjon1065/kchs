@@ -1,6 +1,8 @@
 import type { FastifyInstance } from 'fastify'
 import { registerAcknowledgments } from '~/kernel/acknowledgments/index.js'
-import { setDirectoryProvider } from '~/kernel/directory/port.js'
+import { setCredentialsProvider } from '~/kernel/directory/credentials.js'
+import { registerDirectoryProvider } from '~/kernel/directory/provider.js'
+import { setTerritoryLookup } from '~/kernel/directory/territory-lookup.js'
 import { registerKernelObjectTypes } from '~/kernel/object-types.js'
 import { listObjectTypes } from '~/kernel/objects/registry.js'
 import { registerProcessEngine } from '~/kernel/process/index.js'
@@ -65,12 +67,13 @@ import {
   registerFormsBackground,
 } from './forms/module.js'
 import { registerGisBackground, registerGisObjectTypes, registerGisRoutes } from './gis/module.js'
+import { territoryIndex } from './gis/public.js'
 import {
   declareIdentitySchedules,
   registerIdentityBackground,
   registerIdentityRoutes,
 } from './identity/module.js'
-import { AuthService, DirectoryQueries, OrgService, UserService } from './identity/public.js'
+import { AuthService } from './identity/public.js'
 import {
   declareIntegrationsSchedules,
   registerIntegrationsBackground,
@@ -161,29 +164,26 @@ export function registerAllObjectTypes(): void {
   registerChatQuietHours()
 }
 
-/** Модуль identity предоставляет ядру справочник людей и оргструктуры и проверку второго фактора. */
+/**
+ * Справочник людей и оргструктуры — в ядре (ADR-0179); модуль identity даёт ему
+ * учётные данные и второй фактор, модуль территорий — проверку территории.
+ */
 function registerDirectory(): void {
-  setDirectoryProvider({
-    refs: (userIds, database) => UserService.refs(userIds, database),
-    displayName: async (userId) => {
-      const refs = await UserService.refs([userId])
-      return refs.get(userId)?.displayName ?? 'Система'
+  registerDirectoryProvider()
+  setCredentialsProvider({
+    setPassword: (userId, password, login, tx) =>
+      AuthService.setPassword(userId, password, login, tx),
+    revokeSessions: async (userId, tx) => {
+      await AuthService.revokeAllExcept(userId, null, tx)
     },
-    manager: (userId) => OrgService.manager(userId),
-    subordinates: (userId) => OrgService.subordinates(userId),
-    unitHead: (unitId) => OrgService.unitHead(unitId),
-    primaryUnit: (userId) => DirectoryQueries.primaryUnit(userId),
-    unitMembers: (unitId) => DirectoryQueries.unitMembers(unitId),
-    unitByCode: (code) => DirectoryQueries.unitByCode(code),
-    groupMembers: (groupId) => DirectoryQueries.groupMembers(groupId),
-    usersWithRole: (roleKey, options) => DirectoryQueries.usersWithRole(roleKey, options),
-    activeUsers: (userIds) => DirectoryQueries.activeUsers(userIds),
   })
   // Подтверждение подписи вторым фактором (ADR-0079): только TOTP, без резервных кодов
   setSecondFactorProvider({
     enrolled: (userId) => AuthService.mfaEnabled(userId),
+    totpEnrolled: (userIds) => AuthService.totpEnrolled(userIds),
     verify: (userId, code) => AuthService.verifyTotp(userId, code),
   })
+  setTerritoryLookup({ exists: async (id) => (await territoryIndex()).byId.has(id) })
 }
 
 export async function registerModules(app: FastifyInstance, route: RouteRegistrar): Promise<void> {

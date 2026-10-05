@@ -6,9 +6,9 @@ import type {
   QuietHours,
 } from '@kchs/contracts'
 import { eq, inArray, sql } from 'drizzle-orm'
+import { directory } from '~/kernel/directory/port.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { emitToUser } from '~/kernel/realtime/gateway.js'
-import { UserService } from '~/modules/identity/public.js'
 import { config } from '~/shared/config/index.js'
 import { systemCtx, type UserCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
@@ -218,7 +218,7 @@ export const PresenceService = {
       }
       const hours = quietOf(row)
       if (!hours.enabled) continue
-      const profile = await UserService.profile(userId)
+      const profile = await directory().profile(userId)
       if (inQuietHours(hours, profile?.timezone ?? config().TZ)) quiet.add(userId)
     }
     return quiet

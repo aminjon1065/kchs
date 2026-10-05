@@ -9,7 +9,6 @@ import {
   OrgUnit,
   OrgUnitInput,
   OrgUnitPatch,
-  PasskeyInfo,
   Position,
   PrincipalRef,
   RoleInfo,
@@ -37,17 +36,16 @@ import { recheckUserRooms } from '~/kernel/realtime/gateway.js'
 import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
-import { AuthService } from '../domain/auth-service.js'
-import { PasskeyService } from '../domain/passkeys.js'
-import { assertCanManageUser } from '../domain/role-policy.js'
-import { RoleService } from '../domain/role-service.js'
+import { credentials } from './credentials.js'
+import { assertCanManageUser } from './role-policy.js'
+import { RoleService } from './role-service.js'
 import {
   GroupService,
   OrgService,
   PositionService,
   temporaryPasswordFor,
   UserService,
-} from '../domain/user-service.js'
+} from './service.js'
 
 export function registerOrgRoutes(route: RouteRegistrar): void {
   // ─── Пикеры: люди, группы, подразделения, должности ───────────────────────
@@ -257,55 +255,6 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
 
   route({
     method: 'POST',
-    url: '/users/:id/reset-mfa',
-    auth: { capability: 'users.manage' },
-    tags: ['org'],
-    summary: 'Сбросить второй фактор пользователя',
-    schema: {
-      params: z.object({ id: z.uuid() }),
-      response: { 200: z.object({ ok: z.boolean() }) },
-    },
-    handler: async (request) => {
-      await assertCanManageUser(db(), request.ctx, request.params.id)
-      await AuthService.disableMfa(request.ctx, request.params.id)
-      return { ok: true }
-    },
-  })
-
-  route({
-    method: 'GET',
-    url: '/users/:id/passkeys',
-    auth: { capability: 'users.manage' },
-    tags: ['org'],
-    summary: 'Ключи входа сотрудника — перед отзывом (N45)',
-    schema: {
-      params: z.object({ id: z.uuid() }),
-      response: { 200: z.object({ items: z.array(PasskeyInfo) }) },
-    },
-    handler: async (request) => {
-      await assertCanManageUser(db(), request.ctx, request.params.id)
-      return { items: await PasskeyService.list(request.params.id) }
-    },
-  })
-
-  route({
-    method: 'DELETE',
-    url: '/users/:id/passkeys',
-    auth: { capability: 'users.manage' },
-    tags: ['org'],
-    summary: 'Отозвать все ключи входа сотрудника (N45)',
-    schema: {
-      params: z.object({ id: z.uuid() }),
-      response: { 200: z.object({ revoked: z.number().int() }) },
-    },
-    handler: async (request) => {
-      await assertCanManageUser(db(), request.ctx, request.params.id)
-      return { revoked: await PasskeyService.revokeAll(request.ctx, request.params.id) }
-    },
-  })
-
-  route({
-    method: 'POST',
     url: '/users/:id/reset-password',
     auth: { capability: 'users.manage' },
     tags: ['org'],
@@ -326,12 +275,12 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
       const temporaryPassword = temporaryPasswordFor(target.login)
       // Пароль, требование смены, отзыв сессий и аудит — одной транзакцией (ADR-0177)
       await db().transaction(async (tx) => {
-        await AuthService.setPassword(request.params.id, temporaryPassword, target.login, tx)
+        await credentials().setPassword(request.params.id, temporaryPassword, target.login, tx)
         await tx
           .update(users)
           .set({ mustChangePassword: true })
           .where(eq(users.id, request.params.id))
-        await AuthService.revokeAllExcept(request.params.id, null, tx)
+        await credentials().revokeSessions(request.params.id, tx)
         await audit(
           request.ctx,
           {

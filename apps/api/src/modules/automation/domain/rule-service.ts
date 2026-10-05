@@ -20,7 +20,6 @@ import { and, count, desc, eq, ilike, inArray, isNull, or, sql } from 'drizzle-o
 import { authorize, visibleObjectsSql } from '~/kernel/access/authorize.js'
 import { buildUserCtxFor } from '~/kernel/access/explain.js'
 import { directory } from '~/kernel/directory/port.js'
-import { users } from '~/kernel/directory/schema.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
@@ -139,11 +138,7 @@ function runAsError(message: string) {
 }
 
 export async function assertRunAs(userId: string): Promise<void> {
-  const [user] = await db()
-    .select({ status: users.status, kind: users.kind })
-    .from(users)
-    .where(eq(users.id, userId))
-    .limit(1)
+  const user = await directory().account(userId)
   if (!user) throw runAsError('Служебный пользователь не найден')
   if (user.kind !== 'service') {
     throw runAsError(

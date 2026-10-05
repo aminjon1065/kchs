@@ -8,18 +8,16 @@ import { APPLY_JOB, UsersImport } from './domain/users-import.js'
 import { registerAuthRoutes } from './http/auth-routes.js'
 import { registerDirectoryRoutes } from './http/directory-routes.js'
 import { registerMeRoutes } from './http/me-routes.js'
-import { registerOrgRoutes } from './http/org-routes.js'
 import { registerPasskeyRoutes } from './http/passkey-routes.js'
 import { registerSecurityRoutes } from './http/security-routes.js'
-import { registerServiceAccountRoutes } from './http/service-account-routes.js'
 import { registerSsoRoutes } from './http/sso-routes.js'
+import { registerUserCredentialRoutes } from './http/user-credential-routes.js'
 import { registerUsersImportRoutes } from './http/users-import-routes.js'
 
 export function registerIdentityRoutes(route: RouteRegistrar): void {
   registerAuthRoutes(route)
   registerMeRoutes(route)
-  registerOrgRoutes(route)
-  registerServiceAccountRoutes(route)
+  registerUserCredentialRoutes(route)
   registerSecurityRoutes(route)
   registerUsersImportRoutes(route)
   registerDirectoryRoutes(route)

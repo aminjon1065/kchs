@@ -5,11 +5,10 @@ import {
   type UserRef,
 } from '@kchs/contracts'
 import cronParser from 'cron-parser'
-import { and, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm'
+import { and, eq, isNotNull, isNull, sql } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
 import { buildUserCtxFor } from '~/kernel/access/explain.js'
 import { directory } from '~/kernel/directory/port.js'
-import { users } from '~/kernel/directory/schema.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { queue } from '~/kernel/jobs/service.js'
 import { objects } from '~/kernel/objects/schema.js'
@@ -192,10 +191,9 @@ export const ReportSchedules = {
     const pattern = reportCronPattern(input)
     assertPattern(pattern, input.timezone)
     const recipients = [...new Set(input.recipients)]
-    const found = await db()
-      .select({ id: users.id })
-      .from(users)
-      .where(and(inArray(users.id, recipients), eq(users.status, 'active')))
+    const found = [...(await directory().accounts(recipients)).values()].filter(
+      (account) => account.status === 'active',
+    )
     if (found.length !== recipients.length) {
       throw errors.validation('Получатели — действующие сотрудники')
     }
@@ -275,14 +273,9 @@ export const ReportSchedules = {
     const recipients = await expandRecipients(value)
     const denied = new Set(await withoutAccess(reportId, recipients))
     const active = new Set(
-      recipients.length === 0
-        ? []
-        : (
-            await db()
-              .select({ id: users.id })
-              .from(users)
-              .where(and(inArray(users.id, recipients), eq(users.status, 'active')))
-          ).map((user) => user.id),
+      [...(await directory().accounts(recipients)).values()]
+        .filter((account) => account.status === 'active')
+        .map((account) => account.id),
     )
     const blockedOutside = value.emails.length > 0 && (await externalBlocked(reportId))
     let runs = 0

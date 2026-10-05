@@ -7,7 +7,6 @@ import { z } from 'zod'
 import { authorize } from '~/kernel/access/authorize.js'
 import { usersWhoCanView } from '~/kernel/access/explain.js'
 import { directory } from '~/kernel/directory/port.js'
-import { users } from '~/kernel/directory/schema.js'
 import { DiscussionService } from '~/kernel/discussions/service.js'
 import { LinkService } from '~/kernel/links/service.js'
 import { NotificationService } from '~/kernel/notifications/service.js'
@@ -386,14 +385,10 @@ export async function runAction(
 
     case 'send_email': {
       const people = await resolvePeople(action.to, context)
-      const rows =
-        people.length > 0
-          ? await db()
-              .select({ id: users.id, email: users.email })
-              .from(users)
-              .where(eq(users.status, 'active'))
-          : []
-      const known = new Set(people)
+      // Адреса действующих сотрудников — из справочника ядра (ADR-0179)
+      const rows = [...(await directory().accounts(people)).values()].filter(
+        (account) => account.status === 'active',
+      )
       // Сотрудники из справочника — адреса организации; явные адреса — только из белого
       // списка (N38, ADR-0141): его могли сузить уже после сохранения правила
       const allow = await ruleAllowlist()
@@ -402,10 +397,9 @@ export async function runAction(
         .map((address) => emailOutsideAllowlist(address, allow))
         .filter((reason): reason is string => reason !== null)
       if (blocked.length > 0) throw errors.forbidden(`Письмо не отправлено. ${blocked[0]}`)
-      const addresses = [
-        ...rows.filter((row) => known.has(row.id)).map((row) => row.email),
-        ...explicit,
-      ].filter((address): address is string => Boolean(address))
+      const addresses = [...rows.map((row) => row.email), ...explicit].filter(
+        (address): address is string => Boolean(address),
+      )
       if (addresses.length === 0) return { message: 'Адресатов нет' }
       const subject = required(
         renderTemplate(action.subject, context.scope),

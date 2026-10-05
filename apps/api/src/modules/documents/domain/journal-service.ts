@@ -17,7 +17,6 @@ import { directory } from '~/kernel/directory/port.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
-import { OrgService } from '~/modules/identity/public.js'
 import { config } from '~/shared/config/index.js'
 import { actorId, type Ctx, type UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
@@ -81,7 +80,7 @@ export interface IssuedNumber {
 
 async function unitCode(unitId: string | null): Promise<string | null> {
   if (!unitId) return null
-  return (await OrgService.briefs([unitId])).get(unitId)?.code ?? null
+  return (await directory().unitBriefs([unitId])).get(unitId)?.code ?? null
 }
 
 /**
@@ -145,7 +144,7 @@ export const JournalService = {
           ),
         )
         .groupBy(documents.journalId),
-      OrgService.briefs([
+      directory().unitBriefs([
         ...new Set(rows.map((row) => row.unitId).filter((v): v is string => !!v)),
       ]),
     ])

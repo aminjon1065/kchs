@@ -4,8 +4,9 @@ import { join, resolve } from 'node:path'
 import type { MailStatus } from '@kchs/contracts'
 import { and, eq, inArray, isNotNull } from 'drizzle-orm'
 import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
+import { directory } from '~/kernel/directory/port.js'
+import { UserService } from '~/kernel/directory/service.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
-import { UserService } from '~/modules/identity/public.js'
 import { config } from '~/shared/config/index.js'
 import { type Ctx, systemCtx, type UserCtx } from '~/shared/context.js'
 import { decryptSecret, encryptSecret } from '~/shared/crypto/secrets.js'
@@ -104,7 +105,7 @@ export const MailProvisioning = {
       .from(mailMailboxes)
       .where(eq(mailMailboxes.userId, ctx.userId))
       .limit(1)
-    const self = await UserService.profile(ctx.userId)
+    const self = await directory().profile(ctx.userId)
     return {
       enabled: true,
       address: row?.address ?? (self ? personAddress(self.login) : null),
@@ -128,7 +129,7 @@ export const MailProvisioning = {
   },
 
   async ensurePerson(ctx: UserCtx, hash: string, set: boolean): Promise<string> {
-    const login = (await UserService.profile(ctx.userId))?.login
+    const login = (await directory().profile(ctx.userId))?.login
     if (!login) throw errors.notFound('Сотрудник')
     const address = personAddress(login)
     if (address === registryAddress()) {

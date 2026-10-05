@@ -10,9 +10,9 @@ import {
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
 import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
+import { directory } from '~/kernel/directory/port.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { buckets, getObjectStream, putObject, storageKey } from '~/kernel/storage/s3.js'
-import { UserService } from '~/modules/identity/public.js'
 import { type Ctx, systemCtx, type UserCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { AppError, errors } from '~/shared/errors.js'
@@ -304,7 +304,7 @@ export const OfficeService = {
     for (const row of rows) {
       if ((await authorize(ctx, 'view', row.fileId, { soft: true })).allowed) visible.push(row)
     }
-    const refs = await UserService.refs([...new Set(visible.flatMap((row) => row.editors))])
+    const refs = await directory().refs([...new Set(visible.flatMap((row) => row.editors))])
     return visible.map((row) => ({
       fileId: row.fileId,
       editors: row.editors.flatMap((id) => {

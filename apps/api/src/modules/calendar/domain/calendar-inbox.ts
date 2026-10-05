@@ -1,6 +1,6 @@
 import type { InboxItem, Locale } from '@kchs/contracts'
+import { directory } from '~/kernel/directory/port.js'
 import { InboxService } from '~/kernel/inbox/service.js'
-import { UserService } from '~/modules/identity/public.js'
 import type { Ctx } from '~/shared/context.js'
 import type { Executor } from '~/shared/db/client.js'
 import { formatWhen } from './format.js'
@@ -45,7 +45,7 @@ const dedupeKey = (eventId: string) => `event:${eventId}:invite`
 export const CalendarInbox = {
   async invite(tx: Executor, ctx: Ctx, event: InviteTarget, userIds: string[]): Promise<void> {
     for (const userId of userIds) {
-      const profile = await UserService.profile(userId)
+      const profile = await directory().profile(userId)
       await InboxService.open(tx, ctx, {
         userId,
         kind: 'respond_invite',

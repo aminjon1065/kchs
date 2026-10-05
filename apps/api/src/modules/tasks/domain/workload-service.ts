@@ -13,7 +13,6 @@ import { addDays, localDate, startOfLocalDay } from '~/kernel/business-calendar/
 import { directory } from '~/kernel/directory/port.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { DatasetQueries } from '~/modules/data/public.js'
-import { OrgService } from '~/modules/identity/public.js'
 import type { UserCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { taskExtensions, tasks } from '../schema.js'
@@ -38,7 +37,7 @@ const OPEN_STATUS = { field: 'status', op: 'not_in', value: ['done', 'accepted',
 
 /** Подразделение с вложенными — по дереву оргструктуры. */
 async function unitSubtree(unitId: string): Promise<string[]> {
-  const tree = await OrgService.tree()
+  const tree = await directory().orgTree()
   const children = new Map<string, string[]>()
   for (const unit of tree) {
     if (unit.parentId)
@@ -67,7 +66,7 @@ export const WorkloadService = {
     let userIds: string[]
     if (query.unitId) {
       scope = 'unit'
-      userIds = await OrgService.members(await unitSubtree(query.unitId))
+      userIds = await directory().unitStaff(await unitSubtree(query.unitId))
     } else {
       const team = await directory().subordinates(me)
       scope = team.length > 0 ? 'subordinates' : 'self'

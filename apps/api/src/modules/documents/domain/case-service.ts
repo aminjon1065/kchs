@@ -23,7 +23,6 @@ import { LinkService } from '~/kernel/links/service.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import { destroyFiles } from '~/modules/files/public.js'
-import { OrgService } from '~/modules/identity/public.js'
 import { actorId, type Ctx, type UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
@@ -110,7 +109,7 @@ async function emit(
 
 async function assertUnit(unitId: string | null | undefined): Promise<void> {
   if (!unitId) return
-  if (!(await OrgService.briefs([unitId])).has(unitId)) {
+  if (!(await directory().unitBriefs([unitId])).has(unitId)) {
     throw errors.validation('Подразделение не найдено', [{ path: 'unitId', message: 'unit' }])
   }
 }
@@ -210,7 +209,7 @@ async function rankCases(
     )
     .orderBy(desc(cases.year), asc(cases.index))
     .limit(500)
-  const units = await OrgService.briefs([
+  const units = await directory().unitBriefs([
     ...new Set(rows.map((row) => row.unitId).filter((v): v is string => !!v)),
   ])
   const rank: Record<CaseMatch, number> = { type_unit: 0, type: 1, unit: 2, other: 3 }
@@ -292,7 +291,7 @@ export const CaseService = {
           ),
         )
         .groupBy(documents.caseId),
-      OrgService.briefs([
+      directory().unitBriefs([
         ...new Set(rows.map((row) => row.unitId).filter((v): v is string => !!v)),
       ]),
       directory().refs([

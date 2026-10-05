@@ -2,7 +2,7 @@ import { scopeSatisfied } from '@kchs/contracts'
 import type { FastifyRequest } from 'fastify'
 import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
 import { buildUserCtx } from '~/kernel/context-builder.js'
-import { AuthService } from '~/modules/identity/public.js'
+import { secondFactor } from '~/kernel/second-factor/port.js'
 import { config } from '~/shared/config/index.js'
 import type { UserCtx } from '~/shared/context.js'
 import { systemCtx } from '~/shared/context.js'
@@ -62,7 +62,7 @@ export async function authenticateApiToken(
   const hit = await hitRateLimit('api-token', token.id, limit, 60)
   if (!hit.allowed) throw errors.rateLimited(hit.retryAfter)
 
-  const mfaEnrolled = await AuthService.mfaEnabled(token.userId)
+  const mfaEnrolled = await secondFactor().enrolled(token.userId)
   const ctx = await buildUserCtx(
     { sessionId: `token:${token.id}`, userId: token.userId, onBehalfOf: null, mfaEnrolled },
     request,

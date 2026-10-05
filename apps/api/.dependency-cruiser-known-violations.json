@@ -1,6 +1,23 @@
 [
   {
     "type": "dependency",
+    "from": "src/modules/identity/http/me-routes.ts",
+    "to": "src/kernel/spaces/schema.ts",
+    "unresolvedTo": "~/kernel/spaces/schema.js",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "identity-kernel-tables"
+    }
+  },
+  {
+    "type": "dependency",
     "from": "src/modules/automation/domain/rule-service.ts",
     "to": "src/kernel/spaces/schema.ts",
     "unresolvedTo": "~/kernel/spaces/schema.js",
@@ -225,23 +242,6 @@
     "from": "src/modules/documents/domain/territory-documents.ts",
     "to": "src/kernel/links/schema.ts",
     "unresolvedTo": "~/kernel/links/schema.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "kernel-tables-via-services"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/modules/identity/http/me-routes.ts",
-    "to": "src/kernel/spaces/schema.ts",
-    "unresolvedTo": "~/kernel/spaces/schema.js",
     "dependencyTypes": [
       "aliased",
       "aliased-tsconfig",

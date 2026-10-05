@@ -34,7 +34,6 @@ import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import { ProcessDefinitions, ProcessService } from '~/kernel/process/index.js'
 import { territoryIndex } from '~/modules/gis/public.js'
-import { OrgService } from '~/modules/identity/public.js'
 import { config } from '~/shared/config/index.js'
 import { actorId, type Ctx, systemCtx, type UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
@@ -207,7 +206,7 @@ async function assertReferences(
   if (input.territoryId && !(await territoryIndex()).byId.has(input.territoryId)) {
     throw errors.validation('Нет такой территории', [{ path: 'territoryId', message: 'territory' }])
   }
-  if (input.unitId && !(await OrgService.briefs([input.unitId])).has(input.unitId)) {
+  if (input.unitId && !(await directory().unitBriefs([input.unitId])).has(input.unitId)) {
     throw errors.validation('Подразделение не найдено', [{ path: 'unitId', message: 'unit' }])
   }
 }
@@ -359,7 +358,7 @@ export const DocumentService = {
         ),
       ),
       CorrespondentService.names(db(), row.correspondentId ? [row.correspondentId] : []),
-      OrgService.briefs(row.unitId ? [row.unitId] : []),
+      directory().unitBriefs(row.unitId ? [row.unitId] : []),
       DocumentService.registration(row.id),
       DocumentVersionService.record(db(), row.currentVersionId),
       DocumentVersionService.count(db(), row.id),

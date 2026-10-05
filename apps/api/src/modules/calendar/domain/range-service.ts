@@ -24,7 +24,6 @@ import { BusinessCalendar } from '~/kernel/business-calendar/service.js'
 import { isWorkingDate } from '~/kernel/business-calendar/working-days.js'
 import { directory } from '~/kernel/directory/port.js'
 import { objects } from '~/kernel/objects/schema.js'
-import { UserService } from '~/modules/identity/public.js'
 import { config } from '~/shared/config/index.js'
 import type { UserCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
@@ -372,7 +371,7 @@ export const RangeService = {
 
     const timezones = new Map<string, string>()
     for (const id of people) {
-      timezones.set(id, (await UserService.profile(id))?.timezone ?? config().TZ)
+      timezones.set(id, (await directory().profile(id))?.timezone ?? config().TZ)
     }
     const workingDay = await workingDayOf(from, to)
     const nonWorkingDays: string[] = []
