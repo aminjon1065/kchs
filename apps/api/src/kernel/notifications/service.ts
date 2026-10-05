@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import {
   type DeliveryMode,
   type Locale,
@@ -17,6 +18,7 @@ import { mailConfigured, sendMail } from '~/shared/mail/index.js'
 import { redactSummary } from '../access/confidentiality.js'
 import { serviceAccountIds } from '../access/service-accounts.js'
 import { directory } from '../directory/port.js'
+import { currentEventDelivery } from '../events/delivery.js'
 import { InboxService } from '../inbox/service.js'
 import { ObjectService } from '../objects/service.js'
 import { emitToUser } from '../realtime/gateway.js'
@@ -54,6 +56,12 @@ export interface NotifyInput {
    * часы, встречу; запрошенные каналы доставляются сразу, как у `direct`.
    */
   urgent?: boolean
+  /**
+   * Ключ повтора (ADR-0171). В подписчике события задаётся сам — из подписчика, события и
+   * содержания уведомления; вызов вне обработки события (задание с повторами) может
+   * передать свой. Уведомление с тем же ключом получатель второй раз не получит.
+   */
+  dedupeKey?: string | null
 }
 
 export const NotificationService = {
@@ -71,6 +79,8 @@ export const NotificationService = {
 
     const aggregateKey =
       input.aggregateKey ?? `${input.category}:${input.objectId ?? 'none'}:${input.titleKey}`
+    const dedupeKey = input.dedupeKey ?? deliveryDedupeKey(input, aggregateKey)
+    const eventId = currentEventDelivery()?.eventId ?? null
     // Внешние каналы (Telegram) — только у тех, кому они доступны: привязан аккаунт
     const external = await availableChannels(recipients)
     // Тишина получателя глушит внешние каналы у всего, кроме срочного (ADR-0140)
@@ -90,6 +100,23 @@ export const NotificationService = {
       if (quiet.has(userId)) muteExternal(modes)
       const channels = Object.keys(modes) as NotificationChannel[]
       if (channels.length === 0) continue
+      // Внешние каналы доставляют сразу: дайджеста у них нет, слитые повторы не
+      // отправляются (как и письма) — иначе мессенджер получал бы каждое изменение
+      const immediate = EXTERNAL_CHANNELS.filter((channel) => modes[channel] !== undefined)
+
+      // Повторная доставка события (ADR-0171): уведомление уже создано — второго нет,
+      // досылается только то, что не успело уйти в первый раз (сбой посреди обработки)
+      if (dedupeKey) {
+        const [repeat] = await db()
+          .select({ id: notifications.id, externalSentAt: notifications.externalSentAt })
+          .from(notifications)
+          .where(and(eq(notifications.userId, userId), eq(notifications.dedupeKey, dedupeKey)))
+          .limit(1)
+        if (repeat) {
+          await completeDelivery(userId, repeat.id, modes, repeat.externalSentAt ? [] : immediate)
+          continue
+        }
+      }
 
       // Срочное (алерт, опасное явление, эскалация) — каждое отдельной строкой: сводка
       // «3 изменения в …» спрятала бы суть тревоги (ADR-0168)
@@ -121,6 +148,7 @@ export const NotificationService = {
         .insert(notifications)
         .values({
           userId,
+          eventId,
           category: input.category,
           titleKey: input.titleKey,
           params: (input.params ?? {}) as Record<string, unknown>,
@@ -129,34 +157,15 @@ export const NotificationService = {
           url: input.url ?? null,
           channels,
           aggregateKey,
+          dedupeKey,
         })
+        // Та же доставка в параллельном потребителе успела раньше — второе не нужно
+        .onConflictDoNothing()
         .returning({ id: notifications.id })
+      if (!row) continue
 
-      emitToUser(userId, 'notification.new', { id: String(row?.id ?? '') })
-
-      // E-mail: «немедленно» уходит сразу, «дайджест» — заданием по расписанию.
-      // Ошибка почты не ломает уведомление: оно останется в очереди дайджеста.
-      if (modes.email === 'immediate' && row) {
-        try {
-          await deliverEmail([row.id])
-        } catch (error) {
-          logger().error({ err: error, userId }, 'не удалось отправить уведомление почтой')
-        }
-      }
-
-      // Внешние каналы доставляют сразу: дайджеста у них нет, слитые повторы не
-      // отправляются (как и письма) — иначе мессенджер получал бы каждое изменение
-      const immediate = EXTERNAL_CHANNELS.filter((channel) => modes[channel] !== undefined)
-      if (row && immediate.length > 0) {
-        try {
-          await deliverExternal(row.id, immediate)
-        } catch (error) {
-          logger().error(
-            { err: error, userId },
-            'не удалось доставить уведомление во внешний канал',
-          )
-        }
-      }
+      emitToUser(userId, 'notification.new', { id: String(row.id) })
+      await completeDelivery(userId, row.id, modes, immediate)
     }
   },
 
@@ -318,6 +327,74 @@ const DEFAULT_MODES: Record<string, Partial<Record<NotificationChannel, Delivery
   calendar: { app: 'immediate', email: 'digest' },
   data: { app: 'immediate', email: 'digest' },
   system: { app: 'immediate', email: 'digest' },
+}
+
+/**
+ * Доставка созданного уведомления: письмо «немедленно» (уже отправленное
+ * `deliverEmail` пропускает) и внешние каналы с отметкой — повтор события их
+ * второй раз не шлёт. Ошибка канала не ломает уведомление: письмо останется в
+ * очереди дайджеста.
+ */
+async function completeDelivery(
+  userId: string,
+  id: number,
+  modes: Partial<Record<NotificationChannel, DeliveryMode>>,
+  external: ExternalChannel[],
+): Promise<void> {
+  // E-mail: «немедленно» уходит сразу, «дайджест» — заданием по расписанию
+  if (modes.email === 'immediate') {
+    try {
+      await deliverEmail([id])
+    } catch (error) {
+      logger().error({ err: error, userId }, 'не удалось отправить уведомление почтой')
+    }
+  }
+  if (external.length === 0) return
+  try {
+    await deliverExternal(id, external)
+    await db()
+      .update(notifications)
+      .set({ externalSentAt: sql`now()` })
+      .where(eq(notifications.id, id))
+  } catch (error) {
+    logger().error({ err: error, userId }, 'не удалось доставить уведомление во внешний канал')
+  }
+}
+
+/**
+ * Ключ повтора уведомления в обработке события (ADR-0171): подписчик, событие и
+ * содержание. Разные уведомления одного события (два правила, два текста) — разные
+ * ключи; повторная доставка того же события даёт тот же ключ.
+ */
+function deliveryDedupeKey(input: NotifyInput, aggregateKey: string): string | null {
+  const delivery = currentEventDelivery()
+  if (!delivery) return null
+  const content = createHash('sha256')
+    .update(
+      stableJson([
+        input.category,
+        input.titleKey,
+        input.objectId ?? null,
+        input.url ?? null,
+        aggregateKey,
+        input.params ?? {},
+      ]),
+    )
+    .digest('hex')
+    .slice(0, 24)
+  return `${delivery.subscriber}:${delivery.eventId}:${content}`
+}
+
+/** JSON с упорядоченными ключами: одинаковое содержание — одинаковая строка. */
+function stableJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`
+  if (value !== null && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .filter(([, item]) => item !== undefined)
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    return `{${entries.map(([key, item]) => `${JSON.stringify(key)}:${stableJson(item)}`).join(',')}}`
+  }
+  return JSON.stringify(value) ?? 'null'
 }
 
 /**

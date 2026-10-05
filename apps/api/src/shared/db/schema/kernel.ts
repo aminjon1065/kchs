@@ -466,12 +466,22 @@ export const notifications = pgTable(
     readAt: tsCol('read_at'),
     /** Когда уведомление ушло на почту (немедленно или в дайджесте). */
     emailedAt: tsCol('emailed_at'),
+    /**
+     * Ключ повтора (ADR-0171): подписчик, событие и содержание уведомления. Повторная
+     * доставка того же события не создаёт второе уведомление получателю.
+     */
+    dedupeKey: text('dedupe_key'),
+    /** Когда уведомление ушло во внешние каналы (Telegram, push); повтор их не шлёт. */
+    externalSentAt: tsCol('external_sent_at'),
     createdAt: createdAt(),
   },
   (t) => [
     index('notifications_user_idx').on(t.userId, t.id.desc()),
     index('notifications_unread_idx').on(t.userId, t.readAt),
     index('notifications_aggregate_idx').on(t.userId, t.aggregateKey),
+    uniqueIndex('notifications_dedupe_idx')
+      .on(t.userId, t.dedupeKey)
+      .where(sql`${t.dedupeKey} is not null`),
   ],
 )
 
