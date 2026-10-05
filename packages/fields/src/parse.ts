@@ -1,4 +1,10 @@
-import { BOOLEAN_WORDS, type FieldDef, type FieldType, type Locale } from '@kchs/contracts'
+import {
+  BOOLEAN_WORDS,
+  type FieldDef,
+  type FieldType,
+  type Locale,
+  NULL_WORDS,
+} from '@kchs/contracts'
 import { zonedDateTime } from './ranges.js'
 
 /**
@@ -192,9 +198,32 @@ export type ParseTarget = Pick<FieldDef, 'type' | 'format' | 'options'>
  * Значение поля из текста. Пустая строка — `null` (очистить значение).
  * Типы без текстового ввода (пользователь, геометрия, файл…) не разбираются.
  */
+/**
+ * Типы, где заглушка «нет данных» (прочерк, «н/д»…) — пустое значение, как при импорте
+ * файла (движок, ADR-0190); текстовые поля и поля со справочником хранят её как текст.
+ */
+const PLACEHOLDER_IS_EMPTY = new Set<FieldType>([
+  'integer',
+  'number',
+  'decimal',
+  'money',
+  'percent',
+  'boolean',
+  'date',
+  'datetime',
+  'time',
+  'json',
+  'geometry',
+  'territory',
+])
+const NULL_SET = new Set<string>(NULL_WORDS)
+
 export function parseValue(text: string, field: ParseTarget, ctx: ParseContext = {}): ParseResult {
   const locale = ctx.locale ?? 'ru'
   if (text.trim() === '') return { ok: true, value: null }
+  if (PLACEHOLDER_IS_EMPTY.has(field.type) && NULL_SET.has(text.trim().toLowerCase())) {
+    return { ok: true, value: null }
+  }
   const ok = (value: unknown): ParseResult =>
     value === null || value === undefined ? { ok: false } : { ok: true, value }
 

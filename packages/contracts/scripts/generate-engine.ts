@@ -46,7 +46,7 @@ import {
 import { ENGINE_CALLBACKS } from '../src/engine/callbacks.js'
 import { DEMO_PROFILES, ENGINE_JOBS, EngineJobEnvelope } from '../src/engine/jobs.js'
 import { FIELD_SEMANTICS } from '../src/fields/field-def.js'
-import { BOOLEAN_WORDS } from '../src/fields/values.js'
+import { BOOLEAN_WORDS, NULL_WORDS } from '../src/fields/values.js'
 import { QUEUE_RUNTIME } from '../src/jobs/job.js'
 import {
   RECORDING_MIME,
@@ -153,4 +153,5 @@ write('field_types.json', {
   columnarDecimal: COLUMNAR_DECIMAL,
   durationUnit: DURATION_UNIT,
   booleanWords: BOOLEAN_WORDS,
+  nullWords: NULL_WORDS,
 })

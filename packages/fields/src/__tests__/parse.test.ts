@@ -56,9 +56,11 @@ describe('parseBoolean', () => {
   })
 
   it('понимает те же слова, что импорт файла в движке (ADR-0190)', () => {
-    // Прежде вставка не знала `t`, `вкл`, `ха`, `✔`, а импорт — `on`, `off`, `-`
+    // Прежде вставка не знала `t`, `вкл`, `ха`, `✔`, а импорт — `on`, `off`
     for (const word of ['t', 'вкл', 'ха', '✔', 'on', ' ВКЛ ']) expect(parseBoolean(word)).toBe(true)
-    for (const word of ['f', 'выкл', 'off', '-']) expect(parseBoolean(word)).toBe(false)
+    for (const word of ['f', 'выкл', 'off']) expect(parseBoolean(word)).toBe(false)
+    // Прочерк — не «нет», а «нет данных»
+    expect(parseBoolean('-')).toBeNull()
   })
 })
 
@@ -177,6 +179,16 @@ describe('parseValue', () => {
       ok: true,
       value: 12.5,
     })
+  })
+
+  it('заглушка «нет данных» — пустое значение в нетекстовом поле, текст в текстовом (ADR-0190)', () => {
+    for (const word of ['-', '—', 'н/д', ' Нет данных ', '#Н/Д', 'n/a']) {
+      expect(parseValue(word, { type: 'boolean' })).toEqual({ ok: true, value: null })
+      expect(parseValue(word, { type: 'number' })).toEqual({ ok: true, value: null })
+      expect(parseValue(word, { type: 'date' })).toEqual({ ok: true, value: null })
+    }
+    expect(parseValue('-', { type: 'text' })).toEqual({ ok: true, value: '-' })
+    expect(parseValue('н/д', { type: 'text' })).toEqual({ ok: true, value: 'н/д' })
   })
 
   it('типы по разбору, неразборчивое — отказ', () => {

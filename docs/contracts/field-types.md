@@ -63,6 +63,7 @@
 | Тип Arrow колоночной копии (`arrow`; `null` — в копии нет, это геометрия) | `kchs_engine/data/columnar.py`, `COLUMNAR_FIELD_TYPES` в api |
 | Семейство значений геовыгрузки (`exportFamily`) | `kchs_engine/data/geo_export.py` |
 | Слова «да/нет» (`BOOLEAN_WORDS`) | `@kchs/fields` (`parse.ts`, вставка в таблицу) и `kchs_engine/data/values.py` (импорт файла) |
+| Заглушки «нет данных» (`NULL_WORDS`: прочерк, «н/д», «#Н/Д»…) — пустое значение в нетекстовых полях, текст в текстовых | `@kchs/fields` (`parse.ts`) и `kchs_engine/data/values.py` (`NULL_TOKENS`) |
 
 - `decimal` и `money` в колоночной копии и DuckDB — `DECIMAL(38,12)`.
 - `duration` в колоночной копии и выражениях компилятора — минуты (`DURATION_UNIT`, double): DuckDB и

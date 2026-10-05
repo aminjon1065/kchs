@@ -1,9 +1,9 @@
 """Реестр хранения полей и слова «да/нет» (ADR-0190).
 
-Источник — `packages/contracts` (`FIELD_STORAGE`, `BOOLEAN_WORDS`); движок читает
-сгенерированный `field_types.json`. Прежде одно и то же соответствие жило в пяти
-местах на двух языках и расходилось: импорт файла не понимал `on`, `off`, `-`,
-а вставка в таблицу — `t`, `вкл`, `ха`, `✔`.
+Источник — `packages/contracts` (`FIELD_STORAGE`, `BOOLEAN_WORDS`, `NULL_WORDS`); движок
+читает сгенерированный `field_types.json`. Прежде одно и то же соответствие жило в пяти
+местах на двух языках и расходилось: импорт файла не понимал `on` и `off`, а вставка в
+таблицу — `t`, `вкл`, `ха`, `✔`; прочерк вставка читала как «нет», импорт — как пустое.
 """
 
 import pyarrow as pa
@@ -11,7 +11,8 @@ import pytest
 
 from kchs_engine.contracts import field_storage, field_types_contract, fields_of_export_family
 from kchs_engine.data import columnar, geo_export
-from kchs_engine.data.values import parse_boolean
+from kchs_engine.data.normalize import _boolean_converter
+from kchs_engine.data.values import NULL_TOKENS, parse_boolean
 
 # Ожидаемые типы Arrow колоночной копии — как было до реестра
 EXPECTED_ARROW = {
@@ -92,6 +93,19 @@ def test_boolean_words_are_one_set_for_paste_and_import() -> None:
     # Слова, которые прежде понимала только одна сторона
     for word in ("on", "t", "вкл", "ха", "✔", " ВКЛ "):
         assert parse_boolean(word) == "true", word
-    for word in ("off", "-", "f", "выкл"):
+    for word in ("off", "f", "выкл"):
         assert parse_boolean(word) == "false", word
     assert parse_boolean("может быть") is None
+    # Прочерк — не «нет», а «нет данных»
+    assert parse_boolean("-") is None
+
+
+def test_null_words_are_one_set_for_paste_and_import() -> None:
+    words = field_types_contract()["nullWords"]
+    assert frozenset(["", *words]) == NULL_TOKENS
+    assert {"-", "—", "н/д", "нет данных", "#н/д"} <= NULL_TOKENS
+    # Логическое поле: заглушка — пустое значение, а не «нет»
+    convert = _boolean_converter()
+    for word in ("-", "—", "Н/Д", "нет данных"):
+        assert convert(word) is None, word
+    assert convert("нет") == "false"
