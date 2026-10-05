@@ -21,6 +21,7 @@ async function main(): Promise<void> {
   const spec = app.swagger() as {
     servers?: unknown
     paths?: Record<string, Partial<Record<(typeof METHODS)[number], { responses?: object }>>>
+    components?: { schemas?: Record<string, unknown> }
   }
   // Адрес установки зависит от окружения — в файле относительный путь
   spec.servers = [{ url: '/api/v1', description: 'Относительно адреса установки' }]
@@ -33,6 +34,22 @@ async function main(): Promise<void> {
   if (withoutResponses.length > 0) {
     throw new Error(
       `маршруты без описания ответов: ${withoutResponses.map((o) => `${o.method} ${o.path}`).join(', ')}`,
+    )
+  }
+  // Ссылка — только на описанный компонент (ADR-0188): рекурсивная схема без имени давала
+  // `#/components/schemas/schema0` при пустом списке компонентов
+  const prefix = '#/components/schemas/'
+  const components = new Set(Object.keys(spec.components?.schemas ?? {}))
+  const refs = new Set(
+    [...JSON.stringify(spec).matchAll(/"\$ref":"([^"]*)"/g)].map((match) => match[1] ?? ''),
+  )
+  const broken = [...refs].filter(
+    (ref) => !(ref.startsWith(prefix) && components.has(ref.slice(prefix.length))),
+  )
+  if (broken.length > 0) {
+    throw new Error(
+      `ссылки на неописанные схемы: ${broken.join(', ')} — назовите схему в openApiComponents ` +
+        '(packages/contracts/src/http/components.ts)',
     )
   }
 

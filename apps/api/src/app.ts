@@ -6,11 +6,7 @@ import sensible from '@fastify/sensible'
 import swagger from '@fastify/swagger'
 import underPressure from '@fastify/under-pressure'
 import Fastify, { type FastifyBaseLogger, type FastifyInstance } from 'fastify'
-import {
-  jsonSchemaTransform,
-  serializerCompiler,
-  validatorCompiler,
-} from 'fastify-type-provider-zod'
+import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod'
 import { auditAdminModeRequest } from '~/kernel/access/admin-mode.js'
 import { authorize, requireCapability } from '~/kernel/access/authorize.js'
 import { resolveShareLinkCtx } from '~/kernel/access/share-links.js'
@@ -24,6 +20,7 @@ import { config } from '~/shared/config/index.js'
 import { errors } from '~/shared/errors.js'
 import { API_DOCS_STYLE, OPENAPI_TAGS, renderApiDocs } from '~/shared/http/api-docs.js'
 import { authPlugin } from '~/shared/http/auth-plugin.js'
+import { openApiSchemaTransforms } from '~/shared/http/openapi-schemas.js'
 import { sendProblem } from '~/shared/http/problem.js'
 import { assertRouteTableRegistered, routeRegistrar } from '~/shared/http/route.js'
 import { telemetryPlugin } from '~/shared/http/telemetry-plugin.js'
@@ -136,7 +133,8 @@ export async function buildApp(): Promise<FastifyInstance> {
         },
       },
     },
-    transform: jsonSchemaTransform,
+    // Рекурсивные схемы — именованными компонентами, операции ссылаются на них (ADR-0188)
+    ...openApiSchemaTransforms(),
   })
 
   await app.register(authPlugin, {
