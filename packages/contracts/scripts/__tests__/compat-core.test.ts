@@ -154,6 +154,33 @@ describe('совместимость API', () => {
     ).toEqual(['новый обязательный параметр'])
   })
 
+  it('рекурсивный компонент: сравнение заходит внутрь и кончается (ADR-0188)', () => {
+    const ref = { $ref: '#/components/schemas/Node' }
+    const node = (leaf: Schema) => ({
+      anyOf: [leaf, obj({ and: { type: 'array', items: ref } })],
+    })
+    const tree = (leaf: Schema) =>
+      api({ 'POST /x': op(obj({ filter: ref }), obj({ id: str })) }, { [ref.$ref]: node(leaf) })
+    const base = tree(obj({ field: str }))
+    expect(compareApi(base, base, {}).errors).toEqual([])
+    expect(kinds(compareApi(base, tree(obj({ field: str, op: str })), {}))).toEqual([
+      'новое обязательное поле',
+    ])
+  })
+
+  it('висячая ссылка базы стала компонентом — не сужение; «любой → тип» — сужение', () => {
+    const nullable = (schema: Schema) => ({ anyOf: [schema, { type: 'null' }] })
+    const component = { $ref: '#/components/schemas/Node' }
+    const was = api({ 'POST /x': op(obj({ filter: nullable({ $ref: 'schema0' }) }), obj({})) })
+    const now = api(
+      { 'POST /x': op(obj({ filter: nullable(component) }), obj({})) },
+      { [component.$ref]: obj({ field: str }) },
+    )
+    expect(compareApi(was, now, {}).errors).toEqual([])
+    const any = api({ 'POST /x': op(obj({ filter: nullable({}) }), obj({})) })
+    expect(kinds(compareApi(any, now, {}))).toEqual(['тип сузился'])
+  })
+
   it('общие схемы разворачиваются: ссылка и та же схема на месте — без различий', () => {
     const shared = api(
       { 'POST /x': op({ $ref: 'body1' }, { $ref: 'resp1' }) },

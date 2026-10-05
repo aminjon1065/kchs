@@ -3,7 +3,7 @@
  * Снимок OpenAPI (ADR-0189): из полной спецификации `openapi.json` (её собирает
  * `pnpm openapi:gen`, ~12 МБ, в git не хранится) — структура каждой операции: параметры,
  * тело, ответы. Схемы нормализованы, повторы вынесены в общие (`defs`), по строке на операцию
- * и на общую схему. Снимок — `apps/api/openapi.snapshot.json` в git; проверка совместимости
+ * и на общую схему. Компоненты спецификации — тоже в `defs`, под своей ссылкой (ADR-0188). Снимок — `apps/api/openapi.snapshot.json` в git; проверка совместимости
  * (`pnpm contracts:compat`) сравнивает его с базовой веткой.
  *
  *   node scripts/snapshot-openapi.mjs           — перезаписать снимок
@@ -65,6 +65,11 @@ for (const path of Object.keys(spec.paths ?? {})) {
 }
 
 const { records, defs } = shareRepeats(operations)
+// Именованные компоненты — рекурсивные схемы (ADR-0188): под ключом-ссылкой, которой их
+// называют операции, — сравнение снимков заходит внутрь них
+for (const name of Object.keys(spec.components?.schemas ?? {}).sort()) {
+  defs[`#/components/schemas/${name}`] = normalizeSchema(spec.components.schemas[name])
+}
 const lines = (record) =>
   Object.keys(record)
     .sort()

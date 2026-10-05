@@ -14,8 +14,18 @@ import { resolveRef } from './snapshot-format.mjs'
 const isWriter = (side) => side === 'writer' || side === 'both'
 const isReader = (side) => side === 'reader' || side === 'both'
 
-/** Множество типов JSON схемы; `null` — тип не ограничен (или схема вне снимка). */
+/**
+ * Тип за ссылкой вне снимка неизвестен: так было с висячими ссылками `schema0` прежней
+ * спецификации (ADR-0188). Неизвестное — не «любое»: сравнивать нечего, как и саму ссылку.
+ */
+const UNKNOWN = Symbol('тип вне снимка')
+
+/**
+ * Множество типов JSON схемы; `null` — тип не ограничен; `UNKNOWN` — в объединении есть
+ * ссылка вне снимка.
+ */
 function typesOf(schema, defs) {
+  if (opaque(schema)) return UNKNOWN
   if (Array.isArray(schema.type)) return new Set(schema.type)
   if (typeof schema.type === 'string') return new Set([schema.type])
   const values = valuesOf(schema)
@@ -23,13 +33,15 @@ function typesOf(schema, defs) {
   const variants = schema.anyOf ?? schema.oneOf ?? schema.allOf
   if (Array.isArray(variants)) {
     const all = new Set()
+    let unknown = false
     for (const variant of variants) {
       const resolved = resolveRef(variant, defs)
       const types = resolved && typeof resolved === 'object' ? typesOf(resolved, defs) : null
       if (types === null) return null
-      for (const t of types) all.add(t)
+      if (types === UNKNOWN) unknown = true
+      else for (const t of types) all.add(t)
     }
-    return all
+    return unknown ? UNKNOWN : all
   }
   return null
 }
@@ -75,19 +87,8 @@ function tightened(a, b) {
   return found
 }
 
-const same = (x, y) => JSON.stringify(x) === JSON.stringify(y)
-const opaque = (s) => typeof s.$ref === 'string' // ссылка вне снимка: сравнивать нечего
-
-/** Сравнить схему базы (`a`) со схемой рабочего дерева (`b`); найденное — в `out`. */
-export function diffSchema(a0, b0, ctx, path, side, out) {
-  const wa = resolveRef(a0, ctx.baseDefs)
-  const wb = resolveRef(b0, ctx.currentDefs)
-  if (!wa || !wb || typeof wa !== 'object' || typeof wb !== 'object') return
-  if (opaque(wa) || opaque(wb)) return
-
-  // Типы — по обёртке целиком: «стало nullable» — расширение, «перестало» — сужение
-  const ta = typesOf(wa, ctx.baseDefs)
-  const tb = typesOf(wb, ctx.currentDefs)
+/** Типы базы (`ta`) и рабочего дерева (`tb`); `null` — тип не ограничен. */
+function diffTypes(ta, tb, path, side, out) {
   if (ta && tb) {
     const added = [...tb].filter((t) => !ta.has(t) && !(t === 'integer' && ta.has('number')))
     const removed = [...ta].filter((t) => !tb.has(t) && !(t === 'integer' && tb.has('number')))
@@ -102,6 +103,42 @@ export function diffSchema(a0, b0, ctx, path, side, out) {
   } else if (isReader(side) && ta && !tb) {
     out.push({ path, kind: 'тип расширился', detail: 'теперь любой' })
   }
+}
+
+const same = (x, y) => JSON.stringify(x) === JSON.stringify(y)
+const opaque = (s) => typeof s.$ref === 'string' // ссылка вне снимка: сравнивать нечего
+
+/** Сравнить схему базы (`a`) со схемой рабочего дерева (`b`); найденное — в `out`. */
+export function diffSchema(a0, b0, ctx, path, side, out) {
+  // Рекурсивная схема ссылается на себя (компонент `FilterNode`, ADR-0188): пара ссылок
+  // сравнивается на пути один раз, иначе обход не кончится
+  const pair =
+    typeof a0?.$ref === 'string' && typeof b0?.$ref === 'string'
+      ? `${side} ${a0.$ref} ${b0.$ref}`
+      : null
+  if (pair) {
+    ctx.comparing ??= new Set()
+    if (ctx.comparing.has(pair)) return
+    ctx.comparing.add(pair)
+  }
+  try {
+    diffResolved(a0, b0, ctx, path, side, out)
+  } finally {
+    if (pair) ctx.comparing.delete(pair)
+  }
+}
+
+function diffResolved(a0, b0, ctx, path, side, out) {
+  const wa = resolveRef(a0, ctx.baseDefs)
+  const wb = resolveRef(b0, ctx.currentDefs)
+  if (!wa || !wb || typeof wa !== 'object' || typeof wb !== 'object') return
+  if (opaque(wa) || opaque(wb)) return
+
+  // Типы — по обёртке целиком: «стало nullable» — расширение, «перестало» — сужение. Сторона
+  // со ссылкой вне снимка типа не знает — сравнивать не с чем
+  const ta = typesOf(wa, ctx.baseDefs)
+  const tb = typesOf(wb, ctx.currentDefs)
+  if (ta !== UNKNOWN && tb !== UNKNOWN) diffTypes(ta, tb, path, side, out)
 
   const a = unwrapNullable(wa, ctx.baseDefs)
   const b = unwrapNullable(wb, ctx.currentDefs)
