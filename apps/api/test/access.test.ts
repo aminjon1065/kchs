@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import {
   call,
   createUser,
+  db,
   registerLifecycle,
   setupFixture,
   signIn,
@@ -433,6 +434,54 @@ describe('CSRF', () => {
       headers: { cookie: fx.admin.cookie },
     })
     expect(response.statusCode).toBe(200)
+  })
+})
+
+describe('гостевые ссылки: отключение', () => {
+  it('ссылку чужого объекта через свой объект не отключить', async () => {
+    const target = await createFolder('Ссылка под защитой')
+    const link = await call(fx.app, {
+      method: 'POST',
+      url: `/objects/${target}/share-links`,
+      as: fx.admin,
+      payload: { level: 'view', includeAttachments: false },
+    })
+    expect(link.statusCode, link.body).toBe(200)
+    const linkId = link.json().id as string
+
+    // Участник делится своей папкой, но не папкой администратора
+    const own = await call(fx.app, {
+      method: 'POST',
+      url: '/folders',
+      as: fx.users.member,
+      payload: { name: 'Своя папка участника', spaceId: fx.spaceId },
+    })
+    expect(own.statusCode, own.body).toBe(200)
+    const foreign = await call(fx.app, {
+      method: 'DELETE',
+      url: `/objects/${own.json().id}/share-links/${linkId}`,
+      as: fx.users.member,
+    })
+    expect(foreign.statusCode).toBe(404)
+
+    const listed = await call(fx.app, { url: `/objects/${target}/share-links`, as: fx.admin })
+    expect(listed.json().items.map((item: { id: string }) => item.id)).toContain(linkId)
+
+    // Владелец отключает свою ссылку, отключение попадает в аудит
+    const revoked = await call(fx.app, {
+      method: 'DELETE',
+      url: `/objects/${target}/share-links/${linkId}`,
+      as: fx.admin,
+    })
+    expect(revoked.statusCode).toBe(200)
+    const after = await call(fx.app, { url: `/objects/${target}/share-links`, as: fx.admin })
+    expect(after.json().items).toHaveLength(0)
+    const { sql } = await import('drizzle-orm')
+    const audit = await db().execute<{ count: string }>(
+      sql`SELECT count(*)::text AS count FROM audit_log
+           WHERE action = 'share_link.revoked' AND object_id = ${target}`,
+    )
+    expect(Number(audit[0]?.count ?? 0)).toBe(1)
   })
 })
 

@@ -276,7 +276,16 @@ export function registerAccessRoutes(route: RouteRegistrar): void {
       response: { 200: z.object({ ok: z.boolean() }) },
     },
     handler: async (request) => {
-      await db().transaction((tx) => revokeShareLink(tx, request.params.linkId))
+      const revoked = await db().transaction((tx) =>
+        revokeShareLink(tx, request.params.id, request.params.linkId),
+      )
+      if (!revoked) throw errors.notFound('Ссылка')
+      await audit(request.ctx, {
+        action: AUDIT_ACTIONS.shareLinkRevoked,
+        objectId: request.params.id,
+        details: { linkId: request.params.linkId },
+        severity: 'notice',
+      })
       return { ok: true }
     },
   })

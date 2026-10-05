@@ -51,8 +51,22 @@ export async function createShareLink(
   return { id, token, url: `${config().KCHS_BASE_URL}/s/${token}` }
 }
 
-export async function revokeShareLink(tx: Executor, id: string): Promise<void> {
-  await tx.update(shareLinks).set({ revokedAt: sql`now()` }).where(eq(shareLinks.id, id))
+/**
+ * Отключение ссылки объекта. Ссылка ищется в паре с объектом: право «делиться»
+ * проверяется на нём, и ссылку чужого объекта по её id так не отключить.
+ * Повторное отключение оставляет прежнее время. Ложь — у объекта нет такой ссылки.
+ */
+export async function revokeShareLink(
+  tx: Executor,
+  objectId: string,
+  id: string,
+): Promise<boolean> {
+  const revoked = await tx
+    .update(shareLinks)
+    .set({ revokedAt: sql`coalesce(${shareLinks.revokedAt}, now())` })
+    .where(and(eq(shareLinks.id, id), eq(shareLinks.objectId, objectId)))
+    .returning({ id: shareLinks.id })
+  return revoked.length > 0
 }
 
 export async function listShareLinks(objectId: string) {
