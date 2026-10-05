@@ -2,7 +2,7 @@ import type { Bbox, DatasetField, LayerGeometryType } from '@kchs/contracts'
 import { sql } from 'drizzle-orm'
 import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
-import { redis } from '~/shared/redis/index.js'
+import { cache } from '~/shared/redis/index.js'
 import { ident, qualified } from '../infra/physical.js'
 import { DatasetService } from './dataset-service.js'
 
@@ -60,7 +60,7 @@ export const DatasetGeo = {
       )
     }
     const key = `kchs:geo:${datasetId}:${storage.currentVersion}:${field.key}`
-    const cached = await redis().get(key)
+    const cached = await cache.get(key)
     let summary: { geometryType: LayerGeometryType; extent: Bbox | null; rowCount: number }
     if (cached) {
       summary = JSON.parse(cached) as typeof summary
@@ -102,7 +102,7 @@ export const DatasetGeo = {
             : null,
         rowCount: Number(extent?.rows ?? 0),
       }
-      await redis().set(key, JSON.stringify(summary), 'EX', CACHE_TTL_SECONDS)
+      await cache.set(key, JSON.stringify(summary), CACHE_TTL_SECONDS)
     }
     const { physical: _physical, ...publicField } = field
     return {

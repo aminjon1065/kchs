@@ -36,6 +36,10 @@ process.env.ROLE = 'api'
 // Redis и поисковый индекс тоже отдельные: тесты не трогают кэши, очереди и
 // индекс работающего стенда разработки
 process.env.REDIS_URL = withRedisDb(process.env.REDIS_URL ?? '', 1 + slot)
+// Отдельный кэш (ADR-0175), если задан, — та же база слота в его экземпляре
+if (process.env.REDIS_CACHE_URL) {
+  process.env.REDIS_CACHE_URL = withRedisDb(process.env.REDIS_CACHE_URL, 1 + slot)
+}
 process.env.MEILI_INDEX_PREFIX = slot ? `test${slot}_` : 'test_'
 // Базовые карты стенда (PMTiles, шрифты) лежат в общем бакете тайлов — тестам свой каталог
 process.env.BASEMAPS_PREFIX = slot ? `test${slot}/basemaps` : 'test/basemaps'

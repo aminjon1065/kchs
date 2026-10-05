@@ -13,7 +13,7 @@ import {
   spaceMembers,
   userRoles,
 } from '~/shared/db/schema/index.js'
-import { cacheKeys, redis } from '~/shared/redis/index.js'
+import { bumpVersionStamp, cache, cacheKeys, versionStamp } from '~/shared/redis/index.js'
 
 const CACHE_TTL_SECONDS = 300
 
@@ -196,21 +196,24 @@ export async function loadCapabilities(roleKeys: string[]): Promise<Set<Capabili
 
 // ─── Кэш ─────────────────────────────────────────────────────────────────────
 
+/**
+ * Версия наборов принципалов — отметка в долговечном Redis, а сами наборы — в кэше
+ * (ADR-0175). Отметка случайная: пропавшая заменяется новой, и ни один набор,
+ * посчитанный до потери, с ней не совпадёт.
+ */
 export async function principalsVersion(): Promise<number> {
-  const raw = await redis().get(cacheKeys.principalVersion())
-  return raw ? Number(raw) : 1
+  return versionStamp(cacheKeys.principalVersion())
 }
 
-/** Инвалидация: любое изменение членства повышает глобальную версию. */
+/** Инвалидация: любое изменение членства меняет глобальную версию. */
 export async function bumpPrincipalsVersion(): Promise<number> {
-  return redis().incr(cacheKeys.principalVersion())
+  return bumpVersionStamp(cacheKeys.principalVersion())
 }
 
 export async function getPrincipalSet(userId: string): Promise<PrincipalSet> {
-  const client = redis()
   const key = cacheKeys.principalSet(userId)
   const version = await principalsVersion()
-  const cached = await client.get(key)
+  const cached = await cache.get(key)
   if (cached) {
     try {
       const parsed = JSON.parse(cached) as PrincipalSet
@@ -228,10 +231,12 @@ export async function getPrincipalSet(userId: string): Promise<PrincipalSet> {
   }
   const computed = await computePrincipalSet(userId)
   computed.version = version
-  await client.set(key, JSON.stringify(computed), 'EX', CACHE_TTL_SECONDS)
+  await cache.set(key, JSON.stringify(computed), CACHE_TTL_SECONDS)
   return computed
 }
 
 export async function invalidatePrincipalSet(userId: string): Promise<void> {
-  await redis().del(cacheKeys.principalSet(userId))
+  // Кэш недоступен — набор мог остаться в нём до возвращения кэша: меняем общую
+  // версию, и устаревший набор не совпадёт с ней
+  if (!(await cache.del(cacheKeys.principalSet(userId)))) await bumpPrincipalsVersion()
 }

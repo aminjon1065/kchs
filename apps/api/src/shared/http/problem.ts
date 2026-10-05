@@ -8,6 +8,22 @@ import { isAppError } from '../errors.js'
 import { logger, redactUrl } from '../logger/index.js'
 
 const TYPE_BASE = 'https://kchs.local/problems'
+/** Через сколько повторить запрос, если Redis недоступен: переподключение — секунды. */
+const REDIS_RETRY_AFTER_SECONDS = 5
+
+/**
+ * Сбой соединения с Redis (ioredis): исчерпаны попытки команды, истёк её тайм-аут
+ * или соединение закрыто. Ответы самого Redis (ошибки команд) сюда не относятся.
+ */
+export function isRedisUnavailable(error: unknown): boolean {
+  if (!(error instanceof Error)) return false
+  if (error.name === 'MaxRetriesPerRequestError') return true
+  return (
+    error.message === 'Command timed out' ||
+    error.message === 'Connection is closed.' ||
+    error.message.startsWith("Stream isn't writeable")
+  )
+}
 
 export function toProblem(error: unknown, request: FastifyRequest): ProblemDetails {
   const locale = normalizeLocale(request.headers['accept-language'] ?? 'ru')
@@ -102,6 +118,20 @@ export function toProblem(error: unknown, request: FastifyRequest): ProblemDetai
       detail: fastifyError.message,
       instance: redactUrl(request.url),
       code,
+    }
+  }
+
+  // Основной Redis недоступен (ADR-0175): клиент пути запроса падает быстро, а
+  // ответ — «временно недоступен» с повтором, как при сбросе нагрузки
+  if (isRedisUnavailable(error)) {
+    logger().error({ err: error, url: redactUrl(request.url) }, 'Redis недоступен')
+    return {
+      type: `${TYPE_BASE}/service_unavailable`,
+      title: t('errors.service_unavailable'),
+      status: 503,
+      instance: redactUrl(request.url),
+      code: 'service_unavailable',
+      retryAfter: REDIS_RETRY_AFTER_SECONDS,
     }
   }
 

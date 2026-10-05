@@ -7,7 +7,7 @@ import { db, type Executor } from '~/shared/db/client.js'
 import { jobs } from '~/shared/db/schema/index.js'
 import { newId } from '~/shared/ids.js'
 import { logger } from '~/shared/logger/index.js'
-import { cacheKeys, createRedisConnection, redis } from '~/shared/redis/index.js'
+import { cache, cacheKeys, createRedisConnection, redis } from '~/shared/redis/index.js'
 import { traceMetadata } from '~/shared/telemetry/tracing.js'
 import { publishEvent } from '../events/publisher.js'
 import { signalCancel } from './cancellation.js'
@@ -174,7 +174,7 @@ export const JobService = {
       'rt:job',
       JSON.stringify({ jobId: id, progress, message: message ?? null }),
     )
-    await redis().setex(cacheKeys.jobProgress(id), 3600, String(progress))
+    await cache.set(cacheKeys.jobProgress(id), String(progress), 3600)
   },
 
   async finish(id: string, result: Record<string, unknown> = {}): Promise<void> {

@@ -2,7 +2,7 @@ import type { FieldProfile, StoredFieldType } from '@kchs/contracts'
 import { sql } from 'drizzle-orm'
 import { db, type Executor } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
-import { cacheKeys, redis } from '~/shared/redis/index.js'
+import { cache, cacheKeys } from '~/shared/redis/index.js'
 import { ident, qualified } from '../infra/physical.js'
 import type { DatasetGrant } from './dataset-access.js'
 import type { StoredField } from './dataset-service.js'
@@ -164,7 +164,7 @@ export const ProfileService = {
       dataset.schemaVersion,
       `${key}:${masked ? 'masked' : 'full'}`,
     )
-    const cached = await redis().get(cacheKey)
+    const cached = await cache.get(cacheKey)
     if (cached) return JSON.parse(cached) as FieldProfile
 
     const profile = await db().transaction(async (tx) => {
@@ -176,7 +176,7 @@ export const ProfileService = {
       version: dataset.currentVersion,
       computedAt: new Date().toISOString(),
     }
-    await redis().set(cacheKey, JSON.stringify(result), 'EX', CACHE_TTL_SECONDS)
+    await cache.set(cacheKey, JSON.stringify(result), CACHE_TTL_SECONDS)
     return result
   },
 }

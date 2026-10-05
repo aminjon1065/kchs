@@ -4,7 +4,7 @@ import { cacheKeyText } from '@kchs/query'
 import { DatasetQueries } from '~/modules/data/public.js'
 import type { Ctx } from '~/shared/context.js'
 import { queryRoleSql } from '~/shared/db/client.js'
-import { redis } from '~/shared/redis/index.js'
+import { cache } from '~/shared/redis/index.js'
 
 /** Сводка пересчитывается с новой версией данных или политикой (ключ компиляции). */
 const CACHE_TTL_SECONDS = 3600
@@ -44,7 +44,7 @@ export async function viewerGeometry(
   const key = `kchs:geo:viewer:${createHash('sha256')
     .update(`${cacheKeyText(compiled.cacheKeyParts)}|${schemaVersions}`)
     .digest('hex')}`
-  const cached = await redis().get(key)
+  const cached = await cache.get(key)
   if (cached) return JSON.parse(cached) as ViewerGeometry
 
   const geom = `src.${quote(geometryField)}`
@@ -72,6 +72,6 @@ export async function viewerGeometry(
         : null,
     count: Number(row?.c ?? 0),
   }
-  await redis().set(key, JSON.stringify(summary), 'EX', CACHE_TTL_SECONDS)
+  await cache.set(key, JSON.stringify(summary), CACHE_TTL_SECONDS)
   return summary
 }

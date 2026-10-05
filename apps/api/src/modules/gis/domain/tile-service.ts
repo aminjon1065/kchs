@@ -14,7 +14,7 @@ import { queryRoleSql } from '~/shared/db/client.js'
 import { pgErrorCode } from '~/shared/db/pg-error.js'
 import { errors } from '~/shared/errors.js'
 import { logger } from '~/shared/logger/index.js'
-import { redis } from '~/shared/redis/index.js'
+import { cache } from '~/shared/redis/index.js'
 import { layerConditions, tilePreview } from './layer-filter.js'
 import { LayerService } from './layer-service.js'
 
@@ -153,7 +153,7 @@ export const TileService = {
       .digest('hex')
     const key = `kchs:tile:${layerId}:${hash}`
     const etag = `"${hash.slice(0, 32)}"`
-    const hit = await redis().getBuffer(key)
+    const hit = await cache.getBuffer(key)
     if (hit) {
       return { body: hit.length > 0 ? hit : null, etag, cached: true, timedOut: false, sqlMs: null }
     }
@@ -227,7 +227,7 @@ export const TileService = {
     }
     const sqlMs = performance.now() - started
     const buffer = mvt && mvt.length > 0 ? await gzip(mvt) : Buffer.alloc(0)
-    await redis().set(key, buffer, 'EX', CACHE_TTL_SECONDS)
+    await cache.set(key, buffer, CACHE_TTL_SECONDS)
     return { body: buffer.length > 0 ? buffer : null, etag, cached: false, timedOut: false, sqlMs }
   },
 }

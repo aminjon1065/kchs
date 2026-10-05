@@ -5,7 +5,7 @@ import { type Locale, TERRITORY_LEVELS, type TerritoryLevel } from '@kchs/contra
 import { sql } from 'drizzle-orm'
 import { db } from '~/shared/db/client.js'
 import { objects, territories } from '~/shared/db/schema/index.js'
-import { redis } from '~/shared/redis/index.js'
+import { cache } from '~/shared/redis/index.js'
 import { simplifyTolerance, TerritoryService } from './territory-service.js'
 
 const gzip = promisify(gzipCallback)
@@ -81,13 +81,13 @@ export const TerritoryTiles = {
 
   /** Тайл MVT, сжатый gzip, — так он и лежит в кэше; пустой буфер — в тайле ничего нет. */
   async render(request: TerritoryTileRequest, key: string): Promise<Buffer> {
-    const cached = await redis().getBuffer(key)
+    const cached = await cache.getBuffer(key)
     if (cached) return cached
     const layers: Buffer[] = []
     for (const level of request.levels) layers.push(await layerTile(request, level))
     const tile = Buffer.concat(layers)
     const body = tile.length > 0 ? await gzip(tile) : tile
-    await redis().set(key, body, 'EX', CACHE_TTL_SECONDS)
+    await cache.set(key, body, CACHE_TTL_SECONDS)
     return body
   },
 }

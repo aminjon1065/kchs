@@ -18,7 +18,7 @@ import { db, type Executor } from '~/shared/db/client.js'
 import { delegations, inboxItems, users } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
-import { cacheKeys, redis } from '~/shared/redis/index.js'
+import { cache, cacheKeys } from '~/shared/redis/index.js'
 import { redactSummary } from '../access/confidentiality.js'
 import { isServiceAccount } from '../access/service-accounts.js'
 import { directory } from '../directory/port.js'
@@ -543,7 +543,7 @@ export const InboxService = {
   },
 
   async counts(userId: string): Promise<InboxCounts> {
-    const cached = await redis().get(cacheKeys.inboxCounts(userId))
+    const cached = await cache.get(cacheKeys.inboxCounts(userId))
     if (cached) return JSON.parse(cached) as InboxCounts
 
     const rows = await db()
@@ -566,7 +566,7 @@ export const InboxService = {
       byKind: Object.fromEntries(rows.map((r) => [r.kind, r.total])),
     }
 
-    await redis().setex(cacheKeys.inboxCounts(userId), 60, JSON.stringify(counts))
+    await cache.set(cacheKeys.inboxCounts(userId), JSON.stringify(counts), 60)
     return counts
   },
 
@@ -689,13 +689,13 @@ async function activeDeputies(tx: Executor, userId: string, kind: InboxKind): Pr
 /** Сбросить кэш счётчиков без пересчёта — внутри транзакции, до коммита. */
 async function dropCounts(userIds: string[]): Promise<void> {
   const keys = [...new Set(userIds)].map((userId) => cacheKeys.inboxCounts(userId))
-  if (keys.length > 0) await redis().del(...keys)
+  await cache.del(...keys)
 }
 
 /** Пересчитать счётчики и отправить в realtime — вне транзакции или после коммита. */
 export async function invalidateCounts(userIds: string[]): Promise<void> {
   for (const userId of [...new Set(userIds)]) {
-    await redis().del(cacheKeys.inboxCounts(userId))
+    await cache.del(cacheKeys.inboxCounts(userId))
     const counts = await InboxService.counts(userId)
     emitToUser(userId, 'inbox.changed', { counts })
   }

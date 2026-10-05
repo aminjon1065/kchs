@@ -24,7 +24,7 @@ import { db, type Executor } from '~/shared/db/client.js'
 import { objects, serviceLayers } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
-import { redis } from '~/shared/redis/index.js'
+import { cache } from '~/shared/redis/index.js'
 import { fetchExternal, RASTER_CONTENT_TYPES } from './raster-fetch.js'
 import { serviceTileUrl } from './service-url.js'
 
@@ -375,9 +375,9 @@ export const ServiceLayerService = {
     if (z < row.minZoom || z > row.maxZoom) return null
 
     const cacheKey = `kchs:service-layer:${id}:${tag(row)}:${z}/${x}/${y}`
-    const cached = await redis().getBuffer(cacheKey)
+    const cached = await cache.getBuffer(cacheKey)
     if (cached) {
-      const stored = (await redis().get(`${cacheKey}:ct`)) ?? 'image/png'
+      const stored = (await cache.get(`${cacheKey}:ct`)) ?? 'image/png'
       // Кэш мог заполниться до того, как перечень типов стал точным
       const contentType = RASTER_CONTENT_TYPES.includes(stored) ? stored : 'image/png'
       return { body: cached, contentType }
@@ -401,8 +401,8 @@ export const ServiceLayerService = {
       what: 'растровая служба',
     })
     if (!tile) return null
-    await redis().set(cacheKey, tile.body, 'EX', SERVICE_LAYER_CACHE_TTL)
-    await redis().set(`${cacheKey}:ct`, tile.contentType, 'EX', SERVICE_LAYER_CACHE_TTL)
+    await cache.set(cacheKey, tile.body, SERVICE_LAYER_CACHE_TTL)
+    await cache.set(`${cacheKey}:ct`, tile.contentType, SERVICE_LAYER_CACHE_TTL)
     return tile
   },
 
@@ -415,12 +415,12 @@ export const ServiceLayerService = {
     if (!row || isRaster(row.kind)) throw errors.notFound('Векторная служба')
     const limit = Math.min(query.limit, SERVICE_LAYER_FEATURES_LIMIT)
     const cacheKey = `kchs:service-layer:${id}:${tag(row)}:features:${query.bbox ?? 'all'}:${limit}`
-    const cached = await redis().get(cacheKey)
+    const cached = await cache.get(cacheKey)
     if (cached) return { body: cached, truncated: false }
     const collection = await fetchFeatures(row, query.bbox, limit, 0)
     const features = collection.features ?? []
     const body = JSON.stringify({ type: 'FeatureCollection', features })
-    await redis().set(cacheKey, body, 'EX', SERVICE_LAYER_CACHE_TTL)
+    await cache.set(cacheKey, body, SERVICE_LAYER_CACHE_TTL)
     return { body, truncated: features.length >= limit }
   },
 

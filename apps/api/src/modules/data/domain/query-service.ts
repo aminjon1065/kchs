@@ -43,7 +43,7 @@ import { pgErrorCode } from '~/shared/db/pg-error.js'
 import { objects, queries, queryRuns } from '~/shared/db/schema/index.js'
 import { AppError, errors } from '~/shared/errors.js'
 import { logger } from '~/shared/logger/index.js'
-import { redis } from '~/shared/redis/index.js'
+import { cache } from '~/shared/redis/index.js'
 import { ColumnarService, type ColumnarSource, columnarUnsupported } from './columnar-service.js'
 import { DatasetAccess, type DatasetGrant } from './dataset-access.js'
 import { DatasetService, type DatasetStorage } from './dataset-service.js'
@@ -588,7 +588,7 @@ export const QueryService = {
       .digest('hex')
     const cacheKey = `kchs:query:${specHash}`
 
-    const hit = cacheable ? await redis().get(cacheKey) : null
+    const hit = cacheable ? await cache.get(cacheKey) : null
     if (hit) {
       const result = { ...(JSON.parse(hit) as QueryResult), cached: true }
       const durationMs = performance.now() - started
@@ -651,7 +651,7 @@ export const QueryService = {
       cached: false,
       executedOn: executor,
     }
-    if (cacheable) await redis().set(cacheKey, JSON.stringify(result), 'EX', CACHE_TTL_SECONDS)
+    if (cacheable) await cache.set(cacheKey, JSON.stringify(result), CACHE_TTL_SECONDS)
     await recordRun(ctx, {
       queryId: options.queryId,
       specHash,
@@ -756,7 +756,7 @@ export const QueryService = {
       .digest('hex')
     const cacheKey = `kchs:query:${specHash}`
     if (compiled.cacheable) {
-      const hit = await redis().get(cacheKey)
+      const hit = await cache.get(cacheKey)
       if (hit) {
         const result = { ...(JSON.parse(hit) as QueryResult), cached: true }
         const durationMs = performance.now() - started
@@ -817,7 +817,7 @@ export const QueryService = {
       executedOn: 'postgres',
     }
     if (compiled.cacheable) {
-      await redis().set(cacheKey, JSON.stringify(result), 'EX', CACHE_TTL_SECONDS)
+      await cache.set(cacheKey, JSON.stringify(result), CACHE_TTL_SECONDS)
     }
     await recordRun(ctx, {
       specHash,

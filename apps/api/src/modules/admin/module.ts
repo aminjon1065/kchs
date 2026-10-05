@@ -14,7 +14,7 @@ import { config } from '~/shared/config/env.js'
 import { csvCell } from '~/shared/csv.js'
 import { db } from '~/shared/db/client.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
-import { redis } from '~/shared/redis/index.js'
+import { pingCache, redis } from '~/shared/redis/index.js'
 import { observabilitySnapshot } from './domain/observability.js'
 import { registerBackupRoutes } from './http/backup-routes.js'
 import { registerBrandingRoutes } from './http/branding-routes.js'
@@ -138,6 +138,8 @@ export function registerAdminRoutes(route: RouteRegistrar): void {
         check('redis', async () => {
           await redis().ping()
         }),
+        // Кэш — отдельной строкой, только если это свой экземпляр (ADR-0175)
+        ...(config().REDIS_CACHE_URL ? [check('redis-cache', () => pingCache())] : []),
         check('meilisearch', async () => {
           if (!(await searchHealthy())) throw new Error('недоступен')
         }),

@@ -13,7 +13,7 @@ import type { Ctx } from '~/shared/context.js'
 import { queryRoleSql } from '~/shared/db/client.js'
 import { pgErrorCode } from '~/shared/db/pg-error.js'
 import { errors } from '~/shared/errors.js'
-import { redis } from '~/shared/redis/index.js'
+import { cache } from '~/shared/redis/index.js'
 import { LayerService } from './layer-service.js'
 
 const NUMERIC = new Set<FieldType>(['integer', 'number', 'decimal', 'money', 'percent'])
@@ -131,7 +131,7 @@ export const LayerStatsService = {
       )
       .digest('hex')
     const cacheKey = `kchs:layer-stats:${layerId}:${key}`
-    const hit = await redis().get(cacheKey)
+    const hit = await cache.get(cacheKey)
     if (hit) return JSON.parse(hit) as LayerStats
 
     const [row = {}] = await execute(summary.compiled.sql, summary.compiled.params)
@@ -200,7 +200,7 @@ export const LayerStatsService = {
       classes: input.method ? input.classes : null,
       sample,
     }
-    await redis().set(cacheKey, JSON.stringify(stats), 'EX', CACHE_TTL_SECONDS)
+    await cache.set(cacheKey, JSON.stringify(stats), CACHE_TTL_SECONDS)
     return stats
   },
 }

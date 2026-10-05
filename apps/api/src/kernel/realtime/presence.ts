@@ -1,11 +1,12 @@
-import { cacheKeys, redis } from '~/shared/redis/index.js'
+import { cache, cacheKeys } from '~/shared/redis/index.js'
 
 /**
  * Присутствие: кто сейчас смотрит объект (02-platform-kernel.md §Realtime,
  * 16-api-and-events.md §3). Клиент подтверждает просмотр видимой вкладки раз
  * в 30 с (`presence.view`) и прощается при уходе (`presence.leave`); отметка
  * без подтверждения дольше минуты считается ушедшей — вкладку могли закрыть
- * без прощания, а соединение — ещё не разорваться.
+ * без прощания, а соединение — ещё не разорваться. Отметки живут в кэше
+ * (ADR-0175): недоступный кэш — «никто не смотрит», а не ошибка.
  */
 export const PRESENCE_TTL_MS = 70_000
 
@@ -23,7 +24,7 @@ interface Mark {
 /** Кто смотрит сейчас; устаревшие отметки удаляются. */
 export async function viewers(objectId: string, now = Date.now()): Promise<Viewer[]> {
   const key = cacheKeys.presence(objectId)
-  const raw = await redis().hgetall(key)
+  const raw = await cache.hgetall(key)
   const fresh: Viewer[] = []
   const stale: string[] = []
   for (const [id, value] of Object.entries(raw)) {
@@ -31,7 +32,7 @@ export async function viewers(objectId: string, now = Date.now()): Promise<Viewe
     if (now - mark.at > PRESENCE_TTL_MS) stale.push(id)
     else fresh.push({ id, displayName: mark.displayName, avatarUrl: null })
   }
-  if (stale.length > 0) await redis().hdel(key, ...stale)
+  await cache.hdel(key, ...stale)
   return fresh
 }
 
@@ -42,9 +43,8 @@ export async function markViewing(
 ): Promise<Viewer[]> {
   const key = cacheKeys.presence(objectId)
   const mark: Mark = { displayName: user.displayName, at: now }
-  await redis().hset(key, user.id, JSON.stringify(mark))
   // Ключ целиком исчезает, если объект никто не смотрит пару минут
-  await redis().expire(key, 120)
+  await cache.hset(key, user.id, JSON.stringify(mark), 120)
   return viewers(objectId, now)
 }
 
@@ -53,6 +53,6 @@ export async function markLeft(
   userId: string,
   now = Date.now(),
 ): Promise<Viewer[]> {
-  await redis().hdel(cacheKeys.presence(objectId), userId)
+  await cache.hdel(cacheKeys.presence(objectId), userId)
   return viewers(objectId, now)
 }

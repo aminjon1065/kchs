@@ -11,6 +11,7 @@ import { EventsCard } from './events-card.js'
 const COMPONENT_ICONS: Record<string, typeof Server> = {
   postgres: Database,
   redis: Activity,
+  'redis-cache': Activity,
   meilisearch: Search,
   storage: HardDrive,
   engine: Cpu,

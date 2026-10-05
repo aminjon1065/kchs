@@ -387,8 +387,16 @@ export const TerritoryService = {
     await redis().set(VERSION_KEY, newId())
   },
 
+  /**
+   * Пропавшая метка (сбой Redis, очистка) заменяется новой случайной, а не общим
+   * «нет версии»: тайлы границ в отдельном кэше (ADR-0175) переживают потерю
+   * долговечного Redis, и под общей меткой вернулись бы прежние.
+   */
   async version(): Promise<string> {
-    return (await redis().get(VERSION_KEY)) ?? 'none'
+    const current = await redis().get(VERSION_KEY)
+    if (current) return current
+    await redis().set(VERSION_KEY, newId(), 'NX')
+    return (await redis().get(VERSION_KEY)) ?? newId()
   },
 
   /** Все единицы справочника (без удалённых объектов) — по коду. */
