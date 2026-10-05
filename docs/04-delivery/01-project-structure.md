@@ -63,15 +63,26 @@ src/
 
 ```
 src/
-├── app/                          # оболочка: router, providers, workspace (tabs, panes, panels), command palette, shortcuts, realtime client, view-context
-├── features/<module>/            # экраны и компоненты модуля: screens/, components/, api/ (hooks над openapi-fetch), model/ (zustand), routes.tsx
-├── entities/                     # общие сущностные компоненты: ObjectChip, ObjectCard, UserChip, TerritoryChip, pickers
-├── shared/                       # api-client, auth, i18n init, utils, hooks
-├── print/                        # маршруты печати без оболочки
+├── app/                          # оболочка: providers, рабочее пространство (вкладки, панели, рейка, палитра, контекст-панель), точка сборки модулей app/modules.tsx
+├── features/<module>/            # экраны и компоненты модуля; module.ts(x) — что модуль даёт оболочке; index.ts — публичный вход для других фич (запросы, ключи, подписи)
+├── entities/                     # сквозные компоненты сущностей: доступ, выбор людей и объектов, присутствие, загрузка и превью файлов, совместная правка, сообщения
+├── shared/                       # клиент API, перевод (useT, useLocale), оформление, realtime, состояние рабочего пространства и реестр модулей (shared/workspace)
 └── main.tsx
 ```
 
-Правила: компоненты UI только из `@kchs/ui`; серверное состояние — TanStack Query с ключами `['objectType', id, …]`; инвалидация по realtime `object.updated`; состояние вкладки — в `app/workspace/tab-state` (Zustand, персист); модуль регистрирует свои маршруты, типы объектов (клиентское описание: иконка, открытие, превью) и команды палитры в `features/<module>/module.ts`.
+Правила (ADR-0183, `apps/web/.dependency-cruiser.cjs`, `pnpm deps:check`):
+- слои снизу вверх `shared` → `entities` → `features` → `app`; нижний слой не импортирует верхний;
+- чужая фича — только через `features/<m>/index.ts`; в публичном входе — лёгкие модули, без компонентов;
+- оболочка знает фичи только в точке сборки `app/modules.tsx`: модуль описывает себя `ModuleDefinition`
+  (экраны, представления объектов, пункты навигации, возможности оболочки, слои) и регистрируется
+  `registerModule`; рейка, палитра, shell и контекст-панель читают реестр;
+- обращения к API — в слое запросов фичи (`api/`, `queries.ts`), в `entities` и `shared`;
+- нарушения, бывшие до правил, — база известных (`.dependency-cruiser-known-violations.json`), новые
+  роняют CI.
+
+Остальное: компоненты UI только из `@kchs/ui`; серверное состояние — TanStack Query с ключами
+`['objectType', id, …]`; инвалидация по realtime `object.updated` (все запросы с id объекта в ключе);
+состояние вкладки — `setTabState` хранилища `shared/workspace/store.ts` (Zustand, персист).
 
 ## `apps/engine`
 
