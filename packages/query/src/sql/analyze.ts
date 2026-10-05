@@ -1,5 +1,6 @@
 import { similarNames } from '../compiler/scope.js'
 import { SYSTEM_COLUMNS } from '../compiler/sources.js'
+import { quoteIdent } from '../ident.js'
 import type { ResolvedField, SqlDataset } from '../types.js'
 import { valueTypeOfField } from '../value-types.js'
 import {
@@ -13,7 +14,6 @@ import {
 } from './allowlist.js'
 import {
   type Placeholder,
-  quoteIdent,
   readIdentifier,
   readIdentifierChain,
   SourcePositions,

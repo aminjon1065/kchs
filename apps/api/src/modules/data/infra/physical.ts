@@ -1,7 +1,8 @@
 import type { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import type { StoredFieldType } from '@kchs/contracts'
-import { sql } from 'drizzle-orm'
+import { quoteIdent } from '@kchs/query'
+import { type SQL, sql } from 'drizzle-orm'
 import type { Executor } from '~/shared/db/client.js'
 import { rawSql } from '~/shared/db/client.js'
 import { pgErrorCode } from '~/shared/db/pg-error.js'
@@ -21,11 +22,13 @@ import { AppError, errors } from '~/shared/errors.js'
  */
 
 const IDENT = /^[a-z_][a-z0-9_]{0,62}$/
+/** Ключ поля (FieldDef.key): snake_case латиницей. */
+const FIELD_KEY = /^[a-z_][a-z0-9_]*$/
 
 /** Экранирование имени: только сгенерированные имена, иначе — ошибка программиста. */
 export function ident(name: string): string {
   if (!IDENT.test(name)) throw errors.internal(`Недопустимое имя в DDL: ${name}`)
-  return `"${name}"`
+  return quoteIdent(name)
 }
 
 const compact = (id: string) => id.replaceAll('-', '').toLowerCase()
@@ -37,6 +40,27 @@ export const columnName = (n: number) => `c_${n}`
 
 /** `ds."t_…"` — полное имя таблицы в схеме датасетов. */
 export const qualified = (table: string) => `ds.${ident(table)}`
+
+/**
+ * Таблица схемы датасетов (строки `t_…`, staging `s_…`) фрагментом Drizzle. Имена
+ * хранения — фрагментами для запросов сервисов модуля к таблицам `ds` (ADR-0184):
+ * `sql.raw` модуля данных живёт только в infra, в текст SQL попадают лишь
+ * сгенерированные имена и проверенные ключи полей, значения — параметрами.
+ */
+export const tableSql = (table: string): SQL => sql.raw(qualified(table))
+/** История строк датасета `ds."h_…"`. */
+export const historySql = (datasetId: string): SQL => tableSql(historyName(datasetId))
+/** Столбец таблицы датасета: `"c_…"` или служебный. */
+export const columnSql = (name: string): SQL => sql.raw(ident(name))
+/** Тип столбца поля — приведение параметра к нему. */
+export const typeSql = (type: StoredFieldType, precision?: number): SQL =>
+  sql.raw(columnType(type, precision))
+
+/** Ключ поля как псевдоним столбца результата. */
+export function aliasSql(key: string): SQL {
+  if (!FIELD_KEY.test(key)) throw errors.internal(`Недопустимый ключ поля: ${key}`)
+  return sql.raw(quoteIdent(key))
+}
 
 /** Сколько DDL таблицы датасета ждёт её блокировку (ADR-0173). */
 const DDL_LOCK_TIMEOUT = '5s'

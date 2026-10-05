@@ -3,8 +3,9 @@ import { type Bbox, QuerySpec } from '@kchs/contracts'
 import { cacheKeyText } from '@kchs/query'
 import { DatasetQueries } from '~/modules/data/public.js'
 import type { Ctx } from '~/shared/context.js'
-import { queryRoleSql } from '~/shared/db/client.js'
+import { readAsQueryRole } from '~/shared/db/query-role.js'
 import { cache } from '~/shared/redis/index.js'
+import { extentSql } from '../infra/layer-sql.js'
 
 /** Сводка пересчитывается с новой версией данных или политикой (ключ компиляции). */
 const CACHE_TTL_SECONDS = 3600
@@ -14,8 +15,6 @@ export interface ViewerGeometry {
   extent: Bbox | null
   count: number
 }
-
-const quote = (name: string) => `"${name.replace(/"/g, '""')}"`
 
 /**
  * Экстент и число объектов слоя в пределах политики строк смотрящего (ADR-0064):
@@ -47,15 +46,9 @@ export async function viewerGeometry(
   const cached = await cache.get(key)
   if (cached) return JSON.parse(cached) as ViewerGeometry
 
-  const geom = `src.${quote(geometryField)}`
-  const rows = await queryRoleSql().begin('read only', async (sql) => {
-    await sql`SELECT set_config('statement_timeout', ${String(TIMEOUT_MS)}, true)`
-    return sql.unsafe(
-      `SELECT ST_XMin(e) AS minx, ST_YMin(e) AS miny, ST_XMax(e) AS maxx, ST_YMax(e) AS maxy, c
-         FROM (SELECT ST_Extent(${geom}) AS e, count(${geom})::int AS c FROM (${compiled.sql}) src) x`,
-      compiled.params as never[],
-    )
-  })
+  const rows = await readAsQueryRole({ timeoutMs: TIMEOUT_MS }, (read) =>
+    read.rows(extentSql(compiled, geometryField)),
+  )
   const row = rows[0] as
     | {
         minx: number | null

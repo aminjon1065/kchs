@@ -9,6 +9,7 @@ import {
   type SourceTable,
   type StoredFieldType,
 } from '@kchs/contracts'
+import { quoteIdent } from '@kchs/query'
 import postgres from 'postgres'
 import { config } from '~/shared/config/index.js'
 import { errors } from '~/shared/errors.js'
@@ -24,6 +25,11 @@ import type { IntegrationRow } from '../schema.js'
  * подмена DNS между проверкой и подключением ничего не даёт. Loopback и
  * link-local закрыты (как у вебхуков и прокси тайлов), частные сети открыты —
  * корпоративная база обычно в них.
+ *
+ * Текст запроса — для чужой базы: таблица по проверенным именам или SQL
+ * пользователя к его же базе (права — у учётной записи интеграции), значение
+ * курсора — параметром. Поэтому `.unsafe` здесь — осознанное исключение
+ * проверки сырого SQL (ADR-0184, `scripts/raw-sql.mjs`).
  */
 
 /** Виды интеграций, которые обслуживает этот модуль. */
@@ -82,9 +88,10 @@ async function resolveHost(host: string): Promise<string> {
   return allowed.address
 }
 
-function quoteIdent(value: string, dialect: 'postgres' | 'mysql'): string {
+/** Имя во внешней базе: проверка по `IDENT`, кавычки — по диалекту (у MySQL — обратные). */
+function externalIdent(value: string, dialect: 'postgres' | 'mysql'): string {
   if (!IDENT.test(value)) throw errors.validation(`Недопустимое имя «${value}»`)
-  return dialect === 'mysql' ? `\`${value}\`` : `"${value}"`
+  return dialect === 'mysql' ? `\`${value}\`` : quoteIdent(value)
 }
 
 /**
@@ -116,13 +123,13 @@ function selectText(
 ): { sql: string; withCursor: boolean } {
   const from =
     query.kind === 'table'
-      ? `${quoteIdent(query.schema || options.defaultSchema, dialect)}.${quoteIdent(query.table, dialect)}`
+      ? `${externalIdent(query.schema || options.defaultSchema, dialect)}.${externalIdent(query.table, dialect)}`
       : `(${query.sql}) AS kchs_src`
   const parts = [`SELECT * FROM ${from}`]
   // Первый инкремент читает всё: сравнивать не с чем
   const withCursor = Boolean(options.cursorField && options.cursorValue)
   if (options.cursorField) {
-    const column = quoteIdent(options.cursorField, dialect)
+    const column = externalIdent(options.cursorField, dialect)
     if (withCursor) {
       // Значение курсора всегда приходит текстом — приводим его к типу столбца
       const cast = PG_CURSOR_CAST[options.cursorType ?? 'text']

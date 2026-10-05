@@ -5,6 +5,7 @@ import type {
   QuerySpec,
   QueryStep,
 } from '@kchs/contracts'
+import { quoteIdent } from '@kchs/query'
 import { errors } from '~/shared/errors.js'
 
 /**
@@ -52,7 +53,7 @@ const bare = (ref: string) => {
 
 /** Экранирование поля в выражении: `alias.field` или `"поле с пробелами"`. */
 function exprRef(ref: string): string {
-  return /^[a-z_][a-z0-9_]*(\.[a-z_][a-z0-9_]*)?$/i.test(ref) ? ref : `"${ref.replace(/"/g, '')}"`
+  return /^[a-z_][a-z0-9_]*(\.[a-z_][a-z0-9_]*)?$/i.test(ref) ? ref : quoteIdent(ref)
 }
 
 /** Строковый литерал языка выражений. */

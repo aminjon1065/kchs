@@ -1,4 +1,5 @@
 import type { DashboardDrillPick, FilterNode, QuerySpec } from '@kchs/contracts'
+import { quoteIdent } from '@kchs/query'
 import { errors } from '~/shared/errors.js'
 
 type Step = QuerySpec['steps'][number]
@@ -24,13 +25,11 @@ function groupName(group: AggregateStep['groupBy'][number]): string {
   return group.alias ?? (group.bucket ? `${group.field}_${group.bucket}` : group.field)
 }
 
-const quote = (name: string) => `"${name.replace(/"/g, '""')}"`
-
 /** Интервал разреза — тем же усечением, что у агрегации: локальная дата или час. */
 function bucketExpression(field: string, bucket: string): string {
   return bucket === 'hour'
-    ? `date_trunc('hour', ${quote(field)})`
-    : `date_trunc('${bucket}', date(${quote(field)}))`
+    ? `date_trunc('hour', ${quoteIdent(field)})`
+    : `date_trunc('${bucket}', date(${quoteIdent(field)}))`
 }
 
 function condition(field: string, pick: DashboardDrillPick): FilterNode {

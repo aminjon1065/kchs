@@ -1,4 +1,5 @@
 import { UnsupportedByDialectError } from './errors.js'
+import { quoteIdent } from './ident.js'
 
 /**
  * Диалект SQL. Компилятор пишет запрос через эти примитивы: Postgres —
@@ -73,11 +74,6 @@ export interface Dialect {
 
 const SAFE_IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/
 
-/** Имена столбцов и алиасы проверены контрактом; кавычки — защита в глубину. */
-function quote(name: string): string {
-  return `"${name.replaceAll('"', '""')}"`
-}
-
 const PG_INTERVAL_FIELD: Record<IntervalUnit, [string, number]> = {
   year: ['years', 1],
   quarter: ['months', 3],
@@ -101,13 +97,14 @@ const PG_DATE_PART: Record<DatePart, string> = {
 
 export const postgresDialect: Dialect = {
   name: 'postgres',
-  ident: quote,
+  // Имена столбцов и алиасы проверены контрактом; кавычки — защита в глубину
+  ident: quoteIdent,
   table(ref) {
     const parts = ref.split('.')
     if (parts.length !== 2 || !parts.every((part) => SAFE_IDENT.test(part))) {
       throw new Error(`Недопустимое имя таблицы: ${ref}`)
     }
-    return parts.map(quote).join('.')
+    return parts.map(quoteIdent).join('.')
   },
   placeholder: (index) => `$${index}`,
   cast: (sql, type) => `${sql}::${type}`,
@@ -207,7 +204,7 @@ function unsupported(feature: string): never {
  */
 export const duckdbDialect: Dialect = {
   name: 'duckdb',
-  ident: quote,
+  ident: quoteIdent,
   table: postgresDialect.table,
   placeholder: (index) => `$${index}`,
   cast: (sql, type) => `CAST(${sql} AS ${duckdbType(type)})`,

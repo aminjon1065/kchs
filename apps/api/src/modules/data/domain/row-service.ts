@@ -22,7 +22,7 @@ import { actorId, type Ctx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
 import { pgErrorCode, UNIQUE_VIOLATION } from '~/shared/db/pg-error.js'
 import { AppError, errors } from '~/shared/errors.js'
-import { columnType, historyName, ident, qualified } from '../infra/physical.js'
+import { aliasSql, columnSql, historySql, tableSql, typeSql } from '../infra/physical.js'
 import { datasets } from '../schema.js'
 import { DatasetAccess, type DatasetGrant } from './dataset-access.js'
 import { DatasetService, type DatasetStorage, type StoredField } from './dataset-service.js'
@@ -42,14 +42,7 @@ const SEARCH_TYPES = new Set<string>([
 /** Для текста пустая строка — значение, для остальных типов — «пусто». */
 const TEXT_TYPES = new Set<string>(['text', 'long_text', 'identifier'])
 const NUMERIC = new Set<string>(['integer', 'number', 'decimal', 'money', 'percent'])
-const FIELD_KEY = /^[a-z_][a-z0-9_]*$/
 const HISTORY_OPS = { i: 'insert', u: 'update', d: 'delete' } as const
-
-/** Ключ поля как псевдоним столбца: ключи — snake_case латиницей (FieldDef.key). */
-function alias(key: string): SQL {
-  if (!FIELD_KEY.test(key)) throw errors.internal(`Недопустимый ключ поля: ${key}`)
-  return sql.raw(`"${key}"`)
-}
 
 /** Значение столбца в JSON: bigint и numeric — числа, даты — ISO 8601. */
 function jsonOut(value: unknown, type: string): unknown {
@@ -81,15 +74,15 @@ export function valueSql(field: StoredField, value: unknown): SQL {
   if (type === 'boolean') return sql`${value === true || value === 'true'}::boolean`
   if (type === 'multi_select') return sql`${textArrayLiteral(value as string[])}::text[]`
   // Имя типа — из columnType (сгенерировано), значение — параметром
-  return sql`${String(value)}::${sql.raw(columnType(type, field.format?.precision))}`
+  return sql`${String(value)}::${typeSql(type, field.format?.precision)}`
 }
 
 /** Столбцы строки под ключами полей; геометрия — GeoJSON. */
 export function selectList(fields: StoredField[]): SQL {
   const columns = fields.map((field) =>
     field.type === 'geometry'
-      ? sql`extensions.ST_AsGeoJSON(${sql.raw(ident(field.physical))})::json AS ${alias(field.key)}`
-      : sql`${sql.raw(ident(field.physical))} AS ${alias(field.key)}`,
+      ? sql`extensions.ST_AsGeoJSON(${columnSql(field.physical)})::json AS ${aliasSql(field.key)}`
+      : sql`${columnSql(field.physical)} AS ${aliasSql(field.key)}`,
   )
   return columns.length > 0 ? sql`, ${sql.join(columns, sql`, `)}` : sql``
 }
@@ -310,7 +303,7 @@ export async function writeHistory(
   datasetVersion: number,
 ): Promise<void> {
   if (!storage.settings.trackHistory || entries.length === 0) return
-  const history = sql.raw(qualified(historyName(storage.id)))
+  const history = historySql(storage.id)
   await tx.execute(
     sql`INSERT INTO ${history} (row_id, ver, op, data, changed_by, dataset_version)
         VALUES ${sql.join(
@@ -487,8 +480,8 @@ export const RowService = {
     const assigned = new Set(prepared.flatMap((row) => row.map((item) => item.field.key)))
     const fields = storage.fields.filter((field) => assigned.has(field.key))
     const userId = actorId(ctx)
-    const table = sql.raw(qualified(storage.table))
-    const columns = fields.map((field) => sql.raw(ident(field.physical)))
+    const table = tableSql(storage.table)
+    const columns = fields.map((field) => columnSql(field.physical))
 
     return inTransaction(outer, async (tx) => {
       let inserted: Array<{ _id: string; _ver: number }>
@@ -581,7 +574,7 @@ export const RowService = {
     const assignments = prepare(storage, grant, patch.values, false, territories)
     if (assignments.length === 0) throw errors.validation('Нет значений для правки')
     const fields = visibleFields(storage, grant)
-    const table = sql.raw(qualified(storage.table))
+    const table = tableSql(storage.table)
     const userId = actorId(ctx)
 
     return inTransaction(outer, async (tx) => {
@@ -622,7 +615,7 @@ export const RowService = {
                  SET ${sql.join(
                    changed.map(
                      (item) =>
-                       sql`${sql.raw(ident(item.field.physical))} = ${valueSql(item.field, item.value)}`,
+                       sql`${columnSql(item.field.physical)} = ${valueSql(item.field, item.value)}`,
                    ),
                    sql`, `,
                  )}, _ver = _ver + 1, _updated_at = now(), _updated_by = ${userId}::uuid${
@@ -683,7 +676,7 @@ export const RowService = {
   ): Promise<string[]> {
     if (storage.settings.trackHistory) {
       const entries = await tx.execute<{ data: { values?: Record<string, unknown> } | null }>(
-        sql`SELECT data FROM ${sql.raw(qualified(historyName(storage.id)))}
+        sql`SELECT data FROM ${historySql(storage.id)}
              WHERE row_id = ${rowId}::bigint AND ver > ${ver}`,
       )
       const keys = new Set<string>()
@@ -712,7 +705,7 @@ export const RowService = {
     const unique = [...new Set(ids)]
     // Идентификаторы проверены контрактом (цифры) — литерал массива безопасен
     const idList = `{${unique.join(',')}}`
-    const table = sql.raw(qualified(storage.table))
+    const table = tableSql(storage.table)
     const userId = actorId(ctx)
     const fields = visibleFields(storage, grant)
 
@@ -822,7 +815,7 @@ export const RowService = {
     }>(
       // Порядок — по числовому id: имя `id` в ORDER BY означало бы текстовый псевдоним
       sql`SELECT h.id::text AS id, h.ver, h.op, h.data, h.changed_by, h.changed_at
-            FROM ${sql.raw(qualified(historyName(datasetId)))} AS h
+            FROM ${historySql(datasetId)} AS h
            WHERE h.row_id = ${rowId}::bigint ORDER BY h.id DESC LIMIT 200`,
     )
     const refs = await directory().refs([

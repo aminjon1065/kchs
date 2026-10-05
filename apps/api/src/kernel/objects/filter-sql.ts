@@ -84,7 +84,7 @@ function compileNode(node: FilterNode, fields: Map<string, ListFieldDef>, r: Res
     const children = ('and' in node ? node.and : node.or).map(
       (child) => sql`(${compileNode(child, fields, r)})`,
     )
-    return sql.join(children, sql.raw('and' in node ? ' AND ' : ' OR '))
+    return sql.join(children, 'and' in node ? sql` AND ` : sql` OR `)
   }
   return compileCondition(node, fields, r)
 }
@@ -252,9 +252,8 @@ export function compileObjectSort(
         { path: 'sort', message: item.field },
       ])
     }
-    const direction = sql.raw(item.direction === 'desc' ? 'DESC' : 'ASC')
-    const nulls = sql.raw(item.direction === 'desc' ? 'NULLS LAST' : 'NULLS FIRST')
-    clauses.push(sql`${field.sql} ${direction} ${nulls}`)
+    const order = item.direction === 'desc' ? sql`DESC NULLS LAST` : sql`ASC NULLS FIRST`
+    clauses.push(sql`${field.sql} ${order}`)
   }
   clauses.push(sql`${idColumn} ASC`)
   return clauses

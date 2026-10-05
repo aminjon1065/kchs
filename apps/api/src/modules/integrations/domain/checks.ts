@@ -2,8 +2,8 @@ import { lookup } from 'node:dns/promises'
 import { isIP } from 'node:net'
 import { config } from '~/shared/config/index.js'
 import { checkMailbox } from '~/shared/mail/imap.js'
+import { DATABASE_KINDS, ExternalDatabases } from '../infra/database-source.js'
 import type { IntegrationRow } from '../schema.js'
-import { DATABASE_KINDS, ExternalDatabases } from './database-source.js'
 
 /** Сколько ждём ответа при проверке связи и при доставке вебхука. */
 export const OUTBOUND_TIMEOUT_MS = 10_000

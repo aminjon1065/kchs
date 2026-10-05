@@ -2,7 +2,7 @@ import { eq, sql } from 'drizzle-orm'
 import { datasets, objects } from '~/db-schema.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { DatasetService } from '~/modules/data/domain/dataset-service.js'
-import { qualified } from '~/modules/data/infra/physical.js'
+import { columnSql, tableSql } from '~/modules/data/infra/physical.js'
 import { TerritoryService } from '~/modules/territories/public.js'
 import { db } from '~/shared/db/client.js'
 import { type PackContext, staffOf, unitId } from './context.js'
@@ -44,7 +44,7 @@ async function shelters(pack: PackContext, target: string, objects: string): Pro
   const storage = await DatasetService.storage(objects)
   const column = (key: string) => {
     const found = storage.fields.find((item) => item.key === key)
-    return found ? sql.raw(`"${found.physical}"`) : null
+    return found ? columnSql(found.physical) : null
   }
   const [code, name, type, territory, capacity, geometry] = [
     'code',
@@ -64,7 +64,7 @@ async function shelters(pack: PackContext, target: string, objects: string): Pro
   }>(sql`
     SELECT ${code} AS code, ${name} AS name, ${territory}::text AS territory,
            ${capacity}::int AS capacity, extensions.ST_AsGeoJSON(${geometry})::json AS geometry
-      FROM ${sql.raw(qualified(storage.table))}
+      FROM ${tableSql(storage.table)}
      WHERE _deleted_at IS NULL AND ${type} = 'Пункт временного размещения'
      ORDER BY ${code}
      LIMIT 400`)
@@ -258,7 +258,7 @@ async function responseTimes(pack: PackContext, target: string): Promise<number>
   const storage = await DatasetService.storage(target)
   const column = (key: string) => {
     const found = storage.fields.find((item) => item.key === key)
-    return found ? sql.raw(`"${found.physical}"`) : null
+    return found ? columnSql(found.physical) : null
   }
   const [code, occurred, kind, territory, called, dispatched, arrived] = [
     'code',
@@ -270,7 +270,7 @@ async function responseTimes(pack: PackContext, target: string): Promise<number>
     'arrived_at',
   ].map(column)
   if (!code || !occurred || !kind || !territory || !called || !dispatched || !arrived) return 0
-  const table = sql.raw(qualified(storage.table))
+  const table = tableSql(storage.table)
   const [filled] = await db().execute<{ found: boolean }>(
     sql`SELECT EXISTS (SELECT 1 FROM ${table} WHERE ${called} IS NOT NULL) AS found`,
   )

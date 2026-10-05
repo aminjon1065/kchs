@@ -1,12 +1,12 @@
 import type { DatasetVersion } from '@kchs/contracts'
-import { and, desc, eq, gt, inArray, sql } from 'drizzle-orm'
+import { and, desc, eq, gt, inArray, type SQL, sql } from 'drizzle-orm'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { actorId, type Ctx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
 import { pgErrorCode, UNIQUE_VIOLATION } from '~/shared/db/pg-error.js'
 import { errors } from '~/shared/errors.js'
-import { historyName, ident, Physical, qualified } from '../infra/physical.js'
+import { columnSql, historySql, Physical, tableSql } from '../infra/physical.js'
 import { datasets, datasetVersions, imports } from '../schema.js'
 import { DatasetService, type StoredField } from './dataset-service.js'
 import { HistoryRetention } from './history-retention.js'
@@ -84,7 +84,7 @@ async function laterVersions(
   const logged = new Map<number, number>()
   const counted = await tx.execute<{ version: number; n: number }>(
     sql`SELECT dataset_version AS version, count(*)::int AS n
-          FROM ${sql.raw(qualified(historyName(datasetId)))}
+          FROM ${historySql(datasetId)}
          WHERE dataset_version > ${target}
          GROUP BY dataset_version`,
   )
@@ -183,8 +183,8 @@ async function revert(ctx: Ctx, datasetId: string, target: number): Promise<numb
     // Номер новой версии известен заранее: датасет заблокирован, отмены помечаются им
     const next = row.current + 1
     const userId = actorId(ctx)
-    const table = sql.raw(qualified(storage.table))
-    const history = sql.raw(qualified(historyName(datasetId)))
+    const table = tableSql(storage.table)
+    const history = historySql(datasetId)
     const byKey = new Map(storage.fields.map((field) => [field.key, field]))
     const counters = { added: 0, updated: 0, deleted: 0 }
     const written: Array<{ rowId: string; ver: number; op: HistoryOp; data: unknown }> = []
@@ -281,7 +281,7 @@ async function revert(ctx: Ctx, datasetId: string, target: number): Promise<numb
 /** Правка строки отменяется: прежние значения полей, которые ещё есть в схеме. */
 async function restoreValues(
   tx: Executor,
-  table: ReturnType<typeof sql.raw>,
+  table: SQL,
   entry: HistoryEntry,
   byKey: Map<string, StoredField>,
   userId: string | null,
@@ -293,7 +293,7 @@ async function restoreValues(
   })
   if (fields.length === 0) return null
   const assignments = fields.map(
-    (field) => sql`${sql.raw(ident(field.physical))} = ${valueSql(field, previous[field.key])}`,
+    (field) => sql`${columnSql(field.physical)} = ${valueSql(field, previous[field.key])}`,
   )
   const [row] = await tx.execute<Record<string, unknown>>(
     sql`UPDATE ${table} AS t

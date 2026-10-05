@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { and, eq, inArray, sql } from 'drizzle-orm'
+import { z } from 'zod'
 import { config } from '~/shared/config/index.js'
 import type { Ctx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
@@ -199,6 +200,9 @@ export async function dropEmbeddings(objectId: string): Promise<void> {
   await db().delete(embeddings).where(eq(embeddings.objectId, objectId))
 }
 
+/** Вектор запроса: ровно `EMBEDDING_DIM` конечных чисел — ответ движка или строка базы. */
+const QueryVector = z.array(z.number()).length(EMBEDDING_DIM)
+
 /** Ближайшие по смыслу куски, видимые смотрящему; по объекту — лучший кусок. */
 async function nearest(
   ctx: Ctx,
@@ -206,7 +210,13 @@ async function nearest(
   limit: number,
   options: { excludeObjectId?: string; types?: readonly string[] } = {},
 ): Promise<SemanticHit[]> {
-  const literal = sql.raw(`'[${vector.join(',')}]'::extensions.vector`)
+  const checked = QueryVector.safeParse(vector)
+  if (!checked.success) {
+    logger().warn({ module: 'semantic', dim: vector.length }, 'вектор запроса не прошёл проверку')
+    return []
+  }
+  // Вектор — параметром в текстовой форме pgvector, как при записи (ADR-0184)
+  const literal = sql`${`[${checked.data.join(',')}]`}::extensions.vector`
   const rows = await db()
     .select({
       objectId: embeddings.objectId,

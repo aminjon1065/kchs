@@ -230,11 +230,6 @@ export function readIdentifierChain(
   return parts
 }
 
-/** Имя в двойных кавычках (защита от любых символов в названиях и подписях). */
-export function quoteIdent(name: string): string {
-  return `"${name.replaceAll('"', '""')}"`
-}
-
 function utf8Length(text: string): number {
   let bytes = 0
   for (let i = 0; i < text.length; i++) {

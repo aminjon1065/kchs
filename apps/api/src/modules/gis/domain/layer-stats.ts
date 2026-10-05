@@ -7,11 +7,11 @@ import {
   QuerySpec,
 } from '@kchs/contracts'
 import { classifySummary } from '@kchs/map-style'
-import { cacheKeyText } from '@kchs/query'
+import { cacheKeyText, quoteIdent } from '@kchs/query'
 import { DatasetQueries } from '~/modules/data/public.js'
 import type { Ctx } from '~/shared/context.js'
-import { queryRoleSql } from '~/shared/db/client.js'
 import { pgErrorCode } from '~/shared/db/pg-error.js'
+import { type QueryText, readAsQueryRole } from '~/shared/db/query-role.js'
 import { errors } from '~/shared/errors.js'
 import { cache } from '~/shared/redis/index.js'
 import { LayerService } from './layer-service.js'
@@ -38,7 +38,7 @@ const toNumber = (value: unknown): number | null => {
 }
 
 /** Имя поля в выражении: в кавычках, как любое поле с произвольным ключом. */
-const ref = (key: string) => `"${key}"`
+const ref = quoteIdent
 
 /** Имя вычисляемого значения, не совпадающее с полями датасета. */
 function valueName(fields: ReadonlyMap<string, FieldType>): string {
@@ -47,13 +47,9 @@ function valueName(fields: ReadonlyMap<string, FieldType>): string {
   return name
 }
 
-async function execute(sql: string, params: readonly unknown[]): Promise<Row[]> {
+async function execute(query: QueryText): Promise<Row[]> {
   try {
-    const rows = await queryRoleSql().begin('read only', async (tx) => {
-      await tx`SELECT set_config('statement_timeout', ${String(STATS_TIMEOUT_MS)}, true)`
-      return tx.unsafe(sql, params as never[])
-    })
-    return rows as unknown as Row[]
+    return await readAsQueryRole({ timeoutMs: STATS_TIMEOUT_MS }, (read) => read.rows(query))
   } catch (error) {
     if (pgErrorCode(error) === QUERY_CANCELED) {
       throw errors.queryTimeout('Статистика слоя не рассчитана за отведённое время')
@@ -134,7 +130,7 @@ export const LayerStatsService = {
     const hit = await cache.get(cacheKey)
     if (hit) return JSON.parse(hit) as LayerStats
 
-    const [row = {}] = await execute(summary.compiled.sql, summary.compiled.params)
+    const [row = {}] = await execute(summary.compiled)
     const count = toNumber(row.total) ?? 0
     const filled = toNumber(row.filled) ?? 0
     const min = toNumber(row.v_min)
@@ -165,7 +161,7 @@ export const LayerStatsService = {
         const compiled = await DatasetQueries.compile(ctx, valuesSpec, {
           maxRows: LAYER_STATS_SAMPLE,
         })
-        const rows = await execute(compiled.compiled.sql, compiled.compiled.params)
+        const rows = await execute(compiled.compiled)
         values = rows
           .slice(0, LAYER_STATS_SAMPLE)
           .map((item) => toNumber(item[value]))

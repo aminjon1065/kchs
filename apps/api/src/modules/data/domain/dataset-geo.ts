@@ -3,7 +3,7 @@ import { sql } from 'drizzle-orm'
 import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { cache } from '~/shared/redis/index.js'
-import { ident, qualified } from '../infra/physical.js'
+import { columnSql, tableSql } from '../infra/physical.js'
 import { DatasetService } from './dataset-service.js'
 
 /** Экстент и тип геометрии пересчитываются только с новой версией данных. */
@@ -65,8 +65,8 @@ export const DatasetGeo = {
     if (cached) {
       summary = JSON.parse(cached) as typeof summary
     } else {
-      const table = qualified(storage.table)
-      const column = ident(field.physical)
+      const table = tableSql(storage.table)
+      const column = columnSql(field.physical)
       const [extent] = await db().execute<{
         minx: number | null
         miny: number | null
@@ -74,16 +74,16 @@ export const DatasetGeo = {
         maxy: number | null
         rows: number
       }>(
-        sql.raw(`SELECT ST_XMin(e) AS minx, ST_YMin(e) AS miny, ST_XMax(e) AS maxx, ST_YMax(e) AS maxy,
-                        (SELECT count(*)::int FROM ${table} WHERE _deleted_at IS NULL) AS rows
-                   FROM (SELECT ST_Extent(${column}) AS e FROM ${table}
-                          WHERE _deleted_at IS NULL AND ${column} IS NOT NULL) x`),
+        sql`SELECT ST_XMin(e) AS minx, ST_YMin(e) AS miny, ST_XMax(e) AS maxx, ST_YMax(e) AS maxy,
+                   (SELECT count(*)::int FROM ${table} WHERE _deleted_at IS NULL) AS rows
+              FROM (SELECT ST_Extent(${column}) AS e FROM ${table}
+                     WHERE _deleted_at IS NULL AND ${column} IS NOT NULL) x`,
       )
       const dimensions = await db().execute<{ dimension: number }>(
-        sql.raw(`SELECT DISTINCT ST_Dimension(${column}) AS dimension
-                   FROM (SELECT ${column} FROM ${table}
-                          WHERE _deleted_at IS NULL AND ${column} IS NOT NULL
-                          LIMIT ${TYPE_SAMPLE}) sample`),
+        sql`SELECT DISTINCT ST_Dimension(${column}) AS dimension
+              FROM (SELECT ${column} FROM ${table}
+                     WHERE _deleted_at IS NULL AND ${column} IS NOT NULL
+                     LIMIT ${TYPE_SAMPLE}) sample`,
       )
       const types = new Set(dimensions.map((row) => DIMENSION_TYPES[Number(row.dimension)]))
       const declared = DECLARED_TYPES[field.geometryType ?? 'point'] ?? 'point'

@@ -13,7 +13,7 @@ import { systemCtx, type UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
-import { ident, qualified } from '../infra/physical.js'
+import { columnSql, tableSql } from '../infra/physical.js'
 import { datasetQualityRules, datasetQualityRuns, datasetVersions } from '../schema.js'
 import { DatasetService, type DatasetStorage, type StoredField } from './dataset-service.js'
 
@@ -35,7 +35,7 @@ function fieldOf(storage: DatasetStorage, key: string | null): StoredField {
 
 /** Условие «строка нарушает правило» — по виду правила. */
 function violation(rule: QualityRule, field: StoredField | null) {
-  const column = field ? sql.raw(ident(field.physical)) : null
+  const column = field ? columnSql(field.physical) : null
   switch (rule.kind) {
     case 'not_null':
       return sql`${column} is null`
@@ -102,7 +102,7 @@ async function checkRule(
     sample: [],
     message: null,
   }
-  const table = sql.raw(qualified(storage.table))
+  const table = tableSql(storage.table)
 
   try {
     if (rule.kind === 'row_count_delta') {
@@ -127,7 +127,7 @@ async function checkRule(
 
     if (rule.kind === 'unique') {
       const field = fieldOf(storage, rule.field)
-      const column = sql.raw(ident(field.physical))
+      const column = columnSql(field.physical)
       const rows = await db().execute<{ total: number; sample: string }>(
         sql`select count(*)::int as total, min(_id::text) as sample
             from ${table}
@@ -156,9 +156,9 @@ async function checkRule(
       }
       const target = await DatasetService.storage(targetId)
       const targetField = fieldOf(target, targetKey)
-      const column = sql.raw(ident(field.physical))
-      const targetTable = sql.raw(qualified(target.table))
-      const targetColumn = sql.raw(ident(targetField.physical))
+      const column = columnSql(field.physical)
+      const targetTable = tableSql(target.table)
+      const targetColumn = columnSql(targetField.physical)
       const rows = await db().execute<{ id: string }>(
         sql`select _id::text as id
             from ${table} as src

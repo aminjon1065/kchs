@@ -1,9 +1,9 @@
 import type { FieldProfile, StoredFieldType } from '@kchs/contracts'
-import { sql } from 'drizzle-orm'
+import { type SQL, sql } from 'drizzle-orm'
 import { db, type Executor } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { cache, cacheKeys } from '~/shared/redis/index.js'
-import { ident, qualified } from '../infra/physical.js'
+import { columnSql, tableSql } from '../infra/physical.js'
 import type { DatasetGrant } from './dataset-access.js'
 import type { StoredField } from './dataset-service.js'
 
@@ -21,8 +21,8 @@ const COUNTS_ONLY = new Set<StoredFieldType>(['json', 'long_text'])
 type Profile = Omit<FieldProfile, 'version' | 'computedAt'>
 
 /** Числовое значение для гистограммы: даты и время — секунды. */
-function numericExpression(type: StoredFieldType): string {
-  return TEMPORAL.has(type) ? 'extract(epoch from v)::float8' : 'v::float8'
+function numericExpression(type: StoredFieldType): SQL {
+  return TEMPORAL.has(type) ? sql`extract(epoch from v)::float8` : sql`v::float8`
 }
 
 /** Граница интервала гистограммы текстом по типу поля. */
@@ -40,11 +40,12 @@ function boundText(type: StoredFieldType, value: number): string {
 }
 
 /** Минимум и максимум текстом: даты и время — ISO 8601 (ADR-0028). */
-function extremeText(type: StoredFieldType, aggregate: 'min' | 'max'): string {
+function extremeText(type: StoredFieldType, aggregate: 'min' | 'max'): SQL {
+  const value = aggregate === 'min' ? sql`min(v)` : sql`max(v)`
   if (type === 'datetime') {
-    return `to_char(${aggregate}(v) AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`
+    return sql`to_char(${value} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`
   }
-  return `${aggregate}(v)::text`
+  return sql`${value}::text`
 }
 
 async function compute(
@@ -59,10 +60,10 @@ async function compute(
   // SYSTEM берёт страницы целиком — быстро; запас в полтора раза на неравные страницы
   const percent = Math.min(100, (SAMPLE_ROWS / Math.max(rowCount, 1)) * 150)
   // Имена — сгенерированные и проверенные `ident`; числа — параметрами
-  const base = sql`SELECT ${sql.raw(ident(field.physical))} AS v FROM ${sql.raw(qualified(table))}
+  const base = sql`SELECT ${columnSql(field.physical)} AS v FROM ${tableSql(table)}
     ${sampled ? sql`TABLESAMPLE SYSTEM (${percent}::real) REPEATABLE (42)` : sql``}
     WHERE _deleted_at IS NULL`
-  const distinct = sql.raw(type === 'geometry' ? '0' : 'count(DISTINCT v)')
+  const distinct = type === 'geometry' ? sql`0` : sql`count(DISTINCT v)`
 
   const [counts] = await tx.execute<{ rows: string; empty: string; distinct: string }>(
     sql`SELECT count(*) AS rows, count(*) FILTER (WHERE v IS NULL) AS empty,
@@ -85,7 +86,7 @@ async function compute(
   if (masked || profile.rows === profile.empty) return profile
 
   if (NUMERIC.has(type) || TEMPORAL.has(type)) {
-    const value = sql.raw(numericExpression(type))
+    const value = numericExpression(type)
     const [range] = await tx.execute<{
       min: string | null
       max: string | null
@@ -93,8 +94,8 @@ async function compute(
       lo: number | null
       hi: number | null
     }>(
-      sql`SELECT ${sql.raw(extremeText(type, 'min'))} AS min, ${sql.raw(extremeText(type, 'max'))} AS max,
-                 ${sql.raw(NUMERIC.has(type) ? 'avg(v)::float8' : 'NULL::float8')} AS mean,
+      sql`SELECT ${extremeText(type, 'min')} AS min, ${extremeText(type, 'max')} AS max,
+                 ${NUMERIC.has(type) ? sql`avg(v)::float8` : sql`NULL::float8`} AS mean,
                  min(${value}) AS lo, max(${value}) AS hi
             FROM (${base}) s WHERE v IS NOT NULL`,
     )

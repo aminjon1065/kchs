@@ -1,34 +1,25 @@
 import { createHash } from 'node:crypto'
 import { promisify } from 'node:util'
 import { gzip as gzipCallback } from 'node:zlib'
-import {
-  type FieldType,
-  type LayerTileQuery,
-  layerStyleTileFields,
-  QuerySpec,
-} from '@kchs/contracts'
+import { type LayerTileQuery, layerStyleTileFields, QuerySpec } from '@kchs/contracts'
 import { cacheKeyText } from '@kchs/query'
 import { DatasetQueries } from '~/modules/data/public.js'
 import type { Ctx } from '~/shared/context.js'
-import { queryRoleSql } from '~/shared/db/client.js'
 import { pgErrorCode } from '~/shared/db/pg-error.js'
+import { readAsQueryRole } from '~/shared/db/query-role.js'
 import { errors } from '~/shared/errors.js'
 import { logger } from '~/shared/logger/index.js'
 import { cache } from '~/shared/redis/index.js'
+import { BUFFER, EXTENT, tileSql } from '../infra/layer-sql.js'
 import { layerConditions, tilePreview } from './layer-filter.js'
 import { LayerService } from './layer-service.js'
 
-/** Размер сетки MVT и запас по краю (подписи и символы не обрезаются на стыке тайлов). */
-const EXTENT = 4096
-const BUFFER = 64
 /** Тайл, который не уложился, — пустой ответ с подсказкой (07-gis-engine.md §3). */
 const TILE_TIMEOUT_MS = 5000
 const CACHE_TTL_SECONDS = 24 * 3600
 /** Логический размер тайла MapLibre для векторных источников, px. */
 const TILE_PX = 512
 const QUERY_CANCELED = '57014'
-const NUMERIC = new Set<FieldType>(['integer', 'number', 'decimal', 'money', 'percent'])
-const TEMPORAL = new Set<FieldType>(['date', 'datetime'])
 const gzip = promisify(gzipCallback)
 
 export interface TileResult {
@@ -47,20 +38,6 @@ export function tileBounds(z: number, x: number, y: number): [number, number, nu
   const lon = (column: number) => (column / n) * 360 - 180
   const lat = (row: number) => (Math.atan(Math.sinh(Math.PI * (1 - (2 * row) / n))) * 180) / Math.PI
   return [lon(x), lat(y + 1), lon(x + 1), lat(y)]
-}
-
-const quote = (name: string) => `"${name.replace(/"/g, '""')}"`
-
-/**
- * Значение поля в тайле: числа — числами, даты и время — миллисекундами эпохи
- * (фильтры и анимация времени на клиенте), списки — через «|», остальное — текст.
- */
-function tileValue(column: string, type: FieldType | undefined): string {
-  if (type === 'boolean') return column
-  if (type && NUMERIC.has(type)) return `${column}::double precision`
-  if (type && TEMPORAL.has(type)) return `(extract(epoch FROM ${column}) * 1000)::double precision`
-  if (type === 'multi_select') return `array_to_string(${column}, '|')`
-  return `${column}::text`
 }
 
 /**
@@ -158,66 +135,34 @@ export const TileService = {
       return { body: hit.length > 0 ? hit : null, etag, cached: true, timedOut: false, sqlMs: null }
     }
 
-    // Параметры компиляции — первыми, тайловые — следом
-    const params: unknown[] = [...compiled.params]
-    const param = (value: unknown, type: string) => {
-      params.push(value)
-      return `$${params.length}::${type}`
-    }
-    const envelope = `ST_TileEnvelope(${param(z, 'int')}, ${param(x, 'int')}, ${param(y, 'int')})`
-    const geom = `src.${quote(layer.geometryField)}`
+    // Сетка кластеров в градусах: ячейка ≈ радиусу кластера в пикселях, по широте — с
+    // поправкой Меркатора по середине тайла, чтобы ячейки на карте были квадратными
     const pixel = 360 / limit / TILE_PX
-    const values = fields.map((field) => ({
-      key: field,
-      sql: tileValue(`src.${quote(field)}`, visible.get(field)),
-    }))
-    const columns = values.map((value) => `, ${value.sql} AS ${quote(value.key)}`).join('')
-    let body: string
-    if (cluster) {
-      // Сетка в градусах: ячейка ≈ радиусу кластера в пикселях, по широте — с
-      // поправкой Меркатора по середине тайла, чтобы ячейки на карте были квадратными.
-      // Координаты извлекаются один раз (OFFSET 0 не даёт планировщику повторять
-      // ST_X/ST_Y в группировке и агрегатах); группы — по целым номерам ячеек;
-      // центр кластера — среднее координат, значения полей — у одиночной точки
-      const cell = pixel * cluster.radius
-      const latCell = cell * Math.cos((((south + north) / 2) * Math.PI) / 180)
-      const cellX = param(cell, 'float8')
-      const cellY = param(latCell, 'float8')
-      const single = values
-        .map(
-          (value) =>
-            `, CASE WHEN count(*) = 1 THEN any_value(p.${quote(value.key)}) END AS ${quote(value.key)}`,
-        )
-        .join('')
-      body = `SELECT min(p._id) AS _id, count(*)::int AS point_count${single},
-                     ST_AsMVTGeom(ST_Transform(ST_SetSRID(ST_MakePoint(sum(p.gx) / count(*), sum(p.gy) / count(*)), 4326), 3857),
-                                  ${envelope}, ${EXTENT}, ${BUFFER}, true) AS geom
-                FROM (SELECT src."_id"::bigint AS _id${columns}, ST_X(${geom}) AS gx, ST_Y(${geom}) AS gy
-                        FROM (${compiled.sql}) src
-                       WHERE ${geom} IS NOT NULL
-                      OFFSET 0) p
-               GROUP BY floor(p.gx / ${cellX})::int, floor(p.gy / ${cellY})::int`
-    } else {
-      const simplified =
-        style.geometry === 'point'
-          ? geom
-          : `ST_SimplifyPreserveTopology(${geom}, ${param(pixel / 2, 'float8')})`
-      body = `SELECT src."_id"::bigint AS _id${columns},
-                     ST_AsMVTGeom(ST_Transform(${simplified}, 3857), ${envelope}, ${EXTENT}, ${BUFFER}, true) AS geom
-                FROM (${compiled.sql}) src
-               WHERE ${geom} IS NOT NULL`
-    }
-    const tileSql = `SELECT ST_AsMVT(tile, 'layer', ${EXTENT}, 'geom', '_id') AS mvt
-                       FROM (${body}) tile WHERE tile.geom IS NOT NULL`
+    const cell = cluster ? pixel * cluster.radius : 0
+    const mvtQuery = tileSql({
+      rows: compiled,
+      z,
+      x,
+      y,
+      geometryField: layer.geometryField,
+      fields: fields.map((key) => ({ key, type: visible.get(key) })),
+      shape: cluster
+        ? {
+            cluster: {
+              cellX: cell,
+              cellY: cell * Math.cos((((south + north) / 2) * Math.PI) / 180),
+            },
+          }
+        : { simplify: style.geometry === 'point' ? null : pixel / 2 },
+    })
 
     const started = performance.now()
     let mvt: Buffer | null | undefined
     try {
-      const rows = await queryRoleSql().begin('read only', async (sql) => {
-        await sql`SELECT set_config('statement_timeout', ${String(TILE_TIMEOUT_MS)}, true)`
-        return sql.unsafe(tileSql, params as never[])
-      })
-      mvt = (rows[0] as { mvt?: Buffer | null } | undefined)?.mvt
+      const rows = await readAsQueryRole({ timeoutMs: TILE_TIMEOUT_MS }, (read) =>
+        read.rows(mvtQuery),
+      )
+      mvt = rows[0]?.mvt as Buffer | null | undefined
     } catch (error) {
       if (pgErrorCode(error) === QUERY_CANCELED) {
         logger().warn({ layerId, z, x, y }, 'тайл слоя не уложился в тайм-аут')

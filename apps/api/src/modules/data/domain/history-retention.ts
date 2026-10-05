@@ -2,7 +2,7 @@ import { DatasetSettings } from '@kchs/contracts'
 import { and, eq, lt, max, sql } from 'drizzle-orm'
 import { db } from '~/shared/db/client.js'
 import { logger } from '~/shared/logger/index.js'
-import { historyName, qualified } from '../infra/physical.js'
+import { historyName, historySql } from '../infra/physical.js'
 import { datasets, datasetVersions } from '../schema.js'
 
 /** Строк истории за одно удаление: короткие транзакции не мешают правке строк. */
@@ -67,7 +67,7 @@ async function pruneDataset(datasetId: string, days: number): Promise<number> {
         lt(datasetVersions.createdAt, cutoff.toISOString()),
       ),
     )
-  const target = sql.raw(qualified(history))
+  const target = historySql(datasetId)
   // Сначала версии старше срока — по индексу номера версии; затем строки таблиц до
   // ADR-0062 без номера — по времени правки. Пачки общие на обе части
   const phases = [

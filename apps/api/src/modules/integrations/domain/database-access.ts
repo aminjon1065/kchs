@@ -8,8 +8,8 @@ import type {
 import { eq } from 'drizzle-orm'
 import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
+import { DATABASE_KINDS, ExternalDatabases } from '../infra/database-source.js'
 import { type IntegrationRow, integrations } from '../schema.js'
-import { DATABASE_KINDS, ExternalDatabases } from './database-source.js'
 import { readSecrets } from './integration-service.js'
 
 /**
@@ -77,4 +77,4 @@ export const ExternalDatabase = {
   },
 }
 
-export { externalValue } from './database-source.js'
+export { externalValue } from '../infra/database-source.js'

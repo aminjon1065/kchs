@@ -26,7 +26,7 @@ import type { Ctx, UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
 import { AppError, errors } from '~/shared/errors.js'
 import { type OutboundOptions, outboundGet } from '~/shared/net/outbound.js'
-import { ident, qualified } from '../infra/physical.js'
+import { aliasSql, columnSql, tableSql } from '../infra/physical.js'
 import { datasets, sourceRuns, sources } from '../schema.js'
 import { DatasetService, type DatasetStorage, type StoredField } from './dataset-service.js'
 import {
@@ -330,11 +330,11 @@ async function existingRows(
   if (keys.length === 0) return found
   const byKey = new Map(storage.fields.map((field) => [field.key, field]))
   const keyFields = feed.keyFields.map((key) => byKey.get(key) as StoredField)
-  const table = sql.raw(qualified(storage.table))
-  const keyColumns = keyFields.map((field) => sql`${sql.raw(ident(field.physical))}::text`)
+  const table = tableSql(storage.table)
+  const keyColumns = keyFields.map((field) => sql`${columnSql(field.physical)}::text`)
   const keyList = sql.join(
     keyFields.map(
-      (field, index) => sql`${sql.raw(ident(field.physical))}::text AS ${sql.raw(`"_k${index}"`)}`,
+      (field, index) => sql`${columnSql(field.physical)}::text AS ${aliasSql(`_k${index}`)}`,
     ),
     sql`, `,
   )
@@ -598,7 +598,7 @@ export const FeedService = {
           .limit(1)
         const version = dataset?.version ?? storage.currentVersion
         const [count] = await tx.execute<{ rows: number }>(
-          sql`SELECT count(*)::int AS rows FROM ${sql.raw(qualified(storage.table))}
+          sql`SELECT count(*)::int AS rows FROM ${tableSql(storage.table)}
                WHERE _import_id = ${row.id}::uuid AND _deleted_at IS NULL`,
         )
         const stats = {

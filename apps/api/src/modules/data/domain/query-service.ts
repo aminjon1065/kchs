@@ -39,8 +39,9 @@ import { objects } from '~/kernel/objects/schema.js'
 import { systemDataset } from '~/kernel/system-datasets.js'
 import { type TerritoryIndex, territoryIndex } from '~/modules/territories/public.js'
 import type { Ctx } from '~/shared/context.js'
-import { db, queryRoleSql } from '~/shared/db/client.js'
+import { db } from '~/shared/db/client.js'
 import { pgErrorCode } from '~/shared/db/pg-error.js'
+import { type ResultColumn, readAsQueryRole } from '~/shared/db/query-role.js'
 import { AppError, errors } from '~/shared/errors.js'
 import { logger } from '~/shared/logger/index.js'
 import { cache } from '~/shared/redis/index.js'
@@ -612,19 +613,15 @@ export const QueryService = {
         rows = reply.rows
         total = reply.rowCount
       } else {
-        const executed = await queryRoleSql().begin('read only', async (sql) => {
-          await sql`SELECT set_config('statement_timeout', ${String(compiled.timeoutMs)}, true)`
-          const data = await sql.unsafe(compiled.sql, compiled.params as never[])
+        const executed = await readAsQueryRole({ timeoutMs: compiled.timeoutMs }, async (read) => {
+          const data = await read.rows(compiled)
           const counted = count
-            ? await sql.unsafe(compiled.countSql, compiled.countParams as never[])
+            ? await read.rows({ sql: compiled.countSql, params: compiled.countParams })
             : null
           return { data, counted }
         })
-        const records = executed.data as unknown as Array<Record<string, unknown>>
-        rows = records.map((row) => fields.map((field) => row[field.name]))
-        total = executed.counted
-          ? Number((executed.counted[0] as unknown as { count: unknown } | undefined)?.count ?? 0)
-          : null
+        rows = executed.data.map((row) => fields.map((field) => row[field.name]))
+        total = executed.counted ? Number(executed.counted[0]?.count ?? 0) : null
       }
     } catch (error) {
       const durationMs = performance.now() - started
@@ -703,18 +700,15 @@ export const QueryService = {
    * строк. Имена столбцов сырого SQL известны только Postgres.
    */
   async sqlFields(compiled: CompiledRawSql): Promise<QueryResultField[]> {
-    const probe = await queryRoleSql().begin('read only', async (sql) => {
-      await sql`SELECT set_config('statement_timeout', ${String(compiled.timeoutMs)}, true),
-                       set_config('TimeZone', ${compiled.timezone}, true)`
-      return sql
-        .unsafe(
-          `SELECT * FROM (${compiled.sql}) AS "__kchs_head" LIMIT 0`,
-          compiled.params as never[],
-        )
-        .values()
-    })
-    const columns = (probe as { columns?: Array<{ name: string; type: number }> }).columns ?? []
-    return columns.map((column, index) => {
+    const probe = await readAsQueryRole(
+      { timeoutMs: compiled.timeoutMs, timezone: compiled.timezone },
+      (read) =>
+        read.values({
+          sql: `SELECT * FROM (${compiled.sql}) AS "__kchs_head" LIMIT 0`,
+          params: compiled.params,
+        }),
+    )
+    return probe.columns.map((column, index) => {
       const field = compiled.fields?.[index]?.field ?? null
       if (field) {
         return field.type === 'geometry'
@@ -766,13 +760,12 @@ export const QueryService = {
       }
     }
 
-    let data: unknown[][] & { columns?: Array<{ name: string; type: number }> }
+    let data: { rows: unknown[][]; columns: ResultColumn[] }
     try {
-      data = await queryRoleSql().begin('read only', async (sql) => {
-        await sql`SELECT set_config('statement_timeout', ${String(compiled.timeoutMs)}, true),
-                         set_config('TimeZone', ${compiled.timezone}, true)`
-        return sql.unsafe(compiled.sql, compiled.params as never[]).values()
-      })
+      data = await readAsQueryRole(
+        { timeoutMs: compiled.timeoutMs, timezone: compiled.timezone },
+        (read) => read.values(compiled),
+      )
     } catch (error) {
       await recordRun(ctx, {
         specHash,
@@ -786,7 +779,7 @@ export const QueryService = {
     }
 
     // Поля: прямые ссылки на поля датасета — с подписью и форматом, остальное — по типу Postgres
-    const fields: QueryResultField[] = (data.columns ?? []).map((column, index) => {
+    const fields: QueryResultField[] = data.columns.map((column, index) => {
       const field = compiled.fields?.[index]?.field ?? null
       if (field) {
         // Геометрия без ST_AsGeoJSON приходит как EWKB — показывается текстом
@@ -802,7 +795,7 @@ export const QueryService = {
         format: null,
       }
     })
-    let rows = data as unknown[][]
+    let rows = data.rows
     const truncated = rows.length > SQL_MAX_ROWS
     if (truncated) rows = rows.slice(0, SQL_MAX_ROWS)
     const result: QueryResult = {
@@ -843,17 +836,14 @@ export const QueryService = {
     batchSize = STREAM_BATCH,
   ): Promise<T> {
     try {
-      const result = await queryRoleSql().begin('read only', async (sql) => {
-        await sql`SELECT set_config('statement_timeout', ${String(compiled.timeoutMs)}, true)`
-        if (compiled.timezone) {
-          await sql`SELECT set_config('TimeZone', ${compiled.timezone}, true)`
-        }
-        const counted = await sql.unsafe(compiled.countSql, compiled.countParams as never[])
-        const total = Number((counted[0] as { count?: unknown } | undefined)?.count ?? 0)
-        const cursor = sql.unsafe(compiled.sql, compiled.params as never[]).cursor(batchSize)
-        return consume(cursor as AsyncIterable<Array<Record<string, unknown>>>, total)
-      })
-      return result as T
+      return await readAsQueryRole(
+        { timeoutMs: compiled.timeoutMs, timezone: compiled.timezone },
+        async (read) => {
+          const counted = await read.rows({ sql: compiled.countSql, params: compiled.countParams })
+          const total = Number(counted[0]?.count ?? 0)
+          return consume(read.cursor(compiled, batchSize), total)
+        },
+      )
     } catch (error) {
       if (pgErrorCode(error) === QUERY_CANCELED) throw errors.queryTimeout()
       throw error

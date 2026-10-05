@@ -5,6 +5,7 @@ import { datasetRelation } from '../compiler/sources.js'
 import { CompileState } from '../compiler/state.js'
 import { QueryCompileError } from '../errors.js'
 import type { ExprValue } from '../expr/compile.js'
+import { quoteIdent } from '../ident.js'
 import type {
   CompileContext,
   CompiledRawSql,
@@ -27,7 +28,6 @@ import {
   extractPlaceholders,
   invalidCharacter,
   type Placeholder,
-  quoteIdent,
   SourcePositions,
   SQL_PATH,
   sqlFail,

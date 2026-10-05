@@ -13,7 +13,7 @@ import { ObjectService } from '~/kernel/objects/service.js'
 import { DatasetService } from '~/modules/data/domain/dataset-service.js'
 import { RowService } from '~/modules/data/domain/row-service.js'
 import { SchemaService } from '~/modules/data/domain/schema-service.js'
-import { qualified } from '~/modules/data/infra/physical.js'
+import { tableSql } from '~/modules/data/infra/physical.js'
 import { db } from '~/shared/db/client.js'
 import { findPackObject, markPackObject, type PackContext } from './context.js'
 
@@ -643,7 +643,7 @@ export async function ensureDatasets(pack: PackContext): Promise<Map<string, str
 export async function rowCount(datasetId: string): Promise<number> {
   const storage = await DatasetService.storage(datasetId)
   const [row] = await db().execute<{ count: string }>(
-    sql`SELECT count(*)::text AS count FROM ${sql.raw(qualified(storage.table))} WHERE _deleted_at IS NULL`,
+    sql`SELECT count(*)::text AS count FROM ${tableSql(storage.table)} WHERE _deleted_at IS NULL`,
   )
   return Number(row?.count ?? 0)
 }
