@@ -2,7 +2,6 @@ import type { DeepPartial } from '../../types.js'
 import type { Dictionary } from '../ru/index.js'
 
 export const processDesigner: DeepPartial<Dictionary['processDesigner']> = {
-  screenTitle: 'Route designer',
   loadFailed: 'Could not open the route',
   section: {
     title: 'Process routes',

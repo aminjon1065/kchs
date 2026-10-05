@@ -1,5 +1,7 @@
+import type { Namespace } from '@kchs/i18n'
 import type { LucideIcon } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { type ReactNode, Suspense } from 'react'
+import { useNamespacesReady, withNamespaces } from '~/shared/i18n.js'
 import type { ScreenKey, TabState } from '~/shared/workspace/types.js'
 
 /**
@@ -34,14 +36,6 @@ export interface ObjectViewDefinition {
 
 const screens = new Map<ScreenKey, ScreenDefinition>()
 const objectViews = new Map<string, ObjectViewDefinition>()
-
-export function registerScreen(definition: ScreenDefinition): void {
-  screens.set(definition.key, definition)
-}
-
-export function registerObjectView(definition: ObjectViewDefinition): void {
-  objectViews.set(definition.type, definition)
-}
 
 export function getScreen(key: ScreenKey): ScreenDefinition | undefined {
   return screens.get(key)
@@ -130,6 +124,15 @@ export interface ShellDialogProps {
 /** Всё, что модуль даёт оболочке, — одним вызовом `registerModule`. */
 export interface ModuleDefinition {
   key: string
+  /**
+   * Неймспейсы словаря, которые нужны экранам, представлениям, слоям и командам палитры
+   * модуля сверх неймспейсов оболочки (ADR-0191). Реестр показывает их, когда неймспейсы
+   * загружены на языке интерфейса, — без сырых ключей; загрузка идёт параллельно с чанком
+   * экрана. Подписи, которые рисует оболочка (`titleKey`, `labelKey`), — из неймспейсов
+   * оболочки: словарь модуля к их показу может быть ещё не загружен. Полноту объявлений
+   * проверяет `app/namespaces.test.ts`.
+   */
+  namespaces?: readonly Namespace[]
   screens?: ScreenDefinition[]
   objectViews?: ObjectViewDefinition[]
   nav?: NavItemDefinition[]
@@ -142,11 +145,104 @@ const extensions: Partial<ShellExtensions> = {}
 const slots = new Map<string, ShellSlotDefinition>()
 
 export function registerModule(definition: ModuleDefinition): void {
-  for (const screen of definition.screens ?? []) registerScreen(screen)
-  for (const view of definition.objectViews ?? []) registerObjectView(view)
+  const namespaces = definition.namespaces ?? []
+  for (const screen of definition.screens ?? []) {
+    screens.set(screen.key, gateScreen(screen, namespaces))
+  }
+  for (const view of definition.objectViews ?? []) {
+    objectViews.set(view.type, gateObjectView(view, namespaces))
+  }
   for (const item of definition.nav ?? []) navItems.set(item.key, item)
-  Object.assign(extensions, definition.extensions)
-  for (const slot of definition.slots ?? []) slots.set(slot.key, slot)
+  Object.assign(extensions, gateExtensions(definition.extensions ?? {}, namespaces))
+  for (const slot of definition.slots ?? []) slots.set(slot.key, gateSlot(slot, namespaces))
+}
+
+// ─── Неймспейсы модуля (ADR-0191) ────────────────────────────────────────────
+// Экран и представление объекта ждут их в Suspense области вкладок и контекст-панели,
+// слой — в своём: баннер или оверлей не прячут оболочку, пока грузится словарь.
+
+function gateScreen(screen: ScreenDefinition, namespaces: readonly Namespace[]): ScreenDefinition {
+  if (namespaces.length === 0) return screen
+  const { render, navigator } = screen
+  return {
+    ...screen,
+    render: (tab) => withNamespaces(namespaces, render(tab)),
+    ...(navigator ? { navigator: () => withNamespaces(namespaces, navigator()) } : {}),
+  }
+}
+
+function gateObjectView(
+  view: ObjectViewDefinition,
+  namespaces: readonly Namespace[],
+): ObjectViewDefinition {
+  if (namespaces.length === 0) return view
+  const { render, contextSection, assistantSection } = view
+  return {
+    ...view,
+    render: (tab) => withNamespaces(namespaces, render(tab)),
+    ...(contextSection
+      ? {
+          contextSection: (objectId: string) =>
+            withNamespaces(namespaces, contextSection(objectId)),
+        }
+      : {}),
+    ...(assistantSection
+      ? {
+          assistantSection: (objectId: string) =>
+            withNamespaces(namespaces, assistantSection(objectId)),
+        }
+      : {}),
+  }
+}
+
+function gateSlot(
+  slot: ShellSlotDefinition,
+  namespaces: readonly Namespace[],
+): ShellSlotDefinition {
+  if (namespaces.length === 0) return slot
+  const own = (node: ReactNode) => (
+    <Suspense fallback={null}>{withNamespaces(namespaces, node)}</Suspense>
+  )
+  switch (slot.placement) {
+    case 'dialog': {
+      const render = slot.render
+      return { ...slot, render: (props: ShellDialogProps) => own(render(props)) }
+    }
+    case 'context-info':
+    case 'context-assistant': {
+      const render = slot.render
+      return { ...slot, render: (objectId: string) => own(render(objectId)) }
+    }
+    default: {
+      const render = slot.render
+      return { ...slot, render: () => own(render()) }
+    }
+  }
+}
+
+/** Команды палитры модуля появляются, когда загружен его словарь, — без сырых ключей. */
+function gateExtensions(
+  given: Partial<ShellExtensions>,
+  namespaces: readonly Namespace[],
+): Partial<ShellExtensions> {
+  if (namespaces.length === 0) return given
+  const { usePaletteQuickAction: quickAction, usePaletteCommands: commands } = given
+  const gated: Partial<ShellExtensions> = { ...given }
+  if (quickAction) {
+    gated.usePaletteQuickAction = function usePaletteQuickAction(query) {
+      const ready = useNamespacesReady(namespaces)
+      const action = quickAction(query)
+      return ready ? action : null
+    }
+  }
+  if (commands) {
+    gated.usePaletteCommands = function usePaletteCommands() {
+      const ready = useNamespacesReady(namespaces)
+      const list = commands()
+      return ready ? list : []
+    }
+  }
+  return gated
 }
 
 /** Пункты навигации модулей по порядку. */

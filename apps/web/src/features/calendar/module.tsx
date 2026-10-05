@@ -51,6 +51,7 @@ function usePaletteCommands(): PaletteCommand[] {
 /** Что модуль «Календарь» даёт оболочке (ADR-0183). */
 export const calendarModule: ModuleDefinition = {
   key: 'calendar',
+  namespaces: ['calendar'],
   nav: [
     {
       key: 'calendar',

@@ -5,6 +5,7 @@ import { IncomingCallOverlay } from './incoming-call.js'
 /** Что модуль встреч даёт оболочке (ADR-0183): пункт навигации и входящий звонок. */
 export const meetingsModule: ModuleDefinition = {
   key: 'meetings',
+  namespaces: ['meetings'],
   nav: [
     {
       key: 'meetings',

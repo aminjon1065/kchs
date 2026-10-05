@@ -1,6 +1,5 @@
 /** Конструктор маршрутов процессов (08-documents.md §4, ADR-0087). */
 export const processDesigner = {
-  screenTitle: 'Конструктор маршрута',
   loadFailed: 'Не удалось открыть маршрут',
   section: {
     title: 'Маршруты процессов',

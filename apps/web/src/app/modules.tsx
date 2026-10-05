@@ -1,6 +1,6 @@
 import { Skeleton } from '@kchs/ui'
 import { CheckSquare, Database, FileText, Folder, Home, Map as MapIcon } from 'lucide-react'
-import { lazy, Suspense } from 'react'
+import { type ComponentProps, lazy, Suspense } from 'react'
 import { adminModule } from '~/features/admin/module.js'
 import { assistantModule } from '~/features/assistant/module.js'
 import { automationModule } from '~/features/automation/module.js'
@@ -18,7 +18,8 @@ import { spacesModule } from '~/features/spaces/module.js'
 import type { ControlScreenState } from '~/features/tasks/control-screen.js'
 import type { TasksScreenState } from '~/features/tasks/tasks-screen.js'
 import type { WorkloadScreenState } from '~/features/tasks/workload-screen.js'
-import { registerModule, registerObjectView, registerScreen } from '~/shared/workspace/registry.js'
+import { withNamespaces } from '~/shared/i18n.js'
+import { registerModule } from '~/shared/workspace/registry.js'
 
 /**
  * Экраны и представления объектов грузятся при первом открытии (отдельными чанками): в
@@ -283,16 +284,29 @@ export const GuestShareScreen = lazy(() =>
 )
 
 /** Страница печати отчёта — отдельным чанком: оболочке она не нужна (ADR-0078). */
-export const PrintScreen = lazy(() => import('~/features/reports/print/print-screen.js'))
+const PrintPage = lazy(() => import('~/features/reports/print/print-screen.js'))
+
+/** Экраны вне рабочего пространства ждут свои неймспейсы так же, как экраны модулей (ADR-0191). */
+export function PrintScreen(props: ComponentProps<typeof PrintPage>) {
+  return withNamespaces(['data'], <PrintPage {...props} />)
+}
 
 /** Комната гостя — отдельным чанком: клиент медиасервера нужен только ей. */
-export const GuestMeetingScreen = lazy(async () => ({
+const GuestMeetingRoom = lazy(async () => ({
   default: (await import('~/features/meetings/guest-screen.js')).GuestMeetingScreen,
 }))
 
+export function GuestMeetingScreen(props: ComponentProps<typeof GuestMeetingRoom>) {
+  return withNamespaces(['meetings'], <GuestMeetingRoom {...props} />)
+}
+
 export { printTargetFromPath } from '~/features/reports/print/print-target.js'
 
-/** Регистрация экранов и представлений объектов. */
+/**
+ * Регистрация модулей (ADR-0183). Модуль объявляет неймспейсы словаря, которые нужны его
+ * экранам и представлениям сверх неймспейсов оболочки (ADR-0191): реестр ждёт их загрузки
+ * до показа, параллельно с чанком экрана. Полноту объявлений проверяет `namespaces.test.ts`.
+ */
 export function registerModules(): void {
   if (registered) return
   registered = true
@@ -367,461 +381,590 @@ export function registerModules(): void {
     ],
   })
 
-  registerScreen({
+  // «Мой день» — в основном чанке; виджеты задач и календаря берут их словари
+  registerModule({
     key: 'home',
-    titleKey: 'shell.rail.home',
-    icon: 'home',
-    render: () => <HomeScreen />,
-  })
-  registerScreen({
-    key: 'assistant',
-    titleKey: 'shell.rail.assistant',
-    icon: 'assistant',
-    render: () => <AssistantScreen />,
-  })
-  registerScreen({
-    key: 'knowledge',
-    titleKey: 'shell.rail.knowledge',
-    icon: 'page',
-    render: (tab) => <KnowledgeScreen spaceId={tab.params.spaceId} />,
-  })
-  registerScreen({
-    key: 'inbox',
-    titleKey: 'shell.rail.inbox',
-    icon: 'inbox',
-    render: () => <InboxScreen />,
-  })
-  registerScreen({
-    key: 'notifications',
-    titleKey: 'shell.rail.notifications',
-    icon: 'notification',
-    render: () => <NotificationsScreen />,
-  })
-  registerScreen({
-    key: 'files',
-    titleKey: 'shell.rail.files',
-    icon: 'folder',
-    render: (tab) => (
-      <FilesScreen
-        spaceId={tab.params.spaceId}
-        tabId={tab.id}
-        savedState={tab.state as Parameters<typeof FilesScreen>[0]['savedState']}
-      />
-    ),
-  })
-  registerScreen({
-    key: 'data',
-    titleKey: 'shell.rail.data',
-    icon: 'dataset',
-    render: (tab) => (
-      <DataCatalogScreen
-        spaceId={tab.params.spaceId}
-        tabId={tab.id}
-        savedState={tab.state as Parameters<typeof DataCatalogScreen>[0]['savedState']}
-      />
-    ),
-  })
-  registerScreen({
-    key: 'explore',
-    titleKey: 'data.explore.title',
-    icon: 'query',
-    render: (tab) => (
-      <ExploreScreen
-        datasetId={tab.params.datasetId ?? ''}
-        tabId={tab.id}
-        savedState={tab.state as Parameters<typeof ExploreScreen>[0]['savedState']}
-      />
-    ),
-  })
-  registerScreen({
-    key: 'sql',
-    titleKey: 'data.sql.title',
-    icon: 'query',
-    render: (tab) => <SqlLabScreen tabId={tab.id} savedState={tab.state as SavedSqlLab} />,
-  })
-  registerScreen({
-    key: 'tasks',
-    titleKey: 'shell.rail.tasks',
-    icon: 'task',
-    render: (tab) => <TasksScreen tabId={tab.id} savedState={tab.state as TasksScreenState} />,
-  })
-  registerScreen({
-    key: 'control',
-    titleKey: 'tasks.control.title',
-    icon: 'task',
-    render: (tab) => <ControlScreen tabId={tab.id} savedState={tab.state as ControlScreenState} />,
-  })
-  registerScreen({
-    key: 'workload',
-    titleKey: 'tasks.workload.title',
-    icon: 'user',
-    render: (tab) => (
-      <WorkloadScreen tabId={tab.id} savedState={tab.state as WorkloadScreenState} />
-    ),
-  })
-  registerScreen({
-    key: 'chats',
-    titleKey: 'shell.rail.chats',
-    icon: 'conversation',
-    render: (tab) => (
-      <ChatsScreen
-        tabId={tab.id}
-        savedState={tab.state as ChatsScreenState}
-        initialConversationId={tab.params.conversation}
-      />
-    ),
-  })
-  registerScreen({
-    key: 'calendar',
-    titleKey: 'shell.rail.calendar',
-    icon: 'calendar',
-    render: (tab) => (
-      <CalendarScreen tabId={tab.id} savedState={tab.state as CalendarScreenState} />
-    ),
-  })
-  registerObjectView({
-    type: 'calendar',
-    render: (tab) => <CalendarView objectId={tab.objectId!} tabId={tab.id} />,
-  })
-  registerObjectView({
-    type: 'event',
-    render: (tab) => <EventView objectId={tab.objectId!} tabId={tab.id} />,
-  })
-  registerObjectView({
-    type: 'recording',
-    render: (tab) => (
-      <Suspense
-        fallback={
-          <div className="flex flex-col gap-3 p-6">
-            <Skeleton className="h-7 w-72" />
-            <Skeleton className="h-64 w-full" />
-          </div>
-        }
-      >
-        <RecordingView objectId={tab.objectId!} tabId={tab.id} />
-      </Suspense>
-    ),
-  })
-  registerScreen({
-    key: 'meetings',
-    titleKey: 'shell.rail.meetings',
-    icon: 'meeting',
-    render: () => <MeetingsScreen />,
-  })
-  registerScreen({
-    key: 'search',
-    titleKey: 'shell.rail.search',
-    icon: 'view',
-    render: (tab) => (
-      <SearchScreen
-        initialQuery={tab.params.q ?? ''}
-        initialTypes={tab.params.types?.split(',').filter(Boolean) ?? []}
-        initialStatuses={tab.params.statuses?.split(',').filter(Boolean) ?? []}
-      />
-    ),
-  })
-  registerScreen({
-    key: 'spaces',
-    titleKey: 'spaces.title',
-    icon: 'space',
-    render: () => <SpacesScreen />,
-  })
-  registerScreen({
-    key: 'space',
-    titleKey: 'objects.types.space',
-    icon: 'space',
-    render: (tab) => <SpaceScreen spaceId={tab.params.spaceId ?? ''} />,
-  })
-  registerScreen({
-    key: 'admin',
-    titleKey: 'shell.rail.admin',
-    icon: 'role',
-    render: () => <AdminScreen />,
-  })
-  registerScreen({
-    key: 'profile',
-    titleKey: 'shell.rail.profile',
-    icon: 'user',
-    render: () => <ProfileScreen />,
-  })
-  registerScreen({
-    key: 'process-designer',
-    titleKey: 'processDesigner.screenTitle',
-    icon: 'route',
-    render: (tab) => (
-      <Suspense
-        fallback={
-          <div className="flex flex-col gap-3 p-6">
-            <Skeleton className="h-7 w-72" />
-            <Skeleton className="h-64 w-full" />
-          </div>
-        }
-      >
-        <ProcessDesigner definitionKey={tab.params.key ?? ''} tabId={tab.id} />
-      </Suspense>
-    ),
-  })
-  registerScreen({
-    key: 'rule-designer',
-    titleKey: 'automation.title',
-    icon: 'zap',
-    render: (tab) => (
-      <Suspense
-        fallback={
-          <div className="flex flex-col gap-3 p-6">
-            <Skeleton className="h-7 w-72" />
-            <Skeleton className="h-64 w-full" />
-          </div>
-        }
-      >
-        <RuleDesigner ruleId={tab.params.id ?? ''} />
-      </Suspense>
-    ),
-  })
-  registerScreen({
-    key: 'office-editor',
-    titleKey: 'files.office.title',
-    icon: 'file',
-    render: (tab) => <OfficeEditorScreen fileId={tab.params.id ?? ''} tabId={tab.id} />,
-  })
-  registerScreen({
-    key: 'trash',
-    titleKey: 'objects.trash.title',
-    icon: 'folder',
-    render: () => <TrashScreen />,
+    namespaces: ['tasks', 'calendar'],
+    screens: [
+      { key: 'home', titleKey: 'shell.rail.home', icon: 'home', render: () => <HomeScreen /> },
+    ],
   })
 
-  registerObjectView({
-    type: 'file',
-    render: (tab) => <FileView objectId={tab.objectId!} tabId={tab.id} />,
+  registerModule({
+    key: 'assistant',
+    namespaces: ['assistant', 'gis', 'tasks'],
+    screens: [
+      {
+        key: 'assistant',
+        titleKey: 'shell.rail.assistant',
+        icon: 'assistant',
+        render: () => <AssistantScreen />,
+      },
+    ],
   })
-  registerObjectView({ type: 'folder', render: (tab) => <FolderView objectId={tab.objectId!} /> })
-  registerObjectView({
-    type: 'dashboard',
-    render: (tab) => <DashboardView objectId={tab.objectId!} tabId={tab.id} />,
+
+  registerModule({
+    key: 'knowledge',
+    namespaces: ['knowledge', 'data', 'documents', 'gis', 'tasks'],
+    screens: [
+      {
+        key: 'knowledge',
+        titleKey: 'shell.rail.knowledge',
+        icon: 'page',
+        render: (tab) => <KnowledgeScreen spaceId={tab.params.spaceId} />,
+      },
+    ],
+    objectViews: [
+      {
+        type: 'page',
+        render: (tab) => (
+          <Suspense fallback={<LazyFallback />}>
+            <PageView objectId={tab.objectId!} tabId={tab.id} />
+          </Suspense>
+        ),
+      },
+    ],
   })
-  registerObjectView({
-    type: 'chart',
-    render: (tab) => <ChartView objectId={tab.objectId!} tabId={tab.id} />,
+
+  registerModule({
+    key: 'inbox',
+    screens: [
+      { key: 'inbox', titleKey: 'shell.rail.inbox', icon: 'inbox', render: () => <InboxScreen /> },
+    ],
   })
-  registerObjectView({
-    type: 'page',
-    render: (tab) => (
-      <Suspense
-        fallback={
-          <div className="flex flex-col gap-3 p-6">
-            <Skeleton className="h-7 w-72" />
-            <Skeleton className="h-64 w-full" />
-          </div>
-        }
-      >
-        <PageView objectId={tab.objectId!} tabId={tab.id} />
-      </Suspense>
-    ),
+
+  registerModule({
+    key: 'notifications',
+    namespaces: ['notifications'],
+    screens: [
+      {
+        key: 'notifications',
+        titleKey: 'shell.rail.notifications',
+        icon: 'notification',
+        render: () => <NotificationsScreen />,
+      },
+    ],
   })
-  registerObjectView({
-    type: 'notebook',
-    render: (tab) => (
-      <Suspense
-        fallback={
-          <div className="flex flex-col gap-3 p-6">
-            <Skeleton className="h-7 w-72" />
-            <Skeleton className="h-64 w-full" />
-          </div>
-        }
-      >
-        <NotebookView objectId={tab.objectId!} tabId={tab.id} />
-      </Suspense>
-    ),
+
+  registerModule({
+    key: 'files',
+    screens: [
+      {
+        key: 'files',
+        titleKey: 'shell.rail.files',
+        icon: 'folder',
+        render: (tab) => (
+          <FilesScreen
+            spaceId={tab.params.spaceId}
+            tabId={tab.id}
+            savedState={tab.state as Parameters<typeof FilesScreen>[0]['savedState']}
+          />
+        ),
+      },
+      {
+        key: 'office-editor',
+        titleKey: 'files.office.title',
+        icon: 'file',
+        render: (tab) => <OfficeEditorScreen fileId={tab.params.id ?? ''} tabId={tab.id} />,
+      },
+    ],
   })
-  registerObjectView({
-    type: 'report',
-    render: (tab) => (
-      <Suspense
-        fallback={
-          <div className="flex flex-col gap-3 p-6">
-            <Skeleton className="h-7 w-72" />
-            <Skeleton className="h-64 w-full" />
-          </div>
-        }
-      >
-        <ReportView objectId={tab.objectId!} tabId={tab.id} />
-      </Suspense>
-    ),
+
+  registerModule({
+    key: 'objects',
+    screens: [
+      {
+        key: 'trash',
+        titleKey: 'objects.trash.title',
+        icon: 'folder',
+        render: () => <TrashScreen />,
+      },
+    ],
+    objectViews: [
+      {
+        type: 'file',
+        render: (tab) => <FileView objectId={tab.objectId!} tabId={tab.id} />,
+      },
+      { type: 'folder', render: (tab) => <FolderView objectId={tab.objectId!} /> },
+    ],
   })
-  registerObjectView({
-    type: 'meeting',
-    render: (tab) => (
-      <Suspense fallback={<Skeleton className="m-4 h-40" />}>
-        <MeetingView objectId={tab.objectId!} tabId={tab.id} />
-      </Suspense>
-    ),
+
+  registerModule({
+    key: 'data',
+    namespaces: ['data', 'gis', 'tasks'],
+    screens: [
+      {
+        key: 'data',
+        titleKey: 'shell.rail.data',
+        icon: 'dataset',
+        render: (tab) => (
+          <DataCatalogScreen
+            spaceId={tab.params.spaceId}
+            tabId={tab.id}
+            savedState={tab.state as Parameters<typeof DataCatalogScreen>[0]['savedState']}
+          />
+        ),
+      },
+      {
+        key: 'explore',
+        titleKey: 'shell.screens.explore',
+        icon: 'query',
+        render: (tab) => (
+          <ExploreScreen
+            datasetId={tab.params.datasetId ?? ''}
+            tabId={tab.id}
+            savedState={tab.state as Parameters<typeof ExploreScreen>[0]['savedState']}
+          />
+        ),
+      },
+      {
+        key: 'sql',
+        titleKey: 'shell.screens.sql',
+        icon: 'query',
+        render: (tab) => <SqlLabScreen tabId={tab.id} savedState={tab.state as SavedSqlLab} />,
+      },
+      {
+        key: 'pipelines',
+        titleKey: 'shell.screens.pipelines',
+        icon: 'pipeline',
+        render: () => <PipelinesScreen />,
+      },
+    ],
+    objectViews: [
+      {
+        type: 'dataset',
+        render: (tab) => <DatasetView objectId={tab.objectId!} tabId={tab.id} />,
+      },
+      {
+        type: 'analysis',
+        render: (tab) => <AnalysisView objectId={tab.objectId!} tabId={tab.id} />,
+      },
+      {
+        type: 'dashboard',
+        render: (tab) => <DashboardView objectId={tab.objectId!} tabId={tab.id} />,
+      },
+      {
+        type: 'chart',
+        render: (tab) => <ChartView objectId={tab.objectId!} tabId={tab.id} />,
+      },
+      {
+        type: 'metric',
+        render: (tab) => <MetricView objectId={tab.objectId!} tabId={tab.id} />,
+      },
+      {
+        type: 'pipeline',
+        render: (tab) => (
+          <Suspense fallback={<LazyFallback />}>
+            <PipelineDesigner pipelineId={tab.objectId ?? ''} />
+          </Suspense>
+        ),
+      },
+    ],
   })
-  registerObjectView({
-    type: 'protocol',
-    render: (tab) => (
-      <Suspense fallback={<Skeleton className="m-4 h-40" />}>
-        <ProtocolView objectId={tab.objectId!} tabId={tab.id} />
-      </Suspense>
-    ),
+
+  registerModule({
+    key: 'notebooks',
+    namespaces: ['data', 'gis'],
+    objectViews: [
+      {
+        type: 'notebook',
+        render: (tab) => (
+          <Suspense fallback={<LazyFallback />}>
+            <NotebookView objectId={tab.objectId!} tabId={tab.id} />
+          </Suspense>
+        ),
+      },
+    ],
   })
-  registerObjectView({
-    type: 'metric',
-    render: (tab) => <MetricView objectId={tab.objectId!} tabId={tab.id} />,
+
+  registerModule({
+    key: 'reports',
+    namespaces: ['data', 'gis', 'tasks'],
+    objectViews: [
+      {
+        type: 'report',
+        render: (tab) => (
+          <Suspense fallback={<LazyFallback />}>
+            <ReportView objectId={tab.objectId!} tabId={tab.id} />
+          </Suspense>
+        ),
+      },
+    ],
   })
-  registerScreen({
+
+  registerModule({
+    key: 'tasks',
+    namespaces: ['tasks', 'data', 'gis'],
+    screens: [
+      {
+        key: 'tasks',
+        titleKey: 'shell.rail.tasks',
+        icon: 'task',
+        render: (tab) => <TasksScreen tabId={tab.id} savedState={tab.state as TasksScreenState} />,
+      },
+      {
+        key: 'control',
+        titleKey: 'shell.screens.control',
+        icon: 'task',
+        render: (tab) => (
+          <ControlScreen tabId={tab.id} savedState={tab.state as ControlScreenState} />
+        ),
+      },
+      {
+        key: 'workload',
+        titleKey: 'shell.screens.workload',
+        icon: 'user',
+        render: (tab) => (
+          <WorkloadScreen tabId={tab.id} savedState={tab.state as WorkloadScreenState} />
+        ),
+      },
+    ],
+    objectViews: [
+      {
+        type: 'task',
+        render: (tab) => <TaskView objectId={tab.objectId!} tabId={tab.id} />,
+      },
+      {
+        type: 'project',
+        render: (tab) => (
+          <ProjectView
+            objectId={tab.objectId!}
+            tabId={tab.id}
+            savedState={tab.state as TasksScreenState}
+          />
+        ),
+      },
+    ],
+  })
+
+  registerModule({
+    key: 'chat',
+    namespaces: ['chats', 'tasks'],
+    screens: [
+      {
+        key: 'chats',
+        titleKey: 'shell.rail.chats',
+        icon: 'conversation',
+        render: (tab) => (
+          <ChatsScreen
+            tabId={tab.id}
+            savedState={tab.state as ChatsScreenState}
+            initialConversationId={tab.params.conversation}
+          />
+        ),
+      },
+    ],
+  })
+
+  registerModule({
+    key: 'calendar',
+    namespaces: ['calendar', 'tasks'],
+    screens: [
+      {
+        key: 'calendar',
+        titleKey: 'shell.rail.calendar',
+        icon: 'calendar',
+        render: (tab) => (
+          <CalendarScreen tabId={tab.id} savedState={tab.state as CalendarScreenState} />
+        ),
+      },
+    ],
+    objectViews: [
+      {
+        type: 'calendar',
+        render: (tab) => <CalendarView objectId={tab.objectId!} tabId={tab.id} />,
+      },
+      {
+        type: 'event',
+        render: (tab) => <EventView objectId={tab.objectId!} tabId={tab.id} />,
+      },
+    ],
+  })
+
+  registerModule({
+    key: 'meetings',
+    namespaces: ['meetings', 'tasks'],
+    screens: [
+      {
+        key: 'meetings',
+        titleKey: 'shell.rail.meetings',
+        icon: 'meeting',
+        render: () => <MeetingsScreen />,
+      },
+    ],
+    objectViews: [
+      {
+        type: 'meeting',
+        render: (tab) => (
+          <Suspense fallback={<Skeleton className="m-4 h-40" />}>
+            <MeetingView objectId={tab.objectId!} tabId={tab.id} />
+          </Suspense>
+        ),
+      },
+      {
+        type: 'protocol',
+        render: (tab) => (
+          <Suspense fallback={<Skeleton className="m-4 h-40" />}>
+            <ProtocolView objectId={tab.objectId!} tabId={tab.id} />
+          </Suspense>
+        ),
+      },
+      {
+        type: 'recording',
+        render: (tab) => (
+          <Suspense fallback={<LazyFallback />}>
+            <RecordingView objectId={tab.objectId!} tabId={tab.id} />
+          </Suspense>
+        ),
+      },
+    ],
+  })
+
+  registerModule({
+    key: 'search',
+    namespaces: ['documents'],
+    screens: [
+      {
+        key: 'search',
+        titleKey: 'shell.rail.search',
+        icon: 'view',
+        render: (tab) => (
+          <SearchScreen
+            initialQuery={tab.params.q ?? ''}
+            initialTypes={tab.params.types?.split(',').filter(Boolean) ?? []}
+            initialStatuses={tab.params.statuses?.split(',').filter(Boolean) ?? []}
+          />
+        ),
+      },
+    ],
+  })
+
+  registerModule({
+    key: 'spaces',
+    screens: [
+      { key: 'spaces', titleKey: 'spaces.title', icon: 'space', render: () => <SpacesScreen /> },
+      {
+        key: 'space',
+        titleKey: 'objects.types.space',
+        icon: 'space',
+        render: (tab) => <SpaceScreen spaceId={tab.params.spaceId ?? ''} />,
+      },
+    ],
+    objectViews: [{ type: 'space', render: (tab) => <SpaceScreen spaceId={tab.objectId!} /> }],
+  })
+
+  registerModule({
+    key: 'admin',
+    namespaces: [
+      'admin',
+      'automation',
+      'data',
+      'meetings',
+      'processDesigner',
+      'profile',
+      'schedules',
+      'tasks',
+    ],
+    screens: [
+      { key: 'admin', titleKey: 'shell.rail.admin', icon: 'role', render: () => <AdminScreen /> },
+    ],
+  })
+
+  registerModule({
+    key: 'profile',
+    namespaces: ['profile', 'admin', 'chats', 'notifications'],
+    screens: [
+      {
+        key: 'profile',
+        titleKey: 'shell.rail.profile',
+        icon: 'user',
+        render: () => <ProfileScreen />,
+      },
+    ],
+  })
+
+  registerModule({
+    key: 'processes',
+    namespaces: ['processDesigner', 'tasks'],
+    screens: [
+      {
+        key: 'process-designer',
+        titleKey: 'shell.screens.processDesigner',
+        icon: 'route',
+        render: (tab) => (
+          <Suspense fallback={<LazyFallback />}>
+            <ProcessDesigner definitionKey={tab.params.key ?? ''} tabId={tab.id} />
+          </Suspense>
+        ),
+      },
+    ],
+  })
+
+  registerModule({
+    key: 'automation',
+    namespaces: ['automation', 'admin'],
+    screens: [
+      {
+        key: 'rule-designer',
+        titleKey: 'shell.screens.ruleDesigner',
+        icon: 'zap',
+        render: (tab) => (
+          <Suspense fallback={<LazyFallback />}>
+            <RuleDesigner ruleId={tab.params.id ?? ''} />
+          </Suspense>
+        ),
+      },
+    ],
+  })
+
+  registerModule({
     key: 'forms',
-    titleKey: 'forms.title',
-    icon: 'form',
-    render: () => (
-      <Suspense fallback={<LazyFallback />}>
-        <FormsScreen />
-      </Suspense>
-    ),
+    namespaces: ['forms', 'admin', 'automation', 'data', 'gis', 'tasks'],
+    screens: [
+      {
+        key: 'forms',
+        titleKey: 'shell.rail.forms',
+        icon: 'form',
+        render: () => (
+          <Suspense fallback={<LazyFallback />}>
+            <FormsScreen />
+          </Suspense>
+        ),
+      },
+    ],
+    objectViews: [
+      {
+        type: 'form',
+        render: (tab) => (
+          <Suspense fallback={<LazyFallback />}>
+            <FormView objectId={tab.objectId!} />
+          </Suspense>
+        ),
+      },
+    ],
   })
-  registerObjectView({
-    type: 'form',
-    render: (tab) => (
-      <Suspense fallback={<LazyFallback />}>
-        <FormView objectId={tab.objectId!} />
-      </Suspense>
-    ),
-  })
-  registerScreen({
+
+  registerModule({
     key: 'alerts',
-    titleKey: 'alerts.title',
-    icon: 'alert',
-    render: () => (
-      <Suspense fallback={<LazyFallback />}>
-        <AlertsScreen />
-      </Suspense>
-    ),
+    namespaces: ['alerts'],
+    screens: [
+      {
+        key: 'alerts',
+        titleKey: 'shell.rail.alerts',
+        icon: 'alert',
+        render: () => (
+          <Suspense fallback={<LazyFallback />}>
+            <AlertsScreen />
+          </Suspense>
+        ),
+      },
+    ],
+    objectViews: [
+      {
+        type: 'alert',
+        render: (tab) => (
+          <Suspense fallback={<LazyFallback />}>
+            <AlertView objectId={tab.objectId!} />
+          </Suspense>
+        ),
+      },
+    ],
   })
-  registerObjectView({
-    type: 'alert',
-    render: (tab) => (
-      <Suspense fallback={<LazyFallback />}>
-        <AlertView objectId={tab.objectId!} />
-      </Suspense>
-    ),
+
+  registerModule({
+    key: 'gis',
+    namespaces: ['gis', 'data', 'documents', 'tasks'],
+    screens: [
+      {
+        key: 'maps',
+        titleKey: 'shell.rail.maps',
+        icon: 'map',
+        render: (tab) => (
+          <MapsScreen
+            tabId={tab.id}
+            savedState={tab.state as Parameters<typeof MapsScreen>[0]['savedState']}
+          />
+        ),
+      },
+      {
+        key: 'territories',
+        titleKey: 'shell.screens.territories',
+        icon: 'territory',
+        render: () => <TerritoriesScreen />,
+      },
+    ],
+    objectViews: [
+      {
+        type: 'map',
+        render: (tab) => (
+          <MapStudio
+            objectId={tab.objectId!}
+            tabId={tab.id}
+            savedState={tab.state as MapTabState}
+          />
+        ),
+      },
+      {
+        type: 'layer',
+        render: (tab) => (
+          <LayerView
+            objectId={tab.objectId!}
+            tabId={tab.id}
+            savedState={tab.state as Parameters<typeof LayerView>[0]['savedState']}
+          />
+        ),
+      },
+      {
+        type: 'territory',
+        render: (tab) => <TerritoryView objectId={tab.objectId!} />,
+      },
+    ],
   })
-  registerObjectView({
-    type: 'dataset',
-    render: (tab) => <DatasetView objectId={tab.objectId!} tabId={tab.id} />,
-  })
-  registerObjectView({
-    type: 'analysis',
-    render: (tab) => <AnalysisView objectId={tab.objectId!} tabId={tab.id} />,
-  })
-  registerObjectView({
-    type: 'task',
-    render: (tab) => <TaskView objectId={tab.objectId!} tabId={tab.id} />,
-  })
-  registerObjectView({
-    type: 'project',
-    render: (tab) => (
-      <ProjectView
-        objectId={tab.objectId!}
-        tabId={tab.id}
-        savedState={tab.state as TasksScreenState}
-      />
-    ),
-  })
-  registerObjectView({ type: 'space', render: (tab) => <SpaceScreen spaceId={tab.objectId!} /> })
-  registerScreen({
-    key: 'pipelines',
-    titleKey: 'data.pipelines.title',
-    icon: 'pipeline',
-    render: () => <PipelinesScreen />,
-  })
-  registerObjectView({
-    type: 'pipeline',
-    render: (tab) => (
-      <Suspense
-        fallback={
-          <div className="flex flex-col gap-3 p-6">
-            <Skeleton className="h-7 w-72" />
-            <Skeleton className="h-64 w-full" />
-          </div>
-        }
-      >
-        <PipelineDesigner pipelineId={tab.objectId ?? ''} />
-      </Suspense>
-    ),
-  })
-  registerScreen({
-    key: 'territories',
-    titleKey: 'gis.territories.title',
-    icon: 'territory',
-    render: () => <TerritoriesScreen />,
-  })
-  registerObjectView({
-    type: 'territory',
-    render: (tab) => <TerritoryView objectId={tab.objectId!} />,
-  })
-  registerScreen({
-    key: 'maps',
-    titleKey: 'shell.rail.maps',
-    icon: 'map',
-    render: (tab) => (
-      <MapsScreen
-        tabId={tab.id}
-        savedState={tab.state as Parameters<typeof MapsScreen>[0]['savedState']}
-      />
-    ),
-  })
-  registerObjectView({
-    type: 'map',
-    render: (tab) => (
-      <MapStudio objectId={tab.objectId!} tabId={tab.id} savedState={tab.state as MapTabState} />
-    ),
-  })
-  registerScreen({
+
+  registerModule({
     key: 'documents',
-    titleKey: 'shell.rail.documents',
-    icon: 'document',
-    render: (tab) => <DocumentsScreen tab={tab} />,
-  })
-  registerObjectView({
-    type: 'document',
-    render: (tab) => (
-      <DocumentView
-        objectId={tab.objectId!}
-        tabId={tab.id}
-        savedState={tab.state as Parameters<typeof DocumentView>[0]['savedState']}
-      />
-    ),
-    contextSection: (objectId) => <DocumentContextSection objectId={objectId} />,
-    assistantSection: (objectId) => <DocumentAssistant documentId={objectId} />,
-  })
-  registerObjectView({
-    type: 'journal',
-    render: (tab) => <JournalsDirectory selectedId={tab.objectId!} />,
-  })
-  registerObjectView({
-    type: 'correspondent',
-    render: (tab) => <CorrespondentsDirectory selectedId={tab.objectId!} />,
-  })
-  registerObjectView({
-    type: 'document_type',
-    render: (tab) => <TypesDirectory selectedId={tab.objectId!} />,
-  })
-  registerObjectView({
-    type: 'case',
-    render: (tab) => <CasesDirectory selectedId={tab.objectId!} />,
-  })
-  registerObjectView({
-    type: 'template',
-    render: (tab) => <TemplatesDirectory selectedId={tab.objectId!} />,
-  })
-  registerObjectView({
-    type: 'layer',
-    render: (tab) => (
-      <LayerView
-        objectId={tab.objectId!}
-        tabId={tab.id}
-        savedState={tab.state as Parameters<typeof LayerView>[0]['savedState']}
-      />
-    ),
+    namespaces: ['documents', 'documentAssist', 'data', 'gis', 'processes', 'tasks'],
+    screens: [
+      {
+        key: 'documents',
+        titleKey: 'shell.rail.documents',
+        icon: 'document',
+        render: (tab) => <DocumentsScreen tab={tab} />,
+      },
+    ],
+    objectViews: [
+      {
+        type: 'document',
+        render: (tab) => (
+          <DocumentView
+            objectId={tab.objectId!}
+            tabId={tab.id}
+            savedState={tab.state as Parameters<typeof DocumentView>[0]['savedState']}
+          />
+        ),
+        contextSection: (objectId) => <DocumentContextSection objectId={objectId} />,
+        assistantSection: (objectId) => <DocumentAssistant documentId={objectId} />,
+      },
+      {
+        type: 'journal',
+        render: (tab) => <JournalsDirectory selectedId={tab.objectId!} />,
+      },
+      {
+        type: 'correspondent',
+        render: (tab) => <CorrespondentsDirectory selectedId={tab.objectId!} />,
+      },
+      {
+        type: 'document_type',
+        render: (tab) => <TypesDirectory selectedId={tab.objectId!} />,
+      },
+      {
+        type: 'case',
+        render: (tab) => <CasesDirectory selectedId={tab.objectId!} />,
+      },
+      {
+        type: 'template',
+        render: (tab) => <TemplatesDirectory selectedId={tab.objectId!} />,
+      },
+    ],
   })
 }

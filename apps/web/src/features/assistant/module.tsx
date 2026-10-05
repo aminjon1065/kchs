@@ -9,6 +9,7 @@ const AssistantPanel = lazy(() =>
 /** Что модуль «Ассистент» даёт оболочке (ADR-0183): вкладку контекст-панели. */
 export const assistantModule: ModuleDefinition = {
   key: 'assistant',
+  namespaces: ['assistant', 'gis', 'tasks'],
   slots: [
     {
       key: 'assistant-panel',

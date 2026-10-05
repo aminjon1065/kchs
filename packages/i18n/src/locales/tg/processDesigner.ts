@@ -2,7 +2,6 @@ import type { DeepPartial } from '../../types.js'
 import type { Dictionary } from '../ru/index.js'
 
 export const processDesigner: DeepPartial<Dictionary['processDesigner']> = {
-  screenTitle: 'Созандаи масир',
   loadFailed: 'Масир кушода нашуд',
   section: {
     title: 'Масирҳои равандҳо',

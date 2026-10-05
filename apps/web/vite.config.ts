@@ -37,6 +37,14 @@ export default defineConfig({
           react: ['react', 'react-dom'],
           query: ['@tanstack/react-query'],
         },
+        // Словари — `i18n-<язык>-<неймспейс>-<хэш>.js` (ADR-0191): у файлов неймспейсов
+        // одинаковые имена во всех языках, без языка в имени чанки не различить
+        chunkFileNames: (chunk) => {
+          const locale = /\/i18n\/src\/locales\/(\w+)\/(\w+)\.ts$/.exec(chunk.facadeModuleId ?? '')
+          return locale
+            ? `assets/i18n-${locale[1]}-${locale[2]}-[hash].js`
+            : 'assets/[name]-[hash].js'
+        },
       },
     },
   },
