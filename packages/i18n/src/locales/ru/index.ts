@@ -33,7 +33,10 @@ import { tasks } from './tasks.js'
 import { telegram } from './telegram.js'
 import { ui } from './ui.js'
 
-/** Русский — основной язык интерфейса (01-vision.md, допущение A3). */
+/**
+ * Русский — основной язык интерфейса (01-vision.md, допущение A3). Неймспейс — ключ верхнего
+ * уровня и файл рядом (ADR-0191); тип `Dictionary` — отсюда.
+ */
 export const ru = {
   common,
   ui,

@@ -1,26 +1,33 @@
 import { en } from './locales/en/index.js'
 import { ru } from './locales/ru/index.js'
 import { tg } from './locales/tg/index.js'
-import { registerLocale } from './registry.js'
+import type { Namespace } from './namespaces.js'
+import { registerNamespaces } from './registry.js'
 import type { Locale } from './resources.js'
 
 /**
- * Словари интерфейса: вложенные ключи `module.screen.element`. Их читает
- * собственный переводчик (`translate.ts`) — один и тот же на сервере
- * (уведомления, письма) и в клиенте (ADR-0037). Сервер, скрипты и тесты
- * получают все языки сразу: письмо уходит на языке получателя. Браузер
- * берёт вход `browser.ts` — там в бандле только `ru` (ADR-0166).
+ * Серверный вход (условие `default`): сервер, скрипты и тесты держат все языки и неймспейсы
+ * сразу — письма и уведомления уходят на языке получателя. Загружать нечего.
  */
-registerLocale('ru', ru)
-registerLocale('tg', tg)
-registerLocale('en', en)
+registerNamespaces('ru', ru)
+registerNamespaces('tg', tg)
+registerNamespaces('en', en)
 
-/** Все словари уже загружены — ждать нечего; в браузере язык догружается. */
 export function loadLocale(_locale: Locale): Promise<void> {
   return Promise.resolve()
 }
 
-export { isLocaleLoaded } from './registry.js'
+export function loadNamespaces(_locale: Locale, _namespaces: readonly Namespace[]): Promise<void> {
+  return Promise.resolve()
+}
+
+export * from './namespaces.js'
+export {
+  dictionariesVersion,
+  isLocaleLoaded,
+  isNamespaceLoaded,
+  subscribeDictionaries,
+} from './registry.js'
 export * from './resources.js'
 export * from './translate.js'
 export type { DeepPartial, TranslateParams } from './types.js'

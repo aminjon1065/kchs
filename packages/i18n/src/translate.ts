@@ -1,4 +1,4 @@
-import { localeDictionary } from './registry.js'
+import { handleMissingNamespace, isNamespaceLoaded, namespaceDictionary } from './registry.js'
 import { DEFAULT_LOCALE, FALLBACK_LOCALE, INTL_LOCALE, type Locale } from './resources.js'
 import type { TranslateParams } from './types.js'
 
@@ -111,14 +111,26 @@ export interface Translator {
   locale: Locale
 }
 
+/** Шаблон ключа: неймспейс — первый сегмент, его словарь на языке или на основном. */
+function template(locale: Locale, key: string): string | undefined {
+  const [namespace = '', ...path] = key.split('.')
+  return (
+    lookup(namespaceDictionary(locale, namespace), path) ??
+    lookup(namespaceDictionary(FALLBACK_LOCALE, namespace), path)
+  )
+}
+
 export function createTranslator(locale: Locale = DEFAULT_LOCALE): Translator {
   const t = ((key: string, params: TranslateParams = {}) => {
-    const path = key.split('.')
     // Словарь языка ещё не загружен или ключа в нём нет — основной язык
-    const template =
-      lookup(localeDictionary(locale), path) ?? lookup(localeDictionary(FALLBACK_LOCALE), path)
-    if (!template) return key
-    return interpolate(template, params, locale)
+    const found = template(locale, key)
+    if (found) return interpolate(found, params, locale)
+    // Неймспейс модуля ещё не загружен (вход браузера, ADR-0191): загрузка запущена,
+    // до неё — пустая строка, а не сырой ключ
+    const [namespace = ''] = key.split('.', 1)
+    if (!isNamespaceLoaded(locale, namespace) && handleMissingNamespace(locale, namespace))
+      return ''
+    return key
   }) as Translator
   t.locale = locale
   return t
@@ -131,7 +143,8 @@ export function translate(locale: Locale, key: string, params: TranslateParams =
 
 /** Есть ли ключ хотя бы в одном словаре — используется скриптом проверки. */
 export function hasKey(key: string, locale: Locale = FALLBACK_LOCALE): boolean {
-  return lookup(localeDictionary(locale), key.split('.')) !== undefined
+  const [namespace = '', ...path] = key.split('.')
+  return lookup(namespaceDictionary(locale, namespace), path) !== undefined
 }
 
 /** Текст данных на нескольких языках (названия подразделений, ролей, справочников). */

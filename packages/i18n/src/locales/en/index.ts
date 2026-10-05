@@ -35,7 +35,7 @@ import { tasks } from './tasks.js'
 import { telegram } from './telegram.js'
 import { ui } from './ui.js'
 
-/** English — full coverage of phase 0 screens. */
+/** English — полный перевод, по неймспейсам в файлах рядом (ADR-0191). */
 export const en: DeepPartial<Dictionary> = {
   common,
   ui,
