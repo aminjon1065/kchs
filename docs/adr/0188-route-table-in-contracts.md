@@ -103,8 +103,9 @@ API.
   - `MethodTable<M>` — аргументы и ответ каждого пути метода. Путь в нём — ключ с
     переназначением (`as`). Иначе, выводя путь вызова, компилятор перемножал бы пути метода на
     ключи таблицы и падал: «union type that is too complex to represent».
-- **Ответ без схемы.** Web зовёт пять из семи JSON-маршрутов без схемы ответа. Их типы — в
-  `UndescribedResponses`: ссылки, лента и замещения — типы контрактов (`LinkView`, `Activity`,
+- **Ответ без схемы.** Клиентом web зовёт пять маршрутов без схемы ответа: четыре из семи
+  JSON-маршрутов и стиль подложки. Их типы — в `UndescribedResponses`: ссылки, лента и
+  замещения — типы контрактов (`LinkView`, `Activity`,
   `ActiveDelegation`), состояние рабочего пространства — тип web (сервер хранит его как есть),
   стиль подложки — `Record<string, unknown>`. Запись для маршрута, у которого появилась схема
   ответа, не компилируется.
@@ -222,7 +223,7 @@ API.
   и выгрузки. Семь отвечают JSON без схемы: `GET /objects/:id/links`,
   `GET /objects/:id/activity`, `GET /admin/jobs`, `GET /gis/service-layers/:id/features`,
   `GET /me/preferences`, `GET /me/workspace-state`, `GET /me/delegations`. Для них
-  `RouteResponse` — `unknown`. Тип ответа пяти из них, которые зовёт web, задан в
+  `RouteResponse` — `unknown`. Тип ответа четырёх из них, которые зовёт web, задан в
   `UndescribedResponses` клиента.
 - **Новый вызов API в web** — `http.<метод>('/путь/:id', { params, query, body })`, ответ
   выводится. Ручной тип формы — повод взять тип маршрута или контракта.
