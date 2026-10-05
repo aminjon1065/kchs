@@ -17,7 +17,7 @@
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "typecheck": "turbo run typecheck",
-    "deps:check": "pnpm --filter @kchs/api deps:check",
+    "deps:check": "pnpm --filter @kchs/api deps:check && pnpm --filter @kchs/web deps:check",
     "db:generate": "pnpm --filter @kchs/api db:generate",
     "db:migrate": "pnpm --filter @kchs/api db:migrate",
     "db:seed": "pnpm --filter @kchs/api db:seed",
