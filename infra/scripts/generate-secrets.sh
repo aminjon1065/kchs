@@ -56,6 +56,8 @@ PG_QUERY="$(rnd 32)"; PG_READONLY="$(rnd 32)"; PG_AUDIT="$(rnd 32)"
 # Роль экспортёра метрик Postgres (ADR-0147): только pg_monitor
 PG_MONITOR="$(rnd 32)"
 REDIS_PW="$(rnd 32)"; S3_SECRET="$(rnd 40)"; MEILI_KEY="$(rnd 40)"
+# Кэш — отдельный Redis со своим паролем (ADR-0175)
+REDIS_CACHE_PW="$(rnd 32)"
 MASTER_KEY="$(b64key)"; INTERNAL_TOKEN="$(rnd 48)"; GRAFANA_PW="$(rnd 24)"
 # Медиасервер встреч (ADR-0089): ключ и секрет — пара для токенов комнат
 LIVEKIT_KEY="$(rnd 16)"; LIVEKIT_SECRET="$(rnd 48)"
@@ -83,6 +85,7 @@ repl KCHS_READONLY_PASSWORD "$PG_READONLY"
 repl KCHS_AUDIT_PASSWORD "$PG_AUDIT"
 repl KCHS_MONITOR_PASSWORD "$PG_MONITOR"
 repl REDIS_PASSWORD "$REDIS_PW"
+set_kv REDIS_CACHE_PASSWORD "$REDIS_CACHE_PW"
 repl S3_SECRET_KEY "$S3_SECRET"
 repl MEILI_MASTER_KEY "$MEILI_KEY"
 repl KCHS_MASTER_KEY "$MASTER_KEY"

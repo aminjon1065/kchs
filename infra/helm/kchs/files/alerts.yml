@@ -171,11 +171,11 @@ groups:
         annotations:
           summary: "Postgres: реплика отстаёт на {{ $value | humanizeDuration }}"
 
-  # ── Redis (очереди BullMQ, кэш прав, сессии realtime) ──────────────────────
+  # ── Redis (очереди BullMQ, потоки событий, доступы; кэш — ниже) ────────────
   - name: kchs-redis
     rules:
       - alert: KchsRedisDown
-        expr: redis_up == 0
+        expr: redis_up{job="redis"} == 0
         for: 1m
         labels:
           severity: critical
@@ -185,7 +185,7 @@ groups:
       # noeviction: у предела Redis отказывает в записи, а не вытесняет ключи
       - alert: KchsRedisMemory
         # Значение оповещения — левая часть `and`: доля памяти, а не предел
-        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.9 and redis_memory_max_bytes > 0
+        expr: redis_memory_used_bytes{job="redis"} / redis_memory_max_bytes{job="redis"} > 0.9 and redis_memory_max_bytes{job="redis"} > 0
         for: 10m
         labels:
           severity: warning
@@ -194,7 +194,7 @@ groups:
 
       # Без maxmemory Redis растёт до памяти сервера; обычный объём — десятки МБ
       - alert: KchsRedisMemoryUnbounded
-        expr: redis_memory_used_bytes > 2e9 and redis_memory_max_bytes == 0
+        expr: redis_memory_used_bytes{job="redis"} > 2e9 and redis_memory_max_bytes{job="redis"} == 0
         for: 15m
         labels:
           severity: warning
@@ -218,12 +218,43 @@ groups:
           summary: "Redis отказывает в записи ({{ $labels.err }})"
 
       - alert: KchsRedisPersistence
-        expr: redis_aof_last_write_status == 0 or redis_rdb_last_bgsave_status == 0
+        expr: redis_aof_last_write_status{job="redis"} == 0 or redis_rdb_last_bgsave_status{job="redis"} == 0
         for: 5m
         labels:
           severity: critical
         annotations:
           summary: "Redis не может сохранить данные на диск (AOF или снимок)"
+
+  # ── Кэш Redis (ADR-0175): тайлы, результаты запросов, наборы прав ─────────
+  # Полная память у кэша — норма (allkeys-lru вытесняет давно не читанное); тревога —
+  # кэш не отвечает, работает без предела или вытесняет всё, едва записав
+  - name: kchs-redis-cache
+    rules:
+      - alert: KchsRedisCacheDown
+        expr: redis_up{job="redis-cache"} == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Кэш Redis не отвечает — тайлы и запросы считаются без кэша, платформа медленнее"
+
+      - alert: KchsRedisCacheUnbounded
+        expr: redis_memory_max_bytes{job="redis-cache"} == 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Кэш Redis без предела памяти (maxmemory) — растёт до памяти сервера"
+
+      # Вытеснение сотнями ключей в секунду: кэш мал для рабочего набора, тайлы
+      # и запросы почти всегда считаются заново
+      - alert: KchsRedisCacheThrashing
+        expr: rate(redis_evicted_keys_total{job="redis-cache"}[15m]) > 200
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Кэш Redis вытесняет {{ $value | humanize }} ключей в секунду — мал для рабочего набора (REDIS_CACHE_MAXMEMORY)"
 
   # ── Хранилище файлов (MinIO) ───────────────────────────────────────────────
   - name: kchs-storage
@@ -310,7 +341,7 @@ groups:
       # Экспортёр Postgres отвечает и при упавшей базе (pg_up = 0): здесь — именно
       # пропавшие метрики, а не падение службы
       - alert: KchsMetricsTargetDown
-        expr: up{job=~"postgres|redis|alertmanager"} == 0
+        expr: up{job=~"postgres|redis|redis-cache|alertmanager"} == 0
         for: 5m
         labels:
           severity: warning

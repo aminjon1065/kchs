@@ -40,6 +40,11 @@ redis:
     persistence:
       enabled: false
 
+# Кэш — отдельным Redis (ADR-0175)
+redisCache:
+  embedded:
+    enabled: true
+
 s3:
   publicEndpoint: http://s3.127.0.0.1.nip.io
   embedded:
@@ -107,6 +112,7 @@ secrets:
     POSTGRES_READONLY_PASSWORD: ci-readonly-password
     POSTGRES_AUDIT_PASSWORD: ci-audit-password
     REDIS_PASSWORD: ci-redis-password
+    REDIS_CACHE_PASSWORD: ci-redis-cache-password
     S3_ACCESS_KEY: ci-access-key
     S3_SECRET_KEY: ci-secret-key-0123456789
     MEILI_MASTER_KEY: ci-meili-key-0123456789

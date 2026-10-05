@@ -41,7 +41,8 @@ logLevel: info
 # Ключи: POSTGRES_APP_PASSWORD, POSTGRES_MIGRATOR_PASSWORD, POSTGRES_QUERY_PASSWORD
 # (или DATABASE_URL, DATABASE_MIGRATOR_URL, DATABASE_QUERY_URL при
 # postgres.urlsFromSecret), REDIS_PASSWORD (или REDIS_URL), S3_ACCESS_KEY,
-# S3_SECRET_KEY, MEILI_MASTER_KEY, KCHS_MASTER_KEY, INTERNAL_SERVICE_TOKEN.
+# S3_SECRET_KEY, MEILI_MASTER_KEY, KCHS_MASTER_KEY, INTERNAL_SERVICE_TOKEN;
+# REDIS_CACHE_PASSWORD — если кэш отдельный (redisCache).
 secrets:
   # Секрет внешнего менеджера (Vault Secrets Operator, External Secrets,
   # SealedSecrets): чарт свой Secret не создаёт и берёт ключи из этого
@@ -138,6 +139,30 @@ redis:
     resources:
       requests: { cpu: 100m, memory: 256Mi }
       limits: { memory: 1Gi }
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+
+# ── Кэш: второй Redis (ADR-0175) ───────────────────────────────────────────
+# Тайлы, результаты запросов, наборы прав — всё, что можно пересчитать, — отдельно
+# от долговечного Redis с очередями и событиями: заполненный кэш вытесняет давно не
+# читанное (allkeys-lru) и не останавливает очереди. Не задан ни встроенный, ни host
+# — кэш живёт в основном Redis, как в разработке. Пароль — ключ REDIS_CACHE_PASSWORD
+# секрета. Нужен только api и worker: движок кэшем не пользуется.
+redisCache:
+  host: ""
+  port: 6379
+  tls: false
+  embedded:
+    enabled: false
+    image:
+      repository: redis
+      tag: 7-alpine
+    # Предел памяти кэша — ниже лимита контейнера с запасом на буферы клиентов
+    maxmemory: 384mb
+    resources:
+      requests: { cpu: 50m, memory: 128Mi }
+      limits: { memory: 512Mi }
     nodeSelector: {}
     tolerations: []
     affinity: {}

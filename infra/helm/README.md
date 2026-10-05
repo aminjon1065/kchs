@@ -30,7 +30,7 @@ helm upgrade --install kchs infra/helm/kchs \
 kubectl logs job/kchs-init          # временный пароль администратора
 ```
 
-`embedded-values.yaml` поднимает Postgres, Redis, MinIO и Meilisearch
+`embedded-values.yaml` поднимает Postgres, Redis, кэш Redis, MinIO и Meilisearch
 манифестами чарта. Это режим стенда: один экземпляр каждой службы, без
 репликации и архива WAL.
 
@@ -40,6 +40,11 @@ kubectl logs job/kchs-init          # временный пароль админ
 PostgreSQL оператором (CloudNativePG/Patroni) с репликой и PgBouncer, Redis
 Sentinel, внешний S3 или распределённый MinIO, Meilisearch с PVC. Чарт знает о
 них только адреса и ключи секрета.
+
+Кэш (ADR-0175) — второй Redis с `maxmemory-policy allkeys-lru` и без сохранения
+на диск: тайлы, результаты запросов, наборы прав. Адрес — `redisCache.host`,
+пароль — ключ `REDIS_CACHE_PASSWORD`. Не задан — кэш живёт в основном Redis, и
+заполненный кэш тогда делит память с очередями и событиями (там `noeviction`).
 
 ```bash
 helm upgrade --install kchs infra/helm/kchs \
@@ -78,6 +83,7 @@ helm upgrade --install kchs infra/helm/kchs \
 | `POSTGRES_MIGRATOR_PASSWORD` | роль `kchs_migrator` |
 | `POSTGRES_QUERY_PASSWORD` | роль `kchs_query` (пользовательские запросы) |
 | `REDIS_PASSWORD` | Redis |
+| `REDIS_CACHE_PASSWORD` | кэш Redis, если он отдельный (`redisCache`) |
 | `S3_ACCESS_KEY`, `S3_SECRET_KEY` | объектное хранилище |
 | `MEILI_MASTER_KEY` | поисковый индекс |
 | `KCHS_MASTER_KEY` | 32 байта base64: шифрование секретов и TOTP |

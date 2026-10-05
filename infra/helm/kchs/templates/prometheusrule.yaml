@@ -5,7 +5,8 @@ observability S1: files/alerts.yml — копия infra/observability/prometheus
 совпадение сверяет CI. Файл вставляется как есть, без шаблонизации: {{ $labels }} в
 аннотациях — шаблоны самого Prometheus. Имена заданий kchs-api и kchs-worker ставит
 ServiceMonitor чарта; экспортёрам служб данных администратор кластера даёт job postgres,
-redis, minio, meilisearch и alertmanager, иначе правила по `up{job=...}` молчат.
+redis, redis-cache (кэш, ADR-0175), minio, meilisearch и alertmanager, иначе правила по
+`job=...` молчат.
 */}}
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule

@@ -113,6 +113,55 @@ tests:
             exp_annotations:
               summary: "Метрики redis не собираются (redis)"
 
+  # Кэш Redis (ADR-0175): своё оповещение о недоступности; полная память кэша — норма,
+  # правила основного Redis (недоступен, память) на него не срабатывают
+  - interval: 1m
+    input_series:
+      - series: 'redis_up{job="redis-cache", instance="redis-cache"}'
+        values: '0x10'
+      - series: 'redis_memory_max_bytes{job="redis-cache", instance="redis-cache"}'
+        values: '1000x20'
+      - series: 'redis_memory_used_bytes{job="redis-cache", instance="redis-cache"}'
+        values: '990x20'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: KchsRedisCacheDown
+        exp_alerts:
+          - exp_labels: { severity: warning, job: redis-cache, instance: redis-cache }
+            exp_annotations:
+              summary: "Кэш Redis не отвечает — тайлы и запросы считаются без кэша, платформа медленнее"
+      - eval_time: 6m
+        alertname: KchsRedisDown
+        exp_alerts: []
+      - eval_time: 15m
+        alertname: KchsRedisMemory
+        exp_alerts: []
+
+  - interval: 1m
+    input_series:
+      - series: 'redis_memory_max_bytes{job="redis-cache", instance="redis-cache"}'
+        values: '0x20'
+      # 15 000 вытесненных ключей в минуту — 250 в секунду
+      - series: 'redis_evicted_keys_total{job="redis-cache", instance="redis-cache"}'
+        values: '0+15000x60'
+    alert_rule_test:
+      - eval_time: 16m
+        alertname: KchsRedisCacheUnbounded
+        exp_alerts:
+          - exp_labels: { severity: warning, job: redis-cache, instance: redis-cache }
+            exp_annotations:
+              summary: "Кэш Redis без предела памяти (maxmemory) — растёт до памяти сервера"
+      - eval_time: 50m
+        alertname: KchsRedisCacheThrashing
+        exp_alerts:
+          - exp_labels: { severity: warning, job: redis-cache, instance: redis-cache }
+            exp_annotations:
+              summary: "Кэш Redis вытесняет 250 ключей в секунду — мал для рабочего набора (REDIS_CACHE_MAXMEMORY)"
+      # Основной Redis без предела — другое правило и другой порог; кэш его не поднимает
+      - eval_time: 20m
+        alertname: KchsRedisMemoryUnbounded
+        exp_alerts: []
+
   # Шина событий (ADR-0171): отстающий и зависший подписчик, очередь сбоев, предел
   # потока; подписчик с небольшим отставанием молчит
   - interval: 1m

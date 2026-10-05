@@ -50,6 +50,12 @@ scrape_configs:
       - targets: [redis-exporter:9121]
         labels: { instance: redis }
 
+  # Кэш — отдельный Redis с allkeys-lru (ADR-0175)
+  - job_name: redis-cache
+    static_configs:
+      - targets: [redis-cache-exporter:9121]
+        labels: { instance: redis-cache }
+
   # Собственные метрики MinIO: токен пользователя только с правом admin:Prometheus
   # (metrics-init-minio). Кластерные метрики тяжелее прочих — раз в 30 с
   - job_name: minio

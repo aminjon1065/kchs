@@ -1,6 +1,6 @@
 # kchs — инфраструктура сценария S1 (один сервер).
-# Профили: по умолчанию — данные и сервисы (postgres, redis, minio, meilisearch,
-# mailpit); `app` — образы api/worker/engine/web; `media` — LiveKit (фаза 4);
+# Профили: по умолчанию — данные и сервисы (postgres, redis, кэш redis-cache, minio,
+# meilisearch, mailpit); `app` — образы api/worker/engine/web; `media` — LiveKit (фаза 4);
 # `office` — сервер документов ONLYOFFICE (фаза 5); `observability` — трассы,
 # метрики, журналы и оповещения (Alloy, Tempo, Loki, Prometheus, Grafana,
 # экспортёры Postgres и Redis, Alertmanager).
@@ -33,6 +33,8 @@ x-app-env: &app-env
   DATABASE_MIGRATOR_URL: postgres://kchs_migrator:${KCHS_MIGRATOR_PASSWORD}@postgres:5432/${POSTGRES_DB:-kchs}
   DATABASE_QUERY_URL: postgres://kchs_query:${KCHS_QUERY_PASSWORD}@postgres:5432/${POSTGRES_DB:-kchs}
   REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+  # Кэш — отдельный Redis (ADR-0175); без своего пароля — пароль основного
+  REDIS_CACHE_URL: redis://:${REDIS_CACHE_PASSWORD:-${REDIS_PASSWORD}}@redis-cache:6379
   S3_ENDPOINT: http://minio:9000
   S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:-http://localhost:9000}
   S3_ACCESS_KEY: ${S3_ACCESS_KEY}
@@ -183,7 +185,7 @@ services:
       - everysec
       # Предел памяти: без него Redis растёт до памяти сервера. noeviction обязателен —
       # в Redis очереди BullMQ и поток событий: у предела запись отклоняется, ключи не
-      # вытесняются (оповещение KchsRedisMemory — на 90%)
+      # вытесняются (оповещение KchsRedisMemory — на 90%). Кэши — в redis-cache (ADR-0175)
       - --maxmemory
       - ${REDIS_MAXMEMORY:-1gb}
       - --maxmemory-policy
@@ -201,6 +203,33 @@ services:
       retries: 20
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
+
+  # Кэш (ADR-0175): тайлы, результаты запросов, наборы прав — всё, что можно
+  # пересчитать. allkeys-lru у предела вытесняет давно не читанное, а не
+  # отказывает в записи; на диск не сохраняется — после перезапуска наполняется
+  # заново. Порт наружу не публикуется: кэш нужен только api и worker в контейнерах
+  redis-cache:
+    <<: [*restart, *logging]
+    image: redis:7-alpine
+    command:
+      - redis-server
+      - --save
+      - ""
+      - --appendonly
+      - "no"
+      - --maxmemory
+      - ${REDIS_CACHE_MAXMEMORY:-512mb}
+      - --maxmemory-policy
+      - allkeys-lru
+      - --requirepass
+      - ${REDIS_CACHE_PASSWORD:-${REDIS_PASSWORD}}
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep -q PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    environment:
+      REDIS_PASSWORD: ${REDIS_CACHE_PASSWORD:-${REDIS_PASSWORD}}
 
   minio:
     <<: [*restart, *logging]
@@ -396,6 +425,8 @@ services:
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
+      # Без кэша api работает (медленнее) — ждём только запуска, а не готовности
+      redis-cache: { condition: service_started }
       minio: { condition: service_healthy }
       minio-init: { condition: service_completed_successfully }
       meilisearch: { condition: service_healthy }
@@ -745,6 +776,14 @@ services:
     environment:
       REDIS_ADDR: redis://redis:6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+
+  redis-cache-exporter:
+    <<: [*restart, *logging]
+    profiles: ["observability"]
+    image: oliver006/redis_exporter:v1.91.1
+    environment:
+      REDIS_ADDR: redis://redis-cache:6379
+      REDIS_PASSWORD: ${REDIS_CACHE_PASSWORD:-${REDIS_PASSWORD:-}}
 
   # ── Оповещения (ADR-0147): правила Prometheus → Alertmanager → почта и Telegram ─
   # Конфигурация собирается при старте из переменных (entrypoint.sh): SMTP — тот же,

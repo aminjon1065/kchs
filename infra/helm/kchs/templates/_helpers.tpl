@@ -209,6 +209,33 @@ imagePullSecrets:
 {{- end }}
 {{- end -}}
 
+{{/* Кэш — отдельный Redis (ADR-0175): встроенный или внешний host */}}
+{{- define "kchs.redisCache.enabled" -}}
+{{- if or .Values.redisCache.embedded.enabled .Values.redisCache.host -}}true{{- end -}}
+{{- end -}}
+
+{{- define "kchs.redisCache.host" -}}
+{{- if .Values.redisCache.embedded.enabled -}}
+{{- printf "%s-redis-cache" (include "kchs.fullname" .) -}}
+{{- else -}}
+{{- .Values.redisCache.host -}}
+{{- end -}}
+{{- end -}}
+
+{{- define "kchs.redisCacheEnv" -}}
+{{- $ctx := .ctx -}}
+{{- if include "kchs.redisCache.enabled" $ctx }}
+{{- $cache := $ctx.Values.redisCache }}
+- name: REDIS_CACHE_PASSWORD
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "kchs.secretName" $ctx }}
+      key: REDIS_CACHE_PASSWORD
+- name: REDIS_CACHE_URL
+  value: {{ printf "%s://:$(REDIS_CACHE_PASSWORD)@%s:%d" (ternary "rediss" "redis" $cache.tls) (include "kchs.redisCache.host" $ctx) (int $cache.port) | quote }}
+{{- end }}
+{{- end -}}
+
 {{- define "kchs.redisEnv" -}}
 {{- $ctx := .ctx -}}
 {{- $redis := $ctx.Values.redis -}}
@@ -281,6 +308,9 @@ imagePullSecrets:
 {{- define "kchs.appEnv" -}}
 {{- include "kchs.dbEnv" (dict "ctx" .ctx "roles" (list "app" "migrator" "query")) | trim | nindent 0 }}
 {{- include "kchs.redisEnv" (dict "ctx" .ctx) | trim | nindent 0 }}
+{{- with include "kchs.redisCacheEnv" (dict "ctx" .ctx) | trim }}
+{{- . | nindent 0 }}
+{{- end }}
 {{- include "kchs.s3Env" (dict "ctx" .ctx) | trim | nindent 0 }}
 {{- include "kchs.appSecretEnv" (dict "ctx" .ctx) | trim | nindent 0 }}
 {{- with .ctx.Values.extraEnv }}
