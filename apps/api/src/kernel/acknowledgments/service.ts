@@ -309,6 +309,16 @@ export const Acknowledgments = {
     return userIds
   },
 
+  /** Запрашивалось ли ознакомление с объектом — печатная форма листа ознакомления (ADR-0184). */
+  async hasRequests(objectId: string, executor: Executor = db()): Promise<boolean> {
+    const [row] = await executor
+      .select({ id: acknowledgmentRequests.id })
+      .from(acknowledgmentRequests)
+      .where(eq(acknowledgmentRequests.objectId, objectId))
+      .limit(1)
+    return Boolean(row)
+  },
+
   /** Сотрудники с ожиданием или отметкой по объекту (не снятые) — права участников. */
   async usersOf(executor: Executor, objectId: string): Promise<string[]> {
     const rows = await executor

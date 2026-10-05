@@ -407,6 +407,25 @@ export async function readPrincipalsFor(
   return [...principals]
 }
 
+/**
+ * Явные записи доступа пользователей на самом объекте — с уровнем и пометкой
+ * источника (`note`): модуль, который сам выдаёт права участникам (документ,
+ * ADR-0080), сверяет с ними, что выдал он, а что — человек вручную (ADR-0184).
+ */
+export async function explicitUserEntries(
+  executor: Executor,
+  objectId: string,
+): Promise<Array<{ principalId: string; level: number; note: string | null }>> {
+  return executor
+    .select({
+      principalId: aclEntries.principalId,
+      level: aclEntries.level,
+      note: aclEntries.note,
+    })
+    .from(aclEntries)
+    .where(and(eq(aclEntries.objectId, objectId), eq(aclEntries.principalType, 'user')))
+}
+
 /** Пользователи, у которых есть доступ к объекту (для уведомлений). */
 export async function usersWithAccess(
   objectId: string,

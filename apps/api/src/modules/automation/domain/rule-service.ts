@@ -24,7 +24,7 @@ import { publishEvent } from '~/kernel/events/publisher.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import { nextRunAt } from '~/kernel/schedules/index.js'
-import { spaces } from '~/kernel/spaces/schema.js'
+import { SpaceService } from '~/kernel/spaces/service.js'
 import { config } from '~/shared/config/index.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
@@ -634,12 +634,5 @@ async function spaceTitle(spaceId: string | null): Promise<string | null> {
 }
 
 async function spaceTitles(ids: Array<string | null>): Promise<Map<string, string>> {
-  const unique = [...new Set(ids.filter((id): id is string => Boolean(id)))]
-  if (unique.length === 0) return new Map()
-  const rows = await db()
-    .select({ id: objects.id, title: objects.title })
-    .from(objects)
-    .innerJoin(spaces, eq(spaces.id, objects.id))
-    .where(inArray(objects.id, unique))
-  return new Map(rows.map((row) => [row.id, row.title]))
+  return SpaceService.titles(ids.filter((id): id is string => Boolean(id)))
 }

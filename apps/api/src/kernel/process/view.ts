@@ -54,6 +54,16 @@ async function refsOf(ids: Iterable<string | null | undefined>): Promise<Map<str
 }
 
 export const ProcessView = {
+  /** Был ли у объекта маршрут — печатная форма листа согласования (ADR-0184). */
+  async hasAny(objectId: string, executor: Executor = db()): Promise<boolean> {
+    const [row] = await executor
+      .select({ id: processInstances.id })
+      .from(processInstances)
+      .where(eq(processInstances.objectId, objectId))
+      .limit(1)
+    return Boolean(row)
+  },
+
   /**
    * Идущие маршруты объекта с текущими шагами решения (ADR-0083): модуль
    * показывает их в карточке. Права проверяет вызывающий.

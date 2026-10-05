@@ -8,6 +8,7 @@ import {
   type OrgUnit,
   type OrgUnitInput,
   type OrgUnitPatch,
+  type ProfileUpdateInput,
   parseConfidentiality,
   type UserKind,
   type UserProfile,
@@ -60,6 +61,18 @@ export function temporaryPasswordFor(login: string): string {
     if (!candidate.toLowerCase().includes(needle)) return candidate
   }
 }
+
+/** Поля профиля, которые сотрудник правит сам (`PATCH /me`). */
+const PROFILE_FIELDS = [
+  'displayName',
+  'firstName',
+  'lastName',
+  'middleName',
+  'email',
+  'phone',
+  'locale',
+  'timezone',
+] as const satisfies ReadonlyArray<keyof ProfileUpdateInput>
 
 export const UserService = {
   async create(
@@ -269,6 +282,36 @@ export const UserService = {
     await publishEvent(tx, ctx, {
       type: 'user.updated',
       object: { id: userId, type: 'user', title: current.displayName },
+      changedFields: Object.keys(values),
+    })
+    await invalidatePrincipalSet(userId, tx)
+  },
+
+  /**
+   * Профиль сотрудником сам (`PATCH /me`): имя, контакты, язык и пояс. Запись,
+   * событие `user.updated` и сброс набора принципалов — одной транзакцией
+   * вызывающего (ADR-0184): раньше профиль писал модуль входа без события.
+   */
+  async updateProfile(
+    tx: Executor,
+    ctx: Ctx,
+    userId: string,
+    patch: ProfileUpdateInput,
+  ): Promise<void> {
+    const values: Record<string, unknown> = {}
+    for (const key of PROFILE_FIELDS) {
+      if (patch[key] !== undefined) values[key] = patch[key]
+    }
+    if (Object.keys(values).length === 0) return
+    const [row] = await tx
+      .update(users)
+      .set({ ...values, updatedAt: sql`now()` })
+      .where(eq(users.id, userId))
+      .returning({ displayName: users.displayName })
+    if (!row) throw errors.notFound('Пользователь')
+    await publishEvent(tx, ctx, {
+      type: 'user.updated',
+      object: { id: userId, type: 'user', title: row.displayName },
       changedFields: Object.keys(values),
     })
     await invalidatePrincipalSet(userId, tx)
@@ -705,6 +748,15 @@ export const OrgService = {
       object: { id, type: 'unit', title: (patch.name ?? current.name).ru },
       payload: { unitId: id, change: 'updated' },
     })
+  },
+
+  /**
+   * Связь подразделения с записью внешнего каталога (DN LDAP/AD): служебный
+   * столбец синхронизации, а не правка оргструктуры, — без события; событие
+   * `org.unit_changed` публикуют создание и правка самого подразделения (ADR-0184).
+   */
+  async setExternalId(tx: Executor, id: string, externalId: string | null): Promise<void> {
+    await tx.update(orgUnits).set({ externalId }).where(eq(orgUnits.id, id))
   },
 
   async tree(database: Database = db()): Promise<OrgUnit[]> {

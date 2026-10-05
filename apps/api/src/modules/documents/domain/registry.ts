@@ -8,7 +8,7 @@ import {
 } from '@kchs/contracts'
 import { eq, inArray, sql } from 'drizzle-orm'
 import { directory } from '~/kernel/directory/port.js'
-import { links } from '~/kernel/links/schema.js'
+import { LinkSql } from '~/kernel/links/service.js'
 import type { ListFieldDef, SearchContent } from '~/kernel/objects/registry.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { db } from '~/shared/db/client.js'
@@ -134,15 +134,15 @@ export const DOCUMENT_LIST_FIELDS: ListFieldDef[] = [
     key: 'answered',
     labelKey: 'documents.fields.answered',
     type: 'boolean',
-    sql: sql`EXISTS (SELECT 1 FROM ${links} l JOIN ${documentDispatches} dd ON dd.document_id = l.source_id
-      WHERE l.target_id = "objects"."id" AND l.kind = 'reply_to')`,
+    // Отвечен — на документ ссылается ответ, который уже отправлен
+    sql: sql`EXISTS (SELECT 1 FROM ${documentDispatches} dd
+      WHERE dd.document_id IN ${LinkSql.sources(sql`"objects"."id"`, 'reply_to')})`,
   },
   {
     key: 'replyTo',
     labelKey: 'documents.fields.replyTo',
     type: 'object_ref',
-    sql: sql`(SELECT l.target_id::text FROM ${links} l
-      WHERE l.source_id = "objects"."id" AND l.kind = 'reply_to' LIMIT 1)`,
+    sql: LinkSql.firstTarget(sql`"objects"."id"`, 'reply_to'),
   },
 ]
 

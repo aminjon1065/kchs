@@ -6,7 +6,7 @@ import type {
 } from '@kchs/contracts'
 import { and, desc, eq, isNull, or, type SQL, sql } from 'drizzle-orm'
 import { visibleObjectsSql } from '~/kernel/access/authorize.js'
-import { links } from '~/kernel/links/schema.js'
+import { LinkSql } from '~/kernel/links/service.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { TerritoryService, territoryIndex } from '~/modules/territories/public.js'
 import type { UserCtx } from '~/shared/context.js'
@@ -58,9 +58,11 @@ export async function territoryDocuments(
         sql`(${documents.typeId} = ${typeId} AND ${documents.fields}->>${key} = ANY(${literal(ids)}::text[]))`,
     ),
   )
-  const linked = sql<string | null>`(SELECT l.target_id::text FROM ${links} l
-     WHERE l.source_id = ${documents.id} AND l.kind = 'about_territory'
-       AND l.target_id = ANY(${literal(ids)}::uuid[]) LIMIT 1)`
+  const linked = LinkSql.firstTarget(
+    sql`${documents.id}`,
+    'about_territory',
+    sql`ANY(${literal(ids)}::uuid[])`,
+  )
   const where = and(
     isNull(objects.deletedAt),
     visibleObjectsSql(ctx, 'document'),

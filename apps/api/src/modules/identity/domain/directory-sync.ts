@@ -9,7 +9,7 @@ import type {
 import { and, desc, eq, sql } from 'drizzle-orm'
 import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
 import { orgUnits, positions, roles, users } from '~/kernel/directory/schema.js'
-import { OrgService, UserService } from '~/kernel/directory/service.js'
+import { OrgService, PositionService, UserService } from '~/kernel/directory/service.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import type { Ctx } from '~/shared/context.js'
 import { actorId, systemCtx } from '~/shared/context.js'
@@ -406,7 +406,7 @@ async function syncUnits(
       if (mode !== 'preview') {
         await db().transaction(async (tx) => {
           await OrgService.updateUnit(tx, ctx, existingId, { name: { ru: description } })
-          await tx.update(orgUnits).set({ externalId: entry.dn }).where(eq(orgUnits.id, existingId))
+          await OrgService.setExternalId(tx, existingId, entry.dn)
         })
         stats.unitsUpdated += 1
       }
@@ -430,7 +430,7 @@ async function syncUnits(
         isActive: true,
         createSpace: false,
       })
-      await tx.update(orgUnits).set({ externalId: entry.dn }).where(eq(orgUnits.id, created))
+      await OrgService.setExternalId(tx, created, entry.dn)
       return created
     })
     stats.unitsCreated += 1
@@ -446,6 +446,7 @@ async function syncUnits(
  * каталог — строкой. Недостающие должности заводятся по ходу синхронизации.
  */
 async function positionIndex(
+  ctx: Ctx,
   mode: DirectorySyncMode,
   names: string[],
 ): Promise<Map<string, string>> {
@@ -455,10 +456,10 @@ async function positionIndex(
   for (const name of new Set(names.map((value) => value.trim()).filter(Boolean))) {
     const key = name.toLowerCase()
     if (index.has(key)) continue
-    const id = newId()
-    await db()
-      .insert(positions)
-      .values({ id, name: { ru: name }, rank: 0 })
+    // Через сервис справочника ядра: запись, событие и аудит одной транзакцией (ADR-0177)
+    const id = await db().transaction((tx) =>
+      PositionService.create(tx, ctx, { name: { ru: name }, rank: 0 }),
+    )
     index.set(key, id)
   }
   return index
@@ -475,6 +476,7 @@ async function syncPeople(
 ): Promise<void> {
   const knownRoles = new Set((await db().select({ key: roles.key }).from(roles)).map((r) => r.key))
   const jobs = await positionIndex(
+    ctx,
     mode,
     people.map((person) => person.positionName ?? '').filter(Boolean),
   )

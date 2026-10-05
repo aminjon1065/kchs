@@ -2,7 +2,6 @@ import type { DocumentRecord, UserRef } from '@kchs/contracts'
 import type { ProcessInstanceView, ProcessStepView } from '@kchs/process'
 import { eq } from 'drizzle-orm'
 import { ProcessView } from '~/kernel/process/index.js'
-import { processInstances } from '~/kernel/process/schema.js'
 import { db } from '~/shared/db/client.js'
 import { documentSignatures } from '../../../schema.js'
 import { DocumentService } from '../../document-service.js'
@@ -75,14 +74,8 @@ export const approvalSheet: PrintFormDefinition = {
   labelKey: 'documents.print.forms.approval_sheet',
   subjectType: 'document',
   typeListed: false,
-  unavailable: async (subject: PrintSubject) => {
-    const [route] = await db()
-      .select({ id: processInstances.id })
-      .from(processInstances)
-      .where(eq(processInstances.objectId, subject.id))
-      .limit(1)
-    return route ? null : 'documents.print.reasons.noRoute'
-  },
+  unavailable: async (subject: PrintSubject) =>
+    (await ProcessView.hasAny(subject.id)) ? null : 'documents.print.reasons.noRoute',
   build: async (pc, subject) => {
     const doc = await DocumentService.get(pc.ctx, subject.id)
     const routes = await routesOf(pc, subject.id)

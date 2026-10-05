@@ -14,7 +14,6 @@ import { UnrecoverableError } from 'bullmq'
 import { and, eq, isNull, sql } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
-import { dependencies } from '~/kernel/links/schema.js'
 import { LinkService } from '~/kernel/links/service.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import { HttpIntegration, hasSecretRef, Integrations } from '~/modules/integrations/public.js'
@@ -438,16 +437,8 @@ export const FeedService = {
         await LinkService.setDependencies(tx, object.id, [input.integrationId], 'uses')
       }
       // Происхождение (ADR-0102): у общего датасета нескольких лент — все они
-      const derived = await tx
-        .select({ toId: dependencies.toId })
-        .from(dependencies)
-        .where(and(eq(dependencies.fromId, datasetId), eq(dependencies.kind, 'derives_from')))
-      await LinkService.setDependencies(
-        tx,
-        datasetId,
-        [...derived.map((row) => row.toId), object.id],
-        'derives_from',
-      )
+      const derived = await LinkService.dependencyTargets(datasetId, 'derives_from', tx)
+      await LinkService.setDependencies(tx, datasetId, [...derived, object.id], 'derives_from')
       await LinkService.link(tx, ctx, datasetId, object.id, 'source')
       await publishEvent(tx, ctx, {
         type: 'source.created',

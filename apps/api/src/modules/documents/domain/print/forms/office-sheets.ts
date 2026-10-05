@@ -1,7 +1,6 @@
 import { and, asc, eq, isNull, sql } from 'drizzle-orm'
 import { visibleObjectsSql } from '~/kernel/access/authorize.js'
 import { Acknowledgments } from '~/kernel/acknowledgments/index.js'
-import { acknowledgmentRequests } from '~/kernel/acknowledgments/schema.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { db } from '~/shared/db/client.js'
 import { documents } from '../../../schema.js'
@@ -27,14 +26,10 @@ export const acknowledgmentSheet: PrintFormDefinition = {
   labelKey: 'documents.print.forms.acknowledgment_sheet',
   subjectType: 'document',
   typeListed: false,
-  unavailable: async (subject: PrintSubject) => {
-    const [request] = await db()
-      .select({ id: acknowledgmentRequests.id })
-      .from(acknowledgmentRequests)
-      .where(eq(acknowledgmentRequests.objectId, subject.id))
-      .limit(1)
-    return request ? null : 'documents.print.reasons.noAcknowledgments'
-  },
+  unavailable: async (subject: PrintSubject) =>
+    (await Acknowledgments.hasRequests(subject.id))
+      ? null
+      : 'documents.print.reasons.noAcknowledgments',
   build: async (pc, subject) => {
     const doc = await DocumentService.get(pc.ctx, subject.id)
     const list = await Acknowledgments.list(pc.ctx, subject.id)

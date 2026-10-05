@@ -1,8 +1,12 @@
 import { type Level, levelFromValue, levelValue, maxLevel } from '@kchs/contracts'
 import { and, eq, inArray, sql } from 'drizzle-orm'
-import { grantAccess, readPrincipalsFor, revokeAccess } from '~/kernel/access/acl-service.js'
+import {
+  explicitUserEntries,
+  grantAccess,
+  readPrincipalsFor,
+  revokeAccess,
+} from '~/kernel/access/acl-service.js'
 import { loadObject } from '~/kernel/access/authorize.js'
-import { aclEntries } from '~/kernel/access/schema.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import type { Ctx } from '~/shared/context.js'
 import type { Executor } from '~/shared/db/client.js'
@@ -109,14 +113,7 @@ export const DocumentParticipants = {
       wanted.set(row.userId, current)
     }
 
-    const existing = await tx
-      .select({
-        principalId: aclEntries.principalId,
-        level: aclEntries.level,
-        note: aclEntries.note,
-      })
-      .from(aclEntries)
-      .where(and(eq(aclEntries.objectId, documentId), eq(aclEntries.principalType, 'user')))
+    const existing = await explicitUserEntries(tx, documentId)
     const acl = new Map(existing.map((row) => [row.principalId, row]))
 
     const grants = [...wanted.entries()].flatMap(([userId, value]) => {

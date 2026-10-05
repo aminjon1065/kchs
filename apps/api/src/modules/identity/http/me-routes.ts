@@ -1,13 +1,12 @@
 import { AdminModeInput, AdminModeState, MeResponse, ProfileUpdateInput } from '@kchs/contracts'
 import { and, eq, sql } from 'drizzle-orm'
 import { z } from 'zod'
-import { invalidatePrincipalSet } from '~/kernel/access/principal-set.js'
-import { employments, orgUnits, positions, users } from '~/kernel/directory/schema.js'
+import { employments, orgUnits, positions } from '~/kernel/directory/schema.js'
 import { DelegationService, UserService } from '~/kernel/directory/service.js'
 import { FeatureService } from '~/kernel/features/service.js'
 import { recheckUserRooms } from '~/kernel/realtime/gateway.js'
 import { SETTING_KEYS, SettingsService } from '~/kernel/settings/service.js'
-import { spaces } from '~/kernel/spaces/schema.js'
+import { SpaceService } from '~/kernel/spaces/service.js'
 import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
@@ -50,13 +49,7 @@ export function registerMeRoutes(route: RouteRegistrar): void {
         .leftJoin(positions, eq(positions.id, employments.positionId))
         .where(and(eq(employments.userId, ctx.userId), sql`${employments.endsAt} is null`))
 
-      const [personal] = await db()
-        .select({ id: spaces.id })
-        .from(spaces)
-        .where(
-          and(eq(spaces.kind, 'personal'), sql`${spaces.settings}->>'ownerId' = ${ctx.userId}`),
-        )
-        .limit(1)
+      const personalSpaceId = await SpaceService.personalOf(ctx.userId)
 
       const [sessionRow] = await db()
         .select({
@@ -71,7 +64,7 @@ export function registerMeRoutes(route: RouteRegistrar): void {
 
       return {
         user: profile,
-        personalSpaceId: personal?.id ?? null,
+        personalSpaceId,
         roles: ctx.roleKeys,
         capabilities: [...ctx.capabilities],
         units: employmentRows.map((e) => ({
@@ -111,24 +104,10 @@ export function registerMeRoutes(route: RouteRegistrar): void {
     summary: 'Изменить профиль',
     schema: { body: ProfileUpdateInput, response: { 200: z.object({ ok: z.boolean() }) } },
     handler: async (request) => {
-      const patch = request.body
-      const values: Record<string, unknown> = {}
-      if (patch.displayName !== undefined) values.displayName = patch.displayName
-      if (patch.firstName !== undefined) values.firstName = patch.firstName
-      if (patch.lastName !== undefined) values.lastName = patch.lastName
-      if (patch.middleName !== undefined) values.middleName = patch.middleName
-      if (patch.email !== undefined) values.email = patch.email
-      if (patch.phone !== undefined) values.phone = patch.phone
-      if (patch.locale !== undefined) values.locale = patch.locale
-      if (patch.timezone !== undefined) values.timezone = patch.timezone
-
-      if (Object.keys(values).length > 0) {
-        await db()
-          .update(users)
-          .set({ ...values, updatedAt: sql`now()` })
-          .where(eq(users.id, request.ctx.userId))
-        await invalidatePrincipalSet(request.ctx.userId)
-      }
+      // Профиль — данные справочника ядра: запись и событие `user.updated` (ADR-0184)
+      await db().transaction((tx) =>
+        UserService.updateProfile(tx, request.ctx, request.ctx.userId, request.body),
+      )
       return { ok: true }
     },
   })

@@ -17,9 +17,8 @@
     "db:seed": "tsx src/seed/cli.ts",
     "db:reset": "tsx src/cli/db-reset.ts",
     "openapi:gen": "tsx src/openapi-cli.ts",
-    "deps:check": "depcruise --config .dependency-cruiser.cjs --ignore-known .dependency-cruiser-known-violations.json src && node scripts/module-cycles.mjs",
-    "deps:layers": "node scripts/module-cycles.mjs --layers",
-    "deps:baseline": "depcruise --config .dependency-cruiser.cjs --output-type baseline --output-to .dependency-cruiser-known-violations.json src"
+    "deps:check": "depcruise --config .dependency-cruiser.cjs src && node scripts/module-cycles.mjs && node scripts/kernel-writes.mjs",
+    "deps:layers": "node scripts/module-cycles.mjs --layers"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.126.0",

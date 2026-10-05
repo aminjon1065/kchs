@@ -1,5 +1,5 @@
 import type { LinkKind, LinkView, ObjectSummary } from '@kchs/contracts'
-import { and, eq, inArray, or, sql } from 'drizzle-orm'
+import { and, eq, inArray, or, type SQL, sql } from 'drizzle-orm'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { actorId } from '~/shared/context.js'
 import { type Database, db, type Executor } from '~/shared/db/client.js'
@@ -174,6 +174,19 @@ export const LinkService = {
     )
   },
 
+  /** Цели зависимостей одного вида (без проверки прав): модуль пересобирает свой набор. */
+  async dependencyTargets(
+    fromId: string,
+    kind: string,
+    executor: Executor = db(),
+  ): Promise<string[]> {
+    const rows = await executor
+      .select({ toId: dependencies.toId })
+      .from(dependencies)
+      .where(and(eq(dependencies.fromId, fromId), eq(dependencies.kind, kind)))
+    return rows.map((row) => row.toId)
+  },
+
   /** Вложения объекта — связи вида `attachment`; в транзакции — с её незафиксированными. */
   async attachments(objectId: string, database: Executor = db()): Promise<string[]> {
     const rows = await database
@@ -215,6 +228,29 @@ export const LinkService = {
       .from(links)
       .where(and(eq(links.targetId, targetId), eq(links.kind, kind)))
     return rows.map((r) => r.sourceId)
+  },
+}
+
+/**
+ * Связи в условиях списков модулей (ADR-0184). Таблица связей — ядра: модуль
+ * встраивает готовый подзапрос в свой запрос, как предикат видимости
+ * `visibleObjectsSql`, а не пишет SQL по чужой таблице сам.
+ */
+export const LinkSql = {
+  /**
+   * Первая цель связи вида `kind` от объекта (`sourceId` — выражение его id),
+   * текстом; `targetIn` — ограничение цели (`ANY(…)`, подзапрос).
+   */
+  firstTarget(sourceId: SQL, kind: LinkKind, targetIn?: SQL): SQL<string | null> {
+    return sql<string | null>`(SELECT l.target_id::text FROM ${links} l
+      WHERE l.source_id = ${sourceId} AND l.kind = ${kind}
+        ${targetIn ? sql`AND l.target_id = ${targetIn}` : sql``}
+      LIMIT 1)`
+  },
+
+  /** Источники связей вида `kind`, ведущих к объекту: подзапрос для `IN`. */
+  sources(targetId: SQL, kind: LinkKind): SQL {
+    return sql`(SELECT l.source_id FROM ${links} l WHERE l.target_id = ${targetId} AND l.kind = ${kind})`
   },
 }
 
