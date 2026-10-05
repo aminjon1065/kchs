@@ -8,7 +8,7 @@ import { and, desc, eq, isNull, or, type SQL, sql } from 'drizzle-orm'
 import { visibleObjectsSql } from '~/kernel/access/authorize.js'
 import { links } from '~/kernel/links/schema.js'
 import { objects } from '~/kernel/objects/schema.js'
-import { territoryIndex } from '~/modules/territories/public.js'
+import { TerritoryService, territoryIndex } from '~/modules/territories/public.js'
 import type { UserCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
@@ -44,6 +44,9 @@ export async function territoryDocuments(
   territoryId: string,
   limit: number,
 ): Promise<DocumentTerritoryList> {
+  // Право видеть единицу справочника — как у паспорта территории (ADR-0186): без
+  // него посторонний узнавал бы о существовании невидимой ему территории
+  await TerritoryService.get(ctx, territoryId)
   const index = await territoryIndex()
   if (!index.byId.has(territoryId)) throw errors.notFound('Территория')
   const ids = index.descendants(territoryId)
