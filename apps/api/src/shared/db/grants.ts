@@ -1,6 +1,27 @@
 import type { Sql } from 'postgres'
 
 /**
+ * Партиции `audit_log` создаёт kchs_migrator, и права по умолчанию (и `GRANT … ON
+ * ALL TABLES` ниже) дают на них приложению правку и удаление — в обход родителя,
+ * на котором запись закрыта. Запись в партиции закрывается для всех ролей
+ * приложения; вставка идёт через родителя (Postgres не проверяет права партиции
+ * при маршрутизации строки), чтение остаётся — его просит `pg_dump` резервной
+ * копии (ADR-0173). Выполняется после каждой синхронизации привилегий и после
+ * создания партиций.
+ */
+export const AUDIT_PARTITIONS_APPEND_ONLY = `DO $$
+DECLARE part regclass;
+BEGIN
+  IF to_regclass('public.audit_log') IS NULL THEN RETURN; END IF;
+  FOR part IN SELECT inhrelid::regclass FROM pg_inherits WHERE inhparent = 'public.audit_log'::regclass LOOP
+    EXECUTE format(
+      'REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON TABLE %s FROM PUBLIC, kchs_app, kchs_audit, kchs_readonly',
+      part
+    );
+  END LOOP;
+END $$`
+
+/**
  * Синхронизация привилегий после миграций. Выполняется ролью kchs_migrator,
  * которая владеет созданными таблицами.
  *
@@ -39,6 +60,7 @@ export const GRANT_STATEMENTS: string[] = [
   `GRANT INSERT ON TABLE public.audit_log TO kchs_audit`,
   `GRANT SELECT ON TABLE public.audit_log TO kchs_readonly`,
   `GRANT USAGE ON SCHEMA public TO kchs_audit`,
+  AUDIT_PARTITIONS_APPEND_ONLY,
 ]
 
 export async function applyGrants(sql: Sql): Promise<void> {

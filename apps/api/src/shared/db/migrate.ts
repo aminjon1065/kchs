@@ -6,6 +6,7 @@ import postgres from 'postgres'
 import { config } from '../config/index.js'
 import { logger } from '../logger/index.js'
 import { applyGrants } from './grants.js'
+import { ensureAuditPartitions } from './partitions.js'
 
 /** Блокировка, чтобы несколько инстансов api не мигрировали одновременно. */
 const ADVISORY_LOCK_ID = 725_130_001
@@ -56,16 +57,33 @@ export async function runMigrations(): Promise<MigrationResult> {
         applied_at timestamptz NOT NULL DEFAULT now()
       )`
 
-    const done = new Set(
-      (await sql<{ name: string }[]>`SELECT name FROM public.__migrations`).map((r) => r.name),
+    const done = new Map(
+      (await sql<{ name: string; hash: string }[]>`SELECT name, hash FROM public.__migrations`).map(
+        (r) => [r.name, r.hash],
+      ),
     )
     const dir = migrationsDir()
     const files = await listMigrationFiles(dir)
+    const bodies = new Map<string, string>()
+    for (const file of files) bodies.set(file, await readFile(path.join(dir, file), 'utf8'))
+
+    // Применённая миграция не меняется: правка файла задним числом означает, что
+    // база и код разошлись, и молча продолжать нельзя (ADR-0173)
+    const edited = files.filter((file) => {
+      const recorded = done.get(file)
+      return recorded !== undefined && recorded !== contentHash(bodies.get(file) ?? '')
+    })
+    if (edited.length > 0) throw new EditedMigrationError(edited, bodies)
+    const unknown = [...done.keys()].filter((name) => !bodies.has(name))
+    if (unknown.length > 0) {
+      log.warn({ migrations: unknown }, 'в базе есть миграции, которых нет в этой версии кода')
+    }
+
     const applied: string[] = []
 
     for (const file of files) {
       if (done.has(file)) continue
-      const body = await readFile(path.join(dir, file), 'utf8')
+      const body = bodies.get(file) ?? ''
       const hash = contentHash(body)
       log.info({ migration: file }, 'применяю миграцию')
       await sql.begin(async (tx) => {
@@ -90,10 +108,62 @@ export async function runMigrations(): Promise<MigrationResult> {
     await applyGrants(sql)
     log.info('привилегии ролей синхронизированы')
 
+    // Партиции журнала аудита — на текущий и три следующих месяца при каждом старте;
+    // ночное задание обслуживания делает то же для долго работающих установок (ADR-0173)
+    const partitions = await ensureAuditPartitions(sql)
+    if (partitions.created.length > 0) {
+      log.info(partitions, 'партиции журнала аудита созданы')
+    }
+
     return { applied, skipped: files.length - applied.length }
   } finally {
     await sql`SELECT pg_advisory_unlock(${ADVISORY_LOCK_ID})`.catch(() => undefined)
     await sql.end({ timeout: 5 })
+  }
+}
+
+/**
+ * Отдельное соединение ролью-владельцем таблиц (kchs_migrator) — для обслуживания,
+ * которое приложению запрещено: партиции журнала аудита (ADR-0173).
+ */
+export async function withMigratorConnection<T>(
+  run: (sql: postgres.Sql) => Promise<T>,
+): Promise<T> {
+  const env = config()
+  const sql = postgres(env.DATABASE_MIGRATOR_URL ?? env.DATABASE_URL, {
+    max: 1,
+    prepare: false,
+    onnotice: () => {},
+  })
+  try {
+    return await run(sql)
+  } finally {
+    await sql.end({ timeout: 5 })
+  }
+}
+
+/**
+ * Файл уже применённой миграции изменён. Миграции после выпуска не правят — нужна
+ * новая. Если правка сделана намеренно и база ей уже соответствует, хэш в журнале
+ * миграций обновляют вручную — команда есть в тексте ошибки.
+ */
+export class EditedMigrationError extends Error {
+  constructor(
+    readonly files: string[],
+    bodies: Map<string, string>,
+  ) {
+    const fixes = files
+      .map(
+        (file) =>
+          `UPDATE public.__migrations SET hash = '${contentHash(bodies.get(file) ?? '')}' WHERE name = '${file}';`,
+      )
+      .join('\n')
+    super(
+      `Файлы применённых миграций изменены: ${files.join(', ')}. Применённую миграцию не ` +
+        'правят — изменение схемы оформляют новой миграцией. Если правка намеренная и база ' +
+        `ей уже соответствует, обновите хэш под ролью kchs_migrator:\n${fixes}`,
+    )
+    this.name = 'EditedMigrationError'
   }
 }
 

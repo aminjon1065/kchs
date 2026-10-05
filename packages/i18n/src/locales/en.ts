@@ -8678,6 +8678,7 @@ export const en: DeepPartial<Dictionary> = {
       recentTrim: 'Recent: trim history',
       acknowledgmentsRemind: 'Acknowledgements: reminders',
       backupRun: 'Database backup',
+      auditPartitions: 'Audit: log partitions for the months ahead',
       processTimersSweep: 'Routes: timer sweep',
       tasksDeadlines: 'Instructions: deadlines and overdue',
       tasksSeries: 'Instructions: recurring series',

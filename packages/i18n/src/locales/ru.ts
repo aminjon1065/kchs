@@ -8800,6 +8800,7 @@ export const ru = {
       recentTrim: 'Недавние: обрезка истории',
       acknowledgmentsRemind: 'Ознакомление: напоминания',
       backupRun: 'Резервная копия базы',
+      auditPartitions: 'Аудит: разделы журнала на месяцы вперёд',
       processTimersSweep: 'Маршруты: обход таймеров',
       tasksDeadlines: 'Поручения: сроки и просрочка',
       tasksSeries: 'Поручения: повторяющиеся серии',

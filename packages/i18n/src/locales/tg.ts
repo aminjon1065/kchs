@@ -9341,6 +9341,7 @@ export const tg: DeepPartial<Dictionary> = {
       recentTrim: 'Охиринҳо: кӯтоҳ кардани таърих',
       acknowledgmentsRemind: 'Шиносоӣ: ёдрасиҳо',
       backupRun: 'Нусхаи эҳтиётии пойгоҳ',
+      auditPartitions: 'Аудит: қисмҳои журнал барои моҳҳои оянда',
       processTimersSweep: 'Масирҳо: санҷиши таймерҳо',
       tasksDeadlines: 'Супоришҳо: мӯҳлатҳо ва гузаштани мӯҳлат',
       tasksSeries: 'Супоришҳо: силсилаҳои такрорӣ',

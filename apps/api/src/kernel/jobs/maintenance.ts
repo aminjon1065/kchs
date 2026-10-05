@@ -1,5 +1,8 @@
 import { systemCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
+import { withMigratorConnection } from '~/shared/db/migrate.js'
+import { ensureAuditPartitions } from '~/shared/db/partitions.js'
+import { logger } from '~/shared/logger/index.js'
 import { remindDueAcknowledgments } from '../acknowledgments/index.js'
 import { BackupService } from '../backup/service.js'
 import { pruneOutbox } from '../events/dispatcher.js'
@@ -65,10 +68,21 @@ export function registerMaintenanceJobs(): void {
     handle: async () => {
       const ctx = systemCtx('maintenance.trash')
       const ids = await expiredTrash(30)
+      let purged = 0
       for (const id of ids) {
-        await db().transaction((tx) => ObjectService.purge(tx, ctx, id))
+        // Сбой одного объекта — например, таблицу датасета держит долгий запрос
+        // (ADR-0173) — не останавливает остальные: он удалится следующим проходом
+        try {
+          await db().transaction((tx) => ObjectService.purge(tx, ctx, id))
+          purged++
+        } catch (error) {
+          logger().warn(
+            { err: error, objectId: id },
+            'объект корзины не удалён, повтор следующим проходом',
+          )
+        }
       }
-      return { purged: ids.length }
+      return { purged, failed: ids.length - purged }
     },
   })
 
@@ -138,6 +152,18 @@ export function registerMaintenanceJobs(): void {
     name: 'acknowledgments.remind',
     concurrency: 1,
     handle: async () => ({ reminded: await remindDueAcknowledgments() }),
+  })
+
+  // Партиции журнала аудита на месяцы вперёд (ADR-0173): их создаёт владелец
+  // таблицы, приложению аудит доступен только на добавление
+  registerJobHandler({
+    queue: 'maintenance',
+    name: 'audit.partitions',
+    concurrency: 1,
+    handle: async () => {
+      const report = await withMigratorConnection((sql) => ensureAuditPartitions(sql))
+      return { created: report.created.length, moved: report.moved }
+    },
   })
 
   // Резервная копия базы (15-admin-operations.md §5): ночью и по кнопке в консоли
@@ -226,6 +252,12 @@ export function scheduleMaintenance(): void {
     name: 'backup.run',
     pattern: '50 2 * * *',
     labelKey: 'schedules.jobs.backupRun',
+  })
+  declareSchedule({
+    queue: 'maintenance',
+    name: 'audit.partitions',
+    pattern: '13 2 * * *',
+    labelKey: 'schedules.jobs.auditPartitions',
   })
   // Каталог LDAP/AD (ADR-0098): задание проверяет интервал настройки само
   declareSchedule({
