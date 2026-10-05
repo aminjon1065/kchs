@@ -973,9 +973,11 @@ describe('исполнение', () => {
         { userId: people.a1.id, roleId: legal, spaceId: fx.spaceId },
         { userId: people.a2.id, roleId: legal, spaceId: null },
       ])
-    const group = await db().transaction((tx) => GroupService.create(tx, `Юристы ${run}`))
+    const group = await db().transaction((tx) =>
+      GroupService.create(tx, systemCtx('test'), `Юристы ${run}`),
+    )
     await db().transaction((tx) =>
-      GroupService.setMembers(tx, group, [people.a3.id, people.deputy.id]),
+      GroupService.setMembers(tx, systemCtx('test'), group, [people.a3.id, people.deputy.id]),
     )
     const definition = {
       version: 1,

@@ -199,6 +199,84 @@ describe('операции входа и безопасности — одной
   })
 })
 
+describe('группы и должности — с событиями', () => {
+  it('состав группы: событие и аудит с добавленными и убранными, при сбое события — без изменений', async () => {
+    const created = await call(fx.app, {
+      method: 'POST',
+      url: '/groups',
+      as: fx.admin,
+      payload: { name: `Группа атомарности ${run}` },
+    })
+    expect(created.statusCode, created.body).toBe(200)
+    const groupId = created.json().id as string
+    expect(await outboxCount('org.group_changed', groupId)).toBe(1)
+    expect(await auditCount('group.created', groupId)).toBe(1)
+
+    const setMembers = (userIds: string[]) =>
+      call(fx.app, {
+        method: 'PUT',
+        url: `/groups/${groupId}/members`,
+        as: fx.admin,
+        payload: { userIds },
+      })
+    const added = await setMembers([fx.users.member.id, fx.users.viewer.id])
+    expect(added.statusCode, added.body).toBe(200)
+    expect((await getPrincipalSet(fx.users.member.id)).groupIds).toContain(groupId)
+
+    const failed = await withFailingOutbox('org.group_changed', () =>
+      setMembers([fx.users.viewer.id]),
+    )
+    expect(failed.statusCode).toBeGreaterThanOrEqual(500)
+    expect((await getPrincipalSet(fx.users.member.id)).groupIds).toContain(groupId)
+
+    const removed = await setMembers([fx.users.viewer.id])
+    expect(removed.statusCode, removed.body).toBe(200)
+    // Кэш сброшен после фиксации: исключённый теряет группу со следующего запроса
+    expect((await getPrincipalSet(fx.users.member.id)).groupIds).not.toContain(groupId)
+    const rows = await db().execute<{ payload: { added: string[]; removed: string[] } }>(
+      sql`SELECT event->'payload' AS payload FROM ops.outbox
+           WHERE type = 'org.group_changed' AND event->'object'->>'id' = ${groupId}
+           ORDER BY id DESC LIMIT 1`,
+    )
+    expect(rows[0]?.payload).toMatchObject({ added: [], removed: [fx.users.member.id] })
+    expect(await auditCount('group.members_changed', groupId)).toBe(2)
+  })
+
+  it('должность: создание, правка и удаление публикуют события и пишут аудит', async () => {
+    const created = await call(fx.app, {
+      method: 'POST',
+      url: '/org/positions',
+      as: fx.admin,
+      payload: { name: { ru: `Должность ${run}` }, rank: 5 },
+    })
+    expect(created.statusCode, created.body).toBe(200)
+    const positionId = created.json().id as string
+    const patched = await call(fx.app, {
+      method: 'PATCH',
+      url: `/org/positions/${positionId}`,
+      as: fx.admin,
+      payload: { rank: 6 },
+    })
+    expect(patched.statusCode, patched.body).toBe(200)
+    const removed = await call(fx.app, {
+      method: 'DELETE',
+      url: `/org/positions/${positionId}`,
+      as: fx.admin,
+    })
+    expect(removed.statusCode, removed.body).toBe(200)
+
+    const rows = await db().execute<{ change: string }>(
+      sql`SELECT event->'payload'->>'change' AS change FROM ops.outbox
+           WHERE type = 'org.position_changed' AND event->'object'->>'id' = ${positionId}
+           ORDER BY id`,
+    )
+    expect(rows.map((row) => row.change)).toEqual(['created', 'updated', 'deleted'])
+    expect(await auditCount('position.created', positionId)).toBe(1)
+    expect(await auditCount('position.updated', positionId)).toBe(1)
+    expect(await auditCount('position.deleted', positionId)).toBe(1)
+  })
+})
+
 describe('кэш принципалов', () => {
   it('сброс в транзакции — после фиксации: параллельный запрос не оставляет прежний набор', async () => {
     const user = fx.users.viewer

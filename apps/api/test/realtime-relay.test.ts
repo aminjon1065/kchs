@@ -153,4 +153,58 @@ describe('узел api', () => {
     gateway.emitToRoom(room, 'object.updated', { id: folderId })
     expect(await silence).toBe('тишина')
   })
+
+  it('исключение из группы закрывает комнату объекта, открытого группе (ADR-0177)', async () => {
+    // Посторонний видит закрытую папку только как участник группы
+    const group = await call(fx.app, {
+      method: 'POST',
+      url: '/groups',
+      as: fx.admin,
+      payload: { name: `Группа комнат ${run}` },
+    })
+    expect(group.statusCode, group.body).toBe(200)
+    const groupId = group.json().id as string
+    const members = (userIds: string[]) =>
+      call(fx.app, {
+        method: 'PUT',
+        url: `/groups/${groupId}/members`,
+        as: fx.admin,
+        payload: { userIds },
+      })
+    expect((await members([fx.users.stranger.id])).statusCode).toBe(200)
+
+    const folder = await call(fx.app, {
+      method: 'POST',
+      url: '/folders',
+      as: fx.admin,
+      payload: { name: `Папка группы ${run}`, spaceId: fx.spaceId },
+    })
+    const folderId = folder.json().id as string
+    const room = `object:${folderId}`
+    const restricted = await call(fx.app, {
+      method: 'PUT',
+      url: `/objects/${folderId}/access-mode`,
+      as: fx.admin,
+      payload: { mode: 'restricted' },
+    })
+    expect(restricted.statusCode, restricted.body).toBe(200)
+    const granted = await call(fx.app, {
+      method: 'POST',
+      url: `/objects/${folderId}/access`,
+      as: fx.admin,
+      payload: { grants: [{ principal: { type: 'group', id: groupId }, level: 'view' }] },
+    })
+    expect(granted.statusCode, granted.body).toBe(200)
+
+    const socket = await connect(fx.users.stranger)
+    const ack = (await socket.emitWithAck('subscribe', { rooms: [room] })) as {
+      granted: string[]
+    }
+    expect(ack.granted).toEqual([room])
+
+    // Состав группы меняется — сокет, открытый до этого, теряет комнату сам
+    const revoked = next<{ objectId: string }>(socket, 'acl.revoked')
+    expect((await members([])).statusCode).toBe(200)
+    expect(await revoked).toEqual({ objectId: folderId })
+  })
 })

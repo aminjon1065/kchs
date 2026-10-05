@@ -9,6 +9,7 @@ import type { UserCtx } from '~/shared/context.js'
 import { logger } from '~/shared/logger/index.js'
 import { createRedisConnection, redis } from '~/shared/redis/index.js'
 import { authorize } from '../access/authorize.js'
+import { getPrincipalSet } from '../access/principal-set.js'
 import { buildUserCtx } from '../context-builder.js'
 import { JobService } from '../jobs/service.js'
 import { canSeeJob } from '../jobs/visibility.js'
@@ -66,13 +67,17 @@ let realtimeDeps: RealtimeDeps | null = null
 
 /** Контекст сокета с актуальными допуском и режимом администратора. */
 async function withFreshAccess(ctx: UserCtx): Promise<UserCtx> {
-  if (!realtimeDeps?.accessAttributesOf) return ctx
+  // Принципалы — тоже свежие (ADR-0177): исключённый из группы или пространства
+  // иначе сохранил бы комнаты по снимку на момент подключения
+  const principals = await getPrincipalSet(ctx.userId)
+  if (!realtimeDeps?.accessAttributesOf) return { ...ctx, principals }
   const fresh = await realtimeDeps.accessAttributesOf({
     sessionId: ctx.sessionId,
     userId: ctx.userId,
   })
   return {
     ...ctx,
+    principals,
     clearance: fresh.clearance,
     adminMode: ctx.isSystemAdmin ? fresh.adminMode : null,
   }
@@ -353,6 +358,7 @@ async function recheckLocal(userId: string): Promise<void> {
   if (!io) return
   for (const socket of await io.local.in(`user:${userId}`).fetchSockets()) {
     const ctx = await withFreshAccess((socket.data as SocketData).ctx)
+    ;(socket.data as SocketData).ctx = ctx
     for (const room of socket.rooms) {
       if (!room.startsWith('object:') && !room.startsWith('conversation:')) continue
       if (await canJoin(ctx, room)) continue

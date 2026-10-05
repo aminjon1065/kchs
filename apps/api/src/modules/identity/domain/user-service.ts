@@ -18,11 +18,12 @@ import { and, asc, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm'
 import { bumpPrincipalsVersion, invalidatePrincipalSet } from '~/kernel/access/principal-set.js'
 import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
+import { recheckUserRooms } from '~/kernel/realtime/gateway.js'
 import { SpaceService } from '~/kernel/spaces/service.js'
 import { territoryIndex } from '~/modules/gis/public.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { actorId } from '~/shared/context.js'
-import { type Database, db, type Executor } from '~/shared/db/client.js'
+import { afterCommit, type Database, db, type Executor } from '~/shared/db/client.js'
 import {
   delegations,
   employments,
@@ -1041,18 +1042,72 @@ export const GroupService = {
     }))
   },
 
-  async create(tx: Executor, name: string, description?: string | null): Promise<string> {
+  /** Группа, её событие и аудит — в транзакции вызывающего (ADR-0177). */
+  async create(tx: Executor, ctx: Ctx, name: string, description?: string | null): Promise<string> {
     const id = newId()
     await tx.insert(groups).values({ id, name, description: description ?? null })
+    await publishEvent(tx, ctx, {
+      type: 'org.group_changed',
+      object: { id, type: 'group', title: name },
+      payload: { groupId: id, change: 'created' },
+    })
+    await audit(
+      ctx,
+      { action: AUDIT_ACTIONS.groupCreated, objectId: id, objectType: 'group', details: { name } },
+      tx,
+    )
     return id
   },
 
-  async setMembers(tx: Executor, groupId: string, userIds: string[]): Promise<void> {
+  /**
+   * Состав группы меняет права участников (ADR-0177): событие и аудит с теми, кого
+   * добавили и убрали, — в транзакции; кэш принципалов сбрасывается после фиксации,
+   * комнаты realtime исключённых перепроверяются (ADR-0169).
+   */
+  async setMembers(
+    tx: Executor,
+    ctx: Ctx,
+    groupId: string,
+    userIds: string[],
+  ): Promise<{ added: string[]; removed: string[] }> {
+    const before = new Set(
+      (
+        await tx
+          .select({ userId: groupMembers.userId })
+          .from(groupMembers)
+          .where(eq(groupMembers.groupId, groupId))
+      ).map((row) => row.userId),
+    )
+    const after = new Set(userIds)
+    const added = [...after].filter((userId) => !before.has(userId))
+    const removed = [...before].filter((userId) => !after.has(userId))
+    if (added.length === 0 && removed.length === 0) return { added, removed }
+
     await tx.delete(groupMembers).where(eq(groupMembers.groupId, groupId))
-    if (userIds.length > 0) {
-      await tx.insert(groupMembers).values(userIds.map((userId) => ({ groupId, userId })))
+    if (after.size > 0) {
+      await tx.insert(groupMembers).values([...after].map((userId) => ({ groupId, userId })))
     }
-    await bumpPrincipalsVersion()
+    await publishEvent(tx, ctx, {
+      type: 'org.group_changed',
+      object: { id: groupId, type: 'group' },
+      payload: { groupId, change: 'members', added, removed },
+    })
+    await audit(
+      ctx,
+      {
+        action: AUDIT_ACTIONS.groupMembersChanged,
+        objectId: groupId,
+        objectType: 'group',
+        severity: 'notice',
+        details: { added, removed },
+      },
+      tx,
+    )
+    await bumpPrincipalsVersion(tx)
+    if (removed.length > 0) {
+      await afterCommit(tx, () => Promise.all(removed.map((userId) => recheckUserRooms(userId))))
+    }
+    return { added, removed }
   },
 
   /** Состав группы — сотрудники по имени; для консоли (N86). */
@@ -1086,10 +1141,11 @@ export const GroupService = {
 
   async update(
     tx: Executor,
+    ctx: Ctx,
     groupId: string,
     patch: { name?: string | undefined; description?: string | null | undefined },
   ): Promise<void> {
-    await GroupService.editable(tx, groupId)
+    const current = await GroupService.editable(tx, groupId)
     await tx
       .update(groups)
       .set({
@@ -1097,5 +1153,128 @@ export const GroupService = {
         ...(patch.description !== undefined ? { description: patch.description } : {}),
       })
       .where(eq(groups.id, groupId))
+    await publishEvent(tx, ctx, {
+      type: 'org.group_changed',
+      object: { id: groupId, type: 'group', title: patch.name ?? current.name },
+      payload: { groupId, change: 'updated' },
+    })
+    await audit(
+      ctx,
+      {
+        action: AUDIT_ACTIONS.groupUpdated,
+        objectId: groupId,
+        objectType: 'group',
+        details: patch,
+      },
+      tx,
+    )
   },
+}
+
+// ─── Должности ───────────────────────────────────────────────────────────────
+
+/**
+ * Должности (N86): запись, событие и аудит — одной транзакцией вызывающего
+ * (ADR-0177). Принципал `position:<id>` есть только у занимающих должность, а
+ * занятую удалить нельзя, поэтому кэш принципалов здесь не сбрасывается.
+ */
+export const PositionService = {
+  async create(
+    tx: Executor,
+    ctx: Ctx,
+    input: { name: LangTextValue; rank: number; unitId?: string | null | undefined },
+  ): Promise<string> {
+    const id = newId()
+    await tx
+      .insert(positions)
+      .values({ id, name: input.name, rank: input.rank, unitId: input.unitId ?? null })
+    await positionChanged(tx, ctx, id, input.name, 'created')
+    await audit(
+      ctx,
+      {
+        action: AUDIT_ACTIONS.positionCreated,
+        objectId: id,
+        objectType: 'position',
+        details: { name: input.name },
+      },
+      tx,
+    )
+    return id
+  },
+
+  async update(
+    tx: Executor,
+    ctx: Ctx,
+    id: string,
+    patch: {
+      name?: LangTextValue | undefined
+      rank?: number | undefined
+      unitId?: string | null | undefined
+    },
+  ): Promise<void> {
+    const [row] = await tx
+      .update(positions)
+      .set({
+        ...(patch.name !== undefined ? { name: patch.name } : {}),
+        ...(patch.rank !== undefined ? { rank: patch.rank } : {}),
+        ...(patch.unitId !== undefined ? { unitId: patch.unitId } : {}),
+      })
+      .where(eq(positions.id, id))
+      .returning({ name: positions.name })
+    if (!row) throw errors.notFound('Должность')
+    await positionChanged(tx, ctx, id, row.name, 'updated')
+    await audit(
+      ctx,
+      {
+        action: AUDIT_ACTIONS.positionUpdated,
+        objectId: id,
+        objectType: 'position',
+        details: patch,
+      },
+      tx,
+    )
+  },
+
+  /** Удаление — только незанятой должности. */
+  async remove(tx: Executor, ctx: Ctx, id: string): Promise<void> {
+    const [taken] = await tx
+      .select({ count: sql<number>`count(*)::int` })
+      .from(employments)
+      .where(and(eq(employments.positionId, id), isNull(employments.endsAt)))
+    if ((taken?.count ?? 0) > 0) {
+      throw errors.conflict(
+        `Должность занимают сотрудники (${taken?.count}): сначала переназначьте их`,
+      )
+    }
+    const [row] = await tx
+      .delete(positions)
+      .where(eq(positions.id, id))
+      .returning({ name: positions.name })
+    if (!row) throw errors.notFound('Должность')
+    await positionChanged(tx, ctx, id, row.name, 'deleted')
+    await audit(
+      ctx,
+      {
+        action: AUDIT_ACTIONS.positionDeleted,
+        objectId: id,
+        objectType: 'position',
+        details: { name: row.name },
+      },
+      tx,
+    )
+  },
+}
+
+async function positionChanged(
+  tx: Executor,
+  ctx: Ctx,
+  positionId: string,
+  name: LangTextValue,
+  change: 'created' | 'updated' | 'deleted',
+): Promise<void> {
+  await publishEvent(tx, ctx, {
+    type: 'org.position_changed',
+    object: { id: positionId, type: 'position', title: name.ru },
+    payload: { positionId, change },
+  })
 }

@@ -349,9 +349,11 @@ describe('служебная учётная запись: назначения �
     expect(members).toContain(fx.users.member.id)
     expect(members).not.toContain(bot.id)
 
-    const groupId = await db().transaction((tx) => GroupService.create(tx, `Группа ${run}`))
+    const groupId = await db().transaction((tx) =>
+      GroupService.create(tx, systemCtx('test'), `Группа ${run}`),
+    )
     await db().transaction((tx) =>
-      GroupService.setMembers(tx, groupId, [bot.id, fx.users.member.id]),
+      GroupService.setMembers(tx, systemCtx('test'), groupId, [bot.id, fx.users.member.id]),
     )
     expect(await DirectoryQueries.groupMembers(groupId)).toEqual([fx.users.member.id])
 

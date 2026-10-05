@@ -18,7 +18,7 @@ import {
   UserKind,
   UserRef,
 } from '@kchs/contracts'
-import { and, eq, inArray, isNull, sql } from 'drizzle-orm'
+import { and, eq, inArray, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { hasCapability } from '~/kernel/access/authorize.js'
 import { describePrincipals } from '~/kernel/access/principal-refs.js'
@@ -27,7 +27,6 @@ import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
 import { recheckUserRooms } from '~/kernel/realtime/gateway.js'
 import { db } from '~/shared/db/client.js'
 import {
-  employments,
   groups,
   orgUnits,
   positions,
@@ -38,7 +37,6 @@ import {
 } from '~/shared/db/schema/index.js'
 import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
-import { newId } from '~/shared/ids.js'
 import { AuthService } from '../domain/auth-service.js'
 import { PasskeyService } from '../domain/passkeys.js'
 import { assertCanManageUser } from '../domain/role-policy.js'
@@ -46,6 +44,7 @@ import { RoleService } from '../domain/role-service.js'
 import {
   GroupService,
   OrgService,
+  PositionService,
   temporaryPasswordFor,
   UserService,
 } from '../domain/user-service.js'
@@ -423,21 +422,9 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
       response: { 200: z.object({ id: z.uuid() }) },
     },
     handler: async (request) => {
-      const id = newId()
-      await db()
-        .insert(positions)
-        .values({
-          id,
-          name: request.body.name,
-          rank: request.body.rank,
-          unitId: request.body.unitId ?? null,
-        })
-      await audit(request.ctx, {
-        action: AUDIT_ACTIONS.positionCreated,
-        objectId: id,
-        objectType: 'position',
-        details: { name: request.body.name },
-      })
+      const id = await db().transaction((tx) =>
+        PositionService.create(tx, request.ctx, request.body),
+      )
       return { id }
     },
   })
@@ -458,23 +445,9 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
       response: { 200: z.object({ ok: z.boolean() }) },
     },
     handler: async (request) => {
-      const { name, rank, unitId } = request.body
-      const updated = await db()
-        .update(positions)
-        .set({
-          ...(name !== undefined ? { name } : {}),
-          ...(rank !== undefined ? { rank } : {}),
-          ...(unitId !== undefined ? { unitId } : {}),
-        })
-        .where(eq(positions.id, request.params.id))
-        .returning({ id: positions.id })
-      if (updated.length === 0) throw errors.notFound('Должность')
-      await audit(request.ctx, {
-        action: AUDIT_ACTIONS.positionUpdated,
-        objectId: request.params.id,
-        objectType: 'position',
-        details: request.body,
-      })
+      await db().transaction((tx) =>
+        PositionService.update(tx, request.ctx, request.params.id, request.body),
+      )
       return { ok: true }
     },
   })
@@ -490,26 +463,7 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
       response: { 200: z.object({ ok: z.boolean() }) },
     },
     handler: async (request) => {
-      const [taken] = await db()
-        .select({ count: sql<number>`count(*)::int` })
-        .from(employments)
-        .where(and(eq(employments.positionId, request.params.id), isNull(employments.endsAt)))
-      if ((taken?.count ?? 0) > 0) {
-        throw errors.conflict(
-          `Должность занимают сотрудники (${taken?.count}): сначала переназначьте их`,
-        )
-      }
-      const deleted = await db()
-        .delete(positions)
-        .where(eq(positions.id, request.params.id))
-        .returning({ name: positions.name })
-      if (deleted.length === 0) throw errors.notFound('Должность')
-      await audit(request.ctx, {
-        action: AUDIT_ACTIONS.positionDeleted,
-        objectId: request.params.id,
-        objectType: 'position',
-        details: { name: deleted[0]?.name },
-      })
+      await db().transaction((tx) => PositionService.remove(tx, request.ctx, request.params.id))
       return { ok: true }
     },
   })
@@ -540,14 +494,8 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
     },
     handler: async (request) => {
       const id = await db().transaction((tx) =>
-        GroupService.create(tx, request.body.name, request.body.description),
+        GroupService.create(tx, request.ctx, request.body.name, request.body.description),
       )
-      await audit(request.ctx, {
-        action: AUDIT_ACTIONS.groupCreated,
-        objectId: id,
-        objectType: 'group',
-        details: { name: request.body.name },
-      })
       return { id }
     },
   })
@@ -567,13 +515,9 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
       response: { 200: z.object({ ok: z.boolean() }) },
     },
     handler: async (request) => {
-      await db().transaction((tx) => GroupService.update(tx, request.params.id, request.body))
-      await audit(request.ctx, {
-        action: AUDIT_ACTIONS.groupUpdated,
-        objectId: request.params.id,
-        objectType: 'group',
-        details: request.body,
-      })
+      await db().transaction((tx) =>
+        GroupService.update(tx, request.ctx, request.params.id, request.body),
+      )
       return { ok: true }
     },
   })
@@ -603,22 +547,11 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
       response: { 200: z.object({ ok: z.boolean() }) },
     },
     handler: async (request) => {
-      const before = new Set((await GroupService.members(request.params.id)).map((u) => u.id))
-      const after = new Set(request.body.userIds)
+      // Состав группы меняет права доступа: аудит и событие с теми, кого добавили и
+      // убрали, — в той же транзакции (ADR-0177)
       await db().transaction(async (tx) => {
         await GroupService.editable(tx, request.params.id)
-        await GroupService.setMembers(tx, request.params.id, [...after])
-      })
-      // Состав группы меняет права доступа — в журнал аудита, кого добавили и убрали
-      await audit(request.ctx, {
-        action: AUDIT_ACTIONS.groupMembersChanged,
-        objectId: request.params.id,
-        objectType: 'group',
-        severity: 'notice',
-        details: {
-          added: [...after].filter((id) => !before.has(id)),
-          removed: [...before].filter((id) => !after.has(id)),
-        },
+        await GroupService.setMembers(tx, request.ctx, request.params.id, request.body.userIds)
       })
       return { ok: true }
     },

@@ -79,6 +79,21 @@ export const EVENT_PAYLOADS = {
   'user.identity_linked': z.object({ userId: Uuid, provider: z.string() }),
   'org.unit_changed': z.object({ unitId: Uuid, change: z.string() }),
   'org.employment_changed': z.object({ userId: Uuid, unitId: Uuid.nullable() }),
+  /**
+   * Группа создана, изменена или сменила состав (ADR-0177): состав входит в
+   * принципалы участников, поэтому кого добавили и убрали — в событии.
+   */
+  'org.group_changed': z.object({
+    groupId: Uuid,
+    change: z.enum(['created', 'updated', 'members']),
+    added: z.array(Uuid).default([]),
+    removed: z.array(Uuid).default([]),
+  }),
+  /** Должность создана, изменена или удалена (ADR-0177). */
+  'org.position_changed': z.object({
+    positionId: Uuid,
+    change: z.enum(['created', 'updated', 'deleted']),
+  }),
   'delegation.started': z.object({ fromUserId: Uuid, toUserId: Uuid, scope: z.string() }),
   'delegation.ended': z.object({ fromUserId: Uuid, toUserId: Uuid }),
   'session.revoked': z.object({ sessionIds: z.array(Uuid) }),

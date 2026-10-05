@@ -119,8 +119,8 @@ async function ensureGroups(
     }
     const people = pack.demo ? await members[key]() : []
     result[key] = await db().transaction(async (tx) => {
-      const id = await GroupService.create(tx, name, description)
-      if (people.length > 0) await GroupService.setMembers(tx, id, people)
+      const id = await GroupService.create(tx, pack.ctx, name, description)
+      if (people.length > 0) await GroupService.setMembers(tx, pack.ctx, id, people)
       return id
     })
   }
