@@ -1,6 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query'
 import { useSyncExternalStore } from 'react'
 import { io, type Socket } from 'socket.io-client'
+import { keyMentions } from './query-match.js'
 
 export type RealtimeStatus = 'connecting' | 'connected' | 'disconnected'
 
@@ -63,7 +64,11 @@ export function connectRealtime(client: QueryClient, handlers: RealtimeHandlers 
   socket.on(
     'object.updated',
     (payload: { id: string; type: string; changedFields: string[] | null }) => {
-      void client.invalidateQueries({ queryKey: ['object', payload.id] })
+      // Все запросы объекта, а не только карточка: у модулей свои ключи —
+      // `['dataset', id]`, `['map', id]`, `['meeting', id]`…
+      void client.invalidateQueries({
+        predicate: (query) => keyMentions(query.queryKey, payload.id),
+      })
       void client.invalidateQueries({ queryKey: ['objects'] })
       handlers.onObjectUpdated?.(payload)
     },
