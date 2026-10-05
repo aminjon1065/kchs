@@ -2,6 +2,7 @@ import { registerSubscriber } from '~/kernel/events/bus.js'
 import { registerFeature } from '~/kernel/features/registry.js'
 import { registerJobHandler } from '~/kernel/jobs/runner.js'
 import { queue } from '~/kernel/jobs/service.js'
+import { declareSchedule } from '~/kernel/schedules/index.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { registerIntegrationConfigSections } from './domain/config-sections.js'
 import { registerIntegrationObjectTypes } from './domain/object-types.js'
@@ -62,11 +63,21 @@ export function registerIntegrationsBackground(): void {
   })
 }
 
-/** Журнал доставок чистится раз в сутки: записи старше 30 дней удаляются. */
+/**
+ * Журнал доставок чистится раз в сутки: записи старше 30 дней удаляются. Через
+ * единый планировщик (ADR-0096) — задание видно и выключается на экране «Расписания».
+ */
 export async function scheduleIntegrationsJobs(): Promise<void> {
-  await queue('maintenance').add(
+  declareSchedule({
+    queue: 'maintenance',
+    name: PRUNE_JOB,
+    pattern: '30 3 * * *',
+    labelKey: 'schedules.jobs.webhooksPrune',
+  })
+  // Прежняя повторяемая запись (до ADR-0171) снимается — иначе очистка шла бы дважды
+  await queue('maintenance').removeRepeatable(
     PRUNE_JOB,
-    {},
-    { repeat: { pattern: '30 3 * * *' }, jobId: `cron:${PRUNE_JOB}` },
+    { pattern: '30 3 * * *' },
+    `cron:${PRUNE_JOB}`,
   )
 }

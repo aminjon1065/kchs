@@ -6,6 +6,7 @@ import { registerFeature } from '~/kernel/features/registry.js'
 import { registerJobHandler } from '~/kernel/jobs/runner.js'
 import { queue } from '~/kernel/jobs/service.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
+import { declareSchedule } from '~/kernel/schedules/index.js'
 import { objects } from '~/shared/db/schema/index.js'
 import { logger } from '~/shared/logger/index.js'
 import { ensurePageChunkIndex } from './domain/page-chunks.js'
@@ -107,9 +108,17 @@ export async function scheduleKnowledgeJobs(): Promise<void> {
   } catch (error) {
     logger().warn({ err: error, module: 'knowledge' }, 'индекс чанков страниц не готов')
   }
-  await queue('maintenance').add(
+  // Единый планировщик (ADR-0096): проход виден на экране «Расписания» и выключается там
+  declareSchedule({
+    queue: 'maintenance',
+    name: 'knowledge.review',
+    pattern: '10 9 * * *',
+    labelKey: 'schedules.jobs.knowledgeReview',
+  })
+  // Прежняя повторяемая запись (до ADR-0171) снимается — иначе пересмотр шёл бы дважды
+  await queue('maintenance').removeRepeatable(
     'knowledge.review',
-    {},
-    { repeat: { pattern: '10 9 * * *' }, jobId: 'cron:knowledge.review' },
+    { pattern: '10 9 * * *' },
+    'cron:knowledge.review',
   )
 }
