@@ -203,6 +203,7 @@ export const chatSubscribers: Subscriber[] = [
   {
     name: 'chat-message-index',
     types: ['message.posted', 'message.edited', 'message.deleted'],
+    replay: true,
     handle: indexMessages,
   },
   {

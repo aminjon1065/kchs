@@ -187,6 +187,8 @@ export const AUDIT_ACTIONS = {
   settingsChanged: 'settings.changed',
   objectPurged: 'object.purged',
   auditExported: 'audit.exported',
+  /** Повтор событий из очереди сбоев шины (ADR-0171). */
+  eventsDlqRetried: 'events.dlq_retried',
   securityPolicyChanged: 'security.policy_changed',
   /** Резервная копия базы сделана — вручную или по расписанию (15-admin-operations.md §5). */
   backupCreated: 'backup.created',

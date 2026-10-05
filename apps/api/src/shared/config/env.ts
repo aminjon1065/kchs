@@ -63,6 +63,17 @@ const EnvSchema = z.object({
   DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(200).default(20),
 
   REDIS_URL: z.string().min(1),
+  /**
+   * Шина событий (ADR-0171): сколько хранить подтверждённые события в потоках —
+   * история для проекций с `replay`; непрочитанное отстающей группой хранится,
+   * пока она его не прочитает.
+   */
+  EVENT_STREAM_RETENTION_HOURS: z.coerce.number().int().min(1).max(720).default(24),
+  /**
+   * Сколько хранить отметки обработки событий. Больше жизни события в потоке:
+   * повтор старше отметки обработался бы второй раз.
+   */
+  EVENT_CONSUMPTIONS_RETENTION_DAYS: z.coerce.number().int().min(2).max(365).default(14),
 
   S3_ENDPOINT: z.string().min(1),
   S3_REGION: z.string().default('us-east-1'),

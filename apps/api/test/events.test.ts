@@ -75,7 +75,7 @@ describe('шина событий', () => {
         if (deliveries.length === 1) throw new Error('сбой подписчика')
       },
     })
-    bus.startConsumers(FAST)
+    await bus.startConsumers(FAST)
 
     await createFolder('Повтор доставки')
     await dispatchAll()
@@ -113,7 +113,7 @@ describe('шина событий', () => {
         if (event.object?.title === 'Брошенное событие') handled.push(event)
       },
     })
-    bus.startConsumers(FAST)
+    await bus.startConsumers(FAST)
 
     await waitFor(() => handled.length === 1)
     const pending = (await redis().xpending('events:object', name)) as [number, ...unknown[]]
@@ -138,7 +138,7 @@ describe('шина событий', () => {
         throw new Error('подписчик всегда падает')
       },
     })
-    bus.startConsumers(FAST)
+    await bus.startConsumers(FAST)
 
     const folderId = await createFolder('Всегда с ошибкой')
     await dispatchAll()

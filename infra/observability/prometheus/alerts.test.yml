@@ -112,3 +112,43 @@ tests:
           - exp_labels: { severity: warning, job: redis, instance: redis }
             exp_annotations:
               summary: "Метрики redis не собираются (redis)"
+
+  # Шина событий (ADR-0171): отстающий и зависший подписчик, очередь сбоев, предел
+  # потока; подписчик с небольшим отставанием молчит
+  - interval: 1m
+    input_series:
+      - series: 'kchs_events_lag{job="kchs-worker", instance="worker", subscriber="kernel-search"}'
+        values: '5000x20'
+      - series: 'kchs_events_lag{job="kchs-worker", instance="worker", subscriber="kernel-realtime"}'
+        values: '10x20'
+      - series: 'kchs_events_pending_oldest_age{job="kchs-worker", instance="worker", subscriber="webhooks-dispatch"}'
+        values: '1000x20'
+      - series: 'kchs_events_dlq{job="kchs-worker", instance="worker"}'
+        values: '0 0 3x20'
+      - series: 'kchs_events_stream_length{job="kchs-worker", instance="worker", stream="events:object"}'
+        values: '900000x20'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: KchsEventsLagging
+        exp_alerts:
+          - exp_labels: { severity: warning, subscriber: kernel-search }
+            exp_annotations:
+              summary: "Подписчик kernel-search отстаёт: не получено 5000 событий"
+      - eval_time: 10m
+        alertname: KchsEventsStuck
+        exp_alerts:
+          - exp_labels: { severity: warning, subscriber: webhooks-dispatch }
+            exp_annotations:
+              summary: "Подписчик webhooks-dispatch не подтверждает событие дольше 15 минут"
+      - eval_time: 5m
+        alertname: KchsEventsDeadLetters
+        exp_alerts:
+          - exp_labels: { severity: warning }
+            exp_annotations:
+              summary: "В очереди сбоев событий 3 — разберите в «Здоровье системы»"
+      - eval_time: 10m
+        alertname: KchsEventsStreamNearCap
+        exp_alerts:
+          - exp_labels: { severity: critical, stream: "events:object" }
+            exp_annotations:
+              summary: "Поток events:object подходит к пределу 1 000 000 — отстающая группа скоро начнёт терять события"

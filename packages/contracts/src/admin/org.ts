@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { Confidentiality } from '../access/confidentiality.js'
 import { UserKind, UserRef, UserStatus } from '../auth/session.js'
 import { LangText, Timestamp, Uuid } from '../common/primitives.js'
+import { HealthEvents } from './events.js'
 
 export const ORG_UNIT_KINDS = ['committee', 'department', 'division', 'regional', 'sector'] as const
 export const OrgUnitKind = z.enum(ORG_UNIT_KINDS)
@@ -200,6 +201,8 @@ export const HealthReport = z.object({
   components: z.array(HealthComponent),
   outbox: z.object({ pending: z.number().int(), oldestSeconds: z.number().int().nullable() }),
   jobs: z.object({ queued: z.number().int(), running: z.number().int(), failed: z.number().int() }),
+  /** Шина событий (ADR-0171): очередь сбоев и отстающие подписчики. */
+  events: HealthEvents,
   metrics: HealthMetrics,
   alerts: HealthAlerts,
 })

@@ -93,6 +93,7 @@ export function registerNotebookBackground(): void {
   registerSubscriber({
     name: 'data-notebook-search',
     types: ['notebook.updated'],
+    replay: true,
     handle: async (event) => {
       if (event.object) await indexObject(event.object.id)
     },

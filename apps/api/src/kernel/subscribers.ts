@@ -37,6 +37,8 @@ export function registerKernelSubscribers(): void {
   registerSubscriber({
     name: 'kernel-search',
     types: ['object.*', 'acl.changed', 'file.text_extracted'],
+    // Проекция поиска: история потока полезна новой группе, повтор безвреден (ADR-0171)
+    replay: true,
     handle: async (event) => {
       if (!event.object) return
       if (event.type === 'object.deleted' || event.type === 'object.trashed') {

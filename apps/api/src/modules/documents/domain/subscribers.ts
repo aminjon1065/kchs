@@ -313,6 +313,7 @@ export const documentSubscribers: Subscriber[] = [
       'case.archived',
       'case.destroyed',
     ],
+    replay: true,
     handle: reindex,
   },
 ]

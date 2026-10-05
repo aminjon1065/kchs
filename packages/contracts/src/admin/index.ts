@@ -1,6 +1,7 @@
 export * from './announcements.js'
 export * from './branding.js'
 export * from './business-calendar.js'
+export * from './events.js'
 export * from './features.js'
 export * from './org.js'
 export * from './security.js'

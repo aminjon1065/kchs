@@ -361,6 +361,7 @@ export function registerReportsBackground(): void {
   registerSubscriber({
     name: 'reports-search',
     types: ['report.updated'],
+    replay: true,
     handle: async (event) => {
       if (event.object) await indexObject(event.object.id)
     },

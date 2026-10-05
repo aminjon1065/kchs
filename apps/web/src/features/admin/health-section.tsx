@@ -6,6 +6,7 @@ import { Activity, Cpu, Database, HardDrive, Search, Server } from 'lucide-react
 import { useAppearance } from '~/app/appearance.js'
 import { useT } from '~/app/i18n.js'
 import { healthQuery } from '~/shared/api/queries.js'
+import { EventsCard } from './events-card.js'
 
 const COMPONENT_ICONS: Record<string, typeof Server> = {
   postgres: Database,
@@ -78,6 +79,7 @@ export function HealthSection() {
       </div>
 
       <AlertsCard alerts={data.alerts} />
+      <EventsCard events={data.events} />
       <MetricsCard metrics={data.metrics} />
 
       <Card title={t('admin.health.installation')}>

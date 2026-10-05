@@ -345,7 +345,7 @@ describe('очередь «Из почты»', () => {
     expect(subscriber).toBeTruthy()
     bus.clearSubscribers()
     if (subscriber) bus.registerSubscriber(subscriber)
-    bus.startConsumers({ blockMs: 100, retryIdleMs: 300, claimIntervalMs: 100 })
+    await bus.startConsumers({ blockMs: 100, retryIdleMs: 300, claimIntervalMs: 100 })
     try {
       while ((await bus.dispatchOnce()) > 0) {
         // выкладываем накопленный outbox в шину

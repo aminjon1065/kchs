@@ -44,6 +44,7 @@ export const pageSubscribers: Subscriber[] = [
   {
     name: 'knowledge-page-search',
     types: PAGE_EVENTS,
+    replay: true,
     handle: async (event) => {
       if (event.object) await indexObject(event.object.id)
     },
@@ -51,6 +52,7 @@ export const pageSubscribers: Subscriber[] = [
   {
     name: 'knowledge-page-chunks',
     types: [...PAGE_EVENTS, ...SUBTREE_EVENTS, ...GONE_EVENTS],
+    replay: true,
     handle: async (event) => {
       const object = event.object
       if (!object) return

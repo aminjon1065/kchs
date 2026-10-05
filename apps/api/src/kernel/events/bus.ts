@@ -7,7 +7,21 @@ import type { Subscriber } from './types.js'
 /** Потоки Redis: `events:<domain>`; DLQ — `events:dlq`. */
 export const streamKey = (domain: string) => `events:${domain}`
 export const DLQ_STREAM = 'events:dlq'
-export const MAX_STREAM_LEN = 100_000
+/**
+ * Жёсткий предел длины потока — страховка памяти Redis, а не обрезка: поток
+ * обрезает задание `events.trim` по самой отстающей группе (ADR-0171). Сюда
+ * поток упирается, только если подписчик стоит долго, — это видно метрикой
+ * `kchs_events_stream_length` и оповещением задолго до предела.
+ */
+export const STREAM_HARD_CAP = 1_000_000
+/** Записи DLQ хранятся до повтора администратором; предел — та же страховка. */
+const DLQ_HARD_CAP = 100_000
+/**
+ * Поле записи потока: событие только для этого подписчика. Им повтор из DLQ
+ * доставляет событие тому, у кого оно упало, — остальные группы его
+ * подтверждают не глядя, даже если их отметки обработки уже очищены.
+ */
+export const ONLY_FIELD = 'only'
 
 const subscribers: Subscriber[] = []
 
@@ -48,16 +62,24 @@ export function subscribedDomains(): string[] {
   return [...domains]
 }
 
-export async function xaddEvent(client: Redis, event: EventEnvelope): Promise<void> {
-  const domain = event.type.split('.')[0] ?? 'unknown'
+/** Домен события — поток, в который оно публикуется. */
+export const eventDomain = (event: Pick<EventEnvelope, 'type'>) =>
+  event.type.split('.')[0] ?? 'unknown'
+
+export async function xaddEvent(
+  client: Redis,
+  event: EventEnvelope,
+  options: { only?: string } = {},
+): Promise<void> {
   await client.xadd(
-    streamKey(domain),
+    streamKey(eventDomain(event)),
     'MAXLEN',
     '~',
-    String(MAX_STREAM_LEN),
+    String(STREAM_HARD_CAP),
     '*',
     'event',
     JSON.stringify(event),
+    ...(options.only ? [ONLY_FIELD, options.only] : []),
   )
 }
 
@@ -65,12 +87,13 @@ export async function sendToDlq(
   event: EventEnvelope,
   consumer: string,
   error: unknown,
+  attempts: number,
 ): Promise<void> {
   await redis().xadd(
     DLQ_STREAM,
     'MAXLEN',
     '~',
-    '10000',
+    String(DLQ_HARD_CAP),
     '*',
     'event',
     JSON.stringify(event),
@@ -78,6 +101,8 @@ export async function sendToDlq(
     consumer,
     'error',
     error instanceof Error ? error.message : String(error),
+    'attempts',
+    String(attempts),
   )
   logger().error({ eventId: event.id, consumer, err: error }, 'событие отправлено в DLQ')
 }

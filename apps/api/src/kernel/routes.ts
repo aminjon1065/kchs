@@ -4,6 +4,7 @@ import { registerAcknowledgmentRoutes } from './acknowledgments/http.js'
 import { registerAnnouncementRoutes } from './announcements/http.js'
 import { registerBusinessCalendarRoutes } from './business-calendar/http.js'
 import { registerDiscussionRoutes } from './discussions/http.js'
+import { registerEventRoutes } from './events/http.js'
 import { registerInboxRoutes } from './inbox/http.js'
 import { registerJobRoutes } from './jobs/http.js'
 import { registerInternalJobRoutes } from './jobs/internal-http.js'
@@ -33,4 +34,5 @@ export function registerKernelRoutes(route: RouteRegistrar): void {
   registerProcessRoutes(route)
   registerAcknowledgmentRoutes(route)
   registerScheduleRoutes(route)
+  registerEventRoutes(route)
 }

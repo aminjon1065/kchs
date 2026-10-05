@@ -3,6 +3,7 @@ import { db } from '~/shared/db/client.js'
 import { remindDueAcknowledgments } from '../acknowledgments/index.js'
 import { BackupService } from '../backup/service.js'
 import { pruneOutbox } from '../events/dispatcher.js'
+import { pruneEventConsumptions, trimStreams } from '../events/streams.js'
 import { InboxService } from '../inbox/service.js'
 import { sendEmailDigest } from '../notifications/service.js'
 import { expiredTrash, ObjectService, trimRecentViews } from '../objects/service.js'
@@ -76,6 +77,22 @@ export function registerMaintenanceJobs(): void {
     name: 'outbox.prune',
     concurrency: 1,
     handle: async () => ({ deleted: await pruneOutbox(72) }),
+  })
+
+  // Шина событий (ADR-0171): отметки обработки старше срока и обрезка потоков
+  // по самой отстающей группе
+  registerJobHandler({
+    queue: 'maintenance',
+    name: 'events.prune-consumptions',
+    concurrency: 1,
+    handle: async () => ({ deleted: await pruneEventConsumptions() }),
+  })
+
+  registerJobHandler({
+    queue: 'maintenance',
+    name: 'events.trim',
+    concurrency: 1,
+    handle: async () => trimStreams(),
   })
 
   registerJobHandler({
@@ -161,6 +178,18 @@ export function scheduleMaintenance(): void {
     name: 'outbox.prune',
     pattern: '17 3 * * *',
     labelKey: 'schedules.jobs.outboxPrune',
+  })
+  declareSchedule({
+    queue: 'maintenance',
+    name: 'events.prune-consumptions',
+    pattern: '13 4 * * *',
+    labelKey: 'schedules.jobs.eventsPruneConsumptions',
+  })
+  declareSchedule({
+    queue: 'maintenance',
+    name: 'events.trim',
+    pattern: '*/10 * * * *',
+    labelKey: 'schedules.jobs.eventsTrim',
   })
   declareSchedule({
     queue: 'maintenance',

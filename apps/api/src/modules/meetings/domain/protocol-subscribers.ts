@@ -60,6 +60,7 @@ export const protocolSubscribers: Subscriber[] = [
   {
     name: 'meetings-protocol-search',
     types: ['protocol.updated', 'protocol.confirmed'],
+    replay: true,
     handle: async (event) => {
       if (event.object) await indexObject(event.object.id)
     },

@@ -9,7 +9,15 @@ import { logger } from '~/shared/logger/index.js'
 import { createRedisConnection } from '~/shared/redis/index.js'
 import { meter } from '~/shared/telemetry/metrics.js'
 import { recordError, withSpan } from '~/shared/telemetry/tracing.js'
-import { listSubscribers, matchesType, sendToDlq, streamKey, subscribedDomains } from './bus.js'
+import {
+  listSubscribers,
+  matchesType,
+  ONLY_FIELD,
+  sendToDlq,
+  streamKey,
+  subscribedDomains,
+} from './bus.js'
+import { withEventDelivery } from './delivery.js'
 import type { Subscriber } from './types.js'
 
 const READ_COUNT = 50
@@ -40,24 +48,61 @@ let stopped = false
 const running = new Set<Promise<void>>()
 /** Длительность и исход обработки события подписчиком (создаётся при запуске). */
 let eventDuration: Histogram | null = null
+/** Группы всех подписчиков созданы: потребители начинают читать после этого. */
+let prepared: Promise<void> | null = null
 
-/** Создаёт consumer group для каждого домена (идемпотентно). */
-async function ensureGroups(
+/**
+ * Ключ Redis: группы потребителей этой установки уже создавались (ADR-0171).
+ * Живёт рядом с потоками: потеря данных Redis сбрасывает его вместе с ними.
+ */
+export const GROUPS_INITIALIZED_KEY = 'events:groups:initialized'
+
+/**
+ * Создаёт consumer group каждого подписчика на каждом потоке (идемпотентно).
+ * Откуда новая группа начинает читать (ADR-0171):
+ * - первый запуск установки — с начала потока: события сида и всего, что
+ *   опубликовано до старта потребителей, не теряются;
+ * - подписчик, появившийся в обновлении работающей установки, — с новых событий,
+ *   иначе он прошёл бы всю сохранённую историю (шквал старых уведомлений);
+ * - проекции с `replay` — всегда с начала.
+ */
+async function prepareGroups(
   client: Redis,
-  subscriber: Subscriber,
+  subscribers: readonly Subscriber[],
   domains: string[],
 ): Promise<void> {
-  for (const domain of domains) {
-    try {
-      await client.xgroup('CREATE', streamKey(domain), subscriber.name, '0', 'MKSTREAM')
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      if (!message.includes('BUSYGROUP')) throw error
+  const initialized = (await client.exists(GROUPS_INITIALIZED_KEY)) === 1
+  for (const subscriber of subscribers) {
+    const start = !initialized || subscriber.replay ? '0' : '$'
+    const pipeline = client.pipeline()
+    for (const domain of domains) {
+      pipeline.xgroup('CREATE', streamKey(domain), subscriber.name, start, 'MKSTREAM')
+    }
+    for (const [error] of (await pipeline.exec()) ?? []) {
+      if (error && !error.message.includes('BUSYGROUP')) throw error
     }
   }
+  await client.set(GROUPS_INITIALIZED_KEY, new Date().toISOString())
 }
 
-/** Идемпотентность: событие обрабатывается подписчиком ровно один раз. */
+/** Группы готовы: один проход на процесс, после сбоя — заново со следующей попытки. */
+function ensurePrepared(subscribers: readonly Subscriber[], domains: string[]): Promise<void> {
+  if (!prepared) {
+    const client = createRedisConnection('events-groups')
+    prepared = prepareGroups(client, subscribers, domains)
+      .catch((error: unknown) => {
+        prepared = null
+        throw error
+      })
+      .finally(() => client.disconnect())
+  }
+  return prepared
+}
+
+/**
+ * Идемпотентность: доставка — «как минимум один раз», повтор после сбоя
+ * отсекает отметка обработки (ADR-0027).
+ */
 async function alreadyProcessed(consumer: string, eventId: string): Promise<boolean> {
   const rows = await db()
     .select({ eventId: eventConsumptions.eventId })
@@ -95,6 +140,12 @@ async function handleEntry(
   const idx = fields.indexOf('event')
   const raw = idx >= 0 ? fields[idx + 1] : undefined
   if (!raw) {
+    await client.xack(stream, subscriber.name, entryId)
+    return
+  }
+  // Повтор из DLQ адресован одному подписчику: остальные его не обрабатывают
+  const only = fieldValue(fields, ONLY_FIELD)
+  if (only && only !== subscriber.name) {
     await client.xack(stream, subscriber.name, entryId)
     return
   }
@@ -155,8 +206,11 @@ async function processEntry(
 
   try {
     // Сначала обработка, затем отметка: падение между ними приводит к повтору,
-    // а не к потере события. Подписчики идемпотентны (02-platform-kernel.md §4).
-    await subscriber.handle(event)
+    // а не к потере события. Подписчики идемпотентны (02-platform-kernel.md §4);
+    // неповторяемые побочные эффекты узнают повтор по контексту доставки
+    await withEventDelivery({ subscriber: subscriber.name, eventId: event.id }, () =>
+      subscriber.handle(event),
+    )
     await markProcessed(subscriber.name, event.id)
     await client.xack(stream, subscriber.name, entryId)
     return 'processed'
@@ -165,7 +219,7 @@ async function processEntry(
     const deliveries = await deliveryCount(client, stream, subscriber.name, entryId)
     const max = subscriber.maxAttempts ?? DEFAULT_MAX_ATTEMPTS
     if (deliveries >= max) {
-      await sendToDlq(event, subscriber.name, error)
+      await sendToDlq(event, subscriber.name, error, deliveries)
       await client.xack(stream, subscriber.name, entryId)
       return 'dlq'
     }
@@ -213,29 +267,39 @@ async function reclaimStale(
   return handled
 }
 
-/** Запускает потребление событий всеми зарегистрированными подписчиками. */
-export function startConsumers(overrides: Partial<ConsumerOptions> = {}): void {
+/**
+ * Запускает потребление событий всеми зарегистрированными подписчиками.
+ * Промис — группы созданы (тест, опубликовавший событие сразу после запуска,
+ * ждёт его, иначе новая группа с `$` его не увидела бы); сбой создания групп
+ * повторяют сами потребители.
+ */
+export function startConsumers(overrides: Partial<ConsumerOptions> = {}): Promise<void> {
   const subscribers = listSubscribers()
   if (subscribers.length === 0) {
     logger().warn('подписчики событий не зарегистрированы')
-    return
+    return Promise.resolve()
   }
 
   const options = { ...DEFAULT_OPTIONS, ...overrides }
   stopped = false
+  prepared = null
   eventDuration = meter().createHistogram('kchs.event.duration', {
     unit: 's',
     description: 'Обработка события подписчиком',
   })
   const log = logger().child({ module: 'events' })
   const domains = resolveDomains()
+  const ready = ensurePrepared(subscribers, domains)
 
   for (const subscriber of subscribers) {
-    const task = runSubscriber(subscriber, domains, options, log)
+    const task = runSubscriber(subscriber, subscribers, domains, options, log)
     running.add(task)
     void task.finally(() => running.delete(task))
   }
   log.info({ subscribers: subscribers.map((s) => s.name), domains }, 'потребители событий запущены')
+  return ready.catch((error: unknown) => {
+    log.error({ err: error }, 'группы потребителей не созданы — повтор при чтении')
+  })
 }
 
 /** Домены, на потоки которых подписываются подписчики со звёздочкой. */
@@ -310,13 +374,15 @@ export const KNOWN_DOMAINS = [
   'service_layer',
 ] as const
 
-function resolveDomains(): string[] {
+/** Домены, потоки которых читают подписчики (со звёздочкой — все известные). */
+export function resolveDomains(): string[] {
   const domains = subscribedDomains()
   return domains.includes('*') ? [...KNOWN_DOMAINS] : domains
 }
 
 async function runSubscriber(
   subscriber: Subscriber,
+  subscribers: readonly Subscriber[],
   domains: string[],
   options: ConsumerOptions,
   log: ReturnType<typeof logger>,
@@ -329,7 +395,7 @@ async function runSubscriber(
   while (!stopped) {
     try {
       if (!groupsReady) {
-        await ensureGroups(client, subscriber, domains)
+        await ensurePrepared(subscribers, domains)
         groupsReady = true
       }
 
@@ -371,4 +437,13 @@ async function runSubscriber(
 export async function stopConsumers(): Promise<void> {
   stopped = true
   await Promise.allSettled([...running])
+  prepared = null
+}
+
+/** Значение поля записи потока (`[имя, значение, …]`). */
+function fieldValue(fields: string[], name: string): string | undefined {
+  for (let index = 0; index < fields.length - 1; index += 2) {
+    if (fields[index] === name) return fields[index + 1]
+  }
+  return undefined
 }

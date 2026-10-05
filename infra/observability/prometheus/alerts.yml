@@ -57,6 +57,41 @@ groups:
         annotations:
           summary: "Очередь {{ $labels.queue }} растёт дольше 15 минут"
 
+      # Шина событий (ADR-0171): метрики отдаёт worker. Отстающий подписчик держит
+      # поток, пока не прочитает своё, — до предела 1 000 000 записей
+      - alert: KchsEventsLagging
+        expr: max by (subscriber) (kchs_events_lag) > 1000
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Подписчик {{ $labels.subscriber }} отстаёт: не получено {{ $value }} событий"
+
+      - alert: KchsEventsStuck
+        expr: max by (subscriber) (kchs_events_pending_oldest_age) > 900
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Подписчик {{ $labels.subscriber }} не подтверждает событие дольше 15 минут"
+
+      # Событие не обработано после всех попыток — повтор в «Здоровье системы»
+      - alert: KchsEventsDeadLetters
+        expr: max(kchs_events_dlq) > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "В очереди сбоев событий {{ $value }} — разберите в «Здоровье системы»"
+
+      - alert: KchsEventsStreamNearCap
+        expr: max by (stream) (kchs_events_stream_length) > 800000
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Поток {{ $labels.stream }} подходит к пределу 1 000 000 — отстающая группа скоро начнёт терять события"
+
       # Бюджет памяти api (04-verification.md §4): RSS ≤ 1 ГБ в норме
       - alert: KchsMemoryBudget
         expr: process_memory_usage{job=~"kchs-api|kchs-worker"} > 1e9

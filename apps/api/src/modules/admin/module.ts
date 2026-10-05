@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { AUDIT_ACTIONS, audit, auditBatches, queryAudit } from '~/kernel/audit/service.js'
 import { directory } from '~/kernel/directory/port.js'
 import { outboxLag } from '~/kernel/events/dispatcher.js'
+import { healthEvents } from '~/kernel/events/streams.js'
 import { EngineJobs } from '~/kernel/jobs/engine.js'
 import { JobService } from '~/kernel/jobs/service.js'
 import { searchHealthy } from '~/kernel/search/index-service.js'
@@ -156,9 +157,10 @@ export function registerAdminRoutes(route: RouteRegistrar): void {
           : []),
       ])
 
-      const [lag, jobs, observed] = await Promise.all([
+      const [lag, jobs, events, observed] = await Promise.all([
         outboxLag(),
         JobService.counts(),
+        healthEvents(),
         observabilitySnapshot(),
       ])
       const down = components.filter((c) => c.status === 'down').length
@@ -170,6 +172,7 @@ export function registerAdminRoutes(route: RouteRegistrar): void {
         components,
         outbox: lag,
         jobs,
+        events,
         metrics: observed.metrics,
         alerts: observed.alerts,
       }
