@@ -191,7 +191,7 @@
    - L5 — automation, knowledge, meetings, reports;
    - L6 — chat.
 2. **У каждой таблицы один владелец.**
-   - Схема лежит рядом с владельцем: `kernel/<область>/schema.ts`, `modules/<m>/schema.ts`. `shared/db/schema/index.ts` остаётся только сборщиком для drizzle-kit, миграций, сида и тестов.
+   - Схема лежит рядом с владельцем: `kernel/<область>/schema.ts`, `modules/<m>/schema.ts`. сборщик всей схемы — `src/db-schema.ts` (ADR-0178), только для drizzle-kit, миграций, сида, CLI и тестов.
    - Модулям на чтение открыты `objects` и `object_ancestors`; запись в таблицы ядра — только сервисами ядра.
    - Принципалы и оргструктура — в `kernel/directory`, identity отвечает только за вход.
 3. **Ядро без словаря модулей.**
