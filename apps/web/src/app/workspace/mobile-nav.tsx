@@ -18,13 +18,15 @@ import {
   MoreHorizontal,
   Search,
 } from 'lucide-react'
-import { canOpenAdmin } from '~/features/admin/sections.js'
-import { chatListQuery } from '~/features/chat/queries.js'
-import { useOpenHelp } from '~/features/knowledge/help.js'
 import { inboxCountsQuery, meQuery } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
+import { getNavItem, shellExtension } from '~/shared/workspace/registry.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
 import type { ScreenKey } from '~/shared/workspace/types.js'
+
+const noHelp = () => null
+const noAdmin = () => false
+const noBadge = () => undefined
 
 /**
  * Нижняя навигация мобильного веба (03-ui/01-ux-concept.md, адаптив):
@@ -37,8 +39,12 @@ export function MobileNav({ onOpenPalette }: { onOpenPalette: () => void }) {
   const setNavigatorModule = useWorkspace((s) => s.setNavigatorModule)
   const { data: counts } = useQuery(inboxCountsQuery())
   const { data: me } = useQuery(meQuery())
+  // Справка, консоль и непрочитанное в «Чатах» — возможности модулей из реестра (ADR-0183)
+  const useOpenHelp = shellExtension('useOpenHelp', noHelp)
   const openHelp = useOpenHelp()
-  const { data: chats } = useQuery(chatListQuery('all'))
+  const useChatsBadge = getNavItem('chats')?.useBadge ?? noBadge
+  const chatsUnread = useChatsBadge()
+  const canOpenAdmin = shellExtension('canOpenAdmin', noAdmin)
 
   const go = (screen: ScreenKey, labelKey: string, icon: string): void => {
     setNavigatorModule(screen)
@@ -66,7 +72,7 @@ export function MobileNav({ onOpenPalette }: { onOpenPalette: () => void }) {
       icon: MessageSquare,
       labelKey: 'shell.rail.chats',
       iconName: 'conversation',
-      badge: chats?.totalUnread,
+      badge: chatsUnread,
     },
   ]
 

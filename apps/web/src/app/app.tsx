@@ -1,7 +1,6 @@
 import { Spinner } from '@kchs/ui'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { lazy, Suspense, useEffect, useState } from 'react'
-import { printTargetFromPath } from '~/features/reports/print/print-target.js'
+import { Suspense, useEffect, useState } from 'react'
 import { useBranding } from '~/shared/api/branding.js'
 import {
   ApiError,
@@ -12,46 +11,20 @@ import {
 import { keys, meQuery } from '~/shared/api/queries.js'
 import { initAppearance } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
-import { registerModules } from './modules.js'
+import {
+  GuestMeetingScreen,
+  GuestShareScreen,
+  LoginScreen,
+  MfaEnrollmentScreen,
+  PasswordChangeScreen,
+  PasswordResetScreen,
+  PrintScreen,
+  printTargetFromPath,
+  registerModules,
+} from './modules.js'
 import { WorkspaceShell } from './workspace/shell.js'
 
 registerModules()
-
-/**
- * Вход, смена пароля, второй фактор и гостевая ссылка — отдельными чанками: вошедшему
- * сотруднику они не нужны, а оболочке нужен каждый килобайт бюджета (ADR-0166).
- */
-const LoginScreen = lazy(() =>
-  import('~/features/auth/login-screen.js').then((module) => ({ default: module.LoginScreen })),
-)
-const MfaEnrollmentScreen = lazy(() =>
-  import('~/features/auth/mfa-enrollment-screen.js').then((module) => ({
-    default: module.MfaEnrollmentScreen,
-  })),
-)
-const PasswordChangeScreen = lazy(() =>
-  import('~/features/auth/password-change-screen.js').then((module) => ({
-    default: module.PasswordChangeScreen,
-  })),
-)
-const PasswordResetScreen = lazy(() =>
-  import('~/features/auth/password-reset-screen.js').then((module) => ({
-    default: module.PasswordResetScreen,
-  })),
-)
-const GuestShareScreen = lazy(() =>
-  import('~/features/share/guest-screen.js').then((module) => ({
-    default: module.GuestShareScreen,
-  })),
-)
-
-/** Страница печати отчёта — отдельным чанком: оболочке она не нужна (ADR-0078). */
-const PrintScreen = lazy(() => import('~/features/reports/print/print-screen.js'))
-
-/** Комната гостя — отдельным чанком: клиент медиасервера нужен только ей. */
-const GuestMeetingScreen = lazy(async () => ({
-  default: (await import('~/features/meetings/guest-screen.js')).GuestMeetingScreen,
-}))
 
 /** Гостевая ссылка обслуживается вне рабочего пространства: `/s/<токен>`. */
 function shareTokenFromUrl(): string | null {

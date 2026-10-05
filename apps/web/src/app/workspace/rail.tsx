@@ -2,30 +2,22 @@ import { Avatar, cn, Tooltip } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import {
   Bell,
-  BookOpen,
   Bot,
-  CalendarDays,
-  CheckSquare,
   CircleHelp,
-  Database,
-  FileText,
-  Folder,
-  Home,
   Inbox,
   type LucideIcon,
-  Map as MapIcon,
-  MessageSquare,
   Search,
   Settings,
   Shield,
-  Video,
 } from 'lucide-react'
-import { canOpenAdmin } from '~/features/admin/sections.js'
-import { chatListQuery } from '~/features/chat/queries.js'
-import { useOpenHelp } from '~/features/knowledge/help.js'
 import { useBranding } from '~/shared/api/branding.js'
 import { inboxCountsQuery, meQuery, notificationsQuery } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
+import {
+  listNavItems,
+  type NavItemDefinition,
+  shellExtension,
+} from '~/shared/workspace/registry.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
 import type { ScreenKey } from '~/shared/workspace/types.js'
 
@@ -38,18 +30,9 @@ interface RailItem {
   soon?: boolean
 }
 
-const PRIMARY: RailItem[] = [
-  { key: 'home', icon: Home, labelKey: 'shell.rail.home', shortcut: 'G H' },
-  { key: 'data', icon: Database, labelKey: 'shell.rail.data', shortcut: 'G D' },
-  { key: 'maps', icon: MapIcon, labelKey: 'shell.rail.maps', shortcut: 'G M' },
-  { key: 'documents', icon: FileText, labelKey: 'shell.rail.documents', shortcut: 'G O' },
-  { key: 'files', icon: Folder, labelKey: 'shell.rail.files', shortcut: 'G F' },
-  { key: 'tasks', icon: CheckSquare, labelKey: 'shell.rail.tasks', shortcut: 'G T' },
-  { key: 'chats', icon: MessageSquare, labelKey: 'shell.rail.chats', shortcut: 'G C' },
-  { key: 'meetings', icon: Video, labelKey: 'shell.rail.meetings' },
-  { key: 'knowledge', icon: BookOpen, labelKey: 'shell.rail.knowledge' },
-  { key: 'calendar', icon: CalendarDays, labelKey: 'shell.rail.calendar' },
-]
+const noHelp = () => null
+const noAdmin = () => false
+const noBadge = () => undefined
 
 export function Rail({ onOpenPalette }: { onOpenPalette: () => void }) {
   const t = useT()
@@ -63,15 +46,16 @@ export function Rail({ onOpenPalette }: { onOpenPalette: () => void }) {
   const branding = useBranding()
   const brandName = branding?.shortName || branding?.name || t('common.appName')
   const { data: counts } = useQuery(inboxCountsQuery())
-  // Непрочитанные сообщения — значок на кнопке «Чаты» (ADR-0090)
-  const { data: chats } = useQuery(chatListQuery('all'))
   const { data: notifications } = useQuery(notificationsQuery(true))
+  // Пункты модулей — из реестра оболочки (ADR-0183): рейка модулей не знает
+  const primary = listNavItems()
 
   // Консоль — по любой способности её разделов (N85), не только администратору системы
-  const isAdmin = canOpenAdmin(me?.capabilities)
+  const isAdmin = shellExtension('canOpenAdmin', noAdmin)(me?.capabilities)
+  const useOpenHelp = shellExtension('useOpenHelp', noHelp)
   const openHelp = useOpenHelp()
 
-  const open = (item: RailItem): void => {
+  const open = (item: Pick<RailItem, 'key' | 'labelKey'> & Partial<RailItem>): void => {
     setNavigatorModule(item.key)
     openTab({
       kind: 'screen',
@@ -89,7 +73,7 @@ export function Rail({ onOpenPalette }: { onOpenPalette: () => void }) {
     >
       <button
         type="button"
-        onClick={() => open(PRIMARY[0]!)}
+        onClick={() => open({ key: 'home', labelKey: 'shell.rail.home' })}
         className={cn(
           'mb-1 flex size-8 items-center justify-center overflow-hidden rounded-md',
           branding?.logo ? 'bg-surface' : 'bg-accent text-accent-fg',
@@ -113,16 +97,17 @@ export function Rail({ onOpenPalette }: { onOpenPalette: () => void }) {
       </button>
 
       <div className="flex flex-col items-center gap-0.5">
-        {PRIMARY.filter((item) => !hidden.has(item.key)).map((item) => (
-          <RailButton
-            key={item.key}
-            item={item}
-            active={navigatorModule === item.key}
-            label={t(item.labelKey)}
-            {...(item.key === 'chats' && chats?.totalUnread ? { badge: chats.totalUnread } : {})}
-            onClick={() => open(item)}
-          />
-        ))}
+        {primary
+          .filter((item) => !hidden.has(item.key))
+          .map((item) => (
+            <ModuleRailButton
+              key={item.key}
+              item={item}
+              active={navigatorModule === item.key}
+              label={t(item.labelKey)}
+              onClick={() => open(item)}
+            />
+          ))}
       </div>
 
       <div className="mt-auto flex flex-col items-center gap-0.5">
@@ -193,6 +178,31 @@ export function Rail({ onOpenPalette }: { onOpenPalette: () => void }) {
         ) : null}
       </div>
     </nav>
+  )
+}
+
+/** Пункт модуля: число на значке — хук модуля из реестра (непрочитанное в «Чатах»). */
+function ModuleRailButton({
+  item,
+  label,
+  active,
+  onClick,
+}: {
+  item: NavItemDefinition
+  label: string
+  active: boolean
+  onClick: () => void
+}) {
+  const useBadge = item.useBadge ?? noBadge
+  const badge = useBadge()
+  return (
+    <RailButton
+      item={item}
+      active={active}
+      label={label}
+      {...(badge ? { badge } : {})}
+      onClick={onClick}
+    />
   )
 }
 

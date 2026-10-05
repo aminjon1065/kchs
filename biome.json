@@ -27,7 +27,8 @@
       "!**/test-results",
       "!apps/web/e2e/.auth",
       "!seeds/.cache",
-      "!.claude"
+      "!.claude",
+      "!**/.dependency-cruiser-known-violations.json"
     ]
   },
   "formatter": {

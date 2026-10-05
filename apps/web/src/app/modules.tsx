@@ -1,14 +1,22 @@
 import { Skeleton } from '@kchs/ui'
+import { CheckSquare, Database, FileText, Folder, Home, Map as MapIcon } from 'lucide-react'
 import { lazy, Suspense } from 'react'
+import { adminModule } from '~/features/admin/module.js'
 import type { CalendarScreenState } from '~/features/calendar/calendar-screen.js'
+import { calendarModule } from '~/features/calendar/module.js'
 import type { ChatsScreenState } from '~/features/chat/chats-screen.js'
+import { chatModule } from '~/features/chat/module.js'
 import type { SavedSqlLab } from '~/features/data/sql-lab-screen.js'
+import { delegationModule } from '~/features/delegation/module.js'
 import type { MapTabState } from '~/features/gis/map-studio.js'
 import { HomeScreen } from '~/features/home/home-screen.js'
+import { knowledgeModule } from '~/features/knowledge/module.js'
+import { meetingsModule } from '~/features/meetings/module.js'
+import { spacesModule } from '~/features/spaces/module.js'
 import type { ControlScreenState } from '~/features/tasks/control-screen.js'
 import type { TasksScreenState } from '~/features/tasks/tasks-screen.js'
 import type { WorkloadScreenState } from '~/features/tasks/workload-screen.js'
-import { registerObjectView, registerScreen } from '~/shared/workspace/registry.js'
+import { registerModule, registerObjectView, registerScreen } from '~/shared/workspace/registry.js'
 
 /**
  * Экраны и представления объектов грузятся при первом открытии (отдельными чанками): в
@@ -244,10 +252,116 @@ const RecordingView = lazy(() => import('~/features/meetings/recording/recording
 
 let registered = false
 
+/**
+ * Вход, смена пароля, второй фактор и гостевая ссылка — отдельными чанками: вошедшему
+ * сотруднику они не нужны, а оболочке нужен каждый килобайт бюджета (ADR-0166).
+ */
+export const LoginScreen = lazy(() =>
+  import('~/features/auth/login-screen.js').then((module) => ({ default: module.LoginScreen })),
+)
+export const MfaEnrollmentScreen = lazy(() =>
+  import('~/features/auth/mfa-enrollment-screen.js').then((module) => ({
+    default: module.MfaEnrollmentScreen,
+  })),
+)
+export const PasswordChangeScreen = lazy(() =>
+  import('~/features/auth/password-change-screen.js').then((module) => ({
+    default: module.PasswordChangeScreen,
+  })),
+)
+export const PasswordResetScreen = lazy(() =>
+  import('~/features/auth/password-reset-screen.js').then((module) => ({
+    default: module.PasswordResetScreen,
+  })),
+)
+export const GuestShareScreen = lazy(() =>
+  import('~/features/share/guest-screen.js').then((module) => ({
+    default: module.GuestShareScreen,
+  })),
+)
+
+/** Страница печати отчёта — отдельным чанком: оболочке она не нужна (ADR-0078). */
+export const PrintScreen = lazy(() => import('~/features/reports/print/print-screen.js'))
+
+/** Комната гостя — отдельным чанком: клиент медиасервера нужен только ей. */
+export const GuestMeetingScreen = lazy(async () => ({
+  default: (await import('~/features/meetings/guest-screen.js')).GuestMeetingScreen,
+}))
+
+export { printTargetFromPath } from '~/features/reports/print/print-target.js'
+
 /** Регистрация экранов и представлений объектов. */
 export function registerModules(): void {
   if (registered) return
   registered = true
+
+  // Модули с возможностями оболочки (ADR-0183): навигация, справка, консоль, палитра, слои
+  // Порядок важен для слоёв: баннер «от имени» — над баннером режима администратора
+  for (const definition of [
+    delegationModule,
+    adminModule,
+    calendarModule,
+    chatModule,
+    knowledgeModule,
+    meetingsModule,
+    spacesModule,
+  ]) {
+    registerModule(definition)
+  }
+  // Пункты рейки остальных модулей — порядок как в 03-screens.md
+  registerModule({
+    key: 'workspace',
+    nav: [
+      {
+        key: 'home',
+        icon: Home,
+        labelKey: 'shell.rail.home',
+        tabIcon: 'home',
+        shortcut: 'G H',
+        order: 10,
+      },
+      {
+        key: 'data',
+        icon: Database,
+        labelKey: 'shell.rail.data',
+        tabIcon: 'data',
+        shortcut: 'G D',
+        order: 20,
+      },
+      {
+        key: 'maps',
+        icon: MapIcon,
+        labelKey: 'shell.rail.maps',
+        tabIcon: 'maps',
+        shortcut: 'G M',
+        order: 30,
+      },
+      {
+        key: 'documents',
+        icon: FileText,
+        labelKey: 'shell.rail.documents',
+        tabIcon: 'documents',
+        shortcut: 'G O',
+        order: 40,
+      },
+      {
+        key: 'files',
+        icon: Folder,
+        labelKey: 'shell.rail.files',
+        tabIcon: 'files',
+        shortcut: 'G F',
+        order: 50,
+      },
+      {
+        key: 'tasks',
+        icon: CheckSquare,
+        labelKey: 'shell.rail.tasks',
+        tabIcon: 'tasks',
+        shortcut: 'G T',
+        order: 60,
+      },
+    ],
+  })
 
   registerScreen({
     key: 'home',

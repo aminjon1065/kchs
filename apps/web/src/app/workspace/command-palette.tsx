@@ -12,7 +12,6 @@ import { useQuery } from '@tanstack/react-query'
 import {
   Bell,
   CalendarDays,
-  CalendarPlus,
   CircleHelp,
   ClipboardCheck,
   Home,
@@ -29,10 +28,6 @@ import {
   Users,
 } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
-import { canOpenAdmin } from '~/features/admin/sections.js'
-import { useCalendarUi } from '~/features/calendar/calendar-store.js'
-import { useQuickEvent } from '~/features/calendar/quick-create.js'
-import { useOpenHelp } from '~/features/knowledge/help.js'
 import {
   meQuery,
   recentQuery,
@@ -43,8 +38,16 @@ import {
 import { useAppearance } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useOpenWorkspace } from '~/shared/workspace/open-workspace.js'
+import { type PaletteCommand, shellExtension } from '~/shared/workspace/registry.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
 import type { ScreenKey } from '~/shared/workspace/types.js'
+
+// Запасные варианты, если модуля с возможностью нет в сборке
+const noHelp = () => null
+const noAdmin = () => false
+const noQuickAction = () => null
+const NO_COMMANDS: PaletteCommand[] = []
+const noCommands = () => NO_COMMANDS
 
 export function CommandPalette({
   open,
@@ -64,7 +67,10 @@ export function CommandPalette({
   const density = useAppearance((s) => s.density)
 
   const { data: me } = useQuery(meQuery())
+  // Справка, консоль, быстрые действия и команды — возможности модулей (ADR-0183)
+  const useOpenHelp = shellExtension('useOpenHelp', noHelp)
   const openHelp = useOpenHelp()
+  const canOpenAdmin = shellExtension('canOpenAdmin', noAdmin)
   const { data: recent = [] } = useQuery(recentQuery())
   const { data: spaces = [] } = useQuery(spacesQuery())
   const { data: results, isFetching } = useQuery(searchQuery({ q: query, limit: 8 }))
@@ -86,8 +92,10 @@ export function CommandPalette({
   const { data: workspaces = [] } = useQuery(workspacesQuery())
   const openWorkspace = useOpenWorkspace()
   // «Встреча завтра в 10 с Ивановым» — событие из палитры (ADR-0081)
-  const quickEvent = useQuickEvent(query)
-  const openDraft = useCalendarUi((s) => s.openDraft)
+  const useQuickAction = shellExtension('usePaletteQuickAction', noQuickAction)
+  const quickEvent = useQuickAction(query)
+  const useModuleCommands = shellExtension('usePaletteCommands', noCommands)
+  const moduleCommands = useModuleCommands()
 
   const commands = useMemo(() => {
     const items: Array<{
@@ -125,15 +133,7 @@ export function CommandPalette({
         icon: <CalendarDays />,
         run: () => goScreen('calendar', t('shell.rail.calendar'), 'calendar'),
       },
-      {
-        id: 'new-event',
-        label: t('calendar.quick.newEvent'),
-        icon: <CalendarPlus />,
-        run: () => {
-          openDraft({})
-          goScreen('calendar', t('shell.rail.calendar'), 'calendar')
-        },
-      },
+      ...moduleCommands,
       {
         id: 'notifications',
         label: t('shell.rail.notifications'),
@@ -270,8 +270,9 @@ export function CommandPalette({
     close,
     workspaces,
     openWorkspace,
-    openDraft,
+    moduleCommands,
     openHelp,
+    canOpenAdmin,
   ])
 
   const spaceMatches = useMemo(() => {
@@ -317,10 +318,10 @@ export function CommandPalette({
     >
       {quickEvent ? (
         <CommandGroup>
-          <CommandGroupHeading>{t('calendar.quick.group')}</CommandGroupHeading>
+          <CommandGroupHeading>{t(quickEvent.groupKey)}</CommandGroupHeading>
           <CommandItem
             value="quick-event"
-            icon={<CalendarPlus />}
+            icon={quickEvent.icon}
             hint={quickEvent.hint}
             onSelect={() => {
               quickEvent.run()

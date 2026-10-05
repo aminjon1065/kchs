@@ -1,11 +1,7 @@
 import { cn, IconButton, Tooltip, useBreakpoint, useHotkeys, useToast } from '@kchs/ui'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { PanelLeftOpen, PanelRightOpen } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
-import { AdminModeBanner } from '~/features/admin/admin-mode.js'
-import { ActingBanner } from '~/features/delegation/acting-banner.js'
-import { IncomingCallOverlay } from '~/features/meetings/incoming-call.js'
-import { CreateSpaceDialog } from '~/features/spaces/create-space-dialog.js'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { http } from '~/shared/api/client.js'
 import { keys, meQuery } from '~/shared/api/queries.js'
 import { t as translate, useT } from '~/shared/i18n.js'
@@ -16,6 +12,7 @@ import {
   subscribeRooms,
   unsubscribeRooms,
 } from '~/shared/realtime/client.js'
+import { getShellDialog, listShellSlots } from '~/shared/workspace/registry.js'
 import { subscribeWorkspaceSave, useWorkspace } from '~/shared/workspace/store.js'
 import type { WorkspaceSnapshot } from '~/shared/workspace/types.js'
 import { CommandPalette } from './command-palette.js'
@@ -37,6 +34,8 @@ export function WorkspaceShell() {
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [createSpaceOpen, setCreateSpaceOpen] = useState(false)
+  // Диалог создания пространства даёт модуль пространств (ADR-0183)
+  const createSpaceDialog = getShellDialog('create-space')
 
   const navigatorOpen = useWorkspace((s) => s.navigatorOpen)
   const contextOpen = useWorkspace((s) => s.contextOpen)
@@ -204,8 +203,10 @@ export function WorkspaceShell() {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <ActingBanner />
-      <AdminModeBanner />
+      {/* Баннеры модулей (работа «от имени», режим администратора) — из реестра, ADR-0183 */}
+      {listShellSlots('banner').map((slot) => (
+        <Fragment key={slot.key}>{slot.render()}</Fragment>
+      ))}
       <div className="flex min-h-0 flex-1">
         {isMobile ? null : <Rail onOpenPalette={() => setPaletteOpen(true)} />}
 
@@ -252,11 +253,13 @@ export function WorkspaceShell() {
         <StatusBar onShowShortcuts={() => setShortcutsOpen(true)} />
       )}
 
-      {/* Входящий звонок приходит realtime в любой вкладке оболочки (ADR-0091) */}
-      <IncomingCallOverlay />
+      {/* Оверлеи модулей: входящий звонок приходит realtime в любой вкладке (ADR-0091) */}
+      {listShellSlots('overlay').map((slot) => (
+        <Fragment key={slot.key}>{slot.render()}</Fragment>
+      ))}
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
       <ShortcutsOverlay open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
-      <CreateSpaceDialog open={createSpaceOpen} onOpenChange={setCreateSpaceOpen} />
+      {createSpaceDialog?.({ open: createSpaceOpen, onOpenChange: setCreateSpaceOpen })}
     </div>
   )
 }
