@@ -22,13 +22,13 @@ import {
 import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Play, Share2, Trash2 } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
-import { ShareDialog } from '~/features/access/share-dialog.js'
+import { ShareDialog } from '~/entities/access/share-dialog.js'
+import { PresenceAvatars } from '~/entities/objects/presence-avatars.js'
 import {
   ChoroplethMapButton,
   choroplethParamItems,
 } from '~/features/gis/choropleth/choropleth-summary.js'
 import { territoriesQuery } from '~/features/gis/queries.js'
-import { PresenceAvatars } from '~/features/objects/presence-avatars.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { keys, objectQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'

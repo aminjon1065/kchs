@@ -39,9 +39,18 @@ import {
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { LayoutDashboard, Pencil, RefreshCw, Share2, Trash2 } from 'lucide-react'
 import { useState } from 'react'
-import { ShareDialog } from '~/features/access/share-dialog.js'
+import { ShareDialog } from '~/entities/access/share-dialog.js'
+import {
+  formatMetricNumber,
+  METRIC_PERIOD_PRESETS,
+  type MetricPeriodPreset,
+  metricTileModel,
+  periodPreset,
+  periodText,
+  presetPeriod,
+} from '~/entities/data/metric-format.js'
+import { PresenceAvatars } from '~/entities/objects/presence-avatars.js'
 import { alertEventsQuery } from '~/features/alerts/queries.js'
-import { PresenceAvatars } from '~/features/objects/presence-avatars.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import {
   keys,
@@ -56,15 +65,6 @@ import { useWorkspace } from '~/shared/workspace/store.js'
 import { AddToDashboardDialog } from './dashboard-dialogs.js'
 import { filterFieldsOf } from './field-types.js'
 import { MetricEditor } from './metric-editor.js'
-import {
-  formatMetricNumber,
-  METRIC_PERIOD_PRESETS,
-  type MetricPeriodPreset,
-  metricTileModel,
-  periodPreset,
-  periodText,
-  presetPeriod,
-} from './metric-format.js'
 import {
   dataKeys,
   datasetQuery,

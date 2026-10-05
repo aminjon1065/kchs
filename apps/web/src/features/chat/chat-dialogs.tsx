@@ -15,7 +15,7 @@ import {
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { type PickedUser, UserPicker, UsersPicker } from '~/features/tasks/user-picker.js'
+import { type PickedUser, UserPicker, UsersPicker } from '~/entities/people/user-picker.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { objectListQuery, spacesQuery } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'

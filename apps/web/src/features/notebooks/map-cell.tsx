@@ -9,11 +9,11 @@ import {
 import { Button, SegmentedControl } from '@kchs/ui'
 import { Crosshair } from 'lucide-react'
 import { useState } from 'react'
+import { type CellMap, useCellValue, writeCell } from '~/entities/collab/notebook-doc.js'
+import { ObjectPicker } from '~/entities/objects/object-picker.js'
 import { MapEmbed } from '~/features/gis/map-embed.js'
 import { useT } from '~/shared/i18n.js'
 import { useNotebook } from './notebook-context.js'
-import { type CellMap, useCellValue, writeCell } from './notebook-doc.js'
-import { ObjectPicker } from './object-picker.js'
 
 type Source = 'map' | 'layer'
 

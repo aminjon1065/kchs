@@ -21,10 +21,10 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Repeat } from 'lucide-react'
 import { useId, useState } from 'react'
+import { type PickedUser, UserPicker } from '~/entities/people/user-picker.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
-import { type PickedUser, UserPicker } from './user-picker.js'
 
 type Translate = (key: string, params?: Record<string, string | number>) => string
 

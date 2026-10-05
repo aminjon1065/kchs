@@ -6,7 +6,7 @@ import {
   periodPreset,
   periodText,
   presetPeriod,
-} from './metric-format.js'
+} from '~/entities/data/metric-format.js'
 
 const t = (key: string, params?: Record<string, string | number>) =>
   params ? `${key} ${JSON.stringify(params)}` : key

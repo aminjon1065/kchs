@@ -103,40 +103,6 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/access/share-dialog.tsx",
-    "to": "src/shared/api/client.ts",
-    "unresolvedTo": "~/shared/api/client.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "api-client-in-api-layer"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/access/share-links-section.tsx",
-    "to": "src/shared/api/client.ts",
-    "unresolvedTo": "~/shared/api/client.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "api-client-in-api-layer"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/admin/admin-mode.tsx",
     "to": "src/shared/api/client.ts",
     "unresolvedTo": "~/shared/api/client.js",
@@ -1514,40 +1480,6 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/discussion/message-composer.tsx",
-    "to": "src/shared/api/client.ts",
-    "unresolvedTo": "~/shared/api/client.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "api-client-in-api-layer"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/discussion/message-item.tsx",
-    "to": "src/shared/api/client.ts",
-    "unresolvedTo": "~/shared/api/client.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "api-client-in-api-layer"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/documents/assist/document-assistant.tsx",
     "to": "src/shared/api/client.ts",
     "unresolvedTo": "~/shared/api/client.js",
@@ -2075,23 +2007,6 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/files/file-preview.tsx",
-    "to": "src/shared/api/client.ts",
-    "unresolvedTo": "~/shared/api/client.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "api-client-in-api-layer"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/files/files-screen.tsx",
     "to": "src/shared/api/client.ts",
     "unresolvedTo": "~/shared/api/client.js",
@@ -2127,40 +2042,6 @@
   {
     "type": "dependency",
     "from": "src/features/files/office-editor.tsx",
-    "to": "src/shared/api/client.ts",
-    "unresolvedTo": "~/shared/api/client.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "api-client-in-api-layer"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/files/office.ts",
-    "to": "src/shared/api/client.ts",
-    "unresolvedTo": "~/shared/api/client.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "api-client-in-api-layer"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/files/upload.ts",
     "to": "src/shared/api/client.ts",
     "unresolvedTo": "~/shared/api/client.js",
     "dependencyTypes": [
@@ -2993,23 +2874,6 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/notebooks/collab.ts",
-    "to": "src/shared/api/client.ts",
-    "unresolvedTo": "~/shared/api/client.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "api-client-in-api-layer"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/notebooks/create-notebook-dialog.tsx",
     "to": "src/shared/api/client.ts",
     "unresolvedTo": "~/shared/api/client.js",
@@ -3775,74 +3639,6 @@
   },
   {
     "type": "dependency",
-    "from": "src/app/workspace/context-panel.tsx",
-    "to": "src/features/discussion/message-composer.tsx",
-    "unresolvedTo": "~/features/discussion/message-composer.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "app-knows-features-only-in-composition-root"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/app/workspace/context-panel.tsx",
-    "to": "src/features/discussion/message-item.tsx",
-    "unresolvedTo": "~/features/discussion/message-item.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "app-knows-features-only-in-composition-root"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/app/workspace/context-panel.tsx",
-    "to": "src/features/files/upload.ts",
-    "unresolvedTo": "~/features/files/upload.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "app-knows-features-only-in-composition-root"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/admin/admin-screen.tsx",
-    "to": "src/features/access/service-account-badge.tsx",
-    "unresolvedTo": "~/features/access/service-account-badge.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/admin/admin-screen.tsx",
     "to": "src/features/automation/rules-section.tsx",
     "unresolvedTo": "~/features/automation/rules-section.js",
@@ -3996,23 +3792,6 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/admin/groups-section.tsx",
-    "to": "src/features/tasks/user-picker.tsx",
-    "unresolvedTo": "~/features/tasks/user-picker.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/admin/help-card.tsx",
     "to": "src/features/knowledge/help.ts",
     "unresolvedTo": "~/features/knowledge/help.js",
@@ -4030,43 +3809,9 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/admin/help-card.tsx",
-    "to": "src/features/notebooks/object-picker.tsx",
-    "unresolvedTo": "~/features/notebooks/object-picker.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/admin/tasks-section.tsx",
     "to": "src/features/tasks/queries.ts",
     "unresolvedTo": "~/features/tasks/queries.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/admin/users-import-dialog.tsx",
-    "to": "src/features/files/upload.ts",
-    "unresolvedTo": "~/features/files/upload.js",
     "dependencyTypes": [
       "aliased",
       "aliased-tsconfig",
@@ -4183,162 +3928,9 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/calendar/calendar-sidebar.tsx",
-    "to": "src/features/access/share-dialog.tsx",
-    "unresolvedTo": "~/features/access/share-dialog.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/calendar/calendar-view.tsx",
-    "to": "src/features/access/share-dialog.tsx",
-    "unresolvedTo": "~/features/access/share-dialog.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/calendar/event-view.tsx",
-    "to": "src/features/access/share-dialog.tsx",
-    "unresolvedTo": "~/features/access/share-dialog.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/calendar/event-view.tsx",
-    "to": "src/features/objects/presence-avatars.tsx",
-    "unresolvedTo": "~/features/objects/presence-avatars.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/chat/chat-dialogs.tsx",
-    "to": "src/features/tasks/user-picker.tsx",
-    "unresolvedTo": "~/features/tasks/user-picker.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/chat/message-feed.tsx",
     "to": "src/features/data/queries.ts",
     "unresolvedTo": "~/features/data/queries.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/chat/message-feed.tsx",
-    "to": "src/features/discussion/message-composer.tsx",
-    "unresolvedTo": "~/features/discussion/message-composer.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/chat/message-feed.tsx",
-    "to": "src/features/discussion/message-item.tsx",
-    "unresolvedTo": "~/features/discussion/message-item.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/chat/message-feed.tsx",
-    "to": "src/features/files/upload.ts",
-    "unresolvedTo": "~/features/files/upload.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/data/access-tab.tsx",
-    "to": "src/features/access/principal-picker.tsx",
-    "unresolvedTo": "~/features/access/principal-picker.js",
     "dependencyTypes": [
       "aliased",
       "aliased-tsconfig",
@@ -4388,23 +3980,6 @@
   {
     "type": "dependency",
     "from": "src/features/data/analysis-view.tsx",
-    "to": "src/features/access/share-dialog.tsx",
-    "unresolvedTo": "~/features/access/share-dialog.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/data/analysis-view.tsx",
     "to": "src/features/gis/choropleth/choropleth-summary.tsx",
     "unresolvedTo": "~/features/gis/choropleth/choropleth-summary.js",
     "dependencyTypes": [
@@ -4438,60 +4013,9 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/data/analysis-view.tsx",
-    "to": "src/features/objects/presence-avatars.tsx",
-    "unresolvedTo": "~/features/objects/presence-avatars.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/data/chart-view.tsx",
-    "to": "src/features/access/share-dialog.tsx",
-    "unresolvedTo": "~/features/access/share-dialog.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/data/chart-view.tsx",
     "to": "src/features/gis/result-labels.ts",
     "unresolvedTo": "~/features/gis/result-labels.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/data/chart-view.tsx",
-    "to": "src/features/objects/presence-avatars.tsx",
-    "unresolvedTo": "~/features/objects/presence-avatars.js",
     "dependencyTypes": [
       "aliased",
       "aliased-tsconfig",
@@ -4575,23 +4099,6 @@
   {
     "type": "dependency",
     "from": "src/features/data/dashboard-view.tsx",
-    "to": "src/features/access/share-dialog.tsx",
-    "unresolvedTo": "~/features/access/share-dialog.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/data/dashboard-view.tsx",
     "to": "src/features/gis/map-slots.tsx",
     "unresolvedTo": "~/features/gis/map-slots.js",
     "dependencyTypes": [
@@ -4611,23 +4118,6 @@
     "from": "src/features/data/dashboard-view.tsx",
     "to": "src/features/gis/territory-select.tsx",
     "unresolvedTo": "~/features/gis/territory-select.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/data/dashboard-view.tsx",
-    "to": "src/features/objects/presence-avatars.tsx",
-    "unresolvedTo": "~/features/objects/presence-avatars.js",
     "dependencyTypes": [
       "aliased",
       "aliased-tsconfig",
@@ -4711,23 +4201,6 @@
   {
     "type": "dependency",
     "from": "src/features/data/dataset-view.tsx",
-    "to": "src/features/access/share-dialog.tsx",
-    "unresolvedTo": "~/features/access/share-dialog.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/data/dataset-view.tsx",
     "to": "src/features/gis/choropleth/choropleth-button.tsx",
     "unresolvedTo": "~/features/gis/choropleth/choropleth-button.js",
     "dependencyTypes": [
@@ -4747,23 +4220,6 @@
     "from": "src/features/data/dataset-view.tsx",
     "to": "src/features/gis/show-on-map.tsx",
     "unresolvedTo": "~/features/gis/show-on-map.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/data/dataset-view.tsx",
-    "to": "src/features/objects/presence-avatars.tsx",
-    "unresolvedTo": "~/features/objects/presence-avatars.js",
     "dependencyTypes": [
       "aliased",
       "aliased-tsconfig",
@@ -4798,23 +4254,6 @@
     "from": "src/features/data/explore-builder.tsx",
     "to": "src/features/gis/territory-filter.tsx",
     "unresolvedTo": "~/features/gis/territory-filter.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/data/field-controls.tsx",
-    "to": "src/features/access/principal-picker.tsx",
-    "unresolvedTo": "~/features/access/principal-picker.js",
     "dependencyTypes": [
       "aliased",
       "aliased-tsconfig",
@@ -4880,60 +4319,9 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/data/import-wizard.tsx",
-    "to": "src/features/files/upload.ts",
-    "unresolvedTo": "~/features/files/upload.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/data/metric-view.tsx",
-    "to": "src/features/access/share-dialog.tsx",
-    "unresolvedTo": "~/features/access/share-dialog.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/data/metric-view.tsx",
     "to": "src/features/alerts/queries.ts",
     "unresolvedTo": "~/features/alerts/queries.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/data/metric-view.tsx",
-    "to": "src/features/objects/presence-avatars.tsx",
-    "unresolvedTo": "~/features/objects/presence-avatars.js",
     "dependencyTypes": [
       "aliased",
       "aliased-tsconfig",
@@ -4982,91 +4370,6 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/data/sources/feed-dialog.tsx",
-    "to": "src/features/notebooks/object-picker.tsx",
-    "unresolvedTo": "~/features/notebooks/object-picker.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/documents/card/document-view.tsx",
-    "to": "src/features/access/share-dialog.tsx",
-    "unresolvedTo": "~/features/access/share-dialog.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/documents/card/document-view.tsx",
-    "to": "src/features/objects/presence-avatars.tsx",
-    "unresolvedTo": "~/features/objects/presence-avatars.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/documents/card/files-tab.tsx",
-    "to": "src/features/files/office.ts",
-    "unresolvedTo": "~/features/files/office.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/documents/card/files-tab.tsx",
-    "to": "src/features/files/upload.ts",
-    "unresolvedTo": "~/features/files/upload.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/documents/card/files-tab.tsx",
     "to": "src/features/files/use-file-download.ts",
     "unresolvedTo": "~/features/files/use-file-download.js",
@@ -5087,23 +4390,6 @@
     "from": "src/features/documents/card/requisites-form.tsx",
     "to": "src/features/data/field-controls.tsx",
     "unresolvedTo": "~/features/data/field-controls.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/documents/card/requisites-form.tsx",
-    "to": "src/features/tasks/user-picker.tsx",
-    "unresolvedTo": "~/features/tasks/user-picker.js",
     "dependencyTypes": [
       "aliased",
       "aliased-tsconfig",
@@ -5152,23 +4438,6 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/documents/card/resolution-dialogs.tsx",
-    "to": "src/features/tasks/user-picker.tsx",
-    "unresolvedTo": "~/features/tasks/user-picker.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/documents/card/resolutions-tab.tsx",
     "to": "src/features/tasks/task-status.ts",
     "unresolvedTo": "~/features/tasks/task-status.js",
@@ -5189,23 +4458,6 @@
     "from": "src/features/documents/card/route-start-dialog.tsx",
     "to": "src/features/processes/labels.ts",
     "unresolvedTo": "~/features/processes/labels.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/documents/card/route-start-dialog.tsx",
-    "to": "src/features/tasks/user-picker.tsx",
-    "unresolvedTo": "~/features/tasks/user-picker.js",
     "dependencyTypes": [
       "aliased",
       "aliased-tsconfig",
@@ -5322,74 +4574,6 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/documents/directories/case-import-dialog.tsx",
-    "to": "src/features/files/upload.ts",
-    "unresolvedTo": "~/features/files/upload.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/documents/directories/cases-directory.tsx",
-    "to": "src/features/access/share-dialog.tsx",
-    "unresolvedTo": "~/features/access/share-dialog.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/documents/directories/journals-directory.tsx",
-    "to": "src/features/access/share-dialog.tsx",
-    "unresolvedTo": "~/features/access/share-dialog.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/documents/directories/templates-directory.tsx",
-    "to": "src/features/files/upload.ts",
-    "unresolvedTo": "~/features/files/upload.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/documents/directories/templates-directory.tsx",
     "to": "src/features/files/use-file-download.ts",
     "unresolvedTo": "~/features/files/use-file-download.js",
@@ -5424,94 +4608,9 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/documents/directories/types-directory.tsx",
-    "to": "src/features/tasks/user-picker.tsx",
-    "unresolvedTo": "~/features/tasks/user-picker.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/documents/mail/mail-screen.tsx",
     "to": "src/features/files/use-file-download.ts",
     "unresolvedTo": "~/features/files/use-file-download.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/documents/principals-picker.tsx",
-    "to": "src/features/access/principal-picker.tsx",
-    "unresolvedTo": "~/features/access/principal-picker.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/documents/registration/registration-screen.tsx",
-    "to": "src/features/files/upload.ts",
-    "unresolvedTo": "~/features/files/upload.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/documents/scan-viewer.tsx",
-    "to": "src/features/files/watermark-layer.tsx",
-    "unresolvedTo": "~/features/files/watermark-layer.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/files/files-screen.tsx",
-    "to": "src/features/access/share-dialog.tsx",
-    "unresolvedTo": "~/features/access/share-dialog.js",
     "dependencyTypes": [
       "aliased",
       "aliased-tsconfig",
@@ -5560,23 +4659,6 @@
     "from": "src/features/forms/form-settings-tab.tsx",
     "to": "src/features/admin/run-as-select.tsx",
     "unresolvedTo": "~/features/admin/run-as-select.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/forms/form-settings-tab.tsx",
-    "to": "src/features/tasks/user-picker.tsx",
-    "unresolvedTo": "~/features/tasks/user-picker.js",
     "dependencyTypes": [
       "aliased",
       "aliased-tsconfig",
@@ -5787,40 +4869,6 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/gis/layer-view.tsx",
-    "to": "src/features/access/share-dialog.tsx",
-    "unresolvedTo": "~/features/access/share-dialog.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/gis/layer-view.tsx",
-    "to": "src/features/objects/presence-avatars.tsx",
-    "unresolvedTo": "~/features/objects/presence-avatars.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/gis/map-embed.tsx",
     "to": "src/features/data/queries.ts",
     "unresolvedTo": "../data/queries.js",
@@ -5853,42 +4901,8 @@
   {
     "type": "dependency",
     "from": "src/features/gis/map-studio.tsx",
-    "to": "src/features/access/share-dialog.tsx",
-    "unresolvedTo": "~/features/access/share-dialog.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/gis/map-studio.tsx",
     "to": "src/features/data/import-wizard.tsx",
     "unresolvedTo": "~/features/data/import-wizard.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/gis/map-studio.tsx",
-    "to": "src/features/objects/presence-avatars.tsx",
-    "unresolvedTo": "~/features/objects/presence-avatars.js",
     "dependencyTypes": [
       "aliased",
       "aliased-tsconfig",
@@ -5948,20 +4962,6 @@
     "from": "src/features/gis/passport/passport-documents.tsx",
     "to": "src/features/documents/status.ts",
     "unresolvedTo": "../../documents/status.js",
-    "dependencyTypes": [
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/gis/passport/passport-indicators.tsx",
-    "to": "src/features/data/metric-format.ts",
-    "unresolvedTo": "../../data/metric-format.js",
     "dependencyTypes": [
       "local",
       "import"
@@ -6272,42 +5272,8 @@
   {
     "type": "dependency",
     "from": "src/features/knowledge/page-blocks.tsx",
-    "to": "src/features/data/metric-format.ts",
-    "unresolvedTo": "~/features/data/metric-format.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/knowledge/page-blocks.tsx",
     "to": "src/features/data/queries.ts",
     "unresolvedTo": "~/features/data/queries.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/knowledge/page-blocks.tsx",
-    "to": "src/features/files/file-preview.tsx",
-    "unresolvedTo": "~/features/files/file-preview.js",
     "dependencyTypes": [
       "aliased",
       "aliased-tsconfig",
@@ -6340,59 +5306,8 @@
   {
     "type": "dependency",
     "from": "src/features/knowledge/page-blocks.tsx",
-    "to": "src/features/notebooks/notebook-doc.ts",
-    "unresolvedTo": "~/features/notebooks/notebook-doc.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/knowledge/page-blocks.tsx",
-    "to": "src/features/notebooks/object-picker.tsx",
-    "unresolvedTo": "~/features/notebooks/object-picker.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/knowledge/page-blocks.tsx",
     "to": "src/features/tasks/queries.ts",
     "unresolvedTo": "~/features/tasks/queries.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/knowledge/page-doc.ts",
-    "to": "src/features/notebooks/notebook-doc.ts",
-    "unresolvedTo": "~/features/notebooks/notebook-doc.js",
     "dependencyTypes": [
       "aliased",
       "aliased-tsconfig",
@@ -6441,111 +5356,9 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/knowledge/page-view.tsx",
-    "to": "src/features/notebooks/collab.ts",
-    "unresolvedTo": "~/features/notebooks/collab.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/knowledge/page-view.tsx",
-    "to": "src/features/notebooks/notebook-doc.ts",
-    "unresolvedTo": "~/features/notebooks/notebook-doc.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/meetings/protocol/protocol-blocks.tsx",
-    "to": "src/features/notebooks/notebook-doc.ts",
-    "unresolvedTo": "~/features/notebooks/notebook-doc.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/meetings/protocol/protocol-doc.ts",
-    "to": "src/features/notebooks/notebook-doc.ts",
-    "unresolvedTo": "~/features/notebooks/notebook-doc.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/meetings/protocol/protocol-panel.tsx",
     "to": "src/features/documents/queries.ts",
     "unresolvedTo": "~/features/documents/queries.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/meetings/protocol/protocol-panel.tsx",
-    "to": "src/features/notebooks/collab.ts",
-    "unresolvedTo": "~/features/notebooks/collab.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/meetings/protocol/protocol-panel.tsx",
-    "to": "src/features/notebooks/notebook-doc.ts",
-    "unresolvedTo": "~/features/notebooks/notebook-doc.js",
     "dependencyTypes": [
       "aliased",
       "aliased-tsconfig",
@@ -6580,40 +5393,6 @@
     "from": "src/features/meetings/recording/recording-view.tsx",
     "to": "src/features/files/use-file-download.ts",
     "unresolvedTo": "~/features/files/use-file-download.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/meetings/room/side-panel.tsx",
-    "to": "src/features/discussion/message-composer.tsx",
-    "unresolvedTo": "~/features/discussion/message-composer.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/meetings/room/side-panel.tsx",
-    "to": "src/features/discussion/message-item.tsx",
-    "unresolvedTo": "~/features/discussion/message-item.js",
     "dependencyTypes": [
       "aliased",
       "aliased-tsconfig",
@@ -6696,23 +5475,6 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/notebooks/notebook-view.tsx",
-    "to": "src/features/access/share-dialog.tsx",
-    "unresolvedTo": "~/features/access/share-dialog.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/notebooks/query-cell.tsx",
     "to": "src/features/data/ask-box.tsx",
     "unresolvedTo": "~/features/data/ask-box.js",
@@ -6765,23 +5527,6 @@
   {
     "type": "dependency",
     "from": "src/features/notebooks/source-cells.tsx",
-    "to": "src/features/data/metric-format.ts",
-    "unresolvedTo": "~/features/data/metric-format.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/notebooks/source-cells.tsx",
     "to": "src/features/data/queries.ts",
     "unresolvedTo": "~/features/data/queries.js",
     "dependencyTypes": [
@@ -6801,57 +5546,6 @@
     "from": "src/features/notebooks/source-cells.tsx",
     "to": "src/features/gis/result-labels.ts",
     "unresolvedTo": "~/features/gis/result-labels.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/objects/file-view.tsx",
-    "to": "src/features/access/share-dialog.tsx",
-    "unresolvedTo": "~/features/access/share-dialog.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/objects/file-view.tsx",
-    "to": "src/features/files/file-preview.tsx",
-    "unresolvedTo": "~/features/files/file-preview.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/objects/file-view.tsx",
-    "to": "src/features/files/office.ts",
-    "unresolvedTo": "~/features/files/office.js",
     "dependencyTypes": [
       "aliased",
       "aliased-tsconfig",
@@ -6903,74 +5597,6 @@
     "from": "src/features/objects/folder-view.tsx",
     "to": "src/features/files/files-screen.tsx",
     "unresolvedTo": "~/features/files/files-screen.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/processes/designer/assignee-editor.tsx",
-    "to": "src/features/access/principal-picker.tsx",
-    "unresolvedTo": "~/features/access/principal-picker.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/processes/designer/preview-panel.tsx",
-    "to": "src/features/tasks/user-picker.tsx",
-    "unresolvedTo": "~/features/tasks/user-picker.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/processes/step-actions.tsx",
-    "to": "src/features/files/upload.ts",
-    "unresolvedTo": "~/features/files/upload.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/processes/step-actions.tsx",
-    "to": "src/features/tasks/user-picker.tsx",
-    "unresolvedTo": "~/features/tasks/user-picker.js",
     "dependencyTypes": [
       "aliased",
       "aliased-tsconfig",
@@ -7037,23 +5663,6 @@
   {
     "type": "dependency",
     "from": "src/features/reports/print/dashboard-print.tsx",
-    "to": "src/features/data/metric-format.ts",
-    "unresolvedTo": "~/features/data/metric-format.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/reports/print/dashboard-print.tsx",
     "to": "src/features/gis/result-labels.ts",
     "unresolvedTo": "~/features/gis/result-labels.js",
     "dependencyTypes": [
@@ -7073,23 +5682,6 @@
     "from": "src/features/reports/print/print-blocks.tsx",
     "to": "src/features/data/explore-builder.tsx",
     "unresolvedTo": "~/features/data/explore-builder.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/reports/print/print-blocks.tsx",
-    "to": "src/features/data/metric-format.ts",
-    "unresolvedTo": "~/features/data/metric-format.js",
     "dependencyTypes": [
       "aliased",
       "aliased-tsconfig",
@@ -7158,23 +5750,6 @@
     "from": "src/features/reports/print/print-blocks.tsx",
     "to": "src/features/notebooks/cell-run.ts",
     "unresolvedTo": "~/features/notebooks/cell-run.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/reports/print/print-library.tsx",
-    "to": "src/features/data/metric-format.ts",
-    "unresolvedTo": "~/features/data/metric-format.js",
     "dependencyTypes": [
       "aliased",
       "aliased-tsconfig",
@@ -7258,40 +5833,6 @@
   {
     "type": "dependency",
     "from": "src/features/reports/report-blocks.tsx",
-    "to": "src/features/notebooks/notebook-doc.ts",
-    "unresolvedTo": "~/features/notebooks/notebook-doc.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/reports/report-blocks.tsx",
-    "to": "src/features/notebooks/object-picker.tsx",
-    "unresolvedTo": "~/features/notebooks/object-picker.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/reports/report-blocks.tsx",
     "to": "src/features/notebooks/query-cell.tsx",
     "unresolvedTo": "~/features/notebooks/query-cell.js",
     "dependencyTypes": [
@@ -7311,23 +5852,6 @@
     "from": "src/features/reports/report-blocks.tsx",
     "to": "src/features/notebooks/source-cells.tsx",
     "unresolvedTo": "~/features/notebooks/source-cells.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/reports/report-doc.ts",
-    "to": "src/features/notebooks/notebook-doc.ts",
-    "unresolvedTo": "~/features/notebooks/notebook-doc.js",
     "dependencyTypes": [
       "aliased",
       "aliased-tsconfig",
@@ -7394,23 +5918,6 @@
   {
     "type": "dependency",
     "from": "src/features/reports/report-view.tsx",
-    "to": "src/features/access/share-dialog.tsx",
-    "unresolvedTo": "~/features/access/share-dialog.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/reports/report-view.tsx",
     "to": "src/features/documents/queries.ts",
     "unresolvedTo": "~/features/documents/queries.js",
     "dependencyTypes": [
@@ -7428,42 +5935,8 @@
   {
     "type": "dependency",
     "from": "src/features/reports/report-view.tsx",
-    "to": "src/features/notebooks/collab.ts",
-    "unresolvedTo": "~/features/notebooks/collab.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/reports/report-view.tsx",
     "to": "src/features/notebooks/notebook-context.tsx",
     "unresolvedTo": "~/features/notebooks/notebook-context.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/reports/report-view.tsx",
-    "to": "src/features/notebooks/notebook-doc.ts",
-    "unresolvedTo": "~/features/notebooks/notebook-doc.js",
     "dependencyTypes": [
       "aliased",
       "aliased-tsconfig",
@@ -7529,57 +6002,6 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/reports/schedule-dialog.tsx",
-    "to": "src/features/tasks/user-picker.tsx",
-    "unresolvedTo": "~/features/tasks/user-picker.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/share/guest-screen.tsx",
-    "to": "src/features/files/file-preview.tsx",
-    "unresolvedTo": "~/features/files/file-preview.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/spaces/space-members.tsx",
-    "to": "src/features/access/service-account-badge.tsx",
-    "unresolvedTo": "~/features/access/service-account-badge.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/spaces/space-screen.tsx",
     "to": "src/features/files/files-screen.tsx",
     "unresolvedTo": "~/features/files/files-screen.js",
@@ -7598,59 +6020,8 @@
   {
     "type": "dependency",
     "from": "src/features/tasks/control-screen.tsx",
-    "to": "src/features/data/metric-format.ts",
-    "unresolvedTo": "~/features/data/metric-format.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/tasks/control-screen.tsx",
     "to": "src/features/data/queries.ts",
     "unresolvedTo": "~/features/data/queries.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/tasks/project-view.tsx",
-    "to": "src/features/objects/presence-avatars.tsx",
-    "unresolvedTo": "~/features/objects/presence-avatars.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/tasks/task-dialogs.tsx",
-    "to": "src/features/files/upload.ts",
-    "unresolvedTo": "~/features/files/upload.js",
     "dependencyTypes": [
       "aliased",
       "aliased-tsconfig",
@@ -7719,23 +6090,6 @@
     "from": "src/features/tasks/task-view.tsx",
     "to": "src/features/gis/territory-link.tsx",
     "unresolvedTo": "~/features/gis/territory-link.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/tasks/task-view.tsx",
-    "to": "src/features/objects/presence-avatars.tsx",
-    "unresolvedTo": "~/features/objects/presence-avatars.js",
     "dependencyTypes": [
       "aliased",
       "aliased-tsconfig",

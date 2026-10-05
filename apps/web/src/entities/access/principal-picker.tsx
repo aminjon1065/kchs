@@ -2,9 +2,9 @@ import type { PrincipalRef } from '@kchs/contracts'
 import { Avatar, Button, SearchInput, useDebouncedValue } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useId, useState } from 'react'
+import { ServiceAccountBadge } from '~/entities/access/service-account-badge.js'
 import { principalsQuery } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
-import { ServiceAccountBadge } from './service-account-badge.js'
 
 /** Роли пространства ниже «Администратор»: управляющих политики доступа не ограничивают. */
 const SPACE_ROLES = ['viewer', 'member', 'editor'] as const

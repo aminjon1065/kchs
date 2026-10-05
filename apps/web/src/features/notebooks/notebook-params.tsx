@@ -1,12 +1,12 @@
 import type { DatasetField, NotebookBindings, NotebookParams } from '@kchs/contracts'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@kchs/ui'
+import { paramsOf } from '~/entities/collab/notebook-doc.js'
 import { PERIOD_PRESETS, type PeriodPreset, periodValue } from '~/features/data/dashboard-layout.js'
 import { labelOf } from '~/features/data/explore-builder.js'
 import { TerritorySelect } from '~/features/gis/territory-select.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useNotebook } from './notebook-context.js'
-import { paramsOf } from './notebook-doc.js'
 
 const CUSTOM = '__custom'
 const AUTO = '__auto'

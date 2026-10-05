@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { composeMessage, mentionQuery, toDoc } from './mention-doc.js'
+import { composeMessage, mentionQuery, toDoc } from '~/entities/discussion/mention-doc.js'
 
 const ivanov = { id: 'u1', name: 'Иванов Иван' }
 const ivanovShort = { id: 'u2', name: 'Иванов' }

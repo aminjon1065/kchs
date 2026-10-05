@@ -31,6 +31,13 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { Play, Settings2, Sparkles } from 'lucide-react'
 import { type ReactNode, useMemo, useState } from 'react'
 import type * as Y from 'yjs'
+import {
+  type CellMap,
+  useCellValue,
+  useSharedText,
+  writeCell,
+} from '~/entities/collab/notebook-doc.js'
+import { ObjectPicker } from '~/entities/objects/object-picker.js'
 import { askError } from '~/features/data/ask-box.js'
 import {
   CHART_TYPES,
@@ -46,9 +53,7 @@ import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { cellSpec, notebookKeys, sqlParams } from './cell-run.js'
 import { useNotebook } from './notebook-context.js'
-import { type CellMap, useCellValue, useSharedText, writeCell } from './notebook-doc.js'
 import { BindingsControl } from './notebook-params.js'
-import { ObjectPicker } from './object-picker.js'
 
 const AUTO = '__auto'
 const RESULT_HEIGHT = 320

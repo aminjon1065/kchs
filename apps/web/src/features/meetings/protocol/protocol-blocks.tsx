@@ -24,7 +24,7 @@ import {
   type CellMap,
   useCellValue,
   useYChanges,
-} from '~/features/notebooks/notebook-doc.js'
+} from '~/entities/collab/notebook-doc.js'
 import { useT } from '~/shared/i18n.js'
 import { useProtocol } from './protocol-context.js'
 import { bodyFragment, titleText } from './protocol-doc.js'

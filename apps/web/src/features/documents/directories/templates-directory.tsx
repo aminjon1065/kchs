@@ -34,7 +34,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, LayoutTemplate, Plus, X } from 'lucide-react'
 import { useId, useState } from 'react'
-import { uploadFile } from '~/features/files/upload.js'
+import { uploadFile } from '~/entities/files/upload.js'
 import { useFileDownload } from '~/features/files/use-file-download.js'
 import { http } from '~/shared/api/client.js'
 import { meQuery } from '~/shared/api/queries.js'

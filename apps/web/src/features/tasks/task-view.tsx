@@ -38,10 +38,10 @@ import {
   UserRoundCog,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { PresenceAvatars } from '~/entities/objects/presence-avatars.js'
 import { datasetQuery } from '~/features/data/queries.js'
 import { RowCard } from '~/features/data/row-card.js'
 import { TerritoryLink } from '~/features/gis/territory-link.js'
-import { PresenceAvatars } from '~/features/objects/presence-avatars.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { meQuery, objectQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'

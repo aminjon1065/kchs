@@ -7,7 +7,7 @@ import {
   ReportSettings,
 } from '@kchs/contracts'
 import * as Y from 'yjs'
-import { type CellMap, newCellId } from '~/features/notebooks/notebook-doc.js'
+import { type CellMap, newCellId } from '~/entities/collab/notebook-doc.js'
 
 /**
  * Документ Yjs отчёта на клиенте (ADR-0078): корневые типы и ключи — как у

@@ -2,7 +2,7 @@ import type { PrincipalRef } from '@kchs/contracts'
 import { Button, SearchInput, useDebouncedValue } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useId, useState } from 'react'
-import { PrincipalLine } from '~/features/access/principal-picker.js'
+import { PrincipalLine } from '~/entities/access/principal-picker.js'
 import { principalsQuery } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
 

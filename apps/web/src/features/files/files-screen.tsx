@@ -34,14 +34,14 @@ import {
   Upload,
 } from 'lucide-react'
 import { type DragEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ShareDialog } from '~/features/access/share-dialog.js'
+import { ShareDialog } from '~/entities/access/share-dialog.js'
+import { UploadInterruptedError, uploadFile } from '~/entities/files/upload.js'
 import {
   type Movable,
   MoveDialog,
   moveObjects,
   RenameDialog,
 } from '~/features/files/move-dialog.js'
-import { UploadInterruptedError, uploadFile } from '~/features/files/upload.js'
 import { useFileDownload } from '~/features/files/use-file-download.js'
 import { http } from '~/shared/api/client.js'
 import { attachmentsFolderQuery, spacesQuery } from '~/shared/api/queries.js'

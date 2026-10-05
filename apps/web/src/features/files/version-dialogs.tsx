@@ -12,10 +12,10 @@ import {
 } from '@kchs/ui'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useId, useState } from 'react'
+import { uploadFile } from '~/entities/files/upload.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { keys } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
-import { uploadFile } from './upload.js'
 
 /**
  * Новая версия файла с примечанием — что изменилось (ADR-0151). Прерванная

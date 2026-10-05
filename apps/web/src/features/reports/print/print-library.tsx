@@ -9,7 +9,7 @@ import {
 import { Chart, NumberTile } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
-import { metricTileModel } from '~/features/data/metric-format.js'
+import { metricTileModel } from '~/entities/data/metric-format.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { useT } from '~/shared/i18n.js'
 import { usePrint, useReportReady } from './print-context.js'

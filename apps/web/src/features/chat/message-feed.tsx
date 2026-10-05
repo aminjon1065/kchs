@@ -38,14 +38,14 @@ import {
   Users,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { aiStatusQuery } from '~/features/data/queries.js'
-import { MessageComposer } from '~/features/discussion/message-composer.js'
+import { MessageComposer } from '~/entities/discussion/message-composer.js'
 import {
   DeleteMessageDialog,
   MessageItem,
   MessageMenu,
-} from '~/features/discussion/message-item.js'
-import { uploadFile } from '~/features/files/upload.js'
+} from '~/entities/discussion/message-item.js'
+import { uploadFile } from '~/entities/files/upload.js'
+import { aiStatusQuery } from '~/features/data/queries.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { keys, meQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'

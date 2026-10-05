@@ -33,7 +33,8 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { X } from 'lucide-react'
 import { useId, useState } from 'react'
-import { uploadFile } from '~/features/files/upload.js'
+import { uploadFile } from '~/entities/files/upload.js'
+import { type PickedUser, UserPicker, UsersPicker } from '~/entities/people/user-picker.js'
 import { TerritorySelect } from '~/features/gis/territory-select.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { searchQuery, spacesQuery } from '~/shared/api/queries.js'
@@ -52,7 +53,6 @@ import {
   repeatReady,
 } from './task-series.js'
 import { dateFromDue, PRIORITIES, pickedOf } from './task-status.js'
-import { type PickedUser, UserPicker, UsersPicker } from './user-picker.js'
 
 const NO_PROJECT = '__none'
 

@@ -17,8 +17,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { BookCheck } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import type * as Y from 'yjs'
-import { PrintMenu } from '~/features/documents/print/print-menu.js'
-import { useCollabDocument } from '~/features/notebooks/collab.js'
+import { useCollabDocument } from '~/entities/collab/collab.js'
 import {
   cellIds,
   cellsOf,
@@ -28,7 +27,8 @@ import {
   orderOf,
   removeCell,
   useYChanges,
-} from '~/features/notebooks/notebook-doc.js'
+} from '~/entities/collab/notebook-doc.js'
+import { PrintMenu } from '~/features/documents/print/print-menu.js'
 import { meQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'

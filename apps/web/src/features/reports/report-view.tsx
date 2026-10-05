@@ -52,15 +52,8 @@ import {
 } from 'lucide-react'
 import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import * as Y from 'yjs'
-import { ShareDialog } from '~/features/access/share-dialog.js'
-import { documentTypesQuery } from '~/features/documents/queries.js'
-import { useCollabDocument } from '~/features/notebooks/collab.js'
-import {
-  type NotebookContextValue,
-  NotebookProvider,
-  useNotebook,
-  usePeers,
-} from '~/features/notebooks/notebook-context.js'
+import { ShareDialog } from '~/entities/access/share-dialog.js'
+import { useCollabDocument } from '~/entities/collab/collab.js'
 import {
   type CellMap,
   cellIds,
@@ -75,7 +68,14 @@ import {
   useCellValue,
   useYChanges,
   writeCell,
-} from '~/features/notebooks/notebook-doc.js'
+} from '~/entities/collab/notebook-doc.js'
+import { documentTypesQuery } from '~/features/documents/queries.js'
+import {
+  type NotebookContextValue,
+  NotebookProvider,
+  useNotebook,
+  usePeers,
+} from '~/features/notebooks/notebook-context.js'
 import { NotebookParamsBar } from '~/features/notebooks/notebook-params.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { keys, meQuery, objectQuery } from '~/shared/api/queries.js'

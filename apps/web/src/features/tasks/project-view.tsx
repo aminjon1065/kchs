@@ -12,7 +12,7 @@ import {
   useToast,
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { PresenceAvatars } from '~/features/objects/presence-avatars.js'
+import { PresenceAvatars } from '~/entities/objects/presence-avatars.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { objectQuery } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'

@@ -40,14 +40,14 @@ import {
   X,
 } from 'lucide-react'
 import { lazy, Suspense, useState } from 'react'
-import { ManualRuleActions } from '~/features/automation/manual-rules.js'
-import { type ComposedMessage, MessageComposer } from '~/features/discussion/message-composer.js'
+import { type ComposedMessage, MessageComposer } from '~/entities/discussion/message-composer.js'
 import {
   DeleteMessageDialog,
   MessageItem,
   MessageMenu,
-} from '~/features/discussion/message-item.js'
-import { uploadFile } from '~/features/files/upload.js'
+} from '~/entities/discussion/message-item.js'
+import { uploadFile } from '~/entities/files/upload.js'
+import { ManualRuleActions } from '~/features/automation/manual-rules.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import {
   discussionQuery,

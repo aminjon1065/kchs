@@ -33,10 +33,15 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Filter, Pencil, Plus, Printer, RefreshCw, Share2, Trash2, Tv, X } from 'lucide-react'
 import { type ReactNode, useEffect, useState } from 'react'
-import { ShareDialog } from '~/features/access/share-dialog.js'
+import { ShareDialog } from '~/entities/access/share-dialog.js'
+import {
+  METRIC_PERIOD_PRESETS,
+  type MetricPeriodPreset,
+  presetPeriod,
+} from '~/entities/data/metric-format.js'
+import { PresenceAvatars } from '~/entities/objects/presence-avatars.js'
 import { MapSlotsProvider } from '~/features/gis/map-slots.js'
 import { TerritorySelect } from '~/features/gis/territory-select.js'
-import { PresenceAvatars } from '~/features/objects/presence-avatars.js'
 import { dashboardPrintPath } from '~/features/reports/print/print-target.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { keys, objectListQuery, objectQuery } from '~/shared/api/queries.js'
@@ -56,7 +61,6 @@ import {
 } from './dashboard-layout.js'
 import { TileCard } from './dashboard-tile.js'
 import { DashboardTv } from './dashboard-tv.js'
-import { METRIC_PERIOD_PRESETS, type MetricPeriodPreset, presetPeriod } from './metric-format.js'
 import { dashboardDataQuery, dashboardQuery, dataKeys } from './queries.js'
 
 const AS_METRIC = '__metric'

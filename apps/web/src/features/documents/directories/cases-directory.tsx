@@ -51,7 +51,7 @@ import {
   X,
 } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
-import { ShareDialog } from '~/features/access/share-dialog.js'
+import { ShareDialog } from '~/entities/access/share-dialog.js'
 import { http } from '~/shared/api/client.js'
 import { meQuery, objectListQuery, orgUnitsQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'

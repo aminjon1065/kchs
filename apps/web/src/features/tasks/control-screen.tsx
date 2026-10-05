@@ -41,14 +41,14 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ClipboardCheck, Download, RefreshCw } from 'lucide-react'
 import { useEffect, useId, useMemo, useState } from 'react'
-import { metricTileModel } from '~/features/data/metric-format.js'
+import { metricTileModel } from '~/entities/data/metric-format.js'
+import { type PickedUser, UserPicker } from '~/entities/people/user-picker.js'
 import { metricValueQuery } from '~/features/data/queries.js'
 import { orgUnitsQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
 import { controlListQuery, controlQuery, queryOf, taskKeys } from './queries.js'
-import { type PickedUser, UserPicker } from './user-picker.js'
 
 type Translate = ReturnType<typeof useT>
 

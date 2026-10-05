@@ -26,8 +26,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BadgeCheck, FileText, Sparkles, UserCheck } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type * as Y from 'yjs'
-import { documentTypesQuery } from '~/features/documents/queries.js'
-import { useCollabDocument } from '~/features/notebooks/collab.js'
+import { useCollabDocument } from '~/entities/collab/collab.js'
 import {
   cellIds,
   cellsOf,
@@ -36,7 +35,8 @@ import {
   orderOf,
   removeCell,
   useYChanges,
-} from '~/features/notebooks/notebook-doc.js'
+} from '~/entities/collab/notebook-doc.js'
+import { documentTypesQuery } from '~/features/documents/queries.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { meQuery } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'

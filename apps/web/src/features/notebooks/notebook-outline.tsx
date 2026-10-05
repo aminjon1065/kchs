@@ -2,9 +2,9 @@ import type { NotebookCellKind } from '@kchs/contracts'
 import { cn, ObjectIcon } from '@kchs/ui'
 import { useMemo } from 'react'
 import * as Y from 'yjs'
+import { cellIds, cellsOf, useYChanges } from '~/entities/collab/notebook-doc.js'
 import { useT } from '~/shared/i18n.js'
 import { useNotebook } from './notebook-context.js'
-import { cellIds, cellsOf, useYChanges } from './notebook-doc.js'
 
 interface OutlineItem {
   key: string

@@ -19,7 +19,7 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { X } from 'lucide-react'
 import { type ReactNode, useId, useMemo, useState } from 'react'
-import { PrincipalLine } from '~/features/access/principal-picker.js'
+import { PrincipalLine } from '~/entities/access/principal-picker.js'
 import { PointField } from '~/features/gis/edit/point-field.js'
 import { TerritoryField } from '~/features/gis/edit/territory-field.js'
 import { objectListQuery, principalRefsQuery, principalsQuery } from '~/shared/api/queries.js'

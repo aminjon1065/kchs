@@ -22,7 +22,7 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { Braces, Plus, Search, Shield, UserRound, Variable } from 'lucide-react'
 import { useId, useState } from 'react'
-import { PrincipalLine } from '~/features/access/principal-picker.js'
+import { PrincipalLine } from '~/entities/access/principal-picker.js'
 import { principalsQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'

@@ -3,10 +3,10 @@ import { ObjectIcon, Skeleton, Spinner } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { WatermarkLayer } from '~/entities/files/watermark-layer.js'
 import { http } from '~/shared/api/client.js'
 import { keys } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
-import { WatermarkLayer } from './watermark-layer.js'
 
 const PENDING = new Set(['queued', 'processing'])
 

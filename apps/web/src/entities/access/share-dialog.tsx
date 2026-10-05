@@ -25,11 +25,11 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Copy, Lock, ShieldQuestion, Unlink, X } from 'lucide-react'
 import { useState } from 'react'
+import { ServiceAccountBadge } from '~/entities/access/service-account-badge.js'
+import { ShareLinksSection } from '~/entities/access/share-links-section.js'
 import { http } from '~/shared/api/client.js'
 import { keys, objectAccessQuery, principalsQuery } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
-import { ServiceAccountBadge } from './service-account-badge.js'
-import { ShareLinksSection } from './share-links-section.js'
 
 const LEVELS: Level[] = ['view', 'comment', 'edit', 'manage']
 

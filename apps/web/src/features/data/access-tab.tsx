@@ -33,7 +33,7 @@ import {
   PrincipalLine,
   PrincipalPicker,
   usePrincipalLabel,
-} from '~/features/access/principal-picker.js'
+} from '~/entities/access/principal-picker.js'
 import { useTerritoryFilterEditor } from '~/features/gis/territory-filter.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { useLocale } from '~/shared/appearance.js'

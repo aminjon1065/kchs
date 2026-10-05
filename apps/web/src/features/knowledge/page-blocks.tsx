@@ -13,19 +13,19 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp, Copy, MessageSquare, Trash2 } from 'lucide-react'
 import type * as Y from 'yjs'
-import { DatasetTable } from '~/features/data/dataset-table.js'
-import { metricTileModel } from '~/features/data/metric-format.js'
-import { chartQuery, datasetQuery, metricQuery } from '~/features/data/queries.js'
-import { FilePreview } from '~/features/files/file-preview.js'
-import { MapEmbed } from '~/features/gis/map-embed.js'
 import {
   applyTextChange,
   type CellMap,
   useCellValue,
   useYChanges,
   writeCell,
-} from '~/features/notebooks/notebook-doc.js'
-import { ObjectPicker } from '~/features/notebooks/object-picker.js'
+} from '~/entities/collab/notebook-doc.js'
+import { metricTileModel } from '~/entities/data/metric-format.js'
+import { FilePreview } from '~/entities/files/file-preview.js'
+import { ObjectPicker } from '~/entities/objects/object-picker.js'
+import { DatasetTable } from '~/features/data/dataset-table.js'
+import { chartQuery, datasetQuery, metricQuery } from '~/features/data/queries.js'
+import { MapEmbed } from '~/features/gis/map-embed.js'
 import { tasksQuery } from '~/features/tasks/queries.js'
 import { http } from '~/shared/api/client.js'
 import { meQuery } from '~/shared/api/queries.js'

@@ -15,12 +15,12 @@ import {
 } from '@kchs/ui'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useId, useState } from 'react'
+import { type PickedUser, UserPicker } from '~/entities/people/user-picker.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { useT } from '~/shared/i18n.js'
 import { DueInput, type DueValue, dueFields, emptyDue, hasDue } from './due-input.js'
 import { projectsQuery } from './queries.js'
 import { useTaskInvalidation } from './task-actions.js'
-import { type PickedUser, UserPicker } from './user-picker.js'
 
 export type BulkKind = TaskBulkAction['kind']
 

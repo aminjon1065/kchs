@@ -19,7 +19,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { UserMinus } from 'lucide-react'
 import { useState } from 'react'
-import { ServiceAccountBadge } from '~/features/access/service-account-badge.js'
+import { ServiceAccountBadge } from '~/entities/access/service-account-badge.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { keys, principalsQuery } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'

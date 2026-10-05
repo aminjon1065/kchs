@@ -24,8 +24,8 @@ import {
   useOfficeConfigured,
   useOfficeEditing,
   useOpenOfficeEditor,
-} from '~/features/files/office.js'
-import { uploadFile } from '~/features/files/upload.js'
+} from '~/entities/files/office.js'
+import { uploadFile } from '~/entities/files/upload.js'
 import { useFileDownload } from '~/features/files/use-file-download.js'
 import { http } from '~/shared/api/client.js'
 import { useLocale } from '~/shared/appearance.js'

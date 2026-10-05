@@ -1,7 +1,6 @@
 import { NOTEBOOK_DOC } from '@kchs/contracts'
 import { describe, expect, it } from 'vitest'
 import * as Y from 'yjs'
-import { metricPeriod, sqlParams } from './cell-run.js'
 import {
   applyTextChange,
   cellIds,
@@ -14,7 +13,8 @@ import {
   paramsOf,
   readParams,
   removeCell,
-} from './notebook-doc.js'
+} from '~/entities/collab/notebook-doc.js'
+import { metricPeriod, sqlParams } from '~/features/notebooks/cell-run.js'
 
 describe('документ тетради на клиенте', () => {
   it('новая ячейка — значения по умолчанию из контракта, текст — фрагмент Yjs', () => {

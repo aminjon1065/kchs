@@ -8,9 +8,9 @@ import type {
 } from '@kchs/contracts'
 import { formatNumber, formatPercent } from '@kchs/fields'
 import { Callout, KeyValueList, NumberTile, Skeleton, StatTile } from '@kchs/ui'
+import { metricTileModel } from '~/entities/data/metric-format.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
-import { metricTileModel } from '../../data/metric-format.js'
 
 type Translate = ReturnType<typeof useT>
 

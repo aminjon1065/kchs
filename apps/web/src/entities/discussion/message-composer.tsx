@@ -13,11 +13,16 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { Paperclip, Send, X } from 'lucide-react'
 import { type KeyboardEvent, useId, useLayoutEffect, useRef, useState } from 'react'
+import {
+  type ComposedMessage,
+  composeMessage,
+  type Mention,
+  mentionQuery,
+} from '~/entities/discussion/mention-doc.js'
 import { ApiError } from '~/shared/api/client.js'
 import { principalsQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
-import { type ComposedMessage, composeMessage, type Mention, mentionQuery } from './mention-doc.js'
 
 export type { ComposedMessage }
 

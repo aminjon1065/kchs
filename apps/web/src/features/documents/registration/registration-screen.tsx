@@ -17,7 +17,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { FileText, Save, Stamp } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { uploadFile } from '~/features/files/upload.js'
+import { uploadFile } from '~/entities/files/upload.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { meQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'

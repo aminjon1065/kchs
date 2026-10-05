@@ -28,12 +28,12 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp, SlidersHorizontal, Trash2 } from 'lucide-react'
 import { type ReactNode, useMemo, useRef, useState } from 'react'
+import { metricTileModel, periodText } from '~/entities/data/metric-format.js'
 import { optionLabels, unlabelPick, useLabelledResult } from '~/features/gis/result-labels.js'
 import { meQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { DashboardMapTile, MapBindingsDialog } from './dashboard-map-tile.js'
-import { metricTileModel, periodText } from './metric-format.js'
 import { chartQuery, datasetQuery, metricQuery } from './queries.js'
 import { chartHasImage, type ResultData, ResultExportMenu } from './result-export.js'
 

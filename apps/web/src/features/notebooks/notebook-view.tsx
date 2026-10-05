@@ -35,20 +35,8 @@ import {
 } from 'lucide-react'
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
 import * as Y from 'yjs'
-import { ShareDialog } from '~/features/access/share-dialog.js'
-import { ApiError, http } from '~/shared/api/client.js'
-import { keys, meQuery, objectQuery } from '~/shared/api/queries.js'
-import { useT } from '~/shared/i18n.js'
-import { useWorkspace } from '~/shared/workspace/store.js'
-import { notebookKeys } from './cell-run.js'
-import { useCollabDocument } from './collab.js'
-import { MapCell } from './map-cell.js'
-import {
-  type NotebookContextValue,
-  NotebookProvider,
-  useNotebook,
-  usePeers,
-} from './notebook-context.js'
+import { ShareDialog } from '~/entities/access/share-dialog.js'
+import { useCollabDocument } from '~/entities/collab/collab.js'
 import {
   type CellMap,
   cellIds,
@@ -64,7 +52,19 @@ import {
   useCellValue,
   useYChanges,
   writeCell,
-} from './notebook-doc.js'
+} from '~/entities/collab/notebook-doc.js'
+import { ApiError, http } from '~/shared/api/client.js'
+import { keys, meQuery, objectQuery } from '~/shared/api/queries.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
+import { notebookKeys } from './cell-run.js'
+import { MapCell } from './map-cell.js'
+import {
+  type NotebookContextValue,
+  NotebookProvider,
+  useNotebook,
+  usePeers,
+} from './notebook-context.js'
 import { iconOf, NotebookOutline } from './notebook-outline.js'
 import { NotebookParamsBar } from './notebook-params.js'
 import { AiCell, QueryCell } from './query-cell.js'

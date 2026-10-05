@@ -2,11 +2,11 @@ import { Badge, Button, EmptyState, PanelToolbar, Skeleton, Spinner } from '@kch
 import { useQuery } from '@tanstack/react-query'
 import { Download, FileWarning } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { openOfficeSession } from '~/entities/files/office.js'
 import { ApiError } from '~/shared/api/client.js'
 import { fileQuery } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
-import { openOfficeSession } from './office.js'
 import { useFileDownload } from './use-file-download.js'
 
 /**

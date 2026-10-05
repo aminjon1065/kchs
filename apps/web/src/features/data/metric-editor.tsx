@@ -37,19 +37,19 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, X } from 'lucide-react'
 import { type ReactNode, useId, useState } from 'react'
-import { ApiError, http } from '~/shared/api/client.js'
-import { objectListQuery } from '~/shared/api/queries.js'
-import { useLocale } from '~/shared/appearance.js'
-import { useT } from '~/shared/i18n.js'
-import { useWorkspace } from '~/shared/workspace/store.js'
-import { fieldLabel, filterFieldsOf, NUMERIC_TYPES } from './field-types.js'
 import {
   METRIC_PERIOD_PRESETS,
   type MetricPeriodPreset,
   periodPreset,
   periodText,
   presetPeriod,
-} from './metric-format.js'
+} from '~/entities/data/metric-format.js'
+import { ApiError, http } from '~/shared/api/client.js'
+import { objectListQuery } from '~/shared/api/queries.js'
+import { useLocale } from '~/shared/appearance.js'
+import { useT } from '~/shared/i18n.js'
+import { useWorkspace } from '~/shared/workspace/store.js'
+import { fieldLabel, filterFieldsOf, NUMERIC_TYPES } from './field-types.js'
 import { dataKeys, datasetQuery } from './queries.js'
 
 const DATASET_TIME = '__dataset'

@@ -61,7 +61,7 @@ import {
   Zap,
 } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
-import { ServiceAccountBadge } from '~/features/access/service-account-badge.js'
+import { ServiceAccountBadge } from '~/entities/access/service-account-badge.js'
 import { AutomationRulesSection } from '~/features/automation/rules-section.js'
 import { SchedulesSection } from '~/features/automation/schedules-section.js'
 import { ProcessesSection } from '~/features/processes/processes-section.js'

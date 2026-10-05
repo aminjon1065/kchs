@@ -18,7 +18,7 @@ import {
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Eye } from 'lucide-react'
 import { useId, useState } from 'react'
-import { type PickedUser, UserPicker, UsersPicker } from '~/features/tasks/user-picker.js'
+import { type PickedUser, UserPicker, UsersPicker } from '~/entities/people/user-picker.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { objectListQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'

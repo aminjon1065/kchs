@@ -19,7 +19,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, FileSpreadsheet, FileUp, KeyRound } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { uploadFile } from '~/features/files/upload.js'
+import { uploadFile } from '~/entities/files/upload.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { keys, meQuery, usersImportQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'

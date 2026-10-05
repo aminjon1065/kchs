@@ -6,7 +6,7 @@ import {
   type ProtocolBlockKind,
 } from '@kchs/contracts'
 import * as Y from 'yjs'
-import { type CellMap, newCellId } from '~/features/notebooks/notebook-doc.js'
+import { type CellMap, newCellId } from '~/entities/collab/notebook-doc.js'
 
 /**
  * Документ Yjs протокола на клиенте (ADR-0093): корневые типы и ключи — как у

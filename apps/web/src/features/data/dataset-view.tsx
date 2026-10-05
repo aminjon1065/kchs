@@ -33,10 +33,10 @@ import {
   Upload,
 } from 'lucide-react'
 import { useState } from 'react'
-import { ShareDialog } from '~/features/access/share-dialog.js'
+import { ShareDialog } from '~/entities/access/share-dialog.js'
+import { PresenceAvatars } from '~/entities/objects/presence-avatars.js'
 import { ChoroplethButton } from '~/features/gis/choropleth/choropleth-button.js'
 import { ShowOnMapButton } from '~/features/gis/show-on-map.js'
-import { PresenceAvatars } from '~/features/objects/presence-avatars.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { keys, objectQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'

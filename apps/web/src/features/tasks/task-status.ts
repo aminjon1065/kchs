@@ -5,7 +5,7 @@ import {
   type TaskStatusCategory,
   type UserRef,
 } from '@kchs/contracts'
-import type { PickedUser } from './user-picker.js'
+import type { PickedUser } from '~/entities/people/user-picker.js'
 
 /** Тон значка статуса — ключ из `STATUS_TONES` дизайн-системы. */
 export const STATUS_TONE_KEY: Record<TaskStatus, string> = {
