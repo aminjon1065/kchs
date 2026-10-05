@@ -14,7 +14,7 @@
     "csp:check": "node scripts/csp-check.mjs",
     "budget": "node scripts/bundle-budget.mjs",
     "api:types": "openapi-typescript http://localhost:3000/api/openapi.json -o src/shared/api/openapi.gen.ts",
-    "deps:check": "depcruise --config .dependency-cruiser.cjs --ignore-known .dependency-cruiser-known-violations.json src",
+    "deps:check": "depcruise --config .dependency-cruiser.cjs --ignore-known .dependency-cruiser-known-violations.json src && node scripts/api-calls.mjs",
     "deps:baseline": "depcruise --config .dependency-cruiser.cjs --output-type baseline --output-to .dependency-cruiser-known-violations.json src"
   },
   "dependencies": {
