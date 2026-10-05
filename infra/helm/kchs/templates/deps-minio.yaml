@@ -159,13 +159,31 @@ spec:
                 mc mb --ignore-existing "kchs/$b"
               done
               mc ilm rule add --expire-days 30 "kchs/{{ .Values.s3.buckets.exports }}" 2>/dev/null || true
-              echo "kchs: бакеты готовы"
+              # Пользователь движка: читает исходники, пишет производные (ADR-0176)
+              printf '%s' "$ENGINE_POLICY" > /tmp/engine-policy.json
+              mc admin policy create kchs kchs-engine /tmp/engine-policy.json
+              mc admin user add kchs "$S3_ENGINE_ACCESS_KEY" "$S3_ENGINE_SECRET_KEY"
+              mc admin policy entities kchs --user "$S3_ENGINE_ACCESS_KEY" | grep -q kchs-engine ||
+                mc admin policy attach kchs kchs-engine --user "$S3_ENGINE_ACCESS_KEY"
+              echo "kchs: бакеты и пользователь движка готовы"
           env:
             - name: S3_INTERNAL_ENDPOINT
               value: {{ printf "http://%s-minio:9000" $fullname | quote }}
             - name: MC_CONFIG_DIR
               value: /tmp/mc
             {{- include "kchs.s3Env" (dict "ctx" .) | nindent 12 }}
+            - name: S3_ENGINE_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kchs.secretName" . }}
+                  key: S3_ENGINE_ACCESS_KEY
+            - name: S3_ENGINE_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kchs.secretName" . }}
+                  key: S3_ENGINE_SECRET_KEY
+            - name: ENGINE_POLICY
+              value: {{ include "kchs.engineS3Policy" . | quote }}
           volumeMounts:
             - name: tmp
               mountPath: /tmp

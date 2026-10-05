@@ -49,10 +49,12 @@ spec:
               value: {{ .Values.timezone | quote }}
             - name: LOG_LEVEL
               value: {{ .Values.logLevel | quote }}
-            # Движок читает таблицы строк ролью только для чтения (ADR-0048)
-            {{- include "kchs.dbEnv" (dict "ctx" . "roles" (list "app" "query")) | nindent 12 }}
-            {{- include "kchs.redisEnv" (dict "ctx" .) | nindent 12 }}
-            {{- include "kchs.s3Env" (dict "ctx" .) | nindent 12 }}
+            # Минимальные права движка, который разбирает недоверенные файлы (ADR-0176):
+            # из ролей базы — только чтение таблиц строк (ADR-0048), свои пользователи
+            # Redis и хранилища
+            {{- include "kchs.dbEnv" (dict "ctx" . "roles" (list "query")) | nindent 12 }}
+            {{- include "kchs.engineRedisEnv" (dict "ctx" .) | nindent 12 }}
+            {{- include "kchs.engineS3Env" (dict "ctx" .) | nindent 12 }}
             - name: S3_ENDPOINT
               value: {{ include "kchs.s3.endpoint" . | quote }}
             - name: S3_REGION
@@ -63,7 +65,8 @@ spec:
               value: {{ .Values.s3.buckets.previews | quote }}
             - name: S3_BUCKET_EXPORTS
               value: {{ .Values.s3.buckets.exports | quote }}
-            # Обратные вызовы движка в api и страница печати отчётов в web
+            # Обратные вызовы движка в api (токеном задания, ADR-0176) и страница печати
+            # отчётов в web; общий токен — только для проверки вызовов api в движок
             - name: KCHS_API_URL
               value: {{ include "kchs.api.url" . | quote }}
             - name: KCHS_WEB_URL

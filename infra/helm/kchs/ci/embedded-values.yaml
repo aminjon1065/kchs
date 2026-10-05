@@ -113,8 +113,11 @@ secrets:
     POSTGRES_AUDIT_PASSWORD: ci-audit-password
     REDIS_PASSWORD: ci-redis-password
     REDIS_CACHE_PASSWORD: ci-redis-cache-password
+    REDIS_ENGINE_PASSWORD: ci-redis-engine-password
     S3_ACCESS_KEY: ci-access-key
     S3_SECRET_KEY: ci-secret-key-0123456789
+    S3_ENGINE_ACCESS_KEY: ci-engine-access-key
+    S3_ENGINE_SECRET_KEY: ci-engine-secret-key-0123456789
     MEILI_MASTER_KEY: ci-meili-key-0123456789
     KCHS_MASTER_KEY: Y2ktbWFzdGVyLWtleS1mb3ItaGVsbS1saW50LTAwMDA=
     INTERNAL_SERVICE_TOKEN: ci-internal-service-token-0123456789

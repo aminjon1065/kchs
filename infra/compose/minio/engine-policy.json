@@ -1,0 +1,38 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ReadSources",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject"],
+      "Resource": [
+        "arn:aws:s3:::kchs-files/spaces/*",
+        "arn:aws:s3:::kchs-files/meetings/*",
+        "arn:aws:s3:::kchs-files/demo/*",
+        "arn:aws:s3:::kchs-exports/datasets/*",
+        "arn:aws:s3:::kchs-columnar/columnar/*"
+      ]
+    },
+    {
+      "Sid": "WriteDerived",
+      "Effect": "Allow",
+      "Action": ["s3:PutObject", "s3:AbortMultipartUpload"],
+      "Resource": [
+        "arn:aws:s3:::kchs-files/imports/*",
+        "arn:aws:s3:::kchs-files/demo/*",
+        "arn:aws:s3:::kchs-files/spaces/*/files/*",
+        "arn:aws:s3:::kchs-previews/spaces/*",
+        "arn:aws:s3:::kchs-exports/datasets/*",
+        "arn:aws:s3:::kchs-exports/reports/*",
+        "arn:aws:s3:::kchs-exports/documents/*",
+        "arn:aws:s3:::kchs-columnar/columnar/*"
+      ]
+    },
+    {
+      "Sid": "MissingObjectIsNotFound",
+      "Effect": "Allow",
+      "Action": ["s3:ListBucket"],
+      "Resource": ["arn:aws:s3:::kchs-files"]
+    }
+  ]
+}

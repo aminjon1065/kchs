@@ -2,12 +2,16 @@
 # Генерирует .env из .env.example, подставляя случайные секреты.
 #
 #   bash infra/scripts/generate-secrets.sh [--force] [--mode dev|app] [--env-file ПУТЬ]
+#   bash infra/scripts/generate-secrets.sh --add-missing [--env-file ПУТЬ]
 #
 #   --mode dev  (по умолчанию) разработка: в Docker — инфраструктура и движок,
 #               api и web запускаются на хосте (pnpm dev)
 #   --mode app  всё в контейнерах: docker compose --profile app up -d, затем
 #               docker compose exec api kchs init; вход через web (Caddy)
 #   --env-file  куда записать (по умолчанию .env в корне репозитория)
+#   --add-missing  в существующий файл — только секреты, которых в нём ещё нет
+#               (появились в новой версии, например пользователи движка ADR-0176);
+#               остальное не меняется
 #
 # Порты и привязку можно задать переменными окружения при запуске скрипта:
 # POSTGRES_PORT, REDIS_PORT, S3_PORT, S3_CONSOLE_PORT, MEILI_PORT, MAILPIT_SMTP_PORT,
@@ -21,10 +25,12 @@ EXAMPLE="$ROOT/.env.example"
 ENV_FILE="$ROOT/.env"
 MODE=dev
 FORCE=0
+ADD_MISSING=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --force) FORCE=1 ;;
+    --add-missing) ADD_MISSING=1 ;;
     --mode) MODE="${2:?укажите dev или app}"; shift ;;
     --env-file) ENV_FILE="${2:?укажите путь}"; shift ;;
     *) echo "неизвестный параметр: $1" >&2; exit 2 ;;
@@ -33,12 +39,41 @@ while [[ $# -gt 0 ]]; do
 done
 [[ "$MODE" == dev || "$MODE" == app ]] || { echo "--mode: dev или app" >&2; exit 2; }
 
+rnd() { openssl rand -base64 48 | LC_ALL=C tr -dc 'A-Za-z0-9' | cut -c1-"${1:-32}"; }
+
+# Секреты, добавленные после первых установок: --add-missing дописывает их в
+# существующий файл, не трогая остального. Ключ и способ получить значение
+add_missing() {
+  local added=()
+  local key value
+  for key in REDIS_ENGINE_PASSWORD S3_ENGINE_ACCESS_KEY S3_ENGINE_SECRET_KEY; do
+    grep -q "^$key=" "$ENV_FILE" && continue
+    case "$key" in
+      REDIS_ENGINE_PASSWORD) value="$(rnd 32)" ;;
+      S3_ENGINE_ACCESS_KEY) value="kchsengine" ;;
+      S3_ENGINE_SECRET_KEY) value="$(rnd 40)" ;;
+    esac
+    printf '%s=%s\n' "$key" "$value" >> "$ENV_FILE"
+    added+=("$key")
+  done
+  if [[ ${#added[@]} -gt 0 ]]; then
+    echo "В $ENV_FILE дописаны: ${added[*]}. Перезапустите установку (docker compose up -d), чтобы они вступили в силу."
+  else
+    echo "В $ENV_FILE все секреты на месте."
+  fi
+}
+
+if [[ "$ADD_MISSING" == 1 ]]; then
+  [[ -f "$ENV_FILE" ]] || { echo "$ENV_FILE нет — сначала создайте его без --add-missing" >&2; exit 1; }
+  add_missing
+  exit 0
+fi
+
 if [[ -f "$ENV_FILE" && "$FORCE" != 1 ]]; then
-  echo "$ENV_FILE уже существует. Повторить с --force, чтобы перезаписать." >&2
+  echo "$ENV_FILE уже существует. Повторить с --force, чтобы перезаписать, или с --add-missing, чтобы дописать новые секреты." >&2
   exit 1
 fi
 
-rnd() { openssl rand -base64 48 | LC_ALL=C tr -dc 'A-Za-z0-9' | cut -c1-"${1:-32}"; }
 b64key() { openssl rand -base64 32; }
 # Ключи VAPID для push (ADR-0094): пара P-256 в base64url — приватный скаляр и
 # несжатая открытая точка из DER-структуры SEC1 (фиксированные смещения)
@@ -58,6 +93,8 @@ PG_MONITOR="$(rnd 32)"
 REDIS_PW="$(rnd 32)"; S3_SECRET="$(rnd 40)"; MEILI_KEY="$(rnd 40)"
 # Кэш — отдельный Redis со своим паролем (ADR-0175)
 REDIS_CACHE_PW="$(rnd 32)"
+# Пользователи Redis и хранилища движка (ADR-0176)
+REDIS_ENGINE_PW="$(rnd 32)"; S3_ENGINE_SECRET="$(rnd 40)"
 MASTER_KEY="$(b64key)"; INTERNAL_TOKEN="$(rnd 48)"; GRAFANA_PW="$(rnd 24)"
 # Медиасервер встреч (ADR-0089): ключ и секрет — пара для токенов комнат
 LIVEKIT_KEY="$(rnd 16)"; LIVEKIT_SECRET="$(rnd 48)"
@@ -86,7 +123,9 @@ repl KCHS_AUDIT_PASSWORD "$PG_AUDIT"
 repl KCHS_MONITOR_PASSWORD "$PG_MONITOR"
 repl REDIS_PASSWORD "$REDIS_PW"
 set_kv REDIS_CACHE_PASSWORD "$REDIS_CACHE_PW"
+repl REDIS_ENGINE_PASSWORD "$REDIS_ENGINE_PW"
 repl S3_SECRET_KEY "$S3_SECRET"
+repl S3_ENGINE_SECRET_KEY "$S3_ENGINE_SECRET"
 repl MEILI_MASTER_KEY "$MEILI_KEY"
 repl KCHS_MASTER_KEY "$MASTER_KEY"
 repl INTERNAL_SERVICE_TOKEN "$INTERNAL_TOKEN"

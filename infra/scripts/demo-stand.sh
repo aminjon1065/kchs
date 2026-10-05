@@ -81,6 +81,9 @@ prepare_env() {
   if [[ -f "$ENV_FILE" ]]; then
     [[ "$(env_get NODE_ENV)" == production ]] ||
       die "$ENV_FILE — окружение стенда разработки. Стенд демонстрации ставьте в отдельной копии репозитория или с KCHS_DEMO_ENV_FILE=<другой путь>."
+    # Секреты, появившиеся в новой версии (пользователи движка, ADR-0176), — к
+    # прежним паролям, без их замены
+    bash "$ROOT/infra/scripts/generate-secrets.sh" --add-missing --env-file "$ENV_FILE" >/dev/null
   else
     bash "$ROOT/infra/scripts/generate-secrets.sh" --mode app --env-file "$ENV_FILE" >/dev/null
     say "Создан $ENV_FILE со случайными секретами (права 600)"

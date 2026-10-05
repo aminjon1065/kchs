@@ -271,6 +271,95 @@ imagePullSecrets:
       key: S3_SECRET_KEY
 {{- end -}}
 
+{{/*
+Движок — своим пользователем Redis kchs-engine (ADR-0176): только ключи очередей
+его заданий и чтение флагов отмены. При redis.urlFromSecret адрес — ключ REDIS_ENGINE_URL.
+*/}}
+{{- define "kchs.engineRedisEnv" -}}
+{{- $ctx := .ctx -}}
+{{- $redis := $ctx.Values.redis -}}
+{{- $secret := include "kchs.secretName" $ctx -}}
+{{- if $redis.urlFromSecret }}
+- name: REDIS_URL
+  valueFrom:
+    secretKeyRef:
+      name: {{ $secret }}
+      key: REDIS_ENGINE_URL
+{{- else }}
+- name: REDIS_ENGINE_PASSWORD
+  valueFrom:
+    secretKeyRef:
+      name: {{ $secret }}
+      key: REDIS_ENGINE_PASSWORD
+- name: REDIS_URL
+  value: {{ printf "%s://kchs-engine:$(REDIS_ENGINE_PASSWORD)@%s:%d" (ternary "rediss" "redis" $redis.tls) (include "kchs.redis.host" $ctx) (int $redis.port) | quote }}
+{{- end }}
+{{- end -}}
+
+{{/* Движок — своим пользователем хранилища с политикой kchs.engineS3Policy (ADR-0176) */}}
+{{- define "kchs.engineS3Env" -}}
+{{- $secret := include "kchs.secretName" .ctx -}}
+- name: S3_ACCESS_KEY
+  valueFrom:
+    secretKeyRef:
+      name: {{ $secret }}
+      key: S3_ENGINE_ACCESS_KEY
+- name: S3_SECRET_KEY
+  valueFrom:
+    secretKeyRef:
+      name: {{ $secret }}
+      key: S3_ENGINE_SECRET_KEY
+- name: ENGINE_S3_SCOPED
+  value: "yes"
+{{- end -}}
+
+{{/*
+Политика хранилища движка (ADR-0176): читает исходники, пишет производные, ничего
+не удаляет. То же, что infra/compose/minio/engine-policy.json, с бакетами из s3.buckets;
+внешнему S3 администратор задаёт её сам (infra/helm/README.md).
+*/}}
+{{- define "kchs.engineS3Policy" -}}
+{{- $b := .Values.s3.buckets -}}
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ReadSources",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject"],
+      "Resource": [
+        "arn:aws:s3:::{{ $b.files }}/spaces/*",
+        "arn:aws:s3:::{{ $b.files }}/meetings/*",
+        "arn:aws:s3:::{{ $b.files }}/demo/*",
+        "arn:aws:s3:::{{ $b.exports }}/datasets/*",
+        "arn:aws:s3:::{{ $b.columnar }}/columnar/*"
+      ]
+    },
+    {
+      "Sid": "WriteDerived",
+      "Effect": "Allow",
+      "Action": ["s3:PutObject", "s3:AbortMultipartUpload"],
+      "Resource": [
+        "arn:aws:s3:::{{ $b.files }}/imports/*",
+        "arn:aws:s3:::{{ $b.files }}/demo/*",
+        "arn:aws:s3:::{{ $b.files }}/spaces/*/files/*",
+        "arn:aws:s3:::{{ $b.previews }}/spaces/*",
+        "arn:aws:s3:::{{ $b.exports }}/datasets/*",
+        "arn:aws:s3:::{{ $b.exports }}/reports/*",
+        "arn:aws:s3:::{{ $b.exports }}/documents/*",
+        "arn:aws:s3:::{{ $b.columnar }}/columnar/*"
+      ]
+    },
+    {
+      "Sid": "MissingObjectIsNotFound",
+      "Effect": "Allow",
+      "Action": ["s3:ListBucket"],
+      "Resource": ["arn:aws:s3:::{{ $b.files }}"]
+    }
+  ]
+}
+{{- end -}}
+
 {{/* Секреты, общие для api, worker, миграций и разовых заданий */}}
 {{- define "kchs.appSecretEnv" -}}
 {{- $ctx := .ctx -}}

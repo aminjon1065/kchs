@@ -8,6 +8,18 @@ maxmemory-policy noeviction обязателен: в Redis живут очере
 {{- $fullname := include "kchs.fullname" . -}}
 {{- $redis := .Values.redis.embedded -}}
 apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $fullname }}-redis-start
+  labels:
+    {{- include "kchs.componentLabels" (dict "ctx" . "component" "redis") | nindent 4 }}
+data:
+  # Тот же скрипт, что у compose: предел памяти, noeviction, пароль и пользователь
+  # движка kchs-engine с правами только на его очереди (ADR-0176)
+  start.sh: |
+{{ .Files.Get "files/redis-start.sh" | indent 4 }}
+---
+apiVersion: v1
 kind: Service
 metadata:
   name: {{ $fullname }}-redis
@@ -39,6 +51,8 @@ spec:
     metadata:
       labels:
         {{- include "kchs.componentLabels" (dict "ctx" . "component" "redis") | nindent 8 }}
+      annotations:
+        checksum/start: {{ .Files.Get "files/redis-start.sh" | sha256sum }}
     spec:
       {{- include "kchs.imagePullSecrets" . | nindent 6 }}
       automountServiceAccountToken: false
@@ -55,22 +69,20 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           securityContext:
             {{- toYaml .Values.containerSecurityContext | nindent 12 }}
-          command:
-            - sh
-            - -ec
-            - |
-              exec redis-server \
-                --appendonly yes \
-                --appendfsync everysec \
-                --maxmemory {{ $redis.maxmemory | quote }} \
-                --maxmemory-policy noeviction \
-                --requirepass "$REDIS_PASSWORD"
+          command: ["sh", "/kchs/start.sh"]
           env:
             - name: REDIS_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ include "kchs.secretName" . }}
                   key: REDIS_PASSWORD
+            - name: REDIS_ENGINE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kchs.secretName" . }}
+                  key: REDIS_ENGINE_PASSWORD
+            - name: REDIS_MAXMEMORY
+              value: {{ $redis.maxmemory | quote }}
           ports:
             - name: redis
               containerPort: 6379
@@ -92,7 +104,13 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /data
+            - name: start
+              mountPath: /kchs
+              readOnly: true
       volumes:
+        - name: start
+          configMap:
+            name: {{ $fullname }}-redis-start
         {{- if not $redis.persistence.enabled }}
         - name: data
           emptyDir: {}

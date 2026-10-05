@@ -177,23 +177,12 @@ services:
   redis:
     <<: [*restart, *logging]
     image: redis:7-alpine
-    command:
-      - redis-server
-      - --appendonly
-      - "yes"
-      - --appendfsync
-      - everysec
-      # Предел памяти: без него Redis растёт до памяти сервера. noeviction обязателен —
-      # в Redis очереди BullMQ и поток событий: у предела запись отклоняется, ключи не
-      # вытесняются (оповещение KchsRedisMemory — на 90%). Кэши — в redis-cache (ADR-0175)
-      - --maxmemory
-      - ${REDIS_MAXMEMORY:-1gb}
-      - --maxmemory-policy
-      - noeviction
-      - --requirepass
-      - ${REDIS_PASSWORD:?set REDIS_PASSWORD}
+    # Предел памяти и noeviction, пароль, пользователь движка с правами только на его
+    # очереди (ADR-0176) — в start.sh. Кэши — в redis-cache (ADR-0175)
+    command: ["sh", "/kchs/start.sh"]
     volumes:
       - redisdata:/data
+      - ./redis/start.sh:/kchs/start.sh:ro
     ports:
       - "${KCHS_BIND:-127.0.0.1}:${REDIS_PORT:-6379}:6379"
     healthcheck:
@@ -202,7 +191,9 @@ services:
       timeout: 5s
       retries: 20
     environment:
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?set REDIS_PASSWORD}
+      REDIS_MAXMEMORY: ${REDIS_MAXMEMORY:-1gb}
+      REDIS_ENGINE_PASSWORD: ${REDIS_ENGINE_PASSWORD:-}
 
   # Кэш (ADR-0175): тайлы, результаты запросов, наборы прав — всё, что можно
   # пересчитать. allkeys-lru у предела вытесняет давно не читанное, а не
@@ -260,6 +251,12 @@ services:
     environment:
       S3_ACCESS_KEY: ${S3_ACCESS_KEY}
       S3_SECRET_KEY: ${S3_SECRET_KEY}
+      # Пользователь движка (ADR-0176): читает исходники, пишет производные — политика
+      # engine-policy.json; без ключей (установка до ADR-0176) не заводится
+      S3_ENGINE_ACCESS_KEY: ${S3_ENGINE_ACCESS_KEY:-}
+      S3_ENGINE_SECRET_KEY: ${S3_ENGINE_SECRET_KEY:-}
+    volumes:
+      - ./minio/engine-policy.json:/kchs/engine-policy.json:ro
     entrypoint: /bin/sh
     command:
       - -c
@@ -270,6 +267,15 @@ services:
           mc mb --ignore-existing "kchs/$$b"
         done
         mc ilm rule add --expire-days 30 kchs/kchs-exports 2>/dev/null || true
+        if [ -n "$$S3_ENGINE_ACCESS_KEY" ]; then
+          mc admin policy create kchs kchs-engine /kchs/engine-policy.json
+          mc admin user add kchs "$$S3_ENGINE_ACCESS_KEY" "$$S3_ENGINE_SECRET_KEY"
+          mc admin policy entities kchs --user "$$S3_ENGINE_ACCESS_KEY" | grep -q kchs-engine ||
+            mc admin policy attach kchs kchs-engine --user "$$S3_ENGINE_ACCESS_KEY"
+          echo "kchs: пользователь хранилища движка готов"
+        else
+          echo "kchs: S3_ENGINE_ACCESS_KEY не задан — движок ходит в хранилище ключом администратора (generate-secrets.sh --add-missing)"
+        fi
         echo "kchs: бакеты готовы"
     restart: "no"
 
@@ -466,16 +472,24 @@ services:
     image: kchs/engine:${KCHS_IMAGE_TAG:-0.1.0}
     environment:
       LOG_LEVEL: ${LOG_LEVEL:-info}
-      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
-      DATABASE_URL: postgres://kchs_app:${KCHS_APP_PASSWORD}@postgres:5432/${POSTGRES_DB:-kchs}
-      # Колоночные копии датасетов (ADR-0109) движок читает ролью только для
-      # чтения таблиц строк (ADR-0048)
+      # Минимальные права движка, который разбирает недоверенные файлы (ADR-0176).
+      # Redis — свой пользователь: только очереди заданий движка и флаги отмены.
+      # Без REDIS_ENGINE_PASSWORD (установка до ADR-0176) — прежний пароль и
+      # предупреждение в журнале движка; дописать ключ — generate-secrets.sh --add-missing
+      REDIS_URL: redis://${REDIS_ENGINE_PASSWORD:+kchs-engine}:${REDIS_ENGINE_PASSWORD:-${REDIS_PASSWORD}}@redis:6379
+      # Единственная роль базы — чтение таблиц строк для колоночных копий (ADR-0048,
+      # ADR-0109): метаданные и итоги заданий движок сообщает api, в базу не пишет
       DATABASE_QUERY_URL: postgres://kchs_query:${KCHS_QUERY_PASSWORD}@postgres:5432/${POSTGRES_DB:-kchs}
       S3_ENDPOINT: http://minio:9000
-      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
-      S3_SECRET_KEY: ${S3_SECRET_KEY}
+      # Свой пользователь хранилища (minio/engine-policy.json): читает исходники, пишет
+      # производные, ничего не удаляет; без ключей — как Redis выше
+      S3_ACCESS_KEY: ${S3_ENGINE_ACCESS_KEY:-${S3_ACCESS_KEY}}
+      S3_SECRET_KEY: ${S3_ENGINE_SECRET_KEY:-${S3_SECRET_KEY}}
+      ENGINE_S3_SCOPED: ${S3_ENGINE_ACCESS_KEY:+yes}
       # Обратные вызовы движка в api: в полном развёртывании — контейнер api;
-      # при разработке (api на хосте) — http://host.docker.internal:3000
+      # при разработке (api на хосте) — http://host.docker.internal:3000.
+      # Вызывает их движок токеном задания; общий токен — только для проверки вызовов
+      # api в движок (ADR-0176)
       KCHS_API_URL: ${ENGINE_API_URL:-http://api:3000}
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
       # Веб для страницы печати отчётов в Chromium движка (ADR-0078): в полном
@@ -500,6 +514,8 @@ services:
     depends_on:
       redis: { condition: service_healthy }
       minio: { condition: service_healthy }
+      # Пользователь хранилища движка заводит minio-init (ADR-0176)
+      minio-init: { condition: service_completed_successfully }
     # Внутренний HTTP движка (шаблоны, /health) — только с самого сервера, как у api
     ports:
       - "127.0.0.1:${ENGINE_PORT:-8000}:8000"
