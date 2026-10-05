@@ -127,7 +127,7 @@ export function layerTileUrl(
   if (options.filter) query.set('f', base64urlJson(options.filter))
   if (options.time) query.set('t', options.time)
   if (options.preview) query.set('p', base64urlJson(options.preview))
-  // Шаблон {z}/{x}/{y} — без кодирования фигурных скобок
+  // вне клиента API: шаблон тайлов MapLibre — {z}/{x}/{y} без кодирования, lv — ключ кэша
   return `${window.location.origin}/api/v1/gis/layers/${layer.id}/tiles/{z}/{x}/{y}.pbf?${query}`
 }
 

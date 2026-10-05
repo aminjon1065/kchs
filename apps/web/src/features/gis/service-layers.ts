@@ -25,10 +25,12 @@ export const serviceLayersQuery = () =>
 
 /** Адрес тайлов слоя-ссылки для MapLibre. */
 export const serviceTileUrl = (service: ServiceLayerRecord): string =>
+  // вне клиента API: шаблон тайлов MapLibre — {z}/{x}/{y} без кодирования, v — ключ кэша
   `/api/v1/gis/service-layers/${service.id}/tiles/{z}/{x}/{y}?v=${service.version}`
 
 /** Адрес объектов векторной службы (WFS, ArcGIS REST). */
 export const serviceFeaturesUrl = (service: ServiceLayerRecord, limit = 2000): string =>
+  // вне клиента API: источник GeoJSON MapLibre, v — ключ кэша вне схемы строки запроса
   `/api/v1/gis/service-layers/${service.id}/features?limit=${limit}&v=${service.version}`
 
 export const serviceLayerApi = {

@@ -1,7 +1,7 @@
 import type { WorkspaceLayout } from '@kchs/contracts'
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
-import { getCsrfToken, http } from '~/shared/api/client.js'
+import { http } from '~/shared/api/client.js'
 import { t } from '~/shared/i18n.js'
 import type {
   ContextTabKey,
@@ -573,17 +573,10 @@ export function flushWorkspaceSave(): void {
   pendingSave = false
   if (saveTimer) clearTimeout(saveTimer)
 
-  const csrfToken = getCsrfToken()
-  void fetch('/api/v1/me/workspace-state', {
-    method: 'PUT',
-    keepalive: true,
-    credentials: 'same-origin',
-    headers: {
-      'content-type': 'application/json',
-      ...(csrfToken ? { 'x-csrf-token': csrfToken } : {}),
-    },
-    body: JSON.stringify({ state: snapshot() }),
-  }).catch(() => undefined)
+  // keepalive — запрос переживает закрытие страницы; 401 при уходе на вход не ведёт
+  void http
+    .put('/me/workspace-state', { body: { state: snapshot() }, keepalive: true, anonymous: true })
+    .catch(() => undefined)
 }
 
 export function subscribeWorkspaceSave(): () => void {

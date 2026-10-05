@@ -22,10 +22,10 @@ import { useEffect, useRef, useState } from 'react'
 import { uploadFile } from '~/entities/files/upload.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { keys, meQuery, usersImportQuery } from '~/shared/api/queries.js'
+import { apiUrl } from '~/shared/api/url.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 
-const API = '/api/v1/admin/users/import'
 /** Строк с ошибками на экране; полный список — в отчёте CSV. */
 const SHOWN_ROWS = 200
 
@@ -175,7 +175,7 @@ export function UsersImportDialog({
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="ghost" size="sm" icon={<Download className="size-3.5" />} asChild>
-              <a href={`${API}/template.xlsx`} download>
+              <a href={apiUrl('/admin/users/import/template.xlsx')} download>
                 {t('admin.usersImport.template')}
               </a>
             </Button>
@@ -290,7 +290,10 @@ function ImportReport({
             </Badge>
           ))}
         <Button variant="link" size="sm" icon={<Download className="size-3.5" />} asChild>
-          <a href={`${API}/${importId}/report.csv`} download>
+          <a
+            href={apiUrl('/admin/users/import/:importId/report.csv', { params: { importId } })}
+            download
+          >
             {t('admin.usersImport.downloadReport')}
           </a>
         </Button>
@@ -314,7 +317,9 @@ function ImportReport({
             action={
               <Button variant="primary" size="sm" icon={<KeyRound className="size-3.5" />} asChild>
                 <a
-                  href={`${API}/${importId}/credentials.csv`}
+                  href={apiUrl('/admin/users/import/:importId/credentials.csv', {
+                    params: { importId },
+                  })}
                   download
                   onClick={onCredentialsTaken}
                 >

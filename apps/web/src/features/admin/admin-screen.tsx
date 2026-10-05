@@ -73,6 +73,7 @@ import {
   rolesQuery,
   usersQuery,
 } from '~/shared/api/queries.js'
+import { apiUrl } from '~/shared/api/url.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { AnnouncementsSection } from './announcements-section.js'
@@ -781,7 +782,7 @@ function AuditSection() {
         >
           {/* Потоковая выгрузка с сервера: cookie-сессия, GET без CSRF */}
           <a
-            href={`/api/v1/admin/audit/export.csv${query ? `?action=${encodeURIComponent(query)}` : ''}`}
+            href={apiUrl('/admin/audit/export.csv', { query: { action: query || undefined } })}
             download
           >
             {t('admin.audit.export')}

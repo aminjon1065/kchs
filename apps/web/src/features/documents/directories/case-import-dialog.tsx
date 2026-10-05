@@ -24,10 +24,9 @@ import { useRef, useState } from 'react'
 import { uploadFile } from '~/entities/files/upload.js'
 import { http } from '~/shared/api/client.js'
 import { meQuery } from '~/shared/api/queries.js'
+import { apiUrl } from '~/shared/api/url.js'
 import { useT } from '~/shared/i18n.js'
 import { errorText } from '../status.js'
-
-const TEMPLATE = '/api/v1/cases/import/template.xlsx'
 
 const STATUS_TONES: Record<CaseImportRowStatus, BadgeProps['tone']> = {
   ready: 'accent',
@@ -180,7 +179,7 @@ export function CaseImportDialog({
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap items-end gap-3">
             <Button variant="ghost" size="sm" icon={<Download className="size-3.5" />} asChild>
-              <a href={TEMPLATE} download>
+              <a href={apiUrl('/cases/import/template.xlsx')} download>
                 {t('documents.cases.import.template')}
               </a>
             </Button>

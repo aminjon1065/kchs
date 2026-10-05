@@ -18,6 +18,7 @@ import { BookCheck, Briefcase, FileSpreadsheet } from 'lucide-react'
 import { useId, useState } from 'react'
 import { http } from '~/shared/api/client.js'
 import type { ApiBody } from '~/shared/api/route-types.js'
+import { apiUrl } from '~/shared/api/url.js'
 import { useT } from '~/shared/i18n.js'
 import { PrincipalsPicker } from './principals-picker.js'
 import { casesQuery, documentKeys } from './queries.js'
@@ -37,7 +38,7 @@ export function DocumentsBulkActions({ ids, onDone }: { ids: string[]; onDone: (
   const exportRegistry = () => {
     // Реестр собирает сервер: только видимые документы, подписи — на языке сотрудника
     const link = document.createElement('a')
-    link.href = `/api/v1/documents/registry.xlsx?ids=${ids.join(',')}`
+    link.href = apiUrl('/documents/registry.xlsx', { query: { ids: ids.join(',') } })
     link.download = ''
     link.click()
   }

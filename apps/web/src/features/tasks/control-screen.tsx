@@ -45,6 +45,7 @@ import { metricTileModel } from '~/entities/data/metric-format.js'
 import { type PickedUser, UserPicker } from '~/entities/people/user-picker.js'
 import { metricValueQuery } from '~/features/data/index.js'
 import { orgUnitsQuery } from '~/shared/api/queries.js'
+import { apiUrl } from '~/shared/api/url.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
@@ -251,20 +252,16 @@ export function ControlScreen({
       mode: 'permanent',
     })
   const select = (row: string | null, bucket: ControlBucket) => setDrill({ row, bucket })
-  const exportUrl = (format: 'csv' | 'xlsx', view: 'matrix' | 'list') => {
-    const params = new URLSearchParams(
-      Object.entries(
-        queryOf({
-          ...query,
-          format,
-          view,
-          // Список — тот, что на экране: состояние и строка матрицы
-          ...(view === 'list' ? { bucket: drill.bucket, row: drill.row ?? undefined } : {}),
-        }),
-      ).map(([key, value]) => [key, String(value)]),
-    )
-    return `/api/v1/tasks/control/export?${params.toString()}`
-  }
+  const exportUrl = (format: 'csv' | 'xlsx', view: 'matrix' | 'list') =>
+    apiUrl('/tasks/control/export', {
+      query: queryOf({
+        ...query,
+        format,
+        view,
+        // Список — тот, что на экране: состояние и строка матрицы
+        ...(view === 'list' ? { bucket: drill.bucket, row: drill.row ?? undefined } : {}),
+      }),
+    })
 
   const data = report.data
   const rowName = (row: string | null) =>

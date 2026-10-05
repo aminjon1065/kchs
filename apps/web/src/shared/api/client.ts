@@ -1,8 +1,7 @@
 import type { HttpMethod, ProblemDetails } from '@kchs/contracts'
 import { normalizeLocale, translate } from '@kchs/i18n'
 import type { ApiPath, MethodTable, RequestOptions } from './route-types.js'
-
-const BASE = '/api/v1'
+import { requestUrl } from './url.js'
 
 export class ApiError extends Error {
   readonly status: number
@@ -120,31 +119,6 @@ export function setSetupRequiredHandler(handler: SetupRequiredHandler | null): v
 
 export function setUnauthorizedHandler(handler: UnauthorizedHandler | null): void {
   onUnauthorized = handler
-}
-
-/**
- * Путь таблицы → путь запроса: `:имя` заменяется закодированным значением параметра.
- * Имя параметра кончается на `.` или `-`, как у маршрутизатора Fastify (`:y.pbf`).
- */
-function resolvePath(path: string, params: Record<string, unknown> | undefined): string {
-  return path.replace(/:([A-Za-z0-9_]+)/g, (_match, name: string) => {
-    const value = params?.[name]
-    if (value === undefined || value === null || value === '') {
-      throw new Error(`Параметр пути «${name}» не задан: ${path}`)
-    }
-    return encodeURIComponent(String(value))
-  })
-}
-
-/** Адрес запроса: путь с параметрами и строка запроса без пустых значений. */
-function requestUrl(path: string, options: Pick<RawOptions, 'params' | 'query'>): URL {
-  const url = new URL(`${BASE}${resolvePath(path, options.params)}`, window.location.origin)
-  for (const [key, value] of Object.entries(options.query ?? {})) {
-    if (value !== undefined && value !== null && value !== '') {
-      url.searchParams.set(key, String(value))
-    }
-  }
-  return url
 }
 
 function requestHeaders(
