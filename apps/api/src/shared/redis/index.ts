@@ -49,6 +49,8 @@ export const cacheKeys = {
   inboxCounts: (userId: string) => `kchs:inbox:counts:${userId}`,
   presence: (objectId: string) => `kchs:presence:${objectId}`,
   jobProgress: (jobId: string) => `kchs:job:${jobId}`,
+  /** Флаг отмены задания (ADR-0172): его читает и движок — имя не менять без него. */
+  jobCancel: (jobId: string) => `kchs:job:cancel:${jobId}`,
   shareGrant: (hash: string) => `kchs:share:grant:${hash}`,
   /** Служебный токен страницы печати (ADR-0078) и его область — для отзыва. */
   printGrant: (hash: string) => `kchs:print:grant:${hash}`,

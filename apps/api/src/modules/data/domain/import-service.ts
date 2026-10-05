@@ -441,6 +441,7 @@ export const ImportService = {
   async compare(
     data: unknown,
     progress: (value: number, message?: string) => Promise<void>,
+    signal?: AbortSignal,
   ): Promise<Record<string, unknown>> {
     const { importId } = LoadPayload.parse(data)
     const [row] = await db().select().from(imports).where(eq(imports.id, importId)).limit(1)
@@ -452,6 +453,8 @@ export const ImportService = {
     const keyColumns = keyColumnsOf(storage)
     try {
       const { staging, duplicates } = await fillStaging(row, storage, keyColumns)
+      // Отмена или предел времени задания (ADR-0172): дальше — тяжёлое сравнение
+      signal?.throwIfAborted()
       await progress(0.6, 'Файл загружен во временную таблицу')
       const counts = await Physical.importDiff({
         table: storage.table,
@@ -630,6 +633,7 @@ export const ImportService = {
   async load(
     data: unknown,
     progress: (value: number, message?: string) => Promise<void>,
+    signal?: AbortSignal,
   ): Promise<Record<string, unknown>> {
     const { importId } = LoadPayload.parse(data)
     const [row] = await db().select().from(imports).where(eq(imports.id, importId)).limit(1)
@@ -653,6 +657,8 @@ export const ImportService = {
     let replacement = false
     try {
       const { staging, duplicates } = await fillStaging(row, storage, keyColumns)
+      // Отменённая или не уложившаяся во время загрузка датасет не меняет (ADR-0172)
+      signal?.throwIfAborted()
       await progress(0.6, 'Файл загружен во временную таблицу')
 
       const counts = { inserted: 0, updated: 0, deleted: 0 }
@@ -660,6 +666,7 @@ export const ImportService = {
         await Physical.prepareReplacement(row.datasetId, staging, physical, importId, userId)
         replacement = true
       }
+      signal?.throwIfAborted()
       await progress(0.8, 'Применение изменений')
 
       const version = await db().transaction(async (tx) => {
@@ -732,6 +739,8 @@ export const ImportService = {
             finishedAt: sql`now()`,
           })
           .where(eq(imports.id, importId))
+        // Последняя точка перед фиксацией: отмена откатывает всю загрузку
+        signal?.throwIfAborted()
         await publishEvent(tx, ctx, {
           type: 'dataset.imported',
           object: await objectMeta(tx, row.datasetId),

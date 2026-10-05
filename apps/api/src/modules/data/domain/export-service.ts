@@ -231,7 +231,11 @@ export const ExportService = {
 
   async run(
     data: ExportJobData,
-    helpers: { recordId: string; progress: (value: number, message?: string) => Promise<void> },
+    helpers: {
+      recordId: string
+      progress: (value: number, message?: string) => Promise<void>
+      signal?: AbortSignal
+    },
   ): Promise<ExportJobResult> {
     const job = await JobService.get(helpers.recordId)
     if (!job?.initiatorId) throw new UnrecoverableError('У экспорта нет инициатора')
@@ -269,6 +273,8 @@ export const ExportService = {
         const batches = limitBatches(cursor, DATASET_EXPORT_MAX_ROWS, limit, async (rows) => {
           if (rows - reported < PROGRESS_EVERY) return
           reported = rows
+          // Отмена или предел времени задания (ADR-0172) — между пачками строк
+          helpers.signal?.throwIfAborted()
           await helpers.progress(expected > 0 ? Math.min(rows / expected, 0.99) : 0)
         })
         await writeExport(output, out, batches, {
@@ -280,6 +286,7 @@ export const ExportService = {
       })
       out.end()
       await finished(out)
+      helpers.signal?.throwIfAborted()
       const written = (await stat(path)).size
       const folder = `datasets/${data.datasetId}/${helpers.recordId}`
       const key = `${folder}/${safeName(data.fileName)}`

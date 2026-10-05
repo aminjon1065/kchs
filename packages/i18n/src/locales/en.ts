@@ -8651,7 +8651,7 @@ export const en: DeepPartial<Dictionary> = {
       inboxWakeSnoozed: 'Inbox: wake snoozed items',
       notificationsDigest: 'Notifications: email digest',
       outboxPrune: 'Event log cleanup',
-      jobsRedispatch: 'Jobs: redispatch stale',
+      jobsRedispatch: 'Jobs: redispatch stale and reconcile with the queue',
       jobsPrune: 'Jobs: history cleanup',
       trashPurge: 'Trash: permanent deletion',
       recentTrim: 'Recent: trim history',

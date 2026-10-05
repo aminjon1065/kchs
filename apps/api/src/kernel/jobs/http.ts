@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { JobService } from './service.js'
+import { canSeeJob } from './visibility.js'
 
 export function registerJobRoutes(route: RouteRegistrar): void {
   route({
@@ -29,10 +30,7 @@ export function registerJobRoutes(route: RouteRegistrar): void {
     schema: { params: z.object({ id: z.uuid() }), response: { 200: JobRecord } },
     handler: async (request) => {
       const job = await JobService.get(request.params.id)
-      if (!job) throw errors.notFound('Задание')
-      if (job.initiatorId && job.initiatorId !== request.ctx.userId && !request.ctx.isSystemAdmin) {
-        throw errors.notFound('Задание')
-      }
+      if (!job || !(await canSeeJob(request.ctx, job))) throw errors.notFound('Задание')
       return job
     },
   })
@@ -49,11 +47,13 @@ export function registerJobRoutes(route: RouteRegistrar): void {
     },
     handler: async (request) => {
       const job = await JobService.get(request.params.id)
-      if (!job) throw errors.notFound('Задание')
+      if (!job || !(await canSeeJob(request.ctx, job))) throw errors.notFound('Задание')
       if (job.initiatorId !== request.ctx.userId && !request.ctx.isSystemAdmin) {
         throw errors.forbidden('Задание может отменить только инициатор')
       }
-      await JobService.cancel(request.params.id)
+      const outcome = await JobService.cancel(request.ctx, request.params.id)
+      if (outcome === 'missing') throw errors.notFound('Задание')
+      if (outcome === 'closed') throw errors.conflict('Задание уже завершено')
       return { ok: true }
     },
   })

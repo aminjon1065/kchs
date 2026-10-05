@@ -11,6 +11,7 @@ import { createRedisConnection, redis } from '~/shared/redis/index.js'
 import { authorize } from '../access/authorize.js'
 import { buildUserCtx } from '../context-builder.js'
 import { JobService } from '../jobs/service.js'
+import { canSeeJob } from '../jobs/visibility.js'
 import { markLeft, markViewing, type Viewer } from './presence.js'
 
 let io: SocketServer | null = null
@@ -284,10 +285,9 @@ export async function canJoin(ctx: UserCtx, room: string): Promise<boolean> {
       return decision.allowed
     }
     case 'job': {
-      // Прогресс и сообщения задания видит только инициатор (и администратор)
-      if (ctx.isSystemAdmin) return true
+      // Прогресс задания — тем, кто видит само задание (ADR-0172)
       const job = await JobService.get(id).catch(() => null)
-      return Boolean(job && job.initiatorId === ctx.userId)
+      return Boolean(job && (await canSeeJob(ctx, job)))
     }
     default:
       return false

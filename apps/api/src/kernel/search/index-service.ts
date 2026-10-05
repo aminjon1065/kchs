@@ -203,11 +203,13 @@ export async function reindexSubtree(objectId: string, batchSize = 200): Promise
 }
 
 /** Полная переиндексация (обслуживание, восстановление после сбоя). */
-export async function reindexAll(batchSize = 200): Promise<number> {
+export async function reindexAll(batchSize = 200, signal?: AbortSignal): Promise<number> {
   await ensureSearchIndex()
   let offset = 0
   let total = 0
   for (;;) {
+    // Отмена или предел времени задания (ADR-0172) — между пачками
+    signal?.throwIfAborted()
     const rows = await db().select({ id: objects.id }).from(objects).limit(batchSize).offset(offset)
     if (rows.length === 0) break
     await indexObjects(rows.map((r) => r.id))

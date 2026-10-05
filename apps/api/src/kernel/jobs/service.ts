@@ -1,6 +1,6 @@
 import type { JobRecord, QueueName } from '@kchs/contracts'
 import { type JobsOptions, Queue } from 'bullmq'
-import { and, desc, eq, lt, sql } from 'drizzle-orm'
+import { and, desc, eq, inArray, lt, sql } from 'drizzle-orm'
 import type { Ctx } from '~/shared/context.js'
 import { actorId, systemCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
@@ -10,8 +10,17 @@ import { logger } from '~/shared/logger/index.js'
 import { cacheKeys, createRedisConnection, redis } from '~/shared/redis/index.js'
 import { traceMetadata } from '~/shared/telemetry/tracing.js'
 import { publishEvent } from '../events/publisher.js'
+import { signalCancel } from './cancellation.js'
 
 const queues = new Map<QueueName, Queue>()
+
+/**
+ * Незавершённые состояния. Переходы реестра идут только из них (ADR-0172):
+ * отменённое задание не становится выполненным, а повторный отчёт о том же
+ * исходе — из движка и из событий очереди — не публикует событие дважды.
+ */
+const OPEN_STATUSES = ['queued', 'running'] as const
+const isOpen = inArray(jobs.status, [...OPEN_STATUSES])
 
 export function queue(name: QueueName): Queue {
   let existing = queues.get(name)
@@ -123,50 +132,44 @@ export const JobService = {
   },
 
   /**
-   * Страховка: задания, которые остались в реестре `queued`, но не дошли до
-   * BullMQ (событие в DLQ, очистка Redis), передаются повторно.
-   */
-  async redispatchStale(olderThanSeconds = 60): Promise<number> {
-    const rows = await db()
-      .select({ id: jobs.id, queue: jobs.queue })
-      .from(jobs)
-      .where(
-        and(
-          eq(jobs.status, 'queued'),
-          lt(jobs.createdAt, sql`now() - make_interval(secs => ${olderThanSeconds})`),
-        ),
-      )
-      .limit(500)
-    let count = 0
-    for (const row of rows) {
-      const existing = await queue(row.queue as QueueName).getJob(row.id)
-      if (!existing && (await JobService.dispatch(row.id))) count += 1
-    }
-    return count
-  },
-
-  /**
    * Запись реестра для задания, пришедшего в очередь без неё
-   * (повторяемые задания по расписанию).
+   * (повторяемые задания по расписанию). Идентификатор задания BullMQ
+   * запоминается: по нему сверка находит задание в очереди.
    */
-  async recordRun(queueName: QueueName, name: string): Promise<string> {
+  async recordRun(queueName: QueueName, name: string, bullJobId?: string): Promise<string> {
     const id = newId()
-    await db().insert(jobs).values({ id, queue: queueName, name, status: 'queued' })
+    await db()
+      .insert(jobs)
+      .values({
+        id,
+        queue: queueName,
+        name,
+        status: 'queued',
+        options: bullJobId ? { jobId: bullJobId } : {},
+      })
     return id
   },
 
-  async start(id: string): Promise<void> {
-    await db()
+  /**
+   * Задание начато. Ложь — исполнять не нужно: задание отменено или уже
+   * завершено (запоздалая доставка той же попытки).
+   */
+  async start(id: string): Promise<boolean> {
+    const started = await db()
       .update(jobs)
       .set({ status: 'running', startedAt: sql`now()`, attempts: sql`${jobs.attempts} + 1` })
-      .where(eq(jobs.id, id))
+      .where(and(eq(jobs.id, id), isOpen))
+      .returning({ id: jobs.id })
+    return started.length > 0
   },
 
   async progress(id: string, progress: number, message?: string): Promise<void> {
-    await db()
+    const updated = await db()
       .update(jobs)
       .set({ progress: Math.max(0, Math.min(1, progress)), message: message ?? null })
-      .where(eq(jobs.id, id))
+      .where(and(eq(jobs.id, id), isOpen))
+      .returning({ id: jobs.id })
+    if (updated.length === 0) return
     await redis().publish(
       'rt:job',
       JSON.stringify({ jobId: id, progress, message: message ?? null }),
@@ -179,7 +182,7 @@ export const JobService = {
       const [updated] = await tx
         .update(jobs)
         .set({ status: 'succeeded', progress: 1, result, error: null, finishedAt: sql`now()` })
-        .where(eq(jobs.id, id))
+        .where(and(eq(jobs.id, id), isOpen))
         .returning()
       if (updated) {
         await publishEvent(tx, jobCtx(updated), {
@@ -189,8 +192,11 @@ export const JobService = {
       }
       return updated
     })
+    if (!row) {
+      await logClosed(id, 'исход «выполнено» не записан')
+      return
+    }
     await redis().publish('rt:job', JSON.stringify({ jobId: id, status: 'succeeded' }))
-    if (!row) logger().warn({ jobId: id }, 'завершено задание без записи в реестре')
   },
 
   /**
@@ -204,7 +210,7 @@ export const JobService = {
       message: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack?.slice(0, 2000) : undefined,
     }
-    await db().transaction(async (tx) => {
+    const row = await db().transaction(async (tx) => {
       const [updated] = await tx
         .update(jobs)
         .set(
@@ -212,7 +218,7 @@ export const JobService = {
             ? { status: 'failed', error: payload, finishedAt: sql`now()` }
             : { status: 'queued', error: payload, message: payload.message.slice(0, 500) },
         )
-        .where(eq(jobs.id, id))
+        .where(and(eq(jobs.id, id), isOpen))
         .returning()
       if (updated && final) {
         await publishEvent(tx, jobCtx(updated), {
@@ -220,7 +226,12 @@ export const JobService = {
           payload: { jobId: id, error: payload.message.slice(0, 1000) },
         })
       }
+      return updated
     })
+    if (!row) {
+      await logClosed(id, 'сбой не записан')
+      return
+    }
     await redis().publish(
       'rt:job',
       JSON.stringify({ jobId: id, status: final ? 'failed' : 'retrying' }),
@@ -228,15 +239,46 @@ export const JobService = {
     logger().warn({ jobId: id, err: error, final }, 'задание завершилось ошибкой')
   },
 
-  async cancel(id: string): Promise<void> {
-    const [record] = await db().select().from(jobs).where(eq(jobs.id, id)).limit(1)
-    if (!record) return
-    const bull = await queue(record.queue as QueueName).getJob(id)
-    await bull?.remove().catch(() => undefined)
-    await db()
+  /**
+   * Попытка вернулась в очередь (BullMQ повторит её), а отчёт об этом не дошёл:
+   * сверка возвращает запись в `queued` без события — повтор отчитается сам.
+   */
+  async requeue(id: string): Promise<boolean> {
+    const updated = await db()
       .update(jobs)
-      .set({ status: 'cancelled', finishedAt: sql`now()` })
-      .where(eq(jobs.id, id))
+      .set({ status: 'queued' })
+      .where(and(eq(jobs.id, id), eq(jobs.status, 'running')))
+      .returning({ id: jobs.id })
+    return updated.length > 0
+  },
+
+  /**
+   * Отмена (ADR-0172). Ждущее задание удаляется из очереди; выполняющееся
+   * получает сигнал: TS-обработчик — `AbortSignal`, движок — флаг, который он
+   * проверяет перед началом и во время работы. Завершённое не отменяется.
+   */
+  async cancel(ctx: Ctx, id: string): Promise<'cancelled' | 'closed' | 'missing'> {
+    const row = await db().transaction(async (tx) => {
+      const [updated] = await tx
+        .update(jobs)
+        .set({ status: 'cancelled', finishedAt: sql`now()` })
+        .where(and(eq(jobs.id, id), isOpen))
+        .returning()
+      if (updated) {
+        await publishEvent(tx, ctx, { type: 'job.cancelled', payload: { jobId: id } })
+      }
+      return updated
+    })
+    if (!row) {
+      const [exists] = await db().select({ id: jobs.id }).from(jobs).where(eq(jobs.id, id)).limit(1)
+      return exists ? 'closed' : 'missing'
+    }
+    await signalCancel(id)
+    const bull = await queue(row.queue as QueueName).getJob(bullJobIdOf(row))
+    // Выполняющееся задание заблокировано воркером: его прервёт сигнал
+    await bull?.remove().catch(() => undefined)
+    await redis().publish('rt:job', JSON.stringify({ jobId: id, status: 'cancelled' }))
+    return 'cancelled'
   },
 
   async get(id: string): Promise<JobRecord | null> {
@@ -298,6 +340,26 @@ export const JobService = {
 /** События задания публикуются от имени инициатора: ему приходит уведомление о сбое. */
 function jobCtx(row: JobRow): Ctx {
   return systemCtx(`job:${row.queue}:${row.name}`, { initiatorId: row.initiatorId })
+}
+
+/**
+ * Идентификатор задания в BullMQ: совпадает с записью реестра, кроме запусков
+ * по расписанию — у них свой, запомненный в `options.jobId`.
+ */
+export function bullJobIdOf(row: Pick<JobRow, 'id' | 'options'>): string {
+  const stored = (row.options as { jobId?: unknown } | null)?.jobId
+  return typeof stored === 'string' && stored ? stored : row.id
+}
+
+/** Запоздалый отчёт о задании, уже закрытом другим путём, — не ошибка. */
+async function logClosed(id: string, what: string): Promise<void> {
+  const [row] = await db()
+    .select({ status: jobs.status })
+    .from(jobs)
+    .where(eq(jobs.id, id))
+    .limit(1)
+  if (row) logger().debug({ jobId: id, status: row.status }, `задание уже закрыто: ${what}`)
+  else logger().warn({ jobId: id }, `нет записи задания в реестре: ${what}`)
 }
 
 function durationMs(row: JobRow): number {

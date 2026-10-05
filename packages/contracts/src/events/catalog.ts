@@ -165,6 +165,8 @@ export const EVENT_PAYLOADS = {
   'job.started': z.object({ jobId: Uuid }),
   'job.finished': z.object({ jobId: Uuid, durationMs: z.number().int() }),
   'job.failed': z.object({ jobId: Uuid, error: z.string() }),
+  /** Задание отменено до завершения (ADR-0172); актор — кто отменил. */
+  'job.cancelled': z.object({ jobId: Uuid }),
 
   // ── dataset (06-analytics-engine.md) ──────────────────────────────────────
   'dataset.created': z.object({ name: z.string(), fields: z.number().int() }),

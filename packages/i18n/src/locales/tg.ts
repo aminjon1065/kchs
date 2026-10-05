@@ -9314,7 +9314,7 @@ export const tg: DeepPartial<Dictionary> = {
       inboxWakeSnoozed: 'Воридшудаҳо: баргардонидани корҳои мавқуфгузошта',
       notificationsDigest: 'Огоҳиномаҳо: хулосаи почтавӣ',
       outboxPrune: 'Тоза кардани журнали рӯйдодҳо',
-      jobsRedispatch: 'Амалиётҳо: аз нав ба навбат гузоштан',
+      jobsRedispatch: 'Амалиётҳо: аз нав ба навбат гузоштан ва мутобиқ кардан бо навбат',
       jobsPrune: 'Амалиётҳо: тоза кардани таърих',
       trashPurge: 'Сабад: нест кардани ниҳоӣ',
       recentTrim: 'Охиринҳо: кӯтоҳ кардани таърих',

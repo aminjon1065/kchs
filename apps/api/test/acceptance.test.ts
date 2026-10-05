@@ -542,10 +542,12 @@ describe('сценарий 7: устойчивость — событие не �
     })
 
     await JobService.start(id)
-    await JobService.fail(id, new Error('воркер остановлен'))
+    // Воркер остановлен посреди попытки: она не последняя — задание ждёт повтора.
+    // Окончательный сбой задание закрывает насовсем (ADR-0172)
+    await JobService.fail(id, new Error('воркер остановлен'), { final: false })
 
     const failed = await JobService.get(id)
-    expect(failed?.status).toBe('failed')
+    expect(failed?.status).toBe('queued')
     expect(failed?.attempts).toBe(1)
     expect((failed?.error as { message?: string })?.message).toContain('воркер остановлен')
 

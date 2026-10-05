@@ -1178,14 +1178,15 @@ export function registerDataBackground(): void {
     queue: LOAD_JOB.queue,
     name: LOAD_JOB.name,
     concurrency: 2,
-    handle: async (job, helpers) => ImportService.load(job.data, helpers.progress),
+    handle: async (job, helpers) => ImportService.load(job.data, helpers.progress, helpers.signal),
   })
 
   registerJobHandler({
     queue: COMPARE_JOB.queue,
     name: COMPARE_JOB.name,
     concurrency: 2,
-    handle: async (job, helpers) => ImportService.compare(job.data, helpers.progress),
+    handle: async (job, helpers) =>
+      ImportService.compare(job.data, helpers.progress, helpers.signal),
   })
 
   registerJobHandler({
@@ -1257,9 +1258,11 @@ export function registerDataBackground(): void {
     },
   })
 
+  // Отменённое задание импорта (ADR-0172) закрывает импорт так же, как сбой:
+  // иначе он навсегда остался бы «загружается»
   registerSubscriber({
     name: 'data-import-failed',
-    types: ['job.failed'],
+    types: ['job.failed', 'job.cancelled'],
     handle: async (event) => {
       const job = await JobService.get(event.payload.jobId as string)
       if (!job) return
@@ -1271,7 +1274,9 @@ export function registerDataBackground(): void {
       if (!payload?.importId) return
       await ImportService.markFailed(
         payload.importId,
-        String(event.payload.error ?? 'Сбой задания'),
+        event.type === 'job.cancelled'
+          ? 'Задание отменено'
+          : String(event.payload.error ?? 'Сбой задания'),
       )
     },
   })

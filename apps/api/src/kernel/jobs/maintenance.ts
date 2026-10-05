@@ -9,8 +9,9 @@ import { expiredTrash, ObjectService, trimRecentViews } from '../objects/service
 import { declareSchedule } from '../schedules/registry.js'
 import { reindexAll, reindexSpace, reindexSubtree } from '../search/index-service.js'
 import { indexEmbeddings } from '../search/semantic.js'
+import { reconcileJobs } from './reconcile.js'
 import { registerJobHandler } from './runner.js'
-import { JobService, pruneFinishedJobs } from './service.js'
+import { pruneFinishedJobs } from './service.js'
 
 /** Регулярные задания обслуживания (02-platform-kernel.md §9). */
 export function registerMaintenanceJobs(): void {
@@ -19,7 +20,7 @@ export function registerMaintenanceJobs(): void {
     name: 'search.reindex',
     concurrency: 1,
     handle: async (_job, helpers) => {
-      const count = await reindexAll()
+      const count = await reindexAll(200, helpers.signal)
       await helpers.progress(1, `переиндексировано объектов: ${count}`)
       return { count }
     },
@@ -84,11 +85,13 @@ export function registerMaintenanceJobs(): void {
     handle: async () => ({ sent: await sendEmailDigest(5) }),
   })
 
+  // Страховка реестра (ADR-0036, ADR-0172): не дошедшие до очереди задания
+  // передаются снова, исход потерянного отчёта берётся из очереди
   registerJobHandler({
     queue: 'maintenance',
     name: 'jobs.redispatch',
     concurrency: 1,
-    handle: async () => ({ redispatched: await JobService.redispatchStale(60) }),
+    handle: async () => ({ ...(await reconcileJobs()) }),
   })
 
   registerJobHandler({
@@ -125,6 +128,8 @@ export function registerMaintenanceJobs(): void {
     queue: 'maintenance',
     name: 'backup.run',
     concurrency: 1,
+    // Копия большой базы дольше предела очереди обслуживания
+    timeoutMs: 6 * 3600_000,
     handle: async () => {
       await BackupService.failStale()
       const record = await BackupService.run(null)
