@@ -4,7 +4,8 @@ import type { StoredFieldType } from '@kchs/contracts'
 import { sql } from 'drizzle-orm'
 import type { Executor } from '~/shared/db/client.js'
 import { rawSql } from '~/shared/db/client.js'
-import { errors } from '~/shared/errors.js'
+import { pgErrorCode } from '~/shared/db/pg-error.js'
+import { AppError, errors } from '~/shared/errors.js'
 
 /**
  * Физическое хранение датасетов (05-data-model.md §«Физические таблицы датасетов»).
@@ -36,6 +37,68 @@ export const columnName = (n: number) => `c_${n}`
 
 /** `ds."t_…"` — полное имя таблицы в схеме датасетов. */
 export const qualified = (table: string) => `ds.${ident(table)}`
+
+/** Сколько DDL таблицы датасета ждёт её блокировку (ADR-0173). */
+const DDL_LOCK_TIMEOUT = '5s'
+/** SQLSTATE: блокировку не дали за `lock_timeout`. */
+const LOCK_NOT_AVAILABLE = '55P03'
+const BUSY = 'dataset_busy'
+
+/** Таблица датасета занята долгим чтением или выгрузкой — правку стоит повторить. */
+export function isDatasetBusy(error: unknown): boolean {
+  return error instanceof AppError && error.details?.reason === BUSY
+}
+
+/**
+ * DDL таблиц датасета ждёт блокировку не дольше `DDL_LOCK_TIMEOUT`. Иначе правка
+ * схемы, ждущая конца долгого запроса, ставит за собой в очередь всех читателей
+ * таблицы — тайлы, запросы, грид, — и датасет встаёт целиком. Занята — 409
+ * «повторите позже». После DDL ожидание возвращается к значению сеанса: остальная
+ * транзакция (метаданные, событие) живёт как прежде.
+ */
+async function withLockLimit<T>(tx: Executor, run: () => Promise<T>): Promise<T> {
+  const [previous] = await tx.execute<{ value: string }>(
+    sql`SELECT current_setting('lock_timeout') AS value`,
+  )
+  await tx.execute(sql`SELECT set_config('lock_timeout', ${DDL_LOCK_TIMEOUT}, true)`)
+  let result: T
+  try {
+    result = await run()
+  } catch (error) {
+    if (pgErrorCode(error) === LOCK_NOT_AVAILABLE) {
+      throw new AppError(
+        'conflict',
+        'Датасет сейчас занят: идёт долгое чтение или выгрузка. Повторите через несколько секунд',
+        409,
+        { details: { reason: BUSY }, cause: error },
+      )
+    }
+    throw error
+  }
+  await tx.execute(sql`SELECT set_config('lock_timeout', ${previous?.value ?? '0'}, true)`)
+  return result
+}
+
+/**
+ * Повтор действия, которому мешает занятая таблица датасета: фоновая подмена
+ * таблицы при импорте не должна падать из-за того, что кто-то в это время читал.
+ * Остальные ошибки — сразу.
+ */
+export async function retryWhileBusy<T>(
+  run: () => Promise<T>,
+  options: { attempts?: number; pauseMs?: number; sleep?: (ms: number) => Promise<void> } = {},
+): Promise<T> {
+  const attempts = options.attempts ?? 3
+  const sleep = options.sleep ?? ((ms: number) => new Promise((done) => setTimeout(done, ms)))
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await run()
+    } catch (error) {
+      if (!isDatasetBusy(error) || attempt >= attempts) throw error
+      await sleep((options.pauseMs ?? 2_000) * attempt)
+    }
+  }
+}
 
 /** Тип поля → тип столбца Postgres (05-data-model.md «Типы полей → столбцы»). */
 export function columnType(type: StoredFieldType, precision?: number): string {
@@ -300,29 +363,31 @@ export const Physical = {
   /** Таблица истории строк `ds.h_*` — при создании датасета или включении истории. */
   async ensureHistory(tx: Executor, datasetId: string): Promise<void> {
     const history = historyName(datasetId)
-    await tx.execute(
-      sql.raw(`CREATE TABLE IF NOT EXISTS ${qualified(history)} (
-        id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-        row_id bigint NOT NULL,
-        ver integer NOT NULL,
-        op char(1) NOT NULL,
-        data jsonb,
-        changed_by uuid,
-        changed_at timestamptz NOT NULL DEFAULT now(),
-        dataset_version integer
-      )`),
-    )
-    await tx.execute(
-      sql.raw(
-        `CREATE INDEX IF NOT EXISTS ${ident(`${history}_row_idx`)} ON ${qualified(history)} (row_id, id)`,
-      ),
-    )
-    await tx.execute(
-      sql.raw(
-        `CREATE INDEX IF NOT EXISTS ${ident(`${history}_version_idx`)} ON ${qualified(history)} (dataset_version)`,
-      ),
-    )
-    await Physical.revokeQuery(tx, history)
+    await withLockLimit(tx, async () => {
+      await tx.execute(
+        sql.raw(`CREATE TABLE IF NOT EXISTS ${qualified(history)} (
+          id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+          row_id bigint NOT NULL,
+          ver integer NOT NULL,
+          op char(1) NOT NULL,
+          data jsonb,
+          changed_by uuid,
+          changed_at timestamptz NOT NULL DEFAULT now(),
+          dataset_version integer
+        )`),
+      )
+      await tx.execute(
+        sql.raw(
+          `CREATE INDEX IF NOT EXISTS ${ident(`${history}_row_idx`)} ON ${qualified(history)} (row_id, id)`,
+        ),
+      )
+      await tx.execute(
+        sql.raw(
+          `CREATE INDEX IF NOT EXISTS ${ident(`${history}_version_idx`)} ON ${qualified(history)} (dataset_version)`,
+        ),
+      )
+      await Physical.revokeQuery(tx, history)
+    })
   },
 
   /**
@@ -390,23 +455,27 @@ export const Physical = {
   },
 
   async addColumn(tx: Executor, table: string, column: PhysicalColumn): Promise<void> {
-    await tx.execute(
-      sql.raw(`ALTER TABLE ${qualified(table)} ADD COLUMN ${columnDefs([column])[0]}`),
-    )
-    const statement = indexStatement(table, column)
-    if (statement) await tx.execute(sql.raw(statement))
+    await withLockLimit(tx, async () => {
+      await tx.execute(
+        sql.raw(`ALTER TABLE ${qualified(table)} ADD COLUMN ${columnDefs([column])[0]}`),
+      )
+      const statement = indexStatement(table, column)
+      if (statement) await tx.execute(sql.raw(statement))
+    })
   },
 
   // ─── Правка схемы (ADR-0047) ──────────────────────────────────────────────
 
   async dropColumn(tx: Executor, table: string, column: string): Promise<void> {
-    await tx.execute(sql.raw(`ALTER TABLE ${qualified(table)} DROP COLUMN ${ident(column)}`))
+    await withLockLimit(tx, async () => {
+      await tx.execute(sql.raw(`ALTER TABLE ${qualified(table)} DROP COLUMN ${ident(column)}`))
+    })
   },
 
   /** Индекс поля с `indexed` (для геометрии GIST создаётся всегда). */
   async createColumnIndex(tx: Executor, table: string, column: PhysicalColumn): Promise<void> {
     const statement = indexStatement(table, { ...column, indexed: true })
-    if (statement) await tx.execute(sql.raw(statement))
+    if (statement) await withLockLimit(tx, () => tx.execute(sql.raw(statement)))
   },
 
   /**
@@ -424,7 +493,10 @@ export const Physical = {
            WHERE n.nspname = 'ds' AND t.relname = ${table} AND a.attname = ${column}
              AND x.indnatts = 1 AND NOT x.indisunique AND NOT x.indisprimary`,
     )
-    for (const row of rows) await tx.execute(sql.raw(`DROP INDEX ds.${ident(row.name)}`))
+    if (rows.length === 0) return
+    await withLockLimit(tx, async () => {
+      for (const row of rows) await tx.execute(sql.raw(`DROP INDEX ds.${ident(row.name)}`))
+    })
   },
 
   /** Групп живых строк с одинаковым ключом (удалённые ключ не держат, ADR-0160). */
@@ -450,8 +522,10 @@ export const Physical = {
            WHERE n.nspname = 'ds' AND t.relname = ${table}
              AND x.indisunique AND NOT x.indisprimary`,
     )
-    for (const row of rows) await tx.execute(sql.raw(`DROP INDEX ds.${ident(row.name)}`))
-    if (keyColumns.length > 0) await tx.execute(sql.raw(keyIndexStatement(table, keyColumns)))
+    await withLockLimit(tx, async () => {
+      for (const row of rows) await tx.execute(sql.raw(`DROP INDEX ds.${ident(row.name)}`))
+      if (keyColumns.length > 0) await tx.execute(sql.raw(keyIndexStatement(table, keyColumns)))
+    })
   },
 
   /** Сколько непустых значений не приводится к новому типу, и примеры. */
@@ -487,17 +561,23 @@ export const Physical = {
     precision: number | undefined,
     cast: CastExpression,
   ): Promise<void> {
-    await tx.execute(
-      sql.raw(
-        `ALTER TABLE ${qualified(table)} ALTER COLUMN ${ident(column)} TYPE ${columnType(type, precision)} USING ${cast.expression}`,
+    // Ограничено только ожидание блокировки: сама перезапись крупной таблицы
+    // держит её всё время смены типа (ADR-0173)
+    await withLockLimit(tx, () =>
+      tx.execute(
+        sql.raw(
+          `ALTER TABLE ${qualified(table)} ALTER COLUMN ${ident(column)} TYPE ${columnType(type, precision)} USING ${cast.expression}`,
+        ),
       ),
     )
   },
 
   /** Удаление физических таблиц — при окончательном удалении датасета. */
   async dropTables(tx: Executor, datasetId: string): Promise<void> {
-    await tx.execute(sql.raw(`DROP TABLE IF EXISTS ${qualified(tableName(datasetId))}`))
-    await tx.execute(sql.raw(`DROP TABLE IF EXISTS ${qualified(historyName(datasetId))}`))
+    await withLockLimit(tx, async () => {
+      await tx.execute(sql.raw(`DROP TABLE IF EXISTS ${qualified(tableName(datasetId))}`))
+      await tx.execute(sql.raw(`DROP TABLE IF EXISTS ${qualified(historyName(datasetId))}`))
+    })
   },
 
   // ─── Импорт: staging и коммит (ADR-0046) ────────────────────────────────────
@@ -606,8 +686,10 @@ export const Physical = {
   /** Подмена таблиц в транзакции коммита: старая уходит, новая получает имя и права. */
   async swapReplacement(tx: Executor, datasetId: string): Promise<void> {
     const table = tableName(datasetId)
-    await tx.execute(sql.raw(`DROP TABLE ${qualified(table)}`))
-    await tx.execute(sql.raw(`ALTER TABLE ${qualified(`${table}_n`)} RENAME TO ${ident(table)}`))
+    await withLockLimit(tx, async () => {
+      await tx.execute(sql.raw(`DROP TABLE ${qualified(table)}`))
+      await tx.execute(sql.raw(`ALTER TABLE ${qualified(`${table}_n`)} RENAME TO ${ident(table)}`))
+    })
     await Physical.grantRead(tx, table)
   },
 

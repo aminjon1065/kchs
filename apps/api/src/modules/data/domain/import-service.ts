@@ -27,7 +27,7 @@ import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { logger } from '~/shared/logger/index.js'
 import { postEngine } from '../infra/engine.js'
-import { Physical } from '../infra/physical.js'
+import { Physical, retryWhileBusy } from '../infra/physical.js'
 import type { DatasetGrant } from './dataset-access.js'
 import { DatasetService, type DatasetStorage, defaultSemantic } from './dataset-service.js'
 
@@ -669,94 +669,98 @@ export const ImportService = {
       signal?.throwIfAborted()
       await progress(0.8, 'Применение изменений')
 
-      const version = await db().transaction(async (tx) => {
-        if (row.mode === 'replace') {
-          await Physical.swapReplacement(tx, row.datasetId)
-        } else if (row.mode === 'append') {
-          counts.inserted = await Physical.append(
-            tx,
-            storage.table,
-            staging,
-            physical,
-            importId,
-            userId,
-          )
-        } else {
-          const result = await Physical.upsert(
-            tx,
-            storage.table,
-            staging,
-            physical,
-            keyColumns,
-            importId,
-            userId,
-          )
-          counts.inserted = result.inserted
-          counts.updated = result.updated
-          if (row.mode === 'sync') {
-            counts.deleted = await Physical.markMissingDeleted(
+      // Подмена таблицы ждёт блокировку недолго (ADR-0173): если её держит долгое
+      // чтение, транзакция повторяется, а не ставит всех читателей в очередь
+      const version = await retryWhileBusy(() =>
+        db().transaction(async (tx) => {
+          if (row.mode === 'replace') {
+            await Physical.swapReplacement(tx, row.datasetId)
+          } else if (row.mode === 'append') {
+            counts.inserted = await Physical.append(
               tx,
               storage.table,
               staging,
-              keyColumns,
+              physical,
+              importId,
               userId,
             )
+          } else {
+            const result = await Physical.upsert(
+              tx,
+              storage.table,
+              staging,
+              physical,
+              keyColumns,
+              importId,
+              userId,
+            )
+            counts.inserted = result.inserted
+            counts.updated = result.updated
+            if (row.mode === 'sync') {
+              counts.deleted = await Physical.markMissingDeleted(
+                tx,
+                storage.table,
+                staging,
+                keyColumns,
+                userId,
+              )
+            }
           }
-        }
-        const rowCount = await Physical.countRows(tx, storage.table)
-        if (row.mode === 'replace') {
-          counts.inserted = rowCount
-          counts.deleted = before?.rows ?? 0
-        }
-        const stats = {
-          ...(row.stats as Record<string, number>),
-          ...counts,
-          errors: ((row.stats as Record<string, number>).errors ?? 0) + duplicates.length,
-        }
-        const number = await DatasetService.bumpVersion(tx, ctx, {
-          datasetId: row.datasetId,
-          origin: 'import',
-          rowCount,
-          diff: { added: counts.inserted, updated: counts.updated, deleted: counts.deleted },
-          importId,
-        })
-        const sample = [
-          ...(row.errorSample as Record<string, unknown>[]),
-          ...duplicates.map((rowNumber) => ({
-            row: rowNumber,
-            column: storage.primaryKey.join(', '),
-            value: null,
-            reason: 'duplicate_key',
-          })),
-        ].slice(0, ERROR_SAMPLE_LIMIT)
-        await tx
-          .update(imports)
-          .set({
-            status: 'succeeded',
-            stats,
-            errorSample: sample,
-            version: number,
-            finishedAt: sql`now()`,
-          })
-          .where(eq(imports.id, importId))
-        // Последняя точка перед фиксацией: отмена откатывает всю загрузку
-        signal?.throwIfAborted()
-        await publishEvent(tx, ctx, {
-          type: 'dataset.imported',
-          object: await objectMeta(tx, row.datasetId),
-          payload: {
+          const rowCount = await Physical.countRows(tx, storage.table)
+          if (row.mode === 'replace') {
+            counts.inserted = rowCount
+            counts.deleted = before?.rows ?? 0
+          }
+          const stats = {
+            ...(row.stats as Record<string, number>),
+            ...counts,
+            errors: ((row.stats as Record<string, number>).errors ?? 0) + duplicates.length,
+          }
+          const number = await DatasetService.bumpVersion(tx, ctx, {
+            datasetId: row.datasetId,
+            origin: 'import',
+            rowCount,
+            diff: { added: counts.inserted, updated: counts.updated, deleted: counts.deleted },
             importId,
-            version: number,
-            mode: row.mode,
-            rows: (row.stats as Record<string, number>).rows ?? 0,
-            inserted: counts.inserted,
-            updated: counts.updated,
-            deleted: counts.deleted,
-            errors: stats.errors,
-          },
-        })
-        return number
-      })
+          })
+          const sample = [
+            ...(row.errorSample as Record<string, unknown>[]),
+            ...duplicates.map((rowNumber) => ({
+              row: rowNumber,
+              column: storage.primaryKey.join(', '),
+              value: null,
+              reason: 'duplicate_key',
+            })),
+          ].slice(0, ERROR_SAMPLE_LIMIT)
+          await tx
+            .update(imports)
+            .set({
+              status: 'succeeded',
+              stats,
+              errorSample: sample,
+              version: number,
+              finishedAt: sql`now()`,
+            })
+            .where(eq(imports.id, importId))
+          // Последняя точка перед фиксацией: отмена откатывает всю загрузку
+          signal?.throwIfAborted()
+          await publishEvent(tx, ctx, {
+            type: 'dataset.imported',
+            object: await objectMeta(tx, row.datasetId),
+            payload: {
+              importId,
+              version: number,
+              mode: row.mode,
+              rows: (row.stats as Record<string, number>).rows ?? 0,
+              inserted: counts.inserted,
+              updated: counts.updated,
+              deleted: counts.deleted,
+              errors: stats.errors,
+            },
+          })
+          return number
+        }),
+      )
       replacement = false
       await Physical.analyze(storage.table)
       await deleteObject(row.normalizedKey, buckets.files()).catch(() => undefined)

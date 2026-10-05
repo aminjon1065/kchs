@@ -452,3 +452,55 @@ describe('настройки датасета', () => {
     expect(index.statusCode).toBe(409)
   })
 })
+
+describe('занятая таблица датасета (ADR-0173)', () => {
+  it('правка схемы не ждёт долгое чтение без конца: 409, читатели не встают в очередь', async () => {
+    const { rawSql } = await import('../src/shared/db/client.js')
+    const id = await createDataset('Занятая таблица')
+    const { table } = await physicalOf(id)
+
+    // Долгое чтение держит таблицу, пока его не отпустят
+    let locked!: () => void
+    let release!: () => void
+    const holding = new Promise<void>((resolve) => {
+      locked = resolve
+    })
+    const released = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const reader = rawSql().begin(async (tx) => {
+      await tx.unsafe(`SELECT count(*) FROM ds."${table}"`)
+      locked()
+      await released
+    })
+    try {
+      await holding
+      const started = Date.now()
+      const busy = await call(fx.app, {
+        method: 'POST',
+        url: `/datasets/${id}/fields`,
+        as: fx.admin,
+        payload: { key: 'note', label: { ru: 'Заметка' }, type: 'text' },
+      })
+      expect(busy.statusCode, busy.body).toBe(409)
+      expect(busy.json().detail).toMatch(/занят/)
+      expect(Date.now() - started).toBeLessThan(15_000)
+
+      // Правка больше не ждёт в очереди блокировок: чтение идёт сразу
+      const read = Date.now()
+      await db().execute(sql.raw(`SELECT count(*) FROM ds."${table}"`))
+      expect(Date.now() - read).toBeLessThan(2_000)
+    } finally {
+      release()
+      await reader
+    }
+
+    const added = await call(fx.app, {
+      method: 'POST',
+      url: `/datasets/${id}/fields`,
+      as: fx.admin,
+      payload: { key: 'note', label: { ru: 'Заметка' }, type: 'text' },
+    })
+    expect(added.statusCode, added.body).toBe(200)
+  })
+})
