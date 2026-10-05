@@ -69,6 +69,7 @@ import { alias } from 'drizzle-orm/pg-core'
 import { z } from 'zod'
 import { authorize } from '~/kernel/access/authorize.js'
 import { registerSubscriber } from '~/kernel/events/bus.js'
+import { closedReason, jobClosedSubscriber } from '~/kernel/jobs/outcomes.js'
 import { registerJobHandler } from '~/kernel/jobs/runner.js'
 import { JobService } from '~/kernel/jobs/service.js'
 import { registerNotificationCategory } from '~/kernel/notifications/service.js'
@@ -1248,7 +1249,7 @@ export function registerDataBackground(): void {
   // Итог сборки копии: движок сообщает его результатом задания (ADR-0035)
   registerSubscriber({
     name: 'data-columnar-job',
-    types: ['job.finished', 'job.failed'],
+    types: ['job.finished', 'job.failed', 'job.cancelled'],
     handle: async (event) => {
       const jobId = String(event.payload.jobId ?? '')
       if (!jobId) return
@@ -1256,10 +1257,10 @@ export function registerDataBackground(): void {
       if (job?.queue !== COLUMNAR_BUILD_JOB.queue || job.name !== COLUMNAR_BUILD_JOB.name) return
       const payload = (await JobService.payload(jobId)) as { datasetId?: string } | null
       if (!payload?.datasetId) return
-      if (event.type === 'job.failed') {
+      if (event.type !== 'job.finished') {
         await ColumnarService.markFailed(
           payload.datasetId,
-          String(event.payload.error ?? 'Сбой сборки колоночной копии'),
+          closedReason(event, 'Сбой сборки колоночной копии'),
         )
         return
       }
@@ -1275,26 +1276,16 @@ export function registerDataBackground(): void {
 
   // Отменённое задание импорта (ADR-0172) закрывает импорт так же, как сбой:
   // иначе он навсегда остался бы «загружается»
-  registerSubscriber({
-    name: 'data-import-failed',
-    types: ['job.failed', 'job.cancelled'],
-    handle: async (event) => {
-      const job = await JobService.get(event.payload.jobId as string)
-      if (!job) return
-      const isImportJob = [NORMALIZE_JOB, COMPARE_JOB, LOAD_JOB].some(
-        (kind) => job.queue === kind.queue && job.name === kind.name,
-      )
-      if (!isImportJob) return
-      const payload = (await JobService.payload(job.id)) as { importId?: string } | null
-      if (!payload?.importId) return
-      await ImportService.markFailed(
-        payload.importId,
-        event.type === 'job.cancelled'
-          ? 'Задание отменено'
-          : String(event.payload.error ?? 'Сбой задания'),
-      )
-    },
-  })
+  registerSubscriber(
+    jobClosedSubscriber({
+      name: 'data-import-failed',
+      jobs: [NORMALIZE_JOB, COMPARE_JOB, LOAD_JOB],
+      onClosed: async ({ payload, reason }) => {
+        const importId = typeof payload?.importId === 'string' ? payload.importId : null
+        if (importId) await ImportService.markFailed(importId, reason)
+      },
+    }),
+  )
 }
 
 /** Расписания пайплайнов и внешних источников при старте воркера (ADR-0106, ADR-0107). */

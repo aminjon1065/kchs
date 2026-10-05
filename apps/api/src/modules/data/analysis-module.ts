@@ -9,8 +9,8 @@ import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { authorize } from '~/kernel/access/authorize.js'
 import { registerSubscriber } from '~/kernel/events/bus.js'
+import { jobClosedSubscriber } from '~/kernel/jobs/outcomes.js'
 import { registerJobHandler } from '~/kernel/jobs/runner.js'
-import { JobService } from '~/kernel/jobs/service.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { db } from '~/shared/db/client.js'
@@ -127,19 +127,14 @@ export function registerAnalysisBackground(): void {
     handle: async (job, helpers) => AnalysisService.execute(job.data as AnalysisJobData, helpers),
   })
 
-  registerSubscriber({
-    name: 'data-analysis-failed',
-    types: ['job.failed'],
-    handle: async (event) => {
-      const job = await JobService.get(event.payload.jobId as string)
-      if (!job?.objectId || job.queue !== ANALYSIS_JOB.queue || job.name !== ANALYSIS_JOB.name) {
-        return
-      }
-      await AnalysisService.markFailed(
-        job.objectId,
-        job.id,
-        String(event.payload.error ?? 'Сбой задания'),
-      )
-    },
-  })
+  // Окончательный сбой или отмена задания: анализ не остаётся «выполняется» (ADR-0187)
+  registerSubscriber(
+    jobClosedSubscriber({
+      name: 'data-analysis-failed',
+      jobs: [ANALYSIS_JOB],
+      onClosed: async ({ job, reason }) => {
+        if (job.objectId) await AnalysisService.markFailed(job.objectId, job.id, reason)
+      },
+    }),
+  )
 }

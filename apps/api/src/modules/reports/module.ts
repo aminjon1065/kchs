@@ -20,8 +20,8 @@ import { registerSubscriber } from '~/kernel/events/bus.js'
 import { registerFeature } from '~/kernel/features/registry.js'
 import { registerInboxActionHandler } from '~/kernel/inbox/actions.js'
 import { InboxService } from '~/kernel/inbox/service.js'
+import { jobClosedSubscriber } from '~/kernel/jobs/outcomes.js'
 import { registerJobHandler } from '~/kernel/jobs/runner.js'
-import { JobService } from '~/kernel/jobs/service.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
 import { indexObject } from '~/kernel/search/index-service.js'
 import { db } from '~/shared/db/client.js'
@@ -319,20 +319,19 @@ export function registerReportsBackground(): void {
     },
   })
 
-  // Окончательный сбой задания рендера: запуск не должен навсегда остаться «идёт»
-  registerSubscriber({
-    name: 'reports-run-failed',
-    types: ['job.failed'],
-    handle: async (event) => {
-      const job = await JobService.get(event.payload.jobId as string)
-      if (job?.queue !== REPORT_RENDER_JOB.queue || job.name !== REPORT_RENDER_JOB.name) return
-      const payload = await JobService.payload(job.id)
-      const runId = typeof payload?.runId === 'string' ? payload.runId : null
-      if (!runId) return
-      const message = String(event.payload.error ?? 'Сбой рендера')
-      await db().transaction((tx) => ReportRuns.fail(tx, runId, message, false))
-    },
-  })
+  // Окончательный сбой или отмена задания рендера: запуск не должен навсегда
+  // остаться «идёт» (ADR-0187)
+  registerSubscriber(
+    jobClosedSubscriber({
+      name: 'reports-run-failed',
+      jobs: [REPORT_RENDER_JOB],
+      fallbackReason: 'Сбой рендера',
+      onClosed: async ({ payload, reason }) => {
+        const runId = typeof payload?.runId === 'string' ? payload.runId : null
+        if (runId) await db().transaction((tx) => ReportRuns.fail(tx, runId, reason, false))
+      },
+    }),
+  )
 
   // Планировщик рассылки следует за расписанием и за жизнью отчёта
   registerSubscriber({

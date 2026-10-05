@@ -1,6 +1,7 @@
 import { eq, sql } from 'drizzle-orm'
 import { registerSubscriber } from '~/kernel/events/bus.js'
 import { registerFeature } from '~/kernel/features/registry.js'
+import { jobClosedSubscriber } from '~/kernel/jobs/outcomes.js'
 import { registerJobHandler } from '~/kernel/jobs/runner.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
 import { objects } from '~/kernel/objects/schema.js'
@@ -8,7 +9,7 @@ import { declareSchedule, registerEntityScheduleProvider } from '~/kernel/schedu
 import { db } from '~/shared/db/client.js'
 import { logger } from '~/shared/logger/index.js'
 import { executeRun } from './domain/runner.js'
-import { RuleRuns } from './domain/runs.js'
+import { RULE_RUN_JOB, RuleRuns } from './domain/runs.js'
 import {
   fireScheduledRule,
   RULE_SCHEDULE_JOB,
@@ -108,6 +109,19 @@ export function registerAutomationObjectTypes(): void {
 /** Подписчики и обработчики заданий — только в роли worker. */
 export function registerAutomationBackground(): void {
   for (const subscriber of automationSubscribers()) registerSubscriber(subscriber)
+
+  // Сбой или отмена задания запуска: запуск не остаётся «выполняется» или «ждёт»
+  // навсегда (ADR-0187)
+  registerSubscriber(
+    jobClosedSubscriber({
+      name: 'automation-run-closed',
+      jobs: [RULE_RUN_JOB],
+      onClosed: async ({ payload, reason }) => {
+        const runId = typeof payload?.runId === 'string' ? payload.runId : null
+        if (runId) await RuleRuns.failOpen(runId, reason)
+      },
+    }),
+  )
 
   registerJobHandler({
     queue: 'automation',

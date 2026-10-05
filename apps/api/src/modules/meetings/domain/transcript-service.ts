@@ -316,6 +316,27 @@ export const TranscriptService = {
   },
 
   /**
+   * Задание расшифровки закрыто не успехом (сбой движка или отмена, ADR-0187):
+   * расшифровка, которая ещё ждёт, становится неудавшейся. Готовую не трогает.
+   */
+  async failPending(recordingId: string, reason: string): Promise<void> {
+    const [row] = await db()
+      .select({ status: recordings.transcriptStatus })
+      .from(recordings)
+      .where(eq(recordings.id, recordingId))
+      .limit(1)
+    if (row?.status !== 'queued' && row?.status !== 'running') return
+    await TranscriptService.save(recordingId, {
+      status: 'failed',
+      language: null,
+      model: null,
+      durationSeconds: null,
+      segments: [],
+      error: reason.slice(0, 2000),
+    })
+  },
+
+  /**
    * Текст последней готовой расшифровки встречи — источник для черновика
    * протокола (ADR-0093). Права здесь не проверяются: порт зовёт черновик уже
    * после `authorize()` на протоколе, а протокол и запись видит один круг —

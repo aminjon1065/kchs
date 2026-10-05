@@ -1,8 +1,9 @@
-import type { EventEnvelope } from '@kchs/contracts'
+import { DocumentPdfResult, type EventEnvelope } from '@kchs/contracts'
 import type { Subscriber } from '~/kernel/events/types.js'
-import { JobService } from '~/kernel/jobs/service.js'
+import { jobClosedSubscriber } from '~/kernel/jobs/outcomes.js'
 import { logger } from '~/shared/logger/index.js'
 import { DocumentRenders, RENDER_JOB } from './render-service.js'
+import { DocumentVersionService, PDF_JOB } from './version-service.js'
 
 /**
  * Штамп регистрации ставится сам (ADR-0085): при регистрации, а если PDF
@@ -15,21 +16,35 @@ async function stamp(event: EventEnvelope): Promise<void> {
   if (id) logger().info({ documentId: event.object.id, renderId: id }, 'штамп регистрации заказан')
 }
 
-/** Окончательный сбой задания движка: рендер не остаётся «в работе» навсегда. */
-async function jobFailed(event: EventEnvelope): Promise<void> {
-  const job = await JobService.get(String(event.payload.jobId))
-  if (job?.queue !== RENDER_JOB.queue || job.name !== RENDER_JOB.name) return
-  const payload = await JobService.payload(job.id)
-  const renderId = typeof payload?.renderId === 'string' ? payload.renderId : null
-  if (!renderId) return
-  await DocumentRenders.failById(renderId, String(event.payload.error ?? 'Сбой движка'))
-}
-
 export const renderSubscribers: Subscriber[] = [
   {
     name: 'documents-stamp',
     types: ['document.registered', 'document.version_pdf_ready'],
     handle: stamp,
   },
-  { name: 'documents-render-failed', types: ['job.failed'], handle: jobFailed },
+  // Окончательный сбой или отмена задания движка: рендер не остаётся «в работе»
+  // навсегда (ADR-0187)
+  jobClosedSubscriber({
+    name: 'documents-render-failed',
+    jobs: [RENDER_JOB],
+    fallbackReason: 'Сбой движка',
+    onClosed: async ({ payload, reason }) => {
+      const renderId = typeof payload?.renderId === 'string' ? payload.renderId : null
+      if (renderId) await DocumentRenders.failById(renderId, reason)
+    },
+  }),
+  // PDF-представление версии — так же: иначе версия навсегда «PDF готовится»
+  jobClosedSubscriber({
+    name: 'documents-pdf-failed',
+    jobs: [PDF_JOB],
+    fallbackReason: 'Сбой движка',
+    onClosed: async ({ payload, reason }) => {
+      const versionId = typeof payload?.versionId === 'string' ? payload.versionId : null
+      if (!versionId) return
+      await DocumentVersionService.applyPdfResult(
+        versionId,
+        DocumentPdfResult.parse({ status: 'failed', error: reason.slice(0, 4000) }),
+      )
+    },
+  }),
 ]

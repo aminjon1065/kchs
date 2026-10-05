@@ -14,8 +14,8 @@ import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { authorize } from '~/kernel/access/authorize.js'
 import { registerSubscriber } from '~/kernel/events/bus.js'
+import { jobClosedSubscriber } from '~/kernel/jobs/outcomes.js'
 import { registerJobHandler } from '~/kernel/jobs/runner.js'
-import { JobService } from '~/kernel/jobs/service.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { registerEntityScheduleProvider } from '~/kernel/schedules/index.js'
@@ -214,21 +214,16 @@ export function registerPipelineBackground(): void {
     },
   })
 
-  registerSubscriber({
-    name: 'data-pipeline-failed',
-    types: ['job.failed'],
-    handle: async (event) => {
-      const job = await JobService.get(event.payload.jobId as string)
-      if (!job?.objectId || job.queue !== PIPELINE_JOB.queue || job.name !== PIPELINE_JOB.name) {
-        return
-      }
-      await PipelineService.markFailed(
-        job.objectId,
-        job.id,
-        String(event.payload.error ?? 'Сбой задания'),
-      )
-    },
-  })
+  // Окончательный сбой или отмена прогона: пайплайн не остаётся «выполняется» (ADR-0187)
+  registerSubscriber(
+    jobClosedSubscriber({
+      name: 'data-pipeline-failed',
+      jobs: [PIPELINE_JOB],
+      onClosed: async ({ job, reason }) => {
+        if (job.objectId) await PipelineService.markFailed(job.objectId, job.id, reason)
+      },
+    }),
+  )
 
   // Пайплайн по событию импорта входного датасета (06-analytics-engine.md §16)
   registerSubscriber({

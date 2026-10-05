@@ -1,9 +1,10 @@
-import type { ObjectSummary } from '@kchs/contracts'
+import { type ObjectSummary, TRANSCRIBE_JOB } from '@kchs/contracts'
 import { inArray } from 'drizzle-orm'
 import { registerCollabType } from '~/kernel/collab/registry.js'
 import { registerSubscriber } from '~/kernel/events/bus.js'
 import { registerFeature } from '~/kernel/features/registry.js'
 import { registerInboxKind } from '~/kernel/inbox/actions.js'
+import { jobClosedSubscriber } from '~/kernel/jobs/outcomes.js'
 import { registerJobHandler } from '~/kernel/jobs/runner.js'
 import { registerNotificationCategory } from '~/kernel/notifications/service.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
@@ -224,6 +225,20 @@ function registerProtocolType(): void {
 export function registerMeetingsBackground(): void {
   registerMeetingRealtime()
   for (const subscriber of protocolSubscribers) registerSubscriber(subscriber)
+
+  // Сбой или отмена задания расшифровки: запись не остаётся «расшифровка
+  // готовится» навсегда (ADR-0187)
+  registerSubscriber(
+    jobClosedSubscriber({
+      name: 'meetings-transcribe-failed',
+      jobs: [TRANSCRIBE_JOB],
+      onClosed: async ({ job, payload, reason }) => {
+        const recordingId =
+          typeof payload?.recordingId === 'string' ? payload.recordingId : job.objectId
+        if (recordingId) await TranscriptService.failPending(recordingId, reason)
+      },
+    }),
+  )
 
   registerJobHandler({
     queue: 'maintenance',

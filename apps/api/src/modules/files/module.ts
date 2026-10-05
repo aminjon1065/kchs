@@ -19,8 +19,8 @@ import { recordModuleActivity } from '~/kernel/activity/service.js'
 import { registerAuditActions } from '~/kernel/audit/registry.js'
 import { audit } from '~/kernel/audit/service.js'
 import { registerSubscriber } from '~/kernel/events/bus.js'
+import { jobClosedSubscriber } from '~/kernel/jobs/outcomes.js'
 import { registerJobHandler } from '~/kernel/jobs/runner.js'
-import { JobService } from '~/kernel/jobs/service.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { declareSchedule } from '~/kernel/schedules/index.js'
@@ -32,7 +32,7 @@ import { AttachmentsFolder } from './domain/attachments.js'
 import { FILES_AUDIT } from './domain/audit-actions.js'
 import { FileService } from './domain/file-service.js'
 import { OfficeService } from './domain/office-service.js'
-import { FileProcessing } from './domain/processing.js'
+import { FILE_PROCESS_JOB, FileProcessing } from './domain/processing.js'
 import { authorizeUploadTarget } from './domain/upload-access.js'
 import { originalAllowed, watermarkLevel, watermarkLines } from './domain/watermark.js'
 import { registerOfficePages, registerOfficeRoutes } from './http/office-routes.js'
@@ -452,19 +452,21 @@ export function registerFilesBackground(): void {
     },
   })
 
-  // Окончательный сбой движка: файл не должен навсегда оставаться «в очереди»
-  registerSubscriber({
-    name: 'files-processing-failed',
-    types: ['job.failed'],
-    handle: async (event) => {
-      const job = await JobService.get(event.payload.jobId as string)
-      if (job?.name !== 'file.process' || !job.objectId) return
-      await db()
-        .update(files)
-        .set({ previewStatus: 'failed', textStatus: 'failed' })
-        .where(eq(files.id, job.objectId))
-    },
-  })
+  // Окончательный сбой или отмена задания движка: файл не должен навсегда
+  // оставаться «в очереди» (ADR-0187)
+  registerSubscriber(
+    jobClosedSubscriber({
+      name: 'files-processing-failed',
+      jobs: [FILE_PROCESS_JOB],
+      onClosed: async ({ job }) => {
+        if (!job.objectId) return
+        await db()
+          .update(files)
+          .set({ previewStatus: 'failed', textStatus: 'failed' })
+          .where(eq(files.id, job.objectId))
+      },
+    }),
+  )
 }
 
 export function declareFilesSchedules(): void {

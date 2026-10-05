@@ -27,6 +27,9 @@ interface ProcessTarget {
   name: string
 }
 
+/** Задание движка: превью и текст версии файла. */
+export const FILE_PROCESS_JOB = { queue: 'render', name: 'file.process' } as const
+
 /**
  * Превью и текст файла (09-files.md §3–4): задание движка `render:file.process`
  * ставится в транзакции версии, результат движок сообщает внутренним маршрутом.
@@ -34,8 +37,7 @@ interface ProcessTarget {
 export const FileProcessing = {
   async schedule(tx: Executor, ctx: Ctx, target: ProcessTarget): Promise<string> {
     return JobService.schedule(tx, ctx, {
-      queue: 'render',
-      name: 'file.process',
+      ...FILE_PROCESS_JOB,
       objectId: target.fileId,
       idempotencyKey: `file.process:${target.versionId}`,
       callbackScope: `file:${target.fileId}`,

@@ -138,6 +138,20 @@ export const RuleRuns = {
   },
 
   /**
+   * Задание запуска закрыто не успехом (сбой или отмена, ADR-0187): открытый
+   * запуск — ждёт, выполняется или ждёт продолжения — становится неудавшимся.
+   * Завершённый не трогает.
+   */
+  async failOpen(runId: string, reason: string): Promise<void> {
+    await db()
+      .update(ruleRuns)
+      .set({ status: 'failed', error: reason.slice(0, 2000), finishedAt: sql`now()` })
+      .where(
+        and(eq(ruleRuns.id, runId), inArray(ruleRuns.status, ['queued', 'running', 'waiting'])),
+      )
+  },
+
+  /**
    * Пропуск запуска с причиной. Чтобы лимит не превращался в поток записей,
    * одинаковая причина фиксируется не чаще раза в минуту.
    */
