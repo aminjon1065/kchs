@@ -56,7 +56,23 @@ src/
 - Маршрут = `route(schema, handler)` с обязательным `auth`: `{action, objectParam}`, `{capability}`, `'public'`, `'session'` (без параметров пути) или, если в пути объект, а проверяет сервис, — `{delegated, objectType | resource}`, `{owned}`, `{open}` с причиной (ADR-0186); регистрация без `auth` или `'session'` с параметром пути падает на старте.
 - Сервисы принимают `ctx: UserCtx` первым аргументом; `SystemCtx` — только для worker/engine-заданий и явно логируется.
 - Репозитории — единственное место SQL модуля; кросс-модульные выборки для списков — через ядро (`objects`) и `public.ts`.
-- Таблица описана у владельца (ADR-0178, согласовано владельцем продукта 05.10.2026): область ядра — `kernel/<область>/schema.ts`, модуль — `modules/<модуль>/schema.ts`. Модуль импортирует только свою схему; из таблиц ядра напрямую — реестр объектов (`kernel/objects/schema.ts`) и, до переноса сервисов справочника в ядро, `kernel/directory/schema.ts`; схема модуля может ссылаться на чужую таблицу внешним ключом. Сборщик `src/db-schema.ts` — только для drizzle-kit, сида, CLI и тестов. Проверяет dependency-cruiser (`pnpm deps:check`, база известных нарушений — `.dependency-cruiser-known-violations.json`).
+- Таблица описана у владельца (ADR-0178, согласовано владельцем продукта 05.10.2026): область ядра — `kernel/<область>/schema.ts`, модуль — `modules/<модуль>/schema.ts`. Модуль импортирует только свою схему; схема модуля может ссылаться на чужую таблицу внешним ключом. Сборщик `src/db-schema.ts` — только для drizzle-kit, сида, CLI и тестов.
+- Таблицы ядра — только через его сервисы, порты и фрагменты SQL (ADR-0184):
+  - напрямую модуль читает лишь `objects`;
+  - не хватает чтения или записи — в ядро добавляется метод;
+  - исключение — identity: схема справочника и запись столбцов входа и связи с каталогом в `users` (ADR-0179).
+
+  В тексте SQL свои таблицы подставляются `${таблица}`, чужие по имени не называются.
+- Текст SQL как есть (`sql.raw`, `.unsafe`) — только в `modules/data/infra`, `shared/db`, `packages/query` и адаптере внешней СУБД `integrations/infra/database-source.ts` (ADR-0184):
+  - остальной код пишет шаблоны `sql` с параметрами и фрагментами этих слоёв: `tableSql`/`columnSql` модуля данных, `LinkSql`, `visibleObjectsSql`;
+  - текст компилятора выполняется через `readAsQueryRole`;
+  - имена экранирует один помощник — `quoteIdent` из `@kchs/query`;
+  - новое место — строкой исключения с причиной в `scripts/raw-sql.mjs` и ADR.
+- Проверки границ api — `pnpm deps:check`, база известных нарушений у api пуста (ADR-0184), любое нарушение роняет CI:
+  - dependency-cruiser — импорты и владение схемами;
+  - `scripts/module-cycles.mjs` — кольца модулей;
+  - `scripts/table-owners.mjs` — запись в таблицы ядра и чужие таблицы по имени;
+  - `scripts/raw-sql.mjs` — сырой SQL вне слоёв.
 - Транзакции — `db.transaction(async tx => …)`; `ObjectService`, `EventPublisher` принимают `tx`.
 
 ## `apps/web`
@@ -113,7 +129,12 @@ engine/
 
 - TypeScript strict, `noUncheckedIndexedAccess`; ESM; импорты через алиасы `@kchs/*`.
 - Именование: файлы `kebab-case.ts`, типы/классы `PascalCase`, функции/переменные `camelCase`, БД `snake_case`, события `domain.entity.verb`, i18n-ключи `module.screen.element`.
-- Biome для форматирования/линта; `dependency-cruiser` для границ (`modules/*` → только `kernel`, `shared`, `packages`, `modules/*/public`) и проверка колец между модулями `scripts/module-cycles.mjs` (ADR-0181, слои — `pnpm --filter @kchs/api deps:layers`); `knip` для мёртвого кода.
+- Biome для форматирования/линта; `dependency-cruiser` для границ (`modules/*` → только `kernel`, `shared`, `packages`, `modules/*/public`) и проверки api в `pnpm deps:check`:
+  - кольца между модулями — `scripts/module-cycles.mjs` (ADR-0181, слои — `pnpm --filter @kchs/api deps:layers`);
+  - таблицы у владельцев — `scripts/table-owners.mjs` (ADR-0184);
+  - сырой SQL — `scripts/raw-sql.mjs` (ADR-0184).
+
+  `knip` — для мёртвого кода.
 - Ошибки: классы `AppError(code, status, details)`; никаких `throw new Error('...')` в доменной логике.
 - Логи: pino, уровни, `requestId`; без персональных данных.
 - Тесты рядом с кодом (`__tests__`), интеграционные в `test/`, e2e в `apps/web/e2e`.
