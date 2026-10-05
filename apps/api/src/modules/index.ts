@@ -17,6 +17,7 @@ import {
   registerAlertRoutes,
   registerAlertsBackground,
 } from './alerts/module.js'
+import { registerAssistantRoutes } from './assistant/module.js'
 import {
   declareAutomationSchedules,
   registerAutomationBackground,
@@ -214,6 +215,7 @@ export async function registerModules(app: FastifyInstance, route: RouteRegistra
   registerTelegramRoutes(route)
   registerIntegrationsRoutes(route)
   registerAiRoutes(route)
+  registerAssistantRoutes(route)
   registerAutomationRoutes(route)
   registerFormRoutes(route)
   registerAlertRoutes(route)

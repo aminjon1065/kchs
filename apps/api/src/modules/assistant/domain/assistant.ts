@@ -15,6 +15,7 @@ import { objectType } from '~/kernel/objects/registry.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import { search, similar } from '~/kernel/search/index-service.js'
+import { AiService } from '~/modules/ai/public.js'
 import { AskData } from '~/modules/data/public.js'
 import { fileText } from '~/modules/files/public.js'
 import type { UserCtx } from '~/shared/context.js'
@@ -22,10 +23,11 @@ import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { assistantMessages, assistantThreads } from '../schema.js'
-import { AiService } from './service.js'
 
 /**
- * Ассистент в контекстной панели (13-search-knowledge-ai.md §5, ADR-0100):
+ * Ассистент в контекстной панели (13-search-knowledge-ai.md §5, ADR-0100) —
+ * отдельный модуль над данными и файлами (ADR-0181); модель он зовёт через шлюз
+ * `ai`, который сам ни от каких модулей не зависит:
  * модель решает, каким инструментом воспользоваться, сервер выполняет
  * инструмент правами пользователя и отдаёт результат модели обратно. Создание
  * объектов ассистент не выполняет — только предлагает.
