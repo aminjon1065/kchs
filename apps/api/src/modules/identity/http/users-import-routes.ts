@@ -1,16 +1,12 @@
-import { UsersImportParsed, UsersImportStartInput, UsersImportStatus } from '@kchs/contracts'
-import { z } from 'zod'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { UsersImport } from '../domain/users-import.js'
 
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-const ImportParam = z.object({ importId: z.uuid() })
 
 /** Импорт пользователей из Excel (P0-E04 S04, ADR-0041). */
 export function registerUsersImportRoutes(route: RouteRegistrar): void {
   route({
-    method: 'GET',
-    url: '/admin/users/import/template.xlsx',
+    route: 'GET /admin/users/import/template.xlsx',
     auth: { capability: 'users.manage' },
     tags: ['org'],
     summary: 'Шаблон XLSX: русские заголовки и справочники ролей, подразделений, должностей',
@@ -24,15 +20,10 @@ export function registerUsersImportRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/admin/users/import',
+    route: 'POST /admin/users/import',
     auth: { capability: 'users.manage' },
     tags: ['org'],
     summary: 'Проверить или импортировать пользователей из загруженного файла XLSX',
-    schema: {
-      body: UsersImportStartInput,
-      response: { 202: z.object({ importId: z.uuid() }) },
-    },
     handler: async (request, reply) => {
       const importId = await UsersImport.start(request.ctx, request.body)
       reply.code(202)
@@ -41,22 +32,18 @@ export function registerUsersImportRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/admin/users/import/:importId',
+    route: 'GET /admin/users/import/:importId',
     auth: { capability: 'users.manage' },
     tags: ['org'],
     summary: 'Ход импорта и отчёт по строкам',
-    schema: { params: ImportParam, response: { 200: UsersImportStatus } },
     handler: async (request) => UsersImport.status(request.ctx, request.params.importId),
   })
 
   route({
-    method: 'GET',
-    url: '/admin/users/import/:importId/report.csv',
+    route: 'GET /admin/users/import/:importId/report.csv',
     auth: { capability: 'users.manage' },
     tags: ['org'],
     summary: 'Отчёт импорта в CSV',
-    schema: { params: ImportParam },
     handler: async (request, reply) => {
       const csv = await UsersImport.reportCsv(request.ctx, request.params.importId)
       reply
@@ -67,12 +54,10 @@ export function registerUsersImportRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/admin/users/import/:importId/credentials.csv',
+    route: 'GET /admin/users/import/:importId/credentials.csv',
     auth: { capability: 'users.manage' },
     tags: ['org'],
     summary: 'Временные пароли созданных — один раз и только инициатору импорта',
-    schema: { params: ImportParam },
     handler: async (request, reply) => {
       const csv = await UsersImport.takeCredentials(request.ctx, request.params.importId)
       reply
@@ -84,17 +69,11 @@ export function registerUsersImportRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/internal/users-import/:importId/parsed',
+    route: 'POST /internal/users-import/:importId/parsed',
     // Идентификатор импорта — запись задания разбора (ADR-0041, ADR-0176)
     auth: { engineJob: { jobParam: 'importId' } },
     tags: ['internal'],
     summary: 'Движок передаёт строки файла импорта пользователей',
-    schema: {
-      params: ImportParam,
-      body: UsersImportParsed,
-      response: { 200: z.object({ applyJobId: z.uuid() }) },
-    },
     handler: async (request) => ({
       applyJobId: await UsersImport.acceptParsed(request.params.importId, request.body),
     }),

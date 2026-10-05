@@ -1,16 +1,7 @@
-import {
-  AcknowledgeInput,
-  AcknowledgmentRemindInput,
-  AcknowledgmentRemindResult,
-  ObjectAcknowledgments,
-} from '@kchs/contracts'
-import { z } from 'zod'
 import { db } from '~/shared/db/client.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { authorize } from '../access/authorize.js'
 import { Acknowledgments } from './service.js'
-
-const IdParam = z.object({ id: z.uuid() })
 
 /**
  * Ознакомление с объектом (08-documents.md §10, ADR-0084): список «кто
@@ -19,22 +10,18 @@ const IdParam = z.object({ id: z.uuid() })
  */
 export function registerAcknowledgmentRoutes(route: RouteRegistrar): void {
   route({
-    method: 'GET',
-    url: '/objects/:id/acknowledgments',
+    route: 'GET /objects/:id/acknowledgments',
     auth: { delegated: 'Acknowledgments.list', objectType: 'any' },
     tags: ['acknowledgments'],
     summary: 'Ознакомление с объектом: кто ознакомился, кто нет, запросы',
-    schema: { params: IdParam, response: { 200: ObjectAcknowledgments } },
     handler: async (request) => Acknowledgments.list(request.ctx, request.params.id),
   })
 
   route({
-    method: 'POST',
-    url: '/objects/:id/acknowledgments/acknowledge',
+    route: 'POST /objects/:id/acknowledgments/acknowledge',
     auth: { delegated: 'Acknowledgments.acknowledge', objectType: 'any' },
     tags: ['acknowledgments'],
     summary: 'Отметить «Ознакомлен» (с кодом второго фактора, если его требует запрос)',
-    schema: { params: IdParam, body: AcknowledgeInput, response: { 200: ObjectAcknowledgments } },
     handler: async (request) => {
       await db().transaction((tx) =>
         Acknowledgments.acknowledge(tx, request.ctx, request.params.id, request.body),
@@ -44,16 +31,10 @@ export function registerAcknowledgmentRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/objects/:id/acknowledgments/remind',
+    route: 'POST /objects/:id/acknowledgments/remind',
     auth: { delegated: 'authorize(request_acknowledgment)', objectType: 'any' },
     tags: ['acknowledgments'],
     summary: 'Напомнить не ознакомившимся (не чаще раза в час одному сотруднику)',
-    schema: {
-      params: IdParam,
-      body: AcknowledgmentRemindInput,
-      response: { 200: AcknowledgmentRemindResult },
-    },
     handler: async (request) => {
       await authorize(request.ctx, 'request_acknowledgment', request.params.id)
       const reminded = await db().transaction((tx) =>

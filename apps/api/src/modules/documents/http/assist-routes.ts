@@ -1,16 +1,5 @@
-import {
-  DocumentAssistStatus,
-  DocumentClassification,
-  DocumentExtraction,
-  DocumentReplyDraft,
-  DocumentReplyDraftInput,
-  DocumentSummaryDraft,
-} from '@kchs/contracts'
-import { z } from 'zod'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { DocumentAssistService } from '../domain/assist-service.js'
-
-const IdParam = z.object({ id: z.uuid() })
 
 /**
  * ИИ в документах (ADR-0088): состояние помощи, реквизиты из скана,
@@ -19,61 +8,47 @@ const IdParam = z.object({ id: z.uuid() })
  */
 export function registerDocumentAssistRoutes(route: RouteRegistrar): void {
   route({
-    method: 'GET',
-    url: '/documents/:id/assist',
+    route: 'GET /documents/:id/assist',
     auth: { delegated: 'DocumentAssistService.status', objectType: 'document' },
     tags: ['documents'],
     summary: 'Доступна ли помощь ИИ по документу и почему нет',
-    schema: { params: IdParam, response: { 200: DocumentAssistStatus } },
     handler: async (request) => DocumentAssistService.status(request.ctx, request.params.id),
   })
 
   route({
-    method: 'POST',
-    url: '/documents/:id/assist/extract',
+    route: 'POST /documents/:id/assist/extract',
     auth: { delegated: 'DocumentAssistService.extract', objectType: 'document' },
     tags: ['documents'],
     summary: 'Реквизиты из текста скана — предложения с уверенностью',
     readOnly: true,
-    schema: { params: IdParam, response: { 200: DocumentExtraction } },
     handler: async (request) => DocumentAssistService.extract(request.ctx, request.params.id),
   })
 
   route({
-    method: 'POST',
-    url: '/documents/:id/assist/classify',
+    route: 'POST /documents/:id/assist/classify',
     auth: { delegated: 'DocumentAssistService.classify', objectType: 'document' },
     tags: ['documents'],
     summary: 'Вид документа по тексту скана и похожие документы',
     description: 'Предложение с уверенностью и цитатой: вид выбирается из заведённых в установке.',
     readOnly: true,
-    schema: { params: IdParam, response: { 200: DocumentClassification } },
     handler: async (request) => DocumentAssistService.classify(request.ctx, request.params.id),
   })
 
   route({
-    method: 'POST',
-    url: '/documents/:id/assist/summary',
+    route: 'POST /documents/:id/assist/summary',
     auth: { delegated: 'DocumentAssistService.summary', objectType: 'document' },
     tags: ['documents'],
     summary: 'Краткое содержание документа',
     readOnly: true,
-    schema: { params: IdParam, response: { 200: DocumentSummaryDraft } },
     handler: async (request) => DocumentAssistService.summary(request.ctx, request.params.id),
   })
 
   route({
-    method: 'POST',
-    url: '/documents/:id/assist/reply',
+    route: 'POST /documents/:id/assist/reply',
     auth: { delegated: 'DocumentAssistService.reply', objectType: 'document' },
     tags: ['documents'],
     summary: 'Черновик ответа на входящее',
     readOnly: true,
-    schema: {
-      params: IdParam,
-      body: DocumentReplyDraftInput,
-      response: { 200: DocumentReplyDraft },
-    },
     handler: async (request) =>
       DocumentAssistService.reply(request.ctx, request.params.id, request.body),
   })

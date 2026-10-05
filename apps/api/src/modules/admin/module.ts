@@ -1,7 +1,5 @@
 import { Readable } from 'node:stream'
-import { AuditActionCatalog, AuditEntry, HealthReport } from '@kchs/contracts'
 import { sql } from 'drizzle-orm'
-import { z } from 'zod'
 import { auditActionCatalog } from '~/kernel/audit/registry.js'
 import { AUDIT_ACTIONS, audit, auditBatches, queryAudit } from '~/kernel/audit/service.js'
 import { directory } from '~/kernel/directory/port.js'
@@ -29,55 +27,26 @@ export function registerAdminRoutes(route: RouteRegistrar): void {
   registerBackupRoutes(route)
 
   route({
-    method: 'GET',
-    url: '/admin/audit',
+    route: 'GET /admin/audit',
     auth: { capability: 'admin.audit.read' },
     tags: ['admin'],
     summary: 'Журнал аудита',
-    schema: {
-      querystring: z.object({
-        actorId: z.uuid().optional(),
-        action: z.string().max(100).optional(),
-        objectId: z.uuid().optional(),
-        severity: z.enum(['info', 'notice', 'warning', 'critical']).optional(),
-        from: z.string().optional(),
-        to: z.string().optional(),
-        limit: z.coerce.number().int().min(1).max(200).default(50),
-        cursor: z.string().optional(),
-      }),
-      response: {
-        200: z.object({ items: z.array(AuditEntry), nextCursor: z.string().nullable() }),
-      },
-    },
     handler: async (request) => queryAudit(request.query),
   })
 
   route({
-    method: 'GET',
-    url: '/admin/audit/actions',
+    route: 'GET /admin/audit/actions',
     auth: { capability: 'admin.audit.read' },
     tags: ['admin'],
     summary: 'Каталог действий аудита: чьи они — ядра или модуля (ADR-0182)',
-    schema: { response: { 200: AuditActionCatalog } },
     handler: async () => ({ items: auditActionCatalog() }),
   })
 
   route({
-    method: 'GET',
-    url: '/admin/audit/export.csv',
+    route: 'GET /admin/audit/export.csv',
     auth: { capability: 'admin.audit.read' },
     tags: ['admin'],
     summary: 'Выгрузка журнала аудита в CSV',
-    schema: {
-      querystring: z.object({
-        actorId: z.uuid().optional(),
-        action: z.string().max(100).optional(),
-        objectId: z.uuid().optional(),
-        severity: z.enum(['info', 'notice', 'warning', 'critical']).optional(),
-        from: z.string().optional(),
-        to: z.string().optional(),
-      }),
-    },
     handler: async (request, reply) => {
       const query = request.query
       await audit(request.ctx, {
@@ -135,12 +104,10 @@ export function registerAdminRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/admin/health',
+    route: 'GET /admin/health',
     auth: { capability: 'admin.system' },
     tags: ['admin'],
     summary: 'Здоровье системы',
-    schema: { response: { 200: HealthReport } },
     handler: async () => {
       const components = await Promise.all([
         check('postgres', async () => {
@@ -193,23 +160,17 @@ export function registerAdminRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/admin/engine/echo',
+    route: 'POST /admin/engine/echo',
     auth: { capability: 'admin.system' },
     tags: ['admin'],
     summary: 'Проверка движка: задание уходит в очередь и возвращает результат',
-    schema: {
-      body: z.object({ message: z.string().max(200).default('ping') }),
-      response: { 200: z.object({ jobId: z.uuid() }) },
-    },
     handler: async (request) => ({
       jobId: await EngineJobs.echo(request.ctx, request.body.message),
     }),
   })
 
   route({
-    method: 'GET',
-    url: '/admin/jobs',
+    route: 'GET /admin/jobs',
     auth: { capability: 'admin.system' },
     tags: ['admin'],
     summary: 'Активные задания',

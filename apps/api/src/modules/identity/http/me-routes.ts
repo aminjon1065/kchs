@@ -1,6 +1,4 @@
-import { AdminModeInput, AdminModeState, MeResponse, ProfileUpdateInput } from '@kchs/contracts'
 import { and, eq, sql } from 'drizzle-orm'
-import { z } from 'zod'
 import { employments, orgUnits, positions } from '~/kernel/directory/schema.js'
 import { DelegationService, UserService } from '~/kernel/directory/service.js'
 import { FeatureService } from '~/kernel/features/service.js'
@@ -15,14 +13,12 @@ import { sessions } from '../schema.js'
 
 export function registerMeRoutes(route: RouteRegistrar): void {
   route({
-    method: 'GET',
-    url: '/me',
+    route: 'GET /me',
     auth: 'session',
     allowPendingPasswordChange: true,
     allowPendingMfaEnrollment: true,
     tags: ['me'],
     summary: 'Профиль, права и контекст текущего пользователя',
-    schema: { response: { 200: MeResponse } },
     handler: async (request) => {
       const ctx = request.ctx
       const [profile, delegations, mfaEnabled, preferences, features, hiddenScreens] =
@@ -97,12 +93,10 @@ export function registerMeRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'PATCH',
-    url: '/me',
+    route: 'PATCH /me',
     auth: 'session',
     tags: ['me'],
     summary: 'Изменить профиль',
-    schema: { body: ProfileUpdateInput, response: { 200: z.object({ ok: z.boolean() }) } },
     handler: async (request) => {
       // Профиль — данные справочника ядра: запись и событие `user.updated` (ADR-0184)
       await db().transaction((tx) =>
@@ -114,8 +108,7 @@ export function registerMeRoutes(route: RouteRegistrar): void {
 
   // ─── Пользовательские настройки и состояние рабочего пространства ─────────
   route({
-    method: 'GET',
-    url: '/me/preferences',
+    route: 'GET /me/preferences',
     auth: 'session',
     tags: ['me'],
     summary: 'Настройки интерфейса',
@@ -123,15 +116,10 @@ export function registerMeRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'PUT',
-    url: '/me/preferences',
+    route: 'PUT /me/preferences',
     auth: 'session',
     tags: ['me'],
     summary: 'Сохранить настройку интерфейса',
-    schema: {
-      body: z.object({ key: z.string().max(100), value: z.unknown() }),
-      response: { 200: z.object({ ok: z.boolean() }) },
-    },
     handler: async (request) => {
       await db().transaction((tx) =>
         request.body.value === null || request.body.value === undefined
@@ -151,8 +139,7 @@ export function registerMeRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/me/workspace-state',
+    route: 'GET /me/workspace-state',
     auth: 'session',
     tags: ['me'],
     summary: 'Сохранённое состояние вкладок и панелей',
@@ -167,15 +154,10 @@ export function registerMeRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'PUT',
-    url: '/me/workspace-state',
+    route: 'PUT /me/workspace-state',
     auth: 'session',
     tags: ['me'],
     summary: 'Сохранить состояние рабочего пространства',
-    schema: {
-      body: z.object({ state: z.unknown() }),
-      response: { 200: z.object({ ok: z.boolean() }) },
-    },
     handler: async (request) => {
       await db().transaction((tx) =>
         request.body.state === null || request.body.state === undefined
@@ -196,12 +178,10 @@ export function registerMeRoutes(route: RouteRegistrar): void {
 
   // ─── Режим администратора (ADR-0080) ───────────────────────────────────────
   route({
-    method: 'POST',
-    url: '/me/admin-mode',
+    route: 'POST /me/admin-mode',
     auth: { capability: 'admin.system' },
     tags: ['me'],
     summary: 'Войти в режим администратора: доступ к объектам с грифом с обоснованием',
-    schema: { body: AdminModeInput, response: { 200: AdminModeState } },
     handler: async (request) => {
       const state = await AuthService.enterAdminMode(request.ctx, request.body)
       return state
@@ -209,12 +189,10 @@ export function registerMeRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'DELETE',
-    url: '/me/admin-mode',
+    route: 'DELETE /me/admin-mode',
     auth: { capability: 'admin.system' },
     tags: ['me'],
     summary: 'Выйти из режима администратора',
-    schema: { response: { 200: z.object({ ok: z.boolean() }) } },
     handler: async (request) => {
       await AuthService.exitAdminMode(request.ctx)
       // Открытые комнаты объектов с грифом закрываются сразу, а не по сроку режима
@@ -225,8 +203,7 @@ export function registerMeRoutes(route: RouteRegistrar): void {
 
   // ─── Замещения ────────────────────────────────────────────────────────────
   route({
-    method: 'GET',
-    url: '/me/delegations',
+    route: 'GET /me/delegations',
     auth: 'session',
     tags: ['me'],
     summary: 'Мои замещения',
@@ -234,21 +211,10 @@ export function registerMeRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/me/delegations',
+    route: 'POST /me/delegations',
     auth: 'session',
     tags: ['me'],
     summary: 'Назначить заместителя',
-    schema: {
-      body: z.object({
-        toUserId: z.uuid(),
-        scope: z.enum(['all', 'approvals', 'instructions', 'documents', 'meetings']).default('all'),
-        startsAt: z.iso.datetime({ offset: true }),
-        endsAt: z.iso.datetime({ offset: true }),
-        note: z.string().max(500).nullable().optional(),
-      }),
-      response: { 200: z.object({ id: z.uuid() }) },
-    },
     handler: async (request) => {
       const id = await db().transaction((tx) =>
         DelegationService.create(tx, request.ctx, request.body),
@@ -258,15 +224,10 @@ export function registerMeRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'DELETE',
-    url: '/me/delegations/:id',
+    route: 'DELETE /me/delegations/:id',
     auth: { owned: 'DelegationService.stop — только своё замещение' },
     tags: ['me'],
     summary: 'Завершить замещение',
-    schema: {
-      params: z.object({ id: z.uuid() }),
-      response: { 200: z.object({ ok: z.boolean() }) },
-    },
     handler: async (request) => {
       await db().transaction((tx) => DelegationService.stop(tx, request.ctx, request.params.id))
       return { ok: true }

@@ -1,16 +1,4 @@
-import {
-  AclGrantInput,
-  EffectiveAccess,
-  Level,
-  Principal,
-  ShareLinkCreated,
-  ShareLinkInput,
-  ShareLinkList,
-  ShareLinkOpenInput,
-  ShareLinkOpenResult,
-} from '@kchs/contracts'
 import { eq } from 'drizzle-orm'
-import { z } from 'zod'
 import { config } from '~/shared/config/index.js'
 import { systemCtx } from '~/shared/context.js'
 import { hashToken } from '~/shared/crypto/secrets.js'
@@ -30,25 +18,12 @@ import {
   shareLinksAllowed,
 } from './share-links.js'
 
-const IdParam = z.object({ id: z.uuid() })
-
 export function registerAccessRoutes(route: RouteRegistrar): void {
   route({
-    method: 'GET',
-    url: '/objects/:id/access',
+    route: 'GET /objects/:id/access',
     auth: { action: 'view' },
     tags: ['access'],
     summary: 'Кто имеет доступ к объекту',
-    schema: {
-      params: IdParam,
-      response: {
-        200: z.object({
-          entries: z.array(EffectiveAccess),
-          accessMode: z.enum(['inherit', 'restricted']),
-          canManage: z.boolean(),
-        }),
-      },
-    },
     handler: async (request) => {
       const { id } = request.params
       const decision = await authorize(request.ctx, 'view', id)
@@ -67,16 +42,10 @@ export function registerAccessRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/objects/:id/access',
+    route: 'POST /objects/:id/access',
     auth: { action: 'share' },
     tags: ['access'],
     summary: 'Выдать доступ',
-    schema: {
-      params: IdParam,
-      body: z.object({ grants: z.array(AclGrantInput).min(1).max(50) }),
-      response: { 200: z.object({ ok: z.boolean() }) },
-    },
     handler: async (request) => {
       await db().transaction(async (tx) => {
         await grantAccess(tx, request.ctx, request.params.id, request.body.grants)
@@ -100,16 +69,10 @@ export function registerAccessRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'DELETE',
-    url: '/objects/:id/access',
+    route: 'DELETE /objects/:id/access',
     auth: { action: 'share' },
     tags: ['access'],
     summary: 'Отозвать доступ',
-    schema: {
-      params: IdParam,
-      body: z.object({ principal: Principal }),
-      response: { 200: z.object({ ok: z.boolean() }) },
-    },
     handler: async (request) => {
       await db().transaction(async (tx) => {
         await revokeAccess(tx, request.ctx, request.params.id, request.body.principal)
@@ -129,16 +92,10 @@ export function registerAccessRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'PUT',
-    url: '/objects/:id/access-mode',
+    route: 'PUT /objects/:id/access-mode',
     auth: { action: 'share' },
     tags: ['access'],
     summary: 'Наследование доступа: включить или разорвать',
-    schema: {
-      params: IdParam,
-      body: z.object({ mode: z.enum(['inherit', 'restricted']) }),
-      response: { 200: z.object({ ok: z.boolean() }) },
-    },
     handler: async (request) => {
       await db().transaction((tx) =>
         setAccessMode(tx, request.ctx, request.params.id, request.body.mode),
@@ -148,29 +105,10 @@ export function registerAccessRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/objects/:id/access/explain',
+    route: 'POST /objects/:id/access/explain',
     auth: { action: 'view' },
     tags: ['access'],
     summary: 'Объяснить доступ конкретного пользователя',
-    schema: {
-      params: IdParam,
-      body: z.object({ userId: z.uuid() }),
-      response: {
-        200: z.object({
-          level: Level,
-          reasons: z.array(
-            z.object({
-              kind: z.string(),
-              level: Level,
-              messageKey: z.string(),
-              params: z.record(z.string(), z.union([z.string(), z.number()])),
-              sourceObjectId: z.uuid().nullable().optional(),
-            }),
-          ),
-        }),
-      },
-    },
     handler: async (request) => {
       const targetCtx = await buildUserCtxFor(request.body.userId)
       if (!targetCtx) throw errors.notFound('Пользователь')
@@ -183,12 +121,10 @@ export function registerAccessRoutes(route: RouteRegistrar): void {
 
   // ─── Гостевые ссылки ───────────────────────────────────────────────────────
   route({
-    method: 'GET',
-    url: '/objects/:id/share-links',
+    route: 'GET /objects/:id/share-links',
     auth: { action: 'share' },
     tags: ['access'],
     summary: 'Ссылки на объект',
-    schema: { params: IdParam, response: { 200: ShareLinkList } },
     handler: async (request) => {
       const rows = await listShareLinks(request.params.id)
       return {
@@ -212,16 +148,10 @@ export function registerAccessRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/objects/:id/share-links',
+    route: 'POST /objects/:id/share-links',
     auth: { action: 'share', capability: 'share_links.create' },
     tags: ['access'],
     summary: 'Создать гостевую ссылку',
-    schema: {
-      params: IdParam,
-      body: ShareLinkInput,
-      response: { 200: ShareLinkCreated },
-    },
     handler: async (request) => {
       return db().transaction(async (tx) => {
         const result = await createShareLink(tx, request.ctx, request.params.id, request.body)
@@ -241,8 +171,7 @@ export function registerAccessRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/share/:token/open',
+    route: 'POST /share/:token/open',
     auth: 'public',
     tags: ['access'],
     summary: 'Открыть объект по гостевой ссылке',
@@ -253,11 +182,6 @@ export function registerAccessRoutes(route: RouteRegistrar): void {
       timeWindow: '1 minute',
       keyGenerator: (request) =>
         `share-open:${request.ip}:${hashToken((request.params as { token: string }).token).slice(0, 24)}`,
-    },
-    schema: {
-      params: z.object({ token: z.string().min(8).max(128) }),
-      body: ShareLinkOpenInput,
-      response: { 200: ShareLinkOpenResult },
     },
     handler: async (request) => {
       const result = await openShareLink(request.params.token, request.body.password)
@@ -281,15 +205,10 @@ export function registerAccessRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'DELETE',
-    url: '/objects/:id/share-links/:linkId',
+    route: 'DELETE /objects/:id/share-links/:linkId',
     auth: { action: 'share' },
     tags: ['access'],
     summary: 'Отключить гостевую ссылку',
-    schema: {
-      params: z.object({ id: z.uuid(), linkId: z.uuid() }),
-      response: { 200: z.object({ ok: z.boolean() }) },
-    },
     handler: async (request) => {
       await db().transaction(async (tx) => {
         const revoked = await revokeShareLink(tx, request.params.id, request.params.linkId)

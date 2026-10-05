@@ -1,9 +1,7 @@
 import { randomUUID } from 'node:crypto'
-import { OfficeEditing, OfficeSession, OfficeStatus, OfficeTicketQuery } from '@kchs/contracts'
 import { createTranslator } from '@kchs/i18n'
 import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
-import { z } from 'zod'
 import { authorize } from '~/kernel/access/authorize.js'
 import { config } from '~/shared/config/index.js'
 import { db } from '~/shared/db/client.js'
@@ -15,8 +13,6 @@ import { OfficeService, officeUrls } from '../domain/office-service.js'
 import { watermarkLevel } from '../domain/watermark.js'
 import { files } from '../schema.js'
 
-const IdParam = z.object({ id: z.uuid() })
-
 /**
  * Совместное редактирование офисных файлов (09-files.md §7, ADR-0112).
  *
@@ -27,53 +23,36 @@ const IdParam = z.object({ id: z.uuid() })
  */
 export function registerOfficeRoutes(route: RouteRegistrar): void {
   route({
-    method: 'GET',
-    url: '/files/office/status',
+    route: 'GET /files/office/status',
     auth: 'session',
     tags: ['files'],
     summary: 'Доступен ли офисный редактор в этой установке',
-    schema: { response: { 200: OfficeStatus } },
     handler: async () => OfficeService.status(),
   })
 
   route({
-    method: 'GET',
-    url: '/files/office/editing',
+    route: 'GET /files/office/editing',
     auth: 'session',
     tags: ['files'],
     summary: 'Какие из файлов сейчас правят в редакторе и кто (N70)',
-    schema: {
-      querystring: z.object({
-        ids: z
-          .string()
-          .max(4000)
-          .transform((value) => value.split(',').filter(Boolean))
-          .pipe(z.array(z.uuid()).max(100)),
-      }),
-      response: { 200: z.object({ items: z.array(OfficeEditing) }) },
-    },
     handler: async (request) => ({
       items: await OfficeService.editing(request.ctx, request.query.ids),
     }),
   })
 
   route({
-    method: 'POST',
-    url: '/files/:id/office-session',
+    route: 'POST /files/:id/office-session',
     auth: { action: 'view' },
     tags: ['files'],
     summary: 'Открыть файл в офисном редакторе',
-    schema: { params: IdParam, response: { 200: OfficeSession } },
     handler: async (request) => OfficeService.open(request.ctx, request.params.id),
   })
 
   route({
-    method: 'GET',
-    url: '/internal/office/:id/content',
+    route: 'GET /internal/office/:id/content',
     auth: 'public',
     tags: ['internal'],
     summary: 'Сервер документов забирает содержимое версии',
-    schema: { params: IdParam, querystring: OfficeTicketQuery },
     handler: async (request, reply) => {
       const stored = await OfficeService.content(request.params.id, request.query.t)
       reply
@@ -89,17 +68,10 @@ export function registerOfficeRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/internal/office/:id/callback',
+    route: 'POST /internal/office/:id/callback',
     auth: 'public',
     tags: ['internal'],
     summary: 'Сервер документов сообщает о состоянии и сохраняет правку',
-    schema: {
-      params: IdParam,
-      querystring: OfficeTicketQuery,
-      body: z.record(z.string(), z.unknown()),
-      response: { 200: z.object({ error: z.number().int() }) },
-    },
     handler: async (request) =>
       OfficeService.callback(
         request.params.id,

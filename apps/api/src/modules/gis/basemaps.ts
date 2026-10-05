@@ -1,13 +1,3 @@
-import {
-  Basemap,
-  BasemapCreateInput,
-  BasemapList,
-  BasemapStyleQuery,
-  BasemapUpdateInput,
-  GisRenderSettings,
-  GisRenderSettingsPatch,
-} from '@kchs/contracts'
-import { z } from 'zod'
 import { registerObjectType } from '~/kernel/objects/registry.js'
 import { errors } from '~/shared/errors.js'
 import { rateLimit } from '~/shared/http/rate-limit.js'
@@ -21,24 +11,6 @@ const MANAGE = 'gis.basemaps.manage'
 const TILES_PER_MINUTE = 6000
 /** Шрифты и спрайты меняются только с новой сборкой. */
 const ASSET_CACHE_CONTROL = 'private, max-age=86400'
-
-const IdParam = z.object({ id: z.uuid() })
-const ArchiveParams = IdParam.extend({
-  file: z.string().regex(/^[0-9A-Za-z][0-9A-Za-z._-]{0,63}\.pmtiles$/),
-})
-const TileParams = IdParam.extend({
-  z: z.coerce.number().int().min(0).max(24),
-  x: z.coerce.number().int().min(0),
-  y: z.coerce.number().int().min(0),
-})
-const GlyphParams = z.object({
-  fontstack: z.string().regex(/^[A-Za-z0-9 ,_-]{1,200}$/),
-  range: z.string().regex(/^\d{1,5}-\d{1,5}\.pbf$/),
-})
-const SpriteParams = z.object({
-  file: z.string().regex(/^basemap-(light|dark|muted)(@2x)?\.(json|png)$/),
-})
-const Ok = z.object({ ok: z.boolean() })
 
 /**
  * Базовая карта — объект реестра (ADR-0066): глобальный, без пространства и
@@ -65,32 +37,26 @@ export function registerBasemapObjectType(): void {
 
 export function registerBasemapRoutes(route: RouteRegistrar): void {
   route({
-    method: 'GET',
-    url: '/gis/render-settings',
+    route: 'GET /gis/render-settings',
     auth: 'session',
     tags: ['gis'],
     summary: 'Отрисовка больших слоёв: порог deck.gl в карте-студии (ADR-0110)',
-    schema: { response: { 200: GisRenderSettings } },
     handler: async () => GisRenderSettingsService.current(),
   })
 
   route({
-    method: 'PUT',
-    url: '/admin/gis/render-settings',
+    route: 'PUT /admin/gis/render-settings',
     auth: { capability: MANAGE },
     tags: ['gis'],
     summary: 'Изменить порог отрисовки больших слоёв',
-    schema: { body: GisRenderSettingsPatch, response: { 200: GisRenderSettings } },
     handler: async (request) => GisRenderSettingsService.update(request.ctx, request.body),
   })
 
   route({
-    method: 'GET',
-    url: '/gis/basemaps',
+    route: 'GET /gis/basemaps',
     auth: 'session',
     tags: ['gis'],
     summary: 'Базовые карты установки: по умолчанию первой',
-    schema: { response: { 200: BasemapList } },
     handler: async (request) => {
       if (request.ctx.shareLink) throw errors.forbidden()
       return { items: await BasemapService.list(request.ctx) }
@@ -98,42 +64,34 @@ export function registerBasemapRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/gis/basemaps',
+    route: 'POST /gis/basemaps',
     auth: { capability: MANAGE },
     tags: ['gis'],
     summary: 'Добавить растровую XYZ-подложку (ключ доступа хранится отдельно)',
-    schema: { body: BasemapCreateInput, response: { 200: Basemap } },
     handler: async (request) => BasemapService.create(request.ctx, request.body),
   })
 
   route({
-    method: 'GET',
-    url: '/gis/basemaps/:id',
+    route: 'GET /gis/basemaps/:id',
     auth: { action: 'view' },
     tags: ['gis'],
     summary: 'Базовая карта',
-    schema: { params: IdParam, response: { 200: Basemap } },
     handler: async (request) => BasemapService.get(request.ctx, request.params.id),
   })
 
   route({
-    method: 'PATCH',
-    url: '/gis/basemaps/:id',
+    route: 'PATCH /gis/basemaps/:id',
     auth: { action: 'manage' },
     tags: ['gis'],
     summary: 'Изменить базовую карту: название; у растровой — адрес, ключ, масштабы',
-    schema: { params: IdParam, body: BasemapUpdateInput, response: { 200: Basemap } },
     handler: async (request) => BasemapService.update(request.ctx, request.params.id, request.body),
   })
 
   route({
-    method: 'DELETE',
-    url: '/gis/basemaps/:id',
+    route: 'DELETE /gis/basemaps/:id',
     auth: { action: 'manage' },
     tags: ['gis'],
     summary: 'Удалить базовую карту (кроме «без подложки» и подложки по умолчанию)',
-    schema: { params: IdParam, response: { 200: Ok } },
     handler: async (request) => {
       await BasemapService.remove(request.ctx, request.params.id)
       return { ok: true }
@@ -141,12 +99,10 @@ export function registerBasemapRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/gis/basemaps/:id/default',
+    route: 'POST /gis/basemaps/:id/default',
     auth: { action: 'manage' },
     tags: ['gis'],
     summary: 'Сделать базовой картой по умолчанию',
-    schema: { params: IdParam, response: { 200: Ok } },
     handler: async (request) => {
       await BasemapService.setDefault(request.ctx, request.params.id)
       return { ok: true }
@@ -154,12 +110,10 @@ export function registerBasemapRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/gis/basemaps/:id/style.json',
+    route: 'GET /gis/basemaps/:id/style.json',
     auth: { action: 'view' },
     tags: ['gis'],
     summary: 'Стиль MapLibre темы light/dark/muted с абсолютными адресами через API',
-    schema: { params: IdParam, querystring: BasemapStyleQuery },
     handler: async (request, reply) => {
       const style = await BasemapService.style(request.params.id, request.query)
       reply.header('cache-control', 'private, max-age=300')
@@ -168,12 +122,10 @@ export function registerBasemapRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/gis/basemaps/:id/pmtiles/:file',
+    route: 'GET /gis/basemaps/:id/pmtiles/:file',
     auth: { action: 'view' },
     tags: ['gis'],
     summary: 'Архив PMTiles векторной подложки диапазонами байтов (Range → 206)',
-    schema: { params: ArchiveParams },
     rateLimit: rateLimit(TILES_PER_MINUTE, '1 minute'),
     handler: async (request, reply) => {
       const range = request.headers.range
@@ -188,12 +140,10 @@ export function registerBasemapRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/gis/basemaps/:id/tiles/:z/:x/:y',
+    route: 'GET /gis/basemaps/:id/tiles/:z/:x/:y',
     auth: { action: 'view' },
     tags: ['gis'],
     summary: 'Растровый тайл через прокси API: ключ сервера скрыт, тайлы в кэше',
-    schema: { params: TileParams },
     rateLimit: rateLimit(TILES_PER_MINUTE, '1 minute'),
     handler: async (request, reply) => {
       const { id, z: zoom, x, y } = request.params
@@ -208,12 +158,10 @@ export function registerBasemapRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/gis/glyphs/:fontstack/:range',
+    route: 'GET /gis/glyphs/:fontstack/:range',
     auth: { open: 'шрифты подписей карты — общие файлы оформления' },
     tags: ['gis'],
     summary: 'Шрифты подписей карты (PBF, кириллица) из хранилища установки',
-    schema: { params: GlyphParams },
     handler: async (request, reply) => {
       const range = request.params.range.replace(/\.pbf$/, '')
       const glyphs = await readGlyphs(request.params.fontstack, range)
@@ -226,12 +174,10 @@ export function registerBasemapRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/gis/sprites/:file',
+    route: 'GET /gis/sprites/:file',
     auth: { open: 'значки подложки карты — общие файлы оформления' },
     tags: ['gis'],
     summary: 'Спрайт подложки темы: значки населённых пунктов и вершин',
-    schema: { params: SpriteParams },
     handler: async (request, reply) => {
       const sprite = await readSprite(request.params.file)
       if (!sprite) throw errors.notFound('Спрайт')

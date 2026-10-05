@@ -1,5 +1,3 @@
-import { TelegramLinkStart, TelegramStatus } from '@kchs/contracts'
-import { z } from 'zod'
 import { setNotificationChannel } from '~/kernel/notifications/channels.js'
 import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
@@ -16,12 +14,10 @@ export function registerTelegramChannel(): void {
 
 export function registerTelegramRoutes(route: RouteRegistrar): void {
   route({
-    method: 'GET',
-    url: '/me/telegram',
+    route: 'GET /me/telegram',
     auth: 'session',
     tags: ['integrations'],
     summary: 'Telegram: настроен ли бот и привязан ли чат пользователя',
-    schema: { response: { 200: TelegramStatus } },
     handler: async (request) => {
       if (!telegramConfigured()) {
         return { enabled: false, linked: false, username: null, linkedAt: null, botUsername: null }
@@ -41,12 +37,10 @@ export function registerTelegramRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/me/telegram/link',
+    route: 'POST /me/telegram/link',
     auth: 'session',
     tags: ['integrations'],
     summary: 'Telegram: одноразовая ссылка привязки на 15 минут',
-    schema: { response: { 200: TelegramLinkStart } },
     rateLimit: { max: 10, timeWindow: '1 minute' },
     handler: async (request) => {
       if (!telegramConfigured())
@@ -60,12 +54,10 @@ export function registerTelegramRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'DELETE',
-    url: '/me/telegram',
+    route: 'DELETE /me/telegram',
     auth: 'session',
     tags: ['integrations'],
     summary: 'Telegram: отвязать чат — уведомления туда больше не приходят',
-    schema: { response: { 200: z.object({ ok: z.boolean() }) } },
     handler: async (request) => {
       const chatId = await TelegramLinks.unlink(request.ctx, request.ctx.userId, 'user')
       if (chatId !== null && telegramConfigured()) {

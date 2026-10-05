@@ -1,20 +1,5 @@
-import {
-  BatchGetInput,
-  cursorPage,
-  LineageQuery,
-  LinkCreateInput,
-  ListFieldsResponse,
-  levelValue,
-  ObjectLineage,
-  ObjectListQuery,
-  ObjectPatchInput,
-  ObjectRecord,
-  ObjectSummary,
-  ObjectType,
-  SortQuery,
-} from '@kchs/contracts'
+import { levelValue, SortQuery } from '@kchs/contracts'
 import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm'
-import { z } from 'zod'
 import { isGuest } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
@@ -33,17 +18,13 @@ import { allowedActions, objectType } from './registry.js'
 import { favorites, objectAncestors, objects, recentViews, subscriptions } from './schema.js'
 import { hiddenSummary, ObjectService } from './service.js'
 
-const IdParam = z.object({ id: z.uuid() })
-
 export function registerObjectRoutes(route: RouteRegistrar): void {
   // ─── Карточка объекта ──────────────────────────────────────────────────────
   route({
-    method: 'GET',
-    url: '/objects/:id',
+    route: 'GET /objects/:id',
     auth: { action: 'view' },
     tags: ['objects'],
     summary: 'Карточка объекта из реестра',
-    schema: { params: IdParam, response: { 200: ObjectRecord } },
     handler: async (request) => {
       const { id } = request.params
       // Права уже проверены маршрутом — берём его решение, а не проверяем второй раз
@@ -124,12 +105,10 @@ export function registerObjectRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'PATCH',
-    url: '/objects/:id',
+    route: 'PATCH /objects/:id',
     auth: { action: 'edit' },
     tags: ['objects'],
     summary: 'Изменить общие поля объекта',
-    schema: { params: IdParam, body: ObjectPatchInput, response: { 200: ObjectSummary } },
     handler: async (request) => {
       const { id } = request.params
       const patch = request.body
@@ -181,12 +160,10 @@ export function registerObjectRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'DELETE',
-    url: '/objects/:id',
+    route: 'DELETE /objects/:id',
     auth: { action: 'delete' },
     tags: ['objects'],
     summary: 'Переместить объект в корзину',
-    schema: { params: IdParam, response: { 200: z.object({ ok: z.boolean() }) } },
     handler: async (request) => {
       await db().transaction((tx) => ObjectService.trash(tx, request.ctx, request.params.id))
       return { ok: true }
@@ -194,13 +171,11 @@ export function registerObjectRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/objects/:id/restore',
+    route: 'POST /objects/:id/restore',
     // Объект уже в корзине: политика проверяется вручную с allowTrashed
     auth: { delegated: 'authorize(delete)', objectType: 'any' },
     tags: ['objects'],
     summary: 'Восстановить объект из корзины или архива',
-    schema: { params: IdParam, response: { 200: z.object({ ok: z.boolean() }) } },
     handler: async (request) => {
       await authorize(request.ctx, 'delete', request.params.id, { allowTrashed: true })
       await db().transaction((tx) => ObjectService.restore(tx, request.ctx, request.params.id))
@@ -209,12 +184,10 @@ export function registerObjectRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/objects/:id/archive',
+    route: 'POST /objects/:id/archive',
     auth: { action: 'archive' },
     tags: ['objects'],
     summary: 'Отправить объект в архив',
-    schema: { params: IdParam, response: { 200: z.object({ ok: z.boolean() }) } },
     handler: async (request) => {
       await db().transaction((tx) => ObjectService.archive(tx, request.ctx, request.params.id))
       return { ok: true }
@@ -223,14 +196,12 @@ export function registerObjectRoutes(route: RouteRegistrar): void {
 
   // ─── Пакетная выборка сводок ───────────────────────────────────────────────
   route({
-    method: 'POST',
-    url: '/objects/batch-get',
+    route: 'POST /objects/batch-get',
     auth: 'session',
     tags: ['objects'],
     // POST ради тела запроса: данных не меняет — хватает области чтения (ADR-0097)
     readOnly: true,
     summary: 'Сводки объектов для чипов и пикеров',
-    schema: { body: BatchGetInput, response: { 200: z.object({ items: z.array(ObjectSummary) }) } },
     handler: async (request) => {
       const summaries = await ObjectService.summaries(request.body.ids)
       const items: unknown[] = []
@@ -244,30 +215,20 @@ export function registerObjectRoutes(route: RouteRegistrar): void {
 
   // ─── Списки объектов ───────────────────────────────────────────────────────
   route({
-    method: 'GET',
-    url: '/objects/fields',
+    route: 'GET /objects/fields',
     auth: 'session',
     tags: ['objects'],
     summary: 'Поля списка объектов для фильтров и сортировки',
-    schema: {
-      querystring: z.object({ type: ObjectType.optional(), types: z.string().max(500).optional() }),
-      response: { 200: ListFieldsResponse },
-    },
     handler: async (request) => ({
       items: describeListFields(listFieldsFor(requestedTypes(request.query))),
     }),
   })
 
   route({
-    method: 'GET',
-    url: '/objects',
+    route: 'GET /objects',
     auth: 'session',
     tags: ['objects'],
     summary: 'Список объектов с учётом видимости, фильтром и сортировкой',
-    schema: {
-      querystring: ObjectListQuery,
-      response: { 200: cursorPage(ObjectSummary) },
-    },
     handler: async (request) => {
       const query = request.query
       const fields = listFieldsFor(requestedTypes(query))
@@ -349,12 +310,10 @@ export function registerObjectRoutes(route: RouteRegistrar): void {
 
   // ─── Избранное, недавние, подписки ────────────────────────────────────────
   route({
-    method: 'GET',
-    url: '/me/favorites',
+    route: 'GET /me/favorites',
     auth: 'session',
     tags: ['objects'],
     summary: 'Избранные объекты',
-    schema: { response: { 200: z.object({ items: z.array(ObjectSummary) }) } },
     handler: async (request) => {
       // Гриф мог стать строже допуска после добавления в избранное (ADR-0080)
       const clearance = clearanceSql(request.ctx)
@@ -370,12 +329,10 @@ export function registerObjectRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'PUT',
-    url: '/objects/:id/favorite',
+    route: 'PUT /objects/:id/favorite',
     auth: { action: 'view' },
     tags: ['objects'],
     summary: 'Добавить в избранное',
-    schema: { params: IdParam, response: { 200: z.object({ favorite: z.boolean() }) } },
     handler: async (request) => {
       await db()
         .insert(favorites)
@@ -386,12 +343,10 @@ export function registerObjectRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'DELETE',
-    url: '/objects/:id/favorite',
+    route: 'DELETE /objects/:id/favorite',
     auth: { action: 'view' },
     tags: ['objects'],
     summary: 'Убрать из избранного',
-    schema: { params: IdParam, response: { 200: z.object({ favorite: z.boolean() }) } },
     handler: async (request) => {
       await db()
         .delete(favorites)
@@ -403,15 +358,10 @@ export function registerObjectRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/me/recent',
+    route: 'GET /me/recent',
     auth: 'session',
     tags: ['objects'],
     summary: 'Недавно открытые объекты',
-    schema: {
-      querystring: z.object({ limit: z.coerce.number().int().min(1).max(50).default(20) }),
-      response: { 200: z.object({ items: z.array(ObjectSummary) }) },
-    },
     handler: async (request) => {
       const clearance = clearanceSql(request.ctx)
       const rows = await db()
@@ -433,16 +383,10 @@ export function registerObjectRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'PUT',
-    url: '/objects/:id/subscription',
+    route: 'PUT /objects/:id/subscription',
     auth: { action: 'view' },
     tags: ['objects'],
     summary: 'Подписаться на изменения объекта',
-    schema: {
-      params: IdParam,
-      body: z.object({ subscribed: z.boolean() }),
-      response: { 200: z.object({ subscribed: z.boolean() }) },
-    },
     handler: async (request) => {
       if (request.body.subscribed) {
         await db()
@@ -465,22 +409,18 @@ export function registerObjectRoutes(route: RouteRegistrar): void {
 
   // ─── Связи и активность ────────────────────────────────────────────────────
   route({
-    method: 'GET',
-    url: '/objects/:id/lineage',
+    route: 'GET /objects/:id/lineage',
     auth: { action: 'view' },
     tags: ['objects'],
     summary: 'Происхождение и влияние: граф зависимостей вокруг объекта (ADR-0102)',
-    schema: { params: IdParam, querystring: LineageQuery, response: { 200: ObjectLineage } },
     handler: async (request) => lineageOf(request.ctx, request.params.id, request.query.depth),
   })
 
   route({
-    method: 'GET',
-    url: '/objects/:id/links',
+    route: 'GET /objects/:id/links',
     auth: { action: 'view' },
     tags: ['objects'],
     summary: 'Связи объекта',
-    schema: { params: IdParam },
     handler: async (request) => {
       const [links, uses, usedBy] = await Promise.all([
         LinkService.listFor(request.ctx, request.params.id),
@@ -492,16 +432,10 @@ export function registerObjectRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/objects/:id/links',
+    route: 'POST /objects/:id/links',
     auth: { action: 'edit' },
     tags: ['objects'],
     summary: 'Создать связь',
-    schema: {
-      params: IdParam,
-      body: LinkCreateInput,
-      response: { 200: z.object({ ok: z.boolean() }) },
-    },
     handler: async (request) => {
       // Вложение открывает объект всем читателям хоста — это выдача доступа:
       // прикрепить существующий объект может только тот, кто вправе им делиться
@@ -525,15 +459,10 @@ export function registerObjectRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'DELETE',
-    url: '/objects/:id/links/:targetId/:kind',
+    route: 'DELETE /objects/:id/links/:targetId/:kind',
     auth: { action: 'edit' },
     tags: ['objects'],
     summary: 'Удалить связь',
-    schema: {
-      params: z.object({ id: z.uuid(), targetId: z.uuid(), kind: z.string() }),
-      response: { 200: z.object({ ok: z.boolean() }) },
-    },
     handler: async (request) => {
       await db().transaction((tx) =>
         LinkService.unlink(
@@ -549,18 +478,10 @@ export function registerObjectRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/objects/:id/activity',
+    route: 'GET /objects/:id/activity',
     auth: { action: 'view' },
     tags: ['objects'],
     summary: 'Лента активности объекта',
-    schema: {
-      params: IdParam,
-      querystring: z.object({
-        limit: z.coerce.number().int().min(1).max(100).default(30),
-        cursor: z.string().optional(),
-      }),
-    },
     handler: async (request) =>
       listActivity(request.params.id, {
         limit: request.query.limit,
@@ -570,12 +491,10 @@ export function registerObjectRoutes(route: RouteRegistrar): void {
 
   // ─── Корзина ───────────────────────────────────────────────────────────────
   route({
-    method: 'GET',
-    url: '/trash',
+    route: 'GET /trash',
     auth: 'session',
     tags: ['objects'],
     summary: 'Корзина пользователя',
-    schema: { response: { 200: z.object({ items: z.array(ObjectSummary) }) } },
     handler: async (request) => {
       const rows = await db()
         .select({ id: objects.id })

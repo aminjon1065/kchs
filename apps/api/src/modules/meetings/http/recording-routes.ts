@@ -1,22 +1,9 @@
-import {
-  MeetingSettings,
-  RecordingList,
-  RecordingPinInput,
-  RecordingRecord,
-  TranscriptRecord,
-  TranscriptResult,
-  TranscriptSegmentEditInput,
-  TranscriptSpeakerInput,
-} from '@kchs/contracts'
-import { z } from 'zod'
 import { db } from '~/shared/db/client.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { verifyWebhook } from '../domain/recording-egress.js'
 import { MeetingSettingsService } from '../domain/recording-retention.js'
 import { RecordingService } from '../domain/recording-service.js'
 import { TranscriptService } from '../domain/transcript-service.js'
-
-const IdParam = z.object({ id: z.uuid() })
 
 /**
  * Запись встречи и её расшифровка (11-communications-meetings.md §3–§4,
@@ -26,100 +13,78 @@ const IdParam = z.object({ id: z.uuid() })
  */
 export function registerMeetingRecordingRoutes(route: RouteRegistrar): void {
   route({
-    method: 'POST',
-    url: '/meetings/:id/recording/start',
+    route: 'POST /meetings/:id/recording/start',
     auth: { delegated: 'RecordingService.start', objectType: 'meeting' },
     tags: ['meetings'],
     summary: 'Включить запись встречи: индикатор видят все участники',
-    schema: { params: IdParam, response: { 200: RecordingRecord } },
     handler: async (request) => RecordingService.start(request.ctx, request.params.id),
   })
 
   route({
-    method: 'POST',
-    url: '/recordings/:id/stop',
+    route: 'POST /recordings/:id/stop',
     auth: { delegated: 'RecordingService.stop', objectType: 'recording' },
     tags: ['meetings'],
     summary: 'Остановить запись: файл медиасервер доложит сам',
-    schema: { params: IdParam, response: { 200: RecordingRecord } },
     handler: async (request) => RecordingService.stop(request.ctx, request.params.id),
   })
 
   route({
-    method: 'GET',
-    url: '/meetings/:id/recordings',
+    route: 'GET /meetings/:id/recordings',
     auth: { delegated: 'RecordingService.list', objectType: 'meeting' },
     tags: ['meetings'],
     summary: 'Записи встречи: доступны тем же, кому доступна встреча',
-    schema: { params: IdParam, response: { 200: RecordingList } },
     handler: async (request) => ({
       items: await RecordingService.list(request.ctx, request.params.id),
     }),
   })
 
   route({
-    method: 'GET',
-    url: '/recordings/:id',
+    route: 'GET /recordings/:id',
     auth: { delegated: 'RecordingService.get', objectType: 'recording' },
     tags: ['meetings'],
     summary: 'Запись: состояние, файл, длительность, состояние расшифровки',
-    schema: { params: IdParam, response: { 200: RecordingRecord } },
     handler: async (request) => RecordingService.get(request.ctx, request.params.id),
   })
 
   route({
-    method: 'POST',
-    url: '/recordings/:id/pin',
+    route: 'POST /recordings/:id/pin',
     auth: { delegated: 'RecordingService.pin', objectType: 'recording' },
     tags: ['meetings'],
     summary: 'Закрепить запись от удаления по сроку хранения или открепить (ADR-0138)',
-    schema: { params: IdParam, body: RecordingPinInput, response: { 200: RecordingRecord } },
     handler: async (request) =>
       RecordingService.pin(request.ctx, request.params.id, request.body.pinned),
   })
 
   route({
-    method: 'GET',
-    url: '/admin/meetings/settings',
+    route: 'GET /admin/meetings/settings',
     auth: { capability: 'admin.system' },
     tags: ['meetings'],
     summary: 'Настройки встреч: срок хранения записей',
-    schema: { response: { 200: MeetingSettings } },
     handler: async () => MeetingSettingsService.current(),
   })
 
   route({
-    method: 'PUT',
-    url: '/admin/meetings/settings',
+    route: 'PUT /admin/meetings/settings',
     auth: { capability: 'admin.system' },
     tags: ['meetings'],
     summary: 'Изменить срок хранения записей встреч (0 — бессрочно)',
-    schema: { body: MeetingSettings, response: { 200: MeetingSettings } },
     handler: async (request) =>
       db().transaction((tx) => MeetingSettingsService.update(tx, request.ctx, request.body)),
   })
 
   route({
-    method: 'GET',
-    url: '/recordings/:id/transcript',
+    route: 'GET /recordings/:id/transcript',
     auth: { delegated: 'TranscriptService.get', objectType: 'recording' },
     tags: ['meetings'],
     summary: 'Расшифровка записи: сегменты с таймкодами',
-    schema: { params: IdParam, response: { 200: TranscriptRecord } },
     handler: async (request) => TranscriptService.get(request.ctx, request.params.id),
   })
 
   route({
-    method: 'PATCH',
-    url: '/recordings/:id/transcript/segments/:index',
+    route: 'PATCH /recordings/:id/transcript/segments/:index',
     auth: { delegated: 'TranscriptService.editSegment', objectType: 'recording' },
     tags: ['meetings'],
     summary: 'Исправить текст фразы расшифровки (ADR-0162)',
-    schema: {
-      params: z.object({ id: z.uuid(), index: z.coerce.number().int().min(0) }),
-      body: TranscriptSegmentEditInput,
-      response: { 200: TranscriptRecord },
-    },
     handler: async (request) =>
       TranscriptService.editSegment(
         request.ctx,
@@ -130,12 +95,10 @@ export function registerMeetingRecordingRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'PUT',
-    url: '/recordings/:id/transcript/speakers',
+    route: 'PUT /recordings/:id/transcript/speakers',
     auth: { delegated: 'TranscriptService.setSpeaker', objectType: 'recording' },
     tags: ['meetings'],
     summary: 'Сопоставить говорящего расшифровки с участником встречи (ADR-0162)',
-    schema: { params: IdParam, body: TranscriptSpeakerInput, response: { 200: TranscriptRecord } },
     handler: async (request) =>
       TranscriptService.setSpeaker(
         request.ctx,
@@ -148,14 +111,12 @@ export function registerMeetingRecordingRoutes(route: RouteRegistrar): void {
   // ─── Медиасервер (подпись ключом установки) ────────────────────────────────
 
   route({
-    method: 'POST',
-    url: '/meetings/webhooks/livekit',
+    route: 'POST /meetings/webhooks/livekit',
     auth: 'public',
     tags: ['meetings'],
     summary: 'Медиасервер сообщает о записи: тело подписано ключом установки',
     // Счётчик на адрес: вебхук приходит из внутренней сети, поток невелик
     rateLimit: { max: 600, timeWindow: '1 minute' },
-    schema: { response: { 200: z.object({ ok: z.literal(true), handled: z.boolean() }) } },
     handler: async (request) => {
       // Тело читается как текст: подпись считается по байтам, а не по разбору
       const raw = typeof request.body === 'string' ? request.body : JSON.stringify(request.body)
@@ -168,16 +129,10 @@ export function registerMeetingRecordingRoutes(route: RouteRegistrar): void {
   // ─── Движок (сервисный токен, внутренняя сеть) ─────────────────────────────
 
   route({
-    method: 'POST',
-    url: '/internal/meetings/recordings/:id/transcript',
+    route: 'POST /internal/meetings/recordings/:id/transcript',
     auth: { engineJob: { scope: (params) => `recording:${params.id}` } },
     tags: ['internal'],
     summary: 'Движок сообщает расшифровку записи',
-    schema: {
-      params: IdParam,
-      body: TranscriptResult,
-      response: { 200: z.object({ ok: z.literal(true) }) },
-    },
     handler: async (request) => {
       await TranscriptService.save(request.params.id, request.body)
       return { ok: true as const }

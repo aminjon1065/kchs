@@ -25,7 +25,7 @@ import { errors } from '~/shared/errors.js'
 import { API_DOCS_STYLE, OPENAPI_TAGS, renderApiDocs } from '~/shared/http/api-docs.js'
 import { authPlugin } from '~/shared/http/auth-plugin.js'
 import { sendProblem } from '~/shared/http/problem.js'
-import { routeRegistrar } from '~/shared/http/route.js'
+import { assertRouteTableRegistered, routeRegistrar } from '~/shared/http/route.js'
 import { telemetryPlugin } from '~/shared/http/telemetry-plugin.js'
 import { logger, redactUrl } from '~/shared/logger/index.js'
 import { redis } from '~/shared/redis/index.js'
@@ -197,6 +197,8 @@ export async function buildApp(): Promise<FastifyInstance> {
       instance.addHook('onRequest', featureGate)
       const route = routeRegistrar(instance)
       await registerModules(instance, route)
+      // Таблица маршрутов контрактов и регистрация совпадают (ADR-0188)
+      assertRouteTableRegistered()
     },
     { prefix: '/api/v1' },
   )

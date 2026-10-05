@@ -1,46 +1,5 @@
 import { PassThrough } from 'node:stream'
-import {
-  ControlExportQuery,
-  ControlList,
-  ControlListQuery,
-  ControlMetricsSetupInput,
-  ControlMetricsState,
-  ControlQuery,
-  ControlReport,
-  IssuedSummary,
-  ProjectCreateInput,
-  ProjectListQuery,
-  ProjectRecord,
-  ProjectUpdateInput,
-  TaskBulkInput,
-  TaskBulkResult,
-  TaskCancelInput,
-  TaskChecklistAddInput,
-  TaskChecklistPatchInput,
-  TaskCreateInput,
-  TaskExtensionDecisionInput,
-  TaskExtensionRequestInput,
-  TaskList,
-  TaskListQuery,
-  TaskReassignInput,
-  TaskRecord,
-  TaskReportInput,
-  TaskReturnInput,
-  TaskSeriesCreateInput,
-  TaskSeriesList,
-  TaskSeriesPatch,
-  TaskSeriesRecord,
-  TaskSettings,
-  TaskStatusInput,
-  TaskSubtaskCreateInput,
-  TaskSummary,
-  TaskUpdateInput,
-  TeamSummary,
-  WorkloadQuery,
-  WorkloadReport,
-} from '@kchs/contracts'
 import { eq, sql } from 'drizzle-orm'
-import { z } from 'zod'
 import { authorize, loadObject } from '~/kernel/access/authorize.js'
 import { registerAuditActions } from '~/kernel/audit/registry.js'
 import { registerSubscriber } from '~/kernel/events/bus.js'
@@ -76,12 +35,6 @@ import { taskSubscribers } from './domain/task-subscribers.js'
 import { HomeSummaries, WorkloadService } from './domain/workload-service.js'
 import { projects, tasks } from './schema.js'
 
-const IdParam = z.object({ id: z.uuid() })
-const RowSourceQuery = z.object({
-  datasetId: z.uuid(),
-  rowId: z.string().regex(/^\d{1,18}$/),
-})
-const SourceQuery = z.object({ objectId: z.uuid() })
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 
 /** Запрос продления из Входящих или Telegram: дата в `payload.dueDate`, обоснование — комментарий. */
@@ -373,58 +326,42 @@ export function declareTasksSchedules(): void {
 
 export function registerTasksRoutes(route: RouteRegistrar): void {
   route({
-    method: 'GET',
-    url: '/tasks',
+    route: 'GET /tasks',
     auth: 'session',
     tags: ['tasks'],
     summary: 'Задачи и поручения: мои, поручил я, на контроле, все доступные',
-    schema: { querystring: TaskListQuery, response: { 200: TaskList } },
     handler: async (request) => TaskService.list(request.ctx, request.query),
   })
 
   route({
-    method: 'GET',
-    url: '/tasks/summary',
+    route: 'GET /tasks/summary',
     auth: 'session',
     tags: ['tasks'],
     summary: 'Сводка «Мои задачи»: открытые, просроченные, на сегодня, ждут приёмки',
-    schema: { response: { 200: TaskSummary } },
     handler: async (request) => TaskService.summary(request.ctx),
   })
 
   route({
-    method: 'GET',
-    url: '/tasks/control',
+    route: 'GET /tasks/control',
     auth: 'session',
     tags: ['tasks'],
     summary: 'Контроль исполнения: матрица «подразделения × состояния», итоги, динамика',
-    schema: { querystring: ControlQuery, response: { 200: ControlReport } },
     handler: async (request) => ControlService.report(request.ctx, request.query),
   })
 
   route({
-    method: 'GET',
-    url: '/tasks/control/list',
+    route: 'GET /tasks/control/list',
     auth: 'session',
     tags: ['tasks'],
     summary: 'Контроль исполнения: поручения ячейки матрицы (просроченные — по умолчанию)',
-    schema: { querystring: ControlListQuery, response: { 200: ControlList } },
     handler: async (request) => ControlService.list(request.ctx, request.query),
   })
 
   route({
-    method: 'GET',
-    url: '/tasks/control/export',
+    route: 'GET /tasks/control/export',
     auth: 'session',
     tags: ['tasks'],
     summary: 'Контроль исполнения: выгрузка матрицы или списка в CSV или XLSX',
-    schema: {
-      querystring: ControlExportQuery.extend({
-        view: z.enum(['matrix', 'list']).default('matrix'),
-        bucket: ControlListQuery.shape.bucket,
-        row: ControlListQuery.shape.row,
-      }),
-    },
     handler: async (request, reply) => {
       const { format, view, bucket, ...query } = request.query
       const out = new PassThrough()
@@ -444,73 +381,59 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/tasks/workload',
+    route: 'GET /tasks/workload',
     auth: 'session',
     tags: ['tasks'],
     summary: 'Нагрузка: люди × недели — открытые задачи и поручения, просрочки',
-    schema: { querystring: WorkloadQuery, response: { 200: WorkloadReport } },
     handler: async (request) => WorkloadService.report(request.ctx, request.query),
   })
 
   route({
-    method: 'GET',
-    url: '/tasks/issued',
+    route: 'GET /tasks/issued',
     auth: 'session',
     tags: ['tasks'],
     summary: '«Выданные мной»: поручения на контроле по статусам и требующие внимания',
-    schema: { response: { 200: IssuedSummary } },
     handler: async (request) => HomeSummaries.issued(request.ctx),
   })
 
   route({
-    method: 'GET',
-    url: '/tasks/team',
+    route: 'GET /tasks/team',
     auth: 'session',
     tags: ['tasks'],
     summary: '«Команда»: просрочки и нагрузка подчинённых руководителя',
-    schema: { response: { 200: TeamSummary } },
     handler: async (request) => HomeSummaries.team(request.ctx),
   })
 
   route({
-    method: 'GET',
-    url: '/tasks/settings',
+    route: 'GET /tasks/settings',
     auth: 'session',
     tags: ['tasks'],
     summary: 'Настройки поручений установки: эскалация просрочки',
-    schema: { response: { 200: TaskSettings } },
     handler: async () => TaskSettingsService.current(),
   })
 
   route({
-    method: 'PUT',
-    url: '/admin/tasks/settings',
+    route: 'PUT /admin/tasks/settings',
     auth: { capability: 'admin.system' },
     tags: ['tasks'],
     summary: 'Изменить настройки поручений: эскалация просрочки руководителю исполнителя',
-    schema: { body: TaskSettings, response: { 200: TaskSettings } },
     handler: async (request) =>
       db().transaction((tx) => TaskSettingsService.update(tx, request.ctx, request.body)),
   })
 
   route({
-    method: 'GET',
-    url: '/admin/tasks/metrics',
+    route: 'GET /admin/tasks/metrics',
     auth: { capability: 'admin.system' },
     tags: ['tasks'],
     summary: 'Показатели контроля исполнения: заведены ли и в каком пространстве',
-    schema: { response: { 200: ControlMetricsState } },
     handler: async () => controlMetricsState(),
   })
 
   route({
-    method: 'POST',
-    url: '/admin/tasks/metrics',
+    route: 'POST /admin/tasks/metrics',
     auth: { capability: 'admin.system' },
     tags: ['tasks'],
     summary: 'Завести показатели контроля исполнения в пространстве (чистая установка)',
-    schema: { body: ControlMetricsSetupInput, response: { 200: ControlMetricsState } },
     handler: async (request) => {
       const space = await loadObject(request.body.spaceId)
       if (space?.type !== 'space') throw errors.notFound('Пространство')
@@ -522,12 +445,10 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/tasks/by-source',
+    route: 'GET /tasks/by-source',
     auth: 'session',
     tags: ['tasks'],
     summary: 'Поручения по источнику — документу или объекту (резолюции и поручения)',
-    schema: { querystring: SourceQuery, response: { 200: TaskList } },
     handler: async (request) => {
       await authorize(request.ctx, 'view', request.query.objectId)
       const items = await TaskService.bySource(request.ctx, request.query.objectId)
@@ -536,23 +457,19 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/tasks/by-row',
+    route: 'GET /tasks/by-row',
     auth: 'session',
     tags: ['tasks'],
     summary: 'Задачи и поручения по строке датасета',
-    schema: { querystring: RowSourceQuery, response: { 200: TaskList } },
     handler: async (request) =>
       TaskService.forRow(request.ctx, request.query.datasetId, request.query.rowId),
   })
 
   route({
-    method: 'POST',
-    url: '/tasks',
+    route: 'POST /tasks',
     auth: 'session',
     tags: ['tasks'],
     summary: 'Создать задачу или поручение',
-    schema: { body: TaskCreateInput, response: { 200: z.object({ id: z.uuid() }) } },
     handler: async (request) => {
       const id = await db().transaction((tx) => TaskService.create(tx, request.ctx, request.body))
       return { id }
@@ -560,22 +477,18 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/tasks/:id',
+    route: 'GET /tasks/:id',
     auth: { delegated: 'TaskService.get', objectType: 'task' },
     tags: ['tasks'],
     summary: 'Карточка задачи: участники, сроки, отчёт, доступные действия',
-    schema: { params: IdParam, response: { 200: TaskRecord } },
     handler: async (request) => TaskService.get(request.ctx, request.params.id),
   })
 
   route({
-    method: 'PATCH',
-    url: '/tasks/:id',
+    route: 'PATCH /tasks/:id',
     auth: { delegated: 'TaskService.update', objectType: 'task' },
     tags: ['tasks'],
     summary: 'Изменить задачу: название, описание, срок, исполнителей, приоритет',
-    schema: { params: IdParam, body: TaskUpdateInput, response: { 200: TaskRecord } },
     handler: async (request) => {
       await db().transaction((tx) =>
         TaskService.update(tx, request.ctx, request.params.id, request.body),
@@ -585,12 +498,10 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/tasks/:id/status',
+    route: 'POST /tasks/:id/status',
     auth: { delegated: 'TaskService.setStatus', objectType: 'task' },
     tags: ['tasks'],
     summary: 'Статус задачи по рабочему процессу (доска)',
-    schema: { params: IdParam, body: TaskStatusInput, response: { 200: TaskRecord } },
     handler: async (request) => {
       await db().transaction((tx) =>
         TaskService.setStatus(tx, request.ctx, request.params.id, request.body.status),
@@ -600,12 +511,10 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/tasks/:id/start',
+    route: 'POST /tasks/:id/start',
     auth: { delegated: 'TaskService.start', objectType: 'task' },
     tags: ['tasks'],
     summary: 'Принять поручение к исполнению',
-    schema: { params: IdParam, response: { 200: TaskRecord } },
     handler: async (request) => {
       await db().transaction((tx) => TaskService.start(tx, request.ctx, request.params.id))
       return TaskService.get(request.ctx, request.params.id)
@@ -613,12 +522,10 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/tasks/:id/report',
+    route: 'POST /tasks/:id/report',
     auth: { delegated: 'TaskService.report', objectType: 'task' },
     tags: ['tasks'],
     summary: 'Отчитаться об исполнении поручения',
-    schema: { params: IdParam, body: TaskReportInput, response: { 200: TaskRecord } },
     handler: async (request) => {
       await db().transaction((tx) =>
         TaskService.report(tx, request.ctx, request.params.id, request.body),
@@ -628,12 +535,10 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/tasks/:id/accept',
+    route: 'POST /tasks/:id/accept',
     auth: { delegated: 'TaskService.accept', objectType: 'task' },
     tags: ['tasks'],
     summary: 'Принять отчёт и закрыть поручение',
-    schema: { params: IdParam, response: { 200: TaskRecord } },
     handler: async (request) => {
       await db().transaction((tx) => TaskService.accept(tx, request.ctx, request.params.id))
       return TaskService.get(request.ctx, request.params.id)
@@ -641,12 +546,10 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/tasks/:id/return',
+    route: 'POST /tasks/:id/return',
     auth: { delegated: 'TaskService.return', objectType: 'task' },
     tags: ['tasks'],
     summary: 'Вернуть поручение на доработку',
-    schema: { params: IdParam, body: TaskReturnInput, response: { 200: TaskRecord } },
     handler: async (request) => {
       await db().transaction((tx) =>
         TaskService.return(tx, request.ctx, request.params.id, request.body),
@@ -656,12 +559,10 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/tasks/:id/reassign',
+    route: 'POST /tasks/:id/reassign',
     auth: { delegated: 'TaskService.reassign', objectType: 'task' },
     tags: ['tasks'],
     summary: 'Переназначить исполнителя поручения (автор или контролёр)',
-    schema: { params: IdParam, body: TaskReassignInput, response: { 200: TaskRecord } },
     handler: async (request) => {
       await db().transaction((tx) =>
         TaskService.reassign(tx, request.ctx, request.params.id, request.body),
@@ -671,12 +572,10 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/tasks/:id/extension',
+    route: 'POST /tasks/:id/extension',
     auth: { delegated: 'TaskService.requestExtension', objectType: 'task' },
     tags: ['tasks'],
     summary: 'Запросить продление срока: желаемый срок и обоснование — решение за автором',
-    schema: { params: IdParam, body: TaskExtensionRequestInput, response: { 200: TaskRecord } },
     handler: async (request) => {
       await db().transaction((tx) =>
         TaskService.requestExtension(tx, request.ctx, request.params.id, request.body),
@@ -686,12 +585,10 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/tasks/:id/extension/decide',
+    route: 'POST /tasks/:id/extension/decide',
     auth: { delegated: 'TaskService.decideExtension', objectType: 'task' },
     tags: ['tasks'],
     summary: 'Согласовать продление (запрошенный или другой срок) или отказать',
-    schema: { params: IdParam, body: TaskExtensionDecisionInput, response: { 200: TaskRecord } },
     handler: async (request) => {
       await db().transaction((tx) =>
         TaskService.decideExtension(tx, request.ctx, request.params.id, request.body),
@@ -701,12 +598,10 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/tasks/:id/cancel',
+    route: 'POST /tasks/:id/cancel',
     auth: { delegated: 'TaskService.cancel', objectType: 'task' },
     tags: ['tasks'],
     summary: 'Отменить задачу или поручение',
-    schema: { params: IdParam, body: TaskCancelInput, response: { 200: TaskRecord } },
     handler: async (request) => {
       await db().transaction((tx) =>
         TaskService.cancel(tx, request.ctx, request.params.id, request.body),
@@ -716,34 +611,28 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/tasks/bulk',
+    route: 'POST /tasks/bulk',
     auth: 'session',
     tags: ['tasks'],
     summary: 'Массовое действие над задачами списка (ADR-0155)',
     description:
       'Права — по каждой задаче; отказ по одной не останавливает остальные. Итог — сделано и пропущено с причинами.',
-    schema: { body: TaskBulkInput, response: { 200: TaskBulkResult } },
     handler: async (request) => applyBulk(request.ctx, request.body),
   })
 
   route({
-    method: 'GET',
-    url: '/task-series',
+    route: 'GET /task-series',
     auth: 'session',
     tags: ['tasks'],
     summary: 'Серии повторяющихся поручений, видимые пользователю (ADR-0156)',
-    schema: { response: { 200: TaskSeriesList } },
     handler: async (request) => ({ items: await TaskSeriesService.list(request.ctx) }),
   })
 
   route({
-    method: 'POST',
-    url: '/task-series',
+    route: 'POST /task-series',
     auth: 'session',
     tags: ['tasks'],
     summary: 'Завести серию повторяющихся поручений или задач',
-    schema: { body: TaskSeriesCreateInput, response: { 200: TaskSeriesRecord } },
     handler: async (request) => {
       const id = await db().transaction((tx) =>
         TaskSeriesService.create(tx, request.ctx, request.body),
@@ -753,22 +642,18 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/task-series/:id',
+    route: 'GET /task-series/:id',
     auth: { delegated: 'TaskSeriesService.get', objectType: 'task_series' },
     tags: ['tasks'],
     summary: 'Серия повторяющихся поручений',
-    schema: { params: IdParam, response: { 200: TaskSeriesRecord } },
     handler: async (request) => TaskSeriesService.get(request.ctx, request.params.id),
   })
 
   route({
-    method: 'PATCH',
-    url: '/task-series/:id',
+    route: 'PATCH /task-series/:id',
     auth: { delegated: 'TaskSeriesService.update', objectType: 'task_series' },
     tags: ['tasks'],
     summary: 'Изменить серию — для будущих экземпляров',
-    schema: { params: IdParam, body: TaskSeriesPatch, response: { 200: TaskSeriesRecord } },
     handler: async (request) => {
       await db().transaction((tx) =>
         TaskSeriesService.update(tx, request.ctx, request.params.id, request.body),
@@ -783,8 +668,7 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
     ['stop', 'stopped'],
   ] as const) {
     route({
-      method: 'POST',
-      url: `/task-series/:id/${action}`,
+      route: `POST /task-series/:id/${action}` as const,
       auth: { delegated: 'TaskSeriesService.setStatus', objectType: 'task_series' },
       tags: ['tasks'],
       summary:
@@ -793,7 +677,6 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
           : action === 'resume'
             ? 'Возобновить серию'
             : 'Остановить серию насовсем',
-      schema: { params: IdParam, response: { 200: TaskSeriesRecord } },
       handler: async (request) => {
         await db().transaction((tx) =>
           TaskSeriesService.setStatus(tx, request.ctx, request.params.id, status),
@@ -803,15 +686,11 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
     })
   }
 
-  const ChecklistItemParams = z.object({ id: z.uuid(), itemId: z.uuid() })
-
   route({
-    method: 'POST',
-    url: '/tasks/:id/checklist',
+    route: 'POST /tasks/:id/checklist',
     auth: { delegated: 'TaskChecklist.add', objectType: 'task' },
     tags: ['tasks'],
     summary: 'Добавить пункт чек-листа (ADR-0155)',
-    schema: { params: IdParam, body: TaskChecklistAddInput, response: { 200: TaskRecord } },
     handler: async (request) => {
       await db().transaction((tx) =>
         TaskChecklist.add(tx, request.ctx, request.params.id, request.body),
@@ -821,16 +700,10 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'PATCH',
-    url: '/tasks/:id/checklist/:itemId',
+    route: 'PATCH /tasks/:id/checklist/:itemId',
     auth: { delegated: 'TaskChecklist.patch', objectType: 'task' },
     tags: ['tasks'],
     summary: 'Отметить, переименовать или переместить пункт чек-листа',
-    schema: {
-      params: ChecklistItemParams,
-      body: TaskChecklistPatchInput,
-      response: { 200: TaskRecord },
-    },
     handler: async (request) => {
       await db().transaction((tx) =>
         TaskChecklist.patch(
@@ -846,12 +719,10 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'DELETE',
-    url: '/tasks/:id/checklist/:itemId',
+    route: 'DELETE /tasks/:id/checklist/:itemId',
     auth: { delegated: 'TaskChecklist.remove', objectType: 'task' },
     tags: ['tasks'],
     summary: 'Убрать пункт чек-листа',
-    schema: { params: ChecklistItemParams, response: { 200: TaskRecord } },
     handler: async (request) => {
       await db().transaction((tx) =>
         TaskChecklist.remove(tx, request.ctx, request.params.id, request.params.itemId),
@@ -861,16 +732,10 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/tasks/:id/subtasks',
+    route: 'POST /tasks/:id/subtasks',
     auth: { delegated: 'TaskSubtasks.create', objectType: 'task' },
     tags: ['tasks'],
     summary: 'Добавить подзадачу к обычной задаче (ADR-0155)',
-    schema: {
-      params: IdParam,
-      body: TaskSubtaskCreateInput,
-      response: { 200: z.object({ id: z.uuid() }) },
-    },
     handler: async (request) => {
       const id = await db().transaction((tx) =>
         TaskSubtasks.create(tx, request.ctx, request.params.id, request.body),
@@ -880,25 +745,18 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/projects',
+    route: 'GET /projects',
     auth: 'session',
     tags: ['tasks'],
     summary: 'Проекты, доступные пользователю',
-    schema: {
-      querystring: ProjectListQuery,
-      response: { 200: z.object({ items: z.array(ProjectRecord) }) },
-    },
     handler: async (request) => ({ items: await ProjectService.list(request.ctx, request.query) }),
   })
 
   route({
-    method: 'POST',
-    url: '/projects',
+    route: 'POST /projects',
     auth: 'session',
     tags: ['tasks'],
     summary: 'Создать проект',
-    schema: { body: ProjectCreateInput, response: { 200: z.object({ id: z.uuid() }) } },
     handler: async (request) => {
       const id = await db().transaction((tx) =>
         ProjectService.create(tx, request.ctx, request.body),
@@ -908,22 +766,18 @@ export function registerTasksRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/projects/:id',
+    route: 'GET /projects/:id',
     auth: { delegated: 'ProjectService.get', objectType: 'project' },
     tags: ['tasks'],
     summary: 'Проект: ключ, руководитель, рабочий процесс, счётчики задач',
-    schema: { params: IdParam, response: { 200: ProjectRecord } },
     handler: async (request) => ProjectService.get(request.ctx, request.params.id),
   })
 
   route({
-    method: 'PATCH',
-    url: '/projects/:id',
+    route: 'PATCH /projects/:id',
     auth: { delegated: 'ProjectService.update', objectType: 'project' },
     tags: ['tasks'],
     summary: 'Изменить проект',
-    schema: { params: IdParam, body: ProjectUpdateInput, response: { 200: ProjectRecord } },
     handler: async (request) => {
       await db().transaction((tx) =>
         ProjectService.update(tx, request.ctx, request.params.id, request.body),

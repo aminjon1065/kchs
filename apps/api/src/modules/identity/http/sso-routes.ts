@@ -1,6 +1,4 @@
-import { AuthMethods, SsoSettingsInput, SsoState, SsoTestResult } from '@kchs/contracts'
 import { inArray } from 'drizzle-orm'
-import { z } from 'zod'
 import { roles } from '~/kernel/directory/schema.js'
 import { config } from '~/shared/config/index.js'
 import { db } from '~/shared/db/client.js'
@@ -20,12 +18,10 @@ export function registerSsoRoutes(route: RouteRegistrar): void {
   const env = config()
 
   route({
-    method: 'GET',
-    url: '/auth/methods',
+    route: 'GET /auth/methods',
     auth: 'public',
     tags: ['auth'],
     summary: 'Доступные способы входа',
-    schema: { response: { 200: AuthMethods } },
     handler: async () => {
       const [sso, passkeys] = await Promise.all([SsoService.available(), anyPasskeysExist()])
       return { password: true, sso, passkeys }
@@ -33,8 +29,7 @@ export function registerSsoRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/auth/sso/start',
+    route: 'POST /auth/sso/start',
     auth: 'public',
     tags: ['auth'],
     summary: 'Начать вход через корпоративный IdP',
@@ -42,7 +37,6 @@ export function registerSsoRoutes(route: RouteRegistrar): void {
       ...rateLimit(20, '1 minute'),
       keyGenerator: (request) => addressKey('sso-start', request, ''),
     },
-    schema: { response: { 200: z.object({ url: z.url() }) } },
     handler: async (request) =>
       SsoService.start({
         ip: request.ip ?? null,
@@ -52,25 +46,13 @@ export function registerSsoRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/auth/sso/callback',
+    route: 'GET /auth/sso/callback',
     auth: 'public',
     tags: ['auth'],
     summary: 'Возврат от корпоративного IdP',
     rateLimit: {
       ...rateLimit(30, '1 minute'),
       keyGenerator: (request) => addressKey('sso-callback', request, ''),
-    },
-    schema: {
-      querystring: z
-        .object({
-          code: z.string().max(4096).optional(),
-          state: z.string().max(512).optional(),
-          error: z.string().max(200).optional(),
-          error_description: z.string().max(500).optional(),
-          iss: z.string().max(300).optional(),
-        })
-        .loose(),
     },
     handler: async (request, reply) => {
       const base = env.KCHS_BASE_URL.replace(/\/+$/, '')
@@ -90,12 +72,10 @@ export function registerSsoRoutes(route: RouteRegistrar): void {
 
   // ─── Администрирование ────────────────────────────────────────────────────
   route({
-    method: 'GET',
-    url: '/admin/sso',
+    route: 'GET /admin/sso',
     auth: { capability: 'admin.system' },
     tags: ['admin'],
     summary: 'Настройка единого входа',
-    schema: { response: { 200: SsoState } },
     handler: async () => {
       const { enabled, settings, clientSecret, updatedAt } = await AuthProviders.sso()
       return {
@@ -109,12 +89,10 @@ export function registerSsoRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'PUT',
-    url: '/admin/sso',
+    route: 'PUT /admin/sso',
     auth: { capability: 'admin.system' },
     tags: ['admin'],
     summary: 'Изменить настройку единого входа',
-    schema: { body: SsoSettingsInput, response: { 200: SsoState } },
     handler: async (request) => {
       const input = request.body
       const keys = [
@@ -156,13 +134,11 @@ export function registerSsoRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/admin/sso/test',
+    route: 'POST /admin/sso/test',
     auth: { capability: 'admin.system' },
     tags: ['admin'],
     summary: 'Проверить соединение с IdP',
     rateLimit: rateLimit(10, '1 minute'),
-    schema: { response: { 200: SsoTestResult } },
     handler: async () => SsoService.test(),
   })
 }

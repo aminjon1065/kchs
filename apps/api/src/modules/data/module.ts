@@ -1,75 +1,12 @@
 import {
-  AskDataInput,
-  AskDataResult,
-  ChartCreateInput,
-  ChartDataInput,
-  ChartRecord,
-  ChartUpdateInput,
-  ColumnarAdmin,
   ColumnarBuildJob,
   ColumnarBuildJobResult,
-  ColumnarCopy,
-  ColumnarSettings,
-  ColumnarSettingsPatch,
-  DashboardCreateInput,
-  DashboardData,
-  DashboardDataInput,
-  DashboardDrillInput,
-  DashboardDrillResult,
-  DashboardRecord,
-  DashboardUpdateInput,
-  DatasetColumnPolicy,
-  DatasetColumnPolicyInput,
-  DatasetColumnPolicyPatch,
-  DatasetCreateInput,
-  DatasetExportDownload,
-  DatasetExportInput,
-  DatasetExportStarted,
-  DatasetFieldConvertInput,
-  DatasetFieldConvertReport,
-  DatasetFieldInput,
-  DatasetFieldPatch,
-  DatasetPolicies,
-  DatasetQuality,
-  DatasetRecord,
-  DatasetRow,
-  DatasetRowHistoryEntry,
-  DatasetRowPatch,
-  DatasetRowPolicy,
-  DatasetRowPolicyInput,
-  DatasetRowPolicyPatch,
-  DatasetRowsBatch,
-  DatasetRowsBatchQueued,
-  DatasetRowsBatchResult,
-  DatasetRowsDelete,
-  DatasetRowsInsert,
-  DatasetRowsQuery,
-  DatasetUpdateInput,
-  DatasetVersion,
-  FieldProfile,
-  ImportAnalysis,
-  ImportAnalyzeInput,
-  ImportRecord,
-  ImportRunInput,
-  MetricCreateInput,
-  MetricRecord,
-  MetricUpdateInput,
-  MetricValue,
-  MetricValueInput,
-  NormalizedReport,
+  type DatasetRowsBatch,
   type ObjectSummary,
   QUALITY_STATUSES,
-  QualityRulesInput,
-  QueryResult,
-  QueryRunInput,
-  SqlRunInput,
-  SqlSchema,
-  SYSTEM_DATASETS,
-  SystemDatasetSchema,
 } from '@kchs/contracts'
 import { eq, inArray, sql } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
-import { z } from 'zod'
 import { authorize } from '~/kernel/access/authorize.js'
 import { registerAuditActions } from '~/kernel/audit/registry.js'
 import { registerSubscriber } from '~/kernel/events/bus.js'
@@ -139,11 +76,6 @@ import {
   registerSourceRoutes,
   scheduleSourceJobs,
 } from './source-module.js'
-
-const IdParam = z.object({ id: z.uuid() })
-const FieldParams = z.object({ id: z.uuid(), key: z.string().min(1).max(64) })
-const RowParams = z.object({ id: z.uuid(), rowId: z.string().regex(/^\d{1,18}$/) })
-const PolicyParams = z.object({ id: z.uuid(), policyId: z.uuid() })
 
 /** Таблицы датасетов, созданные прежними версиями, — к текущему виду (при старте). */
 export async function upgradeDataStorage(): Promise<void> {
@@ -331,12 +263,10 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   registerSourceRoutes(route)
 
   route({
-    method: 'POST',
-    url: '/datasets',
+    route: 'POST /datasets',
     auth: 'session',
     tags: ['data'],
     summary: 'Создать датасет вручную',
-    schema: { body: DatasetCreateInput, response: { 200: z.object({ id: z.uuid() }) } },
     handler: async (request) => {
       await authorize(request.ctx, 'create_child', request.body.parentId ?? request.body.spaceId)
       const id = await db().transaction((tx) =>
@@ -347,62 +277,50 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/datasets/:id/quality',
+    route: 'GET /datasets/:id/quality',
     auth: { delegated: 'QualityService.get', objectType: 'dataset' },
     tags: ['data'],
     summary: 'Качество данных: правила и последняя проверка (ADR-0101)',
-    schema: { params: IdParam, response: { 200: DatasetQuality } },
     handler: async (request) => QualityService.get(request.ctx, request.params.id),
   })
 
   route({
-    method: 'GET',
-    url: '/datasets/:id/columnar',
+    route: 'GET /datasets/:id/columnar',
     auth: { delegated: 'ColumnarService.state', objectType: 'dataset' },
     tags: ['data'],
     summary: 'Колоночная копия датасета: версия, размер, время сборки, свежесть (ADR-0109)',
-    schema: { params: IdParam, response: { 200: ColumnarCopy } },
     handler: async (request) => ColumnarService.state(request.ctx, request.params.id),
   })
 
   route({
-    method: 'POST',
-    url: '/datasets/:id/columnar/build',
+    route: 'POST /datasets/:id/columnar/build',
     auth: { delegated: 'ColumnarService.build', objectType: 'dataset' },
     tags: ['data'],
     summary: 'Собрать колоночную копию текущей версии (уровень manage)',
-    schema: { params: IdParam, response: { 200: ColumnarCopy } },
     handler: async (request) => ColumnarService.build(request.ctx, request.params.id),
   })
 
   route({
-    method: 'GET',
-    url: '/admin/data/columnar',
+    route: 'GET /admin/data/columnar',
     auth: { capability: 'admin.system' },
     tags: ['data'],
     summary: 'Колоночный tier: настройки и копии датасетов (ADR-0109)',
-    schema: { response: { 200: ColumnarAdmin } },
     handler: async (request) => ColumnarService.admin(request.ctx),
   })
 
   route({
-    method: 'PUT',
-    url: '/admin/data/columnar/settings',
+    route: 'PUT /admin/data/columnar/settings',
     auth: { capability: 'admin.system' },
     tags: ['data'],
     summary: 'Настройки колоночного tier: включён и порог строк',
-    schema: { body: ColumnarSettingsPatch, response: { 200: ColumnarSettings } },
     handler: async (request) => ColumnarService.updateSettings(request.ctx, request.body),
   })
 
   route({
-    method: 'PUT',
-    url: '/datasets/:id/quality/rules',
+    route: 'PUT /datasets/:id/quality/rules',
     auth: { delegated: 'QualityService.setRules', objectType: 'dataset' },
     tags: ['data'],
     summary: 'Правила качества датасета: замена набора (уровень manage)',
-    schema: { params: IdParam, body: QualityRulesInput, response: { 200: DatasetQuality } },
     handler: async (request) => {
       await QualityService.setRules(request.ctx, request.params.id, request.body.rules)
       return QualityService.get(request.ctx, request.params.id)
@@ -410,22 +328,18 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/datasets/:id/quality/run',
+    route: 'POST /datasets/:id/quality/run',
     auth: { delegated: 'QualityService.run', objectType: 'dataset' },
     tags: ['data'],
     summary: 'Проверить качество сейчас',
-    schema: { params: IdParam, response: { 200: DatasetQuality } },
     handler: async (request) => QualityService.run(request.ctx, request.params.id),
   })
 
   route({
-    method: 'GET',
-    url: '/datasets/:id',
+    route: 'GET /datasets/:id',
     auth: { delegated: 'DatasetAccess.resolve', objectType: 'dataset' },
     tags: ['data'],
     summary: 'Датасет: схема, счётчики, версия',
-    schema: { params: IdParam, response: { 200: DatasetRecord } },
     handler: async (request) => {
       const grant = await DatasetAccess.resolve(request.ctx, request.params.id)
       const record = await DatasetService.get(request.params.id)
@@ -443,12 +357,10 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/datasets/:id/fields/:key/profile',
+    route: 'GET /datasets/:id/fields/:key/profile',
     auth: { delegated: 'DatasetAccess.resolve', objectType: 'dataset' },
     tags: ['data'],
     summary: 'Профиль столбца: пустые, различные, диапазон, распределение, частые значения',
-    schema: { params: FieldParams, response: { 200: FieldProfile } },
     handler: async (request) => {
       const grant = await DatasetAccess.resolve(request.ctx, request.params.id)
       const [storage, record] = await Promise.all([
@@ -460,12 +372,10 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'PATCH',
-    url: '/datasets/:id',
+    route: 'PATCH /datasets/:id',
     auth: { action: 'manage' },
     tags: ['data'],
     summary: 'Настройки датасета: описание, ключ строки, поля времени и территории',
-    schema: { params: IdParam, body: DatasetUpdateInput, response: { 200: DatasetRecord } },
     handler: async (request) => {
       await db().transaction((tx) =>
         SchemaService.update(tx, request.ctx, request.params.id, request.body),
@@ -475,12 +385,10 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/datasets/:id/fields',
+    route: 'POST /datasets/:id/fields',
     auth: { action: 'manage' },
     tags: ['data'],
     summary: 'Добавить поле',
-    schema: { params: IdParam, body: DatasetFieldInput, response: { 200: DatasetRecord } },
     handler: async (request) => {
       await db().transaction((tx) =>
         SchemaService.addField(tx, request.ctx, request.params.id, request.body),
@@ -490,12 +398,10 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'PATCH',
-    url: '/datasets/:id/fields/:key',
+    route: 'PATCH /datasets/:id/fields/:key',
     auth: { action: 'manage' },
     tags: ['data'],
     summary: 'Изменить описание поля: подпись, семантика, формат, справочник, индекс',
-    schema: { params: FieldParams, body: DatasetFieldPatch, response: { 200: DatasetRecord } },
     handler: async (request) => {
       await db().transaction((tx) =>
         SchemaService.updateField(
@@ -511,16 +417,10 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/datasets/:id/fields/:key/convert',
+    route: 'POST /datasets/:id/fields/:key/convert',
     auth: { action: 'manage' },
     tags: ['data'],
     summary: 'Сменить тип поля: пробный прогон с отчётом или применение',
-    schema: {
-      params: FieldParams,
-      body: DatasetFieldConvertInput,
-      response: { 200: DatasetFieldConvertReport },
-    },
     handler: async (request) =>
       db().transaction((tx) =>
         SchemaService.convertField(
@@ -534,12 +434,10 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'DELETE',
-    url: '/datasets/:id/fields/:key',
+    route: 'DELETE /datasets/:id/fields/:key',
     auth: { action: 'manage' },
     tags: ['data'],
     summary: 'Удалить поле вместе с его данными',
-    schema: { params: FieldParams, response: { 200: DatasetRecord } },
     handler: async (request) => {
       await db().transaction((tx) =>
         SchemaService.removeField(tx, request.ctx, request.params.id, request.params.key),
@@ -549,86 +447,62 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/sql/schema',
+    route: 'GET /sql/schema',
     auth: 'session',
     tags: ['data'],
     summary: 'SQL-лаборатория: датасеты и поля для подсказок',
-    schema: { response: { 200: SqlSchema } },
     handler: async (request) => SqlService.schema(request.ctx),
   })
 
   route({
-    method: 'POST',
-    url: '/sql/run',
+    route: 'POST /sql/run',
     auth: 'session',
     tags: ['data'],
     summary: 'SQL-лаборатория: выполнить SELECT над датасетами с политиками пользователя',
-    schema: { body: SqlRunInput, response: { 200: QueryResult } },
     readOnly: true,
     handler: async (request) => QueryService.runSql(request.ctx, request.body),
   })
 
   route({
-    method: 'POST',
-    url: '/datasets/:id/exports',
+    route: 'POST /datasets/:id/exports',
     auth: { delegated: 'ExportService.start', objectType: 'dataset' },
     tags: ['data'],
     summary: 'Экспорт датасета в CSV, XLSX, JSON или GeoJSON — задание с файлом',
-    schema: {
-      params: IdParam,
-      body: DatasetExportInput,
-      response: { 200: DatasetExportStarted },
-    },
     handler: async (request) => ExportService.start(request.ctx, request.params.id, request.body),
   })
 
   route({
-    method: 'GET',
-    url: '/datasets/exports/:jobId/download',
+    route: 'GET /datasets/exports/:jobId/download',
     auth: {
       owned: 'ExportService.download — только инициатор экспорта, с правом export на датасет',
     },
     tags: ['data'],
     summary: 'Ссылка на файл экспорта — только запросившему',
-    schema: {
-      params: z.object({ jobId: z.uuid() }),
-      response: { 200: DatasetExportDownload },
-    },
     handler: async (request) => ExportService.download(request.ctx, request.params.jobId),
   })
 
   route({
-    method: 'POST',
-    url: '/datasets/:id/versions/:number/rollback',
+    route: 'POST /datasets/:id/versions/:number/rollback',
     auth: { action: 'manage' },
     tags: ['data'],
     summary: 'Откатить датасет к прежней версии — новой версией (ADR-0062)',
-    schema: {
-      params: z.object({ id: z.uuid(), number: z.coerce.number().int().min(1) }),
-      response: { 200: DatasetVersion },
-    },
     handler: async (request) =>
       RollbackService.rollback(request.ctx, request.params.id, request.params.number),
   })
 
   route({
-    method: 'GET',
-    url: '/datasets/:id/policies',
+    route: 'GET /datasets/:id/policies',
     auth: { action: 'manage' },
     tags: ['data'],
     summary: 'Политики строк и столбцов датасета',
-    schema: { params: IdParam, response: { 200: DatasetPolicies } },
     handler: async (request) => PolicyService.list(request.params.id),
   })
 
   route({
-    method: 'POST',
-    url: '/datasets/:id/policies/rows',
+    route: 'POST /datasets/:id/policies/rows',
     auth: { action: 'manage' },
     tags: ['data'],
     summary: 'Добавить политику строк: кому и какие строки видны',
-    schema: { params: IdParam, body: DatasetRowPolicyInput, response: { 200: DatasetRowPolicy } },
     handler: async (request) =>
       db().transaction((tx) =>
         PolicyService.createRow(tx, request.ctx, request.params.id, request.body),
@@ -636,16 +510,10 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'PATCH',
-    url: '/datasets/:id/policies/rows/:policyId',
+    route: 'PATCH /datasets/:id/policies/rows/:policyId',
     auth: { action: 'manage' },
     tags: ['data'],
     summary: 'Изменить политику строк',
-    schema: {
-      params: PolicyParams,
-      body: DatasetRowPolicyPatch,
-      response: { 200: DatasetRowPolicy },
-    },
     handler: async (request) =>
       db().transaction((tx) =>
         PolicyService.updateRow(
@@ -659,12 +527,10 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'DELETE',
-    url: '/datasets/:id/policies/rows/:policyId',
+    route: 'DELETE /datasets/:id/policies/rows/:policyId',
     auth: { action: 'manage' },
     tags: ['data'],
     summary: 'Удалить политику строк',
-    schema: { params: PolicyParams, response: { 200: z.object({ ok: z.boolean() }) } },
     handler: async (request) => {
       await db().transaction((tx) =>
         PolicyService.removeRow(tx, request.ctx, request.params.id, request.params.policyId),
@@ -674,16 +540,10 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/datasets/:id/policies/columns',
+    route: 'POST /datasets/:id/policies/columns',
     auth: { action: 'manage' },
     tags: ['data'],
     summary: 'Добавить политику столбцов: скрыть или замаскировать поля',
-    schema: {
-      params: IdParam,
-      body: DatasetColumnPolicyInput,
-      response: { 200: DatasetColumnPolicy },
-    },
     handler: async (request) =>
       db().transaction((tx) =>
         PolicyService.createColumn(tx, request.ctx, request.params.id, request.body),
@@ -691,16 +551,10 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'PATCH',
-    url: '/datasets/:id/policies/columns/:policyId',
+    route: 'PATCH /datasets/:id/policies/columns/:policyId',
     auth: { action: 'manage' },
     tags: ['data'],
     summary: 'Изменить политику столбцов',
-    schema: {
-      params: PolicyParams,
-      body: DatasetColumnPolicyPatch,
-      response: { 200: DatasetColumnPolicy },
-    },
     handler: async (request) =>
       db().transaction((tx) =>
         PolicyService.updateColumn(
@@ -714,12 +568,10 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'DELETE',
-    url: '/datasets/:id/policies/columns/:policyId',
+    route: 'DELETE /datasets/:id/policies/columns/:policyId',
     auth: { action: 'manage' },
     tags: ['data'],
     summary: 'Удалить политику столбцов',
-    schema: { params: PolicyParams, response: { 200: z.object({ ok: z.boolean() }) } },
     handler: async (request) => {
       await db().transaction((tx) =>
         PolicyService.removeColumn(tx, request.ctx, request.params.id, request.params.policyId),
@@ -729,69 +581,51 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/queries/run',
+    route: 'POST /queries/run',
     auth: 'session',
     tags: ['data'],
     summary: 'Выполнить QuerySpec: источники с политиками пользователя, результат столбцами',
-    schema: { body: QueryRunInput, response: { 200: QueryResult } },
     readOnly: true,
     handler: async (request) =>
       QueryService.run(request.ctx, request.body.spec, { params: request.body.params }),
   })
 
   route({
-    method: 'POST',
-    url: '/datasets/:id/ask',
+    route: 'POST /datasets/:id/ask',
     auth: { action: 'view', capability: 'ai.use' },
     tags: ['data', 'ai'],
     summary: 'Спросить данные: вопрос → план модели → проверенный запрос и результат',
-    schema: { params: IdParam, body: AskDataInput, response: { 200: AskDataResult } },
     rateLimit: { max: 20, timeWindow: '1 minute' },
     handler: async (request) =>
       AskService.ask(request.ctx, request.params.id, request.body.question),
   })
 
   route({
-    method: 'POST',
-    url: '/datasets/:id/rows/query',
+    route: 'POST /datasets/:id/rows/query',
     auth: { delegated: 'RowService.query', objectType: 'dataset' },
     tags: ['data'],
     summary: 'Страница строк таблицы датасета: фильтр, поиск, сортировка, счётчик',
-    schema: { params: IdParam, body: DatasetRowsQuery, response: { 200: QueryResult } },
     handler: async (request) => RowService.query(request.ctx, request.params.id, request.body),
   })
 
   route({
-    method: 'POST',
-    url: '/datasets/:id/rows',
+    route: 'POST /datasets/:id/rows',
     auth: { delegated: 'RowService.insert', objectType: 'dataset' },
     tags: ['data'],
     summary: 'Добавить строки (до 1000)',
-    schema: {
-      params: IdParam,
-      body: DatasetRowsInsert,
-      response: { 200: z.object({ items: z.array(DatasetRow) }) },
-    },
     handler: async (request) => ({
       items: await RowService.insert(request.ctx, request.params.id, request.body.rows),
     }),
   })
 
   route({
-    method: 'POST',
-    url: '/datasets/:id/rows/batch',
+    route: 'POST /datasets/:id/rows/batch',
     auth: { delegated: 'RowService (applyRowsBatch, queueRowsBatch)', objectType: 'dataset' },
     tags: ['data'],
     summary: 'Массовая правка строк: вставка, изменение и удаление одним запросом',
     description:
       'Пачка применяется целиком или не применяется вовсе. Больше 500 операций ' +
       'или `async: true` — ответ 202 с `jobId`, состояние — `GET /jobs/{jobId}`.',
-    schema: {
-      params: IdParam,
-      body: DatasetRowsBatch,
-      response: { 200: DatasetRowsBatchResult, 202: DatasetRowsBatchQueued },
-    },
     handler: async (request, reply) => {
       const input = request.body
       if (input.async || batchSize(input) > BATCH_INLINE_LIMIT) {
@@ -804,87 +638,66 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/datasets/:id/rows/delete',
+    route: 'POST /datasets/:id/rows/delete',
     auth: { delegated: 'RowService.remove', objectType: 'dataset' },
     tags: ['data'],
     summary: 'Удалить строки (до 1000)',
-    schema: {
-      params: IdParam,
-      body: DatasetRowsDelete,
-      response: { 200: z.object({ deleted: z.number().int() }) },
-    },
     handler: async (request) => ({
       deleted: await RowService.remove(request.ctx, request.params.id, request.body.ids),
     }),
   })
 
   route({
-    method: 'GET',
-    url: '/datasets/:id/rows/:rowId',
+    route: 'GET /datasets/:id/rows/:rowId',
     auth: { delegated: 'RowService.get', objectType: 'dataset' },
     tags: ['data'],
     summary: 'Строка датасета',
-    schema: { params: RowParams, response: { 200: DatasetRow } },
     handler: async (request) =>
       RowService.get(request.ctx, request.params.id, request.params.rowId),
   })
 
   route({
-    method: 'PATCH',
-    url: '/datasets/:id/rows/:rowId',
+    route: 'PATCH /datasets/:id/rows/:rowId',
     auth: { delegated: 'RowService.update', objectType: 'dataset' },
     tags: ['data'],
     summary: 'Изменить строку; конфликт версии — 409 с текущими значениями',
-    schema: { params: RowParams, body: DatasetRowPatch, response: { 200: DatasetRow } },
     handler: async (request) =>
       RowService.update(request.ctx, request.params.id, request.params.rowId, request.body),
   })
 
   route({
-    method: 'GET',
-    url: '/datasets/:id/rows/:rowId/history',
+    route: 'GET /datasets/:id/rows/:rowId/history',
     auth: { delegated: 'RowService.history', objectType: 'dataset' },
     tags: ['data'],
     summary: 'История изменений строки',
-    schema: {
-      params: RowParams,
-      response: { 200: z.object({ items: z.array(DatasetRowHistoryEntry) }) },
-    },
     handler: async (request) => ({
       items: await RowService.history(request.ctx, request.params.id, request.params.rowId),
     }),
   })
 
   route({
-    method: 'GET',
-    url: '/datasets/:id/versions',
+    route: 'GET /datasets/:id/versions',
     auth: { action: 'view' },
     tags: ['data'],
     summary: 'Версии датасета',
-    schema: { params: IdParam, response: { 200: z.object({ items: z.array(DatasetVersion) }) } },
     handler: async (request) => ({ items: await DatasetService.versions(request.params.id) }),
   })
 
   route({
-    method: 'GET',
-    url: '/datasets/:id/imports',
+    route: 'GET /datasets/:id/imports',
     auth: { action: 'view' },
     tags: ['data'],
     summary: 'Импорты датасета (сводки изменений — без примеров)',
-    schema: { params: IdParam, response: { 200: z.object({ items: z.array(ImportRecord) }) } },
     handler: async (request) => ({
       items: (await ImportService.list(request.params.id)).map(ImportService.withoutSamples),
     }),
   })
 
   route({
-    method: 'POST',
-    url: '/datasets/imports/analyze',
+    route: 'POST /datasets/imports/analyze',
     auth: 'session',
     tags: ['data'],
     summary: 'Анализ файла для импорта: формат, типы, семантика, предпросмотр',
-    schema: { body: ImportAnalyzeInput, response: { 200: ImportAnalysis } },
     handler: async (request) => {
       await authorize(request.ctx, 'view', request.body.fileId)
       return ImportService.analyze(request.body)
@@ -892,12 +705,10 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/datasets/imports',
+    route: 'POST /datasets/imports',
     auth: 'session',
     tags: ['data'],
     summary: 'Запустить импорт файла в новый или существующий датасет',
-    schema: { body: ImportRunInput, response: { 200: ImportRecord } },
     handler: async (request) => {
       const { target } = request.body
       await authorize(request.ctx, 'view', request.body.fileId)
@@ -911,12 +722,10 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/datasets/imports/:id',
+    route: 'GET /datasets/imports/:id',
     auth: { delegated: 'ImportService.get → DatasetAccess.resolve', resource: 'import' },
     tags: ['data'],
     summary: 'Состояние импорта; сводка изменений — с политиками пользователя (ADR-0068)',
-    schema: { params: IdParam, response: { 200: ImportRecord } },
     handler: async (request) => {
       const record = await ImportService.get(request.params.id)
       const grant = await DatasetAccess.resolve(request.ctx, record.datasetId, 'view')
@@ -928,12 +737,10 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/datasets/imports/:id/publish',
+    route: 'POST /datasets/imports/:id/publish',
     auth: { delegated: 'authorize(import)', resource: 'import' },
     tags: ['data'],
     summary: 'Опубликовать импорт после предпросмотра изменений: загрузка в датасет',
-    schema: { params: IdParam, response: { 200: ImportRecord } },
     handler: async (request) => {
       const record = await ImportService.get(request.params.id)
       await authorize(request.ctx, 'import', record.datasetId)
@@ -944,12 +751,10 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/datasets/imports/:id/cancel',
+    route: 'POST /datasets/imports/:id/cancel',
     auth: { delegated: 'authorize(import)', resource: 'import' },
     tags: ['data'],
     summary: 'Отменить импорт после предпросмотра изменений: датасет не меняется',
-    schema: { params: IdParam, response: { 200: ImportRecord } },
     handler: async (request) => {
       const record = await ImportService.get(request.params.id)
       await authorize(request.ctx, 'import', record.datasetId)
@@ -960,12 +765,10 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/charts',
+    route: 'POST /charts',
     auth: 'session',
     tags: ['data'],
     summary: 'Создать график',
-    schema: { body: ChartCreateInput, response: { 200: z.object({ id: z.uuid() }) } },
     handler: async (request) => {
       await authorize(request.ctx, 'create_child', request.body.parentId ?? request.body.spaceId)
       const id = await db().transaction((tx) => ChartService.create(tx, request.ctx, request.body))
@@ -974,22 +777,18 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/charts/:id',
+    route: 'GET /charts/:id',
     auth: { action: 'view' },
     tags: ['data'],
     summary: 'График: спецификация',
-    schema: { params: IdParam, response: { 200: ChartRecord } },
     handler: async (request) => ChartService.get(request.params.id),
   })
 
   route({
-    method: 'PATCH',
-    url: '/charts/:id',
+    route: 'PATCH /charts/:id',
     auth: { action: 'edit' },
     tags: ['data'],
     summary: 'Изменить график: название, спецификация',
-    schema: { params: IdParam, body: ChartUpdateInput, response: { 200: ChartRecord } },
     handler: async (request) => {
       await db().transaction((tx) =>
         ChartService.update(tx, request.ctx, request.params.id, request.body),
@@ -999,12 +798,10 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/charts/:id/data',
+    route: 'POST /charts/:id/data',
     auth: { action: 'view' },
     tags: ['data'],
     summary: 'Данные графика — с политиками пользователя',
-    schema: { params: IdParam, body: ChartDataInput, response: { 200: QueryResult } },
     readOnly: true,
     handler: async (request) => {
       const chart = await ChartService.get(request.params.id)
@@ -1016,12 +813,10 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/dashboards',
+    route: 'POST /dashboards',
     auth: 'session',
     tags: ['data'],
     summary: 'Создать дашборд',
-    schema: { body: DashboardCreateInput, response: { 200: z.object({ id: z.uuid() }) } },
     handler: async (request) => {
       await authorize(request.ctx, 'create_child', request.body.parentId ?? request.body.spaceId)
       const id = await db().transaction((tx) =>
@@ -1032,22 +827,18 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/dashboards/:id',
+    route: 'GET /dashboards/:id',
     auth: { action: 'view' },
     tags: ['data'],
     summary: 'Дашборд: плитки и фильтры',
-    schema: { params: IdParam, response: { 200: DashboardRecord } },
     handler: async (request) => DashboardService.get(request.params.id),
   })
 
   route({
-    method: 'PATCH',
-    url: '/dashboards/:id',
+    route: 'PATCH /dashboards/:id',
     auth: { action: 'edit' },
     tags: ['data'],
     summary: 'Изменить дашборд: название, плитки, фильтры',
-    schema: { params: IdParam, body: DashboardUpdateInput, response: { 200: DashboardRecord } },
     handler: async (request) => {
       await db().transaction((tx) =>
         DashboardService.update(tx, request.ctx, request.params.id, request.body),
@@ -1057,52 +848,37 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/dashboards/:id/data',
+    route: 'POST /dashboards/:id/data',
     auth: { action: 'view' },
     tags: ['data'],
     summary: 'Данные плиток дашборда одним запросом, с фильтрами дашборда',
     // Чтение: доступно и странице печати отчёта с токеном печати (блок «Дашборд», ADR-0164)
     readOnly: true,
-    schema: { params: IdParam, body: DashboardDataInput, response: { 200: DashboardData } },
     handler: async (request) => DashboardService.data(request.ctx, request.params.id, request.body),
   })
 
   route({
-    method: 'POST',
-    url: '/dashboards/:id/drill',
+    route: 'POST /dashboards/:id/drill',
     auth: { action: 'view' },
     tags: ['data'],
     summary: 'Детализация плитки до строк: выбранный элемент графика и фильтры дашборда',
-    schema: {
-      params: IdParam,
-      body: DashboardDrillInput,
-      response: { 200: DashboardDrillResult },
-    },
     handler: async (request) =>
       DashboardService.drill(request.ctx, request.params.id, request.body),
   })
 
   route({
-    method: 'GET',
-    url: '/system-datasets/:name',
+    route: 'GET /system-datasets/:name',
     auth: { open: 'имя системного датасета — справочник полей; строки — по политикам датасета' },
     tags: ['data'],
     summary: 'Схема системного датасета: поля для подписей показателей (ADR-0082)',
-    schema: {
-      params: z.object({ name: z.enum(SYSTEM_DATASETS) }),
-      response: { 200: SystemDatasetSchema },
-    },
     handler: async (request) => systemDatasetSchema(request.ctx, request.params.name),
   })
 
   route({
-    method: 'POST',
-    url: '/metrics',
+    route: 'POST /metrics',
     auth: 'session',
     tags: ['data'],
     summary: 'Создать показатель',
-    schema: { body: MetricCreateInput, response: { 200: z.object({ id: z.uuid() }) } },
     handler: async (request) => {
       await authorize(request.ctx, 'create_child', request.body.parentId ?? request.body.spaceId)
       const id = await db().transaction((tx) => MetricService.create(tx, request.ctx, request.body))
@@ -1111,22 +887,18 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/metrics/:id',
+    route: 'GET /metrics/:id',
     auth: { action: 'view' },
     tags: ['data'],
     summary: 'Показатель: определение, цели, пороги',
-    schema: { params: IdParam, response: { 200: MetricRecord } },
     handler: async (request) => MetricService.get(request.params.id),
   })
 
   route({
-    method: 'PATCH',
-    url: '/metrics/:id',
+    route: 'PATCH /metrics/:id',
     auth: { action: 'edit' },
     tags: ['data'],
     summary: 'Изменить показатель',
-    schema: { params: IdParam, body: MetricUpdateInput, response: { 200: MetricRecord } },
     handler: async (request) => {
       await db().transaction((tx) =>
         MetricService.update(tx, request.ctx, request.params.id, request.body),
@@ -1136,29 +908,21 @@ export function registerDataRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/metrics/:id/value',
+    route: 'POST /metrics/:id/value',
     auth: { action: 'view' },
     tags: ['data'],
     summary:
       'Значение показателя: сравнение, статус порога, история и разрез — с политиками пользователя',
-    schema: { params: IdParam, body: MetricValueInput, response: { 200: MetricValue } },
     readOnly: true,
     handler: async (request) =>
       MetricService.evaluate(request.ctx, await MetricService.get(request.params.id), request.body),
   })
 
   route({
-    method: 'POST',
-    url: '/internal/data/imports/:id/normalized',
+    route: 'POST /internal/data/imports/:id/normalized',
     auth: { engineJob: { scope: (params) => `import:${params.id}` } },
     tags: ['internal'],
     summary: 'Движок сообщает итог нормализации файла импорта (ADR-0046)',
-    schema: {
-      params: IdParam,
-      body: NormalizedReport,
-      response: { 200: z.object({ loadJobId: z.uuid().nullable() }) },
-    },
     handler: async (request) => ({
       loadJobId: await ImportService.acceptNormalized(request.params.id, request.body),
     }),

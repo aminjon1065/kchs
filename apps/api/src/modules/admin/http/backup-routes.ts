@@ -1,5 +1,3 @@
-import { BackupList, BackupRecord } from '@kchs/contracts'
-import { z } from 'zod'
 import { BackupService } from '~/kernel/backup/service.js'
 import { JobService } from '~/kernel/jobs/service.js'
 import { db } from '~/shared/db/client.js'
@@ -14,38 +12,28 @@ import type { RouteRegistrar } from '~/shared/http/route.js'
  */
 export function registerBackupRoutes(route: RouteRegistrar): void {
   route({
-    method: 'GET',
-    url: '/admin/backups',
+    route: 'GET /admin/backups',
     auth: { capability: 'admin.system' },
     tags: ['admin'],
     summary: 'Резервные копии базы',
-    schema: { response: { 200: BackupList } },
     handler: async () => ({ items: await BackupService.list() }),
   })
 
   route({
-    method: 'POST',
-    url: '/admin/backups',
+    route: 'POST /admin/backups',
     auth: { capability: 'admin.system' },
     tags: ['admin'],
     summary: 'Сделать резервную копию сейчас',
     description: 'Дамп идёт потоком в бакет копий; запись о прогоне возвращается по завершении.',
     rateLimit: { max: 3, timeWindow: '10 minutes' },
-    schema: { response: { 200: BackupRecord } },
     handler: async (request) => BackupService.run(request.ctx),
   })
 
   route({
-    method: 'POST',
-    url: '/admin/backups/:id/verified',
+    route: 'POST /admin/backups/:id/verified',
     auth: { capability: 'admin.system' },
     tags: ['admin'],
     summary: 'Отметить копию проверенной восстановлением',
-    schema: {
-      params: z.object({ id: z.uuid() }),
-      body: z.object({ note: z.string().max(500).default('') }),
-      response: { 200: BackupRecord },
-    },
     handler: async (request) => {
       const saved = await BackupService.markVerified(
         request.ctx,
@@ -58,14 +46,12 @@ export function registerBackupRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/admin/maintenance/reindex',
+    route: 'POST /admin/maintenance/reindex',
     auth: { capability: 'admin.system' },
     tags: ['admin'],
     summary: 'Переиндексировать поиск',
     description: 'Полная переиндексация идёт заданием; за ходом следит экран «Процессы».',
     rateLimit: { max: 3, timeWindow: '10 minutes' },
-    schema: { response: { 200: z.object({ jobId: z.uuid() }) } },
     handler: async (request) => {
       const jobId = await db().transaction((tx) =>
         JobService.schedule(tx, request.ctx, {

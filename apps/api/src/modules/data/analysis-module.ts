@@ -1,12 +1,4 @@
-import {
-  AnalysisCreateInput,
-  AnalysisPreviewInput,
-  AnalysisRecord,
-  AnalysisRunStarted,
-  QueryResult,
-} from '@kchs/contracts'
 import { eq } from 'drizzle-orm'
-import { z } from 'zod'
 import { authorize } from '~/kernel/access/authorize.js'
 import { registerSubscriber } from '~/kernel/events/bus.js'
 import { jobClosedSubscriber } from '~/kernel/jobs/outcomes.js'
@@ -16,8 +8,6 @@ import { objects } from '~/kernel/objects/schema.js'
 import { db } from '~/shared/db/client.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { ANALYSIS_JOB, type AnalysisJobData, AnalysisService } from './domain/analysis-service.js'
-
-const IdParam = z.object({ id: z.uuid() })
 
 /**
  * Пространственный анализ (07-gis-engine.md §10, ADR-0069): объект реестра
@@ -72,12 +62,10 @@ export function registerAnalysisObjectType(): void {
 
 export function registerAnalysisRoutes(route: RouteRegistrar): void {
   route({
-    method: 'POST',
-    url: '/analyses',
+    route: 'POST /analyses',
     auth: 'session',
     tags: ['data'],
     summary: 'Создать пространственный анализ (и запустить)',
-    schema: { body: AnalysisCreateInput, response: { 200: AnalysisRecord } },
     handler: async (request) => {
       await authorize(request.ctx, 'create_child', request.body.parentId ?? request.body.spaceId)
       const id = await AnalysisService.create(request.ctx, request.body)
@@ -86,34 +74,28 @@ export function registerAnalysisRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/analyses/preview',
+    route: 'POST /analyses/preview',
     auth: 'session',
     tags: ['data'],
     summary: 'Предпросмотр анализа: результат запроса на выборке, без сохранения',
     description:
       'Запрос анализа или параметры хороплета (ADR-0077) — интерактивно, с политиками смотрящего; до 2 000 строк.',
-    schema: { body: AnalysisPreviewInput, response: { 200: QueryResult } },
     handler: async (request) => AnalysisService.preview(request.ctx, request.body),
   })
 
   route({
-    method: 'GET',
-    url: '/analyses/:id',
+    route: 'GET /analyses/:id',
     auth: { action: 'view' },
     tags: ['data'],
     summary: 'Анализ: параметры, источники, результат и состояние запуска',
-    schema: { params: IdParam, response: { 200: AnalysisRecord } },
     handler: async (request) => AnalysisService.get(request.params.id),
   })
 
   route({
-    method: 'POST',
-    url: '/analyses/:id/run',
+    route: 'POST /analyses/:id/run',
     auth: { action: 'run' },
     tags: ['data'],
     summary: 'Перезапустить анализ: результат заменит строки прежнего датасета',
-    schema: { params: IdParam, response: { 200: AnalysisRunStarted } },
     handler: async (request) => AnalysisService.run(request.ctx, request.params.id),
   })
 }

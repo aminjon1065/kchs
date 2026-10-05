@@ -1,22 +1,6 @@
-import {
-  DocumentRenderDownload,
-  DocumentRenderList,
-  DocumentRenderRecord,
-  DocumentRenderResult,
-  DocumentRenderStart,
-  PrintFormList,
-  PrintRequestInput,
-  VersionCompareQuery,
-  VersionCompareResult,
-  WatermarkRequestInput,
-} from '@kchs/contracts'
-import { z } from 'zod'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { compareVersions } from '../domain/compare/compare-service.js'
 import { DocumentRenders } from '../domain/render-service.js'
-
-const IdParam = z.object({ id: z.uuid() })
-const SubjectQuery = z.object({ subjectId: z.uuid() })
 
 /**
  * Печатные формы, штампы, копии с водяным знаком и сравнение версий
@@ -25,24 +9,20 @@ const SubjectQuery = z.object({ subjectId: z.uuid() })
  */
 export function registerRenderRoutes(route: RouteRegistrar): void {
   route({
-    method: 'GET',
-    url: '/documents/print-forms',
+    route: 'GET /documents/print-forms',
     auth: 'session',
     tags: ['documents'],
     summary: 'Печатные формы документа или журнала — с причиной недоступности',
-    schema: { querystring: SubjectQuery, response: { 200: PrintFormList } },
     handler: async (request) => ({
       items: await DocumentRenders.forms(request.ctx, request.query.subjectId),
     }),
   })
 
   route({
-    method: 'POST',
-    url: '/documents/prints',
+    route: 'POST /documents/prints',
     auth: 'session',
     tags: ['documents'],
     summary: 'Заказать печатную форму: PDF строит движок и прикрепляет к объекту',
-    schema: { body: PrintRequestInput, response: { 200: DocumentRenderRecord } },
     handler: async (request) => {
       const id = await DocumentRenders.requestPrint(request.ctx, request.body)
       return DocumentRenders.get(request.ctx, id)
@@ -50,12 +30,10 @@ export function registerRenderRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/documents/watermarked',
+    route: 'POST /documents/watermarked',
     auth: 'session',
     tags: ['documents'],
     summary: 'Копия файла с грифом под водяным знаком смотрящего',
-    schema: { body: WatermarkRequestInput, response: { 200: DocumentRenderRecord } },
     handler: async (request) => {
       const id = await DocumentRenders.requestWatermark(request.ctx, request.body.fileId)
       return DocumentRenders.get(request.ctx, id)
@@ -63,74 +41,54 @@ export function registerRenderRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/documents/renders',
+    route: 'GET /documents/renders',
     auth: 'session',
     tags: ['documents'],
     summary: 'Печатные формы и заполнения шаблонов объекта',
-    schema: { querystring: SubjectQuery, response: { 200: DocumentRenderList } },
     handler: async (request) => ({
       items: await DocumentRenders.list(request.ctx, request.query.subjectId),
     }),
   })
 
   route({
-    method: 'GET',
-    url: '/documents/renders/:id',
+    route: 'GET /documents/renders/:id',
     auth: { delegated: 'DocumentRenders.get', resource: 'render' },
     tags: ['documents'],
     summary: 'Состояние рендера: в очереди, строится, готов, не удался',
-    schema: { params: IdParam, response: { 200: DocumentRenderRecord } },
     handler: async (request) => DocumentRenders.get(request.ctx, request.params.id),
   })
 
   route({
-    method: 'GET',
-    url: '/documents/renders/:id/download',
+    route: 'GET /documents/renders/:id/download',
     auth: { delegated: 'DocumentRenders.download', resource: 'render' },
     tags: ['documents'],
     summary: 'Ссылка на готовую копию с водяным знаком',
-    schema: { params: IdParam, response: { 200: DocumentRenderDownload } },
     handler: async (request) => DocumentRenders.download(request.ctx, request.params.id),
   })
 
   route({
-    method: 'GET',
-    url: '/documents/:id/versions/compare',
+    route: 'GET /documents/:id/versions/compare',
     auth: { delegated: 'compareVersions → authorize(view)', objectType: 'document' },
     tags: ['documents'],
     summary: 'Сравнение двух версий документа по словам',
-    schema: {
-      params: IdParam,
-      querystring: VersionCompareQuery,
-      response: { 200: VersionCompareResult },
-    },
     handler: async (request) => compareVersions(request.ctx, request.params.id, request.query),
   })
 
   // ─── Движок (токен задания, внутренняя сеть, ADR-0176) ─────────────────────
 
   route({
-    method: 'POST',
-    url: '/internal/documents/renders/:id/start',
+    route: 'POST /internal/documents/renders/:id/start',
     auth: { engineJob: { scope: (params) => `document-render:${params.id}` } },
     tags: ['internal'],
     summary: 'Движок начинает рендер: план с правами заказчика на этот момент',
-    schema: { params: IdParam, response: { 200: DocumentRenderStart } },
     handler: async (request) => DocumentRenders.engineStart(request.params.id),
   })
 
   route({
-    method: 'POST',
-    url: '/internal/documents/renders/:id/done',
+    route: 'POST /internal/documents/renders/:id/done',
     auth: { engineJob: { scope: (params) => `document-render:${params.id}` } },
     tags: ['internal'],
     summary: 'Движок положил результат рендера под выданный ключ',
-    schema: {
-      params: IdParam,
-      body: DocumentRenderResult,
-      response: { 200: z.object({ ok: z.boolean(), stale: z.boolean() }) },
-    },
     handler: async (request) => {
       const { stale } = await DocumentRenders.engineDone(request.params.id, request.body)
       return { ok: true, stale }

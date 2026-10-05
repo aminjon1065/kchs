@@ -1,15 +1,4 @@
-import {
-  ServiceLayerCheckResult,
-  ServiceLayerCreateInput,
-  ServiceLayerFeaturesQuery,
-  ServiceLayerImportInput,
-  ServiceLayerImportStarted,
-  ServiceLayerList,
-  ServiceLayerRecord,
-  ServiceLayerUpdateInput,
-} from '@kchs/contracts'
 import { eq } from 'drizzle-orm'
-import { z } from 'zod'
 import { authorize } from '~/kernel/access/authorize.js'
 import { buildUserCtxFor } from '~/kernel/access/explain.js'
 import { registerJobHandler } from '~/kernel/jobs/runner.js'
@@ -27,13 +16,6 @@ import {
 } from './domain/service-layer-service.js'
 import { serviceLayers } from './schema.js'
 
-const IdParam = z.object({ id: z.uuid() })
-const TileParams = z.object({
-  id: z.uuid(),
-  z: z.coerce.number().int().min(0).max(24),
-  x: z.coerce.number().int().min(0),
-  y: z.coerce.number().int().min(0),
-})
 /** Тайлы службы — тот же потолок частоты, что у подложек. */
 const TILES_PER_MINUTE = 6000
 const MANAGE = 'gis.basemaps.manage'
@@ -90,57 +72,43 @@ export function registerServiceLayerObjectType(): void {
 
 export function registerServiceLayerRoutes(route: RouteRegistrar): void {
   route({
-    method: 'GET',
-    url: '/gis/service-layers',
+    route: 'GET /gis/service-layers',
     auth: 'session',
     tags: ['gis'],
     summary: 'Слои-ссылки на внешние ГИС-службы',
-    schema: { response: { 200: ServiceLayerList } },
     handler: async (request) => ({ items: await ServiceLayerService.list(request.ctx) }),
   })
 
   route({
-    method: 'POST',
-    url: '/gis/service-layers',
+    route: 'POST /gis/service-layers',
     auth: { capability: MANAGE },
     tags: ['gis'],
     summary: 'Добавить слой-ссылку: XYZ, WMS, WMTS, WFS или ArcGIS REST',
-    schema: { body: ServiceLayerCreateInput, response: { 200: ServiceLayerRecord } },
     handler: async (request) => ServiceLayerService.create(request.ctx, request.body),
   })
 
   route({
-    method: 'GET',
-    url: '/gis/service-layers/:id',
+    route: 'GET /gis/service-layers/:id',
     auth: { action: 'view' },
     tags: ['gis'],
     summary: 'Слой-ссылка: вид службы, параметры и состояние проверки',
-    schema: { params: IdParam, response: { 200: ServiceLayerRecord } },
     handler: async (request) => ServiceLayerService.get(request.ctx, request.params.id),
   })
 
   route({
-    method: 'PATCH',
-    url: '/gis/service-layers/:id',
+    route: 'PATCH /gis/service-layers/:id',
     auth: { action: 'manage' },
     tags: ['gis'],
     summary: 'Изменить слой-ссылку: адрес, параметры, ключ, масштабы',
-    schema: {
-      params: IdParam,
-      body: ServiceLayerUpdateInput,
-      response: { 200: ServiceLayerRecord },
-    },
     handler: async (request) =>
       ServiceLayerService.update(request.ctx, request.params.id, request.body),
   })
 
   route({
-    method: 'POST',
-    url: '/gis/service-layers/:id/check',
+    route: 'POST /gis/service-layers/:id/check',
     auth: { action: 'manage' },
     tags: ['gis'],
     summary: 'Проверить соединение со службой',
-    schema: { params: IdParam, response: { 200: ServiceLayerCheckResult } },
     rateLimit: { max: 20, timeWindow: '1 minute' },
     handler: async (request) => {
       const result = await ServiceLayerService.check(request.ctx, request.params.id)
@@ -149,12 +117,10 @@ export function registerServiceLayerRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/gis/service-layers/:id/tiles/:z/:x/:y',
+    route: 'GET /gis/service-layers/:id/tiles/:z/:x/:y',
     auth: { action: 'view' },
     tags: ['gis'],
     summary: 'Тайл внешней растровой службы через прокси API: ключ скрыт, кэш',
-    schema: { params: TileParams },
     rateLimit: rateLimit(TILES_PER_MINUTE, '1 minute'),
     handler: async (request, reply) => {
       const { id, z, x, y } = request.params
@@ -168,12 +134,10 @@ export function registerServiceLayerRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/gis/service-layers/:id/features',
+    route: 'GET /gis/service-layers/:id/features',
     auth: { action: 'view' },
     tags: ['gis'],
     summary: 'Объекты внешней векторной службы (WFS, ArcGIS REST) как GeoJSON',
-    schema: { params: IdParam, querystring: ServiceLayerFeaturesQuery },
     rateLimit: { max: 300, timeWindow: '1 minute' },
     handler: async (request, reply) => {
       const result = await ServiceLayerService.features(request.params.id, {
@@ -188,16 +152,10 @@ export function registerServiceLayerRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/gis/service-layers/:id/import',
+    route: 'POST /gis/service-layers/:id/import',
     auth: { action: 'manage' },
     tags: ['gis'],
     summary: 'Выгрузить объекты службы в файл GeoJSON — дальше обычный геоимпорт',
-    schema: {
-      params: IdParam,
-      body: ServiceLayerImportInput,
-      response: { 200: ServiceLayerImportStarted },
-    },
     rateLimit: { max: 10, timeWindow: '1 minute' },
     handler: async (request) => {
       // Файл выгрузки ложится в пространство, где человек может заводить объекты

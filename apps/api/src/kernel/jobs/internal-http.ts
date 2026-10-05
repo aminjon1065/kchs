@@ -1,5 +1,3 @@
-import { JobStatusReport } from '@kchs/contracts'
-import { z } from 'zod'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { JobService } from './service.js'
 
@@ -10,16 +8,10 @@ import { JobService } from './service.js'
  */
 export function registerInternalJobRoutes(route: RouteRegistrar): void {
   route({
-    method: 'POST',
-    url: '/internal/jobs/:id/status',
+    route: 'POST /internal/jobs/:id/status',
     auth: { engineJob: { jobParam: 'id' } },
     tags: ['internal'],
     summary: 'Движок сообщает состояние задания',
-    schema: {
-      params: z.object({ id: z.uuid() }),
-      body: JobStatusReport,
-      response: { 200: z.object({ ok: z.boolean() }) },
-    },
     handler: async (request) => {
       const { id } = request.params
       const body = request.body

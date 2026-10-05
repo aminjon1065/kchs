@@ -1,11 +1,3 @@
-import {
-  MeetingGuestJoin,
-  MeetingGuestJoinInput,
-  MeetingGuestLink,
-  MeetingGuestLinkInput,
-  MeetingGuestPreview,
-} from '@kchs/contracts'
-import { z } from 'zod'
 import { emitToRoom, emitToUser } from '~/kernel/realtime/gateway.js'
 import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
@@ -15,10 +7,6 @@ import { mediaConfig, requireMedia } from '../domain/livekit.js'
 import { MeetingService } from '../domain/meeting-service.js'
 import { knock, knockState } from '../domain/waiting-room.js'
 
-const IdParam = z.object({ id: z.uuid() })
-/** Токен ссылки: `<встреча>.<срок>.<подпись>` — только безопасные символы. */
-const TokenParam = z.object({ token: z.string().min(40).max(200) })
-
 /**
  * Гостевой вход по ссылке (11-communications-meetings.md §3, ADR-0091).
  * Гость не становится пользователем системы: ссылка называет встречу, впускает
@@ -26,16 +14,10 @@ const TokenParam = z.object({ token: z.string().min(40).max(200) })
  */
 export function registerMeetingsGuestRoutes(route: RouteRegistrar): void {
   route({
-    method: 'POST',
-    url: '/meetings/:id/guest-link',
+    route: 'POST /meetings/:id/guest-link',
     auth: { action: 'share' },
     tags: ['meetings'],
     summary: 'Ссылка для гостя: ограниченный срок, вход через комнату ожидания',
-    schema: {
-      params: IdParam,
-      body: MeetingGuestLinkInput,
-      response: { 200: MeetingGuestLink },
-    },
     handler: async (request) => {
       requireMedia()
       const row = await MeetingService.load(db(), request.params.id)
@@ -49,29 +31,21 @@ export function registerMeetingsGuestRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/meetings/guest/:token',
+    route: 'GET /meetings/guest/:token',
     auth: 'public',
     tags: ['meetings'],
     summary: 'Встреча по гостевой ссылке: название и состояние, без объектов',
     // Подбор подписи ограничивается по адресу: страница гостя открывается редко
     rateLimit: { max: 30, timeWindow: '1 minute' },
-    schema: { params: TokenParam, response: { 200: MeetingGuestPreview } },
     handler: async (request) => preview(request.params.token),
   })
 
   route({
-    method: 'POST',
-    url: '/meetings/guest/:token/join',
+    route: 'POST /meetings/guest/:token/join',
     auth: 'public',
     tags: ['meetings'],
     summary: 'Гость просится в комнату; впущенному выдаётся короткий токен',
     rateLimit: { max: 60, timeWindow: '1 minute' },
-    schema: {
-      params: TokenParam,
-      body: MeetingGuestJoinInput,
-      response: { 200: MeetingGuestJoin },
-    },
     handler: async (request) => {
       const link = readGuestLink(request.params.token)
       if (!link) throw errors.notFound('Ссылка недействительна')

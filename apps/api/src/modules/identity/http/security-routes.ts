@@ -1,4 +1,3 @@
-import { SecurityPolicy, SecurityPolicyPatch } from '@kchs/contracts'
 import { inArray } from 'drizzle-orm'
 import { roles } from '~/kernel/directory/schema.js'
 import { SecurityPolicyService } from '~/kernel/settings/security-policy.js'
@@ -13,22 +12,18 @@ import type { RouteRegistrar } from '~/shared/http/route.js'
  */
 export function registerSecurityRoutes(route: RouteRegistrar): void {
   route({
-    method: 'GET',
-    url: '/admin/security-policy',
+    route: 'GET /admin/security-policy',
     auth: { capability: 'admin.system' },
     tags: ['admin'],
     summary: 'Политика безопасности',
-    schema: { response: { 200: SecurityPolicy } },
     handler: async () => SecurityPolicyService.current(),
   })
 
   route({
-    method: 'PATCH',
-    url: '/admin/security-policy',
+    route: 'PATCH /admin/security-policy',
     auth: { capability: 'admin.system' },
     tags: ['admin'],
     summary: 'Изменить политику безопасности',
-    schema: { body: SecurityPolicyPatch, response: { 200: SecurityPolicy } },
     handler: async (request) => {
       const patch = { ...request.body }
       if (patch.requireMfaRoles) {

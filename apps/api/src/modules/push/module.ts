@@ -1,5 +1,3 @@
-import { PushStatus, PushSubscribeInput } from '@kchs/contracts'
-import { z } from 'zod'
 import {
   type NotificationChannelAdapter,
   setNotificationChannel,
@@ -27,12 +25,10 @@ export function registerPushChannel(): void {
 
 export function registerPushRoutes(route: RouteRegistrar): void {
   route({
-    method: 'GET',
-    url: '/me/push',
+    route: 'GET /me/push',
     auth: 'session',
     tags: ['integrations'],
     summary: 'Push: настроен ли на установке и сколько устройств подписано',
-    schema: { response: { 200: PushStatus } },
     handler: async (request) => {
       const push = pushConfig()
       return {
@@ -44,12 +40,10 @@ export function registerPushRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/me/push/subscriptions',
+    route: 'POST /me/push/subscriptions',
     auth: 'session',
     tags: ['integrations'],
     summary: 'Push: подписать это устройство',
-    schema: { body: PushSubscribeInput, response: { 200: z.object({ id: z.uuid() }) } },
     handler: async (request) => {
       if (!pushConfig()) throw errors.unavailable('Push не настроен на этой установке')
       return PushService.subscribe(request.ctx, request.body)
@@ -57,15 +51,10 @@ export function registerPushRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'DELETE',
-    url: '/me/push/subscriptions',
+    route: 'DELETE /me/push/subscriptions',
     auth: 'session',
     tags: ['integrations'],
     summary: 'Push: отписать это устройство',
-    schema: {
-      body: z.object({ endpoint: z.string().min(1).max(2000) }),
-      response: { 200: z.object({ ok: z.boolean() }) },
-    },
     handler: async (request) => ({
       ok: await PushService.unsubscribe(request.ctx, request.body.endpoint),
     }),

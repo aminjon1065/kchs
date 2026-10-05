@@ -1,9 +1,3 @@
-import {
-  ServiceAccount,
-  ServiceAccountCreateInput,
-  ServiceAccountPatchInput,
-} from '@kchs/contracts'
-import { z } from 'zod'
 import { hasCapability } from '~/kernel/access/authorize.js'
 import { invalidatePrincipalSet } from '~/kernel/access/principal-set.js'
 import type { UserCtx } from '~/shared/context.js'
@@ -24,12 +18,10 @@ function assertCanList(ctx: UserCtx): void {
 /** Служебные учётные записи (ADR-0130): консоль и выбор `run_as` правил. */
 export function registerServiceAccountRoutes(route: RouteRegistrar): void {
   route({
-    method: 'GET',
-    url: '/service-accounts',
+    route: 'GET /service-accounts',
     auth: 'session',
     tags: ['org'],
     summary: 'Служебные учётные записи',
-    schema: { response: { 200: z.object({ items: z.array(ServiceAccount) }) } },
     handler: async (request) => {
       assertCanList(request.ctx)
       return { items: await ServiceAccountService.list() }
@@ -37,15 +29,13 @@ export function registerServiceAccountRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/service-accounts/:id',
+    route: 'GET /service-accounts/:id',
     auth: {
       delegated: 'assertCanList: users.manage или automation.manage',
       resource: 'service_account',
     },
     tags: ['org'],
     summary: 'Служебная учётная запись',
-    schema: { params: z.object({ id: z.uuid() }), response: { 200: ServiceAccount } },
     handler: async (request) => {
       assertCanList(request.ctx)
       return ServiceAccountService.get(request.params.id)
@@ -53,12 +43,10 @@ export function registerServiceAccountRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/service-accounts',
+    route: 'POST /service-accounts',
     auth: { capability: 'users.manage' },
     tags: ['org'],
     summary: 'Завести служебную учётную запись',
-    schema: { body: ServiceAccountCreateInput, response: { 200: ServiceAccount } },
     handler: async (request) => {
       const id = await db().transaction((tx) =>
         ServiceAccountService.create(tx, request.ctx, request.body),
@@ -68,16 +56,10 @@ export function registerServiceAccountRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'PATCH',
-    url: '/service-accounts/:id',
+    route: 'PATCH /service-accounts/:id',
     auth: { capability: 'users.manage' },
     tags: ['org'],
     summary: 'Изменить служебную учётную запись',
-    schema: {
-      params: z.object({ id: z.uuid() }),
-      body: ServiceAccountPatchInput,
-      response: { 200: ServiceAccount },
-    },
     handler: async (request) => {
       await db().transaction((tx) =>
         ServiceAccountService.update(tx, request.ctx, request.params.id, request.body),

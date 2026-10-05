@@ -1,11 +1,8 @@
-import { type EventDlqEntry, EventDlqList, EventDlqRetryResult } from '@kchs/contracts'
-import { z } from 'zod'
+import type { EventDlqEntry } from '@kchs/contracts'
 import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { AUDIT_ACTIONS, audit } from '../audit/service.js'
 import { type DlqEntry, listDlq, retryAllDlq, retryDlqEntry } from './streams.js'
-
-const DlqParams = z.object({ id: z.string().regex(/^\d{1,20}-\d{1,20}$/) })
 
 /** Запись очереди сбоев для экрана: событие без полезной нагрузки. */
 function toContract(entry: DlqEntry): EventDlqEntry {
@@ -34,15 +31,10 @@ function toContract(entry: DlqEntry): EventDlqEntry {
  */
 export function registerEventRoutes(route: RouteRegistrar): void {
   route({
-    method: 'GET',
-    url: '/admin/events/dlq',
+    route: 'GET /admin/events/dlq',
     auth: { capability: 'admin.system' },
     tags: ['admin'],
     summary: 'Очередь сбоев шины событий',
-    schema: {
-      querystring: z.object({ limit: z.coerce.number().int().min(1).max(500).default(100) }),
-      response: { 200: EventDlqList },
-    },
     handler: async (request) => {
       const { items, total } = await listDlq(request.query.limit)
       return { items: items.map(toContract), total }
@@ -50,12 +42,10 @@ export function registerEventRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/admin/events/dlq/:id/retry',
+    route: 'POST /admin/events/dlq/:id/retry',
     auth: { capability: 'admin.system' },
     tags: ['admin'],
     summary: 'Повторить событие из очереди сбоев',
-    schema: { params: DlqParams, response: { 200: EventDlqRetryResult } },
     handler: async (request) => {
       const { outcome, entry } = await retryDlqEntry(request.params.id)
       if (outcome === 'not_found') throw errors.notFound('Запись очереди сбоев')
@@ -79,12 +69,10 @@ export function registerEventRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/admin/events/dlq/retry-all',
+    route: 'POST /admin/events/dlq/retry-all',
     auth: { capability: 'admin.system' },
     tags: ['admin'],
     summary: 'Повторить всю очередь сбоев',
-    schema: { response: { 200: EventDlqRetryResult } },
     handler: async (request) => {
       const result = await retryAllDlq()
       await audit(request.ctx, {

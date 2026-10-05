@@ -1,5 +1,3 @@
-import { PasskeyInfo } from '@kchs/contracts'
-import { z } from 'zod'
 import { assertCanManageUser } from '~/kernel/directory/role-policy.js'
 import { db } from '~/shared/db/client.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
@@ -13,15 +11,10 @@ import { PasskeyService } from '../domain/passkeys.js'
  */
 export function registerUserCredentialRoutes(route: RouteRegistrar): void {
   route({
-    method: 'POST',
-    url: '/users/:id/reset-mfa',
+    route: 'POST /users/:id/reset-mfa',
     auth: { capability: 'users.manage' },
     tags: ['org'],
     summary: 'Сбросить второй фактор пользователя',
-    schema: {
-      params: z.object({ id: z.uuid() }),
-      response: { 200: z.object({ ok: z.boolean() }) },
-    },
     handler: async (request) => {
       await assertCanManageUser(db(), request.ctx, request.params.id)
       await AuthService.disableMfa(request.ctx, request.params.id)
@@ -30,15 +23,10 @@ export function registerUserCredentialRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/users/:id/passkeys',
+    route: 'GET /users/:id/passkeys',
     auth: { capability: 'users.manage' },
     tags: ['org'],
     summary: 'Ключи входа сотрудника — перед отзывом (N45)',
-    schema: {
-      params: z.object({ id: z.uuid() }),
-      response: { 200: z.object({ items: z.array(PasskeyInfo) }) },
-    },
     handler: async (request) => {
       await assertCanManageUser(db(), request.ctx, request.params.id)
       return { items: await PasskeyService.list(request.params.id) }
@@ -46,15 +34,10 @@ export function registerUserCredentialRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'DELETE',
-    url: '/users/:id/passkeys',
+    route: 'DELETE /users/:id/passkeys',
     auth: { capability: 'users.manage' },
     tags: ['org'],
     summary: 'Отозвать все ключи входа сотрудника (N45)',
-    schema: {
-      params: z.object({ id: z.uuid() }),
-      response: { 200: z.object({ revoked: z.number().int() }) },
-    },
     handler: async (request) => {
       await assertCanManageUser(db(), request.ctx, request.params.id)
       return { revoked: await PasskeyService.revokeAll(request.ctx, request.params.id) }

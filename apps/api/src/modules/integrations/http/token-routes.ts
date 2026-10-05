@@ -1,5 +1,4 @@
-import { API_SCOPES, ApiTokenCreated, ApiTokenCreateInput, ApiTokenList } from '@kchs/contracts'
-import { z } from 'zod'
+import { API_SCOPES } from '@kchs/contracts'
 import { rateLimit } from '~/shared/http/rate-limit.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { ApiTokens } from '../domain/api-tokens.js'
@@ -11,15 +10,10 @@ import { ApiTokens } from '../domain/api-tokens.js'
  */
 export function registerApiTokenRoutes(route: RouteRegistrar): void {
   route({
-    method: 'GET',
-    url: '/me/api-tokens',
+    route: 'GET /me/api-tokens',
     auth: 'session',
     tags: ['me'],
     summary: 'Мои токены API',
-    schema: {
-      querystring: z.object({ includeRevoked: z.coerce.boolean().default(false) }),
-      response: { 200: ApiTokenList },
-    },
     handler: async (request) => ({
       items: await ApiTokens.list({
         userId: request.ctx.userId,
@@ -29,26 +23,19 @@ export function registerApiTokenRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/me/api-tokens',
+    route: 'POST /me/api-tokens',
     auth: { capability: 'api_tokens.create' },
     tags: ['me'],
     summary: 'Выпустить токен API: значение показывается один раз',
-    schema: { body: ApiTokenCreateInput, response: { 200: ApiTokenCreated } },
     rateLimit: rateLimit(10, '1 minute'),
     handler: async (request) => ApiTokens.issue(request.ctx, request.body),
   })
 
   route({
-    method: 'DELETE',
-    url: '/me/api-tokens/:id',
+    route: 'DELETE /me/api-tokens/:id',
     auth: { owned: 'ApiTokens.revoke — только свой токен' },
     tags: ['me'],
     summary: 'Отозвать токен API',
-    schema: {
-      params: z.object({ id: z.uuid() }),
-      response: { 200: z.object({ ok: z.boolean() }) },
-    },
     handler: async (request) => {
       await ApiTokens.revoke(request.ctx, request.params.id)
       return { ok: true }
@@ -56,18 +43,10 @@ export function registerApiTokenRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/admin/api-tokens',
+    route: 'GET /admin/api-tokens',
     auth: { capability: 'admin.system' },
     tags: ['admin'],
     summary: 'Все токены API установки',
-    schema: {
-      querystring: z.object({
-        userId: z.uuid().optional(),
-        includeRevoked: z.coerce.boolean().default(true),
-      }),
-      response: { 200: ApiTokenList },
-    },
     handler: async (request) => ({
       items: await ApiTokens.list({
         ...(request.query.userId ? { userId: request.query.userId } : {}),
@@ -77,15 +56,10 @@ export function registerApiTokenRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'DELETE',
-    url: '/admin/api-tokens/:id',
+    route: 'DELETE /admin/api-tokens/:id',
     auth: { capability: 'admin.system' },
     tags: ['admin'],
     summary: 'Отозвать чужой токен API',
-    schema: {
-      params: z.object({ id: z.uuid() }),
-      response: { 200: z.object({ ok: z.boolean() }) },
-    },
     handler: async (request) => {
       await ApiTokens.revoke(request.ctx, request.params.id)
       return { ok: true }
@@ -93,12 +67,10 @@ export function registerApiTokenRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/admin/api-tokens/scopes',
+    route: 'GET /admin/api-tokens/scopes',
     auth: { capability: 'admin.system' },
     tags: ['admin'],
     summary: 'Справочник областей доступа токена',
-    schema: { response: { 200: z.object({ items: z.array(z.string()) }) } },
     handler: async () => ({ items: [...API_SCOPES] }),
   })
 }

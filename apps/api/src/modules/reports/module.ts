@@ -1,19 +1,3 @@
-import {
-  ReportCreateInput,
-  ReportFormat,
-  ReportFromNotebookInput,
-  ReportPrintPayload,
-  ReportRecord,
-  ReportRenderResult,
-  ReportRenderStart,
-  ReportRunDownload,
-  ReportRunInput,
-  ReportRunList,
-  ReportRunRecord,
-  ReportSchedule,
-  ReportScheduleInput,
-} from '@kchs/contracts'
-import { z } from 'zod'
 import { authorize } from '~/kernel/access/authorize.js'
 import { registerAuditActions } from '~/kernel/audit/registry.js'
 import { registerCollabType } from '~/kernel/collab/registry.js'
@@ -35,10 +19,6 @@ import { REPORT_RENDER_JOB, ReportRuns } from './domain/run-service.js'
 import { REPORT_SCHEDULE_JOB, ReportSchedules } from './domain/schedule-service.js'
 import { ReportToDocument } from './domain/to-document.js'
 import { registerReportLibraryRoutes } from './library-routes.js'
-
-const IdParam = z.object({ id: z.uuid() })
-const RunParam = z.object({ runId: z.uuid() })
-const Ok = z.object({ ok: z.boolean() })
 
 /**
  * Отчёты (06-analytics-engine.md §12, P2-E05 S03–S05, ADR-0078): тип объекта,
@@ -99,13 +79,11 @@ export function registerReportsRoutes(route: RouteRegistrar): void {
   registerReportLibraryRoutes(route)
 
   route({
-    method: 'POST',
-    url: '/reports',
+    route: 'POST /reports',
     auth: 'session',
     tags: ['reports'],
     summary: 'Создать отчёт',
     description: 'Блоки, параметры и настройки — начальный шаблон; дальше он правится совместно.',
-    schema: { body: ReportCreateInput, response: { 200: z.object({ id: z.uuid() }) } },
     handler: async (request) => {
       await authorize(request.ctx, 'create_child', request.body.parentId ?? request.body.spaceId)
       const id = await db().transaction((tx) => ReportService.create(tx, request.ctx, request.body))
@@ -114,124 +92,93 @@ export function registerReportsRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/reports/from-notebook',
+    route: 'POST /reports/from-notebook',
     auth: 'session',
     tags: ['reports'],
     summary: 'Экспорт в отчёт: ячейки тетради → блоки нового отчёта',
-    schema: { body: ReportFromNotebookInput, response: { 200: z.object({ id: z.uuid() }) } },
     handler: async (request) => ({
       id: await ReportService.fromNotebook(request.ctx, request.body),
     }),
   })
 
   route({
-    method: 'GET',
-    url: '/reports/:id',
+    route: 'GET /reports/:id',
     auth: { action: 'view' },
     tags: ['reports'],
     summary: 'Отчёт: снимок шаблона, параметры и настройки печати',
-    schema: { params: IdParam, response: { 200: ReportRecord } },
     handler: async (request) => ReportService.get(request.params.id),
   })
 
   route({
-    method: 'POST',
-    url: '/reports/:id/runs',
+    route: 'POST /reports/:id/runs',
     auth: { action: 'render' },
     tags: ['reports'],
     summary: 'Сформировать отчёт (PDF/DOCX) под своими правами — задание движка',
-    schema: { params: IdParam, body: ReportRunInput, response: { 200: ReportRunRecord } },
     rateLimit: { max: 20, timeWindow: '1 minute' },
     handler: async (request) =>
       ReportRuns.start(request.ctx, request.params.id, request.body ?? {}),
   })
 
   route({
-    method: 'POST',
-    url: '/reports/:id/document',
+    route: 'POST /reports/:id/document',
     auth: { action: 'view' },
     tags: ['reports'],
     summary: 'Отчёт исходящим документом: файл последнего прогона — первой версией',
     description:
       'Дальше документ идёт обычным маршрутом: согласование, подпись, регистрация, рассылка.',
     rateLimit: { max: 10, timeWindow: '1 minute' },
-    schema: {
-      params: IdParam,
-      body: z.object({ typeId: z.uuid(), subject: z.string().trim().max(500).optional() }),
-      response: { 200: z.object({ documentId: z.uuid() }) },
-    },
     handler: async (request) =>
       ReportToDocument.create(request.ctx, request.params.id, request.body),
   })
 
   route({
-    method: 'GET',
-    url: '/reports/:id/runs',
+    route: 'GET /reports/:id/runs',
     auth: { action: 'view' },
     tags: ['reports'],
     summary: 'История запусков: свои; управляющему отчётом — все',
-    schema: { params: IdParam, response: { 200: ReportRunList } },
     handler: async (request) => ({ items: await ReportRuns.list(request.ctx, request.params.id) }),
   })
 
   route({
-    method: 'GET',
-    url: '/reports/runs/:runId',
+    route: 'GET /reports/runs/:runId',
     auth: { delegated: 'ReportRuns.get', resource: 'report_run' },
     tags: ['reports'],
     summary: 'Запуск отчёта: состояние, файлы, доставка',
-    schema: { params: RunParam, response: { 200: ReportRunRecord } },
     handler: async (request) => ReportRuns.get(request.ctx, request.params.runId),
   })
 
   route({
-    method: 'GET',
-    url: '/reports/runs/:runId/download',
+    route: 'GET /reports/runs/:runId/download',
     auth: { delegated: 'ReportRuns.download', resource: 'report_run' },
     tags: ['reports'],
     summary: 'Ссылка на файл запуска — тому, под чьими правами он построен',
-    schema: {
-      params: RunParam,
-      querystring: z.object({ format: ReportFormat.default('pdf') }),
-      response: { 200: ReportRunDownload },
-    },
     handler: async (request) =>
       ReportRuns.download(request.ctx, request.params.runId, request.query.format),
   })
 
   route({
-    method: 'GET',
-    url: '/reports/:id/schedule',
+    route: 'GET /reports/:id/schedule',
     auth: { action: 'view' },
     tags: ['reports'],
     summary: 'Расписание рассылки отчёта',
-    schema: {
-      params: IdParam,
-      response: { 200: z.object({ schedule: ReportSchedule.nullable() }) },
-    },
     handler: async (request) => ({ schedule: await ReportSchedules.get(request.params.id) }),
   })
 
   route({
-    method: 'PUT',
-    url: '/reports/:id/schedule',
+    route: 'PUT /reports/:id/schedule',
     auth: { action: 'schedule' },
     tags: ['reports'],
     summary: 'Задать расписание и получателей рассылки',
     description:
       'Каждый получатель получает свой рендер под своими правами (ADR-0078); каналы — Входящие, почта, Telegram.',
-    schema: { params: IdParam, body: ReportScheduleInput, response: { 200: ReportSchedule } },
     handler: async (request) => ReportSchedules.set(request.ctx, request.params.id, request.body),
   })
 
   route({
-    method: 'DELETE',
-    url: '/reports/:id/schedule',
+    route: 'DELETE /reports/:id/schedule',
     auth: { action: 'schedule' },
     tags: ['reports'],
     summary: 'Снять рассылку отчёта',
-    schema: { params: IdParam, response: { 200: Ok } },
     handler: async (request) => {
       await ReportSchedules.remove(request.ctx, request.params.id)
       return { ok: true }
@@ -239,15 +186,10 @@ export function registerReportsRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/reports/:id/schedule/run',
+    route: 'POST /reports/:id/schedule/run',
     auth: { action: 'schedule' },
     tags: ['reports'],
     summary: 'Отправить сейчас: рассылка вне расписания',
-    schema: {
-      params: IdParam,
-      response: { 200: z.object({ runs: z.number().int(), skipped: z.number().int() }) },
-    },
     rateLimit: { max: 5, timeWindow: '1 minute' },
     handler: async (request) => ReportSchedules.runNow(request.params.id),
   })
@@ -255,49 +197,38 @@ export function registerReportsRoutes(route: RouteRegistrar): void {
   // ─── Страница печати (web /print/report/…) ─────────────────────────────────
 
   route({
-    method: 'GET',
-    url: '/print/report-runs/:runId',
+    route: 'GET /print/report-runs/:runId',
     auth: { delegated: 'ReportRuns.printPayload', resource: 'report_run' },
     tags: ['reports'],
     summary: 'Страница печати запуска: шаблон, параметры и пользователь, под кем строится отчёт',
     description:
       'Открывает браузер того, под чьими правами строится запуск, или Chromium движка со служебным токеном (cookie kchs_print).',
-    schema: { params: RunParam, response: { 200: ReportPrintPayload } },
     handler: async (request) => ReportRuns.printPayload(request.ctx, request.params.runId),
   })
 
   route({
-    method: 'GET',
-    url: '/print/reports/:id',
+    route: 'GET /print/reports/:id',
     auth: { action: 'view' },
     tags: ['reports'],
     summary: 'Предпросмотр печати текущего шаблона — с правами смотрящего',
-    schema: { params: IdParam, response: { 200: ReportPrintPayload } },
     handler: async (request) => ReportRuns.previewPayload(request.ctx, request.params.id),
   })
 
   // ─── Движок (токен задания, внутренняя сеть, ADR-0176) ─────────────────────
 
   route({
-    method: 'POST',
-    url: '/internal/reports/runs/:runId/start',
+    route: 'POST /internal/reports/runs/:runId/start',
     auth: { engineJob: { scope: (params) => `report-run:${params.runId}` } },
     tags: ['internal'],
     summary: 'Движок начинает рендер: служебный токен страницы печати (ADR-0078)',
-    schema: {
-      params: RunParam,
-      response: { 200: ReportRenderStart },
-    },
     handler: async (request) => ReportRuns.engineStart(request.params.runId),
   })
 
   route({
-    method: 'POST',
-    url: '/internal/reports/runs/:runId/rendered',
+    route: 'POST /internal/reports/runs/:runId/rendered',
     auth: { engineJob: { scope: (params) => `report-run:${params.runId}` } },
     tags: ['internal'],
     summary: 'Движок положил файлы отчёта в бакет экспортов',
-    schema: { params: RunParam, body: ReportRenderResult, response: { 200: Ok } },
     handler: async (request) => {
       await ReportRuns.engineRendered(request.params.runId, request.body)
       return { ok: true }

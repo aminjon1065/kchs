@@ -1,20 +1,6 @@
-import {
-  FilePreviews,
-  FileProcessedInput,
-  FileRecord,
-  FileText,
-  FileVersion,
-  FileVersionRestoreInput,
-  FolderCreateInput,
-  FolderRecord,
-  type ObjectSummary,
-  UploadCompleteInput,
-  UploadResume,
-  UploadSessionInput,
-} from '@kchs/contracts'
+import type { ObjectSummary } from '@kchs/contracts'
 import { eq, inArray, sql } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
-import { z } from 'zod'
 import { recordModuleActivity } from '~/kernel/activity/service.js'
 import { registerAuditActions } from '~/kernel/audit/registry.js'
 import { audit } from '~/kernel/audit/service.js'
@@ -37,8 +23,6 @@ import { authorizeUploadTarget } from './domain/upload-access.js'
 import { originalAllowed, watermarkLevel, watermarkLines } from './domain/watermark.js'
 import { registerOfficePages, registerOfficeRoutes } from './http/office-routes.js'
 import { files } from './schema.js'
-
-const IdParam = z.object({ id: z.uuid() })
 
 export function registerFilesObjectTypes(): void {
   registerAuditActions('files', FILES_AUDIT)
@@ -143,28 +127,10 @@ export function registerFilesObjectTypes(): void {
 
 export function registerFilesRoutes(route: RouteRegistrar): void {
   route({
-    method: 'POST',
-    url: '/files/upload-sessions',
+    route: 'POST /files/upload-sessions',
     auth: 'session',
     tags: ['files'],
     summary: 'Создать сессию загрузки в хранилище',
-    schema: {
-      body: UploadSessionInput,
-      response: {
-        200: z.object({
-          uploadId: z.uuid(),
-          storageKey: z.string(),
-          parts: z.array(
-            z.object({ partNumber: z.number().int(), url: z.string(), size: z.number().int() }),
-          ),
-          partSize: z.number().int(),
-          expiresAt: z.string(),
-          singlePutUrl: z.string().nullable(),
-          fileId: z.uuid(),
-          versionId: z.uuid(),
-        }),
-      },
-    },
     handler: async (request) => {
       await authorizeUploadTarget(request.ctx, request.body)
       return FileService.createUploadSession(request.ctx, request.body)
@@ -172,14 +138,12 @@ export function registerFilesRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/files/upload-sessions/:id/complete',
+    route: 'POST /files/upload-sessions/:id/complete',
     auth: {
       owned: 'FileService — сессия загрузки только своя, право на цель перепроверяется (ADR-0177)',
     },
     tags: ['files'],
     summary: 'Завершить загрузку и создать файл',
-    schema: { params: IdParam, body: UploadCompleteInput, response: { 200: FileRecord } },
     handler: async (request) =>
       FileService.completeUpload(
         request.ctx,
@@ -190,26 +154,22 @@ export function registerFilesRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/files/upload-sessions/:id',
+    route: 'GET /files/upload-sessions/:id',
     auth: {
       owned: 'FileService — сессия загрузки только своя, право на цель перепроверяется (ADR-0177)',
     },
     tags: ['files'],
     summary: 'Продолжить прерванную загрузку: адреса частей и что уже загружено',
-    schema: { params: IdParam, response: { 200: UploadResume } },
     handler: async (request) => FileService.resumeUploadSession(request.ctx, request.params.id),
   })
 
   route({
-    method: 'DELETE',
-    url: '/files/upload-sessions/:id',
+    route: 'DELETE /files/upload-sessions/:id',
     auth: {
       owned: 'FileService — сессия загрузки только своя, право на цель перепроверяется (ADR-0177)',
     },
     tags: ['files'],
     summary: 'Отменить загрузку',
-    schema: { params: IdParam, response: { 200: z.object({ ok: z.boolean() }) } },
     handler: async (request) => {
       await FileService.abortUpload(request.ctx, request.params.id)
       return { ok: true }
@@ -217,12 +177,10 @@ export function registerFilesRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/files/:id',
+    route: 'GET /files/:id',
     auth: { action: 'view' },
     tags: ['files'],
     summary: 'Карточка файла',
-    schema: { params: IdParam, response: { 200: FileRecord } },
     handler: async (request) => {
       const file = await FileService.get(request.params.id)
       if (!file) throw errors.notFound('Файл')
@@ -231,26 +189,18 @@ export function registerFilesRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/files/:id/versions',
+    route: 'GET /files/:id/versions',
     auth: { action: 'view' },
     tags: ['files'],
     summary: 'Версии файла',
-    schema: { params: IdParam, response: { 200: z.object({ items: z.array(FileVersion) }) } },
     handler: async (request) => ({ items: await FileService.versions(request.params.id) }),
   })
 
   route({
-    method: 'POST',
-    url: '/files/:id/versions/:versionId/restore',
+    route: 'POST /files/:id/versions/:versionId/restore',
     auth: { action: 'edit' },
     tags: ['files'],
     summary: 'Сделать версию текущей',
-    schema: {
-      params: z.object({ id: z.uuid(), versionId: z.uuid() }),
-      body: FileVersionRestoreInput.optional(),
-      response: { 200: z.object({ ok: z.boolean() }) },
-    },
     handler: async (request) => {
       await db().transaction((tx) =>
         FileService.restoreVersion(
@@ -266,19 +216,10 @@ export function registerFilesRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/files/:id/download',
+    route: 'GET /files/:id/download',
     auth: { action: 'download' },
     tags: ['files'],
     summary: 'Ссылка на скачивание',
-    schema: {
-      params: IdParam,
-      querystring: z.object({
-        versionId: z.uuid().optional(),
-        inline: z.coerce.boolean().default(false),
-      }),
-      response: { 200: z.object({ url: z.string(), name: z.string() }) },
-    },
     handler: async (request) => {
       // Гриф от «конфиденциально»: исходник — только в режиме администратора,
       // остальным — копия с водяным знаком (ADR-0085)
@@ -311,12 +252,10 @@ export function registerFilesRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/files/:id/previews',
+    route: 'GET /files/:id/previews',
     auth: { action: 'view' },
     tags: ['files'],
     summary: 'Превью текущей версии файла',
-    schema: { params: IdParam, response: { 200: FilePreviews } },
     handler: async (request) => {
       const previews = await FileProcessing.previews(request.params.id)
       // Просмотрщик рисует водяной знак поверх страниц файла с грифом (ADR-0085)
@@ -328,26 +267,18 @@ export function registerFilesRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/files/:id/text',
+    route: 'GET /files/:id/text',
     auth: { action: 'view' },
     tags: ['files'],
     summary: 'Извлечённый текст файла',
-    schema: { params: IdParam, response: { 200: FileText } },
     handler: async (request) => FileProcessing.text(request.params.id),
   })
 
   route({
-    method: 'POST',
-    url: '/internal/files/:id/processed',
+    route: 'POST /internal/files/:id/processed',
     auth: { engineJob: { scope: (params) => `file:${params.id}` } },
     tags: ['internal'],
     summary: 'Движок сообщает превью и текст версии файла',
-    schema: {
-      params: IdParam,
-      body: FileProcessedInput,
-      response: { 200: z.object({ ok: z.boolean(), stale: z.boolean() }) },
-    },
     handler: async (request) => {
       const { stale } = await FileProcessing.applyResult(request.params.id, request.body)
       return { ok: true, stale }
@@ -355,15 +286,10 @@ export function registerFilesRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/files/attachments-folder',
+    route: 'GET /files/attachments-folder',
     auth: 'session',
     tags: ['files'],
     summary: 'Системная папка «Вложения» пространства (если уже создана)',
-    schema: {
-      querystring: z.object({ spaceId: z.uuid() }),
-      response: { 200: z.object({ id: z.uuid().nullable() }) },
-    },
     handler: async (request) => {
       const { authorize } = await import('~/kernel/access/authorize.js')
       await authorize(request.ctx, 'view', request.query.spaceId)
@@ -372,12 +298,10 @@ export function registerFilesRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/folders',
+    route: 'POST /folders',
     auth: 'session',
     tags: ['files'],
     summary: 'Создать папку',
-    schema: { body: FolderCreateInput, response: { 200: FolderRecord } },
     handler: async (request) => {
       const { authorize } = await import('~/kernel/access/authorize.js')
       await authorize(request.ctx, 'create_child', request.body.parentId ?? request.body.spaceId)

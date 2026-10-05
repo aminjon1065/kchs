@@ -1,22 +1,4 @@
-import {
-  AdminUser,
-  AdminUserCreateInput,
-  AdminUserPatchInput,
-  ClearanceInput,
-  Confidentiality,
-  Group,
-  LangText,
-  OrgUnit,
-  OrgUnitInput,
-  OrgUnitPatch,
-  Position,
-  PrincipalRef,
-  RoleInfo,
-  RoleInput,
-  RolePatch,
-  UserKind,
-  UserRef,
-} from '@kchs/contracts'
+import type { Confidentiality } from '@kchs/contracts'
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { hasCapability } from '~/kernel/access/authorize.js'
@@ -50,24 +32,10 @@ import {
 export function registerOrgRoutes(route: RouteRegistrar): void {
   // ─── Пикеры: люди, группы, подразделения, должности ───────────────────────
   route({
-    method: 'GET',
-    url: '/principals/search',
+    route: 'GET /principals/search',
     auth: 'session',
     tags: ['org'],
     summary: 'Поиск принципалов для диалога «Поделиться» и пикеров',
-    schema: {
-      querystring: z.object({
-        q: z.string().max(200).default(''),
-        types: z.string().default('user,group,unit,position'),
-        limit: z.coerce.number().int().min(1).max(50).default(20),
-        /**
-         * Служебные учётные записи (ADR-0130): пикеры людей их не показывают,
-         * а выдача доступа и участники пространства — показывают с отметкой.
-         */
-        serviceAccounts: z.enum(['exclude', 'include']).default('exclude'),
-      }),
-      response: { 200: z.object({ items: z.array(PrincipalRef) }) },
-    },
     handler: async (request) => {
       const types = new Set(request.query.types.split(',').filter(Boolean))
       const q = `%${request.query.q}%`
@@ -122,16 +90,11 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/principals/describe',
+    route: 'GET /principals/describe',
     auth: 'session',
     tags: ['org'],
     summary: 'Названия принципалов по ключам `user:<id>`, `unit:<id>`… (конструктор маршрутов)',
     readOnly: true,
-    schema: {
-      querystring: z.object({ keys: z.string().max(8000).default('') }),
-      response: { 200: z.object({ items: z.array(PrincipalRef) }) },
-    },
     handler: async (request) => {
       // Только именованные принципалы: «все» и роли пространства пикер подписывает сам
       const named = new Set(['user', 'group', 'unit', 'position'])
@@ -154,27 +117,10 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/users',
+    route: 'GET /users',
     auth: 'session',
     tags: ['org'],
     summary: 'Пользователи (список и поиск)',
-    schema: {
-      querystring: z.object({
-        q: z.string().max(200).optional(),
-        status: z.enum(['active', 'invited', 'blocked', 'deactivated']).optional(),
-        unitId: z.uuid().optional(),
-        /** Сотрудники с ролью — переход из матрицы ролей. */
-        roleKey: z.string().max(64).optional(),
-        /** Сотрудники или служебные учётные записи (ADR-0130). */
-        kind: UserKind.optional(),
-        limit: z.coerce.number().int().min(1).max(200).default(50),
-        cursor: z.string().optional(),
-      }),
-      response: {
-        200: z.object({ items: z.array(AdminUser), nextCursor: z.string().nullable() }),
-      },
-    },
     handler: async (request) =>
       UserService.list({
         ...request.query,
@@ -183,16 +129,10 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'PUT',
-    url: '/users/:id/clearance',
+    route: 'PUT /users/:id/clearance',
     auth: { capability: 'admin.system' },
     tags: ['org'],
     summary: 'Допуск сотрудника к грифам (ADR-0080)',
-    schema: {
-      params: z.object({ id: z.uuid() }),
-      body: ClearanceInput,
-      response: { 200: z.object({ clearance: Confidentiality }) },
-    },
     handler: async (request) => {
       const { to } = await db().transaction((tx) =>
         UserService.setClearance(tx, request.ctx, request.params.id, request.body),
@@ -204,12 +144,10 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/users/:id',
+    route: 'GET /users/:id',
     auth: { open: 'карточка сотрудника — справочник людей, её видит каждый вошедший' },
     tags: ['org'],
     summary: 'Карточка сотрудника',
-    schema: { params: z.object({ id: z.uuid() }), response: { 200: UserRef } },
     handler: async (request) => {
       const refs = await UserService.refs([request.params.id])
       const ref = refs.get(request.params.id)
@@ -219,30 +157,19 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/users',
+    route: 'POST /users',
     auth: { capability: 'users.manage' },
     tags: ['org'],
     summary: 'Создать пользователя',
-    schema: {
-      body: AdminUserCreateInput,
-      response: { 200: z.object({ id: z.uuid(), temporaryPassword: z.string().nullable() }) },
-    },
     handler: async (request) =>
       db().transaction((tx) => UserService.create(tx, request.ctx, request.body)),
   })
 
   route({
-    method: 'PATCH',
-    url: '/users/:id',
+    route: 'PATCH /users/:id',
     auth: { capability: 'users.manage' },
     tags: ['org'],
     summary: 'Изменить пользователя',
-    schema: {
-      params: z.object({ id: z.uuid() }),
-      body: AdminUserPatchInput,
-      response: { 200: z.object({ ok: z.boolean() }) },
-    },
     handler: async (request) => {
       await db().transaction((tx) =>
         UserService.patch(tx, request.ctx, request.params.id, request.body),
@@ -254,15 +181,10 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/users/:id/reset-password',
+    route: 'POST /users/:id/reset-password',
     auth: { capability: 'users.manage' },
     tags: ['org'],
     summary: 'Выдать временный пароль',
-    schema: {
-      params: z.object({ id: z.uuid() }),
-      response: { 200: z.object({ temporaryPassword: z.string() }) },
-    },
     handler: async (request) => {
       await assertCanManageUser(db(), request.ctx, request.params.id)
       const [target] = await db()
@@ -298,22 +220,18 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
 
   // ─── Оргструктура ─────────────────────────────────────────────────────────
   route({
-    method: 'GET',
-    url: '/org/units',
+    route: 'GET /org/units',
     auth: 'session',
     tags: ['org'],
     summary: 'Дерево подразделений',
-    schema: { response: { 200: z.object({ items: z.array(OrgUnit) }) } },
     handler: async () => ({ items: await OrgService.tree() }),
   })
 
   route({
-    method: 'POST',
-    url: '/org/units',
+    route: 'POST /org/units',
     auth: { capability: 'org.manage' },
     tags: ['org'],
     summary: 'Создать подразделение',
-    schema: { body: OrgUnitInput, response: { 200: z.object({ id: z.uuid() }) } },
     handler: async (request) => {
       const id = await db().transaction((tx) =>
         OrgService.createUnit(tx, request.ctx, request.body),
@@ -323,16 +241,10 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'PATCH',
-    url: '/org/units/:id',
+    route: 'PATCH /org/units/:id',
     auth: { capability: 'org.manage' },
     tags: ['org'],
     summary: 'Изменить подразделение',
-    schema: {
-      params: z.object({ id: z.uuid() }),
-      body: OrgUnitPatch,
-      response: { 200: z.object({ ok: z.boolean() }) },
-    },
     handler: async (request) => {
       await db().transaction((tx) =>
         OrgService.updateUnit(tx, request.ctx, request.params.id, request.body),
@@ -342,12 +254,10 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/org/positions',
+    route: 'GET /org/positions',
     auth: 'session',
     tags: ['org'],
     summary: 'Должности',
-    schema: { response: { 200: z.object({ items: z.array(Position) }) } },
     handler: async () => {
       const rows = await db().select().from(positions).orderBy(positions.rank)
       return {
@@ -357,19 +267,10 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/org/positions',
+    route: 'POST /org/positions',
     auth: { capability: 'org.manage' },
     tags: ['org'],
     summary: 'Создать должность',
-    schema: {
-      body: z.object({
-        name: LangText,
-        rank: z.number().int().default(0),
-        unitId: z.uuid().nullable().optional(),
-      }),
-      response: { 200: z.object({ id: z.uuid() }) },
-    },
     handler: async (request) => {
       const id = await db().transaction((tx) =>
         PositionService.create(tx, request.ctx, request.body),
@@ -379,20 +280,10 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'PATCH',
-    url: '/org/positions/:id',
+    route: 'PATCH /org/positions/:id',
     auth: { capability: 'org.manage' },
     tags: ['org'],
     summary: 'Изменить должность (N86)',
-    schema: {
-      params: z.object({ id: z.uuid() }),
-      body: z.object({
-        name: LangText.optional(),
-        rank: z.number().int().optional(),
-        unitId: z.uuid().nullable().optional(),
-      }),
-      response: { 200: z.object({ ok: z.boolean() }) },
-    },
     handler: async (request) => {
       await db().transaction((tx) =>
         PositionService.update(tx, request.ctx, request.params.id, request.body),
@@ -402,15 +293,10 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'DELETE',
-    url: '/org/positions/:id',
+    route: 'DELETE /org/positions/:id',
     auth: { capability: 'org.manage' },
     tags: ['org'],
     summary: 'Удалить должность, если её никто не занимает (N86)',
-    schema: {
-      params: z.object({ id: z.uuid() }),
-      response: { 200: z.object({ ok: z.boolean() }) },
-    },
     handler: async (request) => {
       await db().transaction((tx) => PositionService.remove(tx, request.ctx, request.params.id))
       return { ok: true }
@@ -419,28 +305,18 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
 
   // ─── Группы и роли ────────────────────────────────────────────────────────
   route({
-    method: 'GET',
-    url: '/groups',
+    route: 'GET /groups',
     auth: 'session',
     tags: ['org'],
     summary: 'Группы',
-    schema: { response: { 200: z.object({ items: z.array(Group) }) } },
     handler: async () => ({ items: await GroupService.list() }),
   })
 
   route({
-    method: 'POST',
-    url: '/groups',
+    route: 'POST /groups',
     auth: { capability: 'groups.manage' },
     tags: ['org'],
     summary: 'Создать группу',
-    schema: {
-      body: z.object({
-        name: z.string().min(1).max(200),
-        description: z.string().max(1000).nullable().optional(),
-      }),
-      response: { 200: z.object({ id: z.uuid() }) },
-    },
     handler: async (request) => {
       const id = await db().transaction((tx) =>
         GroupService.create(tx, request.ctx, request.body.name, request.body.description),
@@ -450,19 +326,10 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'PATCH',
-    url: '/groups/:id',
+    route: 'PATCH /groups/:id',
     auth: { capability: 'groups.manage' },
     tags: ['org'],
     summary: 'Переименовать группу или изменить описание (N86)',
-    schema: {
-      params: z.object({ id: z.uuid() }),
-      body: z.object({
-        name: z.string().trim().min(1).max(200).optional(),
-        description: z.string().max(1000).nullable().optional(),
-      }),
-      response: { 200: z.object({ ok: z.boolean() }) },
-    },
     handler: async (request) => {
       await db().transaction((tx) =>
         GroupService.update(tx, request.ctx, request.params.id, request.body),
@@ -472,29 +339,18 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/groups/:id/members',
+    route: 'GET /groups/:id/members',
     auth: { capability: 'groups.manage' },
     tags: ['org'],
     summary: 'Состав группы (N86)',
-    schema: {
-      params: z.object({ id: z.uuid() }),
-      response: { 200: z.object({ items: z.array(UserRef) }) },
-    },
     handler: async (request) => ({ items: await GroupService.members(request.params.id) }),
   })
 
   route({
-    method: 'PUT',
-    url: '/groups/:id/members',
+    route: 'PUT /groups/:id/members',
     auth: { capability: 'groups.manage' },
     tags: ['org'],
     summary: 'Задать состав группы',
-    schema: {
-      params: z.object({ id: z.uuid() }),
-      body: z.object({ userIds: z.array(z.uuid()) }),
-      response: { 200: z.object({ ok: z.boolean() }) },
-    },
     handler: async (request) => {
       // Состав группы меняет права доступа: аудит и событие с теми, кого добавили и
       // убрали, — в той же транзакции (ADR-0177)
@@ -507,12 +363,10 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/roles',
+    route: 'GET /roles',
     auth: 'session',
     tags: ['org'],
     summary: 'Роли и способности',
-    schema: { response: { 200: z.object({ items: z.array(RoleInfo) }) } },
     handler: async () => {
       const rows = await db().select().from(roles).orderBy(roles.key)
       const caps = await db()
@@ -546,27 +400,19 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/roles',
+    route: 'POST /roles',
     auth: { capability: 'roles.manage' },
     tags: ['org'],
     summary: 'Своя роль организации (ADR-0165)',
-    schema: { body: RoleInput, response: { 200: z.object({ id: z.uuid(), key: z.string() }) } },
     handler: async (request) =>
       db().transaction((tx) => RoleService.create(tx, request.ctx, request.body)),
   })
 
   route({
-    method: 'PATCH',
-    url: '/roles/:id',
+    route: 'PATCH /roles/:id',
     auth: { capability: 'roles.manage' },
     tags: ['org'],
     summary: 'Изменить свою роль: название, описание, способности',
-    schema: {
-      params: z.object({ id: z.uuid() }),
-      body: RolePatch,
-      response: { 200: z.object({ ok: z.literal(true) }) },
-    },
     handler: async (request) => {
       const { capabilitiesChanged } = await db().transaction((tx) =>
         RoleService.update(tx, request.ctx, request.params.id, request.body),
@@ -578,15 +424,10 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'DELETE',
-    url: '/roles/:id',
+    route: 'DELETE /roles/:id',
     auth: { capability: 'roles.manage' },
     tags: ['org'],
     summary: 'Удалить свою роль, которую никто не держит',
-    schema: {
-      params: z.object({ id: z.uuid() }),
-      response: { 200: z.object({ ok: z.literal(true) }) },
-    },
     handler: async (request) => {
       await db().transaction((tx) => RoleService.remove(tx, request.ctx, request.params.id))
       return { ok: true as const }

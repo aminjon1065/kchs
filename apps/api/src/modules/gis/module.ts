@@ -1,22 +1,6 @@
 import { promisify } from 'node:util'
 import { gunzip as gunzipCallback } from 'node:zlib'
-import {
-  LayerCreateInput,
-  LayerFeature,
-  LayerFeatureCollection,
-  LayerFeaturesQuery,
-  LayerList,
-  LayerRecord,
-  LayerStats,
-  LayerStatsInput,
-  LayerTileQuery,
-  LayerUpdateInput,
-  MapCreateInput,
-  MapRecord,
-  MapUpdateInput,
-} from '@kchs/contracts'
 import { eq } from 'drizzle-orm'
-import { z } from 'zod'
 import { authorize } from '~/kernel/access/authorize.js'
 import { registerSubscriber } from '~/kernel/events/bus.js'
 import { registerFeature } from '~/kernel/features/registry.js'
@@ -44,16 +28,6 @@ import {
 } from './service-layers.js'
 
 const gunzip = promisify(gunzipCallback)
-
-const IdParam = z.object({ id: z.uuid() })
-const TileParams = z.object({
-  id: z.uuid(),
-  z: z.coerce.number().int().min(0).max(24),
-  x: z.coerce.number().int().min(0),
-  y: z.coerce.number().int().min(0),
-})
-const FeatureParams = z.object({ id: z.uuid(), rowId: z.string().regex(/^\d{1,18}$/) })
-const DatasetLayersQuery = z.object({ datasetId: z.uuid() })
 /**
  * Карта при движении запрашивает десятки тайлов в секунду (экран — 12–20 тайлов,
  * быстрый пролёт — несколько экранов в секунду): свой счётчик частоты.
@@ -166,12 +140,10 @@ export function registerGisRoutes(route: RouteRegistrar): void {
   // ── Слои (ADR-0064) ─────────────────────────────────────────────────────────
 
   route({
-    method: 'POST',
-    url: '/gis/layers',
+    route: 'POST /gis/layers',
     auth: 'session',
     tags: ['gis'],
     summary: 'Создать слой — представление датасета на карте',
-    schema: { body: LayerCreateInput, response: { 200: z.object({ id: z.uuid() }) } },
     handler: async (request) => {
       await authorize(request.ctx, 'create_child', request.body.parentId ?? request.body.spaceId)
       const id = await db().transaction((tx) => LayerService.create(tx, request.ctx, request.body))
@@ -180,12 +152,10 @@ export function registerGisRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/gis/layers',
+    route: 'GET /gis/layers',
     auth: 'session',
     tags: ['gis'],
     summary: 'Слои датасета, видимые пользователю, — «Показать на карте»',
-    schema: { querystring: DatasetLayersQuery, response: { 200: LayerList } },
     handler: async (request) => {
       await authorize(request.ctx, 'view', request.query.datasetId)
       return { items: await LayerService.forDataset(request.ctx, request.query.datasetId) }
@@ -193,22 +163,18 @@ export function registerGisRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/gis/layers/:id',
+    route: 'GET /gis/layers/:id',
     auth: { action: 'view' },
     tags: ['gis'],
     summary: 'Слой: стиль, поля тайла, экстент и версия данных',
-    schema: { params: IdParam, response: { 200: LayerRecord } },
     handler: async (request) => LayerService.get(request.ctx, request.params.id),
   })
 
   route({
-    method: 'PATCH',
-    url: '/gis/layers/:id',
+    route: 'PATCH /gis/layers/:id',
     auth: { action: 'edit' },
     tags: ['gis'],
     summary: 'Изменить слой: название, стиль, поля тайла, правка и модерация',
-    schema: { params: IdParam, body: LayerUpdateInput, response: { 200: LayerRecord } },
     handler: async (request) => {
       await db().transaction((tx) =>
         LayerService.update(tx, request.ctx, request.params.id, request.body),
@@ -218,27 +184,23 @@ export function registerGisRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/gis/layers/:id/stats',
+    route: 'POST /gis/layers/:id/stats',
     auth: { action: 'view' },
     tags: ['gis'],
     summary: 'Статистика поля слоя: диапазон и границы классов по строкам смотрящего',
     description:
       'Агрегаты по всем строкам слоя с политиками пользователя; квантили и естественные границы крупного слоя — по выборке (ADR-0075).',
-    schema: { params: IdParam, body: LayerStatsInput, response: { 200: LayerStats } },
     handler: async (request) =>
       LayerStatsService.stats(request.ctx, request.params.id, request.body),
   })
 
   route({
-    method: 'GET',
-    url: '/gis/layers/:id/tiles/:z/:x/:y.pbf',
+    route: 'GET /gis/layers/:id/tiles/:z/:x/:y.pbf',
     auth: { action: 'view' },
     tags: ['gis'],
     summary: 'Векторный тайл слоя (MVT) — с политиками строк и столбцов пользователя',
     description:
       'Пустой тайл и тайл, не уложившийся в тайм-аут, — 204; во втором случае заголовок `x-kchs-tile: timeout`.',
-    schema: { params: TileParams, querystring: LayerTileQuery },
     rateLimit: rateLimit(TILES_PER_MINUTE, '1 minute'),
     handler: async (request, reply) => {
       const { id, z: zoom, x, y } = request.params
@@ -268,27 +230,19 @@ export function registerGisRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/gis/layers/:id/features',
+    route: 'GET /gis/layers/:id/features',
     auth: { action: 'view' },
     tags: ['gis'],
     summary: 'Объекты слоя GeoJSON в охвате — мелкие слои и правка (до 5 000)',
-    schema: {
-      params: IdParam,
-      querystring: LayerFeaturesQuery,
-      response: { 200: LayerFeatureCollection },
-    },
     handler: async (request) =>
       FeatureService.features(request.ctx, request.params.id, request.query),
   })
 
   route({
-    method: 'GET',
-    url: '/gis/layers/:id/features/:rowId',
+    route: 'GET /gis/layers/:id/features/:rowId',
     auth: { action: 'view' },
     tags: ['gis'],
     summary: 'Карточка объекта слоя: видимые поля строки и геометрия',
-    schema: { params: FeatureParams, response: { 200: LayerFeature } },
     handler: async (request) =>
       FeatureService.feature(request.ctx, request.params.id, request.params.rowId),
   })
@@ -296,12 +250,10 @@ export function registerGisRoutes(route: RouteRegistrar): void {
   // ── Карты (ADR-0064) ────────────────────────────────────────────────────────
 
   route({
-    method: 'POST',
-    url: '/gis/maps',
+    route: 'POST /gis/maps',
     auth: 'session',
     tags: ['gis'],
     summary: 'Создать карту — композицию слоёв',
-    schema: { body: MapCreateInput, response: { 200: z.object({ id: z.uuid() }) } },
     handler: async (request) => {
       await authorize(request.ctx, 'create_child', request.body.parentId ?? request.body.spaceId)
       const id = await db().transaction((tx) => MapService.create(tx, request.ctx, request.body))
@@ -310,22 +262,18 @@ export function registerGisRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/gis/maps/:id',
+    route: 'GET /gis/maps/:id',
     auth: { action: 'view' },
     tags: ['gis'],
     summary: 'Карта: базовая карта, слои, вид, закладки',
-    schema: { params: IdParam, response: { 200: MapRecord } },
     handler: async (request) => MapService.get(request.ctx, request.params.id),
   })
 
   route({
-    method: 'PATCH',
-    url: '/gis/maps/:id',
+    route: 'PATCH /gis/maps/:id',
     auth: { action: 'edit' },
     tags: ['gis'],
     summary: 'Изменить карту: название, слои, вид, закладки',
-    schema: { params: IdParam, body: MapUpdateInput, response: { 200: MapRecord } },
     handler: async (request) => {
       await db().transaction((tx) =>
         MapService.update(tx, request.ctx, request.params.id, request.body),

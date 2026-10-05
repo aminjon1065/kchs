@@ -1,16 +1,4 @@
-import {
-  LoginInput,
-  MfaEnableInput,
-  MfaSetupResponse,
-  MfaVerifyInput,
-  PasswordChangeInput,
-  PasswordResetConfirmInput,
-  PasswordResetRequestInput,
-  RecoveryCodesResponse,
-  SessionInfo,
-} from '@kchs/contracts'
 import QRCode from 'qrcode'
-import { z } from 'zod'
 import { SecurityPolicyService } from '~/kernel/settings/security-policy.js'
 import { config } from '~/shared/config/index.js'
 import { errors } from '~/shared/errors.js'
@@ -26,8 +14,7 @@ export function registerAuthRoutes(route: RouteRegistrar): void {
   const env = config()
 
   route({
-    method: 'POST',
-    url: '/auth/login',
+    route: 'POST /auth/login',
     auth: 'public',
     tags: ['auth'],
     summary: 'Вход по логину и паролю',
@@ -37,19 +24,6 @@ export function registerAuthRoutes(route: RouteRegistrar): void {
       ...rateLimit(10, '1 minute'),
       keyGenerator: (request) =>
         addressKey('login', request, (request.body as { login?: string } | undefined)?.login ?? ''),
-    },
-    schema: {
-      body: LoginInput,
-      response: {
-        200: z.object({
-          status: z.enum(['ok', 'mfa_required', 'password_change_required']),
-          csrfToken: z.string().optional(),
-          challengeId: z.string().optional(),
-          expiresAt: z.string().optional(),
-          /** Чем подтвердить второй фактор: код приложения, код восстановления, ключ. */
-          methods: z.array(z.enum(['totp', 'recovery_code', 'passkey'])).optional(),
-        }),
-      },
     },
     handler: async (request, reply) => {
       await enforceAddressCeiling('login-ip', request, env.LOGIN_RATE_LIMIT_PER_IP_PER_MINUTE, 60)
@@ -76,8 +50,7 @@ export function registerAuthRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/auth/mfa/verify',
+    route: 'POST /auth/mfa/verify',
     auth: 'public',
     tags: ['auth'],
     summary: 'Подтверждение второго фактора',
@@ -85,15 +58,6 @@ export function registerAuthRoutes(route: RouteRegistrar): void {
     rateLimit: {
       ...rateLimit(10, '1 minute'),
       keyGenerator: (request) => addressKey('mfa', request, request.cookies?.[MFA_COOKIE] ?? ''),
-    },
-    schema: {
-      body: MfaVerifyInput,
-      response: {
-        200: z.object({
-          status: z.enum(['ok', 'password_change_required']),
-          csrfToken: z.string(),
-        }),
-      },
     },
     handler: async (request, reply) => {
       const challengeToken = request.cookies?.[MFA_COOKIE]
@@ -118,22 +82,12 @@ export function registerAuthRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/auth/logout',
+    route: 'POST /auth/logout',
     auth: 'session',
     allowPendingPasswordChange: true,
     allowPendingMfaEnrollment: true,
     tags: ['auth'],
     summary: 'Выход',
-    schema: {
-      response: {
-        200: z.object({
-          ok: z.boolean(),
-          /** Куда отправить браузер, чтобы завершить и сессию IdP (ADR-0098). */
-          endSessionUrl: z.url().nullable().default(null),
-        }),
-      },
-    },
     handler: async (request, reply) => {
       await AuthService.logout(request.ctx)
       reply.clearCookie(env.SESSION_COOKIE_NAME, { path: '/' })
@@ -142,8 +96,7 @@ export function registerAuthRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/auth/password-reset',
+    route: 'POST /auth/password-reset',
     auth: 'public',
     tags: ['auth'],
     summary: 'Запрос восстановления доступа',
@@ -153,7 +106,6 @@ export function registerAuthRoutes(route: RouteRegistrar): void {
       keyGenerator: (request) =>
         addressKey('reset', request, (request.body as { login?: string } | undefined)?.login ?? ''),
     },
-    schema: { body: PasswordResetRequestInput, response: { 200: z.object({ ok: z.boolean() }) } },
     handler: async (request) => {
       await enforceAddressCeiling('reset-ip', request, 50, 600)
       const result = await AuthService.requestPasswordReset(request.body.login)
@@ -164,8 +116,7 @@ export function registerAuthRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/auth/password-reset/confirm',
+    route: 'POST /auth/password-reset/confirm',
     auth: 'public',
     tags: ['auth'],
     summary: 'Установка нового пароля по ссылке',
@@ -178,7 +129,6 @@ export function registerAuthRoutes(route: RouteRegistrar): void {
           (request.body as { token?: string } | undefined)?.token ?? '',
         ),
     },
-    schema: { body: PasswordResetConfirmInput, response: { 200: z.object({ ok: z.boolean() }) } },
     handler: async (request) => {
       await AuthService.confirmPasswordReset(request.body.token, request.body.newPassword)
       return { ok: true }
@@ -186,13 +136,11 @@ export function registerAuthRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/me/password',
+    route: 'POST /me/password',
     auth: 'session',
     allowPendingPasswordChange: true,
     tags: ['auth'],
     summary: 'Смена пароля',
-    schema: { body: PasswordChangeInput, response: { 200: z.object({ ok: z.boolean() }) } },
     handler: async (request) => {
       await AuthService.changePassword(
         request.ctx,
@@ -206,13 +154,11 @@ export function registerAuthRoutes(route: RouteRegistrar): void {
 
   // ─── MFA ───────────────────────────────────────────────────────────────────
   route({
-    method: 'POST',
-    url: '/me/mfa/setup',
+    route: 'POST /me/mfa/setup',
     auth: 'session',
     allowPendingMfaEnrollment: true,
     tags: ['auth'],
     summary: 'Начать подключение TOTP',
-    schema: { response: { 200: MfaSetupResponse } },
     handler: async (request) => {
       const { secret, otpauthUrl } = await AuthService.startMfaSetup(request.ctx)
       // Тёмные модули на белом поле с отступом: камера читает код в любой теме интерфейса
@@ -227,28 +173,21 @@ export function registerAuthRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/me/mfa/enable',
+    route: 'POST /me/mfa/enable',
     auth: 'session',
     allowPendingMfaEnrollment: true,
     tags: ['auth'],
     summary: 'Подтвердить и включить TOTP',
-    schema: { body: MfaEnableInput, response: { 200: RecoveryCodesResponse } },
     handler: async (request) => ({
       codes: await AuthService.enableMfa(request.ctx, request.body.code),
     }),
   })
 
   route({
-    method: 'DELETE',
-    url: '/me/mfa',
+    route: 'DELETE /me/mfa',
     auth: 'session',
     tags: ['auth'],
     summary: 'Отключить TOTP',
-    schema: {
-      body: z.object({ code: z.string().min(6).max(24) }),
-      response: { 200: z.object({ ok: z.boolean() }) },
-    },
     handler: async (request) => {
       const policy = await SecurityPolicyService.current()
       // Ключ входа — такой же второй фактор (ADR-0098): если он есть, код
@@ -272,27 +211,20 @@ export function registerAuthRoutes(route: RouteRegistrar): void {
 
   // ─── Сессии ───────────────────────────────────────────────────────────────
   route({
-    method: 'GET',
-    url: '/me/sessions',
+    route: 'GET /me/sessions',
     auth: 'session',
     tags: ['auth'],
     summary: 'Устройства и сессии',
-    schema: { response: { 200: z.object({ items: z.array(SessionInfo) }) } },
     handler: async (request) => ({
       items: await AuthService.listSessions(request.ctx.userId, request.ctx.sessionId),
     }),
   })
 
   route({
-    method: 'POST',
-    url: '/me/sessions/revoke',
+    route: 'POST /me/sessions/revoke',
     auth: 'session',
     tags: ['auth'],
     summary: 'Завершить сессии',
-    schema: {
-      body: z.object({ sessionIds: z.array(z.uuid()).optional(), all: z.boolean().default(false) }),
-      response: { 200: z.object({ revoked: z.number().int() }) },
-    },
     handler: async (request) => {
       const revoked = request.body.all
         ? await AuthService.revokeAllExcept(request.ctx.userId, request.ctx.sessionId)

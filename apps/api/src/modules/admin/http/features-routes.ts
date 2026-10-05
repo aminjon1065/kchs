@@ -1,5 +1,3 @@
-import { FeatureFlagList, FeatureFlagPatch } from '@kchs/contracts'
-import { z } from 'zod'
 import { FeatureService } from '~/kernel/features/service.js'
 import { db } from '~/shared/db/client.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
@@ -11,26 +9,18 @@ import type { RouteRegistrar } from '~/shared/http/route.js'
  */
 export function registerFeatureRoutes(route: RouteRegistrar): void {
   route({
-    method: 'GET',
-    url: '/admin/features',
+    route: 'GET /admin/features',
     auth: { capability: 'admin.system' },
     tags: ['admin'],
     summary: 'Возможности установки',
-    schema: { response: { 200: FeatureFlagList } },
     handler: async () => ({ items: await FeatureService.list() }),
   })
 
   route({
-    method: 'PATCH',
-    url: '/admin/features/:key',
+    route: 'PATCH /admin/features/:key',
     auth: { capability: 'admin.system' },
     tags: ['admin'],
     summary: 'Включить или выключить возможность',
-    schema: {
-      params: z.object({ key: z.string().min(1).max(64) }),
-      body: FeatureFlagPatch,
-      response: { 200: FeatureFlagList },
-    },
     handler: async (request) => {
       await db().transaction((tx) =>
         FeatureService.set(tx, request.ctx, request.params.key, request.body.enabled),

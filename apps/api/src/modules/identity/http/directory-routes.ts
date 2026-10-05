@@ -1,11 +1,4 @@
-import {
-  DirectorySettingsInput,
-  DirectoryState,
-  DirectorySyncRun,
-  DirectoryTestResult,
-} from '@kchs/contracts'
 import { inArray } from 'drizzle-orm'
-import { z } from 'zod'
 import { roles } from '~/kernel/directory/schema.js'
 import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
@@ -20,12 +13,10 @@ import { DirectorySync } from '../domain/directory-sync.js'
  */
 export function registerDirectoryRoutes(route: RouteRegistrar): void {
   route({
-    method: 'GET',
-    url: '/admin/directory',
+    route: 'GET /admin/directory',
     auth: { capability: 'admin.system' },
     tags: ['admin'],
     summary: 'Настройка каталога LDAP/AD',
-    schema: { response: { 200: DirectoryState } },
     handler: async () => {
       const [{ enabled, settings, bindPassword, updatedAt }, lastRun] = await Promise.all([
         AuthProviders.directory(),
@@ -42,12 +33,10 @@ export function registerDirectoryRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'PUT',
-    url: '/admin/directory',
+    route: 'PUT /admin/directory',
     auth: { capability: 'admin.system' },
     tags: ['admin'],
     summary: 'Изменить настройку каталога',
-    schema: { body: DirectorySettingsInput, response: { 200: DirectoryState } },
     handler: async (request) => {
       const input = request.body
       await assertRolesExist([
@@ -70,48 +59,37 @@ export function registerDirectoryRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/admin/directory/test',
+    route: 'POST /admin/directory/test',
     auth: { capability: 'admin.system' },
     tags: ['admin'],
     summary: 'Проверить соединение с каталогом',
     rateLimit: rateLimit(10, '1 minute'),
-    schema: { response: { 200: DirectoryTestResult } },
     handler: async () => DirectorySync.test(),
   })
 
   route({
-    method: 'POST',
-    url: '/admin/directory/preview',
+    route: 'POST /admin/directory/preview',
     auth: { capability: 'admin.system' },
     tags: ['admin'],
     summary: 'Предпросмотр: что изменится при синхронизации',
     rateLimit: rateLimit(5, '1 minute'),
-    schema: { response: { 200: DirectorySyncRun } },
     handler: async (request) => DirectorySync.preview(request.ctx),
   })
 
   route({
-    method: 'POST',
-    url: '/admin/directory/sync',
+    route: 'POST /admin/directory/sync',
     auth: { capability: 'admin.system' },
     tags: ['admin'],
     summary: 'Синхронизировать каталог сейчас',
     rateLimit: rateLimit(5, '1 minute'),
-    schema: { response: { 200: DirectorySyncRun } },
     handler: async (request) => DirectorySync.run(request.ctx, 'manual'),
   })
 
   route({
-    method: 'GET',
-    url: '/admin/directory/syncs',
+    route: 'GET /admin/directory/syncs',
     auth: { capability: 'admin.system' },
     tags: ['admin'],
     summary: 'Журнал синхронизаций каталога',
-    schema: {
-      querystring: z.object({ limit: z.coerce.number().int().min(1).max(50).default(20) }),
-      response: { 200: z.object({ items: z.array(DirectorySyncRun) }) },
-    },
     handler: async (request) => ({ items: await DirectorySync.history(request.query.limit) }),
   })
 }

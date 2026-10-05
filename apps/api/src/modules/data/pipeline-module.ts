@@ -1,17 +1,4 @@
-import {
-  PipelineCreateInput,
-  PipelineList,
-  PipelinePreviewInput,
-  PipelineRecord,
-  PipelineRunList,
-  PipelineRunStarted,
-  PipelineUpdateInput,
-  PipelineValidateInput,
-  PipelineValidateResult,
-  QueryResult,
-} from '@kchs/contracts'
 import { eq } from 'drizzle-orm'
-import { z } from 'zod'
 import { authorize } from '~/kernel/access/authorize.js'
 import { registerSubscriber } from '~/kernel/events/bus.js'
 import { jobClosedSubscriber } from '~/kernel/jobs/outcomes.js'
@@ -30,10 +17,6 @@ import {
 } from './domain/pipeline-schedules.js'
 import { PIPELINE_JOB, type PipelineJobData, PipelineService } from './domain/pipeline-service.js'
 import { pipelines } from './schema.js'
-
-const IdParam = z.object({ id: z.uuid() })
-const ListQuery = z.object({ limit: z.coerce.number().int().min(1).max(200).default(50) })
-const RunsQuery = z.object({ limit: z.coerce.number().int().min(1).max(100).default(30) })
 
 /**
  * Пайплайн преобразований — объект реестра `pipeline` (06-analytics-engine.md
@@ -96,24 +79,20 @@ export function registerPipelineObjectType(): void {
 
 export function registerPipelineRoutes(route: RouteRegistrar): void {
   route({
-    method: 'GET',
-    url: '/pipelines',
+    route: 'GET /pipelines',
     auth: 'session',
     tags: ['data'],
     summary: 'Пайплайны преобразований, видимые смотрящему',
-    schema: { querystring: ListQuery, response: { 200: PipelineList } },
     handler: async (request) => ({
       items: await PipelineService.list(request.ctx, request.query.limit),
     }),
   })
 
   route({
-    method: 'POST',
-    url: '/pipelines',
+    route: 'POST /pipelines',
     auth: 'session',
     tags: ['data'],
     summary: 'Создать пайплайн преобразований',
-    schema: { body: PipelineCreateInput, response: { 200: PipelineRecord } },
     handler: async (request) => {
       await authorize(request.ctx, 'create_child', request.body.parentId ?? request.body.spaceId)
       const id = await PipelineService.create(request.ctx, request.body)
@@ -123,44 +102,36 @@ export function registerPipelineRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/pipelines/validate',
+    route: 'POST /pipelines/validate',
     auth: 'session',
     readOnly: true,
     tags: ['data'],
     summary: 'Проверить определение пайплайна: поля результата или ошибка шага',
-    schema: { body: PipelineValidateInput, response: { 200: PipelineValidateResult } },
     handler: async (request) => PipelineService.validate(request.ctx, request.body.definition),
   })
 
   route({
-    method: 'POST',
-    url: '/pipelines/preview',
+    route: 'POST /pipelines/preview',
     auth: 'session',
     readOnly: true,
     tags: ['data'],
     summary: 'Предпросмотр результата шага на выборке — с политиками смотрящего',
-    schema: { body: PipelinePreviewInput, response: { 200: QueryResult } },
     handler: async (request) => PipelineService.preview(request.ctx, request.body),
   })
 
   route({
-    method: 'GET',
-    url: '/pipelines/:id',
+    route: 'GET /pipelines/:id',
     auth: { action: 'view' },
     tags: ['data'],
     summary: 'Пайплайн: определение, расписание, состояние последнего прогона',
-    schema: { params: IdParam, response: { 200: PipelineRecord } },
     handler: async (request) => PipelineService.get(request.ctx, request.params.id),
   })
 
   route({
-    method: 'PATCH',
-    url: '/pipelines/:id',
+    route: 'PATCH /pipelines/:id',
     auth: { action: 'edit' },
     tags: ['data'],
     summary: 'Изменить пайплайн: шаги, расписание, запуск по импорту',
-    schema: { params: IdParam, body: PipelineUpdateInput, response: { 200: PipelineRecord } },
     handler: async (request) => {
       const record = await PipelineService.update(request.ctx, request.params.id, request.body)
       await syncPipelineSchedule(request.params.id)
@@ -169,23 +140,19 @@ export function registerPipelineRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/pipelines/:id/run',
+    route: 'POST /pipelines/:id/run',
     auth: { action: 'run' },
     tags: ['data'],
     summary: 'Запустить пайплайн: результат заменит строки выходного датасета',
-    schema: { params: IdParam, response: { 200: PipelineRunStarted } },
     rateLimit: { max: 30, timeWindow: '1 minute' },
     handler: async (request) => PipelineService.run(request.ctx, request.params.id, 'manual'),
   })
 
   route({
-    method: 'GET',
-    url: '/pipelines/:id/runs',
+    route: 'GET /pipelines/:id/runs',
     auth: { action: 'view' },
     tags: ['data'],
     summary: 'Журнал прогонов пайплайна',
-    schema: { params: IdParam, querystring: RunsQuery, response: { 200: PipelineRunList } },
     handler: async (request) => ({
       items: await PipelineService.runs(request.params.id, request.query.limit),
     }),

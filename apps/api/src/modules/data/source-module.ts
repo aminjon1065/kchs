@@ -1,20 +1,4 @@
-import {
-  FeedPreview,
-  FeedPreviewInput,
-  FeedSourceCreateInput,
-  IntegrationCheckResult,
-  SourceCreateInput,
-  SourceList,
-  SourcePreview,
-  SourcePreviewInput,
-  SourceRecord,
-  SourceRunList,
-  SourceRunStarted,
-  SourceTableList,
-  SourceUpdateInput,
-} from '@kchs/contracts'
 import { eq } from 'drizzle-orm'
-import { z } from 'zod'
 import { authorize } from '~/kernel/access/authorize.js'
 import { registerSubscriber } from '~/kernel/events/bus.js'
 import { jobClosedSubscriber } from '~/kernel/jobs/outcomes.js'
@@ -34,11 +18,6 @@ import {
 } from './domain/source-schedules.js'
 import { SOURCE_SYNC_JOB, type SourceJobData, SourceService } from './domain/source-service.js'
 import { sources } from './schema.js'
-
-const IdParam = z.object({ id: z.uuid() })
-const IntegrationParam = z.object({ integrationId: z.uuid() })
-const ListQuery = z.object({ limit: z.coerce.number().int().min(1).max(200).default(50) })
-const RunsQuery = z.object({ limit: z.coerce.number().int().min(1).max(100).default(30) })
 
 /** Ведение подключений к внешним базам — способность администратора данных. */
 const MANAGE = 'data.sources.manage'
@@ -102,24 +81,20 @@ export function registerSourceObjectType(): void {
 
 export function registerSourceRoutes(route: RouteRegistrar): void {
   route({
-    method: 'GET',
-    url: '/sources',
+    route: 'GET /sources',
     auth: 'session',
     tags: ['data'],
     summary: 'Источники датасетов из внешних баз',
-    schema: { querystring: ListQuery, response: { 200: SourceList } },
     handler: async (request) => ({
       items: await SourceService.list(request.ctx, request.query.limit),
     }),
   })
 
   route({
-    method: 'POST',
-    url: '/sources',
+    route: 'POST /sources',
     auth: { capability: MANAGE },
     tags: ['data'],
     summary: 'Завести источник: подключение, выборка и датасет-приёмник',
-    schema: { body: SourceCreateInput, response: { 200: SourceRecord } },
     handler: async (request) => {
       await authorize(request.ctx, 'create_child', request.body.parentId ?? request.body.spaceId)
       const id = await SourceService.create(request.ctx, request.body)
@@ -129,12 +104,10 @@ export function registerSourceRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/sources/feeds',
+    route: 'POST /sources/feeds',
     auth: { capability: MANAGE },
     tags: ['data'],
     summary: 'Завести ленту по адресу: разбор, датасет-приёмник и расписание',
-    schema: { body: FeedSourceCreateInput, response: { 200: SourceRecord } },
     handler: async (request) => {
       await authorize(request.ctx, 'create_child', request.body.parentId ?? request.body.spaceId)
       const id = await FeedService.create(request.ctx, request.body)
@@ -144,24 +117,20 @@ export function registerSourceRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/sources/feed/preview',
+    route: 'POST /sources/feed/preview',
     auth: { capability: MANAGE },
     readOnly: true,
     tags: ['data'],
     summary: 'Предпросмотр ленты по адресу: первые записи и найденные поля',
-    schema: { body: FeedPreviewInput, response: { 200: FeedPreview } },
     rateLimit: { max: 30, timeWindow: '1 minute' },
     handler: async (request) => FeedService.preview(request.ctx, request.body),
   })
 
   route({
-    method: 'GET',
-    url: '/sources/integrations/:integrationId/tables',
+    route: 'GET /sources/integrations/:integrationId/tables',
     auth: { capability: MANAGE },
     tags: ['data'],
     summary: 'Таблицы и представления внешней базы',
-    schema: { params: IntegrationParam, response: { 200: SourceTableList } },
     rateLimit: { max: 30, timeWindow: '1 minute' },
     handler: async (request) => {
       await authorize(request.ctx, 'view', request.params.integrationId)
@@ -170,13 +139,11 @@ export function registerSourceRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/sources/preview',
+    route: 'POST /sources/preview',
     auth: { capability: MANAGE },
     readOnly: true,
     tags: ['data'],
     summary: 'Предпросмотр внешней выборки: столбцы с типами и первые строки',
-    schema: { body: SourcePreviewInput, response: { 200: SourcePreview } },
     rateLimit: { max: 30, timeWindow: '1 minute' },
     handler: async (request) => {
       await authorize(request.ctx, 'view', request.body.integrationId)
@@ -189,22 +156,18 @@ export function registerSourceRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'GET',
-    url: '/sources/:id',
+    route: 'GET /sources/:id',
     auth: { action: 'view' },
     tags: ['data'],
     summary: 'Источник: подключение, выборка, режим, расписание и состояние',
-    schema: { params: IdParam, response: { 200: SourceRecord } },
     handler: async (request) => SourceService.get(request.ctx, request.params.id),
   })
 
   route({
-    method: 'PATCH',
-    url: '/sources/:id',
+    route: 'PATCH /sources/:id',
     auth: { action: 'edit' },
     tags: ['data'],
     summary: 'Изменить источник: выборку, столбцы, режим, расписание',
-    schema: { params: IdParam, body: SourceUpdateInput, response: { 200: SourceRecord } },
     handler: async (request) => {
       const record = await SourceService.update(request.ctx, request.params.id, request.body)
       await syncSourceSchedule(request.params.id)
@@ -213,12 +176,10 @@ export function registerSourceRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/sources/:id/check',
+    route: 'POST /sources/:id/check',
     auth: { action: 'edit' },
     tags: ['data'],
     summary: 'Проверить соединение и выборку источника',
-    schema: { params: IdParam, response: { 200: IntegrationCheckResult } },
     rateLimit: { max: 20, timeWindow: '1 minute' },
     handler: async (request) => {
       const result = await SourceService.check(request.ctx, request.params.id)
@@ -227,23 +188,19 @@ export function registerSourceRoutes(route: RouteRegistrar): void {
   })
 
   route({
-    method: 'POST',
-    url: '/sources/:id/sync',
+    route: 'POST /sources/:id/sync',
     auth: { action: 'sync' },
     tags: ['data'],
     summary: 'Синхронизировать сейчас: снимок или добор по курсору',
-    schema: { params: IdParam, response: { 200: SourceRunStarted } },
     rateLimit: { max: 30, timeWindow: '1 minute' },
     handler: async (request) => SourceService.run(request.ctx, request.params.id),
   })
 
   route({
-    method: 'GET',
-    url: '/sources/:id/runs',
+    route: 'GET /sources/:id/runs',
     auth: { action: 'view' },
     tags: ['data'],
     summary: 'Журнал синхронизаций источника',
-    schema: { params: IdParam, querystring: RunsQuery, response: { 200: SourceRunList } },
     handler: async (request) => ({
       items: await SourceService.runs(request.params.id, request.query.limit),
     }),

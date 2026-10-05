@@ -1,4 +1,3 @@
-import { AiStatus, TranslateInput, TranslateResult } from '@kchs/contracts'
 import { registerFeature } from '~/kernel/features/registry.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { AiService } from './domain/service.js'
@@ -23,22 +22,18 @@ export function registerAiFeature(): void {
 
 export function registerAiRoutes(route: RouteRegistrar): void {
   route({
-    method: 'GET',
-    url: '/ai/status',
+    route: 'GET /ai/status',
     auth: 'session',
     tags: ['ai'],
     summary: 'ИИ: включён ли для пользователя, провайдер и суточные лимиты',
-    schema: { response: { 200: AiStatus } },
     handler: async (request) => AiService.status(request.ctx),
   })
 
   route({
-    method: 'POST',
-    url: '/ai/translate',
+    route: 'POST /ai/translate',
     auth: 'session',
     tags: ['ai'],
     summary: 'Перевод текста между языками платформы (ru, tg, en)',
-    schema: { body: TranslateInput, response: { 200: TranslateResult } },
     handler: async (request) => Translate.run(request.ctx, request.body),
   })
 }
