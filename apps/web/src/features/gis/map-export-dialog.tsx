@@ -9,7 +9,7 @@ import { Button, Callout, Dialog, DialogContent, SegmentedControl, Spinner } fro
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Download } from 'lucide-react'
 import { useState } from 'react'
-import { exportJobQuery, isJobFinished } from '~/features/data/queries.js'
+import { exportJobQuery, isJobFinished } from '~/features/data/index.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { useT } from '~/shared/i18n.js'
 

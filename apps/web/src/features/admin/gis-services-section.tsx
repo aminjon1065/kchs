@@ -30,11 +30,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, Globe2, MoreHorizontal, Pencil, Plug, Plus, Trash2 } from 'lucide-react'
 import { useId, useState } from 'react'
-import {
-  serviceLayerApi,
-  serviceLayerKeys,
-  serviceLayersQuery,
-} from '~/features/gis/service-layers.js'
+import { serviceLayerApi, serviceLayerKeys, serviceLayersQuery } from '~/features/gis/index.js'
 import { ApiError } from '~/shared/api/client.js'
 import { spacesQuery } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'

@@ -18,12 +18,11 @@ import {
 } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { BarChart3, Table2 } from 'lucide-react'
+import { datasetQuery, useFieldOptions } from '~/features/data/index.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
-import { useFieldOptions } from '../../data/field-options.js'
-import { datasetQuery } from '../../data/queries.js'
 
 /** Строк таблицы в паспорте: остальное — в датасете или «Исследовании». */
 const PREVIEW_ROWS = 100

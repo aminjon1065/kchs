@@ -23,7 +23,7 @@ import {
 import { keepPreviousData, useMutation, useQuery } from '@tanstack/react-query'
 import { useId, useMemo, useState } from 'react'
 import { type PickedUser, UserPicker, UsersPicker } from '~/entities/people/user-picker.js'
-import { knownKey, STEP_TYPES } from '~/features/processes/labels.js'
+import { knownKey, STEP_TYPES } from '~/features/processes/index.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'

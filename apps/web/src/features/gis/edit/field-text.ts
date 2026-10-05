@@ -2,9 +2,9 @@ import type { DatasetRecord, Locale } from '@kchs/contracts'
 import { formatValue } from '@kchs/fields'
 import { useQuery } from '@tanstack/react-query'
 import { useCallback } from 'react'
+import { useFieldOptions } from '~/features/data/index.js'
 import { meQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
-import { useFieldOptions } from '../../data/field-options.js'
 
 /**
  * Значение поля датасета текстом — для истории, очереди правок и различий

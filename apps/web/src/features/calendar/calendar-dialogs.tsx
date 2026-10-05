@@ -34,7 +34,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarSearch, Copy, Link2, Trash2 } from 'lucide-react'
 import { useId, useState } from 'react'
-import { projectsQuery } from '~/features/tasks/queries.js'
+import { projectsQuery } from '~/features/tasks/index.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { spacesQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'

@@ -12,7 +12,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bot, Eraser, Send, Sparkles } from 'lucide-react'
 import { useState } from 'react'
-import { aiStatusQuery } from '~/features/data/queries.js'
+import { aiStatusQuery } from '~/features/data/index.js'
 import { CreateTaskDialog } from '~/features/tasks/task-dialogs.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { useT } from '~/shared/i18n.js'

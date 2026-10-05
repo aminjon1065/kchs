@@ -42,7 +42,7 @@ import {
 import { PresenceAvatars } from '~/entities/objects/presence-avatars.js'
 import { MapSlotsProvider } from '~/features/gis/map-slots.js'
 import { TerritorySelect } from '~/features/gis/territory-select.js'
-import { dashboardPrintPath } from '~/features/reports/print/print-target.js'
+import { dashboardPrintPath } from '~/features/reports/index.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { keys, objectListQuery, objectQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'

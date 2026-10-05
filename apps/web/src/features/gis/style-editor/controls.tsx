@@ -15,8 +15,8 @@ import {
 } from '@kchs/ui'
 import { TriangleAlert } from 'lucide-react'
 import { createContext, type ReactNode, useContext, useEffect, useId, useState } from 'react'
+import { fieldLabel } from '~/features/data/index.js'
 import { useT } from '~/shared/i18n.js'
-import { fieldLabel } from '../../data/field-types.js'
 import { warningsAt } from './model.js'
 
 /** Всё, что нужно разделам формы стиля: рабочая копия, поля датасета, тема, замечания. */

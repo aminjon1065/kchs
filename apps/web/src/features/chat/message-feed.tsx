@@ -45,7 +45,7 @@ import {
   MessageMenu,
 } from '~/entities/discussion/message-item.js'
 import { uploadFile } from '~/entities/files/upload.js'
-import { aiStatusQuery } from '~/features/data/queries.js'
+import { aiStatusQuery } from '~/features/data/index.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { keys, meQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'

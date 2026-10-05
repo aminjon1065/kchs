@@ -27,7 +27,7 @@ import {
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Ban, Download, Mail, RefreshCw, Stamp } from 'lucide-react'
 import { useId, useState } from 'react'
-import { useFileDownload } from '~/features/files/use-file-download.js'
+import { useFileDownload } from '~/features/files/index.js'
 import { http } from '~/shared/api/client.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'

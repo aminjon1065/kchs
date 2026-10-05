@@ -4,7 +4,7 @@ import { Button, Card, Field, useToast } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { ObjectPicker } from '~/entities/objects/object-picker.js'
-import { helpQuery } from '~/features/knowledge/help.js'
+import { helpQuery } from '~/features/knowledge/index.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { useT } from '~/shared/i18n.js'
 

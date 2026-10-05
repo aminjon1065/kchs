@@ -1,7 +1,7 @@
 import type { FieldDef, FieldOption } from '@kchs/contracts'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
-import { territoriesQuery, territoryOptions } from '~/features/gis/queries.js'
+import { territoriesQuery, territoryOptions } from '~/features/gis/index.js'
 import { type LookupRef, lookupOptionsQuery } from './queries.js'
 
 const lookupKey = (lookup: LookupRef) =>

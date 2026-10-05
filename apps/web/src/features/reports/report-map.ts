@@ -2,13 +2,12 @@ import type { Bbox, LayerRecord, MapCamera } from '@kchs/contracts'
 import type { LegendModel, MapTheme } from '@kchs/map-style'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
-import { type BasemapStyle, useBasemapStyle } from '~/features/gis/basemaps.js'
+import { type BasemapStyle, layerQuery, mapQuery, useBasemapStyle } from '~/features/gis/index.js'
 import {
   type RenderEntry,
   type RenderedLayers,
   useRenderedLayers,
 } from '~/features/gis/layer-render.js'
-import { layerQuery, mapQuery } from '~/features/gis/queries.js'
 import { ApiError } from '~/shared/api/client.js'
 
 /** Вид по умолчанию — Таджикистан целиком (как у новой карты). */

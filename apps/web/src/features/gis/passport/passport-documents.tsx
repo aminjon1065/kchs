@@ -2,11 +2,10 @@ import type { DocumentTerritoryItem, Locale } from '@kchs/contracts'
 import { formatDate } from '@kchs/fields'
 import { DataTable, type DataTableColumn, EmptyState, Skeleton, StatusBadge } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
+import { DOCUMENT_STATUS_TONE, territoryDocumentsQuery } from '~/features/documents/index.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
-import { territoryDocumentsQuery } from '../../documents/queries.js'
-import { DOCUMENT_STATUS_TONE } from '../../documents/status.js'
 import { TerritoryLink } from '../territory-link.js'
 
 /**

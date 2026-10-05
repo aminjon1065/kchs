@@ -14,8 +14,8 @@ import {
   SelectValue,
   Switch,
 } from '@kchs/ui'
+import { fieldLabel, filterFieldsOf } from '~/features/data/index.js'
 import { useT } from '~/shared/i18n.js'
-import { fieldLabel, filterFieldsOf } from '../../data/field-types.js'
 import { useTerritoryFilterEditor } from '../territory-filter.js'
 import {
   ChoiceSelect,

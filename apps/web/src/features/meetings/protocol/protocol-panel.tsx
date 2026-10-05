@@ -36,7 +36,7 @@ import {
   removeCell,
   useYChanges,
 } from '~/entities/collab/notebook-doc.js'
-import { documentTypesQuery } from '~/features/documents/queries.js'
+import { documentTypesQuery } from '~/features/documents/index.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { meQuery } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'

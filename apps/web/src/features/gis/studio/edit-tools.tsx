@@ -28,8 +28,8 @@ import {
   Undo2,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { datasetQuery } from '~/features/data/index.js'
 import { useT } from '~/shared/i18n.js'
-import { datasetQuery } from '../../data/queries.js'
 import { CoordinatesDialog, locate, locateErrorKey } from '../edit/coordinates-dialog.js'
 import type { DrawController, DrawTool } from '../edit/draw-controller.js'
 import { editApi, layerEditingQuery, snapFeaturesQuery } from '../edit/edit-api.js'

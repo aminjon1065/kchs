@@ -46,7 +46,6 @@ import {
   Trash2,
 } from 'lucide-react'
 import { useId, useState } from 'react'
-import { FeedSourceDialog } from '~/features/data/sources/feed-dialog.js'
 import {
   sourceApi,
   sourceKeys,
@@ -54,7 +53,8 @@ import {
   sourceRunsQuery,
   sourcesQuery,
   sourceTablesQuery,
-} from '~/features/data/sources/queries.js'
+} from '~/features/data/index.js'
+import { FeedSourceDialog } from '~/features/data/sources/feed-dialog.js'
 import { ApiError } from '~/shared/api/client.js'
 import { integrationsQuery, spacesQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'

@@ -50,7 +50,7 @@ import {
   presetPeriod,
 } from '~/entities/data/metric-format.js'
 import { PresenceAvatars } from '~/entities/objects/presence-avatars.js'
-import { alertEventsQuery } from '~/features/alerts/queries.js'
+import { alertEventsQuery } from '~/features/alerts/index.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import {
   keys,

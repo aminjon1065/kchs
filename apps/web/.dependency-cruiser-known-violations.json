@@ -3690,145 +3690,9 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/admin/basemaps-section.tsx",
-    "to": "src/features/gis/basemaps.ts",
-    "unresolvedTo": "~/features/gis/basemaps.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/admin/basemaps-section.tsx",
-    "to": "src/features/gis/queries.ts",
-    "unresolvedTo": "~/features/gis/queries.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/admin/business-calendar-section.tsx",
-    "to": "src/features/calendar/queries.ts",
-    "unresolvedTo": "~/features/calendar/queries.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/admin/data-sources-section.tsx",
     "to": "src/features/data/sources/feed-dialog.tsx",
     "unresolvedTo": "~/features/data/sources/feed-dialog.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/admin/data-sources-section.tsx",
-    "to": "src/features/data/sources/queries.ts",
-    "unresolvedTo": "~/features/data/sources/queries.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/admin/gis-services-section.tsx",
-    "to": "src/features/gis/service-layers.ts",
-    "unresolvedTo": "~/features/gis/service-layers.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/admin/help-card.tsx",
-    "to": "src/features/knowledge/help.ts",
-    "unresolvedTo": "~/features/knowledge/help.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/admin/tasks-section.tsx",
-    "to": "src/features/tasks/queries.ts",
-    "unresolvedTo": "~/features/tasks/queries.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/assistant/assistant-panel.tsx",
-    "to": "src/features/data/queries.ts",
-    "unresolvedTo": "~/features/data/queries.js",
     "dependencyTypes": [
       "aliased",
       "aliased-tsconfig",
@@ -3860,77 +3724,9 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/automation/designer/action-editor.tsx",
-    "to": "src/features/data/pipelines/queries.ts",
-    "unresolvedTo": "~/features/data/pipelines/queries.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/automation/designer/action-editor.tsx",
-    "to": "src/features/data/sources/queries.ts",
-    "unresolvedTo": "~/features/data/sources/queries.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/automation/designer/rule-designer.tsx",
     "to": "src/features/admin/run-as-select.tsx",
     "unresolvedTo": "~/features/admin/run-as-select.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/calendar/calendar-dialogs.tsx",
-    "to": "src/features/tasks/queries.ts",
-    "unresolvedTo": "~/features/tasks/queries.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/chat/message-feed.tsx",
-    "to": "src/features/data/queries.ts",
-    "unresolvedTo": "~/features/data/queries.js",
     "dependencyTypes": [
       "aliased",
       "aliased-tsconfig",
@@ -3996,77 +3792,9 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/data/analysis-view.tsx",
-    "to": "src/features/gis/queries.ts",
-    "unresolvedTo": "~/features/gis/queries.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/data/chart-view.tsx",
-    "to": "src/features/gis/result-labels.ts",
-    "unresolvedTo": "~/features/gis/result-labels.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/data/dashboard-map-tile.tsx",
     "to": "src/features/gis/map-embed.tsx",
     "unresolvedTo": "~/features/gis/map-embed.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/data/dashboard-map-tile.tsx",
-    "to": "src/features/gis/queries.ts",
-    "unresolvedTo": "~/features/gis/queries.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/data/dashboard-tile.tsx",
-    "to": "src/features/gis/result-labels.ts",
-    "unresolvedTo": "~/features/gis/result-labels.js",
     "dependencyTypes": [
       "aliased",
       "aliased-tsconfig",
@@ -4118,23 +3846,6 @@
     "from": "src/features/data/dashboard-view.tsx",
     "to": "src/features/gis/territory-select.tsx",
     "unresolvedTo": "~/features/gis/territory-select.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/data/dashboard-view.tsx",
-    "to": "src/features/reports/print/print-target.ts",
-    "unresolvedTo": "~/features/reports/print/print-target.js",
     "dependencyTypes": [
       "aliased",
       "aliased-tsconfig",
@@ -4235,23 +3946,6 @@
   {
     "type": "dependency",
     "from": "src/features/data/explore-builder.tsx",
-    "to": "src/features/gis/result-labels.ts",
-    "unresolvedTo": "~/features/gis/result-labels.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/data/explore-builder.tsx",
     "to": "src/features/gis/territory-filter.tsx",
     "unresolvedTo": "~/features/gis/territory-filter.js",
     "dependencyTypes": [
@@ -4302,40 +3996,6 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/data/field-options.ts",
-    "to": "src/features/gis/queries.ts",
-    "unresolvedTo": "~/features/gis/queries.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/data/metric-view.tsx",
-    "to": "src/features/alerts/queries.ts",
-    "unresolvedTo": "~/features/alerts/queries.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/data/row-card.tsx",
     "to": "src/features/tasks/row-tasks.tsx",
     "unresolvedTo": "~/features/tasks/row-tasks.js",
@@ -4370,23 +4030,6 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/documents/card/files-tab.tsx",
-    "to": "src/features/files/use-file-download.ts",
-    "unresolvedTo": "~/features/files/use-file-download.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/documents/card/requisites-form.tsx",
     "to": "src/features/data/field-controls.tsx",
     "unresolvedTo": "~/features/data/field-controls.js",
@@ -4407,91 +4050,6 @@
     "from": "src/features/documents/card/resolution-dialogs.tsx",
     "to": "src/features/tasks/due-input.tsx",
     "unresolvedTo": "~/features/tasks/due-input.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/documents/card/resolution-dialogs.tsx",
-    "to": "src/features/tasks/task-status.ts",
-    "unresolvedTo": "~/features/tasks/task-status.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/documents/card/resolutions-tab.tsx",
-    "to": "src/features/tasks/task-status.ts",
-    "unresolvedTo": "~/features/tasks/task-status.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/documents/card/route-start-dialog.tsx",
-    "to": "src/features/processes/labels.ts",
-    "unresolvedTo": "~/features/processes/labels.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/documents/card/route-tab.tsx",
-    "to": "src/features/processes/labels.ts",
-    "unresolvedTo": "~/features/processes/labels.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/documents/card/route-tab.tsx",
-    "to": "src/features/processes/queries.ts",
-    "unresolvedTo": "~/features/processes/queries.js",
     "dependencyTypes": [
       "aliased",
       "aliased-tsconfig",
@@ -4541,93 +4099,8 @@
   {
     "type": "dependency",
     "from": "src/features/documents/card/step-actions.tsx",
-    "to": "src/features/processes/queries.ts",
-    "unresolvedTo": "~/features/processes/queries.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/documents/card/step-actions.tsx",
     "to": "src/features/processes/step-actions.tsx",
     "unresolvedTo": "~/features/processes/step-actions.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/documents/directories/templates-directory.tsx",
-    "to": "src/features/files/use-file-download.ts",
-    "unresolvedTo": "~/features/files/use-file-download.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/documents/directories/types-directory.tsx",
-    "to": "src/features/tasks/task-status.ts",
-    "unresolvedTo": "~/features/tasks/task-status.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/documents/mail/mail-screen.tsx",
-    "to": "src/features/files/use-file-download.ts",
-    "unresolvedTo": "~/features/files/use-file-download.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/files/use-file-download.ts",
-    "to": "src/features/documents/print/renders.ts",
-    "unresolvedTo": "~/features/documents/print/renders.js",
     "dependencyTypes": [
       "aliased",
       "aliased-tsconfig",
@@ -4687,219 +4160,6 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/gis/add-layer-dialog.tsx",
-    "to": "src/features/data/field-options.ts",
-    "unresolvedTo": "../data/field-options.js",
-    "dependencyTypes": [
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/gis/add-layer-dialog.tsx",
-    "to": "src/features/data/field-types.ts",
-    "unresolvedTo": "../data/field-types.js",
-    "dependencyTypes": [
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/gis/add-layer-dialog.tsx",
-    "to": "src/features/data/queries.ts",
-    "unresolvedTo": "../data/queries.js",
-    "dependencyTypes": [
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/gis/choropleth/choropleth-wizard.tsx",
-    "to": "src/features/data/queries.ts",
-    "unresolvedTo": "../../data/queries.js",
-    "dependencyTypes": [
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/gis/edit/conflict-dialog.tsx",
-    "to": "src/features/data/field-types.ts",
-    "unresolvedTo": "../../data/field-types.js",
-    "dependencyTypes": [
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/gis/edit/edit-api.ts",
-    "to": "src/features/data/queries.ts",
-    "unresolvedTo": "../../data/queries.js",
-    "dependencyTypes": [
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/gis/edit/edit-queue.tsx",
-    "to": "src/features/data/field-types.ts",
-    "unresolvedTo": "../../data/field-types.js",
-    "dependencyTypes": [
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/gis/edit/feature-form.tsx",
-    "to": "src/features/data/field-options.ts",
-    "unresolvedTo": "../../data/field-options.js",
-    "dependencyTypes": [
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/gis/edit/feature-history.tsx",
-    "to": "src/features/data/field-types.ts",
-    "unresolvedTo": "../../data/field-types.js",
-    "dependencyTypes": [
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/gis/edit/feature-history.tsx",
-    "to": "src/features/data/queries.ts",
-    "unresolvedTo": "../../data/queries.js",
-    "dependencyTypes": [
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/gis/edit/field-text.ts",
-    "to": "src/features/data/field-options.ts",
-    "unresolvedTo": "../../data/field-options.js",
-    "dependencyTypes": [
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/gis/feature-card.tsx",
-    "to": "src/features/data/queries.ts",
-    "unresolvedTo": "../data/queries.js",
-    "dependencyTypes": [
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/gis/layer-render.ts",
-    "to": "src/features/data/queries.ts",
-    "unresolvedTo": "../data/queries.js",
-    "dependencyTypes": [
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/gis/map-embed.tsx",
-    "to": "src/features/data/queries.ts",
-    "unresolvedTo": "../data/queries.js",
-    "dependencyTypes": [
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/gis/map-export-dialog.tsx",
-    "to": "src/features/data/queries.ts",
-    "unresolvedTo": "~/features/data/queries.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/gis/map-studio.tsx",
     "to": "src/features/data/import-wizard.tsx",
     "unresolvedTo": "~/features/data/import-wizard.js",
@@ -4917,135 +4177,9 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/gis/passport/passport-data.tsx",
-    "to": "src/features/data/field-options.ts",
-    "unresolvedTo": "../../data/field-options.js",
-    "dependencyTypes": [
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/gis/passport/passport-data.tsx",
-    "to": "src/features/data/queries.ts",
-    "unresolvedTo": "../../data/queries.js",
-    "dependencyTypes": [
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/gis/passport/passport-documents.tsx",
-    "to": "src/features/documents/queries.ts",
-    "unresolvedTo": "../../documents/queries.js",
-    "dependencyTypes": [
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/gis/passport/passport-documents.tsx",
-    "to": "src/features/documents/status.ts",
-    "unresolvedTo": "../../documents/status.js",
-    "dependencyTypes": [
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/gis/passport/passport-tasks.tsx",
-    "to": "src/features/tasks/queries.ts",
-    "unresolvedTo": "../../tasks/queries.js",
-    "dependencyTypes": [
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/gis/passport/passport-tasks.tsx",
     "to": "src/features/tasks/task-dialogs.tsx",
     "unresolvedTo": "../../tasks/task-dialogs.js",
-    "dependencyTypes": [
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/gis/passport/passport-tasks.tsx",
-    "to": "src/features/tasks/task-status.ts",
-    "unresolvedTo": "../../tasks/task-status.js",
-    "dependencyTypes": [
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/gis/passport/territory-passport.tsx",
-    "to": "src/features/documents/queries.ts",
-    "unresolvedTo": "../../documents/queries.js",
-    "dependencyTypes": [
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/gis/studio/attribute-table.tsx",
-    "to": "src/features/data/field-options.ts",
-    "unresolvedTo": "../../data/field-options.js",
-    "dependencyTypes": [
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/gis/studio/attribute-table.tsx",
-    "to": "src/features/data/queries.ts",
-    "unresolvedTo": "../../data/queries.js",
     "dependencyTypes": [
       "local",
       "import"
@@ -5078,104 +4212,6 @@
       "aliased",
       "aliased-tsconfig",
       "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/gis/studio/edit-panel.tsx",
-    "to": "src/features/data/queries.ts",
-    "unresolvedTo": "../../data/queries.js",
-    "dependencyTypes": [
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/gis/studio/edit-tools.tsx",
-    "to": "src/features/data/queries.ts",
-    "unresolvedTo": "../../data/queries.js",
-    "dependencyTypes": [
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/gis/style-editor/controls.tsx",
-    "to": "src/features/data/field-types.ts",
-    "unresolvedTo": "../../data/field-types.js",
-    "dependencyTypes": [
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/gis/style-editor/renderer-section.tsx",
-    "to": "src/features/data/field-types.ts",
-    "unresolvedTo": "../../data/field-types.js",
-    "dependencyTypes": [
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/gis/style-editor/sections.tsx",
-    "to": "src/features/data/field-types.ts",
-    "unresolvedTo": "../../data/field-types.js",
-    "dependencyTypes": [
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/gis/style-editor/style-editor.tsx",
-    "to": "src/features/data/field-options.ts",
-    "unresolvedTo": "../../data/field-options.js",
-    "dependencyTypes": [
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/gis/style-editor/style-editor.tsx",
-    "to": "src/features/data/queries.ts",
-    "unresolvedTo": "../../data/queries.js",
-    "dependencyTypes": [
       "local",
       "import"
     ],
@@ -5237,23 +4273,6 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/home/home-screen.tsx",
-    "to": "src/features/tasks/queries.ts",
-    "unresolvedTo": "~/features/tasks/queries.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/knowledge/page-blocks.tsx",
     "to": "src/features/data/dataset-table.tsx",
     "unresolvedTo": "~/features/data/dataset-table.js",
@@ -5272,42 +4291,8 @@
   {
     "type": "dependency",
     "from": "src/features/knowledge/page-blocks.tsx",
-    "to": "src/features/data/queries.ts",
-    "unresolvedTo": "~/features/data/queries.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/knowledge/page-blocks.tsx",
     "to": "src/features/gis/map-embed.tsx",
     "unresolvedTo": "~/features/gis/map-embed.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/knowledge/page-blocks.tsx",
-    "to": "src/features/tasks/queries.ts",
-    "unresolvedTo": "~/features/tasks/queries.js",
     "dependencyTypes": [
       "aliased",
       "aliased-tsconfig",
@@ -5356,77 +4341,9 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/meetings/protocol/protocol-panel.tsx",
-    "to": "src/features/documents/queries.ts",
-    "unresolvedTo": "~/features/documents/queries.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/meetings/recording/recording-view.tsx",
-    "to": "src/features/documents/print/renders.ts",
-    "unresolvedTo": "~/features/documents/print/renders.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/meetings/recording/recording-view.tsx",
-    "to": "src/features/files/use-file-download.ts",
-    "unresolvedTo": "~/features/files/use-file-download.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/notebooks/map-cell.tsx",
     "to": "src/features/gis/map-embed.tsx",
     "unresolvedTo": "~/features/gis/map-embed.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/notebooks/notebook-params.tsx",
-    "to": "src/features/data/dashboard-layout.ts",
-    "unresolvedTo": "~/features/data/dashboard-layout.js",
     "dependencyTypes": [
       "aliased",
       "aliased-tsconfig",
@@ -5509,74 +4426,6 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/notebooks/query-cell.tsx",
-    "to": "src/features/data/queries.ts",
-    "unresolvedTo": "~/features/data/queries.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/notebooks/source-cells.tsx",
-    "to": "src/features/data/queries.ts",
-    "unresolvedTo": "~/features/data/queries.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/notebooks/source-cells.tsx",
-    "to": "src/features/gis/result-labels.ts",
-    "unresolvedTo": "~/features/gis/result-labels.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/objects/file-view.tsx",
-    "to": "src/features/files/use-file-download.ts",
-    "unresolvedTo": "~/features/files/use-file-download.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/objects/file-view.tsx",
     "to": "src/features/files/version-dialogs.tsx",
     "unresolvedTo": "~/features/files/version-dialogs.js",
@@ -5645,162 +4494,9 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/profile/notification-settings-card.tsx",
-    "to": "src/features/chat/queries.ts",
-    "unresolvedTo": "~/features/chat/queries.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/reports/print/dashboard-print.tsx",
-    "to": "src/features/gis/result-labels.ts",
-    "unresolvedTo": "~/features/gis/result-labels.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/reports/print/print-blocks.tsx",
     "to": "src/features/data/explore-builder.tsx",
     "unresolvedTo": "~/features/data/explore-builder.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/reports/print/print-blocks.tsx",
-    "to": "src/features/data/queries.ts",
-    "unresolvedTo": "~/features/data/queries.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/reports/print/print-blocks.tsx",
-    "to": "src/features/gis/basemaps.ts",
-    "unresolvedTo": "~/features/gis/basemaps.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/reports/print/print-blocks.tsx",
-    "to": "src/features/gis/result-labels.ts",
-    "unresolvedTo": "~/features/gis/result-labels.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/reports/print/print-blocks.tsx",
-    "to": "src/features/notebooks/cell-run.ts",
-    "unresolvedTo": "~/features/notebooks/cell-run.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/reports/print/print-screen.tsx",
-    "to": "src/features/gis/queries.ts",
-    "unresolvedTo": "~/features/gis/queries.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/reports/report-blocks.tsx",
-    "to": "src/features/data/queries.ts",
-    "unresolvedTo": "~/features/data/queries.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/reports/report-blocks.tsx",
-    "to": "src/features/gis/basemaps.ts",
-    "unresolvedTo": "~/features/gis/basemaps.js",
     "dependencyTypes": [
       "aliased",
       "aliased-tsconfig",
@@ -5867,59 +4563,8 @@
   {
     "type": "dependency",
     "from": "src/features/reports/report-map.ts",
-    "to": "src/features/gis/basemaps.ts",
-    "unresolvedTo": "~/features/gis/basemaps.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/reports/report-map.ts",
     "to": "src/features/gis/layer-render.ts",
     "unresolvedTo": "~/features/gis/layer-render.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/reports/report-map.ts",
-    "to": "src/features/gis/queries.ts",
-    "unresolvedTo": "~/features/gis/queries.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/reports/report-view.tsx",
-    "to": "src/features/documents/queries.ts",
-    "unresolvedTo": "~/features/documents/queries.js",
     "dependencyTypes": [
       "aliased",
       "aliased-tsconfig",
@@ -5985,23 +4630,6 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/reports/schedule-dialog.tsx",
-    "to": "src/features/data/dashboard-layout.ts",
-    "unresolvedTo": "~/features/data/dashboard-layout.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/spaces/space-screen.tsx",
     "to": "src/features/files/files-screen.tsx",
     "unresolvedTo": "~/features/files/files-screen.js",
@@ -6019,43 +4647,9 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/tasks/control-screen.tsx",
-    "to": "src/features/data/queries.ts",
-    "unresolvedTo": "~/features/data/queries.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/tasks/task-dialogs.tsx",
     "to": "src/features/gis/territory-select.tsx",
     "unresolvedTo": "~/features/gis/territory-select.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/tasks/task-view.tsx",
-    "to": "src/features/data/queries.ts",
-    "unresolvedTo": "~/features/data/queries.js",
     "dependencyTypes": [
       "aliased",
       "aliased-tsconfig",

@@ -12,8 +12,8 @@ import type {
   ReverseGeocodeResponse,
 } from '@kchs/contracts'
 import { type QueryClient, queryOptions } from '@tanstack/react-query'
+import { dataKeys } from '~/features/data/index.js'
 import { ApiError, http } from '~/shared/api/client.js'
-import { dataKeys } from '../../data/queries.js'
 import type { Position } from './geometry.js'
 
 /** Ключи кэша правки объектов слоя (ADR-0076). */

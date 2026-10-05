@@ -32,8 +32,12 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Layers, Map as MapIcon, MoreHorizontal, Pencil, Plus, Star, Trash2 } from 'lucide-react'
 import { useId, useState } from 'react'
-import { basemapKeys, basemapsQuery } from '~/features/gis/basemaps.js'
-import { gisKeys, gisRenderSettingsQuery } from '~/features/gis/queries.js'
+import {
+  basemapKeys,
+  basemapsQuery,
+  gisKeys,
+  gisRenderSettingsQuery,
+} from '~/features/gis/index.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'

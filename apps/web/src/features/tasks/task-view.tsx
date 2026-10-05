@@ -39,7 +39,7 @@ import {
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { PresenceAvatars } from '~/entities/objects/presence-avatars.js'
-import { datasetQuery } from '~/features/data/queries.js'
+import { datasetQuery } from '~/features/data/index.js'
 import { RowCard } from '~/features/data/row-card.js'
 import { TerritoryLink } from '~/features/gis/territory-link.js'
 import { ApiError, http } from '~/shared/api/client.js'

@@ -15,7 +15,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CornerDownRight, GitBranch, Send, Stamp, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { STATUS_TONE_KEY } from '~/features/tasks/task-status.js'
+import { STATUS_TONE_KEY } from '~/features/tasks/index.js'
 import { http } from '~/shared/api/client.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'

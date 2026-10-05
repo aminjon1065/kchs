@@ -20,12 +20,12 @@ import {
 } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
+import { datasetQuery } from '~/features/data/index.js'
 import { objectListQuery, spacesQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { orderSpaces } from '~/shared/spaces.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
-import { datasetQuery } from '../../data/queries.js'
 import {
   type ChoroplethForm,
   choroplethParams,

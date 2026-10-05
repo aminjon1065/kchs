@@ -16,8 +16,7 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react'
 import { useId } from 'react'
-import { pipelinesQuery } from '~/features/data/pipelines/queries.js'
-import { sourcesQuery } from '~/features/data/sources/queries.js'
+import { pipelinesQuery, sourcesQuery } from '~/features/data/index.js'
 import { useT } from '~/shared/i18n.js'
 import { ACTION_FIELDS, type ActionField, defaultAction } from './action-fields.js'
 

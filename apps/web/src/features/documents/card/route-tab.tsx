@@ -21,8 +21,12 @@ import {
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Route, Send, ShieldCheck, Undo2 } from 'lucide-react'
 import { useId, useState } from 'react'
-import { outcomeTone } from '~/features/processes/labels.js'
-import { objectProcessesQuery, processApi, processQuery } from '~/features/processes/queries.js'
+import {
+  objectProcessesQuery,
+  outcomeTone,
+  processApi,
+  processQuery,
+} from '~/features/processes/index.js'
 import { RouteLine } from '~/features/processes/route-line.js'
 import { ProcessStepActions } from '~/features/processes/step-actions.js'
 import { ApiError } from '~/shared/api/client.js'

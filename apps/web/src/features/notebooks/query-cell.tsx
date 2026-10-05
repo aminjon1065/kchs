@@ -47,7 +47,7 @@ import {
   useExploreLabels,
   withChannelLabels,
 } from '~/features/data/explore-builder.js'
-import { aiStatusQuery, datasetQuery, sqlSchemaQuery } from '~/features/data/queries.js'
+import { aiStatusQuery, datasetQuery, sqlSchemaQuery } from '~/features/data/index.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'

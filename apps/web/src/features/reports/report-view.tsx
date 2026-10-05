@@ -69,7 +69,7 @@ import {
   useYChanges,
   writeCell,
 } from '~/entities/collab/notebook-doc.js'
-import { documentTypesQuery } from '~/features/documents/queries.js'
+import { documentTypesQuery } from '~/features/documents/index.js'
 import {
   type NotebookContextValue,
   NotebookProvider,

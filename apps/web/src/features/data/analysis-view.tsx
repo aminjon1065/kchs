@@ -28,7 +28,7 @@ import {
   ChoroplethMapButton,
   choroplethParamItems,
 } from '~/features/gis/choropleth/choropleth-summary.js'
-import { territoriesQuery } from '~/features/gis/queries.js'
+import { territoriesQuery } from '~/features/gis/index.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { keys, objectQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'

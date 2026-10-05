@@ -28,8 +28,8 @@ import {
 import { type ReactNode, useState } from 'react'
 import { TodayWidget } from '~/features/calendar/today-widget.js'
 import { IssuedWidget, TeamWidget } from '~/features/tasks/home-widgets.js'
+import { teamQuery } from '~/features/tasks/index.js'
 import { MyTasksWidget } from '~/features/tasks/my-tasks-widget.js'
-import { teamQuery } from '~/features/tasks/queries.js'
 import {
   announcementsQuery,
   favoritesQuery,

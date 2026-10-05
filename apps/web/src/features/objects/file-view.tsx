@@ -31,7 +31,7 @@ import {
   useOpenOfficeEditor,
 } from '~/entities/files/office.js'
 import { PresenceAvatars } from '~/entities/objects/presence-avatars.js'
-import { useFileDownload } from '~/features/files/use-file-download.js'
+import { useFileDownload } from '~/features/files/index.js'
 import { NewVersionDialog, RestoreVersionDialog } from '~/features/files/version-dialogs.js'
 import { http } from '~/shared/api/client.js'
 import { fileQuery, fileVersionsQuery, keys, objectQuery } from '~/shared/api/queries.js'
