@@ -244,8 +244,6 @@ export const cacheKeys = {
   inboxCounts: (userId: string) => `kchs:inbox:counts:${userId}`,
   /** Кэш: кто смотрит объект. */
   presence: (objectId: string) => `kchs:presence:${objectId}`,
-  /** Кэш: последний прогресс задания. */
-  jobProgress: (jobId: string) => `kchs:job:${jobId}`,
   /** Долговечный: флаг отмены задания (ADR-0172) — его читает и движок, имя не менять без него. */
   jobCancel: (jobId: string) => `kchs:job:cancel:${jobId}`,
   /** Долговечный: токен доступа гостя по ссылке. */

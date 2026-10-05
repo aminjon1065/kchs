@@ -7,7 +7,7 @@ import { issueJobToken } from '~/shared/crypto/job-token.js'
 import { db, type Executor } from '~/shared/db/client.js'
 import { newId } from '~/shared/ids.js'
 import { logger } from '~/shared/logger/index.js'
-import { cache, cacheKeys, createRedisConnection, redis } from '~/shared/redis/index.js'
+import { createRedisConnection, redis } from '~/shared/redis/index.js'
 import { traceMetadata } from '~/shared/telemetry/tracing.js'
 import { publishEvent } from '../events/publisher.js'
 import { signalCancel } from './cancellation.js'
@@ -189,11 +189,11 @@ export const JobService = {
       .where(and(eq(jobs.id, id), isOpen))
       .returning({ id: jobs.id })
     if (updated.length === 0) return
+    // Прогресс хранит запись задания; открытым экранам — сообщение realtime
     await redis().publish(
       'rt:job',
       JSON.stringify({ jobId: id, progress, message: message ?? null }),
     )
-    await cache.set(cacheKeys.jobProgress(id), String(progress), 3600)
   },
 
   async finish(id: string, result: Record<string, unknown> = {}): Promise<void> {
