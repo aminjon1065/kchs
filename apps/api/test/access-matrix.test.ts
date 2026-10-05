@@ -1,4 +1,6 @@
+import { randomUUID } from 'node:crypto'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
+import { z } from 'zod'
 import {
   call,
   db,
@@ -43,6 +45,8 @@ const { canJoin } = await import('../src/kernel/realtime/gateway.js')
 const { buildUserCtx } = await import('../src/kernel/context-builder.js')
 const { systemCtx } = await import('../src/shared/context.js')
 const { resetConfigCache } = await import('../src/shared/config/index.js')
+const { registeredRoutes } = await import('../src/shared/http/route.js')
+const { JobService } = await import('../src/kernel/jobs/service.js')
 const {
   basemaps,
   cases,
@@ -55,6 +59,7 @@ const {
   templates,
   territories,
   territoryClosure,
+  uploadSessions,
   views,
 } = await import('../src/db-schema.js')
 
@@ -81,6 +86,12 @@ interface TypeFixture {
 }
 
 const run = Date.now().toString(36)
+
+/**
+ * Объект каждого типа из матрицы: посторонний его не видит. По нему тест маршрутов
+ * (ADR-0186) подставляет параметр пути, не создавая объектов заново.
+ */
+const matrixObjects = new Map<string, string>()
 
 async function createFolder(fx: TestContext, name: string, spaceId = fx.spaceId): Promise<string> {
   const response = await call(fx.app, {
@@ -1292,6 +1303,7 @@ for (const [type, fixture] of Object.entries(FIXTURES)) {
 
     beforeAll(async () => {
       target = await fixture.create(fx, `Матрица ${type} ${run}`)
+      matrixObjects.set(type, target.id)
 
       // «Хаб» — объект, который посторонний видит: из него идут связь и зависимость
       hubId = await createFolder(fx, `Хаб ${type} ${run}`, fx.orgSpaceId)
@@ -1668,5 +1680,445 @@ describe('сквозные правила доступа', () => {
       mode: 'words' as const,
     })
     expect(direct.hits.map((h) => h.objectId)).not.toContain(secret)
+  })
+})
+
+// ─── Маршруты с объектом в пути: посторонний не видит (ADR-0186) ─────────────
+
+/**
+ * Тип объекта маршрута `{ action }` по адресу: ядро проверяет право до обработчика
+ * по любому объекту, но берётся объект своего типа, если он есть в матрице.
+ */
+const PATH_TYPES: Array<[RegExp, string]> = [
+  [/^\/gis\/layers\//, 'layer'],
+  [/^\/gis\/maps\//, 'map'],
+  [/^\/gis\/basemaps\//, 'basemap'],
+  [/^\/gis\/service-layers\//, 'service_layer'],
+  [/^\/gis\/territories\//, 'territory'],
+  [/^\/datasets\//, 'dataset'],
+  [/^\/files\//, 'file'],
+  [/^\/folders\//, 'folder'],
+  [/^\/documents\//, 'document'],
+  [/^\/document-types\//, 'document_type'],
+  [/^\/document-templates\//, 'template'],
+  [/^\/journals\//, 'journal'],
+  [/^\/cases\//, 'case'],
+  [/^\/correspondents\//, 'correspondent'],
+  [/^\/tasks\//, 'task'],
+  [/^\/task-series\//, 'task_series'],
+  [/^\/projects\//, 'project'],
+  [/^\/charts\//, 'chart'],
+  [/^\/dashboards\//, 'dashboard'],
+  [/^\/metrics\//, 'metric'],
+  [/^\/notebooks\//, 'notebook'],
+  [/^\/reports\//, 'report'],
+  [/^\/forms\//, 'form'],
+  [/^\/alerts\//, 'alert'],
+  [/^\/analyses\//, 'analysis'],
+  [/^\/pipelines\//, 'pipeline'],
+  [/^\/sources\//, 'source'],
+  [/^\/pages\//, 'page'],
+  [/^\/meetings\//, 'meeting'],
+  [/^\/recordings\//, 'recording'],
+  [/^\/protocols\//, 'protocol'],
+  [/^\/calendars\//, 'calendar'],
+  [/^\/events\//, 'event'],
+  [/^\/automation\/rules\//, 'rule'],
+  [/^\/integrations\//, 'integration'],
+  [/^\/webhooks\//, 'webhook'],
+  [/^\/spaces\//, 'space'],
+  [/^\/views\//, 'view'],
+  [/^\/conversations\//, 'conversation'],
+  [/^\/territories\//, 'territory'],
+]
+
+/** Объекты для `objectType: 'any'`: разные типы с разными политиками. */
+const ANY_TYPES = ['folder', 'document', 'page']
+
+/**
+ * Вложенные ресурсы без своей фикстуры здесь: где посторонний для них проверен.
+ * Новый ресурс в объявлении `delegated` без фикстуры и без строки здесь — падение.
+ */
+const RESOURCES_ELSEWHERE: Record<string, string> = {
+  process: 'ход маршрута объекта — test/processes.test.ts, test/document-routes.test.ts',
+  submission: 'ответ формы — test/forms.test.ts, test/forms-table.test.ts',
+  import:
+    'импорт датасета (нужен движок) — test/data-datasets.test.ts, test/data-import-review.test.ts',
+  report_run: 'запуск отчёта (нужен движок) — test/reports.test.ts',
+  render: 'рендер документа (нужен движок) — test/documents-print.test.ts',
+  rule_run: 'запуск правила — test/automation.test.ts',
+  office_session: 'страница редактора вне реестра API — test/office-editor.test.ts',
+}
+
+/**
+ * Маршруты, которые тест не может довести до проверки прав: схема отвергает
+ * собранный из неё запрос раньше обработчика или функция выключена на стенде.
+ * Каждый — с причиной; маршрут, который стал проверяться, из списка убирается.
+ */
+const CHECKED_MANUALLY: Record<string, string> = {}
+
+/**
+ * Тела, которые схема из своего описания не даёт собрать: уточнения (`refine`) —
+ * срок датой или числом, непустой список получателей, хотя бы одно изменение.
+ * Накладываются на собранное из схемы, чтобы запрос дошёл до проверки прав.
+ */
+const PAYLOADS: Record<string, () => Record<string, unknown> | Array<Record<string, unknown>>> = {
+  // Обе ветки: сразу и заданием (`async`) — право проверяется до постановки задания
+  'POST /datasets/:id/rows/batch': () => [{ delete: ['1'] }, { delete: ['1'], async: true }],
+  'POST /tasks/:id/extension': () => ({ dueWorkingDays: 3, reason: 'посторонний' }),
+  'PATCH /tasks/:id/checklist/:itemId': () => ({ done: true }),
+  'POST /documents/:id/resolutions': () => ({
+    text: 'посторонний',
+    responsibleId: randomUUID(),
+    dueDate: '2099-01-01',
+  }),
+  'POST /documents/:id/acknowledgments': () => ({ userIds: [randomUUID()] }),
+  'POST /documents/:id/dispatches': () => ({
+    addressee: 'посторонний',
+    method: 'post',
+    sentOn: '2026-09-19',
+  }),
+}
+
+function pathType(url: string): string {
+  for (const [pattern, type] of PATH_TYPES) {
+    if (pattern.test(url) && matrixObjects.has(type)) return type
+  }
+  return 'folder'
+}
+
+function defaultParam(name: string): string {
+  if (name === 'rowId') return '1'
+  if (name === 'key') return 'code'
+  if (name === 'index') return '0'
+  if (name === 'z' || name === 'x' || name === 'y') return '0'
+  return randomUUID()
+}
+
+function fillPath(url: string, values: Record<string, string>): string {
+  return url.replace(/:([A-Za-z_]\w*)/g, (_, name: string) => values[name] ?? defaultParam(name))
+}
+
+type JsonSchema = Record<string, unknown>
+
+/** Минимальное значение по JSON Schema: обязательные поля, первые варианты, нижние границы. */
+function sampleJson(schema: JsonSchema | undefined, root: JsonSchema, depth = 0): unknown {
+  if (!schema || depth > 8) return undefined
+  const ref = schema.$ref
+  if (typeof ref === 'string') {
+    const name = ref.split('/').pop() ?? ''
+    const defs = (root.$defs ?? root.definitions ?? {}) as Record<string, JsonSchema>
+    return sampleJson(defs[name], root, depth + 1)
+  }
+  if ('const' in schema) return schema.const
+  if (Array.isArray(schema.enum)) return schema.enum[0]
+  if ('default' in schema) return schema.default
+  const variants = (schema.anyOf ?? schema.oneOf) as JsonSchema[] | undefined
+  if (variants?.length) {
+    const concrete = variants.find((v) => v.type !== 'null') ?? variants[0]
+    return sampleJson(concrete, root, depth + 1)
+  }
+  if (Array.isArray(schema.allOf)) {
+    return Object.assign(
+      {},
+      ...(schema.allOf as JsonSchema[]).map((part) => sampleJson(part, root, depth + 1)),
+    )
+  }
+  const type = Array.isArray(schema.type)
+    ? (schema.type as string[]).find((t) => t !== 'null')
+    : (schema.type as string | undefined)
+  switch (type) {
+    case 'object': {
+      const out: Record<string, unknown> = {}
+      const properties = (schema.properties ?? {}) as Record<string, JsonSchema>
+      for (const key of (schema.required as string[] | undefined) ?? []) {
+        out[key] = sampleJson(properties[key], root, depth + 1)
+      }
+      return out
+    }
+    case 'array':
+      return Array.from({ length: Number(schema.minItems ?? 0) }, () =>
+        sampleJson(schema.items as JsonSchema, root, depth + 1),
+      )
+    case 'string': {
+      if (schema.format === 'uuid') return randomUUID()
+      if (schema.format === 'date-time') return new Date().toISOString()
+      if (schema.format === 'date') return '2026-01-01'
+      if (schema.format === 'email') return 'stranger@example.org'
+      // Числовой идентификатор строкой (строка датасета, сообщение)
+      if (typeof schema.pattern === 'string' && schema.pattern.includes('\\d')) return '1'
+      return 'x'.repeat(Math.max(1, Number(schema.minLength ?? 1)))
+    }
+    case 'integer':
+    case 'number':
+      return Number(schema.minimum ?? Number(schema.exclusiveMinimum ?? 0) + 1)
+    case 'boolean':
+      return false
+    case 'null':
+      return null
+    default:
+      return undefined
+  }
+}
+
+function sampleOf(schema: unknown): unknown {
+  if (!schema) return undefined
+  try {
+    const json = z.toJSONSchema(schema as z.ZodType, {
+      io: 'input',
+      unrepresentable: 'any',
+    }) as JsonSchema
+    return sampleJson(json, json)
+  } catch {
+    return undefined
+  }
+}
+
+function queryOf(schema: unknown): string {
+  const value = sampleOf(schema)
+  if (!value || typeof value !== 'object') return ''
+  const params = new URLSearchParams()
+  for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+    if (item === undefined || item === null) continue
+    params.set(key, Array.isArray(item) ? item.join(',') : String(item))
+  }
+  const text = params.toString()
+  return text ? `?${text}` : ''
+}
+
+describe('маршруты с объектом в пути: посторонний не видит (ADR-0186)', () => {
+  /** Вложенные ресурсы администратора, к которым у постороннего нет доступа. */
+  const resources = new Map<string, Record<string, string>>()
+
+  beforeAll(async () => {
+    const folderId = await createFolder(fx, `Ресурсы маршрутов ${run}`)
+    const posted = await call(fx.app, {
+      method: 'POST',
+      url: `/objects/${folderId}/discussion/messages`,
+      as: fx.admin,
+      payload: {
+        body: { type: 'doc', content: [] },
+        text: 'Сообщение для проверки маршрутов',
+        attachments: [],
+        mentions: [],
+        mentionedObjectIds: [],
+      },
+    })
+    expect(posted.statusCode, posted.body).toBe(200)
+    resources.set('message', { messageId: posted.json().id as string })
+
+    const jobId = await JobService.enqueue(systemCtx('test', { initiatorId: fx.admin.id }), {
+      queue: 'maintenance',
+      name: 'test.echo',
+      objectId: folderId,
+      data: {},
+    })
+    resources.set('job', { id: jobId })
+    // Служебные учётные записи видят администраторы: проверка — до поиска записи
+    resources.set('service_account', { id: randomUUID() })
+  })
+
+  it('у каждого ресурса делегированного маршрута — фикстура или тест, где он проверен', () => {
+    const missing = new Set<string>()
+    for (const route of registeredRoutes()) {
+      const auth = route.auth
+      if (typeof auth !== 'object' || !('delegated' in auth) || !auth.resource) continue
+      if (!resources.has(auth.resource) && !RESOURCES_ELSEWHERE[auth.resource]) {
+        missing.add(`${auth.resource}: ${route.method} ${route.url}`)
+      }
+    }
+    expect([...missing]).toEqual([])
+  })
+
+  it('каждый маршрут с объектом в пути отвечает постороннему 403 или 404', async () => {
+    const violations: string[] = []
+    const unverified: string[] = []
+    const verifiedListed: string[] = []
+    let calls = 0
+
+    for (const route of registeredRoutes()) {
+      const auth = route.auth
+      if (typeof auth !== 'object') continue
+      const key = `${route.method} ${route.url}`
+      const targets: Array<Record<string, string>> = []
+      if ('action' in auth) {
+        const id = matrixObjects.get(pathType(route.url))
+        if (id) targets.push({ [auth.objectParam ?? 'id']: id })
+      } else if ('delegated' in auth) {
+        if (auth.resource) {
+          const values = resources.get(auth.resource)
+          if (values) targets.push(values)
+        } else if (auth.objectType) {
+          const types =
+            auth.objectType === 'any'
+              ? ANY_TYPES
+              : typeof auth.objectType === 'string'
+                ? [auth.objectType]
+                : [...auth.objectType]
+          for (const type of types) {
+            const id = matrixObjects.get(type)
+            if (id) targets.push({ [auth.objectParam ?? 'id']: id })
+          }
+        }
+      } else {
+        continue
+      }
+
+      for (const values of targets) {
+        const url = fillPath(route.url, values) + queryOf(route.schema?.querystring)
+        const sampled =
+          route.method === 'GET' || !route.schema?.body ? undefined : sampleOf(route.schema.body)
+        const override = PAYLOADS[key]?.()
+        const variants = override === undefined ? [undefined] : [override].flat()
+        for (const variant of variants) {
+          const payload = variant ? { ...(sampled as object | undefined), ...variant } : sampled
+          const response = await call(fx.app, {
+            method: route.method,
+            url,
+            as: fx.users.stranger,
+            ...(payload === undefined ? {} : { payload }),
+          })
+          calls += 1
+          const status = response.statusCode
+          if (status === 403 || status === 404) {
+            if (CHECKED_MANUALLY[key]) verifiedListed.push(key)
+            continue
+          }
+          if (status === 400 || status === 422 || status === 503) {
+            if (!CHECKED_MANUALLY[key]) {
+              unverified.push(`${key} → ${status}: ${response.body.slice(0, 160)}`)
+            }
+            continue
+          }
+          violations.push(`${key} → ${status}: ${response.body.slice(0, 160)}`)
+        }
+      }
+    }
+
+    expect(calls).toBeGreaterThan(300)
+    // Посторонний получил ответ по чужому объекту — нарушение прав
+    expect(violations).toEqual([])
+    // Схема отвергла собранный запрос: маршрут — в CHECKED_MANUALLY с причиной
+    expect(unverified).toEqual([])
+    // Маршрут из списка теперь проверяется сам — строку из CHECKED_MANUALLY убрать
+    expect(verifiedListed).toEqual([])
+  }, 600_000)
+
+  /**
+   * Свои ресурсы без фикстуры здесь: где проверено, что чужой не открывается.
+   * Справочники `open` — явным списком: новый справочник проходит через ревью.
+   */
+  const OWNED_ELSEWHERE: Record<string, string> = {
+    'DELETE /me/delegations/:id': 'завершает только назначивший — test/kernel.test.ts',
+    'DELETE /me/passkeys/:keyId': 'только свой ключ — test/passkeys.test.ts',
+    'DELETE /assistant/threads/:id': 'только свой разговор — test/assistant.test.ts',
+    'GET /datasets/exports/:jobId/download': 'только инициатор экспорта — test/data-export.test.ts',
+    'POST /inbox/:id/act': 'только дела получателя (фильтр по userId) — test/inbox-bulk.test.ts',
+    'POST /inbox/:id/snooze': 'только дела получателя (фильтр по userId) — test/inbox-bulk.test.ts',
+  }
+  /**
+   * Идемпотентная отмена: ищет только среди своих, чужое не трогает, и ответ один
+   * для любого id — о существовании ресурса посторонний не узнаёт. Проверяется,
+   * что ресурс администратора после вызова постороннего цел.
+   */
+  const IDEMPOTENT = new Set(['DELETE /files/upload-sessions/:id'])
+  const OPEN_ROUTES = new Set([
+    'GET /users/:id',
+    'GET /gis/glyphs/:fontstack/:range',
+    'GET /gis/sprites/:file',
+    'GET /gis/territories/tiles/:z/:x/:y.pbf',
+    'GET /system-datasets/:name',
+  ])
+
+  it('свои ресурсы: посторонний не открывает чужой; справочники — явным списком', async () => {
+    const route = (key: string) => {
+      const found = registeredRoutes().find((r) => `${r.method} ${r.url}` === key)
+      if (!found) throw new Error(`нет маршрута ${key}`)
+      return found
+    }
+
+    // Ресурсы администратора: сессия загрузки, токен API, шаблон резолюции, дело «Входящих»
+    const upload = await call(fx.app, {
+      method: 'POST',
+      url: '/files/upload-sessions',
+      as: fx.admin,
+      payload: { name: 'чужая.txt', size: 1, mime: 'text/plain', spaceId: fx.spaceId },
+    })
+    expect(upload.statusCode, upload.body).toBe(200)
+    const token = await call(fx.app, {
+      method: 'POST',
+      url: '/me/api-tokens',
+      as: fx.admin,
+      payload: { ...(sampleOf(route('POST /me/api-tokens').schema?.body) as object), name: run },
+    })
+    expect(token.statusCode, token.body).toBe(200)
+    const templateText = `Чужой шаблон ${run}`
+    const templates = await call(fx.app, {
+      method: 'POST',
+      url: '/resolution-templates',
+      as: fx.admin,
+      payload: { text: templateText, shared: false },
+    })
+    expect(templates.statusCode, templates.body).toBe(200)
+    const templateId = (templates.json().items as Array<{ id: string; text: string }>).find(
+      (item) => item.text === templateText,
+    )?.id
+
+    const owned: Record<string, Record<string, string> | undefined> = {
+      'POST /files/upload-sessions/:id/complete': { id: upload.json().uploadId },
+      'GET /files/upload-sessions/:id': { id: upload.json().uploadId },
+      'DELETE /files/upload-sessions/:id': { id: upload.json().uploadId },
+      'DELETE /me/api-tokens/:id': { id: token.json().token.id },
+      'PATCH /resolution-templates/:id': templateId ? { id: templateId } : undefined,
+      'DELETE /resolution-templates/:id': templateId ? { id: templateId } : undefined,
+    }
+
+    // Фикстура без настоящего id проверяла бы случайный идентификатор
+    for (const [key, values] of Object.entries(owned)) {
+      for (const value of Object.values(values ?? {})) {
+        expect(typeof value === 'string' && value.length > 0, key).toBe(true)
+      }
+    }
+
+    const problems: string[] = []
+    for (const registered of registeredRoutes()) {
+      const auth = registered.auth
+      if (typeof auth !== 'object') continue
+      const key = `${registered.method} ${registered.url}`
+      if ('open' in auth) {
+        if (!OPEN_ROUTES.has(key)) problems.push(`${key}: справочник не в списке OPEN_ROUTES`)
+        continue
+      }
+      if (!('owned' in auth)) continue
+      if (OWNED_ELSEWHERE[key]) continue
+      const values = owned[key]
+      if (!values) {
+        problems.push(`${key}: нет ресурса администратора и строки в OWNED_ELSEWHERE`)
+        continue
+      }
+      const payload =
+        registered.method === 'GET' || !registered.schema?.body
+          ? undefined
+          : sampleOf(registered.schema.body)
+      const response = await call(fx.app, {
+        method: registered.method,
+        url: fillPath(registered.url, values) + queryOf(registered.schema?.querystring),
+        as: fx.users.stranger,
+        ...(payload === undefined ? {} : { payload }),
+      })
+      if (IDEMPOTENT.has(key) && response.statusCode === 200) continue
+      if (response.statusCode !== 403 && response.statusCode !== 404) {
+        problems.push(`${key} → ${response.statusCode}: ${response.body.slice(0, 160)}`)
+      }
+    }
+    expect(problems).toEqual([])
+    // Сессия загрузки администратора после «отмены» постороннего — не отменена
+    const { eq } = await import('drizzle-orm')
+    const [session] = await db()
+      .select({ status: uploadSessions.status })
+      .from(uploadSessions)
+      .where(eq(uploadSessions.id, upload.json().uploadId))
+    expect(session?.status).toBeDefined()
+    expect(session?.status).not.toBe('aborted')
   })
 })
