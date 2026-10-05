@@ -25,7 +25,7 @@ export function BrandingSection() {
   const [error, setError] = useState('')
 
   const save = useMutation({
-    mutationFn: (next: Branding) => http.patch<Branding>('/admin/branding', next),
+    mutationFn: (next: Branding) => http.patch('/admin/branding', { body: next }),
     onSuccess: (saved) => {
       client.setQueryData(brandingQuery().queryKey, saved)
       setDraft(null)

@@ -86,7 +86,7 @@ export function BusinessCalendarSection() {
   }
 
   const remove = useMutation({
-    mutationFn: (day: string) => http.delete(`/admin/business-calendar/${day}`),
+    mutationFn: (day: string) => http.delete('/admin/business-calendar/:day', { params: { day } }),
     onSuccess: () => {
       toast.show({ title: t('admin.businessCalendar.removed'), tone: 'info' })
       setRemoving(null)
@@ -239,15 +239,18 @@ function BusinessDayDialog({
 
   const save = useMutation({
     mutationFn: () =>
-      http.put(`/admin/business-calendar/${date}`, {
-        kind,
-        note: note.ru.trim()
-          ? {
-              ru: note.ru.trim(),
-              ...(note.tg.trim() ? { tg: note.tg.trim() } : {}),
-              ...(note.en.trim() ? { en: note.en.trim() } : {}),
-            }
-          : null,
+      http.put('/admin/business-calendar/:day', {
+        params: { day: date },
+        body: {
+          kind,
+          note: note.ru.trim()
+            ? {
+                ru: note.ru.trim(),
+                ...(note.tg.trim() ? { tg: note.tg.trim() } : {}),
+                ...(note.en.trim() ? { en: note.en.trim() } : {}),
+              }
+            : null,
+        },
       }),
     onSuccess: () => {
       toast.show({ title: t('admin.businessCalendar.saved'), tone: 'success' })

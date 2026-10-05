@@ -161,10 +161,12 @@ export function FilesScreen({
 
   const createFolder = useMutation({
     mutationFn: () =>
-      http.post<{ id: string }>('/folders', {
-        name: folderName.trim(),
-        spaceId: effectiveSpaceId,
-        parentId: parentId ?? null,
+      http.post('/folders', {
+        body: {
+          name: folderName.trim(),
+          spaceId: effectiveSpaceId!,
+          parentId: parentId ?? null,
+        },
       }),
     onSuccess: () => {
       setCreateFolderOpen(false)
@@ -176,7 +178,7 @@ export function FilesScreen({
   })
 
   const trash = useMutation({
-    mutationFn: (objectId: string) => http.delete(`/objects/${objectId}`),
+    mutationFn: (objectId: string) => http.delete('/objects/:id', { params: { id: objectId } }),
     onSuccess: (_result, objectId) => {
       refresh()
       toast.show({
@@ -185,7 +187,7 @@ export function FilesScreen({
         action: {
           label: t('common.actions.undo'),
           onClick: () => {
-            void http.post(`/objects/${objectId}/restore`).then(refresh)
+            void http.post('/objects/:id/restore', { params: { id: objectId } }).then(refresh)
           },
         },
       })

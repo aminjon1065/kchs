@@ -80,8 +80,7 @@ function RenderSettingsCard() {
   const [draft, setDraft] = useState<GisRenderSettings | null>(null)
 
   const save = useMutation({
-    mutationFn: (next: GisRenderSettings) =>
-      http.put<GisRenderSettings>('/admin/gis/render-settings', next),
+    mutationFn: (next: GisRenderSettings) => http.put('/admin/gis/render-settings', { body: next }),
     onSuccess: () => {
       setDraft(null)
       void client.invalidateQueries({ queryKey: gisKeys.renderSettings })
@@ -159,7 +158,7 @@ export function BasemapsSection() {
   const failed = (err: unknown) => toast.error(problemMessage(err, t('errors.unknown')))
 
   const makeDefault = useMutation({
-    mutationFn: (id: string) => http.post(`/gis/basemaps/${id}/default`),
+    mutationFn: (id: string) => http.post('/gis/basemaps/:id/default', { params: { id } }),
     onSuccess: () => {
       toast.show({ title: t('admin.basemaps.defaultSet'), tone: 'success' })
       refresh()
@@ -168,7 +167,7 @@ export function BasemapsSection() {
   })
 
   const remove = useMutation({
-    mutationFn: (id: string) => http.delete(`/gis/basemaps/${id}`),
+    mutationFn: (id: string) => http.delete('/gis/basemaps/:id', { params: { id } }),
     onSuccess: () => {
       toast.show({ title: t('admin.basemaps.removed'), tone: 'info' })
       setRemoving(null)
@@ -438,24 +437,26 @@ function BasemapDialog({
       const service = serviceOf(form)
       if (!current) {
         await http.post('/gis/basemaps', {
-          name: form.name.trim(),
-          kind: form.kind,
-          url: form.url.trim(),
-          ...(service ? { service } : {}),
-          ...(form.apiKey.trim() ? { apiKey: form.apiKey.trim() } : {}),
-          attribution,
-          ...zooms,
-          tileSize: Number(form.tileSize),
-          isDefault: form.isDefault,
+          body: {
+            name: form.name.trim(),
+            kind: form.kind,
+            url: form.url.trim(),
+            ...(service ? { service } : {}),
+            ...(form.apiKey.trim() ? { apiKey: form.apiKey.trim() } : {}),
+            attribution,
+            ...zooms,
+            tileSize: form.tileSize === '512' ? 512 : 256,
+            isDefault: form.isDefault,
+          },
         })
         return true
       }
-      await http.patch(
-        `/gis/basemaps/${current.id}`,
-        raster
+      await http.patch('/gis/basemaps/:id', {
+        params: { id: current.id },
+        body: raster
           ? {
               name: form.name.trim(),
-              kind: current.kind,
+              kind: form.kind,
               url: form.url.trim(),
               ...(service ? { service } : {}),
               ...(form.clearKey
@@ -465,10 +466,10 @@ function BasemapDialog({
                   : {}),
               attribution,
               ...zooms,
-              tileSize: Number(form.tileSize),
+              tileSize: form.tileSize === '512' ? 512 : 256,
             }
           : { name: form.name.trim() },
-      )
+      })
       return false
     },
     onSuccess: (created) => {

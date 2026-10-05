@@ -1,4 +1,4 @@
-import type { DocumentVersionRecord, VersionCompareResult } from '@kchs/contracts'
+import type { DocumentVersionRecord } from '@kchs/contracts'
 import {
   Callout,
   Dialog,
@@ -119,7 +119,8 @@ function TextDiff({
   const { data, isLoading } = useQuery({
     queryKey: renderKeys.compare(documentId, fromId, toId),
     queryFn: () =>
-      http.get<VersionCompareResult>(`/documents/${documentId}/versions/compare`, {
+      http.get('/documents/:id/versions/compare', {
+        params: { id: documentId },
         query: { from: fromId, to: toId },
       }),
     refetchInterval: (query) => (query.state.data?.status === 'pending' ? 4000 : false),

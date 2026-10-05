@@ -1,4 +1,4 @@
-import type { FeatureFlag, FeatureFlagList } from '@kchs/contracts'
+import type { FeatureFlag } from '@kchs/contracts'
 import { Callout, Card, Skeleton, Switch, useToast } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError, http } from '~/shared/api/client.js'
@@ -18,12 +18,12 @@ export function FeaturesSection() {
 
   const { data } = useQuery({
     queryKey: keys.features,
-    queryFn: () => http.get<FeatureFlagList>('/admin/features'),
+    queryFn: () => http.get('/admin/features'),
   })
 
   const save = useMutation({
     mutationFn: ({ key, enabled }: { key: string; enabled: boolean }) =>
-      http.patch<FeatureFlagList>(`/admin/features/${key}`, { enabled }),
+      http.patch('/admin/features/:key', { params: { key }, body: { enabled } }),
     onSuccess: (list) => {
       client.setQueryData(keys.features, list)
       // Оболочка прячет и показывает экраны по `/me`

@@ -1,4 +1,3 @@
-import type { ReportImage } from '@kchs/contracts'
 import {
   type MapCamera,
   REPORT_FIGURE_HEIGHT,
@@ -349,7 +348,8 @@ export function ImageBlock({ cell }: { cell: CellMap }) {
   const size = useCellValue<ReportFigureSize>(cell, 'size') ?? 'medium'
   const image = useQuery({
     queryKey: ['report', notebookId, 'image', fileId],
-    queryFn: () => http.get<ReportImage>(`/reports/${notebookId}/images/${fileId}`),
+    queryFn: () =>
+      http.get('/reports/:id/images/:fileId', { params: { id: notebookId, fileId: fileId! } }),
     enabled: Boolean(fileId),
     staleTime: 300_000,
     retry: false,
@@ -394,7 +394,8 @@ export function FileBlock({ cell }: { cell: CellMap }) {
   const { data } = useQuery({
     queryKey: ['report', notebookId, 'files', fileIds],
     queryFn: () =>
-      http.get<{ items: Array<{ id: string; name: string }> }>(`/reports/${notebookId}/files`, {
+      http.get('/reports/:id/files', {
+        params: { id: notebookId },
         query: { ids: fileIds.join(',') },
       }),
     enabled: fileIds.length > 0,

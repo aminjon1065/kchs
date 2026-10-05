@@ -1,15 +1,4 @@
-import type {
-  BusinessCalendarYear,
-  CalendarFeed,
-  CalendarList,
-  CalendarListQuery,
-  CalendarProjectionSource,
-  CalendarRange,
-  CalendarRecord,
-  CalendarSettings,
-  EventRecord,
-  FreeBusyResult,
-} from '@kchs/contracts'
+import type { CalendarListQuery } from '@kchs/contracts'
 import { keepPreviousData, queryOptions, useQueryClient } from '@tanstack/react-query'
 import { useCallback } from 'react'
 import { http } from '~/shared/api/client.js'
@@ -39,7 +28,7 @@ export const calendarsQuery = (query: Partial<CalendarListQuery> = { scope: 'min
     queryKey: calendarKeys.list(query),
     queryFn: async () =>
       (
-        await http.get<CalendarList>('/calendars', {
+        await http.get('/calendars', {
           query: {
             scope: query.scope ?? 'mine',
             ...(query.kind ? { kind: query.kind } : {}),
@@ -53,7 +42,7 @@ export const calendarsQuery = (query: Partial<CalendarListQuery> = { scope: 'min
 export const calendarQuery = (id: string) =>
   queryOptions({
     queryKey: calendarKeys.calendar(id),
-    queryFn: () => http.get<CalendarRecord>(`/calendars/${id}`),
+    queryFn: () => http.get('/calendars/:id', { params: { id } }),
   })
 
 export interface RangeParams {
@@ -67,7 +56,7 @@ export const rangeQuery = (params: RangeParams) =>
   queryOptions({
     queryKey: calendarKeys.range({ ...params }),
     queryFn: () =>
-      http.get<CalendarRange>('/calendar/range', {
+      http.get('/calendar/range', {
         query: {
           from: params.from,
           to: params.to,
@@ -82,22 +71,21 @@ export const rangeQuery = (params: RangeParams) =>
 export const todayQuery = () =>
   queryOptions({
     queryKey: calendarKeys.today,
-    queryFn: () => http.get<CalendarRange>('/calendar/today'),
+    queryFn: () => http.get('/calendar/today'),
     staleTime: 60_000,
   })
 
 export const calendarSettingsQuery = () =>
   queryOptions({
     queryKey: calendarKeys.settings,
-    queryFn: () => http.get<CalendarSettings>('/calendar/settings'),
+    queryFn: () => http.get('/calendar/settings'),
     staleTime: 60_000,
   })
 
 export const projectionSourcesQuery = () =>
   queryOptions({
     queryKey: calendarKeys.projections,
-    queryFn: async () =>
-      (await http.get<{ items: CalendarProjectionSource[] }>('/calendar/projections')).items,
+    queryFn: async () => (await http.get('/calendar/projections')).items,
     staleTime: 5 * 60_000,
   })
 
@@ -105,16 +93,14 @@ export const eventQuery = (id: string, recurrenceId?: string | null) =>
   queryOptions({
     queryKey: calendarKeys.event(id, recurrenceId),
     queryFn: () =>
-      http.get<EventRecord>(`/events/${id}`, {
-        query: recurrenceId ? { recurrenceId } : {},
-      }),
+      http.get('/events/:id', { params: { id }, query: recurrenceId ? { recurrenceId } : {} }),
   })
 
 export const feedsQuery = (calendarId: string) =>
   queryOptions({
     queryKey: calendarKeys.feeds(calendarId),
     queryFn: async () =>
-      (await http.get<{ items: CalendarFeed[] }>(`/calendars/${calendarId}/feeds`)).items,
+      (await http.get('/calendars/:id/feeds', { params: { id: calendarId } })).items,
   })
 
 export interface FreeBusyParams {
@@ -129,7 +115,7 @@ export const freeBusyQuery = (params: FreeBusyParams) =>
   queryOptions({
     queryKey: calendarKeys.freeBusy({ ...params }),
     queryFn: () =>
-      http.get<FreeBusyResult>('/calendar/free-busy', {
+      http.get('/calendar/free-busy', {
         query: {
           from: params.from,
           to: params.to,
@@ -145,8 +131,7 @@ export const freeBusyQuery = (params: FreeBusyParams) =>
 export const businessYearQuery = (year: number) =>
   queryOptions({
     queryKey: calendarKeys.businessYear(year),
-    queryFn: () =>
-      http.get<BusinessCalendarYear>('/business-calendar', { query: { year: String(year) } }),
+    queryFn: () => http.get('/business-calendar', { query: { year: String(year) } }),
     staleTime: 60 * 60_000,
   })
 

@@ -1,4 +1,4 @@
-import type { AdminUser, PasskeyInfo } from '@kchs/contracts'
+import type { AdminUser } from '@kchs/contracts'
 import { formatDateTime } from '@kchs/fields'
 import { AlertDialog, Badge, Button, Callout, Dialog, DialogContent, useToast } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -26,11 +26,10 @@ export function UserPasskeysDialog({
   const key = ['users', user.id, 'passkeys'] as const
   const { data: items = [], isLoading } = useQuery({
     queryKey: key,
-    queryFn: async () =>
-      (await http.get<{ items: PasskeyInfo[] }>(`/users/${user.id}/passkeys`)).items,
+    queryFn: async () => (await http.get('/users/:id/passkeys', { params: { id: user.id } })).items,
   })
   const revoke = useMutation({
-    mutationFn: () => http.delete<{ revoked: number }>(`/users/${user.id}/passkeys`),
+    mutationFn: () => http.delete('/users/:id/passkeys', { params: { id: user.id } }),
     onSuccess: (result) => {
       setConfirming(false)
       toast.show({

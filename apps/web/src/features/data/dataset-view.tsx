@@ -1,4 +1,4 @@
-import type { DatasetRecord, DatasetVersion, ImportRecord } from '@kchs/contracts'
+import type { DatasetRecord, ImportRecord } from '@kchs/contracts'
 import { formatNumber, formatRelativeTime } from '@kchs/fields'
 import {
   AlertDialog,
@@ -93,7 +93,8 @@ export function DatasetView({ objectId, tabId }: { objectId: string; tabId: stri
   const { data: ai } = useQuery(aiStatusQuery())
 
   const rename = useMutation({
-    mutationFn: (title: string) => http.patch(`/objects/${objectId}`, { title }),
+    mutationFn: (title: string) =>
+      http.patch('/objects/:id', { params: { id: objectId }, body: { title } }),
     onSuccess: (_result, title) => {
       setTabTitle(tabId, title)
       void client.invalidateQueries({ queryKey: keys.object(objectId) })
@@ -102,14 +103,14 @@ export function DatasetView({ objectId, tabId }: { objectId: string; tabId: stri
   })
 
   const trash = useMutation({
-    mutationFn: () => http.delete(`/objects/${objectId}`),
+    mutationFn: () => http.delete('/objects/:id', { params: { id: objectId } }),
     onSuccess: () => {
       toast.show({
         title: t('objects.trash.movedTo'),
         tone: 'info',
         action: {
           label: t('common.actions.undo'),
-          onClick: () => void http.post(`/objects/${objectId}/restore`),
+          onClick: () => void http.post('/objects/:id/restore', { params: { id: objectId } }),
         },
       })
       void client.invalidateQueries({ queryKey: ['objects'] })
@@ -323,7 +324,7 @@ function VersionsTab({
   const { data: versions = [], isLoading } = useQuery(datasetVersionsQuery(datasetId))
   const rollback = useMutation({
     mutationFn: (number: number) =>
-      http.post<DatasetVersion>(`/datasets/${datasetId}/versions/${number}/rollback`),
+      http.post('/datasets/:id/versions/:number/rollback', { params: { id: datasetId, number } }),
     onSuccess: (_version, number) => {
       toast.show({ title: t('data.dataset.versions.rolledBack', { number }), tone: 'success' })
       // Строки, счётчики, профиль и история строк — всё под ключом датасета

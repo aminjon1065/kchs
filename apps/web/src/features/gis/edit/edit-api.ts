@@ -1,15 +1,10 @@
 import type {
-  DatasetRow,
-  FeatureEdit,
+  DatasetRowConflict,
   FeatureEditInput,
-  FeatureEditList,
   FeatureEditReview,
+  FeatureEditStatus,
   FeatureGeometry,
-  LayerEditAccess,
-  LayerFeature,
-  LayerFeatureCollection,
   LayerRecord,
-  ReverseGeocodeResponse,
 } from '@kchs/contracts'
 import { type QueryClient, queryOptions } from '@tanstack/react-query'
 import { dataKeys } from '~/features/data/index.js'
@@ -28,17 +23,22 @@ export const editKeys = {
 export const layerEditingQuery = (layerId: string) =>
   queryOptions({
     queryKey: editKeys.access(layerId),
-    queryFn: () => http.get<LayerEditAccess>(`/gis/layers/${layerId}/editing`),
+    queryFn: () => http.get('/gis/layers/:id/editing', { params: { id: layerId } }),
     staleTime: 30_000,
   })
 
 /** Правки модерируемого слоя: проверяющему — все, остальным — свои. */
-export const featureEditsQuery = (layerId: string, scope: 'all' | 'mine', status?: string) =>
+export const featureEditsQuery = (
+  layerId: string,
+  scope: 'all' | 'mine',
+  status?: FeatureEditStatus,
+) =>
   queryOptions({
     queryKey: [...editKeys.edits(layerId), scope, status ?? 'any'] as const,
     queryFn: async () =>
       (
-        await http.get<FeatureEditList>(`/gis/layers/${layerId}/edits`, {
+        await http.get('/gis/layers/:id/edits', {
+          params: { id: layerId },
           query: { scope, ...(status ? { status } : {}) },
         })
       ).items,
@@ -50,7 +50,8 @@ export const snapFeaturesQuery = (layer: LayerRecord, bbox: string) =>
     queryKey: editKeys.snap(layer.id, bbox, layer.datasetVersion),
     queryFn: async () =>
       (
-        await http.get<LayerFeatureCollection>(`/gis/layers/${layer.id}/features`, {
+        await http.get('/gis/layers/:id/features', {
+          params: { id: layer.id },
           query: { bbox, limit: 2000 },
         })
       ).features,
@@ -69,42 +70,40 @@ export const reverseGeocodeQuery = (point: Position | null) =>
       point ? point.map((n) => n.toFixed(4)).join(',') : '',
     ] as const,
     queryFn: () =>
-      http.get<ReverseGeocodeResponse>('/gis/geocode/reverse', {
-        query: { lon: point?.[0] ?? 0, lat: point?.[1] ?? 0 },
-      }),
+      http.get('/gis/geocode/reverse', { query: { lon: point?.[0] ?? 0, lat: point?.[1] ?? 0 } }),
     enabled: point !== null,
     staleTime: 10 * 60_000,
   })
 
 export const editApi = {
   create: (layerId: string, values: Record<string, unknown>, geometry: FeatureGeometry) =>
-    http.post<LayerFeature>(`/gis/layers/${layerId}/features`, { values, geometry }),
+    http.post('/gis/layers/:id/features', { params: { id: layerId }, body: { values, geometry } }),
   update: (
     layerId: string,
     rowId: string,
     patch: { values: Record<string, unknown>; geometry?: FeatureGeometry; ver: number },
-  ) => http.patch<LayerFeature>(`/gis/layers/${layerId}/features/${rowId}`, patch),
+  ) =>
+    http.patch('/gis/layers/:id/features/:rowId', { params: { id: layerId, rowId }, body: patch }),
   remove: (layerId: string, rowId: string, ver: number) =>
-    http.delete<{ ok: boolean }>(`/gis/layers/${layerId}/features/${rowId}`, undefined, {
+    http.delete('/gis/layers/:id/features/:rowId', {
+      params: { id: layerId, rowId },
       query: { ver },
     }),
   submit: (layerId: string, input: FeatureEditInput) =>
-    http.post<FeatureEdit>(`/gis/layers/${layerId}/edits`, input),
+    http.post('/gis/layers/:id/edits', { params: { id: layerId }, body: input }),
   review: (layerId: string, editId: string, input: FeatureEditReview) =>
-    http.post<FeatureEdit>(`/gis/layers/${layerId}/edits/${editId}/review`, input),
+    http.post('/gis/layers/:id/edits/:editId/review', {
+      params: { id: layerId, editId },
+      body: input,
+    }),
   feature: (layerId: string, rowId: string) =>
-    http.get<LayerFeature>(`/gis/layers/${layerId}/features/${rowId}`),
+    http.get('/gis/layers/:id/features/:rowId', { params: { id: layerId, rowId } }),
 }
 
 /** 409 правки строки: текущее состояние и поля, изменённые с тех пор. */
-export interface RowConflict {
-  current: DatasetRow
-  changedFields: string[]
-}
-
-export function conflictOf(error: unknown): RowConflict | null {
+export function conflictOf(error: unknown): DatasetRowConflict | null {
   if (!(error instanceof ApiError) || error.status !== 409) return null
-  const data = (error.problem as { data?: Partial<RowConflict> }).data
+  const data = (error.problem as { data?: Partial<DatasetRowConflict> }).data
   return data?.current ? { current: data.current, changedFields: data.changedFields ?? [] } : null
 }
 

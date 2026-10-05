@@ -1,4 +1,4 @@
-import type { Basemap, BasemapList, BasemapTheme, Locale } from '@kchs/contracts'
+import type { Basemap, BasemapTheme, Locale } from '@kchs/contracts'
 import { queryOptions, useQuery } from '@tanstack/react-query'
 import type { Protocol } from 'pmtiles'
 import { http } from '~/shared/api/client.js'
@@ -21,7 +21,7 @@ export const basemapKeys = {
 export const basemapsQuery = () =>
   queryOptions({
     queryKey: basemapKeys.all,
-    queryFn: async () => (await http.get<BasemapList>('/gis/basemaps')).items,
+    queryFn: async () => (await http.get('/gis/basemaps')).items,
     staleTime: 10 * 60_000,
   })
 
@@ -64,7 +64,8 @@ const basemapStyleQuery = (
     queryKey: basemapKeys.style(basemap.id, basemap.version, theme, lang),
     queryFn: async () =>
       rebaseApiUrls(
-        await http.get<BasemapStyle>(`/gis/basemaps/${basemap.id}/style.json`, {
+        await http.get('/gis/basemaps/:id/style.json', {
+          params: { id: basemap.id },
           query: { theme, lang },
         }),
         window.location.origin,

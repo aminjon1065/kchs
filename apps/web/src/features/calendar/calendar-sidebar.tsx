@@ -116,7 +116,7 @@ export function CalendarSidebar({
   const listKey = calendarKeys.list({ scope: 'mine' })
   const saveSettings = useMutation({
     mutationFn: (patch: Partial<CalendarSettings>) =>
-      http.put<CalendarSettings>('/calendar/settings', patch),
+      http.put('/calendar/settings', { body: patch }),
     onMutate: async (patch) => {
       await client.cancelQueries({ queryKey: listKey })
       const previous = client.getQueryData<CalendarRecord[]>(listKey)
@@ -148,7 +148,7 @@ export function CalendarSidebar({
   })
 
   const sync = useMutation({
-    mutationFn: (id: string) => http.post(`/calendars/${id}/sync`),
+    mutationFn: (id: string) => http.post('/calendars/:id/sync', { params: { id } }),
     onSuccess: () => toast.show({ title: t('calendar.sidebar.syncQueued'), tone: 'info' }),
     onError: (error) =>
       toast.error(error instanceof ApiError ? error.message : t('errors.unknown')),

@@ -93,7 +93,8 @@ export default function NotebookView({ objectId, tabId }: { objectId: string; ta
   const collab = useCollabDocument(objectId)
 
   const rename = useMutation({
-    mutationFn: (title: string) => http.patch(`/objects/${objectId}`, { title }),
+    mutationFn: (title: string) =>
+      http.patch('/objects/:id', { params: { id: objectId }, body: { title } }),
     onSuccess: (_result, title) => {
       setTabTitle(tabId, title)
       void client.invalidateQueries({ queryKey: keys.object(objectId) })
@@ -101,14 +102,14 @@ export default function NotebookView({ objectId, tabId }: { objectId: string; ta
     },
   })
   const trash = useMutation({
-    mutationFn: () => http.delete(`/objects/${objectId}`),
+    mutationFn: () => http.delete('/objects/:id', { params: { id: objectId } }),
     onSuccess: () => {
       toast.show({
         title: t('objects.trash.movedTo'),
         tone: 'info',
         action: {
           label: t('common.actions.undo'),
-          onClick: () => void http.post(`/objects/${objectId}/restore`),
+          onClick: () => void http.post('/objects/:id/restore', { params: { id: objectId } }),
         },
       })
       void client.invalidateQueries({ queryKey: ['objects'] })
@@ -118,7 +119,7 @@ export default function NotebookView({ objectId, tabId }: { objectId: string; ta
 
   // «Экспорт в отчёт» (P2-E05 S03): ячейки снимка → блоки нового отчёта рядом с тетрадью
   const toReport = useMutation({
-    mutationFn: () => http.post<{ id: string }>('/reports/from-notebook', { notebookId: objectId }),
+    mutationFn: () => http.post('/reports/from-notebook', { body: { notebookId: objectId } }),
     onSuccess: ({ id }) => {
       toast.show({ title: t('data.report.exported'), tone: 'success' })
       void client.invalidateQueries({ queryKey: ['objects'] })

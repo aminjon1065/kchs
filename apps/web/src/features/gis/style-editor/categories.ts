@@ -1,4 +1,4 @@
-import type { DatasetField, FieldOption, FilterNode, LangText, QueryResult } from '@kchs/contracts'
+import type { DatasetField, FieldOption, FilterNode, LangText } from '@kchs/contracts'
 import { type CategoryValue, categoriesFor } from '@kchs/map-style'
 import { http } from '~/shared/api/client.js'
 
@@ -17,26 +17,28 @@ export async function loadCategoryValues(
   field: string,
   filter: FilterNode | null,
 ): Promise<CategoryValue[]> {
-  const result = await http.post<QueryResult>('/queries/run', {
-    spec: {
-      version: 1,
-      source: { kind: 'dataset', id: datasetId },
-      steps: [
-        ...(filter ? [{ type: 'filter', where: filter }] : []),
-        {
-          type: 'aggregate',
-          groupBy: [{ field, alias: 'category' }],
-          measures: [{ alias: 'rows', agg: 'count' }],
-        },
-        {
-          type: 'sort',
-          by: [
-            { field: 'rows', dir: 'desc' },
-            { field: 'category', dir: 'asc' },
-          ],
-        },
-        { type: 'limit', limit: CATEGORY_VALUES },
-      ],
+  const result = await http.post('/queries/run', {
+    body: {
+      spec: {
+        version: 1,
+        source: { kind: 'dataset', id: datasetId },
+        steps: [
+          ...(filter ? [{ type: 'filter' as const, where: filter }] : []),
+          {
+            type: 'aggregate',
+            groupBy: [{ field, alias: 'category' }],
+            measures: [{ alias: 'rows', agg: 'count' }],
+          },
+          {
+            type: 'sort',
+            by: [
+              { field: 'rows', dir: 'desc' },
+              { field: 'category', dir: 'asc' },
+            ],
+          },
+          { type: 'limit', limit: CATEGORY_VALUES },
+        ],
+      },
     },
   })
   const index = result.fields.findIndex((column) => column.name === 'category')

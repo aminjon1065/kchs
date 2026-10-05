@@ -1,4 +1,3 @@
-import type { DocumentReplyDraft, DocumentSummaryDraft } from '@kchs/contracts'
 import {
   Button,
   Callout,
@@ -84,12 +83,13 @@ function SummaryCard({ documentId, canEdit }: { documentId: string; canEdit: boo
   const toast = useToast()
   const client = useQueryClient()
   const make = useMutation({
-    mutationFn: () => http.post<DocumentSummaryDraft>(`/documents/${documentId}/assist/summary`),
+    mutationFn: () => http.post('/documents/:id/assist/summary', { params: { id: documentId } }),
     onError: (error) =>
       toast.error(error instanceof ApiError ? error.message : t('errors.unknown')),
   })
   const insert = useMutation({
-    mutationFn: (summary: string) => http.patch(`/documents/${documentId}`, { summary }),
+    mutationFn: (summary: string) =>
+      http.patch('/documents/:id', { params: { id: documentId }, body: { summary } }),
     onSuccess: () => {
       toast.show({ title: t('documentAssist.panel.inserted'), tone: 'success' })
       void client.invalidateQueries({ queryKey: documentKeys.document(documentId) })
@@ -161,8 +161,11 @@ function ReplyCard({ documentId }: { documentId: string }) {
   const [instructions, setInstructions] = useState('')
   const make = useMutation({
     mutationFn: () =>
-      http.post<DocumentReplyDraft>(`/documents/${documentId}/assist/reply`, {
-        ...(instructions.trim() ? { instructions: instructions.trim() } : {}),
+      http.post('/documents/:id/assist/reply', {
+        params: { id: documentId },
+        body: {
+          ...(instructions.trim() ? { instructions: instructions.trim() } : {}),
+        },
       }),
     onError: (error) =>
       toast.error(error instanceof ApiError ? error.message : t('errors.unknown')),

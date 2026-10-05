@@ -1,4 +1,4 @@
-import type { MetricValue, PageBlockKind, QueryResult } from '@kchs/contracts'
+import type { PageBlockKind } from '@kchs/contracts'
 import {
   Badge,
   Button,
@@ -105,7 +105,7 @@ function ChartBlock({ block }: { block: CellMap }) {
   const chart = useQuery({ ...chartQuery(chartId ?? ''), enabled: Boolean(chartId), retry: false })
   const data = useQuery({
     queryKey: ['object', chartId ?? '', 'page-chart'],
-    queryFn: () => http.post<QueryResult>(`/charts/${chartId}/data`, {}),
+    queryFn: () => http.post('/charts/:id/data', { params: { id: chartId! }, body: {} }),
     enabled: Boolean(chartId),
     retry: false,
   })
@@ -132,7 +132,7 @@ function MetricBlock({ block }: { block: CellMap }) {
   })
   const value = useQuery({
     queryKey: ['object', metricId ?? '', 'page-metric'],
-    queryFn: () => http.post<MetricValue>(`/metrics/${metricId}/value`, {}),
+    queryFn: () => http.post('/metrics/:id/value', { params: { id: metricId! }, body: {} }),
     enabled: Boolean(metric.data),
     retry: false,
   })

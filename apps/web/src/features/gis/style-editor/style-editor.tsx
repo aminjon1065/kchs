@@ -166,7 +166,10 @@ export function LayerStylePanel({
     mutationFn: async () => {
       const parsed = LayerStyle.safeParse(style)
       if (!parsed.success) throw new Error('invalid-style')
-      return http.patch<LayerRecord>(`/gis/layers/${layer.id}`, { style: parsed.data })
+      return http.patch('/gis/layers/:id', {
+        params: { id: layer.id },
+        body: { style: parsed.data },
+      })
     },
     onSuccess: (record) => {
       client.setQueryData(gisKeys.layer(layer.id), record)

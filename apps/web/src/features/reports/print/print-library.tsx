@@ -1,11 +1,4 @@
-import {
-  type DashboardData,
-  type DashboardRecord,
-  REPORT_FIGURE_HEIGHT,
-  type ReportBlock,
-  type ReportImage,
-  type ReportPrintBlock,
-} from '@kchs/contracts'
+import { REPORT_FIGURE_HEIGHT, type ReportBlock, type ReportPrintBlock } from '@kchs/contracts'
 import { Chart, NumberTile } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
@@ -49,7 +42,8 @@ export function PrintImage({ block, reportId }: { block: BlockOf<'image'>; repor
   const t = useT()
   const image = useQuery({
     queryKey: ['report', reportId, 'image', block.fileId],
-    queryFn: () => http.get<ReportImage>(`/reports/${reportId}/images/${block.fileId}`),
+    queryFn: () =>
+      http.get('/reports/:id/images/:fileId', { params: { id: reportId, fileId: block.fileId! } }),
     enabled: Boolean(block.fileId),
     retry: false,
   })
@@ -84,10 +78,10 @@ export function PrintFiles({ block, reportId }: { block: BlockOf<'file'>; report
   const files = useQuery({
     queryKey: ['report', reportId, 'files', block.fileIds],
     queryFn: () =>
-      http.get<{ items: Array<{ id: string; name: string; size: number }> }>(
-        `/reports/${reportId}/files`,
-        { query: { ids: block.fileIds.join(',') } },
-      ),
+      http.get('/reports/:id/files', {
+        params: { id: reportId },
+        query: { ids: block.fileIds.join(',') },
+      }),
     enabled: block.fileIds.length > 0,
     retry: false,
   })
@@ -155,14 +149,17 @@ export function PrintDashboard({ block }: { block: BlockOf<'dashboard'> }) {
   const { locale, timezone } = usePrint()
   const dashboard = useQuery({
     queryKey: ['dashboard', block.dashboardId],
-    queryFn: () => http.get<DashboardRecord>(`/dashboards/${block.dashboardId}`),
+    queryFn: () => http.get('/dashboards/:id', { params: { id: block.dashboardId! } }),
     enabled: Boolean(block.dashboardId),
     retry: false,
   })
   const data = useQuery({
     queryKey: ['dashboard', block.dashboardId, 'print-data'],
     queryFn: () =>
-      http.post<DashboardData>(`/dashboards/${block.dashboardId}/data`, { filters: {} }),
+      http.post('/dashboards/:id/data', {
+        params: { id: block.dashboardId! },
+        body: { filters: {} },
+      }),
     enabled: Boolean(block.dashboardId),
     retry: false,
   })

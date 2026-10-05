@@ -4,7 +4,6 @@ import {
   type ChoroplethParamsInput,
   choroplethLayerStyle,
   choroplethValueField,
-  type QueryResult,
 } from '@kchs/contracts'
 import { formatNumber } from '@kchs/fields'
 import { Callout, Skeleton, useDebouncedValue } from '@kchs/ui'
@@ -29,8 +28,10 @@ export function ChoroplethPreview({ params }: { params: ChoroplethParamsInput })
   const preview = useQuery({
     queryKey: ['choropleth', 'preview', request],
     queryFn: () =>
-      http.post<QueryResult>('/analyses/preview', {
-        choropleth: { ...JSON.parse(request), style: params.style },
+      http.post('/analyses/preview', {
+        body: {
+          choropleth: { ...JSON.parse(request), style: params.style },
+        },
       }),
     placeholderData: keepPreviousData,
     retry: false,

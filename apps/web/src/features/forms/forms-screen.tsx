@@ -1,4 +1,4 @@
-import type { DatasetRecord, FormAssignment, FormDefinition, FormListItem } from '@kchs/contracts'
+import type { FormAssignment, FormDefinition, FormListItem } from '@kchs/contracts'
 import { formatRelativeTime } from '@kchs/fields'
 import {
   Badge,
@@ -264,7 +264,7 @@ function CreateFormDialog({
   const { data: datasets } = useQuery(objectListQuery({ type: 'dataset', limit: 100 }))
   const { data: dataset } = useQuery({
     queryKey: ['forms', 'new-dataset', datasetId],
-    queryFn: () => http.get<DatasetRecord>(`/datasets/${datasetId}`),
+    queryFn: () => http.get('/datasets/:id', { params: { id: datasetId } }),
     enabled: datasetId.length > 0,
   })
 

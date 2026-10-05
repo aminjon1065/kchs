@@ -100,7 +100,8 @@ export function TaskView({ objectId, tabId }: { objectId: string; tabId: string 
   })
 
   const rename = useMutation({
-    mutationFn: (title: string) => http.patch<TaskRecord>(`/tasks/${objectId}`, { title }),
+    mutationFn: (title: string) =>
+      http.patch('/tasks/:id', { params: { id: objectId }, body: { title } }),
     onSuccess: (record) => {
       client.setQueryData(taskKeys.task(objectId), record)
       setTabTitle(tabId, record.title)
@@ -447,9 +448,12 @@ function ReadyReport({
   const openParts = task.parts.filter((part) => !isClosedStatus(part.status)).length
   const send = useMutation({
     mutationFn: () =>
-      http.post<TaskRecord>(`/tasks/${task.id}/report`, {
-        text: draft.text,
-        objectIds: draft.objects.map((object) => object.id),
+      http.post('/tasks/:id/report', {
+        params: { id: task.id },
+        body: {
+          text: draft.text,
+          objectIds: draft.objects.map((object) => object.id),
+        },
       }),
     onSuccess: (record) => {
       client.setQueryData(taskKeys.task(task.id), record)

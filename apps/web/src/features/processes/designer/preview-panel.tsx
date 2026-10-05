@@ -1,7 +1,6 @@
 import type { ObjectSummary } from '@kchs/contracts'
 import { formatDateTime } from '@kchs/fields'
 import { localizedText } from '@kchs/i18n'
-import type { ProcessPreview } from '@kchs/process'
 import {
   Avatar,
   Badge,
@@ -46,23 +45,25 @@ export function PreviewPanel() {
   )
   const preview = useMutation({
     mutationFn: (objectId: string) =>
-      http.post<ProcessPreview>('/process-definitions/preview', {
-        definition,
-        objectId,
-        variables: {
-          ...values,
-          ...Object.fromEntries(
-            Object.entries(people).map(([name, list]) => [
-              name,
-              definition.variables[name]?.type === 'user'
-                ? (list[0]?.id ?? null)
-                : list.map((item) => item.id),
-            ]),
+      http.post('/process-definitions/preview', {
+        body: {
+          definition,
+          objectId,
+          variables: {
+            ...values,
+            ...Object.fromEntries(
+              Object.entries(people).map(([name, list]) => [
+                name,
+                definition.variables[name]?.type === 'user'
+                  ? (list[0]?.id ?? null)
+                  : list.map((item) => item.id),
+              ]),
+            ),
+          },
+          assignees: Object.fromEntries(
+            Object.entries(chosen).map(([key, list]) => [key, list.map((item) => item.id)]),
           ),
         },
-        assignees: Object.fromEntries(
-          Object.entries(chosen).map(([key, list]) => [key, list.map((item) => item.id)]),
-        ),
       }),
   })
   const result = preview.data

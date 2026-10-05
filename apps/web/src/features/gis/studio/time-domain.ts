@@ -1,4 +1,4 @@
-import type { LayerRecord, QueryResult } from '@kchs/contracts'
+import type { LayerRecord, QueryStep } from '@kchs/contracts'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
 import { meQuery } from '~/shared/api/queries.js'
@@ -24,7 +24,7 @@ interface RawDomain {
 async function loadDomain(layer: LayerRecord): Promise<RawDomain> {
   const field = layer.style.time?.field
   if (!field) return { min: null, max: null, type: null }
-  const steps: unknown[] = []
+  const steps: QueryStep[] = []
   if (layer.style.filter) steps.push({ type: 'filter', where: layer.style.filter })
   steps.push({
     type: 'aggregate',
@@ -34,8 +34,10 @@ async function loadDomain(layer: LayerRecord): Promise<RawDomain> {
       { alias: 'tmax', agg: 'max', field },
     ],
   })
-  const result = await http.post<QueryResult>('/queries/run', {
-    spec: { version: 1, source: { kind: 'dataset', id: layer.datasetId }, steps },
+  const result = await http.post('/queries/run', {
+    body: {
+      spec: { version: 1, source: { kind: 'dataset', id: layer.datasetId }, steps },
+    },
   })
   const row = result.rows[0] ?? []
   const index = (name: string) => result.fields.findIndex((item) => item.name === name)

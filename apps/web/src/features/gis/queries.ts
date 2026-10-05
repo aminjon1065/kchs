@@ -1,14 +1,4 @@
-import type {
-  FieldOption,
-  GisRenderSettings,
-  LayerFeature,
-  LayerList,
-  LayerRecord,
-  MapRecord,
-  Territory,
-  TerritoryDetail,
-  TerritoryList,
-} from '@kchs/contracts'
+import type { FieldOption, Territory } from '@kchs/contracts'
 import { queryOptions } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
 
@@ -27,7 +17,7 @@ export const gisKeys = {
 export const gisRenderSettingsQuery = () =>
   queryOptions({
     queryKey: gisKeys.renderSettings,
-    queryFn: () => http.get<GisRenderSettings>('/gis/render-settings'),
+    queryFn: () => http.get('/gis/render-settings'),
     staleTime: 5 * 60_000,
   })
 
@@ -35,27 +25,27 @@ export const gisRenderSettingsQuery = () =>
 export const layerQuery = (id: string) =>
   queryOptions({
     queryKey: gisKeys.layer(id),
-    queryFn: () => http.get<LayerRecord>(`/gis/layers/${id}`),
+    queryFn: () => http.get('/gis/layers/:id', { params: { id } }),
   })
 
 /** Слои датасета, видимые пользователю, — «Показать на карте». */
 export const datasetLayersQuery = (datasetId: string) =>
   queryOptions({
     queryKey: gisKeys.datasetLayers(datasetId),
-    queryFn: async () => (await http.get<LayerList>('/gis/layers', { query: { datasetId } })).items,
+    queryFn: async () => (await http.get('/gis/layers', { query: { datasetId } })).items,
   })
 
 export const mapQuery = (id: string) =>
   queryOptions({
     queryKey: gisKeys.map(id),
-    queryFn: () => http.get<MapRecord>(`/gis/maps/${id}`),
+    queryFn: () => http.get('/gis/maps/:id', { params: { id } }),
   })
 
 /** Карточка объекта слоя по щелчку: видимые поля строки и геометрия. */
 export const layerFeatureQuery = (layerId: string, rowId: string) =>
   queryOptions({
     queryKey: gisKeys.feature(layerId, rowId),
-    queryFn: () => http.get<LayerFeature>(`/gis/layers/${layerId}/features/${rowId}`),
+    queryFn: () => http.get('/gis/layers/:id/features/:rowId', { params: { id: layerId, rowId } }),
     staleTime: 30_000,
   })
 
@@ -63,14 +53,14 @@ export const layerFeatureQuery = (layerId: string, rowId: string) =>
 export const territoriesQuery = () =>
   queryOptions({
     queryKey: gisKeys.territories,
-    queryFn: async () => (await http.get<TerritoryList>('/territories')).items,
+    queryFn: async () => (await http.get('/territories')).items,
     staleTime: 10 * 60_000,
   })
 
 export const territoryQuery = (id: string) =>
   queryOptions({
     queryKey: gisKeys.territory(id),
-    queryFn: () => http.get<TerritoryDetail>(`/territories/${id}`),
+    queryFn: () => http.get('/territories/:id', { params: { id } }),
   })
 
 /**

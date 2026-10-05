@@ -147,7 +147,7 @@ export function CasesDirectory({ selectedId }: { selectedId: string | null }) {
   const years = [currentYear + 1, currentYear, currentYear - 1, currentYear - 2, currentYear - 5]
 
   const closeYear = useMutation({
-    mutationFn: () => http.post<{ closed: number }>('/cases/close-year', { year: Number(year) }),
+    mutationFn: () => http.post('/cases/close-year', { body: { year: Number(year) } }),
     onSuccess: async ({ closed }) => {
       toast.show({ title: t('documents.cases.closeYear.done', { count: closed }), tone: 'success' })
       setClosingYear(false)
@@ -369,9 +369,12 @@ function CasePanel({ record, onClose }: { record: CaseRecord; onClose: () => voi
   const refresh = () => refreshCases(client, record.id)
   const save = useMutation({
     mutationFn: () =>
-      http.patch<CaseRecord>(`/cases/${record.id}`, {
-        title: title.trim(),
-        note: note.trim() || null,
+      http.patch('/cases/:id', {
+        params: { id: record.id },
+        body: {
+          title: title.trim(),
+          note: note.trim() || null,
+        },
       }),
     onSuccess: async () => {
       toast.show({ title: t('documents.cases.saved'), tone: 'success' })
@@ -381,7 +384,7 @@ function CasePanel({ record, onClose }: { record: CaseRecord; onClose: () => voi
   })
   const act = useMutation({
     mutationFn: (action: 'close' | 'reopen' | 'archive') =>
-      http.post<CaseRecord>(`/cases/${record.id}/${action}`, {}),
+      http.post(`/cases/:id/${action}` as const, { params: { id: record.id } }),
     onSuccess: async (_result, action) => {
       toast.show({ title: t(`documents.cases.done.${action}`), tone: 'success' })
       setConfirm(null)
@@ -658,13 +661,15 @@ function CreateCaseDialog({
 
   const create = useMutation({
     mutationFn: () =>
-      http.post<CaseRecord>('/cases', {
-        index: index.trim(),
-        title: title.trim(),
-        year: Number(caseYear),
-        unitId: unitId || null,
-        retentionYears: permanent ? null : retentionYears,
-        documentTypeIds: typeIds,
+      http.post('/cases', {
+        body: {
+          index: index.trim(),
+          title: title.trim(),
+          year: Number(caseYear),
+          unitId: unitId || null,
+          retentionYears: permanent ? null : retentionYears,
+          documentTypeIds: typeIds,
+        },
       }),
     onSuccess: async (record) => {
       await refreshCases(client)
@@ -808,9 +813,11 @@ function DestructionDialog({ onClose }: { onClose: () => void }) {
 
   const destroy = useMutation({
     mutationFn: () =>
-      http.post<{ id: string }>('/cases/destruction-acts', {
-        caseIds: chosen,
-        basis: basis.trim(),
+      http.post('/cases/destruction-acts', {
+        body: {
+          caseIds: chosen,
+          basis: basis.trim(),
+        },
       }),
     onSuccess: async () => {
       toast.show({ title: t('documents.cases.destruction.done'), tone: 'success' })

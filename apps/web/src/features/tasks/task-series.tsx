@@ -1,4 +1,4 @@
-import type { TaskSeriesList, TaskSeriesRecord, TaskSeriesRule } from '@kchs/contracts'
+import type { TaskSeriesRecord, TaskSeriesRule } from '@kchs/contracts'
 import { formatDateTime } from '@kchs/fields'
 import {
   Badge,
@@ -273,11 +273,11 @@ export function SeriesDialog({ onClose }: { onClose: () => void }) {
   const locale = useLocale()
   const { data, isLoading } = useQuery({
     queryKey: seriesKey,
-    queryFn: () => http.get<TaskSeriesList>('/task-series'),
+    queryFn: () => http.get('/task-series'),
   })
   const act = useMutation({
     mutationFn: (input: { id: string; action: 'pause' | 'resume' | 'stop' }) =>
-      http.post<TaskSeriesRecord>(`/task-series/${input.id}/${input.action}`),
+      http.post(`/task-series/:id/${input.action}` as const, { params: { id: input.id } }),
     onSuccess: () => void client.invalidateQueries({ queryKey: seriesKey }),
     onError: (error) =>
       toast.error(error instanceof ApiError ? error.message : t('errors.unknown')),
@@ -405,12 +405,15 @@ function SeriesEditForm({ series, onDone }: { series: TaskSeriesRecord; onDone: 
   })
   const save = useMutation({
     mutationFn: () =>
-      http.patch<TaskSeriesRecord>(`/task-series/${series.id}`, {
-        title: title.trim(),
-        assigneeId: assignee?.id ?? null,
-        rule: repeat.rule,
-        dueWorkingDays: Math.max(1, Number.parseInt(repeat.dueWorkingDays, 10) || 1),
-        endsOn: repeat.endsOn || null,
+      http.patch('/task-series/:id', {
+        params: { id: series.id },
+        body: {
+          title: title.trim(),
+          assigneeId: assignee?.id ?? null,
+          rule: repeat.rule,
+          dueWorkingDays: Math.max(1, Number.parseInt(repeat.dueWorkingDays, 10) || 1),
+          endsOn: repeat.endsOn || null,
+        },
       }),
     onSuccess: () => {
       toast.show({ title: t('tasks.series.saved'), tone: 'success' })

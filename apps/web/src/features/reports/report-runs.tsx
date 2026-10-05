@@ -32,7 +32,7 @@ function RunItem({ run }: { run: ReportRunRecord }) {
   const locale = useLocale()
   const download = useMutation({
     mutationFn: (format: ReportFormat) =>
-      http.get<{ url: string }>(`/reports/runs/${run.id}/download`, { query: { format } }),
+      http.get('/reports/runs/:runId/download', { params: { runId: run.id }, query: { format } }),
     onSuccess: ({ url }) => {
       window.location.assign(url)
     },

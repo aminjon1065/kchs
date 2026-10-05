@@ -1,4 +1,3 @@
-import type { DocumentFromTemplateResult } from '@kchs/contracts'
 import {
   Button,
   Callout,
@@ -58,13 +57,15 @@ export function CreateDocumentDialog({ onClose }: { onClose: () => void }) {
   const create = useMutation({
     mutationFn: async () => {
       if (templateId !== NO_TEMPLATE) {
-        return http.post<DocumentFromTemplateResult>('/documents/from-template', {
-          templateId,
-          typeId,
-          ...(subject.trim() ? { subject: subject.trim() } : {}),
+        return http.post('/documents/from-template', {
+          body: {
+            templateId,
+            typeId,
+            ...(subject.trim() ? { subject: subject.trim() } : {}),
+          },
         })
       }
-      return http.post<{ id: string }>('/documents', { typeId, subject: subject.trim() })
+      return http.post('/documents', { body: { typeId, subject: subject.trim() } })
     },
     onSuccess: ({ id }) => {
       void client.invalidateQueries({ queryKey: ['objects'] })

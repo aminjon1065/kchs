@@ -127,12 +127,15 @@ export function MeetingChat({ meetingId }: { meetingId: string }) {
 
   const post = useMutation({
     mutationFn: (message: ComposedMessage) =>
-      http.post(`/objects/${meetingId}/discussion/messages`, {
-        body: message.body,
-        text: message.text,
-        attachments: message.attachments.map((fileId) => ({ fileId })),
-        mentions: message.mentions,
-        mentionedObjectIds: [],
+      http.post('/objects/:id/discussion/messages', {
+        params: { id: meetingId },
+        body: {
+          body: message.body,
+          text: message.text,
+          attachments: message.attachments.map((fileId) => ({ fileId })),
+          mentions: message.mentions,
+          mentionedObjectIds: [],
+        },
       }),
     onSuccess: () => void client.invalidateQueries({ queryKey: keys.discussion(meetingId) }),
   })

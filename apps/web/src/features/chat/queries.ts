@@ -1,14 +1,4 @@
-import type {
-  ChatDraft,
-  ChatList,
-  ChatListItem,
-  ChatMember,
-  ChatPin,
-  ChatSearchResponse,
-  ChatSection,
-  Message,
-  PresenceState,
-} from '@kchs/contracts'
+import type { ChatSection } from '@kchs/contracts'
 import { queryOptions } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
 
@@ -35,14 +25,14 @@ export const chatKeys = {
 export const chatListQuery = (section: ChatSection) =>
   queryOptions({
     queryKey: chatKeys.list(section),
-    queryFn: () => http.get<ChatList>('/chats', { query: { section, limit: 100 } }),
+    queryFn: () => http.get('/chats', { query: { section, limit: 100 } }),
     refetchInterval: 30_000,
   })
 
 export const conversationQuery = (id: string | null) =>
   queryOptions({
     queryKey: chatKeys.conversation(id ?? 'none'),
-    queryFn: () => http.get<ChatListItem>(`/chats/${id}`),
+    queryFn: () => http.get('/chats/:id', { params: { id: id! } }),
     enabled: Boolean(id),
   })
 
@@ -50,7 +40,8 @@ export const chatMessagesQuery = (id: string | null, threadRootId: string | null
   queryOptions({
     queryKey: chatKeys.messages(id ?? 'none', threadRootId),
     queryFn: () =>
-      http.get<{ items: Message[]; nextCursor: string | null }>(`/conversations/${id}/messages`, {
+      http.get('/conversations/:id/messages', {
+        params: { id: id! },
         query: { limit, ...(threadRootId ? { threadRootId } : {}) },
       }),
     enabled: Boolean(id),
@@ -59,7 +50,7 @@ export const chatMessagesQuery = (id: string | null, threadRootId: string | null
 export const chatPinsQuery = (id: string | null) =>
   queryOptions({
     queryKey: chatKeys.pins(id ?? 'none'),
-    queryFn: () => http.get<{ items: ChatPin[] }>(`/chats/${id}/pins`),
+    queryFn: () => http.get('/chats/:id/pins', { params: { id: id! } }),
     enabled: Boolean(id),
   })
 
@@ -67,37 +58,34 @@ export const chatPinsQuery = (id: string | null) =>
 export const chatMembersQuery = (id: string | null) =>
   queryOptions({
     queryKey: chatKeys.members(id ?? 'none'),
-    queryFn: () => http.get<{ items: ChatMember[] }>(`/chats/${id}/members`),
+    queryFn: () => http.get('/chats/:id/members', { params: { id: id! } }),
     enabled: Boolean(id),
   })
 
 export const chatDraftsQuery = () =>
   queryOptions({
     queryKey: chatKeys.drafts,
-    queryFn: () => http.get<{ items: ChatDraft[] }>('/chats/drafts'),
+    queryFn: () => http.get('/chats/drafts'),
   })
 
 export const chatSearchQuery = (q: string, conversationId: string | null) =>
   queryOptions({
     queryKey: chatKeys.search(q, conversationId),
     queryFn: () =>
-      http.get<ChatSearchResponse>('/chats/search', {
-        query: { q, ...(conversationId ? { conversationId } : {}) },
-      }),
+      http.get('/chats/search', { query: { q, ...(conversationId ? { conversationId } : {}) } }),
     enabled: q.trim().length >= 2,
   })
 
 export const myPresenceQuery = () =>
   queryOptions({
     queryKey: chatKeys.presence,
-    queryFn: () => http.get<PresenceState>('/me/presence'),
+    queryFn: () => http.get('/me/presence'),
   })
 
 export const peersPresenceQuery = (userIds: string[]) =>
   queryOptions({
     queryKey: chatKeys.peers(userIds.join(',')),
-    queryFn: () =>
-      http.get<{ items: PresenceState[] }>('/presence', { query: { userIds: userIds.join(',') } }),
+    queryFn: () => http.get('/presence', { query: { userIds: userIds.join(',') } }),
     enabled: userIds.length > 0,
     refetchInterval: 60_000,
   })

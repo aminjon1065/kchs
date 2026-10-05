@@ -1,10 +1,5 @@
 import type { ChartPick } from '@kchs/chart-spec'
-import type {
-  ChartSpec,
-  DashboardDrillResult,
-  DashboardFilter,
-  DashboardTile,
-} from '@kchs/contracts'
+import type { ChartSpec, DashboardFilter, DashboardTile } from '@kchs/contracts'
 import {
   Button,
   Callout,
@@ -104,10 +99,13 @@ export function DrillSheet({
   const { data, error, isLoading } = useQuery({
     queryKey: ['dashboard', dashboardId, 'drill', tile.id, pick.filters, values],
     queryFn: () =>
-      http.post<DashboardDrillResult>(`/dashboards/${dashboardId}/drill`, {
-        tileId: tile.id,
-        filters: values,
-        pick: pick.filters,
+      http.post('/dashboards/:id/drill', {
+        params: { id: dashboardId },
+        body: {
+          tileId: tile.id,
+          filters: values,
+          pick: pick.filters,
+        },
       }),
     retry: false,
   })

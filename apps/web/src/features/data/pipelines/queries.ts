@@ -1,14 +1,4 @@
-import type {
-  PipelineCreateInput,
-  PipelineDefinition,
-  PipelineList,
-  PipelineRecord,
-  PipelineRunList,
-  PipelineRunStarted,
-  PipelineUpdateInput,
-  PipelineValidateResult,
-  QueryResult,
-} from '@kchs/contracts'
+import type { PipelineCreateInput, PipelineDefinition, PipelineUpdateInput } from '@kchs/contracts'
 import { queryOptions } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
 
@@ -29,38 +19,40 @@ const ACTIVE = new Set(['queued', 'running'])
 export const pipelinesQuery = () =>
   queryOptions({
     queryKey: pipelineKeys.list(),
-    queryFn: () => http.get<PipelineList>('/pipelines'),
+    queryFn: () => http.get('/pipelines'),
     staleTime: 15_000,
   })
 
 export const pipelineQuery = (id: string) =>
   queryOptions({
     queryKey: pipelineKeys.one(id),
-    queryFn: () => http.get<PipelineRecord>(`/pipelines/${id}`),
+    queryFn: () => http.get('/pipelines/:id', { params: { id } }),
     enabled: id.length > 0,
   })
 
 export const pipelineRunsQuery = (id: string) =>
   queryOptions({
     queryKey: pipelineKeys.runs(id),
-    queryFn: () => http.get<PipelineRunList>(`/pipelines/${id}/runs`, { query: { limit: 30 } }),
+    queryFn: () => http.get('/pipelines/:id/runs', { params: { id }, query: { limit: 30 } }),
     enabled: id.length > 0,
     refetchInterval: (query) =>
       (query.state.data?.items ?? []).some((run) => ACTIVE.has(run.status)) ? 2000 : false,
   })
 
 export const pipelineApi = {
-  create: (input: PipelineCreateInput) => http.post<PipelineRecord>('/pipelines', input),
+  create: (input: PipelineCreateInput) => http.post('/pipelines', { body: input }),
   update: (id: string, input: PipelineUpdateInput) =>
-    http.patch<PipelineRecord>(`/pipelines/${id}`, input),
+    http.patch('/pipelines/:id', { params: { id }, body: input }),
   validate: (definition: PipelineDefinition) =>
-    http.post<PipelineValidateResult>('/pipelines/validate', { definition }),
+    http.post('/pipelines/validate', { body: { definition } }),
   preview: (definition: PipelineDefinition, untilStepId: string | undefined, limit: number) =>
-    http.post<QueryResult>('/pipelines/preview', {
-      definition,
-      ...(untilStepId ? { untilStepId } : {}),
-      limit,
+    http.post('/pipelines/preview', {
+      body: {
+        definition,
+        ...(untilStepId ? { untilStepId } : {}),
+        limit,
+      },
     }),
-  run: (id: string) => http.post<PipelineRunStarted>(`/pipelines/${id}/run`),
-  remove: (id: string) => http.delete<void>(`/objects/${id}`),
+  run: (id: string) => http.post('/pipelines/:id/run', { params: { id } }),
+  remove: (id: string) => http.delete('/objects/:id', { params: { id } }),
 }

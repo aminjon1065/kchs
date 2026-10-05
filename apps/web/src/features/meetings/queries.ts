@@ -1,13 +1,4 @@
-import type {
-  MeetingGuestJoin,
-  MeetingGuestJoinInput,
-  MeetingGuestPreview,
-  MeetingJoin,
-  MeetingKnockList,
-  MeetingList,
-  MeetingRecord,
-  MeetingsStatus,
-} from '@kchs/contracts'
+import type { MeetingGuestJoinInput } from '@kchs/contracts'
 import { queryOptions } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
 
@@ -25,20 +16,20 @@ export const meetingKeys = {
 export const meetingsStatusQuery = () =>
   queryOptions({
     queryKey: meetingKeys.status,
-    queryFn: () => http.get<MeetingsStatus>('/meetings/status'),
+    queryFn: () => http.get('/meetings/status'),
     staleTime: 5 * 60_000,
   })
 
 export const meetingsQuery = (scope: 'mine' | 'live' | 'all') =>
   queryOptions({
     queryKey: meetingKeys.list(scope),
-    queryFn: () => http.get<MeetingList>('/meetings', { query: { scope } }),
+    queryFn: () => http.get('/meetings', { query: { scope } }),
   })
 
 export const meetingQuery = (id: string) =>
   queryOptions({
     queryKey: meetingKeys.meeting(id),
-    queryFn: () => http.get<MeetingRecord>(`/meetings/${id}`),
+    queryFn: () => http.get('/meetings/:id', { params: { id } }),
     enabled: Boolean(id),
   })
 
@@ -46,25 +37,21 @@ export const meetingQuery = (id: string) =>
 export const meetingKnocksQuery = (id: string, enabled: boolean) =>
   queryOptions({
     queryKey: meetingKeys.knocks(id),
-    queryFn: () => http.get<MeetingKnockList>(`/meetings/${id}/knocks`),
+    queryFn: () => http.get('/meetings/:id/knocks', { params: { id } }),
     enabled: enabled && Boolean(id),
     refetchInterval: 15_000,
   })
 
-export const joinMeeting = (id: string) => http.post<MeetingJoin>(`/meetings/${id}/join`)
-export const leaveMeeting = (id: string) => http.post<{ ok: true }>(`/meetings/${id}/leave`)
-export const endMeeting = (id: string) => http.post<MeetingRecord>(`/meetings/${id}/end`)
-export const declineCall = (id: string) => http.post<{ ok: true }>(`/meetings/${id}/decline`)
+export const joinMeeting = (id: string) => http.post('/meetings/:id/join', { params: { id } })
+export const leaveMeeting = (id: string) => http.post('/meetings/:id/leave', { params: { id } })
+export const endMeeting = (id: string) => http.post('/meetings/:id/end', { params: { id } })
+export const declineCall = (id: string) => http.post('/meetings/:id/decline', { params: { id } })
 export const decideKnock = (id: string, requestId: string, admit: boolean) =>
-  http.post<{ ok: true }>(`/meetings/${id}/knocks/${requestId}`, { admit })
+  http.post('/meetings/:id/knocks/:requestId', { params: { id, requestId }, body: { admit } })
 
 /** Гостевая ссылка: вход без учётной записи, ограниченный срок (ADR-0091). */
 export const guestPreview = (token: string) =>
-  http.get<MeetingGuestPreview>(`/meetings/guest/${encodeURIComponent(token)}`, {
-    anonymous: true,
-  })
+  http.get('/meetings/guest/:token', { params: { token }, anonymous: true })
 
 export const guestJoin = (token: string, input: MeetingGuestJoinInput) =>
-  http.post<MeetingGuestJoin>(`/meetings/guest/${encodeURIComponent(token)}/join`, input, {
-    anonymous: true,
-  })
+  http.post('/meetings/guest/:token/join', { params: { token }, body: input, anonymous: true })

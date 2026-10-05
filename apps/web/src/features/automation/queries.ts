@@ -1,21 +1,4 @@
-import type {
-  ManualRule,
-  RuleCatalog,
-  RuleCreateInput,
-  RuleDefinition,
-  RuleDryRunResult,
-  RuleExport,
-  RuleList,
-  RuleListQuery,
-  RuleRecord,
-  RuleRunList,
-  RuleTemplate,
-  RuleValidateResult,
-  RuleVersionList,
-  ScheduleList,
-  ScheduleRecord,
-  ScheduleRunList,
-} from '@kchs/contracts'
+import type { RuleCreateInput, RuleDefinition, RuleExport, RuleListQuery } from '@kchs/contracts'
 import { queryOptions } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
 
@@ -36,20 +19,20 @@ export const automationKeys = {
 export const rulesQuery = (query: Partial<RuleListQuery> = {}) =>
   queryOptions({
     queryKey: automationKeys.rules(query),
-    queryFn: () => http.get<RuleList>('/automation/rules', { query }),
+    queryFn: () => http.get('/automation/rules', { query }),
   })
 
 export const ruleQuery = (id: string) =>
   queryOptions({
     queryKey: automationKeys.rule(id),
-    queryFn: () => http.get<RuleRecord>(`/automation/rules/${id}`),
+    queryFn: () => http.get('/automation/rules/:id', { params: { id } }),
     enabled: id.length > 0,
   })
 
 export const ruleRunsQuery = (id: string) =>
   queryOptions({
     queryKey: automationKeys.runs(id),
-    queryFn: () => http.get<RuleRunList>(`/automation/rules/${id}/runs`, { query: { limit: 30 } }),
+    queryFn: () => http.get('/automation/rules/:id/runs', { params: { id }, query: { limit: 30 } }),
     enabled: id.length > 0,
     refetchInterval: 5000,
   })
@@ -58,23 +41,23 @@ export const ruleRunsQuery = (id: string) =>
 export const ruleVersionsQuery = (id: string) =>
   queryOptions({
     queryKey: automationKeys.versions(id),
-    queryFn: () => http.get<RuleVersionList>(`/automation/rules/${id}/versions`),
-    select: (data: RuleVersionList) => data.items,
+    queryFn: () => http.get('/automation/rules/:id/versions', { params: { id } }),
+    select: (data) => data.items,
     enabled: id.length > 0,
   })
 
 export const ruleTemplatesQuery = () =>
   queryOptions({
     queryKey: automationKeys.templates,
-    queryFn: () => http.get<{ items: RuleTemplate[] }>('/automation/templates'),
-    select: (data: { items: RuleTemplate[] }) => data.items,
+    queryFn: () => http.get('/automation/templates'),
+    select: (data) => data.items,
     staleTime: 300_000,
   })
 
 export const ruleCatalogQuery = () =>
   queryOptions({
     queryKey: automationKeys.catalog,
-    queryFn: () => http.get<RuleCatalog>('/automation/catalog'),
+    queryFn: () => http.get('/automation/catalog'),
     staleTime: 300_000,
   })
 
@@ -82,9 +65,8 @@ export const ruleCatalogQuery = () =>
 export const manualRulesQuery = (objectId: string) =>
   queryOptions({
     queryKey: automationKeys.manual(objectId),
-    queryFn: () =>
-      http.get<{ items: ManualRule[] }>('/automation/manual-rules', { query: { objectId } }),
-    select: (data: { items: ManualRule[] }) => data.items,
+    queryFn: () => http.get('/automation/manual-rules', { query: { objectId } }),
+    select: (data) => data.items,
     enabled: objectId.length > 0,
     staleTime: 60_000,
   })
@@ -92,42 +74,38 @@ export const manualRulesQuery = (objectId: string) =>
 export const schedulesQuery = () =>
   queryOptions({
     queryKey: automationKeys.schedules,
-    queryFn: () => http.get<ScheduleList>('/schedules'),
-    select: (data: ScheduleList) => data.items,
+    queryFn: () => http.get('/schedules'),
+    select: (data) => data.items,
     refetchInterval: 30_000,
   })
 
 export const scheduleRunsQuery = (key: string) =>
   queryOptions({
     queryKey: automationKeys.scheduleRuns(key),
-    queryFn: () =>
-      http.get<ScheduleRunList>(`/schedules/${encodeURIComponent(key)}/runs`, {
-        query: { limit: 20 },
-      }),
-    select: (data: ScheduleRunList) => data.items,
+    queryFn: () => http.get('/schedules/:key/runs', { params: { key }, query: { limit: 20 } }),
+    select: (data) => data.items,
     enabled: key.length > 0,
   })
 
 export const automationApi = {
-  create: (input: RuleCreateInput) => http.post<{ id: string }>('/automation/rules', input),
+  create: (input: RuleCreateInput) => http.post('/automation/rules', { body: input }),
   update: (id: string, definition: RuleDefinition) =>
-    http.put<RuleRecord>(`/automation/rules/${id}`, { definition }),
+    http.put('/automation/rules/:id', { params: { id }, body: { definition } }),
   setEnabled: (id: string, enabled: boolean) =>
-    http.post<RuleRecord>(`/automation/rules/${id}/enabled`, { enabled }),
+    http.post('/automation/rules/:id/enabled', { params: { id }, body: { enabled } }),
   validate: (definition: RuleDefinition) =>
-    http.post<RuleValidateResult>('/automation/rules/validate', { definition }),
+    http.post('/automation/rules/validate', { body: { definition } }),
   dryRun: (definition: RuleDefinition, limit: number) =>
-    http.post<RuleDryRunResult>('/automation/rules/dry-run', { definition, limit }),
-  duplicate: (id: string) => http.post<{ id: string }>(`/automation/rules/${id}/duplicate`),
+    http.post('/automation/rules/dry-run', { body: { definition, limit } }),
+  duplicate: (id: string) => http.post('/automation/rules/:id/duplicate', { params: { id } }),
   restore: (id: string, versionId: string) =>
-    http.post<RuleRecord>(`/automation/rules/${id}/versions/${versionId}/restore`),
-  exportRule: (id: string) => http.get<RuleExport>(`/automation/rules/${id}/export`),
+    http.post('/automation/rules/:id/versions/:versionId/restore', { params: { id, versionId } }),
+  exportRule: (id: string) => http.get('/automation/rules/:id/export', { params: { id } }),
   importRule: (spaceId: string, rule: RuleExport) =>
-    http.post<{ id: string }>('/automation/rules/import', { spaceId, rule }),
+    http.post('/automation/rules/import', { body: { spaceId, rule } }),
   run: (id: string, objectId: string | null) =>
-    http.post<{ runId: string }>(`/automation/rules/${id}/run`, { objectId }),
+    http.post('/automation/rules/:id/run', { params: { id }, body: { objectId } }),
   scheduleEnabled: (key: string, enabled: boolean) =>
-    http.post<ScheduleRecord>(`/schedules/${encodeURIComponent(key)}/enabled`, { enabled }),
-  scheduleRun: (key: string) =>
-    http.post<{ ok: boolean }>(`/schedules/${encodeURIComponent(key)}/run`),
+    http.post('/schedules/:key/enabled', { params: { key }, body: { enabled } }),
+  scheduleRun: (key: string) => http.post('/schedules/:key/run', { params: { key } }),
 }

@@ -77,7 +77,7 @@ export const layerSourceId = (layerId: string) => `layer-${layerId}`
 export const layerStatsQuery = (layer: LayerRecord, request: StatsRequest) =>
   queryOptions({
     queryKey: ['layer', layer.id, 'stats', layer.datasetVersion, request] as const,
-    queryFn: () => http.post<LayerStats>(`/gis/layers/${layer.id}/stats`, request),
+    queryFn: () => http.post('/gis/layers/:id/stats', { params: { id: layer.id }, body: request }),
     staleTime: 5 * 60_000,
     retry: false,
     // Смена метода или числа классов — прежние границы того же поля, пока не пришли

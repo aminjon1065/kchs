@@ -30,7 +30,7 @@ export function ColumnarCard({ datasetId, canManage }: { datasetId: string; canM
   const { data, isLoading } = useQuery(columnarCopyQuery(datasetId))
 
   const build = useMutation({
-    mutationFn: () => http.post<ColumnarCopy>(`/datasets/${datasetId}/columnar/build`, {}),
+    mutationFn: () => http.post('/datasets/:id/columnar/build', { params: { id: datasetId } }),
     onSuccess: (next) => {
       client.setQueryData(dataKeys.columnar(datasetId), next)
       toast.show({ title: t('data.columnar.buildStarted'), tone: 'success' })

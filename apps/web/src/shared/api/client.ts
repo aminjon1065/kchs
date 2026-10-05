@@ -1,5 +1,6 @@
-import type { ProblemDetails } from '@kchs/contracts'
+import type { HttpMethod, ProblemDetails } from '@kchs/contracts'
 import { normalizeLocale, translate } from '@kchs/i18n'
+import type { ApiPath, MethodTable, RequestOptions } from './route-types.js'
 
 const BASE = '/api/v1'
 
@@ -80,15 +81,26 @@ export function getOnBehalfOf(): string | null {
   return onBehalfOf
 }
 
-export interface RequestOptions {
-  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
-  body?: unknown
-  query?: Record<string, string | number | boolean | undefined | null>
-  signal?: AbortSignal
-  headers?: Record<string, string>
-  /** Не перенаправлять на вход при 401 (используется самим экраном входа). */
-  anonymous?: boolean
+/** Запись пути метода: аргументы вызова после пути и ответ. */
+interface PathEntry {
+  args: unknown[]
+  response: unknown
 }
+
+/** Вызов метода: путь — из таблицы, опции и ответ — по её записи. */
+type Call<T extends Record<string, PathEntry>> = <P extends keyof T & string>(
+  path: P,
+  ...options: T[P]['args']
+) => Promise<T[P]['response']>
+
+/** Опции после стирания типов: то, с чем работает транспорт. */
+interface RawOptions extends RequestOptions {
+  params?: Record<string, unknown>
+  query?: Record<string, unknown>
+  body?: unknown
+}
+
+// ─── Транспорт ───────────────────────────────────────────────────────────────
 
 type UnauthorizedHandler = () => void
 let onUnauthorized: UnauthorizedHandler | null = null
@@ -110,9 +122,34 @@ export function setUnauthorizedHandler(handler: UnauthorizedHandler | null): voi
   onUnauthorized = handler
 }
 
+/**
+ * Путь таблицы → путь запроса: `:имя` заменяется закодированным значением параметра.
+ * Имя параметра кончается на `.` или `-`, как у маршрутизатора Fastify (`:y.pbf`).
+ */
+function resolvePath(path: string, params: Record<string, unknown> | undefined): string {
+  return path.replace(/:([A-Za-z0-9_]+)/g, (_match, name: string) => {
+    const value = params?.[name]
+    if (value === undefined || value === null || value === '') {
+      throw new Error(`Параметр пути «${name}» не задан: ${path}`)
+    }
+    return encodeURIComponent(String(value))
+  })
+}
+
+/** Адрес запроса: путь с параметрами и строка запроса без пустых значений. */
+function requestUrl(path: string, options: Pick<RawOptions, 'params' | 'query'>): URL {
+  const url = new URL(`${BASE}${resolvePath(path, options.params)}`, window.location.origin)
+  for (const [key, value] of Object.entries(options.query ?? {})) {
+    if (value !== undefined && value !== null && value !== '') {
+      url.searchParams.set(key, String(value))
+    }
+  }
+  return url
+}
+
 function requestHeaders(
   path: string,
-  method: NonNullable<RequestOptions['method']>,
+  method: HttpMethod,
   hasBody: boolean,
   extra?: Record<string, string>,
 ): Record<string, string> {
@@ -146,39 +183,47 @@ function problemOf(status: number, payload: unknown): ApiError {
   return new ApiError(problem)
 }
 
-export async function api<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const method = options.method ?? 'GET'
-  const url = new URL(`${BASE}${path}`, window.location.origin)
-
-  for (const [key, value] of Object.entries(options.query ?? {})) {
-    if (value !== undefined && value !== null && value !== '') {
-      url.searchParams.set(key, String(value))
-    }
-  }
-
-  const headers = requestHeaders(path, method, options.body !== undefined, options.headers)
-
-  const response = await fetch(url.toString(), {
+/** Запрос и ответ без ошибки — или `ApiError` (401 и незавершённая настройка входа — оболочке). */
+async function send(method: HttpMethod, path: string, options: RawOptions): Promise<Response> {
+  const response = await fetch(requestUrl(path, options).toString(), {
     method,
-    headers,
+    headers: requestHeaders(path, method, options.body !== undefined, options.headers),
     credentials: 'same-origin',
     signal: options.signal,
+    keepalive: options.keepalive,
     ...(options.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
   })
-
-  if (response.status === 204) return undefined as T
-
+  if (response.ok) return response
   const text = await response.text()
-  const payload = text ? (JSON.parse(text) as unknown) : null
+  const error = problemOf(response.status, text ? (JSON.parse(text) as unknown) : null)
+  if (response.status === 401 && !options.anonymous) onUnauthorized?.()
+  if (response.status === 403 && SETUP_CODES.has(error.problem.code)) onSetupRequired?.()
+  throw error
+}
 
-  if (!response.ok) {
-    const error = problemOf(response.status, payload)
-    if (response.status === 401 && !options.anonymous) onUnauthorized?.()
-    if (response.status === 403 && SETUP_CODES.has(error.problem.code)) onSetupRequired?.()
-    throw error
-  }
+async function request(method: HttpMethod, path: string, options: RawOptions): Promise<unknown> {
+  const response = await send(method, path, options)
+  if (response.status === 204) return undefined
+  const text = await response.text()
+  return text ? (JSON.parse(text) as unknown) : null
+}
 
-  return payload as T
+const call = <T extends Record<string, PathEntry>>(method: HttpMethod): Call<T> =>
+  ((path: string, options?: RawOptions) =>
+    request(method, path, options ?? {})) as unknown as Call<T>
+
+/**
+ * Клиент API по таблице маршрутов (ADR-0188): `http.get('/tasks/:id', { params: { id } })`.
+ * Путь — ключ таблицы без метода; параметры пути, строка запроса и тело проверяет
+ * компилятор по схемам записи, ответ — выход схемы успешного ответа. Явный параметр
+ * типа у вызова запрещён проверкой `pnpm deps:check` (`scripts/api-calls.mjs`).
+ */
+export const http = {
+  get: call<MethodTable<'GET'>>('GET'),
+  post: call<MethodTable<'POST'>>('POST'),
+  put: call<MethodTable<'PUT'>>('PUT'),
+  patch: call<MethodTable<'PATCH'>>('PATCH'),
+  delete: call<MethodTable<'DELETE'>>('DELETE'),
 }
 
 /** Сохранить файл из памяти: браузер скачивает его под этим именем. */
@@ -202,41 +247,17 @@ function dispositionName(header: string | null): string | null {
 }
 
 /**
- * Выгрузка файлом (POST с телом запроса): ответ сохраняется под именем из
- * `Content-Disposition`; ошибка — `ApiError`, как у `api`. Заголовки ответа —
+ * Выгрузка файлом (POST маршрута таблицы с телом): ответ сохраняется под именем из
+ * `Content-Disposition`; ошибка — `ApiError`, как у `http`. Заголовки ответа —
  * вызывающему (счётчики выгрузки).
  */
-export async function downloadFile(
-  path: string,
-  body: unknown,
+export async function downloadFile<P extends ApiPath<'POST'>>(
+  path: P,
+  options: MethodTable<'POST'>[P]['args'][0],
   fallbackName = 'export',
 ): Promise<Headers> {
-  const response = await fetch(new URL(`${BASE}${path}`, window.location.origin).toString(), {
-    method: 'POST',
-    headers: requestHeaders(path, 'POST', true),
-    credentials: 'same-origin',
-    body: JSON.stringify(body),
-  })
-  if (!response.ok) {
-    const text = await response.text()
-    const error = problemOf(response.status, text ? (JSON.parse(text) as unknown) : null)
-    if (response.status === 401) onUnauthorized?.()
-    throw error
-  }
+  const response = await send('POST', path, options as unknown as RawOptions)
   const name = dispositionName(response.headers.get('content-disposition')) ?? fallbackName
   saveBlob(await response.blob(), name)
   return response.headers
-}
-
-export const http = {
-  get: <T>(path: string, options?: Omit<RequestOptions, 'method' | 'body'>) =>
-    api<T>(path, { ...options, method: 'GET' }),
-  post: <T>(path: string, body?: unknown, options?: Omit<RequestOptions, 'method' | 'body'>) =>
-    api<T>(path, { ...options, method: 'POST', body }),
-  put: <T>(path: string, body?: unknown, options?: Omit<RequestOptions, 'method' | 'body'>) =>
-    api<T>(path, { ...options, method: 'PUT', body }),
-  patch: <T>(path: string, body?: unknown, options?: Omit<RequestOptions, 'method' | 'body'>) =>
-    api<T>(path, { ...options, method: 'PATCH', body }),
-  delete: <T>(path: string, body?: unknown, options?: Omit<RequestOptions, 'method' | 'body'>) =>
-    api<T>(path, { ...options, method: 'DELETE', body }),
 }

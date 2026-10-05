@@ -1,4 +1,4 @@
-import type { Bbox, LayerFeatureCollection } from '@kchs/contracts'
+import type { Bbox } from '@kchs/contracts'
 import type { MapInstance } from '@kchs/ui'
 import { type MutableRefObject, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -115,19 +115,17 @@ export function BoxSelect({
         await Promise.all(
           [...server].map(async (layerId) => {
             try {
-              const collection = await http.get<LayerFeatureCollection>(
-                `/gis/layers/${layerId}/features`,
-                {
-                  query: featuresQuery(
-                    {
-                      bbox,
-                      filter: current.layerFilters[layerId] ?? null,
-                      time: current.spec.time,
-                    },
-                    LINKED_SELECTION_LIMIT,
-                  ),
-                },
-              )
+              const collection = await http.get('/gis/layers/:id/features', {
+                params: { id: layerId },
+                query: featuresQuery(
+                  {
+                    bbox,
+                    filter: current.layerFilters[layerId] ?? null,
+                    time: current.spec.time,
+                  },
+                  LINKED_SELECTION_LIMIT,
+                ),
+              })
               for (const feature of collection.features) {
                 fetched.push({ layerId, rowId: feature.id })
               }

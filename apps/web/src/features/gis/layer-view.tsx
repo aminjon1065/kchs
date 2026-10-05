@@ -92,7 +92,8 @@ export function LayerView({
   }, [extent, savedState?.camera])
 
   const rename = useMutation({
-    mutationFn: (name: string) => http.patch(`/gis/layers/${objectId}`, { name }),
+    mutationFn: (name: string) =>
+      http.patch('/gis/layers/:id', { params: { id: objectId }, body: { name } }),
     onSuccess: (_result, name) => {
       setTabTitle(tabId, name)
       void client.invalidateQueries({ queryKey: keys.object(objectId) })
@@ -103,12 +104,14 @@ export function LayerView({
   const toMap = useMutation({
     mutationFn: async () => {
       if (!layer) throw new Error('no layer')
-      return http.post<{ id: string }>('/gis/maps', {
-        name: layer.name,
-        spaceId: layer.spaceId,
-        spec: {
-          layers: [{ layerId: layer.id, visible: true, opacity: 1, group: null }],
-          ...(camera ? { camera } : {}),
+      return http.post('/gis/maps', {
+        body: {
+          name: layer.name,
+          spaceId: layer.spaceId,
+          spec: {
+            layers: [{ layerId: layer.id, visible: true, opacity: 1, group: null }],
+            ...(camera ? { camera } : {}),
+          },
         },
       })
     },
@@ -130,14 +133,14 @@ export function LayerView({
   })
 
   const trash = useMutation({
-    mutationFn: () => http.delete(`/objects/${objectId}`),
+    mutationFn: () => http.delete('/objects/:id', { params: { id: objectId } }),
     onSuccess: () => {
       toast.show({
         title: t('objects.trash.movedTo'),
         tone: 'info',
         action: {
           label: t('common.actions.undo'),
-          onClick: () => void http.post(`/objects/${objectId}/restore`),
+          onClick: () => void http.post('/objects/:id/restore', { params: { id: objectId } }),
         },
       })
       void client.invalidateQueries({ queryKey: ['objects'] })

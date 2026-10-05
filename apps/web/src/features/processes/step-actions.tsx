@@ -1,5 +1,5 @@
 import type { LangText } from '@kchs/contracts'
-import type { ProcessInstanceView, ProcessMyAction } from '@kchs/process'
+import type { Decision, ProcessAction, ProcessInstanceView, ProcessMyAction } from '@kchs/process'
 import {
   Button,
   Dialog,
@@ -23,7 +23,7 @@ import { COMMENT_REQUIRED, knownKey, STEP_TYPES } from './labels.js'
 import { processApi } from './queries.js'
 
 /** Решения назначенного — кнопки; передача и добавление согласующего — отдельно. */
-const DECISIONS = new Set([
+const DECISIONS = new Set<string>([
   'approve',
   'remarks',
   'reject',
@@ -36,13 +36,15 @@ const DECISIONS = new Set([
 ])
 const DANGER = new Set(['reject', 'refuse', 'withdraw'])
 
+const isDecision = (action: ProcessAction): action is Decision => DECISIONS.has(action)
+
 function text(value: LangText | null | undefined, locale: string): string | null {
   if (!value) return null
   return (value as Record<string, string | undefined>)[locale] ?? value.ru
 }
 
 type Pending =
-  | { kind: 'decision'; item: ProcessMyAction; action: string }
+  | { kind: 'decision'; item: ProcessMyAction; action: Decision }
   | { kind: 'delegate' | 'add'; item: ProcessMyAction }
 
 /**
@@ -93,7 +95,7 @@ export function ProcessStepActions({
     toast.error(error instanceof ApiError ? error.message : t('errors.unknown'))
 
   const decide = useMutation({
-    mutationFn: async (input: { item: ProcessMyAction; action: string }) => {
+    mutationFn: async (input: { item: ProcessMyAction; action: Decision }) => {
       // Файлы замечаний — свои файлы в личном пространстве: к объекту их прикрепит решение
       const fileIds: string[] = []
       if (files.length > 0) {
@@ -133,10 +135,10 @@ export function ProcessStepActions({
     onError: failed,
   })
 
-  const needsDialog = (item: ProcessMyAction, action: string) =>
+  const needsDialog = (item: ProcessMyAction, action: Decision) =>
     COMMENT_REQUIRED.has(action) || action === 'remarks' || (action === 'sign' && item.requireMfa)
 
-  const run = (item: ProcessMyAction, action: string) => {
+  const run = (item: ProcessMyAction, action: Decision) => {
     if (needsDialog(item, action)) {
       reset()
       setPending({ kind: 'decision', item, action })
@@ -159,7 +161,7 @@ export function ProcessStepActions({
         const name =
           text(step?.name, locale) ??
           t(`processes.types.${knownKey(step?.type ?? 'approval', STEP_TYPES, 'approval')}`)
-        const decisions = item.actions.filter((action) => DECISIONS.has(action))
+        const decisions = item.actions.filter(isDecision)
         return (
           <div key={item.stepId} className="flex flex-col gap-2">
             <p className="text-sm text-fg">

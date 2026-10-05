@@ -1,15 +1,8 @@
-import type { ObjectSummary } from '@kchs/contracts'
 import type { CollectionState } from '@kchs/ui'
 import { useDebouncedValue } from '@kchs/ui'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { useCallback } from 'react'
 import { http } from '~/shared/api/client.js'
-
-interface Page {
-  items: ObjectSummary[]
-  nextCursor: string | null
-  total?: number
-}
 
 export interface ObjectCollectionScope {
   types: string[]
@@ -45,7 +38,7 @@ export function useObjectCollection(
   const query = useInfiniteQuery({
     queryKey: ['objects', 'collection', params],
     queryFn: ({ pageParam }) =>
-      http.get<Page>('/objects', {
+      http.get('/objects', {
         query: { ...params, cursor: pageParam } as Record<string, string | number | undefined>,
       }),
     initialPageParam: undefined as string | undefined,

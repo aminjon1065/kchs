@@ -52,17 +52,20 @@ export function OrgUnitEditor({ unitId }: { unitId: string }) {
 
   const save = useMutation({
     mutationFn: () =>
-      http.patch(`/org/units/${unitId}`, {
-        name: {
-          ru: form.ru.trim(),
-          ...(form.tg.trim() ? { tg: form.tg.trim() } : {}),
-          ...(form.en.trim() ? { en: form.en.trim() } : {}),
+      http.patch('/org/units/:id', {
+        params: { id: unitId },
+        body: {
+          name: {
+            ru: form.ru.trim(),
+            ...(form.tg.trim() ? { tg: form.tg.trim() } : {}),
+            ...(form.en.trim() ? { en: form.en.trim() } : {}),
+          },
+          code: form.code.trim(),
+          kind: form.kind,
+          parentId: form.parentId === TOP_LEVEL ? null : form.parentId,
+          headUserId: form.headUserId === NO_HEAD ? null : form.headUserId,
+          isActive: form.isActive,
         },
-        code: form.code.trim(),
-        kind: form.kind,
-        parentId: form.parentId === TOP_LEVEL ? null : form.parentId,
-        headUserId: form.headUserId === NO_HEAD ? null : form.headUserId,
-        isActive: form.isActive,
       }),
     onSuccess: () => {
       setError(null)

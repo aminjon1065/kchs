@@ -83,18 +83,22 @@ export function ChoroplethMapButton({ analysis }: { analysis: AnalysisRecord }) 
       const layerId =
         layers[0]?.id ??
         (
-          await http.post<{ id: string }>('/gis/layers', {
-            name: analysis.name,
-            spaceId: analysis.spaceId,
-            datasetId,
-            style: choroplethLayerStyle(params),
+          await http.post('/gis/layers', {
+            body: {
+              name: analysis.name,
+              spaceId: analysis.spaceId,
+              datasetId,
+              style: choroplethLayerStyle(params),
+            },
           })
         ).id
       void client.invalidateQueries({ queryKey: gisKeys.datasetLayers(datasetId) })
-      const map = await http.post<{ id: string }>('/gis/maps', {
-        name: analysis.name,
-        spaceId: analysis.spaceId,
-        spec: { layers: [{ layerId, visible: true, opacity: 1, group: null }] },
+      const map = await http.post('/gis/maps', {
+        body: {
+          name: analysis.name,
+          spaceId: analysis.spaceId,
+          spec: { layers: [{ layerId, visible: true, opacity: 1, group: null }] },
+        },
       })
       return map.id
     },

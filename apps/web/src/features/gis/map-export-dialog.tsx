@@ -1,10 +1,4 @@
-import type {
-  DatasetExportDownload,
-  DatasetExportInput,
-  DatasetExportResult,
-  DatasetExportStarted,
-  LayerRecord,
-} from '@kchs/contracts'
+import type { DatasetExportInput, DatasetExportResult, LayerRecord } from '@kchs/contracts'
 import { Button, Callout, Dialog, DialogContent, SegmentedControl, Spinner } from '@kchs/ui'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Download } from 'lucide-react'
@@ -29,7 +23,7 @@ function LayerExport({ layer, jobId }: { layer: LayerRecord; jobId: string | nul
   const result = job?.status === 'succeeded' ? (job.result as DatasetExportResult | null) : null
   const failed = job !== undefined && isJobFinished(job.status) && job.status !== 'succeeded'
   const download = useMutation({
-    mutationFn: () => http.get<DatasetExportDownload>(`/datasets/exports/${jobId}/download`),
+    mutationFn: () => http.get('/datasets/exports/:jobId/download', { params: { jobId: jobId! } }),
     onSuccess: ({ url }) => window.location.assign(url),
     onError: (error) => setFailure(errorText(error, t('errors.unknown'))),
   })
@@ -84,10 +78,10 @@ export function MapExportDialog({
           sort: [],
           ...(layer.style.filter ? { where: layer.style.filter } : {}),
         }
-        const { jobId } = await http.post<DatasetExportStarted>(
-          `/datasets/${layer.datasetId}/exports`,
+        const { jobId } = await http.post('/datasets/:id/exports', {
+          params: { id: layer.datasetId },
           body,
-        )
+        })
         started[layer.id] = jobId
       }
       return started

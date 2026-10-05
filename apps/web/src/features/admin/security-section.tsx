@@ -47,8 +47,7 @@ export function SecuritySection() {
   const [draft, setDraft] = useState<SecurityPolicy | null>(null)
 
   const save = useMutation({
-    mutationFn: (next: SecurityPolicy) =>
-      http.patch<SecurityPolicy>('/admin/security-policy', next),
+    mutationFn: (next: SecurityPolicy) => http.patch('/admin/security-policy', { body: next }),
     onSuccess: (saved) => {
       client.setQueryData(keys.securityPolicy, saved)
       setDraft(null)

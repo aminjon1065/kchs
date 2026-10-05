@@ -1,45 +1,7 @@
-import type {
-  ActiveDelegation,
-  Activity,
-  AdminAnnouncement,
-  AdminSpace,
-  AdminUser,
-  Announcement,
-  ApiToken,
-  AuditEntry,
-  EffectiveAccess,
-  FileRecord,
-  FileVersion,
-  HealthReport,
-  InboxCounts,
-  InboxItem,
-  Integration,
-  JobRecord,
-  Level,
-  LinkView,
-  MeResponse,
-  Message,
-  NamedWorkspaceSummary,
-  Notification,
-  ObjectRecord,
-  ObjectSummary,
-  OrgUnit,
-  PrincipalRef,
-  RoleInfo,
-  SearchResponse,
-  SecurityPolicy,
-  ServiceAccount,
-  ShareLinkList,
-  Space,
-  SpaceMember,
-  TagListResponse,
-  TagView,
-  UsersImportStatus,
-  Webhook,
-  WebhookDelivery,
-} from '@kchs/contracts'
+import type { Level } from '@kchs/contracts'
 import { queryOptions } from '@tanstack/react-query'
 import { http } from './client.js'
+import type { ApiQuery } from './route-types.js'
 
 /** Ключи кэша: `['objectType', id, …]` (01-project-structure.md §apps/web). */
 export const keys = {
@@ -98,7 +60,7 @@ export const keys = {
 export const meQuery = () =>
   queryOptions({
     queryKey: keys.me,
-    queryFn: () => http.get<MeResponse>('/me'),
+    queryFn: () => http.get('/me'),
     staleTime: 60_000,
     retry: false,
   })
@@ -106,58 +68,42 @@ export const meQuery = () =>
 export const spacesQuery = () =>
   queryOptions({
     queryKey: keys.spaces,
-    queryFn: () => http.get<{ items: Space[] }>('/spaces'),
-    select: (data: { items: Space[] }) => data.items,
+    queryFn: () => http.get('/spaces'),
+    select: (data) => data.items,
     staleTime: 30_000,
   })
 
 export const spaceMembersQuery = (id: string) =>
   queryOptions({
     queryKey: keys.spaceMembers(id),
-    queryFn: () => http.get<{ items: SpaceMember[] }>(`/spaces/${id}/members`),
-    select: (data: { items: SpaceMember[] }) => data.items,
+    queryFn: () => http.get('/spaces/:id/members', { params: { id } }),
+    select: (data) => data.items,
   })
 
 export const objectQuery = (id: string) =>
   queryOptions({
     queryKey: keys.object(id),
-    queryFn: () => http.get<ObjectRecord>(`/objects/${id}`),
+    queryFn: () => http.get('/objects/:id', { params: { id } }),
   })
 
-export interface ObjectListParams extends Record<string, unknown> {
-  spaceId?: string
-  parentId?: string
-  type?: string
-  types?: string
-  q?: string
-  lifecycle?: 'active' | 'archived' | 'trashed' | 'any'
-  limit?: number
-  cursor?: string
-}
+export type ObjectListParams = ApiQuery<'GET /objects'>
 
 export const objectListQuery = (params: ObjectListParams) =>
   queryOptions({
     queryKey: keys.objectList(params),
-    queryFn: () =>
-      http.get<{ items: ObjectSummary[]; nextCursor: string | null }>('/objects', {
-        query: params as Record<string, string | number | undefined>,
-      }),
+    queryFn: () => http.get('/objects', { query: params }),
   })
 
 export const objectLinksQuery = (id: string) =>
   queryOptions({
     queryKey: keys.objectLinks(id),
-    queryFn: () =>
-      http.get<{ links: LinkView[]; uses: ObjectSummary[]; usedBy: ObjectSummary[] }>(
-        `/objects/${id}/links`,
-      ),
+    queryFn: () => http.get('/objects/:id/links', { params: { id } }),
   })
 
 export const objectActivityQuery = (id: string) =>
   queryOptions({
     queryKey: keys.objectActivity(id),
-    queryFn: () =>
-      http.get<{ items: Activity[]; nextCursor: string | null }>(`/objects/${id}/activity`),
+    queryFn: () => http.get('/objects/:id/activity', { params: { id } }),
     // Лента строится из событий асинхронно — при открытии панели всегда свежая
     staleTime: 0,
     refetchOnMount: 'always',
@@ -166,23 +112,13 @@ export const objectActivityQuery = (id: string) =>
 export const objectAccessQuery = (id: string) =>
   queryOptions({
     queryKey: keys.objectAccess(id),
-    queryFn: () =>
-      http.get<{
-        entries: EffectiveAccess[]
-        accessMode: 'inherit' | 'restricted'
-        canManage: boolean
-      }>(`/objects/${id}/access`),
+    queryFn: () => http.get('/objects/:id/access', { params: { id } }),
   })
 
 export const discussionQuery = (id: string) =>
   queryOptions({
     queryKey: keys.discussion(id),
-    queryFn: () =>
-      http.get<{
-        conversation: { id: string; unreadCount: number } | null
-        items: Message[]
-        nextCursor: string | null
-      }>(`/objects/${id}/discussion`),
+    queryFn: () => http.get('/objects/:id/discussion', { params: { id } }),
   })
 
 /**
@@ -193,34 +129,30 @@ export const discussionThreadQuery = (id: string, rootId: string | null) =>
   queryOptions({
     queryKey: [...keys.discussion(id), 'thread', rootId ?? 'none'] as const,
     queryFn: () =>
-      http.get<{ items: Message[]; nextCursor: string | null }>(`/objects/${id}/discussion`, {
+      http.get('/objects/:id/discussion', {
+        params: { id },
         query: { threadRootId: rootId ?? '', limit: 100 },
       }),
     enabled: Boolean(rootId),
   })
 
-export const inboxQuery = (params: { state?: string; scope?: string; kind?: string }) =>
+export const inboxQuery = (params: ApiQuery<'GET /inbox'>) =>
   queryOptions({
     queryKey: keys.inbox(params),
-    queryFn: () =>
-      http.get<{ items: InboxItem[]; nextCursor: string | null }>('/inbox', { query: params }),
+    queryFn: () => http.get('/inbox', { query: params }),
   })
 
 export const inboxCountsQuery = () =>
   queryOptions({
     queryKey: keys.inboxCounts,
-    queryFn: () => http.get<InboxCounts>('/inbox/counts'),
+    queryFn: () => http.get('/inbox/counts'),
     staleTime: 15_000,
   })
 
 export const notificationsQuery = (unreadOnly = false) =>
   queryOptions({
     queryKey: keys.notifications(unreadOnly),
-    queryFn: () =>
-      http.get<{ items: Notification[]; nextCursor: string | null; unread: number }>(
-        '/notifications',
-        { query: { unreadOnly } },
-      ),
+    queryFn: () => http.get('/notifications', { query: { unreadOnly } }),
   })
 
 export const searchQuery = (params: {
@@ -231,7 +163,7 @@ export const searchQuery = (params: {
 }) =>
   queryOptions({
     queryKey: keys.search(params),
-    queryFn: () => http.get<SearchResponse>('/search', { query: params }),
+    queryFn: () => http.get('/search', { query: params }),
     enabled: params.q.length > 0,
     staleTime: 10_000,
   })
@@ -239,69 +171,62 @@ export const searchQuery = (params: {
 export const favoritesQuery = () =>
   queryOptions({
     queryKey: keys.favorites,
-    queryFn: () => http.get<{ items: ObjectSummary[] }>('/me/favorites'),
-    select: (data: { items: ObjectSummary[] }) => data.items,
+    queryFn: () => http.get('/me/favorites'),
+    select: (data) => data.items,
   })
 
 export const recentQuery = () =>
   queryOptions({
     queryKey: keys.recent,
-    queryFn: () => http.get<{ items: ObjectSummary[] }>('/me/recent', { query: { limit: 12 } }),
-    select: (data: { items: ObjectSummary[] }) => data.items,
+    queryFn: () => http.get('/me/recent', { query: { limit: 12 } }),
+    select: (data) => data.items,
   })
 
 export const trashQuery = () =>
   queryOptions({
     queryKey: keys.trash,
-    queryFn: () => http.get<{ items: ObjectSummary[] }>('/trash'),
-    select: (data: { items: ObjectSummary[] }) => data.items,
+    queryFn: () => http.get('/trash'),
+    select: (data) => data.items,
   })
 
 export const fileQuery = (id: string) =>
-  queryOptions({ queryKey: keys.file(id), queryFn: () => http.get<FileRecord>(`/files/${id}`) })
+  queryOptions({
+    queryKey: keys.file(id),
+    queryFn: () => http.get('/files/:id', { params: { id } }),
+  })
 
 export const fileVersionsQuery = (id: string) =>
   queryOptions({
     queryKey: keys.fileVersions(id),
-    queryFn: () => http.get<{ items: FileVersion[] }>(`/files/${id}/versions`),
-    select: (data: { items: FileVersion[] }) => data.items,
+    queryFn: () => http.get('/files/:id/versions', { params: { id } }),
+    select: (data) => data.items,
   })
 
-export const usersQuery = (params: {
-  q?: string
-  limit?: number
-  status?: string
-  roleKey?: string
-  /** Сотрудники или служебные учётные записи (ADR-0130). */
-  kind?: 'person' | 'service'
-}) =>
+/** Сотрудники или служебные учётные записи (`kind`, ADR-0130). */
+export const usersQuery = (params: ApiQuery<'GET /users'>) =>
   queryOptions({
     queryKey: keys.users(params),
-    queryFn: () =>
-      http.get<{ items: AdminUser[]; nextCursor: string | null }>('/users', { query: params }),
+    queryFn: () => http.get('/users', { query: params }),
   })
 
 export const orgUnitsQuery = () =>
   queryOptions({
     queryKey: keys.orgUnits,
-    queryFn: () => http.get<{ items: OrgUnit[] }>('/org/units'),
-    select: (data: { items: OrgUnit[] }) => data.items,
+    queryFn: () => http.get('/org/units'),
+    select: (data) => data.items,
   })
 
 export const auditQuery = (params: Record<string, string | number | undefined>) =>
   queryOptions({
     queryKey: keys.audit(params),
-    queryFn: () =>
-      http.get<{ items: AuditEntry[]; nextCursor: string | null }>('/admin/audit', {
-        query: params,
-      }),
+    queryFn: () => http.get('/admin/audit', { query: params }),
   })
 
 /** Ход импорта пользователей: опрос раз в секунду, пока импорт не завершён. */
 export const usersImportQuery = (importId: string) =>
   queryOptions({
     queryKey: keys.usersImport(importId),
-    queryFn: () => http.get<UsersImportStatus>(`/admin/users/import/${importId}`),
+    queryFn: () => http.get('/admin/users/import/:importId', { params: { importId } }),
     enabled: importId.length > 0,
     refetchInterval: (query) => {
       const state = query.state.data?.state
@@ -312,22 +237,22 @@ export const usersImportQuery = (importId: string) =>
 export const healthQuery = () =>
   queryOptions({
     queryKey: keys.health,
-    queryFn: () => http.get<HealthReport>('/admin/health'),
+    queryFn: () => http.get('/admin/health'),
     refetchInterval: 30_000,
   })
 
 export const jobsQuery = () =>
   queryOptions({
     queryKey: keys.jobs,
-    queryFn: () => http.get<{ items: JobRecord[] }>('/jobs'),
-    select: (data: { items: JobRecord[] }) => data.items,
+    queryFn: () => http.get('/jobs'),
+    select: (data) => data.items,
   })
 
 export const delegationsQuery = () =>
   queryOptions({
     queryKey: keys.delegations,
-    queryFn: () => http.get<{ items: ActiveDelegation[] }>('/me/delegations'),
-    select: (data: { items: ActiveDelegation[] }) => data.items,
+    queryFn: () => http.get('/me/delegations'),
+    select: (data) => data.items,
   })
 
 /**
@@ -343,7 +268,7 @@ export const principalsQuery = (
   return queryOptions({
     queryKey: keys.principals(q, types, serviceAccounts),
     queryFn: () =>
-      http.get<{ items: PrincipalRef[] }>('/principals/search', {
+      http.get('/principals/search', {
         query: {
           q,
           types,
@@ -351,7 +276,7 @@ export const principalsQuery = (
           serviceAccounts: serviceAccounts ? 'include' : 'exclude',
         },
       }),
-    select: (data: { items: PrincipalRef[] }) => data.items,
+    select: (data) => data.items,
     enabled: q.length > 0,
   })
 }
@@ -360,8 +285,8 @@ export const principalsQuery = (
 export const serviceAccountsQuery = () =>
   queryOptions({
     queryKey: keys.serviceAccounts,
-    queryFn: () => http.get<{ items: ServiceAccount[] }>('/service-accounts'),
-    select: (data: { items: ServiceAccount[] }) => data.items,
+    queryFn: () => http.get('/service-accounts'),
+    select: (data) => data.items,
   })
 
 /**
@@ -371,12 +296,8 @@ export const serviceAccountsQuery = () =>
 export const principalRefsQuery = (refs: readonly string[]) =>
   queryOptions({
     queryKey: keys.principalRefs(refs),
-    queryFn: () =>
-      http.get<{ items: PrincipalRef[] }>('/principals/describe', {
-        query: { keys: refs.join(',') },
-      }),
-    select: (data: { items: PrincipalRef[] }) =>
-      new Map(data.items.map((item) => [`${item.type}:${item.id}`, item])),
+    queryFn: () => http.get('/principals/describe', { query: { keys: refs.join(',') } }),
+    select: (data) => new Map(data.items.map((item) => [`${item.type}:${item.id}`, item])),
     enabled: refs.length > 0,
     staleTime: 60_000,
   })
@@ -384,48 +305,46 @@ export const principalRefsQuery = (refs: readonly string[]) =>
 export const shareLinksQuery = (objectId: string) =>
   queryOptions({
     queryKey: keys.shareLinks(objectId),
-    queryFn: () => http.get<ShareLinkList>(`/objects/${objectId}/share-links`),
+    queryFn: () => http.get('/objects/:id/share-links', { params: { id: objectId } }),
   })
 
 /** Системная папка «Вложения» пространства — `null`, пока вложений не было. */
 export const attachmentsFolderQuery = (spaceId: string) =>
   queryOptions({
     queryKey: keys.attachmentsFolder(spaceId),
-    queryFn: () =>
-      http.get<{ id: string | null }>('/files/attachments-folder', { query: { spaceId } }),
-    select: (data: { id: string | null }) => data.id,
+    queryFn: () => http.get('/files/attachments-folder', { query: { spaceId } }),
+    select: (data) => data.id,
     staleTime: 60_000,
   })
 
 export const workspacesQuery = () =>
   queryOptions({
     queryKey: keys.workspaces,
-    queryFn: () => http.get<{ items: NamedWorkspaceSummary[] }>('/workspaces'),
-    select: (data: { items: NamedWorkspaceSummary[] }) => data.items,
+    queryFn: () => http.get('/workspaces'),
+    select: (data) => data.items,
     staleTime: 30_000,
   })
 
 export const rolesQuery = () =>
   queryOptions({
     queryKey: keys.roles,
-    queryFn: () => http.get<{ items: RoleInfo[] }>('/roles'),
-    select: (data: { items: RoleInfo[] }) => data.items,
+    queryFn: () => http.get('/roles'),
+    select: (data) => data.items,
     staleTime: 60_000,
   })
 
 export const securityPolicyQuery = () =>
   queryOptions({
     queryKey: keys.securityPolicy,
-    queryFn: () => http.get<SecurityPolicy>('/admin/security-policy'),
+    queryFn: () => http.get('/admin/security-policy'),
   })
 
 /** Подсказки тегов: словарь пространства объекта и общие теги. */
 export const tagSuggestionsQuery = (spaceId: string | null, q: string) =>
   queryOptions({
     queryKey: keys.tags(spaceId, q),
-    queryFn: () =>
-      http.get<TagListResponse>('/tags', { query: { spaceId: spaceId ?? undefined, q } }),
-    select: (data: TagListResponse): TagView[] => data.items,
+    queryFn: () => http.get('/tags', { query: { spaceId: spaceId ?? undefined, q } }),
+    select: (data) => data.items,
     staleTime: 30_000,
   })
 
@@ -435,8 +354,8 @@ export type { Level }
 export const announcementsQuery = () =>
   queryOptions({
     queryKey: keys.announcements,
-    queryFn: () => http.get<{ items: Announcement[] }>('/announcements'),
-    select: (data: { items: Announcement[] }) => data.items,
+    queryFn: () => http.get('/announcements'),
+    select: (data) => data.items,
     staleTime: 60_000,
     refetchInterval: 5 * 60_000,
   })
@@ -444,49 +363,49 @@ export const announcementsQuery = () =>
 export const adminAnnouncementsQuery = () =>
   queryOptions({
     queryKey: keys.adminAnnouncements,
-    queryFn: () => http.get<{ items: AdminAnnouncement[] }>('/admin/announcements'),
-    select: (data: { items: AdminAnnouncement[] }) => data.items,
+    queryFn: () => http.get('/admin/announcements'),
+    select: (data) => data.items,
   })
 
 export const adminSpacesQuery = (params: { q?: string }) =>
   queryOptions({
     queryKey: keys.adminSpaces(params),
-    queryFn: () => http.get<{ items: AdminSpace[] }>('/admin/spaces', { query: params }),
-    select: (data: { items: AdminSpace[] }) => data.items,
+    queryFn: () => http.get('/admin/spaces', { query: params }),
+    select: (data) => data.items,
   })
 
 /** Токены публичного API: свои — в профиле, все — в администрировании (ADR-0097). */
 export const myApiTokensQuery = () =>
   queryOptions({
     queryKey: keys.myApiTokens,
-    queryFn: () => http.get<{ items: ApiToken[] }>('/me/api-tokens'),
-    select: (data: { items: ApiToken[] }) => data.items,
+    queryFn: () => http.get('/me/api-tokens'),
+    select: (data) => data.items,
   })
 
 export const adminApiTokensQuery = () =>
   queryOptions({
     queryKey: keys.adminApiTokens,
-    queryFn: () => http.get<{ items: ApiToken[] }>('/admin/api-tokens'),
-    select: (data: { items: ApiToken[] }) => data.items,
+    queryFn: () => http.get('/admin/api-tokens'),
+    select: (data) => data.items,
   })
 
 export const integrationsQuery = () =>
   queryOptions({
     queryKey: keys.integrations,
-    queryFn: () => http.get<{ items: Integration[] }>('/integrations'),
-    select: (data: { items: Integration[] }) => data.items,
+    queryFn: () => http.get('/integrations'),
+    select: (data) => data.items,
   })
 
 export const webhooksQuery = () =>
   queryOptions({
     queryKey: keys.webhooks,
-    queryFn: () => http.get<{ items: Webhook[] }>('/webhooks'),
-    select: (data: { items: Webhook[] }) => data.items,
+    queryFn: () => http.get('/webhooks'),
+    select: (data) => data.items,
   })
 
 export const webhookDeliveriesQuery = (id: string) =>
   queryOptions({
     queryKey: keys.webhookDeliveries(id),
-    queryFn: () => http.get<{ items: WebhookDelivery[] }>(`/webhooks/${id}/deliveries`),
-    select: (data: { items: WebhookDelivery[] }) => data.items,
+    queryFn: () => http.get('/webhooks/:id/deliveries', { params: { id } }),
+    select: (data) => data.items,
   })

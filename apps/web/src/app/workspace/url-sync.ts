@@ -1,4 +1,3 @@
-import type { ObjectRecord } from '@kchs/contracts'
 import { http } from '~/shared/api/client.js'
 import { getObjectView, getScreen } from '~/shared/workspace/registry.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
@@ -108,7 +107,7 @@ export async function openFromLocation(
   }
 
   try {
-    const object = await http.get<ObjectRecord>(`/objects/${target.objectId}`)
+    const object = await http.get('/objects/:id', { params: { id: target.objectId } })
     // Обсуждение открывается в объекте, к которому оно относится
     const parentOfConversation =
       object.type === 'conversation' && typeof object.meta?.objectId === 'string'

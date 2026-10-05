@@ -1,4 +1,4 @@
-import type { EventEditScope, EventRecord, ResponseStatus } from '@kchs/contracts'
+import type { EventEditScope, EventRecord } from '@kchs/contracts'
 import {
   AlertDialog,
   Avatar,
@@ -32,6 +32,7 @@ import {
 } from 'lucide-react'
 import { type ReactNode, useId, useState } from 'react'
 import { ApiError, http } from '~/shared/api/client.js'
+import type { ApiBody } from '~/shared/api/route-types.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
 import { reminderLabel } from './event-editor.js'
@@ -95,8 +96,8 @@ export function EventDetails({
   const color = record.color ?? record.calendar.color
 
   const respond = useMutation({
-    mutationFn: (input: { status: ResponseStatus; comment?: string; proposal?: unknown }) =>
-      http.post<EventRecord>(`/events/${record.id}/respond`, input),
+    mutationFn: (input: ApiBody<'POST /events/:id/respond'>) =>
+      http.post('/events/:id/respond', { params: { id: record.id }, body: input }),
     onSuccess: () => {
       invalidate(record.id)
       toast.show({ title: t('calendar.respond.sent'), tone: 'success' })
@@ -108,9 +109,12 @@ export function EventDetails({
 
   const cancel = useMutation({
     mutationFn: (scope: EventEditScope) =>
-      http.post(`/events/${record.id}/cancel`, {
-        scope,
-        ...(scope !== 'series' && occurrence ? { recurrenceId: occurrence.recurrenceId } : {}),
+      http.post('/events/:id/cancel', {
+        params: { id: record.id },
+        body: {
+          scope,
+          ...(scope !== 'series' && occurrence ? { recurrenceId: occurrence.recurrenceId } : {}),
+        },
       }),
     onSuccess: () => {
       invalidate(record.id)
@@ -125,12 +129,15 @@ export function EventDetails({
 
   const acceptProposal = useMutation({
     mutationFn: (proposal: { startsAt: string; endsAt: string; recurrenceId: string | null }) =>
-      http.patch(`/events/${record.id}`, {
-        ...(record.rrule && proposal.recurrenceId
-          ? { scope: 'occurrence', recurrenceId: proposal.recurrenceId }
-          : { scope: 'series' }),
-        startsAt: proposal.startsAt,
-        endsAt: proposal.endsAt,
+      http.patch('/events/:id', {
+        params: { id: record.id },
+        body: {
+          ...(record.rrule && proposal.recurrenceId
+            ? { scope: 'occurrence', recurrenceId: proposal.recurrenceId }
+            : { scope: 'series' }),
+          startsAt: proposal.startsAt,
+          endsAt: proposal.endsAt,
+        },
       }),
     onSuccess: () => {
       invalidate(record.id)

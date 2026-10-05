@@ -189,6 +189,9 @@ const domainsOf = (value: string) =>
     .map((item) => item.trim().toLowerCase().replace(/^@/, ''))
     .filter((item) => item !== '')
 
+/** Реквизиты, которые правит форма; остальные сохраняются как были. */
+const FORM_DETAILS: readonly string[] = ['shortName', 'taxId', 'address', 'head', 'note']
+
 /** Пустые строки не сохраняются: справочник хранит только заполненные реквизиты. */
 const compact = (entries: Record<string, string>) =>
   Object.fromEntries(
@@ -223,9 +226,8 @@ function CorrespondentForm({
         name: value.name.trim(),
         details: {
           // Реквизиты, которых нет в форме, сохраняются как были
-          ...record?.details,
           ...Object.fromEntries(
-            ['shortName', 'taxId', 'address', 'head', 'note'].map((key) => [key, undefined]),
+            Object.entries(record?.details ?? {}).filter(([key]) => !FORM_DETAILS.includes(key)),
           ),
           ...compact({
             shortName: value.shortName,
@@ -244,8 +246,8 @@ function CorrespondentForm({
         mailDomains: value.kind === 'organization' ? domainsOf(value.mailDomains) : [],
       }
       return record
-        ? http.patch<CorrespondentRecord>(`/correspondents/${record.id}`, body)
-        : http.post<CorrespondentRecord>('/correspondents', body)
+        ? http.patch('/correspondents/:id', { params: { id: record.id }, body })
+        : http.post('/correspondents', { body })
     },
     onSuccess: (saved) => {
       toast.show({

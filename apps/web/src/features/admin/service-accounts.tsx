@@ -128,7 +128,7 @@ export function ServiceAccountDialog({
   const spaces = useSpaceChoices()
   const existing = useQuery({
     queryKey: [...keys.serviceAccounts, accountId],
-    queryFn: () => http.get<ServiceAccount>(`/service-accounts/${accountId}`),
+    queryFn: () => http.get('/service-accounts/:id', { params: { id: accountId! } }),
     enabled: open && accountId !== null,
   })
   const [form, setForm] = useState<FormState>(EMPTY)
@@ -152,8 +152,8 @@ export function ServiceAccountDialog({
         spaces: form.spaces,
       }
       return accountId
-        ? http.patch<ServiceAccount>(`/service-accounts/${accountId}`, payload)
-        : http.post<ServiceAccount>('/service-accounts', payload)
+        ? http.patch('/service-accounts/:id', { params: { id: accountId }, body: payload })
+        : http.post('/service-accounts', { body: payload })
     },
     onSuccess: async (account) => {
       await client.invalidateQueries({ queryKey: ['users'] })
@@ -366,7 +366,7 @@ export function ServiceAccountActions({
 
   const setStatus = useMutation({
     mutationFn: (status: 'active' | 'blocked') =>
-      http.patch(`/service-accounts/${user.id}`, { status }),
+      http.patch('/service-accounts/:id', { params: { id: user.id }, body: { status } }),
     onSuccess: (_result, status) => {
       toast.show({
         title: status === 'blocked' ? t('admin.users.blocked') : t('admin.users.unblocked'),

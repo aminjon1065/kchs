@@ -63,7 +63,10 @@ export function MessageItem({
 
   const react = useMutation({
     mutationFn: ({ emoji, on }: { emoji: string; on: boolean }) =>
-      http.put(`/messages/${message.id}/reactions`, { emoji, on }),
+      http.put('/messages/:messageId/reactions', {
+        params: { messageId: message.id },
+        body: { emoji, on },
+      }),
     onSuccess: () => void client.invalidateQueries({ queryKey: keys.discussion(objectId) }),
     onError: (err) => toast.error(err instanceof ApiError ? err.message : t('errors.unknown')),
   })
@@ -217,11 +220,14 @@ function MessageEditor({
     mutationFn: () => {
       const composed = composeMessage(draft, mentionsOf(message.body))
       if (!composed) throw new Error(t('discussion.editEmpty'))
-      return http.patch(`/messages/${message.id}`, {
-        body: composed.body,
-        text: composed.text,
-        mentions: composed.mentions,
-        mentionedObjectIds: message.mentionedObjectIds,
+      return http.patch('/messages/:messageId', {
+        params: { messageId: message.id },
+        body: {
+          body: composed.body,
+          text: composed.text,
+          mentions: composed.mentions,
+          mentionedObjectIds: message.mentionedObjectIds,
+        },
       })
     },
     onSuccess: () => {
@@ -345,7 +351,7 @@ export function DeleteMessageDialog({
   const toast = useToast()
   const client = useQueryClient()
   const remove = useMutation({
-    mutationFn: () => http.delete(`/messages/${messageId}`),
+    mutationFn: () => http.delete('/messages/:messageId', { params: { messageId } }),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: keys.discussion(objectId) })
       void client.invalidateQueries({ queryKey: ['chats'] })

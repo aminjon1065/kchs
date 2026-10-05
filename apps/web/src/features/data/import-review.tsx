@@ -45,7 +45,7 @@ export function ImportChanges({
   const [failure, setFailure] = useState<string | null>(null)
   const action = useMutation({
     mutationFn: (kind: 'publish' | 'cancel') =>
-      http.post<ImportRecord>(`/datasets/imports/${record.id}/${kind}`, {}),
+      http.post(`/datasets/imports/:id/${kind}` as const, { params: { id: record.id } }),
     onSuccess: (next) => {
       setFailure(null)
       client.setQueryData(dataKeys.import(record.id), next)

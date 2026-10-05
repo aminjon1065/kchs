@@ -1,6 +1,5 @@
 import { suggestChart } from '@kchs/chart-spec'
 import {
-  type AskDataResult,
   type ChartSpec,
   type ChartType,
   type DatasetRecord,
@@ -124,7 +123,7 @@ function VisualBody({
   const specKey = useDebouncedValue(spec ? JSON.stringify(spec) : '', 400)
   const result = useQuery({
     queryKey: notebookKeys.cell(notebookId, cellId, specKey),
-    queryFn: () => http.post<QueryResult>('/queries/run', { spec: JSON.parse(specKey) }),
+    queryFn: () => http.post('/queries/run', { body: { spec: JSON.parse(specKey) } }),
     enabled: Boolean(specKey),
     placeholderData: keepPreviousData,
     retry: false,
@@ -281,7 +280,7 @@ function SqlBody({ cell, cellId }: { cell: CellMap; cellId: string }) {
   const values = useMemo(() => sqlParams(params, timezone), [params, timezone])
   const result = useQuery({
     queryKey: notebookKeys.cell(notebookId, cellId, { sql: submitted, values }),
-    queryFn: () => http.post<QueryResult>('/sql/run', { sql: submitted, params: values }),
+    queryFn: () => http.post('/sql/run', { body: { sql: submitted, params: values } }),
     enabled: canSql && Boolean(submitted.trim()),
     placeholderData: keepPreviousData,
     retry: false,
@@ -368,7 +367,7 @@ export function AiCell({ cell, cellId }: { cell: CellMap; cellId: string }) {
 
   const ask = useMutation({
     mutationFn: (text: string) =>
-      http.post<AskDataResult>(`/datasets/${datasetId}/ask`, { question: text }),
+      http.post('/datasets/:id/ask', { params: { id: datasetId! }, body: { question: text } }),
     onSuccess: (result, text) => {
       writeCell(cell, {
         // Подпись ячейки (оглавление) — название ответа, если своей нет

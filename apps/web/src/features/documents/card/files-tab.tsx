@@ -276,10 +276,13 @@ function NewVersion({ onDone }: { onDone: () => void }) {
         })
         uploaded.push(record.id)
       }
-      await http.post(`/documents/${document.id}/versions`, {
-        mainFileId: uploaded[0],
-        attachmentIds: uploaded.slice(1),
-        note: note.trim() || null,
+      await http.post('/documents/:id/versions', {
+        params: { id: document.id },
+        body: {
+          mainFileId: uploaded[0]!,
+          attachmentIds: uploaded.slice(1),
+          note: note.trim() || null,
+        },
       })
     },
     onSuccess: () => {

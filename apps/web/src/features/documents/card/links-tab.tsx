@@ -71,7 +71,9 @@ export function LinksTab() {
 
   const unlink = useMutation({
     mutationFn: (link: LinkView) =>
-      http.delete(`/objects/${document.id}/links/${link.object.id}/${link.kind}`),
+      http.delete('/objects/:id/links/:targetId/:kind', {
+        params: { id: document.id, targetId: link.object.id, kind: link.kind },
+      }),
     onSuccess: () => refresh(),
     onError: (error) => toast.error(errorText(error, t('errors.unknown'))),
   })
@@ -208,7 +210,7 @@ function Correspondence() {
   const items = data?.items ?? []
 
   const reply = useMutation({
-    mutationFn: () => http.post<{ id: string }>(`/documents/${document.id}/reply`, {}),
+    mutationFn: () => http.post('/documents/:id/reply', { params: { id: document.id }, body: {} }),
     onSuccess: ({ id }) => {
       toast.show({ title: t('documents.reply.created'), tone: 'success' })
       refresh()
@@ -351,7 +353,11 @@ function AddLinkDialog({ onClose }: { onClose: () => void }) {
   const found = (data?.items ?? []).filter((item) => item.id !== document.id)
 
   const link = useMutation({
-    mutationFn: () => http.post(`/objects/${document.id}/links`, { targetId: target?.id, kind }),
+    mutationFn: () =>
+      http.post('/objects/:id/links', {
+        params: { id: document.id },
+        body: { targetId: target!.id, kind },
+      }),
     onSuccess: () => {
       toast.show({ title: t('documents.links.added'), tone: 'success' })
       refresh()

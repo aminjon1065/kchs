@@ -1,3 +1,5 @@
+import type { PasskeyCredentialResponse } from '@kchs/contracts'
+
 /**
  * Ключи входа в браузере (WebAuthn, ADR-0098).
  *
@@ -41,13 +43,7 @@ function descriptors(list: DescriptorJson[] | undefined): PublicKeyCredentialDes
 }
 
 /** Ответ устройства в форме, которую принимает сервер. */
-export interface CredentialPayload {
-  id: string
-  rawId: string
-  type: string
-  clientExtensionResults: Record<string, unknown>
-  response: Record<string, unknown>
-}
+export type CredentialPayload = PasskeyCredentialResponse
 
 type CreationOptionsJson = {
   challenge: string

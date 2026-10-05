@@ -1,10 +1,3 @@
-import type {
-  ReportRecord,
-  ReportRunList,
-  ReportSchedule,
-  ReportTemplateList,
-  ReportVersionList,
-} from '@kchs/contracts'
 import { queryOptions } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
 
@@ -24,7 +17,7 @@ export const reportKeys = {
 export const reportRunsQuery = (id: string) =>
   queryOptions({
     queryKey: reportKeys.runs(id),
-    queryFn: async () => (await http.get<ReportRunList>(`/reports/${id}/runs`)).items,
+    queryFn: async () => (await http.get('/reports/:id/runs', { params: { id } })).items,
     refetchInterval: (query) =>
       query.state.data?.some((run) => run.status === 'queued' || run.status === 'running')
         ? 2000
@@ -34,30 +27,29 @@ export const reportRunsQuery = (id: string) =>
 export const reportScheduleQuery = (id: string) =>
   queryOptions({
     queryKey: reportKeys.schedule(id),
-    queryFn: async () =>
-      (await http.get<{ schedule: ReportSchedule | null }>(`/reports/${id}/schedule`)).schedule,
+    queryFn: async () => (await http.get('/reports/:id/schedule', { params: { id } })).schedule,
   })
 
 /** Версии шаблона отчёта (ADR-0164). */
 export const reportVersionsQuery = (id: string) =>
   queryOptions({
     queryKey: reportKeys.versions(id),
-    queryFn: async () => (await http.get<ReportVersionList>(`/reports/${id}/versions`)).items,
+    queryFn: async () => (await http.get('/reports/:id/versions', { params: { id } })).items,
   })
 
 /** Библиотека шаблонов: встроенные и отчёты, отмеченные шаблоном. */
 export const reportTemplatesQuery = () =>
   queryOptions({
     queryKey: reportKeys.templates,
-    queryFn: async () => (await http.get<ReportTemplateList>('/reports/templates')).items,
+    queryFn: async () => (await http.get('/reports/templates')).items,
     staleTime: 60_000,
   })
 
 export const reportLibraryApi = {
   saveVersion: (id: string, label: string | null) =>
-    http.post<{ number: number }>(`/reports/${id}/versions`, { label }),
+    http.post('/reports/:id/versions', { params: { id }, body: { label } }),
   restore: (id: string, versionId: string) =>
-    http.post<ReportRecord>(`/reports/${id}/versions/${versionId}/restore`),
+    http.post('/reports/:id/versions/:versionId/restore', { params: { id, versionId } }),
   setTemplate: (id: string, template: boolean) =>
-    http.post<ReportRecord>(`/reports/${id}/template`, { template }),
+    http.post('/reports/:id/template', { params: { id }, body: { template } }),
 }

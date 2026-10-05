@@ -13,10 +13,11 @@ export type TaskStep =
 
 export function postTaskStep(taskId: string, step: TaskStep): Promise<TaskRecord> {
   if (step.kind === 'status') {
-    return http.post<TaskRecord>(`/tasks/${taskId}/status`, { status: step.status })
+    return http.post('/tasks/:id/status', { params: { id: taskId }, body: { status: step.status } })
   }
-  if (step.kind === 'cancel') return http.post<TaskRecord>(`/tasks/${taskId}/cancel`, {})
-  return http.post<TaskRecord>(`/tasks/${taskId}/${step.kind}`)
+  if (step.kind === 'cancel')
+    return http.post('/tasks/:id/cancel', { params: { id: taskId }, body: {} })
+  return http.post(`/tasks/:id/${step.kind}` as const, { params: { id: taskId } })
 }
 
 export function errorText(error: unknown, fallback: string): string {

@@ -69,7 +69,11 @@ export function AddMemberDialog({
   }
 
   const add = useMutation({
-    mutationFn: () => http.post(`/spaces/${spaceId}/members`, { userId: picked?.id, role }),
+    mutationFn: () =>
+      http.post('/spaces/:id/members', {
+        params: { id: spaceId },
+        body: { userId: picked!.id, role },
+      }),
     onSuccess: () => {
       toast.show({
         title: t('spaces.members.added', { name: picked?.title ?? '' }),
@@ -197,12 +201,18 @@ export function MemberControls({ spaceId, member }: { spaceId: string; member: S
 
   const change = useMutation({
     mutationFn: (role: SpaceRole) =>
-      http.put(`/spaces/${spaceId}/members/${member.userId}`, { role }),
+      http.put('/spaces/:id/members/:userId', {
+        params: { id: spaceId, userId: member.userId },
+        body: { role },
+      }),
     onSuccess: refresh,
     onError: failed,
   })
   const remove = useMutation({
-    mutationFn: () => http.delete(`/spaces/${spaceId}/members/${member.userId}`),
+    mutationFn: () =>
+      http.delete('/spaces/:id/members/:userId', {
+        params: { id: spaceId, userId: member.userId },
+      }),
     onSuccess: () => {
       toast.show({ title: t('spaces.members.removed', { name: member.displayName }), tone: 'info' })
       refresh()

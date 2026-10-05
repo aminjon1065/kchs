@@ -15,6 +15,7 @@ import { Download, FileImage, FileSpreadsheet, FileText } from 'lucide-react'
 import { type RefObject, useState } from 'react'
 import { ApiError, downloadFile, saveBlob } from '~/shared/api/client.js'
 import { meQuery } from '~/shared/api/queries.js'
+import type { ApiBody } from '~/shared/api/route-types.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 
@@ -26,10 +27,21 @@ export const chartHasImage = (type: string): boolean => !NO_IMAGE.has(type)
 const UNSAFE_NAME = /[\\/:*?"<>|]+/g
 
 /** Выгрузка данных: маршрут и тело без формата (формат добавляет меню). */
-export interface ResultData {
-  path: string
-  body: Record<string, unknown>
-}
+export type ResultData =
+  | { path: '/queries/export'; body: Omit<ApiBody<'POST /queries/export'>, 'format'> }
+  | {
+      path: '/dashboards/:id/export'
+      id: string
+      body: Omit<ApiBody<'POST /dashboards/:id/export'>, 'format'>
+    }
+
+const downloadResult = (data: ResultData, format: QueryExportFormat) =>
+  data.path === '/queries/export'
+    ? downloadFile('/queries/export', { body: { ...data.body, format } })
+    : downloadFile('/dashboards/:id/export', {
+        params: { id: data.id },
+        body: { ...data.body, format },
+      })
 
 /**
  * Меню «Экспорт» результата (ADR-0159): данные CSV и Excel — сервер считает
@@ -74,7 +86,7 @@ export function ResultExportMenu({
   const exportData = (format: QueryExportFormat) =>
     run(async () => {
       if (!data) return
-      const headers = await downloadFile(data.path, { ...data.body, format })
+      const headers = await downloadResult(data, format)
       if (headers.get(QUERY_EXPORT_HEADERS.truncated) === 'true') {
         const rows = Number(headers.get(QUERY_EXPORT_HEADERS.rows) ?? 0)
         toast.show({

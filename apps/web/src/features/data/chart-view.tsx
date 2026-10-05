@@ -23,6 +23,7 @@ import { PresenceAvatars } from '~/entities/objects/presence-avatars.js'
 import { useLabelledResult } from '~/features/gis/index.js'
 import { ApiError, http } from '~/shared/api/client.js'
 import { keys, meQuery, objectQuery } from '~/shared/api/queries.js'
+import type { ApiBody } from '~/shared/api/route-types.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
@@ -68,7 +69,8 @@ export function ChartView({ objectId, tabId }: { objectId: string; tabId: string
   const linkable = Boolean(group && dataset)
 
   const rename = useMutation({
-    mutationFn: (name: string) => http.patch(`/charts/${objectId}`, { name }),
+    mutationFn: (name: string) =>
+      http.patch('/charts/:id', { params: { id: objectId }, body: { name } }),
     onSuccess: (_result, name) => {
       setTabTitle(tabId, name)
       void client.invalidateQueries({ queryKey: keys.object(objectId) })
@@ -77,14 +79,14 @@ export function ChartView({ objectId, tabId }: { objectId: string; tabId: string
   })
 
   const trash = useMutation({
-    mutationFn: () => http.delete(`/objects/${objectId}`),
+    mutationFn: () => http.delete('/objects/:id', { params: { id: objectId } }),
     onSuccess: () => {
       toast.show({
         title: t('objects.trash.movedTo'),
         tone: 'info',
         action: {
           label: t('common.actions.undo'),
-          onClick: () => void http.post(`/objects/${objectId}/restore`),
+          onClick: () => void http.post('/objects/:id/restore', { params: { id: objectId } }),
         },
       })
       void client.invalidateQueries({ queryKey: ['objects'] })
@@ -108,7 +110,7 @@ export function ChartView({ objectId, tabId }: { objectId: string; tabId: string
   const noAccess =
     data.error instanceof ApiError && (data.error.status === 403 || data.error.status === 404)
   // Данные графика по датасету или сохранённому запросу — выгрузкой; у показателя — только картинка
-  const exportSpec =
+  const exportSpec: ApiBody<'POST /queries/export'>['spec'] | null =
     'query' in chart.spec.data
       ? chart.spec.data.query
       : 'queryId' in chart.spec.data

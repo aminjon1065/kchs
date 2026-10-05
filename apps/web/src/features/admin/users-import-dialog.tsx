@@ -93,7 +93,7 @@ export function UsersImportDialog({
 
   const start = useMutation({
     mutationFn: (mode: UsersImportMode) =>
-      http.post<{ importId: string }>('/admin/users/import', { fileId: file?.id, mode }),
+      http.post('/admin/users/import', { body: { fileId: file!.id, mode } }),
     onSuccess: (result) => {
       setCredentialsTaken(false)
       setImportId(result.importId)

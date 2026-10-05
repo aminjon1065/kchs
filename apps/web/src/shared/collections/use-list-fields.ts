@@ -1,4 +1,3 @@
-import type { ListFieldsResponse } from '@kchs/contracts'
 import type { FilterField } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
@@ -11,7 +10,7 @@ export function useListFields(types: string[]): { fields: FilterField[]; sortabl
   const key = types.join(',')
   const { data } = useQuery({
     queryKey: ['objects', 'fields', key],
-    queryFn: () => http.get<ListFieldsResponse>('/objects/fields', { query: { types: key } }),
+    queryFn: () => http.get('/objects/fields', { query: { types: key } }),
     staleTime: 10 * 60_000,
   })
   return useMemo(() => {

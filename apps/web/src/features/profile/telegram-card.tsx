@@ -1,4 +1,4 @@
-import type { TelegramLinkStart, TelegramStatus } from '@kchs/contracts'
+import type { TelegramLinkStart } from '@kchs/contracts'
 import { formatDate, formatDateTime } from '@kchs/fields'
 import { Button, Callout, Card, cn, useToast } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -24,7 +24,7 @@ export function TelegramCard() {
 
   const status = useQuery({
     queryKey: statusKey,
-    queryFn: () => http.get<TelegramStatus>('/me/telegram'),
+    queryFn: () => http.get('/me/telegram'),
     // Пока пользователь открывает бота, привязку ждём опросом
     refetchInterval: pending ? 3000 : false,
   })
@@ -38,13 +38,13 @@ export function TelegramCard() {
   }, [pending, linked, toast, t])
 
   const link = useMutation({
-    mutationFn: () => http.post<TelegramLinkStart>('/me/telegram/link'),
+    mutationFn: () => http.post('/me/telegram/link'),
     onSuccess: setPending,
     onError: () => toast.show({ title: t('profile.telegram.unavailable'), tone: 'danger' }),
   })
 
   const unlink = useMutation({
-    mutationFn: () => http.delete<{ ok: boolean }>('/me/telegram'),
+    mutationFn: () => http.delete('/me/telegram'),
     onSuccess: () => {
       toast.show({ title: t('profile.telegram.disconnected'), tone: 'success' })
       void client.invalidateQueries({ queryKey: statusKey })

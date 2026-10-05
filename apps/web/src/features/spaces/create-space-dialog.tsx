@@ -40,11 +40,13 @@ export function CreateSpaceDialog({
 
   const create = useMutation({
     mutationFn: () =>
-      http.post<{ id: string }>('/spaces', {
-        name: name.trim(),
-        key: key || toSlug(name),
-        kind,
-        description: description.trim() || null,
+      http.post('/spaces', {
+        body: {
+          name: name.trim(),
+          key: key || toSlug(name),
+          kind,
+          description: description.trim() || null,
+        },
       }),
     onSuccess: (result) => {
       toast.show({ title: t('spaces.create.created'), tone: 'success' })

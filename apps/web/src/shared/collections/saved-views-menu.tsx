@@ -1,4 +1,3 @@
-import type { SavedView } from '@kchs/contracts'
 import {
   Button,
   type CollectionState,
@@ -49,7 +48,7 @@ export function SavedViewsMenu({
   const queryKey = ['views', objectType, spaceId ?? null]
   const { data: views = [] } = useQuery({
     queryKey,
-    queryFn: () => http.get<{ items: SavedView[] }>('/views', { query: { objectType, spaceId } }),
+    queryFn: () => http.get('/views', { query: { objectType, spaceId } }),
     select: (data) => data.items,
   })
   const active = views.find((view) => view.id === activeViewId) ?? null
@@ -57,12 +56,14 @@ export function SavedViewsMenu({
 
   const create = useMutation({
     mutationFn: () =>
-      http.post<SavedView>('/views', {
-        title: title.trim(),
-        objectType,
-        shared,
-        spaceId: shared ? spaceId : undefined,
-        definition: toDefinition(state),
+      http.post('/views', {
+        body: {
+          title: title.trim(),
+          objectType,
+          shared,
+          spaceId: shared ? spaceId : undefined,
+          definition: toDefinition(state),
+        },
       }),
     onSuccess: (view) => {
       setSaveOpen(false)
@@ -76,7 +77,7 @@ export function SavedViewsMenu({
 
   const update = useMutation({
     mutationFn: (id: string) =>
-      http.patch<SavedView>(`/views/${id}`, { definition: toDefinition(state) }),
+      http.patch('/views/:id', { params: { id }, body: { definition: toDefinition(state) } }),
     onSuccess: () => void client.invalidateQueries({ queryKey }),
   })
 

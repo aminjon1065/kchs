@@ -252,7 +252,7 @@ function TemplatePanel({
         defaults: { ...template.defaults, subject: form.subject.trim() || undefined },
         isActive: form.active,
       }
-      return http.patch(`/document-templates/${template.id}`, body)
+      return http.patch('/document-templates/:id', { params: { id: template.id }, body })
     },
     onSuccess: () => {
       toast.show({ title: t('documents.templates.saved'), tone: 'success' })
@@ -269,7 +269,10 @@ function TemplatePanel({
         attachToObjectId: template.id,
         onProgress: setProgress,
       })
-      await http.post(`/document-templates/${template.id}/file`, { fileId: record.id })
+      await http.post('/document-templates/:id/file', {
+        params: { id: template.id },
+        body: { fileId: record.id },
+      })
     },
     onSuccess: () => {
       setProgress(null)
@@ -456,9 +459,11 @@ function CreateTemplateDialog({
   const [failure, setFailure] = useState<string | null>(null)
   const create = useMutation({
     mutationFn: () =>
-      http.post<DocumentTemplateRecord>('/document-templates', {
-        name: name.trim(),
-        typeId: typeId === ANY_TYPE ? null : typeId,
+      http.post('/document-templates', {
+        body: {
+          name: name.trim(),
+          typeId: typeId === ANY_TYPE ? null : typeId,
+        },
       }),
     onSuccess: (record) => {
       void client.invalidateQueries({ queryKey: ['documents', 'templates'] })

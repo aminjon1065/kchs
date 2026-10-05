@@ -2,7 +2,6 @@ import {
   INBOX_BULK_ACTION_KEY,
   INBOX_GROUPS,
   type InboxBulkOperation,
-  type InboxBulkResult,
   type InboxGroup,
   type InboxItem,
   inboxGroupOf,
@@ -72,16 +71,14 @@ export function InboxScreen() {
   // Отмеченные флажками дела — для массовых действий (ADR-0153)
   const [checked, setChecked] = useState<ReadonlySet<string>>(new Set())
 
-  const filters = { state: 'open', scope, due, ...(group === 'all' ? {} : { group }) }
+  const filters = { state: 'open' as const, scope, due, ...(group === 'all' ? {} : { group }) }
   // Дел бывает больше страницы: список догружается курсором, иначе часть дел
   // просто не видна (их у занятого сотрудника легко больше полусотни)
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
     queryKey: keys.inbox(filters),
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam }) =>
-      http.get<{ items: InboxItem[]; nextCursor: string | null }>('/inbox', {
-        query: { ...filters, ...(pageParam ? { cursor: pageParam } : {}) },
-      }),
+      http.get('/inbox', { query: { ...filters, ...(pageParam ? { cursor: pageParam } : {}) } }),
     getNextPageParam: (last) => last.nextCursor ?? undefined,
   })
   const { data: counts } = useQuery(inboxCountsQuery())
@@ -128,8 +125,11 @@ export function InboxScreen() {
 
   const snooze = useMutation({
     mutationFn: (itemId: string) =>
-      http.post(`/inbox/${itemId}/snooze`, {
-        until: new Date(Date.now() + 24 * 3600_000).toISOString(),
+      http.post('/inbox/:id/snooze', {
+        params: { id: itemId },
+        body: {
+          until: new Date(Date.now() + 24 * 3600_000).toISOString(),
+        },
       }),
     onSuccess: () => {
       toast.show({ title: t('inbox.snoozedUntilTomorrow'), tone: 'info' })
@@ -139,7 +139,7 @@ export function InboxScreen() {
 
   const bulk = useMutation({
     mutationFn: (operation: InboxBulkOperation) =>
-      http.post<InboxBulkResult>('/inbox/bulk', { ids: [...checked], operation }),
+      http.post('/inbox/bulk', { body: { ids: [...checked], operation } }),
     onSuccess: (result) => {
       toast.show({
         title: t('inbox.bulk.result', { done: result.done, skipped: result.skipped }),
@@ -473,7 +473,7 @@ function InboxDetail({ item, onSnooze }: { item: InboxItem; onSnooze: () => void
   // Действие выполняет модуль элемента (POST /inbox/{id}/act): он же закрывает дело
   const act = useMutation({
     mutationFn: (input: { action: string; comment?: string; payload?: Record<string, unknown> }) =>
-      http.post(`/inbox/${item.id}/act`, input),
+      http.post('/inbox/:id/act', { params: { id: item.id }, body: input }),
     onSuccess: () => {
       toast.show({ title: t('inbox.resolved'), tone: 'success' })
       setCommenting(null)

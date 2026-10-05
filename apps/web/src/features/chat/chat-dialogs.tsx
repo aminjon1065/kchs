@@ -1,4 +1,4 @@
-import type { ChatKind, ChatListItem, PresenceState } from '@kchs/contracts'
+import type { ChatKind, ChatListItem } from '@kchs/contracts'
 import {
   Button,
   Dialog,
@@ -49,11 +49,14 @@ export function NewChatDialog({
 
   const create = useMutation({
     mutationFn: () =>
-      http.post<ChatListItem>('/chats', {
-        kind,
-        ...(kind === 'direct' ? {} : { title: title.trim() }),
-        memberIds: kind === 'direct' ? (peer ? [peer.id] : []) : members.map((member) => member.id),
-        ...(kind === 'channel' ? { spaceId, privacy } : {}),
+      http.post('/chats', {
+        body: {
+          kind,
+          ...(kind === 'direct' ? {} : { title: title.trim() }),
+          memberIds:
+            kind === 'direct' ? (peer ? [peer.id] : []) : members.map((member) => member.id),
+          ...(kind === 'channel' ? { spaceId, privacy } : {}),
+        },
       }),
     onSuccess: (item) => {
       void client.invalidateQueries({ queryKey: chatKeys.all })
@@ -172,7 +175,10 @@ export function InviteDialog({
   const [members, setMembers] = useState<PickedUser[]>([])
   const invite = useMutation({
     mutationFn: () =>
-      http.post(`/chats/${conversationId}/invite`, { userIds: members.map((item) => item.id) }),
+      http.post('/chats/:id/invite', {
+        params: { id: conversationId },
+        body: { userIds: members.map((item) => item.id) },
+      }),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: chatKeys.all })
       onClose()
@@ -226,7 +232,8 @@ export function RenameDialog({
   const client = useQueryClient()
   const [title, setTitle] = useState(conversation.title)
   const rename = useMutation({
-    mutationFn: () => http.patch(`/chats/${conversation.id}`, { title: title.trim() }),
+    mutationFn: () =>
+      http.patch('/chats/:id', { params: { id: conversation.id }, body: { title: title.trim() } }),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: chatKeys.all })
       onClose()
@@ -288,11 +295,12 @@ export function ForwardDialog({
   const [target, setTarget] = useState('')
   const { data } = useQuery({
     queryKey: chatKeys.list('all'),
-    queryFn: () => http.get<{ items: ChatListItem[] }>('/chats', { query: { section: 'all' } }),
+    queryFn: () => http.get('/chats', { query: { section: 'all' } }),
   })
   const options = (data?.items ?? []).filter((item) => item.can.post)
   const forward = useMutation({
-    mutationFn: () => http.post('/chats/forward', { messageIds, toConversationIds: [target] }),
+    mutationFn: () =>
+      http.post('/chats/forward', { body: { messageIds, toConversationIds: [target] } }),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: chatKeys.all })
       toast.show({ title: t('chats.forwarded') })
@@ -365,10 +373,13 @@ export function MessageTaskDialog({
   const [days, setDays] = useState(3)
   const create = useMutation({
     mutationFn: () =>
-      http.post<{ taskId: string; key: string }>(`/chats/messages/${messageId}/task`, {
-        title: title.trim(),
-        ...(assignee ? { assigneeId: assignee.id } : {}),
-        dueWorkingDays: days,
+      http.post('/chats/messages/:messageId/task', {
+        params: { messageId },
+        body: {
+          title: title.trim(),
+          ...(assignee ? { assigneeId: assignee.id } : {}),
+          dueWorkingDays: days,
+        },
       }),
     onSuccess: (result) => {
       void client.invalidateQueries({ queryKey: chatKeys.all })
@@ -438,7 +449,8 @@ export function AttachDialog({ messageId, onClose }: { messageId: string; onClos
   const [objectId, setObjectId] = useState('')
   const { data } = useQuery(objectListQuery({ types: 'document', limit: 50 }))
   const attach = useMutation({
-    mutationFn: () => http.post(`/chats/messages/${messageId}/attach`, { objectId }),
+    mutationFn: () =>
+      http.post('/chats/messages/:messageId/attach', { params: { messageId }, body: { objectId } }),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: ['object'] })
       toast.show({ title: t('chats.attach.done') })
@@ -495,7 +507,7 @@ export function PresenceDialog({ onClose }: { onClose: () => void }) {
   const client = useQueryClient()
   const { data } = useQuery({
     queryKey: chatKeys.presence,
-    queryFn: () => http.get<PresenceState>('/me/presence'),
+    queryFn: () => http.get('/me/presence'),
   })
   const [status, setStatus] = useState<'online' | 'away' | 'dnd'>(data?.chosen ?? 'online')
   const [forHour, setForHour] = useState(false)
@@ -504,10 +516,12 @@ export function PresenceDialog({ onClose }: { onClose: () => void }) {
   )
   const save = useMutation({
     mutationFn: () =>
-      http.put<PresenceState>('/me/presence', {
-        status,
-        untilMinutes: forHour ? 60 : null,
-        quietHours: quiet,
+      http.put('/me/presence', {
+        body: {
+          status,
+          untilMinutes: forHour ? 60 : null,
+          quietHours: quiet,
+        },
       }),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: chatKeys.presence })

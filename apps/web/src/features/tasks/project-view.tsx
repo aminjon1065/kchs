@@ -1,4 +1,3 @@
-import type { ProjectRecord } from '@kchs/contracts'
 import {
   Badge,
   EmptyState,
@@ -44,7 +43,8 @@ export function ProjectView({
   const { data: project, error, isLoading, refetch } = useQuery(projectQuery(objectId))
 
   const rename = useMutation({
-    mutationFn: (name: string) => http.patch<ProjectRecord>(`/projects/${objectId}`, { name }),
+    mutationFn: (name: string) =>
+      http.patch('/projects/:id', { params: { id: objectId }, body: { name } }),
     onSuccess: (record) => {
       client.setQueryData(taskKeys.project(objectId), record)
       setTabTitle(tabId, record.name)

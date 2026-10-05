@@ -243,10 +243,12 @@ export function MapStudio({
   /** Файл геоданных на карту: импорт уже создал датасет — слой со стилем по умолчанию. */
   const addFileLayer = useMutation({
     mutationFn: async ({ datasetId, name }: { datasetId: string; name: string }) => {
-      const created = await http.post<{ id: string }>('/gis/layers', {
-        name,
-        spaceId: map?.spaceId,
-        datasetId,
+      const created = await http.post('/gis/layers', {
+        body: {
+          name,
+          spaceId: map!.spaceId,
+          datasetId,
+        },
       })
       return { id: created.id, name }
     },
@@ -268,8 +270,11 @@ export function MapStudio({
 
   const save = useMutation({
     mutationFn: () =>
-      http.patch(`/gis/maps/${objectId}`, {
-        spec: { ...(current as MapSpec), ...(view ? { camera: view } : {}) },
+      http.patch('/gis/maps/:id', {
+        params: { id: objectId },
+        body: {
+          spec: { ...(current as MapSpec), ...(view ? { camera: view } : {}) },
+        },
       }),
     onSuccess: () => {
       toast.show({ title: t('gis.map.saved'), tone: 'success' })
@@ -284,7 +289,8 @@ export function MapStudio({
   })
 
   const rename = useMutation({
-    mutationFn: (name: string) => http.patch(`/gis/maps/${objectId}`, { name }),
+    mutationFn: (name: string) =>
+      http.patch('/gis/maps/:id', { params: { id: objectId }, body: { name } }),
     onSuccess: (_result, name) => {
       setTabTitle(tabId, name)
       void client.invalidateQueries({ queryKey: keys.object(objectId) })
@@ -293,14 +299,14 @@ export function MapStudio({
   })
 
   const trash = useMutation({
-    mutationFn: () => http.delete(`/objects/${objectId}`),
+    mutationFn: () => http.delete('/objects/:id', { params: { id: objectId } }),
     onSuccess: () => {
       toast.show({
         title: t('objects.trash.movedTo'),
         tone: 'info',
         action: {
           label: t('common.actions.undo'),
-          onClick: () => void http.post(`/objects/${objectId}/restore`),
+          onClick: () => void http.post('/objects/:id/restore', { params: { id: objectId } }),
         },
       })
       void client.invalidateQueries({ queryKey: ['objects'] })

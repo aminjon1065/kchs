@@ -59,10 +59,10 @@ export function AcknowledgmentsTab() {
 
   const acknowledge = useMutation({
     mutationFn: (code?: string) =>
-      http.post<ObjectAcknowledgments>(
-        `/objects/${document.id}/acknowledgments/acknowledge`,
-        code ? { code } : {},
-      ),
+      http.post('/objects/:id/acknowledgments/acknowledge', {
+        params: { id: document.id },
+        body: code ? { code } : {},
+      }),
     onSuccess: (next) => {
       client.setQueryData(documentKeys.acknowledgments(document.id), next)
       void client.invalidateQueries({ queryKey: ['inbox'] })
@@ -73,7 +73,7 @@ export function AcknowledgmentsTab() {
   })
   const remind = useMutation({
     mutationFn: () =>
-      http.post<{ reminded: number }>(`/objects/${document.id}/acknowledgments/remind`, {}),
+      http.post('/objects/:id/acknowledgments/remind', { params: { id: document.id }, body: {} }),
     onSuccess: ({ reminded }) => {
       toast.show({
         title: t('documents.acknowledgments.reminded', { count: reminded }),
@@ -369,13 +369,16 @@ function SendDialog({
 
   const send = useMutation({
     mutationFn: () =>
-      http.post<AcknowledgmentRequestResult>(`/documents/${documentId}/acknowledgments`, {
-        userIds: ids('user'),
-        unitIds: ids('unit'),
-        groupIds: ids('group'),
-        dueDate: dueDate || null,
-        requireSecondFactor: requireCode,
-        note: note.trim() || null,
+      http.post('/documents/:id/acknowledgments', {
+        params: { id: documentId },
+        body: {
+          userIds: ids('user'),
+          unitIds: ids('unit'),
+          groupIds: ids('group'),
+          dueDate: dueDate || null,
+          requireSecondFactor: requireCode,
+          note: note.trim() || null,
+        },
       }),
     onSuccess: (outcome) => {
       void client.invalidateQueries({ queryKey: documentKeys.acknowledgments(documentId) })

@@ -1,4 +1,3 @@
-import type { CalendarSettings } from '@kchs/contracts'
 import { formatDateTime } from '@kchs/fields'
 import {
   Badge,
@@ -62,11 +61,15 @@ export function CalendarView({ objectId, tabId }: { objectId: string; tabId: str
 
   const show = useMutation({
     mutationFn: () =>
-      http.put<CalendarSettings>('/calendar/settings', {
-        ...(calendar?.mine
-          ? {}
-          : { addedCalendarIds: [...new Set([...(settings?.addedCalendarIds ?? []), objectId])] }),
-        shown: { ...(settings?.shown ?? {}), [objectId]: true },
+      http.put('/calendar/settings', {
+        body: {
+          ...(calendar?.mine
+            ? {}
+            : {
+                addedCalendarIds: [...new Set([...(settings?.addedCalendarIds ?? []), objectId])],
+              }),
+          shown: { ...(settings?.shown ?? {}), [objectId]: true },
+        },
       }),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: calendarKeys.all })

@@ -1,4 +1,3 @@
-import type { AssistantMessage, AssistantThread } from '@kchs/contracts'
 import {
   Button,
   Callout,
@@ -35,16 +34,13 @@ export function AssistantPanel({ objectId }: { objectId: string | null }) {
   const key = ['assistant', 'thread', objectId ?? 'global'] as const
   const { data: thread, isLoading } = useQuery({
     queryKey: key,
-    queryFn: () =>
-      http.get<AssistantThread>('/assistant/thread', {
-        query: objectId ? { objectId } : {},
-      }),
+    queryFn: () => http.get('/assistant/thread', { query: objectId ? { objectId } : {} }),
     enabled: status.data?.enabled ?? false,
   })
 
   const ask = useMutation({
     mutationFn: (text: string) =>
-      http.post<AssistantMessage>('/assistant/ask', { objectId, question: text }),
+      http.post('/assistant/ask', { body: { objectId, question: text } }),
     onSuccess: () => {
       setQuestion('')
       void client.invalidateQueries({ queryKey: key })
@@ -54,7 +50,8 @@ export function AssistantPanel({ objectId }: { objectId: string | null }) {
   })
 
   const clear = useMutation({
-    mutationFn: (threadId: string) => http.delete(`/assistant/threads/${threadId}`),
+    mutationFn: (threadId: string) =>
+      http.delete('/assistant/threads/:id', { params: { id: threadId } }),
     onSuccess: () => void client.invalidateQueries({ queryKey: key }),
   })
 

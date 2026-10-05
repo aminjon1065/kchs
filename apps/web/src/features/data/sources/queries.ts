@@ -1,16 +1,8 @@
 import type {
-  FeedPreview,
   FeedPreviewInput,
   FeedSourceCreateInput,
-  IntegrationCheckResult,
   SourceCreateInput,
-  SourceList,
-  SourcePreview,
   SourcePreviewInput,
-  SourceRecord,
-  SourceRunList,
-  SourceRunStarted,
-  SourceTableList,
   SourceUpdateInput,
 } from '@kchs/contracts'
 import { queryOptions } from '@tanstack/react-query'
@@ -33,7 +25,7 @@ export const sourceKeys = {
 export const sourceQuery = (id: string) =>
   queryOptions({
     queryKey: sourceKeys.one(id),
-    queryFn: () => http.get<SourceRecord>(`/sources/${id}`),
+    queryFn: () => http.get('/sources/:id', { params: { id } }),
     enabled: id.length > 0,
   })
 
@@ -42,14 +34,14 @@ const ACTIVE = new Set(['queued', 'running'])
 export const sourcesQuery = () =>
   queryOptions({
     queryKey: sourceKeys.list(),
-    queryFn: () => http.get<SourceList>('/sources'),
+    queryFn: () => http.get('/sources'),
     staleTime: 15_000,
   })
 
 export const sourceRunsQuery = (id: string) =>
   queryOptions({
     queryKey: sourceKeys.runs(id),
-    queryFn: () => http.get<SourceRunList>(`/sources/${id}/runs`, { query: { limit: 30 } }),
+    queryFn: () => http.get('/sources/:id/runs', { params: { id }, query: { limit: 30 } }),
     enabled: id.length > 0,
     // Пока синхронизация идёт — обновляем журнал
     refetchInterval: (query) =>
@@ -59,20 +51,21 @@ export const sourceRunsQuery = (id: string) =>
 export const sourceTablesQuery = (integrationId: string) =>
   queryOptions({
     queryKey: sourceKeys.tables(integrationId),
-    queryFn: () => http.get<SourceTableList>(`/sources/integrations/${integrationId}/tables`),
+    queryFn: () =>
+      http.get('/sources/integrations/:integrationId/tables', { params: { integrationId } }),
     enabled: integrationId.length > 0,
     retry: false,
     staleTime: 60_000,
   })
 
 export const sourceApi = {
-  create: (input: SourceCreateInput) => http.post<SourceRecord>('/sources', input),
-  createFeed: (input: FeedSourceCreateInput) => http.post<SourceRecord>('/sources/feeds', input),
-  previewFeed: (input: FeedPreviewInput) => http.post<FeedPreview>('/sources/feed/preview', input),
+  create: (input: SourceCreateInput) => http.post('/sources', { body: input }),
+  createFeed: (input: FeedSourceCreateInput) => http.post('/sources/feeds', { body: input }),
+  previewFeed: (input: FeedPreviewInput) => http.post('/sources/feed/preview', { body: input }),
   update: (id: string, input: SourceUpdateInput) =>
-    http.patch<SourceRecord>(`/sources/${id}`, input),
-  preview: (input: SourcePreviewInput) => http.post<SourcePreview>('/sources/preview', input),
-  check: (id: string) => http.post<IntegrationCheckResult>(`/sources/${id}/check`),
-  sync: (id: string) => http.post<SourceRunStarted>(`/sources/${id}/sync`),
-  remove: (id: string) => http.delete<void>(`/objects/${id}`),
+    http.patch('/sources/:id', { params: { id }, body: input }),
+  preview: (input: SourcePreviewInput) => http.post('/sources/preview', { body: input }),
+  check: (id: string) => http.post('/sources/:id/check', { params: { id } }),
+  sync: (id: string) => http.post('/sources/:id/sync', { params: { id } }),
+  remove: (id: string) => http.delete('/objects/:id', { params: { id } }),
 }

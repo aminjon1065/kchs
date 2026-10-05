@@ -1,4 +1,4 @@
-import type { ShareLink, ShareLinkCreated } from '@kchs/contracts'
+import type { ShareLink } from '@kchs/contracts'
 import { formatDate } from '@kchs/fields'
 import {
   Badge,
@@ -54,12 +54,15 @@ export function ShareLinksSection({ objectId }: { objectId: string }) {
 
   const create = useMutation({
     mutationFn: (input: Draft) =>
-      http.post<ShareLinkCreated>(`/objects/${objectId}/share-links`, {
-        level: 'view',
-        password: input.password || null,
-        expiresAt: input.expiresOn ? endOfDay(input.expiresOn) : null,
-        maxUses: input.maxUses ? Number(input.maxUses) : null,
-        includeAttachments: input.includeAttachments,
+      http.post('/objects/:id/share-links', {
+        params: { id: objectId },
+        body: {
+          level: 'view',
+          password: input.password || null,
+          expiresAt: input.expiresOn ? endOfDay(input.expiresOn) : null,
+          maxUses: input.maxUses ? Number(input.maxUses) : null,
+          includeAttachments: input.includeAttachments,
+        },
       }),
     onSuccess: (result) => {
       setDraft(null)
@@ -78,7 +81,8 @@ export function ShareLinksSection({ objectId }: { objectId: string }) {
   })
 
   const revoke = useMutation({
-    mutationFn: (linkId: string) => http.delete(`/objects/${objectId}/share-links/${linkId}`),
+    mutationFn: (linkId: string) =>
+      http.delete('/objects/:id/share-links/:linkId', { params: { id: objectId, linkId } }),
     onSuccess: () => {
       toast.show({ title: t('access.share.linkRevoked'), tone: 'success' })
       refresh()

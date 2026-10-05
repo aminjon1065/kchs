@@ -2,7 +2,6 @@ import type {
   DocumentClassification,
   DocumentExtractedField,
   DocumentExtraction,
-  DocumentRecord,
   FieldDef,
 } from '@kchs/contracts'
 import { localizedText } from '@kchs/i18n'
@@ -99,19 +98,19 @@ export function RegistrationAssist({
   // Схема полей типа — своим ключом: кэш карточки после регистрации не должен остаться черновиком
   const doc = useQuery({
     queryKey: ['object', documentId ?? '', 'document-assist-card'],
-    queryFn: () => http.get<DocumentRecord>(`/documents/${documentId}`),
+    queryFn: () => http.get('/documents/:id', { params: { id: documentId! } }),
     enabled,
   })
   // Вид документа по тексту скана (ADR-0126): ключ из заведённых в установке
   const [kind, setKind] = useState<DocumentClassification | null>(null)
   const classify = useMutation({
-    mutationFn: () => http.post<DocumentClassification>(`/documents/${documentId}/assist/classify`),
+    mutationFn: () => http.post('/documents/:id/assist/classify', { params: { id: documentId! } }),
     onSuccess: (data) => setKind(data),
     onError: (error) =>
       toast.error(error instanceof ApiError ? error.message : t('errors.unknown')),
   })
   const extract = useMutation({
-    mutationFn: () => http.post<DocumentExtraction>(`/documents/${documentId}/assist/extract`),
+    mutationFn: () => http.post('/documents/:id/assist/extract', { params: { id: documentId! } }),
     onSuccess: (data) => {
       setResult(data)
       setAccepted(new Set())

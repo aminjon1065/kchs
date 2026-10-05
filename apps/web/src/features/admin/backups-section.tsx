@@ -6,17 +6,6 @@ import { ApiError, http } from '~/shared/api/client.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 
-interface BackupRecord {
-  id: string
-  status: 'running' | 'done' | 'failed'
-  startedAt: string
-  finishedAt: string | null
-  sizeBytes: number | null
-  error: string | null
-  verifiedAt: string | null
-  verifiedNote: string | null
-}
-
 const KEY = ['admin', 'backups'] as const
 
 /**
@@ -32,13 +21,13 @@ export function BackupsSection() {
 
   const { data } = useQuery({
     queryKey: KEY,
-    queryFn: () => http.get<{ items: BackupRecord[] }>('/admin/backups'),
+    queryFn: () => http.get('/admin/backups'),
     refetchInterval: (query) =>
       query.state.data?.items.some((item) => item.status === 'running') ? 5_000 : false,
   })
 
   const run = useMutation({
-    mutationFn: () => http.post<BackupRecord>('/admin/backups'),
+    mutationFn: () => http.post('/admin/backups'),
     onSuccess: (record) => {
       void client.invalidateQueries({ queryKey: KEY })
       if (record.status === 'failed') toast.error(record.error ?? t('errors.unknown'))
@@ -49,7 +38,8 @@ export function BackupsSection() {
   })
 
   const verify = useMutation({
-    mutationFn: (id: string) => http.post(`/admin/backups/${id}/verified`, { note: '' }),
+    mutationFn: (id: string) =>
+      http.post('/admin/backups/:id/verified', { params: { id }, body: { note: '' } }),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: KEY })
       toast.show({ title: t('admin.backups.verified'), tone: 'success' })

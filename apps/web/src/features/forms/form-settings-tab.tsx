@@ -1,4 +1,4 @@
-import type { DatasetRecord, FormAssignment, FormDefinition, FormRecord } from '@kchs/contracts'
+import type { FormAssignment, FormDefinition, FormRecord } from '@kchs/contracts'
 import {
   Badge,
   Button,
@@ -46,7 +46,7 @@ export function FormSettingsTab({ form }: { form: FormRecord }) {
 
   const { data: dataset } = useQuery({
     queryKey: ['forms', 'dataset', form.datasetId],
-    queryFn: () => http.get<DatasetRecord>(`/datasets/${form.datasetId}`),
+    queryFn: () => http.get('/datasets/:id', { params: { id: form.datasetId } }),
   })
   const { data: units = [] } = useQuery(orgUnitsQuery())
 

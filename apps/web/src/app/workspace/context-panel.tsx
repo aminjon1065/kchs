@@ -1,10 +1,4 @@
-import {
-  atLeast,
-  type ObjectLineage,
-  type ObjectRecord,
-  type SimilarObjects,
-  type TagView,
-} from '@kchs/contracts'
+import { atLeast, type ObjectRecord, type TagView } from '@kchs/contracts'
 import { formatDateTime, formatRelativeTime } from '@kchs/fields'
 import {
   Avatar,
@@ -180,8 +174,8 @@ function InfoTab({ objectId }: { objectId: string }) {
 
   const favorite = useMutation({
     mutationFn: async (next: boolean) => {
-      if (next) await http.put(`/objects/${objectId}/favorite`)
-      else await http.delete(`/objects/${objectId}/favorite`)
+      if (next) await http.put('/objects/:id/favorite', { params: { id: objectId } })
+      else await http.delete('/objects/:id/favorite', { params: { id: objectId } })
     },
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: keys.object(objectId) })
@@ -286,7 +280,7 @@ function SimilarObjectsSection({ objectId }: { objectId: string }) {
   const { data } = useQuery({
     queryKey: ['object', objectId, 'similar'],
     queryFn: () =>
-      http.get<SimilarObjects>(`/objects/${objectId}/similar`, { query: { limit: 6 } }),
+      http.get('/objects/:id/similar', { params: { id: objectId }, query: { limit: 6 } }),
     staleTime: 5 * 60_000,
   })
   if (!data?.enabled || data.items.length === 0) return null
@@ -352,13 +346,13 @@ function ObjectTags({ object }: { object: ObjectRecord }) {
 
   const add = useMutation({
     mutationFn: (name: string) =>
-      http.post<{ items: TagView[] }>(`/objects/${object.id}/tags`, { name }),
+      http.post('/objects/:id/tags', { params: { id: object.id }, body: { name } }),
     onSuccess: (data) => apply(data.items),
     onError: failed,
   })
   const remove = useMutation({
     mutationFn: (tagId: string) =>
-      http.delete<{ items: TagView[] }>(`/objects/${object.id}/tags/${tagId}`),
+      http.delete('/objects/:id/tags/:tagId', { params: { id: object.id, tagId } }),
     onSuccess: (data) => apply(data.items),
     onError: failed,
   })
@@ -431,7 +425,10 @@ function LinksTab({ objectId }: { objectId: string }) {
   }
 
   const detach = useMutation({
-    mutationFn: (fileId: string) => http.delete(`/objects/${objectId}/links/${fileId}/attachment`),
+    mutationFn: (fileId: string) =>
+      http.delete('/objects/:id/links/:targetId/:kind', {
+        params: { id: objectId, targetId: fileId, kind: 'attachment' },
+      }),
     onSuccess: () => {
       toast.show({ title: t('objects.attachments.detached'), tone: 'success' })
       refresh()
@@ -527,7 +524,8 @@ function LineageSection({ objectId }: { objectId: string }) {
   const openTab = useWorkspace((s) => s.openTab)
   const { data } = useQuery({
     queryKey: ['object', objectId, 'lineage'],
-    queryFn: () => http.get<ObjectLineage>(`/objects/${objectId}/lineage`, { query: { depth: 3 } }),
+    queryFn: () =>
+      http.get('/objects/:id/lineage', { params: { id: objectId }, query: { depth: 3 } }),
     staleTime: 60_000,
   })
   const sources = (data?.nodes ?? []).filter((node) => node.depth < 0)
@@ -608,13 +606,16 @@ function DiscussionTab({ objectId }: { objectId: string }) {
 
   const post = useMutation({
     mutationFn: (message: ComposedMessage) =>
-      http.post(`/objects/${objectId}/discussion/messages`, {
-        body: message.body,
-        text: message.text,
-        attachments: message.attachments.map((fileId) => ({ fileId })),
-        mentions: message.mentions,
-        mentionedObjectIds: [],
-        ...(threadRootId ? { threadRootId } : { anchor }),
+      http.post('/objects/:id/discussion/messages', {
+        params: { id: objectId },
+        body: {
+          body: message.body,
+          text: message.text,
+          attachments: message.attachments.map((fileId) => ({ fileId })),
+          mentions: message.mentions,
+          mentionedObjectIds: [],
+          ...(threadRootId ? { threadRootId } : { anchor }),
+        },
       }),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: keys.discussion(objectId) })

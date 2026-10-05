@@ -49,7 +49,7 @@ export function HomeSettingsDialog({
 
   const save = useMutation({
     mutationFn: (value: HomeWidget[] | null) =>
-      http.put('/me/preferences', { key: HOME_WIDGETS_PREFERENCE, value }),
+      http.put('/me/preferences', { body: { key: HOME_WIDGETS_PREFERENCE, value } }),
     onSuccess: () => {
       toast.show({ title: t('home.saved'), tone: 'success' })
       void client.invalidateQueries({ queryKey: keys.me })

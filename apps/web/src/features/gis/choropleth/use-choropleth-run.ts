@@ -1,11 +1,8 @@
 import {
-  type AnalysisRecord,
   ChoroplethParams,
   type ChoroplethParamsInput,
   choroplethLayerStyle,
-  type JobRecord,
   type MapLayerEntry,
-  type MapRecord,
 } from '@kchs/contracts'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -70,12 +67,14 @@ export function useChoroplethRun() {
         if (alive.current) setState(next)
       }
       try {
-        const created = await http.post<AnalysisRecord>('/analyses', {
-          name: input.analysisName,
-          spaceId: input.spaceId,
-          outputName: input.outputName,
-          choropleth: input.params,
-          run: true,
+        const created = await http.post('/analyses', {
+          body: {
+            name: input.analysisName,
+            spaceId: input.spaceId,
+            outputName: input.outputName,
+            choropleth: input.params,
+            run: true,
+          },
         })
         analysisId = created.id
         void client.invalidateQueries({ queryKey: ['objects'] })
@@ -88,9 +87,9 @@ export function useChoroplethRun() {
         ) {
           await new Promise((resolve) => setTimeout(resolve, POLL_MS))
           if (!alive.current) return
-          record = await http.get<AnalysisRecord>(`/analyses/${analysisId}`)
+          record = await http.get('/analyses/:id', { params: { id: analysisId } })
           const job = record.jobId
-            ? await http.get<JobRecord>(`/jobs/${record.jobId}`).catch(() => null)
+            ? await http.get('/jobs/:id', { params: { id: record.jobId } }).catch(() => null)
             : null
           update({ phase: 'analysis', analysisId, progress: job?.progress ?? null })
         }
@@ -101,11 +100,13 @@ export function useChoroplethRun() {
 
         update({ phase: 'layer', analysisId })
         const style = choroplethLayerStyle(ChoroplethParams.parse(input.params))
-        const layer = await http.post<{ id: string }>('/gis/layers', {
-          name: input.layerName,
-          spaceId: input.spaceId,
-          datasetId: record.outputDatasetId,
-          style,
+        const layer = await http.post('/gis/layers', {
+          body: {
+            name: input.layerName,
+            spaceId: input.spaceId,
+            datasetId: record.outputDatasetId,
+            style,
+          },
         })
         let mapId: string | null = null
         const target = input.target
@@ -113,16 +114,21 @@ export function useChoroplethRun() {
           target.addLayer(layer.id)
         } else if (target.kind === 'new') {
           mapId = (
-            await http.post<{ id: string }>('/gis/maps', {
-              name: target.name,
-              spaceId: input.spaceId,
-              spec: { layers: [entry(layer.id)] },
+            await http.post('/gis/maps', {
+              body: {
+                name: target.name,
+                spaceId: input.spaceId,
+                spec: { layers: [entry(layer.id)] },
+              },
             })
           ).id
         } else if (target.kind === 'existing') {
-          const map = await http.get<MapRecord>(`/gis/maps/${target.mapId}`)
-          await http.patch(`/gis/maps/${target.mapId}`, {
-            spec: { ...map.spec, layers: [...map.spec.layers, entry(layer.id)] },
+          const map = await http.get('/gis/maps/:id', { params: { id: target.mapId } })
+          await http.patch('/gis/maps/:id', {
+            params: { id: target.mapId },
+            body: {
+              spec: { ...map.spec, layers: [...map.spec.layers, entry(layer.id)] },
+            },
           })
           mapId = target.mapId
           void client.invalidateQueries({ queryKey: gisKeys.map(target.mapId) })

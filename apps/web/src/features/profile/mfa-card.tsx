@@ -20,7 +20,7 @@ export function MfaCard({ enabled }: { enabled: boolean }) {
   const refresh = () => void client.invalidateQueries({ queryKey: keys.me })
 
   const disable = useMutation({
-    mutationFn: () => http.delete<{ ok: boolean }>('/me/mfa', { code: code.trim() }),
+    mutationFn: () => http.delete('/me/mfa', { body: { code: code.trim() } }),
     onSuccess: (result) => {
       if (!result.ok) {
         setError(t('auth.mfa.invalid'))

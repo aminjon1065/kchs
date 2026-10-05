@@ -1,4 +1,4 @@
-import { API_SCOPES, type ApiToken, type ApiTokenCreated } from '@kchs/contracts'
+import { API_SCOPES, type ApiScope, type ApiToken, type ApiTokenCreated } from '@kchs/contracts'
 import { formatDateTime } from '@kchs/fields'
 import {
   AlertDialog,
@@ -48,7 +48,7 @@ export function ApiTokensCard() {
   const refresh = () => void client.invalidateQueries({ queryKey: keys.myApiTokens })
 
   const revoke = useMutation({
-    mutationFn: (id: string) => http.delete(`/me/api-tokens/${id}`),
+    mutationFn: (id: string) => http.delete('/me/api-tokens/:id', { params: { id } }),
     onSuccess: () => {
       toast.show({ title: t('profile.apiTokens.revoked'), tone: 'info' })
       setRevoking(null)
@@ -180,15 +180,17 @@ function CreateTokenDialog({
   const formId = useId()
   const [name, setName] = useState('')
   const [expiresAt, setExpiresAt] = useState('')
-  const [scopes, setScopes] = useState<string[]>([])
+  const [scopes, setScopes] = useState<ApiScope[]>([])
   const [error, setError] = useState<string | null>(null)
 
   const create = useMutation({
     mutationFn: () =>
-      http.post<ApiTokenCreated>('/me/api-tokens', {
-        name,
-        scopes,
-        expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null,
+      http.post('/me/api-tokens', {
+        body: {
+          name,
+          scopes,
+          expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null,
+        },
       }),
     onSuccess: (result) => {
       setName('')
@@ -200,7 +202,7 @@ function CreateTokenDialog({
     onError: (err) => setError(err instanceof ApiError ? err.message : t('errors.unknown')),
   })
 
-  const toggle = (scope: string) =>
+  const toggle = (scope: ApiScope) =>
     setScopes((current) =>
       current.includes(scope) ? current.filter((item) => item !== scope) : [...current, scope],
     )

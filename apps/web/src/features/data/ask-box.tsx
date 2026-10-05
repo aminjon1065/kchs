@@ -55,7 +55,7 @@ export function AskBox({
 
   const ask = useMutation({
     mutationFn: (text: string) =>
-      http.post<AskDataResult>(`/datasets/${datasetId}/ask`, { question: text }),
+      http.post('/datasets/:id/ask', { params: { id: datasetId }, body: { question: text } }),
     onSuccess: (result) => {
       setAnswer(result)
       onAnswer(result)

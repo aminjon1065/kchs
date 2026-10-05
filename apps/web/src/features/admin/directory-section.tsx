@@ -91,7 +91,7 @@ export function DirectorySection() {
     toast.error(err instanceof ApiError ? err.message : t('errors.unknown'))
 
   const save = useMutation({
-    mutationFn: (next: Draft) => http.put<DirectoryState>('/admin/directory', next),
+    mutationFn: (next: Draft) => http.put('/admin/directory', { body: next }),
     onSuccess: (saved) => {
       client.setQueryData(authProviderKeys.directory, saved)
       setDraft(null)
@@ -101,13 +101,13 @@ export function DirectorySection() {
   })
 
   const test = useMutation({
-    mutationFn: () => http.post<DirectoryTestResult>('/admin/directory/test'),
+    mutationFn: () => http.post('/admin/directory/test'),
     onSuccess: setTested,
     onError: failed,
   })
 
   const preview = useMutation({
-    mutationFn: () => http.post<DirectorySyncRun>('/admin/directory/preview'),
+    mutationFn: () => http.post('/admin/directory/preview'),
     onSuccess: (run) => {
       setPlan(run)
       void client.invalidateQueries({ queryKey: authProviderKeys.directorySyncs })
@@ -116,7 +116,7 @@ export function DirectorySection() {
   })
 
   const run = useMutation({
-    mutationFn: () => http.post<DirectorySyncRun>('/admin/directory/sync'),
+    mutationFn: () => http.post('/admin/directory/sync'),
     onSuccess: (result) => {
       setPlan(result)
       toast.show({

@@ -1,6 +1,6 @@
 import { formatRelativeTime } from '@kchs/fields'
 import { localizedText } from '@kchs/i18n'
-import type { ProcessDefinitionSummary, ProcessDraftSaved } from '@kchs/process'
+import type { ProcessDefinitionSummary } from '@kchs/process'
 import {
   Badge,
   Button,
@@ -253,12 +253,14 @@ function CreateDialog({
 
   const create = useMutation({
     mutationFn: () =>
-      http.post<ProcessDraftSaved>('/process-definitions', {
-        definition: templateDefinition(template, {
-          key: effectiveKey,
-          objectType,
-          name: { ru: name.trim() },
-        }),
+      http.post('/process-definitions', {
+        body: {
+          definition: templateDefinition(template, {
+            key: effectiveKey,
+            objectType,
+            name: { ru: name.trim() },
+          }),
+        },
       }),
     onSuccess: () => {
       toast.show({ title: t('processDesigner.create.created'), tone: 'success' })

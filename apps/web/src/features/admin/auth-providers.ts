@@ -1,4 +1,3 @@
-import type { DirectoryState, DirectorySyncRun, SsoState } from '@kchs/contracts'
 import { queryOptions } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
 
@@ -12,21 +11,18 @@ export const authProviderKeys = {
 export const directoryQuery = () =>
   queryOptions({
     queryKey: authProviderKeys.directory,
-    queryFn: () => http.get<DirectoryState>('/admin/directory'),
+    queryFn: () => http.get('/admin/directory'),
   })
 
 export const directorySyncsQuery = () =>
   queryOptions({
     queryKey: authProviderKeys.directorySyncs,
-    queryFn: () =>
-      http.get<{ items: DirectorySyncRun[] }>('/admin/directory/syncs', {
-        query: { limit: 20 },
-      }),
+    queryFn: () => http.get('/admin/directory/syncs', { query: { limit: 20 } }),
     select: (data) => data.items,
   })
 
 export const ssoQuery = () =>
   queryOptions({
     queryKey: authProviderKeys.sso,
-    queryFn: () => http.get<SsoState>('/admin/sso'),
+    queryFn: () => http.get('/admin/sso'),
   })

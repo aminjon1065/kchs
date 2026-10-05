@@ -1,4 +1,3 @@
-import type { DocumentRenderRecord } from '@kchs/contracts'
 import { useToast } from '@kchs/ui'
 import { useMutation } from '@tanstack/react-query'
 import { saveLink, waitForRender } from '~/features/documents/index.js'
@@ -25,7 +24,8 @@ export function useFileDownload() {
     mutationFn: async (input: { fileId: string; versionId?: string }) => {
       try {
         saveLink(
-          await http.get<{ url: string; name: string }>(`/files/${input.fileId}/download`, {
+          await http.get('/files/:id/download', {
+            params: { id: input.fileId },
             query: { versionId: input.versionId },
           }),
         )
@@ -34,16 +34,16 @@ export function useFileDownload() {
         if (!watermarkRequired(error)) throw error
       }
       toast.show({ title: t('files.watermark.preparing') })
-      const render = await http.post<DocumentRenderRecord>('/documents/watermarked', {
-        fileId: input.fileId,
+      const render = await http.post('/documents/watermarked', {
+        body: {
+          fileId: input.fileId,
+        },
       })
       const done = await waitForRender(render.id)
       if (done.status !== 'ready') {
         throw new Error(done.error ?? t('files.watermark.failed'))
       }
-      saveLink(
-        await http.get<{ url: string; name: string }>(`/documents/renders/${render.id}/download`),
-      )
+      saveLink(await http.get('/documents/renders/:id/download', { params: { id: render.id } }))
     },
     onError: (error) =>
       toast.error(error instanceof Error && error.message ? error.message : t('errors.unknown')),

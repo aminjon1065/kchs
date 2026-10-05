@@ -255,12 +255,7 @@ export function DashboardPrint({
   // Сессия пользователя: CSRF-токен из /me нужен POST-запросу данных плиток
   const me = useQuery({
     queryKey: ['print', 'me'],
-    queryFn: () =>
-      http
-        .get<{ session: { csrfToken: string }; user: { timezone: string } }>('/me', {
-          anonymous: true,
-        })
-        .catch(() => null),
+    queryFn: () => http.get('/me', { anonymous: true }).catch(() => null),
     retry: false,
   })
   useEffect(() => {
@@ -268,14 +263,18 @@ export function DashboardPrint({
   }, [me.data])
   const dashboard = useQuery({
     queryKey: ['print', 'dashboard', dashboardId],
-    queryFn: () => http.get<DashboardRecord>(`/dashboards/${dashboardId}`, { anonymous: true }),
+    queryFn: () => http.get('/dashboards/:id', { params: { id: dashboardId }, anonymous: true }),
     enabled: !me.isLoading,
     retry: false,
   })
   const data = useQuery({
     queryKey: ['print', 'dashboard', dashboardId, 'data', filters],
     queryFn: () =>
-      http.post<DashboardData>(`/dashboards/${dashboardId}/data`, { filters }, { anonymous: true }),
+      http.post('/dashboards/:id/data', {
+        params: { id: dashboardId },
+        body: { filters },
+        anonymous: true,
+      }),
     enabled: Boolean(me.data) && Boolean(dashboard.data),
     retry: false,
   })

@@ -122,8 +122,11 @@ function FillFromTemplate({ document }: { document: DocumentRecord }) {
 
   const fill = useMutation({
     mutationFn: async () => {
-      const render = await http.post<DocumentRenderRecord>(`/documents/${document.id}/fill`, {
-        templateId: chosen,
+      const render = await http.post('/documents/:id/fill', {
+        params: { id: document.id },
+        body: {
+          templateId: chosen,
+        },
       })
       void client.invalidateQueries({ queryKey: renderKeys.renders(document.id) })
       return waitForRender(render.id)

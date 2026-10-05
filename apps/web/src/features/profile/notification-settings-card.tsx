@@ -4,9 +4,6 @@ import {
   NOTIFICATION_CHANNELS,
   type NotificationCategory,
   type NotificationChannel,
-  type NotificationPreferences,
-  type PresenceState,
-  type TelegramStatus,
 } from '@kchs/contracts'
 import {
   Button,
@@ -50,18 +47,18 @@ export function NotificationSettingsCard() {
   const [presence, setPresence] = useState(false)
   const { data } = useQuery({
     queryKey: preferencesKey,
-    queryFn: () => http.get<NotificationPreferences>('/me/notification-preferences'),
+    queryFn: () => http.get('/me/notification-preferences'),
   })
   const telegram = useQuery({
     queryKey: ['me', 'telegram'],
-    queryFn: () => http.get<TelegramStatus>('/me/telegram'),
+    queryFn: () => http.get('/me/telegram'),
   })
   const push = useQuery(pushStatusQuery)
   // Диалог статуса берёт начальные значения из кэша: открываем его только с данными,
   // иначе «Сохранить» записало бы тихие часы по умолчанию поверх настроенных
   const presenceState = useQuery({
     queryKey: chatKeys.presence,
-    queryFn: () => http.get<PresenceState>('/me/presence'),
+    queryFn: () => http.get('/me/presence'),
   })
 
   const update = useMutation({
@@ -69,7 +66,7 @@ export function NotificationSettingsCard() {
       category: NotificationCategory
       channel: NotificationChannel
       mode: DeliveryMode
-    }) => http.put('/me/notification-preferences', input),
+    }) => http.put('/me/notification-preferences', { body: input }),
     onSuccess: () => void client.invalidateQueries({ queryKey: preferencesKey }),
     onError: (error) =>
       toast.error(error instanceof ApiError ? error.message : t('errors.unknown')),

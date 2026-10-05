@@ -212,10 +212,13 @@ function LayerTable({
     async (offset: number, current: number) => {
       fetching.current = true
       try {
-        const result = await http.post<QueryResult>(`/datasets/${layer.datasetId}/rows/query`, {
-          ...(JSON.parse(queryKey) as typeof query),
-          offset,
-          count: offset === 0,
+        const result = await http.post('/datasets/:id/rows/query', {
+          params: { id: layer.datasetId },
+          body: {
+            ...(JSON.parse(queryKey) as typeof query),
+            offset,
+            count: offset === 0,
+          },
         })
         if (current !== generation.current) return
         const page = toRows(result)
@@ -304,10 +307,13 @@ function LayerTable({
     const missing = selectedIds.filter((id) => !known.has(id)).slice(0, ZOOM_BATCH)
     if (missing.length > 0) {
       try {
-        const result = await http.post<QueryResult>(`/datasets/${layer.datasetId}/rows/query`, {
-          where: { field: '_id', op: 'in', value: missing.map(Number) },
-          limit: ZOOM_BATCH,
-          count: false,
+        const result = await http.post('/datasets/:id/rows/query', {
+          params: { id: layer.datasetId },
+          body: {
+            where: { field: '_id', op: 'in', value: missing.map(Number) },
+            limit: ZOOM_BATCH,
+            count: false,
+          },
         })
         for (const row of toRows(result).rows) {
           boxes.push(geometryBounds(row.values[layer.geometryField]))

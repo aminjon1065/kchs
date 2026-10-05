@@ -109,9 +109,12 @@ export function RowCard({
   const commit = async (key: string, value: unknown) => {
     if (!row) return
     try {
-      const next = await http.patch<DatasetRow>(`/datasets/${dataset.id}/rows/${rowId}`, {
-        values: { [key]: value },
-        ver: row._ver,
+      const next = await http.patch('/datasets/:id/rows/:rowId', {
+        params: { id: dataset.id, rowId },
+        body: {
+          values: { [key]: value },
+          ver: row._ver,
+        },
       })
       client.setQueryData(dataKeys.row(dataset.id, rowId), next)
       void client.invalidateQueries({ queryKey: dataKeys.rowHistory(dataset.id, rowId) })
@@ -128,7 +131,11 @@ export function RowCard({
   }
 
   const remove = useMutation({
-    mutationFn: () => http.post(`/datasets/${dataset.id}/rows/delete`, { ids: [rowId] }),
+    mutationFn: () =>
+      http.post('/datasets/:id/rows/delete', {
+        params: { id: dataset.id },
+        body: { ids: [rowId] },
+      }),
     onSuccess: () => {
       toast.show({ title: t('data.row.removed'), tone: 'success' })
       onChanged()
@@ -344,8 +351,11 @@ export function NewRowDialog({
 
   const submit = async (submitted: Record<string, unknown>) => {
     try {
-      const { items } = await http.post<{ items: DatasetRow[] }>(`/datasets/${dataset.id}/rows`, {
-        rows: [{ values: submitted }],
+      const { items } = await http.post('/datasets/:id/rows', {
+        params: { id: dataset.id },
+        body: {
+          rows: [{ values: submitted }],
+        },
       })
       toast.show({ title: t('data.row.created'), tone: 'success' })
       onCreated(items[0]?._id ?? null)

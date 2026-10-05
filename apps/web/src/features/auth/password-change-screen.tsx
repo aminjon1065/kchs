@@ -23,7 +23,9 @@ export function PasswordChangeScreen() {
 
   const change = useMutation({
     mutationFn: () =>
-      http.post('/me/password', { currentPassword, newPassword, revokeOtherSessions: true }),
+      http.post('/me/password', {
+        body: { currentPassword, newPassword, revokeOtherSessions: true },
+      }),
     onSuccess: () => {
       setError(null)
       void client.invalidateQueries({ queryKey: keys.me })

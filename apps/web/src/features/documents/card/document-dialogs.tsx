@@ -78,10 +78,13 @@ export function RegisterDialog({
 
   const register = useMutation({
     mutationFn: () =>
-      http.post<DocumentRecord>(`/documents/${document.id}/register`, {
-        journalId,
-        ...(reserved ? { reservationId } : {}),
-        ...(usesCase && caseId ? { caseId: caseId === NO_CASE ? null : caseId } : {}),
+      http.post('/documents/:id/register', {
+        params: { id: document.id },
+        body: {
+          journalId,
+          ...(reserved ? { reservationId } : {}),
+          ...(usesCase && caseId ? { caseId: caseId === NO_CASE ? null : caseId } : {}),
+        },
       }),
     onSuccess: (record) => {
       toast.show({
@@ -213,7 +216,10 @@ export function CancelDialog({
   const [failure, setFailure] = useState<string | null>(null)
   const cancel = useMutation({
     mutationFn: () =>
-      http.post<DocumentRecord>(`/documents/${document.id}/cancel`, { reason: reason.trim() }),
+      http.post('/documents/:id/cancel', {
+        params: { id: document.id },
+        body: { reason: reason.trim() },
+      }),
     onSuccess: (record) => {
       toast.show({ title: t('documents.cancel.done'), tone: 'info' })
       onDone(record)

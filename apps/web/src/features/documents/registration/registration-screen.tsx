@@ -1,4 +1,4 @@
-import type { Confidentiality, DocumentRecord, DocumentTypeRecord } from '@kchs/contracts'
+import type { Confidentiality, DocumentTypeRecord } from '@kchs/contracts'
 import {
   Button,
   Callout,
@@ -94,11 +94,13 @@ export function RegistrationScreen() {
   /** Черновик — с первым сканом или сохранением: к нему прикрепляются файлы. */
   const ensureDraft = async (current: DocumentTypeRecord): Promise<Draft> => {
     if (draft) return draft
-    const created = await http.post<{ id: string }>('/documents', {
-      typeId: current.id,
-      ...cardPayload(value),
+    const created = await http.post('/documents', {
+      body: {
+        typeId: current.id,
+        ...cardPayload(value),
+      },
     })
-    const record = await http.get<DocumentRecord>(`/documents/${created.id}`)
+    const record = await http.get('/documents/:id', { params: { id: created.id } })
     const next = { id: record.id, spaceId: record.spaceId }
     setDraft(next)
     return next
@@ -115,7 +117,10 @@ export function RegistrationScreen() {
         attachToObjectId: target.id,
         onProgress: setProgress,
       })
-      await http.post(`/documents/${target.id}/versions`, { mainFileId: uploaded.id })
+      await http.post('/documents/:id/versions', {
+        params: { id: target.id },
+        body: { mainFileId: uploaded.id },
+      })
       setScanFileId(uploaded.id)
     },
     onSettled: () => setProgress(null),
@@ -126,7 +131,7 @@ export function RegistrationScreen() {
     mutationFn: async () => {
       if (!type) return
       const target = await ensureDraft(type)
-      await http.patch(`/documents/${target.id}`, cardPayload(value))
+      await http.patch('/documents/:id', { params: { id: target.id }, body: cardPayload(value) })
     },
     onSuccess: () => {
       setErrors({})
@@ -143,8 +148,8 @@ export function RegistrationScreen() {
     mutationFn: async () => {
       if (!type) throw new Error(t('documents.register.noType'))
       const target = await ensureDraft(type)
-      await http.patch(`/documents/${target.id}`, cardPayload(value))
-      return http.post<DocumentRecord>(`/documents/${target.id}/register`, {})
+      await http.patch('/documents/:id', { params: { id: target.id }, body: cardPayload(value) })
+      return http.post('/documents/:id/register', { params: { id: target.id }, body: {} })
     },
     onSuccess: (record) => {
       toast.show({

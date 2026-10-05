@@ -201,13 +201,15 @@ export function RouteStartDialog({ onClose }: { onClose: () => void }) {
   const debounced = useDebouncedValue(body, 300)
   const preview = useQuery({
     queryKey: ['object', document.id, 'route-preview', debounced],
-    queryFn: () => http.post<ProcessPreview>(`/documents/${document.id}/routes/preview`, debounced),
+    queryFn: () =>
+      http.post('/documents/:id/routes/preview', { params: { id: document.id }, body: debounced! }),
     enabled: Boolean(debounced) && options?.blocker !== 'access',
     placeholderData: keepPreviousData,
   })
 
   const start = useMutation({
-    mutationFn: () => http.post<{ id: string }>(`/documents/${document.id}/routes`, body),
+    mutationFn: () =>
+      http.post('/documents/:id/routes', { params: { id: document.id }, body: body! }),
     onSuccess: () => {
       toast.show({ title: t('documents.route.started'), tone: 'success' })
       refresh()

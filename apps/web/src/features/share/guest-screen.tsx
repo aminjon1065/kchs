@@ -1,4 +1,4 @@
-import type { FileRecord, ObjectRecord, ShareLinkOpenResult } from '@kchs/contracts'
+import type { ShareLinkOpenResult } from '@kchs/contracts'
 import { formatDateTime, formatFileSize } from '@kchs/fields'
 import { Badge, Button, Callout, Field, ObjectIcon, PasswordInput, Spinner } from '@kchs/ui'
 import { useMutation, useQuery } from '@tanstack/react-query'
@@ -20,11 +20,11 @@ export function GuestShareScreen({ token }: { token: string }) {
 
   const open = useMutation({
     mutationFn: (value?: string) =>
-      http.post<ShareLinkOpenResult>(
-        `/share/${encodeURIComponent(token)}/open`,
-        value ? { password: value } : {},
-        { anonymous: true },
-      ),
+      http.post('/share/:token/open', {
+        params: { token },
+        body: value ? { password: value } : {},
+        anonymous: true,
+      }),
     onSuccess: (result) => {
       setError(null)
       setOpened(result)
@@ -52,17 +52,17 @@ export function GuestShareScreen({ token }: { token: string }) {
   const object = useQuery({
     queryKey: ['share', token, 'object', objectId],
     enabled: Boolean(objectId),
-    queryFn: () => http.get<ObjectRecord>(`/objects/${objectId}`),
+    queryFn: () => http.get('/objects/:id', { params: { id: objectId! } }),
   })
 
   const file = useQuery({
     queryKey: ['share', token, 'file', objectId],
     enabled: Boolean(objectId) && object.data?.type === 'file',
-    queryFn: () => http.get<FileRecord>(`/files/${objectId}`),
+    queryFn: () => http.get('/files/:id', { params: { id: objectId! } }),
   })
 
   const download = useMutation({
-    mutationFn: () => http.get<{ url: string; name: string }>(`/files/${objectId}/download`),
+    mutationFn: () => http.get('/files/:id/download', { params: { id: objectId! } }),
     onSuccess: (result) => window.open(result.url, '_blank', 'noopener'),
   })
 

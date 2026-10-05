@@ -1,10 +1,3 @@
-import type {
-  PageRecord,
-  PageSearchResult,
-  PageTreeNode,
-  PageVersionCompareResult,
-  PageVersionRecord,
-} from '@kchs/contracts'
 import { queryOptions } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
 
@@ -25,7 +18,7 @@ export const knowledgeKeys = {
 export const pageQuery = (id: string) =>
   queryOptions({
     queryKey: knowledgeKeys.page(id),
-    queryFn: () => http.get<PageRecord>(`/pages/${id}`),
+    queryFn: () => http.get('/pages/:id', { params: { id } }),
     staleTime: 10_000,
   })
 
@@ -34,11 +27,7 @@ export const pageTreeQuery = (spaceId: string, q = '') =>
   queryOptions({
     queryKey: knowledgeKeys.tree(spaceId, q),
     queryFn: async () =>
-      (
-        await http.get<{ items: PageTreeNode[] }>('/knowledge/tree', {
-          query: { spaceId, ...(q ? { q } : {}) },
-        })
-      ).items,
+      (await http.get('/knowledge/tree', { query: { spaceId, ...(q ? { q } : {}) } })).items,
     enabled: Boolean(spaceId),
     staleTime: 15_000,
   })
@@ -46,8 +35,7 @@ export const pageTreeQuery = (spaceId: string, q = '') =>
 export const pageVersionsQuery = (id: string) =>
   queryOptions({
     queryKey: knowledgeKeys.versions(id),
-    queryFn: async () =>
-      (await http.get<{ items: PageVersionRecord[] }>(`/pages/${id}/versions`)).items,
+    queryFn: async () => (await http.get('/pages/:id/versions', { params: { id } })).items,
   })
 
 /** Сравнение версий: `to` пустой — текущий текст страницы. */
@@ -55,7 +43,8 @@ export const pageCompareQuery = (id: string, from: string, to: string) =>
   queryOptions({
     queryKey: knowledgeKeys.compare(id, from, to),
     queryFn: () =>
-      http.get<PageVersionCompareResult>(`/pages/${id}/versions/compare`, {
+      http.get('/pages/:id/versions/compare', {
+        params: { id },
         query: { ...(from ? { from } : {}), ...(to ? { to } : {}) },
       }),
   })
@@ -63,9 +52,6 @@ export const pageCompareQuery = (id: string, from: string, to: string) =>
 export const knowledgeSearchQuery = (q: string, spaceId: string | null) =>
   queryOptions({
     queryKey: knowledgeKeys.search(q, spaceId),
-    queryFn: () =>
-      http.get<PageSearchResult>('/knowledge/search', {
-        query: { q, ...(spaceId ? { spaceId } : {}) },
-      }),
+    queryFn: () => http.get('/knowledge/search', { query: { q, ...(spaceId ? { spaceId } : {}) } }),
     enabled: q.trim().length > 1,
   })

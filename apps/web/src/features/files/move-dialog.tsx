@@ -46,9 +46,12 @@ export async function moveObjects(
   for (const item of items) {
     if (item.id === target.parentId) continue
     try {
-      await http.patch(`/objects/${item.id}`, {
-        parentId: target.parentId,
-        ...(item.spaceId !== target.spaceId ? { spaceId: target.spaceId } : {}),
+      await http.patch('/objects/:id', {
+        params: { id: item.id },
+        body: {
+          parentId: target.parentId,
+          ...(item.spaceId !== target.spaceId ? { spaceId: target.spaceId } : {}),
+        },
       })
       moved += 1
     } catch (error) {
@@ -231,7 +234,8 @@ export function RenameDialog({ item, onClose }: { item: Movable; onClose: () => 
   const [title, setTitle] = useState(item.title)
   const [error, setError] = useState<string | null>(null)
   const rename = useMutation({
-    mutationFn: () => http.patch(`/objects/${item.id}`, { title: title.trim() }),
+    mutationFn: () =>
+      http.patch('/objects/:id', { params: { id: item.id }, body: { title: title.trim() } }),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: ['objects'] })
       void client.invalidateQueries({ queryKey: ['object', item.id] })

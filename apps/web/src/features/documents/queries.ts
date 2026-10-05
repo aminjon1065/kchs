@@ -1,30 +1,4 @@
-import type {
-  CaseList,
-  CaseListQuery,
-  CaseRecord,
-  CaseSuggestions,
-  CorrespondenceChain,
-  CorrespondentList,
-  CorrespondentRecord,
-  DestructionActList,
-  DocumentDispatchList,
-  DocumentEmailList,
-  DocumentMailStatus,
-  DocumentNumberPreview,
-  DocumentRecord,
-  DocumentResolutions,
-  DocumentRouteOptions,
-  DocumentRouteStepVersions,
-  DocumentSignatureList,
-  DocumentSummary,
-  DocumentTerritoryList,
-  DocumentTypeRecord,
-  DocumentVersionList,
-  JournalRecord,
-  JournalReservationList,
-  ObjectAcknowledgments,
-  ResolutionTemplate,
-} from '@kchs/contracts'
+import type { CaseListQuery } from '@kchs/contracts'
 import { keepPreviousData, queryOptions } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
 
@@ -69,27 +43,25 @@ export const territoryDocumentsQuery = (territoryId: string) =>
   queryOptions({
     queryKey: documentKeys.territory(territoryId),
     queryFn: () =>
-      http.get<DocumentTerritoryList>(`/documents/territory/${territoryId}`, {
-        query: { limit: 200 },
-      }),
+      http.get('/documents/territory/:id', { params: { id: territoryId }, query: { limit: 200 } }),
   })
 
 export const documentQuery = (id: string) =>
   queryOptions({
     queryKey: documentKeys.document(id),
-    queryFn: () => http.get<DocumentRecord>(`/documents/${id}`),
+    queryFn: () => http.get('/documents/:id', { params: { id } }),
   })
 
 export const documentVersionsQuery = (id: string) =>
   queryOptions({
     queryKey: documentKeys.versions(id),
-    queryFn: async () => (await http.get<DocumentVersionList>(`/documents/${id}/versions`)).items,
+    queryFn: async () => (await http.get('/documents/:id/versions', { params: { id } })).items,
   })
 
 export const documentSummaryQuery = () =>
   queryOptions({
     queryKey: documentKeys.summary,
-    queryFn: () => http.get<DocumentSummary>('/documents/summary'),
+    queryFn: () => http.get('/documents/summary'),
     staleTime: 30_000,
   })
 
@@ -98,7 +70,7 @@ export const documentTypesQuery = (includeInactive = false) =>
     queryKey: documentKeys.types(includeInactive),
     queryFn: async () =>
       (
-        await http.get<{ items: DocumentTypeRecord[] }>('/document-types', {
+        await http.get('/document-types', {
           query: { includeInactive: includeInactive ? 'true' : undefined },
         })
       ).items,
@@ -110,7 +82,7 @@ export const journalsQuery = (includeInactive = false) =>
     queryKey: documentKeys.journals(includeInactive),
     queryFn: async () =>
       (
-        await http.get<{ items: JournalRecord[] }>('/journals', {
+        await http.get('/journals', {
           query: { includeInactive: includeInactive ? 'true' : undefined },
         })
       ).items,
@@ -121,27 +93,26 @@ export const journalReservationsQuery = (journalId: string) =>
   queryOptions({
     queryKey: documentKeys.reservations(journalId),
     queryFn: async () =>
-      (await http.get<JournalReservationList>(`/journals/${journalId}/reservations`)).items,
+      (await http.get('/journals/:id/reservations', { params: { id: journalId } })).items,
   })
 
 export const correspondentsQuery = (q: string) =>
   queryOptions({
     queryKey: documentKeys.correspondents(q),
-    queryFn: () =>
-      http.get<CorrespondentList>('/correspondents', { query: { q: q || undefined, limit: 50 } }),
+    queryFn: () => http.get('/correspondents', { query: { q: q || undefined, limit: 50 } }),
   })
 
 export const correspondentQuery = (id: string) =>
   queryOptions({
     queryKey: documentKeys.correspondent(id),
-    queryFn: () => http.get<CorrespondentRecord>(`/correspondents/${id}`),
+    queryFn: () => http.get('/correspondents/:id', { params: { id } }),
   })
 
 /** Маршруты, по которым можно отправить документ (ADR-0083). */
 export const documentRoutesQuery = (id: string) =>
   queryOptions({
     queryKey: documentKeys.routes(id),
-    queryFn: () => http.get<DocumentRouteOptions>(`/documents/${id}/routes`),
+    queryFn: () => http.get('/documents/:id/routes', { params: { id } }),
   })
 
 /** Какую версию видел каждый шаг согласования и подписи. */
@@ -150,7 +121,7 @@ export const documentRouteVersionsQuery = (id: string) =>
     queryKey: documentKeys.routeVersions(id),
     queryFn: async () =>
       new Map(
-        (await http.get<DocumentRouteStepVersions>(`/documents/${id}/route-versions`)).items.map(
+        (await http.get('/documents/:id/route-versions', { params: { id } })).items.map(
           (item) => [item.stepId, item.versionNumber] as const,
         ),
       ),
@@ -159,29 +130,27 @@ export const documentRouteVersionsQuery = (id: string) =>
 export const documentSignaturesQuery = (id: string) =>
   queryOptions({
     queryKey: documentKeys.signatures(id),
-    queryFn: async () =>
-      (await http.get<DocumentSignatureList>(`/documents/${id}/signatures`)).items,
+    queryFn: async () => (await http.get('/documents/:id/signatures', { params: { id } })).items,
   })
 
 /** Резолюции документа, направления на резолюцию и права смотрящего (ADR-0084). */
 export const resolutionsQuery = (id: string) =>
   queryOptions({
     queryKey: documentKeys.resolutions(id),
-    queryFn: () => http.get<DocumentResolutions>(`/documents/${id}/resolutions`),
+    queryFn: () => http.get('/documents/:id/resolutions', { params: { id } }),
   })
 
 /** Ознакомление с объектом — механизм ядра (ADR-0084). */
 export const acknowledgmentsQuery = (id: string) =>
   queryOptions({
     queryKey: documentKeys.acknowledgments(id),
-    queryFn: () => http.get<ObjectAcknowledgments>(`/objects/${id}/acknowledgments`),
+    queryFn: () => http.get('/objects/:id/acknowledgments', { params: { id } }),
   })
 
 export const resolutionTemplatesQuery = () =>
   queryOptions({
     queryKey: documentKeys.resolutionTemplates,
-    queryFn: async () =>
-      (await http.get<{ items: ResolutionTemplate[] }>('/resolution-templates')).items,
+    queryFn: async () => (await http.get('/resolution-templates')).items,
     staleTime: 5 * 60_000,
   })
 
@@ -193,7 +162,7 @@ export const casesQuery = (query: CaseListQuery = {}) =>
     placeholderData: keepPreviousData,
     queryFn: async () =>
       (
-        await http.get<CaseList>('/cases', {
+        await http.get('/cases', {
           query: {
             year: query.year,
             status: query.status,
@@ -207,7 +176,7 @@ export const casesQuery = (query: CaseListQuery = {}) =>
 export const caseQuery = (id: string) =>
   queryOptions({
     queryKey: documentKeys.case(id),
-    queryFn: () => http.get<CaseRecord>(`/cases/${id}`),
+    queryFn: () => http.get('/cases/:id', { params: { id } }),
   })
 
 export const caseSuggestionsQuery = (
@@ -217,7 +186,7 @@ export const caseSuggestionsQuery = (
   queryOptions({
     queryKey: documentKeys.caseSuggestions(documentId, purpose),
     queryFn: () =>
-      http.get<CaseSuggestions>(`/documents/${documentId}/cases`, { query: { purpose } }),
+      http.get('/documents/:id/cases', { params: { id: documentId }, query: { purpose } }),
   })
 
 /** Каким будет номер при регистрации: журнал и дело (`none` — без дела, `auto` — подбор). */
@@ -225,7 +194,8 @@ export const numberPreviewQuery = (documentId: string, journalId: string, caseId
   queryOptions({
     queryKey: documentKeys.numberPreview(documentId, journalId, caseId),
     queryFn: () =>
-      http.get<DocumentNumberPreview>(`/documents/${documentId}/number-preview`, {
+      http.get('/documents/:id/number-preview', {
+        params: { id: documentId },
         query: { journalId, ...(caseId === 'auto' ? {} : { caseId }) },
       }),
   })
@@ -234,7 +204,7 @@ export const dispatchesQuery = (documentId: string) =>
   queryOptions({
     queryKey: documentKeys.dispatches(documentId),
     queryFn: async () =>
-      (await http.get<DocumentDispatchList>(`/documents/${documentId}/dispatches`)).items,
+      (await http.get('/documents/:id/dispatches', { params: { id: documentId } })).items,
   })
 
 /** Письма исходящего (ADR-0149); пока письмо в очереди — опрос раз в 5 секунд. */
@@ -242,7 +212,7 @@ export const emailsQuery = (documentId: string) =>
   queryOptions({
     queryKey: documentKeys.emails(documentId),
     queryFn: async () =>
-      (await http.get<DocumentEmailList>(`/documents/${documentId}/emails`)).items,
+      (await http.get('/documents/:id/emails', { params: { id: documentId } })).items,
     refetchInterval: (query) =>
       query.state.data?.some((email) => email.status === 'queued') ? 5000 : false,
   })
@@ -251,26 +221,26 @@ export const emailsQuery = (documentId: string) =>
 export const mailOutStatusQuery = () =>
   queryOptions({
     queryKey: documentKeys.mailOut,
-    queryFn: () => http.get<DocumentMailStatus>('/documents/mail-out/status'),
+    queryFn: () => http.get('/documents/mail-out/status'),
     staleTime: 5 * 60_000,
   })
 
 export const correspondenceQuery = (documentId: string) =>
   queryOptions({
     queryKey: documentKeys.correspondence(documentId),
-    queryFn: () => http.get<CorrespondenceChain>(`/documents/${documentId}/correspondence`),
+    queryFn: () => http.get('/documents/:id/correspondence', { params: { id: documentId } }),
   })
 
 export const destructionActsQuery = () =>
   queryOptions({
     queryKey: documentKeys.destructionActs,
-    queryFn: async () => (await http.get<DestructionActList>('/cases/destruction-acts')).items,
+    queryFn: async () => (await http.get('/cases/destruction-acts')).items,
   })
 
 /** Дашборд «Канцелярия», если он заведён и виден пользователю (ADR-0086). */
 export const officeDashboardQuery = () =>
   queryOptions({
     queryKey: documentKeys.office,
-    queryFn: () => http.get<{ dashboardId: string | null }>('/documents/office'),
+    queryFn: () => http.get('/documents/office'),
     staleTime: 5 * 60_000,
   })

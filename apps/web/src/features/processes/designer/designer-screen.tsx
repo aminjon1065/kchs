@@ -4,7 +4,6 @@ import type {
   ProcessDefinitionDetails,
   ProcessDefinitionVersion,
   ProcessDraftSaved,
-  ProcessValidation,
 } from '@kchs/process'
 import {
   AlertDialog,
@@ -137,7 +136,7 @@ function Designer({ details, tabId }: { details: ProcessDefinitionDetails; tabId
     setChecking(true)
     const timer = setTimeout(() => {
       http
-        .post<ProcessValidation>('/process-definitions/validate', { definition })
+        .post('/process-definitions/validate', { body: { definition } })
         .then((result) => {
           if (ticket === generation.current) setIssues(result.issues)
         })
@@ -159,8 +158,11 @@ function Designer({ details, tabId }: { details: ProcessDefinitionDetails; tabId
   }
 
   const saveDraft = async (): Promise<ProcessDraftSaved> => {
-    const saved = await http.put<ProcessDraftSaved>(`/process-definitions/${details.key}/draft`, {
-      definition,
+    const saved = await http.put('/process-definitions/:key/draft', {
+      params: { key: details.key },
+      body: {
+        definition,
+      },
     })
     adopt(saved.version)
     setIssues(saved.issues)
@@ -186,7 +188,7 @@ function Designer({ details, tabId }: { details: ProcessDefinitionDetails; tabId
   const publish = useMutation({
     mutationFn: async () => {
       if (dirty || !details.draft) await saveDraft()
-      return http.post<ProcessDefinitionVersion>(`/process-definitions/${details.key}/publish`)
+      return http.post('/process-definitions/:key/publish', { params: { key: details.key } })
     },
     onSuccess: (published) => {
       adopt(published)
@@ -209,7 +211,8 @@ function Designer({ details, tabId }: { details: ProcessDefinitionDetails; tabId
   })
 
   const discard = useMutation({
-    mutationFn: () => http.delete(`/process-definitions/${details.key}/draft`),
+    mutationFn: () =>
+      http.delete('/process-definitions/:key/draft', { params: { key: details.key } }),
     onSuccess: () => {
       setConfirm(null)
       if (details.published) adopt(details.published)
@@ -222,9 +225,9 @@ function Designer({ details, tabId }: { details: ProcessDefinitionDetails; tabId
 
   const loadVersion = async (version: number) => {
     try {
-      const loaded = await http.get<ProcessDefinitionVersion>(
-        `/process-definitions/${details.key}/versions/${version}`,
-      )
+      const loaded = await http.get('/process-definitions/:key/versions/:version', {
+        params: { key: details.key, version },
+      })
       setDefinition(loaded.definition)
       setVersionsOpen(false)
       toast.show({ title: t('processDesigner.versions.loaded', { version }), tone: 'info' })

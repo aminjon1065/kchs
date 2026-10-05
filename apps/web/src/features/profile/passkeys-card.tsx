@@ -27,7 +27,7 @@ export function PasskeysCard() {
   const supported = passkeysSupported()
   const { data: items = [] } = useQuery({
     queryKey: passkeysKey,
-    queryFn: () => http.get<{ items: PasskeyInfo[] }>('/me/passkeys'),
+    queryFn: () => http.get('/me/passkeys'),
     select: (data) => data.items,
     enabled: supported,
   })
@@ -39,11 +39,13 @@ export function PasskeysCard() {
 
   const add = useMutation({
     mutationFn: async () => {
-      const options = await http.post<Record<string, unknown>>('/me/passkeys/options')
+      const options = await http.post('/me/passkeys/options')
       const credential = await createPasskey(options)
-      return http.post<PasskeyInfo>('/me/passkeys', {
-        name: name.trim() || t('profile.passkeys.defaultName'),
-        credential,
+      return http.post('/me/passkeys', {
+        body: {
+          name: name.trim() || t('profile.passkeys.defaultName'),
+          credential,
+        },
       })
     },
     onSuccess: () => {
@@ -61,7 +63,7 @@ export function PasskeysCard() {
   })
 
   const remove = useMutation({
-    mutationFn: (id: string) => http.delete(`/me/passkeys/${encodeURIComponent(id)}`),
+    mutationFn: (id: string) => http.delete('/me/passkeys/:keyId', { params: { keyId: id } }),
     onSuccess: () => {
       setRemoving(null)
       toast.show({ title: t('profile.passkeys.removed'), tone: 'info' })

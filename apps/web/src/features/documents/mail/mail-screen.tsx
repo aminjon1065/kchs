@@ -1,9 +1,4 @@
-import {
-  MAIL_QUEUE_RETENTION_DAYS,
-  type MailMessageList,
-  type MailMessageRecord,
-  type MailPollReport,
-} from '@kchs/contracts'
+import { MAIL_QUEUE_RETENTION_DAYS, type MailMessageRecord } from '@kchs/contracts'
 import { formatDate, formatDateTime, formatFileSize } from '@kchs/fields'
 import {
   Badge,
@@ -65,7 +60,7 @@ export function MailScreen() {
     queryKey: mailKeys.list(scope),
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam }) =>
-      http.get<MailMessageList>('/documents/mail', {
+      http.get('/documents/mail', {
         query: {
           ...(scope === 'draft' ? { status: 'draft' } : {}),
           ...(pageParam ? { cursor: pageParam } : {}),
@@ -79,7 +74,7 @@ export function MailScreen() {
   const selected = items.find((item) => item.id === selectedId) ?? items[0] ?? null
 
   const poll = useMutation({
-    mutationFn: () => http.post<MailPollReport>('/documents/mail/poll'),
+    mutationFn: () => http.post('/documents/mail/poll'),
     onSuccess: (report) => {
       toast.show({
         title: t('documents.mail.polled', {
@@ -248,7 +243,11 @@ function MailDetail({ item }: { item: MailMessageRecord }) {
   const [reason, setReason] = useState('')
 
   const reject = useMutation({
-    mutationFn: () => http.post(`/documents/mail/${item.id}/reject`, { reason: reason.trim() }),
+    mutationFn: () =>
+      http.post('/documents/mail/:id/reject', {
+        params: { id: item.id },
+        body: { reason: reason.trim() },
+      }),
     onSuccess: () => {
       setRejecting(false)
       setReason('')

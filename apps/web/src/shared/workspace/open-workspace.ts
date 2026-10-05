@@ -1,4 +1,4 @@
-import type { NamedWorkspace, NamedWorkspaceSummary } from '@kchs/contracts'
+import type { NamedWorkspaceSummary } from '@kchs/contracts'
 import { useToast } from '@kchs/ui'
 import { http } from '~/shared/api/client.js'
 import { useT } from '~/shared/i18n.js'
@@ -14,7 +14,7 @@ export function useOpenWorkspace() {
 
   return async (summary: Pick<NamedWorkspaceSummary, 'id' | 'title'>) => {
     try {
-      const workspace = await http.get<NamedWorkspace>(`/workspaces/${summary.id}`)
+      const workspace = await http.get('/workspaces/:id', { params: { id: summary.id } })
       const previous = takeSnapshot()
       applyLayout(workspace.layout)
       toast.show({

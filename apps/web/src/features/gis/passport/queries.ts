@@ -1,9 +1,4 @@
-import type {
-  PassportPeriod,
-  QueryResult,
-  TerritoryFeature,
-  TerritoryPassport,
-} from '@kchs/contracts'
+import type { PassportPeriod } from '@kchs/contracts'
 import { queryOptions } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
 import { type GeoCollection, resultFeatures } from '../choropleth/geojson.js'
@@ -19,8 +14,7 @@ export const passportKeys = {
 export const passportQuery = (id: string, period: PassportPeriod) =>
   queryOptions({
     queryKey: passportKeys.passport(id, period),
-    queryFn: () =>
-      http.get<TerritoryPassport>(`/gis/territories/${id}/passport`, { query: { period } }),
+    queryFn: () => http.get('/gis/territories/:id/passport', { params: { id }, query: { period } }),
     staleTime: 60_000,
   })
 
@@ -29,7 +23,7 @@ export const boundaryQuery = (id: string) =>
   queryOptions({
     queryKey: passportKeys.boundary(id),
     queryFn: () =>
-      http.get<TerritoryFeature>(`/gis/territories/${id}/geometry`, { query: { zoom: 9 } }),
+      http.get('/gis/territories/:id/geometry', { params: { id }, query: { zoom: 9 } }),
     staleTime: 10 * 60_000,
     retry: false,
   })
@@ -42,22 +36,24 @@ export const childShapesQuery = (id: string) =>
   queryOptions({
     queryKey: passportKeys.children(id),
     queryFn: async (): Promise<GeoCollection> => {
-      const result = await http.post<QueryResult>('/queries/run', {
-        spec: {
-          version: 1,
-          source: { kind: 'system', name: 'territories' },
-          steps: [
-            {
-              type: 'filter',
-              where: {
-                and: [
-                  { field: 'parent_id', op: 'eq', value: id },
-                  { field: 'geom', op: 'not_empty' },
-                ],
+      const result = await http.post('/queries/run', {
+        body: {
+          spec: {
+            version: 1,
+            source: { kind: 'system', name: 'territories' },
+            steps: [
+              {
+                type: 'filter',
+                where: {
+                  and: [
+                    { field: 'parent_id', op: 'eq', value: id },
+                    { field: 'geom', op: 'not_empty' },
+                  ],
+                },
               },
-            },
-            { type: 'select', fields: ['id', 'code', 'name', 'name_tg', 'name_en', 'geom'] },
-          ],
+              { type: 'select', fields: ['id', 'code', 'name', 'name_tg', 'name_en', 'geom'] },
+            ],
+          },
         },
       })
       return resultFeatures(result, 'geom')

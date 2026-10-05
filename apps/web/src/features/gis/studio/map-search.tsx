@@ -1,11 +1,4 @@
-import type {
-  Bbox,
-  GeocodeResponse,
-  LangText,
-  LayerRecord,
-  QueryResult,
-  TerritoryFeature,
-} from '@kchs/contracts'
+import type { Bbox, LangText, LayerRecord } from '@kchs/contracts'
 import {
   cn,
   IconButton,
@@ -70,11 +63,14 @@ async function searchLayer(
   search: string,
   where: ReturnType<typeof allOf>,
 ): Promise<Array<{ rowId: string; values: Record<string, unknown> }>> {
-  const result = await http.post<QueryResult>(`/datasets/${layer.datasetId}/rows/query`, {
-    search,
-    limit: OBJECTS_PER_LAYER,
-    count: false,
-    ...(where ? { where } : {}),
+  const result = await http.post('/datasets/:id/rows/query', {
+    params: { id: layer.datasetId },
+    body: {
+      search,
+      limit: OBJECTS_PER_LAYER,
+      count: false,
+      ...(where ? { where } : {}),
+    },
   })
   const names = result.fields.map((field) => field.name)
   const idIndex = names.indexOf('_id')
@@ -140,7 +136,7 @@ export function MapSearch() {
   const searching = text.length >= 2
   const places = useQuery({
     queryKey: ['geocode', text, PLACES],
-    queryFn: () => http.get<GeocodeResponse>('/gis/geocode', { query: { q: text, limit: PLACES } }),
+    queryFn: () => http.get('/gis/geocode', { query: { q: text, limit: PLACES } }),
     enabled: searching && coords.length === 0,
     staleTime: 60_000,
     retry: false,
@@ -305,7 +301,8 @@ export function MapSearch() {
         if (option.bbox) {
           // Граница единицы — упрощённая под масштаб, взамен метки центра
           void http
-            .get<TerritoryFeature>(`/gis/territories/${option.id}/geometry`, {
+            .get('/gis/territories/:id/geometry', {
+              params: { id: option.id },
               query: { zoom: 10 },
             })
             .then((feature) =>

@@ -128,8 +128,11 @@ export function RestoreVersionDialog({
   const [error, setError] = useState<string | null>(null)
   const restore = useMutation({
     mutationFn: () =>
-      http.post(`/files/${fileId}/versions/${version.id}/restore`, {
-        ...(note.trim() ? { note: note.trim() } : {}),
+      http.post('/files/:id/versions/:versionId/restore', {
+        params: { id: fileId, versionId: version.id },
+        body: {
+          ...(note.trim() ? { note: note.trim() } : {}),
+        },
       }),
     onSuccess: () => {
       toast.show({

@@ -164,9 +164,9 @@ function Requests({ view }: { view: DocumentResolutions }) {
   const { document } = useDocument()
   const cancel = useMutation({
     mutationFn: (requestId: string) =>
-      http.delete<DocumentResolutions>(
-        `/documents/${document.id}/resolution-requests/${requestId}`,
-      ),
+      http.delete('/documents/:id/resolution-requests/:requestId', {
+        params: { id: document.id, requestId },
+      }),
     onSuccess: (next) => {
       client.setQueryData(documentKeys.resolutions(document.id), next)
       toast.show({ title: t('documents.resolutions.requestCancelled'), tone: 'success' })

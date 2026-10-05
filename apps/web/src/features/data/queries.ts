@@ -1,26 +1,10 @@
 import type {
-  AiStatus,
-  ChartRecord,
-  ColumnarCopy,
-  DashboardData,
-  DashboardRecord,
-  DatasetPolicies,
-  DatasetRecord,
-  DatasetRow,
-  DatasetRowHistoryEntry,
-  DatasetVersion,
   FieldOption,
-  FieldProfile,
-  ImportRecord,
   ImportStatus,
-  JobRecord,
   JobStatus,
-  MetricRecord,
-  MetricValue,
   MetricValueInput,
   QueryResult,
-  SqlSchema,
-  SystemDatasetSchema,
+  SYSTEM_DATASETS,
 } from '@kchs/contracts'
 import { IMPORT_FINAL_STATUSES } from '@kchs/contracts'
 import { queryOptions } from '@tanstack/react-query'
@@ -51,21 +35,21 @@ export const dataKeys = {
 export const aiStatusQuery = () =>
   queryOptions({
     queryKey: ['ai', 'status'] as const,
-    queryFn: () => http.get<AiStatus>('/ai/status'),
+    queryFn: () => http.get('/ai/status'),
     staleTime: 60_000,
   })
 
 export const datasetQuery = (id: string) =>
   queryOptions({
     queryKey: dataKeys.dataset(id),
-    queryFn: () => http.get<DatasetRecord>(`/datasets/${id}`),
+    queryFn: () => http.get('/datasets/:id', { params: { id } }),
   })
 
 /** Схема системного датасета — подписи полей показателя над ним (ADR-0082). */
-export const systemDatasetQuery = (name: string) =>
+export const systemDatasetQuery = (name: (typeof SYSTEM_DATASETS)[number]) =>
   queryOptions({
     queryKey: ['system-dataset', name] as const,
-    queryFn: () => http.get<SystemDatasetSchema>(`/system-datasets/${name}`),
+    queryFn: () => http.get('/system-datasets/:name', { params: { name } }),
     staleTime: 5 * 60_000,
   })
 
@@ -73,21 +57,19 @@ export const systemDatasetQuery = (name: string) =>
 export const columnarCopyQuery = (id: string) =>
   queryOptions({
     queryKey: dataKeys.columnar(id),
-    queryFn: () => http.get<ColumnarCopy>(`/datasets/${id}/columnar`),
+    queryFn: () => http.get('/datasets/:id/columnar', { params: { id } }),
   })
 
 export const datasetVersionsQuery = (id: string) =>
   queryOptions({
     queryKey: dataKeys.versions(id),
-    queryFn: async () =>
-      (await http.get<{ items: DatasetVersion[] }>(`/datasets/${id}/versions`)).items,
+    queryFn: async () => (await http.get('/datasets/:id/versions', { params: { id } })).items,
   })
 
 export const datasetImportsQuery = (id: string) =>
   queryOptions({
     queryKey: dataKeys.imports(id),
-    queryFn: async () =>
-      (await http.get<{ items: ImportRecord[] }>(`/datasets/${id}/imports`)).items,
+    queryFn: async () => (await http.get('/datasets/:id/imports', { params: { id } })).items,
     // Идущий импорт (например, опубликованный после сводки изменений) — до его завершения
     refetchInterval: (query) =>
       query.state.data?.some((item) => !isImportFinished(item.status) && item.status !== 'review')
@@ -99,7 +81,7 @@ export const datasetImportsQuery = (id: string) =>
 export const sqlSchemaQuery = () =>
   queryOptions({
     queryKey: ['sql', 'schema'] as const,
-    queryFn: () => http.get<SqlSchema>('/sql/schema'),
+    queryFn: () => http.get('/sql/schema'),
     staleTime: 60_000,
   })
 
@@ -107,7 +89,7 @@ export const sqlSchemaQuery = () =>
 export const datasetRowQuery = (id: string, rowId: string) =>
   queryOptions({
     queryKey: dataKeys.row(id, rowId),
-    queryFn: () => http.get<DatasetRow>(`/datasets/${id}/rows/${rowId}`),
+    queryFn: () => http.get('/datasets/:id/rows/:rowId', { params: { id, rowId } }),
   })
 
 /** История строки: при ограничениях политики сервер отказывает (403) — без повторов. */
@@ -115,8 +97,7 @@ export const rowHistoryQuery = (id: string, rowId: string) =>
   queryOptions({
     queryKey: dataKeys.rowHistory(id, rowId),
     queryFn: async () =>
-      (await http.get<{ items: DatasetRowHistoryEntry[] }>(`/datasets/${id}/rows/${rowId}/history`))
-        .items,
+      (await http.get('/datasets/:id/rows/:rowId/history', { params: { id, rowId } })).items,
     retry: false,
   })
 
@@ -124,7 +105,7 @@ export const rowHistoryQuery = (id: string, rowId: string) =>
 export const datasetPoliciesQuery = (id: string) =>
   queryOptions({
     queryKey: dataKeys.policies(id),
-    queryFn: () => http.get<DatasetPolicies>(`/datasets/${id}/policies`),
+    queryFn: () => http.get('/datasets/:id/policies', { params: { id } }),
   })
 
 /** Больше строк справочника — подписи не подставляются (в ячейках остаются ключи). */
@@ -150,14 +131,16 @@ export const lookupOptionsQuery = (lookup: LookupRef) =>
     ] as const,
     queryFn: async (): Promise<FieldOption[]> => {
       const fields = [...new Set([lookup.keyField, lookup.labelField])]
-      const result = await http.post<QueryResult>('/queries/run', {
-        spec: {
-          version: 1,
-          source: { kind: 'dataset', id: lookup.datasetId },
-          steps: [
-            { type: 'select', fields },
-            { type: 'limit', limit: LOOKUP_OPTIONS_LIMIT + 1, offset: 0 },
-          ],
+      const result = await http.post('/queries/run', {
+        body: {
+          spec: {
+            version: 1,
+            source: { kind: 'dataset', id: lookup.datasetId },
+            steps: [
+              { type: 'select', fields },
+              { type: 'limit', limit: LOOKUP_OPTIONS_LIMIT + 1, offset: 0 },
+            ],
+          },
         },
       })
       if (result.rows.length > LOOKUP_OPTIONS_LIMIT) return []
@@ -197,27 +180,29 @@ export const lookupSearchQuery = (lookup: LookupRef, q: string) =>
     ] as const,
     queryFn: async (): Promise<FieldOption[]> => {
       const fields = [...new Set([lookup.keyField, lookup.labelField])]
-      const result = await http.post<QueryResult>('/queries/run', {
-        spec: {
-          version: 1,
-          source: { kind: 'dataset', id: lookup.datasetId },
-          steps: [
-            ...(q
-              ? [
-                  {
-                    type: 'filter',
-                    where: {
-                      or: [
-                        { field: lookup.labelField, op: 'contains', value: q },
-                        { field: lookup.keyField, op: 'eq', value: q },
-                      ],
+      const result = await http.post('/queries/run', {
+        body: {
+          spec: {
+            version: 1,
+            source: { kind: 'dataset', id: lookup.datasetId },
+            steps: [
+              ...(q
+                ? [
+                    {
+                      type: 'filter' as const,
+                      where: {
+                        or: [
+                          { field: lookup.labelField, op: 'contains', value: q },
+                          { field: lookup.keyField, op: 'eq', value: q },
+                        ],
+                      },
                     },
-                  },
-                ]
-              : []),
-            { type: 'select', fields },
-            { type: 'limit', limit: LOOKUP_SEARCH_LIMIT, offset: 0 },
-          ],
+                  ]
+                : []),
+              { type: 'select' as const, fields },
+              { type: 'limit' as const, limit: LOOKUP_SEARCH_LIMIT, offset: 0 },
+            ],
+          },
         },
       })
       return lookupPairs(lookup, result)
@@ -238,15 +223,17 @@ export const lookupLabelQuery = (lookup: LookupRef, key: string) =>
     ] as const,
     queryFn: async (): Promise<string | null> => {
       const fields = [...new Set([lookup.keyField, lookup.labelField])]
-      const result = await http.post<QueryResult>('/queries/run', {
-        spec: {
-          version: 1,
-          source: { kind: 'dataset', id: lookup.datasetId },
-          steps: [
-            { type: 'filter', where: { field: lookup.keyField, op: 'eq', value: key } },
-            { type: 'select', fields },
-            { type: 'limit', limit: 1, offset: 0 },
-          ],
+      const result = await http.post('/queries/run', {
+        body: {
+          spec: {
+            version: 1,
+            source: { kind: 'dataset', id: lookup.datasetId },
+            steps: [
+              { type: 'filter', where: { field: lookup.keyField, op: 'eq', value: key } },
+              { type: 'select', fields },
+              { type: 'limit', limit: 1, offset: 0 },
+            ],
+          },
         },
       })
       const [pair] = lookupPairs(lookup, result)
@@ -263,7 +250,7 @@ export const isJobFinished = (status: JobStatus | undefined): boolean =>
 export const exportJobQuery = (jobId: string) =>
   queryOptions({
     queryKey: ['job', jobId] as const,
-    queryFn: () => http.get<JobRecord>(`/jobs/${jobId}`),
+    queryFn: () => http.get('/jobs/:id', { params: { id: jobId } }),
     refetchInterval: (query) => (isJobFinished(query.state.data?.status) ? false : 1000),
   })
 
@@ -279,7 +266,7 @@ export const isImportFinished = (status: ImportStatus | undefined): boolean =>
 export const importQuery = (id: string) =>
   queryOptions({
     queryKey: dataKeys.import(id),
-    queryFn: () => http.get<ImportRecord>(`/datasets/imports/${id}`),
+    queryFn: () => http.get('/datasets/imports/:id', { params: { id } }),
     refetchInterval: (query) => {
       const status = query.state.data?.status
       return isImportFinished(status) || status === 'review' ? false : 1000
@@ -290,7 +277,8 @@ export const importQuery = (id: string) =>
 export const fieldProfileQuery = (datasetId: string, key: string) =>
   queryOptions({
     queryKey: dataKeys.profile(datasetId, key),
-    queryFn: () => http.get<FieldProfile>(`/datasets/${datasetId}/fields/${key}/profile`),
+    queryFn: () =>
+      http.get('/datasets/:id/fields/:key/profile', { params: { id: datasetId, key } }),
     staleTime: 60_000,
     retry: false,
   })
@@ -298,42 +286,42 @@ export const fieldProfileQuery = (datasetId: string, key: string) =>
 export const chartQuery = (id: string) =>
   queryOptions({
     queryKey: dataKeys.chart(id),
-    queryFn: () => http.get<ChartRecord>(`/charts/${id}`),
+    queryFn: () => http.get('/charts/:id', { params: { id } }),
   })
 
 /** Данные графика — с политиками пользователя; нет доступа к данным — ошибка 403/404. */
 export const chartDataQuery = (id: string) =>
   queryOptions({
     queryKey: dataKeys.chartData(id),
-    queryFn: () => http.post<QueryResult>(`/charts/${id}/data`, {}),
+    queryFn: () => http.post('/charts/:id/data', { params: { id }, body: {} }),
     retry: false,
   })
 
 export const dashboardQuery = (id: string) =>
   queryOptions({
     queryKey: dataKeys.dashboard(id),
-    queryFn: () => http.get<DashboardRecord>(`/dashboards/${id}`),
+    queryFn: () => http.get('/dashboards/:id', { params: { id } }),
   })
 
 /** Данные всех плиток одним запросом — с фильтрами дашборда. */
 export const dashboardDataQuery = (id: string, filters: Record<string, unknown>) =>
   queryOptions({
     queryKey: dataKeys.dashboardData(id, filters),
-    queryFn: () => http.post<DashboardData>(`/dashboards/${id}/data`, { filters }),
+    queryFn: () => http.post('/dashboards/:id/data', { params: { id }, body: { filters } }),
     placeholderData: (previous) => previous,
   })
 
 export const metricQuery = (id: string) =>
   queryOptions({
     queryKey: dataKeys.metric(id),
-    queryFn: () => http.get<MetricRecord>(`/metrics/${id}`),
+    queryFn: () => http.get('/metrics/:id', { params: { id } }),
   })
 
 /** Значение показателя — посчитано сервером с политиками пользователя (ADR-0058). */
 export const metricValueQuery = (id: string, input: Partial<MetricValueInput>) =>
   queryOptions({
     queryKey: dataKeys.metricValue(id, input),
-    queryFn: () => http.post<MetricValue>(`/metrics/${id}/value`, input),
+    queryFn: () => http.post('/metrics/:id/value', { params: { id }, body: input }),
     placeholderData: (previous) => previous,
     retry: false,
   })

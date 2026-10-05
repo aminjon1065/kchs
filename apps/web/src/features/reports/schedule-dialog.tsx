@@ -159,9 +159,12 @@ export function ReportScheduleDialog({
 
   const save = useMutation({
     mutationFn: (value: Draft) =>
-      http.put<ReportSchedule>(`/reports/${reportId}/schedule`, {
-        ...value,
-        recipients: value.recipients.map((recipient) => recipient.id),
+      http.put('/reports/:id/schedule', {
+        params: { id: reportId },
+        body: {
+          ...value,
+          recipients: value.recipients.map((recipient) => recipient.id),
+        },
       }),
     onSuccess: (saved) => {
       toast.show({ title: t('data.report.schedule.saved'), tone: 'success' })
@@ -172,7 +175,7 @@ export function ReportScheduleDialog({
     onError: fail,
   })
   const remove = useMutation({
-    mutationFn: () => http.delete(`/reports/${reportId}/schedule`),
+    mutationFn: () => http.delete('/reports/:id/schedule', { params: { id: reportId } }),
     onSuccess: () => {
       toast.show({ title: t('data.report.schedule.removed'), tone: 'info' })
       refresh()
@@ -181,8 +184,7 @@ export function ReportScheduleDialog({
     onError: fail,
   })
   const sendNow = useMutation({
-    mutationFn: () =>
-      http.post<{ runs: number; skipped: number }>(`/reports/${reportId}/schedule/run`),
+    mutationFn: () => http.post('/reports/:id/schedule/run', { params: { id: reportId } }),
     onSuccess: (result) => {
       toast.show({ title: t('data.report.schedule.sent', { count: result.runs }), tone: 'success' })
       refresh()

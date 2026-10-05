@@ -24,7 +24,7 @@ const groupsKey = ['groups'] as const
 
 export const groupsQuery = () => ({
   queryKey: groupsKey,
-  queryFn: async () => (await http.get<{ items: Group[] }>('/groups')).items,
+  queryFn: async () => (await http.get('/groups')).items,
 })
 
 const picked = (user: UserRef): PickedUser => ({
@@ -126,7 +126,7 @@ function GroupDialog({ group, onClose }: { group: Group | null; onClose: () => v
   const { data: current } = useQuery({
     queryKey: ['groups', group?.id, 'members'],
     queryFn: async () =>
-      (await http.get<{ items: UserRef[] }>(`/groups/${group?.id}/members`)).items,
+      (await http.get('/groups/:id/members', { params: { id: group!.id } })).items,
     enabled: Boolean(group),
   })
   useEffect(() => {
@@ -138,21 +138,29 @@ function GroupDialog({ group, onClose }: { group: Group | null; onClose: () => v
       let id = group?.id ?? null
       if (!id) {
         id = (
-          await http.post<{ id: string }>('/groups', {
-            name: name.trim(),
-            description: description.trim() || null,
+          await http.post('/groups', {
+            body: {
+              name: name.trim(),
+              description: description.trim() || null,
+            },
           })
         ).id
       } else if (
         name.trim() !== group?.name ||
         (description.trim() || null) !== group?.description
       ) {
-        await http.patch(`/groups/${id}`, {
-          name: name.trim(),
-          description: description.trim() || null,
+        await http.patch('/groups/:id', {
+          params: { id },
+          body: {
+            name: name.trim(),
+            description: description.trim() || null,
+          },
         })
       }
-      await http.put(`/groups/${id}/members`, { userIds: members.map((user) => user.id) })
+      await http.put('/groups/:id/members', {
+        params: { id },
+        body: { userIds: members.map((user) => user.id) },
+      })
     },
     onSuccess: () => {
       toast.show({ title: t('admin.groups.saved'), tone: 'success' })

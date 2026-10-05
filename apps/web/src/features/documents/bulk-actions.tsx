@@ -17,6 +17,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BookCheck, Briefcase, FileSpreadsheet } from 'lucide-react'
 import { useId, useState } from 'react'
 import { http } from '~/shared/api/client.js'
+import type { ApiBody } from '~/shared/api/route-types.js'
 import { useT } from '~/shared/i18n.js'
 import { PrincipalsPicker } from './principals-picker.js'
 import { casesQuery, documentKeys } from './queries.js'
@@ -88,8 +89,7 @@ function useBulk(onDone: () => void, onClose: () => void) {
   const [result, setResult] = useState<DocumentBulkResult | null>(null)
   const [failure, setFailure] = useState<string | null>(null)
   const run = useMutation({
-    mutationFn: (body: Record<string, unknown>) =>
-      http.post<DocumentBulkResult>('/documents/bulk', body),
+    mutationFn: (body: ApiBody<'POST /documents/bulk'>) => http.post('/documents/bulk', { body }),
     onSuccess: (outcome) => {
       void client.invalidateQueries({ queryKey: ['objects'] })
       void client.invalidateQueries({ queryKey: documentKeys.all })

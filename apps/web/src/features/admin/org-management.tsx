@@ -60,16 +60,18 @@ export function CreateUnitDialog({
 
   const create = useMutation({
     mutationFn: () =>
-      http.post<{ id: string }>('/org/units', {
-        name: {
-          ru: form.ru.trim(),
-          ...(form.tg.trim() ? { tg: form.tg.trim() } : {}),
-          ...(form.en.trim() ? { en: form.en.trim() } : {}),
+      http.post('/org/units', {
+        body: {
+          name: {
+            ru: form.ru.trim(),
+            ...(form.tg.trim() ? { tg: form.tg.trim() } : {}),
+            ...(form.en.trim() ? { en: form.en.trim() } : {}),
+          },
+          code: form.code.trim(),
+          kind: form.kind,
+          parentId: form.parentId === TOP_LEVEL ? null : form.parentId,
+          createSpace: form.createSpace,
         },
-        code: form.code.trim(),
-        kind: form.kind,
-        parentId: form.parentId === TOP_LEVEL ? null : form.parentId,
-        createSpace: form.createSpace,
       }),
     onSuccess: () => {
       onCreated()

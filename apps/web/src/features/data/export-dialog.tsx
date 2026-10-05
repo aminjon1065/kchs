@@ -1,11 +1,9 @@
 import {
   DATASET_EXPORT_FORMATS,
   DATASET_GEO_EXPORT_FORMATS,
-  type DatasetExportDownload,
   type DatasetExportFormat,
   type DatasetExportInput,
   type DatasetExportResult,
-  type DatasetExportStarted,
   type DatasetRecord,
   type FilterNode,
 } from '@kchs/contracts'
@@ -95,7 +93,7 @@ export function ExportDialog({
         ...(scope === 'view' && view.search ? { search: view.search } : {}),
         ...(scope === 'view' && view.fields.length > 0 ? { fields: view.fields } : {}),
       }
-      return http.post<DatasetExportStarted>(`/datasets/${dataset.id}/exports`, body)
+      return http.post('/datasets/:id/exports', { params: { id: dataset.id }, body })
     },
     onSuccess: (started) => {
       setFailure(null)
@@ -110,7 +108,7 @@ export function ExportDialog({
   const working = jobId !== null && !isJobFinished(job?.status)
 
   const download = useMutation({
-    mutationFn: () => http.get<DatasetExportDownload>(`/datasets/exports/${jobId}/download`),
+    mutationFn: () => http.get('/datasets/exports/:jobId/download', { params: { jobId: jobId! } }),
     // Файл отдаётся с заголовком attachment — страница остаётся на месте
     onSuccess: ({ url }) => window.location.assign(url),
     onError: (error) => setFailure(errorText(error, t('errors.unknown'))),

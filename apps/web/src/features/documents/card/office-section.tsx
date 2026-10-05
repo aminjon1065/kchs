@@ -176,7 +176,9 @@ function DocumentEmails({
   const client = useQueryClient()
   const retry = useMutation({
     mutationFn: (emailId: string) =>
-      http.post(`/documents/${documentId}/emails/${emailId}/retry`, {}),
+      http.post('/documents/:id/emails/:emailId/retry', {
+        params: { id: documentId, emailId },
+      }),
     onSuccess: () => {
       toast.show({ title: t('documents.email.retried'), tone: 'success' })
       void client.invalidateQueries({ queryKey: documentKeys.emails(documentId) })

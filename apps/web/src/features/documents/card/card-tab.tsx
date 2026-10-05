@@ -1,4 +1,3 @@
-import type { DocumentRecord } from '@kchs/contracts'
 import { formatDate, formatDateTime } from '@kchs/fields'
 import { Button, Callout, KeyValueList, useToast } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -37,7 +36,8 @@ export function CardTab() {
   }, [baseline])
 
   const save = useMutation({
-    mutationFn: () => http.patch<DocumentRecord>(`/documents/${document.id}`, cardPayload(value)),
+    mutationFn: () =>
+      http.patch('/documents/:id', { params: { id: document.id }, body: cardPayload(value) }),
     onSuccess: (record) => {
       client.setQueryData(documentKeys.document(document.id), record)
       setValue(cardValueOf(record))

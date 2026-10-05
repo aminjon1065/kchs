@@ -1,4 +1,3 @@
-import type { DocumentAssistStatus } from '@kchs/contracts'
 import { queryOptions } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
 
@@ -6,7 +5,7 @@ import { http } from '~/shared/api/client.js'
 export const documentAssistQuery = (id: string) =>
   queryOptions({
     queryKey: ['object', id, 'document-assist'] as const,
-    queryFn: () => http.get<DocumentAssistStatus>(`/documents/${id}/assist`),
+    queryFn: () => http.get('/documents/:id/assist', { params: { id } }),
     refetchInterval: (query) => (query.state.data?.blocker === 'text_pending' ? 3000 : false),
     staleTime: 10_000,
   })

@@ -123,7 +123,7 @@ export function ImportWizard({
 
   const analyze = useMutation({
     mutationFn: (input: { fileId: string; options: ImportOptions }) =>
-      http.post<ImportAnalysis>('/datasets/imports/analyze', input),
+      http.post('/datasets/imports/analyze', { body: input }),
     onSuccess: (result) => {
       setFailure(null)
       setAnalysis(result)
@@ -166,9 +166,8 @@ export function ImportWizard({
   const start = useMutation({
     mutationFn: () => {
       if (!file || !analysis) throw new Error(t('data.import.file.analyzeFailed'))
-      return http.post<ImportRecord>(
-        '/datasets/imports',
-        buildRunInput({
+      return http.post('/datasets/imports', {
+        body: buildRunInput({
           fileId: file.id,
           options,
           rows,
@@ -177,7 +176,7 @@ export function ImportWizard({
           onError,
           review,
         }),
-      )
+      })
     },
     onSuccess: (record) => {
       setFailure(null)

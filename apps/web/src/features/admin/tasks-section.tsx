@@ -1,4 +1,4 @@
-import type { ControlMetricKey, ControlMetricsState, TaskSettings } from '@kchs/contracts'
+import type { ControlMetricKey, TaskSettings } from '@kchs/contracts'
 import {
   Badge,
   Button,
@@ -43,7 +43,7 @@ export function TasksSection() {
   const [draft, setDraft] = useState<TaskSettings | null>(null)
 
   const save = useMutation({
-    mutationFn: (next: TaskSettings) => http.put<TaskSettings>('/admin/tasks/settings', next),
+    mutationFn: (next: TaskSettings) => http.put('/admin/tasks/settings', { body: next }),
     onSuccess: (saved) => {
       client.setQueryData(taskKeys.settings, saved)
       setDraft(null)
@@ -131,7 +131,7 @@ function ControlMetricsCard() {
   const [space, setSpace] = useState('')
 
   const setup = useMutation({
-    mutationFn: () => http.post<ControlMetricsState>('/admin/tasks/metrics', { spaceId: space }),
+    mutationFn: () => http.post('/admin/tasks/metrics', { body: { spaceId: space } }),
     onSuccess: (state) => {
       client.setQueryData(taskKeys.metrics, state)
       void client.invalidateQueries({ queryKey: taskKeys.all })

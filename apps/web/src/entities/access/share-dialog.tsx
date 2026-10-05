@@ -1,4 +1,4 @@
-import type { Level, PrincipalRef } from '@kchs/contracts'
+import type { Level, Principal, PrincipalRef } from '@kchs/contracts'
 import {
   Avatar,
   Badge,
@@ -66,11 +66,14 @@ export function ShareDialog({
 
   const grant = useMutation({
     mutationFn: () =>
-      http.post(`/objects/${objectId}/access`, {
-        grants: pending.map((principal) => ({
-          principal: { type: principal.type, id: principal.id },
-          level,
-        })),
+      http.post('/objects/:id/access', {
+        params: { id: objectId },
+        body: {
+          grants: pending.map((principal) => ({
+            principal: { type: principal.type, id: principal.id },
+            level,
+          })),
+        },
       }),
     onSuccess: () => {
       setPending([])
@@ -82,14 +85,14 @@ export function ShareDialog({
   })
 
   const revoke = useMutation({
-    mutationFn: (principal: { type: string; id: string }) =>
-      http.delete(`/objects/${objectId}/access`, { principal }),
+    mutationFn: (principal: Principal) =>
+      http.delete('/objects/:id/access', { params: { id: objectId }, body: { principal } }),
     onSuccess: () => void client.invalidateQueries({ queryKey: keys.objectAccess(objectId) }),
   })
 
   const setMode = useMutation({
     mutationFn: (mode: 'inherit' | 'restricted') =>
-      http.put(`/objects/${objectId}/access-mode`, { mode }),
+      http.put('/objects/:id/access-mode', { params: { id: objectId }, body: { mode } }),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: keys.objectAccess(objectId) })
       void client.invalidateQueries({ queryKey: keys.object(objectId) })

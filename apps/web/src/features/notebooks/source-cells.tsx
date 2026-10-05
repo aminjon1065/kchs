@@ -1,10 +1,4 @@
-import type {
-  FilterNode,
-  MetricValue,
-  MetricValueInput,
-  NotebookBindings,
-  QueryResult,
-} from '@kchs/contracts'
+import type { FilterNode, MetricValueInput, NotebookBindings } from '@kchs/contracts'
 import { notebookParamFields } from '@kchs/contracts'
 import { Chart, NumberTile } from '@kchs/ui'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
@@ -49,14 +43,14 @@ export function ChartCell({ cell, cellId }: { cell: CellMap; cellId: string }) {
   const specKey = runSpec ? JSON.stringify(runSpec) : ''
   const viaQuery = useQuery({
     queryKey: notebookKeys.cell(notebookId, cellId, specKey),
-    queryFn: () => http.post<QueryResult>('/queries/run', { spec: runSpec }),
+    queryFn: () => http.post('/queries/run', { body: { spec: runSpec! } }),
     enabled: Boolean(specKey),
     placeholderData: keepPreviousData,
     retry: false,
   })
   const viaChart = useQuery({
     queryKey: notebookKeys.cell(notebookId, cellId, { chart: chartId }),
-    queryFn: () => http.post<QueryResult>(`/charts/${chartId}/data`, {}),
+    queryFn: () => http.post('/charts/:id/data', { params: { id: chartId! }, body: {} }),
     enabled: Boolean(spec && !query),
     retry: false,
   })
@@ -143,7 +137,7 @@ export function MetricCell({ cell, cellId }: { cell: CellMap; cellId: string }) 
   }
   const value = useQuery({
     queryKey: notebookKeys.cell(notebookId, cellId, { metric: metricId, input }),
-    queryFn: () => http.post<MetricValue>(`/metrics/${metricId}/value`, input),
+    queryFn: () => http.post('/metrics/:id/value', { params: { id: metricId! }, body: input }),
     enabled: Boolean(metric.data && (dataset.data || dataset.error)),
     placeholderData: keepPreviousData,
     retry: false,

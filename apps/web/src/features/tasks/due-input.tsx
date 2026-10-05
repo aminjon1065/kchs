@@ -62,10 +62,7 @@ export function DueInput({
   const days = value.mode === 'working' ? workingDays(value) : null
   const { data: preview } = useQuery({
     queryKey: ['business-calendar', 'deadline', days],
-    queryFn: () =>
-      http.get<{ date: string; dueAt: string }>('/business-calendar/deadline', {
-        query: { workingDays: days ?? 0 },
-      }),
+    queryFn: () => http.get('/business-calendar/deadline', { query: { workingDays: days ?? 0 } }),
     enabled: days !== null,
     staleTime: 60_000,
   })

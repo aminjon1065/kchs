@@ -1,4 +1,3 @@
-import type { FindTimeResult } from '@kchs/contracts'
 import {
   AvailabilityGrid,
   type AvailabilityRow,
@@ -98,16 +97,18 @@ export function FindTimeSheet({
       { date, duration, workingOnly, people, resourceIds, optional, excludeEventId },
     ],
     queryFn: () =>
-      http.post<FindTimeResult>('/calendar/find-time', {
-        userIds: people.filter((id) => !optional.includes(id)),
-        optionalUserIds: optional,
-        resourceIds,
-        durationMinutes: duration,
-        from: new Date(instantAt(date, 0, tz)).toISOString(),
-        to: new Date(instantAt(addDays(date, 14), 0, tz)).toISOString(),
-        workingHoursOnly: workingOnly,
-        limit: 12,
-        ...(excludeEventId ? { excludeEventId } : {}),
+      http.post('/calendar/find-time', {
+        body: {
+          userIds: people.filter((id) => !optional.includes(id)),
+          optionalUserIds: optional,
+          resourceIds,
+          durationMinutes: duration,
+          from: new Date(instantAt(date, 0, tz)).toISOString(),
+          to: new Date(instantAt(addDays(date, 14), 0, tz)).toISOString(),
+          workingHoursOnly: workingOnly,
+          limit: 12,
+          ...(excludeEventId ? { excludeEventId } : {}),
+        },
       }),
   })
 

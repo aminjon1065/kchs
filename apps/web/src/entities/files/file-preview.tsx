@@ -1,4 +1,3 @@
-import type { FilePreviews, FileText } from '@kchs/contracts'
 import { ObjectIcon, Skeleton, Spinner } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle } from 'lucide-react'
@@ -29,7 +28,7 @@ export function FilePreview({
   const t = useT()
   const previews = useQuery({
     queryKey: cacheScope ? [cacheScope, ...keys.filePreviews(fileId)] : keys.filePreviews(fileId),
-    queryFn: () => http.get<FilePreviews>(`/files/${fileId}/previews`),
+    queryFn: () => http.get('/files/:id/previews', { params: { id: fileId } }),
     // Подписанные ссылки живут 15 минут — обновляем заранее
     staleTime: 5 * 60_000,
     refetchInterval: (query) =>
@@ -41,7 +40,7 @@ export function FilePreview({
     data !== undefined && data.previewStatus === 'unsupported' && data.textStatus === 'ready'
   const text = useQuery({
     queryKey: cacheScope ? [cacheScope, ...keys.fileText(fileId)] : keys.fileText(fileId),
-    queryFn: () => http.get<FileText>(`/files/${fileId}/text`),
+    queryFn: () => http.get('/files/:id/text', { params: { id: fileId } }),
     enabled: showText,
     staleTime: 5 * 60_000,
   })

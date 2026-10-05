@@ -151,7 +151,8 @@ export default function ReportView({ objectId, tabId }: { objectId: string; tabI
   const collab = useCollabDocument(objectId)
 
   const rename = useMutation({
-    mutationFn: (title: string) => http.patch(`/objects/${objectId}`, { title }),
+    mutationFn: (title: string) =>
+      http.patch('/objects/:id', { params: { id: objectId }, body: { title } }),
     onSuccess: (_result, title) => {
       setTabTitle(tabId, title)
       void client.invalidateQueries({ queryKey: keys.object(objectId) })
@@ -159,14 +160,14 @@ export default function ReportView({ objectId, tabId }: { objectId: string; tabI
     },
   })
   const trash = useMutation({
-    mutationFn: () => http.delete(`/objects/${objectId}`),
+    mutationFn: () => http.delete('/objects/:id', { params: { id: objectId } }),
     onSuccess: () => {
       toast.show({
         title: t('objects.trash.movedTo'),
         tone: 'info',
         action: {
           label: t('common.actions.undo'),
-          onClick: () => void http.post(`/objects/${objectId}/restore`),
+          onClick: () => void http.post('/objects/:id/restore', { params: { id: objectId } }),
         },
       })
       void client.invalidateQueries({ queryKey: ['objects'] })
@@ -174,7 +175,8 @@ export default function ReportView({ objectId, tabId }: { objectId: string; tabI
     },
   })
   const render = useMutation({
-    mutationFn: (formats: ReportFormat[]) => http.post(`/reports/${objectId}/runs`, { formats }),
+    mutationFn: (formats: ReportFormat[]) =>
+      http.post('/reports/:id/runs', { params: { id: objectId }, body: { formats } }),
     onSuccess: () => {
       toast.show({ title: t('data.report.run.started'), tone: 'info' })
       setRunsOpen(true)
@@ -379,7 +381,7 @@ function ReportToDocumentDialog({
 
   const create = useMutation({
     mutationFn: () =>
-      http.post<{ documentId: string }>(`/reports/${reportId}/document`, { typeId }),
+      http.post('/reports/:id/document', { params: { id: reportId }, body: { typeId } }),
     onSuccess: ({ documentId }) => {
       onOpenChange(false)
       toast.show({ title: t('data.report.toDocument.created'), tone: 'success' })

@@ -1,4 +1,4 @@
-import type { EventDlqList, EventDlqRetryResult, HealthEvents } from '@kchs/contracts'
+import type { HealthEvents } from '@kchs/contracts'
 import { formatDateTime, formatNumber } from '@kchs/fields'
 import { Badge, Button, Callout, Card, Skeleton, StatTile, useToast } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -22,7 +22,7 @@ export function EventsCard({ events }: { events: HealthEvents }) {
 
   const dlq = useQuery({
     queryKey: DLQ_KEY,
-    queryFn: () => http.get<EventDlqList>(`/admin/events/dlq?limit=${DLQ_LIMIT}`),
+    queryFn: () => http.get('/admin/events/dlq', { query: { limit: DLQ_LIMIT } }),
     enabled: events.dlq > 0,
   })
 
@@ -34,8 +34,7 @@ export function EventsCard({ events }: { events: HealthEvents }) {
     toast.error(error instanceof ApiError ? error.message : t('errors.unknown'))
 
   const retry = useMutation({
-    mutationFn: (id: string) =>
-      http.post<EventDlqRetryResult>(`/admin/events/dlq/${encodeURIComponent(id)}/retry`),
+    mutationFn: (id: string) => http.post('/admin/events/dlq/:id/retry', { params: { id } }),
     onSuccess: () => {
       refresh()
       toast.show({ title: t('admin.health.events.retried'), tone: 'success' })
@@ -44,7 +43,7 @@ export function EventsCard({ events }: { events: HealthEvents }) {
   })
 
   const retryAll = useMutation({
-    mutationFn: () => http.post<EventDlqRetryResult>('/admin/events/dlq/retry-all'),
+    mutationFn: () => http.post('/admin/events/dlq/retry-all'),
     onSuccess: (result) => {
       refresh()
       toast.show({ title: t('admin.health.events.retriedAll', result), tone: 'success' })

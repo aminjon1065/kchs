@@ -1,4 +1,4 @@
-import type { TaskListItem, TaskRecord } from '@kchs/contracts'
+import type { TaskListItem } from '@kchs/contracts'
 import { formatDate } from '@kchs/fields'
 import { cn, EmptyState, useToast } from '@kchs/ui'
 import { useMutation } from '@tanstack/react-query'
@@ -79,11 +79,14 @@ export function TaskTimeline({
 
   const save = useMutation({
     mutationFn: (input: { item: TaskListItem; start: string; end: string }) =>
-      http.patch<TaskRecord>(`/tasks/${input.item.id}`, {
-        dueAt: dueFromDate(input.end),
-        ...(input.item.kind === 'instruction'
-          ? {}
-          : { startAt: new Date(dayStart(input.start)).toISOString() }),
+      http.patch('/tasks/:id', {
+        params: { id: input.item.id },
+        body: {
+          dueAt: dueFromDate(input.end),
+          ...(input.item.kind === 'instruction'
+            ? {}
+            : { startAt: new Date(dayStart(input.start)).toISOString() }),
+        },
       }),
     onSuccess: () => invalidate(),
     onError: (error) => {

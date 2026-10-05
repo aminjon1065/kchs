@@ -1,4 +1,4 @@
-import type { AlertCheckResult, AlertDefinition, MetricRecord } from '@kchs/contracts'
+import type { AlertCheckResult, AlertDefinition } from '@kchs/contracts'
 import { formatDateTime } from '@kchs/fields'
 import {
   Badge,
@@ -45,7 +45,7 @@ export function AlertView({ objectId }: { objectId: string }) {
   const definition = draft ?? alert?.definition ?? null
   const { data: metric } = useQuery({
     queryKey: ['alerts', 'metric', alert?.metricId],
-    queryFn: () => http.get<MetricRecord>(`/metrics/${alert?.metricId}`),
+    queryFn: () => http.get('/metrics/:id', { params: { id: alert!.metricId! } }),
     enabled: Boolean(alert?.metricId),
   })
   const { data: events } = useQuery(alertEventsQuery({ alertId: objectId, limit: 30 }))

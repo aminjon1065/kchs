@@ -1,4 +1,4 @@
-import type { FileRecord, OfficeEditing, OfficeSession, OfficeStatus } from '@kchs/contracts'
+import type { FileRecord, OfficeEditing, OfficeSession } from '@kchs/contracts'
 import { officeFormat } from '@kchs/contracts'
 import { queryOptions, useQuery } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
@@ -19,7 +19,7 @@ export const officeKeys = {
 export function officeStatusQuery() {
   return queryOptions({
     queryKey: officeKeys.status,
-    queryFn: () => http.get<OfficeStatus>('/files/office/status'),
+    queryFn: () => http.get('/files/office/status'),
     // Состояние службы меняется редко: лишний опрос при каждом открытии карточки не нужен
     staleTime: 5 * 60_000,
   })
@@ -27,7 +27,7 @@ export function officeStatusQuery() {
 
 /** Открывает сессию редактирования: адрес страницы редактора и режим. */
 export function openOfficeSession(fileId: string): Promise<OfficeSession> {
-  return http.post<OfficeSession>(`/files/${fileId}/office-session`)
+  return http.post('/files/:id/office-session', { params: { id: fileId } })
 }
 
 /** Формат файла редактор открывает (DOCX, XLSX, PPTX и родственные). */
@@ -76,8 +76,7 @@ export function useOfficeEditing(ids: readonly string[]): Map<string, OfficeEdit
   const { data } = useQuery({
     queryKey: officeKeys.editing(sorted),
     queryFn: async () =>
-      (await http.get<{ items: OfficeEditing[] }>(`/files/office/editing?ids=${sorted.join(',')}`))
-        .items,
+      (await http.get('/files/office/editing', { query: { ids: sorted.join(',') } })).items,
     enabled: configured && sorted.length > 0,
     refetchInterval: 30_000,
   })

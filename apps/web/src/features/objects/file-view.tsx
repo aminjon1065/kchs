@@ -64,7 +64,8 @@ export function FileView({ objectId, tabId }: { objectId: string; tabId: string 
   const editing = useOfficeEditing(officeAvailable ? [objectId] : []).get(objectId)
 
   const rename = useMutation({
-    mutationFn: (title: string) => http.patch(`/objects/${objectId}`, { title }),
+    mutationFn: (title: string) =>
+      http.patch('/objects/:id', { params: { id: objectId }, body: { title } }),
     onSuccess: (_result, title) => {
       setTabTitle(tabId, title)
       void client.invalidateQueries({ queryKey: keys.object(objectId) })
@@ -73,14 +74,14 @@ export function FileView({ objectId, tabId }: { objectId: string; tabId: string 
   })
 
   const trash = useMutation({
-    mutationFn: () => http.delete(`/objects/${objectId}`),
+    mutationFn: () => http.delete('/objects/:id', { params: { id: objectId } }),
     onSuccess: () => {
       toast.show({
         title: t('objects.trash.movedTo'),
         tone: 'info',
         action: {
           label: t('common.actions.undo'),
-          onClick: () => void http.post(`/objects/${objectId}/restore`),
+          onClick: () => void http.post('/objects/:id/restore', { params: { id: objectId } }),
         },
       })
       void client.invalidateQueries({ queryKey: ['objects'] })

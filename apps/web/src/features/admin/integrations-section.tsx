@@ -1,9 +1,7 @@
 import {
   INTEGRATION_KINDS,
   type Integration,
-  type IntegrationCheckResult,
   type IntegrationKind,
-  type IntegrationSync,
   type Webhook,
   type WebhookStatus,
 } from '@kchs/contracts'
@@ -123,8 +121,8 @@ function IntegrationsList() {
   const check = useMutation({
     mutationFn: (item: Integration) =>
       item.source === 'env'
-        ? http.post<IntegrationCheckResult>(`/integrations/builtin/${item.key}/check`)
-        : http.post<IntegrationCheckResult>(`/integrations/${item.id}/check`),
+        ? http.post('/integrations/builtin/:key/check', { params: { key: item.key } })
+        : http.post('/integrations/:id/check', { params: { id: item.id } }),
     onSuccess: (result) =>
       toast.show({ title: result.message, tone: result.ok ? 'success' : 'danger' }),
     onError: (err) => toast.error(err instanceof ApiError ? err.message : t('errors.unknown')),
@@ -132,8 +130,7 @@ function IntegrationsList() {
   })
 
   const issueInbound = useMutation({
-    mutationFn: (id: string) =>
-      http.post<{ url: string; secret: string }>(`/integrations/${id}/inbound-secret`),
+    mutationFn: (id: string) => http.post('/integrations/:id/inbound-secret', { params: { id } }),
     onSuccess: (result) => {
       setInbound({ url: result.url })
       refresh()
@@ -300,12 +297,14 @@ function CreateIntegrationDialog({
         string,
         string
       >
-      return http.post<Integration>('/integrations', {
-        key,
-        kind,
-        name,
-        config: parsed,
-        secrets: parsedSecrets,
+      return http.post('/integrations', {
+        body: {
+          key,
+          kind,
+          name,
+          config: parsed,
+          secrets: parsedSecrets,
+        },
       })
     },
     onSuccess: () => {
@@ -444,9 +443,7 @@ function EditIntegrationDialog({
     queryKey: [...keys.integrations, integration.id, 'syncs'],
     queryFn: () =>
       http
-        .get<{ items: IntegrationSync[] }>(`/integrations/${integration.id}/syncs`, {
-          query: { limit: 10 },
-        })
+        .get('/integrations/:id/syncs', { params: { id: integration.id }, query: { limit: 10 } })
         .then((result) => result.items),
   })
 
@@ -457,10 +454,13 @@ function EditIntegrationDialog({
         string,
         string
       >
-      return http.patch<Integration>(`/integrations/${integration.id}`, {
-        config: parsed,
-        enabled,
-        ...(Object.keys(parsedSecrets).length > 0 ? { secrets: parsedSecrets } : {}),
+      return http.patch('/integrations/:id', {
+        params: { id: integration.id },
+        body: {
+          config: parsed,
+          enabled,
+          ...(Object.keys(parsedSecrets).length > 0 ? { secrets: parsedSecrets } : {}),
+        },
       })
     },
     onSuccess: () => onSaved(),
@@ -571,15 +571,18 @@ function WebhooksList() {
 
   const toggle = useMutation({
     mutationFn: (item: Webhook) =>
-      http.patch<Webhook>(`/webhooks/${item.id}`, {
-        status: item.status === 'active' ? 'paused' : 'active',
+      http.patch('/webhooks/:id', {
+        params: { id: item.id },
+        body: {
+          status: item.status === 'active' ? 'paused' : 'active',
+        },
       }),
     onSuccess: refresh,
     onError: (err) => toast.error(err instanceof ApiError ? err.message : t('errors.unknown')),
   })
 
   const remove = useMutation({
-    mutationFn: (id: string) => http.delete(`/webhooks/${id}`),
+    mutationFn: (id: string) => http.delete('/webhooks/:id', { params: { id } }),
     onSuccess: () => {
       setRemoving(null)
       refresh()
@@ -717,13 +720,15 @@ function CreateWebhookDialog({
 
   const create = useMutation({
     mutationFn: () =>
-      http.post<{ webhook: Webhook; secret: string }>('/webhooks', {
-        name,
-        url,
-        eventTypes: types
-          .split(',')
-          .map((item) => item.trim())
-          .filter((item) => item.length > 0),
+      http.post('/webhooks', {
+        body: {
+          name,
+          url,
+          eventTypes: types
+            .split(',')
+            .map((item) => item.trim())
+            .filter((item) => item.length > 0),
+        },
       }),
     onSuccess: (result) => {
       setName('')
@@ -791,7 +796,9 @@ function DeliveriesDialog({ webhook, onClose }: { webhook: Webhook | null; onClo
 
   const retry = useMutation({
     mutationFn: (deliveryId: string) =>
-      http.post(`/webhooks/${webhook?.id}/deliveries/${deliveryId}/retry`),
+      http.post('/webhooks/:id/deliveries/:deliveryId/retry', {
+        params: { id: webhook!.id, deliveryId },
+      }),
     onSuccess: () => {
       toast.show({ title: t('admin.webhooks.retried'), tone: 'info' })
       if (webhook) {

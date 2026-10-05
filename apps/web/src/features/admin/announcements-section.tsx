@@ -65,7 +65,7 @@ export function AnnouncementsSection() {
   }
 
   const withdraw = useMutation({
-    mutationFn: (id: string) => http.post(`/admin/announcements/${id}/withdraw`),
+    mutationFn: (id: string) => http.post('/admin/announcements/:id/withdraw', { params: { id } }),
     onSuccess: () => {
       toast.show({ title: t('admin.announcements.withdrawn'), tone: 'info' })
       setWithdrawing(null)
@@ -201,11 +201,13 @@ function CreateAnnouncementDialog({
   const create = useMutation({
     mutationFn: () =>
       http.post('/admin/announcements', {
-        title: form.title.trim(),
-        body: form.body.trim(),
-        severity: form.severity,
-        startsAt: toIso(form.startsAt, timeZone),
-        endsAt: toIso(form.endsAt, timeZone),
+        body: {
+          title: form.title.trim(),
+          body: form.body.trim(),
+          severity: form.severity,
+          startsAt: toIso(form.startsAt, timeZone),
+          endsAt: toIso(form.endsAt, timeZone),
+        },
       }),
     onSuccess: () => {
       onCreated()

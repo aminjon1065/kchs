@@ -24,10 +24,12 @@ export function CreateNotebookDialog({
   const [failure, setFailure] = useState<string | null>(null)
   const create = useMutation({
     mutationFn: () =>
-      http.post<{ id: string }>('/notebooks', {
-        name: name.trim(),
-        spaceId,
-        cells: [{ id: 'intro', kind: 'text' }],
+      http.post('/notebooks', {
+        body: {
+          name: name.trim(),
+          spaceId,
+          cells: [{ id: 'intro', kind: 'text' }],
+        },
       }),
     onSuccess: ({ id }) => {
       toast.show({ title: t('data.notebook.created'), tone: 'success' })

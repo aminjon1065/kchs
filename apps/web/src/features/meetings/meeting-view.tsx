@@ -1,4 +1,4 @@
-import type { MeetingGuestLink, MeetingJoin, MeetingRecord, RecordingList } from '@kchs/contracts'
+import type { MeetingGuestLink, MeetingJoin } from '@kchs/contracts'
 import { formatDateTime } from '@kchs/fields'
 import {
   Avatar,
@@ -110,7 +110,7 @@ export default function MeetingView({ objectId, tabId }: { objectId: string; tab
   // Секретарь ведёт протокол вместе с организатором (N30); протокол заводится назначением
   const secretary = useMutation({
     mutationFn: (userId: string | null) =>
-      http.put<MeetingRecord>(`/meetings/${objectId}/secretary`, { userId }),
+      http.put('/meetings/:id/secretary', { params: { id: objectId }, body: { userId } }),
     onSuccess: (record, userId) => {
       client.setQueryData(meetingKeys.meeting(objectId), record)
       void client.invalidateQueries({ queryKey: meetingKeys.meeting(objectId) })
@@ -305,7 +305,7 @@ function RecordingsSection({ meetingId }: { meetingId: string }) {
   const openTab = useWorkspace((s) => s.openTab)
   const { data } = useQuery({
     queryKey: meetingKeys.recordings(meetingId),
-    queryFn: () => http.get<RecordingList>(`/meetings/${meetingId}/recordings`),
+    queryFn: () => http.get('/meetings/:id/recordings', { params: { id: meetingId } }),
   })
   const items = data?.items ?? []
   if (items.length === 0) return null
@@ -371,7 +371,7 @@ function GuestLinkDialog({
 
   const create = useMutation({
     mutationFn: (ttlMinutes: number) =>
-      http.post<MeetingGuestLink>(`/meetings/${meetingId}/guest-link`, { ttlMinutes }),
+      http.post('/meetings/:id/guest-link', { params: { id: meetingId }, body: { ttlMinutes } }),
     onSuccess: (result) => setLink(result),
     onError: () => toast.error(t('meetings.errors.linkFailed')),
   })

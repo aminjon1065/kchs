@@ -1,10 +1,4 @@
-import type {
-  DatasetQuality,
-  DatasetRecord,
-  QualityKind,
-  QualityRule,
-  QualitySeverity,
-} from '@kchs/contracts'
+import type { DatasetRecord, QualityKind, QualityRule, QualitySeverity } from '@kchs/contracts'
 import { formatDateTime } from '@kchs/fields'
 import {
   Badge,
@@ -61,7 +55,7 @@ export function QualityTab({ dataset }: { dataset: DatasetRecord }) {
   const key = ['object', dataset.id, 'quality'] as const
   const { data, isLoading } = useQuery({
     queryKey: key,
-    queryFn: () => http.get<DatasetQuality>(`/datasets/${dataset.id}/quality`),
+    queryFn: () => http.get('/datasets/:id/quality', { params: { id: dataset.id } }),
   })
   const [rules, setRules] = useState<QualityRule[]>([])
 
@@ -71,7 +65,10 @@ export function QualityTab({ dataset }: { dataset: DatasetRecord }) {
 
   const save = useMutation({
     mutationFn: (next: QualityRule[]) =>
-      http.put<DatasetQuality>(`/datasets/${dataset.id}/quality/rules`, { rules: next }),
+      http.put('/datasets/:id/quality/rules', {
+        params: { id: dataset.id },
+        body: { rules: next },
+      }),
     onSuccess: (next) => {
       client.setQueryData(key, next)
       toast.success(t('data.quality.saved'))
@@ -81,7 +78,7 @@ export function QualityTab({ dataset }: { dataset: DatasetRecord }) {
   })
 
   const runNow = useMutation({
-    mutationFn: () => http.post<DatasetQuality>(`/datasets/${dataset.id}/quality/run`, {}),
+    mutationFn: () => http.post('/datasets/:id/quality/run', { params: { id: dataset.id } }),
     onSuccess: (next) => client.setQueryData(key, next),
     onError: (error) =>
       toast.error(error instanceof ApiError ? error.message : t('errors.unknown')),

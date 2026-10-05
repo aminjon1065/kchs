@@ -130,20 +130,22 @@ export function CreateTaskDialog({
 
   const createSeries = useMutation({
     mutationFn: () =>
-      http.post<{ id: string; nextRunAt: string | null }>('/task-series', {
-        template: {
-          kind,
-          title: title.trim(),
-          priority: Number(priority),
-          ...(description.trim() ? { description: description.trim() } : {}),
-          ...(projectId !== NO_PROJECT ? { projectId } : {}),
-          ...(assignee ? { assigneeId: assignee.id } : {}),
-          ...(instruction && coAssignees.length > 0
-            ? { coAssigneeIds: coAssignees.map((user) => user.id) }
-            : {}),
-          ...(instruction && controller ? { controllerId: controller.id } : {}),
+      http.post('/task-series', {
+        body: {
+          template: {
+            kind,
+            title: title.trim(),
+            priority: Number(priority),
+            ...(description.trim() ? { description: description.trim() } : {}),
+            ...(projectId !== NO_PROJECT ? { projectId } : {}),
+            ...(assignee ? { assigneeId: assignee.id } : {}),
+            ...(instruction && coAssignees.length > 0
+              ? { coAssigneeIds: coAssignees.map((user) => user.id) }
+              : {}),
+            ...(instruction && controller ? { controllerId: controller.id } : {}),
+          },
+          ...repeatFields(repeat),
         },
-        ...repeatFields(repeat),
       }),
     onSuccess: (series) => {
       toast.show({
@@ -163,20 +165,22 @@ export function CreateTaskDialog({
 
   const create = useMutation({
     mutationFn: () =>
-      http.post<{ id: string }>('/tasks', {
-        kind,
-        title: title.trim(),
-        priority: Number(priority),
-        ...(description.trim() ? { description: description.trim() } : {}),
-        ...(projectId !== NO_PROJECT ? { projectId } : {}),
-        ...(assignee ? { assigneeId: assignee.id } : {}),
-        ...(instruction && coAssignees.length > 0
-          ? { coAssigneeIds: coAssignees.map((user) => user.id) }
-          : {}),
-        ...(instruction && controller ? { controllerId: controller.id } : {}),
-        ...dueFields(due),
-        ...(draft.source ? { source: draft.source } : {}),
-        ...(territoryId ? { territoryId } : {}),
+      http.post('/tasks', {
+        body: {
+          kind,
+          title: title.trim(),
+          priority: Number(priority),
+          ...(description.trim() ? { description: description.trim() } : {}),
+          ...(projectId !== NO_PROJECT ? { projectId } : {}),
+          ...(assignee ? { assigneeId: assignee.id } : {}),
+          ...(instruction && coAssignees.length > 0
+            ? { coAssigneeIds: coAssignees.map((user) => user.id) }
+            : {}),
+          ...(instruction && controller ? { controllerId: controller.id } : {}),
+          ...dueFields(due),
+          ...(draft.source ? { source: draft.source } : {}),
+          ...(territoryId ? { territoryId } : {}),
+        },
       }),
     onSuccess: ({ id }) => {
       const created = title.trim()
@@ -416,7 +420,7 @@ export function EditTaskDialog({ task, onClose }: { task: TaskRecord; onClose: (
   }
 
   const save = useMutation({
-    mutationFn: () => http.patch<TaskRecord>(`/tasks/${task.id}`, patch()),
+    mutationFn: () => http.patch('/tasks/:id', { params: { id: task.id }, body: patch() }),
     onSuccess: (record) => {
       client.setQueryData(taskKeys.task(task.id), record)
       toast.show({ title: t('common.states.saved'), tone: 'success' })
@@ -612,9 +616,12 @@ export function ReportDialog({
 
   const report = useMutation({
     mutationFn: () =>
-      http.post<TaskRecord>(`/tasks/${task.id}/report`, {
-        text: text.trim(),
-        objectIds: objects.map((object) => object.id),
+      http.post('/tasks/:id/report', {
+        params: { id: task.id },
+        body: {
+          text: text.trim(),
+          objectIds: objects.map((object) => object.id),
+        },
       }),
     onSuccess: (record) => {
       client.setQueryData(taskKeys.task(task.id), record)
@@ -747,9 +754,12 @@ export function ReturnDialog({ task, onClose }: { task: TaskRecord; onClose: () 
 
   const send = useMutation({
     mutationFn: () =>
-      http.post<TaskRecord>(`/tasks/${task.id}/return`, {
-        comment: comment.trim(),
-        ...(dueChanged ? dueFields(due) : {}),
+      http.post('/tasks/:id/return', {
+        params: { id: task.id },
+        body: {
+          comment: comment.trim(),
+          ...(dueChanged ? dueFields(due) : {}),
+        },
       }),
     onSuccess: (record) => {
       client.setQueryData(taskKeys.task(task.id), record)
@@ -823,9 +833,12 @@ export function ExtensionRequestDialog({
 
   const send = useMutation({
     mutationFn: () =>
-      http.post<TaskRecord>(`/tasks/${task.id}/extension`, {
-        ...dueFields(due),
-        reason: reason.trim(),
+      http.post('/tasks/:id/extension', {
+        params: { id: task.id },
+        body: {
+          ...dueFields(due),
+          reason: reason.trim(),
+        },
       }),
     onSuccess: (record) => {
       client.setQueryData(taskKeys.task(task.id), record)
@@ -920,7 +933,7 @@ export function ExtensionDecisionDialog({
               ...(decision === 'other' ? dueFields(due) : {}),
               ...(comment.trim() ? { comment: comment.trim() } : {}),
             }
-      return http.post<TaskRecord>(`/tasks/${task.id}/extension/decide`, body)
+      return http.post('/tasks/:id/extension/decide', { params: { id: task.id }, body })
     },
     onSuccess: (record) => {
       client.setQueryData(taskKeys.task(task.id), record)
@@ -1030,9 +1043,12 @@ export function ReassignDialog({ task, onClose }: { task: TaskRecord; onClose: (
 
   const send = useMutation({
     mutationFn: () =>
-      http.post<TaskRecord>(`/tasks/${task.id}/reassign`, {
-        assigneeId: assignee?.id,
-        ...(comment.trim() ? { comment: comment.trim() } : {}),
+      http.post('/tasks/:id/reassign', {
+        params: { id: task.id },
+        body: {
+          assigneeId: assignee!.id,
+          ...(comment.trim() ? { comment: comment.trim() } : {}),
+        },
       }),
     onSuccess: (record) => {
       client.setQueryData(taskKeys.task(task.id), record)
@@ -1116,11 +1132,13 @@ export function CreateProjectDialog({ onClose }: { onClose: () => void }) {
 
   const create = useMutation({
     mutationFn: () =>
-      http.post<{ id: string }>('/projects', {
-        key: key.trim(),
-        name: name.trim(),
-        spaceId: space,
-        ...(description.trim() ? { description: description.trim() } : {}),
+      http.post('/projects', {
+        body: {
+          key: key.trim(),
+          name: name.trim(),
+          spaceId: space,
+          ...(description.trim() ? { description: description.trim() } : {}),
+        },
       }),
     onSuccess: ({ id }) => {
       toast.show({ title: t('tasks.projects.created'), tone: 'success' })

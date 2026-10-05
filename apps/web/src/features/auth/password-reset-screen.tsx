@@ -23,7 +23,8 @@ export function PasswordResetScreen({ token }: { token: string }) {
   const translate = (message: string) => (message.startsWith('auth.') ? t(message) : message)
 
   const confirm = useMutation({
-    mutationFn: () => http.post('/auth/password-reset/confirm', { token, newPassword: password }),
+    mutationFn: () =>
+      http.post('/auth/password-reset/confirm', { body: { token, newPassword: password } }),
     onSuccess: () => {
       setError(null)
       setDone(true)

@@ -19,13 +19,12 @@ export function MeetingsSection() {
   const monthsId = useId()
   const { data } = useQuery({
     queryKey: settingsKey,
-    queryFn: () => http.get<MeetingSettings>('/admin/meetings/settings'),
+    queryFn: () => http.get('/admin/meetings/settings'),
   })
   const [draft, setDraft] = useState<MeetingSettings | null>(null)
 
   const save = useMutation({
-    mutationFn: (next: MeetingSettings) =>
-      http.put<MeetingSettings>('/admin/meetings/settings', next),
+    mutationFn: (next: MeetingSettings) => http.put('/admin/meetings/settings', { body: next }),
     onSuccess: (saved) => {
       client.setQueryData(settingsKey, saved)
       setDraft(null)

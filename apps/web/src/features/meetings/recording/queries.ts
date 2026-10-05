@@ -1,4 +1,3 @@
-import type { RecordingRecord, TranscriptRecord } from '@kchs/contracts'
 import { queryOptions } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
 
@@ -18,7 +17,7 @@ const PENDING = new Set(['starting', 'active', 'processing'])
 export const recordingQuery = (id: string) =>
   queryOptions({
     queryKey: recordingKeys.recording(id),
-    queryFn: () => http.get<RecordingRecord>(`/recordings/${id}`),
+    queryFn: () => http.get('/recordings/:id', { params: { id } }),
     refetchInterval: (query) =>
       query.state.data && PENDING.has(query.state.data.status) ? 5000 : false,
   })
@@ -28,7 +27,7 @@ const TRANSCRIPT_PENDING = new Set(['queued', 'running'])
 export const transcriptQuery = (id: string, enabled: boolean) =>
   queryOptions({
     queryKey: recordingKeys.transcript(id),
-    queryFn: () => http.get<TranscriptRecord>(`/recordings/${id}/transcript`),
+    queryFn: () => http.get('/recordings/:id/transcript', { params: { id } }),
     enabled,
     refetchInterval: (query) =>
       query.state.data && TRANSCRIPT_PENDING.has(query.state.data.status) ? 5000 : false,
@@ -42,9 +41,7 @@ export const playbackQuery = (fileId: string | null) =>
   queryOptions({
     queryKey: recordingKeys.playback(fileId ?? 'none'),
     queryFn: () =>
-      http.get<{ url: string; name: string }>(`/files/${fileId}/download`, {
-        query: { inline: true },
-      }),
+      http.get('/files/:id/download', { params: { id: fileId! }, query: { inline: true } }),
     enabled: Boolean(fileId),
     staleTime: 5 * 60_000,
     refetchInterval: 10 * 60_000,

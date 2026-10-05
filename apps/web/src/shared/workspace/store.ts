@@ -560,7 +560,7 @@ export function scheduleWorkspaceSave(): void {
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(() => {
     pendingSave = false
-    void http.put('/me/workspace-state', { state: snapshot() }).catch(() => undefined)
+    void http.put('/me/workspace-state', { body: { state: snapshot() } }).catch(() => undefined)
   }, 2500)
 }
 

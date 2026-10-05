@@ -1,4 +1,3 @@
-import type { PushStatus } from '@kchs/contracts'
 import { http } from '~/shared/api/client.js'
 
 /**
@@ -56,12 +55,14 @@ export async function subscribeDevice(publicKey: string): Promise<'subscribed' |
       applicationServerKey: keyToBytes(publicKey),
     }))
   await http.post('/me/push/subscriptions', {
-    endpoint: subscription.endpoint,
-    keys: {
-      p256dh: keyToBase64(subscription.getKey('p256dh')),
-      auth: keyToBase64(subscription.getKey('auth')),
+    body: {
+      endpoint: subscription.endpoint,
+      keys: {
+        p256dh: keyToBase64(subscription.getKey('p256dh')),
+        auth: keyToBase64(subscription.getKey('auth')),
+      },
+      userAgent: navigator.userAgent.slice(0, 500),
     },
-    userAgent: navigator.userAgent.slice(0, 500),
   })
   return 'subscribed'
 }
@@ -71,7 +72,7 @@ export async function unsubscribeDevice(): Promise<void> {
   const registration = await navigator.serviceWorker.getRegistration('/')
   const subscription = await registration?.pushManager.getSubscription()
   if (!subscription) return
-  await http.delete('/me/push/subscriptions', { endpoint: subscription.endpoint })
+  await http.delete('/me/push/subscriptions', { body: { endpoint: subscription.endpoint } })
   await subscription.unsubscribe()
 }
 
@@ -84,5 +85,5 @@ export async function deviceSubscribed(): Promise<boolean> {
 
 export const pushStatusQuery = {
   queryKey: ['me', 'push'] as const,
-  queryFn: () => http.get<PushStatus>('/me/push'),
+  queryFn: () => http.get('/me/push'),
 }

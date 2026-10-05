@@ -76,10 +76,12 @@ export function CaseImportDialog({
 
   const run = useMutation({
     mutationFn: (mode: CaseImportMode) =>
-      http.post<CaseImportReport>('/cases/import', {
-        fileId: file?.id,
-        mode,
-        ...(/^\d{4}$/.test(year) ? { year: Number(year) } : {}),
+      http.post('/cases/import', {
+        body: {
+          fileId: file!.id,
+          mode,
+          ...(/^\d{4}$/.test(year) ? { year: Number(year) } : {}),
+        },
       }),
     onSuccess: (result) => {
       setReport(result)

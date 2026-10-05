@@ -19,7 +19,7 @@ export function LayerEditSettings({ layer }: { layer: LayerRecord }) {
   const ids = useId()
   const update = useMutation({
     mutationFn: (patch: { editable?: boolean; moderated?: boolean }) =>
-      http.patch<LayerRecord>(`/gis/layers/${layer.id}`, patch),
+      http.patch('/gis/layers/:id', { params: { id: layer.id }, body: patch }),
     onSuccess: (record) => {
       client.setQueryData(gisKeys.layer(layer.id), record)
       void client.invalidateQueries({ queryKey: editKeys.access(layer.id) })

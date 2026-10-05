@@ -78,7 +78,7 @@ export function ChecklistSection({ task }: { task: TaskRecord }) {
   const editable = task.can.checklist
   const add = useMutation({
     mutationFn: (value: string) =>
-      http.post<TaskRecord>(`/tasks/${task.id}/checklist`, { text: value }),
+      http.post('/tasks/:id/checklist', { params: { id: task.id }, body: { text: value } }),
     onSuccess: (record) => {
       setText('')
       apply(record)
@@ -87,13 +87,16 @@ export function ChecklistSection({ task }: { task: TaskRecord }) {
   })
   const patch = useMutation({
     mutationFn: (input: { itemId: string; body: Record<string, unknown> }) =>
-      http.patch<TaskRecord>(`/tasks/${task.id}/checklist/${input.itemId}`, input.body),
+      http.patch('/tasks/:id/checklist/:itemId', {
+        params: { id: task.id, itemId: input.itemId },
+        body: input.body,
+      }),
     onSuccess: apply,
     onError: fail,
   })
   const remove = useMutation({
     mutationFn: (itemId: string) =>
-      http.delete<TaskRecord>(`/tasks/${task.id}/checklist/${itemId}`),
+      http.delete('/tasks/:id/checklist/:itemId', { params: { id: task.id, itemId } }),
     onSuccess: apply,
     onError: fail,
   })
@@ -215,7 +218,7 @@ export function SubtasksSection({ task }: { task: TaskRecord }) {
   const [title, setTitle] = useState('')
   const create = useMutation({
     mutationFn: (value: string) =>
-      http.post<{ id: string }>(`/tasks/${task.id}/subtasks`, { title: value }),
+      http.post('/tasks/:id/subtasks', { params: { id: task.id }, body: { title: value } }),
     onSuccess: () => {
       setTitle('')
       invalidate(task.id)

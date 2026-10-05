@@ -1,9 +1,4 @@
-import type {
-  ConfigImportPreview,
-  ConfigImportResult,
-  ConfigPackage,
-  ConfigSection,
-} from '@kchs/contracts'
+import type { ConfigImportPreview, ConfigPackage, ConfigSection } from '@kchs/contracts'
 import {
   Badge,
   Button,
@@ -45,12 +40,12 @@ export function ConfigPackageSection() {
 
   const sections = useQuery({
     queryKey: ['config', 'sections'],
-    queryFn: () => http.get<{ items: ConfigSection[] }>('/config/sections'),
-    select: (data: { items: ConfigSection[] }) => data.items,
+    queryFn: () => http.get('/config/sections'),
+    select: (data) => data.items,
   })
 
   const exportPackage = useMutation({
-    mutationFn: () => http.post<ConfigPackage>('/config/export', { sections: selected }),
+    mutationFn: () => http.post('/config/export', { body: { sections: selected } }),
     onSuccess: (pkg) => {
       setText(JSON.stringify(pkg, null, 2))
       setPreview(null)
@@ -68,8 +63,7 @@ export function ConfigPackageSection() {
   }
 
   const check = useMutation({
-    mutationFn: () =>
-      http.post<ConfigImportPreview>('/config/import/preview', { package: parsePackage() }),
+    mutationFn: () => http.post('/config/import/preview', { body: { package: parsePackage() } }),
     onSuccess: (result) => {
       setPreview(result)
       setError(null)
@@ -82,9 +76,11 @@ export function ConfigPackageSection() {
 
   const apply = useMutation({
     mutationFn: () =>
-      http.post<ConfigImportResult>('/config/import', {
-        package: parsePackage(),
-        overwriteConflicts: overwrite,
+      http.post('/config/import', {
+        body: {
+          package: parsePackage(),
+          overwriteConflicts: overwrite,
+        },
       }),
     onSuccess: (result) => {
       toast.show({

@@ -1,9 +1,8 @@
-import type { DatasetRecord, Locale } from '@kchs/contracts'
+import type { DatasetRecord, DatasetRowConflict, Locale } from '@kchs/contracts'
 import { Badge, Button, Callout, Dialog, DialogContent } from '@kchs/ui'
 import { fieldLabel } from '~/features/data/index.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
-import type { RowConflict } from './edit-api.js'
 import { useFieldText } from './field-text.js'
 
 /**
@@ -28,7 +27,7 @@ export function ConflictDialog({
   geometryField: string
   /** Значения правки пользователя; геометрия — под ключом поля геометрии. */
   mine: Record<string, unknown>
-  conflict: RowConflict
+  conflict: DatasetRowConflict
   busy: boolean
   overwriteLabel: string
   /** По умолчанию — «Отменить мою правку». */

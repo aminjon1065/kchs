@@ -21,12 +21,12 @@ export function HelpCard() {
   const client = useQueryClient()
   const { data } = useQuery({
     queryKey: pagesKey,
-    queryFn: () => http.get<HelpPages>('/knowledge/help/pages'),
+    queryFn: () => http.get('/knowledge/help/pages'),
   })
   const [draft, setDraft] = useState<HelpPages | null>(null)
   const value = draft ?? data
   const save = useMutation({
-    mutationFn: (next: HelpPages) => http.put<HelpPages>('/knowledge/help/pages', next),
+    mutationFn: (next: HelpPages) => http.put('/knowledge/help/pages', { body: next }),
     onSuccess: (saved) => {
       client.setQueryData(pagesKey, saved)
       void client.invalidateQueries({ queryKey: helpQuery().queryKey })

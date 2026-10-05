@@ -1,5 +1,6 @@
 import type {
   DatasetRecord,
+  DatasetRowConflict,
   FeatureEdit,
   FeatureGeometry,
   LayerEditAccess,
@@ -31,14 +32,7 @@ import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useStudio } from '../studio/context.js'
 import { ConflictDialog } from './conflict-dialog.js'
-import {
-  conflictOf,
-  editApi,
-  editKeys,
-  featureEditsQuery,
-  type RowConflict,
-  refreshAfterWrite,
-} from './edit-api.js'
+import { conflictOf, editApi, editKeys, featureEditsQuery, refreshAfterWrite } from './edit-api.js'
 import { editStore } from './edit-store.js'
 import { useFieldText } from './field-text.js'
 import { bboxOf } from './geometry.js'
@@ -130,7 +124,7 @@ function EditItem({
   const [rejecting, setRejecting] = useState(false)
   const [comment, setComment] = useState('')
   const [busy, setBusy] = useState(false)
-  const [conflict, setConflict] = useState<RowConflict | null>(null)
+  const [conflict, setConflict] = useState<DatasetRowConflict | null>(null)
   /** Геометрия правки на карте: предложенная, у удаления — удаляемый объект. */
   const [shape, setShape] = useState<FeatureGeometry | null>(null)
   const ctx = { locale, ...(me?.user.timezone ? { timezone: me.user.timezone } : {}) }

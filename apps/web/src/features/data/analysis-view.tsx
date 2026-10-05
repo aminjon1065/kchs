@@ -1,4 +1,4 @@
-import type { AnalysisRecord, AnalysisRunStarted, AnalysisStatus, QueryStep } from '@kchs/contracts'
+import type { AnalysisStatus, QueryStep } from '@kchs/contracts'
 import { formatNumber, formatRelativeTime } from '@kchs/fields'
 import {
   AlertDialog,
@@ -61,7 +61,7 @@ const PARAM_LABELS: Record<string, string> = {
 const analysisQuery = (id: string) =>
   queryOptions({
     queryKey: ['analysis', id] as const,
-    queryFn: () => http.get<AnalysisRecord>(`/analyses/${id}`),
+    queryFn: () => http.get('/analyses/:id', { params: { id } }),
     refetchInterval: (query) =>
       query.state.data && ACTIVE.has(query.state.data.status) ? 1500 : false,
   })
@@ -162,7 +162,8 @@ export function AnalysisView({ objectId, tabId }: { objectId: string; tabId: str
   })
 
   const rename = useMutation({
-    mutationFn: (title: string) => http.patch(`/objects/${objectId}`, { title }),
+    mutationFn: (title: string) =>
+      http.patch('/objects/:id', { params: { id: objectId }, body: { title } }),
     onSuccess: (_result, title) => {
       setTabTitle(tabId, title)
       void client.invalidateQueries({ queryKey: keys.object(objectId) })
@@ -171,7 +172,7 @@ export function AnalysisView({ objectId, tabId }: { objectId: string; tabId: str
   })
 
   const rerun = useMutation({
-    mutationFn: () => http.post<AnalysisRunStarted>(`/analyses/${objectId}/run`),
+    mutationFn: () => http.post('/analyses/:id/run', { params: { id: objectId } }),
     onSuccess: () => {
       toast.show({ title: t('data.analysis.rerunStarted'), tone: 'success' })
       void client.invalidateQueries({ queryKey: ['analysis', objectId] })
@@ -184,14 +185,14 @@ export function AnalysisView({ objectId, tabId }: { objectId: string; tabId: str
   })
 
   const trash = useMutation({
-    mutationFn: () => http.delete(`/objects/${objectId}`),
+    mutationFn: () => http.delete('/objects/:id', { params: { id: objectId } }),
     onSuccess: () => {
       toast.show({
         title: t('objects.trash.movedTo'),
         tone: 'info',
         action: {
           label: t('common.actions.undo'),
-          onClick: () => void http.post(`/objects/${objectId}/restore`),
+          onClick: () => void http.post('/objects/:id/restore', { params: { id: objectId } }),
         },
       })
       void client.invalidateQueries({ queryKey: ['objects'] })

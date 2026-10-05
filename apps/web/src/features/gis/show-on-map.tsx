@@ -22,10 +22,12 @@ export function ShowOnMapButton({ dataset }: { dataset: DatasetRecord }) {
       const layers = await client.fetchQuery(datasetLayersQuery(dataset.id))
       const existing = layers[0]
       if (existing) return existing
-      const created = await http.post<{ id: string }>('/gis/layers', {
-        name: dataset.name,
-        spaceId: dataset.spaceId,
-        datasetId: dataset.id,
+      const created = await http.post('/gis/layers', {
+        body: {
+          name: dataset.name,
+          spaceId: dataset.spaceId,
+          datasetId: dataset.id,
+        },
       })
       void client.invalidateQueries({ queryKey: gisKeys.datasetLayers(dataset.id) })
       return { id: created.id, name: dataset.name }

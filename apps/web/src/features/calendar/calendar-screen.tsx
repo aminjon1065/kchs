@@ -201,7 +201,7 @@ export function CalendarScreen({
           Object.assign(body, { scope, recurrenceId: item.recurrenceId })
         }
       }
-      await http.patch(`/events/${item.eventId}`, body)
+      await http.patch('/events/:id', { params: { id: item.eventId }, body })
     },
     onMutate: async ({ item, change, scope }) => {
       // Перенос виден сразу, не дожидаясь ответа

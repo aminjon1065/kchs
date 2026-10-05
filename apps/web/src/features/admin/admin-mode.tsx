@@ -146,9 +146,11 @@ function EnterAdminModeDialog({ onClose }: { onClose: () => void }) {
   const [failure, setFailure] = useState<string | null>(null)
   const enter = useMutation({
     mutationFn: () =>
-      http.post<AdminModeState>('/me/admin-mode', {
-        reason: reason.trim(),
-        minutes: Number(minutes),
+      http.post('/me/admin-mode', {
+        body: {
+          reason: reason.trim(),
+          minutes: Number(minutes),
+        },
       }),
     onSuccess: () => {
       toast.show({ title: t('access.adminMode.entered'), tone: 'warning' })

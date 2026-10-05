@@ -76,7 +76,9 @@ export function AccessTab({ dataset }: { dataset: DatasetRecord }) {
 
   const remove = useMutation({
     mutationFn: (target: Removing) =>
-      http.delete(`/datasets/${dataset.id}/policies/${target.kind}/${target.policy.id}`),
+      http.delete(`/datasets/:id/policies/${target.kind}/:policyId` as const, {
+        params: { id: dataset.id, policyId: target.policy.id },
+      }),
     onSuccess: () => {
       toast.show({ title: t('data.policies.removed'), tone: 'success' })
       void client.invalidateQueries({ queryKey: dataKeys.policies(dataset.id) })
@@ -329,8 +331,14 @@ function RowPolicyDialog({
         note: note.trim() || null,
       }
       return policy
-        ? http.patch(`/datasets/${dataset.id}/policies/rows/${policy.id}`, body)
-        : http.post(`/datasets/${dataset.id}/policies/rows`, body)
+        ? http.patch('/datasets/:id/policies/rows/:policyId', {
+            params: { id: dataset.id, policyId: policy.id },
+            body,
+          })
+        : http.post('/datasets/:id/policies/rows', {
+            params: { id: dataset.id },
+            body: { ...body, principal: body.principal! },
+          })
     },
     onSuccess: saved,
     onError: (error) => setFailure(errorText(error, t('errors.unknown'))),
@@ -420,8 +428,14 @@ function ColumnPolicyDialog({
         fields: dataset.fields.map((field) => field.key).filter((key) => selected.has(key)),
       }
       return policy
-        ? http.patch(`/datasets/${dataset.id}/policies/columns/${policy.id}`, body)
-        : http.post(`/datasets/${dataset.id}/policies/columns`, body)
+        ? http.patch('/datasets/:id/policies/columns/:policyId', {
+            params: { id: dataset.id, policyId: policy.id },
+            body,
+          })
+        : http.post('/datasets/:id/policies/columns', {
+            params: { id: dataset.id },
+            body: { ...body, principal: body.principal! },
+          })
     },
     onSuccess: saved,
     onError: (error) => setFailure(errorText(error, t('errors.unknown'))),

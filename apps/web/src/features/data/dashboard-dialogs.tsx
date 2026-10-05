@@ -1,4 +1,4 @@
-import type { DashboardRecord, DashboardTile } from '@kchs/contracts'
+import type { DashboardTile } from '@kchs/contracts'
 import {
   Button,
   Callout,
@@ -39,7 +39,7 @@ export function CreateDashboardDialog({
   const [name, setName] = useState('')
   const [failure, setFailure] = useState<string | null>(null)
   const create = useMutation({
-    mutationFn: () => http.post<{ id: string }>('/dashboards', { name: name.trim(), spaceId }),
+    mutationFn: () => http.post('/dashboards', { body: { name: name.trim(), spaceId } }),
     onSuccess: ({ id }) => {
       toast.show({ title: t('data.dashboard.created'), tone: 'success' })
       void client.invalidateQueries({ queryKey: ['objects'] })
@@ -136,17 +136,22 @@ export function AddToDashboardDialog({
   const add = useMutation({
     mutationFn: async (): Promise<{ id: string; title: string }> => {
       if (target === NEW) {
-        const created = await http.post<{ id: string }>('/dashboards', {
-          name: name.trim(),
-          spaceId: source.spaceId,
-          spec: { tiles: [tileFor([])] },
+        const created = await http.post('/dashboards', {
+          body: {
+            name: name.trim(),
+            spaceId: source.spaceId,
+            spec: { tiles: [tileFor([])] },
+          },
         })
         return { id: created.id, title: name.trim() }
       }
-      const dashboard = await http.get<DashboardRecord>(`/dashboards/${target}`)
+      const dashboard = await http.get('/dashboards/:id', { params: { id: target } })
       const tiles = orderedTiles(dashboard.spec.tiles)
-      await http.patch(`/dashboards/${target}`, {
-        spec: { ...dashboard.spec, tiles: packTiles([...tiles, tileFor(tiles)]) },
+      await http.patch('/dashboards/:id', {
+        params: { id: target },
+        body: {
+          spec: { ...dashboard.spec, tiles: packTiles([...tiles, tileFor(tiles)]) },
+        },
       })
       return { id: target, title: dashboard.name }
     },

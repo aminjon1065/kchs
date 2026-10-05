@@ -97,7 +97,8 @@ export function DashboardView({ objectId, tabId }: { objectId: string; tabId: st
   })
 
   const rename = useMutation({
-    mutationFn: (name: string) => http.patch(`/dashboards/${objectId}`, { name }),
+    mutationFn: (name: string) =>
+      http.patch('/dashboards/:id', { params: { id: objectId }, body: { name } }),
     onSuccess: (_result, name) => {
       setTabTitle(tabId, name)
       void client.invalidateQueries({ queryKey: keys.object(objectId) })
@@ -106,8 +107,11 @@ export function DashboardView({ objectId, tabId }: { objectId: string; tabId: st
   })
   const save = useMutation({
     mutationFn: (spec: DashboardSpec) =>
-      http.patch(`/dashboards/${objectId}`, {
-        spec: { ...spec, tiles: packTiles(orderedTiles(spec.tiles)) },
+      http.patch('/dashboards/:id', {
+        params: { id: objectId },
+        body: {
+          spec: { ...spec, tiles: packTiles(orderedTiles(spec.tiles)) },
+        },
       }),
     onSuccess: () => {
       toast.show({ title: t('data.dashboard.saved'), tone: 'success' })
@@ -119,14 +123,14 @@ export function DashboardView({ objectId, tabId }: { objectId: string; tabId: st
       toast.error(error instanceof ApiError ? error.message : t('errors.unknown')),
   })
   const trash = useMutation({
-    mutationFn: () => http.delete(`/objects/${objectId}`),
+    mutationFn: () => http.delete('/objects/:id', { params: { id: objectId } }),
     onSuccess: () => {
       toast.show({
         title: t('objects.trash.movedTo'),
         tone: 'info',
         action: {
           label: t('common.actions.undo'),
-          onClick: () => void http.post(`/objects/${objectId}/restore`),
+          onClick: () => void http.post('/objects/:id/restore', { params: { id: objectId } }),
         },
       })
       void client.invalidateQueries({ queryKey: ['objects'] })
@@ -319,7 +323,8 @@ export function DashboardView({ objectId, tabId }: { objectId: string; tabId: st
                   exportData={
                     tile.kind === 'chart'
                       ? {
-                          path: `/dashboards/${objectId}/export`,
+                          path: '/dashboards/:id/export',
+                          id: objectId,
                           body: { tileId: tile.id, filters: values },
                         }
                       : null

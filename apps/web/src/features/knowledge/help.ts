@@ -1,4 +1,3 @@
-import type { HelpLink } from '@kchs/contracts'
 import { queryOptions, useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { http } from '~/shared/api/client.js'
@@ -8,7 +7,7 @@ import { useWorkspace } from '~/shared/workspace/store.js'
 export const helpQuery = () =>
   queryOptions({
     queryKey: ['knowledge', 'help'] as const,
-    queryFn: async () => (await http.get<HelpLink>('/knowledge/help')).page,
+    queryFn: async () => (await http.get('/knowledge/help')).page,
     staleTime: 5 * 60_000,
   })
 

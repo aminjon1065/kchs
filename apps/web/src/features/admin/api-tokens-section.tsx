@@ -29,7 +29,7 @@ export function ApiTokensSection() {
   const [revoking, setRevoking] = useState<ApiToken | null>(null)
 
   const revoke = useMutation({
-    mutationFn: (id: string) => http.delete(`/admin/api-tokens/${id}`),
+    mutationFn: (id: string) => http.delete('/admin/api-tokens/:id', { params: { id } }),
     onSuccess: () => {
       toast.show({ title: t('admin.apiTokens.revoked'), tone: 'info' })
       setRevoking(null)

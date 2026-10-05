@@ -1,4 +1,3 @@
-import type { LayerRecord } from '@kchs/contracts'
 import { Button } from '@kchs/ui'
 import { ChartArea } from 'lucide-react'
 import { useState } from 'react'
@@ -24,7 +23,7 @@ export function AnalysisTools() {
     }))
     // К охвату нового слоя — когда сервер вернёт его запись
     void http
-      .get<LayerRecord>(`/gis/layers/${layerId}`)
+      .get('/gis/layers/:id', { params: { id: layerId } })
       .then((layer) => {
         if (layer.extent) studio.fitBounds(layer.extent)
       })

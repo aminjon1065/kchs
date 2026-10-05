@@ -1,4 +1,3 @@
-import type { SessionInfo } from '@kchs/contracts'
 import { formatRelativeTime } from '@kchs/fields'
 import { LOCALE_NAMES, LOCALES, type Locale } from '@kchs/i18n'
 import {
@@ -38,7 +37,7 @@ export function ProfileScreen() {
   const { data: me, isLoading } = useQuery(meQuery())
   const { data: sessions } = useQuery({
     queryKey: ['me', 'sessions'],
-    queryFn: () => http.get<{ items: SessionInfo[] }>('/me/sessions'),
+    queryFn: () => http.get('/me/sessions'),
     select: (data) => data.items,
   })
 
@@ -48,7 +47,9 @@ export function ProfileScreen() {
 
   const changePassword = useMutation({
     mutationFn: () =>
-      http.post('/me/password', { currentPassword, newPassword, revokeOtherSessions: true }),
+      http.post('/me/password', {
+        body: { currentPassword, newPassword, revokeOtherSessions: true },
+      }),
     onSuccess: () => {
       setCurrentPassword('')
       setNewPassword('')
@@ -64,12 +65,12 @@ export function ProfileScreen() {
   })
 
   const updateProfile = useMutation({
-    mutationFn: (patch: Record<string, unknown>) => http.patch('/me', patch),
+    mutationFn: (patch: Record<string, unknown>) => http.patch('/me', { body: patch }),
     onSuccess: () => void client.invalidateQueries({ queryKey: keys.me }),
   })
 
   const signOut = useMutation({
-    mutationFn: () => http.post<{ endSessionUrl: string | null }>('/auth/logout'),
+    mutationFn: () => http.post('/auth/logout'),
     onSuccess: (result) => {
       setCsrfToken(null)
       // Выход из корпоративного IdP, если он настроен (ADR-0098): иначе
@@ -80,7 +81,7 @@ export function ProfileScreen() {
   })
 
   const revokeAll = useMutation({
-    mutationFn: () => http.post('/me/sessions/revoke', { all: true }),
+    mutationFn: () => http.post('/me/sessions/revoke', { body: { all: true } }),
     onSuccess: () => {
       toast.show({ title: t('auth.session.othersRevoked'), tone: 'success' })
       void client.invalidateQueries({ queryKey: ['me', 'sessions'] })
@@ -90,7 +91,7 @@ export function ProfileScreen() {
   // Одна сессия — например, забытый вход на чужом компьютере (ADR-0153)
   const revokeOne = useMutation({
     mutationFn: (sessionId: string) =>
-      http.post('/me/sessions/revoke', { sessionIds: [sessionId] }),
+      http.post('/me/sessions/revoke', { body: { sessionIds: [sessionId] } }),
     onSuccess: () => {
       toast.show({ title: t('auth.session.revoked'), tone: 'success' })
       void client.invalidateQueries({ queryKey: ['me', 'sessions'] })

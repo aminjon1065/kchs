@@ -1,4 +1,3 @@
-import type { FilePreviews } from '@kchs/contracts'
 import { cn, EmptyState, IconButton, ObjectIcon, Skeleton, Spinner, Tooltip } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle, Maximize2, ZoomIn, ZoomOut } from 'lucide-react'
@@ -30,7 +29,7 @@ export function ScanViewer({
   const [zoom, setZoom] = useState<number | 'fit'>('fit')
   const previews = useQuery({
     queryKey: fileId ? keys.filePreviews(fileId) : ['object', 'none', 'previews'],
-    queryFn: () => http.get<FilePreviews>(`/files/${fileId}/previews`),
+    queryFn: () => http.get('/files/:id/previews', { params: { id: fileId! } }),
     enabled: Boolean(fileId),
     staleTime: 5 * 60_000,
     refetchInterval: (query) =>

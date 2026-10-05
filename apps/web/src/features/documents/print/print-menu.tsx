@@ -1,4 +1,4 @@
-import type { DocumentRenderRecord, PrintFormInfo } from '@kchs/contracts'
+import type { PrintFormInfo } from '@kchs/contracts'
 import {
   Button,
   Callout,
@@ -44,10 +44,12 @@ export function PrintMenu({ subjectId }: { subjectId: string }) {
 
   const print = useMutation({
     mutationFn: async (input: { form: PrintFormInfo; period?: { from: string; to: string } }) => {
-      const render = await http.post<DocumentRenderRecord>('/documents/prints', {
-        subjectId,
-        form: input.form.key,
-        params: input.period ? { period: input.period } : {},
+      const render = await http.post('/documents/prints', {
+        body: {
+          subjectId,
+          form: input.form.key,
+          params: input.period ? { period: input.period } : {},
+        },
       })
       return waitForRender(render.id)
     },

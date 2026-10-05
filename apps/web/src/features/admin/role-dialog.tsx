@@ -1,4 +1,5 @@
 import {
+  CAPABILITIES,
   type Capability,
   CUSTOM_ROLE_FORBIDDEN,
   PRIVILEGED_CAPABILITIES,
@@ -23,6 +24,9 @@ import { meQuery, rolesQuery } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
 import { CAPABILITY_GROUPS, capabilityLabelKey } from './capabilities.js'
 
+const isCapability = (value: string): value is Capability =>
+  (CAPABILITIES as readonly string[]).includes(value)
+
 /**
  * Своя роль организации (ADR-0165): название на трёх языках, описание и способности.
  * Выдать можно только то, что есть у самого администратора; администрирование системы —
@@ -40,7 +44,8 @@ export function RoleDialog({ role, onClose }: { role: RoleInfo | null; onClose: 
     tg: role?.name.tg ?? '',
     en: role?.name.en ?? '',
     description: role?.description ?? '',
-    capabilities: new Set<string>(role?.capabilities ?? []),
+    // Способность, которой больше нет в контрактах, сервер не примет — в форму не попадает
+    capabilities: new Set<Capability>((role?.capabilities ?? []).filter(isCapability)),
   })
   const [error, setError] = useState<string | null>(null)
   const [removing, setRemoving] = useState(false)
@@ -65,7 +70,7 @@ export function RoleDialog({ role, onClose }: { role: RoleInfo | null; onClose: 
     setError(err instanceof ApiError ? err.message : t('errors.unknown'))
 
   const save = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       const body = {
         name: {
           ru: form.ru.trim(),
@@ -75,13 +80,14 @@ export function RoleDialog({ role, onClose }: { role: RoleInfo | null; onClose: 
         description: form.description.trim() || null,
         capabilities: [...form.capabilities],
       }
-      return role ? http.patch(`/roles/${role.id}`, body) : http.post('/roles', body)
+      if (role) await http.patch('/roles/:id', { params: { id: role.id }, body })
+      else await http.post('/roles', { body })
     },
     onSuccess: () => done(t('admin.roles.saved')),
     onError: failed,
   })
   const remove = useMutation({
-    mutationFn: () => http.delete(`/roles/${role?.id}`),
+    mutationFn: () => http.delete('/roles/:id', { params: { id: role!.id } }),
     onSuccess: () => done(t('admin.roles.deleted')),
     onError: (err) => {
       setRemoving(false)
@@ -89,7 +95,7 @@ export function RoleDialog({ role, onClose }: { role: RoleInfo | null; onClose: 
     },
   })
 
-  const toggle = (capability: string, on: boolean) =>
+  const toggle = (capability: Capability, on: boolean) =>
     setForm((current) => {
       const next = new Set(current.capabilities)
       if (on) next.add(capability)

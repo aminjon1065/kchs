@@ -1,5 +1,6 @@
-import type { FileRecord, UploadResume, UploadSession } from '@kchs/contracts'
+import type { FileRecord, UploadResume } from '@kchs/contracts'
 import { ApiError, http } from '~/shared/api/client.js'
+import type { ApiResponse } from '~/shared/api/route-types.js'
 import { t } from '~/shared/i18n.js'
 
 export interface UploadInput {
@@ -12,11 +13,6 @@ export interface UploadInput {
   /** Примечание к версии: что изменилось. */
   note?: string | null
   onProgress?: (progress: number) => void
-}
-
-interface SessionResponse extends UploadSession {
-  fileId: string
-  versionId: string
 }
 
 /** Загрузка оборвалась, но сессия жива: повтор того же файла продолжит с места обрыва. */
@@ -40,16 +36,18 @@ const RESUME_PREFIX = 'kchs.upload.'
 export async function uploadFile(input: UploadInput): Promise<FileRecord> {
   const resumeKey = resumeKeyOf(input)
   const resumed = await tryResume(resumeKey)
-  const session: SessionResponse | UploadResume =
+  const session: ApiResponse<'POST /files/upload-sessions'> | UploadResume =
     resumed ??
-    (await http.post<SessionResponse>('/files/upload-sessions', {
-      name: input.file.name,
-      size: input.file.size,
-      mime: input.file.type || 'application/octet-stream',
-      spaceId: input.spaceId,
-      folderId: input.folderId ?? null,
-      fileId: input.fileId ?? null,
-      attachToObjectId: input.attachToObjectId ?? null,
+    (await http.post('/files/upload-sessions', {
+      body: {
+        name: input.file.name,
+        size: input.file.size,
+        mime: input.file.type || 'application/octet-stream',
+        spaceId: input.spaceId,
+        folderId: input.folderId ?? null,
+        fileId: input.fileId ?? null,
+        attachToObjectId: input.attachToObjectId ?? null,
+      },
     }))
 
   const parts: Array<{ partNumber: number; etag: string }> = []
@@ -58,7 +56,9 @@ export async function uploadFile(input: UploadInput): Promise<FileRecord> {
     try {
       await putWithProgress(session.singlePutUrl, input.file, input.file.type, input.onProgress)
     } catch (error) {
-      await http.delete(`/files/upload-sessions/${session.uploadId}`).catch(() => undefined)
+      await http
+        .delete('/files/upload-sessions/:id', { params: { id: session.uploadId } })
+        .catch(() => undefined)
       throw error
     }
   } else {
@@ -87,15 +87,15 @@ export async function uploadFile(input: UploadInput): Promise<FileRecord> {
   }
 
   input.onProgress?.(1)
-  const record = await http.post<FileRecord>(
-    `/files/upload-sessions/${session.uploadId}/complete`,
-    {
+  const record = await http.post('/files/upload-sessions/:id/complete', {
+    params: { id: session.uploadId },
+    body: {
       uploadId: session.uploadId,
       storageKey: session.storageKey,
       parts,
       ...(input.note?.trim() ? { note: input.note.trim() } : {}),
     },
-  )
+  })
   forget(resumeKey)
   return record
 }
@@ -120,7 +120,7 @@ async function tryResume(key: string): Promise<UploadResume | null> {
   const saved = recall(key)
   if (!saved) return null
   try {
-    return await http.get<UploadResume>(`/files/upload-sessions/${saved.uploadId}`)
+    return await http.get('/files/upload-sessions/:id', { params: { id: saved.uploadId } })
   } catch (error) {
     // Сессия закрыта или истекла — начинаем заново; сетевую ошибку отдаём выше
     if (error instanceof ApiError) {

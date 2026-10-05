@@ -1,4 +1,4 @@
-import type { ColumnarAdmin, ColumnarAdminEntry, ColumnarSettings } from '@kchs/contracts'
+import type { ColumnarAdminEntry, ColumnarSettings } from '@kchs/contracts'
 import { formatFileSize, formatNumber, formatRelativeTime } from '@kchs/fields'
 import { Badge, Button, Card, EmptyState, Field, Input, Skeleton, Switch, useToast } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -32,12 +32,12 @@ export function ColumnarSection() {
   const [draft, setDraft] = useState<ColumnarSettings | null>(null)
   const { data } = useQuery({
     queryKey: KEY,
-    queryFn: () => http.get<ColumnarAdmin>('/admin/data/columnar'),
+    queryFn: () => http.get('/admin/data/columnar'),
   })
 
   const save = useMutation({
     mutationFn: (next: ColumnarSettings) =>
-      http.put<ColumnarSettings>('/admin/data/columnar/settings', next),
+      http.put('/admin/data/columnar/settings', { body: next }),
     onSuccess: () => {
       setDraft(null)
       void client.invalidateQueries({ queryKey: KEY })
@@ -49,7 +49,7 @@ export function ColumnarSection() {
 
   const build = useMutation({
     mutationFn: (datasetId: string) =>
-      http.post(`/datasets/${datasetId}/columnar/build`, {}) as Promise<unknown>,
+      http.post('/datasets/:id/columnar/build', { params: { id: datasetId } }),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: KEY })
       toast.show({ title: t('data.columnar.buildStarted'), tone: 'success' })

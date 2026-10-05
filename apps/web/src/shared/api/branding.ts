@@ -11,7 +11,7 @@ import { http } from './client.js'
 export function brandingQuery() {
   return {
     queryKey: ['branding'] as const,
-    queryFn: () => http.get<Branding>('/branding'),
+    queryFn: () => http.get('/branding'),
     staleTime: 5 * 60_000,
   }
 }

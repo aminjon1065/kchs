@@ -1,5 +1,4 @@
 import {
-  type AnalysisRecord,
   type DatasetRecord,
   SPATIAL_OPS,
   type SpatialOp,
@@ -115,16 +114,18 @@ export function AnalysisDialog({
 
   const create = useMutation({
     mutationFn: () =>
-      http.post<AnalysisRecord>('/analyses', {
-        name: title,
-        spaceId: dataset.spaceId,
-        ...(outputName.trim() ? { outputName: outputName.trim() } : {}),
-        query: {
-          version: 1,
-          source: { kind: 'dataset', id: dataset.id },
-          steps: step ? [step] : [],
+      http.post('/analyses', {
+        body: {
+          name: title,
+          spaceId: dataset.spaceId,
+          ...(outputName.trim() ? { outputName: outputName.trim() } : {}),
+          query: {
+            version: 1,
+            source: { kind: 'dataset', id: dataset.id },
+            steps: step ? [step] : [],
+          },
+          run: true,
         },
-        run: true,
       }),
     onSuccess: (record) => {
       toast.show({ title: t('data.analysis.started'), tone: 'success' })

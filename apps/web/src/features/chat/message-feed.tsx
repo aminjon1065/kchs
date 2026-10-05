@@ -1,4 +1,4 @@
-import type { ChatListItem, Message, TranslateResult } from '@kchs/contracts'
+import type { ChatListItem, Message } from '@kchs/contracts'
 import {
   Badge,
   Button,
@@ -38,7 +38,7 @@ import {
   Users,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { MessageComposer } from '~/entities/discussion/message-composer.js'
+import { type ComposedMessage, MessageComposer } from '~/entities/discussion/message-composer.js'
 import {
   DeleteMessageDialog,
   MessageItem,
@@ -269,7 +269,10 @@ export function MessageFeed({
   // Отметка прочтения — когда лента показана и внизу есть новое сообщение
   const markRead = useMutation({
     mutationFn: (messageId: string) =>
-      http.post(`/conversations/${conversation.id}/read`, { messageId }),
+      http.post('/conversations/:id/read', {
+        params: { id: conversation.id },
+        body: { messageId },
+      }),
     onSuccess: () => void client.invalidateQueries({ queryKey: chatKeys.all }),
   })
   const markedRef = useRef<string | null>(null)
@@ -285,10 +288,13 @@ export function MessageFeed({
 
   const saveDraft = useMutation({
     mutationFn: (text: string) =>
-      http.put(`/chats/${conversation.id}/draft`, {
-        threadRootId: null,
-        body: text ? { type: 'doc', content: [] } : null,
-        text,
+      http.put('/chats/:id/draft', {
+        params: { id: conversation.id },
+        body: {
+          threadRootId: null,
+          body: text ? { type: 'doc', content: [] } : null,
+          text,
+        },
       }),
     onSuccess: () => void client.invalidateQueries({ queryKey: chatKeys.drafts }),
   })
@@ -296,9 +302,11 @@ export function MessageFeed({
   const translate = useMutation({
     mutationFn: async (input: { messageId: string; text: string }) => ({
       messageId: input.messageId,
-      result: await http.post<TranslateResult>('/ai/translate', {
-        text: input.text,
-        to: locale,
+      result: await http.post('/ai/translate', {
+        body: {
+          text: input.text,
+          to: locale,
+        },
       }),
     }),
     onSuccess: ({ messageId, result }) =>
@@ -307,19 +315,17 @@ export function MessageFeed({
   })
 
   const post = useMutation({
-    mutationFn: (message: {
-      body: unknown
-      text: string
-      mentions: string[]
-      attachments: string[]
-    }) =>
-      http.post(`/conversations/${conversation.id}/messages`, {
-        body: message.body,
-        text: message.text,
-        attachments: message.attachments.map((fileId) => ({ fileId })),
-        mentions: message.mentions,
-        mentionedObjectIds: [],
-        ...(threadRootId ? { threadRootId } : {}),
+    mutationFn: (message: ComposedMessage) =>
+      http.post('/conversations/:id/messages', {
+        params: { id: conversation.id },
+        body: {
+          body: message.body,
+          text: message.text,
+          attachments: message.attachments.map((fileId) => ({ fileId })),
+          mentions: message.mentions,
+          mentionedObjectIds: [],
+          ...(threadRootId ? { threadRootId } : {}),
+        },
       }),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: keys.discussion(conversation.id) })
@@ -329,7 +335,7 @@ export function MessageFeed({
   })
 
   const call = useMutation({
-    mutationFn: () => http.post<{ meetingId: string }>(`/chats/${conversation.id}/call`, {}),
+    mutationFn: () => http.post('/chats/:id/call', { params: { id: conversation.id }, body: {} }),
     onSuccess: (result) => {
       toast.show({ title: t('chats.callStarted') })
       onOpenMeeting(result.meetingId)
@@ -341,7 +347,7 @@ export function MessageFeed({
 
   const settings = useMutation({
     mutationFn: (patch: { pinned?: boolean; muted?: boolean; archived?: boolean }) =>
-      http.put(`/chats/${conversation.id}/settings`, patch),
+      http.put('/chats/:id/settings', { params: { id: conversation.id }, body: patch }),
     onSuccess: (_, patch) => {
       void client.invalidateQueries({ queryKey: chatKeys.all })
       if (patch.archived)
@@ -351,19 +357,19 @@ export function MessageFeed({
 
   const pin = useMutation({
     mutationFn: (input: { messageId: string; on: boolean }) =>
-      http.put(`/chats/${conversation.id}/pins`, input),
+      http.put('/chats/:id/pins', { params: { id: conversation.id }, body: input }),
     onSuccess: () => void client.invalidateQueries({ queryKey: chatKeys.pins(conversation.id) }),
   })
 
   const leave = useMutation({
-    mutationFn: () => http.post(`/chats/${conversation.id}/leave`, {}),
+    mutationFn: () => http.post('/chats/:id/leave', { params: { id: conversation.id } }),
     onSuccess: () => void client.invalidateQueries({ queryKey: chatKeys.all }),
     onError: (error) =>
       toast.error(error instanceof ApiError ? error.message : t('errors.unknown')),
   })
 
   const join = useMutation({
-    mutationFn: () => http.post(`/chats/${conversation.id}/join`, {}),
+    mutationFn: () => http.post('/chats/:id/join', { params: { id: conversation.id } }),
     onSuccess: () => void client.invalidateQueries({ queryKey: chatKeys.all }),
   })
 
@@ -827,14 +833,17 @@ function ThreadPanel({
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const { data } = useQuery(chatMessagesQuery(conversation.id, rootId))
   const post = useMutation({
-    mutationFn: (message: { body: unknown; text: string; mentions: string[] }) =>
-      http.post(`/conversations/${conversation.id}/messages`, {
-        body: message.body,
-        text: message.text,
-        attachments: [],
-        mentions: message.mentions,
-        mentionedObjectIds: [],
-        threadRootId: rootId,
+    mutationFn: (message: ComposedMessage) =>
+      http.post('/conversations/:id/messages', {
+        params: { id: conversation.id },
+        body: {
+          body: message.body,
+          text: message.text,
+          attachments: [],
+          mentions: message.mentions,
+          mentionedObjectIds: [],
+          threadRootId: rootId,
+        },
       }),
     onSuccess: () => void client.invalidateQueries({ queryKey: keys.discussion(conversation.id) }),
   })

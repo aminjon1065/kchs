@@ -58,7 +58,7 @@ export function PageVersions({
 
   const save = useMutation({
     mutationFn: () =>
-      http.post<PageVersionRecord>(`/pages/${pageId}/versions`, { note: note || null }),
+      http.post('/pages/:id/versions', { params: { id: pageId }, body: { note: note || null } }),
     onSuccess: () => {
       setNote('')
       toast.show({ title: t('knowledge.versions.saved'), tone: 'success' })
@@ -69,7 +69,9 @@ export function PageVersions({
 
   const restore = useMutation({
     mutationFn: (versionId: string) =>
-      http.post<PageVersionRecord>(`/pages/${pageId}/versions/${versionId}/restore`, {}),
+      http.post('/pages/:id/versions/:versionId/restore', {
+        params: { id: pageId, versionId },
+      }),
     onSuccess: (version) => {
       toast.show({
         title: t('knowledge.versions.restored', { number: version.number }),

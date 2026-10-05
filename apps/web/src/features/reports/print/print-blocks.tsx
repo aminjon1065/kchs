@@ -3,7 +3,6 @@ import {
   type ChartSpec,
   type DatasetRecord,
   type FilterNode,
-  type MetricValue,
   type MetricValueInput,
   notebookParamFields,
   type QueryResult,
@@ -204,14 +203,14 @@ export function PrintQuery({ block }: { block: BlockOf<'query'> }) {
   }, [sql, dataset.data, block.plan, block.bindings, block.view, block.maxRows, params])
   const visual = useQuery({
     queryKey: ['print', 'query', block.id, spec],
-    queryFn: () => http.post<QueryResult>('/queries/run', { spec }),
+    queryFn: () => http.post('/queries/run', { body: { spec: spec! } }),
     enabled: Boolean(spec),
     retry: false,
   })
   const values = useMemo(() => sqlParams(params, timezone), [params, timezone])
   const raw = useQuery({
     queryKey: ['print', 'sql', block.id, block.sql, values],
-    queryFn: () => http.post<QueryResult>('/sql/run', { sql: block.sql, params: values }),
+    queryFn: () => http.post('/sql/run', { body: { sql: block.sql, params: values } }),
     enabled: sql && canSql && Boolean(block.sql.trim()),
     retry: false,
   })
@@ -278,13 +277,13 @@ export function PrintChart({ block }: { block: BlockOf<'chart'> }) {
   const runSpec = ready ? chartQuerySpec(query, dataset.data, params, block.bindings) : null
   const viaQuery = useQuery({
     queryKey: ['print', 'chart', block.id, runSpec],
-    queryFn: () => http.post<QueryResult>('/queries/run', { spec: runSpec }),
+    queryFn: () => http.post('/queries/run', { body: { spec: runSpec! } }),
     enabled: Boolean(runSpec),
     retry: false,
   })
   const viaChart = useQuery({
     queryKey: ['print', 'chart-data', block.id, block.chartId],
-    queryFn: () => http.post<QueryResult>(`/charts/${block.chartId}/data`, {}),
+    queryFn: () => http.post('/charts/:id/data', { params: { id: block.chartId! }, body: {} }),
     enabled: Boolean(spec && !query),
     retry: false,
   })
@@ -358,7 +357,7 @@ export function PrintMetrics({ block }: { block: BlockOf<'metrics'> }) {
   const values = useQueries({
     queries: inputs.map((item) => ({
       queryKey: ['print', 'metric', block.id, item.id, item.input],
-      queryFn: () => http.post<MetricValue>(`/metrics/${item.id}/value`, item.input),
+      queryFn: () => http.post('/metrics/:id/value', { params: { id: item.id }, body: item.input }),
       enabled: item.ready,
       retry: false,
     })),

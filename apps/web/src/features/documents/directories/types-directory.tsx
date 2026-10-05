@@ -215,7 +215,7 @@ function TypePanel({ type, onClose }: { type: DocumentTypeRecord; onClose: () =>
         settings: { ...form.settings, defaultDeadlineDays: days, ackDueWorkingDays: ackDays },
         isActive: form.active,
       }
-      return http.patch(`/document-types/${type.id}`, body)
+      return http.patch('/document-types/:id', { params: { id: type.id }, body })
     },
     onSuccess: () => {
       toast.show({ title: t('documents.types.saved'), tone: 'success' })

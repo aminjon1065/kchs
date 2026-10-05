@@ -41,7 +41,7 @@ export function MfaSetup({ onDone, onCancel }: { onDone: () => void; onCancel?: 
   }
 
   const start = useMutation({
-    mutationFn: () => http.post<MfaSetupResponse>('/me/mfa/setup'),
+    mutationFn: () => http.post('/me/mfa/setup'),
     onSuccess: (setup) => {
       setError(null)
       setStage({ kind: 'scan', setup })
@@ -50,7 +50,7 @@ export function MfaSetup({ onDone, onCancel }: { onDone: () => void; onCancel?: 
   })
 
   const confirm = useMutation({
-    mutationFn: () => http.post<{ codes: string[] }>('/me/mfa/enable', { code }),
+    mutationFn: () => http.post('/me/mfa/enable', { body: { code } }),
     onSuccess: (result) => {
       setError(null)
       setStage({ kind: 'codes', codes: result.codes })

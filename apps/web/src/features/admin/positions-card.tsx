@@ -25,8 +25,7 @@ const positionsKey = ['org', 'positions'] as const
 /** Должности от старших к младшим: ранг — старшинство (у председателя больше). */
 export const positionsQuery = () => ({
   queryKey: positionsKey,
-  queryFn: async () =>
-    (await http.get<{ items: Position[] }>('/org/positions')).items.sort((a, b) => b.rank - a.rank),
+  queryFn: async () => (await http.get('/org/positions')).items.sort((a, b) => b.rank - a.rank),
 })
 
 /**
@@ -43,7 +42,7 @@ export function PositionsCard() {
   const [editing, setEditing] = useState<Position | 'new' | null>(null)
   const [removing, setRemoving] = useState<Position | null>(null)
   const remove = useMutation({
-    mutationFn: (id: string) => http.delete(`/org/positions/${id}`),
+    mutationFn: (id: string) => http.delete('/org/positions/:id', { params: { id } }),
     onSuccess: () => {
       setRemoving(null)
       toast.show({ title: t('admin.positions.removed'), tone: 'info' })
@@ -139,7 +138,7 @@ function PositionDialog({ position, onClose }: { position: Position | null; onCl
   const [error, setError] = useState<string | null>(null)
   const set = (patch: Partial<typeof form>) => setForm((current) => ({ ...current, ...patch }))
   const save = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       const body = {
         name: {
           ru: form.ru.trim(),
@@ -148,9 +147,8 @@ function PositionDialog({ position, onClose }: { position: Position | null; onCl
         },
         rank: Number.parseInt(form.rank, 10) || 0,
       }
-      return position
-        ? http.patch(`/org/positions/${position.id}`, body)
-        : http.post('/org/positions', body)
+      if (position) await http.patch('/org/positions/:id', { params: { id: position.id }, body })
+      else await http.post('/org/positions', { body })
     },
     onSuccess: () => {
       toast.show({ title: t('admin.positions.saved'), tone: 'success' })

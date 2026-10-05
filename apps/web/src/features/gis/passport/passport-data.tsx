@@ -56,10 +56,13 @@ function RowsTable({ dataset, territoryId }: { dataset: DatasetRecord; territory
   const rows = useQuery({
     queryKey: ['territory', territoryId, 'passport-rows', dataset.id, dataset.currentVersion],
     queryFn: () =>
-      http.post<QueryResult>(`/datasets/${dataset.id}/rows/query`, {
-        where: withinTerritory(field, territoryId),
-        limit: PREVIEW_ROWS,
-        count: true,
+      http.post('/datasets/:id/rows/query', {
+        params: { id: dataset.id },
+        body: {
+          where: withinTerritory(field, territoryId),
+          limit: PREVIEW_ROWS,
+          count: true,
+        },
       }),
     retry: false,
   })

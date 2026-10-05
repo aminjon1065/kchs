@@ -1,4 +1,4 @@
-import type { MailPassword, MailStatus } from '@kchs/contracts'
+import type { MailPassword } from '@kchs/contracts'
 import { Button, Callout, Card, useToast } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Mail } from 'lucide-react'
@@ -19,10 +19,10 @@ export function MailCard() {
   const [issued, setIssued] = useState<MailPassword | null>(null)
   const { data: status } = useQuery({
     queryKey: mailKey,
-    queryFn: () => http.get<MailStatus>('/me/mail'),
+    queryFn: () => http.get('/me/mail'),
   })
   const issue = useMutation({
-    mutationFn: () => http.post<MailPassword>('/me/mail/password', {}),
+    mutationFn: () => http.post('/me/mail/password'),
     onSuccess: (result) => {
       setIssued(result)
       void client.invalidateQueries({ queryKey: mailKey })
@@ -30,7 +30,7 @@ export function MailCard() {
     onError: () => toast.error(t('errors.unknown')),
   })
   const revoke = useMutation({
-    mutationFn: () => http.delete<MailStatus>('/me/mail/password'),
+    mutationFn: () => http.delete('/me/mail/password'),
     onSuccess: (next) => {
       setIssued(null)
       client.setQueryData(mailKey, next)

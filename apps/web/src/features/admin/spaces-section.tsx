@@ -140,7 +140,11 @@ function AssignAdminDialog({ space, onClose }: { space: AdminSpace | null; onClo
   }
 
   const assign = useMutation({
-    mutationFn: () => http.post(`/admin/spaces/${space?.id}/admins`, { userId: picked?.id }),
+    mutationFn: () =>
+      http.post('/admin/spaces/:id/admins', {
+        params: { id: space!.id },
+        body: { userId: picked!.id },
+      }),
     onSuccess: () => {
       toast.show({
         title: t('admin.spaces.assigned', { name: picked?.title ?? '' }),

@@ -2,7 +2,6 @@ import {
   DEFAULT_NUMBER_FORMAT,
   formatRegNumber,
   type JournalRecord,
-  type JournalReservation,
   numberFormatIssue,
 } from '@kchs/contracts'
 import { formatDateTime } from '@kchs/fields'
@@ -179,12 +178,15 @@ function JournalPanel({ journal, onClose }: { journal: JournalRecord; onClose: (
 
   const save = useMutation({
     mutationFn: () =>
-      http.patch<JournalRecord>(`/journals/${journal.id}`, {
-        name: name.trim(),
-        prefix: prefix.trim(),
-        format,
-        reset,
-        isActive: active,
+      http.patch('/journals/:id', {
+        params: { id: journal.id },
+        body: {
+          name: name.trim(),
+          prefix: prefix.trim(),
+          format,
+          reset,
+          isActive: active,
+        },
       }),
     onSuccess: () => {
       toast.show({ title: t('documents.journals.saved'), tone: 'success' })
@@ -307,9 +309,12 @@ function Reservations({ journal }: { journal: JournalRecord }) {
   }
   const reserve = useMutation({
     mutationFn: () =>
-      http.post<{ items: JournalReservation[] }>(`/journals/${journal.id}/reservations`, {
-        count: Number(count),
-        note: note.trim(),
+      http.post('/journals/:id/reservations', {
+        params: { id: journal.id },
+        body: {
+          count: Number(count),
+          note: note.trim(),
+        },
       }),
     onSuccess: ({ items }) => {
       setNote('')
@@ -325,7 +330,10 @@ function Reservations({ journal }: { journal: JournalRecord }) {
     onError: (error) => toast.error(errorText(error, t('errors.unknown'))),
   })
   const cancel = useMutation({
-    mutationFn: (id: string) => http.delete(`/journals/${journal.id}/reservations/${id}`),
+    mutationFn: (id: string) =>
+      http.delete('/journals/:id/reservations/:reservationId', {
+        params: { id: journal.id, reservationId: id },
+      }),
     onSuccess: refresh,
     onError: (error) => toast.error(errorText(error, t('errors.unknown'))),
   })
@@ -411,7 +419,7 @@ function CreateJournalDialog({
   const [failure, setFailure] = useState<string | null>(null)
   const create = useMutation({
     mutationFn: () =>
-      http.post<JournalRecord>('/journals', { name: name.trim(), prefix: prefix.trim(), format }),
+      http.post('/journals', { body: { name: name.trim(), prefix: prefix.trim(), format } }),
     onSuccess: (journal) => {
       void client.invalidateQueries({ queryKey: documentKeys.all })
       onCreated(journal.id)

@@ -1,9 +1,4 @@
-import {
-  type ObjectAcknowledgments,
-  type PageRecord,
-  type PrincipalRef,
-  REVIEWED_PAGE_TEMPLATES,
-} from '@kchs/contracts'
+import { type PageRecord, type PrincipalRef, REVIEWED_PAGE_TEMPLATES } from '@kchs/contracts'
 import {
   Button,
   Callout,
@@ -38,13 +33,13 @@ export function PageAcknowledgments({ page }: { page: PageRecord }) {
   const [sendOpen, setSendOpen] = useState(false)
   const { data } = useQuery({
     queryKey: knowledgeKeys.acknowledgments(page.id),
-    queryFn: () => http.get<ObjectAcknowledgments>(`/objects/${page.id}/acknowledgments`),
+    queryFn: () => http.get('/objects/:id/acknowledgments', { params: { id: page.id } }),
     enabled: page.status === 'published' || page.acknowledgmentRequested,
   })
 
   const acknowledge = useMutation({
     mutationFn: () =>
-      http.post<ObjectAcknowledgments>(`/objects/${page.id}/acknowledgments/acknowledge`, {}),
+      http.post('/objects/:id/acknowledgments/acknowledge', { params: { id: page.id }, body: {} }),
     onSuccess: (next) => {
       client.setQueryData(knowledgeKeys.acknowledgments(page.id), next)
       void client.invalidateQueries({ queryKey: ['inbox'] })
@@ -106,12 +101,15 @@ function SendDialog({ page, onClose }: { page: PageRecord; onClose: () => void }
 
   const send = useMutation({
     mutationFn: () =>
-      http.post<{ requested: number }>(`/pages/${page.id}/acknowledgments`, {
-        userIds: principals.filter((item) => item.type === 'user').map((item) => item.id),
-        unitIds: principals.filter((item) => item.type === 'unit').map((item) => item.id),
-        dueAt: due || null,
-        requireSecondFactor: secondFactor,
-        note: note || null,
+      http.post('/pages/:id/acknowledgments', {
+        params: { id: page.id },
+        body: {
+          userIds: principals.filter((item) => item.type === 'user').map((item) => item.id),
+          unitIds: principals.filter((item) => item.type === 'unit').map((item) => item.id),
+          dueAt: due || null,
+          requireSecondFactor: secondFactor,
+          note: note || null,
+        },
       }),
     onSuccess: (result) => {
       toast.show({
@@ -186,7 +184,7 @@ export function PageReview({ page }: { page: PageRecord }) {
 
   const update = useMutation({
     mutationFn: (patch: Record<string, unknown>) =>
-      http.patch<PageRecord>(`/pages/${page.id}`, patch),
+      http.patch('/pages/:id', { params: { id: page.id }, body: patch }),
     onSuccess: () => {
       toast.show({ title: t('knowledge.review.saved'), tone: 'success' })
       void client.invalidateQueries({ queryKey: knowledgeKeys.page(page.id) })
@@ -281,9 +279,12 @@ export function PublishDialog({ page, onClose }: { page: PageRecord; onClose: ()
 
   const publish = useMutation({
     mutationFn: () =>
-      http.post<PageRecord>(`/pages/${page.id}/publish`, {
-        note: note || null,
-        reviewAt: reviewAt || null,
+      http.post('/pages/:id/publish', {
+        params: { id: page.id },
+        body: {
+          note: note || null,
+          reviewAt: reviewAt || null,
+        },
       }),
     onSuccess: () => {
       toast.show({ title: t('knowledge.publish.done'), tone: 'success' })

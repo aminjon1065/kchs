@@ -1,20 +1,4 @@
-import type {
-  ControlList,
-  ControlListQuery,
-  ControlMetricsState,
-  ControlQuery,
-  ControlReport,
-  IssuedSummary,
-  ProjectRecord,
-  TaskList,
-  TaskListQuery,
-  TaskRecord,
-  TaskSettings,
-  TaskSummary,
-  TeamSummary,
-  WorkloadQuery,
-  WorkloadReport,
-} from '@kchs/contracts'
+import type { ControlListQuery, ControlQuery, TaskListQuery, WorkloadQuery } from '@kchs/contracts'
 import { queryOptions } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
 
@@ -53,90 +37,85 @@ export function queryOf(query: object): Record<string, string | number | boolean
 export const tasksQuery = (query: Partial<TaskListQuery>) =>
   queryOptions({
     queryKey: taskKeys.list(query),
-    queryFn: () => http.get<TaskList>('/tasks', { query: queryOf(query) }),
+    queryFn: () => http.get('/tasks', { query: queryOf(query) }),
   })
 
 export const taskSummaryQuery = () =>
   queryOptions({
     queryKey: taskKeys.summary,
-    queryFn: () => http.get<TaskSummary>('/tasks/summary'),
+    queryFn: () => http.get('/tasks/summary'),
     staleTime: 30_000,
   })
 
 export const taskQuery = (id: string) =>
   queryOptions({
     queryKey: taskKeys.task(id),
-    queryFn: () => http.get<TaskRecord>(`/tasks/${id}`),
+    queryFn: () => http.get('/tasks/:id', { params: { id } }),
   })
 
 /** Поручения и задачи по строке датасета — для карточки строки. */
 export const rowTasksQuery = (datasetId: string, rowId: string) =>
   queryOptions({
     queryKey: taskKeys.byRow(datasetId, rowId),
-    queryFn: () => http.get<TaskList>('/tasks/by-row', { query: { datasetId, rowId } }),
+    queryFn: () => http.get('/tasks/by-row', { query: { datasetId, rowId } }),
   })
 
 /** Контроль исполнения: матрица, итоги, динамика (ADR-0082). */
 export const controlQuery = (query: Partial<ControlQuery>) =>
   queryOptions({
     queryKey: taskKeys.control(query),
-    queryFn: () => http.get<ControlReport>('/tasks/control', { query: queryOf(query) }),
+    queryFn: () => http.get('/tasks/control', { query: queryOf(query) }),
   })
 
 /** Поручения ячейки матрицы контроля. */
 export const controlListQuery = (query: Partial<ControlListQuery>) =>
   queryOptions({
     queryKey: taskKeys.controlList(query),
-    queryFn: () => http.get<ControlList>('/tasks/control/list', { query: queryOf(query) }),
+    queryFn: () => http.get('/tasks/control/list', { query: queryOf(query) }),
   })
 
 export const workloadQuery = (query: Partial<WorkloadQuery>) =>
   queryOptions({
     queryKey: taskKeys.workload(query),
-    queryFn: () => http.get<WorkloadReport>('/tasks/workload', { query: queryOf(query) }),
+    queryFn: () => http.get('/tasks/workload', { query: queryOf(query) }),
   })
 
 export const issuedQuery = () =>
   queryOptions({
     queryKey: taskKeys.issued,
-    queryFn: () => http.get<IssuedSummary>('/tasks/issued'),
+    queryFn: () => http.get('/tasks/issued'),
     staleTime: 30_000,
   })
 
 export const teamQuery = () =>
   queryOptions({
     queryKey: taskKeys.team,
-    queryFn: () => http.get<TeamSummary>('/tasks/team'),
+    queryFn: () => http.get('/tasks/team'),
     staleTime: 30_000,
   })
 
 export const taskSettingsQuery = () =>
   queryOptions({
     queryKey: taskKeys.settings,
-    queryFn: () => http.get<TaskSettings>('/tasks/settings'),
+    queryFn: () => http.get('/tasks/settings'),
   })
 
 /** Показатели контроля на установке — консоль, раздел «Поручения». */
 export const controlMetricsQuery = () =>
   queryOptions({
     queryKey: taskKeys.metrics,
-    queryFn: () => http.get<ControlMetricsState>('/admin/tasks/metrics'),
+    queryFn: () => http.get('/admin/tasks/metrics'),
   })
 
 export const projectsQuery = (spaceId?: string) =>
   queryOptions({
     queryKey: taskKeys.projects(spaceId),
     queryFn: async () =>
-      (
-        await http.get<{ items: ProjectRecord[] }>(
-          '/projects',
-          spaceId ? { query: { spaceId } } : {},
-        )
-      ).items,
+      (await http.get('/projects', { ...(spaceId ? { query: { spaceId } } : {}) })).items,
   })
 
 export const projectQuery = (id: string) =>
   queryOptions({
     queryKey: taskKeys.project(id),
-    queryFn: () => http.get<ProjectRecord>(`/projects/${id}`),
+    queryFn: () => http.get('/projects/:id', { params: { id } }),
   })

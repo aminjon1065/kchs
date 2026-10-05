@@ -1,4 +1,3 @@
-import type { MeetingRecord, ProtocolRecord, ProtocolResponse } from '@kchs/contracts'
 import { queryOptions } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
 
@@ -13,14 +12,14 @@ export const protocolKeys = {
 export const meetingQuery = (id: string) =>
   queryOptions({
     queryKey: protocolKeys.meeting(id),
-    queryFn: () => http.get<MeetingRecord>(`/meetings/${id}`),
+    queryFn: () => http.get('/meetings/:id', { params: { id } }),
   })
 
 /** Протокол встречи; null — его ещё не завели. */
 export const meetingProtocolQuery = (id: string) =>
   queryOptions({
     queryKey: protocolKeys.ofMeeting(id),
-    queryFn: async () => (await http.get<ProtocolResponse>(`/meetings/${id}/protocol`)).protocol,
+    queryFn: async () => (await http.get('/meetings/:id/protocol', { params: { id } })).protocol,
   })
 
 /**
@@ -30,6 +29,6 @@ export const meetingProtocolQuery = (id: string) =>
 export const protocolQuery = (id: string) =>
   queryOptions({
     queryKey: protocolKeys.protocol(id),
-    queryFn: () => http.get<ProtocolRecord>(`/protocols/${id}`),
+    queryFn: () => http.get('/protocols/:id', { params: { id } }),
     staleTime: 10_000,
   })

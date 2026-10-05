@@ -50,7 +50,7 @@ export function DocumentOfficeActions() {
   const [dialog, setDialog] = useState<'dispatch' | 'file' | null>(null)
 
   const reply = useMutation({
-    mutationFn: () => http.post<{ id: string }>(`/documents/${document.id}/reply`, {}),
+    mutationFn: () => http.post('/documents/:id/reply', { params: { id: document.id }, body: {} }),
     onSuccess: ({ id }) => {
       toast.show({ title: t('documents.reply.created'), tone: 'success' })
       refresh()
@@ -159,11 +159,14 @@ function DispatchDialog({
 
   const send = useMutation({
     mutationFn: () =>
-      http.post<DocumentRecord>(`/documents/${document.id}/emails`, {
-        correspondentId: correspondent?.id ?? null,
-        to: emailTo.trim() || null,
-        message: message.trim() || null,
-        attachments: withAttachments,
+      http.post('/documents/:id/emails', {
+        params: { id: document.id },
+        body: {
+          correspondentId: correspondent?.id ?? null,
+          to: emailTo.trim() || null,
+          message: message.trim() || null,
+          attachments: withAttachments,
+        },
       }),
     onSuccess: (record) => {
       toast.show({ title: t('documents.email.queued'), tone: 'success' })
@@ -175,12 +178,15 @@ function DispatchDialog({
 
   const dispatch = useMutation({
     mutationFn: () =>
-      http.post<DocumentRecord>(`/documents/${document.id}/dispatches`, {
-        correspondentId: correspondent?.id ?? null,
-        addressee: addressee.trim() || null,
-        method,
-        sentOn,
-        tracking: tracking.trim() || null,
+      http.post('/documents/:id/dispatches', {
+        params: { id: document.id },
+        body: {
+          correspondentId: correspondent?.id ?? null,
+          addressee: addressee.trim() || null,
+          method,
+          sentOn,
+          tracking: tracking.trim() || null,
+        },
       }),
     onSuccess: (record) => {
       toast.show({ title: t('documents.dispatch.done'), tone: 'success' })
@@ -356,7 +362,8 @@ function FileDialog({
   }, [caseId, data, items])
 
   const file = useMutation({
-    mutationFn: () => http.post<DocumentRecord>(`/documents/${document.id}/file`, { caseId }),
+    mutationFn: () =>
+      http.post('/documents/:id/file', { params: { id: document.id }, body: { caseId } }),
     onSuccess: (record) => {
       toast.show({
         title: t('documents.file.done', { index: record.case?.index ?? '' }),

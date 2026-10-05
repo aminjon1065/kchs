@@ -1,5 +1,5 @@
 import type { ChartFilter, ChartPick } from '@kchs/chart-spec'
-import type { FieldOption, Locale, QueryResult, UserRef } from '@kchs/contracts'
+import type { FieldOption, Locale, QueryResult } from '@kchs/contracts'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { http } from '~/shared/api/client.js'
@@ -109,7 +109,7 @@ export function useLabelledResult(
   const users = useQueries({
     queries: people.map((id) => ({
       queryKey: ['user-ref', id] as const,
-      queryFn: () => http.get<UserRef>(`/users/${id}`),
+      queryFn: () => http.get('/users/:id', { params: { id } }),
       staleTime: 5 * 60_000,
       retry: false,
     })),

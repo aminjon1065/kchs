@@ -237,8 +237,7 @@ function ReportPrint({ target }: { target: Exclude<PrintTarget, { kind: 'dashboa
   // у браузера движка сессии нет, и /me ему недоступен — это не ошибка
   const me = useQuery({
     queryKey: ['print', 'me'],
-    queryFn: () =>
-      http.get<{ session: { csrfToken: string } }>('/me', { anonymous: true }).catch(() => null),
+    queryFn: () => http.get('/me', { anonymous: true }).catch(() => null),
     retry: false,
   })
   useEffect(() => {
@@ -248,12 +247,12 @@ function ReportPrint({ target }: { target: Exclude<PrintTarget, { kind: 'dashboa
   const payload = useQuery({
     queryKey: ['print', 'payload', target],
     queryFn: () =>
-      http.get<ReportPrintPayload>(
-        target.kind === 'run'
-          ? `/print/report-runs/${target.runId}`
-          : `/print/reports/${target.reportId}`,
-        { anonymous: true },
-      ),
+      target.kind === 'run'
+        ? http.get('/print/report-runs/:runId', {
+            params: { runId: target.runId },
+            anonymous: true,
+          })
+        : http.get('/print/reports/:id', { params: { id: target.reportId }, anonymous: true }),
     enabled: !me.isLoading,
     retry: false,
   })

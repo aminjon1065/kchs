@@ -91,8 +91,7 @@ export function BulkDialog({
     return { kind }
   }
   const run = useMutation({
-    mutationFn: (body: TaskBulkAction) =>
-      http.post<TaskBulkResult>('/tasks/bulk', { ids, action: body }),
+    mutationFn: (body: TaskBulkAction) => http.post('/tasks/bulk', { body: { ids, action: body } }),
     onSuccess: (outcome) => {
       invalidate()
       toast.show({

@@ -68,8 +68,8 @@ export function MeetingRoom({
   const active = meeting?.recording ?? null
   const record = useMutation({
     mutationFn: async () => {
-      if (active) await http.post(`/recordings/${active.id}/stop`)
-      else await http.post(`/meetings/${meeting?.id}/recording/start`)
+      if (active) await http.post('/recordings/:id/stop', { params: { id: active.id } })
+      else await http.post('/meetings/:id/recording/start', { params: { id: meeting!.id } })
     },
     onSuccess: () => {
       if (meeting) void client.invalidateQueries({ queryKey: meetingKeys.meeting(meeting.id) })

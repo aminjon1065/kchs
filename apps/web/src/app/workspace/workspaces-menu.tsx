@@ -1,4 +1,4 @@
-import type { NamedWorkspace, NamedWorkspaceSummary } from '@kchs/contracts'
+import type { NamedWorkspaceSummary } from '@kchs/contracts'
 import {
   Button,
   Dialog,
@@ -50,7 +50,7 @@ export function WorkspacesMenu() {
 
   const overwrite = useMutation({
     mutationFn: (item: NamedWorkspaceSummary) =>
-      http.patch(`/workspaces/${item.id}`, { layout: layout() }),
+      http.patch('/workspaces/:id', { params: { id: item.id }, body: { layout: layout() } }),
     onSuccess: (_result, item) => {
       toast.show({
         title: t('shell.workspaces.overwritten', { title: item.title }),
@@ -63,20 +63,22 @@ export function WorkspacesMenu() {
 
   const pin = useMutation({
     mutationFn: (item: NamedWorkspaceSummary) =>
-      http.patch(`/workspaces/${item.id}`, { pinned: !item.pinned }),
+      http.patch('/workspaces/:id', { params: { id: item.id }, body: { pinned: !item.pinned } }),
     onSuccess: refresh,
     onError: () => toast.error(t('errors.forbidden')),
   })
 
   const remove = useMutation({
-    mutationFn: (item: NamedWorkspaceSummary) => http.delete(`/objects/${item.id}`),
+    mutationFn: (item: NamedWorkspaceSummary) =>
+      http.delete('/objects/:id', { params: { id: item.id } }),
     onSuccess: (_result, item) => {
       toast.show({
         title: t('shell.workspaces.deleted', { title: item.title }),
         tone: 'info',
         action: {
           label: t('common.actions.undo'),
-          onClick: () => void http.post(`/objects/${item.id}/restore`).then(refresh),
+          onClick: () =>
+            void http.post('/objects/:id/restore', { params: { id: item.id } }).then(refresh),
         },
       })
       refresh()
@@ -180,11 +182,13 @@ function SaveWorkspaceDialog({
 
   const save = useMutation({
     mutationFn: () =>
-      http.post<NamedWorkspace>('/workspaces', {
-        title: title.trim(),
-        shared,
-        spaceId: shared ? (spaceId ?? teamSpaces[0]?.id ?? null) : null,
-        layout: layout(),
+      http.post('/workspaces', {
+        body: {
+          title: title.trim(),
+          shared,
+          spaceId: shared ? (spaceId ?? teamSpaces[0]?.id ?? null) : null,
+          layout: layout(),
+        },
       }),
     onSuccess: (workspace) => {
       onSaved(workspace.title)

@@ -31,12 +31,12 @@ export function NotificationsScreen() {
   const { data, isLoading } = useQuery(notificationsQuery(unreadOnly))
 
   const markAll = useMutation({
-    mutationFn: () => http.post('/notifications/read', { all: true }),
+    mutationFn: () => http.post('/notifications/read', { body: { all: true } }),
     onSuccess: () => void client.invalidateQueries({ queryKey: ['notifications'] }),
   })
   // Одно уведомление (ADR-0153): кнопкой «Прочитано» или щелчком, который открывает объект
   const markOne = useMutation({
-    mutationFn: (id: string) => http.post('/notifications/read', { ids: [id] }),
+    mutationFn: (id: string) => http.post('/notifications/read', { body: { ids: [id] } }),
     onSuccess: () => void client.invalidateQueries({ queryKey: ['notifications'] }),
   })
 

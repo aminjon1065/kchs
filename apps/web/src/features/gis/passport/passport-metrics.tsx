@@ -56,9 +56,12 @@ export function PassportMetricsDialog({
     })
   const link = useMutation({
     mutationFn: () =>
-      http.post(`/objects/${metricId}/links`, {
-        targetId: scope === 'root' ? root.id : territory.id,
-        kind: 'about_territory',
+      http.post('/objects/:id/links', {
+        params: { id: metricId! },
+        body: {
+          targetId: scope === 'root' ? root.id : territory.id,
+          kind: 'about_territory',
+        },
       }),
     onSuccess: () => {
       setMetricId(null)
@@ -69,7 +72,9 @@ export function PassportMetricsDialog({
   })
   const unlink = useMutation({
     mutationFn: (metric: PassportMetric) =>
-      http.delete(`/objects/${metric.metricId}/links/${metric.linkedTo}/about_territory`),
+      http.delete('/objects/:id/links/:targetId/:kind', {
+        params: { id: metric.metricId, targetId: metric.linkedTo, kind: 'about_territory' },
+      }),
     onSuccess: () => void refresh(),
     onError: (error) => setFailure(error instanceof ApiError ? error.message : t('errors.unknown')),
   })

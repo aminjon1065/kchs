@@ -9,7 +9,6 @@ import {
   type MetricValue,
   type ObjectSummary,
   type QueryResult,
-  type UserRef,
 } from '@kchs/contracts'
 import {
   AlertDialog,
@@ -171,7 +170,8 @@ export function MetricView({ objectId, tabId }: { objectId: string; tabId: strin
   })
 
   const rename = useMutation({
-    mutationFn: (name: string) => http.patch(`/metrics/${objectId}`, { name }),
+    mutationFn: (name: string) =>
+      http.patch('/metrics/:id', { params: { id: objectId }, body: { name } }),
     onSuccess: (_result, name) => {
       setTabTitle(tabId, name)
       void client.invalidateQueries({ queryKey: keys.object(objectId) })
@@ -179,14 +179,14 @@ export function MetricView({ objectId, tabId }: { objectId: string; tabId: strin
     },
   })
   const trash = useMutation({
-    mutationFn: () => http.delete(`/objects/${objectId}`),
+    mutationFn: () => http.delete('/objects/:id', { params: { id: objectId } }),
     onSuccess: () => {
       toast.show({
         title: t('objects.trash.movedTo'),
         tone: 'info',
         action: {
           label: t('common.actions.undo'),
-          onClick: () => void http.post(`/objects/${objectId}/restore`),
+          onClick: () => void http.post('/objects/:id/restore', { params: { id: objectId } }),
         },
       })
       void client.invalidateQueries({ queryKey: ['objects'] })
@@ -404,7 +404,7 @@ function useSourceFields(metric: MetricRecord) {
     enabled: Boolean(metric.datasetId),
   })
   const { data: system } = useQuery({
-    ...systemDatasetQuery(metric.systemSource ?? ''),
+    ...systemDatasetQuery(metric.systemSource!),
     enabled: Boolean(metric.systemSource),
   })
   const fields: FilterField[] = dataset
@@ -437,7 +437,7 @@ function useValueLabels(type: FieldType | undefined, values: string[]) {
   const users = useQueries({
     queries: people.map((id) => ({
       queryKey: ['user-ref', id] as const,
-      queryFn: () => http.get<UserRef>(`/users/${id}`),
+      queryFn: () => http.get('/users/:id', { params: { id } }),
       staleTime: 5 * 60_000,
     })),
   })

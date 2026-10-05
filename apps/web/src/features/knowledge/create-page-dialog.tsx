@@ -42,11 +42,13 @@ export function CreatePageDialog({
 
   const create = useMutation({
     mutationFn: () =>
-      http.post<{ id: string }>('/pages', {
-        title: title.trim(),
-        spaceId,
-        template,
-        ...(parentId ? { parentId } : {}),
+      http.post('/pages', {
+        body: {
+          title: title.trim(),
+          spaceId,
+          template,
+          ...(parentId ? { parentId } : {}),
+        },
       }),
     onSuccess: (created) => {
       toast.show({ title: t('knowledge.create.done'), tone: 'success' })

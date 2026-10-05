@@ -1,4 +1,4 @@
-import type { DocumentRenderRecord, DocumentTemplateRecord, PrintFormInfo } from '@kchs/contracts'
+import type { DocumentRenderRecord } from '@kchs/contracts'
 import { queryOptions } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
 
@@ -20,12 +20,7 @@ export const renderKeys = {
 export const printFormsQuery = (subjectId: string) =>
   queryOptions({
     queryKey: renderKeys.forms(subjectId),
-    queryFn: async () =>
-      (
-        await http.get<{ items: PrintFormInfo[] }>('/documents/print-forms', {
-          query: { subjectId },
-        })
-      ).items,
+    queryFn: async () => (await http.get('/documents/print-forms', { query: { subjectId } })).items,
     staleTime: 30_000,
   })
 
@@ -33,12 +28,7 @@ export const printFormsQuery = (subjectId: string) =>
 export const rendersQuery = (subjectId: string) =>
   queryOptions({
     queryKey: renderKeys.renders(subjectId),
-    queryFn: async () =>
-      (
-        await http.get<{ items: DocumentRenderRecord[] }>('/documents/renders', {
-          query: { subjectId },
-        })
-      ).items,
+    queryFn: async () => (await http.get('/documents/renders', { query: { subjectId } })).items,
     refetchInterval: (query) =>
       query.state.data?.some((render) => ACTIVE.has(render.status)) ? 3000 : false,
   })
@@ -48,7 +38,7 @@ export const templatesQuery = (typeId: string | null, includeInactive = false) =
     queryKey: renderKeys.templates(typeId, includeInactive),
     queryFn: async () =>
       (
-        await http.get<{ items: DocumentTemplateRecord[] }>('/document-templates', {
+        await http.get('/document-templates', {
           query: {
             typeId: typeId ?? undefined,
             includeInactive: includeInactive ? 'true' : undefined,
@@ -66,10 +56,10 @@ export async function waitForRender(
   timeoutMs = 180_000,
 ): Promise<DocumentRenderRecord> {
   const deadline = Date.now() + timeoutMs
-  let render = await http.get<DocumentRenderRecord>(`/documents/renders/${id}`)
+  let render = await http.get('/documents/renders/:id', { params: { id } })
   while (ACTIVE.has(render.status) && Date.now() < deadline) {
     await sleep(1500)
-    render = await http.get<DocumentRenderRecord>(`/documents/renders/${id}`)
+    render = await http.get('/documents/renders/:id', { params: { id } })
   }
   return render
 }

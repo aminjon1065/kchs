@@ -110,7 +110,7 @@ export function ResolutionDialog({
         parentId: parent?.id ?? null,
         ...(onBehalf && author ? { authorId: author.id } : {}),
       }
-      return http.post<DocumentResolutions>(`/documents/${document.id}/resolutions`, body)
+      return http.post('/documents/:id/resolutions', { params: { id: document.id }, body })
     },
     onSuccess: (next) => {
       client.setQueryData(documentKeys.resolutions(document.id), next)
@@ -272,10 +272,13 @@ export function ResolutionRequestDialog({
 
   const send = useMutation({
     mutationFn: () =>
-      http.post<DocumentResolutions>(`/documents/${document.id}/resolution-requests`, {
-        userId: user?.id ?? '',
-        dueDate: dueDate || null,
-        note: note.trim() || null,
+      http.post('/documents/:id/resolution-requests', {
+        params: { id: document.id },
+        body: {
+          userId: user?.id ?? '',
+          dueDate: dueDate || null,
+          note: note.trim() || null,
+        },
       }),
     onSuccess: (next) => {
       client.setQueryData(documentKeys.resolutions(document.id), next)
@@ -357,8 +360,11 @@ export function NoExecutionDialog({
 
   const done = useMutation({
     mutationFn: () =>
-      http.post<DocumentRecord>(`/documents/${document.id}/no-execution`, {
-        comment: comment.trim() || null,
+      http.post('/documents/:id/no-execution', {
+        params: { id: document.id },
+        body: {
+          comment: comment.trim() || null,
+        },
       }),
     onSuccess: (record) => {
       client.setQueryData(documentKeys.document(record.id), record)

@@ -135,7 +135,7 @@ export function SqlLabScreen({ tabId, savedState }: { tabId: string; savedState?
         const value = params[name]?.trim()
         if (value) values[name] = value
       }
-      return http.post<QueryResult>('/sql/run', { sql: input.text, params: values })
+      return http.post('/sql/run', { body: { sql: input.text, params: values } })
     },
     onMutate: () => {
       setDiagnostics((current) => (current.length > 0 ? [] : current))

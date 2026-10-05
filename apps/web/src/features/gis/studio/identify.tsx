@@ -1,4 +1,4 @@
-import type { LayerRecord, QueryResult, ReverseGeocodeResponse } from '@kchs/contracts'
+import type { LayerRecord } from '@kchs/contracts'
 import { Button, IconButton, Skeleton } from '@kchs/ui'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { ChevronLeft, Info, X, ZoomIn } from 'lucide-react'
@@ -59,14 +59,14 @@ function useRowLabels(groups: readonly Group[]): ReadonlyMap<string, string> {
       return {
         queryKey: ['identify', group.layer.id, group.layer.datasetVersion, ids],
         queryFn: async () => {
-          const result = await http.post<QueryResult>(
-            `/datasets/${group.layer.datasetId}/rows/query`,
-            {
+          const result = await http.post('/datasets/:id/rows/query', {
+            params: { id: group.layer.datasetId },
+            body: {
               where: { field: '_id', op: 'in', value: ids.map(Number) },
               limit: ids.length,
               count: false,
             },
-          )
+          })
           const names = result.fields.map((field) => field.name)
           const idIndex = names.indexOf('_id')
           return result.rows.map((row) => {
@@ -310,8 +310,7 @@ function PlaceChain({ lon, lat }: { lon: number; lat: number }) {
   const locale = useLocale()
   const { data, isLoading } = useQuery({
     queryKey: ['geocode', 'reverse', lon.toFixed(5), lat.toFixed(5)],
-    queryFn: () =>
-      http.get<ReverseGeocodeResponse>('/gis/geocode/reverse', { query: { lon, lat } }),
+    queryFn: () => http.get('/gis/geocode/reverse', { query: { lon, lat } }),
     staleTime: 10 * 60_000,
     retry: false,
   })

@@ -201,7 +201,7 @@ function CreateMapDialog({ spaceId, onClose }: { spaceId: string; onClose: () =>
   const [name, setName] = useState('')
   const [failure, setFailure] = useState<string | null>(null)
   const create = useMutation({
-    mutationFn: () => http.post<{ id: string }>('/gis/maps', { name: name.trim(), spaceId }),
+    mutationFn: () => http.post('/gis/maps', { body: { name: name.trim(), spaceId } }),
     onSuccess: ({ id }) => {
       toast.show({ title: t('gis.maps.created'), tone: 'success' })
       void client.invalidateQueries({ queryKey: ['objects'] })

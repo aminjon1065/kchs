@@ -1,6 +1,7 @@
 import type {
   DatasetField,
   DatasetRecord,
+  DatasetRowConflict,
   FeatureEditInput,
   FeatureGeometry,
   LayerEditAccess,
@@ -37,7 +38,6 @@ import {
   conflictOf,
   editApi,
   editKeys,
-  type RowConflict,
   refreshAfterWrite,
   reverseGeocodeQuery,
 } from './edit-api.js'
@@ -95,7 +95,10 @@ export function FeatureForm({
   const [serverErrors, setServerErrors] = useState<Record<string, string>>({})
   const [failure, setFailure] = useState<string | null>(null)
   const [note, setNote] = useState('')
-  const [conflict, setConflict] = useState<{ conflict: RowConflict; pending: Pending } | null>(null)
+  const [conflict, setConflict] = useState<{
+    conflict: DatasetRowConflict
+    pending: Pending
+  } | null>(null)
   const [busy, setBusy] = useState(false)
   const [removing, setRemoving] = useState(false)
   const fieldOptions = useFieldOptions(dataset.fields)

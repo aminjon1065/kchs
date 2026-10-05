@@ -1,11 +1,5 @@
 import { suggestChart } from '@kchs/chart-spec'
-import {
-  type AskDataResult,
-  type ChartSpec,
-  type ChartType,
-  measureAlias,
-  type QueryResult,
-} from '@kchs/contracts'
+import { type AskDataResult, type ChartSpec, type ChartType, measureAlias } from '@kchs/contracts'
 import { formatNumber } from '@kchs/fields'
 import {
   Button,
@@ -95,7 +89,7 @@ export function ExploreScreen({
   const specKey = useDebouncedValue(JSON.stringify(spec), 400)
   const result = useQuery({
     queryKey: ['explore', specKey],
-    queryFn: () => http.post<QueryResult>('/queries/run', { spec: JSON.parse(specKey) }),
+    queryFn: () => http.post('/queries/run', { body: { spec: JSON.parse(specKey) } }),
     placeholderData: keepPreviousData,
     retry: false,
   })
@@ -311,7 +305,7 @@ function SaveChartDialog({
   const [name, setName] = useState(defaultName)
   const [failure, setFailure] = useState<string | null>(null)
   const save = useMutation({
-    mutationFn: () => http.post<{ id: string }>('/charts', { name: name.trim(), spaceId, spec }),
+    mutationFn: () => http.post('/charts', { body: { name: name.trim(), spaceId, spec } }),
     onSuccess: ({ id }) => {
       toast.show({ title: t('data.explore.saved'), tone: 'success' })
       onClose()

@@ -268,8 +268,11 @@ function SegmentEditor({
   const [error, setError] = useState<string | null>(null)
   const save = useMutation({
     mutationFn: () =>
-      http.patch<TranscriptRecord>(`/recordings/${recordingId}/transcript/segments/${index}`, {
-        text: draft.trim(),
+      http.patch('/recordings/:id/transcript/segments/:index', {
+        params: { id: recordingId, index },
+        body: {
+          text: draft.trim(),
+        },
       }),
     onSuccess: (next) => {
       client.setQueryData(recordingKeys.transcript(recordingId), next)
@@ -339,10 +342,10 @@ function SpeakerMapping({
   const client = useQueryClient()
   const assign = useMutation({
     mutationFn: (input: { label: string; userId: string | null }) =>
-      http.put<TranscriptRecord>(
-        `/recordings/${transcript.recordingId}/transcript/speakers`,
-        input,
-      ),
+      http.put('/recordings/:id/transcript/speakers', {
+        params: { id: transcript.recordingId },
+        body: input,
+      }),
     onSuccess: (next) =>
       client.setQueryData(recordingKeys.transcript(transcript.recordingId), next),
     onError: (failure) =>

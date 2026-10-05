@@ -1,9 +1,4 @@
-import type {
-  ObjectAcknowledgments,
-  ProtocolBlockKind,
-  ProtocolDraft,
-  ProtocolRecord,
-} from '@kchs/contracts'
+import type { ProtocolBlockKind, ProtocolRecord } from '@kchs/contracts'
 import {
   Badge,
   Button,
@@ -59,7 +54,7 @@ export function ProtocolPanel({ meetingId }: { meetingId: string }) {
   const { data: protocol, isLoading } = useQuery(meetingProtocolQuery(meetingId))
 
   const create = useMutation({
-    mutationFn: () => http.post<ProtocolRecord>(`/meetings/${meetingId}/protocol`, {}),
+    mutationFn: () => http.post('/meetings/:id/protocol', { params: { id: meetingId } }),
     onSuccess: () => void client.invalidateQueries({ queryKey: protocolKeys.ofMeeting(meetingId) }),
     onError: (error) =>
       toast.error(error instanceof ApiError ? error.message : t('errors.unknown')),
@@ -113,7 +108,7 @@ export function ProtocolBody({ protocolId, meetingId }: { protocolId: string; me
     toast.error(error instanceof ApiError ? error.message : t('errors.unknown'))
 
   const draft = useMutation({
-    mutationFn: () => http.post<ProtocolDraft>(`/protocols/${protocolId}/draft`, {}),
+    mutationFn: () => http.post('/protocols/:id/draft', { params: { id: protocolId } }),
     onSuccess: (result) => {
       toast.show({
         title: t('meetings.protocol.draftDone', { count: result.added.length }),
@@ -124,7 +119,7 @@ export function ProtocolBody({ protocolId, meetingId }: { protocolId: string; me
     onError: failed,
   })
   const confirm = useMutation({
-    mutationFn: () => http.post<ProtocolRecord>(`/protocols/${protocolId}/confirm`, {}),
+    mutationFn: () => http.post('/protocols/:id/confirm', { params: { id: protocolId } }),
     onSuccess: (result) => {
       toast.show({
         title: t('meetings.protocol.confirmed', { count: result.instructions.length }),
@@ -136,7 +131,7 @@ export function ProtocolBody({ protocolId, meetingId }: { protocolId: string; me
   })
   const acknowledge = useMutation({
     mutationFn: () =>
-      http.post<{ requested: number }>(`/protocols/${protocolId}/acknowledgments`, {}),
+      http.post('/protocols/:id/acknowledgments', { params: { id: protocolId }, body: {} }),
     onSuccess: (result) => {
       toast.show({
         title: t('meetings.protocol.ackSent', { count: result.requested }),
@@ -148,7 +143,7 @@ export function ProtocolBody({ protocolId, meetingId }: { protocolId: string; me
   })
   const register = useMutation({
     mutationFn: (typeId: string) =>
-      http.post<{ documentId: string }>(`/protocols/${protocolId}/register`, { typeId }),
+      http.post('/protocols/:id/register', { params: { id: protocolId }, body: { typeId } }),
     onSuccess: (result) => {
       setRegisterOpen(false)
       refresh()
@@ -309,7 +304,7 @@ function ProtocolPrintState({ protocol }: { protocol: ProtocolRecord }) {
   const client = useQueryClient()
   const openTab = useWorkspace((s) => s.openTab)
   const retry = useMutation({
-    mutationFn: () => http.post<ProtocolRecord>(`/protocols/${protocol.id}/print`, {}),
+    mutationFn: () => http.post('/protocols/:id/print', { params: { id: protocol.id } }),
     onSuccess: (next) => client.setQueryData(protocolKeys.protocol(protocol.id), next),
     onError: (failure) =>
       toast.error(failure instanceof ApiError ? failure.message : t('errors.unknown')),
@@ -382,13 +377,16 @@ function ProtocolAcknowledgments({ protocol }: { protocol: ProtocolRecord }) {
   const client = useQueryClient()
   const { data } = useQuery({
     queryKey: protocolKeys.acknowledgments(protocol.id),
-    queryFn: () => http.get<ObjectAcknowledgments>(`/objects/${protocol.id}/acknowledgments`),
+    queryFn: () => http.get('/objects/:id/acknowledgments', { params: { id: protocol.id } }),
     enabled: protocol.status === 'confirmed',
   })
 
   const acknowledge = useMutation({
     mutationFn: () =>
-      http.post<ObjectAcknowledgments>(`/objects/${protocol.id}/acknowledgments/acknowledge`, {}),
+      http.post('/objects/:id/acknowledgments/acknowledge', {
+        params: { id: protocol.id },
+        body: {},
+      }),
     onSuccess: (next) => {
       client.setQueryData(protocolKeys.acknowledgments(protocol.id), next)
       void client.invalidateQueries({ queryKey: ['inbox'] })

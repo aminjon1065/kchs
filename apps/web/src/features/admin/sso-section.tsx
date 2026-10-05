@@ -61,7 +61,7 @@ export function SsoSection() {
     toast.error(err instanceof ApiError ? err.message : t('errors.unknown'))
 
   const save = useMutation({
-    mutationFn: (next: Draft) => http.put<SsoState>('/admin/sso', next),
+    mutationFn: (next: Draft) => http.put('/admin/sso', { body: next }),
     onSuccess: (saved) => {
       client.setQueryData(authProviderKeys.sso, saved)
       setDraft(null)
@@ -71,7 +71,7 @@ export function SsoSection() {
   })
 
   const test = useMutation({
-    mutationFn: () => http.post<SsoTestResult>('/admin/sso/test'),
+    mutationFn: () => http.post('/admin/sso/test'),
     onSuccess: setTested,
     onError: failed,
   })

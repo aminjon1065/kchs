@@ -1,4 +1,4 @@
-import type { RecordingRecord, UserRef } from '@kchs/contracts'
+import type { UserRef } from '@kchs/contracts'
 import { formatDate } from '@kchs/fields'
 import {
   Badge,
@@ -53,7 +53,7 @@ export default function RecordingView({ objectId, tabId }: { objectId: string; t
   // Закрепить от удаления по сроку хранения (N29): решает организатор
   const pin = useMutation({
     mutationFn: (pinned: boolean) =>
-      http.post<RecordingRecord>(`/recordings/${objectId}/pin`, { pinned }),
+      http.post('/recordings/:id/pin', { params: { id: objectId }, body: { pinned } }),
     onSuccess: (next) => {
       client.setQueryData(recordingKeys.recording(objectId), next)
       toast.show({

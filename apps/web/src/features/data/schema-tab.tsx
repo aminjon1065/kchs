@@ -249,7 +249,8 @@ function FieldPanel({
   const label = labelOf(field, locale)
 
   const remove = useMutation({
-    mutationFn: () => http.delete(`/datasets/${dataset.id}/fields/${field.key}`),
+    mutationFn: () =>
+      http.delete('/datasets/:id/fields/:key', { params: { id: dataset.id, key: field.key } }),
     onSuccess: () => {
       toast.show({ title: t('data.dataset.editor.removed'), tone: 'success' })
       refresh()
@@ -520,7 +521,10 @@ function FieldPropertiesForm({
           : {}),
         ...(JSON.stringify(lookup) !== JSON.stringify(field.lookup ?? null) ? { lookup } : {}),
       }
-      return http.patch<DatasetRecord>(`/datasets/${dataset.id}/fields/${field.key}`, patch)
+      return http.patch('/datasets/:id/fields/:key', {
+        params: { id: dataset.id, key: field.key },
+        body: patch,
+      })
     },
     onSuccess: () => {
       toast.show({ title: t('data.dataset.editor.saved'), tone: 'success' })
@@ -716,10 +720,13 @@ function ConvertTypeDialog({
 
   const run = useMutation({
     mutationFn: (apply: boolean) =>
-      http.post<DatasetFieldConvertReport>(`/datasets/${dataset.id}/fields/${field.key}/convert`, {
-        type,
-        dryRun: !apply,
-        allowLoss: apply && (report?.failed ?? 0) > 0,
+      http.post('/datasets/:id/fields/:key/convert', {
+        params: { id: dataset.id, key: field.key },
+        body: {
+          type,
+          dryRun: !apply,
+          allowLoss: apply && (report?.failed ?? 0) > 0,
+        },
       }),
     onSuccess: (result) => {
       setFailure(null)
@@ -830,11 +837,14 @@ function AddFieldDialog({
 
   const add = useMutation({
     mutationFn: () =>
-      http.post<DatasetRecord>(`/datasets/${dataset.id}/fields`, {
-        key: effectiveKey,
-        label: { ru: label.trim() },
-        type,
-        semantic,
+      http.post('/datasets/:id/fields', {
+        params: { id: dataset.id },
+        body: {
+          key: effectiveKey,
+          label: { ru: label.trim() },
+          type,
+          semantic,
+        },
       }),
     onSuccess: () => {
       toast.show({ title: t('data.dataset.editor.added'), tone: 'success' })
@@ -948,14 +958,17 @@ function TableSettingsDialog({
 
   const save = useMutation({
     mutationFn: () =>
-      http.patch<DatasetRecord>(`/datasets/${dataset.id}`, {
-        timeField: timeField === NONE ? null : timeField,
-        primaryKey,
-        settings: {
-          editable,
-          trackHistory,
-          rowEvents,
-          historyRetentionDays: retention.trim() === '' ? null : Number(retention),
+      http.patch('/datasets/:id', {
+        params: { id: dataset.id },
+        body: {
+          timeField: timeField === NONE ? null : timeField,
+          primaryKey,
+          settings: {
+            editable,
+            trackHistory,
+            rowEvents,
+            historyRetentionDays: retention.trim() === '' ? null : Number(retention),
+          },
         },
       }),
     onSuccess: () => {

@@ -38,12 +38,14 @@ export function CreateReportDialog({ spaceId, onClose }: { spaceId: string; onCl
     item.key ? t(`data.report.templates.builtin.${item.key}.description`) : item.description
   const create = useMutation({
     mutationFn: () =>
-      http.post<{ id: string }>('/reports', {
-        name: name.trim(),
-        spaceId,
-        ...(template
-          ? { blocks: template.blocks, params: template.params, settings: template.settings }
-          : { blocks: [{ id: 'intro', kind: 'text' }] }),
+      http.post('/reports', {
+        body: {
+          name: name.trim(),
+          spaceId,
+          ...(template
+            ? { blocks: template.blocks, params: template.params, settings: template.settings }
+            : { blocks: [{ id: 'intro', kind: 'text' }] }),
+        },
       }),
     onSuccess: ({ id }) => {
       toast.show({ title: t('data.report.created'), tone: 'success' })

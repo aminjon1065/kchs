@@ -1,4 +1,4 @@
-import type { LayerRecord, ObjectSummary } from '@kchs/contracts'
+import type { ObjectSummary } from '@kchs/contracts'
 import { stylePresets } from '@kchs/map-style'
 import {
   Button,
@@ -89,22 +89,24 @@ export function AddLayerDialog({
     mutationFn: async () => {
       if (!dataset.data) throw new Error('no dataset')
       if (choice !== NEW) return choice
-      const created = await http.post<{ id: string }>('/gis/layers', {
-        name: dataset.data.name,
-        spaceId,
-        datasetId: dataset.data.id,
+      const created = await http.post('/gis/layers', {
+        body: {
+          name: dataset.data.name,
+          spaceId,
+          datasetId: dataset.data.id,
+        },
       })
       // Пресет — поверх стиля, который сервер выбрал по геометрии данных
       const preset = presets.find((item) => item.id === presetId)
       if (preset && preset.id !== SIMPLE) {
-        const record = await http.get<LayerRecord>(`/gis/layers/${created.id}`)
+        const record = await http.get('/gis/layers/:id', { params: { id: created.id } })
         const values =
           preset.kind === 'categorized' && preset.field
             ? await loadCategoryValues(dataset.data.id, preset.field, null)
             : null
         const style = styleWithPreset(record.style, preset, fields, options, values)
         if (!sameStyle(style, record.style)) {
-          await http.patch(`/gis/layers/${created.id}`, { style })
+          await http.patch('/gis/layers/:id', { params: { id: created.id }, body: { style } })
         }
       }
       void client.invalidateQueries({ queryKey: gisKeys.datasetLayers(dataset.data.id) })

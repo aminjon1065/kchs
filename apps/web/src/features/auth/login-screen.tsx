@@ -1,4 +1,3 @@
-import type { AuthMethods } from '@kchs/contracts'
 import { LOCALE_NAMES, LOCALES, type Locale } from '@kchs/i18n'
 import { Button, Callout, cn, Field, Input, PasswordInput, SegmentedControl } from '@kchs/ui'
 import { useMutation, useQuery } from '@tanstack/react-query'
@@ -39,7 +38,7 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
   // только если они настроены
   const { data: methods } = useQuery({
     queryKey: ['auth', 'methods'],
-    queryFn: () => http.get<AuthMethods>('/auth/methods', { anonymous: true }),
+    queryFn: () => http.get('/auth/methods', { anonymous: true }),
     staleTime: 60_000,
     retry: false,
   })
@@ -55,11 +54,10 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
 
   const signIn = useMutation({
     mutationFn: () =>
-      http.post<{ status: string; csrfToken?: string; methods?: Factor[] }>(
-        '/auth/login',
-        { login, password, rememberDevice: false },
-        { anonymous: true },
-      ),
+      http.post('/auth/login', {
+        body: { login, password, rememberDevice: false },
+        anonymous: true,
+      }),
     onSuccess: (result) => {
       setError(null)
       if (result.status === 'mfa_required') {
@@ -75,11 +73,10 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
 
   const verifyMfa = useMutation({
     mutationFn: () =>
-      http.post<{ csrfToken: string }>(
-        '/auth/mfa/verify',
-        { challengeId: '', code, trustDevice: false },
-        { anonymous: true },
-      ),
+      http.post('/auth/mfa/verify', {
+        body: { challengeId: '', code, trustDevice: false },
+        anonymous: true,
+      }),
     onSuccess: (result) => {
       setCsrfToken(result.csrfToken)
       onSignedIn()
@@ -89,7 +86,7 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
 
   /** Вход через корпоративный IdP: браузер уходит на страницу провайдера. */
   const startSso = useMutation({
-    mutationFn: () => http.post<{ url: string }>('/auth/sso/start', undefined, { anonymous: true }),
+    mutationFn: () => http.post('/auth/sso/start', { anonymous: true }),
     onSuccess: (result) => {
       window.location.assign(result.url)
     },
@@ -99,15 +96,9 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
   /** Самостоятельный вход по ключу: вызов сервера → подпись устройства → сессия. */
   const signInWithKey = useMutation({
     mutationFn: async () => {
-      const options = await http.post<Record<string, unknown>>('/auth/passkey/options', undefined, {
-        anonymous: true,
-      })
+      const options = await http.post('/auth/passkey/options', { anonymous: true })
       const credential = await requestPasskey(options)
-      return http.post<{ csrfToken: string }>(
-        '/auth/passkey/verify',
-        { credential },
-        { anonymous: true },
-      )
+      return http.post('/auth/passkey/verify', { body: { credential }, anonymous: true })
     },
     onSuccess: (result) => {
       setCsrfToken(result.csrfToken)
@@ -123,17 +114,9 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
   /** Подтверждение второго фактора ключом поверх входа по паролю. */
   const verifyWithKey = useMutation({
     mutationFn: async () => {
-      const options = await http.post<Record<string, unknown>>(
-        '/auth/mfa/passkey/options',
-        undefined,
-        { anonymous: true },
-      )
+      const options = await http.post('/auth/mfa/passkey/options', { anonymous: true })
       const credential = await requestPasskey(options)
-      return http.post<{ csrfToken: string }>(
-        '/auth/mfa/passkey/verify',
-        { credential },
-        { anonymous: true },
-      )
+      return http.post('/auth/mfa/passkey/verify', { body: { credential }, anonymous: true })
     },
     onSuccess: (result) => {
       setCsrfToken(result.csrfToken)
@@ -146,7 +129,7 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
   })
 
   const requestReset = useMutation({
-    mutationFn: () => http.post('/auth/password-reset', { login }, { anonymous: true }),
+    mutationFn: () => http.post('/auth/password-reset', { body: { login }, anonymous: true }),
     onSuccess: () => {
       setError(null)
       setResetSent(true)

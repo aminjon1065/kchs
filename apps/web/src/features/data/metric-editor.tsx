@@ -253,10 +253,10 @@ export function MetricEditor({
         })),
       }
       if (metric) {
-        await http.patch(`/metrics/${metric.id}`, body)
+        await http.patch('/metrics/:id', { params: { id: metric.id }, body })
         return { id: metric.id }
       }
-      return http.post<{ id: string }>('/metrics', { ...body, spaceId })
+      return http.post('/metrics', { body: { ...body, spaceId } })
     },
     onSuccess: ({ id }) => {
       toast.show({
