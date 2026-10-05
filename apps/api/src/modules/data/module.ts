@@ -71,6 +71,7 @@ import { authorize } from '~/kernel/access/authorize.js'
 import { registerSubscriber } from '~/kernel/events/bus.js'
 import { registerJobHandler } from '~/kernel/jobs/runner.js'
 import { JobService } from '~/kernel/jobs/service.js'
+import { registerNotificationCategory } from '~/kernel/notifications/service.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { declareSchedule } from '~/kernel/schedules/index.js'
@@ -157,6 +158,7 @@ const qualityRun = alias(datasetQualityRuns, 'quality_run')
 
 /** Типы объектов модуля «Данные» (06-analytics-engine.md). */
 export function registerDataObjectTypes(): void {
+  registerNotificationCategory('data', { app: 'immediate', email: 'digest' })
   registerObjectType({
     type: 'dataset',
     labelKey: 'objects.types.dataset',

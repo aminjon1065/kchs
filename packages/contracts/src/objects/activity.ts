@@ -32,3 +32,9 @@ export const AuditEntry = z.object({
   severity: z.enum(['info', 'notice', 'warning', 'critical']),
 })
 export type AuditEntry = z.infer<typeof AuditEntry>
+
+/** Каталог действий аудита (ADR-0182): действие и кто его объявил — ядро или модуль. */
+export const AuditActionCatalog = z.object({
+  items: z.array(z.object({ action: z.string(), owner: z.string() })),
+})
+export type AuditActionCatalog = z.infer<typeof AuditActionCatalog>

@@ -13,7 +13,7 @@ import {
 import { and, asc, eq, inArray, sql } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
 import { clearanceOf } from '~/kernel/access/confidentiality.js'
-import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
+import { audit } from '~/kernel/audit/service.js'
 import { directory } from '~/kernel/directory/port.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { LinkService } from '~/kernel/links/service.js'
@@ -24,6 +24,7 @@ import { db, type Executor } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { documentDispatches, documents, documentTypes } from '../schema.js'
+import { DOCUMENTS_AUDIT } from './audit-actions.js'
 import { CorrespondentService } from './correspondent-service.js'
 import { DocumentService } from './document-service.js'
 import { applyTransition } from './lifecycle.js'
@@ -210,7 +211,7 @@ export const Correspondence = {
     await audit(
       ctx,
       {
-        action: AUDIT_ACTIONS.documentDispatched,
+        action: DOCUMENTS_AUDIT.documentDispatched,
         objectId: documentId,
         objectType: 'document',
         details: { dispatchId, method: input.method, sentOn: input.sentOn, first },

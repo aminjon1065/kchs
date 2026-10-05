@@ -25,7 +25,7 @@ import { delegations, users } from '../directory/schema.js'
 import { publishEvent } from '../events/publisher.js'
 import { ObjectService } from '../objects/service.js'
 import { emitToUser } from '../realtime/gateway.js'
-import { inboxActionHandler } from './actions.js'
+import { inboxActionHandler, inboxKind } from './actions.js'
 import { inboxItems } from './schema.js'
 
 /** Действие открытого дела: элемент, его вид, объект и описание кнопки. */
@@ -583,94 +583,31 @@ export const InboxService = {
   },
 }
 
-function defaultActions(kind: InboxKind): InboxItem['actions'] {
-  switch (kind) {
-    case 'approve':
-      return [
-        {
-          key: 'approve',
-          labelKey: 'inbox.actions.approve',
-          variant: 'primary',
-          requiresComment: false,
-        },
-        {
-          key: 'remarks',
-          labelKey: 'inbox.actions.remarks',
-          variant: 'secondary',
-          requiresComment: true,
-        },
-        {
-          key: 'reject',
-          labelKey: 'inbox.actions.reject',
-          variant: 'danger',
-          requiresComment: true,
-        },
-      ]
-    case 'sign':
-      return [
-        { key: 'sign', labelKey: 'inbox.actions.sign', variant: 'primary', requiresComment: false },
-      ]
-    case 'acknowledge':
-      return [
-        {
-          key: 'acknowledge',
-          labelKey: 'inbox.actions.acknowledge',
-          variant: 'primary',
-          requiresComment: false,
-        },
-      ]
-    case 'accept_instruction':
-      return [
-        {
-          key: 'accept',
-          labelKey: 'inbox.actions.accept',
-          variant: 'primary',
-          requiresComment: false,
-        },
-      ]
-    case 'report_instruction':
-      return [
-        {
-          key: 'report',
-          labelKey: 'inbox.actions.report',
-          variant: 'primary',
-          requiresComment: true,
-        },
-      ]
-    default:
-      return [
-        {
-          key: 'open',
-          labelKey: 'inbox.actions.open',
-          variant: 'secondary',
-          requiresComment: false,
-        },
-      ]
-  }
+/** Кнопка элемента без своих действий — открыть объект. */
+const OPEN_ACTION: InboxItem['actions'][number] = {
+  key: 'open',
+  labelKey: 'inbox.actions.open',
+  variant: 'secondary',
+  requiresComment: false,
 }
 
-const SCOPE_BY_KIND: Record<string, string[]> = {
-  approve: ['all', 'approvals', 'documents'],
-  sign: ['all', 'approvals', 'documents'],
-  resolve: ['all', 'documents'],
-  acknowledge: ['all', 'documents'],
-  register: ['all', 'documents'],
-  revise: ['all', 'documents'],
-  accept_instruction: ['all', 'instructions'],
-  report_instruction: ['all', 'instructions'],
-  accept_result: ['all', 'instructions'],
-  extend_due: ['all', 'instructions'],
-  respond_invite: ['all', 'meetings'],
-  review_protocol: ['all', 'meetings'],
+/** Кнопки по умолчанию объявляет вид дела (`registerInboxKind`, ADR-0182). */
+function defaultActions(kind: InboxKind): InboxItem['actions'] {
+  return inboxKind(kind)?.actions ?? [OPEN_ACTION]
+}
+
+/** Области замещения, которые распространяются на дела вида: `all` и объявленные видом. */
+function delegationScopes(kind: InboxKind): string[] {
+  return ['all', ...(inboxKind(kind)?.delegationScopes ?? [])]
 }
 
 /** Замещение с областью `scope` распространяется на дела вида `kind`. */
 export function delegationCovers(kind: InboxKind, scope: string): boolean {
-  return (SCOPE_BY_KIND[kind] ?? ['all']).includes(scope)
+  return delegationScopes(kind).includes(scope)
 }
 
 async function activeDeputies(tx: Executor, userId: string, kind: InboxKind): Promise<string[]> {
-  const scopes = SCOPE_BY_KIND[kind] ?? ['all']
+  const scopes = delegationScopes(kind)
   const rows = await tx
     .select({ toUserId: delegations.toUserId })
     .from(delegations)

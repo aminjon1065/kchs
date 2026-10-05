@@ -1,6 +1,7 @@
 import { registerSubscriber } from '~/kernel/events/bus.js'
 import { registerFeature } from '~/kernel/features/registry.js'
 import { setQuietResolver } from '~/kernel/notifications/quiet.js'
+import { registerNotificationCategory } from '~/kernel/notifications/service.js'
 import { logger } from '~/shared/logger/index.js'
 import { chatSubscribers, ensureUnitChannels } from './domain/chat-subscribers.js'
 import { ensureMessageIndex } from './domain/message-search.js'
@@ -14,6 +15,16 @@ export { registerChatRoutes } from './http.js'
  * значение читают и маршруты, и подписчики.
  */
 export function registerChatFeature(): void {
+  // Личные сообщения и упоминания — как действия; канал — только в приложении
+  const personal = {
+    app: 'immediate',
+    email: 'off',
+    telegram: 'immediate',
+    push: 'immediate',
+  } as const
+  registerNotificationCategory('chat.direct', personal)
+  registerNotificationCategory('chat.mention', personal)
+  registerNotificationCategory('chat.channel', { app: 'immediate', email: 'off' })
   registerFeature({
     key: 'chats',
     titleKey: 'admin.features.items.chats.title',

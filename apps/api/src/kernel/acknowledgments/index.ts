@@ -12,7 +12,7 @@ import { and, isNull, lt, or, sql } from 'drizzle-orm'
 import { systemCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
-import { registerInboxActionHandler } from '../inbox/actions.js'
+import { registerInboxActionHandler, registerInboxKind } from '../inbox/actions.js'
 import { registerProcessObserver } from '../process/registry.js'
 import { ProcessService } from '../process/service.js'
 import { processAcknowledgments } from './process.js'
@@ -37,6 +37,17 @@ const AUTO_REMIND_INTERVAL_MS = 20 * 60 * 60 * 1000
  */
 export function registerAcknowledgments(): void {
   registerProcessObserver(processAcknowledgments)
+  registerInboxKind('acknowledge', {
+    actions: [
+      {
+        key: 'acknowledge',
+        labelKey: 'inbox.actions.acknowledge',
+        variant: 'primary',
+        requiresComment: false,
+      },
+    ],
+    delegationScopes: ['documents'],
+  })
   registerInboxActionHandler('acknowledge', async (ctx, { item, action, payload }) => {
     if (action !== 'acknowledge' || !item.objectId) {
       throw errors.validation('Нет такого действия у элемента Входящих')

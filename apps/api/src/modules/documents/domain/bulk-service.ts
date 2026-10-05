@@ -1,12 +1,13 @@
 import type { DocumentBulkInput, DocumentBulkResult, DocumentRecord } from '@kchs/contracts'
 import { createTranslator } from '@kchs/i18n'
 import { authorize } from '~/kernel/access/authorize.js'
-import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
+import { audit } from '~/kernel/audit/service.js'
 import type { UserCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { AppError } from '~/shared/errors.js'
 import { writeXlsx } from '~/shared/xlsx.js'
 import { DocumentAcknowledgments } from './acknowledgment-service.js'
+import { DOCUMENTS_AUDIT } from './audit-actions.js'
 import { CaseService } from './case-service.js'
 import { DocumentService } from './document-service.js'
 
@@ -81,7 +82,7 @@ export const DocumentBulk = {
     }
     // Выгрузка уводит сведения из системы: кто и какие документы выгрузил — в журнал
     await audit(ctx, {
-      action: AUDIT_ACTIONS.documentsRegistryExported,
+      action: DOCUMENTS_AUDIT.documentsRegistryExported,
       objectType: 'document',
       severity: 'notice',
       details: { count: records.length, ids: records.map((record) => record.id) },

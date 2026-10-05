@@ -13,7 +13,7 @@ import {
 import { and, asc, eq, ne, sql } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
 import { clearedUsers } from '~/kernel/access/confidentiality.js'
-import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
+import { audit } from '~/kernel/audit/service.js'
 import { BusinessCalendar } from '~/kernel/business-calendar/service.js'
 import { endOfLocalDay } from '~/kernel/business-calendar/working-days.js'
 import { directory } from '~/kernel/directory/port.js'
@@ -26,6 +26,7 @@ import { db, type Executor } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { resolutionRequests, resolutions } from '../schema.js'
+import { DOCUMENTS_AUDIT } from './audit-actions.js'
 import { DocumentService } from './document-service.js'
 import { todayLocal } from './journal-service.js'
 import { applyTransition } from './lifecycle.js'
@@ -376,7 +377,7 @@ export const ResolutionService = {
       await audit(
         ctx,
         {
-          action: AUDIT_ACTIONS.resolutionAdded,
+          action: DOCUMENTS_AUDIT.resolutionAdded,
           objectId: documentId,
           objectType: 'document',
           details: { resolutionId: id, authorId, enteredBy },

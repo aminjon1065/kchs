@@ -3,7 +3,9 @@ import { inArray } from 'drizzle-orm'
 import { registerCollabType } from '~/kernel/collab/registry.js'
 import { registerSubscriber } from '~/kernel/events/bus.js'
 import { registerFeature } from '~/kernel/features/registry.js'
+import { registerInboxKind } from '~/kernel/inbox/actions.js'
 import { registerJobHandler } from '~/kernel/jobs/runner.js'
+import { registerNotificationCategory } from '~/kernel/notifications/service.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
 import { declareSchedule } from '~/kernel/schedules/index.js'
 import { DocumentsPrint } from '~/modules/documents/public.js'
@@ -40,6 +42,14 @@ export function registerMeetingsRoutes(route: RouteRegistrar): void {
  * обсуждение её объекта.
  */
 export function registerMeetingsObjectTypes(): void {
+  registerInboxKind('review_protocol', { delegationScopes: ['meetings'] })
+  // Встреча и звонок не ждут: приглашение и начало — во все каналы
+  registerNotificationCategory('meetings', {
+    app: 'immediate',
+    email: 'immediate',
+    telegram: 'immediate',
+    push: 'immediate',
+  })
   registerFeature({
     key: 'meetings',
     titleKey: 'admin.features.items.meetings.title',

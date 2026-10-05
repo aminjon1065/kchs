@@ -1,5 +1,6 @@
 import { PAGE_STATUSES } from '@kchs/contracts'
 import { sql } from 'drizzle-orm'
+import { registerAuditActions } from '~/kernel/audit/registry.js'
 import { registerCollabType } from '~/kernel/collab/registry.js'
 import { registerSubscriber } from '~/kernel/events/bus.js'
 import { registerFeature } from '~/kernel/features/registry.js'
@@ -9,6 +10,7 @@ import { registerObjectType } from '~/kernel/objects/registry.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { declareSchedule } from '~/kernel/schedules/index.js'
 import { logger } from '~/shared/logger/index.js'
+import { KNOWLEDGE_AUDIT } from './domain/audit-actions.js'
 import { ensurePageChunkIndex } from './domain/page-chunks.js'
 import { registerPagePrintForm } from './domain/page-print.js'
 import { reviewDuePages } from './domain/page-review.js'
@@ -24,6 +26,7 @@ export { registerKnowledgeRoutes } from './http/routes.js'
  * пересмотра и ознакомление — за тем, кто ею распоряжается (`manage`).
  */
 export function registerKnowledgeObjectTypes(): void {
+  registerAuditActions('knowledge', KNOWLEDGE_AUDIT)
   registerFeature({
     key: 'knowledge',
     titleKey: 'admin.features.items.knowledge.title',

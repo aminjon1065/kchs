@@ -27,7 +27,7 @@ import { and, asc, desc, eq, inArray, isNull, notInArray, type SQL, sql } from '
 import { authorize, loadObject, visibleObjectsSql } from '~/kernel/access/authorize.js'
 import { primaryUnitOf } from '~/kernel/access/principal-set.js'
 import type { ObjectLike } from '~/kernel/access/types.js'
-import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
+import { audit } from '~/kernel/audit/service.js'
 import { directory } from '~/kernel/directory/port.js'
 import { LinkService } from '~/kernel/links/service.js'
 import { objects } from '~/kernel/objects/schema.js'
@@ -39,6 +39,7 @@ import { actorId, type Ctx, type UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
 import { AppError, errors } from '~/shared/errors.js'
 import { type TaskSourceValue, tasks } from '../schema.js'
+import { TASKS_AUDIT } from './audit-actions.js'
 import {
   approximateLevel,
   participantsOf,
@@ -662,7 +663,7 @@ export const TaskService = {
     await audit(
       ctx,
       {
-        action: AUDIT_ACTIONS.taskReassigned,
+        action: TASKS_AUDIT.taskReassigned,
         objectId: id,
         objectType: 'task',
         details: {

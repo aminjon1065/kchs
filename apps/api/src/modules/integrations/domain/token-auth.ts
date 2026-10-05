@@ -1,6 +1,6 @@
 import { scopeSatisfied } from '@kchs/contracts'
 import type { FastifyRequest } from 'fastify'
-import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
+import { audit } from '~/kernel/audit/service.js'
 import { buildUserCtx } from '~/kernel/context-builder.js'
 import { secondFactor } from '~/kernel/second-factor/port.js'
 import { config } from '~/shared/config/index.js'
@@ -9,6 +9,7 @@ import { systemCtx } from '~/shared/context.js'
 import { errors } from '~/shared/errors.js'
 import { hitRateLimit } from '~/shared/http/rate-limit.js'
 import { ApiTokens } from './api-tokens.js'
+import { INTEGRATIONS_AUDIT } from './audit-actions.js'
 import { requiredScope } from './scopes.js'
 
 /** Сколько недействительных токенов в минуту принимается с одного адреса. */
@@ -45,7 +46,7 @@ export async function authenticateApiToken(
     )
     if (!attempts.allowed) throw errors.rateLimited(attempts.retryAfter)
     await audit(systemCtx('api-token'), {
-      action: AUDIT_ACTIONS.apiTokenRejected,
+      action: INTEGRATIONS_AUDIT.apiTokenRejected,
       severity: 'warning',
       objectType: 'api_token',
       ip: request.ip ?? null,
@@ -102,7 +103,7 @@ export async function enforceTokenScope(request: FastifyRequest): Promise<void> 
   if (scope && scopeSatisfied(token.scopes, scope)) return
 
   await audit(request.ctx, {
-    action: AUDIT_ACTIONS.apiTokenScopeDenied,
+    action: INTEGRATIONS_AUDIT.apiTokenScopeDenied,
     severity: 'warning',
     objectType: 'api_token',
     details: { tokenId: token.id, url: options?.url ?? request.url, scope },

@@ -1,4 +1,4 @@
-import type { InboxKind } from '@kchs/contracts'
+import type { DelegationScope, InboxItem, InboxKind } from '@kchs/contracts'
 import type { UserCtx } from '~/shared/context.js'
 
 /** Элемент Входящих, над которым выполняется действие. */
@@ -38,4 +38,24 @@ export function registerInboxActionHandler(kind: InboxKind, handler: InboxAction
 
 export function inboxActionHandler(kind: InboxKind): InboxActionHandler | undefined {
   return handlers.get(kind)
+}
+
+/** Вид дела Входящих глазами ядра (ADR-0182): ядро не знает видов модулей по именам. */
+export interface InboxKindOptions {
+  /** Кнопки по умолчанию — если открывший элемент не передал свои. */
+  actions?: InboxItem['actions']
+  /** Области замещения, кроме `all`, которые распространяются на дела этого вида. */
+  delegationScopes?: Exclude<DelegationScope, 'all'>[]
+}
+
+const kinds = new Map<InboxKind, InboxKindOptions>()
+
+/** Вид дела объявляет его модуль (или механизм ядра) при старте, в любой роли процесса. */
+export function registerInboxKind(kind: InboxKind, options: InboxKindOptions): void {
+  if (kinds.has(kind)) throw new Error(`Вид дела Входящих «${kind}» уже объявлен`)
+  kinds.set(kind, options)
+}
+
+export function inboxKind(kind: InboxKind): InboxKindOptions | undefined {
+  return kinds.get(kind)
 }

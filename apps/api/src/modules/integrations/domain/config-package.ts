@@ -10,13 +10,14 @@ import {
   type ConfigSection,
 } from '@kchs/contracts'
 import { hasCapability } from '~/kernel/access/authorize.js'
-import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
+import { audit } from '~/kernel/audit/service.js'
 import { configSection, listConfigSections } from '~/kernel/config-package/registry.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { config } from '~/shared/config/index.js'
 import type { UserCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
+import { INTEGRATIONS_AUDIT } from './audit-actions.js'
 
 /** Разделы, которые эта установка умеет выгружать и применять. */
 export function availableSections(): ConfigSection[] {
@@ -51,7 +52,7 @@ export const ConfigPackages = {
     }
 
     await audit(ctx, {
-      action: AUDIT_ACTIONS.configExported,
+      action: INTEGRATIONS_AUDIT.configExported,
       severity: 'notice',
       details: { sections: input.sections, items: items.length },
     })
@@ -182,7 +183,7 @@ export const ConfigPackages = {
 
     const sections = [...new Set(applied.map((a) => a.section))]
     await audit(ctx, {
-      action: AUDIT_ACTIONS.configImported,
+      action: INTEGRATIONS_AUDIT.configImported,
       severity: 'notice',
       details: {
         origin: input.package.origin,

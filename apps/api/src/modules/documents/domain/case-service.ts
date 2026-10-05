@@ -16,7 +16,7 @@ import {
 import { and, asc, count, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm'
 import { grantAccess } from '~/kernel/access/acl-service.js'
 import { authorize, requireCapability, visibleObjectsSql } from '~/kernel/access/authorize.js'
-import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
+import { audit } from '~/kernel/audit/service.js'
 import { directory } from '~/kernel/directory/port.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { LinkService } from '~/kernel/links/service.js'
@@ -34,6 +34,7 @@ import {
   documentTypes,
   documentVersions,
 } from '../schema.js'
+import { DOCUMENTS_AUDIT } from './audit-actions.js'
 import { todayLocal } from './journal-service.js'
 import { applyTransition } from './lifecycle.js'
 import { documentsSpaceId } from './space.js'
@@ -476,7 +477,7 @@ export const CaseService = {
     await audit(
       ctx,
       {
-        action: AUDIT_ACTIONS.caseClosed,
+        action: DOCUMENTS_AUDIT.caseClosed,
         objectId: id,
         objectType: 'case',
         details: { index: row.index, year: row.year, documents: documentsInCase },
@@ -577,7 +578,7 @@ export const CaseService = {
     await audit(
       ctx,
       {
-        action: AUDIT_ACTIONS.caseArchived,
+        action: DOCUMENTS_AUDIT.caseArchived,
         objectId: id,
         objectType: 'case',
         details: { index: row.index, year: row.year, documents: archived },
@@ -714,7 +715,7 @@ export const CaseService = {
     await audit(
       ctx,
       {
-        action: AUDIT_ACTIONS.documentFiled,
+        action: DOCUMENTS_AUDIT.documentFiled,
         objectId: documentId,
         objectType: 'document',
         details: { caseId, index: target.index, year: target.year },
@@ -820,7 +821,7 @@ export const CaseService = {
       await audit(
         ctx,
         {
-          action: AUDIT_ACTIONS.caseDestroyed,
+          action: DOCUMENTS_AUDIT.caseDestroyed,
           objectId: row.id,
           objectType: 'case',
           severity: 'warning',

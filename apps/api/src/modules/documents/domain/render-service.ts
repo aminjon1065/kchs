@@ -20,7 +20,7 @@ import { createTranslator } from '@kchs/i18n'
 import { and, desc, eq, gte, inArray, sql } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
 import { buildUserCtxFor } from '~/kernel/access/explain.js'
-import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
+import { audit } from '~/kernel/audit/service.js'
 import { directory } from '~/kernel/directory/port.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { SETTING_KEYS, SettingsService } from '~/kernel/settings/service.js'
@@ -37,6 +37,7 @@ import { systemCtx, type UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
 import { AppError, errors } from '~/shared/errors.js'
 import { documentRenders, templates } from '../schema.js'
+import { DOCUMENTS_AUDIT } from './audit-actions.js'
 import { DocumentService } from './document-service.js'
 import { printPage } from './print/html.js'
 import {
@@ -426,7 +427,7 @@ export const DocumentRenders = {
         await audit(
           ctx,
           {
-            action: AUDIT_ACTIONS.documentPrinted,
+            action: DOCUMENTS_AUDIT.documentPrinted,
             objectId: subject.id,
             objectType: subject.type,
             severity: 'notice',
@@ -495,7 +496,7 @@ export const DocumentRenders = {
       await audit(
         ctx,
         {
-          action: AUDIT_ACTIONS.documentFileExported,
+          action: DOCUMENTS_AUDIT.documentFileExported,
           objectId: fileId,
           objectType: 'file',
           severity: 'notice',

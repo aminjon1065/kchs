@@ -1,11 +1,12 @@
 import { eq } from 'drizzle-orm'
-import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
+import { audit } from '~/kernel/audit/service.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { systemCtx } from '~/shared/context.js'
 import { hashToken, safeEqual } from '~/shared/crypto/secrets.js'
 import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { integrations } from '../schema.js'
+import { INTEGRATIONS_AUDIT } from './audit-actions.js'
 
 /** Предел тела входящего вебхука: он попадает в событие целиком. */
 const MAX_BODY_BYTES = 256 * 1024
@@ -42,7 +43,7 @@ export async function receiveInbound(input: {
     row?.enabled === true && row.inboundEnabled && row.inboundSecretHash !== null && matches
   if (!ok || !row) {
     await audit(systemCtx('webhook-inbound'), {
-      action: AUDIT_ACTIONS.webhookReceived,
+      action: INTEGRATIONS_AUDIT.webhookReceived,
       severity: 'warning',
       objectType: 'integration',
       objectId: null,
@@ -70,7 +71,7 @@ export async function receiveInbound(input: {
   })
 
   await audit(systemCtx('webhook-inbound'), {
-    action: AUDIT_ACTIONS.webhookReceived,
+    action: INTEGRATIONS_AUDIT.webhookReceived,
     objectId: row.id,
     objectType: 'integration',
     ip: input.ip,

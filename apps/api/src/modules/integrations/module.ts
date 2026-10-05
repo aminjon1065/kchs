@@ -1,9 +1,11 @@
+import { registerAuditActions } from '~/kernel/audit/registry.js'
 import { registerSubscriber } from '~/kernel/events/bus.js'
 import { registerFeature } from '~/kernel/features/registry.js'
 import { registerJobHandler } from '~/kernel/jobs/runner.js'
 import { queue } from '~/kernel/jobs/service.js'
 import { declareSchedule } from '~/kernel/schedules/index.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
+import { INTEGRATIONS_AUDIT } from './domain/audit-actions.js'
 import { registerIntegrationConfigSections } from './domain/config-sections.js'
 import { registerIntegrationObjectTypes } from './domain/object-types.js'
 import {
@@ -24,6 +26,7 @@ const PRUNE_JOB = 'webhooks.prune-deliveries'
  * исходящие и входящие вебхуки, объект `integration`, пакет конфигурации.
  */
 export function registerIntegrationsObjectTypes(): void {
+  registerAuditActions('integrations', INTEGRATIONS_AUDIT)
   registerFeature({
     key: 'integrations',
     titleKey: 'admin.features.items.integrations.title',

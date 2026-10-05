@@ -42,9 +42,11 @@ import {
 import { eq, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { authorize, loadObject } from '~/kernel/access/authorize.js'
+import { registerAuditActions } from '~/kernel/audit/registry.js'
 import { registerSubscriber } from '~/kernel/events/bus.js'
-import { registerInboxActionHandler } from '~/kernel/inbox/actions.js'
+import { registerInboxActionHandler, registerInboxKind } from '~/kernel/inbox/actions.js'
 import { registerJobHandler } from '~/kernel/jobs/runner.js'
+import { registerNotificationCategory } from '~/kernel/notifications/service.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { declareSchedule } from '~/kernel/schedules/index.js'
@@ -54,6 +56,7 @@ import { systemCtx, type UserCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
+import { TASKS_AUDIT } from './domain/audit-actions.js'
 import { controlExport } from './domain/control-export.js'
 import { controlMetricsState, ensureControlMetrics } from './domain/control-metrics.js'
 import { ControlService } from './domain/control-service.js'
@@ -101,6 +104,14 @@ async function extendFromInbox(
  * воркер — подписчиков.
  */
 export function registerTasksObjectTypes(): void {
+  // Поручения и задачи — действия: назначение и отчёт приходят в Telegram и push сразу
+  registerNotificationCategory('tasks', {
+    app: 'immediate',
+    email: 'digest',
+    telegram: 'immediate',
+    push: 'immediate',
+  })
+  registerAuditActions('tasks', TASKS_AUDIT)
   registerObjectType({
     type: 'project',
     labelKey: 'objects.types.project',
@@ -236,6 +247,32 @@ export function registerTasksObjectTypes(): void {
   registerSystemDataset(INSTRUCTIONS_SYSTEM_DATASET)
   // Сроки задач и поручений — проекция календаря (календарь модуль задач не импортирует)
   registerCalendarProjection(taskDueProjection)
+
+  // Виды дел поручений: кнопки по умолчанию и область замещения «поручения» (ADR-0182)
+  registerInboxKind('accept_instruction', {
+    actions: [
+      {
+        key: 'accept',
+        labelKey: 'inbox.actions.accept',
+        variant: 'primary',
+        requiresComment: false,
+      },
+    ],
+    delegationScopes: ['instructions'],
+  })
+  registerInboxKind('report_instruction', {
+    actions: [
+      {
+        key: 'report',
+        labelKey: 'inbox.actions.report',
+        variant: 'primary',
+        requiresComment: true,
+      },
+    ],
+    delegationScopes: ['instructions'],
+  })
+  registerInboxKind('accept_result', { delegationScopes: ['instructions'] })
+  registerInboxKind('extend_due', { delegationScopes: ['instructions'] })
 
   // Кнопки поручения во Входящих (и в Telegram) исполняет модуль задач
   registerInboxActionHandler(

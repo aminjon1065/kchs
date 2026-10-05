@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import type { ApiToken, ApiTokenCreateInput } from '@kchs/contracts'
 import { and, desc, eq, isNull, or, sql } from 'drizzle-orm'
-import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
+import { audit } from '~/kernel/audit/service.js'
 import { directory } from '~/kernel/directory/port.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import type { UserCtx } from '~/shared/context.js'
@@ -10,6 +10,7 @@ import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { type ApiTokenRow, apiTokens } from '../schema.js'
+import { INTEGRATIONS_AUDIT } from './audit-actions.js'
 
 /** Опознавательный префикс токена: по нему видно, что это ключ kchs. */
 const TOKEN_PREFIX = 'kchs'
@@ -113,7 +114,7 @@ export const ApiTokens = {
     if (!row) throw errors.internal('Токен не создан')
 
     await audit(ctx, {
-      action: AUDIT_ACTIONS.apiTokenCreated,
+      action: INTEGRATIONS_AUDIT.apiTokenCreated,
       objectId: null,
       objectType: 'api_token',
       severity: 'notice',
@@ -159,7 +160,7 @@ export const ApiTokens = {
     })
 
     await audit(ctx, {
-      action: AUDIT_ACTIONS.apiTokenRevoked,
+      action: INTEGRATIONS_AUDIT.apiTokenRevoked,
       objectId: null,
       objectType: 'api_token',
       severity: 'notice',

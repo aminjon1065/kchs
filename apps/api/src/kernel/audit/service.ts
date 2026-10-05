@@ -148,7 +148,11 @@ export async function queryAudit(
   }
 }
 
-/** Действия, обязательные к аудиту (17-security.md §6). */
+/**
+ * Действия ядра и обязательные действия безопасности (17-security.md §6): вход, второй
+ * фактор, пароли, сессии, права, роли, замещения, оргструктура, режим администратора.
+ * Действия модулей объявляют сами модули и регистрируют в каталоге (ADR-0182).
+ */
 export const AUDIT_ACTIONS = {
   login: 'user.login',
   loginFailed: 'user.login_failed',
@@ -169,7 +173,6 @@ export const AUDIT_ACTIONS = {
   userBlocked: 'user.blocked',
   delegationStarted: 'delegation.started',
   delegationEnded: 'delegation.ended',
-  fileDownloaded: 'file.downloaded',
   fileExported: 'data.exported',
   shareLinkCreated: 'share_link.created',
   shareLinkOpened: 'share_link.opened',
@@ -181,16 +184,6 @@ export const AUDIT_ACTIONS = {
   /** Любое действие в режиме администратора (ADR-0080). */
   adminModeAction: 'admin.mode_action',
   clearanceChanged: 'user.clearance_changed',
-  documentRegistered: 'document.registered',
-  documentCancelled: 'document.cancelled',
-  documentConfidentialityChanged: 'document.confidentiality_changed',
-  journalNumbersReserved: 'journal.numbers_reserved',
-  // Дела и архив (ADR-0086): подшивка, закрытие, передача в архив, уничтожение по акту
-  documentFiled: 'document.filed',
-  documentDispatched: 'document.dispatched',
-  caseClosed: 'case.closed',
-  caseArchived: 'case.archived',
-  caseDestroyed: 'case.destroyed',
   settingsChanged: 'settings.changed',
   objectPurged: 'object.purged',
   auditExported: 'audit.exported',
@@ -222,18 +215,7 @@ export const AUDIT_ACTIONS = {
   processReassigned: 'process.reassigned',
   processCancelled: 'process.cancelled',
   processDefinitionPublished: 'process.definition_published',
-  /** Печатная форма объекта с грифом от «конфиденциально» (ADR-0085). */
-  documentPrinted: 'document.printed',
-  /** Копия файла с грифом под водяным знаком (ADR-0085). */
-  documentFileExported: 'document.file_exported',
-  /** Реестр выбранных документов выгружен в Excel (ADR-0152). */
-  documentsRegistryExported: 'document.registry_exported',
-  // Поручения (ADR-0082): продление срока и переназначение исполнителя
-  taskExtensionRequested: 'task.extension_requested',
-  taskExtensionDecided: 'task.extension_decided',
-  taskReassigned: 'task.reassigned',
-  // Резолюции и ознакомление (ADR-0084): резолюция от имени руководителя, отметка с MFA
-  resolutionAdded: 'document.resolution_added',
+  /** Отметка об ознакомлении, при необходимости — со вторым фактором (ADR-0084). */
   objectAcknowledged: 'object.acknowledged',
   // Каталог, единый вход и ключи входа (ADR-0098)
   /** Настройка поставщика входа изменена; секрет в журнал не попадает. */
@@ -246,8 +228,6 @@ export const AUDIT_ACTIONS = {
   passkeyRemoved: 'user.passkey_removed',
   /** Администратор отозвал ключи входа сотрудника (потерянное устройство, N45). */
   passkeysRevoked: 'user.passkeys_revoked',
-  /** Пароль для почты установки задан или отозван (ADR-0150). */
-  mailPasswordChanged: 'user.mail_password_changed',
   /** Группы и должности из консоли (N86): состав группы меняет права доступа. */
   groupCreated: 'group.created',
   groupUpdated: 'group.updated',
@@ -257,30 +237,4 @@ export const AUDIT_ACTIONS = {
   positionDeleted: 'position.deleted',
   /** Основное назначение сотрудника: подразделение определяет доступ к данным (N86). */
   employmentChanged: 'user.employment_changed',
-  /** Страницы пункта «Справка» (N88). */
-  helpPagesChanged: 'help.pages_changed',
-  // Публичный API, вебхуки, интеграции (ADR-0097)
-  apiTokenCreated: 'api_token.created',
-  apiTokenRevoked: 'api_token.revoked',
-  /** Предъявлен недействительный токен: отозванный, просроченный или чужой. */
-  apiTokenRejected: 'api_token.rejected',
-  /** Токену не хватило области доступа на маршруте. */
-  apiTokenScopeDenied: 'api_token.scope_denied',
-  integrationCreated: 'integration.created',
-  integrationUpdated: 'integration.updated',
-  integrationDeleted: 'integration.deleted',
-  integrationSecretRotated: 'integration.secret_rotated',
-  integrationChecked: 'integration.checked',
-  webhookCreated: 'webhook.created',
-  webhookUpdated: 'webhook.updated',
-  webhookDeleted: 'webhook.deleted',
-  webhookSecretRotated: 'webhook.secret_rotated',
-  /** Входящий вебхук интеграции принят. */
-  webhookReceived: 'webhook.received',
-  configExported: 'config.exported',
-  configImported: 'config.imported',
-  /** Файл открыт в офисном редакторе: содержимое ушло на сервер документов (ADR-0112). */
-  officeOpened: 'file.office_opened',
-  /** Письмо из ящика канцелярии отклонено делопроизводителем (ADR-0113). */
-  mailRejected: 'mail.rejected',
 } as const

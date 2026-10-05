@@ -7,7 +7,7 @@ import type {
   IntegrationUpdateInput,
 } from '@kchs/contracts'
 import { desc, eq, sql } from 'drizzle-orm'
-import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
+import { audit } from '~/kernel/audit/service.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
@@ -19,6 +19,7 @@ import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { type IntegrationRow, integrationSyncs, integrations } from '../schema.js'
+import { INTEGRATIONS_AUDIT } from './audit-actions.js'
 import { builtinIntegrations, checkBuiltin } from './builtins.js'
 import { checkIntegration } from './checks.js'
 
@@ -176,7 +177,7 @@ export const Integrations = {
     })
 
     await audit(ctx, {
-      action: AUDIT_ACTIONS.integrationCreated,
+      action: INTEGRATIONS_AUDIT.integrationCreated,
       objectId: id,
       objectType: 'integration',
       severity: 'notice',
@@ -233,7 +234,7 @@ export const Integrations = {
     })
 
     await audit(ctx, {
-      action: AUDIT_ACTIONS.integrationUpdated,
+      action: INTEGRATIONS_AUDIT.integrationUpdated,
       objectId: id,
       objectType: 'integration',
       severity: 'notice',
@@ -250,7 +251,7 @@ export const Integrations = {
       await ObjectService.purge(tx, ctx, id)
     })
     await audit(ctx, {
-      action: AUDIT_ACTIONS.integrationDeleted,
+      action: INTEGRATIONS_AUDIT.integrationDeleted,
       objectId: id,
       objectType: 'integration',
       severity: 'notice',
@@ -284,7 +285,7 @@ export const Integrations = {
     })
 
     await audit(ctx, {
-      action: AUDIT_ACTIONS.integrationChecked,
+      action: INTEGRATIONS_AUDIT.integrationChecked,
       objectId: id,
       objectType: 'integration',
       details: { key: found.row.key, ok: result.ok },
@@ -296,7 +297,7 @@ export const Integrations = {
   async checkBuiltin(ctx: UserCtx, key: string): Promise<IntegrationCheckResult> {
     const result = await checkBuiltin(key)
     await audit(ctx, {
-      action: AUDIT_ACTIONS.integrationChecked,
+      action: INTEGRATIONS_AUDIT.integrationChecked,
       objectType: 'integration',
       details: { key, builtin: true, ok: result.ok },
     })
@@ -316,7 +317,7 @@ export const Integrations = {
       .set({ inboundEnabled: true, inboundSecretHash: hashToken(secret) })
       .where(eq(integrations.id, id))
     await audit(ctx, {
-      action: AUDIT_ACTIONS.integrationSecretRotated,
+      action: INTEGRATIONS_AUDIT.integrationSecretRotated,
       objectId: id,
       objectType: 'integration',
       severity: 'notice',

@@ -6,7 +6,7 @@ import type {
   WebhookUpdateInput,
 } from '@kchs/contracts'
 import { and, desc, eq, lt, sql } from 'drizzle-orm'
-import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
+import { audit } from '~/kernel/audit/service.js'
 import { directory } from '~/kernel/directory/port.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { objects } from '~/kernel/objects/schema.js'
@@ -18,6 +18,7 @@ import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { type WebhookRow, webhookDeliveries, webhooks } from '../schema.js'
+import { INTEGRATIONS_AUDIT } from './audit-actions.js'
 import { checkOutboundUrl } from './checks.js'
 
 function slugify(name: string): string {
@@ -150,7 +151,7 @@ export const Webhooks = {
     })
 
     await audit(ctx, {
-      action: AUDIT_ACTIONS.webhookCreated,
+      action: INTEGRATIONS_AUDIT.webhookCreated,
       objectId: id,
       objectType: 'webhook',
       severity: 'notice',
@@ -215,8 +216,8 @@ export const Webhooks = {
     await audit(ctx, {
       action:
         input.secret !== undefined
-          ? AUDIT_ACTIONS.webhookSecretRotated
-          : AUDIT_ACTIONS.webhookUpdated,
+          ? INTEGRATIONS_AUDIT.webhookSecretRotated
+          : INTEGRATIONS_AUDIT.webhookUpdated,
       objectId: id,
       objectType: 'webhook',
       severity: 'notice',
@@ -234,7 +235,7 @@ export const Webhooks = {
       .set({ secret: encryptSecret(secret), updatedAt: sql`now()` })
       .where(eq(webhooks.id, id))
     await audit(ctx, {
-      action: AUDIT_ACTIONS.webhookSecretRotated,
+      action: INTEGRATIONS_AUDIT.webhookSecretRotated,
       objectId: id,
       objectType: 'webhook',
       severity: 'notice',
@@ -249,7 +250,7 @@ export const Webhooks = {
       await ObjectService.purge(tx, ctx, id)
     })
     await audit(ctx, {
-      action: AUDIT_ACTIONS.webhookDeleted,
+      action: INTEGRATIONS_AUDIT.webhookDeleted,
       objectId: id,
       objectType: 'webhook',
       severity: 'notice',

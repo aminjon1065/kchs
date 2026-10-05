@@ -9,7 +9,7 @@ import {
 } from '@kchs/contracts'
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
-import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
+import { audit } from '~/kernel/audit/service.js'
 import { directory } from '~/kernel/directory/port.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { buckets, getObjectStream, putObject, storageKey } from '~/kernel/storage/s3.js'
@@ -19,6 +19,7 @@ import { AppError, errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { logger } from '~/shared/logger/index.js'
 import { files, fileVersions, type OfficeSessionRow, officeSessions } from '../schema.js'
+import { FILES_AUDIT } from './audit-actions.js'
 import { FileService } from './file-service.js'
 import {
   checkTicket,
@@ -119,7 +120,7 @@ export const OfficeService = {
     })
 
     await audit(ctx, {
-      action: AUDIT_ACTIONS.officeOpened,
+      action: FILES_AUDIT.officeOpened,
       objectId: fileId,
       objectType: 'file',
       details: { sessionId: session.id, mode },

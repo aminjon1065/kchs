@@ -1,7 +1,8 @@
 import { Readable } from 'node:stream'
-import { AuditEntry, HealthReport } from '@kchs/contracts'
+import { AuditActionCatalog, AuditEntry, HealthReport } from '@kchs/contracts'
 import { sql } from 'drizzle-orm'
 import { z } from 'zod'
+import { auditActionCatalog } from '~/kernel/audit/registry.js'
 import { AUDIT_ACTIONS, audit, auditBatches, queryAudit } from '~/kernel/audit/service.js'
 import { directory } from '~/kernel/directory/port.js'
 import { outboxLag } from '~/kernel/events/dispatcher.js'
@@ -49,6 +50,16 @@ export function registerAdminRoutes(route: RouteRegistrar): void {
       },
     },
     handler: async (request) => queryAudit(request.query),
+  })
+
+  route({
+    method: 'GET',
+    url: '/admin/audit/actions',
+    auth: { capability: 'admin.audit.read' },
+    tags: ['admin'],
+    summary: 'Каталог действий аудита: чьи они — ядра или модуля (ADR-0182)',
+    schema: { response: { 200: AuditActionCatalog } },
+    handler: async () => ({ items: auditActionCatalog() }),
   })
 
   route({

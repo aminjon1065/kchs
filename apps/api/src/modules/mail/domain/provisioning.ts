@@ -3,7 +3,7 @@ import { mkdir, rename, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import type { MailStatus } from '@kchs/contracts'
 import { and, eq, inArray, isNotNull } from 'drizzle-orm'
-import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
+import { audit } from '~/kernel/audit/service.js'
 import { directory } from '~/kernel/directory/port.js'
 import { UserService } from '~/kernel/directory/service.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
@@ -15,6 +15,7 @@ import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { logger } from '~/shared/logger/index.js'
 import { mailMailboxes } from '../schema.js'
+import { MAIL_AUDIT } from './audit-actions.js'
 
 /** Файл учёток docker-mailserver: `адрес|{схема}хеш` построчно, подхватывается без перезапуска. */
 const ACCOUNTS_FILE = 'postfix-accounts.cf'
@@ -157,7 +158,7 @@ export const MailProvisioning = {
       await audit(
         ctx,
         {
-          action: AUDIT_ACTIONS.mailPasswordChanged,
+          action: MAIL_AUDIT.mailPasswordChanged,
           objectId: ctx.userId,
           objectType: 'user',
           details: { address, set },

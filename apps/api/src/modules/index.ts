@@ -89,7 +89,11 @@ import {
   scheduleKnowledgeJobs,
 } from './knowledge/module.js'
 import { connectKnowledgeSemantics } from './knowledge/semantic-source.js'
-import { registerMailBackground, registerMailModuleRoutes } from './mail/module.js'
+import {
+  registerMailBackground,
+  registerMailFeature,
+  registerMailModuleRoutes,
+} from './mail/module.js'
 import {
   declareMeetingsSchedules,
   registerMeetingsBackground,
@@ -156,6 +160,7 @@ export function registerAllObjectTypes(): void {
   // Формы сбора данных (ADR-0103) и алерты на показатели (ADR-0104)
   registerFormObjectTypes()
   registerAlertObjectTypes()
+  registerMailFeature()
   registerDirectory()
   // Каналы уведомлений модулей: ядро доставляет через них в любой роли процесса
   registerTelegramChannel()

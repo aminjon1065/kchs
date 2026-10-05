@@ -7,12 +7,13 @@ import {
 } from '@kchs/contracts'
 import { and, eq, inArray, isNull } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
-import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
+import { audit } from '~/kernel/audit/service.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { SETTING_KEYS, SettingsService } from '~/kernel/settings/service.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
+import { KNOWLEDGE_AUDIT } from './audit-actions.js'
 
 const EMPTY: HelpPages = { ru: null, tg: null, en: null }
 
@@ -71,7 +72,7 @@ export const HelpService = {
       )
     }
     await SettingsService.set(tx, ctx, 'system', null, SETTING_KEYS.helpPages, after)
-    await audit(ctx, { action: AUDIT_ACTIONS.helpPagesChanged, details: { before, after } }, tx)
+    await audit(ctx, { action: KNOWLEDGE_AUDIT.helpPagesChanged, details: { before, after } }, tx)
     return after
   },
 

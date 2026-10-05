@@ -11,7 +11,7 @@ import {
 import { and, asc, count, eq, inArray, sql } from 'drizzle-orm'
 import { grantAccess } from '~/kernel/access/acl-service.js'
 import { authorize, requireCapability, visibleObjectsSql } from '~/kernel/access/authorize.js'
-import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
+import { audit } from '~/kernel/audit/service.js'
 import { localDate } from '~/kernel/business-calendar/working-days.js'
 import { directory } from '~/kernel/directory/port.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
@@ -29,6 +29,7 @@ import {
   journalReservations,
   journals,
 } from '../schema.js'
+import { DOCUMENTS_AUDIT } from './audit-actions.js'
 import { documentsSpaceId } from './space.js'
 
 export interface JournalRow {
@@ -439,7 +440,7 @@ export const JournalService = {
     await audit(
       ctx,
       {
-        action: AUDIT_ACTIONS.journalNumbersReserved,
+        action: DOCUMENTS_AUDIT.journalNumbersReserved,
         objectId: journalId,
         objectType: 'journal',
         severity: 'notice',

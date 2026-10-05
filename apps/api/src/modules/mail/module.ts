@@ -1,7 +1,14 @@
+import { registerAuditActions } from '~/kernel/audit/registry.js'
 import { registerSubscriber } from '~/kernel/events/bus.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
+import { MAIL_AUDIT } from './domain/audit-actions.js'
 import { MailProvisioning } from './domain/provisioning.js'
 import { registerMailRoutes } from './http/routes.js'
+
+/** Словарь модуля для ядра (ADR-0182) — в любой роли процесса. */
+export function registerMailFeature(): void {
+  registerAuditActions('mail', MAIL_AUDIT)
+}
 
 /**
  * Почта установки (ADR-0150). Файл учёток почтового сервера переписывается, когда меняется

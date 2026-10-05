@@ -15,7 +15,8 @@ import {
 import { eq, inArray, sql } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
-import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
+import { registerAuditActions } from '~/kernel/audit/registry.js'
+import { audit } from '~/kernel/audit/service.js'
 import { registerSubscriber } from '~/kernel/events/bus.js'
 import { registerJobHandler } from '~/kernel/jobs/runner.js'
 import { JobService } from '~/kernel/jobs/service.js'
@@ -27,6 +28,7 @@ import { db } from '~/shared/db/client.js'
 import { AppError, errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { AttachmentsFolder } from './domain/attachments.js'
+import { FILES_AUDIT } from './domain/audit-actions.js'
 import { FileService } from './domain/file-service.js'
 import { OfficeService } from './domain/office-service.js'
 import { FileProcessing } from './domain/processing.js'
@@ -38,6 +40,7 @@ import { files } from './schema.js'
 const IdParam = z.object({ id: z.uuid() })
 
 export function registerFilesObjectTypes(): void {
+  registerAuditActions('files', FILES_AUDIT)
   registerObjectType({
     type: 'file',
     labelKey: 'objects.types.file',
@@ -282,7 +285,7 @@ export function registerFilesRoutes(route: RouteRegistrar): void {
         request.query.inline,
       )
       await audit(request.ctx, {
-        action: AUDIT_ACTIONS.fileDownloaded,
+        action: FILES_AUDIT.fileDownloaded,
         objectId: request.params.id,
         objectType: 'file',
         ...(level ? { severity: 'warning' as const } : {}),

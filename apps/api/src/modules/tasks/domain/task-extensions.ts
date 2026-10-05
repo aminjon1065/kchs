@@ -5,7 +5,7 @@ import type {
   TaskExtensionStatus,
 } from '@kchs/contracts'
 import { and, desc, eq, sql } from 'drizzle-orm'
-import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
+import { audit } from '~/kernel/audit/service.js'
 import type { Ctx } from '~/shared/context.js'
 import { actorId } from '~/shared/context.js'
 import { db, type Executor } from '~/shared/db/client.js'
@@ -13,6 +13,7 @@ import { pgErrorCode, UNIQUE_VIOLATION } from '~/shared/db/pg-error.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { taskExtensions } from '../schema.js'
+import { TASKS_AUDIT } from './audit-actions.js'
 import { emit, refsOf, type TaskRow, viewOf } from './task-core.js'
 import { applyDue, type ResolvedDue, resolveDue } from './task-due.js'
 import { TaskInbox } from './task-inbox.js'
@@ -72,7 +73,7 @@ export const TaskExtensions = {
     await audit(
       ctx,
       {
-        action: AUDIT_ACTIONS.taskExtensionRequested,
+        action: TASKS_AUDIT.taskExtensionRequested,
         objectId: row.id,
         objectType: 'task',
         details: { key: row.key, from: row.dueAt, to: requested.dueAt, extensionId: id },
@@ -129,7 +130,7 @@ export const TaskExtensions = {
       await audit(
         ctx,
         {
-          action: AUDIT_ACTIONS.taskExtensionDecided,
+          action: TASKS_AUDIT.taskExtensionDecided,
           objectId: row.id,
           objectType: 'task',
           details: { key: row.key, decision: 'rejected', extensionId: pending.id, comment },
@@ -176,7 +177,7 @@ export const TaskExtensions = {
     await audit(
       ctx,
       {
-        action: AUDIT_ACTIONS.taskExtensionDecided,
+        action: TASKS_AUDIT.taskExtensionDecided,
         objectId: row.id,
         objectType: 'task',
         details: {

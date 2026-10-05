@@ -278,7 +278,7 @@ export const NotificationService = {
         (['app', 'email', 'telegram', 'push'] as const).map((channel) => ({
           category,
           channel,
-          mode: DEFAULT_MODES[category]?.[channel] ?? 'off',
+          mode: categoryDefaultModes(category)?.[channel] ?? 'off',
         })),
       ),
       quietHours: null,
@@ -308,26 +308,39 @@ export const NotificationService = {
 }
 
 /**
- * Правила по умолчанию (12-calendar-notifications-home.md §2): действия и
- * упоминания — во все каналы, включая Telegram; остальное в Telegram — по выбору.
- * Поручения и задачи — тоже действия: назначение и отчёт приходят в Telegram сразу.
- * Push — как Telegram (ADR-0153): сотрудник, подписавший устройство, ждёт от него тех же
- * действий; без настройки по умолчанию push молчал бы у всех категорий.
+ * Правила по умолчанию (12-calendar-notifications-home.md §2) категорий ядра: действия и
+ * упоминания — во все каналы, включая Telegram; остальное в Telegram — по выбору. Push —
+ * как Telegram (ADR-0153): сотрудник, подписавший устройство, ждёт от него тех же действий.
+ * Категории модулей объявляют модули (`registerNotificationCategory`, ADR-0182).
  */
-const DEFAULT_MODES: Record<string, Partial<Record<NotificationChannel, DeliveryMode>>> = {
+type ChannelModes = Partial<Record<NotificationChannel, DeliveryMode>>
+const KERNEL_DEFAULT_MODES: Record<string, ChannelModes> = {
   inbox: { app: 'immediate', email: 'immediate', telegram: 'immediate', push: 'immediate' },
   mention: { app: 'immediate', email: 'immediate', telegram: 'immediate', push: 'immediate' },
   discussion: { app: 'immediate', email: 'digest' },
   object: { app: 'immediate', email: 'off' },
-  tasks: { app: 'immediate', email: 'digest', telegram: 'immediate', push: 'immediate' },
-  documents: { app: 'immediate', email: 'digest' },
-  'chat.direct': { app: 'immediate', email: 'off', telegram: 'immediate', push: 'immediate' },
-  'chat.mention': { app: 'immediate', email: 'off', telegram: 'immediate', push: 'immediate' },
-  'chat.channel': { app: 'immediate', email: 'off' },
-  meetings: { app: 'immediate', email: 'immediate', telegram: 'immediate', push: 'immediate' },
-  calendar: { app: 'immediate', email: 'digest' },
-  data: { app: 'immediate', email: 'digest' },
   system: { app: 'immediate', email: 'digest' },
+}
+const moduleDefaultModes = new Map<string, ChannelModes>()
+
+/**
+ * Категория уведомлений модуля и её режимы по умолчанию (ADR-0182): ядро не знает
+ * категорий модулей по именам. Регистрируется при старте в любой роли процесса.
+ */
+export function registerNotificationCategory(
+  category: NotificationCategory,
+  defaults: ChannelModes,
+): void {
+  const taken = KERNEL_DEFAULT_MODES[category] ?? moduleDefaultModes.get(category)
+  if (taken && JSON.stringify(taken) !== JSON.stringify(defaults)) {
+    throw new Error(`Категория уведомлений «${category}» уже объявлена`)
+  }
+  moduleDefaultModes.set(category, defaults)
+}
+
+/** Режимы категории по умолчанию: ядра или модуля; не объявленная — только в приложении. */
+export function categoryDefaultModes(category: string): ChannelModes | undefined {
+  return KERNEL_DEFAULT_MODES[category] ?? moduleDefaultModes.get(category)
 }
 
 /**
@@ -430,7 +443,7 @@ async function resolveChannels(
       ),
     )
 
-  const defaults = DEFAULT_MODES[category] ?? { app: 'immediate' }
+  const defaults = categoryDefaultModes(category) ?? { app: 'immediate' }
   const result: Partial<Record<NotificationChannel, DeliveryMode>> = {}
   const candidates = requested ?? (['app', 'email', 'telegram', 'push'] as NotificationChannel[])
 

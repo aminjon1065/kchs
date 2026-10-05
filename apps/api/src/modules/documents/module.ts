@@ -1,8 +1,10 @@
 import type { ObjectSummary } from '@kchs/contracts'
 import { eq, inArray } from 'drizzle-orm'
+import { registerAuditActions } from '~/kernel/audit/registry.js'
 import { registerSubscriber } from '~/kernel/events/bus.js'
-import { registerInboxActionHandler } from '~/kernel/inbox/actions.js'
+import { registerInboxActionHandler, registerInboxKind } from '~/kernel/inbox/actions.js'
 import { registerJobHandler } from '~/kernel/jobs/runner.js'
+import { registerNotificationCategory } from '~/kernel/notifications/service.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { withProcessParticipants } from '~/kernel/process/index.js'
@@ -15,6 +17,7 @@ import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { DocumentAcknowledgments } from './domain/acknowledgment-service.js'
+import { DOCUMENTS_AUDIT } from './domain/audit-actions.js'
 import { CaseService } from './domain/case-service.js'
 import { documentControlProjection } from './domain/control-projection.js'
 import { onDocumentRegistered } from './domain/document-service.js'
@@ -53,6 +56,7 @@ async function requestResolution(tx: Executor, ctx: Ctx, documentId: string): Pr
  * резолюцию» выполняется формой в карточке (действие `openObject`).
  */
 function registerResolutionInboxActions(): void {
+  registerInboxKind('resolve', { delegationScopes: ['documents'] })
   registerInboxActionHandler('resolve', async (ctx, { item, action, comment }) => {
     if (!item.objectId) throw errors.validation('Нет такого действия')
     const documentId = item.objectId
@@ -72,6 +76,8 @@ function registerResolutionInboxActions(): void {
  * HTTP проверяет права, воркер — подписчиков.
  */
 export function registerDocumentsObjectTypes(): void {
+  registerNotificationCategory('documents', { app: 'immediate', email: 'digest' })
+  registerAuditActions('documents', DOCUMENTS_AUDIT)
   registerObjectType({
     type: 'document',
     labelKey: 'objects.types.document',

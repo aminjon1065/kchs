@@ -2,7 +2,7 @@ import { DECISIONS, type Decision } from '@kchs/process'
 import type { UserCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
-import { registerInboxActionHandler } from '../inbox/actions.js'
+import { registerInboxActionHandler, registerInboxKind } from '../inbox/actions.js'
 import { ProcessService } from './service.js'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -16,6 +16,33 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
  * и запрос из карточки — один учёт.
  */
 export function registerProcessInboxActions(): void {
+  // Виды дел шагов маршрута: кнопки по умолчанию и области замещения (ADR-0182)
+  registerInboxKind('approve', {
+    actions: [
+      {
+        key: 'approve',
+        labelKey: 'inbox.actions.approve',
+        variant: 'primary',
+        requiresComment: false,
+      },
+      {
+        key: 'remarks',
+        labelKey: 'inbox.actions.remarks',
+        variant: 'secondary',
+        requiresComment: true,
+      },
+      { key: 'reject', labelKey: 'inbox.actions.reject', variant: 'danger', requiresComment: true },
+    ],
+    delegationScopes: ['approvals', 'documents'],
+  })
+  registerInboxKind('sign', {
+    actions: [
+      { key: 'sign', labelKey: 'inbox.actions.sign', variant: 'primary', requiresComment: false },
+    ],
+    delegationScopes: ['approvals', 'documents'],
+  })
+  registerInboxKind('register', { delegationScopes: ['documents'] })
+  registerInboxKind('revise', { delegationScopes: ['documents'] })
   for (const kind of ['approve', 'sign', 'register', 'revise'] as const) {
     registerInboxActionHandler(kind, async (ctx, { item, action, comment, payload }) => {
       const stepId = item.processStepId

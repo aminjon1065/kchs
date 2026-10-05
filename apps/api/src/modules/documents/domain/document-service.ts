@@ -23,7 +23,7 @@ import {
 import { and, eq, sql } from 'drizzle-orm'
 import { authorize, hasCapability, visibleObjectsSql } from '~/kernel/access/authorize.js'
 import { clearanceOf } from '~/kernel/access/confidentiality.js'
-import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
+import { audit } from '~/kernel/audit/service.js'
 import { BusinessCalendar } from '~/kernel/business-calendar/service.js'
 import { startOfLocalDay } from '~/kernel/business-calendar/working-days.js'
 import { directory } from '~/kernel/directory/port.js'
@@ -40,6 +40,7 @@ import { db, type Executor } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { documentDispatches, documents, journals, registrations } from '../schema.js'
+import { DOCUMENTS_AUDIT } from './audit-actions.js'
 import { assertRequisites, validateCardFields } from './card.js'
 import { CaseService, canFile } from './case-service.js'
 import { CorrespondentService } from './correspondent-service.js'
@@ -577,7 +578,7 @@ export const DocumentService = {
       await audit(
         ctx,
         {
-          action: AUDIT_ACTIONS.documentConfidentialityChanged,
+          action: DOCUMENTS_AUDIT.documentConfidentialityChanged,
           objectId: id,
           objectType: 'document',
           severity: 'notice',
@@ -796,7 +797,7 @@ export const DocumentService = {
     await audit(
       ctx,
       {
-        action: AUDIT_ACTIONS.documentRegistered,
+        action: DOCUMENTS_AUDIT.documentRegistered,
         objectId: id,
         objectType: 'document',
         details: { number: issued.number, journalId, reserved: issued.reservationId !== null },
@@ -880,7 +881,7 @@ export const DocumentService = {
     await audit(
       ctx,
       {
-        action: AUDIT_ACTIONS.documentCancelled,
+        action: DOCUMENTS_AUDIT.documentCancelled,
         objectId: id,
         objectType: 'document',
         severity: 'notice',

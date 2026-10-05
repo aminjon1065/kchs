@@ -18,7 +18,7 @@ import {
 import { and, arrayOverlaps, count, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm'
 import { authorize, loadObject, requireCapability } from '~/kernel/access/authorize.js'
 import { buildUserCtxFor } from '~/kernel/access/explain.js'
-import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
+import { audit } from '~/kernel/audit/service.js'
 import { directory } from '~/kernel/directory/port.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { objects } from '~/kernel/objects/schema.js'
@@ -39,6 +39,7 @@ import { newId } from '~/shared/ids.js'
 import { logger } from '~/shared/logger/index.js'
 import { type FetchedLetter, mailboxPort, readMailbox } from '~/shared/mail/imap.js'
 import { correspondents, documents, mailMessages } from '../../schema.js'
+import { DOCUMENTS_AUDIT } from '../audit-actions.js'
 import { DocumentService } from '../document-service.js'
 import { bounceOf, DocumentMailOut } from '../mail-out.js'
 import { documentsSpaceId } from '../space.js'
@@ -307,7 +308,7 @@ export const MailIntake = {
     })
 
     await audit(ctx, {
-      action: AUDIT_ACTIONS.mailRejected,
+      action: DOCUMENTS_AUDIT.mailRejected,
       objectId: row.documentId,
       objectType: 'document',
       details: { messageKey: row.messageKey, from: row.fromEmail, reason },

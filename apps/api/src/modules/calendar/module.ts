@@ -2,9 +2,10 @@ import { atLeast, ResponseStatus } from '@kchs/contracts'
 import { eq } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
 import { registerSubscriber } from '~/kernel/events/bus.js'
-import { registerInboxActionHandler } from '~/kernel/inbox/actions.js'
+import { registerInboxActionHandler, registerInboxKind } from '~/kernel/inbox/actions.js'
 import { registerJobHandler } from '~/kernel/jobs/runner.js'
 import { JobService } from '~/kernel/jobs/service.js'
+import { registerNotificationCategory } from '~/kernel/notifications/service.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { declareSchedule } from '~/kernel/schedules/index.js'
@@ -28,6 +29,7 @@ export { registerCalendarRoutes } from './http.js'
  * при старте в любой роли: HTTP исполняет кнопки Входящих, воркер — подписчиков.
  */
 export function registerCalendarObjectTypes(): void {
+  registerNotificationCategory('calendar', { app: 'immediate', email: 'digest' })
   registerObjectType({
     type: 'calendar',
     labelKey: 'objects.types.calendar',
@@ -149,6 +151,7 @@ export function registerCalendarObjectTypes(): void {
     },
   })
 
+  registerInboxKind('respond_invite', { delegationScopes: ['meetings'] })
   // Ответ на приглашение из Входящих и из Telegram — тем же действием, что в карточке
   registerInboxActionHandler('respond_invite', async (ctx, { item, action, comment }) => {
     const status = ResponseStatus.safeParse(action)
