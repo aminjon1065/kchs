@@ -1,10 +1,8 @@
-import { API_SCOPES, ApiToken, ApiTokenCreated, ApiTokenCreateInput } from '@kchs/contracts'
+import { API_SCOPES, ApiTokenCreated, ApiTokenCreateInput, ApiTokenList } from '@kchs/contracts'
 import { z } from 'zod'
 import { rateLimit } from '~/shared/http/rate-limit.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { ApiTokens } from '../domain/api-tokens.js'
-
-const TokenList = z.object({ items: z.array(ApiToken) })
 
 /**
  * Токены публичного API (14-automation-integrations.md §3, ADR-0097).
@@ -20,7 +18,7 @@ export function registerApiTokenRoutes(route: RouteRegistrar): void {
     summary: 'Мои токены API',
     schema: {
       querystring: z.object({ includeRevoked: z.coerce.boolean().default(false) }),
-      response: { 200: TokenList },
+      response: { 200: ApiTokenList },
     },
     handler: async (request) => ({
       items: await ApiTokens.list({
@@ -68,7 +66,7 @@ export function registerApiTokenRoutes(route: RouteRegistrar): void {
         userId: z.uuid().optional(),
         includeRevoked: z.coerce.boolean().default(true),
       }),
-      response: { 200: TokenList },
+      response: { 200: ApiTokenList },
     },
     handler: async (request) => ({
       items: await ApiTokens.list({

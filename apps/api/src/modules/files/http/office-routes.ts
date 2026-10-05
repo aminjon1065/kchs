@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { OfficeEditing, OfficeSession, OfficeStatus } from '@kchs/contracts'
+import { OfficeEditing, OfficeSession, OfficeStatus, OfficeTicketQuery } from '@kchs/contracts'
 import { createTranslator } from '@kchs/i18n'
 import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
@@ -16,7 +16,6 @@ import { watermarkLevel } from '../domain/watermark.js'
 import { files } from '../schema.js'
 
 const IdParam = z.object({ id: z.uuid() })
-const Ticket = z.object({ t: z.string().min(8).max(200) })
 
 /**
  * Совместное редактирование офисных файлов (09-files.md §7, ADR-0112).
@@ -74,7 +73,7 @@ export function registerOfficeRoutes(route: RouteRegistrar): void {
     auth: 'public',
     tags: ['internal'],
     summary: 'Сервер документов забирает содержимое версии',
-    schema: { params: IdParam, querystring: Ticket },
+    schema: { params: IdParam, querystring: OfficeTicketQuery },
     handler: async (request, reply) => {
       const stored = await OfficeService.content(request.params.id, request.query.t)
       reply
@@ -97,7 +96,7 @@ export function registerOfficeRoutes(route: RouteRegistrar): void {
     summary: 'Сервер документов сообщает о состоянии и сохраняет правку',
     schema: {
       params: IdParam,
-      querystring: Ticket,
+      querystring: OfficeTicketQuery,
       body: z.record(z.string(), z.unknown()),
       response: { 200: z.object({ error: z.number().int() }) },
     },

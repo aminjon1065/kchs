@@ -87,3 +87,7 @@ export const OfficeEditing = z.object({
   since: Timestamp,
 })
 export type OfficeEditing = z.infer<typeof OfficeEditing>
+
+/** Билет сервера документов в строке запроса его служебных вызовов (ADR-0112). */
+export const OfficeTicketQuery = z.object({ t: z.string().min(8).max(200) })
+export type OfficeTicketQuery = z.infer<typeof OfficeTicketQuery>

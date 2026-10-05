@@ -1,23 +1,10 @@
+import { BackupList, BackupRecord } from '@kchs/contracts'
 import { z } from 'zod'
 import { BackupService } from '~/kernel/backup/service.js'
 import { JobService } from '~/kernel/jobs/service.js'
 import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
-
-/** Копия — дело долгое: запись о прогоне появляется сразу, итог — по завершении. */
-const Backup = z.object({
-  id: z.uuid(),
-  status: z.enum(['running', 'done', 'failed']),
-  startedAt: z.iso.datetime(),
-  finishedAt: z.iso.datetime().nullable(),
-  sizeBytes: z.number().int().nullable(),
-  requestedBy: z.uuid().nullable(),
-  error: z.string().nullable(),
-  verifiedAt: z.iso.datetime().nullable(),
-  verifiedNote: z.string().nullable(),
-})
-const BackupList = z.object({ items: z.array(Backup) })
 
 /**
  * Резервные копии (15-admin-operations.md §5): список прогонов, копия по
@@ -44,7 +31,7 @@ export function registerBackupRoutes(route: RouteRegistrar): void {
     summary: 'Сделать резервную копию сейчас',
     description: 'Дамп идёт потоком в бакет копий; запись о прогоне возвращается по завершении.',
     rateLimit: { max: 3, timeWindow: '10 minutes' },
-    schema: { response: { 200: Backup } },
+    schema: { response: { 200: BackupRecord } },
     handler: async (request) => BackupService.run(request.ctx),
   })
 
@@ -57,7 +44,7 @@ export function registerBackupRoutes(route: RouteRegistrar): void {
     schema: {
       params: z.object({ id: z.uuid() }),
       body: z.object({ note: z.string().max(500).default('') }),
-      response: { 200: Backup },
+      response: { 200: BackupRecord },
     },
     handler: async (request) => {
       const saved = await BackupService.markVerified(
