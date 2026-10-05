@@ -1,5 +1,5 @@
 import type { EventEnvelope } from '@kchs/contracts'
-import { EVENT_PAYLOADS, eventDomain, isKnownEventType } from '@kchs/contracts'
+import { EVENT_PAYLOADS, eventDomain, eventVersion, isKnownEventType } from '@kchs/contracts'
 import type { Ctx } from '~/shared/context.js'
 import type { Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
@@ -47,7 +47,8 @@ export function buildEnvelope(ctx: Ctx, input: EventInput): EventEnvelope {
   return {
     id: newEventId(),
     type: input.type,
-    version: input.version ?? 1,
+    // Версия нагрузки — из каталога (ADR-0189): получатели вебхуков различают по ней схемы
+    version: input.version ?? (isKnownEventType(input.type) ? eventVersion(input.type) : 1),
     occurredAt: new Date().toISOString(),
     actor: {
       kind: isUser ? 'user' : 'system',
