@@ -34,8 +34,17 @@ test.describe('Приёмка фазы 5: сценарий A — от показ
     const spaces = (await (await request.get('/api/v1/spaces')).json()).items as Array<{
       id: string
       kind: string
+      name: string
     }>
-    const spaceId = (spaces.find((item) => item.kind === 'team') ?? spaces[0])?.id
+    // Пространство с уникальным названием: в форме алерта его выбирают по названию — права
+    // служебной учётной записи выданы именно на него
+    const unique = (item: { name: string }) =>
+      spaces.filter((other) => other.name === item.name).length === 1
+    const space =
+      spaces.find((item) => item.kind === 'team' && unique(item)) ??
+      spaces.find((item) => unique(item)) ??
+      spaces[0]
+    const spaceId = space?.id
 
     // 1. Уровни воды по гидропостам: два поста из трёх выше критического
     const dataset = await request.post('/api/v1/datasets', {
@@ -144,7 +153,7 @@ test.describe('Приёмка фазы 5: сценарий A — от показ
       const dialog = page.getByRole('dialog')
       await dialog.getByLabel('Название').fill(alertName)
       await dialog.getByRole('combobox', { name: 'Пространство' }).click()
-      await page.getByRole('option').first().click()
+      await page.getByRole('option', { name: space?.name, exact: true }).click()
       await dialog.getByRole('combobox', { name: 'Показатель' }).click()
       await page.getByRole('option', { name: metricName }).click()
       await dialog.getByRole('button', { name: 'Создать алерт' }).click()
