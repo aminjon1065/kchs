@@ -288,3 +288,20 @@ export const BasemapStyleQuery = z.object({
   lang: Locale.default('ru'),
 })
 export type BasemapStyleQuery = z.infer<typeof BasemapStyleQuery>
+
+/**
+ * Стиль подложки (`GET /gis/basemaps/:id/style.json`) — документ спецификации стиля MapLibre v8.
+ * Здесь — только его оболочка: версия, источники, слои с `id` и `type`. Стиль целиком проверяет
+ * валидатор MapLibre в тестах; члены спецификации сверх перечисленных (`center`, `zoom`,
+ * `paint`, `layout`, `filter`…) сохраняются.
+ */
+export const BasemapStyleDocument = z.looseObject({
+  version: z.literal(8),
+  name: z.string().optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+  sources: z.record(z.string(), z.record(z.string(), z.unknown())),
+  glyphs: z.string().optional(),
+  sprite: z.string().optional(),
+  layers: z.array(z.looseObject({ id: z.string(), type: z.string() })),
+})
+export type BasemapStyleDocument = z.infer<typeof BasemapStyleDocument>

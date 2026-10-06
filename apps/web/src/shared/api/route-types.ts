@@ -23,29 +23,11 @@ type KeyOf<M extends HttpMethod> = Extract<ApiRouteKey, `${M} ${string}`>
 export type ApiPath<M extends HttpMethod> = RoutePath<KeyOf<M>>
 
 /**
- * Ответы маршрутов, у которых в таблице нет схемы ответа (ADR-0188, «Ответ без схемы»):
- * тип контракта без проверки сервером. Запись удаляется, когда схема ответа появится в
- * таблице: запись для маршрута со схемой не скомпилируется (`Undescribed`).
+ * Ответ маршрута по ключу: `ApiResponse<'GET /tasks/:id'>` — выход схемы успешного ответа.
+ * У каждого JSON-маршрута в таблице есть схема ответа (ADR-0188): ручных типов ответа у
+ * клиента нет. Маршрут без схемы — файл, тайл или поток — даёт `unknown`.
  */
-type UndescribedResponses = Undescribed<{
-  /** Стиль MapLibre (спецификация v8) — как отдал сервер. */
-  'GET /gis/basemaps/:id/style.json': Record<string, unknown>
-}>
-
-type Undescribed<
-  T extends {
-    [K in keyof T]: K extends ApiRouteKey
-      ? unknown extends RouteResponse<Routes[K]>
-        ? unknown
-        : never
-      : never
-  },
-> = T
-
-/** Ответ маршрута по ключу: `ApiResponse<'GET /tasks/:id'>` — выход схемы успешного ответа. */
-export type ApiResponse<K extends ApiRouteKey> = K extends keyof UndescribedResponses
-  ? UndescribedResponses[K]
-  : RouteResponse<Routes[K]>
+export type ApiResponse<K extends ApiRouteKey> = RouteResponse<Routes[K]>
 
 /** Тело запроса по ключу: вход схемы тела. */
 export type ApiBody<K extends ApiRouteKey> = RouteBody<Routes[K]>

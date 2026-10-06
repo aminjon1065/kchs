@@ -3,6 +3,7 @@ import {
   Basemap,
   BasemapCreateInput,
   BasemapList,
+  BasemapStyleDocument,
   BasemapStyleQuery,
   BasemapUpdateInput,
 } from '../../gis/basemap.js'
@@ -88,7 +89,11 @@ export const gisRoutes = defineRoutes({
   },
   'DELETE /gis/basemaps/:id': { params: IdParam, response: { 200: Ok } },
   'POST /gis/basemaps/:id/default': { params: IdParam, response: { 200: Ok } },
-  'GET /gis/basemaps/:id/style.json': { params: IdParam, query: BasemapStyleQuery },
+  'GET /gis/basemaps/:id/style.json': {
+    params: IdParam,
+    query: BasemapStyleQuery,
+    response: { 200: BasemapStyleDocument },
+  },
   'GET /gis/basemaps/:id/pmtiles/:file': { params: ArchiveParams },
   'GET /gis/basemaps/:id/tiles/:z/:x/:y': { params: TileParams },
   'GET /gis/glyphs/:fontstack/:range': { params: GlyphParams },

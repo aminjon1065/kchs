@@ -234,6 +234,14 @@ describe('стиль MapLibre', () => {
       expect(style.glyphs).toBe(`${base()}/gis/glyphs/{fontstack}/{range}.pbf`)
       expect(style.sprite).toBe(`${base()}/gis/sprites/basemap-${theme}`)
       expect(style.metadata['kchs:theme']).toBe(theme)
+      // Схема ответа — оболочка стиля: слои с `paint`, `layout`, `filter` доходят целиком
+      expect(style).toEqual(
+        JSON.parse(
+          JSON.stringify(
+            await BasemapService.style(vectorId, { theme: theme as 'light', lang: 'tg' }),
+          ),
+        ),
+      )
     }
   })
 
@@ -245,6 +253,11 @@ describe('стиль MapLibre', () => {
     expect(style.statusCode).toBe(200)
     expect(validateStyleMin(style.json())).toEqual([])
     expect(style.json().layers).toHaveLength(1)
+    expect(style.json()).toEqual(
+      JSON.parse(
+        JSON.stringify(await BasemapService.style(noneId, { theme: 'light', lang: 'ru' })),
+      ),
+    )
 
     const wrong = await call(fx.app, {
       url: `/gis/basemaps/${noneId}/style.json?theme=neon`,
