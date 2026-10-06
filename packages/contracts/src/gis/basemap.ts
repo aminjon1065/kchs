@@ -301,7 +301,8 @@ export const BasemapStyleDocument = z.looseObject({
   metadata: z.record(z.string(), z.unknown()).optional(),
   sources: z.record(z.string(), z.record(z.string(), z.unknown())),
   glyphs: z.string().optional(),
-  sprite: z.string().optional(),
+  /** Адрес спрайта или несколько спрайтов с префиксами — обе формы спецификации v8. */
+  sprite: z.union([z.string(), z.array(z.object({ id: z.string(), url: z.string() }))]).optional(),
   layers: z.array(z.looseObject({ id: z.string(), type: z.string() })),
 })
 export type BasemapStyleDocument = z.infer<typeof BasemapStyleDocument>
