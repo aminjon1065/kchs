@@ -13,6 +13,7 @@ import {
   unsubscribeRooms,
 } from '~/shared/realtime/client.js'
 import { getShellDialog, listShellSlots } from '~/shared/workspace/registry.js'
+import { savedWorkspaceSnapshot } from '~/shared/workspace/snapshot.js'
 import { subscribeWorkspaceSave, useWorkspace } from '~/shared/workspace/store.js'
 import { CommandPalette } from './command-palette.js'
 import { ContextPanel } from './context-panel.js'
@@ -63,7 +64,8 @@ export function WorkspaceShell() {
     void http
       .get('/me/workspace-state')
       .then((result) => {
-        if (!cancelled && result.state) restore(result.state)
+        const snapshot = savedWorkspaceSnapshot(result.state)
+        if (!cancelled && snapshot) restore(snapshot)
       })
       .catch(() => undefined)
       .then(() =>

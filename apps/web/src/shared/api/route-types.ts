@@ -10,7 +10,6 @@ import type {
 } from '@kchs/contracts'
 import type { ApiRouteKey, Routes } from '@kchs/process/routes'
 import type { z } from 'zod'
-import type { WorkspaceSnapshot } from '../workspace/types.js'
 
 /**
  * Типы клиента API по таблице маршрутов (ADR-0188). Только типы: `import type { Routes }`
@@ -31,8 +30,6 @@ export type ApiPath<M extends HttpMethod> = RoutePath<KeyOf<M>>
  */
 type UndescribedResponses = Undescribed<{
   'GET /me/delegations': { items: ActiveDelegation[] }
-  /** Состояние рабочего пространства хранится как есть (`state: unknown` в теле записи). */
-  'GET /me/workspace-state': { state: WorkspaceSnapshot | null }
   /** Стиль MapLibre (спецификация v8) — как отдал сервер. */
   'GET /gis/basemaps/:id/style.json': Record<string, unknown>
 }>

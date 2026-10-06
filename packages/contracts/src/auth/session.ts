@@ -93,6 +93,14 @@ export type ActiveDelegation = z.infer<typeof ActiveDelegation>
 export const UserPreferences = z.record(z.string(), z.unknown())
 export type UserPreferences = z.infer<typeof UserPreferences>
 
+/**
+ * Сохранённое состояние вкладок и панелей (`GET /me/workspace-state`). Сервер хранит значение,
+ * как его прислал клиент (`PUT /me/workspace-state`, `state: unknown`), и не разбирает: форму и
+ * версию снимка проверяет клиент при восстановлении. Состояния нет — `null`.
+ */
+export const WorkspaceStateResponse = z.object({ state: z.unknown() })
+export type WorkspaceStateResponse = z.infer<typeof WorkspaceStateResponse>
+
 /** `/me` — всё, что нужно оболочке при старте. */
 export const MeResponse = z.object({
   user: UserProfile,

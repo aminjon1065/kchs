@@ -497,6 +497,43 @@ describe('профиль и сессии', () => {
     expect(load.json().state).toEqual(state)
   })
 
+  it('состояние рабочего пространства — как его прислал клиент, сервер его не разбирает', async () => {
+    const save = async (state: unknown) => {
+      const response = await call(fx.app, {
+        method: 'PUT',
+        url: '/me/workspace-state',
+        as: fx.users.stranger,
+        payload: { state },
+      })
+      expect(response.statusCode, response.body).toBe(200)
+    }
+    const load = async () => {
+      const response = await call(fx.app, { url: '/me/workspace-state', as: fx.users.stranger })
+      expect(response.statusCode, response.body).toBe(200)
+      return response.json()
+    }
+
+    const snapshot = {
+      version: 1,
+      tabs: {
+        home: { id: 'home', kind: 'screen', screen: 'home', params: {}, state: { scroll: 120 } },
+      },
+      panes: [{ id: 'p1', tabIds: ['home'], activeTabId: 'home', linkGroup: null }],
+      focusedPaneId: 'p1',
+      navigatorOpen: true,
+      contextOpen: false,
+      contextTab: 'info',
+      futureField: { 'вложенное поле': [1, 'два', null, { три: true }] },
+    }
+    await save(snapshot)
+    expect(await load()).toEqual({ state: snapshot })
+    // Не объект тоже хранится как есть: форму проверяет клиент при восстановлении
+    await save(['не', 'снимок'])
+    expect(await load()).toEqual({ state: ['не', 'снимок'] })
+    await save(null)
+    expect(await load()).toEqual({ state: null })
+  })
+
   it('настройки интерфейса — все сохранённые значения как есть, любого вида', async () => {
     const saved: Record<string, unknown> = {
       'home.widgets': ['tasks', 'calendar', { key: 'metric', id: fx.spaceId }],

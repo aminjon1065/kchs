@@ -22,6 +22,7 @@ import {
   RecoveryCodesResponse,
   SessionInfo,
   UserPreferences,
+  WorkspaceStateResponse,
 } from '../../auth/session.js'
 import { ENGINE_CALLBACKS } from '../../engine/callbacks.js'
 import { defineRoutes } from '../../http/route-contract.js'
@@ -111,7 +112,7 @@ export const identityRoutes = defineRoutes({
     body: z.object({ key: z.string().max(100), value: z.unknown() }),
     response: { 200: z.object({ ok: z.boolean() }) },
   },
-  'GET /me/workspace-state': {},
+  'GET /me/workspace-state': { response: { 200: WorkspaceStateResponse } },
   'PUT /me/workspace-state': {
     body: z.object({ state: z.unknown() }),
     response: { 200: z.object({ ok: z.boolean() }) },
