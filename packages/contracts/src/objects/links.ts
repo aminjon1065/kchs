@@ -40,6 +40,16 @@ export const LinkView = z.object({
 })
 export type LinkView = z.infer<typeof LinkView>
 
+/** Панель «Связи» (`GET /objects/:id/links`): связи в обе стороны и вычисляемые зависимости. */
+export const ObjectLinks = z.object({
+  links: z.array(LinkView),
+  /** Что объект использует — происхождение (зависимости `uses`, `derives_from`, `renders`). */
+  uses: z.array(ObjectSummary),
+  /** Что использует объект — анализ влияния: сломается при его удалении. */
+  usedBy: z.array(ObjectSummary),
+})
+export type ObjectLinks = z.infer<typeof ObjectLinks>
+
 export const LinkCreateInput = z.object({
   targetId: Uuid,
   kind: LinkKind.default('related'),

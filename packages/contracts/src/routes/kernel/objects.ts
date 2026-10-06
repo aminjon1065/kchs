@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { cursorPage } from '../../common/pagination.js'
 import { defineRoutes } from '../../http/route-contract.js'
 import { LineageQuery, ObjectLineage } from '../../objects/lineage.js'
-import { LinkCreateInput } from '../../objects/links.js'
+import { LinkCreateInput, ObjectLinks } from '../../objects/links.js'
 import {
   BatchGetInput,
   ObjectPatchInput,
@@ -64,7 +64,7 @@ export const kernelObjectsRoutes = defineRoutes({
     query: LineageQuery,
     response: { 200: ObjectLineage },
   },
-  'GET /objects/:id/links': { params: IdParam },
+  'GET /objects/:id/links': { params: IdParam, response: { 200: ObjectLinks } },
   'POST /objects/:id/links': {
     params: IdParam,
     body: LinkCreateInput,

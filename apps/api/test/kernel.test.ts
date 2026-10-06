@@ -1,4 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest'
+import { buildUserCtxFor } from '../src/kernel/access/explain.js'
+import { LinkService } from '../src/kernel/links/service.js'
 import { call, db, redis, registerLifecycle, setupFixture, type TestContext } from './helpers.js'
 
 registerLifecycle()
@@ -8,6 +10,20 @@ let fx: TestContext
 beforeAll(async () => {
   fx = await setupFixture()
 })
+
+/** Контекст администратора — для сервиса, который зовёт обработчик маршрута. */
+async function adminCtx() {
+  const ctx = await buildUserCtxFor(fx.admin.id)
+  if (!ctx) throw new Error('нет контекста администратора')
+  return ctx
+}
+
+/** Порядок без ORDER BY не гарантирован: сравнение — по отсортированным id. */
+const byId = <T extends { id: string }>(items: T[]): T[] =>
+  [...items].sort((a, b) => a.id.localeCompare(b.id))
+
+/** То, что вернул сервис, после JSON: ответ маршрута со схемой должен совпасть с ним (ADR-0188). */
+const asJson = <T>(value: T): unknown => JSON.parse(JSON.stringify(value))
 
 async function newFolder(name: string, parentId?: string): Promise<string> {
   const response = await call(fx.app, {
@@ -132,6 +148,38 @@ describe('связи', () => {
     expect(fromA.json().links[0].direction).toBe('outgoing')
     const fromB = await call(fx.app, { url: `/objects/${b}/links`, as: fx.admin })
     expect(fromB.json().links[0].direction).toBe('incoming')
+  })
+
+  it('ответ связей — всё, что вернул сервис: схема ответа ничего не теряет', async () => {
+    const source = await newFolder('Связи: источник')
+    const target = await newFolder('Связи: цель')
+    const upstream = await newFolder('Связи: исходные данные')
+    const downstream = await newFolder('Связи: потребитель')
+    const linked = await call(fx.app, {
+      method: 'POST',
+      url: `/objects/${source}/links`,
+      as: fx.admin,
+      payload: { targetId: target, kind: 'related' },
+    })
+    expect(linked.statusCode, linked.body).toBe(200)
+    await LinkService.setDependencies(db(), source, [upstream])
+    await LinkService.setDependencies(db(), downstream, [source])
+
+    const ctx = await adminCtx()
+    const [links, uses, usedBy] = await Promise.all([
+      LinkService.listFor(ctx, source),
+      LinkService.dependenciesOf(ctx, source),
+      LinkService.dependents(ctx, source),
+    ])
+    const response = await call(fx.app, { url: `/objects/${source}/links`, as: fx.admin })
+    expect(response.statusCode, response.body).toBe(200)
+    const body = response.json()
+    expect(body.links).toHaveLength(1)
+    expect(body.uses.map((item: { id: string }) => item.id)).toEqual([upstream])
+    expect(body.usedBy.map((item: { id: string }) => item.id)).toEqual([downstream])
+    expect({ links: byId(body.links), uses: byId(body.uses), usedBy: byId(body.usedBy) }).toEqual(
+      asJson({ links: byId(links), uses: byId(uses), usedBy: byId(usedBy) }),
+    )
   })
 })
 
