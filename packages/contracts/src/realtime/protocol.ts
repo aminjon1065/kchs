@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { UserRef } from '../auth/session.js'
 import { BigIntString, Uuid } from '../common/primitives.js'
 import { IncomingCall } from '../meetings/meeting.js'
 import { InboxCounts } from '../notifications/inbox.js'
@@ -154,6 +155,20 @@ export const RtMeetingChanged = z.object({ meetingId: Uuid, change: z.enum(MEETI
 /** Гость по ссылке просится в комнату — ведущему, в комнату объекта встречи (ADR-0091). */
 export const RtMeetingKnock = z.object({ meetingId: Uuid, requestId: Uuid })
 
+/**
+ * Гость ждёт в комнате ожидания — ведущему в `user:{id}`, где бы он ни был (ADR-0193): имя
+ * гостя и название встречи, чтобы показать, кто и куда просится, без запроса за заявками.
+ */
+export const RtMeetingGuestWaiting = z.object({
+  meetingId: Uuid,
+  requestId: Uuid,
+  name: z.string(),
+  title: z.string(),
+})
+
+/** Приглашённый отклонил звонок — звонящему в `user:{id}` (ADR-0193). */
+export const RtCallDeclined = z.object({ meetingId: Uuid, user: UserRef.nullable() })
+
 export const RT_SERVER_PAYLOADS = {
   'object.updated': RtObjectUpdated,
   'object.removed': RtObjectRemoved,
@@ -173,8 +188,10 @@ export const RT_SERVER_PAYLOADS = {
   'presence.changed': RtPresenceChanged,
   'meeting.changed': RtMeetingChanged,
   'meeting.knock': RtMeetingKnock,
+  'meeting.guest_waiting': RtMeetingGuestWaiting,
   /** Входящий звонок — приглашённому, в комнату `user:{id}` (ADR-0091). */
   'call.incoming': IncomingCall,
+  'call.declined': RtCallDeclined,
 } as const satisfies Record<string, z.ZodType>
 
 export type RtServerEvent = keyof typeof RT_SERVER_PAYLOADS

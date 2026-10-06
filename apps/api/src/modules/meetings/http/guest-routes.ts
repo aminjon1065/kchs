@@ -1,4 +1,5 @@
-import { emitToRoom } from '~/kernel/realtime/gateway.js'
+import { publishEvent } from '~/kernel/events/publisher.js'
+import { systemCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
@@ -37,7 +38,7 @@ export function registerMeetingsGuestRoutes(route: RouteRegistrar): void {
     summary: 'Встреча по гостевой ссылке: название и состояние, без объектов',
     // Подбор подписи ограничивается по адресу: страница гостя открывается редко
     rateLimit: { max: 30, timeWindow: '1 minute' },
-    handler: async (request) => preview(request.params.token),
+    handler: async (request) => previewOf(await linkedMeeting(request.params.token)),
   })
 
   route({
@@ -47,10 +48,9 @@ export function registerMeetingsGuestRoutes(route: RouteRegistrar): void {
     summary: 'Гость просится в комнату; впущенному выдаётся короткий токен',
     rateLimit: { max: 60, timeWindow: '1 minute' },
     handler: async (request) => {
-      const link = readGuestLink(request.params.token)
-      if (!link) throw errors.notFound('Ссылка недействительна')
-      const meeting = await preview(request.params.token)
-      const meetingId = link.meetingId
+      const row = await linkedMeeting(request.params.token)
+      const meeting = previewOf(row)
+      const meetingId = row.id
 
       // Повторный заход по той же заявке: клиент ждёт решения или обновляет токен
       const existing = request.body.requestId
@@ -84,24 +84,40 @@ export function registerMeetingsGuestRoutes(route: RouteRegistrar): void {
 
       if (!meeting.enabled) throw errors.unavailable('Медиасервер не настроен')
       const requestId = await knock(meetingId, request.body.name)
-      // Ведущий видит стучащегося сразу — в открытой комнате встречи: заявки
-      // показывает только она (ADR-0192)
-      emitToRoom(`object:${meetingId}`, 'meeting.knock', { meetingId, requestId })
+      // О госте сообщает событие: открытой комнате встречи — новой заявкой, ведущему — где бы
+      // он ни был (ADR-0193). Гость не пользователь — событие от имени системы
+      await db().transaction((tx) =>
+        publishEvent(tx, systemCtx('meetings.guest_knock'), {
+          type: 'meeting.guest_waiting',
+          object: { id: meetingId, type: 'meeting', spaceId: null, title: row.title },
+          payload: {
+            meetingId,
+            requestId,
+            name: request.body.name,
+            organizerId: row.organizerId,
+          },
+        }),
+      )
       return { state: 'waiting' as const, requestId, meeting, join: null }
     },
   })
 }
 
-/** Название и состояние встречи по ссылке: больше гостю знать не нужно. */
-async function preview(token: string): Promise<{
-  title: string
-  status: 'planned' | 'live' | 'ended' | 'cancelled'
-  enabled: boolean
-}> {
+/** Встреча гостевой ссылки; недействительная ссылка и удалённая встреча — 404. */
+async function linkedMeeting(token: string) {
   const link = readGuestLink(token)
   if (!link) throw errors.notFound('Ссылка недействительна')
   const row = await MeetingService.load(db(), link.meetingId)
   if (!row) throw errors.notFound('Встреча')
+  return row
+}
+
+/** Название и состояние встречи по ссылке: больше гостю знать не нужно. */
+function previewOf(row: NonNullable<Awaited<ReturnType<typeof MeetingService.load>>>): {
+  title: string
+  status: 'planned' | 'live' | 'ended' | 'cancelled'
+  enabled: boolean
+} {
   return {
     title: row.title,
     status: row.status as 'planned' | 'live' | 'ended' | 'cancelled',

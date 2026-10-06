@@ -117,12 +117,15 @@ export const meetings: DeepPartial<Dictionary['meetings']> = {
     title: 'Waiting room',
     admit: 'Admit',
     deny: 'Deny',
+    guestToast: 'Guest in the waiting room: {name}',
+    open: 'Open meeting',
   },
   call: {
     incoming: 'Incoming call',
     accept: 'Accept',
     decline: 'Decline',
     unknownCaller: 'Unknown',
+    declined: '{name} declined the call',
   },
   guest: {
     hint: 'A guest joins by link without an account and sees only the meeting room.',

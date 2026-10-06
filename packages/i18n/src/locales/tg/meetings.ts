@@ -117,12 +117,15 @@ export const meetings: DeepPartial<Dictionary['meetings']> = {
     title: 'Ҳуҷраи интизорӣ',
     admit: 'Роҳ додан',
     deny: 'Рад кардан',
+    guestToast: 'Меҳмон дар ҳуҷраи интизорӣ: {name}',
+    open: 'Вохӯриро кушодан',
   },
   call: {
     incoming: 'Занги воридотӣ',
     accept: 'Қабул кардан',
     decline: 'Рад кардан',
     unknownCaller: 'Номаълум',
+    declined: 'Занг рад карда шуд: {name}',
   },
   guest: {
     hint: 'Меҳмон бо пайванд бе ҳисоб ворид мешавад: ӯ танҳо ҳуҷраи вохӯриро мебинад.',

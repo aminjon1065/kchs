@@ -23,6 +23,17 @@ export const MEETINGS_EVENTS = {
     secretaryId: Uuid.nullable(),
     previousId: Uuid.nullable(),
   }),
+  /**
+   * Гость по ссылке просится в комнату (ADR-0091, ADR-0193): открытой комнате встречи — новая
+   * заявка, ведущему — сообщение, где бы он ни был. Сама заявка живёт в Redis; `name` — имя,
+   * которое гость назвал себе сам.
+   */
+  'meeting.guest_waiting': z.object({
+    meetingId: Uuid,
+    requestId: Uuid,
+    name: z.string(),
+    organizerId: Uuid.nullable(),
+  }),
   /** Встреча завершена: вручную, последним вышедшим или отменой события. */
   'meeting.ended': z.object({
     reason: z.enum(['manual', 'empty', 'cancelled']),
@@ -109,9 +120,6 @@ export const MEETINGS_EVENTS = {
     conversationId: Uuid.nullable(),
     userIds: z.array(Uuid),
   }),
-  /**
-   * Приглашённый отклонил входящий звонок (ADR-0091). Сообщения realtime звонящему пока нет:
-   * показать отказ нечем до строки в словаре модуля встреч (ADR-0192).
-   */
+  /** Приглашённый отклонил входящий звонок (ADR-0091): звонящему — сообщение (ADR-0193). */
   'call.declined': z.object({ meetingId: Uuid, userId: Uuid, callerId: Uuid.nullable() }),
 } as const satisfies Record<string, z.ZodType>
