@@ -3,6 +3,7 @@ import { buildUserCtxFor } from '../src/kernel/access/explain.js'
 import { activities } from '../src/kernel/activity/schema.js'
 import { listActivity } from '../src/kernel/activity/service.js'
 import { LinkService } from '../src/kernel/links/service.js'
+import { SettingsService } from '../src/kernel/settings/service.js'
 import { call, db, redis, registerLifecycle, setupFixture, type TestContext } from './helpers.js'
 
 registerLifecycle()
@@ -494,6 +495,30 @@ describe('профиль и сессии', () => {
 
     const load = await call(fx.app, { url: '/me/workspace-state', as: fx.users.member })
     expect(load.json().state).toEqual(state)
+  })
+
+  it('настройки интерфейса — все сохранённые значения как есть, любого вида', async () => {
+    const saved: Record<string, unknown> = {
+      'home.widgets': ['tasks', 'calendar', { key: 'metric', id: fx.spaceId }],
+      'ui.theme': 'dark',
+      'ui.density': 2,
+      'ui.sidebarCollapsed': false,
+      'grid.columns': { tasks: { widths: { title: 320 }, hidden: ['priority'], sort: null } },
+    }
+    for (const [key, value] of Object.entries(saved)) {
+      const put = await call(fx.app, {
+        method: 'PUT',
+        url: '/me/preferences',
+        as: fx.users.member,
+        payload: { key, value },
+      })
+      expect(put.statusCode, put.body).toBe(200)
+    }
+
+    const response = await call(fx.app, { url: '/me/preferences', as: fx.users.member })
+    expect(response.statusCode, response.body).toBe(200)
+    expect(response.json()).toMatchObject(saved)
+    expect(response.json()).toEqual(asJson(await SettingsService.forUser(fx.users.member.id)))
   })
 })
 

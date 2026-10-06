@@ -86,6 +86,13 @@ export const ActiveDelegation = z.object({
 })
 export type ActiveDelegation = z.infer<typeof ActiveDelegation>
 
+/**
+ * Настройки интерфейса пользователя (`GET /me/preferences`, поле `preferences` в `/me`): ключ →
+ * значение, как его сохранил клиент (`PUT /me/preferences`). Сервер значения не разбирает.
+ */
+export const UserPreferences = z.record(z.string(), z.unknown())
+export type UserPreferences = z.infer<typeof UserPreferences>
+
 /** `/me` — всё, что нужно оболочке при старте. */
 export const MeResponse = z.object({
   user: UserProfile,
@@ -103,7 +110,7 @@ export const MeResponse = z.object({
   mustChangePassword: z.boolean().default(false),
   /** Политика требует второй фактор для роли, а он не подключён: оболочка показывает только подключение MFA. */
   mfaEnrollmentRequired: z.boolean().default(false),
-  preferences: z.record(z.string(), z.unknown()).default({}),
+  preferences: UserPreferences.default({}),
   /** Включённые возможности установки (15-admin-operations.md §1): выключенное оболочка прячет. */
   features: z.array(z.string()).default([]),
   /** Экраны выключенных возможностей: рейка их не показывает, вкладка — объясняет. */

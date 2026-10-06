@@ -21,6 +21,7 @@ import {
   ProfileUpdateInput,
   RecoveryCodesResponse,
   SessionInfo,
+  UserPreferences,
 } from '../../auth/session.js'
 import { ENGINE_CALLBACKS } from '../../engine/callbacks.js'
 import { defineRoutes } from '../../http/route-contract.js'
@@ -105,7 +106,7 @@ export const identityRoutes = defineRoutes({
   },
   'GET /me': { response: { 200: MeResponse } },
   'PATCH /me': { body: ProfileUpdateInput, response: { 200: z.object({ ok: z.boolean() }) } },
-  'GET /me/preferences': {},
+  'GET /me/preferences': { response: { 200: UserPreferences } },
   'PUT /me/preferences': {
     body: z.object({ key: z.string().max(100), value: z.unknown() }),
     response: { 200: z.object({ ok: z.boolean() }) },
