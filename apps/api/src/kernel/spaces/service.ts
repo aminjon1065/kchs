@@ -283,6 +283,14 @@ export const SpaceService = {
                 : eq(spaces.kind, 'org'),
             ),
       )
+      // Порядок списка — как у навигатора: организация, подразделения, команды, личные, внутри —
+      // по названию. Без него Postgres отдаёт строки как лежат, и выпадающие списки пространств
+      // меняли порядок после любой правки
+      .orderBy(
+        sql`CASE ${spaces.kind} WHEN 'org' THEN 0 WHEN 'unit' THEN 1 WHEN 'team' THEN 2 ELSE 3 END`,
+        objects.title,
+        spaces.id,
+      )
 
     const counts = await database
       .select({ spaceId: spaceMembers.spaceId, count: sql<number>`count(*)::int` })

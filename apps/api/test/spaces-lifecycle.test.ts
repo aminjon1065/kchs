@@ -217,3 +217,21 @@ describe('пространство целиком', () => {
     expect(denied.statusCode).toBe(403)
   })
 })
+
+describe('список пространств', () => {
+  it('в порядке навигатора: организация, подразделения, команды, личные; внутри — по названию', async () => {
+    // Создаются в обратном порядке: без сортировки список шёл бы, как лежат строки
+    const later = await createSpace(`zz-${run}`)
+    const earlier = await createSpace(`aa-${run}`)
+    const items = (await call(fx.app, { url: '/spaces', as: fx.admin })).json().items as Array<{
+      id: string
+      kind: string
+    }>
+    const rank: Record<string, number> = { org: 0, unit: 1, team: 2, personal: 3 }
+    const ranks = items.map((item) => rank[item.kind] ?? 3)
+    expect(ranks).toEqual([...ranks].sort((a, b) => a - b))
+    const ids = items.map((item) => item.id)
+    expect(ids.indexOf(earlier)).toBeGreaterThanOrEqual(0)
+    expect(ids.indexOf(earlier)).toBeLessThan(ids.indexOf(later))
+  })
+})
