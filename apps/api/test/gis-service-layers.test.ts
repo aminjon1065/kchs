@@ -1,5 +1,6 @@
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
+import { ServiceLayerFeatureCollection } from '@kchs/contracts'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { call, registerLifecycle, setupFixture, type TestContext } from './helpers.js'
 
@@ -192,6 +193,71 @@ describe('базовая карта WMS', () => {
  * исполняет, и такой «тайл» стал бы хранимым XSS на домене установки
  * (17-security.md §5).
  */
+describe('объекты векторной службы', () => {
+  // Объекты как их отдаёт GeoServer: строковый и числовой id, пустая геометрия и свойства,
+  // члены сверх стандарта (`geometry_name`, `bbox`)
+  const upstreamFeatures = [
+    {
+      type: 'Feature',
+      id: 'rivers.1',
+      geometry: {
+        type: 'LineString',
+        coordinates: [
+          [68.7, 38.5],
+          [68.8, 38.6],
+        ],
+      },
+      geometry_name: 'geom',
+      bbox: [68.7, 38.5, 68.8, 38.6],
+      properties: { name: 'Варзоб', length_km: 72.4, flood: true, gauge: null, tags: ['паводок'] },
+    },
+    { type: 'Feature', id: 2, geometry: null, properties: null },
+  ]
+  let upstream: Server
+  let upstreamBase = ''
+
+  beforeAll(async () => {
+    upstream = createServer((_request, response) => {
+      response.statusCode = 200
+      response.setHeader('content-type', 'application/json')
+      response.end(
+        JSON.stringify({ type: 'FeatureCollection', features: upstreamFeatures, totalFeatures: 2 }),
+      )
+    })
+    await new Promise<void>((resolve) => upstream.listen(0, '127.0.0.1', resolve))
+    upstreamBase = `http://127.0.0.1:${(upstream.address() as AddressInfo).port}`
+  })
+
+  afterAll(async () => {
+    await new Promise<void>((resolve) => upstream.close(() => resolve()))
+  })
+
+  it('ответ — объекты службы без потерь и по схеме ответа маршрута', async () => {
+    const created = await call(fx.app, {
+      method: 'POST',
+      url: '/gis/service-layers',
+      as: fx.admin,
+      payload: {
+        name: `Реки WFS ${run}`,
+        kind: 'wfs',
+        url: `${upstreamBase}/geoserver/wfs`,
+        params: { kind: 'wfs', typeName: 'kchs:rivers' },
+      },
+    })
+    expect(created.statusCode, created.body).toBe(200)
+
+    const response = await call(fx.app, {
+      url: `/gis/service-layers/${created.json().id}/features?limit=10`,
+      as: fx.users.member,
+    })
+    expect(response.statusCode, response.body).toBe(200)
+    expect(response.headers['content-type']).toContain('application/geo+json')
+    const body = response.json()
+    expect(body).toEqual({ type: 'FeatureCollection', features: upstreamFeatures })
+    expect(ServiceLayerFeatureCollection.parse(body)).toEqual(body)
+  })
+})
+
 describe('прокси тайлов: тип содержимого чужой службы', () => {
   let upstream: Server
   let upstreamBase = ''

@@ -168,6 +168,26 @@ export const ServiceLayerFeaturesQuery = z.object({
 export type ServiceLayerFeaturesQuery = z.infer<typeof ServiceLayerFeaturesQuery>
 
 /**
+ * Объект внешней векторной службы — GeoJSON Feature, как его отдала служба (RFC 7946).
+ * api передаёт объекты без разбора, поэтому члены сверх стандарта (`bbox`, `geometry_name`
+ * у GeoServer) сохраняются, а свойства произвольны.
+ */
+export const ServiceLayerFeature = z.looseObject({
+  type: z.literal('Feature'),
+  id: z.union([z.string(), z.number()]).optional(),
+  geometry: z.record(z.string(), z.unknown()).nullable(),
+  properties: z.record(z.string(), z.unknown()).nullable(),
+})
+export type ServiceLayerFeature = z.infer<typeof ServiceLayerFeature>
+
+/** Объекты службы в охвате (`GET /gis/service-layers/:id/features`), `application/geo+json`. */
+export const ServiceLayerFeatureCollection = z.object({
+  type: z.literal('FeatureCollection'),
+  features: z.array(ServiceLayerFeature),
+})
+export type ServiceLayerFeatureCollection = z.infer<typeof ServiceLayerFeatureCollection>
+
+/**
  * Разовый импорт объектов службы в файл GeoJSON: дальше это обычный геоимпорт
  * (мастер импорта по `fileId`, ADR-0068) — движок читает файл GDAL.
  */

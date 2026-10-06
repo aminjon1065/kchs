@@ -34,6 +34,7 @@ import { GisRenderSettings, GisRenderSettingsPatch } from '../../gis/render-sett
 import {
   ServiceLayerCheckResult,
   ServiceLayerCreateInput,
+  ServiceLayerFeatureCollection,
   ServiceLayerFeaturesQuery,
   ServiceLayerImportInput,
   ServiceLayerImportStarted,
@@ -167,7 +168,11 @@ export const gisRoutes = defineRoutes({
     response: { 200: ServiceLayerCheckResult },
   },
   'GET /gis/service-layers/:id/tiles/:z/:x/:y': { params: TileParams },
-  'GET /gis/service-layers/:id/features': { params: IdParam, query: ServiceLayerFeaturesQuery },
+  'GET /gis/service-layers/:id/features': {
+    params: IdParam,
+    query: ServiceLayerFeaturesQuery,
+    response: { 200: ServiceLayerFeatureCollection },
+  },
   'POST /gis/service-layers/:id/import': {
     params: IdParam,
     body: ServiceLayerImportInput,
