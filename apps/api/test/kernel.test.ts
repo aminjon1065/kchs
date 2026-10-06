@@ -1,5 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import { buildUserCtxFor } from '../src/kernel/access/explain.js'
+import { activities } from '../src/kernel/activity/schema.js'
+import { listActivity } from '../src/kernel/activity/service.js'
 import { LinkService } from '../src/kernel/links/service.js'
 import { call, db, redis, registerLifecycle, setupFixture, type TestContext } from './helpers.js'
 
@@ -179,6 +181,57 @@ describe('связи', () => {
     expect(body.usedBy.map((item: { id: string }) => item.id)).toEqual([downstream])
     expect({ links: byId(body.links), uses: byId(body.uses), usedBy: byId(body.usedBy) }).toEqual(
       asJson({ links: byId(links), uses: byId(uses), usedBy: byId(usedBy) }),
+    )
+  })
+})
+
+describe('лента активности', () => {
+  it('ответ ленты — всё, что вернул сервис, и курсор следующей страницы', async () => {
+    const id = await newFolder('Лента: объект')
+    // Все поля записи заполнены, включая «от имени» и параметры подписи
+    await db()
+      .insert(activities)
+      .values([
+        {
+          eventId: `test-activity-1-${id}`,
+          objectId: id,
+          spaceId: fx.spaceId,
+          actorId: fx.users.member.id,
+          onBehalfOf: fx.admin.id,
+          verb: 'updated',
+          summary: {
+            key: 'activity.object.updated',
+            params: { actor: 'Сотрудник', title: 'Лента: объект', fields: 'title, subtitle' },
+          },
+          occurredAt: '2026-10-01T08:00:00.000Z',
+        },
+        {
+          eventId: `test-activity-2-${id}`,
+          objectId: id,
+          spaceId: fx.spaceId,
+          actorId: fx.admin.id,
+          onBehalfOf: null,
+          verb: 'commented',
+          summary: { key: 'activity.message.posted', params: { actor: 'Администратор', count: 2 } },
+          occurredAt: '2026-10-02T08:00:00.000Z',
+        },
+      ])
+
+    const first = await call(fx.app, { url: `/objects/${id}/activity?limit=1`, as: fx.admin })
+    expect(first.statusCode, first.body).toBe(200)
+    const page = first.json()
+    expect(page.items).toHaveLength(1)
+    expect(page.nextCursor).toEqual(expect.any(String))
+    expect(page).toEqual(asJson(await listActivity(id, { limit: 1 })))
+
+    const rest = await call(fx.app, {
+      url: `/objects/${id}/activity?limit=10&cursor=${page.nextCursor}`,
+      as: fx.admin,
+    })
+    expect(rest.statusCode, rest.body).toBe(200)
+    expect(rest.json().items.map((item: { verb: string }) => item.verb)).toContain('updated')
+    expect(rest.json()).toEqual(
+      asJson(await listActivity(id, { limit: 10, cursor: page.nextCursor })),
     )
   })
 })

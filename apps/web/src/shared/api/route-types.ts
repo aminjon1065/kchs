@@ -1,6 +1,5 @@
 import type {
   ActiveDelegation,
-  Activity,
   HttpMethod,
   RouteBody,
   RouteContract,
@@ -31,7 +30,6 @@ export type ApiPath<M extends HttpMethod> = RoutePath<KeyOf<M>>
  * таблице: запись для маршрута со схемой не скомпилируется (`Undescribed`).
  */
 type UndescribedResponses = Undescribed<{
-  'GET /objects/:id/activity': { items: Activity[]; nextCursor: string | null }
   'GET /me/delegations': { items: ActiveDelegation[] }
   /** Состояние рабочего пространства хранится как есть (`state: unknown` в теле записи). */
   'GET /me/workspace-state': { state: WorkspaceSnapshot | null }

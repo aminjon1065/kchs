@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { cursorPage } from '../../common/pagination.js'
 import { defineRoutes } from '../../http/route-contract.js'
+import { Activity } from '../../objects/activity.js'
 import { LineageQuery, ObjectLineage } from '../../objects/lineage.js'
 import { LinkCreateInput, ObjectLinks } from '../../objects/links.js'
 import {
@@ -80,6 +81,7 @@ export const kernelObjectsRoutes = defineRoutes({
       limit: z.coerce.number().int().min(1).max(100).default(30),
       cursor: z.string().optional(),
     }),
+    response: { 200: cursorPage(Activity) },
   },
   'GET /trash': { response: { 200: z.object({ items: z.array(ObjectSummary) }) } },
 })
