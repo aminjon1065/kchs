@@ -4,6 +4,7 @@ import { Branding, BrandingPatch } from '../../admin/branding.js'
 import { FeatureFlagList, FeatureFlagPatch } from '../../admin/features.js'
 import { HealthReport } from '../../admin/org.js'
 import { defineRoutes } from '../../http/route-contract.js'
+import { JobRecord } from '../../jobs/job.js'
 import { AuditActionCatalog, AuditEntry } from '../../objects/activity.js'
 
 /**
@@ -58,5 +59,5 @@ export const adminRoutes = defineRoutes({
     body: z.object({ message: z.string().max(200).default('ping') }),
     response: { 200: z.object({ jobId: z.uuid() }) },
   },
-  'GET /admin/jobs': {},
+  'GET /admin/jobs': { response: { 200: z.object({ items: z.array(JobRecord) }) } },
 })

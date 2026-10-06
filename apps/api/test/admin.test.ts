@@ -1,5 +1,8 @@
 import { sql } from 'drizzle-orm'
 import { beforeAll, describe, expect, it } from 'vitest'
+import { jobs } from '../src/kernel/jobs/schema.js'
+import { JobService } from '../src/kernel/jobs/service.js'
+import { newId } from '../src/shared/ids.js'
 import { call, db, registerLifecycle, setupFixture, type TestContext } from './helpers.js'
 
 /** Администрирование (P0-E15 S02): журнал аудита, объявления. */
@@ -9,6 +12,45 @@ let fx: TestContext
 
 beforeAll(async () => {
   fx = await setupFixture()
+})
+
+describe('активные задания', () => {
+  it('ответ — всё, что вернул реестр заданий: схема ответа ничего не теряет', async () => {
+    const running = newId()
+    const queued = newId()
+    const finished = newId()
+    await db()
+      .insert(jobs)
+      .values([
+        {
+          // Повтор после сбоя: в работе, с результатом прошлой попытки и её ошибкой
+          id: running,
+          queue: 'imports',
+          name: 'dataset.normalize',
+          objectId: fx.spaceId,
+          initiatorId: fx.admin.id,
+          status: 'running',
+          progress: 0.4,
+          message: 'Разбор строк',
+          result: { rows: 120, sample: [1, 2] },
+          error: { code: 'engine_unavailable', message: 'Движок не ответил' },
+          attempts: 2,
+          startedAt: '2026-10-06T08:00:00.000Z',
+          finishedAt: '2026-10-06T07:59:00.000Z',
+        },
+        { id: queued, queue: 'render', name: 'file.process', status: 'queued' },
+        { id: finished, queue: 'render', name: 'file.process', status: 'succeeded' },
+      ])
+
+    const response = await call(fx.app, { url: '/admin/jobs', as: fx.admin })
+    expect(response.statusCode, response.body).toBe(200)
+    const items = response.json().items as Array<{ id: string }>
+    expect(items.map((item) => item.id)).toEqual(expect.arrayContaining([running, queued]))
+    expect(items.map((item) => item.id)).not.toContain(finished)
+    expect(response.json()).toEqual(
+      JSON.parse(JSON.stringify({ items: await JobService.listActive() })),
+    )
+  })
 })
 
 describe('журнал аудита', () => {
