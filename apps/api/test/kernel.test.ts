@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import { buildUserCtxFor } from '../src/kernel/access/explain.js'
 import { activities } from '../src/kernel/activity/schema.js'
 import { listActivity } from '../src/kernel/activity/service.js'
+import { DelegationService } from '../src/kernel/directory/service.js'
 import { LinkService } from '../src/kernel/links/service.js'
 import { SettingsService } from '../src/kernel/settings/service.js'
 import { call, db, redis, registerLifecycle, setupFixture, type TestContext } from './helpers.js'
@@ -560,6 +561,42 @@ describe('профиль и сессии', () => {
 })
 
 describe('делегирование', () => {
+  it('ответ замещений — всё, что вернул справочник: обе стороны, вид, срок и примечание', async () => {
+    const create = await call(fx.app, {
+      method: 'POST',
+      url: '/me/delegations',
+      as: fx.users.viewer,
+      payload: {
+        toUserId: fx.users.member.id,
+        scope: 'documents',
+        startsAt: new Date(Date.now() - 60_000).toISOString(),
+        endsAt: new Date(Date.now() + 86_400_000).toISOString(),
+        note: 'Командировка в Хорог',
+      },
+    })
+    expect(create.statusCode, create.body).toBe(200)
+
+    for (const user of [fx.users.viewer, fx.users.member]) {
+      const response = await call(fx.app, { url: '/me/delegations', as: user })
+      expect(response.statusCode, response.body).toBe(200)
+      const item = response.json().items.find((row: { id: string }) => row.id === create.json().id)
+      expect(item).toMatchObject({
+        scope: 'documents',
+        note: 'Командировка в Хорог',
+        fromUser: { id: fx.users.viewer.id },
+        toUser: { id: fx.users.member.id },
+      })
+      expect(response.json()).toEqual(asJson({ items: await DelegationService.activeFor(user.id) }))
+    }
+
+    const stop = await call(fx.app, {
+      method: 'DELETE',
+      url: `/me/delegations/${create.json().id}`,
+      as: fx.users.viewer,
+    })
+    expect(stop.statusCode, stop.body).toBe(200)
+  })
+
   it('замещение видно обеим сторонам', async () => {
     const create = await call(fx.app, {
       method: 'POST',

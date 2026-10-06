@@ -10,6 +10,7 @@ import {
   PasskeyRegistrationOptions,
 } from '../../auth/passkeys.js'
 import {
+  ActiveDelegation,
   LoginInput,
   MeResponse,
   MfaEnableInput,
@@ -119,7 +120,7 @@ export const identityRoutes = defineRoutes({
   },
   'POST /me/admin-mode': { body: AdminModeInput, response: { 200: AdminModeState } },
   'DELETE /me/admin-mode': { response: { 200: z.object({ ok: z.boolean() }) } },
-  'GET /me/delegations': {},
+  'GET /me/delegations': { response: { 200: z.object({ items: z.array(ActiveDelegation) }) } },
   'POST /me/delegations': {
     body: z.object({
       toUserId: z.uuid(),

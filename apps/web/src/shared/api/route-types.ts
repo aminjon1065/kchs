@@ -1,5 +1,4 @@
 import type {
-  ActiveDelegation,
   HttpMethod,
   RouteBody,
   RouteContract,
@@ -29,7 +28,6 @@ export type ApiPath<M extends HttpMethod> = RoutePath<KeyOf<M>>
  * таблице: запись для маршрута со схемой не скомпилируется (`Undescribed`).
  */
 type UndescribedResponses = Undescribed<{
-  'GET /me/delegations': { items: ActiveDelegation[] }
   /** Стиль MapLibre (спецификация v8) — как отдал сервер. */
   'GET /gis/basemaps/:id/style.json': Record<string, unknown>
 }>
