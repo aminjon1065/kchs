@@ -86,6 +86,8 @@ docker compose exec api kchs init --admin-email admin@example.org   # време
 docker compose exec api kchs seed                                   # демо-данные, по желанию
 bash infra/scripts/verify-stack.sh       # вся цепочка на отдельном проекте compose с чистыми томами
 bash infra/scripts/demo-stand.sh up [--domain демо.домен --email почта]   # стенд демонстрации: ноутбук или VPS (ADR-0148)
+bash infra/history/build-bundle.sh <исходники> <результат>   # история ЧС Комитета: разбор и сверка (ADR-0194)
+bash infra/scripts/demo-stand.sh history <результат>/bundle   # загрузка истории в пакет ЧС
 ```
 
 `kchs` локально — `pnpm kchs init|migrate|seed`. Образ api — бандл esbuild
