@@ -10,10 +10,13 @@
 #                                                            # VPS: HTTPS, сертификат Let's Encrypt
 #   bash infra/scripts/demo-stand.sh reset [--build]         # перед показом: данные заново
 #   bash infra/scripts/demo-stand.sh status                  # адрес, учётки, состояние служб
+#   bash infra/scripts/demo-stand.sh history <каталог>       # история ЧС Комитета из каталога
+#                                                            # infra/history/build-bundle.sh
 #   bash infra/scripts/demo-stand.sh kchs <команда>          # kchs в контейнере api
 #   bash infra/scripts/demo-stand.sh logs [служба…]          # последние строки журналов
 #   bash infra/scripts/demo-stand.sh down [--volumes --yes]  # остановить (и стереть всё)
 #
+# Каталог подложки (--basemap) запоминается в .env стенда (KCHS_DEMO_BASEMAP) для сброса.
 # Ключи up: --data small|demo|none (по умолчанию small; --empty — то же, что none: только
 # администратор от kchs init и справочники — территории и базовые карты), --basemap КАТАЛОГ
 # (по умолчанию seeds/.cache/basemaps/out, если он есть), --no-build (образы уже собраны).
@@ -122,7 +125,9 @@ prepare_env() {
 }
 
 upload_basemap() {
-  local dir="$BASEMAP"
+  # Каталог подложки, указанный раньше, запоминается: сброс стирает хранилище вместе с ней
+  local dir="${BASEMAP:-$(env_get KCHS_DEMO_BASEMAP)}"
+  [[ -n "$BASEMAP" ]] && env_set KCHS_DEMO_BASEMAP "$BASEMAP"
   if [[ -z "$dir" && -d "$ROOT/seeds/.cache/basemaps/out" ]]; then
     dir="$ROOT/seeds/.cache/basemaps/out"
   fi
@@ -205,6 +210,19 @@ cmd_reset() {
   cmd_up
 }
 
+# История ЧС Комитета (infra/history/README.md): каталог загрузки копируется в контейнер api и
+# грузится командой kchs import-history; повторный запуск досоздаёт только недостающее
+cmd_history() {
+  local dir="${1:-}"
+  [[ -f "$ENV_FILE" ]] || die "стенда нет — сначала up"
+  [[ -n "$dir" && -f "$dir/manifest.json" ]] || die "укажите каталог загрузки с manifest.json (infra/history/build-bundle.sh)"
+  say "── История ЧС ($dir) ──"
+  compose exec -T -u 0 api rm -rf /tmp/history
+  compose cp "$dir" api:/tmp/history >/dev/null 2>&1 || die "каталог не скопировался в контейнер api"
+  compose exec -T api kchs import-history /tmp/history
+  compose exec -T -u 0 api rm -rf /tmp/history
+}
+
 cmd_status() {
   [[ -f "$ENV_FILE" ]] || die "стенда нет — сначала up"
   compose ps --format 'table {{.Service}}\t{{.State}}\t{{.Health}}'
@@ -267,6 +285,7 @@ case "$COMMAND" in
     "cmd_$COMMAND"
     ;;
   kchs) compose exec -T api kchs "$@" ;;
+  history) cmd_history "$@" ;;
   logs) compose logs --tail=80 "$@" ;;
   *)
     # Справка — комментарий в начале файла

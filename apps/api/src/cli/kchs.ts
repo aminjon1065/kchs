@@ -3,6 +3,7 @@ import './quiet.js'
 import { parseArgs } from 'node:util'
 import { ZodError } from 'zod'
 import { seedCommand } from '~/seed/command.js'
+import { importHistory } from '~/seed/history/index.js'
 import { closeDb, closeQueryRole } from '~/shared/db/client.js'
 import { runMigrations } from '~/shared/db/migrate.js'
 import { closeRedis } from '~/shared/redis/index.js'
@@ -21,6 +22,10 @@ const HELP = `kchs — служебные команды установки
                    и базовые карты, без оргструктуры и людей); --reset --yes сначала удаляет данные;
                    --data small|demo — демо-датасеты генератора (нужны api, worker и engine);
                    --pack emergency|none — предметный пакет ЧС (демо-профиль ставит его сам)
+  kchs import-history <каталог> [--admin-login <логин>]
+                 история ЧС Комитета из каталога разбора исходников (manifest.json, data,
+                 gis, archive) → пакет ЧС, реестры, слои и карты, дашборд, архив файлов;
+                 нужны запущенные api, worker и engine; повторный запуск досоздаёт недостающее
   kchs basemaps upload <каталог> [--key <ключ>] [--no-register]
                  сборка infra/basemaps/build-pmtiles.sh → хранилище (шрифты, спрайты,
                    PMTiles, манифест), затем регистрация в реестре базовых карт
@@ -104,6 +109,26 @@ async function run(argv: string[]): Promise<number> {
           `Пакет ЧС: датасетов ${result.pack.datasets}, дашбордов ${result.pack.dashboards}, новых страниц регламентов ${result.pack.pages}\n`,
         )
       }
+      return 0
+    }
+    case 'import-history': {
+      const dir = positionals[1]
+      if (!dir) {
+        process.stderr.write(`kchs import-history <каталог>\n\n${HELP}`)
+        return 2
+      }
+      const result = await importHistory(dir, {
+        adminLogin: values['admin-login'] || process.env.KCHS_ADMIN_LOGIN || 'admin',
+      })
+      process.stdout.write(
+        [
+          'История ЧС загружена:',
+          `  виды: новых ${result.types.inserted}, обновлено ${result.types.updated}`,
+          `  происшествий ${result.incidents}, актов ущерба ${result.damage}, строк статистики ${result.stats}`,
+          `  слоёв ${result.layers}, файлов архива ${result.files}`,
+          '',
+        ].join('\n'),
+      )
       return 0
     }
     case 'basemaps': {
