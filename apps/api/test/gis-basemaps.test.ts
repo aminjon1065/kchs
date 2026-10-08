@@ -61,11 +61,13 @@ function fakeArchive(size: number, seed: string): Buffer {
   return body
 }
 
-async function writeBuild(version: string, archive: Buffer): Promise<void> {
+/** Сборка в каталоге: векторный архив и, если есть, отмывка рельефа (ADR-0195). */
+async function writeBuild(version: string, archive: Buffer, relief?: Buffer): Promise<void> {
   const file = `${version}.pmtiles`
   await rm(join(build, KEY), { recursive: true, force: true })
   await mkdir(join(build, KEY), { recursive: true })
   await writeFile(join(build, KEY, file), archive)
+  if (relief) await writeFile(join(build, KEY, `relief-${version}.pmtiles`), relief)
   await writeFile(
     join(build, KEY, 'manifest.json'),
     JSON.stringify({
@@ -88,6 +90,18 @@ async function writeBuild(version: string, archive: Buffer): Promise<void> {
       attribution:
         '<a href="https://www.openmaptiles.org/">&copy; OpenMapTiles</a> <img src=x onerror=alert(1)>',
       layers: ['boundary', 'place', 'water'],
+      relief: relief
+        ? {
+            file: `relief-${version}.pmtiles`,
+            bytes: relief.length,
+            sha256: createHash('sha256').update(relief).digest('hex'),
+            minZoom: 5,
+            maxZoom: 11,
+            bounds: [67.29, 36.54, 75.47, 41.06],
+            tiles: 7,
+            attribution: 'КЧС и ГО <b>РТ</b>',
+          }
+        : null,
     }),
   )
 }
@@ -600,6 +614,67 @@ describe('обновление и удаление сборки', () => {
       '2026-10-01.pmtiles',
       'manifest.json',
     ])
+  })
+
+  it('рельеф сборки (ADR-0195): sync видит новый архив, стиль рисует его, API отдаёт диапазонами', async () => {
+    const vector = fakeArchive(8192, 'v2')
+    await writeBuild('2026-10-01', vector, fakeArchive(2048, 'relief'))
+    await uploadBasemapBuild(build, { key: KEY })
+    // Векторный архив тот же — сборку обновляет только рельеф
+    expect(await BasemapService.sync(systemCtx('test'))).toMatchObject({ updated: [KEY] })
+
+    const listed = await call(fx.app, { url: '/gis/basemaps', as: fx.users.stranger })
+    expect(
+      listed.json().items.find((item: { id: string }) => item.id === vectorId).build,
+    ).toMatchObject({ version: '2026-10-01', relief: { bytes: 2048, tiles: 7 } })
+    const style = await call(fx.app, {
+      url: `/gis/basemaps/${vectorId}/style.json`,
+      as: fx.users.stranger,
+    })
+    const reliefUrl = `/gis/basemaps/${vectorId}/pmtiles/relief-2026-10-01.pmtiles`
+    expect(style.json().sources.relief).toMatchObject({
+      type: 'raster',
+      url: `pmtiles://${base()}${reliefUrl}`,
+      minzoom: 5,
+      maxzoom: 11,
+      attribution: 'КЧС и ГО &lt;b&gt;РТ&lt;/b&gt;',
+    })
+    expect(style.json().layers.map((layer: { id: string }) => layer.id)).toContain('relief')
+    expect(validateStyleMin(style.json())).toEqual([])
+    const range = await call(fx.app, {
+      url: reliefUrl,
+      as: fx.users.stranger,
+      headers: { range: 'bytes=0-126' },
+    })
+    expect(range.statusCode).toBe(206)
+    expect(range.headers['content-range']).toBe('bytes 0-126/2048')
+
+    // Сборка без рельефа: источник уходит из стиля, архив — из хранилища
+    await writeBuild('2026-10-01', vector)
+    await uploadBasemapBuild(build, { key: KEY })
+    expect(await BasemapService.sync(systemCtx('test'))).toMatchObject({ updated: [KEY] })
+    const plain = await call(fx.app, {
+      url: `/gis/basemaps/${vectorId}/style.json`,
+      as: fx.users.stranger,
+    })
+    expect(plain.json().sources).not.toHaveProperty('relief')
+    const gone = await call(fx.app, {
+      url: reliefUrl,
+      as: fx.users.stranger,
+      headers: { range: 'bytes=0-126' },
+    })
+    expect(gone.statusCode).toBe(404)
+    const files = await listObjects(`${prefix()}vector/${KEY}/`, buckets.tiles())
+    expect(files.map((item) => item.key.split('/').pop()).sort()).toEqual([
+      '2026-10-01.pmtiles',
+      'manifest.json',
+    ])
+  })
+
+  it('рельеф с чужим SHA-256 не загружается', async () => {
+    await writeBuild('2026-10-01', fakeArchive(8192, 'v2'), fakeArchive(2048, 'relief'))
+    await writeFile(join(build, KEY, 'relief-2026-10-01.pmtiles'), fakeArchive(2048, 'other'))
+    await expect(uploadBasemapBuild(build, { key: KEY })).rejects.toThrow()
   })
 
   it('удалённая векторная уходит из хранилища и не возвращается при sync', async () => {

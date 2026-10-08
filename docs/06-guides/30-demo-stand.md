@@ -83,6 +83,16 @@ KCHS_BASEMAP_UPLOAD=0 bash infra/basemaps/build-pmtiles.sh
 `reset`. На VPS подложку проще собрать прямо на сервере. Другой каталог указывается так:
 `--basemap <каталог>`.
 
+**Рельеф** (ADR-0195). Отмывка Комитета добавляется к готовой сборке примерно за минуту:
+
+```bash
+KCHS_BASEMAP_UPLOAD=0 bash infra/basemaps/build-relief.sh "<папка Комитета>/Tajikistan data/растр/hill.tif"
+bash infra/scripts/demo-stand.sh basemap        # загрузить на работающий стенд, данные не трогает
+```
+
+`basemap` берёт тот же каталог, что `up` и `reset`; другой — `basemap <каталог>`. Карты
+покажут рельеф после обновления страницы.
+
 ## Учётные записи
 
 - **Администратор** — `admin`. Временный пароль печатается при установке, при первом входе

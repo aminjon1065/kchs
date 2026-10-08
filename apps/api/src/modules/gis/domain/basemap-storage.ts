@@ -31,6 +31,22 @@ import { logger } from '~/shared/logger/index.js'
 
 const SAFE_NAME = /^[0-9A-Za-z][0-9A-Za-z._-]{0,63}$/
 
+/**
+ * Отмывка рельефа сборки (ADR-0195): растровый PMTiles рядом с векторным архивом — пишет
+ * `infra/basemaps/relief.py`. Стиль подложки кладёт её над растительностью, под водой и дорогами.
+ */
+export const BasemapRelief = z.object({
+  file: z.string().regex(SAFE_NAME).endsWith('.pmtiles'),
+  bytes: z.number().int().positive(),
+  sha256: z.string().regex(/^[0-9a-f]{64}$/),
+  minZoom: z.number().int().min(0).max(24),
+  maxZoom: z.number().int().min(0).max(24),
+  bounds: z.tuple([z.number(), z.number(), z.number(), z.number()]),
+  tiles: z.number().int().nonnegative(),
+  attribution: z.string().max(500).nullable().default(null),
+})
+export type BasemapRelief = z.infer<typeof BasemapRelief>
+
 /** Манифест сборки — пишет `infra/basemaps/pmtiles_manifest.py`. */
 export const BasemapManifest = z.object({
   format: z.literal('kchs-basemap/1'),
@@ -54,6 +70,7 @@ export const BasemapManifest = z.object({
   tiles: z.number().int().nonnegative(),
   attribution: z.string().max(2000).nullable(),
   layers: z.array(z.string()),
+  relief: BasemapRelief.nullable().default(null),
 })
 export type BasemapManifest = z.infer<typeof BasemapManifest>
 
@@ -92,12 +109,11 @@ export async function readManifests(): Promise<BasemapManifest[]> {
   return manifests
 }
 
-/** Архивы сборки, кроме текущего, — остаются от прошлых версий. */
-export async function removeStaleArchives(key: string, keep: string): Promise<number> {
+/** Архивы сборки, кроме текущих (векторный и рельеф), — остаются от прошлых версий. */
+export async function removeStaleArchives(key: string, keep: string[]): Promise<number> {
   const objects = await listObjects(basemapKeys.build(key), buckets.tiles())
-  const stale = objects.filter(
-    (item) => item.key.endsWith('.pmtiles') && item.key !== basemapKeys.archive(key, keep),
-  )
+  const current = new Set(keep.map((file) => basemapKeys.archive(key, file)))
+  const stale = objects.filter((item) => item.key.endsWith('.pmtiles') && !current.has(item.key))
   for (const item of stale) await deleteObject(item.key, buckets.tiles())
   return stale.length
 }
@@ -202,7 +218,10 @@ async function eachLimited<T>(items: T[], limit: number, run: (item: T) => Promi
 }
 
 /** Проверка архива до загрузки: заголовок PMTiles v3, размер и SHA-256 из манифеста. */
-async function verifyArchive(path: string, manifest: BasemapManifest): Promise<void> {
+async function verifyArchive(
+  path: string,
+  manifest: { key: string; file: string; bytes: number; sha256: string },
+): Promise<void> {
   const { size } = await stat(path).catch(() => {
     throw errors.validation(`Нет архива ${manifest.file} рядом с манифестом «${manifest.key}»`)
   })
@@ -253,7 +272,12 @@ export async function uploadBasemapBuild(
     }
   }
 
-  const builds: Array<{ manifest: BasemapManifest; path: string; manifestPath: string }> = []
+  const builds: Array<{
+    manifest: BasemapManifest
+    path: string
+    manifestPath: string
+    relief: string | null
+  }> = []
   for (const key of keys) {
     const manifestPath = join(directory, key, 'manifest.json')
     const text = await readFile(manifestPath, 'utf8').catch(() => {
@@ -265,7 +289,9 @@ export async function uploadBasemapBuild(
     }
     const path = join(directory, key, manifest.file)
     await verifyArchive(path, manifest)
-    builds.push({ manifest, path, manifestPath })
+    const relief = manifest.relief ? join(directory, key, manifest.relief.file) : null
+    if (relief && manifest.relief) await verifyArchive(relief, { key, ...manifest.relief })
+    builds.push({ manifest, path, manifestPath, relief })
   }
 
   const glyphs = { uploaded: 0, skipped: 0 }
@@ -306,6 +332,16 @@ export async function uploadBasemapBuild(
   for (const build of builds) {
     const { manifest } = build
     const uploaded = await uploadFile(basemapKeys.archive(manifest.key, manifest.file), build.path)
+    // Рельеф — до манифеста: регистрация видит только полностью загруженную сборку
+    if (build.relief && manifest.relief) {
+      const relief = await uploadFile(
+        basemapKeys.archive(manifest.key, manifest.relief.file),
+        build.relief,
+      )
+      log(
+        `${manifest.key}: рельеф ${manifest.relief.file} — ${relief ? 'загружен' : 'без изменений'}`,
+      )
+    }
     await putObject(basemapKeys.manifest(manifest.key), await readFile(build.manifestPath), {
       bucket: buckets.tiles(),
       contentType: 'application/json',

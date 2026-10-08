@@ -31,6 +31,19 @@ const CONTENTS: StyleContent[] = [
     attribution: 'Спутник',
     bounds: null,
   },
+  {
+    kind: 'vector',
+    archive: `${BASE}/gis/basemaps/0199a0b0-0000-7000-8000-000000000001/pmtiles/2026-09-19.pmtiles`,
+    attribution: null,
+    center: null,
+    relief: {
+      archive: `${BASE}/gis/basemaps/0199a0b0-0000-7000-8000-000000000001/pmtiles/relief-2026-09-19.pmtiles`,
+      minZoom: 5,
+      maxZoom: 11,
+      bounds: [67.29, 36.54, 75.47, 41.06],
+      attribution: 'КЧС и ГО РТ',
+    },
+  },
 ]
 
 type Layer = { id: string; type: string; 'source-layer'?: string; layout?: Record<string, unknown> }
@@ -99,6 +112,33 @@ describe('стиль базовой карты (07-gis-engine.md §5, ADR-0066)'
         url: `pmtiles://${(CONTENTS[1] as { archive: string }).archive}`,
       },
     })
+  })
+
+  it('рельеф сборки (ADR-0195): растр PMTiles над растительностью, под водой и дорогами', () => {
+    const relief = CONTENTS[3] as Extract<StyleContent, { kind: 'vector' }>
+    for (const theme of BASEMAP_THEMES) {
+      const style = build(relief, theme)
+      const ids = (style.layers as Layer[]).map((layer) => layer.id)
+      expect(ids.indexOf('relief')).toBe(ids.indexOf('water') - 1)
+      expect(ids.indexOf('relief')).toBeGreaterThan(ids.indexOf('landcover'))
+      expect(style.sources).toMatchObject({
+        relief: {
+          type: 'raster',
+          url: `pmtiles://${relief.relief?.archive}`,
+          minzoom: 5,
+          maxzoom: 11,
+          attribution: 'КЧС и ГО РТ',
+        },
+      })
+      const layer = (style.layers as Array<Layer & { paint?: Record<string, unknown> }>).find(
+        (item) => item.id === 'relief',
+      )
+      expect(layer?.paint?.['raster-opacity']).toBeGreaterThan(0)
+    }
+    // Без рельефа в сборке — ни источника, ни слоя
+    const plain = build(CONTENTS[1] as StyleContent)
+    expect(plain.sources).not.toHaveProperty('relief')
+    expect((plain.layers as Layer[]).some((layer) => layer.id === 'relief')).toBe(false)
   })
 
   it('подписи — только шрифтами хранилища, значки — только из спрайта сборки', () => {

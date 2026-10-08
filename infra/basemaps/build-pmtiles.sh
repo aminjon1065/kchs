@@ -6,6 +6,7 @@
 #   KCHS_BASEMAP_UPLOAD=0 bash infra/basemaps/build-pmtiles.sh   # только собрать
 #   KCHS_BASEMAP_AREA=kyrgyzstan KCHS_BASEMAP_NAME="…" KCHS_BASEMAP_BOUNDS=… bash …
 #   KCHS_BASEMAP_OCEAN=1 bash …   # с полигонами морей (+930 МБ) — для территорий у моря
+#   KCHS_BASEMAP_RELIEF=hill.tif bash …   # с отмывкой рельефа (build-relief.sh, ADR-0195)
 #
 # Кэш — seeds/.cache/basemaps (в .gitignore): OSM ≈ 50 МБ, Natural Earth ≈ 435 МБ, линии
 # подписей озёр ≈ 80 МБ, шрифты ≈ 75 МБ — всего ≈ 620 МБ. Повторный запуск берёт источники из
@@ -87,7 +88,14 @@ python3 "$HERE/sprites.py" "$OUT/sprites"
 
 du -sh "$OUT/$KEY/$VERSION.pmtiles" "$OUT/glyphs" "$OUT/sprites" | sed 's|'"$OUT"'/||'
 
-# ─── 4. Загрузка в хранилище ───────────────────────────────────────────────
+# ─── 4. Рельеф (ADR-0195) ──────────────────────────────────────────────────
+# Манифест выше записан заново: отмывку дописывают в него снова
+if [[ -n "${KCHS_BASEMAP_RELIEF:-}" ]]; then
+  KCHS_BASEMAP_UPLOAD=0 KCHS_BASEMAP_CACHE="$CACHE" KCHS_BASEMAP_KEY="$KEY" \
+    bash "$HERE/build-relief.sh" "$KCHS_BASEMAP_RELIEF"
+fi
+
+# ─── 5. Загрузка в хранилище ───────────────────────────────────────────────
 if [[ "${KCHS_BASEMAP_UPLOAD:-1}" == "1" ]]; then
   (cd "$ROOT" && pnpm --silent kchs basemaps upload "$OUT" --key "$KEY")
 fi

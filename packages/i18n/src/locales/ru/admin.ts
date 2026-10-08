@@ -459,6 +459,7 @@ export const admin = {
     rename: 'Переименовать',
     actions: 'Действия с подложкой «{name}»',
     build: 'Сборка {version} · {size} · тайлов: {tiles}',
+    relief: 'рельеф {size}',
     zooms: 'Масштабы {min}–{max}',
     tileSizeValue: '{size} px',
     keySet: 'ключ задан',

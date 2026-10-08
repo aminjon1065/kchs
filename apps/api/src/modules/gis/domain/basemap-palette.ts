@@ -64,6 +64,11 @@ export interface Palette {
   labelMuted: string
   labelWater: string
   halo: string
+  /**
+   * Непрозрачность отмывки рельефа (ADR-0195): на тёмной теме видны только освещённые
+   * склоны — она выше, под хороплетами («приглушённая») — ниже.
+   */
+  relief: number
 }
 
 const light = TOKEN_COLORS.light
@@ -92,6 +97,7 @@ export const PALETTES: Record<BasemapTheme, Palette> = {
     labelMuted: light['text-muted'],
     labelWater: light.accent,
     halo: light['bg-canvas'],
+    relief: 0.4,
   },
   dark: {
     background: dark['bg-canvas'],
@@ -115,6 +121,7 @@ export const PALETTES: Record<BasemapTheme, Palette> = {
     labelMuted: dark['text-muted'],
     labelWater: dark.accent,
     halo: dark['bg-canvas'],
+    relief: 0.5,
   },
   // Серая подложка под хороплеты и тепловые карты: без растительности и зданий
   muted: {
@@ -134,5 +141,6 @@ export const PALETTES: Record<BasemapTheme, Palette> = {
     labelMuted: light['text-muted'],
     labelWater: light['text-muted'],
     halo: light['bg-surface'],
+    relief: 0.3,
   },
 }

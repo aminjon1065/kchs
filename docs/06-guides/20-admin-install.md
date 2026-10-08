@@ -149,14 +149,16 @@ bash infra/perf/run-k6.sh              # бюджеты p95 (нужны демо
 
 1. На машине с интернетом: `KCHS_BASEMAP_UPLOAD=0 bash infra/basemaps/build-pmtiles.sh`
    (для Таджикистана ≈ 620 МБ загрузок, 4 ГБ памяти JVM, около 6 минут).
-   Результат — каталог `seeds/.cache/basemaps/out`.
+   Результат — каталог `seeds/.cache/basemaps/out`. Рельеф из файла отмывки (GeoTIFF)
+   добавляется к сборке так: `KCHS_BASEMAP_UPLOAD=0 bash infra/basemaps/build-relief.sh
+   <отмывка.tif>` (ADR-0195).
 2. Перенесите каталог на сервер и загрузите:
    ```bash
    docker compose cp <каталог> api:/tmp/basemaps
    docker compose exec api kchs basemaps upload /tmp/basemaps
    ```
 3. Проверьте в консоли: **«Администрирование» → «Базовые карты»** — версия
-   сборки, размер, число тайлов, подложка по умолчанию.
+   сборки, размер, число тайлов, рельеф, подложка по умолчанию.
 
 Растровые подложки (спутник, государственные слои) добавляются прямо в консоли:
 шаблон адреса с `{z}`, `{x}`, `{y}` и `{key}`; ключ хранится на сервере

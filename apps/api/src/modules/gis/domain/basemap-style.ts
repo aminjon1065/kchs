@@ -26,6 +26,14 @@ export type StyleContent =
       attribution: string | null
       /** Центр сборки: [долгота, широта, масштаб]. */
       center: [number, number, number] | null
+      /** Отмывка рельефа (ADR-0195): растровый PMTiles над растительностью, под водой. */
+      relief?: {
+        archive: string
+        minZoom: number
+        maxZoom: number
+        bounds: [number, number, number, number]
+        attribution: string | null
+      } | null
     }
   | {
       kind: 'raster'
@@ -567,6 +575,29 @@ export function basemapStyle(options: StyleOptions): Json {
       ...(content.attribution ? { attribution: content.attribution } : {}),
     }
     layers.push(...vectorLayers(palette, options.lang))
+    if (content.relief) {
+      sources.relief = {
+        type: 'raster',
+        url: `pmtiles://${content.relief.archive}`,
+        tileSize: 256,
+        minzoom: content.relief.minZoom,
+        maxzoom: content.relief.maxZoom,
+        bounds: content.relief.bounds,
+        ...(content.relief.attribution ? { attribution: content.relief.attribution } : {}),
+      }
+      // Тени рельефа — над землёй и растительностью, под водой, дорогами и подписями
+      const water = layers.findIndex((layer) => layer.id === 'water')
+      layers.splice(water >= 0 ? water : layers.length, 0, {
+        id: 'relief',
+        type: 'raster',
+        source: 'relief',
+        paint: {
+          'raster-opacity': palette.relief,
+          'raster-resampling': 'linear',
+          'raster-fade-duration': 0,
+        },
+      })
+    }
     if (content.center) {
       view.center = [content.center[0], content.center[1]]
       view.zoom = content.center[2]

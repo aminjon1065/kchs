@@ -460,6 +460,7 @@ export const admin: DeepPartial<Dictionary['admin']> = {
     rename: 'Rename',
     actions: 'Actions for basemap “{name}”',
     build: 'Build {version} · {size} · {tiles} tiles',
+    relief: 'hillshade {size}',
     zooms: 'Zoom {min}–{max}',
     tileSizeValue: '{size} px',
     keySet: 'key set',

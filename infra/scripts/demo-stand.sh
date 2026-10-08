@@ -12,6 +12,8 @@
 #   bash infra/scripts/demo-stand.sh status                  # адрес, учётки, состояние служб
 #   bash infra/scripts/demo-stand.sh history <каталог>       # история ЧС Комитета из каталога
 #                                                            # infra/history/build-bundle.sh
+#   bash infra/scripts/demo-stand.sh basemap [каталог]       # подложку заново (новая сборка,
+#                                                            # рельеф) — данные не трогает
 #   bash infra/scripts/demo-stand.sh kchs <команда>          # kchs в контейнере api
 #   bash infra/scripts/demo-stand.sh logs [служба…]          # последние строки журналов
 #   bash infra/scripts/demo-stand.sh down [--volumes --yes]  # остановить (и стереть всё)
@@ -283,6 +285,11 @@ case "$COMMAND" in
     [[ -z "$DATA" || "$DATA" == small || "$DATA" == demo || "$DATA" == none ]] ||
       die "--data: small, demo или none"
     "cmd_$COMMAND"
+    ;;
+  basemap)
+    [[ -f "$ENV_FILE" ]] || die "стенда нет — сначала up"
+    BASEMAP="${1:-}"
+    upload_basemap
     ;;
   kchs) compose exec -T api kchs "$@" ;;
   history) cmd_history "$@" ;;

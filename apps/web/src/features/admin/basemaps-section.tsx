@@ -184,11 +184,20 @@ export function BasemapsSection() {
 
   const details = (basemap: Basemap): string => {
     if (basemap.kind === 'vector' && basemap.build) {
-      return t('admin.basemaps.build', {
-        version: basemap.build.version,
-        size: formatFileSize(basemap.build.bytes, { locale }),
-        tiles: formatNumber(basemap.build.tiles, {}, { locale }),
-      })
+      const { relief } = basemap.build
+      return [
+        t('admin.basemaps.build', {
+          version: basemap.build.version,
+          size: formatFileSize(basemap.build.bytes, { locale }),
+          tiles: formatNumber(basemap.build.tiles, {}, { locale }),
+        }),
+        // Отмывка рельефа сборки (ADR-0195)
+        relief
+          ? t('admin.basemaps.relief', { size: formatFileSize(relief.bytes, { locale }) })
+          : null,
+      ]
+        .filter(Boolean)
+        .join(' · ')
     }
     if (isRasterKind(basemap.kind)) {
       return [

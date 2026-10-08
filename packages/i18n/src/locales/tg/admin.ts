@@ -476,6 +476,7 @@ export const admin: DeepPartial<Dictionary['admin']> = {
     rename: 'Номивазкунӣ',
     actions: 'Амалҳо бо харитаи асосии «{name}»',
     build: 'Сохтори {version} · {size} · тайлҳо: {tiles}',
+    relief: 'релйеф {size}',
     zooms: 'Миқёсҳо {min}–{max}',
     tileSizeValue: '{size} px',
     keySet: 'калид муайян шудааст',

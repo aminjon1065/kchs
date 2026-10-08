@@ -40,6 +40,7 @@ import { logger } from '~/shared/logger/index.js'
 import { basemaps } from '../schema.js'
 import {
   type BasemapManifest,
+  BasemapRelief,
   basemapKeys,
   readManifests,
   removeBuild,
@@ -64,6 +65,8 @@ const VectorInfo = z.object({
   bounds: Bbox,
   center: z.tuple([z.number(), z.number(), z.number()]),
   layers: z.array(z.string()),
+  /** Отмывка рельефа сборки (ADR-0195): растровый архив рядом с векторным. */
+  relief: BasemapRelief.nullable().optional(),
 })
 type VectorInfo = z.infer<typeof VectorInfo>
 
@@ -140,7 +143,14 @@ function toBasemap(row: Row, manager: boolean): Basemap {
     minZoom: row.minZoom,
     maxZoom: row.maxZoom,
     bounds: vector?.bounds ?? null,
-    build: vector ? { version: vector.version, bytes: vector.bytes, tiles: vector.tiles } : null,
+    build: vector
+      ? {
+          version: vector.version,
+          bytes: vector.bytes,
+          tiles: vector.tiles,
+          relief: vector.relief ? { bytes: vector.relief.bytes, tiles: vector.relief.tiles } : null,
+        }
+      : null,
     url: isRaster(kind) && manager ? row.url : null,
     hasKey: row.secretEnc !== null,
     tileSize: isRaster(kind) ? tileSize(row) : null,
@@ -199,6 +209,7 @@ function vectorContent(manifest: BasemapManifest) {
       bounds: manifest.bounds,
       center: manifest.center,
       layers: manifest.layers,
+      relief: manifest.relief,
     } satisfies VectorInfo,
     attribution: htmlToText(manifest.attribution),
     minZoom: manifest.minZoom,
@@ -506,6 +517,15 @@ export const BasemapService = {
         archive: `${base}/gis/basemaps/${id}/pmtiles/${vector.file}`,
         attribution: row.attribution ? escapeHtml(row.attribution) : null,
         center: vector.center,
+        relief: vector.relief
+          ? {
+              archive: `${base}/gis/basemaps/${id}/pmtiles/${vector.relief.file}`,
+              minZoom: vector.relief.minZoom,
+              maxZoom: vector.relief.maxZoom,
+              bounds: vector.relief.bounds,
+              attribution: vector.relief.attribution ? escapeHtml(vector.relief.attribution) : null,
+            }
+          : null,
       }
     } else if (isRaster(row.kind)) {
       content = {
@@ -539,16 +559,24 @@ export const BasemapService = {
   async archive(id: string, file: string, range: string | undefined): Promise<ArchiveResponse> {
     const row = await loadRow(id)
     const vector = row ? vectorInfo(row) : null
-    if (!row?.url || !vector || vector.file !== file) throw errors.notFound('Архив подложки')
+    if (!row?.url || !vector) throw errors.notFound('Архив подложки')
+    // Векторный архив сборки или её рельеф (ADR-0195) — другие файлы по этому адресу не отдаются
+    const target =
+      vector.file === file
+        ? { key: row.url, bytes: vector.bytes }
+        : vector.relief?.file === file && row.key
+          ? { key: basemapKeys.archive(row.key, file), bytes: vector.relief.bytes }
+          : null
+    if (!target) throw errors.notFound('Архив подложки')
     const requested = parseRange(range)
     const unsatisfiable: ArchiveResponse = {
       status: 416,
-      headers: { 'content-range': `bytes */${vector.bytes}` },
+      headers: { 'content-range': `bytes */${target.bytes}` },
       body: null,
     }
     if (requested === 'invalid') return unsatisfiable
     try {
-      const object = await getObjectStream(row.url, {
+      const object = await getObjectStream(target.key, {
         bucket: buckets.tiles(),
         range: requested ?? undefined,
       })
@@ -696,7 +724,13 @@ export const BasemapService = {
           continue
         }
         const current = VectorInfo.safeParse(existing.style).data
-        if (current?.file === manifest.file && current.sha256 === manifest.sha256) continue
+        if (
+          current?.file === manifest.file &&
+          current.sha256 === manifest.sha256 &&
+          (current.relief?.sha256 ?? null) === (manifest.relief?.sha256 ?? null)
+        ) {
+          continue
+        }
         await tx
           .update(basemaps)
           .set({ ...content, updatedAt: sql`now()` })
@@ -734,7 +768,8 @@ export const BasemapService = {
     })
     // Прошлые версии архивов больше не адресуются
     for (const manifest of manifests) {
-      await removeStaleArchives(manifest.key, manifest.file).catch((error: unknown) =>
+      const keep = [manifest.file, ...(manifest.relief ? [manifest.relief.file] : [])]
+      await removeStaleArchives(manifest.key, keep).catch((error: unknown) =>
         logger().warn({ err: error, key: manifest.key }, 'прошлые версии подложки не удалены'),
       )
     }

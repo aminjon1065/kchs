@@ -162,6 +162,11 @@ export const BasemapBuild = z.object({
   version: z.string(),
   bytes: z.number().int().nonnegative(),
   tiles: z.number().int().nonnegative(),
+  /** Отмывка рельефа сборки (ADR-0195): растровый архив поверх векторной подложки. */
+  relief: z
+    .object({ bytes: z.number().int().nonnegative(), tiles: z.number().int().nonnegative() })
+    .nullable()
+    .default(null),
 })
 export type BasemapBuild = z.infer<typeof BasemapBuild>
 
