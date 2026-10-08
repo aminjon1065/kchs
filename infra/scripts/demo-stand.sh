@@ -4,6 +4,8 @@
 # подложка карты, свои пароли демо-учёток. Руководство — docs/06-guides/30-demo-stand.md.
 #
 #   bash infra/scripts/demo-stand.sh up                      # ноутбук: http://localhost:8080
+#   bash infra/scripts/demo-stand.sh up --empty              # без демо-данных: администратор,
+#                                                            # территории и подложка
 #   bash infra/scripts/demo-stand.sh up --domain demo.example.org --email you@example.org
 #                                                            # VPS: HTTPS, сертификат Let's Encrypt
 #   bash infra/scripts/demo-stand.sh reset [--build]         # перед показом: данные заново
@@ -12,17 +14,20 @@
 #   bash infra/scripts/demo-stand.sh logs [служба…]          # последние строки журналов
 #   bash infra/scripts/demo-stand.sh down [--volumes --yes]  # остановить (и стереть всё)
 #
-# Ключи up: --data small|demo (по умолчанию small), --basemap КАТАЛОГ (по умолчанию
-# seeds/.cache/basemaps/out, если он есть), --no-build (образы уже собраны). reset берёт
-# собранные образы; --build — пересобрать после git pull.
+# Ключи up: --data small|demo|none (по умолчанию small; --empty — то же, что none: только
+# администратор от kchs init и справочники — территории и базовые карты), --basemap КАТАЛОГ
+# (по умолчанию seeds/.cache/basemaps/out, если он есть), --no-build (образы уже собраны).
+# Выбор данных запоминается в .env стенда (KCHS_DEMO_DATA): reset без ключа повторяет его.
+# reset берёт собранные образы; --build — пересобрать после git pull.
 # Окружение стенда — .env в корне копии (другой путь — KCHS_DEMO_ENV_FILE), проект
-# compose — kchs (KCHS_DEMO_PROJECT). Порты — переменными WEB_PORT, WEB_HTTPS_PORT,
-# S3_HTTPS_PORT и остальными из generate-secrets.sh.
+# compose — kchs (KCHS_DEMO_PROJECT; заданный при up запоминается в .env стенда). Стенду
+# рядом со стендом разработки на одном ноутбуке нужен свой проект: у разработки тоже kchs, и
+# reset стёр бы её тома. Порты — переменными WEB_PORT, WEB_HTTPS_PORT, S3_HTTPS_PORT и
+# остальными из generate-secrets.sh.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 ENV_FILE="${KCHS_DEMO_ENV_FILE:-$ROOT/.env}"
-PROJECT="${KCHS_DEMO_PROJECT:-kchs}"
 # Тома с данными: сброс стирает их, а сертификаты Caddy (caddydata) оставляет — иначе
 # частые сбросы упёрлись бы в лимит Let's Encrypt: пять одинаковых сертификатов в неделю
 DATA_VOLUMES=(pgdata redisdata miniodata meilidata)
@@ -54,6 +59,10 @@ env_set() {
 }
 
 demo_password() { printf 'Demo!%s-Kc' "$(openssl rand -hex 6)"; }
+
+# Проект compose: из окружения, иначе запомненный в .env стенда, иначе kchs
+PROJECT="${KCHS_DEMO_PROJECT:-$(env_get KCHS_DEMO_PROJECT)}"
+PROJECT="${PROJECT:-kchs}"
 
 compose() {
   local files=(-f "$ROOT/infra/compose/docker-compose.yml")
@@ -90,6 +99,11 @@ prepare_env() {
   fi
   # Пароль демо-сотрудников — свой у каждого стенда: встроенный известен всем, кто видел код
   [[ -n "$(env_get SEED_USER_PASSWORD)" ]] || env_set SEED_USER_PASSWORD "$(demo_password)"
+  [[ "$PROJECT" == kchs ]] || env_set KCHS_DEMO_PROJECT "$PROJECT"
+  # Данные стенда: ключ up/reset, иначе выбранные раньше, иначе small
+  DATA="${DATA:-$(env_get KCHS_DEMO_DATA)}"
+  DATA="${DATA:-small}"
+  env_set KCHS_DEMO_DATA "$DATA"
   [[ -n "$EMAIL" ]] && env_set KCHS_ADMIN_EMAIL "$EMAIL"
   if [[ -n "$DOMAIN" ]]; then
     local https="${WEB_HTTPS_PORT:-443}" s3="${S3_HTTPS_PORT:-9443}" port=""
@@ -147,13 +161,19 @@ cmd_up() {
     say "  (показывается один раз — запишите; при первом входе система попросит задать свой)"
   fi
 
-  say "── Демо-данные: оргструктура, документы, поручения, пакет ЧС, датасеты $DATA (3–6 минут) ──"
-  local log
+  local log seed_args
+  if [[ "$DATA" == none ]]; then
+    say "── Справочники: территории с границами и населением, базовые карты (без демо-данных) ──"
+    seed_args=(--profile base)
+  else
+    say "── Демо-данные: оргструктура, документы, поручения, пакет ЧС, датасеты $DATA (3–6 минут) ──"
+    seed_args=(--data "$DATA")
+  fi
   log="$(mktemp "${TMPDIR:-/tmp}/kchs-demo.XXXXXX")"
-  if ! compose exec -T api kchs seed --data "$DATA" >"$log" 2>&1; then
+  if ! compose exec -T api kchs seed "${seed_args[@]}" >"$log" 2>&1; then
     grep -viE 'парол|password' "$log" | tail -40 >&2
     rm -f "$log"
-    die "демо-данные не загрузились (журнал выше)"
+    die "данные стенда не загрузились (журнал выше)"
   fi
   rm -f "$log"
   upload_basemap
@@ -165,8 +185,12 @@ cmd_up() {
   else
     say "Администратор: admin — пароль прежний (заведён раньше)."
   fi
-  say "Демо-сотрудники: user001…user060, пароль — ключ SEED_USER_PASSWORD в $ENV_FILE"
-  say "Сценарий показа: docs/06-guides/30-demo-stand.md"
+  if [[ "$DATA" == none ]]; then
+    say "Демо-данных нет: оргструктуру, сотрудников и данные заводит администратор."
+  else
+    say "Демо-сотрудники: user001…user060, пароль — ключ SEED_USER_PASSWORD в $ENV_FILE"
+    say "Сценарий показа: docs/06-guides/30-demo-stand.md"
+  fi
 }
 
 cmd_reset() {
@@ -194,7 +218,11 @@ cmd_status() {
   else
     say "api: не отвечает — bash infra/scripts/demo-stand.sh logs api"
   fi
-  say "Администратор: admin; демо-сотрудники: user001…user060, пароль — SEED_USER_PASSWORD в $ENV_FILE"
+  if [[ "$(env_get KCHS_DEMO_DATA)" == none ]]; then
+    say "Администратор: admin; демо-данных нет"
+  else
+    say "Администратор: admin; демо-сотрудники: user001…user060, пароль — SEED_USER_PASSWORD в $ENV_FILE"
+  fi
 }
 
 cmd_down() {
@@ -211,7 +239,7 @@ COMMAND="${1:-}"
 [[ $# -gt 0 ]] && shift
 DOMAIN=""
 EMAIL=""
-DATA="small"
+DATA=""
 BASEMAP=""
 BUILD=""
 VOLUMES=0
@@ -223,7 +251,8 @@ case "$COMMAND" in
       case "$1" in
         --domain) DOMAIN="${2:?укажите домен}"; shift ;;
         --email) EMAIL="${2:?укажите почту}"; shift ;;
-        --data) DATA="${2:?small или demo}"; shift ;;
+        --data) DATA="${2:?small, demo или none}"; shift ;;
+        --empty) DATA=none ;;
         --basemap) BASEMAP="${2:?укажите каталог}"; shift ;;
         --no-build) BUILD=0 ;;
         --build) BUILD=1 ;;
@@ -233,7 +262,8 @@ case "$COMMAND" in
       esac
       shift
     done
-    [[ "$DATA" == small || "$DATA" == demo ]] || die "--data: small или demo"
+    [[ -z "$DATA" || "$DATA" == small || "$DATA" == demo || "$DATA" == none ]] ||
+      die "--data: small, demo или none"
     "cmd_$COMMAND"
     ;;
   kchs) compose exec -T api kchs "$@" ;;

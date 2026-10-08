@@ -17,7 +17,8 @@ const HELP = `kchs — служебные команды установки
                    --admin-login <логин>  (или KCHS_ADMIN_LOGIN; по умолчанию admin)
                    --admin-email <почта>  (или KCHS_ADMIN_EMAIL)
   kchs migrate   только миграции базы
-  kchs seed      демо-данные: --profile demo|minimal; --reset --yes сначала удаляет данные;
+  kchs seed      данные: --profile demo|minimal|base (base — только справочники: территории
+                   и базовые карты, без оргструктуры и людей); --reset --yes сначала удаляет данные;
                    --data small|demo — демо-датасеты генератора (нужны api, worker и engine);
                    --pack emergency|none — предметный пакет ЧС (демо-профиль ставит его сам)
   kchs basemaps upload <каталог> [--key <ключ>] [--no-register]
@@ -80,15 +81,18 @@ async function run(argv: string[]): Promise<number> {
       }
       const data = values.data === 'small' || values.data === 'demo' ? values.data : 'none'
       const result = await seedCommand({
-        profile: values.profile === 'minimal' ? 'minimal' : 'demo',
+        profile:
+          values.profile === 'minimal' || values.profile === 'base' ? values.profile : 'demo',
         reset: values.reset,
         data,
         ...(values.pack === 'emergency' || values.pack === 'none' ? { pack: values.pack } : {}),
       })
       process.stdout.write(
-        result.units === 0
-          ? 'Демо-данные уже загружены — пропуск\n'
-          : `Демо-данные загружены: пользователей ${result.users}, подразделений ${result.units}, пространств ${result.spaces}\n`,
+        values.profile === 'base'
+          ? `Справочники загружены: территорий ${result.territories}\n`
+          : result.units === 0
+            ? 'Демо-данные уже загружены — пропуск\n'
+            : `Демо-данные загружены: пользователей ${result.users}, подразделений ${result.units}, пространств ${result.spaces}\n`,
       )
       if (result.datasets) {
         process.stdout.write(

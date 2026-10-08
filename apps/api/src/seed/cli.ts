@@ -12,7 +12,7 @@ const dataArg = args.find((a) => a.startsWith('--data='))?.split('=')[1]
 const packArg = args.find((a) => a.startsWith('--pack='))?.split('=')[1]
 
 seedCommand({
-  profile: profileArg === 'minimal' ? 'minimal' : 'demo',
+  profile: profileArg === 'minimal' || profileArg === 'base' ? profileArg : 'demo',
   reset: args.includes('--reset'),
   data: dataArg === 'small' || dataArg === 'demo' ? dataArg : 'none',
   ...(packArg === 'emergency' || packArg === 'none' ? { pack: packArg } : {}),

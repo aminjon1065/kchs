@@ -12,7 +12,7 @@ registerLifecycle()
 
 const { formatInitSummary, runInit } = await import('../src/cli/init.js')
 const { seedCommand } = await import('../src/seed/command.js')
-const { businessCalendar, users } = await import('../src/db-schema.js')
+const { businessCalendar, orgUnits, users } = await import('../src/db-schema.js')
 const { SecurityPolicyService } = await import('../src/kernel/settings/security-policy.js')
 const { systemCtx } = await import('../src/shared/context.js')
 
@@ -109,6 +109,19 @@ describe('kchs init', () => {
     expect((await SecurityPolicyService.current()).requireMfaRoles).toEqual([])
     // Пустой список — тоже выбор: повторный init его не заменяет умолчанием
     expect((await runInit({ adminLogin: 'admin', now })).security.applied).toBe(false)
+  })
+
+  it('профиль base: только справочники — территории есть, оргструктуры и людей нет', async () => {
+    const seeded = await seedCommand({ profile: 'base', reset: false })
+    expect(seeded.territories).toBeGreaterThan(0)
+    expect(seeded).toMatchObject({ users: 0, units: 0, spaces: 0, datasets: null, pack: null })
+    expect(await db().select({ id: orgUnits.id }).from(orgUnits)).toEqual([])
+    const logins = await db().select({ login: users.login }).from(users)
+    expect(logins).toEqual([{ login: 'admin' }])
+    // Повторный запуск ничего не добавляет
+    expect((await seedCommand({ profile: 'base', reset: false })).territories).toBe(
+      seeded.territories,
+    )
   })
 
   it('демо-данные ставятся поверх и используют того же администратора', async () => {

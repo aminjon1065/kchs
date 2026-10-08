@@ -43,8 +43,17 @@ import TERRITORIES from './territories.json' with { type: 'json' }
 import BOUNDARIES from './territory-boundaries.json' with { type: 'json' }
 import POPULATION from './territory-population.json' with { type: 'json' }
 
+/**
+ * Профиль загрузки (seeds/README.md):
+ * - `base` — справочники чистой установки: территории с границами и населением, реестр
+ *   базовых карт; ни оргструктуры, ни должностей, ни сотрудников — их заводит Комитет;
+ * - `minimal` — плюс типовая оргструктура Комитета и должности;
+ * - `demo` — демо-мир для показа и разработки.
+ */
+export type SeedProfile = 'base' | 'minimal' | 'demo'
+
 export interface SeedOptions {
-  profile: 'minimal' | 'demo'
+  profile: SeedProfile
   adminLogin: string
   adminPassword: string
   employeePassword: string
@@ -61,7 +70,7 @@ function makeRandom(seed: number): () => number {
 
 export async function runSeed(
   options: SeedOptions,
-): Promise<{ users: number; units: number; spaces: number }> {
+): Promise<{ users: number; units: number; spaces: number; territories: number }> {
   const log = logger().child({ module: 'seed' })
   const ctx = systemCtx('seed')
   const random = makeRandom(20_260_917)
@@ -98,6 +107,12 @@ export async function runSeed(
     'реестр базовых карт синхронизирован',
   )
 
+  // Чистая установка без типовой оргструктуры: администратор — от `kchs init`, структуру,
+  // людей и данные заводит Комитет
+  if (options.profile === 'base') {
+    return { users: 0, units: 0, spaces: 0, territories: territoryIds.size }
+  }
+
   // Демо-данные уже загружены — признак: корень демо-оргструктуры. Пустая база
   // с администратором от `kchs init` данными не считается (06-handoff.md:
   // установка — `kchs init`, затем seed)
@@ -116,7 +131,7 @@ export async function runSeed(
     // Разделы базы знаний (ADR-0095) и руководство (P5-E07) появились позже
     await seedKnowledge(await seedAdminCtx(options.adminLogin))
     log.warn('демо-данные уже загружены — seed пропущен (используйте db:reset)')
-    return { users: 0, units: 0, spaces: 0 }
+    return { users: 0, units: 0, spaces: 0, territories: territoryIds.size }
   }
 
   // ── Должности ──────────────────────────────────────────────────────────────
@@ -179,7 +194,7 @@ export async function runSeed(
   if (options.profile === 'minimal') {
     await seedDocuments(adminCtx, false)
     await bumpPrincipalsVersion()
-    return { users: 1, units: unitIds.size, spaces: 0 }
+    return { users: 1, units: unitIds.size, spaces: 0, territories: territoryIds.size }
   }
 
   // ── Сотрудники ────────────────────────────────────────────────────────────
@@ -401,7 +416,12 @@ export async function runSeed(
   )
 
   log.info({ users: Number(count), units: unitIds.size, spaces: spaceIds.size }, 'seed завершён')
-  return { users: Number(count), units: unitIds.size, spaces: spaceIds.size }
+  return {
+    users: Number(count),
+    units: unitIds.size,
+    spaces: spaceIds.size,
+    territories: territoryIds.size,
+  }
 }
 
 /**
