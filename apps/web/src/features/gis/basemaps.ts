@@ -1,8 +1,9 @@
-import type { Basemap, BasemapTheme, Locale } from '@kchs/contracts'
+import type { Basemap, BasemapTheme, Locale, ReliefLevel } from '@kchs/contracts'
 import { queryOptions, useQuery } from '@tanstack/react-query'
 import type { Protocol } from 'pmtiles'
 import { http } from '~/shared/api/client.js'
 import { useLocale } from '~/shared/appearance.js'
+import { autoBasemap, resolveBasemap, useBasemapChoice } from './basemap-choice.js'
 
 /**
  * Базовые карты (07-gis-engine.md §5, ADR-0066): реестр установки и стиль
@@ -13,8 +14,8 @@ import { useLocale } from '~/shared/appearance.js'
 
 export const basemapKeys = {
   all: ['basemaps'] as const,
-  style: (id: string, version: number, theme: BasemapTheme, lang: Locale) =>
-    ['basemaps', id, 'style', version, theme, lang] as const,
+  style: (id: string, version: number, look: StyleLook, lang: Locale) =>
+    ['basemaps', id, 'style', version, look.theme, look.relief, look.labels, lang] as const,
 }
 
 /** Реестр меняется редко: подложка по умолчанию — первой. */
@@ -24,6 +25,13 @@ export const basemapsQuery = () =>
     queryFn: async () => (await http.get('/gis/basemaps')).items,
     staleTime: 10 * 60_000,
   })
+
+/** Вид стиля подложки: тема, сила рельефа и «Гибрид» (ADR-0196). */
+interface StyleLook {
+  theme: BasemapTheme
+  relief: ReliefLevel
+  labels: boolean
+}
 
 /** Стиль MapLibre (спецификация v8) — как отдал сервер, для `map.setStyle`. */
 export type BasemapStyle = Record<string, unknown>
@@ -57,44 +65,65 @@ export function rebaseApiUrls<T>(value: T, origin: string): T {
 /** Версия подложки — в ключе: правка адреса или новая сборка дают новый стиль. */
 const basemapStyleQuery = (
   basemap: Pick<Basemap, 'id' | 'version'>,
-  theme: BasemapTheme,
+  look: StyleLook,
   lang: Locale,
 ) =>
   queryOptions({
-    queryKey: basemapKeys.style(basemap.id, basemap.version, theme, lang),
+    queryKey: basemapKeys.style(basemap.id, basemap.version, look, lang),
     queryFn: async () =>
       rebaseApiUrls(
         await http.get('/gis/basemaps/:id/style.json', {
           params: { id: basemap.id },
-          query: { theme, lang },
+          query: { theme: look.theme, lang, relief: look.relief, labels: String(look.labels) },
         }),
         window.location.origin,
       ),
     staleTime: Number.POSITIVE_INFINITY,
   })
 
+export interface BasemapStyleOptions {
+  /**
+   * Светлая или тёмная тема интерфейса — для варианта «Схема», когда тема вида по умолчанию
+   * `muted`; иначе берётся сама тема вида.
+   */
+  mode?: 'light' | 'dark'
+  /** Личный выбор подложки (ADR-0196); печать и отчёты рисуют карту как задано. */
+  personal?: boolean
+}
+
 /**
- * Подложка карты и её стиль: `basemapId` из MapSpec или, если он null либо
- * подложку удалили, — подложка по умолчанию установки (нет её — первая в списке). Тема — `light`/`dark`
- * по оформлению интерфейса, `muted` — под хороплеты и тепловые карты; язык
- * подписей — язык интерфейса.
+ * Подложка карты и её стиль: личный выбор сотрудника (ADR-0196), иначе `basemapId` из
+ * MapSpec или, если он null либо подложку удалили, — подложка по умолчанию установки (нет
+ * её — первая в списке). Тема — `light`/`dark` по оформлению интерфейса, `muted` — под
+ * хороплеты и тепловые карты; язык подписей — язык интерфейса.
  * @public MapView карты-студии (P2-E01) берёт стиль отсюда.
  */
-export function useBasemapStyle(basemapId: string | null, theme: BasemapTheme) {
+export function useBasemapStyle(
+  basemapId: string | null,
+  theme: BasemapTheme,
+  options: BasemapStyleOptions = {},
+) {
   const locale = useLocale()
+  const personal = options.personal ?? true
+  const choice = useBasemapChoice((state) => (personal ? state.choice : null))
+  const relief = useBasemapChoice((state) => (personal ? state.relief : 'normal'))
   const basemaps = useQuery(basemapsQuery())
   const items = basemaps.data ?? []
-  const basemap =
-    items.find((item) => item.id === basemapId) ??
-    items.find((item) => item.isDefault) ??
-    items[0] ??
-    null
+  const mode = options.mode ?? (theme === 'dark' ? 'dark' : 'light')
+  const resolved = resolveBasemap(items, choice, basemapId, theme, mode)
+  const basemap = resolved.basemap
   const style = useQuery({
-    ...basemapStyleQuery(basemap ?? { id: '', version: 0 }, theme, locale),
+    ...basemapStyleQuery(
+      basemap ?? { id: '', version: 0 },
+      { theme: resolved.theme, relief, labels: resolved.labels },
+      locale,
+    ),
     enabled: basemap !== null,
   })
   return {
     basemap,
+    /** Подложка «как в карте» — для переключателя. */
+    auto: autoBasemap(items, basemapId),
     style: style.data ?? null,
     isLoading: basemaps.isLoading || (basemap !== null && style.isLoading),
     error: basemaps.error ?? style.error,

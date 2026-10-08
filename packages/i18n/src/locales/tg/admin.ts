@@ -480,6 +480,7 @@ export const admin: DeepPartial<Dictionary['admin']> = {
     zooms: 'Миқёсҳо {min}–{max}',
     tileSizeValue: '{size} px',
     keySet: 'калид муайян шудааст',
+    imagery: 'аксҳои моҳворавӣ, бо «Гибрид»',
     created: 'Харитаи асосӣ илова шуд',
     saved: 'Харитаи асосӣ нигоҳ дошта шуд',
     removed: 'Харитаи асосӣ нест карда шуд',
@@ -496,6 +497,10 @@ export const admin: DeepPartial<Dictionary['admin']> = {
       none: 'Замина',
     },
     fields: {
+      preset: 'Аз феҳрист',
+      presetHint: 'Харитаҳои асосии берунии тайёр; ба сервер интернет лозим аст',
+      presetCustom: 'Нишонии худ',
+      imagery: 'Аксҳои моҳворавӣ — корбарон варианти «Гибрид»-ро низ мегиранд',
       name: 'Ном',
       kind: 'Навъи харитаи асосӣ',
       url: 'Қолаби суроғаи тайлҳо',

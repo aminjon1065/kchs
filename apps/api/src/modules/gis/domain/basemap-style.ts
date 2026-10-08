@@ -1,5 +1,5 @@
-import { BASEMAP_FONTS, type BasemapTheme, type Locale } from '@kchs/contracts'
-import { PALETTES, type Palette } from './basemap-palette.js'
+import { BASEMAP_FONTS, type BasemapTheme, type Locale, type ReliefLevel } from '@kchs/contracts'
+import { OVERLAY_PALETTE, PALETTES, type Palette } from './basemap-palette.js'
 
 /**
  * Стиль MapLibre (спецификация v8) базовой карты (07-gis-engine.md §5, ADR-0066):
@@ -43,6 +43,11 @@ export type StyleContent =
       maxZoom: number
       attribution: string | null
       bounds: [number, number, number, number] | null
+      /**
+       * «Гибрид» (ADR-0196): подписи, дороги и границы векторной подложки поверх снимка —
+       * её архив PMTiles и атрибуция.
+       */
+      overlay?: { archive: string; attribution: string | null } | null
     }
 
 export interface StyleOptions {
@@ -50,9 +55,25 @@ export interface StyleOptions {
   name: string
   theme: BasemapTheme
   lang: Locale
+  /** Сила рельефа (ADR-0196); по умолчанию — непрозрачность темы. */
+  relief?: ReliefLevel
   urls: StyleUrls
   content: StyleContent
 }
+
+/** Множитель непрозрачности рельефа темы по выбору пользователя (ADR-0196). */
+const RELIEF_FACTOR: Record<ReliefLevel, number> = { none: 0, soft: 0.6, normal: 1, strong: 1.6 }
+/** Предел непрозрачности: даже «сильный» рельеф не закрывает подложку целиком. */
+const RELIEF_MAX = 0.85
+
+/** Слои наложения «Гибрида»: крупные дороги, границы и все подписи. */
+const OVERLAY_LINES = new Set([
+  'road-major-casing',
+  'road-major',
+  'boundary-region',
+  'boundary-country',
+  'boundary-disputed',
+])
 
 const SOURCE = 'openmaptiles'
 const REGULAR = [BASEMAP_FONTS.regular]
@@ -552,6 +573,21 @@ function vectorLayers(palette: Palette, lang: Locale): Layer[] {
   return layers
 }
 
+/**
+ * Наложение «Гибрида» (ADR-0196): из слоёв векторной подложки в палитре наложения — дороги,
+ * границы и подписи. Линии полупрозрачны, чтобы снимок под ними читался.
+ */
+function overlayLayers(lang: Locale): Layer[] {
+  return vectorLayers(OVERLAY_PALETTE, lang)
+    .filter((layer) => layer.type === 'symbol' || OVERLAY_LINES.has(layer.id))
+    .map((layer) => {
+      if (layer.type !== 'line') return layer
+      const paint = (layer.paint ?? {}) as Json
+      const opacity = layer.id === 'road-major-casing' ? 0.35 : 0.75
+      return { ...layer, paint: { ...paint, 'line-opacity': opacity } }
+    })
+}
+
 /** Растровая подложка в тёмной теме приглушается, в muted — обесцвечивается. */
 function rasterPaint(theme: BasemapTheme): Json {
   if (theme === 'dark') return { 'raster-brightness-max': 0.75, 'raster-saturation': -0.2 }
@@ -575,7 +611,11 @@ export function basemapStyle(options: StyleOptions): Json {
       ...(content.attribution ? { attribution: content.attribution } : {}),
     }
     layers.push(...vectorLayers(palette, options.lang))
-    if (content.relief) {
+    const reliefOpacity = Math.min(
+      RELIEF_MAX,
+      palette.relief * RELIEF_FACTOR[options.relief ?? 'normal'],
+    )
+    if (content.relief && reliefOpacity > 0) {
       sources.relief = {
         type: 'raster',
         url: `pmtiles://${content.relief.archive}`,
@@ -592,7 +632,7 @@ export function basemapStyle(options: StyleOptions): Json {
         type: 'raster',
         source: 'relief',
         paint: {
-          'raster-opacity': palette.relief,
+          'raster-opacity': Number(reliefOpacity.toFixed(2)),
           'raster-resampling': 'linear',
           'raster-fade-duration': 0,
         },
@@ -618,6 +658,14 @@ export function basemapStyle(options: StyleOptions): Json {
       source: 'raster',
       paint: rasterPaint(options.theme),
     })
+    if (content.overlay) {
+      sources[SOURCE] = {
+        type: 'vector',
+        url: `pmtiles://${content.overlay.archive}`,
+        ...(content.overlay.attribution ? { attribution: content.overlay.attribution } : {}),
+      }
+      layers.push(...overlayLayers(options.lang))
+    }
   }
 
   // Слои данных карта вставляет под первую подпись подложки: подписи читаются поверх данных

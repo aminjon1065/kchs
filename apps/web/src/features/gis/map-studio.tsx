@@ -10,11 +10,6 @@ import {
   type MapInstance,
   ObjectIcon,
   PanelToolbar,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Skeleton,
   useMapTheme,
   useToast,
@@ -30,7 +25,8 @@ import { keys, meQuery, objectQuery } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
 import { AddLayerDialog } from './add-layer-dialog.js'
-import { basemapsQuery, registerPmtilesProtocol, useBasemapStyle } from './basemaps.js'
+import { BasemapSwitcher } from './basemap-switcher.js'
+import { registerPmtilesProtocol, useBasemapStyle } from './basemaps.js'
 import { FeatureCard } from './feature-card.js'
 import { LayerPanel, type PanelLayer } from './layer-panel.js'
 import { layerSourceId, type RenderEntry, useRenderedLayers } from './layer-render.js'
@@ -198,7 +194,6 @@ export function MapStudio({
     serviceEntries(current?.services ?? [], serviceList?.items ?? []),
   )
   const basemap = useBasemapStyle(current?.basemapId ?? null, theme?.mode ?? 'light')
-  const { data: basemaps = [] } = useQuery(basemapsQuery())
 
   const layerById = useMemo(() => {
     const out = new Map<string, LayerRecord>()
@@ -442,21 +437,6 @@ export function MapStudio({
           right={
             <>
               <PresenceAvatars objectId={objectId} />
-              <Select
-                value={current.basemapId ?? basemap.basemap?.id ?? ''}
-                onValueChange={(value) => edit((spec) => ({ ...spec, basemapId: value }))}
-              >
-                <SelectTrigger className="h-7 w-48" aria-label={t('gis.map.basemap')}>
-                  <SelectValue placeholder={t('gis.map.basemap')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {basemaps.map((item) => (
-                    <SelectItem key={item.id} value={item.id}>
-                      {item.key === 'none' ? t('gis.map.noBasemap') : item.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
               <IconButton label={t('gis.map.showAll')} onClick={showAll}>
                 <Scan className="size-4" />
               </IconButton>
@@ -598,6 +578,16 @@ export function MapStudio({
               interactiveLayerIds={rendered.interactive}
               onFeatureClick={onFeatureClick}
               onMapReady={setInstance}
+              controls={
+                <BasemapSwitcher
+                  auto={basemap.auto}
+                  current={basemap.basemap}
+                  mapAware
+                  onSaveToMap={
+                    canEdit ? (id) => edit((spec) => ({ ...spec, basemapId: id })) : undefined
+                  }
+                />
+              }
               selection={selection.map((ref) => ({
                 source: layerSourceId(ref.layerId),
                 sourceLayer: 'layer',

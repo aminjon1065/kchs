@@ -464,6 +464,7 @@ export const admin: DeepPartial<Dictionary['admin']> = {
     zooms: 'Zoom {min}–{max}',
     tileSizeValue: '{size} px',
     keySet: 'key set',
+    imagery: 'imagery, with “Hybrid”',
     created: 'Basemap added',
     saved: 'Basemap saved',
     removed: 'Basemap deleted',
@@ -480,6 +481,10 @@ export const admin: DeepPartial<Dictionary['admin']> = {
       none: 'Background',
     },
     fields: {
+      preset: 'From catalogue',
+      presetHint: 'Ready-made external basemaps; the server needs internet access',
+      presetCustom: 'Custom address',
+      imagery: 'Satellite imagery — users also get a “Hybrid” option',
       name: 'Name',
       kind: 'Basemap kind',
       url: 'Tile URL template',

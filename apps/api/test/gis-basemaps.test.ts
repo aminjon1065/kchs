@@ -252,7 +252,12 @@ describe('стиль MapLibre', () => {
       expect(style).toEqual(
         JSON.parse(
           JSON.stringify(
-            await BasemapService.style(vectorId, { theme: theme as 'light', lang: 'tg' }),
+            await BasemapService.style(vectorId, {
+              theme: theme as 'light',
+              lang: 'tg',
+              relief: 'normal',
+              labels: false,
+            }),
           ),
         ),
       )
@@ -269,7 +274,14 @@ describe('стиль MapLibre', () => {
     expect(style.json().layers).toHaveLength(1)
     expect(style.json()).toEqual(
       JSON.parse(
-        JSON.stringify(await BasemapService.style(noneId, { theme: 'light', lang: 'ru' })),
+        JSON.stringify(
+          await BasemapService.style(noneId, {
+            theme: 'light',
+            lang: 'ru',
+            relief: 'normal',
+            labels: false,
+          }),
+        ),
       ),
     )
 
@@ -590,6 +602,67 @@ describe('управление подложками', () => {
   })
 })
 
+describe('каталог внешних подложек и «Гибрид» (ADR-0196)', () => {
+  let sentinelId: string
+
+  it('kchs basemaps add: подложка из каталога — растровая со снимками, повтор ничего не создаёт', async () => {
+    const first = await BasemapService.addPreset(systemCtx('test'), 'sentinel2')
+    expect(first).toMatchObject({ created: true, name: 'Спутник — Sentinel-2' })
+    sentinelId = first.id
+    expect(await BasemapService.addPreset(systemCtx('test'), 'sentinel2')).toEqual({
+      ...first,
+      created: false,
+    })
+    await expect(BasemapService.addPreset(systemCtx('test'), 'google')).rejects.toThrow(/sentinel2/)
+    const listed = await call(fx.app, { url: '/gis/basemaps', as: fx.users.stranger })
+    const item = listed.json().items.find((basemap: { id: string }) => basemap.id === sentinelId)
+    expect(item).toMatchObject({ kind: 'raster', imagery: true, key: 'preset:sentinel2' })
+    // Адрес службы видят только управляющие подложками
+    expect(item.url).toBeNull()
+  })
+
+  it('«Гибрид»: поверх снимка — подписи векторной подложки установки; без labels — только снимок', async () => {
+    const hybrid = await call(fx.app, {
+      url: `/gis/basemaps/${sentinelId}/style.json?theme=light&labels=true`,
+      as: fx.users.stranger,
+    })
+    expect(hybrid.statusCode).toBe(200)
+    expect(validateStyleMin(hybrid.json())).toEqual([])
+    expect(hybrid.json().sources.openmaptiles.url).toBe(
+      `pmtiles://${base()}/gis/basemaps/${vectorId}/pmtiles/2026-09-19.pmtiles`,
+    )
+    expect(hybrid.json().sprite).toContain('/gis/sprites/basemap-dark')
+    expect(hybrid.json().metadata['kchs:firstSymbolLayer']).not.toBeNull()
+    const plain = await call(fx.app, {
+      url: `/gis/basemaps/${sentinelId}/style.json?theme=light`,
+      as: fx.users.stranger,
+    })
+    expect(plain.json().sources).not.toHaveProperty('openmaptiles')
+    expect(plain.json().layers.map((layer: { id: string }) => layer.id)).toEqual([
+      'background',
+      'raster',
+    ])
+  })
+
+  it('признак «снимки» меняет управляющий; событие — с полем imagery', async () => {
+    const changed = await call(fx.app, {
+      method: 'PATCH',
+      url: `/gis/basemaps/${sentinelId}`,
+      as: gisAdmin,
+      payload: { imagery: false },
+    })
+    expect(changed.statusCode, changed.body).toBe(200)
+    expect(changed.json().imagery).toBe(false)
+    expect(await outbox('basemap.updated')).toContainEqual({ changed: ['imagery'] })
+    const removed = await call(fx.app, {
+      method: 'DELETE',
+      url: `/gis/basemaps/${sentinelId}`,
+      as: gisAdmin,
+    })
+    expect(removed.statusCode, removed.body).toBe(200)
+  })
+})
+
 describe('обновление и удаление сборки', () => {
   it('новая версия: sync переходит на неё, прошлый архив удаляется и не отдаётся', async () => {
     await writeBuild('2026-10-01', fakeArchive(8192, 'v2'))
@@ -648,6 +721,26 @@ describe('обновление и удаление сборки', () => {
     })
     expect(range.statusCode).toBe(206)
     expect(range.headers['content-range']).toBe('bytes 0-126/2048')
+    // Сила рельефа — выбор пользователя (ADR-0196): «нет» убирает слой, «сильный» — заметнее
+    const opacity = async (relief: string) => {
+      const styled = await call(fx.app, {
+        url: `/gis/basemaps/${vectorId}/style.json?relief=${relief}`,
+        as: fx.users.stranger,
+      })
+      expect(styled.statusCode).toBe(200)
+      return (
+        styled.json().layers.find((layer: { id: string }) => layer.id === 'relief')?.paint[
+          'raster-opacity'
+        ] ?? null
+      )
+    }
+    expect(await opacity('none')).toBeNull()
+    expect(await opacity('strong')).toBeGreaterThan(await opacity('normal'))
+    const invalid = await call(fx.app, {
+      url: `/gis/basemaps/${vectorId}/style.json?relief=max`,
+      as: fx.users.stranger,
+    })
+    expect(invalid.statusCode).toBe(400)
 
     // Сборка без рельефа: источник уходит из стиля, архив — из хранилища
     await writeBuild('2026-10-01', vector)

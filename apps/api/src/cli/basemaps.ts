@@ -1,4 +1,5 @@
 import { resolve } from 'node:path'
+import { BASEMAP_PRESETS } from '@kchs/contracts'
 import {
   BasemapService,
   type BasemapSyncSummary,
@@ -28,6 +29,24 @@ export function runBasemapsSync(): Promise<BasemapSyncSummary> {
   // Подложка — объект реестра: ObjectService создаёт только зарегистрированные типы
   registerAllObjectTypes()
   return BasemapService.sync(systemCtx('kchs-basemaps'))
+}
+
+/**
+ * `kchs basemaps add <ключ…>` — подложки из каталога (ADR-0196): спутник Sentinel-2,
+ * топографическая OpenTopoMap. Уже добавленные пропускаются.
+ */
+export async function runBasemapsAdd(
+  keys: string[],
+): Promise<Array<{ key: string; name: string; created: boolean }>> {
+  registerAllObjectTypes()
+  const ctx = systemCtx('kchs-basemaps')
+  const added = []
+  for (const key of keys) added.push({ key, ...(await BasemapService.addPreset(ctx, key)) })
+  return added
+}
+
+export function formatPresets(): string {
+  return `${BASEMAP_PRESETS.map((preset) => `  ${preset.key.padEnd(12)} ${preset.name}`).join('\n')}\n`
 }
 
 export function formatSyncSummary(summary: BasemapSyncSummary): string {

@@ -1,5 +1,5 @@
 import type { Basemap, BasemapKind, BasemapServiceParams, GisRenderSettings } from '@kchs/contracts'
-import { RASTER_BASEMAP_KINDS } from '@kchs/contracts'
+import { BASEMAP_PRESETS, RASTER_BASEMAP_KINDS } from '@kchs/contracts'
 import { formatFileSize, formatNumber } from '@kchs/fields'
 import {
   AlertDialog,
@@ -204,6 +204,7 @@ export function BasemapsSection() {
         t('admin.basemaps.zooms', { min: basemap.minZoom, max: basemap.maxZoom }),
         t('admin.basemaps.tileSizeValue', { size: basemap.tileSize ?? 256 }),
         basemap.hasKey ? t('admin.basemaps.keySet') : null,
+        basemap.imagery ? t('admin.basemaps.imagery') : null,
       ]
         .filter(Boolean)
         .join(' · ')
@@ -341,6 +342,9 @@ export function BasemapsSection() {
 
 const TILE_SIZES = ['256', '512'] as const
 
+/** Значение «Свой адрес» в выборе из каталога (ADR-0196). */
+const CUSTOM = 'custom'
+
 /** Виды, которые администратор заводит руками: XYZ и внешние службы (ADR-0108). */
 const ADDABLE_KINDS = ['raster', 'wms', 'wmts'] as const
 
@@ -354,6 +358,8 @@ interface Form {
   minZoom: string
   maxZoom: string
   tileSize: (typeof TILE_SIZES)[number]
+  /** Космические снимки — у пользователей есть вариант «Гибрид» (ADR-0196). */
+  imagery: boolean
   isDefault: boolean
   /** WMS: слои, версия, формат, прозрачность. */
   layers: string
@@ -378,6 +384,7 @@ function initial(basemap: Basemap | null): Form {
     minZoom: String(basemap?.minZoom ?? 0),
     maxZoom: String(basemap?.maxZoom ?? 19),
     tileSize: basemap?.tileSize === 512 ? '512' : '256',
+    imagery: basemap?.imagery ?? false,
     isDefault: false,
     layers: service?.kind === 'wms' ? service.layers : '',
     wmsVersion: service?.kind === 'wms' ? service.version : '1.3.0',
@@ -455,6 +462,7 @@ function BasemapDialog({
             attribution,
             ...zooms,
             tileSize: form.tileSize === '512' ? 512 : 256,
+            imagery: form.imagery,
             isDefault: form.isDefault,
           },
         })
@@ -476,6 +484,7 @@ function BasemapDialog({
               attribution,
               ...zooms,
               tileSize: form.tileSize === '512' ? 512 : 256,
+              imagery: form.imagery,
             }
           : { name: form.name.trim() },
       })
@@ -539,6 +548,50 @@ function BasemapDialog({
           </Field>
           {raster ? (
             <>
+              {!current ? (
+                <Field
+                  label={t('admin.basemaps.fields.preset')}
+                  htmlFor={`${formId}-preset`}
+                  hint={t('admin.basemaps.fields.presetHint')}
+                >
+                  <Select
+                    value={
+                      BASEMAP_PRESETS.find(
+                        (preset) => preset.url === form.url && form.kind === 'raster',
+                      )?.key ?? CUSTOM
+                    }
+                    onValueChange={(value) => {
+                      const preset = BASEMAP_PRESETS.find((item) => item.key === value)
+                      if (!preset) return
+                      set({
+                        name: preset.name,
+                        kind: 'raster',
+                        url: preset.url,
+                        attribution: preset.attribution,
+                        minZoom: String(preset.minZoom),
+                        maxZoom: String(preset.maxZoom),
+                        tileSize: String(preset.tileSize) as Form['tileSize'],
+                        imagery: preset.imagery,
+                        apiKey: '',
+                      })
+                    }}
+                  >
+                    <SelectTrigger id={`${formId}-preset`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={CUSTOM}>
+                        {t('admin.basemaps.fields.presetCustom')}
+                      </SelectItem>
+                      {BASEMAP_PRESETS.map((preset) => (
+                        <SelectItem key={preset.key} value={preset.key}>
+                          {preset.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              ) : null}
               {!current ? (
                 <Field label={t('admin.basemaps.fields.kind')} htmlFor={`${formId}-kind`}>
                   <Select
@@ -748,6 +801,11 @@ function BasemapDialog({
                   </Select>
                 </Field>
               </div>
+              <Checkbox
+                label={t('admin.basemaps.fields.imagery')}
+                checked={form.imagery}
+                onCheckedChange={(checked) => set({ imagery: checked === true })}
+              />
               {!current ? (
                 <Checkbox
                   label={t('admin.basemaps.fields.isDefault')}

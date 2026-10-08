@@ -254,4 +254,62 @@ test.describe('Данные и карты: доработка до пилота'
       panel.getByRole('button', { name: `Действия со слоем «Пункты ${run}»` }),
     ).toBeHidden()
   })
+
+  test('подложка: личный выбор на карте и подложка карты для всех (ADR-0196)', async ({
+    page,
+    request,
+  }) => {
+    test.setTimeout(90_000)
+    const headers = await csrf(request)
+    const spaces = (await (await request.get('/api/v1/spaces')).json()).items as Array<{
+      id: string
+    }>
+    // Своя растровая подложка прогона: на стенде CI может не быть ни векторной, ни каталога
+    const created = await request.post('/api/v1/gis/basemaps', {
+      headers,
+      data: { name: `Снимки ${run}`, url: 'https://tiles.invalid/{z}/{x}/{y}.png', imagery: true },
+    })
+    expect(created.ok(), await created.text()).toBeTruthy()
+    const basemapId = (await created.json()).id as string
+    try {
+      const map = await request.post('/api/v1/gis/maps', {
+        headers,
+        data: { name: `Карта подложки ${run}`, spaceId: spaces[0]?.id },
+      })
+      expect(map.ok(), await map.text()).toBeTruthy()
+      const mapId = (await map.json()).id as string
+      await openWorkspace(page, request)
+      await page.goto(`/o/${mapId}`)
+
+      const switcher = page.getByRole('button', { name: 'Подложка карты' })
+      const own = page.getByRole('radio', { name: new RegExp(`^Снимки ${run}`) })
+      await switcher.click()
+      await expect(page.getByRole('radio', { name: /^Как в карте/ })).toBeChecked()
+      const style = page.waitForResponse((response) =>
+        response.url().includes(`/gis/basemaps/${basemapId}/style.json`),
+      )
+      await own.click()
+      expect((await style).ok()).toBeTruthy()
+
+      // Автор карты делает выбранную подложку подложкой карты — для всех
+      await page.getByRole('button', { name: 'Сделать подложкой карты' }).click()
+      await page.keyboard.press('Escape')
+      await page.getByRole('button', { name: 'Сохранить карту' }).click()
+      await expect
+        .poll(
+          async () =>
+            (await (await request.get(`/api/v1/gis/maps/${mapId}`)).json()).spec.basemapId,
+        )
+        .toBe(basemapId)
+
+      // Личный выбор запоминается в браузере
+      await page.reload()
+      await switcher.click()
+      await expect(own).toBeChecked()
+      await page.getByRole('radio', { name: /^Как в карте/ }).click()
+      await expect(page.getByRole('radio', { name: /^Как в карте/ })).toBeChecked()
+    } finally {
+      await request.delete(`/api/v1/gis/basemaps/${basemapId}`, { headers })
+    }
+  })
 })

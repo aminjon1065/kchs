@@ -30,6 +30,7 @@ import { keys, objectQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
+import { BasemapSwitcher } from './basemap-switcher.js'
 import { registerPmtilesProtocol, useBasemapStyle } from './basemaps.js'
 import { LayerEditSettings } from './edit/layer-edit-settings.js'
 import { FeatureCard } from './feature-card.js'
@@ -300,6 +301,7 @@ export function LayerView({
             className="min-h-[320px]"
             basemapStyle={basemap.style}
             prepare={registerPmtilesProtocol}
+            controls={<BasemapSwitcher auto={basemap.auto} current={basemap.basemap} />}
             sources={rendered.sources}
             layers={rendered.layers}
             images={rendered.images}

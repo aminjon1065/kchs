@@ -18,6 +18,7 @@ import { useQueries, useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, useState } from 'react'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
+import { BasemapSwitcher } from '../basemap-switcher.js'
 import { registerPmtilesProtocol, useBasemapStyle } from '../basemaps.js'
 import type { GeoCollection } from '../choropleth/geojson.js'
 import { type RenderEntry, useRenderedLayers } from '../layer-render.js'
@@ -102,7 +103,7 @@ export function PassportMap({
   const locale = useLocale() as Locale
   const [root, setRoot] = useState<HTMLDivElement | null>(null)
   const theme = useMapTheme(root)
-  const basemap = useBasemapStyle(null, 'muted')
+  const basemap = useBasemapStyle(null, 'muted', { mode: theme?.mode })
   const [camera, setCamera] = useState<MapCamera>(DEFAULT_CAMERA)
   const [fit, setFit] = useState<{ bbox: Bbox; key: string } | null>(null)
   const boundary = useQuery(boundaryQuery(territoryId))
@@ -200,6 +201,7 @@ export function PassportMap({
         className="min-h-[360px] flex-1"
         basemapStyle={basemap.style}
         prepare={registerPmtilesProtocol}
+        controls={<BasemapSwitcher auto={basemap.auto} current={basemap.basemap} />}
         sources={{ ...own.sources, ...rendered.sources }}
         layers={[...own.below, ...rendered.layers, ...own.above]}
         images={rendered.images}

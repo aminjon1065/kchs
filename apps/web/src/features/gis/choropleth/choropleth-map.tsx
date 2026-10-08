@@ -45,7 +45,8 @@ export function ChoroplethMap({
   const locale = useLocale() as Locale
   const [root, setRoot] = useState<HTMLDivElement | null>(null)
   const theme = useMapTheme(root)
-  const basemap = useBasemapStyle(null, 'muted')
+  // Хороплет читается только на серой подложке: личный выбор здесь не действует (ADR-0196)
+  const basemap = useBasemapStyle(null, 'muted', { personal: false })
   const [camera, setCamera] = useState<MapCamera>(DEFAULT_CAMERA)
   const [fit, setFit] = useState<{ bbox: Bbox; key: string } | null>(null)
 

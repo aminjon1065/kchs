@@ -17,6 +17,7 @@ import {
 import { LocateFixed, MapPin, X } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
 import { useT } from '~/shared/i18n.js'
+import { BasemapSwitcher } from '../basemap-switcher.js'
 import { registerPmtilesProtocol, useBasemapStyle } from '../basemaps.js'
 import { locate, locateErrorKey } from './coordinates-dialog.js'
 import { type CoordinatesError, parseCoordinates } from './geometry.js'
@@ -97,7 +98,8 @@ function PointDialog({
   const ids = useId()
   const [root, setRoot] = useState<HTMLDivElement | null>(null)
   const theme = useMapTheme(root)
-  const basemap = useBasemapStyle(null, 'muted')
+  // Точку удобнее ставить по снимку: личный выбор подложки действует и здесь (ADR-0196)
+  const basemap = useBasemapStyle(null, 'muted', { mode: theme?.mode })
   const [camera, setCamera] = useState<MapCamera>(
     point ? { ...COUNTRY, center: point, zoom: 11 } : COUNTRY,
   )
@@ -202,6 +204,7 @@ function PointDialog({
             className="h-80 rounded-md"
             basemapStyle={basemap.style}
             prepare={registerPmtilesProtocol}
+            controls={<BasemapSwitcher auto={basemap.auto} current={basemap.basemap} />}
             sources={sources}
             layers={layers}
             camera={camera}

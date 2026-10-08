@@ -7,7 +7,13 @@ import { importHistory } from '~/seed/history/index.js'
 import { closeDb, closeQueryRole } from '~/shared/db/client.js'
 import { runMigrations } from '~/shared/db/migrate.js'
 import { closeRedis } from '~/shared/redis/index.js'
-import { formatSyncSummary, runBasemapsSync, runBasemapsUpload } from './basemaps.js'
+import {
+  formatPresets,
+  formatSyncSummary,
+  runBasemapsAdd,
+  runBasemapsSync,
+  runBasemapsUpload,
+} from './basemaps.js'
 import { formatInitSummary, runInit } from './init.js'
 import { formatMailSync, runMailSync } from './mail.js'
 import { formatRotation, rotateSecrets } from './rotation.js'
@@ -31,6 +37,9 @@ const HELP = `kchs — служебные команды установки
                    PMTiles, манифест), затем регистрация в реестре базовых карт
   kchs basemaps sync
                  реестр базовых карт по манифестам в хранилище и подложка по умолчанию
+  kchs basemaps add <ключ…>
+                 внешние подложки из каталога: sentinel2 (спутник), opentopomap
+                   (топографическая); нужен интернет на сервере (ADR-0196)
   kchs secrets rotate [--dry-run]
   kchs mail sync                  ящики сотрудников и канцелярии → почтовый сервер (ADR-0150)
                  перешифровать секреты текущим KCHS_MASTER_KEY; прежний ключ —
@@ -149,7 +158,20 @@ async function run(argv: string[]): Promise<number> {
         process.stdout.write(`Реестр базовых карт\n${formatSyncSummary(await runBasemapsSync())}`)
         return 0
       }
-      process.stderr.write(`kchs basemaps upload <каталог> | sync\n\n${HELP}`)
+      if (action === 'add') {
+        const keys = positionals.slice(2)
+        if (keys.length === 0) {
+          process.stdout.write(`Каталог подложек (kchs basemaps add <ключ…>):\n${formatPresets()}`)
+          return 2
+        }
+        for (const item of await runBasemapsAdd(keys)) {
+          process.stdout.write(
+            `  ${item.name}: ${item.created ? 'добавлена' : 'уже есть'} (${item.key})\n`,
+          )
+        }
+        return 0
+      }
+      process.stderr.write(`kchs basemaps upload <каталог> | sync | add <ключ…>\n\n${HELP}`)
       return 2
     }
     case 'secrets': {

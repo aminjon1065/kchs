@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import type { Readable } from 'node:stream'
 import {
+  BASEMAP_PRESETS,
   type Basemap,
   type BasemapCreateInput,
   BasemapKind,
@@ -74,6 +75,8 @@ const RasterInfo = z.object({
   tileSize: z.union([z.literal(256), z.literal(512)]),
   /** Параметры внешней службы WMS/WMTS (ADR-0108). */
   service: BasemapServiceParams.optional(),
+  /** Космические снимки — у пользователя есть вариант «Гибрид» (ADR-0196). */
+  imagery: z.boolean().optional(),
 })
 
 /** Растровые виды подложки: тайлы идут через прокси API. */
@@ -115,6 +118,24 @@ type Row = {
   updatedAt: string
 }
 
+/** Ключ реестра подложки из каталога (ADR-0196). */
+const PRESET_PREFIX = 'preset:'
+
+/**
+ * Векторная подложка для наложения «Гибрида» (ADR-0196): подложка по умолчанию, если она
+ * векторная, иначе первая векторная по названию.
+ */
+async function overlayRow(): Promise<Row | null> {
+  const [row] = await db()
+    .select(columns)
+    .from(basemaps)
+    .innerJoin(objects, eq(objects.id, basemaps.id))
+    .where(and(eq(basemaps.kind, 'vector'), isNull(objects.deletedAt)))
+    .orderBy(desc(basemaps.isDefault), asc(objects.title))
+    .limit(1)
+  return (row as Row | undefined) ?? null
+}
+
 async function loadRow(id: string, executor: Executor = db()): Promise<Row | null> {
   const [row] = await executor
     .select(columns)
@@ -129,6 +150,16 @@ const vectorInfo = (row: Row): VectorInfo | null =>
   row.kind === 'vector' ? (VectorInfo.safeParse(row.style).data ?? null) : null
 
 const tileSize = (row: Row): 256 | 512 => RasterInfo.safeParse(row.style).data?.tileSize ?? 256
+
+const isImagery = (row: Row): boolean =>
+  isRaster(row.kind) && (RasterInfo.safeParse(row.style).data?.imagery ?? false)
+
+/** Сведения растровой подложки в `style`: признак снимков пишется, только если он есть. */
+const rasterStyle = (
+  size: 256 | 512,
+  service: BasemapServiceParams | null | undefined,
+  imagery: boolean,
+) => ({ tileSize: size, ...(service ? { service } : {}), ...(imagery ? { imagery: true } : {}) })
 
 function toBasemap(row: Row, manager: boolean): Basemap {
   const kind = BasemapKind.parse(row.kind)
@@ -155,6 +186,7 @@ function toBasemap(row: Row, manager: boolean): Basemap {
     hasKey: row.secretEnc !== null,
     tileSize: isRaster(kind) ? tileSize(row) : null,
     service: manager ? serviceOf(row) : null,
+    imagery: isImagery(row),
     version: row.version,
     updatedAt: row.updatedAt,
   }
@@ -380,10 +412,7 @@ export const BasemapService = {
         key: null,
         kind: input.kind,
         url: input.url,
-        style: {
-          tileSize: input.tileSize,
-          ...(input.service ? { service: input.service } : {}),
-        },
+        style: rasterStyle(input.tileSize, input.service, input.imagery),
         attribution: input.attribution,
         minZoom: input.minZoom,
         maxZoom: input.maxZoom,
@@ -432,6 +461,7 @@ export const BasemapService = {
       }
       const size = input.tileSize ?? tileSize(row)
       const service = input.service ?? serviceOf(row)
+      const imagery = input.imagery ?? isImagery(row)
       const changed = [
         ...(input.service !== undefined &&
         JSON.stringify(input.service) !== JSON.stringify(serviceOf(row))
@@ -445,6 +475,7 @@ export const BasemapService = {
         ...(minZoom !== row.minZoom ? ['minZoom'] : []),
         ...(maxZoom !== row.maxZoom ? ['maxZoom'] : []),
         ...(size !== tileSize(row) ? ['tileSize'] : []),
+        ...(imagery !== isImagery(row) ? ['imagery'] : []),
       ]
       if (changed.length === 0) return false
       await tx
@@ -455,7 +486,7 @@ export const BasemapService = {
           attribution: input.attribution === undefined ? row.attribution : input.attribution,
           minZoom,
           maxZoom,
-          style: { tileSize: size, ...(service ? { service } : {}) },
+          style: rasterStyle(size, service, imagery),
           updatedAt: sql`now()`,
         })
         .where(eq(basemaps.id, id))
@@ -528,6 +559,9 @@ export const BasemapService = {
           : null,
       }
     } else if (isRaster(row.kind)) {
+      // «Гибрид» (ADR-0196): подписи, дороги и границы — из векторной подложки установки
+      const overlay = query.labels ? await overlayRow() : null
+      const overlayInfo = overlay ? vectorInfo(overlay) : null
       content = {
         kind: 'raster',
         tiles: `${base}/gis/basemaps/${id}/tiles/{z}/{x}/{y}?v=${rasterTag(row)}`,
@@ -536,18 +570,63 @@ export const BasemapService = {
         maxZoom: row.maxZoom,
         attribution: row.attribution ? escapeHtml(row.attribution) : null,
         bounds: null,
+        overlay:
+          overlay && overlayInfo
+            ? {
+                archive: `${base}/gis/basemaps/${overlay.id}/pmtiles/${overlayInfo.file}`,
+                attribution: overlay.attribution ? escapeHtml(overlay.attribution) : null,
+              }
+            : null,
       }
     }
+    // Подписи поверх снимка — светлые, значки к ним — из спрайта тёмной темы
+    const sprite = content.kind === 'raster' && content.overlay ? 'dark' : query.theme
     return basemapStyle({
       id,
       name: row.name,
       theme: query.theme,
       lang: query.lang,
+      relief: query.relief,
       urls: {
         glyphs: `${base}/gis/glyphs/{fontstack}/{range}.pbf`,
-        sprite: `${base}/gis/sprites/basemap-${query.theme}`,
+        sprite: `${base}/gis/sprites/basemap-${sprite}`,
       },
       content,
+    })
+  },
+
+  /**
+   * Подложка из каталога (ADR-0196) — `kchs basemaps add <ключ>`. Ключ реестра —
+   * `preset:<ключ>`: повторный вызов ничего не создаёт, удалённая в корзину не возвращается.
+   */
+  async addPreset(ctx: Ctx, key: string): Promise<{ id: string; name: string; created: boolean }> {
+    requireCapability(ctx, MANAGE)
+    const preset = BASEMAP_PRESETS.find((item) => item.key === key)
+    if (!preset) {
+      throw errors.validation(
+        `В каталоге нет подложки «${key}»; есть: ${BASEMAP_PRESETS.map((item) => item.key).join(', ')}`,
+      )
+    }
+    const registryKey = `${PRESET_PREFIX}${preset.key}`
+    return db().transaction(async (tx) => {
+      const [existing] = await tx
+        .select({ id: basemaps.id })
+        .from(basemaps)
+        .where(eq(basemaps.key, registryKey))
+        .limit(1)
+      if (existing) return { id: existing.id, name: preset.name, created: false }
+      const id = await insertBasemap(tx, ctx, {
+        name: preset.name,
+        key: registryKey,
+        kind: 'raster',
+        url: preset.url,
+        style: rasterStyle(preset.tileSize, null, preset.imagery),
+        attribution: preset.attribution,
+        minZoom: preset.minZoom,
+        maxZoom: preset.maxZoom,
+        secretEnc: null,
+      })
+      return { id, name: preset.name, created: true }
     })
   },
 

@@ -25,6 +25,14 @@ export const BasemapTheme = z.enum(BASEMAP_THEMES)
 export type BasemapTheme = z.infer<typeof BasemapTheme>
 
 /**
+ * Сила отмывки рельефа векторной подложки (ADR-0195, ADR-0196): `none` — без рельефа,
+ * `normal` — непрозрачность темы, `soft` и `strong` — слабее и сильнее. Выбирает пользователь.
+ */
+export const RELIEF_LEVELS = ['none', 'soft', 'normal', 'strong'] as const
+export const ReliefLevel = z.enum(RELIEF_LEVELS)
+export type ReliefLevel = z.infer<typeof ReliefLevel>
+
+/**
  * Шрифты подписей (glyphs) в хранилище установки: кириллица с таджикскими
  * буквами. Подписи слоёв данных ссылаются на них же — других шрифтов у карты нет.
  */
@@ -190,6 +198,11 @@ export const Basemap = z.object({
   tileSize: RasterTileSize.nullable(),
   /** Параметры службы WMS/WMTS — только управляющим подложками. */
   service: BasemapServiceParams.nullable(),
+  /**
+   * Растровая подложка — космические снимки (ADR-0196): пользователю предлагается и
+   * «Гибрид» — снимок с подписями, дорогами и границами векторной подложки поверх.
+   */
+  imagery: z.boolean(),
   version: z.number().int().nonnegative(),
   updatedAt: Timestamp,
 })
@@ -254,6 +267,7 @@ export const BasemapCreateInput = z
     minZoom: ZoomLevel.default(0),
     maxZoom: ZoomLevel.default(19),
     tileSize: RasterTileSize.default(256),
+    imagery: z.boolean().default(false),
     isDefault: z.boolean().default(false),
   })
   .refine(zoomOrder, { message: 'Минимальный масштаб больше максимального', path: ['minZoom'] })
@@ -282,6 +296,7 @@ export const BasemapUpdateInput = z
     minZoom: ZoomLevel.optional(),
     maxZoom: ZoomLevel.optional(),
     tileSize: RasterTileSize.optional(),
+    imagery: z.boolean().optional(),
   })
   .refine(zoomOrder, { message: 'Минимальный масштаб больше максимального', path: ['minZoom'] })
   .superRefine(checkServiceUrl)
@@ -291,8 +306,55 @@ export const BasemapStyleQuery = z.object({
   theme: BasemapTheme.default('light'),
   /** Язык подписей: `name:<язык>`, затем русское и исходное название. */
   lang: Locale.default('ru'),
+  /** Сила рельефа векторной подложки (ADR-0196); у подложки без рельефа не влияет. */
+  relief: ReliefLevel.default('normal'),
+  /**
+   * «Гибрид» (ADR-0196): поверх растровой подложки — подписи, дороги и границы векторной
+   * подложки установки. Нет векторной — стиль без них.
+   */
+  labels: z.stringbool().default(false),
 })
 export type BasemapStyleQuery = z.infer<typeof BasemapStyleQuery>
+
+/**
+ * Каталог внешних подложек (ADR-0196): администратор добавляет их одной кнопкой в консоли,
+ * установка — `kchs basemaps add <ключ>`. Тайлы идут через прокси API с кэшем, серверу нужен
+ * интернет (или исходящий прокси). Условия служб — в ADR-0196.
+ */
+export const BASEMAP_PRESETS = [
+  {
+    key: 'sentinel2',
+    name: 'Спутник — Sentinel-2',
+    url: 'https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2024_3857/default/g/{z}/{y}/{x}.jpg',
+    attribution:
+      'Sentinel-2 cloudless — s2maps.eu, EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2024)',
+    minZoom: 0,
+    maxZoom: 14,
+    tileSize: 256,
+    imagery: true,
+  },
+  {
+    key: 'opentopomap',
+    name: 'Топографическая — OpenTopoMap',
+    url: 'https://tile.opentopomap.org/{z}/{x}/{y}.png',
+    attribution: '© OpenTopoMap (CC-BY-SA), © участники OpenStreetMap, SRTM',
+    minZoom: 0,
+    maxZoom: 17,
+    tileSize: 256,
+    imagery: false,
+  },
+] as const satisfies ReadonlyArray<{
+  key: string
+  name: string
+  url: string
+  attribution: string
+  minZoom: number
+  maxZoom: number
+  tileSize: 256 | 512
+  imagery: boolean
+}>
+export type BasemapPreset = (typeof BASEMAP_PRESETS)[number]
+export type BasemapPresetKey = BasemapPreset['key']
 
 /**
  * Стиль подложки (`GET /gis/basemaps/:id/style.json`) — документ спецификации стиля MapLibre v8.

@@ -117,7 +117,10 @@ export function useReportMap(block: ReportMapSource, theme: MapTheme | null): Re
     time: map.data?.spec.time ? `${map.data.spec.time.from}/${map.data.spec.time.to}` : null,
   })
   // Адреса API в стиле уже перенесены на origin страницы печати (`rebaseApiUrls`)
-  const basemap = useBasemapStyle(map.data?.spec.basemapId ?? null, theme?.mode ?? 'light')
+  // Отчёт и печать — как задал автор карты, без личного выбора подложки (ADR-0196)
+  const basemap = useBasemapStyle(map.data?.spec.basemapId ?? null, theme?.mode ?? 'light', {
+    personal: false,
+  })
   const basemapStyle = basemap.style
 
   const missing = useMap ? !block.mapId : !block.layerId

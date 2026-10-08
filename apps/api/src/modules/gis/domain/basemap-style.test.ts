@@ -5,6 +5,8 @@ import {
   type BasemapTheme,
   LOCALES,
   type Locale,
+  RELIEF_LEVELS,
+  type ReliefLevel,
 } from '@kchs/contracts'
 import { validateStyleMin } from '@maplibre/maplibre-gl-style-spec'
 import { describe, expect, it } from 'vitest'
@@ -44,16 +46,35 @@ const CONTENTS: StyleContent[] = [
       attribution: 'КЧС и ГО РТ',
     },
   },
+  {
+    kind: 'raster',
+    tiles: `${BASE}/gis/basemaps/0199a0b0-0000-7000-8000-000000000003/tiles/{z}/{x}/{y}?v=def`,
+    tileSize: 256,
+    minZoom: 0,
+    maxZoom: 14,
+    attribution: 'Sentinel-2 cloudless',
+    bounds: null,
+    overlay: {
+      archive: `${BASE}/gis/basemaps/0199a0b0-0000-7000-8000-000000000001/pmtiles/2026-09-19.pmtiles`,
+      attribution: '© OpenMapTiles © OpenStreetMap contributors',
+    },
+  },
 ]
 
 type Layer = { id: string; type: string; 'source-layer'?: string; layout?: Record<string, unknown> }
 
-function build(content: StyleContent, theme: BasemapTheme = 'light', lang: Locale = 'ru') {
+function build(
+  content: StyleContent,
+  theme: BasemapTheme = 'light',
+  lang: Locale = 'ru',
+  relief?: ReliefLevel,
+) {
   return basemapStyle({
     id: 'id',
     name: 'Подложка',
     theme,
     lang,
+    relief,
     urls: {
       glyphs: `${BASE}/gis/glyphs/{fontstack}/{range}.pbf`,
       sprite: `${BASE}/gis/sprites/basemap-${theme}`,
@@ -139,6 +160,62 @@ describe('стиль базовой карты (07-gis-engine.md §5, ADR-0066)'
     const plain = build(CONTENTS[1] as StyleContent)
     expect(plain.sources).not.toHaveProperty('relief')
     expect((plain.layers as Layer[]).some((layer) => layer.id === 'relief')).toBe(false)
+  })
+
+  it('сила рельефа (ADR-0196): «нет» убирает слой, «мягкий» < «обычный» < «сильный» ≤ 0,85', () => {
+    const relief = CONTENTS[3] as StyleContent
+    for (const theme of BASEMAP_THEMES) {
+      const opacity = (level: ReliefLevel) => {
+        const style = build(relief, theme, 'ru', level)
+        const layer = (style.layers as Array<Layer & { paint?: Record<string, number> }>).find(
+          (item) => item.id === 'relief',
+        )
+        return layer?.paint?.['raster-opacity'] ?? null
+      }
+      const none = build(relief, theme, 'ru', 'none')
+      expect(none.sources).not.toHaveProperty('relief')
+      expect(opacity('none')).toBeNull()
+      const [soft, normal, strong] = (['soft', 'normal', 'strong'] as const).map(opacity)
+      expect(soft).toBeLessThan(normal as number)
+      expect(normal).toBeLessThan(strong as number)
+      expect(strong).toBeLessThanOrEqual(0.85)
+      // Без явного выбора — «обычный»
+      expect(opacity('normal')).toBe(
+        (build(relief, theme).layers as Array<Layer & { paint?: Record<string, number> }>).find(
+          (item) => item.id === 'relief',
+        )?.paint?.['raster-opacity'],
+      )
+    }
+    for (const level of RELIEF_LEVELS) {
+      expect(validateStyleMin(build(relief, 'light', 'ru', level) as never)).toEqual([])
+    }
+  })
+
+  it('«Гибрид» (ADR-0196): снимок, над ним дороги, границы и подписи векторной подложки', () => {
+    const hybrid = CONTENTS[4] as StyleContent
+    const style = build(hybrid, 'light')
+    const layers = style.layers as Array<Layer & { paint?: Record<string, unknown> }>
+    expect(layers[1]?.id).toBe('raster')
+    expect(style.sources).toMatchObject({
+      raster: { type: 'raster' },
+      openmaptiles: { type: 'vector', url: expect.stringContaining('pmtiles://') },
+    })
+    const overlay = layers.slice(2)
+    expect(overlay.length).toBeGreaterThan(5)
+    // Ни земли, ни воды, ни зданий: только линии дорог и границ и подписи
+    expect(overlay.every((layer) => layer.type === 'line' || layer.type === 'symbol')).toBe(true)
+    expect(overlay.map((layer) => layer.id)).toEqual(
+      expect.arrayContaining(['road-major', 'boundary-country', 'place-town']),
+    )
+    expect(layers.find((layer) => layer.id === 'road-major')?.paint?.['line-opacity']).toBe(0.75)
+    // Слои данных встают под подписи наложения
+    expect((style.metadata as Record<string, unknown>)['kchs:firstSymbolLayer']).toBe(
+      overlay.find((layer) => layer.type === 'symbol')?.id,
+    )
+    // Растр без наложения — по-прежнему один слой снимка
+    expect((build(CONTENTS[2] as StyleContent).layers as Layer[]).map((layer) => layer.id)).toEqual(
+      ['background', 'raster'],
+    )
   })
 
   it('подписи — только шрифтами хранилища, значки — только из спрайта сборки', () => {

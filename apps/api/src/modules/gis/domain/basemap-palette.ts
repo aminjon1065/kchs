@@ -144,3 +144,22 @@ export const PALETTES: Record<BasemapTheme, Palette> = {
     relief: 0.3,
   },
 }
+
+/**
+ * Подписи, дороги и границы поверх космического снимка — «Гибрид» (ADR-0196): светлый текст
+ * и линии с тёмным гало, как в тёмной теме. Не тема: земли, воды и зданий у наложения нет.
+ */
+export const OVERLAY_PALETTE: Palette = {
+  ...PALETTES.dark,
+  land: null,
+  residential: null,
+  building: null,
+  roadMajor: light['bg-surface'],
+  roadCasing: dark['bg-canvas'],
+  rail: dark.text,
+  boundary: dark.text,
+  label: dark.text,
+  labelStrong: dark.text,
+  labelMuted: dark['text-secondary'],
+  relief: 0,
+}

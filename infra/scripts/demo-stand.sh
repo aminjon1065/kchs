@@ -13,12 +13,15 @@
 #   bash infra/scripts/demo-stand.sh history <каталог>       # история ЧС Комитета из каталога
 #                                                            # infra/history/build-bundle.sh
 #   bash infra/scripts/demo-stand.sh basemap [каталог]       # подложку заново (новая сборка,
-#                                                            # рельеф) — данные не трогает
+#                                                            # рельеф, внешние из каталога) —
+#                                                            # данные не трогает
 #   bash infra/scripts/demo-stand.sh kchs <команда>          # kchs в контейнере api
 #   bash infra/scripts/demo-stand.sh logs [служба…]          # последние строки журналов
 #   bash infra/scripts/demo-stand.sh down [--volumes --yes]  # остановить (и стереть всё)
 #
 # Каталог подложки (--basemap) запоминается в .env стенда (KCHS_DEMO_BASEMAP) для сброса.
+# Внешние подложки — спутник и топографическая (ADR-0196) — добавляются сами, стенду нужен
+# интернет; без них — KCHS_DEMO_BASEMAP_PRESETS=none.
 # Ключи up: --data small|demo|none (по умолчанию small; --empty — то же, что none: только
 # администратор от kchs init и справочники — территории и базовые карты), --basemap КАТАЛОГ
 # (по умолчанию seeds/.cache/basemaps/out, если он есть), --no-build (образы уже собраны).
@@ -136,15 +139,29 @@ upload_basemap() {
   if [[ -z "$dir" ]]; then
     say "Подложки нет — карты откроются «без подложки». Сборка (нужен интернет, ~6 минут):"
     say "  KCHS_BASEMAP_UPLOAD=0 bash infra/basemaps/build-pmtiles.sh, затем снова up."
-    return
+  else
+    [[ -d "$dir" ]] || die "каталог подложки $dir не найден"
+    say "── Подложка карты ($dir) ──"
+    # compose cp сохраняет владельца файлов с хоста: убирает их root, а не пользователь api
+    compose exec -T -u 0 api rm -rf /tmp/basemaps
+    compose cp "$dir" api:/tmp/basemaps >/dev/null 2>&1 ||
+      die "подложка не скопировалась в контейнер api"
+    compose exec -T api kchs basemaps upload /tmp/basemaps
+    compose exec -T -u 0 api rm -rf /tmp/basemaps
   fi
-  [[ -d "$dir" ]] || die "каталог подложки $dir не найден"
-  say "── Подложка карты ($dir) ──"
-  # compose cp сохраняет владельца файлов с хоста: убирает их root, а не пользователь api
-  compose exec -T -u 0 api rm -rf /tmp/basemaps
-  compose cp "$dir" api:/tmp/basemaps >/dev/null 2>&1 || die "подложка не скопировалась в контейнер api"
-  compose exec -T api kchs basemaps upload /tmp/basemaps
-  compose exec -T -u 0 api rm -rf /tmp/basemaps
+  add_presets
+}
+
+# Внешние подложки из каталога (ADR-0196): спутник с «Гибридом» и топографическая — стенду
+# нужен интернет. KCHS_DEMO_BASEMAP_PRESETS — свой список ключей или none (без интернета).
+add_presets() {
+  local presets="${KCHS_DEMO_BASEMAP_PRESETS:-$(env_get KCHS_DEMO_BASEMAP_PRESETS)}"
+  presets="${presets:-sentinel2 opentopomap}"
+  [[ "$presets" == none ]] && return 0
+  say "── Внешние подложки: $presets ──"
+  local keys
+  read -r -a keys <<<"$presets"
+  compose exec -T api kchs basemaps add "${keys[@]}"
 }
 
 cmd_up() {

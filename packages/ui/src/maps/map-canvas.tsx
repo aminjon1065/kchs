@@ -80,6 +80,8 @@ export interface MapCanvasProps {
   staticView?: boolean
   /** Элементы поверх карты (панели, легенда) — в том же контексте позиционирования. */
   children?: ReactNode
+  /** Кнопки под масштабом в столбце управления — например, выбор подложки (ADR-0196). */
+  controls?: ReactNode
   className?: string
   'aria-label'?: string
 }
@@ -149,6 +151,7 @@ export function MapCanvas({
   selection = [],
   staticView = false,
   children,
+  controls,
   className,
   'aria-label': ariaLabel,
 }: MapCanvasProps) {
@@ -514,6 +517,7 @@ export function MapCanvas({
               <Compass className="size-4" aria-hidden />
             </IconButton>
           )}
+          {controls}
         </div>
       ) : null}
       {children}
