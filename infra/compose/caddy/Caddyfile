@@ -1,6 +1,12 @@
 {
 	admin off
 	email {$CADDY_EMAIL:admin@example.org}
+	# Шлюз DMZ (ADR-0200): его адрес — доверенный прокси, иначе api увидит всех
+	# партнёров одним адресом шлюза (лимиты частоты и журнал). Без шлюза —
+	# только loopback, то есть никого: X-Forwarded-For клиента не принимается
+	servers {
+		trusted_proxies static {$KCHS_TRUSTED_PROXIES:127.0.0.1/32}
+	}
 }
 
 # Проверка живости для healthcheck контейнера web: отдельный порт без TLS и

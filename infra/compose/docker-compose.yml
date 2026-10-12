@@ -542,6 +542,8 @@ services:
       KCHS_STORAGE_ORIGIN: ${KCHS_STORAGE_ORIGIN:-http://localhost:9000}
       # Медиасервер встреч: браузер подключается к нему напрямую (ADR-0089)
       KCHS_MEDIA_ORIGIN: ${KCHS_MEDIA_ORIGIN:-}
+      # Адрес шлюза DMZ (ADR-0200): ему Caddy верит в X-Forwarded-For
+      KCHS_TRUSTED_PROXIES: ${KCHS_TRUSTED_PROXIES:-127.0.0.1/32}
     ports:
       - "${WEB_PORT:-8080}:80"
       - "${WEB_HTTPS_PORT:-8443}:443"

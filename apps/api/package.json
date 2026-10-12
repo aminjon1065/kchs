@@ -19,7 +19,8 @@
     "openapi:gen": "tsx src/openapi-cli.ts",
     "deps:check": "depcruise --config .dependency-cruiser.cjs src && node scripts/module-cycles.mjs && node scripts/table-owners.mjs && node scripts/raw-sql.mjs",
     "deps:layers": "node scripts/module-cycles.mjs --layers",
-    "openapi:snapshot": "node scripts/snapshot-openapi.mjs"
+    "openapi:snapshot": "node scripts/snapshot-openapi.mjs",
+    "dmz:gen": "tsx src/dmz-cli.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.126.0",

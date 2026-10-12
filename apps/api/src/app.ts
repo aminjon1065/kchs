@@ -15,7 +15,12 @@ import { featureGate } from '~/kernel/features/gate.js'
 import { PrintGrants } from '~/kernel/print/grants.js'
 import { AuthService } from '~/modules/identity/domain/auth-service.js'
 import { registerModules } from '~/modules/index.js'
-import { authenticateApiToken, enforceTokenScope } from '~/modules/integrations/public.js'
+import {
+  authenticateApiToken,
+  enforceTokenScope,
+  GATEWAY_ZONE_HEADER,
+  requestExternalAccess,
+} from '~/modules/integrations/public.js'
 import { config } from '~/shared/config/index.js'
 import { errors } from '~/shared/errors.js'
 import { API_DOCS_STYLE, OPENAPI_TAGS, renderApiDocs } from '~/shared/http/api-docs.js'
@@ -147,6 +152,7 @@ export async function buildApp(): Promise<FastifyInstance> {
     resolvePrintGrant: (token) => PrintGrants.resolve(token),
     resolveApiToken: (request, secret) => authenticateApiToken(request, secret),
     enforceTokenScope,
+    gateway: { zoneHeader: GATEWAY_ZONE_HEADER, access: requestExternalAccess },
   })
 
   // Вебхук медиасервера приходит типом application/webhook+json и проверяется по

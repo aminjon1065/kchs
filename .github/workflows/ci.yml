@@ -127,6 +127,17 @@ jobs:
           path: apps/api/openapi.json
           retention-days: 30
 
+      # ADR-0200: белый список шлюза DMZ не отстал от таблицы маршрутов, конфигурация
+      # шлюза и Caddy установки разбираются тем же Caddy, что в образах
+      - name: Шлюз DMZ — белый список и конфигурация Caddy
+        run: |
+          pnpm --filter @kchs/api dmz:gen --check
+          docker run --rm -v "$PWD/infra/compose/caddy:/etc/caddy:ro" \
+            -e KCHS_DMZ_UPSTREAM=http://kchs.internal caddy:2-alpine \
+            caddy validate --config /etc/caddy/dmz.Caddyfile --adapter caddyfile
+          docker run --rm -v "$PWD/infra/compose/caddy:/etc/caddy:ro" caddy:2-alpine \
+            caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+
       - name: Логи при сбое
         if: failure()
         run: docker compose logs --tail=200

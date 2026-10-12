@@ -1,0 +1,94 @@
+# Шлюз DMZ (ADR-0200): единственная точка входа из интернета во внутренний контур.
+# Хост публичного сегмента, compose-файл — infra/compose/dmz.yml.
+#
+# Снаружи открыты только маршруты белого списка (dmz-routes.caddy — генерируется из
+# таблицы маршрутов: pnpm --filter @kchs/api dmz:gen):
+#   - без входа — входящие вебхуки и другие маршруты с exposure: 'public';
+#   - по токену публичного API (Authorization: Bearer kchs_…) — маршруты с областью
+#     токена (ADR-0097).
+# Вход, сессии, администрирование, realtime, /collab, редактор, страницы печати и
+# служебные маршруты движка снаружи не существуют. Cookie, CSRF, замещение и
+# гостевые ссылки срезаются: снаружи работает только токен. Запрос помечается
+# заголовком X-Kchs-Zone: dmz — api по нему ещё раз проверяет, что маршрут открыт
+# снаружи (второй рубеж). Частоту запросов ограничивает сам api: лимиты по токену и
+# по адресу (ADR-0097); WAF — следующим шагом (ADR-0200, «Последствия»).
+{
+	admin off
+	email {$CADDY_EMAIL:admin@example.org}
+}
+
+# Проверка живости контейнера: отдельный порт без TLS, наружу не публикуется
+:2020 {
+	respond /healthz "ok" 200
+}
+
+# Куда шлюз передаёт запрос: адрес установки во внутреннем контуре. Host — адрес
+# установки, а не шлюза: Caddy установки обслуживает свой домен. Пометка зоны
+# ставится поверх присланной клиентом, Set-Cookie обратно не уходит.
+(kchs_dmz_upstream) {
+	reverse_proxy {$KCHS_DMZ_UPSTREAM:http://kchs.internal} {
+		header_up Host {upstream_hostport}
+		header_up X-Kchs-Zone dmz
+		header_down -Set-Cookie
+		# Свой центр сертификации внутреннего контура и прочие настройки транспорта —
+		# файлами в каталоге dmz-upstream (например, transport http { tls_trust_pool … })
+		import /etc/caddy/upstream/*.caddy
+	}
+}
+
+{$KCHS_DMZ_DOMAIN:localhost} {
+	encode zstd gzip
+
+	import /etc/caddy/dmz-routes.caddy
+
+	# Тело запроса — с потолком: импорт строк и вебхуки укладываются, поток — нет
+	request_body {
+		max_size {$KCHS_DMZ_MAX_BODY:20MB}
+	}
+
+	# Снаружи — только токен API: сессия, CSRF, замещение, гостевая ссылка, токен
+	# задания движка и служебная печать снаружи не принимаются
+	request_header -Cookie
+	request_header -X-Csrf-Token
+	request_header -X-Kchs-On-Behalf-Of
+	request_header -X-Kchs-Share-Token
+	request_header -X-Kchs-Job-Token
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		-Server
+	}
+
+	# Закрытый маршрут, который заслоняет открытый шаблон пути, — раньше остальных
+	handle @kchs_dmz_closed {
+		respond "Не найдено" 404
+	}
+
+	handle @kchs_dmz_public {
+		import kchs_dmz_upstream
+	}
+
+	handle @kchs_dmz_token {
+		@anonymous not header_regexp bearer Authorization (?i)^Bearer\s+\S+$
+		respond @anonymous "Нужен токен API" 401
+		import kchs_dmz_upstream
+	}
+
+	handle {
+		respond "Не найдено" 404
+	}
+
+	# Журнал обращений: учётные данные Caddy не пишет (Authorization и Cookie
+	# скрыты), секрет входящего вебхука в пути заменяется звёздочками (ADR-0122)
+	log {
+		output stdout
+		format filter {
+			wrap json
+			fields {
+				request>uri regexp ^(/api/v1/hooks/(?:rules/)?[^/]+/)[^/?]+ ${1}***
+			}
+		}
+	}
+}

@@ -80,7 +80,9 @@ export const automationRoutes = defineRoutes({
   'GET /automation/manual-rules': { query: ManualRulesQuery, response: { 200: ManualRuleList } },
   'GET /automation/templates': { response: { 200: RuleTemplateList } },
   'GET /automation/catalog': { response: { 200: RuleCatalog } },
+  // Вебхук-вход правила: система партнёра вызывает его из интернета (ADR-0200)
   'POST /hooks/rules/:id/:token': {
+    exposure: 'public',
     params: z.object({ id: z.uuid(), token: z.string().min(16).max(64) }),
     body: z.record(z.string(), z.unknown()).optional(),
     response: { 200: Ok },

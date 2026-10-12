@@ -15,6 +15,7 @@
         "src/main.ts",
         "src/cli/kchs.ts",
         "src/openapi-cli.ts",
+        "src/dmz-cli.ts",
         "src/seed/cli.ts",
         "src/shared/db/migrate-cli.ts",
         "src/cli/db-reset.ts",

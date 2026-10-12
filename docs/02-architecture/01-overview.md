@@ -56,6 +56,7 @@ flowchart LR
 | `proxy` | Caddy (или nginx) | TLS, маршрутизация, сжатие, статика |
 | `observability` | Prometheus, Grafana, Loki, Tempo | Метрики, логи, трассы |
 | `onlyoffice` (опц.) | ONLYOFFICE Document Server | Совместное редактирование офисных файлов |
+| `gateway` (хост DMZ) | Caddy, `infra/compose/dmz.yml` | Вход партнёров из интернета: белый список маршрутов API (вебхуки, API по токену), без сессий и cookie; внутренний контур закрыт (ADR-0200) |
 
 Один сервер (S1) поднимает всё через `docker compose`. В S2 контейнеры `api`, `worker`, `engine` масштабируются горизонтально; данные — по стандартным схемам (реплики, распределённый MinIO). Подробности: `15-admin-operations.md`.
 
