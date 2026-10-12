@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { UserRef } from '../auth/session.js'
 import { Timestamp, Uuid } from '../common/primitives.js'
 
 /**
@@ -56,7 +57,7 @@ export const DeviceRecord = z.object({
    * сотрудник с телефоном группы. Ему достаточно этого — других прав на объекты
    * пространства ему не нужно (ADR-0203).
    */
-  reporterId: Uuid.nullable(),
+  reporter: UserRef.nullable(),
   note: z.string().nullable(),
   /** Выключенное устройство позиции не принимает. */
   active: z.boolean(),

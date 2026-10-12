@@ -42,6 +42,7 @@ export const MODULE_LOADERS: Record<Locale, Record<ModuleNamespace, Loader>> = {
     automation: () => import('./locales/ru/automation.js').then((module) => module.automation),
     forms: () => import('./locales/ru/forms.js').then((module) => module.forms),
     alerts: () => import('./locales/ru/alerts.js').then((module) => module.alerts),
+    positions: () => import('./locales/ru/positions.js').then((module) => module.positions),
     schedules: () => import('./locales/ru/schedules.js').then((module) => module.schedules),
   },
   tg: {
@@ -67,6 +68,7 @@ export const MODULE_LOADERS: Record<Locale, Record<ModuleNamespace, Loader>> = {
     automation: () => import('./locales/tg/automation.js').then((module) => module.automation),
     forms: () => import('./locales/tg/forms.js').then((module) => module.forms),
     alerts: () => import('./locales/tg/alerts.js').then((module) => module.alerts),
+    positions: () => import('./locales/tg/positions.js').then((module) => module.positions),
     schedules: () => import('./locales/tg/schedules.js').then((module) => module.schedules),
   },
   en: {
@@ -92,6 +94,7 @@ export const MODULE_LOADERS: Record<Locale, Record<ModuleNamespace, Loader>> = {
     automation: () => import('./locales/en/automation.js').then((module) => module.automation),
     forms: () => import('./locales/en/forms.js').then((module) => module.forms),
     alerts: () => import('./locales/en/alerts.js').then((module) => module.alerts),
+    positions: () => import('./locales/en/positions.js').then((module) => module.positions),
     schedules: () => import('./locales/en/schedules.js').then((module) => module.schedules),
   },
 }

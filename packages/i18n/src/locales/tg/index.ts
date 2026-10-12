@@ -24,6 +24,7 @@ import { knowledge } from './knowledge.js'
 import { meetings } from './meetings.js'
 import { notifications } from './notifications.js'
 import { objects } from './objects.js'
+import { positions } from './positions.js'
 import { processDesigner } from './processDesigner.js'
 import { processes } from './processes.js'
 import { profile } from './profile.js'
@@ -77,6 +78,7 @@ export const tg: DeepPartial<Dictionary> = {
   automation,
   forms,
   alerts,
+  positions,
   schedules,
   errors,
 }

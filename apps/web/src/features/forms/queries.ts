@@ -4,11 +4,13 @@ import type {
   FormReviewInput,
   FormSubject,
   FormSubmissionSaveInput,
+  FormSubmissionSubmitInput,
   FormUpdateInput,
 } from '@kchs/contracts'
 import { queryOptions } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
 import type { ApiQuery } from '~/shared/api/route-types.js'
+import { cachedFetch } from '~/shared/offline/queue.js'
 
 /** Запросы форм сбора данных (06-analytics-engine.md §13, ADR-0103). */
 export const formKeys = {
@@ -30,7 +32,8 @@ export const formsQuery = (query: ApiQuery<'GET /forms'> = {}) =>
 export const formDutiesQuery = () =>
   queryOptions({
     queryKey: formKeys.duties(),
-    queryFn: () => http.get('/forms/duties'),
+    // Назначения нужны и без сети: сводку заполняют там, где связь пропадает (ADR-0204)
+    queryFn: () => cachedFetch('forms.duties', () => http.get('/forms/duties')),
   })
 
 export const formQuery = (id: string) =>
@@ -43,7 +46,8 @@ export const formQuery = (id: string) =>
 export const formSchemaQuery = (id: string) =>
   queryOptions({
     queryKey: formKeys.schema(id),
-    queryFn: () => http.get('/forms/:id/schema', { params: { id } }),
+    queryFn: () =>
+      cachedFetch(`forms.schema:${id}`, () => http.get('/forms/:id/schema', { params: { id } })),
     enabled: id.length > 0,
   })
 
@@ -75,7 +79,8 @@ export const formsApi = {
   /** Черновик: у одиночной формы — значения, у табличной — строки (ADR-0129). */
   save: (sid: string, input: FormSubmissionSaveInput) =>
     http.put('/forms/submissions/:sid', { params: { sid }, body: input }),
-  submit: (sid: string, input: FormSubmissionSaveInput) =>
+  /** Сдача с ключом идемпотентности: повтор из очереди не сдаёт второй раз (ADR-0204). */
+  submit: (sid: string, input: FormSubmissionSubmitInput) =>
     http.post('/forms/submissions/:sid/submit', { params: { sid }, body: input }),
   review: (sid: string, input: FormReviewInput) =>
     http.post('/forms/submissions/:sid/review', { params: { sid }, body: input }),

@@ -27,8 +27,16 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ClipboardPen, Plus, Save } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { ApiError } from '~/shared/api/client.js'
+import { meQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
+import {
+  discardOfflineEntry,
+  enqueueFormSubmit,
+  isRetryable,
+  onOfflineSent,
+  useOfflineQueue,
+} from '~/shared/offline/queue.js'
 import { useFieldControls } from '../data/field-controls.js'
 import { type CellErrors, type TableRow, validateRows, withNewRow } from './form-table.js'
 import { FormTableEditor } from './form-table-editor.js'
@@ -51,6 +59,8 @@ export function FormFillTab({ form }: { form: FormRecord }) {
 
   const { data: duties, isLoading } = useQuery(formDutiesQuery())
   const { data: schema } = useQuery(formSchemaQuery(form.id))
+  const { data: me } = useQuery(meQuery())
+  const queue = useOfflineQueue()
   const [periodKey, setPeriodKey] = useState('')
   const [submission, setSubmission] = useState<FormSubmission | null>(null)
   const [values, setValues] = useState<Record<string, unknown>>({})
@@ -102,18 +112,51 @@ export function FormFillTab({ form }: { form: FormRecord }) {
       toast.error(error instanceof ApiError ? error.message : t('errors.unknown')),
   })
 
+  // Без сети сдача уходит в очередь устройства и досылается сама (ADR-0204): ключ
+  // идемпотентности даёт повторять её, не сдавая сводку дважды
   const submit = useMutation({
-    mutationFn: (body: { values: Record<string, unknown>; rows?: TableRow[] }) =>
-      formsApi.submit(submission?.id ?? '', body),
-    onSuccess: async (next) => {
-      setSubmission(next)
+    mutationFn: async (body: { values: Record<string, unknown>; rows?: TableRow[] }) => {
+      const input = { ...body, clientKey: crypto.randomUUID() }
+      try {
+        return { queued: false as const, next: await formsApi.submit(submission?.id ?? '', input) }
+      } catch (error) {
+        if (!isRetryable(error) || !submission || !me) throw error
+        await enqueueFormSubmit({
+          userId: me.user.id,
+          submissionId: submission.id,
+          formId: form.id,
+          body: input,
+        })
+        return { queued: true as const }
+      }
+    },
+    onSuccess: async (outcome) => {
       setConfirmEmpty(false)
+      if (outcome.queued) {
+        toast.show({ title: t('forms.offline.queued') })
+        return
+      }
+      setSubmission(outcome.next)
       toast.success(t('forms.fill.submitted'))
       await client.invalidateQueries({ queryKey: formKeys.all })
     },
     onError: (error) =>
       toast.error(error instanceof ApiError ? error.message : t('errors.unknown')),
   })
+
+  // Отправка из очереди дошла: открытая сводка показывает, что сдана
+  const openId = submission?.id
+  useEffect(
+    () =>
+      onOfflineSent((entry, result) => {
+        if (entry.formId !== form.id) return
+        if (entry.submissionId === openId) setSubmission(result)
+        toast.success(t('forms.offline.sent'))
+        void client.invalidateQueries({ queryKey: formKeys.all })
+      }),
+    [client, form.id, openId, t, toast],
+  )
+  const queued = submission ? queue.find((entry) => entry.submissionId === submission.id) : null
 
   const review = useMutation({
     mutationFn: (decision: 'accept' | 'return') =>
@@ -218,6 +261,27 @@ export function FormFillTab({ form }: { form: FormRecord }) {
         />
       ) : (
         <>
+          {queued ? (
+            <Callout
+              tone={queued.state === 'failed' ? 'danger' : 'info'}
+              title={t('forms.offline.pending')}
+              action={
+                queued.state === 'failed' ? (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => void discardOfflineEntry(queued.id)}
+                  >
+                    {t('forms.offline.discard')}
+                  </Button>
+                ) : undefined
+              }
+            >
+              {queued.state === 'failed'
+                ? t('forms.offline.failed', { error: queued.error ?? '' })
+                : t('forms.offline.queued')}
+            </Callout>
+          ) : null}
           {submission.status === 'returned' && submission.comment ? (
             <Callout tone="warning" title={t('forms.fill.returned')}>
               {submission.comment}

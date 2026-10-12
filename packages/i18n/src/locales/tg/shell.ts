@@ -120,6 +120,10 @@ export const shell: DeepPartial<Dictionary['shell']> = {
     acting: 'Шумо ҷойгузин ҳастед: {name}',
     shortcuts: 'Тугмаҳои тез',
     version: 'Версияи платформа',
+    offlineQueue:
+      '{count, plural, one {# ирсол шабакаро интизор аст} other {# ирсол шабакаро интизор аст}}',
+    offlineQueueHint:
+      'Шабака нест: ирсолҳо дар ҳамин дастгоҳ нигоҳ дошта шудаанд ва ҳангоми пайдо шудани алоқа худ мераванд',
   },
   palette: {
     placeholder: 'Ҷустуҷӯи объектҳо ва фармонҳо…',
@@ -182,5 +186,6 @@ export const shell: DeepPartial<Dictionary['shell']> = {
     processDesigner: 'Созандаи масир',
     ruleDesigner: 'Қоидаҳои худкорсозӣ',
     territories: 'Ҳудудҳо',
+    devices: 'Дастгоҳҳои пайгирӣ',
   },
 }

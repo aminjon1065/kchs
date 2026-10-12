@@ -9,6 +9,7 @@ import type {
   DeviceTrackQuery,
   DeviceUpdateInput,
   PositionFix,
+  UserRef,
 } from '@kchs/contracts'
 import { and, desc, eq, gte, ilike, isNull, lte, or, type SQL, sql } from 'drizzle-orm'
 import { authorize, visibleObjectsSql } from '~/kernel/access/authorize.js'
@@ -72,10 +73,10 @@ async function toRecord(
   ctx: UserCtx,
   row: Row,
   staleMinutes: number,
-  canEdit?: boolean,
+  people: ReadonlyMap<string, UserRef>,
 ): Promise<DeviceRecord> {
   const [edit, report] = await Promise.all([
-    canEdit ?? authorize(ctx, 'edit', row.id, { soft: true }).then((d) => d.allowed),
+    authorize(ctx, 'edit', row.id, { soft: true }).then((d) => d.allowed),
     authorize(ctx, 'report', row.id, { soft: true }).then((d) => d.allowed),
   ])
   return {
@@ -86,7 +87,7 @@ async function toRecord(
     kind: row.kind as DeviceKind,
     forcesCode: row.forcesCode,
     unitId: row.unitId,
-    reporterId: row.reporterId,
+    reporter: row.reporterId ? (people.get(row.reporterId) ?? null) : null,
     note: row.note,
     active: row.active,
     last: lastFix(row),
@@ -226,8 +227,11 @@ export const DeviceService = {
     await authorize(ctx, 'view', id)
     const row = await load(db(), id)
     if (!row) throw errors.notFound('Устройство')
-    const settings = await PositionsSettingsService.current()
-    return toRecord(ctx, row, settings.staleMinutes)
+    const [settings, people] = await Promise.all([
+      PositionsSettingsService.current(),
+      directory().refs(row.reporterId ? [row.reporterId] : []),
+    ])
+    return toRecord(ctx, row, settings.staleMinutes, people)
   },
 
   async list(ctx: UserCtx, query: DeviceListQuery): Promise<DeviceList> {
@@ -244,9 +248,16 @@ export const DeviceService = {
       .where(and(...conditions))
       .orderBy(objects.title)
       .limit(query.limit)) as Row[]
-    const settings = await PositionsSettingsService.current()
+    const [settings, people] = await Promise.all([
+      PositionsSettingsService.current(),
+      directory().refs([
+        ...new Set(rows.map((row) => row.reporterId).filter((id): id is string => !!id)),
+      ]),
+    ])
     return {
-      items: await Promise.all(rows.map((row) => toRecord(ctx, row, settings.staleMinutes))),
+      items: await Promise.all(
+        rows.map((row) => toRecord(ctx, row, settings.staleMinutes, people)),
+      ),
       staleMinutes: settings.staleMinutes,
     }
   },

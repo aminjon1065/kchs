@@ -53,6 +53,8 @@ export const schedules: DeepPartial<Dictionary['schedules']> = {
     identityPrune: 'Sign-in: prune expired sessions and abandoned sign-in attempts',
     directorySync: 'Directory: account synchronisation',
     alertsCheck: 'Alerts: check metrics',
+    positionsProject: 'Location: last fixes to the map layer',
+    positionsPartitions: 'Location: fix log partitions',
     alertsPrune: 'Alerts: prune firing history',
     eventsPruneConsumptions: 'Events: prune processing marks',
     eventsTrim: 'Events: trim streams to the slowest group',
