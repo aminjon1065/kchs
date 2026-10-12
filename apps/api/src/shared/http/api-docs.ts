@@ -49,6 +49,10 @@ export const OPENAPI_TAGS = [
   { name: 'automation', description: 'Правила автоматизации и расписания' },
   { name: 'forms', description: 'Формы сбора данных: заполнение и контроль сдачи' },
   { name: 'alerts', description: 'Алерты на показатели: условия, проверка, история' },
+  {
+    name: 'positions',
+    description: 'Местоположение техники и групп: устройства слежения, приём координат, трек',
+  },
   { name: 'admin', description: 'Администрирование: аудит, здоровье, токены, конфигурация' },
   {
     name: 'internal',

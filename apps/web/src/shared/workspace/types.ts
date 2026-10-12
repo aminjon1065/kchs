@@ -40,6 +40,8 @@ export type ScreenKey =
   | 'office-editor'
   /** Пайплайны преобразований (ADR-0106). */
   | 'pipelines'
+  /** Устройства слежения сил и средств (ADR-0203). */
+  | 'devices'
 
 export interface TabState {
   id: string

@@ -63,6 +63,8 @@ export const schedules: DeepPartial<Dictionary['schedules']> = {
     identityPrune: 'Воридшавӣ: тоза кардани сеансҳои мӯҳлатгузашта ва кӯшишҳои нотамоми воридшавӣ',
     directorySync: 'Каталог: ҳамоҳангсозии ҳисобҳо',
     alertsCheck: 'Огоҳиҳо: санҷиши нишондиҳандаҳо',
+    positionsProject: 'Ҷойгиршавӣ: нуқтаҳои охирин дар қабати харита',
+    positionsPartitions: 'Ҷойгиршавӣ: қисмҳои маҷаллаи нуқтаҳо',
     alertsPrune: 'Огоҳиҳо: тоза кардани таърихи фаъолшавиҳо',
     eventsPruneConsumptions: 'Рӯйдодҳо: тоза кардани нишонаҳои коркард',
     eventsTrim: 'Рӯйдодҳо: кӯтоҳ кардани ҷараёнҳо аз рӯи гурӯҳи ақибмонда',

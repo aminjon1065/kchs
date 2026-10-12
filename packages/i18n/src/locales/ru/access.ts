@@ -91,6 +91,7 @@ export const access = {
     denied: 'Доступ не предоставлен',
     process_step: 'Участник маршрута',
     form_assignee: 'Назначенный по форме сбора',
+    device_reporter: 'Передаёт координаты устройства',
     form_reviewer: 'Ответственный за приёмку сводок',
   },
   picker: {

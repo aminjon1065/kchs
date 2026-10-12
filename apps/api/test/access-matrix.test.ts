@@ -416,6 +416,28 @@ const FIXTURES: Record<string, TypeFixture> = {
     ],
   },
 
+  device: {
+    create: async (fx, title) => {
+      const response = await call(fx.app, {
+        method: 'POST',
+        url: '/positions/devices',
+        as: fx.admin,
+        payload: {
+          name: title,
+          spaceId: fx.spaceId,
+          externalId: `MATRIX-${run}-${Math.random().toString(36).slice(2, 8)}`,
+          kind: 'vehicle',
+        },
+      })
+      expect(response.statusCode, response.body).toBe(200)
+      return { id: response.json().id, title }
+    },
+    readPaths: ['/positions/devices/:id', '/positions/devices/:id/track'],
+    viewerForbidden: (_fx, id) => [
+      { method: 'PATCH', url: `/positions/devices/${id}`, payload: { name: 'Чужая правка' } },
+    ],
+  },
+
   dashboard: {
     create: async (fx, title) => {
       const response = await call(fx.app, {

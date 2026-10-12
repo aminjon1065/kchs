@@ -467,6 +467,47 @@ export const PACK_DATASETS: readonly PackDataset[] = [
     territoryField: 'territory',
   },
   {
+    // Последнее местоположение устройств слежения (ADR-0203): строки ведёт модуль
+    // местоположения проекцией раз в минуту, а не люди; «Силы и средства» — по коду
+    key: 'forces_live',
+    space: 'pack',
+    name: 'Техника и группы на карте',
+    description:
+      'Последнее местоположение техники и оперативных групп по устройствам слежения: строку ведёт модуль местоположения, вручную её не правят.',
+    kind: 'table',
+    fields: [
+      field('code', 'Номер устройства', 'Device number', 'identifier', 'identifier', {
+        required: true,
+      }),
+      field('name', 'Наименование', 'Name', 'text', 'dimension'),
+      field('kind', 'Вид', 'Kind', 'select', 'category', {
+        options: options([
+          ['vehicle', 'Техника'],
+          ['team', 'Оперативная группа'],
+          ['aircraft', 'Воздушное судно'],
+          ['boat', 'Плавсредство'],
+          ['person', 'Сотрудник'],
+          ['other', 'Другое'],
+        ]),
+      }),
+      field('forces_code', 'Силы и средства', 'Forces', 'text', 'dimension'),
+      field('unit', 'Подразделение', 'Unit', 'unit', 'dimension'),
+      field('seen_at', 'На связи', 'Last seen', 'datetime', 'time', { format: DATETIME }),
+      field('speed', 'Скорость, км/ч', 'Speed, km/h', 'number', 'measure'),
+      field('battery', 'Заряд, %', 'Battery, %', 'number', 'measure'),
+      field('link', 'Связь', 'Link', 'select', 'category', {
+        options: options([
+          ['online', 'На связи', 'success'],
+          ['stale', 'Нет связи', 'warning'],
+          ['never', 'Не выходило', 'neutral'],
+        ]),
+      }),
+      POINT,
+    ],
+    primaryKey: ['code'],
+    lookups: [{ field: 'forces_code', dataset: 'forces', keyField: 'code', labelField: 'name' }],
+  },
+  {
     key: 'warnings_log',
     space: 'pack',
     name: 'Журнал оповещения населения',

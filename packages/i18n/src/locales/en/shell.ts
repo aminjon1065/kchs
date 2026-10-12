@@ -119,6 +119,10 @@ export const shell: DeepPartial<Dictionary['shell']> = {
     acting: 'Acting for: {name}',
     shortcuts: 'Keyboard shortcuts',
     version: 'Platform version',
+    offlineQueue:
+      '{count, plural, one {# submission waits for the network} other {# submissions wait for the network}}',
+    offlineQueueHint:
+      'No network: submissions are kept on this device and will be sent automatically once the connection is back',
   },
   palette: {
     placeholder: 'Search objects and commands…',
@@ -173,5 +177,6 @@ export const shell: DeepPartial<Dictionary['shell']> = {
     processDesigner: 'Route designer',
     ruleDesigner: 'Automation rules',
     territories: 'Territories',
+    devices: 'Tracking devices',
   },
 }

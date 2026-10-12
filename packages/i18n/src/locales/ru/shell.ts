@@ -116,6 +116,10 @@ export const shell = {
     acting: 'Вы замещаете: {name}',
     shortcuts: 'Горячие клавиши',
     version: 'Версия платформы',
+    offlineQueue:
+      '{count, plural, one {# отправка ждёт сети} few {# отправки ждут сети} many {# отправок ждут сети} other {# отправки ждут сети}}',
+    offlineQueueHint:
+      'Нет сети: отправки сохранены на этом устройстве и уйдут сами, когда появится связь',
   },
   palette: {
     placeholder: 'Поиск объектов и команд…',
@@ -172,5 +176,6 @@ export const shell = {
     processDesigner: 'Конструктор маршрута',
     ruleDesigner: 'Правила автоматизации',
     territories: 'Территории',
+    devices: 'Устройства слежения',
   },
 } as const

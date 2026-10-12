@@ -1,8 +1,9 @@
 import { Badge, cn, ProgressBar, Tooltip } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
-import { Activity, CircleDot, Keyboard, UserCog, Wifi, WifiOff } from 'lucide-react'
+import { Activity, CircleDot, CloudUpload, Keyboard, UserCog, Wifi, WifiOff } from 'lucide-react'
 import { jobsQuery, meQuery } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
+import { useOfflineQueue } from '~/shared/offline/queue.js'
 import { useRealtimeStatus } from '~/shared/realtime/client.js'
 
 export function StatusBar({ onShowShortcuts }: { onShowShortcuts: () => void }) {
@@ -13,6 +14,7 @@ export function StatusBar({ onShowShortcuts }: { onShowShortcuts: () => void }) 
 
   const running = (jobs ?? []).filter((job) => job.status === 'running' || job.status === 'queued')
   const acting = me?.actingFor?.[0]
+  const waiting = useOfflineQueue().filter((entry) => entry.state === 'pending').length
 
   return (
     <footer className="flex h-(--statusbar-h) shrink-0 items-center gap-3 border-t border-line bg-surface-2 px-3 text-2xs text-fg-muted">
@@ -41,6 +43,15 @@ export function StatusBar({ onShowShortcuts }: { onShowShortcuts: () => void }) 
             label={running[0]?.name}
           />
         </span>
+      ) : null}
+
+      {waiting > 0 ? (
+        <Tooltip content={t('shell.status.offlineQueueHint')}>
+          <span className="flex items-center gap-1.5 text-warning">
+            <CloudUpload className="size-3" aria-hidden />
+            {t('shell.status.offlineQueue', { count: waiting })}
+          </span>
+        </Tooltip>
       ) : null}
 
       {acting ? (

@@ -1,5 +1,6 @@
 import { grantAccess } from '~/kernel/access/acl-service.js'
 import { bumpPrincipalsVersion } from '~/kernel/access/principal-set.js'
+import { PositionsSetup } from '~/modules/positions/public.js'
 import { db } from '~/shared/db/client.js'
 import { logger } from '~/shared/logger/index.js'
 import { ensureAutomation } from './automation.js'
@@ -68,6 +69,10 @@ export async function installEmergencyPack(
   const pack: PackContext = { ...base, spaceId: structure.spaceId }
 
   const datasets = await ensureDatasets(pack)
+  // Последние позиции устройств слежения — в слой «Техника и группы» (ADR-0203),
+  // если администратор не выбрал другой датасет проекции
+  const live = datasets.get('forces_live')
+  if (live) await db().transaction((tx) => PositionsSetup.ensureProjection(tx, pack.ctx, live))
   const kinds = await ensureIncidentKinds(pack, datasets.get('incident_types') as string)
   if (kinds > 0) log.info({ kinds }, 'справочник видов происшествий заполнен')
   await grantGroups(pack, datasets, structure.groupIds)

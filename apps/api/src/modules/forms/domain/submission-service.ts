@@ -4,6 +4,7 @@ import type {
   FormSubmission,
   FormSubmissionSaveInput,
   FormSubmissionStatus,
+  FormSubmissionSubmitInput,
 } from '@kchs/contracts'
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
@@ -52,6 +53,8 @@ export interface SubmissionRow {
   reviewerId: string | null
   reviewedAt: string | null
   comment: string | null
+  /** Ключ идемпотентности последней сдачи устройством (ADR-0204). */
+  submitKey: string | null
   updatedAt: string
 }
 
@@ -309,7 +312,7 @@ export const SubmissionService = {
   async submit(
     ctx: UserCtx,
     submissionId: string,
-    input: FormSubmissionSaveInput,
+    input: FormSubmissionSubmitInput,
   ): Promise<FormSubmission> {
     const current = await loadSubmission(db(), submissionId)
     await authorize(ctx, 'view', current.formId)
@@ -317,6 +320,12 @@ export const SubmissionService = {
     const subject = { kind: current.subjectKind, id: current.subjectId } as FormSubject
     if (!maySubmit(ctx, form, subject)) {
       throw errors.forbidden('Сдавать сводку может только назначенный')
+    }
+    // Повтор сдачи с тем же ключом устройства (очередь без сети, ADR-0204): ответ на
+    // первую сдачу не дошёл, а сама она записана — вернуть её, а не сдавать снова.
+    // В любом статусе: сводку могли уже вернуть, и старый повтор не должен её пересдать
+    if (input.clientKey && current.submitKey === input.clientKey) {
+      return SubmissionService.get(ctx, submissionId)
     }
     if (!OPEN_STATUSES.includes(current.status as FormSubmissionStatus)) {
       throw errors.conflict('Сводка уже сдана')
@@ -347,10 +356,13 @@ export const SubmissionService = {
           status: formSubmissions.status,
           rowId: formSubmissions.rowId,
           rowIds: formSubmissions.rowIds,
+          submitKey: formSubmissions.submitKey,
         })
         .from(formSubmissions)
         .where(eq(formSubmissions.id, submissionId))
         .for('update')
+      // Тот же ключ успел сдать параллельный запрос (две вкладки досылают очередь)
+      if (locked && input.clientKey && locked.submitKey === input.clientKey) return
       if (!locked || !OPEN_STATUSES.includes(locked.status as FormSubmissionStatus)) {
         throw errors.conflict('Сводка уже сдана')
       }
@@ -394,6 +406,7 @@ export const SubmissionService = {
           status: review ? 'submitted' : 'accepted',
           authorId: ctx.userId,
           submittedAt: sql`now()`,
+          submitKey: input.clientKey ?? null,
           ...(review ? {} : { reviewedAt: sql`now()`, reviewerId: null }),
           comment: null,
           updatedAt: sql`now()`,

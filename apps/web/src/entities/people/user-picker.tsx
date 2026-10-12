@@ -90,16 +90,21 @@ export function UserPicker({
   value,
   onChange,
   label,
+  serviceAccounts = false,
 }: {
   value: PickedUser | null
   onChange: (user: PickedUser | null) => void
   label: string
+  /** Искать и служебные учётные записи (поставщик координат устройства, ADR-0203). */
+  serviceAccounts?: boolean
 }) {
   const t = useT()
   const listId = useId()
   const [search, setSearch] = useState('')
   const query = useDebouncedValue(search.trim(), 200)
-  const { data: found = [], isFetching } = useQuery(principalsQuery(query, 'user'))
+  const { data: found = [], isFetching } = useQuery(
+    principalsQuery(query, 'user', { serviceAccounts }),
+  )
 
   if (value) {
     return (

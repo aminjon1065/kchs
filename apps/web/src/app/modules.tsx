@@ -225,6 +225,17 @@ const AlertsScreen = lazy(() =>
 const AlertView = lazy(() =>
   import('~/features/alerts/alert-view.js').then((module) => ({ default: module.AlertView })),
 )
+/** Устройства слежения (ADR-0203) — отдельным чанком. */
+const DevicesScreen = lazy(() =>
+  import('~/features/positions/devices-screen.js').then((module) => ({
+    default: module.DevicesScreen,
+  })),
+)
+const DeviceView = lazy(() =>
+  import('~/features/positions/device-view.js').then((module) => ({
+    default: module.DeviceView,
+  })),
+)
 
 /** Заглушка ленивого экрана: та же, что у конструкторов. */
 function LazyFallback() {
@@ -865,6 +876,33 @@ export function registerModules(): void {
         render: (tab) => (
           <Suspense fallback={<LazyFallback />}>
             <AlertView objectId={tab.objectId!} />
+          </Suspense>
+        ),
+      },
+    ],
+  })
+
+  registerModule({
+    key: 'positions',
+    namespaces: ['positions', 'tasks'],
+    screens: [
+      {
+        key: 'devices',
+        titleKey: 'shell.screens.devices',
+        icon: 'device',
+        render: () => (
+          <Suspense fallback={<LazyFallback />}>
+            <DevicesScreen />
+          </Suspense>
+        ),
+      },
+    ],
+    objectViews: [
+      {
+        type: 'device',
+        render: (tab) => (
+          <Suspense fallback={<LazyFallback />}>
+            <DeviceView objectId={tab.objectId!} />
           </Suspense>
         ),
       },

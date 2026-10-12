@@ -96,6 +96,7 @@ export const access: DeepPartial<Dictionary['access']> = {
     denied: 'Дастрасӣ дода нашудааст',
     process_step: 'Иштирокчии масир',
     form_assignee: 'Таъиншуда аз рӯи шакли ҷамъоварӣ',
+    device_reporter: 'Координатаҳои дастгоҳро мефиристад',
     form_reviewer: 'Масъули қабули гузоришҳо',
   },
   picker: {

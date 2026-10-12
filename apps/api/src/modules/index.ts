@@ -99,6 +99,12 @@ import {
   registerMeetingsObjectTypes,
   registerMeetingsRoutes,
 } from './meetings/module.js'
+import {
+  declarePositionsSchedules,
+  registerPositionRoutes,
+  registerPositionsBackground,
+  registerPositionsObjectTypes,
+} from './positions/module.js'
 import { registerPushChannel, registerPushRoutes } from './push/module.js'
 import {
   registerReportsBackground,
@@ -165,6 +171,8 @@ export function registerAllObjectTypes(): void {
   // Формы сбора данных (ADR-0103) и алерты на показатели (ADR-0104)
   registerFormObjectTypes()
   registerAlertObjectTypes()
+  // Устройства слежения и их позиции (ADR-0203)
+  registerPositionsObjectTypes()
   registerMailFeature()
   registerDirectory()
   // Каналы уведомлений модулей: ядро доставляет через них в любой роли процесса
@@ -219,6 +227,7 @@ export async function registerModules(app: FastifyInstance, route: RouteRegistra
   registerAutomationRoutes(route)
   registerFormRoutes(route)
   registerAlertRoutes(route)
+  registerPositionRoutes(route)
   registerAdminRoutes(route)
   // Страницы модулей вне контракта API: редактор офисных файлов (ADR-0112)
   registerFilesPages(app)
@@ -243,6 +252,7 @@ export function registerModulesBackground(): void {
   registerAutomationBackground()
   registerFormsBackground()
   registerAlertsBackground()
+  registerPositionsBackground()
 }
 
 /**
@@ -263,6 +273,7 @@ export function declareModuleSchedules(): void {
   declareMeetingsSchedules()
   declareAlertSchedules()
   declareDataSchedules()
+  declarePositionsSchedules()
 }
 
 /** Работа модулей при старте worker: синхронизация расписаний сущностей, служебные записи. */

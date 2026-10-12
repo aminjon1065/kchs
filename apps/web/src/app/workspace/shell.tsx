@@ -5,6 +5,7 @@ import { Fragment, useEffect, useRef, useState } from 'react'
 import { http } from '~/shared/api/client.js'
 import { keys, meQuery } from '~/shared/api/queries.js'
 import { t as translate, useT } from '~/shared/i18n.js'
+import { startOfflineQueue } from '~/shared/offline/queue.js'
 import { registerServiceWorker } from '~/shared/push/client.js'
 import {
   connectRealtime,
@@ -51,7 +52,12 @@ export function WorkspaceShell() {
   const setNavigatorModule = useWorkspace((s) => s.setNavigatorModule)
   const restore = useWorkspace((s) => s.restore)
 
-  useQuery(meQuery())
+  const { data: me } = useQuery(meQuery())
+  const userId = me?.user.id
+
+  // Офлайн-очередь отправок (ADR-0204): досылается при входе, при появлении сети и
+  // по таймеру, пока в ней что-то есть
+  useEffect(() => (userId ? startOfflineQueue(userId) : undefined), [userId])
 
   // Восстановление рабочего контекста с сервера («Продолжить»), затем — вкладка
   // по адресу, с которым пришёл пользователь (ссылка из уведомления, письма, поиска)

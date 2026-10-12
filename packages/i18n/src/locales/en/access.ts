@@ -94,6 +94,7 @@ export const access: DeepPartial<Dictionary['access']> = {
     denied: 'Access not granted',
     process_step: 'Route participant',
     form_assignee: 'Assigned on the data form',
+    device_reporter: 'Sends positions of the device',
     form_reviewer: 'Reviews form submissions',
   },
   picker: {

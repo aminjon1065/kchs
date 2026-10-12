@@ -274,6 +274,16 @@ export const FormSubmissionSaveInput = z.object({
 })
 export type FormSubmissionSaveInput = z.infer<typeof FormSubmissionSaveInput>
 
+/**
+ * Сдача (ADR-0204): `clientKey` — ключ идемпотентности, который выдаёт устройство.
+ * Сдача из очереди без сети повторяется, пока не дойдёт ответ, и повтор с тем же
+ * ключом после успешной сдачи возвращает её, а не «сводка уже сдана».
+ */
+export const FormSubmissionSubmitInput = FormSubmissionSaveInput.extend({
+  clientKey: z.uuid().optional(),
+})
+export type FormSubmissionSubmitInput = z.infer<typeof FormSubmissionSubmitInput>
+
 export const FormReviewInput = z.object({
   decision: z.enum(['accept', 'return']),
   comment: z.string().trim().max(2000).nullish(),

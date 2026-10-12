@@ -60,6 +60,8 @@ export const OBJECT_TYPES = [
   'rule',
   'integration',
   'webhook',
+  // силы и средства: устройство слежения (ADR-0203)
+  'device',
 ] as const
 export const ObjectType = z.enum(OBJECT_TYPES)
 export type ObjectType = z.infer<typeof ObjectType>

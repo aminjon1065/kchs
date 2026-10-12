@@ -62,6 +62,14 @@ export const forms: DeepPartial<Dictionary['forms']> = {
     notAssigned: 'This form is not assigned to you',
     notAssignedHint: 'Assigned units and people submit the report',
   },
+  offline: {
+    queued:
+      'No network — the report is saved on the device and will be sent once the connection is back',
+    pending: 'Waiting to send',
+    sent: 'Queued report submitted',
+    failed: 'Queued report not submitted: {error}',
+    discard: 'Remove from queue',
+  },
   review: {
     title: 'Review',
     accept: 'Accept',
