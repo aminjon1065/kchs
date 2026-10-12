@@ -1,7 +1,8 @@
 import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { PassThrough } from 'node:stream'
-import { desc, eq, sql } from 'drizzle-orm'
+import type { RestoreCheck, RestoreCheckInput } from '@kchs/contracts'
+import { and, desc, eq, sql } from 'drizzle-orm'
 import { config } from '~/shared/config/index.js'
 import type { Ctx } from '~/shared/context.js'
 import { actorId, systemCtx } from '~/shared/context.js'
@@ -9,7 +10,7 @@ import { db } from '~/shared/db/client.js'
 import { logger } from '~/shared/logger/index.js'
 import { AUDIT_ACTIONS, audit } from '../audit/service.js'
 import { buckets, deleteObject, ensureBucket, putStream } from '../storage/s3.js'
-import { backups } from './schema.js'
+import { backups, restoreChecks } from './schema.js'
 
 /**
  * Резервные копии базы (15-admin-operations.md §5): установка S1 делает их
@@ -46,6 +47,22 @@ function row(value: typeof backups.$inferSelect): BackupRecord {
     error: value.error,
     verifiedAt: value.verifiedAt,
     verifiedNote: value.verifiedNote,
+  }
+}
+
+function restoreCheckRow(value: typeof restoreChecks.$inferSelect): RestoreCheck {
+  return {
+    id: value.id,
+    kind: value.kind as RestoreCheck['kind'],
+    ok: value.ok,
+    startedAt: value.startedAt,
+    finishedAt: value.finishedAt,
+    backupId: value.backupId,
+    recoveredTo: value.recoveredTo,
+    host: value.host,
+    details: value.details,
+    reportedBy: value.reportedBy,
+    createdAt: value.createdAt,
   }
 }
 
@@ -159,6 +176,83 @@ export const BackupService = {
       details: { backupId: id, note },
     })
     return row(saved)
+  },
+
+  /**
+   * Итог проверки восстановления от резервного узла (ADR-0199): запись в истории
+   * проверок; удачная проверка копии `pg_dump` отмечает и саму копию — так же, как
+   * кнопка «Отметить проверенной». Запись и аудит — в одной транзакции.
+   */
+  async recordRestoreCheck(ctx: Ctx, input: RestoreCheckInput): Promise<RestoreCheck | null> {
+    const id = randomUUID()
+    return db().transaction(async (tx) => {
+      if (input.backupId) {
+        const [known] = await tx
+          .select({ id: backups.id, status: backups.status })
+          .from(backups)
+          .where(eq(backups.id, input.backupId))
+          .limit(1)
+        if (!known) return null
+      }
+      const [saved] = await tx
+        .insert(restoreChecks)
+        .values({
+          id,
+          kind: input.kind,
+          ok: input.ok,
+          startedAt: input.startedAt,
+          finishedAt: input.finishedAt,
+          backupId: input.backupId ?? null,
+          recoveredTo: input.recoveredTo ?? null,
+          host: input.host ?? null,
+          details: input.details.slice(0, 4000),
+          reportedBy: actorId(ctx),
+        })
+        .returning()
+      if (input.ok && input.kind === 'dump' && input.backupId) {
+        await tx
+          .update(backups)
+          .set({
+            verifiedAt: sql`now()`,
+            verifiedBy: actorId(ctx),
+            verifiedNote:
+              `Проверка восстановления на резервном узле${input.host ? ` ${input.host}` : ''}`.slice(
+                0,
+                500,
+              ),
+          })
+          .where(and(eq(backups.id, input.backupId), eq(backups.status, 'done')))
+      }
+      // Неудачная проверка — предупреждение: копия, которая не разворачивается, хуже
+      // её отсутствия — на неё рассчитывают
+      await audit(
+        ctx,
+        {
+          action: AUDIT_ACTIONS.backupRestoreChecked,
+          severity: input.ok ? 'notice' : 'warning',
+          details: {
+            checkId: id,
+            kind: input.kind,
+            ok: input.ok,
+            backupId: input.backupId ?? null,
+            recoveredTo: input.recoveredTo ?? null,
+            host: input.host ?? null,
+          },
+        },
+        tx,
+      )
+      return restoreCheckRow(saved as typeof restoreChecks.$inferSelect)
+    })
+  },
+
+  /** Проверки восстановления, новые сверху. */
+  async restoreChecks(limit = 20): Promise<RestoreCheck[]> {
+    const rows = await db()
+      .select()
+      .from(restoreChecks)
+      .orderBy(desc(restoreChecks.createdAt))
+      .limit(Math.min(limit, 100))
+    return rows.map(restoreCheckRow)
   },
 
   /** Хранение: всё, что старше KEEP удачных копий, удаляется вместе с архивом. */

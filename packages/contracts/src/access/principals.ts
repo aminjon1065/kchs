@@ -84,6 +84,11 @@ export const CAPABILITIES = [
   'meetings.record',
   'api_tokens.create',
   'share_links.create',
+  /**
+   * Сообщать платформе итог проверки восстановления (ADR-0199): у служебной записи
+   * резервного узла, а не у людей.
+   */
+  'backups.report',
 ] as const
 export const Capability = z.enum(CAPABILITIES)
 export type Capability = z.infer<typeof Capability>

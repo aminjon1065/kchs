@@ -484,6 +484,13 @@
       "when": 1791191123095,
       "tag": "20261005090523_feed-history-retention",
       "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1791808803079,
+      "tag": "20261012124003_restore-checks",
+      "breakpoints": true
     }
   ]
 }

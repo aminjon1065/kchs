@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm'
-import { bigint, index, text, uuid } from 'drizzle-orm/pg-core'
+import { bigint, boolean, index, text, uuid } from 'drizzle-orm/pg-core'
 import { opsSchema, tsCol } from '../../shared/db/columns.js'
 
 /**
@@ -26,4 +26,31 @@ export const backups = opsSchema.table(
     verifiedNote: text('verified_note'),
   },
   (t) => [index('backups_started_idx').on(t.startedAt)],
+)
+
+/**
+ * Проверки восстановления на резервном узле (ADR-0199): `dr.sh restore-check`
+ * поднимает копию из архива, проверяет её и сообщает итог токеном служебной
+ * записи. История проверок видна в консоли рядом с копиями; удачная проверка
+ * копии `pg_dump` отмечает и саму копию.
+ */
+export const restoreChecks = opsSchema.table(
+  'restore_checks',
+  {
+    id: uuid('id').primaryKey(),
+    /** pitr — базовая копия и архив WAL резервного узла; dump — копия pg_dump. */
+    kind: text('kind').notNull(),
+    ok: boolean('ok').notNull(),
+    startedAt: tsCol('started_at').notNull(),
+    finishedAt: tsCol('finished_at').notNull(),
+    backupId: uuid('backup_id'),
+    /** Время последней транзакции восстановленной копии. */
+    recoveredTo: tsCol('recovered_to'),
+    host: text('host'),
+    details: text('details').notNull().default(''),
+    /** Служебная запись, чьим токеном сообщён итог. */
+    reportedBy: uuid('reported_by'),
+    createdAt: tsCol('created_at').notNull().default(sql`now()`),
+  },
+  (t) => [index('restore_checks_created_idx').on(t.createdAt)],
 )

@@ -59,6 +59,15 @@ export const admin = {
     verified: 'Копия отмечена проверенной',
     verifiedAt: 'проверена восстановлением {when}',
     status: { running: 'Идёт', done: 'Готова', failed: 'Ошибка' },
+    checks: {
+      title: 'Проверки восстановления',
+      hint: 'Резервный узел раз в месяц поднимает копию из архива во временном проекте, проверяет её и сообщает итог сюда (runbook «Резервный узел»).',
+      none: 'Проверок восстановления пока не было',
+      ok: 'Восстановление проверено',
+      failed: 'Проверка не прошла',
+      recoveredTo: 'данные копии — по {when}',
+      kind: { pitr: 'архив WAL резервного узла', dump: 'копия pg_dump' },
+    },
   },
   maintenance: {
     title: 'Обслуживание',
@@ -756,6 +765,7 @@ export const admin = {
     meetingsRecord: 'Запись встреч',
     apiTokensCreate: 'API-токены',
     shareLinksCreate: 'Гостевые ссылки',
+    backupsReport: 'Отчёт о проверке восстановления',
   },
   roles: {
     create: 'Новая роль',

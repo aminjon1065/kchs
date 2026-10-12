@@ -7,6 +7,7 @@ import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 
 const KEY = ['admin', 'backups'] as const
+const CHECKS_KEY = ['admin', 'backups', 'restore-checks'] as const
 
 /**
  * Резервные копии и обслуживание (15-admin-operations.md §5–6): список
@@ -44,6 +45,13 @@ export function BackupsSection() {
       void client.invalidateQueries({ queryKey: KEY })
       toast.show({ title: t('admin.backups.verified'), tone: 'success' })
     },
+  })
+
+  // Проверки восстановления на резервном узле (ADR-0199): `dr.sh restore-check`
+  // сообщает итог токеном служебной записи — здесь только история
+  const { data: checks } = useQuery({
+    queryKey: CHECKS_KEY,
+    queryFn: () => http.get('/admin/backups/restore-checks'),
   })
 
   const reindex = useMutation({
@@ -126,6 +134,49 @@ export function BackupsSection() {
                     {t('admin.backups.markVerified')}
                   </Button>
                 ) : null}
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+
+      <Card title={t('admin.backups.checks.title')}>
+        <p className="text-xs text-fg-secondary">{t('admin.backups.checks.hint')}</p>
+        {!checks || checks.items.length === 0 ? (
+          <p className="mt-3 text-xs text-warning">{t('admin.backups.checks.none')}</p>
+        ) : (
+          <ul className="mt-3 flex flex-col divide-y divide-line">
+            {checks.items.map((check) => (
+              <li key={check.id} className="flex items-center gap-3 py-2 first:pt-0">
+                <div className="flex min-w-0 flex-1 flex-col">
+                  <span className="text-sm text-fg">
+                    {formatDateTime(check.finishedAt, { locale })} ·{' '}
+                    {t(`admin.backups.checks.kind.${check.kind}`)}
+                    {check.host ? ` · ${check.host}` : ''}
+                  </span>
+                  {check.recoveredTo ? (
+                    <span className="text-2xs text-fg-muted">
+                      {t('admin.backups.checks.recoveredTo', {
+                        when: formatDateTime(check.recoveredTo, { locale }),
+                      })}
+                    </span>
+                  ) : null}
+                  {check.details ? (
+                    <span
+                      className={
+                        check.ok
+                          ? 'truncate text-2xs text-fg-muted'
+                          : 'truncate text-2xs text-danger'
+                      }
+                      title={check.details}
+                    >
+                      {check.details}
+                    </span>
+                  ) : null}
+                </div>
+                <Badge size="sm" tone={check.ok ? 'success' : 'danger'}>
+                  {check.ok ? t('admin.backups.checks.ok') : t('admin.backups.checks.failed')}
+                </Badge>
               </li>
             ))}
           </ul>

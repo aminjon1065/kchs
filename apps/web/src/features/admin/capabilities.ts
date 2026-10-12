@@ -29,6 +29,7 @@ export const CAPABILITY_GROUPS: ReadonlyArray<{
       'admin.impersonate',
       'automation.manage',
       'api_tokens.create',
+      'backups.report',
     ],
   },
   { key: 'work', capabilities: ['share_links.create', 'ai.use', 'meetings.record'] },

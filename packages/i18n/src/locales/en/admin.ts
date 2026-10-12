@@ -63,6 +63,15 @@ export const admin: DeepPartial<Dictionary['admin']> = {
     verified: 'Backup marked verified',
     verifiedAt: 'verified by restore on {when}',
     status: { running: 'Running', done: 'Ready', failed: 'Failed' },
+    checks: {
+      title: 'Restore checks',
+      hint: 'Once a month the standby node restores a copy from the archive in a temporary project, checks it and reports the result here (runbook “Standby node”).',
+      none: 'No restore checks yet',
+      ok: 'Restore verified',
+      failed: 'Check failed',
+      recoveredTo: 'copy data up to {when}',
+      kind: { pitr: 'standby WAL archive', dump: 'pg_dump copy' },
+    },
   },
   maintenance: {
     title: 'Maintenance',
@@ -748,6 +757,7 @@ export const admin: DeepPartial<Dictionary['admin']> = {
     meetingsRecord: 'Record meetings',
     apiTokensCreate: 'API tokens',
     shareLinksCreate: 'Guest links',
+    backupsReport: 'Restore check reports',
   },
   roles: {
     create: 'New role',

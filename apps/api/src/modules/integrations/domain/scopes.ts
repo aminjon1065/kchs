@@ -36,6 +36,7 @@ const TAG_RESOURCE: Record<string, ApiScopeResource> = {
   jobs: 'jobs',
   integrations: 'integrations',
   automation: 'automation',
+  backups: 'backups',
 }
 
 /**

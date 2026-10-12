@@ -67,6 +67,15 @@ export const admin: DeepPartial<Dictionary['admin']> = {
       done: 'Тайёр',
       failed: 'Хато',
     },
+    checks: {
+      title: 'Санҷишҳои барқарорсозӣ',
+      hint: 'Гиреҳи эҳтиётӣ моҳе як бор нусхаро аз бойгонӣ дар лоиҳаи муваққатӣ мебардорад, онро месанҷад ва натиҷаро ба ин ҷо мефиристад (runbook «Гиреҳи эҳтиётӣ»).',
+      none: 'Ҳоло санҷиши барқарорсозӣ гузаронида нашудааст',
+      ok: 'Барқарорсозӣ санҷида шуд',
+      failed: 'Санҷиш нагузашт',
+      recoveredTo: 'маълумоти нусха — то {when}',
+      kind: { pitr: 'бойгонии WAL-и гиреҳи эҳтиётӣ', dump: 'нусхаи pg_dump' },
+    },
   },
   maintenance: {
     title: 'Хизматрасонӣ',
@@ -800,6 +809,7 @@ export const admin: DeepPartial<Dictionary['admin']> = {
     meetingsRecord: 'Сабти вохӯриҳо',
     apiTokensCreate: 'Токенҳои API',
     shareLinksCreate: 'Пайвандҳои меҳмонӣ',
+    backupsReport: 'Ҳисобот дар бораи санҷиши барқарорсозӣ',
   },
   roles: {
     create: 'Нақши нав',

@@ -46,6 +46,32 @@ export function registerBackupRoutes(route: RouteRegistrar): void {
   })
 
   route({
+    route: 'GET /admin/backups/restore-checks',
+    auth: { capability: 'admin.system' },
+    tags: ['admin'],
+    summary: 'Проверки восстановления на резервном узле',
+    handler: async () => ({ items: await BackupService.restoreChecks() }),
+  })
+
+  // Резервный узел сообщает итог `dr.sh restore-check` токеном своей служебной
+  // записи (ADR-0199): путь вне /admin, чтобы его открывала область
+  // `write:backups`, а право — способность `backups.report`, а не администратор
+  route({
+    route: 'POST /backups/restore-checks',
+    auth: { capability: 'backups.report' },
+    tags: ['backups'],
+    summary: 'Сообщить итог проверки восстановления',
+    description:
+      'Скрипт резервного узла `infra/scripts/dr.sh restore-check`; удачная проверка копии pg_dump отмечает копию проверенной.',
+    rateLimit: { max: 30, timeWindow: '1 hour' },
+    handler: async (request) => {
+      const saved = await BackupService.recordRestoreCheck(request.ctx, request.body)
+      if (!saved) throw errors.notFound('Резервная копия')
+      return saved
+    },
+  })
+
+  route({
     route: 'POST /admin/maintenance/reindex',
     auth: { capability: 'admin.system' },
     tags: ['admin'],

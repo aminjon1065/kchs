@@ -195,6 +195,8 @@ export const AUDIT_ACTIONS = {
   backupFailed: 'backup.failed',
   /** Копия отмечена проверенной восстановлением. */
   backupVerified: 'backup.verified',
+  /** Резервный узел сообщил итог проверки восстановления (ADR-0199). */
+  backupRestoreChecked: 'backup.restore_checked',
   /** Брендирование установки изменено (15-admin-operations.md §1). */
   brandingChanged: 'settings.branding_changed',
   /** Возможность установки включена или выключена (15-admin-operations.md §1). */
