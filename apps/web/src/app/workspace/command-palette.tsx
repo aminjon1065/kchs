@@ -177,6 +177,12 @@ export function CommandPalette({
         run: () => goScreen('alerts', t('shell.rail.alerts'), 'alert'),
       },
       {
+        id: 'devices',
+        label: t('shell.screens.devices'),
+        icon: <ObjectIcon type="device" />,
+        run: () => goScreen('devices', t('shell.screens.devices'), 'device'),
+      },
+      {
         id: 'pipelines',
         label: t('shell.screens.pipelines'),
         icon: <ObjectIcon type="pipeline" />,

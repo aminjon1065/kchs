@@ -23,7 +23,7 @@ export function registerPositionsObjectTypes(): void {
   registerObjectType({
     type: 'device',
     labelKey: 'objects.types.device',
-    icon: 'map-pin',
+    icon: 'device',
     route: (id) => `/o/${id}`,
     levels: ['view', 'comment', 'edit', 'manage', 'owner'],
     actions: {

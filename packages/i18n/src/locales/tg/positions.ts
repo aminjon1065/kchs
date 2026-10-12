@@ -49,6 +49,10 @@ export const positions: DeepPartial<Dictionary['positions']> = {
     stale: 'Алоқа нест',
     never: 'Ҳеҷ гоҳ набуд',
   },
+  states: {
+    active: 'Қабул мекунад',
+    inactive: 'Хомӯш',
+  },
   speedValue: '{value} км/соат',
   batteryValue: '{value} %',
   coordinates: '{lat}, {lon}',

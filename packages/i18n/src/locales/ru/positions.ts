@@ -46,6 +46,10 @@ export const positions = {
     stale: 'Нет связи',
     never: 'Не выходило',
   },
+  states: {
+    active: 'Принимает',
+    inactive: 'Выключено',
+  },
   speedValue: '{value} км/ч',
   batteryValue: '{value} %',
   coordinates: '{lat}, {lon}',

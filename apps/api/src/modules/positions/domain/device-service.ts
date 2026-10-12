@@ -146,7 +146,7 @@ export const DeviceService = {
       spaceId: input.spaceId,
       title: input.name,
       subtitle: input.externalId,
-      icon: 'map-pin',
+      icon: 'device',
       meta: objectMeta({ kind: input.kind, externalId: input.externalId, active: true }),
     })
     try {
