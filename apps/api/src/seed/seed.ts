@@ -641,6 +641,10 @@ export async function resetData(): Promise<void> {
     sql`DELETE FROM documents`,
     // Акты об уничтожении — записи операций, не объекты: номер акта — порядковый в году
     sql`DELETE FROM case_destruction_acts`,
+    // Журнал подключений (ADR-0206) без внешних ключей на реестр: подключение — и токен,
+    // и лента, и форма
+    sql`DELETE FROM integration_usage_daily`,
+    sql`DELETE FROM integration_connections`,
     sql`DELETE FROM objects`,
     // Экземпляры маршрутов удалены вместе с объектами — определения свободны
     sql`DELETE FROM process_definitions`,
