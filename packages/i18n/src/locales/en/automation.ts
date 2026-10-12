@@ -118,6 +118,7 @@ export const automation: DeepPartial<Dictionary['automation']> = {
     notify: 'Notify',
     create_task: 'Create instruction',
     update_fields: 'Update fields',
+    update_row: 'Write to row',
     set_status: 'Change status',
     assign: 'Assign',
     create_document: 'Create document',
@@ -136,6 +137,8 @@ export const automation: DeepPartial<Dictionary['automation']> = {
     stop: 'Stop',
   },
   actionFields: {
+    dataset: 'Dataset',
+    row: 'Row',
     to: 'Recipients',
     text: 'Text',
     channels: 'Channels',

@@ -221,6 +221,8 @@ const FEEDS: ReadonlyArray<{
   description: string
   schedule: string
   feed: FeedConfigInput
+  /** Включена ли лента после установки; по умолчанию — да. */
+  enabled?: boolean
 }> = [
   {
     key: 'feed.usgs',
@@ -347,13 +349,78 @@ const FEEDS: ReadonlyArray<{
   })),
 ]
 
+/**
+ * Предупреждения Агентства по гидрометеорологии в CAP 1.2 (ADR-0201): SmartMet Alert
+ * публикует ленту, когда Агентство её откроет. До того источник — выключенный
+ * шаблон с адресом-заглушкой в зоне `.invalid` (такой адрес не разрешается никогда):
+ * администратор меняет адрес и включает. Строки пишутся по ключу нити — уточнение и
+ * отмена обновляют строку первичного предупреждения; район — по центру области.
+ */
+const HYDROMET_CAP = {
+  key: 'feed.hydromet_cap',
+  name: 'Агентство по гидрометеорологии: предупреждения (CAP)',
+  description:
+    'Шаблон: укажите адрес ленты CAP Агентства (сообщение или индекс Atom/RSS) и включите. Уточнения и отмены обновляют строку первичного предупреждения.',
+  schedule: '*/10 * * * *',
+  enabled: false,
+  feed: {
+    url: 'https://hydromet-cap.invalid/index.atom',
+    format: 'cap' as const,
+    bbox: [REGION.west, REGION.south, REGION.east, REGION.north] as [
+      number,
+      number,
+      number,
+      number,
+    ],
+    geometry: { kind: 'latlon' as const, lat: 'center.lat', lon: 'center.lon' },
+    mapping: [
+      { field: 'code', value: template('cap:{key}') },
+      { field: 'source', value: constant('hydromet') },
+      {
+        field: 'hazard',
+        value: path('info.event', {
+          Наводнение: 'flood',
+          Паводок: 'flood',
+          Сель: 'mudflow',
+          Оползень: 'landslide',
+          Лавина: 'avalanche',
+          'Снежная лавина': 'avalanche',
+          Землетрясение: 'earthquake',
+          'Сильный ветер': 'storm',
+          Flood: 'flood',
+          Mudflow: 'mudflow',
+          Landslide: 'landslide',
+          Avalanche: 'avalanche',
+          Earthquake: 'earthquake',
+          Wind: 'storm',
+          '*': 'other',
+        }),
+      },
+      { field: 'title', value: path('info.headline') },
+      { field: 'occurred_at', value: path('sent') },
+      {
+        field: 'alert_level',
+        value: path('info.severity', {
+          Extreme: 'red',
+          Severe: 'orange',
+          Moderate: 'green',
+          Minor: 'green',
+          '*': '',
+        }),
+      },
+      { field: 'url', value: path('info.web') },
+    ],
+    ...QUAKE_COMMON,
+  },
+}
+
 async function ensureFeeds(pack: PackContext, datasets: Ids, writer: string): Promise<string[]> {
   const target = datasets.get('hazard_messages') as string
   // Ленту заводит служебная запись: опрос идёт от имени владельца источника
   const ctx = await buildUserCtxFor(writer)
   if (!ctx) return []
   const created: string[] = []
-  for (const spec of FEEDS) {
+  for (const spec of [...FEEDS, HYDROMET_CAP]) {
     if (await findPackObject('source', spec.key)) continue
     const id = await FeedService.create(
       ctx,
@@ -364,7 +431,7 @@ async function ensureFeeds(pack: PackContext, datasets: Ids, writer: string): Pr
         feed: spec.feed,
         target: { kind: 'existing', datasetId: target },
         schedule: spec.schedule,
-        enabled: true,
+        enabled: spec.enabled ?? true,
       }),
     )
     await db().transaction((tx) => markPackObject(tx, pack.ctx, id, spec.key))
@@ -486,6 +553,39 @@ async function packRules(
   const where = '{{event.payload.labels.territory}}'
   const list: PackRule[] = [
     {
+      // Журнал решений дежурного (ADR-0201): время поступления каждого сообщения
+      key: 'emergency-hazard-received',
+      definition: {
+        name: {
+          ru: 'Журнал сообщений: время приёма',
+          en: 'Message log: time received',
+        },
+        description:
+          'Каждое новое сообщение ленты или службы получает время, когда оно поступило в систему: от него считается время до уведомления смены и до решения.',
+        trigger: { kind: 'event', type: 'dataset.row_created', filter: { 'object.id': hazard } },
+        actions: [{ type: 'update_row', fields: { received_at: '{{event.occurredAt}}' } }],
+        // Первая загрузка лент и пачки FIRMS — сотни строк в час
+        limits: { maxRunsPerHour: 5000 },
+      },
+    },
+    {
+      key: 'emergency-hazard-decided',
+      definition: {
+        name: {
+          ru: 'Журнал сообщений: время решения дежурного',
+          en: 'Message log: duty decision time',
+        },
+        description:
+          'Дежурный впервые сменил решение «Новое» — отметка времени решения. Само решение и комментарий — в строке и её истории.',
+        trigger: { kind: 'event', type: 'dataset.row_updated', filter: { 'object.id': hazard } },
+        conditions: {
+          expr: "previous.status = 'new' and event.payload.values.status != 'new'",
+        },
+        actions: [{ type: 'update_row', fields: { decided_at: '{{now}}' } }],
+        limits: { maxRunsPerHour: 1000 },
+      },
+    },
+    {
       key: 'emergency-hazard-duty',
       definition: {
         name: {
@@ -539,6 +639,8 @@ async function packRules(
             text: `Опасное явление: {{event.payload.labels.hazard}} — {{event.payload.values.title}}, ${where} ({{event.payload.labels.source}}).`,
             conversation: channel,
           },
+          // Журнал решений (ADR-0201): когда смена уведомлена
+          { type: 'update_row', fields: { notified_at: '{{now}}' } },
         ],
         limits: {
           maxRunsPerHour: 60,

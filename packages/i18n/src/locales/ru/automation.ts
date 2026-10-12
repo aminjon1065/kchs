@@ -116,6 +116,7 @@ export const automation = {
     notify: 'Уведомить',
     create_task: 'Создать поручение',
     update_fields: 'Изменить поля',
+    update_row: 'Записать в строку',
     set_status: 'Изменить статус',
     assign: 'Назначить',
     create_document: 'Создать документ',
@@ -134,6 +135,8 @@ export const automation = {
     stop: 'Остановить',
   },
   actionFields: {
+    dataset: 'Датасет',
+    row: 'Строка',
     to: 'Получатели',
     text: 'Текст',
     channels: 'Каналы',

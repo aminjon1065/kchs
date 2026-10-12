@@ -392,6 +392,19 @@ export const RowService = {
   },
 
   /** Строка по `_id` — с политиками пользователя (как в таблице). */
+  /**
+   * Версия живой строки без проверки прав — для правки «по последней версии»
+   * (действие правила `update_row`, ADR-0201): права проверит сама правка.
+   */
+  async currentVersion(tx: Tx, datasetId: string, rowId: string): Promise<number | null> {
+    const storage = await DatasetService.storage(datasetId)
+    const [row] = await tx.execute<{ ver: number }>(
+      sql`SELECT _ver AS ver FROM ${tableSql(storage.table)}
+           WHERE _id = ${rowId}::bigint AND _deleted_at IS NULL`,
+    )
+    return row ? Number(row.ver) : null
+  },
+
   async get(ctx: Ctx, datasetId: string, rowId: string): Promise<DatasetRow> {
     const spec = QuerySpec.parse({
       version: 1,

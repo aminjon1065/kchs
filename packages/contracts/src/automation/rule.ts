@@ -119,6 +119,7 @@ export const RULE_ACTION_TYPES = [
   'notify',
   'create_task',
   'update_fields',
+  'update_row',
   'set_status',
   'assign',
   'create_document',
@@ -180,6 +181,22 @@ export const UpdateFieldsAction = z.object({
   type: z.literal('update_fields'),
   fields: z.record(z.string().min(1).max(64), Template),
   object: TargetObject,
+})
+
+/**
+ * Запись в строку датасета (ADR-0201): значения полей строки события
+ * `dataset.row_*` — отметки времени журнала решений («уведомлён», «решение»),
+ * признаки и комментарии. Пишет строку служебный пользователь правила через
+ * правку строк: те же права, проверки значений, история и событие правки.
+ */
+export const UpdateRowAction = z.object({
+  type: z.literal('update_row'),
+  /** Ключ поля датасета → шаблон значения (`{{now}}`, `{{event.occurredAt}}`). */
+  fields: z.record(z.string().min(1).max(64), Template),
+  /** Датасет; по умолчанию — объект события строки. */
+  dataset: TargetObject,
+  /** Строка; по умолчанию — строка события. */
+  row: Template.default('{{event.payload.rowId}}'),
 })
 
 export const SetStatusAction = z.object({
@@ -320,6 +337,7 @@ export const RuleAction = z.discriminatedUnion('type', [
   NotifyAction,
   CreateTaskAction,
   UpdateFieldsAction,
+  UpdateRowAction,
   SetStatusAction,
   AssignAction,
   CreateDocumentAction,

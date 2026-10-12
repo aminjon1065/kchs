@@ -18,7 +18,7 @@ import { processObjectProvider } from '~/kernel/process/registry.js'
 import { TagService } from '~/kernel/tags/service.js'
 import { AiService } from '~/modules/ai/public.js'
 import { CalendarPublic } from '~/modules/calendar/public.js'
-import { DataRuns } from '~/modules/data/public.js'
+import { DataRuns, DatasetRows } from '~/modules/data/public.js'
 import { DocumentsPublic } from '~/modules/documents/public.js'
 import { Instructions, Tasks } from '~/modules/tasks/public.js'
 import { config } from '~/shared/config/index.js'
@@ -221,6 +221,30 @@ export async function runAction(
         }
       })
       return { message: `Изменены поля: ${changed.join(', ')}`, objectId }
+    }
+
+    case 'update_row': {
+      // Журнал решений по строкам датасета (ADR-0201): правка строки от имени
+      // служебного пользователя правила — с его правами, проверкой значений и историей
+      const datasetId = targetId(action.dataset, context, 'dataset')
+      const rowValue = renderValue(action.row, context.scope)
+      const rowId = typeof rowValue === 'number' ? String(rowValue) : String(rowValue ?? '').trim()
+      if (!/^\d+$/.test(rowId)) {
+        throw errors.validation('Действию нужна строка датасета: «row» не дал её номера')
+      }
+      const values = Object.fromEntries(
+        Object.entries(action.fields).map(([key, template]) => [
+          key,
+          renderValue(template, context.scope),
+        ]),
+      )
+      await db().transaction((tx) =>
+        DatasetRows.patchLatest(tx, context.ctx, datasetId, rowId, values),
+      )
+      return {
+        message: `Строка ${rowId}: изменены поля ${Object.keys(values).join(', ')}`,
+        objectId: datasetId,
+      }
     }
 
     case 'set_status': {
@@ -552,6 +576,10 @@ export function describeAction(action: RuleAction, scope: EvalScope): string {
       return `Поручение «${render(action.title)}» — ${action.assignee}`
     case 'update_fields':
       return `Изменить поля: ${Object.entries(action.fields)
+        .map(([key, value]) => `${key} = ${render(value)}`)
+        .join(', ')}`
+    case 'update_row':
+      return `Записать в строку: ${Object.entries(action.fields)
         .map(([key, value]) => `${key} = ${render(value)}`)
         .join(', ')}`
     case 'set_status':

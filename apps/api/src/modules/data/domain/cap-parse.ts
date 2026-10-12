@@ -147,6 +147,33 @@ export function capGeometry(areas: XmlElement[]): FeedGeometryValue | null {
   return null
 }
 
+/**
+ * Центр охвата геометрии — для датасетов, которые хранят точку («Сообщения об
+ * опасных явлениях»): лента берёт его как широту и долготу (`center.lat`,
+ * `center.lon`), а район находит по нему.
+ */
+export function capCenter(geometry: FeedGeometryValue | null): { lat: number; lon: number } | null {
+  if (!geometry) return null
+  const positions: Array<[number, number]> = []
+  const visit = (value: unknown) => {
+    if (!Array.isArray(value)) return
+    if (value.length >= 2 && typeof value[0] === 'number' && typeof value[1] === 'number') {
+      positions.push([value[0], value[1]])
+      return
+    }
+    for (const item of value) visit(item)
+  }
+  visit(geometry.coordinates)
+  if (positions.length === 0) return null
+  const lons = positions.map(([lon]) => lon)
+  const lats = positions.map(([, lat]) => lat)
+  const round = (value: number) => Math.round(value * 1e6) / 1e6
+  return {
+    lon: round((Math.min(...lons) + Math.max(...lons)) / 2),
+    lat: round((Math.min(...lats) + Math.max(...lats)) / 2),
+  }
+}
+
 /** Поля блока `info` — плоский объект для сопоставления. */
 function infoRecord(info: XmlElement): Record<string, unknown> {
   const joined = (name: string) =>
@@ -262,6 +289,7 @@ export function capAlertRecord(alert: XmlElement): FeedRecord | null {
     preferred && childrenNamed(preferred, 'area').length > 0
       ? preferred
       : infos.find((item) => childrenNamed(item, 'area').length > 0)
+  const geometry = withAreas ? capGeometry(childrenNamed(withAreas, 'area')) : null
   return {
     key: capThreadKey(identifier, sent, references),
     identifier,
@@ -283,7 +311,8 @@ export function capAlertRecord(alert: XmlElement): FeedRecord | null {
     info,
     area: (info as { area?: unknown }).area ?? { desc: '', geocode: {} },
     lang,
-    geometry: withAreas ? capGeometry(childrenNamed(withAreas, 'area')) : null,
+    geometry,
+    center: capCenter(geometry),
   }
 }
 

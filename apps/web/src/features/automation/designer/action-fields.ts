@@ -49,6 +49,11 @@ export const ACTION_FIELDS: Record<RuleActionType, ActionField[]> = {
     { key: 'source', kind: 'text', label: 'source' },
   ],
   update_fields: [{ key: 'fields', kind: 'map', label: 'fields' }, OBJECT],
+  update_row: [
+    { key: 'fields', kind: 'map', label: 'fields' },
+    { key: 'dataset', kind: 'text', label: 'dataset' },
+    { key: 'row', kind: 'text', label: 'row' },
+  ],
   set_status: [
     { key: 'status', kind: 'text', label: 'status' },
     { key: 'comment', kind: 'textarea', label: 'comment' },
@@ -143,6 +148,8 @@ export function defaultAction(type: RuleActionType): RuleAction {
       }
     case 'update_fields':
       return { type, fields: {}, object: '{{object.id}}' }
+    case 'update_row':
+      return { type, fields: {}, dataset: '{{object.id}}', row: '{{event.payload.rowId}}' }
     case 'set_status':
       return { type, status: '', comment: null, object: '{{object.id}}' }
     case 'assign':

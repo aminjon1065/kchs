@@ -19,7 +19,7 @@ import type { CompiledQuery } from '@kchs/query'
 import { ObjectService } from '~/kernel/objects/service.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import type { Tx } from '~/shared/db/client.js'
-import { errors } from '~/shared/errors.js'
+import { AppError, errors } from '~/shared/errors.js'
 import { AskService } from './domain/ask-service.js'
 import { DashboardService } from './domain/dashboard-service.js'
 import { DatasetAccess } from './domain/dataset-access.js'
@@ -168,6 +168,30 @@ export const DatasetRows = {
     patch: DatasetRowPatch,
     options: RowWriteOptions = {},
   ): Promise<DatasetRow> => RowService.update(ctx, datasetId, rowId, patch, tx, options),
+  /**
+   * Правка последней версии строки — для правил автоматизации (`update_row`,
+   * ADR-0201): правило не видело строку и не спорит с человеком о версии, его
+   * значения ложатся поверх. Одновременная правка между чтением версии и
+   * блокировкой строки — один повтор.
+   */
+  patchLatest: async (
+    tx: Tx,
+    ctx: Ctx,
+    datasetId: string,
+    rowId: string,
+    values: Record<string, unknown>,
+  ): Promise<DatasetRow> => {
+    for (let attempt = 0; ; attempt++) {
+      const ver = await RowService.currentVersion(tx, datasetId, rowId)
+      if (ver === null) throw errors.notFound('Строка')
+      try {
+        return await RowService.update(ctx, datasetId, rowId, { values, ver }, tx)
+      } catch (error) {
+        if (attempt === 0 && error instanceof AppError && error.code === 'conflict') continue
+        throw error
+      }
+    }
+  },
   /** Удаление строки той версии, что видел пользователь. */
   remove: (tx: Tx, ctx: Ctx, datasetId: string, rowId: string, ver: number) =>
     RowService.remove(ctx, datasetId, [rowId], tx, { ver }),

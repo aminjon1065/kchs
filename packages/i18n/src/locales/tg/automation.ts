@@ -121,6 +121,7 @@ export const automation: DeepPartial<Dictionary['automation']> = {
     notify: 'Огоҳ кардан',
     create_task: 'Эҷоди супориш',
     update_fields: 'Тағйири майдонҳо',
+    update_row: 'Навиштан ба сатр',
     set_status: 'Тағйири ҳолат',
     assign: 'Таъин кардан',
     create_document: 'Эҷоди ҳуҷҷат',
@@ -139,6 +140,8 @@ export const automation: DeepPartial<Dictionary['automation']> = {
     stop: 'Қатъ кардан',
   },
   actionFields: {
+    dataset: 'Маҷмӯи маълумот',
+    row: 'Сатр',
     to: 'Гирандагон',
     text: 'Матн',
     channels: 'Каналҳо',

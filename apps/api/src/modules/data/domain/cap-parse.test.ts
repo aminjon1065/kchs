@@ -42,6 +42,8 @@ describe('лента CAP 1.2 (ADR-0201)', () => {
     expect(
       mappedValue(alert as never, { kind: 'path', path: 'sent', transform: 'auto' }, 'datetime'),
     ).toBe('2003-06-17T21:57:00.000Z')
+    // Центр охвата — для наборов, которые хранят точку (сообщения пакета ЧС)
+    expect(alert?.center).toEqual({ lat: 38.48, lon: -119.94 })
   })
 
   it('уточнение (`Update`) пишется в строку первичного сообщения по `references`; круг нулевого радиуса — точка', () => {
