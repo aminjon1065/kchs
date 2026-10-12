@@ -10,6 +10,7 @@ import { useDocument } from './document-context.js'
 
 /** Адрес страницы проверки подписи — тот же, что в QR штампа (ADR-0198). */
 export function verifyHref(signatureId: string): string {
+  // вне клиента API: серверная страница проверки по QR открывается во вкладке, не запросом
   return `/api/v1/verify/${signatureId}`
 }
 
