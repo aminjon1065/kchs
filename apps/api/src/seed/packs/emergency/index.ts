@@ -11,6 +11,7 @@ import { ensureDocuments } from './documents.js'
 import { ensureKnowledge } from './knowledge.js'
 import { ensureMap } from './map.js'
 import { ensureStructure, type PackGroupKey } from './structure.js'
+import { ensureWarnings } from './warnings.js'
 
 export interface EmergencyPackResult {
   spaceId: string
@@ -76,6 +77,8 @@ export async function installEmergencyPack(
   const { mapId } = await ensureMap(pack, datasets)
   const { metrics, dashboards } = await ensureDashboards(pack, datasets, mapId)
   await ensureDocuments(pack, { duty: structure.groupIds.duty })
+  // Предупреждения CAP (ADR-0202): маршрут выпуска и реестр сообщений-источников
+  await ensureWarnings(pack, datasets, structure.groupIds.hq)
   const pages = await ensureKnowledge(pack)
   // После документов: правило донесений отбирает события по журналу пакета
   await ensureAutomation(pack, datasets, metrics, structure, mapId)

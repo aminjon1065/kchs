@@ -110,4 +110,9 @@ export const processes: DeepPartial<Dictionary['processes']> = {
     remarksHint: 'Describe the remarks or attach a file with corrections',
     remarksFiles: 'File with corrections — optional',
   },
+  panel: {
+    empty: 'No route yet',
+    history: 'Object routes',
+    startedBy: 'Started by {name} · {date}',
+  },
 }

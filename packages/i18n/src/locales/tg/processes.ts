@@ -117,4 +117,9 @@ export const processes: DeepPartial<Dictionary['processes']> = {
     remarksHint: 'Эродҳоро тавсиф кунед ё файлро бо ислоҳҳо замима кунед',
     remarksFiles: 'Файл бо ислоҳҳо — ихтиёрӣ',
   },
+  panel: {
+    empty: 'Масир ҳоло нест',
+    history: 'Масирҳои объект',
+    startedBy: 'Оғоз кард {name} · {date}',
+  },
 }

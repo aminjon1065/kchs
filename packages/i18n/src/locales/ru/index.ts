@@ -32,6 +32,7 @@ import { spaces } from './spaces.js'
 import { tasks } from './tasks.js'
 import { telegram } from './telegram.js'
 import { ui } from './ui.js'
+import { warnings } from './warnings.js'
 
 /**
  * Русский — основной язык интерфейса (01-vision.md, допущение A3). Неймспейс — ключ верхнего
@@ -70,6 +71,7 @@ export const ru = {
   automation,
   forms,
   alerts,
+  warnings,
   schedules,
   errors,
 } as const

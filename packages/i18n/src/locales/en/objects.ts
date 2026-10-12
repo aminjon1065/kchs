@@ -46,6 +46,7 @@ export const objects: DeepPartial<Dictionary['objects']> = {
     rule: 'Rule',
     form: 'Data form',
     alert: 'Alert',
+    warning: 'Warning',
     pipeline: 'Pipeline',
     source: 'Data source',
     service_layer: 'External GIS service',

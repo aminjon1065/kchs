@@ -123,6 +123,11 @@ import {
   registerTerritoryLookup,
   registerTerritoryObjectTypes,
 } from './territories/module.js'
+import {
+  registerWarningObjectTypes,
+  registerWarningRoutes,
+  registerWarningsBackground,
+} from './warnings/module.js'
 
 /** Хранилища модулей, которые создаются на лету (таблицы датасетов), — к текущему виду. */
 /**
@@ -165,6 +170,8 @@ export function registerAllObjectTypes(): void {
   // Формы сбора данных (ADR-0103) и алерты на показатели (ADR-0104)
   registerFormObjectTypes()
   registerAlertObjectTypes()
+  // Предупреждения CAP 1.2 (ADR-0202): тип `warning` и маршрут выпуска
+  registerWarningObjectTypes()
   registerMailFeature()
   registerDirectory()
   // Каналы уведомлений модулей: ядро доставляет через них в любой роли процесса
@@ -219,6 +226,7 @@ export async function registerModules(app: FastifyInstance, route: RouteRegistra
   registerAutomationRoutes(route)
   registerFormRoutes(route)
   registerAlertRoutes(route)
+  registerWarningRoutes(route)
   registerAdminRoutes(route)
   // Страницы модулей вне контракта API: редактор офисных файлов (ADR-0112)
   registerFilesPages(app)
@@ -243,6 +251,7 @@ export function registerModulesBackground(): void {
   registerAutomationBackground()
   registerFormsBackground()
   registerAlertsBackground()
+  registerWarningsBackground()
 }
 
 /**

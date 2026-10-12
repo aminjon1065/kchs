@@ -24,6 +24,7 @@ import { SETTINGS_EVENTS } from './settings.js'
 import { SPACE_EVENTS } from './space.js'
 import { TASKS_EVENTS } from './tasks.js'
 import { TERRITORIES_EVENTS } from './territories.js'
+import { WARNINGS_EVENTS } from './warnings.js'
 
 /**
  * Части каталога доменных событий (16-api-and-events.md §2, ADR-0189): у каждого модуля и
@@ -58,6 +59,7 @@ export const EVENT_CATALOG_PARTS = {
   mail: MAIL_EVENTS,
   automation: AUTOMATION_EVENTS,
   integrations: INTEGRATIONS_EVENTS,
+  warnings: WARNINGS_EVENTS,
 } as const
 
 /**
@@ -90,6 +92,7 @@ export const EVENT_PAYLOADS = {
   ...MAIL_EVENTS,
   ...AUTOMATION_EVENTS,
   ...INTEGRATIONS_EVENTS,
+  ...WARNINGS_EVENTS,
 } as const satisfies Record<string, z.ZodType>
 
 export type EventType = keyof typeof EVENT_PAYLOADS

@@ -43,6 +43,7 @@ export const objects = {
     rule: 'Правило',
     form: 'Форма сбора',
     alert: 'Алерт',
+    warning: 'Предупреждение',
     pipeline: 'Пайплайн',
     source: 'Источник данных',
     service_layer: 'Внешняя ГИС-служба',
