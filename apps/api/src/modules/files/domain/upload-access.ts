@@ -4,6 +4,7 @@ import { objects } from '~/kernel/objects/schema.js'
 import type { UserCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
+import { assertFileChangeable } from './content-policy.js'
 
 /** Куда ложится загружаемый файл: пространство, папка, новая версия или вложение. */
 export interface UploadTarget {
@@ -39,4 +40,7 @@ export async function authorizeUploadTarget(ctx: UserCtx, target: UploadTarget):
   // Загрузка в пространство требует права на создание в нём или в папке
   await authorize(ctx, fileId ? 'upload_version' : 'create_child', fileId ?? folderId ?? spaceId)
   if (attachToObjectId) await authorize(ctx, 'edit', attachToObjectId)
+  // Новая версия файла утверждённой версии документа не загружается (ADR-0197):
+  // отказ сразу, а не после того, как байты уже ушли в хранилище
+  if (fileId) await assertFileChangeable(db(), fileId)
 }

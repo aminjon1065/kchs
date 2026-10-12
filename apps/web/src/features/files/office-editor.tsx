@@ -1,4 +1,4 @@
-import { Badge, Button, EmptyState, PanelToolbar, Skeleton, Spinner } from '@kchs/ui'
+import { Badge, Button, Callout, EmptyState, PanelToolbar, Skeleton, Spinner } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { Download, FileWarning } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
@@ -113,6 +113,12 @@ export function OfficeEditorScreen({ fileId, tabId }: { fileId: string; tabId: s
         }
         right={saveLocally}
       />
+      {session.data.readOnly === 'file_frozen' ? (
+        // Файл согласованной или подписанной версии документа: только просмотр (ADR-0197)
+        <Callout tone="info" className="m-3">
+          {t('files.office.frozen')}
+        </Callout>
+      ) : null}
       {state === 'failed' ? (
         <EmptyState
           icon={<FileWarning />}

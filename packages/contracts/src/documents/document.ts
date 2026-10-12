@@ -31,6 +31,13 @@ export const DocumentFileRef = z.object({
   name: z.string(),
   mime: z.string(),
   size: z.number().int(),
+  /**
+   * Версия файла, закреплённая за версией документа (ADR-0197): скачивается и
+   * сравнивается именно она, а не текущая версия файла.
+   */
+  versionId: Uuid.nullable().optional(),
+  /** Закреплённая версия — текущая версия файла (превью файла показывают её). */
+  current: z.boolean().optional(),
 })
 export type DocumentFileRef = z.infer<typeof DocumentFileRef>
 
@@ -159,6 +166,11 @@ export const DocumentRecord = z.object({
   dispatchCount: z.number().int(),
   /** Файлы уничтожены по акту: карточка осталась описью. */
   filesDestroyedAt: Timestamp.nullable(),
+  /**
+   * Почему содержимое документа сейчас не меняется (ADR-0197): закрыт, на
+   * согласовании, уже согласован или подписан, файлы уничтожены; null — меняется.
+   */
+  contentLock: z.enum(['closed', 'route_active', 'frozen', 'destroyed']).nullable().optional(),
   createdAt: Timestamp,
   updatedAt: Timestamp,
   version: z.number().int(),

@@ -93,6 +93,9 @@ export const files: DeepPartial<Dictionary['files']> = {
     editingUpload:
       '“{name}” is being edited now ({names}). You can still upload a new version: their changes will not be lost and will be saved as the next version, noting which version they were made on.',
     pageFailed: 'The editor did not open. Close the tab and try again.',
+    frozen:
+      'This file belongs to an approved or signed version of a document, so it is open for viewing only. It can be corrected after the document is returned for revision, or with a new document.',
+    copyName: '{name} (edit of {date})',
   },
   fields: { format: 'Format' },
   checksum: 'Checksum',

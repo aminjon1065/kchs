@@ -298,6 +298,15 @@ export const documentVersions = pgTable(
     note: text('note'),
     hash: text('hash'),
     isFinal: boolean('is_final').notNull().default(false),
+    /**
+     * Закреплённые версии файлов (ADR-0197): файл → его версия для основного файла,
+     * приложений и PDF-представления. Версия документа показывает, скачивает,
+     * сравнивает и подписывает именно эти байты, а не текущую версию файла.
+     */
+    fileVersions: jsonb('file_versions')
+      .$type<Record<string, string>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
   },
   (t) => [uniqueIndex('document_versions_number_uq').on(t.documentId, t.number)],
 )

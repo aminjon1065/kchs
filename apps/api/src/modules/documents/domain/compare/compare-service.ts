@@ -1,7 +1,7 @@
 import type { VersionCompareQuery, VersionCompareResult } from '@kchs/contracts'
 import { and, eq, inArray } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
-import { fileText } from '~/modules/files/public.js'
+import { fileText, fileVersionBriefs } from '~/modules/files/public.js'
 import type { UserCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
@@ -17,14 +17,37 @@ type TextState =
   | { state: 'pending' }
   | { state: 'unavailable' }
 
+/**
+ * Откуда брать текст версии. Текст файла извлекается для его текущей версии,
+ * а версия документа закреплена за своей версией файла (ADR-0197): основной файл
+ * годится, только если закреплённая версия — текущая. Иначе — PDF-представление
+ * этой версии документа: отдельный файл, построенный из закреплённых байтов.
+ */
+async function textSources(version: {
+  mainFileId: string | null
+  pdfFileId: string | null
+  fileVersions: Record<string, string>
+}): Promise<string[]> {
+  const sources: string[] = []
+  if (version.mainFileId) {
+    const pin = version.fileVersions[version.mainFileId]
+    const pinned = pin ? (await fileVersionBriefs([pin])).get(pin) : undefined
+    if (!pinned || pinned.current) sources.push(version.mainFileId)
+  }
+  if (version.pdfFileId && version.pdfFileId !== version.mainFileId) {
+    sources.push(version.pdfFileId)
+  }
+  return sources
+}
+
 /** Текст версии: основного файла, а если его нет — PDF-представления. */
 async function versionText(version: {
   mainFileId: string | null
   pdfFileId: string | null
+  fileVersions: Record<string, string>
 }): Promise<TextState> {
   let pending = false
-  for (const fileId of [version.mainFileId, version.pdfFileId]) {
-    if (!fileId) continue
+  for (const fileId of await textSources(version)) {
     const text = await fileText(fileId, TEXT_LIMIT)
     if (text.status === 'ready' && text.text !== null) {
       return { state: 'ready', text: text.text, truncated: text.truncated }
@@ -51,6 +74,7 @@ export async function compareVersions(
       number: documentVersions.number,
       mainFileId: documentVersions.mainFileId,
       pdfFileId: documentVersions.pdfFileId,
+      fileVersions: documentVersions.fileVersions,
     })
     .from(documentVersions)
     .where(

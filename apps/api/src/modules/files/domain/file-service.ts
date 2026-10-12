@@ -24,6 +24,11 @@ import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { filePreviews, files, fileTexts, fileVersions, uploadSessions } from '../schema.js'
 import { AttachmentsFolder } from './attachments.js'
+import {
+  assertFileChangeable,
+  type FileVersionSource,
+  notifyVersionAdded,
+} from './content-policy.js'
 import { FileProcessing } from './processing.js'
 import { authorizeUploadTarget } from './upload-access.js'
 
@@ -118,6 +123,7 @@ interface NewVersionInput {
   mime: string
   checksum: string | null
   note?: string | null
+  source: FileVersionSource
 }
 
 /**
@@ -138,6 +144,8 @@ async function appendVersion(
     .limit(1)
     .for('update')
   if (!existing) throw errors.notFound('Файл')
+  // Файл утверждённой версии документа не меняется (ADR-0197) — проверка в момент записи
+  await assertFileChangeable(tx, input.fileId)
   const number = existing.versionNumber + 1
 
   await tx.insert(fileVersions).values({
@@ -190,6 +198,13 @@ async function appendVersion(
     storageKey: input.storageKey,
     mime: input.mime,
     name: existing.name,
+  })
+  // Правка файла версии документа становится новой версией документа (ADR-0197)
+  await notifyVersionAdded(tx, ctx, {
+    fileId: input.fileId,
+    versionId: input.versionId,
+    number,
+    source: input.source,
   })
   return { number }
 }
@@ -348,6 +363,7 @@ export const FileService = {
           mime: session.mime,
           checksum,
           note: note ?? null,
+          source: 'upload',
         })
         return session.fileId
       }
@@ -472,7 +488,11 @@ export const FileService = {
       note?: string | null
     },
   ): Promise<{ number: number }> {
-    return appendVersion(tx, ctx, { ...input, checksum: input.checksum ?? null })
+    return appendVersion(tx, ctx, {
+      ...input,
+      checksum: input.checksum ?? null,
+      source: 'editor',
+    })
   },
 
   /**
@@ -548,6 +568,55 @@ export const FileService = {
       .from(files)
       .where(inArray(files.id, fileIds))
     return new Map(rows.map((row) => [row.id, row]))
+  },
+
+  /**
+   * Сведения о версиях файлов для карточек других модулей (ADR-0197): версия
+   * документа закреплена за версиями файлов и показывает, скачивает и сравнивает
+   * именно их. Имя файла не версионируется — оно общее.
+   */
+  async versionBriefs(
+    versionIds: string[],
+    database: Executor = db(),
+  ): Promise<
+    Map<
+      string,
+      {
+        fileId: string
+        versionId: string
+        number: number
+        name: string
+        mime: string
+        size: number
+        checksum: string | null
+        storageKey: string
+        current: boolean
+      }
+    >
+  > {
+    const ids = [...new Set(versionIds)]
+    if (ids.length === 0) return new Map()
+    const rows = await database
+      .select({
+        fileId: fileVersions.fileId,
+        versionId: fileVersions.id,
+        number: fileVersions.number,
+        name: files.name,
+        mime: fileVersions.mime,
+        size: fileVersions.size,
+        checksum: fileVersions.checksum,
+        storageKey: fileVersions.storageKey,
+        currentVersionId: files.currentVersionId,
+      })
+      .from(fileVersions)
+      .innerJoin(files, eq(files.id, fileVersions.fileId))
+      .where(inArray(fileVersions.id, ids))
+    return new Map(
+      rows.map(({ currentVersionId, ...row }) => [
+        row.versionId,
+        { ...row, current: currentVersionId === row.versionId },
+      ]),
+    )
   },
 
   async abortUpload(ctx: UserCtx, sessionId: string): Promise<void> {
@@ -673,6 +742,8 @@ export const FileService = {
       .where(and(eq(fileVersions.fileId, fileId), eq(fileVersions.id, versionId)))
       .limit(1)
     if (!file || !version) throw errors.notFound('Версия файла')
+    // Откат — тоже правка содержимого: у файла утверждённой версии документа его нет (ADR-0197)
+    await assertFileChangeable(tx, fileId)
 
     const newVersionId = newId()
     await tx.insert(fileVersions).values({
@@ -728,6 +799,12 @@ export const FileService = {
       storageKey: version.storageKey,
       mime: version.mime,
       name: file.name,
+    })
+    await notifyVersionAdded(tx, ctx, {
+      fileId,
+      versionId: newVersionId,
+      number: file.versionNumber + 1,
+      source: 'restore',
     })
   },
 

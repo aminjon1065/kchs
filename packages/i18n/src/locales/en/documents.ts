@@ -196,6 +196,18 @@ export const documents: DeepPartial<Dictionary['documents']> = {
     uploading: 'Uploading file',
     add: 'Add version',
     added: 'Version added',
+    origin: {
+      editor: 'Edited in the editor',
+      upload: 'New file version uploaded',
+      restore: 'Earlier file version restored',
+    },
+    olderFile: 'Earlier file version',
+    olderFileHint:
+      'Previews are built for the current file version, and this document version is pinned to an earlier one. Download it to view.',
+    reviseHint:
+      'The document was returned for revision. Open the file in the editor or upload a new version — the change becomes a new document version; resubmit that one.',
+    frozenHint:
+      'The document has been approved or signed, so its versions no longer change. A correction is made as a new document linked with “Amends”.',
     pdf: {
       none: 'No PDF',
       pending: 'PDF in progress',

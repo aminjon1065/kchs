@@ -37,6 +37,8 @@ export function useFileDownload() {
       const render = await http.post('/documents/watermarked', {
         body: {
           fileId: input.fileId,
+          // Версия, закреплённая за версией документа (ADR-0197), — её и копируем
+          ...(input.versionId ? { versionId: input.versionId } : {}),
         },
       })
       const done = await waitForRender(render.id)

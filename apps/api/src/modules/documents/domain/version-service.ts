@@ -8,7 +8,8 @@ import {
   isDocumentClosed,
   type PdfStatus,
 } from '@kchs/contracts'
-import { desc, eq, sql } from 'drizzle-orm'
+import { createTranslator } from '@kchs/i18n'
+import { and, desc, eq, inArray, or, sql } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
 import { directory } from '~/kernel/directory/port.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
@@ -17,19 +18,23 @@ import { JobService } from '~/kernel/jobs/service.js'
 import { LinkService } from '~/kernel/links/service.js'
 import { objects } from '~/kernel/objects/schema.js'
 import {
+  type FileContentPolicy,
+  type FileVersionSource,
+  type FrozenFile,
   fileBriefs,
   fileBuckets,
   fileStorageKey,
+  fileVersionBriefs,
   registerGeneratedFile,
 } from '~/modules/files/public.js'
 import { type Ctx, systemCtx } from '~/shared/context.js'
 import { db, type Executor, type Tx } from '~/shared/db/client.js'
-import { errors } from '~/shared/errors.js'
+import { AppError, errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { logger } from '~/shared/logger/index.js'
 import { documents, documentVersions } from '../schema.js'
 import { DocumentSignatures } from './routes/signatures.js'
-import { ROUTE_ACTIVE_STATUSES } from './routes/state.js'
+import { ROUTE_ACTIVE_STATUSES, ROUTE_START_STATUSES } from './routes/state.js'
 
 /** Задание движка: хэш основного файла и, если нужно, PDF-представление (ADR-0080). */
 export const PDF_JOB = engineJobRef('render:document.pdf')
@@ -61,37 +66,273 @@ function pdfName(name: string): string {
 
 type VersionRow = typeof documentVersions.$inferSelect
 
+/** Файлы версии: основной, приложения и PDF-представление — без пустых. */
+function versionFileIds(row: {
+  mainFileId: string | null
+  pdfFileId: string | null
+  attachments: string[]
+}): string[] {
+  return [row.mainFileId, row.pdfFileId, ...row.attachments].filter((v): v is string => !!v)
+}
+
+/**
+ * Почему содержимое документа сейчас не меняется (ADR-0197) — одно правило для
+ * новой версии документа и для файлов в его версиях:
+ *  - закрыт (исполнен, в деле, в архиве, аннулирован);
+ *  - на согласовании или подписи — версия заморожена за шагом;
+ *  - уже прошёл согласование или подпись (есть замороженная версия), а статус не
+ *    «Черновик» и не «Возвращён»: согласованное и подписанное не меняется,
+ *    исправление — новым документом;
+ *  - файлы уничтожены по акту.
+ * Входящий, зарегистрированный без маршрута, новую версию принимает.
+ */
+export type ContentBlocker = 'closed' | 'route_active' | 'frozen' | 'destroyed'
+
+export function contentBlocker(input: {
+  status: DocumentStatus
+  hasFinal: boolean
+  filesDestroyed: boolean
+}): ContentBlocker | null {
+  if (input.filesDestroyed) return 'destroyed'
+  if (isDocumentClosed(input.status)) return 'closed'
+  if (ROUTE_ACTIVE_STATUSES.includes(input.status)) return 'route_active'
+  if (input.hasFinal && !ROUTE_START_STATUSES.includes(input.status)) return 'frozen'
+  return null
+}
+
+const BLOCKER_MESSAGES: Record<ContentBlocker, string> = {
+  closed: 'Документ закрыт — новую версию не добавить',
+  route_active: 'Документ на согласовании — новая версия после возврата',
+  frozen:
+    'Документ согласован или подписан — его версия не меняется; исправление оформляется новым документом',
+  destroyed: 'Файлы документа уничтожены по акту — версию не добавить',
+}
+
+/** Ошибка правила содержимого: `data.reason` — причина для текста интерфейса. */
+export function contentBlockerError(blocker: ContentBlocker): AppError {
+  return new AppError('conflict', BLOCKER_MESSAGES[blocker], 409, { data: { reason: blocker } })
+}
+
+/** Документы из списка, у которых есть замороженная версия: ходили на согласование или подпись. */
+async function finalDocuments(executor: Executor, documentIds: string[]): Promise<Set<string>> {
+  const ids = [...new Set(documentIds)]
+  if (ids.length === 0) return new Set()
+  const rows = await executor
+    .selectDistinct({ documentId: documentVersions.documentId })
+    .from(documentVersions)
+    .where(and(inArray(documentVersions.documentId, ids), eq(documentVersions.isFinal, true)))
+  return new Set(rows.map((row) => row.documentId))
+}
+
+/**
+ * Строка документа под блокировкой и правило содержимого: новая версия и правка
+ * файла версии проверяют его в одной транзакции с записью (ADR-0123, ADR-0197).
+ */
+async function lockForContent(
+  tx: Tx,
+  documentId: string,
+): Promise<{ id: string; spaceId: string; title: string; blocker: ContentBlocker | null }> {
+  const [doc] = await tx
+    .select({
+      id: documents.id,
+      status: documents.status,
+      filesDestroyedAt: documents.filesDestroyedAt,
+      spaceId: objects.spaceId,
+      title: objects.title,
+    })
+    .from(documents)
+    .innerJoin(objects, eq(objects.id, documents.id))
+    .where(eq(documents.id, documentId))
+    .limit(1)
+    .for('update', { of: documents })
+  if (!doc) throw errors.notFound('Документ')
+  if (!doc.spaceId) throw errors.internal('Документ вне пространства')
+  const hasFinal = (await finalDocuments(tx, [doc.id])).has(doc.id)
+  return {
+    id: doc.id,
+    spaceId: doc.spaceId,
+    title: doc.title,
+    blocker: contentBlocker({
+      status: doc.status as DocumentStatus,
+      hasFinal,
+      filesDestroyed: doc.filesDestroyedAt !== null,
+    }),
+  }
+}
+
+/** Закреплённая версия файла: из карты версии, иначе — текущая (до миграции её не было). */
+function pinOf(row: { fileVersions: Record<string, string> }, fileId: string): string | null {
+  return row.fileVersions[fileId] ?? null
+}
+
 async function toRecords(rows: VersionRow[]): Promise<DocumentVersionRecord[]> {
-  const fileIds = [
+  const fileIds = [...new Set(rows.flatMap(versionFileIds))]
+  const pinned = [
     ...new Set(
       rows.flatMap((row) =>
-        [row.mainFileId, row.pdfFileId, ...row.attachments].filter((v): v is string => !!v),
+        versionFileIds(row)
+          .map((id) => pinOf(row, id))
+          .filter((v): v is string => !!v),
       ),
     ),
   ]
-  const [briefs, people] = await Promise.all([
+  const [briefs, versions, people] = await Promise.all([
     fileBriefs(fileIds),
+    fileVersionBriefs(pinned),
     directory().refs([
       ...new Set(rows.map((row) => row.createdBy).filter((v): v is string => !!v)),
     ]),
   ])
-  const ref = (id: string | null): DocumentFileRef | null => {
-    const brief = id ? briefs.get(id) : undefined
-    return brief ? { id: brief.id, name: brief.name, mime: brief.mime, size: brief.size } : null
+  const refOf =
+    (row: VersionRow) =>
+    (id: string | null): DocumentFileRef | null => {
+      const brief = id ? briefs.get(id) : undefined
+      if (!id || !brief) return null
+      const pin = pinOf(row, id)
+      const version = pin ? versions.get(pin) : undefined
+      if (!version) {
+        return {
+          id: brief.id,
+          name: brief.name,
+          mime: brief.mime,
+          size: brief.size,
+          versionId: brief.currentVersionId,
+          current: true,
+        }
+      }
+      return {
+        id: brief.id,
+        name: brief.name,
+        mime: version.mime,
+        size: version.size,
+        versionId: version.versionId,
+        current: version.current,
+      }
+    }
+  return rows.map((row) => {
+    const ref = refOf(row)
+    return {
+      id: row.id,
+      number: row.number,
+      mainFile: ref(row.mainFileId),
+      pdfFile: ref(row.pdfFileId),
+      pdfStatus: row.pdfStatus as PdfStatus,
+      attachments: row.attachments.map(ref).filter((v): v is DocumentFileRef => v !== null),
+      hash: row.hash,
+      note: row.note,
+      isFinal: row.isFinal,
+      createdBy: row.createdBy ? (people.get(row.createdBy) ?? null) : null,
+      createdAt: row.createdAt,
+    }
+  })
+}
+
+interface InsertInput {
+  mainFileId: string
+  attachmentIds: string[]
+  note: string | null
+  /** Закреплённые версии файлов; не указанные — текущие. */
+  pins?: Record<string, string>
+  /** Версия родилась из правки файла (ADR-0197). */
+  origin?: { fileId: string; source: FileVersionSource }
+}
+
+/**
+ * Запись версии в транзакции вызывающего (права и правило содержимого он уже
+ * проверил, строка документа заблокирована): номер, закреплённые версии файлов,
+ * текущая версия документа, задание хэша и PDF-представления, событие.
+ */
+async function insertVersion(
+  tx: Tx,
+  ctx: Ctx,
+  doc: { id: string; spaceId: string; title: string },
+  input: InsertInput,
+): Promise<string> {
+  const fileIds = [input.mainFileId, ...input.attachmentIds]
+  const briefs = await fileBriefs(fileIds, tx)
+  const main = briefs.get(input.mainFileId)
+  if (!main) throw errors.notFound('Файл')
+
+  const pins: Record<string, string> = {}
+  for (const id of fileIds) {
+    const pin = input.pins?.[id] ?? briefs.get(id)?.currentVersionId
+    if (pin) pins[id] = pin
   }
-  return rows.map((row) => ({
-    id: row.id,
-    number: row.number,
-    mainFile: ref(row.mainFileId),
-    pdfFile: ref(row.pdfFileId),
-    pdfStatus: row.pdfStatus as PdfStatus,
-    attachments: row.attachments.map(ref).filter((v): v is DocumentFileRef => v !== null),
-    hash: row.hash,
-    note: row.note,
-    isFinal: row.isFinal,
-    createdBy: row.createdBy ? (people.get(row.createdBy) ?? null) : null,
-    createdAt: row.createdAt,
-  }))
+  // Хэш и PDF строятся из закреплённых байтов основного файла
+  const mainPin = pins[main.id]
+  const mainVersion = mainPin ? (await fileVersionBriefs([mainPin], tx)).get(mainPin) : undefined
+  const source = mainVersion
+    ? { name: main.name, mime: mainVersion.mime, storageKey: mainVersion.storageKey }
+    : { name: main.name, mime: main.mime, storageKey: main.storageKey }
+
+  const [last] = await tx
+    .select({ number: sql<number>`coalesce(max(${documentVersions.number}), 0)::int` })
+    .from(documentVersions)
+    .where(eq(documentVersions.documentId, doc.id))
+  const number = (last?.number ?? 0) + 1
+  const plan = pdfPlan(source)
+  const id = newId()
+  await tx.insert(documentVersions).values({
+    id,
+    documentId: doc.id,
+    number,
+    mainFileId: main.id,
+    pdfFileId: plan === 'self' ? main.id : null,
+    pdfStatus: plan === 'self' ? 'ready' : plan === 'convert' ? 'pending' : 'unsupported',
+    attachments: input.attachmentIds,
+    createdBy: ctx.kind === 'user' ? ctx.userId : ctx.initiatorId,
+    note: input.note,
+    fileVersions: pins,
+  })
+  await tx.update(documents).set({ currentVersionId: id }).where(eq(documents.id, doc.id))
+
+  // PDF-представление — отдельный файл под заранее выданными идентификаторами
+  const pdfFileId = plan === 'convert' ? newId() : null
+  const pdfVersionId = plan === 'convert' ? newId() : null
+  await JobService.schedule(tx, ctx, {
+    ...engineJob('render:document.pdf', {
+      documentId: doc.id,
+      versionId: id,
+      name: source.name,
+      mime: source.mime,
+      bucket: fileBuckets.files(),
+      storageKey: source.storageKey,
+      convert: plan === 'convert',
+      ...(pdfFileId && pdfVersionId
+        ? {
+            target: {
+              fileId: pdfFileId,
+              versionId: pdfVersionId,
+              bucket: fileBuckets.files(),
+              storageKey: fileStorageKey(doc.spaceId, pdfFileId, pdfVersionId, pdfName(main.name)),
+            },
+          }
+        : {}),
+    }),
+    objectId: doc.id,
+    idempotencyKey: `document.pdf:${id}`,
+    callbackScope: `document-version:${id}`,
+    options: { attempts: 3, backoff: { type: 'exponential', delay: 5000 } },
+  })
+
+  await publishEvent(tx, ctx, {
+    type: 'document.version_added',
+    object: { id: doc.id, type: 'document', spaceId: doc.spaceId, title: doc.title },
+    payload: {
+      versionId: id,
+      number,
+      mainFileId: main.id,
+      ...(input.origin ? { fileId: input.origin.fileId, source: input.origin.source } : {}),
+    },
+  })
+  return id
+}
+
+/** Примечание к версии, родившейся из правки файла. */
+const ORIGIN_NOTES: Record<FileVersionSource, string> = {
+  editor: 'documents.versions.origin.editor',
+  upload: 'documents.versions.origin.upload',
+  restore: 'documents.versions.origin.restore',
 }
 
 /**
@@ -141,24 +382,10 @@ export const DocumentVersionService = {
    */
   async add(tx: Tx, ctx: Ctx, documentId: string, input: DocumentVersionInput): Promise<string> {
     await authorize(ctx, 'add_version', documentId)
-    const [doc] = await tx
-      .select({ status: documents.status, spaceId: objects.spaceId, title: objects.title })
-      .from(documents)
-      .innerJoin(objects, eq(objects.id, documents.id))
-      .where(eq(documents.id, documentId))
-      .limit(1)
-      .for('update', { of: documents })
-    if (!doc) throw errors.notFound('Документ')
-    if (isDocumentClosed(doc.status as DocumentStatus)) {
-      throw errors.conflict('Документ закрыт — новую версию не добавить')
-    }
-    // Согласующие и подписанты решают по замороженной версии (08-documents.md §4)
-    if (ROUTE_ACTIVE_STATUSES.includes(doc.status as DocumentStatus)) {
-      throw errors.conflict('Документ на согласовании — новая версия после возврата', {
-        reason: 'route_active',
-      })
-    }
-    if (!doc.spaceId) throw errors.internal('Документ вне пространства')
+    const doc = await lockForContent(tx, documentId)
+    // Согласующие и подписанты решают по замороженной версии, а согласованное и
+    // подписанное не меняется (08-documents.md §4, ADR-0197)
+    if (doc.blocker) throw contentBlockerError(doc.blocker)
 
     const fileIds = [input.mainFileId, ...input.attachmentIds]
     if (new Set(fileIds).size !== fileIds.length) {
@@ -174,70 +401,34 @@ export const DocumentVersionService = {
         { path: 'mainFileId', message: 'not_attached' },
       ])
     }
-    const briefs = await fileBriefs(fileIds, tx)
-    const main = briefs.get(input.mainFileId)
-    if (!main) throw errors.notFound('Файл')
-
-    const [last] = await tx
-      .select({ number: sql<number>`coalesce(max(${documentVersions.number}), 0)::int` })
-      .from(documentVersions)
-      .where(eq(documentVersions.documentId, documentId))
-    const number = (last?.number ?? 0) + 1
-    const plan = pdfPlan(main)
-    const id = newId()
-    await tx.insert(documentVersions).values({
-      id,
-      documentId,
-      number,
-      mainFileId: main.id,
-      pdfFileId: plan === 'self' ? main.id : null,
-      pdfStatus: plan === 'self' ? 'ready' : plan === 'convert' ? 'pending' : 'unsupported',
-      attachments: input.attachmentIds,
-      createdBy: ctx.kind === 'user' ? ctx.userId : ctx.initiatorId,
+    return insertVersion(tx, ctx, doc, {
+      mainFileId: input.mainFileId,
+      attachmentIds: input.attachmentIds,
       note: input.note,
     })
-    await tx.update(documents).set({ currentVersionId: id }).where(eq(documents.id, documentId))
+  },
 
-    // PDF-представление — отдельный файл под заранее выданными идентификаторами
-    const pdfFileId = plan === 'convert' ? newId() : null
-    const pdfVersionId = plan === 'convert' ? newId() : null
-    await JobService.schedule(tx, ctx, {
-      ...engineJob('render:document.pdf', {
-        documentId,
-        versionId: id,
-        name: main.name,
-        mime: main.mime,
-        bucket: fileBuckets.files(),
-        storageKey: main.storageKey,
-        convert: plan === 'convert',
-        ...(pdfFileId && pdfVersionId
-          ? {
-              target: {
-                fileId: pdfFileId,
-                versionId: pdfVersionId,
-                bucket: fileBuckets.files(),
-                storageKey: fileStorageKey(
-                  doc.spaceId,
-                  pdfFileId,
-                  pdfVersionId,
-                  pdfName(main.name),
-                ),
-              },
-            }
-          : {}),
-      }),
-      objectId: documentId,
-      idempotencyKey: `document.pdf:${id}`,
-      callbackScope: `document-version:${id}`,
-      options: { attempts: 3, backoff: { type: 'exponential', delay: 5000 } },
+  /** Почему содержимое документа сейчас не меняется; null — меняется (ADR-0197). */
+  async blocker(
+    executor: Executor,
+    doc: { id: string; status: DocumentStatus; filesDestroyedAt: string | null },
+  ): Promise<ContentBlocker | null> {
+    return contentBlocker({
+      status: doc.status,
+      hasFinal: (await finalDocuments(executor, [doc.id])).has(doc.id),
+      filesDestroyed: doc.filesDestroyedAt !== null,
     })
+  },
 
-    await publishEvent(tx, ctx, {
-      type: 'document.version_added',
-      object: { id: documentId, type: 'document', spaceId: doc.spaceId, title: doc.title },
-      payload: { versionId: id, number, mainFileId: main.id },
-    })
-    return id
+  /** Закреплённые версии файлов версии документа: файл → версия файла (ADR-0197). */
+  async pins(executor: Executor, versionId: string | null): Promise<Record<string, string>> {
+    if (!versionId) return {}
+    const [row] = await executor
+      .select({ fileVersions: documentVersions.fileVersions })
+      .from(documentVersions)
+      .where(eq(documentVersions.id, versionId))
+      .limit(1)
+    return row?.fileVersions ?? {}
   },
 
   /**
@@ -295,6 +486,10 @@ export const DocumentVersionService = {
             attachToObjectId: row.documentId,
           })
           values.pdfFileId = fileId
+          // PDF-представление тоже закреплено: его единственная версия (ADR-0197)
+          values.fileVersions = sql`${documentVersions.fileVersions} || ${JSON.stringify({
+            [fileId]: input.pdfVersionId,
+          })}::jsonb`
           status = 'ready'
         } else {
           status = input.status === 'ready' || input.status === 'skipped' ? 'failed' : input.status
@@ -316,21 +511,102 @@ export const DocumentVersionService = {
       return { stale: false }
     })
   },
+}
 
-  /** Файлы, которые нельзя открепить от документа: они в его версиях. */
-  async versionFiles(executor: Executor, documentId: string): Promise<Set<string>> {
+/**
+ * Политика содержимого файлов для модуля файлов (ADR-0197).
+ *
+ * Файл заморожен, если входит в версию документа, содержимое которого сейчас не
+ * меняется (правило `contentBlocker`), — или это PDF-представление версии: его
+ * строит движок, править его нечего. Новая версия файла, который входит в текущую
+ * версию незамороженного документа, становится новой версией документа — в той же
+ * транзакции, чтобы «сохранил в редакторе — отправил на согласование» уходило на
+ * согласование уже с правкой.
+ */
+export const documentFilePolicy: FileContentPolicy = {
+  key: 'documents',
+
+  async frozen(executor, fileIds) {
+    const result = new Map<string, FrozenFile>()
+    if (fileIds.length === 0) return result
+    const ids = sql.join(
+      fileIds.map((id) => sql`${id}`),
+      sql`, `,
+    )
     const rows = await executor
       .select({
+        documentId: documentVersions.documentId,
         mainFileId: documentVersions.mainFileId,
         pdfFileId: documentVersions.pdfFileId,
         attachments: documentVersions.attachments,
+        status: documents.status,
+        filesDestroyedAt: documents.filesDestroyedAt,
       })
       .from(documentVersions)
-      .where(eq(documentVersions.documentId, documentId))
-    return new Set(
-      rows.flatMap((row) =>
-        [row.mainFileId, row.pdfFileId, ...row.attachments].filter((v): v is string => !!v),
-      ),
+      .innerJoin(documents, eq(documents.id, documentVersions.documentId))
+      .where(
+        or(
+          inArray(documentVersions.mainFileId, fileIds),
+          inArray(documentVersions.pdfFileId, fileIds),
+          sql`${documentVersions.attachments} ?| array[${ids}]::text[]`,
+        ),
+      )
+    if (rows.length === 0) return result
+    const final = await finalDocuments(
+      executor,
+      rows.map((row) => row.documentId),
     )
+    const wanted = new Set(fileIds)
+    for (const row of rows) {
+      // Сгенерированное PDF-представление не правят никогда
+      if (row.pdfFileId && row.pdfFileId !== row.mainFileId && wanted.has(row.pdfFileId)) {
+        result.set(row.pdfFileId, { reason: 'representation', hostId: row.documentId })
+      }
+      const blocker = contentBlocker({
+        status: row.status as DocumentStatus,
+        hasFinal: final.has(row.documentId),
+        filesDestroyed: row.filesDestroyedAt !== null,
+      })
+      if (!blocker) continue
+      for (const id of [row.mainFileId, ...row.attachments]) {
+        if (id && wanted.has(id) && !result.has(id)) {
+          result.set(id, { reason: blocker, hostId: row.documentId })
+        }
+      }
+    }
+    return result
+  },
+
+  async versionAdded(tx, ctx, input) {
+    // Документы, в текущую версию которых входит файл (основным или приложением)
+    const rows = await tx
+      .select({
+        documentId: documents.id,
+        versionId: documentVersions.id,
+        mainFileId: documentVersions.mainFileId,
+        attachments: documentVersions.attachments,
+        fileVersions: documentVersions.fileVersions,
+      })
+      .from(documents)
+      .innerJoin(documentVersions, eq(documentVersions.id, documents.currentVersionId))
+      .where(
+        or(
+          eq(documentVersions.mainFileId, input.fileId),
+          sql`${documentVersions.attachments} ? ${input.fileId}`,
+        ),
+      )
+    for (const row of rows) {
+      if (!row.mainFileId || row.fileVersions[input.fileId] === input.versionId) continue
+      const doc = await lockForContent(tx, row.documentId)
+      if (doc.blocker) throw contentBlockerError(doc.blocker)
+      const pins = { ...row.fileVersions, [input.fileId]: input.versionId }
+      await insertVersion(tx, ctx, doc, {
+        mainFileId: row.mainFileId,
+        attachmentIds: row.attachments,
+        note: createTranslator('ru')(ORIGIN_NOTES[input.source]),
+        pins,
+        origin: { fileId: input.fileId, source: input.source },
+      })
+    }
   },
 }

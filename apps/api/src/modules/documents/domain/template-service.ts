@@ -8,7 +8,6 @@ import {
   type DocumentTemplateListQuery,
   type DocumentTemplateRecord,
   type DocumentTemplateUpdateInput,
-  isDocumentClosed,
   type TemplateDefaults,
   type TemplateInspectStatus,
 } from '@kchs/contracts'
@@ -28,6 +27,7 @@ import { DocumentService } from './document-service.js'
 import { enqueueRender, loadSubject } from './render-queue.js'
 import { documentsSpaceId } from './space.js'
 import { DocumentTypeService } from './type-service.js'
+import { contentBlockerError, DocumentVersionService } from './version-service.js'
 
 export const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 
@@ -337,9 +337,13 @@ export const DocumentTemplateService = {
     }
     const doc = await DocumentService.load(tx, documentId)
     if (!doc) throw errors.notFound('Документ')
-    if (isDocumentClosed(doc.status as DocumentStatus)) {
-      throw errors.conflict('Документ закрыт — новую версию не добавить')
-    }
+    // Согласованное и подписанное не перезаполняется — то же правило, что у версии (ADR-0197)
+    const blocker = await DocumentVersionService.blocker(tx, {
+      id: doc.id,
+      status: doc.status as DocumentStatus,
+      filesDestroyedAt: doc.filesDestroyedAt,
+    })
+    if (blocker) throw contentBlockerError(blocker)
     if (template.typeId && template.typeId !== doc.typeId) {
       throw errors.validation('Шаблон другого типа документа', [
         { path: 'templateId', message: 'type_mismatch' },

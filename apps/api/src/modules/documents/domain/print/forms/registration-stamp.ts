@@ -1,4 +1,4 @@
-import { fileBriefs, fileBuckets } from '~/modules/files/public.js'
+import { fileBriefs, fileBuckets, fileVersionBriefs } from '~/modules/files/public.js'
 import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { DocumentService } from '../../document-service.js'
@@ -14,6 +14,8 @@ type StampSource =
       ok: true
       row: NonNullable<Awaited<ReturnType<typeof DocumentService.load>>>
       pdfFileId: string
+      /** Закреплённая версия PDF-представления (ADR-0197). */
+      pdfVersionId: string | null
     }
 
 /** PDF-представление текущей версии зарегистрированного документа или причина, почему его нет. */
@@ -28,7 +30,12 @@ async function stampSource(documentId: string): Promise<StampSource> {
   if (version.pdfStatus !== 'ready' || !version.pdfFile) {
     return { ok: false, reason: 'documents.print.reasons.noPdf' }
   }
-  return { ok: true, row, pdfFileId: version.pdfFile.id }
+  return {
+    ok: true,
+    row,
+    pdfFileId: version.pdfFile.id,
+    pdfVersionId: version.pdfFile.versionId ?? null,
+  }
 }
 
 /** Синие «чернила» штампа — как у резинового штампа канцелярии. */
@@ -57,9 +64,11 @@ export const registrationStamp: PrintFormDefinition = {
   build: async (pc, subject) => {
     const source = await stampSource(subject.id)
     if (!source.ok) throw errors.conflict(pc.t(source.reason))
-    const { row, pdfFileId } = source
+    const { row, pdfFileId, pdfVersionId } = source
     const type = await DocumentTypeService.load(db(), row.typeId)
-    const brief = (await fileBriefs([pdfFileId])).get(pdfFileId)
+    // Штамп — на закреплённых байтах версии, а не на текущей версии файла (ADR-0197)
+    const pinned = pdfVersionId ? (await fileVersionBriefs([pdfVersionId])).get(pdfVersionId) : null
+    const brief = pinned ?? (await fileBriefs([pdfFileId])).get(pdfFileId)
     if (!brief) throw errors.notFound('PDF-представление')
     const label = pc.t(`documents.print.stamp.${type?.direction ?? 'internal'}`)
     const body = html`<div class="stamp">

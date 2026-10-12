@@ -61,6 +61,11 @@ export const OfficeSession = z.object({
   versionId: Uuid.nullable(),
   name: z.string(),
   mode: OfficeMode,
+  /**
+   * Почему файл открыт только на просмотр, хотя право правки есть: файл входит в
+   * согласованную или подписанную версию документа (ADR-0197).
+   */
+  readOnly: z.enum(['file_frozen']).nullable().optional(),
   documentType: OfficeDocumentType,
   /** Страница редактора на этом же происхождении (вставляется кадром). */
   editorUrl: z.string(),
@@ -75,6 +80,11 @@ export type OfficeSession = z.infer<typeof OfficeSession>
 export const OFFICE_UNAVAILABLE = 'office_unavailable'
 /** Файл с грифом во внешний редактор не отдаётся (ADR-0085). */
 export const OFFICE_CONFIDENTIAL = 'office_confidential'
+/**
+ * Содержимое файла сейчас менять нельзя (`data.reason` ответа 409): он входит в
+ * согласованную, подписанную или иначе замороженную версию документа (ADR-0197).
+ */
+export const FILE_FROZEN = 'file_frozen'
 
 /**
  * Файл сейчас правят в редакторе (вопрос N70): кто в нём по последнему сообщению

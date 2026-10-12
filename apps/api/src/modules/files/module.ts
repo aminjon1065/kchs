@@ -16,6 +16,7 @@ import { AppError, errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { AttachmentsFolder } from './domain/attachments.js'
 import { FILES_AUDIT } from './domain/audit-actions.js'
+import { assertFileChangeable } from './domain/content-policy.js'
 import { FileService } from './domain/file-service.js'
 import { OfficeService } from './domain/office-service.js'
 import { FILE_PROCESS_JOB, FileProcessing } from './domain/processing.js'
@@ -44,6 +45,14 @@ export function registerFilesObjectTypes(): void {
       delete: { minLevel: 'manage' },
     },
     lifecycle: {
+      // Файл утверждённой версии документа в корзину не уходит (ADR-0197)
+      beforeTrash: async (tx, _ctx, object) => {
+        await assertFileChangeable(
+          tx,
+          object.id,
+          'Файл входит в согласованную или подписанную версию документа — он не удаляется',
+        )
+      },
       // Папка файла живёт и в таблице модуля: перенос по дереву её обновляет
       onMove: async (tx, _ctx, object) => {
         await tx.update(files).set({ folderId: object.parentId }).where(eq(files.id, object.id))

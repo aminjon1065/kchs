@@ -1,12 +1,14 @@
 import { createHash } from 'node:crypto'
 import type { Readable } from 'node:stream'
 import {
+  FILE_FROZEN,
   OFFICE_CONFIDENTIAL,
   OFFICE_UNAVAILABLE,
   type OfficeEditing,
   type OfficeSession,
   type OfficeStatus,
 } from '@kchs/contracts'
+import { createTranslator } from '@kchs/i18n'
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
 import { audit } from '~/kernel/audit/service.js'
@@ -20,6 +22,7 @@ import { newId } from '~/shared/ids.js'
 import { logger } from '~/shared/logger/index.js'
 import { files, fileVersions, type OfficeSessionRow, officeSessions } from '../schema.js'
 import { FILES_AUDIT } from './audit-actions.js'
+import { frozenFiles } from './content-policy.js'
 import { FileService } from './file-service.js'
 import {
   checkTicket,
@@ -111,7 +114,9 @@ export const OfficeService = {
     const canEdit = (await authorize(ctx, 'edit', fileId, { soft: true })).allowed
     // Файл, занятый другим человеком, открывается только на просмотр
     const lockedByOther = file.lockedBy !== null && file.lockedBy.id !== ctx.userId
-    const mode = canEdit && !lockedByOther ? 'edit' : 'view'
+    // Файл утверждённой версии документа — тоже только на просмотр (ADR-0197)
+    const frozen = canEdit ? (await frozenFiles(db(), [fileId])).has(fileId) : false
+    const mode = canEdit && !lockedByOther && !frozen ? 'edit' : 'view'
 
     const session = await ensureSession(ctx, {
       fileId,
@@ -132,6 +137,7 @@ export const OfficeService = {
       versionId: session.versionId,
       name: file.name,
       mode,
+      readOnly: frozen ? FILE_FROZEN : null,
       documentType,
       editorUrl: `/api/v1/office/editor/${session.id}`,
       expiresAt: session.expiresAt,
@@ -436,6 +442,15 @@ async function saveFromEditor(
     return
   }
 
+  // Файл заморожен, пока редактор был открыт (документ ушёл на согласование):
+  // байты замороженной версии не меняются, а правка ложится рядом новым файлом
+  // документа — работа человека не теряется (ADR-0197, принцип ADR-0112)
+  const frozen = (await frozenFiles(db(), [file.id])).get(file.id)
+  if (frozen) {
+    await saveAsCopy(session, { ...file, spaceId: file.spaceId }, body, frozen.hostId)
+    return
+  }
+
   const versionId = newId()
   const key = storageKey(file.spaceId, file.id, versionId, file.name)
   await putObject(key, body, { bucket: buckets.files(), contentType: file.mime })
@@ -472,6 +487,65 @@ async function saveFromEditor(
       })
       .where(eq(officeSessions.id, session.id))
   })
+}
+
+/**
+ * Правка замороженного файла — новым файлом-вложением объекта-хозяина (документа):
+ * «<имя> (правка от <дата>)». Сессия помечается конфликтом, файл правки — её
+ * сохранённой версией: карточка редактора покажет, куда ушла работа.
+ */
+async function saveAsCopy(
+  session: OfficeSessionRow,
+  file: { id: string; name: string; mime: string; spaceId: string },
+  body: Buffer,
+  hostId: string,
+): Promise<void> {
+  const ctx: Ctx = systemCtx('files.office', { initiatorId: session.openedBy })
+  const fileId = newId()
+  const versionId = newId()
+  const name = copyName(file.name, new Date())
+  const key = storageKey(file.spaceId, fileId, versionId, name)
+  await putObject(key, body, { bucket: buckets.files(), contentType: file.mime })
+  await db().transaction(async (tx) => {
+    await FileService.registerGenerated(tx, ctx, {
+      fileId,
+      versionId,
+      spaceId: file.spaceId,
+      name,
+      mime: file.mime,
+      size: body.byteLength,
+      storageKey: key,
+      checksum: null,
+      attachToObjectId: hostId,
+    })
+    await tx
+      .update(officeSessions)
+      .set({
+        status: 'saved',
+        savedVersionId: versionId,
+        conflict: true,
+        error: `Файл заморожен в версии документа — правка сохранена отдельным файлом «${name}»`,
+        lastCallbackAt: sql`now()`,
+        updatedAt: sql`now()`,
+      })
+      .where(eq(officeSessions.id, session.id))
+  })
+  logger().info(
+    { sessionId: session.id, fileId: file.id, copyId: fileId },
+    'правка замороженного файла сохранена копией',
+  )
+}
+
+/**
+ * «Письмо.docx» → «Письмо (правка от 2026-10-12 14-05).docx» — на основном языке
+ * установки, как подписи версий документа (печатная форма протокола и т. п.).
+ */
+export function copyName(name: string, at: Date): string {
+  const dot = name.lastIndexOf('.')
+  const base = dot > 0 ? name.slice(0, dot) : name
+  const ext = dot > 0 ? name.slice(dot) : ''
+  const stamp = at.toISOString().slice(0, 16).replace('T', ' ').replace(':', '-')
+  return `${createTranslator('ru')('files.office.copyName', { name: base, date: stamp })}${ext}`
 }
 
 /** Скачивание правки у сервера документов: свой контур, но с потолком и сроком. */

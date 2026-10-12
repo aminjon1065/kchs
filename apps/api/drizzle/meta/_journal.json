@@ -484,6 +484,13 @@
       "when": 1791191123095,
       "tag": "20261005090523_feed-history-retention",
       "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1791807482727,
+      "tag": "20261012121802_document-version-file-pins",
+      "breakpoints": true
     }
   ]
 }

@@ -9,7 +9,6 @@ import {
   type DocumentRenderStatus,
   type DocumentRenderTarget,
   type DocumentStatus,
-  isDocumentClosed,
   isRedacted,
   PRINT_PERIOD_MAX_DAYS,
   PRODUCT_NAME,
@@ -29,6 +28,7 @@ import {
   fileBriefs,
   fileBuckets,
   fileStorageKey,
+  fileVersionSource,
   registerGeneratedFile,
   watermarkLevel,
   watermarkLines,
@@ -58,7 +58,7 @@ import {
 import { templateContext } from './template-context.js'
 import { DOCX_MIME, DocumentTemplateService, loadTemplate } from './template-service.js'
 import { DocumentTypeService } from './type-service.js'
-import { DocumentVersionService } from './version-service.js'
+import { contentBlockerError, DocumentVersionService } from './version-service.js'
 
 export { RENDER_JOB }
 
@@ -304,7 +304,8 @@ async function buildPlan(
     case 'watermark': {
       if (!ctx) throw errors.conflict('Заказчик недоступен')
       const level = await watermarkLevel(subject.id)
-      const brief = (await fileBriefs([subject.id])).get(subject.id)
+      const pinned = typeof row.params.versionId === 'string' ? row.params.versionId : null
+      const brief = await fileVersionSource(subject.id, pinned)
       if (!level || !brief)
         throw errors.conflict('Копия с водяным знаком не нужна: у файла нет грифа')
       const t = createTranslator(ctx.locale)
@@ -480,17 +481,22 @@ export const DocumentRenders = {
    * Копия файла с водяным знаком (гриф от «конфиденциально»): PDF с именем
    * смотрящего и временем на каждом листе, во временном бакете выгрузок.
    */
-  async requestWatermark(ctx: UserCtx, fileId: string): Promise<string> {
+  async requestWatermark(ctx: UserCtx, fileId: string, versionId?: string): Promise<string> {
     await authorize(ctx, 'download', fileId)
     const subject = await loadSubject(db(), fileId)
     if (subject?.type !== 'file') throw errors.notFound('Файл')
     const level = await watermarkLevel(fileId)
     if (!level) throw errors.conflict('У файла нет грифа — он скачивается как есть')
+    // Версия файла, закреплённая за версией документа (ADR-0197), — своего файла
+    if (versionId && !(await fileVersionSource(fileId, versionId))) {
+      throw errors.notFound('Версия файла')
+    }
     return db().transaction(async (tx) => {
       const id = await enqueueRender(tx, ctx, {
         kind: 'watermark',
         subject,
         formKey: fileId,
+        ...(versionId ? { params: { versionId } } : {}),
         requestedBy: ctx.userId,
       })
       await audit(
@@ -640,9 +646,18 @@ export const DocumentRenders = {
           return { stale: false }
         }
         if (row.kind === 'fill') {
+          // Правило содержимого — на момент результата: документ мог уйти на
+          // согласование, пока движок заполнял шаблон (ADR-0197)
           const doc = await DocumentService.load(tx, subject.id)
-          if (!doc || isDocumentClosed(doc.status as DocumentStatus)) {
-            await fail(tx, row, 'Документ закрыт — новую версию не добавить')
+          const blocker = doc
+            ? await DocumentVersionService.blocker(tx, {
+                id: doc.id,
+                status: doc.status as DocumentStatus,
+                filesDestroyedAt: doc.filesDestroyedAt,
+              })
+            : 'closed'
+          if (blocker) {
+            await fail(tx, row, contentBlockerError(blocker).message)
             return { stale: false }
           }
         }

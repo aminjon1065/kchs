@@ -58,7 +58,11 @@ export const PrintRequestInput = z.object({
 export type PrintRequestInput = z.infer<typeof PrintRequestInput>
 
 /** Копия файла документа с водяным знаком (гриф от «конфиденциально»). */
-export const WatermarkRequestInput = z.object({ fileId: Uuid })
+export const WatermarkRequestInput = z.object({
+  fileId: Uuid,
+  /** Версия файла, закреплённая за версией документа (ADR-0197); без неё — текущая. */
+  versionId: Uuid.optional(),
+})
 export type WatermarkRequestInput = z.infer<typeof WatermarkRequestInput>
 
 export const DocumentRenderRecord = z.object({

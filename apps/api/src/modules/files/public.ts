@@ -5,7 +5,7 @@
 import { FileService } from './domain/file-service.js'
 import { FileProcessing } from './domain/processing.js'
 
-export { type FileSource, fileSource } from './domain/source.js'
+export { type FileSource, fileSource, fileVersionSource } from './domain/source.js'
 
 /** Файл из объекта, который уже лежит в хранилище (демо-данные сида, ADR-0063). */
 export const registerStoredFile: typeof FileService.registerStored = (ctx, input) =>
@@ -33,7 +33,24 @@ export const destroyFiles: typeof FileService.destroy = (tx, ctx, fileIds) =>
 export const fileBriefs: typeof FileService.briefs = (fileIds, database) =>
   FileService.briefs(fileIds, database)
 
+/**
+ * Сведения о конкретных версиях файлов (ADR-0197): версия документа закреплена
+ * за версиями файлов и показывает, скачивает и сравнивает именно их.
+ */
+export const fileVersionBriefs: typeof FileService.versionBriefs = (versionIds, database) =>
+  FileService.versionBriefs(versionIds, database)
+
 export { buckets as fileBuckets, storageKey as fileStorageKey } from '~/kernel/storage/s3.js'
+/**
+ * Политика содержимого файла (ADR-0197): модуль выше сообщает, какие файлы
+ * заморожены, и узнаёт о новой версии файла в транзакции записи.
+ */
+export {
+  type FileContentPolicy,
+  type FileVersionSource,
+  type FrozenFile,
+  registerFileContentPolicy,
+} from './domain/content-policy.js'
 
 /** Водяной знак файлов с грифом от «конфиденциально» (ADR-0085). */
 export { watermarkLevel, watermarkLines } from './domain/watermark.js'

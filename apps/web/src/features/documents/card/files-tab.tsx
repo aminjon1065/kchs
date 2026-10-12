@@ -5,6 +5,7 @@ import {
   Button,
   Callout,
   cn,
+  EmptyState,
   Field,
   FileDropzone,
   IconButton,
@@ -16,7 +17,7 @@ import {
   useToast,
 } from '@kchs/ui'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { Download, GitCompare, PenLine } from 'lucide-react'
+import { Download, FileClock, GitCompare, PenLine } from 'lucide-react'
 import { useId, useState } from 'react'
 import {
   editorNames,
@@ -80,14 +81,44 @@ export function FilesTab() {
   const selected = versions.find((version) => version.id === selectedId) ?? versions[0] ?? null
   const shown = selected?.pdfFile ?? selected?.mainFile ?? null
   const [comparing, setComparing] = useState(false)
+  const download = useFileDownload()
 
   return (
     <div className="grid h-full min-h-0 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px]">
-      <ScanViewer fileId={shown?.id ?? null} className="min-h-[420px] border-r border-line" />
+      {shown && shown.current === false ? (
+        // Превью строятся для текущей версии файла, а эта версия документа закреплена
+        // за прежней (ADR-0197): показываем честно и даём скачать именно её
+        <div className="flex min-h-[420px] items-center justify-center border-r border-line">
+          <EmptyState
+            icon={<FileClock />}
+            title={t('documents.versions.olderFile')}
+            description={t('documents.versions.olderFileHint')}
+            action={
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<Download className="size-3.5" />}
+                onClick={() =>
+                  download.mutate({ fileId: shown.id, versionId: shown.versionId ?? undefined })
+                }
+              >
+                {t('common.actions.download')}
+              </Button>
+            }
+          />
+        </div>
+      ) : (
+        <ScanViewer fileId={shown?.id ?? null} className="min-h-[420px] border-r border-line" />
+      )}
       <aside
         className="flex min-h-0 flex-col gap-4 overflow-y-auto p-4"
         aria-label={t('documents.versions.title')}
       >
+        {document.status === 'returned' && document.can.addVersion ? (
+          <Callout tone="info">{t('documents.versions.reviseHint')}</Callout>
+        ) : document.contentLock === 'frozen' ? (
+          <Callout tone="info">{t('documents.versions.frozenHint')}</Callout>
+        ) : null}
         <div className="flex items-center gap-2">
           <h2 className="min-w-0 flex-1 text-sm font-semibold text-fg">
             {t('documents.versions.title')}
@@ -150,10 +181,13 @@ function VersionItem({
   locale: 'ru' | 'tg' | 'en'
 }) {
   const t = useT()
+  const { document } = useDocument()
   const download = useFileDownload()
   // Основной файл версии — обычно DOCX: его правят в редакторе, и правка
-  // ложится новой версией самого файла (ADR-0112)
+  // становится новой версией документа (ADR-0112, ADR-0197). Редактор открывается
+  // у файлов текущей версии: у прежних версий он показал бы уже другое содержимое
   const openOffice = useOpenOfficeEditor()
+  const canEdit = current && document.can.addVersion
   const officeReady = useOfficeConfigured()
   const editing = useOfficeEditing(editableFiles(version).map((file) => file.id))
   return (
@@ -213,7 +247,7 @@ function VersionItem({
                 </Tooltip>
               ) : null}
               <span className="shrink-0 tabular text-fg-muted">{formatFileSize(file.size)}</span>
-              {officeReady && officeEditable(file) ? (
+              {officeReady && canEdit && officeEditable(file) ? (
                 <Tooltip content={t('files.office.open')}>
                   <IconButton
                     size="sm"
@@ -228,7 +262,9 @@ function VersionItem({
                 <IconButton
                   size="sm"
                   label={t('common.actions.download')}
-                  onClick={() => download.mutate({ fileId: file.id })}
+                  onClick={() =>
+                    download.mutate({ fileId: file.id, versionId: file.versionId ?? undefined })
+                  }
                 >
                   <Download className="size-3.5" />
                 </IconButton>

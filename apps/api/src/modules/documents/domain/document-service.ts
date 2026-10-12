@@ -47,7 +47,7 @@ import { CorrespondentService } from './correspondent-service.js'
 import { JournalService, todayLocal } from './journal-service.js'
 import { applyTransition } from './lifecycle.js'
 import { CARD_LEVELS, DocumentParticipants, refreshViewers } from './participants.js'
-import { activeRoute, ROUTE_ACTIVE_STATUSES, routeBlocker } from './routes/state.js'
+import { activeRoute, routeBlocker } from './routes/state.js'
 import { documentsSpaceId } from './space.js'
 import { type DocumentTypeRow, DocumentTypeService } from './type-service.js'
 import { DocumentVersionService } from './version-service.js'
@@ -348,6 +348,7 @@ export const DocumentService = {
       registration,
       currentVersion,
       versionCount,
+      contentLock,
       route,
       routes,
       caseRefs,
@@ -363,6 +364,11 @@ export const DocumentService = {
       DocumentService.registration(row.id),
       DocumentVersionService.record(db(), row.currentVersionId),
       DocumentVersionService.count(db(), row.id),
+      DocumentVersionService.blocker(db(), {
+        id: row.id,
+        status: row.status as DocumentStatus,
+        filesDestroyedAt: row.filesDestroyedAt,
+      }),
       activeRoute(db(), row.id),
       ProcessDefinitions.published(db(), 'document'),
       CaseService.refs(
@@ -431,6 +437,7 @@ export const DocumentService = {
       filedAt: row.filedAt,
       dispatchCount: dispatches[0]?.total ?? 0,
       filesDestroyedAt: row.filesDestroyedAt,
+      contentLock,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       version: row.version,
@@ -443,12 +450,9 @@ export const DocumentService = {
           ((status === 'draft' || status === 'returned') && allowed.has('document.cancel')) ||
           (status === 'registered' && allowed.has('document.cancel_registered')),
         // На согласовании и подписи версия заморожена: новая — после возврата;
-        // после уничтожения файлов по акту версий нет
-        addVersion:
-          allowed.has('document.add_version') &&
-          !closed &&
-          !ROUTE_ACTIVE_STATUSES.includes(status) &&
-          !row.filesDestroyedAt,
+        // согласованное и подписанное не меняется; после уничтожения файлов по
+        // акту версий нет (ADR-0197)
+        addVersion: allowed.has('document.add_version') && contentLock === null,
         changeConfidentiality: canEdit,
         share: allowed.has('document.share'),
         startRoute: routes.length > 0 && (blocker === null || blocker === 'no_version'),

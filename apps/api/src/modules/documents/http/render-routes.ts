@@ -35,7 +35,11 @@ export function registerRenderRoutes(route: RouteRegistrar): void {
     tags: ['documents'],
     summary: 'Копия файла с грифом под водяным знаком смотрящего',
     handler: async (request) => {
-      const id = await DocumentRenders.requestWatermark(request.ctx, request.body.fileId)
+      const id = await DocumentRenders.requestWatermark(
+        request.ctx,
+        request.body.fileId,
+        request.body.versionId,
+      )
       return DocumentRenders.get(request.ctx, id)
     },
   })

@@ -11,6 +11,7 @@ import { withProcessParticipants } from '~/kernel/process/index.js'
 import { declareSchedule } from '~/kernel/schedules/index.js'
 import { registerSystemDataset } from '~/kernel/system-datasets.js'
 import { registerCalendarProjection } from '~/modules/calendar/public.js'
+import { registerFileContentPolicy } from '~/modules/files/public.js'
 import type { Ctx } from '~/shared/context.js'
 import type { Tx } from '~/shared/db/client.js'
 import { db } from '~/shared/db/client.js'
@@ -36,6 +37,7 @@ import { ResolutionService } from './domain/resolution-service.js'
 import { registerDocumentProcess } from './domain/routes/provider.js'
 import { documentSubscribers } from './domain/subscribers.js'
 import { DOCUMENTS_SYSTEM_DATASET } from './domain/system-dataset.js'
+import { documentFilePolicy } from './domain/version-service.js'
 import { registerDocumentAssistRoutes } from './http/assist-routes.js'
 import { registerMailRoutes } from './http/mail-routes.js'
 import { registerDocumentProcessRoutes } from './http/process-routes.js'
@@ -77,6 +79,8 @@ function registerResolutionInboxActions(): void {
  */
 export function registerDocumentsObjectTypes(): void {
   registerNotificationCategory('documents', { app: 'immediate', email: 'digest' })
+  // Файлы версий документа: заморозка и правка как новая версия документа (ADR-0197)
+  registerFileContentPolicy(documentFilePolicy)
   registerAuditActions('documents', DOCUMENTS_AUDIT)
   registerObjectType({
     type: 'document',

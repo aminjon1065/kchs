@@ -15,7 +15,7 @@ import { publishEvent } from '~/kernel/events/publisher.js'
 import { JobService } from '~/kernel/jobs/service.js'
 import { BrandingService } from '~/kernel/settings/branding.js'
 import { getObjectStream } from '~/kernel/storage/s3.js'
-import { fileSource } from '~/modules/files/public.js'
+import { fileVersionSource } from '~/modules/files/public.js'
 import { MailPublic } from '~/modules/mail/public.js'
 import { config } from '~/shared/config/index.js'
 import { actorId, type Ctx, systemCtx, type UserCtx } from '~/shared/context.js'
@@ -100,6 +100,7 @@ async function letterFiles(executor: Executor, versionId: string | null, withAtt
       pdfFileId: documentVersions.pdfFileId,
       pdfStatus: documentVersions.pdfStatus,
       attachments: documentVersions.attachments,
+      fileVersions: documentVersions.fileVersions,
     })
     .from(documentVersions)
     .where(eq(documentVersions.id, versionId))
@@ -111,9 +112,10 @@ async function letterFiles(executor: Executor, versionId: string | null, withAtt
     )
   }
   const ids = [version.pdfFileId, ...(withAttachments ? version.attachments : [])]
-  const sources = (await Promise.all(ids.map((id) => fileSource(id)))).filter(
-    (source): source is NonNullable<typeof source> => source !== null,
-  )
+  // Адресату уходят закреплённые байты версии, а не текущая версия файла (ADR-0197)
+  const sources = (
+    await Promise.all(ids.map((id) => fileVersionSource(id, version.fileVersions[id])))
+  ).filter((source): source is NonNullable<typeof source> => source !== null)
   const total = sources.reduce((sum, source) => sum + source.size, 0)
   if (total > MAX_ATTACHMENTS_BYTES) {
     throw errors.conflict(

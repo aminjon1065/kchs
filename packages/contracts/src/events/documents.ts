@@ -32,6 +32,12 @@ export const DOCUMENTS_EVENTS = {
     versionId: Uuid,
     number: z.number().int(),
     mainFileId: Uuid,
+    /**
+     * Версия родилась из правки файла (ADR-0197): какой файл и как изменили —
+     * редактор, загрузка новой версии файла или восстановление старой.
+     */
+    fileId: Uuid.optional(),
+    source: z.enum(['editor', 'upload', 'restore']).optional(),
   }),
   /** PDF-представление версии готово или не построено. */
   'document.version_pdf_ready': z.object({ versionId: Uuid, status: z.string() }),

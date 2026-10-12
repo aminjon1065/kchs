@@ -217,7 +217,9 @@ documents(id pk → objects, type_id, status text, reg_number text, reg_date dat
           viewers text[])   -- viewers — принципалы для системного датасета «Документы», как у tasks (ADR-0060)
   idx: (type_id, status), (reg_number), (journal_id, reg_date desc), (responsible_id, deadline), (controller_id), (correspondent_id), gin(fields)
 document_versions(id, document_id, number int, main_file_id, pdf_file_id, pdf_status text, attachments jsonb, created_by, created_at,
-                  note, hash text, is_final)  unique(document_id, number)
+                  note, hash text, is_final,
+                  file_versions jsonb)  unique(document_id, number)
+                  -- file_versions — файл → закреплённая версия файла для основного, приложений и PDF (ADR-0197)
 registrations(id, document_id, journal_id, number text, sequence int, year int, reserved bool, registered_by, registered_at)
   unique(journal_id, year, sequence)
 document_participants(document_id, user_id, role text, source text, level smallint, created_at)
