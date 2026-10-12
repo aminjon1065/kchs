@@ -416,6 +416,27 @@ const FIXTURES: Record<string, TypeFixture> = {
     ],
   },
 
+  // Предупреждение CAP (ADR-0202): черновик в пространстве; правка, отправка на решение и
+  // уточнение — правом правки
+  warning: {
+    create: async (fx, title) => {
+      const response = await call(fx.app, {
+        method: 'POST',
+        url: '/warnings',
+        as: fx.admin,
+        payload: { spaceId: fx.spaceId, info: { ru: { headline: title } } },
+      })
+      expect(response.statusCode, response.body).toBe(200)
+      return { id: response.json().id, title }
+    },
+    readPaths: ['/warnings/:id'],
+    viewerForbidden: (_fx, id) => [
+      { method: 'PUT', url: `/warnings/${id}`, payload: { severity: 'Minor' } },
+      { method: 'POST', url: `/warnings/${id}/submit` },
+      { method: 'POST', url: `/warnings/${id}/supersede`, payload: { msgType: 'Update' } },
+    ],
+  },
+
   dashboard: {
     create: async (fx, title) => {
       const response = await call(fx.app, {
