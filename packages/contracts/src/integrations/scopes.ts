@@ -31,6 +31,8 @@ export const API_SCOPE_RESOURCES = [
   'automation',
   /** Приём координат техники и групп (ADR-0203). */
   'positions',
+  /** Отчёт резервного узла о проверке восстановления (ADR-0199). */
+  'backups',
 ] as const
 export const ApiScopeResource = z.enum(API_SCOPE_RESOURCES)
 export type ApiScopeResource = z.infer<typeof ApiScopeResource>
@@ -81,6 +83,8 @@ export const API_SCOPES = [
   'write:automation',
   'read:positions',
   'write:positions',
+  'read:backups',
+  'write:backups',
 ] as const
 export const ApiScope = z.enum(API_SCOPES)
 export type ApiScope = z.infer<typeof ApiScope>

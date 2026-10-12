@@ -245,8 +245,37 @@ bash infra/scripts/generate-secrets.sh --add-missing --env-file .env
 Откат: вернуть прежний тег образов и поднять их; если новая версия применила
 необратимую миграцию — восстановить базу по `infra/runbooks/restore.md`.
 
+При резервном узле (ниже) обновляйте и его: та же версия репозитория и образов
+(`docker save | docker load`), затем `bash infra/scripts/dr.sh status`. Приложение на
+узле не запущено — миграции придут на него репликацией.
+
 Подробные порядки действий — в `infra/runbooks/upgrade.md`, `restore.md`,
 `incident.md`.
+
+## Резервный узел
+
+Концепт-нота требует, чтобы система оставалась доступной при аварии основной площадки:
+потеря данных — не больше часа, восстановление — не больше четырёх часов. Для этого на
+удалённой площадке ставится второй сервер — резервный узел (ADR-0199). Он держит копию
+базы в реальном времени (standby), свой архив WAL для отката на момент времени и зеркало
+хранилища; приложение на нём запускается при переключении.
+
+Что понадобится: второй сервер того же класса, VPN между площадками, те же образы.
+Коротко:
+
+```bash
+# основной сервер: .env — POSTGRES_BIND (адрес VPN), KCHS_DR_CIDR (адрес узла)
+bash infra/scripts/generate-secrets.sh --add-missing --env-file .env
+docker compose --profile app up -d
+bash infra/scripts/dr.sh primary-setup
+# узел: .env — копия основного и раздел «Резервный узел» (.env.example)
+bash infra/scripts/dr.sh init-standby
+bash infra/scripts/dr.sh basebackup
+bash infra/scripts/dr.sh status
+```
+
+Полностью — `infra/runbooks/failover.md` (подготовка, расписание проверок, переключение,
+откат логической ошибки) и `failback.md` (возврат).
 
 ## Стенд разработки
 

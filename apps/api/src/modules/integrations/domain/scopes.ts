@@ -38,6 +38,7 @@ const TAG_RESOURCE: Record<string, ApiScopeResource> = {
   automation: 'automation',
   // Приём координат поставщиками мониторинга и устройства слежения (ADR-0203)
   positions: 'positions',
+  backups: 'backups',
 }
 
 /**

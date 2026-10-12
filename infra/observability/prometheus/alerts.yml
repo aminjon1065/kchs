@@ -171,6 +171,39 @@ groups:
         annotations:
           summary: "Postgres: реплика отстаёт на {{ $value | humanizeDuration }}"
 
+  # ── Резервный узел (ADR-0199): standby на удалённой площадке ───────────────
+  # На основном — слоты узла (kchs_dr — standby, kchs_dr_wal — архив WAL), на
+  # узле — отставание standby. Без узла слотов и реплики нет — правила молчат
+  - name: kchs-dr
+    rules:
+      # RPO концепт-ноты — час: дольше узел отставать не должен
+      - alert: KchsDrStandbyBehindRpo
+        expr: pg_replication_lag_seconds > 3600 and pg_replication_is_replica == 1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Резервный узел отстаёт на {{ $value | humanizeDuration }} — больше RPO (1 ч)"
+
+      # Узел не забирает WAL: обрыв VPN, остановлен узел или архив
+      - alert: KchsDrSlotInactive
+        expr: pg_replication_slots_active{slot_name=~"kchs_dr.*"} == 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Резервный узел не забирает WAL (слот {{ $labels.slot_name }}) 15 минут"
+
+      # Основной держит WAL для узла не больше max_slot_wal_keep_size; когда запас
+      # кончится, слот потеряет WAL и узел придётся засевать заново
+      - alert: KchsDrSlotWalLimit
+        expr: pg_replication_slots_safe_wal_size_bytes{slot_name=~"kchs_dr.*"} < 2147483648
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Слот {{ $labels.slot_name }}: до предела удержания WAL меньше 2 ГБ — узел скоро отстанет безвозвратно"
+
   # ── Redis (очереди BullMQ, потоки событий, доступы; кэш — ниже) ────────────
   - name: kchs-redis
     rules:

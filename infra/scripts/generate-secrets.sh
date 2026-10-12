@@ -46,12 +46,17 @@ rnd() { openssl rand -base64 48 | LC_ALL=C tr -dc 'A-Za-z0-9' | cut -c1-"${1:-32
 add_missing() {
   local added=()
   local key value
-  for key in REDIS_ENGINE_PASSWORD S3_ENGINE_ACCESS_KEY S3_ENGINE_SECRET_KEY; do
+  for key in REDIS_ENGINE_PASSWORD S3_ENGINE_ACCESS_KEY S3_ENGINE_SECRET_KEY \
+    POSTGRES_REPLICATION_PASSWORD S3_DR_ACCESS_KEY S3_DR_SECRET_KEY; do
     grep -q "^$key=" "$ENV_FILE" && continue
     case "$key" in
       REDIS_ENGINE_PASSWORD) value="$(rnd 32)" ;;
       S3_ENGINE_ACCESS_KEY) value="kchsengine" ;;
       S3_ENGINE_SECRET_KEY) value="$(rnd 40)" ;;
+      # Резервный узел (ADR-0199): роль репликации и пользователь зеркала хранилища
+      POSTGRES_REPLICATION_PASSWORD) value="$(rnd 32)" ;;
+      S3_DR_ACCESS_KEY) value="kchsdr" ;;
+      S3_DR_SECRET_KEY) value="$(rnd 40)" ;;
     esac
     printf '%s=%s\n' "$key" "$value" >> "$ENV_FILE"
     added+=("$key")
@@ -95,6 +100,8 @@ REDIS_PW="$(rnd 32)"; S3_SECRET="$(rnd 40)"; MEILI_KEY="$(rnd 40)"
 REDIS_CACHE_PW="$(rnd 32)"
 # Пользователи Redis и хранилища движка (ADR-0176)
 REDIS_ENGINE_PW="$(rnd 32)"; S3_ENGINE_SECRET="$(rnd 40)"
+# Резервный узел (ADR-0199): роль репликации и пользователь зеркала хранилища
+PG_REPLICATION="$(rnd 32)"; S3_DR_SECRET="$(rnd 40)"
 MASTER_KEY="$(b64key)"; INTERNAL_TOKEN="$(rnd 48)"; GRAFANA_PW="$(rnd 24)"
 # Медиасервер встреч (ADR-0089): ключ и секрет — пара для токенов комнат
 LIVEKIT_KEY="$(rnd 16)"; LIVEKIT_SECRET="$(rnd 48)"
@@ -126,6 +133,8 @@ set_kv REDIS_CACHE_PASSWORD "$REDIS_CACHE_PW"
 repl REDIS_ENGINE_PASSWORD "$REDIS_ENGINE_PW"
 repl S3_SECRET_KEY "$S3_SECRET"
 repl S3_ENGINE_SECRET_KEY "$S3_ENGINE_SECRET"
+repl POSTGRES_REPLICATION_PASSWORD "$PG_REPLICATION"
+repl S3_DR_SECRET_KEY "$S3_DR_SECRET"
 repl MEILI_MASTER_KEY "$MEILI_KEY"
 repl KCHS_MASTER_KEY "$MASTER_KEY"
 repl INTERNAL_SERVICE_TOKEN "$INTERNAL_TOKEN"

@@ -1,5 +1,11 @@
 import { z } from 'zod'
-import { BackupList, BackupRecord } from '../../admin/backups.js'
+import {
+  BackupList,
+  BackupRecord,
+  RestoreCheck,
+  RestoreCheckInput,
+  RestoreCheckList,
+} from '../../admin/backups.js'
 import { Branding, BrandingPatch } from '../../admin/branding.js'
 import { FeatureFlagList, FeatureFlagPatch } from '../../admin/features.js'
 import { HealthReport } from '../../admin/org.js'
@@ -19,6 +25,8 @@ export const adminRoutes = defineRoutes({
     body: z.object({ note: z.string().max(500).default('') }),
     response: { 200: BackupRecord },
   },
+  'GET /admin/backups/restore-checks': { response: { 200: RestoreCheckList } },
+  'POST /backups/restore-checks': { body: RestoreCheckInput, response: { 200: RestoreCheck } },
   'POST /admin/maintenance/reindex': { response: { 200: z.object({ jobId: z.uuid() }) } },
   'GET /branding': { response: { 200: Branding } },
   'PATCH /admin/branding': { body: BrandingPatch, response: { 200: Branding } },
