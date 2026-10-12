@@ -183,6 +183,8 @@ export const AUDIT_ACTIONS = {
   /** Любое действие в режиме администратора (ADR-0080). */
   adminModeAction: 'admin.mode_action',
   clearanceChanged: 'user.clearance_changed',
+  /** Факсимиле сотрудника загружено, заменено или удалено — им или администратором (ADR-0198). */
+  facsimileChanged: 'user.facsimile_changed',
   settingsChanged: 'settings.changed',
   objectPurged: 'object.purged',
   auditExported: 'audit.exported',

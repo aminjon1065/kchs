@@ -97,6 +97,7 @@ import {
   ResolutionTemplateInput,
   ResolutionTemplateUpdateInput,
 } from '../../documents/resolution.js'
+import { DocumentSignature, SignaturePlacementInput } from '../../documents/route.js'
 import {
   DocumentFillInput,
   DocumentFromTemplateInput,
@@ -167,6 +168,14 @@ export const documentsRoutes = defineRoutes({
     query: VersionCompareQuery,
     response: { 200: VersionCompareResult },
   },
+  // Место факсимиле на подписанном экземпляре (ADR-0198): экземпляр строится заново
+  'PUT /documents/:id/signatures/:signatureId/placement': {
+    params: z.object({ id: z.uuid(), signatureId: z.uuid() }),
+    body: SignaturePlacementInput,
+    response: { 200: DocumentSignature },
+  },
+  // Страница проверки подписи по QR (ADR-0198): HTML без входа
+  'GET /verify/:id': { params: IdParam },
   'POST /internal/documents/renders/:id/start': {
     params: IdParam,
     response: { 200: ENGINE_CALLBACKS.documentRenderStart.reply },

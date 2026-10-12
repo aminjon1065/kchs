@@ -18,7 +18,8 @@
   ],
   "overlayPages": [
     "first",
-    "all"
+    "all",
+    "last"
   ],
   "maxSourceBytes": 268435456,
   "maxTemplateBytes": 20971520

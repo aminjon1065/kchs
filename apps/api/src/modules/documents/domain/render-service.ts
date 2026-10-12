@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import {
   classifyPlaceholders,
   type DocumentRenderDownload,
@@ -16,7 +17,7 @@ import {
   type PrintRequestInput,
 } from '@kchs/contracts'
 import { createTranslator } from '@kchs/i18n'
-import { and, desc, eq, gte, inArray, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, gte, inArray, sql } from 'drizzle-orm'
 import { authorize } from '~/kernel/access/authorize.js'
 import { buildUserCtxFor } from '~/kernel/access/explain.js'
 import { audit } from '~/kernel/audit/service.js'
@@ -36,7 +37,7 @@ import {
 import { systemCtx, type UserCtx } from '~/shared/context.js'
 import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { AppError, errors } from '~/shared/errors.js'
-import { documentRenders, templates } from '../schema.js'
+import { documentRenders, documentSignatures, templates } from '../schema.js'
 import { DOCUMENTS_AUDIT } from './audit-actions.js'
 import { DocumentService } from './document-service.js'
 import { printPage } from './print/html.js'
@@ -55,6 +56,7 @@ import {
   type RenderRow,
   type RenderSubject,
 } from './render-queue.js'
+import { activeRoute } from './routes/state.js'
 import { templateContext } from './template-context.js'
 import { DOCX_MIME, DocumentTemplateService, loadTemplate } from './template-service.js'
 import { DocumentTypeService } from './type-service.js'
@@ -260,7 +262,13 @@ async function buildPlan(
         }
       }
       return {
-        plan: { kind: 'overlay', source: built.source, html: built.html, pages: built.pages },
+        plan: {
+          kind: 'overlay',
+          source: built.source,
+          html: built.html,
+          pages: built.pages,
+          ...(built.images && built.images.length > 0 ? { images: built.images } : {}),
+        },
         target: fileTarget(row, subject, built.fileName, PDF_MIME),
       }
     }
@@ -438,6 +446,76 @@ export const DocumentRenders = {
         )
       }
       return id
+    })
+  },
+
+  /**
+   * Подписанный экземпляр (ADR-0198) — сам, когда у текущей версии есть подписи,
+   * её PDF готов и маршрут не ждёт регистрации: документ подписан и маршрут
+   * закончился или уже зарегистрирован. Один экземпляр на версию, номер, число
+   * подписей и выбранные людьми места факсимиле.
+   */
+  async scheduleSignedCopy(documentId: string): Promise<string | null> {
+    const subject = await loadSubject(db(), documentId)
+    if (subject?.type !== 'document') return null
+    const form = printForm('signature_stamp')
+    if (!form) return null
+    const row = await DocumentService.load(db(), documentId)
+    if (!row?.currentVersionId) return null
+    // Маршрут ещё идёт (ждёт регистрации) — экземпляр будет после неё, с номером
+    if (await activeRoute(db(), documentId)) return null
+    if (form.unavailable && (await form.unavailable(subject))) return null
+    const signatures = await db()
+      .select({
+        id: documentSignatures.id,
+        signerId: documentSignatures.signerId,
+        actorId: documentSignatures.actorId,
+        placement: documentSignatures.placement,
+      })
+      .from(documentSignatures)
+      .where(
+        and(
+          eq(documentSignatures.documentId, documentId),
+          eq(documentSignatures.versionId, row.currentVersionId),
+        ),
+      )
+      .orderBy(asc(documentSignatures.signedAt))
+    const last = signatures.at(-1)
+    if (!last) return null
+    const requestedBy = last.actorId ?? last.signerId
+    const places = signatures
+      .map((signature) => {
+        const placement = signature.placement as {
+          source?: string
+          page?: number
+          x?: number
+          y?: number
+        } | null
+        return placement?.source === 'manual'
+          ? `${signature.id}@${placement.page}:${placement.x}:${placement.y}`
+          : ''
+      })
+      .join('|')
+    const placesKey = createHash('sha256').update(places).digest('hex').slice(0, 12)
+    const versionId = row.currentVersionId
+    const dedupeKey = `signed:${documentId}:${versionId}:${row.regNumber ?? '-'}:${signatures.length}:${placesKey}`
+    return db().transaction(async (tx) => {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${dedupeKey}))`)
+      const [existing] = await tx
+        .select({ id: documentRenders.id })
+        .from(documentRenders)
+        .where(eq(documentRenders.dedupeKey, dedupeKey))
+        .limit(1)
+      if (existing) return null
+      return enqueueRender(tx, systemCtx('documents.signed-copy', { initiatorId: requestedBy }), {
+        kind: 'print',
+        subject,
+        formKey: form.key,
+        params: { versionId },
+        requestedBy,
+        withFile: true,
+        dedupeKey,
+      })
     })
   },
 
@@ -672,6 +750,16 @@ export const DocumentRenders = {
           checksum: null,
           attachToObjectId: subject.id,
         })
+        if (row.kind === 'print') {
+          // Форма узнаёт о своём результате в той же транзакции (ADR-0198)
+          const form = row.formKey ? printForm(row.formKey) : null
+          await form?.onReady?.(tx, sys, {
+            subjectId: subject.id,
+            fileId,
+            params: row.params as PrintParams,
+            placements: result.placements ?? [],
+          })
+        }
         if (row.kind === 'fill') {
           const template = await loadTemplate(tx, row.formKey ?? '')
           const requester = row.requestedBy ? await buildUserCtxFor(row.requestedBy) : null

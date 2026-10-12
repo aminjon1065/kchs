@@ -219,6 +219,8 @@ describe('печатные формы', () => {
       'registration_card',
       'registration_stamp',
       'signature_sheet',
+      // Подписанный экземпляр — у любого документа, когда он подписан (ADR-0198)
+      'signature_stamp',
     ])
     expect(forms.find((form) => form.key === 'registration_stamp')).toMatchObject({
       available: false,
@@ -238,6 +240,7 @@ describe('печатные формы', () => {
       'acknowledgment_sheet',
       'approval_sheet',
       'signature_sheet',
+      'signature_stamp',
     ])
     expect(outgoingForms.every((form) => !form.available)).toBe(true)
     const journalForms = (

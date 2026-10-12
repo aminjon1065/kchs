@@ -110,7 +110,41 @@ export type DocumentRenderTarget = z.infer<typeof DocumentRenderTarget>
 
 export const RENDER_ORIENTATIONS = ['portrait', 'landscape'] as const
 export const DOCUMENT_RENDER_PLAN_KINDS = ['html', 'overlay', 'docx', 'inspect'] as const
-export const RENDER_OVERLAY_PAGES = ['first', 'all'] as const
+export const RENDER_OVERLAY_PAGES = ['first', 'all', 'last'] as const
+/** Как картинка встаёт к найденному тексту: закрывает маркер или левее фамилии. */
+export const OVERLAY_ANCHOR_MODES = ['cover', 'left'] as const
+/** Предел картинки наложения в base64 (факсимиле — до 256 КБ PNG). */
+export const OVERLAY_IMAGE_MAX_CHARS = 360_000
+
+/**
+ * Картинка наложения (ADR-0198): факсимиле. Место ищет движок — явное, по
+ * маркеру или тексту на листах с конца, иначе запасное — и сообщает его в отчёте.
+ */
+export const OverlayImage = z.object({
+  /** Подпись, к которой относится картинка: эхом в отчёте о месте. */
+  id: z.string().max(64),
+  /** `data:image/png;base64,…` — сеть страницы наложения закрыта. */
+  dataUri: z
+    .string()
+    .max(OVERLAY_IMAGE_MAX_CHARS)
+    .regex(/^data:image\/png;base64,[A-Za-z0-9+/]+={0,2}$/),
+  widthMm: z.number().positive().max(120),
+  heightMm: z.number().positive().max(60),
+  anchors: z
+    .array(z.object({ text: z.string().min(2).max(200), mode: z.enum(OVERLAY_ANCHOR_MODES) }))
+    .max(4),
+  /** Место, выбранное человеком: лист с 1, центр картинки в долях листа. */
+  manual: z
+    .object({
+      page: z.number().int().min(1),
+      x: z.number().min(0).max(1),
+      y: z.number().min(0).max(1),
+    })
+    .nullable(),
+  /** Если ничего не нашлось: последний лист, центр в долях листа. */
+  fallback: z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1) }),
+})
+export type OverlayImage = z.infer<typeof OverlayImage>
 
 /**
  * План рендера: `html` — страница печатной формы (Chromium → PDF A4);
@@ -134,6 +168,8 @@ export const DocumentRenderPlan = z.discriminatedUnion('kind', [
     /** HTML наложения: страница того же размера, фон прозрачный. */
     html: z.string(),
     pages: z.enum(RENDER_OVERLAY_PAGES),
+    /** Картинки, место которых ищет движок (факсимиле, ADR-0198). */
+    images: z.array(OverlayImage).max(10).optional(),
   }),
   z.object({
     kind: z.literal('docx'),
@@ -162,5 +198,19 @@ export const DocumentRenderResult = z.object({
   /** Разбор шаблона: пути плейсхолдеров (`doc.subject`, `doc.fields.addressee`). */
   placeholders: z.array(z.string().max(200)).max(500).nullable().default(null),
   error: z.string().max(4000).nullable().default(null),
+  /** Где встали картинки наложения: лист с 1, центр в долях листа (ADR-0198). */
+  placements: z
+    .array(
+      z.object({
+        id: z.string().max(64),
+        page: z.number().int().min(1),
+        x: z.number().min(0).max(1),
+        y: z.number().min(0).max(1),
+        source: z.enum(['manual', 'marker', 'name', 'fallback']),
+      }),
+    )
+    .max(10)
+    .nullable()
+    .default(null),
 })
 export type DocumentRenderResult = z.infer<typeof DocumentRenderResult>

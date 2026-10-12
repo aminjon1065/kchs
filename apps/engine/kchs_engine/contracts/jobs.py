@@ -97,6 +97,13 @@ class DocumentPdfTarget(TypedDict):
 
 
 @with_config(INBOUND)
+class DocumentPdfAttachment(TypedDict):
+    fileId: str
+    bucket: str
+    storageKey: str
+
+
+@with_config(INBOUND)
 class DocumentPdfJob(TypedDict):
     documentId: NotRequired[str]
     versionId: str
@@ -106,6 +113,8 @@ class DocumentPdfJob(TypedDict):
     storageKey: str
     convert: NotRequired[bool]
     target: NotRequired[DocumentPdfTarget]
+    # Приложения версии — только хэш, для манифеста подписи (ADR-0198)
+    attachments: NotRequired[list[DocumentPdfAttachment]]
 
 
 @with_config(INBOUND)

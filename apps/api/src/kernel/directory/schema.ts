@@ -12,7 +12,7 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core'
-import { createdAt, type LangTextValue, tsCol, updatedAt } from '../../shared/db/columns.js'
+import { bytea, createdAt, type LangTextValue, tsCol, updatedAt } from '../../shared/db/columns.js'
 
 // ─── Пользователи ────────────────────────────────────────────────────────────
 
@@ -239,6 +239,23 @@ export const delegations = pgTable(
     index('delegations_to_idx').on(t.toUserId, t.status),
   ],
 )
+
+/**
+ * Факсимиле сотрудника (ADR-0198): изображение подписи для подписанного экземпляра.
+ * Реквизит справочника людей, а не файл реестра: одна дорога доступа — предпросмотр
+ * владельцу и рендер экземпляра; PNG уже проверен и пересобран без метаданных.
+ */
+export const userFacsimiles = pgTable('user_facsimiles', {
+  userId: uuid('user_id')
+    .primaryKey()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  png: bytea('png').notNull(),
+  sha256: text('sha256').notNull(),
+  width: integer('width').notNull(),
+  height: integer('height').notNull(),
+  updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
+  updatedAt: updatedAt(),
+})
 
 export type UserRow = typeof users.$inferSelect
 

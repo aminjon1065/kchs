@@ -101,6 +101,7 @@ async function letterFiles(executor: Executor, versionId: string | null, withAtt
       pdfStatus: documentVersions.pdfStatus,
       attachments: documentVersions.attachments,
       fileVersions: documentVersions.fileVersions,
+      signedCopyFileId: documentVersions.signedCopyFileId,
     })
     .from(documentVersions)
     .where(eq(documentVersions.id, versionId))
@@ -111,7 +112,12 @@ async function letterFiles(executor: Executor, versionId: string | null, withAtt
       'PDF текущей версии ещё не готов: письмо уходит с PDF — отправьте, когда он появится',
     )
   }
-  const ids = [version.pdfFileId, ...(withAttachments ? version.attachments : [])]
+  // Подписанный экземпляр с факсимиле и штампом — то, что адресат и должен
+  // получить (ADR-0198); без него — PDF-представление версии
+  const ids = [
+    version.signedCopyFileId ?? version.pdfFileId,
+    ...(withAttachments ? version.attachments : []),
+  ]
   // Адресату уходят закреплённые байты версии, а не текущая версия файла (ADR-0197)
   const sources = (
     await Promise.all(ids.map((id) => fileVersionSource(id, version.fileVersions[id])))

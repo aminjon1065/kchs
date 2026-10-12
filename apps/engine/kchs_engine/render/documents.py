@@ -8,7 +8,10 @@
   с колонтитулом «Лист N из M»; сеть страницы закрыта, скрипты выключены;
 - `overlay` — штамп или водяной знак: страница наложения печатается под размер
   каждого листа (одна на каждый размер) и накладывается на PDF (pypdf); не-PDF
-  сначала переводится в PDF, как PDF-представление версии;
+  сначала переводится в PDF, как PDF-представление версии. С картинками
+  (факсимиле, ADR-0198) место каждой ищет движок — явное, по маркеру `[[SIGN]]`,
+  левее фамилии на листах с конца, иначе запасное, — и наложение печатается для
+  каждого такого листа отдельно; найденные места уходят в отчёт;
 - `docx` — заполнение шаблона docxtpl в песочнице Jinja (`SandboxedEnvironment`,
   автоэкранирование XML): шаблон пишет администратор справочника, но из шаблона
   нельзя добраться до Python;
@@ -19,10 +22,14 @@
 from __future__ import annotations
 
 import asyncio
+import html as html_lib
 import io
+import re
+import subprocess
 import tempfile
 import time
 import zipfile
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -41,6 +48,7 @@ from kchs_engine.render.report import (
     shared_browser,
 )
 from kchs_engine.storage import download, object_size, upload
+from kchs_engine.tools import tool_env
 
 if TYPE_CHECKING:
     from jinja2 import nodes as jinja_nodes
@@ -221,12 +229,23 @@ def _open_pdf(path: Path) -> Any:
     return reader
 
 
+def target_pages(count: int, pages: str) -> list[int]:
+    """Листы наложения: первый, последний или все."""
+    if count == 0:
+        return []
+    if pages == "first":
+        return [0]
+    if pages == "last":
+        return [count - 1]
+    return list(range(count))
+
+
 def page_sizes(path: Path, pages: str) -> list[tuple[float, float]]:
     """Размеры листов (pt) с учётом поворота: те, на которые ляжет наложение."""
     from pypdf import PdfWriter
 
     writer = PdfWriter(clone_from=_open_pdf(path))
-    targets = [0] if pages == "first" else range(len(writer.pages))
+    targets = target_pages(len(writer.pages), pages)
     sizes: list[tuple[float, float]] = []
     for index in targets:
         page = writer.pages[index]
@@ -252,7 +271,7 @@ def merge_overlays(
     from pypdf import PdfReader, PdfWriter, Transformation
 
     writer = PdfWriter(clone_from=_open_pdf(source))
-    targets = [0] if pages == "first" else range(len(writer.pages))
+    targets = target_pages(len(writer.pages), pages)
     for index in targets:
         page = writer.pages[index]
         page.transfer_rotation_to_content()
@@ -264,6 +283,264 @@ def merge_overlays(
         page.merge_transformed_page(
             overlay,
             Transformation().scale(scale_x, scale_y).translate(float(box.left), float(box.bottom)),
+        )
+    with target.open("wb") as stream:
+        writer.write(stream)
+    return target, len(writer.pages)
+
+
+# ─── Картинки наложения: где поставить факсимиле (ADR-0198) ───────────────────
+
+MM = 72 / 25.4
+DATA_URI = re.compile(r"^data:image/png;base64,[A-Za-z0-9+/]+={0,2}$")
+WORD = re.compile(
+    r'<word xMin="([\d.]+)" yMin="([\d.]+)" xMax="([\d.]+)" yMax="([\d.]+)">(.*?)</word>'
+)
+PAGE = re.compile(r'<page width="([\d.]+)" height="([\d.]+)">(.*?)</page>', re.S)
+
+
+@dataclass(frozen=True)
+class PageBox:
+    """Видимая область листа после переноса поворота (pt)."""
+
+    left: float
+    bottom: float
+    width: float
+    height: float
+
+
+@dataclass(frozen=True)
+class TextHit:
+    """Найденный текст: лист и рамка в долях листа от левого верхнего угла."""
+
+    page: int
+    left: float
+    top: float
+    right: float
+    bottom: float
+
+
+@dataclass(frozen=True)
+class Placement:
+    """Центр картинки в долях листа и, у маркера, рамка под белую заливку."""
+
+    page: int
+    x: float
+    y: float
+    source: str
+    cover: tuple[float, float, float, float] | None = None
+
+
+def _normalize(text: str) -> str:
+    return re.sub(r"\s+", " ", text.replace("\u00a0", " ")).strip().casefold()
+
+
+def page_words(source: Path) -> list[list[tuple[str, float, float, float, float]]]:
+    """Слова листов с рамками в долях листа — poppler `pdftotext -bbox`.
+
+    pypdf не декодирует шрифты CID, которыми печатает Chromium; poppler читает их
+    по ToUnicode и отдаёт рамки слов в видимой ориентации листа."""
+    try:
+        done = subprocess.run(
+            ["pdftotext", "-bbox", "-enc", "UTF-8", str(source), "-"],
+            capture_output=True,
+            check=True,
+            timeout=60,
+            env=tool_env(),
+        )
+    except (OSError, subprocess.SubprocessError):
+        log.warning("render.text_layer_unavailable")
+        return []
+    pages: list[list[tuple[str, float, float, float, float]]] = []
+    for match in PAGE.finditer(done.stdout.decode("utf-8", "replace")):
+        width, height = float(match.group(1)) or 1.0, float(match.group(2)) or 1.0
+        words = [
+            (
+                html_lib.unescape(word.group(5)),
+                float(word.group(1)) / width,
+                float(word.group(2)) / height,
+                float(word.group(3)) / width,
+                float(word.group(4)) / height,
+            )
+            for word in WORD.finditer(match.group(3))
+        ]
+        pages.append(words)
+    return pages
+
+
+def find_text(
+    pages: list[list[tuple[str, float, float, float, float]]], needle: str
+) -> list[TextHit]:
+    """Вхождения текста по словам строки: «Саидзода Т. Н.» — три слова одной строки."""
+    wanted = _normalize(needle).split(" ")
+    if not wanted or wanted == [""]:
+        return []
+    hits: list[TextHit] = []
+    for index, words in enumerate(pages):
+        lines: list[list[tuple[str, float, float, float, float]]] = []
+        for word in sorted(words, key=lambda item: (item[2], item[1])):
+            for line in lines:
+                head = line[0]
+                if (
+                    abs((head[2] + head[4]) / 2 - (word[2] + word[4]) / 2)
+                    <= (head[4] - head[2]) / 2
+                ):
+                    line.append(word)
+                    break
+            else:
+                lines.append([word])
+        for line in lines:
+            line.sort(key=lambda item: item[1])
+            texts = [_normalize(item[0]) for item in line]
+            for start in range(len(line) - len(wanted) + 1):
+                if texts[start : start + len(wanted)] != wanted:
+                    continue
+                matched = line[start : start + len(wanted)]
+                hits.append(
+                    TextHit(
+                        index,
+                        matched[0][1],
+                        min(item[2] for item in matched),
+                        matched[-1][3],
+                        max(item[4] for item in matched),
+                    )
+                )
+    return hits
+
+
+def place_image(
+    pages: list[list[tuple[str, float, float, float, float]]],
+    boxes: list[PageBox],
+    image: dict[str, Any],
+) -> Placement:
+    """Место картинки: выбранное человеком → маркер → текст на листах с конца → запасное."""
+    last = len(boxes) - 1
+    manual = image.get("manual")
+    if manual:
+        page = min(max(int(manual["page"]) - 1, 0), last)
+        return Placement(page, float(manual["x"]), float(manual["y"]), "manual")
+    for anchor in image.get("anchors") or []:
+        hits = [hit for hit in find_text(pages, str(anchor["text"])) if hit.page <= last]
+        if not hits:
+            continue
+        # Подпись — в конце документа: самое нижнее вхождение на самом позднем листе
+        hit = max(hits, key=lambda item: (item.page, item.top, item.left))
+        box = boxes[hit.page]
+        middle = (hit.top + hit.bottom) / 2
+        if anchor["mode"] == "cover":
+            cover = (hit.left, hit.top, hit.right, hit.bottom)
+            return Placement(hit.page, (hit.left + hit.right) / 2, middle, "marker", cover)
+        width = float(image["widthMm"]) * MM / box.width
+        height = float(image["heightMm"]) * MM / box.height
+        gap = 3 * MM / box.width
+        x = hit.left - gap - width / 2
+        if x - width / 2 < 10 * MM / box.width:
+            # Слева от фамилии места нет — над ней
+            return Placement(hit.page, (hit.left + hit.right) / 2, hit.top - height / 2, "name")
+        return Placement(hit.page, x, middle, "name")
+    fallback = image["fallback"]
+    return Placement(last, float(fallback["x"]), float(fallback["y"]), "fallback")
+
+
+def image_fragment(image: dict[str, Any], placement: Placement, box: PageBox) -> str:
+    """Разметка картинки на странице наложения: числа считает движок, картинка — data URI."""
+    data = str(image["dataUri"])
+    if not DATA_URI.match(data):
+        raise RenderContentError("Картинка наложения — не PNG")
+    page_width, page_height = box.width / MM, box.height / MM
+    width = float(image["widthMm"])
+    height = float(image["heightMm"])
+    left = placement.x * page_width - width / 2
+    top = placement.y * page_height - height / 2
+    parts: list[str] = []
+    if placement.cover:
+        x0, y0, x1, y1 = placement.cover
+        cover_width = (x1 - x0) * page_width + 1
+        cover_height = (y1 - y0) * page_height + 1
+        parts.append(
+            '<div style="position:absolute;background:#fff;'
+            f"left:{x0 * page_width - 0.5:.2f}mm;top:{y0 * page_height - 0.5:.2f}mm;"
+            f'width:{cover_width:.2f}mm;height:{cover_height:.2f}mm"></div>'
+        )
+    parts.append(
+        f'<img src="{data}" alt="" style="position:absolute;object-fit:contain;'
+        f'left:{left:.2f}mm;top:{top:.2f}mm;width:{width:.2f}mm;height:{height:.2f}mm">'
+    )
+    return "".join(parts)
+
+
+BLANK_OVERLAY = (
+    '<!doctype html><html><head><meta charset="utf-8"><style>'
+    "html,body{margin:0;padding:0;width:100%;height:100%;background:transparent}"
+    "body{position:relative;overflow:hidden}</style></head><body>{body}</body></html>"
+)
+
+
+def with_fragments(html: str | None, fragments: list[str]) -> str:
+    """Страница наложения листа: разметка api (штамп) и картинки движка поверх."""
+    extra = "".join(fragments)
+    if html is None:
+        return BLANK_OVERLAY.replace("{body}", extra)
+    marker = html.rfind("</body>")
+    return html + extra if marker < 0 else html[:marker] + extra + html[marker:]
+
+
+def plan_images(
+    source: Path, html_pages: str, images: list[dict[str, Any]]
+) -> tuple[int, dict[int, tuple[float, float]], dict[int, list[str]], list[dict[str, Any]]]:
+    """Число листов, листы с наложением, фрагменты картинок по листам и места для отчёта."""
+    from pypdf import PdfWriter
+
+    writer = PdfWriter(clone_from=_open_pdf(source))
+    boxes: list[PageBox] = []
+    for page in writer.pages:
+        page.transfer_rotation_to_content()
+        box = page.cropbox
+        boxes.append(
+            PageBox(float(box.left), float(box.bottom), float(box.width), float(box.height))
+        )
+    sizes = {
+        index: (boxes[index].width, boxes[index].height)
+        for index in target_pages(len(boxes), html_pages)
+    }
+    words = page_words(source)
+    fragments: dict[int, list[str]] = {}
+    placements: list[dict[str, Any]] = []
+    for image in images:
+        placement = place_image(words, boxes, image)
+        box = boxes[placement.page]
+        sizes[placement.page] = (box.width, box.height)
+        fragments.setdefault(placement.page, []).append(image_fragment(image, placement, box))
+        placements.append(
+            {
+                "id": str(image["id"]),
+                "page": placement.page + 1,
+                "x": round(min(max(placement.x, 0.0), 1.0), 4),
+                "y": round(min(max(placement.y, 0.0), 1.0), 4),
+                "source": placement.source,
+            }
+        )
+    return len(boxes), sizes, fragments, placements
+
+
+def merge_page_overlays(source: Path, overlays: dict[int, bytes], target: Path) -> tuple[Path, int]:
+    """Наложение по листам: у каждого листа своя страница наложения (штамп, факсимиле)."""
+    from pypdf import PdfReader, PdfWriter, Transformation
+
+    writer = PdfWriter(clone_from=_open_pdf(source))
+    for index, data in sorted(overlays.items()):
+        page = writer.pages[index]
+        page.transfer_rotation_to_content()
+        box = page.cropbox
+        overlay = PdfReader(io.BytesIO(data)).pages[0]
+        page.merge_transformed_page(
+            overlay,
+            Transformation()
+            .scale(
+                float(box.width) / float(overlay.mediabox.width),
+                float(box.height) / float(overlay.mediabox.height),
+            )
+            .translate(float(box.left), float(box.bottom)),
         )
     with target.open("wb") as stream:
         writer.write(stream)
@@ -314,7 +591,19 @@ async def render_html(plan: dict[str, Any], workdir: Path) -> tuple[Path, int | 
     return path, count_pdf_pages(data)
 
 
-async def render_overlay(plan: dict[str, Any], workdir: Path) -> tuple[Path, int]:
+def _overlay_options(width: float, height: float) -> dict[str, Any]:
+    return {
+        "width": f"{width / 72:.4f}in",
+        "height": f"{height / 72:.4f}in",
+        "print_background": True,
+        "margin": {"top": "0", "right": "0", "bottom": "0", "left": "0"},
+        "page_ranges": "1",
+    }
+
+
+async def render_overlay(
+    plan: dict[str, Any], workdir: Path
+) -> tuple[Path, int, list[dict[str, Any]] | None]:
     contract = document_render_contract()
     source_meta = plan["source"]
     size = await object_size(str(source_meta["bucket"]), str(source_meta["storageKey"]))
@@ -333,23 +622,34 @@ async def render_overlay(plan: dict[str, Any], workdir: Path) -> tuple[Path, int
         except ToolError as error:
             raise RenderContentError(f"Файл не переводится в PDF: {error}") from error
     pages = str(plan.get("pages") or "first")
-    sizes = await asyncio.to_thread(page_sizes, source, pages)
+    images = list(plan.get("images") or [])
+    if images:
+        # Картинки (факсимиле): у каждого листа своя страница наложения
+        count, sizes, fragments, placements = await asyncio.to_thread(
+            plan_images, source, pages, images
+        )
+        html_pages = set(target_pages(count, pages))
+        page_overlays: dict[int, bytes] = {}
+        for index, (width, height) in sorted(sizes.items()):
+            html = str(plan["html"]) if index in html_pages else None
+            page_overlays[index] = await _print_page(
+                with_fragments(html, fragments.get(index, [])), _overlay_options(width, height)
+            )
+        path, count = await asyncio.to_thread(
+            merge_page_overlays, source, page_overlays, workdir / "result.pdf"
+        )
+        return path, count, placements
+    sizes_list = await asyncio.to_thread(page_sizes, source, pages)
     overlays: dict[tuple[float, float], bytes] = {}
-    for width, height in sizes:
+    for width, height in sizes_list:
         key = size_key((width, height))
         if key in overlays:
             continue
-        overlays[key] = await _print_page(
-            str(plan["html"]),
-            {
-                "width": f"{width / 72:.4f}in",
-                "height": f"{height / 72:.4f}in",
-                "print_background": True,
-                "margin": {"top": "0", "right": "0", "bottom": "0", "left": "0"},
-                "page_ranges": "1",
-            },
-        )
-    return await asyncio.to_thread(merge_overlays, source, overlays, pages, workdir / "result.pdf")
+        overlays[key] = await _print_page(str(plan["html"]), _overlay_options(width, height))
+    path, count = await asyncio.to_thread(
+        merge_overlays, source, overlays, pages, workdir / "result.pdf"
+    )
+    return path, count, None
 
 
 async def _template(plan: dict[str, Any], workdir: Path) -> Path:
@@ -362,17 +662,20 @@ async def _template(plan: dict[str, Any], workdir: Path) -> Path:
     )
 
 
-async def _produce(plan: dict[str, Any], workdir: Path) -> tuple[Path, int | None]:
+async def _produce(
+    plan: dict[str, Any], workdir: Path
+) -> tuple[Path, int | None, list[dict[str, Any]] | None]:
     kind = plan["kind"]
     if kind == "html":
-        return await render_html(plan, workdir)
+        path, pages = await render_html(plan, workdir)
+        return path, pages, None
     if kind == "overlay":
         return await render_overlay(plan, workdir)
     if kind == "docx":
         source = await _template(plan, workdir)
         context = plan.get("context") or {}
         filled = await asyncio.to_thread(fill_template, source, context, workdir / "filled.docx")
-        return filled, None
+        return filled, None, None
     raise RenderContentError(f"Неизвестный вид рендера: {kind}")
 
 
@@ -397,7 +700,7 @@ async def document_render(data: dict[str, Any]) -> dict[str, Any]:
                     render_id, {"status": "ready", "placeholders": placeholders}
                 )
                 return {"placeholders": len(placeholders)}
-            output, pages = await asyncio.wait_for(
+            output, pages, placements = await asyncio.wait_for(
                 _produce(plan, workdir), timeout=settings().ENGINE_RENDER_TIMEOUT_S
             )
         except RenderContentError as error:
@@ -413,7 +716,10 @@ async def document_render(data: dict[str, Any]) -> dict[str, Any]:
         )
         size = output.stat().st_size
 
-    await document_render_done(render_id, {"status": "ready", "size": size, "pages": pages})
+    done: dict[str, Any] = {"status": "ready", "size": size, "pages": pages}
+    if placements is not None:
+        done["placements"] = placements
+    await document_render_done(render_id, done)
     duration = int((time.monotonic() - started) * 1000)
     log.info(
         "document.rendered",

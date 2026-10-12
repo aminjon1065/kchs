@@ -491,6 +491,13 @@
       "when": 1791807482727,
       "tag": "20261012121802_document-version-file-pins",
       "breakpoints": true
+    },
+    {
+      "idx": 70,
+      "version": "7",
+      "when": 1791809321224,
+      "tag": "20261012124841_signature-requisites",
+      "breakpoints": true
     }
   ]
 }

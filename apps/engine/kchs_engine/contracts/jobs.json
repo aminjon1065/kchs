@@ -438,6 +438,35 @@
               "storageKey"
             ],
             "additionalProperties": false
+          },
+          "attachments": {
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "fileId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "bucket": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "storageKey": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1024
+                }
+              },
+              "required": [
+                "fileId",
+                "bucket",
+                "storageKey"
+              ],
+              "additionalProperties": false
+            }
           }
         },
         "required": [
@@ -1600,6 +1629,36 @@
                 "type": "null"
               }
             ]
+          },
+          "attachments": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pdfSha256": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -2450,8 +2509,126 @@
                         "type": "string",
                         "enum": [
                           "first",
-                          "all"
+                          "all",
+                          "last"
                         ]
+                      },
+                      "images": {
+                        "maxItems": 10,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "maxLength": 64
+                            },
+                            "dataUri": {
+                              "type": "string",
+                              "maxLength": 360000,
+                              "pattern": "^data:image\\/png;base64,[A-Za-z0-9+/]+={0,2}$"
+                            },
+                            "widthMm": {
+                              "type": "number",
+                              "exclusiveMinimum": 0,
+                              "maximum": 120
+                            },
+                            "heightMm": {
+                              "type": "number",
+                              "exclusiveMinimum": 0,
+                              "maximum": 60
+                            },
+                            "anchors": {
+                              "maxItems": 4,
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "text": {
+                                    "type": "string",
+                                    "minLength": 2,
+                                    "maxLength": 200
+                                  },
+                                  "mode": {
+                                    "type": "string",
+                                    "enum": [
+                                      "cover",
+                                      "left"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "text",
+                                  "mode"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "manual": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "page": {
+                                      "type": "integer",
+                                      "minimum": 1,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "x": {
+                                      "type": "number",
+                                      "minimum": 0,
+                                      "maximum": 1
+                                    },
+                                    "y": {
+                                      "type": "number",
+                                      "minimum": 0,
+                                      "maximum": 1
+                                    }
+                                  },
+                                  "required": [
+                                    "page",
+                                    "x",
+                                    "y"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "fallback": {
+                              "type": "object",
+                              "properties": {
+                                "x": {
+                                  "type": "number",
+                                  "minimum": 0,
+                                  "maximum": 1
+                                },
+                                "y": {
+                                  "type": "number",
+                                  "minimum": 0,
+                                  "maximum": 1
+                                }
+                              },
+                              "required": [
+                                "x",
+                                "y"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "dataUri",
+                            "widthMm",
+                            "heightMm",
+                            "anchors",
+                            "manual",
+                            "fallback"
+                          ],
+                          "additionalProperties": false
+                        }
                       }
                     },
                     "required": [
@@ -2636,6 +2813,58 @@
               {
                 "type": "string",
                 "maxLength": 4000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "placements": {
+            "default": null,
+            "anyOf": [
+              {
+                "maxItems": 10,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "maxLength": 64
+                    },
+                    "page": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    },
+                    "x": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "y": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "source": {
+                      "type": "string",
+                      "enum": [
+                        "manual",
+                        "marker",
+                        "name",
+                        "fallback"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "page",
+                    "x",
+                    "y",
+                    "source"
+                  ]
+                }
               },
               {
                 "type": "null"

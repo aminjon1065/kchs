@@ -19,17 +19,24 @@ pytest.importorskip("pypdf")
 
 from docx import Document
 from pypdf import PageObject, PdfReader, PdfWriter
-from pypdf.generic import ContentStream
+from pypdf.generic import ContentStream, DictionaryObject, NameObject
 
 from kchs_engine.render import documents
 from kchs_engine.render.documents import (
+    PageBox,
     RenderContentError,
     collect_placeholders,
     fill_template,
+    find_text,
+    image_fragment,
     inspect_template,
     merge_overlays,
     page_sizes,
+    place_image,
+    plan_images,
     size_key,
+    target_pages,
+    with_fragments,
 )
 
 # ─── Плейсхолдеры ────────────────────────────────────────────────────────────
@@ -202,6 +209,159 @@ def test_merge_scales_overlay_to_page(tmp_path: Path) -> None:
     result, _ = merge_overlays(source, overlays, "first", tmp_path / "out.pdf")
     content = PdfReader(str(result)).pages[0].get_contents().get_data()
     assert b"cm" in content
+
+
+def test_last_page_target() -> None:
+    assert target_pages(3, "last") == [2]
+    assert target_pages(3, "first") == [0]
+    assert target_pages(3, "all") == [0, 1, 2]
+    assert target_pages(0, "last") == []
+
+
+# ─── Факсимиле: где поставить (ADR-0198) ─────────────────────────────────────
+
+PNG = "data:image/png;base64,iVBORw0KGgo="
+A4 = PageBox(0.0, 0.0, 595.0, 842.0)
+text_layer = pytest.mark.skipif(shutil.which("pdftotext") is None, reason="нет poppler")
+
+
+def _text_page(width: float, height: float, lines: list[tuple[float, float, str]]) -> PageObject:
+    """Лист с текстом стандартным шрифтом: (x, базовая линия, текст)."""
+    writer = PdfWriter()
+    page = writer.add_blank_page(width, height)
+    font = DictionaryObject(
+        {
+            NameObject("/Type"): NameObject("/Font"),
+            NameObject("/Subtype"): NameObject("/Type1"),
+            NameObject("/BaseFont"): NameObject("/Helvetica"),
+        }
+    )
+    page[NameObject("/Resources")] = DictionaryObject(
+        {NameObject("/Font"): DictionaryObject({NameObject("/F1"): font})}
+    )
+    ops = b"".join(f"BT /F1 12 Tf {x} {y} Td ({text}) Tj ET\n".encode() for x, y, text in lines)
+    stream = ContentStream(None, writer)
+    stream.set_data(ops)
+    page.replace_contents(stream)
+    return page
+
+
+def _image(**extra: Any) -> dict[str, Any]:
+    return {
+        "id": "sig-1",
+        "dataUri": PNG,
+        "widthMm": 40.0,
+        "heightMm": 16.0,
+        "anchors": [
+            {"text": "[[SIGN]]", "mode": "cover"},
+            {"text": "Saidzoda T. N.", "mode": "left"},
+        ],
+        "manual": None,
+        "fallback": {"x": 0.7, "y": 0.75},
+        **extra,
+    }
+
+
+def _words(*pages: list[tuple[str, float, float, float, float]]) -> list[list[Any]]:
+    return [list(page) for page in pages]
+
+
+def test_find_text_matches_words_of_one_line() -> None:
+    pages = _words(
+        [("Dear", 0.1, 0.1, 0.15, 0.12)],
+        [
+            ("Saidzoda", 0.6, 0.7, 0.72, 0.72),
+            ("T.", 0.73, 0.7, 0.75, 0.72),
+            ("N.", 0.76, 0.7, 0.78, 0.72),
+            ("Saidzoda", 0.1, 0.3, 0.2, 0.32),
+        ],
+    )
+    hits = find_text(pages, "saidzoda  t.\u00a0n.")
+    assert len(hits) == 1
+    assert (hits[0].page, hits[0].left, hits[0].right) == (1, 0.6, 0.78)
+
+
+def test_marker_wins_and_is_covered() -> None:
+    pages = _words([("[[SIGN]]", 0.4, 0.6, 0.5, 0.62), ("Saidzoda", 0.6, 0.6, 0.7, 0.62)])
+    placement = place_image(pages, [A4], _image())
+    assert (placement.source, placement.page) == ("marker", 0)
+    assert placement.cover == (0.4, 0.6, 0.5, 0.62)
+    assert placement.x == pytest.approx(0.45)
+
+
+def test_facsimile_goes_left_of_the_name_on_the_latest_page() -> None:
+    name = [
+        ("Saidzoda", 0.65, 0.7, 0.75, 0.72),
+        ("T.", 0.76, 0.7, 0.78, 0.72),
+        ("N.", 0.79, 0.7, 0.8, 0.72),
+    ]
+    pages = _words(name, name)
+    placement = place_image(
+        pages, [A4, A4], _image(anchors=[{"text": "Saidzoda T. N.", "mode": "left"}])
+    )
+    assert (placement.source, placement.page) == ("name", 1)
+    # Правый край факсимиле — левее начала фамилии
+    assert placement.x + 40 * documents.MM / 595 / 2 < 0.65
+    assert placement.y == pytest.approx(0.71)
+
+
+def test_no_room_on_the_left_puts_facsimile_above() -> None:
+    pages = _words(
+        [
+            ("Saidzoda", 0.05, 0.7, 0.15, 0.72),
+            ("T.", 0.16, 0.7, 0.18, 0.72),
+            ("N.", 0.19, 0.7, 0.2, 0.72),
+        ]
+    )
+    placement = place_image(
+        pages, [A4], _image(anchors=[{"text": "Saidzoda T. N.", "mode": "left"}])
+    )
+    assert placement.source == "name"
+    assert placement.y < 0.7
+
+
+def test_fallback_and_manual() -> None:
+    pages = _words([("nothing", 0.1, 0.1, 0.2, 0.12)], [])
+    fallback = place_image(pages, [A4, A4], _image())
+    assert (fallback.source, fallback.page, fallback.x, fallback.y) == ("fallback", 1, 0.7, 0.75)
+    manual = place_image(pages, [A4, A4], _image(manual={"page": 1, "x": 0.5, "y": 0.25}))
+    assert (manual.source, manual.page, manual.x, manual.y) == ("manual", 0, 0.5, 0.25)
+    # Лист за пределами документа — последний
+    beyond = place_image(pages, [A4, A4], _image(manual={"page": 9, "x": 0.5, "y": 0.25}))
+    assert beyond.page == 1
+
+
+@text_layer
+def test_plan_images_finds_the_name_in_a_real_pdf(tmp_path: Path) -> None:
+    source = tmp_path / "signed.pdf"
+    source.write_bytes(
+        _pdf(
+            [
+                _text_page(595, 842, [(72, 700, "text")]),
+                _text_page(595, 842, [(400, 200, "Saidzoda T. N.")]),
+            ]
+        )
+    )
+    count, sizes, fragments, placements = plan_images(source, "last", [_image()])
+    assert count == 2
+    assert list(sizes) == [1]
+    assert placements[0]["page"] == 2 and placements[0]["source"] == "name"
+    assert 0 < placements[0]["x"] < 400 / 595
+    # Базовая линия 200 pt от низа — около 0,76 высоты от верха
+    assert placements[0]["y"] == pytest.approx(1 - 200 / 842, abs=0.02)
+    assert PNG in fragments[1][0]
+    page = with_fragments("<html><body><div>stamp</div></body></html>", fragments[1])
+    assert page.index("stamp") < page.index("<img")
+    assert with_fragments(None, ["<i>x</i>"]).count("<i>x</i>") == 1
+
+
+def test_image_must_be_png_data_uri() -> None:
+    from kchs_engine.render.documents import Placement
+
+    with pytest.raises(RenderContentError, match="PNG"):
+        image_fragment(
+            _image(dataUri="javascript:alert(1)"), Placement(0, 0.5, 0.5, "fallback"), A4
+        )
 
 
 def test_encrypted_pdf_is_content_error(tmp_path: Path) -> None:
@@ -398,10 +558,11 @@ async def test_stamp_overlay_keeps_page_visible(tmp_path: Path, fake_io: dict[st
             {"html": green, "orientation": "portrait", "labels": {}}, tmp_path
         )
         fake_io["objects"][("files", "scan")] = source_pdf.read_bytes()
-        result, pages = await documents.render_overlay(plan, tmp_path)
+        result, pages, placements = await documents.render_overlay(plan, tmp_path)
     finally:
         await report.close_browser()
     assert pages >= 1
+    assert placements is None
     top_left = _pixel(result, 0.3, 0.3, tmp_path)
     assert top_left[1] > 200 and top_left[2] < 60, top_left
     for leftover in tmp_path.glob("raster*.ppm"):
@@ -429,3 +590,72 @@ async def test_html_form_blocks_network(tmp_path: Path) -> None:
         await report.close_browser()
     assert path.read_bytes().startswith(b"%PDF")
     assert pages == 1
+
+
+@browser
+@pytest.mark.skipif(shutil.which("pdftoppm") is None, reason="нет poppler")
+async def test_facsimile_lands_left_of_cyrillic_name(
+    tmp_path: Path, fake_io: dict[str, Any]
+) -> None:
+    """Факсимиле встаёт левее фамилии, напечатанной кириллицей, и видно на листе (ADR-0198)."""
+    import base64
+
+    from PIL import Image
+
+    from kchs_engine.render import report
+
+    picture = io.BytesIO()
+    Image.new("RGBA", (300, 120), (255, 0, 0, 255)).save(picture, format="PNG")
+    letter = (
+        "<html><body style='margin:25mm;font:14pt serif'>"
+        "<p>Компания благодарна Вам за внимание к нашим продуктам.</p>"
+        "<p style='text-align:right;margin-top:20mm'>Саидзода Т. Н.</p></body></html>"
+    )
+    stamp = (
+        "<html><body style='margin:0;background:transparent'>"
+        "<div style='position:absolute;left:12mm;bottom:10mm;width:60mm;height:18mm;"
+        "background:#0000ff'></div></body></html>"
+    )
+    plan = {
+        "kind": "overlay",
+        "source": {
+            "bucket": "files",
+            "storageKey": "letter",
+            "name": "letter.pdf",
+            "mime": "application/pdf",
+        },
+        "html": stamp,
+        "pages": "last",
+        "images": [
+            {
+                "id": "sig-1",
+                "dataUri": "data:image/png;base64," + base64.b64encode(picture.getvalue()).decode(),
+                "widthMm": 40.0,
+                "heightMm": 16.0,
+                "anchors": [
+                    {"text": "[[SIGN]]", "mode": "cover"},
+                    {"text": "Саидзода Т. Н.", "mode": "left"},
+                ],
+                "manual": None,
+                "fallback": {"x": 0.7, "y": 0.75},
+            }
+        ],
+    }
+    try:
+        source_pdf, _ = await documents.render_html(
+            {"html": letter, "orientation": "portrait", "labels": {}}, tmp_path
+        )
+        fake_io["objects"][("files", "letter")] = source_pdf.read_bytes()
+        result, pages, placements = await documents.render_overlay(plan, tmp_path)
+    finally:
+        await report.close_browser()
+    assert pages >= 1
+    assert placements is not None and placements[0]["source"] == "name"
+    spot = placements[0]
+    red = _pixel(result, spot["x"], spot["y"], tmp_path)
+    assert red[0] > 200 and red[1] < 80 and red[2] < 80, red
+    for leftover in tmp_path.glob("raster*.ppm"):
+        leftover.unlink()
+    # Штамп — тоже на последнем листе
+    corner = _pixel(result, 0.15, 0.95, tmp_path)
+    assert corner[2] > 200 and corner[1] < 60, corner

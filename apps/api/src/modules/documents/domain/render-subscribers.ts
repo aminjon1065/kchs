@@ -16,11 +16,35 @@ async function stamp(event: EventEnvelope): Promise<void> {
   if (id) logger().info({ documentId: event.object.id, renderId: id }, 'штамп регистрации заказан')
 }
 
+/**
+ * Подписанный экземпляр (ADR-0198): после подписи, регистрации, готовности PDF,
+ * окончания маршрута и правки места факсимиле — решает `scheduleSignedCopy`.
+ */
+async function signedCopy(event: EventEnvelope): Promise<void> {
+  if (event.object?.type !== 'document') return
+  if (event.type === 'document.version_pdf_ready' && event.payload.status !== 'ready') return
+  const id = await DocumentRenders.scheduleSignedCopy(event.object.id)
+  if (id) {
+    logger().info({ documentId: event.object.id, renderId: id }, 'подписанный экземпляр заказан')
+  }
+}
+
 export const renderSubscribers: Subscriber[] = [
   {
     name: 'documents-stamp',
     types: ['document.registered', 'document.version_pdf_ready'],
     handle: stamp,
+  },
+  {
+    name: 'documents-signed-copy',
+    types: [
+      'document.signed',
+      'document.registered',
+      'document.version_pdf_ready',
+      'document.signature_placed',
+      'process.finished',
+    ],
+    handle: signedCopy,
   },
   // Окончательный сбой или отмена задания движка: рендер не остаётся «в работе»
   // навсегда (ADR-0187)

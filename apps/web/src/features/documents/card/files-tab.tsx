@@ -272,9 +272,33 @@ function VersionItem({
             </li>
           ))}
       </ul>
-      {version.hash ? (
-        <p className="truncate font-mono text-2xs text-fg-muted" title={version.hash}>
-          SHA-256 {version.hash.slice(0, 16)}…
+      {version.signedCopy ? (
+        <div className="flex items-center gap-2 text-xs">
+          <ObjectIcon type="file" className="size-3.5 shrink-0 text-fg-muted" />
+          <span className="min-w-0 flex-1 truncate text-fg" title={version.signedCopy.name}>
+            {t('documents.versions.signedCopy')}
+          </span>
+          <Tooltip content={t('common.actions.download')}>
+            <IconButton
+              size="sm"
+              label={t('common.actions.download')}
+              onClick={() => {
+                const copy = version.signedCopy
+                if (copy)
+                  download.mutate({ fileId: copy.id, versionId: copy.versionId ?? undefined })
+              }}
+            >
+              <Download className="size-3.5" />
+            </IconButton>
+          </Tooltip>
+        </div>
+      ) : null}
+      {(version.manifestHash ?? version.hash) ? (
+        <p
+          className="truncate font-mono text-2xs text-fg-muted"
+          title={version.manifestHash ?? version.hash ?? undefined}
+        >
+          SHA-256 {(version.manifestHash ?? version.hash ?? '').slice(0, 16)}…
         </p>
       ) : null}
     </div>

@@ -64,6 +64,9 @@ class DocumentPdfResult(TypedDict):
     size: NotRequired[int | None]
     pages: NotRequired[int | None]
     error: NotRequired[str | None]
+    # SHA-256 приложений и построенного PDF — для манифеста подписи (ADR-0198)
+    attachments: NotRequired[dict[str, str] | None]
+    pdfSha256: NotRequired[str | None]
 
 
 @with_config(OUTBOUND)
@@ -140,12 +143,23 @@ class ReportRenderResult(TypedDict):
 
 
 @with_config(OUTBOUND)
+class OverlayPlacement(TypedDict):
+    id: str
+    page: int
+    x: float
+    y: float
+    source: Literal["manual", "marker", "name", "fallback"]
+
+
+@with_config(OUTBOUND)
 class DocumentRenderResult(TypedDict):
     status: Literal["ready", "failed"]
     size: NotRequired[int | None]
     pages: NotRequired[int | None]
     placeholders: NotRequired[list[str] | None]
     error: NotRequired[str | None]
+    # Где встали картинки наложения (факсимиле, ADR-0198)
+    placements: NotRequired[list[OverlayPlacement] | None]
 
 
 # ─── Ответы ──────────────────────────────────────────────────────────────────
@@ -243,11 +257,43 @@ class HtmlPlan(TypedDict):
 
 
 @with_config(INBOUND)
+class OverlayAnchor(TypedDict):
+    text: str
+    mode: Literal["cover", "left"]
+
+
+@with_config(INBOUND)
+class OverlayPoint(TypedDict):
+    page: int
+    x: float
+    y: float
+
+
+@with_config(INBOUND)
+class OverlayFallback(TypedDict):
+    x: float
+    y: float
+
+
+@with_config(INBOUND)
+class OverlayImage(TypedDict):
+    id: str
+    dataUri: str
+    widthMm: float
+    heightMm: float
+    anchors: list[OverlayAnchor]
+    manual: OverlayPoint | None
+    fallback: OverlayFallback
+
+
+@with_config(INBOUND)
 class OverlayPlan(TypedDict):
     kind: Literal["overlay"]
     source: OverlaySource
     html: str
     pages: str
+    # Картинки, место которых ищет движок (факсимиле, ADR-0198)
+    images: NotRequired[list[OverlayImage]]
 
 
 @with_config(INBOUND)

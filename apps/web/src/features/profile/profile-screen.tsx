@@ -21,6 +21,7 @@ import { useAppearance, useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { ApiTokensCard } from './api-tokens-card.js'
 import { DelegationCard } from './delegation-card.js'
+import { FacsimileCard } from './facsimile-card.js'
 import { MailCard } from './mail-card.js'
 import { MfaCard } from './mfa-card.js'
 import { NotificationSettingsCard } from './notification-settings-card.js'
@@ -211,6 +212,8 @@ export function ProfileScreen() {
         <MfaCard enabled={me.mfaEnabled} />
 
         <PasskeysCard />
+
+        <FacsimileCard />
 
         <MailCard />
         <TelegramCard />

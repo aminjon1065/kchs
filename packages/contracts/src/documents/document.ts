@@ -61,6 +61,10 @@ export const DocumentVersionRecord = z.object({
   note: z.string().nullable(),
   /** Версия заморожена (отправлена на согласование) — вторая волна. */
   isFinal: z.boolean(),
+  /** SHA-256 манифеста версии, когда известны хэши всех её файлов (ADR-0198). */
+  manifestHash: z.string().nullable().optional(),
+  /** Подписанный экземпляр: PDF с факсимиле и штампом подписи (ADR-0198). */
+  signedCopy: DocumentFileRef.nullable().optional(),
   createdBy: UserRef.nullable(),
   createdAt: Timestamp,
 })
@@ -344,5 +348,16 @@ export const DocumentPdfResult = z.object({
   size: z.number().int().min(0).nullable().default(null),
   pages: z.number().int().min(0).nullable().default(null),
   error: z.string().max(4000).nullable().default(null),
+  /** SHA-256 приложений версии: файл → хэш (ADR-0198). */
+  attachments: z
+    .record(z.string(), z.string().regex(/^[0-9a-f]{64}$/))
+    .nullable()
+    .default(null),
+  /** SHA-256 построенного PDF-представления. */
+  pdfSha256: z
+    .string()
+    .regex(/^[0-9a-f]{64}$/)
+    .nullable()
+    .default(null),
 })
 export type DocumentPdfResult = z.infer<typeof DocumentPdfResult>

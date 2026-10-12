@@ -67,13 +67,17 @@ async def test_job_reports_hash_without_conversion(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     payload = b"%PDF-1.4 test"
+    annex = "приложение".encode()
     reports: list[tuple[str, dict[str, Any]]] = []
 
-    async def fake_size(_bucket: str, _key: str) -> int:
-        return len(payload)
+    def stored(key: str) -> bytes:
+        return annex if key.endswith("annex.docx") else payload
 
-    async def fake_download(_bucket: str, _key: str, target: Path) -> Path:
-        target.write_bytes(payload)
+    async def fake_size(_bucket: str, key: str) -> int:
+        return len(stored(key))
+
+    async def fake_download(_bucket: str, key: str, target: Path) -> Path:
+        target.write_bytes(stored(key))
         return target
 
     async def fake_report(version_id: str, body: dict[str, Any]) -> dict[str, Any]:
@@ -92,11 +96,24 @@ async def test_job_reports_hash_without_conversion(
             "bucket": "files",
             "storageKey": "spaces/s/files/f/v/scan.pdf",
             "convert": False,
+            "attachments": [
+                {"fileId": "a-1", "bucket": "files", "storageKey": "spaces/s/files/a/v/annex.docx"}
+            ],
         }
     )
     digest = hashlib.sha256(payload).hexdigest()
     assert result == {"sha256": digest, "converted": False}
-    assert reports == [("v-1", {"status": "skipped", "sha256": digest})]
+    # Хэши приложений — для манифеста подписи (ADR-0198)
+    assert reports == [
+        (
+            "v-1",
+            {
+                "status": "skipped",
+                "sha256": digest,
+                "attachments": {"a-1": hashlib.sha256(annex).hexdigest()},
+            },
+        )
+    ]
 
 
 async def test_job_converts_image_and_uploads_under_target_key(
@@ -149,3 +166,6 @@ async def test_job_converts_image_and_uploads_under_target_key(
     assert reports[0]["storageKey"] == target_key
     assert reports[0]["pdfFileId"] == "pdf-file"
     assert reports[0]["size"] > 0
+    # Хэш построенного PDF — для манифеста подписи (ADR-0198)
+    assert len(reports[0]["pdfSha256"]) == 64
+    assert reports[0]["attachments"] == {}

@@ -4,6 +4,7 @@ import { acknowledgmentSheet, caseInventory } from './office-sheets.js'
 import { registrationCard } from './registration-card.js'
 import { registrationStamp } from './registration-stamp.js'
 import { approvalSheet, signatureSheet } from './route-sheets.js'
+import { signatureStamp } from './signature-stamp.js'
 
 /**
  * Встроенные печатные формы (ADR-0085): регистрационная карточка, штамп,
@@ -16,6 +17,7 @@ export function registerBuiltinPrintForms(): void {
   registerPrintForm(dispatchRegister)
   registerPrintForm(approvalSheet)
   registerPrintForm(signatureSheet)
+  registerPrintForm(signatureStamp)
   registerPrintForm(acknowledgmentSheet)
   registerPrintForm(caseInventory)
 }

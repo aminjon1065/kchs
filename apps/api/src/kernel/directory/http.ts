@@ -19,6 +19,7 @@ import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { credentials } from './credentials.js'
+import { FacsimileService } from './facsimile.js'
 import { assertCanManageUser } from './role-policy.js'
 import { RoleService } from './role-service.js'
 import {
@@ -431,6 +432,82 @@ export function registerOrgRoutes(route: RouteRegistrar): void {
     handler: async (request) => {
       await db().transaction((tx) => RoleService.remove(tx, request.ctx, request.params.id))
       return { ok: true as const }
+    },
+  })
+  // ─── Факсимиле (ADR-0198) ────────────────────────────────────────────────
+  route({
+    route: 'GET /me/facsimile',
+    auth: 'session',
+    tags: ['me'],
+    summary: 'Своё факсимиле: есть ли и картинка для предпросмотра',
+    handler: async (request) => FacsimileService.own(request.ctx),
+  })
+
+  route({
+    route: 'PUT /me/facsimile',
+    auth: 'session',
+    tags: ['me'],
+    summary: 'Загрузить или заменить своё факсимиле (PNG)',
+    handler: async (request) => {
+      await db().transaction((tx) =>
+        FacsimileService.set(tx, request.ctx, request.ctx.userId, request.body.png, {
+          byAdmin: false,
+        }),
+      )
+      return FacsimileService.own(request.ctx)
+    },
+  })
+
+  route({
+    route: 'DELETE /me/facsimile',
+    auth: 'session',
+    tags: ['me'],
+    summary: 'Удалить своё факсимиле',
+    handler: async (request) => {
+      await db().transaction((tx) =>
+        FacsimileService.remove(tx, request.ctx, request.ctx.userId, { byAdmin: false }),
+      )
+      return FacsimileService.own(request.ctx)
+    },
+  })
+
+  // Администратор факсимиле сотрудника не видит — только есть ли оно; заменить и
+  // удалить может, с отметкой в журнале аудита
+  route({
+    route: 'GET /users/:id/facsimile',
+    auth: { capability: 'users.manage' },
+    tags: ['org'],
+    summary: 'Есть ли у сотрудника факсимиле (без картинки)',
+    handler: async (request) => FacsimileService.state(request.params.id),
+  })
+
+  route({
+    route: 'PUT /users/:id/facsimile',
+    auth: { capability: 'users.manage' },
+    tags: ['org'],
+    summary: 'Заменить факсимиле сотрудника',
+    handler: async (request) => {
+      await assertCanManageUser(db(), request.ctx, request.params.id)
+      await db().transaction((tx) =>
+        FacsimileService.set(tx, request.ctx, request.params.id, request.body.png, {
+          byAdmin: true,
+        }),
+      )
+      return FacsimileService.state(request.params.id)
+    },
+  })
+
+  route({
+    route: 'DELETE /users/:id/facsimile',
+    auth: { capability: 'users.manage' },
+    tags: ['org'],
+    summary: 'Удалить факсимиле сотрудника',
+    handler: async (request) => {
+      await assertCanManageUser(db(), request.ctx, request.params.id)
+      await db().transaction((tx) =>
+        FacsimileService.remove(tx, request.ctx, request.params.id, { byAdmin: true }),
+      )
+      return FacsimileService.state(request.params.id)
     },
   })
 }

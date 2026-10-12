@@ -307,6 +307,14 @@ export const documentVersions = pgTable(
       .$type<Record<string, string>>()
       .notNull()
       .default(sql`'{}'::jsonb`),
+    /** SHA-256 файлов версии от движка: файл → хэш (основной, приложения, PDF; ADR-0198). */
+    hashes: jsonb('hashes').$type<Record<string, string>>().notNull().default(sql`'{}'::jsonb`),
+    /** SHA-256 манифеста версии — когда известны хэши всех её файлов (ADR-0198). */
+    manifestHash: text('manifest_hash'),
+    /** Подписанный экземпляр: PDF с факсимиле и штампом подписи (ADR-0198). */
+    signedCopyFileId: uuid('signed_copy_file_id').references(() => objects.id, {
+      onDelete: 'set null',
+    }),
   },
   (t) => [uniqueIndex('document_versions_number_uq').on(t.documentId, t.number)],
 )
@@ -410,6 +418,12 @@ export const documentSignatures = pgTable(
     /** simple — простая ЭП; qualified — порт SignatureProvider (открытый вопрос). */
     kind: text('kind').notNull().default('simple'),
     mfa: boolean('mfa').notNull().default(false),
+    /** Что зафиксировала подпись: файлы версии и их хэши; `hash` — хэш манифеста (ADR-0198). */
+    manifest: jsonb('manifest').$type<Record<string, unknown>>(),
+    /** Место факсимиле на подписанном экземпляре: лист, доли листа, источник. */
+    placement: jsonb('placement').$type<Record<string, unknown>>(),
+    /** На подписанном экземпляре стоит факсимиле подписавшего. */
+    facsimile: boolean('facsimile').notNull().default(false),
     signedAt: tsCol('signed_at').notNull().default(sql`now()`),
   },
   (t) => [

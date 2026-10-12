@@ -918,6 +918,14 @@ export const admin: DeepPartial<Dictionary['admin']> = {
     resetMfaHint:
       'The employee signs in with the password and sets up the second factor again. If the policy requires MFA for their role, the workspace is unavailable until then.',
     mfaResetDone: 'Second factor reset',
+    facsimile: 'Facsimile',
+    facsimileTitle: 'Facsimile — {name}',
+    facsimileHint:
+      'Only the employee can see their signature image. Here it can be replaced or deleted — this goes to the audit log.',
+    facsimilePresent: 'Uploaded: {width}×{height} pixels, {at}, {name}',
+    facsimileAbsent: 'No facsimile uploaded',
+    facsimileRemoveHint:
+      'The facsimile of “{name}” will be deleted. Copies already signed stay as they are.',
     passkeys: 'Passkeys',
     passkeysTitle: 'Passkeys — {name}',
     passkeysHint:

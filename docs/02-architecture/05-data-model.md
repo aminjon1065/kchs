@@ -104,6 +104,8 @@ roles(id, key unique, name jsonb, is_system)  role_capabilities(role_id, capabil
 delegations(id, from_user_id, to_user_id, scope text, starts_at, ends_at, note, status, created_at)
 sso_identities(id, user_id, provider text, subject text unique(provider, subject), profile jsonb)
 ```
+user_facsimiles(user_id pk → users, png bytea, sha256, width int, height int, updated_by, updated_at)
+  -- факсимиле сотрудника (ADR-0198): видит только он сам, рендер подписанного экземпляра
 
 ## Данные
 
@@ -218,8 +220,10 @@ documents(id pk → objects, type_id, status text, reg_number text, reg_date dat
   idx: (type_id, status), (reg_number), (journal_id, reg_date desc), (responsible_id, deadline), (controller_id), (correspondent_id), gin(fields)
 document_versions(id, document_id, number int, main_file_id, pdf_file_id, pdf_status text, attachments jsonb, created_by, created_at,
                   note, hash text, is_final,
-                  file_versions jsonb)  unique(document_id, number)
+                  file_versions jsonb, hashes jsonb, manifest_hash text null, signed_copy_file_id null → objects)
+                  unique(document_id, number)
                   -- file_versions — файл → закреплённая версия файла для основного, приложений и PDF (ADR-0197)
+                  -- hashes — SHA-256 файлов версии от движка; signed_copy_file_id — подписанный экземпляр (ADR-0198)
 registrations(id, document_id, journal_id, number text, sequence int, year int, reserved bool, registered_by, registered_at)
   unique(journal_id, year, sequence)
 document_participants(document_id, user_id, role text, source text, level smallint, created_at)
@@ -230,8 +234,10 @@ document_participants(document_id, user_id, role text, source text, level smalli
 document_step_versions(step_id pk → process_steps, document_id, version_id, created_at)
   idx: (document_id)   -- версия, замороженная для шага согласования или подписи
 document_signatures(id, document_id, version_id null, step_id null → process_steps, signer_id, actor_id null,
-                    session_id text, hash text null, kind text, mfa bool, signed_at)
+                    session_id text, hash text null, kind text, mfa bool, signed_at,
+                    manifest jsonb null, placement jsonb null, facsimile bool)
   idx: (document_id), (version_id)   -- простая ЭП; hash null — движок ещё считает хэш версии
+  -- ADR-0198: hash — хэш манифеста версии (manifest), placement — место факсимиле на экземпляре
 -- проект (08-documents.md §4, §9): approvals — заменены строками движка процессов (ADR-0083);
 -- signatures.certificate, sheet_file_id — квалифицированная подпись и лист подписи (печатные формы)
 approvals(id, document_id, version_id, step_id, approver_id, on_behalf_of, decision text, comment, remarks_file_id, decided_at)

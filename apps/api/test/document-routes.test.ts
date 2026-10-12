@@ -411,7 +411,16 @@ describe('маршрут исходящего письма (сценарий ф�
     })
     expect(report.statusCode, report.body).toBe(200)
     signatures = await call(fx.app, { url: `/documents/${doc.id}/signatures`, as: people.author })
-    expect(signatures.json().items[0]).toMatchObject({ hash: sha, state: 'valid' })
+    // Хэш подписи — хэш манифеста версии: основной файл и его PDF (ADR-0198)
+    const [signedVersion] = (
+      await call(fx.app, { url: `/documents/${doc.id}/versions`, as: people.author })
+    ).json().items
+    expect(signedVersion.manifestHash).toMatch(/^[0-9a-f]{64}$/)
+    expect(signatures.json().items[0]).toMatchObject({
+      hash: signedVersion.manifestHash,
+      state: 'valid',
+      manifest: { mainFile: { sha256: sha } },
+    })
 
     // Регистрация канцелярией из Входящих — номер исходящего журнала
     const [registerItem] = await inboxOf(fx, people.registrar, doc.id)

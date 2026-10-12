@@ -55,6 +55,13 @@ export const DOCUMENTS_EVENTS = {
     hash: z.string().nullable(),
     mfa: z.boolean(),
   }),
+  /** Место факсимиле на подписанном экземпляре поправили — экземпляр строится заново (ADR-0198). */
+  'document.signature_placed': z.object({
+    signatureId: Uuid,
+    page: z.number().int(),
+    x: z.number(),
+    y: z.number(),
+  }),
   /** Участники документа (ответственный, подписант, контролёр, маршрут, резолюции). */
   'document.participants_changed': z.object({
     source: z.string(),

@@ -21,6 +21,8 @@ export const DIRECTORY_EVENTS = {
   'user.password_changed': empty,
   'user.mfa_enabled': z.object({ kind: z.string() }),
   'user.mfa_disabled': z.object({ kind: z.string() }),
+  /** Факсимиле сотрудника загружено, заменено или удалено (ADR-0198). */
+  'user.facsimile_changed': z.object({ present: z.boolean(), byAdmin: z.boolean() }),
   'user.roles_changed': z.object({ userId: Uuid, roles: z.array(z.string()) }),
   /** Своя роль организации заведена, изменена или удалена (ADR-0165). */
   'role.created': z.object({ roleId: Uuid, key: z.string(), capabilities: z.array(z.string()) }),

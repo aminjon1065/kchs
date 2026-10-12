@@ -1,5 +1,6 @@
 import {
   type DocumentFileRef,
+  type DocumentManifest,
   type DocumentPdfResult,
   type DocumentStatus,
   type DocumentVersionInput,
@@ -33,6 +34,7 @@ import { AppError, errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { logger } from '~/shared/logger/index.js'
 import { documents, documentVersions } from '../schema.js'
+import { buildManifest, canonicalJson, manifestHash } from './routes/manifest.js'
 import { DocumentSignatures } from './routes/signatures.js'
 import { ROUTE_ACTIVE_STATUSES, ROUTE_START_STATUSES } from './routes/state.js'
 
@@ -166,7 +168,12 @@ function pinOf(row: { fileVersions: Record<string, string> }, fileId: string): s
 }
 
 async function toRecords(rows: VersionRow[]): Promise<DocumentVersionRecord[]> {
-  const fileIds = [...new Set(rows.flatMap(versionFileIds))]
+  const fileIds = [
+    ...new Set([
+      ...rows.flatMap(versionFileIds),
+      ...rows.map((row) => row.signedCopyFileId).filter((v): v is string => !!v),
+    ]),
+  ]
   const pinned = [
     ...new Set(
       rows.flatMap((row) =>
@@ -221,6 +228,8 @@ async function toRecords(rows: VersionRow[]): Promise<DocumentVersionRecord[]> {
       hash: row.hash,
       note: row.note,
       isFinal: row.isFinal,
+      manifestHash: row.manifestHash,
+      signedCopy: ref(row.signedCopyFileId),
       createdBy: row.createdBy ? (people.get(row.createdBy) ?? null) : null,
       createdAt: row.createdAt,
     }
@@ -289,6 +298,16 @@ async function insertVersion(
   // PDF-представление — отдельный файл под заранее выданными идентификаторами
   const pdfFileId = plan === 'convert' ? newId() : null
   const pdfVersionId = plan === 'convert' ? newId() : null
+  // Приложения — только на хэш, для манифеста подписи (ADR-0198)
+  const attachmentVersions = await fileVersionBriefs(
+    input.attachmentIds.map((fileId) => pins[fileId]).filter((v): v is string => !!v),
+    tx,
+  )
+  const attachments = [...attachmentVersions.values()].map((version) => ({
+    fileId: version.fileId,
+    bucket: fileBuckets.files(),
+    storageKey: version.storageKey,
+  }))
   await JobService.schedule(tx, ctx, {
     ...engineJob('render:document.pdf', {
       documentId: doc.id,
@@ -298,6 +317,7 @@ async function insertVersion(
       bucket: fileBuckets.files(),
       storageKey: source.storageKey,
       convert: plan === 'convert',
+      ...(attachments.length > 0 ? { attachments } : {}),
       ...(pdfFileId && pdfVersionId
         ? {
             target: {
@@ -442,8 +462,13 @@ export const DocumentVersionService = {
         .select({
           id: documentVersions.id,
           documentId: documentVersions.documentId,
+          number: documentVersions.number,
           mainFileId: documentVersions.mainFileId,
+          pdfFileId: documentVersions.pdfFileId,
           pdfStatus: documentVersions.pdfStatus,
+          attachments: documentVersions.attachments,
+          fileVersions: documentVersions.fileVersions,
+          hashes: documentVersions.hashes,
           createdBy: documentVersions.createdBy,
           spaceId: objects.spaceId,
           title: objects.title,
@@ -456,11 +481,17 @@ export const DocumentVersionService = {
       if (!row?.spaceId) return { stale: true }
 
       const values: Record<string, unknown> = {}
+      // Хэши файлов версии — для манифеста подписи (ADR-0198)
+      const hashes: Record<string, string> = { ...row.hashes }
       if (input.sha256) {
         values.hash = input.sha256
-        // Подписи, поставленные до расчёта хэша, получают его (ADR-0083)
-        await DocumentSignatures.fillHash(tx, versionId, input.sha256)
+        if (row.mainFileId) hashes[row.mainFileId] = input.sha256
       }
+      for (const [fileId, sha256] of Object.entries(input.attachments ?? {})) {
+        if (row.attachments.includes(fileId)) hashes[fileId] = sha256
+      }
+      let pdfFileId = row.pdfFileId
+      const pins = { ...row.fileVersions }
       let status: PdfStatus | null = null
       if (row.pdfStatus === 'pending') {
         if (input.status === 'ready' && input.storageKey && input.pdfFileId && input.pdfVersionId) {
@@ -486,18 +517,38 @@ export const DocumentVersionService = {
             attachToObjectId: row.documentId,
           })
           values.pdfFileId = fileId
+          pdfFileId = fileId
           // PDF-представление тоже закреплено: его единственная версия (ADR-0197)
-          values.fileVersions = sql`${documentVersions.fileVersions} || ${JSON.stringify({
-            [fileId]: input.pdfVersionId,
-          })}::jsonb`
+          pins[fileId] = input.pdfVersionId
+          values.fileVersions = pins
+          if (input.pdfSha256) hashes[fileId] = input.pdfSha256
           status = 'ready'
         } else {
           status = input.status === 'ready' || input.status === 'skipped' ? 'failed' : input.status
         }
         values.pdfStatus = status
       }
+      if (canonicalJson(hashes) !== canonicalJson(row.hashes)) values.hashes = hashes
+      const manifest = buildManifest({
+        documentId: row.documentId,
+        number: row.number,
+        mainFileId: row.mainFileId,
+        pdfFileId,
+        attachments: row.attachments,
+        fileVersions: pins,
+        hashes,
+      })
+      const digest = manifest ? manifestHash(manifest) : null
+      if (digest) values.manifestHash = digest
       if (Object.keys(values).length === 0) return { stale: false }
       await tx.update(documentVersions).set(values).where(eq(documentVersions.id, versionId))
+      // Подписи, поставленные до отчёта движка, получают хэш: манифеста, если он
+      // полон, иначе — основного файла, как до манифеста (ADR-0083, ADR-0198)
+      if (manifest && digest) {
+        await DocumentSignatures.fillHash(tx, versionId, { hash: digest, manifest })
+      } else if (input.sha256) {
+        await DocumentSignatures.fillHash(tx, versionId, { hash: input.sha256, manifest: null })
+      }
       if (status) {
         await publishEvent(tx, systemCtx('documents.pdf'), {
           type: 'document.version_pdf_ready',
@@ -510,6 +561,33 @@ export const DocumentVersionService = {
       }
       return { stale: false }
     })
+  },
+
+  /**
+   * Манифест версии, если он полон (ADR-0198): подпись фиксирует его хэш.
+   * Без манифеста — null, и подпись берёт хэш основного файла.
+   */
+  async manifest(
+    executor: Executor,
+    versionId: string,
+  ): Promise<{ manifest: DocumentManifest; hash: string } | null> {
+    const [row] = await executor
+      .select({
+        documentId: documentVersions.documentId,
+        number: documentVersions.number,
+        mainFileId: documentVersions.mainFileId,
+        pdfFileId: documentVersions.pdfFileId,
+        attachments: documentVersions.attachments,
+        fileVersions: documentVersions.fileVersions,
+        hashes: documentVersions.hashes,
+        manifestHash: documentVersions.manifestHash,
+      })
+      .from(documentVersions)
+      .where(eq(documentVersions.id, versionId))
+      .limit(1)
+    if (!row?.manifestHash) return null
+    const manifest = buildManifest({ ...row })
+    return manifest ? { manifest, hash: manifestHash(manifest) } : null
   },
 }
 

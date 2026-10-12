@@ -1,6 +1,7 @@
 import type { CaseListQuery } from '@kchs/contracts'
 import { keepPreviousData, queryOptions } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
+import { keys } from '~/shared/api/queries.js'
 
 /**
  * Ключи кэша документооборота. Карточка и версии — под `['object', id, …]`:
@@ -243,4 +244,22 @@ export const officeDashboardQuery = () =>
     queryKey: documentKeys.office,
     queryFn: () => http.get('/documents/office'),
     staleTime: 5 * 60_000,
+  })
+
+/** Превью страниц PDF-представления — выбор места факсимиле (ADR-0198). */
+export const pdfPagesQuery = (fileId: string) =>
+  queryOptions({
+    queryKey: keys.filePreviews(fileId),
+    queryFn: () => http.get('/files/:id/previews', { params: { id: fileId } }),
+  })
+
+/** Место факсимиле на подписанном экземпляре — экземпляр строится заново (ADR-0198). */
+export const placeSignature = (
+  documentId: string,
+  signatureId: string,
+  body: { page: number; x: number; y: number },
+) =>
+  http.put('/documents/:id/signatures/:signatureId/placement', {
+    params: { id: documentId, signatureId },
+    body,
   })

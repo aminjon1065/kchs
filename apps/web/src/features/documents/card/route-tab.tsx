@@ -35,6 +35,7 @@ import { useT } from '~/shared/i18n.js'
 import { documentRouteVersionsQuery, documentSignaturesQuery } from '../queries.js'
 import { useDocument } from './document-context.js'
 import { RouteStartDialog } from './route-start-dialog.js'
+import { SignatureRequisites, SignedCopyRow } from './signed-copy.js'
 
 function text(value: LangText | null | undefined, locale: string): string | null {
   if (!value) return null
@@ -52,6 +53,7 @@ function Signatures({ items }: { items: DocumentSignature[] }) {
       <h3 className="text-xs font-semibold uppercase tracking-wide text-fg-muted">
         {t('documents.signatures.title')}
       </h3>
+      <SignedCopyRow signed={items.some((signature) => signature.current)} />
       <ul className="flex flex-col gap-1.5">
         {items.map((signature) => (
           <li
@@ -96,6 +98,7 @@ function Signatures({ items }: { items: DocumentSignature[] }) {
             <Badge tone={SIGNATURE_TONE[signature.state]} size="sm">
               {t(`documents.signatures.state.${signature.state}`)}
             </Badge>
+            <SignatureRequisites signature={signature} />
           </li>
         ))}
       </ul>

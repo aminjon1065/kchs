@@ -40,6 +40,7 @@ import {
   MoreHorizontal,
   ShieldCheck,
   ShieldOff,
+  Signature,
   UserCog,
 } from 'lucide-react'
 import { useId, useState } from 'react'
@@ -48,6 +49,7 @@ import { meQuery, orgUnitsQuery, rolesQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { positionsQuery } from './positions-card.js'
+import { UserFacsimileDialog } from './user-facsimile-dialog.js'
 import { UserPasskeysDialog } from './user-passkeys-dialog.js'
 
 const NO_UNIT = '__none__'
@@ -328,6 +330,7 @@ export function UserActions({ user, onChanged }: { user: AdminUser; onChanged: (
   const [error, setError] = useState<string | null>(null)
   const [clearanceOpen, setClearanceOpen] = useState(false)
   const [passkeysOpen, setPasskeysOpen] = useState(false)
+  const [facsimileOpen, setFacsimileOpen] = useState(false)
   const [assigning, setAssigning] = useState(false)
   const { data: me } = useQuery(meQuery())
   const canSetClearance = me?.capabilities.includes('admin.system') ?? false
@@ -438,6 +441,12 @@ export function UserActions({ user, onChanged }: { user: AdminUser; onChanged: (
           >
             {t('admin.users.passkeys')}
           </DropdownMenuItem>
+          <DropdownMenuItem
+            icon={<Signature className="size-4" />}
+            onSelect={() => setFacsimileOpen(true)}
+          >
+            {t('admin.users.facsimile')}
+          </DropdownMenuItem>
           {canSetClearance ? (
             <DropdownMenuItem
               icon={<LockKeyhole className="size-4" />}
@@ -510,6 +519,9 @@ export function UserActions({ user, onChanged }: { user: AdminUser; onChanged: (
         loading={resetMfa.isPending}
         onConfirm={() => resetMfa.mutate()}
       />
+      {facsimileOpen ? (
+        <UserFacsimileDialog user={user} onClose={() => setFacsimileOpen(false)} />
+      ) : null}
       {passkeysOpen ? (
         <UserPasskeysDialog user={user} onClose={() => setPasskeysOpen(false)} />
       ) : null}

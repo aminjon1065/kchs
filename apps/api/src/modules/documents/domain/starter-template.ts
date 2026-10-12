@@ -75,6 +75,8 @@ interface Run {
   tab?: boolean
   bold?: boolean
   size?: number
+  /** Невидимый текст: белый, кегль 2 pt — маркер места подписи (ADR-0198). */
+  hidden?: boolean
 }
 
 /** Абзац: выравнивание, отступы (twips), размер шрифта (pt). */
@@ -85,10 +87,15 @@ function paragraph(
     indentLeft?: number
     firstLine?: number
     tabRight?: number
+    tabCenter?: number
   } = {},
 ): string {
+  const tabs = [
+    options.tabCenter ? `<w:tab w:val="center" w:pos="${options.tabCenter}"/>` : '',
+    options.tabRight ? `<w:tab w:val="right" w:pos="${options.tabRight}"/>` : '',
+  ].join('')
   const props = [
-    options.tabRight ? `<w:tabs><w:tab w:val="right" w:pos="${options.tabRight}"/></w:tabs>` : '',
+    tabs ? `<w:tabs>${tabs}</w:tabs>` : '',
     options.align ? `<w:jc w:val="${options.align}"/>` : '',
     options.indentLeft || options.firstLine
       ? `<w:ind w:left="${options.indentLeft ?? 0}" w:firstLine="${options.firstLine ?? 0}"/>`
@@ -96,9 +103,11 @@ function paragraph(
   ].join('')
   const body = runs
     .map((run) => {
+      const size = run.hidden ? 2 : run.size
       const rPr = [
         run.bold ? '<w:b/>' : '',
-        run.size ? `<w:sz w:val="${run.size * 2}"/><w:szCs w:val="${run.size * 2}"/>` : '',
+        run.hidden ? '<w:color w:val="FFFFFF"/>' : '',
+        size ? `<w:sz w:val="${size * 2}"/><w:szCs w:val="${size * 2}"/>` : '',
       ].join('')
       const content = run.tab
         ? '<w:tab/>'
@@ -153,11 +162,17 @@ function documentXml(): string {
     blank(),
     paragraph([{ text: '{%p endif %}' }]),
     blank(),
+    // Между должностью и фамилией — невидимый маркер: сюда подписанный экземпляр
+    // ставит факсимиле подписанта (ADR-0198)
     paragraph(
-      [{ text: '{{ signer.position }}' }, { tab: true }, { text: '{{ signer.short_name }}' }],
-      {
-        tabRight: 9355,
-      },
+      [
+        { text: '{{ signer.position }}' },
+        { tab: true },
+        { text: '[[SIGN]]', hidden: true },
+        { tab: true },
+        { text: '{{ signer.short_name }}' },
+      ],
+      { tabCenter: 6100, tabRight: 9355 },
     ),
     blank(),
     blank(),

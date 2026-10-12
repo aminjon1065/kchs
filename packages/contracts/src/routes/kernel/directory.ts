@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { ClearanceInput, Confidentiality } from '../../access/confidentiality.js'
 import { PrincipalRef, RoleInfo, RoleInput, RolePatch } from '../../access/principals.js'
+import { FacsimileInput, FacsimileState, OwnFacsimile } from '../../admin/facsimile.js'
 import {
   AdminUser,
   AdminUserCreateInput,
@@ -155,5 +156,22 @@ export const kernelDirectoryRoutes = defineRoutes({
     params: z.object({ id: z.uuid() }),
     body: ServiceAccountPatchInput,
     response: { 200: ServiceAccount },
+  },
+  // Факсимиле (ADR-0198): своё — с картинкой, чужое — только состояние
+  'GET /me/facsimile': { response: { 200: OwnFacsimile } },
+  'PUT /me/facsimile': { body: FacsimileInput, response: { 200: OwnFacsimile } },
+  'DELETE /me/facsimile': { response: { 200: OwnFacsimile } },
+  'GET /users/:id/facsimile': {
+    params: z.object({ id: z.uuid() }),
+    response: { 200: FacsimileState },
+  },
+  'PUT /users/:id/facsimile': {
+    params: z.object({ id: z.uuid() }),
+    body: FacsimileInput,
+    response: { 200: FacsimileState },
+  },
+  'DELETE /users/:id/facsimile': {
+    params: z.object({ id: z.uuid() }),
+    response: { 200: FacsimileState },
   },
 })

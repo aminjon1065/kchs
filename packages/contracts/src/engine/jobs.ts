@@ -117,6 +117,11 @@ export const DocumentPdfJob = z.object({
   target: z
     .object({ fileId: Uuid, versionId: Uuid, bucket: Bucket, storageKey: StorageKey })
     .optional(),
+  /** Приложения версии — только хэш, для манифеста подписи (ADR-0198). */
+  attachments: z
+    .array(z.object({ fileId: Uuid, bucket: Bucket, storageKey: StorageKey }))
+    .max(100)
+    .optional(),
 })
 export const DocumentPdfJobResult = z.union([
   TooLarge,
