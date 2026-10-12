@@ -4,6 +4,7 @@ import { eq, inArray, sql } from 'drizzle-orm'
 import { AUDIT_ACTIONS, audit } from '~/kernel/audit/service.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { actorId, type Ctx, type UserCtx } from '~/shared/context.js'
+import { decryptSecret, encryptSecret } from '~/shared/crypto/secrets.js'
 import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { sanitizePng } from './png.js'
@@ -76,7 +77,7 @@ export const FacsimileService = {
       .from(userFacsimiles)
       .where(eq(userFacsimiles.userId, ctx.userId))
       .limit(1)
-    return { ...state, dataUri: row ? `data:image/png;base64,${row.png.toString('base64')}` : null }
+    return { ...state, dataUri: row ? `data:image/png;base64,${decryptSecret(row.png)}` : null }
   },
 
   state(userId: string): Promise<FacsimileState> {
@@ -102,12 +103,14 @@ export const FacsimileService = {
     }
     const { png, width, height } = sanitizePng(Buffer.from(base64, 'base64'))
     const sha256 = createHash('sha256').update(png).digest('hex')
+    // Подпись человека в дампе базы — только шифром мастер-ключа (17-security.md §4)
+    const sealed = encryptSecret(png.toString('base64'))
     await tx
       .insert(userFacsimiles)
-      .values({ userId, png, sha256, width, height, updatedBy: actorId(ctx) })
+      .values({ userId, png: sealed, sha256, width, height, updatedBy: actorId(ctx) })
       .onConflictDoUpdate({
         target: userFacsimiles.userId,
-        set: { png, sha256, width, height, updatedBy: actorId(ctx), updatedAt: sql`now()` },
+        set: { png: sealed, sha256, width, height, updatedBy: actorId(ctx), updatedAt: sql`now()` },
       })
     await changed(tx, ctx, userId, { present: true, byAdmin: options.byAdmin, sha256 })
   },
@@ -144,7 +147,7 @@ export const FacsimileService = {
       rows.map((row) => [
         row.userId,
         {
-          dataUri: `data:image/png;base64,${row.png.toString('base64')}`,
+          dataUri: `data:image/png;base64,${decryptSecret(row.png)}`,
           width: row.width,
           height: row.height,
         },

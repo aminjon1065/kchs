@@ -1764,6 +1764,8 @@ const NESTED_ELSEWHERE: Record<string, string> = {
     'письмо исходящего (нужна почта канцелярии) — test/documents-email.test.ts',
   'DELETE /documents/:id/resolution-requests/:requestId':
     'направление зарегистрированного документа — test/document-resolutions.test.ts',
+  'PUT /documents/:id/signatures/:signatureId/placement':
+    'подпись документа (нужен пройденный маршрут с подписью) — test/document-signature-requisites.test.ts',
 }
 
 /**
