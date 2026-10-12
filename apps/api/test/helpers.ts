@@ -349,6 +349,10 @@ const ENGINE_ROUTES: Array<[RegExp, (id: string) => { scope?: string; jobId?: st
     (id) => ({ scope: `document-render:${id}` }),
   ],
   [
+    /\/internal\/documents\/signature-sessions\/([^/]+)\/(?:start|done)$/,
+    (id) => ({ scope: `signature-session:${id}` }),
+  ],
+  [
     /\/internal\/meetings\/recordings\/([^/]+)\/transcript$/,
     (id) => ({ scope: `recording:${id}` }),
   ],

@@ -1764,6 +1764,12 @@ const NESTED_ELSEWHERE: Record<string, string> = {
     'письмо исходящего (нужна почта канцелярии) — test/documents-email.test.ts',
   'DELETE /documents/:id/resolution-requests/:requestId':
     'направление зарегистрированного документа — test/document-resolutions.test.ts',
+  'PUT /documents/:id/signatures/:signatureId/placement':
+    'место факсимиле настоящей подписи — test/document-signature-requisites.test.ts',
+  'GET /documents/:id/qes-sessions/:sessionId':
+    'сеанс квалифицированной подписи (нужен УЦ и маршрут с КЭП) — test/document-qualified-signature.test.ts',
+  'POST /documents/:id/signatures/:signatureId/verify':
+    'квалифицированная подпись (нужен УЦ и маршрут с КЭП) — test/document-qualified-signature.test.ts',
 }
 
 /**
@@ -2112,6 +2118,8 @@ describe('маршруты с объектом в пути: посторонни
     'DELETE /me/delegations/:id':
       'завершает только назначивший; постороннему — 404 — test/kernel.test.ts',
     'DELETE /me/passkeys/:keyId': 'только свой ключ — test/passkeys.test.ts',
+    'GET /qes/sessions/:id/page':
+      'только подписант сеанса с билетом на него же — test/document-qualified-signature.test.ts',
     'DELETE /assistant/threads/:id': 'только свой разговор — test/assistant.test.ts',
     'GET /datasets/exports/:jobId/download': 'только инициатор экспорта — test/data-export.test.ts',
     'POST /inbox/:id/act': 'только дела получателя (фильтр по userId) — test/inbox-bulk.test.ts',
