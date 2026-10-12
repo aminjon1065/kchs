@@ -63,7 +63,7 @@ export const positionsApi = {
  */
 export function applyPosition(
   client: QueryClient,
-  payload: RtServerPayload<'position.updated'>,
+  payload: RtServerPayload<'device.located'>,
 ): void {
   const last = {
     at: payload.at,

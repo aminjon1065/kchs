@@ -61,7 +61,7 @@ export function DevicesScreen() {
     return () => unsubscribeRooms(rooms)
   }, [roomKey])
   useEffect(
-    () => onRealtimeEvent('position.updated', (payload) => applyPosition(client, payload)),
+    () => onRealtimeEvent('device.located', (payload) => applyPosition(client, payload)),
     [client],
   )
 

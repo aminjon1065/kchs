@@ -171,7 +171,7 @@ describe('приём координат', () => {
     // Одна новая последняя точка — одно событие за пакет
     const events = await db().execute<{ n: number }>(
       sql`SELECT count(*)::int AS n FROM ops.outbox
-           WHERE event->>'type' = 'position.updated' AND event->'object'->>'id' = ${mine}`,
+           WHERE event->>'type' = 'device.located' AND event->'object'->>'id' = ${mine}`,
     )
     expect(events[0]?.n).toBe(1)
 

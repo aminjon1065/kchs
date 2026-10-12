@@ -49,7 +49,7 @@ export function DeviceView({ objectId }: { objectId: string }) {
 
   useEffect(
     () =>
-      onRealtimeEvent('position.updated', (payload) => {
+      onRealtimeEvent('device.located', (payload) => {
         applyPosition(client, payload)
         if (payload.deviceId === objectId) {
           void client.invalidateQueries({ queryKey: ['positions', 'track', objectId] })

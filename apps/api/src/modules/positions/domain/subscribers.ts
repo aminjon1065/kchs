@@ -12,11 +12,11 @@ import { emitToRoom } from '~/kernel/realtime/gateway.js'
 export function registerPositionSubscribers(): void {
   registerSubscriber({
     name: 'positions-realtime',
-    types: ['position.updated'],
+    types: ['device.located'],
     handle: async (event: EventEnvelope) => {
       const deviceId = event.object?.id
       if (!deviceId) return
-      const payload = event.payload as EventPayload<'position.updated'>
+      const payload = event.payload as EventPayload<'device.located'>
       const message = {
         deviceId,
         at: payload.at,
@@ -26,8 +26,8 @@ export function registerPositionSubscribers(): void {
         heading: payload.heading,
         battery: payload.battery,
       }
-      emitToRoom(`object:${deviceId}`, 'position.updated', message)
-      if (payload.datasetId) emitToRoom(`object:${payload.datasetId}`, 'position.updated', message)
+      emitToRoom(`object:${deviceId}`, 'device.located', message)
+      if (payload.datasetId) emitToRoom(`object:${payload.datasetId}`, 'device.located', message)
     },
   })
 }

@@ -29,7 +29,7 @@ interface DeviceInfo {
  *  - время из будущего, слишком давнее и невозможная скорость отбраковываются
  *    поточечно — пакет из-за одной плохой точки не теряется;
  *  - повтор той же точки (устройство + время) второй раз не пишется: ключ журнала;
- *  - новая последняя точка обновляет устройство и публикует `position.updated` —
+ *  - новая последняя точка обновляет устройство и публикует `device.located` —
  *    одно событие на устройство за пакет, в той же транзакции.
  */
 export const PositionIngest = {
@@ -179,7 +179,7 @@ export const PositionIngest = {
           .returning({ id: devices.id })
         if (moved.length === 0) continue
         await publishEvent(tx, ctx, {
-          type: 'position.updated',
+          type: 'device.located',
           object: { id: deviceId, type: 'device', spaceId: device.spaceId, title: device.title },
           payload: {
             at,

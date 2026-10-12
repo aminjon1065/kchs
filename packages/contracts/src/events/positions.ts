@@ -15,7 +15,7 @@ export const POSITIONS_EVENTS = {
    * realtime — открытым карточкам и карте обстановки; правила автоматизации.
    * Одно событие на устройство за пакет, сколько бы точек в нём ни было.
    */
-  'position.updated': z.object({
+  'device.located': z.object({
     at: z.string(),
     lat: z.number(),
     lon: z.number(),

@@ -173,7 +173,7 @@ export const RtCallDeclined = z.object({ meetingId: Uuid, user: UserRef.nullable
  * Новая последняя точка устройства слежения (ADR-0203) — в комнату устройства
  * `object:{deviceId}` и в комнату датасета проекции (слой карты обстановки).
  */
-export const RtPositionUpdated = z.object({
+export const RtDeviceLocated = z.object({
   deviceId: Uuid,
   at: z.string(),
   lat: z.number(),
@@ -206,7 +206,7 @@ export const RT_SERVER_PAYLOADS = {
   /** Входящий звонок — приглашённому, в комнату `user:{id}` (ADR-0091). */
   'call.incoming': IncomingCall,
   'call.declined': RtCallDeclined,
-  'position.updated': RtPositionUpdated,
+  'device.located': RtDeviceLocated,
 } as const satisfies Record<string, z.ZodType>
 
 export type RtServerEvent = keyof typeof RT_SERVER_PAYLOADS
