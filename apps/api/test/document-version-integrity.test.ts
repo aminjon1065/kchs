@@ -313,11 +313,18 @@ describe('версия документа закреплена за версия
     const trash = await call(fx.app, { method: 'DELETE', url: `/objects/${fileId}`, as: fx.admin })
     expect(trash.statusCode).toBe(409)
 
-    // Редактор теперь открывает файл только на просмотр
+    // Редактор теперь открывает файл только на просмотр — и сессия, и сама страница:
+    // без адреса сохранения сервер документов правку не вернёт
     expect(await openOffice(people.author, fileId)).toMatchObject({
       mode: 'view',
       readOnly: 'file_frozen',
     })
+    const page = await call(fx.app, {
+      url: `/api/v1/office/editor/${early.id}`,
+      as: people.author,
+    })
+    expect(page.statusCode).toBe(200)
+    expect(page.body).not.toContain('"callbackUrl"')
 
     // Правка, сохранённая уже после отправки, ложится новым файлом документа
     await officeSaved(early.id)

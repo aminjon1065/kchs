@@ -7,6 +7,7 @@ import { config } from '~/shared/config/index.js'
 import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { assertRouteAuth, type RouteAuth, type RouteRegistrar } from '~/shared/http/route.js'
+import { frozenFiles } from '../domain/content-policy.js'
 import { officeConfig, officeDocumentType, signJwt } from '../domain/office.js'
 import { officeEditorConfig, renderOfficePage } from '../domain/office-page.js'
 import { OfficeService, officeUrls } from '../domain/office-service.js'
@@ -121,7 +122,12 @@ export function registerOfficePages(app: FastifyInstance): void {
       if (!documentType) throw errors.notFound('Формат не открывается редактором')
 
       const lockedByOther = file.lockedBy !== null && file.lockedBy !== request.ctx.userId
-      const mode = canEdit && !lockedByOther ? 'edit' : 'view'
+      // Файл утверждённой версии документа — только просмотр, как у сессии (ADR-0197):
+      // без адреса сохранения сервер документов правку не вернёт
+      const frozen = canEdit
+        ? (await frozenFiles(db(), [session.fileId])).has(session.fileId)
+        : false
+      const mode = canEdit && !lockedByOther && !frozen ? 'edit' : 'view'
       const urls = officeUrls(session.id)
       const t = createTranslator(request.ctx.locale)
 
