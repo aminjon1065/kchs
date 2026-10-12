@@ -18,6 +18,7 @@ import { MAIL_EVENTS } from './mail.js'
 import { MEETINGS_EVENTS } from './meetings.js'
 import { NOTIFICATION_EVENTS } from './notification.js'
 import { OBJECT_EVENTS } from './object.js'
+import { POSITIONS_EVENTS } from './positions.js'
 import { PROCESS_EVENTS } from './process.js'
 import { REPORTS_EVENTS } from './reports.js'
 import { SETTINGS_EVENTS } from './settings.js'
@@ -58,6 +59,7 @@ export const EVENT_CATALOG_PARTS = {
   mail: MAIL_EVENTS,
   automation: AUTOMATION_EVENTS,
   integrations: INTEGRATIONS_EVENTS,
+  positions: POSITIONS_EVENTS,
 } as const
 
 /**
@@ -90,6 +92,7 @@ export const EVENT_PAYLOADS = {
   ...MAIL_EVENTS,
   ...AUTOMATION_EVENTS,
   ...INTEGRATIONS_EVENTS,
+  ...POSITIONS_EVENTS,
 } as const satisfies Record<string, z.ZodType>
 
 export type EventType = keyof typeof EVENT_PAYLOADS

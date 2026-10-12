@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { beforeAll, describe, expect, it } from 'vitest'
 import {
   call,
@@ -227,6 +228,48 @@ describe('форма сбора данных', () => {
     )?.state
     expect(state).toBe('accepted')
     expect(after.json().totals.accepted).toBe(1)
+  })
+
+  it('повтор сдачи с тем же ключом устройства возвращает её, а не «уже сдана» (ADR-0204)', async () => {
+    const period = new Date(Date.now() - 2 * 86_400_000).toISOString().slice(0, 10)
+    const opened = await call(fx.app, {
+      method: 'POST',
+      url: `/forms/${formId}/submissions`,
+      as: fx.users.member,
+      payload: { periodKey: period, subject: { kind: 'unit', id: fx.unitId } },
+    })
+    expect(opened.statusCode, opened.body).toBe(200)
+    const submissionId = opened.json().id as string
+    const clientKey = randomUUID()
+    const submit = (key: string, people: number) =>
+      call(fx.app, {
+        method: 'POST',
+        url: `/forms/submissions/${submissionId}/submit`,
+        as: fx.users.member,
+        payload: { values: { people }, clientKey: key },
+      })
+
+    const first = await submit(clientKey, 2)
+    expect(first.statusCode, first.body).toBe(200)
+    expect(first.json().status).toBe('submitted')
+    // Ответ «потерялся», очередь устройства повторяет ту же сдачу
+    const replay = await submit(clientKey, 2)
+    expect(replay.statusCode, replay.body).toBe(200)
+    expect(replay.json().rowId).toBe(first.json().rowId)
+    // Другая сдача той же сводки — по-прежнему «уже сдана»
+    expect((await submit(randomUUID(), 3)).statusCode).toBe(409)
+
+    // Сводку вернули — старый повтор не пересдаёт её прежними значениями
+    const returned = await call(fx.app, {
+      method: 'POST',
+      url: `/forms/submissions/${submissionId}/review`,
+      as: fx.admin,
+      payload: { decision: 'return', comment: 'проверьте' },
+    })
+    expect(returned.statusCode, returned.body).toBe(200)
+    const stale = await submit(clientKey, 2)
+    expect(stale.statusCode, stale.body).toBe(200)
+    expect(stale.json().status).toBe('returned')
   })
 
   it('сдавать за чужое подразделение нельзя', async () => {

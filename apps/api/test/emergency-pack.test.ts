@@ -52,7 +52,7 @@ beforeAll(async () => {
 describe('пакет ЧС: чистая установка', () => {
   it('ставится без демо-мира: «Общее», реестры, автоматизация и ни одной синтетической строки', async () => {
     const seeded = await seedCommand({ profile: 'minimal', reset: false, pack: 'emergency' })
-    expect(seeded.pack).toMatchObject({ datasets: 11, dashboards: 5, pages: 6 })
+    expect(seeded.pack).toMatchObject({ datasets: 12, dashboards: 5, pages: 6 })
 
     const [org] = await db().select({ kind: spaces.kind }).from(spaces).where(eq(spaces.key, 'org'))
     expect(org?.kind).toBe('org')
@@ -138,7 +138,7 @@ describe('пакет ЧС: чистая установка', () => {
       )[0]?.version
     const versionBefore = await schemaVersion()
     const again = await seedCommand({ profile: 'minimal', reset: false, pack: 'emergency' })
-    expect(again.pack).toMatchObject({ datasets: 11, dashboards: 5, pages: 0 })
+    expect(again.pack).toMatchObject({ datasets: 12, dashboards: 5, pages: 0 })
     const after = await packObjects()
     expect(after).toEqual(before)
     expect(await schemaVersion()).toBe(versionBefore)

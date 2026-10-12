@@ -193,6 +193,26 @@ export const DatasetRows = {
     )
   },
   /**
+   * Строки по ключевому полю: есть — правка текущей версии, нет — добавление
+   * (проекция последних позиций устройств слежения в слой карты, ADR-0203).
+   */
+  upsertByKey: (
+    tx: Tx,
+    ctx: Ctx,
+    datasetId: string,
+    keyField: string,
+    rows: ReadonlyArray<Record<string, unknown>>,
+  ): Promise<{ inserted: number; updated: number }> =>
+    RowService.upsertByKey(ctx, datasetId, keyField, rows, tx),
+  /** Удаление строк по ключевому полю (устройство убрано из проекции, ADR-0203). */
+  removeByKey: (
+    tx: Tx,
+    ctx: Ctx,
+    datasetId: string,
+    keyField: string,
+    keys: readonly string[],
+  ): Promise<number> => RowService.removeByKey(ctx, datasetId, keyField, keys, tx),
+  /**
    * Удаление строк по `_id` без сверки версий — замена строк прежней сдачи формы
    * при повторной сдаче (ADR-0129). Возвращает число удалённых строк.
    */

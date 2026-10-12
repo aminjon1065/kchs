@@ -169,6 +169,20 @@ export const RtMeetingGuestWaiting = z.object({
 /** Приглашённый отклонил звонок — звонящему в `user:{id}` (ADR-0193). */
 export const RtCallDeclined = z.object({ meetingId: Uuid, user: UserRef.nullable() })
 
+/**
+ * Новая последняя точка устройства слежения (ADR-0203) — в комнату устройства
+ * `object:{deviceId}` и в комнату датасета проекции (слой карты обстановки).
+ */
+export const RtPositionUpdated = z.object({
+  deviceId: Uuid,
+  at: z.string(),
+  lat: z.number(),
+  lon: z.number(),
+  speed: z.number().nullable(),
+  heading: z.number().nullable(),
+  battery: z.number().nullable(),
+})
+
 export const RT_SERVER_PAYLOADS = {
   'object.updated': RtObjectUpdated,
   'object.removed': RtObjectRemoved,
@@ -192,6 +206,7 @@ export const RT_SERVER_PAYLOADS = {
   /** Входящий звонок — приглашённому, в комнату `user:{id}` (ADR-0091). */
   'call.incoming': IncomingCall,
   'call.declined': RtCallDeclined,
+  'position.updated': RtPositionUpdated,
 } as const satisfies Record<string, z.ZodType>
 
 export type RtServerEvent = keyof typeof RT_SERVER_PAYLOADS

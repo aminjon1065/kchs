@@ -666,6 +666,104 @@ export const RowService = {
    * Поля, изменённые после версии пользователя: по истории строки, а без
    * истории — те из его правки, что расходятся с текущими значениями.
    */
+  /**
+   * Строки по значению ключевого поля (проекции модулей: последняя точка устройства
+   * слежения в слое карты, ADR-0203): есть строка с таким ключом — правится её
+   * текущая версия, нет — добавляется. Права, проверки значений, история и событие —
+   * те же, что у правки из таблицы. Ключ сравнивается как текст.
+   */
+  async upsertByKey(
+    ctx: Ctx,
+    datasetId: string,
+    keyField: string,
+    rows: ReadonlyArray<Record<string, unknown>>,
+    outer?: Tx,
+  ): Promise<{ inserted: number; updated: number }> {
+    if (rows.length === 0) return { inserted: 0, updated: 0 }
+    const storage = await DatasetService.storage(datasetId)
+    const field = storage.fields.find((item) => item.key === keyField)
+    if (!field) throw errors.validation(`В датасете нет поля «${keyField}»`)
+    const keyOf = (values: Record<string, unknown>) => {
+      const key = values[keyField]
+      if (key === null || key === undefined || String(key) === '') {
+        throw errors.validation(`Пустое значение ключа «${keyField}»`)
+      }
+      return String(key)
+    }
+    const keys = [...new Set(rows.map(keyOf))]
+    return inTransaction(outer, async (tx) => {
+      const found = await tx.execute<{ _id: string; _ver: number; _k: string }>(
+        sql`SELECT _id::text AS _id, _ver, ${columnSql(field.physical)}::text AS _k
+              FROM ${tableSql(storage.table)}
+             WHERE _deleted_at IS NULL
+               AND ${columnSql(field.physical)}::text IN (${sql.join(
+                 keys.map((key) => sql`${key}`),
+                 sql`, `,
+               )})`,
+      )
+      const existing = new Map(found.map((row) => [row._k, row]))
+      const fresh = rows.filter((values) => !existing.has(keyOf(values)))
+      if (fresh.length > 0) {
+        await RowService.insert(
+          ctx,
+          datasetId,
+          fresh.map((values) => ({ values })),
+          tx,
+        )
+      }
+      let updated = 0
+      for (const values of rows) {
+        const row = existing.get(keyOf(values))
+        if (!row) continue
+        const { [keyField]: _key, ...rest } = values
+        if (Object.keys(rest).length === 0) continue
+        await RowService.update(
+          ctx,
+          datasetId,
+          row._id,
+          { ver: Number(row._ver), values: rest },
+          tx,
+        )
+        updated += 1
+      }
+      return { inserted: fresh.length, updated }
+    })
+  },
+
+  /**
+   * Удаление строк по значению ключевого поля (устройство слежения убрано из
+   * проекции, ADR-0203). Возвращает число удалённых строк.
+   */
+  async removeByKey(
+    ctx: Ctx,
+    datasetId: string,
+    keyField: string,
+    keys: readonly string[],
+    outer?: Tx,
+  ): Promise<number> {
+    if (keys.length === 0) return 0
+    const storage = await DatasetService.storage(datasetId)
+    const field = storage.fields.find((item) => item.key === keyField)
+    if (!field) throw errors.validation(`В датасете нет поля «${keyField}»`)
+    return inTransaction(outer, async (tx) => {
+      const found = await tx.execute<{ _id: string }>(
+        sql`SELECT _id::text AS _id FROM ${tableSql(storage.table)}
+             WHERE _deleted_at IS NULL
+               AND ${columnSql(field.physical)}::text IN (${sql.join(
+                 keys.map((key) => sql`${key}`),
+                 sql`, `,
+               )})`,
+      )
+      if (found.length === 0) return 0
+      return RowService.remove(
+        ctx,
+        datasetId,
+        found.map((row) => row._id),
+        tx,
+      )
+    })
+  },
+
   async changedSince(
     tx: Executor,
     storage: DatasetStorage,

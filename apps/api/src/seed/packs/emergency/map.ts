@@ -169,6 +169,32 @@ const PACK_LAYERS: readonly PackLayer[] = [
     },
   },
   {
+    // Живое местоположение техники и групп (ADR-0203): цвет — связь
+    key: 'layer.forces_live',
+    dataset: 'forces_live',
+    name: 'Техника и группы',
+    visible: true,
+    style: {
+      geometry: 'point',
+      renderer: {
+        kind: 'categorized',
+        field: 'link',
+        categories: [
+          { value: 'online', icon: 'truck', color: 'success' },
+          { value: 'stale', icon: 'truck', color: 'warning' },
+        ],
+        other: { color: 'other' },
+      },
+      point: { shape: 'icon', size: 18 },
+      label: { field: 'name', minZoom: 10 },
+      popup: {
+        title: '{{name}}',
+        fields: ['kind', 'forces_code', 'unit', 'seen_at', 'speed', 'battery', 'link'],
+        actions: ['open'],
+      },
+    },
+  },
+  {
     key: 'layer.incidents',
     dataset: 'incidents',
     name: 'Происшествия за трое суток',

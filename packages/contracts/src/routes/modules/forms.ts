@@ -13,6 +13,7 @@ import {
   FormSubmission,
   FormSubmissionOpenInput,
   FormSubmissionSaveInput,
+  FormSubmissionSubmitInput,
   FormUpdateInput,
 } from '../../forms/form.js'
 import { defineRoutes } from '../../http/route-contract.js'
@@ -53,7 +54,7 @@ export const formsRoutes = defineRoutes({
   },
   'POST /forms/submissions/:sid/submit': {
     params: SubmissionParam,
-    body: FormSubmissionSaveInput,
+    body: FormSubmissionSubmitInput,
     response: { 200: FormSubmission },
   },
   'POST /forms/submissions/:sid/review': {

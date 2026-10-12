@@ -81,6 +81,11 @@ export const formSubmissions = pgTable(
     reviewerId: uuid('reviewer_id').references(() => users.id, { onDelete: 'set null' }),
     reviewedAt: tsCol('reviewed_at'),
     comment: text('comment'),
+    /**
+     * Ключ идемпотентности последней сдачи (ADR-0204): повтор сдачи из очереди
+     * устройства с тем же ключом возвращает уже записанную сдачу.
+     */
+    submitKey: uuid('submit_key'),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
