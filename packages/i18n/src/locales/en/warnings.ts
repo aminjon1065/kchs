@@ -7,9 +7,7 @@ export const warnings = {
   feeds: 'Feeds',
   feedAtom: 'Atom index (CAP)',
   feedRss: 'RSS',
-  copied: 'Address copied',
   noSpace: 'No warnings space is set: install the emergency pack or choose a space',
-  space: 'Space',
   empty: {
     title: 'No warnings yet',
     description: 'Create a draft by hand or from a hazard message',
@@ -24,6 +22,7 @@ export const warnings = {
   },
   filter: { all: 'All states' },
   fields: {
+    language: 'Block language',
     status: 'State',
     severity: 'Severity',
     msgType: 'Message type',

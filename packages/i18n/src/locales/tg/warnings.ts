@@ -7,9 +7,7 @@ export const warnings = {
   feeds: 'Лентаҳо',
   feedAtom: 'Индекси Atom (CAP)',
   feedRss: 'RSS',
-  copied: 'Суроға нусхабардорӣ шуд',
   noSpace: 'Фазои огоҳиномаҳо муайян нашудааст: бастаи ҲФ-ро насб кунед ё фазоро интихоб кунед',
-  space: 'Фазо',
   empty: {
     title: 'Ҳоло огоҳинома нест',
     description: 'Сиёҳнависро дастӣ ё аз паём дар бораи падидаи хатарнок созед',
@@ -24,6 +22,7 @@ export const warnings = {
   },
   filter: { all: 'Ҳамаи ҳолатҳо' },
   fields: {
+    language: 'Забони блок',
     status: 'Ҳолат',
     severity: 'Шиддат',
     msgType: 'Намуди паём',

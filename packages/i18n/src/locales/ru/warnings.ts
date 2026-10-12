@@ -8,9 +8,7 @@ export const warnings = {
   feeds: 'Ленты',
   feedAtom: 'Индекс Atom (CAP)',
   feedRss: 'RSS',
-  copied: 'Адрес скопирован',
   noSpace: 'Пространство предупреждений не задано: установите пакет ЧС или выберите пространство',
-  space: 'Пространство',
   empty: {
     title: 'Предупреждений пока нет',
     description: 'Создайте черновик вручную или из сообщения об опасном явлении',
@@ -25,6 +23,7 @@ export const warnings = {
   },
   filter: { all: 'Все состояния' },
   fields: {
+    language: 'Язык блока',
     status: 'Состояние',
     severity: 'Строгость',
     msgType: 'Вид сообщения',

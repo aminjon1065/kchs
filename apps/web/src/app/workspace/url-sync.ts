@@ -40,6 +40,8 @@ const SCREEN_PATHS: Record<string, ScreenKey> = {
   // Формы сбора данных (ADR-0103) и алерты (ADR-0104)
   '/forms': 'forms',
   '/alerts': 'alerts',
+  // Предупреждения CAP (ADR-0202)
+  '/warnings': 'warnings',
   // Редактор офисного файла (ADR-0112): файл — в параметре `id`, не в пути,
   // иначе адрес вкладки читался бы как обычная карточка объекта
   '/office': 'office-editor',

@@ -177,6 +177,12 @@ export function CommandPalette({
         run: () => goScreen('alerts', t('shell.rail.alerts'), 'alert'),
       },
       {
+        id: 'warnings',
+        label: t('shell.rail.warnings'),
+        icon: <ObjectIcon type="warning" />,
+        run: () => goScreen('warnings', t('shell.rail.warnings'), 'warning'),
+      },
+      {
         id: 'pipelines',
         label: t('shell.screens.pipelines'),
         icon: <ObjectIcon type="pipeline" />,
