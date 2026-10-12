@@ -274,9 +274,7 @@ test('доработка проекта, версия 2, подпись с фа�
 
   // ── Визирование и подпись с кодом ────────────────────────────────────────
   await decideByApi(actors.approver, 'approve')
-  await decideByApi(actors.signer, 'sign', {
-    payload: { code: totp(signerSecret, Date.now() + 30_000) },
-  })
+  await decideByApi(actors.signer, 'sign', { code: totp(signerSecret, Date.now() + 30_000) })
 
   // ── Подписанный экземпляр с факсимиле: строит движок ─────────────────────
   await author.getByRole('tab', { name: 'Маршрут', exact: true }).click()
@@ -291,14 +289,17 @@ test('доработка проекта, версия 2, подпись с фа�
       { timeout: 120_000, intervals: [3_000] },
     )
     .toBeGreaterThan(0)
-  await expect(route.getByText('С факсимиле')).toBeVisible()
+  await expect(route.getByText('С факсимиле', { exact: true })).toBeVisible()
 
   const signatures = await (await api.get(`/api/v1/documents/${documentId}/signatures`)).json()
   const [signature] = signatures.items as Array<{ id: string; state: string }>
   expect(signature?.state).toBe('valid')
   const card2 = await (await api.get(`/api/v1/documents/${documentId}`)).json()
   expect(card2.status).toBe('registered')
-  expect(card2.currentVersion.signedCopy.name).toContain(card2.regNumber)
+  // Имя файла — по номеру документа («/» в именах файлов недопустим)
+  expect(card2.currentVersion.signedCopy.name).toContain(
+    String(card2.regNumber).replaceAll('/', '-'),
+  )
 
   // ── Страница проверки по QR: без входа ───────────────────────────────────
   const anonymous = await browser.newContext({ baseURL: BASE })
