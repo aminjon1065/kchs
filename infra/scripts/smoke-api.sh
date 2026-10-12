@@ -152,16 +152,22 @@ check "у комитета есть руководитель" "yes" \
   "$(echo "$UNITS" | jq_ "'yes' if [u for u in d['items'] if u['code']=='HQ'][0]['head'] else 'no'")"
 
 echo "── Поиск ─────────────────────────────────────────────"
-# Индекс обновляет worker по событиям: на свежей установке сразу после сида у него
-# длинная очередь (демо-документы, маршруты) — ждём с опросом, а не фиксированную паузу
-FOUND=no
-for _ in $(seq 1 45); do
-  S=$(curl -s -G --data-urlencode 'q=Документы проверки' "$BASE/search" -b "$JAR")
-  FOUND=$(echo "$S" | jq_ "'yes' if any(h['objectId']=='$FOLDER_ID' for h in d['hits']) else 'no'")
-  [ "$FOUND" = "yes" ] && break
-  sleep 2
-done
-check "поиск находит папку" "yes" "$FOUND"
+if [ "${KCHS_SMOKE_SKIP_SEARCH:-}" = 1 ]; then
+  # Проверка восстановления резервного узла (ADR-0199): копия поднимается без worker,
+  # который рассылал бы её события наружу, а индекс поиска пуст до переиндексации
+  echo "  · пропущено: без worker индекс поиска не наполняется (KCHS_SMOKE_SKIP_SEARCH)"
+else
+  # Индекс обновляет worker по событиям: на свежей установке сразу после сида у него
+  # длинная очередь (демо-документы, маршруты) — ждём с опросом, а не фиксированную паузу
+  FOUND=no
+  for _ in $(seq 1 45); do
+    S=$(curl -s -G --data-urlencode 'q=Документы проверки' "$BASE/search" -b "$JAR")
+    FOUND=$(echo "$S" | jq_ "'yes' if any(h['objectId']=='$FOLDER_ID' for h in d['hits']) else 'no'")
+    [ "$FOUND" = "yes" ] && break
+    sleep 2
+  done
+  check "поиск находит папку" "yes" "$FOUND"
+fi
 
 echo "── Корзина и восстановление ──────────────────────────"
 check "объект в корзину" "200" "$(code DELETE "/objects/$SUB_ID")"

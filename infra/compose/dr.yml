@@ -1,0 +1,99 @@
+# Резервный узел S1 (ADR-0199, infra/runbooks/failover.md) — надстройка над
+# основным docker-compose.yml для второго хоста на удалённой площадке. Узел
+# держит горячую копию базы и хранилища; приложение на нём не запущено, пока
+# узел не станет основным (`dr.sh promote`).
+#
+#   docker compose -f infra/compose/docker-compose.yml -f infra/compose/dr.yml \
+#     --profile dr up -d
+#
+# Обычно — через infra/scripts/dr.sh: `init-standby` засевает базу копией
+# основного и поднимает всё нужное.
+#
+# Что работает на узле:
+#   postgres      — тот же образ и настройки, что у основного; том заполняет
+#                   `dr.sh init-standby` (pg_basebackup + standby.signal), поэтому
+#                   сервер стартует горячим standby и сам подключается к основному
+#                   по VPN (у основного нет входящего доступа из интернета)
+#   wal-receiver  — pg_receivewal: непрерывный архив WAL на этом узле — для
+#                   восстановления на момент времени (PITR) и проверки копий
+#   minio         — своё хранилище с тем же ключом установки
+#   s3-mirror     — mc mirror --watch: копирует бакеты основного сюда
+# Redis, Meilisearch, api, worker, engine, web стартуют при переключении: очереди
+# восстанавливаются из базы, поиск переиндексируется (15-admin-operations.md §5).
+
+x-dr-restart: &dr-restart
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options: { max-size: "10m", max-file: "3" }
+
+services:
+  postgres:
+    volumes:
+      # Базовые копии для восстановления на момент времени: `dr.sh basebackup`
+      # снимает их с этого standby раз в неделю
+      - drbase:/basebackups
+
+  wal-receiver:
+    <<: *dr-restart
+    profiles: ["dr"]
+    image: kchs/postgres:17-3.5
+    # Каталог тома принадлежит root: права отдаются postgres, дальше — без root.
+    # Без -n pg_receivewal сам переподключается после обрыва VPN; --synchronous
+    # сбрасывает WAL на диск сразу, а не в конце сегмента: архив не отстаёт на 16 МБ
+    entrypoint: ["bash", "-c"]
+    command:
+      - >-
+        chown postgres:postgres /wal &&
+        exec gosu postgres pg_receivewal --directory=/wal --slot=kchs_dr_wal
+        --host="$$KCHS_DR_PRIMARY_HOST" --port="$$KCHS_DR_PRIMARY_PG_PORT"
+        --username=kchs_replicator --no-password --synchronous --verbose
+    environment:
+      KCHS_DR_PRIMARY_HOST: ${KCHS_DR_PRIMARY_HOST:?set KCHS_DR_PRIMARY_HOST}
+      KCHS_DR_PRIMARY_PG_PORT: ${KCHS_DR_PRIMARY_PG_PORT:-5432}
+      PGPASSWORD: ${POSTGRES_REPLICATION_PASSWORD:?set POSTGRES_REPLICATION_PASSWORD}
+      PGAPPNAME: kchs_dr_wal
+    volumes:
+      - drwal:/wal
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  s3-mirror:
+    <<: *dr-restart
+    profiles: ["dr"]
+    image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
+    entrypoint: ["bash", "/kchs/s3-mirror.sh"]
+    environment:
+      KCHS_DR_PRIMARY_S3: ${KCHS_DR_PRIMARY_S3:?set KCHS_DR_PRIMARY_S3}
+      S3_DR_ACCESS_KEY: ${S3_DR_ACCESS_KEY:?set S3_DR_ACCESS_KEY}
+      S3_DR_SECRET_KEY: ${S3_DR_SECRET_KEY:?set S3_DR_SECRET_KEY}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+      # Выгрузки (kchs-exports) живут 30 дней и пересоздаются — не копируются
+      KCHS_DR_BUCKETS: ${KCHS_DR_BUCKETS:-kchs-files kchs-previews kchs-media kchs-tiles kchs-backups kchs-columnar}
+      # Удалять на узле то, что удалили на основном (акт уничтожения, очистка
+      # корзины). По умолчанию — нет: узел заодно страхует от ошибочного удаления
+      KCHS_DR_MIRROR_REMOVE: ${KCHS_DR_MIRROR_REMOVE:-}
+    volumes:
+      - ./dr/s3-mirror.sh:/kchs/s3-mirror.sh:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      minio: { condition: service_healthy }
+      minio-init: { condition: service_completed_successfully }
+
+  # Метрики standby (профиль observability на узле): роль kchs_monitor приходит с
+  # основного репликацией, а изменить её на standby нельзя — пароль берётся прямо
+  # из .env, без шага metrics-init-postgres
+  postgres-exporter:
+    environment:
+      DATA_SOURCE_PASS: ${KCHS_MONITOR_PASSWORD:?set KCHS_MONITOR_PASSWORD}
+      DATA_SOURCE_PASS_FILE: !reset null
+    depends_on: !reset {}
+
+  metrics-init-postgres:
+    profiles: !override ["primary"]
+
+volumes:
+  drwal:
+  drbase:

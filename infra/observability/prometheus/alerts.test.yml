@@ -201,3 +201,43 @@ tests:
           - exp_labels: { severity: critical, stream: "events:object" }
             exp_annotations:
               summary: "Поток events:object подходит к пределу 1 000 000 — отстающая группа скоро начнёт терять события"
+
+  # Резервный узел (ADR-0199): отставание больше RPO — на узле; слоты — на основном
+  - interval: 1m
+    input_series:
+      - series: 'pg_replication_is_replica{job="postgres", instance="postgres"}'
+        values: '1x20'
+      - series: 'pg_replication_lag_seconds{job="postgres", instance="postgres"}'
+        values: '600x5 4000x15'
+      - series: 'pg_replication_slots_active{job="postgres", instance="postgres", database="", slot_name="kchs_dr"}'
+        values: '1x3 0x20'
+      - series: 'pg_replication_slots_active{job="postgres", instance="postgres", database="", slot_name="kchs_dr_wal"}'
+        values: '1x25'
+      - series: 'pg_replication_slots_safe_wal_size_bytes{job="postgres", instance="postgres", slot_name="kchs_dr", slot_type="physical"}'
+        values: '21474836480x3 1073741824x20'
+    alert_rule_test:
+      # Пять минут отставания — ещё не нарушение RPO
+      - eval_time: 4m
+        alertname: KchsDrStandbyBehindRpo
+        exp_alerts: []
+      - eval_time: 12m
+        alertname: KchsDrStandbyBehindRpo
+        exp_alerts:
+          - exp_labels: { severity: critical, job: postgres, instance: postgres }
+            exp_annotations:
+              summary: "Резервный узел отстаёт на 1h 6m 40s — больше RPO (1 ч)"
+      # Слот архива подключён — оповещение только про слот standby
+      - eval_time: 20m
+        alertname: KchsDrSlotInactive
+        exp_alerts:
+          - exp_labels:
+              { severity: warning, job: postgres, instance: postgres, slot_name: kchs_dr }
+            exp_annotations:
+              summary: "Резервный узел не забирает WAL (слот kchs_dr) 15 минут"
+      - eval_time: 10m
+        alertname: KchsDrSlotWalLimit
+        exp_alerts:
+          - exp_labels:
+              { severity: warning, job: postgres, instance: postgres, slot_name: kchs_dr, slot_type: physical }
+            exp_annotations:
+              summary: "Слот kchs_dr: до предела удержания WAL меньше 2 ГБ — узел скоро отстанет безвозвратно"

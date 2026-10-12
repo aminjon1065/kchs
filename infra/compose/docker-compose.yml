@@ -162,11 +162,17 @@ services:
       - log_min_duration_statement=500
       - -c
       - shared_preload_libraries=pg_stat_statements
+      # Резервный узел (ADR-0199) держит слоты репликации: если он надолго пропал,
+      # основной хранит WAL для него не больше этого, а не до заполнения диска
+      - -c
+      - max_slot_wal_keep_size=${POSTGRES_MAX_SLOT_WAL_KEEP_SIZE:-20GB}
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./postgres/init:/docker-entrypoint-initdb.d:ro
     ports:
-      - "${KCHS_BIND:-127.0.0.1}:${POSTGRES_PORT:-5432}:5432"
+      # POSTGRES_BIND — адрес VPN, по которому подключается резервный узел (ADR-0199);
+      # по умолчанию тот же, что у остальных служб данных
+      - "${POSTGRES_BIND:-${KCHS_BIND:-127.0.0.1}}:${POSTGRES_PORT:-5432}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d ${POSTGRES_DB:-kchs}"]
       interval: 5s
@@ -255,8 +261,13 @@ services:
       # engine-policy.json; без ключей (установка до ADR-0176) не заводится
       S3_ENGINE_ACCESS_KEY: ${S3_ENGINE_ACCESS_KEY:-}
       S3_ENGINE_SECRET_KEY: ${S3_ENGINE_SECRET_KEY:-}
+      # Пользователь зеркала резервного узла (ADR-0199): только чтение бакетов kchs-*
+      # (dr-policy.json); без ключей не заводится
+      S3_DR_ACCESS_KEY: ${S3_DR_ACCESS_KEY:-}
+      S3_DR_SECRET_KEY: ${S3_DR_SECRET_KEY:-}
     volumes:
       - ./minio/engine-policy.json:/kchs/engine-policy.json:ro
+      - ./minio/dr-policy.json:/kchs/dr-policy.json:ro
     entrypoint: /bin/sh
     command:
       - -c
@@ -275,6 +286,13 @@ services:
           echo "kchs: пользователь хранилища движка готов"
         else
           echo "kchs: S3_ENGINE_ACCESS_KEY не задан — движок ходит в хранилище ключом администратора (generate-secrets.sh --add-missing)"
+        fi
+        if [ -n "$$S3_DR_ACCESS_KEY" ] && [ -n "$$S3_DR_SECRET_KEY" ]; then
+          mc admin policy create kchs kchs-dr /kchs/dr-policy.json
+          mc admin user add kchs "$$S3_DR_ACCESS_KEY" "$$S3_DR_SECRET_KEY"
+          mc admin policy entities kchs --user "$$S3_DR_ACCESS_KEY" | grep -q kchs-dr ||
+            mc admin policy attach kchs kchs-dr --user "$$S3_DR_ACCESS_KEY"
+          echo "kchs: пользователь зеркала резервного узла готов"
         fi
         echo "kchs: бакеты готовы"
     restart: "no"
