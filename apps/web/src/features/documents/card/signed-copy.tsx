@@ -1,12 +1,12 @@
 import type { DocumentSignature } from '@kchs/contracts'
 import { Badge, Button, Callout, Dialog, DialogContent, Skeleton, useToast } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Download, ExternalLink, MapPin } from 'lucide-react'
+import { Download, ExternalLink, MapPin, RefreshCw } from 'lucide-react'
 import { type MouseEvent, useState } from 'react'
 import { useFileDownload } from '~/features/files/index.js'
 import { apiUrl } from '~/shared/api/link.js'
 import { useT } from '~/shared/i18n.js'
-import { documentKeys, pdfPagesQuery, placeSignature } from '../queries.js'
+import { documentKeys, pdfPagesQuery, placeSignature, recheckSignature } from '../queries.js'
 import { useDocument } from './document-context.js'
 
 /** Адрес страницы проверки подписи — тот же, что в QR штампа (ADR-0198). */
@@ -48,9 +48,18 @@ export function SignedCopyRow({ signed }: { signed: boolean }) {
 /** Отметки подписи как реквизита: факсимиле, его место, ссылка проверки. */
 export function SignatureRequisites({ signature }: { signature: DocumentSignature }) {
   const t = useT()
+  const toast = useToast()
   const { document } = useDocument()
   const [placing, setPlacing] = useState(false)
   const pdf = document.currentVersion?.pdfFile ?? null
+  // КЭП (ADR-0205): движок проверяет подпись заново — цепочку, отзыв, штамп времени
+  const recheck = useMutation({
+    mutationFn: () => recheckSignature(document.id, signature.id),
+    onSuccess: () =>
+      toast.show({ title: t('documents.qualified.signatures.recheckQueued'), tone: 'info' }),
+    onError: (error) =>
+      toast.error(error instanceof Error && error.message ? error.message : t('errors.unknown')),
+  })
   return (
     <span className="flex flex-wrap items-center gap-1.5">
       {signature.facsimile ? (
@@ -66,6 +75,17 @@ export function SignatureRequisites({ signature }: { signature: DocumentSignatur
           onClick={() => setPlacing(true)}
         >
           {t('documents.signatures.place')}
+        </Button>
+      ) : null}
+      {signature.kind === 'qualified' ? (
+        <Button
+          variant="ghost"
+          size="sm"
+          icon={<RefreshCw className="size-3.5" />}
+          loading={recheck.isPending}
+          onClick={() => recheck.mutate()}
+        >
+          {t('documents.qualified.signatures.recheck')}
         </Button>
       ) : null}
       <Button

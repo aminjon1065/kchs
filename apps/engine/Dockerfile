@@ -16,7 +16,7 @@ RUN set -eux; \
         tesseract-ocr tesseract-ocr-rus tesseract-ocr-eng tesseract-ocr-tgk \
         poppler-utils \
         libreoffice-core libreoffice-writer libreoffice-calc libreoffice-impress \
-        fonts-dejavu fonts-liberation; \
+        fonts-dejavu fonts-liberation fonts-freefont-ttf; \
     rm -rf /var/lib/apt/lists/*
 
 # ── Зависимости Python ───────────────────────────────────────────────────────
@@ -25,7 +25,7 @@ FROM system AS deps
 COPY --from=ghcr.io/astral-sh/uv:0.9.7 /uv /usr/local/bin/uv
 WORKDIR /app
 COPY pyproject.toml ./
-RUN uv venv /opt/venv && VIRTUAL_ENV=/opt/venv uv pip install --no-cache -e '.[data,gis,render,media,ai,otel,dev]'
+RUN uv venv /opt/venv && VIRTUAL_ENV=/opt/venv uv pip install --no-cache -e '.[data,gis,render,sign,media,ai,otel,dev]'
 
 # ── Итоговый образ ───────────────────────────────────────────────────────────
 FROM system AS runtime

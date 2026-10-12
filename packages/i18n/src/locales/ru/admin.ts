@@ -296,6 +296,8 @@ export const admin = {
     enabled: 'Включена',
     syncs: 'Журнал синхронизаций',
     syncsEmpty: 'Синхронизаций ещё не было',
+    qesHint:
+      'Агент УЦ на рабочем месте (agentUrl — только 127.0.0.1), сервер штампов времени (tsaUrl), доверенные корни УЦ в PEM (trustRoots), строгость отзыва (revocation: hard-fail или soft-fail). Ключей подписи здесь нет. Пароль TSA, если нужен, — секрет tsaPassword.',
     mailboxHint:
       'Ящик канцелярии: адрес и учётные данные, папка, период опроса, тип документа и правила отбора. Пароль — в секретах, ключ password',
     fields: {
@@ -323,6 +325,7 @@ export const admin = {
       sftp: 'SFTP',
       postgres: 'База PostgreSQL',
       mysql: 'База MySQL / MariaDB',
+      qes_ca: 'Удостоверяющий центр (КЭП)',
       custom: 'Своя',
     },
   },

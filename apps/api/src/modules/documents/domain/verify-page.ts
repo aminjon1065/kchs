@@ -1,5 +1,10 @@
 import { randomUUID } from 'node:crypto'
-import type { Locale } from '@kchs/contracts'
+import {
+  type Locale,
+  type QualifiedCertificate,
+  type QualifiedValidation,
+  qualifiedValid,
+} from '@kchs/contracts'
 import { formatDate, formatDateTime } from '@kchs/fields'
 import { createTranslator } from '@kchs/i18n'
 import { asc, eq } from 'drizzle-orm'
@@ -10,8 +15,11 @@ import { db } from '~/shared/db/client.js'
 import { documentSignatures, documents, documentTypes, documentVersions } from '../schema.js'
 import { html, SafeHtml } from './print/html.js'
 
-/** Состояние подписи на странице проверки: верна, считается, не сходится, не найдена. */
-export type VerifyState = 'valid' | 'pending' | 'mismatch' | 'not_found'
+/**
+ * Состояние подписи на странице проверки: верна, считается, не сходится, не найдена;
+ * квалифицированная — ещё и «не прошла проверку» (цепочка, отзыв, целостность, ADR-0205).
+ */
+export type VerifyState = 'valid' | 'pending' | 'mismatch' | 'not_found' | 'invalid'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -34,7 +42,7 @@ h1 { font-size: 22px; margin: 0 0 16px; }
 .state { border-radius: 10px; padding: 14px 16px; margin: 0 0 20px; font-weight: 600; }
 .valid { background: #e6f4ea; color: #1e5e2e; }
 .pending { background: #fff4d6; color: #6b4e00; }
-.mismatch, .not_found { background: #fde8e8; color: #8a1c1c; }
+.mismatch, .not_found, .invalid { background: #fde8e8; color: #8a1c1c; }
 section { background: #fff; border-radius: 10px; padding: 12px 16px; margin: 0 0 12px;
   box-shadow: 0 1px 2px rgba(0,0,0,.06); }
 dl { margin: 0; display: grid; grid-template-columns: minmax(120px, 40%) 1fr; gap: 6px 12px; }
@@ -55,15 +63,58 @@ interface VerifyRow {
   manifest: Record<string, unknown> | null
   mfa: boolean
   kind: string
+  certificate: Record<string, unknown> | null
+  validation: Record<string, unknown> | null
 }
 
 function stateOf(
-  row: Pick<VerifyRow, 'hash' | 'manifest'>,
+  row: Pick<VerifyRow, 'hash' | 'manifest' | 'kind' | 'validation'>,
   version: { hash: string | null; manifestHash: string | null } | undefined,
 ): VerifyState {
+  // КЭП: проверка движком — целостность PDF, цепочка до корня УЦ, отзыв
+  if (
+    row.kind === 'qualified' &&
+    row.validation &&
+    !qualifiedValid(row.validation as unknown as QualifiedValidation)
+  ) {
+    return 'invalid'
+  }
   const expected = row.manifest ? version?.manifestHash : version?.hash
   if (!row.hash || !expected) return 'pending'
   return row.hash === expected ? 'valid' : 'mismatch'
+}
+
+function stateText(t: (key: string) => string, state: VerifyState): string {
+  return state === 'invalid' ? t('documents.verify.invalid') : t(`documents.verify.state.${state}`)
+}
+
+/** Сертификат и проверка КЭП: владелец, номер, срок, издатель, отзыв, штамп времени. */
+function qualifiedRows(
+  item: VerifyRow,
+  t: (key: string, values?: Record<string, string>) => string,
+  locale: Locale,
+  timezone: string,
+): SafeHtml | string {
+  if (item.kind !== 'qualified' || !item.certificate) return ''
+  const certificate = item.certificate as unknown as QualifiedCertificate
+  const validation = item.validation as unknown as QualifiedValidation | null
+  return html`<dt>${t('documents.verify.owner')}</dt><dd>${certificate.owner}${
+    certificate.organization ? html`, ${certificate.organization}` : ''
+  }</dd>
+  <dt>${t('documents.verify.certificate')}</dt><dd class="hash">${certificate.serial.toUpperCase()}</dd>
+  <dt>${t('documents.verify.validity')}</dt><dd>${t('documents.verify.validityRange', {
+    from: formatDate(certificate.notBefore, { locale, timezone }),
+    to: formatDate(certificate.notAfter, { locale, timezone }),
+  })}</dd>
+  <dt>${t('documents.verify.issuer')}</dt><dd>${certificate.issuer}</dd>
+  ${
+    validation
+      ? html`<dt>${t('documents.verify.revocationLabel')}</dt><dd>${t(`documents.verify.revocation.${validation.revocation}`)}</dd>
+  <dt>${t('documents.verify.timestamp')}</dt><dd>${
+    validation.timestampAt ? formatDateTime(validation.timestampAt, { locale, timezone }) : '—'
+  }</dd>`
+      : ''
+  }`
 }
 
 /**
@@ -115,6 +166,8 @@ ${content}
             manifest: documentSignatures.manifest,
             mfa: documentSignatures.mfa,
             kind: documentSignatures.kind,
+            certificate: documentSignatures.certificate,
+            validation: documentSignatures.validation,
           })
           .from(documentSignatures)
           .where(eq(documentSignatures.id, signatureId))
@@ -152,6 +205,8 @@ ${content}
           manifest: documentSignatures.manifest,
           mfa: documentSignatures.mfa,
           kind: documentSignatures.kind,
+          certificate: documentSignatures.certificate,
+          validation: documentSignatures.validation,
         })
         .from(documentSignatures)
         .where(eq(documentSignatures.versionId, row.versionId))
@@ -169,7 +224,7 @@ ${content}
         .limit(1)
     : []
   const state = stateOf(row, version)
-  const banner = html`<div class="state ${state}">${t(`documents.verify.state.${state}`)}</div>`
+  const banner = html`<div class="state ${state}">${stateText(t, state)}</div>`
   // Конфиденциальный документ — только состояние подписи: даже реквизиты не раскрываем
   if (doc?.confidentiality === 'confidential') return page(200, banner)
 
@@ -208,7 +263,8 @@ ${siblings.map(
   <dt>${t('documents.verify.kind')}</dt><dd>${t(`documents.verify.kinds.${item.kind === 'qualified' ? 'qualified' : 'simple'}`)}${
     item.mfa ? html` · ${t('documents.verify.mfa')}` : ''
   }</dd>
-  <dt>${t('documents.verify.state.label')}</dt><dd>${t(`documents.verify.state.${stateOf(item, version)}`)}</dd>
+  <dt>${t('documents.verify.state.label')}</dt><dd>${stateText(t, stateOf(item, version))}</dd>
+  ${qualifiedRows(item, t, locale, timezone)}
   <dt>SHA-256</dt><dd class="hash">${item.hash ?? '—'}</dd>
 </dl></section>`,
 )}`,

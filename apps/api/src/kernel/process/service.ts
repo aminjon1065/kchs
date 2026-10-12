@@ -426,7 +426,18 @@ export const ProcessService = {
     let mfa = false
     let result: Record<string, unknown> | undefined
     if (pending && run.status === 'active') {
-      if (step.type === 'sign' && step.requireMfa && input.action === 'sign') {
+      const qualified =
+        step.type === 'sign' && step.signatureKind === 'qualified' && input.action === 'sign'
+      // Квалифицированную подпись ставит модуль по сеансу подписания, проверенному
+      // движком (ADR-0205): кнопкой «Подписать» её не поставить. Второй фактор ей не
+      // нужен — ключ подписи на токене под PIN-кодом сильнее кода из приложения
+      if (qualified && !input.payload?.qualifiedSessionId) {
+        throw errors.conflict(
+          'Этот шаг подписывается квалифицированной подписью — на странице подписания',
+          { reason: 'qualified_signature_required' },
+        )
+      }
+      if (step.type === 'sign' && step.requireMfa && input.action === 'sign' && !qualified) {
         // Код вводит тот, кто действует, — при замещении заместитель
         await confirmSecondFactor(ctx.userId, input.code)
         mfa = true
@@ -508,6 +519,7 @@ export const ProcessService = {
         action: input.action,
         comment,
         fileIds,
+        payload: input.payload ?? {},
       },
     })
     await execution.apply(next)

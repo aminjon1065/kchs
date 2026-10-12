@@ -417,7 +417,7 @@ export const documentSignatures = pgTable(
     actorId: uuid('actor_id').references(() => users.id, { onDelete: 'set null' }),
     sessionId: text('session_id'),
     hash: text('hash'),
-    /** simple — простая ЭП; qualified — порт SignatureProvider (открытый вопрос). */
+    /** simple — простая ЭП; qualified — КЭП PAdES через порт `kernel/signature` (ADR-0205). */
     kind: text('kind').notNull().default('simple'),
     mfa: boolean('mfa').notNull().default(false),
     /** Что зафиксировала подпись: файлы версии и их хэши; `hash` — хэш манифеста (ADR-0198). */
@@ -426,11 +426,75 @@ export const documentSignatures = pgTable(
     placement: jsonb('placement').$type<Record<string, unknown>>(),
     /** На подписанном экземпляре стоит факсимиле подписавшего. */
     facsimile: boolean('facsimile').notNull().default(false),
+    /** КЭП (ADR-0205): сертификат подписанта — владелец, издатель, номер, срок, отпечаток. */
+    certificate: jsonb('certificate').$type<Record<string, unknown>>(),
+    /** КЭП: итог последней проверки движком — целостность, цепочка, отзыв, штамп времени. */
+    validation: jsonb('validation').$type<Record<string, unknown>>(),
+    /** КЭП: PDF, в который встроена эта подпись (экземпляр после неё). */
+    signedFileId: uuid('signed_file_id').references(() => objects.id, { onDelete: 'set null' }),
     signedAt: tsCol('signed_at').notNull().default(sql`now()`),
   },
   (t) => [
     index('document_signatures_document_idx').on(t.documentId),
     index('document_signatures_version_idx').on(t.versionId),
+  ],
+)
+
+/**
+ * Сеанс квалифицированной подписи (ADR-0205): от «Подписать КЭП» в карточке до
+ * подписи, встроенной в PDF. Страница подписания берёт сертификат и CMS у агента УЦ
+ * на рабочем месте, движок готовит PDF и встраивает CMS; подпись (`signature_id` —
+ * выдан заранее, на него ведёт QR штампа) записывается, только когда движок её проверил.
+ */
+export const documentQesSessions = pgTable(
+  'document_qes_sessions',
+  {
+    id: uuid('id').primaryKey(),
+    documentId: uuid('document_id')
+      .notNull()
+      .references(() => documents.id, { onDelete: 'cascade' }),
+    versionId: uuid('version_id')
+      .notNull()
+      .references(() => documentVersions.id, { onDelete: 'cascade' }),
+    stepId: uuid('step_id')
+      .notNull()
+      .references(() => processSteps.id, { onDelete: 'cascade' }),
+    signatureId: uuid('signature_id').notNull(),
+    /** Чья очередь на шаге (при замещении — замещаемый). */
+    signerId: uuid('signer_id')
+      .notNull()
+      .references(() => users.id),
+    /** Кто подписывает своим ключом (сам подписант или заместитель). */
+    actorId: uuid('actor_id')
+      .notNull()
+      .references(() => users.id),
+    /** Сессия входа, из которой начато подписание, — для записи подписи. */
+    webSessionId: text('web_session_id'),
+    /** `QES_SESSION_STATES`. */
+    state: text('state').notNull(),
+    /** `QES_FAILURE_REASONS`, когда `failed`. */
+    reason: text('reason'),
+    error: text('error'),
+    /** Сертификат, выбранный в агенте: сведения и DER в base64. */
+    certificate: jsonb('certificate').$type<Record<string, unknown>>(),
+    certificateDer: text('certificate_der'),
+    /** PDF, к которому добавляется подпись: файл, версия файла, ключ хранилища. */
+    source: jsonb('source').$type<Record<string, string>>().notNull(),
+    /** Файл результата: идентификаторы выданы заранее, ключи подготовленного и подписанного PDF. */
+    target: jsonb('target').$type<Record<string, string>>().notNull(),
+    /** Отчёт подготовки: хэш `ByteRange` и место под CMS. */
+    prepared: jsonb('prepared').$type<Record<string, unknown>>(),
+    /** CMS агента (base64) — до встраивания. */
+    cms: text('cms'),
+    validation: jsonb('validation').$type<Record<string, unknown>>(),
+    expiresAt: tsCol('expires_at').notNull(),
+    createdAt: createdAt(),
+    updatedAt: tsCol('updated_at').notNull().default(sql`now()`),
+  },
+  (t) => [
+    uniqueIndex('document_qes_sessions_signature_uq').on(t.signatureId),
+    index('document_qes_sessions_version_idx').on(t.versionId, t.state),
+    index('document_qes_sessions_document_idx').on(t.documentId),
   ],
 )
 

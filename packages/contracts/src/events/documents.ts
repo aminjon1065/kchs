@@ -54,7 +54,22 @@ export const DOCUMENTS_EVENTS = {
     stepId: Uuid,
     hash: z.string().nullable(),
     mfa: z.boolean(),
+    /** Вид подписи: простая или квалифицированная (ADR-0205); нет — простая. */
+    kind: z.enum(['simple', 'qualified']).optional(),
   }),
+  /**
+   * Сеанс квалифицированной подписи сменил состояние (ADR-0205): начат, ждёт
+   * сертификата или подписи агента, проверяется, подписан или не удался (`reason`).
+   */
+  'document.qualified_signing': z.object({
+    sessionId: Uuid,
+    stepId: Uuid,
+    signatureId: Uuid,
+    state: z.string(),
+    reason: z.string().nullable(),
+  }),
+  /** Квалифицированную подпись проверили заново: цепочка, отзыв, штамп времени (ADR-0205). */
+  'document.signature_checked': z.object({ signatureId: Uuid, valid: z.boolean() }),
   /** Место факсимиле на подписанном экземпляре поправили — экземпляр строится заново (ADR-0198). */
   'document.signature_placed': z.object({
     signatureId: Uuid,

@@ -263,3 +263,19 @@ export const placeSignature = (
     params: { id: documentId, signatureId },
     body,
   })
+
+/** «Подписать КЭП» (ADR-0205): сеанс подписания и ссылка на страницу подписания. */
+export const startQualifiedSigning = (
+  documentId: string,
+  body: { stepId: string; onBehalfOf?: string | null },
+) => http.post('/documents/:id/qes-sessions', { params: { id: documentId }, body })
+
+/** Состояние сеанса квалифицированной подписи — карточка ждёт подписи. */
+export const qualifiedSession = (documentId: string, sessionId: string) =>
+  http.get('/documents/:id/qes-sessions/:sessionId', { params: { id: documentId, sessionId } })
+
+/** Повторная проверка квалифицированной подписи движком: цепочка, отзыв, время. */
+export const recheckSignature = (documentId: string, signatureId: string) =>
+  http.post('/documents/:id/signatures/:signatureId/verify', {
+    params: { id: documentId, signatureId },
+  })

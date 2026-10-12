@@ -43,6 +43,12 @@ render = [
     "docxtpl>=0.20",
     "pypdf>=6.0",
 ]
+# Квалифицированная подпись (ADR-0205): PAdES — подготовка поля подписи и хэша
+# ByteRange, встраивание CMS агента УЦ, штамп времени, проверка цепочки и отзыва.
+# Ключей движок не держит: подписывает агент на рабочем месте
+sign = [
+    "pyhanko[opentype,qr,async-http]>=0.29",
+]
 # Расшифровка записей встреч (ADR-0092): CTranslate2-сборка Whisper, звук
 # извлекает ffmpeg из образа. Без `ENGINE_TRANSCRIBE_MODEL` пакет не грузится.
 media = [
@@ -89,6 +95,7 @@ warn_redundant_casts = true
 # Библиотеки без типов (нет py.typed и заглушек в зависимостях)
 [[tool.mypy.overrides]]
 module = [
+    "asn1crypto.*",
     "boto3.*",
     "botocore.*",
     "bullmq.*",

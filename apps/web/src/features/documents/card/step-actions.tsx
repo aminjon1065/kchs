@@ -10,6 +10,7 @@ import { useT } from '~/shared/i18n.js'
 import { documentKeys } from '../queries.js'
 import { useDocument } from './document-context.js'
 import { CancelDialog, RegisterDialog } from './document-dialogs.js'
+import { useQualifiedSign } from './qualified-sign.js'
 import { RouteStartDialog } from './route-start-dialog.js'
 
 /** Ждёт ли решения смотрящего (или того, кого он замещает) текущий шаг маршрута. */
@@ -34,6 +35,7 @@ export function DocumentStepActions() {
   const [dialog, setDialog] = useState<'register' | 'cancel' | 'route' | null>(null)
   const instanceId = document.route?.instanceId ?? null
   const awaitsMe = useAwaitsMe(document)
+  const qualified = useQualifiedSign()
   const route = useQuery({
     ...processQuery(document.id, instanceId ?? ''),
     enabled: Boolean(instanceId) && awaitsMe,
@@ -58,8 +60,14 @@ export function DocumentStepActions() {
         {t('documents.actions.title')}
       </h2>
       {routeActions ? (
-        <ProcessStepActions objectId={document.id} view={routeActions} onDone={refresh} />
+        <ProcessStepActions
+          objectId={document.id}
+          view={routeActions}
+          onDone={refresh}
+          onQualifiedSign={qualified.start}
+        />
       ) : null}
+      {qualified.dialog}
       {document.can.startRoute || document.can.register || document.can.cancel ? (
         <div className="flex flex-wrap gap-2">
           {document.can.startRoute ? (

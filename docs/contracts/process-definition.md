@@ -34,7 +34,7 @@
 | type | Назначение | Результат |
 |---|---|---|
 | `approval` | согласование (`mode: parallel|sequential|any`, `quorum: all|any|n`) | `approved|rejected|remarks` по каждому назначенному |
-| `sign` | подпись (`requireMfa`, `signatureKind`) | `signed|refused` |
+| `sign` | подпись (`requireMfa`, `signatureKind: simple|qualified`; у `qualified` — PAdES через агент УЦ, решение «Подписать» ставит модуль по проверенной подписи, второй фактор не спрашивается, ADR-0205) | `signed|refused` |
 | `register` | регистрация в журнале (`journal`) | номер |
 | `acknowledge` | ознакомление (список) | отметки |
 | `task` | создать поручение/задачу и ждать завершения | `done` |

@@ -679,13 +679,31 @@ describe('состав назначенных', () => {
         onBehalfOf: B,
         actions: ['approve', 'remarks', 'reject', 'delegate', 'add_approver'],
         requireMfa: false,
+        qualified: false,
       },
     ])
     for (const user of [A, B, C]) state = decide(def, state, 'review', user, 'approve', run)
     expect(availableActions(def, state, { userId: SIGNER, actingFor: [] })).toMatchObject([
-      { stepKey: 'sign', actions: ['sign', 'refuse'], requireMfa: true },
+      { stepKey: 'sign', actions: ['sign', 'refuse'], requireMfa: true, qualified: false },
     ])
     expect(availableActions(def, state, { userId: A, actingFor: [] })).toEqual([])
+  })
+
+  it('шаг квалифицированной подписи: отметка qualified, код второго фактора не нужен (ADR-0205)', () => {
+    const def = define({
+      ...DOCUMENT,
+      steps: {
+        ...DOCUMENT.steps,
+        sign: { ...DOCUMENT.steps.sign, requireMfa: true, signatureKind: 'qualified' } as never,
+      },
+    })
+    const env = testEnv()
+    const { run } = driver(def, env, { assignees: { review: [A, B, C], sign: [SIGNER] } })
+    let state = run(startProcess(def, env))
+    for (const user of [A, B, C]) state = decide(def, state, 'review', user, 'approve', run)
+    expect(availableActions(def, state, { userId: SIGNER, actingFor: [] })).toMatchObject([
+      { stepKey: 'sign', actions: ['sign', 'refuse'], requireMfa: false, qualified: true },
+    ])
   })
 
   it('решение заместителя сохраняет, кто действовал', () => {

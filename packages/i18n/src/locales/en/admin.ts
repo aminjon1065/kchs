@@ -298,6 +298,8 @@ export const admin: DeepPartial<Dictionary['admin']> = {
     enabled: 'Enabled',
     syncs: 'Synchronisation log',
     syncsEmpty: 'No synchronisations yet',
+    qesHint:
+      'The CA agent on the workstation (agentUrl — 127.0.0.1 only), the timestamp server (tsaUrl), trusted CA roots in PEM (trustRoots), revocation strictness (revocation: hard-fail or soft-fail). No signing keys here. The TSA password, if any, is the tsaPassword secret.',
     mailboxHint:
       'Office mailbox: address and credentials, folder, poll interval, document type and selection rules. The password goes to secrets under the key password',
     fields: {
@@ -325,6 +327,7 @@ export const admin: DeepPartial<Dictionary['admin']> = {
       sftp: 'SFTP',
       postgres: 'PostgreSQL database',
       mysql: 'MySQL / MariaDB database',
+      qes_ca: 'Certification authority (QES)',
       custom: 'Custom',
     },
   },

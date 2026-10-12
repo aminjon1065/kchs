@@ -89,6 +89,15 @@ import {
   WatermarkRequestInput,
 } from '../../documents/print.js'
 import {
+  QesCertificateInput,
+  QesPageState,
+  QesResultInput,
+  QesSessionRecord,
+  QesSessionStartInput,
+  QesTicketQuery,
+  QesVerifyQueued,
+} from '../../documents/qualified.js'
+import {
   DocumentResolutions,
   NoExecutionInput,
   ResolutionInput,
@@ -177,6 +186,50 @@ export const documentsRoutes = defineRoutes({
   // Страница проверки подписи по QR (ADR-0198): HTML без входа, открыта и через
   // шлюз DMZ (ADR-0200) — QR на бумаге читают вне Комитета
   'GET /verify/:id': { params: IdParam, exposure: 'public' },
+  // Квалифицированная подпись (ADR-0205): сеанс из карточки, повторная проверка
+  'POST /documents/:id/qes-sessions': {
+    params: IdParam,
+    body: QesSessionStartInput,
+    response: { 200: QesSessionRecord },
+  },
+  'GET /documents/:id/qes-sessions/:sessionId': {
+    params: z.object({ id: z.uuid(), sessionId: z.uuid() }),
+    response: { 200: QesSessionRecord },
+  },
+  'POST /documents/:id/signatures/:signatureId/verify': {
+    params: z.object({ id: z.uuid(), signatureId: z.uuid() }),
+    response: { 200: QesVerifyQueued },
+  },
+  // Страница подписания (HTML со своей CSP) и её маршруты по билету — только внутри
+  // сети: агент УЦ на рабочем месте сотрудника, через шлюз DMZ страница не открыта
+  'GET /qes/sessions/:id/page': { params: IdParam, query: QesTicketQuery },
+  'GET /qes/sessions/:id/state': {
+    params: IdParam,
+    query: QesTicketQuery,
+    response: { 200: QesPageState },
+  },
+  'POST /qes/sessions/:id/certificate': {
+    params: IdParam,
+    query: QesTicketQuery,
+    body: QesCertificateInput,
+    response: { 200: QesPageState },
+  },
+  'POST /qes/sessions/:id/result': {
+    params: IdParam,
+    query: QesTicketQuery,
+    body: QesResultInput,
+    response: { 200: QesPageState },
+  },
+  'POST /internal/documents/signature-sessions/:id/start': {
+    params: IdParam,
+    body: ENGINE_CALLBACKS.documentSignatureStart.body,
+    response: { 200: ENGINE_CALLBACKS.documentSignatureStart.reply },
+  },
+  'POST /internal/documents/signature-sessions/:id/done': {
+    params: IdParam,
+    body: ENGINE_CALLBACKS.documentSignatureDone.body,
+    response: { 200: ENGINE_CALLBACKS.documentSignatureDone.reply },
+  },
   'POST /internal/documents/renders/:id/start': {
     params: IdParam,
     response: { 200: ENGINE_CALLBACKS.documentRenderStart.reply },

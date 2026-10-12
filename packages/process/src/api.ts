@@ -236,6 +236,8 @@ export const ProcessMyAction = z.object({
   onBehalfOf: UserRef.nullable(),
   actions: z.array(ProcessAction),
   requireMfa: z.boolean(),
+  /** Шаг квалифицированной подписи: «Подписать» — через страницу подписания (ADR-0205). */
+  qualified: z.boolean(),
 })
 export type ProcessMyAction = z.infer<typeof ProcessMyAction>
 

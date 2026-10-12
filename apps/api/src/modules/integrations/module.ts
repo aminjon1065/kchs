@@ -4,12 +4,14 @@ import { registerFeature } from '~/kernel/features/registry.js'
 import { registerJobHandler } from '~/kernel/jobs/runner.js'
 import { queue } from '~/kernel/jobs/service.js'
 import { declareSchedule } from '~/kernel/schedules/index.js'
+import { setQualifiedSignatureProvider } from '~/kernel/signature/port.js'
 import { registerSystemDataset } from '~/kernel/system-datasets.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { INTEGRATIONS_AUDIT } from './domain/audit-actions.js'
 import { registerIntegrationConfigSections } from './domain/config-sections.js'
 import { CONNECTIONS_SYSTEM_DATASET } from './domain/connections-dataset.js'
 import { EDMS_DISPATCH_JOB, EdmsSends } from './domain/edms.js'
+import { Integrations } from './domain/integration-service.js'
 import { registerIntegrationObjectTypes } from './domain/object-types.js'
 import { flushTokenUsage, pruneUsage, recordUsageEvent, USAGE_EVENT_TYPES } from './domain/usage.js'
 import {
@@ -44,6 +46,8 @@ export function registerIntegrationsObjectTypes(): void {
   registerIntegrationConfigSections()
   // Подключения шлюза по суткам (ADR-0206) — источник показателей дашборда «Интеграции»
   registerSystemDataset(CONNECTIONS_SYSTEM_DATASET)
+  // Порт квалифицированной подписи ядра (ADR-0205): УЦ — интеграция `qes_ca`
+  setQualifiedSignatureProvider({ authority: () => Integrations.qualifiedAuthority() })
 }
 
 export function registerIntegrationsRoutes(route: RouteRegistrar): void {

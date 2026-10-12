@@ -26,4 +26,8 @@ export const DOCUMENTS_AUDIT = {
   resolutionAdded: 'document.resolution_added',
   /** Письмо из ящика канцелярии отклонено делопроизводителем (ADR-0113). */
   mailRejected: 'mail.rejected',
+  /** Начато подписание квалифицированной подписью (ADR-0205). */
+  qualifiedSigningStarted: 'document.qes_started',
+  /** Сеанс квалифицированной подписи закончился: подпись встроена или не принята. */
+  qualifiedSigningFinished: 'document.qes_finished',
 } as const

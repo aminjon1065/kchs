@@ -695,6 +695,11 @@ function inboxActions(step: Step): InboxItem['actions'] {
         action('reject', 'danger', { requiresComment: true }),
       ]
     case 'sign':
+      // Квалифицированная подпись ставится на странице подписания из карточки объекта
+      // (ADR-0205): во «Входящих» — только отказ, а «Подписать» ведёт в карточку
+      if (step.signatureKind === 'qualified') {
+        return [action('refuse', 'danger', { requiresComment: true })]
+      }
       return [
         action('sign', 'primary', { requiresSecondFactor: step.requireMfa }),
         action('refuse', 'danger', { requiresComment: true }),

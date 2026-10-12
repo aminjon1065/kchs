@@ -4,6 +4,7 @@ import { Uuid } from '../common/primitives.js'
 import { COLUMNAR_FIELD_TYPES } from '../data/field-storage.js'
 import { ImportGeometry, ImportMappingItem, ImportOptions } from '../data/import.js'
 import { DOCUMENT_RENDER_PLAN_KINDS } from '../documents/print.js'
+import { QesEngineStep } from '../documents/qualified.js'
 import type { QueueName } from '../jobs/job.js'
 import { TRANSCRIBE_JOB, TranscriptResult } from '../meetings/recording.js'
 
@@ -149,6 +150,17 @@ export const DocumentRenderJobResult = z.union([
   }),
 ])
 
+/**
+ * Шаг квалифицированной подписи (ADR-0205): подготовить PDF с полем подписи,
+ * встроить CMS агента УЦ со штампом времени или проверить подпись. Что именно и
+ * с какими файлами — движок берёт у api, когда начинает.
+ */
+export const DocumentSignatureJob = z.object({ sessionId: Uuid, step: QesEngineStep })
+export const DocumentSignatureJobResult = z.union([
+  z.object({ skipped: z.string() }),
+  z.object({ step: QesEngineStep, status: z.enum(['ready', 'invalid', 'failed']) }),
+])
+
 /** Печать запуска отчёта (ADR-0078): параметры движок берёт у api, когда начинает. */
 export const ReportRenderJob = z.object({ runId: Uuid })
 export const ReportRenderJobResult = z.union([
@@ -250,6 +262,12 @@ export const ENGINE_JOBS = {
     'document.render',
     DocumentRenderJob,
     DocumentRenderJobResult,
+  ),
+  'render:document.signature': job(
+    'render',
+    'document.signature',
+    DocumentSignatureJob,
+    DocumentSignatureJobResult,
   ),
   'render:report.render': job('render', 'report.render', ReportRenderJob, ReportRenderJobResult),
   'media:media.transcribe': job(

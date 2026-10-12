@@ -195,3 +195,13 @@ async def document_render_start(render_id: str) -> dict[str, Any]:
 async def document_render_done(render_id: str, payload: dict[str, Any]) -> dict[str, Any]:
     """Результат рендера: файл под выданным ключом, плейсхолдеры шаблона или причина сбоя."""
     return await _call("documentRenderDone", render_id, payload)
+
+
+async def document_signature_start(session_id: str, step: str) -> dict[str, Any]:
+    """Шаг квалифицированной подписи (ADR-0205): план по состоянию сеанса или `skip`."""
+    return await _call("documentSignatureStart", session_id, {"step": step})
+
+
+async def document_signature_done(session_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    """Итог шага подписи; ключи файлов — те, что выдал план."""
+    return await _call("documentSignatureDone", session_id, payload)

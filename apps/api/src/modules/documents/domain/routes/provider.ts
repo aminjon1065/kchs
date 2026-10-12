@@ -3,6 +3,8 @@ import {
   type DocumentStatus,
   type DocumentUpdateInput,
   parseConfidentiality,
+  type QualifiedCertificate,
+  type QualifiedValidation,
 } from '@kchs/contracts'
 import type { ProcessFieldHint } from '@kchs/process'
 import { and, eq, or } from 'drizzle-orm'
@@ -28,6 +30,7 @@ import {
 } from '../../schema.js'
 import { DocumentService } from '../document-service.js'
 import { DocumentTypeService } from '../type-service.js'
+import { QualifiedSignatures } from './qualified.js'
 import { DOCUMENT_OBJECT_TYPE, DocumentRoutes, withoutClearance } from './route-service.js'
 import { DocumentSignatures } from './signatures.js'
 import { currentStatus, ensureRouteStatus } from './status.js'
@@ -230,18 +233,41 @@ async function onDecision(
   }: {
     instance: ProcessInstanceInfo
     step: ProcessStepInfo
-    decision: { userId: string; actorId: string; action: string }
+    decision: {
+      userId: string
+      actorId: string
+      action: string
+      payload: Record<string, unknown>
+    }
   },
 ): Promise<void> {
   const definition = step.definition
   if (definition.type !== 'sign' || decision.action !== 'sign') return
+  const qualified = definition.signatureKind === 'qualified'
+  // КЭП (ADR-0205): решение — только по сеансу, подпись которого движок уже проверил
+  const session = qualified
+    ? await QualifiedSignatures.consume(tx, {
+        sessionId: decision.payload.qualifiedSessionId,
+        stepId: step.id,
+        signerId: decision.userId,
+        actorId: decision.actorId,
+      })
+    : null
   const signature = await DocumentSignatures.record(tx, ctx, {
     documentId: instance.objectId,
     stepId: step.id,
     signerId: decision.userId,
     actorId: decision.actorId,
-    mfa: definition.requireMfa,
-    kind: 'simple',
+    mfa: !qualified && definition.requireMfa,
+    kind: qualified ? 'qualified' : 'simple',
+    ...(session
+      ? {
+          id: session.signatureId,
+          certificate: session.certificate as QualifiedCertificate | null,
+          validation: session.validation as QualifiedValidation | null,
+          signedFileId: (session.target as { fileId?: string }).fileId ?? null,
+        }
+      : {}),
   })
   const [object] = await tx
     .select({ spaceId: objects.spaceId, title: objects.title })
@@ -262,7 +288,8 @@ async function onDecision(
       signerId: decision.userId,
       stepId: step.id,
       hash: signature.hash,
-      mfa: definition.requireMfa,
+      mfa: !qualified && definition.requireMfa,
+      kind: qualified ? 'qualified' : 'simple',
     },
   })
   // Все подписали — до шага регистрации в том же переходе документ уже «Подписан»

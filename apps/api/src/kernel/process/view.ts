@@ -271,6 +271,7 @@ export const ProcessView = {
         onBehalfOf: ref(item.onBehalfOf),
         actions: item.actions as ProcessAction[],
         requireMfa: item.requireMfa,
+        qualified: item.qualified,
       })),
       canCancel,
     }

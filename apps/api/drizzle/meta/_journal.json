@@ -526,6 +526,13 @@
       "when": 1791815075027,
       "tag": "20261012142435_warnings",
       "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1791816772839,
+      "tag": "20261012145252_qualified-signature",
+      "breakpoints": true
     }
   ]
 }

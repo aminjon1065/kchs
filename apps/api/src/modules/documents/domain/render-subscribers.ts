@@ -3,6 +3,7 @@ import type { Subscriber } from '~/kernel/events/types.js'
 import { jobClosedSubscriber } from '~/kernel/jobs/outcomes.js'
 import { logger } from '~/shared/logger/index.js'
 import { DocumentRenders, RENDER_JOB } from './render-service.js'
+import { QES_JOB, QualifiedSignatures, qesJobPayload } from './routes/qualified.js'
 import { DocumentVersionService, PDF_JOB } from './version-service.js'
 
 /**
@@ -55,6 +56,16 @@ export const renderSubscribers: Subscriber[] = [
     onClosed: async ({ payload, reason }) => {
       const renderId = typeof payload?.renderId === 'string' ? payload.renderId : null
       if (renderId) await DocumentRenders.failById(renderId, reason)
+    },
+  }),
+  // Шаг квалифицированной подписи (ADR-0205): сеанс не висит «готовится» или «проверяется»
+  jobClosedSubscriber({
+    name: 'documents-qes-failed',
+    jobs: [QES_JOB],
+    fallbackReason: 'Сбой движка',
+    onClosed: async ({ payload, reason }) => {
+      const job = qesJobPayload(payload)
+      if (job) await QualifiedSignatures.failByJob(job.sessionId, job.step, reason)
     },
   }),
   // PDF-представление версии — так же: иначе версия навсегда «PDF готовится»
