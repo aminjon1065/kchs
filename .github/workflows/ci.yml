@@ -291,9 +291,10 @@ jobs:
         working-directory: apps/engine
         # Геоформаты и геоэкспорт (ADR-0068): GDAL, PROJ, GEOS и Arrow — из колёс групп gis и data;
         # DOCX отчётов (ADR-0078) — группа render (печать в Chromium — отметка browser, в образе);
-        # трассы (ADR-0167) — группа otel. Типы — mypy с базой исключений в pyproject.toml (ADR-0190)
+        # трассы (ADR-0167) — группа otel; квалифицированная подпись PAdES (ADR-0205) — группа sign.
+        # Типы — mypy с базой исключений в pyproject.toml (ADR-0190)
         run: |
-          uv sync --extra dev --extra data --extra gis --extra render --extra otel
+          uv sync --extra dev --extra data --extra gis --extra render --extra sign --extra otel
           uv run ruff check .
           uv run mypy
           uv run pytest

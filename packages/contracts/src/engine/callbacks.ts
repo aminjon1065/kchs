@@ -5,6 +5,7 @@ import { IMPORT_LIMITS, ImportErrorSample } from '../data/import.js'
 import { ReportRenderResult, ReportRenderStart } from '../data/report.js'
 import { DocumentPdfResult } from '../documents/document.js'
 import { DocumentRenderResult, DocumentRenderStart } from '../documents/print.js'
+import { QesEngineReport, QesEngineStart, QesEngineStartInput } from '../documents/qualified.js'
 import { FileProcessedInput } from '../files/file.js'
 import { TranscriptResult } from '../meetings/recording.js'
 
@@ -80,6 +81,16 @@ export const ENGINE_CALLBACKS = {
   documentRenderDone: callback(
     '/internal/documents/renders/:id/done',
     DocumentRenderResult,
+    OkStale,
+  ),
+  documentSignatureStart: callback(
+    '/internal/documents/signature-sessions/:id/start',
+    QesEngineStartInput,
+    QesEngineStart,
+  ),
+  documentSignatureDone: callback(
+    '/internal/documents/signature-sessions/:id/done',
+    QesEngineReport,
     OkStale,
   ),
 } as const

@@ -22,6 +22,7 @@ from kchs_engine.jobs import documents as _documents  # noqa: F401
 from kchs_engine.jobs import echo as _echo  # noqa: F401
 from kchs_engine.jobs import files as _files  # noqa: F401
 from kchs_engine.jobs import media as _media  # noqa: F401
+from kchs_engine.jobs import signature as _signature  # noqa: F401
 from kchs_engine.jobs import users_import as _users_import  # noqa: F401
 from kchs_engine.jobs.registry import JobHandler
 from kchs_engine.logging import log

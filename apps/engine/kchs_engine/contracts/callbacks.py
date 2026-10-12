@@ -15,6 +15,7 @@ from kchs_engine.contracts.jobs import (
     INBOUND,
     OUTBOUND,
     ProcessStatus,
+    QesEngineStep,
     UsersImportField,
     UsersImportIssueCode,
 )
@@ -160,6 +161,69 @@ class DocumentRenderResult(TypedDict):
     error: NotRequired[str | None]
     # Где встали картинки наложения (факсимиле, ADR-0198)
     placements: NotRequired[list[OverlayPlacement] | None]
+
+
+QesFailureReason = Literal[
+    "expired",
+    "superseded",
+    "certificate_invalid",
+    "malformed",
+    "digest_mismatch",
+    "certificate_mismatch",
+    "untrusted",
+    "revoked",
+    "invalid",
+    "timestamp_failed",
+    "concurrent",
+    "step_closed",
+    "engine_failed",
+]
+
+
+@with_config(OUTBOUND)
+class QesEngineStartInput(TypedDict):
+    step: QesEngineStep
+
+
+@with_config(OUTBOUND)
+class QualifiedCertificate(TypedDict):
+    owner: str
+    organization: str | None
+    subject: str
+    issuer: str
+    serial: str
+    notBefore: str
+    notAfter: str
+    fingerprint: str
+
+
+@with_config(OUTBOUND)
+class QualifiedValidation(TypedDict):
+    intact: bool
+    valid: bool
+    trusted: bool
+    revocation: Literal["good", "revoked", "unknown"]
+    timestampAt: str | None
+    coverage: str
+    modification: str
+    problem: str | None
+    checkedAt: str
+
+
+@with_config(OUTBOUND)
+class QesEngineReport(TypedDict):
+    # Итог шага квалифицированной подписи (ADR-0205); поля — по шагу
+    step: QesEngineStep
+    status: Literal["ready", "invalid", "failed"]
+    reason: NotRequired[QesFailureReason | None]
+    error: NotRequired[str | None]
+    digest: NotRequired[str | None]
+    reservedStart: NotRequired[int | None]
+    reservedEnd: NotRequired[int | None]
+    size: NotRequired[int | None]
+    sha256: NotRequired[str | None]
+    certificate: NotRequired[QualifiedCertificate | None]
+    validation: NotRequired[QualifiedValidation | None]
 
 
 # ─── Ответы ──────────────────────────────────────────────────────────────────
@@ -333,6 +397,58 @@ class DocumentRenderGo(TypedDict):
 DocumentRenderStart = Annotated[RenderSkip | DocumentRenderGo, Field(discriminator="status")]
 
 
+@with_config(INBOUND)
+class QesValidationPolicy(TypedDict):
+    trustRootsPem: list[str]
+    revocation: Literal["hard-fail", "soft-fail"]
+    fetchRevocation: bool
+
+
+@with_config(INBOUND)
+class QesTimestampServer(TypedDict):
+    url: str
+    username: str | None
+    password: str | None
+
+
+@with_config(INBOUND)
+class QesPreparePlan(TypedDict):
+    status: Literal["prepare"]
+    source: StoredObject
+    target: StoredObject
+    fieldName: str
+    stampLines: list[str]
+    url: str
+
+
+@with_config(INBOUND)
+class QesAttachPlan(TypedDict):
+    status: Literal["attach"]
+    prepared: StoredObject
+    target: StoredObject
+    fieldName: str
+    cms: str
+    digest: str
+    reservedStart: int
+    reservedEnd: int
+    certificateSha256: str
+    timestamp: QesTimestampServer | None
+    policy: QesValidationPolicy
+
+
+@with_config(INBOUND)
+class QesVerifyPlan(TypedDict):
+    status: Literal["verify"]
+    file: StoredObject
+    fieldName: str
+    policy: QesValidationPolicy
+
+
+QesEngineStart = Annotated[
+    RenderSkip | QesPreparePlan | QesAttachPlan | QesVerifyPlan, Field(discriminator="status")
+]
+
+
 @dataclass(frozen=True)
 class CallbackContract:
     """Тело (`None` — вызов без тела) и ответ обратного вызова."""
@@ -357,4 +473,6 @@ CALLBACK_CONTRACTS: dict[str, CallbackContract] = {
     "reportRendered": _callback(ReportRenderResult, Ok),
     "documentRenderStart": _callback(None, DocumentRenderStart),
     "documentRenderDone": _callback(DocumentRenderResult, OkStale),
+    "documentSignatureStart": _callback(QesEngineStartInput, QesEngineStart),
+    "documentSignatureDone": _callback(QesEngineReport, OkStale),
 }

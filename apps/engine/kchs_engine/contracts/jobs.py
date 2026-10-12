@@ -117,6 +117,16 @@ class DocumentPdfJob(TypedDict):
     attachments: NotRequired[list[DocumentPdfAttachment]]
 
 
+QesEngineStep = Literal["prepare", "attach", "verify"]
+
+
+@with_config(INBOUND)
+class DocumentSignatureJob(TypedDict):
+    # Шаг квалифицированной подписи (ADR-0205): что делать — движок спросит у api
+    sessionId: str
+    step: QesEngineStep
+
+
 @with_config(INBOUND)
 class DocumentRenderJob(TypedDict):
     renderId: str
@@ -313,6 +323,12 @@ class DocumentRendered(TypedDict):
 
 
 @with_config(OUTBOUND)
+class SignatureStepDone(TypedDict):
+    step: QesEngineStep
+    status: Literal["ready", "invalid", "failed"]
+
+
+@with_config(OUTBOUND)
 class ReportRendered(TypedDict):
     files: int
     pages: int | None
@@ -364,6 +380,7 @@ JOB_CONTRACTS: dict[str, JobContract] = {
     "render:document.render": _job(
         DocumentRenderJob, RenderSkipped | TemplateInspected | RenderFailed | DocumentRendered
     ),
+    "render:document.signature": _job(DocumentSignatureJob, RenderSkipped | SignatureStepDone),
     "render:report.render": _job(ReportRenderJob, RenderSkipped | ReportRendered),
     "media:media.transcribe": _job(MediaTranscribeJob, MediaTranscribeJobResult),
     "imports:users.parse": _job(UsersParseJob, UsersParseJobResult),

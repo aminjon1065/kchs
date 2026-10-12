@@ -632,6 +632,75 @@
         ]
       }
     },
+    "render:document.signature": {
+      "queue": "render",
+      "name": "document.signature",
+      "payload": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "step": {
+            "type": "string",
+            "enum": [
+              "prepare",
+              "attach",
+              "verify"
+            ]
+          }
+        },
+        "required": [
+          "sessionId",
+          "step"
+        ],
+        "additionalProperties": false
+      },
+      "result": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "skipped": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "skipped"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "step": {
+                "type": "string",
+                "enum": [
+                  "prepare",
+                  "attach",
+                  "verify"
+                ]
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "ready",
+                  "invalid",
+                  "failed"
+                ]
+              }
+            },
+            "required": [
+              "step",
+              "status"
+            ]
+          }
+        ]
+      }
+    },
     "render:report.render": {
       "queue": "render",
       "name": "report.render",
@@ -2873,6 +2942,624 @@
           }
         },
         "required": [
+          "status"
+        ]
+      },
+      "reply": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "stale": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok",
+          "stale"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "documentSignatureStart": {
+      "method": "POST",
+      "path": "/internal/documents/signature-sessions/:id/start",
+      "body": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "step": {
+            "type": "string",
+            "enum": [
+              "prepare",
+              "attach",
+              "verify"
+            ]
+          }
+        },
+        "required": [
+          "step"
+        ]
+      },
+      "reply": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "const": "skip"
+              },
+              "reason": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "status",
+              "reason"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "const": "prepare"
+              },
+              "source": {
+                "type": "object",
+                "properties": {
+                  "bucket": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "storageKey": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "bucket",
+                  "storageKey"
+                ],
+                "additionalProperties": false
+              },
+              "target": {
+                "type": "object",
+                "properties": {
+                  "bucket": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "storageKey": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "bucket",
+                  "storageKey"
+                ],
+                "additionalProperties": false
+              },
+              "fieldName": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "stampLines": {
+                "maxItems": 12,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              },
+              "url": {
+                "type": "string",
+                "maxLength": 500
+              }
+            },
+            "required": [
+              "status",
+              "source",
+              "target",
+              "fieldName",
+              "stampLines",
+              "url"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "const": "attach"
+              },
+              "prepared": {
+                "type": "object",
+                "properties": {
+                  "bucket": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "storageKey": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "bucket",
+                  "storageKey"
+                ],
+                "additionalProperties": false
+              },
+              "target": {
+                "type": "object",
+                "properties": {
+                  "bucket": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "storageKey": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "bucket",
+                  "storageKey"
+                ],
+                "additionalProperties": false
+              },
+              "fieldName": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "cms": {
+                "type": "string",
+                "minLength": 1
+              },
+              "digest": {
+                "type": "string",
+                "minLength": 64,
+                "maxLength": 64
+              },
+              "reservedStart": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "reservedEnd": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "certificateSha256": {
+                "type": "string",
+                "minLength": 64,
+                "maxLength": 64
+              },
+              "timestamp": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "url": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "username": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "password": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "url",
+                      "username",
+                      "password"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "policy": {
+                "type": "object",
+                "properties": {
+                  "trustRootsPem": {
+                    "minItems": 1,
+                    "maxItems": 50,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "revocation": {
+                    "type": "string",
+                    "enum": [
+                      "hard-fail",
+                      "soft-fail"
+                    ]
+                  },
+                  "fetchRevocation": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "trustRootsPem",
+                  "revocation",
+                  "fetchRevocation"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "status",
+              "prepared",
+              "target",
+              "fieldName",
+              "cms",
+              "digest",
+              "reservedStart",
+              "reservedEnd",
+              "certificateSha256",
+              "timestamp",
+              "policy"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "const": "verify"
+              },
+              "file": {
+                "type": "object",
+                "properties": {
+                  "bucket": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "storageKey": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "bucket",
+                  "storageKey"
+                ],
+                "additionalProperties": false
+              },
+              "fieldName": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "policy": {
+                "type": "object",
+                "properties": {
+                  "trustRootsPem": {
+                    "minItems": 1,
+                    "maxItems": 50,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "revocation": {
+                    "type": "string",
+                    "enum": [
+                      "hard-fail",
+                      "soft-fail"
+                    ]
+                  },
+                  "fetchRevocation": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "trustRootsPem",
+                  "revocation",
+                  "fetchRevocation"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "status",
+              "file",
+              "fieldName",
+              "policy"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      }
+    },
+    "documentSignatureDone": {
+      "method": "POST",
+      "path": "/internal/documents/signature-sessions/:id/done",
+      "body": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "step": {
+            "type": "string",
+            "enum": [
+              "prepare",
+              "attach",
+              "verify"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "invalid",
+              "failed"
+            ]
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "expired",
+                  "superseded",
+                  "certificate_invalid",
+                  "malformed",
+                  "digest_mismatch",
+                  "certificate_mismatch",
+                  "untrusted",
+                  "revoked",
+                  "invalid",
+                  "timestamp_failed",
+                  "concurrent",
+                  "step_closed",
+                  "engine_failed"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "digest": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 64,
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reservedStart": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reservedEnd": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "size": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sha256": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 64,
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "certificate": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "owner": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "organization": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 500
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "subject": {
+                    "type": "string",
+                    "maxLength": 2000
+                  },
+                  "issuer": {
+                    "type": "string",
+                    "maxLength": 2000
+                  },
+                  "serial": {
+                    "type": "string",
+                    "maxLength": 128
+                  },
+                  "notBefore": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  },
+                  "notAfter": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  },
+                  "fingerprint": {
+                    "type": "string",
+                    "minLength": 64,
+                    "maxLength": 64
+                  }
+                },
+                "required": [
+                  "owner",
+                  "organization",
+                  "subject",
+                  "issuer",
+                  "serial",
+                  "notBefore",
+                  "notAfter",
+                  "fingerprint"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "validation": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "intact": {
+                    "type": "boolean"
+                  },
+                  "valid": {
+                    "type": "boolean"
+                  },
+                  "trusted": {
+                    "type": "boolean"
+                  },
+                  "revocation": {
+                    "type": "string",
+                    "enum": [
+                      "good",
+                      "revoked",
+                      "unknown"
+                    ]
+                  },
+                  "timestampAt": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "coverage": {
+                    "type": "string",
+                    "maxLength": 64
+                  },
+                  "modification": {
+                    "type": "string",
+                    "maxLength": 64
+                  },
+                  "problem": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 1000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "checkedAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  }
+                },
+                "required": [
+                  "intact",
+                  "valid",
+                  "trusted",
+                  "revocation",
+                  "timestampAt",
+                  "coverage",
+                  "modification",
+                  "problem",
+                  "checkedAt"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "step",
           "status"
         ]
       },

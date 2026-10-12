@@ -16,7 +16,7 @@ RUN set -eux; \
         tesseract-ocr tesseract-ocr-rus tesseract-ocr-eng tesseract-ocr-tgk \
         poppler-utils \
         libreoffice-core libreoffice-writer libreoffice-calc libreoffice-impress \
-        fonts-dejavu fonts-liberation; \
+        fonts-dejavu fonts-liberation fonts-freefont-ttf; \
     rm -rf /var/lib/apt/lists/*
 
 # ── Зависимости Python ───────────────────────────────────────────────────────
