@@ -59,6 +59,34 @@ export const knowledge: DeepPartial<Dictionary['knowledge']> = {
         hint: 'A question as a heading, the answer as a paragraph below.',
       },
     },
+    channel_passport: {
+      name: 'Channel passport',
+      purpose: {
+        title: 'Purpose',
+        hint: 'What the channel carries, who sends and who receives, the direction of exchange.',
+      },
+      status: {
+        title: 'Status',
+        hint: 'In service or being built by the project; since when it works and what is still missing.',
+      },
+      format: {
+        title: 'Format',
+        hint: 'Protocol and data format: fields, encoding, frequency, volume limits.',
+      },
+      example: { title: 'Example', hint: 'A short sample message or request with its response.' },
+      access: {
+        title: 'Access procedure',
+        hint: 'How to get access: request, agreement, token or address, a check in the sandbox.',
+      },
+      owner: {
+        title: 'Owner',
+        hint: 'The unit and the person who run the channel and how to reach them.',
+      },
+      openapi: {
+        title: 'API description',
+        hint: 'Link to the platform OpenAPI description and the routes involved; for a channel without an API, "not applicable".',
+      },
+    },
   },
   status: {
     label: 'Status',

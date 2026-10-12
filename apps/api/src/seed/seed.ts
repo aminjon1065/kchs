@@ -38,6 +38,7 @@ import {
   type SeedUnit,
   SPACES,
 } from './data.js'
+import { ensureIntegrationsDashboard } from './integrations-dashboard.js'
 import SETTLEMENTS from './settlements.json' with { type: 'json' }
 import TERRITORIES from './territories.json' with { type: 'json' }
 import BOUNDARIES from './territory-boundaries.json' with { type: 'json' }
@@ -130,6 +131,8 @@ export async function runSeed(
     if (options.profile === 'demo') await seedBranding(await seedAdminCtx(options.adminLogin))
     // Разделы базы знаний (ADR-0095) и руководство (P5-E07) появились позже
     await seedKnowledge(await seedAdminCtx(options.adminLogin))
+    // Дашборд «Интеграции» (ADR-0206) появился позже
+    await seedIntegrations(await seedAdminCtx(options.adminLogin))
     log.warn('демо-данные уже загружены — seed пропущен (используйте db:reset)')
     return { users: 0, units: 0, spaces: 0, territories: territoryIds.size }
   }
@@ -402,6 +405,7 @@ export async function runSeed(
   await seedOffice(adminCtx)
   await seedBranding(adminCtx)
   await seedKnowledge(adminCtx)
+  await seedIntegrations(adminCtx)
   await bumpPrincipalsVersion()
 
   // Объекты созданы без запущенного worker — индексируем явно
@@ -465,6 +469,22 @@ async function seedKnowledge(ctx: SystemCtx): Promise<void> {
   // Корни руководства — страницы пункта «Справка», если администратор их ещё не выбрал
   const help = await db().transaction((tx) => KnowledgeSeed.ensureHelp(tx, ctx, guide.roots))
   if (help > 0) log.info({ languages: help }, 'справка ведёт на руководство')
+}
+
+/**
+ * Показатели и дашборд «Интеграции» над датасетом «Подключения» (ADR-0206) в
+ * пространстве «Общее» — идемпотентно по `systemKey`. Строки датасета видят только
+ * управляющие интеграциями, остальным дашборд покажет пустые плитки.
+ */
+async function seedIntegrations(ctx: SystemCtx): Promise<void> {
+  const [org] = await db()
+    .select({ id: spaces.id })
+    .from(spaces)
+    .where(eq(spaces.key, 'org'))
+    .limit(1)
+  if (!org) return
+  const result = await db().transaction((tx) => ensureIntegrationsDashboard(tx, ctx, org.id))
+  logger().child({ module: 'seed' }).info(result, 'показатели и дашборд «Интеграции» заведены')
 }
 
 /**
@@ -621,6 +641,10 @@ export async function resetData(): Promise<void> {
     sql`DELETE FROM documents`,
     // Акты об уничтожении — записи операций, не объекты: номер акта — порядковый в году
     sql`DELETE FROM case_destruction_acts`,
+    // Журнал подключений (ADR-0206) без внешних ключей на реестр: подключение — и токен,
+    // и лента, и форма
+    sql`DELETE FROM integration_usage_daily`,
+    sql`DELETE FROM integration_connections`,
     sql`DELETE FROM objects`,
     // Экземпляры маршрутов удалены вместе с объектами — определения свободны
     sql`DELETE FROM process_definitions`,

@@ -70,5 +70,6 @@ export const schedules: DeepPartial<Dictionary['schedules']> = {
     eventsTrim: 'Рӯйдодҳо: кӯтоҳ кардани ҷараёнҳо аз рӯи гурӯҳи ақибмонда',
     knowledgeReview: 'Донишҳо: аз нав баррасӣ кардани саҳифаҳо аз рӯи мӯҳлат',
     webhooksPrune: 'Вебхукҳо: тоза кардани журнали расониданҳо',
+    integrationsUsageFlush: 'Ҳамгироиҳо: ҳисоби дархостҳо аз рӯи токенҳо',
   },
 }

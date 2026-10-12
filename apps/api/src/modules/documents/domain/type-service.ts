@@ -179,6 +179,14 @@ export const DocumentTypeService = {
     return new Map(rows.map((raw) => [raw.id, toRow(raw)]))
   },
 
+  /** Все типы установки (не в корзине) без проверки прав — выгрузка пакета конфигурации. */
+  async all(executor: Executor): Promise<DocumentTypeRow[]> {
+    const rows = await selectTypes(executor)
+      .where(sql`${objects.deletedAt} IS NULL`)
+      .orderBy(asc(documentTypes.key))
+    return rows.map(toRow)
+  },
+
   async byKey(executor: Executor, key: string): Promise<DocumentTypeRow | null> {
     const [raw] = await selectTypes(executor).where(eq(documentTypes.key, key)).limit(1)
     return raw ? toRow(raw) : null

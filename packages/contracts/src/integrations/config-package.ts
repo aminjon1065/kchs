@@ -9,8 +9,11 @@ import { Timestamp } from '../common/primitives.js'
 export const CONFIG_SECTIONS = [
   'integrations',
   'webhooks',
-  'documentTypes',
+  // Порядок — порядок применения: маршруты и журналы раньше типов, типы раньше шаблонов
   'processDefinitions',
+  'journals',
+  'documentTypes',
+  'documentTemplates',
 ] as const
 export const ConfigSection = z.enum(CONFIG_SECTIONS)
 export type ConfigSection = z.infer<typeof ConfigSection>

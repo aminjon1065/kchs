@@ -7,6 +7,7 @@ import {
   type JournalReserveInput,
   type JournalReset,
   type JournalUpdateInput,
+  keyFromName,
 } from '@kchs/contracts'
 import { and, asc, count, eq, inArray, sql } from 'drizzle-orm'
 import { grantAccess } from '~/kernel/access/acl-service.js'
@@ -34,6 +35,7 @@ import { documentsSpaceId } from './space.js'
 
 export interface JournalRow {
   id: string
+  key: string
   name: string
   prefix: string
   format: string
@@ -47,6 +49,7 @@ export interface JournalRow {
 
 const COLUMNS = {
   id: journals.id,
+  key: journals.key,
   name: journals.name,
   prefix: journals.prefix,
   format: journals.format,
@@ -64,6 +67,33 @@ function selectJournals(executor: Executor) {
 
 function toRow(raw: Awaited<ReturnType<typeof selectJournals>>[number]): JournalRow {
   return { ...raw, reset: raw.reset === 'never' ? 'never' : 'year' }
+}
+
+/** Ключ журнала занят другим журналом — правка отклоняется, а не переименовывает чужой. */
+async function assertFreeKey(executor: Executor, key: string, selfId?: string): Promise<string> {
+  const [taken] = await executor
+    .select({ id: journals.id })
+    .from(journals)
+    .where(eq(journals.key, key))
+    .limit(1)
+  if (taken && taken.id !== selfId) {
+    throw errors.conflict(`Ключ «${key}» уже у другого журнала`, { reason: 'key_taken' })
+  }
+  return key
+}
+
+/** Свободный ключ по образцу: `incoming`, `incoming_2`, `incoming_3`… */
+async function freeKey(executor: Executor, base: string): Promise<string> {
+  const rows = await executor
+    .select({ key: journals.key })
+    .from(journals)
+    .where(sql`${journals.key} = ${base} OR ${journals.key} LIKE ${`${base}\\_%`}`)
+  const taken = new Set(rows.map((row) => row.key))
+  if (!taken.has(base)) return base
+  for (let n = 2; ; n += 1) {
+    const candidate = `${base.slice(0, 60)}_${n}`
+    if (!taken.has(candidate)) return candidate
+  }
 }
 
 /** Сегодняшняя дата организации (часовой пояс установки). */
@@ -95,6 +125,22 @@ export const JournalService = {
   async load(executor: Executor, id: string): Promise<JournalRow | null> {
     const [raw] = await selectJournals(executor).where(eq(journals.id, id)).limit(1)
     return raw ? toRow(raw) : null
+  },
+
+  /** Журнал по стабильному ключу (не в корзине) — пакет конфигурации, стартовый набор. */
+  async byKey(executor: Executor, key: string): Promise<JournalRow | null> {
+    const [raw] = await selectJournals(executor)
+      .where(and(eq(journals.key, key), sql`${objects.deletedAt} IS NULL`))
+      .limit(1)
+    return raw ? toRow(raw) : null
+  },
+
+  /** Все журналы установки без проверки прав — выгрузка пакета конфигурации. */
+  async all(executor: Executor): Promise<JournalRow[]> {
+    const rows = await selectJournals(executor)
+      .where(sql`${objects.deletedAt} IS NULL`)
+      .orderBy(asc(journals.key))
+    return rows.map(toRow)
   },
 
   async list(ctx: UserCtx, options: { includeInactive?: boolean } = {}): Promise<JournalRecord[]> {
@@ -162,6 +208,7 @@ export const JournalService = {
       ])
       result.push({
         id: row.id,
+        key: row.key,
         name: row.name,
         prefix: row.prefix,
         format: row.format,
@@ -191,6 +238,9 @@ export const JournalService = {
     requireCapability(ctx, 'documents.journals.manage')
     const input = JournalCreateInput.parse(raw)
     await assertTypes(tx, input.typeIds)
+    const key = input.key
+      ? await assertFreeKey(tx, input.key)
+      : await freeKey(tx, keyFromName(input.name, 'journal'))
     const spaceId = await documentsSpaceId(tx)
     // Без владельца: права на журнал наследуют его документы, и владелец журнала
     // стал бы владельцем каждого зарегистрированного в нём документа
@@ -204,6 +254,7 @@ export const JournalService = {
     })
     await tx.insert(journals).values({
       id: object.id,
+      key,
       name: input.name,
       prefix: input.prefix,
       format: input.format,
@@ -239,7 +290,11 @@ export const JournalService = {
     const current = await JournalService.load(tx, id)
     if (!current) throw errors.notFound('Журнал')
     if (patch.typeIds) await assertTypes(tx, patch.typeIds)
+    if (patch.key !== undefined && patch.key !== current.key) {
+      await assertFreeKey(tx, patch.key, id)
+    }
     const values: Record<string, unknown> = {}
+    if (patch.key !== undefined && patch.key !== current.key) values.key = patch.key
     for (const key of [
       'name',
       'prefix',

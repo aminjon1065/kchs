@@ -14,9 +14,8 @@ registerLifecycle()
 
 const { runInit } = await import('../src/cli/init.js')
 const { seedCommand } = await import('../src/seed/command.js')
-const { datasetFields, datasets, forms, objects, rules, sources, spaces, users } = await import(
-  '../src/db-schema.js'
-)
+const { datasetFields, datasets, forms, objects, pages, rules, sources, spaces, users } =
+  await import('../src/db-schema.js')
 const { evaluateRuleCondition, ruleScope } = await import(
   '../src/modules/automation/domain/scope.js'
 )
@@ -69,9 +68,27 @@ describe('пакет ЧС: чистая установка', () => {
       'emergency.feed.gdacs',
       'emergency.alert.water',
       'emergency.page.hazard-feeds',
+      'emergency.channels.root',
+      'emergency.channels.rest-api',
     ]) {
       expect(found.has(key), key).toBe(true)
     }
+    // Каталог каналов обмена (ADR-0206): раздел и 16 паспортов по приложению C концепт-ноты
+    const passports = [...found.keys()].filter(
+      (key) => key.startsWith('emergency.channels.') && key !== 'emergency.channels.root',
+    )
+    expect(passports).toHaveLength(16)
+    const [passport] = await db()
+      .select({ template: pages.template, spaceId: objects.spaceId })
+      .from(pages)
+      .innerJoin(objects, eq(objects.id, pages.id))
+      .where(eq(pages.id, found.get('emergency.channels.cap-intake') as string))
+    expect(passport?.template).toBe('channel_passport')
+    const [orgSpace] = await db()
+      .select({ id: spaces.id })
+      .from(spaces)
+      .where(eq(spaces.key, 'org'))
+    expect(passport?.spaceId).toBe(orgSpace?.id)
 
     // Синтетика демо-мира — только в профиле demo
     for (const key of ['shelters', 'forces', 'warnings_log', 'duty_roster']) {

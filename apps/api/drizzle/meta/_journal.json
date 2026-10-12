@@ -512,6 +512,13 @@
       "when": 1791811928376,
       "tag": "20261012133208_restore-checks",
       "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1791814863626,
+      "tag": "20261012142103_gateway-connections",
+      "breakpoints": true
     }
   ]
 }

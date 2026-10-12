@@ -8,6 +8,7 @@ import {
   type DocumentTemplateListQuery,
   type DocumentTemplateRecord,
   type DocumentTemplateUpdateInput,
+  keyFromName,
   type TemplateDefaults,
   type TemplateInspectStatus,
 } from '@kchs/contracts'
@@ -33,6 +34,7 @@ export const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordproc
 
 const COLUMNS = {
   id: templates.id,
+  key: templates.key,
   name: templates.name,
   description: templates.description,
   typeId: templates.documentTypeId,
@@ -64,6 +66,33 @@ export async function loadTemplate(executor: Executor, id: string): Promise<Temp
 /** Поля карточки по умолчанию проверяются по схеме типа шаблона — при создании документа. */
 function defaultsOf(row: TemplateRow): TemplateDefaults {
   return row.defaults as TemplateDefaults
+}
+
+/** Ключ шаблона занят другим шаблоном — правка отклоняется. */
+async function assertFreeKey(executor: Executor, key: string, selfId?: string): Promise<string> {
+  const [taken] = await executor
+    .select({ id: templates.id })
+    .from(templates)
+    .where(eq(templates.key, key))
+    .limit(1)
+  if (taken && taken.id !== selfId) {
+    throw errors.conflict(`Ключ «${key}» уже у другого шаблона`, { reason: 'key_taken' })
+  }
+  return key
+}
+
+/** Свободный ключ по образцу: `outgoing_letter`, `outgoing_letter_2`… */
+async function freeKey(executor: Executor, base: string): Promise<string> {
+  const rows = await executor
+    .select({ key: templates.key })
+    .from(templates)
+    .where(sql`${templates.key} = ${base} OR ${templates.key} LIKE ${`${base}\\_%`}`)
+  const taken = new Set(rows.map((row) => row.key))
+  if (!taken.has(base)) return base
+  for (let n = 2; ; n += 1) {
+    const candidate = `${base.slice(0, 60)}_${n}`
+    if (!taken.has(candidate)) return candidate
+  }
 }
 
 async function assertType(executor: Executor, typeId: string | null): Promise<void> {
@@ -125,6 +154,7 @@ export const DocumentTemplateService = {
       const type = row.typeId ? typeById.get(row.typeId) : undefined
       result.push({
         id: row.id,
+        key: row.key,
         spaceId: row.spaceId ?? '',
         name: row.name,
         description: row.description,
@@ -148,6 +178,9 @@ export const DocumentTemplateService = {
     requireCapability(ctx, 'documents.journals.manage')
     const input = DocumentTemplateCreateInput.parse(raw)
     await assertType(tx, input.typeId)
+    const key = input.key
+      ? await assertFreeKey(tx, input.key)
+      : await freeKey(tx, keyFromName(input.name, 'template'))
     const spaceId = await documentsSpaceId(tx)
     // Справочник принадлежит установке, а не автору: владельца нет
     const object = await ObjectService.create(tx, ctx, {
@@ -159,6 +192,7 @@ export const DocumentTemplateService = {
     })
     await tx.insert(templates).values({
       id: object.id,
+      key,
       name: input.name,
       description: input.description,
       documentTypeId: input.typeId,
@@ -185,12 +219,16 @@ export const DocumentTemplateService = {
     const current = await loadTemplate(tx, id)
     if (!current) throw errors.notFound('Шаблон')
     if (patch.typeId !== undefined) await assertType(tx, patch.typeId)
+    if (patch.key !== undefined && patch.key !== current.key) {
+      await assertFreeKey(tx, patch.key, id)
+    }
     const values: Record<string, unknown> = {}
     const changed: string[] = []
     const set = (key: string, value: unknown) => {
       values[key] = value
       changed.push(key)
     }
+    if (patch.key !== undefined && patch.key !== current.key) set('key', patch.key)
     if (patch.name !== undefined) set('name', patch.name)
     if (patch.description !== undefined) set('description', patch.description)
     if (patch.typeId !== undefined) set('documentTypeId', patch.typeId)
@@ -372,6 +410,19 @@ export const DocumentTemplateService = {
       .from(templates)
       .where(inArray(templates.id, ids))
     return new Map(rows.map((row) => [row.id, row.name]))
+  },
+
+  /** Шаблон по стабильному ключу (не в корзине) — пакет конфигурации. */
+  async byKey(executor: Executor, key: string): Promise<TemplateRow | null> {
+    const [row] = await selectTemplates(executor)
+      .where(and(eq(templates.key, key), isNull(objects.deletedAt)))
+      .limit(1)
+    return row ?? null
+  },
+
+  /** Все шаблоны установки без проверки прав — выгрузка пакета конфигурации. */
+  async all(executor: Executor): Promise<TemplateRow[]> {
+    return selectTemplates(executor).where(isNull(objects.deletedAt)).orderBy(asc(templates.key))
   },
 
   /** Шаблон по названию — идемпотентный сид стартового набора. */

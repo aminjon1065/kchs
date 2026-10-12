@@ -216,6 +216,7 @@ export const data: DeepPartial<Dictionary['data']> = {
     meetings: 'Вохӯриҳо',
     events: 'Рӯйдодҳо',
     territories: 'Ҳудудҳо',
+    connections: 'Пайвастшавиҳо',
   },
   catalog: {
     upload: 'Боргузории файл',

@@ -11,6 +11,7 @@ import { hitRateLimit } from '~/shared/http/rate-limit.js'
 import { ApiTokens } from './api-tokens.js'
 import { INTEGRATIONS_AUDIT } from './audit-actions.js'
 import { requiredScope } from './scopes.js'
+import { hitTokenUsage } from './usage.js'
 
 /** Сколько недействительных токенов в минуту принимается с одного адреса. */
 const BAD_TOKEN_ATTEMPTS_PER_MINUTE = 60
@@ -86,6 +87,8 @@ export async function authenticateApiToken(
   }
 
   void ApiTokens.touch(token.id, request.ip ?? null)
+  // Суточный счётчик запросов (ADR-0206): только инкремент в Redis без ожидания
+  hitTokenUsage(token.id)
   return tokenCtx
 }
 

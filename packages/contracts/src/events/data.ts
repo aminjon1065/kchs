@@ -126,6 +126,13 @@ export const DATA_EVENTS = {
     inserted: z.number().int(),
     updated: z.number().int(),
     version: z.number().int(),
+    /** Вид источника (`feed`, `database`) — канал в учёте подключений (ADR-0206). */
+    kind: z.string().optional(),
   }),
-  'source.failed': z.object({ jobId: Uuid.nullable(), runId: Uuid, error: z.string() }),
+  'source.failed': z.object({
+    jobId: Uuid.nullable(),
+    runId: Uuid,
+    error: z.string(),
+    kind: z.string().optional(),
+  }),
 } as const satisfies Record<string, z.ZodType>

@@ -1,7 +1,9 @@
 import {
   DEFAULT_NUMBER_FORMAT,
+  DirectoryKey,
   formatRegNumber,
   type JournalRecord,
+  keyFromName,
   numberFormatIssue,
 } from '@kchs/contracts'
 import { formatDateTime } from '@kchs/fields'
@@ -164,13 +166,16 @@ function JournalPanel({ journal, onClose }: { journal: JournalRecord; onClose: (
   const client = useQueryClient()
   const formId = useId()
   const [name, setName] = useState(journal.name)
+  const [key, setKey] = useState(journal.key)
   const [prefix, setPrefix] = useState(journal.prefix)
   const [format, setFormat] = useState(journal.format)
   const [reset, setReset] = useState(journal.reset)
   const [active, setActive] = useState(journal.isActive)
   const [shareOpen, setShareOpen] = useState(false)
+  const keyValid = DirectoryKey.safeParse(key).success
   const dirty =
     name !== journal.name ||
+    key !== journal.key ||
     prefix !== journal.prefix ||
     format !== journal.format ||
     reset !== journal.reset ||
@@ -182,6 +187,7 @@ function JournalPanel({ journal, onClose }: { journal: JournalRecord; onClose: (
         params: { id: journal.id },
         body: {
           name: name.trim(),
+          ...(key !== journal.key ? { key: key.trim() } : {}),
           prefix: prefix.trim(),
           format,
           reset,
@@ -221,6 +227,21 @@ function JournalPanel({ journal, onClose }: { journal: JournalRecord; onClose: (
           value={name}
           disabled={!journal.canManage}
           onChange={(event) => setName(event.target.value)}
+        />
+      </Field>
+      <Field
+        label={t('documents.journals.key')}
+        htmlFor={`${formId}-key`}
+        hint={t('documents.journals.keyHint')}
+        {...(keyValid ? {} : { error: t('documents.journals.keyInvalid') })}
+      >
+        <Input
+          id={`${formId}-key`}
+          value={key}
+          maxLength={64}
+          className="font-mono"
+          disabled={!journal.canManage}
+          onChange={(event) => setKey(event.target.value)}
         />
       </Field>
       <div className="grid grid-cols-2 gap-3">
@@ -274,7 +295,7 @@ function JournalPanel({ journal, onClose }: { journal: JournalRecord; onClose: (
         <Button
           variant="primary"
           size="sm"
-          disabled={!dirty || numberFormatIssue(format) !== null || !name.trim()}
+          disabled={!dirty || !keyValid || numberFormatIssue(format) !== null || !name.trim()}
           loading={save.isPending}
           onClick={() => save.mutate()}
         >
@@ -414,12 +435,22 @@ function CreateJournalDialog({
   const client = useQueryClient()
   const formId = useId()
   const [name, setName] = useState('')
+  const [key, setKey] = useState('')
   const [prefix, setPrefix] = useState('')
   const [format, setFormat] = useState(DEFAULT_NUMBER_FORMAT)
   const [failure, setFailure] = useState<string | null>(null)
+  // Пустой ключ — сервер возьмёт его из названия; подсказка показывает какой
+  const keyValid = key.trim() === '' || DirectoryKey.safeParse(key).success
   const create = useMutation({
     mutationFn: () =>
-      http.post('/journals', { body: { name: name.trim(), prefix: prefix.trim(), format } }),
+      http.post('/journals', {
+        body: {
+          name: name.trim(),
+          ...(key.trim() ? { key: key.trim() } : {}),
+          prefix: prefix.trim(),
+          format,
+        },
+      }),
     onSuccess: (journal) => {
       void client.invalidateQueries({ queryKey: documentKeys.all })
       onCreated(journal.id)
@@ -439,7 +470,7 @@ function CreateJournalDialog({
             </Button>
             <Button
               variant="primary"
-              disabled={!name.trim() || numberFormatIssue(format) !== null}
+              disabled={!name.trim() || !keyValid || numberFormatIssue(format) !== null}
               loading={create.isPending}
               onClick={() => create.mutate()}
             >
@@ -456,6 +487,21 @@ function CreateJournalDialog({
               autoFocus
               value={name}
               onChange={(event) => setName(event.target.value)}
+            />
+          </Field>
+          <Field
+            label={t('documents.journals.key')}
+            htmlFor={`${formId}-key`}
+            hint={t('documents.journals.keyHint')}
+            {...(keyValid ? {} : { error: t('documents.journals.keyInvalid') })}
+          >
+            <Input
+              id={`${formId}-key`}
+              value={key}
+              maxLength={64}
+              className="font-mono"
+              placeholder={name.trim() ? keyFromName(name, 'journal') : ''}
+              onChange={(event) => setKey(event.target.value)}
             />
           </Field>
           <Field label={t('documents.journals.prefix')} htmlFor={`${formId}-prefix`}>

@@ -19,6 +19,12 @@ export interface ConfigSectionProvider {
   find: (key: string) => Promise<ConfigItem | null>
   /** Применяет запись пакета; возвращает, что сделано. */
   apply: (ctx: UserCtx, item: ConfigItem) => Promise<'created' | 'updated'>
+  /**
+   * Второй проход после всех записей пакета (ADR-0206): ссылки на записи, которые
+   * приехали в том же пакете позже, — журнал ссылается на типы документов, а тип —
+   * на журнал нумерации.
+   */
+  relink?: (ctx: UserCtx, item: ConfigItem) => Promise<void>
 }
 
 const providers = new Map<ConfigSection, ConfigSectionProvider>()

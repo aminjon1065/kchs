@@ -410,6 +410,8 @@ export const admin: DeepPartial<Dictionary['admin']> = {
       integrations: 'Интегратсияҳо',
       webhooks: 'Вебхукҳо',
       documentTypes: 'Намудҳои ҳуҷҷатҳо',
+      journals: 'Маҷаллаҳои бақайдгирӣ',
+      documentTemplates: 'Қолибҳои ҳуҷҷатҳо',
       processDefinitions: 'Масирҳо',
     },
     statuses: {

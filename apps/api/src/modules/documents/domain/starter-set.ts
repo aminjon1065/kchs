@@ -5,7 +5,7 @@ import {
   type FieldDef,
   type LangText,
 } from '@kchs/contracts'
-import { eq } from 'drizzle-orm'
+import { eq, or } from 'drizzle-orm'
 import { putObject } from '~/kernel/storage/s3.js'
 import { fileStorageKey, registerGeneratedFile } from '~/modules/files/public.js'
 import type { Ctx } from '~/shared/context.js'
@@ -308,10 +308,11 @@ export async function ensureStarterSet(
   }
   const journalIds = new Map<string, string>()
   for (const journal of JOURNALS) {
+    // По ключу (ADR-0206), а журнал, заведённый до ключей, — по названию
     const [existing] = await db()
       .select({ id: journals.id })
       .from(journals)
-      .where(eq(journals.name, journal.name))
+      .where(or(eq(journals.key, journal.key), eq(journals.name, journal.name)))
       .limit(1)
     if (existing) {
       journalIds.set(journal.key, existing.id)
@@ -319,6 +320,7 @@ export async function ensureStarterSet(
     }
     const id = await db().transaction((tx) =>
       JournalService.create(tx, ctx, {
+        key: journal.key,
         name: journal.name,
         prefix: journal.prefix,
         format: journal.format ?? DEFAULT_NUMBER_FORMAT,

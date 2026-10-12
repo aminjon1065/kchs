@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { LangText, Timestamp, Uuid } from '../common/primitives.js'
+import { DirectoryKey } from './directory-key.js'
 import { DocumentCreateInput, DocumentFileRef } from './document.js'
 
 /**
@@ -96,6 +97,8 @@ export type TemplateDefaults = z.infer<typeof TemplateDefaults>
 
 export const DocumentTemplateRecord = z.object({
   id: Uuid,
+  /** Стабильный ключ (ADR-0206): по нему шаблон узнаётся в пакете конфигурации. */
+  key: z.string(),
   /** Пространство шаблона: файл шаблона загружается вложением в него. */
   spaceId: Uuid,
   name: z.string(),
@@ -120,6 +123,8 @@ export const DocumentTemplateList = z.object({ items: z.array(DocumentTemplateRe
 export type DocumentTemplateList = z.infer<typeof DocumentTemplateList>
 
 export const DocumentTemplateCreateInput = z.object({
+  /** Не задан — по названию, с суффиксом, если такой уже есть. */
+  key: DirectoryKey.optional(),
   name: z.string().trim().min(1).max(200),
   description: z.string().trim().max(2000).nullable().default(null),
   typeId: Uuid.nullable().default(null),
@@ -128,6 +133,7 @@ export const DocumentTemplateCreateInput = z.object({
 export type DocumentTemplateCreateInput = z.infer<typeof DocumentTemplateCreateInput>
 
 export const DocumentTemplateUpdateInput = z.object({
+  key: DirectoryKey.optional(),
   name: z.string().trim().min(1).max(200).optional(),
   description: z.string().trim().max(2000).nullable().optional(),
   typeId: Uuid.nullable().optional(),

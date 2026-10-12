@@ -756,6 +756,7 @@ export const FeedService = {
             inserted: inserts.length,
             updated,
             version,
+            kind: 'feed',
           },
         })
         return { inserted: inserts.length, updated, version }

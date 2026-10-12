@@ -57,5 +57,6 @@ export const schedules = {
     eventsTrim: 'События: обрезка потоков по отстающей группе',
     knowledgeReview: 'База знаний: пересмотр страниц по сроку',
     webhooksPrune: 'Вебхуки: очистка журнала доставок',
+    integrationsUsageFlush: 'Интеграции: учёт запросов по токенам',
   },
 } as const

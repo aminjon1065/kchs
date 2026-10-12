@@ -20,6 +20,7 @@ import type { RouteRegistrar } from '~/shared/http/route.js'
 import { DocumentAcknowledgments } from './domain/acknowledgment-service.js'
 import { DOCUMENTS_AUDIT } from './domain/audit-actions.js'
 import { CaseService } from './domain/case-service.js'
+import { registerDocumentConfigSections } from './domain/config-sections.js'
 import { documentControlProjection } from './domain/control-projection.js'
 import { onDocumentRegistered } from './domain/document-service.js'
 import { MailIntake } from './domain/mail/mail-service.js'
@@ -345,6 +346,8 @@ export function registerDocumentsObjectTypes(): void {
   })
 
   registerSystemDataset(DOCUMENTS_SYSTEM_DATASET)
+  // Журналы, типы и шаблоны в пакете конфигурации по ключам (ADR-0206)
+  registerDocumentConfigSections()
   registerBuiltinPrintForms()
   // Маршруты документов на движке процессов: хуки статусов и шаг регистрации
   registerDocumentProcess()
