@@ -91,11 +91,10 @@ export function registerEdmsExchange(exchange: EdmsExchange | null): void {
   adapter = exchange
 }
 
-export function edmsExchange(): EdmsExchange | null {
-  return adapter
-}
-
-export const EDMS_DISPATCH_JOB = { queue: 'maintenance', name: 'integrations.edms-dispatch' } as const
+export const EDMS_DISPATCH_JOB = {
+  queue: 'maintenance',
+  name: 'integrations.edms-dispatch',
+} as const
 
 /** Паузы перед повторами, мин: после восьмой неудачи отправка считается проваленной. */
 const RETRY_MINUTES = [1, 5, 15, 60, 180, 720, 1440] as const
