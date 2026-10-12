@@ -4,13 +4,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, ExternalLink, MapPin } from 'lucide-react'
 import { type MouseEvent, useState } from 'react'
 import { useFileDownload } from '~/features/files/index.js'
+import { apiUrl } from '~/shared/api/link.js'
 import { useT } from '~/shared/i18n.js'
 import { documentKeys, pdfPagesQuery, placeSignature } from '../queries.js'
 import { useDocument } from './document-context.js'
 
 /** Адрес страницы проверки подписи — тот же, что в QR штампа (ADR-0198). */
 export function verifyHref(signatureId: string): string {
-  return `/api/v1/verify/${signatureId}`
+  return apiUrl('/verify/:id', { params: { id: signatureId } })
 }
 
 /**
