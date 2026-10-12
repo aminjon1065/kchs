@@ -57,9 +57,7 @@ export type QualifiedValidation = z.infer<typeof QualifiedValidation>
 
 /** Подпись прошла проверку целиком: байты, математика, цепочка, не отозвана. */
 export function qualifiedValid(value: QualifiedValidation | null | undefined): boolean {
-  return Boolean(
-    value?.intact && value.valid && value.trusted && value.revocation !== 'revoked',
-  )
+  return Boolean(value?.intact && value.valid && value.trusted && value.revocation !== 'revoked')
 }
 
 /**
@@ -134,6 +132,14 @@ const Base64 = z
   .min(1)
   .max(96 * 1024)
   .regex(/^[A-Za-z0-9+/]+={0,2}$/, 'Ожидается base64')
+
+/** Билет страницы подписания в адресе: подписанный api, открывает только свой сеанс. */
+export const QesTicketQuery = z.object({ t: z.string().min(1).max(1024) })
+export type QesTicketQuery = z.infer<typeof QesTicketQuery>
+
+/** Повторная проверка квалифицированной подписи поставлена движку. */
+export const QesVerifyQueued = z.object({ queued: z.literal(true) })
+export type QesVerifyQueued = z.infer<typeof QesVerifyQueued>
 
 /** Страница подписания → api: сертификат, выбранный в агенте (DER в base64). */
 export const QesCertificateInput = z.object({ certificate: Base64 })

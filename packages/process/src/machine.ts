@@ -852,6 +852,8 @@ export interface AvailableActions {
   onBehalfOf: string | null
   actions: Array<Decision | 'delegate' | 'add_approver'>
   requireMfa: boolean
+  /** Шаг квалифицированной подписи: «Подписать» — через страницу подписания (ADR-0205). */
+  qualified: boolean
 }
 
 /** Что пользователь может сделать сейчас: свои шаги и шаги замещаемых. */
@@ -880,7 +882,8 @@ export function availableActions(
         type: step.type,
         onBehalfOf: userId === viewer.userId ? null : userId,
         actions,
-        requireMfa: step.type === 'sign' && step.requireMfa,
+        requireMfa: step.type === 'sign' && step.requireMfa && step.signatureKind !== 'qualified',
+        qualified: step.type === 'sign' && step.signatureKind === 'qualified',
       })
     }
   }

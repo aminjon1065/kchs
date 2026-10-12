@@ -1,5 +1,5 @@
-import type { DocumentSignature, LangText } from '@kchs/contracts'
-import { formatDateTime } from '@kchs/fields'
+import { type DocumentSignature, type LangText, qualifiedValid } from '@kchs/contracts'
+import { formatDate, formatDateTime } from '@kchs/fields'
 import {
   Avatar,
   Badge,
@@ -34,6 +34,7 @@ import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { documentRouteVersionsQuery, documentSignaturesQuery } from '../queries.js'
 import { useDocument } from './document-context.js'
+import { useQualifiedSign } from './qualified-sign.js'
 import { RouteStartDialog } from './route-start-dialog.js'
 import { SignatureRequisites, SignedCopyRow } from './signed-copy.js'
 
@@ -43,6 +44,39 @@ function text(value: LangText | null | undefined, locale: string): string | null
 }
 
 const SIGNATURE_TONE = { valid: 'success', pending: 'neutral', mismatch: 'danger' } as const
+
+/** Сертификат КЭП и итог проверки движком: владелец, номер, срок, отзыв, штамп времени. */
+function QualifiedCertificateLine({ signature }: { signature: DocumentSignature }) {
+  const t = useT()
+  const locale = useLocale()
+  const certificate = signature.certificate
+  if (!certificate) return null
+  const validation = signature.validation ?? null
+  return (
+    <span className="block truncate text-2xs text-fg-muted">
+      {[
+        t('documents.qualified.signatures.owner', { owner: certificate.owner }),
+        t('documents.qualified.signatures.serial', { serial: certificate.serial.toUpperCase() }),
+        t('documents.qualified.signatures.validity', {
+          date: formatDate(certificate.notAfter, { locale }),
+        }),
+        validation ? t(`documents.qualified.signatures.revocation.${validation.revocation}`) : null,
+        validation?.timestampAt
+          ? t('documents.qualified.signatures.timestamp', {
+              time: formatDateTime(validation.timestampAt, { locale }),
+            })
+          : null,
+        validation
+          ? qualifiedValid(validation)
+            ? t('documents.qualified.signatures.trusted')
+            : t('documents.qualified.signatures.untrusted')
+          : null,
+      ]
+        .filter(Boolean)
+        .join(' · ')}
+    </span>
+  )
+}
 
 /** Подписи документа и их проверка по хэшу подписанной версии (08-documents.md §9). */
 function Signatures({ items }: { items: DocumentSignature[] }) {
@@ -87,7 +121,13 @@ function Signatures({ items }: { items: DocumentSignature[] }) {
                   .filter(Boolean)
                   .join(' · ')}
               </span>
+              {signature.certificate ? <QualifiedCertificateLine signature={signature} /> : null}
             </span>
+            {signature.kind === 'qualified' ? (
+              <Badge tone="accent" size="sm">
+                {t('documents.qualified.signatures.badge')}
+              </Badge>
+            ) : null}
             {signature.hash ? (
               <Tooltip content={signature.hash}>
                 <span className="font-mono text-2xs text-fg-muted">
@@ -174,6 +214,7 @@ export function RouteTab() {
   const t = useT()
   const locale = useLocale()
   const { document, refresh } = useDocument()
+  const qualified = useQualifiedSign()
   const [selected, setSelected] = useState<string | null>(null)
   const [starting, setStarting] = useState(false)
   const instances = useQuery(objectProcessesQuery(document.id))
@@ -267,7 +308,13 @@ export function RouteTab() {
           </p>
           {data.myActions.length > 0 ? (
             <section className="rounded-md border border-accent bg-surface p-3">
-              <ProcessStepActions objectId={document.id} view={data} onDone={refresh} />
+              <ProcessStepActions
+                objectId={document.id}
+                view={data}
+                onDone={refresh}
+                onQualifiedSign={qualified.start}
+              />
+              {qualified.dialog}
             </section>
           ) : null}
           <RouteLine view={data} versions={versions.data} />

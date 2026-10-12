@@ -4,9 +4,11 @@ import { registerFeature } from '~/kernel/features/registry.js'
 import { registerJobHandler } from '~/kernel/jobs/runner.js'
 import { queue } from '~/kernel/jobs/service.js'
 import { declareSchedule } from '~/kernel/schedules/index.js'
+import { setQualifiedSignatureProvider } from '~/kernel/signature/port.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { INTEGRATIONS_AUDIT } from './domain/audit-actions.js'
 import { registerIntegrationConfigSections } from './domain/config-sections.js'
+import { Integrations } from './domain/integration-service.js'
 import { registerIntegrationObjectTypes } from './domain/object-types.js'
 import {
   deliverOnce,
@@ -37,6 +39,8 @@ export function registerIntegrationsObjectTypes(): void {
 
   registerIntegrationObjectTypes()
   registerIntegrationConfigSections()
+  // Порт квалифицированной подписи ядра (ADR-0205): УЦ — интеграция `qes_ca`
+  setQualifiedSignatureProvider({ authority: () => Integrations.qualifiedAuthority() })
 }
 
 export function registerIntegrationsRoutes(route: RouteRegistrar): void {

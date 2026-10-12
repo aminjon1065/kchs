@@ -45,6 +45,12 @@ export const OPENAPI_TAGS = [
   { name: 'acknowledgments', description: 'Ознакомление с документами и страницами' },
   { name: 'announcements', description: 'Объявления установки' },
   { name: 'ai', description: 'Интеллектуальные функции; токенам API недоступны' },
+  {
+    name: 'signing',
+    description:
+      'Квалифицированная подпись: сеанс и страница подписания; токенам API недоступны — ' +
+      'подписывает агент УЦ на рабочем месте сотрудника',
+  },
   { name: 'integrations', description: 'Интеграции, исходящие и входящие вебхуки' },
   { name: 'automation', description: 'Правила автоматизации и расписания' },
   { name: 'forms', description: 'Формы сбора данных: заполнение и контроль сдачи' },

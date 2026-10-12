@@ -498,6 +498,13 @@
       "when": 1791809321224,
       "tag": "20261012124841_signature-requisites",
       "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1791813483950,
+      "tag": "20261012135803_qualified-signature",
+      "breakpoints": true
     }
   ]
 }

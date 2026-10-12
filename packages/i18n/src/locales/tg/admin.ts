@@ -304,6 +304,8 @@ export const admin: DeepPartial<Dictionary['admin']> = {
     enabled: 'Фаъол',
     syncs: 'Журнали ҳамоҳангсозиҳо',
     syncsEmpty: 'Ҳоло ҳамоҳангсозӣ набуд',
+    qesHint:
+      'Агенти МТ дар ҷои корӣ (agentUrl — танҳо 127.0.0.1), хидмати тамғаи вақт (tsaUrl), решаҳои боэътимоди МТ дар PEM (trustRoots), сахтгирии бозхонд (revocation: hard-fail ё soft-fail). Калидҳои имзо дар ин ҷо нестанд. Пароли TSA, агар лозим бошад, — сирри tsaPassword.',
     mailboxHint:
       'Қуттии почтаи девонхона: суроға ва маълумоти ҳисоб, ҷузвдон, давраи санҷиш, намуди ҳуҷҷат ва қоидаҳои интихоб. Рамз — дар калидҳои махфӣ, калиди password',
     fields: {
@@ -331,6 +333,7 @@ export const admin: DeepPartial<Dictionary['admin']> = {
       sftp: 'SFTP',
       postgres: 'Пойгоҳи PostgreSQL',
       mysql: 'Пойгоҳи MySQL / MariaDB',
+      qes_ca: 'Маркази тасдиқкунанда (ИЭТ)',
       custom: 'Худӣ',
     },
   },

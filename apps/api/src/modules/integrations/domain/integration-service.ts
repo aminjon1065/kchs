@@ -11,6 +11,7 @@ import { audit } from '~/kernel/audit/service.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
+import type { QualifiedSignatureAuthority } from '~/kernel/signature/port.js'
 import { config } from '~/shared/config/index.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { decryptSecret, encryptSecret, hashToken } from '~/shared/crypto/secrets.js'
@@ -22,6 +23,7 @@ import { type IntegrationRow, integrationSyncs, integrations } from '../schema.j
 import { INTEGRATIONS_AUDIT } from './audit-actions.js'
 import { builtinIntegrations, checkBuiltin } from './builtins.js'
 import { checkIntegration } from './checks.js'
+import { authorityFrom, checkQesAuthority, parseQesConfig } from './qes-authority.js'
 
 /** Секреты лежат зашифрованным JSON; наружу отдаются только имена ключей. */
 export function readSecrets(row: { secrets: Buffer | null }): Record<string, string> {
@@ -135,6 +137,15 @@ export const Integrations = {
     }))
   },
 
+  /**
+   * Подключённый удостоверяющий центр для порта ядра (ADR-0205): первая включённая
+   * интеграция `qes_ca` по ключу; настроенная неверно — как не подключённая.
+   */
+  async qualifiedAuthority(): Promise<QualifiedSignatureAuthority | null> {
+    const [first] = await Integrations.enabledOfKind('qes_ca')
+    return authorityFrom(first ?? null)
+  },
+
   /** Интеграция по стабильному ключу — для пакета конфигурации. */
   async byKey(key: string): Promise<{ row: IntegrationRow; title: string } | null> {
     const [found] = await db()
@@ -149,6 +160,7 @@ export const Integrations = {
   async create(ctx: UserCtx, input: IntegrationCreateInput): Promise<Integration> {
     const existing = await Integrations.byKey(input.key)
     if (existing) throw errors.conflict(`Интеграция с ключом «${input.key}» уже есть`)
+    if (input.kind === 'qes_ca') parseQesConfig(input.config)
 
     const id = newId()
     await db().transaction(async (tx) => {
@@ -205,6 +217,7 @@ export const Integrations = {
       changed.push('enabled')
     }
     if (input.config !== undefined) {
+      if (found.row.kind === 'qes_ca') parseQesConfig(input.config)
       patch.config = input.config
       changed.push('config')
     }
@@ -273,7 +286,11 @@ export const Integrations = {
   async check(ctx: UserCtx, id: string): Promise<IntegrationCheckResult> {
     const found = await rowWithTitle(id)
     if (!found) throw errors.notFound('Интеграция')
-    const result = await checkIntegration(found.row, readSecrets(found.row))
+    // Удостоверяющий центр (ADR-0205): корни и сервер штампов времени; агент — на рабочем месте
+    const result =
+      found.row.kind === 'qes_ca' && found.row.enabled
+        ? await checkQesAuthority(found.row.config, readSecrets(found.row))
+        : await checkIntegration(found.row, readSecrets(found.row))
     const checkedAt = new Date().toISOString()
 
     await db().transaction(async (tx) => {

@@ -17,6 +17,8 @@ export const INTEGRATION_KINDS = [
   /** Внешняя СУБД как источник датасетов (ADR-0107). */
   'postgres',
   'mysql',
+  /** Удостоверяющий центр квалифицированной подписи (ADR-0205). */
+  'qes_ca',
   'custom',
 ] as const
 export const IntegrationKind = z.enum(INTEGRATION_KINDS)
@@ -111,3 +113,38 @@ export type IntegrationSync = z.infer<typeof IntegrationSync>
 
 export const IntegrationSyncList = z.object({ items: z.array(IntegrationSync) })
 export type IntegrationSyncList = z.infer<typeof IntegrationSyncList>
+
+/** Адрес на этой машине: агент УЦ слушает только петлевой интерфейс рабочего места. */
+function isLoopbackUrl(value: string): boolean {
+  try {
+    const url = new URL(value)
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return false
+    return ['127.0.0.1', 'localhost', '[::1]', '::1'].includes(url.hostname)
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Конфигурация интеграции «Удостоверяющий центр» (`qes_ca`, ADR-0205). Ключей
+ * подписи здесь нет и быть не может: подписывает агент УЦ на рабочем месте.
+ * Секрет — `tsaPassword` (сервер штампов времени с паролем), под мастер-ключом.
+ */
+export const QesCaConfig = z.object({
+  /** Агент УЦ на рабочем месте — его зовёт страница подписания; только петлевой адрес. */
+  agentUrl: z
+    .string()
+    .trim()
+    .max(300)
+    .refine(isLoopbackUrl, 'Агент УЦ слушает только адрес этой машины: http://127.0.0.1:<порт>'),
+  /** Сервер штампов времени (RFC 3161); без него подпись — PAdES-B-B, без времени TSA. */
+  tsaUrl: z.url().max(500).nullable().optional(),
+  tsaUsername: z.string().trim().max(200).nullable().optional(),
+  /** Доверенные корни (и промежуточные) УЦ — PEM, один или несколько блоков. */
+  trustRoots: z.string().trim().min(1).max(200_000),
+  /** `hard-fail` — без ответа OCSP или CRL подпись не принимается. */
+  revocation: z.enum(['hard-fail', 'soft-fail']).default('hard-fail'),
+  /** Ходить за OCSP и CRL по адресам из сертификата (после проверки цепочки). */
+  fetchRevocation: z.boolean().default(true),
+})
+export type QesCaConfig = z.infer<typeof QesCaConfig>

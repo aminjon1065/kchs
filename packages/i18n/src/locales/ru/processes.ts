@@ -102,6 +102,8 @@ export const processes = {
     done: 'Готово',
     forStep: 'Ваше решение: {step}',
     forStepOnBehalf: 'Решение за {name}: {step}',
+    signQualified: 'Подписать КЭП',
+    qualifiedHint: 'Этот шаг подписывается квалифицированной подписью — в карточке документа',
     delegate: 'Передать',
     delegateHint: 'Шаг перейдёт выбранному сотруднику — решать будет он',
     addApprover: 'Добавить согласующего',

@@ -1,6 +1,8 @@
 import type {
   DocumentManifest,
   DocumentSignature,
+  QualifiedCertificate,
+  QualifiedValidation,
   SignaturePlacement,
   SignaturePlacementInput,
   UserRef,
@@ -116,10 +118,15 @@ export const DocumentSignatures = {
       actorId: string
       mfa: boolean
       kind: 'simple' | 'qualified'
+      /** КЭП (ADR-0205): идентификатор выдан сеансом заранее — на него ведёт QR штампа. */
+      id?: string
+      certificate?: QualifiedCertificate | null
+      validation?: QualifiedValidation | null
+      signedFileId?: string | null
     },
   ): Promise<{ id: string; versionId: string | null; hash: string | null }> {
     const version = await DocumentSignatures.versionOfStep(tx, input.documentId, input.stepId)
-    const id = newId()
+    const id = input.id ?? newId()
     const hash = version?.manifestHash ?? version?.hash ?? null
     await tx.insert(documentSignatures).values({
       id,
@@ -133,6 +140,9 @@ export const DocumentSignatures = {
       manifest: version?.manifestHash ? (version.manifest as Record<string, unknown> | null) : null,
       kind: input.kind,
       mfa: input.mfa,
+      certificate: (input.certificate ?? null) as Record<string, unknown> | null,
+      validation: (input.validation ?? null) as Record<string, unknown> | null,
+      signedFileId: input.signedFileId ?? null,
     })
     return { id, versionId: version?.id ?? null, hash }
   },
@@ -170,6 +180,9 @@ export const DocumentSignatures = {
         manifest: documentSignatures.manifest,
         placement: documentSignatures.placement,
         facsimile: documentSignatures.facsimile,
+        certificate: documentSignatures.certificate,
+        validation: documentSignatures.validation,
+        signedFileId: documentSignatures.signedFileId,
         versionNumber: documentVersions.number,
         versionHash: documentVersions.hash,
         versionManifestHash: documentVersions.manifestHash,
@@ -207,9 +220,13 @@ export const DocumentSignatures = {
         facsimile: row.facsimile,
         placement: parsePlacement(row.placement),
         canPlace:
-          manager ||
-          ctx.userId === row.signerId ||
-          (row.actorId !== null && ctx.userId === row.actorId),
+          row.kind !== 'qualified' &&
+          (manager ||
+            ctx.userId === row.signerId ||
+            (row.actorId !== null && ctx.userId === row.actorId)),
+        certificate: (row.certificate as QualifiedCertificate | null) ?? null,
+        validation: (row.validation as QualifiedValidation | null) ?? null,
+        signedFileId: row.signedFileId,
       }
     })
   },

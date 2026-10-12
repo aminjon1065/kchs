@@ -1,4 +1,4 @@
-import type { DocumentRecord, UserRef } from '@kchs/contracts'
+import { type DocumentRecord, qualifiedValid, type UserRef } from '@kchs/contracts'
 import type { ProcessInstanceView, ProcessStepView } from '@kchs/process'
 import { eq } from 'drizzle-orm'
 import { ProcessView } from '~/kernel/process/index.js'
@@ -180,8 +180,28 @@ export const signatureSheet: PrintFormDefinition = {
         <td>${dateTime(signature.signedAt, pc)}</td>
         <td class="num">${signature.versionNumber ?? '—'}</td>
         <td class="mono">${signature.hash ?? t('documents.signatures.state.pending')}</td>
-        <td>${signature.mfa ? t('documents.print.sheets.mfaYes') : t('documents.print.sheets.mfaNo')}</td>
-        <td>${t(`documents.signatures.state.${signature.state}`)}</td>
+        <td>${
+          signature.kind === 'qualified' && signature.certificate
+            ? // КЭП (ADR-0205): вид подписи и владелец сертификата вместо отметки о коде
+              `${t('documents.verify.kinds.qualified')}: ${t(
+                'documents.qualified.signatures.owner',
+                {
+                  owner: signature.certificate.owner,
+                },
+              )}, ${t('documents.qualified.signatures.serial', {
+                serial: signature.certificate.serial.toUpperCase(),
+              })}`
+            : signature.mfa
+              ? t('documents.print.sheets.mfaYes')
+              : t('documents.print.sheets.mfaNo')
+        }</td>
+        <td>${
+          signature.kind === 'qualified' &&
+          signature.validation &&
+          !qualifiedValid(signature.validation)
+            ? t('documents.verify.invalid')
+            : t(`documents.signatures.state.${signature.state}`)
+        }</td>
       </tr>`,
     )
     return {

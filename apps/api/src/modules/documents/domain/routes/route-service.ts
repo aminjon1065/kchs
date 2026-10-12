@@ -23,6 +23,7 @@ import { authorize } from '~/kernel/access/authorize.js'
 import { buildUserCtxFor } from '~/kernel/access/explain.js'
 import { directory } from '~/kernel/directory/port.js'
 import { ProcessDefinitions, ProcessService } from '~/kernel/process/index.js'
+import { qualifiedSignature } from '~/kernel/signature/port.js'
 import type { UserCtx } from '~/shared/context.js'
 import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
@@ -218,10 +219,15 @@ export const DocumentRoutes = {
       ...Object.values(def.steps),
       ...def.conditions.map((condition) => condition.step as Step),
     ]
-    if (allSteps.some((step) => step.type === 'sign' && step.signatureKind === 'qualified')) {
-      throw errors.conflict('Квалифицированная подпись не подключена — маршрут не запускается', {
-        reason: 'qualified_signature',
-      })
+    // КЭП (ADR-0205): маршрут с такой подписью идёт, только если подключён УЦ
+    if (
+      allSteps.some((step) => step.type === 'sign' && step.signatureKind === 'qualified') &&
+      !(await qualifiedSignature().authority())
+    ) {
+      throw errors.conflict(
+        'Квалифицированная подпись не настроена: подключите удостоверяющий центр в «Интеграциях» — маршрут не запускается',
+        { reason: 'qualified_signature' },
+      )
     }
     // Маршрут с регистрацией: карточка должна пройти проверки регистрации заранее
     if (allSteps.some((step) => step.type === 'register')) {

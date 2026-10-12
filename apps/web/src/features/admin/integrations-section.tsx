@@ -72,10 +72,20 @@ const CONFIG_TEMPLATES: Partial<Record<IntegrationKind, Record<string, unknown>>
       requireAttachment: false,
     },
   },
+  // Удостоверяющий центр (ADR-0205): ключей нет — подписывает агент на рабочем месте
+  qes_ca: {
+    agentUrl: 'http://127.0.0.1:24321',
+    tsaUrl: 'https://tsa.example.tj/tsp',
+    tsaUsername: null,
+    trustRoots: '-----BEGIN CERTIFICATE-----\n…\n-----END CERTIFICATE-----',
+    revocation: 'hard-fail',
+    fetchRevocation: true,
+  },
 }
 
 const SECRET_TEMPLATES: Partial<Record<IntegrationKind, Record<string, string>>> = {
   imap: { password: '' },
+  qes_ca: { tsaPassword: '' },
   http: { token: '' },
 }
 
@@ -375,15 +385,17 @@ function CreateIntegrationDialog({
             hint={
               kind === 'imap'
                 ? t('admin.integrations.mailboxHint')
-                : kind === 'postgres' || kind === 'mysql'
-                  ? t('admin.integrations.configDatabaseHint')
-                  : t('admin.integrations.configHint')
+                : kind === 'qes_ca'
+                  ? t('admin.integrations.qesHint')
+                  : kind === 'postgres' || kind === 'mysql'
+                    ? t('admin.integrations.configDatabaseHint')
+                    : t('admin.integrations.configHint')
             }
           >
             <Textarea
               value={config}
               onChange={(event) => setConfig(event.target.value)}
-              rows={kind === 'imap' ? 12 : 5}
+              rows={kind === 'imap' || kind === 'qes_ca' ? 12 : 5}
             />
           </Field>
           <Field

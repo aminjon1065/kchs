@@ -14,6 +14,12 @@ export const registerStoredFile: typeof FileService.registerStored = (ctx, input
 /** Сгенерированный файл, уже лежащий под своим ключом (PDF-представление документа). */
 export const registerGeneratedFile: typeof FileService.registerGenerated = (tx, ctx, input) =>
   FileService.registerGenerated(tx, ctx, input)
+/**
+ * Новая версия файла, содержимое которой уже в хранилище под ключом версии:
+ * экземпляр со следующей квалифицированной подписью (ADR-0205). Права — у вызывающего.
+ */
+export const addStoredFileVersion: typeof FileService.addStoredVersion = (tx, ctx, input) =>
+  FileService.addStoredVersion(tx, ctx, input)
 
 /**
  * Извлечённый текст текущей версии (текстовый слой или OCR): ИИ документов

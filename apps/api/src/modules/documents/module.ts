@@ -41,6 +41,7 @@ import { documentFilePolicy } from './domain/version-service.js'
 import { registerDocumentAssistRoutes } from './http/assist-routes.js'
 import { registerMailRoutes } from './http/mail-routes.js'
 import { registerDocumentProcessRoutes } from './http/process-routes.js'
+import { registerQualifiedSignatureRoutes } from './http/qualified-routes.js'
 import { registerRenderRoutes } from './http/render-routes.js'
 import { registerDocumentRoutes } from './http/routes.js'
 import { registerSignatureRoutes } from './http/signature-routes.js'
@@ -391,6 +392,7 @@ export function registerDocumentsRoutes(route: RouteRegistrar): void {
   registerDocumentProcessRoutes(route)
   registerRenderRoutes(route)
   registerSignatureRoutes(route)
+  registerQualifiedSignatureRoutes(route)
   registerTemplateRoutes(route)
   // Очередь «Из почты» (ADR-0113)
   registerMailRoutes(route)

@@ -57,10 +57,16 @@ export function ProcessStepActions({
   objectId,
   view,
   onDone,
+  onQualifiedSign,
 }: {
   objectId: string
   view: ProcessInstanceView
   onDone?: () => void
+  /**
+   * «Подписать КЭП» (ADR-0205): квалифицированную подпись ставит модуль объекта на
+   * странице подписания. Без обработчика шаг с КЭП показывает только подсказку.
+   */
+  onQualifiedSign?: (item: ProcessMyAction) => void
 }) {
   const t = useT()
   const locale = useLocale()
@@ -161,7 +167,11 @@ export function ProcessStepActions({
         const name =
           text(step?.name, locale) ??
           t(`processes.types.${knownKey(step?.type ?? 'approval', STEP_TYPES, 'approval')}`)
-        const decisions = item.actions.filter(isDecision)
+        // Квалифицированная подпись — не решение кнопкой, а подписание агентом УЦ
+        const decisions = item.actions
+          .filter(isDecision)
+          .filter((action) => !(item.qualified && action === 'sign'))
+        const qualifiedSign = item.qualified && item.actions.includes('sign')
         return (
           <div key={item.stepId} className="flex flex-col gap-2">
             <p className="text-sm text-fg">
@@ -173,11 +183,22 @@ export function ProcessStepActions({
                 : t('processes.actions.forStep', { step: name })}
             </p>
             <div className="flex flex-wrap gap-2">
+              {qualifiedSign && onQualifiedSign ? (
+                <Button size="sm" variant="primary" onClick={() => onQualifiedSign(item)}>
+                  {t('processes.actions.signQualified')}
+                </Button>
+              ) : null}
               {decisions.map((action, index) => (
                 <Button
                   key={action}
                   size="sm"
-                  variant={index === 0 ? 'primary' : DANGER.has(action) ? 'danger' : 'secondary'}
+                  variant={
+                    index === 0 && !qualifiedSign
+                      ? 'primary'
+                      : DANGER.has(action)
+                        ? 'danger'
+                        : 'secondary'
+                  }
                   loading={decide.isPending && decide.variables?.action === action}
                   disabled={decide.isPending}
                   onClick={() => run(item, action)}
@@ -186,6 +207,9 @@ export function ProcessStepActions({
                 </Button>
               ))}
             </div>
+            {qualifiedSign && !onQualifiedSign ? (
+              <p className="text-xs text-fg-muted">{t('processes.actions.qualifiedHint')}</p>
+            ) : null}
             {item.actions.includes('delegate') || item.actions.includes('add_approver') ? (
               <div className="flex flex-wrap gap-2">
                 {item.actions.includes('delegate') ? (

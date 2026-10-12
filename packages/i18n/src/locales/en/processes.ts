@@ -102,6 +102,8 @@ export const processes: DeepPartial<Dictionary['processes']> = {
     done: 'Done',
     forStep: 'Your decision: {step}',
     forStepOnBehalf: 'Decision for {name}: {step}',
+    signQualified: 'Sign with QES',
+    qualifiedHint: 'This step is signed with a qualified signature — in the document card',
     delegate: 'Hand over',
     delegateHint: 'The step goes to the selected employee — they will decide',
     addApprover: 'Add approver',

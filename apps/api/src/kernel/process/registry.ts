@@ -61,6 +61,11 @@ export interface ProcessDecisionInfo {
   action: string
   comment: string | null
   fileIds: string[]
+  /**
+   * Данные действия от модуля: у квалифицированной подписи — сеанс подписания,
+   * подпись которого движок уже встроил и проверил (ADR-0205).
+   */
+  payload: Record<string, unknown>
 }
 
 export interface ProcessObjectProvider {

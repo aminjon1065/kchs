@@ -471,6 +471,7 @@ export const DocumentRenders = {
         signerId: documentSignatures.signerId,
         actorId: documentSignatures.actorId,
         placement: documentSignatures.placement,
+        kind: documentSignatures.kind,
       })
       .from(documentSignatures)
       .where(
@@ -482,6 +483,9 @@ export const DocumentRenders = {
       .orderBy(asc(documentSignatures.signedAt))
     const last = signatures.at(-1)
     if (!last) return null
+    // Экземпляр с КЭП (ADR-0205) строит подписание: наложение поверх перестроило бы
+    // подписанные байты и сломало подписи PAdES
+    if (signatures.some((signature) => signature.kind === 'qualified')) return null
     const requestedBy = last.actorId ?? last.signerId
     const places = signatures
       .map((signature) => {

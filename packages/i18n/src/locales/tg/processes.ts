@@ -109,6 +109,8 @@ export const processes: DeepPartial<Dictionary['processes']> = {
     done: 'Тайёр',
     forStep: 'Қарори шумо: {step}',
     forStepOnBehalf: 'Қарор ба ҷои {name}: {step}',
+    signQualified: 'Имзо бо ИЭТ',
+    qualifiedHint: 'Ин қадам бо имзои тахассусӣ имзо мешавад — дар корти ҳуҷҷат',
     delegate: 'Вогузор кардан',
     delegateHint: 'Қадам ба корманди интихобшуда мегузарад — қарорро ӯ қабул мекунад',
     addApprover: 'Илова кардани мувофиқакунанда',

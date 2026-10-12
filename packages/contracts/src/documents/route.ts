@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { UserRef } from '../auth/session.js'
 import { LangText, Timestamp, Uuid } from '../common/primitives.js'
+import { QualifiedCertificate, QualifiedValidation } from './qualified.js'
 
 /**
  * Маршруты документа (08-documents.md §4, §9, ADR-0083): опубликованные
@@ -174,6 +175,12 @@ export const DocumentSignature = z.object({
   placement: SignaturePlacement.nullable().optional(),
   /** Может ли смотрящий поправить место факсимиле. */
   canPlace: z.boolean().optional(),
+  /** КЭП (ADR-0205): сертификат подписанта — владелец, издатель, номер, срок действия. */
+  certificate: QualifiedCertificate.nullable().optional(),
+  /** КЭП: итог последней проверки — цепочка, отзыв, штамп времени. */
+  validation: QualifiedValidation.nullable().optional(),
+  /** КЭП: PDF, в который встроена подпись. */
+  signedFileId: Uuid.nullable().optional(),
 })
 export type DocumentSignature = z.infer<typeof DocumentSignature>
 
