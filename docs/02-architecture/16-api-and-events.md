@@ -60,6 +60,7 @@
 | jobs | `job.queued`, `job.started`, `job.progress` (только realtime, не в outbox), `job.finished`, `job.failed`, `job.cancelled` (jobId; актор — кто отменил, ADR-0172) |
 | admin | `settings.changed`, `acl.changed`, `role.assigned`, `backup.completed`, `backup.failed`, `announcement.published`, `announcement.withdrawn`, `integration.configured` (kind, enabled — ADR-0098) |
 | directory | `directory.synced` (runId, mode, status, created, updated, blocked — ADR-0098) |
+| edms | `edms.send_queued` (sendId, recipient, versionNo), `edms.sent` (sendId, externalId, attempts), `edms.send_failed` (sendId, attempts, error) — объект события — документ; порт `EdmsExchange` модуля интеграций, ADR-0206. Нагрузка `source.synced` и `source.failed` получила необязательное поле `kind` (`feed`, `database`) — канал в журнале подключений |
 
 Конверт события — `contracts/events.md`. Правило: событие описывает **факт**, а не намерение; полезная нагрузка содержит идентификаторы и минимальный снимок изменённых полей, не полные объекты.
 
