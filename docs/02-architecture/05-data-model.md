@@ -137,7 +137,8 @@ notebooks(id pk → objects, cells jsonb, params jsonb)      -- тело так�
 reports(id pk → objects, template jsonb, params_schema jsonb, output_formats text[], schedule text, distribution jsonb, register_as_type_id)
 report_runs(id, report_id, params jsonb, status, output_file_ids jsonb, job_id, created_by, created_at)
 forms(id pk → objects, dataset_id, schema jsonb, assignments jsonb, period text, settings jsonb)
-form_submissions(id, form_id, period_key text, submitted_by, unit_id, status text, row_ids bigint[], submitted_at, reviewed_by, comment)
+form_submissions(id, form_id, period_key text, submitted_by, unit_id, status text, row_ids bigint[], submitted_at, reviewed_by, comment,
+                 submit_key uuid)   -- ключ идемпотентности последней сдачи устройства, ADR-0204
 alerts(id pk → objects, metric_id, condition jsonb, dimensions jsonb, schedule text, channels jsonb, recipients jsonb, cooldown_minutes, last_fired_at)
 alert_events(id, alert_id, fired_at, value numeric, dimension_values jsonb, notified jsonb)
 quality_rules(id, dataset_id, kind text, config jsonb, severity)  quality_results(id, rule_id, version_id, passed bool, failed_count, sample jsonb, at)
@@ -197,6 +198,10 @@ feature_edits(id bigint identity, layer_id → layers, dataset_id, row_id bigint
               base_ver int null, note text, status text, author_id, reviewer_id, comment text, created_at, reviewed_at)
   idx: (layer_id, status, created_at desc), (author_id, created_at desc)   -- предложения правок модерируемых слоёв, ADR-0076
 tile_cache — в Redis (ключ layer:version:filterhash:z/x/y, TTL) и/или на диске; для S2 — Varnish/nginx cache перед API
+devices(id pk → objects, external_id text unique, kind text, forces_code text, unit_id, reporter_id → users, note, active bool,
+        last_at, last_lat, last_lon, last_speed, last_heading, last_battery, projected_at, projected_link)   -- ADR-0203
+device_positions(device_id → devices, at, received_at, lat, lon, speed, heading, battery, source)  pk(device_id, at)
+  PARTITION BY RANGE (at) — месяцы и default; старше срока хранения удаляются целиком (ops.drop_month_partitions_before)
 ```
 
 ## Документы
