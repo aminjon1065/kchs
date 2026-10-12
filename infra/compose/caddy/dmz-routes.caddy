@@ -1,6 +1,6 @@
 # Белый список шлюза DMZ — сгенерирован из таблицы маршрутов (ADR-0200).
 # Не править руками: pnpm --filter @kchs/api dmz:gen; проверка — dmz:gen --check.
-# Шаблонов путей: без входа — 2, по токену API — 425,
+# Шаблонов путей: без входа — 3, по токену API — 427,
 # закрытых, заслонённых открытыми, — 2.
 
 @kchs_dmz_closed expression <<CEL
@@ -11,6 +11,7 @@
 @kchs_dmz_public expression <<CEL
 	   (path_regexp('^/api/v1/hooks/[^/]+/[^/]+$') && (method('POST')))
 	|| (path_regexp('^/api/v1/hooks/rules/[^/]+/[^/]+$') && (method('POST')))
+	|| (path_regexp('^/api/v1/verify/[^/]+$') && (method('GET')))
 	CEL
 
 @kchs_dmz_token expression <<CEL
@@ -150,6 +151,7 @@
 	|| (path_regexp('^/api/v1/documents/[^/]+/routes$') && (method('GET') || method('POST')))
 	|| (path_regexp('^/api/v1/documents/[^/]+/routes/preview$') && (method('POST')))
 	|| (path_regexp('^/api/v1/documents/[^/]+/signatures$') && (method('GET')))
+	|| (path_regexp('^/api/v1/documents/[^/]+/signatures/[^/]+/placement$') && (method('PUT')))
 	|| (path_regexp('^/api/v1/documents/[^/]+/versions$') && (method('GET') || method('POST')))
 	|| (path_regexp('^/api/v1/documents/[^/]+/versions/compare$') && (method('GET')))
 	|| (path_regexp('^/api/v1/documents/bulk$') && (method('POST')))
@@ -427,6 +429,7 @@
 	|| (path_regexp('^/api/v1/users$') && (method('GET') || method('POST')))
 	|| (path_regexp('^/api/v1/users/[^/]+$') && (method('GET') || method('PATCH')))
 	|| (path_regexp('^/api/v1/users/[^/]+/clearance$') && (method('PUT')))
+	|| (path_regexp('^/api/v1/users/[^/]+/facsimile$') && (method('GET') || method('PUT') || method('DELETE')))
 	|| (path_regexp('^/api/v1/users/[^/]+/passkeys$') && (method('GET') || method('DELETE')))
 	|| (path_regexp('^/api/v1/users/[^/]+/reset-mfa$') && (method('POST')))
 	|| (path_regexp('^/api/v1/users/[^/]+/reset-password$') && (method('POST')))

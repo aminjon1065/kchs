@@ -174,8 +174,9 @@ export const documentsRoutes = defineRoutes({
     body: SignaturePlacementInput,
     response: { 200: DocumentSignature },
   },
-  // Страница проверки подписи по QR (ADR-0198): HTML без входа
-  'GET /verify/:id': { params: IdParam },
+  // Страница проверки подписи по QR (ADR-0198): HTML без входа, открыта и через
+  // шлюз DMZ (ADR-0200) — QR на бумаге читают вне Комитета
+  'GET /verify/:id': { params: IdParam, exposure: 'public' },
   'POST /internal/documents/renders/:id/start': {
     params: IdParam,
     response: { 200: ENGINE_CALLBACKS.documentRenderStart.reply },
