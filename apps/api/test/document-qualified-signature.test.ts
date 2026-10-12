@@ -5,6 +5,7 @@ import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { runInNewContext } from 'node:vm'
 import { and, eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
@@ -872,6 +873,151 @@ describe('несколько подписантов', () => {
       .from(documentQesSessions)
       .where(eq(documentQesSessions.id, boss.json().id))
     expect(old).toMatchObject({ state: 'failed', reason: 'superseded' })
+  })
+})
+
+describe('скрипт страницы подписания', () => {
+  it('агент → сертификат → подготовка → подпись агентом → проверка: страница доводит до «Документ подписан»', async () => {
+    const doc = await memoWithPdf()
+    const started = await startRoute(doc.id, `qes_one_${run}`)
+    expect(started.statusCode, started.body).toBe(200)
+    const step = await myQualifiedStep(people.boss, started.json().id)
+    const session = (await startSession(people.boss, doc.id, step.stepId)).json()
+    const ticket = ticketOf(session.signingUrl)
+    const html = (
+      await call(fx.app, {
+        url: `/qes/sessions/${session.id}/page?t=${encodeURIComponent(ticket)}`,
+        as: people.boss,
+      })
+    ).body
+    const script = /<script nonce="[^"]+">([\s\S]*?)<\/script>/.exec(html)?.[1] ?? ''
+    const cfgText = /<script id="cfg" type="application\/json">([\s\S]*?)<\/script>/.exec(html)?.[1]
+    expect(script).not.toBe('')
+    const cfg = JSON.parse(cfgText ?? '{}')
+    expect(cfg.agentUrl).toBe('http://127.0.0.1:24321')
+    expect(cfg.base).toMatch(new RegExp(`/api/v1/qes/sessions/${session.id}$`))
+
+    // Агент УЦ на рабочем месте: выбор сертификата и подпись хэша
+    const agentCalls: Array<{ path: string; body: Body }> = []
+    const engineSteps: string[] = []
+    const json = (status: number, body: unknown) => ({
+      ok: status < 400,
+      status,
+      json: async () => body,
+    })
+    const fetchStub = async (url: string, init?: { method?: string; body?: string }) => {
+      const body = init?.body ? JSON.parse(init.body) : undefined
+      if (url.startsWith(cfg.agentUrl)) {
+        const path = url.slice(cfg.agentUrl.length)
+        agentCalls.push({ path, body })
+        if (path === '/v1/certificate')
+          return json(200, { certificate: ca.signerDer.toString('base64') })
+        return json(200, { cms: Buffer.from(`CMS над ${body.digest}`).toString('base64') })
+      }
+      // Страница ходит только в свой сеанс — как разрешает её CSP
+      expect(url.startsWith(`${cfg.base}/`)).toBe(true)
+      const target = new URL(url)
+      const response = await fx.app.inject({
+        method: (init?.method ?? 'GET') as 'GET' | 'POST',
+        url: `${target.pathname}${target.search}`,
+        ...(body ? { payload: body } : {}),
+      })
+      // Движок отвечает на поставленные шаги, как настоящий
+      if (target.pathname.endsWith('/certificate') && response.statusCode === 200) {
+        engineSteps.push('prepare')
+        await engine(sessionPath(session.id, 'start'), { step: 'prepare' })
+        await engine(sessionPath(session.id, 'done'), {
+          step: 'prepare',
+          status: 'ready',
+          digest: sha256(Buffer.from('страница')),
+          reservedStart: 100,
+          reservedEnd: 65_638,
+          size: 5000,
+          sha256: sha256(Buffer.from('prepared')),
+        })
+      }
+      if (target.pathname.endsWith('/result') && response.statusCode === 200) {
+        engineSteps.push('attach')
+        const plan = await engine(sessionPath(session.id, 'start'), { step: 'attach' })
+        expect(Buffer.from(plan.json().cms, 'base64').toString()).toContain('CMS над')
+        await engine(sessionPath(session.id, 'done'), {
+          step: 'attach',
+          status: 'ready',
+          size: 6000,
+          sha256: sha256(Buffer.from('signed by page')),
+          certificate: certificateReport(ca.signerDer),
+          validation: validation(),
+        })
+      }
+      return json(response.statusCode, JSON.parse(response.body || '{}'))
+    }
+
+    type Element = {
+      textContent: string
+      className: string
+      disabled: boolean
+      hidden: boolean
+      listeners: Record<string, () => void>
+      addEventListener: (type: string, listener: () => void) => void
+    }
+    const element = (): Element => {
+      const node: Element = {
+        textContent: '',
+        className: '',
+        disabled: false,
+        hidden: false,
+        listeners: {},
+        addEventListener: (type, listener) => {
+          node.listeners[type] = listener
+        },
+      }
+      return node
+    }
+    const nodes: Record<string, Element> = {
+      status: element(),
+      detail: element(),
+      sign: element(),
+    }
+    const documentStub = {
+      getElementById: (id: string) => (id === 'cfg' ? { textContent: cfgText } : nodes[id]),
+    }
+    runInNewContext(script, {
+      document: documentStub,
+      fetch: fetchStub,
+      setTimeout,
+      encodeURIComponent,
+      JSON,
+      Promise,
+      Error,
+      URL,
+    })
+    const settle = async (done: () => boolean) => {
+      for (let attempt = 0; attempt < 200 && !done(); attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 50))
+      }
+    }
+    await settle(() => nodes.status?.textContent === cfg.text.ready)
+    expect(nodes.status?.textContent).toBe(cfg.text.ready)
+
+    nodes.sign?.listeners.click?.()
+    await settle(() => nodes.status?.textContent === cfg.text.signed)
+    expect(nodes.status?.textContent, nodes.detail?.textContent).toBe(cfg.text.signed)
+    expect(nodes.sign?.hidden).toBe(true)
+    expect(agentCalls.map((item) => item.path)).toEqual(['/v1/certificate', '/v1/sign'])
+    const signRequest = agentCalls[1]?.body
+    expect(signRequest).toMatchObject({
+      format: 'cades-detached',
+      digestAlgorithm: 'sha256',
+      digest: Buffer.from(sha256(Buffer.from('страница')), 'hex').toString('base64'),
+      certificate: ca.signerDer.toString('base64'),
+      certificateSha256: sha256(ca.signerDer),
+    })
+    expect(engineSteps).toEqual(['prepare', 'attach'])
+    const [signature] = await signaturesOf(doc.id)
+    expect(signature).toMatchObject({
+      kind: 'qualified',
+      certificate: { owner: 'Саидзода Тахир Раҳимович' },
+    })
   })
 })
 
