@@ -9,6 +9,7 @@ import {
   mfaFactors,
   serviceLayers,
   ssoAuthRequests,
+  userFacsimiles,
   webhooks,
 } from '~/db-schema.js'
 import { reencryptSecret } from '~/shared/crypto/secrets.js'
@@ -72,6 +73,12 @@ export const ENCRYPTED_COLUMNS: readonly EncryptedColumn[] = [
     id: ssoAuthRequests.id,
     column: ssoAuthRequests.codeVerifierEnc,
     label: 'Незавершённые входы через IdP',
+  },
+  {
+    table: userFacsimiles,
+    id: userFacsimiles.userId,
+    column: userFacsimiles.png,
+    label: 'Факсимиле сотрудников',
   },
 ]
 

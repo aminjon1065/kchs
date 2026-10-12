@@ -26,7 +26,9 @@ registerLifecycle()
 const { DocumentsSeed } = await import('../src/modules/documents/public.js')
 const { DocumentRenders } = await import('../src/modules/documents/domain/render-service.js')
 const { systemCtx } = await import('../src/shared/context.js')
-const { auditLog, documentRenders, documentSignatures } = await import('../src/db-schema.js')
+const { auditLog, documentRenders, documentSignatures, userFacsimiles } = await import(
+  '../src/db-schema.js'
+)
 
 const run = Date.now().toString(36)
 let fx: TestContext
@@ -181,6 +183,12 @@ describe('факсимиле сотрудника', () => {
     expect(own.dataUri).toMatch(/^data:image\/png;base64,/)
     const bytes = Buffer.from(own.dataUri.split(',')[1], 'base64')
     expect(bytes.includes(Buffer.from('secret-metadata'))).toBe(false)
+    // В базе — шифр мастер-ключа, а не картинка (подпись человека в дампе не видна)
+    const [stored] = await db()
+      .select({ png: userFacsimiles.png })
+      .from(userFacsimiles)
+      .where(eq(userFacsimiles.userId, people.boss.id))
+    expect(stored?.png.subarray(0, 4).equals(bytes.subarray(0, 4))).toBe(false)
 
     // Администратор видит только, есть ли факсимиле
     const state = await call(fx.app, { url: `/users/${people.boss.id}/facsimile`, as: fx.admin })

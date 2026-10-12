@@ -249,6 +249,7 @@ export const userFacsimiles = pgTable('user_facsimiles', {
   userId: uuid('user_id')
     .primaryKey()
     .references(() => users.id, { onDelete: 'cascade' }),
+  /** PNG, зашифрованный мастер-ключом (в реестре ротации `cli/rotation.ts`). */
   png: bytea('png').notNull(),
   sha256: text('sha256').notNull(),
   width: integer('width').notNull(),
