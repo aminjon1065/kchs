@@ -1,0 +1,1 @@
+ALTER TABLE "edms_sends" ADD COLUMN "payload" jsonb DEFAULT '{}'::jsonb NOT NULL;

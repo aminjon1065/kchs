@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { Timestamp, Uuid } from '../common/primitives.js'
 
 /**
- * События: Модуль «Интеграции»: токены, интеграции, вебхуки, пакет конфигурации (ADR-0097). Домены `integration`, `webhook`, `token`, `config` целиком
+ * События: Модуль «Интеграции»: токены, интеграции, вебхуки, пакет конфигурации (ADR-0097), отправки в ЭДО (ADR-0206). Домены `integration`, `webhook`, `token`, `config`, `edms` целиком
  * принадлежат этому файлу (ADR-0189); общий каталог собирается в `catalog.ts`.
  */
 export const INTEGRATIONS_EVENTS = {
@@ -69,6 +69,17 @@ export const INTEGRATIONS_EVENTS = {
     /** Подпись отправителя из заголовка, если он её прислал. */
     signature: z.string().nullable().default(null),
   }),
+  // ── отправки в государственную систему ЭДО (порт EdmsExchange, ADR-0206) ──
+  /** Отправка документа поставлена в очередь; объект события — документ. */
+  'edms.send_queued': z.object({
+    sendId: Uuid,
+    recipient: z.string(),
+    versionNo: z.number().int().nullable(),
+  }),
+  /** Система ЭДО приняла документ. */
+  'edms.sent': z.object({ sendId: Uuid, externalId: z.string(), attempts: z.number().int() }),
+  /** Повторы исчерпаны или отказ без повтора. */
+  'edms.send_failed': z.object({ sendId: Uuid, attempts: z.number().int(), error: z.string() }),
   /** Пакет конфигурации выгружен. */
   'config.exported': z.object({
     sections: z.array(z.string()),

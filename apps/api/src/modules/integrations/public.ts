@@ -9,6 +9,15 @@ export {
   externalValue,
 } from './domain/database-access.js'
 export {
+  EDMS_DISPATCH_JOB,
+  EdmsError,
+  type EdmsExchange,
+  type EdmsPackage,
+  EdmsSends,
+  edmsExchange,
+  registerEdmsExchange,
+} from './domain/edms.js'
+export {
   externalAccess,
   GATEWAY_ZONE_HEADER,
   renderGatewayRoutes,

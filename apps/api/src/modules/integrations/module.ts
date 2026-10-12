@@ -9,6 +9,7 @@ import type { RouteRegistrar } from '~/shared/http/route.js'
 import { INTEGRATIONS_AUDIT } from './domain/audit-actions.js'
 import { registerIntegrationConfigSections } from './domain/config-sections.js'
 import { CONNECTIONS_SYSTEM_DATASET } from './domain/connections-dataset.js'
+import { EDMS_DISPATCH_JOB, EdmsSends } from './domain/edms.js'
 import { registerIntegrationObjectTypes } from './domain/object-types.js'
 import { flushTokenUsage, pruneUsage, recordUsageEvent, USAGE_EVENT_TYPES } from './domain/usage.js'
 import {
@@ -80,6 +81,12 @@ export function registerIntegrationsBackground(): void {
     queue: 'maintenance',
     name: USAGE_FLUSH_JOB,
     handle: async () => ({ flushed: await flushTokenUsage() }),
+  })
+  // Очередь отправок в ЭДО (ADR-0206): расписание объявляет адаптер, когда он появится
+  registerJobHandler({
+    queue: EDMS_DISPATCH_JOB.queue,
+    name: EDMS_DISPATCH_JOB.name,
+    handle: async () => EdmsSends.processDue(),
   })
 }
 

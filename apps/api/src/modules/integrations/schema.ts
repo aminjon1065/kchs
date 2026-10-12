@@ -233,6 +233,11 @@ export const edmsSends = pgTable(
     versionNo: integer('version_no'),
     /** Адресат в системе ЭДО: код организации по справочнику системы. */
     recipient: text('recipient').notNull(),
+    /**
+     * Пакет отправки, собранный модулем документов: номер и дата регистрации, тема,
+     * файлы версии с хэшами, подписи. Интеграции документы не читают (ADR-0181).
+     */
+    payload: jsonbObject('payload'),
     /** Ключ идемпотентности отправки: повтор не создаёт второй документ у адресата. */
     idempotencyKey: text('idempotency_key').notNull().unique(),
     /** `pending` → `sent` → `delivered`/`rejected`; `failed` — повторы исчерпаны. */
