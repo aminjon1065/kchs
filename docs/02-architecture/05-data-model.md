@@ -238,6 +238,12 @@ document_signatures(id, document_id, version_id null, step_id null → process_s
                     manifest jsonb null, placement jsonb null, facsimile bool)
   idx: (document_id), (version_id)   -- простая ЭП; hash null — движок ещё считает хэш версии
   -- ADR-0198: hash — хэш манифеста версии (manifest), placement — место факсимиле на экземпляре
+  -- ADR-0205: certificate jsonb, validation jsonb, signed_file_id → objects — КЭП (PAdES-B-T)
+document_qes_sessions(id, document_id, version_id, step_id → process_steps, signature_id uq,
+                      signer_id, actor_id, web_session_id, state, reason, error, certificate jsonb,
+                      certificate_der, source jsonb, target jsonb, prepared jsonb, cms text null,
+                      validation jsonb, expires_at, created_at, updated_at)
+  idx: (version_id, state), (document_id)   -- сеанс квалифицированной подписи (ADR-0205)
 -- проект (08-documents.md §4, §9): approvals — заменены строками движка процессов (ADR-0083);
 -- signatures.certificate, sheet_file_id — квалифицированная подпись и лист подписи (печатные формы)
 approvals(id, document_id, version_id, step_id, approver_id, on_behalf_of, decision text, comment, remarks_file_id, decided_at)
