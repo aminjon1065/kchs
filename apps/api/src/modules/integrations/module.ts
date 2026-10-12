@@ -4,10 +4,13 @@ import { registerFeature } from '~/kernel/features/registry.js'
 import { registerJobHandler } from '~/kernel/jobs/runner.js'
 import { queue } from '~/kernel/jobs/service.js'
 import { declareSchedule } from '~/kernel/schedules/index.js'
+import { registerSystemDataset } from '~/kernel/system-datasets.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { INTEGRATIONS_AUDIT } from './domain/audit-actions.js'
 import { registerIntegrationConfigSections } from './domain/config-sections.js'
+import { CONNECTIONS_SYSTEM_DATASET } from './domain/connections-dataset.js'
 import { registerIntegrationObjectTypes } from './domain/object-types.js'
+import { flushTokenUsage, pruneUsage, recordUsageEvent, USAGE_EVENT_TYPES } from './domain/usage.js'
 import {
   deliverOnce,
   dispatchEvent,
@@ -20,6 +23,7 @@ import { registerApiTokenRoutes } from './http/token-routes.js'
 import { registerWebhookRoutes } from './http/webhook-routes.js'
 
 const PRUNE_JOB = 'webhooks.prune-deliveries'
+const USAGE_FLUSH_JOB = 'integrations.usage-flush'
 
 /**
  * Модуль «Интеграции» (P5-E02, P5-E06, ADR-0097): токены публичного API,
@@ -37,6 +41,8 @@ export function registerIntegrationsObjectTypes(): void {
 
   registerIntegrationObjectTypes()
   registerIntegrationConfigSections()
+  // Подключения шлюза по суткам (ADR-0206) — источник показателей дашборда «Интеграции»
+  registerSystemDataset(CONNECTIONS_SYSTEM_DATASET)
 }
 
 export function registerIntegrationsRoutes(route: RouteRegistrar): void {
@@ -59,10 +65,21 @@ export function registerIntegrationsBackground(): void {
     concurrency: 8,
     handle: async (job) => deliverOnce((job.data as { deliveryId: string }).deliveryId),
   })
+  // Учёт подключений (ADR-0206): передачи из событий — сразу в суточные счётчики
+  registerSubscriber({
+    name: 'integrations-usage',
+    types: USAGE_EVENT_TYPES,
+    handle: (event) => recordUsageEvent(event),
+  })
   registerJobHandler({
     queue: 'maintenance',
     name: PRUNE_JOB,
-    handle: async () => ({ deleted: await pruneDeliveries() }),
+    handle: async () => ({ deleted: await pruneDeliveries(), usage: await pruneUsage() }),
+  })
+  registerJobHandler({
+    queue: 'maintenance',
+    name: USAGE_FLUSH_JOB,
+    handle: async () => ({ flushed: await flushTokenUsage() }),
   })
 }
 
@@ -76,6 +93,13 @@ export function declareIntegrationsSchedules(): void {
     name: PRUNE_JOB,
     pattern: '30 3 * * *',
     labelKey: 'schedules.jobs.webhooksPrune',
+  })
+  // Запросы токенов копятся в Redis и раз в минуту сбрасываются в суточные счётчики
+  declareSchedule({
+    queue: 'maintenance',
+    name: USAGE_FLUSH_JOB,
+    pattern: '* * * * *',
+    labelKey: 'schedules.jobs.integrationsUsageFlush',
   })
 }
 

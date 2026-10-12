@@ -202,6 +202,7 @@ export const data = {
     meetings: 'Встречи',
     events: 'События',
     territories: 'Территории',
+    connections: 'Подключения',
   },
   catalog: {
     upload: 'Загрузить файл',

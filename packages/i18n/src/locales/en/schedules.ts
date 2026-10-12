@@ -58,5 +58,6 @@ export const schedules: DeepPartial<Dictionary['schedules']> = {
     eventsTrim: 'Events: trim streams to the slowest group',
     knowledgeReview: 'Knowledge base: review pages by due date',
     webhooksPrune: 'Webhooks: prune delivery log',
+    integrationsUsageFlush: 'Integrations: token request accounting',
   },
 }

@@ -674,6 +674,7 @@ export const SourceService = {
             inserted: counts.inserted,
             updated: counts.updated,
             version,
+            kind: 'database',
           },
         })
         return { rows: read, ...counts, version }
@@ -733,7 +734,12 @@ export const SourceService = {
       await publishEvent(tx, ctx, {
         type: 'source.failed',
         object: eventObject(sourceId, object),
-        payload: { jobId, runId: run?.id ?? sourceId, error: message.slice(0, 1000) },
+        payload: {
+          jobId,
+          runId: run?.id ?? sourceId,
+          error: message.slice(0, 1000),
+          kind: updated.kind,
+        },
       })
     })
   },
