@@ -1,5 +1,6 @@
 import {
   CONFIG_PACKAGE_VERSION,
+  CONFIG_SECTIONS,
   type ConfigDiffEntry,
   type ConfigExportInput,
   type ConfigImportInput,
@@ -154,8 +155,14 @@ export const ConfigPackages = {
 
     const applied: ConfigImportResult['applied'] = []
     const skipped: ConfigImportResult['skipped'] = []
+    const relink: ConfigItem[] = []
 
-    for (const item of input.package.items) {
+    // Разделы применяются в порядке каталога: журналы раньше типов документов, типы —
+    // раньше шаблонов, какой бы порядок ни был в файле пакета
+    const order = (section: ConfigSection) => CONFIG_SECTIONS.indexOf(section)
+    const items = [...input.package.items].sort((a, b) => order(a.section) - order(b.section))
+
+    for (const item of items) {
       const id = `${item.section}:${item.key}`
       const entry = byKey.get(id)
       if (!entry) continue
@@ -179,7 +186,10 @@ export const ConfigPackages = {
       if (!provider) continue
       const action = await provider.apply(ctx, item)
       applied.push({ section: item.section, key: item.key, action })
+      if (provider.relink) relink.push(item)
     }
+    // Ссылки на записи, приехавшие в этом же пакете позже
+    for (const item of relink) await configSection(item.section)?.relink?.(ctx, item)
 
     const sections = [...new Set(applied.map((a) => a.section))]
     // Разделы применяются каждый своей транзакцией; итог — событие и аудит вместе

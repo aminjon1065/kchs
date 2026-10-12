@@ -386,6 +386,8 @@ export const admin: DeepPartial<Dictionary['admin']> = {
       integrations: 'Integrations',
       webhooks: 'Webhooks',
       documentTypes: 'Document types',
+      journals: 'Registration journals',
+      documentTemplates: 'Document templates',
       processDefinitions: 'Routes',
     },
     statuses: {

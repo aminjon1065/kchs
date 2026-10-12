@@ -63,6 +63,8 @@ export const journals = pgTable(
     id: uuid('id')
       .primaryKey()
       .references(() => objects.id, { onDelete: 'cascade' }),
+    /** Стабильный ключ переноса между контурами (ADR-0206, N42): название меняется. */
+    key: text('key').notNull(),
     name: text('name').notNull(),
     prefix: text('prefix').notNull().default(''),
     format: text('format').notNull(),
@@ -72,7 +74,7 @@ export const journals = pgTable(
     typeIds: uuid('type_ids').array().notNull().default(sql`'{}'::uuid[]`),
     isActive: boolean('is_active').notNull().default(true),
   },
-  (t) => [index('journals_unit_idx').on(t.unitId)],
+  (t) => [index('journals_unit_idx').on(t.unitId), uniqueIndex('journals_key_uq').on(t.key)],
 )
 
 /** Счётчик журнала по году: строка блокируется в транзакции регистрации. */
@@ -593,6 +595,8 @@ export const templates = pgTable(
       .references(() => objects.id, { onDelete: 'cascade' }),
     /** Вид шаблона: пока только `docx` (docxtpl). */
     kind: text('kind').notNull().default('docx'),
+    /** Стабильный ключ переноса между контурами (ADR-0206). */
+    key: text('key').notNull(),
     name: text('name').notNull(),
     description: text('description'),
     /** Тип документа шаблона; без типа — шаблон подходит любому. */
@@ -611,6 +615,7 @@ export const templates = pgTable(
   },
   (t) => [
     index('templates_document_type_idx').on(t.documentTypeId),
+    uniqueIndex('templates_key_uq').on(t.key),
     check('templates_kind_check', sql`${t.kind} in ('docx')`),
   ],
 )

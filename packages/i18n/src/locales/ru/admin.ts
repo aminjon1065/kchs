@@ -385,6 +385,8 @@ export const admin = {
       integrations: 'Интеграции',
       webhooks: 'Вебхуки',
       documentTypes: 'Типы документов',
+      journals: 'Журналы регистрации',
+      documentTemplates: 'Шаблоны документов',
       processDefinitions: 'Маршруты',
     },
     statuses: {

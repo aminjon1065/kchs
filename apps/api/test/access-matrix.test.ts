@@ -944,9 +944,13 @@ const FIXTURES: Record<string, TypeFixture> = {
           systemCtx('test', { initiatorId: fx.admin.id }),
           { type: 'journal', spaceId: fx.spaceId, title, meta: {} },
         )
-        await tx
-          .insert(journals)
-          .values({ id: object.id, name: title, prefix: 'М', format: '{prefix}-{seq}' })
+        await tx.insert(journals).values({
+          id: object.id,
+          key: `matrix_${object.id.slice(0, 8)}`,
+          name: title,
+          prefix: 'М',
+          format: '{prefix}-{seq}',
+        })
         return object.id
       })
       return { id, title }
@@ -971,7 +975,9 @@ const FIXTURES: Record<string, TypeFixture> = {
           systemCtx('test', { initiatorId: fx.admin.id }),
           { type: 'template', spaceId: fx.spaceId, title, meta: {} },
         )
-        await tx.insert(templates).values({ id: object.id, name: title })
+        await tx
+          .insert(templates)
+          .values({ id: object.id, key: `matrix_${object.id.slice(0, 8)}`, name: title })
         return object.id
       })
       return { id, title }

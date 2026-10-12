@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { UserRef } from '../auth/session.js'
 import { DateOnly, Timestamp, Uuid } from '../common/primitives.js'
+import { DirectoryKey } from './directory-key.js'
 import { DEFAULT_NUMBER_FORMAT, numberFormatIssue } from './numbering.js'
 
 /** Сброс счётчика журнала: с нового года или никогда (08-documents.md §5). */
@@ -25,6 +26,8 @@ export type JournalUnitRef = z.infer<typeof JournalUnitRef>
  */
 export const JournalRecord = z.object({
   id: Uuid,
+  /** Стабильный ключ (ADR-0206): по нему журнал узнаётся в пакете конфигурации. */
+  key: z.string(),
   name: z.string(),
   prefix: z.string(),
   format: z.string(),
@@ -47,6 +50,8 @@ export const JournalRecord = z.object({
 export type JournalRecord = z.infer<typeof JournalRecord>
 
 export const JournalCreateInput = z.object({
+  /** Не задан — по названию (транслитерация), с суффиксом, если такой уже есть. */
+  key: DirectoryKey.optional(),
   name: z.string().trim().min(1).max(200),
   prefix: z.string().trim().max(32).default(''),
   format: NumberFormat.default(DEFAULT_NUMBER_FORMAT),
@@ -57,6 +62,7 @@ export const JournalCreateInput = z.object({
 export type JournalCreateInput = z.infer<typeof JournalCreateInput>
 
 export const JournalUpdateInput = z.object({
+  key: DirectoryKey.optional(),
   name: z.string().trim().min(1).max(200).optional(),
   prefix: z.string().trim().max(32).optional(),
   format: NumberFormat.optional(),

@@ -604,6 +604,11 @@ export const documents: DeepPartial<Dictionary['documents']> = {
     create: 'New journal',
     name: 'Name',
     prefix: 'Prefix',
+    key: 'Key',
+    keyHint:
+      'Stable key for moving configuration between installations: Latin letters, digits and _',
+    keyInvalid:
+      'Key: lowercase Latin letters, digits and _, at least 2 characters, starting with a letter',
     format: 'Number template',
     formatHint:
       'Placeholders: {case.index} — nomenclature file index (chosen at registration), {prefix}, {seq:04}, {yy}, {yyyy}, {unit.code}',
