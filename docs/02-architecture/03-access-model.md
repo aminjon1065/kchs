@@ -89,7 +89,7 @@
 
 ## Способности (capabilities)
 
-Глобальные разрешения действий, не привязанные к объекту. Присваиваются ролями (`roles`, `role_capabilities`, `user_roles`; роли можно ограничить пространством). Примеры: `spaces.create`, `users.manage`, `org.manage`, `documents.register`, `documents.journals.manage`, `data.sources.manage`, `data.export`, `gis.basemaps.manage`, `automation.manage`, `admin.audit.read`, `admin.system`, `ai.use`, `meetings.record`, `api_tokens.create`.
+Глобальные разрешения действий, не привязанные к объекту. Присваиваются ролями (`roles`, `role_capabilities`, `user_roles`; роли можно ограничить пространством). Примеры: `spaces.create`, `users.manage`, `org.manage`, `documents.register`, `documents.journals.manage`, `data.sources.manage`, `data.export`, `gis.basemaps.manage`, `automation.manage`, `admin.audit.read`, `admin.system`, `ai.use`, `meetings.record`, `api_tokens.create`, `backups.report` (служебная запись резервного узла сообщает итог проверки восстановления, ADR-0199).
 
 Стартовые роли: `system_admin`, `security_auditor`, `org_admin` (структура и пользователи), `registrar` (канцелярия), `data_steward`, `gis_admin`, `employee` (по умолчанию).
 
