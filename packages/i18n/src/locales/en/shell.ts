@@ -46,6 +46,7 @@ export const shell: DeepPartial<Dictionary['shell']> = {
     profile: 'Profile',
     forms: 'Data forms',
     alerts: 'Alerts',
+    warnings: 'Warnings',
   },
   navigator: {
     title: 'Navigator',

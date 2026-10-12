@@ -14,8 +14,20 @@ registerLifecycle()
 
 const { runInit } = await import('../src/cli/init.js')
 const { seedCommand } = await import('../src/seed/command.js')
-const { datasetFields, datasets, forms, objects, pages, rules, sources, spaces, users } =
-  await import('../src/db-schema.js')
+const {
+  datasetFields,
+  datasets,
+  forms,
+  groups,
+  objects,
+  pages,
+  processDefinitions,
+  rules,
+  settings,
+  sources,
+  spaces,
+  users,
+} = await import('../src/db-schema.js')
 const { evaluateRuleCondition, ruleScope } = await import(
   '../src/modules/automation/domain/scope.js'
 )
@@ -135,6 +147,41 @@ describe('пакет ЧС: чистая установка', () => {
       expect.arrayContaining(['received_at', 'notified_at', 'decided_at', 'published_at']),
     )
 
+    // Предупреждения CAP (ADR-0202): маршрут выпуска — подпись с кодом подписывающего из
+    // карточки; модуль знает пространство штаба, реестр сообщений и группу руководства
+    const [route] = await db()
+      .select({
+        definition: processDefinitions.definition,
+        objectType: processDefinitions.objectType,
+      })
+      .from(processDefinitions)
+      .where(eq(processDefinitions.key, 'warning_publish'))
+    expect(route?.objectType).toBe('warning')
+    const steps = (route?.definition as { steps?: Record<string, unknown> } | undefined)?.steps
+    expect(steps?.decision).toMatchObject({
+      type: 'sign',
+      assignees: ['field:signer'],
+      requireMfa: true,
+      onReject: 'end:refused',
+    })
+    const [warningSettings] = await db()
+      .select({ value: settings.value })
+      .from(settings)
+      .where(and(eq(settings.scope, 'system'), eq(settings.key, 'warnings.settings')))
+    const [hq] = await db()
+      .select({ id: groups.id })
+      .from(groups)
+      .where(eq(groups.name, 'Руководство штаба ЧС'))
+    const [packSpace] = await db()
+      .select({ id: spaces.id })
+      .from(spaces)
+      .where(eq(spaces.key, 'emergency'))
+    expect(warningSettings?.value).toEqual({
+      spaceId: packSpace?.id,
+      sourceDatasetId: found.get('emergency.dataset.hazard_messages'),
+      signerGroupId: hq?.id,
+    })
+
     // Без назначений формы выключены: их включает администратор, назначив управления
     const packForms = await db()
       .select({ enabled: forms.enabled })
@@ -195,6 +242,11 @@ describe('пакет ЧС: чистая установка', () => {
       .from(rules)
       .where(sql`${rules.key} like 'emergency-%'`)
     expect(counted?.total).toBe(8)
+    const [routes] = await db()
+      .select({ total: sql<number>`count(*)::int` })
+      .from(processDefinitions)
+      .where(eq(processDefinitions.key, 'warning_publish'))
+    expect(routes?.total).toBe(1)
   })
 })
 

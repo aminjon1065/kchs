@@ -237,6 +237,18 @@ const DeviceView = lazy(() =>
   })),
 )
 
+/** Предупреждения CAP (ADR-0202) — отдельным чанком. */
+const WarningsScreen = lazy(() =>
+  import('~/features/warnings/warnings-screen.js').then((module) => ({
+    default: module.WarningsScreen,
+  })),
+)
+const WarningView = lazy(() =>
+  import('~/features/warnings/warning-view.js').then((module) => ({
+    default: module.WarningView,
+  })),
+)
+
 /** Заглушка ленивого экрана: та же, что у конструкторов. */
 function LazyFallback() {
   return (
@@ -903,6 +915,33 @@ export function registerModules(): void {
         render: (tab) => (
           <Suspense fallback={<LazyFallback />}>
             <DeviceView objectId={tab.objectId!} />
+          </Suspense>
+        ),
+      },
+    ],
+  })
+
+  registerModule({
+    key: 'warnings',
+    namespaces: ['warnings', 'processes', 'tasks'],
+    screens: [
+      {
+        key: 'warnings',
+        titleKey: 'shell.rail.warnings',
+        icon: 'warning',
+        render: () => (
+          <Suspense fallback={<LazyFallback />}>
+            <WarningsScreen />
+          </Suspense>
+        ),
+      },
+    ],
+    objectViews: [
+      {
+        type: 'warning',
+        render: (tab) => (
+          <Suspense fallback={<LazyFallback />}>
+            <WarningView objectId={tab.objectId!} />
           </Suspense>
         ),
       },

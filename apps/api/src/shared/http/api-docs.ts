@@ -53,6 +53,11 @@ export const OPENAPI_TAGS = [
     name: 'positions',
     description: 'Местоположение техники и групп: устройства слежения, приём координат, трек',
   },
+  {
+    name: 'warnings',
+    description:
+      'Предупреждения CAP 1.2: черновик, решение подписью, публичные ленты Atom, CAP и RSS',
+  },
   { name: 'admin', description: 'Администрирование: аудит, здоровье, токены, конфигурация' },
   {
     name: 'backups',

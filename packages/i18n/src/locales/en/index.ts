@@ -35,6 +35,7 @@ import { spaces } from './spaces.js'
 import { tasks } from './tasks.js'
 import { telegram } from './telegram.js'
 import { ui } from './ui.js'
+import { warnings } from './warnings.js'
 
 /** English — полный перевод, по неймспейсам в файлах рядом (ADR-0191). */
 export const en: DeepPartial<Dictionary> = {
@@ -71,6 +72,7 @@ export const en: DeepPartial<Dictionary> = {
   forms,
   alerts,
   positions,
+  warnings,
   schedules,
   errors,
 }

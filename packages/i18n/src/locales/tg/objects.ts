@@ -47,6 +47,7 @@ export const objects: DeepPartial<Dictionary['objects']> = {
     form: 'Шакли ҷамъоварӣ',
     alert: 'Огоҳӣ',
     device: 'Дастгоҳи пайгирӣ',
+    warning: 'Огоҳинома',
     pipeline: 'Табдилдиҳӣ',
     source: 'Манбаи маълумот',
     service_layer: 'Хадамоти берунии ГИС',

@@ -43,6 +43,7 @@ export const shell = {
     profile: 'Профиль',
     forms: 'Формы сбора',
     alerts: 'Алерты',
+    warnings: 'Предупреждения',
   },
   navigator: {
     title: 'Навигатор',

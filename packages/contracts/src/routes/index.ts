@@ -38,6 +38,7 @@ import { reportsRoutes } from './modules/reports.js'
 import { tasksRoutes } from './modules/tasks.js'
 import { telegramRoutes } from './modules/telegram.js'
 import { territoriesRoutes } from './modules/territories.js'
+import { warningsRoutes } from './modules/warnings.js'
 
 /**
  * Маршруты HTTP API, описанные в контрактах (ADR-0188): ядро и модули, по таблице
@@ -84,7 +85,8 @@ export type ApiRoutes = typeof kernelAccessRoutes &
   typeof reportsRoutes &
   typeof tasksRoutes &
   typeof telegramRoutes &
-  typeof territoriesRoutes
+  typeof territoriesRoutes &
+  typeof warningsRoutes
 
 export const apiRoutes: ApiRoutes = mergeRouteTables(
   kernelAccessRoutes,
@@ -126,4 +128,5 @@ export const apiRoutes: ApiRoutes = mergeRouteTables(
   tasksRoutes,
   telegramRoutes,
   territoriesRoutes,
+  warningsRoutes,
 )

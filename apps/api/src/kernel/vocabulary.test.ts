@@ -43,6 +43,12 @@ const ALLOWED: Allowed[] = [
   { file: /^process\//, literal: 'call', reason: 'вид шага маршрута (@kchs/process)' },
   { file: /^process\//, literal: 'event', reason: 'исход ожидания события' },
   {
+    file: /./,
+    literal: 'warning',
+    reason:
+      'уровень важности (аудит, журнал, подсказки), а не тип объекта предупреждений CAP (ADR-0202)',
+  },
+  {
     file: /^audit\/service\.ts$/,
     literal: 'document.confidential_access',
     reason:

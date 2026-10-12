@@ -44,6 +44,7 @@ export const objects = {
     form: 'Форма сбора',
     alert: 'Алерт',
     device: 'Устройство слежения',
+    warning: 'Предупреждение',
     pipeline: 'Пайплайн',
     source: 'Источник данных',
     service_layer: 'Внешняя ГИС-служба',

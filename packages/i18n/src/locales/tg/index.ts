@@ -35,6 +35,7 @@ import { spaces } from './spaces.js'
 import { tasks } from './tasks.js'
 import { telegram } from './telegram.js'
 import { ui } from './ui.js'
+import { warnings } from './warnings.js'
 
 /**
  * Тоҷикӣ — перевод интерфейса с русского (основной язык). Перевод полный: в браузере
@@ -79,6 +80,7 @@ export const tg: DeepPartial<Dictionary> = {
   forms,
   alerts,
   positions,
+  warnings,
   schedules,
   errors,
 }

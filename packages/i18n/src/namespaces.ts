@@ -41,6 +41,7 @@ export const NAMESPACES = [
   'forms',
   'alerts',
   'positions',
+  'warnings',
   'schedules',
   'errors',
 ] as const satisfies readonly Namespace[]
