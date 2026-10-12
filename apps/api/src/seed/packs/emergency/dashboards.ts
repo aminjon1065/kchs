@@ -259,6 +259,26 @@ function packMetrics(spaceId: string): PackMetric[] {
         ],
       },
     },
+    stepMinutes(
+      'metric.messages_notify_minutes',
+      'Время до уведомления смены',
+      'От поступления сообщения об опасном явлении до уведомления дежурной смены — среднее за неделю по уведомлённым сообщениям. Цель — не более 10 минут.',
+      'notified_at',
+      [
+        { value: 10, status: 'warning' },
+        { value: 30, status: 'danger' },
+      ],
+    ),
+    stepMinutes(
+      'metric.messages_decide_minutes',
+      'Время до решения дежурного',
+      'От поступления сообщения до первого решения дежурного — среднее за неделю по рассмотренным сообщениям.',
+      'decided_at',
+      [
+        { value: 30, status: 'warning' },
+        { value: 120, status: 'danger' },
+      ],
+    ),
     arrival('metric.arrival_day', 'Среднее время прибытия за сутки', today),
     arrival('metric.arrival_week', 'Среднее время прибытия за неделю', week),
     {
@@ -282,6 +302,39 @@ function packMetrics(spaceId: string): PackMetric[] {
       },
     },
   ]
+}
+
+/**
+ * Шаг журнала решений по сообщениям (ADR-0201): среднее число минут от поступления
+ * сообщения до отметки шага за неделю; сообщения без отметки в среднее не входят.
+ */
+function stepMinutes(
+  key: string,
+  name: string,
+  description: string,
+  step: 'notified_at' | 'decided_at',
+  thresholds: Array<{ value: number; status: 'warning' | 'danger' }>,
+): PackMetric {
+  return {
+    key,
+    source: { dataset: 'hazard_messages' },
+    input: {
+      name,
+      description,
+      definition: {
+        measure: { agg: 'expr', expr: `avg(date_diff(received_at, ${step}, 'minute'))` },
+        filter: happened(step),
+        timeField: 'received_at',
+        dimensions: ['source', 'hazard'],
+        period: week,
+        comparison: 'previous_period',
+      },
+      unit: 'мин',
+      format: { precision: 0 },
+      direction: 'down',
+      thresholds,
+    },
+  }
 }
 
 /**
@@ -894,6 +947,25 @@ function packDashboards(ids: Ids, metrics: Ids, mapId: string): PackDashboard[] 
             { field: 'share', label: 'Доля населения, %', type: 'quantitative' },
           ]),
           { x: 6, y: 12, w: 6, h: 3 },
+        ),
+        // Журнал решений по сообщениям (ADR-0201): цель концепт-ноты — уведомление за 10 минут
+        ...metricTile(
+          'messages_notify',
+          m('messages_notify_minutes'),
+          0,
+          15,
+          3,
+          2,
+          'До уведомления смены, мин',
+        ),
+        ...metricTile(
+          'messages_decide',
+          m('messages_decide_minutes'),
+          3,
+          15,
+          3,
+          2,
+          'До решения дежурного, мин',
         ),
       ],
     },

@@ -14,7 +14,7 @@ registerLifecycle()
 
 const { runInit } = await import('../src/cli/init.js')
 const { seedCommand } = await import('../src/seed/command.js')
-const { datasets, forms, objects, rules, sources, spaces, users } = await import(
+const { datasetFields, datasets, forms, objects, rules, sources, spaces, users } = await import(
   '../src/db-schema.js'
 )
 const { evaluateRuleCondition, ruleScope } = await import(
@@ -85,15 +85,38 @@ describe('пакет ЧС: чистая установка', () => {
       .where(and(eq(users.kind, 'service'), eq(users.displayName, 'Автоматизация штаба ЧС')))
     expect(writer?.status).toBe('active')
     const feeds = await db()
-      .select({ enabled: sources.enabled, schedule: sources.schedule, owner: objects.ownerId })
+      .select({
+        key: sql<string>`${PACK_KEY}`,
+        enabled: sources.enabled,
+        schedule: sources.schedule,
+        owner: objects.ownerId,
+        config: sources.config,
+      })
       .from(sources)
       .innerJoin(objects, eq(objects.id, sources.id))
       .where(sql`${PACK_KEY} like 'emergency.feed.%'`)
-    expect(feeds).toHaveLength(5)
+    expect(feeds).toHaveLength(6)
     for (const feed of feeds) {
-      expect(feed).toMatchObject({ enabled: true, owner: writer?.id })
+      // Шаблон CAP Гидромета (ADR-0201) выключен, пока Агентство не опубликует ленту
+      const template = feed.key === 'emergency.feed.hydromet_cap'
+      expect(feed).toMatchObject({ enabled: !template, owner: writer?.id })
       expect(feed.schedule).toBeTruthy()
     }
+    const cap = feeds.find((feed) => feed.key === 'emergency.feed.hydromet_cap')
+    expect((cap?.config as { feed?: unknown } | undefined)?.feed).toMatchObject({
+      format: 'cap',
+      url: expect.stringContaining('.invalid'),
+    })
+
+    // Журнал решений дежурного (ADR-0201): отметки времени шагов у сообщений
+    const messages = await db()
+      .select({ key: datasetFields.key })
+      .from(datasetFields)
+      .where(eq(datasetFields.datasetId, found.get('emergency.dataset.hazard_messages') as string))
+    const keys = messages.map((field) => field.key)
+    expect(keys).toEqual(
+      expect.arrayContaining(['received_at', 'notified_at', 'decided_at', 'published_at']),
+    )
 
     // Без назначений формы выключены: их включает администратор, назначив управления
     const packForms = await db()
@@ -111,7 +134,9 @@ describe('пакет ЧС: чистая установка', () => {
     const byKey = new Map(installed.map((rule) => [rule.key, rule]))
     expect([...byKey.keys()].sort()).toEqual([
       'emergency-duty-handover',
+      'emergency-hazard-decided',
       'emergency-hazard-duty',
+      'emergency-hazard-received',
       'emergency-incident-deaths',
       'emergency-report-hq',
       'emergency-strong-quake-hq',
@@ -119,6 +144,12 @@ describe('пакет ЧС: чистая установка', () => {
     ])
     expect(byKey.get('emergency-duty-handover')?.enabled).toBe(false)
     expect(byKey.get('emergency-hazard-duty')?.enabled).toBe(true)
+    // Уведомив смену, правило отмечает время уведомления в строке сообщения
+    const duty = RuleDefinition.parse(byKey.get('emergency-hazard-duty')?.definition)
+    expect(duty.actions.at(-1)).toMatchObject({
+      type: 'update_row',
+      fields: { notified_at: '{{now}}' },
+    })
     const report = RuleDefinition.parse(byKey.get('emergency-report-hq')?.definition)
     expect(report.actions.find((action) => action.type === 'create_task')).toMatchObject({
       assignee: "unit_head('UO')",
@@ -146,7 +177,7 @@ describe('пакет ЧС: чистая установка', () => {
       .select({ total: sql<number>`count(*)::int` })
       .from(rules)
       .where(sql`${rules.key} like 'emergency-%'`)
-    expect(counted?.total).toBe(6)
+    expect(counted?.total).toBe(8)
   })
 })
 
@@ -196,6 +227,39 @@ describe('пакет ЧС: условия правил лент', () => {
   }
 
   const inGbao = ['TJ', 'TJ-GB', 'TJ-GB-04']
+
+  it('журнал решений: время решения ставится только при первой смене «Новое»', async () => {
+    const [rule] = await db()
+      .select({ definition: rules.definition })
+      .from(rules)
+      .where(eq(rules.key, 'emergency-hazard-decided'))
+    const definition = RuleDefinition.parse(rule?.definition)
+    const decided = (previous: Record<string, unknown>, status: string) =>
+      evaluateRuleCondition(
+        definition.conditions as NonNullable<typeof definition.conditions>,
+        ruleScope(
+          {
+            event: {
+              id: 'e',
+              type: 'dataset.row_updated',
+              occurredAt: now,
+              payload: { rowId: '1', values: { status }, previous, changed: ['status'] },
+              changedFields: null,
+              correlationId: null,
+            },
+            object: null,
+            actor: { id: null, kind: 'user', displayName: null },
+            previous,
+            now,
+          },
+          'Asia/Dushanbe',
+        ),
+      )
+    expect(decided({ status: 'new' }, 'reviewed')).toBe(true)
+    expect(decided({ status: 'reviewed' }, 'incident')).toBe(false)
+    // Отметка времени — тоже правка строки: на неё правило не отвечает
+    expect(decided({ received_at: null }, 'new')).toBe(false)
+  })
 
   it('дежурной смене — свежий толчок от M4 и свежий паводок в стране', async () => {
     const duty = await conditionOf('emergency-hazard-duty')

@@ -488,6 +488,130 @@ describe('правила автоматизации: исполнение', () =
   })
 })
 
+describe('запись в строку датасета (ADR-0201)', () => {
+  /** Строки датасета: ключ → значения (ответ запроса — столбцами). */
+  async function rowsOf(datasetId: string) {
+    const response = await call(fx.app, {
+      method: 'POST',
+      url: `/datasets/${datasetId}/rows/query`,
+      as: fx.admin,
+      payload: { limit: 100 },
+    })
+    expect(response.statusCode, response.body).toBe(200)
+    const body = response.json() as { fields: Array<{ name: string }>; rows: unknown[][] }
+    return body.rows.map((row) =>
+      Object.fromEntries(body.fields.map((field, index) => [field.name, row[index]])),
+    )
+  }
+
+  async function waitFor<T>(read: () => Promise<T>, ready: (value: T) => boolean): Promise<T> {
+    const started = Date.now()
+    let value = await read()
+    while (!ready(value) && Date.now() - started < 25_000) {
+      await new Promise((resolve) => setTimeout(resolve, 150))
+      value = await read()
+    }
+    return value
+  }
+
+  it('журнал решений: время приёма по событию вставки, время решения — по смене статуса', async () => {
+    const created = await call(fx.app, {
+      method: 'POST',
+      url: '/datasets',
+      as: fx.admin,
+      payload: {
+        name: `Журнал сообщений ${run}`,
+        spaceId: fx.spaceId,
+        fields: [
+          {
+            key: 'code',
+            label: { ru: 'Код' },
+            type: 'identifier',
+            semantic: 'identifier',
+            required: true,
+          },
+          {
+            key: 'status',
+            label: { ru: 'Решение' },
+            type: 'text',
+            semantic: 'category',
+            default: 'new',
+          },
+          { key: 'received_at', label: { ru: 'Принято' }, type: 'datetime', semantic: 'time' },
+          { key: 'decided_at', label: { ru: 'Решено' }, type: 'datetime', semantic: 'time' },
+        ],
+        primaryKey: ['code'],
+        settings: { rowEvents: true },
+      },
+    })
+    expect(created.statusCode, created.body).toBe(200)
+    const datasetId = created.json().id as string
+
+    const received = await createRule({
+      name: `Время приёма ${run}`,
+      runAs: bot.id,
+      trigger: { kind: 'event', type: 'dataset.row_created', filter: { 'object.id': datasetId } },
+      actions: [{ type: 'update_row', fields: { received_at: '{{event.occurredAt}}' } }],
+    })
+    expect(received.statusCode, received.body).toBe(200)
+    const decided = await createRule({
+      name: `Время решения ${run}`,
+      runAs: bot.id,
+      trigger: { kind: 'event', type: 'dataset.row_updated', filter: { 'object.id': datasetId } },
+      conditions: {
+        expr: "previous.status = 'new' and event.payload.values.status != 'new'",
+      },
+      actions: [{ type: 'update_row', fields: { decided_at: '{{now}}' } }],
+    })
+    expect(decided.statusCode, decided.body).toBe(200)
+    // Посторонний робот без доступа к датасету строку не правит
+    const stranger = await createRule({
+      name: `Чужая запись ${run}`,
+      runAs: outsider.id,
+      trigger: { kind: 'event', type: 'dataset.row_created', filter: { 'object.id': datasetId } },
+      actions: [{ type: 'update_row', fields: { status: 'взломано' } }],
+    })
+    expect(stranger.statusCode, stranger.body).toBe(200)
+
+    const inserted = await call(fx.app, {
+      method: 'POST',
+      url: `/datasets/${datasetId}/rows`,
+      as: fx.admin,
+      payload: { rows: [{ values: { code: `M-${run}` } }] },
+    })
+    expect(inserted.statusCode, inserted.body).toBe(200)
+    const [withReceipt] = await waitFor(
+      () => rowsOf(datasetId),
+      (rows) => Boolean(rows[0]?.received_at),
+    )
+    expect(withReceipt?.received_at).toBeTruthy()
+    expect(withReceipt?.decided_at ?? null).toBeNull()
+    expect(withReceipt?.status).toBe('new')
+    expect((await waitForRun(stranger.json().id, ['failed', 'skipped'])).status).not.toBe(
+      'succeeded',
+    )
+
+    // Дежурный принимает решение — отметка времени решения ставится одна
+    const patched = await call(fx.app, {
+      method: 'PATCH',
+      url: `/datasets/${datasetId}/rows/${withReceipt?._id}`,
+      as: fx.admin,
+      payload: { values: { status: 'reviewed' }, ver: Number(withReceipt?._ver) },
+    })
+    expect(patched.statusCode, patched.body).toBe(200)
+    const [withDecision] = await waitFor(
+      () => rowsOf(datasetId),
+      (rows) => Boolean(rows[0]?.decided_at),
+    )
+    expect(withDecision).toMatchObject({ status: 'reviewed' })
+    expect(Date.parse(String(withDecision?.decided_at))).toBeGreaterThanOrEqual(
+      Date.parse(String(withDecision?.received_at)),
+    )
+    const run1 = await waitForRun(decided.json().id, ['succeeded'])
+    expect(run1.steps.map((step) => step.message).join(' ')).toContain('decided_at')
+  })
+})
+
 describe('правила автоматизации: ручной запуск и тестовый прогон', () => {
   it('кнопка у объекта: правило видно в меню и запускается', async () => {
     const created = await createRule({

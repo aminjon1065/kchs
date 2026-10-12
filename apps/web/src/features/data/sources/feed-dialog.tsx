@@ -513,6 +513,11 @@ function AddressStep({
             </SelectContent>
           </Select>
         </Field>
+        {draft.format === 'cap' ? (
+          <p className="text-xs text-fg-muted sm:col-span-2">
+            {t('admin.dataSources.feed.capHint')}
+          </p>
+        ) : null}
         {draft.format === 'json' ? (
           <Field
             label={t('admin.dataSources.feed.itemsPath')}

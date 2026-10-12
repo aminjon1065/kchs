@@ -36,7 +36,7 @@
 расписанию: `metricId`, `condition` над `value` и `previous`, `cron`, `timezone`).
 
 ## Действия
-`notify`, `create_task`, `update_fields`, `set_status`, `assign`, `create_document` (по типу
+`notify`, `create_task`, `update_fields`, `update_row`, `set_status`, `assign`, `create_document` (по типу
 документа), `start_process`, `add_link`, `add_tag`, `post_message` (в обсуждение объекта или
 беседу), `create_event`, `send_email`, `send_telegram`, `webhook` (с подписью HMAC-SHA256),
 `ai_task` (промпт + куда записать результат: комментарий или поле), `wait` (задержка —
@@ -59,6 +59,14 @@
 источник. Правило не ждёт конца прогона. Действия `update_fields` и
 `set_status` работают для типов с поставщиком данных и переходами (документ, задача);
 `assign` — для задач.
+
+`update_row` (ADR-0201) пишет поля строки датасета: `fields` — ключ поля → шаблон значения
+(`{{now}}`, `{{event.occurredAt}}`), `dataset` — датасет (по умолчанию `{{object.id}}`), `row` —
+номер строки (по умолчанию `{{event.payload.rowId}}`: строка события `dataset.row_*`). Пишет
+служебный пользователь правила правкой строк — с его правами (нужна правка датасета), проверкой
+значений, историей строки и событием `dataset.row_updated`; версию строки правило не сверяет,
+одновременная правка — один повтор. Так ведётся журнал решений по строкам: время приёма,
+уведомления, решения.
 
 ## Ветка «иначе»
 `otherwise` — действия, когда условие не выполнено (по умолчанию `[]`, ADR-0163). Пустая ветка —

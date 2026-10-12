@@ -169,6 +169,16 @@ function checkAction(
       }
       issues.template(`${at}.object`, action.object)
       break
+    case 'update_row':
+      if (Object.keys(action.fields).length === 0) {
+        issues.error(`${at}.fields`, 'Укажите хотя бы одно поле')
+      }
+      for (const [key, value] of Object.entries(action.fields)) {
+        issues.template(`${at}.fields.${key}`, value)
+      }
+      issues.template(`${at}.dataset`, action.dataset)
+      issues.template(`${at}.row`, action.row)
+      break
     case 'set_status':
       issues.template(`${at}.comment`, action.comment)
       issues.template(`${at}.object`, action.object)

@@ -10,6 +10,7 @@ import type {
   StoredFieldType,
 } from '@kchs/contracts'
 import { errors } from '~/shared/errors.js'
+import { orderCapRecords, parseCapDocument } from './cap-parse.js'
 
 /**
  * Разбор ленты по адресу (ADR-0132) — чистые функции без базы и сети: записи
@@ -124,8 +125,9 @@ export function parseCsv(text: string): FeedRecord[] {
 
 /**
  * Записи ленты по формату: объекты GeoJSON (`FeatureCollection` или один
- * `Feature`), элементы массива JSON (по пути или в корне), строки CSV. Не тот
- * формат — `dependency_failed` с понятной причиной.
+ * `Feature`), элементы массива JSON (по пути или в корне), строки CSV, сообщения
+ * CAP (`cap-parse.ts`, ADR-0201). Не тот формат — `dependency_failed` с понятной
+ * причиной.
  */
 export function parseFeed(
   body: Buffer | string,
@@ -133,6 +135,10 @@ export function parseFeed(
   itemsPath: string | null,
 ): FeedRecord[] {
   const text = (typeof body === 'string' ? body : body.toString('utf8')).replace(/^﻿/, '')
+  if (format === 'cap') {
+    // Только сообщения внутри документа; ссылки индекса забирает сервис ленты
+    return orderCapRecords(parseCapDocument(text, null).alerts)
+  }
   if (format === 'csv') {
     if (/^\s*[[{<]/.test(text)) {
       throw errors.dependencyFailed('Ответ ленты — не CSV: похоже на JSON или HTML')

@@ -391,6 +391,20 @@ export const PACK_DATASETS: readonly PackDataset[] = [
     timeField: 'occurred_at',
     territoryField: 'territory',
     rowEvents: true,
+    // Журнал решений дежурного (ADR-0201): время каждого шага цепочки «сигнал →
+    // уведомление → решение → доведение» ставят правила пакета, а не человек
+    extra: [
+      field('received_at', 'Время приёма', 'Received at', 'datetime', 'time', { format: DATETIME }),
+      field('notified_at', 'Уведомлена смена', 'Duty shift notified', 'datetime', 'time', {
+        format: DATETIME,
+      }),
+      field('decided_at', 'Время решения', 'Decision made', 'datetime', 'time', {
+        format: DATETIME,
+      }),
+      field('published_at', 'Время доведения', 'Communicated at', 'datetime', 'time', {
+        format: DATETIME,
+      }),
+    ],
   },
   {
     key: 'shelters',
