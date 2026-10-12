@@ -61,7 +61,13 @@ const DatasetFieldKey = z
 
 // ── Лента по адресу (ADR-0132) ────────────────────────────────────────────────
 
-export const FEED_FORMATS = ['geojson', 'csv', 'json'] as const
+/**
+ * Формат ленты. `cap` — Common Alerting Protocol 1.2 (ADR-0201): сообщение
+ * `<alert>` или индекс Atom/RSS со встроенными сообщениями или ссылками на них;
+ * запись — сообщение с путями `info.*`, `area.*`, `lang.<код>.*` и геометрией
+ * областей; ключ нити — `key` («идентификатор,время» первичного сообщения).
+ */
+export const FEED_FORMATS = ['geojson', 'csv', 'json', 'cap'] as const
 export const FeedFormat = z.enum(FEED_FORMATS)
 export type FeedFormat = z.infer<typeof FeedFormat>
 
@@ -73,6 +79,10 @@ export const FEED_MAX_BYTES = 20 * 1024 * 1024
 export const FEED_TIMEOUT_MS = 30_000
 /** Столько записей показывает предпросмотр ленты. */
 export const FEED_PREVIEW_ITEMS = 20
+/** Столько ссылок индекса CAP на сообщения читается за опрос (ADR-0201). */
+export const CAP_MAX_LINKS = 50
+/** Сообщение CAP по ссылке больше этого не читается, байт. */
+export const CAP_MAX_ALERT_BYTES = 1024 * 1024
 
 /**
  * Путь к значению в записи ленты: ключи через точку, элементы массива — номером

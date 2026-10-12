@@ -1,4 +1,6 @@
 import {
+  CAP_MAX_ALERT_BYTES,
+  CAP_MAX_LINKS,
   FEED_MAX_BYTES,
   FEED_TIMEOUT_MS,
   type FeedConfig,
@@ -28,6 +30,7 @@ import { AppError, errors } from '~/shared/errors.js'
 import { type OutboundOptions, outboundGet } from '~/shared/net/outbound.js'
 import { aliasSql, columnSql, tableSql } from '../infra/physical.js'
 import { datasets, sourceRuns, sources } from '../schema.js'
+import { orderCapRecords, parseCapDocument } from './cap-parse.js'
 import { DatasetService, type DatasetStorage, type StoredField } from './dataset-service.js'
 import {
   discoverPaths,
@@ -64,7 +67,13 @@ const ACCEPT: Record<FeedFormat, string> = {
   geojson: 'application/geo+json, application/json;q=0.9, */*;q=0.1',
   json: 'application/json, */*;q=0.1',
   csv: 'text/csv, text/plain;q=0.9, */*;q=0.1',
+  cap: 'application/cap+xml, application/atom+xml;q=0.9, application/rss+xml;q=0.9, application/xml;q=0.8, text/xml;q=0.8, */*;q=0.1',
 }
+
+/** Сообщения CAP по ссылкам индекса: сколько читается одновременно и сколько ждём их все. */
+const CAP_PARALLEL = 4
+const CAP_LINK_TIMEOUT_MS = 15_000
+const CAP_LINKS_DEADLINE_MS = 60_000
 
 /** Поле датасета для проверки настройки ленты. */
 interface FieldInfo {
@@ -194,6 +203,105 @@ async function fetchFeed(
   return response.body
 }
 
+/** Записи ленты и то, что пропущено ещё до сопоставления полей. */
+interface FeedRead {
+  records: FeedRecord[]
+  /** Записи, отброшенные при чтении: сообщения CAP не для получателя, нечитаемые ссылки. */
+  skipped: number
+  /** Причины пропуска для журнала прогона. */
+  notes: string[]
+}
+
+function sameOrigin(a: string, b: string): boolean {
+  try {
+    return new URL(a).origin === new URL(b).origin
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Лента целиком: ответ адреса и, у CAP-индекса, сообщения по его ссылкам (ADR-0201).
+ * Ссылки читаются тем же исходящим клиентом с пределами числа, размера и времени;
+ * заголовки и секреты ленты уходят только на тот же адрес-источник, что у ленты,
+ * — на чужой хост ссылки они не передаются.
+ */
+async function readFeed(
+  target: {
+    url: string
+    headers: Record<string, string>
+    format: FeedFormat
+    itemsPath: string | null
+  },
+  integrationId: string | null,
+): Promise<FeedRead> {
+  const body = await fetchFeed(target, integrationId)
+  if (target.format !== 'cap') {
+    return { records: parseFeed(body, target.format, target.itemsPath), skipped: 0, notes: [] }
+  }
+  const document = parseCapDocument(body, target.url)
+  const records = [...document.alerts]
+  let skipped = document.skipped
+  const notes: string[] = []
+  if (document.skipped > 0)
+    notes.push('сообщения CAP не для получателя (тест, черновик, служебные)')
+  const links = document.links.slice(0, CAP_MAX_LINKS)
+  if (document.links.length > links.length) {
+    notes.push(`в индексе ссылок ${document.links.length}, за опрос читается ${CAP_MAX_LINKS}`)
+  }
+  const options: Omit<OutboundOptions, 'headers'> = {
+    what: WHAT,
+    accept: ACCEPT.cap,
+    maxBytes: CAP_MAX_ALERT_BYTES,
+    timeoutMs: CAP_LINK_TIMEOUT_MS,
+    maxRedirects: 3,
+  }
+  const deadline = Date.now() + CAP_LINKS_DEADLINE_MS
+  const queue = [...links]
+  const note = (text: string) => {
+    skipped += 1
+    if (notes.length < MAX_REASONS && !notes.includes(text)) notes.push(text)
+  }
+  const worker = async () => {
+    for (let link = queue.shift(); link !== undefined; link = queue.shift()) {
+      if (Date.now() > deadline) {
+        note('не все сообщения по ссылкам прочитаны за минуту — остальные в следующий опрос')
+        continue
+      }
+      try {
+        const own = sameOrigin(link, target.url)
+        const response =
+          own && integrationId
+            ? await HttpIntegration.get(
+                integrationId,
+                { url: link, headers: target.headers },
+                options,
+              )
+            : await outboundGet(link, { ...options, headers: own ? target.headers : {} })
+        if (response.status !== 200) {
+          note(`сообщение по ссылке ответило кодом ${response.status}`)
+          continue
+        }
+        const linked = parseCapDocument(response.body, link)
+        if (linked.alerts.length === 0 && linked.skipped === 0) {
+          note('по ссылке нет сообщения CAP')
+          continue
+        }
+        records.push(...linked.alerts)
+        skipped += linked.skipped
+      } catch (error) {
+        note(
+          error instanceof AppError
+            ? `сообщение по ссылке не прочитано: ${error.message}`
+            : 'сообщение по ссылке не прочитано',
+        )
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(CAP_PARALLEL, links.length) }, worker))
+  return { records: orderCapRecords(records), skipped, notes }
+}
+
 /** Настройка ленты из записи источника. */
 export function feedOf(row: { config: Record<string, unknown> }): FeedConfig {
   return (row.config as { feed: FeedConfig }).feed
@@ -244,11 +352,12 @@ interface Prepared {
 async function prepare(
   storage: DatasetStorage,
   feed: FeedConfig,
-  records: FeedRecord[],
+  read: FeedRead,
 ): Promise<Prepared> {
+  const { records } = read
   const byKey = new Map(storage.fields.map((field) => [field.key, field]))
-  const reasons: string[] = []
-  let skipped = 0
+  const reasons: string[] = read.notes.slice(0, MAX_REASONS)
+  let skipped = read.skipped
   const skip = (reason: string) => {
     skipped += 1
     if (reasons.length < MAX_REASONS && !reasons.includes(reason)) reasons.push(reason)
@@ -481,8 +590,7 @@ export const FeedService = {
   /** Предпросмотр ленты по адресу: записи и найденные пути — без сохранения. */
   async preview(ctx: UserCtx, input: FeedPreviewInput): Promise<FeedPreview> {
     if (input.integrationId) await authorize(ctx, 'view', input.integrationId)
-    const body = await fetchFeed(input, input.integrationId)
-    const records = parseFeed(body, input.format, input.itemsPath)
+    const { records } = await readFeed(input, input.integrationId)
     return {
       total: records.length,
       items: records.slice(0, input.limit).map((record) => flattenRecord(record)),
@@ -494,8 +602,7 @@ export const FeedService = {
   async check(row: { config: Record<string, unknown>; integrationId: string | null }) {
     const feed = feedOf(row)
     try {
-      const body = await fetchFeed(feed, row.integrationId)
-      const records = parseFeed(body, feed.format, feed.itemsPath)
+      const { records } = await readFeed(feed, row.integrationId)
       return { ok: true, message: `Лента читается, записей в ответе: ${records.length}` }
     } catch (error) {
       return { ok: false, message: error instanceof Error ? error.message : 'Лента не читается' }
@@ -525,8 +632,7 @@ export const FeedService = {
     })
 
     try {
-      const body = await fetchFeed(feed, row.integrationId)
-      const prepared = await prepare(storage, feed, parseFeed(body, feed.format, feed.itemsPath))
+      const prepared = await prepare(storage, feed, await readFeed(feed, row.integrationId))
       const byKey = new Map(storage.fields.map((field) => [field.key, field]))
       const written = [
         ...feed.mapping.map((item) => item.field),

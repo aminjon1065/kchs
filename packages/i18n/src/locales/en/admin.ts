@@ -567,7 +567,9 @@ export const admin: DeepPartial<Dictionary['admin']> = {
       urlHint:
         'Do not put an API key into the URL: create an HTTP integration with the secret and refer to it — {example}.',
       format: 'Format',
-      formats: { geojson: 'GeoJSON', csv: 'CSV', json: 'JSON' },
+      formats: { geojson: 'GeoJSON', csv: 'CSV', json: 'JSON', cap: 'CAP 1.2 (alerts)' },
+      capHint:
+        'A CAP message or an Atom/RSS index with messages or links to them. The key is the “key” path (updates and cancellations update the row of the original message), the geometry is the message areas, the text is “info.headline”, “info.description”.',
       itemsPath: 'Path to the records array',
       itemsPathHint: 'For example data.items; empty — the array is the response root',
       integration: 'Secrets',

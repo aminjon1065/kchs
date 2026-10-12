@@ -573,7 +573,9 @@ export const admin = {
       urlHint:
         'Ключ API не пишите в адрес: заведите интеграцию HTTP с секретом и сошлитесь на него — {example}.',
       format: 'Формат',
-      formats: { geojson: 'GeoJSON', csv: 'CSV', json: 'JSON' },
+      formats: { geojson: 'GeoJSON', csv: 'CSV', json: 'JSON', cap: 'CAP 1.2 (предупреждения)' },
+      capHint:
+        'Сообщение CAP или индекс Atom/RSS со сообщениями и ссылками на них. Ключ — путь «key» (уточнения и отмены обновляют строку первичного сообщения), геометрия — области сообщения, текст — «info.headline», «info.description».',
       itemsPath: 'Путь к массиву записей',
       itemsPathHint: 'Например, data.items; пусто — массив в корне ответа',
       integration: 'Секреты',

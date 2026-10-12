@@ -598,7 +598,10 @@ export const admin: DeepPartial<Dictionary['admin']> = {
         geojson: 'GeoJSON',
         csv: 'CSV',
         json: 'JSON',
+        cap: 'CAP 1.2 (огоҳиномаҳо)',
       },
+      capHint:
+        'Паёми CAP ё индекси Atom/RSS бо паёмҳо ва истинодҳо ба онҳо. Калид — роҳи «key» (дақиқсозӣ ва бекоркунӣ сатри паёми аввалинро нав мекунанд), геометрия — минтақаҳои паём, матн — «info.headline», «info.description».',
       itemsPath: 'Роҳ ба массиви сабтҳо',
       itemsPathHint: 'Масалан, data.items; холӣ — массив дар решаи ҷавоб',
       integration: 'Калидҳои махфӣ',
