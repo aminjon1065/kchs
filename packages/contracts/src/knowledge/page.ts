@@ -134,8 +134,18 @@ export const PAGE_STATUSES = ['draft', 'published', 'review'] as const
 export const PageStatus = z.enum(PAGE_STATUSES)
 export type PageStatus = z.infer<typeof PageStatus>
 
-/** Шаблоны страниц: набор блоков-заготовок (13-search-knowledge-ai.md §2). */
-export const PAGE_TEMPLATES = ['blank', 'instruction', 'regulation', 'reference', 'faq'] as const
+/**
+ * Шаблоны страниц: набор блоков-заготовок (13-search-knowledge-ai.md §2);
+ * `channel_passport` — паспорт канала обмена каталога шлюза (ADR-0206).
+ */
+export const PAGE_TEMPLATES = [
+  'blank',
+  'instruction',
+  'regulation',
+  'reference',
+  'faq',
+  'channel_passport',
+] as const
 export const PageTemplate = z.enum(PAGE_TEMPLATES)
 export type PageTemplate = z.infer<typeof PageTemplate>
 

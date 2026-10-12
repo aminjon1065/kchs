@@ -3,7 +3,7 @@ import { createTranslator, type Locale } from '@kchs/i18n'
 
 /**
  * Шаблоны страниц (13-search-knowledge-ai.md §2, ADR-0095): инструкция,
- * регламент, справочник, FAQ. Шаблон — заготовка блоков на языке автора;
+ * регламент, справочник, FAQ; паспорт канала обмена (ADR-0206). Шаблон — заготовка блоков на языке автора;
  * дальше страница правится как обычная, связи с шаблоном не остаётся.
  */
 
@@ -13,6 +13,8 @@ const SECTIONS: Record<Exclude<PageTemplate, 'blank'>, readonly string[]> = {
   regulation: ['purpose', 'terms', 'roles', 'order', 'deadlines', 'control'],
   reference: ['purpose', 'table', 'sources'],
   faq: ['purpose', 'questions'],
+  // Каталог каналов шлюза: что передаётся, в каком виде, как получить доступ и к кому идти
+  channel_passport: ['purpose', 'status', 'format', 'example', 'access', 'owner', 'openapi'],
 }
 
 /** Абзац-подсказка раздела: его правят или стирают. */

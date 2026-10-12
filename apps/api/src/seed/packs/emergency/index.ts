@@ -3,6 +3,7 @@ import { bumpPrincipalsVersion } from '~/kernel/access/principal-set.js'
 import { db } from '~/shared/db/client.js'
 import { logger } from '~/shared/logger/index.js'
 import { ensureAutomation } from './automation.js'
+import { ensureChannelCatalog } from './channels.js'
 import { type PackContext, packContext } from './context.js'
 import { ensureDashboards } from './dashboards.js'
 import { ensureDatasets, ensureIncidentKinds } from './datasets.js'
@@ -77,6 +78,8 @@ export async function installEmergencyPack(
   const { metrics, dashboards } = await ensureDashboards(pack, datasets, mapId)
   await ensureDocuments(pack, { duty: structure.groupIds.duty })
   const pages = await ensureKnowledge(pack)
+  // Каталог каналов обмена по приложению C концепт-ноты (ADR-0206) — в «Общем»
+  await ensureChannelCatalog(pack)
   // После документов: правило донесений отбирает события по журналу пакета
   await ensureAutomation(pack, datasets, metrics, structure, mapId)
   await bumpPrincipalsVersion()
