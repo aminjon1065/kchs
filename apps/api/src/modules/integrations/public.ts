@@ -8,6 +8,12 @@ export {
   type ExternalReadRequest,
   externalValue,
 } from './domain/database-access.js'
+export {
+  externalAccess,
+  GATEWAY_ZONE_HEADER,
+  renderGatewayRoutes,
+  requestExternalAccess,
+} from './domain/gateway.js'
 export { HttpIntegration, hasSecretRef } from './domain/http-integration.js'
 export { Integrations } from './domain/integration-service.js'
 export { authenticateApiToken, enforceTokenScope } from './domain/token-auth.js'

@@ -2,6 +2,7 @@ import {
   type HttpMethod,
   type ObjectType,
   type RouteContract,
+  type RouteExposure,
   splitRouteKey,
 } from '@kchs/contracts'
 import { type ApiRouteKey, type Routes, routes } from '@kchs/process/routes'
@@ -140,12 +141,21 @@ export interface RouteSchema {
   response?: Readonly<Record<number, z.ZodType>>
 }
 
-/** Маршрут в реестре процесса: по нему тесты проверяют политики всех маршрутов (ADR-0186). */
+/**
+ * Маршрут в реестре процесса: по нему тесты проверяют политики всех маршрутов
+ * (ADR-0186), а генератор шлюза DMZ строит белый список (ADR-0200).
+ */
 export interface RegisteredRoute {
   method: HttpMethod
   url: string
   auth: RouteAuth
   schema?: RouteSchema
+  /** Теги маршрута: по ним — область токена API (ADR-0097). */
+  tags?: readonly string[]
+  /** POST без изменения данных — для токена хватает области чтения. */
+  readOnly?: boolean
+  /** Открыт снаружи без входа (таблица маршрутов, ADR-0200). */
+  exposure?: RouteExposure
 }
 
 const registered: RegisteredRoute[] = []
@@ -237,11 +247,26 @@ export function routeRegistrar(app: FastifyInstance): RouteRegistrar {
   const typed = app.withTypeProvider<ZodTypeProvider>()
 
   return (definition) => {
-    const schema = schemaOf(contractOf(definition.route))
+    const contract = contractOf(definition.route)
+    const schema = schemaOf(contract)
     const { method, url } = splitRouteKey(definition.route)
     assertRouteAuth({ method, url, auth: definition.auth })
+    // Открыт снаружи без входа — значит, и внутри без входа (ADR-0200)
+    if (contract.exposure && definition.auth !== 'public') {
+      throw new Error(
+        `Маршрут ${method} ${url}: exposure: '${contract.exposure}' только у маршрутов auth: 'public'`,
+      )
+    }
     if (!registered.some((r) => r.method === method && r.url === url)) {
-      registered.push({ method, url, auth: definition.auth, ...(schema ? { schema } : {}) })
+      registered.push({
+        method,
+        url,
+        auth: definition.auth,
+        ...(schema ? { schema } : {}),
+        ...(definition.tags ? { tags: definition.tags } : {}),
+        ...(definition.readOnly ? { readOnly: true } : {}),
+        ...(contract.exposure ? { exposure: contract.exposure } : {}),
+      })
     }
 
     typed.route({
@@ -263,6 +288,8 @@ export function routeRegistrar(app: FastifyInstance): RouteRegistrar {
         ...(definition.allowPendingPasswordChange ? { allowPendingPasswordChange: true } : {}),
         ...(definition.allowPendingMfaEnrollment ? { allowPendingMfaEnrollment: true } : {}),
         ...(definition.readOnly ? { readOnly: true } : {}),
+        // Шлюз DMZ: что открыто снаружи без входа (ADR-0200)
+        ...(contract.exposure ? { exposure: contract.exposure } : {}),
       },
       handler: definition.handler as never,
     })

@@ -69,7 +69,9 @@ export const integrationsRoutes = defineRoutes({
     params: z.object({ key: z.string().max(40) }),
     response: { 200: IntegrationCheckResult },
   },
+  // Входящий вебхук интеграции — канал уровня 3 для партнёров снаружи (ADR-0200)
   'POST /hooks/:integrationId/:secret': {
+    exposure: 'public',
     params: z.object({ integrationId: z.uuid(), secret: z.string().min(8).max(200) }),
     body: z.unknown(),
     response: { 202: z.object({ accepted: z.boolean() }) },

@@ -1,0 +1,55 @@
+# Шлюз DMZ (ADR-0200) — отдельный хост публичного сегмента, а не часть установки.
+# Внутренний контур остаётся закрытым из интернета; наружу смотрит только этот Caddy
+# и только белым списком маршрутов API (caddy/dmz-routes.caddy).
+#
+#   cd infra/compose
+#   KCHS_DMZ_DOMAIN=api.example.tj KCHS_DMZ_UPSTREAM=https://kchs.internal \
+#     docker compose -f dmz.yml up -d --wait
+#
+# KCHS_DMZ_DOMAIN   — имя шлюза в интернете (сертификат Let's Encrypt выпускает Caddy);
+# KCHS_DMZ_UPSTREAM — адрес установки во внутреннем контуре (её Caddy, web);
+# KCHS_DMZ_MAX_BODY — потолок тела запроса (по умолчанию 20MB);
+# CADDY_EMAIL       — адрес для уведомлений Let's Encrypt.
+#
+# Свой центр сертификации внутреннего контура — файл caddy/dmz-upstream/transport.caddy
+# с `transport http { tls_trust_pool file /etc/caddy/upstream/ca.pem }` и сам ca.pem
+# рядом. На установке адрес шлюза записывается в KCHS_TRUSTED_PROXIES — иначе api
+# увидит всех партнёров одним адресом шлюза (лимиты и журнал, ADR-0200).
+name: kchs-dmz
+
+services:
+  gateway:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: { max-size: "20m", max-file: "5" }
+    environment:
+      KCHS_DMZ_DOMAIN: ${KCHS_DMZ_DOMAIN:-localhost}
+      KCHS_DMZ_UPSTREAM: ${KCHS_DMZ_UPSTREAM:-http://kchs.internal}
+      KCHS_DMZ_MAX_BODY: ${KCHS_DMZ_MAX_BODY:-20MB}
+      CADDY_EMAIL: ${CADDY_EMAIL:-admin@example.org}
+    volumes:
+      - ./caddy/dmz.Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./caddy/dmz-routes.caddy:/etc/caddy/dmz-routes.caddy:ro
+      - ./caddy/dmz-upstream:/etc/caddy/upstream:ro
+      - dmzdata:/data
+      - dmzconfig:/config
+    ports:
+      - "${DMZ_HTTP_PORT:-80}:80"
+      - "${DMZ_HTTPS_PORT:-443}:443"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:2020/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    # Шлюзу нечего читать и некуда писать, кроме своих сертификатов
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt: ["no-new-privileges:true"]
+
+volumes:
+  dmzdata:
+  dmzconfig:

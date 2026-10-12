@@ -24,6 +24,8 @@ declare module 'fastify' {
     allowPendingMfaEnrollment?: boolean
     /** POST без изменения данных (запрос к датасету): доступен странице печати. */
     readOnly?: boolean
+    /** Маршрут без входа, открытый снаружи через шлюз DMZ (ADR-0200). */
+    exposure?: 'public'
   }
 }
 
@@ -65,6 +67,14 @@ export interface AuthDependencies {
   resolveApiToken?: (request: FastifyRequest, secret: string) => Promise<UserCtx>
   /** Проверка области доступа токена для конкретного маршрута (ADR-0097). */
   enforceTokenScope?: (request: FastifyRequest) => Promise<void>
+  /**
+   * Шлюз DMZ (ADR-0200): заголовок, которым шлюз помечает запрос снаружи, и доступ
+   * маршрута снаружи — `public` (без входа), `token` (только токен API) или `null`.
+   */
+  gateway?: {
+    zoneHeader: string
+    access: (request: FastifyRequest) => 'public' | 'token' | null
+  }
 }
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
@@ -87,6 +97,14 @@ export const authPlugin = fp<AuthDependencies>(async (app: FastifyInstance, deps
 
   app.addHook('onRequest', async (request: FastifyRequest, reply: FastifyReply) => {
     const auth = request.routeOptions?.config?.auth as RouteAuth | undefined
+
+    // Запрос из интернета через шлюз DMZ (ADR-0200): только открытые снаружи
+    // маршруты; маршрут API по токену — только с токеном, без сессии и гостевых
+    // ссылок. Второй рубеж за белым списком шлюза
+    const gateway = deps.gateway
+    const external = gateway !== undefined && request.headers[gateway.zoneHeader] === 'dmz'
+    const externalAccess = external ? gateway.access(request) : null
+    if (external && !externalAccess) throw errors.notFound('Маршрут')
 
     if (auth === undefined) {
       // Неизвестный маршрут (404) или маршрут без политики
@@ -113,6 +131,8 @@ export const authPlugin = fp<AuthDependencies>(async (app: FastifyInstance, deps
       await applyRoutePolicy(request, auth, deps)
       return
     }
+    // Снаружи — только токен: сессии, гостевые ссылки и печать живут внутри
+    if (external) throw errors.unauthorized('Снаружи нужен токен API')
 
     const token = request.cookies?.[env.SESSION_COOKIE_NAME]
     const shareToken = request.headers['x-kchs-share-token']
