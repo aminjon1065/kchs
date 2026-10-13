@@ -19,7 +19,6 @@ import {
 } from '@kchs/ui'
 import { useMutation } from '@tanstack/react-query'
 import { type ReactNode, useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { toFieldKey } from '~/shared/keys.js'
@@ -30,14 +29,8 @@ import {
   NOT_KEY_TYPES,
   PICKABLE_SEMANTICS,
 } from './field-types.js'
-import {
-  ChoiceField,
-  errorText,
-  FIELD_KEY,
-  labelOf,
-  NONE,
-  useSchemaRefresh,
-} from './schema-shared.js'
+import { errorText, schemaApi } from './schema-queries.js'
+import { ChoiceField, FIELD_KEY, labelOf, NONE, useSchemaRefresh } from './schema-shared.js'
 
 // ─── Смена типа ──────────────────────────────────────────────────────────────
 
@@ -62,13 +55,10 @@ export function ConvertTypeDialog({
 
   const run = useMutation({
     mutationFn: (apply: boolean) =>
-      http.post('/datasets/:id/fields/:key/convert', {
-        params: { id: dataset.id, key: field.key },
-        body: {
-          type,
-          dryRun: !apply,
-          allowLoss: apply && (report?.failed ?? 0) > 0,
-        },
+      schemaApi.convertField(dataset.id, field.key, {
+        type,
+        dryRun: !apply,
+        allowLoss: apply && (report?.failed ?? 0) > 0,
       }),
     onSuccess: (result) => {
       setFailure(null)
@@ -179,14 +169,11 @@ export function AddFieldDialog({
 
   const add = useMutation({
     mutationFn: () =>
-      http.post('/datasets/:id/fields', {
-        params: { id: dataset.id },
-        body: {
-          key: effectiveKey,
-          label: { ru: label.trim() },
-          type,
-          semantic,
-        },
+      schemaApi.addField(dataset.id, {
+        key: effectiveKey,
+        label: { ru: label.trim() },
+        type,
+        semantic,
       }),
     onSuccess: () => {
       toast.show({ title: t('data.dataset.editor.added'), tone: 'success' })
@@ -300,17 +287,14 @@ export function TableSettingsDialog({
 
   const save = useMutation({
     mutationFn: () =>
-      http.patch('/datasets/:id', {
-        params: { id: dataset.id },
-        body: {
-          timeField: timeField === NONE ? null : timeField,
-          primaryKey,
-          settings: {
-            editable,
-            trackHistory,
-            rowEvents,
-            historyRetentionDays: retention.trim() === '' ? null : Number(retention),
-          },
+      schemaApi.updateDataset(dataset.id, {
+        timeField: timeField === NONE ? null : timeField,
+        primaryKey,
+        settings: {
+          editable,
+          trackHistory,
+          rowEvents,
+          historyRetentionDays: retention.trim() === '' ? null : Number(retention),
         },
       }),
     onSuccess: () => {

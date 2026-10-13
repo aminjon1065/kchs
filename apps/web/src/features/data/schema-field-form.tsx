@@ -2,13 +2,13 @@ import type { DatasetField, DatasetFieldPatch, DatasetRecord, FieldSemantic } fr
 import { Button, Field, Input, Switch, Textarea, useToast } from '@kchs/ui'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { objectListQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { LOOKUP_TYPES, NUMERIC_TYPES, PICKABLE_SEMANTICS } from './field-types.js'
 import { datasetQuery } from './queries.js'
-import { ChoiceField, errorText, labelOf, NONE, useSchemaRefresh } from './schema-shared.js'
+import { errorText, schemaApi } from './schema-queries.js'
+import { ChoiceField, labelOf, NONE, useSchemaRefresh } from './schema-shared.js'
 
 type Lookup = NonNullable<DatasetField['lookup']>
 
@@ -59,10 +59,7 @@ export function FieldPropertiesForm({
           : {}),
         ...(JSON.stringify(lookup) !== JSON.stringify(field.lookup ?? null) ? { lookup } : {}),
       }
-      return http.patch('/datasets/:id/fields/:key', {
-        params: { id: dataset.id, key: field.key },
-        body: patch,
-      })
+      return schemaApi.updateField(dataset.id, field.key, patch)
     },
     onSuccess: () => {
       toast.show({ title: t('data.dataset.editor.saved'), tone: 'success' })

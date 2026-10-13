@@ -2,11 +2,11 @@ import type { DatasetField, Locale } from '@kchs/contracts'
 import { formatDate, formatDateTime, formatNumber, formatPercent } from '@kchs/fields'
 import { Callout, Histogram, KeyValueList, ProgressBar, Skeleton } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
-import { ApiError } from '~/shared/api/client.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { NUMERIC_TYPES } from './field-types.js'
 import { fieldProfileQuery } from './queries.js'
+import { isForbidden } from './schema-queries.js'
 
 /** Значение профиля текстом по типу поля: числа и даты — в локали пользователя. */
 function profileValue(value: string | null, type: string, locale: Locale): string {
@@ -25,7 +25,7 @@ export function FieldProfileView({ datasetId, field }: { datasetId: string; fiel
 
   if (isLoading) return <Skeleton className="h-32 w-full" />
   if (error || !profile) {
-    const restricted = error instanceof ApiError && error.status === 403
+    const restricted = isForbidden(error)
     return (
       <Callout tone={restricted ? 'info' : 'danger'}>
         {restricted ? t('data.dataset.profile.restricted') : t('data.dataset.profile.failed')}

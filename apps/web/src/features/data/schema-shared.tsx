@@ -1,7 +1,6 @@
 import type { DatasetField, Locale } from '@kchs/contracts'
 import { Field, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@kchs/ui'
 import { useQueryClient } from '@tanstack/react-query'
-import { ApiError } from '~/shared/api/client.js'
 import { dataKeys } from './queries.js'
 
 export const NONE = '__none'
@@ -15,10 +14,6 @@ export function useSchemaRefresh(datasetId: string) {
     void client.invalidateQueries({ queryKey: dataKeys.versions(datasetId) })
     void client.invalidateQueries({ queryKey: ['dataset', datasetId, 'profile'] })
   }
-}
-
-export function errorText(error: unknown, fallback: string): string {
-  return error instanceof ApiError ? error.message : fallback
 }
 
 export const labelOf = (field: DatasetField, locale: Locale) =>

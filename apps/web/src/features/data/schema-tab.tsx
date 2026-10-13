@@ -15,13 +15,13 @@ import {
 import { useMutation } from '@tanstack/react-query'
 import { Plus, Settings2, Trash2 } from 'lucide-react'
 import { useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { AddFieldDialog, ConvertTypeDialog, TableSettingsDialog } from './schema-dialogs.js'
 import { FieldPropertiesForm } from './schema-field-form.js'
 import { FieldProfileView } from './schema-field-profile.js'
-import { errorText, labelOf, useSchemaRefresh } from './schema-shared.js'
+import { errorText, schemaApi } from './schema-queries.js'
+import { labelOf, useSchemaRefresh } from './schema-shared.js'
 
 /**
  * Вкладка «Схема» (03-screens.md §5): список полей и панель выбранного поля —
@@ -195,8 +195,7 @@ function FieldPanel({
   const label = labelOf(field, locale)
 
   const remove = useMutation({
-    mutationFn: () =>
-      http.delete('/datasets/:id/fields/:key', { params: { id: dataset.id, key: field.key } }),
+    mutationFn: () => schemaApi.removeField(dataset.id, field.key),
     onSuccess: () => {
       toast.show({ title: t('data.dataset.editor.removed'), tone: 'success' })
       refresh()
