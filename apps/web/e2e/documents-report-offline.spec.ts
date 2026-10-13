@@ -1,11 +1,12 @@
-import { expect, openScreen, openWorkspace, test } from './fixtures.js'
+import { expect, openWorkspace, test } from './fixtures.js'
 
 /**
  * Донесение без сети (ADR-0212): сотрудник открывает «Донесение» при связи (тип и
  * районы запоминаются на устройстве), связь пропадает — он заполняет реквизиты ЧС,
  * фотографирует и отправляет; донесение ждёт в очереди устройства. Связь вернулась —
- * черновик создаётся на сервере тем же ключом, снимок прикреплён к документу.
- * Нужен тип «Донесение» с реквизитами ЧС — его ставит пакет ЧС.
+ * документ создаётся на сервере тем же ключом, снимок прикреплён к нему, и донесение
+ * уходит дежурной смене на регистрацию. Нужен пакет ЧС: тип «Донесение» с реквизитами
+ * ЧС и маршрут приёма.
  */
 
 /** PNG 1×1: устройство пережмёт его в JPEG, как снимок камеры. */
@@ -24,7 +25,8 @@ test.describe('Донесение без сети', () => {
     const subject = `Подмыт устой моста ${run}`
 
     await openWorkspace(page, request)
-    await openScreen(page, 'Документы')
+    // Раздел — кнопкой рейки: в палитре «Документы» — ещё и страница базы знаний
+    await page.getByRole('button', { name: 'Документы', exact: true }).click()
     await page.getByRole('button', { name: 'Донесение', exact: true }).click()
     const dialog = page.getByRole('dialog', { name: 'Новое донесение' })
     await expect(dialog.getByRole('button', { name: 'Отправить' })).toBeVisible()
@@ -38,11 +40,10 @@ test.describe('Донесение без сети', () => {
     await dialog.getByRole('combobox', { name: /Вид ЧС/ }).click()
     await page.getByRole('option').first().click()
     await dialog.getByLabel(/Время возникновения/).fill('2026-10-13T08:30')
-    await dialog.getByLabel('Добавить фото', { exact: true }).setInputFiles({
-      name: 'мост.png',
-      mimeType: 'image/png',
-      buffer: PIXEL,
-    })
+    // Файл — как человек: кнопкой, через окно выбора
+    const chooser = page.waitForEvent('filechooser')
+    await dialog.getByRole('button', { name: 'Добавить фото' }).click()
+    await (await chooser).setFiles({ name: 'мост.png', mimeType: 'image/png', buffer: PIXEL })
     // Снимок на устройстве: миниатюра из IndexedDB, без сервера
     await expect(dialog.getByRole('img', { name: 'Фото донесения' })).toBeVisible()
     await dialog.getByRole('button', { name: 'Отправить' }).click()
@@ -63,10 +64,16 @@ test.describe('Донесение без сети', () => {
     })
     await expect(page.getByText(`Донесение «${subject}» ждёт отправки`)).toBeHidden()
 
-    // На сервере — черновик «Донесения» с реквизитами и снимком, прикреплённым к нему
+    // На сервере — «Донесение» с реквизитами и снимком; пакет ЧС отправил его на
+    // регистрацию дежурной смене: идёт маршрут приёма, корреспондент и дата поступления
+    // заполнены сами (ADR-0212)
     const card = await request.get(`/api/v1/documents/${id}`)
     expect(card.ok(), await card.text()).toBeTruthy()
-    expect(await card.json()).toMatchObject({ subject, status: 'draft' })
+    const record = await card.json()
+    expect(record).toMatchObject({ subject, status: 'draft' })
+    expect(record.route).toMatchObject({ definitionKey: 'situation_report_intake' })
+    expect(record.correspondent).not.toBeNull()
+    expect(record.receivedDate).not.toBeNull()
     const links = await (await request.get(`/api/v1/objects/${id}/links`)).json()
     expect(
       (links.links as Array<{ kind: string }>).some((link) => link.kind === 'attachment'),

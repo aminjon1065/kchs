@@ -1,5 +1,6 @@
 import type {
   DocumentCreateInput,
+  DocumentIntakeResult,
   FormSubject,
   FormSubmission,
   FormSubmissionSubmitInput,
@@ -71,9 +72,20 @@ export const LOCAL_SUBMISSION = 'local:'
 type Sender = (entry: FormSubmitEntry) => Promise<FormSubmission>
 type Opener = (entry: FormSubmitEntry) => Promise<FormSubmission>
 type SentListener = (entry: FormSubmitEntry, result: FormSubmission) => void
-/** Создание документа со снимками; возвращает идентификатор документа. */
-type DocumentSender = (entry: DocumentCreateEntry) => Promise<string>
-type DocumentSentListener = (entry: DocumentCreateEntry, documentId: string) => void
+/**
+ * Донесение дошло: документ на сервере и что с регистрацией — ушло дежурной смене (`sent`),
+ * уже зарегистрировано, остаётся черновиком (у типа нет маршрута приёма) или не ушло по
+ * существу (`failed`: пустая дежурная смена, допуск) — тогда черновик остаётся у автора.
+ */
+export interface DocumentSent {
+  id: string
+  intake: DocumentIntakeResult['state'] | 'failed'
+  error: string | null
+}
+
+/** Создание документа со снимками и отправка на регистрацию. */
+type DocumentSender = (entry: DocumentCreateEntry) => Promise<DocumentSent>
+type DocumentSentListener = (entry: DocumentCreateEntry, sent: DocumentSent) => void
 
 const sendSubmit: Sender = (entry) =>
   http.post('/forms/submissions/:sid/submit', {
@@ -92,7 +104,16 @@ const openSubmission: Opener = (entry) => {
 const sendDocumentCreate: DocumentSender = async (entry) => {
   const { id } = await http.post('/documents', { body: entry.body })
   await uploadDocumentPhotos(id, entry.userId, entry.photos)
-  return id
+  // На регистрацию — после снимков: в черновик они ещё ложатся. Повтор безопасен: маршрут
+  // уже идёт — тот же ответ (ADR-0212)
+  try {
+    const result = await http.post('/documents/:id/intake', { params: { id } })
+    return { id, intake: result.state, error: null }
+  } catch (error) {
+    if (isRetryable(error) || (error instanceof ApiError && error.status === 401)) throw error
+    // Отказ по существу — донесение уже на сервере: черновик у автора, а не «не отправлено»
+    return { id, intake: 'failed', error: error instanceof Error ? error.message : String(error) }
+  }
 }
 
 let send: Sender = sendSubmit
@@ -152,7 +173,7 @@ export async function submitDocument(input: {
   title: string
   body: DocumentCreateInput & { clientKey: string }
   photos: string[]
-}): Promise<{ queued: true } | { queued: false; id: string }> {
+}): Promise<{ queued: true } | ({ queued: false } & DocumentSent)> {
   const entry: DocumentCreateEntry = {
     id: input.body.clientKey,
     kind: 'document.create',
@@ -166,9 +187,9 @@ export async function submitDocument(input: {
     photos: input.photos,
   }
   try {
-    const id = await sendDocument(entry)
+    const sent = await sendDocument(entry)
     await forgetPhotos(entry.photos)
-    return { queued: false, id }
+    return { queued: false, ...sent }
   } catch (error) {
     if (!isRetryable(error)) throw error
     await write(QUEUE_STORE, entry)
@@ -227,10 +248,10 @@ export function flushOfflineQueue(): Promise<void> {
         try {
           if (entry.kind === 'document.create') {
             // Донесение (ADR-0212): повтор создания с тем же ключом — тот же документ
-            const documentId = await sendDocument(entry)
+            const sent = await sendDocument(entry)
             await remove(QUEUE_STORE, entry.id)
             await forgetPhotos(entry.photos)
-            for (const listener of documentListeners) listener(entry, documentId)
+            for (const listener of documentListeners) listener(entry, sent)
             continue
           }
           // Сводку открыли без сети — сначала открыть на сервере (ADR-0208)
@@ -290,7 +311,7 @@ export function onOfflineSent(listener: SentListener): () => void {
   return () => sentListeners.delete(listener)
 }
 
-/** Донесение из очереди дошло: документ создан на сервере. */
+/** Донесение из очереди дошло: документ создан на сервере, регистрация — в `sent.intake`. */
 export function onOfflineDocumentSent(listener: DocumentSentListener): () => void {
   documentListeners.add(listener)
   return () => documentListeners.delete(listener)

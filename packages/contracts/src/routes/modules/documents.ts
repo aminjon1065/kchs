@@ -47,6 +47,7 @@ import {
 import {
   DocumentCancelInput,
   DocumentCreateInput,
+  DocumentIntakeResult,
   DocumentNumberPreview,
   DocumentNumberPreviewQuery,
   DocumentPhoto,
@@ -256,6 +257,7 @@ export const documentsRoutes = defineRoutes({
     body: DocumentPhotoUploadInput,
     response: { 200: DocumentPhoto },
   },
+  'POST /documents/:id/intake': { params: IdParam, response: { 200: DocumentIntakeResult } },
   'GET /documents/:id': { params: IdParam, response: { 200: DocumentRecord } },
   'PATCH /documents/:id': {
     params: IdParam,

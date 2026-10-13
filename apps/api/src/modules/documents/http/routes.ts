@@ -14,6 +14,7 @@ import { officeDashboardId } from '../domain/office-dashboard.js'
 import { DocumentPhotos } from '../domain/photo-service.js'
 import { ResolutionService } from '../domain/resolution-service.js'
 import { ResolutionTemplates } from '../domain/resolution-templates.js'
+import { DocumentIntake } from '../domain/routes/intake.js'
 import { territoryDocuments } from '../domain/territory-documents.js'
 import { DocumentTypeService } from '../domain/type-service.js'
 import { DocumentVersionService } from '../domain/version-service.js'
@@ -96,6 +97,16 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
     summary:
       'Фото к черновику документа: JPEG с телефона, очищенный от метаданных; повтор с тем же ключом устройства — тот же файл (ADR-0212)',
     handler: async (request) => DocumentPhotos.upload(request.ctx, request.params.id, request.body),
+  })
+
+  route({
+    route: 'POST /documents/:id/intake',
+    auth: { delegated: 'DocumentIntake.send', objectType: 'document' },
+    tags: ['documents'],
+    summary:
+      'Входящий документ, заведённый сотрудником (донесение из поля), — на регистрацию маршрутом типа по умолчанию; повторяемо: маршрут уже идёт — тот же ответ (ADR-0212)',
+    handler: async (request) =>
+      db().transaction((tx) => DocumentIntake.send(tx, request.ctx, request.params.id)),
   })
 
   route({

@@ -3,9 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '~/shared/api/client.js'
 
 /**
- * Донесение без сети (ADR-0212): создание документа со снимками уходит сразу, а без
- * сети ложится в очередь устройства и досылается тем же ключом; отказ по существу —
- * человеку; снимок, уже загруженный прошлым проходом, второй раз не грузится.
+ * Донесение без сети (ADR-0212): создание документа со снимками и отправка на регистрацию
+ * уходят сразу, а без сети ложатся в очередь устройства и досылаются тем же ключом; отказ
+ * по существу — человеку; снимок, уже загруженный прошлым проходом, второй раз не грузится.
+ * Отправку на регистрацию настоящим клиентом API проверяет `queue-intake.test.tsx`.
  */
 vi.stubGlobal('window', {
   addEventListener: () => undefined,
@@ -19,6 +20,7 @@ const photos = await import('./photos.js')
 const { PHOTOS_STORE, QUEUE_STORE, readAll } = await import('./store.js')
 
 const TYPE = '00000000-0000-4000-8000-000000000001'
+const sent = (id: string) => ({ id, intake: 'sent' as const, error: null })
 const problem = (status: number) =>
   new ApiError({
     type: 'about:blank',
@@ -56,9 +58,9 @@ const report = (clientKey: string, ids: string[], userId = 'u1') => ({
 describe('донесение в очереди устройства', () => {
   it('со связью — документ сразу, снимки с устройства стёрты', async () => {
     const shot = await photo()
-    queue.setOfflineDocumentSender(async () => 'd1')
+    queue.setOfflineDocumentSender(async () => sent('d1'))
     const outcome = await queue.submitDocument(report(crypto.randomUUID(), [shot.id]))
-    expect(outcome).toEqual({ queued: false, id: 'd1' })
+    expect(outcome).toEqual({ queued: false, id: 'd1', intake: 'sent', error: null })
     expect(await readAll(QUEUE_STORE)).toHaveLength(0)
     expect(await photos.localPhoto(shot.id, 'u1')).toBeNull()
   })
@@ -71,10 +73,10 @@ describe('донесение в очереди устройства', () => {
     queue.setOfflineDocumentSender(async (entry) => {
       keys.push(entry.body.clientKey)
       if (!online) throw new TypeError('Failed to fetch')
-      return 'd2'
+      return sent('d2')
     })
-    const sent = vi.fn()
-    const off = queue.onOfflineDocumentSent(sent)
+    const listener = vi.fn()
+    const off = queue.onOfflineDocumentSent(listener)
 
     expect(await queue.submitDocument(report(key, [shot.id]))).toEqual({ queued: true })
     const [waiting] = await readAll<{ id: string; kind: string; state: string }>(QUEUE_STORE)
@@ -89,7 +91,7 @@ describe('донесение в очереди устройства', () => {
     await queue.flushOfflineQueue()
     expect(keys).toEqual([key, key, key])
     expect(await readAll(QUEUE_STORE)).toHaveLength(0)
-    expect(sent).toHaveBeenCalledWith(expect.objectContaining({ id: key }), 'd2')
+    expect(listener).toHaveBeenCalledWith(expect.objectContaining({ id: key }), sent('d2'))
     expect(await photos.localPhoto(shot.id, 'u1')).toBeNull()
     off()
   })
@@ -145,7 +147,7 @@ describe('донесение в очереди устройства', () => {
   })
 
   it('чужое донесение на общем устройстве не уходит', async () => {
-    const sender = vi.fn(async () => 'd4')
+    const sender = vi.fn(async () => sent('d4'))
     queue.setOfflineDocumentSender(async () => {
       throw new TypeError('Failed to fetch')
     })

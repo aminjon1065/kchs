@@ -181,7 +181,7 @@ export const documents: DeepPartial<Dictionary['documents']> = {
     title: 'New situation report',
     subject: 'What happened, briefly',
     send: 'Send',
-    hint: 'The report is saved as a draft in your documents. Without a connection it waits on the device and is sent automatically once the connection is back.',
+    hint: 'The report goes to the duty shift for registration. Without a connection it waits on the device and is sent automatically once the connection is back.',
     unavailable:
       'The “Situation report” type is missing or disabled — the emergency pack installs it',
     untitled: 'Untitled situation report',
@@ -193,6 +193,8 @@ export const documents: DeepPartial<Dictionary['documents']> = {
     photoSize: 'The photo is too large even after compression',
     photoLimit: 'No more than {count} photos per report',
     created: 'Situation report created',
+    sent: 'Situation report sent to the duty shift for registration',
+    notSent: 'The report is saved as a draft but was not sent for registration: {error}',
     queued:
       'No connection — the report is saved on the device and will be sent once the connection is back',
     pending: 'Report “{title}” is waiting to be sent',

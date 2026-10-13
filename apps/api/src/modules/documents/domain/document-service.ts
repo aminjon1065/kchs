@@ -21,7 +21,7 @@ import {
   withinClearance,
 } from '@kchs/contracts'
 import { and, eq, sql } from 'drizzle-orm'
-import { authorize, hasCapability, visibleObjectsSql } from '~/kernel/access/authorize.js'
+import { authorize, visibleObjectsSql } from '~/kernel/access/authorize.js'
 import { clearanceOf } from '~/kernel/access/confidentiality.js'
 import { audit } from '~/kernel/audit/service.js'
 import { BusinessCalendar } from '~/kernel/business-calendar/service.js'
@@ -676,15 +676,11 @@ export const DocumentService = {
      */
     options: { viaRoute?: boolean; date?: string } = {},
   ): Promise<string> {
-    if (options.viaRoute && ctx.kind === 'user') {
-      // Регистратор шага маршрута: назначение проверил движок, право правки документа
-      // ему не нужно — достаточно способности и права регистрировать в журнале
-      if (!hasCapability(ctx, 'documents.register')) {
-        throw errors.forbidden('Требуется способность', { capability: 'documents.register' })
-      }
-    } else {
-      await authorize(ctx, 'register', id)
-    }
+    // Регистратор шага маршрута: назначение проверил движок — права правки документа и
+    // способности «Регистрация» ему не нужно, достаточно права на журнал: так дежурная
+    // смена регистрирует донесения, в журнал которых её допустили (ADR-0212)
+    const routeRegistrar = Boolean(options.viaRoute) && ctx.kind === 'user'
+    if (!routeRegistrar) await authorize(ctx, 'register', id)
     const row = await loadRow(tx, id, true)
     if (!row) throw errors.notFound('Документ')
     const status = row.status as DocumentStatus
@@ -716,8 +712,9 @@ export const DocumentService = {
         { path: 'journalId', message: 'type' },
       ])
     }
-    // Регистрирует делопроизводитель журнала: право на журнал и способность
-    await authorize(ctx, 'register_in', journalId)
+    // Регистрирует делопроизводитель журнала: право на журнал и способность; регистратор
+    // шага маршрута — право на журнал
+    await authorize(ctx, routeRegistrar ? 'register_by_route' : 'register_in', journalId)
 
     assertRequisites(type.direction, row)
     validateCardFields(type.cardSchema.fields, row.fields, { strict: true })

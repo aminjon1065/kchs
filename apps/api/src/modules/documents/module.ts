@@ -194,6 +194,11 @@ export function registerDocumentsObjectTypes(): void {
       view: { minLevel: 'view' },
       /** Регистрация и резерв номеров в журнале — делопроизводитель журнала. */
       register_in: { minLevel: 'edit', capability: 'documents.register' },
+      /**
+       * Регистрация шагом маршрута: назначение на шаг проверил движок, способность не
+       * нужна — дежурная смена регистрирует донесения в допущенном журнале (ADR-0212).
+       */
+      register_by_route: { minLevel: 'edit' },
       manage: { minLevel: 'manage' },
       share: { minLevel: 'manage' },
       delete: { minLevel: 'owner' },
