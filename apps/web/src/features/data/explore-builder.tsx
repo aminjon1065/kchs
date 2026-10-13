@@ -2,18 +2,29 @@ import {
   type Aggregate,
   type ChartSpec,
   type ChartType,
+  COMPARE_PARTS,
+  calcAlias,
+  calcApplies,
+  compareAlias,
   type DatasetField,
+  EXPLORE_CALCS,
+  type ExploreCalc,
+  type ExploreCompare,
   type ExploreGroup,
   type ExploreMeasure,
+  type ExplorePeriod,
   type ExplorePlan,
   groupAlias,
   type LangText,
+  lagAlias,
   measureAlias,
+  planColumns,
   type QueryResult,
   TIME_BUCKETS,
   type TimeBucket,
 } from '@kchs/contracts'
 import {
+  Button,
   cn,
   DataGrid,
   type DataGridColumn,
@@ -27,12 +38,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@kchs/ui'
-import { Plus, X } from 'lucide-react'
+import { CalendarRange, Plus, X } from 'lucide-react'
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
 import { optionLabels, useLabelledResult } from '~/features/gis/index.js'
 import { useTerritoryFilterEditor } from '~/features/gis/territory-filter.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
+import {
+  COMPARE_PRESETS,
+  type ComparePreset,
+  comparePeriods,
+  presetOf,
+  today,
+} from './explore-insights.js'
 import { useFieldOptions } from './field-options.js'
 import { filterFieldsOf, NUMERIC_TYPES } from './field-types.js'
 
@@ -100,8 +118,7 @@ export function withChannelLabels(spec: ChartSpec, result: QueryResult): ChartSp
 export function updatePlan<T extends ExplorePlan>(current: T, patch: Partial<ExplorePlan>): T {
   const next = { ...current, ...patch }
   if (next.sort && (next.groups.length > 0 || next.measures.length > 0)) {
-    const columns = [...next.groups.map(groupAlias), ...next.measures.map(measureAlias)]
-    if (!columns.includes(next.sort.field)) next.sort = null
+    if (!planColumns(next).includes(next.sort.field)) next.sort = null
   }
   return next
 }
@@ -120,6 +137,16 @@ export function useExploreLabels(
   const byKey = useMemo(() => new Map(fields.map((field) => [field.key, field])), [fields])
   const fieldOptions = useFieldOptions(fields)
 
+  const measureLabel = useCallback(
+    (measure: ExploreMeasure): string => {
+      if (measure.agg === 'expr') return measure.name || measure.expr || measureAlias(measure)
+      const agg = t(`data.explore.aggregates.${measure.agg}`)
+      const target = measure.field ? byKey.get(measure.field) : undefined
+      return target ? t('data.explore.measureOf', { agg, field: labelOf(target, locale) }) : agg
+    },
+    [byKey, locale, t],
+  )
+
   const columnLabel = useCallback(
     (name: string): string => {
       const field = byKey.get(name)
@@ -129,14 +156,26 @@ export function useExploreLabels(
       if (group?.bucket && grouped) {
         return `${labelOf(grouped, locale)} · ${t(`data.explore.buckets.${group.bucket}`)}`
       }
-      const measure = plan.measures.find((item) => measureAlias(item) === name)
-      if (!measure) return name
-      if (measure.agg === 'expr') return measure.name || measure.expr || name
-      const agg = t(`data.explore.aggregates.${measure.agg}`)
-      const target = measure.field ? byKey.get(measure.field) : undefined
-      return target ? t('data.explore.measureOf', { agg, field: labelOf(target, locale) }) : agg
+      for (const measure of plan.measures) {
+        if (measureAlias(measure) === name) return measureLabel(measure)
+        // Части сравнения периодов и расчёты над мерой — подписью меры с уточнением
+        const part = COMPARE_PARTS.find((item) => compareAlias(measure, item) === name)
+        if (part) {
+          return t(`data.explore.compare.parts.${part}`, { measure: measureLabel(measure) })
+        }
+        if (measure.calc && calcAlias(measure) === name) {
+          return t('data.explore.calc.of', {
+            measure: measureLabel(measure),
+            calc: t(`data.explore.calc.${measure.calc}`),
+          })
+        }
+        if (lagAlias(measure) === name) {
+          return t('data.explore.calc.lag', { measure: measureLabel(measure) })
+        }
+      }
+      return name
     },
-    [byKey, plan.groups, plan.measures, locale, t],
+    [byKey, plan.groups, plan.measures, measureLabel, locale, t],
   )
 
   const valueLabels = useMemo(
@@ -173,12 +212,15 @@ export function ExplorePlanEditor({
   onChange,
   columnLabel,
   compact = false,
+  anchor = null,
 }: {
   fields: readonly DatasetField[]
   plan: ExplorePlan
   onChange: (patch: Partial<ExplorePlan>) => void
   columnLabel: (name: string) => string
   compact?: boolean
+  /** Последняя дата в данных: пресеты сравнения отсчитываются от неё (ADR-0217). */
+  anchor?: string | null
 }) {
   const t = useT()
   const locale = useLocale()
@@ -189,7 +231,7 @@ export function ExplorePlanEditor({
   const groupable = fields.filter((field) => !NOT_GROUPABLE.has(field.type))
   const numeric = fields.filter((field) => NUMERIC_TYPES.has(field.type))
   const filterFields = filterFieldsOf(fields, locale, fieldOptions)
-  const sortable = [...plan.groups.map(groupAlias), ...plan.measures.map(measureAlias)]
+  const sortable = planColumns(plan)
 
   return (
     <div className={cn('flex flex-col gap-4', compact && 'md:grid md:grid-cols-2 md:gap-x-6')}>
@@ -264,6 +306,7 @@ export function ExplorePlanEditor({
           <MeasureRow
             key={`${measureAlias(measure)}-${index}`}
             measure={measure}
+            plan={plan}
             fields={fields}
             numeric={numeric}
             locale={locale}
@@ -274,6 +317,8 @@ export function ExplorePlanEditor({
           />
         ))}
       </Section>
+
+      <CompareSection fields={fields} plan={plan} onChange={onChange} anchor={anchor} />
 
       <Section title={t('data.explore.sort')}>
         <div className="flex flex-col gap-2">
@@ -417,6 +462,7 @@ function GroupRow({
 
 function MeasureRow({
   measure,
+  plan,
   fields,
   numeric,
   locale,
@@ -424,6 +470,7 @@ function MeasureRow({
   onRemove,
 }: {
   measure: ExploreMeasure
+  plan: ExplorePlan
   fields: readonly DatasetField[]
   numeric: DatasetField[]
   locale: 'ru' | 'tg' | 'en'
@@ -433,70 +480,240 @@ function MeasureRow({
   const t = useT()
   // Над какими полями считается функция: количество — над строками, различные — над любым
   const targets = measure.agg === 'count' ? [] : measure.agg === 'count_distinct' ? fields : numeric
+  // Расчёт над мерой переживает смену функции и поля
+  const keep = (next: ExploreMeasure): ExploreMeasure =>
+    measure.calc ? { ...next, calc: measure.calc } : next
+  const calcHint =
+    measure.calc && !calcApplies(plan, measure)
+      ? plan.compare
+        ? t('data.explore.compare.noCalc')
+        : t('data.explore.calc.needsGroup')
+      : null
   return (
-    <div className="flex items-center gap-1">
-      <Select
-        value={measure.agg}
-        onValueChange={(next) => {
-          const agg = next as Aggregate
-          if (agg === 'count') onChange({ agg })
-          else if (agg === 'expr') onChange({ agg, expr: measure.expr ?? 'count()' })
-          else {
-            const pool = agg === 'count_distinct' ? fields : numeric
-            const field = pool.some((item) => item.key === measure.field)
-              ? measure.field
-              : pool[0]?.key
-            onChange(field ? { agg, field } : { agg: 'count' })
-          }
-        }}
-      >
-        <SelectTrigger aria-label={t('data.explore.measures')} className="h-7 w-32 text-xs">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {AGGREGATES.filter(
-            (agg) =>
-              agg === 'count' || agg === 'count_distinct' || agg === 'expr' || numeric.length > 0,
-          ).map((agg) => (
-            <SelectItem key={agg} value={agg}>
-              {t(`data.explore.aggregates.${agg}`)}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      {measure.agg === 'expr' ? (
-        <FormulaInput
-          value={measure.expr ?? ''}
-          onCommit={(expr) => onChange({ ...measure, expr })}
-        />
-      ) : targets.length > 0 ? (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center gap-1">
         <Select
-          value={measure.field ?? targets[0]?.key}
-          onValueChange={(field) => onChange({ agg: measure.agg, field })}
+          value={measure.agg}
+          onValueChange={(next) => {
+            const agg = next as Aggregate
+            if (agg === 'count') onChange(keep({ agg }))
+            else if (agg === 'expr') onChange(keep({ agg, expr: measure.expr ?? 'count()' }))
+            else {
+              const pool = agg === 'count_distinct' ? fields : numeric
+              const field = pool.some((item) => item.key === measure.field)
+                ? measure.field
+                : pool[0]?.key
+              onChange(keep(field ? { agg, field } : { agg: 'count' }))
+            }
+          }}
         >
-          <SelectTrigger
-            aria-label={t('data.explore.measures')}
-            className="h-7 min-w-0 flex-1 text-xs"
-          >
+          <SelectTrigger aria-label={t('data.explore.measures')} className="h-7 w-32 text-xs">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {targets.map((item) => (
-              <SelectItem key={item.key} value={item.key}>
-                {labelOf(item, locale)}
+            {AGGREGATES.filter(
+              (agg) =>
+                agg === 'count' || agg === 'count_distinct' || agg === 'expr' || numeric.length > 0,
+            ).map((agg) => (
+              <SelectItem key={agg} value={agg}>
+                {t(`data.explore.aggregates.${agg}`)}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
-      ) : (
-        <span className="min-w-0 flex-1 truncate px-1 text-xs text-fg-secondary">
-          {t('data.explore.rows')}
-        </span>
-      )}
-      <IconButton label={t('data.explore.remove')} size="sm" onClick={onRemove}>
-        <X className="size-3.5" />
-      </IconButton>
+        {measure.agg === 'expr' ? (
+          <FormulaInput
+            value={measure.expr ?? ''}
+            onCommit={(expr) => onChange({ ...measure, expr })}
+          />
+        ) : targets.length > 0 ? (
+          <Select
+            value={measure.field ?? targets[0]?.key}
+            onValueChange={(field) => onChange(keep({ agg: measure.agg, field }))}
+          >
+            <SelectTrigger
+              aria-label={t('data.explore.measures')}
+              className="h-7 min-w-0 flex-1 text-xs"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {targets.map((item) => (
+                <SelectItem key={item.key} value={item.key}>
+                  {labelOf(item, locale)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <span className="min-w-0 flex-1 truncate px-1 text-xs text-fg-secondary">
+            {t('data.explore.rows')}
+          </span>
+        )}
+        <IconButton label={t('data.explore.remove')} size="sm" onClick={onRemove}>
+          <X className="size-3.5" />
+        </IconButton>
+      </div>
+      <Select
+        value={measure.calc ?? NONE}
+        disabled={Boolean(plan.compare)}
+        onValueChange={(next) => {
+          const { calc: _drop, ...rest } = measure
+          onChange(next === NONE ? rest : { ...rest, calc: next as ExploreCalc })
+        }}
+      >
+        <SelectTrigger aria-label={t('data.explore.calc.label')} className="h-7 text-xs">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={NONE}>{t('data.explore.calc.none')}</SelectItem>
+          {EXPLORE_CALCS.map((calc) => (
+            <SelectItem key={calc} value={calc}>
+              {t(`data.explore.calc.${calc}`)}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {calcHint ? <p className="text-2xs text-fg-muted">{calcHint}</p> : null}
     </div>
+  )
+}
+
+const TEMPORAL_TYPES = new Set(['date', 'datetime'])
+
+/**
+ * Сравнение двух периодов (ADR-0217): поле даты и пресет — от последней даты в
+ * данных — или свои даты; каждая мера даёт текущий период, базу, разницу и изменение.
+ */
+function CompareSection({
+  fields,
+  plan,
+  onChange,
+  anchor,
+}: {
+  fields: readonly DatasetField[]
+  plan: ExplorePlan
+  onChange: (patch: Partial<ExplorePlan>) => void
+  anchor: string | null
+}) {
+  const t = useT()
+  const locale = useLocale()
+  const dates = fields.filter((field) => TEMPORAL_TYPES.has(field.type))
+  const at = anchor ?? today()
+  const compare = plan.compare ?? null
+  const update = (next: ExploreCompare | null) => onChange({ compare: next })
+  if (!compare) {
+    return (
+      <Section title={t('data.explore.compare.title')}>
+        <Button
+          size="sm"
+          variant="secondary"
+          icon={<CalendarRange className="size-3.5" />}
+          disabled={dates.length === 0}
+          onClick={() => {
+            const field = dates[0]
+            if (field) update({ field: field.key, ...comparePeriods('year', at) })
+          }}
+        >
+          {t('data.explore.compare.add')}
+        </Button>
+        {dates.length === 0 ? (
+          <p className="text-2xs text-fg-muted">{t('data.explore.compare.noTime')}</p>
+        ) : null}
+      </Section>
+    )
+  }
+  const preset = presetOf(compare, at)
+  return (
+    <Section
+      title={t('data.explore.compare.title')}
+      action={
+        <IconButton label={t('data.explore.compare.remove')} size="sm" onClick={() => update(null)}>
+          <X className="size-3.5" />
+        </IconButton>
+      }
+    >
+      <Select value={compare.field} onValueChange={(field) => update({ ...compare, field })}>
+        <SelectTrigger aria-label={t('data.explore.compare.field')} className="h-7 text-xs">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {dates.map((field) => (
+            <SelectItem key={field.key} value={field.key}>
+              {labelOf(field, locale)}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Select
+        value={preset}
+        onValueChange={(next) => {
+          if (next !== 'custom') {
+            update({ ...compare, ...comparePeriods(next as ComparePreset, at) })
+          }
+        }}
+      >
+        <SelectTrigger aria-label={t('data.explore.compare.preset')} className="h-7 text-xs">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {COMPARE_PRESETS.map((item) => (
+            <SelectItem key={item} value={item}>
+              {t(`data.explore.compare.presets.${item}`)}
+            </SelectItem>
+          ))}
+          <SelectItem value="custom">{t('data.explore.compare.presets.custom')}</SelectItem>
+        </SelectContent>
+      </Select>
+      <PeriodInputs
+        label={t('data.explore.compare.current')}
+        period={compare.current}
+        onChange={(current) => update({ ...compare, current })}
+      />
+      <PeriodInputs
+        label={t('data.explore.compare.previous')}
+        period={compare.previous}
+        onChange={(previous) => update({ ...compare, previous })}
+      />
+    </Section>
+  )
+}
+
+/** Период датами «с … по …»: неверный порядок дат не принимается. */
+function PeriodInputs({
+  label,
+  period,
+  onChange,
+}: {
+  label: string
+  period: ExplorePeriod
+  onChange: (period: ExplorePeriod) => void
+}) {
+  const t = useT()
+  const set = (patch: Partial<ExplorePeriod>) => {
+    const next = { ...period, ...patch }
+    if (next.from && next.to && next.from <= next.to) onChange(next)
+  }
+  return (
+    <fieldset className="flex flex-col gap-1">
+      <legend className="text-2xs text-fg-secondary">{label}</legend>
+      <div className="flex items-center gap-1">
+        <Input
+          type="date"
+          aria-label={`${label}: ${t('data.explore.compare.from')}`}
+          className="h-7 min-w-0 flex-1 text-xs"
+          value={period.from}
+          onChange={(event) => set({ from: event.target.value })}
+        />
+        <Input
+          type="date"
+          aria-label={`${label}: ${t('data.explore.compare.to')}`}
+          className="h-7 min-w-0 flex-1 text-xs"
+          value={period.to}
+          onChange={(event) => set({ to: event.target.value })}
+        />
+      </div>
+    </fieldset>
   )
 }
 
@@ -531,8 +748,24 @@ function FormulaInput({ value, onCommit }: { value: string; onCommit: (expr: str
   )
 }
 
-/** Результат таблицей: DataGrid только для чтения. */
-export function ResultTable({ result, className }: { result: QueryResult; className?: string }) {
+/**
+ * Результат таблицей: DataGrid только для чтения. Щелчок по заголовку сортирует —
+ * порядок уходит в план (`onSortChange`), сервер сортирует весь результат, а не
+ * загруженную страницу; `onRowOpen` — детализация строки.
+ */
+export function ResultTable({
+  result,
+  className,
+  sort = null,
+  onSortChange,
+  onRowOpen,
+}: {
+  result: QueryResult
+  className?: string
+  sort?: ExplorePlan['sort']
+  onSortChange?: (sort: ExplorePlan['sort']) => void
+  onRowOpen?: (index: number) => void
+}) {
   const t = useT()
   const locale = useLocale()
   const columns = useMemo<DataGridColumn[]>(
@@ -562,6 +795,16 @@ export function ResultTable({ result, className }: { result: QueryResult; classN
       getRow={(index) => rows[index]}
       readOnly
       locale={locale}
+      {...(onSortChange
+        ? {
+            sort: sort ? [{ key: sort.field, dir: sort.dir }] : [],
+            onSortChange: (items: { key: string; dir: 'asc' | 'desc' }[]) => {
+              const first = items[0]
+              onSortChange(first ? { field: first.key, dir: first.dir } : null)
+            },
+          }
+        : {})}
+      {...(onRowOpen ? { onRowOpen: (_row: unknown, index: number) => onRowOpen(index) } : {})}
     />
   )
 }

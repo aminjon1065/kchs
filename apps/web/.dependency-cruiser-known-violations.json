@@ -1225,23 +1225,6 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/data/explore-screen.tsx",
-    "to": "src/shared/api/client.ts",
-    "unresolvedTo": "~/shared/api/client.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "api-client-in-api-layer"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/data/export-dialog.tsx",
     "to": "src/shared/api/client.ts",
     "unresolvedTo": "~/shared/api/client.js",

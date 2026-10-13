@@ -4,6 +4,7 @@
  * не тянуть их в чанк потребителя.
  */
 export * from './basemaps.js'
+export * from './lazy.js'
 export * from './queries.js'
 export * from './result-labels.js'
 export * from './service-layers.js'
