@@ -123,6 +123,17 @@ export function InboxScreen() {
     void client.invalidateQueries({ queryKey: keys.inboxCounts })
   }
 
+  // Перечитывание списка (событие realtime, своё действие) отменяет начатую догрузку
+  // страницы — нажатие «Показать ещё» терялось. Догружаем снова, когда перечитывание
+  // закончится: `cancelRefetch: false` ждёт идущий запрос, а не отменяет его
+  const loadMore = async (): Promise<void> => {
+    const before = data?.pages.length ?? 0
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const result = await fetchNextPage({ cancelRefetch: false })
+      if ((result.data?.pages.length ?? 0) > before || !result.hasNextPage) return
+    }
+  }
+
   const snooze = useMutation({
     mutationFn: (itemId: string) =>
       http.post('/inbox/:id/snooze', {
@@ -387,7 +398,7 @@ export function InboxScreen() {
                       size="sm"
                       variant="ghost"
                       loading={isFetchingNextPage}
-                      onClick={() => void fetchNextPage()}
+                      onClick={() => void loadMore()}
                     >
                       {t('common.actions.loadMore')}
                     </Button>

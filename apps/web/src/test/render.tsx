@@ -51,7 +51,8 @@ export interface ApiCall {
 
 /**
  * `fetch` отвечает JSON по пути без `/api/v1`: ключ `'POST /documents'` или просто `'/me'` для
- * GET. Неизвестный путь — 404. Возвращает журнал запросов.
+ * GET; ответ-функция может вернуть обещание — так тест держит запрос «в пути». Неизвестный
+ * путь — 404. Возвращает журнал запросов.
  */
 export function stubApi(routes: Record<string, Reply>): ApiCall[] {
   const calls: ApiCall[] = []
@@ -66,7 +67,7 @@ export function stubApi(routes: Record<string, Reply>): ApiCall[] {
       calls.push({ method, path, body })
       const reply = routes[`${method} ${path}`] ?? (method === 'GET' ? routes[path] : undefined)
       if (reply === undefined) return json({ code: 'NOT_FOUND', message: path }, 404)
-      return json(typeof reply === 'function' ? reply({ url, init }) : reply)
+      return json(typeof reply === 'function' ? await reply({ url, init }) : reply)
     }),
   )
   return calls
