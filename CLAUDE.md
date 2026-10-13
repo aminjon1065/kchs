@@ -61,7 +61,8 @@ pnpm contracts:snapshot && pnpm contracts:compat  # снимки событий 
 pnpm test                                # unit
 pnpm test:integration                    # интеграционные (база kchs_test)
 bash apps/api/scripts/test-slot.sh N && KCHS_TEST_SLOT=N pnpm --filter @kchs/api test:integration  # своя база kchs_test_N (N = 1…14)
-pnpm e2e                                 # Playwright (нужны api и web)
+pnpm e2e                                 # Playwright (нужны api и web) — не на стенде с реальными данными
+bash infra/scripts/e2e-stack.sh [файлы…]  # Playwright на временном стенде kchs-e2e: поднять, прогнать, удалить
 pnpm --filter @kchs/web build && pnpm --filter @kchs/web budget  # бюджет оболочки ≤ 400 КБ gzip (ADR-0166)
 bash infra/scripts/smoke-api.sh          # дымовой прогон API на демо-данных
 bash infra/perf/run-k6.sh                # бюджеты p95 API (k6 в Docker) на демо-данных
