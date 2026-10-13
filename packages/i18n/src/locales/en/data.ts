@@ -737,7 +737,7 @@ export const data: DeepPartial<Dictionary['data']> = {
       rows: 'Show rows',
       close: 'Clear selection',
       rowsTitle: 'Rows: {value}',
-      rowsShown: 'First {count} rows',
+      rowsShown: 'First {count, plural, one {# row} other {# rows}}',
       openDataset: 'Open dataset',
       empty: 'not set',
     },

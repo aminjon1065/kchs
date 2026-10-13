@@ -744,7 +744,8 @@ export const data = {
       rows: 'Показать строки',
       close: 'Снять выбор',
       rowsTitle: 'Строки: {value}',
-      rowsShown: 'Первые {count} строк',
+      rowsShown:
+        'Первые {count, plural, one {# строка} few {# строки} many {# строк} other {# строки}}',
       openDataset: 'Открыть датасет',
       empty: 'не задано',
     },
