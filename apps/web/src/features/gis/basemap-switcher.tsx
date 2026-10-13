@@ -2,6 +2,7 @@ import type { Basemap, ReliefLevel } from '@kchs/contracts'
 import { RELIEF_LEVELS } from '@kchs/contracts'
 import {
   Button,
+  Dialog,
   IconButton,
   Popover,
   PopoverContent,
@@ -11,10 +12,12 @@ import {
   SegmentedControl,
 } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
-import { Layers } from 'lucide-react'
+import { Layers, WifiOff } from 'lucide-react'
+import { useState } from 'react'
 import { useT } from '~/shared/i18n.js'
 import { type BasemapVariant, useBasemapChoice, variantsOf } from './basemap-choice.js'
 import { basemapsQuery } from './basemaps.js'
+import { OfflineBasemapDialog } from './offline/offline-basemap-dialog.js'
 
 const AUTO = 'auto'
 
@@ -54,6 +57,8 @@ export function BasemapSwitcher({
   const relief = useBasemapChoice((state) => state.relief)
   const choose = useBasemapChoice((state) => state.choose)
   const setRelief = useBasemapChoice((state) => state.setRelief)
+  const [open, setOpen] = useState(false)
+  const [offline, setOffline] = useState(false)
 
   const label = (item: Basemap, variant: BasemapVariant): Omit<Option, 'value'> => {
     if (item.kind === 'none') return { title: t('gis.map.noBasemap'), hint: null }
@@ -90,67 +95,86 @@ export function BasemapSwitcher({
   const canSave = onSaveToMap && choice && selected !== AUTO && choice.basemapId !== auto?.id
 
   return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <IconButton label={t('gis.basemap.open')} size="sm">
-          <Layers className="size-4" aria-hidden />
-        </IconButton>
-      </PopoverTrigger>
-      <PopoverContent side="left" align="start" className="flex w-72 flex-col gap-3">
-        <p className="text-xs font-semibold text-fg">{t('gis.basemap.title')}</p>
-        <RadioGroup
-          value={selected}
-          onValueChange={(value) => {
-            if (value === AUTO) {
-              choose(null)
-              return
-            }
-            const [basemapId = '', variant] = value.split(':')
-            choose({ basemapId, variant: variant as BasemapVariant })
-          }}
-          aria-label={t('gis.basemap.title')}
-          className="flex max-h-72 flex-col gap-2 overflow-auto"
-        >
-          {options.map((option) => (
-            <RadioItem
-              key={option.value}
-              value={option.value}
-              label={
-                <span className="flex min-w-0 flex-col">
-                  <span className="truncate">{option.title}</span>
-                  {option.hint ? (
-                    <span className="truncate text-xs text-fg-muted">{option.hint}</span>
-                  ) : null}
-                </span>
+    <>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <IconButton label={t('gis.basemap.open')} size="sm">
+            <Layers className="size-4" aria-hidden />
+          </IconButton>
+        </PopoverTrigger>
+        <PopoverContent side="left" align="start" className="flex w-72 flex-col gap-3">
+          <p className="text-xs font-semibold text-fg">{t('gis.basemap.title')}</p>
+          <RadioGroup
+            value={selected}
+            onValueChange={(value) => {
+              if (value === AUTO) {
+                choose(null)
+                return
               }
-            />
-          ))}
-        </RadioGroup>
-        {hasRelief ? (
-          <div className="flex flex-col gap-1.5 border-t border-line pt-3">
-            <p className="text-xs font-semibold text-fg">{t('gis.basemap.relief')}</p>
-            <SegmentedControl<ReliefLevel>
+              const [basemapId = '', variant] = value.split(':')
+              choose({ basemapId, variant: variant as BasemapVariant })
+            }}
+            aria-label={t('gis.basemap.title')}
+            className="flex max-h-72 flex-col gap-2 overflow-auto"
+          >
+            {options.map((option) => (
+              <RadioItem
+                key={option.value}
+                value={option.value}
+                label={
+                  <span className="flex min-w-0 flex-col">
+                    <span className="truncate">{option.title}</span>
+                    {option.hint ? (
+                      <span className="truncate text-xs text-fg-muted">{option.hint}</span>
+                    ) : null}
+                  </span>
+                }
+              />
+            ))}
+          </RadioGroup>
+          {hasRelief ? (
+            <div className="flex flex-col gap-1.5 border-t border-line pt-3">
+              <p className="text-xs font-semibold text-fg">{t('gis.basemap.relief')}</p>
+              <SegmentedControl<ReliefLevel>
+                size="sm"
+                value={relief}
+                onValueChange={setRelief}
+                aria-label={t('gis.basemap.relief')}
+                options={RELIEF_LEVELS.map((level) => ({
+                  value: level,
+                  label: t(`gis.basemap.reliefLevels.${level}`),
+                }))}
+              />
+            </div>
+          ) : null}
+          {canSave && choice ? (
+            <div className="flex flex-col gap-1.5 border-t border-line pt-3">
+              <Button size="sm" variant="secondary" onClick={() => onSaveToMap(choice.basemapId)}>
+                {t('gis.basemap.saveToMap')}
+              </Button>
+              <p className="text-xs text-fg-muted">{t('gis.basemap.saveToMapHint')}</p>
+            </div>
+          ) : null}
+          <p className="text-xs text-fg-muted">{t('gis.basemap.personalHint')}</p>
+          <div className="border-t border-line pt-3">
+            <Button
               size="sm"
-              value={relief}
-              onValueChange={setRelief}
-              aria-label={t('gis.basemap.relief')}
-              options={RELIEF_LEVELS.map((level) => ({
-                value: level,
-                label: t(`gis.basemap.reliefLevels.${level}`),
-              }))}
-            />
-          </div>
-        ) : null}
-        {canSave && choice ? (
-          <div className="flex flex-col gap-1.5 border-t border-line pt-3">
-            <Button size="sm" variant="secondary" onClick={() => onSaveToMap(choice.basemapId)}>
-              {t('gis.basemap.saveToMap')}
+              variant="ghost"
+              icon={<WifiOff className="size-3.5" />}
+              onClick={() => {
+                setOpen(false)
+                setOffline(true)
+              }}
+            >
+              {t('gis.basemap.offline.open')}
             </Button>
-            <p className="text-xs text-fg-muted">{t('gis.basemap.saveToMapHint')}</p>
           </div>
-        ) : null}
-        <p className="text-xs text-fg-muted">{t('gis.basemap.personalHint')}</p>
-      </PopoverContent>
-    </Popover>
+        </PopoverContent>
+      </Popover>
+      {/* Карта района без сети (ADR-0211): окно — только пока открыто */}
+      <Dialog open={offline} onOpenChange={setOffline}>
+        {offline ? <OfflineBasemapDialog current={current} /> : null}
+      </Dialog>
+    </>
   )
 }
