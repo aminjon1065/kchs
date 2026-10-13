@@ -137,10 +137,10 @@ for (const key of Object.keys(WITHOUT_TX)) {
 }
 
 if (problems.length > 0) {
-  for (const problem of problems) console.error(`✗ ${problem}`)
+  process.stderr.write(`✘ аудит в транзакции (ADR-0216):\n  ${problems.join('\n  ')}\n`)
   process.exit(1)
 }
 const total = [...found.values()].reduce((sum, places) => sum + places.length, 0)
-console.log(
-  `✔ аудит изменений — в транзакции изменения (без tx: ${total} записей чтения, отказов и внешнего состояния)`,
+process.stdout.write(
+  `✔ аудит изменений — в транзакции изменения (без tx: ${total} записей чтения, отказов и внешнего состояния)\n`,
 )
