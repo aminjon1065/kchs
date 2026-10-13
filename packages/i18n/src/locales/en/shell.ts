@@ -130,6 +130,7 @@ export const shell: DeepPartial<Dictionary['shell']> = {
     offlineQueueHint:
       'No network: submissions are kept on this device and will be sent automatically once the connection is back',
     reportSent: 'Queued situation report sent',
+    reportSaved: 'Queued situation report saved as a draft — it was not sent for registration',
   },
   palette: {
     placeholder: 'Search objects and commands…',

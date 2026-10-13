@@ -17,6 +17,7 @@ const { seedCommand } = await import('../src/seed/command.js')
 const {
   datasetFields,
   datasets,
+  documentTypes,
   forms,
   groups,
   objects,
@@ -164,6 +165,28 @@ describe('пакет ЧС: чистая установка', () => {
       requireMfa: true,
       onReject: 'end:refused',
     })
+    // Донесение из поля (ADR-0212): маршрут приёма — регистрация дежурной сменой за час,
+    // он же маршрут типа «Донесение» по умолчанию
+    const [intake] = await db()
+      .select({ definition: processDefinitions.definition })
+      .from(processDefinitions)
+      .where(eq(processDefinitions.key, 'situation_report_intake'))
+    const [dutyGroup] = await db()
+      .select({ id: groups.id })
+      .from(groups)
+      .where(eq(groups.name, 'Дежурная смена'))
+    const intakeSteps = (intake?.definition as { steps?: Record<string, unknown> } | undefined)
+      ?.steps
+    expect(intakeSteps?.register).toMatchObject({
+      type: 'register',
+      assignees: [`group:${dutyGroup?.id}`],
+      dueHours: 1,
+    })
+    const [reportType] = await db()
+      .select({ defaultRouteKey: documentTypes.defaultRouteKey })
+      .from(documentTypes)
+      .where(eq(documentTypes.key, 'situation_report'))
+    expect(reportType?.defaultRouteKey).toBe('situation_report_intake')
     const [warningSettings] = await db()
       .select({ value: settings.value })
       .from(settings)

@@ -85,7 +85,13 @@ export function ReportDialog({ onClose }: { onClose: () => void }) {
         toast.show({ title: t('documents.report.queued') })
         return
       }
-      toast.success(t('documents.report.created'))
+      if (outcome.intake === 'sent' || outcome.intake === 'registered') {
+        toast.success(t('documents.report.sent'))
+      } else if (outcome.intake === 'failed') {
+        toast.error(t('documents.report.notSent', { error: outcome.error ?? '' }))
+      } else {
+        toast.success(t('documents.report.created'))
+      }
       openTab({
         kind: 'object',
         objectId: outcome.id,

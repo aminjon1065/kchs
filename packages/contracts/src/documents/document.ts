@@ -256,6 +256,19 @@ export const DocumentPhoto = z.object({
 })
 export type DocumentPhoto = z.infer<typeof DocumentPhoto>
 
+/**
+ * Входящий документ, заведённый сотрудником (донесение из поля, ADR-0212), — на
+ * регистрацию маршрутом типа по умолчанию. Повторяемо: маршрут уже идёт — `sent`,
+ * документ зарегистрирован — `registered`, у типа нет маршрута — остаётся черновиком
+ * (`draft`).
+ */
+export const DocumentIntakeResult = z.object({
+  state: z.enum(['sent', 'registered', 'draft']),
+  /** Экземпляр маршрута приёма — когда документ на нём. */
+  instanceId: Uuid.nullable(),
+})
+export type DocumentIntakeResult = z.infer<typeof DocumentIntakeResult>
+
 export const DocumentUpdateInput = z.object({
   subject: CardFields.subject.optional(),
   summary: CardFields.summary.optional(),

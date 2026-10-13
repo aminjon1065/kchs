@@ -88,6 +88,20 @@ export function unconditionalSteps(def: ProcessDefinition): Set<string> {
   return seen
 }
 
+/** Все шаги определения, включая шаги условий. */
+function stepsOf(def: ProcessDefinition): Step[] {
+  return [...Object.values(def.steps), ...def.conditions.map((condition) => condition.step as Step)]
+}
+
+/**
+ * Маршрут идёт по содержимому — согласование или подпись версии (ADR-0197). Маршрут без
+ * них (регистрация входящего, ADR-0212) идёт и без файла: регистрируется карточка, как с
+ * экрана регистрации.
+ */
+export function needsVersion(def: ProcessDefinition): boolean {
+  return stepsOf(def).some((step) => step.type === 'approval' || step.type === 'sign')
+}
+
 /** Сотрудники без допуска к грифу документа — согласовать вслепую они не должны. */
 export async function withoutClearance(
   userIds: readonly string[],
@@ -126,7 +140,12 @@ export const DocumentRoutes = {
   },
 
   /** Почему пользователь не может отправить документ по маршруту; null — может. */
-  async blocker(executor: Executor, ctx: UserCtx, documentId: string) {
+  async blocker(
+    executor: Executor,
+    ctx: UserCtx,
+    documentId: string,
+    options: { needsVersion?: boolean } = {},
+  ) {
     const row = await DocumentService.load(executor, documentId)
     if (!row) throw errors.notFound('Документ')
     const edit = await authorize(ctx, 'edit', documentId, { soft: true })
@@ -135,14 +154,22 @@ export const DocumentRoutes = {
       canEdit: edit.allowed,
       status: row.status as DocumentStatus,
       running: running.length > 0,
-      hasVersion: row.currentVersionId !== null,
+      hasVersion: row.currentVersionId !== null || options.needsVersion === false,
     })
   },
 
-  /** Запуск через общее API движка — те же проверки, что у карточки. */
-  async assertCanStart(executor: Executor, ctx: UserCtx, documentId: string): Promise<void> {
+  /**
+   * Запуск через общее API движка — те же проверки, что у карточки. `needsVersion: false` —
+   * маршрут без согласования и подписи, файл ему не нужен.
+   */
+  async assertCanStart(
+    executor: Executor,
+    ctx: UserCtx,
+    documentId: string,
+    options: { needsVersion?: boolean } = {},
+  ): Promise<void> {
     await authorize(ctx, 'view', documentId)
-    const blocker = await DocumentRoutes.blocker(executor, ctx, documentId)
+    const blocker = await DocumentRoutes.blocker(executor, ctx, documentId, options)
     if (blocker === 'access') throw errors.forbidden(BLOCKED.access as string)
     if (blocker) throw errors.conflict(BLOCKED[blocker] as string, { reason: blocker })
   },
@@ -152,8 +179,16 @@ export const DocumentRoutes = {
     const row = await DocumentService.load(db(), documentId)
     if (!row) throw errors.notFound('Документ')
     const type = await DocumentTypeService.load(db(), row.typeId)
-    const blocker = await DocumentRoutes.blocker(db(), ctx, documentId)
-    const published = await DocumentRoutes.published(db())
+    let blocker = await DocumentRoutes.blocker(db(), ctx, documentId)
+    let published = await DocumentRoutes.published(db())
+    // Без файла — только маршруты без согласования и подписи (регистрация карточки)
+    if (blocker === 'no_version') {
+      const cardOnly = published.filter((item) => !needsVersion(item.definition))
+      if (cardOnly.length > 0) {
+        published = cardOnly
+        blocker = null
+      }
+    }
     const items = published
       .map(({ key, version, definition }) => ({
         key,
@@ -209,16 +244,13 @@ export const DocumentRoutes = {
     // Строка документа заблокирована: два запуска подряд не проскочат проверку
     const row = await DocumentService.load(tx, documentId, true)
     if (!row) throw errors.notFound('Документ')
-    await DocumentRoutes.assertCanStart(tx, ctx, documentId)
     const published = (await DocumentRoutes.published(tx)).find(
       (item) => item.key === input.definitionKey,
     )
     if (!published) throw errors.notFound('Опубликованный маршрут')
     const def = published.definition
-    const allSteps = [
-      ...Object.values(def.steps),
-      ...def.conditions.map((condition) => condition.step as Step),
-    ]
+    await DocumentRoutes.assertCanStart(tx, ctx, documentId, { needsVersion: needsVersion(def) })
+    const allSteps = stepsOf(def)
     // КЭП (ADR-0205): маршрут с такой подписью идёт, только если подключён УЦ
     if (
       allSteps.some((step) => step.type === 'sign' && step.signatureKind === 'qualified') &&

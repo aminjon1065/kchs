@@ -28,6 +28,7 @@ function render(types: unknown[], post: (body: unknown) => unknown) {
     '/document-types': { items: types },
     'POST /documents': ({ init }: { init: RequestInit | undefined }) =>
       post(JSON.parse(String(init?.body))),
+    'POST /documents/doc-1/intake': { state: 'sent', instanceId: null },
   })
   const onClose = vi.fn()
   renderWithClient(<ReportDialog onClose={onClose} />)
@@ -41,7 +42,7 @@ describe('ReportDialog', () => {
     expect(screen.queryByRole('button', { name: 'Отправить' })).toBeNull()
   })
 
-  it('со связью — создаёт черновик с ключом устройства', async () => {
+  it('со связью — создаёт документ с ключом устройства и отправляет дежурной смене', async () => {
     const user = userEvent.setup()
     const { calls, onClose } = render([reportType], () => ({ id: 'doc-1' }))
     await user.type(await screen.findByLabelText('Кратко о происшествии'), 'Подмыт мост')
@@ -52,6 +53,13 @@ describe('ReportDialog', () => {
     expect((created?.body as { clientKey?: string } | undefined)?.clientKey).toMatch(
       /^[0-9a-f-]{36}$/,
     )
+    // После создания — на регистрацию (ADR-0212)
+    expect(calls.map((call) => `${call.method} ${call.path}`)).toContain(
+      'POST /documents/doc-1/intake',
+    )
+    expect(
+      await screen.findByText('Донесение отправлено дежурной смене на регистрацию'),
+    ).toBeInTheDocument()
   })
 
   it('без сети — донесение в очереди устройства тем же ключом, диалог закрыт', async () => {

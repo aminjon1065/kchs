@@ -22,8 +22,12 @@ export function StatusBar({ onShowShortcuts }: { onShowShortcuts: () => void }) 
   // Донесение из очереди дошло (ADR-0212): диалог давно закрыт — сообщает оболочка
   useEffect(
     () =>
-      onOfflineDocumentSent(() => {
-        toast.success(t('shell.status.reportSent'))
+      onOfflineDocumentSent((_, sent) => {
+        if (sent.intake === 'sent' || sent.intake === 'registered') {
+          toast.success(t('shell.status.reportSent'))
+        } else {
+          toast.show({ title: t('shell.status.reportSaved') })
+        }
         void client.invalidateQueries({ queryKey: ['documents'] })
       }),
     [client, t, toast],

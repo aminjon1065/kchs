@@ -178,6 +178,40 @@ const OUTGOING_ROUTE: ProcessDefinitionInput = {
   timers: ESCALATION,
 }
 
+/** Маршрут приёма донесения — маршрут типа «Донесение» по умолчанию (ADR-0212). */
+export const REPORT_INTAKE_KEY = 'situation_report_intake'
+
+/**
+ * Донесение сотрудника из поля (ADR-0212): регистрирует дежурная смена за час, как и
+ * остальные экстренные шаги; просрочка — руководителю дежурного и автору. Корреспондент и
+ * дату поступления заполняет отправка донесения, резолюцию — тип после регистрации.
+ */
+export const reportIntakeRoute = (duty: string): ProcessDefinitionInput => ({
+  version: 1,
+  key: REPORT_INTAKE_KEY,
+  objectType: 'document',
+  name: {
+    ru: 'Донесение: регистрация дежурной сменой',
+    en: 'Situation report: registration by the duty shift',
+  },
+  description: {
+    ru: 'Донесение сотрудника из поля регистрирует дежурная смена — 1 час. Корреспондент — подразделение автора, дата поступления — день отправки. Сроки — календарные часы.',
+    en: 'A field report is registered by the duty shift — 1 hour. Correspondent — the author unit, received — the day it was sent. Calendar hours.',
+  },
+  start: 'register',
+  steps: {
+    register: {
+      type: 'register',
+      name: { ru: 'Регистрация донесения', en: 'Report registration' },
+      assignees: [`group:${duty}`],
+      dueHours: 1,
+      next: 'end',
+    },
+    end: { type: 'end', outcome: 'completed' },
+  },
+  timers: ESCALATION,
+})
+
 interface PackJournal {
   key: string
   name: string
@@ -350,12 +384,29 @@ async function enrichReport(pack: PackContext, journalId: string): Promise<boole
   return true
 }
 
+/**
+ * Донесение из поля уходит дежурной смене маршрутом приёма — маршрутом типа по умолчанию,
+ * если администратор не выбрал другой (N90: выбор администратора не трогается).
+ */
+async function defaultReportRoute(pack: PackContext): Promise<boolean> {
+  const [type] = await db()
+    .select({ id: documentTypes.id, defaultRouteKey: documentTypes.defaultRouteKey })
+    .from(documentTypes)
+    .where(eq(documentTypes.key, 'situation_report'))
+    .limit(1)
+  if (!type || type.defaultRouteKey) return false
+  await db().transaction((tx) =>
+    DocumentTypeService.update(tx, pack.ctx, type.id, { defaultRouteKey: REPORT_INTAKE_KEY }),
+  )
+  return true
+}
+
 export async function ensureDocuments(
   pack: PackContext,
   groups: { duty: string },
 ): Promise<{ routes: number; types: string[] }> {
   let routes = 0
-  for (const definition of [DIRECTIVE_ROUTE, OUTGOING_ROUTE]) {
+  for (const definition of [DIRECTIVE_ROUTE, OUTGOING_ROUTE, reportIntakeRoute(groups.duty)]) {
     if (await db().transaction((tx) => ProcessDefinitions.ensure(tx, pack.ctx, definition))) {
       routes += 1
     }
@@ -379,6 +430,7 @@ export async function ensureDocuments(
     types.push(type.key)
   }
   const report = await enrichReport(pack, journalIds.get('reports') as string)
-  pack.log('документы штаба готовы', { routes, types, report })
+  const intake = await defaultReportRoute(pack)
+  pack.log('документы штаба готовы', { routes, types, report, intake })
   return { routes, types }
 }
