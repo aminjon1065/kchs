@@ -54,6 +54,7 @@ export async function receiveInbound(input: {
   }
 
   const body = normalizeBody(input.body)
+  // Событие и аудит приёма — одной транзакцией (ADR-0216)
   await db().transaction(async (tx) => {
     await publishEvent(tx, systemCtx('webhook-inbound'), {
       type: 'webhook.received',
@@ -68,14 +69,17 @@ export async function receiveInbound(input: {
         signature: input.signature,
       },
     })
-  })
-
-  await audit(systemCtx('webhook-inbound'), {
-    action: INTEGRATIONS_AUDIT.webhookReceived,
-    objectId: row.id,
-    objectType: 'integration',
-    ip: input.ip,
-    details: { key: row.key, accepted: true },
+    await audit(
+      systemCtx('webhook-inbound'),
+      {
+        action: INTEGRATIONS_AUDIT.webhookReceived,
+        objectId: row.id,
+        objectType: 'integration',
+        ip: input.ip,
+        details: { key: row.key, accepted: true },
+      },
+      tx,
+    )
   })
   return { accepted: true }
 }
