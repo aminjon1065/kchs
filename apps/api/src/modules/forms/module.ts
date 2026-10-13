@@ -6,11 +6,13 @@ import { registerJobHandler } from '~/kernel/jobs/runner.js'
 import { registerObjectType } from '~/kernel/objects/registry.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { declareSchedule } from '~/kernel/schedules/index.js'
+import { registerFileContentPolicy } from '~/modules/files/public.js'
 import { errors } from '~/shared/errors.js'
 import { FormJobs } from './domain/form-jobs.js'
 import { formPolicy } from './domain/form-policy.js'
 import { FormService } from './domain/form-service.js'
 import { formSubscribers } from './domain/form-subscribers.js'
+import { formPhotoPolicy } from './domain/photo-service.js'
 import { SubmissionService } from './domain/submission-service.js'
 
 export { registerFormRoutes } from './http.js'
@@ -21,6 +23,8 @@ export { registerFormRoutes } from './http.js'
  * политикой типа. Строки датасета пишет модуль `data` по публичному API.
  */
 export function registerFormObjectTypes(): void {
+  // Снимок сданной сводки не меняется и не удаляется (ADR-0208)
+  registerFileContentPolicy(formPhotoPolicy)
   registerObjectType({
     type: 'form',
     labelKey: 'objects.types.form',

@@ -12,6 +12,8 @@ export interface FrozenFile {
   reason: string
   /** Объект, который держит файл замороженным (документ): туда кладётся правка-копия. */
   hostId: string
+  /** Своё объяснение политики (фото сдачи, ADR-0208) — вместо общего о документе. */
+  message?: string
 }
 
 /**
@@ -70,7 +72,7 @@ export function fileFrozenError(
   frozen: FrozenFile,
   message = FROZEN_MESSAGE,
 ): AppError {
-  return new AppError('conflict', message, 409, {
+  return new AppError('conflict', frozen.message ?? message, 409, {
     data: { reason: FILE_FROZEN, cause: frozen.reason, fileId, hostId: frozen.hostId },
   })
 }

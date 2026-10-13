@@ -7,6 +7,8 @@ import {
   FormEnabledInput,
   FormList,
   FormListQuery,
+  FormPhoto,
+  FormPhotoUploadInput,
   FormRecord,
   FormReviewInput,
   FormSchema,
@@ -56,6 +58,11 @@ export const formsRoutes = defineRoutes({
     params: SubmissionParam,
     body: FormSubmissionSubmitInput,
     response: { 200: FormSubmission },
+  },
+  'POST /forms/submissions/:sid/photos': {
+    params: SubmissionParam,
+    body: FormPhotoUploadInput,
+    response: { 200: FormPhoto },
   },
   'POST /forms/submissions/:sid/review': {
     params: SubmissionParam,

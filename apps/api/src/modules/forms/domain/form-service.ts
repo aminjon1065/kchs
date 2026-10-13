@@ -88,11 +88,10 @@ function datasetFields(dataset: DatasetRecord): Map<string, FieldDef> {
 
 /**
  * Поля, которые форма спрашивать не может: вычисляемые (их считает датасет) и
- * требующие особых контролов (файл, подпись) — их сбор появится вместе с
- * заполнением из мобильного веба. Геометрия — только точкой (ADR-0157): линию и
- * полигон в строке сводки не нарисовать.
+ * подпись. Файл форма спрашивает фотографией (ADR-0208). Геометрия — только точкой
+ * (ADR-0157): линию и полигон в строке сводки не нарисовать.
  */
-const NOT_ASKABLE = new Set(['formula', 'lookup', 'rollup', 'file', 'signature'])
+const NOT_ASKABLE = new Set(['formula', 'lookup', 'rollup', 'signature'])
 
 const askable = (field: Pick<FieldDef, 'type' | 'geometryType'>): boolean =>
   field.type === 'geometry'
