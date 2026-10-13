@@ -220,8 +220,41 @@ export const DocumentCreateInput = z.object({
   territoryId: CardFields.territoryId.optional(),
   unitId: CardFields.unitId.optional(),
   fields: CardFields.fields.optional(),
+  /**
+   * Ключ идемпотентности устройства (ADR-0212): повтор создания с тем же ключом от того же
+   * автора возвращает уже созданный документ — очередь без сети досылает донесение, пока не
+   * дойдёт ответ.
+   */
+  clientKey: Uuid.optional(),
 })
 export type DocumentCreateInput = z.infer<typeof DocumentCreateInput>
+
+/** Фото черновика документа (ADR-0212) — JPEG до 3 МБ, как фото сводки (ADR-0208). */
+export const DOCUMENT_PHOTO_MAX_BYTES = 3 * 1024 * 1024
+/** Фото у одного черновика — не больше. */
+export const DOCUMENT_PHOTO_MAX_PER_DOCUMENT = 30
+
+export const DocumentPhotoUploadInput = z.object({
+  /** Ключ снимка на устройстве: повтор загрузки с тем же ключом возвращает тот же файл. */
+  clientKey: Uuid,
+  /** JPEG в base64; после разбора — не больше `DOCUMENT_PHOTO_MAX_BYTES`. */
+  data: z
+    .string()
+    .min(8)
+    .max(Math.ceil((DOCUMENT_PHOTO_MAX_BYTES * 4) / 3) + 8),
+})
+export type DocumentPhotoUploadInput = z.infer<typeof DocumentPhotoUploadInput>
+
+export const DocumentPhoto = z.object({
+  /** Файл реестра, прикреплённый к документу. */
+  id: Uuid,
+  clientKey: Uuid,
+  size: z.number().int().nonnegative(),
+  width: z.number().int().positive().nullable(),
+  height: z.number().int().positive().nullable(),
+  createdAt: Timestamp,
+})
+export type DocumentPhoto = z.infer<typeof DocumentPhoto>
 
 export const DocumentUpdateInput = z.object({
   subject: CardFields.subject.optional(),
