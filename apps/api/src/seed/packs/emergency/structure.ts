@@ -1,7 +1,7 @@
 import { eq, sql } from 'drizzle-orm'
 import { groups, spaceMembers, spaces } from '~/db-schema.js'
 import { bumpPrincipalsVersion } from '~/kernel/access/principal-set.js'
-import { GroupService } from '~/kernel/directory/service.js'
+import { GroupService } from '~/kernel/directory/group-service.js'
 import { SpaceService } from '~/kernel/spaces/service.js'
 import { CalendarService } from '~/modules/calendar/domain/calendar-service.js'
 import { EventService } from '~/modules/calendar/domain/event-service.js'

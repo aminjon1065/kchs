@@ -1,6 +1,7 @@
+import { OrgService } from './org-service.js'
 import { setDirectoryProvider } from './port.js'
 import { DirectoryQueries } from './queries.js'
-import { OrgService, UserService } from './service.js'
+import { UserService } from './service.js'
 
 /**
  * Реализация порта справочника (ADR-0179): сервисы людей и оргструктуры — в ядре,

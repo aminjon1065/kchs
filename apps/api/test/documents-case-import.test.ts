@@ -18,7 +18,7 @@ import {
 registerLifecycle()
 
 const { writeXlsx, readXlsx } = await import('../src/shared/xlsx.js')
-const { OrgService } = await import('../src/kernel/directory/service.js')
+const { OrgService } = await import('../src/kernel/directory/org-service.js')
 const { DocumentsSeed } = await import('../src/modules/documents/public.js')
 const { systemCtx } = await import('../src/shared/context.js')
 

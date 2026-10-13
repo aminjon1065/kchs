@@ -20,15 +20,12 @@ import { errors } from '~/shared/errors.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { credentials } from './credentials.js'
 import { FacsimileService } from './facsimile.js'
+import { GroupService } from './group-service.js'
+import { OrgService } from './org-service.js'
+import { PositionService } from './position-service.js'
 import { assertCanManageUser } from './role-policy.js'
 import { RoleService } from './role-service.js'
-import {
-  GroupService,
-  OrgService,
-  PositionService,
-  temporaryPasswordFor,
-  UserService,
-} from './service.js'
+import { temporaryPasswordFor, UserService } from './service.js'
 
 export function registerOrgRoutes(route: RouteRegistrar): void {
   // ─── Пикеры: люди, группы, подразделения, должности ───────────────────────

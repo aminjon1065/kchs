@@ -19,7 +19,7 @@ import {
  */
 registerLifecycle()
 
-const { OrgService } = await import('../src/kernel/directory/service.js')
+const { OrgService } = await import('../src/kernel/directory/org-service.js')
 const { systemCtx } = await import('../src/shared/context.js')
 const { BusinessCalendar } = await import('../src/kernel/business-calendar/service.js')
 const { endOfLocalDay, localDate } = await import('../src/kernel/business-calendar/working-days.js')

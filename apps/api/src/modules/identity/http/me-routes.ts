@@ -1,6 +1,7 @@
 import { and, eq, sql } from 'drizzle-orm'
+import { DelegationService } from '~/kernel/directory/delegation-service.js'
 import { employments, orgUnits, positions } from '~/kernel/directory/schema.js'
-import { DelegationService, UserService } from '~/kernel/directory/service.js'
+import { UserService } from '~/kernel/directory/service.js'
 import { FeatureService } from '~/kernel/features/service.js'
 import { recheckUserRooms } from '~/kernel/realtime/gateway.js'
 import { SETTING_KEYS, SettingsService } from '~/kernel/settings/service.js'

@@ -19,9 +19,9 @@ import {
 registerLifecycle()
 
 const { AuthService } = await import('../src/modules/identity/public.js')
-const { DelegationService, GroupService, OrgService } = await import(
-  '../src/kernel/directory/service.js'
-)
+const { DelegationService } = await import('../src/kernel/directory/delegation-service.js')
+const { GroupService } = await import('../src/kernel/directory/group-service.js')
+const { OrgService } = await import('../src/kernel/directory/org-service.js')
 const { DirectoryQueries } = await import('../src/kernel/directory/queries.js')
 const { NotificationService } = await import('../src/kernel/notifications/service.js')
 const { InboxService } = await import('../src/kernel/inbox/service.js')
