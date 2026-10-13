@@ -35,7 +35,7 @@ flowchart LR
   API -. OIDC/LDAP .-> IDP[Корпоративный каталог]
   API -. SMTP/IMAP .-> MAIL[Почта]
   API -. Bot API .-> TG[Telegram]
-  EN -. HTTPS .-> LLM[LLM-провайдер: облако или on-prem]
+  API -. HTTPS .-> LLM[LLM-провайдер: облако или on-prem]
   API -. WMS/WFS/REST .-> EXT[Внешние системы и ГИС-сервисы]
 ```
 
@@ -46,15 +46,16 @@ flowchart LR
 | `web` | React SPA (Vite), статика за реверс-прокси | Оболочка рабочего пространства, все экраны |
 | `api` | Node.js 22, Fastify, TypeScript | HTTP API, WebSocket-шлюз, сервер совместного редактирования (Hocuspocus), тайлы, авторизация |
 | `worker` | тот же код, что `api`, роль `worker` | Потребители событий (уведомления, индексация, автоматизация, вебхуки), таймеры процессов, отложенные задания |
-| `engine` | Python 3.12, FastAPI (внутренний), потребитель BullMQ | Импорт/экспорт данных и геоданных, преобразования, DuckDB-запросы, рендеринг отчётов/карт (Playwright), конвертации, OCR, расшифровка, эмбеддинги, LLM-задания |
+| `engine` | Python 3.12, FastAPI (внутренний), потребитель BullMQ | Импорт/экспорт данных и геоданных, преобразования, колоночные копии (DuckDB/Parquet), рендеринг отчётов, карт и печатных форм (Chromium), превью и конвертации, OCR, расшифровка, эмбеддинги, подпись PAdES (ADR-0205). Вызовы LLM делает api (модуль `ai`, ADR-0061) |
 | `postgres` | PostgreSQL 17 + PostGIS 3.5 + pgvector + pg_trgm | Система записи: всё, включая таблицы датасетов |
 | `redis` | Redis 7 (или Valkey), AOF, `noeviction` | Очереди BullMQ, потоки событий, pub/sub realtime, доступы и флаги, счётчики защиты |
 | `redis-cache` | Redis 7, `allkeys-lru`, без сохранения | Кэш: тайлы, результаты запросов, наборы прав, счётчики «Входящих», присутствие (ADR-0175) |
 | `minio` | S3-совместимое хранилище | Файлы, версии, превью, записи встреч, Parquet, PMTiles, экспорт |
 | `meilisearch` | Meilisearch | Полнотекстовый индекс объектов, файлов, сообщений |
 | `livekit` | LiveKit server + Egress + встроенный TURN | Аудио/видео, демонстрация экрана, запись |
-| `proxy` | Caddy (или nginx) | TLS, маршрутизация, сжатие, статика |
-| `observability` | Prometheus, Grafana, Loki, Tempo | Метрики, логи, трассы |
+| `web` как прокси | Caddy со сборкой SPA (ADR-0044) | TLS, маршрутизация к api, сжатие, статика, CSP с nonce |
+| `mailserver`, `webmail` (профиль `mail`) | почтовый сервер и веб-почта (ADR-0149, ADR-0150) | Ящики сотрудников и канцелярии, исходящие письма документов |
+| `observability` (профиль) | Prometheus, Alertmanager, Grafana, Loki, Tempo, Alloy, экспортёры | Метрики, логи, трассы, оповещения (ADR-0045, ADR-0147) |
 | `onlyoffice` (опц.) | ONLYOFFICE Document Server | Совместное редактирование офисных файлов |
 | `gateway` (хост DMZ) | Caddy, `infra/compose/dmz.yml` | Вход партнёров из интернета: белый список маршрутов API (вебхуки, API по токену), без сессий и cookie; внутренний контур закрыт (ADR-0200) |
 
@@ -67,38 +68,36 @@ apps/api/src
 ├── main.ts                 # bootstrap; ROLE=api|worker|all
 ├── kernel/                 # ядро платформы (см. 02-platform-kernel.md)
 │   ├── objects/            # реестр объектов, типы, корзина
-│   ├── access/             # ACL, принципалы, политики, authorize()
-│   ├── directory/          # люди и оргструктура: пользователи, подразделения, группы, роли, замещения; порт directory() (ADR-0179)
-│   ├── spaces/
-│   ├── links/
+│   ├── access/             # ACL, принципалы, политики, authorize(), режим администратора
+│   ├── directory/          # люди и оргструктура: сотрудники (service.ts), подразделения, группы, должности, роли, замещения, факсимиле; порт directory() (ADR-0179)
+│   ├── spaces/, links/, tags/, views/
 │   ├── events/             # outbox, шина, подписчики
-│   ├── activity/           # лента и аудит
+│   ├── activity/, audit/   # лента и журнал аудита
 │   ├── discussions/        # обсуждения (общие с чатами)
-│   ├── notifications/      # уведомления, входящие, каналы
+│   ├── notifications/, inbox/, announcements/, acknowledgments/
 │   ├── search/             # индексация и запросы
-│   ├── jobs/               # BullMQ, реестр заданий, прогресс
+│   ├── jobs/, schedules/   # BullMQ, реестр заданий, прогресс, расписания
 │   ├── process/            # движок процессов
-│   ├── realtime/           # WebSocket, комнаты, presence
-│   ├── fields/             # система типов полей и форм
-│   ├── views/              # сохранённые представления
+│   ├── realtime/, collab/  # WebSocket, комнаты, presence; Hocuspocus
 │   ├── storage/            # S3, ключи, подписанные URL
-│   ├── settings/           # системные/пространств/пользовательские настройки
-│   └── i18n/, calendar/, audit/
+│   ├── settings/, features/, business-calendar/
+│   ├── second-factor/, signature/   # порты второго фактора и квалифицированной подписи (ADR-0205)
+│   ├── print/              # реестр печатных форм (ADR-0085)
+│   └── backup/, config-package/     # проверка восстановления, пакет конфигурации
 ├── modules/                # слои без колец — ADR-0181, `pnpm --filter @kchs/api deps:layers`
 │   ├── L0: admin  ai  calendar  files  mail  push  telegram  territories
 │   ├── L1: identity (вход: сессии, второй фактор, SSO)  integrations     L2: data
-│   ├── L3: alerts  assistant  forms  tasks          L4: documents  gis
+│   ├── L3: alerts  assistant  forms  positions  tasks  warnings     L4: documents  gis
 │   ├── L5: automation  knowledge  meetings  reports  L6: chat
-│   └── <module>/
-│       ├── module.ts       # регистрация: типы объектов, маршруты, подписчики, политики, задания
-│       ├── public.ts       # публичный API модуля для других модулей
-│       ├── domain/         # сущности, сервисы, инварианты
-│       ├── infra/          # репозитории (Drizzle), адаптеры
-│       ├── http/           # маршруты + zod-схемы
-│       ├── jobs/           # обработчики заданий
-│       ├── events/         # подписчики событий
-│       └── __tests__/
-└── shared/                 # db, config, logger, errors, http utils
+│   └── <module>/           # шаблон — ADR-0210, проверка `scripts/module-layout.mjs`
+│       ├── module.ts       # регистрация: типы объектов, маршруты, подписчики, задания, расписания
+│       ├── public.ts       # публичный API модуля для других модулей (если он нужен другим)
+│       ├── schema.ts       # таблицы модуля (ADR-0178)
+│       ├── domain/         # сервисы, инварианты, запросы Drizzle к своим таблицам, задания, подписчики
+│       ├── http.ts | http/ # маршруты по таблице контрактов (ADR-0188)
+│       └── infra/          # адаптеры внешних систем, физическое хранение (data, gis, integrations)
+└── shared/                 # db, config, logger, errors, http (регистратор маршрутов), crypto, net, redis, telemetry
+apps/api/test/              # интеграционные тесты (своя база kchs_test_N, ADR-0029)
 ```
 
 Правила границ (проверяются `dependency-cruiser`):
