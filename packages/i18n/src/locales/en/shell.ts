@@ -3,6 +3,11 @@ import type { Dictionary } from '../ru/index.js'
 
 export const shell: DeepPartial<Dictionary['shell']> = {
   loadingWorkspace: 'Loading your workspace…',
+  offlineStart: {
+    title: 'No network',
+    hint: 'Offline, the portal opens only for someone who has already signed in on this device and has not signed out. Connect to the network and sign in',
+    retry: 'Retry',
+  },
   workspaces: {
     menu: 'Workspaces',
     saveAs: 'Save tabs as…',

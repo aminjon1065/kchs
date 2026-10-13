@@ -19,6 +19,7 @@ import { keys, meQuery } from '~/shared/api/queries.js'
 import type { ApiBody } from '~/shared/api/route-types.js'
 import { useAppearance, useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
+import { forgetProfile } from '~/shared/offline/profile.js'
 import { ApiTokensCard } from './api-tokens-card.js'
 import { DelegationCard } from './delegation-card.js'
 import { FacsimileCard } from './facsimile-card.js'
@@ -72,7 +73,12 @@ export function ProfileScreen() {
   })
 
   const signOut = useMutation({
-    mutationFn: () => http.post('/auth/logout'),
+    // Профиль на устройстве стирается до выхода: открыть приложение без сети после
+    // выхода нельзя (ADR-0207)
+    mutationFn: async () => {
+      await forgetProfile()
+      return http.post('/auth/logout')
+    },
     onSuccess: (result) => {
       setCsrfToken(null)
       // Выход из корпоративного IdP, если он настроен (ADR-0098): иначе

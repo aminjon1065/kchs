@@ -3,6 +3,11 @@ import type { Dictionary } from '../ru/index.js'
 
 export const shell: DeepPartial<Dictionary['shell']> = {
   loadingWorkspace: 'Фазои корӣ бор мешавад…',
+  offlineStart: {
+    title: 'Шабака нест',
+    hint: 'Бе шабака портал барои касе кушода мешавад, ки дар ин дастгоҳ аллакай ворид шуда ва набаромадааст. Ба шабака пайваст шавед ва ворид шавед',
+    retry: 'Такрор кардан',
+  },
   workspaces: {
     menu: 'Фазоҳои корӣ',
     saveAs: 'Нигоҳ доштани варақаҳо ҳамчун…',

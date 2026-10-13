@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { ApiError, http, setCsrfToken } from '~/shared/api/client.js'
 import { keys } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
+import { forgetProfile } from '~/shared/offline/profile.js'
 
 /**
  * Вход по временному паролю (выдан администратором): пока пароль не сменён,
@@ -39,7 +40,12 @@ export function PasswordChangeScreen() {
   })
 
   const signOut = useMutation({
-    mutationFn: () => http.post('/auth/logout'),
+    // Профиль на устройстве стирается до выхода: открыть приложение без сети после
+    // выхода нельзя (ADR-0207)
+    mutationFn: async () => {
+      await forgetProfile()
+      return http.post('/auth/logout')
+    },
     onSettled: () => {
       setCsrfToken(null)
       window.location.reload()

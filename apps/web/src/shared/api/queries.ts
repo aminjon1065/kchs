@@ -1,5 +1,7 @@
 import type { Level } from '@kchs/contracts'
 import { queryOptions } from '@tanstack/react-query'
+import { rememberProfile, savedProfile } from '~/shared/offline/profile.js'
+import { isRetryable } from '~/shared/offline/queue.js'
 import { http } from './client.js'
 import type { ApiQuery } from './route-types.js'
 
@@ -57,10 +59,25 @@ export const keys = {
   adminSpaces: (params: Record<string, unknown>) => ['admin', 'spaces', params] as const,
 }
 
+/**
+ * Вошедший сотрудник. Без сети — профиль, запомненный на устройстве при последнем
+ * ответе (ADR-0207): приложение открывается и без связи, очередь сводок знает, чья
+ * она. Ответ по существу (401 — сессии нет) проходит как есть.
+ */
 export const meQuery = () =>
   queryOptions({
     queryKey: keys.me,
-    queryFn: () => http.get('/me'),
+    queryFn: async () => {
+      try {
+        const me = await http.get('/me')
+        if (!me.mustChangePassword && !me.mfaEnrollmentRequired) void rememberProfile(me)
+        return me
+      } catch (error) {
+        const saved = isRetryable(error) ? await savedProfile() : null
+        if (saved) return saved
+        throw error
+      }
+    },
     staleTime: 60_000,
     retry: false,
   })

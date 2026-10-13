@@ -26,7 +26,9 @@ export const formKeys = {
 export const formsQuery = (query: ApiQuery<'GET /forms'> = {}) =>
   queryOptions({
     queryKey: formKeys.list(query),
-    queryFn: () => http.get('/forms', { query }),
+    // Список и карточка формы — тоже без сети: экран открывается из кэша устройства (ADR-0207)
+    queryFn: () =>
+      cachedFetch(`forms.list:${JSON.stringify(query)}`, () => http.get('/forms', { query })),
   })
 
 export const formDutiesQuery = () =>
@@ -39,7 +41,8 @@ export const formDutiesQuery = () =>
 export const formQuery = (id: string) =>
   queryOptions({
     queryKey: formKeys.form(id),
-    queryFn: () => http.get('/forms/:id', { params: { id } }),
+    queryFn: () =>
+      cachedFetch(`forms.form:${id}`, () => http.get('/forms/:id', { params: { id } })),
     enabled: id.length > 0,
   })
 

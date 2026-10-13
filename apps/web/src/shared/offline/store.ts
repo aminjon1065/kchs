@@ -1,20 +1,23 @@
 /**
- * Хранилище офлайн-режима (ADR-0204): IndexedDB браузера — очередь отправок и кэш
- * справочников. Без IndexedDB (приватный режим, старый браузер) — память вкладки:
- * отправка всё равно дождётся сети, пока страница открыта.
+ * Хранилище офлайн-режима (ADR-0204): IndexedDB браузера — очередь отправок, кэш
+ * справочников и снимки, которые ещё не ушли на сервер (ADR-0208). Без IndexedDB
+ * (приватный режим, старый браузер) — память вкладки: отправка всё равно дождётся
+ * сети, пока страница открыта.
  */
 
 const DB_NAME = 'kchs-offline'
-const DB_VERSION = 1
+const DB_VERSION = 2
 export const QUEUE_STORE = 'queue'
 export const CACHE_STORE = 'cache'
+export const PHOTOS_STORE = 'photos'
 
-type StoreName = typeof QUEUE_STORE | typeof CACHE_STORE
+type StoreName = typeof QUEUE_STORE | typeof CACHE_STORE | typeof PHOTOS_STORE
 
 let opening: Promise<IDBDatabase | null> | null = null
 const memory: Record<StoreName, Map<string, unknown>> = {
   queue: new Map(),
   cache: new Map(),
+  photos: new Map(),
 }
 
 function open(): Promise<IDBDatabase | null> {
@@ -34,8 +37,18 @@ function open(): Promise<IDBDatabase | null> {
         if (!db.objectStoreNames.contains(CACHE_STORE)) {
           db.createObjectStore(CACHE_STORE, { keyPath: 'key' })
         }
+        if (!db.objectStoreNames.contains(PHOTOS_STORE)) {
+          db.createObjectStore(PHOTOS_STORE, { keyPath: 'id' })
+        }
       }
-      request.onsuccess = () => resolve(request.result)
+      request.onsuccess = () => {
+        // Другая вкладка обновляет схему хранилища — уступить ей соединение
+        request.result.onversionchange = () => {
+          request.result.close()
+          opening = null
+        }
+        resolve(request.result)
+      }
       request.onerror = () => resolve(null)
       request.onblocked = () => resolve(null)
     } catch {
