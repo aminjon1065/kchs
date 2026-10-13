@@ -49,7 +49,9 @@ describe('ReportDialog', () => {
     await waitFor(() => expect(onClose).toHaveBeenCalled())
     const created = calls.find((call) => call.method === 'POST' && call.path === '/documents')
     expect(created?.body).toMatchObject({ typeId: TYPE_ID, subject: 'Подмыт мост' })
-    expect((created?.body as { clientKey: string }).clientKey).toMatch(/^[0-9a-f-]{36}$/)
+    expect((created?.body as { clientKey?: string } | undefined)?.clientKey).toMatch(
+      /^[0-9a-f-]{36}$/,
+    )
   })
 
   it('без сети — донесение в очереди устройства тем же ключом, диалог закрыт', async () => {

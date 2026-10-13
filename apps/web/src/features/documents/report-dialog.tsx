@@ -15,7 +15,6 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Camera, X } from 'lucide-react'
 import { useEffect, useId, useRef, useState } from 'react'
-import { useFieldControls } from '~/features/data/field-controls.js'
 import { meQuery } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
 import {
@@ -33,6 +32,7 @@ import {
   useOfflineQueue,
 } from '~/shared/offline/queue.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
+import { useRequisiteControls } from './card/requisites-form.js'
 import { documentKeys, documentTypesQuery } from './queries.js'
 import { errorText } from './status.js'
 
@@ -55,7 +55,7 @@ export function ReportDialog({ onClose }: { onClose: () => void }) {
   const { data: me } = useQuery(meQuery())
   const { data: types = [], isLoading } = useQuery(documentTypesQuery())
   const type = types.find((item) => item.key === REPORT_TYPE_KEY) ?? null
-  const renderControl = useFieldControls(type?.cardSchema.fields ?? [])
+  const renderControl = useRequisiteControls(type?.cardSchema.fields ?? [])
   const userId = me?.user.id ?? null
   const [clientKey] = useState(() => crypto.randomUUID())
   const [subject, setSubject] = useState('')

@@ -74,7 +74,7 @@ export const documentTypesQuery = (includeInactive = false) =>
     queryKey: documentKeys.types(includeInactive),
     queryFn: () =>
       cachedFetch(
-        `documents.types:${includeInactive}`,
+        `document-types:${includeInactive}`,
         async () =>
           (
             await http.get('/document-types', {

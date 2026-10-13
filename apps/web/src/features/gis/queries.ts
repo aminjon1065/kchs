@@ -57,7 +57,7 @@ export const territoriesQuery = () =>
     ...OFFLINE_AWARE,
     queryKey: gisKeys.territories,
     queryFn: () =>
-      cachedFetch('gis.territories', async () => (await http.get('/territories')).items),
+      cachedFetch('territories', async () => (await http.get('/territories')).items),
     staleTime: 10 * 60_000,
   })
 
