@@ -16,7 +16,7 @@ import { directory } from '~/kernel/directory/port.js'
 import { objects } from '~/kernel/objects/schema.js'
 import { buckets, getObjectStream, putObject, storageKey } from '~/kernel/storage/s3.js'
 import { type Ctx, systemCtx, type UserCtx } from '~/shared/context.js'
-import { db } from '~/shared/db/client.js'
+import { db, type Tx } from '~/shared/db/client.js'
 import { AppError, errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { logger } from '~/shared/logger/index.js'
@@ -118,17 +118,24 @@ export const OfficeService = {
     const frozen = canEdit ? (await frozenFiles(db(), [fileId])).has(fileId) : false
     const mode = canEdit && !lockedByOther && !frozen ? 'edit' : 'view'
 
-    const session = await ensureSession(ctx, {
-      fileId,
-      versionId: file.currentVersionId,
-      spaceId: file.spaceId,
-    })
-
-    await audit(ctx, {
-      action: FILES_AUDIT.officeOpened,
-      objectId: fileId,
-      objectType: 'file',
-      details: { sessionId: session.id, mode },
+    // Сессия редактирования и аудит открытия — одной транзакцией (ADR-0216)
+    const session = await db().transaction(async (tx) => {
+      const opened = await ensureSession(tx, ctx, {
+        fileId,
+        versionId: file.currentVersionId,
+        spaceId: file.spaceId,
+      })
+      await audit(
+        ctx,
+        {
+          action: FILES_AUDIT.officeOpened,
+          objectId: fileId,
+          objectType: 'file',
+          details: { sessionId: opened.id, mode },
+        },
+        tx,
+      )
+      return opened
     })
 
     return {
@@ -361,12 +368,13 @@ function documentKey(fileId: string, versionId: string | null): string {
 }
 
 async function ensureSession(
+  tx: Tx,
   ctx: UserCtx,
   input: { fileId: string; versionId: string | null; spaceId: string },
 ): Promise<OfficeSessionRow> {
   const key = documentKey(input.fileId, input.versionId)
   const expiresAt = new Date(Date.now() + SESSION_TTL_MS).toISOString()
-  const [row] = await db()
+  const [row] = await tx
     .insert(officeSessions)
     .values({
       id: newId(),
