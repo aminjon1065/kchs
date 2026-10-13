@@ -112,6 +112,8 @@ export const WINDOW_FUNCTIONS = [
   'dense_rank',
   'row_number',
   'moving_avg',
+  /** Доля значения в сумме по разделу (по всему результату без `partitionBy`), ADR-0217. */
+  'share',
 ] as const
 export const WindowFunction = z.enum(WINDOW_FUNCTIONS)
 export type WindowFunction = z.infer<typeof WindowFunction>

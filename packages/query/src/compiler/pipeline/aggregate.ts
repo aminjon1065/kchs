@@ -313,7 +313,8 @@ export abstract class AggregateSteps extends StepCore {
       const order = (field.orderBy ?? []).map((ref, i) =>
         this.orderItem(ref, [...fieldPath, 'orderBy', i]),
       )
-      if (field.fn !== 'row_number' && !order.length) {
+      // Номер строки и доля от итога порядка не требуют
+      if (field.fn !== 'row_number' && field.fn !== 'share' && !order.length) {
         fail([...fieldPath, 'orderBy'], `Для «${field.fn}» нужен порядок (orderBy)`)
       }
       const target = field.field
@@ -376,6 +377,16 @@ export abstract class AggregateSteps extends StepCore {
             label: null,
             format: column.meta.format,
           }
+          break
+        }
+        case 'share': {
+          // Доля — дробью, как хранится тип «процент»; нулевая сумма раздела — пусто
+          const column = numeric()
+          const value = this.col(column)
+          // Сумма по всему разделу: порядок окна превратил бы её в накопительную
+          const whole = partition.length ? `OVER (PARTITION BY ${partition.join(', ')})` : 'OVER ()'
+          sql = `(${value})::double precision / NULLIF(sum(${value}) ${whole}, 0)`
+          meta = { fieldType: 'percent', semantic: 'measure', label: null, format: null }
           break
         }
         case 'rank':

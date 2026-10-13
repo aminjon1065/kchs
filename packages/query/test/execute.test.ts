@@ -1,4 +1,4 @@
-import type { FilterNode, QuerySpec } from '@kchs/contracts'
+import { explorePlanSpec, type FilterNode, type QuerySpec } from '@kchs/contracts'
 import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
@@ -423,6 +423,81 @@ describeDb('выполнение на Postgres', () => {
       ['fire', 5, 1, 6, 1],
       ['flood', 2, 5, 8, 2],
       ['landslide', 1, 2, 9, 3],
+    ])
+  })
+
+  it('доля от итога: дробь по всему результату, без порядка окна', async () => {
+    const { rows } = await run(
+      q(src(), [
+        {
+          type: 'aggregate',
+          groupBy: [{ field: 'kind' }],
+          measures: [{ alias: 'n', agg: 'count' }],
+        },
+        {
+          type: 'window',
+          fields: [{ alias: 'part', fn: 'share', field: 'n', partitionBy: [], orderBy: [] }],
+        },
+        { type: 'sort', by: [{ field: 'n', dir: 'desc' }] },
+      ]),
+    )
+    // 10 живых строк: пожаров 5 из 10
+    expect(Number(rows[0]?.part)).toBeCloseTo(0.5, 6)
+    expect(rows.reduce((sum, row) => sum + Number(row.part), 0)).toBeCloseTo(1, 6)
+  })
+
+  it('план «Исследования»: сравнение периодов и расчёты (ADR-0217)', async () => {
+    const compared = await run(
+      explorePlanSpec(IDS.incidents, {
+        filter: null,
+        groups: [{ field: 'kind' }],
+        measures: [{ agg: 'count' }],
+        compare: {
+          field: 'reported_on',
+          current: { from: '2026-09-01', to: '2026-09-30' },
+          previous: { from: '2026-08-01', to: '2026-08-31' },
+        },
+        sort: { field: 'kind', dir: 'asc' },
+        limit: null,
+      }),
+    )
+    expect(
+      compared.rows.map((row) => [
+        row.kind,
+        Number(row.count_cur),
+        Number(row.count_prev),
+        Number(row.count_diff),
+        row.count_pct === null ? null : Number(row.count_pct),
+      ]),
+    ).toEqual([
+      ['fire', 4, 0, 4, null],
+      ['flood', 0, 1, -1, -1],
+      ['landslide', 1, 0, 1, null],
+    ])
+
+    const calculated = await run(
+      explorePlanSpec(IDS.incidents, {
+        filter: { field: 'kind', op: 'not_empty' },
+        groups: [{ field: 'kind' }],
+        measures: [
+          { agg: 'count', calc: 'share' },
+          { agg: 'sum', field: 'victims', calc: 'running' },
+        ],
+        sort: { field: 'kind', dir: 'asc' },
+        limit: null,
+      }),
+    )
+    expect(
+      calculated.rows.map((row) => [
+        row.kind,
+        Number(row.count_share).toFixed(3),
+        Number(row.sum_victims_running),
+      ]),
+    ).toEqual([
+      ['accident', '0.111', 3],
+      ['fire', '0.556', 6],
+      ['flood', '0.222', 7],
+      ['landslide', '0.111', 12],
     ])
   })
 
