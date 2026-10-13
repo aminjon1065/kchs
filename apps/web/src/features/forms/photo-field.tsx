@@ -2,14 +2,9 @@ import { Button, type ControlProps, IconButton, Skeleton, useToast } from '@kchs
 import { useQuery } from '@tanstack/react-query'
 import { Camera, ImageOff, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { useT } from '~/shared/i18n.js'
-import {
-  compressPhoto,
-  localPhoto,
-  PhotoFormatError,
-  saveLocalPhoto,
-} from '~/shared/offline/photos.js'
+import { compressPhoto, PhotoFormatError, saveLocalPhoto } from '~/shared/offline/photos.js'
+import { formPhotoQuery } from './queries.js'
 
 /**
  * Поле «Фото» сводки (ADR-0208): снимок с камеры или из галереи телефона. Фото
@@ -107,21 +102,7 @@ export function PhotoThumb({
   size?: 'sm' | 'md'
 }) {
   const t = useT()
-  const source = useQuery({
-    queryKey: ['forms', 'photo', value, userId],
-    queryFn: async () => {
-      const local = userId ? await localPhoto(value, userId) : null
-      if (local) return { kind: 'local' as const, blob: local.blob }
-      const link = await http.get('/files/:id/download', {
-        params: { id: value },
-        query: { inline: true },
-      })
-      return { kind: 'remote' as const, url: link.url }
-    },
-    // Подписанная ссылка живёт 15 минут
-    staleTime: 5 * 60_000,
-    retry: false,
-  })
+  const source = useQuery(formPhotoQuery(value, userId))
   const [blobUrl, setBlobUrl] = useState<string | null>(null)
   const blob = source.data?.kind === 'local' ? source.data.blob : null
   useEffect(() => {

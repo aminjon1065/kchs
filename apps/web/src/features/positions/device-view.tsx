@@ -8,6 +8,7 @@ import {
   type DataTableColumn,
   EmptyState,
   PanelToolbar,
+  SegmentedControl,
   Skeleton,
 } from '@kchs/ui'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -19,6 +20,12 @@ import { onRealtimeEvent } from '~/shared/realtime/client.js'
 import { DeviceDialog } from './device-dialog.js'
 import { LinkBadge } from './link-badge.js'
 import { applyPosition, deviceQuery, deviceTrackQuery, positionKeys } from './queries.js'
+import { TrackMap } from './track-map.js'
+
+/** Период трека: сутки, шесть часов, час. */
+const PERIODS = { h24: 24, h6: 6, h1: 1 } as const
+type Period = keyof typeof PERIODS
+const since = (period: Period) => new Date(Date.now() - PERIODS[period] * 3_600_000).toISOString()
 
 /** Координаты — пять знаков после запятой (около метра), без разрядов. */
 const COORD = { precision: 5, thousands: false }
@@ -34,16 +41,18 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 
 /**
  * Карточка устройства слежения (ADR-0203): номер, вид, «Силы и средства», кто
- * передаёт, последняя точка и связь, трек за сутки. Вкладка подписана на комнату
- * устройства: новая точка приходит сразу.
+ * передаёт, последняя точка и связь, трек на карте и таблицей — за сутки, шесть
+ * часов или час. Вкладка подписана на комнату устройства: новая точка приходит сразу.
  */
 export function DeviceView({ objectId }: { objectId: string }) {
   const t = useT()
   const locale = useLocale()
   const client = useQueryClient()
   const [editing, setEditing] = useState(false)
-  // Сутки от открытия вкладки: ключ трека не меняется при каждой отрисовке
-  const [from] = useState(() => new Date(Date.now() - 86_400_000).toISOString())
+  // Начало периода — от открытия вкладки или выбора периода: ключ трека не меняется
+  // при каждой отрисовке
+  const [period, setPeriod] = useState<Period>('h24')
+  const [from, setFrom] = useState(() => since('h24'))
   const { data: device, isLoading } = useQuery(deviceQuery(objectId))
   const { data: track } = useQuery(deviceTrackQuery(objectId, from))
 
@@ -99,7 +108,8 @@ export function DeviceView({ objectId }: { objectId: string }) {
           : t('positions.batteryValue', { value: formatNumber(row.battery, {}, { locale }) }),
     },
   ]
-  const points = [...(track?.points ?? [])].reverse()
+  const fixes = track?.points ?? []
+  const points = [...fixes].reverse()
 
   return (
     <section aria-label={device.name} className="flex h-full min-h-0 flex-col">
@@ -146,7 +156,24 @@ export function DeviceView({ objectId }: { objectId: string }) {
           </Row>
           {device.note ? <Row label={t('positions.fields.note')}>{device.note}</Row> : null}
         </Card>
-        <Card title={t('positions.track.title')}>
+        <Card
+          title={t('positions.track.title')}
+          action={
+            <SegmentedControl
+              size="sm"
+              aria-label={t('positions.track.periodLabel')}
+              value={period}
+              onValueChange={(next) => {
+                setPeriod(next)
+                setFrom(since(next))
+              }}
+              options={(Object.keys(PERIODS) as Period[]).map((value) => ({
+                value,
+                label: t(`positions.track.periods.${value}`),
+              }))}
+            />
+          }
+        >
           {points.length === 0 ? (
             <EmptyState
               compact
@@ -160,12 +187,13 @@ export function DeviceView({ objectId }: { objectId: string }) {
                   {t('positions.track.truncated', { count: points.length })}
                 </span>
               ) : null}
+              <TrackMap points={fixes} fitKey={from} />
               <div className="h-80 min-h-0">
                 <DataTable
                   rows={points}
                   getRowId={(row) => row.at}
                   columns={columns}
-                  aria-label={t('positions.track.title')}
+                  aria-label={t('positions.track.table')}
                 />
               </div>
             </div>
