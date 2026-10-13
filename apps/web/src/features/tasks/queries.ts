@@ -1,6 +1,7 @@
 import type { ControlListQuery, ControlQuery, TaskListQuery, WorkloadQuery } from '@kchs/contracts'
 import { queryOptions } from '@tanstack/react-query'
-import { http } from '~/shared/api/client.js'
+import { ApiError, http } from '~/shared/api/client.js'
+import type { ApiBody } from '~/shared/api/route-types.js'
 
 /**
  * Ключи кэша задач. Карточка — под `['object', id, …]`: realtime ядра
@@ -125,3 +126,25 @@ export const projectQuery = (id: string) =>
     queryKey: taskKeys.project(id),
     queryFn: () => http.get('/projects/:id', { params: { id } }),
   })
+
+// ─── Действия по задаче (10-tasks-projects.md §4, ADR-0082) ─────────────────
+
+export const reportTask = (id: string, body: ApiBody<'POST /tasks/:id/report'>) =>
+  http.post('/tasks/:id/report', { params: { id }, body })
+
+export const returnTask = (id: string, body: ApiBody<'POST /tasks/:id/return'>) =>
+  http.post('/tasks/:id/return', { params: { id }, body })
+
+export const requestExtension = (id: string, body: ApiBody<'POST /tasks/:id/extension'>) =>
+  http.post('/tasks/:id/extension', { params: { id }, body })
+
+export const decideExtension = (id: string, body: ApiBody<'POST /tasks/:id/extension/decide'>) =>
+  http.post('/tasks/:id/extension/decide', { params: { id }, body })
+
+export const reassignTask = (id: string, body: ApiBody<'POST /tasks/:id/reassign'>) =>
+  http.post('/tasks/:id/reassign', { params: { id }, body })
+
+/** Ошибки полей из ответа сервера — подсветка формы; иной сбой — без полей. */
+export function fieldErrorsOf(error: unknown): Record<string, string> {
+  return error instanceof ApiError ? error.fieldErrors() : {}
+}

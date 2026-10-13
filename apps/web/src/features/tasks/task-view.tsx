@@ -47,17 +47,16 @@ import { meQuery, objectQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
-import { taskKeys, taskQuery } from './queries.js'
-import { errorText, postTaskStep, type TaskStep, useTaskInvalidation } from './task-actions.js'
-import { ChecklistSection, SubtasksSection } from './task-checklist.js'
 import {
-  EditTaskDialog,
   ExtensionDecisionDialog,
   ExtensionRequestDialog,
   ReassignDialog,
-  ReportDialog,
-  ReturnDialog,
-} from './task-dialogs.js'
+} from './control-dialogs.js'
+import { taskKeys, taskQuery } from './queries.js'
+import { ReportDialog, ReturnDialog } from './report-dialogs.js'
+import { errorText, postTaskStep, type TaskStep, useTaskInvalidation } from './task-actions.js'
+import { ChecklistSection, SubtasksSection } from './task-checklist.js'
+import { EditTaskDialog } from './task-dialogs.js'
 import { DueHistorySection, PartsSection, ResultObjects } from './task-sections.js'
 import { STATUS_TONE_KEY } from './task-status.js'
 

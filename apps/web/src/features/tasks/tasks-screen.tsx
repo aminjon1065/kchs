@@ -47,15 +47,11 @@ import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
 import { projectsQuery, taskKeys, taskSummaryQuery, tasksQuery } from './queries.js'
+import { ReportDialog } from './report-dialogs.js'
 import { errorText, postTaskStep, type TaskStep, useTaskInvalidation } from './task-actions.js'
 import { BulkBar, BulkDialog, type BulkKind } from './task-bulk.js'
 import { ProgressMark } from './task-checklist.js'
-import {
-  CreateProjectDialog,
-  CreateTaskDialog,
-  ReportDialog,
-  type TaskDraft,
-} from './task-dialogs.js'
+import { CreateProjectDialog, CreateTaskDialog, type TaskDraft } from './task-dialogs.js'
 import { SeriesDialog } from './task-series.js'
 import { ACTION_STATUS, BOARD_COLUMNS, boardMove, STATUS_TONE_KEY } from './task-status.js'
 import { TaskTimeline } from './task-timeline.js'
