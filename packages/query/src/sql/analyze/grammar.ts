@@ -1,0 +1,190 @@
+/**
+ * Белый список дерева libpg-query (ADR-0062, 17-security.md): какие узлы и поля
+ * анализатор сырого SQL пропускает, какие операторы и конструкции запрещены и с
+ * какой причиной. Узел или поле вне списка — отказ.
+ */
+
+/** Допустимые поля узлов дерева; узел вне списка или неизвестное поле — отказ. */
+export const NODE_FIELDS: Readonly<Record<string, readonly string[]>> = {
+  SelectStmt: [
+    'distinctClause',
+    'targetList',
+    'fromClause',
+    'whereClause',
+    'groupClause',
+    'groupDistinct',
+    'havingClause',
+    'windowClause',
+    'valuesLists',
+    'sortClause',
+    'limitOffset',
+    'limitCount',
+    'limitOption',
+    'withClause',
+    'op',
+    'all',
+    'larg',
+    'rarg',
+  ],
+  WithClause: ['ctes', 'recursive', 'location'],
+  CommonTableExpr: ['ctename', 'aliascolnames', 'ctematerialized', 'ctequery', 'location'],
+  ResTarget: ['name', 'val', 'location'],
+  RangeVar: ['relname', 'inh', 'relpersistence', 'alias', 'location'],
+  RangeSubselect: ['lateral', 'subquery', 'alias'],
+  RangeFunction: ['lateral', 'ordinality', 'is_rowsfrom', 'functions', 'alias', 'coldeflist'],
+  JoinExpr: [
+    'jointype',
+    'isNatural',
+    'larg',
+    'rarg',
+    'usingClause',
+    'join_using_alias',
+    'quals',
+    'alias',
+  ],
+  Alias: ['aliasname', 'colnames'],
+  ColumnDef: ['colname', 'typeName', 'is_local', 'location'],
+  ColumnRef: ['fields', 'location'],
+  ParamRef: ['number', 'location'],
+  A_Const: ['ival', 'fval', 'boolval', 'sval', 'bsval', 'isnull', 'location'],
+  A_Expr: ['kind', 'name', 'lexpr', 'rexpr', 'location'],
+  BoolExpr: ['boolop', 'args', 'location'],
+  NullTest: ['arg', 'nulltesttype', 'argisrow', 'location'],
+  BooleanTest: ['arg', 'booltesttype', 'location'],
+  TypeCast: ['arg', 'typeName', 'location'],
+  TypeName: ['names', 'typmods', 'typemod', 'arrayBounds', 'location'],
+  FuncCall: [
+    'funcname',
+    'args',
+    'agg_order',
+    'agg_filter',
+    'over',
+    'agg_within_group',
+    'agg_star',
+    'agg_distinct',
+    'func_variadic',
+    'funcformat',
+    'location',
+  ],
+  NamedArgExpr: ['arg', 'name', 'argnumber', 'location'],
+  CaseExpr: ['arg', 'args', 'defresult', 'location'],
+  CaseWhen: ['expr', 'result', 'location'],
+  CoalesceExpr: ['args', 'location'],
+  MinMaxExpr: ['op', 'args', 'location'],
+  SQLValueFunction: ['op', 'typmod', 'location'],
+  SubLink: ['subLinkType', 'subLinkId', 'testexpr', 'operName', 'subselect', 'location'],
+  RowExpr: ['args', 'row_format', 'colnames', 'location'],
+  A_ArrayExpr: ['elements', 'location'],
+  A_Indirection: ['arg', 'indirection'],
+  A_Indices: ['is_slice', 'lidx', 'uidx'],
+  CollateClause: ['arg', 'collname', 'location'],
+  GroupingFunc: ['args', 'location'],
+  GroupingSet: ['kind', 'content', 'location'],
+  SortBy: ['node', 'sortby_dir', 'sortby_nulls', 'useOp', 'location'],
+  WindowDef: [
+    'name',
+    'refname',
+    'partitionClause',
+    'orderClause',
+    'frameOptions',
+    'startOffset',
+    'endOffset',
+    'location',
+  ],
+  JsonIsPredicate: ['expr', 'format', 'item_type', 'unique_keys', 'location'],
+  JsonFormat: ['format_type', 'encoding', 'location'],
+  List: ['items'],
+  String: ['sval'],
+  Integer: ['ival'],
+  A_Star: [],
+}
+
+/** Поля «хвоста» SELECT, общие для всех форм: WITH, ORDER BY, LIMIT, OFFSET. */
+export const TAIL_FIELDS = [
+  'withClause',
+  'sortClause',
+  'limitCount',
+  'limitOffset',
+  'limitOption',
+  'op',
+]
+
+/** Операторы, которые не являются запросом на чтение, — понятная причина отказа. */
+export const STATEMENTS: Readonly<Record<string, string>> = {
+  InsertStmt: 'Изменение данных запрещено (INSERT)',
+  UpdateStmt: 'Изменение данных запрещено (UPDATE)',
+  DeleteStmt: 'Изменение данных запрещено (DELETE)',
+  MergeStmt: 'Изменение данных запрещено (MERGE)',
+  TruncateStmt: 'Изменение данных запрещено (TRUNCATE)',
+  CopyStmt: 'COPY запрещён',
+  DoStmt: 'Анонимные блоки кода (DO) запрещены',
+  CallStmt: 'Вызов процедур (CALL) запрещён',
+  VariableSetStmt: 'Изменение настроек сеанса (SET, RESET) запрещено',
+  VariableShowStmt: 'SHOW запрещён',
+  ExplainStmt: 'EXPLAIN запрещён',
+  LockStmt: 'Блокировка таблиц (LOCK) запрещена',
+  TransactionStmt: 'Управление транзакциями запрещено',
+  GrantStmt: 'Выдача и отзыв прав (GRANT, REVOKE) запрещены',
+  GrantRoleStmt: 'Выдача и отзыв ролей запрещены',
+  PrepareStmt: 'Подготовленные операторы (PREPARE, EXECUTE) запрещены',
+  ExecuteStmt: 'Подготовленные операторы (PREPARE, EXECUTE) запрещены',
+  DeallocateStmt: 'Подготовленные операторы (PREPARE, EXECUTE) запрещены',
+  ListenStmt: 'LISTEN и NOTIFY запрещены',
+  NotifyStmt: 'LISTEN и NOTIFY запрещены',
+  VacuumStmt: 'Обслуживание таблиц (VACUUM, ANALYZE) запрещено',
+  DeclareCursorStmt: 'Курсоры запрещены',
+  FetchStmt: 'Курсоры запрещены',
+}
+
+/** Узлы, которые разборщик понимает, а лаборатория не принимает. */
+export const UNSUPPORTED: Readonly<Record<string, string>> = {
+  RangeTableSample: 'TABLESAMPLE не поддерживается',
+  RangeTableFunc: 'XML в запросах не поддерживается',
+  XmlExpr: 'XML в запросах не поддерживается',
+  XmlSerialize: 'XML в запросах не поддерживается',
+  JsonTable: 'JSON_TABLE не поддерживается: используйте функции jsonb_*',
+  JsonFuncExpr:
+    'SQL/JSON-функции не поддерживаются: используйте операторы ->, ->> и функции jsonb_*',
+  JsonObjectConstructor:
+    'SQL/JSON-функции не поддерживаются: используйте json_build_object и jsonb_build_object',
+  JsonArrayConstructor:
+    'SQL/JSON-функции не поддерживаются: используйте json_build_array и jsonb_build_array',
+  JsonArrayQueryConstructor: 'SQL/JSON-функции не поддерживаются: используйте json_agg',
+  JsonObjectAgg: 'SQL/JSON-функции не поддерживаются: используйте json_object_agg',
+  JsonArrayAgg: 'SQL/JSON-функции не поддерживаются: используйте json_agg',
+  JsonParseExpr: 'SQL/JSON-функции не поддерживаются: используйте приведение ::jsonb',
+  JsonScalarExpr: 'SQL/JSON-функции не поддерживаются: используйте to_jsonb',
+  JsonSerializeExpr: 'SQL/JSON-функции не поддерживаются: используйте приведение ::text',
+  SetToDefault: 'DEFAULT недопустим в запросе на чтение',
+  CurrentOfExpr: 'Курсоры запрещены',
+  MergeSupportFunc: 'MERGE запрещён',
+}
+
+export const SUBLINKS = new Set([
+  'EXISTS_SUBLINK',
+  'ALL_SUBLINK',
+  'ANY_SUBLINK',
+  'ROWCOMPARE_SUBLINK',
+  'EXPR_SUBLINK',
+  'ARRAY_SUBLINK',
+])
+
+export const EXPR_KINDS = new Set([
+  'AEXPR_OP',
+  'AEXPR_OP_ANY',
+  'AEXPR_OP_ALL',
+  'AEXPR_DISTINCT',
+  'AEXPR_NOT_DISTINCT',
+  'AEXPR_NULLIF',
+  'AEXPR_IN',
+  'AEXPR_LIKE',
+  'AEXPR_ILIKE',
+  'AEXPR_SIMILAR',
+])
+
+export const BETWEEN_KINDS = new Set([
+  'AEXPR_BETWEEN',
+  'AEXPR_NOT_BETWEEN',
+  'AEXPR_BETWEEN_SYM',
+  'AEXPR_NOT_BETWEEN_SYM',
+])
