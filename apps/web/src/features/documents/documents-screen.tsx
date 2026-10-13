@@ -33,6 +33,7 @@ import {
   Plus,
   Search as SearchIcon,
   Send,
+  Siren,
   Stamp,
   UserCheck,
   UserRound,
@@ -61,6 +62,7 @@ import { TypesDirectory } from './directories/types-directory.js'
 import { MailScreen } from './mail/mail-screen.js'
 import { documentSummaryQuery, journalsQuery, officeDashboardQuery } from './queries.js'
 import { RegistrationScreen } from './registration/registration-screen.js'
+import { QueuedReports, ReportDialog } from './report-dialog.js'
 import { CONFIDENTIALITY_TONE, DOCUMENT_STATUS_TONE, localToday } from './status.js'
 
 const TYPES = ['document']
@@ -221,6 +223,7 @@ function DocumentsList({
   )
   const [viewId, setViewId] = useState<string | null>(savedState?.viewId ?? null)
   const [creating, setCreating] = useState(false)
+  const [reporting, setReporting] = useState(false)
   // Выбор для массовых действий (ADR-0152): сбрасывается при смене раздела
   const [selected, setSelected] = useState<Set<string>>(new Set())
 
@@ -537,6 +540,14 @@ function DocumentsList({
               <Button
                 variant="secondary"
                 size="sm"
+                icon={<Siren className="size-3.5" />}
+                onClick={() => setReporting(true)}
+              >
+                {t('documents.report.action')}
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
                 icon={<Plus className="size-3.5" />}
                 onClick={() => setCreating(true)}
               >
@@ -545,6 +556,7 @@ function DocumentsList({
             </>
           }
         />
+        <QueuedReports />
         <div className="min-h-0 flex-1">
           <CollectionView
             aria-label={t('documents.title')}
@@ -593,6 +605,7 @@ function DocumentsList({
         </div>
       </div>
       {creating ? <CreateDocumentDialog onClose={() => setCreating(false)} /> : null}
+      {reporting ? <ReportDialog onClose={() => setReporting(false)} /> : null}
     </section>
   )
 }

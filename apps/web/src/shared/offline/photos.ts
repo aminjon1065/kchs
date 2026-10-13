@@ -1,4 +1,9 @@
-import { FORM_PHOTO_MAX_BYTES, FORM_PHOTO_MAX_SIDE, type FormPhoto } from '@kchs/contracts'
+import {
+  type DocumentPhoto,
+  FORM_PHOTO_MAX_BYTES,
+  FORM_PHOTO_MAX_SIDE,
+  type FormPhoto,
+} from '@kchs/contracts'
 import { http } from '~/shared/api/client.js'
 import { PHOTOS_STORE, readAll, readOne, remove, write } from './store.js'
 
@@ -146,6 +151,39 @@ export async function resolvePhotos<
   const values = await resolve(body.values)
   const rows = body.rows ? await Promise.all(body.rows.map((row) => resolve(row))) : undefined
   return { body: { ...body, values, ...(rows ? { rows } : {}) }, uploaded }
+}
+
+type DocumentUpload = (documentId: string, photo: LocalPhoto) => Promise<DocumentPhoto>
+
+const uploadToDocument: DocumentUpload = async (documentId, photo) =>
+  http.post('/documents/:id/photos', {
+    params: { id: documentId },
+    body: { clientKey: photo.id, data: await base64(photo.blob) },
+  })
+
+let documentUpload: DocumentUpload = uploadToDocument
+
+/** Подмена загрузки в документ — для тестов очереди. */
+export function setDocumentPhotoUploader(next: DocumentUpload | null): void {
+  documentUpload = next ?? uploadToDocument
+}
+
+/**
+ * Снимки донесения (ADR-0212) — в черновик документа, каждый под своим ключом: повтор
+ * после потерянного ответа возвращает тот же файл. Загруженный снимок помечается на
+ * устройстве, чтобы следующий проход очереди его пропустил.
+ */
+export async function uploadDocumentPhotos(
+  documentId: string,
+  userId: string,
+  ids: readonly string[],
+): Promise<void> {
+  for (const id of ids) {
+    const photo = await localPhoto(id, userId)
+    if (!photo || photo.fileId) continue
+    const uploaded = await documentUpload(documentId, photo)
+    await write(PHOTOS_STORE, { ...photo, fileId: uploaded.id })
+  }
 }
 
 /** Снимки дошли вместе со сдачей — с устройства их можно стереть. */

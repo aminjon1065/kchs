@@ -1007,6 +1007,12 @@ export function registerModules(): void {
   registerModule({
     key: 'documents',
     namespaces: ['documents', 'documentAssist', 'data', 'gis', 'processes', 'tasks'],
+    // Донесение пишут там, где связь пропадает (ADR-0212)
+    offline: () =>
+      Promise.all([
+        import('~/features/documents/documents-screen.js'),
+        import('~/features/documents/report-dialog.js'),
+      ]),
     screens: [
       {
         key: 'documents',

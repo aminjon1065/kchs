@@ -251,7 +251,11 @@ export function FormFillTab({ form }: { form: FormRecord }) {
     [client, form.id, openId, t, toast],
   )
   const queued = submission
-    ? queue.find((entry) => entry.submissionId === submission.id || entry.localId === submission.id)
+    ? queue.find(
+        (entry) =>
+          entry.kind === 'form.submit' &&
+          (entry.submissionId === submission.id || entry.localId === submission.id),
+      )
     : null
 
   const review = useMutation({

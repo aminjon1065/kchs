@@ -129,6 +129,7 @@ export const shell: DeepPartial<Dictionary['shell']> = {
       '{count, plural, one {# submission waits for the network} other {# submissions wait for the network}}',
     offlineQueueHint:
       'No network: submissions are kept on this device and will be sent automatically once the connection is back',
+    reportSent: 'Queued situation report sent',
   },
   palette: {
     placeholder: 'Search objects and commands…',

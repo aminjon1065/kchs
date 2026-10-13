@@ -2,6 +2,7 @@ import type { CaseListQuery } from '@kchs/contracts'
 import { keepPreviousData, queryOptions } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
 import { keys } from '~/shared/api/queries.js'
+import { cachedFetch, OFFLINE_AWARE } from '~/shared/offline/queue.js'
 
 /**
  * Ключи кэша документооборота. Карточка и версии — под `['object', id, …]`:
@@ -68,13 +69,19 @@ export const documentSummaryQuery = () =>
 
 export const documentTypesQuery = (includeInactive = false) =>
   queryOptions({
+    // Донесение без сети берёт тип и его реквизиты с устройства (ADR-0212)
+    ...OFFLINE_AWARE,
     queryKey: documentKeys.types(includeInactive),
-    queryFn: async () =>
-      (
-        await http.get('/document-types', {
-          query: { includeInactive: includeInactive ? 'true' : undefined },
-        })
-      ).items,
+    queryFn: () =>
+      cachedFetch(
+        `documents.types:${includeInactive}`,
+        async () =>
+          (
+            await http.get('/document-types', {
+              query: { includeInactive: includeInactive ? 'true' : undefined },
+            })
+          ).items,
+      ),
     staleTime: 5 * 60_000,
   })
 
