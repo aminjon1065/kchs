@@ -2,7 +2,6 @@ import { Button, type ControlProps, IconButton, Skeleton, useToast } from '@kchs
 import { useQuery } from '@tanstack/react-query'
 import { Camera, ImageOff, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { compressPhoto, PhotoFormatError, saveLocalPhoto } from '~/shared/offline/photos.js'
 import { formPhotoQuery } from './queries.js'
@@ -25,7 +24,6 @@ export function PhotoField({
   const toast = useToast()
   const input = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
-  const locale = useLocale()
   const current = typeof value === 'string' && value.length > 0 ? value : null
   const action = current ? t('forms.photo.replace') : t('forms.photo.add')
 
@@ -59,11 +57,12 @@ export function PhotoField({
           loading={busy}
           disabled={disabled}
           aria-invalid={invalid || undefined}
-          // Имя — поле и действие: подпись поля одна не содержала бы видимого текста кнопки
-          aria-label={`${field.label[locale] ?? field.label.ru}: ${action}`}
+          // Имя — подпись поля (в таблице — «Поле, строка N») и текст кнопки: одна подпись
+          // не содержала бы видимого текста, один текст — поля и строки
+          aria-labelledby={`${id}-label ${id}-action`}
           onClick={() => input.current?.click()}
         >
-          {action}
+          <span id={`${id}-action`}>{action}</span>
         </Button>
         {current && !disabled ? (
           <IconButton

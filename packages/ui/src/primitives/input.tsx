@@ -207,7 +207,11 @@ export interface FieldProps {
   className?: string
 }
 
-/** Обёртка поля формы: подпись, подсказка, ошибка под полем. */
+/**
+ * Обёртка поля формы: подпись, подсказка, ошибка под полем. У подписи — `id` вида
+ * `<id поля>-label`: составной элемент (кнопка «Добавить фото») ссылается на неё через
+ * `aria-labelledby` вместе со своим текстом и не теряет ни подписи, ни видимого текста.
+ */
 export function Field({ label, hint, error, required, htmlFor, children, className }: FieldProps) {
   const generatedId = useId()
   const id = htmlFor ?? generatedId
@@ -221,7 +225,7 @@ export function Field({ label, hint, error, required, htmlFor, children, classNa
   return (
     <div className={cn('flex flex-col gap-1.5', className)}>
       {label ? (
-        <label htmlFor={id} className="text-xs font-medium text-fg-secondary">
+        <label id={`${id}-label`} htmlFor={id} className="text-xs font-medium text-fg-secondary">
           {label}
           {required ? <span className="ml-0.5 text-danger">*</span> : null}
         </label>

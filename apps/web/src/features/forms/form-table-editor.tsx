@@ -173,7 +173,7 @@ export function FormTableEditor({
                 const error = errors[`${index}:${field.key}`]
                 return (
                   <td key={field.key} className="px-2 py-1.5">
-                    <label htmlFor={control.id} className="sr-only">
+                    <label id={`${control.id}-label`} htmlFor={control.id} className="sr-only">
                       {t('forms.table.cellLabel', {
                         field: labelOf(field, locale),
                         number: index + 1,
