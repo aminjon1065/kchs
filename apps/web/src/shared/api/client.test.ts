@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError, http, setCsrfToken } from './client.js'
-import { apiUrl } from './link.js'
+import { apiUrl, tileUrl } from './link.js'
 
 /** Ответ fetch: JSON с кодом или пустой 204. */
 const reply = (status: number, body?: unknown) =>
@@ -91,5 +91,21 @@ describe('клиент API по таблице маршрутов (ADR-0188)', (
     expect(apiUrl('/admin/audit/export.csv', { query: { action: 'user.login' } })).toBe(
       '/api/v1/admin/audit/export.csv?action=user.login',
     )
+  })
+})
+
+describe('tileUrl', () => {
+  it('шаблон MapLibre: {z}/{x}/{y} без кодирования, ключи кэша v и lv — по таблице', () => {
+    expect(
+      tileUrl('/gis/layers/:id/tiles/:z/:x/:y.pbf', {
+        params: { id: 'L1' },
+        query: { v: 3, lv: 0, t: '2026-01-01/2026-02-01' },
+      }),
+    ).toBe(
+      'http://web/api/v1/gis/layers/L1/tiles/{z}/{x}/{y}.pbf?v=3&lv=0&t=2026-01-01%2F2026-02-01',
+    )
+    expect(
+      tileUrl('/gis/service-layers/:id/tiles/:z/:x/:y', { params: { id: 'S1' }, query: { v: 7 } }),
+    ).toBe('http://web/api/v1/gis/service-layers/S1/tiles/{z}/{x}/{y}?v=7')
   })
 })

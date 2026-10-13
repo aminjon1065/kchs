@@ -164,8 +164,16 @@ export const ServiceLayerFeaturesQuery = z.object({
     .min(1)
     .max(SERVICE_LAYER_FEATURES_LIMIT)
     .default(SERVICE_LAYER_FEATURES_LIMIT),
+  /** Ключ кэша браузера — версия слоя-ссылки: после правки службы адрес новый (ADR-0188). */
+  v: z.coerce.number().int().nonnegative().optional(),
 })
 export type ServiceLayerFeaturesQuery = z.infer<typeof ServiceLayerFeaturesQuery>
+
+/** Строка запроса тайла службы: только ключ кэша — версия слоя-ссылки (ADR-0188). */
+export const ServiceLayerTileQuery = z.object({
+  v: z.coerce.number().int().nonnegative().optional(),
+})
+export type ServiceLayerTileQuery = z.infer<typeof ServiceLayerTileQuery>
 
 /**
  * Объект внешней векторной службы — GeoJSON Feature, как его отдала служба (RFC 7946).

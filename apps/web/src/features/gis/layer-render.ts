@@ -25,6 +25,7 @@ import { queryOptions, useQueries, useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { datasetQuery } from '~/features/data/index.js'
 import { http } from '~/shared/api/client.js'
+import { tileUrl } from '~/shared/api/link.js'
 import { useLocale } from '~/shared/appearance.js'
 import type { DeckEntry } from './studio/deck-overlay.js'
 import { deckDrawable } from './studio/deck-roles.js'
@@ -123,12 +124,16 @@ export function layerTileUrl(
     preview?: LayerTilePreview | null
   } = {},
 ): string {
-  const query = new URLSearchParams({ v: String(layer.datasetVersion), lv: String(layer.version) })
-  if (options.filter) query.set('f', base64urlJson(options.filter))
-  if (options.time) query.set('t', options.time)
-  if (options.preview) query.set('p', base64urlJson(options.preview))
-  // вне клиента API: шаблон тайлов MapLibre — {z}/{x}/{y} без кодирования, lv — ключ кэша
-  return `${window.location.origin}/api/v1/gis/layers/${layer.id}/tiles/{z}/{x}/{y}.pbf?${query}`
+  return tileUrl('/gis/layers/:id/tiles/:z/:x/:y.pbf', {
+    params: { id: layer.id },
+    query: {
+      v: layer.datasetVersion,
+      lv: layer.version,
+      ...(options.filter ? { f: base64urlJson(options.filter) } : {}),
+      ...(options.time ? { t: options.time } : {}),
+      ...(options.preview ? { p: base64urlJson(options.preview) } : {}),
+    },
+  })
 }
 
 const styleFieldsOf = (dataset: DatasetRecord | undefined): StyleField[] =>

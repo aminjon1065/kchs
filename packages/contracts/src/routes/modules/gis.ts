@@ -41,6 +41,7 @@ import {
   ServiceLayerImportStarted,
   ServiceLayerList,
   ServiceLayerRecord,
+  ServiceLayerTileQuery,
   ServiceLayerUpdateInput,
 } from '../../gis/service-layer.js'
 import { defineRoutes } from '../../http/route-contract.js'
@@ -172,7 +173,10 @@ export const gisRoutes = defineRoutes({
     params: IdParam,
     response: { 200: ServiceLayerCheckResult },
   },
-  'GET /gis/service-layers/:id/tiles/:z/:x/:y': { params: TileParams },
+  'GET /gis/service-layers/:id/tiles/:z/:x/:y': {
+    params: TileParams,
+    query: ServiceLayerTileQuery,
+  },
   'GET /gis/service-layers/:id/features': {
     params: IdParam,
     query: ServiceLayerFeaturesQuery,
