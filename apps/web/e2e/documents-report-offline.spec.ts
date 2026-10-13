@@ -32,8 +32,12 @@ test.describe('Донесение без сети', () => {
     await expect(dialog.getByRole('button', { name: 'Отправить' })).toBeVisible()
     // Районы — пока есть связь: справочник ложится на устройство
     await dialog.getByRole('button', { name: /^Район/ }).click()
-    await page.getByLabel('Найти территорию').fill('а')
-    await page.getByRole('list', { name: 'Результаты поиска' }).getByRole('button').first().click()
+    await page.getByRole('searchbox', { name: 'Найти территорию' }).fill('Варзоб')
+    await page
+      .getByRole('list', { name: 'Найденные территории' })
+      .getByRole('button', { name: /Варзоб/ })
+      .first()
+      .click()
 
     await page.context().setOffline(true)
     await dialog.getByLabel('Кратко о происшествии').fill(subject)

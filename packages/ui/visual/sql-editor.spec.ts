@@ -113,6 +113,16 @@ test('SqlEditor: без nonce стили CodeMirror отбрасываются �
   await expect(page.locator('.cm-editor')).not.toHaveCSS('display', 'flex')
 })
 
+/**
+ * Принять подсказку клавишей. CodeMirror выполняет команды подсказки только через
+ * `interactionDelay` (75 мс) после её появления — раньше Enter уходит в текст переводом
+ * строки. Человек так быстро не нажимает, а Playwright под нагрузкой успевал.
+ */
+async function accept(page: Page, key: 'Enter' | 'Tab'): Promise<void> {
+  await page.waitForTimeout(150)
+  await page.keyboard.press(key)
+}
+
 test('SqlEditor: подсказки по «человеческим» именам, параметры, клавиатура', async ({ page }) => {
   await openStory(page, 'empty')
   const field = editor(page)
@@ -122,21 +132,21 @@ test('SqlEditor: подсказки по «человеческим» имена
   await page.keyboard.type('SELECT * FROM про')
   const list = page.getByRole('listbox', { name: 'Подсказки' })
   await expect(list.getByRole('option').first()).toContainText('Происшествия')
-  await page.keyboard.press('Enter')
+  await accept(page, 'Enter')
 
   // Поле через псевдоним: по подписи — в кавычках, Tab принимает подсказку
   await page.keyboard.type(' AS п WHERE п.дат')
   await expect(list.getByRole('option').first()).toContainText('Дата происшествия')
-  await page.keyboard.press('Tab')
+  await accept(page, 'Tab')
 
   // Поле по ключу — вставляется ключ
   await page.keyboard.type(' >= {{')
   await expect(list.getByRole('option').first()).toContainText('from')
-  await page.keyboard.press('Enter')
+  await accept(page, 'Enter')
   await page.keyboard.press('End')
   await page.keyboard.type(' AND п.vict')
   await expect(list.getByRole('option').first()).toContainText('victims')
-  await page.keyboard.press('Enter')
+  await accept(page, 'Enter')
   expect(await text(page)).toBe(
     'SELECT * FROM Происшествия AS п WHERE п."Дата происшествия" >= {{from}} AND п.victims',
   )
