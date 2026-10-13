@@ -17,7 +17,7 @@ import type { UserCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { taskExtensions, tasks } from '../schema.js'
 import { CLOSED, overdueSql, refsOf, selectTasks } from './task-core.js'
-import { listItems } from './task-service.js'
+import { listItems } from './task-views.js'
 
 /** Понедельник недели дня `day`. */
 export function mondayOf(day: string): string {
