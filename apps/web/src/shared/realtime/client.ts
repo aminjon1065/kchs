@@ -64,10 +64,15 @@ export function connectRealtime(client: QueryClient, handlers: RealtimeHandlers 
     reconnectionDelayMax: 8000,
   })
 
+  // Первое подключение сокета — данные экранов только что прочитаны; каждое следующее —
+  // переподключение после разрыва, за который сообщения пропали
+  let connectedOnce = false
   socket.on('connect', () => {
     setStatus('connected')
     // Новое подключение — новый сокет на сервере: комнаты экранов берутся заново
     sendRooms('subscribe', [...wanted.keys()])
+    if (connectedOnce) void catchUp(client)
+    connectedOnce = true
   })
   socket.on('disconnect', () => setStatus('disconnected'))
   socket.on('connect_error', () => setStatus('disconnected'))
@@ -167,6 +172,22 @@ export function connectRealtime(client: QueryClient, handlers: RealtimeHandlers 
     presence.set(payload.objectId, payload.users)
     for (const listener of presenceListeners) listener()
   })
+}
+
+let catching: Promise<void> | null = null
+
+/**
+ * Сообщения за разрыв шлюз не повторяет (ADR-0192), а обработчики выше только сбрасывают
+ * кэш — значит, догнать пропущенное = перечитать (ADR-0215). Одной волной и только запросы
+ * открытых экранов: остальные помечаются устаревшими и перечитаются, когда понадобятся.
+ * Идущие запросы волна не отменяет (догрузка страницы Входящих), а вторая волна, пока
+ * идёт первая, не начинается — частые разрывы не дают шторма.
+ */
+export function catchUp(client: QueryClient): Promise<void> {
+  catching ??= client.invalidateQueries(undefined, { cancelRefetch: false }).finally(() => {
+    catching = null
+  })
+  return catching
 }
 
 type ModuleHandler = (payload: unknown) => void

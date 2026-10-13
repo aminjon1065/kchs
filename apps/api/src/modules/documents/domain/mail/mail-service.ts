@@ -305,13 +305,17 @@ export const MailIntake = {
         ...(row.documentId ? { object: { id: row.documentId, type: 'document' } } : {}),
         payload: { messageId: id, reason },
       })
-    })
-
-    await audit(ctx, {
-      action: DOCUMENTS_AUDIT.mailRejected,
-      objectId: row.documentId,
-      objectType: 'document',
-      details: { messageKey: row.messageKey, from: row.fromEmail, reason },
+      // Решение и его аудит — одной транзакцией (ADR-0216)
+      await audit(
+        ctx,
+        {
+          action: DOCUMENTS_AUDIT.mailRejected,
+          objectId: row.documentId,
+          objectType: 'document',
+          details: { messageKey: row.messageKey, from: row.fromEmail, reason },
+        },
+        tx,
+      )
     })
     return MailIntake.get(ctx, id)
   },

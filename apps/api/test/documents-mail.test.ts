@@ -2,12 +2,14 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { MailboxConfig } from '@kchs/contracts'
+import { sql } from 'drizzle-orm'
 import { beforeAll, describe, expect, it } from 'vitest'
 import type { FetchedLetter, MailboxPort } from '../src/shared/mail/imap.js'
 import { setMailboxPort } from '../src/shared/mail/imap.js'
 import {
   call,
   createUser,
+  db,
   registerLifecycle,
   setupFixture,
   type TestContext,
@@ -312,6 +314,15 @@ describe('очередь «Из почты»', () => {
       payload: { reason: 'Повторное отклонение' },
     })
     expect(again.statusCode).toBe(200)
+    // Решение и его аудит — одной транзакцией: время начала одно (ADR-0216)
+    const [same] = await db().execute<{ same: boolean }>(
+      sql`SELECT m.decided_at = a.occurred_at AS same FROM mail_messages m
+           JOIN audit_log a ON a.action = 'mail.rejected'
+            AND a.details->>'reason' = 'Повторное отклонение'
+            AND a.details->>'messageKey' = m.message_key
+          WHERE m.id = ${pending?.id ?? ''}`,
+    )
+    expect(same?.same).toBe(true)
   })
 
   it('регистрация документа убирает письмо из очереди', async () => {

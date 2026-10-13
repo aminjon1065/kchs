@@ -1,7 +1,7 @@
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { WEBHOOK_HEADERS } from '@kchs/contracts'
-import { desc, eq, inArray } from 'drizzle-orm'
+import { desc, eq, inArray, sql } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { call, db, registerLifecycle, setupFixture, type TestContext } from './helpers.js'
 
@@ -307,6 +307,13 @@ describe('входящие вебхуки', () => {
     expect((event?.payload?.body as { ticket?: number } | undefined)?.ticket).toBe(42)
     // Секрет в событие не попадает
     expect(JSON.stringify(rows)).not.toContain(secret)
+    // Событие и аудит приёма — одной транзакцией: время начала одно (ADR-0216)
+    const [same] = await db().execute<{ same: boolean }>(
+      sql`SELECT o.created_at = a.occurred_at AS same FROM ops.outbox o
+           JOIN audit_log a ON a.action = 'webhook.received' AND a.object_id = ${id}
+          WHERE o.type = 'webhook.received' AND o.event->'payload'->>'integrationId' = ${id}`,
+    )
+    expect(same?.same).toBe(true)
   })
 
   it('неверный секрет и неизвестная интеграция отвечают одинаково', async () => {
