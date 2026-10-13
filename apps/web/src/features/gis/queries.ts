@@ -56,8 +56,7 @@ export const territoriesQuery = () =>
     // Район в донесении и сводке выбирают и без сети — справочник с устройства (ADR-0212)
     ...OFFLINE_AWARE,
     queryKey: gisKeys.territories,
-    queryFn: () =>
-      cachedFetch('territories', async () => (await http.get('/territories')).items),
+    queryFn: () => cachedFetch('territories', async () => (await http.get('/territories')).items),
     staleTime: 10 * 60_000,
   })
 
