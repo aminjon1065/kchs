@@ -16,7 +16,8 @@ const here = path.dirname(fileURLToPath(import.meta.url))
 const root = path.resolve(here, '../../..')
 
 const SCAN = ['apps/web/src', 'packages/ui/src']
-const SKIP_DIRS = new Set(['node_modules', '__tests__', 'stories'])
+// `test` — помощники тестов компонентов web (ADR-0209): данные `/me`, а не тексты интерфейса
+const SKIP_DIRS = new Set(['node_modules', '__tests__', 'stories', 'test'])
 const CYRILLIC = /[А-Яа-яЁё]/
 
 interface Finding {
