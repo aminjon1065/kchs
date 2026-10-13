@@ -222,16 +222,9 @@ export const SsoService = {
 
     const userId = await resolveUser(settings, subject, claims, meta)
     const session = await AuthService.createSession(userId, meta, true)
-    await AuthService.afterLogin(userId, meta)
-    await audit(systemCtx('auth.sso', { requestId: meta.requestId, initiatorId: userId }), {
-      action: AUDIT_ACTIONS.loginExternal,
-      actorId: userId,
-      objectId: userId,
-      objectType: 'user',
+    await AuthService.afterLogin(userId, meta, {
+      scope: 'auth.sso',
       details: { provider: OIDC_PROVIDER },
-      severity: 'notice',
-      ip: meta.ip,
-      userAgent: meta.userAgent,
     })
     return { ...session, userId }
   },

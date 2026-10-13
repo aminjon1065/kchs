@@ -371,7 +371,15 @@ export const AuthService = {
     return { sessionToken: token, csrfToken, userId, expiresAt }
   },
 
-  async afterLogin(userId: string, meta: RequestMeta): Promise<void> {
+  /**
+   * Вход состоялся: отметка активности, аудит и событие — одной транзакцией. Внешний
+   * способ (OIDC, ключ доступа) добавляет свою запись `login_external` туда же (ADR-0216).
+   */
+  async afterLogin(
+    userId: string,
+    meta: RequestMeta,
+    external?: { scope: string; details: Record<string, unknown> },
+  ): Promise<void> {
     const sys = systemCtx('auth.login', { requestId: meta.requestId, initiatorId: userId })
     await db().transaction(async (tx) => {
       await tx.update(users).set({ lastSeenAt: sql`now()` }).where(eq(users.id, userId))
@@ -387,6 +395,22 @@ export const AuthService = {
         },
         tx,
       )
+      if (external) {
+        await audit(
+          systemCtx(external.scope, { requestId: meta.requestId, initiatorId: userId }),
+          {
+            action: AUDIT_ACTIONS.loginExternal,
+            actorId: userId,
+            objectId: userId,
+            objectType: 'user',
+            details: external.details,
+            severity: 'notice',
+            ip: meta.ip,
+            userAgent: meta.userAgent,
+          },
+          tx,
+        )
+      }
       await publishEvent(tx, sys, {
         type: 'user.login',
         object: { id: userId, type: 'user' },

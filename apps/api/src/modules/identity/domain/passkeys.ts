@@ -326,16 +326,9 @@ export const PasskeyService = {
     }
 
     const session = await AuthService.createSession(row.userId, meta, true)
-    await AuthService.afterLogin(row.userId, meta)
-    await audit(systemCtx('auth.passkey', { requestId: meta.requestId, initiatorId: row.userId }), {
-      action: AUDIT_ACTIONS.loginExternal,
-      actorId: row.userId,
-      objectId: row.userId,
-      objectType: 'user',
+    await AuthService.afterLogin(row.userId, meta, {
+      scope: 'auth.passkey',
       details: { method: 'passkey' },
-      severity: 'notice',
-      ip: meta.ip,
-      userAgent: meta.userAgent,
     })
     return { ...session, userId: row.userId }
   },
