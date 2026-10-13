@@ -174,7 +174,8 @@ test.describe('Документы: резолюции, исполнение, о�
     )
     await expect(dialog.getByRole('spinbutton', { name: 'Рабочих дней' })).toHaveValue('5')
     await expect(dialog.getByText(/^Срок: \d{2}\.\d{2}\.\d{4}, конец дня$/)).toBeVisible()
-    await dialog.getByRole('searchbox', { name: 'Ответственный' }).fill('admin')
+    // По имени, а не по «admin»: на общем стенде копятся служебные учётки «acc-admin-…»
+    await dialog.getByRole('searchbox', { name: 'Ответственный' }).fill(admin.displayName)
     await dialog
       .getByRole('list', { name: 'Ответственный' })
       .getByRole('button', { name: new RegExp(admin.displayName) })
