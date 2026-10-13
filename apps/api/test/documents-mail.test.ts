@@ -314,13 +314,17 @@ describe('очередь «Из почты»', () => {
       payload: { reason: 'Повторное отклонение' },
     })
     expect(again.statusCode).toBe(200)
-    // Решение и его аудит — одной транзакцией: время начала одно (ADR-0216)
+    // Решение и его аудит — одной транзакцией: время начала одно (ADR-0216). Ключ письма
+    // постоянный, в журнале аудита есть записи прежних прогонов — берётся запись этого
+    // регистратора, последняя
     const [same] = await db().execute<{ same: boolean }>(
       sql`SELECT m.decided_at = a.occurred_at AS same FROM mail_messages m
            JOIN audit_log a ON a.action = 'mail.rejected'
+            AND a.actor_id = ${registrar.id}
             AND a.details->>'reason' = 'Повторное отклонение'
             AND a.details->>'messageKey' = m.message_key
-          WHERE m.id = ${pending?.id ?? ''}`,
+          WHERE m.id = ${pending?.id ?? ''}
+          ORDER BY a.occurred_at DESC LIMIT 1`,
     )
     expect(same?.same).toBe(true)
   })
