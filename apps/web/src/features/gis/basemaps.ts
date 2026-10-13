@@ -31,7 +31,7 @@ export const basemapsQuery = () =>
     // Без сети — список с устройства: карта района открывается и так (ADR-0211)
     ...OFFLINE_AWARE,
     queryKey: basemapKeys.all,
-    queryFn: () => cachedFetch('gis.basemaps', async () => (await http.get('/gis/basemaps')).items),
+    queryFn: () => cachedFetch('basemap-list', async () => (await http.get('/gis/basemaps')).items),
     staleTime: 10 * 60_000,
   })
 
@@ -84,7 +84,7 @@ const basemapStyleQuery = (
       wrapAssetUrls(
         rebaseApiUrls(
           await cachedFetch(
-            `gis.basemap-style:${basemapKeys.style(basemap.id, basemap.version, look, lang).join(':')}`,
+            `basemap-style:${basemapKeys.style(basemap.id, basemap.version, look, lang).join(':')}`,
             () =>
               http.get('/gis/basemaps/:id/style.json', {
                 params: { id: basemap.id },
