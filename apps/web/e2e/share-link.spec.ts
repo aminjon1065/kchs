@@ -36,7 +36,10 @@ test.describe('Гостевая ссылка', () => {
     const guest = await page
       .context()
       .browser()
-      ?.newContext({ baseURL: 'http://localhost:5173', storageState: undefined })
+      ?.newContext({
+        baseURL: process.env.KCHS_BASE_URL ?? 'http://localhost:5173',
+        storageState: undefined,
+      })
     if (!guest) throw new Error('не удалось создать гостевой контекст')
     const guestPage = await guest.newPage()
 
@@ -83,7 +86,7 @@ test.describe('Гостевая ссылка', () => {
     await expect(dialog.getByText('с паролем · бессрочно · открытий: 0')).toBeVisible()
 
     const guest = await browser.newContext({
-      baseURL: 'http://localhost:5173',
+      baseURL: process.env.KCHS_BASE_URL ?? 'http://localhost:5173',
       storageState: undefined,
     })
     const guestPage = await guest.newPage()
@@ -124,7 +127,10 @@ test.describe('Гостевая ссылка', () => {
     const guest = await page
       .context()
       .browser()
-      ?.newContext({ baseURL: 'http://localhost:5173', storageState: undefined })
+      ?.newContext({
+        baseURL: process.env.KCHS_BASE_URL ?? 'http://localhost:5173',
+        storageState: undefined,
+      })
     if (!guest) throw new Error('не удалось создать гостевой контекст')
     const guestPage = await guest.newPage()
 

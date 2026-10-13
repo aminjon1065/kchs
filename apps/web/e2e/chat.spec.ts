@@ -1,6 +1,6 @@
 import { EMPLOYEE_STATE, expect, openWorkspace, resetWorkspaceState, test } from './fixtures.js'
 
-const BASE = 'http://localhost:5173'
+const BASE = process.env.KCHS_BASE_URL ?? 'http://localhost:5173'
 
 /**
  * Мессенджер (P4-E01): личная беседа заводится с сотрудником, сообщение

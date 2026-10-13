@@ -31,7 +31,7 @@ import {
 test.describe.configure({ mode: 'serial' })
 test.setTimeout(180_000)
 
-const BASE = 'http://localhost:5173'
+const BASE = process.env.KCHS_BASE_URL ?? 'http://localhost:5173'
 const MAILPIT = process.env.MAILPIT_URL ?? 'http://localhost:8025'
 const run = Date.now().toString(36)
 

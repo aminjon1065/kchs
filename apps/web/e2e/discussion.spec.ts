@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { EMPLOYEE_STATE, expect, openWorkspace, resetWorkspaceState, test } from './fixtures.js'
 
-const BASE = 'http://localhost:5173'
+const BASE = process.env.KCHS_BASE_URL ?? 'http://localhost:5173'
 
 /**
  * Обсуждение (P0-E08): вложение в сообщении открывается во вкладке, реакция

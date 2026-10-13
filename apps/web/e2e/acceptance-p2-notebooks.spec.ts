@@ -2,7 +2,7 @@ import { createServer, type Server } from 'node:http'
 import type { APIRequestContext, Page } from '@playwright/test'
 import { EMPLOYEE_STATE, expect, openWorkspace, resetWorkspaceState, test } from './fixtures.js'
 
-const BASE = 'http://localhost:5173'
+const BASE = process.env.KCHS_BASE_URL ?? 'http://localhost:5173'
 
 /**
  * Приёмка фазы 2 — тетрадь и ИИ (04-verification.md §3 №6, сценарий F

@@ -10,7 +10,7 @@ test.describe('Замещение', () => {
   test('баннер «Вы замещаете» включает режим от имени', async ({ page, request, browser }) => {
     // Администратор назначает сотрудника своим заместителем на неделю
     const admin = await browser.newContext({
-      baseURL: 'http://localhost:5173',
+      baseURL: process.env.KCHS_BASE_URL ?? 'http://localhost:5173',
       storageState: './e2e/.auth/admin.json',
     })
     const adminApi = admin.request

@@ -1,6 +1,6 @@
 import { ACCOUNTS, expect, openScreen, openWorkspace, test } from './fixtures.js'
 
-const BASE = 'http://localhost:5173'
+const BASE = process.env.KCHS_BASE_URL ?? 'http://localhost:5173'
 
 /**
  * Каталог LDAP/AD, единый вход OIDC и ключи входа (P5-E04, ADR-0098).

@@ -8,7 +8,7 @@ import {
   test,
 } from './fixtures.js'
 
-const BASE = 'http://localhost:5173'
+const BASE = process.env.KCHS_BASE_URL ?? 'http://localhost:5173'
 
 /** Сотрудник (user001) на «Мой день» с чистым рабочим пространством. */
 async function employeeHome(browser: Browser) {
