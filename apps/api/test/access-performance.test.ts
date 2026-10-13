@@ -38,7 +38,12 @@ beforeAll(async () => {
     SELECT gen_random_uuid(), p.id, 'user', ${fx.users.member.id}, 20
       FROM parents p WHERE p.access_mode = 'restricted'
   `)
-  await db().execute(sql`ANALYZE objects; ANALYZE object_ancestors; ANALYZE acl_entries`)
+  // В полном прогоне сброс между файлами удаляет строки `DELETE`: таблицы предиката раздуты
+  // мёртвыми строками, и автоочистка приходила посреди замера (~230 мс вместо ~80). Очистка
+  // здесь снимает и раздувание, и повод для автоочистки во время замера
+  for (const table of ['objects', 'object_ancestors', 'acl_entries', 'spaces', 'space_members']) {
+    await db().execute(sql`VACUUM (ANALYZE) ${sql.identifier(table)}`)
+  }
 })
 
 async function median(url: string, as: TestContext['admin']): Promise<number> {
