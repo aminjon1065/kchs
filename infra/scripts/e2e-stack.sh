@@ -64,6 +64,9 @@ fixed = {
     'WEBHOOKS_ALLOW_PRIVATE_ADDRESSES': 'true',
     'TELEGRAM_POLLING': 'false',
     'METRICS_PORT': '',
+    # Полный набор — тысячи запросов одного администратора: лимит по умолчанию (600 в
+    # минуту) к концу прогона отвечает 429, как у стенда разработки
+    'RATE_LIMIT_PER_MINUTE': '20000',
     # Медиасервер — только у стенда разработки (порты UDP общие): встречи выключены,
     # их сценарии пропускаются сами
     'LIVEKIT_URL': '', 'LIVEKIT_API_KEY': '', 'LIVEKIT_API_SECRET': '',
