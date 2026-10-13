@@ -19,15 +19,8 @@ import { NUMERIC_TYPES } from './field-types.js'
 /** Вид поля для аналитика: от него зависят мини-профиль, вопрос и разрез. */
 export type FieldKind = 'number' | 'time' | 'territory' | 'category' | 'geometry' | 'other'
 
-const CATEGORY_TYPES = new Set([
-  'select',
-  'text',
-  'identifier',
-  'boolean',
-  'user',
-  'unit',
-  'object_ref',
-])
+// Идентификатор строки в разрез не годится: у каждой строки своё значение
+const CATEGORY_TYPES = new Set(['select', 'text', 'boolean', 'user', 'unit', 'object_ref'])
 
 export function fieldKind(field: DatasetField): FieldKind {
   if (NUMERIC_TYPES.has(field.type)) return 'number'
@@ -47,6 +40,7 @@ type DatasetShape = {
   fields: readonly DatasetField[]
   timeField: string | null
   territoryField: string | null
+  primaryKey?: readonly string[]
 }
 
 /** Поле времени датасета: объявленное или первое поле даты. */
@@ -68,11 +62,24 @@ export function territoryFieldOf(dataset: DatasetShape): DatasetField | null {
   )
 }
 
-/** Категории для разреза: справочные и короткие текстовые, не идентификаторы строк. */
+/**
+ * Категории для разреза: не идентификаторы и не поля ключа строки. Первыми — размеченные
+ * категорией, справочные и с вариантами значений: свободный текст реже годится в разрез.
+ */
 export function categoryFieldsOf(dataset: DatasetShape): DatasetField[] {
-  return analysisFields(dataset.fields).filter(
-    (field) => fieldKind(field) === 'category' && field.semantic !== 'identifier',
+  const key = new Set(dataset.primaryKey ?? [])
+  const fields = analysisFields(dataset.fields).filter(
+    (field) =>
+      fieldKind(field) === 'category' && field.semantic !== 'identifier' && !key.has(field.key),
   )
+  const rank = (field: DatasetField) =>
+    field.semantic === 'category' ||
+    field.type === 'select' ||
+    field.lookup ||
+    (field.options?.length ?? 0) > 0
+      ? 0
+      : 1
+  return [...fields].sort((a, b) => rank(a) - rank(b))
 }
 
 export function numericFieldsOf(dataset: DatasetShape): DatasetField[] {

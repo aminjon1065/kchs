@@ -1,6 +1,7 @@
 import type { DatasetField } from '@kchs/contracts'
 import { describe, expect, it } from 'vitest'
 import {
+  categoryFieldsOf,
   comparePeriods,
   exploreQuestions,
   fieldQuestionPlan,
@@ -57,6 +58,24 @@ describe('умный старт', () => {
     }
     expect(smartPlan(noTime)).toMatchObject({ groups: [{ field: 'district' }], limit: 20 })
     expect(smartPlan({ fields: [], timeField: null, territoryField: null }).groups).toEqual([])
+  })
+})
+
+describe('категории для разреза', () => {
+  it('не идентификатор и не ключ строки; размеченные категорией — первыми', () => {
+    const fields = [
+      field('code', 'identifier'),
+      field('number', 'text'),
+      field('note', 'text'),
+      field('kind', 'text', { semantic: 'category' }),
+    ]
+    const keys = categoryFieldsOf({
+      fields,
+      timeField: null,
+      territoryField: null,
+      primaryKey: ['number'],
+    }).map((item) => item.key)
+    expect(keys).toEqual(['kind', 'note'])
   })
 })
 
