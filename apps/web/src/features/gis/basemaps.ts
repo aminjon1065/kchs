@@ -1,9 +1,16 @@
-import type { Basemap, BasemapTheme, Locale, ReliefLevel } from '@kchs/contracts'
-import { queryOptions, useQuery } from '@tanstack/react-query'
-import type { Protocol } from 'pmtiles'
+import {
+  BASEMAP_THEMES,
+  type Basemap,
+  type BasemapTheme,
+  type Locale,
+  type ReliefLevel,
+} from '@kchs/contracts'
+import { type QueryClient, queryOptions, useQuery } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
 import { useLocale } from '~/shared/appearance.js'
+import { cachedFetch, OFFLINE_AWARE } from '~/shared/offline/queue.js'
 import { autoBasemap, resolveBasemap, useBasemapChoice } from './basemap-choice.js'
+import { wrapAssetUrls } from './offline/pack-source.js'
 
 /**
  * Базовые карты (07-gis-engine.md §5, ADR-0066): реестр установки и стиль
@@ -21,8 +28,10 @@ export const basemapKeys = {
 /** Реестр меняется редко: подложка по умолчанию — первой. */
 export const basemapsQuery = () =>
   queryOptions({
+    // Без сети — список с устройства: карта района открывается и так (ADR-0211)
+    ...OFFLINE_AWARE,
     queryKey: basemapKeys.all,
-    queryFn: async () => (await http.get('/gis/basemaps')).items,
+    queryFn: () => cachedFetch('gis.basemaps', async () => (await http.get('/gis/basemaps')).items),
     staleTime: 10 * 60_000,
   })
 
@@ -69,17 +78,46 @@ const basemapStyleQuery = (
   lang: Locale,
 ) =>
   queryOptions({
+    ...OFFLINE_AWARE,
     queryKey: basemapKeys.style(basemap.id, basemap.version, look, lang),
     queryFn: async () =>
-      rebaseApiUrls(
-        await http.get('/gis/basemaps/:id/style.json', {
-          params: { id: basemap.id },
-          query: { theme: look.theme, lang, relief: look.relief, labels: String(look.labels) },
-        }),
-        window.location.origin,
+      wrapAssetUrls(
+        rebaseApiUrls(
+          await cachedFetch(
+            `gis.basemap-style:${basemapKeys.style(basemap.id, basemap.version, look, lang).join(':')}`,
+            () =>
+              http.get('/gis/basemaps/:id/style.json', {
+                params: { id: basemap.id },
+                query: {
+                  theme: look.theme,
+                  lang,
+                  relief: look.relief,
+                  labels: String(look.labels),
+                },
+              }),
+          ),
+          window.location.origin,
+        ),
       ),
     staleTime: Number.POSITIVE_INFINITY,
   })
+
+/**
+ * Стили подложки во всех темах — на устройство (ADR-0211): карта района без сети
+ * откроется и в тёмной теме, и в окне поля-точки (серая схема).
+ */
+export function warmBasemapStyles(
+  client: QueryClient,
+  basemap: Pick<Basemap, 'id' | 'version'>,
+  relief: ReliefLevel,
+  lang: Locale,
+): Promise<BasemapStyle[]> {
+  return Promise.all(
+    BASEMAP_THEMES.map((theme) =>
+      client.fetchQuery(basemapStyleQuery(basemap, { theme, relief, labels: true }, lang)),
+    ),
+  )
+}
 
 export interface BasemapStyleOptions {
   /**
@@ -130,20 +168,37 @@ export function useBasemapStyle(
   }
 }
 
+/** Обработчик протокола карты — как его ждёт `addProtocol` MapLibre. */
+type ProtocolHandler = (
+  params: { url: string; type?: string },
+  abort: AbortController,
+) => Promise<{ data: unknown }>
+
 let protocol: Promise<void> | null = null
 
 /**
  * Протокол `pmtiles://` для MapLibre: векторная подложка читает архив диапазонами
- * через API. Один раз на страницу — повторный вызов ждёт первую регистрацию.
- * Пакет `pmtiles` грузится лениво, отдельным чанком карты; атрибуцию берёт из
- * стиля — метаданные архива не читаются.
+ * через API, а то, что покрывает район на устройстве, — с устройства (ADR-0211).
+ * Заодно протокол `kchs-asset://` шрифтов и значков подложки. Один раз на страницу —
+ * повторный вызов ждёт первую регистрацию. Пакет `pmtiles` грузится лениво, отдельным
+ * чанком карты; атрибуцию берёт из стиля — метаданные архива не читаются.
  * @public MapView карты-студии (P2-E01) вызывает до создания первой карты.
  */
 export function registerPmtilesProtocol(maplibre: {
-  addProtocol: (name: string, handler: Protocol['tile']) => void
+  addProtocol: (name: string, handler: ProtocolHandler) => void
 }): Promise<void> {
-  protocol ??= import('pmtiles').then((pmtiles) => {
-    maplibre.addProtocol('pmtiles', new pmtiles.Protocol().tile)
-  })
+  protocol ??= Promise.all([import('pmtiles'), import('./offline/pack-source.js')]).then(
+    ([pmtiles, offline]) => {
+      const handler = new pmtiles.Protocol()
+      maplibre.addProtocol('pmtiles', (params, abort) => {
+        const url = offline.archiveUrl(params.url)
+        if (url && !handler.tiles.has(url)) {
+          handler.add(new pmtiles.PMTiles(offline.packedSource(new pmtiles.FetchSource(url), url)))
+        }
+        return handler.tilev4(params as Parameters<typeof handler.tilev4>[0], abort)
+      })
+      maplibre.addProtocol(offline.ASSET_PROTOCOL, offline.loadAsset)
+    },
+  )
   return protocol
 }
