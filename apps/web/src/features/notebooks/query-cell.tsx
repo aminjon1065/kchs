@@ -26,7 +26,13 @@ import {
   type SqlEditorTable,
   useDebouncedValue,
 } from '@kchs/ui'
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  keepPreviousData,
+  skipToken,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 import { Play, Settings2, Sparkles } from 'lucide-react'
 import { type ReactNode, useMemo, useState } from 'react'
 import type * as Y from 'yjs'
@@ -125,8 +131,8 @@ function VisualBody({
   const settled = useMemo((): typeof spec => (specKey ? JSON.parse(specKey) : null), [specKey])
   const result = useQuery({
     queryKey: notebookKeys.cell(notebookId, cellId, specKey),
-    queryFn: () => http.post('/queries/run', { body: { spec: settled! } }),
-    enabled: Boolean(specKey),
+    queryFn:
+      specKey && settled ? () => http.post('/queries/run', { body: { spec: settled } }) : skipToken,
     placeholderData: keepPreviousData,
     retry: false,
   })

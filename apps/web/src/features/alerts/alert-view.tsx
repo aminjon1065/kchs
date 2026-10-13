@@ -19,7 +19,7 @@ import {
   Switch,
   useToast,
 } from '@kchs/ui'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { skipToken, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, PlayCircle, Save } from 'lucide-react'
 import { useId, useState } from 'react'
 import { ApiError, http } from '~/shared/api/client.js'
@@ -43,10 +43,10 @@ export function AlertView({ objectId }: { objectId: string }) {
 
   const { data: alert, isLoading, error, refetch } = useQuery(alertQuery(objectId))
   const definition = draft ?? alert?.definition ?? null
+  const metricId = alert?.metricId
   const { data: metric } = useQuery({
-    queryKey: ['alerts', 'metric', alert?.metricId],
-    queryFn: () => http.get('/metrics/:id', { params: { id: alert!.metricId! } }),
-    enabled: Boolean(alert?.metricId),
+    queryKey: ['alerts', 'metric', metricId],
+    queryFn: metricId ? () => http.get('/metrics/:id', { params: { id: metricId } }) : skipToken,
   })
   const { data: events } = useQuery(alertEventsQuery({ alertId: objectId, limit: 30 }))
 

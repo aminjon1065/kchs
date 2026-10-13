@@ -89,7 +89,9 @@ export type LayerUpdateInput = z.infer<typeof LayerUpdateInput>
  * фильтра слоя (привязка к фильтрам дашборда) и интервал времени.
  */
 export const LayerTileQuery = z.object({
+  /** Ключи кэша браузера: версия данных и версия слоя — после правки адрес новый (ADR-0188). */
   v: z.coerce.number().int().nonnegative().optional(),
+  lv: z.coerce.number().int().nonnegative().optional(),
   /** FilterNode в JSON, закодированный в base64url (связанные представления, дашборд). */
   f: z.string().max(8000).optional(),
   /** Интервал времени `from/to` в ISO 8601 для слоя со временем. */

@@ -20,7 +20,7 @@ import {
   useDebouncedValue,
   useToast,
 } from '@kchs/ui'
-import { keepPreviousData, useMutation, useQuery } from '@tanstack/react-query'
+import { keepPreviousData, skipToken, useMutation, useQuery } from '@tanstack/react-query'
 import { useId, useMemo, useState } from 'react'
 import { type PickedUser, UserPicker, UsersPicker } from '~/entities/people/user-picker.js'
 import { knownKey, STEP_TYPES } from '~/features/processes/index.js'
@@ -201,9 +201,14 @@ export function RouteStartDialog({ onClose }: { onClose: () => void }) {
   const debounced = useDebouncedValue(body, 300)
   const preview = useQuery({
     queryKey: ['object', document.id, 'route-preview', debounced],
-    queryFn: () =>
-      http.post('/documents/:id/routes/preview', { params: { id: document.id }, body: debounced! }),
-    enabled: Boolean(debounced) && options?.blocker !== 'access',
+    queryFn:
+      debounced && options?.blocker !== 'access'
+        ? () =>
+            http.post('/documents/:id/routes/preview', {
+              params: { id: document.id },
+              body: debounced,
+            })
+        : skipToken,
     placeholderData: keepPreviousData,
   })
 

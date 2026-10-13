@@ -7,7 +7,7 @@ import type {
   SYSTEM_DATASETS,
 } from '@kchs/contracts'
 import { IMPORT_FINAL_STATUSES } from '@kchs/contracts'
-import { queryOptions } from '@tanstack/react-query'
+import { queryOptions, skipToken } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
 
 /** Ключи кэша модуля «Данные»: `['dataset', id, …]`, `['import', id]`. */
@@ -46,10 +46,10 @@ export const datasetQuery = (id: string) =>
   })
 
 /** Схема системного датасета — подписи полей показателя над ним (ADR-0082). */
-export const systemDatasetQuery = (name: (typeof SYSTEM_DATASETS)[number]) =>
+export const systemDatasetQuery = (name: (typeof SYSTEM_DATASETS)[number] | null) =>
   queryOptions({
     queryKey: ['system-dataset', name] as const,
-    queryFn: () => http.get('/system-datasets/:name', { params: { name } }),
+    queryFn: name ? () => http.get('/system-datasets/:name', { params: { name } }) : skipToken,
     staleTime: 5 * 60_000,
   })
 

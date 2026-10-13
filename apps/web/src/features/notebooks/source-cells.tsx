@@ -1,7 +1,7 @@
 import type { FilterNode, MetricValueInput, NotebookBindings } from '@kchs/contracts'
 import { notebookParamFields } from '@kchs/contracts'
 import { Chart, NumberTile } from '@kchs/ui'
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { keepPreviousData, skipToken, useQuery } from '@tanstack/react-query'
 import { type CellMap, useCellValue, writeCell } from '~/entities/collab/notebook-doc.js'
 import { metricTileModel, periodText } from '~/entities/data/metric-format.js'
 import { ObjectPicker } from '~/entities/objects/object-picker.js'
@@ -43,15 +43,16 @@ export function ChartCell({ cell, cellId }: { cell: CellMap; cellId: string }) {
   const specKey = runSpec ? JSON.stringify(runSpec) : ''
   const viaQuery = useQuery({
     queryKey: notebookKeys.cell(notebookId, cellId, specKey),
-    queryFn: () => http.post('/queries/run', { body: { spec: runSpec! } }),
-    enabled: Boolean(specKey),
+    queryFn: runSpec ? () => http.post('/queries/run', { body: { spec: runSpec } }) : skipToken,
     placeholderData: keepPreviousData,
     retry: false,
   })
   const viaChart = useQuery({
     queryKey: notebookKeys.cell(notebookId, cellId, { chart: chartId }),
-    queryFn: () => http.post('/charts/:id/data', { params: { id: chartId! }, body: {} }),
-    enabled: Boolean(spec && !query),
+    queryFn:
+      chartId && spec && !query
+        ? () => http.post('/charts/:id/data', { params: { id: chartId }, body: {} })
+        : skipToken,
     retry: false,
   })
   const result = query ? viaQuery : viaChart
@@ -137,8 +138,10 @@ export function MetricCell({ cell, cellId }: { cell: CellMap; cellId: string }) 
   }
   const value = useQuery({
     queryKey: notebookKeys.cell(notebookId, cellId, { metric: metricId, input }),
-    queryFn: () => http.post('/metrics/:id/value', { params: { id: metricId! }, body: input }),
-    enabled: Boolean(metric.data && (dataset.data || dataset.error)),
+    queryFn:
+      metricId && metric.data && (dataset.data || dataset.error)
+        ? () => http.post('/metrics/:id/value', { params: { id: metricId }, body: input })
+        : skipToken,
     placeholderData: keepPreviousData,
     retry: false,
   })

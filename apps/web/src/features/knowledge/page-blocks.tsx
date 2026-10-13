@@ -10,7 +10,7 @@ import {
   Skeleton,
   Spinner,
 } from '@kchs/ui'
-import { useQuery } from '@tanstack/react-query'
+import { skipToken, useQuery } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp, Copy, MessageSquare, Trash2 } from 'lucide-react'
 import type * as Y from 'yjs'
 import {
@@ -105,8 +105,9 @@ function ChartBlock({ block }: { block: CellMap }) {
   const chart = useQuery({ ...chartQuery(chartId ?? ''), enabled: Boolean(chartId), retry: false })
   const data = useQuery({
     queryKey: ['object', chartId ?? '', 'page-chart'],
-    queryFn: () => http.post('/charts/:id/data', { params: { id: chartId! }, body: {} }),
-    enabled: Boolean(chartId),
+    queryFn: chartId
+      ? () => http.post('/charts/:id/data', { params: { id: chartId }, body: {} })
+      : skipToken,
     retry: false,
   })
   if (!chartId) return <NotPicked />
@@ -132,8 +133,10 @@ function MetricBlock({ block }: { block: CellMap }) {
   })
   const value = useQuery({
     queryKey: ['object', metricId ?? '', 'page-metric'],
-    queryFn: () => http.post('/metrics/:id/value', { params: { id: metricId! }, body: {} }),
-    enabled: Boolean(metric.data),
+    queryFn:
+      metricId && metric.data
+        ? () => http.post('/metrics/:id/value', { params: { id: metricId }, body: {} })
+        : skipToken,
     retry: false,
   })
   if (!metricId) return <NotPicked />

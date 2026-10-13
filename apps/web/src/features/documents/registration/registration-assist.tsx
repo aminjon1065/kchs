@@ -6,7 +6,7 @@ import type {
 } from '@kchs/contracts'
 import { localizedText } from '@kchs/i18n'
 import { Badge, Button, Callout, Card, cn, Spinner, useToast } from '@kchs/ui'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { skipToken, useMutation, useQuery } from '@tanstack/react-query'
 import { Check, Sparkles } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { ApiError, http } from '~/shared/api/client.js'
@@ -98,8 +98,10 @@ export function RegistrationAssist({
   // Схема полей типа — своим ключом: кэш карточки после регистрации не должен остаться черновиком
   const doc = useQuery({
     queryKey: ['object', documentId ?? '', 'document-assist-card'],
-    queryFn: () => http.get('/documents/:id', { params: { id: documentId! } }),
-    enabled,
+    queryFn:
+      enabled && documentId
+        ? () => http.get('/documents/:id', { params: { id: documentId } })
+        : skipToken,
   })
   // Вид документа по тексту скана (ADR-0126): ключ из заведённых в установке
   const [kind, setKind] = useState<DocumentClassification | null>(null)

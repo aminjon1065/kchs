@@ -21,260 +21,73 @@ import type { WorkloadScreenState } from '~/features/tasks/workload-screen.js'
 import { withNamespaces } from '~/shared/i18n.js'
 import { registerModule } from '~/shared/workspace/registry.js'
 
-/**
- * Экраны и представления объектов грузятся при первом открытии (отдельными чанками): в
- * основном фрагменте — оболочка и «Мой день». Заглушка на время загрузки — у области вкладок
- * и контекст-панели (Suspense).
- */
-const AdminScreen = lazy(() =>
-  import('~/features/admin/admin-screen.js').then((module) => ({ default: module.AdminScreen })),
-)
-const AssistantScreen = lazy(() =>
-  import('~/features/assistant/assistant-screen.js').then((module) => ({
-    default: module.AssistantScreen,
-  })),
-)
-const CalendarScreen = lazy(() =>
-  import('~/features/calendar/calendar-screen.js').then((module) => ({
-    default: module.CalendarScreen,
-  })),
-)
-const CalendarView = lazy(() =>
-  import('~/features/calendar/calendar-view.js').then((module) => ({
-    default: module.CalendarView,
-  })),
-)
-const EventView = lazy(() =>
-  import('~/features/calendar/event-view.js').then((module) => ({ default: module.EventView })),
-)
-const ChatsScreen = lazy(() =>
-  import('~/features/chat/chats-screen.js').then((module) => ({ default: module.ChatsScreen })),
-)
-const AnalysisView = lazy(() =>
-  import('~/features/data/analysis-view.js').then((module) => ({ default: module.AnalysisView })),
-)
-const ChartView = lazy(() =>
-  import('~/features/data/chart-view.js').then((module) => ({ default: module.ChartView })),
-)
-const DashboardView = lazy(() =>
-  import('~/features/data/dashboard-view.js').then((module) => ({ default: module.DashboardView })),
-)
-const DataCatalogScreen = lazy(() =>
-  import('~/features/data/data-catalog-screen.js').then((module) => ({
-    default: module.DataCatalogScreen,
-  })),
-)
-const DatasetView = lazy(() =>
-  import('~/features/data/dataset-view.js').then((module) => ({ default: module.DatasetView })),
-)
-const ExploreScreen = lazy(() =>
-  import('~/features/data/explore-screen.js').then((module) => ({ default: module.ExploreScreen })),
-)
-const MetricView = lazy(() =>
-  import('~/features/data/metric-view.js').then((module) => ({ default: module.MetricView })),
-)
-const PipelinesScreen = lazy(() =>
-  import('~/features/data/pipelines/pipelines-screen.js').then((module) => ({
-    default: module.PipelinesScreen,
-  })),
-)
-const SqlLabScreen = lazy(() =>
-  import('~/features/data/sql-lab-screen.js').then((module) => ({ default: module.SqlLabScreen })),
-)
-const DocumentAssistant = lazy(() =>
-  import('~/features/documents/assist/document-assistant.js').then((module) => ({
-    default: module.DocumentAssistant,
-  })),
-)
-const DocumentContextSection = lazy(() =>
-  import('~/features/documents/card/document-view.js').then((module) => ({
-    default: module.DocumentContextSection,
-  })),
-)
-const DocumentView = lazy(() =>
-  import('~/features/documents/card/document-view.js').then((module) => ({
-    default: module.DocumentView,
-  })),
-)
-const CasesDirectory = lazy(() =>
-  import('~/features/documents/directories/cases-directory.js').then((module) => ({
-    default: module.CasesDirectory,
-  })),
-)
-const CorrespondentsDirectory = lazy(() =>
-  import('~/features/documents/directories/correspondents-directory.js').then((module) => ({
-    default: module.CorrespondentsDirectory,
-  })),
-)
-const JournalsDirectory = lazy(() =>
-  import('~/features/documents/directories/journals-directory.js').then((module) => ({
-    default: module.JournalsDirectory,
-  })),
-)
-const TemplatesDirectory = lazy(() =>
-  import('~/features/documents/directories/templates-directory.js').then((module) => ({
-    default: module.TemplatesDirectory,
-  })),
-)
-const TypesDirectory = lazy(() =>
-  import('~/features/documents/directories/types-directory.js').then((module) => ({
-    default: module.TypesDirectory,
-  })),
-)
-const DocumentsScreen = lazy(() =>
-  import('~/features/documents/documents-screen.js').then((module) => ({
-    default: module.DocumentsScreen,
-  })),
-)
-const FilesScreen = lazy(() =>
-  import('~/features/files/files-screen.js').then((module) => ({ default: module.FilesScreen })),
-)
-const OfficeEditorScreen = lazy(() =>
-  import('~/features/files/office-editor.js').then((module) => ({
-    default: module.OfficeEditorScreen,
-  })),
-)
-const LayerView = lazy(() =>
-  import('~/features/gis/layer-view.js').then((module) => ({ default: module.LayerView })),
-)
-const MapStudio = lazy(() =>
-  import('~/features/gis/map-studio.js').then((module) => ({ default: module.MapStudio })),
-)
-const MapsScreen = lazy(() =>
-  import('~/features/gis/maps-screen.js').then((module) => ({ default: module.MapsScreen })),
-)
-const TerritoriesScreen = lazy(() =>
-  import('~/features/gis/territories-screen.js').then((module) => ({
-    default: module.TerritoriesScreen,
-  })),
-)
-const TerritoryView = lazy(() =>
-  import('~/features/gis/territory-view.js').then((module) => ({ default: module.TerritoryView })),
-)
-const InboxScreen = lazy(() =>
-  import('~/features/inbox/inbox-screen.js').then((module) => ({ default: module.InboxScreen })),
-)
-const KnowledgeScreen = lazy(() =>
-  import('~/features/knowledge/knowledge-screen.js').then((module) => ({
-    default: module.KnowledgeScreen,
-  })),
-)
-const MeetingsScreen = lazy(() =>
-  import('~/features/meetings/meetings-screen.js').then((module) => ({
-    default: module.MeetingsScreen,
-  })),
-)
-const NotificationsScreen = lazy(() =>
-  import('~/features/notifications/notifications-screen.js').then((module) => ({
-    default: module.NotificationsScreen,
-  })),
-)
-const FileView = lazy(() =>
-  import('~/features/objects/file-view.js').then((module) => ({ default: module.FileView })),
-)
-const FolderView = lazy(() =>
-  import('~/features/objects/folder-view.js').then((module) => ({ default: module.FolderView })),
-)
-const TrashScreen = lazy(() =>
-  import('~/features/objects/trash-screen.js').then((module) => ({ default: module.TrashScreen })),
-)
-const ProfileScreen = lazy(() =>
-  import('~/features/profile/profile-screen.js').then((module) => ({
-    default: module.ProfileScreen,
-  })),
-)
-const SearchScreen = lazy(() =>
-  import('~/features/search/search-screen.js').then((module) => ({ default: module.SearchScreen })),
-)
-const SpaceScreen = lazy(() =>
-  import('~/features/spaces/space-screen.js').then((module) => ({ default: module.SpaceScreen })),
-)
-const SpacesScreen = lazy(() =>
-  import('~/features/spaces/spaces-screen.js').then((module) => ({ default: module.SpacesScreen })),
-)
-const ControlScreen = lazy(() =>
-  import('~/features/tasks/control-screen.js').then((module) => ({
-    default: module.ControlScreen,
-  })),
-)
-const ProjectView = lazy(() =>
-  import('~/features/tasks/project-view.js').then((module) => ({ default: module.ProjectView })),
-)
-const TaskView = lazy(() =>
-  import('~/features/tasks/task-view.js').then((module) => ({ default: module.TaskView })),
-)
-const TasksScreen = lazy(() =>
-  import('~/features/tasks/tasks-screen.js').then((module) => ({ default: module.TasksScreen })),
-)
-const WorkloadScreen = lazy(() =>
-  import('~/features/tasks/workload-screen.js').then((module) => ({
-    default: module.WorkloadScreen,
-  })),
-)
-
-/** Формы сбора данных и алерты (ADR-0103, ADR-0104) — отдельным чанком. */
-const FormsScreen = lazy(() =>
-  import('~/features/forms/forms-screen.js').then((module) => ({ default: module.FormsScreen })),
-)
-const FormView = lazy(() =>
-  import('~/features/forms/form-view.js').then((module) => ({ default: module.FormView })),
-)
-const AlertsScreen = lazy(() =>
-  import('~/features/alerts/alerts-screen.js').then((module) => ({ default: module.AlertsScreen })),
-)
-const AlertView = lazy(() =>
-  import('~/features/alerts/alert-view.js').then((module) => ({ default: module.AlertView })),
-)
-/** Устройства слежения (ADR-0203) — отдельным чанком. */
-const DevicesScreen = lazy(() =>
-  import('~/features/positions/devices-screen.js').then((module) => ({
-    default: module.DevicesScreen,
-  })),
-)
-const DeviceView = lazy(() =>
-  import('~/features/positions/device-view.js').then((module) => ({
-    default: module.DeviceView,
-  })),
-)
-
-/** Предупреждения CAP (ADR-0202) — отдельным чанком. */
-const WarningsScreen = lazy(() =>
-  import('~/features/warnings/warnings-screen.js').then((module) => ({
-    default: module.WarningsScreen,
-  })),
-)
-const WarningView = lazy(() =>
-  import('~/features/warnings/warning-view.js').then((module) => ({
-    default: module.WarningView,
-  })),
-)
-
-/** Заглушка ленивого экрана: та же, что у конструкторов. */
-function LazyFallback() {
-  return (
-    <div className="flex flex-col gap-3 p-6">
-      <Skeleton className="h-7 w-72" />
-      <Skeleton className="h-64 w-full" />
-    </div>
-  )
-}
-
-/** Тетрадь — отдельным чанком: Tiptap, Yjs и клиент совместной правки не в оболочке. */
-const NotebookView = lazy(() => import('~/features/notebooks/notebook-view.js'))
-/** Отчёт — тоже отдельным чанком: тот же совместный документ, что у тетради (ADR-0078). */
-const ReportView = lazy(() => import('~/features/reports/report-view.js'))
-/** Встреча и её протокол — отдельным чанком: Tiptap и клиент совместной правки (ADR-0093). */
-const MeetingView = lazy(() => import('~/features/meetings/meeting-view.js'))
-const ProtocolView = lazy(() => import('~/features/meetings/protocol/protocol-view.js'))
-/** Страница базы знаний — отдельным чанком: Tiptap и клиент совместной правки (ADR-0095). */
-const PageView = lazy(() => import('~/features/knowledge/page-view.js'))
-/** Конструктор маршрутов — отдельным чанком: нужен только администратору маршрутов (ADR-0087). */
-const ProcessDesigner = lazy(() => import('~/features/processes/designer/designer-screen.js'))
-const RuleDesigner = lazy(() => import('~/features/automation/designer/rule-designer.js'))
-/** Конструктор пайплайна (ADR-0106): тяжёлый экран — грузится по требованию. */
-const PipelineDesigner = lazy(() => import('~/features/data/pipelines/pipeline-designer.js'))
-/** Запись встречи — отдельным чанком: плеер и расшифровка нужны не всем (ADR-0092). */
-const RecordingView = lazy(() => import('~/features/meetings/recording/recording-view.js'))
+import {
+  AdminScreen,
+  AlertsScreen,
+  AlertView,
+  AnalysisView,
+  AssistantScreen,
+  CalendarScreen,
+  CalendarView,
+  CasesDirectory,
+  ChartView,
+  ChatsScreen,
+  ControlScreen,
+  CorrespondentsDirectory,
+  DashboardView,
+  DataCatalogScreen,
+  DatasetView,
+  DevicesScreen,
+  DeviceView,
+  DocumentAssistant,
+  DocumentContextSection,
+  DocumentsScreen,
+  DocumentView,
+  EventView,
+  ExploreScreen,
+  FilesScreen,
+  FileView,
+  FolderView,
+  FormsScreen,
+  FormView,
+  InboxScreen,
+  JournalsDirectory,
+  KnowledgeScreen,
+  LayerView,
+  LazyFallback,
+  MapStudio,
+  MapsScreen,
+  MeetingsScreen,
+  MeetingView,
+  MetricView,
+  NotebookView,
+  NotificationsScreen,
+  OfficeEditorScreen,
+  PageView,
+  PipelineDesigner,
+  PipelinesScreen,
+  ProcessDesigner,
+  ProfileScreen,
+  ProjectView,
+  ProtocolView,
+  RecordingView,
+  ReportView,
+  RuleDesigner,
+  SearchScreen,
+  SpaceScreen,
+  SpacesScreen,
+  SqlLabScreen,
+  TasksScreen,
+  TaskView,
+  TemplatesDirectory,
+  TerritoriesScreen,
+  TerritoryView,
+  TrashScreen,
+  TypesDirectory,
+  WarningsScreen,
+  WarningView,
+  WorkloadScreen,
+} from './lazy-views.js'
 
 let registered = false
 

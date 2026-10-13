@@ -5,6 +5,7 @@ import type {
 } from '@kchs/contracts'
 import { queryOptions } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
+import { apiUrl, tileUrl } from '~/shared/api/link.js'
 
 /**
  * Слои-ссылки на внешние ГИС-службы (ADR-0108): реестр установки. Тайлы и
@@ -25,13 +26,17 @@ export const serviceLayersQuery = () =>
 
 /** Адрес тайлов слоя-ссылки для MapLibre. */
 export const serviceTileUrl = (service: ServiceLayerRecord): string =>
-  // вне клиента API: шаблон тайлов MapLibre — {z}/{x}/{y} без кодирования, v — ключ кэша
-  `/api/v1/gis/service-layers/${service.id}/tiles/{z}/{x}/{y}?v=${service.version}`
+  tileUrl('/gis/service-layers/:id/tiles/:z/:x/:y', {
+    params: { id: service.id },
+    query: { v: service.version },
+  })
 
 /** Адрес объектов векторной службы (WFS, ArcGIS REST). */
 export const serviceFeaturesUrl = (service: ServiceLayerRecord, limit = 2000): string =>
-  // вне клиента API: источник GeoJSON MapLibre, v — ключ кэша вне схемы строки запроса
-  `/api/v1/gis/service-layers/${service.id}/features?limit=${limit}&v=${service.version}`
+  apiUrl('/gis/service-layers/:id/features', {
+    params: { id: service.id },
+    query: { limit, v: service.version },
+  })
 
 export const serviceLayerApi = {
   create: (input: ServiceLayerCreateInput) => http.post('/gis/service-layers', { body: input }),

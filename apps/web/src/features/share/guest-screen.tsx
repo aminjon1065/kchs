@@ -1,7 +1,7 @@
 import type { ShareLinkOpenResult } from '@kchs/contracts'
 import { formatDateTime, formatFileSize } from '@kchs/fields'
 import { Badge, Button, Callout, Field, ObjectIcon, PasswordInput, Spinner } from '@kchs/ui'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { skipToken, useMutation, useQuery } from '@tanstack/react-query'
 import { Download, Link2, LogIn } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { FilePreview } from '~/entities/files/file-preview.js'
@@ -51,14 +51,15 @@ export function GuestShareScreen({ token }: { token: string }) {
 
   const object = useQuery({
     queryKey: ['share', token, 'object', objectId],
-    enabled: Boolean(objectId),
-    queryFn: () => http.get('/objects/:id', { params: { id: objectId! } }),
+    queryFn: objectId ? () => http.get('/objects/:id', { params: { id: objectId } }) : skipToken,
   })
 
   const file = useQuery({
     queryKey: ['share', token, 'file', objectId],
-    enabled: Boolean(objectId) && object.data?.type === 'file',
-    queryFn: () => http.get('/files/:id', { params: { id: objectId! } }),
+    queryFn:
+      objectId && object.data?.type === 'file'
+        ? () => http.get('/files/:id', { params: { id: objectId } })
+        : skipToken,
   })
 
   const download = useMutation({

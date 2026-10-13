@@ -1,14 +1,4 @@
-import { formatNumber, parseValue } from '@kchs/fields'
-import {
-  type ColumnDef,
-  type ColumnSizingInfoState,
-  type ColumnSizingState,
-  functionalUpdate,
-  getCoreRowModel,
-  useReactTable,
-} from '@tanstack/react-table'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { Loader2, Plus } from 'lucide-react'
 import {
   type ClipboardEvent,
   type FocusEvent,
@@ -29,38 +19,16 @@ import { useRowHeight } from '../../hooks/use-row-height.js'
 import { useUiLocale, useUiT } from '../../i18n/ui-locale.js'
 import { cn } from '../../lib/cn.js'
 import { parseTsv, pasteTargets, splitAppend, toTsv } from './clipboard.js'
-import { reconcileColumnState } from './column-state.js'
 import { type EditorMove, GridEditor } from './grid-editor.js'
+import { GridFooter } from './grid-footer.js'
 import { GridHeader, type HeaderAction } from './grid-header.js'
 import { cellId, GridRow } from './grid-row.js'
-import {
-  type CellChange,
-  dropChanges,
-  type EditHistory,
-  EMPTY_HISTORY,
-  planRedo,
-  planUndo,
-  recordEdit,
-} from './history.js'
-import {
-  clampWidth,
-  type GridLayout,
-  gutterWidth,
-  HEADER_HEIGHT,
-  initialWidth,
-  MAX_COLUMN_WIDTH,
-  MIN_COLUMN_WIDTH,
-  type RenderColumn,
-} from './layout.js'
-import {
-  type CellOverlay,
-  cellKey,
-  cellValue,
-  type ErrorMap,
-  type OverlayMap,
-  settleOverlay,
-  withoutCells,
-} from './overlay.js'
+import { type CellChange, planRedo, planUndo } from './history.js'
+import { useLatest, useRowSlots, useStableCallback } from './hooks.js'
+import { handleGridKey } from './keyboard.js'
+import { clampWidth, HEADER_HEIGHT, MIN_COLUMN_WIDTH, type RenderColumn } from './layout.js'
+import { cellKey, cellValue } from './overlay.js'
+import { MAX_BATCH, pasteChanges, pasteReport, rowsToAppend } from './paste.js'
 import {
   type CellPos,
   countRows,
@@ -69,7 +37,6 @@ import {
   hasRow,
   isMultiple,
   moveBy,
-  moveToEdge,
   rangeOf,
   type SelectionState,
   selectAll,
@@ -79,94 +46,22 @@ import {
   selectRow,
   tabMove,
 } from './selection.js'
-import { summarize } from './summary.js'
-import type {
-  DataGridColumnState,
-  DataGridEditResult,
-  DataGridProps,
-  DataGridRow,
-  DataGridSortItem,
-} from './types.js'
-import { copyText, displayText, editorKind, editText, isNumeric, sameValue } from './values.js'
+import { selectionSummary } from './summary.js'
+import type { DataGridProps, DataGridRow, DataGridSortItem } from './types.js'
+import { useColumnLayout } from './use-column-layout.js'
+import { NO_ERRORS, useGridEdits } from './use-grid-edits.js'
+import { copyText, displayText, editText, sameValue } from './values.js'
 
-const NO_ROWS: DataGridRow[] = []
 const NO_SORT: DataGridSortItem[] = []
-const NO_OVERLAY: OverlayMap = new Map()
-const NO_ERRORS: ErrorMap = new Map()
-const INITIAL_SIZING: ColumnSizingInfoState = {
-  startOffset: null,
-  startSize: null,
-  deltaOffset: null,
-  deltaPercentage: null,
-  isResizingColumn: false,
-  columnSizingStart: [],
-}
-/** Изменений за одну вставку или очистку — больше отправлять пакетом не стоит. */
-const MAX_BATCH = 5_000
-/** Новых строк за одну вставку — столько же принимает вставка строк датасета. */
-const MAX_APPEND = 1_000
-/** Ячеек в сводке по выделению и в копировании за раз. */
-const MAX_SUMMARY_CELLS = 50_000
+/** Ячеек в копировании за раз. */
 const MAX_COPY_CELLS = 200_000
 const AUTOSIZE_MAX = 480
-
-interface GridStatus {
-  tone: 'info' | 'danger'
-  text: string
-}
 
 interface EditingState {
   row: number
   col: number
   text: string
   selectAll: boolean
-}
-
-interface ApplyOptions {
-  /** Сообщение в подвале после сохранения. */
-  success?: GridStatus
-  /** Отмена или повтор: история после применения и до него (для отката при отказе). */
-  step?: { next: EditHistory; previous: EditHistory }
-}
-
-function useLatest<T>(value: T) {
-  const ref = useRef(value)
-  ref.current = value
-  return ref
-}
-
-/**
- * Слоты строк окна: строка, оставшаяся в окне, сохраняет слот (и не
- * перерисовывается), пришедшая занимает слот ушедшей — React переиспользует
- * её DOM-узлы вместо создания новых. Повторный вызов с тем же окном даёт
- * те же слоты, поэтому двойная отрисовка StrictMode безопасна.
- */
-function useRowSlots(items: ReadonlyArray<{ index: number }>): ReadonlyMap<number, number> {
-  const ref = useRef<ReadonlyMap<number, number>>(new Map())
-  const previous = ref.current
-  const next = new Map<number, number>()
-  const taken = new Set<number>()
-  let top = -1
-  for (const slot of previous.values()) top = Math.max(top, slot)
-  for (const { index } of items) {
-    const slot = previous.get(index)
-    if (slot === undefined) continue
-    next.set(index, slot)
-    taken.add(slot)
-  }
-  const free = [...previous.values()].filter((slot) => !taken.has(slot))
-  for (const { index } of items) {
-    if (!next.has(index)) next.set(index, free.pop() ?? ++top)
-  }
-  ref.current = next
-  return next
-}
-
-/** Стабильная ссылка на обработчик со свежим замыканием — для мемоизированных детей. */
-function useStableCallback<A extends unknown[], R>(fn: (...args: A) => R): (...args: A) => R {
-  const ref = useRef(fn)
-  ref.current = fn
-  return useCallback((...args: A) => ref.current(...args), [])
 }
 
 /**
@@ -217,110 +112,13 @@ export function DataGrid({
   const editable = !readOnly && Boolean(onEdit)
 
   // ─── Раскладка столбцов ────────────────────────────────────────────────────
-  const [innerState, setInnerState] = useState<Partial<DataGridColumnState>>()
-  const controlled = columnState !== undefined
-  const state = useMemo(
-    () => reconcileColumnState(columns, controlled ? columnState : innerState),
-    [columns, controlled, columnState, innerState],
-  )
-  const stateRef = useLatest(state)
-  const commitState = useStableCallback((next: DataGridColumnState) => {
-    if (!controlled) setInnerState(next)
-    onColumnStateChange?.(next)
+  const { stateRef, commitState, table, resizingKey, layout, layoutRef } = useColumnLayout({
+    columns,
+    columnState,
+    onColumnStateChange,
+    rowCount,
+    editable,
   })
-
-  // TanStack Table ведёт модель столбцов: порядок, видимость, закрепление и
-  // ширины с перетаскиванием края. Строк в нём нет — их даёт getRow
-  const [draftSizing, setDraftSizing] = useState<ColumnSizingState | null>(null)
-  const draftRef = useRef<ColumnSizingState | null>(null)
-  const [sizingInfo, setSizingInfo] = useState(INITIAL_SIZING)
-  const sizingInfoRef = useRef(INITIAL_SIZING)
-  const columnDefs = useMemo<Array<ColumnDef<DataGridRow>>>(
-    () =>
-      columns.map((column) => ({
-        id: column.key,
-        accessorFn: (row: DataGridRow) => row.values[column.key],
-        size: initialWidth(column),
-        minSize: column.minWidth ?? MIN_COLUMN_WIDTH,
-        maxSize: MAX_COLUMN_WIDTH,
-      })),
-    [columns],
-  )
-  const columnVisibility = useMemo(
-    () => Object.fromEntries(state.hidden.map((key) => [key, false])),
-    [state.hidden],
-  )
-  const table = useReactTable({
-    data: NO_ROWS,
-    columns: columnDefs,
-    getCoreRowModel: getCoreRowModel(),
-    columnResizeMode: 'onChange',
-    state: {
-      columnOrder: state.order,
-      columnSizing: draftSizing ?? state.widths,
-      columnSizingInfo: sizingInfo,
-      columnVisibility,
-      columnPinning: { left: state.pinned, right: [] },
-    },
-    onColumnSizingChange: (updater) => {
-      const next = functionalUpdate(updater, draftRef.current ?? stateRef.current.widths)
-      draftRef.current = next
-      setDraftSizing(next)
-    },
-    // Применяется сразу, а не в функции-обновителе React: обновитель TanStack
-    // сам меняет ширины, а побочные эффекты в обновителях состояния запрещены
-    onColumnSizingInfoChange: (updater) => {
-      const next = functionalUpdate(updater, sizingInfoRef.current)
-      sizingInfoRef.current = next
-      setSizingInfo(next)
-    },
-  })
-  const resizingKey = sizingInfo.isResizingColumn || null
-  // Перетаскивание края закончилось — ширины уходят в раскладку одним изменением
-  useEffect(() => {
-    if (resizingKey || !draftRef.current) return
-    const widths = Object.fromEntries(
-      Object.entries(draftRef.current).map(([key, width]) => [key, Math.round(width)]),
-    )
-    draftRef.current = null
-    setDraftSizing(null)
-    commitState({ ...stateRef.current, widths })
-  }, [resizingKey, commitState, stateRef])
-
-  const gutter = gutterWidth(rowCount)
-  // biome-ignore lint/correctness/useExhaustiveDependencies: table — один экземпляр, его состояние (раскладка и черновик ширин) — в зависимостях
-  const layout = useMemo<GridLayout>(() => {
-    const byKey = new Map(columns.map((column) => [column.key, column]))
-    const out: RenderColumn[] = []
-    let left = gutter
-    const push = (key: string, width: number, pinned: boolean) => {
-      const column = byKey.get(key)
-      if (!column) return
-      const kind = editorKind(column)
-      out.push({
-        key,
-        index: out.length,
-        column,
-        width,
-        left,
-        pinned,
-        lastPinned: false,
-        numeric: isNumeric(column.type),
-        editor: editable && column.editable ? kind : null,
-      })
-      left += width
-    }
-    for (const column of table.getLeftVisibleLeafColumns()) push(column.id, column.getSize(), true)
-    const pinnedCount = out.length
-    const last = out[pinnedCount - 1]
-    if (last) last.lastPinned = true
-    const pinnedWidth = left - gutter
-    for (const column of table.getCenterVisibleLeafColumns()) {
-      push(column.id, column.getSize(), false)
-    }
-    return { columns: out, pinnedCount, gutter, pinnedWidth, totalWidth: left }
-  }, [table, columns, columnDefs, state, draftSizing, gutter, editable])
-  const layoutRef = useLatest(layout)
   const pinnedCount = layout.pinnedCount
   const leading = layout.gutter + layout.pinnedWidth
 
@@ -372,17 +170,22 @@ export function DataGrid({
   )
   const [selection, setSelection] = useState<SelectionState>(EMPTY_SELECTION)
   const [editing, setEditing] = useState<EditingState | null>(null)
-  const [overlay, setOverlay] = useState<OverlayMap>(NO_OVERLAY)
-  const [errors, setErrors] = useState<ErrorMap>(NO_ERRORS)
-  const [history, setHistory] = useState<EditHistory>(EMPTY_HISTORY)
-  const [status, setStatus] = useState<GridStatus | null>(null)
-  const [pending, setPending] = useState(0)
+  const {
+    overlay,
+    overlayRef,
+    errors,
+    setErrors,
+    historyRef,
+    status,
+    setStatus,
+    pending,
+    applyChanges,
+    appendRows,
+  } = useGridEdits({ getRow, onEdit, onAppendRows, t })
   const [focused, setFocused] = useState(false)
   const [menuKey, setMenuKey] = useState<string | null>(null)
   /** «Добавить строки»: следующая вставка — новыми строками в конец таблицы. */
   const [appendArmed, setAppendArmed] = useState(false)
-  const overlayRef = useLatest(overlay)
-  const historyRef = useLatest(history)
   const dragRef = useRef<'cells' | 'rows' | null>(null)
   const measureRef = useRef<CanvasRenderingContext2D | null>(null)
 
@@ -392,14 +195,6 @@ export function DataGrid({
       current && (current.row >= bounds.rows || current.col >= bounds.cols) ? null : current,
     )
   }, [bounds])
-
-  // Новые данные от родителя: сохранённые правки, которые данные уже отражают, снимаются
-  const lastGetRow = useRef(getRow)
-  useEffect(() => {
-    if (lastGetRow.current === getRow) return
-    lastGetRow.current = getRow
-    setOverlay((current) => settleOverlay(current, getRow))
-  }, [getRow])
 
   const onSelectionRef = useLatest(onSelectionChange)
   const boundsRef = useLatest(bounds)
@@ -437,86 +232,6 @@ export function DataGrid({
     if (sameValue(previous, value)) return null
     return { rowId: row.id, rowIndex, key: col.key, previous, value }
   }
-
-  /**
-   * Пакет изменений: сразу виден в ячейках, уходит в `onEdit`; отказ сервера
-   * (целиком или по ячейкам) откатывает ячейки и объясняет причину в подвале.
-   */
-  const applyChanges = useStableCallback(
-    async (changes: CellChange[], options: ApplyOptions = {}) => {
-      if (!onEdit || changes.length === 0) {
-        if (options.success) setStatus(options.success)
-        return
-      }
-      const token = {}
-      setOverlay((current) => {
-        const next = new Map<string, CellOverlay>(current)
-        for (const change of changes) {
-          next.set(cellKey(change.rowId, change.key), {
-            rowId: change.rowId,
-            rowIndex: change.rowIndex,
-            key: change.key,
-            value: change.value,
-            token,
-            status: 'pending',
-            generation: 0,
-          })
-        }
-        return next
-      })
-      setErrors((current) => withoutCells(current, changes))
-      const step = options.step
-      setHistory((current) => (step ? step.next : recordEdit(current, changes)))
-      setPending((count) => count + 1)
-      setStatus(null)
-
-      let rejected: NonNullable<DataGridEditResult['rejected']> = []
-      let failure: string | null = null
-      try {
-        rejected = (await onEdit(changes))?.rejected ?? []
-      } catch (error) {
-        failure = error instanceof Error ? error.message : ''
-      }
-      setPending((count) => count - 1)
-
-      const reasons = new Map(rejected.map((item) => [cellKey(item.rowId, item.key), item.message]))
-      const dropped = new Set(
-        failure !== null
-          ? changes
-          : changes.filter((change) => reasons.has(cellKey(change.rowId, change.key))),
-      )
-      setOverlay((current) => {
-        const next = new Map<string, CellOverlay>(current)
-        for (const change of changes) {
-          const key = cellKey(change.rowId, change.key)
-          const entry = next.get(key)
-          if (!entry || entry.token !== token) continue
-          if (dropped.has(change)) next.delete(key)
-          else next.set(key, { ...entry, status: 'saved' })
-        }
-        return next
-      })
-      if (dropped.size === 0) {
-        if (options.success) setStatus(options.success)
-        return
-      }
-      setErrors((current) => {
-        const next = new Map(current)
-        for (const change of dropped) {
-          const key = cellKey(change.rowId, change.key)
-          next.set(key, reasons.get(key) ?? failure ?? '')
-        }
-        return next
-      })
-      if (step) setHistory((current) => (current === step.next ? step.previous : current))
-      else setHistory((current) => dropChanges(current, changes, dropped))
-      const message = rejected[0]?.message || failure
-      const reason = message ? t('ui.grid.saveFailed', { message }) : t('ui.grid.notSaved')
-      // Отчёт о вставке остаётся рядом с причиной отказа
-      const report = options.success?.text
-      setStatus({ tone: 'danger', text: report ? `${reason} · ${report}` : reason })
-    },
-  )
 
   /** Ячейка в поле зрения; переход в закреплённый столбец (Home, ←) — к началу по горизонтали. */
   const scrollToCell = (pos: CellPos, from?: CellPos | null) => {
@@ -661,33 +376,10 @@ export function DataGrid({
     if (!start || matrix.length === 0) return
     const split = onAppendRows ? splitAppend(matrix, start, bounds) : null
     const { targets, clipped } = pasteTargets(split ? split.existing : matrix, start, range, bounds)
-    const added = split ? rowsToAppend(split.appended, start.col) : null
+    const added = split ? rowsToAppend(split.appended, start.col, layout.columns, ctx) : null
 
-    const changes: CellChange[] = []
-    const invalid: Array<{ text: string; col: RenderColumn; rowId: string }> = []
-    let skipped = 0
-    let unchanged = 0
-    let overflow = 0
-    for (const target of targets) {
-      if (changes.length >= MAX_BATCH) {
-        overflow += 1
-        continue
-      }
-      const col = layout.columns[target.col]
-      const row = getRow(target.row)
-      if (!col?.editor || !row) {
-        skipped += 1
-        continue
-      }
-      const parsed = parseValue(target.text, col.column, ctx)
-      if (!parsed.ok) {
-        invalid.push({ text: target.text, col, rowId: row.id })
-        continue
-      }
-      const change = changeFor(target.row, col, parsed.value)
-      if (change) changes.push(change)
-      else unchanged += 1
-    }
+    const plan = pasteChanges(targets, layout.columns, getRow, changeFor, ctx)
+    const { changes, invalid } = plan
 
     // Вставленный блок остаётся выделенным
     const last = targets[targets.length - 1]
@@ -718,79 +410,13 @@ export function DataGrid({
       return
     }
 
-    const parts =
-      targets.length > 0 ? [t('ui.grid.pasted', { count: changes.length + unchanged })] : []
-    if (invalid.length > 0) {
-      const examples = invalid
-        .slice(0, 3)
-        .map((item) => t('ui.grid.pasteExample', { value: item.text, name: item.col.column.label }))
-        .join(', ')
-      parts.push(t('ui.grid.pasteInvalid', { count: invalid.length, examples }))
-    }
-    if (skipped > 0) parts.push(t('ui.grid.pasteSkipped', { count: skipped }))
-    const outside = clipped + overflow + (split?.clipped ?? 0) + (added?.overflow ?? 0)
-    if (outside > 0) parts.push(t('ui.grid.pasteClipped', { count: outside }))
-    const report: GridStatus = {
-      tone: invalid.length > 0 || skipped > 0 ? 'danger' : 'info',
-      text: parts.join(' · '),
-    }
+    const outside = clipped + plan.overflow + (split?.clipped ?? 0) + (added?.overflow ?? 0)
+    const report = pasteReport(t, plan, targets.length, outside)
     void (async () => {
       if (changes.length > 0) await applyChanges(changes, { success: report })
       else if (!added?.rows.length) setStatus(report)
       if (added?.rows.length) await appendRows(added.rows, changes.length > 0 ? null : report.text)
     })()
-  }
-
-  /**
-   * Строки вставки ниже последней — значения по столбцам, начиная со `startCol`:
-   * пустые и только для чтения пропускаются, строка заголовков отбрасывается.
-   * Первое нераспознанное значение останавливает добавление целиком.
-   */
-  const rowsToAppend = (lines: string[][], startCol: number) => {
-    const columnAt = (offset: number) => layout.columns[startCol + offset]
-    const header = (cells: string[]) =>
-      cells.length > 0 &&
-      cells.every(
-        (text, offset) =>
-          text.trim().toLowerCase() === columnAt(offset)?.column.label.trim().toLowerCase(),
-      )
-    const data = lines.length > 0 && header(lines[0] ?? []) ? lines.slice(1) : lines
-    const rows: Array<Record<string, unknown>> = []
-    for (const [index, cells] of data.slice(0, MAX_APPEND).entries()) {
-      const values: Record<string, unknown> = {}
-      for (const [offset, text] of cells.entries()) {
-        const col = columnAt(offset)
-        if (!col?.editor || text.trim() === '') continue
-        const parsed = parseValue(text, col.column, ctx)
-        if (!parsed.ok) return { rows, overflow: 0, invalid: { row: index, text, col } }
-        values[col.key] = parsed.value
-      }
-      if (Object.keys(values).length > 0) rows.push(values)
-    }
-    const overflow = data.slice(MAX_APPEND).reduce((sum, cells) => sum + cells.length, 0)
-    return { rows, overflow, invalid: null }
-  }
-
-  /** Новые строки — родителю одним пакетом; итог и причина отказа — в подвале. */
-  const appendRows = async (rows: Array<Record<string, unknown>>, report: string | null) => {
-    if (!onAppendRows) return
-    setPending((count) => count + 1)
-    let message: string | null = null
-    try {
-      const rejected = (await onAppendRows(rows))?.rejected ?? []
-      if (rejected.length > 0) message = rejected[0]?.message ?? ''
-    } catch (error) {
-      message = error instanceof Error ? error.message : ''
-    }
-    setPending((count) => count - 1)
-    const text =
-      message === null
-        ? t('ui.grid.appended', { count: rows.length })
-        : t('ui.grid.appendFailed', { message })
-    setStatus({
-      tone: message === null ? 'info' : 'danger',
-      text: report ? `${text} · ${report}` : text,
-    })
   }
 
   const undo = () => {
@@ -1016,170 +642,35 @@ export function DataGrid({
     if (event.target === event.currentTarget) setFocused(false)
   }
 
-  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    // События из поля правки, меню и других вложенных элементов таблица не трогает
-    if (event.target !== event.currentTarget || event.nativeEvent.isComposing) return
-    if (bounds.rows === 0 || bounds.cols === 0) return
-    const mod = event.metaKey || event.ctrlKey
-    const shift = event.shiftKey
-    const active = selection.active
-    const handled = () => {
-      event.preventDefault()
-      event.stopPropagation()
-    }
-
-    switch (event.key) {
-      case 'ArrowDown':
-      case 'ArrowUp':
-      case 'ArrowLeft':
-      case 'ArrowRight': {
-        if (event.altKey) {
-          if (event.key === 'ArrowDown' && active) {
-            handled()
-            openMenu(active.col)
-          }
-          return
-        }
-        handled()
-        const vertical = event.key === 'ArrowDown' || event.key === 'ArrowUp'
-        const sign = event.key === 'ArrowDown' || event.key === 'ArrowRight' ? 1 : -1
-        if (selection.rows && vertical && shift && active) {
-          select(selectRow(selection, active.row + sign, bounds, 'extend'))
-        } else if (mod) {
-          const edge = vertical
-            ? sign > 0
-              ? 'colEnd'
-              : 'colStart'
-            : sign > 0
-              ? 'rowEnd'
-              : 'rowStart'
-          select(moveToEdge(selection, edge, bounds, shift))
-        } else {
-          select(moveBy(selection, vertical ? sign : 0, vertical ? 0 : sign, bounds, shift))
-        }
-        return
-      }
-      case 'Home':
-      case 'End': {
-        handled()
-        const end = event.key === 'End'
-        const edge = mod ? (end ? 'gridEnd' : 'gridStart') : end ? 'rowEnd' : 'rowStart'
-        select(moveToEdge(selection, edge, bounds, shift))
-        return
-      }
-      case 'PageDown':
-      case 'PageUp': {
-        handled()
-        const viewport = (scrollRef.current?.clientHeight ?? 0) - HEADER_HEIGHT
-        const page = Math.max(1, Math.floor(viewport / rowHeight) - 1)
-        select(moveBy(selection, event.key === 'PageDown' ? page : -page, 0, bounds, shift))
-        return
-      }
-      case 'Tab': {
-        if (mod || event.altKey) return
-        const next = tabMove(selection, shift, bounds)
-        // На краю таблицы Tab уводит фокус дальше по странице
-        if (next === selection) return
-        handled()
-        select(next)
-        return
-      }
-      case 'Enter': {
-        if (!active || mod || event.altKey) return
-        handled()
-        if (startEditing(active, null)) return
-        const row = getRow(active.row)
-        if (row && onRowOpen) onRowOpen(row, active.row)
-        else explainReadOnly(active)
-        return
-      }
-      case 'F2':
-        if (active) {
-          handled()
-          if (!startEditing(active, null)) explainReadOnly(active)
-        }
-        return
-      case ' ': {
-        if (!active || mod) return
-        handled()
-        if (shift) {
-          // Shift+Пробел — строки текущего диапазона целиком
-          const current = rangeOf(selection)
-          const top = current ? current.top : active.row
-          const bottom = current ? current.bottom : active.row
-          const anchor = { row: active.row === top ? bottom : top, col: active.col }
-          setSelection({ active, anchor, rows: [[top, bottom]] })
-          return
-        }
-        if (layout.columns[active.col]?.editor === 'boolean') {
-          toggleBoolean(active)
-          return
-        }
-        const row = getRow(active.row)
-        if (row) onRowPreview?.(row, active.row)
-        return
-      }
-      case 'Escape':
+  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) =>
+    handleGridKey(event, {
+      bounds,
+      selection,
+      layout,
+      editable,
+      rowHeight,
+      viewportHeight: () => scrollRef.current?.clientHeight ?? 0,
+      getRow,
+      select,
+      setSelection,
+      openMenu,
+      startEditing,
+      explainReadOnly,
+      toggleBoolean,
+      onRowOpen,
+      onRowPreview,
+      dismiss: () => {
         if (appendArmed) setAppendArmed(false)
         if (status || errors.size > 0) {
           setStatus(null)
           setErrors(NO_ERRORS)
         }
-        if (active && isMultiple(selection)) {
-          handled()
-          setSelection(selectCell(EMPTY_SELECTION, active, bounds))
-        }
-        return
-      case 'Delete':
-      case 'Backspace':
-        if (!editable) return
-        handled()
-        clearSelected()
-        return
-      case 'ContextMenu':
-        if (active) {
-          handled()
-          openMenu(active.col)
-        }
-        return
-      case 'F10':
-        if (shift && active) {
-          handled()
-          openMenu(active.col)
-        }
-        return
-      default:
-        break
-    }
-
-    if (mod && !event.altKey) {
-      const key = event.key.toLowerCase()
-      if (key === 'a') {
-        handled()
-        setSelection(selectAll(bounds))
-      } else if (key === 'z' && editable) {
-        handled()
-        if (shift) redo()
-        else undo()
-      } else if (key === 'y' && event.ctrlKey && editable) {
-        handled()
-        redo()
-      } else if (!shift && (key === 'c' || key === 'x' || key === 'v')) {
-        // Без preventDefault: команду буфера выполнит браузер, но уже в скрытом поле
-        routeClipboard(key === 'c' ? 'copy' : key === 'x' ? 'cut' : 'paste')
-      }
-      return
-    }
-
-    // Печатный символ начинает правку с этого символа
-    if (active && event.key.length === 1 && !event.altKey) {
-      const kind = layout.columns[active.col]?.editor
-      if (kind && kind !== 'boolean') {
-        handled()
-        startEditing(active, event.key)
-      } else if (!kind) explainReadOnly(active)
-    }
-  }
+      },
+      clearSelected,
+      undo,
+      redo,
+      routeClipboard,
+    })
 
   /** Попытка править столбец только для чтения в правимой таблице — объяснение в подвале. */
   const explainReadOnly = (pos: CellPos) => {
@@ -1272,33 +763,10 @@ export function DataGrid({
     active.row <= lastRow &&
     (active.col < pinnedCount || (active.col >= colStart && active.col <= colEnd))
 
-  const summary = useMemo(() => {
-    // Выделены строки целиком: сумма по разным столбцам смысла не имеет — только счёт строк
-    if (selection.rows || !isMultiple(selection)) return null
-    const cols = selectedColumns(selection, bounds)
-    if (!cols) return null
-    const spans = selectedRows(selection, bounds)
-    const cells = countRows(spans) * (cols[1] - cols[0] + 1)
-    const numeric = layout.columns.slice(cols[0], cols[1] + 1).filter((col) => col.numeric)
-    if (numeric.length === 0) return summarize([], cells, false, false)
-    const values: unknown[] = []
-    let partial = false
-    outer: for (const [start, end] of spans) {
-      for (let rowIndex = start; rowIndex <= end; rowIndex++) {
-        const row = getRow(rowIndex)
-        if (!row) {
-          partial = true
-          continue
-        }
-        for (const col of numeric) values.push(cellValue(row, col.key, overlay))
-        if (values.length >= MAX_SUMMARY_CELLS) {
-          partial = true
-          break outer
-        }
-      }
-    }
-    return summarize(values, cells, true, partial)
-  }, [selection, bounds, layout, getRow, overlay])
+  const summary = useMemo(
+    () => selectionSummary(selection, bounds, layout.columns, getRow, overlay),
+    [selection, bounds, layout, getRow, overlay],
+  )
 
   const activeRow = active ? getRow(active.row) : undefined
   const activeColumn = active ? layout.columns[active.col] : undefined
@@ -1307,13 +775,6 @@ export function DataGrid({
       ? errors.get(cellKey(activeRow.id, activeColumn.key))
       : undefined
   const message = activeError ? { tone: 'danger' as const, text: activeError } : status
-
-  const counter =
-    totalCount !== undefined && totalCount !== rowCount
-      ? t('ui.grid.rowsOf', { shown: formatNumber(rowCount, {}, ctx), count: totalCount })
-      : rowCountApprox
-        ? t('ui.grid.rowsApprox', { count: rowCount })
-        : t('ui.grid.rows', { count: rowCount })
 
   const editingColumn = editing ? layout.columns[editing.col] : undefined
 
@@ -1442,66 +903,28 @@ export function DataGrid({
           className="pointer-events-none absolute top-0 left-0 size-px resize-none opacity-0"
         />
       </div>
-      <div className="flex h-8 shrink-0 items-center gap-3 border-t border-line bg-surface px-3 text-xs text-fg-secondary">
-        <div
-          role="status"
-          className={cn(
-            'flex min-w-0 flex-1 items-center gap-1.5',
-            pending === 0 && message?.tone === 'danger' && 'text-danger',
-          )}
-        >
-          {pending > 0 ? (
-            <>
-              <Loader2 aria-hidden className="size-3.5 shrink-0 animate-spin-fast" />
-              <span className="truncate">{t('ui.grid.saving')}</span>
-            </>
-          ) : (
-            <span className="truncate">{message?.text}</span>
-          )}
-        </div>
-        {selection.rows ? (
-          <div className="shrink-0 tabular">
-            {t('ui.grid.selectedRows', { count: countRows(selection.rows) })}
-          </div>
-        ) : null}
-        {summary ? (
-          <div className="flex shrink-0 items-center gap-3 tabular">
-            <span>{t('ui.grid.selected', { count: formatNumber(summary.cells, {}, ctx) })}</span>
-            {summary.sum !== null ? (
-              <span>{t('ui.grid.sum', { value: formatNumber(summary.sum, {}, ctx) })}</span>
-            ) : null}
-            {summary.avg !== null ? (
-              <span>{t('ui.grid.avg', { value: formatNumber(summary.avg, {}, ctx) })}</span>
-            ) : null}
-            {summary.partial ? <span className="text-fg-muted">{t('ui.grid.partial')}</span> : null}
-          </div>
-        ) : null}
-        {editable && onAppendRows ? (
-          <button
-            type="button"
-            aria-pressed={appendArmed}
-            onClick={() => {
-              const armed = !appendArmed
-              setAppendArmed(armed)
-              setStatus(armed ? { tone: 'info', text: t('ui.grid.appendArmed') } : null)
-              focusGrid()
-            }}
-            className={cn(
-              'flex h-6 shrink-0 items-center gap-1 rounded-xs px-1.5 hover:bg-surface-3 hover:text-fg',
-              appendArmed && 'bg-accent-subtle text-accent',
-            )}
-          >
-            <Plus aria-hidden className="size-3.5" />
-            {t('ui.grid.appendRows')}
-          </button>
-        ) : null}
-        <div className="flex shrink-0 items-center gap-1.5 text-fg-muted tabular">
-          {loading && rowCount > 0 ? (
-            <Loader2 aria-hidden className="size-3.5 animate-spin-fast" />
-          ) : null}
-          {loading && rowCount === 0 ? null : counter}
-        </div>
-      </div>
+      <GridFooter
+        pending={pending}
+        message={message}
+        selectedRowCount={selection.rows ? countRows(selection.rows) : null}
+        summary={summary}
+        appendArmed={appendArmed}
+        onToggleAppend={
+          editable && onAppendRows
+            ? () => {
+                const armed = !appendArmed
+                setAppendArmed(armed)
+                setStatus(armed ? { tone: 'info', text: t('ui.grid.appendArmed') } : null)
+                focusGrid()
+              }
+            : undefined
+        }
+        loading={loading}
+        rowCount={rowCount}
+        totalCount={totalCount}
+        rowCountApprox={rowCountApprox}
+        ctx={ctx}
+      />
     </div>
   )
 }
