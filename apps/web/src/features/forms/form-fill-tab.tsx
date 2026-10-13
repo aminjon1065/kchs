@@ -39,6 +39,7 @@ import {
   enqueueFormSubmit,
   isRetryable,
   LOCAL_SUBMISSION,
+  OFFLINE_AWARE,
   onOfflineSent,
   useOfflineQueue,
 } from '~/shared/offline/queue.js'
@@ -142,6 +143,7 @@ export function FormFillTab({ form }: { form: FormRecord }) {
 
   // Без сети — прежний ответ с устройства или местный черновик (ADR-0208)
   const openSubmission = useMutation({
+    ...OFFLINE_AWARE,
     mutationFn: async (key: string) => {
       if (!subject || !duty) throw new Error('subject')
       try {
@@ -168,6 +170,7 @@ export function FormFillTab({ form }: { form: FormRecord }) {
 
   // Черновик хранит сервер: снимки уходят перед сохранением, значения — уже файлами
   const saveDraft = useMutation({
+    ...OFFLINE_AWARE,
     mutationFn: async () => {
       if (!submission || !userId || isLocal(submission)) throw new Error('offline')
       const resolved = await resolvePhotos(submission.id, userId, input)
@@ -194,6 +197,7 @@ export function FormFillTab({ form }: { form: FormRecord }) {
   // Без сети сдача уходит в очередь устройства и досылается сама (ADR-0204): ключ
   // идемпотентности даёт повторять её, не сдавая сводку дважды
   const submit = useMutation({
+    ...OFFLINE_AWARE,
     mutationFn: async (body: { values: Record<string, unknown>; rows?: TableRow[] }) => {
       const input = { ...body, clientKey: crypto.randomUUID() }
       if (!submission || !userId) throw new Error('submission')

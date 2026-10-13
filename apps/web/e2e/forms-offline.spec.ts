@@ -86,7 +86,7 @@ test.describe('Сводка без сети', () => {
 
     await page.context().setOffline(true)
     await page.getByLabel('Что видно').fill('Подмыт устой моста')
-    await page.getByLabel('Добавить фото').setInputFiles({
+    await page.getByLabel('Добавить фото', { exact: true }).setInputFiles({
       name: 'мост.png',
       mimeType: 'image/png',
       buffer: PIXEL,

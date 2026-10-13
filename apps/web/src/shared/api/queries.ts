@@ -1,7 +1,7 @@
 import type { Level } from '@kchs/contracts'
 import { queryOptions } from '@tanstack/react-query'
 import { rememberProfile, savedProfile } from '~/shared/offline/profile.js'
-import { isRetryable } from '~/shared/offline/queue.js'
+import { isRetryable, OFFLINE_AWARE } from '~/shared/offline/queue.js'
 import { http } from './client.js'
 import type { ApiQuery } from './route-types.js'
 
@@ -66,6 +66,8 @@ export const keys = {
  */
 export const meQuery = () =>
   queryOptions({
+    // Без сети — профиль с устройства (ADR-0207), а не пауза до связи
+    ...OFFLINE_AWARE,
     queryKey: keys.me,
     queryFn: async () => {
       try {

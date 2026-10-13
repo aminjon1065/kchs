@@ -2,6 +2,7 @@ import { Button, type ControlProps, IconButton, Skeleton, useToast } from '@kchs
 import { useQuery } from '@tanstack/react-query'
 import { Camera, ImageOff, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { compressPhoto, PhotoFormatError, saveLocalPhoto } from '~/shared/offline/photos.js'
 import { formPhotoQuery } from './queries.js'
@@ -24,7 +25,9 @@ export function PhotoField({
   const toast = useToast()
   const input = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
+  const locale = useLocale()
   const current = typeof value === 'string' && value.length > 0 ? value : null
+  const action = current ? t('forms.photo.replace') : t('forms.photo.add')
 
   const take = async (file: File) => {
     setBusy(true)
@@ -56,9 +59,11 @@ export function PhotoField({
           loading={busy}
           disabled={disabled}
           aria-invalid={invalid || undefined}
+          // Имя — поле и действие: подпись поля одна не содержала бы видимого текста кнопки
+          aria-label={`${field.label[locale] ?? field.label.ru}: ${action}`}
           onClick={() => input.current?.click()}
         >
-          {current ? t('forms.photo.replace') : t('forms.photo.add')}
+          {action}
         </Button>
         {current && !disabled ? (
           <IconButton

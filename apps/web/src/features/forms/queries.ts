@@ -11,7 +11,7 @@ import { queryOptions } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
 import type { ApiQuery } from '~/shared/api/route-types.js'
 import { localPhoto } from '~/shared/offline/photos.js'
-import { cachedFetch } from '~/shared/offline/queue.js'
+import { cachedFetch, OFFLINE_AWARE } from '~/shared/offline/queue.js'
 
 /** Запросы форм сбора данных (06-analytics-engine.md §13, ADR-0103). */
 export const formKeys = {
@@ -26,6 +26,7 @@ export const formKeys = {
 
 export const formsQuery = (query: ApiQuery<'GET /forms'> = {}) =>
   queryOptions({
+    ...OFFLINE_AWARE,
     queryKey: formKeys.list(query),
     // Список и карточка формы — тоже без сети: экран открывается из кэша устройства (ADR-0207)
     queryFn: () =>
@@ -34,6 +35,7 @@ export const formsQuery = (query: ApiQuery<'GET /forms'> = {}) =>
 
 export const formDutiesQuery = () =>
   queryOptions({
+    ...OFFLINE_AWARE,
     queryKey: formKeys.duties(),
     // Назначения нужны и без сети: сводку заполняют там, где связь пропадает (ADR-0204)
     queryFn: () => cachedFetch('forms.duties', () => http.get('/forms/duties')),
@@ -41,6 +43,7 @@ export const formDutiesQuery = () =>
 
 export const formQuery = (id: string) =>
   queryOptions({
+    ...OFFLINE_AWARE,
     queryKey: formKeys.form(id),
     queryFn: () =>
       cachedFetch(`forms.form:${id}`, () => http.get('/forms/:id', { params: { id } })),
@@ -49,6 +52,7 @@ export const formQuery = (id: string) =>
 
 export const formSchemaQuery = (id: string) =>
   queryOptions({
+    ...OFFLINE_AWARE,
     queryKey: formKeys.schema(id),
     queryFn: () =>
       cachedFetch(`forms.schema:${id}`, () => http.get('/forms/:id/schema', { params: { id } })),
@@ -79,6 +83,7 @@ export const formSubmissionQuery = (id: string) =>
  */
 export const formPhotoQuery = (value: string, userId: string | null) =>
   queryOptions({
+    ...OFFLINE_AWARE,
     queryKey: ['forms', 'photo', value, userId] as const,
     queryFn: async () => {
       const local = userId ? await localPhoto(value, userId) : null
