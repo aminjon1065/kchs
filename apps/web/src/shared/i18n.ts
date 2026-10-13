@@ -65,6 +65,14 @@ function namespacesPending(locale: Locale, namespaces: readonly Namespace[]): Pr
   return promise
 }
 
+/**
+ * Загрузить неймспейсы текущего языка заранее, без показа: словари модуля, нужные без
+ * сети (ADR-0207), попадают в кэш служебного потока вместе с кодом экранов.
+ */
+export function preloadNamespaces(namespaces: readonly Namespace[]): Promise<void> {
+  return namespacesPending(useAppearance.getState().locale, namespaces) ?? Promise.resolve()
+}
+
 /** Компонент ждёт неймспейсы текущего языка: заглушку рисует ближайший Suspense. */
 export function useNamespaces(namespaces: readonly Namespace[]): void {
   const promise = namespacesPending(useLocale(), namespaces)

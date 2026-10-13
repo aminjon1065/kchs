@@ -1,5 +1,6 @@
 import type {
   FieldDef,
+  FormDuty,
   FormPeriodOption,
   FormRecord,
   FormSubject,
@@ -11,6 +12,7 @@ import {
   Badge,
   Button,
   Callout,
+  type ControlProps,
   EmptyState,
   Field,
   SchemaForm,
@@ -25,24 +27,68 @@ import {
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ClipboardPen, Plus, Save } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import { ApiError } from '~/shared/api/client.js'
 import { meQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
+import { forgetPhotos, resolvePhotos } from '~/shared/offline/photos.js'
 import {
+  cachedFetch,
   discardOfflineEntry,
   enqueueFormSubmit,
   isRetryable,
+  LOCAL_SUBMISSION,
   onOfflineSent,
   useOfflineQueue,
 } from '~/shared/offline/queue.js'
 import { useFieldControls } from '../data/field-controls.js'
 import { type CellErrors, type TableRow, validateRows, withNewRow } from './form-table.js'
 import { FormTableEditor } from './form-table-editor.js'
+import { PhotoField } from './photo-field.js'
 import { formDutiesQuery, formKeys, formSchemaQuery, formsApi } from './queries.js'
 
 const NO_FIELDS: FieldDef[] = []
+
+/**
+ * Сводка, открытая без сети (ADR-0208): черновик на устройстве с местным ключом.
+ * Заполнить и сдать её можно — очередь откроет сводку на сервере, когда появится
+ * связь (повтор открытия возвращает ту же сводку), и сдаст.
+ */
+function localSubmission(
+  form: FormRecord,
+  duty: FormDuty,
+  period: FormPeriodOption,
+  authorId: string | null,
+): FormSubmission {
+  return {
+    id: `${LOCAL_SUBMISSION}${crypto.randomUUID()}`,
+    formId: form.id,
+    formName: form.name,
+    periodKey: period.key,
+    periodStart: period.start,
+    periodEnd: period.end,
+    dueAt: period.dueAt,
+    subject: duty.subject,
+    subjectName: duty.subjectName,
+    status: 'draft',
+    values: {},
+    rows: form.definition.layout === 'table' ? [] : null,
+    rowId: null,
+    rowIds: [],
+    authorId,
+    submittedAt: null,
+    reviewerId: null,
+    reviewedAt: null,
+    comment: null,
+    canSubmit: true,
+    canReview: false,
+    updatedAt: new Date().toISOString(),
+  }
+}
+
+const isLocal = (submission: FormSubmission | null) =>
+  submission?.id.startsWith(LOCAL_SUBMISSION) ?? false
 
 /**
  * Заполнение сводки (ADR-0103, ADR-0129): период выбирается из назначений
@@ -71,7 +117,15 @@ export function FormFillTab({ form }: { form: FormRecord }) {
   const [comment, setComment] = useState('')
 
   const fields = schema?.fields ?? NO_FIELDS
-  const renderControl = useFieldControls(fields)
+  const fieldControl = useFieldControls(fields)
+  const userId = me?.user.id ?? null
+  // Поле-файл форма спрашивает фотографией (ADR-0208)
+  const renderControl = (control: ControlProps): ReactNode | undefined =>
+    control.field.type === 'file' && userId ? (
+      <PhotoField {...control} userId={userId} />
+    ) : (
+      fieldControl(control)
+    )
   const table = form.definition.layout === 'table'
   const maxRows = form.definition.table.maxRows
 
@@ -86,10 +140,19 @@ export function FormFillTab({ form }: { form: FormRecord }) {
 
   const input = useMemo(() => (table ? { values: {}, rows } : { values }), [table, rows, values])
 
+  // Без сети — прежний ответ с устройства или местный черновик (ADR-0208)
   const openSubmission = useMutation({
-    mutationFn: (key: string) => {
-      if (!subject) throw new Error('subject')
-      return formsApi.open(form.id, key, subject)
+    mutationFn: async (key: string) => {
+      if (!subject || !duty) throw new Error('subject')
+      try {
+        return await cachedFetch(`forms.open:${form.id}:${key}:${subject.kind}:${subject.id}`, () =>
+          formsApi.open(form.id, key, subject),
+        )
+      } catch (error) {
+        const period = periods.find((item) => item.key === key)
+        if (!isRetryable(error) || !period || !userId) throw error
+        return localSubmission(form, duty, period, userId)
+      }
     },
     onSuccess: (next) => {
       setSubmission(next)
@@ -97,19 +160,35 @@ export function FormFillTab({ form }: { form: FormRecord }) {
       setRows(next.rows ?? [])
       setCellErrors({})
       setRowErrors([])
+      if (isLocal(next)) toast.show({ title: t('forms.offline.openedOffline') })
     },
     onError: (error) =>
       toast.error(error instanceof ApiError ? error.message : t('errors.unknown')),
   })
 
+  // Черновик хранит сервер: снимки уходят перед сохранением, значения — уже файлами
   const saveDraft = useMutation({
-    mutationFn: () => formsApi.save(submission?.id ?? '', input),
+    mutationFn: async () => {
+      if (!submission || !userId || isLocal(submission)) throw new Error('offline')
+      const resolved = await resolvePhotos(submission.id, userId, input)
+      const next = await formsApi.save(submission.id, resolved.body)
+      await forgetPhotos(resolved.uploaded)
+      return next
+    },
     onSuccess: (next) => {
       setSubmission(next)
+      setValues(next.values)
+      if (table) setRows(next.rows ?? [])
       toast.success(t('forms.fill.saved'))
     },
     onError: (error) =>
-      toast.error(error instanceof ApiError ? error.message : t('errors.unknown')),
+      toast.error(
+        isLocal(submission) || isRetryable(error)
+          ? t('forms.offline.draftOffline')
+          : error instanceof ApiError
+            ? error.message
+            : t('errors.unknown'),
+      ),
   })
 
   // Без сети сдача уходит в очередь устройства и досылается сама (ADR-0204): ключ
@@ -117,17 +196,28 @@ export function FormFillTab({ form }: { form: FormRecord }) {
   const submit = useMutation({
     mutationFn: async (body: { values: Record<string, unknown>; rows?: TableRow[] }) => {
       const input = { ...body, clientKey: crypto.randomUUID() }
-      try {
-        return { queued: false as const, next: await formsApi.submit(submission?.id ?? '', input) }
-      } catch (error) {
-        if (!isRetryable(error) || !submission || !me) throw error
+      if (!submission || !userId) throw new Error('submission')
+      const enqueue = async () => {
         await enqueueFormSubmit({
-          userId: me.user.id,
+          userId,
           submissionId: submission.id,
           formId: form.id,
           body: input,
+          open: { periodKey: submission.periodKey, subject: submission.subject },
         })
         return { queued: true as const }
+      }
+      // Сводка открыта без сети — сдать можно только через очередь
+      if (isLocal(submission)) return enqueue()
+      try {
+        // Снимки — до сдачи: значение поля становится файлом сервера (ADR-0208)
+        const resolved = await resolvePhotos(submission.id, userId, input)
+        const next = await formsApi.submit(submission.id, resolved.body)
+        await forgetPhotos(resolved.uploaded)
+        return { queued: false as const, next }
+      } catch (error) {
+        if (!isRetryable(error)) throw error
+        return enqueue()
       }
     },
     onSuccess: async (outcome) => {
@@ -150,13 +240,15 @@ export function FormFillTab({ form }: { form: FormRecord }) {
     () =>
       onOfflineSent((entry, result) => {
         if (entry.formId !== form.id) return
-        if (entry.submissionId === openId) setSubmission(result)
+        if ((entry.localId ?? entry.submissionId) === openId) setSubmission(result)
         toast.success(t('forms.offline.sent'))
         void client.invalidateQueries({ queryKey: formKeys.all })
       }),
     [client, form.id, openId, t, toast],
   )
-  const queued = submission ? queue.find((entry) => entry.submissionId === submission.id) : null
+  const queued = submission
+    ? queue.find((entry) => entry.submissionId === submission.id || entry.localId === submission.id)
+    : null
 
   const review = useMutation({
     mutationFn: (decision: 'accept' | 'return') =>

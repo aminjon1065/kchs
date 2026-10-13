@@ -23,6 +23,7 @@ import { formSubmissions } from '../schema.js'
 import { FormInbox } from './form-inbox.js'
 import { assertRunAs, type FormRow, FormService, objectRef, subjectsFor } from './form-service.js'
 import { dueAtOf, type FormPeriod, recentPeriods, today } from './periods.js'
+import { PhotoService } from './photo-service.js'
 import { subjectKey, subjectNames } from './subject-names.js'
 import { checkTableRows, isBlank, pickFields } from './table-rows.js'
 
@@ -296,6 +297,8 @@ export const SubmissionService = {
     }
     const patch =
       form.definition.layout === 'table' ? { rows: tableRows(input) } : { values: input.values }
+    // Фото-поля черновика — только снимки этой сводки (ADR-0208)
+    await PhotoService.assertValues(db(), form, submissionId, patch.rows ?? [input.values])
     await db()
       .update(formSubmissions)
       .set({ ...patch, authorId: ctx.userId, updatedAt: sql`now()` })
@@ -345,6 +348,7 @@ export const SubmissionService = {
       }
       entered = [pickFields(input.values, keys)]
     }
+    const photoIds = await PhotoService.assertValues(db(), form, submissionId, entered)
     const writer = await writerCtx(form)
     const auto = await autoValues(form, current, ctx.userId)
     const payloads = (await located(form, entered)).map((values) => ({ ...values, ...auto }))
@@ -396,6 +400,7 @@ export const SubmissionService = {
         rowId = inserted._id
         rowIds = [rowId]
       }
+      await PhotoService.submitted(tx, ctx, form, submissionId, photoIds)
       const review = form.definition.review.enabled
       await tx
         .update(formSubmissions)

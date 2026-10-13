@@ -1,5 +1,6 @@
-import { Spinner } from '@kchs/ui'
+import { Button, EmptyState, Spinner } from '@kchs/ui'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { WifiOff } from 'lucide-react'
 import { Suspense, useEffect, useState } from 'react'
 import { useBranding } from '~/shared/api/branding.js'
 import {
@@ -11,6 +12,10 @@ import {
 import { keys, meQuery } from '~/shared/api/queries.js'
 import { initAppearance } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
+import { forgetProfile } from '~/shared/offline/profile.js'
+import { isRetryable } from '~/shared/offline/queue.js'
+import { prepareOffline } from '~/shared/offline/warmup.js'
+import { loadOfflineModules } from '~/shared/workspace/registry.js'
 import {
   GuestMeetingScreen,
   GuestShareScreen,
@@ -65,6 +70,8 @@ export function App() {
       setCsrfToken(null)
       setSignedOut(true)
       client.clear()
+      // Сессии больше нет — и без сети приложение от её имени не откроется (ADR-0207)
+      void forgetProfile()
     })
     setSetupRequiredHandler(() => void client.invalidateQueries({ queryKey: keys.me }))
     return () => {
@@ -78,6 +85,7 @@ export function App() {
     isLoading,
     isError,
     error,
+    refetch,
   } = useQuery({
     ...meQuery(),
     enabled: !signedOut && !shareToken && !meetToken && !printTarget && !resetToken,
@@ -87,6 +95,14 @@ export function App() {
   useEffect(() => {
     if (me?.session.csrfToken) setCsrfToken(me.session.csrfToken)
   }, [me])
+
+  // После входа, в простое — экраны сводок в кэш служебного потока (ADR-0207)
+  const signedIn = Boolean(me?.user.id)
+  useEffect(() => {
+    if (!signedIn) return
+    const timer = window.setTimeout(() => void prepareOffline(loadOfflineModules), 5000)
+    return () => window.clearTimeout(timer)
+  }, [signedIn])
 
   if (resetToken) {
     return (
@@ -127,6 +143,24 @@ export function App() {
           }}
         />
       </Suspense>
+    )
+  }
+
+  // Нет сети, а на устройстве никто не вошёл: объяснить, а не крутить загрузку (ADR-0207)
+  if (!me && isError && isRetryable(error)) {
+    return (
+      <div className="flex h-full items-center justify-center bg-canvas p-6">
+        <EmptyState
+          icon={<WifiOff className="size-5" />}
+          title={t('shell.offlineStart.title')}
+          description={t('shell.offlineStart.hint')}
+          action={
+            <Button variant="secondary" onClick={() => void refetch()}>
+              {t('shell.offlineStart.retry')}
+            </Button>
+          }
+        />
+      </div>
     )
   }
 

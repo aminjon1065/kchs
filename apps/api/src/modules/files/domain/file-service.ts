@@ -14,6 +14,7 @@ import {
   initMultipart,
   listUploadedParts,
   multipartPartUrls,
+  putObject,
   signedGetUrl,
   signedPutUrl,
   storageKey,
@@ -465,6 +466,46 @@ export const FileService = {
       size: input.size,
       checksum: input.checksum,
       storageKey: input.storageKey,
+    })
+  },
+
+  /**
+   * Файл из байтов, которые модуль принял сам (фото сводки, ADR-0208): байты ложатся
+   * в хранилище под ключом нового файла до транзакции, объект реестра, версия, превью
+   * и вложение — в транзакции вызывающего. Права проверяет вызывающий. Откат
+   * транзакции оставит в хранилище байты без файла — их, как и брошенные загрузки,
+   * не видит никто.
+   */
+  async storeBytes(
+    tx: Tx,
+    ctx: Ctx,
+    input: {
+      spaceId: string
+      name: string
+      mime: string
+      bytes: Buffer
+      checksum: string | null
+      attachToObjectId?: string | null
+    },
+  ): Promise<string> {
+    const fileId = newId()
+    const versionId = newId()
+    const key = storageKey(input.spaceId, fileId, versionId, input.name)
+    await putObject(key, input.bytes, {
+      contentType: input.mime,
+      contentLength: input.bytes.byteLength,
+    })
+    return createFile(tx, ctx, {
+      fileId,
+      versionId,
+      spaceId: input.spaceId,
+      folderId: null,
+      attachToObjectId: input.attachToObjectId ?? null,
+      name: input.name,
+      mime: input.mime,
+      size: input.bytes.byteLength,
+      checksum: input.checksum,
+      storageKey: key,
     })
   },
 

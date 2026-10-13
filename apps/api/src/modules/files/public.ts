@@ -14,6 +14,9 @@ export const registerStoredFile: typeof FileService.registerStored = (ctx, input
 /** Сгенерированный файл, уже лежащий под своим ключом (PDF-представление документа). */
 export const registerGeneratedFile: typeof FileService.registerGenerated = (tx, ctx, input) =>
   FileService.registerGenerated(tx, ctx, input)
+/** Файл из принятых модулем байтов (фото сводки, ADR-0208) — в транзакции вызывающего. */
+export const storeFileBytes: typeof FileService.storeBytes = (tx, ctx, input) =>
+  FileService.storeBytes(tx, ctx, input)
 /**
  * Новая версия файла, содержимое которой уже в хранилище под ключом версии:
  * экземпляр со следующей квалифицированной подписью (ADR-0205). Права — у вызывающего.

@@ -3,6 +3,7 @@ import { db } from '~/shared/db/client.js'
 import type { RouteRegistrar } from '~/shared/http/route.js'
 import { FormControlService } from './domain/form-control.js'
 import { FormService } from './domain/form-service.js'
+import { PhotoService } from './domain/photo-service.js'
 import { SubmissionService } from './domain/submission-service.js'
 
 /**
@@ -125,6 +126,15 @@ export function registerFormRoutes(route: RouteRegistrar): void {
     summary: 'Сдать сводку: строка датасета (у табличной формы — строки) с `_import_id` отправки',
     handler: async (request) =>
       SubmissionService.submit(request.ctx, request.params.sid, request.body),
+  })
+
+  route({
+    route: 'POST /forms/submissions/:sid/photos',
+    auth: { delegated: 'PhotoService.upload', resource: 'submission' },
+    tags: ['forms'],
+    summary: 'Фото в поле сводки: JPEG без метаданных, повтор с тем же ключом — тот же файл',
+    rateLimit: { max: 60, timeWindow: '1 minute' },
+    handler: async (request) => PhotoService.upload(request.ctx, request.params.sid, request.body),
   })
 
   route({

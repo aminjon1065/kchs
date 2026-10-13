@@ -1,4 +1,4 @@
-import type { FormSubmission } from '@kchs/contracts'
+import type { FormPhoto, FormSubmission } from '@kchs/contracts'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '~/shared/api/client.js'
 
@@ -15,6 +15,7 @@ vi.stubGlobal('window', {
 })
 
 const queue = await import('./queue.js')
+const photos = await import('./photos.js')
 
 const result = { id: 's1', status: 'submitted' } as unknown as FormSubmission
 const problem = (status: number) =>
@@ -35,6 +36,8 @@ beforeEach(() => {
 afterEach(async () => {
   for (const entry of await snapshot()) await queue.discardOfflineEntry(entry.id)
   queue.setOfflineSender(null)
+  queue.setOfflineOpener(null)
+  photos.setPhotoUploader(null)
   stop()
 })
 
@@ -120,6 +123,69 @@ describe('очередь отправок без сети', () => {
     expect(send).not.toHaveBeenCalled()
     const { remove, QUEUE_STORE } = await import('./store.js')
     for (const entry of await snapshot()) await remove(QUEUE_STORE, entry.id)
+  })
+
+  it('сводка, открытая без сети: открыть на сервере, загрузить снимок, сдать с файлом', async () => {
+    const photo = await photos.saveLocalPhoto({
+      userId: 'u1',
+      fieldKey: 'photo',
+      blob: new Blob(['jpeg'], { type: 'image/jpeg' }),
+    })
+    let online = false
+    const opened: string[] = []
+    const uploads: string[] = []
+    const sentBodies: unknown[] = []
+    queue.setOfflineOpener(async (entry) => {
+      opened.push(entry.submissionId)
+      return { ...result, id: 's-remote' }
+    })
+    photos.setPhotoUploader(async (submissionId, local) => {
+      uploads.push(`${submissionId}:${local.id}`)
+      if (!online) throw new TypeError('Failed to fetch')
+      return { id: 'file-1' } as FormPhoto
+    })
+    queue.setOfflineSender(async (entry) => {
+      sentBodies.push(entry.body)
+      return { ...result, id: entry.submissionId }
+    })
+    const sent = vi.fn()
+    const off = queue.onOfflineSent(sent)
+    await queue.enqueueFormSubmit({
+      userId: 'u1',
+      submissionId: `${queue.LOCAL_SUBMISSION}abc`,
+      formId: 'f1',
+      open: { periodKey: '2026-10-12', subject: { kind: 'unit', id: 'unit-1' } },
+      body: { values: { note: 'мост', photo: photo.id } },
+    })
+    await queue.flushOfflineQueue()
+    // Сводка открыта, а снимок не ушёл: в очереди уже серверный ключ сводки
+    expect(opened).toEqual([`${queue.LOCAL_SUBMISSION}abc`])
+    expect((await snapshot())[0]).toMatchObject({ state: 'pending', attempts: 1 })
+    expect(sentBodies).toEqual([])
+
+    online = true
+    await queue.flushOfflineQueue()
+    expect(opened).toHaveLength(1)
+    expect(uploads).toEqual([`s-remote:${photo.id}`, `s-remote:${photo.id}`])
+    expect(sentBodies).toEqual([
+      expect.objectContaining({ values: { note: 'мост', photo: 'file-1' } }),
+    ])
+    expect(sent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        localId: `${queue.LOCAL_SUBMISSION}abc`,
+        submissionId: 's-remote',
+      }),
+      expect.objectContaining({ id: 's-remote' }),
+    )
+    // Дошедший снимок с устройства стёрт
+    expect(await photos.localPhoto(photo.id, 'u1')).toBeNull()
+    off()
+  })
+
+  it('снимок вписывается в 1600 px по длинной стороне и не увеличивается', () => {
+    expect(photos.fitWithin(4000, 3000)).toEqual({ width: 1600, height: 1200 })
+    expect(photos.fitWithin(1080, 1920)).toEqual({ width: 900, height: 1600 })
+    expect(photos.fitWithin(800, 600)).toEqual({ width: 800, height: 600 })
   })
 
   it('справочник без сети — из запомненного, ошибка по существу — как есть', async () => {

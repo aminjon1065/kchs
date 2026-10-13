@@ -843,6 +843,12 @@ export function registerModules(): void {
   registerModule({
     key: 'forms',
     namespaces: ['forms', 'admin', 'automation', 'data', 'gis', 'tasks'],
+    // Сводки заполняют там, где связь пропадает (ADR-0207)
+    offline: () =>
+      Promise.all([
+        import('~/features/forms/forms-screen.js'),
+        import('~/features/forms/form-view.js'),
+      ]),
     screens: [
       {
         key: 'forms',

@@ -284,6 +284,45 @@ export const FormSubmissionSubmitInput = FormSubmissionSaveInput.extend({
 })
 export type FormSubmissionSubmitInput = z.infer<typeof FormSubmissionSubmitInput>
 
+/**
+ * Фото сводки (ADR-0208): поле датасета типа `file` форма спрашивает фотографией.
+ * Снимок сжимается на устройстве в JPEG (длинная сторона до 1600 px), сервер
+ * выбрасывает метаданные (EXIF и координаты съёмки) и кладёт файл реестра,
+ * прикреплённый к форме. Значение поля — идентификатор этого файла.
+ */
+export const FORM_PHOTO_MAX_BYTES = 3 * 1024 * 1024
+/** Загрузок фото в одну сводку — не больше (с заменёнными в черновике). */
+export const FORM_PHOTO_MAX_PER_SUBMISSION = 30
+/** Длинная сторона снимка после сжатия на устройстве. */
+export const FORM_PHOTO_MAX_SIDE = 1600
+
+export const FormPhotoUploadInput = z.object({
+  /**
+   * Ключ снимка на устройстве (ADR-0204): повтор загрузки с тем же ключом
+   * возвращает уже записанный файл, а не второй.
+   */
+  clientKey: z.uuid(),
+  fieldKey: FieldKey,
+  /** JPEG в base64; после разбора — не больше `FORM_PHOTO_MAX_BYTES`. */
+  data: z
+    .string()
+    .min(8)
+    .max(Math.ceil((FORM_PHOTO_MAX_BYTES * 4) / 3) + 8),
+})
+export type FormPhotoUploadInput = z.infer<typeof FormPhotoUploadInput>
+
+export const FormPhoto = z.object({
+  /** Файл реестра — значение поля сводки. */
+  id: Uuid,
+  clientKey: Uuid,
+  fieldKey: z.string(),
+  size: z.number().int().nonnegative(),
+  width: z.number().int().positive().nullable(),
+  height: z.number().int().positive().nullable(),
+  createdAt: Timestamp,
+})
+export type FormPhoto = z.infer<typeof FormPhoto>
+
 export const FormReviewInput = z.object({
   decision: z.enum(['accept', 'return']),
   comment: z.string().trim().max(2000).nullish(),

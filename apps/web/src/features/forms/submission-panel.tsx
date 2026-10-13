@@ -12,9 +12,11 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { ApiError } from '~/shared/api/client.js'
+import { meQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useFieldFormatter } from '../data/field-controls.js'
+import { PhotoThumb } from './photo-field.js'
 import { formKeys, formSchemaQuery, formSubmissionQuery, formsApi } from './queries.js'
 
 const NO_FIELDS: FieldDef[] = []
@@ -51,6 +53,14 @@ export function SubmissionPanel({
     [table, rows, submission],
   )
   const format = useFieldFormatter(fields, records)
+  const { data: me } = useQuery(meQuery())
+  // Фото сводки — миниатюрой, а не идентификатором файла (ADR-0208)
+  const show = (field: FieldDef, value: unknown, size: 'sm' | 'md') =>
+    field.type === 'file' && typeof value === 'string' && value ? (
+      <PhotoThumb value={value} userId={me?.user.id ?? null} size={size} />
+    ) : (
+      format(field, value) || '—'
+    )
 
   const review = useMutation({
     mutationFn: (decision: 'accept' | 'return') =>
@@ -72,7 +82,7 @@ export function SubmissionPanel({
   const items = fields.map((field) => ({
     key: field.key,
     label: labelOf(field),
-    value: format(field, submission.values[field.key]) || '—',
+    value: show(field, submission.values[field.key], 'md'),
   }))
 
   return (
@@ -120,7 +130,7 @@ export function SubmissionPanel({
                     </th>
                     {fields.map((field) => (
                       <td key={field.key} className="px-2 py-1.5 text-fg">
-                        {format(field, row[field.key]) || '—'}
+                        {show(field, row[field.key], 'sm')}
                       </td>
                     ))}
                   </tr>

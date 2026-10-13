@@ -69,6 +69,19 @@ export const forms: DeepPartial<Dictionary['forms']> = {
     sent: 'Queued report submitted',
     failed: 'Queued report not submitted: {error}',
     discard: 'Remove from queue',
+    openedOffline:
+      'No network — the report is opened on the device. Submit it and it will be sent once the connection is back',
+    draftOffline:
+      'A draft cannot be saved offline — submit the report and it will be sent by itself',
+  },
+  photo: {
+    add: 'Add photo',
+    replace: 'Replace photo',
+    remove: 'Remove photo',
+    alt: 'Report photo',
+    format: 'This picture cannot be read — take the photo with the phone camera',
+    size: 'The photo is too large even after compression',
+    unavailable: 'Photo unavailable',
   },
   review: {
     title: 'Review',

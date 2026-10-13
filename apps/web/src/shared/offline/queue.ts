@@ -1,6 +1,7 @@
-import type { FormSubmission, FormSubmissionSubmitInput } from '@kchs/contracts'
+import type { FormSubject, FormSubmission, FormSubmissionSubmitInput } from '@kchs/contracts'
 import { useSyncExternalStore } from 'react'
 import { ApiError, http } from '~/shared/api/client.js'
+import { forgetPhotos, resolvePhotos, sweepPhotos } from './photos.js'
 import { CACHE_STORE, QUEUE_STORE, readAll, readOne, remove, write } from './store.js'
 
 /**
@@ -22,12 +23,24 @@ export interface FormSubmitEntry {
   /** `failed` — сервер отказал по существу (не сеть): нужен человек. */
   state: 'pending' | 'failed'
   error: string | null
+  /** Сводка на сервере — или `local:…`, если её открыли без сети (ADR-0208). */
   submissionId: string
+  /**
+   * Сводку открыли без сети: досылка сначала открывает её на сервере (повтор
+   * открытия возвращает ту же сводку), затем грузит снимки и сдаёт.
+   */
+  open?: { periodKey: string; subject: FormSubject } | null
+  /** Ключ сводки на экране, пока она была местной: по нему экран узнаёт свою сдачу. */
+  localId?: string | null
   formId: string
   body: FormSubmissionSubmitInput
 }
 
+/** Сводка, открытая без сети: ключ экрана до первого ответа сервера. */
+export const LOCAL_SUBMISSION = 'local:'
+
 type Sender = (entry: FormSubmitEntry) => Promise<FormSubmission>
+type Opener = (entry: FormSubmitEntry) => Promise<FormSubmission>
 type SentListener = (entry: FormSubmitEntry, result: FormSubmission) => void
 
 const sendSubmit: Sender = (entry) =>
@@ -36,7 +49,16 @@ const sendSubmit: Sender = (entry) =>
     body: entry.body,
   })
 
+const openSubmission: Opener = (entry) => {
+  if (!entry.open) throw new Error('open')
+  return http.post('/forms/:id/submissions', {
+    params: { id: entry.formId },
+    body: entry.open,
+  })
+}
+
 let send: Sender = sendSubmit
+let openRemote: Opener = openSubmission
 let currentUser: string | null = null
 let snapshot: FormSubmitEntry[] = []
 let flushing: Promise<void> | null = null
@@ -70,6 +92,11 @@ export function setOfflineSender(next: Sender | null): void {
   send = next ?? sendSubmit
 }
 
+/** Подмена открытия сводки — для тестов очереди. */
+export function setOfflineOpener(next: Opener | null): void {
+  openRemote = next ?? openSubmission
+}
+
 /**
  * Сдача сводки в очередь. Сводка уже ждёт отправки — новая правка заменяет её
  * значения, а ключ остаётся прежним: если прежняя попытка всё же дошла до
@@ -80,6 +107,7 @@ export async function enqueueFormSubmit(input: {
   submissionId: string
   formId: string
   body: FormSubmissionSubmitInput
+  open?: FormSubmitEntry['open']
 }): Promise<FormSubmitEntry> {
   const all = await readAll<FormSubmitEntry>(QUEUE_STORE).catch(() => [])
   const existing = all.find(
@@ -95,6 +123,8 @@ export async function enqueueFormSubmit(input: {
     state: 'pending',
     error: null,
     submissionId: input.submissionId,
+    open: input.submissionId.startsWith(LOCAL_SUBMISSION) ? (input.open ?? null) : null,
+    localId: input.submissionId.startsWith(LOCAL_SUBMISSION) ? input.submissionId : null,
     formId: input.formId,
     body: { ...input.body, clientKey: id },
   }
@@ -109,12 +139,32 @@ export function flushOfflineQueue(): Promise<void> {
   flushing = (async () => {
     try {
       await reload()
-      for (const entry of snapshot.filter((item) => item.state === 'pending')) {
+      for (const pending of snapshot.filter((item) => item.state === 'pending')) {
+        let entry = pending
         try {
-          const result = await send(entry)
+          // Сводку открыли без сети — сначала открыть на сервере (ADR-0208)
+          if (entry.open && entry.submissionId.startsWith(LOCAL_SUBMISSION)) {
+            const opened = await openRemote(entry)
+            entry = { ...entry, submissionId: opened.id }
+            await write(QUEUE_STORE, entry)
+          }
+          // Снимки — до сдачи: значение поля становится файлом сервера
+          const { body, uploaded } = await resolvePhotos(
+            entry.submissionId,
+            entry.userId,
+            entry.body,
+          )
+          const result = await send({ ...entry, body })
           await remove(QUEUE_STORE, entry.id)
+          await forgetPhotos(uploaded)
           for (const listener of sentListeners) listener(entry, result)
         } catch (error) {
+          // Сессия кончилась (приложение открыто без сети по профилю устройства):
+          // отправка ждёт нового входа, а не становится «не сдана»
+          if (error instanceof ApiError && error.status === 401) {
+            await write(QUEUE_STORE, entry)
+            break
+          }
           if (isRetryable(error)) {
             await write(QUEUE_STORE, { ...entry, attempts: entry.attempts + 1 })
             break
@@ -153,6 +203,7 @@ export function onOfflineSent(listener: SentListener): () => void {
  */
 export function startOfflineQueue(userId: string): () => void {
   currentUser = userId
+  void sweepPhotos(userId)
   void flushOfflineQueue()
   const online = () => void flushOfflineQueue()
   window.addEventListener('online', online)
@@ -184,13 +235,16 @@ export function useOfflineQueue(): FormSubmitEntry[] {
  * по сотруднику: на общем устройстве чужое не показывается.
  */
 export async function cachedFetch<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
-  const user = currentUser
   try {
     const value = await fetcher()
+    // Сотрудник — на момент ответа: экран мог запросить справочник раньше, чем
+    // оболочка запустила очередь вошедшего
+    const user = currentUser
     if (user)
       void write(CACHE_STORE, { key: `${user}:${key}`, value, at: Date.now() }).catch(() => {})
     return value
   } catch (error) {
+    const user = currentUser
     if (!user || !isRetryable(error)) throw error
     const hit = await readOne<{ value: T }>(CACHE_STORE, `${user}:${key}`).catch(() => undefined)
     if (hit) return hit.value

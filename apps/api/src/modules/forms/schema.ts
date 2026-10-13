@@ -1,5 +1,14 @@
 import { sql } from 'drizzle-orm'
-import { boolean, index, jsonb, pgTable, text, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
+import {
+  boolean,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  uniqueIndex,
+  uuid,
+} from 'drizzle-orm/pg-core'
 import { users } from '../../kernel/directory/schema.js'
 import { objects } from '../../kernel/objects/schema.js'
 import { createdAt, jsonbObject, tsCol, updatedAt } from '../../shared/db/columns.js'
@@ -94,6 +103,33 @@ export const formSubmissions = pgTable(
     index('form_submissions_due_idx').on(t.status, t.dueAt),
     index('form_submissions_subject_idx').on(t.subjectKind, t.subjectId, t.status),
   ],
+)
+
+/**
+ * Фото сводки (ADR-0208): файл реестра, загруженный в поле формы. Строка связывает
+ * файл со сводкой — значение поля принимается, только если файл загружен в эту
+ * сводку; ключ устройства делает повтор загрузки безопасным (очередь без сети,
+ * ADR-0204). `submitted` — файл вошёл в сдачу: такой не удаляется и не меняется.
+ */
+export const formSubmissionPhotos = pgTable(
+  'form_submission_photos',
+  {
+    fileId: uuid('file_id')
+      .primaryKey()
+      .references(() => objects.id, { onDelete: 'cascade' }),
+    submissionId: uuid('submission_id')
+      .notNull()
+      .references(() => formSubmissions.id, { onDelete: 'cascade' }),
+    clientKey: uuid('client_key').notNull(),
+    fieldKey: text('field_key').notNull(),
+    size: integer('size').notNull(),
+    width: integer('width'),
+    height: integer('height'),
+    uploadedBy: uuid('uploaded_by').references(() => users.id, { onDelete: 'set null' }),
+    submitted: boolean('submitted').notNull().default(false),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex('form_submission_photos_key_uq').on(t.submissionId, t.clientKey)],
 )
 
 /**

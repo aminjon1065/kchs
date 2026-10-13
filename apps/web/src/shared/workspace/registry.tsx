@@ -1,7 +1,7 @@
 import type { Namespace } from '@kchs/i18n'
 import type { LucideIcon } from 'lucide-react'
 import { type ReactNode, Suspense } from 'react'
-import { useNamespacesReady, withNamespaces } from '~/shared/i18n.js'
+import { preloadNamespaces, useNamespacesReady, withNamespaces } from '~/shared/i18n.js'
 import type { ScreenKey, TabState } from '~/shared/workspace/types.js'
 
 /**
@@ -138,6 +138,19 @@ export interface ModuleDefinition {
   nav?: NavItemDefinition[]
   extensions?: Partial<ShellExtensions>
   slots?: ShellSlotDefinition[]
+  /**
+   * Код модуля, нужный без сети (ADR-0207): приложение загружает его в простое после
+   * входа вместе со словарями модуля, служебный поток кладёт файлы в кэш — и при запуске
+   * без связи экраны модуля открываются.
+   */
+  offline?: () => Promise<unknown>
+}
+
+const offlineLoaders: Array<() => Promise<unknown>> = []
+
+/** Код и словари модулей, нужные без сети: ошибка одного не мешает остальным. */
+export function loadOfflineModules(): Promise<unknown> {
+  return Promise.allSettled(offlineLoaders.map((load) => load()))
 }
 
 const navItems = new Map<ScreenKey, NavItemDefinition>()
@@ -155,6 +168,8 @@ export function registerModule(definition: ModuleDefinition): void {
   for (const item of definition.nav ?? []) navItems.set(item.key, item)
   Object.assign(extensions, gateExtensions(definition.extensions ?? {}, namespaces))
   for (const slot of definition.slots ?? []) slots.set(slot.key, gateSlot(slot, namespaces))
+  const offline = definition.offline
+  if (offline) offlineLoaders.push(() => Promise.all([offline(), preloadNamespaces(namespaces)]))
 }
 
 // ─── Неймспейсы модуля (ADR-0191) ────────────────────────────────────────────

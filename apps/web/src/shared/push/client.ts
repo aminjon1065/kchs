@@ -11,9 +11,13 @@ export const PUSH_SUPPORTED =
   'PushManager' in window &&
   'Notification' in window
 
-/** Регистрация служебного потока — один раз при старте приложения. */
+/**
+ * Регистрация служебного потока — один раз при входе в оболочку. Поток нужен не
+ * только push: он держит оболочку для запуска без сети (ADR-0207), поэтому
+ * регистрируется и там, где push нет (Safari на iPhone вне экрана «Домой»).
+ */
 export async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
-  if (!PUSH_SUPPORTED) return null
+  if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return null
   try {
     return await navigator.serviceWorker.register('/sw.js', { scope: '/' })
   } catch {

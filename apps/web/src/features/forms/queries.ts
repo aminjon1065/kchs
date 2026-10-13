@@ -10,6 +10,7 @@ import type {
 import { queryOptions } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
 import type { ApiQuery } from '~/shared/api/route-types.js'
+import { localPhoto } from '~/shared/offline/photos.js'
 import { cachedFetch } from '~/shared/offline/queue.js'
 
 /** Запросы форм сбора данных (06-analytics-engine.md §13, ADR-0103). */
@@ -26,7 +27,9 @@ export const formKeys = {
 export const formsQuery = (query: ApiQuery<'GET /forms'> = {}) =>
   queryOptions({
     queryKey: formKeys.list(query),
-    queryFn: () => http.get('/forms', { query }),
+    // Список и карточка формы — тоже без сети: экран открывается из кэша устройства (ADR-0207)
+    queryFn: () =>
+      cachedFetch(`forms.list:${JSON.stringify(query)}`, () => http.get('/forms', { query })),
   })
 
 export const formDutiesQuery = () =>
@@ -39,7 +42,8 @@ export const formDutiesQuery = () =>
 export const formQuery = (id: string) =>
   queryOptions({
     queryKey: formKeys.form(id),
-    queryFn: () => http.get('/forms/:id', { params: { id } }),
+    queryFn: () =>
+      cachedFetch(`forms.form:${id}`, () => http.get('/forms/:id', { params: { id } })),
     enabled: id.length > 0,
   })
 
@@ -67,6 +71,27 @@ export const formSubmissionQuery = (id: string) =>
     queryKey: formKeys.submission(id),
     queryFn: () => http.get('/forms/submissions/:sid', { params: { sid: id } }),
     enabled: id.length > 0,
+  })
+
+/**
+ * Снимок поля сводки (ADR-0208): ещё не отправленный — с устройства, отправленный —
+ * подписанной ссылкой на файл (её даёт право на файл: вложение формы).
+ */
+export const formPhotoQuery = (value: string, userId: string | null) =>
+  queryOptions({
+    queryKey: ['forms', 'photo', value, userId] as const,
+    queryFn: async () => {
+      const local = userId ? await localPhoto(value, userId) : null
+      if (local) return { kind: 'local' as const, blob: local.blob }
+      const link = await http.get('/files/:id/download', {
+        params: { id: value },
+        query: { inline: true },
+      })
+      return { kind: 'remote' as const, url: link.url }
+    },
+    // Подписанная ссылка живёт 15 минут
+    staleTime: 5 * 60_000,
+    retry: false,
   })
 
 export const formsApi = {
