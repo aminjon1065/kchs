@@ -42,11 +42,11 @@ import {
 import {
   declareDataSchedules,
   registerDataBackground,
-  registerDataObjectTypes,
   registerDataRoutes,
   scheduleDataJobs,
   upgradeDataStorage,
 } from './data/module.js'
+import { registerDataObjectTypes } from './data/object-types.js'
 import {
   declareDocumentsSchedules,
   registerDocumentsBackground,
