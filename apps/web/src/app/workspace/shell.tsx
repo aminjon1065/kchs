@@ -14,7 +14,11 @@ import {
   unsubscribeRooms,
 } from '~/shared/realtime/client.js'
 import { getShellDialog, listShellSlots } from '~/shared/workspace/registry.js'
-import { savedWorkspaceSnapshot } from '~/shared/workspace/snapshot.js'
+import {
+  forgetUnsavedWorkspace,
+  readUnsavedWorkspace,
+  savedWorkspaceSnapshot,
+} from '~/shared/workspace/snapshot.js'
 import { subscribeWorkspaceSave, useWorkspace } from '~/shared/workspace/store.js'
 import { CommandPalette } from './command-palette.js'
 import { ContextPanel } from './context-panel.js'
@@ -67,11 +71,18 @@ export function WorkspaceShell() {
   useEffect(() => {
     let cancelled = false
     let unsubscribe: (() => void) | null = null
-    void http
-      .get('/me/workspace-state')
-      .then((result) => {
-        const snapshot = savedWorkspaceSnapshot(result.state)
-        if (!cancelled && snapshot) restore(snapshot)
+    void Promise.all([
+      http.get('/me/workspace-state'),
+      client.fetchQuery(meQuery()).catch(() => null),
+    ])
+      .then(([result, current]) => {
+        // Снимок, оставленный при перезагрузке этой вкладки, свежее серверного: запрос
+        // keepalive с ним мог ещё не дойти
+        if (cancelled) return
+        const snapshot =
+          readUnsavedWorkspace(current?.user.id) ?? savedWorkspaceSnapshot(result.state)
+        forgetUnsavedWorkspace()
+        if (snapshot) restore(snapshot)
       })
       .catch(() => undefined)
       .then(() =>
@@ -88,9 +99,9 @@ export function WorkspaceShell() {
       cancelled = true
       unsubscribe?.()
     }
-  }, [restore])
+  }, [restore, client])
 
-  useEffect(() => subscribeWorkspaceSave(), [])
+  useEffect(() => subscribeWorkspaceSave(userId), [userId])
 
   // Push (ADR-0094): служебный поток показывает уведомление при закрытой вкладке,
   // а по клику просит открыть объект в уже открытом приложении

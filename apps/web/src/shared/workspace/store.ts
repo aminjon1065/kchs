@@ -3,6 +3,7 @@ import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import { http } from '~/shared/api/client.js'
 import { t } from '~/shared/i18n.js'
+import { rememberUnsavedWorkspace } from '~/shared/workspace/snapshot.js'
 import type {
   ContextTabKey,
   OpenTabInput,
@@ -568,10 +569,12 @@ export function scheduleWorkspaceSave(): void {
  * Досрочная отправка при уходе со страницы: перезагрузка сразу после
  * разделения панелей не должна терять рабочий контекст.
  */
-export function flushWorkspaceSave(): void {
+export function flushWorkspaceSave(userId?: string): void {
   if (!pendingSave) return
   pendingSave = false
   if (saveTimer) clearTimeout(saveTimer)
+  // Перезагрузка может прочесть состояние раньше, чем сервер запишет этот запрос
+  if (userId) rememberUnsavedWorkspace(userId, snapshot())
 
   // keepalive — запрос переживает закрытие страницы; 401 при уходе на вход не ведёт
   void http
@@ -579,15 +582,17 @@ export function flushWorkspaceSave(): void {
     .catch(() => undefined)
 }
 
-export function subscribeWorkspaceSave(): () => void {
+export function subscribeWorkspaceSave(userId?: string): () => void {
   const unsubscribe = useWorkspace.subscribe(() => scheduleWorkspaceSave())
-  const onHide = () => flushWorkspaceSave()
+  const onHide = () => flushWorkspaceSave(userId)
+  const onVisibility = () => {
+    if (document.visibilityState === 'hidden') flushWorkspaceSave(userId)
+  }
   window.addEventListener('pagehide', onHide)
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') flushWorkspaceSave()
-  })
+  document.addEventListener('visibilitychange', onVisibility)
   return () => {
     unsubscribe()
     window.removeEventListener('pagehide', onHide)
+    document.removeEventListener('visibilitychange', onVisibility)
   }
 }
