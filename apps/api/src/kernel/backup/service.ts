@@ -131,29 +131,42 @@ export const BackupService = {
 
     try {
       const sizeBytes = await dumpTo(key)
-      await db()
-        .update(backups)
-        .set({ status: 'done', finishedAt: sql`now()`, sizeBytes })
-        .where(eq(backups.id, id))
-      await audit(auditCtx, {
-        action: AUDIT_ACTIONS.backupCreated,
-        severity: 'notice',
-        details: { backupId: id, sizeBytes, scheduled: ctx === null },
+      // Итог прогона и его аудит — одной транзакцией (ADR-0216)
+      await db().transaction(async (tx) => {
+        await tx
+          .update(backups)
+          .set({ status: 'done', finishedAt: sql`now()`, sizeBytes })
+          .where(eq(backups.id, id))
+        await audit(
+          auditCtx,
+          {
+            action: AUDIT_ACTIONS.backupCreated,
+            severity: 'notice',
+            details: { backupId: id, sizeBytes, scheduled: ctx === null },
+          },
+          tx,
+        )
       })
       await this.prune()
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       logger().error({ err: error, backupId: id }, 'резервная копия не сделана')
-      await db()
-        .update(backups)
-        .set({ status: 'failed', finishedAt: sql`now()`, error: message.slice(0, 2000) })
-        .where(eq(backups.id, id))
       // Несделанная копия — событие безопасности: серия отказов означает, что
       // восстанавливать будет нечего, и заметить это должен мониторинг аудита
-      await audit(auditCtx, {
-        action: AUDIT_ACTIONS.backupFailed,
-        severity: 'warning',
-        details: { backupId: id, scheduled: ctx === null, reason: message.slice(0, 500) },
+      await db().transaction(async (tx) => {
+        await tx
+          .update(backups)
+          .set({ status: 'failed', finishedAt: sql`now()`, error: message.slice(0, 2000) })
+          .where(eq(backups.id, id))
+        await audit(
+          auditCtx,
+          {
+            action: AUDIT_ACTIONS.backupFailed,
+            severity: 'warning',
+            details: { backupId: id, scheduled: ctx === null, reason: message.slice(0, 500) },
+          },
+          tx,
+        )
       })
       await deleteObject(key, buckets.backups()).catch(() => undefined)
     }
@@ -164,18 +177,25 @@ export const BackupService = {
 
   /** Отметка «проверено восстановлением» (runbook): когда, кто и с каким примечанием. */
   async markVerified(ctx: Ctx, id: string, note: string): Promise<BackupRecord | null> {
-    const [saved] = await db()
-      .update(backups)
-      .set({ verifiedAt: sql`now()`, verifiedBy: actorId(ctx), verifiedNote: note.slice(0, 500) })
-      .where(eq(backups.id, id))
-      .returning()
-    if (!saved) return null
-    await audit(ctx, {
-      action: AUDIT_ACTIONS.backupVerified,
-      severity: 'notice',
-      details: { backupId: id, note },
+    const saved = await db().transaction(async (tx) => {
+      const [updated] = await tx
+        .update(backups)
+        .set({ verifiedAt: sql`now()`, verifiedBy: actorId(ctx), verifiedNote: note.slice(0, 500) })
+        .where(eq(backups.id, id))
+        .returning()
+      if (!updated) return null
+      await audit(
+        ctx,
+        {
+          action: AUDIT_ACTIONS.backupVerified,
+          severity: 'notice',
+          details: { backupId: id, note },
+        },
+        tx,
+      )
+      return updated
     })
-    return row(saved)
+    return saved ? row(saved) : null
   },
 
   /**
