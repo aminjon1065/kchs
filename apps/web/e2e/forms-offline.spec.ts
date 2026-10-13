@@ -86,11 +86,10 @@ test.describe('Сводка без сети', () => {
 
     await page.context().setOffline(true)
     await page.getByLabel('Что видно').fill('Подмыт устой моста')
-    await page.getByLabel('Добавить фото', { exact: true }).setInputFiles({
-      name: 'мост.png',
-      mimeType: 'image/png',
-      buffer: PIXEL,
-    })
+    // Как человек: кнопка «Добавить фото» открывает выбор файла (камера или галерея)
+    const chooser = page.waitForEvent('filechooser')
+    await page.getByRole('button', { name: 'Снимок места* Добавить фото' }).click()
+    await (await chooser).setFiles({ name: 'мост.png', mimeType: 'image/png', buffer: PIXEL })
     // Снимок на устройстве: миниатюра из IndexedDB, без сервера
     await expect(page.getByRole('img', { name: 'Фото сводки' })).toBeVisible()
     await page.getByRole('button', { name: 'Сдать сводку' }).click()
