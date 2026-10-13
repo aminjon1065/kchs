@@ -37,7 +37,7 @@ import { ApiError, http } from '~/shared/api/client.js'
 import { spacesQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
-import { ColorInput, RemindersInput } from './event-editor.js'
+import { ColorInput, RemindersInput } from './event-inputs.js'
 import { calendarKeys, calendarSettingsQuery, calendarsQuery, feedsQuery } from './queries.js'
 import { clockMinutes } from './time.js'
 

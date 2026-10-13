@@ -52,7 +52,8 @@ import {
   type ViewHandlers,
 } from './calendar-views.js'
 import { EventDetails } from './event-details.js'
-import { type EditorTarget, EventEditor } from './event-editor.js'
+import { EventEditor } from './event-editor.js'
+import type { EditorTarget } from './event-form.js'
 import { FindTimeSheet } from './find-time.js'
 import { useCalendarFormat } from './format.js'
 import { daysFor, daysOfItem, shiftAnchor, VIEW_MODES, type ViewMode } from './model.js'
