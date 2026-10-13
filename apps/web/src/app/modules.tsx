@@ -219,17 +219,6 @@ const FormsScreen = lazy(() =>
 const FormView = lazy(() =>
   import('~/features/forms/form-view.js').then((module) => ({ default: module.FormView })),
 )
-/**
- * Экраны, нужные без сети (ADR-0207): сводки. Их код грузится в простое после входа,
- * служебный поток кладёт файлы в кэш — и без связи экран открывается.
- */
-export function warmOfflineScreens(): Promise<unknown> {
-  return Promise.all([
-    import('~/features/forms/forms-screen.js'),
-    import('~/features/forms/form-view.js'),
-  ])
-}
-
 const AlertsScreen = lazy(() =>
   import('~/features/alerts/alerts-screen.js').then((module) => ({ default: module.AlertsScreen })),
 )
@@ -854,6 +843,12 @@ export function registerModules(): void {
   registerModule({
     key: 'forms',
     namespaces: ['forms', 'admin', 'automation', 'data', 'gis', 'tasks'],
+    // Сводки заполняют там, где связь пропадает (ADR-0207)
+    offline: () =>
+      Promise.all([
+        import('~/features/forms/forms-screen.js'),
+        import('~/features/forms/form-view.js'),
+      ]),
     screens: [
       {
         key: 'forms',

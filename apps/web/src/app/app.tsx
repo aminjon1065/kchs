@@ -15,6 +15,7 @@ import { useT } from '~/shared/i18n.js'
 import { forgetProfile } from '~/shared/offline/profile.js'
 import { isRetryable } from '~/shared/offline/queue.js'
 import { prepareOffline } from '~/shared/offline/warmup.js'
+import { loadOfflineModules } from '~/shared/workspace/registry.js'
 import {
   GuestMeetingScreen,
   GuestShareScreen,
@@ -25,7 +26,6 @@ import {
   PrintScreen,
   printTargetFromPath,
   registerModules,
-  warmOfflineScreens,
 } from './modules.js'
 import { WorkspaceShell } from './workspace/shell.js'
 
@@ -100,7 +100,7 @@ export function App() {
   const signedIn = Boolean(me?.user.id)
   useEffect(() => {
     if (!signedIn) return
-    const timer = window.setTimeout(() => void prepareOffline(warmOfflineScreens), 5000)
+    const timer = window.setTimeout(() => void prepareOffline(loadOfflineModules), 5000)
     return () => window.clearTimeout(timer)
   }, [signedIn])
 
