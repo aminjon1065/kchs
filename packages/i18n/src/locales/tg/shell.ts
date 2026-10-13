@@ -130,6 +130,7 @@ export const shell: DeepPartial<Dictionary['shell']> = {
       '{count, plural, one {# ирсол шабакаро интизор аст} other {# ирсол шабакаро интизор аст}}',
     offlineQueueHint:
       'Шабака нест: ирсолҳо дар ҳамин дастгоҳ нигоҳ дошта шудаанд ва ҳангоми пайдо шудани алоқа худ мераванд',
+    reportSent: 'Хабарнома аз навбат фиристода шуд',
   },
   palette: {
     placeholder: 'Ҷустуҷӯи объектҳо ва фармонҳо…',

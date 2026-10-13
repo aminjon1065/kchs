@@ -1,9 +1,10 @@
-import { Badge, cn, ProgressBar, Tooltip } from '@kchs/ui'
-import { useQuery } from '@tanstack/react-query'
+import { Badge, cn, ProgressBar, Tooltip, useToast } from '@kchs/ui'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Activity, CircleDot, CloudUpload, Keyboard, UserCog, Wifi, WifiOff } from 'lucide-react'
+import { useEffect } from 'react'
 import { jobsQuery, meQuery } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
-import { useOfflineQueue } from '~/shared/offline/queue.js'
+import { onOfflineDocumentSent, useOfflineQueue } from '~/shared/offline/queue.js'
 import { useRealtimeStatus } from '~/shared/realtime/client.js'
 
 export function StatusBar({ onShowShortcuts }: { onShowShortcuts: () => void }) {
@@ -15,6 +16,18 @@ export function StatusBar({ onShowShortcuts }: { onShowShortcuts: () => void }) 
   const running = (jobs ?? []).filter((job) => job.status === 'running' || job.status === 'queued')
   const acting = me?.actingFor?.[0]
   const waiting = useOfflineQueue().filter((entry) => entry.state === 'pending').length
+  const toast = useToast()
+  const client = useQueryClient()
+
+  // Донесение из очереди дошло (ADR-0212): диалог давно закрыт — сообщает оболочка
+  useEffect(
+    () =>
+      onOfflineDocumentSent(() => {
+        toast.success(t('shell.status.reportSent'))
+        void client.invalidateQueries({ queryKey: ['documents'] })
+      }),
+    [client, t, toast],
+  )
 
   return (
     <footer className="flex h-(--statusbar-h) shrink-0 items-center gap-3 border-t border-line bg-surface-2 px-3 text-2xs text-fg-muted">

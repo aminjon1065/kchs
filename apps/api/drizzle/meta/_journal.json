@@ -540,6 +540,13 @@
       "when": 1791863324957,
       "tag": "20261013034844_form-submission-photos",
       "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "7",
+      "when": 1791868372872,
+      "tag": "20261013051252_document-client-key-photos",
+      "breakpoints": true
     }
   ]
 }

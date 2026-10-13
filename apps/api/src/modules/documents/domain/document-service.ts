@@ -269,6 +269,25 @@ export const DocumentService = {
   async create(tx: Tx, ctx: Ctx, input: DocumentCreateInput): Promise<string> {
     const authorId = actorId(ctx)
     if (!authorId) throw errors.validation('У документа должен быть автор')
+    // Повтор из очереди устройства (ADR-0212): тот же автор и ключ — тот же документ.
+    // Блокировка по ключу: два одновременных повтора не создадут двух документов
+    if (input.clientKey) {
+      const key = `document.create:${authorId}:${input.clientKey}`
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${key}))`)
+      const [existing] = await tx
+        .select({ id: documents.id, typeId: documents.typeId })
+        .from(documents)
+        .where(and(eq(documents.authorId, authorId), eq(documents.clientKey, input.clientKey)))
+        .limit(1)
+      if (existing) {
+        if (existing.typeId !== input.typeId) {
+          throw errors.conflict('Ключ устройства уже занят другим документом', {
+            reason: 'client_key_reused',
+          })
+        }
+        return existing.id
+      }
+    }
     const type = await DocumentTypeService.load(tx, input.typeId)
     if (!type) throw errors.notFound('Тип документа')
     if (!type.isActive) throw errors.conflict('Тип документа выключен')
@@ -320,7 +339,9 @@ export const DocumentService = {
       confidentiality,
       meta: metaOf({ ...card, type }),
     })
-    await tx.insert(documents).values({ id: object.id, ...card })
+    await tx
+      .insert(documents)
+      .values({ id: object.id, ...card, clientKey: input.clientKey ?? null })
     await DocumentParticipants.sync(tx, ctx, object.id, 'card', cardParticipants(card))
     await emit(tx, ctx, { id: object.id, spaceId, title }, 'document.created', {
       typeKey: type.key,

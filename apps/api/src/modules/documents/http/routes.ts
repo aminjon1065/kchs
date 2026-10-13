@@ -11,6 +11,7 @@ import { DocumentService } from '../domain/document-service.js'
 import { JournalService } from '../domain/journal-service.js'
 import { DocumentMailOut } from '../domain/mail-out.js'
 import { officeDashboardId } from '../domain/office-dashboard.js'
+import { DocumentPhotos } from '../domain/photo-service.js'
 import { ResolutionService } from '../domain/resolution-service.js'
 import { ResolutionTemplates } from '../domain/resolution-templates.js'
 import { territoryDocuments } from '../domain/territory-documents.js'
@@ -86,6 +87,15 @@ export function registerDocumentRoutes(route: RouteRegistrar): void {
       )
       return { id }
     },
+  })
+
+  route({
+    route: 'POST /documents/:id/photos',
+    auth: { delegated: 'DocumentPhotos.upload', objectType: 'document' },
+    tags: ['documents'],
+    summary:
+      'Фото к черновику документа: JPEG с телефона, очищенный от метаданных; повтор с тем же ключом устройства — тот же файл (ADR-0212)',
+    handler: async (request) => DocumentPhotos.upload(request.ctx, request.params.id, request.body),
   })
 
   route({

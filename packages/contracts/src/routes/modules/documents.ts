@@ -49,6 +49,8 @@ import {
   DocumentCreateInput,
   DocumentNumberPreview,
   DocumentNumberPreviewQuery,
+  DocumentPhoto,
+  DocumentPhotoUploadInput,
   DocumentRecord,
   DocumentRegisterInput,
   DocumentSummary,
@@ -249,6 +251,11 @@ export const documentsRoutes = defineRoutes({
     response: { 200: DocumentTerritoryList },
   },
   'POST /documents': { body: DocumentCreateInput, response: { 200: z.object({ id: z.uuid() }) } },
+  'POST /documents/:id/photos': {
+    params: IdParam,
+    body: DocumentPhotoUploadInput,
+    response: { 200: DocumentPhoto },
+  },
   'GET /documents/:id': { params: IdParam, response: { 200: DocumentRecord } },
   'PATCH /documents/:id': {
     params: IdParam,

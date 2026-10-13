@@ -1,6 +1,7 @@
 import type { FieldOption, Territory } from '@kchs/contracts'
 import { queryOptions } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
+import { cachedFetch, OFFLINE_AWARE } from '~/shared/offline/queue.js'
 
 /** Ключи кэша справочника территорий, слоёв и карт. */
 export const gisKeys = {
@@ -52,8 +53,11 @@ export const layerFeatureQuery = (layerId: string, rowId: string) =>
 /** Справочник территорий целиком: меняется редко — держится в кэше надолго. */
 export const territoriesQuery = () =>
   queryOptions({
+    // Район в донесении и сводке выбирают и без сети — справочник с устройства (ADR-0212)
+    ...OFFLINE_AWARE,
     queryKey: gisKeys.territories,
-    queryFn: async () => (await http.get('/territories')).items,
+    queryFn: () =>
+      cachedFetch('territories', async () => (await http.get('/territories')).items),
     staleTime: 10 * 60_000,
   })
 

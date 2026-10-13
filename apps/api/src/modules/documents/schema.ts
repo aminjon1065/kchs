@@ -259,8 +259,16 @@ export const documents = pgTable(
      * «Документы» ограничивает строки пересечением с принципалами смотрящего.
      */
     viewers: text('viewers').array().notNull().default(sql`'{}'::text[]`),
+    /**
+     * Ключ идемпотентности создания (ADR-0212): ключ устройства, с которым автор создал
+     * документ. Повтор из очереди без сети с тем же ключом возвращает этот документ.
+     */
+    clientKey: uuid('client_key'),
   },
   (t) => [
+    uniqueIndex('documents_author_client_key_uq')
+      .on(t.authorId, t.clientKey)
+      .where(sql`${t.clientKey} is not null`),
     index('documents_type_status_idx').on(t.typeId, t.status),
     index('documents_reg_number_idx').on(t.regNumber),
     index('documents_journal_idx').on(t.journalId, t.regDate.desc()),
@@ -275,6 +283,30 @@ export const documents = pgTable(
     ),
     check('documents_control_check', sql`${t.control} in ('none', 'on', 'done')`),
   ],
+)
+
+/**
+ * Фото черновика документа (ADR-0212): снимок с телефона, пережатый в JPEG и очищенный
+ * от метаданных, — файл реестра, прикреплённый к документу. Ключ устройства делает
+ * загрузку из очереди без сети повторяемой: повтор возвращает тот же файл.
+ */
+export const documentPhotos = pgTable(
+  'document_photos',
+  {
+    fileId: uuid('file_id')
+      .primaryKey()
+      .references(() => objects.id, { onDelete: 'cascade' }),
+    documentId: uuid('document_id')
+      .notNull()
+      .references(() => documents.id, { onDelete: 'cascade' }),
+    clientKey: uuid('client_key').notNull(),
+    size: integer('size').notNull(),
+    width: integer('width'),
+    height: integer('height'),
+    uploadedBy: uuid('uploaded_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex('document_photos_key_uq').on(t.documentId, t.clientKey)],
 )
 
 /**

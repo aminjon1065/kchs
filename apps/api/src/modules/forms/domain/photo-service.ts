@@ -20,9 +20,9 @@ import {
 import type { UserCtx } from '~/shared/context.js'
 import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
+import { cleanJpeg, JpegError } from '~/shared/jpeg.js'
 import { formSubmissionPhotos, formSubmissions } from '../schema.js'
 import { type FormRow, FormService, subjectsFor } from './form-service.js'
-import { cleanJpeg, JpegError } from './jpeg.js'
 import { isBlank } from './table-rows.js'
 
 /**

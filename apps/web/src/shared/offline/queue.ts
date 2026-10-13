@@ -1,14 +1,20 @@
-import type { FormSubject, FormSubmission, FormSubmissionSubmitInput } from '@kchs/contracts'
+import type {
+  DocumentCreateInput,
+  FormSubject,
+  FormSubmission,
+  FormSubmissionSubmitInput,
+} from '@kchs/contracts'
 import { useSyncExternalStore } from 'react'
 import { ApiError, http } from '~/shared/api/client.js'
-import { forgetPhotos, resolvePhotos, sweepPhotos } from './photos.js'
+import { forgetPhotos, resolvePhotos, sweepPhotos, uploadDocumentPhotos } from './photos.js'
 import { CACHE_STORE, QUEUE_STORE, readAll, readOne, remove, write } from './store.js'
 
 /**
- * Офлайн-очередь отправок (ADR-0204): сдача сводки без сети не теряется — она ложится
- * в IndexedDB этого устройства и уходит сама, когда появится связь. Повтор безопасен:
- * у каждой отправки свой ключ идемпотентности (`clientKey`), и сервер на повтор с тем
- * же ключом отвечает уже записанной сдачей, а не второй сдачей и не «уже сдана».
+ * Офлайн-очередь отправок (ADR-0204): сдача сводки и донесение (ADR-0212) без сети не
+ * теряются — они ложатся в IndexedDB этого устройства и уходят сами, когда появится
+ * связь. Повтор безопасен: у каждой отправки свой ключ идемпотентности (`clientKey`), и
+ * сервер на повтор с тем же ключом отвечает уже записанной сдачей или созданным
+ * документом, а не второй сдачей и не вторым документом.
  *
  * Очередь — по сотруднику: на общем устройстве чужие отправки не уходят от вашего
  * имени и не видны вам.
@@ -36,12 +42,38 @@ export interface FormSubmitEntry {
   body: FormSubmissionSubmitInput
 }
 
+/**
+ * Донесение, созданное без сети (ADR-0212): черновик документа с реквизитами и снимками.
+ * Ключ записи — ключ идемпотентности создания: повтор после потерянного ответа
+ * возвращает тот же документ, снимки грузятся под своими ключами и тоже не дублируются.
+ */
+export interface DocumentCreateEntry {
+  /** Ключ идемпотентности создания — он же ключ записи очереди. */
+  id: string
+  kind: 'document.create'
+  userId: string
+  createdAt: number
+  attempts: number
+  state: 'pending' | 'failed'
+  error: string | null
+  /** Как показать запись в очереди: тема донесения. */
+  title: string
+  body: DocumentCreateInput & { clientKey: string }
+  /** Ключи снимков на устройстве. */
+  photos: string[]
+}
+
+export type OfflineEntry = FormSubmitEntry | DocumentCreateEntry
+
 /** Сводка, открытая без сети: ключ экрана до первого ответа сервера. */
 export const LOCAL_SUBMISSION = 'local:'
 
 type Sender = (entry: FormSubmitEntry) => Promise<FormSubmission>
 type Opener = (entry: FormSubmitEntry) => Promise<FormSubmission>
 type SentListener = (entry: FormSubmitEntry, result: FormSubmission) => void
+/** Создание документа со снимками; возвращает идентификатор документа. */
+type DocumentSender = (entry: DocumentCreateEntry) => Promise<string>
+type DocumentSentListener = (entry: DocumentCreateEntry, documentId: string) => void
 
 const sendSubmit: Sender = (entry) =>
   http.post('/forms/submissions/:sid/submit', {
@@ -57,20 +89,28 @@ const openSubmission: Opener = (entry) => {
   })
 }
 
+const sendDocumentCreate: DocumentSender = async (entry) => {
+  const { id } = await http.post('/documents', { body: entry.body })
+  await uploadDocumentPhotos(id, entry.userId, entry.photos)
+  return id
+}
+
 let send: Sender = sendSubmit
 let openRemote: Opener = openSubmission
+let sendDocument: DocumentSender = sendDocumentCreate
 let currentUser: string | null = null
-let snapshot: FormSubmitEntry[] = []
+let snapshot: OfflineEntry[] = []
 let flushing: Promise<void> | null = null
 const listeners = new Set<() => void>()
 const sentListeners = new Set<SentListener>()
+const documentListeners = new Set<DocumentSentListener>()
 
 function emit(): void {
   for (const listener of listeners) listener()
 }
 
 async function reload(): Promise<void> {
-  const all = await readAll<FormSubmitEntry>(QUEUE_STORE).catch(() => [])
+  const all = await readAll<OfflineEntry>(QUEUE_STORE).catch(() => [])
   snapshot = all
     .filter((entry) => entry.userId === currentUser)
     .sort((a, b) => a.createdAt - b.createdAt)
@@ -97,6 +137,46 @@ export function setOfflineOpener(next: Opener | null): void {
   openRemote = next ?? openSubmission
 }
 
+/** Подмена создания документа — для тестов очереди. */
+export function setOfflineDocumentSender(next: DocumentSender | null): void {
+  sendDocument = next ?? sendDocumentCreate
+}
+
+/**
+ * Донесение: создать документ со снимками сразу, а без сети — положить в очередь
+ * устройства под тем же ключом. Отказ по существу (400, 403, 409) пробрасывается —
+ * его показывает экран, пока человек ещё перед ним.
+ */
+export async function submitDocument(input: {
+  userId: string
+  title: string
+  body: DocumentCreateInput & { clientKey: string }
+  photos: string[]
+}): Promise<{ queued: true } | { queued: false; id: string }> {
+  const entry: DocumentCreateEntry = {
+    id: input.body.clientKey,
+    kind: 'document.create',
+    userId: input.userId,
+    createdAt: Date.now(),
+    attempts: 0,
+    state: 'pending',
+    error: null,
+    title: input.title,
+    body: input.body,
+    photos: input.photos,
+  }
+  try {
+    const id = await sendDocument(entry)
+    await forgetPhotos(entry.photos)
+    return { queued: false, id }
+  } catch (error) {
+    if (!isRetryable(error)) throw error
+    await write(QUEUE_STORE, entry)
+    if (input.userId === currentUser) await reload()
+    return { queued: true }
+  }
+}
+
 /**
  * Сдача сводки в очередь. Сводка уже ждёт отправки — новая правка заменяет её
  * значения, а ключ остаётся прежним: если прежняя попытка всё же дошла до
@@ -109,9 +189,12 @@ export async function enqueueFormSubmit(input: {
   body: FormSubmissionSubmitInput
   open?: FormSubmitEntry['open']
 }): Promise<FormSubmitEntry> {
-  const all = await readAll<FormSubmitEntry>(QUEUE_STORE).catch(() => [])
+  const all = await readAll<OfflineEntry>(QUEUE_STORE).catch(() => [])
   const existing = all.find(
-    (entry) => entry.userId === input.userId && entry.submissionId === input.submissionId,
+    (entry): entry is FormSubmitEntry =>
+      entry.kind === 'form.submit' &&
+      entry.userId === input.userId &&
+      entry.submissionId === input.submissionId,
   )
   const id = existing?.id ?? input.body.clientKey ?? crypto.randomUUID()
   const entry: FormSubmitEntry = {
@@ -140,24 +223,29 @@ export function flushOfflineQueue(): Promise<void> {
     try {
       await reload()
       for (const pending of snapshot.filter((item) => item.state === 'pending')) {
-        let entry = pending
+        let entry: OfflineEntry = pending
         try {
+          if (entry.kind === 'document.create') {
+            // Донесение (ADR-0212): повтор создания с тем же ключом — тот же документ
+            const documentId = await sendDocument(entry)
+            await remove(QUEUE_STORE, entry.id)
+            await forgetPhotos(entry.photos)
+            for (const listener of documentListeners) listener(entry, documentId)
+            continue
+          }
           // Сводку открыли без сети — сначала открыть на сервере (ADR-0208)
           if (entry.open && entry.submissionId.startsWith(LOCAL_SUBMISSION)) {
             const opened = await openRemote(entry)
             entry = { ...entry, submissionId: opened.id }
             await write(QUEUE_STORE, entry)
           }
+          const form: FormSubmitEntry = entry
           // Снимки — до сдачи: значение поля становится файлом сервера
-          const { body, uploaded } = await resolvePhotos(
-            entry.submissionId,
-            entry.userId,
-            entry.body,
-          )
-          const result = await send({ ...entry, body })
-          await remove(QUEUE_STORE, entry.id)
+          const { body, uploaded } = await resolvePhotos(form.submissionId, form.userId, form.body)
+          const result = await send({ ...form, body })
+          await remove(QUEUE_STORE, form.id)
           await forgetPhotos(uploaded)
-          for (const listener of sentListeners) listener(entry, result)
+          for (const listener of sentListeners) listener(form, result)
         } catch (error) {
           // Сессия кончилась (приложение открыто без сети по профилю устройства):
           // отправка ждёт нового входа, а не становится «не сдана»
@@ -185,9 +273,14 @@ export function flushOfflineQueue(): Promise<void> {
   return flushing
 }
 
-/** Убрать отправку из очереди (сдача по существу не прошла — человек решил её не слать). */
+/**
+ * Убрать отправку из очереди (сдача или донесение по существу не прошли — человек решил
+ * их не слать). Снимки донесения с устройства стираются вместе с ним.
+ */
 export async function discardOfflineEntry(id: string): Promise<void> {
+  const entry = await readOne<OfflineEntry>(QUEUE_STORE, id).catch(() => undefined)
   await remove(QUEUE_STORE, id)
+  if (entry?.kind === 'document.create') await forgetPhotos(entry.photos)
   await reload()
 }
 
@@ -195,6 +288,12 @@ export async function discardOfflineEntry(id: string): Promise<void> {
 export function onOfflineSent(listener: SentListener): () => void {
   sentListeners.add(listener)
   return () => sentListeners.delete(listener)
+}
+
+/** Донесение из очереди дошло: документ создан на сервере. */
+export function onOfflineDocumentSent(listener: DocumentSentListener): () => void {
+  documentListeners.add(listener)
+  return () => documentListeners.delete(listener)
 }
 
 /**
@@ -225,7 +324,7 @@ function subscribe(listener: () => void): () => void {
 }
 
 /** Отправки вошедшего сотрудника, которые ждут сети или ответа человека. */
-export function useOfflineQueue(): FormSubmitEntry[] {
+export function useOfflineQueue(): OfflineEntry[] {
   return useSyncExternalStore(subscribe, () => snapshot)
 }
 
