@@ -25,6 +25,8 @@ registerLifecycle()
 
 const { DocumentsSeed } = await import('../src/modules/documents/public.js')
 const { DocumentRenders } = await import('../src/modules/documents/domain/render-service.js')
+const { renderSubscribers } = await import('../src/modules/documents/domain/render-subscribers.js')
+const { matchesType } = await import('../src/kernel/events/bus.js')
 const { systemCtx } = await import('../src/shared/context.js')
 const { auditLog, documentRenders, documentSignatures, userFacsimiles } = await import(
   '../src/db-schema.js'
@@ -400,5 +402,35 @@ describe('подписанный экземпляр, место факсимил
       sql`SELECT count(*)::int AS total FROM ops.outbox WHERE event->>'type' = 'document.signature_placed'`,
     )
     expect(events[0]?.total).toBeGreaterThan(0)
+  })
+})
+
+describe('подписанный экземпляр — один на версию и номер', () => {
+  it('события подписи, регистрации и конца маршрута наперегонки и повтором — один заказ', async () => {
+    const { doc } = await signedMemo()
+    const subscriber = renderSubscribers.find((item) => item.name === 'documents-signed-copy')
+    if (!subscriber) throw new Error('нет подписчика documents-signed-copy')
+    const rows = await db().execute<{ event: { type: string } }>(
+      sql`SELECT event FROM ops.outbox WHERE event->'object'->>'id' = ${doc.id} ORDER BY id`,
+    )
+    const events = rows
+      .map((row) => row.event)
+      .filter((event) => matchesType(subscriber.types, event.type))
+    expect(events.map((event) => event.type)).toEqual(
+      expect.arrayContaining(['document.signed', 'document.registered', 'process.finished']),
+    )
+    // Воркер доставляет события в любом порядке, одновременно и повторно
+    await Promise.all([...events, ...events].map((event) => subscriber.handle(event as never)))
+    await Promise.all(events.map((event) => subscriber.handle(event as never)))
+
+    const renders = await db()
+      .select({ dedupeKey: documentRenders.dedupeKey })
+      .from(documentRenders)
+      .where(
+        and(eq(documentRenders.subjectId, doc.id), eq(documentRenders.formKey, 'signature_stamp')),
+      )
+    expect(renders).toHaveLength(1)
+    const card = await call(fx.app, { url: `/documents/${doc.id}`, as: people.author })
+    expect(renders[0]?.dedupeKey).toContain(`:${card.json().regNumber}:`)
   })
 })
