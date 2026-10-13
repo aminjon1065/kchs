@@ -24,7 +24,7 @@ import { type BasemapPack, listPacks, removePack, storageEstimate } from './pack
 import { packStyle } from './queries.js'
 
 /** Подробность района — наибольший масштаб тайлов на устройстве. */
-const DETAIL = { overview: 10, villages: 12, streets: 14 } as const
+const DETAIL = { overview: 11, villages: 13, streets: 14 } as const
 type Detail = keyof typeof DETAIL
 
 /** Населённый пункт без границы — рамка вокруг центра, около 5 км в каждую сторону. */
