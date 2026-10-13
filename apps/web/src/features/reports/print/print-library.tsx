@@ -1,6 +1,6 @@
 import { REPORT_FIGURE_HEIGHT, type ReportBlock, type ReportPrintBlock } from '@kchs/contracts'
 import { Chart, NumberTile } from '@kchs/ui'
-import { useQuery } from '@tanstack/react-query'
+import { skipToken, useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { metricTileModel } from '~/entities/data/metric-format.js'
 import { ApiError, http } from '~/shared/api/client.js'
@@ -40,11 +40,12 @@ const failure = (error: unknown, t: ReturnType<typeof useT>): string =>
 
 export function PrintImage({ block, reportId }: { block: BlockOf<'image'>; reportId: string }) {
   const t = useT()
+  const fileId = block.fileId
   const image = useQuery({
-    queryKey: ['report', reportId, 'image', block.fileId],
-    queryFn: () =>
-      http.get('/reports/:id/images/:fileId', { params: { id: reportId, fileId: block.fileId! } }),
-    enabled: Boolean(block.fileId),
+    queryKey: ['report', reportId, 'image', fileId],
+    queryFn: fileId
+      ? () => http.get('/reports/:id/images/:fileId', { params: { id: reportId, fileId } })
+      : skipToken,
     retry: false,
   })
   const model = useMemo<ReportPrintBlock[] | null>(
@@ -147,20 +148,20 @@ export function PrintFiles({ block, reportId }: { block: BlockOf<'file'>; report
 export function PrintDashboard({ block }: { block: BlockOf<'dashboard'> }) {
   const t = useT()
   const { locale, timezone } = usePrint()
+  const dashboardId = block.dashboardId
   const dashboard = useQuery({
-    queryKey: ['dashboard', block.dashboardId],
-    queryFn: () => http.get('/dashboards/:id', { params: { id: block.dashboardId! } }),
-    enabled: Boolean(block.dashboardId),
+    queryKey: ['dashboard', dashboardId],
+    queryFn: dashboardId
+      ? () => http.get('/dashboards/:id', { params: { id: dashboardId } })
+      : skipToken,
     retry: false,
   })
   const data = useQuery({
-    queryKey: ['dashboard', block.dashboardId, 'print-data'],
-    queryFn: () =>
-      http.post('/dashboards/:id/data', {
-        params: { id: block.dashboardId! },
-        body: { filters: {} },
-      }),
-    enabled: Boolean(block.dashboardId),
+    queryKey: ['dashboard', dashboardId, 'print-data'],
+    queryFn: dashboardId
+      ? () =>
+          http.post('/dashboards/:id/data', { params: { id: dashboardId }, body: { filters: {} } })
+      : skipToken,
     retry: false,
   })
   const model = useMemo<ReportPrintBlock[] | null>(

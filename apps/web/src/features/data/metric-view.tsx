@@ -403,10 +403,7 @@ function useSourceFields(metric: MetricRecord) {
     ...datasetQuery(metric.datasetId ?? ''),
     enabled: Boolean(metric.datasetId),
   })
-  const { data: system } = useQuery({
-    ...systemDatasetQuery(metric.systemSource!),
-    enabled: Boolean(metric.systemSource),
-  })
+  const { data: system } = useQuery(systemDatasetQuery(metric.systemSource ?? null))
   const fields: FilterField[] = dataset
     ? filterFieldsOf(dataset.fields, locale)
     : (system?.fields ?? []).map((field) => ({

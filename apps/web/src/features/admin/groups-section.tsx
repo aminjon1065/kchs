@@ -13,7 +13,7 @@ import {
   Textarea,
   useToast,
 } from '@kchs/ui'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { skipToken, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
 import { type PickedUser, UsersPicker } from '~/entities/people/user-picker.js'
@@ -125,9 +125,9 @@ function GroupDialog({ group, onClose }: { group: Group | null; onClose: () => v
   const [error, setError] = useState<string | null>(null)
   const { data: current } = useQuery({
     queryKey: ['groups', group?.id, 'members'],
-    queryFn: async () =>
-      (await http.get('/groups/:id/members', { params: { id: group!.id } })).items,
-    enabled: Boolean(group),
+    queryFn: group
+      ? async () => (await http.get('/groups/:id/members', { params: { id: group.id } })).items
+      : skipToken,
   })
   useEffect(() => {
     if (current) setMembers(current.map(picked))

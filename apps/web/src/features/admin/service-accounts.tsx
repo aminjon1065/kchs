@@ -28,7 +28,7 @@ import {
   Textarea,
   useToast,
 } from '@kchs/ui'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { skipToken, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Ban, MoreHorizontal, Pencil, ShieldCheck, Trash2 } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
 import { ApiError, http } from '~/shared/api/client.js'
@@ -128,8 +128,10 @@ export function ServiceAccountDialog({
   const spaces = useSpaceChoices()
   const existing = useQuery({
     queryKey: [...keys.serviceAccounts, accountId],
-    queryFn: () => http.get('/service-accounts/:id', { params: { id: accountId! } }),
-    enabled: open && accountId !== null,
+    queryFn:
+      open && accountId !== null
+        ? () => http.get('/service-accounts/:id', { params: { id: accountId } })
+        : skipToken,
   })
   const [form, setForm] = useState<FormState>(EMPTY)
   const [error, setError] = useState<string | null>(null)

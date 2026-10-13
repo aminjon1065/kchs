@@ -1,5 +1,5 @@
 import { cn, EmptyState, IconButton, ObjectIcon, Skeleton, Spinner, Tooltip } from '@kchs/ui'
-import { useQuery } from '@tanstack/react-query'
+import { skipToken, useQuery } from '@tanstack/react-query'
 import { AlertTriangle, Maximize2, ZoomIn, ZoomOut } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { WatermarkLayer } from '~/entities/files/watermark-layer.js'
@@ -29,8 +29,7 @@ export function ScanViewer({
   const [zoom, setZoom] = useState<number | 'fit'>('fit')
   const previews = useQuery({
     queryKey: fileId ? keys.filePreviews(fileId) : ['object', 'none', 'previews'],
-    queryFn: () => http.get('/files/:id/previews', { params: { id: fileId! } }),
-    enabled: Boolean(fileId),
+    queryFn: fileId ? () => http.get('/files/:id/previews', { params: { id: fileId } }) : skipToken,
     staleTime: 5 * 60_000,
     refetchInterval: (query) =>
       query.state.data && PENDING.has(query.state.data.previewStatus) ? 4000 : false,

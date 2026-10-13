@@ -24,7 +24,7 @@ import {
   Switch,
   useMapTheme,
 } from '@kchs/ui'
-import { useQuery } from '@tanstack/react-query'
+import { skipToken, useQuery } from '@tanstack/react-query'
 import { Crosshair, RotateCcw, Scissors, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { type CellMap, useCellValue, writeCell } from '~/entities/collab/notebook-doc.js'
@@ -348,9 +348,9 @@ export function ImageBlock({ cell }: { cell: CellMap }) {
   const size = useCellValue<ReportFigureSize>(cell, 'size') ?? 'medium'
   const image = useQuery({
     queryKey: ['report', notebookId, 'image', fileId],
-    queryFn: () =>
-      http.get('/reports/:id/images/:fileId', { params: { id: notebookId, fileId: fileId! } }),
-    enabled: Boolean(fileId),
+    queryFn: fileId
+      ? () => http.get('/reports/:id/images/:fileId', { params: { id: notebookId, fileId } })
+      : skipToken,
     staleTime: 300_000,
     retry: false,
   })

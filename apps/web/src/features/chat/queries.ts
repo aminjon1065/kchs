@@ -1,5 +1,5 @@
 import type { ChatSection } from '@kchs/contracts'
-import { queryOptions } from '@tanstack/react-query'
+import { queryOptions, skipToken } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
 
 /**
@@ -32,34 +32,32 @@ export const chatListQuery = (section: ChatSection) =>
 export const conversationQuery = (id: string | null) =>
   queryOptions({
     queryKey: chatKeys.conversation(id ?? 'none'),
-    queryFn: () => http.get('/chats/:id', { params: { id: id! } }),
-    enabled: Boolean(id),
+    queryFn: id ? () => http.get('/chats/:id', { params: { id } }) : skipToken,
   })
 
 export const chatMessagesQuery = (id: string | null, threadRootId: string | null, limit = 50) =>
   queryOptions({
     queryKey: chatKeys.messages(id ?? 'none', threadRootId),
-    queryFn: () =>
-      http.get('/conversations/:id/messages', {
-        params: { id: id! },
-        query: { limit, ...(threadRootId ? { threadRootId } : {}) },
-      }),
-    enabled: Boolean(id),
+    queryFn: id
+      ? () =>
+          http.get('/conversations/:id/messages', {
+            params: { id },
+            query: { limit, ...(threadRootId ? { threadRootId } : {}) },
+          })
+      : skipToken,
   })
 
 export const chatPinsQuery = (id: string | null) =>
   queryOptions({
     queryKey: chatKeys.pins(id ?? 'none'),
-    queryFn: () => http.get('/chats/:id/pins', { params: { id: id! } }),
-    enabled: Boolean(id),
+    queryFn: id ? () => http.get('/chats/:id/pins', { params: { id } }) : skipToken,
   })
 
 /** Участники с отметками прочтения — для «доставлено/прочитано» (ADR-0161). */
 export const chatMembersQuery = (id: string | null) =>
   queryOptions({
     queryKey: chatKeys.members(id ?? 'none'),
-    queryFn: () => http.get('/chats/:id/members', { params: { id: id! } }),
-    enabled: Boolean(id),
+    queryFn: id ? () => http.get('/chats/:id/members', { params: { id } }) : skipToken,
   })
 
 export const chatDraftsQuery = () =>

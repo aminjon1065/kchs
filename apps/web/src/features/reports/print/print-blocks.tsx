@@ -22,7 +22,7 @@ import {
   renderMapIcon,
   useMapTheme,
 } from '@kchs/ui'
-import { useQueries, useQuery } from '@tanstack/react-query'
+import { skipToken, useQueries, useQuery } from '@tanstack/react-query'
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { metricTileModel, periodText } from '~/entities/data/metric-format.js'
 import { useExploreLabels, withChannelLabels } from '~/features/data/explore-builder.js'
@@ -203,8 +203,7 @@ export function PrintQuery({ block }: { block: BlockOf<'query'> }) {
   }, [sql, dataset.data, block.plan, block.bindings, block.view, block.maxRows, params])
   const visual = useQuery({
     queryKey: ['print', 'query', block.id, spec],
-    queryFn: () => http.post('/queries/run', { body: { spec: spec! } }),
-    enabled: Boolean(spec),
+    queryFn: spec ? () => http.post('/queries/run', { body: { spec } }) : skipToken,
     retry: false,
   })
   const values = useMemo(() => sqlParams(params, timezone), [params, timezone])
@@ -260,6 +259,7 @@ export function PrintQuery({ block }: { block: BlockOf<'query'> }) {
 export function PrintChart({ block }: { block: BlockOf<'chart'> }) {
   const t = useT()
   const { params, locale, timezone } = usePrint()
+  const chartId = block.chartId
   const chart = useQuery({
     ...chartQuery(block.chartId ?? ''),
     enabled: Boolean(block.chartId),
@@ -277,14 +277,15 @@ export function PrintChart({ block }: { block: BlockOf<'chart'> }) {
   const runSpec = ready ? chartQuerySpec(query, dataset.data, params, block.bindings) : null
   const viaQuery = useQuery({
     queryKey: ['print', 'chart', block.id, runSpec],
-    queryFn: () => http.post('/queries/run', { body: { spec: runSpec! } }),
-    enabled: Boolean(runSpec),
+    queryFn: runSpec ? () => http.post('/queries/run', { body: { spec: runSpec } }) : skipToken,
     retry: false,
   })
   const viaChart = useQuery({
-    queryKey: ['print', 'chart-data', block.id, block.chartId],
-    queryFn: () => http.post('/charts/:id/data', { params: { id: block.chartId! }, body: {} }),
-    enabled: Boolean(spec && !query),
+    queryKey: ['print', 'chart-data', block.id, chartId],
+    queryFn:
+      chartId && spec && !query
+        ? () => http.post('/charts/:id/data', { params: { id: chartId }, body: {} })
+        : skipToken,
     retry: false,
   })
   const result = query ? viaQuery : viaChart

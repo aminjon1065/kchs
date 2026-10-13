@@ -1,4 +1,4 @@
-import { queryOptions } from '@tanstack/react-query'
+import { queryOptions, skipToken } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
 
 /**
@@ -40,9 +40,9 @@ export const transcriptQuery = (id: string, enabled: boolean) =>
 export const playbackQuery = (fileId: string | null) =>
   queryOptions({
     queryKey: recordingKeys.playback(fileId ?? 'none'),
-    queryFn: () =>
-      http.get('/files/:id/download', { params: { id: fileId! }, query: { inline: true } }),
-    enabled: Boolean(fileId),
+    queryFn: fileId
+      ? () => http.get('/files/:id/download', { params: { id: fileId }, query: { inline: true } })
+      : skipToken,
     staleTime: 5 * 60_000,
     refetchInterval: 10 * 60_000,
   })
