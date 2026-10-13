@@ -38,8 +38,9 @@ module.exports = {
     {
       name: 'app-knows-features-only-in-composition-root',
       severity: 'error',
-      comment: 'Оболочка знает фичи только в точке сборки модулей (app/modules.tsx).',
-      from: { path: '^src/app/', pathNot: '^src/app/modules\\.tsx$' },
+      comment:
+        'Оболочка знает фичи только в точке сборки модулей: app/modules.tsx и её ленивые экраны app/lazy-views.tsx.',
+      from: { path: '^src/app/', pathNot: '^src/app/(modules|lazy-views)\\.tsx$' },
       to: { path: '^src/features/' },
     },
     {
