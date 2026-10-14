@@ -16,13 +16,12 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp, ListChecks, ListTree, Trash2 } from 'lucide-react'
 import { useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import type { ApiBody } from '~/shared/api/route-types.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
-import { taskKeys } from './queries.js'
+import { taskKeys, tasksApi } from './queries.js'
 import { useTaskInvalidation } from './task-actions.js'
 import { STATUS_TONE_KEY } from './task-status.js'
 
@@ -79,8 +78,7 @@ export function ChecklistSection({ task }: { task: TaskRecord }) {
   const [text, setText] = useState('')
   const editable = task.can.checklist
   const add = useMutation({
-    mutationFn: (value: string) =>
-      http.post('/tasks/:id/checklist', { params: { id: task.id }, body: { text: value } }),
+    mutationFn: (value: string) => tasksApi.postChecklist(task.id, { text: value }),
     onSuccess: (record) => {
       setText('')
       apply(record)
@@ -89,16 +87,12 @@ export function ChecklistSection({ task }: { task: TaskRecord }) {
   })
   const patch = useMutation({
     mutationFn: (input: { itemId: string; body: ApiBody<'PATCH /tasks/:id/checklist/:itemId'> }) =>
-      http.patch('/tasks/:id/checklist/:itemId', {
-        params: { id: task.id, itemId: input.itemId },
-        body: input.body,
-      }),
+      tasksApi.patchChecklist(task.id, input.itemId, input.body),
     onSuccess: apply,
     onError: fail,
   })
   const remove = useMutation({
-    mutationFn: (itemId: string) =>
-      http.delete('/tasks/:id/checklist/:itemId', { params: { id: task.id, itemId } }),
+    mutationFn: (itemId: string) => tasksApi.removeChecklist(task.id, itemId),
     onSuccess: apply,
     onError: fail,
   })
@@ -219,8 +213,7 @@ export function SubtasksSection({ task }: { task: TaskRecord }) {
   const { fail } = useApply(task.id)
   const [title, setTitle] = useState('')
   const create = useMutation({
-    mutationFn: (value: string) =>
-      http.post('/tasks/:id/subtasks', { params: { id: task.id }, body: { title: value } }),
+    mutationFn: (value: string) => tasksApi.postSubtasks(task.id, { title: value }),
     onSuccess: () => {
       setTitle('')
       invalidate(task.id)

@@ -42,7 +42,6 @@ import { PresenceAvatars } from '~/entities/objects/presence-avatars.js'
 import { datasetQuery } from '~/features/data/index.js'
 import { RowCard } from '~/features/data/row-card.js'
 import { TerritoryLink } from '~/features/gis/territory-link.js'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { meQuery, objectQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
@@ -53,9 +52,16 @@ import {
   ExtensionRequestDialog,
   ReassignDialog,
 } from './control-dialogs.js'
-import { taskKeys, taskQuery } from './queries.js'
+import {
+  postTaskStep,
+  reportTask,
+  type TaskStep,
+  taskKeys,
+  taskQuery,
+  tasksApi,
+} from './queries.js'
 import { ReportDialog, ReturnDialog } from './report-dialogs.js'
-import { errorText, postTaskStep, type TaskStep, useTaskInvalidation } from './task-actions.js'
+import { errorText, useTaskInvalidation } from './task-actions.js'
 import { ChecklistSection, SubtasksSection } from './task-checklist.js'
 import { EditTaskDialog } from './task-dialogs.js'
 import { DueHistorySection, PartsSection, ResultObjects } from './task-sections.js'
@@ -100,8 +106,7 @@ export function TaskView({ objectId, tabId }: { objectId: string; tabId: string 
   })
 
   const rename = useMutation({
-    mutationFn: (title: string) =>
-      http.patch('/tasks/:id', { params: { id: objectId }, body: { title } }),
+    mutationFn: (title: string) => tasksApi.update(objectId, { title }),
     onSuccess: (record) => {
       client.setQueryData(taskKeys.task(objectId), record)
       setTabTitle(tabId, record.title)
@@ -448,12 +453,9 @@ function ReadyReport({
   const openParts = task.parts.filter((part) => !isClosedStatus(part.status)).length
   const send = useMutation({
     mutationFn: () =>
-      http.post('/tasks/:id/report', {
-        params: { id: task.id },
-        body: {
-          text: draft.text,
-          objectIds: draft.objects.map((object) => object.id),
-        },
+      reportTask(task.id, {
+        text: draft.text,
+        objectIds: draft.objects.map((object) => object.id),
       }),
     onSuccess: (record) => {
       client.setQueryData(taskKeys.task(task.id), record)

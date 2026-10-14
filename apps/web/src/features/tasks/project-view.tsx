@@ -12,12 +12,11 @@ import {
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { PresenceAvatars } from '~/entities/objects/presence-avatars.js'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { objectQuery } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
-import { projectQuery, taskKeys } from './queries.js'
+import { projectQuery, taskKeys, tasksApi } from './queries.js'
 import { errorText } from './task-actions.js'
 import { TasksScreen, type TasksScreenState } from './tasks-screen.js'
 
@@ -44,8 +43,7 @@ export function ProjectView({
   const { data: project, error, isLoading, refetch } = useQuery(projectQuery(objectId))
 
   const rename = useMutation({
-    mutationFn: (name: string) =>
-      http.patch('/projects/:id', { params: { id: objectId }, body: { name } }),
+    mutationFn: (name: string) => tasksApi.updateProject(objectId, { name }),
     onSuccess: (record) => {
       client.setQueryData(taskKeys.project(objectId), record)
       setTabTitle(tabId, record.name)

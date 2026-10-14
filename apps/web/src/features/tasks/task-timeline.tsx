@@ -4,10 +4,10 @@ import { cn, EmptyState, useToast } from '@kchs/ui'
 import { useMutation } from '@tanstack/react-query'
 import { GanttChart } from 'lucide-react'
 import { type PointerEvent as ReactPointerEvent, useMemo, useRef, useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
+import { tasksApi } from './queries.js'
 import { useTaskInvalidation } from './task-actions.js'
 import { dateFromDue, dueFromDate } from './task-status.js'
 
@@ -80,14 +80,11 @@ export function TaskTimeline({
 
   const save = useMutation({
     mutationFn: (input: { item: TaskListItem; start: string; end: string }) =>
-      http.patch('/tasks/:id', {
-        params: { id: input.item.id },
-        body: {
-          dueAt: dueFromDate(input.end),
-          ...(input.item.kind === 'instruction'
-            ? {}
-            : { startAt: new Date(dayStart(input.start)).toISOString() }),
-        },
+      tasksApi.update(input.item.id, {
+        dueAt: dueFromDate(input.end),
+        ...(input.item.kind === 'instruction'
+          ? {}
+          : { startAt: new Date(dayStart(input.start)).toISOString() }),
       }),
     onSuccess: () => invalidate(),
     onError: (error) => {

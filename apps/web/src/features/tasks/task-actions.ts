@@ -1,25 +1,7 @@
-import type { TaskRecord, TaskStatus } from '@kchs/contracts'
 import { useQueryClient } from '@tanstack/react-query'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { keys } from '~/shared/api/queries.js'
 import { taskKeys } from './queries.js'
-
-/** Шаг без формы: статус задачи или действие поручения без текста. */
-export type TaskStep =
-  | { kind: 'status'; status: TaskStatus }
-  | { kind: 'start' }
-  | { kind: 'accept' }
-  | { kind: 'cancel' }
-
-export function postTaskStep(taskId: string, step: TaskStep): Promise<TaskRecord> {
-  if (step.kind === 'status') {
-    return http.post('/tasks/:id/status', { params: { id: taskId }, body: { status: step.status } })
-  }
-  if (step.kind === 'cancel')
-    return http.post('/tasks/:id/cancel', { params: { id: taskId }, body: {} })
-  return http.post(`/tasks/:id/${step.kind}` as const, { params: { id: taskId } })
-}
 
 export function errorText(error: unknown, fallback: string): string {
   return error instanceof ApiError ? error.message : fallback

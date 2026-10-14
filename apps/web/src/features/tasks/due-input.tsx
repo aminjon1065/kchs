@@ -2,9 +2,9 @@ import { formatDate } from '@kchs/fields'
 import { Field, Input, SegmentedControl } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useId } from 'react'
-import { http } from '~/shared/api/client.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
+import { tasksApi } from './queries.js'
 import { dueFromDate } from './task-status.js'
 
 /** Срок в форме: дата или «N рабочих дней» по производственному календарю (ADR-0082). */
@@ -62,7 +62,7 @@ export function DueInput({
   const days = value.mode === 'working' ? workingDays(value) : null
   const { data: preview } = useQuery({
     queryKey: ['business-calendar', 'deadline', days],
-    queryFn: () => http.get('/business-calendar/deadline', { query: { workingDays: days ?? 0 } }),
+    queryFn: () => tasksApi.getBusinessCalendarDeadline({ workingDays: days ?? 0 }),
     enabled: days !== null,
     staleTime: 60_000,
   })
