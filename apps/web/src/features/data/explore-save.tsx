@@ -58,6 +58,7 @@ export function ExploreSaveMenu({
   chartSpec,
   spec,
   columnLabel,
+  timeField = null,
 }: {
   datasetId: string
   spaceId: string
@@ -68,6 +69,8 @@ export function ExploreSaveMenu({
   /** Спецификация графика результата; у карты — нет. */
   chartSpec: ChartSpec | null
   spec: QuerySpec
+  /** Поле времени датасета — показателю без сравнения периодов. */
+  timeField?: string | null
   /** Подпись столбца результата — подписи мер в выборе показателя. */
   columnLabel: (name: string) => string
 }) {
@@ -136,6 +139,7 @@ export function ExploreSaveMenu({
           spaceId={spaceId}
           name={name}
           plan={plan}
+          timeField={timeField}
           columnLabel={columnLabel}
           onClose={() => setOpen(null)}
         />
@@ -403,6 +407,7 @@ function MetricDialog({
   spaceId,
   name,
   plan,
+  timeField,
   columnLabel,
   onClose,
 }: {
@@ -410,6 +415,7 @@ function MetricDialog({
   spaceId: string
   name: string
   plan: ExplorePlan
+  timeField: string | null
   columnLabel: (name: string) => string
   onClose: () => void
 }) {
@@ -423,7 +429,7 @@ function MetricDialog({
     plan.measures[0] ? `${name} — ${columnLabel(measureAlias(plan.measures[0]))}` : name,
   )
   const [failure, setFailure] = useState<string | null>(null)
-  const definition = measure ? explorePlanMetric(plan, measure) : null
+  const definition = measure ? explorePlanMetric(plan, measure, timeField) : null
   const save = useMutation({
     mutationFn: async () => {
       if (!definition) throw new Error(t('data.explore.metricUnsupported'))

@@ -418,23 +418,28 @@ const isMetricAggregate = (agg: Aggregate): agg is MetricAggregate =>
 
 /**
  * Показатель из меры плана (ADR-0217, «Дополнено»): мера, фильтр плана — условия
- * показателя, поля разрезов — допустимые разрезы, поле сравнения — поле времени.
+ * показателя, поля разрезов — допустимые разрезы. Поле времени — поле сравнения, иначе
+ * разрез по времени плана, иначе поле времени датасета; без него показатель считается
+ * «за всё время» и без сравнения (с периодом сервер его отклонит).
  * null — агрегат показателю не подходит (первое, последнее, склейка строк).
  */
 export function explorePlanMetric(
   plan: ExplorePlan,
   measure: ExploreMeasure,
+  datasetTimeField: string | null = null,
 ): MetricDefinition | null {
   if (!isMetricAggregate(measure.agg)) return null
+  const timeField =
+    plan.compare?.field ?? plan.groups.find((group) => group.bucket)?.field ?? datasetTimeField
   return {
     measure:
       measure.agg === 'expr'
         ? { agg: 'expr', expr: measure.expr ?? '' }
         : { agg: measure.agg, ...(measure.field ? { field: measure.field } : {}) },
     filter: plan.filter,
-    timeField: plan.compare?.field ?? null,
+    timeField,
     dimensions: [...new Set(plan.groups.map((group) => group.field))],
-    period: { unit: 'month', from: 0, to: 0 },
-    comparison: 'previous_period',
+    period: timeField ? { unit: 'month', from: 0, to: 0 } : null,
+    comparison: timeField ? 'previous_period' : 'none',
   }
 }

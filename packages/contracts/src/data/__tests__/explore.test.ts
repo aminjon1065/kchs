@@ -238,6 +238,24 @@ describe('explorePlanMetric — показатель из меры', () => {
     ).toEqual({ agg: 'expr', expr: 'sum(damage) / count()' })
   })
 
+  it('без сравнения — поле времени из разреза или датасета; без него — за всё время', () => {
+    const byMonth: ExplorePlan = { ...base, groups: [{ field: 'occurred_on', bucket: 'month' }] }
+    expect(explorePlanMetric(byMonth, { agg: 'count' })).toMatchObject({
+      timeField: 'occurred_on',
+      period: { unit: 'month', from: 0, to: 0 },
+      comparison: 'previous_period',
+    })
+    const byRegion: ExplorePlan = { ...base, groups: [{ field: 'territory' }] }
+    expect(explorePlanMetric(byRegion, { agg: 'count' }, 'occurred_on')).toMatchObject({
+      timeField: 'occurred_on',
+    })
+    expect(explorePlanMetric(byRegion, { agg: 'count' })).toMatchObject({
+      timeField: null,
+      period: null,
+      comparison: 'none',
+    })
+  })
+
   it('первое, последнее и склейка строк показателю не подходят', () => {
     expect(explorePlanMetric(base, { agg: 'string_agg', field: 'kind' })).toBeNull()
     expect(explorePlanMetric(base, { agg: 'first', field: 'kind' })).toBeNull()

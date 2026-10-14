@@ -52,6 +52,7 @@ import {
   groupValueFilter,
   nextLevel,
   smartPlan,
+  timeFieldOf,
 } from './explore-insights.js'
 import { ExploreOverview, useDataRange } from './explore-overview.js'
 import { exploreApi, exploreFailure, exploreRunQuery } from './explore-queries.js'
@@ -418,6 +419,7 @@ export function ExploreScreen({
                 chartSpec={view === 'map' ? null : chartSpec}
                 spec={settled}
                 columnLabel={columnLabel}
+                timeField={timeFieldOf(dataset)?.key ?? null}
               />
             </>
           }
