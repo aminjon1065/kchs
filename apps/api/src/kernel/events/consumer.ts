@@ -1,7 +1,7 @@
 import { performance } from 'node:perf_hooks'
 import { EVENT_DOMAINS, type EventEnvelope } from '@kchs/contracts'
 import { type Histogram, SpanKind, trace } from '@opentelemetry/api'
-import { and, eq } from 'drizzle-orm'
+import { and, eq, inArray } from 'drizzle-orm'
 import type { Redis } from 'ioredis'
 import { db } from '~/shared/db/client.js'
 import { logger } from '~/shared/logger/index.js'
@@ -14,7 +14,7 @@ import {
   ONLY_FIELD,
   sendToDlq,
   streamKey,
-  subscribedDomains,
+  subscriberStreams,
 } from './bus.js'
 import { withEventDelivery } from './delivery.js'
 import { eventConsumptions } from './schema.js'
@@ -58,38 +58,45 @@ let prepared: Promise<void> | null = null
 export const GROUPS_INITIALIZED_KEY = 'events:groups:initialized'
 
 /**
- * Создаёт consumer group каждого подписчика на каждом потоке (идемпотентно).
+ * Создаёт consumer group каждого подписчика на потоках его доменов (идемпотентно).
  * Откуда новая группа начинает читать (ADR-0171):
  * - первый запуск установки — с начала потока: события сида и всего, что
  *   опубликовано до старта потребителей, не теряются;
- * - подписчик, появившийся в обновлении работающей установки, — с новых событий,
- *   иначе он прошёл бы всю сохранённую историю (шквал старых уведомлений);
+ * - подписчик (или новый домен подписчика), появившийся в обновлении работающей
+ *   установки, — с новых событий, иначе он прошёл бы всю сохранённую историю;
  * - проекции с `replay` — всегда с начала.
+ * Группы подписчика на остальных потоках (до ADR-0220 группа была на каждом потоке)
+ * удаляются: их события подписчик подтверждал не глядя, а такая группа держала бы
+ * обрезку потока и копила отставание.
  */
-async function prepareGroups(
-  client: Redis,
-  subscribers: readonly Subscriber[],
-  domains: string[],
-): Promise<void> {
+async function prepareGroups(client: Redis, subscribers: readonly Subscriber[]): Promise<void> {
   const initialized = (await client.exists(GROUPS_INITIALIZED_KEY)) === 1
   for (const subscriber of subscribers) {
     const start = !initialized || subscriber.replay ? '0' : '$'
+    const streams = new Set(subscriberStreams(subscriber))
     const pipeline = client.pipeline()
-    for (const domain of domains) {
-      pipeline.xgroup('CREATE', streamKey(domain), subscriber.name, start, 'MKSTREAM')
+    for (const stream of streams) {
+      pipeline.xgroup('CREATE', stream, subscriber.name, start, 'MKSTREAM')
     }
     for (const [error] of (await pipeline.exec()) ?? []) {
       if (error && !error.message.includes('BUSYGROUP')) throw error
     }
+    const stale = client.pipeline()
+    for (const domain of EVENT_DOMAINS) {
+      if (!streams.has(streamKey(domain)))
+        stale.xgroup('DESTROY', streamKey(domain), subscriber.name)
+    }
+    // Потока может не быть — удалять нечего, ошибка не важна
+    await stale.exec()
   }
   await client.set(GROUPS_INITIALIZED_KEY, new Date().toISOString())
 }
 
 /** Группы готовы: один проход на процесс, после сбоя — заново со следующей попытки. */
-function ensurePrepared(subscribers: readonly Subscriber[], domains: string[]): Promise<void> {
+function ensurePrepared(subscribers: readonly Subscriber[]): Promise<void> {
   if (!prepared) {
     const client = createRedisConnection('events-groups')
-    prepared = prepareGroups(client, subscribers, domains)
+    prepared = prepareGroups(client, subscribers)
       .catch((error: unknown) => {
         prepared = null
         throw error
@@ -101,19 +108,53 @@ function ensurePrepared(subscribers: readonly Subscriber[], domains: string[]): 
 
 /**
  * Идемпотентность: доставка — «как минимум один раз», повтор после сбоя
- * отсекает отметка обработки (ADR-0027).
+ * отсекает отметка обработки (ADR-0027). Отметки пачки читаются одним запросом
+ * (ADR-0220); отметка ставится после обработки — падение между ними даёт повтор,
+ * а не потерю события.
  */
-async function alreadyProcessed(consumer: string, eventId: string): Promise<boolean> {
+async function processedAmong(consumer: string, eventIds: string[]): Promise<Set<string>> {
+  if (eventIds.length === 0) return new Set()
   const rows = await db()
     .select({ eventId: eventConsumptions.eventId })
     .from(eventConsumptions)
-    .where(and(eq(eventConsumptions.consumer, consumer), eq(eventConsumptions.eventId, eventId)))
-    .limit(1)
-  return rows.length > 0
+    .where(
+      and(eq(eventConsumptions.consumer, consumer), inArray(eventConsumptions.eventId, eventIds)),
+    )
+  return new Set(rows.map((row) => row.eventId))
 }
 
 async function markProcessed(consumer: string, eventId: string): Promise<void> {
   await db().insert(eventConsumptions).values({ consumer, eventId }).onConflictDoNothing()
+}
+
+/**
+ * Отметки, прочитанные дольше этого назад, перечитываются перед следующим событием пачки:
+ * долгую пачку могла частично забрать (XAUTOCLAIM) и обработать другая реплика.
+ */
+const PROCESSED_RECHECK_MS = 2000
+
+/** Обработанные события пачки: отметки из базы и всё, что прошло в этой пачке. */
+class ProcessedSet {
+  private readonly done = new Set<string>()
+  private checkedAt = 0
+
+  constructor(
+    private readonly consumer: string,
+    private readonly eventIds: string[],
+  ) {}
+
+  async has(eventId: string): Promise<boolean> {
+    if (Date.now() - this.checkedAt > PROCESSED_RECHECK_MS) {
+      const rest = this.eventIds.filter((id) => !this.done.has(id))
+      for (const id of await processedAmong(this.consumer, rest)) this.done.add(id)
+      this.checkedAt = Date.now()
+    }
+    return this.done.has(eventId)
+  }
+
+  add(eventId: string): void {
+    this.done.add(eventId)
+  }
 }
 
 /** Сколько раз запись уже доставлялась этой группе (включая текущую доставку). */
@@ -130,40 +171,64 @@ async function deliveryCount(
   return row ? Number(row[3]) : 1
 }
 
-async function handleEntry(
+/**
+ * Пачка записей одного потока: служебные и чужие записи подтверждаются одной командой,
+ * отметки обработки событий пачки читаются одним запросом (ADR-0220).
+ */
+async function handleEntries(
   subscriber: Subscriber,
   client: Redis,
   stream: string,
+  entries: Array<[string, string[]]>,
+): Promise<void> {
+  const skipped: string[] = []
+  const events: Array<[string, EventEnvelope]> = []
+  for (const [entryId, fields] of entries) {
+    const event = readEntry(subscriber, stream, entryId, fields)
+    if (event) events.push([entryId, event])
+    else skipped.push(entryId)
+  }
+  if (skipped.length > 0) await client.xack(stream, subscriber.name, ...skipped)
+  const processed = new ProcessedSet(
+    subscriber.name,
+    events.map(([, event]) => event.id),
+  )
+  for (const [entryId, event] of events) {
+    await handleEvent(subscriber, client, stream, entryId, event, processed)
+  }
+}
+
+/** Событие записи для подписчика; `null` — запись подтверждается без обработки. */
+function readEntry(
+  subscriber: Subscriber,
+  stream: string,
   entryId: string,
   fields: string[],
-): Promise<void> {
-  const idx = fields.indexOf('event')
-  const raw = idx >= 0 ? fields[idx + 1] : undefined
-  if (!raw) {
-    await client.xack(stream, subscriber.name, entryId)
-    return
-  }
+): EventEnvelope | null {
+  const raw = fieldValue(fields, 'event')
+  if (!raw) return null
   // Повтор из DLQ адресован одному подписчику: остальные его не обрабатывают
   const only = fieldValue(fields, ONLY_FIELD)
-  if (only && only !== subscriber.name) {
-    await client.xack(stream, subscriber.name, entryId)
-    return
-  }
+  if (only && only !== subscriber.name) return null
 
   let event: EventEnvelope
   try {
     event = JSON.parse(raw) as EventEnvelope
   } catch (error) {
     logger().error({ err: error, stream, entryId }, 'нечитаемое событие в потоке')
-    await client.xack(stream, subscriber.name, entryId)
-    return
+    return null
   }
+  return matchesType(subscriber.types, event.type) ? event : null
+}
 
-  if (!matchesType(subscriber.types, event.type)) {
-    await client.xack(stream, subscriber.name, entryId)
-    return
-  }
-
+async function handleEvent(
+  subscriber: Subscriber,
+  client: Redis,
+  stream: string,
+  entryId: string,
+  event: EventEnvelope,
+  processed: ProcessedSet,
+): Promise<void> {
   // Контекст трассы через outbox не передаётся (конверт — контракт): обработка
   // события — своя трасса, а с запросом её связывает correlationId = requestId
   await withSpan(
@@ -182,7 +247,7 @@ async function handleEntry(
     },
     async (span) => {
       const started = performance.now()
-      const outcome = await processEntry(subscriber, client, stream, entryId, event)
+      const outcome = await processEntry(subscriber, client, stream, entryId, event, processed)
       span?.setAttribute('kchs.event.outcome', outcome)
       eventDuration?.record((performance.now() - started) / 1000, {
         subscriber: subscriber.name,
@@ -198,8 +263,9 @@ async function processEntry(
   stream: string,
   entryId: string,
   event: EventEnvelope,
+  processed: ProcessedSet,
 ): Promise<'duplicate' | 'processed' | 'retry' | 'dlq'> {
-  if (await alreadyProcessed(subscriber.name, event.id)) {
+  if (await processed.has(event.id)) {
     await client.xack(stream, subscriber.name, entryId)
     return 'duplicate'
   }
@@ -212,6 +278,7 @@ async function processEntry(
       subscriber.handle(event),
     )
     await markProcessed(subscriber.name, event.id)
+    processed.add(event.id)
     await client.xack(stream, subscriber.name, entryId)
     return 'processed'
   } catch (error) {
@@ -256,12 +323,9 @@ async function reclaimStale(
       READ_COUNT,
     )) as [string, Array<[string, string[]] | null>, string[]?]
     const [next, entries] = reply
-    for (const entry of entries) {
-      if (!entry) continue
-      const [entryId, fields] = entry
-      await handleEntry(subscriber, client, stream, entryId, fields)
-      handled += 1
-    }
+    const claimed = entries.filter((entry): entry is [string, string[]] => entry !== null)
+    await handleEntries(subscriber, client, stream, claimed)
+    handled += claimed.length
     cursor = next
   } while (cursor !== '0-0' && !stopped)
   return handled
@@ -288,45 +352,34 @@ export function startConsumers(overrides: Partial<ConsumerOptions> = {}): Promis
     description: 'Обработка события подписчиком',
   })
   const log = logger().child({ module: 'events' })
-  const domains = resolveDomains()
-  const ready = ensurePrepared(subscribers, domains)
+  const ready = ensurePrepared(subscribers)
 
   for (const subscriber of subscribers) {
-    const task = runSubscriber(subscriber, subscribers, domains, options, log)
+    const task = runSubscriber(subscriber, subscribers, options, log)
     running.add(task)
     void task.finally(() => running.delete(task))
   }
-  log.info({ subscribers: subscribers.map((s) => s.name), domains }, 'потребители событий запущены')
+  log.info({ subscribers: subscribers.map((s) => s.name) }, 'потребители событий запущены')
   return ready.catch((error: unknown) => {
     log.error({ err: error }, 'группы потребителей не созданы — повтор при чтении')
   })
 }
 
-/**
- * Домены, потоки которых читают подписчики; со звёздочкой — все домены каталога событий
- * (ADR-0182): новый модуль не правит ядро, чтобы его события дошли до подписчиков «*».
- */
-export function resolveDomains(): string[] {
-  const domains = subscribedDomains()
-  return domains.includes('*') ? [...EVENT_DOMAINS] : domains
-}
-
 async function runSubscriber(
   subscriber: Subscriber,
   subscribers: readonly Subscriber[],
-  domains: string[],
   options: ConsumerOptions,
   log: ReturnType<typeof logger>,
 ): Promise<void> {
   const client = createRedisConnection(`sub-${subscriber.name}`)
-  const streams = domains.map(streamKey)
+  const streams = subscriberStreams(subscriber)
   let groupsReady = false
   let lastClaim = 0
 
   while (!stopped) {
     try {
       if (!groupsReady) {
-        await ensurePrepared(subscribers, domains)
+        await ensurePrepared(subscribers)
         groupsReady = true
       }
 
@@ -351,12 +404,15 @@ async function runSubscriber(
       if (!response) continue
 
       for (const [stream, entries] of response) {
-        for (const [entryId, fields] of entries) {
-          await handleEntry(subscriber, client, stream, entryId, fields)
-        }
+        await handleEntries(subscriber, client, stream, entries)
       }
     } catch (error) {
       if (stopped) break
+      // Группы нет (поток удалён, группу сняла другая версия) — создать заново
+      if (error instanceof Error && error.message.startsWith('NOGROUP')) {
+        groupsReady = false
+        prepared = null
+      }
       log.error({ err: error, consumer: subscriber.name }, 'сбой потребителя событий')
       await new Promise((resolve) => setTimeout(resolve, 1000))
     }

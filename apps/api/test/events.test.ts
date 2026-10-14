@@ -1,4 +1,4 @@
-import type { EventEnvelope } from '@kchs/contracts'
+import { EVENT_DOMAINS, type EventEnvelope } from '@kchs/contracts'
 import { sql } from 'drizzle-orm'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import type { Subscriber } from '../src/kernel/events/types.js'
@@ -217,5 +217,51 @@ describe('outbox: битое событие (ADR-0220)', () => {
     expect(lag.pending).toBe(0)
     await redis().del(`events:${poisonDomain}`)
     await db().execute(sql`DELETE FROM ops.outbox WHERE quarantined_at IS NOT NULL`)
+  })
+})
+
+describe('потребители: свои потоки и пачка (ADR-0220)', () => {
+  const groupsOn = async (stream: string) =>
+    ((await redis().xinfo('GROUPS', stream)) as Array<Array<string | number>>).map((group) =>
+      String(group[group.indexOf('name') + 1]),
+    )
+
+  it('группа подписчика — только на потоках его доменов; прежняя на чужом снимается', async () => {
+    const name = `test-domains-${Date.now()}`
+    const foreign = `events:${EVENT_DOMAINS.find((domain) => domain !== 'object')}`
+    // Группа прежней версии: тогда она была на каждом потоке
+    await redis().xgroup('CREATE', foreign, name, '$', 'MKSTREAM')
+    bus.clearSubscribers()
+    bus.registerSubscriber({ name, types: ['object.created'], handle: async () => {} })
+    await bus.startConsumers(FAST)
+
+    expect(await groupsOn('events:object')).toContain(name)
+    expect(await groupsOn(foreign)).not.toContain(name)
+  })
+
+  it('событие, попавшее в поток дважды, обрабатывается один раз', async () => {
+    const name = `test-batch-${Date.now()}`
+    const handled: string[] = []
+    bus.clearSubscribers()
+    bus.registerSubscriber({
+      name,
+      types: ['object.created'],
+      handle: async (event) => {
+        if (event.id.startsWith('dup-')) handled.push(event.id)
+      },
+    })
+    await bus.startConsumers(FAST)
+
+    // Публикация «как минимум один раз»: та же запись outbox ушла в поток дважды
+    const { xaddEvent } = await import('../src/kernel/events/bus.js')
+    const event = { id: `dup-${Date.now()}`, type: 'object.created', payload: {} } as never
+    await xaddEvent(redis(), event)
+    await xaddEvent(redis(), event)
+
+    await waitFor(async () => {
+      const summary = (await redis().xpending('events:object', name)) as [number, ...unknown[]]
+      return handled.length > 0 && summary[0] === 0
+    })
+    expect(handled).toHaveLength(1)
   })
 })

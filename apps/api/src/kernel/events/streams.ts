@@ -4,7 +4,14 @@ import { config } from '~/shared/config/index.js'
 import { rawSql } from '~/shared/db/client.js'
 import { logger } from '~/shared/logger/index.js'
 import { redis } from '~/shared/redis/index.js'
-import { DLQ_STREAM, eventDomain, listSubscribers, streamKey, xaddEvent } from './bus.js'
+import {
+  DLQ_STREAM,
+  eventDomain,
+  listSubscribers,
+  streamKey,
+  streamsBySubscriber,
+  xaddEvent,
+} from './bus.js'
 
 /**
  * Обслуживание шины событий (ADR-0171): обрезка потоков по самой отстающей
@@ -98,10 +105,11 @@ const idTime = (id: string) => parseId(id)[0]
  * держат поток: читать их некому.
  */
 async function groupsFloor(client: Redis, stream: string): Promise<string | null> {
-  const registered = new Set(listSubscribers().map((subscriber) => subscriber.name))
+  const readers = streamsBySubscriber()
   let floor: string | null = null
   for (const group of await groupsOf(client, stream)) {
-    if (!registered.has(group.name)) continue
+    // Группа прежней версии на потоке, который подписчик больше не читает, поток не держит
+    if (!readers.get(group.name)?.has(stream)) continue
     const pending = group.pending > 0 ? await oldestPendingId(client, stream, group.name) : null
     const keep = pending ?? nextId(group.lastDeliveredId)
     if (floor === null || compareIds(keep, floor) < 0) floor = keep
@@ -180,14 +188,14 @@ export interface EventBusStats {
 /** Состояние шины: отставание подписчиков, длины потоков, размер DLQ. */
 export async function eventBusStats(now = Date.now()): Promise<EventBusStats> {
   const client = redis()
-  const registered = new Set(listSubscribers().map((subscriber) => subscriber.name))
+  const readers = streamsBySubscriber()
   const lags = new Map<string, SubscriberLag>()
   const streams: EventBusStats['streams'] = []
 
   for (const stream of await eventStreams(client)) {
     streams.push({ stream, length: Number(await client.xlen(stream)) })
     for (const group of await groupsOf(client, stream)) {
-      if (!registered.has(group.name)) continue
+      if (!readers.get(group.name)?.has(stream)) continue
       const entry = lags.get(group.name) ?? {
         subscriber: group.name,
         lag: 0,
