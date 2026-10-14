@@ -18,6 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from kchs_engine import __version__
 from kchs_engine.ai.embed import embed, embeddings_enabled
+from kchs_engine.cancel import close_cancel_client
 from kchs_engine.config import settings
 from kchs_engine.contracts import data_export_contract
 from kchs_engine.data.analyze import analyze_object
@@ -48,6 +49,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         stop.set()
         await task
         await close_browser()
+        await close_cancel_client()
         log.info("engine.stopped")
 
 

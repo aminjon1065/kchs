@@ -19,8 +19,10 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import math
+import os
 import threading
 import uuid
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time
 from decimal import Decimal
@@ -270,24 +272,44 @@ def _cache_name(bucket: str, key: str) -> str:
 
 
 def _evict(folder: Path, keep: Path) -> None:
-    """Вытеснение по общему объёму: сначала уходят файлы, к которым дольше не обращались."""
+    """Вытеснение по общему объёму: сначала уходят файлы, к которым дольше не обращались.
+
+    Время обращения — mtime, его ставит сам кэш при каждой выдаче файла (`os.utime`):
+    atime на томах с noatime и relatime не обновляется (ADR-0222). Файлы, которые сейчас
+    читают запросы, не трогаются; замок скачивания удалённого файла уходит вместе с ним.
+    Вызывается под `_cache_lock`.
+    """
     limit = settings().ENGINE_COLUMNAR_CACHE_MB * 1024 * 1024
-    files = sorted(folder.glob("*.parquet"), key=lambda item: item.stat().st_atime)
-    total = sum(item.stat().st_size for item in files)
-    for item in files:
+    entries: list[tuple[float, int, Path]] = []
+    for item in folder.glob("*.parquet"):
+        try:
+            stat = item.stat()
+        except FileNotFoundError:
+            continue
+        entries.append((stat.st_mtime, stat.st_size, item))
+    entries.sort(key=lambda entry: entry[0])
+    total = sum(size for _, size, _ in entries)
+    for _, size, item in entries:
         if total <= limit:
             return
-        if item == keep:
+        if item == keep or _in_use.get(item.name, 0) > 0:
             continue
-        size = item.stat().st_size
         item.unlink(missing_ok=True)
         total -= size
+        lock = _download_locks.get(item.name)
+        if lock is not None and not lock.locked():
+            del _download_locks[item.name]
         log.info("columnar.evicted", file=item.name, size=size)
 
 
 # Скачивание — под замком своего ключа (ADR-0220): загрузка большой копии из хранилища не
 # держит запросы к уже скачанным копиям. Общий замок — только на проверку и вытеснение.
 _download_locks: dict[str, threading.Lock] = {}
+
+# Файлы, которые сейчас читают запросы, — сколько раз каждый выдан и ещё не отпущен
+# (ADR-0222): вытеснение по чужой загрузке не удаляет копию между выдачей пути и
+# открытием её в DuckDB.
+_in_use: dict[str, int] = {}
 
 
 def _key_lock(name: str) -> threading.Lock:
@@ -298,31 +320,52 @@ def _key_lock(name: str) -> threading.Lock:
         return lock
 
 
-def _cached(target: Path) -> bool:
+def _take(target: Path) -> None:
+    """Отметить файл читаемым (под `_cache_lock`)."""
+    _in_use[target.name] = _in_use.get(target.name, 0) + 1
+
+
+def _take_cached(target: Path) -> bool:
     with _cache_lock:
         if target.exists() and target.stat().st_size > 0:
-            target.touch()
+            # Обращение — в mtime: по нему вытеснение выбирает давно не нужные копии
+            os.utime(target)
+            _take(target)
             return True
         return False
 
 
-def _ensure_local(bucket: str, key: str) -> Path:
-    """Файл копии на диске движка; отсутствующий — скачивается один раз."""
+def _acquire_local(bucket: str, key: str) -> Path:
+    """Файл копии на диске движка, отмеченный читаемым до `_release`; отсутствующий —
+    скачивается один раз."""
     folder = _cache_dir()
     target = folder / _cache_name(bucket, key)
-    if _cached(target):
+    if _take_cached(target):
         return target
     with _key_lock(target.name):
         # Пока ждали замка, копию мог скачать соседний запрос
-        if _cached(target):
+        if _take_cached(target):
             return target
         partial = target.with_suffix(".part")
         storage.download_sync(bucket, key, partial)
-        partial.replace(target)
+        with _cache_lock:
+            partial.replace(target)
+            _take(target)
     with _cache_lock:
         _evict(folder, target)
     log.info("columnar.cached", key=key, size=target.stat().st_size)
     return target
+
+
+def _release(paths: Iterable[Path]) -> None:
+    """Запрос дочитал копии — вытеснение снова может их убрать."""
+    with _cache_lock:
+        for path in paths:
+            left = _in_use.get(path.name, 0) - 1
+            if left > 0:
+                _in_use[path.name] = left
+            else:
+                _in_use.pop(path.name, None)
 
 
 # ─── Запрос ──────────────────────────────────────────────────────────────────
@@ -443,10 +486,16 @@ async def query(payload: dict[str, Any]) -> dict[str, Any]:
     if not sources:
         raise ColumnarError("в запросе не указано ни одной колоночной копии")
     files: dict[str, Path] = {}
-    for source in sources:
-        table = str(source["table"])
-        ident(table)
-        files[table] = await asyncio.to_thread(
-            _ensure_local, str(source["bucket"]), str(source["key"])
-        )
-    return await asyncio.to_thread(_query, payload, files)
+    acquired: list[Path] = []
+    try:
+        for source in sources:
+            table = str(source["table"])
+            ident(table)
+            path = await asyncio.to_thread(
+                _acquire_local, str(source["bucket"]), str(source["key"])
+            )
+            acquired.append(path)
+            files[table] = path
+        return await asyncio.to_thread(_query, payload, files)
+    finally:
+        _release(acquired)
