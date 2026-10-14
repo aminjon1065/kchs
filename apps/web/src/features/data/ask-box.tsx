@@ -3,10 +3,9 @@ import { Button, Callout, Input } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Sparkles } from 'lucide-react'
 import { useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { useT } from '~/shared/i18n.js'
-import { aiStatusQuery } from './queries.js'
+import { aiStatusQuery, dataApi } from './queries.js'
 
 /** Ошибка «Спросить данные» — по причине из ответа API, понятными словами (и в ИИ-ячейке тетради). */
 export function askError(
@@ -55,8 +54,7 @@ export function AskBox({
   const [showQuery, setShowQuery] = useState(false)
 
   const ask = useMutation({
-    mutationFn: (text: string) =>
-      http.post('/datasets/:id/ask', { params: { id: datasetId }, body: { question: text } }),
+    mutationFn: (text: string) => dataApi.postDatasetsAsk(datasetId, { question: text }),
     onSuccess: (result) => {
       setAnswer(result)
       onAnswer(result)

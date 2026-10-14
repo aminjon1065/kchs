@@ -9,6 +9,7 @@ import type {
 import { IMPORT_FINAL_STATUSES } from '@kchs/contracts'
 import { queryOptions, skipToken } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
+import type { ApiBody } from '~/shared/api/route-types.js'
 
 /** Ключи кэша модуля «Данные»: `['dataset', id, …]`, `['import', id]`. */
 export const dataKeys = {
@@ -325,3 +326,78 @@ export const metricValueQuery = (id: string, input: Partial<MetricValueInput>) =
     placeholderData: (previous) => previous,
     retry: false,
   })
+
+export const dataApi = {
+  /** Снять политику строк или столбцов датасета. */
+  removeDatasetsPolicies: (id: string, kind: 'rows' | 'columns', policyId: string) =>
+    http.delete(`/datasets/:id/policies/${kind}/:policyId` as const, {
+      params: { id, policyId },
+    }),
+  /** Опубликовать или отменить загрузку после проверки. */
+  postDatasetsImportsAction: (id: string, kind: 'publish' | 'cancel') =>
+    http.post(`/datasets/imports/:id/${kind}` as const, { params: { id } }),
+  patchDatasetsPoliciesRows: (
+    id: string,
+    policyId: string,
+    body: ApiBody<'PATCH /datasets/:id/policies/rows/:policyId'>,
+  ) => http.patch('/datasets/:id/policies/rows/:policyId', { params: { id, policyId }, body }),
+  postDatasetsPoliciesRows: (id: string, body: ApiBody<'POST /datasets/:id/policies/rows'>) =>
+    http.post('/datasets/:id/policies/rows', { params: { id }, body }),
+  patchDatasetsPoliciesColumns: (
+    id: string,
+    policyId: string,
+    body: ApiBody<'PATCH /datasets/:id/policies/columns/:policyId'>,
+  ) => http.patch('/datasets/:id/policies/columns/:policyId', { params: { id, policyId }, body }),
+  postDatasetsPoliciesColumns: (id: string, body: ApiBody<'POST /datasets/:id/policies/columns'>) =>
+    http.post('/datasets/:id/policies/columns', { params: { id }, body }),
+  postAnalyses: (body: ApiBody<'POST /analyses'>) => http.post('/analyses', { body }),
+  getAnalyses: (id: string) => http.get('/analyses/:id', { params: { id } }),
+  patchObjects: (id: string, body: ApiBody<'PATCH /objects/:id'>) =>
+    http.patch('/objects/:id', { params: { id }, body }),
+  postAnalysesRun: (id: string) => http.post('/analyses/:id/run', { params: { id } }),
+  removeObjects: (id: string) => http.delete('/objects/:id', { params: { id } }),
+  postObjectsRestore: (id: string) => http.post('/objects/:id/restore', { params: { id } }),
+  postDatasetsAsk: (id: string, body: ApiBody<'POST /datasets/:id/ask'>) =>
+    http.post('/datasets/:id/ask', { params: { id }, body }),
+  patchCharts: (id: string, body: ApiBody<'PATCH /charts/:id'>) =>
+    http.patch('/charts/:id', { params: { id }, body }),
+  postDatasetsColumnarBuild: (id: string) =>
+    http.post('/datasets/:id/columnar/build', { params: { id } }),
+  postDashboards: (body: ApiBody<'POST /dashboards'>) => http.post('/dashboards', { body }),
+  getDashboards: (id: string) => http.get('/dashboards/:id', { params: { id } }),
+  patchDashboards: (id: string, body: ApiBody<'PATCH /dashboards/:id'>) =>
+    http.patch('/dashboards/:id', { params: { id }, body }),
+  postDashboardsDrill: (id: string, body: ApiBody<'POST /dashboards/:id/drill'>) =>
+    http.post('/dashboards/:id/drill', { params: { id }, body }),
+  postDatasetsRowsQuery: (id: string, body: ApiBody<'POST /datasets/:id/rows/query'>) =>
+    http.post('/datasets/:id/rows/query', { params: { id }, body }),
+  patchDatasetsRows: (
+    id: string,
+    rowId: string,
+    body: ApiBody<'PATCH /datasets/:id/rows/:rowId'>,
+  ) => http.patch('/datasets/:id/rows/:rowId', { params: { id, rowId }, body }),
+  postDatasetsRows: (id: string, body: ApiBody<'POST /datasets/:id/rows'>) =>
+    http.post('/datasets/:id/rows', { params: { id }, body }),
+  postDatasetsVersionsRollback: (id: string, number: number) =>
+    http.post('/datasets/:id/versions/:number/rollback', { params: { id, number } }),
+  postDatasetsExports: (id: string, body: ApiBody<'POST /datasets/:id/exports'>) =>
+    http.post('/datasets/:id/exports', { params: { id }, body }),
+  getDatasetsExportsDownload: (jobId: string) =>
+    http.get('/datasets/exports/:jobId/download', { params: { jobId } }),
+  postDatasetsImportsAnalyze: (body: ApiBody<'POST /datasets/imports/analyze'>) =>
+    http.post('/datasets/imports/analyze', { body }),
+  postDatasetsImports: (body: ApiBody<'POST /datasets/imports'>) =>
+    http.post('/datasets/imports', { body }),
+  patchMetrics: (id: string, body: ApiBody<'PATCH /metrics/:id'>) =>
+    http.patch('/metrics/:id', { params: { id }, body }),
+  postMetrics: (body: ApiBody<'POST /metrics'>) => http.post('/metrics', { body }),
+  getUsers: (id: string) => http.get('/users/:id', { params: { id } }),
+  getDatasetsQuality: (id: string) => http.get('/datasets/:id/quality', { params: { id } }),
+  putDatasetsQualityRules: (id: string, body: ApiBody<'PUT /datasets/:id/quality/rules'>) =>
+    http.put('/datasets/:id/quality/rules', { params: { id }, body }),
+  postDatasetsQualityRun: (id: string) =>
+    http.post('/datasets/:id/quality/run', { params: { id } }),
+  postDatasetsRowsDelete: (id: string, body: ApiBody<'POST /datasets/:id/rows/delete'>) =>
+    http.post('/datasets/:id/rows/delete', { params: { id }, body }),
+  postSqlRun: (body: ApiBody<'POST /sql/run'>) => http.post('/sql/run', { body }),
+}

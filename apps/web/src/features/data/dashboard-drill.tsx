@@ -12,11 +12,11 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { Filter, Table2 } from 'lucide-react'
 import { useMemo } from 'react'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
+import { dataApi } from './queries.js'
 
 /** Служебные столбцы строки и вычисляемые поля детализации — не для глаз. */
 const HIDDEN = (name: string) => name === '_id' || name === '_ver' || name.startsWith('__drill_')
@@ -100,13 +100,10 @@ export function DrillSheet({
   const { data, error, isLoading } = useQuery({
     queryKey: ['dashboard', dashboardId, 'drill', tile.id, pick.filters, values],
     queryFn: () =>
-      http.post('/dashboards/:id/drill', {
-        params: { id: dashboardId },
-        body: {
-          tileId: tile.id,
-          filters: values,
-          pick: pick.filters,
-        },
+      dataApi.postDashboardsDrill(dashboardId, {
+        tileId: tile.id,
+        filters: values,
+        pick: pick.filters,
       }),
     retry: false,
   })

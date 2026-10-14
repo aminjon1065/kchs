@@ -33,13 +33,12 @@ import { CheckSquare, History, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { RowTasks } from '~/features/tasks/row-tasks.js'
 import { CreateTaskDialog } from '~/features/tasks/task-dialogs.js'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { meQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { fieldLabel } from './field-types.js'
-import { dataKeys, datasetRowQuery, rowHistoryQuery } from './queries.js'
+import { dataApi, dataKeys, datasetRowQuery, rowHistoryQuery } from './queries.js'
 
 interface ValueContext {
   locale: Locale
@@ -110,12 +109,9 @@ export function RowCard({
   const commit = async (key: string, value: unknown) => {
     if (!row) return
     try {
-      const next = await http.patch('/datasets/:id/rows/:rowId', {
-        params: { id: dataset.id, rowId },
-        body: {
-          values: { [key]: value },
-          ver: row._ver,
-        },
+      const next = await dataApi.patchDatasetsRows(dataset.id, rowId, {
+        values: { [key]: value },
+        ver: row._ver,
       })
       client.setQueryData(dataKeys.row(dataset.id, rowId), next)
       void client.invalidateQueries({ queryKey: dataKeys.rowHistory(dataset.id, rowId) })
@@ -132,11 +128,7 @@ export function RowCard({
   }
 
   const remove = useMutation({
-    mutationFn: () =>
-      http.post('/datasets/:id/rows/delete', {
-        params: { id: dataset.id },
-        body: { ids: [rowId] },
-      }),
+    mutationFn: () => dataApi.postDatasetsRowsDelete(dataset.id, { ids: [rowId] }),
     onSuccess: () => {
       toast.show({ title: t('data.row.removed'), tone: 'success' })
       onChanged()
@@ -352,11 +344,8 @@ export function NewRowDialog({
 
   const submit = async (submitted: Record<string, unknown>) => {
     try {
-      const { items } = await http.post('/datasets/:id/rows', {
-        params: { id: dataset.id },
-        body: {
-          rows: [{ values: submitted }],
-        },
+      const { items } = await dataApi.postDatasetsRows(dataset.id, {
+        rows: [{ values: submitted }],
       })
       toast.show({ title: t('data.row.created'), tone: 'success' })
       onCreated(items[0]?._id ?? null)

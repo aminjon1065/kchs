@@ -13,11 +13,10 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowRight } from 'lucide-react'
 import { useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
-import { dataKeys } from './queries.js'
+import { dataApi, dataKeys } from './queries.js'
 
 type Kind = 'added' | 'changed' | 'deleted'
 const EMPTY = '—'
@@ -45,8 +44,7 @@ export function ImportChanges({
   const client = useQueryClient()
   const [failure, setFailure] = useState<string | null>(null)
   const action = useMutation({
-    mutationFn: (kind: 'publish' | 'cancel') =>
-      http.post(`/datasets/imports/:id/${kind}` as const, { params: { id: record.id } }),
+    mutationFn: (kind: 'publish' | 'cancel') => dataApi.postDatasetsImportsAction(record.id, kind),
     onSuccess: (next) => {
       setFailure(null)
       client.setQueryData(dataKeys.import(record.id), next)

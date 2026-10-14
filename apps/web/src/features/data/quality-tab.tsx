@@ -18,10 +18,10 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, ShieldCheck, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
+import { dataApi } from './queries.js'
 
 /**
  * Качество данных (06-analytics-engine.md §15, ADR-0101): правила датасета и
@@ -56,7 +56,7 @@ export function QualityTab({ dataset }: { dataset: DatasetRecord }) {
   const key = ['object', dataset.id, 'quality'] as const
   const { data, isLoading } = useQuery({
     queryKey: key,
-    queryFn: () => http.get('/datasets/:id/quality', { params: { id: dataset.id } }),
+    queryFn: () => dataApi.getDatasetsQuality(dataset.id),
   })
   const [rules, setRules] = useState<QualityRule[]>([])
 
@@ -66,10 +66,7 @@ export function QualityTab({ dataset }: { dataset: DatasetRecord }) {
 
   const save = useMutation({
     mutationFn: (next: QualityRule[]) =>
-      http.put('/datasets/:id/quality/rules', {
-        params: { id: dataset.id },
-        body: { rules: next },
-      }),
+      dataApi.putDatasetsQualityRules(dataset.id, { rules: next }),
     onSuccess: (next) => {
       client.setQueryData(key, next)
       toast.success(t('data.quality.saved'))
@@ -79,7 +76,7 @@ export function QualityTab({ dataset }: { dataset: DatasetRecord }) {
   })
 
   const runNow = useMutation({
-    mutationFn: () => http.post('/datasets/:id/quality/run', { params: { id: dataset.id } }),
+    mutationFn: () => dataApi.postDatasetsQualityRun(dataset.id),
     onSuccess: (next) => client.setQueryData(key, next),
     onError: (error) =>
       toast.error(error instanceof ApiError ? error.message : t('errors.unknown')),

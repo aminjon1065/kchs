@@ -21,11 +21,10 @@ import {
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Download } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
-import { exportJobQuery, isJobFinished } from './queries.js'
+import { dataApi, exportJobQuery, isJobFinished } from './queries.js'
 
 /** Текущий вид таблицы: фильтры, поиск, сортировка и видимые столбцы в их порядке. */
 export interface TableView {
@@ -94,7 +93,7 @@ export function ExportDialog({
         ...(scope === 'view' && view.search ? { search: view.search } : {}),
         ...(scope === 'view' && view.fields.length > 0 ? { fields: view.fields } : {}),
       }
-      return http.post('/datasets/:id/exports', { params: { id: dataset.id }, body })
+      return dataApi.postDatasetsExports(dataset.id, body)
     },
     onSuccess: (started) => {
       setFailure(null)
@@ -109,7 +108,7 @@ export function ExportDialog({
   const working = jobId !== null && !isJobFinished(job?.status)
 
   const download = useMutation({
-    mutationFn: () => http.get('/datasets/exports/:jobId/download', { params: { jobId: jobId! } }),
+    mutationFn: () => dataApi.getDatasetsExportsDownload(jobId!),
     // Файл отдаётся с заголовком attachment — страница остаётся на месте
     onSuccess: ({ url }) => window.location.assign(url),
     onError: (error) => setFailure(errorText(error, t('errors.unknown'))),

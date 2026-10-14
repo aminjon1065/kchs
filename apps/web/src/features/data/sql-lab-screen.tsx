@@ -25,13 +25,12 @@ import {
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { ChevronRight, History, Lock, Play, Table2 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { meQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
-import { sqlSchemaQuery } from './queries.js'
+import { dataApi, sqlSchemaQuery } from './queries.js'
 
 /** Состояние вкладки: текст запроса и значения параметров. */
 export type SavedSqlLab = {
@@ -136,7 +135,7 @@ export function SqlLabScreen({ tabId, savedState }: { tabId: string; savedState?
         const value = params[name]?.trim()
         if (value) values[name] = value
       }
-      return http.post('/sql/run', { body: { sql: input.text, params: values } })
+      return dataApi.postSqlRun({ sql: input.text, params: values })
     },
     onMutate: () => {
       setDiagnostics((current) => (current.length > 0 ? [] : current))

@@ -37,7 +37,6 @@ import { ShareDialog } from '~/entities/access/share-dialog.js'
 import { PresenceAvatars } from '~/entities/objects/presence-avatars.js'
 import { ChoroplethButton } from '~/features/gis/choropleth/choropleth-button.js'
 import { ShowOnMapButton } from '~/features/gis/show-on-map.js'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { keys, objectQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
@@ -52,6 +51,7 @@ import { ImportWizard } from './import-wizard.js'
 import { QualityTab } from './quality-tab.js'
 import {
   aiStatusQuery,
+  dataApi,
   dataKeys,
   datasetImportsQuery,
   datasetQuery,
@@ -94,8 +94,7 @@ export function DatasetView({ objectId, tabId }: { objectId: string; tabId: stri
   const { data: ai } = useQuery(aiStatusQuery())
 
   const rename = useMutation({
-    mutationFn: (title: string) =>
-      http.patch('/objects/:id', { params: { id: objectId }, body: { title } }),
+    mutationFn: (title: string) => dataApi.patchObjects(objectId, { title }),
     onSuccess: (_result, title) => {
       setTabTitle(tabId, title)
       void client.invalidateQueries({ queryKey: keys.object(objectId) })
@@ -104,14 +103,14 @@ export function DatasetView({ objectId, tabId }: { objectId: string; tabId: stri
   })
 
   const trash = useMutation({
-    mutationFn: () => http.delete('/objects/:id', { params: { id: objectId } }),
+    mutationFn: () => dataApi.removeObjects(objectId),
     onSuccess: () => {
       toast.show({
         title: t('objects.trash.movedTo'),
         tone: 'info',
         action: {
           label: t('common.actions.undo'),
-          onClick: () => void http.post('/objects/:id/restore', { params: { id: objectId } }),
+          onClick: () => void dataApi.postObjectsRestore(objectId),
         },
       })
       void client.invalidateQueries({ queryKey: ['objects'] })
@@ -324,8 +323,7 @@ function VersionsTab({
   const [target, setTarget] = useState<number | null>(null)
   const { data: versions = [], isLoading } = useQuery(datasetVersionsQuery(datasetId))
   const rollback = useMutation({
-    mutationFn: (number: number) =>
-      http.post('/datasets/:id/versions/:number/rollback', { params: { id: datasetId, number } }),
+    mutationFn: (number: number) => dataApi.postDatasetsVersionsRollback(datasetId, number),
     onSuccess: (_version, number) => {
       toast.show({ title: t('data.dataset.versions.rolledBack', { number }), tone: 'success' })
       // Строки, счётчики, профиль и история строк — всё под ключом датасета

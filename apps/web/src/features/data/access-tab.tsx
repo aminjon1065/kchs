@@ -35,13 +35,12 @@ import {
   usePrincipalLabel,
 } from '~/entities/access/principal-picker.js'
 import { useTerritoryFilterEditor } from '~/features/gis/territory-filter.js'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useFieldOptions } from './field-options.js'
 import { fieldLabel, filterFieldsOf } from './field-types.js'
-import { dataKeys, datasetPoliciesQuery } from './queries.js'
+import { dataApi, dataKeys, datasetPoliciesQuery } from './queries.js'
 
 type Editing =
   | { kind: 'rows'; policy: DatasetRowPolicy | null }
@@ -77,9 +76,7 @@ export function AccessTab({ dataset }: { dataset: DatasetRecord }) {
 
   const remove = useMutation({
     mutationFn: (target: Removing) =>
-      http.delete(`/datasets/:id/policies/${target.kind}/:policyId` as const, {
-        params: { id: dataset.id, policyId: target.policy.id },
-      }),
+      dataApi.removeDatasetsPolicies(dataset.id, target.kind, target.policy.id),
     onSuccess: () => {
       toast.show({ title: t('data.policies.removed'), tone: 'success' })
       void client.invalidateQueries({ queryKey: dataKeys.policies(dataset.id) })
@@ -332,14 +329,8 @@ function RowPolicyDialog({
         note: note.trim() || null,
       }
       return policy
-        ? http.patch('/datasets/:id/policies/rows/:policyId', {
-            params: { id: dataset.id, policyId: policy.id },
-            body,
-          })
-        : http.post('/datasets/:id/policies/rows', {
-            params: { id: dataset.id },
-            body: { ...body, principal: body.principal! },
-          })
+        ? dataApi.patchDatasetsPoliciesRows(dataset.id, policy.id, body)
+        : dataApi.postDatasetsPoliciesRows(dataset.id, { ...body, principal: body.principal! })
     },
     onSuccess: saved,
     onError: (error) => setFailure(errorText(error, t('errors.unknown'))),
@@ -429,14 +420,8 @@ function ColumnPolicyDialog({
         fields: dataset.fields.map((field) => field.key).filter((key) => selected.has(key)),
       }
       return policy
-        ? http.patch('/datasets/:id/policies/columns/:policyId', {
-            params: { id: dataset.id, policyId: policy.id },
-            body,
-          })
-        : http.post('/datasets/:id/policies/columns', {
-            params: { id: dataset.id },
-            body: { ...body, principal: body.principal! },
-          })
+        ? dataApi.patchDatasetsPoliciesColumns(dataset.id, policy.id, body)
+        : dataApi.postDatasetsPoliciesColumns(dataset.id, { ...body, principal: body.principal! })
     },
     onSuccess: saved,
     onError: (error) => setFailure(errorText(error, t('errors.unknown'))),
