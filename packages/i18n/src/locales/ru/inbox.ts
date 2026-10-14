@@ -38,6 +38,7 @@ export const inbox = {
     acceptForm: 'Принять сводку',
     dismissAlert: 'Разобрался',
     respond: 'Ответить',
+    prepareEdms: 'Подготовить для госЭДО',
   },
   tpl: {
     acceptInstruction: 'Поручение: {title}',
@@ -56,6 +57,7 @@ export const inbox = {
     submitForm: 'Сдать сводку: {title}, {period}',
     reviewForm: 'Принять сводку: {title}, {period} — {subject}',
     alertFired: 'Алерт «{title}»: {message}',
+    edmsTransfer: 'Передать в госЭДО: {title}',
   },
   resolved: 'Выполнено',
   dueIn: 'Срок: {date}',

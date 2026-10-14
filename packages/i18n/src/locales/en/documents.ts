@@ -73,7 +73,7 @@ export const documents: DeepPartial<Dictionary['documents']> = {
     courier: 'Courier',
     email: 'Email',
     fax: 'Fax',
-    edms: 'EDMS',
+    edms: 'Government EDMS',
     hand: 'By hand',
     other: 'Other',
   },
@@ -669,6 +669,57 @@ export const documents: DeepPartial<Dictionary['documents']> = {
     done: 'Numbers {first} — {last} reserved',
   },
   /** Очередь «Из почты»: регистрация входящих из ящика канцелярии (ADR-0113). */
+  govEdms: {
+    title: 'From government EDMS',
+    scopeLabel: 'Show',
+    filters: { pending: 'Awaiting registration', all: 'All' },
+    upload: 'Upload from government EDMS',
+    uploadTitle: 'Documents from government EDMS',
+    uploadHint:
+      'Choose files exported from the government electronic document system. Each document becomes an incoming draft — requisites are filled from its text; check them and register in the card.',
+    pick: 'Drop files here or choose them',
+    zipNote:
+      'PDF, DOCX, scans or ZIP. A ZIP archive is one document: the first PDF is the main file, the rest are attachments',
+    mode: {
+      label: 'How to file',
+      separate: 'Each file is a separate document',
+      single: 'One document with attachments',
+    },
+    planLabel: 'What will be filed',
+    planItem: 'main file {main}{count, plural, =0 {} one {, # attachment} other {, # attachments}}',
+    duplicate: 'Already filed: {title} — not filed again',
+    duplicateNumber: 'Same sender and number already exist: {title}',
+    start: '{count, plural, =0 {File} one {File # document} other {File # documents}}',
+    importing: 'Filed {done} of {total}',
+    done: 'Documents filed: {created}, duplicates skipped: {skipped}',
+    failedTitle: 'Not all documents were filed',
+    unreadable: 'Files could not be read — check the archive',
+    empty: 'No documents from government EDMS',
+    emptyHint:
+      'Export a document from government EDMS and upload its files here — an incoming draft is created and requisites are filled from its text',
+    externalNumber: 'No. {number} of {date}',
+    noRequisites: 'No requisites found — fill them in the card',
+    prefill: {
+      waiting: 'Reading requisites from text…',
+      done: 'Requisites from text',
+      none: 'No text — fill requisites manually',
+    },
+    outgoing: {
+      title: 'Government EDMS',
+      pending: 'Awaiting transfer to government EDMS',
+      hint: 'The addressee exchanges via government EDMS. Download the package, upload it to the government system and record the transfer with its number there.',
+      package: 'Download package for government EDMS',
+      packageReady: 'Package ready: {files} files',
+      mark: 'Record transfer',
+      markTitle: 'Transferred to government EDMS',
+      sentOn: 'Transfer date',
+      externalNumber: 'Number in government EDMS',
+      note: 'Note',
+      marked: 'Transfer to government EDMS recorded',
+      transferredLabel: 'Transferred',
+      transferred: '{date}, No. {number}',
+    },
+  },
   mail: {
     out: {
       subject: 'Ref. No. {number} of {date} — {subject}',
@@ -738,6 +789,9 @@ export const documents: DeepPartial<Dictionary['documents']> = {
     mailDomains: 'Mail domains',
     mailDomainsHint:
       'Comma-separated, e.g. mvd.tj. Letters from addresses of these domains get this correspondent on mail intake; public mail services are not allowed',
+    edmsExchange: 'Exchange via government EDMS',
+    edmsExchangeHint:
+      'Outgoing documents to this addressee are packaged for government EDMS: after registration — task “Transfer to government EDMS”',
   },
   types: {
     title: 'Document types',

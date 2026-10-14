@@ -41,6 +41,7 @@ export const inbox: DeepPartial<Dictionary['inbox']> = {
     acceptForm: 'Accept submission',
     dismissAlert: 'Acknowledged',
     respond: 'Respond',
+    prepareEdms: 'Prepare for government EDMS',
   },
   tpl: {
     acceptInstruction: 'Assignment: {title}',
@@ -59,6 +60,7 @@ export const inbox: DeepPartial<Dictionary['inbox']> = {
     submitForm: 'Submit report: {title}, {period}',
     reviewForm: 'Accept report: {title}, {period} — {subject}',
     alertFired: 'Alert “{title}”: {message}',
+    edmsTransfer: 'Transfer to government EDMS: {title}',
   },
   resolved: 'Done',
   dueIn: 'Due: {date}',
