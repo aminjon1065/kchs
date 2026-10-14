@@ -284,7 +284,11 @@ const PACK_LAYERS: readonly PackLayer[] = [
 
 const MAP_KEY = 'map.situation'
 
-/** Слои пакета и карта «Обстановка ЧС» в пространстве пакета; существующее не трогается. */
+/**
+ * Слои пакета и карта «Обстановка ЧС» в пространстве пакета; существующее не трогается.
+ * Слой, которого не было в прежней версии пакета (слой «Донесения», ADR-0223), на уже
+ * установленной карте встаёт в конец списка — правки карты пользователями остаются.
+ */
 export async function ensureMap(
   pack: PackContext,
   datasets: ReadonlyMap<string, string>,
@@ -315,6 +319,7 @@ export async function ensureMap(
     created.push(spec.key)
   }
   const found = await findPackObject('map', MAP_KEY)
+  if (found && created.length > 0) await appendLayers(pack, found, created, layers)
   const mapId =
     found ??
     (await db().transaction(async (tx) => {
@@ -336,4 +341,26 @@ export async function ensureMap(
     }))
   pack.log('карта обстановки готова', { created })
   return { mapId, layers }
+}
+
+/** Новые слои пакета — в конец уже установленной карты, если их там ещё нет. */
+async function appendLayers(
+  pack: PackContext,
+  mapId: string,
+  created: readonly string[],
+  layers: ReadonlyMap<string, string>,
+): Promise<void> {
+  await db().transaction(async (tx) => {
+    const map = await MapService.get(pack.ctx, mapId)
+    const present = new Set(map.spec.layers.map((entry) => entry.layerId))
+    const added: MapLayerEntry[] = PACK_LAYERS.flatMap((spec) => {
+      const layerId = layers.get(spec.key)
+      if (!layerId || !created.includes(spec.key) || present.has(layerId)) return []
+      return [{ layerId, visible: spec.visible, opacity: 1, group: null }]
+    })
+    if (added.length === 0) return
+    await MapService.update(tx, pack.ctx, mapId, {
+      spec: MapSpec.parse({ ...map.spec, layers: [...map.spec.layers, ...added] }),
+    })
+  })
 }

@@ -20,6 +20,7 @@ const {
   documentTypes,
   forms,
   groups,
+  maps,
   objects,
   pages,
   processDefinitions,
@@ -278,6 +279,38 @@ describe('пакет ЧС: чистая установка', () => {
       .from(processDefinitions)
       .where(eq(processDefinitions.key, 'warning_publish'))
     expect(routes?.total).toBe(1)
+  })
+
+  it('слой новой версии пакета встаёт в конец уже установленной карты (ADR-0223)', async () => {
+    const before = await packObjects()
+    const mapId = before.get('emergency.map.situation') as string
+    const reportsId = before.get('emergency.layer.situation_reports') as string
+    const specOf = async () =>
+      (await db().select({ spec: maps.spec }).from(maps).where(eq(maps.id, mapId)))[0]?.spec as {
+        layers: Array<{ layerId: string }>
+      }
+    // Установка прежней версии: слоя «Донесения» нет ни в реестре, ни на карте
+    const installed = await specOf()
+    const previous = installed.layers.filter((entry) => entry.layerId !== reportsId)
+    await db()
+      .update(maps)
+      .set({ spec: { ...installed, layers: previous } })
+      .where(eq(maps.id, mapId))
+    await db()
+      .update(objects)
+      .set({ deletedAt: new Date().toISOString() })
+      .where(eq(objects.id, reportsId))
+
+    await seedCommand({ profile: 'minimal', reset: false, pack: 'emergency' })
+    const after = await packObjects()
+    const added = after.get('emergency.layer.situation_reports') as string
+    expect(added).not.toBe(reportsId)
+    const layers = (await specOf()).layers.map((entry) => entry.layerId)
+    expect(layers).toEqual([...previous.map((entry) => entry.layerId), added])
+
+    // Третий запуск карту не меняет
+    await seedCommand({ profile: 'minimal', reset: false, pack: 'emergency' })
+    expect((await specOf()).layers.map((entry) => entry.layerId)).toEqual(layers)
   })
 })
 
