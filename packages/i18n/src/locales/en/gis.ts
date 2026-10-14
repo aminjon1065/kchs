@@ -398,6 +398,13 @@ export const gis: DeepPartial<Dictionary['gis']> = {
     failed: 'Could not load the feature',
     openDataset: 'Open dataset',
   },
+  points: {
+    label: 'Points on the map',
+    summary: '{count, plural, one {# point} other {# points}}, nearby ones are clustered',
+    truncated: 'The first {count} points are shown — narrow the filter',
+    empty: 'No row has a point',
+    failed: 'The points did not load: {reason}',
+  },
   point: {
     pick: 'Set location',
     clear: 'Remove point',

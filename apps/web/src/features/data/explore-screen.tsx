@@ -46,7 +46,13 @@ import {
   useExploreLabels,
   withChannelLabels,
 } from './explore-builder.js'
-import { andFilter, type ExploreQuestion, groupValueFilter, smartPlan } from './explore-insights.js'
+import {
+  andFilter,
+  type ExploreQuestion,
+  groupValueFilter,
+  nextLevel,
+  smartPlan,
+} from './explore-insights.js'
 import { ExploreOverview, useDataRange } from './explore-overview.js'
 import { exploreApi, exploreFailure, exploreRunQuery } from './explore-queries.js'
 import { type ExploreState, emptyExplore, exploreSpec } from './explore-query.js'
@@ -286,6 +292,10 @@ export function ExploreScreen({
   ]
   const drillValue = drill !== null ? drillLabel(drill) : ''
   const drillWhere = drill !== null ? drillFilter(drill) : null
+  // Территория уровнем справочника: выбранная единица раскрывается уровнем ниже
+  const deepIndex = state.groups.findIndex((group) => nextLevel(group) !== null)
+  const deepGroup = state.groups[deepIndex]
+  const deeper = deepGroup ? nextLevel(deepGroup) : null
 
   return (
     <div className="flex h-full min-h-0">
@@ -407,6 +417,7 @@ export function ExploreScreen({
                 chartType={chartType}
                 chartSpec={view === 'map' ? null : chartSpec}
                 spec={settled}
+                columnLabel={columnLabel}
               />
             </>
           }
@@ -425,7 +436,16 @@ export function ExploreScreen({
             value={drillValue}
             fields={fields}
             exclude={state.groups.map((group) => group.field)}
+            deeper={deeper}
             onOnly={() => update({ filter: andFilter(state.filter, drillWhere) })}
+            onDeeper={() =>
+              update({
+                filter: andFilter(state.filter, drillWhere),
+                groups: state.groups.map((group, index) =>
+                  index === deepIndex && deeper ? { ...group, level: deeper } : group,
+                ),
+              })
+            }
             onSplit={(key) => {
               const field = byKey.get(key)
               const temporal = field?.type === 'date' || field?.type === 'datetime'

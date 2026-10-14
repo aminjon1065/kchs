@@ -8,12 +8,14 @@ import {
   compareAlias,
   type DatasetField,
   EXPLORE_CALCS,
+  EXPLORE_TERRITORY_LEVELS,
   type ExploreCalc,
   type ExploreCompare,
   type ExploreGroup,
   type ExploreMeasure,
   type ExplorePeriod,
   type ExplorePlan,
+  type ExploreTerritoryLevel,
   groupAlias,
   type LangText,
   lagAlias,
@@ -151,10 +153,15 @@ export function useExploreLabels(
     (name: string): string => {
       const field = byKey.get(name)
       if (field) return labelOf(field, locale)
-      const group = plan.groups.find((item) => item.bucket && groupAlias(item) === name)
+      const group = plan.groups.find(
+        (item) => (item.bucket || item.level) && groupAlias(item) === name,
+      )
       const grouped = group ? byKey.get(group.field) : undefined
       if (group?.bucket && grouped) {
         return `${labelOf(grouped, locale)} · ${t(`data.explore.buckets.${group.bucket}`)}`
+      }
+      if (group?.level && grouped) {
+        return `${labelOf(grouped, locale)} · ${t(`data.explore.levels.${group.level}`)}`
       }
       for (const measure of plan.measures) {
         if (measureAlias(measure) === name) return measureLabel(measure)
@@ -430,6 +437,29 @@ function GroupRow({
           ))}
         </SelectContent>
       </Select>
+      {field?.type === 'territory' ? (
+        <Select
+          value={group.level ?? NONE}
+          onValueChange={(level) =>
+            onChange({
+              field: group.field,
+              ...(level === NONE ? {} : { level: level as ExploreTerritoryLevel }),
+            })
+          }
+        >
+          <SelectTrigger aria-label={t('data.explore.level')} className="h-7 w-28 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={NONE}>{t('data.explore.levels.none')}</SelectItem>
+            {EXPLORE_TERRITORY_LEVELS.map((level) => (
+              <SelectItem key={level} value={level}>
+                {t(`data.explore.levels.${level}`)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : null}
       {field && TEMPORAL.has(field.type) ? (
         <Select
           value={group.bucket ?? NONE}
@@ -483,12 +513,13 @@ function MeasureRow({
   // Расчёт над мерой переживает смену функции и поля
   const keep = (next: ExploreMeasure): ExploreMeasure =>
     measure.calc ? { ...next, calc: measure.calc } : next
-  const calcHint =
-    measure.calc && !calcApplies(plan, measure)
-      ? plan.compare
-        ? t('data.explore.compare.noCalc')
-        : t('data.explore.calc.needsGroup')
-      : null
+  const calcHint = !measure.calc
+    ? null
+    : !calcApplies(plan, measure)
+      ? t('data.explore.calc.needsGroup')
+      : plan.compare
+        ? t('data.explore.compare.calcFromCurrent')
+        : null
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center gap-1">
@@ -556,7 +587,6 @@ function MeasureRow({
       </div>
       <Select
         value={measure.calc ?? NONE}
-        disabled={Boolean(plan.compare)}
         onValueChange={(next) => {
           const { calc: _drop, ...rest } = measure
           onChange(next === NONE ? rest : { ...rest, calc: next as ExploreCalc })

@@ -1,12 +1,14 @@
-import type {
-  ChartType,
-  DatasetField,
-  ExploreCompare,
-  ExploreGroup,
-  ExplorePeriod,
-  ExplorePlan,
-  FilterNode,
-  TimeBucket,
+import {
+  type ChartType,
+  type DatasetField,
+  EXPLORE_TERRITORY_LEVELS,
+  type ExploreCompare,
+  type ExploreGroup,
+  type ExplorePeriod,
+  type ExplorePlan,
+  type ExploreTerritoryLevel,
+  type FilterNode,
+  type TimeBucket,
 } from '@kchs/contracts'
 import { NUMERIC_TYPES } from './field-types.js'
 
@@ -365,6 +367,12 @@ function bucketEnd(bucket: TimeBucket, start: Date): Date {
       break
   }
   return next
+}
+
+/** Уровень ниже для детализации территории: область → район → джамоат; ниже — некуда. */
+export function nextLevel(group: ExploreGroup): ExploreTerritoryLevel | null {
+  if (group.bucket || !group.level) return null
+  return EXPLORE_TERRITORY_LEVELS[EXPLORE_TERRITORY_LEVELS.indexOf(group.level) + 1] ?? null
 }
 
 /**

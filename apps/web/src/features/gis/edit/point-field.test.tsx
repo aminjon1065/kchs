@@ -13,7 +13,7 @@ vi.mock('@kchs/ui', async (original) => ({
   ...(await original<typeof import('@kchs/ui')>()),
   // Карта MapLibre в happy-dom не поднимается — подменяется подписанной областью
   MapCanvas: (props: { 'aria-label'?: string; controls?: ReactNode }) => (
-    <div role="region" aria-label={props['aria-label']} />
+    <section aria-label={props['aria-label']} />
   ),
   useMapTheme: () => null,
 }))

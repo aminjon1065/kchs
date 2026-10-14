@@ -676,6 +676,8 @@ export const data: DeepPartial<Dictionary['data']> = {
       day: 'Рӯз',
       hour: 'Соат',
     },
+    level: 'Сатҳи қаламрав',
+    levels: { none: 'Чун дар маълумот', region: 'Вилоят', district: 'Ноҳия', jamoat: 'Ҷамоат' },
     measures: 'Ченакҳо',
     addMeasure: 'Илова кардани ченак',
     rows: 'Сатрҳо',
@@ -771,7 +773,7 @@ export const data: DeepPartial<Dictionary['data']> = {
         diff: '{measure} · фарқ',
         pct: '{measure} · тағйир',
       },
-      noCalc: 'Ҳангоми муқоиса ҳисобҳо аз рӯи ченакҳо татбиқ намешаванд',
+      calcFromCurrent: 'Ҳисоб — аз қимати давраи ҷорӣ',
     },
     calc: {
       label: 'Ҳисоб',
@@ -786,6 +788,8 @@ export const data: DeepPartial<Dictionary['data']> = {
       of: '{measure} · {calc}',
     },
     mapView: {
+      mode: 'Дар харита чӣ',
+      modes: { territories: 'Қаламравҳо', points: 'Нуқтаҳо' },
       level: 'Сатҳи харита',
       levels: { region: 'Вилоятҳо', district: 'Ноҳияҳо', jamoat: 'Ҷамоатҳо' },
       unavailable:
@@ -796,6 +800,7 @@ export const data: DeepPartial<Dictionary['data']> = {
       title: 'Интихоб шуд: {value}',
       only: 'Танҳо инро гузоштан',
       splitBy: 'Тақсим кардан аз рӯи…',
+      deeper: 'Як сатҳ поёнтар: {level}',
       rows: 'Нишон додани сатрҳо',
       close: 'Бекор кардани интихоб',
       rowsTitle: 'Сатрҳо: {value}',
@@ -815,6 +820,23 @@ export const data: DeepPartial<Dictionary['data']> = {
     dashboard: 'Дашборд',
     addedToDashboard: 'Плитка ба дашборд илова шуд',
     add: 'Илова кардан',
+    toDataset: 'Ҳамчун маҷмӯи маълумот…',
+    toDatasetTitle: 'Нигоҳ доштан ҳамчун маҷмӯи маълумот',
+    toDatasetHint:
+      'Аз қадамҳои тадқиқ табдилдиҳӣ сохта мешавад: иҷрои аввал маҷмӯи маълумотро месозад, иҷроҳои баъдӣ онро аз нав ҳисоб мекунанд.',
+    lossCalcs:
+      'Ҳисобҳо аз рӯи ченакҳо ба маҷмӯи маълумот намедароянд: дар табдилдиҳӣ қадамҳои равзанавӣ нест.',
+    lossLimit: 'Тартиб ва маҳдудият интиқол намеёбанд: дар маҷмӯи маълумот ҳамаи сатрҳои ҷамъбаст.',
+    datasetStarted: 'Табдилдиҳӣ сохта ва оғоз шуд',
+    toMetric: 'Ҳамчун нишондиҳанда…',
+    toMetricTitle: 'Нигоҳ доштан ҳамчун нишондиҳанда',
+    toMetricHint:
+      'Шартҳои нишондиҳанда — филтри тадқиқ, буришҳои иҷозатдодашуда — майдонҳои буриш. Давра ва ҳадафҳо дар корти нишондиҳанда танзим мешаванд.',
+    metricMeasure: 'Ченак',
+    metricUnsupported: 'Ин ченак ба нишондиҳанда мувофиқ нест',
+    metricCreated: 'Нишондиҳанда эҷод шуд',
+    noMeasures: 'Ақаллан як ченак лозим аст',
+    create: 'Эҷод кардан',
     showQuery: 'Нишон додани дархост',
     queryTitle: 'Дархост',
     queryHint:
