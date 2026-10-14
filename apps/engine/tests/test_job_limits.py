@@ -70,3 +70,42 @@ def test_slow_download_does_not_block_cached_copies(
     release.set()
     worker.join(5)
     assert (tmp_path / columnar._cache_name("bucket", "slow")).exists()
+
+
+def test_batch_table_matches_per_value_conversion() -> None:
+    """Пачка по столбцам (ADR-0220) — те же значения, что и прежнее преобразование по одному."""
+    import uuid
+    from datetime import UTC, datetime
+    from decimal import Decimal
+
+    import pyarrow as pa
+
+    from kchs_engine.data import columnar
+
+    columns = [
+        columnar.Column("amount", "money"),
+        columnar.Column("score", "number"),
+        columnar.Column("happened", "datetime"),
+        columnar.Column("tags", "multi_select"),
+        columnar.Column("title", "text"),
+    ]
+    schema = pa.schema(
+        [pa.field(column.name, columnar._arrow_type(column.type)) for column in columns]
+    )
+    batch = [
+        (Decimal("12.50"), Decimal("1.5"), datetime(2026, 1, 2, 3, 4, 5), ["a", 1], "один"),
+        (None, 2.0, datetime(2026, 1, 2, 3, 4, 5, tzinfo=UTC), None, str(uuid.UUID(int=1))),
+    ]
+    table = columnar._batch_table(batch, columns, schema)
+    expected = pa.Table.from_arrays(
+        [
+            pa.array(
+                [columnar._value_for_arrow(row[index], column.type) for row in batch],
+                type=schema.field(index).type,
+            )
+            for index, column in enumerate(columns)
+        ],
+        schema=schema,
+    )
+    assert table.equals(expected)
+    assert columnar._batch_table([], columns, schema).num_rows == 0
