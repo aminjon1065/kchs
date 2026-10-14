@@ -95,8 +95,7 @@ export function ProfileScreen() {
 
   // Одна сессия — например, забытый вход на чужом компьютере (ADR-0153)
   const revokeOne = useMutation({
-    mutationFn: (sessionId: string) =>
-      profileApi.revokeSessions({ sessionIds: [sessionId] }),
+    mutationFn: (sessionId: string) => profileApi.revokeSessions({ sessionIds: [sessionId] }),
     onSuccess: () => {
       toast.show({ title: t('auth.session.revoked'), tone: 'success' })
       void client.invalidateQueries({ queryKey: ['me', 'sessions'] })
