@@ -262,17 +262,41 @@ def _evict(folder: Path, keep: Path) -> None:
         log.info("columnar.evicted", file=item.name, size=size)
 
 
+# Скачивание — под замком своего ключа (ADR-0220): загрузка большой копии из хранилища не
+# держит запросы к уже скачанным копиям. Общий замок — только на проверку и вытеснение.
+_download_locks: dict[str, threading.Lock] = {}
+
+
+def _key_lock(name: str) -> threading.Lock:
+    with _cache_lock:
+        lock = _download_locks.get(name)
+        if lock is None:
+            lock = _download_locks[name] = threading.Lock()
+        return lock
+
+
+def _cached(target: Path) -> bool:
+    with _cache_lock:
+        if target.exists() and target.stat().st_size > 0:
+            target.touch()
+            return True
+        return False
+
+
 def _ensure_local(bucket: str, key: str) -> Path:
     """Файл копии на диске движка; отсутствующий — скачивается один раз."""
     folder = _cache_dir()
     target = folder / _cache_name(bucket, key)
-    with _cache_lock:
-        if target.exists() and target.stat().st_size > 0:
-            target.touch()
+    if _cached(target):
+        return target
+    with _key_lock(target.name):
+        # Пока ждали замка, копию мог скачать соседний запрос
+        if _cached(target):
             return target
         partial = target.with_suffix(".part")
         storage.download_sync(bucket, key, partial)
         partial.replace(target)
+    with _cache_lock:
         _evict(folder, target)
     log.info("columnar.cached", key=key, size=target.stat().st_size)
     return target
