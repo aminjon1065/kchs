@@ -119,7 +119,10 @@ export const EVENT_DOMAINS: readonly string[] = [
  * совместимости контрактов (`pnpm contracts:compat`) не пропустит его без этого. Тип, которого
  * здесь нет, — версии 1.
  */
-export const EVENT_VERSIONS: Partial<Record<EventType, number>> = {}
+export const EVENT_VERSIONS: Partial<Record<EventType, number>> = {
+  // ADR-0223: слой над системным датасетом — datasetId может быть null
+  'layer.published': 2,
+}
 
 /** Текущая версия нагрузки события. */
 export function eventVersion(type: EventType): number {

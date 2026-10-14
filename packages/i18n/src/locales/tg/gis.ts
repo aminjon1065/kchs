@@ -411,6 +411,7 @@ export const gis: DeepPartial<Dictionary['gis']> = {
     notVisible: 'Объект дастнорас аст: он бо сиёсат пинҳон ё нест карда шудааст',
     failed: 'Объект бор нашуд',
     openDataset: 'Кушодани маҷмӯи маълумот',
+    openDocument: 'Кушодани ҳуҷҷат',
   },
   points: {
     label: 'Нуқтаҳо дар харита',
@@ -893,6 +894,8 @@ export const gis: DeepPartial<Dictionary['gis']> = {
     close: 'Пӯшидани ҷадвали атрибутҳо',
     layer: 'Қабати ҷадвал',
     noLayers: 'Дар харита қабатҳои дорои дастрасӣ ба маълумот нест',
+    systemSource:
+      'Қабати маҷмӯи низомӣ ҷадвали сатрҳо надорад: объектҳо бо пахш дар харита кушода мешаванд',
     loading: 'Боркунӣ…',
     count: '{count, plural, =0 {Объект нест} one {# объект} other {# объект}}',
     capped:

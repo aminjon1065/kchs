@@ -15,6 +15,7 @@ import { type QueryText, readAsQueryRole } from '~/shared/db/query-role.js'
 import { errors } from '~/shared/errors.js'
 import { cache } from '~/shared/redis/index.js'
 import { LayerService } from './layer-service.js'
+import { layerQuerySource, layerVisibleFields } from './layer-source.js'
 
 const NUMERIC = new Set<FieldType>(['integer', 'number', 'decimal', 'money', 'percent'])
 /**
@@ -71,7 +72,7 @@ export const LayerStatsService = {
   async stats(ctx: Ctx, layerId: string, input: LayerStatsInput): Promise<LayerStats> {
     const layer = await LayerService.load(layerId)
     // Без доступа к датасету — 404, как у тайлов: права на слой данных не открывают
-    const visible = await DatasetQueries.visibleFields(ctx, layer.datasetId)
+    const visible = await layerVisibleFields(ctx, layer)
     for (const key of [input.field, input.normalizeBy]) {
       if (key === null) continue
       const type = visible.get(key)
@@ -97,7 +98,7 @@ export const LayerStatsService = {
     ]
     const summarySpec = QuerySpec.parse({
       version: 1,
-      source: { kind: 'dataset', id: layer.datasetId },
+      source: layerQuerySource(layer),
       steps: [
         ...prefix,
         {
@@ -127,7 +128,9 @@ export const LayerStatsService = {
       )
       .digest('hex')
     const cacheKey = `kchs:layer-stats:${layerId}:${key}`
-    const hit = await cache.get(cacheKey)
+    // У системного источника версии данных нет — статистика без кэша (ADR-0223)
+    const cacheable = layer.systemSource === null
+    const hit = cacheable ? await cache.get(cacheKey) : null
     if (hit) return JSON.parse(hit) as LayerStats
 
     const [row = {}] = await execute(summary.compiled)
@@ -149,7 +152,7 @@ export const LayerStatsService = {
         const sampled = filled > LAYER_STATS_SAMPLE
         const valuesSpec = QuerySpec.parse({
           version: 1,
-          source: { kind: 'dataset', id: layer.datasetId },
+          source: layerQuerySource(layer),
           steps: [
             ...prefix,
             { type: 'filter', where: { field: value, op: 'not_empty' } },
@@ -196,7 +199,7 @@ export const LayerStatsService = {
       classes: input.method ? input.classes : null,
       sample,
     }
-    await cache.set(cacheKey, JSON.stringify(stats), CACHE_TTL_SECONDS)
+    if (cacheable) await cache.set(cacheKey, JSON.stringify(stats), CACHE_TTL_SECONDS)
     return stats
   },
 }

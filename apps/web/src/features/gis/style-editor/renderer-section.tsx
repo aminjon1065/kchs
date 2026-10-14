@@ -24,6 +24,7 @@ import { useState } from 'react'
 import { filterFieldsOf } from '~/features/data/index.js'
 import { useT } from '~/shared/i18n.js'
 import { useLayerFieldStats } from '../layer-render.js'
+import { layerQuerySource } from '../layer-source.js'
 import { useTerritoryFilterEditor } from '../territory-filter.js'
 import { categoriesWithLabels, loadCategoryValues, typedCategoryValue } from './categories.js'
 import {
@@ -68,7 +69,7 @@ export function useCategoryFill() {
   const { layer, update, fields, options } = useStyleEditor()
   return useMutation({
     mutationFn: async ({ field, filter }: { field: string; filter: LayerStyle['filter'] }) =>
-      loadCategoryValues(layer.datasetId, field, filter),
+      loadCategoryValues(layerQuerySource(layer), field, filter),
     onSuccess: (values, { field }) =>
       update((style) =>
         style.renderer.kind === 'categorized' && style.renderer.field === field

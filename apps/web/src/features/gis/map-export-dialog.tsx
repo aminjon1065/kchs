@@ -73,6 +73,8 @@ export function MapExportDialog({
     mutationFn: async () => {
       const started: Record<string, string> = {}
       for (const layer of layers) {
+        // Выгрузка — строк датасета; у системного источника (ADR-0223) таблицы нет
+        if (!layer.datasetId) continue
         const body: DatasetExportInput = {
           format,
           sort: [],

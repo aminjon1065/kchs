@@ -158,6 +158,7 @@ export function LayerView({
     )
   }
   if (error || !layer) return <EmptyState title={t('common.states.notFound')} />
+  const datasetId = layer.datasetId
 
   const level = object?.level ?? 'view'
   const canEdit = ['edit', 'manage', 'owner'].includes(level)
@@ -273,22 +274,24 @@ export function LayerView({
                 },
               ]}
             />
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={<Table2 className="size-3.5" />}
-              onClick={() =>
-                openTab({
-                  kind: 'object',
-                  objectId: layer.datasetId,
-                  objectType: 'dataset',
-                  title: layer.name,
-                  mode: 'permanent',
-                })
-              }
-            >
-              {t('gis.layer.openDataset')}
-            </Button>
+            {datasetId ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={<Table2 className="size-3.5" />}
+                onClick={() =>
+                  openTab({
+                    kind: 'object',
+                    objectId: datasetId,
+                    objectType: 'dataset',
+                    title: layer.name,
+                    mode: 'permanent',
+                  })
+                }
+              >
+                {t('gis.layer.openDataset')}
+              </Button>
+            ) : null}
             {warnings.length > 0 ? (
               <Callout tone="warning">
                 {t('gis.layer.styleWarnings', { n: warnings.length })}

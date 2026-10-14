@@ -2,12 +2,12 @@ import { type DatasetRecord, type LayerRecord, layerTemplateFields } from '@kchs
 import { formatValue } from '@kchs/fields'
 import { Button, Callout, IconButton, KeyValueList, Skeleton } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
-import { Landmark, Table2, X } from 'lucide-react'
-import { datasetQuery } from '~/features/data/index.js'
+import { FileText, Landmark, Table2, X } from 'lucide-react'
 import { ApiError } from '~/shared/api/client.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
+import { layerDatasetQuery } from './layer-source.js'
 import { layerFeatureQuery, territoriesQuery } from './queries.js'
 import { useOpenPassport } from './territory-link.js'
 
@@ -37,7 +37,10 @@ export function FeatureCard({
   const locale = useLocale()
   const openTab = useWorkspace((s) => s.openTab)
   const feature = useQuery(layerFeatureQuery(layer.id, rowId))
-  const { data: dataset } = useQuery(datasetQuery(layer.datasetId))
+  const { data: dataset } = useQuery(layerDatasetQuery(layer))
+  const datasetId = layer.datasetId
+  // Объект системного источника «Документы на карте» (ADR-0223) — документ: открывается он
+  const documentId = layer.systemSource === 'document_places' ? feature.data?.values.id : undefined
   const openPassport = useOpenPassport()
   // Территория объекта (поле территории датасета) — переход в её паспорт
   const territoryField =
@@ -136,22 +139,41 @@ export function FeatureCard({
             {t('gis.passport.open')}
           </Button>
         ) : null}
-        <Button
-          size="sm"
-          variant="secondary"
-          icon={<Table2 className="size-3.5" />}
-          onClick={() =>
-            openTab({
-              kind: 'object',
-              objectId: layer.datasetId,
-              objectType: 'dataset',
-              title: dataset?.name ?? layer.name,
-              mode: 'permanent',
-            })
-          }
-        >
-          {t('gis.feature.openDataset')}
-        </Button>
+        {datasetId ? (
+          <Button
+            size="sm"
+            variant="secondary"
+            icon={<Table2 className="size-3.5" />}
+            onClick={() =>
+              openTab({
+                kind: 'object',
+                objectId: datasetId,
+                objectType: 'dataset',
+                title: dataset?.name ?? layer.name,
+                mode: 'permanent',
+              })
+            }
+          >
+            {t('gis.feature.openDataset')}
+          </Button>
+        ) : typeof documentId === 'string' ? (
+          <Button
+            size="sm"
+            variant="secondary"
+            icon={<FileText className="size-3.5" />}
+            onClick={() =>
+              openTab({
+                kind: 'object',
+                objectId: documentId,
+                objectType: 'document',
+                title: text('subject'),
+                mode: 'permanent',
+              })
+            }
+          >
+            {t('gis.feature.openDocument')}
+          </Button>
+        ) : null}
       </div>
     </div>
   )

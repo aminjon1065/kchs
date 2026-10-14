@@ -23,10 +23,10 @@ import type {
 } from '@kchs/ui'
 import { queryOptions, useQueries, useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
-import { datasetQuery } from '~/features/data/index.js'
 import { http } from '~/shared/api/client.js'
 import { tileUrl } from '~/shared/api/link.js'
 import { useLocale } from '~/shared/appearance.js'
+import { layerDatasetQuery } from './layer-source.js'
 import type { DeckEntry } from './studio/deck-overlay.js'
 import { deckDrawable } from './studio/deck-roles.js'
 import { selectionLayers } from './studio/selection-layers.js'
@@ -169,7 +169,7 @@ export function useRenderedLayers(
   const locale = useLocale() as Locale
   const drawn = entries.filter((entry) => entry.layer.dataAccess)
   const datasets = useQueries({
-    queries: drawn.map((entry) => datasetQuery(entry.layer.datasetId)),
+    queries: drawn.map((entry) => layerDatasetQuery(entry.layer)),
   })
   const stats = useLayerStats(drawn)
   const datasetVersions = datasets.map((query) => query.dataUpdatedAt).join(',')

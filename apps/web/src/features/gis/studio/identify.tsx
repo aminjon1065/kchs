@@ -59,8 +59,10 @@ function useRowLabels(groups: readonly Group[]): ReadonlyMap<string, string> {
       return {
         queryKey: ['identify', group.layer.id, group.layer.datasetVersion, ids],
         queryFn: async () => {
+          const datasetId = group.layer.datasetId
+          if (!datasetId) return []
           const result = await http.post('/datasets/:id/rows/query', {
-            params: { id: group.layer.datasetId },
+            params: { id: datasetId },
             body: {
               where: { field: '_id', op: 'in', value: ids.map(Number) },
               limit: ids.length,

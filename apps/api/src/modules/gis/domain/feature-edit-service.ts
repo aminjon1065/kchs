@@ -27,6 +27,15 @@ import { featureEdits } from '../schema.js'
 import { normalizeGeometry } from './feature-geometry.js'
 import { LayerService, type StoredLayer } from './layer-service.js'
 
+/** Слой над датасетом реестра: системный источник (ADR-0223) на карте не правится. */
+type DatasetLayer = StoredLayer & { datasetId: string }
+
+async function datasetLayer(layerId: string): Promise<DatasetLayer> {
+  const layer = await LayerService.load(layerId)
+  if (layer.datasetId === null) throw errors.forbidden('Правка объектов слоя выключена')
+  return { ...layer, datasetId: layer.datasetId }
+}
+
 type EditRow = typeof featureEdits.$inferSelect
 
 /** Права пользователя на правку объектов слоя и доступ к строкам датасета. */
@@ -71,7 +80,7 @@ function denied(reason: LayerEditReason | null): AppError {
  * модерируемый слой, право `suggest_features` (comment) и доступ к строкам.
  * Проверяют правки те, кто правит напрямую.
  */
-async function accessOf(ctx: Ctx, layer: StoredLayer): Promise<EditAccess> {
+async function accessOf(ctx: Ctx, layer: DatasetLayer): Promise<EditAccess> {
   const rows = await DatasetRows.access(ctx, layer.datasetId)
   const none = (reason: LayerEditReason): EditAccess => ({
     mode: 'none',
@@ -96,7 +105,7 @@ async function accessOf(ctx: Ctx, layer: StoredLayer): Promise<EditAccess> {
   return none(reason)
 }
 
-async function requireDirect(ctx: Ctx, layer: StoredLayer): Promise<void> {
+async function requireDirect(ctx: Ctx, layer: DatasetLayer): Promise<void> {
   const access = await accessOf(ctx, layer)
   if (access.mode !== 'direct') {
     throw access.mode === 'suggest'
@@ -105,7 +114,7 @@ async function requireDirect(ctx: Ctx, layer: StoredLayer): Promise<void> {
   }
 }
 
-const layerRef = (layer: StoredLayer) => ({
+const layerRef = (layer: DatasetLayer) => ({
   id: layer.id,
   type: 'layer',
   spaceId: layer.spaceId,
@@ -113,7 +122,7 @@ const layerRef = (layer: StoredLayer) => ({
 })
 
 /** Геометрия передаётся отдельно от значений полей. */
-function attributeValues(layer: StoredLayer, values: Record<string, unknown>) {
+function attributeValues(layer: DatasetLayer, values: Record<string, unknown>) {
   if (layer.geometryField in values) {
     throw errors.validation('Геометрия передаётся полем geometry', [
       { path: layer.geometryField, message: 'Геометрия — отдельно от значений' },
@@ -122,7 +131,7 @@ function attributeValues(layer: StoredLayer, values: Record<string, unknown>) {
   return values
 }
 
-function toFeature(layer: StoredLayer, row: DatasetRow): LayerFeature {
+function toFeature(layer: DatasetLayer, row: DatasetRow): LayerFeature {
   const { [layer.geometryField]: geometry, ...values } = row.values
   return {
     id: row._id,
@@ -136,7 +145,7 @@ function toFeature(layer: StoredLayer, row: DatasetRow): LayerFeature {
 }
 
 /** Строка, которую видит автор правки, в той версии, что он видел. */
-async function currentRow(ctx: Ctx, layer: StoredLayer, rowId: string, ver: number) {
+async function currentRow(ctx: Ctx, layer: DatasetLayer, rowId: string, ver: number) {
   const row = await DatasetQueries.row(ctx, layer.datasetId, rowId)
   if (row._ver !== ver) {
     throw new AppError('conflict', 'Объект уже изменили — проверьте его текущие значения', 409, {
@@ -188,7 +197,7 @@ async function toEdits(rows: EditRow[], visible: Set<string> | null): Promise<Fe
 async function apply(
   tx: Tx,
   ctx: Ctx,
-  layer: StoredLayer,
+  layer: DatasetLayer,
   edit: EditRow,
   force: boolean,
 ): Promise<string | null> {
@@ -241,7 +250,12 @@ async function apply(
  */
 export const FeatureEditService = {
   async access(ctx: Ctx, layerId: string): Promise<LayerEditAccess> {
-    const layer = await LayerService.load(layerId)
+    const stored = await LayerService.load(layerId)
+    // Слой системного источника (ADR-0223) не правится: ответ «никак», не ошибка
+    if (stored.datasetId === null) {
+      return { mode: 'none', reason: 'layer_readonly', canReview: false, pending: 0 }
+    }
+    const layer = { ...stored, datasetId: stored.datasetId }
     const { rows: _rows, ...access } = await accessOf(ctx, layer)
     const pending =
       layer.moderated && access.mode !== 'none'
@@ -251,7 +265,7 @@ export const FeatureEditService = {
   },
 
   async create(ctx: Ctx, layerId: string, input: LayerFeatureInput): Promise<LayerFeature> {
-    const layer = await LayerService.load(layerId)
+    const layer = await datasetLayer(layerId)
     await requireDirect(ctx, layer)
     const values = attributeValues(layer, input.values)
     const geometry = await normalizeGeometry(input.geometry, layer.geometryType)
@@ -275,7 +289,7 @@ export const FeatureEditService = {
     rowId: string,
     patch: LayerFeaturePatch,
   ): Promise<LayerFeature> {
-    const layer = await LayerService.load(layerId)
+    const layer = await datasetLayer(layerId)
     await requireDirect(ctx, layer)
     const values: Record<string, unknown> = { ...attributeValues(layer, patch.values) }
     if (patch.geometry) {
@@ -299,7 +313,7 @@ export const FeatureEditService = {
   },
 
   async remove(ctx: Ctx, layerId: string, rowId: string, ver: number): Promise<void> {
-    const layer = await LayerService.load(layerId)
+    const layer = await datasetLayer(layerId)
     await requireDirect(ctx, layer)
     await db().transaction(async (tx) => {
       const removed = await DatasetRows.remove(tx, ctx, layer.datasetId, rowId, ver)
@@ -318,7 +332,7 @@ export const FeatureEditService = {
    * он правил. Владельцу слоя — дело во Входящих.
    */
   async submit(ctx: Ctx, layerId: string, input: FeatureEditInput): Promise<FeatureEdit> {
-    const layer = await LayerService.load(layerId)
+    const layer = await datasetLayer(layerId)
     if (!layer.editable) throw denied('layer_readonly')
     if (!layer.moderated) throw errors.forbidden('Слой без модерации: правки вносятся напрямую')
     await authorize(ctx, 'suggest_features', layer.id)
@@ -403,7 +417,7 @@ export const FeatureEditService = {
 
   /** Правки слоя: проверяющему — все (или свои), остальным — только свои. */
   async list(ctx: Ctx, layerId: string, query: FeatureEditsQuery): Promise<FeatureEdit[]> {
-    const layer = await LayerService.load(layerId)
+    const layer = await datasetLayer(layerId)
     const access = await accessOf(ctx, layer)
     const all = query.scope === 'all' && access.canReview
     const conditions: SQL[] = [eq(featureEdits.layerId, layer.id)]
@@ -437,7 +451,7 @@ export const FeatureEditService = {
     editId: string,
     input: FeatureEditReview,
   ): Promise<FeatureEdit> {
-    const layer = await LayerService.load(layerId)
+    const layer = await datasetLayer(layerId)
     const access = await accessOf(ctx, layer)
     if (!access.canReview) {
       throw errors.forbidden('Правки слоя проверяют редакторы, которые правят его данные')

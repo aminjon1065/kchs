@@ -203,6 +203,7 @@ export const data = {
     events: 'События',
     territories: 'Территории',
     connections: 'Подключения',
+    document_places: 'Документы на карте',
   },
   catalog: {
     upload: 'Загрузить файл',

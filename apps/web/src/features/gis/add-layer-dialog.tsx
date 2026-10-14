@@ -102,7 +102,7 @@ export function AddLayerDialog({
         const record = await http.get('/gis/layers/:id', { params: { id: created.id } })
         const values =
           preset.kind === 'categorized' && preset.field
-            ? await loadCategoryValues(dataset.data.id, preset.field, null)
+            ? await loadCategoryValues({ kind: 'dataset', id: dataset.data.id }, preset.field, null)
             : null
         const style = styleWithPreset(record.style, preset, fields, options, values)
         if (!sameStyle(style, record.style)) {

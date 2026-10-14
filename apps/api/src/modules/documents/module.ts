@@ -25,6 +25,7 @@ import { documentControlProjection } from './domain/control-projection.js'
 import { onDocumentRegistered } from './domain/document-service.js'
 import { MailIntake } from './domain/mail/mail-service.js'
 import { DocumentMailOut, EMAIL_SEND_JOB } from './domain/mail-out.js'
+import { DOCUMENT_PLACES_SYSTEM_DATASET } from './domain/places-dataset.js'
 import { capabilityPolicy, documentPolicy } from './domain/policies.js'
 import { registerBuiltinPrintForms } from './domain/print/forms/index.js'
 import {
@@ -355,6 +356,7 @@ export function registerDocumentsObjectTypes(): void {
   })
 
   registerSystemDataset(DOCUMENTS_SYSTEM_DATASET)
+  registerSystemDataset(DOCUMENT_PLACES_SYSTEM_DATASET)
   // Журналы, типы и шаблоны в пакете конфигурации по ключам (ADR-0206)
   registerDocumentConfigSections()
   registerBuiltinPrintForms()

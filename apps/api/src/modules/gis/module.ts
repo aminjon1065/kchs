@@ -205,7 +205,9 @@ export function registerGisRoutes(route: RouteRegistrar): void {
     handler: async (request, reply) => {
       const { id, z: zoom, x, y } = request.params
       const tile = await TileService.tile(request.ctx, id, zoom, x, y, request.query)
-      reply.header('cache-control', TILE_CACHE_CONTROL)
+      // Тайл системного источника (ADR-0223) — свой у каждого смотрящего и без версии
+      // данных: браузер переспрашивает каждый раз, 304 — по метке содержимого
+      reply.header('cache-control', tile.personal ? 'private, no-cache' : TILE_CACHE_CONTROL)
       reply.header('etag', tile.etag)
       reply.header(
         'server-timing',

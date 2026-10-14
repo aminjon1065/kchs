@@ -10,6 +10,13 @@ import type { Ctx } from '~/shared/context.js'
 import { errors } from '~/shared/errors.js'
 import { layerConditions, parseBbox, tilePreview } from './layer-filter.js'
 import { LayerService } from './layer-service.js'
+import {
+  layerQuerySource,
+  layerVisibleFields,
+  layerWindowSource,
+  SYSTEM_ROW_ID,
+  systemLayerRow,
+} from './layer-source.js'
 
 type Geometry = Record<string, unknown>
 
@@ -28,7 +35,7 @@ export const FeatureService = {
     query: LayerFeaturesQuery,
   ): Promise<LayerFeatureCollection> {
     const layer = await LayerService.load(layerId)
-    const visible = await DatasetQueries.visibleFields(ctx, layer.datasetId)
+    const visible = await layerVisibleFields(ctx, layer)
     if (!visible.has(layer.geometryField)) throw errors.forbidden()
     // Поля стиля, карточки и тайла — чтобы клиент рисовал и подписывал без дозапросов;
     // у предпросмотра рабочей копии стиля — ещё и её поля (ADR-0075)
@@ -43,10 +50,18 @@ export const FeatureService = {
     const where = layerConditions(layer, query, preview)
     const spec = QuerySpec.parse({
       version: 1,
-      source: { kind: 'dataset', id: layer.datasetId },
+      source: layerQuerySource(layer),
       steps: [
         ...(where ? [{ type: 'filter', where }] : []),
-        { type: 'select', fields: [layer.geometryField, ...fields] },
+        {
+          type: 'select',
+          // У системного источника номер объекта — обычное поле `_id` (ADR-0223)
+          fields: [
+            ...(layer.systemSource ? [SYSTEM_ROW_ID] : []),
+            layer.geometryField,
+            ...fields.filter((key) => key !== SYSTEM_ROW_ID),
+          ],
+        },
       ],
       options: { cache: false },
     })
@@ -57,7 +72,7 @@ export const FeatureService = {
       ...(query.bbox
         ? {
             spatialWindow: {
-              datasetId: layer.datasetId,
+              datasetId: layerWindowSource(layer),
               field: layer.geometryField,
               bbox: parseBbox(query.bbox),
             },
@@ -88,7 +103,12 @@ export const FeatureService = {
   /** Карточка объекта по щелчку: строка с политиками смотрящего. */
   async feature(ctx: Ctx, layerId: string, rowId: string): Promise<LayerFeature> {
     const layer = await LayerService.load(layerId)
-    const row = await DatasetQueries.row(ctx, layer.datasetId, rowId)
+    if (layer.systemSource) {
+      const row = await systemLayerRow(ctx, layer.systemSource, rowId)
+      const { [layer.geometryField]: geometry, [SYSTEM_ROW_ID]: _id, ...values } = row
+      return { id: rowId, ver: 0, values, geometry: asGeometry(geometry) }
+    }
+    const row = await DatasetQueries.row(ctx, layer.datasetId as string, rowId)
     const { [layer.geometryField]: geometry, ...values } = row.values
     return { id: row._id, ver: row._ver, values, geometry: asGeometry(geometry) }
   },

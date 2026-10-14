@@ -100,12 +100,11 @@ type Parsed<C, Part extends keyof RouteContract> =
  * что угодно (файл, поток, ответ без описания). `FastifyReply` — обработчик ответил сам
  * (`reply.code(201).send(…)`, поток), `void` — пустой ответ.
  */
-type RouteResponse<C> =
-  C extends { response: infer R }
-    ? R extends Readonly<Record<number, z.ZodType>>
-      ? z.input<R[keyof R]> | FastifyReply | void
-      : unknown
+type RouteResponse<C> = C extends { response: infer R }
+  ? R extends Readonly<Record<number, z.ZodType>>
+    ? z.input<R[keyof R]> | FastifyReply | void
     : unknown
+  : unknown
 
 /**
  * Регистрация маршрута (ADR-0188): метод, путь и схемы — запись таблицы маршрутов

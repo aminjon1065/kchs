@@ -64,7 +64,7 @@ export function DashboardMapTile({
     <MapEmbed
       mapId={tile.mapId}
       camera={options.camera}
-      filter={(layer) => byDataset[layer.datasetId] ?? null}
+      filter={(layer) => (layer.datasetId ? (byDataset[layer.datasetId] ?? null) : null)}
       onCameraChange={setCurrent}
       refreshMs={refreshMs}
       actions={
@@ -134,7 +134,10 @@ export function MapBindingsDialog({
     })),
   })
   const loaded = layers.flatMap((query) => (query.data?.dataAccess ? [query.data] : []))
-  const datasetIds = [...new Set(loaded.map((layer) => layer.datasetId))]
+  // Фильтры дашборда — по датасетам реестра; системный источник слоя (ADR-0223) их не получает
+  const datasetIds = [
+    ...new Set(loaded.flatMap((layer) => (layer.datasetId ? [layer.datasetId] : []))),
+  ]
   const datasets = useQueries({
     queries: datasetIds.map((id) => ({ ...datasetQuery(id), retry: false })),
   })

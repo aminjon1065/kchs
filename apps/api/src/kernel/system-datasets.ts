@@ -1,4 +1,4 @@
-import type { SYSTEM_DATASETS } from '@kchs/contracts'
+import type { LayerGeometryType, SYSTEM_DATASETS } from '@kchs/contracts'
 import type { ResolvedDataset } from '@kchs/query'
 import type { Ctx } from '~/shared/context.js'
 
@@ -16,6 +16,8 @@ export interface SystemDatasetDefinition {
   resolve: (ctx: Ctx) => Promise<ResolvedDataset>
   /** Поле времени по умолчанию — для показателей над системным датасетом (ADR-0082). */
   timeField?: string
+  /** Поле геометрии и её вид — источник слоя карты с правами смотрящего (ADR-0223). */
+  geometry?: { field: string; type: LayerGeometryType }
 }
 
 const registry = new Map<string, SystemDatasetDefinition>()

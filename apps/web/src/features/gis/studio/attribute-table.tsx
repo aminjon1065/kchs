@@ -125,14 +125,28 @@ export function AttributeTable() {
       </section>
     )
   }
-  return <LayerTable key={layer.id} layer={layer} available={available} />
+  // Таблица — строки датасета; у системного источника (ADR-0223) таблицы нет
+  if (!layer.datasetId) {
+    return (
+      <section className="flex min-h-0 flex-1 flex-col">
+        <EmptyState icon={<Table2 />} title={t('gis.attributes.systemSource')} />
+      </section>
+    )
+  }
+  return (
+    <LayerTable
+      key={layer.id}
+      layer={{ ...layer, datasetId: layer.datasetId }}
+      available={available}
+    />
+  )
 }
 
 function LayerTable({
   layer,
   available,
 }: {
-  layer: LayerRecord
+  layer: LayerRecord & { datasetId: string }
   available: readonly LayerRecord[]
 }) {
   const t = useT()

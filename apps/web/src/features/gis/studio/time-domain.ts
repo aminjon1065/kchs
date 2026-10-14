@@ -2,6 +2,7 @@ import type { LayerRecord, QueryStep } from '@kchs/contracts'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
 import { meQuery } from '~/shared/api/queries.js'
+import { layerQuerySource } from '../layer-source.js'
 import { type TimeDomain, wallFromValue } from './time-model.js'
 
 /** Пояс пользователя (профиль), пока профиль не загружен — пояс браузера. */
@@ -36,7 +37,7 @@ async function loadDomain(layer: LayerRecord): Promise<RawDomain> {
   })
   const result = await http.post('/queries/run', {
     body: {
-      spec: { version: 1, source: { kind: 'dataset', id: layer.datasetId }, steps },
+      spec: { version: 1, source: layerQuerySource(layer), steps },
     },
   })
   const row = result.rows[0] ?? []

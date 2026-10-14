@@ -78,7 +78,8 @@ export function StudioLinks() {
     const out = new Map<string, MapDataset>()
     for (const item of studio.layers) {
       const layer = item.layer
-      if (!layer?.dataAccess) continue
+      // Связанные представления — по датасетам реестра; системный источник (ADR-0223) — нет
+      if (!layer?.dataAccess || !layer.datasetId) continue
       const entry = out.get(layer.datasetId) ?? { layerIds: [], field: layer.geometryField }
       entry.layerIds.push(layer.id)
       out.set(layer.datasetId, entry)

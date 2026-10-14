@@ -1,12 +1,22 @@
 import { z } from 'zod'
 import { Timestamp, Uuid } from '../common/primitives.js'
+import type { SYSTEM_DATASETS } from '../data/query.js'
 import { LayerStyle } from './layer-style.js'
 
 /**
  * Слой — объект реестра `layer`, представление датасета на карте
  * (07-gis-engine.md §1–4): стиль, подписи, карточка, фильтр, диапазон зумов,
  * поля тайла. У датасета может быть несколько слоёв; геометрия — поле датасета.
+ * Источник слоя — датасет реестра или системный датасет с правами смотрящего
+ * (ADR-0223): ровно одно из `datasetId` и `systemSource`.
  */
+
+/** Системные датасеты, которые могут быть источником слоя: у них есть поле геометрии. */
+export const LAYER_SYSTEM_SOURCES = ['document_places'] as const satisfies ReadonlyArray<
+  (typeof SYSTEM_DATASETS)[number]
+>
+export const LayerSystemSource = z.enum(LAYER_SYSTEM_SOURCES)
+export type LayerSystemSource = z.infer<typeof LayerSystemSource>
 
 export const LAYER_GEOMETRY_TYPES = ['point', 'line', 'polygon', 'mixed'] as const
 export const LayerGeometryType = z.enum(LAYER_GEOMETRY_TYPES)
@@ -32,7 +42,13 @@ export const LayerRecord = z.object({
   name: z.string(),
   spaceId: Uuid,
   parentId: Uuid.nullable(),
-  datasetId: Uuid,
+  /** Датасет реестра; null — слой над системным датасетом (`systemSource`, ADR-0223). */
+  datasetId: Uuid.nullable(),
+  /**
+   * Системный датасет с правами смотрящего (ADR-0223): строки — то, что смотрящему открыто
+   * правами своих объектов; тайлы не кэшируются между пользователями, правки нет.
+   */
+  systemSource: LayerSystemSource.nullable(),
   /** Поле геометрии датасета, которое рисует слой. */
   geometryField: z.string(),
   geometryType: LayerGeometryType,
@@ -60,19 +76,26 @@ export const LayerRecord = z.object({
 })
 export type LayerRecord = z.infer<typeof LayerRecord>
 
-export const LayerCreateInput = z.object({
-  name: z.string().trim().min(1).max(200),
-  spaceId: Uuid,
-  parentId: Uuid.nullable().optional(),
-  datasetId: Uuid,
-  /** По умолчанию — первое поле геометрии датасета. */
-  geometryField: FieldKey.optional(),
-  /** По умолчанию — простой стиль по типу геометрии. */
-  style: LayerStyle.optional(),
-  tileFields: z.array(FieldKey).max(32).optional(),
-  editable: z.boolean().default(false),
-  moderated: z.boolean().default(false),
-})
+export const LayerCreateInput = z
+  .object({
+    name: z.string().trim().min(1).max(200),
+    spaceId: Uuid,
+    parentId: Uuid.nullable().optional(),
+    datasetId: Uuid.optional(),
+    /** Источник — системный датасет вместо датасета реестра (ADR-0223). */
+    systemSource: LayerSystemSource.optional(),
+    /** По умолчанию — первое поле геометрии датасета. */
+    geometryField: FieldKey.optional(),
+    /** По умолчанию — простой стиль по типу геометрии. */
+    style: LayerStyle.optional(),
+    tileFields: z.array(FieldKey).max(32).optional(),
+    editable: z.boolean().default(false),
+    moderated: z.boolean().default(false),
+  })
+  .refine((input) => (input.datasetId === undefined) !== (input.systemSource === undefined), {
+    message: 'Нужен ровно один источник слоя: datasetId или systemSource',
+    path: ['datasetId'],
+  })
 export type LayerCreateInput = z.infer<typeof LayerCreateInput>
 
 export const LayerUpdateInput = z.object({

@@ -9,6 +9,7 @@ import { Button } from '@kchs/ui'
 import { useMutation } from '@tanstack/react-query'
 import { Sparkles } from 'lucide-react'
 import { useT } from '~/shared/i18n.js'
+import { layerQuerySource } from '../layer-source.js'
 import { categoriesWithLabels, loadCategoryValues } from './categories.js'
 import { EditorSection, useFieldName, useStyleEditor } from './controls.js'
 
@@ -77,7 +78,7 @@ export function PresetsSection() {
   const apply = useMutation({
     mutationFn: async (preset: StylePreset) =>
       preset.kind === 'categorized' && preset.field
-        ? loadCategoryValues(layer.datasetId, preset.field, style.filter)
+        ? loadCategoryValues(layerQuerySource(layer), preset.field, style.filter)
         : null,
     onSuccess: (values, preset) =>
       update((current) => styleWithPreset(current, preset, fields, options, values)),

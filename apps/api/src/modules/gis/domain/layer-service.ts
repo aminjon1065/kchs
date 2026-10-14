@@ -3,6 +3,7 @@ import {
   type LayerGeometryType,
   type LayerRecord,
   LayerStyle,
+  type LayerSystemSource,
   type LayerUpdateInput,
   layerStyleFields,
 } from '@kchs/contracts'
@@ -17,6 +18,7 @@ import type { Ctx } from '~/shared/context.js'
 import { db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { layers } from '../schema.js'
+import { type LayerSourceRef, systemLayerGeometry } from './layer-source.js'
 import { defaultStyle } from './style-fields.js'
 import { viewerGeometry } from './viewer-geometry.js'
 
@@ -26,7 +28,9 @@ export interface StoredLayer {
   name: string
   spaceId: string
   parentId: string | null
-  datasetId: string
+  datasetId: string | null
+  /** Системный датасет с правами смотрящего вместо датасета (ADR-0223). */
+  systemSource: LayerSystemSource | null
   geometryField: string
   geometryType: LayerGeometryType
   style: LayerStyle
@@ -37,15 +41,17 @@ export interface StoredLayer {
   updatedAt: string
 }
 
-/** Поля стиля и поля тайла должны быть полями датасета (не геометрией слоя). */
+/** Поля стиля и поля тайла должны быть полями источника (не геометрией слоя). */
 async function assertFields(
-  datasetId: string,
+  ctx: Ctx,
+  source: LayerSourceRef,
   geometryField: string,
   style: LayerStyle,
   tileFields: string[],
 ): Promise<void> {
-  const record = await datasetRecord(datasetId)
-  const keys = new Set(record.fields.map((field) => field.key))
+  const keys = source.systemSource
+    ? (await systemLayerGeometry(ctx, source.systemSource)).fields
+    : new Set((await datasetRecord(source.datasetId as string)).fields.map((field) => field.key))
   for (const key of [...layerStyleFields(style), ...tileFields]) {
     if (!keys.has(key) || key === geometryField) {
       throw errors.validation(`В датасете нет поля «${key}»`)
@@ -67,6 +73,7 @@ async function load(id: string, executor: Executor = db()): Promise<StoredLayer>
     spaceId: row.object.spaceId,
     parentId: row.object.parentId,
     datasetId: row.layer.datasetId,
+    systemSource: row.layer.systemSource as LayerSystemSource | null,
     geometryField: row.layer.geometryField,
     geometryType: row.layer.geometryType as LayerGeometryType,
     style: LayerStyle.parse(row.layer.style),
@@ -78,6 +85,26 @@ async function load(id: string, executor: Executor = db()): Promise<StoredLayer>
   }
 }
 
+/** Поле геометрии и вид источника слоя; автор слоя должен видеть датасет-источник. */
+async function describeSource(
+  ctx: Ctx,
+  source: LayerSourceRef,
+  geometryField: string | undefined,
+): Promise<{ field: string; geometryType: LayerGeometryType }> {
+  if (source.systemSource) {
+    const geo = await systemLayerGeometry(ctx, source.systemSource)
+    if (geometryField && geometryField !== geo.field) {
+      throw errors.validation(`В источнике нет поля геометрии «${geometryField}»`)
+    }
+    return { field: geo.field, geometryType: geo.geometryType }
+  }
+  const datasetId = source.datasetId as string
+  // Автор слоя должен видеть датасет, иначе слой ссылался бы на недоступное
+  await authorize(ctx, 'view', datasetId)
+  const geo = await DatasetGeo.describe(datasetId, geometryField)
+  return { field: geo.field.key, geometryType: geo.geometryType }
+}
+
 /**
  * Слои (07-gis-engine.md §1–4, ADR-0064): объект реестра `layer` — представление
  * датасета; права на слой не открывают данные — тайлы и объекты читаются с
@@ -87,61 +114,79 @@ export const LayerService = {
   load,
 
   async create(tx: Tx, ctx: Ctx, input: LayerCreateInput): Promise<string> {
-    // Автор слоя должен видеть датасет, иначе слой ссылался бы на недоступное
-    await authorize(ctx, 'view', input.datasetId)
-    const geo = await DatasetGeo.describe(input.datasetId, input.geometryField)
+    const source: LayerSourceRef = {
+      datasetId: input.datasetId ?? null,
+      systemSource: input.systemSource ?? null,
+    }
+    const geo = await describeSource(ctx, source, input.geometryField)
+    // Системный источник — только чтение: строки принадлежат своим модулям (ADR-0223)
+    if (source.systemSource && (input.editable || input.moderated)) {
+      throw errors.validation('Слой системного датасета не правится на карте')
+    }
     const style = input.style ?? defaultStyle(geo.geometryType)
     const tileFields = input.tileFields ?? []
-    await assertFields(input.datasetId, geo.field.key, style, tileFields)
+    await assertFields(ctx, source, geo.field, style, tileFields)
     const object = await ObjectService.create(tx, ctx, {
       type: 'layer',
       spaceId: input.spaceId,
       parentId: input.parentId ?? null,
       title: input.name,
-      meta: { datasetId: input.datasetId, geometryType: geo.geometryType },
+      meta: {
+        ...(source.datasetId ? { datasetId: source.datasetId } : {}),
+        ...(source.systemSource ? { systemSource: source.systemSource } : {}),
+        geometryType: geo.geometryType,
+      },
     })
     await tx.insert(layers).values({
       id: object.id,
-      datasetId: input.datasetId,
-      geometryField: geo.field.key,
+      datasetId: source.datasetId,
+      systemSource: source.systemSource,
+      geometryField: geo.field,
       geometryType: geo.geometryType,
       style: style as unknown as Record<string, unknown>,
       tileFields,
       editable: input.editable,
       moderated: input.moderated,
     })
-    await LinkService.setDependencies(tx, object.id, [input.datasetId])
+    if (source.datasetId) await LinkService.setDependencies(tx, object.id, [source.datasetId])
     await publishEvent(tx, ctx, {
       type: 'layer.published',
       object: { id: object.id, type: 'layer', spaceId: object.spaceId, title: input.name },
-      payload: { datasetId: input.datasetId, geometryType: geo.geometryType },
+      payload: {
+        datasetId: source.datasetId,
+        ...(source.systemSource ? { systemSource: source.systemSource } : {}),
+        geometryType: geo.geometryType,
+      },
     })
     return object.id
   },
 
   async get(ctx: Ctx, id: string): Promise<LayerRecord> {
     const layer = await load(id)
-    const access = await authorize(ctx, 'view', layer.datasetId, { soft: true })
-    const geo = access.allowed
-      ? await DatasetGeo.describe(layer.datasetId, layer.geometryField)
-      : null
+    // Системный источник открыт каждому: строки ограничивает политика смотрящего
+    const allowed = layer.datasetId
+      ? (await authorize(ctx, 'view', layer.datasetId, { soft: true })).allowed
+      : true
+    const geo =
+      allowed && layer.datasetId
+        ? await DatasetGeo.describe(layer.datasetId, layer.geometryField)
+        : null
     // Под политикой строк — рамка и счётчик только своих строк
-    const own = access.allowed
-      ? await viewerGeometry(ctx, layer.datasetId, layer.geometryField)
-      : null
+    const own = allowed ? await viewerGeometry(ctx, layer, layer.geometryField) : null
     return {
       id: layer.id,
       name: layer.name,
       spaceId: layer.spaceId,
       parentId: layer.parentId,
       datasetId: layer.datasetId,
+      systemSource: layer.systemSource,
       geometryField: layer.geometryField,
       geometryType: layer.geometryType,
       style: layer.style,
       tileFields: layer.tileFields,
       editable: layer.editable,
       moderated: layer.moderated,
-      dataAccess: access.allowed,
+      dataAccess: allowed,
       extent: own ? own.extent : (geo?.extent ?? null),
       featureCount: own ? own.count : (geo?.rowCount ?? 0),
       datasetVersion: geo?.version ?? 0,
@@ -160,7 +205,10 @@ export const LayerService = {
     const style = input.style ?? layer.style
     const tileFields = input.tileFields ?? layer.tileFields
     if (input.style || input.tileFields) {
-      await assertFields(layer.datasetId, layer.geometryField, style, tileFields)
+      await assertFields(ctx, layer, layer.geometryField, style, tileFields)
+    }
+    if (layer.systemSource && (input.editable || input.moderated)) {
+      throw errors.validation('Слой системного датасета не правится на карте')
     }
     const set: Partial<typeof layers.$inferInsert> = {}
     if (input.style) {

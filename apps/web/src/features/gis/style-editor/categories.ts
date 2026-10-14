@@ -1,4 +1,4 @@
-import type { DatasetField, FieldOption, FilterNode, LangText } from '@kchs/contracts'
+import type { DatasetField, FieldOption, FilterNode, LangText, QuerySource } from '@kchs/contracts'
 import { type CategoryValue, categoriesFor } from '@kchs/map-style'
 import { http } from '~/shared/api/client.js'
 
@@ -13,7 +13,7 @@ const YES = new Set(['true', '1', 'yes', 'да', 'ҳа']) // i18n-ignore
  * Фильтр — рабочей копии стиля, как у строк на карте.
  */
 export async function loadCategoryValues(
-  datasetId: string,
+  source: QuerySource,
   field: string,
   filter: FilterNode | null,
 ): Promise<CategoryValue[]> {
@@ -21,7 +21,7 @@ export async function loadCategoryValues(
     body: {
       spec: {
         version: 1,
-        source: { kind: 'dataset', id: datasetId },
+        source,
         steps: [
           ...(filter ? [{ type: 'filter' as const, where: filter }] : []),
           {

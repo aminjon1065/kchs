@@ -108,6 +108,22 @@ const FIELDS: ResolvedField[] = [
  * вне режима администратора и аудитор видят всё, кроме грифа выше допуска.
  */
 export async function resolveDocumentsDataset(ctx: Ctx): Promise<ResolvedDataset> {
+  return {
+    id: 'system:documents',
+    table: 'ds.sys_documents',
+    fields: FIELDS,
+    rowPolicy: documentViewerPolicy(ctx),
+    columnPolicy: { hide: ['viewers', 'grif_rank'], mask: [] },
+    version: 0,
+    systemColumns: false,
+  }
+}
+
+/**
+ * Политика строк смотрящего для представлений документов (`viewers`, `grif_rank`):
+ * принципалы пересекаются с принципалами пользователя, гриф не строже допуска.
+ */
+export function documentViewerPolicy(ctx: Ctx): ResolvedDataset['rowPolicy'] {
   const principals = visibilityPrincipals(ctx)
   const limit = clearanceLimit(ctx)
   const conditions: FilterNode[] = []
@@ -115,22 +131,11 @@ export async function resolveDocumentsDataset(ctx: Ctx): Promise<ResolvedDataset
     conditions.push({ field: 'viewers', op: 'in', value: principals })
   }
   if (limit !== null) conditions.push({ field: 'grif_rank', op: 'lte', value: limit })
-  const none = principals !== null && principals.length === 0
+  if (principals !== null && principals.length === 0) return { kind: 'none' }
+  if (conditions.length === 0) return { kind: 'all' }
   return {
-    id: 'system:documents',
-    table: 'ds.sys_documents',
-    fields: FIELDS,
-    rowPolicy: none
-      ? { kind: 'none' }
-      : conditions.length === 0
-        ? { kind: 'all' }
-        : {
-            kind: 'filter',
-            where: conditions.length === 1 ? (conditions[0] as FilterNode) : { and: conditions },
-          },
-    columnPolicy: { hide: ['viewers', 'grif_rank'], mask: [] },
-    version: 0,
-    systemColumns: false,
+    kind: 'filter',
+    where: conditions.length === 1 ? (conditions[0] as FilterNode) : { and: conditions },
   }
 }
 
