@@ -848,13 +848,15 @@ export const QueryService = {
     compiled: Pick<CompiledQuery, 'sql' | 'params' | 'countSql' | 'countParams' | 'timeoutMs'> & {
       /** Пояс запроса — у сырого SQL свой (`CompiledRawSql.timezone`). */
       timezone?: string
+      /** Сигнал задания: отмена прерывает запрос в самой базе (ADR-0220). */
+      signal?: AbortSignal | undefined
     },
     consume: (batches: AsyncIterable<Array<Record<string, unknown>>>, total: number) => Promise<T>,
     batchSize = STREAM_BATCH,
   ): Promise<T> {
     try {
       return await readAsQueryRole(
-        { timeoutMs: compiled.timeoutMs, timezone: compiled.timezone },
+        { timeoutMs: compiled.timeoutMs, timezone: compiled.timezone, signal: compiled.signal },
         async (read) => {
           const counted = await read.rows({ sql: compiled.countSql, params: compiled.countParams })
           const total = Number(counted[0]?.count ?? 0)

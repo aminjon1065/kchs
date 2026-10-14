@@ -268,7 +268,7 @@ export const ExportService = {
     const out = createWriteStream(path)
     const limit: RowLimit = { rows: 0, truncated: false }
     try {
-      await QueryService.stream(compiled, async (cursor, total) => {
+      await QueryService.stream({ ...compiled, signal: helpers.signal }, async (cursor, total) => {
         const expected = Math.min(total, DATASET_EXPORT_MAX_ROWS)
         let reported = 0
         const batches = limitBatches(cursor, DATASET_EXPORT_MAX_ROWS, limit, async (rows) => {

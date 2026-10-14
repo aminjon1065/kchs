@@ -397,7 +397,11 @@ export const AnalysisService = {
   /** Задание `data:analysis.run`: права и данные — на момент выполнения. */
   async execute(
     data: AnalysisJobData,
-    helpers: { recordId: string; progress: (value: number, message?: string) => Promise<void> },
+    helpers: {
+      recordId: string
+      progress: (value: number, message?: string) => Promise<void>
+      signal?: AbortSignal
+    },
   ): Promise<AnalysisRunResult> {
     const job = await JobService.get(helpers.recordId)
     if (!job?.initiatorId) throw new UnrecoverableError('У анализа нет инициатора')
@@ -468,31 +472,34 @@ export const AnalysisService = {
         type: field.type as StoredFieldType,
         ...(field.format?.precision !== undefined ? { precision: field.format.precision } : {}),
       }))
-      const rows = await QueryService.stream(compiled, async (batches, total) => {
-        if (total > ANALYSIS_MAX_ROWS) {
-          throw new UnrecoverableError(
-            `Результат анализа — ${total} строк, больше предела ${ANALYSIS_MAX_ROWS}: сузьте отбор`,
-          )
-        }
-        let written = 0
-        let reported = 0
-        for await (const batch of batches) {
-          const records = batch.map((source) =>
-            Object.fromEntries(
-              fields.map((field, index) => [
-                target.fields[index]?.physical as string,
-                jsonValue(source[field.source], field.input.type as StoredFieldType),
-              ]),
-            ),
-          )
-          written += await Physical.insertJson(tx, target.table, columns, records, actorId(ctx))
-          if (written - reported >= PROGRESS_EVERY) {
-            reported = written
-            await helpers.progress(total > 0 ? Math.min(written / total, 0.99) : 0)
+      const rows = await QueryService.stream(
+        { ...compiled, signal: helpers.signal },
+        async (batches, total) => {
+          if (total > ANALYSIS_MAX_ROWS) {
+            throw new UnrecoverableError(
+              `Результат анализа — ${total} строк, больше предела ${ANALYSIS_MAX_ROWS}: сузьте отбор`,
+            )
           }
-        }
-        return written
-      })
+          let written = 0
+          let reported = 0
+          for await (const batch of batches) {
+            const records = batch.map((source) =>
+              Object.fromEntries(
+                fields.map((field, index) => [
+                  target.fields[index]?.physical as string,
+                  jsonValue(source[field.source], field.input.type as StoredFieldType),
+                ]),
+              ),
+            )
+            written += await Physical.insertJson(tx, target.table, columns, records, actorId(ctx))
+            if (written - reported >= PROGRESS_EVERY) {
+              reported = written
+              await helpers.progress(total > 0 ? Math.min(written / total, 0.99) : 0)
+            }
+          }
+          return written
+        },
+      )
       const version = await DatasetService.bumpVersion(tx, ctx, {
         datasetId: target.id,
         origin: 'analysis',

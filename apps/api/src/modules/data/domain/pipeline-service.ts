@@ -511,7 +511,11 @@ export const PipelineService = {
   /** Задание `data:pipeline.run`: права и данные — на момент выполнения. */
   async execute(
     data: PipelineJobData,
-    helpers: { recordId: string; progress: (value: number, message?: string) => Promise<void> },
+    helpers: {
+      recordId: string
+      progress: (value: number, message?: string) => Promise<void>
+      signal?: AbortSignal
+    },
   ): Promise<PipelineRunResult> {
     const job = await JobService.get(helpers.recordId)
     if (!job?.initiatorId) throw new UnrecoverableError('У прогона пайплайна нет инициатора')
@@ -602,31 +606,34 @@ export const PipelineService = {
         type: field.type as StoredFieldType,
         ...(field.format?.precision !== undefined ? { precision: field.format.precision } : {}),
       }))
-      const rows = await QueryService.stream(compiled, async (batches, total) => {
-        if (total > PIPELINE_MAX_ROWS) {
-          throw new UnrecoverableError(
-            `Результат пайплайна — ${total} строк, больше предела ${PIPELINE_MAX_ROWS}`,
-          )
-        }
-        let written = 0
-        let reported = 0
-        for await (const batch of batches) {
-          const records = batch.map((source) =>
-            Object.fromEntries(
-              fields.map((field, index) => [
-                target.fields[index]?.physical as string,
-                jsonValue(source[field.source], field.input.type as StoredFieldType),
-              ]),
-            ),
-          )
-          written += await Physical.insertJson(tx, target.table, columns, records, actorId(ctx))
-          if (written - reported >= PROGRESS_EVERY) {
-            reported = written
-            await helpers.progress(total > 0 ? Math.min(written / total, 0.99) : 0)
+      const rows = await QueryService.stream(
+        { ...compiled, signal: helpers.signal },
+        async (batches, total) => {
+          if (total > PIPELINE_MAX_ROWS) {
+            throw new UnrecoverableError(
+              `Результат пайплайна — ${total} строк, больше предела ${PIPELINE_MAX_ROWS}`,
+            )
           }
-        }
-        return written
-      })
+          let written = 0
+          let reported = 0
+          for await (const batch of batches) {
+            const records = batch.map((source) =>
+              Object.fromEntries(
+                fields.map((field, index) => [
+                  target.fields[index]?.physical as string,
+                  jsonValue(source[field.source], field.input.type as StoredFieldType),
+                ]),
+              ),
+            )
+            written += await Physical.insertJson(tx, target.table, columns, records, actorId(ctx))
+            if (written - reported >= PROGRESS_EVERY) {
+              reported = written
+              await helpers.progress(total > 0 ? Math.min(written / total, 0.99) : 0)
+            }
+          }
+          return written
+        },
+      )
       const version = await DatasetService.bumpVersion(tx, ctx, {
         datasetId: target.id,
         origin: 'pipeline',
