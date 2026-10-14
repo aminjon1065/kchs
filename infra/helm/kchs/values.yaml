@@ -468,6 +468,17 @@ observability:
     enabled: false
     interval: 15s
     labels: {}
+  # Экспортёр метрик встроенных Redis (основного и кэша) — контейнером в их поде, как
+  # redis-exporter в compose; задания «redis» и «redis-cache» — те же, что в правилах
+  # оповещений. Внешний Redis наблюдает его владелец
+  redisExporter:
+    enabled: true
+    image:
+      repository: oliver006/redis_exporter
+      tag: v1.91.1
+    resources:
+      requests: { cpu: 10m, memory: 32Mi }
+      limits: { memory: 64Mi }
   # Правила оповещений kchs (PrometheusRule, Prometheus Operator) — те же, что в S1
   # (ADR-0167). labels — метки, по которым ваш Prometheus выбирает правила
   prometheusRule:

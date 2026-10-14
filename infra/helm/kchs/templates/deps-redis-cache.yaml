@@ -19,6 +19,11 @@ spec:
     - name: redis
       port: {{ .Values.redisCache.port }}
       targetPort: redis
+    {{- if .Values.observability.redisExporter.enabled }}
+    - name: metrics
+      port: 9121
+      targetPort: metrics
+    {{- end }}
   selector:
     {{- include "kchs.selectorLabels" (dict "ctx" . "component" "redis-cache") | nindent 4 }}
 ---
@@ -90,6 +95,27 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /data
+        {{- if .Values.observability.redisExporter.enabled }}
+        # Метрики для Prometheus: тот же экспортёр, что в compose (ADR-0167)
+        - name: exporter
+          image: {{ include "kchs.image" (dict "ctx" . "image" .Values.observability.redisExporter.image) }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          env:
+            - name: REDIS_ADDR
+              value: redis://localhost:6379
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kchs.secretName" . }}
+                  key: REDIS_CACHE_PASSWORD
+          ports:
+            - name: metrics
+              containerPort: 9121
+          resources:
+            {{- toYaml .Values.observability.redisExporter.resources | nindent 12 }}
+        {{- end }}
       volumes:
         - name: data
           emptyDir: {}

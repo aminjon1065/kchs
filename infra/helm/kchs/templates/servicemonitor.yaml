@@ -29,4 +29,38 @@ spec:
         - targetLabel: job
           replacement: {{ printf "kchs-%s" $component }}
 {{- end }}
+{{- if .Values.observability.redisExporter.enabled }}
+{{/*
+Встроенные Redis — экспортёр в их поде; задания «redis» и «redis-cache», как в compose и
+в правилах оповещений (alerts.yml: redis_up{job="redis"})
+*/}}
+{{- range $component := list "redis" "redis-cache" }}
+{{- $embedded := ternary $.Values.redis.embedded.enabled $.Values.redisCache.embedded.enabled (eq $component "redis") }}
+{{- if $embedded }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ printf "%s-%s" $fullname $component }}
+  labels:
+    {{- include "kchs.componentLabels" (dict "ctx" $ "component" $component) | nindent 4 }}
+    {{- with $.Values.observability.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "kchs.selectorLabels" (dict "ctx" $ "component" $component) | nindent 6 }}
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: {{ $.Values.observability.serviceMonitor.interval }}
+      relabelings:
+        - targetLabel: job
+          replacement: {{ $component }}
+        - targetLabel: instance
+          replacement: {{ $component }}
+{{- end }}
+{{- end }}
+{{- end }}
 {{- end }}

@@ -168,7 +168,8 @@ helm template kchs infra/helm/kchs -f infra/helm/kchs/ci/external-values.yaml | 
 
 - Наблюдаемости (Prometheus, Loki, Tempo, Grafana): в кластере это отдельные
   релизы, чарт только отдаёт метрики и трассы (`observability.*`). Для Prometheus
-  Operator чарт ставит `ServiceMonitor` (задания `kchs-api` и `kchs-worker`) и
+  Operator чарт ставит `ServiceMonitor` (задания `kchs-api` и `kchs-worker`; при встроенных
+  Redis — ещё `redis` и `redis-cache` от экспортёра в их поде, `observability.redisExporter`) и
   `PrometheusRule` с теми же правилами оповещений, что в S1
   (`observability.prometheusRule.enabled`, ADR-0167); экран «Здоровье системы»
   читает Prometheus и Alertmanager по `observability.prometheusUrl` и
