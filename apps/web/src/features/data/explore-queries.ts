@@ -1,7 +1,9 @@
 import type {
   ChartSpec,
   DashboardTile,
+  MetricDefinition,
   NotebookCell,
+  PipelineDefinition,
   QueryResult,
   QuerySpec,
 } from '@kchs/contracts'
@@ -94,6 +96,15 @@ export const exploreApi = {
   /** Сохранённый график из результата. */
   saveChart: (name: string, spaceId: string, spec: ChartSpec) =>
     http.post('/charts', { body: { name, spaceId, spec } }),
+  /** Пайплайн из плана и его первый прогон: прогон создаёт датасет-результат. */
+  saveAsDataset: async (name: string, spaceId: string, definition: PipelineDefinition) => {
+    const pipeline = await http.post('/pipelines', { body: { name, spaceId, definition } })
+    await http.post('/pipelines/:id/run', { params: { id: pipeline.id } })
+    return { id: pipeline.id }
+  },
+  /** Показатель из меры плана над датасетом исследования. */
+  saveAsMetric: (name: string, spaceId: string, datasetId: string, definition: MetricDefinition) =>
+    http.post('/metrics', { body: { name, spaceId, datasetId, definition } }),
 }
 
 /** Ошибка запроса для показа: вид, текст сервера; без клиента API в компонентах. */

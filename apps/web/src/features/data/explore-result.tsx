@@ -4,6 +4,7 @@ import {
   type DatasetField,
   type ExploreCompare,
   type ExplorePlan,
+  type ExploreTerritoryLevel,
   explorePlanSpec,
   type FilterNode,
   type QueryResult,
@@ -22,9 +23,9 @@ import {
   Skeleton,
 } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
-import { Rows3, X } from 'lucide-react'
+import { ChevronsDown, Rows3, X } from 'lucide-react'
 import { Suspense, useState } from 'react'
-import { LazyChoroplethPreview } from '~/features/gis/index.js'
+import { LazyChoroplethPreview, LazyPointsPreview } from '~/features/gis/index.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
@@ -119,21 +120,29 @@ export function CompareCaption({ compare }: { compare: ExploreCompare }) {
   )
 }
 
-/** Выбранный элемент: оставить только его, разбить по другому полю, показать строки. */
+/**
+ * Выбранный элемент: оставить только его, разбить по другому полю, показать строки;
+ * у территории уровнем справочника — спуститься на уровень ниже (ADR-0217, «Дополнено»).
+ */
 export function DrillBar({
   value,
   fields,
   exclude,
+  deeper = null,
   onOnly,
   onSplit,
+  onDeeper,
   onRows,
   onClose,
 }: {
   value: string
   fields: readonly DatasetField[]
   exclude: readonly string[]
+  /** Следующий уровень территории разреза; null — спускаться некуда. */
+  deeper?: ExploreTerritoryLevel | null
   onOnly: () => void
   onSplit: (field: string) => void
+  onDeeper?: () => void
   onRows: () => void
   onClose: () => void
 }) {
@@ -156,6 +165,18 @@ export function DrillBar({
       <Button size="sm" variant="secondary" onClick={onOnly}>
         {t('data.explore.drill.only')}
       </Button>
+      {deeper && onDeeper ? (
+        <Button
+          size="sm"
+          variant="secondary"
+          icon={<ChevronsDown className="size-3.5" />}
+          onClick={onDeeper}
+        >
+          {t('data.explore.drill.deeper', {
+            level: t(`data.explore.mapView.levels.${deeper}`),
+          })}
+        </Button>
+      ) : null}
       {choices.length > 0 ? (
         <Select value="" onValueChange={onSplit}>
           <SelectTrigger aria-label={t('data.explore.drill.splitBy')} className="h-7 w-48 text-xs">
@@ -248,9 +269,12 @@ export function RowsPanel({
 
 const LEVELS: ChoroplethLevel[] = ['region', 'district', 'jamoat']
 
+type MapMode = 'territories' | 'points'
+
 /**
  * Карта: хороплет по территориям — по полю-территории разреза или геометрии
- * датасета; значение — первая мера (количество, сумма или среднее).
+ * датасета; значение — первая мера (количество, сумма или среднее). У датасета с
+ * полем-точкой — ещё и сами точки с кластерами (ADR-0217, «Дополнено»).
  */
 export function MapView({
   datasetId,
@@ -262,13 +286,15 @@ export function MapView({
   plan: ExplorePlan
 }) {
   const t = useT()
-  const [level, setLevel] = useState<ChoroplethLevel>('district')
   const byKey = new Map(fields.map((field) => [field.key, field]))
   const territory = plan.groups.find(
     (group) => !group.bucket && byKey.get(group.field)?.type === 'territory',
   )
+  const [level, setLevel] = useState<ChoroplethLevel>(territory?.level ?? 'district')
   const geometry = fields.find((field) => field.type === 'geometry')
+  const point = fields.find((field) => field.type === 'geometry' && field.geometryType === 'point')
   const field = territory?.field ?? geometry?.key
+  const [mode, setMode] = useState<MapMode>(territory || !point ? 'territories' : 'points')
   if (!field) {
     return (
       <Callout tone="info" className="m-4">
@@ -281,32 +307,53 @@ export function MapView({
     first && (first.agg === 'sum' || first.agg === 'avg') && first.field
       ? { agg: first.agg, field: first.field }
       : { agg: 'count' as const, field: null }
+  const points = mode === 'points' && point ? point : null
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto p-4">
       <div className="flex flex-wrap items-center gap-3">
-        <SegmentedControl
-          size="sm"
-          aria-label={t('data.explore.mapView.level')}
-          value={level}
-          onValueChange={setLevel}
-          options={LEVELS.map((value) => ({
-            value,
-            label: t(`data.explore.mapView.levels.${value}`),
-          }))}
-        />
-        <span className="text-xs text-fg-muted">{t('data.explore.mapView.measure')}</span>
+        {point ? (
+          <SegmentedControl
+            size="sm"
+            aria-label={t('data.explore.mapView.mode')}
+            value={mode}
+            onValueChange={setMode}
+            options={(['territories', 'points'] as const).map((value) => ({
+              value,
+              label: t(`data.explore.mapView.modes.${value}`),
+            }))}
+          />
+        ) : null}
+        {points ? null : (
+          <>
+            <SegmentedControl
+              size="sm"
+              aria-label={t('data.explore.mapView.level')}
+              value={level}
+              onValueChange={setLevel}
+              options={LEVELS.map((value) => ({
+                value,
+                label: t(`data.explore.mapView.levels.${value}`),
+              }))}
+            />
+            <span className="text-xs text-fg-muted">{t('data.explore.mapView.measure')}</span>
+          </>
+        )}
       </div>
       <Suspense fallback={<Skeleton className="h-72 w-full" />}>
-        <LazyChoroplethPreview
-          params={{
-            datasetId,
-            join: territory ? 'territory' : 'geometry',
-            field,
-            level,
-            filter: plan.filter,
-            measure,
-          }}
-        />
+        {points ? (
+          <LazyPointsPreview datasetId={datasetId} field={points.key} filter={plan.filter} />
+        ) : (
+          <LazyChoroplethPreview
+            params={{
+              datasetId,
+              join: territory ? 'territory' : 'geometry',
+              field,
+              level,
+              filter: plan.filter,
+              measure,
+            }}
+          />
+        )}
       </Suspense>
     </div>
   )

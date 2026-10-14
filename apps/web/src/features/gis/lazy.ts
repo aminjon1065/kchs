@@ -11,3 +11,8 @@ export const LazyChoroplethPreview = lazy(() =>
     default: module.ChoroplethPreview,
   })),
 )
+
+/** Точки поля-точки с кластерами — вид «Карта» в «Исследовании» (ADR-0217, «Дополнено»). */
+export const LazyPointsPreview = lazy(() =>
+  import('./points-preview.js').then((module) => ({ default: module.PointsPreview })),
+)

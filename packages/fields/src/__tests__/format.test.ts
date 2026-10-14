@@ -69,6 +69,13 @@ describe('форматирование', () => {
     expect(formatValue('unknown', f, { locale: 'ru' })).toBe('unknown')
   })
 
+  it('точка — «широта, долгота», другая геометрия — её вид', () => {
+    const f = field({ type: 'geometry' })
+    const point = { type: 'Point', coordinates: [68.787038, 38.559772] }
+    expect(formatValue(point, f, {})).toBe('38.55977, 68.78704')
+    expect(formatValue({ type: 'Polygon', coordinates: [] }, f, {})).toBe('Polygon')
+  })
+
   it('пустое значение — пустая строка', () => {
     expect(formatValue(null, field({}), {})).toBe('')
     expect(formatValue(undefined, field({}), {})).toBe('')

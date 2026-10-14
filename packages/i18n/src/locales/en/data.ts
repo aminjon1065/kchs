@@ -618,6 +618,8 @@ export const data: DeepPartial<Dictionary['data']> = {
       day: 'Day',
       hour: 'Hour',
     },
+    level: 'Territory level',
+    levels: { none: 'As in the data', region: 'Region', district: 'District', jamoat: 'Jamoat' },
     measures: 'Measures',
     addMeasure: 'Add measure',
     rows: 'Rows',
@@ -710,7 +712,7 @@ export const data: DeepPartial<Dictionary['data']> = {
         diff: '{measure} · difference',
         pct: '{measure} · change',
       },
-      noCalc: 'Calculations over measures are not applied while comparing',
+      calcFromCurrent: 'The calculation uses the current period value',
     },
     calc: {
       label: 'Calculation',
@@ -725,6 +727,8 @@ export const data: DeepPartial<Dictionary['data']> = {
       of: '{measure} · {calc}',
     },
     mapView: {
+      mode: 'What is on the map',
+      modes: { territories: 'Territories', points: 'Points' },
       level: 'Map level',
       levels: { region: 'Regions', district: 'Districts', jamoat: 'Jamoats' },
       unavailable: 'The map is built by territory or geometry: add a grouping by a territory field',
@@ -734,6 +738,7 @@ export const data: DeepPartial<Dictionary['data']> = {
       title: 'Selected: {value}',
       only: 'Keep only this',
       splitBy: 'Break down by…',
+      deeper: 'One level down: {level}',
       rows: 'Show rows',
       close: 'Clear selection',
       rowsTitle: 'Rows: {value}',
@@ -753,6 +758,23 @@ export const data: DeepPartial<Dictionary['data']> = {
     dashboard: 'Dashboard',
     addedToDashboard: 'The tile is added to the dashboard',
     add: 'Add',
+    toDataset: 'As a dataset…',
+    toDatasetTitle: 'Save as a dataset',
+    toDatasetHint:
+      'A pipeline is created from the exploration steps: the first run creates the dataset, later runs recompute it.',
+    lossCalcs:
+      'Calculations over measures do not go into the dataset: pipelines have no window steps.',
+    lossLimit: 'Sorting and the limit are not carried over: the dataset gets every summary row.',
+    datasetStarted: 'The pipeline is created and started',
+    toMetric: 'As a metric…',
+    toMetricTitle: 'Save as a metric',
+    toMetricHint:
+      'The exploration filter becomes the metric conditions, grouping fields become its allowed breakdowns. Set the period and targets on the metric card.',
+    metricMeasure: 'Measure',
+    metricUnsupported: 'This measure does not fit a metric',
+    metricCreated: 'Metric created',
+    noMeasures: 'At least one measure is needed',
+    create: 'Create',
     showQuery: 'Show query',
     queryTitle: 'Query',
     queryHint:

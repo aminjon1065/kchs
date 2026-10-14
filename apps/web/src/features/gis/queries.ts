@@ -1,6 +1,6 @@
-import type { FieldOption, Territory } from '@kchs/contracts'
-import { queryOptions } from '@tanstack/react-query'
-import { http } from '~/shared/api/client.js'
+import type { FieldOption, QueryResult, QuerySpec, Territory } from '@kchs/contracts'
+import { keepPreviousData, queryOptions } from '@tanstack/react-query'
+import { ApiError, http } from '~/shared/api/client.js'
 import { cachedFetch, OFFLINE_AWARE } from '~/shared/offline/queue.js'
 
 /** Ключи кэша справочника территорий, слоёв и карт. */
@@ -73,3 +73,18 @@ export const territoryQuery = (id: string) =>
 export function territoryOptions(items: readonly Territory[]): FieldOption[] {
   return items.map((item) => ({ value: item.id, label: item.name }))
 }
+
+/** Точки «Исследования» на карте (ADR-0217): `request` — JSON спецификации запроса. */
+export const explorePointsQuery = (request: string) =>
+  queryOptions({
+    queryKey: ['explore', 'points', request],
+    queryFn: (): Promise<QueryResult> =>
+      http.post('/queries/run', { body: { spec: JSON.parse(request) as QuerySpec } }),
+    placeholderData: keepPreviousData,
+    retry: false,
+    staleTime: 60_000,
+  })
+
+/** Текст ошибки сервера для показа; не ошибка API — null. */
+export const apiFailureMessage = (error: unknown): string | null =>
+  error instanceof ApiError ? error.message : null

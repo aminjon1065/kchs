@@ -14,7 +14,7 @@ import {
   type MapSourceSpecification,
   useMapTheme,
 } from '@kchs/ui'
-import { LocateFixed, MapPin, X } from 'lucide-react'
+import { LocateFixed, Map as MapIcon, MapPin, X } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
 import { useT } from '~/shared/i18n.js'
 import { BasemapSwitcher } from '../basemap-switcher.js'
@@ -71,9 +71,21 @@ export function PointField({ id, value, onChange, invalid, disabled }: ControlPr
           <X className="size-3.5" aria-hidden />
         </IconButton>
       ) : null}
+      {/* Без права правки место всё равно видно на карте: карточка документа (ADR-0221) */}
+      {point && disabled ? (
+        <IconButton
+          type="button"
+          size="sm"
+          label={t('gis.point.show')}
+          onClick={() => setOpen(true)}
+        >
+          <MapIcon className="size-3.5" aria-hidden />
+        </IconButton>
+      ) : null}
       {open ? (
         <PointDialog
           point={point}
+          readOnly={disabled}
           onApply={(next) => {
             onChange({ type: 'Point', coordinates: next })
             setOpen(false)
@@ -87,10 +99,13 @@ export function PointField({ id, value, onChange, invalid, disabled }: ControlPr
 
 function PointDialog({
   point,
+  readOnly = false,
   onApply,
   onClose,
 }: {
   point: LonLat | null
+  /** Просмотр места без правки: карта с точкой, без полей и выбора */
+  readOnly?: boolean
   onApply: (point: LonLat) => void
   onClose: () => void
 }) {
@@ -186,17 +201,23 @@ function PointDialog({
     <Dialog open onOpenChange={(next) => !next && onClose()}>
       <DialogContent
         title={t('gis.point.title')}
-        description={t('gis.point.hint')}
+        {...(readOnly ? {} : { description: t('gis.point.hint') })}
         size="lg"
         footer={
-          <>
+          readOnly ? (
             <Button variant="secondary" onClick={onClose}>
-              {t('common.actions.cancel')}
+              {t('common.actions.close')}
             </Button>
-            <Button variant="primary" onClick={apply}>
-              {t('gis.edit.coordinates.apply')}
-            </Button>
-          </>
+          ) : (
+            <>
+              <Button variant="secondary" onClick={onClose}>
+                {t('common.actions.cancel')}
+              </Button>
+              <Button variant="primary" onClick={apply}>
+                {t('gis.edit.coordinates.apply')}
+              </Button>
+            </>
+          )
         }
       >
         <div ref={setRoot} className="flex flex-col gap-3">
@@ -209,41 +230,51 @@ function PointDialog({
             layers={layers}
             camera={camera}
             onCameraChange={setCamera}
-            onFeatureClick={(event: MapClickEvent) => place(event.lngLat)}
-            aria-label={t('gis.point.map')}
+            onFeatureClick={(event: MapClickEvent) => {
+              if (!readOnly) place(event.lngLat)
+            }}
+            aria-label={readOnly ? t('gis.point.viewMap') : t('gis.point.map')}
           />
-          <div className="grid grid-cols-2 gap-3">
-            <Field label={t('gis.edit.coordinates.lat')} htmlFor={`${ids}-lat`}>
-              <Input
-                id={`${ids}-lat`}
-                inputMode="decimal"
-                value={lat}
-                mono
-                onChange={(event) => setLat(event.target.value)}
-              />
-            </Field>
-            <Field label={t('gis.edit.coordinates.lon')} htmlFor={`${ids}-lon`}>
-              <Input
-                id={`${ids}-lon`}
-                inputMode="decimal"
-                value={lon}
-                mono
-                onChange={(event) => setLon(event.target.value)}
-              />
-            </Field>
-          </div>
-          {error ? <Callout tone="danger">{error}</Callout> : null}
-          <div>
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={<LocateFixed className="size-3.5" />}
-              loading={locating}
-              onClick={() => void fillLocation()}
-            >
-              {t('gis.edit.gps.here')}
-            </Button>
-          </div>
+          {readOnly ? (
+            <p className="font-mono text-sm text-fg">
+              {lat}, {lon}
+            </p>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label={t('gis.edit.coordinates.lat')} htmlFor={`${ids}-lat`}>
+                  <Input
+                    id={`${ids}-lat`}
+                    inputMode="decimal"
+                    value={lat}
+                    mono
+                    onChange={(event) => setLat(event.target.value)}
+                  />
+                </Field>
+                <Field label={t('gis.edit.coordinates.lon')} htmlFor={`${ids}-lon`}>
+                  <Input
+                    id={`${ids}-lon`}
+                    inputMode="decimal"
+                    value={lon}
+                    mono
+                    onChange={(event) => setLon(event.target.value)}
+                  />
+                </Field>
+              </div>
+              {error ? <Callout tone="danger">{error}</Callout> : null}
+              <div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={<LocateFixed className="size-3.5" />}
+                  loading={locating}
+                  onClick={() => void fillLocation()}
+                >
+                  {t('gis.edit.gps.here')}
+                </Button>
+              </div>
+            </>
+          )}
         </div>
       </DialogContent>
     </Dialog>

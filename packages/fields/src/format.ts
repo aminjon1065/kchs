@@ -165,9 +165,27 @@ export function formatValue(
         })
         .join(', ')
     }
+    case 'geometry':
+      return formatGeometry(value)
     default:
       return String(value)
   }
+}
+
+/**
+ * Геометрия текстом: точка — «широта, долгота» (пять знаков — около метра), как в поле-точке
+ * интерфейса; другая геометрия — её вид. Без этого печать и шаблоны получали «[object Object]».
+ */
+function formatGeometry(value: unknown): string {
+  if (typeof value !== 'object' || value === null) return String(value)
+  const { type, coordinates } = value as { type?: unknown; coordinates?: unknown }
+  if (type === 'Point' && Array.isArray(coordinates)) {
+    const [lon, lat] = coordinates as unknown[]
+    if (typeof lon === 'number' && typeof lat === 'number') {
+      return `${lat.toFixed(5)}, ${lon.toFixed(5)}`
+    }
+  }
+  return typeof type === 'string' ? type : ''
 }
 
 /** Относительное время: «2 мин назад», «вчера». */

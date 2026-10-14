@@ -56,6 +56,8 @@ export const REPORT_FIELDS: FieldDef[] = [
   }),
   cardField('territory', 'Район', 'District', 'territory', { required: true }),
   cardField('settlement', 'Населённый пункт', 'Settlement', 'text'),
+  // Место происшествия точкой (ADR-0221): на установленном пакете досоздаётся, как остальные
+  cardField('location', 'Место на карте', 'Location on map', 'geometry', { geometryType: 'point' }),
   cardField('occurred_at', 'Время возникновения', 'Occurred at', 'datetime', { required: true }),
   cardField('injured', 'Пострадавшие', 'Injured', 'integer'),
   cardField('deaths', 'Погибшие', 'Deaths', 'integer'),
