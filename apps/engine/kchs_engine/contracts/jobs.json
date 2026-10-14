@@ -3201,6 +3201,25 @@
                   },
                   "fetchRevocation": {
                     "type": "boolean"
+                  },
+                  "crls": {
+                    "maxItems": 10,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "ocsps": {
+                    "maxItems": 10,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "ltv": {
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -3276,6 +3295,25 @@
                     ]
                   },
                   "fetchRevocation": {
+                    "type": "boolean"
+                  },
+                  "crls": {
+                    "maxItems": 10,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "ocsps": {
+                    "maxItems": 10,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "ltv": {
                     "type": "boolean"
                   }
                 },

@@ -1,6 +1,6 @@
 # Белый список шлюза DMZ — сгенерирован из таблицы маршрутов (ADR-0200).
 # Не править руками: pnpm --filter @kchs/api dmz:gen; проверка — dmz:gen --check.
-# Шаблонов путей: без входа — 6, по токену API — 434,
+# Шаблонов путей: без входа — 12, по токену API — 434,
 # закрытых, заслонённых открытыми, — 2.
 
 @kchs_dmz_closed expression <<CEL
@@ -11,6 +11,12 @@
 @kchs_dmz_public expression <<CEL
 	   (path_regexp('^/api/v1/hooks/[^/]+/[^/]+$') && (method('POST')))
 	|| (path_regexp('^/api/v1/hooks/rules/[^/]+/[^/]+$') && (method('POST')))
+	|| (path_regexp('^/api/v1/pki/issuing[.]crl$') && (method('GET')))
+	|| (path_regexp('^/api/v1/pki/issuing[.]crt$') && (method('GET')))
+	|| (path_regexp('^/api/v1/pki/ocsp$') && (method('POST')))
+	|| (path_regexp('^/api/v1/pki/ocsp/[^/]+$') && (method('GET')))
+	|| (path_regexp('^/api/v1/pki/root[.]crl$') && (method('GET')))
+	|| (path_regexp('^/api/v1/pki/root[.]crt$') && (method('GET')))
 	|| (path_regexp('^/api/v1/public/cap/[^/]+[.]xml$') && (method('GET')))
 	|| (path_regexp('^/api/v1/public/cap/feed[.]xml$') && (method('GET')))
 	|| (path_regexp('^/api/v1/public/cap/rss/[^/]+[.]xml$') && (method('GET')))
