@@ -17,13 +17,18 @@ import { Download, Pin, PinOff, Video } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { saveLink } from '~/features/documents/index.js'
 import { useFileDownload } from '~/features/files/index.js'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
 import { meetingQuery } from '../queries.js'
-import { playbackQuery, recordingKeys, recordingQuery, transcriptQuery } from './queries.js'
+import {
+  meetingsRecordingApi,
+  playbackQuery,
+  recordingKeys,
+  recordingQuery,
+  transcriptQuery,
+} from './queries.js'
 import { speakerNames, TranscriptPanel, transcriptText } from './transcript-panel.js'
 
 const TONE = {
@@ -53,8 +58,7 @@ export default function RecordingView({ objectId, tabId }: { objectId: string; t
   const { data: record, isLoading, error, refetch } = useQuery(recordingQuery(objectId))
   // Закрепить от удаления по сроку хранения (N29): решает организатор
   const pin = useMutation({
-    mutationFn: (pinned: boolean) =>
-      http.post('/recordings/:id/pin', { params: { id: objectId }, body: { pinned } }),
+    mutationFn: (pinned: boolean) => meetingsRecordingApi.postRecordingsPin(objectId, { pinned }),
     onSuccess: (next) => {
       client.setQueryData(recordingKeys.recording(objectId), next)
       toast.show({

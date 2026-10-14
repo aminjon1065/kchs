@@ -1,5 +1,6 @@
 import { queryOptions, skipToken } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
+import type { ApiBody } from '~/shared/api/route-types.js'
 
 /**
  * Запись встречи и её расшифровка (ADR-0092). Ключи объектные
@@ -46,3 +47,17 @@ export const playbackQuery = (fileId: string | null) =>
     staleTime: 5 * 60_000,
     refetchInterval: 10 * 60_000,
   })
+
+export const meetingsRecordingApi = {
+  postRecordingsPin: (id: string, body: ApiBody<'POST /recordings/:id/pin'>) =>
+    http.post('/recordings/:id/pin', { params: { id }, body }),
+  patchRecordingsTranscriptSegments: (
+    id: string,
+    index: number,
+    body: ApiBody<'PATCH /recordings/:id/transcript/segments/:index'>,
+  ) => http.patch('/recordings/:id/transcript/segments/:index', { params: { id, index }, body }),
+  putRecordingsTranscriptSpeakers: (
+    id: string,
+    body: ApiBody<'PUT /recordings/:id/transcript/speakers'>,
+  ) => http.put('/recordings/:id/transcript/speakers', { params: { id }, body }),
+}

@@ -13,13 +13,13 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Circle, MonitorUp } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { objectLinksQuery } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
 import { meetingKeys } from '../queries.js'
 import { RoomControls, type RoomLayout, type SidePanel } from './controls.js'
 import { RoomAudio, VideoTile } from './media.js'
 import type { DevicePrefs } from './prejoin.js'
+import { meetingsRoomApi } from './queries.js'
 import { MeetingChat, PeoplePanel } from './side-panel.js'
 import { type RoomTile, useMeetingRoom } from './use-meeting-room.js'
 
@@ -68,8 +68,8 @@ export function MeetingRoom({
   const active = meeting?.recording ?? null
   const record = useMutation({
     mutationFn: async () => {
-      if (active) await http.post('/recordings/:id/stop', { params: { id: active.id } })
-      else await http.post('/meetings/:id/recording/start', { params: { id: meeting!.id } })
+      if (active) await meetingsRoomApi.postRecordingsStop(active.id)
+      else await meetingsRoomApi.postRecordingStart(meeting!.id)
     },
     onSuccess: () => {
       if (meeting) void client.invalidateQueries({ queryKey: meetingKeys.meeting(meeting.id) })

@@ -19,14 +19,20 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link2, Users, Video } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { onRealtimeEvent } from '~/shared/realtime/client.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
 import { ProtocolPanel } from './protocol/protocol-panel.js'
-import { endMeeting, joinMeeting, leaveMeeting, meetingKeys, meetingQuery } from './queries.js'
+import {
+  endMeeting,
+  joinMeeting,
+  leaveMeeting,
+  meetingKeys,
+  meetingQuery,
+  meetingsApi,
+} from './queries.js'
 import { MeetingRoom } from './room/meeting-room.js'
 import { type DevicePrefs, loadDevicePrefs, PrejoinDialog } from './room/prejoin.js'
 
@@ -110,8 +116,7 @@ export default function MeetingView({ objectId, tabId }: { objectId: string; tab
 
   // Секретарь ведёт протокол вместе с организатором (N30); протокол заводится назначением
   const secretary = useMutation({
-    mutationFn: (userId: string | null) =>
-      http.put('/meetings/:id/secretary', { params: { id: objectId }, body: { userId } }),
+    mutationFn: (userId: string | null) => meetingsApi.putSecretary(objectId, { userId }),
     onSuccess: (record, userId) => {
       client.setQueryData(meetingKeys.meeting(objectId), record)
       void client.invalidateQueries({ queryKey: meetingKeys.meeting(objectId) })
@@ -306,7 +311,7 @@ function RecordingsSection({ meetingId }: { meetingId: string }) {
   const openTab = useWorkspace((s) => s.openTab)
   const { data } = useQuery({
     queryKey: meetingKeys.recordings(meetingId),
-    queryFn: () => http.get('/meetings/:id/recordings', { params: { id: meetingId } }),
+    queryFn: () => meetingsApi.getRecordings(meetingId),
   })
   const items = data?.items ?? []
   if (items.length === 0) return null
@@ -371,8 +376,7 @@ function GuestLinkDialog({
   const locale = useLocale()
 
   const create = useMutation({
-    mutationFn: (ttlMinutes: number) =>
-      http.post('/meetings/:id/guest-link', { params: { id: meetingId }, body: { ttlMinutes } }),
+    mutationFn: (ttlMinutes: number) => meetingsApi.postGuestLink(meetingId, { ttlMinutes }),
     onSuccess: (result) => setLink(result),
     onError: () => toast.error(t('meetings.errors.linkFailed')),
   })

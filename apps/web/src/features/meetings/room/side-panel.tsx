@@ -4,11 +4,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Hand, MessageSquare, MicOff, Users } from 'lucide-react'
 import { type ComposedMessage, MessageComposer } from '~/entities/discussion/message-composer.js'
 import { MessageItem } from '~/entities/discussion/message-item.js'
-import { http } from '~/shared/api/client.js'
 import { discussionQuery, keys } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
 import { decideKnock, meetingKeys, meetingKnocksQuery } from '../queries.js'
 import { QualityIcon } from './media.js'
+import { meetingsRoomApi } from './queries.js'
 import type { MeetingRoomApi } from './use-meeting-room.js'
 
 /**
@@ -127,15 +127,12 @@ export function MeetingChat({ meetingId }: { meetingId: string }) {
 
   const post = useMutation({
     mutationFn: (message: ComposedMessage) =>
-      http.post('/objects/:id/discussion/messages', {
-        params: { id: meetingId },
-        body: {
-          body: message.body,
-          text: message.text,
-          attachments: message.attachments.map((fileId) => ({ fileId })),
-          mentions: message.mentions,
-          mentionedObjectIds: [],
-        },
+      meetingsRoomApi.postObjectsDiscussionMessages(meetingId, {
+        body: message.body,
+        text: message.text,
+        attachments: message.attachments.map((fileId) => ({ fileId })),
+        mentions: message.mentions,
+        mentionedObjectIds: [],
       }),
     onSuccess: () => void client.invalidateQueries({ queryKey: keys.discussion(meetingId) }),
   })
