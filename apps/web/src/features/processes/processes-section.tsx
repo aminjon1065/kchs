@@ -22,13 +22,17 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Route } from 'lucide-react'
 import { useId, useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
 import { blankDefinition, type Definition, insertAfter } from './model.js'
-import { definitionKeys, processCatalogQuery, processDefinitionsQuery } from './queries.js'
+import {
+  definitionKeys,
+  processCatalogQuery,
+  processDefinitionsQuery,
+  processesApi,
+} from './queries.js'
 
 /** Кириллица → латиница для подсказки ключа маршрута. */
 const TRANSLIT: Record<string, string> = {
@@ -254,14 +258,12 @@ function CreateDialog({
 
   const create = useMutation({
     mutationFn: () =>
-      http.post('/process-definitions', {
-        body: {
-          definition: templateDefinition(template, {
-            key: effectiveKey,
-            objectType,
-            name: { ru: name.trim() },
-          }),
-        },
+      processesApi.postProcessDefinitions({
+        definition: templateDefinition(template, {
+          key: effectiveKey,
+          objectType,
+          name: { ru: name.trim() },
+        }),
       }),
     onSuccess: () => {
       toast.show({ title: t('processDesigner.create.created'), tone: 'success' })

@@ -18,12 +18,12 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { Eye } from 'lucide-react'
 import { useId, useState } from 'react'
 import { type PickedUser, UserPicker, UsersPicker } from '~/entities/people/user-picker.js'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { objectListQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useDesigner, useStepTitle } from './context.js'
+import { processesDesignerApi } from './queries.js'
 
 type Values = Record<string, unknown>
 
@@ -46,25 +46,23 @@ export function PreviewPanel() {
   )
   const preview = useMutation({
     mutationFn: (objectId: string) =>
-      http.post('/process-definitions/preview', {
-        body: {
-          definition,
-          objectId,
-          variables: {
-            ...values,
-            ...Object.fromEntries(
-              Object.entries(people).map(([name, list]) => [
-                name,
-                definition.variables[name]?.type === 'user'
-                  ? (list[0]?.id ?? null)
-                  : list.map((item) => item.id),
-              ]),
-            ),
-          },
-          assignees: Object.fromEntries(
-            Object.entries(chosen).map(([key, list]) => [key, list.map((item) => item.id)]),
+      processesDesignerApi.postProcessDefinitionsPreview({
+        definition,
+        objectId,
+        variables: {
+          ...values,
+          ...Object.fromEntries(
+            Object.entries(people).map(([name, list]) => [
+              name,
+              definition.variables[name]?.type === 'user'
+                ? (list[0]?.id ?? null)
+                : list.map((item) => item.id),
+            ]),
           ),
         },
+        assignees: Object.fromEntries(
+          Object.entries(chosen).map(([key, list]) => [key, list.map((item) => item.id)]),
+        ),
       }),
   })
   const result = preview.data

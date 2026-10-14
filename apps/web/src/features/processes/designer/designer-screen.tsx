@@ -27,7 +27,6 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle2, History, MoreHorizontal, Save, Send, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { rolesQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
@@ -45,6 +44,7 @@ import { type DesignerContextValue, DesignerProvider, type Selection } from './c
 import { FlowView } from './flow-view.js'
 import { IssuesPanel, JsonView, VersionsDialog } from './panels.js'
 import { PreviewPanel } from './preview-panel.js'
+import { processesDesignerApi } from './queries.js'
 import { RouteSettings } from './route-settings.js'
 import { StepInspector } from './step-inspector.js'
 
@@ -136,8 +136,8 @@ function Designer({ details, tabId }: { details: ProcessDefinitionDetails; tabId
     const ticket = ++generation.current
     setChecking(true)
     const timer = setTimeout(() => {
-      http
-        .post('/process-definitions/validate', { body: { definition } })
+      processesDesignerApi
+        .postProcessDefinitionsValidate({ definition })
         .then((result) => {
           if (ticket === generation.current) setIssues(result.issues)
         })
@@ -159,11 +159,8 @@ function Designer({ details, tabId }: { details: ProcessDefinitionDetails; tabId
   }
 
   const saveDraft = async (): Promise<ProcessDraftSaved> => {
-    const saved = await http.put('/process-definitions/:key/draft', {
-      params: { key: details.key },
-      body: {
-        definition,
-      },
+    const saved = await processesDesignerApi.putProcessDefinitionsDraft(details.key, {
+      definition,
     })
     adopt(saved.version)
     setIssues(saved.issues)
@@ -189,7 +186,7 @@ function Designer({ details, tabId }: { details: ProcessDefinitionDetails; tabId
   const publish = useMutation({
     mutationFn: async () => {
       if (dirty || !details.draft) await saveDraft()
-      return http.post('/process-definitions/:key/publish', { params: { key: details.key } })
+      return processesDesignerApi.postProcessDefinitionsPublish(details.key)
     },
     onSuccess: (published) => {
       adopt(published)
@@ -212,8 +209,7 @@ function Designer({ details, tabId }: { details: ProcessDefinitionDetails; tabId
   })
 
   const discard = useMutation({
-    mutationFn: () =>
-      http.delete('/process-definitions/:key/draft', { params: { key: details.key } }),
+    mutationFn: () => processesDesignerApi.removeProcessDefinitionsDraft(details.key),
     onSuccess: () => {
       setConfirm(null)
       if (details.published) adopt(details.published)
@@ -226,9 +222,7 @@ function Designer({ details, tabId }: { details: ProcessDefinitionDetails; tabId
 
   const loadVersion = async (version: number) => {
     try {
-      const loaded = await http.get('/process-definitions/:key/versions/:version', {
-        params: { key: details.key, version },
-      })
+      const loaded = await processesDesignerApi.getProcessDefinitionsVersions(details.key, version)
       setDefinition(loaded.definition)
       setVersionsOpen(false)
       toast.show({ title: t('processDesigner.versions.loaded', { version }), tone: 'info' })
