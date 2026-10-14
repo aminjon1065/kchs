@@ -14,12 +14,12 @@ import {
 } from '@kchs/ui'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { keys } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
 import { toSlug } from '~/shared/keys.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
+import { spacesApi } from './queries.js'
 
 export function CreateSpaceDialog({
   open,
@@ -41,13 +41,11 @@ export function CreateSpaceDialog({
 
   const create = useMutation({
     mutationFn: () =>
-      http.post('/spaces', {
-        body: {
-          name: name.trim(),
-          key: key || toSlug(name),
-          kind,
-          description: description.trim() || null,
-        },
+      spacesApi.create({
+        name: name.trim(),
+        key: key || toSlug(name),
+        kind,
+        description: description.trim() || null,
       }),
     onSuccess: (result) => {
       toast.show({ title: t('spaces.create.created'), tone: 'success' })

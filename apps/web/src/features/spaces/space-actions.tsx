@@ -19,9 +19,9 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Archive, ArchiveRestore, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
 import { useId, useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { useT } from '~/shared/i18n.js'
+import { spacesApi } from './queries.js'
 
 /**
  * Пространство целиком (ADR-0152): переименование, архив вместе с содержимым и
@@ -48,10 +48,7 @@ export function SpaceActions({ space, allowed }: { space: Space; allowed: readon
     toast.error(error instanceof ApiError ? error.message : t('errors.unknown'))
 
   const archive = useMutation({
-    mutationFn: () =>
-      http.post(`/spaces/:id/${archived ? 'unarchive' : 'archive'}` as const, {
-        params: { id: space.id },
-      }),
+    mutationFn: () => spacesApi.setArchived(space.id, !archived),
     onSuccess: () => {
       setConfirm(null)
       refresh()
@@ -66,7 +63,7 @@ export function SpaceActions({ space, allowed }: { space: Space; allowed: readon
     },
   })
   const remove = useMutation({
-    mutationFn: () => http.delete('/spaces/:id', { params: { id: space.id } }),
+    mutationFn: () => spacesApi.remove(space.id),
     onSuccess: () => {
       setConfirm(null)
       refresh()
@@ -157,7 +154,7 @@ export function ArchivedSpaceNotice({
   const toast = useToast()
   const client = useQueryClient()
   const unarchive = useMutation({
-    mutationFn: () => http.post('/spaces/:id/unarchive', { params: { id: space.id } }),
+    mutationFn: () => spacesApi.postUnarchive(space.id),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: ['spaces'] })
       void client.invalidateQueries({ queryKey: ['object', space.id] })
@@ -200,12 +197,9 @@ function RenameSpaceDialog({ space, onClose }: { space: Space; onClose: () => vo
   const [error, setError] = useState<string | null>(null)
   const save = useMutation({
     mutationFn: () =>
-      http.patch('/spaces/:id', {
-        params: { id: space.id },
-        body: {
-          name: name.trim(),
-          description: description.trim() || null,
-        },
+      spacesApi.update(space.id, {
+        name: name.trim(),
+        description: description.trim() || null,
       }),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: ['spaces'] })
