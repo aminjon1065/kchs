@@ -2,6 +2,7 @@ import { lookup } from 'node:dns/promises'
 import { isIP } from 'node:net'
 import { config } from '~/shared/config/index.js'
 import { checkMailbox } from '~/shared/mail/imap.js'
+import { outboundAddressDenied } from '~/shared/net/outbound.js'
 import { DATABASE_KINDS, ExternalDatabases } from '../infra/database-source.js'
 import type { IntegrationRow } from '../schema.js'
 
@@ -11,28 +12,10 @@ export const OUTBOUND_TIMEOUT_MS = 10_000
 /**
  * Частные и служебные диапазоны адресов. Исходящий вебхук и проверка связи не
  * должны становиться способом постучаться во внутренний периметр чужими руками
- * (SSRF, 17-security.md §5): адрес назначения проверяется до запроса.
+ * (SSRF, 17-security.md §5): адрес назначения проверяется до запроса — тем же
+ * правилом, что и в момент соединения при доставке (ADR-0222).
  */
-function isPrivateAddress(address: string): boolean {
-  if (address.includes(':')) {
-    const lower = address.toLowerCase()
-    if (lower === '::1' || lower === '::') return true
-    // уникальные локальные (fc00::/7) и link-local (fe80::/10)
-    if (/^f[cd]/.test(lower) || lower.startsWith('fe8') || lower.startsWith('fe9')) return true
-    if (/^::ffff:/.test(lower)) return isPrivateAddress(lower.slice('::ffff:'.length))
-    return false
-  }
-  const parts = address.split('.').map((part) => Number.parseInt(part, 10))
-  if (parts.length !== 4 || parts.some((n) => !Number.isInteger(n))) return true
-  const [a = 0, b = 0] = parts
-  if (a === 10 || a === 127 || a === 0) return true
-  if (a === 169 && b === 254) return true
-  if (a === 172 && b >= 16 && b <= 31) return true
-  if (a === 192 && b === 168) return true
-  if (a === 100 && b >= 64 && b <= 127) return true
-  if (a >= 224) return true
-  return false
-}
+const isPrivateAddress = (address: string) => outboundAddressDenied(address, true, false)
 
 export interface UrlCheck {
   ok: boolean

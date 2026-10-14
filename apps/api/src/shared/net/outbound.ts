@@ -39,8 +39,12 @@ privateNets.addSubnet('fc00::', 7, 'ipv6')
  * Адрес закрыт для исходящего запроса: служебные сети — всегда (loopback — кроме
  * тестов и отладки), частные — если их закрывает политика вызова.
  */
-export function outboundAddressDenied(address: string, denyPrivate = false): boolean {
-  if (deniedAddress(address, loopbackAllowed())) return true
+export function outboundAddressDenied(
+  address: string,
+  denyPrivate = false,
+  allowLoopback = loopbackAllowed(),
+): boolean {
+  if (deniedAddress(address, allowLoopback)) return true
   if (!denyPrivate) return false
   const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/i.exec(address)
   const ip = mapped?.[1] ?? address
@@ -48,7 +52,7 @@ export function outboundAddressDenied(address: string, denyPrivate = false): boo
 }
 
 /** Разрешение имени с проверкой каждого адреса (и списка при `all: true` у Happy Eyeballs). */
-function guardedLookup(denyPrivate: boolean): LookupFunction {
+function guardedLookup(denyPrivate: boolean, allowLoopback: boolean): LookupFunction {
   return ((hostname, options, callback) => {
     lookup(hostname, options, (error, address, family) => {
       if (error) {
@@ -58,7 +62,7 @@ function guardedLookup(denyPrivate: boolean): LookupFunction {
       const list: LookupAddress[] = Array.isArray(address)
         ? address
         : [{ address: address as string, family: family ?? 4 }]
-      if (list.some((entry) => outboundAddressDenied(entry.address, denyPrivate))) {
+      if (list.some((entry) => outboundAddressDenied(entry.address, denyPrivate, allowLoopback))) {
         callback(new BlockedAddressError(hostname), '', 4)
         return
       }
@@ -226,16 +230,40 @@ class RoutingDispatcher extends Dispatcher {
  */
 const dispatchers = new Map<string, Dispatcher>()
 
-function dispatcherFor(denyPrivate: boolean): Dispatcher {
+function dispatcherFor(denyPrivate: boolean, allowLoopback = loopbackAllowed()): Dispatcher {
   const settings = proxySettings()
-  const key = JSON.stringify([denyPrivate, settings])
+  const key = JSON.stringify([denyPrivate, allowLoopback, settings])
   let dispatcher = dispatchers.get(key)
   if (!dispatcher) {
-    const direct = new Agent({ connect: { lookup: guardedLookup(denyPrivate) } })
+    const direct = new Agent({ connect: { lookup: guardedLookup(denyPrivate, allowLoopback) } })
     dispatcher = proxied(settings) ? new RoutingDispatcher(direct, settings) : direct
     dispatchers.set(key, dispatcher)
   }
   return dispatcher
+}
+
+/**
+ * Диспетчер для своих запросов модуля (вебхуки, ADR-0222): адрес проверяется в момент
+ * соединения — тот самый, с которым соединяемся, поэтому подмена записи DNS после
+ * предварительной проверки (DNS rebinding) запрос внутрь не уводит. Host и SNI — имя
+ * из адреса. Прокси и `NO_PROXY` — как у `outboundGet`.
+ */
+export function outboundDispatcher(options: {
+  denyPrivateNetworks: boolean
+  /** Loopback открыт; по умолчанию — только тестам и отладке. */
+  allowLoopback?: boolean
+}): Dispatcher {
+  return dispatcherFor(options.denyPrivateNetworks, options.allowLoopback ?? loopbackAllowed())
+}
+
+/** Запрос не состоялся, потому что адрес назначения закрыт политикой. */
+export function outboundBlocked(error: unknown): boolean {
+  let cause: unknown = error
+  for (let depth = 0; cause instanceof Error && depth < 5; depth++) {
+    if (cause instanceof BlockedAddressError) return true
+    cause = cause.cause
+  }
+  return false
 }
 
 /**
@@ -315,12 +343,8 @@ function failure(error: unknown, what: string, timeoutMs: number, signal: AbortS
   if (signal.aborted) {
     return errors.dependencyFailed(`Нет ответа за ${Math.round(timeoutMs / 1000)} с: ${what}`)
   }
-  let cause: unknown = error
-  for (let depth = 0; cause instanceof Error && depth < 5; depth++) {
-    if (cause instanceof BlockedAddressError) {
-      return errors.dependencyFailed(`Адрес закрыт для исходящих запросов: ${what}`)
-    }
-    cause = cause.cause
+  if (outboundBlocked(error)) {
+    return errors.dependencyFailed(`Адрес закрыт для исходящих запросов: ${what}`)
   }
   return errors.dependencyFailed(`Нет соединения: ${what}`, {
     reason: error instanceof Error ? error.message : String(error),

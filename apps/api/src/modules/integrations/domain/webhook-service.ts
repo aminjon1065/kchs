@@ -13,8 +13,7 @@ import { objects } from '~/kernel/objects/schema.js'
 import { ObjectService } from '~/kernel/objects/service.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { encryptSecret } from '~/shared/crypto/secrets.js'
-import type { Tx } from '~/shared/db/client.js'
-import { db } from '~/shared/db/client.js'
+import { afterCommit, db, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { type WebhookRow, webhookDeliveries, webhooks } from '../schema.js'
@@ -80,7 +79,33 @@ async function uniqueKey(name: string): Promise<string> {
   return `${base}-${randomBytes(3).toString('hex')}`
 }
 
+/**
+ * Активные подписки читаются на каждое событие шины, поэтому процесс держит их список
+ * недолго (ADR-0222): изменение подписок сбрасывает кэш сразу — после коммита в процессе,
+ * где его сделали, и событием `webhook.*` у подписчика шины в остальных, — и не позже
+ * чем через ACTIVE_TTL_MS в любом случае.
+ */
+const ACTIVE_TTL_MS = 5_000
+let activeCache: { rows: WebhookRow[]; at: number } | null = null
+/** Поколение кэша: чтение, начатое до сброса, не кладёт в кэш устаревший список. */
+let activeGeneration = 0
+
 export const Webhooks = {
+  /** Активные подписки — из кэша процесса (см. ACTIVE_TTL_MS). */
+  async active(): Promise<WebhookRow[]> {
+    if (activeCache && Date.now() - activeCache.at < ACTIVE_TTL_MS) return activeCache.rows
+    const generation = activeGeneration
+    const rows = await db().select().from(webhooks).where(eq(webhooks.status, 'active'))
+    if (generation === activeGeneration) activeCache = { rows, at: Date.now() }
+    return rows
+  },
+
+  /** Сброс кэша активных подписок: после изменения подписки и по событию `webhook.*`. */
+  invalidateActive(): void {
+    activeGeneration += 1
+    activeCache = null
+  },
+
   async list(): Promise<Webhook[]> {
     const rows = await db()
       .select({ row: webhooks, title: objects.title })
@@ -160,6 +185,7 @@ export const Webhooks = {
         tx,
       )
     })
+    Webhooks.invalidateActive()
     return { webhook: await Webhooks.get(id), secret }
   },
 
@@ -229,6 +255,7 @@ export const Webhooks = {
         tx,
       )
     })
+    Webhooks.invalidateActive()
     return Webhooks.get(id)
   },
 
@@ -259,6 +286,7 @@ export const Webhooks = {
         tx,
       )
     })
+    Webhooks.invalidateActive()
     return secret
   },
 
@@ -278,6 +306,7 @@ export const Webhooks = {
         tx,
       )
     })
+    Webhooks.invalidateActive()
   },
 
   /** Журнал доставок вебхука, новые сверху. */
@@ -325,6 +354,7 @@ export const Webhooks = {
       .update(webhooks)
       .set({ status: 'disabled', disabledAt: sql`now()`, disabledReason: reason })
       .where(eq(webhooks.id, row.id))
+    await afterCommit(tx, () => Webhooks.invalidateActive())
     await publishEvent(tx, ctx, {
       type: 'webhook.disabled',
       object: { id: row.id, type: 'webhook' },
