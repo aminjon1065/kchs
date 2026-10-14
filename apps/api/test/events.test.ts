@@ -174,3 +174,48 @@ describe('шина событий', () => {
     ).rejects.toThrow('не соответствует схеме')
   })
 })
+
+describe('outbox: битое событие (ADR-0220)', () => {
+  it('после предела попыток уходит в карантин и не держит остальные события', async () => {
+    const { OUTBOX_MAX_ATTEMPTS, outboxLag } = await import('../src/kernel/events/dispatcher.js')
+    await dispatchAll()
+    // Ключ потока домена занят строкой: XADD отвечает WRONGTYPE — Redis отвергает событие
+    const run = Date.now().toString(36)
+    const poisonDomain = `poison${run}`
+    await redis().set(`events:${poisonDomain}`, 'не поток')
+    const envelope = (type: string) => ({ id: `${type}-${run}`, type, payload: {} })
+    for (const type of [`${poisonDomain}.broken`, `okay${run}.first`, `okay${run}.second`]) {
+      const domain = type.split('.')[0] as string
+      await db().execute(
+        sql`INSERT INTO ops.outbox (event_id, type, domain, event)
+            VALUES (${`${type}-${run}`}, ${type}, ${domain}, ${JSON.stringify(envelope(type))}::jsonb)`,
+      )
+    }
+
+    // Первый проход: годные события опубликованы, битое ждёт — порядок годных сохранён
+    expect(await bus.dispatchOnce()).toBeGreaterThan(0)
+    const okay = await redis().xrange(`events:okay${run}`, '-', '+')
+    expect(okay.map(([, fields]) => JSON.parse(fields[1] ?? '{}').type)).toEqual([
+      `okay${run}.first`,
+      `okay${run}.second`,
+    ])
+
+    // До предела попыток — снова в следующем проходе, затем карантин
+    await dispatchAll()
+    const [row] = await db().execute<{ attempts: number; quarantined: boolean; error: string }>(
+      sql`SELECT attempts::int AS attempts, quarantined_at IS NOT NULL AS quarantined,
+                 last_error AS error
+            FROM ops.outbox WHERE event_id = ${`${poisonDomain}.broken-${run}`}`,
+    )
+    expect(row).toMatchObject({ attempts: OUTBOX_MAX_ATTEMPTS, quarantined: true })
+    expect(row?.error).toMatch(/WRONGTYPE/)
+    expect(await bus.dispatchOnce()).toBe(0)
+
+    // Показатели: карантин отдельно, в «ждут публикации» его нет
+    const lag = await outboxLag()
+    expect(lag.quarantined).toBeGreaterThanOrEqual(1)
+    expect(lag.pending).toBe(0)
+    await redis().del(`events:${poisonDomain}`)
+    await db().execute(sql`DELETE FROM ops.outbox WHERE quarantined_at IS NOT NULL`)
+  })
+})

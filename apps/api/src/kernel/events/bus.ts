@@ -1,5 +1,5 @@
 import type { EventEnvelope } from '@kchs/contracts'
-import type { Redis } from 'ioredis'
+import type { ChainableCommander, Redis } from 'ioredis'
 import { logger } from '~/shared/logger/index.js'
 import { redis } from '~/shared/redis/index.js'
 import type { Subscriber } from './types.js'
@@ -71,7 +71,19 @@ export async function xaddEvent(
   event: EventEnvelope,
   options: { only?: string } = {},
 ): Promise<void> {
-  await client.xadd(
+  await client.xadd(...xaddArgs(event, options))
+}
+
+/** Та же запись в пачку команд (`pipeline`) — диспетчер outbox шлёт события пачкой. */
+export function addEvent(pipeline: ChainableCommander, event: EventEnvelope): void {
+  pipeline.xadd(...xaddArgs(event, {}))
+}
+
+function xaddArgs(
+  event: EventEnvelope,
+  options: { only?: string },
+): [string, 'MAXLEN', '~', string, '*', ...string[]] {
+  return [
     streamKey(eventDomain(event)),
     'MAXLEN',
     '~',
@@ -80,7 +92,7 @@ export async function xaddEvent(
     'event',
     JSON.stringify(event),
     ...(options.only ? [ONLY_FIELD, options.only] : []),
-  )
+  ]
 }
 
 export async function sendToDlq(

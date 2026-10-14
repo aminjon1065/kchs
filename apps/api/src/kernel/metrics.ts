@@ -26,13 +26,18 @@ export function registerKernelMetrics(options: { queues: boolean; realtime: bool
     unit: 's',
     description: 'Возраст самого старого неопубликованного события',
   })
+  const quarantined = m.createObservableGauge('kchs.outbox.quarantined', {
+    unit: '{event}',
+    description: 'События outbox в карантине: Redis их отверг, публикация остановлена (ADR-0220)',
+  })
   m.addBatchObservableCallback(
     async (result) => {
       const lag = await outboxLag()
       result.observe(pending, lag.pending)
       result.observe(oldest, lag.oldestSeconds ?? 0)
+      result.observe(quarantined, lag.quarantined)
     },
-    [pending, oldest],
+    [pending, oldest, quarantined],
   )
 
   if (options.queues) {

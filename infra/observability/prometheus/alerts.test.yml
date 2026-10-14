@@ -241,3 +241,22 @@ tests:
               { severity: warning, job: postgres, instance: postgres, slot_name: kchs_dr, slot_type: physical }
             exp_annotations:
               summary: "Слот kchs_dr: до предела удержания WAL меньше 2 ГБ — узел скоро отстанет безвозвратно"
+
+  # ADR-0220: карантин outbox — своё оповещение; застрявший outbox при этом молчит
+  - interval: 1m
+    input_series:
+      - series: 'kchs_outbox_quarantined{job="kchs-api", instance="api"}'
+        values: '0 1 1 1'
+      - series: 'kchs_outbox_oldest_age{job="kchs-api", instance="api"}'
+        values: '0x4'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: KchsOutboxQuarantined
+        exp_alerts:
+          - exp_labels: { severity: warning }
+            exp_annotations:
+              summary: "Outbox: события в карантине — Redis их отверг, публикация остановлена"
+      - eval_time: 3m
+        alertname: KchsOutboxStuck
+        exp_alerts: []
+

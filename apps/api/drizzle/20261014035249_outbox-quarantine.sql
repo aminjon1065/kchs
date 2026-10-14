@@ -1,0 +1,1 @@
+ALTER TABLE "ops"."outbox" ADD COLUMN "quarantined_at" timestamp with time zone;
