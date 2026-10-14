@@ -2,10 +2,10 @@ import { Button, Checkbox, Dialog, DialogContent, IconButton, useToast } from '@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { keys } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
+import { homeApi } from './queries.js'
 import { HOME_WIDGETS, HOME_WIDGETS_PREFERENCE, type HomeWidget } from './widgets.js'
 
 interface Row {
@@ -50,7 +50,7 @@ export function HomeSettingsDialog({
 
   const save = useMutation({
     mutationFn: (value: HomeWidget[] | null) =>
-      http.put('/me/preferences', { body: { key: HOME_WIDGETS_PREFERENCE, value } }),
+      homeApi.putMePreferences({ key: HOME_WIDGETS_PREFERENCE, value }),
     onSuccess: () => {
       toast.show({ title: t('home.saved'), tone: 'success' })
       void client.invalidateQueries({ queryKey: keys.me })

@@ -40,4 +40,5 @@ export const alertsApi = {
     http.post('/alerts/:id/enabled', { params: { id }, body: { enabled } }),
   check: (id: string, dryRun: boolean) =>
     http.post('/alerts/:id/check', { params: { id }, body: { dryRun } }),
+  getMetrics: (id: string) => http.get('/metrics/:id', { params: { id } }),
 }

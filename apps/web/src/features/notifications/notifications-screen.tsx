@@ -15,11 +15,11 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bell, Check, CheckCheck } from 'lucide-react'
 import { useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { notificationsQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
+import { notificationsApi } from './queries.js'
 
 export function NotificationsScreen() {
   const t = useT()
@@ -31,12 +31,12 @@ export function NotificationsScreen() {
   const { data, isLoading } = useQuery(notificationsQuery(unreadOnly))
 
   const markAll = useMutation({
-    mutationFn: () => http.post('/notifications/read', { body: { all: true } }),
+    mutationFn: () => notificationsApi.markAllRead(),
     onSuccess: () => void client.invalidateQueries({ queryKey: ['notifications'] }),
   })
   // Одно уведомление (ADR-0153): кнопкой «Прочитано» или щелчком, который открывает объект
   const markOne = useMutation({
-    mutationFn: (id: string) => http.post('/notifications/read', { body: { ids: [id] } }),
+    mutationFn: (id: string) => notificationsApi.markRead({ ids: [id] }),
     onSuccess: () => void client.invalidateQueries({ queryKey: ['notifications'] }),
   })
 

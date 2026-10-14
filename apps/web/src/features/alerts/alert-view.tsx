@@ -22,7 +22,6 @@ import {
 import { skipToken, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, PlayCircle, Save } from 'lucide-react'
 import { useId, useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
@@ -47,7 +46,7 @@ export function AlertView({ objectId }: { objectId: string }) {
   const metricId = alert?.metricId
   const { data: metric } = useQuery({
     queryKey: ['alerts', 'metric', metricId],
-    queryFn: metricId ? () => http.get('/metrics/:id', { params: { id: metricId } }) : skipToken,
+    queryFn: metricId ? () => alertsApi.getMetrics(metricId) : skipToken,
   })
   const { data: events } = useQuery(alertEventsQuery({ alertId: objectId, limit: 30 }))
 
