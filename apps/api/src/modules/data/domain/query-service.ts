@@ -52,6 +52,25 @@ import { DatasetService, type DatasetStorage } from './dataset-service.js'
 
 /** Результат интерактивного запроса живёт в кэше, пока не сменилась версия данных. */
 const CACHE_TTL_SECONDS = 300
+/**
+ * Предел кэшируемого результата (ADR-0220): большой ответ (до 50 000 строк — десятки МБ
+ * JSON) одним ключом занимает однопоточный Redis на время записи и вымывает кэш тайлов и
+ * прав. Такой результат считается заново; дашборды и сводки укладываются с запасом.
+ */
+export const CACHE_MAX_ROWS = 2000
+export const CACHE_MAX_BYTES = 1_048_576
+
+/** Результат помещается в кэш: строк и байт JSON не больше предела. */
+export function fitsCache(rows: number, bytes: number): boolean {
+  return rows <= CACHE_MAX_ROWS && bytes <= CACHE_MAX_BYTES
+}
+
+async function cacheResult(key: string, result: QueryResult): Promise<void> {
+  if (result.rows.length > CACHE_MAX_ROWS) return
+  const text = JSON.stringify(result)
+  if (!fitsCache(result.rows.length, Buffer.byteLength(text))) return
+  await cache.set(key, text, CACHE_TTL_SECONDS)
+}
 /** Запрос отменён по `statement_timeout`. */
 const QUERY_CANCELED = '57014'
 /** Строк в пачке курсора потокового чтения. */
@@ -649,7 +668,7 @@ export const QueryService = {
       cached: false,
       executedOn: executor,
     }
-    if (cacheable) await cache.set(cacheKey, JSON.stringify(result), CACHE_TTL_SECONDS)
+    if (cacheable) await cacheResult(cacheKey, result)
     await recordRun(ctx, {
       queryId: options.queryId,
       specHash,
@@ -810,9 +829,7 @@ export const QueryService = {
       cached: false,
       executedOn: 'postgres',
     }
-    if (compiled.cacheable) {
-      await cache.set(cacheKey, JSON.stringify(result), CACHE_TTL_SECONDS)
-    }
+    if (compiled.cacheable) await cacheResult(cacheKey, result)
     await recordRun(ctx, {
       specHash,
       durationMs: result.durationMs,
