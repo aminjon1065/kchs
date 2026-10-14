@@ -32,9 +32,6 @@ export type ApiResponse<K extends ApiRouteKey> = RouteResponse<Routes[K]>
 /** Тело запроса по ключу: вход схемы тела. */
 export type ApiBody<K extends ApiRouteKey> = RouteBody<Routes[K]>
 
-/** Параметры пути по ключу: вход схемы параметров. */
-export type ApiParams<K extends ApiRouteKey> = RouteParams<Routes[K], K>
-
 /** Строка запроса по ключу: вход схемы строки запроса. */
 export type ApiQuery<K extends ApiRouteKey> = RouteQuery<Routes[K]>
 

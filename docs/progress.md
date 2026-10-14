@@ -2049,6 +2049,28 @@ SQL `sql/analyze.ts` (1649 строк) и компилятор выражени�
 `automation-rules.spec.ts`, `documents.spec.ts`, `document-resolutions.spec.ts`,
 `data-analytics.spec.ts`, приёмочные с поиском.
 
+### Границы web (ветка `phase/11-web-layers`, 14.10.2026)
+
+Известные нарушения границ web (`.dependency-cruiser-known-violations.json`, ADR-0183) —
+273 → 4:
+
+- вызовы API вне слоя запросов — 210 → 0: компоненты зовут `features/<m>[/<раздел>]/queries.ts`
+  (`xxxApi.*`, фабрики `queryOptions` там, где ключ кэша выражается через параметры), оболочка —
+  `shared/workspace/queries.ts` и `entities/objects/queries.ts`; `ApiError` —
+  `shared/api/errors.ts`, CSRF, гостевая ссылка, «от имени» и обработчики оболочки —
+  `shared/api/session.ts`;
+- компоненты чужих фич в обход входа — 63 → 4: ленивые обёртки `features/<m>/lazy.ts` через
+  `index.ts` (по образцу `gis/lazy.ts`), лёгкие модули — через вход (`ask-error`, `due-value`,
+  `explore-labels`, `choropleth/param-items`, `map-slots`, `notebook-context`, запросы групп),
+  сквозные — в `entities` (справочник территорий — `entities/territory`, подписи результата —
+  `entities/data/result-labels.ts`, выбор принципалов — `entities/access`).
+
+Осталось 4: хуки `useFieldControls`/`useFieldFormatter` (`data/field-controls.tsx` — документы,
+формы) и `useRenderedLayers` (`gis/layer-render.ts` с deck.gl — карта отчёта). Хук не обернуть
+лениво, а во вход модуль потянул бы тяжёлое — нужен перенос в `entities` вместе с запросами
+справочников. Бюджет оболочки — 310,4 из 400 КБ. Сквозные сценарии не гонялись; затронуты все
+экраны web, в первую очередь консоль, документы, gis, данные, тетради, отчёты, главная.
+
 ## Следующий конкретный шаг
 
 24.09.2026 владелец ответил на открытые вопросы (`04-delivery/05-risks-and-open-questions.md` §5),

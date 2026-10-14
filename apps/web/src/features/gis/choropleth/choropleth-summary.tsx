@@ -8,8 +8,6 @@ import { useWorkspace } from '~/shared/workspace/store.js'
 import { datasetLayersQuery, gisKeys } from '../queries.js'
 import { gisChoroplethApi } from './queries.js'
 
-type Translate = ReturnType<typeof useT>
-
 /**
  * «Показать на карте» у готового хороплета: слой датасета-результата (нет его —
  * слой со стилем хороплета) на новой карте. Нужен, если мастер закрыли, пока
