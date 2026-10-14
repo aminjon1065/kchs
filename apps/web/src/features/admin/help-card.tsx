@@ -5,7 +5,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { ObjectPicker } from '~/entities/objects/object-picker.js'
 import { helpQuery } from '~/features/knowledge/index.js'
-import { ApiError, http } from '~/shared/api/client.js'
+import { http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { useT } from '~/shared/i18n.js'
 
 const pagesKey = ['knowledge', 'help', 'pages'] as const

@@ -1,40 +1,6 @@
 [
   {
     "type": "dependency",
-    "from": "src/app/app.tsx",
-    "to": "src/shared/api/client.ts",
-    "unresolvedTo": "~/shared/api/client.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "api-client-in-api-layer"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/app/providers.tsx",
-    "to": "src/shared/api/client.ts",
-    "unresolvedTo": "~/shared/api/client.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "api-client-in-api-layer"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/app/workspace/context-panel.tsx",
     "to": "src/shared/api/client.ts",
     "unresolvedTo": "~/shared/api/client.js",
@@ -273,23 +239,6 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/admin/data-sources-section.tsx",
-    "to": "src/shared/api/client.ts",
-    "unresolvedTo": "~/shared/api/client.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "api-client-in-api-layer"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/admin/directory-section.tsx",
     "to": "src/shared/api/client.ts",
     "unresolvedTo": "~/shared/api/client.js",
@@ -325,23 +274,6 @@
   {
     "type": "dependency",
     "from": "src/features/admin/features-section.tsx",
-    "to": "src/shared/api/client.ts",
-    "unresolvedTo": "~/shared/api/client.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "api-client-in-api-layer"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/admin/gis-services-section.tsx",
     "to": "src/shared/api/client.ts",
     "unresolvedTo": "~/shared/api/client.js",
     "dependencyTypes": [
@@ -647,23 +579,6 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/alerts/alerts-screen.tsx",
-    "to": "src/shared/api/client.ts",
-    "unresolvedTo": "~/shared/api/client.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "api-client-in-api-layer"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/assistant/assistant-panel.tsx",
     "to": "src/shared/api/client.ts",
     "unresolvedTo": "~/shared/api/client.js",
@@ -766,108 +681,6 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/automation/designer/rule-designer.tsx",
-    "to": "src/shared/api/client.ts",
-    "unresolvedTo": "~/shared/api/client.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "api-client-in-api-layer"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/automation/designer/runs-panel.tsx",
-    "to": "src/shared/api/client.ts",
-    "unresolvedTo": "~/shared/api/client.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "api-client-in-api-layer"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/automation/designer/versions-panel.tsx",
-    "to": "src/shared/api/client.ts",
-    "unresolvedTo": "~/shared/api/client.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "api-client-in-api-layer"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/automation/manual-rules.tsx",
-    "to": "src/shared/api/client.ts",
-    "unresolvedTo": "~/shared/api/client.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "api-client-in-api-layer"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/automation/rules-section.tsx",
-    "to": "src/shared/api/client.ts",
-    "unresolvedTo": "~/shared/api/client.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "api-client-in-api-layer"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/automation/schedules-section.tsx",
-    "to": "src/shared/api/client.ts",
-    "unresolvedTo": "~/shared/api/client.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "api-client-in-api-layer"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/calendar/calendar-dialogs.tsx",
     "to": "src/shared/api/client.ts",
     "unresolvedTo": "~/shared/api/client.js",
@@ -954,23 +767,6 @@
   {
     "type": "dependency",
     "from": "src/features/calendar/event-editor.tsx",
-    "to": "src/shared/api/client.ts",
-    "unresolvedTo": "~/shared/api/client.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "api-client-in-api-layer"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/calendar/event-view.tsx",
     "to": "src/shared/api/client.ts",
     "unresolvedTo": "~/shared/api/client.js",
     "dependencyTypes": [
@@ -1310,58 +1106,7 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/data/pipelines/pipeline-designer.tsx",
-    "to": "src/shared/api/client.ts",
-    "unresolvedTo": "~/shared/api/client.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "api-client-in-api-layer"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/data/pipelines/pipelines-screen.tsx",
-    "to": "src/shared/api/client.ts",
-    "unresolvedTo": "~/shared/api/client.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "api-client-in-api-layer"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/data/quality-tab.tsx",
-    "to": "src/shared/api/client.ts",
-    "unresolvedTo": "~/shared/api/client.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "api-client-in-api-layer"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/data/result-export.tsx",
     "to": "src/shared/api/client.ts",
     "unresolvedTo": "~/shared/api/client.js",
     "dependencyTypes": [
@@ -1395,41 +1140,7 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/data/sources/feed-dialog.tsx",
-    "to": "src/shared/api/client.ts",
-    "unresolvedTo": "~/shared/api/client.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "api-client-in-api-layer"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/data/sql-lab-screen.tsx",
-    "to": "src/shared/api/client.ts",
-    "unresolvedTo": "~/shared/api/client.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "api-client-in-api-layer"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/delegation/acting-banner.tsx",
     "to": "src/shared/api/client.ts",
     "unresolvedTo": "~/shared/api/client.js",
     "dependencyTypes": [
@@ -1515,23 +1226,6 @@
   {
     "type": "dependency",
     "from": "src/features/documents/card/document-dialogs.tsx",
-    "to": "src/shared/api/client.ts",
-    "unresolvedTo": "~/shared/api/client.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "api-client-in-api-layer"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/documents/card/document-view.tsx",
     "to": "src/shared/api/client.ts",
     "unresolvedTo": "~/shared/api/client.js",
     "dependencyTypes": [
@@ -1651,23 +1345,6 @@
   {
     "type": "dependency",
     "from": "src/features/documents/card/route-start-dialog.tsx",
-    "to": "src/shared/api/client.ts",
-    "unresolvedTo": "~/shared/api/client.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "api-client-in-api-layer"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/documents/card/route-tab.tsx",
     "to": "src/shared/api/client.ts",
     "unresolvedTo": "~/shared/api/client.js",
     "dependencyTypes": [
@@ -1956,23 +1633,6 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/documents/status.ts",
-    "to": "src/shared/api/client.ts",
-    "unresolvedTo": "~/shared/api/client.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "api-client-in-api-layer"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/files/files-screen.tsx",
     "to": "src/shared/api/client.ts",
     "unresolvedTo": "~/shared/api/client.js",
@@ -1991,23 +1651,6 @@
   {
     "type": "dependency",
     "from": "src/features/files/move-dialog.tsx",
-    "to": "src/shared/api/client.ts",
-    "unresolvedTo": "~/shared/api/client.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "api-client-in-api-layer"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/files/office-editor.tsx",
     "to": "src/shared/api/client.ts",
     "unresolvedTo": "~/shared/api/client.js",
     "dependencyTypes": [
@@ -2058,23 +1701,6 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/forms/form-fill-tab.tsx",
-    "to": "src/shared/api/client.ts",
-    "unresolvedTo": "~/shared/api/client.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "api-client-in-api-layer"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/forms/form-settings-tab.tsx",
     "to": "src/shared/api/client.ts",
     "unresolvedTo": "~/shared/api/client.js",
@@ -2093,23 +1719,6 @@
   {
     "type": "dependency",
     "from": "src/features/forms/forms-screen.tsx",
-    "to": "src/shared/api/client.ts",
-    "unresolvedTo": "~/shared/api/client.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "api-client-in-api-layer"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/forms/submission-panel.tsx",
     "to": "src/shared/api/client.ts",
     "unresolvedTo": "~/shared/api/client.js",
     "dependencyTypes": [
@@ -2228,75 +1837,7 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/gis/edit/edit-queue.tsx",
-    "to": "src/shared/api/client.ts",
-    "unresolvedTo": "~/shared/api/client.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "api-client-in-api-layer"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/gis/edit/feature-form.tsx",
-    "to": "src/shared/api/client.ts",
-    "unresolvedTo": "~/shared/api/client.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "api-client-in-api-layer"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/gis/edit/feature-history.tsx",
-    "to": "src/shared/api/client.ts",
-    "unresolvedTo": "~/shared/api/client.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "api-client-in-api-layer"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/gis/edit/layer-edit-settings.tsx",
-    "to": "src/shared/api/client.ts",
-    "unresolvedTo": "~/shared/api/client.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "api-client-in-api-layer"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/gis/feature-card.tsx",
     "to": "src/shared/api/client.ts",
     "unresolvedTo": "~/shared/api/client.js",
     "dependencyTypes": [
@@ -3010,23 +2551,6 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/processes/step-actions.tsx",
-    "to": "src/shared/api/client.ts",
-    "unresolvedTo": "~/shared/api/client.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "api-client-in-api-layer"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/profile/api-tokens-card.tsx",
     "to": "src/shared/api/client.ts",
     "unresolvedTo": "~/shared/api/client.js",
@@ -3249,40 +2773,6 @@
   {
     "type": "dependency",
     "from": "src/features/reports/report-blocks.tsx",
-    "to": "src/shared/api/client.ts",
-    "unresolvedTo": "~/shared/api/client.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "api-client-in-api-layer"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/reports/report-library-dialog.tsx",
-    "to": "src/shared/api/client.ts",
-    "unresolvedTo": "~/shared/api/client.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "api-client-in-api-layer"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/reports/report-map.ts",
     "to": "src/shared/api/client.ts",
     "unresolvedTo": "~/shared/api/client.js",
     "dependencyTypes": [

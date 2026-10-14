@@ -18,7 +18,8 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, ShieldCheck, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { ApiError, http } from '~/shared/api/client.js'
+import { http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 

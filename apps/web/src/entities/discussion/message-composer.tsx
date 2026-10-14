@@ -19,7 +19,7 @@ import {
   type Mention,
   mentionQuery,
 } from '~/entities/discussion/mention-doc.js'
-import { ApiError } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { principalsQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'

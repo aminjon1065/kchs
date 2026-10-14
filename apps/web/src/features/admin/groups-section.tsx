@@ -17,7 +17,8 @@ import { skipToken, useMutation, useQuery, useQueryClient } from '@tanstack/reac
 import { Plus } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
 import { type PickedUser, UsersPicker } from '~/entities/people/user-picker.js'
-import { ApiError, http } from '~/shared/api/client.js'
+import { http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { useT } from '~/shared/i18n.js'
 
 const groupsKey = ['groups'] as const

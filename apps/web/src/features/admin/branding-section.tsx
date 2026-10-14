@@ -3,7 +3,8 @@ import { Button, Callout, Card, cn, Field, Input, Skeleton, useToast } from '@kc
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { brandingQuery } from '~/shared/api/branding.js'
-import { ApiError, http } from '~/shared/api/client.js'
+import { http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { useT } from '~/shared/i18n.js'
 import { HelpCard } from './help-card.js'
 

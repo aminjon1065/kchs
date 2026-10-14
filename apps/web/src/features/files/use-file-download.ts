@@ -1,7 +1,8 @@
 import { useToast } from '@kchs/ui'
 import { useMutation } from '@tanstack/react-query'
 import { saveLink, waitForRender } from '~/features/documents/index.js'
-import { ApiError, http } from '~/shared/api/client.js'
+import { http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { useT } from '~/shared/i18n.js'
 
 function watermarkRequired(error: unknown): boolean {

@@ -29,7 +29,7 @@ import {
 } from '~/features/processes/index.js'
 import { RouteLine } from '~/features/processes/route-line.js'
 import { ProcessStepActions } from '~/features/processes/step-actions.js'
-import { ApiError } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { documentRouteVersionsQuery, documentSignaturesQuery } from '../queries.js'

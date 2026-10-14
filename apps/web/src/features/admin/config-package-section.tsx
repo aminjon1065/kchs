@@ -13,7 +13,8 @@ import {
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { FileJson } from 'lucide-react'
 import { useState } from 'react'
-import { ApiError, http } from '~/shared/api/client.js'
+import { http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { useT } from '~/shared/i18n.js'
 
 const STATUS_TONES: Record<string, 'success' | 'warning' | 'danger' | 'neutral'> = {

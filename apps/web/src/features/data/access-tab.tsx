@@ -35,7 +35,8 @@ import {
   usePrincipalLabel,
 } from '~/entities/access/principal-picker.js'
 import { useTerritoryFilterEditor } from '~/features/gis/territory-filter.js'
-import { ApiError, http } from '~/shared/api/client.js'
+import { http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useFieldOptions } from './field-options.js'

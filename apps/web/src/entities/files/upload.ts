@@ -1,5 +1,6 @@
 import type { FileRecord, UploadResume } from '@kchs/contracts'
-import { ApiError, http } from '~/shared/api/client.js'
+import { http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import type { ApiResponse } from '~/shared/api/route-types.js'
 import { t } from '~/shared/i18n.js'
 

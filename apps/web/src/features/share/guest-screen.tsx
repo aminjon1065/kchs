@@ -5,7 +5,9 @@ import { skipToken, useMutation, useQuery } from '@tanstack/react-query'
 import { Download, Link2, LogIn } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { FilePreview } from '~/entities/files/file-preview.js'
-import { ApiError, http, setShareToken } from '~/shared/api/client.js'
+import { http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
+import { setShareToken } from '~/shared/api/session.js'
 import { useT } from '~/shared/i18n.js'
 
 /**

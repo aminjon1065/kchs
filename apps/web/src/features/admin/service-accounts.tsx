@@ -31,7 +31,8 @@ import {
 import { skipToken, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Ban, MoreHorizontal, Pencil, ShieldCheck, Trash2 } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
-import { ApiError, http } from '~/shared/api/client.js'
+import { http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import {
   adminSpacesQuery,
   keys,

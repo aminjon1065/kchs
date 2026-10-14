@@ -15,7 +15,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarClock, History, PlayCircle } from 'lucide-react'
 import { useState } from 'react'
-import { ApiError } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { RunsPanel } from './designer/runs-panel.js'

@@ -1,6 +1,7 @@
 import type { TaskRecord, TaskStatus } from '@kchs/contracts'
 import { useQueryClient } from '@tanstack/react-query'
-import { ApiError, http } from '~/shared/api/client.js'
+import { http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { keys } from '~/shared/api/queries.js'
 import { taskKeys } from './queries.js'
 

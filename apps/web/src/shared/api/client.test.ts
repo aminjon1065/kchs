@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ApiError, http, setCsrfToken } from './client.js'
+import { http } from './client.js'
+import { ApiError } from './errors.js'
 import { apiUrl, tileUrl } from './link.js'
+import { setCsrfToken } from './session.js'
 
 /** Ответ fetch: JSON с кодом или пустой 204. */
 const reply = (status: number, body?: unknown) =>

@@ -1,4 +1,5 @@
-import { ApiError, http } from '~/shared/api/client.js'
+import { http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import type { ApiBody } from '~/shared/api/route-types.js'
 
 /**

@@ -6,7 +6,8 @@ import {
 } from '@kchs/contracts'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ApiError, http } from '~/shared/api/client.js'
+import { http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { gisKeys } from '../queries.js'
 
 /** Куда поставить слой хороплета. */

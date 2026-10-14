@@ -55,7 +55,7 @@ import {
   sourceTablesQuery,
 } from '~/features/data/index.js'
 import { FeedSourceDialog } from '~/features/data/sources/feed-dialog.js'
-import { ApiError } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { integrationsQuery, spacesQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'

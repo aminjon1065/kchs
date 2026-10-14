@@ -1,7 +1,7 @@
 import { ToastProvider, TooltipProvider, UiLocaleProvider, UiTimeZoneProvider } from '@kchs/ui'
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { type ReactNode, useState } from 'react'
-import { ApiError } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { meQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 

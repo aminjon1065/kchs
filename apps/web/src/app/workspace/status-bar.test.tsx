@@ -1,6 +1,6 @@
 import { act, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { ApiError } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { keys } from '~/shared/api/queries.js'
 import {
   discardOfflineEntry,

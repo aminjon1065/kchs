@@ -77,7 +77,8 @@ import {
   usePeers,
 } from '~/features/notebooks/notebook-context.js'
 import { NotebookParamsBar } from '~/features/notebooks/notebook-params.js'
-import { ApiError, http } from '~/shared/api/client.js'
+import { http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { keys, meQuery, objectQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'

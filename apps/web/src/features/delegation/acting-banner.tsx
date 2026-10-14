@@ -2,8 +2,8 @@ import { Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue }
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { UserCog } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { getOnBehalfOf, setOnBehalfOf } from '~/shared/api/client.js'
 import { meQuery } from '~/shared/api/queries.js'
+import { getOnBehalfOf, setOnBehalfOf } from '~/shared/api/session.js'
 import { useT } from '~/shared/i18n.js'
 
 /**

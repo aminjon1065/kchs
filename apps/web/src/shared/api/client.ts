@@ -1,84 +1,15 @@
 import type { HttpMethod, ProblemDetails } from '@kchs/contracts'
 import { normalizeLocale, translate } from '@kchs/i18n'
+import { ApiError } from './errors.js'
 import type { MethodTable, RequestOptions } from './route-types.js'
+import {
+  getCsrfToken,
+  getOnBehalfOf,
+  getShareToken,
+  notifySetupRequired,
+  notifyUnauthorized,
+} from './session.js'
 import { requestUrl } from './url.js'
-
-export class ApiError extends Error {
-  readonly status: number
-  readonly problem: ProblemDetails
-
-  constructor(problem: ProblemDetails) {
-    super(problem.detail ?? problem.title)
-    this.name = 'ApiError'
-    this.status = problem.status
-    this.problem = problem
-  }
-
-  get code(): string {
-    return this.problem.code
-  }
-
-  fieldErrors(): Record<string, string> {
-    const result: Record<string, string> = {}
-    for (const item of this.problem.errors ?? []) result[item.path] = item.message
-    return result
-  }
-}
-
-/** CSRF-токен выдаётся при входе и требуется для изменяющих запросов. */
-let csrfToken: string | null = null
-
-export function setCsrfToken(token: string | null): void {
-  csrfToken = token
-  try {
-    if (token) sessionStorage.setItem('kchs.csrf', token)
-    else sessionStorage.removeItem('kchs.csrf')
-  } catch {
-    // приватный режим
-  }
-}
-
-export function getCsrfToken(): string | null {
-  if (csrfToken) return csrfToken
-  try {
-    csrfToken = sessionStorage.getItem('kchs.csrf')
-  } catch {
-    csrfToken = null
-  }
-  return csrfToken
-}
-
-/** Токен гостевой ссылки: доступ к одному объекту без входа. */
-let shareToken: string | null = null
-
-export function setShareToken(token: string | null): void {
-  shareToken = token
-}
-
-/** Режим «от имени»: действия записываются с `onBehalfOf` (замещение). */
-let onBehalfOf: string | null = readOnBehalfOf()
-
-function readOnBehalfOf(): string | null {
-  try {
-    return sessionStorage.getItem('kchs.onBehalfOf')
-  } catch {
-    return null
-  }
-}
-
-export function setOnBehalfOf(userId: string | null): void {
-  onBehalfOf = userId
-  try {
-    if (userId) sessionStorage.setItem('kchs.onBehalfOf', userId)
-    else sessionStorage.removeItem('kchs.onBehalfOf')
-  } catch {
-    // приватный режим
-  }
-}
-
-export function getOnBehalfOf(): string | null {
-  return onBehalfOf
-}
 
 /** Запись пути метода: аргументы вызова после пути и ответ. */
 interface PathEntry {
@@ -101,25 +32,8 @@ export interface RawOptions extends RequestOptions {
 
 // ─── Транспорт ───────────────────────────────────────────────────────────────
 
-type UnauthorizedHandler = () => void
-let onUnauthorized: UnauthorizedHandler | null = null
-
-/**
- * Незавершённая настройка входа (временный пароль, обязательный второй фактор):
- * сервер отвечает 403 с кодом — оболочка перечитывает профиль и показывает
- * нужный экран. Так политика, включённая во время работы, применяется сразу.
- */
-type SetupRequiredHandler = () => void
-let onSetupRequired: SetupRequiredHandler | null = null
+/** Коды 403 незавершённой настройки входа: оболочка показывает нужный экран. */
 const SETUP_CODES = new Set(['password_change_required', 'mfa_enrollment_required'])
-
-export function setSetupRequiredHandler(handler: SetupRequiredHandler | null): void {
-  onSetupRequired = handler
-}
-
-export function setUnauthorizedHandler(handler: UnauthorizedHandler | null): void {
-  onUnauthorized = handler
-}
 
 function requestHeaders(
   path: string,
@@ -137,8 +51,10 @@ function requestHeaders(
     const token = getCsrfToken()
     if (token) headers['x-csrf-token'] = token
   }
+  const shareToken = getShareToken()
   if (shareToken) headers['x-kchs-share-token'] = shareToken
   // Личные запросы идут от себя: иначе выход из режима был бы невозможен
+  const onBehalfOf = getOnBehalfOf()
   if (onBehalfOf && !path.startsWith('/me') && !path.startsWith('/auth')) {
     headers['x-kchs-on-behalf-of'] = onBehalfOf
   }
@@ -191,8 +107,8 @@ export async function send(
   if (response.ok) return response
   const text = await response.text()
   const error = problemOf(response.status, errorPayload(text))
-  if (response.status === 401 && !options.anonymous) onUnauthorized?.()
-  if (response.status === 403 && SETUP_CODES.has(error.problem.code)) onSetupRequired?.()
+  if (response.status === 401 && !options.anonymous) notifyUnauthorized()
+  if (response.status === 403 && SETUP_CODES.has(error.problem.code)) notifySetupRequired()
   throw error
 }
 

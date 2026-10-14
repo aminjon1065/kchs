@@ -8,7 +8,8 @@ import type {
 } from '@kchs/contracts'
 import { type QueryClient, queryOptions } from '@tanstack/react-query'
 import { dataKeys } from '~/features/data/index.js'
-import { ApiError, http } from '~/shared/api/client.js'
+import { http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import type { Position } from './geometry.js'
 
 /** Ключи кэша правки объектов слоя (ADR-0076). */

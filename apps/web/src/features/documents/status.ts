@@ -1,6 +1,6 @@
 import type { Confidentiality, DocumentStatus } from '@kchs/contracts'
 import type { BadgeProps } from '@kchs/ui'
-import { ApiError } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 
 /**
  * Цвет статуса — ключ `STATUS_TONES` дизайн-системы (StatusBadge): палитру не

@@ -4,7 +4,7 @@ import { AlertDialog, Badge, Button, Card, EmptyState, Skeleton, useToast } from
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { History, RotateCcw } from 'lucide-react'
 import { useState } from 'react'
-import { ApiError } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { automationApi, automationKeys, ruleVersionsQuery } from '../queries.js'

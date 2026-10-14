@@ -1,6 +1,7 @@
 import type { PkiAdminCertificateQuery, PkiEnrollInput, PkiPurpose } from '@kchs/contracts'
 import { queryOptions } from '@tanstack/react-query'
-import { ApiError, http } from '~/shared/api/client.js'
+import { http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { apiUrl } from '~/shared/api/link.js'
 
 /** УЦ Комитета (ADR-0218): состояние, свои сертификаты, сертификаты сотрудников. */

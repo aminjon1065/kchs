@@ -1,6 +1,7 @@
 import type { FieldOption, QueryResult, QuerySpec, Territory } from '@kchs/contracts'
 import { keepPreviousData, queryOptions } from '@tanstack/react-query'
-import { ApiError, http } from '~/shared/api/client.js'
+import { http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { cachedFetch, OFFLINE_AWARE } from '~/shared/offline/queue.js'
 
 /** Ключи кэша справочника территорий, слоёв и карт. */

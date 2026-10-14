@@ -41,7 +41,8 @@ import {
   MessageMenu,
 } from '~/entities/discussion/message-item.js'
 import { uploadFile } from '~/entities/files/upload.js'
-import { ApiError, http } from '~/shared/api/client.js'
+import { http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import {
   discussionQuery,
   discussionThreadQuery,

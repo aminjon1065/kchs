@@ -32,7 +32,8 @@ import {
   useYChanges,
 } from '~/entities/collab/notebook-doc.js'
 import { documentTypesQuery } from '~/features/documents/index.js'
-import { ApiError, http } from '~/shared/api/client.js'
+import { http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { meQuery } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'

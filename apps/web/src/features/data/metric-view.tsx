@@ -50,7 +50,8 @@ import {
 } from '~/entities/data/metric-format.js'
 import { PresenceAvatars } from '~/entities/objects/presence-avatars.js'
 import { alertEventsQuery } from '~/features/alerts/index.js'
-import { ApiError, http } from '~/shared/api/client.js'
+import { http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import {
   keys,
   meQuery,

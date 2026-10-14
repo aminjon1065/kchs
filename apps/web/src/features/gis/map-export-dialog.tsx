@@ -4,7 +4,8 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { Download } from 'lucide-react'
 import { useState } from 'react'
 import { exportJobQuery, isJobFinished } from '~/features/data/index.js'
-import { ApiError, http } from '~/shared/api/client.js'
+import { http } from '~/shared/api/client.js'
+import { ApiError } from '~/shared/api/errors.js'
 import { useT } from '~/shared/i18n.js'
 
 /** Геоформаты выгрузки карты: GeoJSON пишет воркер, GeoPackage и KML — движок (ADR-0068). */
