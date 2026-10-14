@@ -4,7 +4,7 @@ import {
   type ObjectType,
   parseConfidentiality,
 } from '@kchs/contracts'
-import { and, eq, inArray, isNull, sql } from 'drizzle-orm'
+import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm'
 import type { Ctx } from '~/shared/context.js'
 import { actorId } from '~/shared/context.js'
 import { type Database, db, type Executor, type Tx } from '~/shared/db/client.js'
@@ -374,17 +374,16 @@ export const ObjectService = {
     const row = await loadRow(tx, id)
     if (!row) return
 
+    // Строки потомков — одним запросом, от самых глубоких к корню (ADR-0220)
     const children = await tx
-      .select({ id: objects.id })
+      .select({ row: objects })
       .from(objectAncestors)
       .innerJoin(objects, eq(objects.id, objectAncestors.objectId))
       .where(eq(objectAncestors.ancestorId, id))
+      .orderBy(desc(objectAncestors.depth))
 
-    for (const child of children.reverse()) {
-      const childRow = await loadRow(tx, child.id)
-      if (childRow) {
-        await objectType(childRow.type)?.lifecycle?.onDelete?.(tx, ctx, toObjectLike(childRow))
-      }
+    for (const { row: childRow } of children) {
+      await objectType(childRow.type)?.lifecycle?.onDelete?.(tx, ctx, toObjectLike(childRow))
     }
     await objectType(row.type)?.lifecycle?.onDelete?.(tx, ctx, toObjectLike(row))
 
@@ -494,28 +493,40 @@ export async function rebuildAncestors(
     ON CONFLICT DO NOTHING`)
 }
 
-/** Пересчёт предков для объекта и всего его поддерева (после переноса). */
+/**
+ * Пересчёт предков для объекта и всего его поддерева (после переноса) — двумя запросами при
+ * любом размере поддерева (ADR-0220). Связи внутри поддерева перенос не меняет: уходят связи
+ * его узлов с прежними предками корня, приходят — с новыми (глубина складывается).
+ */
 export async function rebuildSubtreeAncestors(
   tx: Executor,
   id: string,
   parentId: string | null,
 ): Promise<void> {
-  const subtree = await tx
-    .select({ objectId: objectAncestors.objectId, depth: objectAncestors.depth })
-    .from(objectAncestors)
-    .where(eq(objectAncestors.ancestorId, id))
-
-  await rebuildAncestors(tx, id, parentId)
-
-  const ordered = subtree.sort((a, b) => a.depth - b.depth)
-  for (const node of ordered) {
-    const [row] = await tx
-      .select({ parentId: objects.parentId })
-      .from(objects)
-      .where(eq(objects.id, node.objectId))
-      .limit(1)
-    await rebuildAncestors(tx, node.objectId, row?.parentId ?? null)
-  }
+  await tx.execute(sql`
+    WITH subtree AS (
+      SELECT ${id}::uuid AS object_id
+      UNION ALL
+      SELECT object_id FROM ${objectAncestors} WHERE ancestor_id = ${id}::uuid
+    )
+    DELETE FROM ${objectAncestors}
+     WHERE object_id IN (SELECT object_id FROM subtree)
+       AND ancestor_id NOT IN (SELECT object_id FROM subtree)`)
+  if (!parentId) return
+  await tx.execute(sql`
+    INSERT INTO ${objectAncestors} (object_id, ancestor_id, depth)
+    SELECT below.object_id, above.ancestor_id, above.depth + below.depth
+      FROM (
+        SELECT ${parentId}::uuid AS ancestor_id, 1 AS depth
+        UNION ALL
+        SELECT ancestor_id, depth + 1 FROM ${objectAncestors} WHERE object_id = ${parentId}::uuid
+      ) above
+     CROSS JOIN (
+        SELECT ${id}::uuid AS object_id, 0 AS depth
+        UNION ALL
+        SELECT object_id, depth FROM ${objectAncestors} WHERE ancestor_id = ${id}::uuid
+      ) below
+    ON CONFLICT DO NOTHING`)
 }
 
 // ─── Вспомогательное ─────────────────────────────────────────────────────────
