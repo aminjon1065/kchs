@@ -37,7 +37,7 @@ export function registerAuthRoutes(route: RouteRegistrar): void {
       if (result.status === 'mfa_required') {
         setMfaCookie(reply, result.challengeToken)
         return {
-          status: 'mfa_required',
+          status: 'mfa_required' as const,
           challengeId: result.challengeId,
           expiresAt: result.expiresAt,
           methods: result.methods,

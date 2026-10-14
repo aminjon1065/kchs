@@ -6,6 +6,7 @@ import {
   type BasemapCreateInput,
   BasemapKind,
   BasemapServiceParams,
+  type BasemapStyleDocument,
   type BasemapStyleQuery,
   type BasemapUpdateInput,
   Bbox,
@@ -536,7 +537,7 @@ export const BasemapService = {
   },
 
   /** Стиль MapLibre темы с абсолютными адресами через API (07-gis-engine.md §5). */
-  async style(id: string, query: BasemapStyleQuery): Promise<Record<string, unknown>> {
+  async style(id: string, query: BasemapStyleQuery): Promise<BasemapStyleDocument> {
     const row = await loadRow(id)
     if (!row) throw errors.notFound('Базовая карта')
     const base = apiBase()

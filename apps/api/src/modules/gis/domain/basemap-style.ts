@@ -1,4 +1,10 @@
-import { BASEMAP_FONTS, type BasemapTheme, type Locale, type ReliefLevel } from '@kchs/contracts'
+import {
+  BASEMAP_FONTS,
+  type BasemapStyleDocument,
+  type BasemapTheme,
+  type Locale,
+  type ReliefLevel,
+} from '@kchs/contracts'
 import { OVERLAY_PALETTE, PALETTES, type Palette } from './basemap-palette.js'
 
 /**
@@ -595,13 +601,13 @@ function rasterPaint(theme: BasemapTheme): Json {
   return {}
 }
 
-export function basemapStyle(options: StyleOptions): Json {
+export function basemapStyle(options: StyleOptions): BasemapStyleDocument {
   const palette = PALETTES[options.theme]
   const { content } = options
   const layers: Layer[] = [
     { id: 'background', type: 'background', paint: { 'background-color': palette.background } },
   ]
-  const sources: Json = {}
+  const sources: Record<string, Json> = {}
   const view: Json = {}
 
   if (content.kind === 'vector') {
