@@ -7,13 +7,14 @@ import {
 } from '@kchs/contracts'
 import { and, asc, eq, gt, gte, inArray, lte, or, sql } from 'drizzle-orm'
 import { type Index, MeiliSearch } from 'meilisearch'
+import { mapLimited } from '~/shared/concurrency.js'
 import { config } from '~/shared/config/index.js'
 import type { UserCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { logger } from '~/shared/logger/index.js'
 import { readPrincipalsFor } from '../access/acl-service.js'
-import { clearanceLimit, effectiveConfidentiality } from '../access/confidentiality.js'
+import { clearanceLimit, effectiveConfidentialityMany } from '../access/confidentiality.js'
 import { links } from '../links/schema.js'
 import { objectType } from '../objects/registry.js'
 import { objectAncestors, objects } from '../objects/schema.js'
@@ -74,46 +75,63 @@ export async function ensureSearchIndex(): Promise<void> {
  * (02-platform-kernel.md §8).
  */
 export async function indexObject(objectId: string): Promise<void> {
-  const [row] = await db().select().from(objects).where(eq(objects.id, objectId)).limit(1)
-  if (!row || row.deletedAt) {
-    await removeFromIndex(objectId)
-    return
-  }
-
-  const definition = objectType(row.type)
-  const custom = definition?.searchable ? await definition.searchable(objectId) : null
-  if (definition?.searchable && custom === null) {
-    await removeFromIndex(objectId)
-    return
-  }
-
-  const aclPrincipals = await readPrincipalsFor(objectId)
-  // Гриф — свой или объекта, к которому прикреплено (ADR-0080): выдачу режет допуск
-  const clearance = confidentialityRank(await effectiveConfidentiality(objectId))
-  const tagNames = await TagService.names(objectId)
-  const document: SearchDocument = {
-    parentId: row.parentId,
-    type: row.type,
-    spaceId: row.spaceId,
-    title: row.title,
-    body: row.subtitle ?? '',
-    ownerId: row.ownerId,
-    updatedAt: Math.floor(new Date(row.updatedAt).getTime() / 1000),
-    meta: row.meta,
-    ...custom,
-    // Идентичность, права и теги — только от ядра (см. SearchContent)
-    id: objectId,
-    objectId,
-    aclPrincipals,
-    clearance,
-    tags: tagNames,
-  }
-
-  await objectsIndex().addDocuments([document])
+  await indexObjects([objectId])
 }
 
+/** Сколько объектов пачки готовится одновременно: права и содержимое — по запросу на объект. */
+const PREPARE_CONCURRENCY = 4
+
+/**
+ * Индексация пачки (ADR-0222): строки, грифы и теги читаются одним запросом на пачку,
+ * права и содержимое модуля — с ограниченным параллелизмом, а в Meilisearch пачка уходит
+ * одной задачей добавления и одной — удаления, а не задачей на объект.
+ */
 export async function indexObjects(objectIds: string[]): Promise<void> {
-  for (const id of objectIds) await indexObject(id)
+  const ids = [...new Set(objectIds)]
+  if (ids.length === 0) return
+  const rows = await db().select().from(objects).where(inArray(objects.id, ids))
+  const live = rows.filter((row) => !row.deletedAt)
+  const found = new Set(live.map((row) => row.id))
+  const removed = ids.filter((id) => !found.has(id))
+
+  // Гриф — свой или объекта, к которому прикреплено (ADR-0080): выдачу режет допуск
+  const grifs = await effectiveConfidentialityMany(live)
+  const tagNames = await TagService.namesMany(live.map((row) => row.id))
+  const prepared = await mapLimited(live, PREPARE_CONCURRENCY, async (row) => {
+    const definition = objectType(row.type)
+    const custom = definition?.searchable ? await definition.searchable(row.id) : null
+    if (definition?.searchable && custom === null) return null
+    const document: SearchDocument = {
+      parentId: row.parentId,
+      type: row.type,
+      spaceId: row.spaceId,
+      title: row.title,
+      body: row.subtitle ?? '',
+      ownerId: row.ownerId,
+      updatedAt: Math.floor(new Date(row.updatedAt).getTime() / 1000),
+      meta: row.meta,
+      ...custom,
+      // Идентичность, права и теги — только от ядра (см. SearchContent)
+      id: row.id,
+      objectId: row.id,
+      aclPrincipals: await readPrincipalsFor(row.id),
+      clearance: confidentialityRank(grifs.get(row.id) ?? 'public'),
+      tags: tagNames.get(row.id) ?? [],
+    }
+    return document
+  })
+
+  const documents: SearchDocument[] = []
+  prepared.forEach((document, index) => {
+    if (document) documents.push(document)
+    else removed.push(live[index]?.id ?? '')
+  })
+  if (documents.length > 0) await objectsIndex().addDocuments(documents)
+  if (removed.length > 0) {
+    await objectsIndex()
+      .deleteDocuments(removed)
+      .catch(() => undefined)
+  }
 }
 
 export async function removeFromIndex(objectId: string): Promise<void> {
@@ -206,16 +224,23 @@ export async function reindexSubtree(objectId: string, batchSize = 200): Promise
 /** Полная переиндексация (обслуживание, восстановление после сбоя). */
 export async function reindexAll(batchSize = 200, signal?: AbortSignal): Promise<number> {
   await ensureSearchIndex()
-  let offset = 0
   let total = 0
+  let cursor: string | null = null
   for (;;) {
     // Отмена или предел времени задания (ADR-0172) — между пачками
     signal?.throwIfAborted()
-    const rows = await db().select({ id: objects.id }).from(objects).limit(batchSize).offset(offset)
+    // Курсор по id, а не OFFSET без порядка: правка строки во время прохода переносит её
+    // в куче, и OFFSET перечитывал одни объекты и пропускал другие (ADR-0222)
+    const rows: Array<{ id: string }> = await db()
+      .select({ id: objects.id })
+      .from(objects)
+      .where(cursor ? gt(objects.id, cursor) : undefined)
+      .orderBy(asc(objects.id))
+      .limit(batchSize)
     if (rows.length === 0) break
     await indexObjects(rows.map((r) => r.id))
     total += rows.length
-    offset += batchSize
+    cursor = rows[rows.length - 1]?.id ?? null
   }
   return total
 }
@@ -384,7 +409,7 @@ async function hitsForObjects(
   if (query.spaceIds?.length) conditions.push(inArray(objects.spaceId, query.spaceIds))
   if (query.ownerIds?.length) conditions.push(inArray(objects.ownerId, query.ownerIds))
   if (query.statuses?.length) {
-    conditions.push(sql`${objects.meta}->>'status' in ${query.statuses}`)
+    conditions.push(inArray(sql<string>`${objects.meta}->>'status'`, query.statuses))
   }
   if (query.updatedFrom) conditions.push(gte(objects.updatedAt, query.updatedFrom))
   if (query.updatedTo) conditions.push(lte(objects.updatedAt, query.updatedTo))

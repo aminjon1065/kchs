@@ -1,9 +1,12 @@
-"""Предел времени задания движка и замок скачивания копии по ключу (ADR-0220)."""
+"""Предел времени задания движка и замок скачивания копии по ключу (ADR-0220), вытеснение
+копий и остановка движка (ADR-0222)."""
 
 import asyncio
+import os
 import threading
 import time
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -60,16 +63,18 @@ def test_slow_download_does_not_block_cached_copies(
         target.write_bytes(b"parquet")
 
     monkeypatch.setattr(columnar.storage, "download_sync", slow_download)
-    worker = threading.Thread(target=columnar._ensure_local, args=("bucket", "slow"))
+    worker = threading.Thread(target=columnar._acquire_local, args=("bucket", "slow"))
     worker.start()
     time.sleep(0.1)
     started = time.monotonic()
     # Готовая копия отдаётся сразу, пока соседняя качается
-    assert columnar._ensure_local("bucket", "ready") == cached
+    assert columnar._acquire_local("bucket", "ready") == cached
     assert time.monotonic() - started < 0.5
     release.set()
     worker.join(5)
-    assert (tmp_path / columnar._cache_name("bucket", "slow")).exists()
+    slow = tmp_path / columnar._cache_name("bucket", "slow")
+    assert slow.exists()
+    columnar._release([cached, slow])
 
 
 def test_batch_table_matches_per_value_conversion() -> None:
@@ -109,3 +114,80 @@ def test_batch_table_matches_per_value_conversion() -> None:
     )
     assert table.equals(expected)
     assert columnar._batch_table([], columns, schema).num_rows == 0
+
+
+def _copy(folder: Path, key: str, size: int, mtime: float) -> Path:
+    path = folder / columnar._cache_name("bucket", key)
+    path.write_bytes(b"x" * size)
+    os.utime(path, (mtime, mtime))
+    return path
+
+
+def test_eviction_by_last_use_skips_files_in_use(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Вытеснение (ADR-0222): по времени выдачи кэшем (mtime), читаемое не удаляется,
+    замок скачивания удалённой копии уходит вместе с ней."""
+    monkeypatch.setattr(columnar, "_cache_dir", lambda: tmp_path)
+    monkeypatch.setattr(columnar, "settings", lambda: SimpleNamespace(ENGINE_COLUMNAR_CACHE_MB=1))
+    half = 512 * 1024
+    now = time.time()
+    oldest = _copy(tmp_path, "oldest", half, now - 300)
+    reading = _copy(tmp_path, "reading", half, now - 200)
+    recent = _copy(tmp_path, "recent", half, now - 100)
+    # atime свежий (как попало на томах с noatime): решать по нему нельзя
+    os.utime(oldest, (now, now - 300))
+    columnar._key_lock(oldest.name)
+
+    held = columnar._acquire_local("bucket", "reading")
+    assert held == reading
+    assert reading.stat().st_mtime > now - 1, "выдача обновляет время обращения"
+    # Читаемая копия снова самая давняя по mtime — вытеснение всё равно её не тронет
+    os.utime(reading, (now, now - 400))
+
+    def download(_bucket: str, _key: str, target: Path) -> None:
+        target.write_bytes(b"x" * half)
+
+    monkeypatch.setattr(columnar.storage, "download_sync", download)
+    fresh = columnar._acquire_local("bucket", "fresh")
+    try:
+        # 4 × 0,5 МБ при пределе 1 МБ: уходят давние, читаемое и только что скачанное — нет
+        assert reading.exists()
+        assert fresh.exists()
+        assert not oldest.exists()
+        assert not recent.exists()
+        assert oldest.name not in columnar._download_locks
+    finally:
+        columnar._release([held, fresh])
+    assert columnar._in_use == {}
+
+
+def test_query_releases_copies_even_on_error(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(columnar, "_cache_dir", lambda: tmp_path)
+    _copy(tmp_path, "broken", 16, time.time())
+
+    def failing(_payload: dict[str, object], _files: dict[str, Path]) -> dict[str, object]:
+        raise RuntimeError("сбой запроса")
+
+    monkeypatch.setattr(columnar, "_query", failing)
+    payload = {"sql": "select 1", "sources": [{"table": "t", "bucket": "bucket", "key": "broken"}]}
+    with pytest.raises(RuntimeError):
+        asyncio.run(columnar.query(payload))
+    assert columnar._in_use == {}
+
+
+def test_cancel_client_is_closed_on_shutdown(monkeypatch: pytest.MonkeyPatch) -> None:
+    closed: list[bool] = []
+
+    class FakeRedis:
+        async def aclose(self) -> None:
+            closed.append(True)
+
+    monkeypatch.setattr(cancel, "_client", FakeRedis())
+    asyncio.run(cancel.close_cancel_client())
+    assert closed == [True]
+    assert cancel._client is None
+    # Повторная остановка — без ошибок
+    asyncio.run(cancel.close_cancel_client())

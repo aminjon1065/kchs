@@ -12,9 +12,10 @@ import {
 } from '@kchs/contracts'
 import { createTranslator } from '@kchs/i18n'
 import { and, asc, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm'
+import { mapLimited } from '~/shared/concurrency.js'
 import type { Ctx, UserCtx } from '~/shared/context.js'
 import { actorId } from '~/shared/context.js'
-import { db, type Executor, type Tx } from '~/shared/db/client.js'
+import { afterCommit, db, type Executor, type Tx } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { cache, cacheKeys } from '~/shared/redis/index.js'
@@ -242,7 +243,13 @@ export const InboxService = {
       .set({ dueAt })
       .where(and(...conditions))
       .returning({ userId: inboxItems.userId })
-    if (affected.length > 0) await invalidateCounts(affected.map((item) => item.userId))
+    if (affected.length > 0) {
+      // Пересчёт — после коммита (ADR-0222): в транзакции нового срока ещё не видно другим
+      // соединениям, пересчёт здесь закешировал бы прежнее «просрочено» на минуту
+      const owners = affected.map((item) => item.userId)
+      await dropCounts(owners)
+      await afterCommit(tx, () => invalidateCounts(owners))
+    }
     return affected.length
   },
 
@@ -307,29 +314,46 @@ export const InboxService = {
    * тот же `act`, что и кнопка Входящих.
    */
   async openActions(userId: string, objectId: string): Promise<InboxOpenAction[]> {
+    return (await InboxService.openActionsFor(objectId, [userId])).get(userId) ?? []
+  },
+
+  /** То же для нескольких получателей одного объекта — одним запросом (ADR-0222). */
+  async openActionsFor(
+    objectId: string,
+    userIds: string[],
+  ): Promise<Map<string, InboxOpenAction[]>> {
+    const result = new Map<string, InboxOpenAction[]>()
+    if (userIds.length === 0) return result
     const rows = await db()
-      .select({ id: inboxItems.id, kind: inboxItems.kind, payload: inboxItems.payload })
+      .select({
+        id: inboxItems.id,
+        userId: inboxItems.userId,
+        kind: inboxItems.kind,
+        payload: inboxItems.payload,
+      })
       .from(inboxItems)
       .where(
         and(
-          eq(inboxItems.userId, userId),
+          inArray(inboxItems.userId, userIds),
           eq(inboxItems.objectId, objectId),
           eq(inboxItems.state, 'open'),
         ),
       )
       .orderBy(desc(inboxItems.openedAt))
-    return rows.flatMap((row) => {
+    for (const row of rows) {
       const kind = row.kind as InboxKind
-      if (!inboxActionHandler(kind)) return []
+      if (!inboxActionHandler(kind)) continue
       const actions =
         (row.payload as { actions?: InboxItem['actions'] }).actions ?? defaultActions(kind)
       // Действия с кодом второго фактора (подпись с MFA, ADR-0079) и с формой в
       // карточке объекта (резолюция, ADR-0084) — только в приложении: во
       // внешнем канале их не выполнить
-      return actions
+      const open = actions
         .filter((action) => !action.requiresSecondFactor && !action.openObject)
         .map((action) => ({ itemId: row.id, kind, objectId, ...action }))
-    })
+      result.set(row.userId, [...(result.get(row.userId) ?? []), ...open])
+    }
+    return result
   },
 
   /** Действие открытого дела пользователя — что оно просит ввести (канал, ADR-0082). */
@@ -630,11 +654,19 @@ async function dropCounts(userIds: string[]): Promise<void> {
   await cache.del(...keys)
 }
 
-/** Пересчитать счётчики и отправить в realtime — вне транзакции или после коммита. */
+/** Сколько пользователей пересчитываются одновременно: пробуждение отложенного — сотни. */
+const COUNTS_CONCURRENCY = 8
+
+/**
+ * Пересчитать счётчики и отправить в realtime — вне транзакции или после коммита: кэш
+ * сбрасывается одной командой, пересчёт идёт параллельно по пользователям (ADR-0222).
+ */
 export async function invalidateCounts(userIds: string[]): Promise<void> {
-  for (const userId of [...new Set(userIds)]) {
-    await cache.del(cacheKeys.inboxCounts(userId))
+  const unique = [...new Set(userIds)]
+  if (unique.length === 0) return
+  await dropCounts(unique)
+  await mapLimited(unique, COUNTS_CONCURRENCY, async (userId) => {
     const counts = await InboxService.counts(userId)
     emitToUser(userId, 'inbox.changed', { counts })
-  }
+  })
 }

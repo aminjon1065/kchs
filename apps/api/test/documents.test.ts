@@ -328,6 +328,41 @@ describe('права: регистрация, журнал, участники',
     ).toBe(200)
   })
 
+  it('правка карточки — одна новая версия объекта; тема — событием реестра', async () => {
+    const doc = await createDraft(registrar, 'memo', { subject: `Версия ${run}` })
+    const state = async () => {
+      const [row] = await db().execute<{ version: number; title: string; updates: number }>(
+        sql`SELECT o.version, o.title,
+              (SELECT count(*)::int FROM ops.outbox
+                WHERE type = 'object.updated' AND event->'object'->>'id' = ${doc.id}) AS updates
+            FROM objects o WHERE o.id = ${doc.id}`,
+      )
+      if (!row) throw new Error('документ не найден в реестре')
+      return row
+    }
+    const patch = async (payload: Record<string, unknown>) => {
+      const response = await call(fx.app, {
+        method: 'PATCH',
+        url: `/documents/${doc.id}`,
+        as: registrar,
+        payload,
+      })
+      expect(response.statusCode, response.body).toBe(200)
+    }
+
+    const before = await state()
+    await patch({ subject: `Версия ${run} — исправлено` })
+    const retitled = await state()
+    expect(retitled.version, 'тема и сводные поля — одно обновление').toBe(before.version + 1)
+    expect(retitled.title).toContain('исправлено')
+    expect(retitled.updates).toBe(before.updates + 1)
+
+    await patch({ summary: 'Краткое содержание' })
+    const quiet = await state()
+    expect(quiet.version).toBe(retitled.version + 1)
+    expect(quiet.updates, 'без смены темы — тихо').toBe(retitled.updates)
+  })
+
   it('гриф: только из допустимых типом и не строже допуска автора', async () => {
     const aboveClearance = await call(fx.app, {
       method: 'POST',

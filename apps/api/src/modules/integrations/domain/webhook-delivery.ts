@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { type EventEnvelope, WEBHOOK_HEADERS } from '@kchs/contracts'
 import { and, eq, inArray, sql } from 'drizzle-orm'
+import { request } from 'undici'
 import { getPrincipalSet } from '~/kernel/access/principal-set.js'
 import { matchesType } from '~/kernel/events/bus.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
@@ -12,6 +13,7 @@ import { db } from '~/shared/db/client.js'
 import { errors } from '~/shared/errors.js'
 import { newId } from '~/shared/ids.js'
 import { logger } from '~/shared/logger/index.js'
+import { outboundBlocked, outboundDispatcher } from '~/shared/net/outbound.js'
 import { type WebhookDeliveryRow, type WebhookRow, webhookDeliveries, webhooks } from '../schema.js'
 import { checkOutboundUrl, OUTBOUND_TIMEOUT_MS } from './checks.js'
 import { Webhooks } from './webhook-service.js'
@@ -69,9 +71,11 @@ async function matches(row: WebhookRow, event: EventEnvelope): Promise<boolean> 
  */
 export async function dispatchEvent(event: EventEnvelope): Promise<void> {
   const domain = event.type.split('.')[0] ?? ''
+  // Подписки изменились, возможно в другом процессе, — список перечитывается (ADR-0222)
+  if (domain === 'webhook' || event.object?.type === 'webhook') Webhooks.invalidateActive()
   if (INTERNAL_DOMAINS.has(domain)) return
 
-  const active = await db().select().from(webhooks).where(eq(webhooks.status, 'active'))
+  const active = await Webhooks.active()
   if (active.length === 0) return
 
   for (const row of active) {
@@ -90,9 +94,25 @@ export async function dispatchEvent(event: EventEnvelope): Promise<void> {
       })
       .onConflictDoNothing()
       .returning({ id: webhookDeliveries.id })
+      // Подписку удалили, а кэш процесса её ещё помнит — доставлять некуда
+      .catch((error: unknown) => {
+        if (foreignKeyViolation(error)) {
+          Webhooks.invalidateActive()
+          return []
+        }
+        throw error
+      })
     if (inserted.length === 0) continue
     await enqueueDelivery(id, 0)
   }
+}
+
+function foreignKeyViolation(error: unknown): boolean {
+  for (let cause = error, depth = 0; cause && depth < 3; depth += 1) {
+    if ((cause as { code?: unknown }).code === '23503') return true
+    cause = (cause as { cause?: unknown }).cause
+  }
+  return false
 }
 
 async function enqueueDelivery(deliveryId: string, delayMs: number): Promise<void> {
@@ -108,6 +128,16 @@ interface Attempt {
   status: number | null
   error: string | null
   durationMs: number
+}
+
+/**
+ * Политика адресов доставки — та же, что у `checkOutboundUrl`: с защитой закрыты частные
+ * сети и loopback, без неё (стенд, закрытый контур) — открыты; служебные адреса
+ * (метаданные облака, «этот узел», multicast) закрыты всегда.
+ */
+function webhookDispatcher() {
+  const open = config().WEBHOOKS_ALLOW_PRIVATE_ADDRESSES
+  return outboundDispatcher({ denyPrivateNetworks: !open, allowLoopback: open })
 }
 
 async function send(row: WebhookRow, delivery: WebhookDeliveryRow): Promise<Attempt> {
@@ -130,11 +160,17 @@ async function send(row: WebhookRow, delivery: WebhookDeliveryRow): Promise<Atte
         durationMs: Date.now() - started,
       }
     }
-    const response = await fetch(row.url, {
+    // Соединение — только с адресом, прошедшим проверку в момент соединения (ADR-0222):
+    // проверка выше разрешает имя сама, и подмена записи DNS между ней и запросом
+    // (DNS rebinding) иначе увела бы запрос внутрь сети
+    const response = await request(row.url, {
       method: 'POST',
       // Перенаправления не выполняются: иначе получатель уводит запрос внутрь сети
-      redirect: 'manual',
+      maxRedirections: 0,
+      dispatcher: webhookDispatcher(),
       signal: controller.signal,
+      headersTimeout: OUTBOUND_TIMEOUT_MS,
+      bodyTimeout: OUTBOUND_TIMEOUT_MS,
       headers: {
         'content-type': 'application/json',
         [WEBHOOK_HEADERS.event]: delivery.eventType,
@@ -144,17 +180,23 @@ async function send(row: WebhookRow, delivery: WebhookDeliveryRow): Promise<Atte
       },
       body,
     })
+    await response.body.dump().catch(() => undefined)
+    const status = response.statusCode
     return {
-      ok: response.status >= 200 && response.status < 300,
-      status: response.status,
-      error: response.status >= 200 && response.status < 300 ? null : `Ответ ${response.status}`,
+      ok: status >= 200 && status < 300,
+      status,
+      error: status >= 200 && status < 300 ? null : `Ответ ${status}`,
       durationMs: Date.now() - started,
     }
   } catch (error) {
     return {
       ok: false,
       status: null,
-      error: error instanceof Error ? error.message : 'Нет соединения',
+      error: outboundBlocked(error)
+        ? 'Имя указывает во внутреннюю сеть'
+        : error instanceof Error
+          ? error.message
+          : 'Нет соединения',
       durationMs: Date.now() - started,
     }
   } finally {

@@ -1,4 +1,7 @@
+import dns from 'node:dns'
+import dnsPromises from 'node:dns/promises'
 import { createServer, type Server } from 'node:http'
+import { syncBuiltinESMExports } from 'node:module'
 import type { AddressInfo } from 'node:net'
 import { WEBHOOK_HEADERS } from '@kchs/contracts'
 import { desc, eq, inArray, sql } from 'drizzle-orm'
@@ -262,6 +265,74 @@ describe('исходящие вебхуки', () => {
     expect(received.length).toBe(before)
     const [after] = await deliveriesOf(id)
     expect(after?.error ?? '').toMatch(/внутренн/i)
+  })
+
+  it('имя, которое к соединению разрешилось внутрь сети, запроса не получает', async () => {
+    // DNS rebinding: проверка перед отправкой видит внешний адрес, а соединение —
+    // уже loopback, где слушает «внутренняя служба». Запрос туда уйти не должен
+    const host = `rebind-${Date.now().toString(36)}.example.test`
+    const port = (server.address() as AddressInfo).port
+    const { id } = await createWebhook({
+      name: `Подмена DNS ${Date.now().toString(36)}`,
+      url: `http://${host}:${port}/hook`,
+    })
+    await dispatchEvent(envelope('object.created'))
+    const [delivery] = await deliveriesOf(id)
+    expect(delivery).toBeDefined()
+
+    const originalLookup = dns.lookup
+    const originalPromises = dnsPromises.lookup
+    const answers: string[] = []
+    dnsPromises.lookup = (async (name: string, options?: unknown) => {
+      if (name !== host) return originalPromises(name, options as never)
+      answers.push('проверка')
+      return [{ address: '93.184.216.34', family: 4 }]
+    }) as typeof dnsPromises.lookup
+    dns.lookup = ((name: string, options: unknown, callback?: unknown) => {
+      const done = (typeof options === 'function' ? options : callback) as (
+        ...args: unknown[]
+      ) => void
+      if (name !== host)
+        return (originalLookup as (...args: unknown[]) => void)(name, options, callback)
+      answers.push('соединение')
+      const all = typeof options === 'object' && options !== null && 'all' in options && options.all
+      if (all) done(null, [{ address: '127.0.0.1', family: 4 }])
+      else done(null, '127.0.0.1', 4)
+    }) as typeof dns.lookup
+    syncBuiltinESMExports()
+    process.env.WEBHOOKS_ALLOW_PRIVATE_ADDRESSES = 'false'
+    resetConfigCache()
+    const before = received.length
+    try {
+      const result = await deliverOnce(delivery?.id ?? '')
+      expect(result.status).not.toBe('delivered')
+    } finally {
+      dns.lookup = originalLookup
+      dnsPromises.lookup = originalPromises
+      syncBuiltinESMExports()
+      process.env.WEBHOOKS_ALLOW_PRIVATE_ADDRESSES = 'true'
+      resetConfigCache()
+    }
+    expect(answers, 'имя разрешалось и при проверке, и при соединении').toEqual([
+      'проверка',
+      'соединение',
+    ])
+    expect(received.length, 'внутренняя служба запроса не получила').toBe(before)
+    const [after] = await deliveriesOf(id)
+    expect(after?.error ?? '').toMatch(/внутренн/i)
+  })
+
+  it('новая подписка видна подписчику шины сразу, удалённая — перестаёт', async () => {
+    // Список активных подписок кешируется процессом (ADR-0222): изменение сбрасывает кэш
+    const name = `Кэш подписок ${Date.now().toString(36)}`
+    await dispatchEvent(envelope('object.created'))
+    const { id } = await createWebhook({ name })
+    await dispatchEvent(envelope('object.created'))
+    expect(await deliveriesOf(id)).toHaveLength(1)
+
+    const removed = await call(fx.app, { method: 'DELETE', url: `/webhooks/${id}`, as: fx.admin })
+    expect(removed.statusCode, removed.body).toBeLessThan(300)
+    await expect(dispatchEvent(envelope('object.created'))).resolves.toBeUndefined()
   })
 
   it('сотрудник без способности не видит вебхуки', async () => {

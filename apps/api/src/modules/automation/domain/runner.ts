@@ -100,9 +100,8 @@ export async function buildScopeData(
     data.object = (await objectScopeData(objectId)) ?? data.object
   }
   if (data.actor.id) {
-    data.actor.displayName = (await directory().refs([data.actor.id])).get(data.actor.id)
-      ? ((await directory().refs([data.actor.id])).get(data.actor.id)?.displayName ?? null)
-      : null
+    const actor = (await directory().refs([data.actor.id])).get(data.actor.id)
+    data.actor.displayName = actor?.displayName ?? null
   }
   return data
 }

@@ -31,6 +31,15 @@ def _redis() -> Redis:
     return _client
 
 
+async def close_cancel_client() -> None:
+    """Закрыть соединения с Redis при остановке движка (ADR-0222), как браузер отчётов."""
+    global _client
+    client, _client = _client, None
+    if client is not None:
+        with contextlib.suppress(RedisError, OSError):
+            await client.aclose()
+
+
 async def is_cancelled(job_id: str) -> bool:
     """Недоступный Redis задание не роняет: отмена просто не видна."""
     try:

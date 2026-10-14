@@ -153,47 +153,9 @@ export async function indexEmbeddings(objectId: string): Promise<number> {
   const known = new Map(existing.map((row) => [row.chunkNo, row.hash]))
 
   const stale = chunks
-    .map((chunk, index) => ({ index, chunk, hash: hashOf(chunk) }))
+    .map((chunk, index) => ({ index, text: chunk, hash: hashOf(chunk) }))
     .filter((item) => known.get(item.index) !== item.hash)
-  const embedded = await embedTexts(stale.map((item) => item.chunk))
-  if (!embedded) return 0
-
-  await db().transaction(async (tx) => {
-    for (const [position, item] of stale.entries()) {
-      const vector = embedded.vectors[position]
-      if (!vector) continue
-      await tx
-        .insert(embeddings)
-        .values({
-          objectId,
-          chunkNo: item.index,
-          text: item.chunk,
-          embedding: vector,
-          model: embedded.model,
-          hash: item.hash,
-          indexedAt: sql`now()`,
-        })
-        .onConflictDoUpdate({
-          target: [embeddings.objectId, embeddings.chunkNo],
-          set: {
-            text: item.chunk,
-            embedding: vector,
-            model: embedded.model,
-            hash: item.hash,
-            indexedAt: sql`now()`,
-            updatedAt: sql`now()`,
-          },
-        })
-    }
-    // Объект укоротили — лишние куски уходят вместе с ним
-    const extra = [...known.keys()].filter((chunkNo) => chunkNo >= chunks.length)
-    if (extra.length > 0) {
-      await tx
-        .delete(embeddings)
-        .where(and(eq(embeddings.objectId, objectId), inArray(embeddings.chunkNo, extra)))
-    }
-  })
-  return stale.length
+  return storeChunks(objectId, stale, chunks.length, [...known.keys()])
 }
 
 export async function dropEmbeddings(objectId: string): Promise<void> {
@@ -307,42 +269,63 @@ export async function indexChunks(
   const stale = texts
     .map((text, index) => ({ index, text, hash: hashOf(text) }))
     .filter((item) => known.get(item.index) !== item.hash)
-  const embedded = await embedTexts(stale.map((item) => item.text))
-  if (!embedded) return 0
+  return storeChunks(objectId, stale, texts.length, [...known.keys()])
+}
+
+/**
+ * Записывает пересчитанные куски одним многострочным `INSERT … ON CONFLICT` (ADR-0222),
+ * а не запросом на кусок, и убирает куски за концом укороченного текста.
+ */
+async function storeChunks(
+  objectId: string,
+  stale: ReadonlyArray<{ index: number; text: string; hash: string }>,
+  total: number,
+  knownChunks: number[],
+): Promise<number> {
+  const embedded = stale.length > 0 ? await embedTexts(stale.map((item) => item.text)) : null
+  if (stale.length > 0 && !embedded) return 0
+
+  const values = stale.flatMap((item, position) => {
+    const vector = embedded?.vectors[position]
+    if (!vector || !embedded) return []
+    return [
+      {
+        objectId,
+        chunkNo: item.index,
+        text: item.text,
+        embedding: vector,
+        model: embedded.model,
+        hash: item.hash,
+        indexedAt: sql`now()`,
+      },
+    ]
+  })
+  // Объект укоротили — лишние куски уходят вместе с ним
+  const extra = knownChunks.filter((chunkNo) => chunkNo >= total)
+  if (values.length === 0 && extra.length === 0) return 0
 
   await db().transaction(async (tx) => {
-    for (const [position, item] of stale.entries()) {
-      const vector = embedded.vectors[position]
-      if (!vector) continue
+    if (values.length > 0) {
       await tx
         .insert(embeddings)
-        .values({
-          objectId,
-          chunkNo: item.index,
-          text: item.text,
-          embedding: vector,
-          model: embedded.model,
-          hash: item.hash,
-          indexedAt: sql`now()`,
-        })
+        .values(values)
         .onConflictDoUpdate({
           target: [embeddings.objectId, embeddings.chunkNo],
           set: {
-            text: item.text,
-            embedding: vector,
-            model: embedded.model,
-            hash: item.hash,
+            text: sql`excluded.text`,
+            embedding: sql`excluded.embedding`,
+            model: sql`excluded.model`,
+            hash: sql`excluded.hash`,
             indexedAt: sql`now()`,
             updatedAt: sql`now()`,
           },
         })
     }
-    const extra = [...known.keys()].filter((chunkNo) => chunkNo >= texts.length)
     if (extra.length > 0) {
       await tx
         .delete(embeddings)
         .where(and(eq(embeddings.objectId, objectId), inArray(embeddings.chunkNo, extra)))
     }
   })
-  return stale.length
+  return values.length
 }
