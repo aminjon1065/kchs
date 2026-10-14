@@ -233,11 +233,14 @@ export const GovEdmsIntake = {
     if (duplicate) {
       await db().transaction((tx) => ObjectService.trash(tx, ctx, documentId))
       const brief = (await duplicateBriefs(ctx, [duplicate.documentId])).get(duplicate.documentId)
-      throw errors.conflict('Этот документ уже заведён из госЭДО', {
-        reason: 'gov_edms_duplicate',
-        documentId: duplicate.documentId,
-        ...(brief ? { title: brief.title, regNumber: brief.regNumber } : {}),
-      })
+      // Ответ об ошибке несёт только текст: номер или тему уже заведённого документа — в нём
+      const known = brief?.regNumber ?? (brief && brief.title !== '—' ? `«${brief.title}»` : null)
+      throw errors.conflict(
+        known
+          ? `Этот документ уже заведён из госЭДО: ${known}`
+          : 'Этот документ уже заведён из госЭДО',
+        { reason: 'gov_edms_duplicate', documentId: duplicate.documentId },
+      )
     }
 
     await db().transaction(async (tx) => {
