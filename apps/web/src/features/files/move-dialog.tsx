@@ -18,11 +18,11 @@ import {
 } from '@kchs/ui'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useId, useMemo, useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { objectListQuery, spacesQuery } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
 import { orderSpaces } from '~/shared/spaces.js'
+import { filesApi } from './queries.js'
 
 /** Корень пространства в дереве выбора: папки без родителя. */
 const ROOT = '__root'
@@ -47,12 +47,9 @@ export async function moveObjects(
   for (const item of items) {
     if (item.id === target.parentId) continue
     try {
-      await http.patch('/objects/:id', {
-        params: { id: item.id },
-        body: {
-          parentId: target.parentId,
-          ...(item.spaceId !== target.spaceId ? { spaceId: target.spaceId } : {}),
-        },
+      await filesApi.updateObject(item.id, {
+        parentId: target.parentId,
+        ...(item.spaceId !== target.spaceId ? { spaceId: target.spaceId } : {}),
       })
       moved += 1
     } catch (error) {
@@ -235,8 +232,7 @@ export function RenameDialog({ item, onClose }: { item: Movable; onClose: () => 
   const [title, setTitle] = useState(item.title)
   const [error, setError] = useState<string | null>(null)
   const rename = useMutation({
-    mutationFn: () =>
-      http.patch('/objects/:id', { params: { id: item.id }, body: { title: title.trim() } }),
+    mutationFn: () => filesApi.updateObject(item.id, { title: title.trim() }),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: ['objects'] })
       void client.invalidateQueries({ queryKey: ['object', item.id] })

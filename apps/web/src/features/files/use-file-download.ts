@@ -1,9 +1,9 @@
 import { useToast } from '@kchs/ui'
 import { useMutation } from '@tanstack/react-query'
 import { saveLink, waitForRender } from '~/features/documents/index.js'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { useT } from '~/shared/i18n.js'
+import { filesApi } from './queries.js'
 
 function watermarkRequired(error: unknown): boolean {
   return (
@@ -24,29 +24,22 @@ export function useFileDownload() {
   return useMutation({
     mutationFn: async (input: { fileId: string; versionId?: string }) => {
       try {
-        saveLink(
-          await http.get('/files/:id/download', {
-            params: { id: input.fileId },
-            query: { versionId: input.versionId },
-          }),
-        )
+        saveLink(await filesApi.getDownload(input.fileId, { versionId: input.versionId }))
         return
       } catch (error) {
         if (!watermarkRequired(error)) throw error
       }
       toast.show({ title: t('files.watermark.preparing') })
-      const render = await http.post('/documents/watermarked', {
-        body: {
-          fileId: input.fileId,
-          // Версия, закреплённая за версией документа (ADR-0197), — её и копируем
-          ...(input.versionId ? { versionId: input.versionId } : {}),
-        },
+      const render = await filesApi.postDocumentsWatermarked({
+        fileId: input.fileId,
+        // Версия, закреплённая за версией документа (ADR-0197), — её и копируем
+        ...(input.versionId ? { versionId: input.versionId } : {}),
       })
       const done = await waitForRender(render.id)
       if (done.status !== 'ready') {
         throw new Error(done.error ?? t('files.watermark.failed'))
       }
-      saveLink(await http.get('/documents/renders/:id/download', { params: { id: render.id } }))
+      saveLink(await filesApi.getDocumentsRendersDownload(render.id))
     },
     onError: (error) =>
       toast.error(error instanceof Error && error.message ? error.message : t('errors.unknown')),
