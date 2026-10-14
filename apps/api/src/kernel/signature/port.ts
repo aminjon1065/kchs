@@ -35,7 +35,7 @@ export interface DeviceSigning {
 /** Подключённый удостоверяющий центр — всё, что нужно для подписи и проверки. */
 export interface QualifiedSignatureAuthority {
   /** `agent` — внешний УЦ и агент на рабочем месте; `device` — УЦ Комитета, ключ в браузере. */
-  kind: 'agent' | 'device'
+  kind: 'agent' | 'device-key'
   /** Интеграция `qes_ca`, из которой взяты данные; у УЦ Комитета — `null`. */
   integrationId: string | null
   name: string

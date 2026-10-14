@@ -17,7 +17,7 @@ export async function committeeAuthority(): Promise<QualifiedSignatureAuthority 
     PkiAuthority.crl('root'),
   ])
   return {
-    kind: 'device',
+    kind: 'device-key',
     integrationId: null,
     name: 'УЦ Комитета',
     agentUrl: null,

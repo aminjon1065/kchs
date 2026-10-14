@@ -157,7 +157,7 @@ async function pageState(row: SessionRow): Promise<QesPageState> {
   const waiting = state === 'awaiting_signature' && prepared !== null
   const found = waiting ? await qualifiedSignature().authority() : null
   const device =
-    found?.kind === 'device' && found.device && row.certificateDer ? found.device : null
+    found?.kind === 'device-key' && found.device && row.certificateDer ? found.device : null
   const digest = prepared ? Buffer.from(prepared.digest, 'hex') : null
   return {
     state,
@@ -442,7 +442,7 @@ async function versionPdf(executor: Executor, versionId: string) {
  */
 async function assertDeviceCertificate(row: SessionRow, der: Buffer): Promise<void> {
   const found = await qualifiedSignature().authority()
-  if (found?.kind !== 'device' || !found.device) return
+  if (found?.kind !== 'device-key' || !found.device) return
   const owner = await found.device.owner(der)
   const seal = (row.source as unknown as SessionSource).seal === 'true'
   if (
@@ -463,7 +463,7 @@ async function assertDeviceCertificate(row: SessionRow, der: Buffer): Promise<vo
 async function deviceCms(row: SessionRow, signatureBase64: string): Promise<string> {
   const found = await qualifiedSignature().authority()
   const prepared = row.prepared as PreparedInfo | null
-  if (found?.kind !== 'device' || !found.device || !prepared || !row.certificateDer) {
+  if (found?.kind !== 'device-key' || !found.device || !prepared || !row.certificateDer) {
     throw errors.conflict('Подпись устройства здесь не ждут', { reason: 'mode' })
   }
   try {
@@ -500,7 +500,7 @@ export const QualifiedSignatures = {
     const seal = input.seal === true
     if (seal) {
       requireCapability(ctx, 'documents.seal')
-      if (found.kind !== 'device') {
+      if (found.kind !== 'device-key') {
         throw errors.conflict('Печать организации ставится ключом УЦ Комитета', { reason: 'seal' })
       }
     }

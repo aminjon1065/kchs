@@ -220,7 +220,7 @@ export async function renderSigningPage(
   const reasons = Object.fromEntries(
     QES_FAILURE_REASONS.map((key) => [key, t(`documents.qualified.reasons.${key}`)]),
   )
-  const device = authority.kind === 'device'
+  const device = authority.kind === 'device-key'
   const seal = (row.source as { seal?: string } | null)?.seal === 'true'
   // Ключ устройства (ADR-0218): шаги и подсказки — без агента и токена
   const pageText = (key: 'stepCertificate' | 'stepSign' | 'note' | 'ready') =>
