@@ -90,6 +90,8 @@ PY
 }
 
 start_host() {
+  # Порты свободны: процессы прежнего запуска не должны отвечать вместо новых
+  stop_host
   mkdir -p "$STATE/logs"
   (cd "$ROOT/apps/api" && KCHS_ENV_FILE="$ENV_FILE" nohup pnpm exec tsx src/main.ts \
     >"$STATE/logs/api.log" 2>&1 </dev/null & echo $! >"$STATE/api.pid")
@@ -103,18 +105,23 @@ start_host() {
 }
 
 stop_host() {
-  local name pid
+  local name pid port i
   for name in api web; do
     [[ -f "$STATE/$name.pid" ]] || continue
     pid="$(cat "$STATE/$name.pid")"
-    # pnpm exec запускает дочерний процесс — гасится вся группа потомков
+    # pnpm exec запускает сервер внуком: гасятся потомки обёртки и сама обёртка
     pkill -P "$pid" 2>/dev/null || true
     kill "$pid" 2>/dev/null || true
     rm -f "$STATE/$name.pid"
   done
-  # Порты освобождаются и у потомков, если pid обёртки уже ушёл
+  # Главное — освободить порты: слушающий процесс гасится, пока порт не опустеет
   for port in "$API_PORT_HOST" "$WEB_PORT_HOST"; do
-    lsof -nP -iTCP:"$port" -sTCP:LISTEN -t 2>/dev/null | xargs kill 2>/dev/null || true
+    for i in 1 2 3 4 5 6 7 8 9 10; do
+      pid="$(lsof -nP -iTCP:"$port" -sTCP:LISTEN -t 2>/dev/null || true)"
+      [[ -z "$pid" ]] && break
+      if [[ $i -lt 5 ]]; then kill $pid 2>/dev/null || true; else kill -9 $pid 2>/dev/null || true; fi
+      sleep 1
+    done
   done
 }
 
@@ -143,7 +150,11 @@ up() {
 
 run() {
   [[ -f "$ENV_FILE" ]] || die "стенд не поднят: bash infra/scripts/e2e-stack.sh up"
-  curl -fsS -o /dev/null "http://localhost:$API_PORT_HOST/health" 2>/dev/null || start_host
+  # api и web — этого стенда: если не отвечают, прежние процессы гасятся и поднимаются заново
+  if ! curl -fsS -o /dev/null "http://localhost:$API_PORT_HOST/health" 2>/dev/null; then
+    stop_host
+    start_host
+  fi
   (cd "$ROOT/apps/web" && KCHS_BASE_URL="http://localhost:$WEB_PORT_HOST" \
     MAILPIT_URL="http://localhost:$MAILPIT_UI_PORT" pnpm exec playwright test "$@")
 }
