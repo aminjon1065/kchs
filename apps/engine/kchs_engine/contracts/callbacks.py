@@ -402,6 +402,10 @@ class QesValidationPolicy(TypedDict):
     trustRootsPem: list[str]
     revocation: Literal["hard-fail", "soft-fail"]
     fetchRevocation: bool
+    # Сведения об отзыве от поставщика (DER в base64) и встраивание их в PDF — ADR-0218
+    crls: NotRequired[list[str]]
+    ocsps: NotRequired[list[str]]
+    ltv: NotRequired[bool]
 
 
 @with_config(INBOUND)

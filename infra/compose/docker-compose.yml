@@ -28,6 +28,7 @@ x-app-env: &app-env
   TZ: ${TZ:-Asia/Dushanbe}
   LOG_LEVEL: ${LOG_LEVEL:-info}
   KCHS_BASE_URL: ${KCHS_BASE_URL:-http://localhost:8080}
+  KCHS_PKI_PUBLIC_URL: ${KCHS_PKI_PUBLIC_URL:-}
   KCHS_API_URL: ${KCHS_API_URL:-http://localhost:8080/api}
   DATABASE_URL: postgres://kchs_app:${KCHS_APP_PASSWORD}@postgres:5432/${POSTGRES_DB:-kchs}
   DATABASE_MIGRATOR_URL: postgres://kchs_migrator:${KCHS_MIGRATOR_PASSWORD}@postgres:5432/${POSTGRES_DB:-kchs}

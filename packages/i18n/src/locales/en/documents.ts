@@ -1048,11 +1048,25 @@ export const documents: DeepPartial<Dictionary['documents']> = {
       timeout: 'The server is taking too long — reload the page',
       agentFailed: 'The CA agent refused',
       agentMissing: 'The CA agent does not respond: check that it is running on this computer',
+      stepCertificateDevice:
+        'The page takes the certificate of the signing key created on this device in your profile.',
+      stepSignDevice:
+        'The system prepares the document with a signature stamp; the browser signs it with the device key.',
+      noteDevice:
+        'The signing key never leaves this device: the page sends the server only the signature.',
+      readyDevice: 'Press “Sign” — the key on this device will sign the document',
+      deviceCertificate: 'Signing key on this device: reading its certificate',
+      deviceSign: 'Signing with this device key',
+      noDeviceKey:
+        'There is no valid signing key on this device: create one in your profile, “Signing key” section',
       close: 'You can close this page — the document card will refresh on its own',
     },
     dialog: {
+      signAs: 'Sign as',
+      asPerson: 'My signature',
+      asSeal: 'Organization seal',
       title: 'Qualified signature',
-      hint: 'The signature is applied on a separate page: the certification authority agent signs the document hash with the key on your token. Keep this card open — it refreshes once the signature is in place.',
+      hint: 'The signature is applied on a separate page: with this device’s signing key (profile, "Signing key") or by the certification authority agent with your token. Keep this card open — it refreshes once the signature is in place.',
       open: 'Open the signing page',
       restart: 'Start again',
       starting: 'Preparing the signing session…',

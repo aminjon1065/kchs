@@ -1,10 +1,19 @@
 import type { QesSessionRecord } from '@kchs/contracts'
 import type { ProcessMyAction } from '@kchs/process'
-import { Badge, Button, Callout, Dialog, DialogContent, Skeleton, useToast } from '@kchs/ui'
+import {
+  Badge,
+  Button,
+  Callout,
+  Dialog,
+  DialogContent,
+  SegmentedControl,
+  Skeleton,
+  useToast,
+} from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ExternalLink, RotateCcw } from 'lucide-react'
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
-import { keys } from '~/shared/api/queries.js'
+import { keys, meQuery } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
 import { documentKeys, qualifiedSession, startQualifiedSigning } from '../queries.js'
 import { useDocument } from './document-context.js'
@@ -27,8 +36,10 @@ const STATE_TONE: Record<QesSessionRecord['state'], 'neutral' | 'success' | 'dan
 
 /**
  * Подписание квалифицированной подписью (ADR-0205): сеанс на шаг, ссылка на
- * страницу подписания (агент УЦ на рабочем месте), ожидание результата. Карточка
- * сама узнаёт, что подпись встала, и обновляется.
+ * страницу подписания (агент УЦ на рабочем месте или ключ УЦ Комитета на устройстве,
+ * ADR-0218), ожидание результата. Карточка сама узнаёт, что подпись встала, и
+ * обновляется. Кто держит печать организации, выбирает, чем подписать: своей подписью
+ * или печатью.
  */
 function QualifiedSignDialog({ item, onClose }: { item: ProcessMyAction; onClose: () => void }) {
   const t = useT()
@@ -36,13 +47,17 @@ function QualifiedSignDialog({ item, onClose }: { item: ProcessMyAction; onClose
   const client = useQueryClient()
   const { document, refresh } = useDocument()
   const [sessionId, setSessionId] = useState<string | null>(null)
+  const [seal, setSeal] = useState(false)
   const started = useRef(false)
+  const { data: me } = useQuery(meQuery())
+  const canSeal = me?.capabilities.includes('documents.seal') ?? false
 
   const start = useMutation({
-    mutationFn: () =>
+    mutationFn: (asSeal: boolean) =>
       startQualifiedSigning(document.id, {
         stepId: item.stepId,
         onBehalfOf: item.onBehalfOf?.id ?? null,
+        ...(asSeal ? { seal: true } : {}),
       }),
     onSuccess: (session) => setSessionId(session.id),
   })
@@ -52,7 +67,7 @@ function QualifiedSignDialog({ item, onClose }: { item: ProcessMyAction; onClose
   useEffect(() => {
     if (started.current) return
     started.current = true
-    startSession()
+    startSession(false)
   }, [startSession])
 
   const session = useQuery({
@@ -74,10 +89,12 @@ function QualifiedSignDialog({ item, onClose }: { item: ProcessMyAction; onClose
     onClose()
   }, [record?.state, client, document.id, onClose, refresh, t, toast])
 
-  const restart = () => {
+  // Новый сеанс заменяет прежний (сервер закрывает его как «начато новое подписание»)
+  const restart = (asSeal = seal) => {
+    setSeal(asSeal)
     setSessionId(null)
     start.reset()
-    startSession()
+    startSession(asSeal)
   }
   const failure = start.error
     ? start.error.message || t('errors.unknown')
@@ -103,7 +120,7 @@ function QualifiedSignDialog({ item, onClose }: { item: ProcessMyAction; onClose
                 variant="secondary"
                 icon={<RotateCcw className="size-3.5" />}
                 loading={start.isPending}
-                onClick={restart}
+                onClick={() => restart()}
               >
                 {t('documents.qualified.dialog.restart')}
               </Button>
@@ -121,6 +138,18 @@ function QualifiedSignDialog({ item, onClose }: { item: ProcessMyAction; onClose
         }
       >
         <div className="flex flex-col gap-3">
+          {canSeal ? (
+            <SegmentedControl<'person' | 'seal'>
+              value={seal ? 'seal' : 'person'}
+              onValueChange={(next) => restart(next === 'seal')}
+              aria-label={t('documents.qualified.dialog.signAs')}
+              className="self-start"
+              options={[
+                { value: 'person', label: t('documents.qualified.dialog.asPerson') },
+                { value: 'seal', label: t('documents.qualified.dialog.asSeal') },
+              ]}
+            />
+          ) : null}
           {record ? (
             <div className="flex flex-wrap items-center gap-2">
               <Badge tone={STATE_TONE[record.state]} size="sm">

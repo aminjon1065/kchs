@@ -53,6 +53,11 @@ const EnvSchema = z.object({
   KCHS_VERSION: optionalText,
 
   KCHS_BASE_URL: z.url().default('http://localhost:5173'),
+  /**
+   * Публичный адрес установки для адресов, вшитых в сертификаты УЦ Комитета (списки отзыва,
+   * OCSP, сертификат издателя; ADR-0218): шлюз DMZ, если он отличается от `KCHS_BASE_URL`.
+   */
+  KCHS_PKI_PUBLIC_URL: optionalUrl,
   KCHS_API_URL: z.url().default('http://localhost:3000'),
   /** Сколько ждать ответа на исходящий вызов правила автоматизации (ADR-0096). */
   KCHS_RULE_WEBHOOK_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60_000).default(10_000),

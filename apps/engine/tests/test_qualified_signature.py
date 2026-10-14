@@ -58,6 +58,7 @@ def _cert(
     ca: bool,
     eku: list[x509.ObjectIdentifier] | None = None,
     ocsp_url: str | None = None,
+    crl_url: str | None = None,
 ) -> x509.Certificate:
     now = dt.datetime.now(dt.UTC)
     builder = (
@@ -93,6 +94,20 @@ def _cert(
                 [
                     x509.AccessDescription(
                         AuthorityInformationAccessOID.OCSP, x509.UniformResourceIdentifier(ocsp_url)
+                    )
+                ]
+            ),
+            critical=False,
+        )
+    if crl_url:
+        builder = builder.add_extension(
+            x509.CRLDistributionPoints(
+                [
+                    x509.DistributionPoint(
+                        full_name=[x509.UniformResourceIdentifier(crl_url)],
+                        relative_name=None,
+                        reasons=None,
+                        crl_issuer=None,
                     )
                 ]
             ),
@@ -134,7 +149,9 @@ class FakeAuthority:
     ocsp_requests: int = 0
     tsa_requests: int = 0
 
-    def signer(self, name: str = "Саидзода Тахир Раҳимович") -> tuple[x509.Certificate, Any]:
+    def signer(
+        self, name: str = "Саидзода Тахир Раҳимович", *, crl_url: str | None = None
+    ) -> tuple[x509.Certificate, Any]:
         key = _key()
         cert = _cert(
             _name(name, "Комитет по ЧС и ГО"),
@@ -143,6 +160,7 @@ class FakeAuthority:
             self.root_key,
             ca=False,
             ocsp_url=self.ocsp_url,
+            crl_url=crl_url,
         )
         return cert, key
 
@@ -575,3 +593,96 @@ async def test_job_skips_when_api_says_so(monkeypatch: pytest.MonkeyPatch) -> No
     monkeypatch.setattr(signature_job, "document_signature_start", fake_start)
     job = {"sessionId": "00000000-0000-4000-8000-000000000003", "step": "prepare"}
     assert await signature_job.document_signature(job) == {"skipped": "сеанс закрыт"}
+
+
+# ─── УЦ Комитета: данные проверки из api, PAdES-B-LT (ADR-0218) ─────────────
+
+
+#: Точка распространения CRL в сертификате — как у сертификатов УЦ Комитета
+CRL_URL = "https://kchs.test/api/v1/pki/issuing.crl"
+
+
+def root_crl(ca: FakeAuthority, revoked: list[x509.Certificate] | None = None) -> bytes:
+    """Список отзыва корня: api передаёт его движку вместо походов за OCSP."""
+    now = dt.datetime.now(dt.UTC)
+    builder = (
+        x509.CertificateRevocationListBuilder()
+        .issuer_name(ca.root.subject)
+        .last_update(now - dt.timedelta(minutes=1))
+        .next_update(now + dt.timedelta(days=7))
+        .add_extension(
+            x509.AuthorityKeyIdentifier.from_issuer_public_key(ca.root_key.public_key()),
+            critical=False,
+        )
+        .add_extension(x509.CRLNumber(1), critical=False)
+    )
+    for cert in revoked or []:
+        builder = builder.add_revoked_certificate(
+            x509.RevokedCertificateBuilder()
+            .serial_number(cert.serial_number)
+            .revocation_date(now - dt.timedelta(minutes=5))
+            .build()
+        )
+    return builder.sign(ca.root_key, hashes.SHA256()).public_bytes(serialization.Encoding.DER)
+
+
+async def test_crl_from_api_gives_good_revocation_without_network(ca: FakeAuthority) -> None:
+    cert, key = ca.signer(crl_url=CRL_URL)
+    signed = await sign_once(blank_pdf(), ca, cert, key, "kchs-crl-1")
+    requests = ca.ocsp_requests
+    policy = ca.policy(fetch=False, crls=[root_crl(ca)])
+    checked = await pades.validate(signed, "kchs-crl-1", policy)
+    assert checked["validation"]["trusted"], checked["validation"]["problem"]
+    assert checked["validation"]["revocation"] == "good"
+    assert ca.ocsp_requests == requests, "в сеть за отзывом не ходили"
+
+
+async def test_crl_listing_signer_rejects_signature(ca: FakeAuthority) -> None:
+    cert, key = ca.signer(crl_url=CRL_URL)
+    signed = await sign_once(blank_pdf(), ca, cert, key, "kchs-crl-2")
+    checked = await pades.validate(
+        signed, "kchs-crl-2", ca.policy(fetch=False, crls=[root_crl(ca, [cert])])
+    )
+    assert checked["validation"]["revocation"] == "revoked"
+    assert not checked["validation"]["trusted"]
+
+
+async def test_ltv_embeds_validation_data_and_checks_offline(ca: FakeAuthority) -> None:
+    from pyhanko.pdf_utils.reader import PdfFileReader
+    from pyhanko.sign.validation import async_validate_pdf_signature
+    from pyhanko.sign.validation.dss import DocumentSecurityStore
+
+    cert, key = ca.signer(crl_url=CRL_URL)
+    signed = await sign_once(blank_pdf(), ca, cert, key, "kchs-ltv-1")
+    policy = ca.policy(fetch=False, crls=[root_crl(ca)])
+    lt = await pades.embed_validation(signed, "kchs-ltv-1", policy)
+    assert len(lt) > len(signed) and b"/DSS" in lt
+    # Подпись прежняя и целая, к документу добавлены только данные проверки
+    checked = await pades.validate(lt, "kchs-ltv-1", policy)
+    assert checked["validation"]["intact"] and checked["validation"]["trusted"]
+    # Уровень LT: проверка только по DSS документа — без сети и без списков от api
+    reader = PdfFileReader(io.BytesIO(lt), strict=False)
+    dss = DocumentSecurityStore.read_dss(reader)
+    assert dss.crls, "список отзыва встроен"
+    context = dss.as_validation_context(
+        {
+            "trust_roots": [_asn1(ca.root)],
+            "allow_fetching": False,
+            "revocation_mode": "hard-fail",
+        }
+    )
+    status = await async_validate_pdf_signature(
+        reader.embedded_signatures[0], signer_validation_context=context
+    )
+    assert status.bottom_line, status.pretty_print_details()
+
+
+def test_platform_timestamper_goes_through_own_api(monkeypatch: pytest.MonkeyPatch) -> None:
+    from kchs_engine.config import settings
+
+    monkeypatch.setattr(settings(), "KCHS_API_URL", "http://api:3000/")
+    stamper = signature_job._timestamper(
+        {"timestamp": {"url": "/api/v1/pki/tsa", "username": None, "password": None}}
+    )
+    assert stamper is not None
+    assert stamper.url == "http://api:3000/api/v1/pki/tsa"

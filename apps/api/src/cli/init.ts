@@ -5,6 +5,7 @@ import { UserService } from '~/kernel/directory/service.js'
 import { SecurityPolicyService } from '~/kernel/settings/security-policy.js'
 import { DocumentsSeed } from '~/modules/documents/public.js'
 import { BasemapService, type BasemapSyncSummary } from '~/modules/gis/public.js'
+import { PkiAuthority } from '~/modules/pki/public.js'
 import { config } from '~/shared/config/index.js'
 import { systemCtx } from '~/shared/context.js'
 import { db } from '~/shared/db/client.js'
@@ -33,6 +34,8 @@ export interface InitSummary {
    * записал этот запуск; иначе она уже была задана и не менялась.
    */
   security: { requireMfaRoles: string[]; applied: boolean }
+  /** УЦ Комитета: отпечаток корневого сертификата — сверяют при установке доверия. */
+  pki: { rootFingerprint: string | null }
   admin: {
     login: string
     created: boolean
@@ -63,6 +66,8 @@ export async function runInit(options: InitOptions): Promise<InitSummary> {
   const calendar = await db().transaction((tx) => seedFixedHolidays(tx, [year, year + 1]))
   const basemaps = await BasemapService.sync(systemCtx('kchs-init'))
   const documents = await DocumentsSeed.ensureStarterSet(systemCtx('kchs-init'))
+  // УЦ Комитета (ADR-0218): квалифицированная подпись без внешнего УЦ — есть в каждой установке
+  const pki = await PkiAuthority.initialize(systemCtx('kchs-init'))
   const security = await db().transaction((tx) =>
     SecurityPolicyService.applyInstallDefault(tx, systemCtx('kchs-init')),
   )
@@ -103,6 +108,7 @@ export async function runInit(options: InitOptions): Promise<InitSummary> {
       templates: documents.templates,
     },
     security,
+    pki: { rootFingerprint: pki.rootFingerprint },
     admin: {
       login: created ? admin.login : (existing[0] ?? admin.login),
       created,
@@ -141,6 +147,7 @@ export function formatInitSummary(summary: InitSummary): string {
     `  Документооборот: журналов добавлено ${summary.documents.journals}, типов документов — ${summary.documents.types}, маршрутов — ${summary.documents.routes}, шаблонов — ${summary.documents.templates}`,
   )
   lines.push(
+    `  УЦ Комитета: корневой сертификат SHA-256 ${summary.pki.rootFingerprint ?? '—'}`,
     summary.security.requireMfaRoles.length > 0
       ? `  Второй фактор обязателен для ролей: ${summary.security.requireMfaRoles.map(roleName).join(', ')}${summary.security.applied ? ' — подключается при первом входе' : ''}`
       : '  Второй фактор: обязательных ролей нет — задаются в консоли, раздел «Безопасность»',

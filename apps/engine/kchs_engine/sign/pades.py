@@ -35,7 +35,7 @@ from pyhanko.pdf_utils.text import TextBoxStyle
 from pyhanko.sign import fields, signers
 from pyhanko.sign.signers.pdf_byterange import PreparedByteRangeDigest
 from pyhanko.sign.timestamps.api import TimeStamper
-from pyhanko.sign.validation import async_validate_pdf_signature
+from pyhanko.sign.validation import async_add_validation_info, async_validate_pdf_signature
 from pyhanko.sign.validation.status import PdfSignatureStatus
 from pyhanko.stamp import QRStampStyle
 from pyhanko_certvalidator import ValidationContext
@@ -302,6 +302,26 @@ def _problem(status: PdfSignatureStatus, revoked: bool) -> str | None:
         detail = indic.standard_name if indic else "нет пути до корня"
         return f"Цепочка сертификата не доверенная: {detail}"
     return None
+
+
+async def embed_validation(data: bytes, field_name: str, policy: Policy) -> bytes:
+    """PAdES-B-LT: цепочка, списки отзыва и ответы OCSP — в DSS документа (проверка без сети)."""
+    reader = PdfFileReader(io.BytesIO(data), strict=False)
+    found = [item for item in reader.embedded_signatures if item.field_name == field_name]
+    if not found:
+        raise SignatureRejectedError("invalid", f"В файле нет подписи {field_name}")
+    output = io.BytesIO()
+    try:
+        await async_add_validation_info(
+            found[0],
+            _context(policy, fetch=False, revocation=policy.revocation),
+            output=output,
+        )
+    except Exception as error:  # нет данных проверки для звена цепочки
+        raise SignatureRejectedError(
+            "untrusted", f"Данные проверки не встраиваются: {error}"
+        ) from error
+    return output.getvalue()
 
 
 async def validate(data: bytes, field_name: str, policy: Policy) -> dict[str, Any]:

@@ -1790,6 +1790,8 @@ const ANY_TYPES = ['folder', 'document', 'page']
  */
 const RESOURCES_ELSEWHERE: Record<string, string> = {
   process: 'ход маршрута объекта — test/processes.test.ts, test/document-routes.test.ts',
+  'pki-certificate':
+    'сертификат УЦ Комитета: отзыв — управляющий пользователями — test/pki.test.ts',
   submission: 'ответ формы — test/forms.test.ts, test/forms-table.test.ts',
   import:
     'импорт датасета (нужен движок) — test/data-datasets.test.ts, test/data-import-review.test.ts',
@@ -2167,6 +2169,7 @@ describe('маршруты с объектом в пути: посторонни
     'DELETE /me/delegations/:id':
       'завершает только назначивший; постороннему — 404 — test/kernel.test.ts',
     'DELETE /me/passkeys/:keyId': 'только свой ключ — test/passkeys.test.ts',
+    'POST /me/certificates/:id/revoke': 'только свой сертификат; чужой — 404 — test/pki.test.ts',
     'GET /qes/sessions/:id/page':
       'только подписант сеанса с билетом на него же — test/document-qualified-signature.test.ts',
     'DELETE /assistant/threads/:id': 'только свой разговор — test/assistant.test.ts',

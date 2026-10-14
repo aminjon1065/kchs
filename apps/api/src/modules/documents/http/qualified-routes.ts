@@ -97,11 +97,12 @@ export function registerQualifiedSignatureRoutes(route: RouteRegistrar): void {
     route: 'POST /qes/sessions/:id/result',
     auth: 'public',
     tags: ['signing'],
-    summary: 'Страница подписания: CMS от агента УЦ — встроить и проверить',
+    summary:
+      'Страница подписания: CMS агента УЦ или подпись ключом устройства — встроить и проверить',
     rateLimit: { max: 20, timeWindow: '1 minute' },
     handler: async (request, reply) => {
       noStore(reply)
-      return QualifiedSignatures.submitCms(request.params.id, request.query.t, request.body.cms)
+      return QualifiedSignatures.submitResult(request.params.id, request.query.t, request.body)
     },
   })
 

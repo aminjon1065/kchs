@@ -157,6 +157,12 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Вебхук медиасервера приходит типом application/webhook+json и проверяется по
   // подписи тела: разбирать его до проверки нельзя (ADR-0092)
+  // Запросы OCSP и штампов времени — двоичный DER (ADR-0218): тело как есть
+  app.addContentTypeParser(
+    ['application/ocsp-request', 'application/timestamp-query'],
+    { parseAs: 'buffer', bodyLimit: 64 * 1024 },
+    (_request, body, done) => done(null, body),
+  )
   app.addContentTypeParser(
     'application/webhook+json',
     { parseAs: 'string' },

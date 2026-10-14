@@ -66,6 +66,32 @@ const SCRIPT = `(() => {
     if (!response.ok) throw new Error(cfg.text.agentFailed + (data.message ? ': ' + data.message : ''))
     return data
   }
+  // Ключ устройства (УЦ Комитета, ADR-0218): неизвлекаемый ключ WebCrypto и сертификат —
+  // в IndexedDB этого источника, их кладёт туда профиль сотрудника
+  function openKeys() {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open('kchs-pki', 1)
+      request.onupgradeneeded = () => request.result.createObjectStore('keys', { keyPath: 'id' })
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+    })
+  }
+  async function deviceKey() {
+    const store = await openKeys()
+    const all = await new Promise((resolve, reject) => {
+      const request = store.transaction('keys', 'readonly').objectStore('keys').getAll()
+      request.onsuccess = () => resolve(request.result || [])
+      request.onerror = () => reject(request.error)
+    })
+    const now = Date.now()
+    const found = all
+      .filter((item) => item.userId === cfg.userId && item.purpose === cfg.purpose && item.certificate && Date.parse(item.expiresAt) > now)
+      .sort((a, b) => Date.parse(b.issuedAt) - Date.parse(a.issuedAt))[0]
+    if (!found) throw new Error(cfg.text.noDeviceKey)
+    return found
+  }
+  const toBase64 = (buffer) => btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(buffer))))
+  const fromBase64 = (text) => Uint8Array.from(atob(text), (char) => char.charCodeAt(0))
   async function until(states) {
     for (let attempt = 0; attempt < 240; attempt += 1) {
       const state = await api('/state')
@@ -92,14 +118,21 @@ const SCRIPT = `(() => {
     try {
       let state = await api('/state')
       if (state.state === 'awaiting_certificate') {
-        show('agentCertificate')
-        picked = await agent('/v1/certificate', { purpose: 'sign' })
+        show(cfg.mode === 'device' ? 'deviceCertificate' : 'agentCertificate')
+        picked = cfg.mode === 'device' ? await deviceKey() : await agent('/v1/certificate', { purpose: 'sign' })
         show('preparing')
         state = await api('/certificate', { certificate: picked.certificate })
       }
       if (state.state === 'preparing') {
         show('preparing')
         state = await until(['awaiting_signature'])
+      }
+      if (state.state === 'awaiting_signature' && cfg.mode === 'device') {
+        if (!picked) picked = await deviceKey()
+        show('deviceSign')
+        const signature = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', picked.privateKey, fromBase64(state.dataToSign))
+        show('verifying')
+        state = await api('/result', { signature: toBase64(signature) })
       }
       if (state.state === 'awaiting_signature') {
         show('agentSign')
@@ -144,7 +177,8 @@ function jsonData(value: unknown): SafeHtml {
  * Страница подписания (ADR-0205): серверный HTML со своим скриптом и своей CSP —
  * `connect-src` только агент УЦ и маршруты своего сеанса. Открывает её вошедший
  * подписант по ссылке из карточки; билет в адресе подписан api и открывает только
- * этот сеанс. Ключ подписи страница не видит: подписывает агент.
+ * этот сеанс. Ключ подписи страница не видит: подписывает агент УЦ или неизвлекаемый ключ
+ * WebCrypto устройства (УЦ Комитета, ADR-0218).
  */
 export async function renderSigningPage(
   ctx: UserCtx,
@@ -177,13 +211,31 @@ export async function renderSigningPage(
       'timeout',
       'agentFailed',
       'agentMissing',
+      'deviceCertificate',
+      'deviceSign',
+      'noDeviceKey',
       'close',
     ].map((key) => [key, t(`documents.qualified.page.${key}`)]),
   )
   const reasons = Object.fromEntries(
     QES_FAILURE_REASONS.map((key) => [key, t(`documents.qualified.reasons.${key}`)]),
   )
-  const data = { base, ticket, agentUrl: authority.agentUrl, text, reasons }
+  const device = authority.kind === 'device-key'
+  const seal = (row.source as { seal?: string } | null)?.seal === 'true'
+  // Ключ устройства (ADR-0218): шаги и подсказки — без агента и токена
+  const pageText = (key: 'stepCertificate' | 'stepSign' | 'note' | 'ready') =>
+    t(`documents.qualified.page.${key}${device ? 'Device' : ''}` as const)
+  text.ready = pageText('ready')
+  const data = {
+    base,
+    ticket,
+    agentUrl: authority.agentUrl,
+    mode: device ? 'device' : 'agent',
+    userId: row.actorId,
+    purpose: seal ? 'seal' : 'person',
+    text,
+    reasons,
+  }
   const body = html`<!doctype html>
 <html lang="${ctx.locale}">
 <head>
@@ -197,14 +249,14 @@ export async function renderSigningPage(
 <h1>${t('documents.qualified.page.title')}</h1>
 <p class="doc">${subject?.title ?? ''}</p>
 <ol>
-  <li>${t('documents.qualified.page.stepCertificate')}</li>
-  <li>${t('documents.qualified.page.stepSign')}</li>
+  <li>${pageText('stepCertificate')}</li>
+  <li>${pageText('stepSign')}</li>
   <li>${t('documents.qualified.page.stepVerify')}</li>
 </ol>
 <div id="status" class="status" role="status" aria-live="polite">${t('documents.qualified.page.loading')}</div>
 <p id="detail" class="detail"></p>
 <button id="sign" type="button">${t('documents.qualified.page.sign')}</button>
-<p class="note">${t('documents.qualified.page.note')}</p>
+<p class="note">${pageText('note')}</p>
 <script id="cfg" type="application/json">${jsonData(data)}</script>
 <script nonce="${nonce}">${new SafeHtml(SCRIPT)}</script>
 </main></body>
@@ -213,8 +265,8 @@ export async function renderSigningPage(
     "default-src 'none'",
     `script-src 'nonce-${nonce}'`,
     `style-src 'nonce-${nonce}'`,
-    // Только агент УЦ на рабочем месте и маршруты своего сеанса
-    `connect-src ${authority.agentUrl}/ ${base}/`,
+    // Только маршруты своего сеанса и агент УЦ на рабочем месте (ключу устройства он не нужен)
+    `connect-src ${device || !authority.agentUrl ? '' : `${authority.agentUrl}/ `}${base}/`,
     "img-src 'none'",
     "base-uri 'none'",
     "form-action 'none'",

@@ -265,6 +265,18 @@ importers:
       '@opentelemetry/sdk-trace-node':
         specifier: ^2.11.0
         version: 2.11.0(@opentelemetry/api@1.9.1)
+      '@peculiar/asn1-ocsp':
+        specifier: 2.9.4
+        version: 2.9.4
+      '@peculiar/asn1-schema':
+        specifier: 2.9.4
+        version: 2.9.4
+      '@peculiar/asn1-tsp':
+        specifier: 2.9.4
+        version: 2.9.4
+      '@peculiar/asn1-x509':
+        specifier: 2.9.4
+        version: 2.9.4
       '@simplewebauthn/server':
         specifier: ^14.0.2
         version: 14.0.2
@@ -415,7 +427,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^3.2.4
-        version: 3.2.7(@types/node@22.20.4)(jiti@2.7.0)(lightningcss@1.32.0)(supports-color@10.2.2)(tsx@4.23.13)(yaml@2.9.1)
+        version: 3.2.7(@types/node@22.20.4)(happy-dom@20.14.6)(jiti@2.7.0)(lightningcss@1.32.0)(supports-color@10.2.2)(tsx@4.23.13)(yaml@2.9.1)
 
   apps/web:
     dependencies:
@@ -2716,6 +2728,10 @@ packages:
     resolution: {integrity: sha512-JJXefFshRAuVAjWQo/39bkg1ywc1VaiO44S8RRC+Ykvf/u2KDmYffoDb0ZBPCR5uJy4AGKQhl8mX+Q8ShcWaXQ==}
     engines: {node: '>=14'}
 
+  '@peculiar/asn1-ocsp@2.9.4':
+    resolution: {integrity: sha512-OruNquk2ich89psmFZ0a/LtOw2BS7WuJ/bhbcIMsMtU3QbO/+9tEvT3Po6VuoWgSgQgL6dUCxrmnNPJ1//j1qQ==}
+    engines: {node: '>=14'}
+
   '@peculiar/asn1-pfx@2.9.4':
     resolution: {integrity: sha512-khuGzHTzNzk4GDlIBEILyIs6Lce0yn0ZBdoI9v93kmNncfZRhD+AQ5ODFqdhvoE8cMJF/JMTQ8yA+t1D14kqCw==}
     engines: {node: '>=14'}
@@ -2734,6 +2750,10 @@ packages:
 
   '@peculiar/asn1-schema@2.9.4':
     resolution: {integrity: sha512-GjzePcT9Iw8NzeOPf73iNS9xM+TBhd/FilAfP+RQGkTMQJTVWtytN3JHJACCjf/ABNau5S7mS3g+DcuxmRgYEg==}
+    engines: {node: '>=14'}
+
+  '@peculiar/asn1-tsp@2.9.4':
+    resolution: {integrity: sha512-RRNCJWG41Oa1tduoqjlRBjz8gZHC5kYRU/3HJZINZNgRcqsEW55stSPRoTpFz2NjhC9dh6iYqO3aFR0dwg5BwA==}
     engines: {node: '>=14'}
 
   '@peculiar/asn1-x509-attr@2.9.4':
@@ -8285,6 +8305,13 @@ snapshots:
       asn1js: 3.0.10
       tslib: 2.8.1
 
+  '@peculiar/asn1-ocsp@2.9.4':
+    dependencies:
+      '@peculiar/asn1-schema': 2.9.4
+      '@peculiar/asn1-x509': 2.9.4
+      asn1js: 3.0.10
+      tslib: 2.8.1
+
   '@peculiar/asn1-pfx@2.9.4':
     dependencies:
       '@peculiar/asn1-cms': 2.9.4
@@ -8322,6 +8349,14 @@ snapshots:
   '@peculiar/asn1-schema@2.9.4':
     dependencies:
       '@peculiar/utils': 2.0.3
+      asn1js: 3.0.10
+      tslib: 2.8.1
+
+  '@peculiar/asn1-tsp@2.9.4':
+    dependencies:
+      '@peculiar/asn1-cms': 2.9.4
+      '@peculiar/asn1-schema': 2.9.4
+      '@peculiar/asn1-x509': 2.9.4
       asn1js: 3.0.10
       tslib: 2.8.1
 
