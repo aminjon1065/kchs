@@ -398,7 +398,7 @@ async function authority(): Promise<QualifiedSignatureAuthority> {
   const found = await qualifiedSignature().authority()
   if (!found) {
     throw errors.conflict(
-      'Квалифицированная подпись не настроена: создайте УЦ Комитета в консоли администрирования',
+      'Квалифицированная подпись не настроена: создайте удостоверяющий центр Комитета в консоли администрирования',
       { reason: 'qualified_signature' },
     )
   }

@@ -143,8 +143,10 @@ async function revokeRow(tx: Tx, ctx: Ctx, row: Row, reason: string | null): Pro
 }
 
 export const PkiCertificates = {
-  challenge(ctx: UserCtx, purpose: PkiPurpose): PkiChallenge {
+  async challenge(ctx: UserCtx, purpose: PkiPurpose): Promise<PkiChallenge> {
     if (purpose === 'seal') requireCapability(ctx, 'documents.seal')
+    // Без УЦ выпуск не начинается: ключ на устройстве не создаётся впустую
+    await PkiAuthority.required('issuing')
     return challengeFor(ctx.userId, purpose)
   },
 
