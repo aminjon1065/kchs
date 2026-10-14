@@ -27,11 +27,11 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { LayoutPanelLeft, Pin, Save, Trash2, Upload } from 'lucide-react'
 import { useId, useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { keys, spacesQuery, workspacesQuery } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
 import { useOpenWorkspace } from '~/shared/workspace/open-workspace.js'
+import { workspaceApi } from '~/shared/workspace/queries.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
 
 /**
@@ -50,8 +50,7 @@ export function WorkspacesMenu() {
   const refresh = () => void client.invalidateQueries({ queryKey: keys.workspaces })
 
   const overwrite = useMutation({
-    mutationFn: (item: NamedWorkspaceSummary) =>
-      http.patch('/workspaces/:id', { params: { id: item.id }, body: { layout: layout() } }),
+    mutationFn: (item: NamedWorkspaceSummary) => workspaceApi.update(item.id, { layout: layout() }),
     onSuccess: (_result, item) => {
       toast.show({
         title: t('shell.workspaces.overwritten', { title: item.title }),
@@ -64,22 +63,20 @@ export function WorkspacesMenu() {
 
   const pin = useMutation({
     mutationFn: (item: NamedWorkspaceSummary) =>
-      http.patch('/workspaces/:id', { params: { id: item.id }, body: { pinned: !item.pinned } }),
+      workspaceApi.update(item.id, { pinned: !item.pinned }),
     onSuccess: refresh,
     onError: () => toast.error(t('errors.forbidden')),
   })
 
   const remove = useMutation({
-    mutationFn: (item: NamedWorkspaceSummary) =>
-      http.delete('/objects/:id', { params: { id: item.id } }),
+    mutationFn: (item: NamedWorkspaceSummary) => workspaceApi.remove(item.id),
     onSuccess: (_result, item) => {
       toast.show({
         title: t('shell.workspaces.deleted', { title: item.title }),
         tone: 'info',
         action: {
           label: t('common.actions.undo'),
-          onClick: () =>
-            void http.post('/objects/:id/restore', { params: { id: item.id } }).then(refresh),
+          onClick: () => void workspaceApi.restore(item.id).then(refresh),
         },
       })
       refresh()
@@ -183,13 +180,11 @@ function SaveWorkspaceDialog({
 
   const save = useMutation({
     mutationFn: () =>
-      http.post('/workspaces', {
-        body: {
-          title: title.trim(),
-          shared,
-          spaceId: shared ? (spaceId ?? teamSpaces[0]?.id ?? null) : null,
-          layout: layout(),
-        },
+      workspaceApi.create({
+        title: title.trim(),
+        shared,
+        spaceId: shared ? (spaceId ?? teamSpaces[0]?.id ?? null) : null,
+        layout: layout(),
       }),
     onSuccess: (workspace) => {
       onSaved(workspace.title)
