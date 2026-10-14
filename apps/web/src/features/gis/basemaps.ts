@@ -6,11 +6,11 @@ import {
   type ReliefLevel,
 } from '@kchs/contracts'
 import { type QueryClient, queryOptions, useQuery } from '@tanstack/react-query'
-import { http } from '~/shared/api/client.js'
 import { useLocale } from '~/shared/appearance.js'
 import { cachedFetch, OFFLINE_AWARE } from '~/shared/offline/queue.js'
 import { autoBasemap, resolveBasemap, useBasemapChoice } from './basemap-choice.js'
 import { wrapAssetUrls } from './offline/pack-source.js'
+import { gisApi } from './queries.js'
 
 /**
  * Базовые карты (07-gis-engine.md §5, ADR-0066): реестр установки и стиль
@@ -31,7 +31,7 @@ export const basemapsQuery = () =>
     // Без сети — список с устройства: карта района открывается и так (ADR-0211)
     ...OFFLINE_AWARE,
     queryKey: basemapKeys.all,
-    queryFn: () => cachedFetch('basemap-list', async () => (await http.get('/gis/basemaps')).items),
+    queryFn: () => cachedFetch('basemap-list', async () => (await gisApi.getBasemaps()).items),
     staleTime: 10 * 60_000,
   })
 
@@ -86,14 +86,11 @@ const basemapStyleQuery = (
           await cachedFetch(
             `basemap-style:${basemapKeys.style(basemap.id, basemap.version, look, lang).join(':')}`,
             () =>
-              http.get('/gis/basemaps/:id/style.json', {
-                params: { id: basemap.id },
-                query: {
-                  theme: look.theme,
-                  lang,
-                  relief: look.relief,
-                  labels: String(look.labels),
-                },
+              gisApi.getBasemapsStyleJson(basemap.id, {
+                theme: look.theme,
+                lang,
+                relief: look.relief,
+                labels: String(look.labels),
               }),
           ),
           window.location.origin,

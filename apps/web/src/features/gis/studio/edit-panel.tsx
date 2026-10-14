@@ -15,12 +15,12 @@ import { MousePointer2, PencilLine, X } from 'lucide-react'
 import { datasetQuery } from '~/features/data/index.js'
 import { objectQuery } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
-import { layerEditingQuery } from '../edit/edit-api.js'
 import { EditQueue } from '../edit/edit-queue.js'
 import { editStore } from '../edit/edit-store.js'
 import { FeatureForm } from '../edit/feature-form.js'
 import { FeatureHistory } from '../edit/feature-history.js'
 import { LayerEditSettings } from '../edit/layer-edit-settings.js'
+import { layerEditingQuery } from '../edit/queries.js'
 import { useStudio } from './context.js'
 
 /**

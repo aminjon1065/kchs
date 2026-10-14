@@ -4,9 +4,9 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { Download } from 'lucide-react'
 import { useState } from 'react'
 import { exportJobQuery, isJobFinished } from '~/features/data/index.js'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { useT } from '~/shared/i18n.js'
+import { gisApi } from './queries.js'
 
 /** Геоформаты выгрузки карты: GeoJSON пишет воркер, GeoPackage и KML — движок (ADR-0068). */
 const FORMATS = ['geojson', 'gpkg', 'kml'] as const
@@ -24,7 +24,7 @@ function LayerExport({ layer, jobId }: { layer: LayerRecord; jobId: string | nul
   const result = job?.status === 'succeeded' ? (job.result as DatasetExportResult | null) : null
   const failed = job !== undefined && isJobFinished(job.status) && job.status !== 'succeeded'
   const download = useMutation({
-    mutationFn: () => http.get('/datasets/exports/:jobId/download', { params: { jobId: jobId! } }),
+    mutationFn: () => gisApi.getDatasetsExportsDownload(jobId!),
     onSuccess: ({ url }) => window.location.assign(url),
     onError: (error) => setFailure(errorText(error, t('errors.unknown'))),
   })
@@ -79,10 +79,7 @@ export function MapExportDialog({
           sort: [],
           ...(layer.style.filter ? { where: layer.style.filter } : {}),
         }
-        const { jobId } = await http.post('/datasets/:id/exports', {
-          params: { id: layer.datasetId },
-          body,
-        })
+        const { jobId } = await gisApi.postDatasetsExports(layer.datasetId, body)
         started[layer.id] = jobId
       }
       return started

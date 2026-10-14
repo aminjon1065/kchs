@@ -2,10 +2,9 @@ import type { ChartFilter, ChartPick } from '@kchs/chart-spec'
 import type { FieldOption, Locale, QueryResult } from '@kchs/contracts'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
-import { http } from '~/shared/api/client.js'
 import { orgUnitsQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
-import { territoriesQuery } from './queries.js'
+import { gisApi, territoriesQuery } from './queries.js'
 
 /**
  * Результат с подписями вместо значений в указанных столбцах: категории
@@ -109,7 +108,7 @@ export function useLabelledResult(
   const users = useQueries({
     queries: people.map((id) => ({
       queryKey: ['user-ref', id] as const,
-      queryFn: () => http.get('/users/:id', { params: { id } }),
+      queryFn: () => gisApi.getUsers(id),
       staleTime: 5 * 60_000,
       retry: false,
     })),

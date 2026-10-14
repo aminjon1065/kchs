@@ -1,10 +1,10 @@
 import { Button } from '@kchs/ui'
 import { ChartArea } from 'lucide-react'
 import { useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { useT } from '~/shared/i18n.js'
 import { ChoroplethWizard } from '../choropleth/choropleth-wizard.js'
 import { useStudio } from './context.js'
+import { gisStudioApi } from './queries.js'
 
 /**
  * Анализ на карте (P2-E04 S04, ADR-0077): хороплет-мастер из тулбара студии.
@@ -22,8 +22,8 @@ export function AnalysisTools() {
       layers: [...spec.layers, { layerId, visible: true, opacity: 1, group: null }],
     }))
     // К охвату нового слоя — когда сервер вернёт его запись
-    void http
-      .get('/gis/layers/:id', { params: { id: layerId } })
+    void gisStudioApi
+      .getLayers(layerId)
       .then((layer) => {
         if (layer.extent) studio.fitBounds(layer.extent)
       })

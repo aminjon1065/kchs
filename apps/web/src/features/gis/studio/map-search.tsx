@@ -13,7 +13,6 @@ import { useQueries, useQuery } from '@tanstack/react-query'
 import { Crosshair, MapPin, Search, Shapes } from 'lucide-react'
 import { type ReactNode, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { http } from '~/shared/api/client.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useStudio } from './context.js'
@@ -22,6 +21,7 @@ import { atLeast, geometryBounds } from './geometry.js'
 import { featureLabel } from './identify.js'
 import { allOf, layerRowConditions } from './map-features.js'
 import { EMPTY_OVERLAY, type OverlayData, useToolOverlay } from './overlay.js'
+import { geocodeQuery, gisStudioApi } from './queries.js'
 
 /** Слоёв, в которых ищутся объекты, и объектов на слой. */
 const OBJECT_LAYERS = 6
@@ -63,14 +63,11 @@ async function searchLayer(
   search: string,
   where: ReturnType<typeof allOf>,
 ): Promise<Array<{ rowId: string; values: Record<string, unknown> }>> {
-  const result = await http.post('/datasets/:id/rows/query', {
-    params: { id: layer.datasetId },
-    body: {
-      search,
-      limit: OBJECTS_PER_LAYER,
-      count: false,
-      ...(where ? { where } : {}),
-    },
+  const result = await gisStudioApi.postDatasetsRowsQuery(layer.datasetId, {
+    search,
+    limit: OBJECTS_PER_LAYER,
+    count: false,
+    ...(where ? { where } : {}),
   })
   const names = result.fields.map((field) => field.name)
   const idIndex = names.indexOf('_id')
@@ -135,8 +132,7 @@ export function MapSearch() {
   const coords = useMemo(() => parseCoordinates(text), [text])
   const searching = text.length >= 2
   const places = useQuery({
-    queryKey: ['geocode', text, PLACES],
-    queryFn: () => http.get('/gis/geocode', { query: { q: text, limit: PLACES } }),
+    ...geocodeQuery({ q: text, limit: PLACES }),
     enabled: searching && coords.length === 0,
     staleTime: 60_000,
     retry: false,
@@ -300,11 +296,8 @@ export function MapSearch() {
         setFound(pointOverlay(option.center[0], option.center[1]))
         if (option.bbox) {
           // Граница единицы — упрощённая под масштаб, взамен метки центра
-          void http
-            .get('/gis/territories/:id/geometry', {
-              params: { id: option.id },
-              query: { zoom: 10 },
-            })
+          void gisStudioApi
+            .getTerritoriesGeometry(option.id)
             .then((feature) =>
               setFound({
                 type: 'FeatureCollection',

@@ -30,7 +30,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Focus, Table2, X, XSquare } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { datasetQuery, useFieldOptions } from '~/features/data/index.js'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { meQuery, objectQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
@@ -40,6 +39,7 @@ import { gisKeys } from '../queries.js'
 import { useStudio } from './context.js'
 import { atLeast, geometryBounds, unionBounds } from './geometry.js'
 import { allOf, layerRowConditions, rowIdsOf } from './map-features.js'
+import { gisStudioApi } from './queries.js'
 
 /** Строк в странице; всего — не больше, чем объектов GeoJSON у слоя. */
 const PAGE = 200
@@ -213,13 +213,10 @@ function LayerTable({
     async (offset: number, current: number) => {
       fetching.current = true
       try {
-        const result = await http.post('/datasets/:id/rows/query', {
-          params: { id: layer.datasetId },
-          body: {
-            ...(JSON.parse(queryKey) as typeof query),
-            offset,
-            count: offset === 0,
-          },
+        const result = await gisStudioApi.postDatasetsRowsQuery(layer.datasetId, {
+          ...(JSON.parse(queryKey) as typeof query),
+          offset,
+          count: offset === 0,
         })
         if (current !== generation.current) return
         const page = toRows(result)
@@ -308,13 +305,10 @@ function LayerTable({
     const missing = selectedIds.filter((id) => !known.has(id)).slice(0, ZOOM_BATCH)
     if (missing.length > 0) {
       try {
-        const result = await http.post('/datasets/:id/rows/query', {
-          params: { id: layer.datasetId },
-          body: {
-            where: { field: '_id', op: 'in', value: missing.map(Number) },
-            limit: ZOOM_BATCH,
-            count: false,
-          },
+        const result = await gisStudioApi.postDatasetsRowsQuery(layer.datasetId, {
+          where: { field: '_id', op: 'in', value: missing.map(Number) },
+          limit: ZOOM_BATCH,
+          count: false,
         })
         for (const row of toRows(result).rows) {
           boxes.push(geometryBounds(row.values[layer.geometryField]))

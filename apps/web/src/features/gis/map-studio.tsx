@@ -20,7 +20,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { ShareDialog } from '~/entities/access/share-dialog.js'
 import { PresenceAvatars } from '~/entities/objects/presence-avatars.js'
 import { ImportWizard } from '~/features/data/import-wizard.js'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { keys, meQuery, objectQuery } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
@@ -32,8 +31,8 @@ import { FeatureCard } from './feature-card.js'
 import { LayerPanel, type PanelLayer } from './layer-panel.js'
 import { layerSourceId, type RenderEntry, useRenderedLayers } from './layer-render.js'
 import { MapExportDialog } from './map-export-dialog.js'
-import { gisKeys, gisRenderSettingsQuery, layerQuery, mapQuery } from './queries.js'
-import { serviceLayersQuery } from './service-layers.js'
+import { gisApi, gisKeys, gisRenderSettingsQuery, layerQuery, mapQuery } from './queries.js'
+import { serviceLayersQuery } from './service-layer-queries.js'
 import { serviceEntries, useServiceLayers } from './service-render.js'
 import { AnalysisTools } from './studio/analysis-tools.js'
 import { AttributeTable } from './studio/attribute-table.js'
@@ -239,12 +238,10 @@ export function MapStudio({
   /** Файл геоданных на карту: импорт уже создал датасет — слой со стилем по умолчанию. */
   const addFileLayer = useMutation({
     mutationFn: async ({ datasetId, name }: { datasetId: string; name: string }) => {
-      const created = await http.post('/gis/layers', {
-        body: {
-          name,
-          spaceId: map!.spaceId,
-          datasetId,
-        },
+      const created = await gisApi.postLayers({
+        name,
+        spaceId: map!.spaceId,
+        datasetId,
       })
       return { id: created.id, name }
     },
@@ -266,11 +263,8 @@ export function MapStudio({
 
   const save = useMutation({
     mutationFn: () =>
-      http.patch('/gis/maps/:id', {
-        params: { id: objectId },
-        body: {
-          spec: { ...(current as MapSpec), ...(view ? { camera: view } : {}) },
-        },
+      gisApi.patchMaps(objectId, {
+        spec: { ...(current as MapSpec), ...(view ? { camera: view } : {}) },
       }),
     onSuccess: () => {
       toast.show({ title: t('gis.map.saved'), tone: 'success' })
@@ -285,8 +279,7 @@ export function MapStudio({
   })
 
   const rename = useMutation({
-    mutationFn: (name: string) =>
-      http.patch('/gis/maps/:id', { params: { id: objectId }, body: { name } }),
+    mutationFn: (name: string) => gisApi.patchMaps(objectId, { name }),
     onSuccess: (_result, name) => {
       setTabTitle(tabId, name)
       void client.invalidateQueries({ queryKey: keys.object(objectId) })
@@ -295,14 +288,14 @@ export function MapStudio({
   })
 
   const trash = useMutation({
-    mutationFn: () => http.delete('/objects/:id', { params: { id: objectId } }),
+    mutationFn: () => gisApi.removeObjects(objectId),
     onSuccess: () => {
       toast.show({
         title: t('objects.trash.movedTo'),
         tone: 'info',
         action: {
           label: t('common.actions.undo'),
-          onClick: () => void http.post('/objects/:id/restore', { params: { id: objectId } }),
+          onClick: () => void gisApi.postObjectsRestore(objectId),
         },
       })
       void client.invalidateQueries({ queryKey: ['objects'] })

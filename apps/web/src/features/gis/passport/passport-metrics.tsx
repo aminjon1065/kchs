@@ -17,11 +17,11 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { X } from 'lucide-react'
 import { useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { objectListQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
+import { gisPassportApi } from './queries.js'
 
 type Scope = 'self' | 'root'
 
@@ -57,12 +57,9 @@ export function PassportMetricsDialog({
     })
   const link = useMutation({
     mutationFn: () =>
-      http.post('/objects/:id/links', {
-        params: { id: metricId! },
-        body: {
-          targetId: scope === 'root' ? root.id : territory.id,
-          kind: 'about_territory',
-        },
+      gisPassportApi.postObjectsLinks(metricId!, {
+        targetId: scope === 'root' ? root.id : territory.id,
+        kind: 'about_territory',
       }),
     onSuccess: () => {
       setMetricId(null)
@@ -73,9 +70,7 @@ export function PassportMetricsDialog({
   })
   const unlink = useMutation({
     mutationFn: (metric: PassportMetric) =>
-      http.delete('/objects/:id/links/:targetId/:kind', {
-        params: { id: metric.metricId, targetId: metric.linkedTo, kind: 'about_territory' },
-      }),
+      gisPassportApi.removeObjectsLinks(metric.metricId, metric.linkedTo),
     onSuccess: () => void refresh(),
     onError: (error) => setFailure(error instanceof ApiError ? error.message : t('errors.unknown')),
   })

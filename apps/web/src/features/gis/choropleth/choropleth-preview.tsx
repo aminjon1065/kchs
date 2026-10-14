@@ -9,12 +9,12 @@ import { formatNumber } from '@kchs/fields'
 import { Callout, Skeleton, useDebouncedValue } from '@kchs/ui'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { ChoroplethMap } from './choropleth-map.js'
 import { numericValues, resultFeatures, resultStyleFields } from './geojson.js'
+import { gisChoroplethApi } from './queries.js'
 
 /**
  * Предпросмотр хороплета (07-gis-engine.md §10): запрос мастера на сервере с
@@ -30,10 +30,8 @@ export function ChoroplethPreview({ params }: { params: ChoroplethParamsInput })
   const preview = useQuery({
     queryKey: ['choropleth', 'preview', request],
     queryFn: () =>
-      http.post('/analyses/preview', {
-        body: {
-          choropleth: { ...settled, style: params.style },
-        },
+      gisChoroplethApi.postAnalysesPreview({
+        choropleth: { ...settled, style: params.style },
       }),
     placeholderData: keepPreviousData,
     retry: false,

@@ -9,11 +9,11 @@ import { formatNumber } from '@kchs/fields'
 import { Button, type KeyValueItem, useToast } from '@kchs/ui'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Map as MapIcon } from 'lucide-react'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
 import { datasetLayersQuery, gisKeys } from '../queries.js'
+import { gisChoroplethApi } from './queries.js'
 
 type Translate = ReturnType<typeof useT>
 
@@ -84,22 +84,18 @@ export function ChoroplethMapButton({ analysis }: { analysis: AnalysisRecord }) 
       const layerId =
         layers[0]?.id ??
         (
-          await http.post('/gis/layers', {
-            body: {
-              name: analysis.name,
-              spaceId: analysis.spaceId,
-              datasetId,
-              style: choroplethLayerStyle(params),
-            },
+          await gisChoroplethApi.postLayers({
+            name: analysis.name,
+            spaceId: analysis.spaceId,
+            datasetId,
+            style: choroplethLayerStyle(params),
           })
         ).id
       void client.invalidateQueries({ queryKey: gisKeys.datasetLayers(datasetId) })
-      const map = await http.post('/gis/maps', {
-        body: {
-          name: analysis.name,
-          spaceId: analysis.spaceId,
-          spec: { layers: [{ layerId, visible: true, opacity: 1, group: null }] },
-        },
+      const map = await gisChoroplethApi.postMaps({
+        name: analysis.name,
+        spaceId: analysis.spaceId,
+        spec: { layers: [{ layerId, visible: true, opacity: 1, group: null }] },
       })
       return map.id
     },

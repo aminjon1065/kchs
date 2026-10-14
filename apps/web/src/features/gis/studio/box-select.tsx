@@ -2,10 +2,10 @@ import type { Bbox } from '@kchs/contracts'
 import type { MapInstance } from '@kchs/ui'
 import { type MutableRefObject, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { http } from '~/shared/api/client.js'
 import { LINKED_SELECTION_LIMIT } from '~/shared/workspace/view-context.js'
 import { type FeatureRef, useStudio } from './context.js'
 import { featuresQuery, mergeRefs, pickableLayerIds, refsOfHits } from './map-features.js'
+import { gisStudioApi } from './queries.js'
 
 /** Меньше — это щелчок, а не рамка, px. */
 const CLICK_SLOP = 4
@@ -115,9 +115,9 @@ export function BoxSelect({
         await Promise.all(
           [...server].map(async (layerId) => {
             try {
-              const collection = await http.get('/gis/layers/:id/features', {
-                params: { id: layerId },
-                query: featuresQuery(
+              const collection = await gisStudioApi.getLayersFeatures(
+                layerId,
+                featuresQuery(
                   {
                     bbox,
                     filter: current.layerFilters[layerId] ?? null,
@@ -125,7 +125,7 @@ export function BoxSelect({
                   },
                   LINKED_SELECTION_LIMIT,
                 ),
-              })
+              )
               for (const feature of collection.features) {
                 fetched.push({ layerId, rowId: feature.id })
               }

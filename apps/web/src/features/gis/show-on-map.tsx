@@ -2,11 +2,10 @@ import type { DatasetRecord } from '@kchs/contracts'
 import { Button, useToast } from '@kchs/ui'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Map as MapIcon } from 'lucide-react'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
-import { datasetLayersQuery, gisKeys } from './queries.js'
+import { datasetLayersQuery, gisApi, gisKeys } from './queries.js'
 
 /**
  * «На карте» у датасета с геометрией (ADR-0072): первый видимый пользователю
@@ -23,12 +22,10 @@ export function ShowOnMapButton({ dataset }: { dataset: DatasetRecord }) {
       const layers = await client.fetchQuery(datasetLayersQuery(dataset.id))
       const existing = layers[0]
       if (existing) return existing
-      const created = await http.post('/gis/layers', {
-        body: {
-          name: dataset.name,
-          spaceId: dataset.spaceId,
-          datasetId: dataset.id,
-        },
+      const created = await gisApi.postLayers({
+        name: dataset.name,
+        spaceId: dataset.spaceId,
+        datasetId: dataset.id,
       })
       void client.invalidateQueries({ queryKey: gisKeys.datasetLayers(dataset.id) })
       return { id: created.id, name: dataset.name }

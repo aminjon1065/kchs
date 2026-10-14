@@ -2,11 +2,10 @@ import type { LayerRecord } from '@kchs/contracts'
 import { Switch, useToast } from '@kchs/ui'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useId } from 'react'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { useT } from '~/shared/i18n.js'
 import { gisKeys } from '../queries.js'
-import { editKeys } from './edit-api.js'
+import { editApi, editKeys } from './queries.js'
 
 /**
  * Настройки правки слоя (07-gis-engine.md §7): правка объектов на карте и
@@ -20,7 +19,7 @@ export function LayerEditSettings({ layer }: { layer: LayerRecord }) {
   const ids = useId()
   const update = useMutation({
     mutationFn: (patch: { editable?: boolean; moderated?: boolean }) =>
-      http.patch('/gis/layers/:id', { params: { id: layer.id }, body: patch }),
+      editApi.updateLayer(layer.id, patch),
     onSuccess: (record) => {
       client.setQueryData(gisKeys.layer(layer.id), record)
       void client.invalidateQueries({ queryKey: editKeys.access(layer.id) })
