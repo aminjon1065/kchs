@@ -20,11 +20,11 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, ShieldCheck } from 'lucide-react'
 import { useState } from 'react'
-import { ApiError } from '~/shared/api/client.js'
 import { useT } from '~/shared/i18n.js'
 import { CertificateStateBadge } from './certificate-state.js'
 import {
   allCertificatesQuery,
+  apiErrorMessage,
   issuingCertificateUrl,
   pkiApi,
   pkiKeys,
@@ -66,7 +66,7 @@ export function PkiSection({ canInit, canManage }: { canInit: boolean; canManage
     },
     onError: (err) => {
       setCreating(false)
-      toast.error(err instanceof ApiError ? err.message : t('errors.unknown'))
+      toast.error(apiErrorMessage(err) ?? t('errors.unknown'))
     },
   })
 
@@ -79,7 +79,7 @@ export function PkiSection({ canInit, canManage }: { canInit: boolean; canManage
     },
     onError: (err) => {
       setRevoking(null)
-      toast.error(err instanceof ApiError ? err.message : t('errors.unknown'))
+      toast.error(apiErrorMessage(err) ?? t('errors.unknown'))
     },
   })
 

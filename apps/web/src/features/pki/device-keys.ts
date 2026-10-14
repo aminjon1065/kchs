@@ -1,5 +1,5 @@
 import type { PkiCertificateRecord, PkiPurpose } from '@kchs/contracts'
-import { http } from '~/shared/api/client.js'
+import { pkiApi } from './queries.js'
 
 /**
  * Ключи подписи на этом устройстве (УЦ Комитета, ADR-0218). Ключ — неизвлекаемый ключ
@@ -93,23 +93,19 @@ export async function createDeviceKey(input: {
     ['sign', 'verify'],
   )) as CryptoKeyPair
   const publicKey = await crypto.subtle.exportKey('spki', pair.publicKey)
-  const { challenge } = await http.post('/me/certificates/challenge', {
-    body: { purpose: input.purpose },
-  })
+  const { challenge } = await pkiApi.challenge(input.purpose)
   const proof = await crypto.subtle.sign(
     'RSASSA-PKCS1-v1_5',
     pair.privateKey,
     new TextEncoder().encode(challenge),
   )
-  const record = await http.post('/me/certificates', {
-    body: {
-      publicKey: base64(publicKey),
-      challenge,
-      proof: base64(proof),
-      deviceLabel: input.label,
-      purpose: input.purpose,
-      code: input.code,
-    },
+  const record = await pkiApi.enroll({
+    publicKey: base64(publicKey),
+    challenge,
+    proof: base64(proof),
+    deviceLabel: input.label,
+    purpose: input.purpose,
+    code: input.code,
   })
   const key: DeviceKey = {
     id: record.id,

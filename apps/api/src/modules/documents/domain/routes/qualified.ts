@@ -446,8 +446,7 @@ async function assertDeviceCertificate(row: SessionRow, der: Buffer): Promise<vo
   const owner = await found.device.owner(der)
   const seal = (row.source as unknown as SessionSource).seal === 'true'
   if (
-    !owner ||
-    !owner.active ||
+    !owner?.active ||
     owner.userId !== row.actorId ||
     owner.purpose !== (seal ? 'seal' : 'person')
   ) {

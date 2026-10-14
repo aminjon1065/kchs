@@ -62,6 +62,7 @@ const WITHOUT_TX = {
     'denial',
   'modules/integrations/domain/token-auth.ts#enforceTokenScope#INTEGRATIONS_AUDIT.apiTokenScopeDenied':
     'denial',
+  'modules/pki/domain/certificates.ts#enroll#PKI_AUDIT.enrollmentRejected': 'denial',
   'modules/reports/domain/run-service.ts#download#REPORTS_AUDIT.reportDownloaded': 'read',
   'modules/tasks/domain/control-export.ts#auditExport#TASKS_AUDIT.controlExported': 'read',
 }

@@ -10,7 +10,6 @@ import type {
 import { and, desc, eq, gt, ilike, isNotNull, isNull, lte, or, type SQL, sql } from 'drizzle-orm'
 import { requireCapability } from '~/kernel/access/authorize.js'
 import { audit } from '~/kernel/audit/service.js'
-import { users } from '~/kernel/directory/schema.js'
 import { UserService } from '~/kernel/directory/service.js'
 import { publishEvent } from '~/kernel/events/publisher.js'
 import { confirmSecondFactor } from '~/kernel/second-factor/port.js'
@@ -103,13 +102,16 @@ function present(row: Row, userName: string | null): PkiCertificateRecord {
 
 async function listWhere(where: SQL | undefined): Promise<PkiCertificateList> {
   const rows = await db()
-    .select({ certificate: pkiCertificates, userName: users.displayName })
+    .select()
     .from(pkiCertificates)
-    .innerJoin(users, eq(users.id, pkiCertificates.userId))
     .where(where)
     .orderBy(desc(pkiCertificates.issuedAt))
     .limit(500)
-  return { items: rows.map((row) => present(row.certificate, row.userName)) }
+  // Имена владельцев — через справочник ядра: таблицы людей модулю не читать (ADR-0178)
+  const people = await UserService.refs([...new Set(rows.map((row) => row.userId))])
+  return {
+    items: rows.map((row) => present(row, people.get(row.userId)?.displayName ?? null)),
+  }
 }
 
 async function revokeRow(tx: Tx, ctx: Ctx, row: Row, reason: string | null): Promise<Row> {
@@ -293,7 +295,12 @@ export const PkiCertificates = {
     }
     if (query.q) {
       const pattern = `%${query.q.replace(/[\\%_]/g, '\\$&')}%`
-      const match = or(ilike(pkiCertificates.subject, pattern), ilike(users.displayName, pattern))
+      // В субъекте сертификата сотрудника — его ФИО; у печати — устройство держателя
+      const match = or(
+        ilike(pkiCertificates.subject, pattern),
+        ilike(pkiCertificates.deviceLabel, pattern),
+        ilike(pkiCertificates.serial, pattern),
+      )
       if (match) conditions.push(match)
     }
     return listWhere(conditions.length > 0 ? and(...conditions) : undefined)

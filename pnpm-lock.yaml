@@ -265,9 +265,6 @@ importers:
       '@opentelemetry/sdk-trace-node':
         specifier: ^2.11.0
         version: 2.11.0(@opentelemetry/api@1.9.1)
-      '@peculiar/asn1-cms':
-        specifier: 2.9.4
-        version: 2.9.4
       '@peculiar/asn1-ocsp':
         specifier: 2.9.4
         version: 2.9.4

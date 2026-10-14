@@ -99,13 +99,13 @@ import {
   registerMeetingsObjectTypes,
   registerMeetingsRoutes,
 } from './meetings/module.js'
+import { registerPkiBackground, registerPkiProvider, registerPkiRoutes } from './pki/module.js'
 import {
   declarePositionsSchedules,
   registerPositionRoutes,
   registerPositionsBackground,
   registerPositionsObjectTypes,
 } from './positions/module.js'
-import { registerPkiBackground, registerPkiProvider, registerPkiRoutes } from './pki/module.js'
 import { registerPushChannel, registerPushRoutes } from './push/module.js'
 import {
   registerReportsBackground,

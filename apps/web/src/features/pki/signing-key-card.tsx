@@ -15,7 +15,6 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, KeyRound, Stamp } from 'lucide-react'
 import { useId, useState } from 'react'
-import { ApiError } from '~/shared/api/client.js'
 import { useT } from '~/shared/i18n.js'
 import { CertificateStateBadge } from './certificate-state.js'
 import {
@@ -25,6 +24,7 @@ import {
   forgetDeviceKey,
 } from './device-keys.js'
 import {
+  apiErrorMessage,
   myCertificatesQuery,
   pkiApi,
   pkiKeys,
@@ -86,9 +86,7 @@ export function SigningKeyCard({
       setError(
         err instanceof DeviceKeyUnsupportedError
           ? t('profile.signingKey.unsupported')
-          : err instanceof ApiError
-            ? (Object.values(err.fieldErrors())[0] ?? err.message)
-            : t('profile.signingKey.failed'),
+          : (apiErrorMessage(err) ?? t('profile.signingKey.failed')),
       ),
   })
 

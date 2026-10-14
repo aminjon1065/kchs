@@ -14,7 +14,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { LogOut, Monitor, Moon, Smartphone, Sun } from 'lucide-react'
 import { useState } from 'react'
-import { SigningKeyCard } from '~/features/pki/signing-key-card.js'
+import { SigningKeyCard } from '~/features/pki/index.js'
 import { ApiError, http, setCsrfToken } from '~/shared/api/client.js'
 import { keys, meQuery } from '~/shared/api/queries.js'
 import type { ApiBody } from '~/shared/api/route-types.js'

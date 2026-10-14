@@ -48,7 +48,11 @@ export function registerIntegrationsObjectTypes(): void {
   registerSystemDataset(CONNECTIONS_SYSTEM_DATASET)
   // Порт квалифицированной подписи ядра (ADR-0205): внешний УЦ — интеграция `qes_ca`;
   // настроенная, она важнее УЦ Комитета (ADR-0218)
-  setQualifiedSignatureProvider('qes_ca', { authority: () => Integrations.qualifiedAuthority() }, 10)
+  setQualifiedSignatureProvider(
+    'qes_ca',
+    { authority: () => Integrations.qualifiedAuthority() },
+    10,
+  )
 }
 
 export function registerIntegrationsRoutes(route: RouteRegistrar): void {

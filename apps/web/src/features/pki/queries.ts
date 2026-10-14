@@ -1,6 +1,6 @@
-import type { PkiAdminCertificateQuery } from '@kchs/contracts'
+import type { PkiAdminCertificateQuery, PkiEnrollInput, PkiPurpose } from '@kchs/contracts'
 import { queryOptions } from '@tanstack/react-query'
-import { http } from '~/shared/api/client.js'
+import { ApiError, http } from '~/shared/api/client.js'
 import { apiUrl } from '~/shared/api/link.js'
 
 /** УЦ Комитета (ADR-0218): состояние, свои сертификаты, сертификаты сотрудников. */
@@ -23,6 +23,9 @@ export const allCertificatesQuery = (query: PkiAdminCertificateQuery) =>
   })
 
 export const pkiApi = {
+  challenge: (purpose: PkiPurpose) =>
+    http.post('/me/certificates/challenge', { body: { purpose } }),
+  enroll: (body: PkiEnrollInput) => http.post('/me/certificates', { body }),
   revokeMine: (id: string, reason?: string) =>
     http.post('/me/certificates/:id/revoke', { params: { id }, body: reason ? { reason } : {} }),
   revoke: (id: string, reason?: string) =>
@@ -31,6 +34,12 @@ export const pkiApi = {
       body: reason ? { reason } : {},
     }),
   init: () => http.post('/admin/pki/init', {}),
+}
+
+/** Понятная причина отказа API (ошибка поля или сообщение); прочие ошибки — `null`. */
+export function apiErrorMessage(error: unknown): string | null {
+  if (!(error instanceof ApiError)) return null
+  return Object.values(error.fieldErrors())[0] ?? error.message
 }
 
 /** Скачать корневой сертификат — установить его в доверенные (руководство сотрудника). */

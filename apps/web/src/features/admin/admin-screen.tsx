@@ -65,7 +65,7 @@ import { type ReactNode, useState } from 'react'
 import { ServiceAccountBadge } from '~/entities/access/service-account-badge.js'
 import { AutomationRulesSection } from '~/features/automation/rules-section.js'
 import { SchedulesSection } from '~/features/automation/schedules-section.js'
-import { PkiSection } from '~/features/pki/pki-section.js'
+import { PkiSection } from '~/features/pki/index.js'
 import { ProcessesSection } from '~/features/processes/processes-section.js'
 import { apiUrl } from '~/shared/api/link.js'
 import {

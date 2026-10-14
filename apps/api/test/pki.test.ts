@@ -182,8 +182,8 @@ async function publishQualified(key: string, signer: TestUser) {
   })
 }
 
-/** Записка с PDF-основой на маршруте КЭП; возвращает документ и шаг подписанта. */
-async function routedMemo(definitionKey: string, signer: TestUser) {
+/** Записка с PDF-основой, отправленная по маршруту КЭП. */
+async function routedMemo(definitionKey: string) {
   const created = await call(fx.app, {
     method: 'POST',
     url: '/documents',
@@ -457,7 +457,7 @@ describe('штамп времени', () => {
 
 describe('подпись КЭП ключом устройства', () => {
   it('страница без агента; чужой сертификат — отказ; CMS собирается из подписи браузера', async () => {
-    const { doc, started } = await routedMemo(`pki_boss_${run}`, people.boss)
+    const { doc, started } = await routedMemo(`pki_boss_${run}`)
     expect(started.statusCode, started.body).toBe(200)
     const stepId = await qualifiedStepId(people.boss, started.json().id)
     const opened = await startSession(people.boss, doc.id, stepId)
@@ -534,7 +534,7 @@ describe('подпись КЭП ключом устройства', () => {
   })
 
   it('печать: ставит держатель печати её ключом; без способности сеанс печати не начать', async () => {
-    const { doc, started } = await routedMemo(`pki_seal_${run}`, sealer)
+    const { doc, started } = await routedMemo(`pki_seal_${run}`)
     expect(started.statusCode, started.body).toBe(200)
     const stepId = await qualifiedStepId(sealer, started.json().id)
 
@@ -555,7 +555,7 @@ describe('подпись КЭП ключом устройства', () => {
     })
     expect(sent.statusCode, sent.body).toBe(200)
 
-    const { doc: bossDoc, started: bossRoute } = await routedMemo(`pki_boss_${run}`, people.boss)
+    const { doc: bossDoc, started: bossRoute } = await routedMemo(`pki_boss_${run}`)
     const bossStep = await qualifiedStepId(people.boss, bossRoute.json().id)
     const denied = await startSession(people.boss, bossDoc.id, bossStep, true)
     expect(denied.statusCode, denied.body).toBe(403)
@@ -608,7 +608,7 @@ describe('отзыв', () => {
     expect(await ocspStatus(boss.der)).toMatch(/Cert Status: revoked/)
     expect(await ocspStatus(seal.der)).toMatch(/Cert Status: good/)
 
-    const { doc, started } = await routedMemo(`pki_boss_${run}`, people.boss)
+    const { doc, started } = await routedMemo(`pki_boss_${run}`)
     const stepId = await qualifiedStepId(people.boss, started.json().id)
     const session = (await startSession(people.boss, doc.id, stepId)).json()
     const refused = await page('POST', session.id, 'certificate', ticketOf(session.signingUrl), {
