@@ -421,7 +421,14 @@ export const useWorkspace = create<WorkspaceStore>()(
 
       restore: (snapshot) => {
         if (snapshot?.version !== 1 || !snapshot.panes?.length) return
-        set({ ...snapshot, closedStack: [] })
+        // Восстановленное и так лежит на сервере — сохранять его обратно незачем
+        restoring = true
+        try {
+          set({ ...snapshot, closedStack: [] })
+        } finally {
+          restoring = false
+        }
+        markWorkspaceSaved()
       },
 
       snapshot: () => snapshot(),
@@ -540,6 +547,13 @@ function createPane(
 /** Сохранение состояния на сервере с дебаунсом — «Продолжить» между днями. */
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 let pendingSave = false
+/**
+ * Снимок, который уже на сервере или в очереди на сохранение (ADR-0222): сохраняется
+ * только изменение снимка — не стек закрытых вкладок, не якорь обсуждения и не само
+ * восстановление с сервера.
+ */
+let savedJson: string | null = null
+let restoring = false
 
 function snapshot(): WorkspaceSnapshot {
   const state = useWorkspace.getState()
@@ -582,8 +596,22 @@ export function flushWorkspaceSave(userId?: string): void {
     .catch(() => undefined)
 }
 
+function markWorkspaceSaved(): void {
+  savedJson = JSON.stringify(snapshot())
+}
+
+/** Изменение состояния: сохранение — только если изменился сам снимок. */
+function onWorkspaceChange(): void {
+  if (restoring) return
+  const json = JSON.stringify(snapshot())
+  if (json === savedJson) return
+  savedJson = json
+  scheduleWorkspaceSave()
+}
+
 export function subscribeWorkspaceSave(userId?: string): () => void {
-  const unsubscribe = useWorkspace.subscribe(() => scheduleWorkspaceSave())
+  markWorkspaceSaved()
+  const unsubscribe = useWorkspace.subscribe(onWorkspaceChange)
   const onHide = () => flushWorkspaceSave(userId)
   const onVisibility = () => {
     if (document.visibilityState === 'hidden') flushWorkspaceSave(userId)

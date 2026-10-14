@@ -19,7 +19,11 @@ import {
   readUnsavedWorkspace,
   savedWorkspaceSnapshot,
 } from '~/shared/workspace/snapshot.js'
-import { subscribeWorkspaceSave, useWorkspace } from '~/shared/workspace/store.js'
+import {
+  scheduleWorkspaceSave,
+  subscribeWorkspaceSave,
+  useWorkspace,
+} from '~/shared/workspace/store.js'
 import { CommandPalette } from './command-palette.js'
 import { ContextPanel } from './context-panel.js'
 import { MobileNav } from './mobile-nav.js'
@@ -71,18 +75,20 @@ export function WorkspaceShell() {
   useEffect(() => {
     let cancelled = false
     let unsubscribe: (() => void) | null = null
-    void Promise.all([
-      http.get('/me/workspace-state'),
-      client.fetchQuery(meQuery()).catch(() => null),
-    ])
-      .then(([result, current]) => {
+    // Оболочка показывается после загрузки профиля (app.tsx): сотрудник уже известен
+    void http
+      .get('/me/workspace-state')
+      .then((result) => {
         // Снимок, оставленный при перезагрузке этой вкладки, свежее серверного: запрос
         // keepalive с ним мог ещё не дойти
         if (cancelled) return
-        const snapshot =
-          readUnsavedWorkspace(current?.user.id) ?? savedWorkspaceSnapshot(result.state)
+        const unsaved = readUnsavedWorkspace(userId)
+        const snapshot = unsaved ?? savedWorkspaceSnapshot(result.state)
         forgetUnsavedWorkspace()
         if (snapshot) restore(snapshot)
+        // Восстановление само не сохраняется (ADR-0222), но снимок вкладки мог и не дойти
+        // до сервера — его досылаем
+        if (unsaved) scheduleWorkspaceSave()
       })
       .catch(() => undefined)
       .then(() =>
@@ -99,7 +105,7 @@ export function WorkspaceShell() {
       cancelled = true
       unsubscribe?.()
     }
-  }, [restore, client])
+  }, [restore, userId])
 
   useEffect(() => subscribeWorkspaceSave(userId), [userId])
 
