@@ -3,9 +3,8 @@ import { Button, ObjectIcon, SearchInput, useDebouncedValue, useToast } from '@k
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { useId, useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { useT } from '~/shared/i18n.js'
-import { correspondentsQuery, documentKeys } from './queries.js'
+import { correspondentsQuery, documentKeys, documentsApi } from './queries.js'
 import { errorText } from './status.js'
 
 /**
@@ -37,7 +36,7 @@ export function CorrespondentPicker({
   const found = data?.items ?? []
 
   const create = useMutation({
-    mutationFn: () => http.post('/correspondents', { body: { kind: 'organization', name: q } }),
+    mutationFn: () => documentsApi.postCorrespondents({ kind: 'organization', name: q }),
     onSuccess: (record) => {
       void client.invalidateQueries({ queryKey: documentKeys.all })
       onChange({ id: record.id, kind: record.kind, name: record.name })

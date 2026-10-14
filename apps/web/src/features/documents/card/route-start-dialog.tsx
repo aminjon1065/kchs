@@ -24,12 +24,12 @@ import { keepPreviousData, skipToken, useMutation, useQuery } from '@tanstack/re
 import { useId, useMemo, useState } from 'react'
 import { type PickedUser, UserPicker, UsersPicker } from '~/entities/people/user-picker.js'
 import { knownKey, STEP_TYPES } from '~/features/processes/index.js'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { documentRoutesQuery } from '../queries.js'
 import { useDocument } from './document-context.js'
+import { documentsCardApi } from './queries.js'
 
 function text(value: LangText | null | undefined, locale: string): string | null {
   if (!value) return null
@@ -204,18 +204,13 @@ export function RouteStartDialog({ onClose }: { onClose: () => void }) {
     queryKey: ['object', document.id, 'route-preview', debounced],
     queryFn:
       debounced && options?.blocker !== 'access'
-        ? () =>
-            http.post('/documents/:id/routes/preview', {
-              params: { id: document.id },
-              body: debounced,
-            })
+        ? () => documentsCardApi.postRoutesPreview(document.id, debounced)
         : skipToken,
     placeholderData: keepPreviousData,
   })
 
   const start = useMutation({
-    mutationFn: () =>
-      http.post('/documents/:id/routes', { params: { id: document.id }, body: body! }),
+    mutationFn: () => documentsCardApi.postRoutes(document.id, body!),
     onSuccess: () => {
       toast.show({ title: t('documents.route.started'), tone: 'success' })
       refresh()

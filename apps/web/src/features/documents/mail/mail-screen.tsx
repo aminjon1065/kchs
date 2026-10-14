@@ -23,11 +23,11 @@ import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-q
 import { Ban, Download, Mail, RefreshCw, Stamp } from 'lucide-react'
 import { useId, useState } from 'react'
 import { useFileDownload } from '~/features/files/index.js'
-import { http } from '~/shared/api/client.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
 import { errorText } from '../status.js'
+import { documentsMailApi } from './queries.js'
 
 /**
  * Очередь «Из почты» (08-documents.md §5, ADR-0113): слева письма ящика
@@ -60,11 +60,9 @@ export function MailScreen() {
     queryKey: mailKeys.list(scope),
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam }) =>
-      http.get('/documents/mail', {
-        query: {
-          ...(scope === 'draft' ? { status: 'draft' } : {}),
-          ...(pageParam ? { cursor: pageParam } : {}),
-        },
+      documentsMailApi.getMail({
+        ...(scope === 'draft' ? { status: 'draft' } : {}),
+        ...(pageParam ? { cursor: pageParam } : {}),
       }),
     getNextPageParam: (last) => last.nextCursor ?? undefined,
   })
@@ -74,7 +72,7 @@ export function MailScreen() {
   const selected = items.find((item) => item.id === selectedId) ?? items[0] ?? null
 
   const poll = useMutation({
-    mutationFn: () => http.post('/documents/mail/poll'),
+    mutationFn: () => documentsMailApi.postMailPoll(),
     onSuccess: (report) => {
       toast.show({
         title: t('documents.mail.polled', {
@@ -243,11 +241,7 @@ function MailDetail({ item }: { item: MailMessageRecord }) {
   const [reason, setReason] = useState('')
 
   const reject = useMutation({
-    mutationFn: () =>
-      http.post('/documents/mail/:id/reject', {
-        params: { id: item.id },
-        body: { reason: reason.trim() },
-      }),
+    mutationFn: () => documentsMailApi.postMailReject(item.id, { reason: reason.trim() }),
     onSuccess: () => {
       setRejecting(false)
       setReason('')

@@ -2,7 +2,6 @@ import { formatDate, formatDateTime } from '@kchs/fields'
 import { Button, Callout, KeyValueList, useToast } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { meQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
@@ -11,6 +10,7 @@ import { errorText, fieldErrors } from '../status.js'
 import { useDocument } from './document-context.js'
 import { GovEdmsSection } from './gov-edms-section.js'
 import { DocumentOfficeSection } from './office-section.js'
+import { documentsCardApi } from './queries.js'
 import { type CardValue, cardPayload, cardValueOf, RequisitesForm } from './requisites-form.js'
 
 /**
@@ -37,8 +37,7 @@ export function CardTab() {
   }, [baseline])
 
   const save = useMutation({
-    mutationFn: () =>
-      http.patch('/documents/:id', { params: { id: document.id }, body: cardPayload(value) }),
+    mutationFn: () => documentsCardApi.patch(document.id, cardPayload(value)),
     onSuccess: (record) => {
       client.setQueryData(documentKeys.document(document.id), record)
       setValue(cardValueOf(record))

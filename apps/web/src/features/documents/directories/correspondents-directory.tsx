@@ -24,11 +24,11 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Contact, Plus, X } from 'lucide-react'
 import { useId, useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { meQuery } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
 import { correspondentQuery, correspondentsQuery, documentKeys } from '../queries.js'
 import { errorText, fieldErrors } from '../status.js'
+import { documentsDirectoriesApi } from './queries.js'
 
 /**
  * Справочник корреспондентов (08-documents.md §5): организации и лица —
@@ -251,8 +251,8 @@ function CorrespondentForm({
         edmsExchange: value.edmsExchange,
       }
       return record
-        ? http.patch('/correspondents/:id', { params: { id: record.id }, body })
-        : http.post('/correspondents', { body })
+        ? documentsDirectoriesApi.patchCorrespondents(record.id, body)
+        : documentsDirectoriesApi.postCorrespondents(body)
     },
     onSuccess: (saved) => {
       toast.show({

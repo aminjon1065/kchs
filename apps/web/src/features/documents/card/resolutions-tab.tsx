@@ -16,7 +16,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CornerDownRight, GitBranch, Send, Stamp, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { STATUS_TONE_KEY } from '~/features/tasks/index.js'
-import { http } from '~/shared/api/client.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useObjectActions } from '~/shared/workspace/object-actions.js'
@@ -24,6 +23,7 @@ import { useWorkspace } from '~/shared/workspace/store.js'
 import { documentKeys, resolutionsQuery } from '../queries.js'
 import { errorText } from '../status.js'
 import { useDocument } from './document-context.js'
+import { documentsCardApi } from './queries.js'
 import {
   NoExecutionDialog,
   ResolutionDialog,
@@ -164,9 +164,7 @@ function Requests({ view }: { view: DocumentResolutions }) {
   const { document } = useDocument()
   const cancel = useMutation({
     mutationFn: (requestId: string) =>
-      http.delete('/documents/:id/resolution-requests/:requestId', {
-        params: { id: document.id, requestId },
-      }),
+      documentsCardApi.removeResolutionRequests(document.id, requestId),
     onSuccess: (next) => {
       client.setQueryData(documentKeys.resolutions(document.id), next)
       toast.show({ title: t('documents.resolutions.requestCancelled'), tone: 'success' })

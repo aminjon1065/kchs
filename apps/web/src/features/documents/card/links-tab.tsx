@@ -32,7 +32,6 @@ import {
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { ArrowDownLeft, ArrowUpRight, Link2, Plus, Reply, X } from 'lucide-react'
 import { useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { objectLinksQuery, objectListQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
@@ -40,6 +39,7 @@ import { useWorkspace } from '~/shared/workspace/store.js'
 import { correspondenceQuery } from '../queries.js'
 import { DOCUMENT_STATUS_TONE, errorText } from '../status.js'
 import { useDocument } from './document-context.js'
+import { documentsCardApi } from './queries.js'
 
 /** Виды связей, которые пользователь создаёт между документами в карточке. */
 const MANUAL_KINDS: DocumentLinkKind[] = [
@@ -71,9 +71,7 @@ export function LinksTab() {
 
   const unlink = useMutation({
     mutationFn: (link: LinkView) =>
-      http.delete('/objects/:id/links/:targetId/:kind', {
-        params: { id: document.id, targetId: link.object.id, kind: link.kind },
-      }),
+      documentsCardApi.removeObjectsLinks(document.id, link.object.id, link.kind),
     onSuccess: () => refresh(),
     onError: (error) => toast.error(errorText(error, t('errors.unknown'))),
   })
@@ -210,7 +208,7 @@ function Correspondence() {
   const items = data?.items ?? []
 
   const reply = useMutation({
-    mutationFn: () => http.post('/documents/:id/reply', { params: { id: document.id }, body: {} }),
+    mutationFn: () => documentsCardApi.postReply(document.id),
     onSuccess: ({ id }) => {
       toast.show({ title: t('documents.reply.created'), tone: 'success' })
       refresh()
@@ -354,10 +352,7 @@ function AddLinkDialog({ onClose }: { onClose: () => void }) {
 
   const link = useMutation({
     mutationFn: () =>
-      http.post('/objects/:id/links', {
-        params: { id: document.id },
-        body: { targetId: target!.id, kind },
-      }),
+      documentsCardApi.postObjectsLinks(document.id, { targetId: target!.id, kind }),
     onSuccess: () => {
       toast.show({ title: t('documents.links.added'), tone: 'success' })
       refresh()

@@ -36,13 +36,13 @@ import { Download, LayoutTemplate, Plus, X } from 'lucide-react'
 import { useId, useState } from 'react'
 import { uploadFile } from '~/entities/files/upload.js'
 import { useFileDownload } from '~/features/files/index.js'
-import { http } from '~/shared/api/client.js'
 import { meQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
-import { templatesQuery } from '../print/renders.js'
+import { templatesQuery } from '../print/queries.js'
 import { documentKeys, documentTypesQuery } from '../queries.js'
 import { errorText } from '../status.js'
+import { documentsDirectoriesApi } from './queries.js'
 
 const ANY_TYPE = '__any__'
 const DOCX = '.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document'
@@ -252,7 +252,7 @@ function TemplatePanel({
         defaults: { ...template.defaults, subject: form.subject.trim() || undefined },
         isActive: form.active,
       }
-      return http.patch('/document-templates/:id', { params: { id: template.id }, body })
+      return documentsDirectoriesApi.patchDocumentTemplates(template.id, body)
     },
     onSuccess: () => {
       toast.show({ title: t('documents.templates.saved'), tone: 'success' })
@@ -269,10 +269,7 @@ function TemplatePanel({
         attachToObjectId: template.id,
         onProgress: setProgress,
       })
-      await http.post('/document-templates/:id/file', {
-        params: { id: template.id },
-        body: { fileId: record.id },
-      })
+      await documentsDirectoriesApi.postDocumentTemplatesFile(template.id, { fileId: record.id })
     },
     onSuccess: () => {
       setProgress(null)
@@ -459,11 +456,9 @@ function CreateTemplateDialog({
   const [failure, setFailure] = useState<string | null>(null)
   const create = useMutation({
     mutationFn: () =>
-      http.post('/document-templates', {
-        body: {
-          name: name.trim(),
-          typeId: typeId === ANY_TYPE ? null : typeId,
-        },
+      documentsDirectoriesApi.postDocumentTemplates({
+        name: name.trim(),
+        typeId: typeId === ANY_TYPE ? null : typeId,
       }),
     onSuccess: (record) => {
       void client.invalidateQueries({ queryKey: ['documents', 'templates'] })

@@ -28,7 +28,6 @@ import {
 } from '~/entities/files/office.js'
 import { uploadFile } from '~/entities/files/upload.js'
 import { useFileDownload } from '~/features/files/index.js'
-import { http } from '~/shared/api/client.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { CompareDialog } from '../print/compare-dialog.js'
@@ -37,6 +36,7 @@ import { documentVersionsQuery } from '../queries.js'
 import { ScanViewer } from '../scan-viewer.js'
 import { errorText } from '../status.js'
 import { useDocument } from './document-context.js'
+import { documentsCardApi } from './queries.js'
 
 /** Файлы версии, которые открывает редактор: основной и приложения. */
 function editableFiles(version: DocumentVersionRecord | null | undefined): DocumentFileRef[] {
@@ -336,13 +336,10 @@ function NewVersion({ onDone }: { onDone: () => void }) {
         })
         uploaded.push(record.id)
       }
-      await http.post('/documents/:id/versions', {
-        params: { id: document.id },
-        body: {
-          mainFileId: uploaded[0]!,
-          attachmentIds: uploaded.slice(1),
-          note: note.trim() || null,
-        },
+      await documentsCardApi.postVersions(document.id, {
+        mainFileId: uploaded[0]!,
+        attachmentIds: uploaded.slice(1),
+        note: note.trim() || null,
       })
     },
     onSuccess: () => {

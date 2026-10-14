@@ -26,7 +26,6 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Briefcase, Reply, Send } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { meQuery } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
@@ -34,6 +33,7 @@ import { CorrespondentPicker } from '../correspondent-picker.js'
 import { caseSuggestionsQuery, documentKeys, mailOutStatusQuery } from '../queries.js'
 import { errorText, localToday } from '../status.js'
 import { useDocument } from './document-context.js'
+import { documentsCardApi } from './queries.js'
 
 /**
  * Делопроизводство в контекст-панели карточки (08-documents.md §5, §11, §12;
@@ -50,7 +50,7 @@ export function DocumentOfficeActions() {
   const [dialog, setDialog] = useState<'dispatch' | 'file' | null>(null)
 
   const reply = useMutation({
-    mutationFn: () => http.post('/documents/:id/reply', { params: { id: document.id }, body: {} }),
+    mutationFn: () => documentsCardApi.postReply(document.id),
     onSuccess: ({ id }) => {
       toast.show({ title: t('documents.reply.created'), tone: 'success' })
       refresh()
@@ -159,14 +159,11 @@ function DispatchDialog({
 
   const send = useMutation({
     mutationFn: () =>
-      http.post('/documents/:id/emails', {
-        params: { id: document.id },
-        body: {
-          correspondentId: correspondent?.id ?? null,
-          to: emailTo.trim() || null,
-          message: message.trim() || null,
-          attachments: withAttachments,
-        },
+      documentsCardApi.postEmails(document.id, {
+        correspondentId: correspondent?.id ?? null,
+        to: emailTo.trim() || null,
+        message: message.trim() || null,
+        attachments: withAttachments,
       }),
     onSuccess: (record) => {
       toast.show({ title: t('documents.email.queued'), tone: 'success' })
@@ -178,15 +175,12 @@ function DispatchDialog({
 
   const dispatch = useMutation({
     mutationFn: () =>
-      http.post('/documents/:id/dispatches', {
-        params: { id: document.id },
-        body: {
-          correspondentId: correspondent?.id ?? null,
-          addressee: addressee.trim() || null,
-          method,
-          sentOn,
-          tracking: tracking.trim() || null,
-        },
+      documentsCardApi.postDispatches(document.id, {
+        correspondentId: correspondent?.id ?? null,
+        addressee: addressee.trim() || null,
+        method,
+        sentOn,
+        tracking: tracking.trim() || null,
       }),
     onSuccess: (record) => {
       toast.show({ title: t('documents.dispatch.done'), tone: 'success' })
@@ -362,8 +356,7 @@ function FileDialog({
   }, [caseId, data, items])
 
   const file = useMutation({
-    mutationFn: () =>
-      http.post('/documents/:id/file', { params: { id: document.id }, body: { caseId } }),
+    mutationFn: () => documentsCardApi.postFile(document.id, { caseId }),
     onSuccess: (record) => {
       toast.show({
         title: t('documents.file.done', { index: record.case?.index ?? '' }),
