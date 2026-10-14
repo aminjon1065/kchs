@@ -60,11 +60,6 @@ export const layerDatasetQuery = (layer: LayerSource) =>
     ...(layer.datasetId ? {} : { staleTime: 5 * 60_000 }),
   })
 
-/** Слой над датасетом реестра: таблица, правка, выгрузка и поиск по строкам есть только у него. */
-export const isDatasetLayer = (
-  layer: Pick<LayerRecord, 'datasetId'>,
-): layer is Pick<LayerRecord, 'datasetId'> & { datasetId: string } => layer.datasetId !== null
-
 /** Источник запросов слоя (время, категории стиля): датасет реестра или системный датасет. */
 export function layerQuerySource(
   layer: Pick<LayerRecord, 'datasetId' | 'systemSource'>,

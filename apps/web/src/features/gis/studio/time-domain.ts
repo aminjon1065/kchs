@@ -2,7 +2,7 @@ import type { LayerRecord, QueryStep } from '@kchs/contracts'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
 import { meQuery } from '~/shared/api/queries.js'
-import { layerQuerySource } from '../layer-source.js'
+import { layerQuerySource } from '../layer-source-queries.js'
 import { type TimeDomain, wallFromValue } from './time-model.js'
 
 /** Пояс пользователя (профиль), пока профиль не загружен — пояс браузера. */

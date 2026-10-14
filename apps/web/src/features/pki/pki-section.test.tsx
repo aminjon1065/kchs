@@ -88,7 +88,7 @@ describe('PkiSection', () => {
     const user = userEvent.setup()
     renderWithClient(<PkiSection canInit canManage />)
 
-    expect(await screen.findByText(/подходит к концу/)).toHaveTextContent("выпускающий")
+    expect(await screen.findByText(/подходит к концу/)).toHaveTextContent('выпускающий')
     await user.click(screen.getByRole('button', { name: 'Сменить ключ' }))
     expect(screen.getByText('Сменить ключ выпускающего УЦ?')).toBeVisible()
     await user.type(screen.getByRole('textbox'), 'Приказ № 12')

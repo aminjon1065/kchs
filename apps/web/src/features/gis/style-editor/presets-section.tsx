@@ -9,7 +9,7 @@ import { Button } from '@kchs/ui'
 import { useMutation } from '@tanstack/react-query'
 import { Sparkles } from 'lucide-react'
 import { useT } from '~/shared/i18n.js'
-import { layerQuerySource } from '../layer-source.js'
+import { layerQuerySource } from '../layer-source-queries.js'
 import { categoriesWithLabels, loadCategoryValues } from './categories.js'
 import { EditorSection, useFieldName, useStyleEditor } from './controls.js'
 

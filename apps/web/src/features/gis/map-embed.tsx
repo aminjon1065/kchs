@@ -30,7 +30,7 @@ import { useWorkspace } from '~/shared/workspace/store.js'
 import { registerPmtilesProtocol, useBasemapStyle } from './basemaps.js'
 import { FeatureCard } from './feature-card.js'
 import { layerSourceId, useRenderedLayers } from './layer-render.js'
-import { layerDatasetQuery } from './layer-source.js'
+import { layerDatasetQuery } from './layer-source-queries.js'
 import { useMapSlot } from './map-slots.js'
 import { layerQuery, mapQuery } from './queries.js'
 

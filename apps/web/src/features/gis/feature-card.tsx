@@ -7,7 +7,7 @@ import { ApiError } from '~/shared/api/client.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
-import { layerDatasetQuery } from './layer-source.js'
+import { layerDatasetQuery } from './layer-source-queries.js'
 import { layerFeatureQuery, territoriesQuery } from './queries.js'
 import { useOpenPassport } from './territory-link.js'
 
