@@ -112,7 +112,11 @@ export async function effectiveLevel(
   ctx: UserCtx,
   object: ObjectLike,
   executor: Executor = db(),
-  options: { attachments?: boolean } = {},
+  options: {
+    attachments?: boolean
+    /** «Объяснить доступ»: все причины, даже не меняющие уровень (иначе — до первого ответа). */
+    explain?: boolean
+  } = {},
 ): Promise<Decision> {
   const reasons: AccessReason[] = []
   let level: Level = 'none'
@@ -186,9 +190,11 @@ export async function effectiveLevel(
   // 7. Вложение (09-files.md §1): видит тот, кто видит объект, к которому оно
   // прикреплено; правит — кто правит объект, но не выше edit (делиться и удалять
   // вложение может только его владелец). Хост проверяется без этого шага —
-  // вложения вложений доступа не передают
+  // вложения вложений доступа не передают. Хост даёт не выше edit: с таким уровнем
+  // остальные хосты решения не меняют — их права не проверяем (ADR-0220)
   if (options.attachments !== false) {
     for (const host of hosts) {
+      if (!options.explain && levelValue(level) >= levelValue('edit')) break
       const hostDecision = await effectiveLevel(ctx, host, executor, { attachments: false })
       if (!hostDecision.allowed) continue
       const derived: Level =
@@ -495,35 +501,38 @@ export function visibleObjectsSql(ctx: Ctx, objectTypeName?: string): SQL {
       )
     : sql`('none','none')`
 
-  // Граница наследования строки (см. inheritanceBoundary): глубина ближайшего
-  // restricted-предка. Алиасы rb/ra скрывают внутреннюю таблицу objects, поэтому
-  // ${objects.id} в подзапросах ссылается на строку внешнего списка
-  const boundaryDepth = sql`(
-    SELECT min(ra.depth) FROM ${objectAncestors} ra
-      JOIN ${objects} rb ON rb.id = ra.ancestor_id
-     WHERE ra.object_id = ${objects.id} AND rb.access_mode = 'restricted'
+  const principalAcl = sql`(ae.principal_type, ae.principal_id) IN (${tuples})
+       AND (ae.expires_at IS NULL OR ae.expires_at > now())`
+  const directAcl = sql`EXISTS (
+    SELECT 1 FROM ${aclEntries} ae WHERE ${principalAcl} AND ae.object_id = ${objects.id}
   )`
 
+  // Наследуемое — роль в пространстве и ACL предков — только до границы наследования строки
+  // (см. inheritanceBoundary): глубины ближайшего restricted-предка. Граница считается один
+  // раз на строку для обоих источников (ADR-0220). Алиасы ra/rb скрывают внутреннюю таблицу
+  // objects, поэтому ${objects.id} в подзапросах ссылается на строку внешнего списка
   const spaceIds = Object.keys(ctx.principals.spaceRoles)
-  const spaceCondition = spaceIds.length
-    ? sql`(${objects.accessMode} <> 'restricted' AND ${boundaryDepth} IS NULL AND ${inArray(objects.spaceId, spaceIds)})`
+  const viaSpace = spaceIds.length
+    ? sql`(boundary.depth IS NULL AND ${inArray(objects.spaceId, spaceIds)})`
     : sql`false`
+  const inherited = sql`(${objects.accessMode} <> 'restricted' AND EXISTS (
+    SELECT 1 FROM (
+      SELECT min(ra.depth) AS depth FROM ${objectAncestors} ra
+        JOIN ${objects} rb ON rb.id = ra.ancestor_id
+       WHERE ra.object_id = ${objects.id} AND rb.access_mode = 'restricted'
+    ) boundary
+     WHERE ${viaSpace} OR EXISTS (
+       SELECT 1 FROM ${aclEntries} ae
+        WHERE ${principalAcl}
+          AND ae.object_id IN (
+            SELECT oa.ancestor_id FROM ${objectAncestors} oa
+             WHERE oa.object_id = ${objects.id}
+               AND oa.depth <= COALESCE(boundary.depth, 2147483647)
+          )
+     )
+  ))`
 
-  const aclCondition = sql`EXISTS (
-    SELECT 1 FROM ${aclEntries} ae
-     WHERE (ae.principal_type, ae.principal_id) IN (${tuples})
-       AND (ae.expires_at IS NULL OR ae.expires_at > now())
-       AND (
-         ae.object_id = ${objects.id}
-         OR (${objects.accessMode} <> 'restricted' AND ae.object_id IN (
-              SELECT oa.ancestor_id FROM ${objectAncestors} oa
-               WHERE oa.object_id = ${objects.id}
-                 AND oa.depth <= COALESCE(${boundaryDepth}, 2147483647)
-            ))
-       )
-  )`
-
-  const base = sql`(${eq(objects.ownerId, ctx.userId)} OR ${spaceCondition} OR ${aclCondition})`
+  const base = sql`(${eq(objects.ownerId, ctx.userId)} OR ${directAcl} OR ${inherited})`
 
   const policy = objectTypeName ? objectType(objectTypeName)?.policy?.visibleSql?.(ctx) : null
   const visible = policy ? sql`(${base} OR ${policy})` : base
