@@ -1001,8 +1001,11 @@ export const documents: DeepPartial<Dictionary['documents']> = {
       close: 'You can close this page — the document card will refresh on its own',
     },
     dialog: {
+      signAs: 'Sign as',
+      asPerson: 'My signature',
+      asSeal: 'Organization seal',
       title: 'Qualified signature',
-      hint: 'The signature is applied on a separate page: the certification authority agent signs the document hash with the key on your token. Keep this card open — it refreshes once the signature is in place.',
+      hint: 'The signature is applied on a separate page: with this device’s signing key (profile, "Signing key") or by the certification authority agent with your token. Keep this card open — it refreshes once the signature is in place.',
       open: 'Open the signing page',
       restart: 'Start again',
       starting: 'Preparing the signing session…',
