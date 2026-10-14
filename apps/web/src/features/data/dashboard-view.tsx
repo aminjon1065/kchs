@@ -40,8 +40,8 @@ import {
   presetPeriod,
 } from '~/entities/data/metric-format.js'
 import { PresenceAvatars } from '~/entities/objects/presence-avatars.js'
-import { MapSlotsProvider } from '~/features/gis/map-slots.js'
-import { TerritorySelect } from '~/features/gis/territory-select.js'
+import { TerritorySelect } from '~/entities/territory/territory-select.js'
+import { MapSlotsProvider } from '~/features/gis/index.js'
 import { dashboardPrintPath } from '~/features/reports/index.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { keys, objectListQuery, objectQuery } from '~/shared/api/queries.js'

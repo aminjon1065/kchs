@@ -34,7 +34,7 @@ import {
   PrincipalPicker,
   usePrincipalLabel,
 } from '~/entities/access/principal-picker.js'
-import { useTerritoryFilterEditor } from '~/features/gis/territory-filter.js'
+import { useTerritoryFilterEditor } from '~/entities/territory/territory-filter.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'

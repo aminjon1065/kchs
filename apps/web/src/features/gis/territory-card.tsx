@@ -13,9 +13,9 @@ import {
 } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { Landmark } from 'lucide-react'
+import { territoryQuery } from '~/entities/territory/queries.js'
 import { useT } from '~/shared/i18n.js'
-import { territoryQuery } from './queries.js'
-import { useOpenPassport } from './territory-link.js'
+import { useOpenPassport } from '../../entities/territory/territory-link.js'
 
 const nameOf = (territory: Territory, locale: Locale) => territory.name[locale] ?? territory.name.ru
 

@@ -75,7 +75,7 @@ import {
   NotebookProvider,
   useNotebook,
   usePeers,
-} from '~/features/notebooks/notebook-context.js'
+} from '~/features/notebooks/index.js'
 import { NotebookParamsBar } from '~/features/notebooks/notebook-params.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { keys, meQuery, objectQuery } from '~/shared/api/queries.js'

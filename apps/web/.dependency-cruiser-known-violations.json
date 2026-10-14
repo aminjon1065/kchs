@@ -103,40 +103,6 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/data/access-tab.tsx",
-    "to": "src/features/gis/territory-filter.tsx",
-    "unresolvedTo": "~/features/gis/territory-filter.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/data/analysis-dialog.tsx",
-    "to": "src/features/gis/territory-select.tsx",
-    "unresolvedTo": "~/features/gis/territory-select.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/data/analysis-view.tsx",
     "to": "src/features/gis/choropleth/choropleth-summary.tsx",
     "unresolvedTo": "~/features/gis/choropleth/choropleth-summary.js",
@@ -157,57 +123,6 @@
     "from": "src/features/data/dashboard-map-tile.tsx",
     "to": "src/features/gis/map-embed.tsx",
     "unresolvedTo": "~/features/gis/map-embed.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/data/dashboard-tv.tsx",
-    "to": "src/features/gis/map-slots.tsx",
-    "unresolvedTo": "~/features/gis/map-slots.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/data/dashboard-view.tsx",
-    "to": "src/features/gis/map-slots.tsx",
-    "unresolvedTo": "~/features/gis/map-slots.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/data/dashboard-view.tsx",
-    "to": "src/features/gis/territory-select.tsx",
-    "unresolvedTo": "~/features/gis/territory-select.js",
     "dependencyTypes": [
       "aliased",
       "aliased-tsconfig",
@@ -256,23 +171,6 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/data/dataset-table.tsx",
-    "to": "src/features/gis/territory-filter.tsx",
-    "unresolvedTo": "~/features/gis/territory-filter.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/data/dataset-view.tsx",
     "to": "src/features/gis/choropleth/choropleth-button.tsx",
     "unresolvedTo": "~/features/gis/choropleth/choropleth-button.js",
@@ -307,43 +205,9 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/data/explore-builder.tsx",
-    "to": "src/features/gis/territory-filter.tsx",
-    "unresolvedTo": "~/features/gis/territory-filter.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/data/field-controls.tsx",
     "to": "src/features/gis/edit/point-field.tsx",
     "unresolvedTo": "~/features/gis/edit/point-field.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/data/field-controls.tsx",
-    "to": "src/features/gis/edit/territory-field.tsx",
-    "unresolvedTo": "~/features/gis/edit/territory-field.js",
     "dependencyTypes": [
       "aliased",
       "aliased-tsconfig",
@@ -737,23 +601,6 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/notebooks/notebook-params.tsx",
-    "to": "src/features/gis/territory-select.tsx",
-    "unresolvedTo": "~/features/gis/territory-select.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/notebooks/query-cell.tsx",
     "to": "src/features/data/ask-box.tsx",
     "unresolvedTo": "~/features/data/ask-box.js",
@@ -874,23 +721,6 @@
   {
     "type": "dependency",
     "from": "src/features/reports/report-blocks.tsx",
-    "to": "src/features/notebooks/notebook-context.tsx",
-    "unresolvedTo": "~/features/notebooks/notebook-context.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/reports/report-blocks.tsx",
     "to": "src/features/notebooks/query-cell.tsx",
     "unresolvedTo": "~/features/notebooks/query-cell.js",
     "dependencyTypes": [
@@ -927,23 +757,6 @@
     "from": "src/features/reports/report-map.ts",
     "to": "src/features/gis/layer-render.ts",
     "unresolvedTo": "~/features/gis/layer-render.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/reports/report-view.tsx",
-    "to": "src/features/notebooks/notebook-context.tsx",
-    "unresolvedTo": "~/features/notebooks/notebook-context.js",
     "dependencyTypes": [
       "aliased",
       "aliased-tsconfig",
@@ -1009,43 +822,9 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/tasks/task-dialogs.tsx",
-    "to": "src/features/gis/territory-select.tsx",
-    "unresolvedTo": "~/features/gis/territory-select.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/features/tasks/task-view.tsx",
     "to": "src/features/data/row-card.tsx",
     "unresolvedTo": "~/features/data/row-card.js",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "features-only-via-index"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/tasks/task-view.tsx",
-    "to": "src/features/gis/territory-link.tsx",
-    "unresolvedTo": "~/features/gis/territory-link.js",
     "dependencyTypes": [
       "aliased",
       "aliased-tsconfig",

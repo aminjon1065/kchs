@@ -32,12 +32,12 @@ import { useFieldOptions } from '~/features/data/index.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
+import { TerritoryField } from '../../../entities/territory/territory-field.js'
 import { useStudio } from '../studio/context.js'
 import { ConflictDialog } from './conflict-dialog.js'
 import { editStore } from './edit-store.js'
 import { representativePoint, sameGeometry, splitParts } from './geometry.js'
 import { conflictOf, editApi, editKeys, refreshAfterWrite, reverseGeocodeQuery } from './queries.js'
-import { TerritoryField } from './territory-field.js'
 
 /** Типы, которые форма не правит: вычисляемые и геометрия (она — на карте). */
 const NOT_IN_FORM = new Set(['geometry', 'formula', 'lookup', 'rollup'])

@@ -2,9 +2,10 @@ import type { ChartFilter, ChartPick } from '@kchs/chart-spec'
 import type { FieldOption, Locale, QueryResult } from '@kchs/contracts'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
+import { territoriesQuery } from '~/entities/territory/queries.js'
 import { orgUnitsQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
-import { gisApi, territoriesQuery } from './queries.js'
+import { gisApi } from './queries.js'
 
 /**
  * Результат с подписями вместо значений в указанных столбцах: категории

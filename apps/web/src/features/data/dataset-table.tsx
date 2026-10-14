@@ -28,7 +28,7 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, Link2, Plus, RefreshCw, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useTerritoryFilterEditor } from '~/features/gis/territory-filter.js'
+import { useTerritoryFilterEditor } from '~/entities/territory/territory-filter.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { meQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'

@@ -19,7 +19,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useId, useState } from 'react'
 import { type PickedUser, UserPicker, UsersPicker } from '~/entities/people/user-picker.js'
-import { TerritorySelect } from '~/features/gis/territory-select.js'
+import { TerritorySelect } from '~/entities/territory/territory-select.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { spacesQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'

@@ -6,7 +6,7 @@ import { DOCUMENT_STATUS_TONE, territoryDocumentsQuery } from '~/features/docume
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
-import { TerritoryLink } from '../territory-link.js'
+import { TerritoryLink } from '../../../entities/territory/territory-link.js'
 
 /**
  * Вкладка «Документы» паспорта (ADR-0158): документы с этой территорией и вложенными

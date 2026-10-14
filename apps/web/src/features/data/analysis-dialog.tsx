@@ -23,7 +23,7 @@ import {
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { TerritorySelect } from '~/features/gis/territory-select.js'
+import { TerritorySelect } from '~/entities/territory/territory-select.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { objectListQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'

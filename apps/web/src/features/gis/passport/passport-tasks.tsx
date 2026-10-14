@@ -16,8 +16,8 @@ import { STATUS_TONE_KEY, tasksQuery } from '~/features/tasks/index.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
+import { TerritoryLink } from '../../../entities/territory/territory-link.js'
 import { CreateTaskDialog } from '../../tasks/task-dialogs.js'
-import { TerritoryLink } from '../territory-link.js'
 
 type State = 'open' | 'all'
 

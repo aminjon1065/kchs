@@ -31,7 +31,7 @@ import { type CellMap, useCellValue, writeCell } from '~/entities/collab/noteboo
 import { ObjectPicker } from '~/entities/objects/object-picker.js'
 import { metricQuery } from '~/features/data/index.js'
 import { registerPmtilesProtocol } from '~/features/gis/index.js'
-import { useNotebook } from '~/features/notebooks/notebook-context.js'
+import { useNotebook } from '~/features/notebooks/index.js'
 import { QueryCell } from '~/features/notebooks/query-cell.js'
 import { ChartCell } from '~/features/notebooks/source-cells.js'
 import { useT } from '~/shared/i18n.js'

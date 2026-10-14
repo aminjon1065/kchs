@@ -1,11 +1,11 @@
 import { EmptyState, ErrorState, Skeleton } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
+import { territoriesQuery } from '~/entities/territory/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
-import { territoriesQuery } from './queries.js'
+import { TerritoryTree } from '../../entities/territory/territory-tree.js'
 import { TerritoryCard } from './territory-card.js'
-import { TerritoryTree } from './territory-tree.js'
 
 /**
  * Экран «Территории» (P1-E07 S03): дерево справочника с поиском слева,

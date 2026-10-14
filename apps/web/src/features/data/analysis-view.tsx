@@ -24,11 +24,11 @@ import { Play, Share2, Trash2 } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { ShareDialog } from '~/entities/access/share-dialog.js'
 import { PresenceAvatars } from '~/entities/objects/presence-avatars.js'
+import { territoriesQuery } from '~/entities/territory/queries.js'
 import {
   ChoroplethMapButton,
   choroplethParamItems,
 } from '~/features/gis/choropleth/choropleth-summary.js'
-import { territoriesQuery } from '~/features/gis/index.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { keys, objectQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'

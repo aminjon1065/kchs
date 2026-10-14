@@ -42,8 +42,8 @@ import {
 } from '@kchs/ui'
 import { CalendarRange, Plus, X } from 'lucide-react'
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
+import { useTerritoryFilterEditor } from '~/entities/territory/territory-filter.js'
 import { optionLabels, useLabelledResult } from '~/features/gis/index.js'
-import { useTerritoryFilterEditor } from '~/features/gis/territory-filter.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import {
