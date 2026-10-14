@@ -994,6 +994,13 @@ export const documents: DeepPartial<Dictionary['documents']> = {
       timeout: 'The server is taking too long — reload the page',
       agentFailed: 'The CA agent refused',
       agentMissing: 'The CA agent does not respond: check that it is running on this computer',
+      stepCertificateDevice:
+        'The page takes the certificate of the signing key created on this device in your profile.',
+      stepSignDevice:
+        'The system prepares the document with a signature stamp; the browser signs it with the device key.',
+      noteDevice:
+        'The signing key never leaves this device: the page sends the server only the signature.',
+      readyDevice: 'Press “Sign” — the key on this device will sign the document',
       deviceCertificate: 'Signing key on this device: reading its certificate',
       deviceSign: 'Signing with this device key',
       noDeviceKey:

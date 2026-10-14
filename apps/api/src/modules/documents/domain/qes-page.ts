@@ -222,6 +222,10 @@ export async function renderSigningPage(
   )
   const device = authority.kind === 'device'
   const seal = (row.source as { seal?: string } | null)?.seal === 'true'
+  // Ключ устройства (ADR-0218): шаги и подсказки — без агента и токена
+  const pageText = (key: 'stepCertificate' | 'stepSign' | 'note' | 'ready') =>
+    t(`documents.qualified.page.${key}${device ? 'Device' : ''}` as const)
+  text.ready = pageText('ready')
   const data = {
     base,
     ticket,
@@ -245,14 +249,14 @@ export async function renderSigningPage(
 <h1>${t('documents.qualified.page.title')}</h1>
 <p class="doc">${subject?.title ?? ''}</p>
 <ol>
-  <li>${t('documents.qualified.page.stepCertificate')}</li>
-  <li>${t('documents.qualified.page.stepSign')}</li>
+  <li>${pageText('stepCertificate')}</li>
+  <li>${pageText('stepSign')}</li>
   <li>${t('documents.qualified.page.stepVerify')}</li>
 </ol>
 <div id="status" class="status" role="status" aria-live="polite">${t('documents.qualified.page.loading')}</div>
 <p id="detail" class="detail"></p>
 <button id="sign" type="button">${t('documents.qualified.page.sign')}</button>
-<p class="note">${t('documents.qualified.page.note')}</p>
+<p class="note">${pageText('note')}</p>
 <script id="cfg" type="application/json">${jsonData(data)}</script>
 <script nonce="${nonce}">${new SafeHtml(SCRIPT)}</script>
 </main></body>
