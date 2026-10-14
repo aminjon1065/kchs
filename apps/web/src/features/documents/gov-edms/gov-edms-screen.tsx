@@ -1,7 +1,6 @@
 import type { GovEdmsIntakeRecord } from '@kchs/contracts'
 import { formatDate, formatDateTime } from '@kchs/fields'
 import {
-  Badge,
   Button,
   Callout,
   Dialog,
@@ -12,6 +11,7 @@ import {
   ProgressBar,
   SegmentedControl,
   Skeleton,
+  StatusBadge,
   useToast,
 } from '@kchs/ui'
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
@@ -20,7 +20,7 @@ import { useState } from 'react'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
-import { errorText } from '../status.js'
+import { DOCUMENT_STATUS_TONE, errorText } from '../status.js'
 import { type ImportDocument, type ImportMode, isZip, planImport } from './import-plan.js'
 import {
   duplicatesOf,
@@ -128,9 +128,10 @@ export function GovEdmsScreen() {
                     <span className="truncate text-sm font-medium text-fg">
                       {item.document.title}
                     </span>
-                    <Badge size="sm" tone={item.document.status === 'draft' ? 'accent' : 'success'}>
-                      {t(`documents.status.${item.document.status}`)}
-                    </Badge>
+                    <StatusBadge
+                      status={DOCUMENT_STATUS_TONE[item.document.status]}
+                      label={t(`documents.statuses.${item.document.status}`)}
+                    />
                     {item.document.regNumber ? (
                       <span className="text-xs text-fg-muted tabular">
                         № {item.document.regNumber}
