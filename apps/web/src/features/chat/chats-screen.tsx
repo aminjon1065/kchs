@@ -6,9 +6,10 @@ import { useEffect, useState } from 'react'
 import { useT } from '~/shared/i18n.js'
 import { subscribeRooms, unsubscribeRooms } from '~/shared/realtime/client.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
-import { NewChatDialog, PresenceDialog } from './chat-dialogs.js'
+import { NewChatDialog } from './chat-dialogs.js'
 import { ConversationList } from './conversation-list.js'
 import { MessageFeed } from './message-feed.js'
+import { PresenceDialog } from './presence-dialog.js'
 import { chatKeys, conversationQuery, myPresenceQuery } from './queries.js'
 
 export interface ChatsScreenState {

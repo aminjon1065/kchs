@@ -50,7 +50,7 @@ import {
   Share2,
   Trash2,
 } from 'lucide-react'
-import { type ReactNode, useEffect, useMemo, useState } from 'react'
+import { type ReactNode, Suspense, useEffect, useMemo, useState } from 'react'
 import * as Y from 'yjs'
 import { ShareDialog } from '~/entities/access/share-dialog.js'
 import { useCollabDocument } from '~/entities/collab/collab.js'
@@ -71,12 +71,12 @@ import {
 } from '~/entities/collab/notebook-doc.js'
 import { documentTypesQuery } from '~/features/documents/index.js'
 import {
+  LazyNotebookParamsBar,
   type NotebookContextValue,
   NotebookProvider,
   useNotebook,
   usePeers,
 } from '~/features/notebooks/index.js'
-import { NotebookParamsBar } from '~/features/notebooks/notebook-params.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { keys, meQuery, objectQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
@@ -471,7 +471,9 @@ function ReportScreen({
     <NotebookProvider value={context}>
       <div className="flex h-full min-h-0 flex-col">
         {toolbar(settings)}
-        <NotebookParamsBar label={t('data.report.params')} />
+        <Suspense fallback={null}>
+          <LazyNotebookParamsBar label={t('data.report.params')} />
+        </Suspense>
         <SettingsBar report={report} />
         <div className="flex min-h-0 flex-1">
           <div className="min-h-0 flex-1 overflow-y-auto bg-canvas">

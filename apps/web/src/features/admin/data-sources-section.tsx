@@ -45,8 +45,9 @@ import {
   Rss,
   Trash2,
 } from 'lucide-react'
-import { useId, useState } from 'react'
+import { Suspense, useId, useState } from 'react'
 import {
+  LazyFeedSourceDialog,
   sourceApi,
   sourceKeys,
   sourceQuery,
@@ -54,7 +55,6 @@ import {
   sourcesQuery,
   sourceTablesQuery,
 } from '~/features/data/index.js'
-import { FeedSourceDialog } from '~/features/data/sources/feed-dialog.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { integrationsQuery, spacesQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
@@ -274,25 +274,27 @@ export function DataSourcesSection() {
           refresh()
         }}
       />
-      <FeedSourceDialog
-        open={creatingFeed || (editingFeedId.length > 0 && editingFeed !== undefined)}
-        source={editingFeedId ? (editingFeed ?? null) : null}
-        onOpenChange={(open) => {
-          if (open) return
-          setCreatingFeed(false)
-          setEditingFeedId('')
-        }}
-        onSaved={() => {
-          toast.show({
-            title: editingFeedId ? t('admin.dataSources.saved') : t('admin.dataSources.created'),
-            tone: 'success',
-          })
-          if (editingFeedId) {
-            void client.invalidateQueries({ queryKey: sourceKeys.one(editingFeedId) })
-          }
-          refresh()
-        }}
-      />
+      <Suspense fallback={null}>
+        <LazyFeedSourceDialog
+          open={creatingFeed || (editingFeedId.length > 0 && editingFeed !== undefined)}
+          source={editingFeedId ? (editingFeed ?? null) : null}
+          onOpenChange={(open) => {
+            if (open) return
+            setCreatingFeed(false)
+            setEditingFeedId('')
+          }}
+          onSaved={() => {
+            toast.show({
+              title: editingFeedId ? t('admin.dataSources.saved') : t('admin.dataSources.created'),
+              tone: 'success',
+            })
+            if (editingFeedId) {
+              void client.invalidateQueries({ queryKey: sourceKeys.one(editingFeedId) })
+            }
+            refresh()
+          }}
+        />
+      </Suspense>
       <SourceSettingsDialog
         source={editing}
         onOpenChange={(open) => (open ? undefined : setEditing(null))}

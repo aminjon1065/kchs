@@ -1,8 +1,8 @@
 import { Button, Callout, Card, cn, Field, Input, useToast } from '@kchs/ui'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ShieldCheck } from 'lucide-react'
-import { useId, useState } from 'react'
-import { MfaSetup } from '~/features/auth/mfa-setup.js'
+import { Suspense, useId, useState } from 'react'
+import { LazyMfaSetup } from '~/features/auth/index.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { keys } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
@@ -61,7 +61,11 @@ export function MfaCard({ enabled }: { enabled: boolean }) {
           ) : null}
         </div>
 
-        {!enabled ? <MfaSetup onDone={refresh} /> : null}
+        {!enabled ? (
+          <Suspense fallback={null}>
+            <LazyMfaSetup onDone={refresh} />
+          </Suspense>
+        ) : null}
 
         {enabled && disabling ? (
           <form

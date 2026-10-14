@@ -21,7 +21,7 @@ import {
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, History, PenLine, RotateCcw, Share2, Trash2, Upload } from 'lucide-react'
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { ShareDialog } from '~/entities/access/share-dialog.js'
 import { FilePreview } from '~/entities/files/file-preview.js'
 import {
@@ -31,8 +31,11 @@ import {
   useOpenOfficeEditor,
 } from '~/entities/files/office.js'
 import { PresenceAvatars } from '~/entities/objects/presence-avatars.js'
-import { useFileDownload } from '~/features/files/index.js'
-import { NewVersionDialog, RestoreVersionDialog } from '~/features/files/version-dialogs.js'
+import {
+  LazyNewVersionDialog,
+  LazyRestoreVersionDialog,
+  useFileDownload,
+} from '~/features/files/index.js'
 import { fileQuery, fileVersionsQuery, keys, objectQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
@@ -281,18 +284,22 @@ export function FileView({ objectId, tabId }: { objectId: string; tabId: string 
         onOpenChange={setShareOpen}
       />
       {newVersionOpen && object?.spaceId ? (
-        <NewVersionDialog
-          fileId={objectId}
-          spaceId={object.spaceId}
-          onClose={() => setNewVersionOpen(false)}
-        />
+        <Suspense fallback={null}>
+          <LazyNewVersionDialog
+            fileId={objectId}
+            spaceId={object.spaceId}
+            onClose={() => setNewVersionOpen(false)}
+          />
+        </Suspense>
       ) : null}
       {restoring ? (
-        <RestoreVersionDialog
-          fileId={objectId}
-          version={restoring}
-          onClose={() => setRestoring(null)}
-        />
+        <Suspense fallback={null}>
+          <LazyRestoreVersionDialog
+            fileId={objectId}
+            version={restoring}
+            onClose={() => setRestoring(null)}
+          />
+        </Suspense>
       ) : null}
       <AlertDialog
         open={deleteOpen}

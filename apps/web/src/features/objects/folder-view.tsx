@@ -1,6 +1,7 @@
 import { EmptyState, Skeleton } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
-import { FilesScreen } from '~/features/files/files-screen.js'
+import { Suspense } from 'react'
+import { LazyFilesScreen } from '~/features/files/index.js'
 import { objectQuery } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
 
@@ -19,5 +20,9 @@ export function FolderView({ objectId }: { objectId: string }) {
   }
   if (!object?.spaceId) return <EmptyState title={t('files.folder.unavailable')} />
 
-  return <FilesScreen spaceId={object.spaceId} />
+  return (
+    <Suspense fallback={null}>
+      <LazyFilesScreen spaceId={object.spaceId} />
+    </Suspense>
+  )
 }

@@ -25,11 +25,14 @@ import {
   Settings2,
   Star,
 } from 'lucide-react'
-import { type ReactNode, useState } from 'react'
-import { TodayWidget } from '~/features/calendar/today-widget.js'
-import { IssuedWidget, TeamWidget } from '~/features/tasks/home-widgets.js'
-import { teamQuery } from '~/features/tasks/index.js'
-import { MyTasksWidget } from '~/features/tasks/my-tasks-widget.js'
+import { type ReactNode, Suspense, useState } from 'react'
+import { LazyTodayWidget } from '~/features/calendar/index.js'
+import {
+  LazyIssuedWidget,
+  LazyMyTasksWidget,
+  LazyTeamWidget,
+  teamQuery,
+} from '~/features/tasks/index.js'
 import {
   announcementsQuery,
   favoritesQuery,
@@ -94,10 +97,26 @@ export function HomeScreen() {
 
   const render: Record<HomeWidget, () => ReactNode> = {
     inbox: () => <InboxWidget openObject={openObject} openInbox={openInbox} />,
-    today: () => <TodayWidget />,
-    tasks: () => <MyTasksWidget />,
-    assigned: () => <IssuedWidget />,
-    team: () => <TeamWidget />,
+    today: () => (
+      <Suspense fallback={null}>
+        <LazyTodayWidget />
+      </Suspense>
+    ),
+    tasks: () => (
+      <Suspense fallback={null}>
+        <LazyMyTasksWidget />
+      </Suspense>
+    ),
+    assigned: () => (
+      <Suspense fallback={null}>
+        <LazyIssuedWidget />
+      </Suspense>
+    ),
+    team: () => (
+      <Suspense fallback={null}>
+        <LazyTeamWidget />
+      </Suspense>
+    ),
     announcements: () => <AnnouncementsWidget />,
     continue: () => <ContinueWidget />,
     recent: () => <RecentWidget openObject={openObject} />,

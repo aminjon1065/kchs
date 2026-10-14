@@ -30,9 +30,8 @@ import {
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CheckSquare, History, Trash2 } from 'lucide-react'
-import { useState } from 'react'
-import { RowTasks } from '~/features/tasks/row-tasks.js'
-import { CreateTaskDialog } from '~/features/tasks/task-dialogs.js'
+import { Suspense, useState } from 'react'
+import { LazyCreateTaskDialog, LazyRowTasks } from '~/features/tasks/index.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { meQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
@@ -198,26 +197,30 @@ export function RowCard({
               <RowHistory dataset={dataset} rowId={rowId} ctx={ctx} />
             </TabsContent>
             <TabsContent value="tasks">
-              <RowTasks datasetId={dataset.id} rowId={rowId} />
+              <Suspense fallback={null}>
+                <LazyRowTasks datasetId={dataset.id} rowId={rowId} />
+              </Suspense>
             </TabsContent>
           </Tabs>
         )}
         {assigning && row ? (
           // Поручение по строке: заголовок строки и связь-источник с ней
-          <CreateTaskDialog
-            draft={{
-              kind: 'instruction',
-              title: title.slice(0, 300),
-              source: {
-                kind: 'dataset_row',
-                datasetId: dataset.id,
-                rowId,
-                label: title.slice(0, 300),
-              },
-            }}
-            onClose={() => setAssigning(false)}
-            onCreated={() => setTab('tasks')}
-          />
+          <Suspense fallback={null}>
+            <LazyCreateTaskDialog
+              draft={{
+                kind: 'instruction',
+                title: title.slice(0, 300),
+                source: {
+                  kind: 'dataset_row',
+                  datasetId: dataset.id,
+                  rowId,
+                  label: title.slice(0, 300),
+                },
+              }}
+              onClose={() => setAssigning(false)}
+              onCreated={() => setTab('tasks')}
+            />
+          </Suspense>
         ) : null}
         <AlertDialog
           open={removing}

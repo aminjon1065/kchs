@@ -43,7 +43,6 @@ import {
   writeCell,
 } from '~/entities/collab/notebook-doc.js'
 import { ObjectPicker } from '~/entities/objects/object-picker.js'
-import { askError } from '~/features/data/ask-box.js'
 import {
   CHART_TYPES,
   ExplorePlanEditor,
@@ -52,7 +51,7 @@ import {
   useExploreLabels,
   withChannelLabels,
 } from '~/features/data/explore-builder.js'
-import { aiStatusQuery, datasetQuery, sqlSchemaQuery } from '~/features/data/index.js'
+import { aiStatusQuery, askError, datasetQuery, sqlSchemaQuery } from '~/features/data/index.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'

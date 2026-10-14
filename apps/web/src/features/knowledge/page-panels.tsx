@@ -13,7 +13,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Send, UserCheck } from 'lucide-react'
 import { useId, useState } from 'react'
-import { PrincipalsPicker } from '~/features/documents/principals-picker.js'
+import { PrincipalsPicker } from '~/entities/access/principals-picker.js'
 import { ApiError } from '~/shared/api/errors.js'
 import type { ApiBody } from '~/shared/api/route-types.js'
 import { useT } from '~/shared/i18n.js'

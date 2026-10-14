@@ -23,10 +23,9 @@ import {
   useToast,
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useId, useState } from 'react'
+import { Suspense, useId, useState } from 'react'
 import { type PickedUser, UserPicker, UsersPicker } from '~/entities/people/user-picker.js'
-import { DueInput, type DueValue, emptyDue } from '~/features/tasks/due-input.js'
-import { pickedOf } from '~/features/tasks/index.js'
+import { type DueValue, emptyDue, LazyDueInput, pickedOf } from '~/features/tasks/index.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { documentKeys, resolutionTemplatesQuery } from '../queries.js'
@@ -219,17 +218,19 @@ export function ResolutionDialog({
               exclude={responsible ? [responsible.id] : []}
             />
           </Field>
-          <DueInput
-            value={due}
-            onChange={setDue}
-            label={t('documents.resolutions.due')}
-            required
-            error={
-              due.mode === 'working' && due.days.trim() !== '' && !dueInput
-                ? t('documents.resolutions.workingDaysMin')
-                : undefined
-            }
-          />
+          <Suspense fallback={null}>
+            <LazyDueInput
+              value={due}
+              onChange={setDue}
+              label={t('documents.resolutions.due')}
+              required
+              error={
+                due.mode === 'working' && due.days.trim() !== '' && !dueInput
+                  ? t('documents.resolutions.workingDaysMin')
+                  : undefined
+              }
+            />
+          </Suspense>
           <Switch
             label={t('documents.resolutions.control')}
             checked={control}

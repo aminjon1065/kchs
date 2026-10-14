@@ -21,8 +21,8 @@ import {
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Copy, Download, Plus, Save } from 'lucide-react'
-import { useEffect, useId, useState } from 'react'
-import { RunAsSelect } from '~/features/admin/run-as-select.js'
+import { Suspense, useEffect, useId, useState } from 'react'
+import { LazyRunAsSelect } from '~/features/admin/index.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
@@ -197,12 +197,14 @@ export default function RuleDesigner({ ruleId }: { ruleId: string }) {
                 htmlFor={runAsId}
                 hint={t('automation.fields.runAsHint')}
               >
-                <RunAsSelect
-                  id={runAsId}
-                  value={draft.runAs}
-                  disabled={!rule.canManage}
-                  onChange={(next) => update({ ...draft, runAs: next })}
-                />
+                <Suspense fallback={null}>
+                  <LazyRunAsSelect
+                    id={runAsId}
+                    value={draft.runAs}
+                    disabled={!rule.canManage}
+                    onChange={(next) => update({ ...draft, runAs: next })}
+                  />
+                </Suspense>
               </Field>
               <div className="md:col-span-2">
                 <Field label={t('automation.fields.description')}>

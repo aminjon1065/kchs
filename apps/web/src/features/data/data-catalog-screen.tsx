@@ -22,9 +22,9 @@ import {
   SquareTerminal,
   Upload,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import { CreateNotebookDialog } from '~/features/notebooks/create-notebook-dialog.js'
-import { CreateReportDialog } from '~/features/reports/create-report-dialog.js'
+import { Suspense, useEffect, useState } from 'react'
+import { LazyCreateNotebookDialog } from '~/features/notebooks/index.js'
+import { LazyCreateReportDialog } from '~/features/reports/index.js'
 import { meQuery, spacesQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { emptyCollectionState } from '~/shared/collections/collection-state.js'
@@ -343,13 +343,20 @@ export function DataCatalogScreen({
         />
       ) : null}
       {creatingNotebook && effectiveSpaceId ? (
-        <CreateNotebookDialog
-          spaceId={effectiveSpaceId}
-          onClose={() => setCreatingNotebook(false)}
-        />
+        <Suspense fallback={null}>
+          <LazyCreateNotebookDialog
+            spaceId={effectiveSpaceId}
+            onClose={() => setCreatingNotebook(false)}
+          />
+        </Suspense>
       ) : null}
       {creatingReport && effectiveSpaceId ? (
-        <CreateReportDialog spaceId={effectiveSpaceId} onClose={() => setCreatingReport(false)} />
+        <Suspense fallback={null}>
+          <LazyCreateReportDialog
+            spaceId={effectiveSpaceId}
+            onClose={() => setCreatingReport(false)}
+          />
+        </Suspense>
       ) : null}
       {wizard && effectiveSpaceId ? (
         <ImportWizard

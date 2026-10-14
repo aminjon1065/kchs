@@ -12,6 +12,7 @@ import {
 } from '@kchs/ui'
 import { skipToken, useQuery } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp, Copy, MessageSquare, Trash2 } from 'lucide-react'
+import { Suspense } from 'react'
 import type * as Y from 'yjs'
 import {
   applyTextChange,
@@ -23,9 +24,8 @@ import {
 import { metricTileModel } from '~/entities/data/metric-format.js'
 import { FilePreview } from '~/entities/files/file-preview.js'
 import { ObjectPicker } from '~/entities/objects/object-picker.js'
-import { DatasetTable } from '~/features/data/dataset-table.js'
-import { chartQuery, datasetQuery, metricQuery } from '~/features/data/index.js'
-import { MapEmbed } from '~/features/gis/map-embed.js'
+import { chartQuery, datasetQuery, LazyDatasetTable, metricQuery } from '~/features/data/index.js'
+import { LazyMapEmbed } from '~/features/gis/index.js'
 import { tasksQuery } from '~/features/tasks/index.js'
 import { meQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
@@ -155,7 +155,9 @@ function DatasetBlock({ block }: { block: CellMap }) {
   if (!dataset.data) return <Skeleton className="h-48" />
   return (
     <div className="h-80 min-h-0">
-      <DatasetTable dataset={dataset.data} canEdit={false} />
+      <Suspense fallback={null}>
+        <LazyDatasetTable dataset={dataset.data} canEdit={false} />
+      </Suspense>
     </div>
   )
 }
@@ -163,7 +165,11 @@ function DatasetBlock({ block }: { block: CellMap }) {
 function MapBlock({ block }: { block: CellMap }) {
   const mapId = useCellValue<string | null>(block, 'mapId') ?? null
   if (!mapId) return <NotPicked />
-  return <MapEmbed mapId={mapId} className="h-80" />
+  return (
+    <Suspense fallback={null}>
+      <LazyMapEmbed mapId={mapId} className="h-80" />
+    </Suspense>
+  )
 }
 
 /** Список задач проекта: открытые задачи, состояние ведёт модуль задач. */

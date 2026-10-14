@@ -32,11 +32,10 @@ import {
   Trash2,
   Upload,
 } from 'lucide-react'
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { ShareDialog } from '~/entities/access/share-dialog.js'
 import { PresenceAvatars } from '~/entities/objects/presence-avatars.js'
-import { ChoroplethButton } from '~/features/gis/choropleth/choropleth-button.js'
-import { ShowOnMapButton } from '~/features/gis/show-on-map.js'
+import { LazyChoroplethButton, LazyShowOnMapButton } from '~/features/gis/index.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { keys, objectQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
@@ -189,7 +188,11 @@ export function DatasetView({ objectId, tabId }: { objectId: string; tabId: stri
             >
               {t('data.explore.open')}
             </Button>
-            {hasGeometry ? <ShowOnMapButton dataset={dataset} /> : null}
+            {hasGeometry ? (
+              <Suspense fallback={null}>
+                <LazyShowOnMapButton dataset={dataset} />
+              </Suspense>
+            ) : null}
             {hasGeometry ? (
               <Button
                 variant="secondary"
@@ -200,7 +203,9 @@ export function DatasetView({ objectId, tabId }: { objectId: string; tabId: stri
                 {t('data.analysis.action')}
               </Button>
             ) : null}
-            <ChoroplethButton dataset={dataset} />
+            <Suspense fallback={null}>
+              <LazyChoroplethButton dataset={dataset} />
+            </Suspense>
             {canEdit ? (
               <Button
                 variant="secondary"

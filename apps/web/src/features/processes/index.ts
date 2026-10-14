@@ -4,5 +4,6 @@
  * не тянуть их в чанк потребителя; панель маршрута объекта — только ленивой обёрткой.
  */
 export * from './labels.js'
+export * from './lazy.js'
 export * from './queries.js'
 export { ObjectRoutePanel } from './route-panel-lazy.js'

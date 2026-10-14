@@ -28,13 +28,12 @@ import {
 } from '@kchs/ui'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Focus, Table2, X, XSquare } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { datasetQuery, useFieldOptions } from '~/features/data/index.js'
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { datasetQuery, LazyRowCard, useFieldOptions } from '~/features/data/index.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { meQuery, objectQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
-import { RowCard } from '../../data/row-card.js'
 import { gisKeys } from '../queries.js'
 import { useStudio } from './context.js'
 import { atLeast, geometryBounds, unionBounds } from './geometry.js'
@@ -434,17 +433,19 @@ function LayerTable({
         }
       />
       {openRow && dataset ? (
-        <RowCard
-          dataset={dataset}
-          rowId={openRow}
-          canEdit={canEditRows}
-          onClose={() => setOpenRow(null)}
-          onChanged={() => {
-            setReloads((value) => value + 1)
-            // Новая версия данных — новый адрес тайлов слоя
-            void client.invalidateQueries({ queryKey: gisKeys.layer(layer.id) })
-          }}
-        />
+        <Suspense fallback={null}>
+          <LazyRowCard
+            dataset={dataset}
+            rowId={openRow}
+            canEdit={canEditRows}
+            onClose={() => setOpenRow(null)}
+            onChanged={() => {
+              setReloads((value) => value + 1)
+              // Новая версия данных — новый адрес тайлов слоя
+              void client.invalidateQueries({ queryKey: gisKeys.layer(layer.id) })
+            }}
+          />
+        </Suspense>
       ) : null}
     </section>
   )

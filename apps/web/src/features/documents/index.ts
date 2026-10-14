@@ -3,6 +3,8 @@
  * модули — запросы, ключи, подписи, форматы. Компоненты сюда не попадают, чтобы
  * не тянуть их в чанк потребителя.
  */
+
+export * from './lazy.js'
 export * from './print/queries.js'
 export * from './print/save-link.js'
 export * from './queries.js'

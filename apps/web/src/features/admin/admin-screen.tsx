@@ -61,12 +61,11 @@ import {
   Workflow,
   Zap,
 } from 'lucide-react'
-import { type ReactNode, useState } from 'react'
+import { type ReactNode, Suspense, useState } from 'react'
 import { ServiceAccountBadge } from '~/entities/access/service-account-badge.js'
-import { AutomationRulesSection } from '~/features/automation/rules-section.js'
-import { SchedulesSection } from '~/features/automation/schedules-section.js'
+import { LazyAutomationRulesSection, LazySchedulesSection } from '~/features/automation/index.js'
 import { PkiSection } from '~/features/pki/index.js'
-import { ProcessesSection } from '~/features/processes/processes-section.js'
+import { LazyProcessesSection } from '~/features/processes/index.js'
 import { apiUrl } from '~/shared/api/link.js'
 import {
   auditQuery,
@@ -438,16 +437,22 @@ export function AdminScreen() {
         ) : null}
         {canManageProcesses ? (
           <TabsContent value="processes" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
-            <ProcessesSection />
+            <Suspense fallback={null}>
+              <LazyProcessesSection />
+            </Suspense>
           </TabsContent>
         ) : null}
         {canManageAutomation ? (
           <>
             <TabsContent value="automation" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
-              <AutomationRulesSection />
+              <Suspense fallback={null}>
+                <LazyAutomationRulesSection />
+              </Suspense>
             </TabsContent>
             <TabsContent value="schedules" className="min-h-0 flex-1 overflow-y-auto bg-canvas">
-              <SchedulesSection />
+              <Suspense fallback={null}>
+                <LazySchedulesSection />
+              </Suspense>
             </TabsContent>
           </>
         ) : null}

@@ -2,9 +2,8 @@ import type { DocumentRecord } from '@kchs/contracts'
 import { Button } from '@kchs/ui'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Ban, Send, Stamp } from 'lucide-react'
-import { useState } from 'react'
-import { processQuery } from '~/features/processes/index.js'
-import { ProcessStepActions } from '~/features/processes/step-actions.js'
+import { Suspense, useState } from 'react'
+import { LazyProcessStepActions, processQuery } from '~/features/processes/index.js'
 import { meQuery } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
 import { documentKeys } from '../queries.js'
@@ -60,12 +59,14 @@ export function DocumentStepActions() {
         {t('documents.actions.title')}
       </h2>
       {routeActions ? (
-        <ProcessStepActions
-          objectId={document.id}
-          view={routeActions}
-          onDone={refresh}
-          onQualifiedSign={qualified.start}
-        />
+        <Suspense fallback={null}>
+          <LazyProcessStepActions
+            objectId={document.id}
+            view={routeActions}
+            onDone={refresh}
+            onQualifiedSign={qualified.start}
+          />
+        </Suspense>
       ) : null}
       {qualified.dialog}
       {document.can.startRoute || document.can.register || document.can.cancel ? (

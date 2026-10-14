@@ -19,14 +19,7 @@ import { useEffect, useId, useState } from 'react'
 import { type PickedUser, UsersPicker } from '~/entities/people/user-picker.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { useT } from '~/shared/i18n.js'
-import { adminApi } from './queries.js'
-
-const groupsKey = ['groups'] as const
-
-export const groupsQuery = () => ({
-  queryKey: groupsKey,
-  queryFn: async () => (await adminApi.getGroups()).items,
-})
+import { adminApi, groupsKey, groupsQuery } from './queries.js'
 
 const picked = (user: UserRef): PickedUser => ({
   id: user.id,

@@ -10,9 +10,9 @@ import {
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bot, Eraser, Send, Sparkles } from 'lucide-react'
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { aiStatusQuery } from '~/features/data/index.js'
-import { CreateTaskDialog } from '~/features/tasks/task-dialogs.js'
+import { LazyCreateTaskDialog } from '~/features/tasks/index.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
@@ -184,15 +184,17 @@ export function AssistantPanel({ objectId }: { objectId: string | null }) {
       </div>
 
       {taskDraft ? (
-        <CreateTaskDialog
-          draft={{
-            kind: 'instruction',
-            title: taskDraft.title,
-            description: taskDraft.description,
-          }}
-          onClose={() => setTaskDraft(null)}
-          onCreated={() => setTaskDraft(null)}
-        />
+        <Suspense fallback={null}>
+          <LazyCreateTaskDialog
+            draft={{
+              kind: 'instruction',
+              title: taskDraft.title,
+              description: taskDraft.description,
+            }}
+            onClose={() => setTaskDraft(null)}
+            onCreated={() => setTaskDraft(null)}
+          />
+        </Suspense>
       ) : null}
     </div>
   )

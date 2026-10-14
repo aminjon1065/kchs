@@ -19,7 +19,7 @@ import { useId, useState } from 'react'
 import { apiUrl } from '~/shared/api/link.js'
 import type { ApiBody } from '~/shared/api/route-types.js'
 import { useT } from '~/shared/i18n.js'
-import { PrincipalsPicker } from './principals-picker.js'
+import { PrincipalsPicker } from '../../entities/access/principals-picker.js'
 import { casesQuery, documentKeys, documentsApi } from './queries.js'
 import { errorText, localToday } from './status.js'
 

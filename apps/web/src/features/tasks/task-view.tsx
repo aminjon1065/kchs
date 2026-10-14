@@ -37,11 +37,10 @@ import {
   Send,
   UserRoundCog,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { PresenceAvatars } from '~/entities/objects/presence-avatars.js'
 import { TerritoryLink } from '~/entities/territory/territory-link.js'
-import { datasetQuery } from '~/features/data/index.js'
-import { RowCard } from '~/features/data/row-card.js'
+import { datasetQuery, LazyRowCard } from '~/features/data/index.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { meQuery, objectQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
@@ -717,7 +716,15 @@ function SourceRow({
 
   if (!dataset) return null
   return (
-    <RowCard dataset={dataset} rowId={rowId} canEdit={false} onClose={onClose} onChanged={noop} />
+    <Suspense fallback={null}>
+      <LazyRowCard
+        dataset={dataset}
+        rowId={rowId}
+        canEdit={false}
+        onClose={onClose}
+        onChanged={noop}
+      />
+    </Suspense>
   )
 }
 

@@ -16,10 +16,10 @@ import {
 } from '@kchs/ui'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Save, Scan, Share2, Trash2 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
 import { ShareDialog } from '~/entities/access/share-dialog.js'
 import { PresenceAvatars } from '~/entities/objects/presence-avatars.js'
-import { ImportWizard } from '~/features/data/import-wizard.js'
+import { LazyImportWizard } from '~/features/data/index.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { keys, meQuery, objectQuery } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
@@ -668,12 +668,14 @@ export function MapStudio({
           />
         ) : null}
         {importing ? (
-          <ImportWizard
-            spaceId={map.spaceId}
-            openLabel={t('gis.map.fileImport.addToMap')}
-            onImported={(datasetId, name) => addFileLayer.mutate({ datasetId, name })}
-            onClose={() => setImporting(false)}
-          />
+          <Suspense fallback={null}>
+            <LazyImportWizard
+              spaceId={map.spaceId}
+              openLabel={t('gis.map.fileImport.addToMap')}
+              onImported={(datasetId, name) => addFileLayer.mutate({ datasetId, name })}
+              onClose={() => setImporting(false)}
+            />
+          </Suspense>
         ) : null}
         {exporting ? (
           <MapExportDialog

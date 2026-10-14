@@ -17,9 +17,8 @@ import {
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Moon } from 'lucide-react'
-import { useState } from 'react'
-import { PresenceDialog } from '~/features/chat/chat-dialogs.js'
-import { chatKeys } from '~/features/chat/index.js'
+import { Suspense, useState } from 'react'
+import { chatKeys, LazyPresenceDialog } from '~/features/chat/index.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { useT } from '~/shared/i18n.js'
 import { pushStatusQuery } from '~/shared/push/client.js'
@@ -155,7 +154,9 @@ export function NotificationSettingsCard() {
         </Button>
       </div>
       {presence && presenceState.data ? (
-        <PresenceDialog onClose={() => setPresence(false)} />
+        <Suspense fallback={null}>
+          <LazyPresenceDialog onClose={() => setPresence(false)} />
+        </Suspense>
       ) : null}
     </Card>
   )

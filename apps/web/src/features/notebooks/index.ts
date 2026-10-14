@@ -4,4 +4,5 @@
  * не тянуть их в чанк потребителя.
  */
 export * from './cell-run.js'
+export * from './lazy.js'
 export * from './notebook-context.js'

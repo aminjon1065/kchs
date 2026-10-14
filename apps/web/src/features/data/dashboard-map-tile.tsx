@@ -22,9 +22,8 @@ import {
 } from '@kchs/ui'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { Crosshair, RotateCcw } from 'lucide-react'
-import { useState } from 'react'
-import { layerQuery, mapQuery } from '~/features/gis/index.js'
-import { MapEmbed } from '~/features/gis/map-embed.js'
+import { Suspense, useState } from 'react'
+import { LazyMapEmbed, layerQuery, mapQuery } from '~/features/gis/index.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { datasetQuery } from './queries.js'
@@ -61,36 +60,38 @@ export function DashboardMapTile({
   const byDataset = dashboardMapFilters(filters, options, values)
   const setCamera = (camera: MapCamera | null) => onChange({ ...tile, map: { ...options, camera } })
   return (
-    <MapEmbed
-      mapId={tile.mapId}
-      camera={options.camera}
-      filter={(layer) => byDataset[layer.datasetId] ?? null}
-      onCameraChange={setCurrent}
-      refreshMs={refreshMs}
-      actions={
-        editing ? (
-          <>
-            <IconButton
-              label={t('data.dashboard.map.saveView')}
-              size="sm"
-              disabled={!current}
-              onClick={() => current && setCamera(current)}
-            >
-              <Crosshair className="size-3.5" aria-hidden />
-            </IconButton>
-            {options.camera ? (
+    <Suspense fallback={null}>
+      <LazyMapEmbed
+        mapId={tile.mapId}
+        camera={options.camera}
+        filter={(layer) => byDataset[layer.datasetId] ?? null}
+        onCameraChange={setCurrent}
+        refreshMs={refreshMs}
+        actions={
+          editing ? (
+            <>
               <IconButton
-                label={t('data.dashboard.map.resetView')}
+                label={t('data.dashboard.map.saveView')}
                 size="sm"
-                onClick={() => setCamera(null)}
+                disabled={!current}
+                onClick={() => current && setCamera(current)}
               >
-                <RotateCcw className="size-3.5" aria-hidden />
+                <Crosshair className="size-3.5" aria-hidden />
               </IconButton>
-            ) : null}
-          </>
-        ) : null
-      }
-    />
+              {options.camera ? (
+                <IconButton
+                  label={t('data.dashboard.map.resetView')}
+                  size="sm"
+                  onClick={() => setCamera(null)}
+                >
+                  <RotateCcw className="size-3.5" aria-hidden />
+                </IconButton>
+              ) : null}
+            </>
+          ) : null
+        }
+      />
+    </Suspense>
   )
 }
 

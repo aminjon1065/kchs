@@ -26,14 +26,12 @@ import {
 } from '@kchs/ui'
 import { skipToken, useQuery } from '@tanstack/react-query'
 import { Crosshair, RotateCcw, Scissors, X } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { Suspense, useMemo, useState } from 'react'
 import { type CellMap, useCellValue, writeCell } from '~/entities/collab/notebook-doc.js'
 import { ObjectPicker } from '~/entities/objects/object-picker.js'
 import { metricQuery } from '~/features/data/index.js'
 import { registerPmtilesProtocol } from '~/features/gis/index.js'
-import { useNotebook } from '~/features/notebooks/index.js'
-import { QueryCell } from '~/features/notebooks/query-cell.js'
-import { ChartCell } from '~/features/notebooks/source-cells.js'
+import { LazyChartCell, LazyQueryCell, useNotebook } from '~/features/notebooks/index.js'
 import { useT } from '~/shared/i18n.js'
 import { reportsApi } from './queries.js'
 import { useReportMap } from './report-map.js'
@@ -76,7 +74,9 @@ export function QueryBlock({ cell, id }: { cell: CellMap; id: string }) {
   const table = view === 'table' || mode === 'sql'
   return (
     <div className="flex flex-col gap-3">
-      <QueryCell cell={cell} cellId={id} />
+      <Suspense fallback={null}>
+        <LazyQueryCell cell={cell} cellId={id} />
+      </Suspense>
       <div className="flex flex-wrap items-center gap-2 border-t border-line pt-3">
         <span className="text-2xs font-medium tracking-wide text-fg-muted uppercase">
           {t('data.report.block.print')}
@@ -117,7 +117,9 @@ export function ChartBlock({ cell, id }: { cell: CellMap; id: string }) {
   const view = useCellValue<'chart' | 'table'>(cell, 'view') ?? 'chart'
   return (
     <div className="flex flex-col gap-3">
-      <ChartCell cell={cell} cellId={id} />
+      <Suspense fallback={null}>
+        <LazyChartCell cell={cell} cellId={id} />
+      </Suspense>
       <div className="flex flex-wrap items-center gap-2 border-t border-line pt-3">
         <span className="text-2xs font-medium tracking-wide text-fg-muted uppercase">
           {t('data.report.block.print')}

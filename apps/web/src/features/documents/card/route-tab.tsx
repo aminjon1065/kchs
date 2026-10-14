@@ -20,15 +20,15 @@ import {
 } from '@kchs/ui'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Route, Send, ShieldCheck, Undo2 } from 'lucide-react'
-import { useId, useState } from 'react'
+import { Suspense, useId, useState } from 'react'
 import {
+  LazyProcessStepActions,
+  LazyRouteLine,
   objectProcessesQuery,
   outcomeTone,
   processApi,
   processQuery,
 } from '~/features/processes/index.js'
-import { RouteLine } from '~/features/processes/route-line.js'
-import { ProcessStepActions } from '~/features/processes/step-actions.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
@@ -308,16 +308,20 @@ export function RouteTab() {
           </p>
           {data.myActions.length > 0 ? (
             <section className="rounded-md border border-accent bg-surface p-3">
-              <ProcessStepActions
-                objectId={document.id}
-                view={data}
-                onDone={refresh}
-                onQualifiedSign={qualified.start}
-              />
+              <Suspense fallback={null}>
+                <LazyProcessStepActions
+                  objectId={document.id}
+                  view={data}
+                  onDone={refresh}
+                  onQualifiedSign={qualified.start}
+                />
+              </Suspense>
               {qualified.dialog}
             </section>
           ) : null}
-          <RouteLine view={data} versions={versions.data} />
+          <Suspense fallback={null}>
+            <LazyRouteLine view={data} versions={versions.data} />
+          </Suspense>
         </>
       ) : (
         <Skeleton className="h-40 w-full" />

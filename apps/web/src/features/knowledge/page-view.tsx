@@ -15,7 +15,7 @@ import {
 } from '@kchs/ui'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { BookCheck } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
 import type * as Y from 'yjs'
 import { useCollabDocument } from '~/entities/collab/collab.js'
 import {
@@ -28,7 +28,7 @@ import {
   removeCell,
   useYChanges,
 } from '~/entities/collab/notebook-doc.js'
-import { PrintMenu } from '~/features/documents/print/print-menu.js'
+import { LazyPrintMenu } from '~/features/documents/index.js'
 import { meQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
@@ -110,7 +110,9 @@ export default function PageView({ objectId, tabId }: { objectId: string; tabId:
           }
           right={
             <>
-              <PrintMenu subjectId={page.id} />
+              <Suspense fallback={null}>
+                <LazyPrintMenu subjectId={page.id} />
+              </Suspense>
               {page.can.publish ? (
                 <Button size="sm" onClick={() => setPublishOpen(true)}>
                   <BookCheck className="size-4" />

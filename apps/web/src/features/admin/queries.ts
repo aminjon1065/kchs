@@ -125,3 +125,12 @@ export const configSectionsQuery = () =>
     queryKey: ['config', 'sections'],
     queryFn: () => http.get('/config/sections'),
   })
+
+/** Ключ групп пользователей: консоль и получатели рассылки отчёта. */
+export const groupsKey = ['groups'] as const
+
+export const groupsQuery = () =>
+  queryOptions({
+    queryKey: groupsKey,
+    queryFn: async () => (await adminApi.getGroups()).items,
+  })

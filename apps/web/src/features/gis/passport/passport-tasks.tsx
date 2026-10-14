@@ -11,13 +11,12 @@ import {
 } from '@kchs/ui'
 import { useQuery } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
-import { useState } from 'react'
-import { STATUS_TONE_KEY, tasksQuery } from '~/features/tasks/index.js'
+import { Suspense, useState } from 'react'
+import { LazyCreateTaskDialog, STATUS_TONE_KEY, tasksQuery } from '~/features/tasks/index.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
 import { TerritoryLink } from '../../../entities/territory/territory-link.js'
-import { CreateTaskDialog } from '../../tasks/task-dialogs.js'
 
 type State = 'open' | 'all'
 
@@ -127,10 +126,12 @@ export function PassportTasks({ territoryId }: { territoryId: string }) {
         />
       )}
       {creating ? (
-        <CreateTaskDialog
-          draft={{ kind: 'instruction', territoryId }}
-          onClose={() => setCreating(false)}
-        />
+        <Suspense fallback={null}>
+          <LazyCreateTaskDialog
+            draft={{ kind: 'instruction', territoryId }}
+            onClose={() => setCreating(false)}
+          />
+        </Suspense>
       ) : null}
     </div>
   )

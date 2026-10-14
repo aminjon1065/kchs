@@ -17,9 +17,9 @@ import {
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Save } from 'lucide-react'
-import { useId, useState } from 'react'
+import { Suspense, useId, useState } from 'react'
 import { UserPicker } from '~/entities/people/user-picker.js'
-import { RunAsSelect } from '~/features/admin/run-as-select.js'
+import { LazyRunAsSelect } from '~/features/admin/index.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { orgUnitsQuery, principalRefsQuery } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
@@ -119,7 +119,14 @@ export function FormSettingsTab({ form }: { form: FormRecord }) {
           htmlFor={runAsId}
           hint={t('forms.settings.runAsHint')}
         >
-          <RunAsSelect id={runAsId} value={runAs} onChange={setRunAs} disabled={!form.canManage} />
+          <Suspense fallback={null}>
+            <LazyRunAsSelect
+              id={runAsId}
+              value={runAs}
+              onChange={setRunAs}
+              disabled={!form.canManage}
+            />
+          </Suspense>
         </Field>
       </Card>
       <Card title={t('forms.settings.layout')}>

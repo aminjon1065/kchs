@@ -21,14 +21,11 @@ import {
 } from '@kchs/ui'
 import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Play, Share2, Trash2 } from 'lucide-react'
-import { type ReactNode, useState } from 'react'
+import { type ReactNode, Suspense, useState } from 'react'
 import { ShareDialog } from '~/entities/access/share-dialog.js'
 import { PresenceAvatars } from '~/entities/objects/presence-avatars.js'
 import { territoriesQuery } from '~/entities/territory/queries.js'
-import {
-  ChoroplethMapButton,
-  choroplethParamItems,
-} from '~/features/gis/choropleth/choropleth-summary.js'
+import { choroplethParamItems, LazyChoroplethMapButton } from '~/features/gis/index.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { keys, objectQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
@@ -338,7 +335,9 @@ export function AnalysisView({ objectId, tabId }: { objectId: string; tabId: str
                   ) : null}
                   {output && analysis.choropleth && analysis.status === 'succeeded' ? (
                     <span className="ml-auto">
-                      <ChoroplethMapButton analysis={analysis} />
+                      <Suspense fallback={null}>
+                        <LazyChoroplethMapButton analysis={analysis} />
+                      </Suspense>
                     </span>
                   ) : null}
                   {output ? (
