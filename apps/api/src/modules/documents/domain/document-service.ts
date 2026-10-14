@@ -574,14 +574,19 @@ export const DocumentService = {
     if (changed.length > 0) {
       await tx.update(documents).set(next).where(eq(documents.id, id))
       const title = titleOf(next.subject, type)
-      // Тема — событие реестра (лента, поиск, вкладки); сводные поля — тихо
-      if (title !== row.title) await ObjectService.update(tx, ctx, id, { title })
+      // Тема — событие реестра (лента, поиск, вкладки); сводные поля без смены темы — тихо.
+      // Одно обновление реестра — одна новая версия объекта на правку карточки (ADR-0222)
+      const retitled = title !== row.title
       await ObjectService.update(
         tx,
         ctx,
         id,
-        { meta: metaOf({ ...row, ...next, type }), mergeMeta: true },
-        { silent: true },
+        {
+          ...(retitled ? { title } : {}),
+          meta: metaOf({ ...row, ...next, type }),
+          mergeMeta: true,
+        },
+        { silent: !retitled },
       )
       await DocumentParticipants.sync(tx, ctx, id, 'card', cardParticipants({ ...row, ...next }))
       await emit(tx, ctx, { id, spaceId: row.spaceId, title }, 'document.updated', {
