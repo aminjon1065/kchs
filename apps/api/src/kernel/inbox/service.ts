@@ -307,29 +307,46 @@ export const InboxService = {
    * тот же `act`, что и кнопка Входящих.
    */
   async openActions(userId: string, objectId: string): Promise<InboxOpenAction[]> {
+    return (await InboxService.openActionsFor(objectId, [userId])).get(userId) ?? []
+  },
+
+  /** То же для нескольких получателей одного объекта — одним запросом (ADR-0222). */
+  async openActionsFor(
+    objectId: string,
+    userIds: string[],
+  ): Promise<Map<string, InboxOpenAction[]>> {
+    const result = new Map<string, InboxOpenAction[]>()
+    if (userIds.length === 0) return result
     const rows = await db()
-      .select({ id: inboxItems.id, kind: inboxItems.kind, payload: inboxItems.payload })
+      .select({
+        id: inboxItems.id,
+        userId: inboxItems.userId,
+        kind: inboxItems.kind,
+        payload: inboxItems.payload,
+      })
       .from(inboxItems)
       .where(
         and(
-          eq(inboxItems.userId, userId),
+          inArray(inboxItems.userId, userIds),
           eq(inboxItems.objectId, objectId),
           eq(inboxItems.state, 'open'),
         ),
       )
       .orderBy(desc(inboxItems.openedAt))
-    return rows.flatMap((row) => {
+    for (const row of rows) {
       const kind = row.kind as InboxKind
-      if (!inboxActionHandler(kind)) return []
+      if (!inboxActionHandler(kind)) continue
       const actions =
         (row.payload as { actions?: InboxItem['actions'] }).actions ?? defaultActions(kind)
       // Действия с кодом второго фактора (подпись с MFA, ADR-0079) и с формой в
       // карточке объекта (резолюция, ADR-0084) — только в приложении: во
       // внешнем канале их не выполнить
-      return actions
+      const open = actions
         .filter((action) => !action.requiresSecondFactor && !action.openObject)
         .map((action) => ({ itemId: row.id, kind, objectId, ...action }))
-    })
+      result.set(row.userId, [...(result.get(row.userId) ?? []), ...open])
+    }
+    return result
   },
 
   /** Действие открытого дела пользователя — что оно просит ввести (канал, ADR-0082). */

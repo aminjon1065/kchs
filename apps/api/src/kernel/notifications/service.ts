@@ -19,11 +19,12 @@ import { serviceAccountIds } from '../access/service-accounts.js'
 import { directory } from '../directory/port.js'
 import { users } from '../directory/schema.js'
 import { currentEventDelivery } from '../events/delivery.js'
-import { InboxService } from '../inbox/service.js'
+import { type InboxOpenAction, InboxService } from '../inbox/service.js'
 import { ObjectService } from '../objects/service.js'
 import { emitToUser } from '../realtime/gateway.js'
 import {
   availableChannels,
+  type ChannelMessage,
   EXTERNAL_CHANNELS,
   type ExternalChannel,
   notificationChannel,
@@ -75,25 +76,27 @@ export const NotificationService = {
     // Служебной учётной записи не уходит ничего и ни в один канал (ADR-0130):
     // читать уведомления некому, а письма и Telegram утекали бы в чужой ящик
     const service = await serviceAccountIds(addressed)
-    const recipients = addressed.filter((id) => !service.has(id))
+    // Не уведомляем автора о его же действии
+    const recipients = addressed.filter((id) => !service.has(id) && id !== input.actorId)
     if (recipients.length === 0) return
 
     const aggregateKey =
       input.aggregateKey ?? `${input.category}:${input.objectId ?? 'none'}:${input.titleKey}`
     const dedupeKey = input.dedupeKey ?? deliveryDedupeKey(input, aggregateKey)
     const eventId = currentEventDelivery()?.eventId ?? null
+    // Получатели обрабатываются пачкой (ADR-0222): настройки, повторы, агрегация и вставка —
+    // запрос на пачку, а не на получателя; доставка — одна на всех после записи.
     // Внешние каналы (Telegram) — только у тех, кому они доступны: привязан аккаунт
     const external = await availableChannels(recipients)
     // Тишина получателя глушит внешние каналы у всего, кроме срочного (ADR-0140)
     const quiet = input.urgent ? new Set<string>() : await quietRecipients(recipients)
+    const preferences = await preferencesOf(recipients, input.category)
 
+    const planned = new Map<string, DeliveryPlan>()
     for (const userId of recipients) {
-      // Не уведомляем автора о его же действии
-      if (input.actorId && input.actorId === userId) continue
-
-      const modes = await resolveChannels(
-        userId,
+      const modes = resolveChannels(
         input.category,
+        preferences.get(userId) ?? [],
         input.channels,
         external.get(userId),
         Boolean(input.urgent || input.direct),
@@ -104,70 +107,105 @@ export const NotificationService = {
       // Внешние каналы доставляют сразу: дайджеста у них нет, слитые повторы не
       // отправляются (как и письма) — иначе мессенджер получал бы каждое изменение
       const immediate = EXTERNAL_CHANNELS.filter((channel) => modes[channel] !== undefined)
+      planned.set(userId, { modes, channels, immediate })
+    }
+    if (planned.size === 0) return
+    const deliveries: Delivery[] = []
 
-      // Повторная доставка события (ADR-0171): уведомление уже создано — второго нет,
-      // досылается только то, что не успело уйти в первый раз (сбой посреди обработки)
-      if (dedupeKey) {
-        const [repeat] = await db()
-          .select({ id: notifications.id, externalSentAt: notifications.externalSentAt })
-          .from(notifications)
-          .where(and(eq(notifications.userId, userId), eq(notifications.dedupeKey, dedupeKey)))
-          .limit(1)
-        if (repeat) {
-          await completeDelivery(userId, repeat.id, modes, repeat.externalSentAt ? [] : immediate)
-          continue
-        }
+    // Повторная доставка события (ADR-0171): уведомление уже создано — второго нет,
+    // досылается только то, что не успело уйти в первый раз (сбой посреди обработки)
+    if (dedupeKey) {
+      const repeats = await db()
+        .select({
+          id: notifications.id,
+          userId: notifications.userId,
+          externalSentAt: notifications.externalSentAt,
+        })
+        .from(notifications)
+        .where(
+          and(
+            inArray(notifications.userId, [...planned.keys()]),
+            eq(notifications.dedupeKey, dedupeKey),
+          ),
+        )
+      for (const repeat of repeats) {
+        const plan = planned.get(repeat.userId)
+        if (!plan) continue
+        planned.delete(repeat.userId)
+        deliveries.push({
+          userId: repeat.userId,
+          id: repeat.id,
+          modes: plan.modes,
+          external: repeat.externalSentAt ? [] : plan.immediate,
+        })
       }
+    }
 
-      // Срочное (алерт, опасное явление, эскалация) — каждое отдельной строкой: сводка
-      // «3 изменения в …» спрятала бы суть тревоги (ADR-0168)
-      const [existing] = input.urgent
-        ? []
-        : await db()
-            .select({ id: notifications.id, count: notifications.aggregateCount })
-            .from(notifications)
-            .where(
-              and(
-                eq(notifications.userId, userId),
-                eq(notifications.aggregateKey, aggregateKey),
-                isNull(notifications.readAt),
-                sql`${notifications.createdAt} > now() - make_interval(mins => ${AGGREGATE_WINDOW_MINUTES})`,
-              ),
-            )
-            .limit(1)
-
-      if (existing) {
+    // Срочное (алерт, опасное явление, эскалация) — каждое отдельной строкой: сводка
+    // «3 изменения в …» спрятала бы суть тревоги (ADR-0168)
+    if (!input.urgent && planned.size > 0) {
+      const existing = await db()
+        .select({ id: notifications.id, userId: notifications.userId })
+        .from(notifications)
+        .where(
+          and(
+            inArray(notifications.userId, [...planned.keys()]),
+            eq(notifications.aggregateKey, aggregateKey),
+            isNull(notifications.readAt),
+            sql`${notifications.createdAt} > now() - make_interval(mins => ${AGGREGATE_WINDOW_MINUTES})`,
+          ),
+        )
+      const aggregated = new Map<string, number>()
+      for (const row of existing) {
+        if (!aggregated.has(row.userId)) aggregated.set(row.userId, row.id)
+      }
+      if (aggregated.size > 0) {
         await db()
           .update(notifications)
-          .set({ aggregateCount: existing.count + 1, createdAt: sql`now()` })
-          .where(eq(notifications.id, existing.id))
-        emitToUser(userId, 'notification.new', { aggregated: true, id: String(existing.id) })
-        continue
+          .set({ aggregateCount: sql`${notifications.aggregateCount} + 1`, createdAt: sql`now()` })
+          .where(inArray(notifications.id, [...aggregated.values()]))
+        for (const [userId, id] of aggregated) {
+          planned.delete(userId)
+          emitToUser(userId, 'notification.new', { aggregated: true, id: String(id) })
+        }
       }
+    }
 
-      const [row] = await db()
+    if (planned.size > 0) {
+      const created = await db()
         .insert(notifications)
-        .values({
-          userId,
-          eventId,
-          category: input.category,
-          titleKey: input.titleKey,
-          params: (input.params ?? {}) as Record<string, unknown>,
-          objectId: input.objectId ?? null,
-          actorId: input.actorId ?? null,
-          url: input.url ?? null,
-          channels,
-          aggregateKey,
-          dedupeKey,
-        })
+        .values(
+          [...planned].map(([userId, plan]) => ({
+            userId,
+            eventId,
+            category: input.category,
+            titleKey: input.titleKey,
+            params: (input.params ?? {}) as Record<string, unknown>,
+            objectId: input.objectId ?? null,
+            actorId: input.actorId ?? null,
+            url: input.url ?? null,
+            channels: plan.channels,
+            aggregateKey,
+            dedupeKey,
+          })),
+        )
         // Та же доставка в параллельном потребителе успела раньше — второе не нужно
         .onConflictDoNothing()
-        .returning({ id: notifications.id })
-      if (!row) continue
-
-      emitToUser(userId, 'notification.new', { id: String(row.id), aggregated: false })
-      await completeDelivery(userId, row.id, modes, immediate)
+        .returning({ id: notifications.id, userId: notifications.userId })
+      for (const row of created) {
+        const plan = planned.get(row.userId)
+        if (!plan) continue
+        emitToUser(row.userId, 'notification.new', { id: String(row.id), aggregated: false })
+        deliveries.push({
+          userId: row.userId,
+          id: row.id,
+          modes: plan.modes,
+          external: plan.immediate,
+        })
+      }
     }
+
+    await completeDelivery(deliveries)
   },
 
   async list(
@@ -343,35 +381,57 @@ export function categoryDefaultModes(category: string): ChannelModes | undefined
   return KERNEL_DEFAULT_MODES[category] ?? moduleDefaultModes.get(category)
 }
 
+type DeliveryModes = Partial<Record<NotificationChannel, DeliveryMode>>
+
+/** Что получателю положено по каналам — до записи уведомления. */
+interface DeliveryPlan {
+  modes: DeliveryModes
+  channels: NotificationChannel[]
+  immediate: ExternalChannel[]
+}
+
+/** Записанное уведомление получателя и каналы, куда его осталось доставить. */
+interface Delivery {
+  userId: string
+  id: number
+  modes: DeliveryModes
+  external: ExternalChannel[]
+}
+
 /**
- * Доставка созданного уведомления: письмо «немедленно» (уже отправленное
- * `deliverEmail` пропускает) и внешние каналы с отметкой — повтор события их
- * второй раз не шлёт. Ошибка канала не ломает уведомление: письмо останется в
- * очереди дайджеста.
+ * Доставка записанных уведомлений пачкой (ADR-0222): письма «немедленно» — одним вызовом
+ * (уже отправленные `deliverEmail` пропускает), внешние каналы — одной пачкой сообщений
+ * на канал с отметкой: повтор события их второй раз не шлёт. Вызывается после записи
+ * всех строк — внешний канал не опережает базу. Ошибка канала не ломает уведомление:
+ * письмо останется в очереди дайджеста.
  */
-async function completeDelivery(
-  userId: string,
-  id: number,
-  modes: Partial<Record<NotificationChannel, DeliveryMode>>,
-  external: ExternalChannel[],
-): Promise<void> {
+async function completeDelivery(deliveries: Delivery[]): Promise<void> {
   // E-mail: «немедленно» уходит сразу, «дайджест» — заданием по расписанию
-  if (modes.email === 'immediate') {
+  const emailIds = deliveries
+    .filter((delivery) => delivery.modes.email === 'immediate')
+    .map((delivery) => delivery.id)
+  if (emailIds.length > 0) {
     try {
-      await deliverEmail([id])
+      await deliverEmail(emailIds)
     } catch (error) {
-      logger().error({ err: error, userId }, 'не удалось отправить уведомление почтой')
+      logger().error({ err: error }, 'не удалось отправить уведомление почтой')
     }
   }
-  if (external.length === 0) return
+  const pending = deliveries.filter((delivery) => delivery.external.length > 0)
+  if (pending.length === 0) return
   try {
-    await deliverExternal(id, external)
+    await deliverExternal(pending)
     await db()
       .update(notifications)
       .set({ externalSentAt: sql`now()` })
-      .where(eq(notifications.id, id))
+      .where(
+        inArray(
+          notifications.id,
+          pending.map((delivery) => delivery.id),
+        ),
+      )
   } catch (error) {
-    logger().error({ err: error, userId }, 'не удалось доставить уведомление во внешний канал')
+    logger().error({ err: error }, 'не удалось доставить уведомление во внешний канал')
   }
 }
 
@@ -426,25 +486,40 @@ function muteExternal(modes: Partial<Record<NotificationChannel, DeliveryMode>>)
 const isExternal = (channel: NotificationChannel): channel is ExternalChannel =>
   (EXTERNAL_CHANNELS as readonly string[]).includes(channel)
 
-async function resolveChannels(
-  userId: string,
+/** Настройки получателей по категории — одним запросом на пачку. */
+async function preferencesOf(
+  userIds: string[],
   category: NotificationCategory,
-  requested: NotificationChannel[] | undefined,
-  available: Set<ExternalChannel> | undefined,
-  direct = false,
-): Promise<Partial<Record<NotificationChannel, DeliveryMode>>> {
-  const prefs = await db()
-    .select()
+): Promise<Map<string, Array<{ channel: string; mode: string }>>> {
+  const rows = await db()
+    .select({
+      userId: notificationPreferences.userId,
+      channel: notificationPreferences.channel,
+      mode: notificationPreferences.mode,
+    })
     .from(notificationPreferences)
     .where(
       and(
-        eq(notificationPreferences.userId, userId),
+        inArray(notificationPreferences.userId, userIds),
         eq(notificationPreferences.category, category),
       ),
     )
+  const result = new Map<string, Array<{ channel: string; mode: string }>>()
+  for (const row of rows) {
+    result.set(row.userId, [...(result.get(row.userId) ?? []), row])
+  }
+  return result
+}
 
+function resolveChannels(
+  category: NotificationCategory,
+  prefs: Array<{ channel: string; mode: string }>,
+  requested: NotificationChannel[] | undefined,
+  available: Set<ExternalChannel> | undefined,
+  direct = false,
+): DeliveryModes {
   const defaults = categoryDefaultModes(category) ?? { app: 'immediate' }
-  const result: Partial<Record<NotificationChannel, DeliveryMode>> = {}
+  const result: DeliveryModes = {}
   const candidates = requested ?? (['app', 'email', 'telegram', 'push'] as NotificationChannel[])
 
   for (const channel of candidates) {
@@ -530,11 +605,14 @@ async function renderForDelivery(
 }
 
 /**
- * Доставка нового уведомления во внешние каналы получателя (Telegram): текст —
- * на его языке, ссылка открывает вкладку объекта.
+ * Доставка новых уведомлений во внешние каналы получателей (Telegram): текст — на языке
+ * получателя, ссылка открывает вкладку объекта. Строки, сводки объектов и кнопки дел
+ * читаются запросом на пачку, в канал уходит одна пачка сообщений (ADR-0222).
  */
-async function deliverExternal(id: number, channels: ExternalChannel[]): Promise<void> {
-  const [row] = await db()
+async function deliverExternal(
+  items: ReadonlyArray<{ id: number; external: ExternalChannel[] }>,
+): Promise<void> {
+  const rows = await db()
     .select({
       id: notifications.id,
       userId: notifications.userId,
@@ -549,31 +627,51 @@ async function deliverExternal(id: number, channels: ExternalChannel[]): Promise
     })
     .from(notifications)
     .innerJoin(users, eq(users.id, notifications.userId))
-    .where(eq(notifications.id, id))
-    .limit(1)
-  if (!row) return
-  const rendered = (await renderForDelivery([row])).get(row.id)
-  if (!rendered) return
+    .where(
+      inArray(
+        notifications.id,
+        items.map((item) => item.id),
+      ),
+    )
+  if (rows.length === 0) return
+  const rendered = await renderForDelivery(rows)
   // Кнопки дел получателя по объекту: «Принять», «Отчитаться», «Продлить» (ADR-0082)
-  const actions = row.objectId ? await InboxService.openActions(row.userId, row.objectId) : []
-  for (const channel of channels) {
-    await notificationChannel(channel)?.deliver([
-      {
+  const byObject = new Map<string, typeof rows>()
+  for (const row of rows) {
+    if (row.objectId) byObject.set(row.objectId, [...(byObject.get(row.objectId) ?? []), row])
+  }
+  const actions = new Map<number, InboxOpenAction[]>()
+  for (const [objectId, group] of byObject) {
+    const open = await InboxService.openActionsFor(
+      objectId,
+      group.map((row) => row.userId),
+    )
+    for (const row of group) actions.set(row.id, open.get(row.userId) ?? [])
+  }
+
+  const wanted = new Map(items.map((item) => [item.id, item.external]))
+  for (const channel of EXTERNAL_CHANNELS) {
+    const messages: ChannelMessage[] = []
+    for (const row of rows) {
+      const text = rendered.get(row.id)
+      if (!text || !wanted.get(row.id)?.includes(channel)) continue
+      messages.push({
         notificationId: row.id,
         userId: row.userId,
         locale: (row.locale as Locale | null) ?? 'ru',
         category: row.category as NotificationCategory,
-        text: rendered.text,
-        url: rendered.href,
-        actions: actions.map((action) => ({
+        text: text.text,
+        url: text.href,
+        actions: (actions.get(row.id) ?? []).map((action) => ({
           itemId: action.itemId,
           key: action.key,
           labelKey: action.labelKey,
           requiresComment: action.requiresComment,
           input: action.input,
         })),
-      },
-    ])
+      })
+    }
+    if (messages.length > 0) await notificationChannel(channel)?.deliver(messages)
   }
 }
 
@@ -638,10 +736,17 @@ export async function deliverEmail(ids: number[]): Promise<number> {
         ? t('notifications.title')
         : `${t('notifications.title')} — ${items.length}`
 
+    // Сбой письма одному получателю не останавливает письма остальным (ADR-0222)
     const delivered = await sendMail({
       to: first.email,
       subject,
       html: `<p>${escapeHtml(first.displayName)},</p><ul>${lines.join('')}</ul><p><a href="${escapeHtml(base)}">${escapeHtml(base)}</a></p>`,
+    }).catch((error: unknown) => {
+      logger().error(
+        { err: error, userId: first.userId },
+        'не удалось отправить уведомление почтой',
+      )
+      return false
     })
 
     // Без SMTP письма не уходят — помечать нечего, дайджест повторится позже
