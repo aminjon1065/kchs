@@ -23,8 +23,11 @@ import { errors } from '~/shared/errors.js'
 import { documentTypes, journals } from '../schema.js'
 import { documentsSpaceId } from './space.js'
 
-/** Типы полей, которые карточка документа не поддерживает: вычисляемые и служебные. */
-const UNSUPPORTED_CARD_TYPES = new Set(['formula', 'lookup', 'rollup', 'signature', 'geometry'])
+/**
+ * Типы полей, которые карточка документа не поддерживает: вычисляемые и служебные.
+ * Геометрия — только точка (ADR-0221): место происшествия в донесении.
+ */
+const UNSUPPORTED_CARD_TYPES = new Set(['formula', 'lookup', 'rollup', 'signature'])
 
 /** Строка типа документа — то, что нужно карточке, регистрации и списку. */
 export interface DocumentTypeRow {
@@ -123,6 +126,11 @@ function assertCardSchema(schema: DocumentCardSchema): void {
     keys.add(field.key)
     if (UNSUPPORTED_CARD_TYPES.has(field.type)) {
       throw errors.validation(`Тип поля «${field.type}» недоступен в карточке документа`, [
+        { path: 'cardSchema.fields', message: 'unsupported_type' },
+      ])
+    }
+    if (field.type === 'geometry' && field.geometryType !== 'point') {
+      throw errors.validation('В карточке документа геометрия — только точка', [
         { path: 'cardSchema.fields', message: 'unsupported_type' },
       ])
     }

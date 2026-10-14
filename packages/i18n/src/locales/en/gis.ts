@@ -404,6 +404,8 @@ export const gis: DeepPartial<Dictionary['gis']> = {
     title: 'Location on the map',
     hint: 'Click the place on the map or enter latitude and longitude.',
     map: 'Map for choosing the location',
+    show: 'Show on the map',
+    viewMap: 'Map with the location',
   },
   edit: {
     start: 'Edit',
