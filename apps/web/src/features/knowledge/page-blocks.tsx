@@ -27,12 +27,12 @@ import { DatasetTable } from '~/features/data/dataset-table.js'
 import { chartQuery, datasetQuery, metricQuery } from '~/features/data/index.js'
 import { MapEmbed } from '~/features/gis/map-embed.js'
 import { tasksQuery } from '~/features/tasks/index.js'
-import { http } from '~/shared/api/client.js'
 import { meQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
 import { usePageContext } from './page-context.js'
 import { bodyFragment, captionText, embedKeyOf } from './page-doc.js'
+import { knowledgeApi } from './queries.js'
 
 const CHART_HEIGHT = 320
 /** Задач в блоке-списке — не больше: страница остаётся страницей, а не экраном. */
@@ -105,9 +105,7 @@ function ChartBlock({ block }: { block: CellMap }) {
   const chart = useQuery({ ...chartQuery(chartId ?? ''), enabled: Boolean(chartId), retry: false })
   const data = useQuery({
     queryKey: ['object', chartId ?? '', 'page-chart'],
-    queryFn: chartId
-      ? () => http.post('/charts/:id/data', { params: { id: chartId }, body: {} })
-      : skipToken,
+    queryFn: chartId ? () => knowledgeApi.postChartsData(chartId) : skipToken,
     retry: false,
   })
   if (!chartId) return <NotPicked />
@@ -133,10 +131,7 @@ function MetricBlock({ block }: { block: CellMap }) {
   })
   const value = useQuery({
     queryKey: ['object', metricId ?? '', 'page-metric'],
-    queryFn:
-      metricId && metric.data
-        ? () => http.post('/metrics/:id/value', { params: { id: metricId }, body: {} })
-        : skipToken,
+    queryFn: metricId && metric.data ? () => knowledgeApi.postMetricsValue(metricId) : skipToken,
     retry: false,
   })
   if (!metricId) return <NotPicked />

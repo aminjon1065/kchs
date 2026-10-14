@@ -1,13 +1,13 @@
 import { queryOptions, useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
-import { http } from '~/shared/api/client.js'
 import { useWorkspace } from '~/shared/workspace/store.js'
+import { knowledgeApi } from './queries.js'
 
 /** Страница «Справки» сотрудника (N88): на его языке, без перевода — русская. */
 export const helpQuery = () =>
   queryOptions({
     queryKey: ['knowledge', 'help'] as const,
-    queryFn: async () => (await http.get('/knowledge/help')).page,
+    queryFn: async () => (await knowledgeApi.getHelp()).page,
     staleTime: 5 * 60_000,
   })
 

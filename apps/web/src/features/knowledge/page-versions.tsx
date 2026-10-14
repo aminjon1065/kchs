@@ -19,11 +19,10 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { GitCompare, History, Undo2 } from 'lucide-react'
 import { useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
-import { knowledgeKeys, pageCompareQuery, pageVersionsQuery } from './queries.js'
+import { knowledgeApi, knowledgeKeys, pageCompareQuery, pageVersionsQuery } from './queries.js'
 
 /** «Текущий текст» в выборе версии — сравнение со снимком страницы. */
 const CURRENT = '__current'
@@ -58,8 +57,7 @@ export function PageVersions({
   }
 
   const save = useMutation({
-    mutationFn: () =>
-      http.post('/pages/:id/versions', { params: { id: pageId }, body: { note: note || null } }),
+    mutationFn: () => knowledgeApi.postPagesVersions(pageId, { note: note || null }),
     onSuccess: () => {
       setNote('')
       toast.show({ title: t('knowledge.versions.saved'), tone: 'success' })
@@ -69,10 +67,7 @@ export function PageVersions({
   })
 
   const restore = useMutation({
-    mutationFn: (versionId: string) =>
-      http.post('/pages/:id/versions/:versionId/restore', {
-        params: { id: pageId, versionId },
-      }),
+    mutationFn: (versionId: string) => knowledgeApi.postPagesVersionsRestore(pageId, versionId),
     onSuccess: (version) => {
       toast.show({
         title: t('knowledge.versions.restored', { number: version.number }),

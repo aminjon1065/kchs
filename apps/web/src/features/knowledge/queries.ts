@@ -1,5 +1,6 @@
 import { queryOptions } from '@tanstack/react-query'
 import { http } from '~/shared/api/client.js'
+import type { ApiBody } from '~/shared/api/route-types.js'
 
 /**
  * Ключи кэша базы знаний (ADR-0095). Всё, что принадлежит странице, — под
@@ -55,3 +56,24 @@ export const knowledgeSearchQuery = (q: string, spaceId: string | null) =>
     queryFn: () => http.get('/knowledge/search', { query: { q, ...(spaceId ? { spaceId } : {}) } }),
     enabled: q.trim().length > 1,
   })
+
+export const knowledgeApi = {
+  postPages: (body: ApiBody<'POST /pages'>) => http.post('/pages', { body }),
+  getHelp: () => http.get('/knowledge/help'),
+  postChartsData: (id: string) => http.post('/charts/:id/data', { params: { id }, body: {} }),
+  postMetricsValue: (id: string) => http.post('/metrics/:id/value', { params: { id }, body: {} }),
+  getObjectsAcknowledgments: (id: string) =>
+    http.get('/objects/:id/acknowledgments', { params: { id } }),
+  postObjectsAcknowledgmentsAcknowledge: (id: string) =>
+    http.post('/objects/:id/acknowledgments/acknowledge', { params: { id }, body: {} }),
+  postPagesAcknowledgments: (id: string, body: ApiBody<'POST /pages/:id/acknowledgments'>) =>
+    http.post('/pages/:id/acknowledgments', { params: { id }, body }),
+  patchPages: (id: string, body: ApiBody<'PATCH /pages/:id'>) =>
+    http.patch('/pages/:id', { params: { id }, body }),
+  postPagesPublish: (id: string, body: ApiBody<'POST /pages/:id/publish'>) =>
+    http.post('/pages/:id/publish', { params: { id }, body }),
+  postPagesVersions: (id: string, body: ApiBody<'POST /pages/:id/versions'>) =>
+    http.post('/pages/:id/versions', { params: { id }, body }),
+  postPagesVersionsRestore: (id: string, versionId: string) =>
+    http.post('/pages/:id/versions/:versionId/restore', { params: { id, versionId } }),
+}
