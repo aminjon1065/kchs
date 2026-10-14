@@ -20,10 +20,10 @@ import { Moon } from 'lucide-react'
 import { useState } from 'react'
 import { PresenceDialog } from '~/features/chat/chat-dialogs.js'
 import { chatKeys } from '~/features/chat/index.js'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { useT } from '~/shared/i18n.js'
 import { pushStatusQuery } from '~/shared/push/client.js'
+import { meTelegramQuery, profileApi } from './queries.js'
 
 const preferencesKey = ['me', 'notification-preferences'] as const
 
@@ -48,18 +48,15 @@ export function NotificationSettingsCard() {
   const [presence, setPresence] = useState(false)
   const { data } = useQuery({
     queryKey: preferencesKey,
-    queryFn: () => http.get('/me/notification-preferences'),
+    queryFn: () => profileApi.getMeNotificationPreferences(),
   })
-  const telegram = useQuery({
-    queryKey: ['me', 'telegram'],
-    queryFn: () => http.get('/me/telegram'),
-  })
+  const telegram = useQuery(meTelegramQuery())
   const push = useQuery(pushStatusQuery)
   // Диалог статуса берёт начальные значения из кэша: открываем его только с данными,
   // иначе «Сохранить» записало бы тихие часы по умолчанию поверх настроенных
   const presenceState = useQuery({
     queryKey: chatKeys.presence,
-    queryFn: () => http.get('/me/presence'),
+    queryFn: () => profileApi.getMePresence(),
   })
 
   const update = useMutation({
@@ -67,7 +64,7 @@ export function NotificationSettingsCard() {
       category: NotificationCategory
       channel: NotificationChannel
       mode: DeliveryMode
-    }) => http.put('/me/notification-preferences', { body: input }),
+    }) => profileApi.putMeNotificationPreferences(input),
     onSuccess: () => void client.invalidateQueries({ queryKey: preferencesKey }),
     onError: (error) =>
       toast.error(error instanceof ApiError ? error.message : t('errors.unknown')),

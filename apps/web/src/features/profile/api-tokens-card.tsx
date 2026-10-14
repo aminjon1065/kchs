@@ -17,11 +17,11 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { KeyRound, Plus } from 'lucide-react'
 import { useId, useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { keys, meQuery, myApiTokensQuery } from '~/shared/api/queries.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
+import { profileApi } from './queries.js'
 
 const STATUS_TONES: Record<ApiToken['status'], 'success' | 'neutral' | 'warning'> = {
   active: 'success',
@@ -49,7 +49,7 @@ export function ApiTokensCard() {
   const refresh = () => void client.invalidateQueries({ queryKey: keys.myApiTokens })
 
   const revoke = useMutation({
-    mutationFn: (id: string) => http.delete('/me/api-tokens/:id', { params: { id } }),
+    mutationFn: (id: string) => profileApi.removeMeApiTokens(id),
     onSuccess: () => {
       toast.show({ title: t('profile.apiTokens.revoked'), tone: 'info' })
       setRevoking(null)
@@ -186,12 +186,10 @@ function CreateTokenDialog({
 
   const create = useMutation({
     mutationFn: () =>
-      http.post('/me/api-tokens', {
-        body: {
-          name,
-          scopes,
-          expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null,
-        },
+      profileApi.postMeApiTokens({
+        name,
+        scopes,
+        expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null,
       }),
     onSuccess: (result) => {
       setName('')

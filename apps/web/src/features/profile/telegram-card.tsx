@@ -4,9 +4,9 @@ import { Button, Callout, Card, cn, useToast } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Send } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { http } from '~/shared/api/client.js'
 import { useLocale } from '~/shared/appearance.js'
 import { useT } from '~/shared/i18n.js'
+import { profileApi } from './queries.js'
 
 const statusKey = ['me', 'telegram'] as const
 
@@ -24,7 +24,7 @@ export function TelegramCard() {
 
   const status = useQuery({
     queryKey: statusKey,
-    queryFn: () => http.get('/me/telegram'),
+    queryFn: () => profileApi.getMeTelegram(),
     // Пока пользователь открывает бота, привязку ждём опросом
     refetchInterval: pending ? 3000 : false,
   })
@@ -38,13 +38,13 @@ export function TelegramCard() {
   }, [pending, linked, toast, t])
 
   const link = useMutation({
-    mutationFn: () => http.post('/me/telegram/link'),
+    mutationFn: () => profileApi.postMeTelegramLink(),
     onSuccess: setPending,
     onError: () => toast.show({ title: t('profile.telegram.unavailable'), tone: 'danger' }),
   })
 
   const unlink = useMutation({
-    mutationFn: () => http.delete('/me/telegram'),
+    mutationFn: () => profileApi.removeMeTelegram(),
     onSuccess: () => {
       toast.show({ title: t('profile.telegram.disconnected'), tone: 'success' })
       void client.invalidateQueries({ queryKey: statusKey })

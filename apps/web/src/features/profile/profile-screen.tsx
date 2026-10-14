@@ -15,7 +15,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { LogOut, Monitor, Moon, Smartphone, Sun } from 'lucide-react'
 import { useState } from 'react'
 import { SigningKeyCard } from '~/features/pki/index.js'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { keys, meQuery } from '~/shared/api/queries.js'
 import type { ApiBody } from '~/shared/api/route-types.js'
@@ -31,6 +30,7 @@ import { MfaCard } from './mfa-card.js'
 import { NotificationSettingsCard } from './notification-settings-card.js'
 import { PasskeysCard } from './passkeys-card.js'
 import { PushCard } from './push-card.js'
+import { meSessionsQuery, profileApi } from './queries.js'
 import { TelegramCard } from './telegram-card.js'
 
 export function ProfileScreen() {
@@ -41,11 +41,7 @@ export function ProfileScreen() {
   const appearance = useAppearance()
 
   const { data: me, isLoading } = useQuery(meQuery())
-  const { data: sessions } = useQuery({
-    queryKey: ['me', 'sessions'],
-    queryFn: () => http.get('/me/sessions'),
-    select: (data) => data.items,
-  })
+  const { data: sessions } = useQuery({ ...meSessionsQuery(), select: (data) => data.items })
 
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
@@ -53,9 +49,7 @@ export function ProfileScreen() {
 
   const changePassword = useMutation({
     mutationFn: () =>
-      http.post('/me/password', {
-        body: { currentPassword, newPassword, revokeOtherSessions: true },
-      }),
+      profileApi.postMePassword({ currentPassword, newPassword, revokeOtherSessions: true }),
     onSuccess: () => {
       setCurrentPassword('')
       setNewPassword('')
@@ -71,7 +65,7 @@ export function ProfileScreen() {
   })
 
   const updateProfile = useMutation({
-    mutationFn: (patch: ApiBody<'PATCH /me'>) => http.patch('/me', { body: patch }),
+    mutationFn: (patch: ApiBody<'PATCH /me'>) => profileApi.patchMe(patch),
     onSuccess: () => void client.invalidateQueries({ queryKey: keys.me }),
   })
 
@@ -80,7 +74,7 @@ export function ProfileScreen() {
     // выхода нельзя (ADR-0207)
     mutationFn: async () => {
       await forgetProfile()
-      return http.post('/auth/logout')
+      return profileApi.postAuthLogout()
     },
     onSuccess: (result) => {
       setCsrfToken(null)
@@ -92,7 +86,7 @@ export function ProfileScreen() {
   })
 
   const revokeAll = useMutation({
-    mutationFn: () => http.post('/me/sessions/revoke', { body: { all: true } }),
+    mutationFn: () => profileApi.revokeAllSessions(),
     onSuccess: () => {
       toast.show({ title: t('auth.session.othersRevoked'), tone: 'success' })
       void client.invalidateQueries({ queryKey: ['me', 'sessions'] })
@@ -102,7 +96,7 @@ export function ProfileScreen() {
   // Одна сессия — например, забытый вход на чужом компьютере (ADR-0153)
   const revokeOne = useMutation({
     mutationFn: (sessionId: string) =>
-      http.post('/me/sessions/revoke', { body: { sessionIds: [sessionId] } }),
+      profileApi.revokeSessions({ sessionIds: [sessionId] }),
     onSuccess: () => {
       toast.show({ title: t('auth.session.revoked'), tone: 'success' })
       void client.invalidateQueries({ queryKey: ['me', 'sessions'] })

@@ -3,10 +3,10 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ShieldCheck } from 'lucide-react'
 import { useId, useState } from 'react'
 import { MfaSetup } from '~/features/auth/mfa-setup.js'
-import { http } from '~/shared/api/client.js'
 import { ApiError } from '~/shared/api/errors.js'
 import { keys } from '~/shared/api/queries.js'
 import { useT } from '~/shared/i18n.js'
+import { profileApi } from './queries.js'
 
 /** Второй фактор в профиле: подключение с QR-кодом и отключение по коду. */
 export function MfaCard({ enabled }: { enabled: boolean }) {
@@ -21,7 +21,7 @@ export function MfaCard({ enabled }: { enabled: boolean }) {
   const refresh = () => void client.invalidateQueries({ queryKey: keys.me })
 
   const disable = useMutation({
-    mutationFn: () => http.delete('/me/mfa', { body: { code: code.trim() } }),
+    mutationFn: () => profileApi.removeMeMfa({ code: code.trim() }),
     onSuccess: (result) => {
       if (!result.ok) {
         setError(t('auth.mfa.invalid'))
