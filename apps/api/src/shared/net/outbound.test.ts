@@ -165,11 +165,12 @@ describe('исходящий прокси', () => {
   })
 
   it('узлы из NO_PROXY идут напрямую', async () => {
-    configure({ HTTP_PROXY: `http://127.0.0.1:${proxy.port}`, NO_PROXY: '.example.test' })
+    configure({ HTTP_PROXY: `http://127.0.0.1:${proxy.port}`, NO_PROXY: '.example.invalid' })
     const before = proxied.length
-    // Напрямую имени .test не разрешить — и это доказывает, что прокси обойдён
+    // Имя .invalid не разрешается никогда (RFC 6761) — отказ доказывает, что прокси обойдён;
+    // .test на машинах разработчиков бывает заведён на loopback (локальный DNS)
     await expect(
-      outboundGet('http://feeds.example.test/usgs.json', { what: 'лента', maxBytes: 1024 }),
+      outboundGet('http://feeds.example.invalid/usgs.json', { what: 'лента', maxBytes: 1024 }),
     ).rejects.toThrow('Нет соединения: лента')
     expect(proxied.length).toBe(before)
     // Сама цель на loopback — тоже мимо прокси: службы узла в него не ходят
