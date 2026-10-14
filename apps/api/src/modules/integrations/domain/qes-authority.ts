@@ -212,6 +212,7 @@ export function authorityFrom(
   return {
     integrationId: integration.id,
     name: integration.name,
+    kind: 'agent',
     agentUrl: config.agentUrl.replace(/\/+$/, ''),
     timestamp: config.tsaUrl
       ? {

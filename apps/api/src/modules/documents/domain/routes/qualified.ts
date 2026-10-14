@@ -16,7 +16,7 @@ import {
 import { formatDate, formatDateTime } from '@kchs/fields'
 import { createTranslator } from '@kchs/i18n'
 import { and, desc, eq, inArray, ne, sql } from 'drizzle-orm'
-import { authorize } from '~/kernel/access/authorize.js'
+import { authorize, requireCapability } from '~/kernel/access/authorize.js'
 import { buildUserCtxFor } from '~/kernel/access/explain.js'
 import { audit } from '~/kernel/audit/service.js'
 import { directory } from '~/kernel/directory/port.js'
@@ -88,6 +88,8 @@ interface SessionSource {
   storageKey: string
   /** Сеанс, чей экземпляр подписывается дальше; пусто — PDF-представление версии. */
   baseSessionId: string
+  /** Подпись печатью организации (ADR-0218): `'true'` — колонка хранит строки. */
+  seal?: string
 }
 
 interface SessionTarget {
@@ -145,17 +147,29 @@ function present(row: SessionRow, viewerId: string): QesSessionRecord {
   }
 }
 
-function pageState(row: SessionRow): QesPageState {
+/**
+ * Состояние для страницы подписания. Агенту УЦ — хэш `ByteRange`; ключу устройства (УЦ
+ * Комитета, ADR-0218) — подписываемые атрибуты CMS над этим хэшем и сертификатом.
+ */
+async function pageState(row: SessionRow): Promise<QesPageState> {
   const { state, reason } = shownState(row)
   const prepared = row.prepared as PreparedInfo | null
+  const waiting = state === 'awaiting_signature' && prepared !== null
+  const found = waiting ? await qualifiedSignature().authority() : null
+  const device =
+    found?.kind === 'device' && found.device && row.certificateDer ? found.device : null
+  const digest = prepared ? Buffer.from(prepared.digest, 'hex') : null
   return {
     state,
     reason,
     dataToSign:
-      state === 'awaiting_signature' && prepared
-        ? Buffer.from(prepared.digest, 'hex').toString('base64')
+      waiting && digest
+        ? (device
+            ? device.signedAttributes(Buffer.from(row.certificateDer as string, 'base64'), digest)
+            : digest
+          ).toString('base64')
         : null,
-    mode: state === 'awaiting_signature' ? 'cms-detached' : null,
+    mode: waiting ? (device ? 'signed-attributes' : 'cms-detached') : null,
     digestAlgorithm: 'sha256',
     certificate: (row.certificate as QualifiedCertificate | null) ?? null,
   }
@@ -384,7 +398,7 @@ async function authority(): Promise<QualifiedSignatureAuthority> {
   const found = await qualifiedSignature().authority()
   if (!found) {
     throw errors.conflict(
-      'Квалифицированная подпись не настроена: подключите удостоверяющий центр в «Интеграциях»',
+      'Квалифицированная подпись не настроена: создайте УЦ Комитета в консоли администрирования',
       { reason: 'qualified_signature' },
     )
   }
@@ -422,6 +436,54 @@ async function versionPdf(executor: Executor, versionId: string) {
   return fileVersionSource(version.pdfFileId, version.fileVersions[version.pdfFileId])
 }
 
+/**
+ * Сертификат с устройства (УЦ Комитета, ADR-0218) — того, кто подписывает: выпущен этим УЦ,
+ * действует и выдан ему самому; для печати — сертификат печати у её держателя (N121).
+ */
+async function assertDeviceCertificate(row: SessionRow, der: Buffer): Promise<void> {
+  const found = await qualifiedSignature().authority()
+  if (found?.kind !== 'device' || !found.device) return
+  const owner = await found.device.owner(der)
+  const seal = (row.source as unknown as SessionSource).seal === 'true'
+  if (
+    !owner ||
+    !owner.active ||
+    owner.userId !== row.actorId ||
+    owner.purpose !== (seal ? 'seal' : 'person')
+  ) {
+    throw errors.conflict(
+      seal
+        ? 'На этом устройстве нет действующего ключа печати организации'
+        : 'Сертификат не ваш или отозван: создайте ключ подписи в профиле',
+      { reason: 'certificate_owner' },
+    )
+  }
+}
+
+/** CMS из подписи браузера; подпись чужим ключом или не тех атрибутов — отказ. */
+async function deviceCms(row: SessionRow, signatureBase64: string): Promise<string> {
+  const found = await qualifiedSignature().authority()
+  const prepared = row.prepared as PreparedInfo | null
+  if (found?.kind !== 'device' || !found.device || !prepared || !row.certificateDer) {
+    throw errors.conflict('Подпись устройства здесь не ждут', { reason: 'mode' })
+  }
+  try {
+    const cms = await found.device.assemble(
+      Buffer.from(row.certificateDer, 'base64'),
+      Buffer.from(prepared.digest, 'hex'),
+      Buffer.from(signatureBase64, 'base64'),
+    )
+    return cms.toString('base64')
+  } catch (error) {
+    throw errors.validation('Подпись не сходится с ключом устройства', [
+      {
+        path: 'signature',
+        message: error instanceof Error ? error.message : 'подпись не сходится',
+      },
+    ])
+  }
+}
+
 export const QualifiedSignatures = {
   /**
    * «Подписать КЭП» в карточке: сеанс на шаг квалифицированной подписи того, кто
@@ -434,7 +496,15 @@ export const QualifiedSignatures = {
     input: QesSessionStartInput,
   ): Promise<QesSessionRecord> {
     await authorize(ctx, 'view', documentId)
-    await authority()
+    const found = await authority()
+    // Печать организации (ADR-0218): ставит держатель печати её ключом на своём устройстве
+    const seal = input.seal === true
+    if (seal) {
+      requireCapability(ctx, 'documents.seal')
+      if (found.kind !== 'device') {
+        throw errors.conflict('Печать организации ставится ключом УЦ Комитета', { reason: 'seal' })
+      }
+    }
     const onBehalfOf = input.onBehalfOf ?? null
     const running = await ProcessService.running(db(), documentId)
     let mine = false
@@ -558,7 +628,7 @@ export const QualifiedSignatures = {
           actorId: ctx.userId,
           webSessionId: ctx.sessionId,
           state: 'awaiting_certificate',
-          source: { ...source },
+          source: { ...source, ...(seal ? { seal: 'true' } : {}) },
           target: { ...target },
           expiresAt: new Date(Date.now() + QES_SESSION_TTL_MS).toISOString(),
         })
@@ -624,7 +694,7 @@ export const QualifiedSignatures = {
   },
 
   async pageState(sessionId: string, ticket: unknown): Promise<QesPageState> {
-    return pageState(await QualifiedSignatures.byTicket(sessionId, ticket))
+    return await pageState(await QualifiedSignatures.byTicket(sessionId, ticket))
   },
 
   /** Агент вернул сертификат: проверка срока, сведения, подготовка PDF движком. */
@@ -633,9 +703,10 @@ export const QualifiedSignatures = {
     ticket: unknown,
     certificateBase64: string,
   ): Promise<QesPageState> {
-    await QualifiedSignatures.byTicket(sessionId, ticket)
+    const session = await QualifiedSignatures.byTicket(sessionId, ticket)
     const der = Buffer.from(certificateBase64, 'base64')
     const info = certificateInfo(der)
+    await assertDeviceCertificate(session, der)
     const ctx = systemCtx('documents.qes.certificate')
     const row = await db().transaction(async (tx) => {
       const locked = await lockSession(tx, sessionId)
@@ -650,12 +721,21 @@ export const QualifiedSignatures = {
       await scheduleStep(tx, actorCtx, next, 'prepare')
       return next
     })
-    return pageState(row)
+    return await pageState(row)
   },
 
-  /** Агент вернул CMS: встраивание и проверка движком. */
-  async submitCms(sessionId: string, ticket: unknown, cmsBase64: string): Promise<QesPageState> {
-    await QualifiedSignatures.byTicket(sessionId, ticket)
+  /**
+   * Результат страницы: CMS агента или подпись ключом устройства над подписываемыми
+   * атрибутами — из неё CMS собирает поставщик (ADR-0218); дальше встраивание и проверка
+   * движком.
+   */
+  async submitResult(
+    sessionId: string,
+    ticket: unknown,
+    input: { cms?: string | undefined; signature?: string | undefined },
+  ): Promise<QesPageState> {
+    const session = await QualifiedSignatures.byTicket(sessionId, ticket)
+    const cmsBase64 = input.cms ?? (await deviceCms(session, input.signature ?? ''))
     const ctx = systemCtx('documents.qes.result')
     const row = await db().transaction(async (tx) => {
       const locked = await lockSession(tx, sessionId)
@@ -666,7 +746,7 @@ export const QualifiedSignatures = {
       await scheduleStep(tx, actorCtx, next, 'attach')
       return next
     })
-    return pageState(row)
+    return await pageState(row)
   },
 
   // ─── Повторная проверка (verify) ──────────────────────────────────────────

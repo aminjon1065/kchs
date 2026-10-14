@@ -32,6 +32,7 @@ import { integrationsRoutes } from './modules/integrations.js'
 import { knowledgeRoutes } from './modules/knowledge.js'
 import { mailRoutes } from './modules/mail.js'
 import { meetingsRoutes } from './modules/meetings.js'
+import { pkiRoutes } from './modules/pki.js'
 import { positionsRoutes } from './modules/positions.js'
 import { pushRoutes } from './modules/push.js'
 import { reportsRoutes } from './modules/reports.js'
@@ -80,6 +81,7 @@ export type ApiRoutes = typeof kernelAccessRoutes &
   typeof knowledgeRoutes &
   typeof mailRoutes &
   typeof meetingsRoutes &
+  typeof pkiRoutes &
   typeof positionsRoutes &
   typeof pushRoutes &
   typeof reportsRoutes &
@@ -122,6 +124,7 @@ export const apiRoutes: ApiRoutes = mergeRouteTables(
   knowledgeRoutes,
   mailRoutes,
   meetingsRoutes,
+  pkiRoutes,
   positionsRoutes,
   pushRoutes,
   reportsRoutes,

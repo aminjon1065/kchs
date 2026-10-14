@@ -16,6 +16,7 @@ from typing import Any
 from pyhanko.sign.timestamps import HTTPTimeStamper
 
 from kchs_engine.api import document_signature_done, document_signature_start
+from kchs_engine.config import settings
 from kchs_engine.jobs.registry import handler
 from kchs_engine.logging import log
 from kchs_engine.sign import pades
@@ -33,6 +34,9 @@ def _policy(plan: dict[str, Any]) -> pades.Policy:
         trust_roots=roots,
         revocation=policy["revocation"],
         fetch=bool(policy["fetchRevocation"]),
+        # Готовые данные проверки от api (УЦ Комитета, ADR-0218): отзыв без сети
+        crls=[base64.b64decode(item) for item in policy.get("crls") or []],
+        ocsps=[base64.b64decode(item) for item in policy.get("ocsps") or []],
     )
 
 
@@ -42,7 +46,11 @@ def _timestamper(plan: dict[str, Any]) -> HTTPTimeStamper | None:
         return None
     username, password = server.get("username"), server.get("password")
     auth = (str(username), str(password or "")) if username else None
-    return HTTPTimeStamper(str(server["url"]), timeout=15, auth=auth)
+    url = str(server["url"])
+    # Адрес от «/» — служба штампов самой платформы (ADR-0218): через свой адрес api
+    if url.startswith("/"):
+        url = settings().KCHS_API_URL.rstrip("/") + url
+    return HTTPTimeStamper(url, timeout=15, auth=auth)
 
 
 async def _read(stored: dict[str, Any], workdir: Path, name: str) -> bytes | None:
@@ -114,6 +122,9 @@ async def _attach(plan: dict[str, Any], pdf: bytes) -> tuple[dict[str, Any], byt
             "error": validation["problem"],
             **checked,
         }, None
+    if plan["policy"].get("ltv"):
+        # PAdES-B-LT: данные проверки — в документе, подпись проверяется и без сети
+        signed = await pades.embed_validation(signed, str(plan["fieldName"]), _policy(plan))
     report = {
         "status": "ready",
         "size": len(signed),

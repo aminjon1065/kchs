@@ -80,7 +80,11 @@ export const QesSessionState = z.enum(QES_SESSION_STATES)
 export type QesSessionState = z.infer<typeof QesSessionState>
 
 /** Что подписывает агент: CMS (CAdES) detached над хэшем SHA-256 `ByteRange`. */
-export const QES_SIGNING_MODES = ['cms-detached'] as const
+/**
+ * `cms-detached` — агент УЦ подписывает хэш и возвращает CMS; `signed-attributes` — ключ
+ * устройства подписывает подписываемые атрибуты, CMS собирает платформа (ADR-0218).
+ */
+export const QES_SIGNING_MODES = ['cms-detached', 'signed-attributes'] as const
 export const QesSigningMode = z.enum(QES_SIGNING_MODES)
 export type QesSigningMode = z.infer<typeof QesSigningMode>
 
@@ -107,6 +111,8 @@ export type QesFailureReason = z.infer<typeof QesFailureReason>
 export const QesSessionStartInput = z.object({
   stepId: Uuid,
   onBehalfOf: Uuid.nullable().optional(),
+  /** Подписать печатью организации, а не своей подписью (ADR-0218). */
+  seal: z.boolean().optional(),
 })
 export type QesSessionStartInput = z.infer<typeof QesSessionStartInput>
 
@@ -145,15 +151,25 @@ export type QesVerifyQueued = z.infer<typeof QesVerifyQueued>
 export const QesCertificateInput = z.object({ certificate: Base64 })
 export type QesCertificateInput = z.infer<typeof QesCertificateInput>
 
-/** Страница подписания → api: CMS от агента (DER в base64). */
-export const QesResultInput = z.object({ cms: Base64 })
+/**
+ * Страница подписания → api: CMS от агента (DER в base64) или подпись ключом устройства над
+ * подписываемыми атрибутами (`signed-attributes`, ADR-0218) — одно из двух.
+ */
+export const QesResultInput = z
+  .object({ cms: Base64.optional(), signature: Base64.optional() })
+  .refine((input) => Boolean(input.cms) !== Boolean(input.signature), {
+    message: 'Нужна либо CMS, либо подпись',
+  })
 export type QesResultInput = z.infer<typeof QesResultInput>
 
 /** Состояние сеанса для страницы подписания: что делать дальше. */
 export const QesPageState = z.object({
   state: QesSessionState,
   reason: QesFailureReason.nullable(),
-  /** Хэш `ByteRange` (SHA-256, base64) — агент подписывает его, когда `awaiting_signature`. */
+  /**
+   * Что подписать, когда `awaiting_signature` (base64): хэш `ByteRange` (SHA-256) для агента или
+   * подписываемые атрибуты CMS для ключа устройства — по `mode`.
+   */
   dataToSign: z.string().nullable(),
   mode: QesSigningMode.nullable(),
   digestAlgorithm: z.literal('sha256'),
@@ -176,6 +192,11 @@ export const QesValidationPolicy = z.object({
   revocation: z.enum(['hard-fail', 'soft-fail']),
   /** Ходить за OCSP и CRL по адресам из сертификата (только после проверки цепочки). */
   fetchRevocation: z.boolean(),
+  /** Готовые списки отзыва и ответы OCSP (DER в base64) — проверка без сети (ADR-0218). */
+  crls: z.array(z.string().min(1)).max(10).optional(),
+  ocsps: z.array(z.string().min(1)).max(10).optional(),
+  /** Встроить данные проверки в PDF (PAdES-B-LT): подпись проверяется и без сети. */
+  ltv: z.boolean().optional(),
 })
 export type QesValidationPolicy = z.infer<typeof QesValidationPolicy>
 

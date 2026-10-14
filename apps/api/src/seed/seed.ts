@@ -640,6 +640,8 @@ export async function resetData(): Promise<void> {
     sql`DELETE FROM mail_messages`,
     // Документы — до реестра: регистрации держат журналы и типы (FK без каскада)
     sql`DELETE FROM documents`,
+    sql`DELETE FROM pki_certificates`,
+    sql`DELETE FROM pki_authorities`,
     // Акты об уничтожении — записи операций, не объекты: номер акта — порядковый в году
     sql`DELETE FROM case_destruction_acts`,
     // Журнал подключений (ADR-0206) без внешних ключей на реестр: подключение — и токен,

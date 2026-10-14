@@ -7,6 +7,7 @@ import {
   integrations,
   mailMailboxes,
   mfaFactors,
+  pkiAuthorities,
   serviceLayers,
   ssoAuthRequests,
   userFacsimiles,
@@ -73,6 +74,12 @@ export const ENCRYPTED_COLUMNS: readonly EncryptedColumn[] = [
     id: ssoAuthRequests.id,
     column: ssoAuthRequests.codeVerifierEnc,
     label: 'Незавершённые входы через IdP',
+  },
+  {
+    table: pkiAuthorities,
+    id: pkiAuthorities.kind,
+    column: pkiAuthorities.keyEnc,
+    label: 'Ключи УЦ Комитета',
   },
   {
     table: userFacsimiles,

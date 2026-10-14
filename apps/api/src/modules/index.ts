@@ -105,6 +105,7 @@ import {
   registerPositionsBackground,
   registerPositionsObjectTypes,
 } from './positions/module.js'
+import { registerPkiBackground, registerPkiProvider, registerPkiRoutes } from './pki/module.js'
 import { registerPushChannel, registerPushRoutes } from './push/module.js'
 import {
   registerReportsBackground,
@@ -171,6 +172,7 @@ export function registerAllObjectTypes(): void {
   registerAiFeature()
   connectKnowledgeSemantics()
   registerIntegrationsObjectTypes()
+  registerPkiProvider()
   // Правила автоматизации (ADR-0096): тип `rule` — объект реестра
   registerAutomationObjectTypes()
   // Формы сбора данных (ADR-0103) и алерты на показатели (ADR-0104)
@@ -235,6 +237,7 @@ export async function registerModules(app: FastifyInstance, route: RouteRegistra
   registerFormRoutes(route)
   registerAlertRoutes(route)
   registerPositionRoutes(route)
+  registerPkiRoutes(route)
   registerWarningRoutes(route)
   registerAdminRoutes(route)
   // Страницы модулей вне контракта API: редактор офисных файлов (ADR-0112)
@@ -257,6 +260,7 @@ export function registerModulesBackground(): void {
   registerMeetingsBackground()
   registerKnowledgeBackground()
   registerIntegrationsBackground()
+  registerPkiBackground()
   registerAutomationBackground()
   registerFormsBackground()
   registerAlertsBackground()

@@ -70,6 +70,8 @@ export const CAPABILITIES = [
   'roles.manage',
   'documents.register',
   'documents.journals.manage',
+  /** Печать организации (ADR-0218): держать её ключ и ставить её на исходящие. */
+  'documents.seal',
   /** Маршруты процессов: определения, публикация, переназначение и отмена (ADR-0079). */
   'processes.manage',
   'data.sources.manage',
