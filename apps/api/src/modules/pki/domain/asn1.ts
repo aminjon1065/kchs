@@ -260,7 +260,8 @@ function signatureAlgorithm(): X.AlgorithmIdentifier {
 // ─── Сертификаты и CRL ───────────────────────────────────────────────────────
 
 export interface IssueInput {
-  subject: readonly NameEntry[]
+  /** Имя субъекта; готовое имя — при перевыпуске сертификата тем же субъектом (ADR-0224). */
+  subject: readonly NameEntry[] | X.Name
   /** Издатель: имя и ключ; для корневого — тот же, что у субъекта. */
   issuer: { name: X.Name; key: KeyObject; publicKeyDer: Buffer }
   publicKeyDer: Buffer
@@ -277,7 +278,7 @@ export function issueCertificate(input: IssueInput): Buffer {
     signature: signatureAlgorithm(),
     issuer: input.issuer.name,
     validity: new X.Validity({ notBefore: input.notBefore, notAfter: input.notAfter }),
-    subject: buildName(input.subject),
+    subject: input.subject instanceof X.Name ? input.subject : buildName(input.subject),
     subjectPublicKeyInfo: AsnParser.parse(input.publicKeyDer, X.SubjectPublicKeyInfo),
     extensions: new X.Extensions([
       ...input.extensions,
@@ -510,6 +511,30 @@ export type OcspStatus =
  * Ответ OCSP, подписанный самим выпускающим УЦ (ответчик — по хэшу ключа): состояние
  * каждого сертификата из запроса — по серийному номеру, если запрос про этого издателя.
  */
+/** Отпечаток ключа издателя в запросе OCSP — по нему выбирается выпускающий (ADR-0224). */
+export function ocspIssuerKeyHash(requestDer: Buffer): { algorithm: string; hash: Buffer } | null {
+  try {
+    const request = AsnParser.parse(requestDer, OCSPRequest)
+    const first = request.tbsRequest.requestList[0]?.reqCert
+    if (!first) return null
+    return {
+      algorithm: first.hashAlgorithm.algorithm,
+      hash: asBuffer(first.issuerKeyHash.buffer),
+    }
+  } catch {
+    return null
+  }
+}
+
+/** Отпечаток открытого ключа издателя для сверки с запросом OCSP (SHA-1 или SHA-256). */
+export function issuerKeyHash(publicKeyDer: Buffer, algorithm: string): Buffer | null {
+  if (algorithm === OID.sha1) return keyIdentifier(publicKeyDer)
+  if (algorithm !== OID.sha256) return null
+  return createHash('sha256')
+    .update(asBuffer(AsnParser.parse(publicKeyDer, X.SubjectPublicKeyInfo).subjectPublicKey))
+    .digest()
+}
+
 export function ocspResponse(input: {
   requestDer: Buffer
   issuer: { certificateDer: Buffer; key: KeyObject }

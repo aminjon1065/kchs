@@ -102,7 +102,8 @@ type Parsed<C, Part extends keyof RouteContract> =
  */
 type RouteResponse<C> = C extends { response: infer R }
   ? R extends Readonly<Record<number, z.ZodType>>
-    ? z.input<R[keyof R]> | FastifyReply | void
+    ? // biome-ignore lint/suspicious/noConfusingVoidType: обработчик без return — пустой ответ
+      z.input<R[keyof R]> | FastifyReply | void
     : unknown
   : unknown
 

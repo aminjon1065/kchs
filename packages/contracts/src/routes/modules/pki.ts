@@ -8,9 +8,12 @@ import {
   PkiChallengeInput,
   PkiEnrollInput,
   PkiRevokeInput,
+  PkiRotateInput,
   PkiStatus,
 } from '../../pki/pki.js'
 import { IdParam } from '../params.js'
+
+const PkiGenerationParams = z.object({ generation: z.string().regex(/^[0-9a-f]{16}$/) })
 
 /**
  * Маршруты модуля «pki» — УЦ Комитета (ADR-0218). Регистрация —
@@ -24,6 +27,9 @@ export const pkiRoutes = defineRoutes({
   'GET /pki/issuing.crt': { exposure: 'public' },
   'GET /pki/root.crl': { exposure: 'public' },
   'GET /pki/issuing.crl': { exposure: 'public' },
+  // Выпускающие после смены ключа (ADR-0224): адреса вшиты в выпущенные ими сертификаты
+  'GET /pki/issuers/:generation.crt': { params: PkiGenerationParams, exposure: 'public' },
+  'GET /pki/issuers/:generation.crl': { params: PkiGenerationParams, exposure: 'public' },
   'POST /pki/ocsp': { exposure: 'public' },
   'GET /pki/ocsp/:request': {
     params: z.object({ request: z.string().min(1).max(4096) }),
@@ -42,6 +48,7 @@ export const pkiRoutes = defineRoutes({
     response: { 200: PkiCertificateRecord },
   },
   'POST /admin/pki/init': { response: { 200: PkiStatus } },
+  'POST /admin/pki/rotate': { body: PkiRotateInput, response: { 200: PkiStatus } },
   'GET /admin/pki/certificates': {
     query: PkiAdminCertificateQuery,
     response: { 200: PkiCertificateList },

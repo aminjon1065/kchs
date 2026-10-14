@@ -1,6 +1,6 @@
 # Белый список шлюза DMZ — сгенерирован из таблицы маршрутов (ADR-0200).
 # Не править руками: pnpm --filter @kchs/api dmz:gen; проверка — dmz:gen --check.
-# Шаблонов путей: без входа — 12, по токену API — 440,
+# Шаблонов путей: без входа — 14, по токену API — 440,
 # закрытых, заслонённых открытыми, — 2.
 
 @kchs_dmz_closed expression <<CEL
@@ -11,6 +11,8 @@
 @kchs_dmz_public expression <<CEL
 	   (path_regexp('^/api/v1/hooks/[^/]+/[^/]+$') && (method('POST')))
 	|| (path_regexp('^/api/v1/hooks/rules/[^/]+/[^/]+$') && (method('POST')))
+	|| (path_regexp('^/api/v1/pki/issuers/[^/]+[.]crl$') && (method('GET')))
+	|| (path_regexp('^/api/v1/pki/issuers/[^/]+[.]crt$') && (method('GET')))
 	|| (path_regexp('^/api/v1/pki/issuing[.]crl$') && (method('GET')))
 	|| (path_regexp('^/api/v1/pki/issuing[.]crt$') && (method('GET')))
 	|| (path_regexp('^/api/v1/pki/ocsp$') && (method('POST')))

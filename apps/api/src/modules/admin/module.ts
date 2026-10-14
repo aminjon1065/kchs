@@ -9,6 +9,7 @@ import { EngineJobs } from '~/kernel/jobs/engine.js'
 import { JobService } from '~/kernel/jobs/service.js'
 import { searchHealthy } from '~/kernel/search/index-service.js'
 import { storageHealthy } from '~/kernel/storage/s3.js'
+import { PkiAuthority } from '~/modules/pki/public.js'
 import { config } from '~/shared/config/env.js'
 import { csvCell } from '~/shared/csv.js'
 import { db } from '~/shared/db/client.js'
@@ -124,6 +125,8 @@ export function registerAdminRoutes(route: RouteRegistrar): void {
         check('storage', async () => {
           if (!(await storageHealthy())) throw new Error('недоступно')
         }),
+        // УЦ Комитета: срок ключей подходит к концу — пора сменить (ADR-0224)
+        ...(await pkiComponent()),
         // Движок — в установке всегда, при разработке — если поднят (ENGINE_INTERNAL_URL)
         ...(config().ENGINE_INTERNAL_URL
           ? [
@@ -176,6 +179,29 @@ export function registerAdminRoutes(route: RouteRegistrar): void {
     summary: 'Активные задания',
     handler: async () => ({ items: await JobService.listActive() }),
   })
+}
+
+/** Строка «Здоровья системы» об УЦ Комитета: предупреждение за месяцы до конца срока ключей. */
+async function pkiComponent(): Promise<
+  Array<{ name: string; status: 'ok' | 'degraded'; detail: string | null; latencyMs: null }>
+> {
+  const status = await PkiAuthority.status()
+  if (!status.initialized) return []
+  if (status.expiring.length === 0) {
+    return [{ name: 'pki', status: 'ok', detail: null, latencyMs: null }]
+  }
+  const names = { root: 'корневой', issuing: 'выпускающий', tsa: 'служба штампов времени' }
+  const list = status.expiring
+    .map((item) => `${names[item.kind]} — до ${item.notAfter.slice(0, 10)}`)
+    .join('; ')
+  return [
+    {
+      name: 'pki',
+      status: 'degraded',
+      detail: `Срок ключей УЦ Комитета подходит к концу (${list}): смените ключ — консоль «УЦ Комитета» или kchs pki rotate`,
+      latencyMs: null,
+    },
+  ]
 }
 
 async function check(

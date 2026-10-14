@@ -15,6 +15,19 @@ const READY = {
   rootNotAfter: '2046-10-14T00:00:00.000Z',
   issuingNotAfter: '2036-10-14T00:00:00.000Z',
   active: 1,
+  issuers: [
+    {
+      fingerprint: 'ab'.repeat(32),
+      path: 'issuing',
+      notAfter: '2036-10-14T00:00:00.000Z',
+      current: true,
+      retiredAt: null,
+      reason: null,
+      revokedAt: null,
+    },
+  ],
+  tsaNotAfter: '2031-10-14T00:00:00.000Z',
+  expiring: [] as Array<{ kind: string; notAfter: string }>,
 }
 
 const SEAL = {
@@ -61,6 +74,32 @@ describe('PkiSection', () => {
     renderWithClient(<PkiSection canInit={false} canManage />)
     expect(await screen.findByText(/ещё не создан/)).toBeVisible()
     expect(screen.queryByRole('button', { name: 'Создать УЦ Комитета' })).toBeNull()
+  })
+
+  it('срок ключей — предупреждение; смена ключа — с причиной и основанием', async () => {
+    const calls = stubApi({
+      '/pki/status': {
+        ...READY,
+        expiring: [{ kind: 'issuing', notAfter: '2027-01-10T00:00:00.000Z' }],
+      },
+      '/admin/pki/certificates': { items: [] },
+      'POST /admin/pki/rotate': READY,
+    })
+    const user = userEvent.setup()
+    renderWithClient(<PkiSection canInit canManage />)
+
+    expect(await screen.findByText(/подходит к концу/)).toHaveTextContent("выпускающий")
+    await user.click(screen.getByRole('button', { name: 'Сменить ключ' }))
+    expect(screen.getByText('Сменить ключ выпускающего УЦ?')).toBeVisible()
+    await user.type(screen.getByRole('textbox'), 'Приказ № 12')
+    await user.click(screen.getAllByRole('button', { name: 'Сменить ключ' }).at(-1) as HTMLElement)
+    await waitFor(() =>
+      expect(calls).toContainEqual({
+        method: 'POST',
+        path: '/admin/pki/rotate',
+        body: { mode: 'planned', reason: 'Приказ № 12' },
+      }),
+    )
   })
 
   it('сертификат печати виден и отзывается', async () => {

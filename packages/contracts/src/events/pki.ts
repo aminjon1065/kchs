@@ -8,6 +8,12 @@ import { Uuid } from '../common/primitives.js'
 export const PKI_EVENTS = {
   /** Созданы корневой и выпускающий сертификаты и сертификат службы штампов времени. */
   'pki.initialized': z.object({ rootFingerprint: z.string() }),
+  /** Смена ключа выпускающего (ADR-0224): плановая или после компрометации. */
+  'pki.rotated': z.object({
+    mode: z.enum(['planned', 'compromise']),
+    previousFingerprint: z.string(),
+    issuingFingerprint: z.string(),
+  }),
   /** Выпущен сертификат сотрудника или печати по ключу устройства. */
   'pki.certificate_issued': z.object({
     certificateId: Uuid,

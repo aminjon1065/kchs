@@ -1,4 +1,4 @@
-import type { PkiCertificateRecord, PkiCertificateState } from '@kchs/contracts'
+import type { PkiCertificateRecord, PkiCertificateState, PkiRotationMode } from '@kchs/contracts'
 import { formatDate, formatDateTime } from '@kchs/fields'
 import {
   AlertDialog,
@@ -6,6 +6,7 @@ import {
   Callout,
   Card,
   EmptyState,
+  Field,
   KeyValueList,
   SearchInput,
   Select,
@@ -14,11 +15,12 @@ import {
   SelectTrigger,
   SelectValue,
   Skeleton,
+  Textarea,
   useDebouncedValue,
   useToast,
 } from '@kchs/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Download, ShieldCheck } from 'lucide-react'
+import { Download, RefreshCw, ShieldCheck } from 'lucide-react'
 import { useState } from 'react'
 import { useT } from '~/shared/i18n.js'
 import { CertificateStateBadge } from './certificate-state.js'
@@ -46,6 +48,9 @@ export function PkiSection({ canInit, canManage }: { canInit: boolean; canManage
   const client = useQueryClient()
   const [creating, setCreating] = useState(false)
   const [revoking, setRevoking] = useState<PkiCertificateRecord | null>(null)
+  const [rotating, setRotating] = useState(false)
+  const [mode, setMode] = useState<PkiRotationMode>('planned')
+  const [reason, setReason] = useState('')
   const [state, setState] = useState<PkiCertificateState | typeof ALL>('active')
   const [search, setSearch] = useState('')
   const q = useDebouncedValue(search.trim(), 300)
@@ -69,6 +74,22 @@ export function PkiSection({ canInit, canManage }: { canInit: boolean; canManage
       toast.error(apiErrorMessage(err) ?? t('errors.unknown'))
     },
   })
+
+  // Смена ключа выпускающего (ADR-0224): плановая или после компрометации
+  const rotate = useMutation({
+    mutationFn: () => pkiApi.rotate({ mode, reason: reason.trim() }),
+    onSuccess: (next) => {
+      setRotating(false)
+      setReason('')
+      client.setQueryData(pkiKeys.status, next)
+      void client.invalidateQueries({ queryKey: ['pki'] })
+      toast.show({ title: t('admin.pki.rotated'), tone: 'success' })
+    },
+    onError: (err) => toast.error(apiErrorMessage(err) ?? t('errors.unknown')),
+  })
+  const current = status.data?.issuers.find((issuer) => issuer.current)
+  const previous = status.data?.issuers.filter((issuer) => !issuer.current) ?? []
+  const expiring = status.data?.expiring ?? []
 
   const revoke = useMutation({
     mutationFn: (id: string) => pkiApi.revoke(id),
@@ -103,10 +124,22 @@ export function PkiSection({ canInit, canManage }: { canInit: boolean; canManage
                 variant="ghost"
                 size="sm"
                 icon={<Download className="size-3.5" />}
-                onClick={() => window.open(issuingCertificateUrl(), '_blank', 'noopener')}
+                onClick={() =>
+                  window.open(issuingCertificateUrl(current?.path), '_blank', 'noopener')
+                }
               >
                 {t('admin.pki.issuing')}
               </Button>
+              {canInit ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={<RefreshCw className="size-3.5" />}
+                  onClick={() => setRotating(true)}
+                >
+                  {t('admin.pki.rotate')}
+                </Button>
+              ) : null}
             </div>
           ) : null
         }
@@ -114,29 +147,65 @@ export function PkiSection({ canInit, canManage }: { canInit: boolean; canManage
         {status.isLoading ? (
           <Skeleton className="h-24 w-full" />
         ) : status.data?.initialized ? (
-          <KeyValueList
-            items={[
-              { key: 'subject', label: t('admin.pki.subject'), value: status.data.rootSubject },
-              {
-                key: 'fingerprint',
-                label: t('admin.pki.fingerprint'),
-                value: (
-                  <span className="break-all font-mono text-xs">{status.data.rootFingerprint}</span>
-                ),
-              },
-              {
-                key: 'root',
-                label: t('admin.pki.rootValid'),
-                value: status.data.rootNotAfter ? formatDate(status.data.rootNotAfter) : '—',
-              },
-              {
-                key: 'issuing',
-                label: t('admin.pki.issuingValid'),
-                value: status.data.issuingNotAfter ? formatDate(status.data.issuingNotAfter) : '—',
-              },
-              { key: 'active', label: t('admin.pki.active'), value: status.data.active },
-            ]}
-          />
+          <div className="flex flex-col gap-3">
+            {expiring.length > 0 ? (
+              <Callout tone="warning">
+                {t('admin.pki.expiring', {
+                  list: expiring
+                    .map(
+                      (item) =>
+                        `${t(`admin.pki.kinds.${item.kind}`)} — ${formatDate(item.notAfter)}`,
+                    )
+                    .join('; '),
+                })}
+              </Callout>
+            ) : null}
+            <KeyValueList
+              items={[
+                { key: 'subject', label: t('admin.pki.subject'), value: status.data.rootSubject },
+                {
+                  key: 'fingerprint',
+                  label: t('admin.pki.fingerprint'),
+                  value: (
+                    <span className="break-all font-mono text-xs">
+                      {status.data.rootFingerprint}
+                    </span>
+                  ),
+                },
+                {
+                  key: 'root',
+                  label: t('admin.pki.rootValid'),
+                  value: status.data.rootNotAfter ? formatDate(status.data.rootNotAfter) : '—',
+                },
+                {
+                  key: 'issuing',
+                  label: t('admin.pki.issuingValid'),
+                  value: status.data.issuingNotAfter
+                    ? formatDate(status.data.issuingNotAfter)
+                    : '—',
+                },
+                { key: 'active', label: t('admin.pki.active'), value: status.data.active },
+                ...(previous.length > 0
+                  ? [
+                      {
+                        key: 'previous',
+                        label: t('admin.pki.previousIssuers'),
+                        value: previous
+                          .map(
+                            (issuer) =>
+                              `${issuer.fingerprint.slice(0, 16)} — ${t(
+                                issuer.reason === 'compromise'
+                                  ? 'admin.pki.modeCompromise'
+                                  : 'admin.pki.modePlanned',
+                              )}`,
+                          )
+                          .join('; '),
+                      },
+                    ]
+                  : []),
+              ]}
+            />
+          </div>
         ) : (
           <div className="flex flex-col items-start gap-3">
             <Callout tone="info">{t('admin.pki.notCreated')}</Callout>
@@ -223,6 +292,43 @@ export function PkiSection({ canInit, canManage }: { canInit: boolean; canManage
         confirmLabel={t('admin.pki.create')}
         loading={init.isPending}
         onConfirm={() => init.mutate()}
+      />
+      <AlertDialog
+        open={rotating}
+        onOpenChange={setRotating}
+        title={t('admin.pki.rotateTitle')}
+        description={t('admin.pki.rotateHint')}
+        consequences={
+          <div className="flex flex-col gap-3">
+            <Field label={t('admin.pki.rotateMode')}>
+              <Select value={mode} onValueChange={(value) => setMode(value as PkiRotationMode)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="planned">{t('admin.pki.modePlanned')}</SelectItem>
+                  <SelectItem value="compromise">{t('admin.pki.modeCompromise')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+            {mode === 'compromise' ? (
+              <Callout tone="danger">{t('admin.pki.modeCompromiseHint')}</Callout>
+            ) : null}
+            <Field label={t('admin.pki.rotateReason')} required>
+              <Textarea
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+                rows={2}
+              />
+            </Field>
+          </div>
+        }
+        confirmLabel={t('admin.pki.rotate')}
+        destructive={mode === 'compromise'}
+        loading={rotate.isPending}
+        onConfirm={() => {
+          if (reason.trim().length >= 3) rotate.mutate()
+        }}
       />
       <AlertDialog
         open={revoking !== null}
